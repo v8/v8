@@ -2157,16 +2157,12 @@ class JSObject: public JSReceiver {
       Handle<Name> key,
       Handle<Object> value,
       PropertyAttributes attributes,
-      StoreMode mode = ALLOW_AS_CONSTANT,
       ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
       ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
 
-  static void AddProperty(Handle<JSObject> object,
-                          Handle<Name> key,
-                          Handle<Object> value,
-                          PropertyAttributes attributes,
-                          StoreMode mode = ALLOW_AS_CONSTANT);
+  static void AddProperty(Handle<JSObject> object, Handle<Name> key,
+                          Handle<Object> value, PropertyAttributes attributes);
 
   // Extend the receiver with a single fast property appeared first in the
   // passed map. This also extends the property backing store if necessary.
@@ -2650,8 +2646,7 @@ class JSObject: public JSReceiver {
   static void GeneralizeFieldRepresentation(Handle<JSObject> object,
                                             int modify_index,
                                             Representation new_representation,
-                                            Handle<HeapType> new_field_type,
-                                            StoreMode store_mode);
+                                            Handle<HeapType> new_field_type);
 
   static void UpdateAllocationSite(Handle<JSObject> object,
                                    ElementsKind to_kind);
@@ -2733,15 +2728,9 @@ class JSObject: public JSReceiver {
 
   // Add a property to an object.
   MUST_USE_RESULT static MaybeHandle<Object> AddPropertyInternal(
-      Handle<JSObject> object,
-      Handle<Name> name,
-      Handle<Object> value,
-      PropertyAttributes attributes,
-      StrictMode strict_mode,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
-      StoreMode mode = ALLOW_AS_CONSTANT,
-      TransitionFlag flag = INSERT_TRANSITION);
+      Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
+      PropertyAttributes attributes, StoreFromKeyed store_mode,
+      ExtensibilityCheck extensibility_check, TransitionFlag flag);
 
   // Add a property to a fast-case object.
   static void AddFastProperty(Handle<JSObject> object,

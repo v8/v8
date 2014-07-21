@@ -1869,15 +1869,9 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
 
 
 MaybeHandle<Object> JSObject::AddPropertyInternal(
-    Handle<JSObject> object,
-    Handle<Name> name,
-    Handle<Object> value,
-    PropertyAttributes attributes,
-    StrictMode strict_mode,
-    JSReceiver::StoreFromKeyed store_mode,
-    ExtensibilityCheck extensibility_check,
-    StoreMode mode,
-    TransitionFlag transition_flag) {
+    Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
+    PropertyAttributes attributes, JSReceiver::StoreFromKeyed store_mode,
+    ExtensibilityCheck extensibility_check, TransitionFlag transition_flag) {
   ASSERT(!object->IsJSGlobalProxy());
   Isolate* isolate = object->GetIsolate();
 
@@ -1888,14 +1882,10 @@ MaybeHandle<Object> JSObject::AddPropertyInternal(
 
   if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
       !object->map()->is_extensible()) {
-    if (strict_mode == SLOPPY) {
-      return value;
-    } else {
-      Handle<Object> args[1] = { name };
-      Handle<Object> error = isolate->factory()->NewTypeError(
-          "object_not_extensible", HandleVector(args, ARRAY_SIZE(args)));
-      return isolate->Throw<Object>(error);
-    }
+    Handle<Object> args[1] = {name};
+    Handle<Object> error = isolate->factory()->NewTypeError(
+        "object_not_extensible", HandleVector(args, ARRAY_SIZE(args)));
+    return isolate->Throw<Object>(error);
   }
 
   if (object->HasFastProperties()) {
@@ -2259,11 +2249,10 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 void JSObject::GeneralizeFieldRepresentation(Handle<JSObject> object,
                                              int modify_index,
                                              Representation new_representation,
-                                             Handle<HeapType> new_field_type,
-                                             StoreMode store_mode) {
+                                             Handle<HeapType> new_field_type) {
   Handle<Map> new_map = Map::GeneralizeRepresentation(
-      handle(object->map()), modify_index, new_representation,
-      new_field_type, store_mode);
+      handle(object->map()), modify_index, new_representation, new_field_type,
+      FORCE_FIELD);
   MigrateToMap(object, new_map);
 }
 
@@ -3992,9 +3981,9 @@ MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
     // fast copy of the map. If we get a fast copy of the map, all field
     // representations will be tagged since the transition is omitted.
     return JSObject::AddPropertyInternal(
-        object, name, value, attributes, SLOPPY,
+        object, name, value, attributes,
         JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED,
-        JSReceiver::OMIT_EXTENSIBILITY_CHECK, FORCE_FIELD, OMIT_TRANSITION);
+        JSReceiver::OMIT_EXTENSIBILITY_CHECK, OMIT_TRANSITION);
   }
 
   // Keep the target CONSTANT if the same value is stored.
@@ -4051,8 +4040,7 @@ void JSObject::SetPropertyToField(LookupResult* lookup, Handle<Object> value) {
         lookup->isolate(), field_representation);
     JSObject::GeneralizeFieldRepresentation(handle(lookup->holder()),
                                             lookup->GetDescriptorIndex(),
-                                            field_representation, field_type,
-                                            FORCE_FIELD);
+                                            field_representation, field_type);
   }
   lookup->holder()->WriteToField(lookup->GetDescriptorIndex(), *value);
 }
@@ -4074,9 +4062,9 @@ void JSObject::ConvertAndSetOwnProperty(LookupResult* lookup,
 
   int descriptor_index = lookup->GetDescriptorIndex();
   if (lookup->GetAttributes() == attributes) {
-    JSObject::GeneralizeFieldRepresentation(
-        object, descriptor_index, Representation::Tagged(),
-        HeapType::Any(lookup->isolate()), FORCE_FIELD);
+    JSObject::GeneralizeFieldRepresentation(object, descriptor_index,
+                                            Representation::Tagged(),
+                                            HeapType::Any(lookup->isolate()));
   } else {
     Handle<Map> old_map(object->map());
     Handle<Map> new_map = Map::CopyGeneralizeAllRepresentations(old_map,
@@ -4101,12 +4089,9 @@ void JSObject::SetPropertyToFieldWithAttributes(LookupResult* lookup,
 }
 
 
-void JSObject::AddProperty(
-    Handle<JSObject> object,
-    Handle<Name> name,
-    Handle<Object> value,
-    PropertyAttributes attributes,
-    StoreMode store_mode) {
+void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
+                           Handle<Object> value,
+                           PropertyAttributes attributes) {
 #ifdef DEBUG
   uint32_t index;
   ASSERT(!object->IsJSProxy());
@@ -4116,7 +4101,7 @@ void JSObject::AddProperty(
   ASSERT(!it.IsFound());
   ASSERT(object->map()->is_extensible());
 #endif
-  SetOwnPropertyIgnoreAttributes(object, name, value, attributes, store_mode,
+  SetOwnPropertyIgnoreAttributes(object, name, value, attributes,
                                  OMIT_EXTENSIBILITY_CHECK).Check();
 }
 
@@ -4128,7 +4113,6 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<Name> name,
     Handle<Object> value,
     PropertyAttributes attributes,
-    StoreMode mode,
     ExtensibilityCheck extensibility_check,
     StoreFromKeyed store_from_keyed,
     ExecutableAccessorInfoHandling handling) {
@@ -4159,7 +4143,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     ASSERT(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return SetOwnPropertyIgnoreAttributes(
         Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), name,
-        value, attributes, mode, extensibility_check);
+        value, attributes, extensibility_check);
   }
 
   if (lookup.IsInterceptor() ||
@@ -4173,9 +4157,8 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     TransitionFlag flag = lookup.IsFound()
         ? OMIT_TRANSITION : INSERT_TRANSITION;
     // Neither properties nor transitions found.
-    return AddPropertyInternal(object, name, value, attributes, SLOPPY,
-                               store_from_keyed, extensibility_check, mode,
-                               flag);
+    return AddPropertyInternal(object, name, value, attributes,
+                               store_from_keyed, extensibility_check, flag);
   }
 
   Handle<Object> old_value = isolate->factory()->the_hole_value();
@@ -5141,7 +5124,7 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
   }
 
   SetOwnPropertyIgnoreAttributes(object, isolate->factory()->hidden_string(),
-                                 value, DONT_ENUM, ALLOW_AS_CONSTANT,
+                                 value, DONT_ENUM,
                                  OMIT_EXTENSIBILITY_CHECK).Assert();
   return object;
 }

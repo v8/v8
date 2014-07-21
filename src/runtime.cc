@@ -267,7 +267,6 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
     }
     MaybeHandle<Object> maybe_result;
     uint32_t element_index = 0;
-    StoreMode mode = value->IsJSObject() ? FORCE_FIELD : ALLOW_AS_CONSTANT;
     if (key->IsInternalizedString()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
@@ -278,7 +277,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
         maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-            boilerplate, name, value, NONE, mode);
+            boilerplate, name, value, NONE);
       }
     } else if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
@@ -293,8 +292,8 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       Vector<char> buffer(arr, ARRAY_SIZE(arr));
       const char* str = DoubleToCString(num, buffer);
       Handle<String> name = isolate->factory()->NewStringFromAsciiChecked(str);
-      maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-          boilerplate, name, value, NONE, mode);
+      maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name,
+                                                              value, NONE);
     }
     // If setting the property on the boilerplate throws an
     // exception, the exception is converted to an empty handle in
@@ -4979,7 +4978,6 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
             js_object, name, obj_value, attr,
-            ALLOW_AS_CONSTANT,
             JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
             JSReceiver::MAY_BE_STORE_FROM_KEYED,
             JSObject::DONT_FORCE_FIELD));
@@ -5132,8 +5130,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSObject::SetOwnPropertyIgnoreAttributes(
-          js_object, name, value, attr, ALLOW_AS_CONSTANT,
-          JSReceiver::PERFORM_EXTENSIBILITY_CHECK, store_from_keyed);
+          js_object, name, value, attr, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+          store_from_keyed);
     }
   }
 
@@ -5148,8 +5146,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
                                 SLOPPY, false, DEFINE_PROPERTY);
   } else {
     return JSObject::SetOwnPropertyIgnoreAttributes(
-        js_object, name, value, attr, ALLOW_AS_CONSTANT,
-        JSReceiver::PERFORM_EXTENSIBILITY_CHECK, store_from_keyed);
+        js_object, name, value, attr, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+        store_from_keyed);
   }
 }
 
