@@ -1437,7 +1437,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_raw_kind_specific_flags2(0);
   code->set_is_crankshafted(crankshafted);
   code->set_deoptimization_data(*empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->set_raw_type_feedback_info(*undefined_value());
+  code->set_raw_type_feedback_info(Smi::FromInt(0));
   code->set_next_code_link(*undefined_value());
   code->set_handler_table(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_prologue_offset(prologue_offset);

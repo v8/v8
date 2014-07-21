@@ -639,7 +639,7 @@ void Code::CodeVerify() {
       last_gc_pc = it.rinfo()->pc();
     }
   }
-  CHECK(raw_type_feedback_info()->IsUndefined() ||
+  CHECK(raw_type_feedback_info() == Smi::FromInt(0) ||
         raw_type_feedback_info()->IsSmi() == IsCodeStubOrIC());
 }
 
