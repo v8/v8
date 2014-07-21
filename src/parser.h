@@ -418,6 +418,10 @@ class ParserTraits {
     fni->PushLiteralName(id);
   }
   void PushPropertyName(FuncNameInferrer* fni, Expression* expression);
+  static void InferFunctionName(FuncNameInferrer* fni,
+                                FunctionLiteral* func_to_infer) {
+    fni->AddFunction(func_to_infer);
+  }
 
   static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
       Scope* scope, Expression* value, bool* has_function) {
@@ -528,7 +532,8 @@ class ParserTraits {
   const AstRawString* GetNextSymbol(Scanner* scanner);
 
   Expression* ThisExpression(Scope* scope,
-                             AstNodeFactory<AstConstructionVisitor>* factory);
+                             AstNodeFactory<AstConstructionVisitor>* factory,
+                             int pos = RelocInfo::kNoPosition);
   Literal* ExpressionFromLiteral(
       Token::Value token, int pos, Scanner* scanner,
       AstNodeFactory<AstConstructionVisitor>* factory);

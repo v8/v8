@@ -7262,6 +7262,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that this function is a generator.
   DECL_BOOLEAN_ACCESSORS(is_generator)
 
+  // Indicates that this function is an arrow function.
+  DECL_BOOLEAN_ACCESSORS(is_arrow)
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -7457,6 +7460,7 @@ class SharedFunctionInfo: public HeapObject {
     kDontCache,
     kDontFlush,
     kIsGenerator,
+    kIsArrow,
     kCompilerHintsCount  // Pseudo entry
   };
 

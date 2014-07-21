@@ -1217,6 +1217,7 @@ void Factory::InitializeFunction(Handle<JSFunction> function,
   function->set_prototype_or_initial_map(*the_hole_value());
   function->set_literals_or_bindings(*empty_fixed_array());
   function->set_next_function_link(*undefined_value());
+  if (info->is_arrow()) function->RemovePrototype();
 }
 
 
@@ -1876,15 +1877,13 @@ Handle<FixedArray> Factory::NewTypeFeedbackVector(int slot_count) {
 
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name,
-    int number_of_literals,
-    bool is_generator,
-    Handle<Code> code,
-    Handle<ScopeInfo> scope_info,
+    Handle<String> name, int number_of_literals, bool is_generator,
+    bool is_arrow, Handle<Code> code, Handle<ScopeInfo> scope_info,
     Handle<FixedArray> feedback_vector) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name, code);
   shared->set_scope_info(*scope_info);
   shared->set_feedback_vector(*feedback_vector);
+  shared->set_is_arrow(is_arrow);
   int literals_array_size = number_of_literals;
   // If the function contains object, regexp or array literals,
   // allocate extra space for a literals array prefix containing the

@@ -1010,7 +1010,7 @@ class PreParserFactory {
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::IsFunctionFlag is_function,
       FunctionLiteral::IsParenthesizedFlag is_parenthesized,
-      FunctionLiteral::IsGeneratorFlag is_generator, int position) {
+      FunctionLiteral::KindFlag kind, int position) {
     return PreParserExpression::Default();
   }
 
@@ -1109,6 +1109,11 @@ class PreParserTraits {
   }
   static void PushPropertyName(FuncNameInferrer* fni,
                                PreParserExpression expression) {
+    // PreParser should not use FuncNameInferrer.
+    UNREACHABLE();
+  }
+  static void InferFunctionName(FuncNameInferrer* fni,
+                                PreParserExpression expression) {
     // PreParser should not use FuncNameInferrer.
     UNREACHABLE();
   }
@@ -1708,8 +1713,8 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
         // Arrow functions are the only expression type constructions
         // for which an empty parameter list "()" is valid input.
         Consume(Token::RPAREN);
-        return this->ParseArrowFunctionLiteral(pos, this->EmptyArrowParamList(),
-                                               CHECK_OK);
+        result = this->ParseArrowFunctionLiteral(
+            pos, this->EmptyArrowParamList(), CHECK_OK);
       } else {
         // Heuristically try to detect immediately called functions before
         // seeing the call parentheses.
@@ -2003,9 +2008,11 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   ExpressionT expression =
       this->ParseConditionalExpression(accept_IN, CHECK_OK);
 
-  if (allow_arrow_functions() && peek() == Token::ARROW)
-    return this->ParseArrowFunctionLiteral(lhs_location.beg_pos, expression,
-                                           CHECK_OK);
+  if (allow_arrow_functions() && peek() == Token::ARROW) {
+    expression = this->ParseArrowFunctionLiteral(lhs_location.beg_pos,
+                                                 expression, CHECK_OK);
+    return expression;
+  }
 
   if (!Token::IsAssignmentOp(peek())) {
     if (fni_ != NULL) fni_->Leave();
@@ -2476,8 +2483,12 @@ ParserBase<Traits>::ParseArrowFunctionLiteralBody(
     const Scanner::Location& reserved_loc,
     FunctionLiteral::IsParenthesizedFlag parenthesized, int start_pos,
     bool* ok) {
+  typename Traits::Type::StatementList body;
+  typename Traits::Type::AstProperties ast_properties;
+  BailoutReason dont_optimize_reason = kNoReason;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
+  int handler_count = 0;
 
   Expect(Token::ARROW, CHECK_OK);
 
@@ -2487,18 +2498,29 @@ ParserBase<Traits>::ParseArrowFunctionLiteralBody(
     bool is_lazily_parsed =
         (mode() == PARSE_LAZILY && scope_->AllowsLazyCompilation());
     if (is_lazily_parsed) {
+      body = this->NewStatementList(0, zone());
       this->SkipLazyFunctionBody(this->EmptyIdentifier(),
                                  &materialized_literal_count,
                                  &expected_property_count, CHECK_OK);
     } else {
-      this->ParseEagerFunctionBody(this->EmptyIdentifier(),
-                                   RelocInfo::kNoPosition, NULL,
-                                   Token::INIT_VAR, false,  // Not a generator.
-                                   CHECK_OK);
+      body = this->ParseEagerFunctionBody(
+          this->EmptyIdentifier(), RelocInfo::kNoPosition, NULL,
+          Token::INIT_VAR, false,  // Not a generator.
+          CHECK_OK);
+      materialized_literal_count = function_state->materialized_literal_count();
+      expected_property_count = function_state->expected_property_count();
+      handler_count = function_state->handler_count();
     }
   } else {
     // Single-expression body
-    ParseAssignmentExpression(true, CHECK_OK);
+    int pos = position();
+    parenthesized_function_ = false;
+    ExpressionT expression = ParseAssignmentExpression(true, CHECK_OK);
+    body = this->NewStatementList(1, zone());
+    body->Add(factory()->NewReturnStatement(expression, pos), zone());
+    materialized_literal_count = function_state->materialized_literal_count();
+    expected_property_count = function_state->expected_property_count();
+    handler_count = function_state->handler_count();
   }
 
   scope->set_start_position(start_pos);
@@ -2518,16 +2540,22 @@ ParserBase<Traits>::ParseArrowFunctionLiteralBody(
   if (allow_harmony_scoping() && strict_mode() == STRICT)
     this->CheckConflictingVarDeclarations(scope, CHECK_OK);
 
-  // TODO(aperez): Generate a proper FunctionLiteral instead of
-  // returning a dummy value.
+  ast_properties = *factory()->visitor()->ast_properties();
+  dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
+
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
-      this->EmptyIdentifierString(), this->ast_value_factory(), scope,
-      this->NewStatementList(0, zone()), 0, 0, 0, num_parameters,
-      FunctionLiteral::kNoDuplicateParameters,
+      this->EmptyIdentifierString(), this->ast_value_factory(), scope, body,
+      materialized_literal_count, expected_property_count, handler_count,
+      num_parameters, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
-      FunctionLiteral::kNotParenthesized, FunctionLiteral::kNotGenerator,
-      start_pos);
+      parenthesized, FunctionLiteral::kArrowFunction, start_pos);
+
   function_literal->set_function_token_position(start_pos);
+  function_literal->set_ast_properties(&ast_properties);
+  function_literal->set_dont_optimize_reason(dont_optimize_reason);
+
+  if (fni_ != NULL) this->InferFunctionName(fni_, function_literal);
+
   return function_literal;
 }
 

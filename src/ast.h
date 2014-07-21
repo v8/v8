@@ -2300,9 +2300,10 @@ class FunctionLiteral V8_FINAL : public Expression {
     kNotParenthesized
   };
 
-  enum IsGeneratorFlag {
-    kIsGenerator,
-    kNotGenerator
+  enum KindFlag {
+    kNormalFunction,
+    kArrowFunction,
+    kGeneratorFunction
   };
 
   enum ArityRestriction {
@@ -2394,9 +2395,8 @@ class FunctionLiteral V8_FINAL : public Expression {
     bitfield_ = IsParenthesized::update(bitfield_, kIsParenthesized);
   }
 
-  bool is_generator() {
-    return IsGenerator::decode(bitfield_) == kIsGenerator;
-  }
+  bool is_generator() { return IsGenerator::decode(bitfield_); }
+  bool is_arrow() { return IsArrow::decode(bitfield_); }
 
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
@@ -2413,20 +2413,14 @@ class FunctionLiteral V8_FINAL : public Expression {
   }
 
  protected:
-  FunctionLiteral(Zone* zone,
-                  const AstRawString* name,
-                  AstValueFactory* ast_value_factory,
-                  Scope* scope,
-                  ZoneList<Statement*>* body,
-                  int materialized_literal_count,
-                  int expected_property_count,
-                  int handler_count,
-                  int parameter_count,
-                  FunctionType function_type,
+  FunctionLiteral(Zone* zone, const AstRawString* name,
+                  AstValueFactory* ast_value_factory, Scope* scope,
+                  ZoneList<Statement*>* body, int materialized_literal_count,
+                  int expected_property_count, int handler_count,
+                  int parameter_count, FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   IsFunctionFlag is_function,
-                  IsParenthesizedFlag is_parenthesized,
-                  IsGeneratorFlag is_generator,
+                  IsParenthesizedFlag is_parenthesized, KindFlag kind,
                   int position)
       : Expression(zone, position),
         raw_name_(name),
@@ -2439,14 +2433,14 @@ class FunctionLiteral V8_FINAL : public Expression {
         handler_count_(handler_count),
         parameter_count_(parameter_count),
         function_token_position_(RelocInfo::kNoPosition) {
-    bitfield_ =
-        IsExpression::encode(function_type != DECLARATION) |
-        IsAnonymous::encode(function_type == ANONYMOUS_EXPRESSION) |
-        Pretenure::encode(false) |
-        HasDuplicateParameters::encode(has_duplicate_parameters) |
-        IsFunction::encode(is_function) |
-        IsParenthesized::encode(is_parenthesized) |
-        IsGenerator::encode(is_generator);
+    bitfield_ = IsExpression::encode(function_type != DECLARATION) |
+                IsAnonymous::encode(function_type == ANONYMOUS_EXPRESSION) |
+                Pretenure::encode(false) |
+                HasDuplicateParameters::encode(has_duplicate_parameters) |
+                IsFunction::encode(is_function) |
+                IsParenthesized::encode(is_parenthesized) |
+                IsGenerator::encode(kind == kGeneratorFunction) |
+                IsArrow::encode(kind == kArrowFunction);
   }
 
  private:
@@ -2473,7 +2467,8 @@ class FunctionLiteral V8_FINAL : public Expression {
   class HasDuplicateParameters: public BitField<ParameterFlag, 3, 1> {};
   class IsFunction: public BitField<IsFunctionFlag, 4, 1> {};
   class IsParenthesized: public BitField<IsParenthesizedFlag, 5, 1> {};
-  class IsGenerator: public BitField<IsGeneratorFlag, 6, 1> {};
+  class IsGenerator : public BitField<bool, 6, 1> {};
+  class IsArrow : public BitField<bool, 7, 1> {};
 };
 
 
@@ -3388,25 +3383,19 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
   }
 
   FunctionLiteral* NewFunctionLiteral(
-      const AstRawString* name,
-      AstValueFactory* ast_value_factory,
-      Scope* scope,
-      ZoneList<Statement*>* body,
-      int materialized_literal_count,
-      int expected_property_count,
-      int handler_count,
-      int parameter_count,
+      const AstRawString* name, AstValueFactory* ast_value_factory,
+      Scope* scope, ZoneList<Statement*>* body, int materialized_literal_count,
+      int expected_property_count, int handler_count, int parameter_count,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::IsFunctionFlag is_function,
       FunctionLiteral::IsParenthesizedFlag is_parenthesized,
-      FunctionLiteral::IsGeneratorFlag is_generator,
-      int position) {
-    FunctionLiteral* lit = new(zone_) FunctionLiteral(
-        zone_, name, ast_value_factory, scope, body,
-        materialized_literal_count, expected_property_count, handler_count,
-        parameter_count, function_type, has_duplicate_parameters, is_function,
-        is_parenthesized, is_generator, position);
+      FunctionLiteral::KindFlag kind, int position) {
+    FunctionLiteral* lit = new (zone_) FunctionLiteral(
+        zone_, name, ast_value_factory, scope, body, materialized_literal_count,
+        expected_property_count, handler_count, parameter_count, function_type,
+        has_duplicate_parameters, is_function, is_parenthesized, kind,
+        position);
     // Top-level literal doesn't count for the AST's properties.
     if (is_function == FunctionLiteral::kIsFunction) {
       visitor_.VisitFunctionLiteral(lit);

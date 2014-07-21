@@ -5579,6 +5579,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)

@@ -627,6 +627,7 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_bailout_reason(lit->dont_optimize_reason());
   function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
   function_info->set_is_generator(lit->is_generator());
+  function_info->set_is_arrow(lit->is_arrow());
 }
 
 
@@ -842,10 +843,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     // Allocate function.
     ASSERT(!info->code().is_null());
     result = isolate->factory()->NewSharedFunctionInfo(
-        lit->name(),
-        lit->materialized_literal_count(),
-        lit->is_generator(),
-        info->code(),
+        lit->name(), lit->materialized_literal_count(), lit->is_generator(),
+        lit->is_arrow(), info->code(),
         ScopeInfo::Create(info->scope(), info->zone()),
         info->feedback_vector());
 
@@ -1052,13 +1051,10 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   }
 
   // Create a shared function info object.
-  Handle<SharedFunctionInfo> result =
-      factory->NewSharedFunctionInfo(literal->name(),
-                                     literal->materialized_literal_count(),
-                                     literal->is_generator(),
-                                     info.code(),
-                                     scope_info,
-                                     info.feedback_vector());
+  Handle<SharedFunctionInfo> result = factory->NewSharedFunctionInfo(
+      literal->name(), literal->materialized_literal_count(),
+      literal->is_generator(), literal->is_arrow(), info.code(), scope_info,
+      info.feedback_vector());
   SetFunctionInfo(result, literal, false, script);
   RecordFunctionCompilation(Logger::FUNCTION_TAG, &info, result);
   result->set_allows_lazy_compilation(allow_lazy);

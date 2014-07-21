@@ -2695,6 +2695,14 @@ RUNTIME_FUNCTION(Runtime_FunctionIsGenerator) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_FunctionIsArrow) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, f, 0);
+  return isolate->heap()->ToBoolean(f->shared()->is_arrow());
+}
+
+
 RUNTIME_FUNCTION(Runtime_FunctionRemovePrototype) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);

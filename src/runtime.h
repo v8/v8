@@ -187,6 +187,7 @@ namespace internal {
   F(FunctionNameShouldPrintAsAnonymous, 1, 1)          \
   F(FunctionMarkNameShouldPrintAsAnonymous, 1, 1)      \
   F(FunctionIsGenerator, 1, 1)                         \
+  F(FunctionIsArrow, 1, 1)                             \
   F(FunctionBindArguments, 4, 1)                       \
   F(BoundFunctionGetBindings, 1, 1)                    \
   F(FunctionRemovePrototype, 1, 1)                     \
