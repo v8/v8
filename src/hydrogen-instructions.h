@@ -451,7 +451,7 @@ class HSourcePosition {
   typedef BitField<int, 0, 9> InliningIdField;
 
   // Offset from the start of the inlined function.
-  typedef BitField<int, 9, 22> PositionField;
+  typedef BitField<int, 9, 23> PositionField;
 
   // On HPositionInfo can use this constructor.
   explicit HSourcePosition(int value) : value_(value) { }
