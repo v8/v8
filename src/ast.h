@@ -1625,7 +1625,7 @@ class ArrayLiteral V8_FINAL : public MaterializedLiteral {
 };
 
 
-class VariableProxy V8_FINAL : public Expression {
+class VariableProxy V8_FINAL : public Expression, public FeedbackSlotInterface {
  public:
   DECLARE_NODE_TYPE(VariableProxy)
 
@@ -1647,6 +1647,13 @@ class VariableProxy V8_FINAL : public Expression {
   // Bind this proxy to the variable var. Interfaces must match.
   void BindTo(Variable* var);
 
+  virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
+  virtual void SetFirstFeedbackSlot(int slot) {
+    variable_feedback_slot_ = slot;
+  }
+
+  int VariableFeedbackSlot() { return variable_feedback_slot_; }
+
  protected:
   VariableProxy(Zone* zone, Variable* var, int position);
 
@@ -1661,10 +1668,11 @@ class VariableProxy V8_FINAL : public Expression {
   bool is_this_;
   bool is_assigned_;
   Interface* interface_;
+  int variable_feedback_slot_;
 };
 
 
-class Property V8_FINAL : public Expression {
+class Property V8_FINAL : public Expression, public FeedbackSlotInterface {
  public:
   DECLARE_NODE_TYPE(Property)
 
@@ -1700,6 +1708,13 @@ class Property V8_FINAL : public Expression {
 
   TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
+  virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
+  virtual void SetFirstFeedbackSlot(int slot) {
+    property_feedback_slot_ = slot;
+  }
+
+  int PropertyFeedbackSlot() const { return property_feedback_slot_; }
+
  protected:
   Property(Zone* zone,
            Expression* obj,
@@ -1709,6 +1724,7 @@ class Property V8_FINAL : public Expression {
         obj_(obj),
         key_(key),
         load_id_(GetNextId(zone)),
+        property_feedback_slot_(kInvalidFeedbackSlot),
         is_for_call_(false),
         is_uninitialized_(false),
         is_string_access_(false),
@@ -1718,6 +1734,7 @@ class Property V8_FINAL : public Expression {
   Expression* obj_;
   Expression* key_;
   const BailoutId load_id_;
+  int property_feedback_slot_;
 
   SmallMapList receiver_types_;
   bool is_for_call_ : 1;
@@ -1895,7 +1912,7 @@ class CallNew V8_FINAL : public Expression, public FeedbackSlotInterface {
 // language construct. Instead it is used to call a C or JS function
 // with a set of arguments. This is used from the builtins that are
 // implemented in JavaScript (see "v8natives.js").
-class CallRuntime V8_FINAL : public Expression {
+class CallRuntime V8_FINAL : public Expression, public FeedbackSlotInterface {
  public:
   DECLARE_NODE_TYPE(CallRuntime)
 
@@ -1904,6 +1921,20 @@ class CallRuntime V8_FINAL : public Expression {
   const Runtime::Function* function() const { return function_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
   bool is_jsruntime() const { return function_ == NULL; }
+
+  // Type feedback information.
+  virtual int ComputeFeedbackSlotCount() {
+    return (FLAG_vector_ics && is_jsruntime()) ? 1 : 0;
+  }
+  virtual void SetFirstFeedbackSlot(int slot) {
+    callruntime_feedback_slot_ = slot;
+  }
+
+  int CallRuntimeFeedbackSlot() {
+    ASSERT(!is_jsruntime() ||
+           callruntime_feedback_slot_ != kInvalidFeedbackSlot);
+    return callruntime_feedback_slot_;
+  }
 
   TypeFeedbackId CallRuntimeFeedbackId() const { return reuse(id()); }
 
@@ -1922,6 +1953,7 @@ class CallRuntime V8_FINAL : public Expression {
   const AstRawString* raw_name_;
   const Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
+  int callruntime_feedback_slot_;
 };
 
 
@@ -2215,7 +2247,7 @@ class Assignment V8_FINAL : public Expression {
 };
 
 
-class Yield V8_FINAL : public Expression {
+class Yield V8_FINAL : public Expression, public FeedbackSlotInterface {
  public:
   DECLARE_NODE_TYPE(Yield)
 
@@ -2242,6 +2274,29 @@ class Yield V8_FINAL : public Expression {
     index_ = index;
   }
 
+  // Type feedback information.
+  virtual int ComputeFeedbackSlotCount() {
+    return (FLAG_vector_ics && yield_kind() == DELEGATING) ? 3 : 0;
+  }
+  virtual void SetFirstFeedbackSlot(int slot) {
+    yield_first_feedback_slot_ = slot;
+  }
+
+  int KeyedLoadFeedbackSlot() {
+    ASSERT(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
+    return yield_first_feedback_slot_;
+  }
+
+  int DoneFeedbackSlot() {
+    ASSERT(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
+    return yield_first_feedback_slot_ + 1;
+  }
+
+  int ValueFeedbackSlot() {
+    ASSERT(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
+    return yield_first_feedback_slot_ + 2;
+  }
+
  protected:
   Yield(Zone* zone,
         Expression* generator_object,
@@ -2252,13 +2307,15 @@ class Yield V8_FINAL : public Expression {
         generator_object_(generator_object),
         expression_(expression),
         yield_kind_(yield_kind),
-        index_(-1) { }
+        index_(-1),
+        yield_first_feedback_slot_(kInvalidFeedbackSlot) { }
 
  private:
   Expression* generator_object_;
   Expression* expression_;
   Kind yield_kind_;
   int index_;
+  int yield_first_feedback_slot_;
 };
 
 

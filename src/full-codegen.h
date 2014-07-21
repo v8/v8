@@ -495,11 +495,11 @@ class FullCodeGenerator: public AstVisitor {
                            JSGeneratorObject::ResumeMode resume_mode);
 
   // Platform-specific code for loading variables.
-  void EmitLoadGlobalCheckExtensions(Variable* var,
+  void EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
                                      TypeofState typeof_state,
                                      Label* slow);
   MemOperand ContextSlotOperandCheckExtensions(Variable* var, Label* slow);
-  void EmitDynamicLookupFastCase(Variable* var,
+  void EmitDynamicLookupFastCase(VariableProxy* proxy,
                                  TypeofState typeof_state,
                                  Label* slow,
                                  Label* done);

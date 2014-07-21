@@ -1570,11 +1570,13 @@ class LLoadNamedField V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadNamedGeneric V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LLoadNamedGeneric V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
-  explicit LLoadNamedGeneric(LOperand* context, LOperand* object) {
+  explicit LLoadNamedGeneric(LOperand* context, LOperand* object,
+                             LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = object;
+    temps_[0] = vector;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric, "load-named-generic")
@@ -1582,6 +1584,8 @@ class LLoadNamedGeneric V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 
   LOperand* context() { return inputs_[0]; }
   LOperand* object() { return inputs_[1]; }
+  LOperand* temp_vector() { return temps_[0]; }
+
   Handle<Object> name() const { return hydrogen()->name(); }
 };
 
@@ -1653,19 +1657,23 @@ class LLoadKeyed V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LLoadKeyedGeneric V8_FINAL : public LTemplateInstruction<1, 3, 0> {
+class LLoadKeyedGeneric V8_FINAL : public LTemplateInstruction<1, 3, 1> {
  public:
-  LLoadKeyedGeneric(LOperand* context, LOperand* obj, LOperand* key) {
+  LLoadKeyedGeneric(LOperand* context, LOperand* obj, LOperand* key,
+                    LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = obj;
     inputs_[2] = key;
+    temps_[0] = vector;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric, "load-keyed-generic")
+  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedGeneric)
 
   LOperand* context() { return inputs_[0]; }
   LOperand* object() { return inputs_[1]; }
   LOperand* key() { return inputs_[2]; }
+  LOperand* temp_vector() { return temps_[0]; }
 };
 
 
@@ -1676,11 +1684,13 @@ class LLoadGlobalCell V8_FINAL : public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LLoadGlobalGeneric V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LLoadGlobalGeneric V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
-  explicit LLoadGlobalGeneric(LOperand* context, LOperand* global_object) {
+  explicit LLoadGlobalGeneric(LOperand* context, LOperand* global_object,
+                              LOperand* vector) {
     inputs_[0] = context;
     inputs_[1] = global_object;
+    temps_[0] = vector;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric, "load-global-generic")
@@ -1688,6 +1698,8 @@ class LLoadGlobalGeneric V8_FINAL : public LTemplateInstruction<1, 2, 0> {
 
   LOperand* context() { return inputs_[0]; }
   LOperand* global_object() { return inputs_[1]; }
+  LOperand* temp_vector() { return temps_[0]; }
+
   Handle<Object> name() const { return hydrogen()->name(); }
   bool for_typeof() const { return hydrogen()->for_typeof(); }
 };

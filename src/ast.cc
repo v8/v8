@@ -65,7 +65,8 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
       is_assigned_(false),
-      interface_(var->interface()) {
+      interface_(var->interface()),
+      variable_feedback_slot_(kInvalidFeedbackSlot) {
   BindTo(var);
 }
 
@@ -80,7 +81,8 @@ VariableProxy::VariableProxy(Zone* zone,
       var_(NULL),
       is_this_(is_this),
       is_assigned_(false),
-      interface_(interface) {
+      interface_(interface),
+      variable_feedback_slot_(kInvalidFeedbackSlot) {
 }
 
 
@@ -1021,7 +1023,14 @@ CaseClause::CaseClause(Zone* zone,
     set_dont_optimize_reason(k##NodeType); \
     add_flag(kDontSelfOptimize); \
   }
-#define DONT_SELFOPTIMIZE_NODE(NodeType) \
+#define DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(NodeType) \
+  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
+    increase_node_count(); \
+    add_slot_node(node); \
+    set_dont_optimize_reason(k##NodeType); \
+    add_flag(kDontSelfOptimize); \
+  }
+#define DONT_SELFOPTIMIZE_NODE(NodeType)                         \
   void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
     increase_node_count(); \
     add_flag(kDontSelfOptimize); \
@@ -1059,20 +1068,21 @@ REGULAR_NODE(RegExpLiteral)
 REGULAR_NODE(FunctionLiteral)
 REGULAR_NODE(Assignment)
 REGULAR_NODE(Throw)
-REGULAR_NODE(Property)
 REGULAR_NODE(UnaryOperation)
 REGULAR_NODE(CountOperation)
 REGULAR_NODE(BinaryOperation)
 REGULAR_NODE(CompareOperation)
 REGULAR_NODE(ThisFunction)
+
 REGULAR_NODE_WITH_FEEDBACK_SLOTS(Call)
 REGULAR_NODE_WITH_FEEDBACK_SLOTS(CallNew)
+REGULAR_NODE_WITH_FEEDBACK_SLOTS(Property)
 // In theory, for VariableProxy we'd have to add:
 // if (node->var()->IsLookupSlot())
 //   set_dont_optimize_reason(kReferenceToAVariableWhichRequiresDynamicLookup);
 // But node->var() is usually not bound yet at VariableProxy creation time, and
 // LOOKUP variables only result from constructs that cannot be inlined anyway.
-REGULAR_NODE(VariableProxy)
+REGULAR_NODE_WITH_FEEDBACK_SLOTS(VariableProxy)
 
 // We currently do not optimize any modules.
 DONT_OPTIMIZE_NODE(ModuleDeclaration)
@@ -1082,24 +1092,27 @@ DONT_OPTIMIZE_NODE(ModuleVariable)
 DONT_OPTIMIZE_NODE(ModulePath)
 DONT_OPTIMIZE_NODE(ModuleUrl)
 DONT_OPTIMIZE_NODE(ModuleStatement)
-DONT_OPTIMIZE_NODE(Yield)
 DONT_OPTIMIZE_NODE(WithStatement)
 DONT_OPTIMIZE_NODE(TryCatchStatement)
 DONT_OPTIMIZE_NODE(TryFinallyStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
 DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
 
+DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(Yield)
+
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)
 DONT_SELFOPTIMIZE_NODE(ForStatement)
-DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(ForInStatement)
 DONT_SELFOPTIMIZE_NODE(ForOfStatement)
+
+DONT_SELFOPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(ForInStatement)
 
 DONT_CACHE_NODE(ModuleLiteral)
 
 
 void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
   increase_node_count();
+  add_slot_node(node);
   if (node->is_jsruntime()) {
     // Don't try to optimize JS runtime calls because we bailout on them.
     set_dont_optimize_reason(kCallToAJavaScriptRuntimeFunction);

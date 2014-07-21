@@ -5371,6 +5371,13 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
             New<HLoadGlobalGeneric>(global_object,
                                     variable->name(),
                                     ast_context()->is_for_typeof());
+        if (FLAG_vector_ics) {
+          Handle<SharedFunctionInfo> current_shared =
+              function_state()->compilation_info()->shared_info();
+          instr->SetVectorAndSlot(
+              handle(current_shared->feedback_vector(), isolate()),
+              expr->VariableFeedbackSlot());
+        }
         return ast_context()->ReturnInstruction(instr, expr->id());
       }
     }
@@ -5589,7 +5596,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             if (map.is_null()) {
               // If we don't know the monomorphic type, do a generic store.
               CHECK_ALIVE(store = BuildNamedGeneric(
-                  STORE, literal, name, value));
+                  STORE, NULL, literal, name, value));
             } else {
               PropertyAccessInfo info(this, STORE, ToType(map), name);
               if (info.CanAccessMonomorphic()) {
@@ -5600,7 +5607,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
                     BailoutId::None(), BailoutId::None());
               } else {
                 CHECK_ALIVE(store = BuildNamedGeneric(
-                    STORE, literal, name, value));
+                    STORE, NULL, literal, name, value));
               }
             }
             AddInstruction(store);
@@ -6213,6 +6220,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
 
 void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
     PropertyAccessType access_type,
+    Expression* expr,
     BailoutId ast_id,
     BailoutId return_id,
     HValue* object,
@@ -6326,7 +6334,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
     FinishExitWithHardDeoptimization("Uknown map in polymorphic access");
   } else {
-    HInstruction* instr = BuildNamedGeneric(access_type, object, name, value);
+    HInstruction* instr = BuildNamedGeneric(access_type, expr, object, name,
+                                            value);
     AddInstruction(instr);
     if (!ast_context()->IsEffect()) Push(access_type == LOAD ? instr : value);
 
@@ -6773,6 +6782,7 @@ HInstruction* HGraphBuilder::AddLoadStringLength(HValue* string) {
 
 HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     PropertyAccessType access_type,
+    Expression* expr,
     HValue* object,
     Handle<String> name,
     HValue* value,
@@ -6782,7 +6792,15 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
                      Deoptimizer::SOFT);
   }
   if (access_type == LOAD) {
-    return New<HLoadNamedGeneric>(object, name);
+    HLoadNamedGeneric* result = New<HLoadNamedGeneric>(object, name);
+    if (FLAG_vector_ics) {
+      Handle<SharedFunctionInfo> current_shared =
+          function_state()->compilation_info()->shared_info();
+      result->SetVectorAndSlot(
+          handle(current_shared->feedback_vector(), isolate()),
+          expr->AsProperty()->PropertyFeedbackSlot());
+    }
+    return result;
   } else {
     return New<HStoreNamedGeneric>(object, name, value, function_strict_mode());
   }
@@ -6792,11 +6810,20 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
 
 HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
     PropertyAccessType access_type,
+    Expression* expr,
     HValue* object,
     HValue* key,
     HValue* value) {
   if (access_type == LOAD) {
-    return New<HLoadKeyedGeneric>(object, key);
+    HLoadKeyedGeneric* result = New<HLoadKeyedGeneric>(object, key);
+    if (FLAG_vector_ics) {
+      Handle<SharedFunctionInfo> current_shared =
+          function_state()->compilation_info()->shared_info();
+      result->SetVectorAndSlot(
+          handle(current_shared->feedback_vector(), isolate()),
+          expr->AsProperty()->PropertyFeedbackSlot());
+    }
+    return result;
   } else {
     return New<HStoreKeyedGeneric>(object, key, value, function_strict_mode());
   }
@@ -6924,6 +6951,7 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
 
 
 HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
+    Expression* expr,
     HValue* object,
     HValue* key,
     HValue* val,
@@ -6955,7 +6983,8 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
       possible_transitioned_maps.Add(map);
     }
     if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
-      HInstruction* result = BuildKeyedGeneric(access_type, object, key, val);
+      HInstruction* result = BuildKeyedGeneric(access_type, expr, object, key,
+                                               val);
       *has_side_effects = result->HasObservableSideEffects();
       return AddInstruction(result);
     }
@@ -6992,7 +7021,8 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     HInstruction* instr = NULL;
     if (untransitionable_map->has_slow_elements_kind() ||
         !untransitionable_map->IsJSObjectMap()) {
-      instr = AddInstruction(BuildKeyedGeneric(access_type, object, key, val));
+      instr = AddInstruction(BuildKeyedGeneric(access_type, expr, object, key,
+                                               val));
     } else {
       instr = BuildMonomorphicElementAccess(
           object, key, val, transition, untransitionable_map, access_type,
@@ -7017,7 +7047,8 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
     set_current_block(this_map);
     HInstruction* access = NULL;
     if (IsDictionaryElementsKind(elements_kind)) {
-      access = AddInstruction(BuildKeyedGeneric(access_type, object, key, val));
+      access = AddInstruction(BuildKeyedGeneric(access_type, expr, object, key,
+                                                val));
     } else {
       ASSERT(IsFastElementsKind(elements_kind) ||
              IsExternalArrayElementsKind(elements_kind) ||
@@ -7088,7 +7119,8 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   if (monomorphic) {
     Handle<Map> map = types->first();
     if (map->has_slow_elements_kind() || !map->IsJSObjectMap()) {
-      instr = AddInstruction(BuildKeyedGeneric(access_type, obj, key, val));
+      instr = AddInstruction(BuildKeyedGeneric(access_type, expr, obj, key,
+                                               val));
     } else {
       BuildCheckHeapObject(obj);
       instr = BuildMonomorphicElementAccess(
@@ -7096,7 +7128,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     }
   } else if (!force_generic && (types != NULL && !types->is_empty())) {
     return HandlePolymorphicElementAccess(
-        obj, key, val, types, access_type,
+        expr, obj, key, val, types, access_type,
         expr->GetStoreMode(), has_side_effects);
   } else {
     if (access_type == STORE) {
@@ -7111,7 +7143,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
                          Deoptimizer::SOFT);
       }
     }
-    instr = AddInstruction(BuildKeyedGeneric(access_type, obj, key, val));
+    instr = AddInstruction(BuildKeyedGeneric(access_type, expr, obj, key, val));
   }
   *has_side_effects = instr->HasObservableSideEffects();
   return instr;
@@ -7212,7 +7244,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedAccess(
     PropertyAccessInfo info(this, access, ToType(types->first()), name);
     if (!info.CanAccessAsMonomorphic(types)) {
       HandlePolymorphicNamedFieldAccess(
-          access, ast_id, return_id, object, value, types, name);
+          access, expr, ast_id, return_id, object, value, types, name);
       return NULL;
     }
 
@@ -7230,7 +7262,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedAccess(
         &info, object, checked_object, value, ast_id, return_id);
   }
 
-  return BuildNamedGeneric(access, object, name, value, is_uninitialized);
+  return BuildNamedGeneric(access, expr, object, name, value, is_uninitialized);
 }
 
 
@@ -7559,7 +7591,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   } else {
     Property* prop = expr->expression()->AsProperty();
     HInstruction* function = BuildNamedGeneric(
-        LOAD, receiver, name, NULL, prop->IsUninitialized());
+        LOAD, prop, receiver, name, NULL, prop->IsUninitialized());
     AddInstruction(function);
     Push(function);
     AddSimulate(prop->LoadId(), REMOVABLE_SIMULATE);

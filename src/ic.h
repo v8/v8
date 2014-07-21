@@ -392,6 +392,11 @@ class LoadIC: public IC {
   static const Register ReceiverRegister();
   static const Register NameRegister();
 
+  // With flag vector-ics, there is an additional argument. And for calls from
+  // crankshaft, yet another.
+  static const Register SlotRegister();
+  static const Register VectorRegister();
+
   static ExtraICState ComputeExtraICState(ContextualMode contextual_mode) {
     return ContextualModeBits::encode(contextual_mode);
   }

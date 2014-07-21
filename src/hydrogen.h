@@ -2415,6 +2415,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
   void HandlePolymorphicNamedFieldAccess(PropertyAccessType access_type,
+                                         Expression* expr,
                                          BailoutId ast_id,
                                          BailoutId return_id,
                                          HValue* object,
@@ -2592,6 +2593,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   HInstruction* BuildIncrement(bool returns_original_input,
                                CountOperation* expr);
   HInstruction* BuildKeyedGeneric(PropertyAccessType access_type,
+                                  Expression* expr,
                                   HValue* object,
                                   HValue* key,
                                   HValue* value);
@@ -2611,7 +2613,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                               PropertyAccessType access_type,
                                               KeyedAccessStoreMode store_mode);
 
-  HValue* HandlePolymorphicElementAccess(HValue* object,
+  HValue* HandlePolymorphicElementAccess(Expression* expr,
+                                         HValue* object,
                                          HValue* key,
                                          HValue* val,
                                          SmallMapList* maps,
@@ -2627,6 +2630,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                    bool* has_side_effects);
 
   HInstruction* BuildNamedGeneric(PropertyAccessType access,
+                                  Expression* expr,
                                   HValue* object,
                                   Handle<String> name,
                                   HValue* value,

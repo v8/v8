@@ -1000,6 +1000,18 @@ const Register LoadIC::ReceiverRegister() { return rdx; }
 const Register LoadIC::NameRegister() { return rcx; }
 
 
+const Register LoadIC::SlotRegister() {
+  ASSERT(FLAG_vector_ics);
+  return rax;
+}
+
+
+const Register LoadIC::VectorRegister() {
+  ASSERT(FLAG_vector_ics);
+  return rbx;
+}
+
+
 const Register StoreIC::ReceiverRegister() { return rdx; }
 const Register StoreIC::NameRegister() { return rcx; }
 const Register StoreIC::ValueRegister() { return rax; }

@@ -3385,6 +3385,15 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->global_object()).is(LoadIC::ReceiverRegister()));
   ASSERT(ToRegister(instr->result()).Is(x0));
   __ Mov(LoadIC::NameRegister(), Operand(instr->name()));
+  if (FLAG_vector_ics) {
+    Register vector = ToRegister(instr->temp_vector());
+    ASSERT(vector.is(LoadIC::VectorRegister()));
+    __ Mov(vector, instr->hydrogen()->feedback_vector());
+    // No need to allocate this register.
+    ASSERT(LoadIC::SlotRegister().is(x0));
+    __ Mov(LoadIC::SlotRegister(),
+           Smi::FromInt(instr->hydrogen()->slot()));
+  }
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -3637,6 +3646,15 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->object()).is(LoadIC::ReceiverRegister()));
   ASSERT(ToRegister(instr->key()).is(LoadIC::NameRegister()));
+  if (FLAG_vector_ics) {
+    Register vector = ToRegister(instr->temp_vector());
+    ASSERT(vector.is(LoadIC::VectorRegister()));
+    __ Mov(vector, instr->hydrogen()->feedback_vector());
+    // No need to allocate this register.
+    ASSERT(LoadIC::SlotRegister().is(x0));
+    __ Mov(LoadIC::SlotRegister(),
+           Smi::FromInt(instr->hydrogen()->slot()));
+  }
 
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -3690,6 +3708,15 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   // LoadIC expects name and receiver in registers.
   ASSERT(ToRegister(instr->object()).is(LoadIC::ReceiverRegister()));
   __ Mov(LoadIC::NameRegister(), Operand(instr->name()));
+  if (FLAG_vector_ics) {
+    Register vector = ToRegister(instr->temp_vector());
+    ASSERT(vector.is(LoadIC::VectorRegister()));
+    __ Mov(vector, instr->hydrogen()->feedback_vector());
+    // No need to allocate this register.
+    ASSERT(LoadIC::SlotRegister().is(x0));
+    __ Mov(LoadIC::SlotRegister(),
+           Smi::FromInt(instr->hydrogen()->slot()));
+  }
 
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
