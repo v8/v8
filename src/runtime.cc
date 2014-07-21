@@ -5997,9 +5997,7 @@ RUNTIME_FUNCTION(Runtime_Typeof) {
         return isolate->heap()->boolean_string();
       }
       if (heap_obj->IsNull()) {
-        return FLAG_harmony_typeof
-            ? isolate->heap()->null_string()
-            : isolate->heap()->object_string();
+        return isolate->heap()->object_string();
       }
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_string();

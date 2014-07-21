@@ -4149,11 +4149,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ JumpIfRoot(x0, Heap::kTrueValueRootIndex, if_true);
     __ CompareRoot(x0, Heap::kFalseValueRootIndex);
     Split(eq, if_true, if_false, fall_through);
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(check, factory->null_string())) {
-    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof null_string");
-    __ CompareRoot(x0, Heap::kNullValueRootIndex);
-    Split(eq, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->undefined_string())) {
     ASM_LOCATION(
         "FullCodeGenerator::EmitLiteralCompareTypeof undefined_string");
@@ -4175,9 +4170,7 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   } else if (String::Equals(check, factory->object_string())) {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof object_string");
     __ JumpIfSmi(x0, if_false);
-    if (!FLAG_harmony_typeof) {
-      __ JumpIfRoot(x0, Heap::kNullValueRootIndex, if_true);
-    }
+    __ JumpIfRoot(x0, Heap::kNullValueRootIndex, if_true);
     // Check for JS objects => true.
     Register map = x10;
     __ JumpIfObjectType(x0, map, x11, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE,

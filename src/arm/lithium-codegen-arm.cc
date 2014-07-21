@@ -5512,11 +5512,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ CompareRoot(input, Heap::kFalseValueRootIndex);
     final_branch_condition = eq;
 
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(type_name, factory->null_string())) {
-    __ CompareRoot(input, Heap::kNullValueRootIndex);
-    final_branch_condition = eq;
-
   } else if (String::Equals(type_name, factory->undefined_string())) {
     __ CompareRoot(input, Heap::kUndefinedValueRootIndex);
     __ b(eq, true_label);
@@ -5539,10 +5534,8 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   } else if (String::Equals(type_name, factory->object_string())) {
     Register map = scratch;
     __ JumpIfSmi(input, false_label);
-    if (!FLAG_harmony_typeof) {
-      __ CompareRoot(input, Heap::kNullValueRootIndex);
-      __ b(eq, true_label);
-    }
+    __ CompareRoot(input, Heap::kNullValueRootIndex);
+    __ b(eq, true_label);
     __ CheckObjectTypeRange(input,
                             map,
                             FIRST_NONCALLABLE_SPEC_OBJECT_TYPE,

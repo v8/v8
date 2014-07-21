@@ -5353,11 +5353,6 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
     __ cmp(input, factory()->false_value());
     final_branch_condition = equal;
 
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(type_name, factory()->null_string())) {
-    __ cmp(input, factory()->null_value());
-    final_branch_condition = equal;
-
   } else if (String::Equals(type_name, factory()->undefined_string())) {
     __ cmp(input, factory()->undefined_value());
     __ j(equal, true_label, true_distance);
@@ -5378,10 +5373,8 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
 
   } else if (String::Equals(type_name, factory()->object_string())) {
     __ JumpIfSmi(input, false_label, false_distance);
-    if (!FLAG_harmony_typeof) {
-      __ cmp(input, factory()->null_value());
-      __ j(equal, true_label, true_distance);
-    }
+    __ cmp(input, factory()->null_value());
+    __ j(equal, true_label, true_distance);
     __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
     __ j(below, false_label, false_distance);
     __ CmpInstanceType(input, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);

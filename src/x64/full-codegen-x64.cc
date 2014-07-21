@@ -4443,10 +4443,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ j(equal, if_true);
     __ CompareRoot(rax, Heap::kFalseValueRootIndex);
     Split(equal, if_true, if_false, fall_through);
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(check, factory->null_string())) {
-    __ CompareRoot(rax, Heap::kNullValueRootIndex);
-    Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->undefined_string())) {
     __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
     __ j(equal, if_true);
@@ -4465,10 +4461,8 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->object_string())) {
     __ JumpIfSmi(rax, if_false);
-    if (!FLAG_harmony_typeof) {
-      __ CompareRoot(rax, Heap::kNullValueRootIndex);
-      __ j(equal, if_true);
-    }
+    __ CompareRoot(rax, Heap::kNullValueRootIndex);
+    __ j(equal, if_true);
     __ CmpObjectType(rax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, rdx);
     __ j(below, if_false);
     __ CmpInstanceType(rdx, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);

@@ -5548,13 +5548,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     *cmp2 = Operand(input);
     final_branch_condition = eq;
 
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(type_name, factory->null_string())) {
-    __ LoadRoot(at, Heap::kNullValueRootIndex);
-    *cmp1 = at;
-    *cmp2 = Operand(input);
-    final_branch_condition = eq;
-
   } else if (String::Equals(type_name, factory->undefined_string())) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
@@ -5580,10 +5573,8 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (String::Equals(type_name, factory->object_string())) {
     __ JumpIfSmi(input, false_label);
-    if (!FLAG_harmony_typeof) {
-      __ LoadRoot(at, Heap::kNullValueRootIndex);
-      __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
-    }
+    __ LoadRoot(at, Heap::kNullValueRootIndex);
+    __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     Register map = input;
     __ GetObjectType(input, map, scratch);
     __ Branch(false_label,

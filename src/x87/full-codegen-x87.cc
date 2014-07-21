@@ -4429,10 +4429,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ j(equal, if_true);
     __ cmp(eax, isolate()->factory()->false_value());
     Split(equal, if_true, if_false, fall_through);
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(check, factory->null_string())) {
-    __ cmp(eax, isolate()->factory()->null_value());
-    Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->undefined_string())) {
     __ cmp(eax, isolate()->factory()->undefined_value());
     __ j(equal, if_true);
@@ -4451,10 +4447,8 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(equal, if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->object_string())) {
     __ JumpIfSmi(eax, if_false);
-    if (!FLAG_harmony_typeof) {
-      __ cmp(eax, isolate()->factory()->null_value());
-      __ j(equal, if_true);
-    }
+    __ cmp(eax, isolate()->factory()->null_value());
+    __ j(equal, if_true);
     __ CmpObjectType(eax, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, edx);
     __ j(below, if_false);
     __ CmpInstanceType(edx, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);

@@ -150,7 +150,6 @@ struct MaybeBoolFlag {
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
 DEFINE_BOOL(es_staging, false, "enable upcoming ES6+ features")
 
-DEFINE_BOOL(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_BOOL(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_BOOL(harmony_modules, false,
             "enable harmony modules (implies block scoping)")
@@ -165,7 +164,7 @@ DEFINE_BOOL(harmony_numeric_literals, false,
 DEFINE_BOOL(harmony_strings, false, "enable harmony string")
 DEFINE_BOOL(harmony_arrays, false, "enable harmony arrays")
 DEFINE_BOOL(harmony_arrow_functions, false, "enable harmony arrow functions")
-DEFINE_BOOL(harmony, false, "enable all harmony features (except typeof)")
+DEFINE_BOOL(harmony, false, "enable all harmony features")
 
 DEFINE_IMPLICATION(harmony, harmony_scoping)
 DEFINE_IMPLICATION(harmony, harmony_modules)

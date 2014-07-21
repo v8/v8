@@ -5846,11 +5846,6 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     __ CompareRoot(value, Heap::kFalseValueRootIndex);
     EmitBranch(instr, eq);
 
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(type_name, factory->null_string())) {
-    __ CompareRoot(value, Heap::kNullValueRootIndex);
-    EmitBranch(instr, eq);
-
   } else if (String::Equals(type_name, factory->undefined_string())) {
     ASSERT(instr->temp1() != NULL);
     Register scratch = ToRegister(instr->temp1());
@@ -5878,9 +5873,7 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     Register scratch = ToRegister(instr->temp2());
 
     __ JumpIfSmi(value, false_label);
-    if (!FLAG_harmony_typeof) {
-      __ JumpIfRoot(value, Heap::kNullValueRootIndex, true_label);
-    }
+    __ JumpIfRoot(value, Heap::kNullValueRootIndex, true_label);
     __ JumpIfObjectType(value, map, scratch,
                         FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, false_label, lt);
     __ CompareInstanceType(map, scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);

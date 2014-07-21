@@ -4491,10 +4491,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ Branch(if_true, eq, v0, Operand(at));
     __ LoadRoot(at, Heap::kFalseValueRootIndex);
     Split(eq, v0, Operand(at), if_true, if_false, fall_through);
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(check, factory->null_string())) {
-    __ LoadRoot(at, Heap::kNullValueRootIndex);
-    Split(eq, v0, Operand(at), if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->undefined_string())) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(if_true, eq, v0, Operand(at));
@@ -4513,10 +4509,8 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
           if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->object_string())) {
     __ JumpIfSmi(v0, if_false);
-    if (!FLAG_harmony_typeof) {
-      __ LoadRoot(at, Heap::kNullValueRootIndex);
-      __ Branch(if_true, eq, v0, Operand(at));
-    }
+    __ LoadRoot(at, Heap::kNullValueRootIndex);
+    __ Branch(if_true, eq, v0, Operand(at));
     // Check for JS objects => true.
     __ GetObjectType(v0, v0, a1);
     __ Branch(if_false, lt, a1, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));
