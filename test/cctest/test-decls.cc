@@ -423,11 +423,8 @@ TEST(ExistsInPrototype) {
   // Sanity check to make sure that the holder of the interceptor
   // really is the prototype object.
   { ExistsInPrototypeContext context;
-    context.Check("this.x = 87; this.x",
-                  0,
-                  0,
-                  0,
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 87));
+    context.Check("this.x = 87; this.x", 0, 0, 1, EXPECT_RESULT,
+                  Number::New(CcTest::isolate(), 87));
   }
 
   { ExistsInPrototypeContext context;

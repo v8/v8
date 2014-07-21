@@ -76,7 +76,7 @@ int ElementsKindToShiftSize(ElementsKind elements_kind);
 int GetDefaultHeaderSizeForElementsKind(ElementsKind elements_kind);
 const char* ElementsKindToString(ElementsKind kind);
 
-ElementsKind GetInitialFastElementsKind();
+inline ElementsKind GetInitialFastElementsKind() { return FAST_SMI_ELEMENTS; }
 
 ElementsKind GetFastElementsKindFromSequenceIndex(int sequence_number);
 int GetSequenceIndexFromFastElementsKind(ElementsKind elements_kind);

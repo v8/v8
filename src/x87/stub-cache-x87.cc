@@ -205,10 +205,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ xor_(offset, flags);
   // We mask out the last two bits because they are not part of the hash and
   // they are always 01 for maps.  Also in the two 'and' instructions below.
-  __ and_(offset, (kPrimaryTableSize - 1) << kHeapObjectTagSize);
+  __ and_(offset, (kPrimaryTableSize - 1) << kCacheIndexShift);
   // ProbeTable expects the offset to be pointer scaled, which it is, because
   // the heap object tag size is 2 and the pointer size log 2 is also 2.
-  ASSERT(kHeapObjectTagSize == kPointerSizeLog2);
+  ASSERT(kCacheIndexShift == kPointerSizeLog2);
 
   // Probe the primary table.
   ProbeTable(isolate(), masm, flags, kPrimary, name, receiver, offset, extra);
@@ -217,10 +217,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ mov(offset, FieldOperand(name, Name::kHashFieldOffset));
   __ add(offset, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xor_(offset, flags);
-  __ and_(offset, (kPrimaryTableSize - 1) << kHeapObjectTagSize);
+  __ and_(offset, (kPrimaryTableSize - 1) << kCacheIndexShift);
   __ sub(offset, name);
   __ add(offset, Immediate(flags));
-  __ and_(offset, (kSecondaryTableSize - 1) << kHeapObjectTagSize);
+  __ and_(offset, (kSecondaryTableSize - 1) << kCacheIndexShift);
 
   // Probe the secondary table.
   ProbeTable(

@@ -2079,23 +2079,12 @@ bool JSObject::HasFastProperties() {
 }
 
 
-bool JSObject::TooManyFastProperties(StoreFromKeyed store_mode) {
-  // Allow extra fast properties if the object has more than
-  // kFastPropertiesSoftLimit in-object properties. When this is the case, it is
-  // very unlikely that the object is being used as a dictionary and there is a
-  // good chance that allowing more map transitions will be worth it.
-  Map* map = this->map();
-  if (map->unused_property_fields() != 0) return false;
-
-  int inobject = map->inobject_properties();
-
-  int limit;
-  if (store_mode == CERTAINLY_NOT_STORE_FROM_KEYED) {
-    limit = Max(inobject, kMaxFastProperties);
-  } else {
-    limit = Max(inobject, kFastPropertiesSoftLimit);
-  }
-  return properties()->length() > limit;
+bool Map::TooManyFastProperties(StoreFromKeyed store_mode) {
+  if (unused_property_fields() != 0) return false;
+  int minimum = store_mode == CERTAINLY_NOT_STORE_FROM_KEYED ? 128 : 12;
+  int limit = Max(minimum, inobject_properties());
+  int external = NumberOfFields() - inobject_properties();
+  return external > limit;
 }
 
 
@@ -4966,11 +4955,9 @@ void Code::set_constant_pool(Object* value) {
 }
 
 
-Code::Flags Code::ComputeFlags(Kind kind,
-                               InlineCacheState ic_state,
-                               ExtraICState extra_ic_state,
-                               StubType type,
-                               InlineCacheHolderFlag holder) {
+Code::Flags Code::ComputeFlags(Kind kind, InlineCacheState ic_state,
+                               ExtraICState extra_ic_state, StubType type,
+                               CacheHolderFlag holder) {
   // Compute the bit mask.
   unsigned int bits = KindField::encode(kind)
       | ICStateField::encode(ic_state)
@@ -4983,15 +4970,14 @@ Code::Flags Code::ComputeFlags(Kind kind,
 
 Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           ExtraICState extra_ic_state,
-                                          InlineCacheHolderFlag holder,
+                                          CacheHolderFlag holder,
                                           StubType type) {
   return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, holder);
 }
 
 
-Code::Flags Code::ComputeHandlerFlags(Kind handler_kind,
-                                      StubType type,
-                                      InlineCacheHolderFlag holder) {
+Code::Flags Code::ComputeHandlerFlags(Kind handler_kind, StubType type,
+                                      CacheHolderFlag holder) {
   return ComputeFlags(Code::HANDLER, MONOMORPHIC, handler_kind, type, holder);
 }
 
@@ -5016,13 +5002,19 @@ Code::StubType Code::ExtractTypeFromFlags(Flags flags) {
 }
 
 
-InlineCacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
+CacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
   return CacheHolderField::decode(flags);
 }
 
 
 Code::Flags Code::RemoveTypeFromFlags(Flags flags) {
   int bits = flags & ~TypeField::kMask;
+  return static_cast<Flags>(bits);
+}
+
+
+Code::Flags Code::RemoveTypeAndHolderFromFlags(Flags flags) {
+  int bits = flags & ~TypeField::kMask & ~CacheHolderField::kMask;
   return static_cast<Flags>(bits);
 }
 

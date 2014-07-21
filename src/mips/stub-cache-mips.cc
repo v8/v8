@@ -196,8 +196,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   uint32_t mask = kPrimaryTableSize - 1;
   // We shift out the last two bits because they are not part of the hash and
   // they are always 01 for maps.
-  __ srl(scratch, scratch, kHeapObjectTagSize);
-  __ Xor(scratch, scratch, Operand((flags >> kHeapObjectTagSize) & mask));
+  __ srl(scratch, scratch, kCacheIndexShift);
+  __ Xor(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask));
   __ And(scratch, scratch, Operand(mask));
 
   // Probe the primary table.
@@ -213,10 +213,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
              extra3);
 
   // Primary miss: Compute hash for secondary probe.
-  __ srl(at, name, kHeapObjectTagSize);
+  __ srl(at, name, kCacheIndexShift);
   __ Subu(scratch, scratch, at);
   uint32_t mask2 = kSecondaryTableSize - 1;
-  __ Addu(scratch, scratch, Operand((flags >> kHeapObjectTagSize) & mask2));
+  __ Addu(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask2));
   __ And(scratch, scratch, Operand(mask2));
 
   // Probe the secondary table.
@@ -885,12 +885,15 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
 
       reg = holder_reg;  // From now on the object will be in holder_reg.
 
-      if (heap()->InNewSpace(*prototype)) {
-        // The prototype is in new space; we cannot store a reference to it
-        // in the code.  Load it from the map.
+      // Two possible reasons for loading the prototype from the map:
+      // (1) Can't store references to new space in code.
+      // (2) Handler is shared for all receivers with the same prototype
+      //     map (but not necessarily the same prototype instance).
+      bool load_prototype_from_map =
+          heap()->InNewSpace(*prototype) || depth == 1;
+      if (load_prototype_from_map) {
         __ lw(reg, FieldMemOperand(map_reg, Map::kPrototypeOffset));
       } else {
-        // The prototype is in old space; load it directly.
         __ li(reg, Operand(prototype));
       }
     }

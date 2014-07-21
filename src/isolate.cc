@@ -888,6 +888,15 @@ void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
 }
 
 
+void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
+  ASSERT(has_scheduled_exception());
+  if (scheduled_exception() == handler->exception_) {
+    ASSERT(scheduled_exception() != heap()->termination_exception());
+    clear_scheduled_exception();
+  }
+}
+
+
 Object* Isolate::PromoteScheduledException() {
   Object* thrown = scheduled_exception();
   clear_scheduled_exception();
@@ -1191,8 +1200,7 @@ void Isolate::ReportPendingMessages() {
   bool can_clear_message = PropagatePendingExceptionToExternalTryCatch();
 
   HandleScope scope(this);
-  if (thread_local_top_.pending_exception_ ==
-          heap()->termination_exception()) {
+  if (thread_local_top_.pending_exception_ == heap()->termination_exception()) {
     // Do nothing: if needed, the exception has been already propagated to
     // v8::TryCatch.
   } else {
@@ -1739,8 +1747,7 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
   }
 
   thread_local_top_.external_caught_exception_ = true;
-  if (thread_local_top_.pending_exception_ ==
-             heap()->termination_exception()) {
+  if (thread_local_top_.pending_exception_ == heap()->termination_exception()) {
     try_catch_handler()->can_continue_ = false;
     try_catch_handler()->has_terminated_ = true;
     try_catch_handler()->exception_ = heap()->null_value();

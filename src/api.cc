@@ -1851,6 +1851,12 @@ v8::TryCatch::~TryCatch() {
     reinterpret_cast<Isolate*>(isolate_)->ThrowException(exc);
     ASSERT(!isolate_->thread_local_top()->rethrowing_message_);
   } else {
+    if (HasCaught() && isolate_->has_scheduled_exception()) {
+      // If an exception was caught but is still scheduled because no API call
+      // promoted it, then it is canceled to prevent it from being propagated.
+      // Note that this will not cancel termination exceptions.
+      isolate_->CancelScheduledExceptionFromTryCatch(this);
+    }
     isolate_->UnregisterTryCatchHandler(this);
     v8::internal::SimulatorStack::UnregisterCTryCatch();
   }

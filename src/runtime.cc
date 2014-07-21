@@ -336,9 +336,6 @@ MUST_USE_RESULT static MaybeHandle<Object> TransitionElements(
 }
 
 
-static const int kSmiLiteralMinimumLength = 1024;
-
-
 MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
     Isolate* isolate,
     Handle<FixedArray> literals,
@@ -369,7 +366,6 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
 
   Handle<FixedArrayBase> copied_elements_values;
   if (IsFastDoubleElementsKind(constant_elements_kind)) {
-    ASSERT(FLAG_smi_only_arrays);
     copied_elements_values = isolate->factory()->CopyFixedDoubleArray(
         Handle<FixedDoubleArray>::cast(constant_elements_values));
   } else {
@@ -409,20 +405,6 @@ MaybeHandle<Object> Runtime::CreateArrayLiteralBoilerplate(
   }
   object->set_elements(*copied_elements_values);
   object->set_length(Smi::FromInt(copied_elements_values->length()));
-
-  //  Ensure that the boilerplate object has FAST_*_ELEMENTS, unless the flag is
-  //  on or the object is larger than the threshold.
-  if (!FLAG_smi_only_arrays &&
-      constant_elements_values->length() < kSmiLiteralMinimumLength) {
-    ElementsKind elements_kind = object->GetElementsKind();
-    if (!IsFastObjectElementsKind(elements_kind)) {
-      if (IsFastHoleyElementsKind(elements_kind)) {
-        TransitionElements(object, FAST_HOLEY_ELEMENTS, isolate).Check();
-      } else {
-        TransitionElements(object, FAST_ELEMENTS, isolate).Check();
-      }
-    }
-  }
 
   JSObject::ValidateElements(object);
   return object;
@@ -4837,7 +4819,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
           // If value is the hole (meaning, absent) do the general lookup.
         }
       }
-    } else if (FLAG_smi_only_arrays && key_obj->IsSmi()) {
+    } else if (key_obj->IsSmi()) {
       // JSObject without a name key. If the key is a Smi, check for a
       // definite out-of-bounds access to elements, which is a strong indicator
       // that subsequent accesses will also call the runtime. Proactively

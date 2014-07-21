@@ -910,7 +910,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   ASSERT(name.is(rcx));
 
   // Probe the stub cache.
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
+  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::LOAD_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, receiver, name, rbx, rax);
 
@@ -1041,7 +1042,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is on the stack.
 
   // Get the receiver from the stack and probe the stub cache.
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
+  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
       masm, flags, ReceiverRegister(), NameRegister(), rbx, no_reg);
 

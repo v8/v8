@@ -5312,15 +5312,28 @@ THREADED_TEST(TryCatchAndFinally) {
 }
 
 
-static void TryCatchNestedHelper(int depth) {
+static void TryCatchNested1Helper(int depth) {
   if (depth > 0) {
     v8::TryCatch try_catch;
     try_catch.SetVerbose(true);
-    TryCatchNestedHelper(depth - 1);
+    TryCatchNested1Helper(depth - 1);
     CHECK(try_catch.HasCaught());
     try_catch.ReThrow();
   } else {
-    CcTest::isolate()->ThrowException(v8_str("back"));
+    CcTest::isolate()->ThrowException(v8_str("E1"));
+  }
+}
+
+
+static void TryCatchNested2Helper(int depth) {
+  if (depth > 0) {
+    v8::TryCatch try_catch;
+    try_catch.SetVerbose(true);
+    TryCatchNested2Helper(depth - 1);
+    CHECK(try_catch.HasCaught());
+    try_catch.ReThrow();
+  } else {
+    CompileRun("throw 'E2';");
   }
 }
 
@@ -5329,10 +5342,22 @@ TEST(TryCatchNested) {
   v8::V8::Initialize();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
-  v8::TryCatch try_catch;
-  TryCatchNestedHelper(5);
-  CHECK(try_catch.HasCaught());
-  CHECK_EQ(0, strcmp(*v8::String::Utf8Value(try_catch.Exception()), "back"));
+
+  {
+    // Test nested try-catch with a native throw in the end.
+    v8::TryCatch try_catch;
+    TryCatchNested1Helper(5);
+    CHECK(try_catch.HasCaught());
+    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(try_catch.Exception()), "E1"));
+  }
+
+  {
+    // Test nested try-catch with a JavaScript throw in the end.
+    v8::TryCatch try_catch;
+    TryCatchNested2Helper(5);
+    CHECK(try_catch.HasCaught());
+    CHECK_EQ(0, strcmp(*v8::String::Utf8Value(try_catch.Exception()), "E2"));
+  }
 }
 
 
@@ -5375,6 +5400,28 @@ TEST(TryCatchMixedNesting) {
   LocalContext context(0, templ);
   CompileRunWithOrigin("TryCatchMixedNestingHelper();\n", "outer", 1, 1);
   TryCatchMixedNestingCheck(&try_catch);
+}
+
+
+void TryCatchNativeHelper(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ApiTestFuzzer::Fuzz();
+  v8::TryCatch try_catch;
+  args.GetIsolate()->ThrowException(v8_str("boom"));
+  CHECK(try_catch.HasCaught());
+}
+
+
+TEST(TryCatchNative) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::V8::Initialize();
+  v8::TryCatch try_catch;
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(v8_str("TryCatchNativeHelper"),
+             v8::FunctionTemplate::New(isolate, TryCatchNativeHelper));
+  LocalContext context(0, templ);
+  CompileRun("TryCatchNativeHelper();");
+  CHECK(!try_catch.HasCaught());
 }
 
 

@@ -1547,7 +1547,7 @@ void Debug::PrepareStep(StepAction step_action,
     if (is_load_or_store) {
       // Remember source position and frame to handle step in getter/setter. If
       // there is a custom getter/setter it will be handled in
-      // Object::Get/SetPropertyWithCallback, otherwise the step action will be
+      // Object::Get/SetPropertyWithAccessor, otherwise the step action will be
       // propagated on the next Debug::Break.
       thread_local_.last_statement_position_ =
           debug_info->code()->SourceStatementPosition(frame->pc());

@@ -82,6 +82,14 @@
 
     # Allow to suppress the array bounds warning (default is no suppression).
     'wno_array_bounds%': '',
+
+    'variables': {
+      # This is set when building the Android WebView inside the Android build
+      # system, using the 'android' gyp backend.
+      'android_webview_build%': 0,
+    },
+    # Copy it out one scope.
+    'android_webview_build%': '<(android_webview_build)',
   },
   'conditions': [
     ['host_arch=="ia32" or host_arch=="x64" or clang==1', {

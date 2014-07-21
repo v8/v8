@@ -23,7 +23,8 @@ char IC::TransitionMarkFromState(IC::State state) {
     case UNINITIALIZED: return '0';
     case PREMONOMORPHIC: return '.';
     case MONOMORPHIC: return '1';
-    case MONOMORPHIC_PROTOTYPE_FAILURE: return '^';
+    case PROTOTYPE_FAILURE:
+      return '^';
     case POLYMORPHIC: return 'P';
     case MEGAMORPHIC: return 'N';
     case GENERIC: return 'G';
@@ -236,60 +237,40 @@ static void LookupForRead(Handle<Object> object,
 
 bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
                                                 Handle<String> name) {
-  if (!IsNameCompatibleWithMonomorphicPrototypeFailure(name)) return false;
+  if (!IsNameCompatibleWithPrototypeFailure(name)) return false;
+  Handle<Map> receiver_map = TypeToMap(*receiver_type(), isolate());
+  maybe_handler_ = target()->FindHandlerForMap(*receiver_map);
 
-  InlineCacheHolderFlag cache_holder =
-      Code::ExtractCacheHolderFromFlags(target()->flags());
-
-  switch (cache_holder) {
-    case OWN_MAP:
-      // The stub was generated for JSObject but called for non-JSObject.
-      // IC::GetCodeCacheHolder is not applicable.
-      if (!receiver->IsJSObject()) return false;
-      break;
-    case PROTOTYPE_MAP:
-      // IC::GetCodeCacheHolder is not applicable.
-      PrototypeIterator iter(isolate(), receiver);
-      if (iter.IsAtEnd()) return false;
-      break;
+  // The current map wasn't handled yet. There's no reason to stay monomorphic,
+  // *unless* we're moving from a deprecated map to its replacement, or
+  // to a more general elements kind.
+  // TODO(verwaest): Check if the current map is actually what the old map
+  // would transition to.
+  if (maybe_handler_.is_null()) {
+    if (!receiver_map->IsJSObjectMap()) return false;
+    Map* first_map = FirstTargetMap();
+    if (first_map == NULL) return false;
+    Handle<Map> old_map(first_map);
+    if (old_map->is_deprecated()) return true;
+    if (IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
+                                            receiver_map->elements_kind())) {
+      return true;
+    }
+    return false;
   }
 
-  Handle<Map> map(
-      IC::GetCodeCacheHolder(isolate(), *receiver, cache_holder)->map());
+  CacheHolderFlag flag;
+  Handle<Map> ic_holder_map(
+      GetICCacheHolder(*receiver_type(), isolate(), &flag));
 
-  // Decide whether the inline cache failed because of changes to the
-  // receiver itself or changes to one of its prototypes.
-  //
-  // If there are changes to the receiver itself, the map of the
-  // receiver will have changed and the current target will not be in
-  // the receiver map's code cache.  Therefore, if the current target
-  // is in the receiver map's code cache, the inline cache failed due
-  // to prototype check failure.
-  int index = map->IndexInCodeCache(*name, *target());
-  if (index >= 0) {
-    map->RemoveFromCodeCache(*name, *target(), index);
-    // Handlers are stored in addition to the ICs on the map. Remove those, too.
-    TryRemoveInvalidHandlers(map, name);
-    return true;
-  }
+  ASSERT(flag != kCacheOnReceiver || receiver->IsJSObject());
+  ASSERT(flag != kCacheOnPrototype || !receiver->IsJSReceiver());
+  ASSERT(flag != kCacheOnPrototypeReceiverIsDictionary);
 
-  // The stub is not in the cache. We've ruled out all other kinds of failure
-  // except for proptotype chain changes, a deprecated map, a map that's
-  // different from the one that the stub expects, elements kind changes, or a
-  // constant global property that will become mutable. Threat all those
-  // situations as prototype failures (stay monomorphic if possible).
-
-  // If the IC is shared between multiple receivers (slow dictionary mode), then
-  // the map cannot be deprecated and the stub invalidated.
-  if (cache_holder == OWN_MAP) {
-    Map* old_map = FirstTargetMap();
-    if (old_map == *map) return true;
-    if (old_map != NULL) {
-      if (old_map->is_deprecated()) return true;
-      if (IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
-                                              map->elements_kind())) {
-        return true;
-      }
+  if (state() == MONOMORPHIC) {
+    int index = ic_holder_map->IndexInCodeCache(*name, *target());
+    if (index >= 0) {
+      ic_holder_map->RemoveFromCodeCache(*name, *target(), index);
     }
   }
 
@@ -302,25 +283,11 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
     return cell->type()->IsConstant();
   }
 
-  return false;
+  return true;
 }
 
 
-void IC::TryRemoveInvalidHandlers(Handle<Map> map, Handle<String> name) {
-  CodeHandleList handlers;
-  target()->FindHandlers(&handlers);
-  for (int i = 0; i < handlers.length(); i++) {
-    Handle<Code> handler = handlers.at(i);
-    int index = map->IndexInCodeCache(*name, *handler);
-    if (index >= 0) {
-      map->RemoveFromCodeCache(*name, *handler, index);
-      return;
-    }
-  }
-}
-
-
-bool IC::IsNameCompatibleWithMonomorphicPrototypeFailure(Handle<Object> name) {
+bool IC::IsNameCompatibleWithPrototypeFailure(Handle<Object> name) {
   if (target()->is_keyed_stub()) {
     // Determine whether the failure is due to a name failure.
     if (!name->IsName()) return false;
@@ -333,23 +300,17 @@ bool IC::IsNameCompatibleWithMonomorphicPrototypeFailure(Handle<Object> name) {
 
 
 void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
+  receiver_type_ = CurrentTypeOf(receiver, isolate());
   if (!name->IsString()) return;
-  if (state() != MONOMORPHIC) {
-    if (state() == POLYMORPHIC && receiver->IsHeapObject()) {
-      TryRemoveInvalidHandlers(
-          handle(Handle<HeapObject>::cast(receiver)->map()),
-          Handle<String>::cast(name));
-    }
-    return;
-  }
+  if (state() != MONOMORPHIC && state() != POLYMORPHIC) return;
   if (receiver->IsUndefined() || receiver->IsNull()) return;
 
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
   // again.
-  if (TryRemoveInvalidPrototypeDependentStub(
-          receiver, Handle<String>::cast(name)) &&
-      TryMarkMonomorphicPrototypeFailure(name)) {
+  if (TryRemoveInvalidPrototypeDependentStub(receiver,
+                                             Handle<String>::cast(name))) {
+    MarkPrototypeFailure(name);
     return;
   }
 
@@ -688,10 +649,10 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
 }
 
 
-bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
-                             Handle<String> name,
-                             Handle<Code> code) {
+bool IC::UpdatePolymorphicIC(Handle<String> name, Handle<Code> code) {
   if (!code->is_handler()) return false;
+  if (target()->is_keyed_stub() && state() != PROTOTYPE_FAILURE) return false;
+  Handle<HeapType> type = receiver_type();
   TypeHandleList types;
   CodeHandleList handlers;
 
@@ -728,18 +689,25 @@ bool IC::UpdatePolymorphicIC(Handle<HeapType> type,
   if (!target()->FindHandlers(&handlers, types.length())) return false;
 
   number_of_valid_types++;
-  if (handler_to_overwrite >= 0) {
-    handlers.Set(handler_to_overwrite, code);
-    if (!type->NowIs(types.at(handler_to_overwrite))) {
-      types.Set(handler_to_overwrite, type);
-    }
+  if (number_of_valid_types > 1 && target()->is_keyed_stub()) return false;
+  Handle<Code> ic;
+  if (number_of_valid_types == 1) {
+    ic = isolate()->stub_cache()->ComputeMonomorphicIC(kind(), name, type, code,
+                                                       extra_ic_state());
   } else {
-    types.Add(type);
-    handlers.Add(code);
+    if (handler_to_overwrite >= 0) {
+      handlers.Set(handler_to_overwrite, code);
+      if (!type->NowIs(types.at(handler_to_overwrite))) {
+        types.Set(handler_to_overwrite, type);
+      }
+    } else {
+      types.Add(type);
+      handlers.Add(code);
+    }
+    ic = isolate()->stub_cache()->ComputePolymorphicIC(
+        kind(), &types, &handlers, number_of_valid_types, name,
+        extra_ic_state());
   }
-
-  Handle<Code> ic = isolate()->stub_cache()->ComputePolymorphicIC(
-      kind(), &types, &handlers, number_of_valid_types, name, extra_ic_state());
   set_target(*ic);
   return true;
 }
@@ -787,12 +755,10 @@ template
 Handle<HeapType> IC::MapToType<HeapType>(Handle<Map> map, Isolate* region);
 
 
-void IC::UpdateMonomorphicIC(Handle<HeapType> type,
-                             Handle<Code> handler,
-                             Handle<String> name) {
+void IC::UpdateMonomorphicIC(Handle<Code> handler, Handle<String> name) {
   if (!handler->is_handler()) return set_target(*handler);
   Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicIC(
-      kind(), name, type, handler, extra_ic_state());
+      kind(), name, receiver_type(), handler, extra_ic_state());
   set_target(*ic);
 }
 
@@ -823,19 +789,17 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
 }
 
 
-void IC::PatchCache(Handle<HeapType> type,
-                    Handle<String> name,
-                    Handle<Code> code) {
+void IC::PatchCache(Handle<String> name, Handle<Code> code) {
   switch (state()) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
-    case MONOMORPHIC_PROTOTYPE_FAILURE:
-      UpdateMonomorphicIC(type, code, name);
+      UpdateMonomorphicIC(code, name);
       break;
-    case MONOMORPHIC:  // Fall through.
+    case PROTOTYPE_FAILURE:
+    case MONOMORPHIC:
     case POLYMORPHIC:
-      if (!target()->is_keyed_stub()) {
-        if (UpdatePolymorphicIC(type, name, code)) break;
+      if (!target()->is_keyed_stub() || state() == PROTOTYPE_FAILURE) {
+        if (UpdatePolymorphicIC(name, code)) break;
         CopyICToMegamorphicCache(name);
       }
       if (FLAG_compiled_keyed_generic_loads && (kind() == Code::LOAD_IC)) {
@@ -845,7 +809,7 @@ void IC::PatchCache(Handle<HeapType> type,
       set_target(*megamorphic_stub());
       // Fall through.
     case MEGAMORPHIC:
-      UpdateMegamorphicCache(*type, *name, *code);
+      UpdateMegamorphicCache(*receiver_type(), *name, *code);
       break;
     case DEBUG_STUB:
       break;
@@ -901,14 +865,16 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     return;
   }
 
-  Handle<HeapType> type = CurrentTypeOf(object, isolate());
   Handle<Code> code;
   if (!lookup->IsCacheable()) {
     // Bail out if the result is not cacheable.
     code = slow_stub();
   } else if (!lookup->IsProperty()) {
     if (kind() == Code::LOAD_IC) {
-      code = isolate()->stub_cache()->ComputeLoadNonexistent(name, type);
+      code = isolate()->stub_cache()->ComputeLoadNonexistent(name,
+                                                             receiver_type());
+      // TODO(jkummerow/verwaest): Introduce a builtin that handles this case.
+      if (code.is_null()) code = slow_stub();
     } else {
       code = slow_stub();
     }
@@ -916,7 +882,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = ComputeHandler(lookup, object, name);
   }
 
-  PatchCache(type, name, code);
+  PatchCache(name, code);
   TRACE_IC("LoadIC", name);
 }
 
@@ -933,33 +899,50 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
                                 Handle<Object> object,
                                 Handle<String> name,
                                 Handle<Object> value) {
-  InlineCacheHolderFlag cache_holder = GetCodeCacheForObject(*object);
-  Handle<HeapObject> stub_holder(GetCodeCacheHolder(
-      isolate(), *object, cache_holder));
+  bool receiver_is_holder = lookup->ReceiverIsHolder(object);
+  CacheHolderFlag flag;
+  Handle<Map> stub_holder_map = IC::GetHandlerCacheHolder(
+      *receiver_type(), receiver_is_holder, isolate(), &flag);
 
   Handle<Code> code = isolate()->stub_cache()->FindHandler(
-      name, handle(stub_holder->map()), kind(), cache_holder,
+      name, stub_holder_map, kind(), flag,
       lookup->holder()->HasFastProperties() ? Code::FAST : Code::NORMAL);
+  // Use the cached value if it exists, and if it is different from the
+  // handler that just missed.
   if (!code.is_null()) {
-    return code;
+    if (!maybe_handler_.is_null() &&
+        !maybe_handler_.ToHandleChecked().is_identical_to(code)) {
+      return code;
+    }
+    if (maybe_handler_.is_null()) {
+      // maybe_handler_ is only populated for MONOMORPHIC and POLYMORPHIC ICs.
+      // In MEGAMORPHIC case, check if the handler in the megamorphic stub
+      // cache (which just missed) is different from the cached handler.
+      if (state() == MEGAMORPHIC && object->IsHeapObject()) {
+        Map* map = Handle<HeapObject>::cast(object)->map();
+        Code* megamorphic_cached_code =
+            isolate()->stub_cache()->Get(*name, map, code->flags());
+        if (megamorphic_cached_code != *code) return code;
+      } else {
+        return code;
+      }
+    }
   }
 
-  code = CompileHandler(lookup, object, name, value, cache_holder);
+  code = CompileHandler(lookup, object, name, value, flag);
   ASSERT(code->is_handler());
 
   if (code->type() != Code::NORMAL) {
-    HeapObject::UpdateMapCodeCache(stub_holder, name, code);
+    Map::UpdateCodeCache(stub_holder_map, name, code);
   }
 
   return code;
 }
 
 
-Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
-                                    Handle<Object> object,
-                                    Handle<String> name,
-                                    Handle<Object> unused,
-                                    InlineCacheHolderFlag cache_holder) {
+Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
+                                    Handle<String> name, Handle<Object> unused,
+                                    CacheHolderFlag cache_holder) {
   if (object->IsString() &&
       String::Equals(isolate()->factory()->length_string(), name)) {
     FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset);
@@ -977,14 +960,15 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
     }
   }
 
-  Handle<HeapType> type = CurrentTypeOf(object, isolate());
+  Handle<HeapType> type = receiver_type();
   Handle<JSObject> holder(lookup->holder());
+  bool receiver_is_holder = object.is_identical_to(holder);
   LoadStubCompiler compiler(isolate(), kNoExtraICState, cache_holder, kind());
 
   switch (lookup->type()) {
     case FIELD: {
       FieldIndex field = lookup->GetFieldIndex();
-      if (object.is_identical_to(holder)) {
+      if (receiver_is_holder) {
         return SimpleFieldLoad(field);
       }
       return compiler.CompileLoadField(
@@ -1003,24 +987,23 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup,
         Handle<Code> code = compiler.CompileLoadGlobal(
             type, global, cell, name, lookup->IsDontDelete());
         // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
-        Handle<HeapObject> stub_holder(GetCodeCacheHolder(
-            isolate(), *object, cache_holder));
-        HeapObject::UpdateMapCodeCache(stub_holder, name, code);
+        CacheHolderFlag flag;
+        Handle<Map> stub_holder_map =
+            GetHandlerCacheHolder(*type, receiver_is_holder, isolate(), &flag);
+        Map::UpdateCodeCache(stub_holder_map, name, code);
         return code;
       }
       // There is only one shared stub for loading normalized
       // properties. It does not traverse the prototype chain, so the
       // property must be found in the object for the stub to be
       // applicable.
-      if (!object.is_identical_to(holder)) break;
+      if (!receiver_is_holder) break;
       return isolate()->builtins()->LoadIC_Normal();
     case CALLBACKS: {
       // Use simple field loads for some well-known callback properties.
-      if (object->IsJSObject()) {
+      if (receiver_is_holder) {
+        ASSERT(object->IsJSObject());
         Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        Handle<Map> map(receiver->map());
-        Handle<HeapType> type = IC::MapToType<HeapType>(
-            handle(receiver->map()), isolate());
         int object_offset;
         if (Accessors::IsJSObjectFieldAccessor<HeapType>(
                 type, name, &object_offset)) {
@@ -1270,7 +1253,9 @@ static bool LookupForWrite(Handle<JSObject> receiver,
     // entirely by the migration above.
     receiver->map()->LookupTransition(*holder, *name, lookup);
     if (!lookup->IsTransition()) return false;
-    return ic->TryMarkMonomorphicPrototypeFailure(name);
+    if (!ic->IsNameCompatibleWithPrototypeFailure(name)) return false;
+    ic->MarkPrototypeFailure(name);
+    return true;
   }
 
   return true;
@@ -1281,6 +1266,8 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
                                    Handle<String> name,
                                    Handle<Object> value,
                                    JSReceiver::StoreFromKeyed store_mode) {
+  // TODO(verwaest): Let SetProperty do the migration, since storing a property
+  // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(object) || object->IsJSProxy()) {
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     Handle<Object> result;
@@ -1416,18 +1403,18 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 
   Handle<Code> code = ComputeHandler(lookup, receiver, name, value);
 
-  PatchCache(CurrentTypeOf(receiver, isolate()), name, code);
+  PatchCache(name, code);
   TRACE_IC("StoreIC", name);
 }
 
 
 Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
-                                     Handle<Object> object,
-                                     Handle<String> name,
+                                     Handle<Object> object, Handle<String> name,
                                      Handle<Object> value,
-                                     InlineCacheHolderFlag cache_holder) {
+                                     CacheHolderFlag cache_holder) {
   if (object->IsAccessCheckNeeded()) return slow_stub();
-  ASSERT(cache_holder == OWN_MAP);
+  ASSERT(cache_holder == kCacheOnReceiver || lookup->type() == CALLBACKS ||
+         (object->IsJSGlobalProxy() && lookup->holder()->IsJSGlobalObject()));
   // This is currently guaranteed by checks in StoreIC::Store.
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
@@ -1757,6 +1744,8 @@ KeyedAccessStoreMode KeyedStoreIC::GetStoreMode(Handle<JSObject> receiver,
 MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
                                         Handle<Object> key,
                                         Handle<Object> value) {
+  // TODO(verwaest): Let SetProperty do the migration, since storing a property
+  // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(object)) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(

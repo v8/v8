@@ -197,8 +197,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   uint64_t mask = kPrimaryTableSize - 1;
   // We shift out the last two bits because they are not part of the hash and
   // they are always 01 for maps.
-  __ dsrl(scratch, scratch, kHeapObjectTagSize);
-  __ Xor(scratch, scratch, Operand((flags >> kHeapObjectTagSize) & mask));
+  __ dsrl(scratch, scratch, kCacheIndexShift);
+  __ Xor(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask));
   __ And(scratch, scratch, Operand(mask));
 
   // Probe the primary table.
@@ -214,10 +214,10 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
              extra3);
 
   // Primary miss: Compute hash for secondary probe.
-  __ dsrl(at, name, kHeapObjectTagSize);
+  __ dsrl(at, name, kCacheIndexShift);
   __ Dsubu(scratch, scratch, at);
   uint64_t mask2 = kSecondaryTableSize - 1;
-  __ Daddu(scratch, scratch, Operand((flags >> kHeapObjectTagSize) & mask2));
+  __ Daddu(scratch, scratch, Operand((flags >> kCacheIndexShift) & mask2));
   __ And(scratch, scratch, Operand(mask2));
 
   // Probe the secondary table.
@@ -865,6 +865,12 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
       reg = holder_reg;  // From now on the object will be in holder_reg.
       __ ld(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
     } else {
+      // Two possible reasons for loading the prototype from the map:
+      // (1) Can't store references to new space in code.
+      // (2) Handler is shared for all receivers with the same prototype
+      //     map (but not necessarily the same prototype instance).
+      bool load_prototype_from_map =
+          heap()->InNewSpace(*prototype) || depth == 1;
       Register map_reg = scratch1;
       if (depth != 1 || check == CHECK_ALL_MAPS) {
         // CheckMap implicitly loads the map of |reg| into |map_reg|.
@@ -886,12 +892,9 @@ Register StubCompiler::CheckPrototypes(Handle<HeapType> type,
 
       reg = holder_reg;  // From now on the object will be in holder_reg.
 
-      if (heap()->InNewSpace(*prototype)) {
-        // The prototype is in new space; we cannot store a reference to it
-        // in the code.  Load it from the map.
+      if (load_prototype_from_map) {
         __ ld(reg, FieldMemOperand(map_reg, Map::kPrototypeOffset));
       } else {
-        // The prototype is in old space; load it directly.
         __ li(reg, Operand(prototype));
       }
     }

@@ -6124,6 +6124,14 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
 }
 
 
+Handle<Map> HOptimizedGraphBuilder::PropertyAccessInfo::map() {
+  JSFunction* ctor = IC::GetRootConstructor(
+      type_, current_info()->closure()->context()->native_context());
+  if (ctor != NULL) return handle(ctor->initial_map());
+  return type_->AsClass()->Map();
+}
+
+
 static bool NeedsWrappingFor(Type* type, Handle<JSFunction> target) {
   return type->Is(Type::NumberOrString()) &&
       target->shared()->strict_mode() == SLOPPY &&

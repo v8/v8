@@ -119,60 +119,54 @@ void IC::SetTargetAtAddress(Address address,
 }
 
 
-InlineCacheHolderFlag IC::GetCodeCacheForObject(Object* object) {
-  if (object->IsJSObject()) return OWN_MAP;
-
-  // If the object is a value, we use the prototype map for the cache.
-  ASSERT(object->IsString() || object->IsSymbol() ||
-         object->IsNumber() || object->IsBoolean());
-  return PROTOTYPE_MAP;
-}
-
-
-HeapObject* IC::GetCodeCacheHolder(Isolate* isolate,
-                                   Object* object,
-                                   InlineCacheHolderFlag holder) {
-  if (object->IsSmi()) holder = PROTOTYPE_MAP;
-  PrototypeIterator iter(isolate, object,
-                         holder == OWN_MAP
-                             ? PrototypeIterator::START_AT_RECEIVER
-                             : PrototypeIterator::START_AT_PROTOTYPE);
-  return HeapObject::cast(iter.GetCurrent());
-}
-
-
-InlineCacheHolderFlag IC::GetCodeCacheFlag(HeapType* type) {
-  if (type->Is(HeapType::Boolean()) ||
-      type->Is(HeapType::Number()) ||
-      type->Is(HeapType::String()) ||
-      type->Is(HeapType::Symbol())) {
-    return PROTOTYPE_MAP;
+template <class TypeClass>
+JSFunction* IC::GetRootConstructor(TypeClass* type, Context* native_context) {
+  if (type->Is(TypeClass::Boolean())) {
+    return native_context->boolean_function();
+  } else if (type->Is(TypeClass::Number())) {
+    return native_context->number_function();
+  } else if (type->Is(TypeClass::String())) {
+    return native_context->string_function();
+  } else if (type->Is(TypeClass::Symbol())) {
+    return native_context->symbol_function();
+  } else {
+    return NULL;
   }
-  return OWN_MAP;
 }
 
 
-Handle<Map> IC::GetCodeCacheHolder(InlineCacheHolderFlag flag,
-                                   HeapType* type,
-                                   Isolate* isolate) {
-  if (flag == PROTOTYPE_MAP) {
-    Context* context = *isolate->native_context();
-    JSFunction* constructor;
-    if (type->Is(HeapType::Boolean())) {
-      constructor = context->boolean_function();
-    } else if (type->Is(HeapType::Number())) {
-      constructor = context->number_function();
-    } else if (type->Is(HeapType::String())) {
-      constructor = context->string_function();
-    } else {
-      ASSERT(type->Is(HeapType::Symbol()));
-      constructor = context->symbol_function();
-    }
-    return handle(JSObject::cast(constructor->instance_prototype())->map());
+Handle<Map> IC::GetHandlerCacheHolder(HeapType* type, bool receiver_is_holder,
+                                      Isolate* isolate, CacheHolderFlag* flag) {
+  Handle<Map> receiver_map = TypeToMap(type, isolate);
+  if (receiver_is_holder) {
+    *flag = kCacheOnReceiver;
+    return receiver_map;
   }
+  Context* native_context = *isolate->native_context();
+  JSFunction* builtin_ctor = GetRootConstructor(type, native_context);
+  if (builtin_ctor != NULL) {
+    *flag = kCacheOnPrototypeReceiverIsPrimitive;
+    return handle(HeapObject::cast(builtin_ctor->instance_prototype())->map());
+  }
+  *flag = receiver_map->is_dictionary_map()
+              ? kCacheOnPrototypeReceiverIsDictionary
+              : kCacheOnPrototype;
+  // Callers must ensure that the prototype is non-null.
+  return handle(JSObject::cast(receiver_map->prototype())->map());
+}
+
+
+Handle<Map> IC::GetICCacheHolder(HeapType* type, Isolate* isolate,
+                                 CacheHolderFlag* flag) {
+  Context* native_context = *isolate->native_context();
+  JSFunction* builtin_ctor = GetRootConstructor(type, native_context);
+  if (builtin_ctor != NULL) {
+    *flag = kCacheOnPrototype;
+    return handle(builtin_ctor->initial_map());
+  }
+  *flag = kCacheOnReceiver;
   return TypeToMap(type, isolate);
 }
-
 
 } }  // namespace v8::internal
 

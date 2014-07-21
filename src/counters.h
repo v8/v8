@@ -292,18 +292,20 @@ class HistogramTimerScope BASE_EMBEDDED {
 };
 
 
-#define HISTOGRAM_TIMER_LIST(HT)                                      \
-  /* Garbage collection timers. */                                    \
-  HT(gc_compactor, V8.GCCompactor)                                    \
-  HT(gc_scavenger, V8.GCScavenger)                                    \
-  HT(gc_context, V8.GCContext) /* GC context cleanup time */          \
-  /* Parsing timers. */                                               \
-  HT(parse, V8.Parse)                                                 \
-  HT(parse_lazy, V8.ParseLazy)                                        \
-  HT(pre_parse, V8.PreParse)                                          \
-  /* Total compilation times. */                                      \
-  HT(compile, V8.Compile)                                             \
-  HT(compile_eval, V8.CompileEval)                                    \
+#define HISTOGRAM_TIMER_LIST(HT)                             \
+  /* Garbage collection timers. */                           \
+  HT(gc_compactor, V8.GCCompactor)                           \
+  HT(gc_scavenger, V8.GCScavenger)                           \
+  HT(gc_context, V8.GCContext) /* GC context cleanup time */ \
+  HT(gc_idle_notification, V8.GCIdleNotification)            \
+  HT(gc_incremental_marking, V8.GCIncrementalMarking)        \
+  /* Parsing timers. */                                      \
+  HT(parse, V8.Parse)                                        \
+  HT(parse_lazy, V8.ParseLazy)                               \
+  HT(pre_parse, V8.PreParse)                                 \
+  /* Total compilation times. */                             \
+  HT(compile, V8.Compile)                                    \
+  HT(compile_eval, V8.CompileEval)                           \
   HT(compile_lazy, V8.CompileLazy)
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \

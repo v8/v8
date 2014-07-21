@@ -99,7 +99,7 @@ Heap::Heap()
       hidden_string_(NULL),
       gc_safe_size_of_old_object_(NULL),
       total_regexp_code_generated_(0),
-      tracer_(NULL),
+      tracer_(this),
       high_survival_rate_period_length_(0),
       promoted_objects_size_(0),
       promotion_rate_(0),
@@ -114,7 +114,7 @@ Heap::Heap()
       max_alive_after_gc_(0),
       min_in_mutator_(kMaxInt),
       alive_after_last_gc_(0),
-      last_gc_end_timestamp_(0.0),
+      last_gc_end_timestamp_(base::OS::TimeCurrentMillis()),
       marking_time_(0.0),
       sweeping_time_(0.0),
       mark_compact_collector_(this),
@@ -840,7 +840,7 @@ bool Heap::CollectGarbage(GarbageCollector collector,
 
   bool next_gc_likely_to_collect_more = false;
 
-  { GCTracer tracer(this, collector, gc_reason, collector_reason);
+  { tracer()->start(collector, gc_reason, collector_reason);
     ASSERT(AllowHeapAllocation::IsAllowed());
     DisallowHeapAllocation no_allocation_during_gc;
     GarbageCollectionPrologue();
@@ -850,10 +850,11 @@ bool Heap::CollectGarbage(GarbageCollector collector,
           (collector == SCAVENGER) ? isolate_->counters()->gc_scavenger()
                                    : isolate_->counters()->gc_compactor());
       next_gc_likely_to_collect_more =
-          PerformGarbageCollection(collector, &tracer, gc_callback_flags);
+          PerformGarbageCollection(collector, gc_callback_flags);
     }
 
     GarbageCollectionEpilogue();
+    tracer()->stop();
   }
 
   // Start incremental marking for the next cycle. The heap snapshot
@@ -1055,7 +1056,6 @@ void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
 
 bool Heap::PerformGarbageCollection(
     GarbageCollector collector,
-    GCTracer* tracer,
     const v8::GCCallbackFlags gc_callback_flags) {
   int freed_global_handles = 0;
 
@@ -1075,7 +1075,7 @@ bool Heap::PerformGarbageCollection(
   { GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+      GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCPrologueCallbacks(gc_type, kNoGCCallbackFlags);
@@ -1095,7 +1095,7 @@ bool Heap::PerformGarbageCollection(
 
   if (collector == MARK_COMPACTOR) {
     // Perform mark-sweep with optional compaction.
-    MarkCompact(tracer);
+    MarkCompact();
     sweep_generation_++;
     // Temporarily set the limit for case when PostGarbageCollectionProcessing
     // allocates and triggers GC. The real limit is set at after
@@ -1104,9 +1104,7 @@ bool Heap::PerformGarbageCollection(
         OldGenerationAllocationLimit(PromotedSpaceSizeOfObjects(), 0);
     old_gen_exhausted_ = false;
   } else {
-    tracer_ = tracer;
     Scavenge();
-    tracer_ = NULL;
   }
 
   UpdateSurvivalStatistics(start_new_space_size);
@@ -1119,7 +1117,7 @@ bool Heap::PerformGarbageCollection(
 
   gc_post_processing_depth_++;
   { AllowHeapAllocation allow_allocation;
-    GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+    GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
     freed_global_handles =
         isolate_->global_handles()->PostGarbageCollectionProcessing(collector);
   }
@@ -1142,7 +1140,7 @@ bool Heap::PerformGarbageCollection(
   { GCCallbacksScope scope(this);
     if (scope.CheckReenter()) {
       AllowHeapAllocation allow_allocation;
-      GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
+      GCTracer::Scope scope(tracer(), GCTracer::Scope::EXTERNAL);
       VMState<EXTERNAL> state(isolate_);
       HandleScope handle_scope(isolate_);
       CallGCEpilogueCallbacks(gc_type, gc_callback_flags);
@@ -1195,13 +1193,13 @@ void Heap::CallGCEpilogueCallbacks(GCType gc_type,
 }
 
 
-void Heap::MarkCompact(GCTracer* tracer) {
+void Heap::MarkCompact() {
   gc_state_ = MARK_COMPACT;
   LOG(isolate_, ResourceEvent("markcompact", "begin"));
 
   uint64_t size_of_objects_before_gc = SizeOfObjects();
 
-  mark_compact_collector_.Prepare(tracer);
+  mark_compact_collector_.Prepare();
 
   ms_count_++;
 
@@ -1299,7 +1297,7 @@ static void VerifyNonPointerSpacePointers(Heap* heap) {
 
   // The old data space was normally swept conservatively so that the iterator
   // doesn't work, so we normally skip the next bit.
-  if (heap->old_data_space()->is_iterable()) {
+  if (heap->old_data_space()->swept_precisely()) {
     HeapObjectIterator data_it(heap->old_data_space());
     for (HeapObject* object = data_it.Next();
          object != NULL; object = data_it.Next())
@@ -3306,8 +3304,7 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
   // pages is set after sweeping all pages.
   return (!is_in_old_pointer_space && !is_in_old_data_space) ||
          page->WasSwept() ||
-         (page->parallel_sweeping() <=
-             MemoryChunk::PARALLEL_SWEEPING_FINALIZE);
+         (page->parallel_sweeping() <= MemoryChunk::SWEEPING_FINALIZE);
 }
 
 
@@ -4211,8 +4208,8 @@ STRUCT_LIST(MAKE_CASE)
 
 
 bool Heap::IsHeapIterable() {
-  return (old_pointer_space()->is_iterable() &&
-          old_data_space()->is_iterable() &&
+  return (old_pointer_space()->swept_precisely() &&
+          old_data_space()->swept_precisely() &&
           new_space_top_after_last_gc_ == new_space()->top());
 }
 
@@ -4227,6 +4224,9 @@ void Heap::MakeHeapIterable() {
 
 
 void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
+  HistogramTimerScope idle_notification_scope(
+      isolate_->counters()->gc_incremental_marking());
+
   incremental_marking()->Step(step_size,
                               IncrementalMarking::NO_GC_VIA_STACK_GUARD);
 
@@ -4262,6 +4262,9 @@ bool Heap::IdleNotification(int hint) {
   // chrome/performance_ui_tests --gtest_filter="GeneralMixMemoryTest.*
   intptr_t step_size =
       size_factor * IncrementalMarking::kAllocatedThreshold;
+
+  HistogramTimerScope idle_notification_scope(
+      isolate_->counters()->gc_idle_notification());
 
   if (contexts_disposed_ > 0) {
     contexts_disposed_ = 0;
@@ -4520,6 +4523,11 @@ void Heap::Verify() {
   HandleScope scope(isolate());
 
   store_buffer()->Verify();
+
+  if (mark_compact_collector()->sweeping_in_progress()) {
+    // We have to wait here for the sweeper threads to have an iterable heap.
+    mark_compact_collector()->EnsureSweepingCompleted();
+  }
 
   VerifyPointersVisitor visitor;
   IterateRoots(&visitor, VISIT_ONLY_STRONG);
@@ -5960,15 +5968,13 @@ void Heap::UpdateGCStatistics(double start_time,
                               double marking_time) {
   double duration = end_time - start_time;
   alive_after_last_gc_ = SizeOfObjects();
-  bool first_gc = (last_gc_end_timestamp_ == 0);
   last_gc_end_timestamp_ = end_time;
 
   if (FLAG_print_cumulative_gc_stat) {
     total_gc_time_ms_ += duration;
     max_gc_pause_ = Max(max_gc_pause_, duration);
     max_alive_after_gc_ = Max(max_alive_after_gc_, alive_after_last_gc_);
-    if (!first_gc)
-      min_in_mutator_ = Min(min_in_mutator_, spent_in_mutator);
+    min_in_mutator_ = Min(min_in_mutator_, spent_in_mutator);
   } else if (FLAG_trace_gc_verbose) {
     total_gc_time_ms_ += duration;
   }
@@ -5977,23 +5983,38 @@ void Heap::UpdateGCStatistics(double start_time,
 }
 
 
-GCTracer::GCTracer(Heap* heap,
-                   GarbageCollector collector,
-                   const char* gc_reason,
-                   const char* collector_reason)
+GCTracer::GCTracer(Heap* heap)
     : start_time_(0.0),
       end_time_(0.0),
       start_object_size_(0),
       end_object_size_(0),
       start_memory_size_(0),
       end_memory_size_(0),
-      collector_(collector),
+      in_free_list_or_wasted_before_gc_(0),
       allocated_since_last_gc_(0),
       spent_in_mutator_(0),
+      steps_count_(0),
+      steps_took_(0.0),
+      longest_step_(0.0),
+      steps_count_since_last_gc_(0),
+      steps_took_since_last_gc_(0.0),
       heap_(heap),
-      gc_reason_(gc_reason),
-      collector_reason_(collector_reason) {
+      gc_reason_(NULL),
+      collector_reason_(NULL) {
+  for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
+    scopes_[i] = 0;
+  }
+}
+
+
+void GCTracer::start(GarbageCollector collector,
+                      const char* gc_reason,
+                      const char* collector_reason) {
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
+
+  collector_ = collector;
+  gc_reason_ = gc_reason;
+  collector_reason_ = collector_reason;
 
   start_time_ = base::OS::TimeCurrentMillis();
   start_object_size_ = heap_->SizeOfObjects();
@@ -6003,14 +6024,12 @@ GCTracer::GCTracer(Heap* heap,
     scopes_[i] = 0;
   }
 
-  in_free_list_or_wasted_before_gc_ = CountTotalHolesSize(heap);
+  in_free_list_or_wasted_before_gc_ = CountTotalHolesSize(heap_);
 
   allocated_since_last_gc_ =
       heap_->SizeOfObjects() - heap_->alive_after_last_gc_;
 
-  if (heap_->last_gc_end_timestamp_ > 0) {
-    spent_in_mutator_ = Max(start_time_ - heap_->last_gc_end_timestamp_, 0.0);
-  }
+  spent_in_mutator_ = Max(start_time_ - heap_->last_gc_end_timestamp_, 0.0);
 
   steps_count_ = heap_->incremental_marking()->steps_count();
   steps_took_ = heap_->incremental_marking()->steps_took();
@@ -6022,7 +6041,7 @@ GCTracer::GCTracer(Heap* heap,
 }
 
 
-GCTracer::~GCTracer() {
+void GCTracer::stop() {
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
 
   end_time_ = base::OS::TimeCurrentMillis();

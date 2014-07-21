@@ -185,6 +185,9 @@ class GitRecipesMixin(object):
   def GitSVNFetch(self):
     self.Git("svn fetch")
 
+  def GitSVNRebase(self):
+    self.Git("svn rebase")
+
   # TODO(machenbach): Unused? Remove.
   @Strip
   def GitSVNLog(self):

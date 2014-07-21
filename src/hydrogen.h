@@ -2466,23 +2466,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     // PropertyAccessInfo is built for types->first().
     bool CanAccessAsMonomorphic(SmallMapList* types);
 
-    Handle<Map> map() {
-      if (type_->Is(Type::Number())) {
-        Context* context = current_info()->closure()->context();
-        context = context->native_context();
-        return handle(context->number_function()->initial_map());
-      } else if (type_->Is(Type::Boolean())) {
-        Context* context = current_info()->closure()->context();
-        context = context->native_context();
-        return handle(context->boolean_function()->initial_map());
-      } else if (type_->Is(Type::String())) {
-        Context* context = current_info()->closure()->context();
-        context = context->native_context();
-        return handle(context->string_function()->initial_map());
-      } else {
-        return type_->AsClass()->Map();
-      }
-    }
+    Handle<Map> map();
     Type* type() const { return type_; }
     Handle<String> name() const { return name_; }
 

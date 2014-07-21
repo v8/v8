@@ -57,17 +57,13 @@ class StubCache {
   Handle<JSObject> StubHolder(Handle<JSObject> receiver,
                               Handle<JSObject> holder);
 
-  Handle<Code> FindIC(Handle<Name> name,
-                      Handle<Map> stub_holder_map,
+  Handle<Code> FindIC(Handle<Name> name, Handle<Map> stub_holder_map,
                       Code::Kind kind,
                       ExtraICState extra_state = kNoExtraICState,
-                      InlineCacheHolderFlag cache_holder = OWN_MAP);
+                      CacheHolderFlag cache_holder = kCacheOnReceiver);
 
-  Handle<Code> FindHandler(Handle<Name> name,
-                           Handle<Map> map,
-                           Code::Kind kind,
-                           InlineCacheHolderFlag cache_holder,
-                           Code::StubType type);
+  Handle<Code> FindHandler(Handle<Name> name, Handle<Map> map, Code::Kind kind,
+                           CacheHolderFlag cache_holder, Code::StubType type);
 
   Handle<Code> ComputeMonomorphicIC(Code::Kind kind,
                                     Handle<Name> name,
@@ -113,6 +109,8 @@ class StubCache {
 
   // Update cache for entry hash(name, map).
   Code* Set(Name* name, Map* map, Code* code);
+
+  Code* Get(Name* name, Map* map, Code::Flags flags);
 
   // Clear the lookup table (@ mark compact collection).
   void Clear();
@@ -183,6 +181,11 @@ class StubCache {
   static const int kInterceptorArgsHolderIndex = 3;
   static const int kInterceptorArgsLength = 4;
 
+  // Setting the entry size such that the index is shifted by Name::kHashShift
+  // is convenient; shifting down the length field (to extract the hash code)
+  // automatically discards the hash bit field.
+  static const int kCacheIndexShift = Name::kHashShift;
+
  private:
   explicit StubCache(Isolate* isolate);
 
@@ -195,13 +198,9 @@ class StubCache {
 
   // Hash algorithm for the primary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
-  // is scaled by 1 << kHeapObjectTagSize.
+  // is scaled by 1 << kCacheIndexShift.
   static int PrimaryOffset(Name* name, Code::Flags flags, Map* map) {
-    // This works well because the heap object tag size and the hash
-    // shift are equal.  Shifting down the length field to get the
-    // hash code would effectively throw away two bits of the hash
-    // code.
-    STATIC_ASSERT(kHeapObjectTagSize == Name::kHashShift);
+    STATIC_ASSERT(kCacheIndexShift == Name::kHashShift);
     // Compute the hash of the name (use entire hash field).
     ASSERT(name->HasHashCode());
     uint32_t field = name->hash_field();
@@ -216,12 +215,12 @@ class StubCache {
         (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
     // Base the offset on a simple combination of name, flags, and map.
     uint32_t key = (map_low32bits + field) ^ iflags;
-    return key & ((kPrimaryTableSize - 1) << kHeapObjectTagSize);
+    return key & ((kPrimaryTableSize - 1) << kCacheIndexShift);
   }
 
   // Hash algorithm for the secondary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
-  // is scaled by 1 << kHeapObjectTagSize.
+  // is scaled by 1 << kCacheIndexShift.
   static int SecondaryOffset(Name* name, Code::Flags flags, int seed) {
     // Use the seed from the primary cache in the secondary cache.
     uint32_t name_low32bits =
@@ -231,7 +230,7 @@ class StubCache {
     uint32_t iflags =
         (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
     uint32_t key = (seed - name_low32bits) + iflags;
-    return key & ((kSecondaryTableSize - 1) << kHeapObjectTagSize);
+    return key & ((kSecondaryTableSize - 1) << kCacheIndexShift);
   }
 
   // Compute the entry for a given offset in exactly the same way as
@@ -414,10 +413,9 @@ enum FrontendCheckType { PERFORM_INITIAL_CHECKS, SKIP_INITIAL_CHECKS };
 
 class BaseLoadStoreStubCompiler: public StubCompiler {
  public:
-  BaseLoadStoreStubCompiler(Isolate* isolate,
-                            Code::Kind kind,
+  BaseLoadStoreStubCompiler(Isolate* isolate, Code::Kind kind,
                             ExtraICState extra_ic_state = kNoExtraICState,
-                            InlineCacheHolderFlag cache_holder = OWN_MAP)
+                            CacheHolderFlag cache_holder = kCacheOnReceiver)
       : StubCompiler(isolate, extra_ic_state),
         kind_(kind),
         cache_holder_(cache_holder) {
@@ -498,7 +496,7 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
   bool IncludesNumberType(TypeHandleList* types);
 
   Code::Kind kind_;
-  InlineCacheHolderFlag cache_holder_;
+  CacheHolderFlag cache_holder_;
   Register* registers_;
 };
 
@@ -507,10 +505,10 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
  public:
   LoadStubCompiler(Isolate* isolate,
                    ExtraICState extra_ic_state = kNoExtraICState,
-                   InlineCacheHolderFlag cache_holder = OWN_MAP,
+                   CacheHolderFlag cache_holder = kCacheOnReceiver,
                    Code::Kind kind = Code::LOAD_IC)
-      : BaseLoadStoreStubCompiler(isolate, kind, extra_ic_state,
-                                  cache_holder) { }
+      : BaseLoadStoreStubCompiler(isolate, kind, extra_ic_state, cache_holder) {
+  }
   virtual ~LoadStubCompiler() { }
 
   Handle<Code> CompileLoadField(Handle<HeapType> type,
@@ -615,9 +613,9 @@ class KeyedLoadStubCompiler: public LoadStubCompiler {
  public:
   KeyedLoadStubCompiler(Isolate* isolate,
                         ExtraICState extra_ic_state = kNoExtraICState,
-                        InlineCacheHolderFlag cache_holder = OWN_MAP)
+                        CacheHolderFlag cache_holder = kCacheOnReceiver)
       : LoadStubCompiler(isolate, extra_ic_state, cache_holder,
-                         Code::KEYED_LOAD_IC) { }
+                         Code::KEYED_LOAD_IC) {}
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 

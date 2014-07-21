@@ -420,8 +420,8 @@ enum InlineCacheState {
   PREMONOMORPHIC,
   // Has been executed and only one receiver type has been seen.
   MONOMORPHIC,
-  // Like MONOMORPHIC but check failed due to prototype.
-  MONOMORPHIC_PROTOTYPE_FAILURE,
+  // Check failed due to prototype (or map deprecation).
+  PROTOTYPE_FAILURE,
   // Multiple receiver types have been seen.
   POLYMORPHIC,
   // Many receiver types have been seen.
@@ -449,9 +449,11 @@ enum CallConstructorFlags {
 };
 
 
-enum InlineCacheHolderFlag {
-  OWN_MAP,  // For fast properties objects.
-  PROTOTYPE_MAP  // For slow properties objects (except GlobalObjects).
+enum CacheHolderFlag {
+  kCacheOnPrototype,
+  kCacheOnPrototypeReceiverIsDictionary,
+  kCacheOnPrototypeReceiverIsPrimitive,
+  kCacheOnReceiver
 };
 
 

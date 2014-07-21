@@ -1375,6 +1375,13 @@ class Object {
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
 
+  // A non-keyed store is of the form a.x = foo or a["x"] = foo whereas
+  // a keyed store is of the form a[expression] = foo.
+  enum StoreFromKeyed {
+    MAY_BE_STORE_FROM_KEYED,
+    CERTAINLY_NOT_STORE_FROM_KEYED
+  };
+
   INLINE(bool IsFixedArrayBase() const);
   INLINE(bool IsExternal() const);
   INLINE(bool IsAccessorInfo() const);
@@ -1476,6 +1483,16 @@ class Object {
   void Lookup(Handle<Name> name, LookupResult* result);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
+  MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
+      LookupIterator* it, Handle<Object> value, StrictMode strict_mode,
+      StoreFromKeyed store_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
+      LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> SetDataProperty(
+      LookupIterator* it, Handle<Object> value);
+  MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
+      LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
+      StrictMode strict_mode, StoreFromKeyed store_mode);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> object,
       Handle<Name> key);
@@ -1492,12 +1509,9 @@ class Object {
       Handle<Name> name,
       Handle<JSObject> holder,
       Handle<Object> structure);
-  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithCallback(
-      Handle<Object> receiver,
-      Handle<Name> name,
-      Handle<Object> value,
-      Handle<JSObject> holder,
-      Handle<Object> structure,
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithAccessor(
+      Handle<Object> receiver, Handle<Name> name, Handle<Object> value,
+      Handle<JSObject> holder, Handle<Object> structure,
       StrictMode strict_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetPropertyWithDefinedGetter(
@@ -1918,13 +1932,6 @@ class JSReceiver: public HeapObject {
     FORCE_DELETION
   };
 
-  // A non-keyed store is of the form a.x = foo or a["x"] = foo whereas
-  // a keyed store is of the form a[expression] = foo.
-  enum StoreFromKeyed {
-    MAY_BE_STORE_FROM_KEYED,
-    CERTAINLY_NOT_STORE_FROM_KEYED
-  };
-
   // Internal properties (e.g. the hidden properties dictionary) might
   // be added even though the receiver is non-extensible.
   enum ExtensibilityCheck {
@@ -2136,18 +2143,7 @@ class JSObject: public JSReceiver {
                                                    uint32_t limit);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithInterceptor(
-      Handle<JSObject> object,
-      Handle<Name> name,
-      Handle<Object> value,
-      StrictMode strict_mode);
-
-  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyForResult(
-      Handle<JSObject> object,
-      LookupResult* result,
-      Handle<Name> name,
-      Handle<Object> value,
-      StrictMode strict_mode,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
+      LookupIterator* it, Handle<Object> value);
 
   // SetLocalPropertyIgnoreAttributes converts callbacks to fields. We need to
   // grant an exemption to ExecutableAccessor callbacks in some cases.
@@ -2573,12 +2569,6 @@ class JSObject: public JSReceiver {
 
   Object* SlowReverseLookup(Object* value);
 
-  // Maximal number of fast properties for the JSObject. Used to
-  // restrict the number of map transitions to avoid an explosion in
-  // the number of maps for objects used as dictionaries.
-  inline bool TooManyFastProperties(
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
-
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
   static const uint32_t kMaxElementCount = 0xffffffffu;
@@ -2606,8 +2596,6 @@ class JSObject: public JSReceiver {
   // "global.Object" and not to arbitrary other JSObject maps.
   static const int kInitialGlobalObjectUnusedPropertiesCount = 4;
 
-  static const int kFastPropertiesSoftLimit = 12;
-  static const int kMaxFastProperties = 128;
   static const int kMaxInstanceSize = 255 * kPointerSize;
   // When extending the backing storage for property values, we increase
   // its size by more than the 1 entry necessary, so sequentially adding fields
@@ -2734,21 +2722,6 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       bool check_prototype = true);
 
-  // Searches the prototype chain for property 'name'. If it is found and
-  // has a setter, invoke it and set '*done' to true. If it is found and is
-  // read-only, reject and set '*done' to true. Otherwise, set '*done' to
-  // false. Can throw and return an empty handle with '*done==true'.
-  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyViaPrototypes(
-      Handle<JSObject> object,
-      Handle<Name> name,
-      Handle<Object> value,
-      StrictMode strict_mode,
-      bool* done);
-  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyPostInterceptor(
-      Handle<JSObject> object,
-      Handle<Name> name,
-      Handle<Object> value,
-      StrictMode strict_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyUsingTransition(
       Handle<JSObject> object,
       LookupResult* lookup,
@@ -2756,12 +2729,7 @@ class JSObject: public JSReceiver {
       Handle<Object> value,
       PropertyAttributes attributes);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithFailedAccessCheck(
-      Handle<JSObject> object,
-      LookupResult* result,
-      Handle<Name> name,
-      Handle<Object> value,
-      bool check_prototype,
-      StrictMode strict_mode);
+      LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
 
   // Add a property to an object.
   MUST_USE_RESULT static MaybeHandle<Object> AddPropertyInternal(
@@ -3451,6 +3419,8 @@ class DescriptorArray: public FixedArray {
   void SetEnumCache(FixedArray* bridge_storage,
                     FixedArray* new_cache,
                     Object* new_index_cache);
+
+  bool CanHoldValue(int descriptor, Object* value);
 
   // Accessors for fetching instance descriptor at descriptor number.
   inline Name* GetKey(int descriptor_number);
@@ -5664,6 +5634,9 @@ class Code: public HeapObject {
   // enough handlers can be found.
   bool FindHandlers(CodeHandleList* code_list, int length = -1);
 
+  // Find the handler for |map|.
+  MaybeHandle<Code> FindHandlerForMap(Map* map);
+
   // Find the first name in an IC stub.
   Name* FindFirstName();
 
@@ -5685,30 +5658,26 @@ class Code: public HeapObject {
 
   // Flags operations.
   static inline Flags ComputeFlags(
-      Kind kind,
-      InlineCacheState ic_state = UNINITIALIZED,
-      ExtraICState extra_ic_state = kNoExtraICState,
-      StubType type = NORMAL,
-      InlineCacheHolderFlag holder = OWN_MAP);
+      Kind kind, InlineCacheState ic_state = UNINITIALIZED,
+      ExtraICState extra_ic_state = kNoExtraICState, StubType type = NORMAL,
+      CacheHolderFlag holder = kCacheOnReceiver);
 
   static inline Flags ComputeMonomorphicFlags(
-      Kind kind,
-      ExtraICState extra_ic_state = kNoExtraICState,
-      InlineCacheHolderFlag holder = OWN_MAP,
-      StubType type = NORMAL);
+      Kind kind, ExtraICState extra_ic_state = kNoExtraICState,
+      CacheHolderFlag holder = kCacheOnReceiver, StubType type = NORMAL);
 
   static inline Flags ComputeHandlerFlags(
-      Kind handler_kind,
-      StubType type = NORMAL,
-      InlineCacheHolderFlag holder = OWN_MAP);
+      Kind handler_kind, StubType type = NORMAL,
+      CacheHolderFlag holder = kCacheOnReceiver);
 
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline StubType ExtractTypeFromFlags(Flags flags);
+  static inline CacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline Kind ExtractKindFromFlags(Flags flags);
-  static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
   static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
 
   static inline Flags RemoveTypeFromFlags(Flags flags);
+  static inline Flags RemoveTypeAndHolderFromFlags(Flags flags);
 
   // Convert a target address into a code object.
   static inline Code* GetCodeFromTargetAddress(Address address);
@@ -5874,7 +5843,7 @@ class Code: public HeapObject {
   // Flags layout.  BitField<type, shift, size>.
   class ICStateField: public BitField<InlineCacheState, 0, 3> {};
   class TypeField: public BitField<StubType, 3, 1> {};
-  class CacheHolderField: public BitField<InlineCacheHolderFlag, 5, 1> {};
+  class CacheHolderField : public BitField<CacheHolderFlag, 4, 2> {};
   class KindField: public BitField<Kind, 6, 4> {};
   // TODO(bmeurer): Bit 10 is available for free use. :-)
   class ExtraICStateField: public BitField<ExtraICState, 11,
@@ -6334,6 +6303,10 @@ class Map: public HeapObject {
       StoreMode store_mode,
       const char* reason);
 
+  static Handle<Map> PrepareForDataProperty(Handle<Map> old_map,
+                                            int descriptor_number,
+                                            Handle<Object> value);
+
   static Handle<Map> Normalize(Handle<Map> map, PropertyNormalizationMode mode);
 
   // Returns the constructor name (the name (possibly, inferred name) of the
@@ -6526,6 +6499,15 @@ class Map: public HeapObject {
   static Handle<Map> CopyForObserved(Handle<Map> map);
 
   static Handle<Map> CopyForFreeze(Handle<Map> map);
+  // Maximal number of fast properties. Used to restrict the number of map
+  // transitions to avoid an explosion in the number of maps for objects used as
+  // dictionaries.
+  inline bool TooManyFastProperties(StoreFromKeyed store_mode);
+  static Handle<Map> TransitionToDataProperty(Handle<Map> map,
+                                              Handle<Name> name,
+                                              Handle<Object> value,
+                                              PropertyAttributes attributes,
+                                              StoreFromKeyed store_mode);
 
   inline void AppendDescriptor(Descriptor* desc);
 
@@ -6833,6 +6815,9 @@ class Map: public HeapObject {
   static Handle<Map> PutPrototypeTransition(Handle<Map> map,
                                             Handle<Object> prototype,
                                             Handle<Map> target_map);
+
+  static const int kFastPropertiesSoftLimit = 12;
+  static const int kMaxFastProperties = 128;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };
@@ -9968,12 +9953,8 @@ class JSProxy: public JSReceiver {
   // otherwise set it to false.
   MUST_USE_RESULT
   static MaybeHandle<Object> SetPropertyViaPrototypesWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<JSReceiver> receiver,
-      Handle<Name> name,
-      Handle<Object> value,
-      StrictMode strict_mode,
-      bool* done);
+      Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
+      Handle<Object> value, StrictMode strict_mode, bool* done);
 
   static PropertyAttributes GetPropertyAttributesWithHandler(
       Handle<JSProxy> proxy,
@@ -9983,6 +9964,9 @@ class JSProxy: public JSReceiver {
       Handle<JSProxy> proxy,
       Handle<JSReceiver> receiver,
       uint32_t index);
+  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithHandler(
+      Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
+      Handle<Object> value, StrictMode strict_mode);
 
   // Turn the proxy into an (empty) JSObject.
   static void Fix(Handle<JSProxy> proxy);
@@ -10022,12 +10006,6 @@ class JSProxy: public JSReceiver {
  private:
   friend class JSReceiver;
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<JSReceiver> receiver,
-      Handle<Name> name,
-      Handle<Object> value,
-      StrictMode strict_mode);
   MUST_USE_RESULT static inline MaybeHandle<Object> SetElementWithHandler(
       Handle<JSProxy> proxy,
       Handle<JSReceiver> receiver,
