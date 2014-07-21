@@ -199,7 +199,8 @@ class ChangeVersion(Step):
       self.GitCommit("[Auto-roll] Bump up version to %s\n\nTBR=%s" %
                      (self["new_version"], self._options.author))
       self.GitUpload(author=self._options.author,
-                     force=self._options.force_upload)
+                     force=self._options.force_upload,
+                     bypass_hooks=True)
       self.GitDCommit()
       print "Successfully changed the version."
     finally:
