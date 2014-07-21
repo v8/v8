@@ -265,7 +265,7 @@ class SmallMapList V8_FINAL {
   int length() const { return list_.length(); }
 
   void AddMapIfMissing(Handle<Map> map, Zone* zone) {
-    if (!Map::CurrentMapForDeprecated(map).ToHandle(&map)) return;
+    if (!Map::TryUpdate(map).ToHandle(&map)) return;
     for (int i = 0; i < length(); ++i) {
       if (at(i).is_identical_to(map)) return;
     }

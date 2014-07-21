@@ -200,7 +200,7 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
   Handle<Map> map;
   Map* raw_map = code->FindFirstMap();
   if (raw_map != NULL) {
-    if (Map::CurrentMapForDeprecated(handle(raw_map)).ToHandle(&map) &&
+    if (Map::TryUpdate(handle(raw_map)).ToHandle(&map) &&
         CanRetainOtherContext(*map, *native_context_)) {
       map = Handle<Map>::null();
     }

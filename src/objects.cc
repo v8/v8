@@ -2861,7 +2861,7 @@ Handle<Map> Map::GeneralizeAllFieldRepresentations(
 
 
 // static
-MaybeHandle<Map> Map::CurrentMapForDeprecated(Handle<Map> map) {
+MaybeHandle<Map> Map::TryUpdate(Handle<Map> map) {
   Handle<Map> proto_map(map);
   while (proto_map->prototype()->IsJSObject()) {
     Handle<JSObject> holder(JSObject::cast(proto_map->prototype()));
@@ -2870,12 +2870,20 @@ MaybeHandle<Map> Map::CurrentMapForDeprecated(Handle<Map> map) {
       proto_map = Handle<Map>(holder->map());
     }
   }
-  return CurrentMapForDeprecatedInternal(map);
+  return TryUpdateInternal(map);
 }
 
 
 // static
-MaybeHandle<Map> Map::CurrentMapForDeprecatedInternal(Handle<Map> old_map) {
+Handle<Map> Map::Update(Handle<Map> map) {
+  return GeneralizeRepresentation(map, 0, Representation::None(),
+                                  HeapType::None(map->GetIsolate()),
+                                  ALLOW_AS_CONSTANT);
+}
+
+
+// static
+MaybeHandle<Map> Map::TryUpdateInternal(Handle<Map> old_map) {
   DisallowHeapAllocation no_allocation;
   DisallowDeoptimization no_deoptimization(old_map->GetIsolate());
 
@@ -3940,17 +3948,12 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
 
 
 void JSObject::MigrateInstance(Handle<JSObject> object) {
-  // Converting any field to the most specific type will cause the
-  // GeneralizeFieldRepresentation algorithm to create the most general existing
-  // transition that matches the object. This achieves what is needed.
   Handle<Map> original_map(object->map());
-  GeneralizeFieldRepresentation(
-      object, 0, Representation::None(),
-      HeapType::None(object->GetIsolate()),
-      ALLOW_AS_CONSTANT);
-  object->map()->set_migration_target(true);
+  Handle<Map> map = Map::Update(original_map);
+  map->set_migration_target(true);
+  MigrateToMap(object, map);
   if (FLAG_trace_migration) {
-    object->PrintInstanceMigration(stdout, *original_map, object->map());
+    object->PrintInstanceMigration(stdout, *original_map, *map);
   }
 }
 
@@ -3961,7 +3964,7 @@ bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
   DisallowDeoptimization no_deoptimization(isolate);
   Handle<Map> original_map(object->map(), isolate);
   Handle<Map> new_map;
-  if (!Map::CurrentMapForDeprecatedInternal(original_map).ToHandle(&new_map)) {
+  if (!Map::TryUpdate(original_map).ToHandle(&new_map)) {
     return false;
   }
   JSObject::MigrateToMap(object, new_map);
@@ -7326,11 +7329,7 @@ Handle<Map> Map::PrepareForDataProperty(Handle<Map> map, int descriptor,
   if (map->is_dictionary_map()) return map;
 
   // Migrate to the newest map before storing the property.
-  if (map->is_deprecated()) {
-    map = GeneralizeRepresentation(map, 0, Representation::None(),
-                                   HeapType::None(map->GetIsolate()),
-                                   ALLOW_AS_CONSTANT);
-  }
+  if (map->is_deprecated()) map = Update(map);
 
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
 
@@ -7353,11 +7352,7 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   if (map->is_dictionary_map()) return map;
 
   // Migrate to the newest map before transitioning to the new property.
-  if (map->is_deprecated()) {
-    map = GeneralizeRepresentation(map, 0, Representation::None(),
-                                   HeapType::None(map->GetIsolate()),
-                                   ALLOW_AS_CONSTANT);
-  }
+  if (map->is_deprecated()) map = Update(map);
 
   int index = map->SearchTransition(*name);
   if (index != TransitionArray::kNotFound) {
