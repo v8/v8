@@ -160,10 +160,8 @@ function StringFromCodePoint(_) {  // length = 1
       result += %_StringCharFromCode(code);
     } else {
       code -= 0x10000;
-      result += StringFromCharCode(
-        code >>> 10 & 0x3FF | 0xD800,
-        0xDC00 | code & 0x3FF
-      );
+      result += %_StringCharFromCode((code >>> 10) & 0x3FF | 0xD800);
+      result += %_StringCharFromCode(code & 0x3FF | 0xDC00);
     }
   }
   return result;
