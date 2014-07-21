@@ -11438,7 +11438,7 @@ void Code::PrintExtraICState(OStream& os,  // NOLINT
 
 void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
   os << "kind = " << Kind2String(kind()) << "\n";
-  if (has_major_key()) {
+  if (IsCodeStubOrIC()) {
     const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(this), true);
     os << "major_key = " << (n == NULL ? "null" : n) << "\n";
   }
@@ -11449,11 +11449,11 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
       os << "type = " << StubType2String(type()) << "\n";
     }
     if (is_compare_ic_stub()) {
-      ASSERT(major_key() == CodeStub::CompareIC);
+      ASSERT(CodeStub::GetMajorKey(this) == CodeStub::CompareIC);
       CompareIC::State left_state, right_state, handler_state;
       Token::Value op;
-      ICCompareStub::DecodeMinorKey(stub_info(), &left_state, &right_state,
-                                    &handler_state, &op);
+      ICCompareStub::DecodeKey(stub_key(), &left_state, &right_state,
+                               &handler_state, &op);
       os << "compare_state = " << CompareIC::GetStateName(left_state) << "*"
          << CompareIC::GetStateName(right_state) << " -> "
          << CompareIC::GetStateName(handler_state) << "\n";

@@ -639,6 +639,8 @@ void Code::CodeVerify() {
       last_gc_pc = it.rinfo()->pc();
     }
   }
+  CHECK(raw_type_feedback_info()->IsUndefined() ||
+        raw_type_feedback_info()->IsSmi() == IsCodeStubOrIC());
 }
 
 

@@ -704,9 +704,7 @@ Handle<Code> StubCompiler::GetCodeWithFlags(Code::Flags flags,
   CodeDesc desc;
   masm_.GetCode(&desc);
   Handle<Code> code = factory()->NewCode(desc, flags, masm_.CodeObject());
-  if (code->has_major_key()) {
-    code->set_major_key(CodeStub::NoCache);
-  }
+  if (code->IsCodeStubOrIC()) code->set_stub_key(CodeStub::NoCacheKey());
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs) {
     OFStream os(stdout);

@@ -1499,8 +1499,8 @@ void V8HeapExplorer::TagBuiltinCodeObject(Code* code, const char* name) {
 void V8HeapExplorer::TagCodeObject(Code* code) {
   if (code->kind() == Code::STUB) {
     TagObject(code, names_->GetFormatted(
-        "(%s code)", CodeStub::MajorName(
-            static_cast<CodeStub::Major>(code->major_key()), true)));
+                        "(%s code)", CodeStub::MajorName(
+                                         CodeStub::GetMajorKey(code), true)));
   }
 }
 

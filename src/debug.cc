@@ -373,7 +373,7 @@ bool BreakLocationIterator::IsStepInLocation(Isolate* isolate) {
     Address target = original_rinfo()->target_address();
     Handle<Code> target_code(Code::GetCodeFromTargetAddress(target));
     if (target_code->kind() == Code::STUB) {
-      return target_code->major_key() == CodeStub::CallFunction;
+      return CodeStub::GetMajorKey(*target_code) == CodeStub::CallFunction;
     }
     return target_code->is_call_stub();
   }
@@ -398,7 +398,8 @@ void BreakLocationIterator::PrepareStepIn(Isolate* isolate) {
   }
   bool is_call_function_stub =
       (maybe_call_function_stub->kind() == Code::STUB &&
-       maybe_call_function_stub->major_key() == CodeStub::CallFunction);
+       CodeStub::GetMajorKey(*maybe_call_function_stub) ==
+           CodeStub::CallFunction);
 
   // Step in through construct call requires no changes to the running code.
   // Step in through getters/setters should already be prepared as well
@@ -475,7 +476,7 @@ static Handle<Code> DebugBreakForIC(Handle<Code> code, RelocInfo::Mode mode) {
     }
   }
   if (code->kind() == Code::STUB) {
-    ASSERT(code->major_key() == CodeStub::CallFunction);
+    ASSERT(CodeStub::GetMajorKey(*code) == CodeStub::CallFunction);
     return isolate->builtins()->CallFunctionStub_DebugBreak();
   }
 
@@ -1419,7 +1420,8 @@ void Debug::PrepareStep(StepAction step_action,
             Code::GetCodeFromTargetAddress(original_target);
       }
       if ((maybe_call_function_stub->kind() == Code::STUB &&
-           maybe_call_function_stub->major_key() == CodeStub::CallFunction) ||
+           CodeStub::GetMajorKey(maybe_call_function_stub) ==
+               CodeStub::CallFunction) ||
           maybe_call_function_stub->kind() == Code::CALL_IC) {
         // Save reference to the code as we may need it to find out arguments
         // count for 'step in' later.
@@ -1499,7 +1501,8 @@ void Debug::PrepareStep(StepAction step_action,
               CodeStub::MinorKeyFromKey(key));
 
       ASSERT(is_call_ic ||
-             call_function_stub->major_key() == CodeStub::MajorKeyFromKey(key));
+             CodeStub::GetMajorKey(*call_function_stub) ==
+                 CodeStub::MajorKeyFromKey(key));
 
       // Find target function on the expression stack.
       // Expression stack looks like this (top to bottom):

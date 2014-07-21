@@ -189,7 +189,7 @@ Handle<Code> CodeStub::GetCode() {
     HandleScope scope(isolate());
 
     Handle<Code> new_object = GenerateCode();
-    new_object->set_major_key(MajorKey());
+    new_object->set_stub_key(GetKey());
     FinishCode(new_object);
     RecordCodeGeneration(new_object);
 
@@ -371,8 +371,8 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
     Token::Value cached_op;
-    ICCompareStub::DecodeMinorKey((*code_out)->stub_info(), NULL, NULL, NULL,
-                                  &cached_op);
+    ICCompareStub::DecodeKey((*code_out)->stub_key(), NULL, NULL, NULL,
+                             &cached_op);
     ASSERT(op_ == cached_op);
 #endif
     return true;
@@ -389,11 +389,11 @@ int ICCompareStub::MinorKey() const {
 }
 
 
-void ICCompareStub::DecodeMinorKey(int minor_key,
-                                   CompareIC::State* left_state,
-                                   CompareIC::State* right_state,
-                                   CompareIC::State* handler_state,
-                                   Token::Value* op) {
+void ICCompareStub::DecodeKey(uint32_t stub_key, CompareIC::State* left_state,
+                              CompareIC::State* right_state,
+                              CompareIC::State* handler_state,
+                              Token::Value* op) {
+  int minor_key = MinorKeyFromKey(stub_key);
   if (left_state) {
     *left_state =
         static_cast<CompareIC::State>(LeftStateField::decode(minor_key));

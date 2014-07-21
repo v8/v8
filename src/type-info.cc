@@ -207,9 +207,8 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
   }
 
   if (code->is_compare_ic_stub()) {
-    int stub_minor_key = code->stub_info();
-    CompareIC::StubInfoToType(
-        stub_minor_key, left_type, right_type, combined_type, map, zone());
+    CompareIC::StubInfoToType(code->stub_key(), left_type, right_type,
+                              combined_type, map, zone());
   } else if (code->is_compare_nil_ic_stub()) {
     CompareNilICStub stub(isolate(), code->extra_ic_state());
     *combined_type = stub.GetType(zone(), map);

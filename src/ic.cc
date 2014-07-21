@@ -514,11 +514,10 @@ void CompareIC::Clear(Isolate* isolate,
                       Address address,
                       Code* target,
                       ConstantPoolArray* constant_pool) {
-  ASSERT(target->major_key() == CodeStub::CompareIC);
+  ASSERT(CodeStub::GetMajorKey(target) == CodeStub::CompareIC);
   CompareIC::State handler_state;
   Token::Value op;
-  ICCompareStub::DecodeMinorKey(target->stub_info(), NULL, NULL,
-                                &handler_state, &op);
+  ICCompareStub::DecodeKey(target->stub_key(), NULL, NULL, &handler_state, &op);
   // Only clear CompareICs that can retain objects.
   if (handler_state != KNOWN_OBJECT) return;
   SetTargetAtAddress(address, GetRawUninitialized(isolate, op), constant_pool);
@@ -2756,15 +2755,12 @@ Type* CompareIC::StateToType(
 }
 
 
-void CompareIC::StubInfoToType(int stub_minor_key,
-                               Type** left_type,
-                               Type** right_type,
-                               Type** overall_type,
-                               Handle<Map> map,
-                               Zone* zone) {
+void CompareIC::StubInfoToType(uint32_t stub_key, Type** left_type,
+                               Type** right_type, Type** overall_type,
+                               Handle<Map> map, Zone* zone) {
   State left_state, right_state, handler_state;
-  ICCompareStub::DecodeMinorKey(stub_minor_key, &left_state, &right_state,
-                                &handler_state, NULL);
+  ICCompareStub::DecodeKey(stub_key, &left_state, &right_state, &handler_state,
+                           NULL);
   *left_type = StateToType(zone, left_state);
   *right_type = StateToType(zone, right_state);
   *overall_type = StateToType(zone, handler_state, map);
@@ -2880,8 +2876,8 @@ CompareIC::State CompareIC::TargetState(State old_state,
 Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope(isolate());
   State previous_left, previous_right, previous_state;
-  ICCompareStub::DecodeMinorKey(target()->stub_info(), &previous_left,
-                                &previous_right, &previous_state, NULL);
+  ICCompareStub::DecodeKey(target()->stub_key(), &previous_left,
+                           &previous_right, &previous_state, NULL);
   State new_left = NewInputState(previous_left, x);
   State new_right = NewInputState(previous_right, y);
   State state = TargetState(previous_state, previous_left, previous_right,
