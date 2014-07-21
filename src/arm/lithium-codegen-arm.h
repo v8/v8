@@ -270,9 +270,6 @@ class LCodeGen: public LCodeGenBase {
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     Safepoint::DeoptMode mode);
-  void RecordSafepointWithRegistersAndDoubles(LPointerMap* pointers,
-                                              int arguments,
-                                              Safepoint::DeoptMode mode);
 
   void RecordAndWritePosition(int position) V8_OVERRIDE;
 
@@ -356,38 +353,17 @@ class LCodeGen: public LCodeGenBase {
 
   class PushSafepointRegistersScope V8_FINAL BASE_EMBEDDED {
    public:
-    PushSafepointRegistersScope(LCodeGen* codegen,
-                                Safepoint::Kind kind)
+    explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {
       ASSERT(codegen_->info()->is_calling());
       ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
-      codegen_->expected_safepoint_kind_ = kind;
-
-      switch (codegen_->expected_safepoint_kind_) {
-        case Safepoint::kWithRegisters:
-          codegen_->masm_->PushSafepointRegisters();
-          break;
-        case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PushSafepointRegistersAndDoubles();
-          break;
-        default:
-          UNREACHABLE();
-      }
+      codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
+      codegen_->masm_->PushSafepointRegisters();
     }
 
     ~PushSafepointRegistersScope() {
-      Safepoint::Kind kind = codegen_->expected_safepoint_kind_;
-      ASSERT((kind & Safepoint::kWithRegisters) != 0);
-      switch (kind) {
-        case Safepoint::kWithRegisters:
-          codegen_->masm_->PopSafepointRegisters();
-          break;
-        case Safepoint::kWithRegistersAndDoubles:
-          codegen_->masm_->PopSafepointRegistersAndDoubles();
-          break;
-        default:
-          UNREACHABLE();
-      }
+      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      codegen_->masm_->PopSafepointRegisters();
       codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
     }
 

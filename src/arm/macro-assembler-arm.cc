@@ -727,39 +727,6 @@ void MacroAssembler::PopSafepointRegisters() {
 }
 
 
-void MacroAssembler::PushSafepointRegistersAndDoubles() {
-  // Number of d-regs not known at snapshot time.
-  ASSERT(!serializer_enabled());
-  PushSafepointRegisters();
-  // Only save allocatable registers.
-  ASSERT(kScratchDoubleReg.is(d15) && kDoubleRegZero.is(d14));
-  ASSERT(DwVfpRegister::NumReservedRegisters() == 2);
-  if (CpuFeatures::IsSupported(VFP32DREGS)) {
-    vstm(db_w, sp, d16, d31);
-  }
-  vstm(db_w, sp, d0, d13);
-}
-
-
-void MacroAssembler::PopSafepointRegistersAndDoubles() {
-  // Number of d-regs not known at snapshot time.
-  ASSERT(!serializer_enabled());
-  // Only save allocatable registers.
-  ASSERT(kScratchDoubleReg.is(d15) && kDoubleRegZero.is(d14));
-  ASSERT(DwVfpRegister::NumReservedRegisters() == 2);
-  vldm(ia_w, sp, d0, d13);
-  if (CpuFeatures::IsSupported(VFP32DREGS)) {
-    vldm(ia_w, sp, d16, d31);
-  }
-  PopSafepointRegisters();
-}
-
-void MacroAssembler::StoreToSafepointRegistersAndDoublesSlot(Register src,
-                                                             Register dst) {
-  str(src, SafepointRegistersAndDoublesSlot(dst));
-}
-
-
 void MacroAssembler::StoreToSafepointRegisterSlot(Register src, Register dst) {
   str(src, SafepointRegisterSlot(dst));
 }
