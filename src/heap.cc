@@ -4208,6 +4208,8 @@ STRUCT_LIST(MAKE_CASE)
 
 
 bool Heap::IsHeapIterable() {
+  // TODO(hpayer): This function is not correct. Allocation folding in old
+  // space breaks the iterability.
   return (old_pointer_space()->swept_precisely() &&
           old_data_space()->swept_precisely() &&
           new_space_top_after_last_gc_ == new_space()->top());
@@ -4218,6 +4220,9 @@ void Heap::MakeHeapIterable() {
   ASSERT(AllowHeapAllocation::IsAllowed());
   if (!IsHeapIterable()) {
     CollectAllGarbage(kMakeHeapIterableMask, "Heap::MakeHeapIterable");
+  }
+  if (mark_compact_collector()->sweeping_in_progress()) {
+    mark_compact_collector()->EnsureSweepingCompleted();
   }
   ASSERT(IsHeapIterable());
 }
