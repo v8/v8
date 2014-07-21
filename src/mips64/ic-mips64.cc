@@ -445,7 +445,7 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in a2.
   MemOperand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, a0, a0, a3, &slow);
+      GenerateUnmappedArgumentsLookup(masm, key, a0, a3, &slow);
   __ ld(a0, unmapped_location);
   __ LoadRoot(a3, Heap::kTheHoleValueRootIndex);
   __ Branch(&slow, eq, a0, Operand(a3));

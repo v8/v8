@@ -569,7 +569,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
   // Set transitioned map.
   __ sd(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ RecordWriteField(a2,
+  __ RecordWriteField(receiver,
                       HeapObject::kMapOffset,
                       target_map,
                       t1,
