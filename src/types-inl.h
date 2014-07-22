@@ -19,7 +19,7 @@ namespace internal {
 template<class Config>
 TypeImpl<Config>* TypeImpl<Config>::cast(typename Config::Base* object) {
   TypeImpl* t = static_cast<TypeImpl*>(object);
-  ASSERT(t->IsBitset() || t->IsClass() || t->IsConstant() ||
+  ASSERT(t->IsBitset() || t->IsClass() || t->IsConstant() || t->IsRange() ||
          t->IsUnion() || t->IsArray() || t->IsFunction() || t->IsContext());
   return t;
 }

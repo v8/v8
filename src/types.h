@@ -5,6 +5,7 @@
 #ifndef V8_TYPES_H_
 #define V8_TYPES_H_
 
+#include "src/factory.h"
 #include "src/handles.h"
 #include "src/ostreams.h"
 
@@ -254,6 +255,7 @@ class TypeImpl : public Config::Base {
 
   class ClassType;
   class ConstantType;
+  class RangeType;
   class ContextType;
   class ArrayType;
   class FunctionType;
@@ -261,6 +263,7 @@ class TypeImpl : public Config::Base {
   typedef typename Config::template Handle<TypeImpl>::type TypeHandle;
   typedef typename Config::template Handle<ClassType>::type ClassHandle;
   typedef typename Config::template Handle<ConstantType>::type ConstantHandle;
+  typedef typename Config::template Handle<RangeType>::type RangeHandle;
   typedef typename Config::template Handle<ContextType>::type ContextHandle;
   typedef typename Config::template Handle<ArrayType>::type ArrayHandle;
   typedef typename Config::template Handle<FunctionType>::type FunctionHandle;
@@ -281,7 +284,11 @@ class TypeImpl : public Config::Base {
     return ClassType::New(map, region);
   }
   static TypeHandle Constant(i::Handle<i::Object> value, Region* region) {
+    // TODO(neis): return RangeType for numerical values
     return ConstantType::New(value, region);
+  }
+  static TypeHandle Range(double min, double max, Region* region) {
+    return RangeType::New(min, max, region);
   }
   static TypeHandle Context(TypeHandle outer, Region* region) {
     return ContextType::New(outer, region);
@@ -375,6 +382,9 @@ class TypeImpl : public Config::Base {
   bool IsConstant() {
     return Config::is_struct(this, StructuralType::kConstantTag);
   }
+  bool IsRange() {
+    return Config::is_struct(this, StructuralType::kRangeTag);
+  }
   bool IsContext() {
     return Config::is_struct(this, StructuralType::kContextTag);
   }
@@ -387,6 +397,7 @@ class TypeImpl : public Config::Base {
 
   ClassType* AsClass() { return ClassType::cast(this); }
   ConstantType* AsConstant() { return ConstantType::cast(this); }
+  RangeType* AsRange() { return RangeType::cast(this); }
   ContextType* AsContext() { return ContextType::cast(this); }
   ArrayType* AsArray() { return ArrayType::cast(this); }
   FunctionType* AsFunction() { return FunctionType::cast(this); }
@@ -520,6 +531,7 @@ class TypeImpl<Config>::StructuralType : public TypeImpl<Config> {
   enum Tag {
     kClassTag,
     kConstantTag,
+    kRangeTag,
     kContextTag,
     kArrayTag,
     kFunctionTag,
@@ -651,6 +663,42 @@ class TypeImpl<Config>::ConstantType : public StructuralType {
   static ConstantType* cast(TypeImpl* type) {
     ASSERT(type->IsConstant());
     return static_cast<ConstantType*>(type);
+  }
+};
+
+
+// -----------------------------------------------------------------------------
+// Range types.
+
+template<class Config>
+class TypeImpl<Config>::RangeType : public StructuralType {
+ public:
+  TypeHandle Bound() { return this->Get(0); }
+  double Min() { return this->template GetValue<i::HeapNumber>(1)->value(); }
+  double Max() { return this->template GetValue<i::HeapNumber>(2)->value(); }
+
+  static RangeHandle New(
+      double min, double max, TypeHandle bound, Region* region) {
+    ASSERT(SEMANTIC(bound->AsBitset() | BitsetType::kNumber)
+           == SEMANTIC(BitsetType::kNumber));
+    ASSERT(!std::isnan(min) && !std::isnan(max) && min <= max);
+    RangeHandle type = Config::template cast<RangeType>(
+        StructuralType::New(StructuralType::kRangeTag, 3, region));
+    type->Set(0, bound);
+    Factory* factory = Config::isolate(region)->factory();
+    type->SetValue(1, factory->NewHeapNumber(min));
+    type->SetValue(2, factory->NewHeapNumber(max));
+    return type;
+  }
+
+  static RangeHandle New(double min, double max, Region* region) {
+    TypeHandle bound = BitsetType::New(BitsetType::kNumber, region);
+    return New(min, max, bound, region);
+  }
+
+  static RangeType* cast(TypeImpl* type) {
+    ASSERT(type->IsRange());
+    return static_cast<RangeType*>(type);
   }
 };
 
@@ -791,6 +839,11 @@ struct ZoneTypeConfig {
   typedef i::Zone Region;
   template<class T> struct Handle { typedef T* type; };
 
+  // TODO(neis): This will be removed again once we have struct_get_double().
+  static inline i::Isolate* isolate(Region* region) {
+    return region->isolate();
+  }
+
   template<class T> static inline T* handle(T* type);
   template<class T> static inline T* cast(Type* type);
 
@@ -832,6 +885,11 @@ struct HeapTypeConfig {
   typedef i::FixedArray Struct;
   typedef i::Isolate Region;
   template<class T> struct Handle { typedef i::Handle<T> type; };
+
+  // TODO(neis): This will be removed again once we have struct_get_double().
+  static inline i::Isolate* isolate(Region* region) {
+    return region;
+  }
 
   template<class T> static inline i::Handle<T> handle(T* type);
   template<class T> static inline i::Handle<T> cast(i::Handle<Type> type);

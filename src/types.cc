@@ -911,6 +911,11 @@ void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
          << " : ";
       BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
       os << ")";
+    } else if (this->IsRange()) {
+      os << "Range(" << this->AsRange()->Min()
+         << ".." << this->AsRange()->Max() << " : ";
+      BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
+      os << ")";
     } else if (this->IsContext()) {
       os << "Context(";
       this->AsContext()->Outer()->PrintTo(os, dim);
