@@ -473,7 +473,7 @@ gtags.clean:
 builddeps:
 	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
 	    --revision 1831
-	if svn info third_party/icu |& grep -q icu46 ; then \
+	if svn info third_party/icu 2>&1 | grep -q icu46 ; then \
 	  svn switch --force \
 	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
 	      third_party/icu --revision 277999 ; \
