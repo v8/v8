@@ -14,7 +14,7 @@ deps = {
     "http://gyp.googlecode.com/svn/trunk@1831",
 
   "v8/third_party/icu":
-    Var("chromium_trunk") + "/deps/third_party/icu46@258359",
+    Var("chromium_trunk") + "/deps/third_party/icu52@277999",
 
   "v8/buildtools":
     "https://chromium.googlesource.com/chromium/buildtools.git@" +
