@@ -3107,8 +3107,10 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
                                             StrictMode strict_mode,
                                             StoreFromKeyed store_mode) {
   ASSERT(!it->GetReceiver()->IsJSProxy());
-  // Transitions to data properties of value wrappers are not observable.
-  if (!it->GetReceiver()->IsJSObject()) return value;
+  if (!it->GetReceiver()->IsJSObject()) {
+    // TODO(verwaest): Throw a TypeError with a more specific message.
+    return WriteToReadOnlyProperty(it, value, strict_mode);
+  }
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
 
   // If the receiver is a JSGlobalProxy, store on the prototype (JSGlobalObject)
