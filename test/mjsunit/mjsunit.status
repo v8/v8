@@ -155,6 +155,7 @@
   'regress/regress-353551': [SKIP],
   'regress/regress-crbug-119926': [SKIP],
   'regress/short-circuit': [SKIP],
+  'stack-traces-overflow': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP]
 }],  # 'gc_stress == True'
