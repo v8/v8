@@ -558,31 +558,6 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
     return TypeError("non_object_property_load", object, name);
   }
 
-  if (FLAG_use_ic) {
-    // Use specialized code for getting prototype of functions.
-    if (object->IsJSFunction() &&
-        String::Equals(isolate()->factory()->prototype_string(), name) &&
-        Handle<JSFunction>::cast(object)->should_have_prototype()) {
-      Handle<Code> stub;
-      if (state() == UNINITIALIZED) {
-        stub = pre_monomorphic_stub();
-      } else if (state() == PREMONOMORPHIC) {
-        FunctionPrototypeStub function_prototype_stub(isolate(), kind());
-        stub = function_prototype_stub.GetCode();
-      } else if (!FLAG_compiled_keyed_generic_loads && state() != MEGAMORPHIC) {
-        ASSERT(state() != GENERIC);
-        stub = megamorphic_stub();
-      } else if (FLAG_compiled_keyed_generic_loads && state() != GENERIC) {
-        stub = generic_stub();
-      }
-      if (!stub.is_null()) {
-        set_target(*stub);
-        if (FLAG_trace_ic) PrintF("[LoadIC : +#prototype /function]\n");
-      }
-      return Accessors::FunctionGetPrototype(Handle<JSFunction>::cast(object));
-    }
-  }
-
   // Check if the name is trivially convertible to an index and get
   // the element or char if so.
   uint32_t index;
@@ -957,6 +932,15 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
       KeyedStringLengthStub string_length_stub(isolate());
       return string_length_stub.GetCode();
     }
+  }
+
+  // Use specialized code for getting prototype of functions.
+  if (object->IsJSFunction() &&
+      String::Equals(isolate()->factory()->prototype_string(), name) &&
+      Handle<JSFunction>::cast(object)->should_have_prototype()) {
+    Handle<Code> stub;
+    FunctionPrototypeStub function_prototype_stub(isolate(), kind());
+    return function_prototype_stub.GetCode();
   }
 
   Handle<HeapType> type = receiver_type();

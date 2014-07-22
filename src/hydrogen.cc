@@ -6070,6 +6070,11 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
 bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   if (!CanInlinePropertyAccess(type_)) return false;
   if (IsJSObjectFieldAccessor()) return IsLoad();
+  if (this->map()->function_with_prototype() &&
+      !this->map()->has_non_instance_prototype() &&
+      name_.is_identical_to(isolate()->factory()->prototype_string())) {
+    return IsLoad();
+  }
   if (!LookupDescriptor()) return false;
   if (lookup_.IsFound()) {
     if (IsLoad()) return true;
@@ -6159,6 +6164,12 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
   if (info->GetJSObjectFieldAccess(&access)) {
     ASSERT(info->IsLoad());
     return New<HLoadNamedField>(object, checked_object, access);
+  }
+
+  if (info->name().is_identical_to(isolate()->factory()->prototype_string()) &&
+      info->map()->function_with_prototype()) {
+    ASSERT(!info->map()->has_non_instance_prototype());
+    return New<HLoadFunctionPrototype>(checked_object);
   }
 
   HValue* checked_holder = checked_object;
@@ -6575,8 +6586,7 @@ void HOptimizedGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
     CHECK_ALIVE(VisitForValue(prop->obj()));
     HValue* object = Top();
     HValue* key = NULL;
-    if ((!prop->IsFunctionPrototype() && !prop->key()->IsPropertyName()) ||
-        prop->IsStringAccess()) {
+    if (!prop->key()->IsPropertyName() || prop->IsStringAccess()) {
       CHECK_ALIVE(VisitForValue(prop->key()));
       key = Top();
     }
@@ -7286,11 +7296,6 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     AddInstruction(char_code);
     instr = NewUncasted<HStringCharFromCode>(char_code);
 
-  } else if (expr->IsFunctionPrototype()) {
-    HValue* function = Pop();
-    BuildCheckHeapObject(function);
-    instr = New<HLoadFunctionPrototype>(function);
-
   } else if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
     HValue* object = Pop();
@@ -7330,8 +7335,7 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   if (TryArgumentsAccess(expr)) return;
 
   CHECK_ALIVE(VisitForValue(expr->obj()));
-  if ((!expr->IsFunctionPrototype() && !expr->key()->IsPropertyName()) ||
-      expr->IsStringAccess()) {
+  if (!expr->key()->IsPropertyName() || expr->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(expr->key()));
   }
 
@@ -10025,8 +10029,7 @@ void HOptimizedGraphBuilder::VisitCountOperation(CountOperation* expr) {
   HValue* object = Top();
 
   HValue* key = NULL;
-  if ((!prop->IsFunctionPrototype() && !prop->key()->IsPropertyName()) ||
-      prop->IsStringAccess()) {
+  if (!prop->key()->IsPropertyName() || prop->IsStringAccess()) {
     CHECK_ALIVE(VisitForValue(prop->key()));
     key = Top();
   }
