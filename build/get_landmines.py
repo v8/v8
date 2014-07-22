@@ -15,8 +15,7 @@ def main():
   """
   ALL LANDMINES ARE EMITTED FROM HERE.
   """
-  # TODO(machenbach): Uncomment to test if landmines work.
-  # print 'Need to clobber after ICU52 roll.'
+  print 'Need to clobber after ICU52 roll.'
   return 0
 
 
