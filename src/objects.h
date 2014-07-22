@@ -1483,6 +1483,13 @@ class Object {
   void Lookup(Handle<Name> name, LookupResult* result);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
+
+  // Implementation of [[Put]], ECMA-262 5th edition, section 8.12.5.
+  MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
+      Handle<Object> object, Handle<Name> key, Handle<Object> value,
+      StrictMode strict_mode,
+      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
+
   MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode,
       StoreFromKeyed store_mode);
@@ -1941,13 +1948,6 @@ class JSReceiver: public HeapObject {
 
   DECLARE_CAST(JSReceiver)
 
-  // Implementation of [[Put]], ECMA-262 5th edition, section 8.12.5.
-  MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
-      Handle<JSReceiver> object,
-      Handle<Name> key,
-      Handle<Object> value,
-      StrictMode strict_mode,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED);
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(
       Handle<JSReceiver> object,
       uint32_t index,
@@ -2023,14 +2023,6 @@ class JSReceiver: public HeapObject {
       KeyCollectionType type);
 
  private:
-  MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
-      Handle<JSReceiver> receiver,
-      LookupResult* result,
-      Handle<Name> key,
-      Handle<Object> value,
-      StrictMode strict_mode,
-      StoreFromKeyed store_from_keyed);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
 

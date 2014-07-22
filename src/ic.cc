@@ -1195,11 +1195,12 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
 }
 
 
-static bool LookupForWrite(Handle<JSObject> receiver,
-                           Handle<String> name,
-                           Handle<Object> value,
-                           LookupResult* lookup,
-                           IC* ic) {
+static bool LookupForWrite(Handle<Object> object, Handle<String> name,
+                           Handle<Object> value, LookupResult* lookup, IC* ic) {
+  // Disable ICs for non-JSObjects for now.
+  if (!object->IsJSObject()) return false;
+  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+
   Handle<JSObject> holder = receiver;
   receiver->Lookup(name, lookup);
   if (lookup->IsFound()) {
@@ -1268,11 +1269,10 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
   if (MigrateDeprecated(object) || object->IsJSProxy()) {
-    Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
-        JSReceiver::SetProperty(receiver, name, value, strict_mode()), Object);
+        Object::SetProperty(object, name, value, strict_mode()), Object);
     return result;
   }
 
@@ -1282,21 +1282,14 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
     return TypeError("non_object_property_store", object, name);
   }
 
-  // The length property of string values is read-only. Throw in strict mode.
-  if (strict_mode() == STRICT && object->IsString() &&
-      String::Equals(isolate()->factory()->length_string(), name)) {
-    return TypeError("strict_read_only_property", object, name);
-  }
-
-  // Ignore other stores where the receiver is not a JSObject.
-  // TODO(1475): Must check prototype chains of object wrappers.
-  if (!object->IsJSObject()) return value;
-
-  Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-
   // Check if the given name is an array index.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
+    // Ignore other stores where the receiver is not a JSObject.
+    // TODO(1475): Must check prototype chains of object wrappers.
+    if (!object->IsJSObject()) return value;
+    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(),
@@ -1307,17 +1300,18 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
   }
 
   // Observed objects are always modified through the runtime.
-  if (receiver->map()->is_observed()) {
+  if (object->IsHeapObject() &&
+      Handle<HeapObject>::cast(object)->map()->is_observed()) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result, JSReceiver::SetProperty(receiver, name, value,
-                                                   strict_mode(), store_mode),
+        isolate(), result,
+        Object::SetProperty(object, name, value, strict_mode(), store_mode),
         Object);
     return result;
   }
 
   LookupResult lookup(isolate());
-  bool can_store = LookupForWrite(receiver, name, value, &lookup, this);
+  bool can_store = LookupForWrite(object, name, value, &lookup, this);
   if (!can_store &&
       strict_mode() == STRICT &&
       !(lookup.IsProperty() && lookup.IsReadOnly()) &&
@@ -1331,7 +1325,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
       set_target(*stub);
       TRACE_IC("StoreIC", name);
     } else if (can_store) {
-      UpdateCaches(&lookup, receiver, name, value);
+      UpdateCaches(&lookup, Handle<JSObject>::cast(object), name, value);
     } else if (lookup.IsNormal() ||
                (lookup.IsField() && lookup.CanHoldValue(value))) {
       Handle<Code> stub = generic_stub();
@@ -1343,7 +1337,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate(), result,
-      JSReceiver::SetProperty(receiver, name, value, strict_mode(), store_mode),
+      Object::SetProperty(object, name, value, strict_mode(), store_mode),
       Object);
   return result;
 }
