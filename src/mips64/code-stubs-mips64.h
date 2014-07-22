@@ -77,28 +77,26 @@ class SubStringStub: public PlatformCodeStub {
 
 class StoreRegistersStateStub: public PlatformCodeStub {
  public:
-  explicit StoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
-      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
+  explicit StoreRegistersStateStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
   Major MajorKey() const { return StoreRegistersState; }
-  int MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
-  SaveFPRegsMode save_doubles_;
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
 
 class RestoreRegistersStateStub: public PlatformCodeStub {
  public:
-  explicit RestoreRegistersStateStub(Isolate* isolate, SaveFPRegsMode with_fp)
-      : PlatformCodeStub(isolate), save_doubles_(with_fp) {}
+  explicit RestoreRegistersStateStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
   Major MajorKey() const { return RestoreRegistersState; }
-  int MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
-  SaveFPRegsMode save_doubles_;
+  int MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
