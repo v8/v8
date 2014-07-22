@@ -755,8 +755,8 @@ Performance and stability improvements on all platforms.""", commit)
       Git("log -1 --format=%s hash2",
        "Version 3.4.5 (based on bleeding_edge revision r1234)\n"),
       Git("svn find-rev r1234", "hash3\n"),
-      Git("checkout -f master -- %s" % TEST_CONFIG[VERSION_FILE], "",
-          cb=self.WriteFakeVersionFile),
+      Git("checkout -f svn/bleeding_edge -- %s" % TEST_CONFIG[VERSION_FILE],
+          "", cb=self.WriteFakeVersionFile),
       Git("checkout -f hash2 -- %s" % TEST_CONFIG[VERSION_FILE], "",
           cb=self.WriteFakeVersionFile),
       Git("log --format=%H hash3..push_hash", "rev1\n"),
@@ -1312,7 +1312,8 @@ LOG=N
           cb=ResetVersion(11, 4)),
       Git("commit -am \"[Auto-roll] Bump up version to 3.11.6.0\n\n"
           "TBR=author@chromium.org\"", ""),
-      Git("cl upload --send-mail --email \"author@chromium.org\" -f", ""),
+      Git("cl upload --send-mail --email \"author@chromium.org\" -f "
+          "--bypass-hooks", ""),
       Git("cl dcommit -f --bypass-hooks", ""),
       Git("checkout -f bleeding_edge", ""),
       Git("branch", "auto-bump-up-version\n* bleeding_edge"),

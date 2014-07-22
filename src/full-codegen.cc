@@ -1538,10 +1538,11 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   bool is_generator = false;
+  bool is_arrow = false;
   Handle<SharedFunctionInfo> shared =
       isolate()->factory()->NewSharedFunctionInfo(
-          name, literals, is_generator,
-          code, Handle<ScopeInfo>(fun->shared()->scope_info()),
+          name, literals, is_generator, is_arrow, code,
+          Handle<ScopeInfo>(fun->shared()->scope_info()),
           Handle<FixedArray>(fun->shared()->feedback_vector()));
   shared->set_construct_stub(*construct_stub);
 

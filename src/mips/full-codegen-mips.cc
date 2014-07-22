@@ -1352,7 +1352,7 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
 }
 
 
-void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
+void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
                                                       TypeofState typeof_state,
                                                       Label* slow) {
   Register current = cp;
@@ -1398,7 +1398,12 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
   }
 
   __ lw(LoadIC::ReceiverRegister(), GlobalObjectOperand());
-  __ li(LoadIC::NameRegister(), Operand(var->name()));
+  __ li(LoadIC::NameRegister(), Operand(proxy->var()->name()));
+  if (FLAG_vector_ics) {
+    __ li(LoadIC::SlotRegister(),
+          Operand(Smi::FromInt(proxy->VariableFeedbackSlot())));
+  }
+
   ContextualMode mode = (typeof_state == INSIDE_TYPEOF)
       ? NOT_CONTEXTUAL
       : CONTEXTUAL;
@@ -1436,7 +1441,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
 }
 
 
-void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
+void FullCodeGenerator::EmitDynamicLookupFastCase(VariableProxy* proxy,
                                                   TypeofState typeof_state,
                                                   Label* slow,
                                                   Label* done) {
@@ -1445,8 +1450,9 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   // introducing variables.  In those cases, we do not want to
   // perform a runtime call for all variables in the scope
   // containing the eval.
+  Variable* var = proxy->var();
   if (var->mode() == DYNAMIC_GLOBAL) {
-    EmitLoadGlobalCheckExtensions(var, typeof_state, slow);
+    EmitLoadGlobalCheckExtensions(proxy, typeof_state, slow);
     __ Branch(done);
   } else if (var->mode() == DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
@@ -1482,6 +1488,10 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Comment cmnt(masm_, "[ Global variable");
       __ lw(LoadIC::ReceiverRegister(), GlobalObjectOperand());
       __ li(LoadIC::NameRegister(), Operand(var->name()));
+      if (FLAG_vector_ics) {
+        __ li(LoadIC::SlotRegister(),
+              Operand(Smi::FromInt(proxy->VariableFeedbackSlot())));
+      }
       CallLoadIC(CONTEXTUAL);
       context()->Plug(v0);
       break;
@@ -1560,7 +1570,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Label done, slow;
       // Generate code for loading from variables potentially shadowed
       // by eval-introduced variables.
-      EmitDynamicLookupFastCase(var, NOT_INSIDE_TYPEOF, &slow, &done);
+      EmitDynamicLookupFastCase(proxy, NOT_INSIDE_TYPEOF, &slow, &done);
       __ bind(&slow);
       __ li(a1, Operand(var->name()));
       __ Push(cp, a1);  // Context and name.
@@ -2081,6 +2091,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ bind(&l_call);
       __ lw(load_receiver, MemOperand(sp, kPointerSize));
       __ lw(load_name, MemOperand(sp, 2 * kPointerSize));
+      if (FLAG_vector_ics) {
+        __ li(LoadIC::SlotRegister(),
+              Operand(Smi::FromInt(expr->KeyedLoadFeedbackSlot())));
+      }
       Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
       CallIC(ic, TypeFeedbackId::None());
       __ mov(a0, v0);
@@ -2097,6 +2111,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
 
       __ push(load_receiver);                               // save result
       __ LoadRoot(load_name, Heap::kdone_stringRootIndex);  // "done"
+      if (FLAG_vector_ics) {
+        __ li(LoadIC::SlotRegister(),
+              Operand(Smi::FromInt(expr->DoneFeedbackSlot())));
+      }
       CallLoadIC(NOT_CONTEXTUAL);                           // v0=result.done
       __ mov(a0, v0);
       Handle<Code> bool_ic = ToBooleanStub::GetUninitialized(isolate());
@@ -2106,6 +2124,10 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       // result.value
       __ pop(load_receiver);                                 // result
       __ LoadRoot(load_name, Heap::kvalue_stringRootIndex);  // "value"
+      if (FLAG_vector_ics) {
+        __ li(LoadIC::SlotRegister(),
+              Operand(Smi::FromInt(expr->ValueFeedbackSlot())));
+      }
       CallLoadIC(NOT_CONTEXTUAL);                            // v0=result.value
       context()->DropAndPlug(2, v0);                         // drop iter and g
       break;
@@ -2269,16 +2291,26 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Literal* key = prop->key()->AsLiteral();
   __ li(LoadIC::NameRegister(), Operand(key->value()));
-  // Call load IC. It has register arguments receiver and property.
-  CallLoadIC(NOT_CONTEXTUAL, prop->PropertyFeedbackId());
+  if (FLAG_vector_ics) {
+    __ li(LoadIC::SlotRegister(),
+          Operand(Smi::FromInt(prop->PropertyFeedbackSlot())));
+    CallLoadIC(NOT_CONTEXTUAL);
+  } else {
+    CallLoadIC(NOT_CONTEXTUAL, prop->PropertyFeedbackId());
+  }
 }
 
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
-  // Call keyed load IC. It has register arguments receiver and key.
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
-  CallIC(ic, prop->PropertyFeedbackId());
+  if (FLAG_vector_ics) {
+    __ li(LoadIC::SlotRegister(),
+          Operand(Smi::FromInt(prop->PropertyFeedbackSlot())));
+    CallIC(ic);
+  } else {
+    CallIC(ic, prop->PropertyFeedbackId());
+  }
 }
 
 
@@ -2756,7 +2788,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     { PreservePositionScope scope(masm()->positions_recorder());
       // Generate code for loading from variables potentially shadowed
       // by eval-introduced variables.
-      EmitDynamicLookupFastCase(proxy->var(), NOT_INSIDE_TYPEOF, &slow, &done);
+      EmitDynamicLookupFastCase(proxy, NOT_INSIDE_TYPEOF, &slow, &done);
     }
 
     __ bind(&slow);
@@ -4086,7 +4118,13 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
 
     // Load the function from the receiver.
     __ li(LoadIC::NameRegister(), Operand(expr->name()));
-    CallLoadIC(NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
+    if (FLAG_vector_ics) {
+      __ li(LoadIC::SlotRegister(),
+            Operand(Smi::FromInt(expr->CallRuntimeFeedbackSlot())));
+      CallLoadIC(NOT_CONTEXTUAL);
+    } else {
+      CallLoadIC(NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
+    }
 
     // Push the target function under the receiver.
     __ lw(at, MemOperand(sp, 0));
@@ -4425,6 +4463,10 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     Comment cmnt(masm_, "[ Global variable");
     __ lw(LoadIC::ReceiverRegister(), GlobalObjectOperand());
     __ li(LoadIC::NameRegister(), Operand(proxy->name()));
+    if (FLAG_vector_ics) {
+      __ li(LoadIC::SlotRegister(),
+            Operand(Smi::FromInt(proxy->VariableFeedbackSlot())));
+    }
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
     CallLoadIC(NOT_CONTEXTUAL);
@@ -4436,7 +4478,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 
     // Generate code for loading from variables potentially shadowed
     // by eval-introduced variables.
-    EmitDynamicLookupFastCase(proxy->var(), INSIDE_TYPEOF, &slow, &done);
+    EmitDynamicLookupFastCase(proxy, INSIDE_TYPEOF, &slow, &done);
 
     __ bind(&slow);
     __ li(a0, Operand(proxy->name()));
@@ -4491,10 +4533,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ Branch(if_true, eq, v0, Operand(at));
     __ LoadRoot(at, Heap::kFalseValueRootIndex);
     Split(eq, v0, Operand(at), if_true, if_false, fall_through);
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(check, factory->null_string())) {
-    __ LoadRoot(at, Heap::kNullValueRootIndex);
-    Split(eq, v0, Operand(at), if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->undefined_string())) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(if_true, eq, v0, Operand(at));
@@ -4513,10 +4551,8 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
           if_true, if_false, fall_through);
   } else if (String::Equals(check, factory->object_string())) {
     __ JumpIfSmi(v0, if_false);
-    if (!FLAG_harmony_typeof) {
-      __ LoadRoot(at, Heap::kNullValueRootIndex);
-      __ Branch(if_true, eq, v0, Operand(at));
-    }
+    __ LoadRoot(at, Heap::kNullValueRootIndex);
+    __ Branch(if_true, eq, v0, Operand(at));
     // Check for JS objects => true.
     __ GetObjectType(v0, v0, a1);
     __ Branch(if_false, lt, a1, Operand(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE));

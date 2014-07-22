@@ -211,12 +211,15 @@ TEST(UsingCachedData) {
       "var v = /RegExp Literal/;"
       "var w = /RegExp Literal\\u0020With Escape/gin;"
       "var y = { get getter() { return 42; }, "
-      "          set setter(v) { this.value = v; }};";
+      "          set setter(v) { this.value = v; }};"
+      "var f = a => function (b) { return a + b; };"
+      "var g = a => b => a + b;";
   int source_length = i::StrLength(source);
 
   // ScriptResource will be deleted when the corresponding String is GCd.
   v8::ScriptCompiler::Source script_source(v8::String::NewExternal(
       isolate, new ScriptResource(source, source_length)));
+  i::FLAG_harmony_arrow_functions = true;
   i::FLAG_min_preparse_length = 0;
   v8::ScriptCompiler::Compile(isolate, &script_source,
                               v8::ScriptCompiler::kProduceParserCache);
@@ -240,6 +243,7 @@ TEST(PreparseFunctionDataIsUsed) {
 
   // Make preparsing work for short scripts.
   i::FLAG_min_preparse_length = 0;
+  i::FLAG_harmony_arrow_functions = true;
 
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handles(isolate);
@@ -248,32 +252,38 @@ TEST(PreparseFunctionDataIsUsed) {
   CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
                                                     128 * 1024);
 
-  const char* good_code =
-      "function this_is_lazy() { var a; } function foo() { return 25; } foo();";
+  const char* good_code[] = {
+      "function this_is_lazy() { var a; } function foo() { return 25; } foo();",
+      "var this_is_lazy = () => { var a; }; var foo = () => 25; foo();",
+  };
 
   // Insert a syntax error inside the lazy function.
-  const char* bad_code =
-      "function this_is_lazy() { if (   } function foo() { return 25; } foo();";
+  const char* bad_code[] = {
+      "function this_is_lazy() { if (   } function foo() { return 25; } foo();",
+      "var this_is_lazy = () => { if (   }; var foo = () => 25; foo();",
+  };
 
-  v8::ScriptCompiler::Source good_source(v8_str(good_code));
-  v8::ScriptCompiler::Compile(isolate, &good_source,
-                              v8::ScriptCompiler::kProduceParserCache);
+  for (unsigned i = 0; i < ARRAY_SIZE(good_code); i++) {
+    v8::ScriptCompiler::Source good_source(v8_str(good_code[i]));
+    v8::ScriptCompiler::Compile(isolate, &good_source,
+                                v8::ScriptCompiler::kProduceDataToCache);
 
-  const v8::ScriptCompiler::CachedData* cached_data =
-      good_source.GetCachedData();
-  CHECK(cached_data->data != NULL);
-  CHECK_GT(cached_data->length, 0);
+    const v8::ScriptCompiler::CachedData* cached_data =
+        good_source.GetCachedData();
+    CHECK(cached_data->data != NULL);
+    CHECK_GT(cached_data->length, 0);
 
-  // Now compile the erroneous code with the good preparse data. If the preparse
-  // data is used, the lazy function is skipped and it should compile fine.
-  v8::ScriptCompiler::Source bad_source(
-      v8_str(bad_code), new v8::ScriptCompiler::CachedData(
-                            cached_data->data, cached_data->length));
-  v8::Local<v8::Value> result =
-      v8::ScriptCompiler::Compile(
-          isolate, &bad_source, v8::ScriptCompiler::kConsumeParserCache)->Run();
-  CHECK(result->IsInt32());
-  CHECK_EQ(25, result->Int32Value());
+    // Now compile the erroneous code with the good preparse data. If the
+    // preparse data is used, the lazy function is skipped and it should
+    // compile fine.
+    v8::ScriptCompiler::Source bad_source(
+        v8_str(bad_code[i]), new v8::ScriptCompiler::CachedData(
+                                 cached_data->data, cached_data->length));
+    v8::Local<v8::Value> result =
+        v8::ScriptCompiler::Compile(isolate, &bad_source)->Run();
+    CHECK(result->IsInt32());
+    CHECK_EQ(25, result->Int32Value());
+  }
 }
 
 
@@ -482,6 +492,7 @@ TEST(PreParseOverflow) {
 
   i::PreParser preparser(&scanner, &log, stack_limit);
   preparser.set_allow_lazy(true);
+  preparser.set_allow_arrow_functions(true);
   i::PreParser::PreParseResult result = preparser.PreParseProgram();
   CHECK_EQ(i::PreParser::kPreParseStackOverflow, result);
 }
@@ -959,7 +970,13 @@ TEST(ScopePositions) {
       "    infunction;\n"
       "  }", "\n"
       "  more;", i::FUNCTION_SCOPE, i::SLOPPY },
-    { "  (function fun", "(a,b) { infunction; }", ")();",
+    // TODO(aperez): Change to use i::ARROW_SCOPE when implemented
+    { "  start;\n", "(a,b) => a + b", "; more;",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { "  start;\n", "(a,b) => { return a+b; }", "\nmore;",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { "  start;\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
       i::FUNCTION_SCOPE, i::SLOPPY },
     { "  for ", "(let x = 1 ; x < 10; ++ x) { block; }", " more;",
       i::BLOCK_SCOPE, i::STRICT },
@@ -1112,6 +1129,7 @@ TEST(ScopePositions) {
     i::Parser parser(&info);
     parser.set_allow_lazy(true);
     parser.set_allow_harmony_scoping(true);
+    parser.set_allow_arrow_functions(true);
     info.MarkAsGlobal();
     info.SetStrictMode(source_data[i].strict_mode);
     parser.Parse();

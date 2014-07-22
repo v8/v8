@@ -4621,6 +4621,15 @@ Code::Kind Code::kind() {
 }
 
 
+bool Code::IsCodeStubOrIC() {
+  return kind() == STUB || kind() == HANDLER || kind() == LOAD_IC ||
+         kind() == KEYED_LOAD_IC || kind() == CALL_IC || kind() == STORE_IC ||
+         kind() == KEYED_STORE_IC || kind() == BINARY_OP_IC ||
+         kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
+         kind() == TO_BOOLEAN_IC;
+}
+
+
 InlineCacheState Code::ic_state() {
   InlineCacheState result = ExtractICStateFromFlags(flags());
   // Only allow uninitialized or debugger states for non-IC code
@@ -4670,37 +4679,6 @@ inline void Code::set_is_crankshafted(bool value) {
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = IsCrankshaftedField::update(previous, value);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
-}
-
-
-int Code::major_key() {
-  ASSERT(has_major_key());
-  return StubMajorKeyField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
-}
-
-
-void Code::set_major_key(int major) {
-  ASSERT(has_major_key());
-  ASSERT(0 <= major && major < 256);
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = StubMajorKeyField::update(previous, major);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
-}
-
-
-bool Code::has_major_key() {
-  return kind() == STUB ||
-      kind() == HANDLER ||
-      kind() == BINARY_OP_IC ||
-      kind() == COMPARE_IC ||
-      kind() == COMPARE_NIL_IC ||
-      kind() == LOAD_IC ||
-      kind() == KEYED_LOAD_IC ||
-      kind() == STORE_IC ||
-      kind() == CALL_IC ||
-      kind() == KEYED_STORE_IC ||
-      kind() == TO_BOOLEAN_IC;
 }
 
 
@@ -5579,6 +5557,7 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
@@ -6129,7 +6108,7 @@ void Code::WipeOutHeader() {
   WRITE_FIELD(this, kHandlerTableOffset, NULL);
   WRITE_FIELD(this, kDeoptimizationDataOffset, NULL);
   WRITE_FIELD(this, kConstantPoolOffset, NULL);
-  // Do not wipe out e.g. a minor key.
+  // Do not wipe out major/minor keys on a code stub or IC
   if (!READ_FIELD(this, kTypeFeedbackInfoOffset)->IsSmi()) {
     WRITE_FIELD(this, kTypeFeedbackInfoOffset, NULL);
   }
@@ -6150,24 +6129,15 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 }
 
 
-int Code::stub_info() {
-  ASSERT(kind() == COMPARE_IC || kind() == COMPARE_NIL_IC ||
-         kind() == BINARY_OP_IC || kind() == LOAD_IC || kind() == CALL_IC);
-  return Smi::cast(raw_type_feedback_info())->value();
+uint32_t Code::stub_key() {
+  ASSERT(IsCodeStubOrIC());
+  return Smi::cast(raw_type_feedback_info())->value() - Smi::kMinValue;
 }
 
 
-void Code::set_stub_info(int value) {
-  ASSERT(kind() == COMPARE_IC ||
-         kind() == COMPARE_NIL_IC ||
-         kind() == BINARY_OP_IC ||
-         kind() == STUB ||
-         kind() == LOAD_IC ||
-         kind() == CALL_IC ||
-         kind() == KEYED_LOAD_IC ||
-         kind() == STORE_IC ||
-         kind() == KEYED_STORE_IC);
-  set_raw_type_feedback_info(Smi::FromInt(value));
+void Code::set_stub_key(uint32_t key) {
+  ASSERT(IsCodeStubOrIC());
+  set_raw_type_feedback_info(Smi::FromInt(key + Smi::kMinValue));
 }
 
 

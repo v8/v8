@@ -309,8 +309,9 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   Handle<FixedArray> feedback_vector(f->shared()->feedback_vector());
 
   // Verify that we gathered feedback.
-  CHECK_EQ(1, feedback_vector->length());
-  CHECK(feedback_vector->get(0)->IsJSFunction());
+  int expected_count = FLAG_vector_ics ? 2 : 1;
+  CHECK_EQ(expected_count, feedback_vector->length());
+  CHECK(feedback_vector->get(expected_count - 1)->IsJSFunction());
 
   CompileRun("%OptimizeFunctionOnNextCall(f); f(fun1);");
 
@@ -318,7 +319,8 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // of the full code.
   CHECK(f->IsOptimized());
   CHECK(f->shared()->has_deoptimization_support());
-  CHECK(f->shared()->feedback_vector()->get(0)->IsJSFunction());
+  CHECK(f->shared()->feedback_vector()->
+        get(expected_count - 1)->IsJSFunction());
 }
 
 
@@ -344,16 +346,15 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("morphing_call"))));
 
-  // morphing_call should have one feedback vector slot for the call to
-  // call_target().
-  CHECK_EQ(1, f->shared()->feedback_vector()->length());
+  int expected_count = FLAG_vector_ics ? 2 : 1;
+  CHECK_EQ(expected_count, f->shared()->feedback_vector()->length());
   // And yet it's not compiled.
   CHECK(!f->shared()->is_compiled());
 
   CompileRun("morphing_call();");
 
   // The vector should have the same size despite the new scoping.
-  CHECK_EQ(1, f->shared()->feedback_vector()->length());
+  CHECK_EQ(expected_count, f->shared()->feedback_vector()->length());
   CHECK(f->shared()->is_compiled());
 }
 

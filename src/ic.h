@@ -392,6 +392,11 @@ class LoadIC: public IC {
   static const Register ReceiverRegister();
   static const Register NameRegister();
 
+  // With flag vector-ics, there is an additional argument. And for calls from
+  // crankshaft, yet another.
+  static const Register SlotRegister();
+  static const Register VectorRegister();
+
   static ExtraICState ComputeExtraICState(ContextualMode contextual_mode) {
     return ContextualModeBits::encode(contextual_mode);
   }
@@ -946,12 +951,9 @@ class CompareIC: public IC {
                            State state,
                            Handle<Map> map = Handle<Map>());
 
-  static void StubInfoToType(int stub_minor_key,
-                             Type** left_type,
-                             Type** right_type,
-                             Type** overall_type,
-                             Handle<Map> map,
-                             Zone* zone);
+  static void StubInfoToType(uint32_t stub_key, Type** left_type,
+                             Type** right_type, Type** overall_type,
+                             Handle<Map> map, Zone* zone);
 
   CompareIC(Isolate* isolate, Token::Value op)
       : IC(EXTRA_CALL_FRAME, isolate), op_(op) { }

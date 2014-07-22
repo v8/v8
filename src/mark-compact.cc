@@ -112,7 +112,7 @@ static void VerifyMarking(NewSpace* space) {
   // The bottom position is at the start of its page. Allows us to use
   // page->area_start() as start of range on all pages.
   CHECK_EQ(space->bottom(),
-            NewSpacePage::FromAddress(space->bottom())->area_start());
+           NewSpacePage::FromAddress(space->bottom())->area_start());
   while (it.has_next()) {
     NewSpacePage* page = it.next();
     Address limit = it.has_next() ? page->area_end() : end;
@@ -167,19 +167,14 @@ class VerifyEvacuationVisitor: public ObjectVisitor {
 };
 
 
-static void VerifyEvacuation(Address bottom, Address top) {
+static void VerifyEvacuation(Page* page) {
   VerifyEvacuationVisitor visitor;
-  HeapObject* object;
-  Address next_object_must_be_here_or_later = bottom;
-
-  for (Address current = bottom;
-       current < top;
-       current += kPointerSize) {
-    object = HeapObject::FromAddress(current);
-    if (MarkCompactCollector::IsMarked(object)) {
-      CHECK(current >= next_object_must_be_here_or_later);
-      object->Iterate(&visitor);
-      next_object_must_be_here_or_later = current + object->Size();
+  HeapObjectIterator iterator(page, NULL);
+  for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
+      heap_object = iterator.Next()) {
+    // We skip free space objects.
+    if (!heap_object->IsFiller()) {
+      heap_object->Iterate(&visitor);
     }
   }
 }
@@ -203,28 +198,29 @@ static void VerifyEvacuation(NewSpace* space) {
 }
 
 
-static void VerifyEvacuation(PagedSpace* space) {
-  // TODO(hpayer): Bring back VerifyEvacuation for parallel-concurrently
-  // swept pages.
-  if ((FLAG_concurrent_sweeping || FLAG_parallel_sweeping) &&
-      !space->swept_precisely()) return;
+static void VerifyEvacuation(Heap* heap, PagedSpace* space) {
+  if (!space->swept_precisely()) return;
+  if (FLAG_use_allocation_folding &&
+      (space == heap->old_pointer_space() || space == heap->old_data_space())) {
+    return;
+  }
   PageIterator it(space);
 
   while (it.has_next()) {
     Page* p = it.next();
     if (p->IsEvacuationCandidate()) continue;
-    VerifyEvacuation(p->area_start(), p->area_end());
+    VerifyEvacuation(p);
   }
 }
 
 
 static void VerifyEvacuation(Heap* heap) {
-  VerifyEvacuation(heap->old_pointer_space());
-  VerifyEvacuation(heap->old_data_space());
-  VerifyEvacuation(heap->code_space());
-  VerifyEvacuation(heap->cell_space());
-  VerifyEvacuation(heap->property_cell_space());
-  VerifyEvacuation(heap->map_space());
+  VerifyEvacuation(heap, heap->old_pointer_space());
+  VerifyEvacuation(heap, heap->old_data_space());
+  VerifyEvacuation(heap, heap->code_space());
+  VerifyEvacuation(heap, heap->cell_space());
+  VerifyEvacuation(heap, heap->property_cell_space());
+  VerifyEvacuation(heap, heap->map_space());
   VerifyEvacuation(heap->new_space());
 
   VerifyEvacuationVisitor visitor;
@@ -610,6 +606,12 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
   RefillFreeList(heap()->paged_space(OLD_POINTER_SPACE));
   heap()->paged_space(OLD_DATA_SPACE)->ResetUnsweptFreeBytes();
   heap()->paged_space(OLD_POINTER_SPACE)->ResetUnsweptFreeBytes();
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    VerifyEvacuation(heap_);
+  }
+#endif
 }
 
 
@@ -3654,12 +3656,6 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   ProcessInvalidatedCode(&updating_visitor);
 
   heap_->isolate()->inner_pointer_to_code_cache()->Flush();
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    VerifyEvacuation(heap_);
-  }
-#endif
 
   slots_buffer_allocator_.DeallocateChain(&migration_slots_buffer_);
   ASSERT(migration_slots_buffer_ == NULL);

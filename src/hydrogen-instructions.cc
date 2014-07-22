@@ -1294,8 +1294,7 @@ static String* TypeOfString(HConstant* constant, Isolate* isolate) {
         return heap->boolean_string();
       }
       if (unique.IsKnownGlobal(heap->null_value())) {
-        return FLAG_harmony_typeof ? heap->null_string()
-                                   : heap->object_string();
+        return heap->object_string();
       }
       ASSERT(unique.IsKnownGlobal(heap->undefined_value()));
       return heap->undefined_string();

@@ -81,6 +81,8 @@ function MakeMirror(value, opt_transient) {
     mirror = new ErrorMirror(value);
   } else if (IS_SCRIPT(value)) {
     mirror = new ScriptMirror(value);
+  } else if (IS_MAP(value) || IS_WEAKMAP(value)) {
+    mirror = new MapMirror(value);
   } else if (ObjectIsPromise(value)) {
     mirror = new PromiseMirror(value);
   } else {
@@ -155,6 +157,7 @@ var SCRIPT_TYPE = 'script';
 var CONTEXT_TYPE = 'context';
 var SCOPE_TYPE = 'scope';
 var PROMISE_TYPE = 'promise';
+var MAP_TYPE = 'map';
 
 // Maximum length when sending strings through the JSON protocol.
 var kMaxProtocolStringLength = 80;
@@ -210,6 +213,7 @@ var ScopeType = { Global: 0,
 //         - RegExpMirror
 //         - ErrorMirror
 //         - PromiseMirror
+//         - MapMirror
 //     - PropertyMirror
 //     - InternalPropertyMirror
 //     - FrameMirror
@@ -417,6 +421,15 @@ Mirror.prototype.isContext = function() {
  */
 Mirror.prototype.isScope = function() {
   return this instanceof ScopeMirror;
+};
+
+
+/**
+ * Check whether the mirror reflects a map.
+ * @returns {boolean} True if the mirror reflects a map
+ */
+Mirror.prototype.isMap = function() {
+  return this instanceof MapMirror;
 };
 
 
@@ -1250,6 +1263,44 @@ PromiseMirror.prototype.status = function() {
 
 PromiseMirror.prototype.promiseValue = function() {
   return MakeMirror(PromiseGetValue_(this.value_));
+};
+
+
+function MapMirror(value) {
+  %_CallFunction(this, value, MAP_TYPE, ObjectMirror);
+}
+inherits(MapMirror, ObjectMirror);
+
+
+/**
+ * Returns an array of key/value pairs of a map.
+ * This will keep keys alive for WeakMaps.
+ *
+ * @returns {Array.<Object>} Array of key/value pairs of a map.
+ */
+MapMirror.prototype.entries = function() {
+  var result = [];
+
+  if (IS_WEAKMAP(this.value_)) {
+    var entries = %GetWeakMapEntries(this.value_);
+    for (var i = 0; i < entries.length; i += 2) {
+      result.push({
+        key: entries[i],
+        value: entries[i + 1]
+      });
+    }
+    return result;
+  }
+
+  var iter = %_CallFunction(this.value_, builtins.MapEntries);
+  var next;
+  while (!(next = iter.next()).done) {
+    result.push({
+      key: next.value[0],
+      value: next.value[1]
+    });
+  }
+  return result;
 };
 
 

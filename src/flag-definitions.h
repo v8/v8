@@ -150,7 +150,6 @@ struct MaybeBoolFlag {
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
 DEFINE_BOOL(es_staging, false, "enable upcoming ES6+ features")
 
-DEFINE_BOOL(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_BOOL(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_BOOL(harmony_modules, false,
             "enable harmony modules (implies block scoping)")
@@ -165,7 +164,7 @@ DEFINE_BOOL(harmony_numeric_literals, false,
 DEFINE_BOOL(harmony_strings, false, "enable harmony string")
 DEFINE_BOOL(harmony_arrays, false, "enable harmony arrays")
 DEFINE_BOOL(harmony_arrow_functions, false, "enable harmony arrow functions")
-DEFINE_BOOL(harmony, false, "enable all harmony features (except typeof)")
+DEFINE_BOOL(harmony, false, "enable all harmony features")
 
 DEFINE_IMPLICATION(harmony, harmony_scoping)
 DEFINE_IMPLICATION(harmony, harmony_modules)
@@ -213,6 +212,7 @@ DEFINE_BOOL(track_field_types, true, "track field types")
 DEFINE_IMPLICATION(track_field_types, track_fields)
 DEFINE_IMPLICATION(track_field_types, track_heap_object_fields)
 DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
+DEFINE_BOOL(vector_ics, false, "support vector-based ics")
 
 // Flags for optimization types.
 DEFINE_BOOL(optimize_for_size, false,
@@ -516,7 +516,7 @@ DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_BOOL(track_gc_object_stats, false,
             "track object counts and memory usage")
-DEFINE_BOOL(always_precise_sweeping, false, "always sweep precisely")
+DEFINE_BOOL(always_precise_sweeping, true, "always sweep precisely")
 DEFINE_BOOL(parallel_sweeping, false, "enable parallel sweeping")
 DEFINE_BOOL(concurrent_sweeping, true, "enable concurrent sweeping")
 DEFINE_INT(sweeper_threads, 0,

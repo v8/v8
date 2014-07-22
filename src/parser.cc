@@ -615,9 +615,8 @@ const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) {
 
 
 Expression* ParserTraits::ThisExpression(
-    Scope* scope,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
-  return factory->NewVariableProxy(scope->receiver());
+    Scope* scope, AstNodeFactory<AstConstructionVisitor>* factory, int pos) {
+  return factory->NewVariableProxy(scope->receiver(), pos);
 }
 
 
@@ -854,19 +853,13 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     ast_value_factory_->Internalize(isolate());
     if (ok) {
       result = factory()->NewFunctionLiteral(
-          ast_value_factory_->empty_string(),
-          ast_value_factory_,
-          scope_,
-          body,
+          ast_value_factory_->empty_string(), ast_value_factory_, scope_, body,
           function_state.materialized_literal_count(),
           function_state.expected_property_count(),
-          function_state.handler_count(),
-          0,
+          function_state.handler_count(), 0,
           FunctionLiteral::kNoDuplicateParameters,
-          FunctionLiteral::ANONYMOUS_EXPRESSION,
-          FunctionLiteral::kGlobalOrEval,
-          FunctionLiteral::kNotParenthesized,
-          FunctionLiteral::kNotGenerator,
+          FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kGlobalOrEval,
+          FunctionLiteral::kNotParenthesized, FunctionLiteral::kNormalFunction,
           0);
       result->set_ast_properties(factory()->visitor()->ast_properties());
       result->set_dont_optimize_reason(
@@ -956,15 +949,21 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
               ? FunctionLiteral::ANONYMOUS_EXPRESSION
               : FunctionLiteral::NAMED_EXPRESSION)
         : FunctionLiteral::DECLARATION;
+    bool is_generator = shared_info->is_generator();
     bool ok = true;
-    result = ParseFunctionLiteral(raw_name,
-                                  Scanner::Location::invalid(),
-                                  false,  // Strict mode name already checked.
-                                  shared_info->is_generator(),
-                                  RelocInfo::kNoPosition,
-                                  function_type,
-                                  FunctionLiteral::NORMAL_ARITY,
-                                  &ok);
+
+    if (shared_info->is_arrow()) {
+      ASSERT(!is_generator);
+      Expression* expression = ParseExpression(false, &ok);
+      ASSERT(expression->IsFunctionLiteral());
+      result = expression->AsFunctionLiteral();
+    } else {
+      result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
+                                    false,  // Strict mode name already checked.
+                                    is_generator, RelocInfo::kNoPosition,
+                                    function_type,
+                                    FunctionLiteral::NORMAL_ARITY, &ok);
+    }
     // Make sure the results agree.
     ASSERT(ok == (result != NULL));
   }
@@ -3577,24 +3576,14 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
   }
 
-  FunctionLiteral::IsGeneratorFlag generator = is_generator
-      ? FunctionLiteral::kIsGenerator
-      : FunctionLiteral::kNotGenerator;
-  FunctionLiteral* function_literal =
-      factory()->NewFunctionLiteral(function_name,
-                                    ast_value_factory_,
-                                    scope,
-                                    body,
-                                    materialized_literal_count,
-                                    expected_property_count,
-                                    handler_count,
-                                    num_parameters,
-                                    duplicate_parameters,
-                                    function_type,
-                                    FunctionLiteral::kIsFunction,
-                                    parenthesized,
-                                    generator,
-                                    pos);
+  FunctionLiteral::KindFlag kind = is_generator
+                                       ? FunctionLiteral::kGeneratorFunction
+                                       : FunctionLiteral::kNormalFunction;
+  FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
+      function_name, ast_value_factory_, scope, body,
+      materialized_literal_count, expected_property_count, handler_count,
+      num_parameters, duplicate_parameters, function_type,
+      FunctionLiteral::kIsFunction, parenthesized, kind, pos);
   function_literal->set_function_token_position(function_token_pos);
   function_literal->set_ast_properties(&ast_properties);
   function_literal->set_dont_optimize_reason(dont_optimize_reason);

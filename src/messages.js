@@ -113,6 +113,7 @@ var kMessages = {
   stack_overflow:                ["Maximum call stack size exceeded"],
   invalid_time_value:            ["Invalid time value"],
   invalid_count_value:           ["Invalid count value"],
+  invalid_code_point:            ["Invalid code point ", "%0"],
   // ReferenceError
   invalid_lhs_in_assignment:     ["Invalid left-hand side in assignment"],
   invalid_lhs_in_for:            ["Invalid left-hand side in for-loop"],

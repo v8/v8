@@ -12,6 +12,7 @@
 #include "src/conversions.h"
 #include "src/data-flow.h"
 #include "src/deoptimizer.h"
+#include "src/feedback-slots.h"
 #include "src/hydrogen-types.h"
 #include "src/ostreams.h"
 #include "src/small-pointer-list.h"
@@ -450,7 +451,7 @@ class HSourcePosition {
   typedef BitField<int, 0, 9> InliningIdField;
 
   // Offset from the start of the inlined function.
-  typedef BitField<int, 9, 22> PositionField;
+  typedef BitField<int, 9, 23> PositionField;
 
   // On HPositionInfo can use this constructor.
   explicit HSourcePosition(int value) : value_(value) { }
@@ -5433,6 +5434,17 @@ class HLoadGlobalGeneric V8_FINAL : public HTemplateInstruction<2> {
   HValue* global_object() { return OperandAt(1); }
   Handle<String> name() const { return name_; }
   bool for_typeof() const { return for_typeof_; }
+  int slot() const {
+    ASSERT(FLAG_vector_ics &&
+           slot_ != FeedbackSlotInterface::kInvalidFeedbackSlot);
+    return slot_;
+  }
+  Handle<FixedArray> feedback_vector() const { return feedback_vector_; }
+  void SetVectorAndSlot(Handle<FixedArray> vector, int slot) {
+    ASSERT(FLAG_vector_ics);
+    feedback_vector_ = vector;
+    slot_ = slot;
+  }
 
   virtual OStream& PrintDataTo(OStream& os) const V8_OVERRIDE;  // NOLINT
 
@@ -5445,7 +5457,8 @@ class HLoadGlobalGeneric V8_FINAL : public HTemplateInstruction<2> {
  private:
   HLoadGlobalGeneric(HValue* context, HValue* global_object,
                      Handle<String> name, bool for_typeof)
-      : name_(name), for_typeof_(for_typeof) {
+      : name_(name), for_typeof_(for_typeof),
+        slot_(FeedbackSlotInterface::kInvalidFeedbackSlot) {
     SetOperandAt(0, context);
     SetOperandAt(1, global_object);
     set_representation(Representation::Tagged());
@@ -5454,6 +5467,8 @@ class HLoadGlobalGeneric V8_FINAL : public HTemplateInstruction<2> {
 
   Handle<String> name_;
   bool for_typeof_;
+  Handle<FixedArray> feedback_vector_;
+  int slot_;
 };
 
 
@@ -6422,6 +6437,18 @@ class HLoadNamedGeneric V8_FINAL : public HTemplateInstruction<2> {
   HValue* object() const { return OperandAt(1); }
   Handle<Object> name() const { return name_; }
 
+  int slot() const {
+    ASSERT(FLAG_vector_ics &&
+           slot_ != FeedbackSlotInterface::kInvalidFeedbackSlot);
+    return slot_;
+  }
+  Handle<FixedArray> feedback_vector() const { return feedback_vector_; }
+  void SetVectorAndSlot(Handle<FixedArray> vector, int slot) {
+    ASSERT(FLAG_vector_ics);
+    feedback_vector_ = vector;
+    slot_ = slot;
+  }
+
   virtual Representation RequiredInputRepresentation(int index) V8_OVERRIDE {
     return Representation::Tagged();
   }
@@ -6432,7 +6459,8 @@ class HLoadNamedGeneric V8_FINAL : public HTemplateInstruction<2> {
 
  private:
   HLoadNamedGeneric(HValue* context, HValue* object, Handle<Object> name)
-      : name_(name) {
+      : name_(name),
+        slot_(FeedbackSlotInterface::kInvalidFeedbackSlot) {
     SetOperandAt(0, context);
     SetOperandAt(1, object);
     set_representation(Representation::Tagged());
@@ -6440,6 +6468,8 @@ class HLoadNamedGeneric V8_FINAL : public HTemplateInstruction<2> {
   }
 
   Handle<Object> name_;
+  Handle<FixedArray> feedback_vector_;
+  int slot_;
 };
 
 
@@ -6685,6 +6715,17 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
   HValue* object() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
   HValue* context() const { return OperandAt(2); }
+  int slot() const {
+    ASSERT(FLAG_vector_ics &&
+           slot_ != FeedbackSlotInterface::kInvalidFeedbackSlot);
+    return slot_;
+  }
+  Handle<FixedArray> feedback_vector() const { return feedback_vector_; }
+  void SetVectorAndSlot(Handle<FixedArray> vector, int slot) {
+    ASSERT(FLAG_vector_ics);
+    feedback_vector_ = vector;
+    slot_ = slot;
+  }
 
   virtual OStream& PrintDataTo(OStream& os) const V8_OVERRIDE;  // NOLINT
 
@@ -6698,13 +6739,17 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric)
 
  private:
-  HLoadKeyedGeneric(HValue* context, HValue* obj, HValue* key) {
+  HLoadKeyedGeneric(HValue* context, HValue* obj, HValue* key)
+      : slot_(FeedbackSlotInterface::kInvalidFeedbackSlot) {
     set_representation(Representation::Tagged());
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, context);
     SetAllSideEffects();
   }
+
+  Handle<FixedArray> feedback_vector_;
+  int slot_;
 };
 
 

@@ -1,3 +1,13 @@
+2014-07-22: Version 3.28.31
+
+        Remove harmony-typeof.
+
+        Implement String.prototype.codePointAt and String.fromCodePoint (issue
+        2840).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-21: Version 3.28.30
 
         Performance and stability improvements on all platforms.

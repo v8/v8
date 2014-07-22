@@ -130,7 +130,7 @@ class GetCurrentBleedingEdgeVersion(Step):
   MESSAGE = "Get latest bleeding edge version."
 
   def RunStep(self):
-    self.GitCheckoutFile(self.Config(VERSION_FILE), "master")
+    self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/bleeding_edge")
 
     # Store latest version.
     self.ReadAndPersistVersion("latest_")

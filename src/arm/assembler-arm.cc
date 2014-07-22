@@ -1495,11 +1495,13 @@ void Assembler::mov_label_offset(Register dst, Label* label) {
 
 
 void Assembler::movw(Register reg, uint32_t immediate, Condition cond) {
+  ASSERT(CpuFeatures::IsSupported(ARMv7));
   emit(cond | 0x30*B20 | reg.code()*B12 | EncodeMovwImmediate(immediate));
 }
 
 
 void Assembler::movt(Register reg, uint32_t immediate, Condition cond) {
+  ASSERT(CpuFeatures::IsSupported(ARMv7));
   emit(cond | 0x34*B20 | reg.code()*B12 | EncodeMovwImmediate(immediate));
 }
 

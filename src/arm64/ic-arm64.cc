@@ -515,6 +515,17 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 const Register LoadIC::ReceiverRegister() { return x1; }
 const Register LoadIC::NameRegister() { return x2; }
 
+const Register LoadIC::SlotRegister() {
+  ASSERT(FLAG_vector_ics);
+  return x0;
+}
+
+
+const Register LoadIC::VectorRegister() {
+  ASSERT(FLAG_vector_ics);
+  return x3;
+}
+
 
 const Register StoreIC::ReceiverRegister() { return x1; }
 const Register StoreIC::NameRegister() { return x2; }

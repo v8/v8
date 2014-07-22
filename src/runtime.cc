@@ -267,7 +267,6 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
     }
     MaybeHandle<Object> maybe_result;
     uint32_t element_index = 0;
-    StoreMode mode = value->IsJSObject() ? FORCE_FIELD : ALLOW_AS_CONSTANT;
     if (key->IsInternalizedString()) {
       if (Handle<String>::cast(key)->AsArrayIndex(&element_index)) {
         // Array index as string (uint32).
@@ -278,7 +277,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
         maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-            boilerplate, name, value, NONE, mode);
+            boilerplate, name, value, NONE);
       }
     } else if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
@@ -293,8 +292,8 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       Vector<char> buffer(arr, ARRAY_SIZE(arr));
       const char* str = DoubleToCString(num, buffer);
       Handle<String> name = isolate->factory()->NewStringFromAsciiChecked(str);
-      maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-          boilerplate, name, value, NONE, mode);
+      maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name,
+                                                              value, NONE);
     }
     // If setting the property on the boilerplate throws an
     // exception, the exception is converted to an empty handle in
@@ -1688,6 +1687,29 @@ RUNTIME_FUNCTION(Runtime_MapIteratorInitialize) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<FixedArray> entries =
+      isolate->factory()->NewFixedArray(table->NumberOfElements() * 2);
+  {
+    DisallowHeapAllocation no_gc;
+    int number_of_non_hole_elements = 0;
+    for (int i = 0; i < table->Capacity(); i++) {
+      Handle<Object> key(table->KeyAt(i), isolate);
+      if (table->IsKey(*key)) {
+        entries->set(number_of_non_hole_elements++, *key);
+        entries->set(number_of_non_hole_elements++, table->Lookup(key));
+      }
+    }
+    ASSERT_EQ(table->NumberOfElements() * 2, number_of_non_hole_elements);
+  }
+  return *isolate->factory()->NewJSArrayWithElements(entries);
+}
+
+
 RUNTIME_FUNCTION(Runtime_MapIteratorNext) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 2);
@@ -2669,6 +2691,14 @@ RUNTIME_FUNCTION(Runtime_FunctionIsGenerator) {
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
   return isolate->heap()->ToBoolean(f->shared()->is_generator());
+}
+
+
+RUNTIME_FUNCTION(Runtime_FunctionIsArrow) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, f, 0);
+  return isolate->heap()->ToBoolean(f->shared()->is_arrow());
 }
 
 
@@ -4948,7 +4978,6 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
             js_object, name, obj_value, attr,
-            ALLOW_AS_CONSTANT,
             JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
             JSReceiver::MAY_BE_STORE_FROM_KEYED,
             JSObject::DONT_FORCE_FIELD));
@@ -5101,8 +5130,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSObject::SetOwnPropertyIgnoreAttributes(
-          js_object, name, value, attr, ALLOW_AS_CONSTANT,
-          JSReceiver::PERFORM_EXTENSIBILITY_CHECK, store_from_keyed);
+          js_object, name, value, attr, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+          store_from_keyed);
     }
   }
 
@@ -5117,8 +5146,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
                                 SLOPPY, false, DEFINE_PROPERTY);
   } else {
     return JSObject::SetOwnPropertyIgnoreAttributes(
-        js_object, name, value, attr, ALLOW_AS_CONSTANT,
-        JSReceiver::PERFORM_EXTENSIBILITY_CHECK, store_from_keyed);
+        js_object, name, value, attr, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+        store_from_keyed);
   }
 }
 
@@ -5966,9 +5995,7 @@ RUNTIME_FUNCTION(Runtime_Typeof) {
         return isolate->heap()->boolean_string();
       }
       if (heap_obj->IsNull()) {
-        return FLAG_harmony_typeof
-            ? isolate->heap()->null_string()
-            : isolate->heap()->object_string();
+        return isolate->heap()->object_string();
       }
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_string();
@@ -9834,8 +9861,8 @@ class ArrayConcatVisitor {
     // but the array blowing the limit didn't contain elements beyond the
     // provided-for index range, go to dictionary mode now.
     if (fast_elements_ &&
-        index_offset_ >= static_cast<uint32_t>(
-            FixedArrayBase::cast(*storage_)->length())) {
+        index_offset_ >
+            static_cast<uint32_t>(FixedArrayBase::cast(*storage_)->length())) {
       SetDictionaryMode();
     }
   }

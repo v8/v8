@@ -2913,6 +2913,15 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   ASSERT(ToRegister(instr->result()).is(v0));
 
   __ li(LoadIC::NameRegister(), Operand(instr->name()));
+  if (FLAG_vector_ics) {
+    Register vector = ToRegister(instr->temp_vector());
+    ASSERT(vector.is(LoadIC::VectorRegister()));
+    __ li(vector, instr->hydrogen()->feedback_vector());
+    // No need to allocate this register.
+    ASSERT(LoadIC::SlotRegister().is(a0));
+    __ li(LoadIC::SlotRegister(),
+          Operand(Smi::FromInt(instr->hydrogen()->slot())));
+  }
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -3038,6 +3047,15 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
 
   // Name is always in a2.
   __ li(LoadIC::NameRegister(), Operand(instr->name()));
+  if (FLAG_vector_ics) {
+    Register vector = ToRegister(instr->temp_vector());
+    ASSERT(vector.is(LoadIC::VectorRegister()));
+    __ li(vector, instr->hydrogen()->feedback_vector());
+    // No need to allocate this register.
+    ASSERT(LoadIC::SlotRegister().is(a0));
+    __ li(LoadIC::SlotRegister(),
+          Operand(Smi::FromInt(instr->hydrogen()->slot())));
+  }
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
@@ -3358,6 +3376,16 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->context()).is(cp));
   ASSERT(ToRegister(instr->object()).is(LoadIC::ReceiverRegister()));
   ASSERT(ToRegister(instr->key()).is(LoadIC::NameRegister()));
+
+  if (FLAG_vector_ics) {
+    Register vector = ToRegister(instr->temp_vector());
+    ASSERT(vector.is(LoadIC::VectorRegister()));
+    __ li(vector, instr->hydrogen()->feedback_vector());
+    // No need to allocate this register.
+    ASSERT(LoadIC::SlotRegister().is(a0));
+    __ li(LoadIC::SlotRegister(),
+          Operand(Smi::FromInt(instr->hydrogen()->slot())));
+  }
 
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -5548,13 +5576,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     *cmp2 = Operand(input);
     final_branch_condition = eq;
 
-  } else if (FLAG_harmony_typeof &&
-             String::Equals(type_name, factory->null_string())) {
-    __ LoadRoot(at, Heap::kNullValueRootIndex);
-    *cmp1 = at;
-    *cmp2 = Operand(input);
-    final_branch_condition = eq;
-
   } else if (String::Equals(type_name, factory->undefined_string())) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
@@ -5580,10 +5601,8 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (String::Equals(type_name, factory->object_string())) {
     __ JumpIfSmi(input, false_label);
-    if (!FLAG_harmony_typeof) {
-      __ LoadRoot(at, Heap::kNullValueRootIndex);
-      __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
-    }
+    __ LoadRoot(at, Heap::kNullValueRootIndex);
+    __ Branch(USE_DELAY_SLOT, true_label, eq, at, Operand(input));
     Register map = input;
     __ GetObjectType(input, map, scratch);
     __ Branch(false_label,

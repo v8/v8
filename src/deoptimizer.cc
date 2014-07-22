@@ -1549,7 +1549,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   //
 
   CHECK(compiled_code_->is_hydrogen_stub());
-  int major_key = compiled_code_->major_key();
+  int major_key = CodeStub::GetMajorKey(compiled_code_);
   CodeStubInterfaceDescriptor* descriptor =
       isolate_->code_stub_interface_descriptor(major_key);
 

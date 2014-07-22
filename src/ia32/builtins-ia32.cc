@@ -1003,6 +1003,9 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
     __ mov(receiver, Operand(ebp, kArgumentsOffset));  // load arguments
 
     // Use inline caching to speed up access to arguments.
+    if (FLAG_vector_ics) {
+      __ mov(LoadIC::SlotRegister(), Immediate(Smi::FromInt(0)));
+    }
     Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Initialize();
     __ call(ic, RelocInfo::CODE_TARGET);
     // It is important that we do not have a test instruction after the

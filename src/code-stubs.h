@@ -154,8 +154,10 @@ class CodeStub BASE_EMBEDDED {
 
   // Gets the major key from a code object that is a code stub or binary op IC.
   static Major GetMajorKey(Code* code_stub) {
-    return static_cast<Major>(code_stub->major_key());
+    return MajorKeyFromKey(code_stub->stub_key());
   }
+
+  static uint32_t NoCacheKey() { return MajorKeyBits::encode(NoCache); }
 
   static const char* MajorName(Major major_key, bool allow_unknown_keys);
 
@@ -207,6 +209,12 @@ class CodeStub BASE_EMBEDDED {
   virtual void PrintBaseName(OStream& os) const;    // NOLINT
   virtual void PrintState(OStream& os) const { ; }  // NOLINT
 
+  // Computes the key based on major and minor.
+  uint32_t GetKey() {
+    ASSERT(static_cast<int>(MajorKey()) < NUMBER_OF_IDS);
+    return MinorKeyBits::encode(MinorKey()) | MajorKeyBits::encode(MajorKey());
+  }
+
  private:
   // Perform bookkeeping required after code generation when stub code is
   // initially generated.
@@ -234,13 +242,6 @@ class CodeStub BASE_EMBEDDED {
 
   // If a stub uses a special cache override this.
   virtual bool UseSpecialCache() { return false; }
-
-  // Computes the key based on major and minor.
-  uint32_t GetKey() {
-    ASSERT(static_cast<int>(MajorKey()) < NUMBER_OF_IDS);
-    return MinorKeyBits::encode(MinorKey()) |
-           MajorKeyBits::encode(MajorKey());
-  }
 
   STATIC_ASSERT(NUMBER_OF_IDS < (1 << kStubMajorKeyBits));
   class MajorKeyBits: public BitField<uint32_t, 0, kStubMajorKeyBits> {};
@@ -830,15 +831,10 @@ class ICStub: public PlatformCodeStub {
   virtual Code::Kind GetCodeKind() const { return kind_; }
   virtual InlineCacheState GetICState() { return MONOMORPHIC; }
 
-  bool Describes(Code* code) {
-    return GetMajorKey(code) == MajorKey() && code->stub_info() == MinorKey();
-  }
+  bool Describes(Code* code) { return code->stub_key() == GetKey(); }
 
  protected:
   class KindBits: public BitField<Code::Kind, 0, 4> {};
-  virtual void FinishCode(Handle<Code> code) {
-    code->set_stub_info(MinorKey());
-  }
   Code::Kind kind() const { return kind_; }
 
   virtual int MinorKey() const { return KindBits::encode(kind_); }
@@ -1366,11 +1362,9 @@ class ICCompareStub: public PlatformCodeStub {
 
   void set_known_map(Handle<Map> map) { known_map_ = map; }
 
-  static void DecodeMinorKey(int minor_key,
-                             CompareIC::State* left_state,
-                             CompareIC::State* right_state,
-                             CompareIC::State* handler_state,
-                             Token::Value* op);
+  static void DecodeKey(uint32_t stub_key, CompareIC::State* left_state,
+                        CompareIC::State* right_state,
+                        CompareIC::State* handler_state, Token::Value* op);
 
   virtual InlineCacheState GetICState();
 
@@ -1379,10 +1373,6 @@ class ICCompareStub: public PlatformCodeStub {
   class LeftStateField: public BitField<int, 3, 4> { };
   class RightStateField: public BitField<int, 7, 4> { };
   class HandlerStateField: public BitField<int, 11, 4> { };
-
-  virtual void FinishCode(Handle<Code> code) {
-    code->set_stub_info(MinorKey());
-  }
 
   virtual CodeStub::Major MajorKey() const { return CompareIC; }
   virtual int MinorKey() const;

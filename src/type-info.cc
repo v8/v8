@@ -200,16 +200,15 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
   Handle<Map> map;
   Map* raw_map = code->FindFirstMap();
   if (raw_map != NULL) {
-    if (Map::CurrentMapForDeprecated(handle(raw_map)).ToHandle(&map) &&
+    if (Map::TryUpdate(handle(raw_map)).ToHandle(&map) &&
         CanRetainOtherContext(*map, *native_context_)) {
       map = Handle<Map>::null();
     }
   }
 
   if (code->is_compare_ic_stub()) {
-    int stub_minor_key = code->stub_info();
-    CompareIC::StubInfoToType(
-        stub_minor_key, left_type, right_type, combined_type, map, zone());
+    CompareIC::StubInfoToType(code->stub_key(), left_type, right_type,
+                              combined_type, map, zone());
   } else if (code->is_compare_nil_ic_stub()) {
     CompareNilICStub stub(isolate(), code->extra_ic_state());
     *combined_type = stub.GetType(zone(), map);

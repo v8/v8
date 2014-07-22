@@ -1638,7 +1638,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
              isolate->builtins()->builtin(Builtins::kReturn_DebugBreak)) {
     *mode = LiveEdit::FRAME_DROPPED_IN_RETURN_CALL;
   } else if (pre_top_frame_code->kind() == Code::STUB &&
-      pre_top_frame_code->major_key() == CodeStub::CEntry) {
+             CodeStub::GetMajorKey(pre_top_frame_code) == CodeStub::CEntry) {
     // Entry from our unit tests on 'debugger' statement.
     // It's fine, we support this case.
     *mode = LiveEdit::FRAME_DROPPED_IN_DIRECT_CALL;

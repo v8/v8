@@ -990,11 +990,7 @@ void StoreRegistersStateStub::Generate(MacroAssembler* masm) {
   // Restore lr with the value it had before the call to this stub (the value
   // which must be pushed).
   __ Mov(lr, saved_lr);
-  if (save_doubles_ == kSaveFPRegs) {
-    __ PushSafepointRegistersAndDoubles();
-  } else {
-    __ PushSafepointRegisters();
-  }
+  __ PushSafepointRegisters();
   __ Ret(return_address);
 }
 
@@ -1005,11 +1001,7 @@ void RestoreRegistersStateStub::Generate(MacroAssembler* masm) {
   Register return_address = temps.AcquireX();
   // Preserve the return address (lr will be clobbered by the pop).
   __ Mov(return_address, lr);
-  if (save_doubles_ == kSaveFPRegs) {
-    __ PopSafepointRegistersAndDoubles();
-  } else {
-    __ PopSafepointRegisters();
-  }
+  __ PopSafepointRegisters();
   __ Ret(return_address);
 }
 
@@ -1281,18 +1273,14 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 
 
 void StoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  StoreRegistersStateStub stub1(isolate, kDontSaveFPRegs);
-  stub1.GetCode();
-  StoreRegistersStateStub stub2(isolate, kSaveFPRegs);
-  stub2.GetCode();
+  StoreRegistersStateStub stub(isolate);
+  stub.GetCode();
 }
 
 
 void RestoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  RestoreRegistersStateStub stub1(isolate, kDontSaveFPRegs);
-  stub1.GetCode();
-  RestoreRegistersStateStub stub2(isolate, kSaveFPRegs);
-  stub2.GetCode();
+  RestoreRegistersStateStub stub(isolate);
+  stub.GetCode();
 }
 
 

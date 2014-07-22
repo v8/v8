@@ -1748,6 +1748,10 @@ function FunctionSourceString(func) {
     }
   }
 
+  if (%FunctionIsArrow(func)) {
+    return source;
+  }
+
   var name = %FunctionNameShouldPrintAsAnonymous(func)
       ? 'anonymous'
       : %FunctionGetName(func);

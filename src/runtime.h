@@ -187,6 +187,7 @@ namespace internal {
   F(FunctionNameShouldPrintAsAnonymous, 1, 1)          \
   F(FunctionMarkNameShouldPrintAsAnonymous, 1, 1)      \
   F(FunctionIsGenerator, 1, 1)                         \
+  F(FunctionIsArrow, 1, 1)                             \
   F(FunctionBindArguments, 4, 1)                       \
   F(BoundFunctionGetBindings, 1, 1)                    \
   F(FunctionRemovePrototype, 1, 1)                     \
@@ -295,6 +296,8 @@ namespace internal {
   F(WeakCollectionHas, 2, 1)                           \
   F(WeakCollectionDelete, 2, 1)                        \
   F(WeakCollectionSet, 3, 1)                           \
+                                                       \
+  F(GetWeakMapEntries, 1, 1)                           \
                                                        \
   /* Harmony events */                                 \
   F(EnqueueMicrotask, 1, 1)                            \

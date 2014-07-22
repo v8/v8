@@ -497,6 +497,18 @@ const Register LoadIC::ReceiverRegister() { return r1; }
 const Register LoadIC::NameRegister() { return r2; }
 
 
+const Register LoadIC::SlotRegister() {
+  ASSERT(FLAG_vector_ics);
+  return r0;
+}
+
+
+const Register LoadIC::VectorRegister() {
+  ASSERT(FLAG_vector_ics);
+  return r3;
+}
+
+
 const Register StoreIC::ReceiverRegister() { return r1; }
 const Register StoreIC::NameRegister() { return r2; }
 const Register StoreIC::ValueRegister() { return r0; }

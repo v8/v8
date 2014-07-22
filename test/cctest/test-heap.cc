@@ -3123,18 +3123,22 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
 
   Handle<FixedArray> feedback_vector(f->shared()->feedback_vector());
 
-  CHECK_EQ(2, feedback_vector->length());
-  CHECK(feedback_vector->get(0)->IsJSFunction());
-  CHECK(feedback_vector->get(1)->IsJSFunction());
+  int expected_length = FLAG_vector_ics ? 4 : 2;
+  CHECK_EQ(expected_length, feedback_vector->length());
+  for (int i = 0; i < expected_length; i++) {
+    if ((i % 2) == 1) {
+      CHECK(feedback_vector->get(i)->IsJSFunction());
+    }
+  }
 
   SimulateIncrementalMarking();
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
-  CHECK_EQ(2, feedback_vector->length());
-  CHECK_EQ(feedback_vector->get(0),
-           *TypeFeedbackInfo::UninitializedSentinel(CcTest::i_isolate()));
-  CHECK_EQ(feedback_vector->get(1),
-           *TypeFeedbackInfo::UninitializedSentinel(CcTest::i_isolate()));
+  CHECK_EQ(expected_length, feedback_vector->length());
+  for (int i = 0; i < expected_length; i++) {
+    CHECK_EQ(feedback_vector->get(i),
+             *TypeFeedbackInfo::UninitializedSentinel(CcTest::i_isolate()));
+  }
 }
 
 
