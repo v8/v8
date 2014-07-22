@@ -3267,12 +3267,6 @@ static int SweepPrecisely(PagedSpace* space,
     start_time = base::OS::TimeCurrentMillis();
   }
 
-  if (parallelism == MarkCompactCollector::SWEEP_IN_PARALLEL) {
-    p->set_parallel_sweeping(MemoryChunk::SWEEPING_FINALIZE);
-  } else {
-    p->MarkSweptPrecisely();
-  }
-
   Address free_start = p->area_start();
   ASSERT(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
   int offsets[16];
@@ -3345,6 +3339,14 @@ static int SweepPrecisely(PagedSpace* space,
   p->ResetLiveBytes();
   if (FLAG_print_cumulative_gc_stat) {
     space->heap()->AddSweepingTime(base::OS::TimeCurrentMillis() - start_time);
+  }
+
+  if (parallelism == MarkCompactCollector::SWEEP_IN_PARALLEL) {
+    // When concurrent sweeping is active, the page will be marked after
+    // sweeping by the main thread.
+    p->set_parallel_sweeping(MemoryChunk::SWEEPING_FINALIZE);
+  } else {
+    p->MarkSweptPrecisely();
   }
   return FreeList::GuaranteedAllocatable(static_cast<int>(max_freed_bytes));
 }
@@ -3999,14 +4001,6 @@ int MarkCompactCollector::SweepConservatively(PagedSpace* space,
          (mode == MarkCompactCollector::SWEEP_ON_MAIN_THREAD &&
          free_list == NULL));
 
-  // When parallel sweeping is active, the page will be marked after
-  // sweeping by the main thread.
-  if (mode == MarkCompactCollector::SWEEP_IN_PARALLEL) {
-    p->set_parallel_sweeping(MemoryChunk::SWEEPING_FINALIZE);
-  } else {
-    p->MarkSweptConservatively();
-  }
-
   intptr_t freed_bytes = 0;
   intptr_t max_freed_bytes = 0;
   size_t size = 0;
@@ -4027,6 +4021,13 @@ int MarkCompactCollector::SweepConservatively(PagedSpace* space,
                              static_cast<int>(size));
     max_freed_bytes = Max(freed_bytes, max_freed_bytes);
     ASSERT_EQ(0, p->LiveBytes());
+    if (mode == MarkCompactCollector::SWEEP_IN_PARALLEL) {
+      // When concurrent sweeping is active, the page will be marked after
+      // sweeping by the main thread.
+      p->set_parallel_sweeping(MemoryChunk::SWEEPING_FINALIZE);
+    } else {
+      p->MarkSweptConservatively();
+    }
     return FreeList::GuaranteedAllocatable(static_cast<int>(max_freed_bytes));
   }
 
@@ -4084,6 +4085,13 @@ int MarkCompactCollector::SweepConservatively(PagedSpace* space,
   }
 
   p->ResetLiveBytes();
+  if (mode == MarkCompactCollector::SWEEP_IN_PARALLEL) {
+    // When concurrent sweeping is active, the page will be marked after
+    // sweeping by the main thread.
+    p->set_parallel_sweeping(MemoryChunk::SWEEPING_FINALIZE);
+  } else {
+    p->MarkSweptConservatively();
+  }
   return FreeList::GuaranteedAllocatable(static_cast<int>(max_freed_bytes));
 }
 
