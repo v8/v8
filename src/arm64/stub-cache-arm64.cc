@@ -960,13 +960,8 @@ void LoadStubCompiler::GenerateLoadField(Register reg,
                                          FieldIndex field,
                                          Representation representation) {
   __ Mov(receiver(), reg);
-  if (kind() == Code::LOAD_IC) {
-    LoadFieldStub stub(isolate(), field);
-    GenerateTailCall(masm(), stub.GetCode());
-  } else {
-    KeyedLoadFieldStub stub(isolate(), field);
-    GenerateTailCall(masm(), stub.GetCode());
-  }
+  LoadFieldStub stub(isolate(), field);
+  GenerateTailCall(masm(), stub.GetCode());
 }
 
 

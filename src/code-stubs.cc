@@ -622,24 +622,7 @@ void LoadFieldStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedLoadFieldStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister() };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers);
-}
-
-
 void StringLengthStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers);
-}
-
-
-void KeyedStringLengthStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { InterfaceDescriptor::ContextRegister(),
                            LoadIC::ReceiverRegister(),

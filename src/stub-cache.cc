@@ -143,11 +143,8 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
     if (!ic.is_null()) return ic;
   }
 
-  if (kind == Code::LOAD_IC) {
-    LoadStubCompiler ic_compiler(isolate(), extra_ic_state, flag);
-    ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
-  } else if (kind == Code::KEYED_LOAD_IC) {
-    KeyedLoadStubCompiler ic_compiler(isolate(), extra_ic_state, flag);
+  if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
+    LoadStubCompiler ic_compiler(isolate(), kind, extra_ic_state, flag);
     ic = ic_compiler.CompileMonomorphicIC(type, handler, name);
   } else if (kind == Code::STORE_IC) {
     StoreStubCompiler ic_compiler(isolate(), extra_ic_state);
@@ -197,13 +194,14 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   }
   // Compile the stub that is either shared for all names or
   // name specific if there are global objects involved.
+  Code::Kind handler_kind = Code::LOAD_IC;
   Handle<Code> handler =
-      FindHandler(cache_name, stub_holder_map, Code::LOAD_IC, flag, Code::FAST);
+      FindHandler(cache_name, stub_holder_map, handler_kind, flag, Code::FAST);
   if (!handler.is_null()) {
     return handler;
   }
 
-  LoadStubCompiler compiler(isolate_, kNoExtraICState, flag);
+  LoadStubCompiler compiler(isolate_, handler_kind, kNoExtraICState, flag);
   handler = compiler.CompileLoadNonexistent(type, last, cache_name);
   Map::UpdateCodeCache(stub_holder_map, cache_name, handler);
   return handler;
@@ -367,7 +365,8 @@ Handle<Code> StubCache::ComputeLoadElementPolymorphic(
   CodeHandleList handlers(receiver_maps->length());
   KeyedLoadStubCompiler compiler(isolate_);
   compiler.CompileElementHandlers(receiver_maps, &handlers);
-  Handle<Code> code = compiler.CompilePolymorphicIC(
+  LoadStubCompiler ic_compiler(isolate_, Code::KEYED_LOAD_IC);
+  Handle<Code> code = ic_compiler.CompilePolymorphicIC(
       &types, &handlers, factory()->empty_string(), Code::NORMAL, ELEMENT);
 
   isolate()->counters()->keyed_load_polymorphic_stubs()->Increment();
@@ -388,7 +387,7 @@ Handle<Code> StubCache::ComputePolymorphicIC(
   Code::StubType type = number_of_valid_types == 1 ? handler->type()
                                                    : Code::NORMAL;
   if (kind == Code::LOAD_IC) {
-    LoadStubCompiler ic_compiler(isolate_, extra_ic_state);
+    LoadStubCompiler ic_compiler(isolate_, kind, extra_ic_state);
     return ic_compiler.CompilePolymorphicIC(
         types, handlers, name, type, PROPERTY);
   } else {
@@ -1144,7 +1143,13 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
   TailCallBuiltin(masm(), Builtins::kKeyedLoadIC_Miss);
 
   // Return the generated code.
-  return GetICCode(kind(), Code::NORMAL, factory()->empty_string());
+  Code::Flags flags = Code::ComputeFlags(Code::KEYED_LOAD_IC, MONOMORPHIC,
+                                         extra_state(), Code::NORMAL);
+  Handle<Code> code = GetCodeWithFlags(flags, factory()->empty_string());
+  IC::RegisterWeakMapDependency(code);
+  PROFILE(isolate(), CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG, *code,
+                                     heap()->empty_string()));
+  return code;
 }
 
 
@@ -1189,8 +1194,6 @@ void StubCompiler::TailCallBuiltin(MacroAssembler* masm, Builtins::Name name) {
 void BaseLoadStoreStubCompiler::InitializeRegisters() {
   if (kind_ == Code::LOAD_IC) {
     registers_ = LoadStubCompiler::registers();
-  } else if (kind_ == Code::KEYED_LOAD_IC) {
-    registers_ = KeyedLoadStubCompiler::registers();
   } else if (kind_ == Code::STORE_IC) {
     registers_ = StoreStubCompiler::registers();
   } else {
