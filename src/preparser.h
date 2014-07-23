@@ -676,21 +676,24 @@ class PreParserExpression {
     return (code_ & kTypeMask) == kTypeStringLiteral;
   }
 
-  bool IsUseStrictLiteral() {
+  bool IsUseStrictLiteral() const {
     return (code_ & kUseStrictString) == kUseStrictString;
   }
 
-  bool IsThis() { return code_ == kThisExpression; }
+  bool IsThis() const { return (code_ & kThisExpression) == kThisExpression; }
 
-  bool IsThisProperty() { return code_ == kThisPropertyExpression; }
-
-  bool IsProperty() {
-    return code_ == kPropertyExpression || code_ == kThisPropertyExpression;
+  bool IsThisProperty() const {
+    return (code_ & kThisPropertyExpression) == kThisPropertyExpression;
   }
 
-  bool IsCall() { return code_ == kCallExpression; }
+  bool IsProperty() const {
+    return (code_ & kPropertyExpression) == kPropertyExpression ||
+           (code_ & kThisPropertyExpression) == kThisPropertyExpression;
+  }
 
-  bool IsValidReferenceExpression() {
+  bool IsCall() const { return (code_ & kCallExpression) == kCallExpression; }
+
+  bool IsValidReferenceExpression() const {
     return IsIdentifier() || IsProperty();
   }
 
