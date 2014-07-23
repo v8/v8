@@ -961,7 +961,8 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   Handle<SharedFunctionInfo> result;
   if (extension == NULL) {
     if (FLAG_serialize_toplevel &&
-        compile_options == ScriptCompiler::kConsumeCodeCache) {
+        compile_options == ScriptCompiler::kConsumeCodeCache &&
+        !isolate->debug()->is_loaded()) {
       return CodeSerializer::Deserialize(isolate, *cached_data, source);
     } else {
       maybe_result = compilation_cache->LookupScript(

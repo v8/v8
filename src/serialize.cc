@@ -1962,6 +1962,13 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
     return;
   }
 
+  if (heap_object->IsScript()) {
+    // The wrapper cache uses a Foreign object to point to a global handle.
+    // However, the object visitor expects foreign objects to point to external
+    // references.  Clear the cache to avoid this issue.
+    Script::cast(heap_object)->ClearWrapperCache();
+  }
+
   if (skip != 0) {
     sink_->Put(kSkip, "SkipFromSerializeObject");
     sink_->PutInt(skip, "SkipDistanceFromSerializeObject");

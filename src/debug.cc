@@ -622,7 +622,14 @@ void ScriptCache::Add(Handle<Script> script) {
   HashMap::Entry* entry =
       HashMap::Lookup(reinterpret_cast<void*>(id), Hash(id), true);
   if (entry->value != NULL) {
-    ASSERT(*script == *reinterpret_cast<Script**>(entry->value));
+#ifdef DEBUG
+    // The code deserializer may introduce duplicate Script objects.
+    // Assert that the Script objects with the same id have the same name.
+    Handle<Script> found(reinterpret_cast<Script**>(entry->value));
+    ASSERT(script->id() == found->id());
+    ASSERT(!script->name()->IsString() ||
+           String::cast(script->name())->Equals(String::cast(found->name())));
+#endif
     return;
   }
   // Globalize the script object, make it weak and use the location of the

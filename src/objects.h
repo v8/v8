@@ -6934,6 +6934,7 @@ class Script: public Struct {
 
   // Get the JS object wrapping the given script; create it if none exists.
   static Handle<JSObject> GetWrapper(Handle<Script> script);
+  void ClearWrapperCache();
 
   // Dispatched behavior.
   DECLARE_PRINTER(Script)
