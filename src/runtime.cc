@@ -1798,6 +1798,28 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  Handle<FixedArray> values =
+      isolate->factory()->NewFixedArray(table->NumberOfElements());
+  {
+    DisallowHeapAllocation no_gc;
+    int number_of_non_hole_elements = 0;
+    for (int i = 0; i < table->Capacity(); i++) {
+      Handle<Object> key(table->KeyAt(i), isolate);
+      if (table->IsKey(*key)) {
+        values->set(number_of_non_hole_elements++, *key);
+      }
+    }
+    ASSERT_EQ(table->NumberOfElements(), number_of_non_hole_elements);
+  }
+  return *isolate->factory()->NewJSArrayWithElements(values);
+}
+
+
 RUNTIME_FUNCTION(Runtime_ClassOf) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 1);
