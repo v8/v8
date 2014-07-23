@@ -262,7 +262,7 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
   if (this->IsBitset() && SEMANTIC(this->AsBitset()) == BitsetType::kNone) {
     // Bitsets only have non-bitset supertypes along the representation axis.
     int that_bitset = that->BitsetGlb();
-    return (BitsetType::Is(this->AsBitset(), that_bitset));
+    return (this->AsBitset() | that_bitset) == that_bitset;
   }
 
   if (that->IsClass()) {
@@ -313,12 +313,16 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
 
   // T <= (T1 \/ ... \/ Tn)  <=>  (T <= T1) \/ ... \/ (T <= Tn)
   // (iff T is not a union)
-  ASSERT(!this->IsUnion() && that->IsUnion());
-  UnionHandle unioned = handle(that->AsUnion());
-  for (int i = 0; i < unioned->Length(); ++i) {
-    if (this->Is(unioned->Get(i))) return true;
-    if (this->IsBitset()) break;  // Fast fail, only first field is a bitset.
+  ASSERT(!this->IsUnion());
+  if (that->IsUnion()) {
+    UnionHandle unioned = handle(that->AsUnion());
+    for (int i = 0; i < unioned->Length(); ++i) {
+      if (this->Is(unioned->Get(i))) return true;
+      if (this->IsBitset()) break;  // Fast fail, only first field is a bitset.
+    }
+    return false;
   }
+
   return false;
 }
 
@@ -378,8 +382,11 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
   }
 
   ASSERT(!this->IsUnion() && !that->IsUnion());
-  if (this->IsBitset() || that->IsBitset()) {
-    return BitsetType::IsInhabited(this->BitsetLub() & that->BitsetLub());
+  if (this->IsBitset()) {
+    return BitsetType::IsInhabited(this->AsBitset() & that->BitsetLub());
+  }
+  if (that->IsBitset()) {
+    return BitsetType::IsInhabited(this->BitsetLub() & that->AsBitset());
   }
   if (this->IsClass()) {
     return that->IsClass()
@@ -437,7 +444,6 @@ template<class Config>
 typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Narrow(
     int bitset, Region* region) {
   TypeHandle bound = BitsetType::New(bitset, region);
-  ASSERT(!this->IsBitset() && this->Is(bound));
   if (this->IsClass()) {
     return ClassType::New(this->AsClass()->Map(), bound, region);
   } else if (this->IsConstant()) {
@@ -564,7 +570,7 @@ int TypeImpl<Config>::NormalizeUnion(UnionHandle result, int size, int bitset) {
   if (bitset != BitsetType::kNone && SEMANTIC(bitset) == BitsetType::kNone) {
     for (int i = 1; i < size; ++i) {
       int glb = result->Get(i)->BitsetGlb();
-      if (BitsetType::Is(bitset, glb)) {
+      if ((bitset | glb) == glb) {
         for (int j = 1; j < size; ++j) {
           result->Set(j - 1, result->Get(j));
         }
