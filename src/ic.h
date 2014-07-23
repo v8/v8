@@ -374,10 +374,6 @@ OStream& operator<<(OStream& os, const CallIC::State& s);
 
 class LoadIC: public IC {
  public:
-  // ExtraICState bits
-  class ContextualModeBits: public BitField<ContextualMode, 0, 1> {};
-  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
-
   enum ParameterIndices {
     kReceiverIndex,
     kNameIndex,
@@ -391,16 +387,37 @@ class LoadIC: public IC {
   static const Register SlotRegister();
   static const Register VectorRegister();
 
+  class State V8_FINAL BASE_EMBEDDED {
+   public:
+    explicit State(ExtraICState extra_ic_state)
+        : state_(extra_ic_state) {}
+
+    explicit State(ContextualMode mode)
+        : state_(ContextualModeBits::encode(mode)) {}
+
+    ExtraICState GetExtraICState() const { return state_; }
+
+    ContextualMode contextual_mode() const {
+      return ContextualModeBits::decode(state_);
+    }
+
+   private:
+    class ContextualModeBits: public BitField<ContextualMode, 0, 1> {};
+    STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
+
+    const ExtraICState state_;
+  };
+
   static ExtraICState ComputeExtraICState(ContextualMode contextual_mode) {
-    return ContextualModeBits::encode(contextual_mode);
+    return State(contextual_mode).GetExtraICState();
   }
 
   static ContextualMode GetContextualMode(ExtraICState state) {
-    return ContextualModeBits::decode(state);
+    return State(state).contextual_mode();
   }
 
   ContextualMode contextual_mode() const {
-    return ContextualModeBits::decode(extra_ic_state());
+    return GetContextualMode(extra_ic_state());
   }
 
   explicit LoadIC(FrameDepth depth, Isolate* isolate)
