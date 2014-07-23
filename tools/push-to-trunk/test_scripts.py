@@ -616,8 +616,8 @@ class ScriptTest(unittest.TestCase):
 
     self.ExpectGit([
       Git("checkout -f hash1 -- %s" % TEST_CONFIG[VERSION_FILE], ""),
-      Git("checkout -f master -- %s" % TEST_CONFIG[VERSION_FILE], "",
-          cb=lambda: self.WriteFakeVersionFile(22, 6)),
+      Git("checkout -f svn/bleeding_edge -- %s" % TEST_CONFIG[VERSION_FILE],
+          "", cb=lambda: self.WriteFakeVersionFile(22, 6)),
     ])
 
     self.ExpectReadline([
