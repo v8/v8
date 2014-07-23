@@ -547,10 +547,91 @@ enum ArrayStorageAllocationMode {
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
 };
 
+// TODO(ernstm): Move into GCTracer.
+// A simple ring buffer class with maximum size known at compile time.
+// The class only implements the functionality required in GCTracer.
+template<typename T, size_t MAX_SIZE>
+class RingBuffer {
+ public:
+  class const_iterator {
+   public:
+    const_iterator() : index_(0), elements_(NULL) {}
+
+    const_iterator(size_t index, const T* elements) :
+        index_(index), elements_(elements) {}
+
+    bool operator==(const const_iterator& rhs) const {
+      return elements_ == rhs.elements_ &&
+          index_ == rhs.index_;
+    }
+
+    bool operator!=(const const_iterator& rhs) const {
+      return elements_ != rhs.elements_ ||
+          index_ != rhs.index_;
+    }
+
+    operator const T*() const {
+      return elements_ + index_;
+    }
+
+    const T* operator->() const {
+      return elements_ + index_;
+    }
+
+    const T& operator*() const {
+      return elements_[index_];
+    }
+
+    const_iterator& operator++() {
+      index_ = (index_ + 1) % (MAX_SIZE + 1);
+      return *this;
+    }
+
+    const_iterator& operator--() {
+      index_ = (index_ + MAX_SIZE) % (MAX_SIZE + 1);
+      return *this;
+    }
+
+   private:
+    size_t index_;
+    const T* elements_;
+  };
+
+  RingBuffer() : begin_(0), end_(0) {}
+
+  bool empty() const { return begin_ == end_; }
+  size_t size() const {
+    return (end_ - begin_ + MAX_SIZE + 1) % (MAX_SIZE + 1);
+  }
+  const_iterator begin() const { return const_iterator(begin_, elements_); }
+  const_iterator end() const { return const_iterator(end_, elements_); }
+  const_iterator back() const { return --end(); }
+  void push_back(const T& element) {
+    elements_[end_] = element;
+    end_ = (end_ + 1) % (MAX_SIZE + 1);
+    if (end_ == begin_)
+      begin_ = (begin_ + 1) % (MAX_SIZE + 1);
+  }
+  void push_front(const T& element) {
+    begin_ = (begin_ + MAX_SIZE) % (MAX_SIZE + 1);
+    if (begin_ == end_)
+      end_ = (end_ + MAX_SIZE) % (MAX_SIZE + 1);
+    elements_[begin_] = element;
+  }
+
+ private:
+  T elements_[MAX_SIZE + 1];
+  size_t begin_;
+  size_t end_;
+
+  DISALLOW_COPY_AND_ASSIGN(RingBuffer);
+};
+
 
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 
+// TODO(ernstm): Unit tests. Move to separate file.
 class GCTracer BASE_EMBEDDED {
  public:
   class Scope BASE_EMBEDDED {
@@ -585,7 +666,8 @@ class GCTracer BASE_EMBEDDED {
 
     ~Scope() {
       ASSERT(scope_ < NUMBER_OF_SCOPES);  // scope_ is unsigned.
-      tracer_->scopes_[scope_] += base::OS::TimeCurrentMillis() - start_time_;
+      tracer_->current_.scopes[scope_] +=
+          base::OS::TimeCurrentMillis() - start_time_;
     }
 
    private:
@@ -596,73 +678,126 @@ class GCTracer BASE_EMBEDDED {
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
+
+  class Event {
+   public:
+    enum Type {
+      SCAVENGER = 0,
+      MARK_COMPACTOR = 1,
+      START = 2
+    };
+
+    // Default constructor leaves the event uninitialized.
+    Event() {}
+
+    Event(Type type,
+          const char* gc_reason,
+          const char* collector_reason);
+
+    // Returns a string describing the event type.
+    const char* TypeName(bool short_name) const;
+
+    // Type of event
+    Type type;
+
+    const char* gc_reason;
+    const char* collector_reason;
+
+    // Timestamp set in the constructor.
+    double start_time;
+
+    // Timestamp set in the destructor.
+    double end_time;
+
+    // Size of objects in heap set in constructor.
+    intptr_t start_object_size;
+
+    // Size of objects in heap set in destructor.
+    intptr_t end_object_size;
+
+    // Size of memory allocated from OS set in constructor.
+    intptr_t start_memory_size;
+
+    // Size of memory allocated from OS set in destructor.
+    intptr_t end_memory_size;
+
+    // Total amount of space either wasted or contained in one of free lists
+    // before the current GC.
+    intptr_t start_holes_size;
+
+    // Total amount of space either wasted or contained in one of free lists
+    // after the current GC.
+    intptr_t end_holes_size;
+
+    // Number of incremental marking steps since creation of tracer.
+    // (value at start of event)
+    int incremental_marking_steps;
+
+    // Cumulative duration of incremental marking steps since creation of
+    // tracer. (value at start of event)
+    double incremental_marking_duration;
+
+    // Longest incremental marking step since start of marking.
+    // (value at start of event)
+    double longest_incremental_marking_step;
+
+    // Amounts of time spent in different scopes during GC.
+    double scopes[Scope::NUMBER_OF_SCOPES];
+  };
+
+  static const int kRingBufferMaxSize = 10;
+
+  typedef RingBuffer<Event, kRingBufferMaxSize> EventBuffer;
+
   explicit GCTracer(Heap* heap);
 
   // Start collecting data.
-  void start(GarbageCollector collector,
+  void Start(GarbageCollector collector,
              const char* gc_reason,
              const char* collector_reason);
 
   // Stop collecting data and print results.
-  void stop();
+  void Stop();
+
+  // Log an incremental marking step.
+  void AddIncrementalMarkingStep(double duration);
 
  private:
-  // Returns a string matching the collector.
-  const char* CollectorString() const;
-
   // Print one detailed trace line in name=value format.
+  // TODO(ernstm): Move to Heap.
   void PrintNVP() const;
 
   // Print one trace line.
+  // TODO(ernstm): Move to Heap.
   void Print() const;
 
-  // Timestamp set in the constructor.
-  double start_time_;
-
-  // Timestamp set in the destructor.
-  double end_time_;
-
-  // Size of objects in heap set in constructor.
-  intptr_t start_object_size_;
-
-  // Size of objects in heap set in destructor.
-  intptr_t end_object_size_;
-
-  // Size of memory allocated from OS set in constructor.
-  intptr_t start_memory_size_;
-
-  // Size of memory allocated from OS set in destructor.
-  intptr_t end_memory_size_;
-
-  // Type of collector.
-  GarbageCollector collector_;
-
-  // Amounts of time spent in different scopes during GC.
-  double scopes_[Scope::NUMBER_OF_SCOPES];
-
-  // Total amount of space either wasted or contained in one of free lists
-  // before the current GC.
-  intptr_t in_free_list_or_wasted_before_gc_;
-
-  // Difference between space used in the heap at the beginning of the current
-  // collection and the end of the previous collection.
-  intptr_t allocated_since_last_gc_;
-
-  // Amount of time spent in mutator that is time elapsed between end of the
-  // previous collection and the beginning of the current one.
-  double spent_in_mutator_;
-
-  // Incremental marking steps counters.
-  int steps_count_;
-  double steps_took_;
-  double longest_step_;
-  int steps_count_since_last_gc_;
-  double steps_took_since_last_gc_;
-
+  // Pointer to the heap that owns this tracer.
   Heap* heap_;
 
-  const char* gc_reason_;
-  const char* collector_reason_;
+  // Current tracer event. Populated during Start/Stop cycle. Valid after Stop()
+  // has returned.
+  Event current_;
+
+  // Previous tracer event.
+  Event previous_;
+
+  // Previous MARK_COMPACTOR event.
+  Event previous_mark_compactor_event_;
+
+  // RingBuffers for SCAVENGER events.
+  EventBuffer scavenger_events_;
+
+  // RingBuffers for MARK_COMPACTOR events.
+  EventBuffer mark_compactor_events_;
+
+  // Cumulative number of incremental marking steps since creation of tracer.
+  int incremental_marking_steps_;
+
+  // Cumulative duration of incremental marking steps since creation of tracer.
+  double incremental_marking_duration_;
+
+  // Longest incremental marking step since start of marking.
+  double longest_incremental_marking_step_;
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };
@@ -1368,10 +1503,9 @@ class Heap {
   }
 
   // Update GC statistics that are tracked on the Heap.
-  void UpdateGCStatistics(double start_time,
-                          double end_time,
-                          double spent_in_mutator,
-                          double marking_time);
+  void UpdateCumulativeGCStatistics(double duration,
+                                    double spent_in_mutator,
+                                    double marking_time);
 
   // Returns maximum GC pause.
   double get_max_gc_pause() { return max_gc_pause_; }
@@ -2240,11 +2374,6 @@ class Heap {
 
   // Minimal interval between two subsequent collections.
   double min_in_mutator_;
-
-  // Size of objects alive after last GC.
-  intptr_t alive_after_last_gc_;
-
-  double last_gc_end_timestamp_;
 
   // Cumulative GC time spent in marking
   double marking_time_;

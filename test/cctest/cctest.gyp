@@ -78,6 +78,7 @@
         'test-fixed-dtoa.cc',
         'test-flags.cc',
         'test-func-name-inference.cc',
+        'test-gc-tracer.cc',
         'test-global-handles.cc',
         'test-global-object.cc',
         'test-hashing.cc',
