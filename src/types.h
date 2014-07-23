@@ -686,8 +686,10 @@ class TypeImpl<Config>::RangeType : public StructuralType {
         StructuralType::New(StructuralType::kRangeTag, 3, region));
     type->Set(0, bound);
     Factory* factory = Config::isolate(region)->factory();
-    type->SetValue(1, factory->NewHeapNumber(min));
-    type->SetValue(2, factory->NewHeapNumber(max));
+    Handle<HeapNumber> minV = factory->NewHeapNumber(min);
+    Handle<HeapNumber> maxV = factory->NewHeapNumber(max);
+    type->SetValue(1, minV);
+    type->SetValue(2, maxV);
     return type;
   }
 
