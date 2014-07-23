@@ -2068,6 +2068,7 @@ int Message::GetEndPosition() const {
 
 int Message::GetStartColumn() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Message::GetStartColumn()", return kNoColumnInfo);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
@@ -2082,6 +2083,7 @@ int Message::GetStartColumn() const {
 
 int Message::GetEndColumn() const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Message::GetEndColumn()", return kNoColumnInfo);
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
