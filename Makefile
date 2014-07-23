@@ -401,7 +401,7 @@ OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(BUILDS))
 $(OUT_MAKEFILES): $(GYPFILES) $(ENVFILE)
 	$(eval CXX_TARGET_ARCH:=$(shell $(CXX) -v 2>&1 | grep ^Target: | \
 	        cut -f 2 -d " " | cut -f 1 -d "-" ))
-	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$CXX_TARGET_ARCH))
+	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
 	$(eval V8_TARGET_ARCH:=$(subst .,,$(suffix $(basename $@))))
 	PYTHONPATH="$(shell pwd)/tools/generate_shim_headers:$(shell pwd)/build:$(PYTHONPATH):$(shell pwd)/build/gyp/pylib:$(PYTHONPATH)" \
 	GYP_GENERATORS=make \
