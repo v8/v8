@@ -58,21 +58,26 @@ def set_up_landmines(target, new_landmines):
   if not os.path.exists(out_dir):
     return
 
-  if os.path.exists(landmines_path):
-    triggered = os.path.join(out_dir, '.landmines_triggered')
-    with open(landmines_path, 'r') as f:
-      old_landmines = f.readlines()
-    if old_landmines != new_landmines:
-      old_date = time.ctime(os.stat(landmines_path).st_ctime)
-      diff = difflib.unified_diff(old_landmines, new_landmines,
-          fromfile='old_landmines', tofile='new_landmines',
-          fromfiledate=old_date, tofiledate=time.ctime(), n=0)
+  # Make sure the landmines tracker exists.
+  open(landmines_path, 'a').close()
 
-      with open(triggered, 'w') as f:
-        f.writelines(diff)
-    elif os.path.exists(triggered):
-      # Remove false triggered landmines.
-      os.remove(triggered)
+  triggered = os.path.join(out_dir, '.landmines_triggered')
+  with open(landmines_path, 'r') as f:
+    old_landmines = f.readlines()
+  if old_landmines != new_landmines:
+    old_date = time.ctime(os.stat(landmines_path).st_ctime)
+    diff = difflib.unified_diff(old_landmines, new_landmines,
+        fromfile='old_landmines', tofile='new_landmines',
+        fromfiledate=old_date, tofiledate=time.ctime(), n=0)
+
+    with open(triggered, 'w') as f:
+      f.writelines(diff)
+    print "Setting landmine: %s" % triggered
+    print "Reason:\n%s" % diff
+  elif os.path.exists(triggered):
+    # Remove false triggered landmines.
+    os.remove(triggered)
+    print "Removing landmine: %s" % triggered
   with open(landmines_path, 'w') as f:
     f.writelines(new_landmines)
 
