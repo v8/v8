@@ -41,8 +41,11 @@ assertEquals(1974, date.getUTCFullYear());
 assertEquals(1, date.getUTCMonth());
 assertEquals(4, date.getUTCDate());
 
-// Missing , in the pattern.
-assertEquals(undefined, dtf.v8Parse('Feb 4 1974'));
+// Missing , in the input is not a problem any more.
+date = dtf.v8Parse('Feb 4 1974');
+assertEquals(1974, date.getUTCFullYear());
+assertEquals(1, date.getUTCMonth());
+assertEquals(4, date.getUTCDate());
 
 // Extra "th" after 4 in the pattern.
 assertEquals(undefined, dtf.v8Parse('Feb 4th, 1974'));

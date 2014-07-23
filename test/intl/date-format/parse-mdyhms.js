@@ -34,7 +34,7 @@ var dtf = new Intl.DateTimeFormat(['en'],
                                    timeZone: 'UTC'});
 
 // Make sure we have pattern we expect (may change in the future).
-assertEquals('M/d/y h:mm:ss a', dtf.resolved.pattern);
+assertEquals('M/d/y, h:mm:ss a', dtf.resolved.pattern);
 
 var date = dtf.v8Parse('2/4/74 12:30:42 pm');
 assertEquals(1974, date.getUTCFullYear());
