@@ -1991,11 +1991,12 @@ void CodeSerializer::SerializeSourceObject(HowToCode how_to_code,
 Handle<SharedFunctionInfo> CodeSerializer::Deserialize(Isolate* isolate,
                                                        ScriptData* data,
                                                        Handle<String> source) {
+  base::ElapsedTimer timer;
+  if (FLAG_profile_deserialization) timer.Start();
   SerializedCodeData scd(data, *source);
   SnapshotByteSource payload(scd.Payload(), scd.PayloadLength());
   Deserializer deserializer(&payload);
   STATIC_ASSERT(NEW_SPACE == 0);
-  // TODO(yangguo) what happens if remaining new space is too small?
   for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
     deserializer.set_reservation(i, scd.GetReservation(i));
   }
@@ -2009,6 +2010,11 @@ Handle<SharedFunctionInfo> CodeSerializer::Deserialize(Isolate* isolate,
   Object* root;
   deserializer.DeserializePartial(isolate, &root);
   deserializer.FlushICacheForNewCodeObjects();
+  if (FLAG_profile_deserialization) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    int length = data->length();
+    PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
+  }
   return Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root), isolate);
 }
 

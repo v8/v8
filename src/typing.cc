@@ -485,10 +485,7 @@ void AstTyper::VisitProperty(Property* expr) {
       Literal* lit_key = expr->key()->AsLiteral();
       ASSERT(lit_key != NULL && lit_key->value()->IsString());
       Handle<String> name = Handle<String>::cast(lit_key->value());
-      bool is_prototype;
-      oracle()->PropertyReceiverTypes(
-          id, name, expr->GetReceiverTypes(), &is_prototype);
-      expr->set_is_function_prototype(is_prototype);
+      oracle()->PropertyReceiverTypes(id, name, expr->GetReceiverTypes());
     } else {
       bool is_string;
       oracle()->KeyedPropertyReceiverTypes(

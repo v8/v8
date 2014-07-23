@@ -471,6 +471,8 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
   // value since a const declaration would conflict with the setter.
   ASSERT(!structure->IsForeign());
   if (structure->IsExecutableAccessorInfo()) {
+    // Don't call executable accessor setters with non-JSObject receivers.
+    if (!receiver->IsJSObject()) return value;
     // api style callbacks
     ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(*structure);
     if (!data->IsCompatibleReceiver(*receiver)) {
@@ -554,10 +556,9 @@ MaybeHandle<Object> Object::SetPropertyWithDefinedSetter(
   }
 
   Handle<Object> argv[] = { value };
-  RETURN_ON_EXCEPTION(
-      isolate,
-      Execution::Call(isolate, setter, receiver, ARRAY_SIZE(argv), argv),
-      Object);
+  RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, setter, receiver,
+                                               ARRAY_SIZE(argv), argv, true),
+                      Object);
   return value;
 }
 
@@ -2959,13 +2960,12 @@ MaybeHandle<Object> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
 }
 
 
-MaybeHandle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
-                                            Handle<Name> name,
-                                            Handle<Object> value,
-                                            StrictMode strict_mode,
-                                            StoreFromKeyed store_mode) {
+MaybeHandle<Object> Object::SetProperty(Handle<Object> object,
+                                        Handle<Name> name, Handle<Object> value,
+                                        StrictMode strict_mode,
+                                        StoreFromKeyed store_mode) {
   LookupIterator it(object, name);
-  return Object::SetProperty(&it, value, strict_mode, store_mode);
+  return SetProperty(&it, value, strict_mode, store_mode);
 }
 
 
@@ -3107,8 +3107,10 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
                                             StrictMode strict_mode,
                                             StoreFromKeyed store_mode) {
   ASSERT(!it->GetReceiver()->IsJSProxy());
-  // Transitions to data properties of value wrappers are not observable.
-  if (!it->GetReceiver()->IsJSObject()) return value;
+  if (!it->GetReceiver()->IsJSObject()) {
+    // TODO(verwaest): Throw a TypeError with a more specific message.
+    return WriteToReadOnlyProperty(it, value, strict_mode);
+  }
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
 
   // If the receiver is a JSGlobalProxy, store on the prototype (JSGlobalObject)

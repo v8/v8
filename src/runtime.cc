@@ -2231,8 +2231,7 @@ RUNTIME_FUNCTION(Runtime_InitializeVarGlobal) {
   Handle<GlobalObject> global(isolate->context()->global_object());
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSReceiver::SetProperty(global, name, value, strict_mode));
+      isolate, result, Object::SetProperty(global, name, value, strict_mode));
   return *result;
 }
 
@@ -5026,18 +5025,17 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
           isolate, name_object, Execution::ToString(isolate, key), Object);
     }
     Handle<Name> name = Handle<Name>::cast(name_object);
-    return JSReceiver::SetProperty(Handle<JSProxy>::cast(object), name, value,
-                                   strict_mode);
+    return Object::SetProperty(Handle<JSProxy>::cast(object), name, value,
+                               strict_mode);
   }
-
-  // If the object isn't a JavaScript object, we ignore the store.
-  if (!object->IsJSObject()) return value;
-
-  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
 
   // Check if the given key is an array index.
   uint32_t index;
   if (key->ToArrayIndex(&index)) {
+    // TODO(verwaest): Support non-JSObject receivers.
+    if (!object->IsJSObject()) return value;
+    Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+
     // In Firefox/SpiderMonkey, Safari and Opera you can access the characters
     // of a string using [] notation.  We need to support this too in
     // JavaScript.
@@ -5068,6 +5066,9 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   if (key->IsName()) {
     Handle<Name> name = Handle<Name>::cast(key);
     if (name->AsArrayIndex(&index)) {
+      // TODO(verwaest): Support non-JSObject receivers.
+      if (!object->IsJSObject()) return value;
+      Handle<JSObject> js_object = Handle<JSObject>::cast(object);
       if (js_object->HasExternalArrayElements()) {
         if (!value->IsNumber() && !value->IsUndefined()) {
           ASSIGN_RETURN_ON_EXCEPTION(
@@ -5078,7 +5079,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                   true, SET_PROPERTY);
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
-      return JSReceiver::SetProperty(js_object, name, value, strict_mode);
+      return Object::SetProperty(object, name, value, strict_mode);
     }
   }
 
@@ -5089,11 +5090,13 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
+    // TODO(verwaest): Support non-JSObject receivers.
+    if (!object->IsJSObject()) return value;
+    Handle<JSObject> js_object = Handle<JSObject>::cast(object);
     return JSObject::SetElement(js_object, index, value, NONE, strict_mode,
                                 true, SET_PROPERTY);
-  } else {
-    return JSReceiver::SetProperty(js_object, name, value, strict_mode);
   }
+  return Object::SetProperty(object, name, value, strict_mode);
 }
 
 
@@ -9267,7 +9270,7 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
   }
 
   RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSReceiver::SetProperty(object, name, value, strict_mode));
+      isolate, Object::SetProperty(object, name, value, strict_mode));
 
   return *value;
 }

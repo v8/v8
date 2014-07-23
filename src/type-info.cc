@@ -175,16 +175,6 @@ bool TypeFeedbackOracle::LoadIsBuiltin(
 }
 
 
-bool TypeFeedbackOracle::LoadIsStub(TypeFeedbackId id, ICStub* stub) {
-  Handle<Object> object = GetInfo(id);
-  if (!object->IsCode()) return false;
-  Handle<Code> code = Handle<Code>::cast(object);
-  if (!code->is_load_stub()) return false;
-  if (code->ic_state() != MONOMORPHIC) return false;
-  return stub->Describes(*code);
-}
-
-
 void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
                                      Type** left_type,
                                      Type** right_type,
@@ -264,16 +254,12 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
 }
 
 
-void TypeFeedbackOracle::PropertyReceiverTypes(
-    TypeFeedbackId id, Handle<String> name,
-    SmallMapList* receiver_types, bool* is_prototype) {
+void TypeFeedbackOracle::PropertyReceiverTypes(TypeFeedbackId id,
+                                               Handle<String> name,
+                                               SmallMapList* receiver_types) {
   receiver_types->Clear();
-  FunctionPrototypeStub proto_stub(isolate(), Code::LOAD_IC);
-  *is_prototype = LoadIsStub(id, &proto_stub);
-  if (!*is_prototype) {
-    Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
-    CollectReceiverTypes(id, name, flags, receiver_types);
-  }
+  Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
+  CollectReceiverTypes(id, name, flags, receiver_types);
 }
 
 

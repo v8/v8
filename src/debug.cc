@@ -824,7 +824,7 @@ bool Debug::Load() {
   Handle<JSBuiltinsObject> builtin =
       Handle<JSBuiltinsObject>(global->builtins(), isolate_);
   RETURN_ON_EXCEPTION_VALUE(
-      isolate_, JSReceiver::SetProperty(global, key, builtin, SLOPPY), false);
+      isolate_, Object::SetProperty(global, key, builtin, SLOPPY), false);
 
   // Compile the JavaScript for the debugger in the debugger context.
   bool caught_exception =

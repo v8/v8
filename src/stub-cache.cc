@@ -42,11 +42,10 @@ static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
   ASSERT(!heap->InNewSpace(name));
   ASSERT(name->IsUniqueName());
 
-  // The state bits are not important to the hash function because
-  // the stub cache only contains monomorphic stubs. Make sure that
-  // the bits are the least significant so they will be the ones
-  // masked out.
-  ASSERT(Code::ExtractICStateFromFlags(flags) == MONOMORPHIC);
+  // The state bits are not important to the hash function because the stub
+  // cache only contains handlers. Make sure that the bits are the least
+  // significant so they will be the ones masked out.
+  ASSERT_EQ(Code::HANDLER, Code::ExtractKindFromFlags(flags));
   STATIC_ASSERT((Code::ICStateField::kMask & 1) == 1);
 
   // Make sure that the code type and cache holder are not included in the hash.

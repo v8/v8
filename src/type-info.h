@@ -41,10 +41,8 @@ class TypeFeedbackOracle: public ZoneObject {
 
   KeyedAccessStoreMode GetStoreMode(TypeFeedbackId id);
 
-  void PropertyReceiverTypes(TypeFeedbackId id,
-                             Handle<String> name,
-                             SmallMapList* receiver_types,
-                             bool* is_prototype);
+  void PropertyReceiverTypes(TypeFeedbackId id, Handle<String> name,
+                             SmallMapList* receiver_types);
   void KeyedPropertyReceiverTypes(TypeFeedbackId id,
                                   SmallMapList* receiver_types,
                                   bool* is_string);
@@ -70,7 +68,6 @@ class TypeFeedbackOracle: public ZoneObject {
   Handle<AllocationSite> GetCallNewAllocationSite(int slot);
 
   bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
-  bool LoadIsStub(TypeFeedbackId id, ICStub* stub);
 
   // TODO(1571) We can't use ToBooleanStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in

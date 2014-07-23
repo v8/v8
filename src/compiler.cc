@@ -960,13 +960,20 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
   MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<SharedFunctionInfo> result;
   if (extension == NULL) {
-    maybe_result = compilation_cache->LookupScript(
-        source, script_name, line_offset, column_offset,
-        is_shared_cross_origin, context);
-    if (maybe_result.is_null() && FLAG_serialize_toplevel &&
+    if (FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kConsumeCodeCache) {
       return CodeSerializer::Deserialize(isolate, *cached_data, source);
+    } else {
+      maybe_result = compilation_cache->LookupScript(
+          source, script_name, line_offset, column_offset,
+          is_shared_cross_origin, context);
     }
+  }
+
+  base::ElapsedTimer timer;
+  if (FLAG_profile_deserialization && FLAG_serialize_toplevel &&
+      compile_options == ScriptCompiler::kProduceCodeCache) {
+    timer.Start();
   }
 
   if (!maybe_result.ToHandle(&result)) {
@@ -1002,6 +1009,10 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
       if (FLAG_serialize_toplevel &&
           compile_options == ScriptCompiler::kProduceCodeCache) {
         *cached_data = CodeSerializer::Serialize(isolate, result, source);
+        if (FLAG_profile_deserialization) {
+          PrintF("[Compiling and serializing %d bytes took %0.3f ms]\n",
+                 (*cached_data)->length(), timer.Elapsed().InMillisecondsF());
+        }
       }
     }
 

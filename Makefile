@@ -473,9 +473,15 @@ gtags.clean:
 builddeps:
 	svn checkout --force http://gyp.googlecode.com/svn/trunk build/gyp \
 	    --revision 1831
-	svn checkout --force \
-	    https://src.chromium.org/chrome/trunk/deps/third_party/icu46 \
-	    third_party/icu --revision 258359
+	if svn info third_party/icu 2>&1 | grep -q icu46 ; then \
+	  svn switch --force \
+	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
+	      third_party/icu --revision 277999 ; \
+	else \
+	  svn checkout --force \
+	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
+	      third_party/icu --revision 277999 ; \
+	fi
 
 dependencies: builddeps
 	# The spec is a copy of the hooks in v8's DEPS file.

@@ -1,3 +1,10 @@
+2014-07-23: Version 3.28.32
+
+        Update ICU to 5.2 (matching chromium) (issue 3452).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-22: Version 3.28.31
 
         Remove harmony-typeof.

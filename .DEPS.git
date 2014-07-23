@@ -16,7 +16,7 @@ deps = {
     'v8/buildtools':
         Var('git_url') + '/chromium/buildtools.git@fb782d4369d5ae04f17a2fceef7de5a63e50f07b',
     'v8/third_party/icu':
-        Var('git_url') + '/chromium/deps/icu46.git@7a1ec88f69e25b3efcf76196d07f7815255db025',
+        Var('git_url') + '/chromium/deps/icu52.git@26d8859357ac0bfb86b939bf21c087b8eae22494',
 }
 
 deps_os = {
