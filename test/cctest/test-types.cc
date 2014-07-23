@@ -605,7 +605,10 @@ struct Tests : Rep {
       for (DoubleIterator j = T.doubles.begin(); j != T.doubles.end(); ++j) {
         double min = std::min(*i, *j);
         double max = std::max(*i, *j);
+        printf("RangeType: min, max = %f, %f\n", min, max);
         TypeHandle type = T.Range(min, max);
+        printf("RangeType: Min, Max = %f, %f\n",
+               type->AsRange()->Min(), type->AsRange()->Max());
         CHECK(min == type->AsRange()->Min());
         CHECK(max == type->AsRange()->Max());
       }
