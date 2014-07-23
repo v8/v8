@@ -14598,10 +14598,6 @@ Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);
 
 template Object*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
-    SlowReverseLookup(Object* value);
-
-template Object*
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
     SlowReverseLookup(Object* value);
 

@@ -1489,17 +1489,7 @@ void Debug::PrepareStep(StepAction step_action,
       bool is_call_ic = call_function_stub->kind() == Code::CALL_IC;
 
       // Find out number of arguments from the stub minor key.
-      // Reverse lookup required as the minor key cannot be retrieved
-      // from the code object.
-      Handle<Object> obj(
-          isolate_->heap()->code_stubs()->SlowReverseLookup(
-              *call_function_stub),
-          isolate_);
-      ASSERT(!obj.is_null());
-      ASSERT(!(*obj)->IsUndefined());
-      ASSERT(obj->IsSmi());
-      // Get the STUB key and extract major and minor key.
-      uint32_t key = Smi::cast(*obj)->value();
+      uint32_t key = call_function_stub->stub_key();
       // Argc in the stub is the number of arguments passed - not the
       // expected arguments of the called function.
       int call_function_arg_count = is_call_ic

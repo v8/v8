@@ -95,7 +95,6 @@ static int DecodeIt(Isolate* isolate,
   SealHandleScope shs(isolate);
   DisallowHeapAllocation no_alloc;
   ExternalReferenceEncoder ref_encoder(isolate);
-  Heap* heap = isolate->heap();
 
   v8::internal::EmbeddedVector<char, 128> decode_buffer;
   v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
@@ -226,29 +225,21 @@ static int DecodeIt(Isolate* isolate,
             out.AddFormatted(", %s", Code::StubType2String(type));
           }
         } else if (kind == Code::STUB || kind == Code::HANDLER) {
-          // Reverse lookup required as the minor key cannot be retrieved
-          // from the code object.
-          Object* obj = heap->code_stubs()->SlowReverseLookup(code);
-          if (obj != heap->undefined_value()) {
-            ASSERT(obj->IsSmi());
-            // Get the STUB key and extract major and minor key.
-            uint32_t key = Smi::cast(obj)->value();
-            uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
-            CodeStub::Major major_key = CodeStub::GetMajorKey(code);
-            ASSERT(major_key == CodeStub::MajorKeyFromKey(key));
-            out.AddFormatted(" %s, %s, ",
-                             Code::Kind2String(kind),
-                             CodeStub::MajorName(major_key, false));
-            switch (major_key) {
-              case CodeStub::CallFunction: {
-                int argc =
-                    CallFunctionStub::ExtractArgcFromMinorKey(minor_key);
-                out.AddFormatted("argc = %d", argc);
-                break;
-              }
-              default:
-                out.AddFormatted("minor: %d", minor_key);
+          // Get the STUB key and extract major and minor key.
+          uint32_t key = code->stub_key();
+          uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
+          CodeStub::Major major_key = CodeStub::GetMajorKey(code);
+          ASSERT(major_key == CodeStub::MajorKeyFromKey(key));
+          out.AddFormatted(" %s, %s, ", Code::Kind2String(kind),
+                           CodeStub::MajorName(major_key, false));
+          switch (major_key) {
+            case CodeStub::CallFunction: {
+              int argc = CallFunctionStub::ExtractArgcFromMinorKey(minor_key);
+              out.AddFormatted("argc = %d", argc);
+              break;
             }
+            default:
+              out.AddFormatted("minor: %d", minor_key);
           }
         } else {
           out.AddFormatted(" %s", Code::Kind2String(kind));
