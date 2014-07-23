@@ -68,11 +68,12 @@ namespace internal {
 //   None <= R
 //   R <= Any
 //
-//   UntaggedInt <= UntaggedInt8 \/ UntaggedInt16 \/ UntaggedInt32)
-//   UntaggedFloat <= UntaggedFloat32 \/ UntaggedFloat64
-//   UntaggedNumber <= UntaggedInt \/ UntaggedFloat
-//   Untagged <= UntaggedNumber \/ UntaggedPtr
-//   Tagged <= TaggedInt \/ TaggedPtr
+//   UntaggedInt = UntaggedInt1 \/ UntaggedInt8 \/
+//                 UntaggedInt16 \/ UntaggedInt32
+//   UntaggedFloat = UntaggedFloat32 \/ UntaggedFloat64
+//   UntaggedNumber = UntaggedInt \/ UntaggedFloat
+//   Untagged = UntaggedNumber \/ UntaggedPtr
+//   Tagged = TaggedInt \/ TaggedPtr
 //
 // Subtyping relates the two dimensions, for example:
 //
@@ -464,7 +465,7 @@ class TypeImpl : public Config::Base {
 
   bool SlowIs(TypeImpl* that);
 
-  TypeHandle Narrow(int bitset, Region* region);
+  TypeHandle Rebound(int bitset, Region* region);
   int BoundBy(TypeImpl* that);
   int IndexInUnion(int bound, UnionHandle unioned, int current_size);
   static int ExtendUnion(
@@ -500,6 +501,10 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
 
   static bool IsInhabited(int bitset) {
     return (bitset & kRepresentation) && (bitset & kSemantic);
+  }
+
+  static bool Is(int bitset1, int bitset2) {
+    return (bitset1 | bitset2) == bitset2;
   }
 
   static int Glb(TypeImpl* type);  // greatest lower bound that's a bitset
@@ -612,6 +617,7 @@ class TypeImpl<Config>::ClassType : public StructuralType {
 
   static ClassHandle New(
       i::Handle<i::Map> map, TypeHandle bound, Region* region) {
+    ASSERT(BitsetType::Is(bound->AsBitset(), BitsetType::Lub(*map)));
     ClassHandle type = Config::template cast<ClassType>(
         StructuralType::New(StructuralType::kClassTag, 2, region));
     type->Set(0, bound);
@@ -648,6 +654,7 @@ class TypeImpl<Config>::ConstantType : public StructuralType {
 
   static ConstantHandle New(
       i::Handle<i::Object> value, TypeHandle bound, Region* region) {
+    ASSERT(BitsetType::Is(bound->AsBitset(), BitsetType::Lub(*value)));
     ConstantHandle type = Config::template cast<ConstantType>(
         StructuralType::New(StructuralType::kConstantTag, 2, region));
     type->Set(0, bound);
@@ -679,8 +686,7 @@ class TypeImpl<Config>::RangeType : public StructuralType {
 
   static RangeHandle New(
       double min, double max, TypeHandle bound, Region* region) {
-    ASSERT(SEMANTIC(bound->AsBitset() | BitsetType::kNumber)
-           == SEMANTIC(BitsetType::kNumber));
+    ASSERT(BitsetType::Is(bound->AsBitset(), BitsetType::kNumber));
     ASSERT(!std::isnan(min) && !std::isnan(max) && min <= max);
     RangeHandle type = Config::template cast<RangeType>(
         StructuralType::New(StructuralType::kRangeTag, 3, region));
@@ -715,6 +721,8 @@ class TypeImpl<Config>::ContextType : public StructuralType {
   TypeHandle Outer() { return this->Get(1); }
 
   static ContextHandle New(TypeHandle outer, TypeHandle bound, Region* region) {
+    ASSERT(BitsetType::Is(
+        bound->AsBitset(), BitsetType::kInternal & BitsetType::kTaggedPtr));
     ContextHandle type = Config::template cast<ContextType>(
         StructuralType::New(StructuralType::kContextTag, 2, region));
     type->Set(0, bound);
@@ -745,7 +753,7 @@ class TypeImpl<Config>::ArrayType : public StructuralType {
   TypeHandle Element() { return this->Get(1); }
 
   static ArrayHandle New(TypeHandle element, TypeHandle bound, Region* region) {
-    ASSERT(SEMANTIC(bound->AsBitset()) == SEMANTIC(BitsetType::kArray));
+    ASSERT(BitsetType::Is(bound->AsBitset(), BitsetType::kArray));
     ArrayHandle type = Config::template cast<ArrayType>(
         StructuralType::New(StructuralType::kArrayTag, 2, region));
     type->Set(0, bound);
@@ -782,7 +790,7 @@ class TypeImpl<Config>::FunctionType : public StructuralType {
   static FunctionHandle New(
       TypeHandle result, TypeHandle receiver, TypeHandle bound,
       int arity, Region* region) {
-    ASSERT(SEMANTIC(bound->AsBitset()) == SEMANTIC(BitsetType::kFunction));
+    ASSERT(BitsetType::Is(bound->AsBitset(), BitsetType::kFunction));
     FunctionHandle type = Config::template cast<FunctionType>(
         StructuralType::New(StructuralType::kFunctionTag, 3 + arity, region));
     type->Set(0, bound);
