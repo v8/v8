@@ -174,13 +174,16 @@ void Accessors::ArrayLengthSetter(
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> object = Handle<JSObject>::cast(
-      Utils::OpenHandle(*info.This()));
+  Handle<JSObject> object = Utils::OpenHandle(*info.This());
   Handle<Object> value = Utils::OpenHandle(*val);
   // This means one of the object's prototypes is a JSArray and the
   // object does not have a 'length' property.  Calling SetProperty
   // causes an infinite loop.
   if (!object->IsJSArray()) {
+    // This behaves sloppy since we lost the actual strict-mode.
+    // TODO(verwaest): Fix by making ExecutableAccessorInfo behave like data
+    // properties.
+    if (!object->map()->is_extensible()) return;
     MaybeHandle<Object> maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
         object, isolate->factory()->length_string(), value, NONE);
     maybe_result.Check();
