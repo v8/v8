@@ -5226,7 +5226,8 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   ASSERT(current_block()->HasPredecessor());
   Handle<SharedFunctionInfo> shared_info = expr->shared_info();
   if (shared_info.is_null()) {
-    shared_info = Compiler::BuildFunctionInfo(expr, current_info()->script());
+    shared_info =
+        Compiler::BuildFunctionInfo(expr, current_info()->script(), top_info());
   }
   // We also have a stack overflow if the recursive compilation did.
   if (HasStackOverflow()) return;
@@ -11239,7 +11240,7 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
     case Variable::UNALLOCATED: {
       globals_.Add(variable->name(), zone());
       Handle<SharedFunctionInfo> function = Compiler::BuildFunctionInfo(
-          declaration->fun(), current_info()->script());
+          declaration->fun(), current_info()->script(), top_info());
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
       globals_.Add(function, zone());
