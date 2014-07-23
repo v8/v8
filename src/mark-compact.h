@@ -658,8 +658,13 @@ class MarkCompactCollector {
   // Concurrent and parallel sweeping support. If required_freed_bytes was set
   // to a value larger than 0, then sweeping returns after a block of at least
   // required_freed_bytes was freed. If required_freed_bytes was set to zero
-  // then the whole given space is swept.
+  // then the whole given space is swept. It returns the size of the maximum
+  // continuous freed memory chunk.
   int SweepInParallel(PagedSpace* space, int required_freed_bytes);
+
+  // Sweeps a given page concurrently to the sweeper threads. It returns the
+  // size of the maximum continuous freed memory chunk.
+  int SweepInParallel(Page* page, PagedSpace* space);
 
   void EnsureSweepingCompleted();
 

@@ -505,6 +505,16 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
               }
             }
           } else {
+            if (page->parallel_sweeping() > MemoryChunk::SWEEPING_FINALIZE) {
+              heap_->mark_compact_collector()->SweepInParallel(page, owner);
+              if (page->parallel_sweeping() > MemoryChunk::SWEEPING_FINALIZE) {
+                // We were not able to sweep that page, i.e., a concurrent
+                // sweeper thread currently owns this page.
+                // TODO(hpayer): This may introduce a huge pause here. We
+                // just care about finish sweeping of the scan on scavenge page.
+                heap_->mark_compact_collector()->EnsureSweepingCompleted();
+              }
+            }
             FindPointersToNewSpaceInRegion(
                 start, end, slot_callback, clear_maps);
           }
