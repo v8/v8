@@ -6707,6 +6707,30 @@ bool Isolate::WillAutorunMicrotasks() const {
 }
 
 
+void Isolate::SetCounterFunction(CounterLookupCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->stats_table()->SetCounterFunction(callback);
+  isolate->InitializeLoggingAndCounters();
+  isolate->counters()->ResetCounters();
+}
+
+
+void Isolate::SetCreateHistogramFunction(CreateHistogramCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->stats_table()->SetCreateHistogramFunction(callback);
+  isolate->InitializeLoggingAndCounters();
+  isolate->counters()->ResetHistograms();
+}
+
+
+void Isolate::SetAddHistogramSampleFunction(
+    AddHistogramSampleCallback callback) {
+  reinterpret_cast<i::Isolate*>(this)
+      ->stats_table()
+      ->SetAddHistogramSampleFunction(callback);
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();

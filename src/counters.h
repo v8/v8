@@ -143,6 +143,9 @@ class StatsCounter {
     return loc;
   }
 
+  // Reset the cached internal pointer.
+  void Reset() { lookup_done_ = false; }
+
  protected:
   // Returns the cached address of this counter location.
   int* GetPtr() {
@@ -629,6 +632,7 @@ class Counters {
     stats_counter_count
   };
 
+  void ResetCounters();
   void ResetHistograms();
 
  private:
