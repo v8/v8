@@ -16,6 +16,7 @@ def main():
   ALL LANDMINES ARE EMITTED FROM HERE.
   """
   print 'Need to clobber after ICU52 roll.'
+  print 'Landmines test.'
   return 0
 
 
