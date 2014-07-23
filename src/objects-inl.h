@@ -6580,6 +6580,32 @@ bool String::AsArrayIndex(uint32_t* index) {
 }
 
 
+void String::SetForwardedInternalizedString(String* canonical) {
+  ASSERT(IsInternalizedString());
+  ASSERT(HasHashCode());
+  if (canonical == this) return;  // No need to forward.
+  ASSERT(SlowEquals(canonical));
+  ASSERT(canonical->IsInternalizedString());
+  ASSERT(canonical->HasHashCode());
+  WRITE_FIELD(this, kHashFieldOffset, canonical);
+  // Setting the hash field to a tagged value sets the LSB, causing the hash
+  // code to be interpreted as uninitialized.  We use this fact to recognize
+  // that we have a forwarded string.
+  ASSERT(!HasHashCode());
+}
+
+
+String* String::GetForwardedInternalizedString() {
+  ASSERT(IsInternalizedString());
+  if (HasHashCode()) return this;
+  String* canonical = String::cast(READ_FIELD(this, kHashFieldOffset));
+  ASSERT(canonical->IsInternalizedString());
+  ASSERT(SlowEquals(canonical));
+  ASSERT(canonical->HasHashCode());
+  return canonical;
+}
+
+
 Object* JSReceiver::GetConstructor() {
   return map()->constructor();
 }

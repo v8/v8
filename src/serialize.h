@@ -280,7 +280,9 @@ class Deserializer: public SerializerDeserializer {
       Object** start, Object** end, int space, Address object_address);
   void ReadObject(int space_number, Object** write_back);
 
-  HeapObject* ProcessObjectFromSerializedCode(HeapObject* obj);
+  // Special handling for serialized code like hooking up internalized strings.
+  HeapObject* ProcessNewObjectFromSerializedCode(HeapObject* obj);
+  Object* ProcessBackRefInSerializedCode(Object* obj);
 
   // This routine both allocates a new object, and also keeps
   // track of where objects have been allocated so that we can
