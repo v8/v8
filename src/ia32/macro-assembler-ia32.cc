@@ -1976,27 +1976,27 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register scratch,
                                              Label* miss,
                                              bool miss_on_bound_function) {
-  // Check that the receiver isn't a smi.
-  JumpIfSmi(function, miss);
-
-  // Check that the function really is a function.
-  CmpObjectType(function, JS_FUNCTION_TYPE, result);
-  j(not_equal, miss);
-
+  Label non_instance;
   if (miss_on_bound_function) {
+    // Check that the receiver isn't a smi.
+    JumpIfSmi(function, miss);
+
+    // Check that the function really is a function.
+    CmpObjectType(function, JS_FUNCTION_TYPE, result);
+    j(not_equal, miss);
+
     // If a bound function, go to miss label.
     mov(scratch,
         FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
     BooleanBitTest(scratch, SharedFunctionInfo::kCompilerHintsOffset,
                    SharedFunctionInfo::kBoundFunction);
     j(not_zero, miss);
-  }
 
-  // Make sure that the function has an instance prototype.
-  Label non_instance;
-  movzx_b(scratch, FieldOperand(result, Map::kBitFieldOffset));
-  test(scratch, Immediate(1 << Map::kHasNonInstancePrototype));
-  j(not_zero, &non_instance);
+    // Make sure that the function has an instance prototype.
+    movzx_b(scratch, FieldOperand(result, Map::kBitFieldOffset));
+    test(scratch, Immediate(1 << Map::kHasNonInstancePrototype));
+    j(not_zero, &non_instance);
+  }
 
   // Get the prototype or initial map from the function.
   mov(result,
@@ -2015,12 +2015,15 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
   // Get the prototype from the initial map.
   mov(result, FieldOperand(result, Map::kPrototypeOffset));
-  jmp(&done);
 
-  // Non-instance prototype: Fetch prototype from constructor field
-  // in initial map.
-  bind(&non_instance);
-  mov(result, FieldOperand(result, Map::kConstructorOffset));
+  if (miss_on_bound_function) {
+    jmp(&done);
+
+    // Non-instance prototype: Fetch prototype from constructor field
+    // in initial map.
+    bind(&non_instance);
+    mov(result, FieldOperand(result, Map::kConstructorOffset));
+  }
 
   // All done.
   bind(&done);

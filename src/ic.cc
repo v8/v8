@@ -937,7 +937,8 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
   // Use specialized code for getting prototype of functions.
   if (object->IsJSFunction() &&
       String::Equals(isolate()->factory()->prototype_string(), name) &&
-      Handle<JSFunction>::cast(object)->should_have_prototype()) {
+      Handle<JSFunction>::cast(object)->should_have_prototype() &&
+      !Handle<JSFunction>::cast(object)->map()->has_non_instance_prototype()) {
     Handle<Code> stub;
     FunctionPrototypeStub function_prototype_stub(isolate(), kind());
     return function_prototype_stub.GetCode();

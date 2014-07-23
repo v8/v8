@@ -3816,13 +3816,14 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              BoundFunctionAction action) {
   ASSERT(!AreAliased(function, result, scratch));
 
-  // Check that the receiver isn't a smi.
-  JumpIfSmi(function, miss);
-
-  // Check that the function really is a function. Load map into result reg.
-  JumpIfNotObjectType(function, result, scratch, JS_FUNCTION_TYPE, miss);
-
+  Label non_instance;
   if (action == kMissOnBoundFunction) {
+    // Check that the receiver isn't a smi.
+    JumpIfSmi(function, miss);
+
+    // Check that the function really is a function. Load map into result reg.
+    JumpIfNotObjectType(function, result, scratch, JS_FUNCTION_TYPE, miss);
+
     Register scratch_w = scratch.W();
     Ldr(scratch,
         FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
@@ -3831,12 +3832,11 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
     Ldr(scratch_w,
         FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
     Tbnz(scratch, SharedFunctionInfo::kBoundFunction, miss);
-  }
 
-  // Make sure that the function has an instance prototype.
-  Label non_instance;
-  Ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
-  Tbnz(scratch, Map::kHasNonInstancePrototype, &non_instance);
+    // Make sure that the function has an instance prototype.
+    Ldrb(scratch, FieldMemOperand(result, Map::kBitFieldOffset));
+    Tbnz(scratch, Map::kHasNonInstancePrototype, &non_instance);
+  }
 
   // Get the prototype or initial map from the function.
   Ldr(result,
@@ -3853,12 +3853,15 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
   // Get the prototype from the initial map.
   Ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
-  B(&done);
 
-  // Non-instance prototype: fetch prototype from constructor field in initial
-  // map.
-  Bind(&non_instance);
-  Ldr(result, FieldMemOperand(result, Map::kConstructorOffset));
+  if (action == kMissOnBoundFunction) {
+    B(&done);
+
+    // Non-instance prototype: fetch prototype from constructor field in initial
+    // map.
+    Bind(&non_instance);
+    Ldr(result, FieldMemOperand(result, Map::kConstructorOffset));
+  }
 
   // All done.
   Bind(&done);
