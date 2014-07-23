@@ -35,6 +35,7 @@
     'component%': 'static_library',
     'clang%': 0,
     'asan%': 0,
+    'tsan%': 0,
     'visibility%': 'hidden',
     'v8_enable_backtrace%': 0,
     'v8_enable_i18n_support%': 1,
@@ -183,6 +184,27 @@
         ],
         'ldflags': [
           '-fsanitize=address',
+        ],
+      },
+    }],
+    ['tsan==1', {
+      'target_defaults': {
+        'cflags+': [
+          '-fno-omit-frame-pointer',
+          '-gline-tables-only',
+          '-fsanitize=thread',
+          '-fPIC',
+          '-Wno-c++11-extensions',
+        ],
+        'cflags!': [
+          '-fomit-frame-pointer',
+        ],
+        'ldflags': [
+          '-fsanitize=thread',
+          '-pie',
+        ],
+        'defines': [
+          'THREAD_SANITIZER',
         ],
       },
     }],
