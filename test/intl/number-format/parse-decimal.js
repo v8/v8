@@ -30,9 +30,7 @@ var nf = new Intl.NumberFormat(['en'], {style: 'decimal'});
 assertEquals(123.43, nf.v8Parse('123.43'));
 assertEquals(123, nf.v8Parse('123'));
 assertEquals(NaN, nf.v8Parse(NaN));
-
-// a misplaced comma without a decimal point is not tolerated any more.
-assertEquals(undefined, nf.v8Parse('123,23'));
+assertEquals(12323, nf.v8Parse('123,23'));
 assertEquals(12323.456, nf.v8Parse('123,23.456'));
 assertEquals(12323.456, nf.v8Parse('0000000123,23.456'));
 assertEquals(-12323.456, nf.v8Parse('-123,23.456'));

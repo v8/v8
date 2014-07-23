@@ -30,9 +30,7 @@ var nf = new Intl.NumberFormat(['en'], {style: 'percent'});
 assertEquals(1.2343, nf.v8Parse('123.43%'));
 assertEquals(1.23, nf.v8Parse('123%'));
 assertEquals(NaN, nf.v8Parse(NaN));
-
-// a misplaced comma without a decimal point is not tolerated any more.
-assertEquals(undefined, nf.v8Parse('123,23%'));
+assertEquals(123.23, nf.v8Parse('123,23%'));
 assertEquals(123.23456, nf.v8Parse('123,23.456%'));
 assertEquals(123.23456, nf.v8Parse('0000000123,23.456%'));
 assertEquals(-123.23456, nf.v8Parse('-123,23.456%'));
