@@ -10576,30 +10576,7 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   ASSERT(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
-
-  ElementsKind kind = array->GetElementsKind();
-  bool estimate_keys_as_length = IsFastPackedElementsKind(kind);
-  if (IsHoleyElementsKind(kind)) {
-    ElementsAccessor* accessor = array->GetElementsAccessor();
-    // If more than 10% of the array is holes, then calculate the key set, it's
-    // much faster than using the runtime to walk the prototype chain in the
-    // hole case.
-    int holes = 0;
-    int length = array->elements()->length();
-    for (int i = 0; i < length; ++i) {
-      if (!accessor->HasElement(array, array, i)) {
-        ++holes;
-      }
-    }
-    estimate_keys_as_length = holes < static_cast<int>(length / 10);
-  }
-
-  if (estimate_keys_as_length) {
-    RUNTIME_ASSERT(array->HasFastSmiOrObjectElements() ||
-                   array->HasFastDoubleElements());
-    uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
-    return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
-  } else {
+  if (array->elements()->IsDictionary()) {
     Handle<FixedArray> keys = isolate->factory()->empty_fixed_array();
     for (PrototypeIterator iter(isolate, array,
                                 PrototypeIterator::START_AT_RECEIVER);
@@ -10626,6 +10603,11 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
       if (NumberToUint32(keys->get(i)) >= length) keys->set_undefined(i);
     }
     return *isolate->factory()->NewJSArrayWithElements(keys);
+  } else {
+    RUNTIME_ASSERT(array->HasFastSmiOrObjectElements() ||
+                   array->HasFastDoubleElements());
+    uint32_t actual_length = static_cast<uint32_t>(array->elements()->length());
+    return *isolate->factory()->NewNumberFromUint(Min(actual_length, length));
   }
 }
 
@@ -14946,15 +14928,6 @@ RUNTIME_FUNCTION(Runtime_InternalArrayConstructor) {
                                 constructor,
                                 Handle<AllocationSite>::null(),
                                 caller_args);
-}
-
-
-RUNTIME_FUNCTION(Runtime_NormalizeElements) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
-  JSObject::NormalizeElements(array);
-  return *array;
 }
 
 

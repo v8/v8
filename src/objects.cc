@@ -11720,17 +11720,6 @@ static void EndPerformSplice(Handle<JSArray> object) {
 MaybeHandle<Object> JSArray::SetElementsLength(
     Handle<JSArray> array,
     Handle<Object> new_length_handle) {
-  if (array->HasFastElements()) {
-    // If the new array won't fit in a some non-trivial fraction of the max old
-    // space size, then force it to go dictionary mode.
-    int max_fast_array_size = static_cast<int>(
-        (array->GetHeap()->MaxOldGenerationSize() / kDoubleSize) / 4);
-    if (new_length_handle->IsNumber() &&
-        NumberToInt32(*new_length_handle) >= max_fast_array_size) {
-      NormalizeElements(array);
-    }
-  }
-
   // We should never end in here with a pixel or external array.
   ASSERT(array->AllowsSetElementsLength());
   if (!array->map()->is_observed()) {

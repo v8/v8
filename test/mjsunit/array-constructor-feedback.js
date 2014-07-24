@@ -130,7 +130,8 @@ function assertKind(expected, obj, name_opt) {
   a = bar(10);
   assertKind(elements_kind.fast, a);
   assertOptimized(bar);
-  bar(100000);
+  a = bar(100000);
+  assertKind(elements_kind.dictionary, a);
   assertOptimized(bar);
 
   // If the argument isn't a smi, things should still work.

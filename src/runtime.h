@@ -440,7 +440,6 @@ namespace internal {
   /* Arrays */                             \
   F(ArrayConstructor, -1, 1)               \
   F(InternalArrayConstructor, -1, 1)       \
-  F(NormalizeElements, 1, 1)               \
                                            \
   /* Literals */                           \
   F(MaterializeRegExpLiteral, 4, 1)        \

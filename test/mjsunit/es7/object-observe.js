@@ -1234,9 +1234,8 @@ observer2.assertCallbackRecords([
 
 // Updating length on large (slow) array
 reset();
-var slow_arr = %NormalizeElements([]);
+var slow_arr = new Array(1000000000);
 slow_arr[500000000] = 'hello';
-slow_arr.length = 1000000000;
 Object.observe(slow_arr, observer.callback);
 var spliceRecords;
 function slowSpliceCallback(records) {

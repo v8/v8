@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 // TODO(jkummerow): There are many ways to improve these tests, e.g.:
 // - more variance in randomized inputs
 // - better time complexity management
@@ -17,9 +15,7 @@ function makeArguments() {
   result.push(17);
   result.push(-31);
   result.push(new Array(100));
-  var a = %NormalizeElements([]);
-  a.length = 100003;
-  result.push(a);
+  result.push(new Array(100003));
   result.push(Number.MIN_VALUE);
   result.push("whoops");
   result.push("x");

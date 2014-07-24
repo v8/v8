@@ -145,9 +145,7 @@ function test_wrapper() {
   }
   assertKind(elements_kind.fast, you);
 
-  var temp = [];
-  temp[0xDECAF] = 0;
-  assertKind(elements_kind.dictionary, temp);
+  assertKind(elements_kind.dictionary, new Array(0xDECAF));
 
   var fast_double_array = new Array(0xDECAF);
   for (var i = 0; i < 0xDECAF; i++) fast_double_array[i] = i / 2;
