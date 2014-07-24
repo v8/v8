@@ -149,7 +149,7 @@ bool SetPropertyOnInstanceIfInherited(
     // properties.
     if (!object->map()->is_extensible()) return true;
     JSObject::SetOwnPropertyIgnoreAttributes(object, Utils::OpenHandle(*name),
-                                             value, NONE);
+                                             value, NONE).Check();
   }
   return true;
 }
