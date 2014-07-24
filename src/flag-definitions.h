@@ -171,7 +171,6 @@ DEFINE_IMPLICATION(harmony, harmony_modules)
 DEFINE_IMPLICATION(harmony, harmony_proxies)
 DEFINE_IMPLICATION(harmony, harmony_collections)
 DEFINE_IMPLICATION(harmony, harmony_generators)
-DEFINE_IMPLICATION(harmony, harmony_iteration)
 DEFINE_IMPLICATION(harmony, harmony_numeric_literals)
 DEFINE_IMPLICATION(harmony, harmony_strings)
 DEFINE_IMPLICATION(harmony, harmony_arrays)
@@ -184,6 +183,7 @@ DEFINE_IMPLICATION(harmony_iteration, harmony_symbols)
 DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony_symbols)
 DEFINE_IMPLICATION(es_staging, harmony_collections)
+DEFINE_IMPLICATION(es_staging, harmony_iteration)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_dictionary_loads, true,
