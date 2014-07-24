@@ -153,6 +153,7 @@ IC::IC(FrameDepth depth, Isolate* isolate)
   pc_address_ = StackFrame::ResolveReturnAddressLocation(pc_address);
   target_ = handle(raw_target(), isolate);
   state_ = target_->ic_state();
+  kind_ = target_->kind();
   extra_ic_state_ = target_->extra_ic_state();
 }
 
@@ -525,19 +526,12 @@ void CompareIC::Clear(Isolate* isolate,
 }
 
 
-Handle<Code> KeyedLoadIC::megamorphic_stub() {
+// static
+Handle<Code> KeyedLoadIC::generic_stub(Isolate* isolate) {
   if (FLAG_compiled_keyed_generic_loads) {
-    return KeyedLoadGenericElementStub(isolate()).GetCode();
+    return KeyedLoadGenericElementStub(isolate).GetCode();
   } else {
-    return isolate()->builtins()->KeyedLoadIC_Generic();
-  }
-}
-
-Handle<Code> KeyedLoadIC::generic_stub() const {
-  if (FLAG_compiled_keyed_generic_loads) {
-    return KeyedLoadGenericElementStub(isolate()).GetCode();
-  } else {
-    return isolate()->builtins()->KeyedLoadIC_Generic();
+    return isolate->builtins()->KeyedLoadIC_Generic();
   }
 }
 
@@ -564,7 +558,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
   if (kind() == Code::KEYED_LOAD_IC && name->AsArrayIndex(&index)) {
     // Rewrite to the generic keyed load stub.
     if (FLAG_use_ic) {
-      set_target(*generic_stub());
+      set_target(*KeyedLoadIC::generic_stub(isolate()));
       TRACE_IC("LoadIC", name);
       TRACE_GENERIC_IC(isolate(), "LoadIC", "name as array index");
     }
@@ -776,10 +770,6 @@ void IC::PatchCache(Handle<String> name, Handle<Code> code) {
         if (UpdatePolymorphicIC(name, code)) break;
         CopyICToMegamorphicCache(name);
       }
-      if (FLAG_compiled_keyed_generic_loads && (kind() == Code::LOAD_IC)) {
-        set_target(*generic_stub());
-        break;
-      }
       set_target(*megamorphic_stub());
       // Fall through.
     case MEGAMORPHIC:
@@ -800,30 +790,40 @@ Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
 }
 
 
+Handle<Code> LoadIC::megamorphic_stub() {
+  if (kind() == Code::LOAD_IC) {
+    return isolate()->stub_cache()->ComputeLoad(MEGAMORPHIC, extra_ic_state());
+  } else {
+    ASSERT_EQ(Code::KEYED_LOAD_IC, kind());
+    return KeyedLoadIC::generic_stub(isolate());
+  }
+}
+
+
 Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
                                           ExtraICState extra_state) {
   return isolate->stub_cache()->ComputeLoad(PREMONOMORPHIC, extra_state);
 }
 
 
-Handle<Code> LoadIC::megamorphic_stub() {
-  return isolate()->stub_cache()->ComputeLoad(MEGAMORPHIC, extra_ic_state());
+Handle<Code> KeyedLoadIC::pre_monomorphic_stub(Isolate* isolate) {
+  return isolate->builtins()->KeyedLoadIC_PreMonomorphic();
 }
 
 
-Handle<Code> LoadIC::generic_stub() const {
-  return KeyedLoadGenericElementStub(isolate()).GetCode();
+Handle<Code> LoadIC::pre_monomorphic_stub() const {
+  if (kind() == Code::LOAD_IC) {
+    return LoadIC::pre_monomorphic_stub(isolate(), extra_ic_state());
+  } else {
+    ASSERT_EQ(Code::KEYED_LOAD_IC, kind());
+    return KeyedLoadIC::pre_monomorphic_stub(isolate());
+  }
 }
 
 
 Handle<Code> LoadIC::SimpleFieldLoad(FieldIndex index) {
-  if (kind() == Code::LOAD_IC) {
-    LoadFieldStub stub(isolate(), index);
-    return stub.GetCode();
-  } else {
-    KeyedLoadFieldStub stub(isolate(), index);
-    return stub.GetCode();
-  }
+  LoadFieldStub stub(isolate(), index);
+  return stub.GetCode();
 }
 
 
@@ -862,8 +862,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 
 
 void IC::UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {
-  // Cache code holding map should be consistent with
-  // GenerateMonomorphicCacheProbe.
+  if (kind() == Code::KEYED_LOAD_IC || kind() == Code::KEYED_STORE_IC) return;
   Map* map = *TypeToMap(type, isolate());
   isolate()->stub_cache()->Set(name, map, code);
 }
@@ -879,7 +878,7 @@ Handle<Code> IC::ComputeHandler(LookupResult* lookup,
       *receiver_type(), receiver_is_holder, isolate(), &flag);
 
   Handle<Code> code = isolate()->stub_cache()->FindHandler(
-      name, stub_holder_map, kind(), flag,
+      name, stub_holder_map, handler_kind(), flag,
       lookup->holder()->HasFastProperties() ? Code::FAST : Code::NORMAL);
   // Use the cached value if it exists, and if it is different from the
   // handler that just missed.
@@ -925,19 +924,15 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
 
   if (object->IsStringWrapper() &&
       String::Equals(isolate()->factory()->length_string(), name)) {
-    if (kind() == Code::LOAD_IC) {
-      StringLengthStub string_length_stub(isolate());
-      return string_length_stub.GetCode();
-    } else {
-      KeyedStringLengthStub string_length_stub(isolate());
-      return string_length_stub.GetCode();
-    }
+    StringLengthStub string_length_stub(isolate());
+    return string_length_stub.GetCode();
   }
 
   // Use specialized code for getting prototype of functions.
   if (object->IsJSFunction() &&
       String::Equals(isolate()->factory()->prototype_string(), name) &&
-      Handle<JSFunction>::cast(object)->should_have_prototype()) {
+      Handle<JSFunction>::cast(object)->should_have_prototype() &&
+      !Handle<JSFunction>::cast(object)->map()->has_non_instance_prototype()) {
     Handle<Code> stub;
     FunctionPrototypeStub function_prototype_stub(isolate(), kind());
     return function_prototype_stub.GetCode();
@@ -946,7 +941,8 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
   Handle<HeapType> type = receiver_type();
   Handle<JSObject> holder(lookup->holder());
   bool receiver_is_holder = object.is_identical_to(holder);
-  LoadStubCompiler compiler(isolate(), kNoExtraICState, cache_holder, kind());
+  LoadStubCompiler compiler(isolate(), handler_kind(), kNoExtraICState,
+                            cache_holder);
 
   switch (lookup->type()) {
     case FIELD: {

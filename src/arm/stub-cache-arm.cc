@@ -1004,13 +1004,8 @@ void LoadStubCompiler::GenerateLoadField(Register reg,
                                          FieldIndex field,
                                          Representation representation) {
   if (!reg.is(receiver())) __ mov(receiver(), reg);
-  if (kind() == Code::LOAD_IC) {
-    LoadFieldStub stub(isolate(), field);
-    GenerateTailCall(masm(), stub.GetCode());
-  } else {
-    KeyedLoadFieldStub stub(isolate(), field);
-    GenerateTailCall(masm(), stub.GetCode());
-  }
+  LoadFieldStub stub(isolate(), field);
+  GenerateTailCall(masm(), stub.GetCode());
 }
 
 

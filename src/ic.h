@@ -192,27 +192,20 @@ class IC {
   }
 
   void UpdateMonomorphicIC(Handle<Code> handler, Handle<String> name);
-
   bool UpdatePolymorphicIC(Handle<String> name, Handle<Code> code);
-
-  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
+  void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
 
   void CopyICToMegamorphicCache(Handle<String> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<String> name, Handle<Code> code);
-  virtual Code::Kind kind() const {
-    UNREACHABLE();
-    return Code::STUB;
-  }
-  virtual Handle<Code> slow_stub() const {
-    UNREACHABLE();
-    return Handle<Code>::null();
+  Code::Kind kind() const { return kind_; }
+  Code::Kind handler_kind() const {
+    if (kind_ == Code::KEYED_LOAD_IC) return Code::LOAD_IC;
+    ASSERT(kind_ == Code::LOAD_IC || kind_ == Code::STORE_IC ||
+           kind_ == Code::KEYED_STORE_IC);
+    return kind_;
   }
   virtual Handle<Code> megamorphic_stub() {
-    UNREACHABLE();
-    return Handle<Code>::null();
-  }
-  virtual Handle<Code> generic_stub() const {
     UNREACHABLE();
     return Handle<Code>::null();
   }
@@ -288,6 +281,7 @@ class IC {
   Handle<Code> target_;
   bool target_set_;
   State state_;
+  Code::Kind kind_;
   Handle<HeapType> receiver_type_;
   MaybeHandle<Code> maybe_handler_;
 
@@ -380,10 +374,6 @@ OStream& operator<<(OStream& os, const CallIC::State& s);
 
 class LoadIC: public IC {
  public:
-  // ExtraICState bits
-  class ContextualModeBits: public BitField<ContextualMode, 0, 1> {};
-  STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
-
   enum ParameterIndices {
     kReceiverIndex,
     kNameIndex,
@@ -397,16 +387,37 @@ class LoadIC: public IC {
   static const Register SlotRegister();
   static const Register VectorRegister();
 
+  class State V8_FINAL BASE_EMBEDDED {
+   public:
+    explicit State(ExtraICState extra_ic_state)
+        : state_(extra_ic_state) {}
+
+    explicit State(ContextualMode mode)
+        : state_(ContextualModeBits::encode(mode)) {}
+
+    ExtraICState GetExtraICState() const { return state_; }
+
+    ContextualMode contextual_mode() const {
+      return ContextualModeBits::decode(state_);
+    }
+
+   private:
+    class ContextualModeBits: public BitField<ContextualMode, 0, 1> {};
+    STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
+
+    const ExtraICState state_;
+  };
+
   static ExtraICState ComputeExtraICState(ContextualMode contextual_mode) {
-    return ContextualModeBits::encode(contextual_mode);
+    return State(contextual_mode).GetExtraICState();
   }
 
   static ContextualMode GetContextualMode(ExtraICState state) {
-    return ContextualModeBits::decode(state);
+    return State(state).contextual_mode();
   }
 
   ContextualMode contextual_mode() const {
-    return ContextualModeBits::decode(extra_ic_state());
+    return GetContextualMode(extra_ic_state());
   }
 
   explicit LoadIC(FrameDepth depth, Isolate* isolate)
@@ -442,8 +453,6 @@ class LoadIC: public IC {
                                            Handle<String> name);
 
  protected:
-  virtual Code::Kind kind() const { return Code::LOAD_IC; }
-
   void set_target(Code* code) {
     // The contextual mode must be preserved across IC patching.
     ASSERT(GetContextualMode(code->extra_ic_state()) ==
@@ -452,12 +461,16 @@ class LoadIC: public IC {
     IC::set_target(code);
   }
 
-  virtual Handle<Code> slow_stub() const {
-    return isolate()->builtins()->LoadIC_Slow();
+  Handle<Code> slow_stub() const {
+    if (kind() == Code::LOAD_IC) {
+      return isolate()->builtins()->LoadIC_Slow();
+    } else {
+      ASSERT_EQ(Code::KEYED_LOAD_IC, kind());
+      return isolate()->builtins()->KeyedLoadIC_Slow();
+    }
   }
 
   virtual Handle<Code> megamorphic_stub();
-  virtual Handle<Code> generic_stub() const;
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -472,13 +485,9 @@ class LoadIC: public IC {
                                       CacheHolderFlag cache_holder);
 
  private:
-  // Stub accessors.
+  virtual Handle<Code> pre_monomorphic_stub() const;
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,
-                                           ExtraICState exstra_state);
-
-  virtual Handle<Code> pre_monomorphic_stub() {
-    return pre_monomorphic_stub(isolate(), extra_ic_state());
-  }
+                                           ExtraICState extra_state);
 
   Handle<Code> SimpleFieldLoad(FieldIndex index);
 
@@ -520,28 +529,17 @@ class KeyedLoadIC: public LoadIC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
+  static Handle<Code> generic_stub(Isolate* isolate);
+  static Handle<Code> pre_monomorphic_stub(Isolate* isolate);
+
  protected:
-  virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
-
   Handle<Code> LoadElementStub(Handle<JSObject> receiver);
-
-  virtual Handle<Code> megamorphic_stub();
-  virtual Handle<Code> generic_stub() const;
-
-  virtual Handle<Code> slow_stub() const {
-    return isolate()->builtins()->KeyedLoadIC_Slow();
-  }
-
-  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {}
-
- private:
-  // Stub accessors.
-  static Handle<Code> pre_monomorphic_stub(Isolate* isolate) {
-    return isolate->builtins()->KeyedLoadIC_PreMonomorphic();
-  }
-  virtual Handle<Code> pre_monomorphic_stub() {
+  virtual Handle<Code> pre_monomorphic_stub() const {
     return pre_monomorphic_stub(isolate());
   }
+
+ private:
+  Handle<Code> generic_stub() const { return generic_stub(isolate()); }
   Handle<Code> indexed_interceptor_stub() {
     return isolate()->builtins()->KeyedLoadIC_IndexedInterceptor();
   }
@@ -618,7 +616,6 @@ class StoreIC: public IC {
           JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
 
  protected:
-  virtual Code::Kind kind() const { return Code::STORE_IC; }
   virtual Handle<Code> megamorphic_stub();
 
   // Stub accessors.
@@ -628,7 +625,7 @@ class StoreIC: public IC {
     return isolate()->builtins()->StoreIC_Slow();
   }
 
-  virtual Handle<Code> pre_monomorphic_stub() {
+  virtual Handle<Code> pre_monomorphic_stub() const {
     return pre_monomorphic_stub(isolate(), strict_mode());
   }
 
@@ -724,11 +721,7 @@ class KeyedStoreIC: public StoreIC {
   static void GenerateSloppyArguments(MacroAssembler* masm);
 
  protected:
-  virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
-
-  virtual void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {}
-
-  virtual Handle<Code> pre_monomorphic_stub() {
+  virtual Handle<Code> pre_monomorphic_stub() const {
     return pre_monomorphic_stub(isolate(), strict_mode());
   }
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate,

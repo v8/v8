@@ -15,7 +15,9 @@ STATIC_ASSERT(sizeof(1L) == sizeof(int64_t));      // NOLINT(runtime/sizeof)
 
 
 // Get the standard printf format macros for C99 stdint types.
+#ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
+#endif
 #include <inttypes.h>
 
 

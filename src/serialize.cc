@@ -867,7 +867,7 @@ class StringTableInsertionKey : public HashTableKey {
 };
 
 
-HeapObject* Deserializer::ProcessObjectFromSerializedCode(HeapObject* obj) {
+HeapObject* Deserializer::ProcessNewObjectFromSerializedCode(HeapObject* obj) {
   if (obj->IsString()) {
     String* string = String::cast(obj);
     // Uninitialize hash field as the hash seed may have changed.
@@ -876,8 +876,18 @@ HeapObject* Deserializer::ProcessObjectFromSerializedCode(HeapObject* obj) {
       DisallowHeapAllocation no_gc;
       HandleScope scope(isolate_);
       StringTableInsertionKey key(string);
-      return *StringTable::LookupKey(isolate_, &key);
+      String* canonical = *StringTable::LookupKey(isolate_, &key);
+      string->SetForwardedInternalizedString(canonical);
+      return canonical;
     }
+  }
+  return obj;
+}
+
+
+Object* Deserializer::ProcessBackRefInSerializedCode(Object* obj) {
+  if (obj->IsInternalizedString()) {
+    return String::cast(obj)->GetForwardedInternalizedString();
   }
   return obj;
 }
@@ -907,7 +917,7 @@ void Deserializer::ReadObject(int space_number,
   if (obj->IsAllocationSite()) RelinkAllocationSite(AllocationSite::cast(obj));
 
   // Fix up strings from serialized user code.
-  if (deserializing_user_code()) obj = ProcessObjectFromSerializedCode(obj);
+  if (deserializing_user_code()) obj = ProcessNewObjectFromSerializedCode(obj);
 
   *write_back = obj;
 #ifdef DEBUG
@@ -972,6 +982,9 @@ void Deserializer::ReadChunk(Object** current,
       } else if (where == kBackref) {                                          \
         emit_write_barrier = (space_number == NEW_SPACE);                      \
         new_object = GetAddressFromEnd(data & kSpaceMask);                     \
+        if (deserializing_user_code()) {                                       \
+          new_object = ProcessBackRefInSerializedCode(new_object);             \
+        }                                                                      \
       } else if (where == kBuiltin) {                                          \
         ASSERT(deserializing_user_code());                                     \
         int builtin_id = source_->GetInt();                                    \
@@ -992,6 +1005,9 @@ void Deserializer::ReadChunk(Object** current,
             reinterpret_cast<Address>(current) + skip);                        \
         emit_write_barrier = (space_number == NEW_SPACE);                      \
         new_object = GetAddressFromEnd(data & kSpaceMask);                     \
+        if (deserializing_user_code()) {                                       \
+          new_object = ProcessBackRefInSerializedCode(new_object);             \
+        }                                                                      \
       }                                                                        \
       if (within == kInnerPointer) {                                           \
         if (space_number != CODE_SPACE || new_object->IsCode()) {              \
@@ -1944,6 +1960,13 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
   if (heap_object == source_) {
     SerializeSourceObject(how_to_code, where_to_point, skip);
     return;
+  }
+
+  if (heap_object->IsScript()) {
+    // The wrapper cache uses a Foreign object to point to a global handle.
+    // However, the object visitor expects foreign objects to point to external
+    // references.  Clear the cache to avoid this issue.
+    Script::cast(heap_object)->ClearWrapperCache();
   }
 
   if (skip != 0) {

@@ -974,6 +974,18 @@ const Register LoadIC::ReceiverRegister() { return edx; }
 const Register LoadIC::NameRegister() { return ecx; }
 
 
+const Register LoadIC::SlotRegister() {
+  ASSERT(FLAG_vector_ics);
+  return eax;
+}
+
+
+const Register LoadIC::VectorRegister() {
+  ASSERT(FLAG_vector_ics);
+  return ebx;
+}
+
+
 const Register StoreIC::ReceiverRegister() { return edx; }
 const Register StoreIC::NameRegister() { return ecx; }
 const Register StoreIC::ValueRegister() { return eax; }

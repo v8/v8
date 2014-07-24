@@ -53,17 +53,18 @@ Heap::Heap()
       amount_of_external_allocated_memory_at_last_global_gc_(0),
       isolate_(NULL),
       code_range_size_(0),
-// semispace_size_ should be a power of 2 and old_generation_size_ should be
-// a multiple of Page::kPageSize.
+      // semispace_size_ should be a power of 2 and old_generation_size_ should
+      // be
+      // a multiple of Page::kPageSize.
       reserved_semispace_size_(8 * (kPointerSize / 4) * MB),
-      max_semi_space_size_(8 * (kPointerSize / 4)  * MB),
+      max_semi_space_size_(8 * (kPointerSize / 4) * MB),
       initial_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
       max_executable_size_(256ul * (kPointerSize / 4) * MB),
-// Variables set based on semispace_size_ and old_generation_size_ in
-// ConfigureHeap.
-// Will be 4 * reserved_semispace_size_ to ensure that young
-// generation can be aligned to its size.
+      // Variables set based on semispace_size_ and old_generation_size_ in
+      // ConfigureHeap.
+      // Will be 4 * reserved_semispace_size_ to ensure that young
+      // generation can be aligned to its size.
       maximum_committed_(0),
       survived_since_last_expansion_(0),
       sweep_generation_(0),
@@ -840,7 +841,8 @@ bool Heap::CollectGarbage(GarbageCollector collector,
 
   bool next_gc_likely_to_collect_more = false;
 
-  { tracer()->start(collector, gc_reason, collector_reason);
+  {
+    tracer()->start(collector, gc_reason, collector_reason);
     ASSERT(AllowHeapAllocation::IsAllowed());
     DisallowHeapAllocation no_allocation_during_gc;
     GarbageCollectionPrologue();
@@ -5967,10 +5969,8 @@ static intptr_t CountTotalHolesSize(Heap* heap) {
 }
 
 
-void Heap::UpdateGCStatistics(double start_time,
-                              double end_time,
-                              double spent_in_mutator,
-                              double marking_time) {
+void Heap::UpdateGCStatistics(double start_time, double end_time,
+                              double spent_in_mutator, double marking_time) {
   double duration = end_time - start_time;
   alive_after_last_gc_ = SizeOfObjects();
   last_gc_end_timestamp_ = end_time;
@@ -6012,9 +6012,8 @@ GCTracer::GCTracer(Heap* heap)
 }
 
 
-void GCTracer::start(GarbageCollector collector,
-                      const char* gc_reason,
-                      const char* collector_reason) {
+void GCTracer::start(GarbageCollector collector, const char* gc_reason,
+                     const char* collector_reason) {
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
 
   collector_ = collector;
@@ -6053,9 +6052,7 @@ void GCTracer::stop() {
   end_object_size_ = heap_->SizeOfObjects();
   end_memory_size_ = heap_->isolate()->memory_allocator()->Size();
 
-  heap_->UpdateGCStatistics(start_time_,
-                            end_time_,
-                            spent_in_mutator_,
+  heap_->UpdateGCStatistics(start_time_, end_time_, spent_in_mutator_,
                             scopes_[Scope::MC_MARK]);
 
   if (collector_ == SCAVENGER && FLAG_trace_gc_ignore_scavenger) return;
@@ -6074,8 +6071,7 @@ void GCTracer::stop() {
 void GCTracer::Print() const {
   PrintPID("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
 
-  PrintF("%s %.1f (%.1f) -> %.1f (%.1f) MB, ",
-         CollectorString(),
+  PrintF("%s %.1f (%.1f) -> %.1f (%.1f) MB, ", CollectorString(),
          static_cast<double>(start_object_size_) / MB,
          static_cast<double>(start_memory_size_) / MB,
          static_cast<double>(end_object_size_) / MB,
@@ -6088,14 +6084,12 @@ void GCTracer::Print() const {
   if (steps_count_ > 0) {
     if (collector_ == SCAVENGER) {
       PrintF(" (+ %.1f ms in %d steps since last GC)",
-             steps_took_since_last_gc_,
-             steps_count_since_last_gc_);
+             steps_took_since_last_gc_, steps_count_since_last_gc_);
     } else {
-      PrintF(" (+ %.1f ms in %d steps since start of marking, "
-             "biggest step %.1f ms)",
-             steps_took_,
-             steps_count_,
-             longest_step_);
+      PrintF(
+          " (+ %.1f ms in %d steps since start of marking, "
+          "biggest step %.1f ms)",
+          steps_took_, steps_count_, longest_step_);
     }
   }
 
@@ -6148,8 +6142,7 @@ void GCTracer::PrintNVP() const {
   PrintF("misc_compaction=%.1f ", scopes_[Scope::MC_UPDATE_MISC_POINTERS]);
   PrintF("weakcollection_process=%.1f ",
          scopes_[Scope::MC_WEAKCOLLECTION_PROCESS]);
-  PrintF("weakcollection_clear=%.1f ",
-         scopes_[Scope::MC_WEAKCOLLECTION_CLEAR]);
+  PrintF("weakcollection_clear=%.1f ", scopes_[Scope::MC_WEAKCOLLECTION_CLEAR]);
 
   PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_object_size_);
   PrintF("total_size_after=%" V8_PTR_PREFIX "d ", end_object_size_);

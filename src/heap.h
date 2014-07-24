@@ -599,8 +599,7 @@ class GCTracer BASE_EMBEDDED {
   explicit GCTracer(Heap* heap);
 
   // Start collecting data.
-  void start(GarbageCollector collector,
-             const char* gc_reason,
+  void start(GarbageCollector collector, const char* gc_reason,
              const char* collector_reason);
 
   // Stop collecting data and print results.
@@ -1368,10 +1367,8 @@ class Heap {
   }
 
   // Update GC statistics that are tracked on the Heap.
-  void UpdateGCStatistics(double start_time,
-                          double end_time,
-                          double spent_in_mutator,
-                          double marking_time);
+  void UpdateGCStatistics(double start_time, double end_time,
+                          double spent_in_mutator, double marking_time);
 
   // Returns maximum GC pause.
   double get_max_gc_pause() { return max_gc_pause_; }

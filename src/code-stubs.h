@@ -15,69 +15,67 @@ namespace v8 {
 namespace internal {
 
 // List of code stubs used on all platforms.
-#define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
-  V(CallFunction)                        \
-  V(CallConstruct)                       \
-  V(BinaryOpIC)                          \
-  V(BinaryOpICWithAllocationSite)        \
-  V(BinaryOpWithAllocationSite)          \
-  V(StringAdd)                           \
-  V(SubString)                           \
-  V(StringCompare)                       \
-  V(Compare)                             \
-  V(CompareIC)                           \
-  V(CompareNilIC)                        \
-  V(MathPow)                             \
-  V(CallIC)                              \
-  V(CallIC_Array)                        \
-  V(FunctionPrototype)                   \
-  V(RecordWrite)                         \
-  V(StoreBufferOverflow)                 \
-  V(RegExpExec)                          \
-  V(Instanceof)                          \
-  V(ConvertToDouble)                     \
-  V(WriteInt32ToHeapNumber)              \
-  V(StackCheck)                          \
-  V(Interrupt)                           \
-  V(FastNewClosure)                      \
-  V(FastNewContext)                      \
-  V(FastCloneShallowArray)               \
-  V(FastCloneShallowObject)              \
-  V(CreateAllocationSite)                \
-  V(ToBoolean)                           \
-  V(ToNumber)                            \
-  V(ArgumentsAccess)                     \
-  V(RegExpConstructResult)               \
-  V(NumberToString)                      \
-  V(DoubleToI)                           \
-  V(CEntry)                              \
-  V(JSEntry)                             \
-  V(KeyedLoadElement)                    \
-  V(KeyedLoadGeneric)                    \
-  V(ArrayNoArgumentConstructor)          \
-  V(ArraySingleArgumentConstructor)      \
-  V(ArrayNArgumentsConstructor)          \
-  V(InternalArrayNoArgumentConstructor)  \
-  V(InternalArraySingleArgumentConstructor)      \
-  V(InternalArrayNArgumentsConstructor)  \
-  V(KeyedStoreElement)                   \
-  V(DebuggerStatement)                   \
-  V(NameDictionaryLookup)                \
-  V(ElementsTransitionAndStore)          \
-  V(TransitionElementsKind)              \
-  V(StoreArrayLiteralElement)            \
-  V(StubFailureTrampoline)               \
-  V(ArrayConstructor)                    \
-  V(InternalArrayConstructor)            \
-  V(ProfileEntryHook)                    \
-  V(StoreGlobal)                         \
-  V(CallApiFunction)                     \
-  V(CallApiGetter)                       \
-  /* IC Handler stubs */                 \
-  V(LoadField)                           \
-  V(KeyedLoadField)                      \
-  V(StringLength)                        \
-  V(KeyedStringLength)
+#define CODE_STUB_LIST_ALL_PLATFORMS(V)     \
+  V(CallFunction)                           \
+  V(CallConstruct)                          \
+  V(BinaryOpIC)                             \
+  V(BinaryOpICWithAllocationSite)           \
+  V(BinaryOpWithAllocationSite)             \
+  V(StringAdd)                              \
+  V(SubString)                              \
+  V(StringCompare)                          \
+  V(Compare)                                \
+  V(CompareIC)                              \
+  V(CompareNilIC)                           \
+  V(MathPow)                                \
+  V(CallIC)                                 \
+  V(CallIC_Array)                           \
+  V(FunctionPrototype)                      \
+  V(RecordWrite)                            \
+  V(StoreBufferOverflow)                    \
+  V(RegExpExec)                             \
+  V(Instanceof)                             \
+  V(ConvertToDouble)                        \
+  V(WriteInt32ToHeapNumber)                 \
+  V(StackCheck)                             \
+  V(Interrupt)                              \
+  V(FastNewClosure)                         \
+  V(FastNewContext)                         \
+  V(FastCloneShallowArray)                  \
+  V(FastCloneShallowObject)                 \
+  V(CreateAllocationSite)                   \
+  V(ToBoolean)                              \
+  V(ToNumber)                               \
+  V(ArgumentsAccess)                        \
+  V(RegExpConstructResult)                  \
+  V(NumberToString)                         \
+  V(DoubleToI)                              \
+  V(CEntry)                                 \
+  V(JSEntry)                                \
+  V(KeyedLoadElement)                       \
+  V(KeyedLoadGeneric)                       \
+  V(ArrayNoArgumentConstructor)             \
+  V(ArraySingleArgumentConstructor)         \
+  V(ArrayNArgumentsConstructor)             \
+  V(InternalArrayNoArgumentConstructor)     \
+  V(InternalArraySingleArgumentConstructor) \
+  V(InternalArrayNArgumentsConstructor)     \
+  V(KeyedStoreElement)                      \
+  V(DebuggerStatement)                      \
+  V(NameDictionaryLookup)                   \
+  V(ElementsTransitionAndStore)             \
+  V(TransitionElementsKind)                 \
+  V(StoreArrayLiteralElement)               \
+  V(StubFailureTrampoline)                  \
+  V(ArrayConstructor)                       \
+  V(InternalArrayConstructor)               \
+  V(ProfileEntryHook)                       \
+  V(StoreGlobal)                            \
+  V(CallApiFunction)                        \
+  V(CallApiGetter)                          \
+  /* IC Handler stubs */                    \
+  V(LoadField)                              \
+  V(StringLength)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -1038,19 +1036,6 @@ class StringLengthStub: public HandlerStub {
 };
 
 
-class KeyedStringLengthStub: public StringLengthStub {
- public:
-  explicit KeyedStringLengthStub(Isolate* isolate) : StringLengthStub(isolate) {
-    Initialize(Code::KEYED_LOAD_IC);
-  }
-  virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
-
- private:
-  virtual CodeStub::Major MajorKey() const { return KeyedStringLength; }
-};
-
-
 class StoreGlobalStub : public HandlerStub {
  public:
   StoreGlobalStub(Isolate* isolate, bool is_constant, bool check_global)
@@ -1151,21 +1136,6 @@ class CallApiGetterStub : public PlatformCodeStub {
   virtual int MinorKey() const V8_OVERRIDE { return 0; }
 
   DISALLOW_COPY_AND_ASSIGN(CallApiGetterStub);
-};
-
-
-class KeyedLoadFieldStub: public LoadFieldStub {
- public:
-  KeyedLoadFieldStub(Isolate* isolate, FieldIndex index)
-      : LoadFieldStub(isolate, index) {
-    Initialize(Code::KEYED_LOAD_IC);
-  }
-
-  virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
-
- private:
-  virtual CodeStub::Major MajorKey() const { return KeyedLoadField; }
 };
 
 

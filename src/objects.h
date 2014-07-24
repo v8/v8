@@ -6934,6 +6934,7 @@ class Script: public Struct {
 
   // Get the JS object wrapping the given script; create it if none exists.
   static Handle<JSObject> GetWrapper(Handle<Script> script);
+  void ClearWrapperCache();
 
   // Dispatched behavior.
   DECLARE_PRINTER(Script)
@@ -9309,6 +9310,11 @@ class String: public Name {
 
   static Handle<FixedArray> CalculateLineEnds(Handle<String> string,
                                               bool include_ending_line);
+
+  // Use the hash field to forward to the canonical internalized string
+  // when deserializing an internalized string.
+  inline void SetForwardedInternalizedString(String* string);
+  inline String* GetForwardedInternalizedString();
 
  private:
   friend class Name;

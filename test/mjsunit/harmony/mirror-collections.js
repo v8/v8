@@ -22,6 +22,24 @@ function testMapMirror(mirror) {
   assertEquals('map', fromJSON.type);
 }
 
+function testSetMirror(mirror) {
+  // Create JSON representation.
+  var serializer = debug.MakeMirrorSerializer();
+  var json = JSON.stringify(serializer.serializeValue(mirror));
+
+  // Check the mirror hierachy.
+  assertTrue(mirror instanceof debug.Mirror);
+  assertTrue(mirror instanceof debug.ValueMirror);
+  assertTrue(mirror instanceof debug.ObjectMirror);
+  assertTrue(mirror instanceof debug.SetMirror);
+
+  assertTrue(mirror.isSet());
+
+  // Parse JSON representation and check.
+  var fromJSON = eval('(' + json + ')');
+  assertEquals('set', fromJSON.type);
+}
+
 var o1 = new Object();
 var o2 = new Object();
 var o3 = new Object();
@@ -49,6 +67,19 @@ assertSame(o3, entries[1].key);
 assertSame(o2, entries[1].value);
 assertEquals(undefined, entries[2].key);
 assertEquals(44, entries[2].value);
+
+// Test the mirror object for Sets
+var set = new Set();
+set.add(o1);
+set.add(o2);
+set.delete(o1);
+set.add(undefined);
+var setMirror = debug.MakeMirror(set);
+testSetMirror(setMirror);
+var values = setMirror.values();
+assertEquals(2, values.length);
+assertSame(o2, values[0]);
+assertEquals(undefined, values[1]);
 
 // Test the mirror object for WeakMaps
 var weakMap = new WeakMap();
@@ -80,3 +111,34 @@ function testWeakMapEntries(weakMapMirror) {
 }
 
 testWeakMapEntries(weakMapMirror);
+
+// Test the mirror object for WeakSets
+var weakSet = new WeakSet();
+weakSet.add(o1);
+weakSet.add(new Object());
+weakSet.add(o2);
+weakSet.add(new Object());
+weakSet.add(new Object());
+weakSet.add(o3);
+weakSet.delete(o2);
+var weakSetMirror = debug.MakeMirror(weakSet);
+testSetMirror(weakSetMirror);
+assertTrue(weakSetMirror.values().length <= 5);
+gc();
+
+function testWeakSetValues(weakSetMirror) {
+  var values = weakSetMirror.values();
+  assertEquals(2, values.length);
+  var found = 0;
+  for (var i = 0; i < values.length; i++) {
+    if (Object.is(values[i], o1)) {
+      found++;
+    }
+    if (Object.is(values[i], o3)) {
+      found++;
+    }
+  }
+  assertEquals(2, found);
+}
+
+testWeakSetValues(weakSetMirror);

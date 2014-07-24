@@ -32,8 +32,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       marking_speed_(0),
       allocated_(0),
       no_marking_scope_depth_(0),
-      unscanned_bytes_of_large_object_(0) {
-}
+      unscanned_bytes_of_large_object_(0) {}
 
 
 void IncrementalMarking::TearDown() {

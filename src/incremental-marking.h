@@ -136,25 +136,15 @@ class IncrementalMarking {
 
   inline void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
 
-  inline int steps_count() {
-    return steps_count_;
-  }
+  inline int steps_count() { return steps_count_; }
 
-  inline double steps_took() {
-    return steps_took_;
-  }
+  inline double steps_took() { return steps_took_; }
 
-  inline double longest_step() {
-    return longest_step_;
-  }
+  inline double longest_step() { return longest_step_; }
 
-  inline int steps_count_since_last_gc() {
-    return steps_count_since_last_gc_;
-  }
+  inline int steps_count_since_last_gc() { return steps_count_since_last_gc_; }
 
-  inline double steps_took_since_last_gc() {
-    return steps_took_since_last_gc_;
-  }
+  inline double steps_took_since_last_gc() { return steps_took_since_last_gc_; }
 
   inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
     SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());

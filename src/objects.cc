@@ -10284,16 +10284,21 @@ Handle<Object> Script::GetNameOrSourceURL(Handle<Script> script) {
 // collector will call the weak callback on the global handle
 // associated with the wrapper and get rid of both the wrapper and the
 // handle.
-static void ClearWrapperCache(
+static void ClearWrapperCacheWeakCallback(
     const v8::WeakCallbackData<v8::Value, void>& data) {
   Object** location = reinterpret_cast<Object**>(data.GetParameter());
   JSValue* wrapper = JSValue::cast(*location);
-  Foreign* foreign = Script::cast(wrapper->value())->wrapper();
+  Script::cast(wrapper->value())->ClearWrapperCache();
+}
+
+
+void Script::ClearWrapperCache() {
+  Foreign* foreign = wrapper();
+  Object** location = reinterpret_cast<Object**>(foreign->foreign_address());
   ASSERT_EQ(foreign->foreign_address(), reinterpret_cast<Address>(location));
   foreign->set_foreign_address(0);
   GlobalHandles::Destroy(location);
-  Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
-  isolate->counters()->script_wrappers()->Decrement();
+  GetIsolate()->counters()->script_wrappers()->Decrement();
 }
 
 
@@ -10318,7 +10323,7 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
   Handle<Object> handle = isolate->global_handles()->Create(*result);
   GlobalHandles::MakeWeak(handle.location(),
                           reinterpret_cast<void*>(handle.location()),
-                          &ClearWrapperCache);
+                          &ClearWrapperCacheWeakCallback);
   script->wrapper()->set_foreign_address(
       reinterpret_cast<Address>(handle.location()));
   return result;
@@ -14590,10 +14595,6 @@ Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
 
 template Object*
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
-    SlowReverseLookup(Object* value);
-
-template Object*
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape, uint32_t>::
     SlowReverseLookup(Object* value);
 
 template Object*

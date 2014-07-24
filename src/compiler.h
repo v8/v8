@@ -693,8 +693,9 @@ class Compiler : public AllStatic {
       NativesFlag is_natives_code);
 
   // Create a shared function info object (the code may be lazily compiled).
-  static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
-                                                      Handle<Script> script);
+  static Handle<SharedFunctionInfo> BuildFunctionInfo(
+      FunctionLiteral* node, Handle<Script> script,
+      CompilationInfo* outer = NULL);
 
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
 

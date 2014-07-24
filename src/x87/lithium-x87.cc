@@ -2073,8 +2073,13 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* global_object = UseFixed(instr->global_object(),
                                      LoadIC::ReceiverRegister());
+  LOperand* vector = NULL;
+  if (FLAG_vector_ics) {
+    vector = FixedTemp(LoadIC::VectorRegister());
+  }
+
   LLoadGlobalGeneric* result =
-      new(zone()) LLoadGlobalGeneric(context, global_object);
+      new(zone()) LLoadGlobalGeneric(context, global_object, vector);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -2128,7 +2133,12 @@ LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), LoadIC::ReceiverRegister());
-  LLoadNamedGeneric* result = new(zone()) LLoadNamedGeneric(context, object);
+  LOperand* vector = NULL;
+  if (FLAG_vector_ics) {
+    vector = FixedTemp(LoadIC::VectorRegister());
+  }
+  LLoadNamedGeneric* result = new(zone()) LLoadNamedGeneric(
+      context, object, vector);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
@@ -2187,9 +2197,12 @@ LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), esi);
   LOperand* object = UseFixed(instr->object(), LoadIC::ReceiverRegister());
   LOperand* key = UseFixed(instr->key(), LoadIC::NameRegister());
-
+  LOperand* vector = NULL;
+  if (FLAG_vector_ics) {
+    vector = FixedTemp(LoadIC::VectorRegister());
+  }
   LLoadKeyedGeneric* result =
-      new(zone()) LLoadKeyedGeneric(context, object, key);
+      new(zone()) LLoadKeyedGeneric(context, object, key, vector);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
 

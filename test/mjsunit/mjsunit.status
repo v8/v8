@@ -147,8 +147,17 @@
   'elements-transition-hoisting': [PASS, FAIL],
   'getters-on-elements': [PASS, FAIL],
   # Tests taking too long
-  'regress/regress-1122': [PASS, TIMEOUT],
-  'regress/regress-331444': [PASS, TIMEOUT],
+  'debug-stepout-scope-part8': [SKIP],
+  'mirror-object': [SKIP],
+  'packed-elements': [SKIP],
+  'regress/regress-1122': [SKIP],
+  'regress/regress-331444': [SKIP],
+  'regress/regress-353551': [SKIP],
+  'regress/regress-crbug-119926': [SKIP],
+  'regress/short-circuit': [SKIP],
+  'stack-traces-overflow': [SKIP],
+  'unicode-test': [SKIP],
+  'whitespaces': [SKIP]
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -212,6 +221,9 @@
 
   # BUG(v8:3147). It works on other architectures by accident.
   'regress/regress-conditional-position': [FAIL],
+
+  # BUG(v8:3457).
+  'deserialize-reference': [PASS, FAIL],
 
   # Slow tests.
   'array-concat': [PASS, SLOW],

@@ -47,4 +47,13 @@
 ['arch == arm64 and simulator_run == True', {
   'dfg-int-overflow-in-loop': [SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
+
+
+##############################################################################
+['gc_stress == True', {
+  # Tests taking too long
+  'fast/js/excessive-comma-usage': [SKIP]
+}],  # 'gc_stress == True'
+
+##############################################################################
 ]

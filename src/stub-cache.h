@@ -503,13 +503,13 @@ class BaseLoadStoreStubCompiler: public StubCompiler {
 
 class LoadStubCompiler: public BaseLoadStoreStubCompiler {
  public:
-  LoadStubCompiler(Isolate* isolate,
+  LoadStubCompiler(Isolate* isolate, Code::Kind kind = Code::LOAD_IC,
                    ExtraICState extra_ic_state = kNoExtraICState,
-                   CacheHolderFlag cache_holder = kCacheOnReceiver,
-                   Code::Kind kind = Code::LOAD_IC)
+                   CacheHolderFlag cache_holder = kCacheOnReceiver)
       : BaseLoadStoreStubCompiler(isolate, kind, extra_ic_state, cache_holder) {
   }
   virtual ~LoadStubCompiler() { }
+  static Register* registers();
 
   Handle<Code> CompileLoadField(Handle<HeapType> type,
                                 Handle<JSObject> holder,
@@ -603,19 +603,18 @@ class LoadStubCompiler: public BaseLoadStoreStubCompiler {
                                    LookupResult* lookup);
 
  private:
-  static Register* registers();
   Register scratch4() { return registers_[5]; }
   friend class BaseLoadStoreStubCompiler;
 };
 
 
-class KeyedLoadStubCompiler: public LoadStubCompiler {
+class KeyedLoadStubCompiler : public StubCompiler {
  public:
   KeyedLoadStubCompiler(Isolate* isolate,
-                        ExtraICState extra_ic_state = kNoExtraICState,
-                        CacheHolderFlag cache_holder = kCacheOnReceiver)
-      : LoadStubCompiler(isolate, extra_ic_state, cache_holder,
-                         Code::KEYED_LOAD_IC) {}
+                        ExtraICState extra_ic_state = kNoExtraICState)
+      : StubCompiler(isolate, extra_ic_state) {
+    registers_ = LoadStubCompiler::registers();
+  }
 
   Handle<Code> CompileLoadElement(Handle<Map> receiver_map);
 
@@ -624,9 +623,15 @@ class KeyedLoadStubCompiler: public LoadStubCompiler {
 
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
+  Register receiver() { return registers_[0]; }
+  Register name() { return registers_[1]; }
+  Register scratch1() { return registers_[2]; }
+  Register scratch2() { return registers_[3]; }
+  Register scratch3() { return registers_[4]; }
+
  private:
   static Register* registers();
-  friend class BaseLoadStoreStubCompiler;
+  Register* registers_;
 };
 
 
