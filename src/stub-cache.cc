@@ -606,7 +606,16 @@ RUNTIME_FUNCTION(StoreInterceptorProperty) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<Name> name = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
-  ASSERT(receiver->HasNamedInterceptor());
+#ifdef DEBUG
+  if (receiver->IsJSGlobalProxy()) {
+    PrototypeIterator iter(isolate, receiver);
+    ASSERT(iter.IsAtEnd() ||
+           Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter))
+               ->HasNamedInterceptor());
+  } else {
+    ASSERT(receiver->HasNamedInterceptor());
+  }
+#endif
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
