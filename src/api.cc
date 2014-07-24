@@ -5063,7 +5063,11 @@ bool v8::V8::IdleNotification(int hint) {
 void v8::V8::LowMemoryNotification() {
   i::Isolate* isolate = i::Isolate::Current();
   if (isolate == NULL || !isolate->IsInitialized()) return;
-  isolate->heap()->CollectAllAvailableGarbage("low memory notification");
+  {
+    i::HistogramTimerScope idle_notification_scope(
+        isolate->counters()->gc_low_memory_notification());
+    isolate->heap()->CollectAllAvailableGarbage("low memory notification");
+  }
 }
 
 
@@ -6723,7 +6727,11 @@ bool v8::Isolate::IdleNotification(int idle_time_in_ms) {
 
 void v8::Isolate::LowMemoryNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->heap()->CollectAllAvailableGarbage("low memory notification");
+  {
+    i::HistogramTimerScope idle_notification_scope(
+        isolate->counters()->gc_low_memory_notification());
+    isolate->heap()->CollectAllAvailableGarbage("low memory notification");
+  }
 }
 
 

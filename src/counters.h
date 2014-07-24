@@ -299,6 +299,7 @@ class HistogramTimerScope BASE_EMBEDDED {
   HT(gc_context, V8.GCContext) /* GC context cleanup time */ \
   HT(gc_idle_notification, V8.GCIdleNotification)            \
   HT(gc_incremental_marking, V8.GCIncrementalMarking)        \
+  HT(gc_low_memory_notification, V8.GCLowMemoryNotification) \
   /* Parsing timers. */                                      \
   HT(parse, V8.Parse)                                        \
   HT(parse_lazy, V8.ParseLazy)                               \
