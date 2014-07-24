@@ -31,6 +31,10 @@
   'test-api/Bug*': [FAIL],
 
   ##############################################################################
+
+  # BUG(3465): SerializeToplevelIsolates crashes.
+  'test-serialize/SerializeToplevelIsolates': [SKIP],
+
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
