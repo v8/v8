@@ -359,6 +359,9 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
+
+  # BUG(v8:3457).
+  'deserialize-reference': [PASS, FAIL],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
