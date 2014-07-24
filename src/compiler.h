@@ -184,7 +184,6 @@ class CompilationInfo {
   }
 
   void PrepareForSerializing() {
-    ASSERT(!is_lazy());
     flags_ |= PrepareForSerializing::encode(true);
   }
 
