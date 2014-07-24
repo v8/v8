@@ -1747,6 +1747,10 @@ class HeapObject: public Object {
   // Returns the heap object's size in bytes
   inline int Size();
 
+  // Returns true if this heap object may contain pointers to objects in new
+  // space.
+  inline bool MayContainNewSpacePointers();
+
   // Given a heap object's map pointer, returns the heap size in bytes
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
