@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Check that splicing array of holes keeps it as array of holes
 (function() {
   for (var i = 0; i < 7; i++) {
@@ -357,7 +359,9 @@
 (function() {
   for (var i = 0; i < 7; i++) {
     try {
-      new Array(Math.pow(2, 32) - 3).splice(-1, 0, 1, 2, 3, 4, 5);
+      var a = %NormalizeElements([]);
+      a.length = Math.pow(2, 32) - 3;
+      a.splice(-1, 0, 1, 2, 3, 4, 5);
       throw 'Should have thrown RangeError';
     } catch (e) {
       assertTrue(e instanceof RangeError);
@@ -365,7 +369,8 @@
 
     // Check smi boundary
     var bigNum = (1 << 30) - 3;
-    var array = new Array(bigNum);
+    var array = %NormalizeElements([]);
+    array.length = bigNum;
     array.splice(-1, 0, 1, 2, 3, 4, 5, 6, 7);
     assertEquals(bigNum + 7, array.length);
   }

@@ -194,7 +194,9 @@
 (function() {
   for (var i = 0; i < 7; i++) {
     try {
-      new Array(Math.pow(2, 32) - 3).unshift(1, 2, 3, 4, 5);
+      var a1 = [];
+      a1[Math.pow(2, 32) - 3 - 1] = 0;
+      a1.unshift(1, 2, 3, 4, 5);
       throw 'Should have thrown RangeError';
     } catch (e) {
       assertTrue(e instanceof RangeError);
@@ -202,7 +204,9 @@
 
     // Check smi boundary
     var bigNum = (1 << 30) - 3;
-    assertEquals(bigNum + 7, new Array(bigNum).unshift(1, 2, 3, 4, 5, 6, 7));
+    var a2 = [];
+    a2[bigNum - 1] = 0;
+    assertEquals(bigNum + 7, a2.unshift(1, 2, 3, 4, 5, 6, 7));
   }
 })();
 
