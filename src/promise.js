@@ -40,7 +40,7 @@ var lastMicrotaskId = 0;
       throw MakeTypeError('resolver_not_a_function', [resolver]);
     var promise = PromiseInit(this);
     if (DEBUG_IS_ACTIVE) {
-      %DebugPromiseEvent({ type : "new Promise",
+      %DebugPromiseEvent({ type : "new",
                            promise: this,
                            resolver: resolver });
     }
@@ -62,6 +62,12 @@ var lastMicrotaskId = 0;
     SET_PRIVATE(promise, promiseValue, value);
     SET_PRIVATE(promise, promiseOnResolve, onResolve);
     SET_PRIVATE(promise, promiseOnReject, onReject);
+    if (DEBUG_IS_ACTIVE && status !== 0) {
+      %DebugPromiseEvent({ type: "update",
+                           promise: promise,
+                           status: status,
+                           value: value });
+    }
     return promise;
   }
 
@@ -233,6 +239,11 @@ var lastMicrotaskId = 0;
                        [onReject, deferred],
                        -1);
         break;
+    }
+    if (DEBUG_IS_ACTIVE) {
+      %DebugPromiseEvent({ type: "chain",
+                           promise: deferred.promise,
+                           parentPromise: this });
     }
     return deferred.promise;
   }
