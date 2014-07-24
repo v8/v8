@@ -1241,15 +1241,6 @@ void FullCodeGenerator::VisitForOfStatement(ForOfStatement* stmt) {
   Iteration loop_statement(this, stmt);
   increment_loop_depth();
 
-  // var iterable = subject
-  VisitForAccumulatorValue(stmt->assign_iterable());
-
-  // As with for-in, skip the loop if the iterable is null or undefined.
-  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  __ j(equal, loop_statement.break_label());
-  __ CompareRoot(rax, Heap::kNullValueRootIndex);
-  __ j(equal, loop_statement.break_label());
-
   // var iterator = iterable[Symbol.iterator]();
   VisitForEffect(stmt->assign_iterator());
 
