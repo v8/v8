@@ -242,3 +242,40 @@ TEST(ConstantPoolIteratorExtended) {
   int expected_int32_indexs[] = { 1, 2, 3, 4 };
   CheckIterator(array, ConstantPoolArray::INT32, expected_int32_indexs, 4);
 }
+
+
+TEST(ConstantPoolPreciseGC) {
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(context->GetIsolate());
+
+  ConstantPoolArray::NumberOfEntries small(1, 0, 0, 1);
+  Handle<ConstantPoolArray> array = factory->NewConstantPoolArray(small);
+
+  // Check that the store buffer knows which entries are pointers and which are
+  // not.  To do this, make non-pointer entries which look like new space
+  // pointers but are actually invalid and ensure the GC doesn't try to move
+  // them.
+  Handle<HeapObject> object = factory->NewHeapNumber(4.0);
+  Object* raw_ptr = *object;
+  // If interpreted as a pointer, this should be right inside the heap number
+  // which will cause a crash when trying to lookup the 'map' pointer.
+  intptr_t invalid_ptr = reinterpret_cast<intptr_t>(raw_ptr) + kInt32Size;
+  int32_t invalid_ptr_int32 = static_cast<int32_t>(invalid_ptr);
+  int64_t invalid_ptr_int64 = static_cast<int64_t>(invalid_ptr);
+  array->set(0, invalid_ptr_int64);
+  array->set(1, invalid_ptr_int32);
+
+  // Ensure we perform a scan on scavenge for the constant pool's page.
+  MemoryChunk::FromAddress(array->address())->set_scan_on_scavenge(true);
+  heap->CollectGarbage(NEW_SPACE);
+
+  // Check the object was moved by GC.
+  CHECK_NE(*object, raw_ptr);
+
+  // Check the non-pointer entries weren't changed.
+  CHECK_EQ(invalid_ptr_int64, array->get_int64_entry(0));
+  CHECK_EQ(invalid_ptr_int32, array->get_int32_entry(1));
+}

@@ -2539,6 +2539,7 @@ void ConstantPoolArray::set(int index, Address value) {
 
 void ConstantPoolArray::set(int index, Object* value) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(!GetHeap()->InNewSpace(value));
   ASSERT(get_type(index) == HEAP_PTR);
   WRITE_FIELD(this, OffsetOfElementAt(index), value);
   WRITE_BARRIER(GetHeap(), this, OffsetOfElementAt(index), value);
@@ -2583,6 +2584,7 @@ void ConstantPoolArray::set_at_offset(int offset, Address value) {
 
 void ConstantPoolArray::set_at_offset(int offset, Object* value) {
   ASSERT(map() == GetHeap()->constant_pool_array_map());
+  ASSERT(!GetHeap()->InNewSpace(value));
   ASSERT(offset_is_type(offset, HEAP_PTR));
   WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(GetHeap(), this, offset, value);
