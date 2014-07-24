@@ -100,7 +100,7 @@ bool LookupIterator::IsBootstrapping() const {
 bool LookupIterator::HasAccess(v8::AccessType access_type) const {
   ASSERT_EQ(ACCESS_CHECK, state_);
   ASSERT(is_guaranteed_to_have_holder());
-  return isolate_->MayNamedAccess(GetHolder(), name_, access_type);
+  return isolate_->MayNamedAccess(GetHolder<JSObject>(), name_, access_type);
 }
 
 
@@ -109,11 +109,11 @@ bool LookupIterator::HasProperty() {
   ASSERT(is_guaranteed_to_have_holder());
 
   if (property_encoding_ == DICTIONARY) {
-    Handle<JSObject> holder = GetHolder();
+    Handle<JSObject> holder = GetHolder<JSObject>();
     number_ = holder->property_dictionary()->FindEntry(name_);
     if (number_ == NameDictionary::kNotFound) return false;
 
-    property_details_ = GetHolder()->property_dictionary()->DetailsAt(number_);
+    property_details_ = holder->property_dictionary()->DetailsAt(number_);
     // Holes in dictionary cells are absent values.
     if (holder->IsGlobalObject() &&
         (property_details_.IsDeleted() || FetchValue()->IsTheHole())) {
@@ -149,7 +149,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   ASSERT(HolderIsReceiver());
   if (property_encoding_ == DICTIONARY) return;
   holder_map_ = Map::PrepareForDataProperty(holder_map_, number_, value);
-  JSObject::MigrateToMap(GetHolder(), holder_map_);
+  JSObject::MigrateToMap(GetHolder<JSObject>(), holder_map_);
   // Reload property information.
   if (holder_map_->is_dictionary_map()) {
     property_encoding_ = DICTIONARY;
@@ -218,10 +218,11 @@ bool LookupIterator::HolderIsReceiver() const {
 
 Handle<Object> LookupIterator::FetchValue() const {
   Object* result = NULL;
+  Handle<JSObject> holder = GetHolder<JSObject>();
   switch (property_encoding_) {
     case DICTIONARY:
-      result = GetHolder()->property_dictionary()->ValueAt(number_);
-      if (GetHolder()->IsGlobalObject()) {
+      result = holder->property_dictionary()->ValueAt(number_);
+      if (holder->IsGlobalObject()) {
         result = PropertyCell::cast(result)->value();
       }
       break;
@@ -230,7 +231,7 @@ Handle<Object> LookupIterator::FetchValue() const {
         FieldIndex field_index = FieldIndex::ForDescriptor(
             *holder_map_, number_);
         return JSObject::FastPropertyAt(
-            GetHolder(), property_details_.representation(), field_index);
+            holder, property_details_.representation(), field_index);
       }
       result = holder_map_->instance_descriptors()->GetValue(number_);
   }
@@ -256,8 +257,8 @@ Handle<Object> LookupIterator::GetDataValue() const {
 void LookupIterator::WriteDataValue(Handle<Object> value) {
   ASSERT(is_guaranteed_to_have_holder());
   ASSERT(has_property_);
+  Handle<JSObject> holder = GetHolder<JSObject>();
   if (property_encoding_ == DICTIONARY) {
-    Handle<JSObject> holder = GetHolder();
     NameDictionary* property_dictionary = holder->property_dictionary();
     if (holder->IsGlobalObject()) {
       Handle<PropertyCell> cell(
@@ -267,7 +268,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
       property_dictionary->ValueAtPut(number_, *value);
     }
   } else if (property_details_.type() == v8::internal::FIELD) {
-    GetHolder()->WriteToField(number_, *value);
+    holder->WriteToField(number_, *value);
   } else {
     ASSERT_EQ(v8::internal::CONSTANT, property_details_.type());
   }

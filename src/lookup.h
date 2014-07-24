@@ -93,9 +93,10 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return Handle<Object>::cast(maybe_receiver_.ToHandleChecked());
   }
   Handle<Map> holder_map() const { return holder_map_; }
-  Handle<JSObject> GetHolder() const {
-    ASSERT(IsFound() && state_ != JSPROXY);
-    return Handle<JSObject>::cast(maybe_holder_.ToHandleChecked());
+  template <class T>
+  Handle<T> GetHolder() const {
+    ASSERT(IsFound());
+    return Handle<T>::cast(maybe_holder_.ToHandleChecked());
   }
   Handle<JSReceiver> GetRoot() const;
   bool HolderIsReceiver() const;
@@ -140,11 +141,6 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   void WriteDataValue(Handle<Object> value);
 
   void InternalizeName();
-
-  /* JSPROXY */
-  Handle<JSProxy> GetJSProxy() const {
-    return Handle<JSProxy>::cast(maybe_holder_.ToHandleChecked());
-  }
 
  private:
   Handle<Map> GetReceiverMap() const;
