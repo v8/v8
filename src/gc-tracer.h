@@ -202,6 +202,36 @@ class GCTracer BASE_EMBEDDED {
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration);
 
+  // Compute the mean duration of the last scavenger events. Returns 0 if no
+  // events have been recorded.
+  double MeanScavengerDuration() const {
+    return MeanDuration(scavenger_events_);
+  }
+
+  // Compute the max duration of the last scavenger events. Returns 0 if no
+  // events have been recorded.
+  double MaxScavengerDuration() const { return MaxDuration(scavenger_events_); }
+
+  // Compute the mean duration of the last mark compactor events. Returns 0 if
+  // no events have been recorded.
+  double MeanMarkCompactorDuration() const {
+    return MeanDuration(mark_compactor_events_);
+  }
+
+  // Compute the max duration of the last mark compactor events. Return 0 if no
+  // events have been recorded.
+  double MaxMarkCompactorDuration() const {
+    return MaxDuration(mark_compactor_events_);
+  }
+
+  // Compute the mean step duration of the last incremental marking round.
+  // Returns 0 if no incremental marking round has been completed.
+  double MeanIncrementalMarkingDuration() const;
+
+  // Compute the max step duration of the last incremental marking round.
+  // Returns 0 if no incremental marking round has been completed.
+  double MaxIncrementalMarkingDuration() const;
+
  private:
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -210,6 +240,12 @@ class GCTracer BASE_EMBEDDED {
   // Print one trace line.
   // TODO(ernstm): Move to Heap.
   void Print() const;
+
+  // Compute the mean duration of the events in the given ring buffer.
+  double MeanDuration(const EventBuffer& events) const;
+
+  // Compute the max duration of the events in the given ring buffer.
+  double MaxDuration(const EventBuffer& events) const;
 
   // Pointer to the heap that owns this tracer.
   Heap* heap_;

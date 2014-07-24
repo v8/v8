@@ -268,5 +268,50 @@ void GCTracer::PrintNVP() const {
 
   PrintF("\n");
 }
+
+
+double GCTracer::MeanDuration(const EventBuffer& events) const {
+  if (events.empty()) return 0.0;
+
+  double mean = 0.0;
+  EventBuffer::const_iterator iter = events.begin();
+  while (iter != events.end()) {
+    mean += iter->end_time - iter->start_time;
+    ++iter;
+  }
+
+  return mean / events.size();
+}
+
+
+double GCTracer::MaxDuration(const EventBuffer& events) const {
+  if (events.empty()) return 0.0;
+
+  double maximum = 0.0f;
+  EventBuffer::const_iterator iter = events.begin();
+  while (iter != events.end()) {
+    maximum = Max(iter->end_time - iter->start_time, maximum);
+    ++iter;
+  }
+
+  return maximum;
+}
+
+
+double GCTracer::MeanIncrementalMarkingDuration() const {
+  if (mark_compactor_events_.empty()) return 0.0;
+
+  EventBuffer::const_iterator last_mc = mark_compactor_events_.begin();
+  return last_mc->incremental_marking_duration /
+         last_mc->incremental_marking_steps;
+}
+
+
+double GCTracer::MaxIncrementalMarkingDuration() const {
+  if (mark_compactor_events_.empty()) return 0.0;
+
+  EventBuffer::const_iterator last_mc = mark_compactor_events_.begin();
+  return last_mc->longest_incremental_marking_step;
+}
 }
 }  // namespace v8::internal
