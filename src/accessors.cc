@@ -136,6 +136,25 @@ bool Accessors::IsJSObjectFieldAccessor<HeapType>(Handle<HeapType> type,
                                                   int* object_offset);
 
 
+bool SetPropertyOnInstanceIfInherited(
+    Isolate* isolate, const v8::PropertyCallbackInfo<void>& info,
+    v8::Local<v8::String> name, Handle<Object> value) {
+  Handle<Object> holder = Utils::OpenHandle(*info.Holder());
+  Handle<Object> receiver = Utils::OpenHandle(*info.This());
+  if (*holder == *receiver) return false;
+  if (receiver->IsJSObject()) {
+    Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+    // This behaves sloppy since we lost the actual strict-mode.
+    // TODO(verwaest): Fix by making ExecutableAccessorInfo behave like data
+    // properties.
+    if (!object->map()->is_extensible()) return true;
+    JSObject::SetOwnPropertyIgnoreAttributes(object, Utils::OpenHandle(*name),
+                                             value, NONE);
+  }
+  return true;
+}
+
+
 //
 // Accessors::ArrayLength
 //
@@ -176,17 +195,7 @@ void Accessors::ArrayLengthSetter(
   HandleScope scope(isolate);
   Handle<JSObject> object = Utils::OpenHandle(*info.This());
   Handle<Object> value = Utils::OpenHandle(*val);
-  // This means one of the object's prototypes is a JSArray and the
-  // object does not have a 'length' property.  Calling SetProperty
-  // causes an infinite loop.
-  if (!object->IsJSArray()) {
-    // This behaves sloppy since we lost the actual strict-mode.
-    // TODO(verwaest): Fix by making ExecutableAccessorInfo behave like data
-    // properties.
-    if (!object->map()->is_extensible()) return;
-    MaybeHandle<Object> maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-        object, isolate->factory()->length_string(), value, NONE);
-    maybe_result.Check();
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) {
     return;
   }
 
@@ -838,25 +847,10 @@ static Handle<Object> GetFunctionPrototype(Isolate* isolate,
 
 
 static Handle<Object> SetFunctionPrototype(Isolate* isolate,
-                                           Handle<JSObject> receiver,
+                                           Handle<JSFunction> function,
                                            Handle<Object> value) {
-  Handle<JSFunction> function;
-  {
-    DisallowHeapAllocation no_allocation;
-    JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, *receiver);
-    if (function_raw == NULL) return isolate->factory()->undefined_value();
-    function = Handle<JSFunction>(function_raw, isolate);
-  }
-
-  if (!function->should_have_prototype()) {
-    // Since we hit this accessor, object will have no prototype property.
-    MaybeHandle<Object> maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-        receiver, isolate->factory()->prototype_string(), value, NONE);
-    return maybe_result.ToHandleChecked();
-  }
-
   Handle<Object> old_value;
-  bool is_observed = *function == *receiver && function->map()->is_observed();
+  bool is_observed = function->map()->is_observed();
   if (is_observed) {
     if (function->has_prototype())
       old_value = handle(function->prototype(), isolate);
@@ -907,10 +901,12 @@ void Accessors::FunctionPrototypeSetter(
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> object =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
   Handle<Object> value = Utils::OpenHandle(*val);
-
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) {
+    return;
+  }
+  Handle<JSFunction> object =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   SetFunctionPrototype(isolate, object, value);
 }
 
@@ -960,7 +956,8 @@ void Accessors::FunctionLengthSetter(
     v8::Local<v8::String> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // Do nothing.
+  // Function length is non writable, non configurable.
+  UNREACHABLE();
 }
 
 
@@ -995,7 +992,8 @@ void Accessors::FunctionNameSetter(
     v8::Local<v8::String> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // Do nothing.
+  // Function name is non writable, non configurable.
+  UNREACHABLE();
 }
 
 
@@ -1131,7 +1129,8 @@ void Accessors::FunctionArgumentsSetter(
     v8::Local<v8::String> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // Do nothing.
+  // Function arguments is non writable, non configurable.
+  UNREACHABLE();
 }
 
 
@@ -1281,7 +1280,8 @@ void Accessors::FunctionCallerSetter(
     v8::Local<v8::String> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // Do nothing.
+  // Function caller is non writable, non configurable.
+  UNREACHABLE();
 }
 
 

@@ -1685,8 +1685,10 @@ var obj = { __proto__: fun };
 Object.observe(obj, observer.callback);
 obj.prototype = 7;
 Object.deliverChangeRecords(observer.callback);
-observer.assertNotCalled();
-
+observer.assertRecordCount(1);
+observer.assertCallbackRecords([
+  { object: obj, name: 'prototype', type: 'add' },
+]);
 
 // Check that changes in observation status are detected in all IC states and
 // in optimized code, especially in cases usually using fast elements.
