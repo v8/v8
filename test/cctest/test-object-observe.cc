@@ -658,7 +658,7 @@ TEST(DontLeakContextOnObserve) {
                "Object.unobserve(obj, observer);");
   }
 
-  v8::V8::ContextDisposedNotification();
+  CcTest::isolate()->ContextDisposedNotification();
   CheckSurvivingGlobalObjectsCount(1);
 }
 
@@ -679,7 +679,7 @@ TEST(DontLeakContextOnGetNotifier) {
     CompileRun("Object.getNotifier(obj);");
   }
 
-  v8::V8::ContextDisposedNotification();
+  CcTest::isolate()->ContextDisposedNotification();
   CheckSurvivingGlobalObjectsCount(1);
 }
 
@@ -706,6 +706,6 @@ TEST(DontLeakContextOnNotifierPerformChange) {
                    "notifier, 'foo', function(){})");
   }
 
-  v8::V8::ContextDisposedNotification();
+  CcTest::isolate()->ContextDisposedNotification();
   CheckSurvivingGlobalObjectsCount(1);
 }

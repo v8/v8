@@ -13498,21 +13498,21 @@ TEST(DontLeakGlobalObjects) {
     { v8::HandleScope scope(CcTest::isolate());
       LocalContext context;
     }
-    v8::V8::ContextDisposedNotification();
+    CcTest::isolate()->ContextDisposedNotification();
     CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope(CcTest::isolate());
       LocalContext context;
       v8_compile("Date")->Run();
     }
-    v8::V8::ContextDisposedNotification();
+    CcTest::isolate()->ContextDisposedNotification();
     CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope(CcTest::isolate());
       LocalContext context;
       v8_compile("/aaa/")->Run();
     }
-    v8::V8::ContextDisposedNotification();
+    CcTest::isolate()->ContextDisposedNotification();
     CheckSurvivingGlobalObjectsCount(0);
 
     { v8::HandleScope scope(CcTest::isolate());
@@ -13521,7 +13521,7 @@ TEST(DontLeakGlobalObjects) {
       LocalContext context(&extensions);
       v8_compile("gc();")->Run();
     }
-    v8::V8::ContextDisposedNotification();
+    CcTest::isolate()->ContextDisposedNotification();
     CheckSurvivingGlobalObjectsCount(0);
   }
 }
@@ -17600,6 +17600,7 @@ static void CreateGarbageInOldSpace() {
 // Test that idle notification can be handled and eventually returns true.
 TEST(IdleNotification) {
   const intptr_t MB = 1024 * 1024;
+  const int IdlePauseInMs = 1000;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   intptr_t initial_size = CcTest::heap()->SizeOfObjects();
@@ -17608,7 +17609,7 @@ TEST(IdleNotification) {
   CHECK_GT(size_with_garbage, initial_size + MB);
   bool finished = false;
   for (int i = 0; i < 200 && !finished; i++) {
-    finished = v8::V8::IdleNotification();
+    finished = env->GetIsolate()->IdleNotification(IdlePauseInMs);
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();
   CHECK(finished);
@@ -17628,7 +17629,7 @@ TEST(IdleNotificationWithSmallHint) {
   CHECK_GT(size_with_garbage, initial_size + MB);
   bool finished = false;
   for (int i = 0; i < 200 && !finished; i++) {
-    finished = v8::V8::IdleNotification(IdlePauseInMs);
+    finished = env->GetIsolate()->IdleNotification(IdlePauseInMs);
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();
   CHECK(finished);
@@ -17648,7 +17649,7 @@ TEST(IdleNotificationWithLargeHint) {
   CHECK_GT(size_with_garbage, initial_size + MB);
   bool finished = false;
   for (int i = 0; i < 200 && !finished; i++) {
-    finished = v8::V8::IdleNotification(IdlePauseInMs);
+    finished = env->GetIsolate()->IdleNotification(IdlePauseInMs);
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();
   CHECK(finished);
@@ -17665,7 +17666,7 @@ TEST(Regress2107) {
   v8::HandleScope scope(env->GetIsolate());
   intptr_t initial_size = CcTest::heap()->SizeOfObjects();
   // Send idle notification to start a round of incremental GCs.
-  v8::V8::IdleNotification(kShortIdlePauseInMs);
+  env->GetIsolate()->IdleNotification(kShortIdlePauseInMs);
   // Emulate 7 page reloads.
   for (int i = 0; i < 7; i++) {
     {
@@ -17675,8 +17676,8 @@ TEST(Regress2107) {
       CreateGarbageInOldSpace();
       ctx->Exit();
     }
-    v8::V8::ContextDisposedNotification();
-    v8::V8::IdleNotification(kLongIdlePauseInMs);
+    env->GetIsolate()->ContextDisposedNotification();
+    env->GetIsolate()->IdleNotification(kLongIdlePauseInMs);
   }
   // Create garbage and check that idle notification still collects it.
   CreateGarbageInOldSpace();
@@ -17684,7 +17685,7 @@ TEST(Regress2107) {
   CHECK_GT(size_with_garbage, initial_size + MB);
   bool finished = false;
   for (int i = 0; i < 200 && !finished; i++) {
-    finished = v8::V8::IdleNotification(kShortIdlePauseInMs);
+    finished = env->GetIsolate()->IdleNotification(kShortIdlePauseInMs);
   }
   intptr_t final_size = CcTest::heap()->SizeOfObjects();
   CHECK_LT(final_size, initial_size + 1);
@@ -18160,7 +18161,7 @@ TEST(Regress528) {
     CompileRun(source_simple);
     context->Exit();
   }
-  v8::V8::ContextDisposedNotification();
+  isolate->ContextDisposedNotification();
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
     CompileRun(source_simple);
@@ -18182,7 +18183,7 @@ TEST(Regress528) {
     CompileRun(source_eval);
     context->Exit();
   }
-  v8::V8::ContextDisposedNotification();
+  isolate->ContextDisposedNotification();
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
     CompileRun(source_eval);
@@ -18209,7 +18210,7 @@ TEST(Regress528) {
     CHECK_EQ(1, message->GetLineNumber());
     context->Exit();
   }
-  v8::V8::ContextDisposedNotification();
+  isolate->ContextDisposedNotification();
   for (gc_count = 1; gc_count < 10; gc_count++) {
     other_context->Enter();
     CompileRun(source_exception);
@@ -18220,7 +18221,7 @@ TEST(Regress528) {
   CHECK_GE(2, gc_count);
   CHECK_EQ(1, GetGlobalObjectsCount());
 
-  v8::V8::ContextDisposedNotification();
+  isolate->ContextDisposedNotification();
 }
 
 

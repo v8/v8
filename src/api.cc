@@ -6712,6 +6712,27 @@ void Isolate::SetAddHistogramSampleFunction(
 }
 
 
+bool v8::Isolate::IdleNotification(int idle_time_in_ms) {
+  // Returning true tells the caller that it need not
+  // continue to call IdleNotification.
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  if (!i::FLAG_use_idle_notification) return true;
+  return isolate->heap()->IdleNotification(idle_time_in_ms);
+}
+
+
+void v8::Isolate::LowMemoryNotification() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->CollectAllAvailableGarbage("low memory notification");
+}
+
+
+int v8::Isolate::ContextDisposedNotification() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->heap()->NotifyContextDisposed();
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();

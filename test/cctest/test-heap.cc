@@ -1797,7 +1797,7 @@ TEST(LeakNativeContextViaMap) {
     ctx2->Exit();
     v8::Local<v8::Context>::New(isolate, ctx1)->Exit();
     ctx1p.Reset();
-    v8::V8::ContextDisposedNotification();
+    isolate->ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1843,7 +1843,7 @@ TEST(LeakNativeContextViaFunction) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
-    v8::V8::ContextDisposedNotification();
+    isolate->ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1887,7 +1887,7 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
-    v8::V8::ContextDisposedNotification();
+    isolate->ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -1935,7 +1935,7 @@ TEST(LeakNativeContextViaMapProto) {
     ctx2->Exit();
     ctx1->Exit();
     ctx1p.Reset();
-    v8::V8::ContextDisposedNotification();
+    isolate->ContextDisposedNotification();
   }
   CcTest::heap()->CollectAllAvailableGarbage();
   CHECK_EQ(2, NumberOfGlobalObjects());
@@ -2096,8 +2096,8 @@ TEST(ResetSharedFunctionInfoCountersDuringIncrementalMarking) {
 
   // The following two calls will increment CcTest::heap()->global_ic_age().
   const int kLongIdlePauseInMs = 1000;
-  v8::V8::ContextDisposedNotification();
-  v8::V8::IdleNotification(kLongIdlePauseInMs);
+  CcTest::isolate()->ContextDisposedNotification();
+  CcTest::isolate()->IdleNotification(kLongIdlePauseInMs);
 
   while (!marking->IsStopped() && !marking->IsComplete()) {
     marking->Step(1 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
@@ -2152,8 +2152,8 @@ TEST(ResetSharedFunctionInfoCountersDuringMarkSweep) {
   // The following two calls will increment CcTest::heap()->global_ic_age().
   // Since incremental marking is off, IdleNotification will do full GC.
   const int kLongIdlePauseInMs = 1000;
-  v8::V8::ContextDisposedNotification();
-  v8::V8::IdleNotification(kLongIdlePauseInMs);
+  CcTest::isolate()->ContextDisposedNotification();
+  CcTest::isolate()->IdleNotification(kLongIdlePauseInMs);
 
   CHECK_EQ(CcTest::heap()->global_ic_age(), f->shared()->ic_age());
   CHECK_EQ(0, f->shared()->opt_count());
@@ -3207,7 +3207,7 @@ TEST(IncrementalMarkingClearsMonomorphicIC) {
   CHECK(ic_before->ic_state() == MONOMORPHIC);
 
   // Fire context dispose notification.
-  v8::V8::ContextDisposedNotification();
+  CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking();
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
@@ -3248,7 +3248,7 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
   CHECK(ic_before->ic_state() == POLYMORPHIC);
 
   // Fire context dispose notification.
-  v8::V8::ContextDisposedNotification();
+  CcTest::isolate()->ContextDisposedNotification();
   SimulateIncrementalMarking();
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
