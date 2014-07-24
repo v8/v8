@@ -361,7 +361,7 @@
   'math-floor-of-div-minus-zero': [SKIP],
 
   # BUG(v8:3457).
-  'deserialize-reference': [PASS, FAIL],
+  'deserialize-reference': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
