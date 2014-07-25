@@ -6981,10 +6981,12 @@ class HStoreKeyed V8_FINAL
       return Representation::Double();
     }
 
+    if (kind == FAST_SMI_ELEMENTS && SmiValuesAre32Bits() &&
+        mode == STORE_TO_INITIALIZED_ENTRY) {
+      return Representation::Integer32();
+    }
+
     if (IsFastSmiElementsKind(kind)) {
-      if (SmiValuesAre32Bits() && mode == STORE_TO_INITIALIZED_ENTRY) {
-        return Representation::Integer32();
-      }
       return Representation::Smi();
     }
 
