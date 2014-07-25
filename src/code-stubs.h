@@ -900,23 +900,14 @@ class CallIC_ArrayStub: public CallICStub {
 // TODO(verwaest): Translate to hydrogen code stub.
 class FunctionPrototypeStub : public PlatformCodeStub {
  public:
-  FunctionPrototypeStub(Isolate* isolate, Code::Kind kind)
-      : PlatformCodeStub(isolate) {
-    bit_field_ = KindBits::encode(kind);
-  }
+  explicit FunctionPrototypeStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
   virtual void Generate(MacroAssembler* masm);
   virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
-  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
-  virtual ExtraICState GetExtraICState() const { return kind(); }
-
- protected:
-  class KindBits : public BitField<Code::Kind, 0, 4> {};
-  virtual Code::Kind kind() const { return KindBits::decode(bit_field_); }
 
  private:
   virtual CodeStub::Major MajorKey() const { return FunctionPrototype; }
-  virtual int MinorKey() const { return bit_field_; }
-  int bit_field_;
+  virtual int MinorKey() const { return 0; }
 };
 
 

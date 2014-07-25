@@ -1313,7 +1313,7 @@ static void Generate_LoadIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
-  LoadStubCompiler::GenerateLoadViaGetterForDeopt(masm);
+  NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(masm);
 }
 
 
@@ -1378,7 +1378,7 @@ static void Generate_StoreIC_Normal(MacroAssembler* masm) {
 
 
 static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
-  StoreStubCompiler::GenerateStoreViaSetterForDeopt(masm);
+  NamedStoreHandlerCompiler::GenerateStoreViaSetterForDeopt(masm);
 }
 
 

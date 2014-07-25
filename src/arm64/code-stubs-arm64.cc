@@ -1703,21 +1703,13 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
 
-  ASSERT(kind() == Code::LOAD_IC ||
-         kind() == Code::KEYED_LOAD_IC);
-
-  if (kind() == Code::KEYED_LOAD_IC) {
-    __ Cmp(name, Operand(isolate()->factory()->prototype_string()));
-    __ B(ne, &miss);
-  }
-
-  StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, x10, x11, &miss);
+  NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, x10,
+                                                          x11, &miss);
 
   __ Bind(&miss);
-  StubCompiler::TailCallBuiltin(masm,
-                                BaseLoadStoreStubCompiler::MissBuiltin(kind()));
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
 }
 
 

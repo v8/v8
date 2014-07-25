@@ -764,20 +764,12 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
 
-  ASSERT(kind() == Code::LOAD_IC ||
-         kind() == Code::KEYED_LOAD_IC);
-
-  if (kind() == Code::KEYED_LOAD_IC) {
-    __ Cmp(name, isolate()->factory()->prototype_string());
-    __ j(not_equal, &miss);
-  }
-
-  StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, r8, r9, &miss);
+  NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, r8,
+                                                          r9, &miss);
   __ bind(&miss);
-  StubCompiler::TailCallBuiltin(
-      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
 }
 
 
