@@ -167,7 +167,9 @@ TEST(MarkCompactCollector) {
 
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    CHECK(JSReceiver::HasOwnProperty(global, func_name));
+    v8::Maybe<bool> maybe = JSReceiver::HasOwnProperty(global, func_name);
+    CHECK(maybe.has_value);
+    CHECK(maybe.value);
     Handle<Object> func_value =
         Object::GetProperty(global, func_name).ToHandleChecked();
     CHECK(func_value->IsJSFunction());
@@ -185,7 +187,9 @@ TEST(MarkCompactCollector) {
 
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
-    CHECK(JSReceiver::HasOwnProperty(global, obj_name));
+    v8::Maybe<bool> maybe = JSReceiver::HasOwnProperty(global, obj_name);
+    CHECK(maybe.has_value);
+    CHECK(maybe.value);
     Handle<Object> object =
         Object::GetProperty(global, obj_name).ToHandleChecked();
     CHECK(object->IsJSObject());

@@ -895,6 +895,13 @@ struct Maybe {
 };
 
 
+// Convenience wrapper.
+template <class T>
+inline Maybe<T> maybe(T t) {
+  return Maybe<T>(t);
+}
+
+
 // --- Special objects ---
 
 
