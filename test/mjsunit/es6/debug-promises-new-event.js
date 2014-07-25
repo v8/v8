@@ -10,7 +10,7 @@ var exception = null;
 var new_promise;
 
 function listener(event, exec_state, event_data, data) {
-  if (event != Debug.DebugEvent.PromiseEvent) return;
+  if (!(event_data instanceof debug.NewPromiseEvent)) return;
   try {
     assertTrue(event_data.resolver().isFunction());
     assertEquals(resolver, event_data.resolver().value());

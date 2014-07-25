@@ -10,6 +10,7 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/counters.h"
+#include "src/gc-tracer.h"
 #include "src/globals.h"
 #include "src/incremental-marking.h"
 #include "src/list.h"
@@ -545,125 +546,6 @@ class ExternalStringTable {
 enum ArrayStorageAllocationMode {
   DONT_INITIALIZE_ARRAY_ELEMENTS,
   INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
-};
-
-
-// GCTracer collects and prints ONE line after each garbage collector
-// invocation IFF --trace_gc is used.
-
-class GCTracer BASE_EMBEDDED {
- public:
-  class Scope BASE_EMBEDDED {
-   public:
-    enum ScopeId {
-      EXTERNAL,
-      MC_MARK,
-      MC_SWEEP,
-      MC_SWEEP_NEWSPACE,
-      MC_SWEEP_OLDSPACE,
-      MC_SWEEP_CODE,
-      MC_SWEEP_CELL,
-      MC_SWEEP_MAP,
-      MC_EVACUATE_PAGES,
-      MC_UPDATE_NEW_TO_NEW_POINTERS,
-      MC_UPDATE_ROOT_TO_NEW_POINTERS,
-      MC_UPDATE_OLD_TO_NEW_POINTERS,
-      MC_UPDATE_POINTERS_TO_EVACUATED,
-      MC_UPDATE_POINTERS_BETWEEN_EVACUATED,
-      MC_UPDATE_MISC_POINTERS,
-      MC_WEAKCOLLECTION_PROCESS,
-      MC_WEAKCOLLECTION_CLEAR,
-      MC_FLUSH_CODE,
-      NUMBER_OF_SCOPES
-    };
-
-    Scope(GCTracer* tracer, ScopeId scope)
-        : tracer_(tracer),
-        scope_(scope) {
-      start_time_ = base::OS::TimeCurrentMillis();
-    }
-
-    ~Scope() {
-      ASSERT(scope_ < NUMBER_OF_SCOPES);  // scope_ is unsigned.
-      tracer_->scopes_[scope_] += base::OS::TimeCurrentMillis() - start_time_;
-    }
-
-   private:
-    GCTracer* tracer_;
-    ScopeId scope_;
-    double start_time_;
-
-    DISALLOW_COPY_AND_ASSIGN(Scope);
-  };
-
-  explicit GCTracer(Heap* heap);
-
-  // Start collecting data.
-  void start(GarbageCollector collector, const char* gc_reason,
-             const char* collector_reason);
-
-  // Stop collecting data and print results.
-  void stop();
-
- private:
-  // Returns a string matching the collector.
-  const char* CollectorString() const;
-
-  // Print one detailed trace line in name=value format.
-  void PrintNVP() const;
-
-  // Print one trace line.
-  void Print() const;
-
-  // Timestamp set in the constructor.
-  double start_time_;
-
-  // Timestamp set in the destructor.
-  double end_time_;
-
-  // Size of objects in heap set in constructor.
-  intptr_t start_object_size_;
-
-  // Size of objects in heap set in destructor.
-  intptr_t end_object_size_;
-
-  // Size of memory allocated from OS set in constructor.
-  intptr_t start_memory_size_;
-
-  // Size of memory allocated from OS set in destructor.
-  intptr_t end_memory_size_;
-
-  // Type of collector.
-  GarbageCollector collector_;
-
-  // Amounts of time spent in different scopes during GC.
-  double scopes_[Scope::NUMBER_OF_SCOPES];
-
-  // Total amount of space either wasted or contained in one of free lists
-  // before the current GC.
-  intptr_t in_free_list_or_wasted_before_gc_;
-
-  // Difference between space used in the heap at the beginning of the current
-  // collection and the end of the previous collection.
-  intptr_t allocated_since_last_gc_;
-
-  // Amount of time spent in mutator that is time elapsed between end of the
-  // previous collection and the beginning of the current one.
-  double spent_in_mutator_;
-
-  // Incremental marking steps counters.
-  int steps_count_;
-  double steps_took_;
-  double longest_step_;
-  int steps_count_since_last_gc_;
-  double steps_took_since_last_gc_;
-
-  Heap* heap_;
-
-  const char* gc_reason_;
-  const char* collector_reason_;
-
-  DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };
 
 
@@ -1367,8 +1249,8 @@ class Heap {
   }
 
   // Update GC statistics that are tracked on the Heap.
-  void UpdateGCStatistics(double start_time, double end_time,
-                          double spent_in_mutator, double marking_time);
+  void UpdateCumulativeGCStatistics(double duration, double spent_in_mutator,
+                                    double marking_time);
 
   // Returns maximum GC pause.
   double get_max_gc_pause() { return max_gc_pause_; }
@@ -2237,11 +2119,6 @@ class Heap {
 
   // Minimal interval between two subsequent collections.
   double min_in_mutator_;
-
-  // Size of objects alive after last GC.
-  intptr_t alive_after_last_gc_;
-
-  double last_gc_end_timestamp_;
 
   // Cumulative GC time spent in marking
   double marking_time_;

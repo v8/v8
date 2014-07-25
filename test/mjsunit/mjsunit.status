@@ -87,7 +87,7 @@
   ##############################################################################
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
-  'migrations': [PASS, ['mode == debug', TIMEOUT]],
+  'migrations': [SKIP],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
@@ -359,6 +359,9 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
+
+  # BUG(v8:3457).
+  'deserialize-reference': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################

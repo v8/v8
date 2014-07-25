@@ -1,3 +1,19 @@
+2014-07-25: Version 3.28.38
+
+        Fix issue with setters and their holders in accessors.cc (Chromium issue
+        3462).
+
+        Introduce more debug events for promises (issue 3093).
+
+        Move gc notifications from V8 to Isolate and make idle hint mandatory
+        (Chromium issue 397026).
+
+        The accessors should get the value from the holder and not from this
+        (issue 3461).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-24: Version 3.28.35
 
         Rebaseline/update the intl tests with ICU 52 (issue 3454).

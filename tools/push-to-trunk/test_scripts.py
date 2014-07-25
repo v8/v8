@@ -1373,7 +1373,8 @@ LOG=N
 
     self.ExpectReadURL([
       URL("https://v8-status.appspot.com/revisions?format=json",
-          "[{\"revision\": \"123\", \"status\": true},"
+          "[{\"revision\": \"126\", \"status\": true},"
+           "{\"revision\": \"123\", \"status\": true},"
            "{\"revision\": \"112\", \"status\": true}]"),
     ])
 

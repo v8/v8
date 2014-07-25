@@ -792,6 +792,8 @@ void Deserializer::DeserializePartial(Isolate* isolate, Object** root) {
     external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
   }
 
+  DisallowHeapAllocation no_gc;
+
   // Keep track of the code space start and end pointers in case new
   // code objects were unserialized
   OldSpace* code_space = isolate_->heap()->code_space();
@@ -1909,6 +1911,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
   List<byte> payload;
   ListSnapshotSink list_sink(&payload);
   CodeSerializer cs(isolate, &list_sink, *source);
+  DisallowHeapAllocation no_gc;
   Object** location = Handle<Object>::cast(info).location();
   cs.VisitPointer(location);
   cs.Pad();
@@ -2023,7 +2026,6 @@ Handle<SharedFunctionInfo> CodeSerializer::Deserialize(Isolate* isolate,
   for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
     deserializer.set_reservation(i, scd.GetReservation(i));
   }
-  DisallowHeapAllocation no_gc;
 
   // Prepare and register list of attached objects.
   Vector<Object*> attached_objects = Vector<Object*>::New(1);

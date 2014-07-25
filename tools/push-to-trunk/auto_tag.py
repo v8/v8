@@ -117,7 +117,7 @@ class CalculateTagRevision(Step):
       # LKGRs are reverse sorted.
       if int(min_rev) <= int(lkgr) and int(lkgr) < int(max_rev):
         return lkgr
-      return None
+    return None
 
   def RunStep(self):
     # Get the lkgr after the tag candidate and before the next tag candidate.

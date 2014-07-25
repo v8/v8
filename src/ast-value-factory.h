@@ -243,7 +243,6 @@ class AstValue : public ZoneObject {
   F(dot_for, ".for") \
   F(dot_generator, ".generator") \
   F(dot_generator_object, ".generator_object") \
-  F(dot_iterable, ".iterable") \
   F(dot_iterator, ".iterator") \
   F(dot_module, ".module") \
   F(dot_result, ".result") \

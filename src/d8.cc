@@ -1251,14 +1251,14 @@ void SourceGroup::ExecuteInThread() {
       }
       if (Shell::options.send_idle_notification) {
         const int kLongIdlePauseInMs = 1000;
-        V8::ContextDisposedNotification();
-        V8::IdleNotification(kLongIdlePauseInMs);
+        isolate->ContextDisposedNotification();
+        isolate->IdleNotification(kLongIdlePauseInMs);
       }
       if (Shell::options.invoke_weak_callbacks) {
         // By sending a low memory notifications, we will try hard to collect
         // all garbage and will therefore also invoke all weak callbacks of
         // actually unreachable persistent handles.
-        V8::LowMemoryNotification();
+        isolate->LowMemoryNotification();
       }
     }
     done_semaphore_.Signal();
@@ -1440,14 +1440,14 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[]) {
   }
   if (options.send_idle_notification) {
     const int kLongIdlePauseInMs = 1000;
-    V8::ContextDisposedNotification();
-    V8::IdleNotification(kLongIdlePauseInMs);
+    isolate->ContextDisposedNotification();
+    isolate->IdleNotification(kLongIdlePauseInMs);
   }
   if (options.invoke_weak_callbacks) {
     // By sending a low memory notifications, we will try hard to collect all
     // garbage and will therefore also invoke all weak callbacks of actually
     // unreachable persistent handles.
-    V8::LowMemoryNotification();
+    isolate->LowMemoryNotification();
   }
 
 #ifndef V8_SHARED

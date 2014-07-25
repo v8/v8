@@ -22,12 +22,8 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       marking_deque_memory_(NULL),
       marking_deque_memory_committed_(false),
       steps_count_(0),
-      steps_took_(0),
-      longest_step_(0.0),
       old_generation_space_available_at_start_of_incremental_(0),
       old_generation_space_used_at_start_of_incremental_(0),
-      steps_count_since_last_gc_(0),
-      steps_took_since_last_gc_(0),
       should_hurry_(false),
       marking_speed_(0),
       allocated_(0),
@@ -658,9 +654,6 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
     }
   }
   marking_deque_.set_top(new_top);
-
-  steps_took_since_last_gc_ = 0;
-  steps_count_since_last_gc_ = 0;
 }
 
 
@@ -895,7 +888,6 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
   }
 
   steps_count_++;
-  steps_count_since_last_gc_++;
 
   bool speed_up = false;
 
@@ -964,9 +956,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
       FLAG_print_cumulative_gc_stat) {
     double end = base::OS::TimeCurrentMillis();
     double delta = (end - start);
-    longest_step_ = Max(longest_step_, delta);
-    steps_took_ += delta;
-    steps_took_since_last_gc_ += delta;
+    heap_->tracer()->AddIncrementalMarkingStep(delta);
     heap_->AddMarkingTime(delta);
   }
 }
@@ -974,14 +964,10 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
 
 void IncrementalMarking::ResetStepCounters() {
   steps_count_ = 0;
-  steps_took_ = 0;
-  longest_step_ = 0.0;
   old_generation_space_available_at_start_of_incremental_ =
       SpaceLeftInOldSpace();
   old_generation_space_used_at_start_of_incremental_ =
       heap_->PromotedTotalSize();
-  steps_count_since_last_gc_ = 0;
-  steps_took_since_last_gc_ = 0;
   bytes_rescanned_ = 0;
   marking_speed_ = kInitialMarkingSpeed;
   bytes_scanned_ = 0;

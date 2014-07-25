@@ -951,8 +951,8 @@ class FastElementsAccessor
     uint32_t min = JSObject::NewElementsCapacity(old_capacity);
     uint32_t new_capacity = length > min ? length : min;
     if (!array->ShouldConvertToSlowElements(new_capacity)) {
-      FastElementsAccessorSubclass::
-          SetFastElementsCapacityAndLength(array, new_capacity, length);
+      FastElementsAccessorSubclass::SetFastElementsCapacityAndLength(
+          array, new_capacity, length);
       JSObject::ValidateElements(array);
       return length_object;
     }

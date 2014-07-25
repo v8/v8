@@ -2749,37 +2749,26 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
   ForOfStatement* for_of = stmt->AsForOfStatement();
 
   if (for_of != NULL) {
-    Variable* iterable = scope_->DeclarationScope()->NewTemporary(
-        ast_value_factory_->dot_iterable_string());
     Variable* iterator = scope_->DeclarationScope()->NewTemporary(
         ast_value_factory_->dot_iterator_string());
     Variable* result = scope_->DeclarationScope()->NewTemporary(
         ast_value_factory_->dot_result_string());
 
-    Expression* assign_iterable;
     Expression* assign_iterator;
     Expression* next_result;
     Expression* result_done;
     Expression* assign_each;
 
-    // var iterable = subject;
+    // var iterator = subject[Symbol.iterator]();
     {
-      Expression* iterable_proxy = factory()->NewVariableProxy(iterable);
-      assign_iterable = factory()->NewAssignment(
-          Token::ASSIGN, iterable_proxy, subject, subject->position());
-    }
-
-    // var iterator = iterable[Symbol.iterator]();
-    {
-      Expression* iterable_proxy = factory()->NewVariableProxy(iterable);
       Expression* iterator_symbol_literal =
           factory()->NewSymbolLiteral("symbolIterator", RelocInfo::kNoPosition);
       // FIXME(wingo): Unhappily, it will be a common error that the RHS of a
       // for-of doesn't have a Symbol.iterator property.  We should do better
       // than informing the user that "undefined is not a function".
       int pos = subject->position();
-      Expression* iterator_property = factory()->NewProperty(
-          iterable_proxy, iterator_symbol_literal, pos);
+      Expression* iterator_property =
+          factory()->NewProperty(subject, iterator_symbol_literal, pos);
       ZoneList<Expression*>* iterator_arguments =
           new(zone()) ZoneList<Expression*>(0, zone());
       Expression* iterator_call = factory()->NewCall(
@@ -2826,7 +2815,6 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
     }
 
     for_of->Initialize(each, subject, body,
-                       assign_iterable,
                        assign_iterator,
                        next_result,
                        result_done,

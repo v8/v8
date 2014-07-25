@@ -961,13 +961,11 @@ class ForOfStatement V8_FINAL : public ForEachStatement {
   void Initialize(Expression* each,
                   Expression* subject,
                   Statement* body,
-                  Expression* assign_iterable,
                   Expression* assign_iterator,
                   Expression* next_result,
                   Expression* result_done,
                   Expression* assign_each) {
     ForEachStatement::Initialize(each, subject, body);
-    assign_iterable_ = assign_iterable;
     assign_iterator_ = assign_iterator;
     next_result_ = next_result;
     result_done_ = result_done;
@@ -978,12 +976,7 @@ class ForOfStatement V8_FINAL : public ForEachStatement {
     return subject();
   }
 
-  // var iterable = subject;
-  Expression* assign_iterable() const {
-    return assign_iterable_;
-  }
-
-  // var iterator = iterable[Symbol.iterator]();
+  // var iterator = subject[Symbol.iterator]();
   Expression* assign_iterator() const {
     return assign_iterator_;
   }
@@ -1018,7 +1011,6 @@ class ForOfStatement V8_FINAL : public ForEachStatement {
         back_edge_id_(GetNextId(zone)) {
   }
 
-  Expression* assign_iterable_;
   Expression* assign_iterator_;
   Expression* next_result_;
   Expression* result_done_;

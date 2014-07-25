@@ -31,6 +31,7 @@
   'test-api/Bug*': [FAIL],
 
   ##############################################################################
+
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
@@ -69,6 +70,11 @@
   # variants.
   'test-hydrogen-types/*': [PASS, NO_VARIANTS],
   'test-types/*': [PASS, NO_VARIANTS],
+
+  # The cpu profiler tests are notoriously flaky.
+  # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
+  # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
+  'test-cpu-profiler/*': [PASS, FLAKY],
 
   ############################################################################
   # Slow tests.

@@ -21,16 +21,6 @@ namespace v8 {
 namespace internal {
 
 
-// We have a slight impedance mismatch between the external API and the way we
-// use callbacks internally: Externally, callbacks can only be used with
-// v8::Object, but internally we even have callbacks on entities which are
-// higher in the hierarchy, so we can only return i::Object here, not
-// i::JSObject.
-Handle<Object> GetThisFrom(const v8::PropertyCallbackInfo<v8::Value>& info) {
-  return Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
-}
-
-
 Handle<AccessorInfo> Accessors::MakeAccessor(
     Isolate* isolate,
     Handle<String> name,
@@ -146,6 +136,25 @@ bool Accessors::IsJSObjectFieldAccessor<HeapType>(Handle<HeapType> type,
                                                   int* object_offset);
 
 
+bool SetPropertyOnInstanceIfInherited(
+    Isolate* isolate, const v8::PropertyCallbackInfo<void>& info,
+    v8::Local<v8::String> name, Handle<Object> value) {
+  Handle<Object> holder = Utils::OpenHandle(*info.Holder());
+  Handle<Object> receiver = Utils::OpenHandle(*info.This());
+  if (*holder == *receiver) return false;
+  if (receiver->IsJSObject()) {
+    Handle<JSObject> object = Handle<JSObject>::cast(receiver);
+    // This behaves sloppy since we lost the actual strict-mode.
+    // TODO(verwaest): Fix by making ExecutableAccessorInfo behave like data
+    // properties.
+    if (!object->map()->is_extensible()) return true;
+    JSObject::SetOwnPropertyIgnoreAttributes(object, Utils::OpenHandle(*name),
+                                             value, NONE).Check();
+  }
+  return true;
+}
+
+
 //
 // Accessors::ArrayLength
 //
@@ -172,15 +181,8 @@ void Accessors::ArrayLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* object = *GetThisFrom(info);
-  // Traverse the prototype chain until we reach an array.
-  JSArray* holder = FindInstanceOf<JSArray>(isolate, object);
-  Object* result;
-  if (holder != NULL) {
-    result = holder->length();
-  } else {
-    result = Smi::FromInt(0);
-  }
+  JSArray* holder = JSArray::cast(*Utils::OpenHandle(*info.Holder()));
+  Object* result = holder->length();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
@@ -191,16 +193,9 @@ void Accessors::ArrayLengthSetter(
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> object = Handle<JSObject>::cast(
-      Utils::OpenHandle(*info.This()));
+  Handle<JSObject> object = Utils::OpenHandle(*info.This());
   Handle<Object> value = Utils::OpenHandle(*val);
-  // This means one of the object's prototypes is a JSArray and the
-  // object does not have a 'length' property.  Calling SetProperty
-  // causes an infinite loop.
-  if (!object->IsJSArray()) {
-    MaybeHandle<Object> maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-        object, isolate->factory()->length_string(), value, NONE);
-    maybe_result.Check();
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) {
     return;
   }
 
@@ -254,16 +249,19 @@ void Accessors::StringLengthGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
-  Object* value = *GetThisFrom(info);
-  Object* result;
-  if (value->IsJSValue()) value = JSValue::cast(value)->value();
-  if (value->IsString()) {
-    result = Smi::FromInt(String::cast(value)->length());
-  } else {
-    // If object is not a string we return 0 to be compatible with WebKit.
-    // Note: Firefox returns the length of ToString(object).
-    result = Smi::FromInt(0);
+
+  // We have a slight impedance mismatch between the external API and the way we
+  // use callbacks internally: Externally, callbacks can only be used with
+  // v8::Object, but internally we have callbacks on entities which are higher
+  // in the hierarchy, in this case for String values.
+
+  Object* value = *Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
+  if (!value->IsString()) {
+    // Not a string value. That means that we either got a String wrapper or
+    // a Value with a String wrapper in its prototype chain.
+    value = JSValue::cast(*Utils::OpenHandle(*info.Holder()))->value();
   }
+  Object* result = Smi::FromInt(String::cast(value)->length());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
@@ -839,21 +837,7 @@ Handle<AccessorInfo> Accessors::ScriptEvalFromFunctionNameInfo(
 //
 
 static Handle<Object> GetFunctionPrototype(Isolate* isolate,
-                                           Handle<Object> receiver) {
-  Handle<JSFunction> function;
-  {
-    DisallowHeapAllocation no_allocation;
-    JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, *receiver);
-    if (function_raw == NULL) return isolate->factory()->undefined_value();
-    while (!function_raw->should_have_prototype()) {
-      PrototypeIterator iter(isolate, function_raw);
-      function_raw = FindInstanceOf<JSFunction>(isolate, iter.GetCurrent());
-      // There has to be one because we hit the getter.
-      ASSERT(function_raw != NULL);
-    }
-    function = Handle<JSFunction>(function_raw, isolate);
-  }
-
+                                           Handle<JSFunction> function) {
   if (!function->has_prototype()) {
     Handle<Object> proto = isolate->factory()->NewFunctionPrototype(function);
     JSFunction::SetPrototype(function, proto);
@@ -863,25 +847,10 @@ static Handle<Object> GetFunctionPrototype(Isolate* isolate,
 
 
 static Handle<Object> SetFunctionPrototype(Isolate* isolate,
-                                           Handle<JSObject> receiver,
+                                           Handle<JSFunction> function,
                                            Handle<Object> value) {
-  Handle<JSFunction> function;
-  {
-    DisallowHeapAllocation no_allocation;
-    JSFunction* function_raw = FindInstanceOf<JSFunction>(isolate, *receiver);
-    if (function_raw == NULL) return isolate->factory()->undefined_value();
-    function = Handle<JSFunction>(function_raw, isolate);
-  }
-
-  if (!function->should_have_prototype()) {
-    // Since we hit this accessor, object will have no prototype property.
-    MaybeHandle<Object> maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(
-        receiver, isolate->factory()->prototype_string(), value, NONE);
-    return maybe_result.ToHandleChecked();
-  }
-
   Handle<Object> old_value;
-  bool is_observed = *function == *receiver && function->map()->is_observed();
+  bool is_observed = function->map()->is_observed();
   if (is_observed) {
     if (function->has_prototype())
       old_value = handle(function->prototype(), isolate);
@@ -919,8 +888,9 @@ void Accessors::FunctionPrototypeGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> object = GetThisFrom(info);
-  Handle<Object> result = GetFunctionPrototype(isolate, object);
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result = GetFunctionPrototype(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -931,10 +901,12 @@ void Accessors::FunctionPrototypeSetter(
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> object =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
   Handle<Object> value = Utils::OpenHandle(*val);
-
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) {
+    return;
+  }
+  Handle<JSFunction> object =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   SetFunctionPrototype(isolate, object, value);
 }
 
@@ -959,29 +931,20 @@ void Accessors::FunctionLengthGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> object = GetThisFrom(info);
-  MaybeHandle<JSFunction> maybe_function;
-
-  {
-    DisallowHeapAllocation no_allocation;
-    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
-    if (function != NULL) maybe_function = Handle<JSFunction>(function);
-  }
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
 
   int length = 0;
-  Handle<JSFunction> function;
-  if (maybe_function.ToHandle(&function)) {
-    if (function->shared()->is_compiled()) {
+  if (function->shared()->is_compiled()) {
+    length = function->shared()->length();
+  } else {
+    // If the function isn't compiled yet, the length is not computed
+    // correctly yet. Compile it now and return the right length.
+    if (Compiler::EnsureCompiled(function, KEEP_EXCEPTION)) {
       length = function->shared()->length();
-    } else {
-      // If the function isn't compiled yet, the length is not computed
-      // correctly yet. Compile it now and return the right length.
-      if (Compiler::EnsureCompiled(function, KEEP_EXCEPTION)) {
-        length = function->shared()->length();
-      }
-      if (isolate->has_pending_exception()) {
-        isolate->OptionalRescheduleException(false);
-      }
+    }
+    if (isolate->has_pending_exception()) {
+      isolate->OptionalRescheduleException(false);
     }
   }
   Handle<Object> result(Smi::FromInt(length), isolate);
@@ -993,7 +956,8 @@ void Accessors::FunctionLengthSetter(
     v8::Local<v8::String> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // Do nothing.
+  // Function length is non writable, non configurable.
+  UNREACHABLE();
 }
 
 
@@ -1017,22 +981,9 @@ void Accessors::FunctionNameGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> object = GetThisFrom(info);
-  MaybeHandle<JSFunction> maybe_function;
-
-  {
-    DisallowHeapAllocation no_allocation;
-    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
-    if (function != NULL) maybe_function = Handle<JSFunction>(function);
-  }
-
-  Handle<JSFunction> function;
-  Handle<Object> result;
-  if (maybe_function.ToHandle(&function)) {
-    result = Handle<Object>(function->shared()->name(), isolate);
-  } else {
-    result = isolate->factory()->undefined_value();
-  }
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result(function->shared()->name(), isolate);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -1041,7 +992,8 @@ void Accessors::FunctionNameSetter(
     v8::Local<v8::String> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // Do nothing.
+  // Function name is non writable, non configurable.
+  UNREACHABLE();
 }
 
 
@@ -1166,22 +1118,9 @@ void Accessors::FunctionArgumentsGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> object = GetThisFrom(info);
-  MaybeHandle<JSFunction> maybe_function;
-
-  {
-    DisallowHeapAllocation no_allocation;
-    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
-    if (function != NULL) maybe_function = Handle<JSFunction>(function);
-  }
-
-  Handle<JSFunction> function;
-  Handle<Object> result;
-  if (maybe_function.ToHandle(&function)) {
-    result = GetFunctionArguments(isolate, function);
-  } else {
-    result = isolate->factory()->undefined_value();
-  }
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result = GetFunctionArguments(isolate, function);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -1190,7 +1129,8 @@ void Accessors::FunctionArgumentsSetter(
     v8::Local<v8::String> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // Do nothing.
+  // Function arguments is non writable, non configurable.
+  UNREACHABLE();
 }
 
 
@@ -1321,26 +1261,16 @@ void Accessors::FunctionCallerGetter(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<Object> object = GetThisFrom(info);
-  MaybeHandle<JSFunction> maybe_function;
-  {
-    DisallowHeapAllocation no_allocation;
-    JSFunction* function = FindInstanceOf<JSFunction>(isolate, *object);
-    if (function != NULL) maybe_function = Handle<JSFunction>(function);
-  }
-  Handle<JSFunction> function;
+  Handle<JSFunction> function =
+      Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
-  if (maybe_function.ToHandle(&function)) {
-    MaybeHandle<JSFunction> maybe_caller;
-    maybe_caller = FindCaller(isolate, function);
-    Handle<JSFunction> caller;
-    if (maybe_caller.ToHandle(&caller)) {
-      result = caller;
-    } else {
-      result = isolate->factory()->null_value();
-    }
+  MaybeHandle<JSFunction> maybe_caller;
+  maybe_caller = FindCaller(isolate, function);
+  Handle<JSFunction> caller;
+  if (maybe_caller.ToHandle(&caller)) {
+    result = caller;
   } else {
-    result = isolate->factory()->undefined_value();
+    result = isolate->factory()->null_value();
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
@@ -1350,7 +1280,8 @@ void Accessors::FunctionCallerSetter(
     v8::Local<v8::String> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
-  // Do nothing.
+  // Function caller is non writable, non configurable.
+  UNREACHABLE();
 }
 
 

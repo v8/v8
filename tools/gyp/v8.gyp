@@ -443,6 +443,8 @@
         '../../src/full-codegen.h',
         '../../src/func-name-inferrer.cc',
         '../../src/func-name-inferrer.h',
+        '../../src/gc-tracer.cc',
+        '../../src/gc-tracer.h',
         '../../src/gdb-jit.cc',
         '../../src/gdb-jit.h',
         '../../src/global-handles.cc',

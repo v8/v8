@@ -149,6 +149,9 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   // Generate the new code.
   MacroAssembler masm(isolate(), NULL, 256);
 
+  // TODO(yangguo) remove this once the code serializer handles code stubs.
+  if (FLAG_serialize_toplevel) masm.enable_serializer();
+
   {
     // Update the static counter each time a new code stub is generated.
     isolate()->counters()->code_stubs()->Increment();
