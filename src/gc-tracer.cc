@@ -78,8 +78,6 @@ GCTracer::GCTracer(Heap* heap)
 
 void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
                      const char* collector_reason) {
-  if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
-
   previous_ = current_;
   if (current_.type == Event::MARK_COMPACTOR)
     previous_mark_compactor_event_ = current_;
@@ -106,8 +104,6 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
 
 
 void GCTracer::Stop() {
-  if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
-
   current_.end_time = base::OS::TimeCurrentMillis();
   current_.end_object_size = heap_->SizeOfObjects();
   current_.end_memory_size = heap_->isolate()->memory_allocator()->Size();
@@ -121,6 +117,10 @@ void GCTracer::Stop() {
 
   if (current_.type == Event::MARK_COMPACTOR)
     longest_incremental_marking_step_ = 0.0;
+
+  // TODO(ernstm): move the code below out of GCTracer.
+
+  if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
 
   double duration = current_.end_time - current_.start_time;
   double spent_in_mutator = Max(current_.start_time - previous_.end_time, 0.0);
