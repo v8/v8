@@ -4093,7 +4093,8 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
   ASSERT(!object->IsJSProxy());
   ASSERT(!name->AsArrayIndex(&index));
   LookupIterator it(object, name, LookupIterator::CHECK_OWN_REAL);
-  GetPropertyAttributes(&it);
+  Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
+  ASSERT(maybe.has_value);
   ASSERT(!it.IsFound());
   ASSERT(object->map()->is_extensible());
 #endif

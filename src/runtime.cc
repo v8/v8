@@ -5251,7 +5251,8 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   uint32_t index = 0;
   ASSERT(!key->ToArrayIndex(&index));
   LookupIterator it(object, key, LookupIterator::CHECK_OWN_REAL);
-  JSReceiver::GetPropertyAttributes(&it);
+  Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
+  ASSERT(maybe.has_value);
   RUNTIME_ASSERT(!it.IsFound());
 #endif
 
@@ -5282,7 +5283,8 @@ RUNTIME_FUNCTION(Runtime_AddPropertyForTemplate) {
   if (key->IsName()) {
     LookupIterator it(object, Handle<Name>::cast(key),
                       LookupIterator::CHECK_OWN_REAL);
-    JSReceiver::GetPropertyAttributes(&it);
+    Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
+    ASSERT(maybe.has_value);
     duplicate = it.IsFound();
   } else {
     uint32_t index = 0;
