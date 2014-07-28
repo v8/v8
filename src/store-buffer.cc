@@ -505,9 +505,9 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
               }
             }
           } else {
-            if (page->parallel_sweeping() > MemoryChunk::SWEEPING_FINALIZE) {
+            if (!page->SweepingCompleted()) {
               heap_->mark_compact_collector()->SweepInParallel(page, owner);
-              if (page->parallel_sweeping() > MemoryChunk::SWEEPING_FINALIZE) {
+              if (!page->SweepingCompleted()) {
                 // We were not able to sweep that page, i.e., a concurrent
                 // sweeper thread currently owns this page.
                 // TODO(hpayer): This may introduce a huge pause here. We

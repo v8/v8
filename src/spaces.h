@@ -478,6 +478,8 @@ class MemoryChunk {
             SWEEPING_PENDING;
   }
 
+  bool SweepingCompleted() { return parallel_sweeping() <= SWEEPING_FINALIZE; }
+
   // Manage live byte count (count of bytes known to be live,
   // because they are marked black).
   void ResetLiveBytes() {

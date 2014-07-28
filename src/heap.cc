@@ -3302,8 +3302,7 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
   // for concurrent sweeping. The WasSwept predicate for concurrently swept
   // pages is set after sweeping all pages.
   return (!is_in_old_pointer_space && !is_in_old_data_space) ||
-         page->WasSwept() ||
-         (page->parallel_sweeping() <= MemoryChunk::SWEEPING_FINALIZE);
+         page->WasSwept() || page->SweepingCompleted();
 }
 
 
