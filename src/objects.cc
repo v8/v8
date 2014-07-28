@@ -6636,7 +6636,12 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   if (is_observed) {
     if (is_element) {
       Maybe<bool> maybe = HasOwnElement(object, index);
-      ASSERT(maybe.has_value);
+      // Workaround for a GCC 4.4.3 bug which leads to "‘preexists’ may be used
+      // uninitialized in this function".
+      if (!maybe.has_value) {
+        ASSERT(false);
+        return isolate->factory()->undefined_value();
+      }
       preexists = maybe.value;
       if (preexists && GetOwnElementAccessorPair(object, index).is_null()) {
         old_value =
