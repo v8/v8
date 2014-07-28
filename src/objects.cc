@@ -4584,12 +4584,14 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = map->instance_size() - new_instance_size;
   ASSERT(instance_size_delta >= 0);
-  Heap* heap = isolate->heap();
-  heap->CreateFillerObjectAt(object->address() + new_instance_size,
-                             instance_size_delta);
-  heap->AdjustLiveBytes(object->address(),
-                        -instance_size_delta,
-                        Heap::FROM_MUTATOR);
+
+  if (instance_size_delta > 0) {
+    Heap* heap = isolate->heap();
+    heap->CreateFillerObjectAt(object->address() + new_instance_size,
+                               instance_size_delta);
+    heap->AdjustLiveBytes(object->address(), -instance_size_delta,
+                          Heap::FROM_MUTATOR);
+  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.

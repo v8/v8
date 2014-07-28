@@ -1796,8 +1796,8 @@ void Factory::ReinitializeJSReceiver(Handle<JSReceiver> object,
 
   // Put in filler if the new object is smaller than the old.
   if (size_difference > 0) {
-    Address address = object->address() + map->instance_size();
-    heap->CreateFillerObjectAt(address, size_difference);
+    Address address = object->address();
+    heap->CreateFillerObjectAt(address + map->instance_size(), size_difference);
     heap->AdjustLiveBytes(address, -size_difference, Heap::FROM_MUTATOR);
   }
 
