@@ -4227,9 +4227,6 @@ void Heap::MakeHeapIterable() {
 
 
 void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
-  HistogramTimerScope idle_notification_scope(
-      isolate_->counters()->gc_incremental_marking());
-
   incremental_marking()->Step(step_size,
                               IncrementalMarking::NO_GC_VIA_STACK_GUARD);
 
