@@ -355,6 +355,7 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
   Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()));
   global_proxy->set_native_context(*factory->null_value());
   SetObjectPrototype(global_proxy, factory->null_value());
+  global_proxy->map()->set_constructor(*factory->null_value());
 }
 
 
