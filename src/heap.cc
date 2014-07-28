@@ -54,8 +54,7 @@ Heap::Heap()
       isolate_(NULL),
       code_range_size_(0),
       // semispace_size_ should be a power of 2 and old_generation_size_ should
-      // be
-      // a multiple of Page::kPageSize.
+      // be a multiple of Page::kPageSize.
       reserved_semispace_size_(8 * (kPointerSize / 4) * MB),
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
       initial_semispace_size_(Page::kPageSize),
@@ -4268,6 +4267,7 @@ bool Heap::IdleNotification(int hint) {
   intptr_t step_size =
       size_factor * IncrementalMarking::kAllocatedThreshold;
 
+  isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(hint);
   HistogramTimerScope idle_notification_scope(
       isolate_->counters()->gc_idle_notification());
 
