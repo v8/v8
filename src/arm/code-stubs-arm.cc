@@ -1845,20 +1845,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
   Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
 
-  ASSERT(kind() == Code::LOAD_IC ||
-         kind() == Code::KEYED_LOAD_IC);
-
-  if (kind() == Code::KEYED_LOAD_IC) {
-    __ cmp(name, Operand(isolate()->factory()->prototype_string()));
-    __ b(ne, &miss);
-  }
-
-  StubCompiler::GenerateLoadFunctionPrototype(masm, receiver, r3, r4, &miss);
+  NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, r3,
+                                                          r4, &miss);
   __ bind(&miss);
-  StubCompiler::TailCallBuiltin(
-      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
 }
 
 

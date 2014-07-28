@@ -1905,7 +1905,11 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
     i::HandleScope scope(isolate_);
     i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
     i::Handle<i::String> name = isolate_->factory()->stack_string();
-    if (!i::JSReceiver::HasProperty(obj, name)) return v8::Local<Value>();
+    EXCEPTION_PREAMBLE(isolate_);
+    Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
+    has_pending_exception = !maybe.has_value;
+    EXCEPTION_BAILOUT_CHECK(isolate_, v8::Local<Value>());
+    if (!maybe.value) return v8::Local<Value>();
     i::Handle<i::Object> value;
     if (!i::Object::GetProperty(obj, name).ToHandle(&value)) {
       return v8::Local<Value>();
@@ -3139,10 +3143,13 @@ PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
     EXCEPTION_BAILOUT_CHECK(isolate, static_cast<PropertyAttribute>(NONE));
   }
   i::Handle<i::Name> key_name = i::Handle<i::Name>::cast(key_obj);
-  PropertyAttributes result =
+  EXCEPTION_PREAMBLE(isolate);
+  Maybe<PropertyAttributes> result =
       i::JSReceiver::GetPropertyAttributes(self, key_name);
-  if (result == ABSENT) return static_cast<PropertyAttribute>(NONE);
-  return static_cast<PropertyAttribute>(result);
+  has_pending_exception = !result.has_value;
+  EXCEPTION_BAILOUT_CHECK(isolate, static_cast<PropertyAttribute>(NONE));
+  if (result.value == ABSENT) return static_cast<PropertyAttribute>(NONE);
+  return static_cast<PropertyAttribute>(result.value);
 }
 
 
@@ -3399,7 +3406,11 @@ bool v8::Object::Has(uint32_t index) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasProperty()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return i::JSReceiver::HasElement(self, index);
+  EXCEPTION_PREAMBLE(isolate);
+  Maybe<bool> maybe = i::JSReceiver::HasElement(self, index);
+  has_pending_exception = !maybe.has_value;
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return maybe.value;
 }
 
 
@@ -3478,8 +3489,12 @@ bool v8::Object::HasOwnProperty(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasOwnProperty()",
              return false);
-  return i::JSReceiver::HasOwnProperty(
-      Utils::OpenHandle(this), Utils::OpenHandle(*key));
+  EXCEPTION_PREAMBLE(isolate);
+  Maybe<bool> maybe = i::JSReceiver::HasOwnProperty(Utils::OpenHandle(this),
+                                                    Utils::OpenHandle(*key));
+  has_pending_exception = !maybe.has_value;
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return maybe.value;
 }
 
 
@@ -3487,8 +3502,12 @@ bool v8::Object::HasRealNamedProperty(Handle<String> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasRealNamedProperty()",
              return false);
-  return i::JSObject::HasRealNamedProperty(Utils::OpenHandle(this),
-                                           Utils::OpenHandle(*key));
+  EXCEPTION_PREAMBLE(isolate);
+  Maybe<bool> maybe = i::JSObject::HasRealNamedProperty(
+      Utils::OpenHandle(this), Utils::OpenHandle(*key));
+  has_pending_exception = !maybe.has_value;
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return maybe.value;
 }
 
 
@@ -3496,7 +3515,12 @@ bool v8::Object::HasRealIndexedProperty(uint32_t index) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::HasRealIndexedProperty()",
              return false);
-  return i::JSObject::HasRealElementProperty(Utils::OpenHandle(this), index);
+  EXCEPTION_PREAMBLE(isolate);
+  Maybe<bool> maybe =
+      i::JSObject::HasRealElementProperty(Utils::OpenHandle(this), index);
+  has_pending_exception = !maybe.has_value;
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return maybe.value;
 }
 
 
@@ -3506,8 +3530,12 @@ bool v8::Object::HasRealNamedCallbackProperty(Handle<String> key) {
              "v8::Object::HasRealNamedCallbackProperty()",
              return false);
   ENTER_V8(isolate);
-  return i::JSObject::HasRealNamedCallbackProperty(Utils::OpenHandle(this),
-                                                   Utils::OpenHandle(*key));
+  EXCEPTION_PREAMBLE(isolate);
+  Maybe<bool> maybe = i::JSObject::HasRealNamedCallbackProperty(
+      Utils::OpenHandle(this), Utils::OpenHandle(*key));
+  has_pending_exception = !maybe.has_value;
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
+  return maybe.value;
 }
 
 

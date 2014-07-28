@@ -885,22 +885,14 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- edx    : receiver
-  //  -- esp[0] : return address
-  // -----------------------------------
   Label miss;
+  Register receiver = LoadIC::ReceiverRegister();
 
-  if (kind() == Code::KEYED_LOAD_IC) {
-    __ cmp(ecx, Immediate(isolate()->factory()->prototype_string()));
-    __ j(not_equal, &miss);
-  }
-
-  StubCompiler::GenerateLoadFunctionPrototype(masm, edx, eax, ebx, &miss);
+  NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, eax,
+                                                          ebx, &miss);
   __ bind(&miss);
-  StubCompiler::TailCallBuiltin(
-      masm, BaseLoadStoreStubCompiler::MissBuiltin(kind()));
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
 }
 
 

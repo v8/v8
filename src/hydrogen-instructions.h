@@ -6972,19 +6972,28 @@ class HStoreKeyed V8_FINAL
     }
 
     ASSERT_EQ(index, 2);
-    if (IsDoubleOrFloatElementsKind(elements_kind())) {
+    return RequiredValueRepresentation(elements_kind_, store_mode_);
+  }
+
+  static Representation RequiredValueRepresentation(
+      ElementsKind kind, StoreFieldOrKeyedMode mode) {
+    if (IsDoubleOrFloatElementsKind(kind)) {
       return Representation::Double();
     }
-    if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
+
+    if (kind == FAST_SMI_ELEMENTS && SmiValuesAre32Bits() &&
+        mode == STORE_TO_INITIALIZED_ENTRY) {
       return Representation::Integer32();
     }
-    if (IsFastSmiElementsKind(elements_kind())) {
+
+    if (IsFastSmiElementsKind(kind)) {
       return Representation::Smi();
     }
 
-    return is_external() || is_fixed_typed_array()
-        ? Representation::Integer32()
-        : Representation::Tagged();
+    return IsExternalArrayElementsKind(kind) ||
+                   IsFixedTypedArrayElementsKind(kind)
+               ? Representation::Integer32()
+               : Representation::Tagged();
   }
 
   bool is_external() const {
@@ -7004,20 +7013,10 @@ class HStoreKeyed V8_FINAL
     if (IsUninitialized()) {
       return Representation::None();
     }
-    if (IsDoubleOrFloatElementsKind(elements_kind())) {
-      return Representation::Double();
-    }
-    if (SmiValuesAre32Bits() && store_mode_ == STORE_TO_INITIALIZED_ENTRY) {
-      return Representation::Integer32();
-    }
-    if (IsFastSmiElementsKind(elements_kind())) {
-      return Representation::Smi();
-    }
-    if (is_typed_elements()) {
-      return Representation::Integer32();
-    }
+    Representation r = RequiredValueRepresentation(elements_kind_, store_mode_);
     // For fast object elements kinds, don't assume anything.
-    return Representation::None();
+    if (r.IsTagged()) return Representation::None();
+    return r;
   }
 
   HValue* elements() const { return OperandAt(0); }
@@ -7087,9 +7086,6 @@ class HStoreKeyed V8_FINAL
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
-
-    ASSERT(store_mode != STORE_TO_INITIALIZED_ENTRY ||
-           elements_kind == FAST_SMI_ELEMENTS);
 
     if (IsFastObjectElementsKind(elements_kind)) {
       SetFlag(kTrackSideEffectDominators);

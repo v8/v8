@@ -1,3 +1,8 @@
+2014-07-28: Version 3.28.43
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-25: Version 3.28.38
 
         Fix issue with setters and their holders in accessors.cc (Chromium issue

@@ -236,6 +236,8 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
     case UninitializedMajorKey: return "<UninitializedMajorKey>Stub";
+    case NoCache:
+      return "<NoCache>Stub";
     default:
       if (!allow_unknown_keys) {
         UNREACHABLE();
@@ -671,7 +673,7 @@ void StoreGlobalStub::InitializeInterfaceDescriptor(
 
 void KeyedLoadDictionaryElementPlatformStub::Generate(
     MacroAssembler* masm) {
-  KeyedLoadStubCompiler::GenerateLoadDictionaryElement(masm);
+  IndexedHandlerCompiler::GenerateLoadDictionaryElement(masm);
 }
 
 
@@ -698,7 +700,7 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
       UNREACHABLE();
       break;
     case DICTIONARY_ELEMENTS:
-      KeyedStoreStubCompiler::GenerateStoreDictionaryElement(masm);
+      IndexedHandlerCompiler::GenerateStoreDictionaryElement(masm);
       break;
     case SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();

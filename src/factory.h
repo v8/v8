@@ -392,10 +392,8 @@ class Factory V8_FINAL {
   // Create a JSArray with a specified length and elements initialized
   // according to the specified mode.
   Handle<JSArray> NewJSArray(
-      ElementsKind elements_kind,
-      int length,
-      int capacity,
-      ArrayStorageAllocationMode mode = INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
+      ElementsKind elements_kind, int length, int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArray(

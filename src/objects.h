@@ -1960,10 +1960,14 @@ class JSReceiver: public HeapObject {
       StrictMode strict_mode);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
-  static inline bool HasProperty(Handle<JSReceiver> object, Handle<Name> name);
-  static inline bool HasOwnProperty(Handle<JSReceiver>, Handle<Name> name);
-  static inline bool HasElement(Handle<JSReceiver> object, uint32_t index);
-  static inline bool HasOwnElement(Handle<JSReceiver> object, uint32_t index);
+  MUST_USE_RESULT static inline Maybe<bool> HasProperty(
+      Handle<JSReceiver> object, Handle<Name> name);
+  MUST_USE_RESULT static inline Maybe<bool> HasOwnProperty(Handle<JSReceiver>,
+                                                           Handle<Name> name);
+  MUST_USE_RESULT static inline Maybe<bool> HasElement(
+      Handle<JSReceiver> object, uint32_t index);
+  MUST_USE_RESULT static inline Maybe<bool> HasOwnElement(
+      Handle<JSReceiver> object, uint32_t index);
 
   // Implementation of [[Delete]], ECMA-262 5th edition, section 8.12.7.
   MUST_USE_RESULT static MaybeHandle<Object> DeleteProperty(
@@ -1985,20 +1989,17 @@ class JSReceiver: public HeapObject {
   // function that was used to instantiate the object).
   String* constructor_name();
 
-  static inline PropertyAttributes GetPropertyAttributes(
-      Handle<JSReceiver> object,
-      Handle<Name> name);
-  static PropertyAttributes GetPropertyAttributes(LookupIterator* it);
-  static PropertyAttributes GetOwnPropertyAttributes(
-      Handle<JSReceiver> object,
-      Handle<Name> name);
+  MUST_USE_RESULT static inline Maybe<PropertyAttributes> GetPropertyAttributes(
+      Handle<JSReceiver> object, Handle<Name> name);
+  MUST_USE_RESULT static Maybe<PropertyAttributes> GetPropertyAttributes(
+      LookupIterator* it);
+  MUST_USE_RESULT static Maybe<PropertyAttributes> GetOwnPropertyAttributes(
+      Handle<JSReceiver> object, Handle<Name> name);
 
-  static inline PropertyAttributes GetElementAttribute(
-      Handle<JSReceiver> object,
-      uint32_t index);
-  static inline PropertyAttributes GetOwnElementAttribute(
-      Handle<JSReceiver> object,
-      uint32_t index);
+  MUST_USE_RESULT static inline Maybe<PropertyAttributes> GetElementAttribute(
+      Handle<JSReceiver> object, uint32_t index);
+  MUST_USE_RESULT static inline Maybe<PropertyAttributes>
+      GetOwnElementAttribute(Handle<JSReceiver> object, uint32_t index);
 
   // Return the constructor function (may be Heap::null_value()).
   inline Object* GetConstructor();
@@ -2198,17 +2199,16 @@ class JSObject: public JSReceiver {
   InterceptorInfo* GetIndexedInterceptor();
 
   // Used from JSReceiver.
-  static Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptor(
-      Handle<JSObject> holder,
-      Handle<Object> receiver,
-      Handle<Name> name);
-  static PropertyAttributes GetPropertyAttributesWithFailedAccessCheck(
-      LookupIterator* it);
-  static PropertyAttributes GetElementAttributeWithReceiver(
-      Handle<JSObject> object,
-      Handle<JSReceiver> receiver,
-      uint32_t index,
-      bool check_prototype);
+  MUST_USE_RESULT static Maybe<PropertyAttributes>
+      GetPropertyAttributesWithInterceptor(Handle<JSObject> holder,
+                                           Handle<Object> receiver,
+                                           Handle<Name> name);
+  MUST_USE_RESULT static Maybe<PropertyAttributes>
+      GetPropertyAttributesWithFailedAccessCheck(LookupIterator* it);
+  MUST_USE_RESULT static Maybe<PropertyAttributes>
+      GetElementAttributeWithReceiver(Handle<JSObject> object,
+                                      Handle<JSReceiver> receiver,
+                                      uint32_t index, bool check_prototype);
 
   // Retrieves an AccessorPair property from the given object. Might return
   // undefined if the property doesn't exist or is of a different kind.
@@ -2218,13 +2218,12 @@ class JSObject: public JSReceiver {
       AccessorComponent component);
 
   // Defines an AccessorPair property on the given object.
-  // TODO(mstarzinger): Rename to SetAccessor() and return empty handle on
-  // exception instead of letting callers check for scheduled exception.
-  static void DefineAccessor(Handle<JSObject> object,
-                             Handle<Name> name,
-                             Handle<Object> getter,
-                             Handle<Object> setter,
-                             PropertyAttributes attributes);
+  // TODO(mstarzinger): Rename to SetAccessor().
+  static MaybeHandle<Object> DefineAccessor(Handle<JSObject> object,
+                                            Handle<Name> name,
+                                            Handle<Object> getter,
+                                            Handle<Object> setter,
+                                            PropertyAttributes attributes);
 
   // Defines an AccessorInfo property on the given object.
   MUST_USE_RESULT static MaybeHandle<Object> SetAccessor(
@@ -2381,11 +2380,12 @@ class JSObject: public JSReceiver {
       Handle<JSReceiver> receiver);
 
   // Support functions for v8 api (needed for correct interceptor behavior).
-  static bool HasRealNamedProperty(Handle<JSObject> object,
-                                   Handle<Name> key);
-  static bool HasRealElementProperty(Handle<JSObject> object, uint32_t index);
-  static bool HasRealNamedCallbackProperty(Handle<JSObject> object,
-                                           Handle<Name> key);
+  MUST_USE_RESULT static Maybe<bool> HasRealNamedProperty(
+      Handle<JSObject> object, Handle<Name> key);
+  MUST_USE_RESULT static Maybe<bool> HasRealElementProperty(
+      Handle<JSObject> object, uint32_t index);
+  MUST_USE_RESULT static Maybe<bool> HasRealNamedCallbackProperty(
+      Handle<JSObject> object, Handle<Name> key);
 
   // Get the header size for a JSObject.  Used to compute the index of
   // internal fields as well as the number of internal fields.
@@ -2658,16 +2658,15 @@ class JSObject: public JSReceiver {
       uint32_t index,
       Handle<Object> holder);
 
-  static PropertyAttributes GetElementAttributeWithInterceptor(
-      Handle<JSObject> object,
-      Handle<JSReceiver> receiver,
-      uint32_t index,
-      bool continue_search);
-  static PropertyAttributes GetElementAttributeWithoutInterceptor(
-      Handle<JSObject> object,
-      Handle<JSReceiver> receiver,
-      uint32_t index,
-      bool continue_search);
+  MUST_USE_RESULT static Maybe<PropertyAttributes>
+      GetElementAttributeWithInterceptor(Handle<JSObject> object,
+                                         Handle<JSReceiver> receiver,
+                                         uint32_t index, bool continue_search);
+  MUST_USE_RESULT static Maybe<PropertyAttributes>
+      GetElementAttributeWithoutInterceptor(Handle<JSObject> object,
+                                            Handle<JSReceiver> receiver,
+                                            uint32_t index,
+                                            bool continue_search);
   MUST_USE_RESULT static MaybeHandle<Object> SetElementWithCallback(
       Handle<JSObject> object,
       Handle<Object> structure,
@@ -9947,14 +9946,14 @@ class JSProxy: public JSReceiver {
       Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
       Handle<Object> value, StrictMode strict_mode, bool* done);
 
-  static PropertyAttributes GetPropertyAttributesWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<Object> receiver,
-      Handle<Name> name);
-  static PropertyAttributes GetElementAttributeWithHandler(
-      Handle<JSProxy> proxy,
-      Handle<JSReceiver> receiver,
-      uint32_t index);
+  MUST_USE_RESULT static Maybe<PropertyAttributes>
+      GetPropertyAttributesWithHandler(Handle<JSProxy> proxy,
+                                       Handle<Object> receiver,
+                                       Handle<Name> name);
+  MUST_USE_RESULT static Maybe<PropertyAttributes>
+      GetElementAttributeWithHandler(Handle<JSProxy> proxy,
+                                     Handle<JSReceiver> receiver,
+                                     uint32_t index);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithHandler(
       Handle<JSProxy> proxy, Handle<Object> receiver, Handle<Name> name,
       Handle<Object> value, StrictMode strict_mode);
@@ -10004,9 +10003,10 @@ class JSProxy: public JSReceiver {
       Handle<Object> value,
       StrictMode strict_mode);
 
-  static bool HasPropertyWithHandler(Handle<JSProxy> proxy, Handle<Name> name);
-  static inline bool HasElementWithHandler(Handle<JSProxy> proxy,
-                                           uint32_t index);
+  MUST_USE_RESULT static Maybe<bool> HasPropertyWithHandler(
+      Handle<JSProxy> proxy, Handle<Name> name);
+  MUST_USE_RESULT static inline Maybe<bool> HasElementWithHandler(
+      Handle<JSProxy> proxy, uint32_t index);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithHandler(
       Handle<JSProxy> proxy,

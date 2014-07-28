@@ -106,15 +106,18 @@ Handle<Object> Context::Lookup(Handle<String> name,
       // Context extension objects needs to behave as if they have no
       // prototype.  So even if we want to follow prototype chains, we need
       // to only do a local lookup for context extension objects.
+      Maybe<PropertyAttributes> maybe;
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
-        *attributes = JSReceiver::GetOwnPropertyAttributes(object, name);
+        maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
       } else {
-        *attributes = JSReceiver::GetPropertyAttributes(object, name);
+        maybe = JSReceiver::GetPropertyAttributes(object, name);
       }
-      if (isolate->has_pending_exception()) return Handle<Object>();
+      if (!maybe.has_value) return Handle<Object>();
+      ASSERT(!isolate->has_pending_exception());
+      *attributes = maybe.value;
 
-      if (*attributes != ABSENT) {
+      if (maybe.value != ABSENT) {
         if (FLAG_trace_contexts) {
           PrintF("=> found property in context object %p\n",
                  reinterpret_cast<void*>(*object));

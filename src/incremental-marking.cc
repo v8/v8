@@ -866,12 +866,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
 
   bytes_scanned_ += bytes_to_process;
 
-  double start = 0;
-
-  if (FLAG_trace_incremental_marking || FLAG_trace_gc ||
-      FLAG_print_cumulative_gc_stat) {
-    start = base::OS::TimeCurrentMillis();
-  }
+  double start = base::OS::TimeCurrentMillis();
 
   if (state_ == SWEEPING) {
     if (heap_->mark_compact_collector()->sweeping_in_progress() &&
@@ -952,13 +947,10 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
     }
   }
 
-  if (FLAG_trace_incremental_marking || FLAG_trace_gc ||
-      FLAG_print_cumulative_gc_stat) {
-    double end = base::OS::TimeCurrentMillis();
-    double delta = (end - start);
-    heap_->tracer()->AddIncrementalMarkingStep(delta);
-    heap_->AddMarkingTime(delta);
-  }
+  double end = base::OS::TimeCurrentMillis();
+  double delta = (end - start);
+  heap_->tracer()->AddIncrementalMarkingStep(delta);
+  heap_->AddMarkingTime(delta);
 }
 
 
