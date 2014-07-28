@@ -4441,6 +4441,58 @@ TEST(PromotionQueue) {
 }
 
 
+TEST(Regress388880) {
+  i::FLAG_expose_gc = true;
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+
+  Handle<Map> map1 = Map::Create(isolate->object_function(), 1);
+  Handle<Map> map2 =
+      Map::CopyWithField(map1, factory->NewStringFromStaticAscii("foo"),
+                         HeapType::Any(isolate), NONE, Representation::Tagged(),
+                         OMIT_TRANSITION).ToHandleChecked();
+
+  int desired_offset = Page::kPageSize - map1->instance_size();
+
+  // Allocate fixed array in old pointer space so, that object allocated
+  // afterwards would end at the end of the page.
+  {
+    SimulateFullSpace(heap->old_pointer_space());
+    int padding_size = desired_offset - Page::kObjectStartOffset;
+    int padding_array_length =
+        (padding_size - FixedArray::kHeaderSize) / kPointerSize;
+
+    Handle<FixedArray> temp2 =
+        factory->NewFixedArray(padding_array_length, TENURED);
+    Page* page = Page::FromAddress(temp2->address());
+    CHECK_EQ(Page::kObjectStartOffset, page->Offset(temp2->address()));
+  }
+
+  Handle<JSObject> o = factory->NewJSObjectFromMap(map1, TENURED, false);
+  o->set_properties(*factory->empty_fixed_array());
+
+  // Ensure that the object allocated where we need it.
+  Page* page = Page::FromAddress(o->address());
+  CHECK_EQ(desired_offset, page->Offset(o->address()));
+
+  // Now we have an object right at the end of the page.
+
+  // Enable incremental marking to trigger actions in Heap::AdjustLiveBytes()
+  // that would cause crash.
+  IncrementalMarking* marking = CcTest::heap()->incremental_marking();
+  marking->Abort();
+  marking->Start();
+  CHECK(marking->IsMarking());
+
+  // Now everything is set up for crashing in JSObject::MigrateFastToFast()
+  // when it calls heap->AdjustLiveBytes(...).
+  JSObject::MigrateToMap(o, map2);
+}
+
+
 #ifdef DEBUG
 TEST(PathTracer) {
   CcTest::InitializeVM();
