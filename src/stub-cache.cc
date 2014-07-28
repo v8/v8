@@ -195,13 +195,11 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   }
   // Compile the stub that is either shared for all names or
   // name specific if there are global objects involved.
-  Code::Kind handler_kind = Code::LOAD_IC;
   Handle<Code> handler = PropertyHandlerCompiler::Find(
-      cache_name, stub_holder_map, handler_kind, flag, Code::FAST);
+      cache_name, stub_holder_map, Code::LOAD_IC, flag, Code::FAST);
   if (!handler.is_null()) return handler;
 
-  NamedLoadHandlerCompiler compiler(isolate_, handler_kind, kNoExtraICState,
-                                    flag);
+  NamedLoadHandlerCompiler compiler(isolate_, flag);
   handler = compiler.CompileLoadNonexistent(type, last, cache_name);
   Map::UpdateCodeCache(stub_holder_map, cache_name, handler);
   return handler;
@@ -1137,7 +1135,7 @@ Handle<Code> PropertyICCompiler::GetCode(Code::Kind kind, Code::StubType type,
                                          Handle<Name> name,
                                          InlineCacheState state) {
   Code::Flags flags =
-      Code::ComputeFlags(kind, state, extra_state(), type, cache_holder());
+      Code::ComputeFlags(kind, state, extra_ic_state_, type, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
   IC::RegisterWeakMapDependency(code);
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, *name));
@@ -1148,7 +1146,6 @@ Handle<Code> PropertyICCompiler::GetCode(Code::Kind kind, Code::StubType type,
 Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
                                               Code::StubType type,
                                               Handle<Name> name) {
-  ASSERT_EQ(kNoExtraICState, extra_state());
   Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder());
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, *name));

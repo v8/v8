@@ -289,18 +289,15 @@ class PropertyAccessCompiler BASE_EMBEDDED {
 
  protected:
   PropertyAccessCompiler(Isolate* isolate, Code::Kind kind,
-                         ExtraICState extra_ic_state,
                          CacheHolderFlag cache_holder)
       : registers_(GetCallingConvention(kind)),
         kind_(kind),
         cache_holder_(cache_holder),
         isolate_(isolate),
-        extra_ic_state_(extra_ic_state),
         masm_(isolate, NULL, 256) {}
 
   Code::Kind kind() const { return kind_; }
   CacheHolderFlag cache_holder() const { return cache_holder_; }
-  ExtraICState extra_state() const { return extra_ic_state_; }
   MacroAssembler* masm() { return &masm_; }
   Isolate* isolate() const { return isolate_; }
   Heap* heap() const { return isolate()->heap(); }
@@ -332,7 +329,6 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   CacheHolderFlag cache_holder_;
 
   Isolate* isolate_;
-  const ExtraICState extra_ic_state_;
   MacroAssembler masm_;
 };
 
@@ -342,11 +338,12 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   PropertyICCompiler(Isolate* isolate, Code::Kind kind,
                      ExtraICState extra_ic_state = kNoExtraICState,
                      CacheHolderFlag cache_holder = kCacheOnReceiver)
-      : PropertyAccessCompiler(isolate, kind, extra_ic_state, cache_holder) {}
+      : PropertyAccessCompiler(isolate, kind, cache_holder),
+        extra_ic_state_(extra_ic_state) {}
 
   static Handle<Code> Find(Handle<Name> name, Handle<Map> stub_holder_map,
                            Code::Kind kind,
-                           ExtraICState extra_state = kNoExtraICState,
+                           ExtraICState extra_ic_state = kNoExtraICState,
                            CacheHolderFlag cache_holder = kCacheOnReceiver);
 
   Handle<Code> CompileLoadInitialize(Code::Flags flags);
@@ -397,6 +394,7 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   Handle<Code> CompileIndexedStorePolymorphic(MapHandleList* receiver_maps,
                                               CodeHandleList* handler_stubs,
                                               MapHandleList* transitioned_maps);
+  const ExtraICState extra_ic_state_;
 };
 
 
@@ -407,9 +405,8 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 
  protected:
   PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind,
-                          ExtraICState extra_ic_state,
                           CacheHolderFlag cache_holder)
-      : PropertyAccessCompiler(isolate, kind, extra_ic_state, cache_holder) {}
+      : PropertyAccessCompiler(isolate, kind, cache_holder) {}
 
   virtual ~PropertyHandlerCompiler() {}
 
@@ -481,10 +478,9 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 
 class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  NamedLoadHandlerCompiler(Isolate* isolate, Code::Kind kind = Code::LOAD_IC,
-                           ExtraICState extra_ic_state = kNoExtraICState,
+  NamedLoadHandlerCompiler(Isolate* isolate,
                            CacheHolderFlag cache_holder = kCacheOnReceiver)
-      : PropertyHandlerCompiler(isolate, kind, extra_ic_state, cache_holder) {}
+      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, cache_holder) {}
 
   virtual ~NamedLoadHandlerCompiler() {}
 
@@ -594,10 +590,8 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
 class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  NamedStoreHandlerCompiler(Isolate* isolate, Code::Kind kind = Code::STORE_IC)
-      // Handlers do not use strict mode.
-      : PropertyHandlerCompiler(isolate, kind, kNoExtraICState,
-                                kCacheOnReceiver) {}
+  explicit NamedStoreHandlerCompiler(Isolate* isolate)
+      : PropertyHandlerCompiler(isolate, Code::STORE_IC, kCacheOnReceiver) {}
 
   virtual ~NamedStoreHandlerCompiler() {}
 
@@ -696,9 +690,8 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
 class IndexedHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  IndexedHandlerCompiler(Isolate* isolate,
-                         ExtraICState extra_ic_state = kNoExtraICState)
-      : PropertyHandlerCompiler(isolate, Code::KEYED_LOAD_IC, extra_ic_state,
+  explicit IndexedHandlerCompiler(Isolate* isolate)
+      : PropertyHandlerCompiler(isolate, Code::KEYED_LOAD_IC,
                                 kCacheOnReceiver) {}
 
   virtual ~IndexedHandlerCompiler() {}
