@@ -955,9 +955,9 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
     }
 
     double end = base::OS::TimeCurrentMillis();
-    double delta = (end - start);
-    heap_->tracer()->AddIncrementalMarkingStep(delta);
-    heap_->AddMarkingTime(delta);
+    double duration = (end - start);
+    heap_->tracer()->AddIncrementalMarkingStep(duration, allocated_bytes);
+    heap_->AddMarkingTime(duration);
   }
 }
 
