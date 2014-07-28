@@ -280,7 +280,8 @@ void GCTracer::PrintNVP() const {
     PrintF("steps_count=%d ", current_.incremental_marking_steps);
     PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
     PrintF("longest_step=%.1f ", current_.longest_incremental_marking_step);
-    PrintF("marking_throughput=%d\n", MarkingSpeedInBytesPerMillisecond());
+    PrintF("marking_throughput=%" V8_PTR_PREFIX "d ",
+           MarkingSpeedInBytesPerMillisecond());
   }
 
   PrintF("\n");
