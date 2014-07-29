@@ -79,33 +79,24 @@ namespace internal {
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_ascii_string_map, SlicedAsciiStringMap)                        \
   V(Map, external_string_map, ExternalStringMap)                               \
-  V(Map,                                                                       \
-    external_string_with_one_byte_data_map,                                    \
+  V(Map, external_string_with_one_byte_data_map,                               \
     ExternalStringWithOneByteDataMap)                                          \
   V(Map, external_ascii_string_map, ExternalAsciiStringMap)                    \
   V(Map, short_external_string_map, ShortExternalStringMap)                    \
-  V(Map,                                                                       \
-    short_external_string_with_one_byte_data_map,                              \
+  V(Map, short_external_string_with_one_byte_data_map,                         \
     ShortExternalStringWithOneByteDataMap)                                     \
   V(Map, internalized_string_map, InternalizedStringMap)                       \
   V(Map, ascii_internalized_string_map, AsciiInternalizedStringMap)            \
-  V(Map,                                                                       \
-    external_internalized_string_map,                                          \
-    ExternalInternalizedStringMap)                                             \
-  V(Map,                                                                       \
-    external_internalized_string_with_one_byte_data_map,                       \
+  V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
+  V(Map, external_internalized_string_with_one_byte_data_map,                  \
     ExternalInternalizedStringWithOneByteDataMap)                              \
-  V(Map,                                                                       \
-    external_ascii_internalized_string_map,                                    \
+  V(Map, external_ascii_internalized_string_map,                               \
     ExternalAsciiInternalizedStringMap)                                        \
-  V(Map,                                                                       \
-    short_external_internalized_string_map,                                    \
+  V(Map, short_external_internalized_string_map,                               \
     ShortExternalInternalizedStringMap)                                        \
-  V(Map,                                                                       \
-    short_external_internalized_string_with_one_byte_data_map,                 \
+  V(Map, short_external_internalized_string_with_one_byte_data_map,            \
     ShortExternalInternalizedStringWithOneByteDataMap)                         \
-  V(Map,                                                                       \
-    short_external_ascii_internalized_string_map,                              \
+  V(Map, short_external_ascii_internalized_string_map,                         \
     ShortExternalAsciiInternalizedStringMap)                                   \
   V(Map, short_external_ascii_string_map, ShortExternalAsciiStringMap)         \
   V(Map, undetectable_string_map, UndetectableStringMap)                       \
@@ -119,20 +110,16 @@ namespace internal {
   V(Map, external_float32_array_map, ExternalFloat32ArrayMap)                  \
   V(Map, external_float64_array_map, ExternalFloat64ArrayMap)                  \
   V(Map, external_uint8_clamped_array_map, ExternalUint8ClampedArrayMap)       \
-  V(ExternalArray, empty_external_int8_array,                                  \
-      EmptyExternalInt8Array)                                                  \
-  V(ExternalArray, empty_external_uint8_array,                                 \
-      EmptyExternalUint8Array)                                                 \
+  V(ExternalArray, empty_external_int8_array, EmptyExternalInt8Array)          \
+  V(ExternalArray, empty_external_uint8_array, EmptyExternalUint8Array)        \
   V(ExternalArray, empty_external_int16_array, EmptyExternalInt16Array)        \
-  V(ExternalArray, empty_external_uint16_array,                                \
-      EmptyExternalUint16Array)                                                \
+  V(ExternalArray, empty_external_uint16_array, EmptyExternalUint16Array)      \
   V(ExternalArray, empty_external_int32_array, EmptyExternalInt32Array)        \
-  V(ExternalArray, empty_external_uint32_array,                                \
-      EmptyExternalUint32Array)                                                \
+  V(ExternalArray, empty_external_uint32_array, EmptyExternalUint32Array)      \
   V(ExternalArray, empty_external_float32_array, EmptyExternalFloat32Array)    \
   V(ExternalArray, empty_external_float64_array, EmptyExternalFloat64Array)    \
   V(ExternalArray, empty_external_uint8_clamped_array,                         \
-      EmptyExternalUint8ClampedArray)                                          \
+    EmptyExternalUint8ClampedArray)                                            \
   V(Map, fixed_uint8_array_map, FixedUint8ArrayMap)                            \
   V(Map, fixed_int8_array_map, FixedInt8ArrayMap)                              \
   V(Map, fixed_uint16_array_map, FixedUint16ArrayMap)                          \
@@ -151,7 +138,7 @@ namespace internal {
   V(FixedTypedArrayBase, empty_fixed_float32_array, EmptyFixedFloat32Array)    \
   V(FixedTypedArrayBase, empty_fixed_float64_array, EmptyFixedFloat64Array)    \
   V(FixedTypedArrayBase, empty_fixed_uint8_clamped_array,                      \
-      EmptyFixedUint8ClampedArray)                                             \
+    EmptyFixedUint8ClampedArray)                                               \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, catch_context_map, CatchContextMap)                                   \
@@ -191,12 +178,13 @@ namespace internal {
   V(Symbol, nonexistent_symbol, NonExistentSymbol)                             \
   V(Symbol, elements_transition_symbol, ElementsTransitionSymbol)              \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
-      EmptySlowElementDictionary)                                              \
+    EmptySlowElementDictionary)                                                \
   V(Symbol, observed_symbol, ObservedSymbol)                                   \
   V(Symbol, uninitialized_symbol, UninitializedSymbol)                         \
   V(Symbol, megamorphic_symbol, MegamorphicSymbol)                             \
   V(Symbol, stack_trace_symbol, StackTraceSymbol)                              \
   V(Symbol, detailed_stack_trace_symbol, DetailedStackTraceSymbol)             \
+  V(Symbol, normal_ic_symbol, NormalICSymbol)                                  \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(FixedArray, microtask_queue, MicrotaskQueue)

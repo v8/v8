@@ -132,8 +132,13 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
 Handle<Code> PropertyICCompiler::ComputeMonomorphic(
     Code::Kind kind, Handle<Name> name, Handle<HeapType> type,
     Handle<Code> handler, ExtraICState extra_ic_state) {
-  CacheHolderFlag flag;
   Isolate* isolate = name->GetIsolate();
+  if (handler.is_identical_to(isolate->builtins()->LoadIC_Normal()) ||
+      handler.is_identical_to(isolate->builtins()->StoreIC_Normal())) {
+    name = isolate->factory()->normal_ic_symbol();
+  }
+
+  CacheHolderFlag flag;
   Handle<Map> stub_holder = IC::GetICCacheHolder(*type, isolate, &flag);
 
   Handle<Code> ic;
