@@ -52,7 +52,7 @@ namespace internal {
   V(DoubleToI)                              \
   V(CEntry)                                 \
   V(JSEntry)                                \
-  V(KeyedLoadElement)                       \
+  V(LoadElement)                            \
   V(KeyedLoadGeneric)                       \
   V(ArrayNoArgumentConstructor)             \
   V(ArraySingleArgumentConstructor)         \
@@ -60,7 +60,7 @@ namespace internal {
   V(InternalArrayNoArgumentConstructor)     \
   V(InternalArraySingleArgumentConstructor) \
   V(InternalArrayNArgumentsConstructor)     \
-  V(KeyedStoreElement)                      \
+  V(StoreElement)                           \
   V(DebuggerStatement)                      \
   V(NameDictionaryLookup)                   \
   V(ElementsTransitionAndStore)             \
@@ -1843,9 +1843,9 @@ class StringCharAtGenerator {
 };
 
 
-class KeyedLoadDictionaryElementStub : public HydrogenCodeStub {
+class LoadDictionaryElementStub : public HydrogenCodeStub {
  public:
-  explicit KeyedLoadDictionaryElementStub(Isolate* isolate)
+  explicit LoadDictionaryElementStub(Isolate* isolate)
       : HydrogenCodeStub(isolate) {}
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
@@ -1854,32 +1854,31 @@ class KeyedLoadDictionaryElementStub : public HydrogenCodeStub {
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
 
  private:
-  Major MajorKey() const { return KeyedLoadElement; }
+  Major MajorKey() const { return LoadElement; }
   int NotMissMinorKey() const { return DICTIONARY_ELEMENTS; }
 
-  DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementStub);
+  DISALLOW_COPY_AND_ASSIGN(LoadDictionaryElementStub);
 };
 
 
-class KeyedLoadDictionaryElementPlatformStub : public PlatformCodeStub {
+class LoadDictionaryElementPlatformStub : public PlatformCodeStub {
  public:
-  explicit KeyedLoadDictionaryElementPlatformStub(Isolate* isolate)
+  explicit LoadDictionaryElementPlatformStub(Isolate* isolate)
       : PlatformCodeStub(isolate) {}
 
   void Generate(MacroAssembler* masm);
 
  private:
-  Major MajorKey() const { return KeyedLoadElement; }
+  Major MajorKey() const { return LoadElement; }
   int MinorKey() const { return DICTIONARY_ELEMENTS; }
 
-  DISALLOW_COPY_AND_ASSIGN(KeyedLoadDictionaryElementPlatformStub);
+  DISALLOW_COPY_AND_ASSIGN(LoadDictionaryElementPlatformStub);
 };
 
 
-class KeyedLoadGenericElementStub : public HydrogenCodeStub {
+class KeyedLoadGenericStub : public HydrogenCodeStub {
  public:
-  explicit KeyedLoadGenericElementStub(Isolate *isolate)
-      : HydrogenCodeStub(isolate) {}
+  explicit KeyedLoadGenericStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
 
@@ -1895,7 +1894,7 @@ class KeyedLoadGenericElementStub : public HydrogenCodeStub {
   Major MajorKey() const { return KeyedLoadGeneric; }
   int NotMissMinorKey() const { return 0; }
 
-  DISALLOW_COPY_AND_ASSIGN(KeyedLoadGenericElementStub);
+  DISALLOW_COPY_AND_ASSIGN(KeyedLoadGenericStub);
 };
 
 
@@ -1966,11 +1965,10 @@ class DoubleToIStub : public PlatformCodeStub {
 };
 
 
-class KeyedLoadFastElementStub : public HydrogenCodeStub {
+class LoadFastElementStub : public HydrogenCodeStub {
  public:
-  KeyedLoadFastElementStub(Isolate* isolate,
-                           bool is_js_array,
-                           ElementsKind elements_kind)
+  LoadFastElementStub(Isolate* isolate, bool is_js_array,
+                      ElementsKind elements_kind)
       : HydrogenCodeStub(isolate) {
     bit_field_ = ElementsKindBits::encode(elements_kind) |
         IsJSArrayBits::encode(is_js_array);
@@ -1994,19 +1992,17 @@ class KeyedLoadFastElementStub : public HydrogenCodeStub {
   class IsJSArrayBits: public BitField<bool, 8, 1> {};
   uint32_t bit_field_;
 
-  Major MajorKey() const { return KeyedLoadElement; }
+  Major MajorKey() const { return LoadElement; }
   int NotMissMinorKey() const { return bit_field_; }
 
-  DISALLOW_COPY_AND_ASSIGN(KeyedLoadFastElementStub);
+  DISALLOW_COPY_AND_ASSIGN(LoadFastElementStub);
 };
 
 
-class KeyedStoreFastElementStub : public HydrogenCodeStub {
+class StoreFastElementStub : public HydrogenCodeStub {
  public:
-  KeyedStoreFastElementStub(Isolate* isolate,
-                            bool is_js_array,
-                            ElementsKind elements_kind,
-                            KeyedAccessStoreMode mode)
+  StoreFastElementStub(Isolate* isolate, bool is_js_array,
+                       ElementsKind elements_kind, KeyedAccessStoreMode mode)
       : HydrogenCodeStub(isolate) {
     bit_field_ = ElementsKindBits::encode(elements_kind) |
         IsJSArrayBits::encode(is_js_array) |
@@ -2036,10 +2032,10 @@ class KeyedStoreFastElementStub : public HydrogenCodeStub {
   class IsJSArrayBits: public BitField<bool,                12, 1> {};
   uint32_t bit_field_;
 
-  Major MajorKey() const { return KeyedStoreElement; }
+  Major MajorKey() const { return StoreElement; }
   int NotMissMinorKey() const { return bit_field_; }
 
-  DISALLOW_COPY_AND_ASSIGN(KeyedStoreFastElementStub);
+  DISALLOW_COPY_AND_ASSIGN(StoreFastElementStub);
 };
 
 
@@ -2287,18 +2283,16 @@ class InternalArrayNArgumentsConstructorStub : public
 };
 
 
-class KeyedStoreElementStub : public PlatformCodeStub {
+class StoreElementStub : public PlatformCodeStub {
  public:
-  KeyedStoreElementStub(Isolate* isolate,
-                        bool is_js_array,
-                        ElementsKind elements_kind,
-                        KeyedAccessStoreMode store_mode)
+  StoreElementStub(Isolate* isolate, bool is_js_array,
+                   ElementsKind elements_kind, KeyedAccessStoreMode store_mode)
       : PlatformCodeStub(isolate),
         is_js_array_(is_js_array),
         elements_kind_(elements_kind),
-        store_mode_(store_mode) { }
+        store_mode_(store_mode) {}
 
-  Major MajorKey() const { return KeyedStoreElement; }
+  Major MajorKey() const { return StoreElement; }
   int MinorKey() const {
     return ElementsKindBits::encode(elements_kind_) |
         IsJSArrayBits::encode(is_js_array_) |
@@ -2316,7 +2310,7 @@ class KeyedStoreElementStub : public PlatformCodeStub {
   ElementsKind elements_kind_;
   KeyedAccessStoreMode store_mode_;
 
-  DISALLOW_COPY_AND_ASSIGN(KeyedStoreElementStub);
+  DISALLOW_COPY_AND_ASSIGN(StoreElementStub);
 };
 
 

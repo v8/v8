@@ -482,8 +482,8 @@ void LoadIC::Clear(Isolate* isolate,
                    Code* target,
                    ConstantPoolArray* constant_pool) {
   if (IsCleared(target)) return;
-  Code* code = PropertyICCompiler::FindPreMonomorphicIC(
-      isolate, Code::LOAD_IC, target->extra_ic_state());
+  Code* code = PropertyICCompiler::FindPreMonomorphic(isolate, Code::LOAD_IC,
+                                                      target->extra_ic_state());
   SetTargetAtAddress(address, code, constant_pool);
 }
 
@@ -493,8 +493,8 @@ void StoreIC::Clear(Isolate* isolate,
                     Code* target,
                     ConstantPoolArray* constant_pool) {
   if (IsCleared(target)) return;
-  Code* code = PropertyICCompiler::FindPreMonomorphicIC(
-      isolate, Code::STORE_IC, target->extra_ic_state());
+  Code* code = PropertyICCompiler::FindPreMonomorphic(isolate, Code::STORE_IC,
+                                                      target->extra_ic_state());
   SetTargetAtAddress(address, code, constant_pool);
 }
 
@@ -529,7 +529,7 @@ void CompareIC::Clear(Isolate* isolate,
 // static
 Handle<Code> KeyedLoadIC::generic_stub(Isolate* isolate) {
   if (FLAG_compiled_keyed_generic_loads) {
-    return KeyedLoadGenericElementStub(isolate).GetCode();
+    return KeyedLoadGenericStub(isolate).GetCode();
   } else {
     return isolate->builtins()->KeyedLoadIC_Generic();
   }
@@ -660,8 +660,8 @@ bool IC::UpdatePolymorphicIC(Handle<String> name, Handle<Code> code) {
   if (number_of_valid_types > 1 && target()->is_keyed_stub()) return false;
   Handle<Code> ic;
   if (number_of_valid_types == 1) {
-    ic = PropertyICCompiler::ComputeMonomorphicIC(kind(), name, type, code,
-                                                  extra_ic_state());
+    ic = PropertyICCompiler::ComputeMonomorphic(kind(), name, type, code,
+                                                extra_ic_state());
   } else {
     if (handler_to_overwrite >= 0) {
       handlers.Set(handler_to_overwrite, code);
@@ -672,9 +672,9 @@ bool IC::UpdatePolymorphicIC(Handle<String> name, Handle<Code> code) {
       types.Add(type);
       handlers.Add(code);
     }
-    ic = PropertyICCompiler::ComputePolymorphicIC(kind(), &types, &handlers,
-                                                  number_of_valid_types, name,
-                                                  extra_ic_state());
+    ic = PropertyICCompiler::ComputePolymorphic(kind(), &types, &handlers,
+                                                number_of_valid_types, name,
+                                                extra_ic_state());
   }
   set_target(*ic);
   return true;
@@ -725,7 +725,7 @@ Handle<HeapType> IC::MapToType<HeapType>(Handle<Map> map, Isolate* region);
 
 void IC::UpdateMonomorphicIC(Handle<Code> handler, Handle<String> name) {
   if (!handler->is_handler()) return set_target(*handler);
-  Handle<Code> ic = PropertyICCompiler::ComputeMonomorphicIC(
+  Handle<Code> ic = PropertyICCompiler::ComputeMonomorphic(
       kind(), name, receiver_type(), handler, extra_ic_state());
   set_target(*ic);
 }
@@ -1073,7 +1073,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     TargetMaps(&target_receiver_maps);
   }
   if (target_receiver_maps.length() == 0) {
-    return PropertyICCompiler::ComputeKeyedLoadElement(receiver_map);
+    return PropertyICCompiler::ComputeKeyedLoadMonomorphic(receiver_map);
   }
 
   // The first time a receiver is seen that is a transitioned version of the
@@ -1087,7 +1087,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
       IsMoreGeneralElementsKindTransition(
           target_receiver_maps.at(0)->elements_kind(),
           receiver->GetElementsKind())) {
-    return PropertyICCompiler::ComputeKeyedLoadElement(receiver_map);
+    return PropertyICCompiler::ComputeKeyedLoadMonomorphic(receiver_map);
   }
 
   ASSERT(state() != GENERIC);
@@ -1108,8 +1108,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     return generic_stub();
   }
 
-  return PropertyICCompiler::ComputeLoadElementPolymorphic(
-      &target_receiver_maps);
+  return PropertyICCompiler::ComputeKeyedLoadPolymorphic(&target_receiver_maps);
 }
 
 
@@ -1494,7 +1493,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     Handle<Map> monomorphic_map =
         ComputeTransitionedMap(receiver_map, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
-    return PropertyICCompiler::ComputeKeyedStoreElement(
+    return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
         monomorphic_map, strict_mode(), store_mode);
   }
 
@@ -1519,7 +1518,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       // if they at least come from the same origin for a transitioning store,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
       store_mode = GetNonTransitioningStoreMode(store_mode);
-      return PropertyICCompiler::ComputeKeyedStoreElement(
+      return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
           transitioned_receiver_map, strict_mode(), store_mode);
     } else if (*previous_receiver_map == receiver->map() &&
                old_store_mode == STANDARD_STORE &&
@@ -1529,7 +1528,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       // A "normal" IC that handles stores can switch to a version that can
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
-      return PropertyICCompiler::ComputeKeyedStoreElement(
+      return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
           receiver_map, strict_mode(), store_mode);
     }
   }
@@ -1591,7 +1590,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     }
   }
 
-  return PropertyICCompiler::ComputeStoreElementPolymorphic(
+  return PropertyICCompiler::ComputeKeyedStorePolymorphic(
       &target_receiver_maps, store_mode, strict_mode());
 }
 

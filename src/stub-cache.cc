@@ -129,7 +129,7 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
 }
 
 
-Handle<Code> PropertyICCompiler::ComputeMonomorphicIC(
+Handle<Code> PropertyICCompiler::ComputeMonomorphic(
     Code::Kind kind, Handle<Name> name, Handle<HeapType> type,
     Handle<Code> handler, ExtraICState extra_ic_state) {
   CacheHolderFlag flag;
@@ -205,11 +205,11 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
 }
 
 
-Handle<Code> PropertyICCompiler::ComputeKeyedLoadElement(
+Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
     Handle<Map> receiver_map) {
   Isolate* isolate = receiver_map->GetIsolate();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC);
-  Handle<Name> name = isolate->factory()->KeyedLoadElementMonomorphic_string();
+  Handle<Name> name = isolate->factory()->KeyedLoadMonomorphic_string();
 
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
@@ -219,13 +219,13 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadElement(
   if (receiver_map->has_fast_elements() ||
       receiver_map->has_external_array_elements() ||
       receiver_map->has_fixed_typed_array_elements()) {
-    stub = KeyedLoadFastElementStub(
-               isolate, receiver_map->instance_type() == JS_ARRAY_TYPE,
-               elements_kind).GetCode();
+    stub = LoadFastElementStub(isolate,
+                               receiver_map->instance_type() == JS_ARRAY_TYPE,
+                               elements_kind).GetCode();
   } else {
     stub = FLAG_compiled_keyed_dictionary_loads
-               ? KeyedLoadDictionaryElementStub(isolate).GetCode()
-               : KeyedLoadDictionaryElementPlatformStub(isolate).GetCode();
+               ? LoadDictionaryElementStub(isolate).GetCode()
+               : LoadDictionaryElementPlatformStub(isolate).GetCode();
   }
   PropertyICCompiler compiler(isolate, Code::KEYED_LOAD_IC);
   Handle<Code> code =
@@ -237,7 +237,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadElement(
 }
 
 
-Handle<Code> PropertyICCompiler::ComputeKeyedStoreElement(
+Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphic(
     Handle<Map> receiver_map, StrictMode strict_mode,
     KeyedAccessStoreMode store_mode) {
   Isolate* isolate = receiver_map->GetIsolate();
@@ -251,14 +251,13 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStoreElement(
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
 
-  Handle<String> name =
-      isolate->factory()->KeyedStoreElementMonomorphic_string();
+  Handle<String> name = isolate->factory()->KeyedStoreMonomorphic_string();
   Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
   PropertyICCompiler compiler(isolate, Code::KEYED_STORE_IC, extra_state);
   Handle<Code> code =
-      compiler.CompileIndexedStoreMonomorphic(receiver_map, store_mode);
+      compiler.CompileKeyedStoreMonomorphic(receiver_map, store_mode);
 
   Map::UpdateCodeCache(receiver_map, name, code);
   ASSERT(KeyedStoreIC::GetKeyedAccessStoreMode(code->extra_ic_state())
@@ -278,9 +277,8 @@ static void FillCache(Isolate* isolate, Handle<Code> code) {
 }
 
 
-Code* PropertyICCompiler::FindPreMonomorphicIC(Isolate* isolate,
-                                               Code::Kind kind,
-                                               ExtraICState state) {
+Code* PropertyICCompiler::FindPreMonomorphic(Isolate* isolate, Code::Kind kind,
+                                             ExtraICState state) {
   Code::Flags flags = Code::ComputeFlags(kind, PREMONOMORPHIC, state);
   UnseededNumberDictionary* dictionary =
       isolate->heap()->non_monomorphic_cache();
@@ -369,7 +367,7 @@ Handle<Code> PropertyICCompiler::ComputeCompareNil(Handle<Map> receiver_map,
 
 
 // TODO(verwaest): Change this method so it takes in a TypeHandleList.
-Handle<Code> PropertyICCompiler::ComputeLoadElementPolymorphic(
+Handle<Code> PropertyICCompiler::ComputeKeyedLoadPolymorphic(
     MapHandleList* receiver_maps) {
   Isolate* isolate = receiver_maps->at(0)->GetIsolate();
   Code::Flags flags = Code::ComputeFlags(Code::KEYED_LOAD_IC, POLYMORPHIC);
@@ -383,7 +381,7 @@ Handle<Code> PropertyICCompiler::ComputeLoadElementPolymorphic(
     types.Add(HeapType::Class(receiver_maps->at(i), isolate));
   }
   CodeHandleList handlers(receiver_maps->length());
-  IndexedHandlerCompiler compiler(isolate);
+  ElementHandlerCompiler compiler(isolate);
   compiler.CompileElementHandlers(receiver_maps, &handlers);
   PropertyICCompiler ic_compiler(isolate, Code::KEYED_LOAD_IC);
   Handle<Code> code = ic_compiler.CompilePolymorphic(
@@ -397,7 +395,7 @@ Handle<Code> PropertyICCompiler::ComputeLoadElementPolymorphic(
 }
 
 
-Handle<Code> PropertyICCompiler::ComputePolymorphicIC(
+Handle<Code> PropertyICCompiler::ComputePolymorphic(
     Code::Kind kind, TypeHandleList* types, CodeHandleList* handlers,
     int valid_types, Handle<Name> name, ExtraICState extra_ic_state) {
   Handle<Code> handler = handlers->at(0);
@@ -408,7 +406,7 @@ Handle<Code> PropertyICCompiler::ComputePolymorphicIC(
 }
 
 
-Handle<Code> PropertyICCompiler::ComputeStoreElementPolymorphic(
+Handle<Code> PropertyICCompiler::ComputeKeyedStorePolymorphic(
     MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
     StrictMode strict_mode) {
   Isolate* isolate = receiver_maps->at(0)->GetIsolate();
@@ -427,7 +425,7 @@ Handle<Code> PropertyICCompiler::ComputeStoreElementPolymorphic(
 
   PropertyICCompiler compiler(isolate, Code::KEYED_STORE_IC, extra_state);
   Handle<Code> code =
-      compiler.CompileIndexedStorePolymorphic(receiver_maps, store_mode);
+      compiler.CompileKeyedStorePolymorphic(receiver_maps, store_mode);
   PolymorphicCodeCache::Update(cache, receiver_maps, flags, code);
   return code;
 }
@@ -609,7 +607,7 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptor) {
 }
 
 
-RUNTIME_FUNCTION(StoreInterceptorProperty) {
+RUNTIME_FUNCTION(StorePropertyWithInterceptor) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
@@ -634,7 +632,7 @@ RUNTIME_FUNCTION(StoreInterceptorProperty) {
 }
 
 
-RUNTIME_FUNCTION(KeyedLoadPropertyWithInterceptor) {
+RUNTIME_FUNCTION(LoadElementWithInterceptor) {
   HandleScope scope(isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
   ASSERT(args.smi_at(1) >= 0);
@@ -1088,7 +1086,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 }
 
 
-Handle<Code> PropertyICCompiler::CompileIndexedStoreMonomorphic(
+Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphic(
     Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
@@ -1096,11 +1094,11 @@ Handle<Code> PropertyICCompiler::CompileIndexedStoreMonomorphic(
   if (receiver_map->has_fast_elements() ||
       receiver_map->has_external_array_elements() ||
       receiver_map->has_fixed_typed_array_elements()) {
-    stub = KeyedStoreFastElementStub(isolate(), is_jsarray, elements_kind,
-                                     store_mode).GetCode();
+    stub = StoreFastElementStub(isolate(), is_jsarray, elements_kind,
+                                store_mode).GetCode();
   } else {
-    stub = KeyedStoreElementStub(isolate(), is_jsarray, elements_kind,
-                                 store_mode).GetCode();
+    stub = StoreElementStub(isolate(), is_jsarray, elements_kind, store_mode)
+               .GetCode();
   }
 
   __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
@@ -1155,7 +1153,7 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
 }
 
 
-void IndexedHandlerCompiler::CompileElementHandlers(
+void ElementHandlerCompiler::CompileElementHandlers(
     MapHandleList* receiver_maps, CodeHandleList* handlers) {
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map = receiver_maps->at(i);
@@ -1172,16 +1170,13 @@ void IndexedHandlerCompiler::CompileElementHandlers(
       if (IsFastElementsKind(elements_kind) ||
           IsExternalArrayElementsKind(elements_kind) ||
           IsFixedTypedArrayElementsKind(elements_kind)) {
-        cached_stub =
-            KeyedLoadFastElementStub(isolate(),
-                                     is_js_array,
-                                     elements_kind).GetCode();
+        cached_stub = LoadFastElementStub(isolate(), is_js_array, elements_kind)
+                          .GetCode();
       } else if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
         cached_stub = isolate()->builtins()->KeyedLoadIC_SloppyArguments();
       } else {
         ASSERT(elements_kind == DICTIONARY_ELEMENTS);
-        cached_stub =
-            KeyedLoadDictionaryElementStub(isolate()).GetCode();
+        cached_stub = LoadDictionaryElementStub(isolate()).GetCode();
       }
     }
 
@@ -1190,7 +1185,7 @@ void IndexedHandlerCompiler::CompileElementHandlers(
 }
 
 
-Handle<Code> PropertyICCompiler::CompileIndexedStorePolymorphic(
+Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
     MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode) {
   // Collect MONOMORPHIC stubs for all |receiver_maps|.
   CodeHandleList handlers(receiver_maps->length());
@@ -1219,13 +1214,11 @@ Handle<Code> PropertyICCompiler::CompileIndexedStorePolymorphic(
       if (receiver_map->has_fast_elements() ||
           receiver_map->has_external_array_elements() ||
           receiver_map->has_fixed_typed_array_elements()) {
-        cached_stub =
-            KeyedStoreFastElementStub(isolate(), is_js_array, elements_kind,
-                                      store_mode).GetCode();
+        cached_stub = StoreFastElementStub(isolate(), is_js_array,
+                                           elements_kind, store_mode).GetCode();
       } else {
-        cached_stub =
-            KeyedStoreElementStub(isolate(), is_js_array, elements_kind,
-                                  store_mode).GetCode();
+        cached_stub = StoreElementStub(isolate(), is_js_array, elements_kind,
+                                       store_mode).GetCode();
       }
     }
     ASSERT(!cached_stub.is_null());
@@ -1233,15 +1226,15 @@ Handle<Code> PropertyICCompiler::CompileIndexedStorePolymorphic(
     transitioned_maps.Add(transitioned_map);
   }
 
-  Handle<Code> code = CompileIndexedStorePolymorphic(receiver_maps, &handlers,
-                                                     &transitioned_maps);
+  Handle<Code> code = CompileKeyedStorePolymorphic(receiver_maps, &handlers,
+                                                   &transitioned_maps);
   isolate()->counters()->keyed_store_polymorphic_stubs()->Increment();
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, 0));
   return code;
 }
 
 
-void IndexedHandlerCompiler::GenerateStoreDictionaryElement(
+void ElementHandlerCompiler::GenerateStoreDictionaryElement(
     MacroAssembler* masm) {
   KeyedStoreIC::GenerateSlow(masm);
 }

@@ -267,96 +267,94 @@ namespace internal {
   V(foreign_map)                          \
   V(neander_map)
 
-#define INTERNALIZED_STRING_LIST(V)                                      \
-  V(Array_string, "Array")                                               \
-  V(Object_string, "Object")                                             \
-  V(proto_string, "__proto__")                                           \
-  V(arguments_string, "arguments")                                       \
-  V(Arguments_string, "Arguments")                                       \
-  V(call_string, "call")                                                 \
-  V(apply_string, "apply")                                               \
-  V(caller_string, "caller")                                             \
-  V(boolean_string, "boolean")                                           \
-  V(Boolean_string, "Boolean")                                           \
-  V(callee_string, "callee")                                             \
-  V(constructor_string, "constructor")                                   \
-  V(dot_result_string, ".result")                                        \
-  V(dot_for_string, ".for.")                                             \
-  V(eval_string, "eval")                                                 \
-  V(empty_string, "")                                                    \
-  V(function_string, "function")                                         \
-  V(length_string, "length")                                             \
-  V(name_string, "name")                                                 \
-  V(null_string, "null")                                                 \
-  V(number_string, "number")                                             \
-  V(Number_string, "Number")                                             \
-  V(nan_string, "NaN")                                                   \
-  V(RegExp_string, "RegExp")                                             \
-  V(source_string, "source")                                             \
-  V(source_url_string, "source_url")                                     \
-  V(source_mapping_url_string, "source_mapping_url")                     \
-  V(global_string, "global")                                             \
-  V(ignore_case_string, "ignoreCase")                                    \
-  V(multiline_string, "multiline")                                       \
-  V(input_string, "input")                                               \
-  V(index_string, "index")                                               \
-  V(last_index_string, "lastIndex")                                      \
-  V(object_string, "object")                                             \
-  V(literals_string, "literals")                                         \
-  V(prototype_string, "prototype")                                       \
-  V(string_string, "string")                                             \
-  V(String_string, "String")                                             \
-  V(symbol_string, "symbol")                                             \
-  V(Symbol_string, "Symbol")                                             \
-  V(for_string, "for")                                                   \
-  V(for_api_string, "for_api")                                           \
-  V(for_intern_string, "for_intern")                                     \
-  V(private_api_string, "private_api")                                   \
-  V(private_intern_string, "private_intern")                             \
-  V(Date_string, "Date")                                                 \
-  V(to_string_string, "toString")                                        \
-  V(char_at_string, "CharAt")                                            \
-  V(undefined_string, "undefined")                                       \
-  V(value_of_string, "valueOf")                                          \
-  V(stack_string, "stack")                                               \
-  V(toJSON_string, "toJSON")                                             \
-  V(InitializeVarGlobal_string, "InitializeVarGlobal")                   \
-  V(InitializeConstGlobal_string, "InitializeConstGlobal")               \
-  V(KeyedLoadElementMonomorphic_string,                                  \
-    "KeyedLoadElementMonomorphic")                                       \
-  V(KeyedStoreElementMonomorphic_string,                                 \
-    "KeyedStoreElementMonomorphic")                                      \
-  V(stack_overflow_string, "kStackOverflowBoilerplate")                  \
-  V(illegal_access_string, "illegal access")                             \
-  V(get_string, "get")                                                   \
-  V(set_string, "set")                                                   \
-  V(map_field_string, "%map")                                            \
-  V(elements_field_string, "%elements")                                  \
-  V(length_field_string, "%length")                                      \
-  V(cell_value_string, "%cell_value")                                    \
-  V(function_class_string, "Function")                                   \
-  V(illegal_argument_string, "illegal argument")                         \
-  V(space_string, " ")                                                   \
-  V(exec_string, "exec")                                                 \
-  V(zero_string, "0")                                                    \
-  V(global_eval_string, "GlobalEval")                                    \
-  V(identity_hash_string, "v8::IdentityHash")                            \
-  V(closure_string, "(closure)")                                         \
-  V(dot_string, ".")                                                     \
-  V(compare_ic_string, "==")                                             \
-  V(strict_compare_ic_string, "===")                                     \
-  V(infinity_string, "Infinity")                                         \
-  V(minus_infinity_string, "-Infinity")                                  \
-  V(query_colon_string, "(?:)")                                          \
-  V(Generator_string, "Generator")                                       \
-  V(throw_string, "throw")                                               \
-  V(done_string, "done")                                                 \
-  V(value_string, "value")                                               \
-  V(next_string, "next")                                                 \
-  V(byte_length_string, "byteLength")                                    \
-  V(byte_offset_string, "byteOffset")                                    \
-  V(buffer_string, "buffer")                                             \
-  V(intl_initialized_marker_string, "v8::intl_initialized_marker")       \
+#define INTERNALIZED_STRING_LIST(V)                                \
+  V(Array_string, "Array")                                         \
+  V(Object_string, "Object")                                       \
+  V(proto_string, "__proto__")                                     \
+  V(arguments_string, "arguments")                                 \
+  V(Arguments_string, "Arguments")                                 \
+  V(call_string, "call")                                           \
+  V(apply_string, "apply")                                         \
+  V(caller_string, "caller")                                       \
+  V(boolean_string, "boolean")                                     \
+  V(Boolean_string, "Boolean")                                     \
+  V(callee_string, "callee")                                       \
+  V(constructor_string, "constructor")                             \
+  V(dot_result_string, ".result")                                  \
+  V(dot_for_string, ".for.")                                       \
+  V(eval_string, "eval")                                           \
+  V(empty_string, "")                                              \
+  V(function_string, "function")                                   \
+  V(length_string, "length")                                       \
+  V(name_string, "name")                                           \
+  V(null_string, "null")                                           \
+  V(number_string, "number")                                       \
+  V(Number_string, "Number")                                       \
+  V(nan_string, "NaN")                                             \
+  V(RegExp_string, "RegExp")                                       \
+  V(source_string, "source")                                       \
+  V(source_url_string, "source_url")                               \
+  V(source_mapping_url_string, "source_mapping_url")               \
+  V(global_string, "global")                                       \
+  V(ignore_case_string, "ignoreCase")                              \
+  V(multiline_string, "multiline")                                 \
+  V(input_string, "input")                                         \
+  V(index_string, "index")                                         \
+  V(last_index_string, "lastIndex")                                \
+  V(object_string, "object")                                       \
+  V(literals_string, "literals")                                   \
+  V(prototype_string, "prototype")                                 \
+  V(string_string, "string")                                       \
+  V(String_string, "String")                                       \
+  V(symbol_string, "symbol")                                       \
+  V(Symbol_string, "Symbol")                                       \
+  V(for_string, "for")                                             \
+  V(for_api_string, "for_api")                                     \
+  V(for_intern_string, "for_intern")                               \
+  V(private_api_string, "private_api")                             \
+  V(private_intern_string, "private_intern")                       \
+  V(Date_string, "Date")                                           \
+  V(to_string_string, "toString")                                  \
+  V(char_at_string, "CharAt")                                      \
+  V(undefined_string, "undefined")                                 \
+  V(value_of_string, "valueOf")                                    \
+  V(stack_string, "stack")                                         \
+  V(toJSON_string, "toJSON")                                       \
+  V(InitializeVarGlobal_string, "InitializeVarGlobal")             \
+  V(InitializeConstGlobal_string, "InitializeConstGlobal")         \
+  V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
+  V(KeyedStoreMonomorphic_string, "KeyedStoreMonomorphic")         \
+  V(stack_overflow_string, "kStackOverflowBoilerplate")            \
+  V(illegal_access_string, "illegal access")                       \
+  V(get_string, "get")                                             \
+  V(set_string, "set")                                             \
+  V(map_field_string, "%map")                                      \
+  V(elements_field_string, "%elements")                            \
+  V(length_field_string, "%length")                                \
+  V(cell_value_string, "%cell_value")                              \
+  V(function_class_string, "Function")                             \
+  V(illegal_argument_string, "illegal argument")                   \
+  V(space_string, " ")                                             \
+  V(exec_string, "exec")                                           \
+  V(zero_string, "0")                                              \
+  V(global_eval_string, "GlobalEval")                              \
+  V(identity_hash_string, "v8::IdentityHash")                      \
+  V(closure_string, "(closure)")                                   \
+  V(dot_string, ".")                                               \
+  V(compare_ic_string, "==")                                       \
+  V(strict_compare_ic_string, "===")                               \
+  V(infinity_string, "Infinity")                                   \
+  V(minus_infinity_string, "-Infinity")                            \
+  V(query_colon_string, "(?:)")                                    \
+  V(Generator_string, "Generator")                                 \
+  V(throw_string, "throw")                                         \
+  V(done_string, "done")                                           \
+  V(value_string, "value")                                         \
+  V(next_string, "next")                                           \
+  V(byte_length_string, "byteLength")                              \
+  V(byte_offset_string, "byteOffset")                              \
+  V(buffer_string, "buffer")                                       \
+  V(intl_initialized_marker_string, "v8::intl_initialized_marker") \
   V(intl_impl_object_string, "v8::intl_object")
 
 // Forward declarations.

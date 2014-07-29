@@ -1137,8 +1137,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
   __ Push(receiver(), this->name(), value());
 
   // Do tail-call to the runtime system.
-  ExternalReference store_ic_property =
-      ExternalReference(IC_Utility(IC::kStoreInterceptorProperty), isolate());
+  ExternalReference store_ic_property = ExternalReference(
+      IC_Utility(IC::kStorePropertyWithInterceptor), isolate());
   __ TailCallExternalReference(store_ic_property, 3, 1);
 
   // Return the generated code.
@@ -1326,7 +1326,7 @@ void NamedStoreHandlerCompiler::GenerateStoreArrayLength() {
 }
 
 
-Handle<Code> PropertyICCompiler::CompileIndexedStorePolymorphic(
+Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
     MapHandleList* receiver_maps, CodeHandleList* handler_stubs,
     MapHandleList* transitioned_maps) {
   Label miss;
@@ -1360,7 +1360,7 @@ Handle<Code> PropertyICCompiler::CompileIndexedStorePolymorphic(
 #define __ ACCESS_MASM(masm)
 
 
-void IndexedHandlerCompiler::GenerateLoadDictionaryElement(
+void ElementHandlerCompiler::GenerateLoadDictionaryElement(
     MacroAssembler* masm) {
   // The return address is in lr.
   Label slow, miss;

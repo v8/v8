@@ -193,8 +193,8 @@ DECLARE_RUNTIME_FUNCTION(StoreCallbackProperty);
 // Support functions for IC stubs for interceptors.
 DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly);
 DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptor);
-DECLARE_RUNTIME_FUNCTION(StoreInterceptorProperty);
-DECLARE_RUNTIME_FUNCTION(KeyedLoadPropertyWithInterceptor);
+DECLARE_RUNTIME_FUNCTION(LoadElementWithInterceptor);
+DECLARE_RUNTIME_FUNCTION(StorePropertyWithInterceptor);
 
 
 enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
@@ -270,8 +270,8 @@ class PropertyAccessCompiler BASE_EMBEDDED {
 class PropertyICCompiler : public PropertyAccessCompiler {
  public:
   // Finds the Code object stored in the Heap::non_monomorphic_cache().
-  static Code* FindPreMonomorphicIC(Isolate* isolate, Code::Kind kind,
-                                    ExtraICState extra_ic_state);
+  static Code* FindPreMonomorphic(Isolate* isolate, Code::Kind kind,
+                                  ExtraICState extra_ic_state);
 
   // Named
   static Handle<Code> ComputeLoad(Isolate* isolate, InlineCacheState ic_state,
@@ -279,23 +279,24 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   static Handle<Code> ComputeStore(Isolate* isolate, InlineCacheState ic_state,
                                    ExtraICState extra_state);
 
-  static Handle<Code> ComputeMonomorphicIC(Code::Kind kind, Handle<Name> name,
-                                           Handle<HeapType> type,
-                                           Handle<Code> handler,
-                                           ExtraICState extra_ic_state);
-  static Handle<Code> ComputePolymorphicIC(
-      Code::Kind kind, TypeHandleList* types, CodeHandleList* handlers,
-      int number_of_valid_maps, Handle<Name> name, ExtraICState extra_ic_state);
+  static Handle<Code> ComputeMonomorphic(Code::Kind kind, Handle<Name> name,
+                                         Handle<HeapType> type,
+                                         Handle<Code> handler,
+                                         ExtraICState extra_ic_state);
+  static Handle<Code> ComputePolymorphic(Code::Kind kind, TypeHandleList* types,
+                                         CodeHandleList* handlers,
+                                         int number_of_valid_maps,
+                                         Handle<Name> name,
+                                         ExtraICState extra_ic_state);
 
   // Keyed
-  static Handle<Code> ComputeKeyedLoadElement(Handle<Map> receiver_map);
+  static Handle<Code> ComputeKeyedLoadMonomorphic(Handle<Map> receiver_map);
 
-  static Handle<Code> ComputeKeyedStoreElement(Handle<Map> receiver_map,
-                                               StrictMode strict_mode,
-                                               KeyedAccessStoreMode store_mode);
-  static Handle<Code> ComputeLoadElementPolymorphic(
-      MapHandleList* receiver_maps);
-  static Handle<Code> ComputeStoreElementPolymorphic(
+  static Handle<Code> ComputeKeyedStoreMonomorphic(
+      Handle<Map> receiver_map, StrictMode strict_mode,
+      KeyedAccessStoreMode store_mode);
+  static Handle<Code> ComputeKeyedLoadPolymorphic(MapHandleList* receiver_maps);
+  static Handle<Code> ComputeKeyedStorePolymorphic(
       MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
       StrictMode strict_mode);
 
@@ -330,13 +331,13 @@ class PropertyICCompiler : public PropertyAccessCompiler {
                                   CodeHandleList* handlers, Handle<Name> name,
                                   Code::StubType type, IcCheckType check);
 
-  Handle<Code> CompileIndexedStoreMonomorphic(Handle<Map> receiver_map,
-                                              KeyedAccessStoreMode store_mode);
-  Handle<Code> CompileIndexedStorePolymorphic(MapHandleList* receiver_maps,
-                                              KeyedAccessStoreMode store_mode);
-  Handle<Code> CompileIndexedStorePolymorphic(MapHandleList* receiver_maps,
-                                              CodeHandleList* handler_stubs,
-                                              MapHandleList* transitioned_maps);
+  Handle<Code> CompileKeyedStoreMonomorphic(Handle<Map> receiver_map,
+                                            KeyedAccessStoreMode store_mode);
+  Handle<Code> CompileKeyedStorePolymorphic(MapHandleList* receiver_maps,
+                                            KeyedAccessStoreMode store_mode);
+  Handle<Code> CompileKeyedStorePolymorphic(MapHandleList* receiver_maps,
+                                            CodeHandleList* handler_stubs,
+                                            MapHandleList* transitioned_maps);
 
   bool IncludesNumberType(TypeHandleList* types);
 
@@ -667,13 +668,13 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 };
 
 
-class IndexedHandlerCompiler : public PropertyHandlerCompiler {
+class ElementHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  explicit IndexedHandlerCompiler(Isolate* isolate)
+  explicit ElementHandlerCompiler(Isolate* isolate)
       : PropertyHandlerCompiler(isolate, Code::KEYED_LOAD_IC,
                                 kCacheOnReceiver) {}
 
-  virtual ~IndexedHandlerCompiler() {}
+  virtual ~ElementHandlerCompiler() {}
 
   void CompileElementHandlers(MapHandleList* receiver_maps,
                               CodeHandleList* handlers);
