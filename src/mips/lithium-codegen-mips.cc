@@ -3824,6 +3824,14 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 }
 
 
+void LCodeGen::DoMathFround(LMathFround* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->value());
+  DoubleRegister result = ToDoubleRegister(instr->result());
+  __ cvt_s_d(result.low(), input);
+  __ cvt_d_s(result, result.low());
+}
+
+
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());
