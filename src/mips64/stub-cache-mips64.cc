@@ -1264,7 +1264,13 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
 
   if (check == PROPERTY &&
       (kind() == Code::KEYED_LOAD_IC || kind() == Code::KEYED_STORE_IC)) {
-    __ Branch(&miss, ne, this->name(), Operand(name));
+    // In case we are compiling an IC for dictionary loads and stores, just
+    // check whether the name is unique.
+    if (name.is_identical_to(isolate()->factory()->normal_ic_symbol())) {
+      __ JumpIfNotUniqueName(this->name(), &miss);
+    } else {
+      __ Branch(&miss, ne, this->name(), Operand(name));
+    }
   }
 
   Label number_case;
