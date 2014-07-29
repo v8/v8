@@ -676,21 +676,33 @@ void MacroAssembler::Dsubu(Register rd, Register rs, const Operand& rt) {
 
 void MacroAssembler::Mul(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant == kLoongson) {
+    mul(rd, rs, rt.rm());
+  } else {
+    // li handles the relocation.
+    ASSERT(!rs.is(at));
+    li(at, rt);
+    mul(rd, rs, at);
+  }
+}
+
+
+void MacroAssembler::Mulh(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    if (kArchVariant != kMips64r6) {
       mult(rs, rt.rm());
-      mflo(rd);
+      mfhi(rd);
     } else {
-      mul(rd, rs, rt.rm());
+      muh(rd, rs, rt.rm());
     }
   } else {
     // li handles the relocation.
     ASSERT(!rs.is(at));
     li(at, rt);
-    if (kArchVariant == kLoongson) {
+    if (kArchVariant != kMips64r6) {
       mult(rs, at);
-      mflo(rd);
+      mfhi(rd);
     } else {
-      mul(rd, rs, at);
+      muh(rd, rs, at);
     }
   }
 }
@@ -698,12 +710,9 @@ void MacroAssembler::Mul(Register rd, Register rs, const Operand& rt) {
 
 void MacroAssembler::Dmul(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
-    if (kArchVariant == kLoongson) {
-      dmult(rs, rt.rm());
-      mflo(rd);
+    if (kArchVariant == kMips64r6) {
+      dmul(rd, rs, rt.rm());
     } else {
-      // TODO(yuyin):
-      // dmul(rd, rs, rt.rm());
       dmult(rs, rt.rm());
       mflo(rd);
     }
@@ -711,14 +720,33 @@ void MacroAssembler::Dmul(Register rd, Register rs, const Operand& rt) {
     // li handles the relocation.
     ASSERT(!rs.is(at));
     li(at, rt);
-    if (kArchVariant == kLoongson) {
-      dmult(rs, at);
-      mflo(rd);
+    if (kArchVariant == kMips64r6) {
+      dmul(rd, rs, at);
     } else {
-      // TODO(yuyin):
-      // dmul(rd, rs, at);
       dmult(rs, at);
       mflo(rd);
+    }
+  }
+}
+
+
+void MacroAssembler::Dmulh(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    if (kArchVariant == kMips64r6) {
+      dmuh(rd, rs, rt.rm());
+    } else {
+      dmult(rs, rt.rm());
+      mfhi(rd);
+    }
+  } else {
+    // li handles the relocation.
+    ASSERT(!rs.is(at));
+    li(at, rt);
+    if (kArchVariant == kMips64r6) {
+      dmuh(rd, rs, at);
+    } else {
+      dmult(rs, at);
+      mfhi(rd);
     }
   }
 }
@@ -796,6 +824,31 @@ void MacroAssembler::Ddiv(Register rs, const Operand& rt) {
 }
 
 
+void MacroAssembler::Ddiv(Register rd, Register rs, const Operand& rt) {
+  if (kArchVariant != kMips64r6) {
+    if (rt.is_reg()) {
+      ddiv(rs, rt.rm());
+      mflo(rd);
+    } else {
+      // li handles the relocation.
+      ASSERT(!rs.is(at));
+      li(at, rt);
+      ddiv(rs, at);
+      mflo(rd);
+    }
+  } else {
+    if (rt.is_reg()) {
+      ddiv(rd, rs, rt.rm());
+    } else {
+      // li handles the relocation.
+      ASSERT(!rs.is(at));
+      li(at, rt);
+      ddiv(rd, rs, at);
+    }
+  }
+}
+
+
 void MacroAssembler::Divu(Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     divu(rs, rt.rm());
@@ -816,6 +869,31 @@ void MacroAssembler::Ddivu(Register rs, const Operand& rt) {
     ASSERT(!rs.is(at));
     li(at, rt);
     ddivu(rs, at);
+  }
+}
+
+
+void MacroAssembler::Dmod(Register rd, Register rs, const Operand& rt) {
+  if (kArchVariant != kMips64r6) {
+    if (rt.is_reg()) {
+      ddiv(rs, rt.rm());
+      mfhi(rd);
+    } else {
+      // li handles the relocation.
+      ASSERT(!rs.is(at));
+      li(at, rt);
+      ddiv(rs, at);
+      mfhi(rd);
+    }
+  } else {
+    if (rt.is_reg()) {
+      dmod(rd, rs, rt.rm());
+    } else {
+      // li handles the relocation.
+      ASSERT(!rs.is(at));
+      li(at, rt);
+      dmod(rd, rs, at);
+    }
   }
 }
 
@@ -957,11 +1035,7 @@ void MacroAssembler::Dror(Register rd, Register rs, const Operand& rt) {
 
 
 void MacroAssembler::Pref(int32_t hint, const MemOperand& rs) {
-  if (kArchVariant == kLoongson) {
-    lw(zero_reg, rs);
-  } else {
     pref(hint, rs);
-  }
 }
 
 
@@ -1385,49 +1459,102 @@ void MacroAssembler::BranchF(Label* target,
   ASSERT(nan || target);
   // Check for unordered (NaN) cases.
   if (nan) {
-    c(UN, D, cmp1, cmp2);
-    bc1t(nan);
+    if (kArchVariant != kMips64r6) {
+      c(UN, D, cmp1, cmp2);
+      bc1t(nan);
+    } else {
+      // Use f31 for comparison result. It has to be unavailable to lithium
+      // register allocator.
+      ASSERT(!cmp1.is(f31) && !cmp2.is(f31));
+      cmp(UN, L, f31, cmp1, cmp2);
+      bc1nez(nan, f31);
+    }
   }
 
-  if (target) {
-    // Here NaN cases were either handled by this function or are assumed to
-    // have been handled by the caller.
-    // Unsigned conditions are treated as their signed counterpart.
-    switch (cc) {
-      case lt:
-        c(OLT, D, cmp1, cmp2);
-        bc1t(target);
-        break;
-      case gt:
-        c(ULE, D, cmp1, cmp2);
-        bc1f(target);
-        break;
-      case ge:
-        c(ULT, D, cmp1, cmp2);
-        bc1f(target);
-        break;
-      case le:
-        c(OLE, D, cmp1, cmp2);
-        bc1t(target);
-        break;
-      case eq:
-        c(EQ, D, cmp1, cmp2);
-        bc1t(target);
-        break;
-      case ueq:
-        c(UEQ, D, cmp1, cmp2);
-        bc1t(target);
-        break;
-      case ne:
-        c(EQ, D, cmp1, cmp2);
-        bc1f(target);
-        break;
-      case nue:
-        c(UEQ, D, cmp1, cmp2);
-        bc1f(target);
-        break;
-      default:
-        CHECK(0);
+  if (kArchVariant != kMips64r6) {
+    if (target) {
+      // Here NaN cases were either handled by this function or are assumed to
+      // have been handled by the caller.
+      switch (cc) {
+        case lt:
+          c(OLT, D, cmp1, cmp2);
+          bc1t(target);
+          break;
+        case gt:
+          c(ULE, D, cmp1, cmp2);
+          bc1f(target);
+          break;
+        case ge:
+          c(ULT, D, cmp1, cmp2);
+          bc1f(target);
+          break;
+        case le:
+          c(OLE, D, cmp1, cmp2);
+          bc1t(target);
+          break;
+        case eq:
+          c(EQ, D, cmp1, cmp2);
+          bc1t(target);
+          break;
+        case ueq:
+          c(UEQ, D, cmp1, cmp2);
+          bc1t(target);
+          break;
+        case ne:
+          c(EQ, D, cmp1, cmp2);
+          bc1f(target);
+          break;
+        case nue:
+          c(UEQ, D, cmp1, cmp2);
+          bc1f(target);
+          break;
+        default:
+          CHECK(0);
+      }
+    }
+  } else {
+    if (target) {
+      // Here NaN cases were either handled by this function or are assumed to
+      // have been handled by the caller.
+      // Unsigned conditions are treated as their signed counterpart.
+      // Use f31 for comparison result, it is valid in fp64 (FR = 1) mode.
+      ASSERT(!cmp1.is(f31) && !cmp2.is(f31));
+      switch (cc) {
+        case lt:
+          cmp(OLT, L, f31, cmp1, cmp2);
+          bc1nez(target, f31);
+          break;
+        case gt:
+          cmp(ULE, L, f31, cmp1, cmp2);
+          bc1eqz(target, f31);
+          break;
+        case ge:
+          cmp(ULT, L, f31, cmp1, cmp2);
+          bc1eqz(target, f31);
+          break;
+        case le:
+          cmp(OLE, L, f31, cmp1, cmp2);
+          bc1nez(target, f31);
+          break;
+        case eq:
+          cmp(EQ, L, f31, cmp1, cmp2);
+          bc1nez(target, f31);
+          break;
+        case ueq:
+          cmp(UEQ, L, f31, cmp1, cmp2);
+          bc1nez(target, f31);
+          break;
+        case ne:
+          cmp(EQ, L, f31, cmp1, cmp2);
+          bc1eqz(target, f31);
+          break;
+        case nue:
+          cmp(UEQ, L, f31, cmp1, cmp2);
+          bc1eqz(target, f31);
+          break;
+        default:
+          CHECK(0);
+      }
     }
   }
 
@@ -1471,7 +1598,7 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
 
 
 void MacroAssembler::Movz(Register rd, Register rs, Register rt) {
-  if (kArchVariant == kLoongson) {
+  if (kArchVariant == kMips64r6) {
     Label done;
     Branch(&done, ne, rt, Operand(zero_reg));
     mov(rd, rs);
@@ -1483,7 +1610,7 @@ void MacroAssembler::Movz(Register rd, Register rs, Register rt) {
 
 
 void MacroAssembler::Movn(Register rd, Register rs, Register rt) {
-  if (kArchVariant == kLoongson) {
+  if (kArchVariant == kMips64r6) {
     Label done;
     Branch(&done, eq, rt, Operand(zero_reg));
     mov(rd, rs);
@@ -2372,48 +2499,64 @@ void MacroAssembler::BranchAndLinkShort(int16_t offset, Condition cond,
 
       // Signed comparison.
       case greater:
+        // rs > rt
         slt(scratch, r2, rs);
-        daddiu(scratch, scratch, -1);
-        bgezal(scratch, offset);
+        beq(scratch, zero_reg, 2);
+        nop();
+        bal(offset);
         break;
       case greater_equal:
+        // rs >= rt
         slt(scratch, rs, r2);
-        daddiu(scratch, scratch, -1);
-        bltzal(scratch, offset);
+        bne(scratch, zero_reg, 2);
+        nop();
+        bal(offset);
         break;
       case less:
+        // rs < r2
         slt(scratch, rs, r2);
-        daddiu(scratch, scratch, -1);
-        bgezal(scratch, offset);
+        bne(scratch, zero_reg, 2);
+        nop();
+        bal(offset);
         break;
       case less_equal:
+        // rs <= r2
         slt(scratch, r2, rs);
-        daddiu(scratch, scratch, -1);
-        bltzal(scratch, offset);
+        bne(scratch, zero_reg, 2);
+        nop();
+        bal(offset);
         break;
+
 
       // Unsigned comparison.
       case Ugreater:
+        // rs > rt
         sltu(scratch, r2, rs);
-        daddiu(scratch, scratch, -1);
-        bgezal(scratch, offset);
+        beq(scratch, zero_reg, 2);
+        nop();
+        bal(offset);
         break;
       case Ugreater_equal:
+        // rs >= rt
         sltu(scratch, rs, r2);
-        daddiu(scratch, scratch, -1);
-        bltzal(scratch, offset);
+        bne(scratch, zero_reg, 2);
+        nop();
+        bal(offset);
         break;
       case Uless:
+        // rs < r2
         sltu(scratch, rs, r2);
-        daddiu(scratch, scratch, -1);
-        bgezal(scratch, offset);
+        bne(scratch, zero_reg, 2);
+        nop();
+        bal(offset);
         break;
       case Uless_equal:
+        // rs <= r2
         sltu(scratch, r2, rs);
-        daddiu(scratch, scratch, -1);
-        bltzal(scratch, offset);
+        bne(scratch, zero_reg, 2);
+        nop();
+        bal(offset);
         break;
-
       default:
         UNREACHABLE();
     }
@@ -2470,54 +2613,71 @@ void MacroAssembler::BranchAndLinkShort(Label* L, Condition cond, Register rs,
 
       // Signed comparison.
       case greater:
+        // rs > rt
         slt(scratch, r2, rs);
-        daddiu(scratch, scratch, -1);
+        beq(scratch, zero_reg, 2);
+        nop();
         offset = shifted_branch_offset(L, false);
-        bgezal(scratch, offset);
+        bal(offset);
         break;
       case greater_equal:
+        // rs >= rt
         slt(scratch, rs, r2);
-        daddiu(scratch, scratch, -1);
+        bne(scratch, zero_reg, 2);
+        nop();
         offset = shifted_branch_offset(L, false);
-        bltzal(scratch, offset);
+        bal(offset);
         break;
       case less:
+        // rs < r2
         slt(scratch, rs, r2);
-        daddiu(scratch, scratch, -1);
+        bne(scratch, zero_reg, 2);
+        nop();
         offset = shifted_branch_offset(L, false);
-        bgezal(scratch, offset);
+        bal(offset);
         break;
       case less_equal:
+        // rs <= r2
         slt(scratch, r2, rs);
-        daddiu(scratch, scratch, -1);
+        bne(scratch, zero_reg, 2);
+        nop();
         offset = shifted_branch_offset(L, false);
-        bltzal(scratch, offset);
+        bal(offset);
         break;
+
 
       // Unsigned comparison.
       case Ugreater:
+        // rs > rt
         sltu(scratch, r2, rs);
-        daddiu(scratch, scratch, -1);
+        beq(scratch, zero_reg, 2);
+        nop();
         offset = shifted_branch_offset(L, false);
-        bgezal(scratch, offset);
+        bal(offset);
         break;
       case Ugreater_equal:
+        // rs >= rt
         sltu(scratch, rs, r2);
-        daddiu(scratch, scratch, -1);
+        bne(scratch, zero_reg, 2);
+        nop();
         offset = shifted_branch_offset(L, false);
-        bltzal(scratch, offset);
+        bal(offset);
         break;
       case Uless:
+        // rs < r2
         sltu(scratch, rs, r2);
-        daddiu(scratch, scratch, -1);
+        bne(scratch, zero_reg, 2);
+        nop();
         offset = shifted_branch_offset(L, false);
-        bgezal(scratch, offset);
+        bal(offset);
         break;
       case Uless_equal:
+        // rs <= r2
         sltu(scratch, r2, rs);
-        daddiu(scratch, scratch, -1);
+        bne(scratch, zero_reg, 2);
+        nop();
         offset = shifted_branch_offset(L, false);
-        bltzal(scratch, offset);
+        bal(offset);
         break;
 
       default:
@@ -5456,10 +5616,7 @@ void MacroAssembler::CheckPageFlag(
     int mask,
     Condition cc,
     Label* condition_met) {
-  // TODO(plind):  Fix li() so we can use constant embedded inside And().
-  // And(scratch, object, Operand(~Page::kPageAlignmentMask));
-  li(at, Operand(~Page::kPageAlignmentMask), CONSTANT_SIZE);  // plind HACK
-  And(scratch, object, at);
+  And(scratch, object, Operand(~Page::kPageAlignmentMask));
   ld(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
@@ -5933,8 +6090,7 @@ void MacroAssembler::TruncatingDiv(Register result,
   ASSERT(!result.is(at));
   MultiplierAndShift ms(divisor);
   li(at, Operand(ms.multiplier()));
-  Mult(dividend, Operand(at));
-  mfhi(result);
+  Mulh(result, dividend, Operand(at));
   if (divisor > 0 && ms.multiplier() < 0) {
     Addu(result, result, Operand(dividend));
   }

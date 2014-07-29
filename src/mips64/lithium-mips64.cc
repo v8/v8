@@ -1307,8 +1307,10 @@ LInstruction* LChunkBuilder::DoDivI(HDiv* instr) {
   ASSERT(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
+  LOperand* temp = instr->CheckFlag(HInstruction::kAllUsesTruncatingToInt32)
+    ? NULL : TempRegister();
   LInstruction* result =
-      DefineAsRegister(new(zone()) LDivI(dividend, divisor));
+      DefineAsRegister(new(zone()) LDivI(dividend, divisor, temp));
   if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
       instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
       (instr->CheckFlag(HValue::kCanOverflow) &&

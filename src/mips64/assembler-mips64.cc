@@ -485,7 +485,9 @@ bool Assembler::IsBranch(Instr instr) {
       opcode == BGTZL ||
       (opcode == REGIMM && (rt_field == BLTZ || rt_field == BGEZ ||
                             rt_field == BLTZAL || rt_field == BGEZAL)) ||
-      (opcode == COP1 && rs_field == BC1);  // Coprocessor branch.
+      (opcode == COP1 && rs_field == BC1) ||  // Coprocessor branch.
+      (opcode == COP1 && rs_field == BC1EQZ) ||
+      (opcode == COP1 && rs_field == BC1NEZ);
 }
 
 
@@ -969,7 +971,6 @@ void Assembler::GenInstrJump(Opcode opcode,
 // Returns the next free trampoline entry.
 int32_t Assembler::get_trampoline_entry(int32_t pos) {
   int32_t trampoline_entry = kInvalidSlotPos;
-
   if (!internal_trampoline_exception_) {
     if (trampoline_.start() > pos) {
      trampoline_entry = trampoline_.take_slot();
@@ -985,7 +986,6 @@ int32_t Assembler::get_trampoline_entry(int32_t pos) {
 
 uint64_t Assembler::jump_address(Label* L) {
   int64_t target_pos;
-
   if (L->is_bound()) {
     target_pos = L->pos();
   } else {
@@ -1007,7 +1007,6 @@ uint64_t Assembler::jump_address(Label* L) {
 
 int32_t Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
   int32_t target_pos;
-
   if (L->is_bound()) {
     target_pos = L->pos();
   } else {
@@ -1027,6 +1026,86 @@ int32_t Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
   int32_t offset = target_pos - (pc_offset() + kBranchPCOffset);
   ASSERT((offset & 3) == 0);
   ASSERT(is_int16(offset >> 2));
+
+  return offset;
+}
+
+
+int32_t Assembler::branch_offset_compact(Label* L,
+    bool jump_elimination_allowed) {
+  int32_t target_pos;
+  if (L->is_bound()) {
+    target_pos = L->pos();
+  } else {
+    if (L->is_linked()) {
+      target_pos = L->pos();
+      L->link_to(pc_offset());
+    } else {
+      L->link_to(pc_offset());
+      if (!trampoline_emitted_) {
+        unbound_labels_count_++;
+        next_buffer_check_ -= kTrampolineSlotsSize;
+      }
+      return kEndOfChain;
+    }
+  }
+
+  int32_t offset = target_pos - pc_offset();
+  ASSERT((offset & 3) == 0);
+  ASSERT(is_int16(offset >> 2));
+
+  return offset;
+}
+
+
+int32_t Assembler::branch_offset21(Label* L, bool jump_elimination_allowed) {
+  int32_t target_pos;
+  if (L->is_bound()) {
+    target_pos = L->pos();
+  } else {
+    if (L->is_linked()) {
+      target_pos = L->pos();
+      L->link_to(pc_offset());
+    } else {
+      L->link_to(pc_offset());
+      if (!trampoline_emitted_) {
+        unbound_labels_count_++;
+        next_buffer_check_ -= kTrampolineSlotsSize;
+      }
+      return kEndOfChain;
+    }
+  }
+
+  int32_t offset = target_pos - (pc_offset() + kBranchPCOffset);
+  ASSERT((offset & 3) == 0);
+  ASSERT(((offset >> 2) & 0xFFE00000) == 0);  // Offset is 21bit width.
+
+  return offset;
+}
+
+
+int32_t Assembler::branch_offset21_compact(Label* L,
+    bool jump_elimination_allowed) {
+  int32_t target_pos;
+  if (L->is_bound()) {
+    target_pos = L->pos();
+  } else {
+    if (L->is_linked()) {
+      target_pos = L->pos();
+      L->link_to(pc_offset());
+    } else {
+      L->link_to(pc_offset());
+      if (!trampoline_emitted_) {
+        unbound_labels_count_++;
+        next_buffer_check_ -= kTrampolineSlotsSize;
+      }
+      return kEndOfChain;
+    }
+  }
+
+  int32_t offset = target_pos - pc_offset();
+  ASSERT((offset & 3) == 0);
+  ASSERT(((offset >> 2) & 0xFFE00000) == 0);  // Offset is 21bit width.
 
   return offset;
 }
@@ -1085,7 +1164,33 @@ void Assembler::bgez(Register rs, int16_t offset) {
 }
 
 
+void Assembler::bgezc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(BLEZL, rt, rt, offset);
+}
+
+
+void Assembler::bgeuc(Register rs, Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rs.is(zero_reg)));
+  ASSERT(!(rt.is(zero_reg)));
+  ASSERT(rs.code() != rt.code());
+  GenInstrImmediate(BLEZ, rs, rt, offset);
+}
+
+
+void Assembler::bgec(Register rs, Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rs.is(zero_reg)));
+  ASSERT(!(rt.is(zero_reg)));
+  ASSERT(rs.code() != rt.code());
+  GenInstrImmediate(BLEZL, rs, rt, offset);
+}
+
+
 void Assembler::bgezal(Register rs, int16_t offset) {
+  ASSERT(kArchVariant != kMips64r6 || rs.is(zero_reg));
   BlockTrampolinePoolScope block_trampoline_pool(this);
   positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(REGIMM, rs, BGEZAL, offset);
@@ -1100,10 +1205,49 @@ void Assembler::bgtz(Register rs, int16_t offset) {
 }
 
 
+void Assembler::bgtzc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(BGTZL, zero_reg, rt, offset);
+}
+
+
 void Assembler::blez(Register rs, int16_t offset) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   GenInstrImmediate(BLEZ, rs, zero_reg, offset);
   BlockTrampolinePoolFor(1);  // For associated delay slot.
+}
+
+
+void Assembler::blezc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(BLEZL, zero_reg, rt, offset);
+}
+
+
+void Assembler::bltzc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(BGTZL, rt, rt, offset);
+}
+
+
+void Assembler::bltuc(Register rs, Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rs.is(zero_reg)));
+  ASSERT(!(rt.is(zero_reg)));
+  ASSERT(rs.code() != rt.code());
+  GenInstrImmediate(BGTZ, rs, rt, offset);
+}
+
+
+void Assembler::bltc(Register rs, Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rs.is(zero_reg)));
+  ASSERT(!(rt.is(zero_reg)));
+  ASSERT(rs.code() != rt.code());
+  GenInstrImmediate(BGTZL, rs, rt, offset);
 }
 
 
@@ -1115,6 +1259,7 @@ void Assembler::bltz(Register rs, int16_t offset) {
 
 
 void Assembler::bltzal(Register rs, int16_t offset) {
+  ASSERT(kArchVariant != kMips64r6 || rs.is(zero_reg));
   BlockTrampolinePoolScope block_trampoline_pool(this);
   positions_recorder()->WriteRecordedPositions();
   GenInstrImmediate(REGIMM, rs, BLTZAL, offset);
@@ -1126,6 +1271,101 @@ void Assembler::bne(Register rs, Register rt, int16_t offset) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   GenInstrImmediate(BNE, rs, rt, offset);
   BlockTrampolinePoolFor(1);  // For associated delay slot.
+}
+
+
+void Assembler::bovc(Register rs, Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rs.is(zero_reg)));
+  ASSERT(rs.code() >= rt.code());
+  GenInstrImmediate(ADDI, rs, rt, offset);
+}
+
+
+void Assembler::bnvc(Register rs, Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rs.is(zero_reg)));
+  ASSERT(rs.code() >= rt.code());
+  GenInstrImmediate(DADDI, rs, rt, offset);
+}
+
+
+void Assembler::blezalc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(BLEZ, zero_reg, rt, offset);
+}
+
+
+void Assembler::bgezalc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(BLEZ, rt, rt, offset);
+}
+
+
+void Assembler::bgezall(Register rs, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rs.is(zero_reg)));
+  GenInstrImmediate(REGIMM, rs, BGEZALL, offset);
+}
+
+
+void Assembler::bltzalc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(BGTZ, rt, rt, offset);
+}
+
+
+void Assembler::bgtzalc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(BGTZ, zero_reg, rt, offset);
+}
+
+
+void Assembler::beqzalc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(ADDI, zero_reg, rt, offset);
+}
+
+
+void Assembler::bnezalc(Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rt.is(zero_reg)));
+  GenInstrImmediate(DADDI, zero_reg, rt, offset);
+}
+
+
+void Assembler::beqc(Register rs, Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(rs.code() < rt.code());
+  GenInstrImmediate(ADDI, rs, rt, offset);
+}
+
+
+void Assembler::beqzc(Register rs, int32_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rs.is(zero_reg)));
+  Instr instr = BEQZC | (rs.code() << kRsShift) | offset;
+  emit(instr);
+}
+
+
+void Assembler::bnec(Register rs, Register rt, int16_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(rs.code() < rt.code());
+  GenInstrImmediate(DADDI, rs, rt, offset);
+}
+
+
+void Assembler::bnezc(Register rs, int32_t offset) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(!(rs.is(zero_reg)));
+  Instr instr = BNEZC | (rs.code() << kRsShift) | offset;
+  emit(instr);
 }
 
 
@@ -1142,12 +1382,16 @@ void Assembler::j(int64_t target) {
 
 
 void Assembler::jr(Register rs) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  if (rs.is(ra)) {
-    positions_recorder()->WriteRecordedPositions();
+  if (kArchVariant != kMips64r6) {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    if (rs.is(ra)) {
+      positions_recorder()->WriteRecordedPositions();
+    }
+    GenInstrRegister(SPECIAL, rs, zero_reg, zero_reg, 0, JR);
+    BlockTrampolinePoolFor(1);  // For associated delay slot.
+  } else {
+    jalr(rs, zero_reg);
   }
-  GenInstrRegister(SPECIAL, rs, zero_reg, zero_reg, 0, JR);
-  BlockTrampolinePoolFor(1);  // For associated delay slot.
 }
 
 
@@ -1218,16 +1462,64 @@ void Assembler::subu(Register rd, Register rs, Register rt) {
 
 
 void Assembler::mul(Register rd, Register rs, Register rt) {
-  GenInstrRegister(SPECIAL2, rs, rt, rd, 0, MUL);
+  if (kArchVariant == kMips64r6) {
+      GenInstrRegister(SPECIAL, rs, rt, rd, MUL_OP, MUL_MUH);
+  } else {
+      GenInstrRegister(SPECIAL2, rs, rt, rd, 0, MUL);
+  }
+}
+
+
+void Assembler::muh(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MUH_OP, MUL_MUH);
+}
+
+
+void Assembler::mulu(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MUL_OP, MUL_MUH_U);
+}
+
+
+void Assembler::muhu(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MUH_OP, MUL_MUH_U);
+}
+
+
+void Assembler::dmul(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MUL_OP, D_MUL_MUH);
+}
+
+
+void Assembler::dmuh(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MUH_OP, D_MUL_MUH);
+}
+
+
+void Assembler::dmulu(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MUL_OP, D_MUL_MUH_U);
+}
+
+
+void Assembler::dmuhu(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MUH_OP, D_MUL_MUH_U);
 }
 
 
 void Assembler::mult(Register rs, Register rt) {
+  ASSERT(kArchVariant != kMips64r6);
   GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, MULT);
 }
 
 
 void Assembler::multu(Register rs, Register rt) {
+  ASSERT(kArchVariant != kMips64r6);
   GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, MULTU);
 }
 
@@ -1242,8 +1534,32 @@ void Assembler::div(Register rs, Register rt) {
 }
 
 
+void Assembler::div(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, DIV_OP, DIV_MOD);
+}
+
+
+void Assembler::mod(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MOD_OP, DIV_MOD);
+}
+
+
 void Assembler::divu(Register rs, Register rt) {
   GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, DIVU);
+}
+
+
+void Assembler::divu(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, DIV_OP, DIV_MOD_U);
+}
+
+
+void Assembler::modu(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MOD_OP, DIV_MOD_U);
 }
 
 
@@ -1272,8 +1588,32 @@ void Assembler::ddiv(Register rs, Register rt) {
 }
 
 
+void Assembler::ddiv(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, DIV_OP, D_DIV_MOD);
+}
+
+
+void Assembler::dmod(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MOD_OP, D_DIV_MOD);
+}
+
+
 void Assembler::ddivu(Register rs, Register rt) {
   GenInstrRegister(SPECIAL, rs, rt, zero_reg, 0, DDIVU);
+}
+
+
+void Assembler::ddivu(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, DIV_OP, D_DIV_MOD_U);
+}
+
+
+void Assembler::dmodu(Register rd, Register rs, Register rt) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, MOD_OP, D_DIV_MOD_U);
 }
 
 
@@ -1566,6 +1906,32 @@ void Assembler::lui(Register rd, int32_t j) {
 }
 
 
+void Assembler::aui(Register rs, Register rt, int32_t j) {
+  // This instruction uses same opcode as 'lui'. The difference in encoding is
+  // 'lui' has zero reg. for rs field.
+  ASSERT(is_uint16(j));
+  GenInstrImmediate(LUI, rs, rt, j);
+}
+
+
+void Assembler::daui(Register rs, Register rt, int32_t j) {
+  ASSERT(is_uint16(j));
+  GenInstrImmediate(DAUI, rs, rt, j);
+}
+
+
+void Assembler::dahi(Register rs, int32_t j) {
+  ASSERT(is_uint16(j));
+  GenInstrImmediate(REGIMM, rs, DAHI, j);
+}
+
+
+void Assembler::dati(Register rs, int32_t j) {
+  ASSERT(is_uint16(j));
+  GenInstrImmediate(REGIMM, rs, DATI, j);
+}
+
+
 void Assembler::ldl(Register rd, const MemOperand& rs) {
   GenInstrImmediate(LDL, rs.rm(), rd, rs.offset_);
 }
@@ -1747,17 +2113,73 @@ void Assembler::movf(Register rd, Register rs, uint16_t cc) {
 }
 
 
+void Assembler::sel(SecondaryField fmt, FPURegister fd,
+    FPURegister ft, FPURegister fs, uint8_t sel) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(fmt == D);
+  ASSERT(fmt == S);
+
+  Instr instr = COP1 | fmt << kRsShift | ft.code() << kFtShift |
+      fs.code() << kFsShift | fd.code() << kFdShift | SEL;
+  emit(instr);
+}
+
+
+// GPR.
+void Assembler::seleqz(Register rs, Register rt, Register rd) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, 0, SELEQZ_S);
+}
+
+
+// FPR.
+void Assembler::seleqz(SecondaryField fmt, FPURegister fd,
+    FPURegister ft, FPURegister fs) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(fmt == D);
+  ASSERT(fmt == S);
+
+  Instr instr = COP1 | fmt << kRsShift | ft.code() << kFtShift |
+      fs.code() << kFsShift | fd.code() << kFdShift | SELEQZ_C;
+  emit(instr);
+}
+
+
+// GPR.
+void Assembler::selnez(Register rs, Register rt, Register rd) {
+  ASSERT(kArchVariant == kMips64r6);
+  GenInstrRegister(SPECIAL, rs, rt, rd, 0, SELNEZ_S);
+}
+
+
+// FPR.
+void Assembler::selnez(SecondaryField fmt, FPURegister fd,
+    FPURegister ft, FPURegister fs) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT(fmt == D);
+  ASSERT(fmt == S);
+
+  Instr instr = COP1 | fmt << kRsShift | ft.code() << kFtShift |
+      fs.code() << kFsShift | fd.code() << kFdShift | SELNEZ_C;
+  emit(instr);
+}
+
+
 // Bit twiddling.
 void Assembler::clz(Register rd, Register rs) {
-  // Clz instr requires same GPR number in 'rd' and 'rt' fields.
-  GenInstrRegister(SPECIAL2, rs, rd, rd, 0, CLZ);
+  if (kArchVariant != kMips64r6) {
+    // Clz instr requires same GPR number in 'rd' and 'rt' fields.
+    GenInstrRegister(SPECIAL2, rs, rd, rd, 0, CLZ);
+  } else {
+    GenInstrRegister(SPECIAL, rs, zero_reg, rd, 1, CLZ_R6);
+  }
 }
 
 
 void Assembler::ins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Should be called via MacroAssembler::Ins.
   // Ins instr has 'rt' field as dest, and two uint5: msb, lsb.
-  ASSERT(kArchVariant == kMips64r2);
+  ASSERT((kArchVariant == kMips64r2) || (kArchVariant == kMips64r6));
   GenInstrRegister(SPECIAL3, rs, rt, pos + size - 1, pos, INS);
 }
 
@@ -1765,13 +2187,12 @@ void Assembler::ins_(Register rt, Register rs, uint16_t pos, uint16_t size) {
 void Assembler::ext_(Register rt, Register rs, uint16_t pos, uint16_t size) {
   // Should be called via MacroAssembler::Ext.
   // Ext instr has 'rt' field as dest, and two uint5: msb, lsb.
-  ASSERT(kArchVariant == kMips64r2);
+  ASSERT(kArchVariant == kMips64r2 || kArchVariant == kMips64r6);
   GenInstrRegister(SPECIAL3, rs, rt, size - 1, pos, EXT);
 }
 
 
 void Assembler::pref(int32_t hint, const MemOperand& rs) {
-  ASSERT(kArchVariant != kLoongson);
   ASSERT(is_uint5(hint) && is_uint16(rs.offset_));
   Instr instr = PREF | (rs.rm().code() << kRsShift) | (hint << kRtShift)
       | (rs.offset_);
@@ -1870,7 +2291,6 @@ void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
 
 void Assembler::madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
     FPURegister ft) {
-  ASSERT(kArchVariant != kLoongson);
   GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_D);
 }
 
@@ -2006,6 +2426,38 @@ void Assembler::ceil_l_d(FPURegister fd, FPURegister fs) {
 }
 
 
+void Assembler::min(SecondaryField fmt, FPURegister fd, FPURegister ft,
+    FPURegister fs) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, MIN);
+}
+
+
+void Assembler::mina(SecondaryField fmt, FPURegister fd, FPURegister ft,
+    FPURegister fs) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, MINA);
+}
+
+
+void Assembler::max(SecondaryField fmt, FPURegister fd, FPURegister ft,
+    FPURegister fs) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, MAX);
+}
+
+
+void Assembler::maxa(SecondaryField fmt, FPURegister fd, FPURegister ft,
+    FPURegister fs) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT((fmt == D) || (fmt == S));
+  GenInstrRegister(COP1, fmt, ft, fs, fd, MAXA);
+}
+
+
 void Assembler::cvt_s_w(FPURegister fd, FPURegister fs) {
   GenInstrRegister(COP1, W, f0, fs, fd, CVT_S_W);
 }
@@ -2038,12 +2490,38 @@ void Assembler::cvt_d_s(FPURegister fd, FPURegister fs) {
 }
 
 
-// Conditions.
+// Conditions for >= MIPSr6.
+void Assembler::cmp(FPUCondition cond, SecondaryField fmt,
+    FPURegister fd, FPURegister fs, FPURegister ft) {
+  ASSERT(kArchVariant == kMips64r6);
+  ASSERT((fmt & ~(31 << kRsShift)) == 0);
+  Instr instr = COP1 | fmt | ft.code() << kFtShift |
+      fs.code() << kFsShift | fd.code() << kFdShift | (0 << 5) | cond;
+  emit(instr);
+}
+
+
+void Assembler::bc1eqz(int16_t offset, FPURegister ft) {
+  ASSERT(kArchVariant == kMips64r6);
+  Instr instr = COP1 | BC1EQZ | ft.code() << kFtShift | (offset & kImm16Mask);
+  emit(instr);
+}
+
+
+void Assembler::bc1nez(int16_t offset, FPURegister ft) {
+  ASSERT(kArchVariant == kMips64r6);
+  Instr instr = COP1 | BC1NEZ | ft.code() << kFtShift | (offset & kImm16Mask);
+  emit(instr);
+}
+
+
+// Conditions for < MIPSr6.
 void Assembler::c(FPUCondition cond, SecondaryField fmt,
     FPURegister fs, FPURegister ft, uint16_t cc) {
+  ASSERT(kArchVariant != kMips64r6);
   ASSERT(is_uint3(cc));
   ASSERT((fmt & ~(31 << kRsShift)) == 0);
-  Instr instr = COP1 | fmt | ft.code() << 16 | fs.code() << kFsShift
+  Instr instr = COP1 | fmt | ft.code() << kFtShift | fs.code() << kFsShift
       | cc << 8 | 3 << 4 | cond;
   emit(instr);
 }

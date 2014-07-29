@@ -414,6 +414,9 @@
 
   # Currently always deopt on minus zero
   'math-floor-of-div-minus-zero': [SKIP],
+
+  # BUG(v8:3457).
+  'deserialize-reference': [SKIP],
 }],  # 'arch == mips64el'
 
 ['arch == mips64el and simulator_run == False', {

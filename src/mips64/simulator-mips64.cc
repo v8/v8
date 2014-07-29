@@ -1955,9 +1955,6 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
   switch (op) {
     case COP1:    // Coprocessor instructions.
       switch (instr->RsFieldRaw()) {
-        case BC1:   // Handled in DecodeTypeImmed, should never come here.
-          UNREACHABLE();
-          break;
         case CFC1:
           // At the moment only FCSR is supported.
           ASSERT(fs_reg == kFCSRRegister);
@@ -1976,8 +1973,6 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
         case MTC1:
         case DMTC1:
         case MTHC1:
-          // Do the store in the execution step.
-          break;
         case S:
         case D:
         case W:
@@ -1986,7 +1981,8 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           // Do everything in the execution step.
           break;
         default:
-          UNIMPLEMENTED_MIPS();
+        // BC1 BC1EQZ BC1NEZ handled in DecodeTypeImmed, should never come here.
+           UNREACHABLE();
       }
       break;
     case COP1X:
@@ -2071,13 +2067,23 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
         case DSRAV:
           *alu_out = rt >> rs;
           break;
-        case MFHI:
-          *alu_out = get_register(HI);
+        case MFHI:  // MFHI == CLZ on R6.
+          if (kArchVariant != kMips64r6) {
+            ASSERT(instr->SaValue() == 0);
+            *alu_out = get_register(HI);
+          } else {
+            // MIPS spec: If no bits were set in GPR rs, the result written to
+            // GPR rd is 32.
+            // GCC __builtin_clz: If input is 0, the result is undefined.
+            ASSERT(instr->SaValue() == 1);
+            *alu_out =
+                rs_u == 0 ? 32 : CompilerIntrinsics::CountLeadingZeros(rs_u);
+          }
           break;
         case MFLO:
           *alu_out = get_register(LO);
           break;
-        case MULT:
+        case MULT:  // MULT == D_MUL_MUH.
           // TODO(plind) - Unify MULT/DMULT with single set of 64-bit HI/Lo
           // regs.
           // TODO(plind) - make the 32-bit MULT ops conform to spec regarding
@@ -2088,9 +2094,23 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
         case MULTU:
           *u64hilo = static_cast<uint64_t>(rs_u) * static_cast<uint64_t>(rt_u);
           break;
-        case DMULT:
-          *i128resultH = MultiplyHighSigned(rs, rt);
-          *i128resultL = rs * rt;
+        case DMULT:  // DMULT == D_MUL_MUH.
+          if (kArchVariant != kMips64r6) {
+            *i128resultH = MultiplyHighSigned(rs, rt);
+            *i128resultL = rs * rt;
+          } else {
+            switch (instr->SaValue()) {
+              case MUL_OP:
+                *i128resultL = rs * rt;
+                break;
+              case MUH_OP:
+                *i128resultH = MultiplyHighSigned(rs, rt);
+                break;
+              default:
+                UNIMPLEMENTED_MIPS();
+                break;
+            }
+          }
           break;
         case DMULTU:
           UNIMPLEMENTED_MIPS();
@@ -2295,6 +2315,8 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
     case COP1:
       switch (instr->RsFieldRaw()) {
         case BC1:   // Branch on coprocessor condition.
+        case BC1EQZ:
+        case BC1NEZ:
           UNREACHABLE();
           break;
         case CFC1:
@@ -2328,20 +2350,9 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               f = get_fpu_register_float(fs_reg);
               set_fpu_register_double(fd_reg, static_cast<double>(f));
               break;
-            case CVT_W_S:
-            case CVT_L_S:
-            case TRUNC_W_S:
-            case TRUNC_L_S:
-            case ROUND_W_S:
-            case ROUND_L_S:
-            case FLOOR_W_S:
-            case FLOOR_L_S:
-            case CEIL_W_S:
-            case CEIL_L_S:
-            case CVT_PS_S:
-              UNIMPLEMENTED_MIPS();
-              break;
             default:
+            // CVT_W_S CVT_L_S TRUNC_W_S ROUND_W_S ROUND_L_S FLOOR_W_S FLOOR_L_S
+            // CEIL_W_S CEIL_L_S CVT_PS_S are unimplemented.
               UNREACHABLE();
           }
           break;
@@ -2514,24 +2525,76 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               alu_out = get_fpu_register_signed_word(fs_reg);
               set_fpu_register_double(fd_reg, static_cast<double>(alu_out));
               break;
-            default:
+            default:  // Mips64r6 CMP.S instructions unimplemented.
               UNREACHABLE();
           }
           break;
         case L:
+          fs = get_fpu_register_double(fs_reg);
+          ft = get_fpu_register_double(ft_reg);
           switch (instr->FunctionFieldRaw()) {
-          case CVT_D_L:  // Mips32r2 instruction.
-            i64 = get_fpu_register(fs_reg);
-            set_fpu_register_double(fd_reg, static_cast<double>(i64));
-            break;
+            case CVT_D_L:  // Mips32r2 instruction.
+              i64 = get_fpu_register(fs_reg);
+              set_fpu_register_double(fd_reg, static_cast<double>(i64));
+              break;
             case CVT_S_L:
               UNIMPLEMENTED_MIPS();
               break;
-            default:
+            case CMP_AF:  // Mips64r6 CMP.D instructions.
+              UNIMPLEMENTED_MIPS();
+              break;
+            case CMP_UN:
+              if (std::isnan(fs) || std::isnan(ft)) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_EQ:
+              if (fs == ft) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_UEQ:
+              if ((fs == ft) || (std::isnan(fs) || std::isnan(ft))) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_LT:
+              if (fs < ft) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_ULT:
+              if ((fs < ft) || (std::isnan(fs) || std::isnan(ft))) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_LE:
+              if (fs <= ft) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            case CMP_ULE:
+              if ((fs <= ft) || (std::isnan(fs) || std::isnan(ft))) {
+                set_fpu_register(fd_reg, -1);
+              } else {
+                set_fpu_register(fd_reg, 0);
+              }
+              break;
+            default:  // CMP_OR CMP_UNE CMP_NE UNIMPLEMENTED
               UNREACHABLE();
           }
-          break;
-        case PS:
           break;
         default:
           UNREACHABLE();
@@ -2572,32 +2635,91 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
         }
         // Instructions using HI and LO registers.
         case MULT:
-          set_register(LO, static_cast<int32_t>(i64hilo & 0xffffffff));
-          set_register(HI, static_cast<int32_t>(i64hilo >> 32));
+          if (kArchVariant != kMips64r6) {
+            set_register(LO, static_cast<int32_t>(i64hilo & 0xffffffff));
+            set_register(HI, static_cast<int32_t>(i64hilo >> 32));
+          } else {
+            switch (instr->SaValue()) {
+              case MUL_OP:
+                set_register(rd_reg,
+                    static_cast<int32_t>(i64hilo & 0xffffffff));
+                break;
+              case MUH_OP:
+                set_register(rd_reg, static_cast<int32_t>(i64hilo >> 32));
+                break;
+              default:
+                UNIMPLEMENTED_MIPS();
+                break;
+            }
+          }
           break;
         case MULTU:
           set_register(LO, static_cast<int32_t>(u64hilo & 0xffffffff));
           set_register(HI, static_cast<int32_t>(u64hilo >> 32));
           break;
-        case DMULT:
-          set_register(LO, static_cast<int64_t>(i128resultL));
-          set_register(HI, static_cast<int64_t>(i128resultH));
+        case DMULT:  // DMULT == D_MUL_MUH.
+          if (kArchVariant != kMips64r6) {
+            set_register(LO, static_cast<int64_t>(i128resultL));
+            set_register(HI, static_cast<int64_t>(i128resultH));
+          } else {
+            switch (instr->SaValue()) {
+              case MUL_OP:
+                set_register(rd_reg, static_cast<int64_t>(i128resultL));
+                break;
+              case MUH_OP:
+                set_register(rd_reg, static_cast<int64_t>(i128resultH));
+                break;
+              default:
+                UNIMPLEMENTED_MIPS();
+                break;
+            }
+          }
           break;
         case DMULTU:
           UNIMPLEMENTED_MIPS();
           break;
+        case DSLL:
+          set_register(rd_reg, alu_out);
+          break;
         case DIV:
         case DDIV:
-          // Divide by zero and overflow was not checked in the configuration
-          // step - div and divu do not raise exceptions. On division by 0
-          // the result will be UNPREDICTABLE. On overflow (INT_MIN/-1),
-          // return INT_MIN which is what the hardware does.
-          if (rs == INT_MIN && rt == -1) {
-            set_register(LO, INT_MIN);
-            set_register(HI, 0);
-          } else if (rt != 0) {
-            set_register(LO, rs / rt);
-            set_register(HI, rs % rt);
+          switch (kArchVariant) {
+            case kMips64r2:
+              // Divide by zero and overflow was not checked in the
+              // configuration step - div and divu do not raise exceptions. On
+              // division by 0 the result will be UNPREDICTABLE. On overflow
+              // (INT_MIN/-1), return INT_MIN which is what the hardware does.
+              if (rs == INT_MIN && rt == -1) {
+                set_register(LO, INT_MIN);
+                set_register(HI, 0);
+              } else if (rt != 0) {
+                set_register(LO, rs / rt);
+                set_register(HI, rs % rt);
+              }
+              break;
+            case kMips64r6:
+              switch (instr->SaValue()) {
+                case DIV_OP:
+                  if (rs == INT_MIN && rt == -1) {
+                    set_register(rd_reg, INT_MIN);
+                  } else if (rt != 0) {
+                    set_register(rd_reg, rs / rt);
+                  }
+                  break;
+                case MOD_OP:
+                  if (rs == INT_MIN && rt == -1) {
+                    set_register(rd_reg, 0);
+                  } else if (rt != 0) {
+                    set_register(rd_reg, rs % rt);
+                  }
+                  break;
+                default:
+                  UNIMPLEMENTED_MIPS();
+                  break;
+              }
+              break;
+            default:
+              break;
           }
           break;
         case DIVU:
@@ -2696,6 +2818,7 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
   int16_t  imm16  = instr->Imm16Value();
 
   int32_t  ft_reg = instr->FtValue();  // Destination register.
+  int64_t  ft     = get_fpu_register(ft_reg);
 
   // Zero extended immediate.
   uint32_t  oe_imm16 = 0xffff & imm16;
@@ -2734,6 +2857,26 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
           fcsr_cc = get_fcsr_condition_bit(cc);
           cc_value = test_fcsr_bit(fcsr_cc);
           do_branch = (instr->FBtrueValue()) ? cc_value : !cc_value;
+          execute_branch_delay_instruction = true;
+          // Set next_pc.
+          if (do_branch) {
+            next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
+          } else {
+            next_pc = current_pc + kBranchReturnOffset;
+          }
+          break;
+        case BC1EQZ:
+          do_branch = (ft & 0x1) ? false : true;
+          execute_branch_delay_instruction = true;
+          // Set next_pc.
+          if (do_branch) {
+            next_pc = current_pc + (imm16 << 2) + Instruction::kInstrSize;
+          } else {
+            next_pc = current_pc + kBranchReturnOffset;
+          }
+          break;
+        case BC1NEZ:
+          do_branch = (ft & 0x1) ? true : false;
           execute_branch_delay_instruction = true;
           // Set next_pc.
           if (do_branch) {
