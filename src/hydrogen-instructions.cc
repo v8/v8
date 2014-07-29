@@ -4172,11 +4172,11 @@ HInstruction* HUnaryMathOperation::New(
         // Doubles are represented as Significant * 2 ^ Exponent. If the
         // Exponent is not negative, the double value is already an integer.
         if (Double(d).Exponent() >= 0) return H_CONSTANT_DOUBLE(d);
-        return H_CONSTANT_DOUBLE(std::floor(d + 0.5));
+        return H_CONSTANT_DOUBLE(Floor(d + 0.5));
       case kMathFround:
         return H_CONSTANT_DOUBLE(static_cast<double>(static_cast<float>(d)));
       case kMathFloor:
-        return H_CONSTANT_DOUBLE(std::floor(d));
+        return H_CONSTANT_DOUBLE(Floor(d));
       case kMathClz32: {
         uint32_t i = DoubleToUint32(d);
         return H_CONSTANT_INT(

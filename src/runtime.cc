@@ -42,6 +42,7 @@
 #include "src/string-search.h"
 #include "src/stub-cache.h"
 #include "src/uri.h"
+#include "src/utils.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 
@@ -7712,7 +7713,7 @@ RUNTIME_FUNCTION(Runtime_MathFloorRT) {
   isolate->counters()->math_floor()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(std::floor(x));
+  return *isolate->factory()->NewNumber(Floor(x));
 }
 
 
@@ -7797,7 +7798,7 @@ RUNTIME_FUNCTION(Runtime_RoundNumber) {
   if (sign && value >= -0.5) return isolate->heap()->minus_zero_value();
 
   // Do not call NumberFromDouble() to avoid extra checks.
-  return *isolate->factory()->NewNumber(std::floor(value + 0.5));
+  return *isolate->factory()->NewNumber(Floor(value + 0.5));
 }
 
 
@@ -9522,9 +9523,9 @@ RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   double millis;
   if (FLAG_verify_predictable) {
     millis = 1388534400000.0;  // Jan 1 2014 00:00:00 GMT+0000
-    millis += std::floor(isolate->heap()->synthetic_time());
+    millis += Floor(isolate->heap()->synthetic_time());
   } else {
-    millis = std::floor(base::OS::TimeCurrentMillis());
+    millis = Floor(base::OS::TimeCurrentMillis());
   }
   return *isolate->factory()->NewNumber(millis);
 }
