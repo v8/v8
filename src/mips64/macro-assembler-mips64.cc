@@ -237,10 +237,6 @@ void MacroAssembler::RecordWriteForMap(Register object,
     return;
   }
 
-  // Count number of write barriers in generated code.
-  isolate()->counters()->write_barriers_static()->Increment();
-  // TODO(mstarzinger): Dynamic counter missing.
-
   if (emit_debug_code()) {
     ld(at, FieldMemOperand(object, HeapObject::kMapOffset));
     Check(eq,
@@ -283,6 +279,10 @@ void MacroAssembler::RecordWriteForMap(Register object,
 
   bind(&done);
 
+  // Count number of write barriers in generated code.
+  isolate()->counters()->write_barriers_static()->Increment();
+  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1, at, dst);
+
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
@@ -318,10 +318,6 @@ void MacroAssembler::RecordWrite(
     return;
   }
 
-  // Count number of write barriers in generated code.
-  isolate()->counters()->write_barriers_static()->Increment();
-  // TODO(mstarzinger): Dynamic counter missing.
-
   // First, check if a write barrier is even needed. The tests below
   // catch stores of smis and stores into the young generation.
   Label done;
@@ -356,6 +352,11 @@ void MacroAssembler::RecordWrite(
   }
 
   bind(&done);
+
+  // Count number of write barriers in generated code.
+  isolate()->counters()->write_barriers_static()->Increment();
+  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1, at,
+                   value);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
