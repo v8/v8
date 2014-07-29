@@ -2985,8 +2985,8 @@ namespace {
 
 int* global_use_counts = NULL;
 
-void MockUseCounterCallback(v8::Isolate* isolate,
-                            v8::Isolate::UseCounterFeature feature) {
+void UseCounterCallback(v8::Isolate* isolate,
+                        v8::Isolate::UseCounterFeature feature) {
   ++global_use_counts[feature];
 }
 
@@ -2999,12 +2999,13 @@ TEST(UseAsmUseCount) {
   LocalContext env;
   int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
   global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CcTest::isolate()->SetUseCounterCallback(UseCounterCallback);
   CompileRun("\"use asm\";\n"
              "var foo = 1;\n"
              "\"use asm\";\n"  // Only the first one counts.
              "function bar() { \"use asm\"; var baz = 1; }");
-  CHECK_EQ(2, use_counts[v8::Isolate::kUseAsm]);
+  // Optimizing will double-count because the source is parsed twice.
+  CHECK_EQ(i::FLAG_always_opt ? 4 : 2, use_counts[v8::Isolate::kUseAsm]);
 }
 
 

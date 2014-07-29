@@ -6624,6 +6624,10 @@ TEST(Backtrace) {
 
   v8::Debug::SetMessageHandler(BacktraceData::MessageHandler);
 
+  // TODO(mstarzinger): This doesn't work with --always-opt because we don't
+  // have correct source positions in optimized code. Enable once we have.
+  i::FLAG_always_opt = false;
+
   const int kBufferSize = 1000;
   uint16_t buffer[kBufferSize];
   const char* scripts_command =
@@ -6962,13 +6966,12 @@ TEST(DeoptimizeDuringDebugBreak) {
   v8::Debug::SetDebugEventListener(DebugEventBreakDeoptimize);
 
   // Compile and run function bar which will optimize it for some flag settings.
-  v8::Script::Compile(v8::String::NewFromUtf8(
-                          env->GetIsolate(), "function bar(){}; bar()"))->Run();
+  v8::Local<v8::Function> f = CompileFunction(&env, "function bar(){}", "bar");
+  f->Call(v8::Undefined(env->GetIsolate()), 0, NULL);
 
   // Set debug break and call bar again.
   v8::Debug::DebugBreak(env->GetIsolate());
-  v8::Script::Compile(v8::String::NewFromUtf8(env->GetIsolate(), "bar()"))
-      ->Run();
+  f->Call(v8::Undefined(env->GetIsolate()), 0, NULL);
 
   CHECK(debug_event_break_deoptimize_done);
 

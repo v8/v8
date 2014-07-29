@@ -652,6 +652,17 @@ TEST(CrossScriptReferencesHarmony) {
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
 
+  // TODO(rossberg): Reparsing of top-level code does not work in the presence
+  // of harmony scoping and multiple scripts. This can already be reproduced
+  // without --always-opt by relying on OSR alone.
+  //
+  // ./d8 --harmony-scoping
+  //      -e "'use strict'; let a = 1;"
+  //      -e "'use strict'; let b = 2; for (var i = 0; i < 100000; ++i) b++;"
+  //
+  // For now we just disable --always-opt for this test.
+  i::FLAG_always_opt = false;
+
   const char* decs[] = {
     "var x = 1; x", "x", "this.x",
     "function x() { return 1 }; x()", "x()", "this.x()",

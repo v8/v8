@@ -5,6 +5,7 @@
 #include "src/factory.h"
 
 #include "src/allocation-site-scopes.h"
+#include "src/bootstrapper.h"
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
@@ -1372,7 +1373,8 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   if (isolate()->use_crankshaft() &&
       FLAG_always_opt &&
       result->is_compiled() &&
-      !info->is_toplevel() &&
+      // TODO(mstarzinger): Extend to optimization of builtin code.
+      !isolate()->bootstrapper()->IsActive() &&
       info->allows_lazy_compilation() &&
       !info->optimization_disabled() &&
       !isolate()->DebuggerHasBreakPoints()) {

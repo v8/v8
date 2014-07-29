@@ -11275,7 +11275,7 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
 
 void HOptimizedGraphBuilder::VisitModuleDeclaration(
     ModuleDeclaration* declaration) {
-  UNREACHABLE();
+  return Bailout(kModuleDeclaration);
 }
 
 
