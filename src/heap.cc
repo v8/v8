@@ -54,8 +54,7 @@ Heap::Heap()
       isolate_(NULL),
       code_range_size_(0),
       // semispace_size_ should be a power of 2 and old_generation_size_ should
-      // be
-      // a multiple of Page::kPageSize.
+      // be a multiple of Page::kPageSize.
       reserved_semispace_size_(8 * (kPointerSize / 4) * MB),
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
       initial_semispace_size_(Page::kPageSize),
@@ -3303,8 +3302,7 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
   // for concurrent sweeping. The WasSwept predicate for concurrently swept
   // pages is set after sweeping all pages.
   return (!is_in_old_pointer_space && !is_in_old_data_space) ||
-         page->WasSwept() ||
-         (page->parallel_sweeping() <= MemoryChunk::SWEEPING_FINALIZE);
+         page->WasSwept() || page->SweepingCompleted();
 }
 
 
@@ -4229,9 +4227,6 @@ void Heap::MakeHeapIterable() {
 
 
 void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
-  HistogramTimerScope idle_notification_scope(
-      isolate_->counters()->gc_incremental_marking());
-
   incremental_marking()->Step(step_size,
                               IncrementalMarking::NO_GC_VIA_STACK_GUARD);
 
@@ -4255,6 +4250,9 @@ void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
 
 
 bool Heap::IdleNotification(int hint) {
+  // If incremental marking is off, we do not perform idle notification.
+  if (!FLAG_incremental_marking) return true;
+
   // Hints greater than this value indicate that
   // the embedder is requesting a lot of GC work.
   const int kMaxHint = 1000;
@@ -4268,6 +4266,7 @@ bool Heap::IdleNotification(int hint) {
   intptr_t step_size =
       size_factor * IncrementalMarking::kAllocatedThreshold;
 
+  isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(hint);
   HistogramTimerScope idle_notification_scope(
       isolate_->counters()->gc_idle_notification());
 
@@ -4288,10 +4287,6 @@ bool Heap::IdleNotification(int hint) {
     // on subsequent idle notifications.
     StartIdleRound();
     return false;
-  }
-
-  if (!FLAG_incremental_marking || isolate_->serializer_enabled()) {
-    return IdleGlobalGC();
   }
 
   // By doing small chunks of GC work in each IdleNotification,
@@ -4345,66 +4340,6 @@ bool Heap::IdleNotification(int hint) {
   }
 
   return false;
-}
-
-
-bool Heap::IdleGlobalGC() {
-  static const int kIdlesBeforeScavenge = 4;
-  static const int kIdlesBeforeMarkSweep = 7;
-  static const int kIdlesBeforeMarkCompact = 8;
-  static const int kMaxIdleCount = kIdlesBeforeMarkCompact + 1;
-  static const unsigned int kGCsBetweenCleanup = 4;
-
-  if (!last_idle_notification_gc_count_init_) {
-    last_idle_notification_gc_count_ = gc_count_;
-    last_idle_notification_gc_count_init_ = true;
-  }
-
-  bool uncommit = true;
-  bool finished = false;
-
-  // Reset the number of idle notifications received when a number of
-  // GCs have taken place. This allows another round of cleanup based
-  // on idle notifications if enough work has been carried out to
-  // provoke a number of garbage collections.
-  if (gc_count_ - last_idle_notification_gc_count_ < kGCsBetweenCleanup) {
-    number_idle_notifications_ =
-        Min(number_idle_notifications_ + 1, kMaxIdleCount);
-  } else {
-    number_idle_notifications_ = 0;
-    last_idle_notification_gc_count_ = gc_count_;
-  }
-
-  if (number_idle_notifications_ == kIdlesBeforeScavenge) {
-    CollectGarbage(NEW_SPACE, "idle notification");
-    new_space_.Shrink();
-    last_idle_notification_gc_count_ = gc_count_;
-  } else if (number_idle_notifications_ == kIdlesBeforeMarkSweep) {
-    // Before doing the mark-sweep collections we clear the
-    // compilation cache to avoid hanging on to source code and
-    // generated code for cached functions.
-    isolate_->compilation_cache()->Clear();
-
-    CollectAllGarbage(kReduceMemoryFootprintMask, "idle notification");
-    new_space_.Shrink();
-    last_idle_notification_gc_count_ = gc_count_;
-
-  } else if (number_idle_notifications_ == kIdlesBeforeMarkCompact) {
-    CollectAllGarbage(kReduceMemoryFootprintMask, "idle notification");
-    new_space_.Shrink();
-    last_idle_notification_gc_count_ = gc_count_;
-    number_idle_notifications_ = 0;
-    finished = true;
-  } else if (number_idle_notifications_ > kIdlesBeforeMarkCompact) {
-    // If we have received more than kIdlesBeforeMarkCompact idle
-    // notifications we do not perform any cleanup because we don't
-    // expect to gain much by doing so.
-    finished = true;
-  }
-
-  if (uncommit) UncommitFromSpace();
-
-  return finished;
 }
 
 

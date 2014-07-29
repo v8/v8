@@ -58,7 +58,7 @@ HeapObjectIterator::HeapObjectIterator(Page* page,
              page->area_end(),
              kOnePageOnly,
              size_func);
-  ASSERT(page->WasSweptPrecisely());
+  ASSERT(page->WasSweptPrecisely() || page->SweepingCompleted());
 }
 
 

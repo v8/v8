@@ -31,7 +31,6 @@ Code* DummyCode(LocalContext* context) {
 TEST(ConstantPoolSmall) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
 
@@ -51,7 +50,7 @@ TEST(ConstantPoolSmall) {
 
   // Check getters and setters.
   int64_t big_number = V8_2PART_UINT64_C(0x12345678, 9ABCDEF0);
-  Handle<Object> object = factory->NewHeapNumber(4.0);
+  Handle<Object> object = factory->NewHeapNumber(4.0, IMMUTABLE, TENURED);
   Code* code = DummyCode(&context);
   array->set(0, big_number);
   array->set(1, 0.5);
@@ -67,21 +66,12 @@ TEST(ConstantPoolSmall) {
   CHECK_EQ(code, array->get_heap_ptr_entry(4));
   CHECK_EQ(*object, array->get_heap_ptr_entry(5));
   CHECK_EQ(50, array->get_int32_entry(6));
-
-  // Check pointers are updated on GC.
-  Object* old_ptr = array->get_heap_ptr_entry(5);
-  CHECK_EQ(*object, old_ptr);
-  heap->CollectGarbage(NEW_SPACE);
-  Object* new_ptr = array->get_heap_ptr_entry(5);
-  CHECK_NE(*object, old_ptr);
-  CHECK_EQ(*object, new_ptr);
 }
 
 
 TEST(ConstantPoolExtended) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
   Factory* factory = isolate->factory();
   v8::HandleScope scope(context->GetIsolate());
 
@@ -116,12 +106,14 @@ TEST(ConstantPoolExtended) {
   // Check small and large section's don't overlap.
   int64_t small_section_int64 = V8_2PART_UINT64_C(0x56781234, DEF09ABC);
   Code* small_section_code_ptr = DummyCode(&context);
-  Handle<Object> small_section_heap_ptr = factory->NewHeapNumber(4.0);
+  Handle<Object> small_section_heap_ptr =
+      factory->NewHeapNumber(4.0, IMMUTABLE, TENURED);
   int32_t small_section_int32 = 0xab12cd45;
 
   int64_t extended_section_int64 = V8_2PART_UINT64_C(0x12345678, 9ABCDEF0);
   Code* extended_section_code_ptr = DummyCode(&context);
-  Handle<Object> extended_section_heap_ptr = factory->NewHeapNumber(4.0);
+  Handle<Object> extended_section_heap_ptr =
+      factory->NewHeapNumber(5.0, IMMUTABLE, TENURED);
   int32_t extended_section_int32 = 0xef67ab89;
 
   for (int i = array->first_index(ConstantPoolArray::INT64, kSmall);
@@ -178,14 +170,6 @@ TEST(ConstantPoolExtended) {
       CHECK_EQ(extended_section_int32, array->get_int32_entry(i));
     }
   }
-  // Check pointers are updated on GC in extended section.
-  int index = array->first_index(ConstantPoolArray::HEAP_PTR, kExtended);
-  Object* old_ptr = array->get_heap_ptr_entry(index);
-  CHECK_EQ(*extended_section_heap_ptr, old_ptr);
-  heap->CollectGarbage(NEW_SPACE);
-  Object* new_ptr = array->get_heap_ptr_entry(index);
-  CHECK_NE(*extended_section_heap_ptr, old_ptr);
-  CHECK_EQ(*extended_section_heap_ptr, new_ptr);
 }
 
 
@@ -241,4 +225,87 @@ TEST(ConstantPoolIteratorExtended) {
   CheckIterator(array, ConstantPoolArray::HEAP_PTR, expected_heap_indexs, 3);
   int expected_int32_indexs[] = { 1, 2, 3, 4 };
   CheckIterator(array, ConstantPoolArray::INT32, expected_int32_indexs, 4);
+}
+
+
+TEST(ConstantPoolPreciseGC) {
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(context->GetIsolate());
+
+  ConstantPoolArray::NumberOfEntries small(1, 0, 0, 1);
+  Handle<ConstantPoolArray> array = factory->NewConstantPoolArray(small);
+
+  // Check that the store buffer knows which entries are pointers and which are
+  // not.  To do this, make non-pointer entries which look like new space
+  // pointers but are actually invalid and ensure the GC doesn't try to move
+  // them.
+  Handle<HeapObject> object = factory->NewHeapNumber(4.0);
+  Object* raw_ptr = *object;
+  // If interpreted as a pointer, this should be right inside the heap number
+  // which will cause a crash when trying to lookup the 'map' pointer.
+  intptr_t invalid_ptr = reinterpret_cast<intptr_t>(raw_ptr) + kInt32Size;
+  int32_t invalid_ptr_int32 = static_cast<int32_t>(invalid_ptr);
+  int64_t invalid_ptr_int64 = static_cast<int64_t>(invalid_ptr);
+  array->set(0, invalid_ptr_int64);
+  array->set(1, invalid_ptr_int32);
+
+  // Ensure we perform a scan on scavenge for the constant pool's page.
+  MemoryChunk::FromAddress(array->address())->set_scan_on_scavenge(true);
+  heap->CollectGarbage(NEW_SPACE);
+
+  // Check the object was moved by GC.
+  CHECK_NE(*object, raw_ptr);
+
+  // Check the non-pointer entries weren't changed.
+  CHECK_EQ(invalid_ptr_int64, array->get_int64_entry(0));
+  CHECK_EQ(invalid_ptr_int32, array->get_int32_entry(1));
+}
+
+
+TEST(ConstantPoolCompacting) {
+  if (i::FLAG_never_compact) return;
+  i::FLAG_always_compact = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  v8::HandleScope scope(context->GetIsolate());
+
+  ConstantPoolArray::NumberOfEntries small(0, 0, 1, 0);
+  ConstantPoolArray::NumberOfEntries extended(0, 0, 1, 0);
+  Handle<ConstantPoolArray> array =
+      factory->NewExtendedConstantPoolArray(small, extended);
+
+  // Start a second old-space page so that the heap pointer added to the
+  // constant pool array ends up on the an evacuation candidate page.
+  Page* first_page = heap->old_data_space()->anchor()->next_page();
+  {
+    HandleScope scope(isolate);
+    Handle<HeapObject> temp =
+        factory->NewFixedDoubleArray(900 * KB / kDoubleSize, TENURED);
+    CHECK(heap->InOldDataSpace(temp->address()));
+    Handle<HeapObject> heap_ptr =
+        factory->NewHeapNumber(5.0, IMMUTABLE, TENURED);
+    CHECK(heap->InOldDataSpace(heap_ptr->address()));
+    CHECK(!first_page->Contains(heap_ptr->address()));
+    array->set(0, *heap_ptr);
+    array->set(1, *heap_ptr);
+  }
+
+  // Check heap pointers are correctly updated on GC.
+  Object* old_ptr = array->get_heap_ptr_entry(0);
+  Handle<Object> object(old_ptr, isolate);
+  CHECK_EQ(old_ptr, *object);
+  CHECK_EQ(old_ptr, array->get_heap_ptr_entry(1));
+
+  // Force compacting garbage collection.
+  CHECK(FLAG_always_compact);
+  heap->CollectAllGarbage(Heap::kNoGCFlags);
+
+  CHECK_NE(old_ptr, *object);
+  CHECK_EQ(*object, array->get_heap_ptr_entry(0));
+  CHECK_EQ(*object, array->get_heap_ptr_entry(1));
 }

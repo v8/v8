@@ -55,6 +55,11 @@ void HistogramTimer::Stop() {
 
 
 Counters::Counters(Isolate* isolate) {
+#define HR(name, caption, min, max, num_buckets) \
+  name##_ = Histogram(#caption, min, max, num_buckets, isolate);
+  HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+
 #define HT(name, caption) \
     name##_ = HistogramTimer(#caption, 0, 10000, 50, isolate);
     HISTOGRAM_TIMER_LIST(HT)
@@ -142,6 +147,10 @@ void Counters::ResetCounters() {
 
 
 void Counters::ResetHistograms() {
+#define HR(name, caption, min, max, num_buckets) name##_.Reset();
+  HISTOGRAM_RANGE_LIST(HR)
+#undef HR
+
 #define HT(name, caption) name##_.Reset();
     HISTOGRAM_TIMER_LIST(HT)
 #undef HT

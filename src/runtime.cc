@@ -10574,15 +10574,39 @@ RUNTIME_FUNCTION(Runtime_MoveArrayContents) {
 
 // How many elements does this object/array have?
 RUNTIME_FUNCTION(Runtime_EstimateNumberOfElements) {
-  SealHandleScope shs(isolate);
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSArray, object, 0);
-  HeapObject* elements = object->elements();
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
+  Handle<FixedArrayBase> elements(array->elements(), isolate);
+  SealHandleScope shs(isolate);
   if (elements->IsDictionary()) {
-    int result = SeededNumberDictionary::cast(elements)->NumberOfElements();
+    int result =
+        Handle<SeededNumberDictionary>::cast(elements)->NumberOfElements();
     return Smi::FromInt(result);
   } else {
-    return object->length();
+    ASSERT(array->length()->IsSmi());
+    // For packed elements, we know the exact number of elements
+    int length = elements->length();
+    ElementsKind kind = array->GetElementsKind();
+    if (IsFastPackedElementsKind(kind)) {
+      return Smi::FromInt(length);
+    }
+    // For holey elements, take samples from the buffer checking for holes
+    // to generate the estimate.
+    const int kNumberOfHoleCheckSamples = 97;
+    int increment = (length < kNumberOfHoleCheckSamples)
+                        ? 1
+                        : static_cast<int>(length / kNumberOfHoleCheckSamples);
+    ElementsAccessor* accessor = array->GetElementsAccessor();
+    int holes = 0;
+    for (int i = 0; i < length; i += increment) {
+      if (!accessor->HasElement(array, array, i, elements)) {
+        ++holes;
+      }
+    }
+    int estimate = static_cast<int>((kNumberOfHoleCheckSamples - holes) /
+                                    kNumberOfHoleCheckSamples * length);
+    return Smi::FromInt(estimate);
   }
 }
 
@@ -14953,6 +14977,15 @@ RUNTIME_FUNCTION(Runtime_InternalArrayConstructor) {
                                 constructor,
                                 Handle<AllocationSite>::null(),
                                 caller_args);
+}
+
+
+RUNTIME_FUNCTION(Runtime_NormalizeElements) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
+  JSObject::NormalizeElements(array);
+  return *array;
 }
 
 

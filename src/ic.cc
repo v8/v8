@@ -941,8 +941,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
   Handle<HeapType> type = receiver_type();
   Handle<JSObject> holder(lookup->holder());
   bool receiver_is_holder = object.is_identical_to(holder);
-  NamedLoadHandlerCompiler compiler(isolate(), handler_kind(), kNoExtraICState,
-                                    cache_holder);
+  NamedLoadHandlerCompiler compiler(isolate(), cache_holder);
 
   switch (lookup->type()) {
     case FIELD: {
@@ -1392,7 +1391,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
   Handle<JSObject> holder(lookup->holder());
-  NamedStoreHandlerCompiler compiler(isolate(), kind());
+  NamedStoreHandlerCompiler compiler(isolate());
 
   if (lookup->IsTransition()) {
     // Explicitly pass in the receiver map since LookupForWrite may have

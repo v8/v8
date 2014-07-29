@@ -312,20 +312,20 @@ class MemoryChunk {
   }
 
   Space* owner() const {
-    if ((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
-        kFailureTag) {
+    if ((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
+        kPageHeaderTag) {
       return reinterpret_cast<Space*>(reinterpret_cast<intptr_t>(owner_) -
-                                      kFailureTag);
+                                      kPageHeaderTag);
     } else {
       return NULL;
     }
   }
 
   void set_owner(Space* space) {
-    ASSERT((reinterpret_cast<intptr_t>(space) & kFailureTagMask) == 0);
-    owner_ = reinterpret_cast<Address>(space) + kFailureTag;
-    ASSERT((reinterpret_cast<intptr_t>(owner_) & kFailureTagMask) ==
-           kFailureTag);
+    ASSERT((reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask) == 0);
+    owner_ = reinterpret_cast<Address>(space) + kPageHeaderTag;
+    ASSERT((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
+           kPageHeaderTag);
   }
 
   base::VirtualMemory* reserved_memory() {
@@ -477,6 +477,8 @@ class MemoryChunk {
         &parallel_sweeping_, SWEEPING_PENDING, SWEEPING_IN_PROGRESS) ==
             SWEEPING_PENDING;
   }
+
+  bool SweepingCompleted() { return parallel_sweeping() <= SWEEPING_FINALIZE; }
 
   // Manage live byte count (count of bytes known to be live,
   // because they are marked black).

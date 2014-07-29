@@ -4584,12 +4584,14 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = map->instance_size() - new_instance_size;
   ASSERT(instance_size_delta >= 0);
-  Heap* heap = isolate->heap();
-  heap->CreateFillerObjectAt(object->address() + new_instance_size,
-                             instance_size_delta);
-  heap->AdjustLiveBytes(object->address(),
-                        -instance_size_delta,
-                        Heap::FROM_MUTATOR);
+
+  if (instance_size_delta > 0) {
+    Heap* heap = isolate->heap();
+    heap->CreateFillerObjectAt(object->address() + new_instance_size,
+                               instance_size_delta);
+    heap->AdjustLiveBytes(object->address(), -instance_size_delta,
+                          Heap::FROM_MUTATOR);
+  }
 
   // We are storing the new map using release store after creating a filler for
   // the left-over space to avoid races with the sweeper thread.
@@ -6636,7 +6638,12 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   if (is_observed) {
     if (is_element) {
       Maybe<bool> maybe = HasOwnElement(object, index);
-      ASSERT(maybe.has_value);
+      // Workaround for a GCC 4.4.3 bug which leads to "‘preexists’ may be used
+      // uninitialized in this function".
+      if (!maybe.has_value) {
+        ASSERT(false);
+        return isolate->factory()->undefined_value();
+      }
       preexists = maybe.value;
       if (preexists && GetOwnElementAccessorPair(object, index).is_null()) {
         old_value =
@@ -11733,6 +11740,17 @@ static void EndPerformSplice(Handle<JSArray> object) {
 MaybeHandle<Object> JSArray::SetElementsLength(
     Handle<JSArray> array,
     Handle<Object> new_length_handle) {
+  if (array->HasFastElements()) {
+    // If the new array won't fit in a some non-trivial fraction of the max old
+    // space size, then force it to go dictionary mode.
+    int max_fast_array_size = static_cast<int>(
+        (array->GetHeap()->MaxOldGenerationSize() / kDoubleSize) / 4);
+    if (new_length_handle->IsNumber() &&
+        NumberToInt32(*new_length_handle) >= max_fast_array_size) {
+      NormalizeElements(array);
+    }
+  }
+
   // We should never end in here with a pixel or external array.
   ASSERT(array->AllowsSetElementsLength());
   if (!array->map()->is_observed()) {

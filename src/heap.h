@@ -2078,9 +2078,6 @@ class Heap {
     return heap_size_mb / kMbPerMs;
   }
 
-  // Returns true if no more GC work is left.
-  bool IdleGlobalGC();
-
   void AdvanceIdleIncrementalMarking(intptr_t step_size);
 
   void ClearObjectStats(bool clear_last_time_stats = false);

@@ -172,10 +172,28 @@ class GCTracer BASE_EMBEDDED {
 
     // Number of incremental marking steps since creation of tracer.
     // (value at start of event)
+    int cumulative_incremental_marking_steps;
+
+    // Incremental marking steps since
+    // - last event for SCAVENGER events
+    // - last MARK_COMPACTOR event for MARK_COMPACTOR events
     int incremental_marking_steps;
+
+    // Bytes marked since creation of tracer (value at start of event).
+    intptr_t cumulative_incremental_marking_bytes;
+
+    // Bytes marked since
+    // - last event for SCAVENGER events
+    // - last MARK_COMPACTOR event for MARK_COMPACTOR events
+    intptr_t incremental_marking_bytes;
 
     // Cumulative duration of incremental marking steps since creation of
     // tracer. (value at start of event)
+    double cumulative_incremental_marking_duration;
+
+    // Duration of incremental marking steps since
+    // - last event for SCAVENGER events
+    // - last MARK_COMPACTOR event for MARK_COMPACTOR events
     double incremental_marking_duration;
 
     // Longest incremental marking step since start of marking.
@@ -200,7 +218,7 @@ class GCTracer BASE_EMBEDDED {
   void Stop();
 
   // Log an incremental marking step.
-  void AddIncrementalMarkingStep(double duration);
+  void AddIncrementalMarkingStep(double duration, intptr_t bytes);
 
   // Compute the mean duration of the last scavenger events. Returns 0 if no
   // events have been recorded.
@@ -231,6 +249,10 @@ class GCTracer BASE_EMBEDDED {
   // Compute the max step duration of the last incremental marking round.
   // Returns 0 if no incremental marking round has been completed.
   double MaxIncrementalMarkingDuration() const;
+
+  // Compute the average incremental marking speed in bytes/second. Returns 0 if
+  // no events have been recorded.
+  intptr_t MarkingSpeedInBytesPerMillisecond() const;
 
  private:
   // Print one detailed trace line in name=value format.
@@ -267,10 +289,14 @@ class GCTracer BASE_EMBEDDED {
   EventBuffer mark_compactor_events_;
 
   // Cumulative number of incremental marking steps since creation of tracer.
-  int incremental_marking_steps_;
+  int cumulative_incremental_marking_steps_;
+
+  // Cumulative size of incremental marking steps (in bytes) since creation of
+  // tracer.
+  intptr_t cumulative_incremental_marking_bytes_;
 
   // Cumulative duration of incremental marking steps since creation of tracer.
-  double incremental_marking_duration_;
+  double cumulative_incremental_marking_duration_;
 
   // Longest incremental marking step since start of marking.
   double longest_incremental_marking_step_;

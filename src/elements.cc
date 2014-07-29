@@ -887,8 +887,7 @@ class FastElementsAccessor
 
   typedef typename KindTraits::BackingStore BackingStore;
 
-  // Adjusts the length of the fast backing store or returns the new length or
-  // undefined in case conversion to a slow backing store should be performed.
+  // Adjusts the length of the fast backing store.
   static Handle<Object> SetLengthWithoutNormalize(
       Handle<FixedArrayBase> backing_store,
       Handle<JSArray> array,
@@ -940,15 +939,10 @@ class FastElementsAccessor
     // Check whether the backing store should be expanded.
     uint32_t min = JSObject::NewElementsCapacity(old_capacity);
     uint32_t new_capacity = length > min ? length : min;
-    if (!array->ShouldConvertToSlowElements(new_capacity)) {
-      FastElementsAccessorSubclass::SetFastElementsCapacityAndLength(
-          array, new_capacity, length);
-      JSObject::ValidateElements(array);
-      return length_object;
-    }
-
-    // Request conversion to slow elements.
-    return isolate->factory()->undefined_value();
+    FastElementsAccessorSubclass::SetFastElementsCapacityAndLength(
+        array, new_capacity, length);
+    JSObject::ValidateElements(array);
+    return length_object;
   }
 
   static Handle<Object> DeleteCommon(Handle<JSObject> obj,
