@@ -452,6 +452,12 @@
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
           'CharacterSet': '1',
         },
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            # Ensure no surprising artifacts from 80bit double math with x86.
+            'AdditionalOptions': ['/arch:SSE2'],
+          },
+        },
       }],
       ['OS=="win" and v8_enable_prof==1', {
         'msvs_settings': {
