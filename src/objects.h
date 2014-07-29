@@ -7003,7 +7003,8 @@ class Script: public Struct {
   V(Math, max, MathMax)                             \
   V(Math, min, MathMin)                             \
   V(Math, imul, MathImul)                           \
-  V(Math, clz32, MathClz32)
+  V(Math, clz32, MathClz32)                         \
+  V(Math, fround, MathFround)
 
 enum BuiltinFunctionId {
   kArrayCode,

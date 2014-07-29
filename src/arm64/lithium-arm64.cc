@@ -2648,6 +2648,12 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
         return DefineAsRegister(result);
       }
     }
+    case kMathFround: {
+      ASSERT(instr->value()->representation().IsDouble());
+      LOperand* input = UseRegister(instr->value());
+      LMathFround* result = new (zone()) LMathFround(input);
+      return DefineAsRegister(result);
+    }
     case kMathSqrt: {
       ASSERT(instr->representation().IsDouble());
       ASSERT(instr->value()->representation().IsDouble());

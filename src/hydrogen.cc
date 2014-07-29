@@ -8072,6 +8072,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
       if (!FLAG_fast_math) break;
       // Fall through if FLAG_fast_math.
     case kMathRound:
+    case kMathFround:
     case kMathFloor:
     case kMathAbs:
     case kMathSqrt:
@@ -8143,6 +8144,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (!FLAG_fast_math) break;
       // Fall through if FLAG_fast_math.
     case kMathRound:
+    case kMathFround:
     case kMathFloor:
     case kMathAbs:
     case kMathSqrt:
