@@ -2459,7 +2459,6 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
   FieldDescriptor d(name, instance_descriptors()->GetFieldIndex(descriptor),
                     new_type, details.attributes(), details.representation());
   instance_descriptors()->Replace(descriptor, &d);
-  ;
 }
 
 
