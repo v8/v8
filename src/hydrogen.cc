@@ -10240,7 +10240,9 @@ HValue* HGraphBuilder::BuildBinaryOperation(
 
   bool maybe_string_add = op == Token::ADD &&
                           (left_type->Maybe(Type::String()) ||
-                           right_type->Maybe(Type::String()));
+                           left_type->Maybe(Type::Receiver()) ||
+                           right_type->Maybe(Type::String()) ||
+                           right_type->Maybe(Type::Receiver()));
 
   if (left_type->Is(Type::None())) {
     Add<HDeoptimize>("Insufficient type feedback for LHS of binary operation",
