@@ -2447,7 +2447,7 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
                           Handle<HeapType> new_type) {
   DisallowHeapAllocation no_allocation;
   PropertyDetails details = instance_descriptors()->GetDetails(descriptor);
-  if (!details.type() == FIELD) return;
+  if (details.type() != FIELD) return;
   if (HasTransitionArray()) {
     TransitionArray* transitions = this->transitions();
     for (int i = 0; i < transitions->number_of_transitions(); ++i) {
