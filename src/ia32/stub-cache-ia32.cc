@@ -264,11 +264,11 @@ static void PushInterceptorArguments(MacroAssembler* masm,
                                      Register holder,
                                      Register name,
                                      Handle<JSObject> holder_obj) {
-  STATIC_ASSERT(StubCache::kInterceptorArgsNameIndex == 0);
-  STATIC_ASSERT(StubCache::kInterceptorArgsInfoIndex == 1);
-  STATIC_ASSERT(StubCache::kInterceptorArgsThisIndex == 2);
-  STATIC_ASSERT(StubCache::kInterceptorArgsHolderIndex == 3);
-  STATIC_ASSERT(StubCache::kInterceptorArgsLength == 4);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex == 1);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 2);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 3);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 4);
   __ push(name);
   Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
   ASSERT(!masm->isolate()->heap()->InNewSpace(*interceptor));
@@ -288,9 +288,8 @@ static void CompileCallLoadPropertyWithInterceptor(
     Handle<JSObject> holder_obj,
     IC::UtilityId id) {
   PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
-  __ CallExternalReference(
-      ExternalReference(IC_Utility(id), masm->isolate()),
-      StubCache::kInterceptorArgsLength);
+  __ CallExternalReference(ExternalReference(IC_Utility(id), masm->isolate()),
+                           NamedLoadHandlerCompiler::kInterceptorArgsLength);
 }
 
 
@@ -1036,7 +1035,8 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(
     ExternalReference ref =
         ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptor),
                           isolate());
-    __ TailCallExternalReference(ref, StubCache::kInterceptorArgsLength, 1);
+    __ TailCallExternalReference(
+        ref, NamedLoadHandlerCompiler::kInterceptorArgsLength, 1);
   }
 }
 
