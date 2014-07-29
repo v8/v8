@@ -6773,7 +6773,8 @@ class Map: public HeapObject {
 
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
-  void UpdateDescriptor(int descriptor_number, Descriptor* desc);
+  void UpdateFieldType(int descriptor_number, Handle<Name> name,
+                       Handle<HeapType> new_type);
 
   void PrintGeneralization(FILE* file,
                            const char* reason,
