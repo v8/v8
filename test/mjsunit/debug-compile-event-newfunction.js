@@ -61,8 +61,7 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 
 // Create a function from its body text. It will lead to an eval.
-var f = new Function('arg1', 'return arg1 + 1;');
-// TODO(titzer): Assignment only needed because source positions are borked.
+new Function('arg1', 'return arg1 + 1;');
 
 assertNull(exception, "exception in listener");
 

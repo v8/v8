@@ -689,13 +689,7 @@ bool LCodeGen::GeneratePrologue() {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is in x1.
-    if (FLAG_harmony_scoping && info()->scope()->is_global_scope()) {
-      UseScratchRegisterScope temps(masm());
-      Register scope_info = temps.AcquireX();
-      __ Mov(scope_info, Operand(info()->scope()->GetScopeInfo()));
-      __ Push(x1, scope_info);
-      __ CallRuntime(Runtime::kNewGlobalContext, 2);
-    } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+    if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
       __ CallStub(&stub);
       // Result of FastNewContextStub is always in new space.
@@ -5032,6 +5026,8 @@ void LCodeGen::DoDeclareGlobals(LDeclareGlobals* instr) {
   Register scratch1 = x5;
   Register scratch2 = x6;
   ASSERT(instr->IsMarkedAsCall());
+
+  ASM_UNIMPLEMENTED_BREAK("DoDeclareGlobals");
   // TODO(all): if Mov could handle object in new space then it could be used
   // here.
   __ LoadHeapObject(scratch1, instr->hydrogen()->pairs());

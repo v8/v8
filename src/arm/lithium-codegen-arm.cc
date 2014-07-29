@@ -181,11 +181,7 @@ bool LCodeGen::GeneratePrologue() {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is in r1.
-    if (FLAG_harmony_scoping && info()->scope()->is_global_scope()) {
-      __ push(r1);
-      __ Push(info()->scope()->GetScopeInfo());
-      __ CallRuntime(Runtime::kNewGlobalContext, 2);
-    } else if (heap_slots <= FastNewContextStub::kMaximumSlots) {
+    if (heap_slots <= FastNewContextStub::kMaximumSlots) {
       FastNewContextStub stub(isolate(), heap_slots);
       __ CallStub(&stub);
       // Result of FastNewContextStub is always in new space.
