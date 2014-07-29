@@ -47,8 +47,8 @@ EXPAND_MACROS = [
 # that the parser doesn't bit-rot. Change the values as needed when you add,
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
-EXPECTED_FUNCTION_COUNT = 421
-EXPECTED_FUZZABLE_COUNT = 335
+EXPECTED_FUNCTION_COUNT = 422
+EXPECTED_FUZZABLE_COUNT = 336
 EXPECTED_CCTEST_COUNT = 8
 EXPECTED_UNKNOWN_COUNT = 4
 EXPECTED_BUILTINS_COUNT = 815
@@ -245,7 +245,7 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "NumberToRadixString": [None, "2", None],
   "ParseJson": ["\"{}\"", 1],
   "RegExpExecMultiple": [None, None, "['a']", "['a']", None],
-  "DefineAccessorProperty": [None, None, "undefined", "undefined", None, None],
+  "DefineApiAccessorProperty": [None, None, "undefined", "undefined", None, None],
   "SetIteratorInitialize": [None, None, "2", None],
   "SetDebugEventListener": ["undefined", None, None],
   "SetFunctionBreakPoint": [None, 200, None, None],

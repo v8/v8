@@ -228,6 +228,7 @@ namespace internal {
   F(AddNamedProperty, 4, 1)                            \
   F(AddPropertyForTemplate, 4, 1)                      \
   F(SetProperty, 4, 1)                                 \
+  F(DefineApiAccessorProperty, 5, 1)                   \
   F(DefineDataPropertyUnchecked, 4, 1)                 \
   F(DefineAccessorPropertyUnchecked, 5, 1)             \
   F(GetDataProperty, 2, 1)                             \
