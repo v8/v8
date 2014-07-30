@@ -3106,6 +3106,12 @@ void MarkCompactCollector::EvacuateLiveObjectsFromPage(Page* p) {
       HeapObject* target_object;
       AllocationResult allocation = space->AllocateRaw(size);
       if (!allocation.To(&target_object)) {
+        // If allocation failed, use emergency memory and re-try allocation.
+        CHECK(space->HasEmergencyMemory());
+        space->UseEmergencyMemory();
+        allocation = space->AllocateRaw(size);
+      }
+      if (!allocation.To(&target_object)) {
         // OS refused to give us memory.
         V8::FatalProcessOutOfMemory("Evacuation");
         return;
@@ -3130,10 +3136,16 @@ void MarkCompactCollector::EvacuatePages() {
            p->IsFlagSet(Page::RESCAN_ON_EVACUATION));
     ASSERT(static_cast<int>(p->parallel_sweeping()) ==
            MemoryChunk::SWEEPING_DONE);
+    PagedSpace* space = static_cast<PagedSpace*>(p->owner());
+    // Allocate emergency memory for the case when compaction fails due to out
+    // of memory.
+    if (!space->HasEmergencyMemory()) {
+      space->CreateEmergencyMemory();
+    }
     if (p->IsEvacuationCandidate()) {
-      // During compaction we might have to request a new page.
-      // Check that space still have room for that.
-      if (static_cast<PagedSpace*>(p->owner())->CanExpand()) {
+      // During compaction we might have to request a new page. Check that we
+      // have an emergency page and the space still has room for that.
+      if (space->HasEmergencyMemory() && space->CanExpand()) {
         EvacuateLiveObjectsFromPage(p);
       } else {
         // Without room for expansion evacuation is not guaranteed to succeed.
@@ -3144,7 +3156,17 @@ void MarkCompactCollector::EvacuatePages() {
           page->ClearEvacuationCandidate();
           page->SetFlag(Page::RESCAN_ON_EVACUATION);
         }
-        return;
+        break;
+      }
+    }
+  }
+  if (npages > 0) {
+    // Release emergency memory.
+    PagedSpaces spaces(heap());
+    for (PagedSpace* space = spaces.next(); space != NULL;
+         space = spaces.next()) {
+      if (space->HasEmergencyMemory()) {
+        space->FreeEmergencyMemory();
       }
     }
   }
