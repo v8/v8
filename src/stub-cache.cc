@@ -1099,12 +1099,9 @@ void PropertyAccessCompiler::TailCallBuiltin(MacroAssembler* masm,
 Register* PropertyAccessCompiler::GetCallingConvention(Code::Kind kind) {
   if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
     return load_calling_convention();
-  } else if (kind == Code::STORE_IC) {
-    return store_calling_convention();
-  } else {
-    ASSERT_EQ(Code::KEYED_STORE_IC, kind);
-    return keyed_store_calling_convention();
   }
+  ASSERT(kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC);
+  return store_calling_convention();
 }
 
 

@@ -690,10 +690,6 @@ class KeyedStoreIC: public StoreIC {
     return ExtraICStateKeyedAccessStoreMode::decode(extra_state);
   }
 
-  static const Register ReceiverRegister();
-  static const Register NameRegister();
-  static const Register ValueRegister();
-
   // The map register isn't part of the normal call specification, but
   // ElementsTransitionAndStoreStub, used in polymorphic keyed store
   // stub implementations requires it to be initialized.
