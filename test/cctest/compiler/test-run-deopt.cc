@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "v8.h"
+#include "src/v8.h"
 
-#include "function-tester.h"
+#include "test/cctest/compiler/function-tester.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
