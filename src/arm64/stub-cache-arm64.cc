@@ -1026,7 +1026,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   Register holder_reg = Frontend(receiver(), name);
 
   // Stub never generated for non-global objects that require access checks.
-  ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
+  ASSERT(holder()->IsJSGlobalProxy() || !holder()->IsAccessCheckNeeded());
 
   // receiver() and holder_reg can alias.
   ASSERT(!AreAliased(receiver(), scratch1(), scratch2(), value()));
