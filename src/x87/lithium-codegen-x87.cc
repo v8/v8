@@ -3733,6 +3733,10 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   UNIMPLEMENTED();
 }
 
+void LCodeGen::DoMathFround(LMathFround* instr) {
+  UNIMPLEMENTED();
+}
+
 
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
   UNIMPLEMENTED();
