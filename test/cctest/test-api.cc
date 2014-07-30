@@ -6178,15 +6178,17 @@ THREADED_TEST(IndexedInterceptorWithAccessorCheck) {
   context->Global()->Set(v8_str("obj"), obj);
 
   const char* code =
-      "try {"
-      "  for (var i = 0; i < 100; i++) {"
+      "var result = 'PASSED';"
+      "for (var i = 0; i < 100; i++) {"
+      "  try {"
       "    var v = obj[0];"
-      "    if (v != undefined) throw 'Wrong value ' + v + ' at iteration ' + i;"
+      "    result = 'Wrong value ' + v + ' at iteration ' + i;"
+      "    break;"
+      "  } catch (e) {"
+      "    /* pass */"
       "  }"
-      "  'PASSED'"
-      "} catch(e) {"
-      "  e"
-      "}";
+      "}"
+      "result";
   ExpectString(code, "PASSED");
 }
 
@@ -6203,21 +6205,29 @@ THREADED_TEST(IndexedInterceptorWithAccessorCheckSwitchedOn) {
   context->Global()->Set(v8_str("obj"), obj);
 
   const char* code =
-      "try {"
-      "  for (var i = 0; i < 100; i++) {"
-      "    var expected = i;"
-      "    if (i == 5) {"
-      "      %EnableAccessChecks(obj);"
-      "      expected = undefined;"
-      "    }"
-      "    var v = obj[i];"
-      "    if (v != expected) throw 'Wrong value ' + v + ' at iteration ' + i;"
-      "    if (i == 5) %DisableAccessChecks(obj);"
+      "var result = 'PASSED';"
+      "for (var i = 0; i < 100; i++) {"
+      "  var expected = i;"
+      "  if (i == 5) {"
+      "    %EnableAccessChecks(obj);"
       "  }"
-      "  'PASSED'"
-      "} catch(e) {"
-      "  e"
-      "}";
+      "  try {"
+      "    var v = obj[i];"
+      "    if (i == 5) {"
+      "      result = 'Should not have reached this!';"
+      "      break;"
+      "    } else if (v != expected) {"
+      "      result = 'Wrong value ' + v + ' at iteration ' + i;"
+      "      break;"
+      "    }"
+      "  } catch (e) {"
+      "    if (i != 5) {"
+      "      result = e;"
+      "    }"
+      "  }"
+      "  if (i == 5) %DisableAccessChecks(obj);"
+      "}"
+      "result";
   ExpectString(code, "PASSED");
 }
 
@@ -8628,10 +8638,8 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
   v8::Local<Script> access_other0 = v8_compile("other.Object");
   v8::Local<Script> access_other1 = v8_compile("other[42]");
   for (int i = 0; i < 5; i++) {
-    CHECK(!access_other0->Run()->Equals(other_object));
-    CHECK(access_other0->Run()->IsUndefined());
-    CHECK(!access_other1->Run()->Equals(v8_num(87)));
-    CHECK(access_other1->Run()->IsUndefined());
+    CHECK(access_other0->Run().IsEmpty());
+    CHECK(access_other1->Run().IsEmpty());
   }
 
   // Create an object that has 'other' in its prototype chain and make
@@ -8643,10 +8651,8 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
   v8::Local<Script> access_f0 = v8_compile("f.Object");
   v8::Local<Script> access_f1 = v8_compile("f[42]");
   for (int j = 0; j < 5; j++) {
-    CHECK(!access_f0->Run()->Equals(other_object));
-    CHECK(access_f0->Run()->IsUndefined());
-    CHECK(!access_f1->Run()->Equals(v8_num(87)));
-    CHECK(access_f1->Run()->IsUndefined());
+    CHECK(access_f0->Run().IsEmpty());
+    CHECK(access_f1->Run().IsEmpty());
   }
 
   // Now it gets hairy: Set the prototype for the other global object
@@ -8665,10 +8671,8 @@ THREADED_TEST(SecurityChecksForPrototypeChain) {
   Local<Script> access_f2 = v8_compile("f.foo");
   Local<Script> access_f3 = v8_compile("f[99]");
   for (int k = 0; k < 5; k++) {
-    CHECK(!access_f2->Run()->Equals(v8_num(100)));
-    CHECK(access_f2->Run()->IsUndefined());
-    CHECK(!access_f3->Run()->Equals(v8_num(101)));
-    CHECK(access_f3->Run()->IsUndefined());
+    CHECK(access_f2->Run().IsEmpty());
+    CHECK(access_f3->Run().IsEmpty());
   }
 }
 
@@ -8749,7 +8753,7 @@ THREADED_TEST(CrossDomainDelete) {
     Context::Scope scope_env2(env2);
     Local<Value> result =
         CompileRun("delete env1.prop");
-    CHECK(result->IsFalse());
+    CHECK(result.IsEmpty());
   }
 
   // Check that env1.prop still exists.
@@ -8787,7 +8791,7 @@ THREADED_TEST(CrossDomainIsPropertyEnumerable) {
   {
     Context::Scope scope_env2(env2);
     Local<Value> result = CompileRun(test);
-    CHECK(result->IsFalse());
+    CHECK(result.IsEmpty());
   }
 }
 
@@ -8814,11 +8818,18 @@ THREADED_TEST(CrossDomainForIn) {
   env2->SetSecurityToken(bar);
   {
     Context::Scope scope_env2(env2);
-    Local<Value> result =
-        CompileRun("(function(){var obj = {'__proto__':env1};"
-                   "for (var p in obj)"
-                   "   if (p == 'prop') return false;"
-                   "return true;})()");
+    Local<Value> result = CompileRun(
+        "(function() {"
+        "  var obj = { '__proto__': env1 };"
+        "  try {"
+        "    for (var p in obj) {"
+        "      if (p == 'prop') return false;"
+        "    }"
+        "    return false;"
+        "  } catch (e) {"
+        "    return true;"
+        "  }"
+        "})()");
     CHECK(result->IsTrue());
   }
 }
@@ -8880,7 +8891,7 @@ TEST(ContextDetachGlobal) {
   // Check that env3 is not accessible from env1
   {
     Local<Value> r = global3->Get(v8_str("prop2"));
-    CHECK(r->IsUndefined());
+    CHECK(r.IsEmpty());
   }
 }
 
@@ -8919,7 +8930,7 @@ TEST(DetachGlobal) {
   // Check that the global has been detached. No other.p property can
   // be found.
   result = CompileRun("other.p");
-  CHECK(result->IsUndefined());
+  CHECK(result.IsEmpty());
 
   // Reuse global2 for env3.
   v8::Handle<Context> env3 = Context::New(env1->GetIsolate(),
@@ -8949,7 +8960,7 @@ TEST(DetachGlobal) {
   // the global object for env3 which has a different security token,
   // so access should be blocked.
   result = CompileRun("other.p");
-  CHECK(result->IsUndefined());
+  CHECK(result.IsEmpty());
 }
 
 
@@ -9002,9 +9013,9 @@ TEST(DetachedAccesses) {
   result = CompileRun("bound_x()");
   CHECK_EQ(v8_str("env2_x"), result);
   result = CompileRun("get_x()");
-  CHECK(result->IsUndefined());
+  CHECK(result.IsEmpty());
   result = CompileRun("get_x_w()");
-  CHECK(result->IsUndefined());
+  CHECK(result.IsEmpty());
   result = CompileRun("this_x()");
   CHECK_EQ(v8_str("env2_x"), result);
 
@@ -9200,33 +9211,35 @@ TEST(AccessControl) {
   // Access blocked property.
   CompileRun("other.blocked_prop = 1");
 
-  ExpectUndefined("other.blocked_prop");
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'blocked_prop')");
-  ExpectFalse("propertyIsEnumerable.call(other, 'blocked_prop')");
+  CHECK(CompileRun("other.blocked_prop").IsEmpty());
+  CHECK(CompileRun("Object.getOwnPropertyDescriptor(other, 'blocked_prop')")
+            .IsEmpty());
+  CHECK(
+      CompileRun("propertyIsEnumerable.call(other, 'blocked_prop')").IsEmpty());
 
   // Access blocked element.
-  CompileRun("other[239] = 1");
+  CHECK(CompileRun("other[239] = 1").IsEmpty());
 
-  ExpectUndefined("other[239]");
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '239')");
-  ExpectFalse("propertyIsEnumerable.call(other, '239')");
+  CHECK(CompileRun("other[239]").IsEmpty());
+  CHECK(CompileRun("Object.getOwnPropertyDescriptor(other, '239')").IsEmpty());
+  CHECK(CompileRun("propertyIsEnumerable.call(other, '239')").IsEmpty());
 
   // Enable ACCESS_HAS
   allowed_access_type[v8::ACCESS_HAS] = true;
-  ExpectUndefined("other[239]");
+  CHECK(CompileRun("other[239]").IsEmpty());
   // ... and now we can get the descriptor...
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '239').value");
+  CHECK(CompileRun("Object.getOwnPropertyDescriptor(other, '239').value")
+            .IsEmpty());
   // ... and enumerate the property.
   ExpectTrue("propertyIsEnumerable.call(other, '239')");
   allowed_access_type[v8::ACCESS_HAS] = false;
 
   // Access a property with JS accessor.
-  CompileRun("other.js_accessor_p = 2");
+  CHECK(CompileRun("other.js_accessor_p = 2").IsEmpty());
 
-  ExpectUndefined("other.js_accessor_p");
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'js_accessor_p')");
+  CHECK(CompileRun("other.js_accessor_p").IsEmpty());
+  CHECK(CompileRun("Object.getOwnPropertyDescriptor(other, 'js_accessor_p')")
+            .IsEmpty());
 
   // Enable both ACCESS_HAS and ACCESS_GET.
   allowed_access_type[v8::ACCESS_HAS] = true;
@@ -9244,10 +9257,10 @@ TEST(AccessControl) {
   allowed_access_type[v8::ACCESS_GET] = false;
 
   // Access an element with JS accessor.
-  CompileRun("other[42] = 2");
+  CHECK(CompileRun("other[42] = 2").IsEmpty());
 
-  ExpectUndefined("other[42]");
-  ExpectUndefined("Object.getOwnPropertyDescriptor(other, '42')");
+  CHECK(CompileRun("other[42]").IsEmpty());
+  CHECK(CompileRun("Object.getOwnPropertyDescriptor(other, '42')").IsEmpty());
 
   // Enable both ACCESS_HAS and ACCESS_GET.
   allowed_access_type[v8::ACCESS_HAS] = true;
@@ -9283,15 +9296,22 @@ TEST(AccessControl) {
 
   // Enumeration doesn't enumerate accessors from inaccessible objects in
   // the prototype chain even if the accessors are in themselves accessible.
-  value =
-      CompileRun("(function(){var obj = {'__proto__':other};"
-                 "for (var p in obj)"
-                 "   if (p == 'accessible_prop' ||"
-                 "       p == 'blocked_js_prop' ||"
-                 "       p == 'blocked_js_prop') {"
-                 "     return false;"
-                 "   }"
-                 "return true;})()");
+  value = CompileRun(
+      "(function() {"
+      "  var obj = { '__proto__': other };"
+      "  try {"
+      "    for (var p in obj) {"
+      "      if (p == 'accessible_prop' ||"
+      "          p == 'blocked_js_prop' ||"
+      "          p == 'blocked_js_prop') {"
+      "        return false;"
+      "      }"
+      "    }"
+      "    return false;"
+      "  } catch (e) {"
+      "    return true;"
+      "  }"
+      "})()");
   CHECK(value->IsTrue());
 
   context1->Exit();
@@ -9334,16 +9354,15 @@ TEST(AccessControlES5) {
   global1->Set(v8_str("other"), global0);
 
   // Regression test for issue 1154.
-  ExpectTrue("Object.keys(other).indexOf('blocked_prop') == -1");
-
-  ExpectUndefined("other.blocked_prop");
+  CHECK(CompileRun("Object.keys(other)").IsEmpty());
+  CHECK(CompileRun("other.blocked_prop").IsEmpty());
 
   // Regression test for issue 1027.
   CompileRun("Object.defineProperty(\n"
              "  other, 'blocked_prop', {configurable: false})");
-  ExpectUndefined("other.blocked_prop");
-  ExpectUndefined(
-      "Object.getOwnPropertyDescriptor(other, 'blocked_prop')");
+  CHECK(CompileRun("other.blocked_prop").IsEmpty());
+  CHECK(CompileRun("Object.getOwnPropertyDescriptor(other, 'blocked_prop')")
+            .IsEmpty());
 
   // Regression test for issue 1171.
   ExpectTrue("Object.isExtensible(other)");
@@ -9419,10 +9438,10 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
   // proxy object.  Accessing the object that requires access checks
   // is blocked by the access checks on the object itself.
   value = CompileRun("Object.getOwnPropertyNames(other).length == 0");
-  CHECK(value->IsTrue());
+  CHECK(value.IsEmpty());
 
   value = CompileRun("Object.getOwnPropertyNames(object).length == 0");
-  CHECK(value->IsTrue());
+  CHECK(value.IsEmpty());
 
   context1->Exit();
   context0->Exit();
@@ -9530,7 +9549,7 @@ THREADED_TEST(CrossDomainAccessors) {
   CHECK_EQ(10, value->Int32Value());
 
   value = v8_compile("other.unreachable")->Run();
-  CHECK(value->IsUndefined());
+  CHECK(value.IsEmpty());
 
   context1->Exit();
   context0->Exit();
@@ -14642,13 +14661,13 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
   context->Global()->Set(v8_str("obj_1"), instance_1);
 
   Local<Value> value_1 = CompileRun("obj_1.a");
-  CHECK(value_1->IsUndefined());
+  CHECK(value_1.IsEmpty());
 
   Local<v8::Object> instance_2 = templ->NewInstance();
   context->Global()->Set(v8_str("obj_2"), instance_2);
 
   Local<Value> value_2 = CompileRun("obj_2.a");
-  CHECK(value_2->IsUndefined());
+  CHECK(value_2.IsEmpty());
 }
 
 
@@ -14729,11 +14748,9 @@ THREADED_TEST(TurnOnAccessCheck) {
   context->DetachGlobal();
   hidden_global->TurnOnAccessCheck();
 
-  // Failing access check to property get results in undefined.
-  CHECK(f1->Call(global, 0, NULL)->IsUndefined());
-  CHECK(f2->Call(global, 0, NULL)->IsUndefined());
-
-  // Failing access check to function call results in exception.
+  // Failing access check results in exception.
+  CHECK(f1->Call(global, 0, NULL).IsEmpty());
+  CHECK(f2->Call(global, 0, NULL).IsEmpty());
   CHECK(g1->Call(global, 0, NULL).IsEmpty());
   CHECK(g2->Call(global, 0, NULL).IsEmpty());
 
@@ -14817,11 +14834,9 @@ THREADED_TEST(TurnOnAccessCheckAndRecompile) {
   context->DetachGlobal();
   hidden_global->TurnOnAccessCheck();
 
-  // Failing access check to property get results in undefined.
-  CHECK(f1->Call(global, 0, NULL)->IsUndefined());
-  CHECK(f2->Call(global, 0, NULL)->IsUndefined());
-
-  // Failing access check to function call results in exception.
+  // Failing access check results in exception.
+  CHECK(f1->Call(global, 0, NULL).IsEmpty());
+  CHECK(f2->Call(global, 0, NULL).IsEmpty());
   CHECK(g1->Call(global, 0, NULL).IsEmpty());
   CHECK(g2->Call(global, 0, NULL).IsEmpty());
 
@@ -14835,13 +14850,13 @@ THREADED_TEST(TurnOnAccessCheckAndRecompile) {
   f2 = Local<Function>::Cast(hidden_global->Get(v8_str("f2")));
   g1 = Local<Function>::Cast(hidden_global->Get(v8_str("g1")));
   g2 = Local<Function>::Cast(hidden_global->Get(v8_str("g2")));
-  CHECK(hidden_global->Get(v8_str("h"))->IsUndefined());
+  CHECK(hidden_global->Get(v8_str("h")).IsEmpty());
 
-  // Failing access check to property get results in undefined.
-  CHECK(f1->Call(global, 0, NULL)->IsUndefined());
-  CHECK(f2->Call(global, 0, NULL)->IsUndefined());
-
-  // Failing access check to function call results in exception.
+  // Failing access check results in exception.
+  v8::Local<v8::Value> result = f1->Call(global, 0, NULL);
+  CHECK(result.IsEmpty());
+  CHECK(f1->Call(global, 0, NULL).IsEmpty());
+  CHECK(f2->Call(global, 0, NULL).IsEmpty());
   CHECK(g1->Call(global, 0, NULL).IsEmpty());
   CHECK(g2->Call(global, 0, NULL).IsEmpty());
 }
@@ -20364,20 +20379,20 @@ THREADED_TEST(Regress93759) {
   CHECK(result1->Equals(simple_object->GetPrototype()));
 
   Local<Value> result2 = CompileRun("Object.getPrototypeOf(protected)");
-  CHECK(result2->Equals(Undefined(isolate)));
+  CHECK(result2.IsEmpty());
 
   Local<Value> result3 = CompileRun("Object.getPrototypeOf(global)");
   CHECK(result3->Equals(global_object->GetPrototype()));
 
   Local<Value> result4 = CompileRun("Object.getPrototypeOf(proxy)");
-  CHECK(result4->Equals(Undefined(isolate)));
+  CHECK(result4.IsEmpty());
 
   Local<Value> result5 = CompileRun("Object.getPrototypeOf(hidden)");
   CHECK(result5->Equals(
       object_with_hidden->GetPrototype()->ToObject()->GetPrototype()));
 
   Local<Value> result6 = CompileRun("Object.getPrototypeOf(phidden)");
-  CHECK(result6->Equals(Undefined(isolate)));
+  CHECK(result6.IsEmpty());
 }
 
 
@@ -21572,11 +21587,9 @@ TEST(JSONStringifyAccessCheck) {
     LocalContext context1(NULL, global_template);
     context1->Global()->Set(v8_str("other"), global0);
 
-    ExpectString("JSON.stringify(other)", "{}");
-    ExpectString("JSON.stringify({ 'a' : other, 'b' : ['c'] })",
-                 "{\"a\":{},\"b\":[\"c\"]}");
-    ExpectString("JSON.stringify([other, 'b', 'c'])",
-                 "[{},\"b\",\"c\"]");
+    CHECK(CompileRun("JSON.stringify(other)").IsEmpty());
+    CHECK(CompileRun("JSON.stringify({ 'a' : other, 'b' : ['c'] })").IsEmpty());
+    CHECK(CompileRun("JSON.stringify([other, 'b', 'c'])").IsEmpty());
 
     v8::Handle<v8::Array> array = v8::Array::New(isolate, 2);
     array->Set(0, v8_str("a"));
@@ -21584,9 +21597,9 @@ TEST(JSONStringifyAccessCheck) {
     context1->Global()->Set(v8_str("array"), array);
     ExpectString("JSON.stringify(array)", "[\"a\",\"b\"]");
     array->TurnOnAccessCheck();
-    ExpectString("JSON.stringify(array)", "[]");
-    ExpectString("JSON.stringify([array])", "[[]]");
-    ExpectString("JSON.stringify({'a' : array})", "{\"a\":[]}");
+    CHECK(CompileRun("JSON.stringify(array)").IsEmpty());
+    CHECK(CompileRun("JSON.stringify([array])").IsEmpty());
+    CHECK(CompileRun("JSON.stringify({'a' : array})").IsEmpty());
   }
 }
 
