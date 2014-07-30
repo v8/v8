@@ -57,7 +57,8 @@ static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
 
 
 Code* StubCache::Set(Name* name, Map* map, Code* code) {
-  Code::Flags flags = CommonStubCacheChecks(name, map, code->flags(), heap());
+  Code::Flags flags =
+      CommonStubCacheChecks(name, map, code->flags(), isolate()->heap());
 
   // Compute the primary entry.
   int primary_offset = PrimaryOffset(name, flags, map);
@@ -86,7 +87,7 @@ Code* StubCache::Set(Name* name, Map* map, Code* code) {
 
 
 Code* StubCache::Get(Name* name, Map* map, Code::Flags flags) {
-  flags = CommonStubCacheChecks(name, map, flags, heap());
+  flags = CommonStubCacheChecks(name, map, flags, isolate()->heap());
   int primary_offset = PrimaryOffset(name, flags, map);
   Entry* primary = entry(primary_, primary_offset);
   if (primary->key == name && primary->map == map) {
@@ -128,14 +129,17 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
 }
 
 
-Handle<Code> StubCache::ComputeMonomorphicIC(
-    Code::Kind kind,
-    Handle<Name> name,
-    Handle<HeapType> type,
-    Handle<Code> handler,
-    ExtraICState extra_ic_state) {
+Handle<Code> PropertyICCompiler::ComputeMonomorphic(
+    Code::Kind kind, Handle<Name> name, Handle<HeapType> type,
+    Handle<Code> handler, ExtraICState extra_ic_state) {
+  Isolate* isolate = name->GetIsolate();
+  if (handler.is_identical_to(isolate->builtins()->LoadIC_Normal()) ||
+      handler.is_identical_to(isolate->builtins()->StoreIC_Normal())) {
+    name = isolate->factory()->normal_ic_symbol();
+  }
+
   CacheHolderFlag flag;
-  Handle<Map> stub_holder = IC::GetICCacheHolder(*type, isolate(), &flag);
+  Handle<Map> stub_holder = IC::GetICCacheHolder(*type, isolate, &flag);
 
   Handle<Code> ic;
   // There are multiple string maps that all use the same prototype. That
@@ -143,8 +147,7 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
   // for a single name. Hence, turn off caching of the IC.
   bool can_be_cached = !type->Is(HeapType::String());
   if (can_be_cached) {
-    ic =
-        PropertyICCompiler::Find(name, stub_holder, kind, extra_ic_state, flag);
+    ic = Find(name, stub_holder, kind, extra_ic_state, flag);
     if (!ic.is_null()) return ic;
   }
 
@@ -155,7 +158,7 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
   }
 #endif
 
-  PropertyICCompiler ic_compiler(isolate(), kind, extra_ic_state, flag);
+  PropertyICCompiler ic_compiler(isolate, kind, extra_ic_state, flag);
   ic = ic_compiler.CompileMonomorphic(type, handler, name, PROPERTY);
 
   if (can_be_cached) Map::UpdateCodeCache(stub_holder, name, ic);
@@ -163,9 +166,10 @@ Handle<Code> StubCache::ComputeMonomorphicIC(
 }
 
 
-Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
-                                               Handle<HeapType> type) {
-  Handle<Map> receiver_map = IC::TypeToMap(*type, isolate());
+Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
+    Handle<Name> name, Handle<HeapType> type) {
+  Isolate* isolate = name->GetIsolate();
+  Handle<Map> receiver_map = IC::TypeToMap(*type, isolate);
   if (receiver_map->prototype()->IsNull()) {
     // TODO(jkummerow/verwaest): If there is no prototype and the property
     // is nonexistent, introduce a builtin to handle this (fast properties
@@ -174,7 +178,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   }
   CacheHolderFlag flag;
   Handle<Map> stub_holder_map =
-      IC::GetHandlerCacheHolder(*type, false, isolate(), &flag);
+      IC::GetHandlerCacheHolder(*type, false, isolate, &flag);
 
   // If no dictionary mode objects are present in the prototype chain, the load
   // nonexistent IC stub can be shared for all names for a given map and we use
@@ -184,7 +188,7 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
   Handle<Name> cache_name =
       receiver_map->is_dictionary_map()
           ? name
-          : Handle<Name>::cast(isolate()->factory()->nonexistent_symbol());
+          : Handle<Name>::cast(isolate->factory()->nonexistent_symbol());
   Handle<Map> current_map = stub_holder_map;
   Handle<JSObject> last(JSObject::cast(receiver_map->prototype()));
   while (true) {
@@ -199,19 +203,20 @@ Handle<Code> StubCache::ComputeLoadNonexistent(Handle<Name> name,
       cache_name, stub_holder_map, Code::LOAD_IC, flag, Code::FAST);
   if (!handler.is_null()) return handler;
 
-  NamedLoadHandlerCompiler compiler(isolate_, flag);
+  NamedLoadHandlerCompiler compiler(isolate, flag);
   handler = compiler.CompileLoadNonexistent(type, last, cache_name);
   Map::UpdateCodeCache(stub_holder_map, cache_name, handler);
   return handler;
 }
 
 
-Handle<Code> StubCache::ComputeKeyedLoadElement(Handle<Map> receiver_map) {
+Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
+    Handle<Map> receiver_map) {
+  Isolate* isolate = receiver_map->GetIsolate();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC);
-  Handle<Name> name =
-      isolate()->factory()->KeyedLoadElementMonomorphic_string();
+  Handle<Name> name = isolate->factory()->KeyedLoadMonomorphic_string();
 
-  Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate_);
+  Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
   ElementsKind elements_kind = receiver_map->elements_kind();
@@ -219,28 +224,28 @@ Handle<Code> StubCache::ComputeKeyedLoadElement(Handle<Map> receiver_map) {
   if (receiver_map->has_fast_elements() ||
       receiver_map->has_external_array_elements() ||
       receiver_map->has_fixed_typed_array_elements()) {
-    stub = KeyedLoadFastElementStub(
-               isolate(), receiver_map->instance_type() == JS_ARRAY_TYPE,
-               elements_kind).GetCode();
+    stub = LoadFastElementStub(isolate,
+                               receiver_map->instance_type() == JS_ARRAY_TYPE,
+                               elements_kind).GetCode();
   } else {
     stub = FLAG_compiled_keyed_dictionary_loads
-               ? KeyedLoadDictionaryElementStub(isolate()).GetCode()
-               : KeyedLoadDictionaryElementPlatformStub(isolate()).GetCode();
+               ? LoadDictionaryElementStub(isolate).GetCode()
+               : LoadDictionaryElementPlatformStub(isolate).GetCode();
   }
-  PropertyICCompiler compiler(isolate(), Code::KEYED_LOAD_IC);
+  PropertyICCompiler compiler(isolate, Code::KEYED_LOAD_IC);
   Handle<Code> code =
-      compiler.CompileMonomorphic(HeapType::Class(receiver_map, isolate()),
-                                  stub, factory()->empty_string(), ELEMENT);
+      compiler.CompileMonomorphic(HeapType::Class(receiver_map, isolate), stub,
+                                  isolate->factory()->empty_string(), ELEMENT);
 
   Map::UpdateCodeCache(receiver_map, name, code);
   return code;
 }
 
 
-Handle<Code> StubCache::ComputeKeyedStoreElement(
-    Handle<Map> receiver_map,
-    StrictMode strict_mode,
+Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphic(
+    Handle<Map> receiver_map, StrictMode strict_mode,
     KeyedAccessStoreMode store_mode) {
+  Isolate* isolate = receiver_map->GetIsolate();
   ExtraICState extra_state =
       KeyedStoreIC::ComputeExtraICState(strict_mode, store_mode);
   Code::Flags flags =
@@ -251,14 +256,13 @@ Handle<Code> StubCache::ComputeKeyedStoreElement(
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
 
-  Handle<String> name =
-      isolate()->factory()->KeyedStoreElementMonomorphic_string();
-  Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate_);
+  Handle<String> name = isolate->factory()->KeyedStoreMonomorphic_string();
+  Handle<Object> probe(receiver_map->FindInCodeCache(*name, flags), isolate);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  PropertyICCompiler compiler(isolate(), Code::KEYED_STORE_IC, extra_state);
+  PropertyICCompiler compiler(isolate, Code::KEYED_STORE_IC, extra_state);
   Handle<Code> code =
-      compiler.CompileIndexedStoreMonomorphic(receiver_map, store_mode);
+      compiler.CompileKeyedStoreMonomorphic(receiver_map, store_mode);
 
   Map::UpdateCodeCache(receiver_map, name, code);
   ASSERT(KeyedStoreIC::GetKeyedAccessStoreMode(code->extra_ic_state())
@@ -278,11 +282,12 @@ static void FillCache(Isolate* isolate, Handle<Code> code) {
 }
 
 
-Code* StubCache::FindPreMonomorphicIC(Code::Kind kind, ExtraICState state) {
+Code* PropertyICCompiler::FindPreMonomorphic(Isolate* isolate, Code::Kind kind,
+                                             ExtraICState state) {
   Code::Flags flags = Code::ComputeFlags(kind, PREMONOMORPHIC, state);
   UnseededNumberDictionary* dictionary =
-      isolate()->heap()->non_monomorphic_cache();
-  int entry = dictionary->FindEntry(isolate(), flags);
+      isolate->heap()->non_monomorphic_cache();
+  int entry = dictionary->FindEntry(isolate, flags);
   ASSERT(entry != -1);
   Object* code = dictionary->ValueAt(entry);
   // This might be called during the marking phase of the collector
@@ -291,15 +296,16 @@ Code* StubCache::FindPreMonomorphicIC(Code::Kind kind, ExtraICState state) {
 }
 
 
-Handle<Code> StubCache::ComputeLoad(InlineCacheState ic_state,
-                                    ExtraICState extra_state) {
+Handle<Code> PropertyICCompiler::ComputeLoad(Isolate* isolate,
+                                             InlineCacheState ic_state,
+                                             ExtraICState extra_state) {
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, ic_state, extra_state);
   Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
+      isolate->factory()->non_monomorphic_cache();
+  int entry = cache->FindEntry(isolate, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
-  PropertyICCompiler compiler(isolate_, Code::LOAD_IC);
+  PropertyICCompiler compiler(isolate, Code::LOAD_IC);
   Handle<Code> code;
   if (ic_state == UNINITIALIZED) {
     code = compiler.CompileLoadInitialize(flags);
@@ -310,20 +316,21 @@ Handle<Code> StubCache::ComputeLoad(InlineCacheState ic_state,
   } else {
     UNREACHABLE();
   }
-  FillCache(isolate_, code);
+  FillCache(isolate, code);
   return code;
 }
 
 
-Handle<Code> StubCache::ComputeStore(InlineCacheState ic_state,
-                                     ExtraICState extra_state) {
+Handle<Code> PropertyICCompiler::ComputeStore(Isolate* isolate,
+                                              InlineCacheState ic_state,
+                                              ExtraICState extra_state) {
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC, ic_state, extra_state);
   Handle<UnseededNumberDictionary> cache =
-      isolate_->factory()->non_monomorphic_cache();
-  int entry = cache->FindEntry(isolate_, flags);
+      isolate->factory()->non_monomorphic_cache();
+  int entry = cache->FindEntry(isolate, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
-  PropertyICCompiler compiler(isolate_, Code::STORE_IC);
+  PropertyICCompiler compiler(isolate, Code::STORE_IC);
   Handle<Code> code;
   if (ic_state == UNINITIALIZED) {
     code = compiler.CompileStoreInitialize(flags);
@@ -337,22 +344,23 @@ Handle<Code> StubCache::ComputeStore(InlineCacheState ic_state,
     UNREACHABLE();
   }
 
-  FillCache(isolate_, code);
+  FillCache(isolate, code);
   return code;
 }
 
 
-Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
-                                          CompareNilICStub* stub) {
-  Handle<String> name(isolate_->heap()->empty_string());
+Handle<Code> PropertyICCompiler::ComputeCompareNil(Handle<Map> receiver_map,
+                                                   CompareNilICStub* stub) {
+  Isolate* isolate = receiver_map->GetIsolate();
+  Handle<String> name(isolate->heap()->empty_string());
   if (!receiver_map->is_shared()) {
-    Handle<Code> cached_ic = PropertyICCompiler::Find(
-        name, receiver_map, Code::COMPARE_NIL_IC, stub->GetExtraICState());
+    Handle<Code> cached_ic =
+        Find(name, receiver_map, Code::COMPARE_NIL_IC, stub->GetExtraICState());
     if (!cached_ic.is_null()) return cached_ic;
   }
 
   Code::FindAndReplacePattern pattern;
-  pattern.Add(isolate_->factory()->meta_map(), receiver_map);
+  pattern.Add(isolate->factory()->meta_map(), receiver_map);
   Handle<Code> ic = stub->GetCodeCopy(pattern);
 
   if (!receiver_map->is_shared()) {
@@ -364,58 +372,55 @@ Handle<Code> StubCache::ComputeCompareNil(Handle<Map> receiver_map,
 
 
 // TODO(verwaest): Change this method so it takes in a TypeHandleList.
-Handle<Code> StubCache::ComputeLoadElementPolymorphic(
+Handle<Code> PropertyICCompiler::ComputeKeyedLoadPolymorphic(
     MapHandleList* receiver_maps) {
+  Isolate* isolate = receiver_maps->at(0)->GetIsolate();
   Code::Flags flags = Code::ComputeFlags(Code::KEYED_LOAD_IC, POLYMORPHIC);
   Handle<PolymorphicCodeCache> cache =
-      isolate_->factory()->polymorphic_code_cache();
+      isolate->factory()->polymorphic_code_cache();
   Handle<Object> probe = cache->Lookup(receiver_maps, flags);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
   TypeHandleList types(receiver_maps->length());
   for (int i = 0; i < receiver_maps->length(); i++) {
-    types.Add(HeapType::Class(receiver_maps->at(i), isolate()));
+    types.Add(HeapType::Class(receiver_maps->at(i), isolate));
   }
   CodeHandleList handlers(receiver_maps->length());
-  IndexedHandlerCompiler compiler(isolate_);
+  ElementHandlerCompiler compiler(isolate);
   compiler.CompileElementHandlers(receiver_maps, &handlers);
-  PropertyICCompiler ic_compiler(isolate_, Code::KEYED_LOAD_IC);
+  PropertyICCompiler ic_compiler(isolate, Code::KEYED_LOAD_IC);
   Handle<Code> code = ic_compiler.CompilePolymorphic(
-      &types, &handlers, factory()->empty_string(), Code::NORMAL, ELEMENT);
+      &types, &handlers, isolate->factory()->empty_string(), Code::NORMAL,
+      ELEMENT);
 
-  isolate()->counters()->keyed_load_polymorphic_stubs()->Increment();
+  isolate->counters()->keyed_load_polymorphic_stubs()->Increment();
 
   PolymorphicCodeCache::Update(cache, receiver_maps, flags, code);
   return code;
 }
 
 
-Handle<Code> StubCache::ComputePolymorphicIC(
-    Code::Kind kind,
-    TypeHandleList* types,
-    CodeHandleList* handlers,
-    int number_of_valid_types,
-    Handle<Name> name,
-    ExtraICState extra_ic_state) {
+Handle<Code> PropertyICCompiler::ComputePolymorphic(
+    Code::Kind kind, TypeHandleList* types, CodeHandleList* handlers,
+    int valid_types, Handle<Name> name, ExtraICState extra_ic_state) {
   Handle<Code> handler = handlers->at(0);
-  Code::StubType type = number_of_valid_types == 1 ? handler->type()
-                                                   : Code::NORMAL;
+  Code::StubType type = valid_types == 1 ? handler->type() : Code::NORMAL;
   ASSERT(kind == Code::LOAD_IC || kind == Code::STORE_IC);
-  PropertyICCompiler ic_compiler(isolate_, kind, extra_ic_state);
+  PropertyICCompiler ic_compiler(name->GetIsolate(), kind, extra_ic_state);
   return ic_compiler.CompilePolymorphic(types, handlers, name, type, PROPERTY);
 }
 
 
-Handle<Code> StubCache::ComputeStoreElementPolymorphic(
-    MapHandleList* receiver_maps,
-    KeyedAccessStoreMode store_mode,
+Handle<Code> PropertyICCompiler::ComputeKeyedStorePolymorphic(
+    MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
     StrictMode strict_mode) {
+  Isolate* isolate = receiver_maps->at(0)->GetIsolate();
   ASSERT(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
   Handle<PolymorphicCodeCache> cache =
-      isolate_->factory()->polymorphic_code_cache();
+      isolate->factory()->polymorphic_code_cache();
   ExtraICState extra_state = KeyedStoreIC::ComputeExtraICState(
       strict_mode, store_mode);
   Code::Flags flags =
@@ -423,9 +428,9 @@ Handle<Code> StubCache::ComputeStoreElementPolymorphic(
   Handle<Object> probe = cache->Lookup(receiver_maps, flags);
   if (probe->IsCode()) return Handle<Code>::cast(probe);
 
-  PropertyICCompiler compiler(isolate_, Code::KEYED_STORE_IC, extra_state);
+  PropertyICCompiler compiler(isolate, Code::KEYED_STORE_IC, extra_state);
   Handle<Code> code =
-      compiler.CompileIndexedStorePolymorphic(receiver_maps, store_mode);
+      compiler.CompileKeyedStorePolymorphic(receiver_maps, store_mode);
   PolymorphicCodeCache::Update(cache, receiver_maps, flags, code);
   return code;
 }
@@ -434,12 +439,12 @@ Handle<Code> StubCache::ComputeStoreElementPolymorphic(
 void StubCache::Clear() {
   Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
   for (int i = 0; i < kPrimaryTableSize; i++) {
-    primary_[i].key = heap()->empty_string();
+    primary_[i].key = isolate()->heap()->empty_string();
     primary_[i].map = NULL;
     primary_[i].value = empty;
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
-    secondary_[j].key = heap()->empty_string();
+    secondary_[j].key = isolate()->heap()->empty_string();
     secondary_[j].map = NULL;
     secondary_[j].value = empty;
   }
@@ -525,11 +530,11 @@ RUNTIME_FUNCTION(StoreCallbackProperty) {
  * provide any value for the given name.
  */
 RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
-  ASSERT(args.length() == StubCache::kInterceptorArgsLength);
+  ASSERT(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name_handle =
-      args.at<Name>(StubCache::kInterceptorArgsNameIndex);
-  Handle<InterceptorInfo> interceptor_info =
-      args.at<InterceptorInfo>(StubCache::kInterceptorArgsInfoIndex);
+      args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
+  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(
+      NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex);
 
   // TODO(rossberg): Support symbols in the API.
   if (name_handle->IsSymbol())
@@ -542,9 +547,9 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
   ASSERT(getter != NULL);
 
   Handle<JSObject> receiver =
-      args.at<JSObject>(StubCache::kInterceptorArgsThisIndex);
+      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
-      args.at<JSObject>(StubCache::kInterceptorArgsHolderIndex);
+      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   PropertyCallbackArguments callback_args(
       isolate, interceptor_info->data(), *receiver, *holder);
   {
@@ -588,13 +593,13 @@ static Object* ThrowReferenceError(Isolate* isolate, Name* name) {
  */
 RUNTIME_FUNCTION(LoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == StubCache::kInterceptorArgsLength);
+  ASSERT(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name =
-      args.at<Name>(StubCache::kInterceptorArgsNameIndex);
+      args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
   Handle<JSObject> receiver =
-      args.at<JSObject>(StubCache::kInterceptorArgsThisIndex);
+      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
-      args.at<JSObject>(StubCache::kInterceptorArgsHolderIndex);
+      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
 
   Handle<Object> result;
   LookupIterator it(receiver, name, holder);
@@ -607,7 +612,7 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptor) {
 }
 
 
-RUNTIME_FUNCTION(StoreInterceptorProperty) {
+RUNTIME_FUNCTION(StorePropertyWithInterceptor) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
@@ -632,7 +637,7 @@ RUNTIME_FUNCTION(StoreInterceptorProperty) {
 }
 
 
-RUNTIME_FUNCTION(KeyedLoadPropertyWithInterceptor) {
+RUNTIME_FUNCTION(LoadElementWithInterceptor) {
   HandleScope scope(isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
   ASSERT(args.smi_at(1) >= 0);
@@ -1086,7 +1091,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
 }
 
 
-Handle<Code> PropertyICCompiler::CompileIndexedStoreMonomorphic(
+Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphic(
     Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
@@ -1094,11 +1099,11 @@ Handle<Code> PropertyICCompiler::CompileIndexedStoreMonomorphic(
   if (receiver_map->has_fast_elements() ||
       receiver_map->has_external_array_elements() ||
       receiver_map->has_fixed_typed_array_elements()) {
-    stub = KeyedStoreFastElementStub(isolate(), is_jsarray, elements_kind,
-                                     store_mode).GetCode();
+    stub = StoreFastElementStub(isolate(), is_jsarray, elements_kind,
+                                store_mode).GetCode();
   } else {
-    stub = KeyedStoreElementStub(isolate(), is_jsarray, elements_kind,
-                                 store_mode).GetCode();
+    stub = StoreElementStub(isolate(), is_jsarray, elements_kind, store_mode)
+               .GetCode();
   }
 
   __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);
@@ -1153,7 +1158,7 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
 }
 
 
-void IndexedHandlerCompiler::CompileElementHandlers(
+void ElementHandlerCompiler::CompileElementHandlers(
     MapHandleList* receiver_maps, CodeHandleList* handlers) {
   for (int i = 0; i < receiver_maps->length(); ++i) {
     Handle<Map> receiver_map = receiver_maps->at(i);
@@ -1170,16 +1175,13 @@ void IndexedHandlerCompiler::CompileElementHandlers(
       if (IsFastElementsKind(elements_kind) ||
           IsExternalArrayElementsKind(elements_kind) ||
           IsFixedTypedArrayElementsKind(elements_kind)) {
-        cached_stub =
-            KeyedLoadFastElementStub(isolate(),
-                                     is_js_array,
-                                     elements_kind).GetCode();
+        cached_stub = LoadFastElementStub(isolate(), is_js_array, elements_kind)
+                          .GetCode();
       } else if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
         cached_stub = isolate()->builtins()->KeyedLoadIC_SloppyArguments();
       } else {
         ASSERT(elements_kind == DICTIONARY_ELEMENTS);
-        cached_stub =
-            KeyedLoadDictionaryElementStub(isolate()).GetCode();
+        cached_stub = LoadDictionaryElementStub(isolate()).GetCode();
       }
     }
 
@@ -1188,7 +1190,7 @@ void IndexedHandlerCompiler::CompileElementHandlers(
 }
 
 
-Handle<Code> PropertyICCompiler::CompileIndexedStorePolymorphic(
+Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
     MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode) {
   // Collect MONOMORPHIC stubs for all |receiver_maps|.
   CodeHandleList handlers(receiver_maps->length());
@@ -1217,13 +1219,11 @@ Handle<Code> PropertyICCompiler::CompileIndexedStorePolymorphic(
       if (receiver_map->has_fast_elements() ||
           receiver_map->has_external_array_elements() ||
           receiver_map->has_fixed_typed_array_elements()) {
-        cached_stub =
-            KeyedStoreFastElementStub(isolate(), is_js_array, elements_kind,
-                                      store_mode).GetCode();
+        cached_stub = StoreFastElementStub(isolate(), is_js_array,
+                                           elements_kind, store_mode).GetCode();
       } else {
-        cached_stub =
-            KeyedStoreElementStub(isolate(), is_js_array, elements_kind,
-                                  store_mode).GetCode();
+        cached_stub = StoreElementStub(isolate(), is_js_array, elements_kind,
+                                       store_mode).GetCode();
       }
     }
     ASSERT(!cached_stub.is_null());
@@ -1231,15 +1231,15 @@ Handle<Code> PropertyICCompiler::CompileIndexedStorePolymorphic(
     transitioned_maps.Add(transitioned_map);
   }
 
-  Handle<Code> code = CompileIndexedStorePolymorphic(receiver_maps, &handlers,
-                                                     &transitioned_maps);
+  Handle<Code> code = CompileKeyedStorePolymorphic(receiver_maps, &handlers,
+                                                   &transitioned_maps);
   isolate()->counters()->keyed_store_polymorphic_stubs()->Increment();
   PROFILE(isolate(), CodeCreateEvent(log_kind(code), *code, 0));
   return code;
 }
 
 
-void IndexedHandlerCompiler::GenerateStoreDictionaryElement(
+void ElementHandlerCompiler::GenerateStoreDictionaryElement(
     MacroAssembler* masm) {
   KeyedStoreIC::GenerateSlow(masm);
 }

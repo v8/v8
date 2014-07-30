@@ -2443,15 +2443,22 @@ Map* Map::FindFieldOwner(int descriptor) {
 }
 
 
-void Map::UpdateDescriptor(int descriptor_number, Descriptor* desc) {
+void Map::UpdateFieldType(int descriptor, Handle<Name> name,
+                          Handle<HeapType> new_type) {
   DisallowHeapAllocation no_allocation;
+  PropertyDetails details = instance_descriptors()->GetDetails(descriptor);
+  if (details.type() != FIELD) return;
   if (HasTransitionArray()) {
     TransitionArray* transitions = this->transitions();
     for (int i = 0; i < transitions->number_of_transitions(); ++i) {
-      transitions->GetTarget(i)->UpdateDescriptor(descriptor_number, desc);
+      transitions->GetTarget(i)->UpdateFieldType(descriptor, name, new_type);
     }
   }
-  instance_descriptors()->Replace(descriptor_number, desc);;
+  // Skip if already updated the shared descriptor.
+  if (instance_descriptors()->GetFieldType(descriptor) == *new_type) return;
+  FieldDescriptor d(name, instance_descriptors()->GetFieldIndex(descriptor),
+                    new_type, details.attributes(), details.representation());
+  instance_descriptors()->Replace(descriptor, &d);
 }
 
 
@@ -2502,12 +2509,8 @@ void Map::GeneralizeFieldType(Handle<Map> map,
       old_field_type, new_field_type, isolate);
 
   PropertyDetails details = descriptors->GetDetails(modify_index);
-  FieldDescriptor d(handle(descriptors->GetKey(modify_index), isolate),
-                    descriptors->GetFieldIndex(modify_index),
-                    new_field_type,
-                    details.attributes(),
-                    details.representation());
-  field_owner->UpdateDescriptor(modify_index, &d);
+  Handle<Name> name(descriptors->GetKey(modify_index));
+  field_owner->UpdateFieldType(modify_index, name, new_field_type);
   field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kFieldTypeGroup);
 

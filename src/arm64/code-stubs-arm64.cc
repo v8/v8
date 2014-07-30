@@ -3222,15 +3222,19 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ Cmp(function, scratch);
   __ B(ne, &miss);
 
-  Register allocation_site = feedback_vector;
   __ Mov(x0, Operand(arg_count()));
 
   __ Add(scratch, feedback_vector,
          Operand::UntagSmiAndScale(index, kPointerSizeLog2));
-  __ Ldr(allocation_site, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+  __ Ldr(scratch, FieldMemOperand(scratch, FixedArray::kHeaderSize));
 
-  // Verify that x2 contains an AllocationSite
-  __ AssertUndefinedOrAllocationSite(allocation_site, scratch);
+  // Verify that scratch contains an AllocationSite
+  Register map = x5;
+  __ Ldr(map, FieldMemOperand(scratch, HeapObject::kMapOffset));
+  __ JumpIfNotRoot(map, Heap::kAllocationSiteMapRootIndex, &miss);
+
+  Register allocation_site = feedback_vector;
+  __ Mov(allocation_site, scratch);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
 
@@ -3306,7 +3310,10 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ JumpIfRoot(x4, Heap::kUninitializedSymbolRootIndex, &miss);
 
   if (!FLAG_trace_ic) {
-    // We are going megamorphic, and we don't want to visit the runtime.
+    // We are going megamorphic. If the feedback is a JSFunction, it is fine
+    // to handle it here. More complex cases are dealt with in the runtime.
+    __ AssertNotSmi(x4);
+    __ JumpIfNotObjectType(x4, x5, x5, JS_FUNCTION_TYPE, &miss);
     __ Add(x4, feedback_vector,
            Operand::UntagSmiAndScale(index, kPointerSizeLog2));
     __ LoadRoot(x5, Heap::kMegamorphicSymbolRootIndex);

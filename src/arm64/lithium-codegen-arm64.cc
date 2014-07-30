@@ -4200,6 +4200,14 @@ void LCodeGen::DoMathRoundI(LMathRoundI* instr) {
 }
 
 
+void LCodeGen::DoMathFround(LMathFround* instr) {
+  DoubleRegister input = ToDoubleRegister(instr->value());
+  DoubleRegister result = ToDoubleRegister(instr->result());
+  __ Fcvt(result.S(), input);
+  __ Fcvt(result, result.S());
+}
+
+
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
   DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());

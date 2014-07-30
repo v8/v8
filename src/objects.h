@@ -6773,7 +6773,8 @@ class Map: public HeapObject {
 
   Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
 
-  void UpdateDescriptor(int descriptor_number, Descriptor* desc);
+  void UpdateFieldType(int descriptor_number, Handle<Name> name,
+                       Handle<HeapType> new_type);
 
   void PrintGeneralization(FILE* file,
                            const char* reason,
@@ -7003,7 +7004,8 @@ class Script: public Struct {
   V(Math, max, MathMax)                             \
   V(Math, min, MathMin)                             \
   V(Math, imul, MathImul)                           \
-  V(Math, clz32, MathClz32)
+  V(Math, clz32, MathClz32)                         \
+  V(Math, fround, MathFround)
 
 enum BuiltinFunctionId {
   kArrayCode,

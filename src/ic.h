@@ -16,27 +16,27 @@ const int kMaxKeyedPolymorphism = 4;
 
 // IC_UTIL_LIST defines all utility functions called from generated
 // inline caching code. The argument for the macro, ICU, is the function name.
-#define IC_UTIL_LIST(ICU)                             \
-  ICU(LoadIC_Miss)                                    \
-  ICU(KeyedLoadIC_Miss)                               \
-  ICU(CallIC_Miss)                                    \
-  ICU(CallIC_Customization_Miss)                      \
-  ICU(StoreIC_Miss)                                   \
-  ICU(StoreIC_ArrayLength)                            \
-  ICU(StoreIC_Slow)                                   \
-  ICU(SharedStoreIC_ExtendStorage)                    \
-  ICU(KeyedStoreIC_Miss)                              \
-  ICU(KeyedStoreIC_Slow)                              \
-  /* Utilities for IC stubs. */                       \
-  ICU(StoreCallbackProperty)                          \
-  ICU(LoadPropertyWithInterceptorOnly)                \
-  ICU(LoadPropertyWithInterceptor)                    \
-  ICU(KeyedLoadPropertyWithInterceptor)               \
-  ICU(StoreInterceptorProperty)                       \
-  ICU(CompareIC_Miss)                                 \
-  ICU(BinaryOpIC_Miss)                                \
-  ICU(CompareNilIC_Miss)                              \
-  ICU(Unreachable)                                    \
+#define IC_UTIL_LIST(ICU)              \
+  ICU(LoadIC_Miss)                     \
+  ICU(KeyedLoadIC_Miss)                \
+  ICU(CallIC_Miss)                     \
+  ICU(CallIC_Customization_Miss)       \
+  ICU(StoreIC_Miss)                    \
+  ICU(StoreIC_ArrayLength)             \
+  ICU(StoreIC_Slow)                    \
+  ICU(SharedStoreIC_ExtendStorage)     \
+  ICU(KeyedStoreIC_Miss)               \
+  ICU(KeyedStoreIC_Slow)               \
+  /* Utilities for IC stubs. */        \
+  ICU(StoreCallbackProperty)           \
+  ICU(LoadPropertyWithInterceptorOnly) \
+  ICU(LoadPropertyWithInterceptor)     \
+  ICU(LoadElementWithInterceptor)      \
+  ICU(StorePropertyWithInterceptor)    \
+  ICU(CompareIC_Miss)                  \
+  ICU(BinaryOpIC_Miss)                 \
+  ICU(CompareNilIC_Miss)               \
+  ICU(Unreachable)                     \
   ICU(ToBooleanIC_Miss)
 //
 // IC is the base class for LoadIC, StoreIC, KeyedLoadIC, and KeyedStoreIC.

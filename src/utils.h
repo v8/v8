@@ -8,6 +8,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cmath>
 
 #include "include/v8.h"
 #include "src/allocation.h"
@@ -137,6 +138,15 @@ T Min(T a, T b) {
 template <typename T>
 T Abs(T a) {
   return a < 0 ? -a : a;
+}
+
+
+// Floor(-0.0) == 0.0
+inline double Floor(double x) {
+#ifdef _MSC_VER
+  if (x == 0) return x;  // Fix for issue 3477.
+#endif
+  return std::floor(x);
 }
 
 

@@ -585,7 +585,7 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 }
 
 
-void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
+void LoadFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { InterfaceDescriptor::ContextRegister(),
                            LoadIC::ReceiverRegister(),
@@ -596,7 +596,7 @@ void KeyedLoadFastElementStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
+void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { InterfaceDescriptor::ContextRegister(),
                            LoadIC::ReceiverRegister(),
@@ -607,7 +607,7 @@ void KeyedLoadDictionaryElementStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedLoadGenericElementStub::InitializeInterfaceDescriptor(
+void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { InterfaceDescriptor::ContextRegister(),
                            LoadIC::ReceiverRegister(),
@@ -636,7 +636,7 @@ void StringLengthStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedStoreFastElementStub::InitializeInterfaceDescriptor(
+void StoreFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { InterfaceDescriptor::ContextRegister(),
                            KeyedStoreIC::ReceiverRegister(),
@@ -671,9 +671,8 @@ void StoreGlobalStub::InitializeInterfaceDescriptor(
 }
 
 
-void KeyedLoadDictionaryElementPlatformStub::Generate(
-    MacroAssembler* masm) {
-  IndexedHandlerCompiler::GenerateLoadDictionaryElement(masm);
+void LoadDictionaryElementPlatformStub::Generate(MacroAssembler* masm) {
+  ElementHandlerCompiler::GenerateLoadDictionaryElement(masm);
 }
 
 
@@ -683,7 +682,7 @@ void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
+void StoreElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
     case FAST_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
@@ -700,7 +699,7 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
       UNREACHABLE();
       break;
     case DICTIONARY_ELEMENTS:
-      IndexedHandlerCompiler::GenerateStoreDictionaryElement(masm);
+      ElementHandlerCompiler::GenerateStoreDictionaryElement(masm);
       break;
     case SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
@@ -941,8 +940,8 @@ void RegExpConstructResultStub::InstallDescriptors(Isolate* isolate) {
 
 
 // static
-void KeyedLoadGenericElementStub::InstallDescriptors(Isolate* isolate) {
-  KeyedLoadGenericElementStub stub(isolate);
+void KeyedLoadGenericStub::InstallDescriptors(Isolate* isolate) {
+  KeyedLoadGenericStub stub(isolate);
   InstallDescriptor(isolate, &stub);
 }
 

@@ -3094,9 +3094,14 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ li(a0, Operand(arg_count()));
   __ sll(at, a3, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(at, a2, Operand(at));
-  __ lw(a2, FieldMemOperand(at, FixedArray::kHeaderSize));
-  // Verify that a2 contains an AllocationSite
-  __ AssertUndefinedOrAllocationSite(a2, at);
+  __ lw(t0, FieldMemOperand(at, FixedArray::kHeaderSize));
+
+  // Verify that t0 contains an AllocationSite
+  __ lw(t1, FieldMemOperand(t0, HeapObject::kMapOffset));
+  __ LoadRoot(at, Heap::kAllocationSiteMapRootIndex);
+  __ Branch(&miss, ne, t1, Operand(at));
+
+  __ mov(a2, t0);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
 
@@ -3163,7 +3168,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ Branch(&miss, eq, t0, Operand(at));
 
   if (!FLAG_trace_ic) {
-    // We are going megamorphic, and we don't want to visit the runtime.
+    // We are going megamorphic. If the feedback is a JSFunction, it is fine
+    // to handle it here. More complex cases are dealt with in the runtime.
+    __ AssertNotSmi(t0);
+    __ GetObjectType(t0, t1, t1);
+    __ Branch(&miss, ne, t1, Operand(JS_FUNCTION_TYPE));
     __ sll(t0, a3, kPointerSizeLog2 - kSmiTagSize);
     __ Addu(t0, a2, Operand(t0));
     __ LoadRoot(at, Heap::kMegamorphicSymbolRootIndex);

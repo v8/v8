@@ -482,8 +482,8 @@ void LoadIC::Clear(Isolate* isolate,
                    Code* target,
                    ConstantPoolArray* constant_pool) {
   if (IsCleared(target)) return;
-  Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
-      Code::LOAD_IC, target->extra_ic_state());
+  Code* code = PropertyICCompiler::FindPreMonomorphic(isolate, Code::LOAD_IC,
+                                                      target->extra_ic_state());
   SetTargetAtAddress(address, code, constant_pool);
 }
 
@@ -493,8 +493,8 @@ void StoreIC::Clear(Isolate* isolate,
                     Code* target,
                     ConstantPoolArray* constant_pool) {
   if (IsCleared(target)) return;
-  Code* code = target->GetIsolate()->stub_cache()->FindPreMonomorphicIC(
-      Code::STORE_IC, target->extra_ic_state());
+  Code* code = PropertyICCompiler::FindPreMonomorphic(isolate, Code::STORE_IC,
+                                                      target->extra_ic_state());
   SetTargetAtAddress(address, code, constant_pool);
 }
 
@@ -529,7 +529,7 @@ void CompareIC::Clear(Isolate* isolate,
 // static
 Handle<Code> KeyedLoadIC::generic_stub(Isolate* isolate) {
   if (FLAG_compiled_keyed_generic_loads) {
-    return KeyedLoadGenericElementStub(isolate).GetCode();
+    return KeyedLoadGenericStub(isolate).GetCode();
   } else {
     return isolate->builtins()->KeyedLoadIC_Generic();
   }
@@ -660,8 +660,8 @@ bool IC::UpdatePolymorphicIC(Handle<String> name, Handle<Code> code) {
   if (number_of_valid_types > 1 && target()->is_keyed_stub()) return false;
   Handle<Code> ic;
   if (number_of_valid_types == 1) {
-    ic = isolate()->stub_cache()->ComputeMonomorphicIC(kind(), name, type, code,
-                                                       extra_ic_state());
+    ic = PropertyICCompiler::ComputeMonomorphic(kind(), name, type, code,
+                                                extra_ic_state());
   } else {
     if (handler_to_overwrite >= 0) {
       handlers.Set(handler_to_overwrite, code);
@@ -672,9 +672,9 @@ bool IC::UpdatePolymorphicIC(Handle<String> name, Handle<Code> code) {
       types.Add(type);
       handlers.Add(code);
     }
-    ic = isolate()->stub_cache()->ComputePolymorphicIC(
-        kind(), &types, &handlers, number_of_valid_types, name,
-        extra_ic_state());
+    ic = PropertyICCompiler::ComputePolymorphic(kind(), &types, &handlers,
+                                                number_of_valid_types, name,
+                                                extra_ic_state());
   }
   set_target(*ic);
   return true;
@@ -724,8 +724,8 @@ Handle<HeapType> IC::MapToType<HeapType>(Handle<Map> map, Isolate* region);
 
 
 void IC::UpdateMonomorphicIC(Handle<Code> handler, Handle<String> name) {
-  if (!handler->is_handler()) return set_target(*handler);
-  Handle<Code> ic = isolate()->stub_cache()->ComputeMonomorphicIC(
+  ASSERT(handler->is_handler());
+  Handle<Code> ic = PropertyICCompiler::ComputeMonomorphic(
       kind(), name, receiver_type(), handler, extra_ic_state());
   set_target(*ic);
 }
@@ -786,13 +786,14 @@ void IC::PatchCache(Handle<String> name, Handle<Code> code) {
 
 Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
                                      ExtraICState extra_state) {
-  return isolate->stub_cache()->ComputeLoad(UNINITIALIZED, extra_state);
+  return PropertyICCompiler::ComputeLoad(isolate, UNINITIALIZED, extra_state);
 }
 
 
 Handle<Code> LoadIC::megamorphic_stub() {
   if (kind() == Code::LOAD_IC) {
-    return isolate()->stub_cache()->ComputeLoad(MEGAMORPHIC, extra_ic_state());
+    return PropertyICCompiler::ComputeLoad(isolate(), MEGAMORPHIC,
+                                           extra_ic_state());
   } else {
     ASSERT_EQ(Code::KEYED_LOAD_IC, kind());
     return KeyedLoadIC::generic_stub(isolate());
@@ -802,7 +803,7 @@ Handle<Code> LoadIC::megamorphic_stub() {
 
 Handle<Code> LoadIC::pre_monomorphic_stub(Isolate* isolate,
                                           ExtraICState extra_state) {
-  return isolate->stub_cache()->ComputeLoad(PREMONOMORPHIC, extra_state);
+  return PropertyICCompiler::ComputeLoad(isolate, PREMONOMORPHIC, extra_state);
 }
 
 
@@ -845,8 +846,8 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
     code = slow_stub();
   } else if (!lookup->IsProperty()) {
     if (kind() == Code::LOAD_IC) {
-      code = isolate()->stub_cache()->ComputeLoadNonexistent(name,
-                                                             receiver_type());
+      code = NamedLoadHandlerCompiler::ComputeLoadNonexistent(name,
+                                                              receiver_type());
       // TODO(jkummerow/verwaest): Introduce a builtin that handles this case.
       if (code.is_null()) code = slow_stub();
     } else {
@@ -1072,7 +1073,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     TargetMaps(&target_receiver_maps);
   }
   if (target_receiver_maps.length() == 0) {
-    return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
+    return PropertyICCompiler::ComputeKeyedLoadMonomorphic(receiver_map);
   }
 
   // The first time a receiver is seen that is a transitioned version of the
@@ -1086,7 +1087,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
       IsMoreGeneralElementsKindTransition(
           target_receiver_maps.at(0)->elements_kind(),
           receiver->GetElementsKind())) {
-    return isolate()->stub_cache()->ComputeKeyedLoadElement(receiver_map);
+    return PropertyICCompiler::ComputeKeyedLoadMonomorphic(receiver_map);
   }
 
   ASSERT(state() != GENERIC);
@@ -1107,8 +1108,7 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
     return generic_stub();
   }
 
-  return isolate()->stub_cache()->ComputeLoadElementPolymorphic(
-      &target_receiver_maps);
+  return PropertyICCompiler::ComputeKeyedLoadPolymorphic(&target_receiver_maps);
 }
 
 
@@ -1341,26 +1341,27 @@ Handle<Code> CallIC::initialize_stub(Isolate* isolate,
 Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
                                       StrictMode strict_mode) {
   ExtraICState extra_state = ComputeExtraICState(strict_mode);
-  Handle<Code> ic = isolate->stub_cache()->ComputeStore(
-      UNINITIALIZED, extra_state);
+  Handle<Code> ic =
+      PropertyICCompiler::ComputeStore(isolate, UNINITIALIZED, extra_state);
   return ic;
 }
 
 
 Handle<Code> StoreIC::megamorphic_stub() {
-  return isolate()->stub_cache()->ComputeStore(MEGAMORPHIC, extra_ic_state());
+  return PropertyICCompiler::ComputeStore(isolate(), MEGAMORPHIC,
+                                          extra_ic_state());
 }
 
 
 Handle<Code> StoreIC::generic_stub() const {
-  return isolate()->stub_cache()->ComputeStore(GENERIC, extra_ic_state());
+  return PropertyICCompiler::ComputeStore(isolate(), GENERIC, extra_ic_state());
 }
 
 
 Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
                                            StrictMode strict_mode) {
   ExtraICState state = ComputeExtraICState(strict_mode);
-  return isolate->stub_cache()->ComputeStore(PREMONOMORPHIC, state);
+  return PropertyICCompiler::ComputeStore(isolate, PREMONOMORPHIC, state);
 }
 
 
@@ -1492,7 +1493,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     Handle<Map> monomorphic_map =
         ComputeTransitionedMap(receiver_map, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
-    return isolate()->stub_cache()->ComputeKeyedStoreElement(
+    return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
         monomorphic_map, strict_mode(), store_mode);
   }
 
@@ -1517,7 +1518,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       // if they at least come from the same origin for a transitioning store,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
       store_mode = GetNonTransitioningStoreMode(store_mode);
-      return isolate()->stub_cache()->ComputeKeyedStoreElement(
+      return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
           transitioned_receiver_map, strict_mode(), store_mode);
     } else if (*previous_receiver_map == receiver->map() &&
                old_store_mode == STANDARD_STORE &&
@@ -1527,7 +1528,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
       // A "normal" IC that handles stores can switch to a version that can
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
-      return isolate()->stub_cache()->ComputeKeyedStoreElement(
+      return PropertyICCompiler::ComputeKeyedStoreMonomorphic(
           receiver_map, strict_mode(), store_mode);
     }
   }
@@ -1589,7 +1590,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     }
   }
 
-  return isolate()->stub_cache()->ComputeStoreElementPolymorphic(
+  return PropertyICCompiler::ComputeKeyedStorePolymorphic(
       &target_receiver_maps, store_mode, strict_mode());
 }
 
@@ -1835,8 +1836,13 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver,
       isolate()->native_context()->array_function());
   if (array_function.is_identical_to(Handle<JSFunction>::cast(function))) {
     // Alter the slot.
-    Handle<AllocationSite> new_site = isolate()->factory()->NewAllocationSite();
-    vector->set(slot->value(), *new_site);
+    Object* feedback = vector->get(slot->value());
+    if (!feedback->IsAllocationSite()) {
+      Handle<AllocationSite> new_site =
+          isolate()->factory()->NewAllocationSite();
+      vector->set(slot->value(), *new_site);
+    }
+
     CallIC_ArrayStub stub(isolate(), state);
     set_target(*stub.GetCode());
     Handle<String> name;
@@ -1876,6 +1882,9 @@ void CallIC::HandleMiss(Handle<Object> receiver,
   State state(target()->extra_ic_state());
   Object* feedback = vector->get(slot->value());
 
+  // Hand-coded MISS handling is easier if CallIC slots don't contain smis.
+  ASSERT(!feedback->IsSmi());
+
   if (feedback->IsJSFunction() || !function->IsJSFunction()) {
     // We are going generic.
     vector->set(slot->value(),
@@ -1884,9 +1893,14 @@ void CallIC::HandleMiss(Handle<Object> receiver,
 
     TRACE_GENERIC_IC(isolate(), "CallIC", "megamorphic");
   } else {
-    // If we came here feedback must be the uninitialized sentinel,
-    // and we are going monomorphic.
-    ASSERT(feedback == *TypeFeedbackInfo::UninitializedSentinel(isolate()));
+    // The feedback is either uninitialized or an allocation site.
+    // It might be an allocation site because if we re-compile the full code
+    // to add deoptimization support, we call with the default call-ic, and
+    // merely need to patch the target to match the feedback.
+    // TODO(mvstanton): the better approach is to dispense with patching
+    // altogether, which is in progress.
+    ASSERT(feedback == *TypeFeedbackInfo::UninitializedSentinel(isolate()) ||
+           feedback->IsAllocationSite());
 
     // Do we want to install a custom handler?
     if (FLAG_use_ic &&
@@ -2942,7 +2956,7 @@ Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
     Handle<Map> monomorphic_map(already_monomorphic && FirstTargetMap() != NULL
                                 ? FirstTargetMap()
                                 : HeapObject::cast(*object)->map());
-    code = isolate()->stub_cache()->ComputeCompareNil(monomorphic_map, &stub);
+    code = PropertyICCompiler::ComputeCompareNil(monomorphic_map, &stub);
   } else {
     code = stub.GetCode();
   }

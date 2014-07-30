@@ -2364,14 +2364,12 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ BranchOnOverflow(&stub_call, scratch1);
       break;
     case Token::MUL: {
-      __ SmiUntag(scratch1, right);
-      __ Dmult(left, scratch1);
-      __ mflo(scratch1);
-      __ mfhi(scratch2);
-      __ dsra32(scratch1, scratch1, 31);
-      __ Branch(&stub_call, ne, scratch1, Operand(scratch2));
-      __ mflo(v0);
-      __ Branch(&done, ne, v0, Operand(zero_reg));
+      __ Dmulh(v0, left, right);
+      __ dsra32(scratch2, v0, 0);
+      __ sra(scratch1, v0, 31);
+      __ Branch(USE_DELAY_SLOT, &stub_call, ne, scratch2, Operand(scratch1));
+      __ SmiTag(v0);
+      __ Branch(USE_DELAY_SLOT, &done, ne, v0, Operand(zero_reg));
       __ Daddu(scratch2, right, left);
       __ Branch(&stub_call, lt, scratch2, Operand(zero_reg));
       ASSERT(Smi::FromInt(0) == 0);
@@ -3943,12 +3941,11 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   __ ld(scratch1, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
   __ Dsubu(string_length, string_length, Operand(scratch1));
   __ SmiUntag(scratch1);
-  __ Dmult(array_length, scratch1);
+  __ Dmul(scratch2, array_length, scratch1);
   // Check for smi overflow. No overflow if higher 33 bits of 64-bit result are
   // zero.
-  __ mfhi(scratch2);
+  __ dsra32(scratch1, scratch2, 0);
   __ Branch(&bailout, ne, scratch2, Operand(zero_reg));
-  __ mflo(scratch2);
   __ SmiUntag(string_length);
   __ AdduAndCheckForOverflow(string_length, string_length, scratch2, scratch3);
   __ BranchOnOverflow(&bailout, scratch3);

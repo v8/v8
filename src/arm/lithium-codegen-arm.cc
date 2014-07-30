@@ -3848,6 +3848,15 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 }
 
 
+void LCodeGen::DoMathFround(LMathFround* instr) {
+  DwVfpRegister input_reg = ToDoubleRegister(instr->value());
+  DwVfpRegister output_reg = ToDoubleRegister(instr->result());
+  LowDwVfpRegister scratch = double_scratch0();
+  __ vcvt_f32_f64(scratch.low(), input_reg);
+  __ vcvt_f64_f32(output_reg, scratch.low());
+}
+
+
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
   DwVfpRegister input = ToDoubleRegister(instr->value());
   DwVfpRegister result = ToDoubleRegister(instr->result());

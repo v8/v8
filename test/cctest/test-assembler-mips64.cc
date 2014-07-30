@@ -557,21 +557,27 @@ TEST(MIPS7) {
 
   __ ldc1(f4, MemOperand(a0, OFFSET_OF(T, a)) );
   __ ldc1(f6, MemOperand(a0, OFFSET_OF(T, b)) );
-  __ c(UN, D, f4, f6);
-  __ bc1f(&neither_is_nan);
+  if (kArchVariant != kMips64r6) {
+    __ c(UN, D, f4, f6);
+    __ bc1f(&neither_is_nan);
+  } else {
+    __ cmp(UN, L, f2, f4, f6);
+    __ bc1eqz(&neither_is_nan, f2);
+  }
   __ nop();
   __ sw(zero_reg, MemOperand(a0, OFFSET_OF(T, result)) );
   __ Branch(&outa_here);
 
   __ bind(&neither_is_nan);
 
-  if (kArchVariant == kLoongson) {
-    __ c(OLT, D, f6, f4);
-    __ bc1t(&less_than);
+  if (kArchVariant == kMips64r6) {
+    __ cmp(OLT, L, f2, f6, f4);
+    __ bc1nez(&less_than, f2);
   } else {
     __ c(OLT, D, f6, f4, 2);
     __ bc1t(&less_than, 2);
   }
+
   __ nop();
   __ sw(zero_reg, MemOperand(a0, OFFSET_OF(T, result)) );
   __ Branch(&outa_here);
@@ -832,144 +838,147 @@ TEST(MIPS10) {
 
 
 TEST(MIPS11) {
-  // Test LWL, LWR, SWL and SWR instructions.
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
+  // Do not run test on MIPS64r6, as these instructions are removed.
+  if (kArchVariant != kMips64r6) {
+    // Test LWL, LWR, SWL and SWR instructions.
+    CcTest::InitializeVM();
+    Isolate* isolate = CcTest::i_isolate();
+    HandleScope scope(isolate);
 
-  typedef struct {
-    int32_t reg_init;
-    int32_t mem_init;
-    int32_t lwl_0;
-    int32_t lwl_1;
-    int32_t lwl_2;
-    int32_t lwl_3;
-    int32_t lwr_0;
-    int32_t lwr_1;
-    int32_t lwr_2;
-    int32_t lwr_3;
-    int32_t swl_0;
-    int32_t swl_1;
-    int32_t swl_2;
-    int32_t swl_3;
-    int32_t swr_0;
-    int32_t swr_1;
-    int32_t swr_2;
-    int32_t swr_3;
-  } T;
-  T t;
+    typedef struct {
+      int32_t reg_init;
+      int32_t mem_init;
+      int32_t lwl_0;
+      int32_t lwl_1;
+      int32_t lwl_2;
+      int32_t lwl_3;
+      int32_t lwr_0;
+      int32_t lwr_1;
+      int32_t lwr_2;
+      int32_t lwr_3;
+      int32_t swl_0;
+      int32_t swl_1;
+      int32_t swl_2;
+      int32_t swl_3;
+      int32_t swr_0;
+      int32_t swr_1;
+      int32_t swr_2;
+      int32_t swr_3;
+    } T;
+    T t;
 
-  Assembler assm(isolate, NULL, 0);
+    Assembler assm(isolate, NULL, 0);
 
-  // Test all combinations of LWL and vAddr.
-  __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ lwl(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a4, MemOperand(a0, OFFSET_OF(T, lwl_0)) );
+    // Test all combinations of LWL and vAddr.
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ lwl(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a4, MemOperand(a0, OFFSET_OF(T, lwl_0)) );
 
-  __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ lwl(a5, MemOperand(a0, OFFSET_OF(T, mem_init) + 1) );
-  __ sw(a5, MemOperand(a0, OFFSET_OF(T, lwl_1)) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ lwl(a5, MemOperand(a0, OFFSET_OF(T, mem_init) + 1) );
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, lwl_1)) );
 
-  __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ lwl(a6, MemOperand(a0, OFFSET_OF(T, mem_init) + 2) );
-  __ sw(a6, MemOperand(a0, OFFSET_OF(T, lwl_2)) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ lwl(a6, MemOperand(a0, OFFSET_OF(T, mem_init) + 2) );
+    __ sw(a6, MemOperand(a0, OFFSET_OF(T, lwl_2)) );
 
-  __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ lwl(a7, MemOperand(a0, OFFSET_OF(T, mem_init) + 3) );
-  __ sw(a7, MemOperand(a0, OFFSET_OF(T, lwl_3)) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ lwl(a7, MemOperand(a0, OFFSET_OF(T, mem_init) + 3) );
+    __ sw(a7, MemOperand(a0, OFFSET_OF(T, lwl_3)) );
 
-  // Test all combinations of LWR and vAddr.
-  __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ lwr(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a4, MemOperand(a0, OFFSET_OF(T, lwr_0)) );
+    // Test all combinations of LWR and vAddr.
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ lwr(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a4, MemOperand(a0, OFFSET_OF(T, lwr_0)) );
 
-  __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ lwr(a5, MemOperand(a0, OFFSET_OF(T, mem_init) + 1) );
-  __ sw(a5, MemOperand(a0, OFFSET_OF(T, lwr_1)) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ lwr(a5, MemOperand(a0, OFFSET_OF(T, mem_init) + 1) );
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, lwr_1)) );
 
-  __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ lwr(a6, MemOperand(a0, OFFSET_OF(T, mem_init) + 2) );
-  __ sw(a6, MemOperand(a0, OFFSET_OF(T, lwr_2)) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ lwr(a6, MemOperand(a0, OFFSET_OF(T, mem_init) + 2) );
+    __ sw(a6, MemOperand(a0, OFFSET_OF(T, lwr_2)) );
 
-  __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ lwr(a7, MemOperand(a0, OFFSET_OF(T, mem_init) + 3) );
-  __ sw(a7, MemOperand(a0, OFFSET_OF(T, lwr_3)) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ lwr(a7, MemOperand(a0, OFFSET_OF(T, mem_init) + 3) );
+    __ sw(a7, MemOperand(a0, OFFSET_OF(T, lwr_3)) );
 
-  // Test all combinations of SWL and vAddr.
-  __ lw(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a4, MemOperand(a0, OFFSET_OF(T, swl_0)) );
-  __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ swl(a4, MemOperand(a0, OFFSET_OF(T, swl_0)) );
+    // Test all combinations of SWL and vAddr.
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a4, MemOperand(a0, OFFSET_OF(T, swl_0)) );
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ swl(a4, MemOperand(a0, OFFSET_OF(T, swl_0)) );
 
-  __ lw(a5, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a5, MemOperand(a0, OFFSET_OF(T, swl_1)) );
-  __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ swl(a5, MemOperand(a0, OFFSET_OF(T, swl_1) + 1) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, swl_1)) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ swl(a5, MemOperand(a0, OFFSET_OF(T, swl_1) + 1) );
 
-  __ lw(a6, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a6, MemOperand(a0, OFFSET_OF(T, swl_2)) );
-  __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ swl(a6, MemOperand(a0, OFFSET_OF(T, swl_2) + 2) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a6, MemOperand(a0, OFFSET_OF(T, swl_2)) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ swl(a6, MemOperand(a0, OFFSET_OF(T, swl_2) + 2) );
 
-  __ lw(a7, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a7, MemOperand(a0, OFFSET_OF(T, swl_3)) );
-  __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ swl(a7, MemOperand(a0, OFFSET_OF(T, swl_3) + 3) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a7, MemOperand(a0, OFFSET_OF(T, swl_3)) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ swl(a7, MemOperand(a0, OFFSET_OF(T, swl_3) + 3) );
 
-  // Test all combinations of SWR and vAddr.
-  __ lw(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a4, MemOperand(a0, OFFSET_OF(T, swr_0)) );
-  __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ swr(a4, MemOperand(a0, OFFSET_OF(T, swr_0)) );
+    // Test all combinations of SWR and vAddr.
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a4, MemOperand(a0, OFFSET_OF(T, swr_0)) );
+    __ lw(a4, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ swr(a4, MemOperand(a0, OFFSET_OF(T, swr_0)) );
 
-  __ lw(a5, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a5, MemOperand(a0, OFFSET_OF(T, swr_1)) );
-  __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ swr(a5, MemOperand(a0, OFFSET_OF(T, swr_1) + 1) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a5, MemOperand(a0, OFFSET_OF(T, swr_1)) );
+    __ lw(a5, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ swr(a5, MemOperand(a0, OFFSET_OF(T, swr_1) + 1) );
 
-  __ lw(a6, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a6, MemOperand(a0, OFFSET_OF(T, swr_2)) );
-  __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ swr(a6, MemOperand(a0, OFFSET_OF(T, swr_2) + 2) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a6, MemOperand(a0, OFFSET_OF(T, swr_2)) );
+    __ lw(a6, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ swr(a6, MemOperand(a0, OFFSET_OF(T, swr_2) + 2) );
 
-  __ lw(a7, MemOperand(a0, OFFSET_OF(T, mem_init)) );
-  __ sw(a7, MemOperand(a0, OFFSET_OF(T, swr_3)) );
-  __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
-  __ swr(a7, MemOperand(a0, OFFSET_OF(T, swr_3) + 3) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, mem_init)) );
+    __ sw(a7, MemOperand(a0, OFFSET_OF(T, swr_3)) );
+    __ lw(a7, MemOperand(a0, OFFSET_OF(T, reg_init)) );
+    __ swr(a7, MemOperand(a0, OFFSET_OF(T, swr_3) + 3) );
 
-  __ jr(ra);
-  __ nop();
+    __ jr(ra);
+    __ nop();
 
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  F3 f = FUNCTION_CAST<F3>(code->entry());
-  t.reg_init = 0xaabbccdd;
-  t.mem_init = 0x11223344;
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    t.reg_init = 0xaabbccdd;
+    t.mem_init = 0x11223344;
 
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
-  USE(dummy);
+    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    USE(dummy);
 
-  CHECK_EQ(0x44bbccdd, t.lwl_0);
-  CHECK_EQ(0x3344ccdd, t.lwl_1);
-  CHECK_EQ(0x223344dd, t.lwl_2);
-  CHECK_EQ(0x11223344, t.lwl_3);
+    CHECK_EQ(0x44bbccdd, t.lwl_0);
+    CHECK_EQ(0x3344ccdd, t.lwl_1);
+    CHECK_EQ(0x223344dd, t.lwl_2);
+    CHECK_EQ(0x11223344, t.lwl_3);
 
-  CHECK_EQ(0x11223344, t.lwr_0);
-  CHECK_EQ(0xaa112233, t.lwr_1);
-  CHECK_EQ(0xaabb1122, t.lwr_2);
-  CHECK_EQ(0xaabbcc11, t.lwr_3);
+    CHECK_EQ(0x11223344, t.lwr_0);
+    CHECK_EQ(0xaa112233, t.lwr_1);
+    CHECK_EQ(0xaabb1122, t.lwr_2);
+    CHECK_EQ(0xaabbcc11, t.lwr_3);
 
-  CHECK_EQ(0x112233aa, t.swl_0);
-  CHECK_EQ(0x1122aabb, t.swl_1);
-  CHECK_EQ(0x11aabbcc, t.swl_2);
-  CHECK_EQ(0xaabbccdd, t.swl_3);
+    CHECK_EQ(0x112233aa, t.swl_0);
+    CHECK_EQ(0x1122aabb, t.swl_1);
+    CHECK_EQ(0x11aabbcc, t.swl_2);
+    CHECK_EQ(0xaabbccdd, t.swl_3);
 
-  CHECK_EQ(0xaabbccdd, t.swr_0);
-  CHECK_EQ(0xbbccdd44, t.swr_1);
-  CHECK_EQ(0xccdd3344, t.swr_2);
-  CHECK_EQ(0xdd223344, t.swr_3);
+    CHECK_EQ(0xaabbccdd, t.swr_0);
+    CHECK_EQ(0xbbccdd44, t.swr_1);
+    CHECK_EQ(0xccdd3344, t.swr_2);
+    CHECK_EQ(0xdd223344, t.swr_3);
+  }
 }
 
 

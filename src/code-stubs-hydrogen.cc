@@ -539,7 +539,7 @@ Handle<Code> CreateAllocationSiteStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
+HValue* CodeStubGraphBuilder<LoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
       GetParameter(KeyedLoadIC::kReceiverIndex),
       GetParameter(KeyedLoadIC::kNameIndex),
@@ -553,7 +553,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadFastElementStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> KeyedLoadFastElementStub::GenerateCode() {
+Handle<Code> LoadFastElementStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
@@ -605,7 +605,7 @@ Handle<Code> StringLengthStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
+HValue* CodeStubGraphBuilder<StoreFastElementStub>::BuildCodeStub() {
   BuildUncheckedMonomorphicElementAccess(
       GetParameter(StoreIC::kReceiverIndex),
       GetParameter(StoreIC::kNameIndex),
@@ -617,7 +617,7 @@ HValue* CodeStubGraphBuilder<KeyedStoreFastElementStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> KeyedStoreFastElementStub::GenerateCode() {
+Handle<Code> StoreFastElementStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
@@ -1378,8 +1378,8 @@ Handle<Code> FastNewContextStub::GenerateCode() {
 }
 
 
-template<>
-HValue* CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>::BuildCodeStub() {
+template <>
+HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
   HValue* receiver = GetParameter(KeyedLoadIC::kReceiverIndex);
   HValue* key = GetParameter(KeyedLoadIC::kNameIndex);
 
@@ -1393,7 +1393,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadDictionaryElementStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> KeyedLoadDictionaryElementStub::GenerateCode() {
+Handle<Code> LoadDictionaryElementStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
@@ -1417,12 +1417,11 @@ Handle<Code> RegExpConstructResultStub::GenerateCode() {
 
 
 template <>
-class CodeStubGraphBuilder<KeyedLoadGenericElementStub>
-  : public CodeStubGraphBuilderBase {
+class CodeStubGraphBuilder<KeyedLoadGenericStub>
+    : public CodeStubGraphBuilderBase {
  public:
-  CodeStubGraphBuilder(Isolate* isolate,
-                       KeyedLoadGenericElementStub* stub)
-    : CodeStubGraphBuilderBase(isolate, stub) {}
+  CodeStubGraphBuilder(Isolate* isolate, KeyedLoadGenericStub* stub)
+      : CodeStubGraphBuilderBase(isolate, stub) {}
 
  protected:
   virtual HValue* BuildCodeStub();
@@ -1445,16 +1444,14 @@ class CodeStubGraphBuilder<KeyedLoadGenericElementStub>
                                 HValue* bit_field2,
                                 ElementsKind kind);
 
-  KeyedLoadGenericElementStub* casted_stub() {
-    return static_cast<KeyedLoadGenericElementStub*>(stub());
+  KeyedLoadGenericStub* casted_stub() {
+    return static_cast<KeyedLoadGenericStub*>(stub());
   }
 };
 
 
-void CodeStubGraphBuilder<
-  KeyedLoadGenericElementStub>::BuildElementsKindLimitCheck(
-    HGraphBuilder::IfBuilder* if_builder,
-    HValue* bit_field2,
+void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildElementsKindLimitCheck(
+    HGraphBuilder::IfBuilder* if_builder, HValue* bit_field2,
     ElementsKind kind) {
   ElementsKind next_kind = static_cast<ElementsKind>(kind + 1);
   HValue* kind_limit = Add<HConstant>(
@@ -1465,13 +1462,9 @@ void CodeStubGraphBuilder<
 }
 
 
-void CodeStubGraphBuilder<KeyedLoadGenericElementStub>::BuildFastElementLoad(
-    HGraphBuilder::IfBuilder* if_builder,
-    HValue* receiver,
-    HValue* key,
-    HValue* instance_type,
-    HValue* bit_field2,
-    ElementsKind kind) {
+void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildFastElementLoad(
+    HGraphBuilder::IfBuilder* if_builder, HValue* receiver, HValue* key,
+    HValue* instance_type, HValue* bit_field2, ElementsKind kind) {
   ASSERT(!IsExternalArrayElementsKind(kind));
 
   BuildElementsKindLimitCheck(if_builder, bit_field2, kind);
@@ -1493,14 +1486,9 @@ void CodeStubGraphBuilder<KeyedLoadGenericElementStub>::BuildFastElementLoad(
 }
 
 
-void CodeStubGraphBuilder<
-  KeyedLoadGenericElementStub>::BuildExternalElementLoad(
-    HGraphBuilder::IfBuilder* if_builder,
-    HValue* receiver,
-    HValue* key,
-    HValue* instance_type,
-    HValue* bit_field2,
-    ElementsKind kind) {
+void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildExternalElementLoad(
+    HGraphBuilder::IfBuilder* if_builder, HValue* receiver, HValue* key,
+    HValue* instance_type, HValue* bit_field2, ElementsKind kind) {
   ASSERT(IsExternalArrayElementsKind(kind));
 
   BuildElementsKindLimitCheck(if_builder, bit_field2, kind);
@@ -1512,7 +1500,7 @@ void CodeStubGraphBuilder<
 }
 
 
-HValue* CodeStubGraphBuilder<KeyedLoadGenericElementStub>::BuildCodeStub() {
+HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
   HValue* receiver = GetParameter(KeyedLoadIC::kReceiverIndex);
   HValue* key = GetParameter(KeyedLoadIC::kNameIndex);
 
@@ -1569,7 +1557,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericElementStub>::BuildCodeStub() {
     BuildElementsKindLimitCheck(&kind_if, bit_field2,
                                 SLOPPY_ARGUMENTS_ELEMENTS);
     // Non-strict elements are not handled.
-    Add<HDeoptimize>("non-strict elements in KeyedLoadGenericElementStub",
+    Add<HDeoptimize>("non-strict elements in KeyedLoadGenericStub",
                      Deoptimizer::EAGER);
     Push(graph()->GetConstant0());
 
@@ -1609,7 +1597,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericElementStub>::BuildCodeStub() {
     BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
                              EXTERNAL_UINT8_CLAMPED_ELEMENTS);
 
-    kind_if.ElseDeopt("ElementsKind unhandled in KeyedLoadGenericElementStub");
+    kind_if.ElseDeopt("ElementsKind unhandled in KeyedLoadGenericStub");
 
     kind_if.End();
   }
@@ -1730,7 +1718,7 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericElementStub>::BuildCodeStub() {
 }
 
 
-Handle<Code> KeyedLoadGenericElementStub::GenerateCode() {
+Handle<Code> KeyedLoadGenericStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 

@@ -428,10 +428,6 @@ void MacroAssembler::RecordWriteForMap(
   // Compute the address.
   lea(address, FieldOperand(object, HeapObject::kMapOffset));
 
-  // Count number of write barriers in generated code.
-  isolate()->counters()->write_barriers_static()->Increment();
-  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
-
   // A single check of the map's pages interesting flag suffices, since it is
   // only set during incremental collection, and then it's also guaranteed that
   // the from object's page's interesting flag is also set.  This optimization
@@ -447,6 +443,10 @@ void MacroAssembler::RecordWriteForMap(
   CallStub(&stub);
 
   bind(&done);
+
+  // Count number of write barriers in generated code.
+  isolate()->counters()->write_barriers_static()->Increment();
+  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
 
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
@@ -483,10 +483,6 @@ void MacroAssembler::RecordWrite(
     bind(&ok);
   }
 
-  // Count number of write barriers in generated code.
-  isolate()->counters()->write_barriers_static()->Increment();
-  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
-
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis and stores into young gen.
   Label done;
@@ -516,6 +512,10 @@ void MacroAssembler::RecordWrite(
   CallStub(&stub);
 
   bind(&done);
+
+  // Count number of write barriers in generated code.
+  isolate()->counters()->write_barriers_static()->Increment();
+  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
 
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.

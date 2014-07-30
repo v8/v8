@@ -1067,7 +1067,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 
   // Perform tail call to the entry.
   __ TailCallExternalReference(ExternalReference(
-       IC_Utility(kKeyedLoadPropertyWithInterceptor), masm->isolate()), 2, 1);
+       IC_Utility(kLoadElementWithInterceptor), masm->isolate()), 2, 1);
 
   __ bind(&slow);
   GenerateMiss(masm);

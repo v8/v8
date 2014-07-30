@@ -2606,6 +2606,7 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
       switch (op_) {
         case kMathFloor:
         case kMathRound:
+        case kMathFround:
         case kMathSqrt:
         case kMathPowHalf:
         case kMathLog:
@@ -2672,6 +2673,7 @@ class HUnaryMathOperation V8_FINAL : public HTemplateInstruction<2> {
         // is tagged, and not when it is an unboxed double or unboxed integer.
         SetChangesFlag(kNewSpacePromotion);
         break;
+      case kMathFround:
       case kMathLog:
       case kMathExp:
       case kMathSqrt:

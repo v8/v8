@@ -42,6 +42,7 @@
 #include "src/string-search.h"
 #include "src/stub-cache.h"
 #include "src/uri.h"
+#include "src/utils.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 
@@ -4927,6 +4928,37 @@ static bool IsValidAccessor(Handle<Object> obj) {
 }
 
 
+// Transform getter or setter into something DefineAccessor can handle.
+static Handle<Object> InstantiateAccessorComponent(Isolate* isolate,
+                                                   Handle<Object> component) {
+  if (component->IsUndefined()) return isolate->factory()->null_value();
+  Handle<FunctionTemplateInfo> info =
+      Handle<FunctionTemplateInfo>::cast(component);
+  return Utils::OpenHandle(*Utils::ToLocal(info)->GetFunction());
+}
+
+
+RUNTIME_FUNCTION(Runtime_DefineApiAccessorProperty) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 5);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, getter, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, setter, 3);
+  CONVERT_SMI_ARG_CHECKED(attribute, 4);
+  RUNTIME_ASSERT(getter->IsUndefined() || getter->IsFunctionTemplateInfo());
+  RUNTIME_ASSERT(setter->IsUndefined() || setter->IsFunctionTemplateInfo());
+  RUNTIME_ASSERT(PropertyDetails::AttributesField::is_valid(
+      static_cast<PropertyAttributes>(attribute)));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::DefineAccessor(
+                   object, name, InstantiateAccessorComponent(isolate, getter),
+                   InstantiateAccessorComponent(isolate, setter),
+                   static_cast<PropertyAttributes>(attribute)));
+  return isolate->heap()->undefined_value();
+}
+
+
 // Implements part of 8.12.9 DefineOwnProperty.
 // There are 3 cases that lead here:
 // Step 4b - define a new accessor property.
@@ -7681,7 +7713,7 @@ RUNTIME_FUNCTION(Runtime_MathFloorRT) {
   isolate->counters()->math_floor()->Increment();
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  return *isolate->factory()->NewNumber(std::floor(x));
+  return *isolate->factory()->NewNumber(Floor(x));
 }
 
 
@@ -7766,7 +7798,7 @@ RUNTIME_FUNCTION(Runtime_RoundNumber) {
   if (sign && value >= -0.5) return isolate->heap()->minus_zero_value();
 
   // Do not call NumberFromDouble() to avoid extra checks.
-  return *isolate->factory()->NewNumber(std::floor(value + 0.5));
+  return *isolate->factory()->NewNumber(Floor(value + 0.5));
 }
 
 
@@ -9491,9 +9523,9 @@ RUNTIME_FUNCTION(Runtime_DateCurrentTime) {
   double millis;
   if (FLAG_verify_predictable) {
     millis = 1388534400000.0;  // Jan 1 2014 00:00:00 GMT+0000
-    millis += std::floor(isolate->heap()->synthetic_time());
+    millis += Floor(isolate->heap()->synthetic_time());
   } else {
-    millis = std::floor(base::OS::TimeCurrentMillis());
+    millis = Floor(base::OS::TimeCurrentMillis());
   }
   return *isolate->factory()->NewNumber(millis);
 }
