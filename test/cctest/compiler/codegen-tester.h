@@ -98,8 +98,9 @@ class RawMachineAssemblerTester
                             MachineRepresentation p2 = kMachineLast,
                             MachineRepresentation p3 = kMachineLast,
                             MachineRepresentation p4 = kMachineLast)
-      : MachineAssemblerTester(ReturnValueTraits<ReturnType>::Representation(),
-                               p0, p1, p2, p3, p4) {}
+      : MachineAssemblerTester<RawMachineAssembler>(
+            ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3,
+            p4) {}
 };
 
 
@@ -114,8 +115,9 @@ class StructuredMachineAssemblerTester
                                    MachineRepresentation p2 = kMachineLast,
                                    MachineRepresentation p3 = kMachineLast,
                                    MachineRepresentation p4 = kMachineLast)
-      : MachineAssemblerTester(ReturnValueTraits<ReturnType>::Representation(),
-                               p0, p1, p2, p3, p4) {}
+      : MachineAssemblerTester<StructuredMachineAssembler>(
+            ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3,
+            p4) {}
 };
 
 

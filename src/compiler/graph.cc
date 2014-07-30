@@ -19,7 +19,8 @@ namespace internal {
 namespace compiler {
 
 Graph::Graph(Zone* zone)
-    : GenericGraph(zone), decorators_(DecoratorVector::allocator_type(zone)) {}
+    : GenericGraph<Node>(zone),
+      decorators_(DecoratorVector::allocator_type(zone)) {}
 
 
 Node* Graph::NewNode(Operator* op, int input_count, Node** inputs) {
