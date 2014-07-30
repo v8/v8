@@ -34,26 +34,26 @@ inline void GenericNode<B, S>::AssignUniqueID(GenericGraphBase* graph) {
 template <class B, class S>
 inline typename GenericNode<B, S>::Inputs::iterator
 GenericNode<B, S>::Inputs::begin() {
-  return GenericNode<B, S>::Inputs::iterator(this->node_, 0);
+  return typename GenericNode<B, S>::Inputs::iterator(this->node_, 0);
 }
 
 template <class B, class S>
 inline typename GenericNode<B, S>::Inputs::iterator
 GenericNode<B, S>::Inputs::end() {
-  return GenericNode<B, S>::Inputs::iterator(this->node_,
-                                             this->node_->InputCount());
+  return typename GenericNode<B, S>::Inputs::iterator(
+      this->node_, this->node_->InputCount());
 }
 
 template <class B, class S>
 inline typename GenericNode<B, S>::Uses::iterator
 GenericNode<B, S>::Uses::begin() {
-  return GenericNode<B, S>::Uses::iterator(this->node_);
+  return typename GenericNode<B, S>::Uses::iterator(this->node_);
 }
 
 template <class B, class S>
 inline typename GenericNode<B, S>::Uses::iterator
 GenericNode<B, S>::Uses::end() {
-  return GenericNode<B, S>::Uses::iterator();
+  return typename GenericNode<B, S>::Uses::iterator();
 }
 
 template <class B, class S>
