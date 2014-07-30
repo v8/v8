@@ -2500,7 +2500,7 @@ static void RunLoadImmIndex(MachineRepresentation rep) {
   // initialize the buffer with raw data.
   byte* raw = reinterpret_cast<byte*>(buffer);
   for (size_t i = 0; i < sizeof(buffer); i++) {
-    raw[i] = (i + sizeof(buffer)) ^ 0xAA;
+    raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
   }
 
   // Test with various large and small offsets.
@@ -2539,7 +2539,7 @@ static void RunLoadStore(MachineRepresentation rep) {
     // initialize the buffer with raw data.
     byte* raw = reinterpret_cast<byte*>(buffer);
     for (size_t i = 0; i < sizeof(buffer); i++) {
-      raw[i] = (i + sizeof(buffer)) ^ 0xAA;
+      raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
     }
 
     RawMachineAssemblerTester<int32_t> m;
@@ -3703,33 +3703,33 @@ TEST(RunSpillLotsOfThings) {
 
 
 TEST(RunSpillConstantsAndParameters) {
-  static const size_t kInputSize = 1000;
+  static const int kInputSize = 1000;
   static const int32_t kBase = 987;
   RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32);
   int32_t outputs[kInputSize];
   Node* csts[kInputSize];
   Node* accs[kInputSize];
   Node* acc = m.Int32Constant(0);
-  for (size_t i = 0; i < kInputSize; i++) {
+  for (int i = 0; i < kInputSize; i++) {
     csts[i] = m.Int32Constant(static_cast<int32_t>(kBase + i));
   }
-  for (size_t i = 0; i < kInputSize; i++) {
+  for (int i = 0; i < kInputSize; i++) {
     acc = m.Int32Add(acc, csts[i]);
     accs[i] = acc;
   }
-  for (size_t i = 0; i < kInputSize; i++) {
+  for (int i = 0; i < kInputSize; i++) {
     m.StoreToPointer(&outputs[i], kMachineWord32, accs[i]);
   }
   m.Return(m.Int32Add(acc, m.Int32Add(m.Parameter(0), m.Parameter(1))));
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
       int32_t expected = *i + *j;
-      for (size_t k = 0; k < kInputSize; k++) {
+      for (int k = 0; k < kInputSize; k++) {
         expected += kBase + k;
       }
       CHECK_EQ(expected, m.Call(*i, *j));
       expected = 0;
-      for (size_t k = 0; k < kInputSize; k++) {
+      for (int k = 0; k < kInputSize; k++) {
         expected += kBase + k;
         CHECK_EQ(expected, outputs[k]);
       }

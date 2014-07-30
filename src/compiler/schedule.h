@@ -194,7 +194,7 @@ class Schedule : public GenericGraph<BasicBlock> {
   BasicBlock* GetBlockById(int block_id) { return all_blocks_[block_id]; }
 
   int BasicBlockCount() const { return NodeCount(); }
-  int RpoBlockCount() const { return rpo_order_.size(); }
+  int RpoBlockCount() const { return static_cast<int>(rpo_order_.size()); }
 
   typedef ContainerPointerWrapper<BasicBlockVector> BasicBlocks;
 

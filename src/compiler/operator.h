@@ -185,7 +185,9 @@ struct StaticParameterTraits<PrintableUnique<Object> > {
   static OStream& PrintTo(OStream& os, PrintableUnique<Object> val) {  // NOLINT
     return os << val.string();
   }
-  static int HashCode(PrintableUnique<Object> a) { return a.Hashcode(); }
+  static int HashCode(PrintableUnique<Object> a) {
+    return static_cast<int>(a.Hashcode());
+  }
   static bool Equals(PrintableUnique<Object> a, PrintableUnique<Object> b) {
     return a == b;
   }
@@ -197,7 +199,9 @@ struct StaticParameterTraits<PrintableUnique<Name> > {
   static OStream& PrintTo(OStream& os, PrintableUnique<Name> val) {  // NOLINT
     return os << val.string();
   }
-  static int HashCode(PrintableUnique<Name> a) { return a.Hashcode(); }
+  static int HashCode(PrintableUnique<Name> a) {
+    return static_cast<int>(a.Hashcode());
+  }
   static bool Equals(PrintableUnique<Name> a, PrintableUnique<Name> b) {
     return a == b;
   }

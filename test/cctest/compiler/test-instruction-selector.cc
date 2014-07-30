@@ -11,8 +11,8 @@ TEST(InstructionSelectionReturnZero) {
   InstructionSelectorTester m(InstructionSelectorTester::kInternalMode);
   m.Return(m.Int32Constant(0));
   m.SelectInstructions();
-  CHECK_EQ(2, m.code.size());
+  CHECK_EQ(2, static_cast<int>(m.code.size()));
   CHECK_EQ(kArchNop, m.code[0]->opcode());
   CHECK_EQ(kArchRet, m.code[1]->opcode());
-  CHECK_EQ(1, m.code[1]->InputCount());
+  CHECK_EQ(1, static_cast<int>(m.code[1]->InputCount()));
 }

@@ -182,14 +182,14 @@ StructuredMachineAssembler::CopyForLoopHeader(Environment* env) {
 void StructuredMachineAssembler::MergeBackEdgesToLoopHeader(
     Environment* header, EnvironmentVector* environments) {
   // Only merge as many variables are were declared before this loop.
-  size_t n = header->variables_.size();
+  int n = static_cast<int>(header->variables_.size());
   // TODO(dcarney): invert loop order and extend phis once.
   for (EnvironmentVector::iterator i = environments->begin();
        i != environments->end(); ++i) {
     Environment* from = *i;
     if (from->is_dead_) continue;
     AddGoto(from, header);
-    for (size_t i = 0; i < n; ++i) {
+    for (int i = 0; i < n; ++i) {
       Node* phi = header->variables_[i];
       if (phi == NULL) continue;
       phi->set_op(common()->Phi(phi->InputCount() + 1));
@@ -233,7 +233,7 @@ void StructuredMachineAssembler::Merge(EnvironmentVector* environments,
         // TODO(dcarney): record start position at time of split.
         //                all variables after this should not be NULL.
         if (val != NULL) {
-          val = VariableAt(live_environments[i], j);
+          val = VariableAt(live_environments[i], static_cast<int>(j));
         }
       }
       if (val == resolved) continue;
@@ -254,7 +254,8 @@ void StructuredMachineAssembler::Merge(EnvironmentVector* environments,
       for (; i < n_envs; i++) {
         scratch[i] = live_environments[i]->variables_[j];
       }
-      resolved = graph()->NewNode(common()->Phi(n_envs), n_envs, scratch);
+      resolved = graph()->NewNode(common()->Phi(static_cast<int>(n_envs)),
+                                  static_cast<int>(n_envs), scratch);
       if (next->block_ != NULL) {
         schedule()->AddNode(next->block_, resolved);
       }
@@ -644,7 +645,7 @@ void StructuredMachineAssembler::LoopBuilder::End() {
   // Do loop header merges.
   smasm_->MergeBackEdgesToLoopHeader(header_environment_,
                                      &pending_header_merges_);
-  int initial_size = header_environment_->variables_.size();
+  int initial_size = static_cast<int>(header_environment_->variables_.size());
   // Do loop exit merges, truncating loop variables away.
   smasm_->Merge(&pending_exit_merges_, initial_size);
   for (EnvironmentVector::iterator i = pending_exit_merges_.begin();

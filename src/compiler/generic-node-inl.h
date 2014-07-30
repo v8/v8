@@ -217,7 +217,7 @@ S* GenericNode<B, S>::New(GenericGraphBase* graph, int input_count,
   size_t node_size = sizeof(GenericNode);
   size_t inputs_size = input_count * sizeof(Input);
   size_t uses_size = input_count * sizeof(Use);
-  size_t size = node_size + inputs_size + uses_size;
+  int size = static_cast<int>(node_size + inputs_size + uses_size);
   Zone* zone = graph->zone();
   void* buffer = zone->New(size);
   S* result = new (buffer) S(graph, input_count);

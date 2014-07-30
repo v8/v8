@@ -49,7 +49,7 @@ TEST(TestUseNodeVisitEmpty) {
   PreNodeVisitor node_visitor;
   graph.VisitNodeUsesFromStart(&node_visitor);
 
-  CHECK_EQ(1, node_visitor.nodes_.size());
+  CHECK_EQ(1, static_cast<int>(node_visitor.nodes_.size()));
 }
 
 
@@ -64,7 +64,7 @@ TEST(TestUseNodePreOrderVisitSimple) {
   PreNodeVisitor node_visitor;
   graph.VisitNodeUsesFromStart(&node_visitor);
 
-  CHECK_EQ(5, node_visitor.nodes_.size());
+  CHECK_EQ(5, static_cast<int>(node_visitor.nodes_.size()));
   CHECK(graph.start()->id() == node_visitor.nodes_[0]->id());
   CHECK(n2->id() == node_visitor.nodes_[1]->id());
   CHECK(n3->id() == node_visitor.nodes_[2]->id());
@@ -83,7 +83,7 @@ TEST(TestInputNodePreOrderVisitSimple) {
 
   PreNodeVisitor node_visitor;
   graph.VisitNodeInputsFromEnd(&node_visitor);
-  CHECK_EQ(5, node_visitor.nodes_.size());
+  CHECK_EQ(5, static_cast<int>(node_visitor.nodes_.size()));
   CHECK(n5->id() == node_visitor.nodes_[0]->id());
   CHECK(n4->id() == node_visitor.nodes_[1]->id());
   CHECK(n2->id() == node_visitor.nodes_[2]->id());
@@ -107,7 +107,7 @@ TEST(TestUseNodePostOrderVisitSimple) {
   PostNodeVisitor node_visitor;
   graph.VisitNodeUsesFromStart(&node_visitor);
 
-  CHECK_EQ(8, node_visitor.nodes_.size());
+  CHECK_EQ(8, static_cast<int>(node_visitor.nodes_.size()));
   CHECK(graph.end()->id() == node_visitor.nodes_[0]->id());
   CHECK(n4->id() == node_visitor.nodes_[1]->id());
   CHECK(n5->id() == node_visitor.nodes_[2]->id());
@@ -138,7 +138,7 @@ TEST(TestUseNodePostOrderVisitLong) {
   PostNodeVisitor node_visitor;
   graph.VisitNodeUsesFromStart(&node_visitor);
 
-  CHECK_EQ(12, node_visitor.nodes_.size());
+  CHECK_EQ(12, static_cast<int>(node_visitor.nodes_.size()));
   CHECK(graph.end()->id() == node_visitor.nodes_[0]->id());
   CHECK(n4->id() == node_visitor.nodes_[1]->id());
   CHECK(n8->id() == node_visitor.nodes_[2]->id());
@@ -166,7 +166,7 @@ TEST(TestUseNodePreOrderVisitCycle) {
   PreNodeVisitor node_visitor;
   graph.VisitNodeUsesFromStart(&node_visitor);
 
-  CHECK_EQ(3, node_visitor.nodes_.size());
+  CHECK_EQ(3, static_cast<int>(node_visitor.nodes_.size()));
   CHECK(n0->id() == node_visitor.nodes_[0]->id());
   CHECK(n1->id() == node_visitor.nodes_[1]->id());
   CHECK(n2->id() == node_visitor.nodes_[2]->id());
@@ -177,7 +177,7 @@ struct ReenterNodeVisitor : NullNodeVisitor {
   GenericGraphVisit::Control Pre(Node* node) {
     printf("[%d] PRE NODE: %d\n", static_cast<int>(nodes_.size()), node->id());
     nodes_.push_back(node->id());
-    int size = nodes_.size();
+    int size = static_cast<int>(nodes_.size());
     switch (node->id()) {
       case 0:
         return size < 6 ? GenericGraphVisit::REENTER : GenericGraphVisit::SKIP;
@@ -228,8 +228,8 @@ TEST(TestUseNodeReenterVisit) {
   ReenterNodeVisitor visitor;
   graph.VisitNodeUsesFromStart(&visitor);
 
-  CHECK_EQ(22, visitor.nodes_.size());
-  CHECK_EQ(24, visitor.edges_.size());
+  CHECK_EQ(22, static_cast<int>(visitor.nodes_.size()));
+  CHECK_EQ(24, static_cast<int>(visitor.edges_.size()));
 
   CHECK(n0->id() == visitor.nodes_[0]);
   CHECK(n0->id() == visitor.edges_[0].first);

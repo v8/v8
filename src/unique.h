@@ -187,7 +187,7 @@ class PrintableUnique : public Unique<T> {
     this->handle_->ShortPrint(&stream);
     SmartArrayPointer<const char> desc_string = stream.ToCString();
     const char* desc_chars = desc_string.get();
-    int length = strlen(desc_chars);
+    int length = static_cast<int>(strlen(desc_chars));
     char* desc_copy = zone->NewArray<char>(length + 1);
     memcpy(desc_copy, desc_chars, length + 1);
     string_ = desc_copy;

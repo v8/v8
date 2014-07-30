@@ -1834,7 +1834,7 @@ TEST(BuildScheduleTrivialLazyDeoptCall) {
   CHECK(!cont_block->deferred_);
   // The lazy deopt block contains framestate + bailout (and nothing else).
   CHECK_EQ(deoptimization_node, deopt_block->control_input_);
-  CHECK_EQ(2, deopt_block->nodes_.size());
+  CHECK_EQ(2, static_cast<int>(deopt_block->nodes_.size()));
   CHECK_EQ(lazy_deopt_node, deopt_block->nodes_[0]);
   CHECK_EQ(state_node, deopt_block->nodes_[1]);
 }

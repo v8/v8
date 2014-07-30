@@ -378,7 +378,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_inverted_materialized) {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_branch_true) {
-  for (size_t i = 0; i < ARRAY_SIZE(int32cmp_opcodes); i++) {
+  for (int i = 0; i < static_cast<int>(ARRAY_SIZE(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], false, false, 995 + i, -1011 - i);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();
@@ -387,7 +387,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_branch_true) {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_branch_false) {
-  for (size_t i = 0; i < ARRAY_SIZE(int32cmp_opcodes); i++) {
+  for (int i = 0; i < static_cast<int>(ARRAY_SIZE(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], false, true, 795 + i, -2011 - i);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();
@@ -396,7 +396,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_branch_false) {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_true) {
-  for (size_t i = 0; i < ARRAY_SIZE(int32cmp_opcodes); i++) {
+  for (int i = 0; i < static_cast<int>(ARRAY_SIZE(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], true, false, 695 + i, -3011 - i);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();
@@ -405,7 +405,7 @@ TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_true) {
 
 
 TEST(BranchCombineInt32CmpAllInputShapes_inverse_branch_false) {
-  for (size_t i = 0; i < ARRAY_SIZE(int32cmp_opcodes); i++) {
+  for (int i = 0; i < static_cast<int>(ARRAY_SIZE(int32cmp_opcodes)); i++) {
     CmpBranchGen gen(int32cmp_opcodes[i], true, true, 595 + i, -4011 - i);
     Int32BinopInputShapeTester tester(&gen);
     tester.TestAllInputShapes();

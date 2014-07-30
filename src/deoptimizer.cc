@@ -468,7 +468,8 @@ void Deoptimizer::PatchStackForMarkedCode(Isolate* isolate) {
         JSFunction* function =
             static_cast<OptimizedFrame*>(it.frame())->function();
         Address* pc_address = it.frame()->pc_address();
-        int pc_offset = *pc_address - code->instruction_start();
+        int pc_offset =
+            static_cast<int>(*pc_address - code->instruction_start());
         int new_pc_offset = FindPatchAddressForReturnAddress(code, pc_offset);
 
         if (FLAG_trace_deopt) {

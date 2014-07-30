@@ -300,9 +300,9 @@ TEST(InstructionOperands) {
 
   {
     TestInstr* i = TestInstr::New(&zone, 101);
-    CHECK_EQ(0, i->OutputCount());
-    CHECK_EQ(0, i->InputCount());
-    CHECK_EQ(0, i->TempCount());
+    CHECK_EQ(0, static_cast<int>(i->OutputCount()));
+    CHECK_EQ(0, static_cast<int>(i->InputCount()));
+    CHECK_EQ(0, static_cast<int>(i->TempCount()));
   }
 
   InstructionOperand* outputs[] = {

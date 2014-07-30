@@ -196,7 +196,8 @@ class AstGraphBuilder::Environment
   int parameters_count() const { return parameters_count_; }
   int locals_count() const { return locals_count_; }
   int stack_height() {
-    return values()->size() - parameters_count_ - locals_count_;
+    return static_cast<int>(values()->size()) - parameters_count_ -
+           locals_count_;
   }
 
   // Operations on parameter or local variables. The parameter indices are
@@ -241,12 +242,12 @@ class AstGraphBuilder::Environment
   // Direct mutations of the operand stack.
   void Poke(int depth, Node* node) {
     ASSERT(depth >= 0 && depth < stack_height());
-    int index = values()->size() - depth - 1;
+    int index = static_cast<int>(values()->size()) - depth - 1;
     values()->at(index) = node;
   }
   Node* Peek(int depth) {
     ASSERT(depth >= 0 && depth < stack_height());
-    int index = values()->size() - depth - 1;
+    int index = static_cast<int>(values()->size()) - depth - 1;
     return values()->at(index);
   }
   void Drop(int depth) {

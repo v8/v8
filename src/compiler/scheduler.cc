@@ -870,7 +870,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
   }
   // RPO should not have been computed for this schedule yet.
   CHECK_EQ(kBlockUnvisited1, schedule_->entry()->rpo_number_);
-  CHECK_EQ(0, schedule_->rpo_order_.size());
+  CHECK_EQ(0, static_cast<int>(schedule_->rpo_order_.size()));
 
   // Perform an iterative RPO traversal using an explicit stack,
   // recording backedges that form cycles. O(|B|).

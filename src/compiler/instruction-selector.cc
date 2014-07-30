@@ -343,7 +343,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 void InstructionSelector::VisitBlock(BasicBlock* block) {
   ASSERT_EQ(NULL, current_block_);
   current_block_ = block;
-  size_t current_block_end = instructions_.size();
+  int current_block_end = static_cast<int>(instructions_.size());
 
   // Generate code for the block control "top down", but schedule the code
   // "bottom up".
@@ -366,7 +366,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   // We're done with the block.
   // TODO(bmeurer): We should not mutate the schedule.
   block->code_end_ = current_block_end;
-  block->code_start_ = instructions_.size();
+  block->code_start_ = static_cast<int>(instructions_.size());
 
   current_block_ = NULL;
 }

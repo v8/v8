@@ -174,7 +174,7 @@ void CodeGenerator::AssembleGap(GapInstruction* instr) {
 void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   CompilationInfo* info = linkage()->info();
   int deopt_count = code()->GetDeoptimizationEntryCount();
-  int patch_count = lazy_deoptimization_entries_.size();
+  int patch_count = static_cast<int>(lazy_deoptimization_entries_.size());
   if (patch_count == 0 && deopt_count == 0) return;
   Handle<DeoptimizationInputData> data = DeoptimizationInputData::New(
       isolate(), deopt_count, patch_count, TENURED);
@@ -196,7 +196,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   }
 
   Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(
-      deoptimization_literals_.size(), TENURED);
+      static_cast<int>(deoptimization_literals_.size()), TENURED);
   {
     AllowDeferredHandleDereference copy_handles;
     for (unsigned i = 0; i < deoptimization_literals_.size(); i++) {
@@ -240,8 +240,10 @@ void CodeGenerator::RecordLazyDeoptimizationEntry(Instruction* instr) {
   masm()->bind(&after_call);
 
   // The continuation and deoptimization are the last two inputs:
-  BasicBlock* cont_block = i.InputBlock(instr->InputCount() - 2);
-  BasicBlock* deopt_block = i.InputBlock(instr->InputCount() - 1);
+  BasicBlock* cont_block =
+      i.InputBlock(static_cast<int>(instr->InputCount()) - 2);
+  BasicBlock* deopt_block =
+      i.InputBlock(static_cast<int>(instr->InputCount()) - 1);
 
   Label* cont_label = code_->GetLabel(cont_block);
   Label* deopt_label = code_->GetLabel(deopt_block);
@@ -252,7 +254,7 @@ void CodeGenerator::RecordLazyDeoptimizationEntry(Instruction* instr) {
 
 
 int CodeGenerator::DefineDeoptimizationLiteral(Handle<Object> literal) {
-  int result = deoptimization_literals_.size();
+  int result = static_cast<int>(deoptimization_literals_.size());
   for (unsigned i = 0; i < deoptimization_literals_.size(); ++i) {
     if (deoptimization_literals_[i].is_identical_to(literal)) return i;
   }

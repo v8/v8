@@ -188,7 +188,9 @@ class ReducerRecorder : public Reducer {
     set.insert(node);
     return NoChange();
   }
-  void CheckContains(Node* node) { CHECK_EQ(1, set.count(node)); }
+  void CheckContains(Node* node) {
+    CHECK_EQ(1, static_cast<int>(set.count(node)));
+  }
   NodeSet set;
 };
 
@@ -628,7 +630,7 @@ class OneTimeReducer : public Reducer {
       : reducer_(reducer),
         nodes_(NodeSet::key_compare(), NodeSet::allocator_type(zone)) {}
   virtual Reduction Reduce(Node* node) {
-    CHECK_EQ(0, nodes_.count(node));
+    CHECK_EQ(0, static_cast<int>(nodes_.count(node)));
     nodes_.insert(node);
     return reducer_->Reduce(node);
   }

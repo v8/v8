@@ -318,7 +318,7 @@ BlockStartInstruction* InstructionSequence::GetBlockStart(BasicBlock* block) {
 
 
 void InstructionSequence::StartBlock(BasicBlock* block) {
-  block->code_start_ = instructions_.size();
+  block->code_start_ = static_cast<int>(instructions_.size());
   BlockStartInstruction* block_start =
       BlockStartInstruction::New(zone(), block);
   AddInstruction(block_start, block);
@@ -326,7 +326,7 @@ void InstructionSequence::StartBlock(BasicBlock* block) {
 
 
 void InstructionSequence::EndBlock(BasicBlock* block) {
-  int end = instructions_.size();
+  int end = static_cast<int>(instructions_.size());
   ASSERT(block->code_start_ >= 0 && block->code_start_ < end);
   block->code_end_ = end;
 }
@@ -336,7 +336,7 @@ int InstructionSequence::AddInstruction(Instruction* instr, BasicBlock* block) {
   // TODO(titzer): the order of these gaps is a holdover from Lithium.
   GapInstruction* gap = GapInstruction::New(zone());
   if (instr->IsControl()) instructions_.push_back(gap);
-  int index = instructions_.size();
+  int index = static_cast<int>(instructions_.size());
   instructions_.push_back(instr);
   if (!instr->IsControl()) instructions_.push_back(gap);
   if (instr->NeedsPointerMap()) {
@@ -391,7 +391,7 @@ void InstructionSequence::AddGapMove(int index, InstructionOperand* from,
 
 int InstructionSequence::AddDeoptimizationEntry(
     const FrameStateDescriptor& descriptor) {
-  int deoptimization_id = deoptimization_entries_.size();
+  int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
   deoptimization_entries_.push_back(descriptor);
   return deoptimization_id;
 }
@@ -403,7 +403,7 @@ FrameStateDescriptor InstructionSequence::GetDeoptimizationEntry(
 
 
 int InstructionSequence::GetDeoptimizationEntryCount() {
-  return deoptimization_entries_.size();
+  return static_cast<int>(deoptimization_entries_.size());
 }
 
 

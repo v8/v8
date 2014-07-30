@@ -64,7 +64,8 @@ class MachineNodeFactory {
   }
   Node* IntPtrConstant(intptr_t value) {
     // TODO(dcarney): mark generated code as unserializable if value != 0.
-    return kPointerSize == 8 ? Int64Constant(value) : Int32Constant(value);
+    return kPointerSize == 8 ? Int64Constant(value)
+                             : Int32Constant(static_cast<int>(value));
   }
   Node* Int32Constant(int32_t value) {
     return NEW_NODE_0(COMMON()->Int32Constant(value));

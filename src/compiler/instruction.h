@@ -445,8 +445,9 @@ class Instruction : public ZoneObject {
     ASSERT(temp_count == 0 || temps != NULL);
     InstructionOperand* none = NULL;
     USE(none);
-    size_t size = RoundUp(sizeof(Instruction), kPointerSize) +
-                  (output_count + input_count + temp_count - 1) * sizeof(none);
+    int size = static_cast<int>(RoundUp(sizeof(Instruction), kPointerSize) +
+                                (output_count + input_count + temp_count - 1) *
+                                    sizeof(none));
     return new (zone->New(size)) Instruction(
         opcode, output_count, outputs, input_count, inputs, temp_count, temps);
   }
@@ -803,7 +804,7 @@ class InstructionSequence V8_FINAL {
   const Immediates& immediates() const { return immediates_; }
 
   int AddImmediate(Constant constant) {
-    int index = immediates_.size();
+    int index = static_cast<int>(immediates_.size());
     immediates_.push_back(constant);
     return index;
   }

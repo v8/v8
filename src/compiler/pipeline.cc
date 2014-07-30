@@ -45,7 +45,7 @@ class PhaseStats {
       base::TimeDelta delta = timer_.Elapsed();
       size_t bytes = info_->zone()->allocation_size() - size_;
       HStatistics* stats = info_->isolate()->GetTStatistics();
-      stats->SaveTiming(name_, delta, bytes);
+      stats->SaveTiming(name_, delta, static_cast<int>(bytes));
 
       switch (kind_) {
         case CREATE_GRAPH:
