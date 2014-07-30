@@ -922,6 +922,35 @@ class Assembler : public AssemblerBase {
   void mvn(Register dst, const Operand& src,
            SBit s = LeaveCC, Condition cond = al);
 
+  // Shift instructions
+
+  void asr(Register dst, Register src1, const Operand& src2, SBit s = LeaveCC,
+           Condition cond = al) {
+    if (src2.is_reg()) {
+      mov(dst, Operand(src1, ASR, src2.rm()), s, cond);
+    } else {
+      mov(dst, Operand(src1, ASR, src2.immediate()), s, cond);
+    }
+  }
+
+  void lsl(Register dst, Register src1, const Operand& src2, SBit s = LeaveCC,
+           Condition cond = al) {
+    if (src2.is_reg()) {
+      mov(dst, Operand(src1, LSL, src2.rm()), s, cond);
+    } else {
+      mov(dst, Operand(src1, LSL, src2.immediate()), s, cond);
+    }
+  }
+
+  void lsr(Register dst, Register src1, const Operand& src2, SBit s = LeaveCC,
+           Condition cond = al) {
+    if (src2.is_reg()) {
+      mov(dst, Operand(src1, LSR, src2.rm()), s, cond);
+    } else {
+      mov(dst, Operand(src1, LSR, src2.immediate()), s, cond);
+    }
+  }
+
   // Multiply instructions
 
   void mla(Register dst, Register src1, Register src2, Register srcA,
@@ -932,6 +961,8 @@ class Assembler : public AssemblerBase {
 
   void sdiv(Register dst, Register src1, Register src2,
             Condition cond = al);
+
+  void udiv(Register dst, Register src1, Register src2, Condition cond = al);
 
   void mul(Register dst, Register src1, Register src2,
            SBit s = LeaveCC, Condition cond = al);
@@ -1290,7 +1321,7 @@ class Assembler : public AssemblerBase {
   }
 
   // Check whether an immediate fits an addressing mode 1 instruction.
-  bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
+  static bool ImmediateFitsAddrMode1Instruction(int32_t imm32);
 
   // Check whether an immediate fits an addressing mode 2 instruction.
   bool ImmediateFitsAddrMode2Instruction(int32_t imm32);

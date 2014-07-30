@@ -62,6 +62,8 @@ class zone_allocator {
   Zone* zone_;
 };
 
+typedef zone_allocator<bool> ZoneBoolAllocator;
+typedef zone_allocator<int> ZoneIntAllocator;
 } }  // namespace v8::internal
 
 #endif  // V8_ZONE_ALLOCATOR_H_

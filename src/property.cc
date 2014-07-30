@@ -5,6 +5,7 @@
 #include "src/property.h"
 
 #include "src/handles-inl.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

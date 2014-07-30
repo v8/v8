@@ -14,7 +14,6 @@
 #include "src/deoptimizer.h"
 #include "src/feedback-slots.h"
 #include "src/hydrogen-types.h"
-#include "src/ostreams.h"
 #include "src/small-pointer-list.h"
 #include "src/unique.h"
 #include "src/utils.h"
@@ -35,6 +34,7 @@ class HStoreNamedField;
 class HValue;
 class LInstruction;
 class LChunkBuilder;
+class OStream;
 
 #define HYDROGEN_ABSTRACT_INSTRUCTION_LIST(V)  \
   V(ArithmeticBinaryOperation)                 \

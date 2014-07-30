@@ -931,6 +931,12 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   ASSERT(frames->length() == 0);
   ASSERT(is_optimized());
 
+  // Delegate to JS frame in absence of inlining.
+  // TODO(turbofan): Revisit once we support inlining.
+  if (LookupCode()->is_turbofanned()) {
+    return JavaScriptFrame::Summarize(frames);
+  }
+
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);
   FixedArray* literal_array = data->LiteralArray();
@@ -940,10 +946,7 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   // throw. An entry with no deoptimization index indicates a call-site
   // without a lazy-deopt. As a consequence we are not allowed to inline
   // functions containing throw.
-  if (deopt_index == Safepoint::kNoDeoptimizationIndex) {
-    JavaScriptFrame::Summarize(frames);
-    return;
-  }
+  ASSERT(deopt_index != Safepoint::kNoDeoptimizationIndex);
 
   TranslationIterator it(data->TranslationByteArray(),
                          data->TranslationIndex(deopt_index)->value());
@@ -1055,6 +1058,12 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
 int OptimizedFrame::GetInlineCount() {
   ASSERT(is_optimized());
 
+  // Delegate to JS frame in absence of inlining.
+  // TODO(turbofan): Revisit once we support inlining.
+  if (LookupCode()->is_turbofanned()) {
+    return JavaScriptFrame::GetInlineCount();
+  }
+
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);
 
@@ -1072,6 +1081,12 @@ int OptimizedFrame::GetInlineCount() {
 void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
   ASSERT(functions->length() == 0);
   ASSERT(is_optimized());
+
+  // Delegate to JS frame in absence of inlining.
+  // TODO(turbofan): Revisit once we support inlining.
+  if (LookupCode()->is_turbofanned()) {
+    return JavaScriptFrame::GetFunctions(functions);
+  }
 
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationInputData* data = GetDeoptimizationData(&deopt_index);

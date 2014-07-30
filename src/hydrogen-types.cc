@@ -4,6 +4,7 @@
 
 #include "src/hydrogen-types.h"
 
+#include "src/ostreams.h"
 #include "src/types-inl.h"
 
 

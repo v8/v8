@@ -634,6 +634,13 @@ void Assembler::xchg(Register dst, Register src) {
 }
 
 
+void Assembler::xchg(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x87);
+  emit_operand(dst, src);
+}
+
+
 void Assembler::adc(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
   emit_arith(2, Operand(dst), Immediate(imm32));
@@ -817,10 +824,17 @@ void Assembler::cdq() {
 }
 
 
-void Assembler::idiv(Register src) {
+void Assembler::idiv(const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF7);
-  EMIT(0xF8 | src.code());
+  emit_operand(edi, src);
+}
+
+
+void Assembler::div(const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF7);
+  emit_operand(esi, src);
 }
 
 
@@ -840,14 +854,19 @@ void Assembler::imul(Register dst, const Operand& src) {
 
 
 void Assembler::imul(Register dst, Register src, int32_t imm32) {
+  imul(dst, Operand(src), imm32);
+}
+
+
+void Assembler::imul(Register dst, const Operand& src, int32_t imm32) {
   EnsureSpace ensure_space(this);
   if (is_int8(imm32)) {
     EMIT(0x6B);
-    EMIT(0xC0 | dst.code() << 3 | src.code());
+    emit_operand(dst, src);
     EMIT(imm32);
   } else {
     EMIT(0x69);
-    EMIT(0xC0 | dst.code() << 3 | src.code());
+    emit_operand(dst, src);
     emit(imm32);
   }
 }
@@ -887,10 +906,24 @@ void Assembler::neg(Register dst) {
 }
 
 
+void Assembler::neg(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF7);
+  emit_operand(ebx, dst);
+}
+
+
 void Assembler::not_(Register dst) {
   EnsureSpace ensure_space(this);
   EMIT(0xF7);
   EMIT(0xD0 | dst.code());
+}
+
+
+void Assembler::not_(const Operand& dst) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF7);
+  emit_operand(edx, dst);
 }
 
 
@@ -969,24 +1002,24 @@ void Assembler::ror_cl(Register dst) {
 }
 
 
-void Assembler::sar(Register dst, uint8_t imm8) {
+void Assembler::sar(const Operand& dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   ASSERT(is_uint5(imm8));  // illegal shift count
   if (imm8 == 1) {
     EMIT(0xD1);
-    EMIT(0xF8 | dst.code());
+    emit_operand(edi, dst);
   } else {
     EMIT(0xC1);
-    EMIT(0xF8 | dst.code());
+    emit_operand(edi, dst);
     EMIT(imm8);
   }
 }
 
 
-void Assembler::sar_cl(Register dst) {
+void Assembler::sar_cl(const Operand& dst) {
   EnsureSpace ensure_space(this);
   EMIT(0xD3);
-  EMIT(0xF8 | dst.code());
+  emit_operand(edi, dst);
 }
 
 
@@ -1005,24 +1038,24 @@ void Assembler::shld(Register dst, const Operand& src) {
 }
 
 
-void Assembler::shl(Register dst, uint8_t imm8) {
+void Assembler::shl(const Operand& dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   ASSERT(is_uint5(imm8));  // illegal shift count
   if (imm8 == 1) {
     EMIT(0xD1);
-    EMIT(0xE0 | dst.code());
+    emit_operand(esp, dst);
   } else {
     EMIT(0xC1);
-    EMIT(0xE0 | dst.code());
+    emit_operand(esp, dst);
     EMIT(imm8);
   }
 }
 
 
-void Assembler::shl_cl(Register dst) {
+void Assembler::shl_cl(const Operand& dst) {
   EnsureSpace ensure_space(this);
   EMIT(0xD3);
-  EMIT(0xE0 | dst.code());
+  emit_operand(esp, dst);
 }
 
 
@@ -1034,24 +1067,24 @@ void Assembler::shrd(Register dst, const Operand& src) {
 }
 
 
-void Assembler::shr(Register dst, uint8_t imm8) {
+void Assembler::shr(const Operand& dst, uint8_t imm8) {
   EnsureSpace ensure_space(this);
   ASSERT(is_uint5(imm8));  // illegal shift count
   if (imm8 == 1) {
     EMIT(0xD1);
-    EMIT(0xE8 | dst.code());
+    emit_operand(ebp, dst);
   } else {
     EMIT(0xC1);
-    EMIT(0xE8 | dst.code());
+    emit_operand(ebp, dst);
     EMIT(imm8);
   }
 }
 
 
-void Assembler::shr_cl(Register dst) {
+void Assembler::shr_cl(const Operand& dst) {
   EnsureSpace ensure_space(this);
   EMIT(0xD3);
-  EMIT(0xE8 | dst.code());
+  emit_operand(ebp, dst);
 }
 
 

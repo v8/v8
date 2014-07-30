@@ -234,6 +234,9 @@ class LInstruction : public ZoneObject {
 
   virtual bool IsControl() const { return false; }
 
+  // Try deleting this instruction if possible.
+  virtual bool TryDelete() { return false; }
+
   void set_environment(LEnvironment* env) { environment_ = env; }
   LEnvironment* environment() const { return environment_; }
   bool HasEnvironment() const { return environment_ != NULL; }

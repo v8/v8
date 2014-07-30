@@ -52,6 +52,117 @@
   'regress/regress-2653': [SKIP],
 
   ##############################################################################
+  # TurboFan compiler failures.
+
+  # TODO(mstarzinger): An arguments object materialized in the prologue can't
+  # be accessed indirectly. Either we drop that requirement or wait for support
+  # from the deoptimizer to do that.
+  'arguments-indirect': [PASS, NO_VARIANTS],
+
+  # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
+  'debug-references': [PASS, NO_VARIANTS],
+  'regress/regress-263': [PASS, NO_VARIANTS],
+
+  # Some tests are over-restrictive about object layout.
+  'array-constructor-feedback': [PASS, NO_VARIANTS],
+  'array-feedback': [PASS, NO_VARIANTS],
+  'fast-non-keyed': [PASS, NO_VARIANTS],
+  'track-fields': [PASS, NO_VARIANTS],
+
+  # Some tests are just too slow to run for now.
+  'array-store-and-grow': [PASS, NO_VARIANTS],
+  'big-object-literal': [PASS, NO_VARIANTS],
+  'bit-not': [PASS, NO_VARIANTS],
+  'elements-kind': [PASS, NO_VARIANTS],
+  'elements-transition': [PASS, NO_VARIANTS],
+  'json2': [PASS, NO_VARIANTS],
+  'packed-elements': [PASS, NO_VARIANTS],
+  'unbox-double-arrays': [PASS, NO_VARIANTS],
+  'whitespaces': [PASS, NO_VARIANTS],
+  'compiler/optimized-for-in': [PASS, NO_VARIANTS],
+  'compiler/osr-assert': [PASS, NO_VARIANTS],
+  'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
+  'es7/object-observe': [PASS, NO_VARIANTS],
+  'regress/regress-1167': [PASS, NO_VARIANTS],
+  'regress/regress-201': [PASS, NO_VARIANTS],
+  'regress/regress-2185-2': [PASS, NO_VARIANTS],
+  'regress/regress-284': [PASS, NO_VARIANTS],
+  'regress/regress-91008': [PASS, NO_VARIANTS],
+  'regress/string-set-char-deopt': [PASS, NO_VARIANTS],
+  'tools/profviz': [PASS, NO_VARIANTS],
+
+  # Support for breakpoints requires special relocation info for DebugBreak.
+  'debug-clearbreakpointgroup': [PASS, NO_VARIANTS],
+  'debug-step-2': [PASS, NO_VARIANTS],
+  'regress/regress-debug-deopt-while-recompile': [PASS, NO_VARIANTS],
+  'regress/regress-opt-after-debug-deopt': [PASS, NO_VARIANTS],
+
+  # Support for %GetFrameDetails is missing and requires checkpoints.
+  'debug-backtrace-text': [PASS, NO_VARIANTS],
+  'debug-break-inline': [PASS, NO_VARIANTS],
+  'debug-evaluate-arguments': [PASS, NO_VARIANTS],
+  'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
+  'debug-evaluate-closure': [PASS, NO_VARIANTS],
+  'debug-evaluate-const': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
+  'debug-evaluate-locals': [PASS, NO_VARIANTS],
+  'debug-evaluate-with-context': [PASS, NO_VARIANTS],
+  'debug-evaluate-with': [PASS, NO_VARIANTS],
+  'debug-liveedit-double-call': [PASS, NO_VARIANTS],
+  'debug-liveedit-restart-frame': [PASS, NO_VARIANTS],
+  'debug-receiver': [PASS, NO_VARIANTS],
+  'debug-return-value': [PASS, NO_VARIANTS],
+  'debug-scopes': [PASS, NO_VARIANTS],
+  'debug-set-variable-value': [PASS, NO_VARIANTS],
+  'debug-step-stub-callfunction': [PASS, NO_VARIANTS],
+  'debug-stepin-accessor': [PASS, NO_VARIANTS],
+  'debug-stepin-builtin': [PASS, NO_VARIANTS],
+  'debug-stepin-constructor': [PASS, NO_VARIANTS],
+  'debug-stepin-function-call': [PASS, NO_VARIANTS],
+  'debug-stepnext-do-while': [PASS, NO_VARIANTS],
+  'debug-stepout-recursive-function': [PASS, NO_VARIANTS],
+  'debug-stepout-scope-part1': [PASS, NO_VARIANTS],
+  'debug-stepout-scope-part2': [PASS, NO_VARIANTS],
+  'debug-stepout-scope-part3': [PASS, NO_VARIANTS],
+  'debug-stepout-scope-part7': [PASS, NO_VARIANTS],
+  'debug-stepout-to-builtin': [PASS, NO_VARIANTS],
+  'es6/debug-promises-throw-in-constructor': [PASS, NO_VARIANTS],
+  'es6/debug-promises-throw-in-reject': [PASS, NO_VARIANTS],
+  'es6/debug-promises-uncaught-all': [PASS, NO_VARIANTS],
+  'es6/debug-promises-uncaught-uncaught': [PASS, NO_VARIANTS],
+  'harmony/debug-blockscopes': [PASS, NO_VARIANTS],
+  'harmony/generators-debug-scopes': [PASS, NO_VARIANTS],
+  'regress/regress-1081309': [PASS, NO_VARIANTS],
+  'regress/regress-1170187': [PASS, NO_VARIANTS],
+  'regress/regress-119609': [PASS, NO_VARIANTS],
+  'regress/regress-131994': [PASS, NO_VARIANTS],
+  'regress/regress-269': [PASS, NO_VARIANTS],
+  'regress/regress-325676': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
+  'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
+  'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
+
+  # Support for ES6 generators is missing.
+  'regress-3225': [PASS, NO_VARIANTS],
+  'harmony/generators-debug-liveedit': [PASS, NO_VARIANTS],
+  'harmony/generators-iteration': [PASS, NO_VARIANTS],
+  'harmony/generators-parsing': [PASS, NO_VARIANTS],
+  'harmony/generators-poisoned-properties': [PASS, NO_VARIANTS],
+  'harmony/generators-relocation': [PASS, NO_VARIANTS],
+  'harmony/regress/regress-2681': [PASS, NO_VARIANTS],
+  'harmony/regress/regress-2691': [PASS, NO_VARIANTS],
+  'harmony/regress/regress-3280': [PASS, NO_VARIANTS],
+
+  # Support for ES6 for-of iteration is missing.
+  'harmony/array-iterator': [PASS, NO_VARIANTS],
+  'harmony/iteration-semantics': [PASS, NO_VARIANTS],
+  'harmony/string-iterator': [PASS, NO_VARIANTS],
+  'harmony/typed-array-iterator': [PASS, NO_VARIANTS],
+
+  ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],
   'compiler/regress-funcaller': [PASS, ['mode == debug', SKIP]],

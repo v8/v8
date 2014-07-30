@@ -55,16 +55,26 @@ void LOperand::PrintTo(StringStream* stream) {
           break;
         case LUnallocated::FIXED_REGISTER: {
           int reg_index = unalloc->fixed_register_index();
-          const char* register_name =
-              Register::AllocationIndexToString(reg_index);
-          stream->Add("(=%s)", register_name);
+          if (reg_index < 0 ||
+              reg_index >= Register::kMaxNumAllocatableRegisters) {
+            stream->Add("(=invalid_reg#%d)", reg_index);
+          } else {
+            const char* register_name =
+                Register::AllocationIndexToString(reg_index);
+            stream->Add("(=%s)", register_name);
+          }
           break;
         }
         case LUnallocated::FIXED_DOUBLE_REGISTER: {
           int reg_index = unalloc->fixed_register_index();
-          const char* double_register_name =
-              DoubleRegister::AllocationIndexToString(reg_index);
-          stream->Add("(=%s)", double_register_name);
+          if (reg_index < 0 ||
+              reg_index >= DoubleRegister::kMaxNumAllocatableRegisters) {
+            stream->Add("(=invalid_double_reg#%d)", reg_index);
+          } else {
+            const char* double_register_name =
+                DoubleRegister::AllocationIndexToString(reg_index);
+            stream->Add("(=%s)", double_register_name);
+          }
           break;
         }
         case LUnallocated::MUST_HAVE_REGISTER:
@@ -93,12 +103,26 @@ void LOperand::PrintTo(StringStream* stream) {
     case DOUBLE_STACK_SLOT:
       stream->Add("[double_stack:%d]", index());
       break;
-    case REGISTER:
-      stream->Add("[%s|R]", Register::AllocationIndexToString(index()));
+    case REGISTER: {
+      int reg_index = index();
+      if (reg_index < 0 || reg_index >= Register::kMaxNumAllocatableRegisters) {
+        stream->Add("(=invalid_reg#%d|R)", reg_index);
+      } else {
+        stream->Add("[%s|R]", Register::AllocationIndexToString(reg_index));
+      }
       break;
-    case DOUBLE_REGISTER:
-      stream->Add("[%s|R]", DoubleRegister::AllocationIndexToString(index()));
+    }
+    case DOUBLE_REGISTER: {
+      int reg_index = index();
+      if (reg_index < 0 ||
+          reg_index >= DoubleRegister::kMaxNumAllocatableRegisters) {
+        stream->Add("(=invalid_double_reg#%d|R)", reg_index);
+      } else {
+        stream->Add("[%s|R]",
+                    DoubleRegister::AllocationIndexToString(reg_index));
+      }
       break;
+    }
   }
 }
 
@@ -242,12 +266,11 @@ LChunk::LChunk(CompilationInfo* info, HGraph* graph)
     : spill_slot_count_(0),
       info_(info),
       graph_(graph),
-      instructions_(32, graph->zone()),
-      pointer_maps_(8, graph->zone()),
-      inlined_closures_(1, graph->zone()),
-      deprecation_dependencies_(MapLess(), MapAllocator(graph->zone())),
-      stability_dependencies_(MapLess(), MapAllocator(graph->zone())) {
-}
+      instructions_(32, info->zone()),
+      pointer_maps_(8, info->zone()),
+      inlined_closures_(1, info->zone()),
+      deprecation_dependencies_(MapLess(), MapAllocator(info->zone())),
+      stability_dependencies_(MapLess(), MapAllocator(info->zone())) {}
 
 
 LLabel* LChunk::GetLabel(int block_id) const {
@@ -308,7 +331,7 @@ void LChunk::MarkEmptyBlocks() {
 
 
 void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
-  LInstructionGap* gap = new(graph_->zone()) LInstructionGap(block);
+  LInstructionGap* gap = new (zone()) LInstructionGap(block);
   gap->set_hydrogen_value(instr->hydrogen_value());
   int index = -1;
   if (instr->IsControl()) {

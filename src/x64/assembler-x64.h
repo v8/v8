@@ -437,26 +437,27 @@ class Operand BASE_EMBEDDED {
 };
 
 
-#define ASSEMBLER_INSTRUCTION_LIST(V)   \
-  V(add)                                \
-  V(and)                                \
-  V(cmp)                                \
-  V(dec)                                \
-  V(idiv)                               \
-  V(imul)                               \
-  V(inc)                                \
-  V(lea)                                \
-  V(mov)                                \
-  V(movzxb)                             \
-  V(movzxw)                             \
-  V(neg)                                \
-  V(not)                                \
-  V(or)                                 \
-  V(repmovs)                            \
-  V(sbb)                                \
-  V(sub)                                \
-  V(test)                               \
-  V(xchg)                               \
+#define ASSEMBLER_INSTRUCTION_LIST(V) \
+  V(add)                              \
+  V(and)                              \
+  V(cmp)                              \
+  V(dec)                              \
+  V(idiv)                             \
+  V(div)                              \
+  V(imul)                             \
+  V(inc)                              \
+  V(lea)                              \
+  V(mov)                              \
+  V(movzxb)                           \
+  V(movzxw)                           \
+  V(neg)                              \
+  V(not)                              \
+  V(or)                               \
+  V(repmovs)                          \
+  V(sbb)                              \
+  V(sub)                              \
+  V(test)                             \
+  V(xchg)                             \
   V(xor)
 
 
@@ -1435,6 +1436,7 @@ class Assembler : public AssemblerBase {
   // Divide edx:eax by lower 32 bits of src.  Quotient in eax, remainder in edx
   // when size is 32.
   void emit_idiv(Register src, int size);
+  void emit_div(Register src, int size);
 
   // Signed multiply instructions.
   // rdx:rax = rax * src when size is 64 or edx:eax = eax * src when size is 32.
@@ -1455,6 +1457,7 @@ class Assembler : public AssemblerBase {
   void emit_mov(const Operand& dst, Immediate value, int size);
 
   void emit_movzxb(Register dst, const Operand& src, int size);
+  void emit_movzxb(Register dst, Register src, int size);
   void emit_movzxw(Register dst, const Operand& src, int size);
   void emit_movzxw(Register dst, Register src, int size);
 
@@ -1514,9 +1517,12 @@ class Assembler : public AssemblerBase {
   void emit_test(Register reg, Immediate mask, int size);
   void emit_test(const Operand& op, Register reg, int size);
   void emit_test(const Operand& op, Immediate mask, int size);
+  void emit_test(Register reg, const Operand& op, int size) {
+    return emit_test(op, reg, size);
+  }
 
-  // Exchange two registers
   void emit_xchg(Register dst, Register src, int size);
+  void emit_xchg(Register dst, const Operand& src, int size);
 
   void emit_xor(Register dst, Register src, int size) {
     if (size == kInt64Size && dst.code() == src.code()) {

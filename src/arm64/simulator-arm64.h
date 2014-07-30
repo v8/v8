@@ -211,6 +211,7 @@ class Simulator : public DecoderVisitor {
    public:
     template<typename T>
     explicit CallArgument(T argument) {
+      bits_ = 0;
       ASSERT(sizeof(argument) <= sizeof(bits_));
       memcpy(&bits_, &argument, sizeof(argument));
       type_ = X_ARG;

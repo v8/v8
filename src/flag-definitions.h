@@ -333,6 +333,20 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
             "do not emit check maps for constant values that have a leaf map, "
             "deoptimize the optimized code if the layout of the maps changes.")
 
+// Flags for TurboFan.
+DEFINE_STRING(turbo_filter, "~", "optimization filter for TurboFan compiler")
+DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
+DEFINE_BOOL(trace_turbo_types, true, "trace generated TurboFan types")
+DEFINE_BOOL(trace_turbo_scheduler, false, "trace generated TurboFan scheduler")
+DEFINE_BOOL(turbo_verify, false, "verify TurboFan graphs at each phase")
+DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
+DEFINE_BOOL(turbo_types, false, "use typed lowering in TurboFan")
+DEFINE_BOOL(turbo_source_positions, false,
+            "track source code positions when building TurboFan IR")
+DEFINE_BOOL(context_specialization, true,
+            "enable context specialization in TurboFan")
+DEFINE_BOOL(turbo_deoptimization, false, "enable deoptimization in TurboFan")
+
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")
 
@@ -726,6 +740,10 @@ DEFINE_BOOL(verify_native_context_separation, false,
             "verify that code holds on to at most one native context after GC")
 DEFINE_BOOL(print_handles, false, "report handles after GC")
 DEFINE_BOOL(print_global_handles, false, "report global handles after GC")
+
+// TurboFan debug-only flags.
+DEFINE_BOOL(print_turbo_replay, false,
+            "print C++ code to recreate TurboFan graphs")
 
 // interface.cc
 DEFINE_BOOL(print_interfaces, false, "print interfaces")

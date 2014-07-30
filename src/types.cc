@@ -4,7 +4,7 @@
 
 #include "src/types.h"
 
-#include "src/string-stream.h"
+#include "src/ostreams.h"
 #include "src/types-inl.h"
 
 namespace v8 {
@@ -123,31 +123,21 @@ int TypeImpl<Config>::BitsetType::Lub(double value) {
   DisallowHeapAllocation no_allocation;
   if (i::IsMinusZero(value)) return kMinusZero;
   if (std::isnan(value)) return kNaN;
-  if (IsUint32Double(value)) return Lub(FastD2UI(value));
-  if (IsInt32Double(value)) return Lub(FastD2I(value));
+  if (IsUint32Double(value)) {
+    uint32_t u = FastD2UI(value);
+    if (u < 0x40000000u) return kUnsignedSmall;
+    if (u < 0x80000000u) {
+      return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
+    }
+    return kOtherUnsigned32;
+  }
+  if (IsInt32Double(value)) {
+    int32_t i = FastD2I(value);
+    ASSERT(i < 0);
+    if (i >= -0x40000000) return kOtherSignedSmall;
+    return i::SmiValuesAre31Bits() ? kOtherSigned32 : kOtherSignedSmall;
+  }
   return kOtherNumber;
-}
-
-
-template<class Config>
-int TypeImpl<Config>::BitsetType::Lub(int32_t value) {
-  if (value >= 0x40000000) {
-    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
-  }
-  if (value >= 0) return kUnsignedSmall;
-  if (value >= -0x40000000) return kOtherSignedSmall;
-  return i::SmiValuesAre31Bits() ? kOtherSigned32 : kOtherSignedSmall;
-}
-
-
-template<class Config>
-int TypeImpl<Config>::BitsetType::Lub(uint32_t value) {
-  DisallowHeapAllocation no_allocation;
-  if (value >= 0x80000000u) return kOtherUnsigned32;
-  if (value >= 0x40000000u) {
-    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
-  }
-  return kUnsignedSmall;
 }
 
 
@@ -238,6 +228,7 @@ int TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
     case FOREIGN_TYPE:
+    case CODE_TYPE:
       return kInternal & kTaggedPtr;
     default:
       UNREACHABLE();

@@ -32,6 +32,7 @@
 #include "src/arm/simulator-arm.h"
 #include "src/disassembler.h"
 #include "src/factory.h"
+#include "src/ostreams.h"
 
 using namespace v8::internal;
 

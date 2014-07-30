@@ -63,6 +63,7 @@ class ScriptData {
 class CompilationInfo {
  public:
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
+  CompilationInfo(Isolate* isolate, Zone* zone);
   virtual ~CompilationInfo();
 
   Isolate* isolate() const {
@@ -391,7 +392,6 @@ class CompilationInfo {
   void Initialize(Isolate* isolate, Mode mode, Zone* zone);
 
   void SetMode(Mode mode) {
-    ASSERT(isolate()->use_crankshaft());
     mode_ = mode;
   }
 

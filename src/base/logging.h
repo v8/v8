@@ -152,29 +152,6 @@ inline void CheckNonEqualsHelper(const char* file,
 }
 
 
-// Helper function used by the CHECK function when given floating
-// point arguments.  Should not be called directly.
-inline void CheckEqualsHelper(const char* file,
-                              int line,
-                              const char* expected_source,
-                              double expected,
-                              const char* value_source,
-                              double value) {
-  // Force values to 64 bit memory to truncate 80 bit precision on IA32.
-  volatile double* exp = new double[1];
-  *exp = expected;
-  volatile double* val = new double[1];
-  *val = value;
-  if (*exp != *val) {
-    V8_Fatal(file, line,
-             "CHECK_EQ(%s, %s) failed\n#   Expected: %f\n#   Found: %f",
-             expected_source, value_source, *exp, *val);
-  }
-  delete[] exp;
-  delete[] val;
-}
-
-
 inline void CheckNonEqualsHelper(const char* file,
                               int line,
                               const char* expected_source,
@@ -186,27 +163,6 @@ inline void CheckNonEqualsHelper(const char* file,
              "CHECK_EQ(%s, %s) failed\n#   Expected: %f\n#   Found: %f",
              expected_source, value_source, expected, value);
   }
-}
-
-
-inline void CheckNonEqualsHelper(const char* file,
-                                 int line,
-                                 const char* expected_source,
-                                 double expected,
-                                 const char* value_source,
-                                 double value) {
-  // Force values to 64 bit memory to truncate 80 bit precision on IA32.
-  volatile double* exp = new double[1];
-  *exp = expected;
-  volatile double* val = new double[1];
-  *val = value;
-  if (*exp == *val) {
-    V8_Fatal(file, line,
-             "CHECK_NE(%s, %s) failed\n#   Value: %f",
-             expected_source, value_source, *val);
-  }
-  delete[] exp;
-  delete[] val;
 }
 
 

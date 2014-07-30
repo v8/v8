@@ -1511,9 +1511,11 @@ void HeapObject::HeapObjectShortPrint(OStream& os) {  // NOLINT
     break;
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-    case CODE_TYPE:
-      os << "<Code>";
+    case CODE_TYPE: {
+      Code* code = Code::cast(this);
+      os << "<Code: " << Code::Kind2String(code->kind()) << ">";
       break;
+    }
     case ODDBALL_TYPE: {
       if (IsUndefined()) {
         os << "<undefined>";
@@ -1735,7 +1737,7 @@ void HeapNumber::HeapNumberPrint(OStream& os) {  // NOLINT
 
 
 String* JSReceiver::class_name() {
-  if (IsJSFunction() && IsJSFunctionProxy()) {
+  if (IsJSFunction() || IsJSFunctionProxy()) {
     return GetHeap()->function_class_string();
   }
   if (map()->constructor()->IsJSFunction()) {
@@ -8418,13 +8420,17 @@ Object* AccessorPair::GetComponent(AccessorComponent component) {
 
 
 Handle<DeoptimizationInputData> DeoptimizationInputData::New(
-    Isolate* isolate,
-    int deopt_entry_count,
+    Isolate* isolate, int deopt_entry_count, int return_patch_address_count,
     PretenureFlag pretenure) {
-  ASSERT(deopt_entry_count > 0);
-  return Handle<DeoptimizationInputData>::cast(
-      isolate->factory()->NewFixedArray(
-          LengthFor(deopt_entry_count), pretenure));
+  ASSERT(deopt_entry_count + return_patch_address_count > 0);
+  Handle<FixedArray> deoptimization_data =
+      Handle<FixedArray>::cast(isolate->factory()->NewFixedArray(
+          LengthFor(deopt_entry_count, return_patch_address_count), pretenure));
+  deoptimization_data->set(kDeoptEntryCountIndex,
+                           Smi::FromInt(deopt_entry_count));
+  deoptimization_data->set(kReturnAddressPatchEntryCountIndex,
+                           Smi::FromInt(return_patch_address_count));
+  return Handle<DeoptimizationInputData>::cast(deoptimization_data);
 }
 
 
@@ -10162,6 +10168,7 @@ Context* JSFunction::NativeContextFromLiterals(FixedArray* literals) {
 //   ""       only the top-level function
 //   "name"   only the function "name"
 //   "name*"  only functions starting with "name"
+//   "~"      none; the tilde is not an identifier
 bool JSFunction::PassesFilter(const char* raw_filter) {
   if (*raw_filter == '*') return true;
   String* name = shared()->DebugName();
@@ -11241,11 +11248,11 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   disasm::NameConverter converter;
   int deopt_count = DeoptCount();
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
-  if (0 == deopt_count) return;
-
-  os << " index  ast id    argc     pc";
-  if (FLAG_print_code_verbose) os << "commands";
-  os << "\n";
+  if (0 != deopt_count) {
+    os << " index  ast id    argc     pc";
+    if (FLAG_print_code_verbose) os << "commands";
+    os << "\n";
+  }
   for (int i = 0; i < deopt_count; i++) {
     // TODO(svenpanne) Add some basic formatting to our streams.
     Vector<char> buf1 = Vector<char>::New(128);
@@ -11393,6 +11400,19 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
       }
       os << "\n";
     }
+  }
+
+  int return_address_patch_count = ReturnAddressPatchCount();
+  if (return_address_patch_count != 0) {
+    os << "Return address patch data (count = " << return_address_patch_count
+       << ")\n";
+    os << "index pc    patched_pc\n";
+  }
+  for (int i = 0; i < return_address_patch_count; i++) {
+    Vector<char> buf = Vector<char>::New(128);
+    SNPrintF(buf, "%6d  %6d  %10d", i, ReturnAddressPc(i)->value(),
+             PatchedAddressPc(i)->value());
+    os << buf.start();
   }
 }
 

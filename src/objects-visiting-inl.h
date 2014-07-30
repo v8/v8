@@ -703,6 +703,9 @@ void StaticMarkingVisitor<StaticVisitor>::MarkTransitionArray(
 template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::MarkInlinedFunctionsCode(
     Heap* heap, Code* code) {
+  // Skip in absence of inlining.
+  // TODO(turbofan): Revisit once we support inlining.
+  if (code->is_turbofanned()) return;
   // For optimized functions we should retain both non-optimized version
   // of its code and non-optimized version of all inlined functions.
   // This is required to support bailing out from inlined code.

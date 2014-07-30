@@ -5,15 +5,15 @@
 #ifndef V8_ZONE_CONTAINERS_H_
 #define V8_ZONE_CONTAINERS_H_
 
-#include <set>
 #include <vector>
 
-#include "src/zone.h"
+#include "src/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
 
-typedef zone_allocator<int> ZoneIntAllocator;
+typedef std::vector<bool, ZoneBoolAllocator> BoolVector;
+
 typedef std::vector<int, ZoneIntAllocator> IntVector;
 typedef IntVector::iterator IntVectorIter;
 typedef IntVector::reverse_iterator IntVectorRIter;

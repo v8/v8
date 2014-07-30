@@ -1574,7 +1574,8 @@ void Isolate::Deinit() {
       heap_.mark_compact_collector()->EnsureSweepingCompleted();
     }
 
-    if (FLAG_hydrogen_stats) GetHStatistics()->Print();
+    if (FLAG_turbo_stats) GetTStatistics()->Print("TurboFan");
+    if (FLAG_hydrogen_stats) GetHStatistics()->Print("Hydrogen");
 
     if (FLAG_print_deopt_stress) {
       PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
@@ -2117,6 +2118,12 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
 HStatistics* Isolate::GetHStatistics() {
   if (hstatistics() == NULL) set_hstatistics(new HStatistics());
   return hstatistics();
+}
+
+
+HStatistics* Isolate::GetTStatistics() {
+  if (tstatistics() == NULL) set_tstatistics(new HStatistics());
+  return tstatistics();
 }
 
 

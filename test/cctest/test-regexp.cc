@@ -33,6 +33,7 @@
 #include "src/ast.h"
 #include "src/char-predicates-inl.h"
 #include "src/jsregexp.h"
+#include "src/ostreams.h"
 #include "src/parser.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-macro-assembler-irregexp.h"

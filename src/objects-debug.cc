@@ -9,6 +9,7 @@
 #include "src/jsregexp.h"
 #include "src/macro-assembler.h"
 #include "src/objects-visiting.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

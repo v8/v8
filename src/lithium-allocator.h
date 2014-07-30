@@ -17,7 +17,6 @@ namespace internal {
 // Forward declarations.
 class HBasicBlock;
 class HGraph;
-class HInstruction;
 class HPhi;
 class HTracer;
 class HValue;
@@ -115,64 +114,6 @@ class LifetimePosition {
   explicit LifetimePosition(int value) : value_(value) { }
 
   int value_;
-};
-
-
-enum RegisterKind {
-  UNALLOCATED_REGISTERS,
-  GENERAL_REGISTERS,
-  DOUBLE_REGISTERS
-};
-
-
-// A register-allocator view of a Lithium instruction. It contains the id of
-// the output operand and a list of input operand uses.
-
-class LInstruction;
-class LEnvironment;
-
-// Iterator for non-null temp operands.
-class TempIterator BASE_EMBEDDED {
- public:
-  inline explicit TempIterator(LInstruction* instr);
-  inline bool Done();
-  inline LOperand* Current();
-  inline void Advance();
-
- private:
-  inline void SkipUninteresting();
-  LInstruction* instr_;
-  int limit_;
-  int current_;
-};
-
-
-// Iterator for non-constant input operands.
-class InputIterator BASE_EMBEDDED {
- public:
-  inline explicit InputIterator(LInstruction* instr);
-  inline bool Done();
-  inline LOperand* Current();
-  inline void Advance();
-
- private:
-  inline void SkipUninteresting();
-  LInstruction* instr_;
-  int limit_;
-  int current_;
-};
-
-
-class UseIterator BASE_EMBEDDED {
- public:
-  inline explicit UseIterator(LInstruction* instr);
-  inline bool Done();
-  inline LOperand* Current();
-  inline void Advance();
-
- private:
-  InputIterator input_iterator_;
-  DeepIterator env_iterator_;
 };
 
 

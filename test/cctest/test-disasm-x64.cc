@@ -420,6 +420,14 @@ TEST(DisasmX64) {
     }
   }
 
+  // xchg.
+  {
+    __ xchgq(rax, rax);
+    __ xchgq(rax, rbx);
+    __ xchgq(rbx, rbx);
+    __ xchgq(rbx, Operand(rsp, 12));
+  }
+
   // Nop instructions
   for (int i = 0; i < 16; i++) {
     __ Nop(i);

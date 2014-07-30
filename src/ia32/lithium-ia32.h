@@ -14,6 +14,10 @@
 namespace v8 {
 namespace internal {
 
+namespace compiler {
+class RCodeVisualizer;
+}
+
 // Forward declarations.
 class LCodeGen;
 
@@ -201,7 +205,7 @@ class LInstruction : public ZoneObject {
   enum Opcode {
     // Declare a unique enum value for each instruction.
 #define DECLARE_OPCODE(type) k##type,
-    LITHIUM_CONCRETE_INSTRUCTION_LIST(DECLARE_OPCODE)
+    LITHIUM_CONCRETE_INSTRUCTION_LIST(DECLARE_OPCODE) kAdapter,
     kNumberOfInstructions
 #undef DECLARE_OPCODE
   };
@@ -219,6 +223,9 @@ class LInstruction : public ZoneObject {
   virtual bool IsGap() const { return false; }
 
   virtual bool IsControl() const { return false; }
+
+  // Try deleting this instruction if possible.
+  virtual bool TryDelete() { return false; }
 
   void set_environment(LEnvironment* env) { environment_ = env; }
   LEnvironment* environment() const { return environment_; }
@@ -258,11 +265,12 @@ class LInstruction : public ZoneObject {
   void VerifyCall();
 #endif
 
+  virtual int InputCount() = 0;
+  virtual LOperand* InputAt(int i) = 0;
+
  private:
   // Iterator support.
   friend class InputIterator;
-  virtual int InputCount() = 0;
-  virtual LOperand* InputAt(int i) = 0;
 
   friend class TempIterator;
   virtual int TempCount() = 0;

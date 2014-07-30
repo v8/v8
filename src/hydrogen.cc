@@ -12406,15 +12406,22 @@ void HStatistics::Initialize(CompilationInfo* info) {
 }
 
 
-void HStatistics::Print() {
-  PrintF("Timing results:\n");
+void HStatistics::Print(const char* stats_name) {
+  PrintF(
+      "\n"
+      "----------------------------------------"
+      "----------------------------------------\n"
+      "--- %s timing results:\n"
+      "----------------------------------------"
+      "----------------------------------------\n",
+      stats_name);
   base::TimeDelta sum;
   for (int i = 0; i < times_.length(); ++i) {
     sum += times_[i];
   }
 
   for (int i = 0; i < names_.length(); ++i) {
-    PrintF("%32s", names_[i]);
+    PrintF("%33s", names_[i]);
     double ms = times_[i].InMillisecondsF();
     double percent = times_[i].PercentOf(sum);
     PrintF(" %8.3f ms / %4.1f %% ", ms, percent);
@@ -12424,26 +12431,22 @@ void HStatistics::Print() {
     PrintF(" %9u bytes / %4.1f %%\n", size, size_percent);
   }
 
-  PrintF("----------------------------------------"
-         "---------------------------------------\n");
+  PrintF(
+      "----------------------------------------"
+      "----------------------------------------\n");
   base::TimeDelta total = create_graph_ + optimize_graph_ + generate_code_;
-  PrintF("%32s %8.3f ms / %4.1f %% \n",
-         "Create graph",
-         create_graph_.InMillisecondsF(),
-         create_graph_.PercentOf(total));
-  PrintF("%32s %8.3f ms / %4.1f %% \n",
-         "Optimize graph",
-         optimize_graph_.InMillisecondsF(),
-         optimize_graph_.PercentOf(total));
-  PrintF("%32s %8.3f ms / %4.1f %% \n",
-         "Generate and install code",
-         generate_code_.InMillisecondsF(),
-         generate_code_.PercentOf(total));
-  PrintF("----------------------------------------"
-         "---------------------------------------\n");
-  PrintF("%32s %8.3f ms (%.1f times slower than full code gen)\n",
-         "Total",
-         total.InMillisecondsF(),
+  PrintF("%33s %8.3f ms / %4.1f %% \n", "Create graph",
+         create_graph_.InMillisecondsF(), create_graph_.PercentOf(total));
+  PrintF("%33s %8.3f ms / %4.1f %% \n", "Optimize graph",
+         optimize_graph_.InMillisecondsF(), optimize_graph_.PercentOf(total));
+  PrintF("%33s %8.3f ms / %4.1f %% \n", "Generate and install code",
+         generate_code_.InMillisecondsF(), generate_code_.PercentOf(total));
+  PrintF(
+      "----------------------------------------"
+      "----------------------------------------\n");
+  PrintF("%33s %8.3f ms           %9u bytes\n", "Total",
+         total.InMillisecondsF(), total_size_);
+  PrintF("%33s     (%.1f times slower than full code gen)\n", "",
          total.TimesOf(full_code_gen_));
 
   double source_size_in_kb = static_cast<double>(source_size_) / 1024;
@@ -12453,9 +12456,8 @@ void HStatistics::Print() {
   double normalized_size_in_kb = source_size_in_kb > 0
       ? total_size_ / 1024 / source_size_in_kb
       : 0;
-  PrintF("%32s %8.3f ms           %7.3f kB allocated\n",
-         "Average per kB source",
-         normalized_time, normalized_size_in_kb);
+  PrintF("%33s %8.3f ms           %7.3f kB allocated\n",
+         "Average per kB source", normalized_time, normalized_size_in_kb);
 }
 
 

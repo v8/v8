@@ -731,10 +731,19 @@ bool Object::IsDeoptimizationInputData() const {
   // the entry size.
   int length = FixedArray::cast(this)->length();
   if (length == 0) return true;
+  if (length < DeoptimizationInputData::kFirstDeoptEntryIndex) return false;
 
-  length -= DeoptimizationInputData::kFirstDeoptEntryIndex;
-  return length >= 0 &&
-      length % DeoptimizationInputData::kDeoptEntrySize == 0;
+  FixedArray* self = FixedArray::cast(const_cast<Object*>(this));
+  int deopt_count =
+      Smi::cast(self->get(DeoptimizationInputData::kDeoptEntryCountIndex))
+          ->value();
+  int patch_count =
+      Smi::cast(
+          self->get(
+              DeoptimizationInputData::kReturnAddressPatchEntryCountIndex))
+          ->value();
+
+  return length == DeoptimizationInputData::LengthFor(deopt_count, patch_count);
 }
 
 
@@ -1079,6 +1088,12 @@ double Object::Number() {
 
 bool Object::IsNaN() const {
   return this->IsHeapNumber() && std::isnan(HeapNumber::cast(this)->value());
+}
+
+
+bool Object::IsMinusZero() const {
+  return this->IsHeapNumber() &&
+         i::IsMinusZero(HeapNumber::cast(this)->value());
 }
 
 
@@ -4700,6 +4715,21 @@ inline void Code::set_is_crankshafted(bool value) {
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = IsCrankshaftedField::update(previous, value);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
+}
+
+
+inline bool Code::is_turbofanned() {
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == STUB);
+  return IsTurbofannedField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+
+inline void Code::set_is_turbofanned(bool value) {
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == STUB);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = IsTurbofannedField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
 

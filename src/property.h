@@ -9,11 +9,12 @@
 #include "src/field-index.h"
 #include "src/field-index-inl.h"
 #include "src/isolate.h"
-#include "src/ostreams.h"
 #include "src/types.h"
 
 namespace v8 {
 namespace internal {
+
+class OStream;
 
 // Abstraction for elements in instance-descriptor arrays.
 //
