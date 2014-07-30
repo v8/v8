@@ -831,7 +831,7 @@ Register NamedLoadHandlerCompiler::CallbackFrontend(Register object_reg,
   ASSERT(!AreAliased(reg, scratch2, scratch3, dictionary));
 
   if (!holder()->HasFastProperties()) {
-    ASSERT(holder()->IsGlobalObject());
+    ASSERT(!holder()->IsGlobalObject());
     // Load the properties dictionary.
     __ Ldr(dictionary, FieldMemOperand(reg, JSObject::kPropertiesOffset));
 

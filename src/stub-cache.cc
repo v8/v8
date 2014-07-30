@@ -969,11 +969,11 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     // Find the top object.
     Handle<JSObject> last;
     PrototypeIterator iter(isolate(), holder());
-    do {
+    while (!iter.IsAtEnd()) {
       last = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
       iter.Advance();
-    } while (!iter.IsAtEnd());
-    set_holder(last);
+    }
+    if (!last.is_null()) set_holder(last);
   }
 
   Register holder_reg = FrontendHeader(receiver(), name, &miss);
