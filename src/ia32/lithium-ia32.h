@@ -865,7 +865,7 @@ class LMathFround V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
   LOperand* value() { return inputs_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-fround")
+  DECLARE_CONCRETE_INSTRUCTION(MathFround, "math-fround")
 };
 
 
