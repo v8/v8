@@ -34,25 +34,26 @@ inline void GenericNode<B, S>::AssignUniqueID(GenericGraphBase* graph) {
 template <class B, class S>
 inline typename GenericNode<B, S>::Inputs::iterator
 GenericNode<B, S>::Inputs::begin() {
-  return GenericNode::Inputs::iterator(this->node_, 0);
+  return GenericNode<B, S>::Inputs::iterator(this->node_, 0);
 }
 
 template <class B, class S>
 inline typename GenericNode<B, S>::Inputs::iterator
 GenericNode<B, S>::Inputs::end() {
-  return GenericNode::Inputs::iterator(this->node_, this->node_->InputCount());
+  return GenericNode<B, S>::Inputs::iterator(this->node_,
+                                             this->node_->InputCount());
 }
 
 template <class B, class S>
 inline typename GenericNode<B, S>::Uses::iterator
 GenericNode<B, S>::Uses::begin() {
-  return GenericNode::Uses::iterator(this->node_);
+  return GenericNode<B, S>::Uses::iterator(this->node_);
 }
 
 template <class B, class S>
 inline typename GenericNode<B, S>::Uses::iterator
 GenericNode<B, S>::Uses::end() {
-  return GenericNode::Uses::iterator();
+  return GenericNode<B, S>::Uses::iterator();
 }
 
 template <class B, class S>
@@ -106,7 +107,7 @@ void GenericNode<B, S>::TrimInputCount(int new_input_count) {
 
   // Update inline inputs.
   for (int i = new_input_count; i < input_count_; i++) {
-    GenericNode<B, S>::Input* input = GetInputRecordPtr(i);
+    typename GenericNode<B, S>::Input* input = GetInputRecordPtr(i);
     input->Update(NULL);
   }
   input_count_ = new_input_count;
