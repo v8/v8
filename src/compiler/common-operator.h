@@ -24,7 +24,8 @@ class ControlOperator : public Operator1<int> {
  public:
   ControlOperator(IrOpcode::Value opcode, uint16_t properties, int inputs,
                   int outputs, int controls, const char* mnemonic)
-      : Operator1(opcode, properties, inputs, outputs, mnemonic, controls) {}
+      : Operator1(static_cast<uint8_t>(opcode), properties, inputs, outputs,
+                  mnemonic, controls) {}
 
   virtual OStream& PrintParameter(OStream& os) const { return os; }  // NOLINT
   int ControlInputCount() const { return parameter(); }
@@ -33,9 +34,9 @@ class ControlOperator : public Operator1<int> {
 class CallOperator : public Operator1<CallDescriptor*> {
  public:
   CallOperator(CallDescriptor* descriptor, const char* mnemonic)
-      : Operator1(IrOpcode::kCall, descriptor->properties(),
-                  descriptor->InputCount(), descriptor->ReturnCount(), mnemonic,
-                  descriptor) {}
+      : Operator1(static_cast<uint8_t>(IrOpcode::kCall),
+                  descriptor->properties(), descriptor->InputCount(),
+                  descriptor->ReturnCount(), mnemonic, descriptor) {}
 
   virtual OStream& PrintParameter(OStream& os) const {  // NOLINT
     return os << "[" << *parameter() << "]";
