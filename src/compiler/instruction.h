@@ -489,6 +489,9 @@ class Instruction : public ZoneObject {
   // zone-allocated memory.
   void* operator new(size_t, void* location) { return location; }
 
+  void operator delete(void*, size_t) { UNREACHABLE(); }
+  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
+
  protected:
   explicit Instruction(InstructionCode opcode)
       : opcode_(opcode),
