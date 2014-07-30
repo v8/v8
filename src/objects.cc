@@ -409,8 +409,8 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
   ASSERT(!structure->IsForeign());
   // api style callbacks.
   if (structure->IsAccessorInfo()) {
-    Handle<AccessorInfo> accessor_info = Handle<AccessorInfo>::cast(structure);
-    if (!accessor_info->IsCompatibleReceiver(*receiver)) {
+    Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
+    if (!info->IsCompatibleReceiver(*receiver)) {
       Handle<Object> args[2] = { name, receiver };
       Handle<Object> error =
           isolate->factory()->NewTypeError("incompatible_method_receiver",
@@ -462,6 +462,17 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
 }
 
 
+bool AccessorInfo::IsCompatibleReceiverType(Isolate* isolate,
+                                            Handle<AccessorInfo> info,
+                                            Handle<HeapType> type) {
+  if (!info->HasExpectedReceiverType()) return true;
+  Handle<Map> map = IC::TypeToMap(*type, isolate);
+  if (!map->IsJSObjectMap()) return false;
+  return FunctionTemplateInfo::cast(info->expected_receiver_type())
+      ->IsTemplateFor(*map);
+}
+
+
 MaybeHandle<Object> Object::SetPropertyWithAccessor(
     Handle<Object> receiver, Handle<Name> name, Handle<Object> value,
     Handle<JSObject> holder, Handle<Object> structure, StrictMode strict_mode) {
@@ -474,8 +485,8 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
     // Don't call executable accessor setters with non-JSObject receivers.
     if (!receiver->IsJSObject()) return value;
     // api style callbacks
-    ExecutableAccessorInfo* data = ExecutableAccessorInfo::cast(*structure);
-    if (!data->IsCompatibleReceiver(*receiver)) {
+    ExecutableAccessorInfo* info = ExecutableAccessorInfo::cast(*structure);
+    if (!info->IsCompatibleReceiver(*receiver)) {
       Handle<Object> args[2] = { name, receiver };
       Handle<Object> error =
           isolate->factory()->NewTypeError("incompatible_method_receiver",
@@ -485,13 +496,13 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
     }
     // TODO(rossberg): Support symbols in the API.
     if (name->IsSymbol()) return value;
-    Object* call_obj = data->setter();
+    Object* call_obj = info->setter();
     v8::AccessorSetterCallback call_fun =
         v8::ToCData<v8::AccessorSetterCallback>(call_obj);
     if (call_fun == NULL) return value;
     Handle<String> key = Handle<String>::cast(name);
     LOG(isolate, ApiNamedPropertyAccess("store", *holder, *name));
-    PropertyCallbackArguments args(isolate, data->data(), *receiver, *holder);
+    PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder);
     args.Call(call_fun,
               v8::Utils::ToLocal(key),
               v8::Utils::ToLocal(value));

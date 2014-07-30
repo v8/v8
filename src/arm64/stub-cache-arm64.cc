@@ -682,10 +682,10 @@ void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
 
 
 Register PropertyHandlerCompiler::CheckPrototypes(
-    Handle<HeapType> type, Register object_reg, Handle<JSObject> holder,
-    Register holder_reg, Register scratch1, Register scratch2,
-    Handle<Name> name, Label* miss, PrototypeCheckType check) {
-  Handle<Map> receiver_map(IC::TypeToMap(*type, isolate()));
+    Register object_reg, Handle<JSObject> holder, Register holder_reg,
+    Register scratch1, Register scratch2, Handle<Name> name, Label* miss,
+    PrototypeCheckType check) {
+  Handle<Map> receiver_map(IC::TypeToMap(*type(), isolate()));
 
   // object_reg and holder_reg registers can alias.
   ASSERT(!AreAliased(object_reg, scratch1, scratch2));
@@ -696,8 +696,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   int depth = 0;
 
   Handle<JSObject> current = Handle<JSObject>::null();
-  if (type->IsConstant()) {
-    current = Handle<JSObject>::cast(type->AsConstant()->Value());
+  if (type()->IsConstant()) {
+    current = Handle<JSObject>::cast(type()->AsConstant()->Value());
   }
   Handle<JSObject> prototype = Handle<JSObject>::null();
   Handle<Map> current_map = receiver_map;
@@ -817,14 +817,13 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
 }
 
 
-Register NamedLoadHandlerCompiler::CallbackFrontend(Handle<HeapType> type,
-                                                    Register object_reg,
+Register NamedLoadHandlerCompiler::CallbackFrontend(Register object_reg,
                                                     Handle<JSObject> holder,
                                                     Handle<Name> name,
                                                     Handle<Object> callback) {
   Label miss;
 
-  Register reg = FrontendHeader(type, object_reg, holder, name, &miss);
+  Register reg = FrontendHeader(object_reg, holder, name, &miss);
   // FrontendHeader can return its result into scratch1() so do not
   // use it.
   Register scratch2 = this->scratch2();
@@ -934,9 +933,8 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
 
 
 void NamedLoadHandlerCompiler::GenerateLoadInterceptor(
-    Register holder_reg, Handle<Object> object,
-    Handle<JSObject> interceptor_holder, LookupResult* lookup,
-    Handle<Name> name) {
+    Register holder_reg, Handle<JSObject> interceptor_holder,
+    LookupResult* lookup, Handle<Name> name) {
   ASSERT(!AreAliased(receiver(), this->name(),
                      scratch1(), scratch2(), scratch3()));
   ASSERT(interceptor_holder->HasNamedInterceptor());
@@ -950,10 +948,12 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(
       compile_followup_inline = true;
     } else if (lookup->type() == CALLBACKS &&
                lookup->GetCallbackObject()->IsExecutableAccessorInfo()) {
-      ExecutableAccessorInfo* callback =
-          ExecutableAccessorInfo::cast(lookup->GetCallbackObject());
-      compile_followup_inline = callback->getter() != NULL &&
-          callback->IsCompatibleReceiver(*object);
+      Handle<ExecutableAccessorInfo> callback(
+          ExecutableAccessorInfo::cast(lookup->GetCallbackObject()));
+      compile_followup_inline =
+          callback->getter() != NULL &&
+          ExecutableAccessorInfo::IsCompatibleReceiverType(isolate(), callback,
+                                                           type());
     }
   }
 
@@ -1024,8 +1024,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<JSObject> holder, Handle<Name> name,
     Handle<ExecutableAccessorInfo> callback) {
   ASM_LOCATION("NamedStoreHandlerCompiler::CompileStoreCallback");
-  Register holder_reg =
-      Frontend(IC::CurrentTypeOf(object, isolate()), receiver(), holder, name);
+  Register holder_reg = Frontend(receiver(), holder, name);
 
   // Stub never generated for non-global objects that require access checks.
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
@@ -1116,8 +1115,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
-    Handle<HeapType> type, Handle<JSObject> last, Handle<Name> name) {
-  NonexistentFrontend(type, last, name);
+    Handle<JSObject> last, Handle<Name> name) {
+  NonexistentFrontend(last, name);
 
   // Return undefined if maps of the full prototype chain are still the
   // same and no global property with this name contains a value.
@@ -1206,23 +1205,23 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
-    Handle<HeapType> type, Handle<GlobalObject> global,
-    Handle<PropertyCell> cell, Handle<Name> name, bool is_dont_delete) {
+    Handle<GlobalObject> global, Handle<PropertyCell> cell, Handle<Name> name,
+    bool is_dont_delete) {
   Label miss;
-  FrontendHeader(type, receiver(), global, name, &miss);
+  FrontendHeader(receiver(), global, name, &miss);
 
   // Get the value from the cell.
-  __ Mov(x3, Operand(cell));
-  __ Ldr(x4, FieldMemOperand(x3, Cell::kValueOffset));
+  Register result = StoreIC::ValueRegister();
+  __ Mov(result, Operand(cell));
+  __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.
   if (!is_dont_delete) {
-    __ JumpIfRoot(x4, Heap::kTheHoleValueRootIndex, &miss);
+    __ JumpIfRoot(result, Heap::kTheHoleValueRootIndex, &miss);
   }
 
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_load_global_stub(), 1, x1, x3);
-  __ Mov(x0, x4);
   __ Ret();
 
   FrontendFooter(name, &miss);

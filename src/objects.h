@@ -10528,6 +10528,9 @@ class AccessorInfo: public Struct {
   inline void set_property_attributes(PropertyAttributes attributes);
 
   // Checks whether the given receiver is compatible with this accessor.
+  static bool IsCompatibleReceiverType(Isolate* isolate,
+                                       Handle<AccessorInfo> info,
+                                       Handle<HeapType> type);
   inline bool IsCompatibleReceiver(Object* receiver);
 
   DECLARE_CAST(AccessorInfo)
@@ -10547,6 +10550,9 @@ class AccessorInfo: public Struct {
   static const int kSize = kExpectedReceiverTypeOffset + kPointerSize;
 
  private:
+  inline bool HasExpectedReceiverType() {
+    return expected_receiver_type()->IsFunctionTemplateInfo();
+  }
   // Bit positions in flag.
   static const int kAllCanReadBit = 0;
   static const int kAllCanWriteBit = 1;
