@@ -203,8 +203,8 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
       cache_name, stub_holder_map, Code::LOAD_IC, flag, Code::FAST);
   if (!handler.is_null()) return handler;
 
-  NamedLoadHandlerCompiler compiler(isolate, type, flag);
-  handler = compiler.CompileLoadNonexistent(last, cache_name);
+  NamedLoadHandlerCompiler compiler(isolate, type, last, flag);
+  handler = compiler.CompileLoadNonexistent(cache_name);
   Map::UpdateCodeCache(stub_holder_map, cache_name, handler);
   return handler;
 }
@@ -749,7 +749,6 @@ Handle<Code> PropertyAccessCompiler::GetCodeWithFlags(Code::Flags flags,
 
 
 Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
-                                                  Handle<JSObject> holder,
                                                   Handle<Name> name,
                                                   Label* miss) {
   PrototypeCheckType check_type = CHECK_ALL_MAPS;
@@ -776,19 +775,18 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
   }
 
   // Check that the maps starting from the prototype haven't changed.
-  return CheckPrototypes(object_reg, holder, scratch1(), scratch2(), scratch3(),
-                         name, miss, check_type);
+  return CheckPrototypes(object_reg, scratch1(), scratch2(), scratch3(), name,
+                         miss, check_type);
 }
 
 
 // Frontend for store uses the name register. It has to be restored before a
 // miss.
 Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
-                                                   Handle<JSObject> holder,
                                                    Handle<Name> name,
                                                    Label* miss) {
-  return CheckPrototypes(object_reg, holder, this->name(), scratch1(),
-                         scratch2(), name, miss, SKIP_RECEIVER);
+  return CheckPrototypes(object_reg, this->name(), scratch1(), scratch2(), name,
+                         miss, SKIP_RECEIVER);
 }
 
 
@@ -801,42 +799,39 @@ bool PropertyICCompiler::IncludesNumberType(TypeHandleList* types) {
 
 
 Register PropertyHandlerCompiler::Frontend(Register object_reg,
-                                           Handle<JSObject> holder,
                                            Handle<Name> name) {
   Label miss;
-  Register reg = FrontendHeader(object_reg, holder, name, &miss);
+  Register reg = FrontendHeader(object_reg, name, &miss);
   FrontendFooter(name, &miss);
   return reg;
 }
 
 
-void NamedLoadHandlerCompiler::NonexistentFrontend(Handle<JSObject> last,
-                                                   Handle<Name> name) {
+void NamedLoadHandlerCompiler::NonexistentFrontend(Handle<Name> name) {
   Label miss;
 
-  Register holder;
+  Register holder_reg;
   Handle<Map> last_map;
-  if (last.is_null()) {
-    holder = receiver();
+  if (holder().is_null()) {
+    holder_reg = receiver();
     last_map = IC::TypeToMap(*type(), isolate());
-    // If |type| has null as its prototype, |last| is Handle<JSObject>::null().
+    // If |type| has null as its prototype, |holder()| is
+    // Handle<JSObject>::null().
     ASSERT(last_map->prototype() == isolate()->heap()->null_value());
   } else {
-    holder = FrontendHeader(receiver(), last, name, &miss);
-    last_map = handle(last->map());
+    holder_reg = FrontendHeader(receiver(), name, &miss);
+    last_map = handle(holder()->map());
   }
 
-  if (last_map->is_dictionary_map() &&
-      !last_map->IsJSGlobalObjectMap() &&
-      !last_map->IsJSGlobalProxyMap()) {
+  if (last_map->is_dictionary_map() && !last_map->IsJSGlobalObjectMap()) {
     if (!name->IsUniqueName()) {
       ASSERT(name->IsString());
       name = factory()->InternalizeString(Handle<String>::cast(name));
     }
-    ASSERT(last.is_null() ||
-           last->property_dictionary()->FindEntry(name) ==
+    ASSERT(holder().is_null() ||
+           holder()->property_dictionary()->FindEntry(name) ==
                NameDictionary::kNotFound);
-    GenerateDictionaryNegativeLookup(masm(), &miss, holder, name,
+    GenerateDictionaryNegativeLookup(masm(), &miss, holder_reg, name,
                                      scratch2(), scratch3());
   }
 
@@ -844,9 +839,9 @@ void NamedLoadHandlerCompiler::NonexistentFrontend(Handle<JSObject> last,
   // check that the global property cell is empty.
   if (last_map->IsJSGlobalObjectMap()) {
     Handle<JSGlobalObject> global =
-        last.is_null()
+        holder().is_null()
             ? Handle<JSGlobalObject>::cast(type()->AsConstant()->Value())
-            : Handle<JSGlobalObject>::cast(last);
+            : Handle<JSGlobalObject>::cast(holder());
     GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
   }
 
@@ -855,37 +850,34 @@ void NamedLoadHandlerCompiler::NonexistentFrontend(Handle<JSObject> last,
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadField(
-    Handle<JSObject> holder, Handle<Name> name, FieldIndex field,
-    Representation representation) {
-  Register reg = Frontend(receiver(), holder, name);
-  GenerateLoadField(reg, holder, field, representation);
+    Handle<Name> name, FieldIndex field, Representation representation) {
+  Register reg = Frontend(receiver(), name);
+  GenerateLoadField(reg, field, representation);
   return GetCode(kind(), Code::FAST, name);
 }
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(
-    Handle<JSObject> holder, Handle<Name> name, Handle<Object> value) {
-  Frontend(receiver(), holder, name);
+    Handle<Name> name, Handle<Object> value) {
+  Frontend(receiver(), name);
   GenerateLoadConstant(value);
   return GetCode(kind(), Code::FAST, name);
 }
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
-    Handle<JSObject> holder, Handle<Name> name,
-    Handle<ExecutableAccessorInfo> callback) {
-  Register reg = CallbackFrontend(receiver(), holder, name, callback);
+    Handle<Name> name, Handle<ExecutableAccessorInfo> callback) {
+  Register reg = CallbackFrontend(receiver(), name, callback);
   GenerateLoadCallback(reg, callback);
   return GetCode(kind(), Code::FAST, name);
 }
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
-    Handle<JSObject> holder, Handle<Name> name,
-    const CallOptimization& call_optimization) {
+    Handle<Name> name, const CallOptimization& call_optimization) {
   ASSERT(call_optimization.is_simple_api_call());
   Handle<JSFunction> callback = call_optimization.constant_function();
-  CallbackFrontend(receiver(), holder, name, callback);
+  CallbackFrontend(receiver(), name, callback);
   Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
   GenerateFastApiCall(
       masm(), call_optimization, receiver_map,
@@ -895,52 +887,48 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
-    Handle<JSObject> holder, Handle<Name> name) {
+    Handle<Name> name) {
   // Perform a lookup after the interceptor.
   LookupResult lookup(isolate());
-  holder->LookupOwnRealNamedProperty(name, &lookup);
+  holder()->LookupOwnRealNamedProperty(name, &lookup);
   if (!lookup.IsFound()) {
-    PrototypeIterator iter(holder->GetIsolate(), holder);
+    PrototypeIterator iter(holder()->GetIsolate(), holder());
     if (!iter.IsAtEnd()) {
       PrototypeIterator::GetCurrent(iter)->Lookup(name, &lookup);
     }
   }
 
-  Register reg = Frontend(receiver(), holder, name);
+  Register reg = Frontend(receiver(), name);
   // TODO(368): Compile in the whole chain: all the interceptors in
   // prototypes and ultimate answer.
-  GenerateLoadInterceptor(reg, holder, &lookup, name);
+  GenerateLoadInterceptor(reg, &lookup, name);
   return GetCode(kind(), Code::FAST, name);
 }
 
 
 void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
-    Register interceptor_reg, Handle<JSObject> interceptor_holder,
-    Handle<Name> name, LookupResult* lookup) {
-  Handle<JSObject> holder(lookup->holder());
+    Register interceptor_reg, Handle<Name> name, LookupResult* lookup) {
+  Handle<JSObject> real_named_property_holder(lookup->holder());
   if (lookup->IsField()) {
     FieldIndex field = lookup->GetFieldIndex();
-    if (interceptor_holder.is_identical_to(holder)) {
-      GenerateLoadField(
-          interceptor_reg, holder, field, lookup->representation());
+    if (holder().is_identical_to(real_named_property_holder)) {
+      GenerateLoadField(interceptor_reg, field, lookup->representation());
     } else {
-      // We found FIELD property in prototype chain of interceptor's holder.
-      // Retrieve a field from field's holder.
-      set_type_for_object(interceptor_holder);
-      Register reg = Frontend(interceptor_reg, holder, name);
-      GenerateLoadField(
-          reg, holder, field, lookup->representation());
+      set_type_for_object(holder());
+      set_holder(real_named_property_holder);
+      Register reg = Frontend(interceptor_reg, name);
+      GenerateLoadField(reg, field, lookup->representation());
     }
   } else {
-    // We found CALLBACKS property in prototype chain of interceptor's
-    // holder.
+    // We found CALLBACKS property in prototype chain of interceptor's holder.
     ASSERT(lookup->type() == CALLBACKS);
     Handle<ExecutableAccessorInfo> callback(
         ExecutableAccessorInfo::cast(lookup->GetCallbackObject()));
     ASSERT(callback->getter() != NULL);
 
-    set_type_for_object(interceptor_holder);
-    Register reg = CallbackFrontend(interceptor_reg, holder, name, callback);
+    set_type_for_object(holder());
+    set_holder(real_named_property_holder);
+    Register reg = CallbackFrontend(interceptor_reg, name, callback);
     GenerateLoadCallback(reg, callback);
   }
 }
@@ -960,48 +948,44 @@ Handle<Code> PropertyICCompiler::CompileMonomorphic(Handle<HeapType> type,
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
-    Handle<JSObject> holder, Handle<Name> name, Handle<JSFunction> getter) {
-  Frontend(receiver(), holder, name);
+    Handle<Name> name, Handle<JSFunction> getter) {
+  Frontend(receiver(), name);
   GenerateLoadViaGetter(masm(), type(), receiver(), getter);
   return GetCode(kind(), Code::FAST, name);
 }
 
 
+// TODO(verwaest): Cleanup. holder() is actually the receiver.
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
-    Handle<JSObject> object, LookupResult* lookup, Handle<Map> transition,
-    Handle<Name> name) {
+    LookupResult* lookup, Handle<Map> transition, Handle<Name> name) {
   Label miss, slow;
 
   // Ensure no transitions to deprecated maps are followed.
   __ CheckMapDeprecated(transition, scratch1(), &miss);
 
   // Check that we are allowed to write this.
-  PrototypeIterator iter(object->GetIsolate(), object);
-  if (!iter.IsAtEnd()) {
-    Handle<JSObject> holder;
-    // holder == object indicates that no property was found.
-    if (lookup->holder() != *object) {
-      holder = Handle<JSObject>(lookup->holder());
-    } else {
-      // Find the top object.
-      do {
-        holder = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-        iter.Advance();
-      } while (!iter.IsAtEnd());
-    }
+  bool is_nonexistent = holder()->map() == transition->GetBackPointer();
+  if (is_nonexistent) {
+    // Find the top object.
+    Handle<JSObject> last;
+    PrototypeIterator iter(isolate(), holder());
+    do {
+      last = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+      iter.Advance();
+    } while (!iter.IsAtEnd());
+    set_holder(last);
+  }
 
-    Register holder_reg = FrontendHeader(receiver(), holder, name, &miss);
+  Register holder_reg = FrontendHeader(receiver(), name, &miss);
 
-    // If no property was found, and the holder (the last object in the
-    // prototype chain) is in slow mode, we need to do a negative lookup on the
-    // holder.
-    if (lookup->holder() == *object) {
-      GenerateNegativeHolderLookup(masm(), holder, holder_reg, name, &miss);
-    }
+  // If no property was found, and the holder (the last object in the
+  // prototype chain) is in slow mode, we need to do a negative lookup on the
+  // holder.
+  if (is_nonexistent) {
+    GenerateNegativeHolderLookup(masm(), holder(), holder_reg, name, &miss);
   }
 
   GenerateStoreTransition(masm(),
-                          object,
                           lookup,
                           transition,
                           name,
@@ -1020,18 +1004,15 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
 }
 
 
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(
-    Handle<JSObject> object, LookupResult* lookup, Handle<Name> name) {
+Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupResult* lookup,
+                                                          Handle<Name> name) {
   Label miss;
 
-  FrontendHeader(receiver(), object, name, &miss);
+  FrontendHeader(receiver(), name, &miss);
 
   // Generate store field code.
-  GenerateStoreField(masm(),
-                     object,
-                     lookup,
-                     receiver(), this->name(), value(), scratch1(), scratch2(),
-                     &miss);
+  GenerateStoreField(masm(), holder(), lookup, receiver(), this->name(),
+                     value(), scratch1(), scratch2(), &miss);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -1041,7 +1022,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreArrayLength(
-    Handle<JSObject> object, LookupResult* lookup, Handle<Name> name) {
+    LookupResult* lookup, Handle<Name> name) {
   // This accepts as a receiver anything JSArray::SetElementsLength accepts
   // (currently anything except for external arrays which means anything with
   // elements of FixedArray type).  Value must be a number, but only smis are
@@ -1062,9 +1043,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreArrayLength(
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
-    Handle<JSObject> object, Handle<JSObject> holder, Handle<Name> name,
-    Handle<JSFunction> setter) {
-  Frontend(receiver(), holder, name);
+    Handle<JSObject> object, Handle<Name> name, Handle<JSFunction> setter) {
+  Frontend(receiver(), name);
   GenerateStoreViaSetter(masm(), type(), receiver(), setter);
 
   return GetCode(kind(), Code::FAST, name);
@@ -1072,9 +1052,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
 
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<JSObject> holder, Handle<Name> name,
+    Handle<JSObject> object, Handle<Name> name,
     const CallOptimization& call_optimization) {
-  Frontend(receiver(), holder, name);
+  Frontend(receiver(), name);
   Register values[] = { value() };
   GenerateFastApiCall(
       masm(), call_optimization, handle(object->map()),
