@@ -2945,14 +2945,14 @@ TEST(RunConvertFloat64ToInt32_B) {
   for (int32_t n = 1; n < 31; ++n) {
     {
       input = 1 << n;
-      int32_t expect = input;
+      int32_t expect = static_cast<int32_t>(input);
       CHECK_EQ(expect, m.Call());
       CHECK_EQ(expect, output);
     }
 
     {
       input = 3 << n;
-      int32_t expect = input;
+      int32_t expect = static_cast<int32_t>(input);
       CHECK_EQ(expect, m.Call());
       CHECK_EQ(expect, output);
     }
