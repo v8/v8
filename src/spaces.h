@@ -1980,6 +1980,12 @@ class PagedSpace : public Space {
     return area_size_;
   }
 
+  void CreateEmergencyMemory();
+  void FreeEmergencyMemory();
+  void UseEmergencyMemory();
+
+  bool HasEmergencyMemory() { return emergency_memory_ != NULL; }
+
  protected:
   FreeList* free_list() { return &free_list_; }
 
@@ -2014,6 +2020,12 @@ class PagedSpace : public Space {
   // and sweep these pages concurrently. They will stop sweeping after the
   // end_of_unswept_pages_ page.
   Page* end_of_unswept_pages_;
+
+  // Emergency memory is the memory of a full page for a given space, allocated
+  // conservatively before evacuating a page. If compaction fails due to out
+  // of memory error the emergency memory can be used to complete compaction.
+  // If not used, the emergency memory is released after compaction.
+  MemoryChunk* emergency_memory_;
 
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS, or if the hard heap

@@ -112,6 +112,7 @@ class LCodeGen;
   V(MathClz32)                                  \
   V(MathExp)                                    \
   V(MathFloor)                                  \
+  V(MathFround)                                 \
   V(MathLog)                                    \
   V(MathMinMax)                                 \
   V(MathPowHalf)                                \
@@ -870,6 +871,16 @@ class LMathRound V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
   DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-round")
   DECLARE_HYDROGEN_ACCESSOR(UnaryMathOperation)
+};
+
+
+class LMathFround V8_FINAL : public LTemplateInstruction<1, 1, 0> {
+ public:
+  explicit LMathFround(LOperand* value) { inputs_[0] = value; }
+
+  LOperand* value() { return inputs_[0]; }
+
+  DECLARE_CONCRETE_INSTRUCTION(MathFround, "math-fround")
 };
 
 
@@ -2751,6 +2762,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
 
   LInstruction* DoMathFloor(HUnaryMathOperation* instr);
   LInstruction* DoMathRound(HUnaryMathOperation* instr);
+  LInstruction* DoMathFround(HUnaryMathOperation* instr);
   LInstruction* DoMathAbs(HUnaryMathOperation* instr);
   LInstruction* DoMathLog(HUnaryMathOperation* instr);
   LInstruction* DoMathExp(HUnaryMathOperation* instr);

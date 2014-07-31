@@ -929,15 +929,14 @@ void MemoryChunk::IncrementLiveBytesFromMutator(Address address, int by) {
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
-PagedSpace::PagedSpace(Heap* heap,
-                       intptr_t max_capacity,
-                       AllocationSpace id,
+PagedSpace::PagedSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id,
                        Executability executable)
     : Space(heap, id, executable),
       free_list_(this),
       swept_precisely_(true),
       unswept_free_bytes_(0),
-      end_of_unswept_pages_(NULL) {
+      end_of_unswept_pages_(NULL),
+      emergency_memory_(NULL) {
   if (id == CODE_SPACE) {
     area_size_ = heap->isolate()->memory_allocator()->
         CodePageAreaSize();
@@ -1147,6 +1146,29 @@ void PagedSpace::ReleasePage(Page* page) {
 
   ASSERT(Capacity() > 0);
   accounting_stats_.ShrinkSpace(AreaSize());
+}
+
+
+void PagedSpace::CreateEmergencyMemory() {
+  emergency_memory_ = heap()->isolate()->memory_allocator()->AllocateChunk(
+      AreaSize(), AreaSize(), executable(), this);
+}
+
+
+void PagedSpace::FreeEmergencyMemory() {
+  Page* page = static_cast<Page*>(emergency_memory_);
+  ASSERT(page->LiveBytes() == 0);
+  ASSERT(AreaSize() == page->area_size());
+  ASSERT(!free_list_.ContainsPageFreeListItems(page));
+  heap()->isolate()->memory_allocator()->Free(page);
+  emergency_memory_ = NULL;
+}
+
+
+void PagedSpace::UseEmergencyMemory() {
+  Page* page = Page::Initialize(heap(), emergency_memory_, executable(), this);
+  page->InsertAfter(anchor_.prev_page());
+  emergency_memory_ = NULL;
 }
 
 

@@ -1148,6 +1148,7 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   switch (instr->op()) {
     case kMathFloor: return DoMathFloor(instr);
     case kMathRound: return DoMathRound(instr);
+    case kMathFround: return DoMathFround(instr);
     case kMathAbs: return DoMathAbs(instr);
     case kMathLog: return DoMathLog(instr);
     case kMathExp: return DoMathExp(instr);
@@ -1172,6 +1173,13 @@ LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
   // Crankshaft is turned off for nosse2.
   UNREACHABLE();
   return NULL;
+}
+
+
+LInstruction* LChunkBuilder::DoMathFround(HUnaryMathOperation* instr) {
+  LOperand* input = UseRegisterAtStart(instr->value());
+  LMathFround* result = new (zone()) LMathFround(input);
+  return AssignEnvironment(DefineAsRegister(result));
 }
 
 
