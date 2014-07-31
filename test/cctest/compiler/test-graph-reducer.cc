@@ -490,7 +490,7 @@ TEST(Sorter1) {
     Node* n1 = graph.NewNode(&OPA0);
     Node* n2 = graph.NewNode(&OPA1, n1);
     Node* n3 = graph.NewNode(&OPA1, n1);
-    Node* end;
+    Node* end = NULL;  // Initialize to please the compiler.
 
     if (i == 0) end = graph.NewNode(&OPA2, n2, n3);
     if (i == 1) end = graph.NewNode(&OPA2, n3, n2);
