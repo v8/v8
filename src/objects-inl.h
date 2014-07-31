@@ -6771,9 +6771,10 @@ void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
 
 
 bool AccessorInfo::IsCompatibleReceiver(Object* receiver) {
-  Object* function_template = expected_receiver_type();
-  if (!function_template->IsFunctionTemplateInfo()) return true;
-  return FunctionTemplateInfo::cast(function_template)->IsTemplateFor(receiver);
+  if (!HasExpectedReceiverType()) return true;
+  if (!receiver->IsJSObject()) return false;
+  return FunctionTemplateInfo::cast(expected_receiver_type())
+      ->IsTemplateFor(JSObject::cast(receiver)->map());
 }
 
 

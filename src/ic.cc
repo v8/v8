@@ -942,7 +942,8 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
   Handle<HeapType> type = receiver_type();
   Handle<JSObject> holder(lookup->holder());
   bool receiver_is_holder = object.is_identical_to(holder);
-  NamedLoadHandlerCompiler compiler(isolate(), cache_holder);
+  NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                    cache_holder);
 
   switch (lookup->type()) {
     case FIELD: {
@@ -950,12 +951,11 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
       if (receiver_is_holder) {
         return SimpleFieldLoad(field);
       }
-      return compiler.CompileLoadField(
-          type, holder, name, field, lookup->representation());
+      return compiler.CompileLoadField(name, field, lookup->representation());
     }
     case CONSTANT: {
       Handle<Object> constant(lookup->GetConstant(), isolate());
-      return compiler.CompileLoadConstant(type, holder, name, constant);
+      return compiler.CompileLoadConstant(name, constant);
     }
     case NORMAL:
       if (kind() != Code::LOAD_IC) break;
@@ -963,8 +963,8 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
         Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
         Handle<PropertyCell> cell(
             global->GetPropertyCell(lookup), isolate());
-        Handle<Code> code = compiler.CompileLoadGlobal(
-            type, global, cell, name, lookup->IsDontDelete());
+        Handle<Code> code =
+            compiler.CompileLoadGlobal(cell, name, lookup->IsDontDelete());
         // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
         CacheHolderFlag flag;
         Handle<Map> stub_holder_map =
@@ -997,8 +997,12 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
         Handle<ExecutableAccessorInfo> info =
             Handle<ExecutableAccessorInfo>::cast(callback);
         if (v8::ToCData<Address>(info->getter()) == 0) break;
-        if (!info->IsCompatibleReceiver(*object)) break;
-        return compiler.CompileLoadCallback(type, holder, name, info);
+        if (!ExecutableAccessorInfo::IsCompatibleReceiverType(isolate(), info,
+                                                              type)) {
+          break;
+        }
+        if (holder->IsGlobalObject()) break;
+        return compiler.CompileLoadCallback(name, info);
       } else if (callback->IsAccessorPair()) {
         Handle<Object> getter(Handle<AccessorPair>::cast(callback)->getter(),
                               isolate());
@@ -1016,10 +1020,9 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
         CallOptimization call_optimization(function);
         if (call_optimization.is_simple_api_call() &&
             call_optimization.IsCompatibleReceiver(object, holder)) {
-          return compiler.CompileLoadCallback(
-              type, holder, name, call_optimization);
+          return compiler.CompileLoadCallback(name, call_optimization);
         }
-        return compiler.CompileLoadViaGetter(type, holder, name, function);
+        return compiler.CompileLoadViaGetter(name, function);
       }
       // TODO(dcarney): Handle correctly.
       ASSERT(callback->IsDeclaredAccessorInfo());
@@ -1027,7 +1030,7 @@ Handle<Code> LoadIC::CompileHandler(LookupResult* lookup, Handle<Object> object,
     }
     case INTERCEPTOR:
       ASSERT(HasInterceptorGetter(*holder));
-      return compiler.CompileLoadInterceptor(type, holder, name);
+      return compiler.CompileLoadInterceptor(name);
     default:
       break;
   }
@@ -1392,7 +1395,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
   Handle<JSObject> holder(lookup->holder());
-  NamedStoreHandlerCompiler compiler(isolate());
+  NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
 
   if (lookup->IsTransition()) {
     // Explicitly pass in the receiver map since LookupForWrite may have
@@ -1401,13 +1404,12 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
     PropertyDetails details = lookup->GetPropertyDetails();
 
     if (details.type() != CALLBACKS && details.attributes() == NONE) {
-      return compiler.CompileStoreTransition(
-          receiver, lookup, transition, name);
+      return compiler.CompileStoreTransition(lookup, transition, name);
     }
   } else {
     switch (lookup->type()) {
       case FIELD:
-        return compiler.CompileStoreField(receiver, lookup, name);
+        return compiler.CompileStoreField(lookup, name);
       case NORMAL:
         if (kind() == Code::KEYED_STORE_IC) break;
         if (receiver->IsJSGlobalProxy() || receiver->IsGlobalObject()) {
@@ -1438,8 +1440,11 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
               Handle<ExecutableAccessorInfo>::cast(callback);
           if (v8::ToCData<Address>(info->setter()) == 0) break;
           if (!holder->HasFastProperties()) break;
-          if (!info->IsCompatibleReceiver(*receiver)) break;
-          return compiler.CompileStoreCallback(receiver, holder, name, info);
+          if (!ExecutableAccessorInfo::IsCompatibleReceiverType(
+                  isolate(), info, receiver_type())) {
+            break;
+          }
+          return compiler.CompileStoreCallback(receiver, name, info);
         } else if (callback->IsAccessorPair()) {
           Handle<Object> setter(
               Handle<AccessorPair>::cast(callback)->setter(), isolate());
@@ -1450,11 +1455,11 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
           CallOptimization call_optimization(function);
           if (call_optimization.is_simple_api_call() &&
               call_optimization.IsCompatibleReceiver(receiver, holder)) {
-            return compiler.CompileStoreCallback(
-                receiver, holder, name, call_optimization);
+            return compiler.CompileStoreCallback(receiver, name,
+                                                 call_optimization);
           }
           return compiler.CompileStoreViaSetter(
-              receiver, holder, name, Handle<JSFunction>::cast(setter));
+              receiver, name, Handle<JSFunction>::cast(setter));
         }
         // TODO(dcarney): Handle correctly.
         ASSERT(callback->IsDeclaredAccessorInfo());
@@ -1463,7 +1468,7 @@ Handle<Code> StoreIC::CompileHandler(LookupResult* lookup,
       case INTERCEPTOR:
         if (kind() == Code::KEYED_STORE_IC) break;
         ASSERT(HasInterceptorSetter(*holder));
-        return compiler.CompileStoreInterceptor(receiver, name);
+        return compiler.CompileStoreInterceptor(name);
       case CONSTANT:
         break;
       case NONEXISTENT:

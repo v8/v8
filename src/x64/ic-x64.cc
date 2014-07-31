@@ -1016,21 +1016,6 @@ const Register StoreIC::NameRegister() { return rcx; }
 const Register StoreIC::ValueRegister() { return rax; }
 
 
-const Register KeyedStoreIC::ReceiverRegister() {
-  return StoreIC::ReceiverRegister();
-}
-
-
-const Register KeyedStoreIC::NameRegister() {
-  return StoreIC::NameRegister();
-}
-
-
-const Register KeyedStoreIC::ValueRegister() {
-  return StoreIC::ValueRegister();
-}
-
-
 const Register KeyedStoreIC::MapRegister() {
   return rbx;
 }

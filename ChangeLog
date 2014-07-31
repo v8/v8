@@ -1,3 +1,10 @@
+2014-07-31: Version 3.28.51
+
+        Drop deprecated memory related notification API (Chromium issue 397026).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-07-31: Version 3.28.50
 
         Use emergency memory in the case of out of memory during evacuation

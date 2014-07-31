@@ -5078,34 +5078,6 @@ void v8::V8::VisitHandlesForPartialDependence(
 }
 
 
-bool v8::V8::IdleNotification(int hint) {
-  // Returning true tells the caller that it need not
-  // continue to call IdleNotification.
-  i::Isolate* isolate = i::Isolate::Current();
-  if (isolate == NULL || !isolate->IsInitialized()) return true;
-  if (!i::FLAG_use_idle_notification) return true;
-  return isolate->heap()->IdleNotification(hint);
-}
-
-
-void v8::V8::LowMemoryNotification() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (isolate == NULL || !isolate->IsInitialized()) return;
-  {
-    i::HistogramTimerScope idle_notification_scope(
-        isolate->counters()->gc_low_memory_notification());
-    isolate->heap()->CollectAllAvailableGarbage("low memory notification");
-  }
-}
-
-
-int v8::V8::ContextDisposedNotification() {
-  i::Isolate* isolate = i::Isolate::Current();
-  if (!isolate->IsInitialized()) return 0;
-  return isolate->heap()->NotifyContextDisposed();
-}
-
-
 bool v8::V8::InitializeICU(const char* icu_data_file) {
   return i::InitializeICU(icu_data_file);
 }

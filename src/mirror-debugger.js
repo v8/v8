@@ -171,7 +171,7 @@ PropertyKind.Named   = 1;
 PropertyKind.Indexed = 2;
 
 
-// A copy of the PropertyType enum from global.h
+// A copy of the PropertyType enum from property-details.h
 var PropertyType = {};
 PropertyType.Normal                  = 0;
 PropertyType.Field                   = 1;
@@ -179,8 +179,7 @@ PropertyType.Constant                = 2;
 PropertyType.Callbacks               = 3;
 PropertyType.Handler                 = 4;
 PropertyType.Interceptor             = 5;
-PropertyType.Transition              = 6;
-PropertyType.Nonexistent             = 7;
+PropertyType.Nonexistent             = 6;
 
 
 // Different attributes for a property.
@@ -684,6 +683,19 @@ ObjectMirror.prototype.hasIndexedInterceptor = function() {
 };
 
 
+// Get all own property names except for private symbols.
+function TryGetPropertyNames(object) {
+  try {
+    // TODO(yangguo): Should there be a special debugger implementation of
+    // %GetOwnPropertyNames that doesn't perform access checks?
+    return %GetOwnPropertyNames(object, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
+  } catch (e) {
+    // Might have hit a failed access check.
+    return [];
+  }
+}
+
+
 /**
  * Return the property names for this object.
  * @param {number} kind Indicate whether named, indexed or both kinds of
@@ -702,9 +714,7 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
 
   // Find all the named properties.
   if (kind & PropertyKind.Named) {
-    // Get all own property names except for private symbols.
-    propertyNames =
-        %GetOwnPropertyNames(this.value_, PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL);
+    propertyNames = TryGetPropertyNames(this.value_);
     total += propertyNames.length;
 
     // Get names for named interceptor properties if any.

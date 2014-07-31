@@ -4994,40 +4994,6 @@ class V8_EXPORT V8 {
       Isolate* isolate, PersistentHandleVisitor* visitor);
 
   /**
-   * Optional notification that the embedder is idle.
-   * V8 uses the notification to reduce memory footprint.
-   * This call can be used repeatedly if the embedder remains idle.
-   * Returns true if the embedder should stop calling IdleNotification
-   * until real work has been done.  This indicates that V8 has done
-   * as much cleanup as it will be able to do.
-   *
-   * The hint argument specifies the amount of work to be done in the function
-   * on scale from 1 to 1000. There is no guarantee that the actual work will
-   * match the hint.
-   *
-   * Deprecated, please use Isolate::IdleNotification.
-   */
-  static bool IdleNotification(int hint = 1000);
-
-  /**
-   * Optional notification that the system is running low on memory.
-   * V8 uses these notifications to attempt to free memory.
-   *
-   * Deprecated, please use Isolate::LowMemoryNotification.
-   */
-  static void LowMemoryNotification();
-
-  /**
-   * Optional notification that a context has been disposed. V8 uses
-   * these notifications to guide the GC heuristic. Returns the number
-   * of context disposals - including this one - since the last time
-   * V8 had a chance to clean up.
-   *
-   * Deprecated, please use Isolate::ContextDisposedNotification.
-   */
-  static int ContextDisposedNotification();
-
-  /**
    * Initialize the ICU library bundled with V8. The embedder should only
    * invoke this method when using the bundled ICU. Returns true on success.
    *

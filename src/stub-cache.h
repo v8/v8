@@ -374,13 +374,15 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 
  protected:
   PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind,
+                          Handle<HeapType> type, Handle<JSObject> holder,
                           CacheHolderFlag cache_holder)
-      : PropertyAccessCompiler(isolate, kind, cache_holder) {}
+      : PropertyAccessCompiler(isolate, kind, cache_holder),
+        type_(type),
+        holder_(holder) {}
 
   virtual ~PropertyHandlerCompiler() {}
 
-  virtual Register FrontendHeader(Handle<HeapType> type, Register object_reg,
-                                  Handle<JSObject> holder, Handle<Name> name,
+  virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
                                   Label* miss) {
     UNREACHABLE();
     return receiver();
@@ -388,8 +390,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss) { UNREACHABLE(); }
 
-  Register Frontend(Handle<HeapType> type, Register object_reg,
-                    Handle<JSObject> holder, Handle<Name> name);
+  Register Frontend(Register object_reg, Handle<Name> name);
 
   // TODO(verwaest): Make non-static.
   static void GenerateFastApiCall(MacroAssembler* masm,
@@ -431,66 +432,57 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   // register is only clobbered if it the same as the holder register. The
   // function returns a register containing the holder - either object_reg or
   // holder_reg.
-  Register CheckPrototypes(Handle<HeapType> type,
-                           Register object_reg,
-                           Handle<JSObject> holder,
-                           Register holder_reg,
-                           Register scratch1,
-                           Register scratch2,
-                           Handle<Name> name,
-                           Label* miss,
+  Register CheckPrototypes(Register object_reg, Register holder_reg,
+                           Register scratch1, Register scratch2,
+                           Handle<Name> name, Label* miss,
                            PrototypeCheckType check = CHECK_ALL_MAPS);
 
   Handle<Code> GetCode(Code::Kind kind, Code::StubType type, Handle<Name> name);
+  void set_type_for_object(Handle<Object> object) {
+    type_ = IC::CurrentTypeOf(object, isolate());
+  }
+  void set_holder(Handle<JSObject> holder) { holder_ = holder; }
+  Handle<HeapType> type() const { return type_; }
+  Handle<JSObject> holder() const { return holder_; }
+
+ private:
+  Handle<HeapType> type_;
+  Handle<JSObject> holder_;
 };
 
 
 class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  NamedLoadHandlerCompiler(Isolate* isolate,
-                           CacheHolderFlag cache_holder = kCacheOnReceiver)
-      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, cache_holder) {}
+  NamedLoadHandlerCompiler(Isolate* isolate, Handle<HeapType> type,
+                           Handle<JSObject> holder,
+                           CacheHolderFlag cache_holder)
+      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, type, holder,
+                                cache_holder) {}
 
   virtual ~NamedLoadHandlerCompiler() {}
 
-  Handle<Code> CompileLoadField(Handle<HeapType> type,
-                                Handle<JSObject> holder,
-                                Handle<Name> name,
-                                FieldIndex index,
+  Handle<Code> CompileLoadField(Handle<Name> name, FieldIndex index,
                                 Representation representation);
 
-  Handle<Code> CompileLoadCallback(Handle<HeapType> type,
-                                   Handle<JSObject> holder,
-                                   Handle<Name> name,
+  Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    Handle<ExecutableAccessorInfo> callback);
 
-  Handle<Code> CompileLoadCallback(Handle<HeapType> type,
-                                   Handle<JSObject> holder,
-                                   Handle<Name> name,
+  Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    const CallOptimization& call_optimization);
 
-  Handle<Code> CompileLoadConstant(Handle<HeapType> type,
-                                   Handle<JSObject> holder,
-                                   Handle<Name> name,
-                                   Handle<Object> value);
+  Handle<Code> CompileLoadConstant(Handle<Name> name, Handle<Object> value);
 
-  Handle<Code> CompileLoadInterceptor(Handle<HeapType> type,
-                                      Handle<JSObject> holder,
-                                      Handle<Name> name);
+  Handle<Code> CompileLoadInterceptor(Handle<Name> name);
 
-  Handle<Code> CompileLoadViaGetter(Handle<HeapType> type,
-                                    Handle<JSObject> holder,
-                                    Handle<Name> name,
+  Handle<Code> CompileLoadViaGetter(Handle<Name> name,
                                     Handle<JSFunction> getter);
 
+  Handle<Code> CompileLoadGlobal(Handle<PropertyCell> cell, Handle<Name> name,
+                                 bool is_dont_delete);
+
+  // Static interface
   static Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
                                              Handle<HeapType> type);
-
-  Handle<Code> CompileLoadGlobal(Handle<HeapType> type,
-                                 Handle<GlobalObject> holder,
-                                 Handle<PropertyCell> cell,
-                                 Handle<Name> name,
-                                 bool is_dont_delete);
 
   static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<HeapType> type,
                                     Register receiver,
@@ -518,23 +510,18 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   static const int kInterceptorArgsLength = 4;
 
  protected:
-  virtual Register FrontendHeader(Handle<HeapType> type, Register object_reg,
-                                  Handle<JSObject> holder, Handle<Name> name,
+  virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
                                   Label* miss);
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
 
  private:
-  Register CallbackFrontend(Handle<HeapType> type, Register object_reg,
-                            Handle<JSObject> holder, Handle<Name> name,
+  Register CallbackFrontend(Register object_reg, Handle<Name> name,
                             Handle<Object> callback);
-  Handle<Code> CompileLoadNonexistent(Handle<HeapType> type,
-                                      Handle<JSObject> last, Handle<Name> name);
-  void NonexistentFrontend(Handle<HeapType> type, Handle<JSObject> last,
-                           Handle<Name> name);
+  Handle<Code> CompileLoadNonexistent(Handle<Name> name);
+  void NonexistentFrontend(Handle<Name> name);
 
   void GenerateLoadField(Register reg,
-                         Handle<JSObject> holder,
                          FieldIndex field,
                          Representation representation);
   void GenerateLoadConstant(Handle<Object> value);
@@ -543,12 +530,9 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   void GenerateLoadCallback(const CallOptimization& call_optimization,
                             Handle<Map> receiver_map);
   void GenerateLoadInterceptor(Register holder_reg,
-                               Handle<Object> object,
-                               Handle<JSObject> holder,
                                LookupResult* lookup,
                                Handle<Name> name);
   void GenerateLoadPostInterceptor(Register reg,
-                                   Handle<JSObject> interceptor_holder,
                                    Handle<Name> name,
                                    LookupResult* lookup);
 
@@ -570,38 +554,31 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
 class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  explicit NamedStoreHandlerCompiler(Isolate* isolate)
-      : PropertyHandlerCompiler(isolate, Code::STORE_IC, kCacheOnReceiver) {}
+  explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<HeapType> type,
+                                     Handle<JSObject> holder)
+      : PropertyHandlerCompiler(isolate, Code::STORE_IC, type, holder,
+                                kCacheOnReceiver) {}
 
   virtual ~NamedStoreHandlerCompiler() {}
 
-  Handle<Code> CompileStoreTransition(Handle<JSObject> object,
-                                      LookupResult* lookup,
+  Handle<Code> CompileStoreTransition(LookupResult* lookup,
                                       Handle<Map> transition,
                                       Handle<Name> name);
 
-  Handle<Code> CompileStoreField(Handle<JSObject> object,
-                                 LookupResult* lookup,
-                                 Handle<Name> name);
+  Handle<Code> CompileStoreField(LookupResult* lookup, Handle<Name> name);
 
-  Handle<Code> CompileStoreArrayLength(Handle<JSObject> object,
-                                       LookupResult* lookup,
-                                       Handle<Name> name);
+  Handle<Code> CompileStoreArrayLength(LookupResult* lookup, Handle<Name> name);
 
-  Handle<Code> CompileStoreCallback(Handle<JSObject> object,
-                                    Handle<JSObject> holder, Handle<Name> name,
+  Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<ExecutableAccessorInfo> callback);
 
-  Handle<Code> CompileStoreCallback(Handle<JSObject> object,
-                                    Handle<JSObject> holder, Handle<Name> name,
+  Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization);
 
-  Handle<Code> CompileStoreViaSetter(Handle<JSObject> object,
-                                     Handle<JSObject> holder, Handle<Name> name,
+  Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
                                      Handle<JSFunction> setter);
 
-  Handle<Code> CompileStoreInterceptor(Handle<JSObject> object,
-                                       Handle<Name> name);
+  Handle<Code> CompileStoreInterceptor(Handle<Name> name);
 
 
   static void GenerateStoreViaSetter(MacroAssembler* masm,
@@ -614,8 +591,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   }
 
  protected:
-  virtual Register FrontendHeader(Handle<HeapType> type, Register object_reg,
-                                  Handle<JSObject> holder, Handle<Name> name,
+  virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
                                   Label* miss);
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
@@ -632,7 +608,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                     Label* miss);
 
   void GenerateStoreTransition(MacroAssembler* masm,
-                               Handle<JSObject> object,
                                LookupResult* lookup,
                                Handle<Map> transition,
                                Handle<Name> name,
@@ -672,7 +647,8 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
  public:
   explicit ElementHandlerCompiler(Isolate* isolate)
       : PropertyHandlerCompiler(isolate, Code::KEYED_LOAD_IC,
-                                kCacheOnReceiver) {}
+                                Handle<HeapType>::null(),
+                                Handle<JSObject>::null(), kCacheOnReceiver) {}
 
   virtual ~ElementHandlerCompiler() {}
 

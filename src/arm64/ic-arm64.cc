@@ -532,21 +532,6 @@ const Register StoreIC::NameRegister() { return x2; }
 const Register StoreIC::ValueRegister() { return x0; }
 
 
-const Register KeyedStoreIC::ReceiverRegister() {
-  return StoreIC::ReceiverRegister();
-}
-
-
-const Register KeyedStoreIC::NameRegister() {
-  return StoreIC::NameRegister();
-}
-
-
-const Register KeyedStoreIC::ValueRegister() {
-  return StoreIC::ValueRegister();
-}
-
-
 const Register KeyedStoreIC::MapRegister() {
   return x3;
 }
