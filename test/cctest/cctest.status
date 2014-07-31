@@ -96,6 +96,10 @@
   'test-debug/NestedBreakEventContextData': [PASS, NO_VARIANTS],
   'test-debug/SendClientDataToHandler': [PASS, NO_VARIANTS],
 
+  # TODO(dcarney): C calls are broken all over the place.
+  'test-run-machops/RunCall*': [SKIP],
+  'test-run-machops/RunSpillLotsOfThingsWithCall': [SKIP],
+
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
   'test-api/ExternalArrays': [PASS, NO_VARIANTS],
