@@ -450,7 +450,7 @@ OStream& operator<<(OStream& os, const InstructionSequence& code) {
       os << "\n";
     }
 
-    Vector<char> buf = Vector<char>::New(32);
+    ScopedVector<char> buf(32);
     for (int j = block->first_instruction_index();
          j <= block->last_instruction_index(); j++) {
       // TODO(svenpanne) Add some basic formatting to our streams.
