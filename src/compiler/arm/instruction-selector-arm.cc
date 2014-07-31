@@ -418,7 +418,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
     uint32_t value = m.right().Value();
     uint32_t width = CompilerIntrinsics::CountSetBits(value);
     uint32_t msb = CompilerIntrinsics::CountLeadingZeros(value);
-    if (msb + width == 32) {
+    if (width != 0 && msb + width == 32) {
       ASSERT_EQ(0, CompilerIntrinsics::CountTrailingZeros(value));
       if (m.left().IsWord32Shr()) {
         Int32BinopMatcher mleft(m.left().node());
