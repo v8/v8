@@ -2511,7 +2511,9 @@ static void RunLoadImmIndex(MachineRepresentation rep) {
       Node* index = m.Int32Constant((offset + i) * sizeof(buffer[0]));
       m.Return(m.Load(rep, base, index));
 
-      CHECK_EQ(static_cast<Type>(buffer[i]), m.Call());
+      Type expected = buffer[i];
+      Type actual = static_cast<CType>(m.Call());
+      CHECK_EQ(expected, actual);
       printf("XXX\n");
     }
   }
