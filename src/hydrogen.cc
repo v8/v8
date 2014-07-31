@@ -2405,6 +2405,9 @@ HInstruction* HGraphBuilder::BuildUncheckedMonomorphicElementAccess(
 
   if (IsGrowStoreMode(store_mode)) {
     NoObservableSideEffectsScope no_effects(this);
+    Representation representation = HStoreKeyed::RequiredValueRepresentation(
+        elements_kind, STORE_TO_INITIALIZED_ENTRY);
+    val = AddUncasted<HForceRepresentation>(val, representation);
     elements = BuildCheckForCapacityGrow(checked_object, elements,
                                          elements_kind, length, key,
                                          is_js_array, access_type);
@@ -2601,9 +2604,7 @@ HInstruction* HGraphBuilder::AddElementAccess(
       val = Add<HClampToUint8>(val);
     }
     return Add<HStoreKeyed>(elements, checked_key, val, elements_kind,
-                            elements_kind == FAST_SMI_ELEMENTS
-                              ? STORE_TO_INITIALIZED_ENTRY
-                              : INITIALIZING_STORE);
+                            STORE_TO_INITIALIZED_ENTRY);
   }
 
   ASSERT(access_type == LOAD);
