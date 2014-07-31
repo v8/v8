@@ -6182,13 +6182,14 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 
 uint32_t Code::stub_key() {
   ASSERT(IsCodeStubOrIC());
-  return Smi::cast(raw_type_feedback_info())->value() - Smi::kMinValue;
+  Smi* smi_key = Smi::cast(raw_type_feedback_info());
+  return static_cast<uint32_t>(smi_key->value());
 }
 
 
 void Code::set_stub_key(uint32_t key) {
   ASSERT(IsCodeStubOrIC());
-  set_raw_type_feedback_info(Smi::FromInt(key + Smi::kMinValue));
+  set_raw_type_feedback_info(Smi::FromInt(key));
 }
 
 

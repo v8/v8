@@ -1617,7 +1617,9 @@ class RegExpConstructResultStub V8_FINAL : public HydrogenCodeStub {
 class CallFunctionStub: public PlatformCodeStub {
  public:
   CallFunctionStub(Isolate* isolate, int argc, CallFunctionFlags flags)
-      : PlatformCodeStub(isolate), argc_(argc), flags_(flags) { }
+      : PlatformCodeStub(isolate), argc_(argc), flags_(flags) {
+    ASSERT(argc <= Code::kMaxArguments);
+  }
 
   void Generate(MacroAssembler* masm);
 
@@ -1636,7 +1638,9 @@ class CallFunctionStub: public PlatformCodeStub {
 
   // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
   class FlagBits: public BitField<CallFunctionFlags, 0, 2> {};
-  class ArgcBits: public BitField<unsigned, 2, 32 - 2> {};
+  class ArgcBits : public BitField<unsigned, 2, Code::kArgumentsBits> {};
+
+  STATIC_ASSERT(Code::kArgumentsBits + 2 <= kStubMinorKeyBits);
 
   Major MajorKey() const { return CallFunction; }
   int MinorKey() const {

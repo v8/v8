@@ -305,8 +305,10 @@ static const ExtraICState kNoExtraICState = 0;
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
 
+// We may store the unsigned bit field as signed Smi value and do not
+// use the sign bit.
 const int kStubMajorKeyBits = 7;
-const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
+const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 
 // All Maps have a field instance_type containing a InstanceType.
 // It describes the type of the instances.
