@@ -2492,7 +2492,7 @@ TEST(RunDeadInt32Binops) {
 }
 
 
-template <typename CType>
+template <typename Type, typename CType>
 static void RunLoadImmIndex(MachineRepresentation rep) {
   const int kNumElems = 3;
   CType buffer[kNumElems];
@@ -2506,12 +2506,12 @@ static void RunLoadImmIndex(MachineRepresentation rep) {
   // Test with various large and small offsets.
   for (int offset = -1; offset <= 200000; offset *= -5) {
     for (int i = 0; i < kNumElems; i++) {
-      RawMachineAssemblerTester<CType> m;
+      RawMachineAssemblerTester<Type> m;
       Node* base = m.PointerConstant(buffer - offset);
       Node* index = m.Int32Constant((offset + i) * sizeof(buffer[0]));
       m.Return(m.Load(rep, base, index));
 
-      CHECK_EQ(buffer[i], m.Call());
+      CHECK_EQ(static_cast<Type>(buffer[i]), m.Call());
       printf("XXX\n");
     }
   }
@@ -2519,10 +2519,10 @@ static void RunLoadImmIndex(MachineRepresentation rep) {
 
 
 TEST(RunLoadImmIndex) {
-  RunLoadImmIndex<int8_t>(kMachineWord8);
-  RunLoadImmIndex<int16_t>(kMachineWord16);
-  RunLoadImmIndex<int32_t>(kMachineWord32);
-  RunLoadImmIndex<int32_t*>(kMachineTagged);
+  RunLoadImmIndex<int8_t, uint8_t>(kMachineWord8);
+  RunLoadImmIndex<int16_t, uint16_t>(kMachineWord16);
+  RunLoadImmIndex<int32_t, uint32_t>(kMachineWord32);
+  RunLoadImmIndex<int32_t*, int32_t*>(kMachineTagged);
 
   // TODO(titzer): test kMachineFloat64 loads
   // TODO(titzer): test various indexing modes.
