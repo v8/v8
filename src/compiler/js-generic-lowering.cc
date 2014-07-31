@@ -370,9 +370,18 @@ Node* JSGenericLowering::LowerJSInstanceOf(Node* node) {
 
 Node* JSGenericLowering::LowerJSLoadContext(Node* node) {
   ContextAccess access = OpParameter<ContextAccess>(node);
-  PatchInsertInput(node, 1, SmiConstant(access.depth()));
-  PatchInsertInput(node, 2, SmiConstant(access.index()));
-  ReplaceWithRuntimeCall(node, Runtime::kLoadContextRelative, 3);
+  // TODO(mstarzinger): Use simplified operators instead of machine operators
+  // here so that load/store optimization can be applied afterwards.
+  for (int i = 0; i < access.depth(); ++i) {
+    node->ReplaceInput(
+        0, graph()->NewNode(
+               machine()->Load(kMachineTagged),
+               NodeProperties::GetValueInput(node, 0),
+               Int32Constant(Context::SlotOffset(Context::PREVIOUS_INDEX)),
+               NodeProperties::GetEffectInput(node)));
+  }
+  node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
+  PatchOperator(node, machine()->Load(kMachineTagged));
   return node;
 }
 

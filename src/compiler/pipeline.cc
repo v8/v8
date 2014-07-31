@@ -177,6 +177,8 @@ Handle<Code> Pipeline::GenerateCode() {
     MachineOperatorBuilder machine(zone());
     JSGenericLowering lowering(info(), &jsgraph, &machine, &source_positions);
     lowering.LowerAllNodes();
+
+    VerifyAndPrintGraph(&graph, "Lowered generic");
   }
 
   // Compute a schedule.

@@ -9408,20 +9408,6 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_LoadContextRelative) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 3);
-  CONVERT_ARG_CHECKED(Context, context, 0);
-  CONVERT_SMI_ARG_CHECKED(depth, 1);
-  CONVERT_SMI_ARG_CHECKED(index, 2);
-  while (depth-- > 0) {
-    context = context->previous();
-    ASSERT(context->IsContext());
-  }
-  return context->get(index);
-}
-
-
 RUNTIME_FUNCTION(Runtime_StoreContextRelative) {
   SealHandleScope shs(isolate);
   ASSERT(args.length() == 4);

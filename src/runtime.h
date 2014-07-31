@@ -479,7 +479,6 @@ namespace internal {
   F(PushModuleContext, 2, 1)                                         \
   F(DeleteLookupSlot, 2, 1)                                          \
   F(LoadLookupSlot, 2, 2)                                            \
-  F(LoadContextRelative, 3, 1) /* TODO(turbofan): Only temporary */  \
   F(LoadLookupSlotNoReferenceError, 2, 2)                            \
   F(StoreLookupSlot, 4, 1)                                           \
   F(StoreContextRelative, 4, 1) /* TODO(turbofan): Only temporary */ \
