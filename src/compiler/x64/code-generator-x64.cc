@@ -496,6 +496,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64ToUint32: {
       // TODO(turbofan): X64 SSE cvttsd2siq should support operands.
       __ cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+      __ andl(i.OutputRegister(), i.OutputRegister());  // clear upper bits.
+      // TODO(turbofan): generated code should not look at the upper 32 bits
+      // of the result, but those bits could escape to the outside world.
       break;
     }
     case kSSEInt32ToFloat64: {
