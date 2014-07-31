@@ -14,6 +14,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#ifndef _WIN64
+
 #ifdef _WIN64
 const bool kWin64 = true;
 #else
@@ -76,6 +78,8 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   return LinkageHelper::GetSimplifiedCDescriptor<LinkageHelperTraits>(
       zone, num_params, return_type, param_types);
 }
+
+#endif
 }
 }
 }  // namespace v8::internal::compiler
