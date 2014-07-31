@@ -260,22 +260,23 @@ static void CheckToI32(Node* old_input, Node* new_input, bool is_signed) {
 class JSBitwiseShiftTypedLoweringTester : public JSTypedLoweringTester {
  public:
   static const int kNumberOps = 6;
-  Operator** ops;
-  bool* signedness;
+  Operator* ops[kNumberOps];
+  bool signedness[kNumberOps];
 
   JSBitwiseShiftTypedLoweringTester() {
-    Operator* o[] = {javascript.ShiftLeft(),         machine.Word32Shl(),
-                     javascript.ShiftRight(),        machine.Word32Sar(),
-                     javascript.ShiftRightLogical(), machine.Word32Shr()};
+    int i = 0;
+    set(i++, javascript.ShiftLeft(), true);
+    set(i++, machine.Word32Shl(), false);
+    set(i++, javascript.ShiftRight(), true);
+    set(i++, machine.Word32Sar(), false);
+    set(i++, javascript.ShiftRightLogical(), false);
+    set(i++, machine.Word32Shr(), false);
+  }
 
-    ops = static_cast<Operator**>(malloc(sizeof(o)));
-    memcpy(ops, o, sizeof(o));
-
-    // Expected signedness of left and right conversions above.
-    bool s[] = {true, false, true, false, false, false};
-
-    signedness = static_cast<bool*>(malloc(sizeof(s)));
-    memcpy(signedness, s, sizeof(s));
+ private:
+  void set(int idx, Operator* op, bool s) {
+    ops[idx] = op;
+    signedness[idx] = s;
   }
 };
 
@@ -319,22 +320,23 @@ TEST(Int32BitwiseShifts) {
 class JSBitwiseTypedLoweringTester : public JSTypedLoweringTester {
  public:
   static const int kNumberOps = 6;
-  Operator** ops;
-  bool* signedness;
+  Operator* ops[kNumberOps];
+  bool signedness[kNumberOps];
 
   JSBitwiseTypedLoweringTester() {
-    Operator* o[] = {javascript.BitwiseOr(),  machine.Word32Or(),
-                     javascript.BitwiseXor(), machine.Word32Xor(),
-                     javascript.BitwiseAnd(), machine.Word32And()};
+    int i = 0;
+    set(i++, javascript.BitwiseOr(), true);
+    set(i++, machine.Word32Or(), true);
+    set(i++, javascript.BitwiseXor(), true);
+    set(i++, machine.Word32Xor(), true);
+    set(i++, javascript.BitwiseAnd(), true);
+    set(i++, machine.Word32And(), true);
+  }
 
-    ops = static_cast<Operator**>(malloc(sizeof(o)));
-    memcpy(ops, o, sizeof(o));
-
-    // Expected signedness of left and right conversions above.
-    bool s[] = {true, true, true, true, true, true};
-
-    signedness = static_cast<bool*>(malloc(sizeof(s)));
-    memcpy(signedness, s, sizeof(s));
+ private:
+  void set(int idx, Operator* op, bool s) {
+    ops[idx] = op;
+    signedness[idx] = s;
   }
 };
 

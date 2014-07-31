@@ -35,6 +35,8 @@ class InstructionTester : public HandleAndZoneScope {
         machine(zone(), kMachineWord32),
         code(NULL) {}
 
+  ~InstructionTester() { delete code; }
+
   Isolate* isolate;
   Graph graph;
   Schedule schedule;
