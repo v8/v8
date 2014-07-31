@@ -558,8 +558,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitConvertInt64ToInt32(node);
     case IrOpcode::kConvertInt32ToFloat64:
       return MarkAsDouble(node), VisitConvertInt32ToFloat64(node);
+    case IrOpcode::kConvertUint32ToFloat64:
+      return MarkAsDouble(node), VisitConvertUint32ToFloat64(node);
     case IrOpcode::kConvertFloat64ToInt32:
       return VisitConvertFloat64ToInt32(node);
+    case IrOpcode::kConvertFloat64ToUint32:
+      return VisitConvertFloat64ToUint32(node);
     case IrOpcode::kFloat64Add:
       return MarkAsDouble(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:

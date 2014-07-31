@@ -2888,7 +2888,21 @@ TEST(RunConvertInt32ToFloat64_B) {
 }
 
 
-// TODO(titzer): Test ConvertUint32ToFloat64
+TEST(RunConvertUint32ToFloat64_B) {
+  RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+  double output = 0;
+
+  Node* convert = m.ConvertUint32ToFloat64(m.Parameter(0));
+  m.Store(kMachineFloat64, m.PointerConstant(&output), m.Int32Constant(0),
+          convert);
+  m.Return(m.Parameter(0));
+
+  FOR_UINT32_INPUTS(i) {
+    uint32_t expect = *i;
+    CHECK_EQ(expect, m.Call(expect));
+    CHECK_EQ(static_cast<double>(expect), output);
+  }
+}
 
 
 TEST(RunConvertFloat64ToInt32_A) {
@@ -2921,49 +2935,73 @@ TEST(RunConvertFloat64ToInt32_B) {
   {
     FOR_INT32_INPUTS(i) {
       input = *i;
-      int expect = *i;
+      int32_t expect = *i;
       CHECK_EQ(expect, m.Call());
       CHECK_EQ(expect, output);
     }
   }
 
-  {
-    FOR_FLOAT64_INPUTS(i) {
-      input = *i;
-      // TODO(titzer): float64 -> int32 outside of the int32 range; the machine
-      // backends are all wrong in different ways, and they certainly don't
-      // implement the JavaScript conversions correctly.
-      if (std::isnan(input) || input > INT_MAX || input < INT_MIN) {
-        continue;
-      }
-      int32_t expect = static_cast<int32_t>(input);
+  // Check various powers of 2.
+  for (int32_t n = 1; n < 31; ++n) {
+    {
+      input = 1 << n;
+      int32_t expect = input;
+      CHECK_EQ(expect, m.Call());
+      CHECK_EQ(expect, output);
+    }
+
+    {
+      input = 3 << n;
+      int32_t expect = input;
       CHECK_EQ(expect, m.Call());
       CHECK_EQ(expect, output);
     }
   }
+  // Note we don't check fractional inputs, because these Convert operators
+  // really should be Change operators.
 }
 
 
-// TODO(titzer): test ConvertFloat64ToUint32
-
-
-TEST(RunConvertFloat64ToInt32_truncation) {
+TEST(RunConvertFloat64ToUint32_B) {
   RawMachineAssemblerTester<int32_t> m;
-  int32_t magic = 0x786234;
-  double input = 3.9;
-  int32_t result = 0;
+  double input = 0;
+  int32_t output = 0;
 
-  Node* input_node =
+  Node* load =
       m.Load(kMachineFloat64, m.PointerConstant(&input), m.Int32Constant(0));
-  m.Store(kMachineWord32, m.PointerConstant(&result), m.Int32Constant(0),
-          m.ConvertFloat64ToInt32(input_node));
-  m.Return(m.Int32Constant(magic));
+  Node* convert = m.ConvertFloat64ToUint32(load);
+  m.Store(kMachineWord32, m.PointerConstant(&output), m.Int32Constant(0),
+          convert);
+  m.Return(convert);
 
-  for (int i = -200; i < 200; i++) {
-    input = i + (i < 0 ? -0.9 : 0.9);
-    CHECK_EQ(magic, m.Call());
-    CHECK_EQ(i, result);
+  {
+    FOR_UINT32_INPUTS(i) {
+      input = *i;
+      // TODO(titzer): add a CheckEqualsHelper overload for uint32_t.
+      int32_t expect = static_cast<int32_t>(*i);
+      CHECK_EQ(expect, m.Call());
+      CHECK_EQ(expect, output);
+    }
   }
+
+  // Check various powers of 2.
+  for (int32_t n = 1; n < 31; ++n) {
+    {
+      input = 1u << n;
+      int32_t expect = static_cast<int32_t>(static_cast<uint32_t>(input));
+      CHECK_EQ(expect, m.Call());
+      CHECK_EQ(expect, output);
+    }
+
+    {
+      input = 3u << n;
+      int32_t expect = static_cast<int32_t>(static_cast<uint32_t>(input));
+      CHECK_EQ(expect, m.Call());
+      CHECK_EQ(expect, output);
+    }
+  }
+  // Note we don't check fractional inputs, because these Convert operators
+  // really should be Change operators.
 }
 
 

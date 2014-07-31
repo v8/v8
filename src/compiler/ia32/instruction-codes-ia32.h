@@ -39,7 +39,9 @@ namespace compiler {
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
   V(SSEFloat64ToInt32)             \
+  V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
+  V(SSEUint32ToFloat64)            \
   V(SSELoad)                       \
   V(SSEStore)                      \
   V(IA32LoadWord8)                 \

@@ -326,9 +326,25 @@ void InstructionSelector::VisitConvertInt32ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
+  IA32OperandGenerator g(this);
+  // TODO(turbofan): IA32 SSE LoadUint32() should take an operand.
+  Emit(kSSEUint32ToFloat64, g.DefineAsDoubleRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitConvertFloat64ToInt32(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEFloat64ToInt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitConvertFloat64ToUint32(Node* node) {
+  IA32OperandGenerator g(this);
+  // TODO(turbofan): IA32 SSE subsd() should take an operand.
+  Emit(kSSEFloat64ToUint32, g.DefineAsRegister(node),
+       g.UseDoubleRegister(node->InputAt(0)));
 }
 
 

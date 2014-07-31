@@ -378,8 +378,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Float64ToInt32:
       __ Fcvtzs(i.OutputRegister32(), i.InputDoubleRegister(0));
       break;
+    case kArm64Float64ToUint32:
+      __ Fcvtzu(i.OutputRegister32(), i.InputDoubleRegister(0));
+      break;
     case kArm64Int32ToFloat64:
       __ Scvtf(i.OutputDoubleRegister(), i.InputRegister32(0));
+      break;
+    case kArm64Uint32ToFloat64:
+      __ Ucvtf(i.OutputDoubleRegister(), i.InputRegister32(0));
       break;
     case kArm64LoadWord8:
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());

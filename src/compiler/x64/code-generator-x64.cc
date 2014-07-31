@@ -493,6 +493,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kSSEFloat64ToUint32: {
+      // TODO(turbofan): X64 SSE cvttsd2siq should support operands.
+      __ cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
+    }
     case kSSEInt32ToFloat64: {
       RegisterOrOperand input = i.InputRegisterOrOperand(0);
       if (input.type == kRegister) {
@@ -502,6 +507,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kSSEUint32ToFloat64: {
+      // TODO(turbofan): X64 SSE cvtqsi2sd should support operands.
+      __ cvtqsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
+      break;
+    }
+
     case kSSELoad:
       __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());
       break;

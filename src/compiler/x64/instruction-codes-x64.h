@@ -57,7 +57,9 @@ namespace compiler {
   V(X64Int32ToInt64)               \
   V(X64Int64ToInt32)               \
   V(SSEFloat64ToInt32)             \
+  V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
+  V(SSEUint32ToFloat64)            \
   V(SSELoad)                       \
   V(SSEStore)                      \
   V(X64LoadWord8)                  \

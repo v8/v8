@@ -63,7 +63,9 @@ namespace compiler {
   V(Arm64Int32ToInt64)             \
   V(Arm64Int64ToInt32)             \
   V(Arm64Float64ToInt32)           \
+  V(Arm64Float64ToUint32)          \
   V(Arm64Int32ToFloat64)           \
+  V(Arm64Uint32ToFloat64)          \
   V(Arm64Float64Load)              \
   V(Arm64Float64Store)             \
   V(Arm64LoadWord8)                \

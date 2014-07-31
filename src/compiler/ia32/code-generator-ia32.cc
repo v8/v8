@@ -315,8 +315,21 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64ToInt32:
       __ cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       break;
+    case kSSEFloat64ToUint32: {
+      XMMRegister scratch = xmm0;
+      __ Move(scratch, -2147483648.0);
+      // TODO(turbofan): IA32 SSE subsd() should take an operand.
+      __ addsd(scratch, i.InputDoubleRegister(0));
+      __ cvttsd2si(i.OutputRegister(), scratch);
+      __ add(i.OutputRegister(), Immediate(0x80000000));
+      break;
+    }
     case kSSEInt32ToFloat64:
       __ cvtsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
+      break;
+    case kSSEUint32ToFloat64:
+      // TODO(turbofan): IA32 SSE LoadUint32() should take an operand.
+      __ LoadUint32(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     case kSSELoad:
       __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());

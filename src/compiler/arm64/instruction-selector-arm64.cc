@@ -395,9 +395,23 @@ void InstructionSelector::VisitConvertInt32ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64Uint32ToFloat64, g.DefineAsDoubleRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitConvertFloat64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Float64ToInt32, g.DefineAsRegister(node),
+       g.UseDoubleRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitConvertFloat64ToUint32(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64Float64ToUint32, g.DefineAsRegister(node),
        g.UseDoubleRegister(node->InputAt(0)));
 }
 

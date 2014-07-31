@@ -450,9 +450,25 @@ void InstructionSelector::VisitConvertInt32ToFloat64(Node* node) {
 }
 
 
+void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
+  X64OperandGenerator g(this);
+  // TODO(turbofan): X64 SSE cvtqsi2sd should support operands.
+  Emit(kSSEUint32ToFloat64, g.DefineAsDoubleRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitConvertFloat64ToInt32(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64ToInt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitConvertFloat64ToUint32(Node* node) {
+  X64OperandGenerator g(this);
+  // TODO(turbofan): X64 SSE cvttsd2siq should support operands.
+  Emit(kSSEFloat64ToUint32, g.DefineAsRegister(node),
+       g.UseDoubleRegister(node->InputAt(0)));
 }
 
 
