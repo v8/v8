@@ -7,6 +7,7 @@
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
+#include "src/compiler/pipeline.h"
 
 namespace v8 {
 namespace internal {
@@ -587,6 +588,8 @@ void InstructionSelector::VisitNode(Node* node) {
 }
 
 
+#if V8_TURBOFAN_TARGET
+
 void InstructionSelector::VisitWord32Equal(Node* node) {
   FlagsContinuation cont(kEqual, node);
   Int32BinopMatcher m(node);
@@ -660,9 +663,10 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
   VisitFloat64Compare(node, &cont);
 }
 
+#endif  // V8_TURBOFAN_TARGET
 
 // 32 bit targets do not implement the following instructions.
-#if V8_TARGET_ARCH_32_BIT
+#if V8_TARGET_ARCH_32_BIT && V8_TURBOFAN_TARGET
 
 void InstructionSelector::VisitWord64And(Node* node) { UNIMPLEMENTED(); }
 
@@ -712,6 +716,12 @@ void InstructionSelector::VisitConvertInt32ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 
+#endif  // V8_TARGET_ARCH_32_BIT && V8_TURBOFAN_TARGET
+
+
+// 32-bit targets and unsupported architectures need dummy implementations of
+// selected 64-bit ops.
+#if V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_TARGET
 
 void InstructionSelector::VisitWord64Test(Node* node, FlagsContinuation* cont) {
   UNIMPLEMENTED();
@@ -723,7 +733,7 @@ void InstructionSelector::VisitWord64Compare(Node* node,
   UNIMPLEMENTED();
 }
 
-#endif  // V8_TARGET_ARCH_32_BIT
+#endif  // V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_TARGET
 
 
 void InstructionSelector::VisitPhi(Node* node) {
@@ -871,6 +881,36 @@ void InstructionSelector::VisitDeoptimization(Node* deopt) {
   int deoptimization_id = sequence()->AddDeoptimizationEntry(descriptor);
   Emit(kArchDeoptimize | MiscField::encode(deoptimization_id), NULL);
 }
+
+#if !V8_TURBOFAN_TARGET
+
+#define DECLARE_UNIMPLEMENTED_SELECTOR(x) \
+  void InstructionSelector::Visit##x(Node* node) { UNIMPLEMENTED(); }
+MACHINE_OP_LIST(DECLARE_UNIMPLEMENTED_SELECTOR)
+#undef DECLARE_UNIMPLEMENTED_SELECTOR
+
+
+void InstructionSelector::VisitWord32Test(Node* node, FlagsContinuation* cont) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitWord32Compare(Node* node,
+                                             FlagsContinuation* cont) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitFloat64Compare(Node* node,
+                                              FlagsContinuation* cont) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
+                                    BasicBlock* deoptimization) {}
+
+#endif
 
 }  // namespace compiler
 }  // namespace internal

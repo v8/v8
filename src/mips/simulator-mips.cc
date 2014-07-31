@@ -16,6 +16,7 @@
 #include "src/globals.h"    // Need the BitCast.
 #include "src/mips/constants-mips.h"
 #include "src/mips/simulator-mips.h"
+#include "src/ostreams.h"
 
 
 // Only build the simulator if not compiling for real MIPS hardware.

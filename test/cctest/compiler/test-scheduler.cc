@@ -1695,6 +1695,8 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
 }
 
 
+#if V8_TURBOFAN_TARGET
+
 // So we can get a real JS function.
 static Handle<JSFunction> Compile(const char* source) {
   Isolate* isolate = CcTest::i_isolate();
@@ -1826,3 +1828,5 @@ TEST(BuildScheduleTrivialLazyDeoptCall) {
   CHECK_EQ(lazy_deopt_node, deopt_block->nodes_[0]);
   CHECK_EQ(state_node, deopt_block->nodes_[1]);
 }
+
+#endif

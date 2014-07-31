@@ -14,7 +14,8 @@
 #elif V8_TARGET_ARCH_X64
 #include "src/compiler/x64/instruction-codes-x64.h"
 #else
-#error "Unsupported target architecture."
+#define TARGET_ARCH_OPCODE_LIST(V)
+#define TARGET_ADDRESSING_MODE_LIST(V)
 #endif
 #include "src/utils.h"
 

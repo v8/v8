@@ -6,6 +6,7 @@
 
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/pipeline.h"
 
 namespace v8 {
 namespace internal {
@@ -284,6 +285,57 @@ void CodeGenerator::BuildTranslation(Instruction* instr,
   deoptimization_states_[deoptimization_id] =
       new (zone()) DeoptimizationState(translation.index());
 }
+
+
+#if !V8_TURBOFAN_TARGET
+void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
+  UNIMPLEMENTED();
+}
+
+
+void CodeGenerator::AssembleArchBranch(Instruction* instr,
+                                       FlagsCondition condition) {
+  UNIMPLEMENTED();
+}
+
+
+void CodeGenerator::AssembleArchBoolean(Instruction* instr,
+                                        FlagsCondition condition) {
+  UNIMPLEMENTED();
+}
+
+
+void CodeGenerator::AssemblePrologue() { UNIMPLEMENTED(); }
+
+
+void CodeGenerator::AssembleReturn() { UNIMPLEMENTED(); }
+
+
+void CodeGenerator::AssembleMove(InstructionOperand* source,
+                                 InstructionOperand* destination) {
+  UNIMPLEMENTED();
+}
+
+
+void CodeGenerator::AssembleSwap(InstructionOperand* source,
+                                 InstructionOperand* destination) {
+  UNIMPLEMENTED();
+}
+
+
+void CodeGenerator::AddNopForSmiCodeInlining() { UNIMPLEMENTED(); }
+
+
+#ifdef DEBUG
+bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
+                                            int end_pc) {
+  UNIMPLEMENTED();
+  return false;
+}
+#endif
+
+#endif
+
 
 }  // namespace compiler
 }  // namespace internal

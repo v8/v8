@@ -30,11 +30,11 @@ TEST(PipelineAdd) {
   CHECK_NE(NULL, info.scope());
 
   Pipeline pipeline(&info);
-  Handle<Code> code = pipeline.GenerateCode();
 #if V8_TURBOFAN_TARGET
+  Handle<Code> code = pipeline.GenerateCode();
   CHECK(Pipeline::SupportedTarget());
   CHECK(!code.is_null());
 #else
-  USE(code);
+  USE(pipeline);
 #endif
 }

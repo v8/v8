@@ -7,6 +7,8 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
+#if V8_TURBOFAN_TARGET
+
 TEST(InstructionSelectionReturnZero) {
   InstructionSelectorTester m(InstructionSelectorTester::kInternalMode);
   m.Return(m.Int32Constant(0));
@@ -16,3 +18,5 @@ TEST(InstructionSelectionReturnZero) {
   CHECK_EQ(kArchRet, m.code[1]->opcode());
   CHECK_EQ(1, static_cast<int>(m.code[1]->InputCount()));
 }
+
+#endif

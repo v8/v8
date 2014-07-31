@@ -25,6 +25,9 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
+
+#if V8_TURBOFAN_TARGET
+
 typedef RawMachineAssembler::Label MLabel;
 
 static Handle<JSFunction> NewFunction(const char* source) {
@@ -329,3 +332,5 @@ TEST(TurboTrivialRuntimeDeoptCodegenAndRun) {
   CHECK(!has_pending_exception);
   CHECK(result->SameValue(Smi::FromInt(42)));
 }
+
+#endif
