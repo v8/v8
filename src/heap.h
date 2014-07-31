@@ -1087,10 +1087,10 @@ class Heap {
   static const int kMaxOldSpaceSizeHugeMemoryDevice = 700 * kLumpOfMemory;
 
   // The executable size has to be a multiple of Page::kPageSize.
-  static const int kMaxExecutableSizeLowMemoryDevice = 128 * kLumpOfMemory;
-  static const int kMaxExecutableSizeMediumMemoryDevice = 256 * kLumpOfMemory;
-  static const int kMaxExecutableSizeHighMemoryDevice = 512 * kLumpOfMemory;
-  static const int kMaxExecutableSizeHugeMemoryDevice = 700 * kLumpOfMemory;
+  static const int kMaxExecutableSizeLowMemoryDevice = 96 * kLumpOfMemory;
+  static const int kMaxExecutableSizeMediumMemoryDevice = 192 * kLumpOfMemory;
+  static const int kMaxExecutableSizeHighMemoryDevice = 256 * kLumpOfMemory;
+  static const int kMaxExecutableSizeHugeMemoryDevice = 256 * kLumpOfMemory;
 
   intptr_t OldGenerationAllocationLimit(intptr_t old_gen_size,
                                         int freed_global_handles);
