@@ -731,10 +731,19 @@ bool Object::IsDeoptimizationInputData() const {
   // the entry size.
   int length = FixedArray::cast(this)->length();
   if (length == 0) return true;
+  if (length < DeoptimizationInputData::kFirstDeoptEntryIndex) return false;
 
-  length -= DeoptimizationInputData::kFirstDeoptEntryIndex;
-  return length >= 0 &&
-      length % DeoptimizationInputData::kDeoptEntrySize == 0;
+  FixedArray* self = FixedArray::cast(const_cast<Object*>(this));
+  int deopt_count =
+      Smi::cast(self->get(DeoptimizationInputData::kDeoptEntryCountIndex))
+          ->value();
+  int patch_count =
+      Smi::cast(
+          self->get(
+              DeoptimizationInputData::kReturnAddressPatchEntryCountIndex))
+          ->value();
+
+  return length == DeoptimizationInputData::LengthFor(deopt_count, patch_count);
 }
 
 
@@ -1079,6 +1088,12 @@ double Object::Number() {
 
 bool Object::IsNaN() const {
   return this->IsHeapNumber() && std::isnan(HeapNumber::cast(this)->value());
+}
+
+
+bool Object::IsMinusZero() const {
+  return this->IsHeapNumber() &&
+         i::IsMinusZero(HeapNumber::cast(this)->value());
 }
 
 
@@ -4703,6 +4718,21 @@ inline void Code::set_is_crankshafted(bool value) {
 }
 
 
+inline bool Code::is_turbofanned() {
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == STUB);
+  return IsTurbofannedField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+
+inline void Code::set_is_turbofanned(bool value) {
+  ASSERT(kind() == OPTIMIZED_FUNCTION || kind() == STUB);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = IsTurbofannedField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
+
 bool Code::optimizable() {
   ASSERT_EQ(FUNCTION, kind());
   return READ_BYTE_FIELD(this, kOptimizableOffset) == 1;
@@ -6152,13 +6182,14 @@ void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
 
 uint32_t Code::stub_key() {
   ASSERT(IsCodeStubOrIC());
-  return Smi::cast(raw_type_feedback_info())->value() - Smi::kMinValue;
+  Smi* smi_key = Smi::cast(raw_type_feedback_info());
+  return static_cast<uint32_t>(smi_key->value());
 }
 
 
 void Code::set_stub_key(uint32_t key) {
   ASSERT(IsCodeStubOrIC());
-  set_raw_type_feedback_info(Smi::FromInt(key + Smi::kMinValue));
+  set_raw_type_feedback_info(Smi::FromInt(key));
 }
 
 

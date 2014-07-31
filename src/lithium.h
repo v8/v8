@@ -22,7 +22,6 @@ namespace internal {
   V(Register,        REGISTER,          16)   \
   V(DoubleRegister,  DOUBLE_REGISTER,   16)
 
-
 class LOperand : public ZoneObject {
  public:
   enum Kind {
@@ -49,6 +48,7 @@ class LOperand : public ZoneObject {
 
   void PrintTo(StringStream* stream);
   void ConvertTo(Kind kind, int index) {
+    if (kind == REGISTER) ASSERT(index >= 0);
     value_ = KindField::encode(kind);
     value_ |= index << kKindFieldWidth;
     ASSERT(this->index() == index);
@@ -278,9 +278,10 @@ class LMoveOperands V8_FINAL BASE_EMBEDDED {
   }
 
   // A move is redundant if it's been eliminated, if its source and
-  // destination are the same, or if its destination is unneeded.
+  // destination are the same, or if its destination is unneeded or constant.
   bool IsRedundant() const {
-    return IsEliminated() || source_->Equals(destination_) || IsIgnored();
+    return IsEliminated() || source_->Equals(destination_) || IsIgnored() ||
+           (destination_ != NULL && destination_->IsConstantOperand());
   }
 
   bool IsIgnored() const {
@@ -341,9 +342,7 @@ class LParallelMove V8_FINAL : public ZoneObject {
 
   bool IsRedundant() const;
 
-  const ZoneList<LMoveOperands>* move_operands() const {
-    return &move_operands_;
-  }
+  ZoneList<LMoveOperands>* move_operands() { return &move_operands_; }
 
   void PrintDataTo(StringStream* stream) const;
 
@@ -747,6 +746,61 @@ class LPhase : public CompilationPhase {
 };
 
 
+// A register-allocator view of a Lithium instruction. It contains the id of
+// the output operand and a list of input operand uses.
+
+enum RegisterKind {
+  UNALLOCATED_REGISTERS,
+  GENERAL_REGISTERS,
+  DOUBLE_REGISTERS
+};
+
+// Iterator for non-null temp operands.
+class TempIterator BASE_EMBEDDED {
+ public:
+  inline explicit TempIterator(LInstruction* instr);
+  inline bool Done();
+  inline LOperand* Current();
+  inline void Advance();
+
+ private:
+  inline void SkipUninteresting();
+  LInstruction* instr_;
+  int limit_;
+  int current_;
+};
+
+
+// Iterator for non-constant input operands.
+class InputIterator BASE_EMBEDDED {
+ public:
+  inline explicit InputIterator(LInstruction* instr);
+  inline bool Done();
+  inline LOperand* Current();
+  inline void Advance();
+
+ private:
+  inline void SkipUninteresting();
+  LInstruction* instr_;
+  int limit_;
+  int current_;
+};
+
+
+class UseIterator BASE_EMBEDDED {
+ public:
+  inline explicit UseIterator(LInstruction* instr);
+  inline bool Done();
+  inline LOperand* Current();
+  inline void Advance();
+
+ private:
+  InputIterator input_iterator_;
+  DeepIterator env_iterator_;
+};
+
+class LInstruction;
+class LCodeGen;
 } }  // namespace v8::internal
 
 #endif  // V8_LITHIUM_H_

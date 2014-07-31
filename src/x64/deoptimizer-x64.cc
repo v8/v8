@@ -60,9 +60,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 #endif
   DeoptimizationInputData* deopt_data =
       DeoptimizationInputData::cast(code->deoptimization_data());
-  SharedFunctionInfo* shared =
-      SharedFunctionInfo::cast(deopt_data->SharedFunctionInfo());
-  shared->EvictFromOptimizedCodeMap(code, "deoptimized code");
   deopt_data->SetSharedFunctionInfo(Smi::FromInt(0));
   // For each LLazyBailout instruction insert a call to the corresponding
   // deoptimization entry.

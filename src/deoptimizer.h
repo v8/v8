@@ -177,6 +177,8 @@ class Deoptimizer : public Malloced {
   // refer to that code.
   static void DeoptimizeMarkedCode(Isolate* isolate);
 
+  static void PatchStackForMarkedCode(Isolate* isolate);
+
   // Visit all the known optimized functions in a given isolate.
   static void VisitAllOptimizedFunctions(
       Isolate* isolate, OptimizedFunctionVisitor* visitor);

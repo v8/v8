@@ -14,6 +14,7 @@
 #include "src/assembler.h"
 #include "src/disasm.h"
 #include "src/macro-assembler.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -2912,7 +2913,7 @@ T Simulator::FPMaxNM(T a, T b) {
 template <typename T>
 T Simulator::FPMin(T a, T b) {
   // NaNs should be handled elsewhere.
-  ASSERT(!isnan(a) && !isnan(b));
+  ASSERT(!std::isnan(a) && !std::isnan(b));
 
   if ((a == 0.0) && (b == 0.0) &&
       (copysign(1.0, a) != copysign(1.0, b))) {

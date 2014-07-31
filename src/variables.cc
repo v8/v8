@@ -32,27 +32,24 @@ const char* Variable::Mode2String(VariableMode mode) {
 }
 
 
-Variable::Variable(Scope* scope,
-                   const AstRawString* name,
-                   VariableMode mode,
-                   bool is_valid_ref,
-                   Kind kind,
+Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
+                   bool is_valid_ref, Kind kind,
                    InitializationFlag initialization_flag,
-                   Interface* interface)
-  : scope_(scope),
-    name_(name),
-    mode_(mode),
-    kind_(kind),
-    location_(UNALLOCATED),
-    index_(-1),
-    initializer_position_(RelocInfo::kNoPosition),
-    local_if_not_shadowed_(NULL),
-    is_valid_ref_(is_valid_ref),
-    force_context_allocation_(false),
-    is_used_(false),
-    maybe_assigned_(false),
-    initialization_flag_(initialization_flag),
-    interface_(interface) {
+                   MaybeAssignedFlag maybe_assigned_flag, Interface* interface)
+    : scope_(scope),
+      name_(name),
+      mode_(mode),
+      kind_(kind),
+      location_(UNALLOCATED),
+      index_(-1),
+      initializer_position_(RelocInfo::kNoPosition),
+      local_if_not_shadowed_(NULL),
+      is_valid_ref_(is_valid_ref),
+      force_context_allocation_(false),
+      is_used_(false),
+      initialization_flag_(initialization_flag),
+      maybe_assigned_(maybe_assigned_flag),
+      interface_(interface) {
   // Var declared variables never need initialization.
   ASSERT(!(mode == VAR && initialization_flag == kNeedsInitialization));
 }

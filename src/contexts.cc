@@ -140,8 +140,11 @@ Handle<Object> Context::Lookup(Handle<String> name,
       }
       VariableMode mode;
       InitializationFlag init_flag;
-      int slot_index =
-          ScopeInfo::ContextSlotIndex(scope_info, name, &mode, &init_flag);
+      // TODO(sigurds) Figure out whether maybe_assigned_flag should
+      // be used to compute binding_flags.
+      MaybeAssignedFlag maybe_assigned_flag;
+      int slot_index = ScopeInfo::ContextSlotIndex(
+          scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
       ASSERT(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {

@@ -95,13 +95,13 @@ class FieldIndex V8_FINAL {
   class IsInObjectBits: public BitField<bool, IndexBits::kNext, 1> {};
   class IsDoubleBits: public BitField<bool, IsInObjectBits::kNext, 1> {};
   // Number of inobject properties.
-  class InObjectPropertyBits: public BitField<int, IsDoubleBits::kNext,
-                                              kDescriptorIndexBitCount> {};
+  class InObjectPropertyBits
+      : public BitField<int, IsDoubleBits::kNext, kDescriptorIndexBitCount> {};
   // Offset of first inobject property from beginning of object.
-  class FirstInobjectPropertyOffsetBits:
-      public BitField<int, InObjectPropertyBits::kNext, 7> {};
-  class IsHiddenField:
-      public BitField<bool, FirstInobjectPropertyOffsetBits::kNext, 1> {};
+  class FirstInobjectPropertyOffsetBits
+      : public BitField<int, InObjectPropertyBits::kNext, 7> {};
+  class IsHiddenField
+      : public BitField<bool, FirstInobjectPropertyOffsetBits::kNext, 1> {};
   STATIC_ASSERT(IsHiddenField::kNext <= 32);
 
   int bit_field_;

@@ -14,6 +14,50 @@ intptr_t HeapObjectTagMask() { return kHeapObjectTagMask; }
 } }  // namespace v8::internal
 
 
+static bool CheckEqualsStrict(volatile double* exp, volatile double* val) {
+  v8::internal::DoubleRepresentation exp_rep(*exp);
+  v8::internal::DoubleRepresentation val_rep(*val);
+  if (std::isnan(exp_rep.value) && std::isnan(val_rep.value)) return true;
+  return exp_rep.bits == val_rep.bits;
+}
+
+
+void CheckEqualsHelper(const char* file, int line, const char* expected_source,
+                       double expected, const char* value_source,
+                       double value) {
+  // Force values to 64 bit memory to truncate 80 bit precision on IA32.
+  volatile double* exp = new double[1];
+  *exp = expected;
+  volatile double* val = new double[1];
+  *val = value;
+  if (!CheckEqualsStrict(exp, val)) {
+    V8_Fatal(file, line,
+             "CHECK_EQ(%s, %s) failed\n#   Expected: %f\n#   Found: %f",
+             expected_source, value_source, *exp, *val);
+  }
+  delete[] exp;
+  delete[] val;
+}
+
+
+void CheckNonEqualsHelper(const char* file, int line,
+                          const char* expected_source, double expected,
+                          const char* value_source, double value) {
+  // Force values to 64 bit memory to truncate 80 bit precision on IA32.
+  volatile double* exp = new double[1];
+  *exp = expected;
+  volatile double* val = new double[1];
+  *val = value;
+  if (CheckEqualsStrict(exp, val)) {
+    V8_Fatal(file, line,
+             "CHECK_EQ(%s, %s) failed\n#   Expected: %f\n#   Found: %f",
+             expected_source, value_source, *exp, *val);
+  }
+  delete[] exp;
+  delete[] val;
+}
+
+
 void CheckEqualsHelper(const char* file,
                        int line,
                        const char* expected_source,

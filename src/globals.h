@@ -722,6 +722,9 @@ enum InitializationFlag {
 };
 
 
+enum MaybeAssignedFlag { kNotAssigned, kMaybeAssigned };
+
+
 enum ClearExceptionFlag {
   KEEP_EXCEPTION,
   CLEAR_EXCEPTION

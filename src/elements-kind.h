@@ -6,7 +6,6 @@
 #define V8_ELEMENTS_KIND_H_
 
 #include "src/checks.h"
-#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {

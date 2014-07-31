@@ -13,7 +13,6 @@
 #include "src/field-index.h"
 #include "src/flags.h"
 #include "src/list.h"
-#include "src/ostreams.h"
 #include "src/property-details.h"
 #include "src/smart-pointers.h"
 #include "src/unicode-inl.h"
@@ -145,6 +144,8 @@
 
 namespace v8 {
 namespace internal {
+
+class OStream;
 
 enum KeyedAccessStoreMode {
   STANDARD_STORE,
@@ -304,8 +305,10 @@ static const ExtraICState kNoExtraICState = 0;
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
 
+// We may store the unsigned bit field as signed Smi value and do not
+// use the sign bit.
 const int kStubMajorKeyBits = 7;
-const int kStubMinorKeyBits = kBitsPerInt - kSmiTagSize - kStubMajorKeyBits;
+const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 
 // All Maps have a field instance_type containing a InstanceType.
 // It describes the type of the instances.
@@ -1418,6 +1421,7 @@ class Object {
   // Extract the number.
   inline double Number();
   INLINE(bool IsNaN() const);
+  INLINE(bool IsMinusZero() const);
   bool ToInt32(int32_t* value);
   bool ToUint32(uint32_t* value);
 
@@ -4620,6 +4624,9 @@ class ScopeInfo : public FixedArray {
   // Return the initialization flag of the given context local.
   InitializationFlag ContextLocalInitFlag(int var);
 
+  // Return the initialization flag of the given context local.
+  MaybeAssignedFlag ContextLocalMaybeAssignedFlag(int var);
+
   // Return true if this local was introduced by the compiler, and should not be
   // exposed to the user in a debugger.
   bool LocalIsSynthetic(int var);
@@ -4635,10 +4642,9 @@ class ScopeInfo : public FixedArray {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != NULL, sets *mode to the corresponding
   // mode for that variable.
-  static int ContextSlotIndex(Handle<ScopeInfo> scope_info,
-                              Handle<String> name,
-                              VariableMode* mode,
-                              InitializationFlag* init_flag);
+  static int ContextSlotIndex(Handle<ScopeInfo> scope_info, Handle<String> name,
+                              VariableMode* mode, InitializationFlag* init_flag,
+                              MaybeAssignedFlag* maybe_assigned_flag);
 
   // Lookup support for serialized scope info. Returns the
   // parameter index for a given parameter name if the parameter is present;
@@ -4756,6 +4762,8 @@ class ScopeInfo : public FixedArray {
   // ContextLocalInfoEntries part.
   class ContextLocalMode:      public BitField<VariableMode,         0, 3> {};
   class ContextLocalInitFlag:  public BitField<InitializationFlag,   3, 1> {};
+  class ContextLocalMaybeAssignedFlag
+      : public BitField<MaybeAssignedFlag, 4, 1> {};
 };
 
 
@@ -5238,14 +5246,16 @@ TYPED_ARRAYS(FIXED_TYPED_ARRAY_TRAITS)
 class DeoptimizationInputData: public FixedArray {
  public:
   // Layout description.  Indices in the array.
-  static const int kTranslationByteArrayIndex = 0;
-  static const int kInlinedFunctionCountIndex = 1;
-  static const int kLiteralArrayIndex = 2;
-  static const int kOsrAstIdIndex = 3;
-  static const int kOsrPcOffsetIndex = 4;
-  static const int kOptimizationIdIndex = 5;
-  static const int kSharedFunctionInfoIndex = 6;
-  static const int kFirstDeoptEntryIndex = 7;
+  static const int kDeoptEntryCountIndex = 0;
+  static const int kReturnAddressPatchEntryCountIndex = 1;
+  static const int kTranslationByteArrayIndex = 2;
+  static const int kInlinedFunctionCountIndex = 3;
+  static const int kLiteralArrayIndex = 4;
+  static const int kOsrAstIdIndex = 5;
+  static const int kOsrPcOffsetIndex = 6;
+  static const int kOptimizationIdIndex = 7;
+  static const int kSharedFunctionInfoIndex = 8;
+  static const int kFirstDeoptEntryIndex = 9;
 
   // Offsets of deopt entry elements relative to the start of the entry.
   static const int kAstIdRawOffset = 0;
@@ -5253,6 +5263,12 @@ class DeoptimizationInputData: public FixedArray {
   static const int kArgumentsStackHeightOffset = 2;
   static const int kPcOffset = 3;
   static const int kDeoptEntrySize = 4;
+
+  // Offsets of return address patch entry elements relative to the start of the
+  // entry
+  static const int kReturnAddressPcOffset = 0;
+  static const int kPatchedAddressPcOffset = 1;
+  static const int kReturnAddressPatchEntrySize = 2;
 
   // Simple element accessors.
 #define DEFINE_ELEMENT_ACCESSORS(name, type)      \
@@ -5274,20 +5290,35 @@ class DeoptimizationInputData: public FixedArray {
 #undef DEFINE_ELEMENT_ACCESSORS
 
   // Accessors for elements of the ith deoptimization entry.
-#define DEFINE_ENTRY_ACCESSORS(name, type)                       \
-  type* name(int i) {                                            \
-    return type::cast(get(IndexForEntry(i) + k##name##Offset));  \
-  }                                                              \
-  void Set##name(int i, type* value) {                           \
-    set(IndexForEntry(i) + k##name##Offset, value);              \
+#define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                \
+  type* name(int i) {                                           \
+    return type::cast(get(IndexForEntry(i) + k##name##Offset)); \
+  }                                                             \
+  void Set##name(int i, type* value) {                          \
+    set(IndexForEntry(i) + k##name##Offset, value);             \
   }
 
-  DEFINE_ENTRY_ACCESSORS(AstIdRaw, Smi)
-  DEFINE_ENTRY_ACCESSORS(TranslationIndex, Smi)
-  DEFINE_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
-  DEFINE_ENTRY_ACCESSORS(Pc, Smi)
+  DEFINE_DEOPT_ENTRY_ACCESSORS(AstIdRaw, Smi)
+  DEFINE_DEOPT_ENTRY_ACCESSORS(TranslationIndex, Smi)
+  DEFINE_DEOPT_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
+  DEFINE_DEOPT_ENTRY_ACCESSORS(Pc, Smi)
 
-#undef DEFINE_ENTRY_ACCESSORS
+#undef DEFINE_DEOPT_ENTRY_ACCESSORS
+
+// Accessors for elements of the ith deoptimization entry.
+#define DEFINE_PATCH_ENTRY_ACCESSORS(name, type)                      \
+  type* name(int i) {                                                 \
+    return type::cast(                                                \
+        get(IndexForReturnAddressPatchEntry(i) + k##name##Offset));   \
+  }                                                                   \
+  void Set##name(int i, type* value) {                                \
+    set(IndexForReturnAddressPatchEntry(i) + k##name##Offset, value); \
+  }
+
+  DEFINE_PATCH_ENTRY_ACCESSORS(ReturnAddressPc, Smi)
+  DEFINE_PATCH_ENTRY_ACCESSORS(PatchedAddressPc, Smi)
+
+#undef DEFINE_PATCH_ENTRY_ACCESSORS
 
   BailoutId AstId(int i) {
     return BailoutId(AstIdRaw(i)->value());
@@ -5298,12 +5329,19 @@ class DeoptimizationInputData: public FixedArray {
   }
 
   int DeoptCount() {
-    return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
+    return length() == 0 ? 0 : Smi::cast(get(kDeoptEntryCountIndex))->value();
+  }
+
+  int ReturnAddressPatchCount() {
+    return length() == 0
+               ? 0
+               : Smi::cast(get(kReturnAddressPatchEntryCountIndex))->value();
   }
 
   // Allocates a DeoptimizationInputData.
   static Handle<DeoptimizationInputData> New(Isolate* isolate,
                                              int deopt_entry_count,
+                                             int return_address_patch_count,
                                              PretenureFlag pretenure);
 
   DECLARE_CAST(DeoptimizationInputData)
@@ -5313,12 +5351,20 @@ class DeoptimizationInputData: public FixedArray {
 #endif
 
  private:
+  friend class Object;  // For accessing LengthFor.
+
   static int IndexForEntry(int i) {
     return kFirstDeoptEntryIndex + (i * kDeoptEntrySize);
   }
 
-  static int LengthFor(int entry_count) {
-    return IndexForEntry(entry_count);
+  int IndexForReturnAddressPatchEntry(int i) {
+    return kFirstDeoptEntryIndex + (DeoptCount() * kDeoptEntrySize) +
+           (i * kReturnAddressPatchEntrySize);
+  }
+
+  static int LengthFor(int deopt_count, int return_address_patch_count) {
+    return kFirstDeoptEntryIndex + (deopt_count * kDeoptEntrySize) +
+           (return_address_patch_count * kReturnAddressPatchEntrySize);
   }
 };
 
@@ -5519,11 +5565,17 @@ class Code: public HeapObject {
   inline void set_raw_kind_specific_flags1(int value);
   inline void set_raw_kind_specific_flags2(int value);
 
-  // For kind STUB or ICs, tells whether or not a code object was generated by
-  // the optimizing compiler (but it may not be an optimized function).
-  bool is_crankshafted();
-  bool is_hydrogen_stub();  // Crankshafted, but not a function.
+  // [is_crankshafted]: For kind STUB or ICs, tells whether or not a code
+  // object was generated by either the hydrogen or the TurboFan optimizing
+  // compiler (but it may not be an optimized function).
+  inline bool is_crankshafted();
+  inline bool is_hydrogen_stub();  // Crankshafted, but not a function.
   inline void set_is_crankshafted(bool value);
+
+  // [is_turbofanned]: For kind STUB or OPTIMIZED_FUNCTION, tells whether the
+  // code object was generated by the TurboFan optimizing compiler.
+  inline bool is_turbofanned();
+  inline void set_is_turbofanned(bool value);
 
   // [optimizable]: For FUNCTION kind, tells if it is optimizable.
   inline bool optimizable();
@@ -5565,7 +5617,7 @@ class Code: public HeapObject {
   inline unsigned stack_slots();
   inline void set_stack_slots(unsigned slots);
 
-  // [safepoint_table_start]: For kind OPTIMIZED_CODE, the offset in
+  // [safepoint_table_start]: For kind OPTIMIZED_FUNCTION, the offset in
   // the instruction stream where the safepoint table starts.
   inline unsigned safepoint_table_offset();
   inline void set_safepoint_table_offset(unsigned offset);
@@ -5772,7 +5824,8 @@ class Code: public HeapObject {
   }
 
   inline bool IsWeakObject(Object* object) {
-    return (is_optimized_code() && IsWeakObjectInOptimizedCode(object)) ||
+    return (is_optimized_code() && !is_turbofanned() &&
+            IsWeakObjectInOptimizedCode(object)) ||
            (is_weak_stub() && IsWeakObjectInIC(object));
   }
 
@@ -5834,37 +5887,27 @@ class Code: public HeapObject {
   // KindSpecificFlags1 layout (STUB and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;
   static const int kStackSlotsBitCount = 24;
-  static const int kHasFunctionCacheFirstBit =
+  static const int kHasFunctionCacheBit =
       kStackSlotsFirstBit + kStackSlotsBitCount;
-  static const int kHasFunctionCacheBitCount = 1;
-  static const int kMarkedForDeoptimizationFirstBit =
-      kStackSlotsFirstBit + kStackSlotsBitCount + 1;
-  static const int kMarkedForDeoptimizationBitCount = 1;
-  static const int kWeakStubFirstBit =
-      kMarkedForDeoptimizationFirstBit + kMarkedForDeoptimizationBitCount;
-  static const int kWeakStubBitCount = 1;
-  static const int kInvalidatedWeakStubFirstBit =
-      kWeakStubFirstBit + kWeakStubBitCount;
-  static const int kInvalidatedWeakStubBitCount = 1;
+  static const int kMarkedForDeoptimizationBit = kHasFunctionCacheBit + 1;
+  static const int kWeakStubBit = kMarkedForDeoptimizationBit + 1;
+  static const int kInvalidatedWeakStubBit = kWeakStubBit + 1;
+  static const int kIsTurbofannedBit = kInvalidatedWeakStubBit + 1;
 
   STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
-  STATIC_ASSERT(kHasFunctionCacheFirstBit + kHasFunctionCacheBitCount <= 32);
-  STATIC_ASSERT(kInvalidatedWeakStubFirstBit +
-                kInvalidatedWeakStubBitCount <= 32);
+  STATIC_ASSERT(kIsTurbofannedBit + 1 <= 32);
 
   class StackSlotsField: public BitField<int,
       kStackSlotsFirstBit, kStackSlotsBitCount> {};  // NOLINT
-  class HasFunctionCacheField: public BitField<bool,
-      kHasFunctionCacheFirstBit, kHasFunctionCacheBitCount> {};  // NOLINT
-  class MarkedForDeoptimizationField: public BitField<bool,
-      kMarkedForDeoptimizationFirstBit,
-      kMarkedForDeoptimizationBitCount> {};  // NOLINT
-  class WeakStubField: public BitField<bool,
-      kWeakStubFirstBit,
-      kWeakStubBitCount> {};  // NOLINT
-  class InvalidatedWeakStubField: public BitField<bool,
-      kInvalidatedWeakStubFirstBit,
-      kInvalidatedWeakStubBitCount> {};  // NOLINT
+  class HasFunctionCacheField : public BitField<bool, kHasFunctionCacheBit, 1> {
+  };  // NOLINT
+  class MarkedForDeoptimizationField
+      : public BitField<bool, kMarkedForDeoptimizationBit, 1> {};   // NOLINT
+  class WeakStubField : public BitField<bool, kWeakStubBit, 1> {};  // NOLINT
+  class InvalidatedWeakStubField
+      : public BitField<bool, kInvalidatedWeakStubBit, 1> {};  // NOLINT
+  class IsTurbofannedField : public BitField<bool, kIsTurbofannedBit, 1> {
+  };  // NOLINT
 
   // KindSpecificFlags2 layout (ALL)
   static const int kIsCrankshaftedBit = 0;

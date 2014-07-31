@@ -10,6 +10,7 @@
 #include "src/codegen.h"
 #include "src/globals.h"
 #include "src/macro-assembler.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -348,13 +349,13 @@ class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
  public:
   CodeStubInterfaceDescriptor();
 
-  void Initialize(int register_parameter_count, Register* registers,
-                  Address deoptimization_handler = NULL,
+  void Initialize(CodeStub::Major major, int register_parameter_count,
+                  Register* registers, Address deoptimization_handler = NULL,
                   Representation* register_param_representations = NULL,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
-  void Initialize(int register_parameter_count, Register* registers,
-                  Register stack_parameter_count,
+  void Initialize(CodeStub::Major major, int register_parameter_count,
+                  Register* registers, Register stack_parameter_count,
                   Address deoptimization_handler = NULL,
                   Representation* register_param_representations = NULL,
                   int hint_stack_parameter_count = -1,
@@ -394,6 +395,7 @@ class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
   Register stack_parameter_count() const { return stack_parameter_count_; }
   StubFunctionMode function_mode() const { return function_mode_; }
   Address deoptimization_handler() const { return deoptimization_handler_; }
+  CodeStub::Major MajorKey() const { return major_; }
 
  private:
   Register stack_parameter_count_;
@@ -407,6 +409,7 @@ class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
 
   ExternalReference miss_handler_;
   bool has_miss_handler_;
+  CodeStub::Major major_;
 };
 
 
@@ -742,6 +745,9 @@ class InstanceofStub: public PlatformCodeStub {
   static Register right();
 
   void Generate(MacroAssembler* masm);
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   Major MajorKey() const { return Instanceof; }
@@ -1132,10 +1138,11 @@ class CallApiGetterStub : public PlatformCodeStub {
 
 class BinaryOpICStub : public HydrogenCodeStub {
  public:
-  BinaryOpICStub(Isolate* isolate, Token::Value op, OverwriteMode mode)
+  BinaryOpICStub(Isolate* isolate, Token::Value op,
+                 OverwriteMode mode = NO_OVERWRITE)
       : HydrogenCodeStub(isolate, UNINITIALIZED), state_(isolate, op, mode) {}
 
-  BinaryOpICStub(Isolate* isolate, const BinaryOpIC::State& state)
+  explicit BinaryOpICStub(Isolate* isolate, const BinaryOpIC::State& state)
       : HydrogenCodeStub(isolate), state_(state) {}
 
   static void GenerateAheadOfTime(Isolate* isolate);
@@ -1610,13 +1617,18 @@ class RegExpConstructResultStub V8_FINAL : public HydrogenCodeStub {
 class CallFunctionStub: public PlatformCodeStub {
  public:
   CallFunctionStub(Isolate* isolate, int argc, CallFunctionFlags flags)
-      : PlatformCodeStub(isolate), argc_(argc), flags_(flags) { }
+      : PlatformCodeStub(isolate), argc_(argc), flags_(flags) {
+    ASSERT(argc <= Code::kMaxArguments);
+  }
 
   void Generate(MacroAssembler* masm);
 
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
   }
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   int argc_;
@@ -1626,7 +1638,9 @@ class CallFunctionStub: public PlatformCodeStub {
 
   // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
   class FlagBits: public BitField<CallFunctionFlags, 0, 2> {};
-  class ArgcBits: public BitField<unsigned, 2, 32 - 2> {};
+  class ArgcBits : public BitField<unsigned, 2, Code::kArgumentsBits> {};
+
+  STATIC_ASSERT(Code::kArgumentsBits + 2 <= kStubMinorKeyBits);
 
   Major MajorKey() const { return CallFunction; }
   int MinorKey() const {
@@ -1654,6 +1668,9 @@ class CallConstructStub: public PlatformCodeStub {
   virtual void FinishCode(Handle<Code> code) {
     code->set_has_function_cache(RecordCallTarget());
   }
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   CallConstructorFlags flags_;

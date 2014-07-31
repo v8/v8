@@ -8,11 +8,12 @@
 #include "src/compiler.h"
 #include "src/hydrogen.h"
 #include "src/hydrogen-instructions.h"
-#include "src/ostreams.h"
 #include "src/zone.h"
 
 namespace v8 {
 namespace internal {
+
+class OStream;
 
 // This class extends GVNFlagSet with additional "special" dynamic side effects,
 // which can be used to represent side effects that cannot be expressed using

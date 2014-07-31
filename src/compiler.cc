@@ -9,6 +9,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
+#include "src/compiler/pipeline.h"
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
@@ -54,6 +55,19 @@ CompilationInfo::CompilationInfo(Handle<Script> script,
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false) {
   Initialize(script->GetIsolate(), BASE, zone);
+}
+
+
+CompilationInfo::CompilationInfo(Isolate* isolate, Zone* zone)
+    : flags_(StrictModeField::encode(SLOPPY)),
+      script_(Handle<Script>::null()),
+      osr_ast_id_(BailoutId::None()),
+      parameter_count_(0),
+      this_has_uses_(true),
+      optimization_id_(-1),
+      ast_value_factory_(NULL),
+      ast_value_factory_owned_(false) {
+  Initialize(isolate, STUB, zone);
 }
 
 
@@ -354,15 +368,16 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return AbortAndDisableOptimization(kFunctionWithIllegalRedeclaration);
   }
 
-  // Take --hydrogen-filter into account.
+  // Check the whitelist for Crankshaft.
   if (!info()->closure()->PassesFilter(FLAG_hydrogen_filter)) {
     return AbortOptimization(kHydrogenFilter);
   }
 
+  // Crankshaft requires a version of fullcode with deoptimization support.
   // Recompile the unoptimized version of the code if the current version
-  // doesn't have deoptimization support. Alternatively, we may decide to
-  // run the full code generator to get a baseline for the compile-time
-  // performance of the hydrogen-based compiler.
+  // doesn't have deoptimization support already.
+  // Otherwise, if we are gathering compilation time and space statistics
+  // for hydrogen, gather baseline statistics for a fullcode compilation.
   bool should_recompile = !info()->shared_info()->has_deoptimization_support();
   if (should_recompile || FLAG_hydrogen_stats) {
     base::ElapsedTimer timer;
@@ -390,13 +405,19 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     }
   }
 
-  // Check that the unoptimized, shared code is ready for
-  // optimizations.  When using the always_opt flag we disregard the
-  // optimizable marker in the code object and optimize anyway. This
-  // is safe as long as the unoptimized code has deoptimization
-  // support.
-  ASSERT(FLAG_always_opt || info()->shared_info()->code()->optimizable());
   ASSERT(info()->shared_info()->has_deoptimization_support());
+
+  // Check the whitelist for TurboFan.
+  if (info()->closure()->PassesFilter(FLAG_turbo_filter) &&
+      // TODO(turbofan): Make try-catch work and remove this bailout.
+      info()->function()->dont_optimize_reason() != kTryCatchStatement &&
+      info()->function()->dont_optimize_reason() != kTryFinallyStatement &&
+      // TODO(turbofan): Make OSR work and remove this bailout.
+      !info()->is_osr()) {
+    compiler::Pipeline pipeline(info());
+    pipeline.GenerateCode();
+    return SetLastStatus(SUCCEEDED);
+  }
 
   if (FLAG_trace_hydrogen) {
     Handle<String> name = info()->function()->debug_name();
@@ -447,6 +468,11 @@ OptimizedCompileJob::Status OptimizedCompileJob::OptimizeGraph() {
   DisallowCodeDependencyChange no_dependency_change;
 
   ASSERT(last_status() == SUCCEEDED);
+  // TODO(turbofan): Currently everything is done in the first phase.
+  if (!info()->code().is_null()) {
+    return last_status();
+  }
+
   Timer t(this, &time_taken_to_optimize_);
   ASSERT(graph_ != NULL);
   BailoutReason bailout_reason = kNoReason;
@@ -464,6 +490,12 @@ OptimizedCompileJob::Status OptimizedCompileJob::OptimizeGraph() {
 
 OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
   ASSERT(last_status() == SUCCEEDED);
+  // TODO(turbofan): Currently everything is done in the first phase.
+  if (!info()->code().is_null()) {
+    RecordOptimizationStats();
+    return last_status();
+  }
+
   ASSERT(!info()->HasAbortedDueToDependencyChange());
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate());
@@ -1114,6 +1146,9 @@ MUST_USE_RESULT static MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
 static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   Handle<Code> code = info->code();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
+
+  // Context specialization folds-in the context, so no sharing can occur.
+  if (code->is_turbofanned() && FLAG_context_specialization) return;
 
   // Cache optimized code.
   if (FLAG_cache_optimized_code) {

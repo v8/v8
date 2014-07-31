@@ -30,14 +30,12 @@ VariableMap::VariableMap(Zone* zone)
 VariableMap::~VariableMap() {}
 
 
-Variable* VariableMap::Declare(
-    Scope* scope,
-    const AstRawString* name,
-    VariableMode mode,
-    bool is_valid_lhs,
-    Variable::Kind kind,
-    InitializationFlag initialization_flag,
-    Interface* interface) {
+Variable* VariableMap::Declare(Scope* scope, const AstRawString* name,
+                               VariableMode mode, bool is_valid_lhs,
+                               Variable::Kind kind,
+                               InitializationFlag initialization_flag,
+                               MaybeAssignedFlag maybe_assigned_flag,
+                               Interface* interface) {
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   // FIXME(marja): fix the type of Lookup.
@@ -46,13 +44,9 @@ Variable* VariableMap::Declare(
   if (p->value == NULL) {
     // The variable has not been declared yet -> insert it.
     ASSERT(p->key == name);
-    p->value = new(zone()) Variable(scope,
-                                    name,
-                                    mode,
-                                    is_valid_lhs,
-                                    kind,
-                                    initialization_flag,
-                                    interface);
+    p->value = new (zone())
+        Variable(scope, name, mode, is_valid_lhs, kind, initialization_flag,
+                 maybe_assigned_flag, interface);
   }
   return reinterpret_cast<Variable*>(p->value);
 }
@@ -392,8 +386,9 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
   VariableMode mode;
   Variable::Location location = Variable::CONTEXT;
   InitializationFlag init_flag;
-  int index =
-      ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode, &init_flag);
+  MaybeAssignedFlag maybe_assigned_flag;
+  int index = ScopeInfo::ContextSlotIndex(scope_info_, name_handle, &mode,
+                                          &init_flag, &maybe_assigned_flag);
   if (index < 0) {
     // Check parameters.
     index = scope_info_->ParameterIndex(*name_handle);
@@ -402,10 +397,14 @@ Variable* Scope::LookupLocal(const AstRawString* name) {
     mode = DYNAMIC;
     location = Variable::LOOKUP;
     init_flag = kCreatedInitialized;
+    // Be conservative and flag parameters as maybe assigned. Better information
+    // would require ScopeInfo to serialize the maybe_assigned bit also for
+    // parameters.
+    maybe_assigned_flag = kMaybeAssigned;
   }
 
   Variable* var = variables_.Declare(this, name, mode, true, Variable::NORMAL,
-                                     init_flag);
+                                     init_flag, maybe_assigned_flag);
   var->AllocateTo(location, index);
   return var;
 }
@@ -446,18 +445,19 @@ Variable* Scope::Lookup(const AstRawString* name) {
 }
 
 
-void Scope::DeclareParameter(const AstRawString* name, VariableMode mode) {
+Variable* Scope::DeclareParameter(const AstRawString* name, VariableMode mode) {
   ASSERT(!already_resolved());
   ASSERT(is_function_scope());
   Variable* var = variables_.Declare(this, name, mode, true, Variable::NORMAL,
                                      kCreatedInitialized);
   params_.Add(var, zone());
+  return var;
 }
 
 
-Variable* Scope::DeclareLocal(const AstRawString* name,
-                              VariableMode mode,
+Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
                               InitializationFlag init_flag,
+                              MaybeAssignedFlag maybe_assigned_flag,
                               Interface* interface) {
   ASSERT(!already_resolved());
   // This function handles VAR, LET, and CONST modes.  DYNAMIC variables are
@@ -465,8 +465,8 @@ Variable* Scope::DeclareLocal(const AstRawString* name,
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
   ASSERT(IsDeclaredVariableMode(mode));
   ++num_var_or_const_;
-  return variables_.Declare(
-      this, name, mode, true, Variable::NORMAL, init_flag, interface);
+  return variables_.Declare(this, name, mode, true, Variable::NORMAL, init_flag,
+                            maybe_assigned_flag, interface);
 }
 
 
@@ -825,7 +825,7 @@ static void PrintVar(int indent, Variable* var) {
       PrintF("forced context allocation");
       comma = true;
     }
-    if (var->maybe_assigned()) {
+    if (var->maybe_assigned() == kMaybeAssigned) {
       if (comma) PrintF(", ");
       PrintF("maybe assigned");
     }

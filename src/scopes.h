@@ -21,12 +21,10 @@ class VariableMap: public ZoneHashMap {
 
   virtual ~VariableMap();
 
-  Variable* Declare(Scope* scope,
-                    const AstRawString* name,
-                    VariableMode mode,
-                    bool is_valid_lhs,
-                    Variable::Kind kind,
+  Variable* Declare(Scope* scope, const AstRawString* name, VariableMode mode,
+                    bool is_valid_lhs, Variable::Kind kind,
                     InitializationFlag initialization_flag,
+                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                     Interface* interface = Interface::NewValue());
 
   Variable* Lookup(const AstRawString* name);
@@ -127,13 +125,13 @@ class Scope: public ZoneObject {
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
-  void DeclareParameter(const AstRawString* name, VariableMode mode);
+  Variable* DeclareParameter(const AstRawString* name, VariableMode mode);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  Variable* DeclareLocal(const AstRawString* name,
-                         VariableMode mode,
+  Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
                          InitializationFlag init_flag,
+                         MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                          Interface* interface = Interface::NewValue());
 
   // Declare an implicit global variable in this scope which must be a

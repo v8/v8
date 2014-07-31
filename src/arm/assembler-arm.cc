@@ -1544,6 +1544,15 @@ void Assembler::sdiv(Register dst, Register src1, Register src2,
 }
 
 
+void Assembler::udiv(Register dst, Register src1, Register src2,
+                     Condition cond) {
+  ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
+  ASSERT(IsEnabled(SUDIV));
+  emit(cond | B26 | B25 | B24 | B21 | B20 | dst.code() * B16 | 0xf * B12 |
+       src2.code() * B8 | B4 | src1.code());
+}
+
+
 void Assembler::mul(Register dst, Register src1, Register src2,
                     SBit s, Condition cond) {
   ASSERT(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
@@ -2156,9 +2165,14 @@ void Assembler::vldr(const DwVfpRegister dst,
 void Assembler::vldr(const DwVfpRegister dst,
                      const MemOperand& operand,
                      const Condition cond) {
-  ASSERT(!operand.rm().is_valid());
   ASSERT(operand.am_ == Offset);
-  vldr(dst, operand.rn(), operand.offset(), cond);
+  if (operand.rm().is_valid()) {
+    add(ip, operand.rn(),
+        Operand(operand.rm(), operand.shift_op_, operand.shift_imm_));
+    vldr(dst, ip, 0, cond);
+  } else {
+    vldr(dst, operand.rn(), operand.offset(), cond);
+  }
 }
 
 
@@ -2199,9 +2213,14 @@ void Assembler::vldr(const SwVfpRegister dst,
 void Assembler::vldr(const SwVfpRegister dst,
                      const MemOperand& operand,
                      const Condition cond) {
-  ASSERT(!operand.rm().is_valid());
   ASSERT(operand.am_ == Offset);
-  vldr(dst, operand.rn(), operand.offset(), cond);
+  if (operand.rm().is_valid()) {
+    add(ip, operand.rn(),
+        Operand(operand.rm(), operand.shift_op_, operand.shift_imm_));
+    vldr(dst, ip, 0, cond);
+  } else {
+    vldr(dst, operand.rn(), operand.offset(), cond);
+  }
 }
 
 
@@ -2242,9 +2261,14 @@ void Assembler::vstr(const DwVfpRegister src,
 void Assembler::vstr(const DwVfpRegister src,
                      const MemOperand& operand,
                      const Condition cond) {
-  ASSERT(!operand.rm().is_valid());
   ASSERT(operand.am_ == Offset);
-  vstr(src, operand.rn(), operand.offset(), cond);
+  if (operand.rm().is_valid()) {
+    add(ip, operand.rn(),
+        Operand(operand.rm(), operand.shift_op_, operand.shift_imm_));
+    vstr(src, ip, 0, cond);
+  } else {
+    vstr(src, operand.rn(), operand.offset(), cond);
+  }
 }
 
 
@@ -2284,9 +2308,14 @@ void Assembler::vstr(const SwVfpRegister src,
 void Assembler::vstr(const SwVfpRegister src,
                      const MemOperand& operand,
                      const Condition cond) {
-  ASSERT(!operand.rm().is_valid());
   ASSERT(operand.am_ == Offset);
-  vstr(src, operand.rn(), operand.offset(), cond);
+  if (operand.rm().is_valid()) {
+    add(ip, operand.rn(),
+        Operand(operand.rm(), operand.shift_op_, operand.shift_imm_));
+    vstr(src, ip, 0, cond);
+  } else {
+    vstr(src, operand.rn(), operand.offset(), cond);
+  }
 }
 
 
@@ -3125,6 +3154,7 @@ bool Assembler::IsNop(Instr instr, int type) {
 }
 
 
+// static
 bool Assembler::ImmediateFitsAddrMode1Instruction(int32_t imm32) {
   uint32_t dummy1;
   uint32_t dummy2;

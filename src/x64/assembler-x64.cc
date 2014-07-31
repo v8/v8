@@ -901,6 +901,14 @@ void Assembler::emit_idiv(Register src, int size) {
 }
 
 
+void Assembler::emit_div(Register src, int size) {
+  EnsureSpace ensure_space(this);
+  emit_rex(src, size);
+  emit(0xF7);
+  emit_modrm(0x6, src);
+}
+
+
 void Assembler::emit_imul(Register src, int size) {
   EnsureSpace ensure_space(this);
   emit_rex(src, size);
@@ -1394,6 +1402,17 @@ void Assembler::emit_movzxb(Register dst, const Operand& src, int size) {
 }
 
 
+void Assembler::emit_movzxb(Register dst, Register src, int size) {
+  EnsureSpace ensure_space(this);
+  // 32 bit operations zero the top 32 bits of 64 bit registers.  Therefore
+  // there is no need to make this a 64 bit operation.
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0xB6);
+  emit_modrm(dst, src);
+}
+
+
 void Assembler::emit_movzxw(Register dst, const Operand& src, int size) {
   EnsureSpace ensure_space(this);
   // 32 bit operations zero the top 32 bits of 64 bit registers.  Therefore
@@ -1685,6 +1704,14 @@ void Assembler::emit_xchg(Register dst, Register src, int size) {
     emit(0x87);
     emit_modrm(src, dst);
   }
+}
+
+
+void Assembler::emit_xchg(Register dst, const Operand& src, int size) {
+  EnsureSpace ensure_space(this);
+  emit_rex(dst, src, size);
+  emit(0x87);
+  emit_operand(dst, src);
 }
 
 

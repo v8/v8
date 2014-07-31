@@ -46,6 +46,11 @@
   "PushWithContext": [SKIP],
   "PushCatchContext": [SKIP],
   "PushModuleContext": [SKIP],
+  "LoadLookupSlot": [SKIP],
+  "LoadLookupSlotNoReferenceError": [SKIP],
+  "ResolvePossiblyDirectEval": [SKIP],
+  "ForInInit": [SKIP],
+  "ForInNext": [SKIP],
 
   # TODO(jkummerow): Figure out what to do about inlined functions.
   "_GeneratorNext": [SKIP],

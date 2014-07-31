@@ -97,8 +97,10 @@ Handle<ScopeInfo> ScopeInfo::Create(Scope* scope, Zone* zone) {
   ASSERT(index == scope_info->ContextLocalInfoEntriesIndex());
   for (int i = 0; i < context_local_count; ++i) {
     Variable* var = context_locals[i];
-    uint32_t value = ContextLocalMode::encode(var->mode()) |
-        ContextLocalInitFlag::encode(var->initialization_flag());
+    uint32_t value =
+        ContextLocalMode::encode(var->mode()) |
+        ContextLocalInitFlag::encode(var->initialization_flag()) |
+        ContextLocalMaybeAssignedFlag::encode(var->maybe_assigned());
     scope_info->set(index++, Smi::FromInt(value));
   }
 
@@ -255,6 +257,14 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
 }
 
 
+MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) {
+  ASSERT(0 <= var && var < ContextLocalCount());
+  int info_index = ContextLocalInfoEntriesIndex() + var;
+  int value = Smi::cast(get(info_index))->value();
+  return ContextLocalMaybeAssignedFlag::decode(value);
+}
+
+
 bool ScopeInfo::LocalIsSynthetic(int var) {
   ASSERT(0 <= var && var < LocalCount());
   // There's currently no flag stored on the ScopeInfo to indicate that a
@@ -282,17 +292,17 @@ int ScopeInfo::StackSlotIndex(String* name) {
 
 
 int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
-                                Handle<String> name,
-                                VariableMode* mode,
-                                InitializationFlag* init_flag) {
+                                Handle<String> name, VariableMode* mode,
+                                InitializationFlag* init_flag,
+                                MaybeAssignedFlag* maybe_assigned_flag) {
   ASSERT(name->IsInternalizedString());
   ASSERT(mode != NULL);
   ASSERT(init_flag != NULL);
   if (scope_info->length() > 0) {
     ContextSlotCache* context_slot_cache =
         scope_info->GetIsolate()->context_slot_cache();
-    int result =
-        context_slot_cache->Lookup(*scope_info, *name, mode, init_flag);
+    int result = context_slot_cache->Lookup(*scope_info, *name, mode, init_flag,
+                                            maybe_assigned_flag);
     if (result != ContextSlotCache::kNotFound) {
       ASSERT(result < scope_info->ContextLength());
       return result;
@@ -306,15 +316,17 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
         int var = i - start;
         *mode = scope_info->ContextLocalMode(var);
         *init_flag = scope_info->ContextLocalInitFlag(var);
+        *maybe_assigned_flag = scope_info->ContextLocalMaybeAssignedFlag(var);
         result = Context::MIN_CONTEXT_SLOTS + var;
-        context_slot_cache->Update(scope_info, name, *mode, *init_flag, result);
+        context_slot_cache->Update(scope_info, name, *mode, *init_flag,
+                                   *maybe_assigned_flag, result);
         ASSERT(result < scope_info->ContextLength());
         return result;
       }
     }
-    // Cache as not found. Mode and init flag don't matter.
-    context_slot_cache->Update(
-        scope_info, name, INTERNAL, kNeedsInitialization, -1);
+    // Cache as not found. Mode, init flag and maybe assigned flag don't matter.
+    context_slot_cache->Update(scope_info, name, INTERNAL, kNeedsInitialization,
+                               kNotAssigned, -1);
   }
   return -1;
 }
@@ -413,26 +425,26 @@ int ContextSlotCache::Hash(Object* data, String* name) {
 }
 
 
-int ContextSlotCache::Lookup(Object* data,
-                             String* name,
-                             VariableMode* mode,
-                             InitializationFlag* init_flag) {
+int ContextSlotCache::Lookup(Object* data, String* name, VariableMode* mode,
+                             InitializationFlag* init_flag,
+                             MaybeAssignedFlag* maybe_assigned_flag) {
   int index = Hash(data, name);
   Key& key = keys_[index];
   if ((key.data == data) && key.name->Equals(name)) {
     Value result(values_[index]);
     if (mode != NULL) *mode = result.mode();
     if (init_flag != NULL) *init_flag = result.initialization_flag();
+    if (maybe_assigned_flag != NULL)
+      *maybe_assigned_flag = result.maybe_assigned_flag();
     return result.index() + kNotFound;
   }
   return kNotFound;
 }
 
 
-void ContextSlotCache::Update(Handle<Object> data,
-                              Handle<String> name,
-                              VariableMode mode,
-                              InitializationFlag init_flag,
+void ContextSlotCache::Update(Handle<Object> data, Handle<String> name,
+                              VariableMode mode, InitializationFlag init_flag,
+                              MaybeAssignedFlag maybe_assigned_flag,
                               int slot_index) {
   DisallowHeapAllocation no_gc;
   Handle<String> internalized_name;
@@ -444,9 +456,10 @@ void ContextSlotCache::Update(Handle<Object> data,
     key.data = *data;
     key.name = *internalized_name;
     // Please note value only takes a uint as index.
-    values_[index] = Value(mode, init_flag, slot_index - kNotFound).raw();
+    values_[index] = Value(mode, init_flag, maybe_assigned_flag,
+                           slot_index - kNotFound).raw();
 #ifdef DEBUG
-    ValidateEntry(data, name, mode, init_flag, slot_index);
+    ValidateEntry(data, name, mode, init_flag, maybe_assigned_flag, slot_index);
 #endif
   }
 }
@@ -459,10 +472,10 @@ void ContextSlotCache::Clear() {
 
 #ifdef DEBUG
 
-void ContextSlotCache::ValidateEntry(Handle<Object> data,
-                                     Handle<String> name,
+void ContextSlotCache::ValidateEntry(Handle<Object> data, Handle<String> name,
                                      VariableMode mode,
                                      InitializationFlag init_flag,
+                                     MaybeAssignedFlag maybe_assigned_flag,
                                      int slot_index) {
   DisallowHeapAllocation no_gc;
   Handle<String> internalized_name;
@@ -475,6 +488,7 @@ void ContextSlotCache::ValidateEntry(Handle<Object> data,
     Value result(values_[index]);
     ASSERT(result.mode() == mode);
     ASSERT(result.initialization_flag() == init_flag);
+    ASSERT(result.maybe_assigned_flag() == maybe_assigned_flag);
     ASSERT(result.index() + kNotFound == slot_index);
   }
 }

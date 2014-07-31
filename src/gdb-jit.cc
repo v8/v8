@@ -14,6 +14,7 @@
 #include "src/global-handles.h"
 #include "src/messages.h"
 #include "src/natives.h"
+#include "src/ostreams.h"
 #include "src/scopes.h"
 
 namespace v8 {

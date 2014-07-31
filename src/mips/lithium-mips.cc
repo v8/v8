@@ -4,10 +4,11 @@
 
 #include "src/v8.h"
 
+#if V8_TARGET_ARCH_MIPS
+
 #include "src/hydrogen-osr.h"
-#include "src/lithium-allocator-inl.h"
+#include "src/lithium-inl.h"
 #include "src/mips/lithium-codegen-mips.h"
-#include "src/mips/lithium-mips.h"
 
 namespace v8 {
 namespace internal {
@@ -2574,3 +2575,5 @@ LInstruction* LChunkBuilder::DoAllocateBlockContext(
 }
 
 } }  // namespace v8::internal
+
+#endif  // V8_TARGET_ARCH_MIPS

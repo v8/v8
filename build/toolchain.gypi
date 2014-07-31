@@ -452,6 +452,9 @@
         'defines': [
           'WIN32',
         ],
+        # 4351: VS 2005 and later are warning us that they've fixed a bug
+        #       present in VS 2003 and earlier.
+        'msvs_disabled_warnings': [4351],
         'msvs_configuration_attributes': {
           'OutputDirectory': '<(DEPTH)\\build\\$(ConfigurationName)',
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',

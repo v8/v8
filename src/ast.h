@@ -15,7 +15,6 @@
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/list-inl.h"
-#include "src/ostreams.h"
 #include "src/runtime.h"
 #include "src/small-pointer-list.h"
 #include "src/smart-pointers.h"
@@ -113,6 +112,7 @@ class BreakableStatement;
 class Expression;
 class IterationStatement;
 class MaterializedLiteral;
+class OStream;
 class Statement;
 class TargetCollector;
 class TypeFeedbackOracle;
@@ -1516,6 +1516,13 @@ class ObjectLiteral V8_FINAL : public MaterializedLiteral {
   // marked expressions, no store code is emitted.
   void CalculateEmitStore(Zone* zone);
 
+  // Assemble bitfield of flags for the CreateObjectLiteral helper.
+  int ComputeFlags() const {
+    int flags = fast_elements() ? kFastElements : kNoFlags;
+    flags |= has_function() ? kHasFunction : kNoFlags;
+    return flags;
+  }
+
   enum Flags {
     kNoFlags = 0,
     kFastElements = 1,
@@ -1594,6 +1601,13 @@ class ArrayLiteral V8_FINAL : public MaterializedLiteral {
 
   // Populate the constant elements fixed array.
   void BuildConstantElements(Isolate* isolate);
+
+  // Assemble bitfield of flags for the CreateArrayLiteral helper.
+  int ComputeFlags() const {
+    int flags = depth() == 1 ? kShallowElements : kNoFlags;
+    flags |= ArrayLiteral::kDisableMementos;
+    return flags;
+  }
 
   enum Flags {
     kNoFlags = 0,

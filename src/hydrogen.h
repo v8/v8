@@ -2753,19 +2753,27 @@ class HStatistics V8_FINAL: public Malloced {
         source_size_(0) { }
 
   void Initialize(CompilationInfo* info);
-  void Print();
+  void Print(const char* stats_name);
   void SaveTiming(const char* name, base::TimeDelta time, unsigned size);
 
   void IncrementFullCodeGen(base::TimeDelta full_code_gen) {
     full_code_gen_ += full_code_gen;
   }
 
+  void IncrementCreateGraph(base::TimeDelta delta) { create_graph_ += delta; }
+
+  void IncrementOptimizeGraph(base::TimeDelta delta) {
+    optimize_graph_ += delta;
+  }
+
+  void IncrementGenerateCode(base::TimeDelta delta) { generate_code_ += delta; }
+
   void IncrementSubtotals(base::TimeDelta create_graph,
                           base::TimeDelta optimize_graph,
                           base::TimeDelta generate_code) {
-    create_graph_ += create_graph;
-    optimize_graph_ += optimize_graph;
-    generate_code_ += generate_code;
+    IncrementCreateGraph(create_graph);
+    IncrementOptimizeGraph(optimize_graph);
+    IncrementGenerateCode(generate_code);
   }
 
  private:

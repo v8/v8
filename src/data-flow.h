@@ -164,6 +164,15 @@ class BitVector: public ZoneObject {
     return true;
   }
 
+  int Count() const {
+    int count = 0;
+    for (int i = 0; i < data_length_; i++) {
+      int data = data_[i];
+      if (data != 0) count += CompilerIntrinsics::CountSetBits(data);
+    }
+    return count;
+  }
+
   int length() const { return length_; }
 
 #ifdef DEBUG

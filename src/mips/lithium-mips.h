@@ -220,6 +220,9 @@ class LInstruction : public ZoneObject {
 
   virtual bool IsControl() const { return false; }
 
+  // Try deleting this instruction if possible.
+  virtual bool TryDelete() { return false; }
+
   void set_environment(LEnvironment* env) { environment_ = env; }
   LEnvironment* environment() const { return environment_; }
   bool HasEnvironment() const { return environment_ != NULL; }
@@ -258,11 +261,12 @@ class LInstruction : public ZoneObject {
   void VerifyCall();
 #endif
 
+  virtual int InputCount() = 0;
+  virtual LOperand* InputAt(int i) = 0;
+
  private:
   // Iterator interface.
   friend class InputIterator;
-  virtual int InputCount() = 0;
-  virtual LOperand* InputAt(int i) = 0;
 
   friend class TempIterator;
   virtual int TempCount() = 0;
@@ -858,7 +862,7 @@ class LMathFround V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 
   LOperand* value() { return inputs_[0]; }
 
-  DECLARE_CONCRETE_INSTRUCTION(MathRound, "math-fround")
+  DECLARE_CONCRETE_INSTRUCTION(MathFround, "math-fround")
 };
 
 

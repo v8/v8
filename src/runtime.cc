@@ -1821,15 +1821,6 @@ RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ClassOf) {
-  SealHandleScope shs(isolate);
-  ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  if (!obj->IsJSObject()) return isolate->heap()->null_value();
-  return JSObject::cast(obj)->class_name();
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetPrototype) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
@@ -6078,6 +6069,35 @@ RUNTIME_FUNCTION(Runtime_Typeof) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_Booleanize) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(Object, value_raw, 0);
+  CONVERT_SMI_ARG_CHECKED(token_raw, 1);
+  intptr_t value = reinterpret_cast<intptr_t>(value_raw);
+  Token::Value token = static_cast<Token::Value>(token_raw);
+  switch (token) {
+    case Token::EQ:
+    case Token::EQ_STRICT:
+      return isolate->heap()->ToBoolean(value == 0);
+    case Token::NE:
+    case Token::NE_STRICT:
+      return isolate->heap()->ToBoolean(value != 0);
+    case Token::LT:
+      return isolate->heap()->ToBoolean(value < 0);
+    case Token::GT:
+      return isolate->heap()->ToBoolean(value > 0);
+    case Token::LTE:
+      return isolate->heap()->ToBoolean(value <= 0);
+    case Token::GTE:
+      return isolate->heap()->ToBoolean(value >= 0);
+    default:
+      // This should only happen during natives fuzzing.
+      return isolate->heap()->undefined_value();
+  }
+}
+
+
 static bool AreDigits(const uint8_t*s, int from, int to) {
   for (int i = from; i < to; i++) {
     if (s[i] < '0' || s[i] > '9') return false;
@@ -7870,16 +7890,13 @@ RUNTIME_FUNCTION(Runtime_DateSetValue) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
-  HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
-
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
-  Object** parameters = reinterpret_cast<Object**>(args[1]);
-  CONVERT_SMI_ARG_CHECKED(argument_count, 2);
-
+static Handle<JSObject> NewSloppyArguments(Isolate* isolate,
+                                           Handle<JSFunction> callee,
+                                           Object** parameters,
+                                           int argument_count) {
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
+
   // Allocate the elements if needed.
   int parameter_count = callee->shared()->formal_parameter_count();
   if (argument_count > 0) {
@@ -7960,7 +7977,57 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
       }
     }
   }
-  return *result;
+  return result;
+}
+
+
+static Handle<JSObject> NewStrictArguments(Isolate* isolate,
+                                           Handle<JSFunction> callee,
+                                           Object** parameters,
+                                           int argument_count) {
+  Handle<JSObject> result =
+      isolate->factory()->NewArgumentsObject(callee, argument_count);
+
+  if (argument_count > 0) {
+    Handle<FixedArray> array =
+        isolate->factory()->NewUninitializedFixedArray(argument_count);
+    DisallowHeapAllocation no_gc;
+    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
+    for (int i = 0; i < argument_count; i++) {
+      array->set(i, *--parameters, mode);
+    }
+    result->set_elements(*array);
+  }
+  return result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_NewArguments) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
+  JavaScriptFrameIterator it(isolate);
+
+  // Find the frame that holds the actual arguments passed to the function.
+  it.AdvanceToArgumentsFrame();
+  JavaScriptFrame* frame = it.frame();
+
+  // Determine parameter location on the stack and dispatch on language mode.
+  int argument_count = frame->GetArgumentsLength();
+  Object** parameters = reinterpret_cast<Object**>(frame->GetParameterSlot(-1));
+  return callee->shared()->strict_mode() == STRICT
+             ? *NewStrictArguments(isolate, callee, parameters, argument_count)
+             : *NewSloppyArguments(isolate, callee, parameters, argument_count);
+}
+
+
+RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
+  Object** parameters = reinterpret_cast<Object**>(args[1]);
+  CONVERT_SMI_ARG_CHECKED(argument_count, 2);
+  return *NewSloppyArguments(isolate, callee, parameters, argument_count);
 }
 
 
@@ -7969,22 +8036,8 @@ RUNTIME_FUNCTION(Runtime_NewStrictArguments) {
   ASSERT(args.length() == 3);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0)
   Object** parameters = reinterpret_cast<Object**>(args[1]);
-  CONVERT_SMI_ARG_CHECKED(length, 2);
-
-  Handle<JSObject> result =
-        isolate->factory()->NewArgumentsObject(callee, length);
-
-  if (length > 0) {
-    Handle<FixedArray> array =
-        isolate->factory()->NewUninitializedFixedArray(length);
-    DisallowHeapAllocation no_gc;
-    WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
-    for (int i = 0; i < length; i++) {
-      array->set(i, *--parameters, mode);
-    }
-    result->set_elements(*array);
-  }
-  return *result;
+  CONVERT_SMI_ARG_CHECKED(argument_count, 2);
+  return *NewStrictArguments(isolate, callee, parameters, argument_count);
 }
 
 
@@ -8461,6 +8514,11 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
 
+  // TODO(turbofan): Deoptimization is not supported yet.
+  if (function->code()->is_turbofanned() && !FLAG_turbo_deoptimization) {
+    return isolate->heap()->undefined_value();
+  }
+
   Deoptimizer::DeoptimizeFunction(*function);
 
   return isolate->heap()->undefined_value();
@@ -8569,6 +8627,9 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   }
   if (FLAG_deopt_every_n_times) {
     return Smi::FromInt(6);  // 6 == "maybe deopted".
+  }
+  if (function->IsOptimized() && function->code()->is_turbofanned()) {
+    return Smi::FromInt(7);  // 7 == "TurboFan compiler".
   }
   return function->IsOptimized() ? Smi::FromInt(1)   // 1 == "yes".
                                  : Smi::FromInt(2);  // 2 == "no".
@@ -8877,6 +8938,8 @@ RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   ASSERT(args.length() == 1);
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  ASSERT(function->context() == isolate->context());
   int length = function->shared()->scope_info()->ContextLength();
   return *isolate->factory()->NewFunctionContext(length, function);
 }
@@ -9342,6 +9405,22 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot) {
       isolate, Object::SetProperty(object, name, value, strict_mode));
 
   return *value;
+}
+
+
+RUNTIME_FUNCTION(Runtime_StoreContextRelative) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 4);
+  CONVERT_ARG_CHECKED(Context, context, 0);
+  CONVERT_SMI_ARG_CHECKED(depth, 1);
+  CONVERT_SMI_ARG_CHECKED(index, 2);
+  CONVERT_ARG_CHECKED(Object, value, 3);
+  while (depth-- > 0) {
+    context = context->previous();
+    ASSERT(context->IsContext());
+  }
+  context->set(index, value);
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -11105,6 +11184,15 @@ static SaveContext* FindSavedContextForFrame(Isolate* isolate,
 }
 
 
+RUNTIME_FUNCTION(Runtime_IsOptimized) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  return isolate->heap()->ToBoolean(frame->is_optimized());
+}
+
+
 // Return an array with frame details
 // args[0]: number: break id
 // args[1]: number: frame index
@@ -11207,9 +11295,10 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
       Handle<String> name(scope_info->LocalName(i));
       VariableMode mode;
       InitializationFlag init_flag;
+      MaybeAssignedFlag maybe_assigned_flag;
       locals->set(local * 2, *name);
-      int context_slot_index =
-          ScopeInfo::ContextSlotIndex(scope_info, name, &mode, &init_flag);
+      int context_slot_index = ScopeInfo::ContextSlotIndex(
+          scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
       Object* value = context->get(context_slot_index);
       locals->set(local * 2 + 1, value);
       local++;
@@ -11382,8 +11471,10 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 static bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
                                               Handle<String> parameter_name) {
   VariableMode mode;
-  InitializationFlag flag;
-  return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &flag) != -1;
+  InitializationFlag init_flag;
+  MaybeAssignedFlag maybe_assigned_flag;
+  return ScopeInfo::ContextSlotIndex(info, parameter_name, &mode, &init_flag,
+                                     &maybe_assigned_flag) != -1;
 }
 
 
@@ -11555,8 +11646,9 @@ static bool SetContextLocalValue(Isolate* isolate,
     if (String::Equals(variable_name, next_name)) {
       VariableMode mode;
       InitializationFlag init_flag;
-      int context_index =
-          ScopeInfo::ContextSlotIndex(scope_info, next_name, &mode, &init_flag);
+      MaybeAssignedFlag maybe_assigned_flag;
+      int context_index = ScopeInfo::ContextSlotIndex(
+          scope_info, next_name, &mode, &init_flag, &maybe_assigned_flag);
       context->set(context_index, *new_value);
       return true;
     }
@@ -15022,27 +15114,438 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
 
 
 RUNTIME_FUNCTION(Runtime_MaxSmi) {
+  SealHandleScope shs(isolate);
   ASSERT(args.length() == 0);
   return Smi::FromInt(Smi::kMaxValue);
+}
+
+
+// TODO(dcarney): remove this function when TurboFan supports it.
+// Takes the object to be iterated over and the result of GetPropertyNamesFast
+// Returns pair (cache_array, cache_type).
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInInit) {
+  SealHandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  // This simulates CONVERT_ARG_HANDLE_CHECKED for calls returning pairs.
+  // Not worth creating a macro atm as this function should be removed.
+  if (!args[0]->IsJSReceiver() || !args[1]->IsObject()) {
+    Object* error = isolate->ThrowIllegalOperation();
+    return MakePair(error, isolate->heap()->undefined_value());
+  }
+  Handle<JSReceiver> object = args.at<JSReceiver>(0);
+  Handle<Object> cache_type = args.at<Object>(1);
+  if (cache_type->IsMap()) {
+    // Enum cache case.
+    if (Map::EnumLengthBits::decode(Map::cast(*cache_type)->bit_field3()) ==
+        0) {
+      // 0 length enum.
+      // Can't handle this case in the graph builder,
+      // so transform it into the empty fixed array case.
+      return MakePair(isolate->heap()->empty_fixed_array(), Smi::FromInt(1));
+    }
+    return MakePair(object->map()->instance_descriptors()->GetEnumCache(),
+                    *cache_type);
+  } else {
+    // FixedArray case.
+    Smi* new_cache_type = Smi::FromInt(object->IsJSProxy() ? 0 : 1);
+    return MakePair(*Handle<FixedArray>::cast(cache_type), new_cache_type);
+  }
+}
+
+
+// TODO(dcarney): remove this function when TurboFan supports it.
+RUNTIME_FUNCTION(Runtime_ForInCacheArrayLength) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Object, cache_type, 0);
+  CONVERT_ARG_HANDLE_CHECKED(FixedArray, array, 1);
+  int length = 0;
+  if (cache_type->IsMap()) {
+    length = Map::cast(*cache_type)->EnumLength();
+  } else {
+    ASSERT(cache_type->IsSmi());
+    length = array->length();
+  }
+  return Smi::FromInt(length);
+}
+
+
+// TODO(dcarney): remove this function when TurboFan supports it.
+// Takes (the object to be iterated over,
+//        cache_array from ForInInit,
+//        cache_type from ForInInit,
+//        the current index)
+// Returns pair (array[index], needs_filtering).
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInNext) {
+  SealHandleScope scope(isolate);
+  ASSERT(args.length() == 4);
+  // This simulates CONVERT_ARG_HANDLE_CHECKED for calls returning pairs.
+  // Not worth creating a macro atm as this function should be removed.
+  if (!args[0]->IsJSReceiver() || !args[1]->IsFixedArray() ||
+      !args[2]->IsObject() || !args[3]->IsSmi()) {
+    Object* error = isolate->ThrowIllegalOperation();
+    return MakePair(error, isolate->heap()->undefined_value());
+  }
+  Handle<JSReceiver> object = args.at<JSReceiver>(0);
+  Handle<FixedArray> array = args.at<FixedArray>(1);
+  Handle<Object> cache_type = args.at<Object>(2);
+  int index = args.smi_at(3);
+  // Figure out first if a slow check is needed for this object.
+  bool slow_check_needed = false;
+  if (cache_type->IsMap()) {
+    if (object->map() != Map::cast(*cache_type)) {
+      // Object transitioned.  Need slow check.
+      slow_check_needed = true;
+    }
+  } else {
+    // No slow check needed for proxies.
+    slow_check_needed = Smi::cast(*cache_type)->value() == 1;
+  }
+  return MakePair(array->get(index),
+                  isolate->heap()->ToBoolean(slow_check_needed));
+}
+
+
+// ----------------------------------------------------------------------------
+// Reference implementation for inlined runtime functions.  Only used when the
+// compiler does not support a certain intrinsic.  Don't optimize these, but
+// implement the intrinsic in the respective compiler instead.
+
+// TODO(mstarzinger): These are place-holder stubs for TurboFan and will
+// eventually all have a C++ implementation and this macro will be gone.
+#define U(name)                               \
+  RUNTIME_FUNCTION(RuntimeReference_##name) { \
+    UNIMPLEMENTED();                          \
+    return NULL;                              \
+  }
+
+U(IsStringWrapperSafeForDefaultValueOf)
+U(GeneratorNext)
+U(GeneratorThrow)
+U(DebugBreakInOptimizedCode)
+
+#undef U
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsSmi) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsSmi());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsNonNegativeSmi) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsSmi() &&
+                                    Smi::cast(obj)->value() >= 0);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsArray) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSArray());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsRegExp) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSRegExp());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsConstructCall) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  return isolate->heap()->ToBoolean(frame->IsConstructor());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_CallFunction) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_Call(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_ArgumentsLength) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 0);
+  JavaScriptFrameIterator it(isolate);
+  JavaScriptFrame* frame = it.frame();
+  return Smi::FromInt(frame->GetArgumentsLength());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_Arguments) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_GetArgumentsProperty(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_ValueOf) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  if (!obj->IsJSValue()) return obj;
+  return JSValue::cast(obj)->value();
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_SetValueOf) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  CONVERT_ARG_CHECKED(Object, value, 1);
+  if (!obj->IsJSValue()) return value;
+  JSValue::cast(obj)->set_value(value);
+  return value;
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_DateField) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  if (!obj->IsJSDate()) {
+    HandleScope scope(isolate);
+    return isolate->Throw(*isolate->factory()->NewTypeError(
+        "not_date_object", HandleVector<Object>(NULL, 0)));
+  }
+  JSDate* date = JSDate::cast(obj);
+  if (index == 0) return date->value();
+  return JSDate::GetField(date, Smi::FromInt(index));
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_StringCharFromCode) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_CharFromCode(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_StringCharAt) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  if (!args[0]->IsString()) return Smi::FromInt(0);
+  if (!args[1]->IsNumber()) return Smi::FromInt(0);
+  if (std::isinf(args.number_at(1))) return isolate->heap()->empty_string();
+  Object* code = __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
+  if (code->IsNaN()) return isolate->heap()->empty_string();
+  return __RT_impl_Runtime_CharFromCode(Arguments(1, &code), isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_OneByteSeqStringSetChar) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(SeqOneByteString, string, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_SMI_ARG_CHECKED(value, 2);
+  string->SeqOneByteStringSet(index, value);
+  return string;
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_TwoByteSeqStringSetChar) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 3);
+  CONVERT_ARG_CHECKED(SeqTwoByteString, string, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_SMI_ARG_CHECKED(value, 2);
+  string->SeqTwoByteStringSet(index, value);
+  return string;
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_ObjectEquals) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(Object, obj1, 0);
+  CONVERT_ARG_CHECKED(Object, obj2, 1);
+  return isolate->heap()->ToBoolean(obj1 == obj2);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsObject) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  if (!obj->IsHeapObject()) return isolate->heap()->false_value();
+  if (obj->IsNull()) return isolate->heap()->true_value();
+  if (obj->IsUndetectableObject()) return isolate->heap()->false_value();
+  Map* map = HeapObject::cast(obj)->map();
+  bool is_non_callable_spec_object =
+      map->instance_type() >= FIRST_NONCALLABLE_SPEC_OBJECT_TYPE &&
+      map->instance_type() <= LAST_NONCALLABLE_SPEC_OBJECT_TYPE;
+  return isolate->heap()->ToBoolean(is_non_callable_spec_object);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsFunction) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSFunction());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsUndetectableObject) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsUndetectableObject());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsSpecObject) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsSpecObject());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_MathPow) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_MathPowSlow(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsMinusZero) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  if (!obj->IsHeapNumber()) return isolate->heap()->false_value();
+  HeapNumber* number = HeapNumber::cast(obj);
+  return isolate->heap()->ToBoolean(IsMinusZero(number->value()));
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_HasCachedArrayIndex) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  return isolate->heap()->false_value();
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_GetCachedArrayIndex) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_FastAsciiArrayJoin) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_ClassOf) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  if (!obj->IsJSReceiver()) return isolate->heap()->null_value();
+  return JSReceiver::cast(obj)->class_name();
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_StringCharCodeAt) {
+  SealHandleScope shs(isolate);
+  ASSERT(args.length() == 2);
+  if (!args[0]->IsString()) return isolate->heap()->undefined_value();
+  if (!args[1]->IsNumber()) return isolate->heap()->undefined_value();
+  if (std::isinf(args.number_at(1))) return isolate->heap()->nan_value();
+  return __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_StringAdd) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_StringAdd(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_SubString) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_SubString(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_StringCompare) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_StringCompare(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_RegExpExec) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_RegExpExecRT(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_RegExpConstructResult) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_RegExpConstructResult(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_GetFromCache) {
+  HandleScope scope(isolate);
+  ASSERT(args.length() == 2);
+  CONVERT_SMI_ARG_CHECKED(id, 0);
+  args[0] = isolate->native_context()->jsfunction_result_caches()->get(id);
+  return __RT_impl_Runtime_GetFromCache(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_NumberToString) {
+  SealHandleScope shs(isolate);
+  return __RT_impl_Runtime_NumberToStringRT(args, isolate);
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_DebugIsActive) {
+  SealHandleScope shs(isolate);
+  return Smi::FromInt(isolate->debug()->is_active());
 }
 
 
 // ----------------------------------------------------------------------------
 // Implementation of Runtime
 
-#define F(name, number_of_args, result_size)                             \
-  { Runtime::k##name, Runtime::RUNTIME, #name,   \
-    FUNCTION_ADDR(Runtime_##name), number_of_args, result_size },
+#define F(name, number_of_args, result_size)                                  \
+  {                                                                           \
+    Runtime::k##name, Runtime::RUNTIME, #name, FUNCTION_ADDR(Runtime_##name), \
+        number_of_args, result_size                                           \
+  }                                                                           \
+  ,
 
 
-#define I(name, number_of_args, result_size)                             \
-  { Runtime::kInline##name, Runtime::INLINE,     \
-    "_" #name, NULL, number_of_args, result_size },
+#define I(name, number_of_args, result_size)                                \
+  {                                                                         \
+    Runtime::kInline##name, Runtime::INLINE, "_" #name,                     \
+        FUNCTION_ADDR(RuntimeReference_##name), number_of_args, result_size \
+  }                                                                         \
+  ,
 
 
-#define IO(name, number_of_args, result_size) \
-  { Runtime::kInlineOptimized##name, Runtime::INLINE_OPTIMIZED, \
-    "_" #name, FUNCTION_ADDR(Runtime_##name), number_of_args, result_size },
+#define IO(name, number_of_args, result_size)                              \
+  {                                                                        \
+    Runtime::kInlineOptimized##name, Runtime::INLINE_OPTIMIZED, "_" #name, \
+        FUNCTION_ADDR(Runtime_##name), number_of_args, result_size         \
+  }                                                                        \
+  ,
 
 
 static const Runtime::Function kIntrinsicFunctions[] = {
@@ -15082,6 +15585,17 @@ const Runtime::Function* Runtime::FunctionForName(Handle<String> name) {
     Object* smi_index = heap->intrinsic_function_names()->ValueAt(entry);
     int function_index = Smi::cast(smi_index)->value();
     return &(kIntrinsicFunctions[function_index]);
+  }
+  return NULL;
+}
+
+
+const Runtime::Function* Runtime::FunctionForEntry(Address entry) {
+  size_t length = sizeof(kIntrinsicFunctions) / sizeof(*kIntrinsicFunctions);
+  for (size_t i = 0; i < length; ++i) {
+    if (entry == kIntrinsicFunctions[i].entry) {
+      return &(kIntrinsicFunctions[i]);
+    }
   }
   return NULL;
 }

@@ -53,8 +53,14 @@ const bool FLAG_enable_slow_asserts = false;
 } }  // namespace v8::internal
 
 
-void CheckNonEqualsHelper(const char* file,
-                          int line,
+void CheckNonEqualsHelper(const char* file, int line,
+                          const char* expected_source, double expected,
+                          const char* value_source, double value);
+
+void CheckEqualsHelper(const char* file, int line, const char* expected_source,
+                       double expected, const char* value_source, double value);
+
+void CheckNonEqualsHelper(const char* file, int line,
                           const char* unexpected_source,
                           v8::Handle<v8::Value> unexpected,
                           const char* value_source,

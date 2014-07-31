@@ -8,7 +8,6 @@
 #include <climits>
 
 #include "src/base/macros.h"
-#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -16,6 +15,7 @@ namespace internal {
 // Forward declarations.
 template <typename T> class Handle;
 class Object;
+class OStream;
 
 #define HTYPE_LIST(V)                                 \
   V(Any, 0x0)              /* 0000 0000 0000 0000 */  \

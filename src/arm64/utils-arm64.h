@@ -88,13 +88,13 @@ inline bool IsQuietNaN(T num) {
 
 // Convert the NaN in 'num' to a quiet NaN.
 inline double ToQuietNaN(double num) {
-  ASSERT(isnan(num));
+  ASSERT(std::isnan(num));
   return rawbits_to_double(double_to_rawbits(num) | kDQuietNanMask);
 }
 
 
 inline float ToQuietNaN(float num) {
-  ASSERT(isnan(num));
+  ASSERT(std::isnan(num));
   return rawbits_to_float(float_to_rawbits(num) | kSQuietNanMask);
 }
 

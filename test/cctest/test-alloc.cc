@@ -201,7 +201,7 @@ TEST(CodeRange) {
   code_range.SetUp(code_range_size);
   size_t current_allocated = 0;
   size_t total_allocated = 0;
-  List<Block> blocks(1000);
+  List< ::Block> blocks(1000);
 
   while (total_allocated < 5 * code_range_size) {
     if (current_allocated < code_range_size / 10) {
@@ -218,7 +218,7 @@ TEST(CodeRange) {
                                                   requested,
                                                   &allocated);
       CHECK(base != NULL);
-      blocks.Add(Block(base, static_cast<int>(allocated)));
+      blocks.Add(::Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);
     } else {

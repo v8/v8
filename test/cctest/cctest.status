@@ -76,6 +76,105 @@
   # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
   'test-cpu-profiler/*': [PASS, FLAKY],
 
+  ##############################################################################
+  # TurboFan compiler failures.
+
+  # TODO(jarin): Lazy deoptimization test.
+  'test-run-deopt/TurboSimpleDeopt': [SKIP],
+
+  # TODO(mstarzinger): These need investigation and are not categorized yet.
+  'test-cpu-profiler/*': [SKIP],
+  'test-heap/NextCodeLinkIsWeak': [PASS, NO_VARIANTS],
+
+  # TODO(mstarzinger/verwaest): This access check API is borked.
+  'test-api/TurnOnAccessCheck': [PASS, NO_VARIANTS],
+  'test-api/TurnOnAccessCheckAndRecompile': [PASS, NO_VARIANTS],
+
+  # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
+  'test-debug/DebugEvaluateWithoutStack': [PASS, NO_VARIANTS],
+  'test-debug/MessageQueues': [PASS, NO_VARIANTS],
+  'test-debug/NestedBreakEventContextData': [PASS, NO_VARIANTS],
+  'test-debug/SendClientDataToHandler': [PASS, NO_VARIANTS],
+
+  # TODO(dcarney): C calls are broken all over the place.
+  'test-run-machops/RunCall*': [SKIP],
+  'test-run-machops/RunLoadImmIndex': [SKIP],
+  'test-run-machops/RunSpillLotsOfThingsWithCall': [SKIP],
+
+  # Some tests are just too slow to run for now.
+  'test-api/Threading*': [PASS, NO_VARIANTS],
+  'test-api/ExternalArrays': [PASS, NO_VARIANTS],
+  'test-api/RequestInterruptTestWithMathAbs': [PASS, NO_VARIANTS],
+  'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
+  'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
+  'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
+
+  # Support for lazy deoptimization is missing.
+  'test-deoptimization/DeoptimizeSimple': [PASS, NO_VARIANTS],
+  'test-deoptimization/DeoptimizeSimpleNested': [PASS, NO_VARIANTS],
+  'test-deoptimization/DeoptimizeSimpleWithArguments': [PASS, NO_VARIANTS],
+  'test-deoptimization/DeoptimizeBinaryOperation*': [PASS, NO_VARIANTS],
+  'test-deoptimization/DeoptimizeCompare': [PASS, NO_VARIANTS],
+  'test-deoptimization/DeoptimizeLoadICStoreIC': [PASS, NO_VARIANTS],
+  'test-deoptimization/DeoptimizeLoadICStoreICNested': [PASS, NO_VARIANTS],
+
+  # Support for breakpoints requires using LoadICs and StoreICs.
+  'test-debug/BreakPointICStore': [PASS, NO_VARIANTS],
+  'test-debug/BreakPointICLoad': [PASS, NO_VARIANTS],
+  'test-debug/BreakPointICCall': [PASS, NO_VARIANTS],
+  'test-debug/BreakPointICCallWithGC': [PASS, NO_VARIANTS],
+  'test-debug/BreakPointConstructCallWithGC': [PASS, NO_VARIANTS],
+  'test-debug/BreakPointReturn': [PASS, NO_VARIANTS],
+  'test-debug/BreakPointThroughJavaScript': [PASS, NO_VARIANTS],
+  'test-debug/ScriptBreakPointByNameThroughJavaScript': [PASS, NO_VARIANTS],
+  'test-debug/ScriptBreakPointByIdThroughJavaScript': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepLinear': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepKeyedLoadLoop': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepKeyedStoreLoop': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepNamedLoadLoop': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepNamedStoreLoop': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepLinearMixedICs': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepDeclarations': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepLocals': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepIf': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepSwitch': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepWhile': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepDoWhile': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepFor': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepForContinue': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepForBreak': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepForIn': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepWith': [PASS, NO_VARIANTS],
+  'test-debug/DebugConditional': [PASS, NO_VARIANTS],
+  'test-debug/StepInOutSimple': [PASS, NO_VARIANTS],
+  'test-debug/StepInOutTree': [PASS, NO_VARIANTS],
+  'test-debug/StepInOutBranch': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreak': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreakStackInspection': [PASS, NO_VARIANTS],
+  'test-debug/BreakMessageWhenMessageHandlerIsReset': [PASS, NO_VARIANTS],
+  'test-debug/NoDebugBreakInAfterCompileMessageHandler': [PASS, NO_VARIANTS],
+  'test-debug/DisableBreak': [PASS, NO_VARIANTS],
+  'test-debug/RegExpDebugBreak': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreakFunctionApply': [PASS, NO_VARIANTS],
+  'test-debug/DeoptimizeDuringDebugBreak': [PASS, NO_VARIANTS],
+
+  # Support for %GetFrameDetails is missing and requires checkpoints.
+  'test-api/Regress385349': [PASS, NO_VARIANTS],
+  'test-debug/DebuggerStatement': [PASS, NO_VARIANTS],
+  'test-debug/DebuggerStatementBreakpoint': [PASS, NO_VARIANTS],
+  'test-debug/DebugEvaluateWithCodeGenerationDisallowed': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepNatives': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepFunctionCall': [PASS, NO_VARIANTS],
+  'test-debug/DebugStepFunctionApply': [PASS, NO_VARIANTS],
+  'test-debug/ScriptNameAndData': [PASS, NO_VARIANTS],
+  'test-debug/ContextData': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreakInMessageHandler': [PASS, NO_VARIANTS],
+  'test-debug/CallFunctionInDebugger': [PASS, NO_VARIANTS],
+  'test-debug/CallingContextIsNotDebugContext': [PASS, NO_VARIANTS],
+  'test-debug/DebugEventContext': [PASS, NO_VARIANTS],
+  'test-debug/DebugBreakInline': [PASS, NO_VARIANTS],
+
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],

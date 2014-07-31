@@ -63,12 +63,10 @@ void InterfaceDescriptor::Initialize(
 
 
 void CodeStubInterfaceDescriptor::Initialize(
-    int register_parameter_count,
-    Register* registers,
+    CodeStub::Major major, int register_parameter_count, Register* registers,
     Address deoptimization_handler,
     Representation* register_param_representations,
-    int hint_stack_parameter_count,
-    StubFunctionMode function_mode) {
+    int hint_stack_parameter_count, StubFunctionMode function_mode) {
   InterfaceDescriptor::Initialize(register_parameter_count, registers,
                                   register_param_representations);
 
@@ -76,22 +74,18 @@ void CodeStubInterfaceDescriptor::Initialize(
 
   hint_stack_parameter_count_ = hint_stack_parameter_count;
   function_mode_ = function_mode;
+  major_ = major;
 }
 
 
 void CodeStubInterfaceDescriptor::Initialize(
-    int register_parameter_count,
-    Register* registers,
-    Register stack_parameter_count,
-    Address deoptimization_handler,
+    CodeStub::Major major, int register_parameter_count, Register* registers,
+    Register stack_parameter_count, Address deoptimization_handler,
     Representation* register_param_representations,
-    int hint_stack_parameter_count,
-    StubFunctionMode function_mode,
+    int hint_stack_parameter_count, StubFunctionMode function_mode,
     HandlerArgumentsMode handler_mode) {
-  Initialize(register_parameter_count, registers,
-             deoptimization_handler,
-             register_param_representations,
-             hint_stack_parameter_count,
+  Initialize(major, register_parameter_count, registers, deoptimization_handler,
+             register_param_representations, hint_stack_parameter_count,
              function_mode);
   stack_parameter_count_ = stack_parameter_count;
   handler_arguments_mode_ = handler_mode;
@@ -591,7 +585,7 @@ void LoadFastElementStub::InitializeInterfaceDescriptor(
                            LoadIC::ReceiverRegister(),
                            LoadIC::NameRegister() };
   STATIC_ASSERT(LoadIC::kParameterCount == 2);
-  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
@@ -602,7 +596,7 @@ void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
                            LoadIC::ReceiverRegister(),
                            LoadIC::NameRegister() };
   STATIC_ASSERT(LoadIC::kParameterCount == 2);
-  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
@@ -614,7 +608,7 @@ void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
                            LoadIC::NameRegister() };
   STATIC_ASSERT(LoadIC::kParameterCount == 2);
   descriptor->Initialize(
-      ARRAY_SIZE(registers), registers,
+      MajorKey(), ARRAY_SIZE(registers), registers,
       Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
 }
 
@@ -623,7 +617,7 @@ void LoadFieldStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { InterfaceDescriptor::ContextRegister(),
                            LoadIC::ReceiverRegister() };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
 }
 
 
@@ -632,7 +626,7 @@ void StringLengthStub::InitializeInterfaceDescriptor(
   Register registers[] = { InterfaceDescriptor::ContextRegister(),
                            LoadIC::ReceiverRegister(),
                            LoadIC::NameRegister() };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
 }
 
 
@@ -642,9 +636,8 @@ void StoreFastElementStub::InitializeInterfaceDescriptor(
                            KeyedStoreIC::ReceiverRegister(),
                            KeyedStoreIC::NameRegister(),
                            KeyedStoreIC::ValueRegister() };
-  descriptor->Initialize(
-      ARRAY_SIZE(registers), registers,
-      FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+                         FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
 }
 
 
@@ -655,7 +648,7 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
                            MapRegister(),
                            KeyRegister(),
                            ObjectRegister() };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
                          FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
 }
 
@@ -666,8 +659,17 @@ void StoreGlobalStub::InitializeInterfaceDescriptor(
                            StoreIC::ReceiverRegister(),
                            StoreIC::NameRegister(),
                            StoreIC::ValueRegister() };
-  descriptor->Initialize(ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
                          FUNCTION_ADDR(StoreIC_MissFromStubFailure));
+}
+
+
+void InstanceofStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { InterfaceDescriptor::ContextRegister(),
+                           InstanceofStub::left(),
+                           InstanceofStub::right() };
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
 }
 
 

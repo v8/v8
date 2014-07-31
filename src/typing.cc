@@ -6,6 +6,7 @@
 
 #include "src/frames.h"
 #include "src/frames-inl.h"
+#include "src/ostreams.h"
 #include "src/parser.h"  // for CompileTimeValue; TODO(rossberg): should move
 #include "src/scopes.h"
 

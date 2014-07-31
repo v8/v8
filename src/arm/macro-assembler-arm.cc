@@ -254,7 +254,7 @@ void MacroAssembler::Mls(Register dst, Register src1, Register src2,
     CpuFeatureScope scope(this, MLS);
     mls(dst, src1, src2, srcA, cond);
   } else {
-    ASSERT(!dst.is(srcA));
+    ASSERT(!srcA.is(ip));
     mul(ip, src1, src2, LeaveCC, cond);
     sub(dst, srcA, ip, LeaveCC, cond);
   }

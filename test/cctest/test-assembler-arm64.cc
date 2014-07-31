@@ -10382,7 +10382,7 @@ TEST(process_nan_float) {
 
 static void ProcessNaNsHelper(double n, double m, double expected) {
   ASSERT(std::isnan(n) || std::isnan(m));
-  ASSERT(isnan(expected));
+  ASSERT(std::isnan(expected));
 
   SETUP();
   START();
@@ -10454,7 +10454,7 @@ TEST(process_nans_double) {
 
 static void ProcessNaNsHelper(float n, float m, float expected) {
   ASSERT(std::isnan(n) || std::isnan(m));
-  ASSERT(isnan(expected));
+  ASSERT(std::isnan(expected));
 
   SETUP();
   START();
@@ -10525,7 +10525,7 @@ TEST(process_nans_float) {
 
 
 static void DefaultNaNHelper(float n, float m, float a) {
-  ASSERT(std::isnan(n) || std::isnan(m) || isnan(a));
+  ASSERT(std::isnan(n) || std::isnan(m) || std::isnan(a));
 
   bool test_1op = std::isnan(n);
   bool test_2op = std::isnan(n) || std::isnan(m);
@@ -10653,7 +10653,7 @@ TEST(default_nan_float) {
 
 
 static void DefaultNaNHelper(double n, double m, double a) {
-  ASSERT(std::isnan(n) || std::isnan(m) || isnan(a));
+  ASSERT(std::isnan(n) || std::isnan(m) || std::isnan(a));
 
   bool test_1op = std::isnan(n);
   bool test_2op = std::isnan(n) || std::isnan(m);

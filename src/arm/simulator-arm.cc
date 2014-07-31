@@ -2711,28 +2711,30 @@ void Simulator::DecodeType3(Instruction* instr) {
     }
     case db_x: {
       if (FLAG_enable_sudiv) {
-        if (!instr->HasW()) {
-          if (instr->Bits(5, 4) == 0x1) {
-             if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
-               // sdiv (in V8 notation matching ARM ISA format) rn = rm/rs
-               // Format(instr, "'sdiv'cond'b 'rn, 'rm, 'rs);
-               int rm = instr->RmValue();
-               int32_t rm_val = get_register(rm);
-               int rs = instr->RsValue();
-               int32_t rs_val = get_register(rs);
-               int32_t ret_val = 0;
-               ASSERT(rs_val != 0);
-               if ((rm_val == kMinInt) && (rs_val == -1)) {
-                 ret_val = kMinInt;
-               } else {
-                 ret_val = rm_val / rs_val;
-               }
-               set_register(rn, ret_val);
-               return;
-             }
-           }
-         }
-       }
+        if (instr->Bits(5, 4) == 0x1) {
+          if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
+            // (s/u)div (in V8 notation matching ARM ISA format) rn = rm/rs
+            // Format(instr, "'(s/u)div'cond'b 'rn, 'rm, 'rs);
+            int rm = instr->RmValue();
+            int32_t rm_val = get_register(rm);
+            int rs = instr->RsValue();
+            int32_t rs_val = get_register(rs);
+            int32_t ret_val = 0;
+            ASSERT(rs_val != 0);
+            // udiv
+            if (instr->Bit(21) == 0x1) {
+              ret_val = static_cast<int32_t>(static_cast<uint32_t>(rm_val) /
+                                             static_cast<uint32_t>(rs_val));
+            } else if ((rm_val == kMinInt) && (rs_val == -1)) {
+              ret_val = kMinInt;
+            } else {
+              ret_val = rm_val / rs_val;
+            }
+            set_register(rn, ret_val);
+            return;
+          }
+        }
+      }
       // Format(instr, "'memop'cond'b 'rd, ['rn, -'shift_rm]'w");
       addr = rn_val - shifter_operand;
       if (instr->HasW()) {
@@ -2772,7 +2774,7 @@ void Simulator::DecodeType3(Instruction* instr) {
           uint32_t rd_val =
               static_cast<uint32_t>(get_register(instr->RdValue()));
           uint32_t bitcount = msbit - lsbit + 1;
-          uint32_t mask = (1 << bitcount) - 1;
+          uint32_t mask = 0xffffffffu >> (32 - bitcount);
           rd_val &= ~(mask << lsbit);
           if (instr->RmValue() != 15) {
             // bfi - bitfield insert.

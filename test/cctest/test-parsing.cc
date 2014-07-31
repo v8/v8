@@ -42,6 +42,7 @@
 #include "src/scanner-character-streams.h"
 #include "src/token.h"
 #include "src/utils.h"
+
 #include "test/cctest/cctest.h"
 
 TEST(ScanKeywords) {
@@ -2852,6 +2853,167 @@ TEST(RegressionLazyFunctionWithErrorWithArg) {
 }
 
 
+TEST(SerializationOfMaybeAssignmentFlag) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  const char* src =
+      "function h() {"
+      "  var result = [];"
+      "  function f() {"
+      "    result.push(2);"
+      "  }"
+      "  function assertResult(r) {"
+      "    f();"
+      "    result = [];"
+      "  }"
+      "  assertResult([2]);"
+      "  assertResult([2]);"
+      "  return f;"
+      "};"
+      "h();";
+
+  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
+  i::SNPrintF(program, "%s", src);
+  i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
+  source->PrintOn(stdout);
+  printf("\n");
+  i::Zone zone(isolate);
+  v8::Local<v8::Value> v = CompileRun(src);
+  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
+  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
+  i::Context* context = f->context();
+  i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
+  avf.Internalize(isolate);
+  const i::AstRawString* name = avf.GetOneByteString("result");
+  i::Handle<i::String> str = name->string();
+  CHECK(str->IsInternalizedString());
+  i::Scope* global_scope =
+      new (&zone) i::Scope(NULL, i::GLOBAL_SCOPE, &avf, &zone);
+  global_scope->Initialize();
+  i::Scope* s = i::Scope::DeserializeScopeChain(context, global_scope, &zone);
+  ASSERT(s != global_scope);
+  ASSERT(name != NULL);
+
+  // Get result from h's function context (that is f's context)
+  i::Variable* var = s->Lookup(name);
+
+  CHECK(var != NULL);
+  // Maybe assigned should survive deserialization
+  CHECK(var->maybe_assigned() == i::kMaybeAssigned);
+  // TODO(sigurds) Figure out if is_used should survive context serialization.
+}
+
+
+TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+
+  const char* src =
+      "function f(x) {"
+      "    var a = arguments;"
+      "    function g(i) {"
+      "      ++a[0];"
+      "    };"
+      "    return g;"
+      "  }"
+      "f(0);";
+
+  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
+  i::SNPrintF(program, "%s", src);
+  i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
+  source->PrintOn(stdout);
+  printf("\n");
+  i::Zone zone(isolate);
+  v8::Local<v8::Value> v = CompileRun(src);
+  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
+  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
+  i::Context* context = f->context();
+  i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
+  avf.Internalize(isolate);
+
+  i::Scope* global_scope =
+      new (&zone) i::Scope(NULL, i::GLOBAL_SCOPE, &avf, &zone);
+  global_scope->Initialize();
+  i::Scope* s = i::Scope::DeserializeScopeChain(context, global_scope, &zone);
+  ASSERT(s != global_scope);
+  const i::AstRawString* name_x = avf.GetOneByteString("x");
+
+  // Get result from f's function context (that is g's outer context)
+  i::Variable* var_x = s->Lookup(name_x);
+  CHECK(var_x != NULL);
+  CHECK(var_x->maybe_assigned() == i::kMaybeAssigned);
+}
+
+
+TEST(ExportsMaybeAssigned) {
+  i::FLAG_use_strict = true;
+  i::FLAG_harmony_scoping = true;
+  i::FLAG_harmony_modules = true;
+
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  const char* src =
+      "module A {"
+      "  export var x = 1;"
+      "  export function f() { return x };"
+      "  export const y = 2;"
+      "  module B {}"
+      "  export module C {}"
+      "};"
+      "A.f";
+
+  i::ScopedVector<char> program(Utf8LengthHelper(src) + 1);
+  i::SNPrintF(program, "%s", src);
+  i::Handle<i::String> source = factory->InternalizeUtf8String(program.start());
+  source->PrintOn(stdout);
+  printf("\n");
+  i::Zone zone(isolate);
+  v8::Local<v8::Value> v = CompileRun(src);
+  i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
+  i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
+  i::Context* context = f->context();
+  i::AstValueFactory avf(&zone, isolate->heap()->HashSeed());
+  avf.Internalize(isolate);
+
+  i::Scope* global_scope =
+      new (&zone) i::Scope(NULL, i::GLOBAL_SCOPE, &avf, &zone);
+  global_scope->Initialize();
+  i::Scope* s = i::Scope::DeserializeScopeChain(context, global_scope, &zone);
+  ASSERT(s != global_scope);
+  const i::AstRawString* name_x = avf.GetOneByteString("x");
+  const i::AstRawString* name_f = avf.GetOneByteString("f");
+  const i::AstRawString* name_y = avf.GetOneByteString("y");
+  const i::AstRawString* name_B = avf.GetOneByteString("B");
+  const i::AstRawString* name_C = avf.GetOneByteString("C");
+
+  // Get result from h's function context (that is f's context)
+  i::Variable* var_x = s->Lookup(name_x);
+  CHECK(var_x != NULL);
+  CHECK(var_x->maybe_assigned() == i::kMaybeAssigned);
+  i::Variable* var_f = s->Lookup(name_f);
+  CHECK(var_f != NULL);
+  CHECK(var_f->maybe_assigned() == i::kMaybeAssigned);
+  i::Variable* var_y = s->Lookup(name_y);
+  CHECK(var_y != NULL);
+  CHECK(var_y->maybe_assigned() == i::kNotAssigned);
+  i::Variable* var_B = s->Lookup(name_B);
+  CHECK(var_B != NULL);
+  CHECK(var_B->maybe_assigned() == i::kNotAssigned);
+  i::Variable* var_C = s->Lookup(name_C);
+  CHECK(var_C != NULL);
+  CHECK(var_C->maybe_assigned() == i::kNotAssigned);
+}
+
+
 TEST(InnerAssignment) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -2940,6 +3102,10 @@ TEST(InnerAssignment) {
     { "(function(x) { eval(''); })", true, false },
   };
 
+  // Used to trigger lazy compilation of function
+  int comment_len = 2048;
+  i::ScopedVector<char> comment(comment_len + 1);
+  i::SNPrintF(comment, "/*%0*d*/", comment_len - 4, 0);
   int prefix_len = Utf8LengthHelper(prefix);
   int midfix_len = Utf8LengthHelper(midfix);
   int suffix_len = Utf8LengthHelper(suffix);
@@ -2947,36 +3113,48 @@ TEST(InnerAssignment) {
     const char* outer = outers[i].source;
     int outer_len = Utf8LengthHelper(outer);
     for (unsigned j = 0; j < ARRAY_SIZE(inners); ++j) {
-      if (outers[i].strict && inners[j].with) continue;
-      const char* inner = inners[j].source;
-      int inner_len = Utf8LengthHelper(inner);
-      int len = prefix_len + outer_len + midfix_len + inner_len + suffix_len;
-      i::ScopedVector<char> program(len + 1);
-      i::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner, suffix);
-      i::Handle<i::String> source =
-          factory->InternalizeUtf8String(program.start());
-      source->PrintOn(stdout);
-      printf("\n");
+      for (unsigned outer_lazy = 0; outer_lazy < 2; ++outer_lazy) {
+        for (unsigned inner_lazy = 0; inner_lazy < 2; ++inner_lazy) {
+          if (outers[i].strict && inners[j].with) continue;
+          const char* inner = inners[j].source;
+          int inner_len = Utf8LengthHelper(inner);
 
-      i::Handle<i::Script> script = factory->NewScript(source);
-      i::CompilationInfoWithZone info(script);
-      i::Parser parser(&info);
-      parser.set_allow_harmony_scoping(true);
-      CHECK(parser.Parse());
-      CHECK(i::Rewriter::Rewrite(&info));
-      CHECK(i::Scope::Analyze(&info));
-      CHECK(info.function() != NULL);
+          int outer_comment_len = outer_lazy ? comment_len : 0;
+          int inner_comment_len = inner_lazy ? comment_len : 0;
+          const char* outer_comment = outer_lazy ? comment.start() : "";
+          const char* inner_comment = inner_lazy ? comment.start() : "";
+          int len = prefix_len + outer_comment_len + outer_len + midfix_len +
+                    inner_comment_len + inner_len + suffix_len;
+          i::ScopedVector<char> program(len + 1);
 
-      i::Scope* scope = info.function()->scope();
-      CHECK_EQ(scope->inner_scopes()->length(), 1);
-      i::Scope* inner_scope = scope->inner_scopes()->at(0);
-      const i::AstRawString* var_name =
-          info.ast_value_factory()->GetOneByteString("x");
-      i::Variable* var = inner_scope->Lookup(var_name);
-      bool expected = outers[i].assigned || inners[j].assigned;
-      CHECK(var != NULL);
-      CHECK(var->is_used() || !expected);
-      CHECK(var->maybe_assigned() == expected);
+          i::SNPrintF(program, "%s%s%s%s%s%s%s", prefix, outer_comment, outer,
+                      midfix, inner_comment, inner, suffix);
+          i::Handle<i::String> source =
+              factory->InternalizeUtf8String(program.start());
+          source->PrintOn(stdout);
+          printf("\n");
+
+          i::Handle<i::Script> script = factory->NewScript(source);
+          i::CompilationInfoWithZone info(script);
+          i::Parser parser(&info);
+          parser.set_allow_harmony_scoping(true);
+          CHECK(parser.Parse());
+          CHECK(i::Rewriter::Rewrite(&info));
+          CHECK(i::Scope::Analyze(&info));
+          CHECK(info.function() != NULL);
+
+          i::Scope* scope = info.function()->scope();
+          CHECK_EQ(scope->inner_scopes()->length(), 1);
+          i::Scope* inner_scope = scope->inner_scopes()->at(0);
+          const i::AstRawString* var_name =
+              info.ast_value_factory()->GetOneByteString("x");
+          i::Variable* var = inner_scope->Lookup(var_name);
+          bool expected = outers[i].assigned || inners[j].assigned;
+          CHECK(var != NULL);
+          CHECK(var->is_used() || !expected);
+          CHECK((var->maybe_assigned() == i::kMaybeAssigned) == expected);
+        }
+      }
     }
   }
 }
