@@ -103,14 +103,14 @@ void V8::InitializeOncePerProcess() {
 
 
 void V8::InitializePlatform(v8::Platform* platform) {
-  ASSERT(!platform_);
-  ASSERT(platform);
+  CHECK(!platform_);
+  CHECK(platform);
   platform_ = platform;
 }
 
 
 void V8::ShutdownPlatform() {
-  ASSERT(platform_);
+  CHECK(platform_);
   platform_ = NULL;
 }
 
