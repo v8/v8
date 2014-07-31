@@ -177,18 +177,14 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
   ASSERT_EQ(scope->num_parameters() + 1, parameters_count());
 
   // Bind the receiver variable.
-  values()->insert(values()->end(), parameters_count(),
-                   static_cast<Node*>(NULL));
   Node* receiver = builder->graph()->NewNode(common()->Parameter(0));
-  Bind(scope->receiver(), receiver);
+  values()->push_back(receiver);
 
   // Bind all parameter variables. The parameter indices are shifted by 1
   // (receiver is parameter index -1 but environment index 0).
   for (int i = 0; i < scope->num_parameters(); ++i) {
-    // Unused parameters are allocated to Variable::UNALLOCATED.
-    if (!scope->parameter(i)->IsParameter()) continue;
     Node* parameter = builder->graph()->NewNode(common()->Parameter(i + 1));
-    Bind(scope->parameter(i), parameter);
+    values()->push_back(parameter);
   }
 
   // Bind all local variables to undefined.

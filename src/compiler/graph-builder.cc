@@ -145,7 +145,6 @@ void StructuredGraphBuilder::Environment::Merge(Environment* other) {
   // Introduce Phi nodes for values that have differing input at merge points,
   // potentially extending an existing Phi node if possible.
   for (int i = 0; i < static_cast<int>(values_.size()); ++i) {
-    if (values_[i] == NULL) continue;
     values_[i] = builder_->MergeValue(values_[i], other->values_[i], control);
   }
 }
@@ -154,7 +153,6 @@ void StructuredGraphBuilder::Environment::Merge(Environment* other) {
 void StructuredGraphBuilder::Environment::PrepareForLoop() {
   Node* control = GetControlDependency();
   for (int i = 0; i < static_cast<int>(values()->size()); ++i) {
-    if (values()->at(i) == NULL) continue;
     Node* phi = builder_->NewPhi(1, values()->at(i), control);
     values()->at(i) = phi;
   }
