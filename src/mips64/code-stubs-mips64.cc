@@ -72,6 +72,18 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
 }
 
 
+void CallFunctionStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  UNIMPLEMENTED();
+}
+
+
+void CallConstructStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  UNIMPLEMENTED();
+}
+
+
 void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { cp, a2, a3 };
@@ -155,7 +167,7 @@ static void InitializeInternalArrayConstructorDescriptor(
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { cp, a1 };
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(major, ARRAY_SIZE(registers), registers,
                            deopt_handler, NULL, constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
@@ -165,7 +177,7 @@ static void InitializeInternalArrayConstructorDescriptor(
         Representation::Tagged(),
         Representation::Tagged(),
         Representation::Integer32() };
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers, a0,
+    descriptor->Initialize(major, ARRAY_SIZE(registers), registers, a0,
                            deopt_handler, representations,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
