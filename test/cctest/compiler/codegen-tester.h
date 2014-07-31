@@ -142,14 +142,14 @@ class StructuredMachineAssemblerTester
 
 static const bool USE_RESULT_BUFFER = true;
 static const bool USE_RETURN_REGISTER = false;
+static const int32_t CHECK_VALUE = 0x99BEEDCE;
+
 
 // TODO(titzer): use the C-style calling convention, or any register-based
 // calling convention for binop tests.
 template <typename CType, MachineRepresentation rep, bool use_result_buffer>
 class BinopTester {
  public:
-  static const int32_t CHECK_VALUE = 0x99BEEDCE;
-
   explicit BinopTester(RawMachineAssemblerTester<int32_t>* tester)
       : T(tester),
         param0(T->LoadFromPointer(&p0, rep)),

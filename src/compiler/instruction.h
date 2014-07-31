@@ -265,7 +265,7 @@ class UnallocatedOperand : public InstructionOperand {
 };
 
 
-class MoveOperands V8_FINAL BASE_EMBEDDED {
+class MoveOperands V8_FINAL {
  public:
   MoveOperands(InstructionOperand* source, InstructionOperand* destination)
       : source_(source), destination_(destination) {}

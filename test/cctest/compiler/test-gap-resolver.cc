@@ -123,7 +123,8 @@ class ParallelMoveCreator : public HandleAndZoneScope {
 
  private:
   struct InstructionOperandComparator {
-    bool operator()(const InstructionOperand* x, const InstructionOperand* y) {
+    bool operator()(const InstructionOperand* x,
+                    const InstructionOperand* y) const {
       return (x->kind() < y->kind()) ||
              (x->kind() == y->kind() && x->index() < y->index());
     }
