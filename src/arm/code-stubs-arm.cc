@@ -78,15 +78,8 @@ void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
 }
 
 
-void InstanceofStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = {cp, left(), right()};
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
-}
-
-
 void CallFunctionStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) {
+    CodeStubInterfaceDescriptor* descriptor) {
   // r1  function    the function to call
   Register registers[] = {cp, r1};
   descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
@@ -94,7 +87,7 @@ void CallFunctionStub::InitializeInterfaceDescriptor(
 
 
 void CallConstructStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) {
+    CodeStubInterfaceDescriptor* descriptor) {
   // r0 : number of arguments
   // r1 : the function to call
   // r2 : feedback vector

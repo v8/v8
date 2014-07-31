@@ -79,20 +79,14 @@ void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
 }
 
 
-void InstanceofStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) {
-  UNIMPLEMENTED();
-}
-
-
 void CallFunctionStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) {
+    CodeStubInterfaceDescriptor* descriptor) {
   UNIMPLEMENTED();
 }
 
 
 void CallConstructStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) {
+    CodeStubInterfaceDescriptor* descriptor) {
   UNIMPLEMENTED();
 }
 

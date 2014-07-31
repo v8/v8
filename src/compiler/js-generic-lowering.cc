@@ -24,7 +24,7 @@ static CodeStubInterfaceDescriptor* GetInterfaceDescriptor(Isolate* isolate,
                                                            T* stub) {
   CodeStub::Major key = static_cast<CodeStub*>(stub)->MajorKey();
   CodeStubInterfaceDescriptor* d = isolate->code_stub_interface_descriptor(key);
-  stub->InitializeInterfaceDescriptor(isolate, d);
+  stub->InitializeInterfaceDescriptor(d);
   return d;
 }
 

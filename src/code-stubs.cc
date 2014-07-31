@@ -664,6 +664,15 @@ void StoreGlobalStub::InitializeInterfaceDescriptor(
 }
 
 
+void InstanceofStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = { InterfaceDescriptor::ContextRegister(),
+                           InstanceofStub::left(),
+                           InstanceofStub::right() };
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+}
+
+
 void LoadDictionaryElementPlatformStub::Generate(MacroAssembler* masm) {
   ElementHandlerCompiler::GenerateLoadDictionaryElement(masm);
 }

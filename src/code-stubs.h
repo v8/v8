@@ -747,7 +747,7 @@ class InstanceofStub: public PlatformCodeStub {
   void Generate(MacroAssembler* masm);
 
   virtual void InitializeInterfaceDescriptor(
-      Isolate* isolate, CodeStubInterfaceDescriptor* descriptor);
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   Major MajorKey() const { return Instanceof; }
@@ -1628,7 +1628,7 @@ class CallFunctionStub: public PlatformCodeStub {
   }
 
   virtual void InitializeInterfaceDescriptor(
-      Isolate* isolate, CodeStubInterfaceDescriptor* descriptor);
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   int argc_;
@@ -1670,7 +1670,7 @@ class CallConstructStub: public PlatformCodeStub {
   }
 
   virtual void InitializeInterfaceDescriptor(
-      Isolate* isolate, CodeStubInterfaceDescriptor* descriptor);
+      CodeStubInterfaceDescriptor* descriptor);
 
  private:
   CallConstructorFlags flags_;

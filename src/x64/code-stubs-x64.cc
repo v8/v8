@@ -80,22 +80,15 @@ void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
 }
 
 
-void InstanceofStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = {rsi, left(), right()};
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
-}
-
-
 void CallFunctionStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) {
+    CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = {rsi, rdi};
   descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
 }
 
 
 void CallConstructStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, CodeStubInterfaceDescriptor* descriptor) {
+    CodeStubInterfaceDescriptor* descriptor) {
   // rax : number of arguments
   // rbx : feedback vector
   // rdx : (only if rbx is not the megamorphic symbol) slot in feedback
