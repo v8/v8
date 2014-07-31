@@ -5,6 +5,7 @@
 #include <list>
 
 #include "test/cctest/compiler/instruction-selector-tester.h"
+#include "test/cctest/compiler/value-helper.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
@@ -130,6 +131,66 @@ TEST(InstructionSelectorDPIAndShiftP) {
 }
 
 
+TEST(InstructionSelectorDPIAndRotateRightP) {
+  DPIs dpis;
+  for (DPIs::const_iterator i = dpis.begin(); i != dpis.end(); ++i) {
+    DPI dpi = *i;
+    {
+      InstructionSelectorTester m;
+      Node* value = m.Parameter(1);
+      Node* shift = m.Parameter(2);
+      Node* ror = m.Word32Or(
+          m.Word32Shr(value, shift),
+          m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift)));
+      m.Return(m.NewNode(dpi.op, m.Parameter(0), ror));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(dpi.arch_opcode, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* value = m.Parameter(1);
+      Node* shift = m.Parameter(2);
+      Node* ror =
+          m.Word32Or(m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift)),
+                     m.Word32Shr(value, shift));
+      m.Return(m.NewNode(dpi.op, m.Parameter(0), ror));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(dpi.arch_opcode, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* value = m.Parameter(1);
+      Node* shift = m.Parameter(2);
+      Node* ror = m.Word32Or(
+          m.Word32Shr(value, shift),
+          m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift)));
+      m.Return(m.NewNode(dpi.op, ror, m.Parameter(0)));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(dpi.reverse_arch_opcode, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* value = m.Parameter(1);
+      Node* shift = m.Parameter(2);
+      Node* ror =
+          m.Word32Or(m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift)),
+                     m.Word32Shr(value, shift));
+      m.Return(m.NewNode(dpi.op, ror, m.Parameter(0)));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(dpi.reverse_arch_opcode, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    }
+  }
+}
+
+
 TEST(InstructionSelectorDPIAndShiftImm) {
   DPIs dpis;
   Shifts shifts;
@@ -220,6 +281,100 @@ TEST(InstructionSelectorWord32XorWithMinus1P) {
     CHECK_EQ(1, m.code.size());
     CHECK_EQ(kArmMvn, m.code[0]->arch_opcode());
     CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
+  }
+}
+
+
+TEST(InstructionSelectorShiftP) {
+  Shifts shifts;
+  for (Shifts::const_iterator i = shifts.begin(); i != shifts.end(); ++i) {
+    Shift shift = *i;
+    InstructionSelectorTester m;
+    m.Return(m.NewNode(shift.op, m.Parameter(0), m.Parameter(1)));
+    m.SelectInstructions();
+    CHECK_EQ(1, m.code.size());
+    CHECK_EQ(kArmMov, m.code[0]->arch_opcode());
+    CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+    CHECK_EQ(2, m.code[0]->InputCount());
+  }
+}
+
+
+TEST(InstructionSelectorShiftImm) {
+  Shifts shifts;
+  for (Shifts::const_iterator i = shifts.begin(); i != shifts.end(); ++i) {
+    Shift shift = *i;
+    for (int32_t imm = shift.i_low; imm <= shift.i_high; ++imm) {
+      InstructionSelectorTester m;
+      m.Return(m.NewNode(shift.op, m.Parameter(0), m.Int32Constant(imm)));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmMov, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.i_mode, m.code[0]->addressing_mode());
+      CHECK_EQ(2, m.code[0]->InputCount());
+      CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+    }
+  }
+}
+
+
+TEST(InstructionSelectorRotateRightP) {
+  {
+    InstructionSelectorTester m;
+    Node* value = m.Parameter(0);
+    Node* shift = m.Parameter(1);
+    m.Return(
+        m.Word32Or(m.Word32Shr(value, shift),
+                   m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift))));
+    m.SelectInstructions();
+    CHECK_EQ(1, m.code.size());
+    CHECK_EQ(kArmMov, m.code[0]->arch_opcode());
+    CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    CHECK_EQ(2, m.code[0]->InputCount());
+  }
+  {
+    InstructionSelectorTester m;
+    Node* value = m.Parameter(0);
+    Node* shift = m.Parameter(1);
+    m.Return(
+        m.Word32Or(m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift)),
+                   m.Word32Shr(value, shift)));
+    m.SelectInstructions();
+    CHECK_EQ(1, m.code.size());
+    CHECK_EQ(kArmMov, m.code[0]->arch_opcode());
+    CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    CHECK_EQ(2, m.code[0]->InputCount());
+  }
+}
+
+
+TEST(InstructionSelectorRotateRightImm) {
+  FOR_INPUTS(uint32_t, ror, i) {
+    uint32_t shift = *i;
+    {
+      InstructionSelectorTester m;
+      Node* value = m.Parameter(0);
+      m.Return(m.Word32Or(m.Word32Shr(value, m.Int32Constant(shift)),
+                          m.Word32Shl(value, m.Int32Constant(32 - shift))));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmMov, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_I, m.code[0]->addressing_mode());
+      CHECK_EQ(2, m.code[0]->InputCount());
+      CHECK_EQ(shift, m.ToInt32(m.code[0]->InputAt(1)));
+    }
+    {
+      InstructionSelectorTester m;
+      Node* value = m.Parameter(0);
+      m.Return(m.Word32Or(m.Word32Shl(value, m.Int32Constant(32 - shift)),
+                          m.Word32Shr(value, m.Int32Constant(shift))));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmMov, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_I, m.code[0]->addressing_mode());
+      CHECK_EQ(2, m.code[0]->InputCount());
+      CHECK_EQ(shift, m.ToInt32(m.code[0]->InputAt(1)));
+    }
   }
 }
 
@@ -914,6 +1069,185 @@ TEST(InstructionSelectorBranchWithWord32EqualAndShiftImm) {
         CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
         CHECK_EQ(kEqual, m.code[0]->flags_condition());
       }
+    }
+  }
+}
+
+
+TEST(InstructionSelectorBranchWithWord32EqualAndRotateRightP) {
+  {
+    InstructionSelectorTester m;
+    MLabel blocka, blockb;
+    Node* input = m.Parameter(0);
+    Node* value = m.Parameter(1);
+    Node* shift = m.Parameter(2);
+    Node* ror =
+        m.Word32Or(m.Word32Shr(value, shift),
+                   m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift)));
+    m.Branch(m.Word32Equal(input, ror), &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0));
+    m.SelectInstructions();
+    CHECK_EQ(1, m.code.size());
+    CHECK_EQ(kArmCmp, m.code[0]->arch_opcode());
+    CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+    CHECK_EQ(kEqual, m.code[0]->flags_condition());
+  }
+  {
+    InstructionSelectorTester m;
+    MLabel blocka, blockb;
+    Node* input = m.Parameter(0);
+    Node* value = m.Parameter(1);
+    Node* shift = m.Parameter(2);
+    Node* ror =
+        m.Word32Or(m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift)),
+                   m.Word32Shr(value, shift));
+    m.Branch(m.Word32Equal(input, ror), &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0));
+    m.SelectInstructions();
+    CHECK_EQ(1, m.code.size());
+    CHECK_EQ(kArmCmp, m.code[0]->arch_opcode());
+    CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+    CHECK_EQ(kEqual, m.code[0]->flags_condition());
+  }
+  {
+    InstructionSelectorTester m;
+    MLabel blocka, blockb;
+    Node* input = m.Parameter(0);
+    Node* value = m.Parameter(1);
+    Node* shift = m.Parameter(2);
+    Node* ror =
+        m.Word32Or(m.Word32Shr(value, shift),
+                   m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift)));
+    m.Branch(m.Word32Equal(ror, input), &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0));
+    m.SelectInstructions();
+    CHECK_EQ(1, m.code.size());
+    CHECK_EQ(kArmCmp, m.code[0]->arch_opcode());
+    CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+    CHECK_EQ(kEqual, m.code[0]->flags_condition());
+  }
+  {
+    InstructionSelectorTester m;
+    MLabel blocka, blockb;
+    Node* input = m.Parameter(0);
+    Node* value = m.Parameter(1);
+    Node* shift = m.Parameter(2);
+    Node* ror =
+        m.Word32Or(m.Word32Shl(value, m.Int32Sub(m.Int32Constant(32), shift)),
+                   m.Word32Shr(value, shift));
+    m.Branch(m.Word32Equal(ror, input), &blocka, &blockb);
+    m.Bind(&blocka);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&blockb);
+    m.Return(m.Int32Constant(0));
+    m.SelectInstructions();
+    CHECK_EQ(1, m.code.size());
+    CHECK_EQ(kArmCmp, m.code[0]->arch_opcode());
+    CHECK_EQ(kMode_Operand2_R_ROR_R, m.code[0]->addressing_mode());
+    CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+    CHECK_EQ(kEqual, m.code[0]->flags_condition());
+  }
+}
+
+
+TEST(InstructionSelectorBranchWithWord32EqualAndRotateRightImm) {
+  FOR_INPUTS(uint32_t, ror, i) {
+    uint32_t shift = *i;
+    {
+      InstructionSelectorTester m;
+      MLabel blocka, blockb;
+      Node* input = m.Parameter(0);
+      Node* value = m.Parameter(1);
+      Node* ror = m.Word32Or(m.Word32Shr(value, m.Int32Constant(shift)),
+                             m.Word32Shl(value, m.Int32Constant(32 - shift)));
+      m.Branch(m.Word32Equal(input, ror), &blocka, &blockb);
+      m.Bind(&blocka);
+      m.Return(m.Int32Constant(1));
+      m.Bind(&blockb);
+      m.Return(m.Int32Constant(0));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmCmp, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+      CHECK_EQ(kEqual, m.code[0]->flags_condition());
+      CHECK_LE(3, m.code[0]->InputCount());
+      CHECK_EQ(shift, m.ToInt32(m.code[0]->InputAt(2)));
+    }
+    {
+      InstructionSelectorTester m;
+      MLabel blocka, blockb;
+      Node* input = m.Parameter(0);
+      Node* value = m.Parameter(1);
+      Node* ror = m.Word32Or(m.Word32Shl(value, m.Int32Constant(32 - shift)),
+                             m.Word32Shr(value, m.Int32Constant(shift)));
+      m.Branch(m.Word32Equal(input, ror), &blocka, &blockb);
+      m.Bind(&blocka);
+      m.Return(m.Int32Constant(1));
+      m.Bind(&blockb);
+      m.Return(m.Int32Constant(0));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmCmp, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+      CHECK_EQ(kEqual, m.code[0]->flags_condition());
+      CHECK_LE(3, m.code[0]->InputCount());
+      CHECK_EQ(shift, m.ToInt32(m.code[0]->InputAt(2)));
+    }
+    {
+      InstructionSelectorTester m;
+      MLabel blocka, blockb;
+      Node* input = m.Parameter(0);
+      Node* value = m.Parameter(1);
+      Node* ror = m.Word32Or(m.Word32Shr(value, m.Int32Constant(shift)),
+                             m.Word32Shl(value, m.Int32Constant(32 - shift)));
+      m.Branch(m.Word32Equal(ror, input), &blocka, &blockb);
+      m.Bind(&blocka);
+      m.Return(m.Int32Constant(1));
+      m.Bind(&blockb);
+      m.Return(m.Int32Constant(0));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmCmp, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+      CHECK_EQ(kEqual, m.code[0]->flags_condition());
+      CHECK_LE(3, m.code[0]->InputCount());
+      CHECK_EQ(shift, m.ToInt32(m.code[0]->InputAt(2)));
+    }
+    {
+      InstructionSelectorTester m;
+      MLabel blocka, blockb;
+      Node* input = m.Parameter(0);
+      Node* value = m.Parameter(1);
+      Node* ror = m.Word32Or(m.Word32Shl(value, m.Int32Constant(32 - shift)),
+                             m.Word32Shr(value, m.Int32Constant(shift)));
+      m.Branch(m.Word32Equal(ror, input), &blocka, &blockb);
+      m.Bind(&blocka);
+      m.Return(m.Int32Constant(1));
+      m.Bind(&blockb);
+      m.Return(m.Int32Constant(0));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmCmp, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R_ROR_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+      CHECK_EQ(kEqual, m.code[0]->flags_condition());
+      CHECK_LE(3, m.code[0]->InputCount());
+      CHECK_EQ(shift, m.ToInt32(m.code[0]->InputAt(2)));
     }
   }
 }

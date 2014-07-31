@@ -101,6 +101,25 @@ class RawMachineAssemblerTester
       : MachineAssemblerTester<RawMachineAssembler>(
             ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3,
             p4) {}
+
+  template <typename Ci, typename Fn>
+  void Run(const Ci& ci, const Fn& fn) {
+    typename Ci::const_iterator i;
+    for (i = ci.begin(); i != ci.end(); ++i) {
+      CHECK_EQ(fn(*i), this->Call(*i));
+    }
+  }
+
+  template <typename Ci, typename Cj, typename Fn>
+  void Run(const Ci& ci, const Cj& cj, const Fn& fn) {
+    typename Ci::const_iterator i;
+    typename Cj::const_iterator j;
+    for (i = ci.begin(); i != ci.end(); ++i) {
+      for (j = cj.begin(); j != cj.end(); ++j) {
+        CHECK_EQ(fn(*i, *j), this->Call(*i, *j));
+      }
+    }
+  }
 };
 
 
@@ -160,6 +179,17 @@ class BinopTester {
       T->Return(T->Int32Constant(CHECK_VALUE));
     } else {
       T->Return(val);
+    }
+  }
+
+  template <typename Ci, typename Cj, typename Fn>
+  void Run(const Ci& ci, const Cj& cj, const Fn& fn) {
+    typename Ci::const_iterator i;
+    typename Cj::const_iterator j;
+    for (i = ci.begin(); i != ci.end(); ++i) {
+      for (j = cj.begin(); j != cj.end(); ++j) {
+        CHECK_EQ(fn(*i, *j), this->call(*i, *j));
+      }
     }
   }
 

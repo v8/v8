@@ -104,6 +104,13 @@ class ValueHelper {
                                     V8_INFINITY * 0.0,  nan};
     return std::vector<double>(&values[0], &values[ARRAY_SIZE(values)]);
   }
+
+  static const std::vector<uint32_t> ror_vector() {
+    static const uint32_t kValues[31] = {
+        1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+    return std::vector<uint32_t>(&kValues[0], &kValues[ARRAY_SIZE(kValues)]);
+  }
 };
 
 // Helper macros that can be used in FOR_INT32_INPUTS(i) { ... *i ... }
@@ -116,8 +123,9 @@ class ValueHelper {
 #define FOR_INT32_INPUTS(var) FOR_INPUTS(int32_t, int32, var)
 #define FOR_UINT32_INPUTS(var) FOR_INPUTS(uint32_t, uint32, var)
 #define FOR_FLOAT64_INPUTS(var) FOR_INPUTS(double, float64, var)
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_CCTEST_COMPILER_VALUE_HELPER_H_

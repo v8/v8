@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <functional>
 #include <limits>
-#include "src/v8.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
@@ -3676,6 +3676,53 @@ TEST(RunTestIntPtrArithmetic) {
   for (int i = 0; i < kInputSize; i++) {
     CHECK_EQ(i, inputs[i]);
     CHECK_EQ(kInputSize - i - 1, outputs[i]);
+  }
+}
+
+
+static inline uint32_t rotr32(uint32_t i, uint32_t j) {
+  return (i >> j) | (i << (32 - j));
+}
+
+
+TEST(RunTestInt32RotateRightP) {
+  {
+    RawMachineAssemblerTester<int32_t> m;
+    Int32BinopTester bt(&m);
+    bt.AddReturn(m.Word32Or(
+        m.Word32Shr(bt.param0, bt.param1),
+        m.Word32Shl(bt.param0, m.Int32Sub(m.Int32Constant(32), bt.param1))));
+    bt.Run(ValueHelper::uint32_vector(), ValueHelper::ror_vector(), rotr32);
+  }
+  {
+    RawMachineAssemblerTester<int32_t> m;
+    Int32BinopTester bt(&m);
+    bt.AddReturn(m.Word32Or(
+        m.Word32Shl(bt.param0, m.Int32Sub(m.Int32Constant(32), bt.param1)),
+        m.Word32Shr(bt.param0, bt.param1)));
+    bt.Run(ValueHelper::uint32_vector(), ValueHelper::ror_vector(), rotr32);
+  }
+}
+
+
+TEST(RunTestInt32RotateRightImm) {
+  FOR_INPUTS(uint32_t, ror, i) {
+    {
+      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      Node* value = m.Parameter(0);
+      m.Return(m.Word32Or(m.Word32Shr(value, m.Int32Constant(*i)),
+                          m.Word32Shl(value, m.Int32Constant(32 - *i))));
+      m.Run(ValueHelper::uint32_vector(),
+            std::bind2nd(std::ptr_fun(&rotr32), *i));
+    }
+    {
+      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      Node* value = m.Parameter(0);
+      m.Return(m.Word32Or(m.Word32Shl(value, m.Int32Constant(32 - *i)),
+                          m.Word32Shr(value, m.Int32Constant(*i))));
+      m.Run(ValueHelper::uint32_vector(),
+            std::bind2nd(std::ptr_fun(&rotr32), *i));
+    }
   }
 }
 

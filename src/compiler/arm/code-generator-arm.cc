@@ -79,6 +79,10 @@ class ArmOperandConverter : public InstructionOperandConverter {
         return Operand(InputRegister(index + 0), LSR, InputInt5(index + 1));
       case kMode_Operand2_R_LSR_R:
         return Operand(InputRegister(index + 0), LSR, InputRegister(index + 1));
+      case kMode_Operand2_R_ROR_I:
+        return Operand(InputRegister(index + 0), ROR, InputInt5(index + 1));
+      case kMode_Operand2_R_ROR_R:
+        return Operand(InputRegister(index + 0), ROR, InputRegister(index + 1));
     }
     UNREACHABLE();
     return Operand::Zero();
@@ -96,6 +100,8 @@ class ArmOperandConverter : public InstructionOperandConverter {
       case kMode_Operand2_R_LSL_R:
       case kMode_Operand2_R_LSR_I:
       case kMode_Operand2_R_LSR_R:
+      case kMode_Operand2_R_ROR_I:
+      case kMode_Operand2_R_ROR_R:
         break;
       case kMode_Offset_RI:
         *first_index += 2;
