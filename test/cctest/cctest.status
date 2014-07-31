@@ -98,6 +98,7 @@
 
   # TODO(dcarney): C calls are broken all over the place.
   'test-run-machops/RunCall*': [SKIP],
+  'test-run-machops/RunLoadImmIndex': [SKIP],
   'test-run-machops/RunSpillLotsOfThingsWithCall': [SKIP],
 
   # Some tests are just too slow to run for now.
