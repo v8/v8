@@ -15143,8 +15143,8 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInInit) {
   // This simulates CONVERT_ARG_HANDLE_CHECKED for calls returning pairs.
   // Not worth creating a macro atm as this function should be removed.
   if (!args[0]->IsJSReceiver() || !args[1]->IsObject()) {
-    return MakePair(isolate->ThrowIllegalOperation(),
-                    isolate->heap()->undefined_value());
+    Object* error = isolate->ThrowIllegalOperation();
+    return MakePair(error, isolate->heap()->undefined_value());
   }
   Handle<JSReceiver> object = args.at<JSReceiver>(0);
   Handle<Object> cache_type = args.at<Object>(1);
@@ -15197,8 +15197,8 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInNext) {
   // Not worth creating a macro atm as this function should be removed.
   if (!args[0]->IsJSReceiver() || !args[1]->IsFixedArray() ||
       !args[2]->IsObject() || !args[3]->IsSmi()) {
-    return MakePair(isolate->ThrowIllegalOperation(),
-                    isolate->heap()->undefined_value());
+    Object* error = isolate->ThrowIllegalOperation();
+    return MakePair(error, isolate->heap()->undefined_value());
   }
   Handle<JSReceiver> object = args.at<JSReceiver>(0);
   Handle<FixedArray> array = args.at<FixedArray>(1);
