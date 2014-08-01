@@ -68,6 +68,7 @@ class MachineOperatorBuilder {
                        inputs, outputs, #name, pname)
 
 #define BINOP(name) SIMPLE(name, Operator::kPure, 2, 1)
+#define BINOP_O(name) SIMPLE(name, Operator::kPure, 2, 2)
 #define BINOP_C(name) \
   SIMPLE(name, Operator::kCommutative | Operator::kPure, 2, 1)
 #define BINOP_AC(name)                                                         \
@@ -119,6 +120,7 @@ class MachineOperatorBuilder {
   Operator* Int32Add() { BINOP_AC(Int32Add); }
   Operator* Int32AddWithOverflow() { BINOP_ACO(Int32AddWithOverflow); }
   Operator* Int32Sub() { BINOP(Int32Sub); }
+  Operator* Int32SubWithOverflow() { BINOP_O(Int32SubWithOverflow); }
   Operator* Int32Mul() { BINOP_AC(Int32Mul); }
   Operator* Int32Div() { BINOP(Int32Div); }
   Operator* Int32UDiv() { BINOP(Int32UDiv); }

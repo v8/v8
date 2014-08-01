@@ -175,6 +175,7 @@
   V(Int32Add)              \
   V(Int32AddWithOverflow)  \
   V(Int32Sub)              \
+  V(Int32SubWithOverflow)  \
   V(Int32Mul)              \
   V(Int32Div)              \
   V(Int32UDiv)             \

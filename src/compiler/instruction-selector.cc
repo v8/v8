@@ -511,6 +511,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt32AddWithOverflow(node);
     case IrOpcode::kInt32Sub:
       return VisitInt32Sub(node);
+    case IrOpcode::kInt32SubWithOverflow:
+      return VisitInt32SubWithOverflow(node);
     case IrOpcode::kInt32Mul:
       return VisitInt32Mul(node);
     case IrOpcode::kInt32Div:

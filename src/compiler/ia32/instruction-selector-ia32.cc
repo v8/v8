@@ -303,6 +303,11 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kIA32Sub);
+}
+
+
 void InstructionSelector::VisitInt32Mul(Node* node) {
   IA32OperandGenerator g(this);
   Node* left = node->InputAt(0);

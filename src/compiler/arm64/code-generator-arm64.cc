@@ -243,7 +243,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Sub(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kArm64Sub32:
-      __ Sub(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      if (FlagsModeField::decode(opcode) != kFlags_none) {
+        __ Subs(i.OutputRegister32(), i.InputRegister32(0),
+                i.InputOperand32(1));
+      } else {
+        __ Sub(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      }
       break;
     case kArm64Shl:
       ASSEMBLE_SHIFT(Lsl, 64);

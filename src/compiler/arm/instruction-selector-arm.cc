@@ -616,6 +616,11 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kArmSub, kArmRsb);
+}
+
+
 void InstructionSelector::VisitInt32Mul(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);

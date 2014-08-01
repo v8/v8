@@ -85,6 +85,10 @@ class MachineNodeFactory {
     return NEW_NODE_0(COMMON()->HeapConstant(val));
   }
 
+  Node* Projection(int index, Node* a) {
+    return NEW_NODE_1(COMMON()->Projection(index), a);
+  }
+
   // Memory Operations.
   Node* Load(MachineRepresentation rep, Node* base) {
     return Load(rep, base, Int32Constant(0));
@@ -198,11 +202,17 @@ class MachineNodeFactory {
   void Int32AddWithOverflow(Node* a, Node* b, Node** val_return,
                             Node** ovf_return) {
     Node* add = NEW_NODE_2(MACHINE()->Int32AddWithOverflow(), a, b);
-    if (val_return) *val_return = NEW_NODE_1(COMMON()->Projection(0), add);
-    if (ovf_return) *ovf_return = NEW_NODE_1(COMMON()->Projection(1), add);
+    if (val_return) *val_return = Projection(0, add);
+    if (ovf_return) *ovf_return = Projection(1, add);
   }
   Node* Int32Sub(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Int32Sub(), a, b);
+  }
+  void Int32SubWithOverflow(Node* a, Node* b, Node** val_return,
+                            Node** ovf_return) {
+    Node* add = NEW_NODE_2(MACHINE()->Int32SubWithOverflow(), a, b);
+    if (val_return) *val_return = Projection(0, add);
+    if (ovf_return) *ovf_return = Projection(1, add);
   }
   Node* Int32Mul(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Int32Mul(), a, b);

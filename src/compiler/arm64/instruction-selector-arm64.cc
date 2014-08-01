@@ -361,6 +361,11 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kArm64Sub32);
+}
+
+
 void InstructionSelector::VisitInt64Sub(Node* node) {
   VisitSub<int64_t>(this, node, kArm64Sub, kArm64Neg);
 }
