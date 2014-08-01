@@ -59,7 +59,6 @@
   'js1_5/Regress/regress-104077': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-396684': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-80981': [PASS, NO_VARIANTS],
-  'js1_5/Array/regress-99120-01': [PASS, NO_VARIANTS],
 
   # TODO(turbofan): Large switch statements crash.
   'js1_5/Regress/regress-366601': [PASS, NO_VARIANTS],
@@ -184,7 +183,7 @@
   'js1_5/String/regress-56940-02': [PASS, FAIL],
   'js1_5/String/regress-157334-01': [PASS, FAIL],
   'js1_5/String/regress-322772': [PASS, FAIL],
-  'js1_5/Array/regress-99120-01': [PASS, FAIL],
+  'js1_5/Array/regress-99120-01': [PASS, FAIL, NO_VARIANTS],
   'js1_5/Array/regress-99120-02': [PASS, FAIL],
   'js1_5/Regress/regress-347306-01': [PASS, FAIL],
   'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
