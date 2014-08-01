@@ -280,8 +280,8 @@ void GCTracer::PrintNVP() const {
     PrintF("steps_count=%d ", current_.incremental_marking_steps);
     PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
     PrintF("longest_step=%.1f ", current_.longest_incremental_marking_step);
-    PrintF("marking_throughput=%" V8_PTR_PREFIX "d ",
-           MarkingSpeedInBytesPerMillisecond());
+    PrintF("incremental_marking_throughput=%" V8_PTR_PREFIX "d ",
+           IncrementalMarkingSpeedInBytesPerMillisecond());
   }
 
   PrintF("\n");
@@ -355,7 +355,7 @@ double GCTracer::MaxIncrementalMarkingDuration() const {
 }
 
 
-intptr_t GCTracer::MarkingSpeedInBytesPerMillisecond() const {
+intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   if (cumulative_incremental_marking_duration_ == 0.0) return 0;
 
   // We haven't completed an entire round of incremental marking, yet.

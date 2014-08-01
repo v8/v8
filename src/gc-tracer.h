@@ -252,7 +252,7 @@ class GCTracer BASE_EMBEDDED {
 
   // Compute the average incremental marking speed in bytes/second. Returns 0 if
   // no events have been recorded.
-  intptr_t MarkingSpeedInBytesPerMillisecond() const;
+  intptr_t IncrementalMarkingSpeedInBytesPerMillisecond() const;
 
  private:
   // Print one detailed trace line in name=value format.
