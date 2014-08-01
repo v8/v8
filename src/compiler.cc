@@ -413,9 +413,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       info()->function()->dont_optimize_reason() != kTryCatchStatement &&
       info()->function()->dont_optimize_reason() != kTryFinallyStatement &&
       // TODO(turbofan): Make OSR work and remove this bailout.
-      !info()->is_osr() &&
-      // TODO(mstarzinger): Extend test coverage to unsupported targets.
-      compiler::Pipeline::SupportedTarget()) {
+      !info()->is_osr()) {
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
     if (!info()->code().is_null()) {

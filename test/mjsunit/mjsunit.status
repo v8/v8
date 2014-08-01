@@ -181,9 +181,6 @@
   # No need to waste time for this test.
   'd8-performance-now': [PASS, NO_VARIANTS],
 
-  ##############################################################################
-  'big-object-literal': [PASS, ['arch == arm or arch == android_arm or arch == android_arm64', SKIP]],
-
   # Issue 488: this test sometimes times out.
   'array-constructor': [PASS, TIMEOUT],
 
@@ -310,6 +307,7 @@
   # Pass but take too long to run. Skip.
   # Some similar tests (with fewer iterations) may be included in arm64-js
   # tests.
+  'big-object-literal': [SKIP],
   'compiler/regress-arguments': [SKIP],
   'compiler/regress-gvn': [SKIP],
   'compiler/regress-max-locals-for-osr': [SKIP],
@@ -413,6 +411,7 @@
 
   # Long running tests. Skipping because having them timeout takes too long on
   # the buildbot.
+  'big-object-literal': [SKIP],
   'compiler/alloc-number': [SKIP],
   'regress/regress-490': [SKIP],
   'regress/regress-634': [SKIP],
