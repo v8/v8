@@ -195,6 +195,12 @@ class MachineNodeFactory {
   Node* Int32Add(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Int32Add(), a, b);
   }
+  void Int32AddWithOverflow(Node* a, Node* b, Node** val_return,
+                            Node** ovf_return) {
+    Node* add = NEW_NODE_2(MACHINE()->Int32AddWithOverflow(), a, b);
+    if (val_return) *val_return = NEW_NODE_1(COMMON()->Projection(0), add);
+    if (ovf_return) *ovf_return = NEW_NODE_1(COMMON()->Projection(1), add);
+  }
   Node* Int32Sub(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Int32Sub(), a, b);
   }

@@ -196,6 +196,49 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 }
 
 
+static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
+                                   InstructionCode opcode) {
+  X64OperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  InstructionOperand* inputs[2];
+  size_t input_count = 0;
+  InstructionOperand* outputs[2];
+  size_t output_count = 0;
+
+  // TODO(turbofan): match complex addressing modes.
+  // TODO(turbofan): if commutative, pick the non-live-in operand as the left as
+  // this might be the last use and therefore its register can be reused.
+  if (g.CanBeImmediate(m.right().node())) {
+    inputs[input_count++] = g.Use(m.left().node());
+    inputs[input_count++] = g.UseImmediate(m.right().node());
+  } else {
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.Use(m.right().node());
+  }
+
+  // Define outputs depending on the projections.
+  Node* projections[2];
+  node->CollectProjections(ARRAY_SIZE(projections), projections);
+  if (projections[0]) {
+    outputs[output_count++] = g.DefineSameAsFirst(projections[0]);
+  }
+  if (projections[1]) {
+    opcode |= FlagsModeField::encode(kFlags_set);
+    opcode |= FlagsConditionField::encode(kOverflow);
+    outputs[output_count++] =
+        (projections[0] ? g.DefineAsRegister(projections[1])
+                        : g.DefineSameAsFirst(projections[1]));
+  }
+
+  ASSERT_NE(0, input_count);
+  ASSERT_NE(0, output_count);
+  ASSERT_GE(ARRAY_SIZE(inputs), input_count);
+  ASSERT_GE(ARRAY_SIZE(outputs), output_count);
+
+  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+}
+
+
 void InstructionSelector::VisitWord32And(Node* node) {
   VisitBinop(this, node, kX64And32, true);
 }
@@ -324,6 +367,11 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop(this, node, kX64Add32, true);
+}
+
+
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kX64Add32);
 }
 
 

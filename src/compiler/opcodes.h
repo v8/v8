@@ -173,6 +173,7 @@
   V(Word64Sar)              \
   V(Word64Equal)            \
   V(Int32Add)               \
+  V(Int32AddWithOverflow)   \
   V(Int32Sub)               \
   V(Int32Mul)               \
   V(Int32Div)               \

@@ -3882,4 +3882,94 @@ TEST(RunSpillLotsOfThingsWithCall) {
 
 #endif  // MACHINE_ASSEMBLER_SUPPORTS_CALL_C
 
-#endif
+
+static bool sadd_overflow(int32_t x, int32_t y, int32_t* val) {
+  int32_t v =
+      static_cast<int32_t>(static_cast<uint32_t>(x) + static_cast<uint32_t>(y));
+  *val = v;
+  return (((v ^ x) & (v ^ y)) >> 31) & 1;
+}
+
+
+TEST(RunInt32AddWithOverflowP) {
+  int32_t actual_val = -1;
+  RawMachineAssemblerTester<int32_t> m;
+  Int32BinopTester bt(&m);
+  Node* val, *ovf;
+  m.Int32AddWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  m.StoreToPointer(&actual_val, kMachineWord32, val);
+  bt.AddReturn(ovf);
+  FOR_INT32_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      int32_t expected_val;
+      int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, bt.call(*i, *j));
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt32AddWithOverflowImm) {
+  int32_t actual_val = -1, expected_val = 0;
+  FOR_INT32_INPUTS(i) {
+    {
+      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(m.Int32Constant(*i), m.Parameter(0), &val, &ovf);
+      m.StoreToPointer(&actual_val, kMachineWord32, val);
+      m.Return(ovf);
+      FOR_INT32_INPUTS(j) {
+        int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    {
+      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(m.Parameter(0), m.Int32Constant(*i), &val, &ovf);
+      m.StoreToPointer(&actual_val, kMachineWord32, val);
+      m.Return(ovf);
+      FOR_INT32_INPUTS(j) {
+        int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    FOR_INT32_INPUTS(j) {
+      RawMachineAssemblerTester<int32_t> m;
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j), &val,
+                             &ovf);
+      m.StoreToPointer(&actual_val, kMachineWord32, val);
+      m.Return(ovf);
+      int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, m.Call());
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt32AddWithOverflowInBranchP) {
+  MLabel blocka, blockb;
+  RawMachineAssemblerTester<int32_t> m;
+  Int32BinopTester bt(&m);
+  Node* val, *ovf;
+  m.Int32AddWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  m.Branch(ovf, &blocka, &blockb);
+  m.Bind(&blocka);
+  bt.AddReturn(m.Word32Not(val));
+  m.Bind(&blockb);
+  bt.AddReturn(val);
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      int32_t expected;
+      if (sadd_overflow(*i, *j, &expected)) expected = ~expected;
+      CHECK_EQ(expected, bt.call(*i, *j));
+    }
+  }
+}
+
+#endif  // V8_TURBOFAN_TARGET

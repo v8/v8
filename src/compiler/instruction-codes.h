@@ -87,7 +87,9 @@ enum FlagsCondition {
   kUnorderedLessThan,
   kUnorderedGreaterThanOrEqual,
   kUnorderedLessThanOrEqual,
-  kUnorderedGreaterThan
+  kUnorderedGreaterThan,
+  kOverflow,
+  kNotOverflow
 };
 
 OStream& operator<<(OStream& os, const FlagsCondition& fc);
@@ -105,7 +107,7 @@ typedef int32_t InstructionCode;
 typedef BitField<ArchOpcode, 0, 7> ArchOpcodeField;
 typedef BitField<AddressingMode, 7, 4> AddressingModeField;
 typedef BitField<FlagsMode, 11, 2> FlagsModeField;
-typedef BitField<FlagsCondition, 13, 4> FlagsConditionField;
+typedef BitField<FlagsCondition, 13, 5> FlagsConditionField;
 typedef BitField<int, 13, 19> MiscField;
 
 }  // namespace compiler

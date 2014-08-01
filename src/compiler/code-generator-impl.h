@@ -72,7 +72,9 @@ class InstructionOperandConverter {
     return gen_->schedule()->GetBlockById(block_id);
   }
 
-  Register OutputRegister() { return ToRegister(instr_->Output()); }
+  Register OutputRegister(int index = 0) {
+    return ToRegister(instr_->OutputAt(index));
+  }
 
   DoubleRegister OutputDoubleRegister() {
     return ToDoubleRegister(instr_->Output());

@@ -247,6 +247,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   Int32BinopMatcher m(node);
   InstructionOperand* inputs[3];
   size_t input_count = 0;
+  InstructionOperand* outputs[1] = {g.DefineAsRegister(node)};
+  const size_t output_count = ARRAY_SIZE(outputs);
 
   if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
                                &input_count, &inputs[1])) {
@@ -268,8 +270,54 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   ASSERT_GE(ARRAY_SIZE(inputs), input_count);
   ASSERT_NE(kMode_None, AddressingModeField::decode(opcode));
 
-  InstructionOperand* outputs[1] = {g.DefineAsRegister(node)};
-  const size_t output_count = ARRAY_SIZE(outputs);
+  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+}
+
+
+static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
+                                   InstructionCode opcode,
+                                   InstructionCode reverse_opcode) {
+  ArmOperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  InstructionOperand* inputs[3];
+  size_t input_count = 0;
+  InstructionOperand* outputs[2];
+  size_t output_count = 0;
+
+  if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
+                               &input_count, &inputs[1])) {
+    inputs[0] = g.UseRegister(m.left().node());
+    input_count++;
+  } else if (TryMatchImmediateOrShift(selector, &reverse_opcode,
+                                      m.left().node(), &input_count,
+                                      &inputs[1])) {
+    inputs[0] = g.UseRegister(m.right().node());
+    opcode = reverse_opcode;
+    input_count++;
+  } else {
+    opcode |= AddressingModeField::encode(kMode_Operand2_R);
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseRegister(m.right().node());
+  }
+
+  // Define outputs depending on the projections.
+  Node* projections[2];
+  node->CollectProjections(ARRAY_SIZE(projections), projections);
+  if (projections[0]) {
+    outputs[output_count++] = g.DefineAsRegister(projections[0]);
+  }
+  if (projections[1]) {
+    opcode |= FlagsModeField::encode(kFlags_set);
+    opcode |= FlagsConditionField::encode(kOverflow);
+    outputs[output_count++] = g.DefineAsRegister(projections[1]);
+  }
+
+  ASSERT_NE(0, input_count);
+  ASSERT_NE(0, output_count);
+  ASSERT_GE(ARRAY_SIZE(inputs), input_count);
+  ASSERT_GE(ARRAY_SIZE(outputs), output_count);
+  ASSERT_NE(kMode_None, AddressingModeField::decode(opcode));
+
   selector->Emit(opcode, output_count, outputs, input_count, inputs);
 }
 
@@ -536,6 +584,11 @@ void InstructionSelector::VisitInt32Add(Node* node) {
     return;
   }
   VisitBinop(this, node, kArmAdd, kArmAdd);
+}
+
+
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kArmAdd, kArmAdd);
 }
 
 

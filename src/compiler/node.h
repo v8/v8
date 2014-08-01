@@ -53,6 +53,8 @@ class Node : public GenericNode<NodeData, Node> {
       : GenericNode<NodeData, Node>(graph, input_count) {}
 
   void Initialize(Operator* op) { set_op(op); }
+
+  void CollectProjections(int projection_count, Node** projections);
 };
 
 OStream& operator<<(OStream& os, const Node& n);

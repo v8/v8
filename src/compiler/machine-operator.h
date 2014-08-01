@@ -74,6 +74,10 @@ class MachineOperatorBuilder {
   SIMPLE(name,                                                                 \
          Operator::kAssociative | Operator::kCommutative | Operator::kPure, 2, \
          1)
+#define BINOP_ACO(name)                                                        \
+  SIMPLE(name,                                                                 \
+         Operator::kAssociative | Operator::kCommutative | Operator::kPure, 2, \
+         2)
 #define UNOP(name) SIMPLE(name, Operator::kPure, 1, 1)
 
 #define WORD_SIZE(x) return is64() ? Word64##x() : Word32##x()
@@ -113,6 +117,7 @@ class MachineOperatorBuilder {
   Operator* Word64Equal() { BINOP_C(Word64Equal); }
 
   Operator* Int32Add() { BINOP_AC(Int32Add); }
+  Operator* Int32AddWithOverflow() { BINOP_ACO(Int32AddWithOverflow); }
   Operator* Int32Sub() { BINOP(Int32Sub); }
   Operator* Int32Mul() { BINOP_AC(Int32Mul); }
   Operator* Int32Div() { BINOP(Int32Div); }

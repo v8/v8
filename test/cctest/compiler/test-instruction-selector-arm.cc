@@ -225,6 +225,363 @@ TEST(InstructionSelectorDPIAndShiftImm) {
 }
 
 
+TEST(InstructionSelectorInt32AddWithOverflowP) {
+  {
+    InstructionSelectorTester m;
+    Node* ovf;
+    m.Int32AddWithOverflow(m.Parameter(0), m.Parameter(1), NULL, &ovf);
+    m.Return(ovf);
+    m.SelectInstructions();
+    CHECK_EQ(1, m.code.size());
+    CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+    CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
+    CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+    CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+    CHECK_EQ(2, m.code[0]->InputCount());
+    CHECK_EQ(1, m.code[0]->OutputCount());
+  }
+  {
+    InstructionSelectorTester m;
+    Node* val;
+    m.Int32AddWithOverflow(m.Parameter(0), m.Parameter(1), &val, NULL);
+    m.Return(val);
+    m.SelectInstructions();
+    CHECK_EQ(1, m.code.size());
+    CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+    CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
+    CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
+    CHECK_EQ(2, m.code[0]->InputCount());
+    CHECK_EQ(1, m.code[0]->OutputCount());
+  }
+  {
+    InstructionSelectorTester m;
+    Node* val, *ovf;
+    m.Int32AddWithOverflow(m.Parameter(0), m.Parameter(1), &val, &ovf);
+    m.Return(m.Word32Equal(val, ovf));
+    m.SelectInstructions();
+    CHECK_LE(1, m.code.size());
+    CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+    CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
+    CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+    CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+    CHECK_EQ(2, m.code[0]->InputCount());
+    CHECK_EQ(2, m.code[0]->OutputCount());
+  }
+}
+
+
+TEST(InstructionSelectorInt32AddWithOverflowImm) {
+  Immediates immediates;
+  for (Immediates::const_iterator i = immediates.begin(); i != immediates.end();
+       ++i) {
+    int32_t imm = *i;
+    {
+      InstructionSelectorTester m;
+      Node* ovf;
+      m.Int32AddWithOverflow(m.Parameter(0), m.Int32Constant(imm), NULL, &ovf);
+      m.Return(ovf);
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+      CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+      CHECK_EQ(2, m.code[0]->InputCount());
+      CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      CHECK_EQ(1, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* ovf;
+      m.Int32AddWithOverflow(m.Int32Constant(imm), m.Parameter(0), NULL, &ovf);
+      m.Return(ovf);
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+      CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+      CHECK_EQ(2, m.code[0]->InputCount());
+      CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      CHECK_EQ(1, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* val;
+      m.Int32AddWithOverflow(m.Parameter(0), m.Int32Constant(imm), &val, NULL);
+      m.Return(val);
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
+      CHECK_EQ(2, m.code[0]->InputCount());
+      CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      CHECK_EQ(1, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* val;
+      m.Int32AddWithOverflow(m.Int32Constant(imm), m.Parameter(0), &val, NULL);
+      m.Return(val);
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
+      CHECK_EQ(2, m.code[0]->InputCount());
+      CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      CHECK_EQ(1, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(m.Parameter(0), m.Int32Constant(imm), &val, &ovf);
+      m.Return(m.Word32Equal(val, ovf));
+      m.SelectInstructions();
+      CHECK_LE(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+      CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+      CHECK_EQ(2, m.code[0]->InputCount());
+      CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      CHECK_EQ(2, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(m.Int32Constant(imm), m.Parameter(0), &val, &ovf);
+      m.Return(m.Word32Equal(val, ovf));
+      m.SelectInstructions();
+      CHECK_LE(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+      CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+      CHECK_EQ(2, m.code[0]->InputCount());
+      CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      CHECK_EQ(2, m.code[0]->OutputCount());
+    }
+  }
+}
+
+
+TEST(InstructionSelectorInt32AddWithOverflowAndShiftP) {
+  Shifts shifts;
+  for (Shifts::const_iterator i = shifts.begin(); i != shifts.end(); ++i) {
+    Shift shift = *i;
+    {
+      InstructionSelectorTester m;
+      Node* ovf;
+      m.Int32AddWithOverflow(
+          m.Parameter(0), m.NewNode(shift.op, m.Parameter(1), m.Parameter(2)),
+          NULL, &ovf);
+      m.Return(ovf);
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+      CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+      CHECK_EQ(3, m.code[0]->InputCount());
+      CHECK_EQ(1, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* ovf;
+      m.Int32AddWithOverflow(
+          m.NewNode(shift.op, m.Parameter(0), m.Parameter(1)), m.Parameter(2),
+          NULL, &ovf);
+      m.Return(ovf);
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+      CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+      CHECK_EQ(3, m.code[0]->InputCount());
+      CHECK_EQ(1, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* val;
+      m.Int32AddWithOverflow(
+          m.Parameter(0), m.NewNode(shift.op, m.Parameter(1), m.Parameter(2)),
+          &val, NULL);
+      m.Return(val);
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
+      CHECK_EQ(3, m.code[0]->InputCount());
+      CHECK_EQ(1, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* val;
+      m.Int32AddWithOverflow(
+          m.NewNode(shift.op, m.Parameter(0), m.Parameter(1)), m.Parameter(2),
+          &val, NULL);
+      m.Return(val);
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
+      CHECK_EQ(3, m.code[0]->InputCount());
+      CHECK_EQ(1, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(
+          m.Parameter(0), m.NewNode(shift.op, m.Parameter(1), m.Parameter(2)),
+          &val, &ovf);
+      m.Return(m.Word32Equal(val, ovf));
+      m.SelectInstructions();
+      CHECK_LE(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+      CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+      CHECK_EQ(3, m.code[0]->InputCount());
+      CHECK_EQ(2, m.code[0]->OutputCount());
+    }
+    {
+      InstructionSelectorTester m;
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(
+          m.NewNode(shift.op, m.Parameter(0), m.Parameter(1)), m.Parameter(2),
+          &val, &ovf);
+      m.Return(m.Word32Equal(val, ovf));
+      m.SelectInstructions();
+      CHECK_LE(1, m.code.size());
+      CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+      CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+      CHECK_EQ(3, m.code[0]->InputCount());
+      CHECK_EQ(2, m.code[0]->OutputCount());
+    }
+  }
+}
+
+
+TEST(InstructionSelectorInt32AddWithOverflowAndShiftImm) {
+  Shifts shifts;
+  for (Shifts::const_iterator i = shifts.begin(); i != shifts.end(); ++i) {
+    Shift shift = *i;
+    for (int32_t imm = shift.i_low; imm <= shift.i_high; ++imm) {
+      {
+        InstructionSelectorTester m;
+        Node* ovf;
+        m.Int32AddWithOverflow(
+            m.Parameter(0),
+            m.NewNode(shift.op, m.Parameter(1), m.Int32Constant(imm)), NULL,
+            &ovf);
+        m.Return(ovf);
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+        CHECK_EQ(shift.i_mode, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+        CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+        CHECK_EQ(3, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
+        CHECK_EQ(1, m.code[0]->OutputCount());
+      }
+      {
+        InstructionSelectorTester m;
+        Node* ovf;
+        m.Int32AddWithOverflow(
+            m.NewNode(shift.op, m.Parameter(0), m.Int32Constant(imm)),
+            m.Parameter(1), NULL, &ovf);
+        m.Return(ovf);
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+        CHECK_EQ(shift.i_mode, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+        CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+        CHECK_EQ(3, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
+        CHECK_EQ(1, m.code[0]->OutputCount());
+      }
+      {
+        InstructionSelectorTester m;
+        Node* val;
+        m.Int32AddWithOverflow(
+            m.Parameter(0),
+            m.NewNode(shift.op, m.Parameter(1), m.Int32Constant(imm)), &val,
+            NULL);
+        m.Return(val);
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+        CHECK_EQ(shift.i_mode, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
+        CHECK_EQ(3, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
+        CHECK_EQ(1, m.code[0]->OutputCount());
+      }
+      {
+        InstructionSelectorTester m;
+        Node* val;
+        m.Int32AddWithOverflow(
+            m.NewNode(shift.op, m.Parameter(0), m.Int32Constant(imm)),
+            m.Parameter(1), &val, NULL);
+        m.Return(val);
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+        CHECK_EQ(shift.i_mode, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
+        CHECK_EQ(3, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
+        CHECK_EQ(1, m.code[0]->OutputCount());
+      }
+      {
+        InstructionSelectorTester m;
+        Node* val, *ovf;
+        m.Int32AddWithOverflow(
+            m.Parameter(0),
+            m.NewNode(shift.op, m.Parameter(1), m.Int32Constant(imm)), &val,
+            &ovf);
+        m.Return(m.Word32Equal(val, ovf));
+        m.SelectInstructions();
+        CHECK_LE(1, m.code.size());
+        CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+        CHECK_EQ(shift.i_mode, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+        CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+        CHECK_EQ(3, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
+        CHECK_EQ(2, m.code[0]->OutputCount());
+      }
+      {
+        InstructionSelectorTester m;
+        Node* val, *ovf;
+        m.Int32AddWithOverflow(
+            m.NewNode(shift.op, m.Parameter(0), m.Int32Constant(imm)),
+            m.Parameter(1), &val, &ovf);
+        m.Return(m.Word32Equal(val, ovf));
+        m.SelectInstructions();
+        CHECK_LE(1, m.code.size());
+        CHECK_EQ(kArmAdd, m.code[0]->arch_opcode());
+        CHECK_EQ(shift.i_mode, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
+        CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+        CHECK_EQ(3, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
+        CHECK_EQ(2, m.code[0]->OutputCount());
+      }
+    }
+  }
+}
+
+
 TEST(InstructionSelectorWord32AndAndWord32XorWithMinus1P) {
   {
     InstructionSelectorTester m;
