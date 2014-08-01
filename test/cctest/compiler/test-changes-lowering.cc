@@ -293,9 +293,19 @@ TEST(RunChangeBitToBool) {
 }
 
 
-// TODO(titzer): enable all UI32 -> Tagged checking when inline allocation
-// works.
-#define TODO_UI32_TO_TAGGED_WILL_WORK(v) Smi::IsValid(static_cast<double>(v))
+bool TODO_INT32_TO_TAGGED_WILL_WORK(int32_t v) {
+  // TODO(titzer): enable all UI32 -> Tagged checking when inline allocation
+  // works.
+  return Smi::IsValid(v);
+}
+
+
+bool TODO_UINT32_TO_TAGGED_WILL_WORK(uint32_t v) {
+  // TODO(titzer): enable all UI32 -> Tagged checking when inline allocation
+  // works.
+  return v <= static_cast<uint32_t>(Smi::kMaxValue);
+}
+
 
 TEST(RunChangeInt32ToTagged) {
   ChangesLoweringTester<Object*> t;
@@ -307,7 +317,7 @@ TEST(RunChangeInt32ToTagged) {
     FOR_INT32_INPUTS(i) {
       input = *i;
       Object* result = t.CallWithPotentialGC<Object>();
-      if (TODO_UI32_TO_TAGGED_WILL_WORK(input)) {
+      if (TODO_INT32_TO_TAGGED_WILL_WORK(input)) {
         t.CheckNumber(static_cast<double>(input), result);
       }
     }
@@ -318,7 +328,7 @@ TEST(RunChangeInt32ToTagged) {
       input = *i;
       SimulateFullSpace(CcTest::heap()->new_space());
       Object* result = t.CallWithPotentialGC<Object>();
-      if (TODO_UI32_TO_TAGGED_WILL_WORK(input)) {
+      if (TODO_INT32_TO_TAGGED_WILL_WORK(input)) {
         t.CheckNumber(static_cast<double>(input), result);
       }
     }
@@ -337,7 +347,7 @@ TEST(RunChangeUint32ToTagged) {
       input = *i;
       Object* result = t.CallWithPotentialGC<Object>();
       double expected = static_cast<double>(input);
-      if (TODO_UI32_TO_TAGGED_WILL_WORK(input)) {
+      if (TODO_UINT32_TO_TAGGED_WILL_WORK(input)) {
         t.CheckNumber(expected, result);
       }
     }
@@ -349,7 +359,7 @@ TEST(RunChangeUint32ToTagged) {
       SimulateFullSpace(CcTest::heap()->new_space());
       Object* result = t.CallWithPotentialGC<Object>();
       double expected = static_cast<double>(static_cast<uint32_t>(input));
-      if (TODO_UI32_TO_TAGGED_WILL_WORK(input)) {
+      if (TODO_UINT32_TO_TAGGED_WILL_WORK(input)) {
         t.CheckNumber(expected, result);
       }
     }
