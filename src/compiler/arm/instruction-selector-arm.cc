@@ -217,6 +217,18 @@ static inline bool TryMatchLSR(InstructionSelector* selector,
 }
 
 
+static inline bool TryMatchShift(InstructionSelector* selector,
+                                 InstructionCode* opcode_return, Node* node,
+                                 InstructionOperand** value_return,
+                                 InstructionOperand** shift_return) {
+  return (
+      TryMatchASR(selector, opcode_return, node, value_return, shift_return) ||
+      TryMatchLSL(selector, opcode_return, node, value_return, shift_return) ||
+      TryMatchLSR(selector, opcode_return, node, value_return, shift_return) ||
+      TryMatchROR(selector, opcode_return, node, value_return, shift_return));
+}
+
+
 static inline bool TryMatchImmediateOrShift(InstructionSelector* selector,
                                             InstructionCode* opcode_return,
                                             Node* node,
@@ -229,10 +241,7 @@ static inline bool TryMatchImmediateOrShift(InstructionSelector* selector,
     *input_count_return = 1;
     return true;
   }
-  if (TryMatchASR(selector, opcode_return, node, &inputs[0], &inputs[1]) ||
-      TryMatchLSL(selector, opcode_return, node, &inputs[0], &inputs[1]) ||
-      TryMatchLSR(selector, opcode_return, node, &inputs[0], &inputs[1]) ||
-      TryMatchROR(selector, opcode_return, node, &inputs[0], &inputs[1])) {
+  if (TryMatchShift(selector, opcode_return, node, &inputs[0], &inputs[1])) {
     *input_count_return = 2;
     return true;
   }
@@ -425,23 +434,16 @@ static inline void EmitBic(InstructionSelector* selector, Node* node,
                            Node* left, Node* right) {
   ArmOperandGenerator g(selector);
   InstructionCode opcode = kArmBic;
-  InstructionOperand* inputs[3];
-  size_t input_count = 0;
-  InstructionOperand* outputs[1] = {g.DefineAsRegister(node)};
-  const size_t output_count = ARRAY_SIZE(outputs);
-
-  inputs[input_count++] = g.UseRegister(left);
-  if (!TryMatchImmediateOrShift(selector, &opcode, right, &input_count,
-                                &inputs[input_count])) {
-    opcode |= AddressingModeField::encode(kMode_Operand2_R);
-    inputs[input_count++] = g.UseRegister(right);
+  InstructionOperand* value_operand;
+  InstructionOperand* shift_operand;
+  if (TryMatchShift(selector, &opcode, right, &value_operand, &shift_operand)) {
+    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
+                   value_operand, shift_operand);
+    return;
   }
-
-  ASSERT_NE(0, input_count);
-  ASSERT_GE(ARRAY_SIZE(inputs), input_count);
-  ASSERT_NE(kMode_None, AddressingModeField::decode(opcode));
-
-  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+  selector->Emit(opcode | AddressingModeField::encode(kMode_Operand2_R),
+                 g.DefineAsRegister(node), g.UseRegister(left),
+                 g.UseRegister(right));
 }
 
 
@@ -512,11 +514,19 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.right().Is(-1)) {
-    Emit(kArmMvn | AddressingModeField::encode(kMode_Operand2_R),
-         g.DefineSameAsFirst(node), g.UseRegister(m.left().node()));
-  } else {
-    VisitBinop(this, node, kArmEor, kArmEor);
+    InstructionCode opcode = kArmMvn;
+    InstructionOperand* value_operand;
+    InstructionOperand* shift_operand;
+    if (TryMatchShift(this, &opcode, m.left().node(), &value_operand,
+                      &shift_operand)) {
+      Emit(opcode, g.DefineAsRegister(node), value_operand, shift_operand);
+      return;
+    }
+    Emit(opcode | AddressingModeField::encode(kMode_Operand2_R),
+         g.DefineAsRegister(node), g.UseRegister(m.left().node()));
+    return;
   }
+  VisitBinop(this, node, kArmEor, kArmEor);
 }
 
 

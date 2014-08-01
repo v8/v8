@@ -622,6 +622,58 @@ TEST(InstructionSelectorWord32AndAndWord32XorWithMinus1P) {
 }
 
 
+TEST(InstructionSelectorWord32AndAndWord32XorWithMinus1AndShiftP) {
+  Shifts shifts;
+  for (Shifts::const_iterator i = shifts.begin(); i != shifts.end(); ++i) {
+    Shift shift = *i;
+    {
+      InstructionSelectorTester m;
+      m.Return(m.Word32And(
+          m.Parameter(0),
+          m.Word32Xor(m.Int32Constant(-1),
+                      m.NewNode(shift.op, m.Parameter(1), m.Parameter(2)))));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmBic, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+    }
+    {
+      InstructionSelectorTester m;
+      m.Return(m.Word32And(
+          m.Parameter(0),
+          m.Word32Xor(m.NewNode(shift.op, m.Parameter(1), m.Parameter(2)),
+                      m.Int32Constant(-1))));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmBic, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+    }
+    {
+      InstructionSelectorTester m;
+      m.Return(m.Word32And(
+          m.Word32Xor(m.Int32Constant(-1),
+                      m.NewNode(shift.op, m.Parameter(0), m.Parameter(1))),
+          m.Parameter(2)));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmBic, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+    }
+    {
+      InstructionSelectorTester m;
+      m.Return(m.Word32And(
+          m.Word32Xor(m.NewNode(shift.op, m.Parameter(0), m.Parameter(1)),
+                      m.Int32Constant(-1)),
+          m.Parameter(2)));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmBic, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+    }
+  }
+}
+
+
 TEST(InstructionSelectorWord32XorWithMinus1P) {
   {
     InstructionSelectorTester m;
@@ -638,6 +690,33 @@ TEST(InstructionSelectorWord32XorWithMinus1P) {
     CHECK_EQ(1, m.code.size());
     CHECK_EQ(kArmMvn, m.code[0]->arch_opcode());
     CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
+  }
+}
+
+
+TEST(InstructionSelectorWord32XorWithMinus1AndShiftP) {
+  Shifts shifts;
+  for (Shifts::const_iterator i = shifts.begin(); i != shifts.end(); ++i) {
+    Shift shift = *i;
+    {
+      InstructionSelectorTester m;
+      m.Return(
+          m.Word32Xor(m.Int32Constant(-1),
+                      m.NewNode(shift.op, m.Parameter(0), m.Parameter(1))));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmMvn, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+    }
+    {
+      InstructionSelectorTester m;
+      m.Return(m.Word32Xor(m.NewNode(shift.op, m.Parameter(0), m.Parameter(1)),
+                           m.Int32Constant(-1)));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(kArmMvn, m.code[0]->arch_opcode());
+      CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
+    }
   }
 }
 
