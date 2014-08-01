@@ -481,7 +481,6 @@ namespace internal {
   F(LoadLookupSlot, 2, 2)                                            \
   F(LoadLookupSlotNoReferenceError, 2, 2)                            \
   F(StoreLookupSlot, 4, 1)                                           \
-  F(StoreContextRelative, 4, 1) /* TODO(turbofan): Only temporary */ \
                                                                      \
   /* Declarations and initialization */                              \
   F(DeclareGlobals, 3, 1)                                            \
