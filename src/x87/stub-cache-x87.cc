@@ -1195,17 +1195,8 @@ Register* PropertyAccessCompiler::store_calling_convention() {
   // receiver, name, scratch1, scratch2, scratch3.
   Register receiver = StoreIC::ReceiverRegister();
   Register name = StoreIC::NameRegister();
+  ASSERT(ebx.is(KeyedStoreIC::MapRegister()));
   static Register registers[] = { receiver, name, ebx, edi, no_reg };
-  return registers;
-}
-
-
-Register* PropertyAccessCompiler::keyed_store_calling_convention() {
-  // receiver, name, scratch1/map, scratch2, scratch3.
-  Register receiver = KeyedStoreIC::ReceiverRegister();
-  Register name = KeyedStoreIC::NameRegister();
-  Register map = KeyedStoreIC::MapRegister();
-  static Register registers[] = { receiver, name, map, edi, no_reg };
   return registers;
 }
 

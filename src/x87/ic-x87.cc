@@ -990,21 +990,6 @@ const Register StoreIC::NameRegister() { return ecx; }
 const Register StoreIC::ValueRegister() { return eax; }
 
 
-const Register KeyedStoreIC::ReceiverRegister() {
-  return StoreIC::ReceiverRegister();
-}
-
-
-const Register KeyedStoreIC::NameRegister() {
-  return StoreIC::NameRegister();
-}
-
-
-const Register KeyedStoreIC::ValueRegister() {
-  return StoreIC::ValueRegister();
-}
-
-
 const Register KeyedStoreIC::MapRegister() {
   return ebx;
 }
