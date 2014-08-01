@@ -51,6 +51,15 @@
   'ecma_3/Number/15.7.4.3-02': [PASS, FAIL],
   'ecma_3/Date/15.9.5.5-02': [PASS, FAIL],
 
+  ################## TURBO-FAN FAILURES ###################
+
+  # TODO(turbofan): These are all covered by mjsunit as well. Enable them once
+  # we pass 'mjsunit' and 'webkit' with TurboFan.
+  'js1_4/Functions/function-001': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-104077': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-396684': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-80981': [PASS, NO_VARIANTS],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory
