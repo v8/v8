@@ -555,6 +555,12 @@ Operand::Operand(int32_t disp, RelocInfo::Mode rmode) {
   set_dispr(disp, rmode);
 }
 
+
+Operand::Operand(Immediate imm) {
+  // [disp/r]
+  set_modrm(0, ebp);
+  set_dispr(imm.x_, imm.rmode_);
+}
 } }  // namespace v8::internal
 
 #endif  // V8_X87_ASSEMBLER_X87_INL_H_

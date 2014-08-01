@@ -27,22 +27,28 @@ class SimplifiedLowering : public LoweringBuilder {
 
   virtual void Lower(Node* node);
 
+  // TODO(titzer): These are exposed for direct testing. Use a friend class.
+  void DoChangeTaggedToUI32(Node* node, Node* effect, Node* control,
+                            bool is_signed);
+  void DoChangeUI32ToTagged(Node* node, Node* effect, Node* control,
+                            bool is_signed);
+  void DoChangeTaggedToFloat64(Node* node, Node* effect, Node* control);
+  void DoChangeFloat64ToTagged(Node* node, Node* effect, Node* control);
+  void DoChangeBoolToBit(Node* node, Node* effect, Node* control);
+  void DoChangeBitToBool(Node* node, Node* effect, Node* control);
+  void DoLoadField(Node* node, Node* effect, Node* control);
+  void DoStoreField(Node* node, Node* effect, Node* control);
+  void DoLoadElement(Node* node, Node* effect, Node* control);
+  void DoStoreElement(Node* node, Node* effect, Node* control);
+
  private:
   JSGraph* jsgraph_;
   MachineOperatorBuilder machine_;
 
-  Node* DoChangeTaggedToInt32(Node* node, Node* effect, Node* control);
-  Node* DoChangeTaggedToUint32(Node* node, Node* effect, Node* control);
-  Node* DoChangeTaggedToFloat64(Node* node, Node* effect, Node* control);
-  Node* DoChangeInt32ToTagged(Node* node, Node* effect, Node* control);
-  Node* DoChangeUint32ToTagged(Node* node, Node* effect, Node* control);
-  Node* DoChangeFloat64ToTagged(Node* node, Node* effect, Node* control);
-  Node* DoChangeBoolToBit(Node* node, Node* effect, Node* control);
-  Node* DoChangeBitToBool(Node* node, Node* effect, Node* control);
-  Node* DoLoadField(Node* node, Node* effect, Node* control);
-  Node* DoStoreField(Node* node, Node* effect, Node* control);
-  Node* DoLoadElement(Node* node, Node* effect, Node* control);
-  Node* DoStoreElement(Node* node, Node* effect, Node* control);
+  Node* SmiTag(Node* node);
+  Node* IsTagged(Node* node);
+  Node* Untag(Node* node);
+  Node* OffsetMinusTagConstant(int32_t offset);
 
   Node* ComputeIndex(const ElementAccess& access, Node* index);
 

@@ -75,7 +75,9 @@ GCTracer::GCTracer(Heap* heap)
       cumulative_incremental_marking_steps_(0),
       cumulative_incremental_marking_bytes_(0),
       cumulative_incremental_marking_duration_(0.0),
-      longest_incremental_marking_step_(0.0) {
+      longest_incremental_marking_step_(0.0),
+      cumulative_marking_duration_(0.0),
+      cumulative_sweeping_duration_(0.0) {
   current_ = Event(Event::START, NULL, NULL);
   current_.end_time = base::OS::TimeCurrentMillis();
   previous_ = previous_mark_compactor_event_ = current_;
@@ -174,6 +176,7 @@ void GCTracer::AddIncrementalMarkingStep(double duration, intptr_t bytes) {
   cumulative_incremental_marking_duration_ += duration;
   longest_incremental_marking_step_ =
       Max(longest_incremental_marking_step_, duration);
+  cumulative_marking_duration_ += duration;
 }
 
 
@@ -280,8 +283,8 @@ void GCTracer::PrintNVP() const {
     PrintF("steps_count=%d ", current_.incremental_marking_steps);
     PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
     PrintF("longest_step=%.1f ", current_.longest_incremental_marking_step);
-    PrintF("marking_throughput=%" V8_PTR_PREFIX "d ",
-           MarkingSpeedInBytesPerMillisecond());
+    PrintF("incremental_marking_throughput=%" V8_PTR_PREFIX "d ",
+           IncrementalMarkingSpeedInBytesPerMillisecond());
   }
 
   PrintF("\n");
@@ -355,7 +358,7 @@ double GCTracer::MaxIncrementalMarkingDuration() const {
 }
 
 
-intptr_t GCTracer::MarkingSpeedInBytesPerMillisecond() const {
+intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   if (cumulative_incremental_marking_duration_ == 0.0) return 0;
 
   // We haven't completed an entire round of incremental marking, yet.

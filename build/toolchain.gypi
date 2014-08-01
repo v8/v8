@@ -460,6 +460,8 @@
           'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
           'CharacterSet': '1',
         },
+      }],
+      ['OS=="win" and v8_target_arch=="ia32"', {
         'msvs_settings': {
           'VCCLCompilerTool': {
             # Ensure no surprising artifacts from 80bit double math with x86.

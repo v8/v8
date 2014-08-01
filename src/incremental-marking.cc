@@ -677,9 +677,10 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
 }
 
 
-void IncrementalMarking::ProcessMarkingDeque(intptr_t bytes_to_process) {
+intptr_t IncrementalMarking::ProcessMarkingDeque(intptr_t bytes_to_process) {
+  intptr_t bytes_processed = 0;
   Map* filler_map = heap_->one_pointer_filler_map();
-  while (!marking_deque_.IsEmpty() && bytes_to_process > 0) {
+  while (!marking_deque_.IsEmpty() && bytes_processed < bytes_to_process) {
     HeapObject* obj = marking_deque_.Pop();
 
     // Explicitly skip one word fillers. Incremental markbit patterns are
@@ -693,8 +694,9 @@ void IncrementalMarking::ProcessMarkingDeque(intptr_t bytes_to_process) {
     int delta = (size - unscanned_bytes_of_large_object_);
     // TODO(jochen): remove after http://crbug.com/381820 is resolved.
     CHECK_LT(0, delta);
-    bytes_to_process -= delta;
+    bytes_processed += delta;
   }
+  return bytes_processed;
 }
 
 
@@ -729,7 +731,7 @@ void IncrementalMarking::Hurry() {
     if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
       double end = base::OS::TimeCurrentMillis();
       double delta = end - start;
-      heap_->AddMarkingTime(delta);
+      heap_->tracer()->AddMarkingTime(delta);
       if (FLAG_trace_incremental_marking) {
         PrintF("[IncrementalMarking] Complete (hurry), spent %d ms.\n",
                static_cast<int>(delta));
@@ -873,6 +875,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
     write_barriers_invoked_since_last_step_ = 0;
 
     bytes_scanned_ += bytes_to_process;
+    intptr_t bytes_processed = 0;
 
     if (state_ == SWEEPING) {
       if (heap_->mark_compact_collector()->sweeping_in_progress() &&
@@ -884,7 +887,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
         StartMarking(PREVENT_COMPACTION);
       }
     } else if (state_ == MARKING) {
-      ProcessMarkingDeque(bytes_to_process);
+      bytes_processed = ProcessMarkingDeque(bytes_to_process);
       if (marking_deque_.IsEmpty()) MarkingComplete(action);
     }
 
@@ -956,8 +959,10 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
 
     double end = base::OS::TimeCurrentMillis();
     double duration = (end - start);
-    heap_->tracer()->AddIncrementalMarkingStep(duration, allocated_bytes);
-    heap_->AddMarkingTime(duration);
+    // Note that we report zero bytes here when sweeping was in progress or
+    // when we just started incremental marking. In these cases we did not
+    // process the marking deque.
+    heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
   }
 }
 

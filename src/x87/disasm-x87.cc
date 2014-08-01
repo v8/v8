@@ -529,77 +529,94 @@ int DisassemblerX87::PrintImmediateOp(byte* data) {
 // Returns number of bytes used, including *data.
 int DisassemblerX87::F7Instruction(byte* data) {
   ASSERT_EQ(0xF7, *data);
-  byte modrm = *(data+1);
+  byte modrm = *++data;
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
-  if (mod == 3 && regop != 0) {
-    const char* mnem = NULL;
-    switch (regop) {
-      case 2: mnem = "not"; break;
-      case 3: mnem = "neg"; break;
-      case 4: mnem = "mul"; break;
-      case 5: mnem = "imul"; break;
-      case 7: mnem = "idiv"; break;
-      default: UnimplementedInstruction();
-    }
-    AppendToBuffer("%s %s", mnem, NameOfCPURegister(rm));
-    return 2;
-  } else if (mod == 3 && regop == eax) {
-    int32_t imm = *reinterpret_cast<int32_t*>(data+2);
-    AppendToBuffer("test %s,0x%x", NameOfCPURegister(rm), imm);
-    return 6;
-  } else if (regop == eax) {
-    AppendToBuffer("test ");
-    int count = PrintRightOperand(data+1);
-    int32_t imm = *reinterpret_cast<int32_t*>(data+1+count);
-    AppendToBuffer(",0x%x", imm);
-    return 1+count+4 /*int32_t*/;
-  } else {
-    UnimplementedInstruction();
-    return 2;
+  const char* mnem = NULL;
+  switch (regop) {
+    case 0:
+      mnem = "test";
+      break;
+    case 2:
+      mnem = "not";
+      break;
+    case 3:
+      mnem = "neg";
+      break;
+    case 4:
+      mnem = "mul";
+      break;
+    case 5:
+      mnem = "imul";
+      break;
+    case 6:
+      mnem = "div";
+      break;
+    case 7:
+      mnem = "idiv";
+      break;
+    default:
+      UnimplementedInstruction();
   }
+  AppendToBuffer("%s ", mnem);
+  int count = PrintRightOperand(data);
+  if (regop == 0) {
+    AppendToBuffer(",0x%x", *reinterpret_cast<int32_t*>(data + count));
+    count += 4;
+  }
+  return 1 + count;
 }
 
 
 int DisassemblerX87::D1D3C1Instruction(byte* data) {
   byte op = *data;
   ASSERT(op == 0xD1 || op == 0xD3 || op == 0xC1);
-  byte modrm = *(data+1);
+  byte modrm = *++data;
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
   int imm8 = -1;
-  int num_bytes = 2;
-  if (mod == 3) {
-    const char* mnem = NULL;
-    switch (regop) {
-      case kROL: mnem = "rol"; break;
-      case kROR: mnem = "ror"; break;
-      case kRCL: mnem = "rcl"; break;
-      case kRCR: mnem = "rcr"; break;
-      case kSHL: mnem = "shl"; break;
-      case KSHR: mnem = "shr"; break;
-      case kSAR: mnem = "sar"; break;
-      default: UnimplementedInstruction();
-    }
-    if (op == 0xD1) {
-      imm8 = 1;
-    } else if (op == 0xC1) {
-      imm8 = *(data+2);
-      num_bytes = 3;
-    } else if (op == 0xD3) {
-      // Shift/rotate by cl.
-    }
-    ASSERT_NE(NULL, mnem);
-    AppendToBuffer("%s %s,", mnem, NameOfCPURegister(rm));
-    if (imm8 >= 0) {
-      AppendToBuffer("%d", imm8);
-    } else {
-      AppendToBuffer("cl");
-    }
-  } else {
-    UnimplementedInstruction();
+  const char* mnem = NULL;
+  switch (regop) {
+    case kROL:
+      mnem = "rol";
+      break;
+    case kROR:
+      mnem = "ror";
+      break;
+    case kRCL:
+      mnem = "rcl";
+      break;
+    case kRCR:
+      mnem = "rcr";
+      break;
+    case kSHL:
+      mnem = "shl";
+      break;
+    case KSHR:
+      mnem = "shr";
+      break;
+    case kSAR:
+      mnem = "sar";
+      break;
+    default:
+      UnimplementedInstruction();
   }
-  return num_bytes;
+  AppendToBuffer("%s ", mnem);
+  int count = PrintRightOperand(data);
+  if (op == 0xD1) {
+    imm8 = 1;
+  } else if (op == 0xC1) {
+    imm8 = *(data + 2);
+    count++;
+  } else if (op == 0xD3) {
+    // Shift/rotate by cl.
+  }
+  if (imm8 >= 0) {
+    AppendToBuffer(",%d", imm8);
+  } else {
+    AppendToBuffer(",cl");
+  }
+  return 1 + count;
 }
 
 
@@ -954,17 +971,18 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data += 3;
         break;
 
-      case 0x69:  // fall through
-      case 0x6B:
-        { int mod, regop, rm;
-          get_modrm(*(data+1), &mod, &regop, &rm);
-          int32_t imm =
-              *data == 0x6B ? *(data+2) : *reinterpret_cast<int32_t*>(data+2);
-          AppendToBuffer("imul %s,%s,0x%x",
-                         NameOfCPURegister(regop),
-                         NameOfCPURegister(rm),
-                         imm);
-          data += 2 + (*data == 0x6B ? 1 : 4);
+      case 0x6B: {
+        data++;
+        data += PrintOperands("imul", REG_OPER_OP_ORDER, data);
+        AppendToBuffer(",%d", *data);
+        data++;
+      } break;
+
+      case 0x69: {
+        data++;
+        data += PrintOperands("imul", REG_OPER_OP_ORDER, data);
+        AppendToBuffer(",%d", *reinterpret_cast<int32_t*>(data));
+        data += 4;
         }
         break;
 

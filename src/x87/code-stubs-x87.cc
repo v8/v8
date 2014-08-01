@@ -84,6 +84,27 @@ void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
 }
 
 
+void CallFunctionStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  Register registers[] = {esi, edi};
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+}
+
+
+void CallConstructStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  // eax : number of arguments
+  // ebx : feedback vector
+  // edx : (only if ebx is not the megamorphic symbol) slot in feedback
+  //       vector (Smi)
+  // edi : constructor function
+  // TODO(turbofan): So far we don't gather type feedback and hence skip the
+  // slot parameter, but ArrayConstructStub needs the vector to be undefined.
+  Register registers[] = {esi, eax, edi, ebx};
+  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+}
+
+
 void RegExpConstructResultStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { esi, ecx, ebx, eax };
@@ -2446,7 +2467,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // If there is a call site cache don't look in the global cache, but do the
   // real lookup and update the call site cache.
-  if (!HasCallSiteInlineCheck()) {
+  if (!HasCallSiteInlineCheck() && !ReturnTrueFalseObject()) {
     // Look up the function and the map in the instanceof cache.
     Label miss;
     __ CompareRoot(function, scratch, Heap::kInstanceofCacheFunctionRootIndex);
@@ -2505,6 +2526,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   if (!HasCallSiteInlineCheck()) {
     __ mov(eax, Immediate(0));
     __ StoreRoot(eax, scratch, Heap::kInstanceofCacheAnswerRootIndex);
+    if (ReturnTrueFalseObject()) {
+      __ mov(eax, factory->true_value());
+    }
   } else {
     // Get return address and delta to inlined map check.
     __ mov(eax, factory->true_value());
@@ -2525,6 +2549,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   if (!HasCallSiteInlineCheck()) {
     __ mov(eax, Immediate(Smi::FromInt(1)));
     __ StoreRoot(eax, scratch, Heap::kInstanceofCacheAnswerRootIndex);
+    if (ReturnTrueFalseObject()) {
+      __ mov(eax, factory->false_value());
+    }
   } else {
     // Get return address and delta to inlined map check.
     __ mov(eax, factory->false_value());
@@ -2552,20 +2579,32 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // Null is not instance of anything.
   __ cmp(object, factory->null_value());
   __ j(not_equal, &object_not_null, Label::kNear);
-  __ Move(eax, Immediate(Smi::FromInt(1)));
+  if (ReturnTrueFalseObject()) {
+    __ mov(eax, factory->false_value());
+  } else {
+    __ Move(eax, Immediate(Smi::FromInt(1)));
+  }
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null);
   // Smi values is not instance of anything.
   __ JumpIfNotSmi(object, &object_not_null_or_smi, Label::kNear);
-  __ Move(eax, Immediate(Smi::FromInt(1)));
+  if (ReturnTrueFalseObject()) {
+    __ mov(eax, factory->false_value());
+  } else {
+    __ Move(eax, Immediate(Smi::FromInt(1)));
+  }
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null_or_smi);
   // String values is not instance of anything.
   Condition is_string = masm->IsObjectStringType(object, scratch, scratch);
   __ j(NegateCondition(is_string), &slow, Label::kNear);
-  __ Move(eax, Immediate(Smi::FromInt(1)));
+  if (ReturnTrueFalseObject()) {
+    __ mov(eax, factory->false_value());
+  } else {
+    __ Move(eax, Immediate(Smi::FromInt(1)));
+  }
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   // Slow-case: Go through the JavaScript implementation.

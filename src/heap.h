@@ -1246,24 +1246,6 @@ class Heap {
   // Returns minimal interval between two subsequent collections.
   double get_min_in_mutator() { return min_in_mutator_; }
 
-  // TODO(hpayer): remove, should be handled by GCTracer
-  void AddMarkingTime(double marking_time) {
-    marking_time_ += marking_time;
-  }
-
-  double marking_time() const {
-    return marking_time_;
-  }
-
-  // TODO(hpayer): remove, should be handled by GCTracer
-  void AddSweepingTime(double sweeping_time) {
-    sweeping_time_ += sweeping_time;
-  }
-
-  double sweeping_time() const {
-    return sweeping_time_;
-  }
-
   MarkCompactCollector* mark_compact_collector() {
     return &mark_compact_collector_;
   }

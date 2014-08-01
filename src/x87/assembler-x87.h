@@ -292,6 +292,7 @@ class Immediate BASE_EMBEDDED {
   int x_;
   RelocInfo::Mode rmode_;
 
+  friend class Operand;
   friend class Assembler;
   friend class MacroAssembler;
 };
@@ -314,9 +315,14 @@ enum ScaleFactor {
 
 class Operand BASE_EMBEDDED {
  public:
+  // reg
+  INLINE(explicit Operand(Register reg));
+
   // [disp/r]
   INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode));
-  // disp only must always be relocated
+
+  // [disp/r]
+  INLINE(explicit Operand(Immediate imm));
 
   // [base + disp/r]
   explicit Operand(Register base, int32_t disp,
@@ -353,6 +359,10 @@ class Operand BASE_EMBEDDED {
                    RelocInfo::CELL);
   }
 
+  static Operand ForRegisterPlusImmediate(Register base, Immediate imm) {
+    return Operand(base, imm.x_, imm.rmode_);
+  }
+
   // Returns true if this Operand is a wrapper for the specified register.
   bool is_reg(Register reg) const;
 
@@ -364,9 +374,6 @@ class Operand BASE_EMBEDDED {
   Register reg() const;
 
  private:
-  // reg
-  INLINE(explicit Operand(Register reg));
-
   // Set the ModRM byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
   inline void set_modrm(int mod, Register rm);
@@ -383,7 +390,6 @@ class Operand BASE_EMBEDDED {
 
   friend class Assembler;
   friend class MacroAssembler;
-  friend class LCodeGen;
 };
 
 
@@ -630,8 +636,9 @@ class Assembler : public AssemblerBase {
   void rep_stos();
   void stos();
 
-  // Exchange two registers
+  // Exchange
   void xchg(Register dst, Register src);
+  void xchg(Register dst, const Operand& src);
 
   // Arithmetics
   void adc(Register dst, int32_t imm32);
@@ -673,13 +680,17 @@ class Assembler : public AssemblerBase {
 
   void cdq();
 
-  void idiv(Register src);
+  void idiv(Register src) { idiv(Operand(src)); }
+  void idiv(const Operand& src);
+  void div(Register src) { div(Operand(src)); }
+  void div(const Operand& src);
 
   // Signed multiply instructions.
   void imul(Register src);                               // edx:eax = eax * src.
   void imul(Register dst, Register src) { imul(dst, Operand(src)); }
   void imul(Register dst, const Operand& src);           // dst = dst * src.
   void imul(Register dst, Register src, int32_t imm32);  // dst = src * imm32.
+  void imul(Register dst, const Operand& src, int32_t imm32);
 
   void inc(Register dst);
   void inc(const Operand& dst);
@@ -690,8 +701,10 @@ class Assembler : public AssemblerBase {
   void mul(Register src);                                // edx:eax = eax * reg.
 
   void neg(Register dst);
+  void neg(const Operand& dst);
 
   void not_(Register dst);
+  void not_(const Operand& dst);
 
   void or_(Register dst, int32_t imm32);
   void or_(Register dst, Register src) { or_(dst, Operand(src)); }
@@ -705,22 +718,28 @@ class Assembler : public AssemblerBase {
   void ror(Register dst, uint8_t imm8);
   void ror_cl(Register dst);
 
-  void sar(Register dst, uint8_t imm8);
-  void sar_cl(Register dst);
+  void sar(Register dst, uint8_t imm8) { sar(Operand(dst), imm8); }
+  void sar(const Operand& dst, uint8_t imm8);
+  void sar_cl(Register dst) { sar_cl(Operand(dst)); }
+  void sar_cl(const Operand& dst);
 
   void sbb(Register dst, const Operand& src);
 
   void shld(Register dst, Register src) { shld(dst, Operand(src)); }
   void shld(Register dst, const Operand& src);
 
-  void shl(Register dst, uint8_t imm8);
-  void shl_cl(Register dst);
+  void shl(Register dst, uint8_t imm8) { shl(Operand(dst), imm8); }
+  void shl(const Operand& dst, uint8_t imm8);
+  void shl_cl(Register dst) { shl_cl(Operand(dst)); }
+  void shl_cl(const Operand& dst);
 
   void shrd(Register dst, Register src) { shrd(dst, Operand(src)); }
   void shrd(Register dst, const Operand& src);
 
-  void shr(Register dst, uint8_t imm8);
-  void shr_cl(Register dst);
+  void shr(Register dst, uint8_t imm8) { shr(Operand(dst), imm8); }
+  void shr(const Operand& dst, uint8_t imm8);
+  void shr_cl(Register dst) { shr_cl(Operand(dst)); }
+  void shr_cl(const Operand& dst);
 
   void sub(Register dst, const Immediate& imm) { sub(Operand(dst), imm); }
   void sub(const Operand& dst, const Immediate& x);
