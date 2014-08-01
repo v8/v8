@@ -731,7 +731,7 @@ void IncrementalMarking::Hurry() {
     if (FLAG_trace_incremental_marking || FLAG_print_cumulative_gc_stat) {
       double end = base::OS::TimeCurrentMillis();
       double delta = end - start;
-      heap_->AddMarkingTime(delta);
+      heap_->tracer()->AddMarkingTime(delta);
       if (FLAG_trace_incremental_marking) {
         PrintF("[IncrementalMarking] Complete (hurry), spent %d ms.\n",
                static_cast<int>(delta));
@@ -963,7 +963,6 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
     // when we just started incremental marking. In these cases we did not
     // process the marking deque.
     heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
-    heap_->AddMarkingTime(duration);
   }
 }
 

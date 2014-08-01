@@ -2291,6 +2291,10 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 
 void MarkCompactCollector::MarkLiveObjects() {
   GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_MARK);
+  double start_time = 0.0;
+  if (FLAG_print_cumulative_gc_stat) {
+    start_time = base::OS::TimeCurrentMillis();
+  }
   // The recursive GC marker detects when it is nearing stack overflow,
   // and switches to a different marking system.  JS interrupts interfere
   // with the C stack limit check.
@@ -2395,6 +2399,10 @@ void MarkCompactCollector::MarkLiveObjects() {
   ProcessEphemeralMarking(&root_visitor);
 
   AfterMarking();
+
+  if (FLAG_print_cumulative_gc_stat) {
+    heap_->tracer()->AddMarkingTime(base::OS::TimeCurrentMillis() - start_time);
+  }
 }
 
 
@@ -3284,11 +3292,6 @@ static int SweepPrecisely(PagedSpace* space,
   ASSERT(parallelism == MarkCompactCollector::SWEEP_ON_MAIN_THREAD ||
          sweeping_mode == SWEEP_ONLY);
 
-  double start_time = 0.0;
-  if (FLAG_print_cumulative_gc_stat) {
-    start_time = base::OS::TimeCurrentMillis();
-  }
-
   Address free_start = p->area_start();
   ASSERT(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
   int offsets[16];
@@ -3359,9 +3362,6 @@ static int SweepPrecisely(PagedSpace* space,
 #endif
   }
   p->ResetLiveBytes();
-  if (FLAG_print_cumulative_gc_stat) {
-    space->heap()->AddSweepingTime(base::OS::TimeCurrentMillis() - start_time);
-  }
 
   if (parallelism == MarkCompactCollector::SWEEP_IN_PARALLEL) {
     // When concurrent sweeping is active, the page will be marked after
@@ -4308,6 +4308,11 @@ static bool ShouldWaitForSweeperThreads(
 
 void MarkCompactCollector::SweepSpaces() {
   GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
+  double start_time = 0.0;
+  if (FLAG_print_cumulative_gc_stat) {
+    start_time = base::OS::TimeCurrentMillis();
+  }
+
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
@@ -4372,6 +4377,11 @@ void MarkCompactCollector::SweepSpaces() {
 
   // Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
+
+  if (FLAG_print_cumulative_gc_stat) {
+    heap_->tracer()->AddSweepingTime(base::OS::TimeCurrentMillis() -
+                                     start_time);
+  }
 }
 
 
