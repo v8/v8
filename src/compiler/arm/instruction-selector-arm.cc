@@ -705,28 +705,28 @@ void InstructionSelector::VisitInt32UMod(Node* node) {
 }
 
 
-void InstructionSelector::VisitConvertInt32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtF64S32, g.DefineAsDoubleRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtF64U32, g.DefineAsDoubleRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToInt32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtS32F64, g.DefineAsRegister(node),
        g.UseDoubleRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToUint32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtU32F64, g.DefineAsRegister(node),
        g.UseDoubleRegister(node->InputAt(0)));

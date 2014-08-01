@@ -493,14 +493,14 @@ void InstructionSelector::VisitInt64UMod(Node* node) {
 }
 
 
-void InstructionSelector::VisitConvertInt32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEInt32ToFloat64, g.DefineAsDoubleRegister(node),
        g.Use(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   X64OperandGenerator g(this);
   // TODO(turbofan): X64 SSE cvtqsi2sd should support operands.
   Emit(kSSEUint32ToFloat64, g.DefineAsDoubleRegister(node),
@@ -508,13 +508,13 @@ void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToInt32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64ToInt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToUint32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   X64OperandGenerator g(this);
   // TODO(turbofan): X64 SSE cvttsd2siq should support operands.
   Emit(kSSEFloat64ToUint32, g.DefineAsRegister(node),

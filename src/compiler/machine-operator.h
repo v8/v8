@@ -147,10 +147,10 @@ class MachineOperatorBuilder {
   // defined for these operators, since they are intended only for use with
   // integers.
   // TODO(titzer): rename ConvertXXX to ChangeXXX in machine operators.
-  Operator* ConvertInt32ToFloat64() { UNOP(ConvertInt32ToFloat64); }
-  Operator* ConvertUint32ToFloat64() { UNOP(ConvertUint32ToFloat64); }
-  Operator* ConvertFloat64ToInt32() { UNOP(ConvertFloat64ToInt32); }
-  Operator* ConvertFloat64ToUint32() { UNOP(ConvertFloat64ToUint32); }
+  Operator* ChangeInt32ToFloat64() { UNOP(ChangeInt32ToFloat64); }
+  Operator* ChangeUint32ToFloat64() { UNOP(ChangeUint32ToFloat64); }
+  Operator* ChangeFloat64ToInt32() { UNOP(ChangeFloat64ToInt32); }
+  Operator* ChangeFloat64ToUint32() { UNOP(ChangeFloat64ToUint32); }
 
   // Floating point operators always operate with IEEE 754 round-to-nearest.
   Operator* Float64Add() { BINOP_C(Float64Add); }

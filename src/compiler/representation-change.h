@@ -150,9 +150,9 @@ class RepresentationChanger {
     Operator* op;
     if (output_type & rWord32) {
       if (output_type & tUint32) {
-        op = machine()->ConvertUint32ToFloat64();
+        op = machine()->ChangeUint32ToFloat64();
       } else if (output_type & tInt32) {
-        op = machine()->ConvertInt32ToFloat64();
+        op = machine()->ChangeInt32ToFloat64();
       } else {
         return TypeError(node, output_type, rFloat64);
       }
@@ -188,12 +188,10 @@ class RepresentationChanger {
     // Select the correct X -> Word32 operator.
     Operator* op = NULL;
     if (output_type & rFloat64) {
-      // TODO(turbofan): could have cheaper float64 conversions that don't do
-      // the full JavaScript truncation here.
       if (output_type & tUint32) {
-        op = machine()->ConvertFloat64ToUint32();
+        op = machine()->ChangeFloat64ToUint32();
       } else if (output_type & tInt32) {
-        op = machine()->ConvertFloat64ToInt32();
+        op = machine()->ChangeFloat64ToInt32();
       } else {
         return TypeError(node, output_type, rWord32);
       }

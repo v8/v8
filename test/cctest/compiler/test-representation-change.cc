@@ -180,10 +180,10 @@ TEST(SingleChanges) {
   CheckChange(IrOpcode::kChangeTaggedToFloat64, rTagged, rFloat64);
 
   // Int32,Uint32 <-> Float64 are actually machine conversions.
-  CheckChange(IrOpcode::kConvertInt32ToFloat64, rWord32 | tInt32, rFloat64);
-  CheckChange(IrOpcode::kConvertUint32ToFloat64, rWord32 | tUint32, rFloat64);
-  CheckChange(IrOpcode::kConvertFloat64ToInt32, rFloat64 | tInt32, rWord32);
-  CheckChange(IrOpcode::kConvertFloat64ToUint32, rFloat64 | tUint32, rWord32);
+  CheckChange(IrOpcode::kChangeInt32ToFloat64, rWord32 | tInt32, rFloat64);
+  CheckChange(IrOpcode::kChangeUint32ToFloat64, rWord32 | tUint32, rFloat64);
+  CheckChange(IrOpcode::kChangeFloat64ToInt32, rFloat64 | tInt32, rWord32);
+  CheckChange(IrOpcode::kChangeFloat64ToUint32, rFloat64 | tUint32, rWord32);
 }
 
 
@@ -200,8 +200,8 @@ TEST(SignednessInWord32) {
 
   //  CheckChange(IrOpcode::kChangeTaggedToInt32, rTagged, rWord32 | tInt32);
   //  CheckChange(IrOpcode::kChangeTaggedToUint32, rTagged, rWord32 | tUint32);
-  //  CheckChange(IrOpcode::kConvertInt32ToFloat64, rWord32, rFloat64);
-  //  CheckChange(IrOpcode::kConvertFloat64ToInt32, rFloat64, rWord32);
+  //  CheckChange(IrOpcode::kChangeInt32ToFloat64, rWord32, rFloat64);
+  //  CheckChange(IrOpcode::kChangeFloat64ToInt32, rFloat64, rWord32);
 }
 
 

@@ -335,17 +335,17 @@ class MachineNodeFactory {
   Node* ConvertInt64ToInt32(Node* a) {
     return NEW_NODE_1(MACHINE()->ConvertInt64ToInt32(), a);
   }
-  Node* ConvertInt32ToFloat64(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertInt32ToFloat64(), a);
+  Node* ChangeInt32ToFloat64(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeInt32ToFloat64(), a);
   }
-  Node* ConvertUint32ToFloat64(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertUint32ToFloat64(), a);
+  Node* ChangeUint32ToFloat64(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeUint32ToFloat64(), a);
   }
-  Node* ConvertFloat64ToInt32(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertFloat64ToInt32(), a);
+  Node* ChangeFloat64ToInt32(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeFloat64ToInt32(), a);
   }
-  Node* ConvertFloat64ToUint32(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertFloat64ToUint32(), a);
+  Node* ChangeFloat64ToUint32(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeFloat64ToUint32(), a);
   }
 
 #ifdef MACHINE_ASSEMBLER_SUPPORTS_CALL_C

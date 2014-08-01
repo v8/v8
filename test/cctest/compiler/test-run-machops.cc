@@ -482,7 +482,7 @@ TEST(RunLoopIncrementFloat64) {
   m.Goto(&header);
 
   m.Bind(end);
-  m.Return(m.ConvertFloat64ToInt32(phi));
+  m.Return(m.ChangeFloat64ToInt32(phi));
 
   CHECK_EQ(10, m.Call());
 }
@@ -2858,12 +2858,12 @@ TEST(RunFloat64ModP) {
 }
 
 
-TEST(RunConvertInt32ToFloat64_A) {
+TEST(RunChangeInt32ToFloat64_A) {
   RawMachineAssemblerTester<int32_t> m;
   int32_t magic = 0x986234;
   double result = 0;
 
-  Node* convert = m.ConvertInt32ToFloat64(m.Int32Constant(magic));
+  Node* convert = m.ChangeInt32ToFloat64(m.Int32Constant(magic));
   m.Store(kMachineFloat64, m.PointerConstant(&result), m.Int32Constant(0),
           convert);
   m.Return(m.Int32Constant(magic));
@@ -2873,11 +2873,11 @@ TEST(RunConvertInt32ToFloat64_A) {
 }
 
 
-TEST(RunConvertInt32ToFloat64_B) {
+TEST(RunChangeInt32ToFloat64_B) {
   RawMachineAssemblerTester<int32_t> m(kMachineWord32);
   double output = 0;
 
-  Node* convert = m.ConvertInt32ToFloat64(m.Parameter(0));
+  Node* convert = m.ChangeInt32ToFloat64(m.Parameter(0));
   m.Store(kMachineFloat64, m.PointerConstant(&output), m.Int32Constant(0),
           convert);
   m.Return(m.Parameter(0));
@@ -2890,11 +2890,11 @@ TEST(RunConvertInt32ToFloat64_B) {
 }
 
 
-TEST(RunConvertUint32ToFloat64_B) {
+TEST(RunChangeUint32ToFloat64_B) {
   RawMachineAssemblerTester<int32_t> m(kMachineWord32);
   double output = 0;
 
-  Node* convert = m.ConvertUint32ToFloat64(m.Parameter(0));
+  Node* convert = m.ChangeUint32ToFloat64(m.Parameter(0));
   m.Store(kMachineFloat64, m.PointerConstant(&output), m.Int32Constant(0),
           convert);
   m.Return(m.Parameter(0));
@@ -2907,14 +2907,14 @@ TEST(RunConvertUint32ToFloat64_B) {
 }
 
 
-TEST(RunConvertFloat64ToInt32_A) {
+TEST(RunChangeFloat64ToInt32_A) {
   RawMachineAssemblerTester<int32_t> m;
   int32_t magic = 0x786234;
   double input = 11.1;
   int32_t result = 0;
 
   m.Store(kMachineWord32, m.PointerConstant(&result), m.Int32Constant(0),
-          m.ConvertFloat64ToInt32(m.Float64Constant(input)));
+          m.ChangeFloat64ToInt32(m.Float64Constant(input)));
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -2922,14 +2922,14 @@ TEST(RunConvertFloat64ToInt32_A) {
 }
 
 
-TEST(RunConvertFloat64ToInt32_B) {
+TEST(RunChangeFloat64ToInt32_B) {
   RawMachineAssemblerTester<int32_t> m;
   double input = 0;
   int32_t output = 0;
 
   Node* load =
       m.Load(kMachineFloat64, m.PointerConstant(&input), m.Int32Constant(0));
-  Node* convert = m.ConvertFloat64ToInt32(load);
+  Node* convert = m.ChangeFloat64ToInt32(load);
   m.Store(kMachineWord32, m.PointerConstant(&output), m.Int32Constant(0),
           convert);
   m.Return(convert);
@@ -2964,14 +2964,14 @@ TEST(RunConvertFloat64ToInt32_B) {
 }
 
 
-TEST(RunConvertFloat64ToUint32_B) {
+TEST(RunChangeFloat64ToUint32_B) {
   RawMachineAssemblerTester<int32_t> m;
   double input = 0;
   int32_t output = 0;
 
   Node* load =
       m.Load(kMachineFloat64, m.PointerConstant(&input), m.Int32Constant(0));
-  Node* convert = m.ConvertFloat64ToUint32(load);
+  Node* convert = m.ChangeFloat64ToUint32(load);
   m.Store(kMachineWord32, m.PointerConstant(&output), m.Int32Constant(0),
           convert);
   m.Return(convert);
@@ -3007,7 +3007,7 @@ TEST(RunConvertFloat64ToUint32_B) {
 }
 
 
-TEST(RunConvertFloat64ToInt32_spilled) {
+TEST(RunChangeFloat64ToInt32_spilled) {
   RawMachineAssemblerTester<int32_t> m;
   const int kNumInputs = 32;
   int32_t magic = 0x786234;
@@ -3022,7 +3022,7 @@ TEST(RunConvertFloat64ToInt32_spilled) {
 
   for (int i = 0; i < kNumInputs; i++) {
     m.Store(kMachineWord32, m.PointerConstant(&result), m.Int32Constant(i * 4),
-            m.ConvertFloat64ToInt32(input_node[i]));
+            m.ChangeFloat64ToInt32(input_node[i]));
   }
 
   m.Return(m.Int32Constant(magic));
@@ -3039,19 +3039,19 @@ TEST(RunConvertFloat64ToInt32_spilled) {
 }
 
 
-TEST(RunDeadConvertFloat64ToInt32) {
+TEST(RunDeadChangeFloat64ToInt32) {
   RawMachineAssemblerTester<int32_t> m;
   const int magic = 0x88abcda4;
-  m.ConvertFloat64ToInt32(m.Float64Constant(999.78));
+  m.ChangeFloat64ToInt32(m.Float64Constant(999.78));
   m.Return(m.Int32Constant(magic));
   CHECK_EQ(magic, m.Call());
 }
 
 
-TEST(RunDeadConvertInt32ToFloat64) {
+TEST(RunDeadChangeInt32ToFloat64) {
   RawMachineAssemblerTester<int32_t> m;
   const int magic = 0x8834abcd;
-  m.ConvertInt32ToFloat64(m.Int32Constant(magic - 6888));
+  m.ChangeInt32ToFloat64(m.Int32Constant(magic - 6888));
   m.Return(m.Int32Constant(magic));
   CHECK_EQ(magic, m.Call());
 }
