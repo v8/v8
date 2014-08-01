@@ -50,7 +50,14 @@ class Pipeline {
   Zone* zone() { return info_->zone(); }
   Isolate* isolate() { return info_->isolate(); }
 
-  static inline bool SupportedTarget() { return V8_TURBOFAN_TARGET != 0; }
+  static inline bool SupportedTarget() {
+#if V8_TARGET_ARCH_ARM64
+    // TODO(turbofan): The ARM64 port is temporarily disabled.
+    return false;
+#else
+    return V8_TURBOFAN_TARGET != 0;
+#endif
+  }
 
   static inline bool VerifyGraphs() {
 #ifdef DEBUG
