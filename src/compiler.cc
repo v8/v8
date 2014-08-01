@@ -413,10 +413,14 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       info()->function()->dont_optimize_reason() != kTryCatchStatement &&
       info()->function()->dont_optimize_reason() != kTryFinallyStatement &&
       // TODO(turbofan): Make OSR work and remove this bailout.
-      !info()->is_osr()) {
+      !info()->is_osr() &&
+      // TODO(mstarzinger): Extend test coverage to unsupported targets.
+      compiler::Pipeline::SupportedTarget()) {
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
-    return SetLastStatus(SUCCEEDED);
+    if (!info()->code().is_null()) {
+      return SetLastStatus(SUCCEEDED);
+    }
   }
 
   if (FLAG_trace_hydrogen) {

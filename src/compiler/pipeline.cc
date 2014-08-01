@@ -170,7 +170,7 @@ Handle<Code> Pipeline::GenerateCode() {
     }
   }
 
-  {
+  if (SupportedTarget()) {
     // Lower any remaining generic JSOperators.
     PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
                               "generic lowering");
