@@ -391,6 +391,8 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   virtual void FrontendFooter(Handle<Name> name, Label* miss) { UNREACHABLE(); }
 
   Register Frontend(Register object_reg, Handle<Name> name);
+  void NonexistentFrontendHeader(Handle<Name> name, Label* miss,
+                                 Register scratch1, Register scratch2);
 
   // TODO(verwaest): Make non-static.
   static void GenerateFastApiCall(MacroAssembler* masm,
@@ -519,8 +521,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   Register CallbackFrontend(Register object_reg, Handle<Name> name,
                             Handle<Object> callback);
   Handle<Code> CompileLoadNonexistent(Handle<Name> name);
-  void NonexistentFrontend(Handle<Name> name);
-
   void GenerateLoadField(Register reg,
                          FieldIndex field,
                          Representation representation);
@@ -589,9 +589,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   void GenerateRestoreName(Label* label, Handle<Name> name);
 
  private:
-  void GenerateNegativeHolderLookup(Register holder_reg, Handle<Name> name,
-                                    Label* miss);
-
   void GenerateStoreTransition(Handle<Map> transition, Handle<Name> name,
                                Register receiver_reg, Register name_reg,
                                Register value_reg, Register scratch1,

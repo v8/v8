@@ -401,19 +401,6 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
 }
 
 
-void NamedStoreHandlerCompiler::GenerateNegativeHolderLookup(
-    MacroAssembler* masm, Handle<JSObject> holder, Register holder_reg,
-    Handle<Name> name, Label* miss) {
-  if (holder->IsJSGlobalObject()) {
-    GenerateCheckPropertyCell(
-        masm, Handle<JSGlobalObject>::cast(holder), name, scratch1(), miss);
-  } else if (!holder->HasFastProperties() && !holder->IsJSGlobalProxy()) {
-    GenerateDictionaryNegativeLookup(
-        masm, miss, holder_reg, name, scratch1(), scratch2());
-  }
-}
-
-
 // Receiver_reg is preserved on jumps to miss_label, but may be destroyed if
 // store is successful.
 void NamedStoreHandlerCompiler::GenerateStoreTransition(
@@ -1165,20 +1152,6 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
 
   // Return the generated code.
   return GetCode(kind(), Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
-}
-
-
-Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
-    Handle<Name> name) {
-  NonexistentFrontend(name);
-
-  // Return undefined if maps of the full prototype chain are still the
-  // same and no global property with this name contains a value.
-  __ mov(eax, isolate()->factory()->undefined_value());
-  __ ret(0);
-
-  // Return the generated code.
-  return GetCode(kind(), Code::FAST, name);
 }
 
 

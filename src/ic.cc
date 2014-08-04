@@ -1434,7 +1434,8 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
     Handle<Map> transition(lookup->GetTransitionTarget());
     PropertyDetails details = lookup->GetPropertyDetails();
 
-    if (details.type() != CALLBACKS && details.attributes() == NONE) {
+    if (details.type() != CALLBACKS && details.attributes() == NONE &&
+        holder->HasFastProperties()) {
       return compiler.CompileStoreTransition(transition, name);
     }
   } else {

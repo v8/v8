@@ -803,9 +803,10 @@ Register PropertyHandlerCompiler::Frontend(Register object_reg,
 }
 
 
-void NamedLoadHandlerCompiler::NonexistentFrontend(Handle<Name> name) {
-  Label miss;
-
+void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
+                                                        Label* miss,
+                                                        Register scratch1,
+                                                        Register scratch2) {
   Register holder_reg;
   Handle<Map> last_map;
   if (holder().is_null()) {
@@ -815,33 +816,29 @@ void NamedLoadHandlerCompiler::NonexistentFrontend(Handle<Name> name) {
     // Handle<JSObject>::null().
     ASSERT(last_map->prototype() == isolate()->heap()->null_value());
   } else {
-    holder_reg = FrontendHeader(receiver(), name, &miss);
+    holder_reg = FrontendHeader(receiver(), name, miss);
     last_map = handle(holder()->map());
   }
 
-  if (last_map->is_dictionary_map() && !last_map->IsJSGlobalObjectMap()) {
-    if (!name->IsUniqueName()) {
-      ASSERT(name->IsString());
-      name = factory()->InternalizeString(Handle<String>::cast(name));
+  if (last_map->is_dictionary_map()) {
+    if (last_map->IsJSGlobalObjectMap()) {
+      Handle<JSGlobalObject> global =
+          holder().is_null()
+              ? Handle<JSGlobalObject>::cast(type()->AsConstant()->Value())
+              : Handle<JSGlobalObject>::cast(holder());
+      GenerateCheckPropertyCell(masm(), global, name, scratch1, miss);
+    } else {
+      if (!name->IsUniqueName()) {
+        ASSERT(name->IsString());
+        name = factory()->InternalizeString(Handle<String>::cast(name));
+      }
+      ASSERT(holder().is_null() ||
+             holder()->property_dictionary()->FindEntry(name) ==
+                 NameDictionary::kNotFound);
+      GenerateDictionaryNegativeLookup(masm(), miss, holder_reg, name, scratch1,
+                                       scratch2);
     }
-    ASSERT(holder().is_null() ||
-           holder()->property_dictionary()->FindEntry(name) ==
-               NameDictionary::kNotFound);
-    GenerateDictionaryNegativeLookup(masm(), &miss, holder_reg, name,
-                                     scratch2(), scratch3());
   }
-
-  // If the last object in the prototype chain is a global object,
-  // check that the global property cell is empty.
-  if (last_map->IsJSGlobalObjectMap()) {
-    Handle<JSGlobalObject> global =
-        holder().is_null()
-            ? Handle<JSGlobalObject>::cast(type()->AsConstant()->Value())
-            : Handle<JSGlobalObject>::cast(holder());
-    GenerateCheckPropertyCell(masm(), global, name, scratch2(), &miss);
-  }
-
-  FrontendFooter(name, &miss);
 }
 
 
@@ -857,6 +854,16 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(
     Handle<Name> name, Handle<Object> value) {
   Frontend(receiver(), name);
   GenerateLoadConstant(value);
+  return GetCode(kind(), Code::FAST, name);
+}
+
+
+Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
+    Handle<Name> name) {
+  Label miss;
+  NonexistentFrontendHeader(name, &miss, scratch2(), scratch3());
+  GenerateLoadConstant(isolate()->factory()->undefined_value());
+  FrontendFooter(name, &miss);
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -970,21 +977,15 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
       iter.Advance();
     }
     if (!last.is_null()) set_holder(last);
-  }
-
-  Register holder_reg = FrontendHeader(receiver(), name, &miss);
-
-  // If no property was found, and the holder (the last object in the
-  // prototype chain) is in slow mode, we need to do a negative lookup on the
-  // holder.
-  if (is_nonexistent) {
-    GenerateNegativeHolderLookup(holder_reg, name, &miss);
+    NonexistentFrontendHeader(name, &miss, scratch1(), scratch2());
+  } else {
+    FrontendHeader(receiver(), name, &miss);
+    ASSERT(holder()->HasFastProperties());
   }
 
   GenerateStoreTransition(transition, name, receiver(), this->name(), value(),
                           scratch1(), scratch2(), scratch3(), &miss, &slow);
 
-  // Handle store cache miss.
   GenerateRestoreName(&miss, name);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
