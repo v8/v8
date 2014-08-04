@@ -2003,8 +2003,11 @@ class PagedSpace : public Space {
   // address denoted by top in allocation_info_.
   inline HeapObject* AllocateLinearly(int size_in_bytes);
 
+  MUST_USE_RESULT HeapObject*
+      WaitForSweeperThreadsAndRetryAllocation(int size_in_bytes);
+
   // Slow path of AllocateRaw.  This function is space-dependent.
-  MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes);
 
   friend class PageIterator;
   friend class MarkCompactCollector;

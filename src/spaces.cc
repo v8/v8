@@ -2577,6 +2577,22 @@ void PagedSpace::EvictEvacuationCandidatesFromFreeLists() {
 }
 
 
+HeapObject* PagedSpace::WaitForSweeperThreadsAndRetryAllocation(
+    int size_in_bytes) {
+  MarkCompactCollector* collector = heap()->mark_compact_collector();
+
+  // If sweeper threads are still running, wait for them.
+  if (collector->IsConcurrentSweepingInProgress()) {
+    collector->WaitUntilSweepingCompleted();
+
+    // After waiting for the sweeper threads, there may be new free-list
+    // entries.
+    return free_list_.Allocate(size_in_bytes);
+  }
+  return NULL;
+}
+
+
 HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Allocation in this space has failed.
 
@@ -2593,9 +2609,12 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   // Free list allocation failed and there is no next page.  Fail if we have
   // hit the old generation size limit that should cause a garbage
   // collection.
-  if (!heap()->always_allocate() &&
-      heap()->OldGenerationAllocationLimitReached()) {
-    return NULL;
+  if (!heap()->always_allocate()
+      && heap()->OldGenerationAllocationLimitReached()) {
+    // If sweeper threads are active, wait for them at that point and steal
+    // elements form their free-lists.
+    HeapObject* object = WaitForSweeperThreadsAndRetryAllocation(size_in_bytes);
+    if (object != NULL) return object;
   }
 
   // Try to expand the space and allocate in the new next page.
@@ -2604,18 +2623,10 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
     return free_list_.Allocate(size_in_bytes);
   }
 
-  // If sweeper threads are active, wait for them at that point.
-  if (collector->IsConcurrentSweepingInProgress()) {
-    collector->WaitUntilSweepingCompleted();
-
-    // After waiting for the sweeper threads, there may be new free-list
-    // entries.
-    HeapObject* object = free_list_.Allocate(size_in_bytes);
-    if (object != NULL) return object;
-  }
-
-  // Finally, fail.
-  return NULL;
+  // If sweeper threads are active, wait for them at that point and steal
+  // elements form their free-lists. Allocation may still fail their which
+  // would indicate that there is not enough memory for the given allocation.
+  return WaitForSweeperThreadsAndRetryAllocation(size_in_bytes);
 }
 
 
