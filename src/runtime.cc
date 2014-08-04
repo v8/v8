@@ -15575,8 +15575,7 @@ const Runtime::Function* Runtime::FunctionForName(Handle<String> name) {
 
 
 const Runtime::Function* Runtime::FunctionForEntry(Address entry) {
-  size_t length = sizeof(kIntrinsicFunctions) / sizeof(*kIntrinsicFunctions);
-  for (size_t i = 0; i < length; ++i) {
+  for (size_t i = 0; i < ARRAY_SIZE(kIntrinsicFunctions); ++i) {
     if (entry == kIntrinsicFunctions[i].entry) {
       return &(kIntrinsicFunctions[i]);
     }
