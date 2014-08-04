@@ -321,9 +321,9 @@ TEST(RunLoadFieldFromUntaggedBase) {
   Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3)};
 
   for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {
-    FieldAccess access = {kUntaggedBase,     // untagged base
-                          i * sizeof(Smi*),  // offset
-                          Handle<Name>(), Type::Integral32(), kMachineTagged};
+    int offset = static_cast<int>(i * sizeof(Smi*));
+    FieldAccess access = {kUntaggedBase, offset, Handle<Name>(),
+                          Type::Integral32(), kMachineTagged};
 
     SimplifiedGraphBuilderTester<Object*> t;
     Node* load = t.LoadField(access, t.PointerConstant(smis));
@@ -345,9 +345,9 @@ TEST(RunStoreFieldToUntaggedBase) {
   Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3)};
 
   for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {
-    FieldAccess access = {kUntaggedBase,     // untagged base
-                          i * sizeof(Smi*),  // offset
-                          Handle<Name>(), Type::Integral32(), kMachineTagged};
+    int offset = static_cast<int>(i * sizeof(Smi*));
+    FieldAccess access = {kUntaggedBase, offset, Handle<Name>(),
+                          Type::Integral32(), kMachineTagged};
 
     SimplifiedGraphBuilderTester<Object*> t(kMachineTagged);
     Node* p0 = t.Parameter(0);
@@ -373,13 +373,13 @@ TEST(RunLoadElementFromUntaggedBase) {
 
   for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {    // for header sizes
     for (size_t j = i; j < ARRAY_SIZE(smis); j++) {  // for element index
-      ElementAccess access = {kUntaggedBase,         // untagged base
-                              i * sizeof(Smi*),      // header size
-                              Type::Integral32(), kMachineTagged};
+      int offset = static_cast<int>(i * sizeof(Smi*));
+      ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
+                              kMachineTagged};
 
       SimplifiedGraphBuilderTester<Object*> t;
-      Node* load =
-          t.LoadElement(access, t.PointerConstant(smis), t.Int32Constant(j));
+      Node* load = t.LoadElement(access, t.PointerConstant(smis),
+                                 t.Int32Constant(static_cast<int>(j)));
       t.Return(load);
       t.LowerAllNodes();
 
@@ -401,13 +401,14 @@ TEST(RunStoreElementFromUntaggedBase) {
 
   for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {    // for header sizes
     for (size_t j = i; j < ARRAY_SIZE(smis); j++) {  // for element index
-      ElementAccess access = {kUntaggedBase,         // untagged base
-                              i * sizeof(Smi*),      // header size
-                              Type::Integral32(), kMachineTagged};
+      int offset = static_cast<int>(i * sizeof(Smi*));
+      ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
+                              kMachineTagged};
 
       SimplifiedGraphBuilderTester<Object*> t(kMachineTagged);
       Node* p0 = t.Parameter(0);
-      t.StoreElement(access, t.PointerConstant(smis), t.Int32Constant(j), p0);
+      t.StoreElement(access, t.PointerConstant(smis),
+                     t.Int32Constant(static_cast<int>(j)), p0);
       t.Return(p0);
       t.LowerAllNodes();
 
