@@ -330,6 +330,8 @@ TEST(RunLoadFieldFromUntaggedBase) {
     t.Return(load);
     t.LowerAllNodes();
 
+    if (!Pipeline::SupportedTarget()) continue;
+
     for (int j = -5; j <= 5; j++) {
       Smi* expected = Smi::FromInt(j);
       smis[i] = expected;
@@ -352,6 +354,8 @@ TEST(RunStoreFieldToUntaggedBase) {
     t.StoreField(access, t.PointerConstant(smis), p0);
     t.Return(p0);
     t.LowerAllNodes();
+
+    if (!Pipeline::SupportedTarget()) continue;
 
     for (int j = -5; j <= 5; j++) {
       Smi* expected = Smi::FromInt(j);
@@ -379,6 +383,8 @@ TEST(RunLoadElementFromUntaggedBase) {
       t.Return(load);
       t.LowerAllNodes();
 
+      if (!Pipeline::SupportedTarget()) continue;
+
       for (int k = -5; k <= 5; k++) {
         Smi* expected = Smi::FromInt(k);
         smis[i + j] = expected;
@@ -404,6 +410,8 @@ TEST(RunStoreElementFromUntaggedBase) {
       t.StoreElement(access, t.PointerConstant(smis), t.Int32Constant(j), p0);
       t.Return(p0);
       t.LowerAllNodes();
+
+      if (!Pipeline::SupportedTarget()) continue;
 
       for (int k = -5; k <= 5; k++) {
         Smi* expected = Smi::FromInt(k);
