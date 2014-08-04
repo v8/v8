@@ -2197,6 +2197,7 @@ class JSObject: public JSReceiver {
                                     PropertyDetails details);
 
   static void OptimizeAsPrototype(Handle<JSObject> object);
+  static void ReoptimizeIfPrototype(Handle<JSObject> object);
 
   // Retrieve interceptors.
   InterceptorInfo* GetNamedInterceptor();

@@ -5009,20 +5009,6 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   // map.
   if (lookup.IsFound() &&
       (attr != lookup.GetAttributes() || lookup.IsPropertyCallbacks())) {
-    // New attributes - normalize to avoid writing to instance descriptor
-    if (js_object->IsJSGlobalProxy()) {
-      // Since the result is a property, the prototype will exist so
-      // we don't have to check for null.
-      PrototypeIterator iter(isolate, js_object);
-      js_object = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-    }
-
-    if (attr != lookup.GetAttributes() ||
-        (lookup.IsPropertyCallbacks() &&
-         !lookup.GetCallbackObject()->IsAccessorInfo())) {
-      JSObject::NormalizeProperties(js_object, CLEAR_INOBJECT_PROPERTIES, 0);
-    }
-
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
     Handle<Object> result;

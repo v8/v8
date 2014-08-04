@@ -4067,10 +4067,13 @@ void JSObject::ConvertAndSetOwnProperty(LookupResult* lookup,
   Handle<JSObject> object(lookup->holder());
   if (object->map()->TooManyFastProperties(Object::MAY_BE_STORE_FROM_KEYED)) {
     JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
+  } else if (object->map()->is_prototype_map()) {
+    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0);
   }
 
   if (!object->HasFastProperties()) {
     ReplaceSlowProperty(object, name, value, attributes);
+    ReoptimizeIfPrototype(object);
     return;
   }
 
@@ -5151,17 +5154,22 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
 
 Handle<Object> JSObject::DeletePropertyPostInterceptor(Handle<JSObject> object,
                                                        Handle<Name> name,
-                                                       DeleteMode mode) {
+                                                       DeleteMode delete_mode) {
   // Check own property, ignore interceptor.
   Isolate* isolate = object->GetIsolate();
-  LookupResult result(isolate);
-  object->LookupOwnRealNamedProperty(name, &result);
-  if (!result.IsFound()) return isolate->factory()->true_value();
+  LookupResult lookup(isolate);
+  object->LookupOwnRealNamedProperty(name, &lookup);
+  if (!lookup.IsFound()) return isolate->factory()->true_value();
 
+  PropertyNormalizationMode mode = object->map()->is_prototype_map()
+                                       ? KEEP_INOBJECT_PROPERTIES
+                                       : CLEAR_INOBJECT_PROPERTIES;
   // Normalize object if needed.
-  NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
+  NormalizeProperties(object, mode, 0);
 
-  return DeleteNormalizedProperty(object, name, mode);
+  Handle<Object> result = DeleteNormalizedProperty(object, name, delete_mode);
+  ReoptimizeIfPrototype(object);
+  return result;
 }
 
 
@@ -5308,7 +5316,7 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 
 MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
                                              Handle<Name> name,
-                                             DeleteMode mode) {
+                                             DeleteMode delete_mode) {
   Isolate* isolate = object->GetIsolate();
   // ECMA-262, 3rd, 8.6.2.5
   DCHECK(name->IsName());
@@ -5327,20 +5335,20 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
     DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
     return JSGlobalObject::DeleteProperty(
         Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter)), name,
-        mode);
+        delete_mode);
   }
 
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
-    return DeleteElement(object, index, mode);
+    return DeleteElement(object, index, delete_mode);
   }
 
   LookupResult lookup(isolate);
   object->LookupOwn(name, &lookup, true);
   if (!lookup.IsFound()) return isolate->factory()->true_value();
   // Ignore attributes if forcing a deletion.
-  if (lookup.IsDontDelete() && mode != FORCE_DELETION) {
-    if (mode == STRICT_DELETION) {
+  if (lookup.IsDontDelete() && delete_mode != FORCE_DELETION) {
+    if (delete_mode == STRICT_DELETION) {
       // Deleting a non-configurable property in strict mode.
       Handle<Object> args[2] = { name, object };
       Handle<Object> error = isolate->factory()->NewTypeError(
@@ -5362,8 +5370,8 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
   // Check for interceptor.
   if (lookup.IsInterceptor()) {
     // Skip interceptor if forcing a deletion.
-    if (mode == FORCE_DELETION) {
-      result = DeletePropertyPostInterceptor(object, name, mode);
+    if (delete_mode == FORCE_DELETION) {
+      result = DeletePropertyPostInterceptor(object, name, delete_mode);
     } else {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, result,
@@ -5371,10 +5379,14 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
           Object);
     }
   } else {
+    PropertyNormalizationMode mode = object->map()->is_prototype_map()
+                                         ? KEEP_INOBJECT_PROPERTIES
+                                         : CLEAR_INOBJECT_PROPERTIES;
     // Normalize object if needed.
-    NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
+    NormalizeProperties(object, mode, 0);
     // Make sure the properties are normalized before removing the entry.
-    result = DeleteNormalizedProperty(object, name, mode);
+    result = DeleteNormalizedProperty(object, name, delete_mode);
+    ReoptimizeIfPrototype(object);
   }
 
   if (is_observed) {
@@ -5696,6 +5708,7 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
     Handle<Map> new_map = Map::CopyForFreeze(old_map);
     JSObject::MigrateToMap(object, new_map);
   } else {
+    DCHECK(old_map->is_dictionary_map() || !old_map->is_prototype_map());
     // Slow path: need to normalize properties for safety
     NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
 
@@ -6594,8 +6607,11 @@ void JSObject::SetPropertyCallback(Handle<JSObject> object,
                                    Handle<Name> name,
                                    Handle<Object> structure,
                                    PropertyAttributes attributes) {
+  PropertyNormalizationMode mode = object->map()->is_prototype_map()
+                                       ? KEEP_INOBJECT_PROPERTIES
+                                       : CLEAR_INOBJECT_PROPERTIES;
   // Normalize object to make this operation simple.
-  NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
+  NormalizeProperties(object, mode, 0);
 
   // For the global object allocate a new map to invalidate the global inline
   // caches which have a global property cell reference directly in the code.
@@ -6613,6 +6629,8 @@ void JSObject::SetPropertyCallback(Handle<JSObject> object,
   // Update the dictionary with the new CALLBACKS property.
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS, 0);
   SetNormalizedProperty(object, name, structure, details);
+
+  ReoptimizeIfPrototype(object);
 }
 
 
@@ -9970,6 +9988,12 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
 }
 
 
+void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
+  if (!object->map()->is_prototype_map()) return;
+  OptimizeAsPrototype(object);
+}
+
+
 Handle<Object> CacheInitialJSArrayMaps(
     Handle<Context> native_context, Handle<Map> initial_map) {
   // Replace all of the cached initial array maps in the native context with
@@ -10132,9 +10156,6 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   Handle<Object> prototype;
   if (function->has_instance_prototype()) {
     prototype = handle(function->instance_prototype(), isolate);
-    // TODO(verwaest): Remove once "delete" keeps objects marked as prototypes
-    // fast as well.
-    JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(prototype));
   } else {
     prototype = isolate->factory()->NewFunctionPrototype(function);
   }
