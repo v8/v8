@@ -7266,6 +7266,13 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
 }
 
 
+Handle<Map> Map::CopyAsPrototypeMap(Handle<Map> map) {
+  Handle<Map> result = Copy(map);
+  result->mark_prototype_map();
+  return result;
+}
+
+
 Handle<Map> Map::Copy(Handle<Map> map) {
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
@@ -10003,7 +10010,12 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
   // First some logic for the map of the prototype to make sure it is in fast
   // mode.
   if (value->IsJSObject()) {
-    JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
+    Handle<JSObject> js_proto = Handle<JSObject>::cast(value);
+    JSObject::OptimizeAsPrototype(js_proto);
+    if (js_proto->HasFastProperties()) {
+      Handle<Map> new_map = Map::CopyAsPrototypeMap(handle(js_proto->map()));
+      JSObject::MigrateToMap(js_proto, new_map);
+    }
   }
 
   // Now some logic for the maps of the objects that are created by using this
@@ -10120,15 +10132,9 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   Handle<Object> prototype;
   if (function->has_instance_prototype()) {
     prototype = handle(function->instance_prototype(), isolate);
-    for (PrototypeIterator iter(isolate, prototype,
-                                PrototypeIterator::START_AT_RECEIVER);
-         !iter.IsAtEnd(); iter.Advance()) {
-      if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
-        break;
-      }
-      JSObject::OptimizeAsPrototype(
-          Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)));
-    }
+    // TODO(verwaest): Remove once "delete" keeps objects marked as prototypes
+    // fast as well.
+    JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(prototype));
   } else {
     prototype = isolate->factory()->NewFunctionPrototype(function);
   }

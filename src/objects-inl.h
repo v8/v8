@@ -2115,6 +2115,7 @@ bool JSObject::HasFastProperties() {
 
 bool Map::TooManyFastProperties(StoreFromKeyed store_mode) {
   if (unused_property_fields() != 0) return false;
+  if (is_prototype_map()) return false;
   int minimum = store_mode == CERTAINLY_NOT_STORE_FROM_KEYED ? 128 : 12;
   int limit = Max(minimum, inobject_properties());
   int external = NumberOfFields() - inobject_properties();
@@ -4442,6 +4443,15 @@ void Map::set_is_extensible(bool value) {
 
 bool Map::is_extensible() {
   return ((1 << kIsExtensible) & bit_field2()) != 0;
+}
+
+
+void Map::mark_prototype_map() {
+  set_bit_field2(IsPrototypeMapBits::update(bit_field2(), true));
+}
+
+bool Map::is_prototype_map() {
+  return IsPrototypeMapBits::decode(bit_field2());
 }
 
 

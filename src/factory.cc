@@ -1318,7 +1318,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
     // maps between prototypes of different constructors.
     Handle<JSFunction> object_function(native_context->object_function());
     DCHECK(object_function->has_initial_map());
-    new_map = Map::Copy(handle(object_function->initial_map()));
+    new_map = Map::CopyAsPrototypeMap(handle(object_function->initial_map()));
   }
 
   Handle<JSObject> prototype = NewJSObjectFromMap(new_map);

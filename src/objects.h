@@ -6204,6 +6204,8 @@ class Map: public HeapObject {
 
   inline void set_is_extensible(bool value);
   inline bool is_extensible();
+  inline void mark_prototype_map();
+  inline bool is_prototype_map();
 
   inline void set_elements_kind(ElementsKind elements_kind) {
     DCHECK(elements_kind < kElementsKindCount);
@@ -6537,6 +6539,7 @@ class Map: public HeapObject {
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   static Handle<Map> Copy(Handle<Map> map);
+  static Handle<Map> CopyAsPrototypeMap(Handle<Map> map);
   static Handle<Map> Create(Handle<JSFunction> constructor,
                             int extra_inobject_properties);
 
@@ -6736,7 +6739,7 @@ class Map: public HeapObject {
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;
   static const int kStringWrapperSafeForDefaultValueOf = 1;
-  // Currently bit 2 is not used.
+  class IsPrototypeMapBits : public BitField<bool, 2, 1> {};
   class ElementsKindBits: public BitField<ElementsKind, 3, 5> {};
 
   // Derived values from bit field 2
