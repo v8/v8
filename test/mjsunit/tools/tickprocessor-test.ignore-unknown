@@ -2,8 +2,8 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
 
  [Shared libraries]:
    ticks  total  nonlib   name
-      3   27.3%    0.0%  /lib32/libm-2.7.so
-      1    9.1%    0.0%  ffffe000-fffff000
+      3   27.3%          /lib32/libm-2.7.so
+      1    9.1%          ffffe000-fffff000
 
  [JavaScript]:
    ticks  total  nonlib   name
@@ -16,9 +16,12 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
       1    9.1%   14.3%  v8::internal::HashTable<v8::internal::StringDictionaryShape, v8::internal::String*>::FindEntry(v8::internal::String*)
       1    9.1%   14.3%  exp
 
- [GC]:
+ [Summary]:
    ticks  total  nonlib   name
-      0    0.0%
+      1    9.1%   14.3%  JavaScript
+      5   45.5%   71.4%  C++
+      0    0.0%    0.0%  GC
+      4   36.4%          Shared libraries
 
  [Bottom up (heavy) profile]:
   Note: percentage shows a share of a particular caller in the total
