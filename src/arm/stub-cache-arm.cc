@@ -1221,7 +1221,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
-    Handle<PropertyCell> cell, Handle<Name> name, bool is_dont_delete) {
+    Handle<PropertyCell> cell, Handle<Name> name, bool is_configurable) {
   Label miss;
   FrontendHeader(receiver(), name, &miss);
 
@@ -1231,7 +1231,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   __ ldr(result, FieldMemOperand(result, Cell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.
-  if (!is_dont_delete) {
+  if (is_configurable) {
     __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
     __ cmp(result, ip);
     __ b(eq, &miss);

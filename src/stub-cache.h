@@ -478,7 +478,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                                     Handle<JSFunction> getter);
 
   Handle<Code> CompileLoadGlobal(Handle<PropertyCell> cell, Handle<Name> name,
-                                 bool is_dont_delete);
+                                 bool is_configurable);
 
   // Static interface
   static Handle<Code> ComputeLoadNonexistent(Handle<Name> name,

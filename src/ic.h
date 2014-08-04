@@ -179,14 +179,26 @@ class IC {
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
-  Handle<Code> ComputeHandler(LookupResult* lookup,
-                              Handle<Object> object,
+  Handle<Code> ComputeHandler(LookupIterator* lookup, Handle<Object> object,
                               Handle<String> name,
                               Handle<Object> value = Handle<Code>::null());
-  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+  virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> object,
                                       Handle<String> name, Handle<Object> value,
                                       CacheHolderFlag cache_holder) {
+    UNREACHABLE();
+    return Handle<Code>::null();
+  }
+  // Temporary copy of the above, but using a LookupResult.
+  // TODO(jkummerow): Migrate callers to LookupIterator and delete these.
+  Handle<Code> ComputeStoreHandler(LookupResult* lookup, Handle<Object> object,
+                                   Handle<String> name,
+                                   Handle<Object> value = Handle<Code>::null());
+  virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
+                                           Handle<Object> object,
+                                           Handle<String> name,
+                                           Handle<Object> value,
+                                           CacheHolderFlag cache_holder) {
     UNREACHABLE();
     return Handle<Code>::null();
   }
@@ -474,11 +486,10 @@ class LoadIC: public IC {
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
-  void UpdateCaches(LookupResult* lookup,
-                    Handle<Object> object,
+  void UpdateCaches(LookupIterator* lookup, Handle<Object> object,
                     Handle<String> name);
 
-  virtual Handle<Code> CompileHandler(LookupResult* lookup,
+  virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> object,
                                       Handle<String> name,
                                       Handle<Object> unused,
@@ -638,10 +649,11 @@ class StoreIC: public IC {
                     Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
-  virtual Handle<Code> CompileHandler(LookupResult* lookup,
-                                      Handle<Object> object,
-                                      Handle<String> name, Handle<Object> value,
-                                      CacheHolderFlag cache_holder);
+  virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
+                                           Handle<Object> object,
+                                           Handle<String> name,
+                                           Handle<Object> value,
+                                           CacheHolderFlag cache_holder);
 
  private:
   void set_target(Code* code) {

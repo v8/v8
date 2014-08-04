@@ -1258,7 +1258,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   }
 
   // Check for deleted property if property can actually be deleted.
-  if (!is_dont_delete) {
+  if (is_configurable) {
     __ cmp(result, factory()->the_hole_value());
     __ j(equal, &miss);
   } else if (FLAG_debug_code) {

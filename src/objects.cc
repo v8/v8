@@ -3011,7 +3011,7 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
                                                           strict_mode);
 
       case LookupIterator::JSPROXY:
-        if (it->HolderIsReceiver()) {
+        if (it->HolderIsReceiverOrHiddenPrototype()) {
           return JSProxy::SetPropertyWithHandler(it->GetHolder<JSProxy>(),
                                                  it->GetReceiver(), it->name(),
                                                  value, strict_mode);
@@ -3028,7 +3028,7 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
         break;
 
       case LookupIterator::INTERCEPTOR:
-        if (it->HolderIsReceiver()) {
+        if (it->HolderIsReceiverOrHiddenPrototype()) {
           MaybeHandle<Object> maybe_result =
               JSObject::SetPropertyWithInterceptor(it, value);
           if (!maybe_result.is_null()) return maybe_result;
@@ -3052,7 +3052,7 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
         }
         switch (it->property_kind()) {
           case LookupIterator::ACCESSOR:
-            if (it->HolderIsReceiver() ||
+            if (it->HolderIsReceiverOrHiddenPrototype() ||
                 !it->GetAccessors()->IsDeclaredAccessorInfo()) {
               return SetPropertyWithAccessor(it->GetReceiver(), it->name(),
                                              value, it->GetHolder<JSObject>(),
@@ -3060,7 +3060,9 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
             }
             break;
           case LookupIterator::DATA:
-            if (it->HolderIsReceiver()) return SetDataProperty(it, value);
+            if (it->HolderIsReceiverOrHiddenPrototype()) {
+              return SetDataProperty(it, value);
+            }
         }
         done = true;
         break;
@@ -3092,7 +3094,7 @@ MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
 
   // Store on the holder which may be hidden behind the receiver.
-  ASSERT(it->HolderIsReceiver());
+  ASSERT(it->HolderIsReceiverOrHiddenPrototype());
 
   // Old value for the observation change record.
   // Fetch before transforming the object since the encoding may become
