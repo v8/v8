@@ -22,7 +22,6 @@ const int kMaxKeyedPolymorphism = 4;
   ICU(CallIC_Miss)                     \
   ICU(CallIC_Customization_Miss)       \
   ICU(StoreIC_Miss)                    \
-  ICU(StoreIC_ArrayLength)             \
   ICU(StoreIC_Slow)                    \
   ICU(SharedStoreIC_ExtendStorage)     \
   ICU(KeyedStoreIC_Miss)               \

@@ -247,15 +247,135 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
 }
 
 
+static void PushInterceptorArguments(MacroAssembler* masm, Register receiver,
+                                     Register holder, Register name,
+                                     Handle<JSObject> holder_obj) {
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex == 1);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 2);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 3);
+  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 4);
+
+  __ Push(name);
+  Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
+  ASSERT(!masm->isolate()->heap()->InNewSpace(*interceptor));
+  Register scratch = name;
+  __ Mov(scratch, Operand(interceptor));
+  __ Push(scratch, receiver, holder);
+}
+
+
+static void CompileCallLoadPropertyWithInterceptor(
+    MacroAssembler* masm, Register receiver, Register holder, Register name,
+    Handle<JSObject> holder_obj, IC::UtilityId id) {
+  PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
+
+  __ CallExternalReference(ExternalReference(IC_Utility(id), masm->isolate()),
+                           NamedLoadHandlerCompiler::kInterceptorArgsLength);
+}
+
+
+// Generate call to api function.
+void PropertyHandlerCompiler::GenerateFastApiCall(
+    MacroAssembler* masm, const CallOptimization& optimization,
+    Handle<Map> receiver_map, Register receiver, Register scratch,
+    bool is_store, int argc, Register* values) {
+  ASSERT(!AreAliased(receiver, scratch));
+
+  MacroAssembler::PushPopQueue queue(masm);
+  queue.Queue(receiver);
+  // Write the arguments to the stack frame.
+  for (int i = 0; i < argc; i++) {
+    Register arg = values[argc - 1 - i];
+    ASSERT(!AreAliased(receiver, scratch, arg));
+    queue.Queue(arg);
+  }
+  queue.PushQueued();
+
+  ASSERT(optimization.is_simple_api_call());
+
+  // Abi for CallApiFunctionStub.
+  Register callee = x0;
+  Register call_data = x4;
+  Register holder = x2;
+  Register api_function_address = x1;
+
+  // Put holder in place.
+  CallOptimization::HolderLookup holder_lookup;
+  Handle<JSObject> api_holder =
+      optimization.LookupHolderOfExpectedType(receiver_map, &holder_lookup);
+  switch (holder_lookup) {
+    case CallOptimization::kHolderIsReceiver:
+      __ Mov(holder, receiver);
+      break;
+    case CallOptimization::kHolderFound:
+      __ LoadObject(holder, api_holder);
+      break;
+    case CallOptimization::kHolderNotFound:
+      UNREACHABLE();
+      break;
+  }
+
+  Isolate* isolate = masm->isolate();
+  Handle<JSFunction> function = optimization.constant_function();
+  Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
+  Handle<Object> call_data_obj(api_call_info->data(), isolate);
+
+  // Put callee in place.
+  __ LoadObject(callee, function);
+
+  bool call_data_undefined = false;
+  // Put call_data in place.
+  if (isolate->heap()->InNewSpace(*call_data_obj)) {
+    __ LoadObject(call_data, api_call_info);
+    __ Ldr(call_data, FieldMemOperand(call_data, CallHandlerInfo::kDataOffset));
+  } else if (call_data_obj->IsUndefined()) {
+    call_data_undefined = true;
+    __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
+  } else {
+    __ LoadObject(call_data, call_data_obj);
+  }
+
+  // Put api_function_address in place.
+  Address function_address = v8::ToCData<Address>(api_call_info->callback());
+  ApiFunction fun(function_address);
+  ExternalReference ref = ExternalReference(
+      &fun, ExternalReference::DIRECT_API_CALL, masm->isolate());
+  __ Mov(api_function_address, ref);
+
+  // Jump to stub.
+  CallApiFunctionStub stub(isolate, is_store, call_data_undefined, argc);
+  __ TailCallStub(&stub);
+}
+
+
+void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
+                                              Handle<Code> code) {
+  __ Jump(code, RelocInfo::CODE_TARGET);
+}
+
+
+#undef __
+#define __ ACCESS_MASM(masm())
+
+
+void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
+                                                    Handle<Name> name) {
+  if (!label->is_unused()) {
+    __ Bind(label);
+    __ Mov(this->name(), Operand(name));
+  }
+}
+
+
 void NamedStoreHandlerCompiler::GenerateNegativeHolderLookup(
-    MacroAssembler* masm, Handle<JSObject> holder, Register holder_reg,
-    Handle<Name> name, Label* miss) {
-  if (holder->IsJSGlobalObject()) {
-    GenerateCheckPropertyCell(
-        masm, Handle<JSGlobalObject>::cast(holder), name, scratch1(), miss);
-  } else if (!holder->HasFastProperties() && !holder->IsJSGlobalProxy()) {
-    GenerateDictionaryNegativeLookup(
-        masm, miss, holder_reg, name, scratch1(), scratch2());
+    Register holder_reg, Handle<Name> name, Label* miss) {
+  if (holder()->IsJSGlobalObject()) {
+    GenerateCheckPropertyCell(masm(), Handle<JSGlobalObject>::cast(holder()),
+                              name, scratch1(), miss);
+  } else if (!holder()->HasFastProperties()) {
+    GenerateDictionaryNegativeLookup(masm(), miss, holder_reg, name, scratch1(),
+                                     scratch2());
   }
 }
 
@@ -265,10 +385,9 @@ void NamedStoreHandlerCompiler::GenerateNegativeHolderLookup(
 // may be clobbered. Upon branch to miss_label, the receiver and name registers
 // have their original values.
 void NamedStoreHandlerCompiler::GenerateStoreTransition(
-    MacroAssembler* masm, LookupResult* lookup, Handle<Map> transition,
-    Handle<Name> name, Register receiver_reg, Register storage_reg,
-    Register value_reg, Register scratch1, Register scratch2, Register scratch3,
-    Label* miss_label, Label* slow) {
+    Handle<Map> transition, Handle<Name> name, Register receiver_reg,
+    Register storage_reg, Register value_reg, Register scratch1,
+    Register scratch2, Register scratch3, Label* miss_label, Label* slow) {
   Label exit;
 
   ASSERT(!AreAliased(receiver_reg, storage_reg, value_reg,
@@ -284,7 +403,7 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
   ASSERT(!representation.IsNone());
 
   if (details.type() == CONSTANT) {
-    Handle<Object> constant(descriptors->GetValue(descriptor), masm->isolate());
+    Handle<Object> constant(descriptors->GetValue(descriptor), isolate());
     __ LoadObject(scratch1, constant);
     __ Cmp(value_reg, scratch1);
     __ B(ne, miss_label);
@@ -309,7 +428,7 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
       __ Bind(&do_store);
     }
   } else if (representation.IsDouble()) {
-    UseScratchRegisterScope temps(masm);
+    UseScratchRegisterScope temps(masm());
     DoubleRegister temp_double = temps.AcquireD();
     __ SmiUntagToDouble(temp_double, value_reg, kSpeculativeUntag);
 
@@ -337,9 +456,8 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
     __ Push(receiver_reg, scratch1, value_reg);
     __ TailCallExternalReference(
         ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
-                          masm->isolate()),
-        3,
-        1);
+                          isolate()),
+        3, 1);
     return;
   }
 
@@ -430,15 +548,15 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
 // be clobbered. Upon branch to miss_label, the receiver and name registers have
 // their original values.
 void NamedStoreHandlerCompiler::GenerateStoreField(
-    MacroAssembler* masm, Handle<JSObject> object, LookupResult* lookup,
-    Register receiver_reg, Register name_reg, Register value_reg,
-    Register scratch1, Register scratch2, Label* miss_label) {
+    Handle<JSObject> object, LookupResult* lookup, Register receiver_reg,
+    Register name_reg, Register value_reg, Register scratch1, Register scratch2,
+    Label* miss_label) {
   // x0 : value
   Label exit;
 
-  // Stub never generated for non-global objects that require access
-  // checks.
-  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+  // Stub never generated for objects that require access checks.
+  ASSERT(!object->IsAccessCheckNeeded());
+  ASSERT(!object->IsJSGlobalProxy());
 
   FieldIndex index = lookup->GetFieldIndex();
 
@@ -465,7 +583,7 @@ void NamedStoreHandlerCompiler::GenerateStoreField(
       __ Bind(&do_store);
     }
   } else if (representation.IsDouble()) {
-    UseScratchRegisterScope temps(masm);
+    UseScratchRegisterScope temps(masm());
     DoubleRegister temp_double = temps.AcquireD();
 
     __ SmiUntagToDouble(temp_double, value_reg, kSpeculativeUntag);
@@ -550,135 +668,6 @@ void NamedStoreHandlerCompiler::GenerateStoreField(
   ASSERT(value_reg.is(x0));
   __ Ret();
 }
-
-
-void NamedStoreHandlerCompiler::GenerateRestoreName(MacroAssembler* masm,
-                                                    Label* label,
-                                                    Handle<Name> name) {
-  if (!label->is_unused()) {
-    __ Bind(label);
-    __ Mov(this->name(), Operand(name));
-  }
-}
-
-
-static void PushInterceptorArguments(MacroAssembler* masm,
-                                     Register receiver,
-                                     Register holder,
-                                     Register name,
-                                     Handle<JSObject> holder_obj) {
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex == 0);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex == 1);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex == 2);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex == 3);
-  STATIC_ASSERT(NamedLoadHandlerCompiler::kInterceptorArgsLength == 4);
-
-  __ Push(name);
-  Handle<InterceptorInfo> interceptor(holder_obj->GetNamedInterceptor());
-  ASSERT(!masm->isolate()->heap()->InNewSpace(*interceptor));
-  Register scratch = name;
-  __ Mov(scratch, Operand(interceptor));
-  __ Push(scratch, receiver, holder);
-}
-
-
-static void CompileCallLoadPropertyWithInterceptor(
-    MacroAssembler* masm,
-    Register receiver,
-    Register holder,
-    Register name,
-    Handle<JSObject> holder_obj,
-    IC::UtilityId id) {
-  PushInterceptorArguments(masm, receiver, holder, name, holder_obj);
-
-  __ CallExternalReference(ExternalReference(IC_Utility(id), masm->isolate()),
-                           NamedLoadHandlerCompiler::kInterceptorArgsLength);
-}
-
-
-// Generate call to api function.
-void PropertyHandlerCompiler::GenerateFastApiCall(
-    MacroAssembler* masm, const CallOptimization& optimization,
-    Handle<Map> receiver_map, Register receiver, Register scratch,
-    bool is_store, int argc, Register* values) {
-  ASSERT(!AreAliased(receiver, scratch));
-
-  MacroAssembler::PushPopQueue queue(masm);
-  queue.Queue(receiver);
-  // Write the arguments to the stack frame.
-  for (int i = 0; i < argc; i++) {
-    Register arg = values[argc-1-i];
-    ASSERT(!AreAliased(receiver, scratch, arg));
-    queue.Queue(arg);
-  }
-  queue.PushQueued();
-
-  ASSERT(optimization.is_simple_api_call());
-
-  // Abi for CallApiFunctionStub.
-  Register callee = x0;
-  Register call_data = x4;
-  Register holder = x2;
-  Register api_function_address = x1;
-
-  // Put holder in place.
-  CallOptimization::HolderLookup holder_lookup;
-  Handle<JSObject> api_holder =
-      optimization.LookupHolderOfExpectedType(receiver_map, &holder_lookup);
-  switch (holder_lookup) {
-    case CallOptimization::kHolderIsReceiver:
-      __ Mov(holder, receiver);
-      break;
-    case CallOptimization::kHolderFound:
-      __ LoadObject(holder, api_holder);
-      break;
-    case CallOptimization::kHolderNotFound:
-      UNREACHABLE();
-      break;
-  }
-
-  Isolate* isolate = masm->isolate();
-  Handle<JSFunction> function = optimization.constant_function();
-  Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
-  Handle<Object> call_data_obj(api_call_info->data(), isolate);
-
-  // Put callee in place.
-  __ LoadObject(callee, function);
-
-  bool call_data_undefined = false;
-  // Put call_data in place.
-  if (isolate->heap()->InNewSpace(*call_data_obj)) {
-    __ LoadObject(call_data, api_call_info);
-    __ Ldr(call_data, FieldMemOperand(call_data, CallHandlerInfo::kDataOffset));
-  } else if (call_data_obj->IsUndefined()) {
-    call_data_undefined = true;
-    __ LoadRoot(call_data, Heap::kUndefinedValueRootIndex);
-  } else {
-    __ LoadObject(call_data, call_data_obj);
-  }
-
-  // Put api_function_address in place.
-  Address function_address = v8::ToCData<Address>(api_call_info->callback());
-  ApiFunction fun(function_address);
-  ExternalReference ref = ExternalReference(&fun,
-                                            ExternalReference::DIRECT_API_CALL,
-                                            masm->isolate());
-  __ Mov(api_function_address, ref);
-
-  // Jump to stub.
-  CallApiFunctionStub stub(isolate, is_store, call_data_undefined, argc);
-  __ TailCallStub(&stub);
-}
-
-
-void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
-                                              Handle<Code> code) {
-  __ Jump(code, RelocInfo::CODE_TARGET);
-}
-
-
-#undef __
-#define __ ACCESS_MASM(masm())
 
 
 Register PropertyHandlerCompiler::CheckPrototypes(
@@ -809,7 +798,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ B(&success);
 
-    GenerateRestoreName(masm(), miss, name);
+    GenerateRestoreName(miss, name);
     TailCallBuiltin(masm(), MissBuiltin(kind()));
 
     __ Bind(&success);
@@ -1274,17 +1263,6 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
   InlineCacheState state =
       (number_of_handled_maps > 1) ? POLYMORPHIC : MONOMORPHIC;
   return GetCode(kind(), type, name, state);
-}
-
-
-void NamedStoreHandlerCompiler::GenerateStoreArrayLength() {
-  // Prepare tail call to StoreIC_ArrayLength.
-  __ Push(receiver(), value());
-
-  ExternalReference ref =
-      ExternalReference(IC_Utility(IC::kStoreIC_ArrayLength),
-                        masm()->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
 }
 
 

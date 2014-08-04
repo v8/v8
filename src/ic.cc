@@ -1435,7 +1435,7 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
     PropertyDetails details = lookup->GetPropertyDetails();
 
     if (details.type() != CALLBACKS && details.attributes() == NONE) {
-      return compiler.CompileStoreTransition(lookup, transition, name);
+      return compiler.CompileStoreTransition(transition, name);
     }
   } else {
     switch (lookup->type()) {
@@ -2064,30 +2064,6 @@ RUNTIME_FUNCTION(StoreIC_MissFromStubFailure) {
       result,
       ic.Store(receiver, key, args.at<Object>(2)));
   return *result;
-}
-
-
-RUNTIME_FUNCTION(StoreIC_ArrayLength) {
-  TimerEventScope<TimerEventIcMiss> timer(isolate);
-  HandleScope scope(isolate);
-
-  ASSERT(args.length() == 2);
-  Handle<JSArray> receiver = args.at<JSArray>(0);
-  Handle<Object> len = args.at<Object>(1);
-
-  // The generated code should filter out non-Smis before we get here.
-  ASSERT(len->IsSmi());
-
-#ifdef DEBUG
-  // The length property has to be a writable callback property.
-  LookupResult debug_lookup(isolate);
-  receiver->LookupOwn(isolate->factory()->length_string(), &debug_lookup);
-  ASSERT(debug_lookup.IsPropertyCallbacks() && !debug_lookup.IsReadOnly());
-#endif
-
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSArray::SetElementsLength(receiver, len));
-  return *len;
 }
 
 

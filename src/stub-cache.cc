@@ -34,12 +34,12 @@ void StubCache::Initialize() {
 
 
 static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
-                                         Code::Flags flags, Heap* heap) {
+                                         Code::Flags flags) {
   flags = Code::RemoveTypeAndHolderFromFlags(flags);
 
   // Validate that the name does not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
-  ASSERT(!heap->InNewSpace(name));
+  ASSERT(!name->GetHeap()->InNewSpace(name));
   ASSERT(name->IsUniqueName());
 
   // The state bits are not important to the hash function because the stub
@@ -57,8 +57,7 @@ static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
 
 
 Code* StubCache::Set(Name* name, Map* map, Code* code) {
-  Code::Flags flags =
-      CommonStubCacheChecks(name, map, code->flags(), isolate()->heap());
+  Code::Flags flags = CommonStubCacheChecks(name, map, code->flags());
 
   // Compute the primary entry.
   int primary_offset = PrimaryOffset(name, flags, map);
@@ -87,7 +86,7 @@ Code* StubCache::Set(Name* name, Map* map, Code* code) {
 
 
 Code* StubCache::Get(Name* name, Map* map, Code::Flags flags) {
-  flags = CommonStubCacheChecks(name, map, flags, isolate()->heap());
+  flags = CommonStubCacheChecks(name, map, flags);
   int primary_offset = PrimaryOffset(name, flags, map);
   Entry* primary = entry(primary_, primary_offset);
   if (primary->key == name && primary->map == map) {
@@ -108,9 +107,8 @@ Handle<Code> PropertyICCompiler::Find(Handle<Name> name,
                                       CacheHolderFlag cache_holder) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       kind, extra_state, cache_holder);
-  Handle<Object> probe(stub_holder->FindInCodeCache(*name, flags),
-                       name->GetIsolate());
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
+  Object* probe = stub_holder->FindInCodeCache(*name, flags);
+  if (probe->IsCode()) return handle(Code::cast(probe));
   return Handle<Code>::null();
 }
 
@@ -121,10 +119,8 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
                                            CacheHolderFlag cache_holder,
                                            Code::StubType type) {
   Code::Flags flags = Code::ComputeHandlerFlags(kind, type, cache_holder);
-
-  Handle<Object> probe(stub_holder->FindInCodeCache(*name, flags),
-                       name->GetIsolate());
-  if (probe->IsCode()) return Handle<Code>::cast(probe);
+  Object* probe = stub_holder->FindInCodeCache(*name, flags);
+  if (probe->IsCode()) return handle(Code::cast(probe));
   return Handle<Code>::null();
 }
 
@@ -957,7 +953,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
 
 // TODO(verwaest): Cleanup. holder() is actually the receiver.
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
-    LookupResult* lookup, Handle<Map> transition, Handle<Name> name) {
+    Handle<Map> transition, Handle<Name> name) {
   Label miss, slow;
 
   // Ensure no transitions to deprecated maps are followed.
@@ -982,23 +978,17 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   // prototype chain) is in slow mode, we need to do a negative lookup on the
   // holder.
   if (is_nonexistent) {
-    GenerateNegativeHolderLookup(masm(), holder(), holder_reg, name, &miss);
+    GenerateNegativeHolderLookup(holder_reg, name, &miss);
   }
 
-  GenerateStoreTransition(masm(),
-                          lookup,
-                          transition,
-                          name,
-                          receiver(), this->name(), value(),
-                          scratch1(), scratch2(), scratch3(),
-                          &miss,
-                          &slow);
+  GenerateStoreTransition(transition, name, receiver(), this->name(), value(),
+                          scratch1(), scratch2(), scratch3(), &miss, &slow);
 
   // Handle store cache miss.
-  GenerateRestoreName(masm(), &miss, name);
+  GenerateRestoreName(&miss, name);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
-  GenerateRestoreName(masm(), &slow, name);
+  GenerateRestoreName(&slow, name);
   TailCallBuiltin(masm(), SlowBuiltin(kind()));
   return GetCode(kind(), Code::FAST, name);
 }
@@ -1011,31 +1001,10 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupResult* lookup,
   FrontendHeader(receiver(), name, &miss);
 
   // Generate store field code.
-  GenerateStoreField(masm(), holder(), lookup, receiver(), this->name(),
-                     value(), scratch1(), scratch2(), &miss);
+  GenerateStoreField(holder(), lookup, receiver(), this->name(), value(),
+                     scratch1(), scratch2(), &miss);
 
   // Handle store cache miss.
-  __ bind(&miss);
-  TailCallBuiltin(masm(), MissBuiltin(kind()));
-  return GetCode(kind(), Code::FAST, name);
-}
-
-
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreArrayLength(
-    LookupResult* lookup, Handle<Name> name) {
-  // This accepts as a receiver anything JSArray::SetElementsLength accepts
-  // (currently anything except for external arrays which means anything with
-  // elements of FixedArray type).  Value must be a number, but only smis are
-  // accepted as the most common case.
-  Label miss;
-
-  // Check that value is a smi.
-  __ JumpIfNotSmi(value(), &miss);
-
-  // Generate tail call to StoreIC_ArrayLength.
-  GenerateStoreArrayLength();
-
-  // Handle miss case.
   __ bind(&miss);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
   return GetCode(kind(), Code::FAST, name);

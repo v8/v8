@@ -561,25 +561,16 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual ~NamedStoreHandlerCompiler() {}
 
-  Handle<Code> CompileStoreTransition(LookupResult* lookup,
-                                      Handle<Map> transition,
+  Handle<Code> CompileStoreTransition(Handle<Map> transition,
                                       Handle<Name> name);
-
   Handle<Code> CompileStoreField(LookupResult* lookup, Handle<Name> name);
-
-  Handle<Code> CompileStoreArrayLength(LookupResult* lookup, Handle<Name> name);
-
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<ExecutableAccessorInfo> callback);
-
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization);
-
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
                                      Handle<JSFunction> setter);
-
   Handle<Code> CompileStoreInterceptor(Handle<Name> name);
-
 
   static void GenerateStoreViaSetter(MacroAssembler* masm,
                                      Handle<HeapType> type, Register receiver,
@@ -595,40 +586,22 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                   Label* miss);
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
-  void GenerateRestoreName(MacroAssembler* masm, Label* label,
-                           Handle<Name> name);
+  void GenerateRestoreName(Label* label, Handle<Name> name);
 
  private:
-  void GenerateStoreArrayLength();
-
-  void GenerateNegativeHolderLookup(MacroAssembler* masm,
-                                    Handle<JSObject> holder,
-                                    Register holder_reg,
-                                    Handle<Name> name,
+  void GenerateNegativeHolderLookup(Register holder_reg, Handle<Name> name,
                                     Label* miss);
 
-  void GenerateStoreTransition(MacroAssembler* masm,
-                               LookupResult* lookup,
-                               Handle<Map> transition,
-                               Handle<Name> name,
-                               Register receiver_reg,
-                               Register name_reg,
-                               Register value_reg,
-                               Register scratch1,
-                               Register scratch2,
-                               Register scratch3,
-                               Label* miss_label,
-                               Label* slow);
+  void GenerateStoreTransition(Handle<Map> transition, Handle<Name> name,
+                               Register receiver_reg, Register name_reg,
+                               Register value_reg, Register scratch1,
+                               Register scratch2, Register scratch3,
+                               Label* miss_label, Label* slow);
 
-  void GenerateStoreField(MacroAssembler* masm,
-                          Handle<JSObject> object,
-                          LookupResult* lookup,
-                          Register receiver_reg,
-                          Register name_reg,
-                          Register value_reg,
-                          Register scratch1,
-                          Register scratch2,
-                          Label* miss_label);
+  void GenerateStoreField(Handle<JSObject> object, LookupResult* lookup,
+                          Register receiver_reg, Register name_reg,
+                          Register value_reg, Register scratch1,
+                          Register scratch2, Label* miss_label);
 
   static Builtins::Name SlowBuiltin(Code::Kind kind) {
     switch (kind) {
