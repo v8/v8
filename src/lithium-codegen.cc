@@ -116,12 +116,12 @@ void LCodeGenBase::CheckEnvironmentUsage() {
 
     HInstruction* hinstr = HInstruction::cast(hval);
     if (!hinstr->CanDeoptimize() && instr->HasEnvironment()) {
-      V8_Fatal(__FILE__, __LINE__, "CanDeoptimize is wrong for %s (%s)\n",
+      V8_Fatal(__FILE__, __LINE__, "CanDeoptimize is wrong for %s (%s)",
                hinstr->Mnemonic(), instr->Mnemonic());
     }
 
     if (instr->HasEnvironment() && !instr->environment()->has_been_used()) {
-      V8_Fatal(__FILE__, __LINE__, "unused environment for %s (%s)\n",
+      V8_Fatal(__FILE__, __LINE__, "unused environment for %s (%s)",
                hinstr->Mnemonic(), instr->Mnemonic());
     }
   }

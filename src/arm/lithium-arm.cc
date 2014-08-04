@@ -1416,7 +1416,8 @@ LInstruction* LChunkBuilder::DoModByPowerOf2I(HMod* instr) {
   int32_t divisor = instr->right()->GetInteger32Constant();
   LInstruction* result = DefineSameAsFirst(new(zone()) LModByPowerOf2I(
           dividend, divisor));
-  if (instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
+  if (instr->CheckFlag(HValue::kLeftCanBeNegative) &&
+      instr->CheckFlag(HValue::kBailoutOnMinusZero)) {
     result = AssignEnvironment(result);
   }
   return result;
