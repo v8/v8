@@ -15092,6 +15092,8 @@ RUNTIME_FUNCTION(Runtime_NormalizeElements) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, array, 0);
+  RUNTIME_ASSERT(!array->HasExternalArrayElements() &&
+                 !array->HasFixedTypedArrayElements());
   JSObject::NormalizeElements(array);
   return *array;
 }
