@@ -10059,8 +10059,8 @@ class ArrayConcatVisitor {
     // but the array blowing the limit didn't contain elements beyond the
     // provided-for index range, go to dictionary mode now.
     if (fast_elements_ &&
-        index_offset_ >= static_cast<uint32_t>(
-            FixedArrayBase::cast(*storage_)->length())) {
+        index_offset_ >
+            static_cast<uint32_t>(FixedArrayBase::cast(*storage_)->length())) {
       SetDictionaryMode();
     }
   }
