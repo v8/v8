@@ -15,6 +15,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#if V8_TURBOFAN_TARGET
+
 #define __ masm()->
 
 
@@ -129,8 +131,8 @@ class Arm64OperandConverter V8_FINAL : public InstructionOperandConverter {
 // Assembles an instruction after register allocation, producing machine code.
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   Arm64OperandConverter i(this, instr);
-
-  switch (ArchOpcodeField::decode(instr->opcode())) {
+  InstructionCode opcode = instr->opcode();
+  switch (ArchOpcodeField::decode(opcode)) {
     case kArchJmp:
       __ B(code_->GetLabel(i.InputBlock(0)));
       break;
@@ -153,7 +155,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Add(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kArm64Add32:
-      __ Add(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      if (FlagsModeField::decode(opcode) != kFlags_none) {
+        __ Adds(i.OutputRegister32(), i.InputRegister32(0),
+                i.InputOperand32(1));
+      } else {
+        __ Add(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      }
       break;
     case kArm64And:
       __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -238,7 +245,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Sub(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kArm64Sub32:
-      __ Sub(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      if (FlagsModeField::decode(opcode) != kFlags_none) {
+        __ Subs(i.OutputRegister32(), i.InputRegister32(0),
+                i.InputOperand32(1));
+      } else {
+        __ Sub(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      }
       break;
     case kArm64Shl:
       ASSEMBLE_SHIFT(Lsl, 64);
@@ -507,6 +519,12 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
     case kUnsignedGreaterThan:
       __ B(hi, tlabel);
       break;
+    case kOverflow:
+      __ B(vs, tlabel);
+      break;
+    case kNotOverflow:
+      __ B(vc, tlabel);
+      break;
   }
   if (!fallthru) __ B(flabel);  // no fallthru to flabel.
   __ Bind(&done);
@@ -519,9 +537,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Arm64OperandConverter i(this, instr);
   Label done;
 
-  // Materialize a full 64-bit 1 or 0 value.
+  // Materialize a full 64-bit 1 or 0 value. The result register is always the
+  // last output of the instruction.
   Label check;
-  Register reg = i.OutputRegister();
+  ASSERT_NE(0, instr->OutputCount());
+  Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = nv;
   switch (condition) {
     case kUnorderedEqual:
@@ -583,6 +603,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     // Fall through.
     case kUnsignedGreaterThan:
       cc = hi;
+      break;
+    case kOverflow:
+      cc = vs;
+      break;
+    case kNotOverflow:
+      cc = vc;
       break;
   }
   __ bind(&check);
@@ -825,6 +851,8 @@ bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
 }
 
 #endif  // DEBUG
+
+#endif  // V8_TURBOFAN_TARGET
 
 }  // namespace compiler
 }  // namespace internal

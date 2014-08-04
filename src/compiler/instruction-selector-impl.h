@@ -256,6 +256,8 @@ class FlagsContinuation V8_FINAL {
     switch (condition_) {
       case kEqual:
       case kNotEqual:
+      case kOverflow:
+      case kNotOverflow:
         return;
       case kSignedLessThan:
         condition_ = kSignedGreaterThan;

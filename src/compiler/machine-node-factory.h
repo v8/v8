@@ -85,6 +85,10 @@ class MachineNodeFactory {
     return NEW_NODE_0(COMMON()->HeapConstant(val));
   }
 
+  Node* Projection(int index, Node* a) {
+    return NEW_NODE_1(COMMON()->Projection(index), a);
+  }
+
   // Memory Operations.
   Node* Load(MachineRepresentation rep, Node* base) {
     return Load(rep, base, Int32Constant(0));
@@ -195,8 +199,20 @@ class MachineNodeFactory {
   Node* Int32Add(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Int32Add(), a, b);
   }
+  void Int32AddWithOverflow(Node* a, Node* b, Node** val_return,
+                            Node** ovf_return) {
+    Node* add = NEW_NODE_2(MACHINE()->Int32AddWithOverflow(), a, b);
+    if (val_return) *val_return = Projection(0, add);
+    if (ovf_return) *ovf_return = Projection(1, add);
+  }
   Node* Int32Sub(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Int32Sub(), a, b);
+  }
+  void Int32SubWithOverflow(Node* a, Node* b, Node** val_return,
+                            Node** ovf_return) {
+    Node* add = NEW_NODE_2(MACHINE()->Int32SubWithOverflow(), a, b);
+    if (val_return) *val_return = Projection(0, add);
+    if (ovf_return) *ovf_return = Projection(1, add);
   }
   Node* Int32Mul(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Int32Mul(), a, b);
@@ -329,17 +345,17 @@ class MachineNodeFactory {
   Node* ConvertInt64ToInt32(Node* a) {
     return NEW_NODE_1(MACHINE()->ConvertInt64ToInt32(), a);
   }
-  Node* ConvertInt32ToFloat64(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertInt32ToFloat64(), a);
+  Node* ChangeInt32ToFloat64(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeInt32ToFloat64(), a);
   }
-  Node* ConvertUint32ToFloat64(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertUint32ToFloat64(), a);
+  Node* ChangeUint32ToFloat64(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeUint32ToFloat64(), a);
   }
-  Node* ConvertFloat64ToInt32(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertFloat64ToInt32(), a);
+  Node* ChangeFloat64ToInt32(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeFloat64ToInt32(), a);
   }
-  Node* ConvertFloat64ToUint32(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertFloat64ToUint32(), a);
+  Node* ChangeFloat64ToUint32(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeFloat64ToUint32(), a);
   }
 
 #ifdef MACHINE_ASSEMBLER_SUPPORTS_CALL_C

@@ -819,11 +819,11 @@ void RegisterAllocator::MeetConstraintsBetween(Instruction* first,
 
     // Handle "output same as input" for second instruction.
     for (size_t i = 0; i < second->OutputCount(); i++) {
-      InstructionOperand* output = second->Output();
+      InstructionOperand* output = second->OutputAt(i);
       if (!output->IsUnallocated()) continue;
       UnallocatedOperand* second_output = UnallocatedOperand::cast(output);
       if (second_output->HasSameAsInputPolicy()) {
-        ASSERT(second->OutputCount() == 1);  // Only valid for one output.
+        ASSERT(i == 0);  // Only valid for first output.
         UnallocatedOperand* cur_input =
             UnallocatedOperand::cast(second->InputAt(0));
         int output_vreg = second_output->virtual_register();

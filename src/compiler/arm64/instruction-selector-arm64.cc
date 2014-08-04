@@ -9,6 +9,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#if V8_TURBOFAN_TARGET
+
 enum ImmediateMode {
   kArithimeticImm,  // 12 bit unsigned immediate shifted left 0 or 12 bits
   kShift32Imm,      // 0 - 31
@@ -111,6 +113,39 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
                        ArchOpcode opcode, ImmediateMode operand_mode,
                        bool commutative) {
   VisitRRO(selector, opcode, node, operand_mode);
+}
+
+
+static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
+                                   InstructionCode opcode) {
+  Arm64OperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  InstructionOperand* inputs[2];
+  size_t input_count = 0;
+  InstructionOperand* outputs[2];
+  size_t output_count = 0;
+
+  inputs[input_count++] = g.UseRegister(m.left().node());
+  inputs[input_count++] = g.UseRegister(m.right().node());
+
+  // Define outputs depending on the projections.
+  Node* projections[2];
+  node->CollectProjections(ARRAY_SIZE(projections), projections);
+  if (projections[0]) {
+    outputs[output_count++] = g.DefineAsRegister(projections[0]);
+  }
+  if (projections[1]) {
+    opcode |= FlagsModeField::encode(kFlags_set);
+    opcode |= FlagsConditionField::encode(kOverflow);
+    outputs[output_count++] = g.DefineAsRegister(projections[1]);
+  }
+
+  ASSERT_NE(0, input_count);
+  ASSERT_NE(0, output_count);
+  ASSERT_GE(ARRAY_SIZE(inputs), input_count);
+  ASSERT_GE(ARRAY_SIZE(outputs), output_count);
+
+  selector->Emit(opcode, output_count, outputs, input_count, inputs);
 }
 
 
@@ -299,6 +334,11 @@ void InstructionSelector::VisitInt32Add(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kArm64Add32);
+}
+
+
 void InstructionSelector::VisitInt64Add(Node* node) {
   VisitBinop(this, node, kArm64Add, kArithimeticImm, true);
 }
@@ -320,6 +360,11 @@ static void VisitSub(InstructionSelector* selector, Node* node,
 
 void InstructionSelector::VisitInt32Sub(Node* node) {
   VisitSub<int32_t>(this, node, kArm64Sub32, kArm64Neg32);
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kArm64Sub32);
 }
 
 
@@ -388,28 +433,28 @@ void InstructionSelector::VisitConvertInt64ToInt32(Node* node) {
 }
 
 
-void InstructionSelector::VisitConvertInt32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Int32ToFloat64, g.DefineAsDoubleRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Uint32ToFloat64, g.DefineAsDoubleRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToInt32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Float64ToInt32, g.DefineAsRegister(node),
        g.UseDoubleRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToUint32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Float64ToUint32, g.DefineAsRegister(node),
        g.UseDoubleRegister(node->InputAt(0)));
@@ -614,6 +659,8 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
     Emit(kArm64Drop | MiscField::encode(aligned_push_count), NULL);
   }
 }
+
+#endif  // V8_TURBOFAN_TARGET
 
 }  // namespace compiler
 }  // namespace internal

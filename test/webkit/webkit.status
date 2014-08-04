@@ -33,6 +33,12 @@
   'dfg-inline-arguments-become-int32': [PASS, FAIL],
   'dfg-inline-arguments-reset': [PASS, FAIL],
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
+  # TODO(turbofan): Sometimes the try-catch blacklist fails.
+  'exception-with-handler-inside-eval-with-dynamic-scope': [PASS, NO_VARIANTS],
+  # TODO(turbofan): We run out of stack earlier on 64-bit for now.
+  'fast/js/deep-recursion-test': [PASS, NO_VARIANTS],
+  # TODO(turbofan): Some tests just timeout for now.
+  'array-iterate-backwards': [PASS, NO_VARIANTS],
 }],  # ALWAYS
 ['mode == debug', {
   # Too slow in debug mode.

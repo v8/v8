@@ -12,8 +12,7 @@
 // Note: TODO(turbofan) implies a performance improvement opportunity,
 //   and TODO(name) implies an incomplete implementation
 
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
-    V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM
 #ifndef _WIN64
 #define V8_TURBOFAN_TARGET 1
 #else

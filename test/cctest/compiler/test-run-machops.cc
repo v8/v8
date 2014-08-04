@@ -482,7 +482,7 @@ TEST(RunLoopIncrementFloat64) {
   m.Goto(&header);
 
   m.Bind(end);
-  m.Return(m.ConvertFloat64ToInt32(phi));
+  m.Return(m.ChangeFloat64ToInt32(phi));
 
   CHECK_EQ(10, m.Call());
 }
@@ -2858,12 +2858,12 @@ TEST(RunFloat64ModP) {
 }
 
 
-TEST(RunConvertInt32ToFloat64_A) {
+TEST(RunChangeInt32ToFloat64_A) {
   RawMachineAssemblerTester<int32_t> m;
   int32_t magic = 0x986234;
   double result = 0;
 
-  Node* convert = m.ConvertInt32ToFloat64(m.Int32Constant(magic));
+  Node* convert = m.ChangeInt32ToFloat64(m.Int32Constant(magic));
   m.Store(kMachineFloat64, m.PointerConstant(&result), m.Int32Constant(0),
           convert);
   m.Return(m.Int32Constant(magic));
@@ -2873,11 +2873,11 @@ TEST(RunConvertInt32ToFloat64_A) {
 }
 
 
-TEST(RunConvertInt32ToFloat64_B) {
+TEST(RunChangeInt32ToFloat64_B) {
   RawMachineAssemblerTester<int32_t> m(kMachineWord32);
   double output = 0;
 
-  Node* convert = m.ConvertInt32ToFloat64(m.Parameter(0));
+  Node* convert = m.ChangeInt32ToFloat64(m.Parameter(0));
   m.Store(kMachineFloat64, m.PointerConstant(&output), m.Int32Constant(0),
           convert);
   m.Return(m.Parameter(0));
@@ -2890,11 +2890,11 @@ TEST(RunConvertInt32ToFloat64_B) {
 }
 
 
-TEST(RunConvertUint32ToFloat64_B) {
+TEST(RunChangeUint32ToFloat64_B) {
   RawMachineAssemblerTester<int32_t> m(kMachineWord32);
   double output = 0;
 
-  Node* convert = m.ConvertUint32ToFloat64(m.Parameter(0));
+  Node* convert = m.ChangeUint32ToFloat64(m.Parameter(0));
   m.Store(kMachineFloat64, m.PointerConstant(&output), m.Int32Constant(0),
           convert);
   m.Return(m.Parameter(0));
@@ -2907,14 +2907,14 @@ TEST(RunConvertUint32ToFloat64_B) {
 }
 
 
-TEST(RunConvertFloat64ToInt32_A) {
+TEST(RunChangeFloat64ToInt32_A) {
   RawMachineAssemblerTester<int32_t> m;
   int32_t magic = 0x786234;
   double input = 11.1;
   int32_t result = 0;
 
   m.Store(kMachineWord32, m.PointerConstant(&result), m.Int32Constant(0),
-          m.ConvertFloat64ToInt32(m.Float64Constant(input)));
+          m.ChangeFloat64ToInt32(m.Float64Constant(input)));
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
@@ -2922,14 +2922,14 @@ TEST(RunConvertFloat64ToInt32_A) {
 }
 
 
-TEST(RunConvertFloat64ToInt32_B) {
+TEST(RunChangeFloat64ToInt32_B) {
   RawMachineAssemblerTester<int32_t> m;
   double input = 0;
   int32_t output = 0;
 
   Node* load =
       m.Load(kMachineFloat64, m.PointerConstant(&input), m.Int32Constant(0));
-  Node* convert = m.ConvertFloat64ToInt32(load);
+  Node* convert = m.ChangeFloat64ToInt32(load);
   m.Store(kMachineWord32, m.PointerConstant(&output), m.Int32Constant(0),
           convert);
   m.Return(convert);
@@ -2964,14 +2964,14 @@ TEST(RunConvertFloat64ToInt32_B) {
 }
 
 
-TEST(RunConvertFloat64ToUint32_B) {
+TEST(RunChangeFloat64ToUint32_B) {
   RawMachineAssemblerTester<int32_t> m;
   double input = 0;
   int32_t output = 0;
 
   Node* load =
       m.Load(kMachineFloat64, m.PointerConstant(&input), m.Int32Constant(0));
-  Node* convert = m.ConvertFloat64ToUint32(load);
+  Node* convert = m.ChangeFloat64ToUint32(load);
   m.Store(kMachineWord32, m.PointerConstant(&output), m.Int32Constant(0),
           convert);
   m.Return(convert);
@@ -3007,7 +3007,7 @@ TEST(RunConvertFloat64ToUint32_B) {
 }
 
 
-TEST(RunConvertFloat64ToInt32_spilled) {
+TEST(RunChangeFloat64ToInt32_spilled) {
   RawMachineAssemblerTester<int32_t> m;
   const int kNumInputs = 32;
   int32_t magic = 0x786234;
@@ -3022,7 +3022,7 @@ TEST(RunConvertFloat64ToInt32_spilled) {
 
   for (int i = 0; i < kNumInputs; i++) {
     m.Store(kMachineWord32, m.PointerConstant(&result), m.Int32Constant(i * 4),
-            m.ConvertFloat64ToInt32(input_node[i]));
+            m.ChangeFloat64ToInt32(input_node[i]));
   }
 
   m.Return(m.Int32Constant(magic));
@@ -3039,19 +3039,19 @@ TEST(RunConvertFloat64ToInt32_spilled) {
 }
 
 
-TEST(RunDeadConvertFloat64ToInt32) {
+TEST(RunDeadChangeFloat64ToInt32) {
   RawMachineAssemblerTester<int32_t> m;
   const int magic = 0x88abcda4;
-  m.ConvertFloat64ToInt32(m.Float64Constant(999.78));
+  m.ChangeFloat64ToInt32(m.Float64Constant(999.78));
   m.Return(m.Int32Constant(magic));
   CHECK_EQ(magic, m.Call());
 }
 
 
-TEST(RunDeadConvertInt32ToFloat64) {
+TEST(RunDeadChangeInt32ToFloat64) {
   RawMachineAssemblerTester<int32_t> m;
   const int magic = 0x8834abcd;
-  m.ConvertInt32ToFloat64(m.Int32Constant(magic - 6888));
+  m.ChangeInt32ToFloat64(m.Int32Constant(magic - 6888));
   m.Return(m.Int32Constant(magic));
   CHECK_EQ(magic, m.Call());
 }
@@ -3882,4 +3882,184 @@ TEST(RunSpillLotsOfThingsWithCall) {
 
 #endif  // MACHINE_ASSEMBLER_SUPPORTS_CALL_C
 
-#endif
+
+static bool sadd_overflow(int32_t x, int32_t y, int32_t* val) {
+  int32_t v =
+      static_cast<int32_t>(static_cast<uint32_t>(x) + static_cast<uint32_t>(y));
+  *val = v;
+  return (((v ^ x) & (v ^ y)) >> 31) & 1;
+}
+
+
+static bool ssub_overflow(int32_t x, int32_t y, int32_t* val) {
+  int32_t v =
+      static_cast<int32_t>(static_cast<uint32_t>(x) - static_cast<uint32_t>(y));
+  *val = v;
+  return (((v ^ x) & (v ^ ~y)) >> 31) & 1;
+}
+
+
+TEST(RunInt32AddWithOverflowP) {
+  int32_t actual_val = -1;
+  RawMachineAssemblerTester<int32_t> m;
+  Int32BinopTester bt(&m);
+  Node* val, *ovf;
+  m.Int32AddWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  m.StoreToPointer(&actual_val, kMachineWord32, val);
+  bt.AddReturn(ovf);
+  FOR_INT32_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      int32_t expected_val;
+      int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, bt.call(*i, *j));
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt32AddWithOverflowImm) {
+  int32_t actual_val = -1, expected_val = 0;
+  FOR_INT32_INPUTS(i) {
+    {
+      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(m.Int32Constant(*i), m.Parameter(0), &val, &ovf);
+      m.StoreToPointer(&actual_val, kMachineWord32, val);
+      m.Return(ovf);
+      FOR_INT32_INPUTS(j) {
+        int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    {
+      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(m.Parameter(0), m.Int32Constant(*i), &val, &ovf);
+      m.StoreToPointer(&actual_val, kMachineWord32, val);
+      m.Return(ovf);
+      FOR_INT32_INPUTS(j) {
+        int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    FOR_INT32_INPUTS(j) {
+      RawMachineAssemblerTester<int32_t> m;
+      Node* val, *ovf;
+      m.Int32AddWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j), &val,
+                             &ovf);
+      m.StoreToPointer(&actual_val, kMachineWord32, val);
+      m.Return(ovf);
+      int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, m.Call());
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt32AddWithOverflowInBranchP) {
+  MLabel blocka, blockb;
+  RawMachineAssemblerTester<int32_t> m;
+  Int32BinopTester bt(&m);
+  Node* val, *ovf;
+  m.Int32AddWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  m.Branch(ovf, &blocka, &blockb);
+  m.Bind(&blocka);
+  bt.AddReturn(m.Word32Not(val));
+  m.Bind(&blockb);
+  bt.AddReturn(val);
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      int32_t expected;
+      if (sadd_overflow(*i, *j, &expected)) expected = ~expected;
+      CHECK_EQ(expected, bt.call(*i, *j));
+    }
+  }
+}
+
+
+TEST(RunInt32SubWithOverflowP) {
+  int32_t actual_val = -1;
+  RawMachineAssemblerTester<int32_t> m;
+  Int32BinopTester bt(&m);
+  Node* val, *ovf;
+  m.Int32SubWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  m.StoreToPointer(&actual_val, kMachineWord32, val);
+  bt.AddReturn(ovf);
+  FOR_INT32_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      int32_t expected_val;
+      int expected_ovf = ssub_overflow(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, bt.call(*i, *j));
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt32SubWithOverflowImm) {
+  int32_t actual_val = -1, expected_val = 0;
+  FOR_INT32_INPUTS(i) {
+    {
+      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      Node* val, *ovf;
+      m.Int32SubWithOverflow(m.Int32Constant(*i), m.Parameter(0), &val, &ovf);
+      m.StoreToPointer(&actual_val, kMachineWord32, val);
+      m.Return(ovf);
+      FOR_INT32_INPUTS(j) {
+        int expected_ovf = ssub_overflow(*i, *j, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    {
+      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      Node* val, *ovf;
+      m.Int32SubWithOverflow(m.Parameter(0), m.Int32Constant(*i), &val, &ovf);
+      m.StoreToPointer(&actual_val, kMachineWord32, val);
+      m.Return(ovf);
+      FOR_INT32_INPUTS(j) {
+        int expected_ovf = ssub_overflow(*j, *i, &expected_val);
+        CHECK_EQ(expected_ovf, m.Call(*j));
+        CHECK_EQ(expected_val, actual_val);
+      }
+    }
+    FOR_INT32_INPUTS(j) {
+      RawMachineAssemblerTester<int32_t> m;
+      Node* val, *ovf;
+      m.Int32SubWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j), &val,
+                             &ovf);
+      m.StoreToPointer(&actual_val, kMachineWord32, val);
+      m.Return(ovf);
+      int expected_ovf = ssub_overflow(*i, *j, &expected_val);
+      CHECK_EQ(expected_ovf, m.Call());
+      CHECK_EQ(expected_val, actual_val);
+    }
+  }
+}
+
+
+TEST(RunInt32SubWithOverflowInBranchP) {
+  MLabel blocka, blockb;
+  RawMachineAssemblerTester<int32_t> m;
+  Int32BinopTester bt(&m);
+  Node* val, *ovf;
+  m.Int32SubWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  m.Branch(ovf, &blocka, &blockb);
+  m.Bind(&blocka);
+  bt.AddReturn(m.Word32Not(val));
+  m.Bind(&blockb);
+  bt.AddReturn(val);
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      int32_t expected;
+      if (ssub_overflow(*i, *j, &expected)) expected = ~expected;
+      CHECK_EQ(expected, bt.call(*i, *j));
+    }
+  }
+}
+
+#endif  // V8_TURBOFAN_TARGET

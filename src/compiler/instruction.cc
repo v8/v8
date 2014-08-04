@@ -239,6 +239,10 @@ OStream& operator<<(OStream& os, const FlagsCondition& fc) {
       return os << "unordered less than or equal";
     case kUnorderedGreaterThan:
       return os << "unordered greater than";
+    case kOverflow:
+      return os << "overflow";
+    case kNotOverflow:
+      return os << "not overflow";
   }
   UNREACHABLE();
   return os;

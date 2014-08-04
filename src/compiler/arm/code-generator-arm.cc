@@ -501,6 +501,12 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
     case kUnsignedGreaterThan:
       __ b(hi, tlabel);
       break;
+    case kOverflow:
+      __ b(vs, tlabel);
+      break;
+    case kNotOverflow:
+      __ b(vc, tlabel);
+      break;
   }
   if (!fallthru) __ b(flabel);  // no fallthru to flabel.
   __ bind(&done);
@@ -513,9 +519,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   ArmOperandConverter i(this, instr);
   Label done;
 
-  // Materialize a full 32-bit 1 or 0 value.
+  // Materialize a full 32-bit 1 or 0 value. The result register is always the
+  // last output of the instruction.
   Label check;
-  Register reg = i.OutputRegister();
+  ASSERT_NE(0, instr->OutputCount());
+  Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = kNoCondition;
   switch (condition) {
     case kUnorderedEqual:
@@ -577,6 +585,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     // Fall through.
     case kUnsignedGreaterThan:
       cc = hi;
+      break;
+    case kOverflow:
+      cc = vs;
+      break;
+    case kNotOverflow:
+      cc = vc;
       break;
   }
   __ bind(&check);

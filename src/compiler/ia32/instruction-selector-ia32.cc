@@ -160,25 +160,64 @@ void InstructionSelector::VisitStore(Node* node) {
 
 
 // Shared routine for multiple binary operations.
-static inline void VisitBinop(InstructionSelector* selector, Node* node,
-                              ArchOpcode opcode) {
+static void VisitBinop(InstructionSelector* selector, Node* node,
+                       ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
+  Int32BinopMatcher m(node);
   // TODO(turbofan): match complex addressing modes.
   // TODO(turbofan): if commutative, pick the non-live-in operand as the left as
   // this might be the last use and therefore its register can be reused.
-  if (g.CanBeImmediate(right)) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
-                   g.UseImmediate(right));
-  } else if (g.CanBeImmediate(left) &&
-             node->op()->HasProperty(Operator::kCommutative)) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(right),
-                   g.UseImmediate(left));
+  if (g.CanBeImmediate(m.right().node())) {
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(m.left().node()),
+                   g.UseImmediate(m.right().node()));
   } else {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
-                   g.Use(right));
+    selector->Emit(opcode, g.DefineSameAsFirst(node),
+                   g.UseRegister(m.left().node()), g.Use(m.right().node()));
   }
+}
+
+
+static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
+                                   InstructionCode opcode) {
+  IA32OperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  InstructionOperand* inputs[2];
+  size_t input_count = 0;
+  InstructionOperand* outputs[2];
+  size_t output_count = 0;
+
+  // TODO(turbofan): match complex addressing modes.
+  // TODO(turbofan): if commutative, pick the non-live-in operand as the left as
+  // this might be the last use and therefore its register can be reused.
+  if (g.CanBeImmediate(m.right().node())) {
+    inputs[input_count++] = g.Use(m.left().node());
+    inputs[input_count++] = g.UseImmediate(m.right().node());
+  } else {
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.Use(m.right().node());
+  }
+
+  // Define outputs depending on the projections.
+  Node* projections[2];
+  node->CollectProjections(ARRAY_SIZE(projections), projections);
+  if (projections[0]) {
+    outputs[output_count++] = g.DefineSameAsFirst(projections[0]);
+  }
+  if (projections[1]) {
+    opcode |= FlagsModeField::encode(kFlags_set);
+    opcode |= FlagsConditionField::encode(kOverflow);
+    // TODO(turbofan): Use byte register here.
+    outputs[output_count++] =
+        (projections[0] ? g.DefineAsRegister(projections[1])
+                        : g.DefineSameAsFirst(projections[1]));
+  }
+
+  ASSERT_NE(0, input_count);
+  ASSERT_NE(0, output_count);
+  ASSERT_GE(ARRAY_SIZE(inputs), input_count);
+  ASSERT_GE(ARRAY_SIZE(outputs), output_count);
+
+  selector->Emit(opcode, output_count, outputs, input_count, inputs);
 }
 
 
@@ -248,6 +287,11 @@ void InstructionSelector::VisitInt32Add(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kIA32Add);
+}
+
+
 void InstructionSelector::VisitInt32Sub(Node* node) {
   IA32OperandGenerator g(this);
   Int32BinopMatcher m(node);
@@ -256,6 +300,11 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   } else {
     VisitBinop(this, node, kIA32Sub);
   }
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kIA32Sub);
 }
 
 
@@ -319,14 +368,14 @@ void InstructionSelector::VisitInt32UMod(Node* node) {
 }
 
 
-void InstructionSelector::VisitConvertInt32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEInt32ToFloat64, g.DefineAsDoubleRegister(node),
        g.Use(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   IA32OperandGenerator g(this);
   // TODO(turbofan): IA32 SSE LoadUint32() should take an operand.
   Emit(kSSEUint32ToFloat64, g.DefineAsDoubleRegister(node),
@@ -334,13 +383,13 @@ void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToInt32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEFloat64ToInt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToUint32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   IA32OperandGenerator g(this);
   // TODO(turbofan): IA32 SSE subsd() should take an operand.
   Emit(kSSEFloat64ToUint32, g.DefineAsRegister(node),

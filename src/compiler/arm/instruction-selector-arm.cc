@@ -217,6 +217,18 @@ static inline bool TryMatchLSR(InstructionSelector* selector,
 }
 
 
+static inline bool TryMatchShift(InstructionSelector* selector,
+                                 InstructionCode* opcode_return, Node* node,
+                                 InstructionOperand** value_return,
+                                 InstructionOperand** shift_return) {
+  return (
+      TryMatchASR(selector, opcode_return, node, value_return, shift_return) ||
+      TryMatchLSL(selector, opcode_return, node, value_return, shift_return) ||
+      TryMatchLSR(selector, opcode_return, node, value_return, shift_return) ||
+      TryMatchROR(selector, opcode_return, node, value_return, shift_return));
+}
+
+
 static inline bool TryMatchImmediateOrShift(InstructionSelector* selector,
                                             InstructionCode* opcode_return,
                                             Node* node,
@@ -229,10 +241,7 @@ static inline bool TryMatchImmediateOrShift(InstructionSelector* selector,
     *input_count_return = 1;
     return true;
   }
-  if (TryMatchASR(selector, opcode_return, node, &inputs[0], &inputs[1]) ||
-      TryMatchLSL(selector, opcode_return, node, &inputs[0], &inputs[1]) ||
-      TryMatchLSR(selector, opcode_return, node, &inputs[0], &inputs[1]) ||
-      TryMatchROR(selector, opcode_return, node, &inputs[0], &inputs[1])) {
+  if (TryMatchShift(selector, opcode_return, node, &inputs[0], &inputs[1])) {
     *input_count_return = 2;
     return true;
   }
@@ -247,6 +256,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   Int32BinopMatcher m(node);
   InstructionOperand* inputs[3];
   size_t input_count = 0;
+  InstructionOperand* outputs[1] = {g.DefineAsRegister(node)};
+  const size_t output_count = ARRAY_SIZE(outputs);
 
   if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
                                &input_count, &inputs[1])) {
@@ -268,8 +279,54 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   ASSERT_GE(ARRAY_SIZE(inputs), input_count);
   ASSERT_NE(kMode_None, AddressingModeField::decode(opcode));
 
-  InstructionOperand* outputs[1] = {g.DefineAsRegister(node)};
-  const size_t output_count = ARRAY_SIZE(outputs);
+  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+}
+
+
+static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
+                                   InstructionCode opcode,
+                                   InstructionCode reverse_opcode) {
+  ArmOperandGenerator g(selector);
+  Int32BinopMatcher m(node);
+  InstructionOperand* inputs[3];
+  size_t input_count = 0;
+  InstructionOperand* outputs[2];
+  size_t output_count = 0;
+
+  if (TryMatchImmediateOrShift(selector, &opcode, m.right().node(),
+                               &input_count, &inputs[1])) {
+    inputs[0] = g.UseRegister(m.left().node());
+    input_count++;
+  } else if (TryMatchImmediateOrShift(selector, &reverse_opcode,
+                                      m.left().node(), &input_count,
+                                      &inputs[1])) {
+    inputs[0] = g.UseRegister(m.right().node());
+    opcode = reverse_opcode;
+    input_count++;
+  } else {
+    opcode |= AddressingModeField::encode(kMode_Operand2_R);
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseRegister(m.right().node());
+  }
+
+  // Define outputs depending on the projections.
+  Node* projections[2];
+  node->CollectProjections(ARRAY_SIZE(projections), projections);
+  if (projections[0]) {
+    outputs[output_count++] = g.DefineAsRegister(projections[0]);
+  }
+  if (projections[1]) {
+    opcode |= FlagsModeField::encode(kFlags_set);
+    opcode |= FlagsConditionField::encode(kOverflow);
+    outputs[output_count++] = g.DefineAsRegister(projections[1]);
+  }
+
+  ASSERT_NE(0, input_count);
+  ASSERT_NE(0, output_count);
+  ASSERT_GE(ARRAY_SIZE(inputs), input_count);
+  ASSERT_GE(ARRAY_SIZE(outputs), output_count);
+  ASSERT_NE(kMode_None, AddressingModeField::decode(opcode));
+
   selector->Emit(opcode, output_count, outputs, input_count, inputs);
 }
 
@@ -377,23 +434,16 @@ static inline void EmitBic(InstructionSelector* selector, Node* node,
                            Node* left, Node* right) {
   ArmOperandGenerator g(selector);
   InstructionCode opcode = kArmBic;
-  InstructionOperand* inputs[3];
-  size_t input_count = 0;
-  InstructionOperand* outputs[1] = {g.DefineAsRegister(node)};
-  const size_t output_count = ARRAY_SIZE(outputs);
-
-  inputs[input_count++] = g.UseRegister(left);
-  if (!TryMatchImmediateOrShift(selector, &opcode, right, &input_count,
-                                &inputs[input_count])) {
-    opcode |= AddressingModeField::encode(kMode_Operand2_R);
-    inputs[input_count++] = g.UseRegister(right);
+  InstructionOperand* value_operand;
+  InstructionOperand* shift_operand;
+  if (TryMatchShift(selector, &opcode, right, &value_operand, &shift_operand)) {
+    selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
+                   value_operand, shift_operand);
+    return;
   }
-
-  ASSERT_NE(0, input_count);
-  ASSERT_GE(ARRAY_SIZE(inputs), input_count);
-  ASSERT_NE(kMode_None, AddressingModeField::decode(opcode));
-
-  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+  selector->Emit(opcode | AddressingModeField::encode(kMode_Operand2_R),
+                 g.DefineAsRegister(node), g.UseRegister(left),
+                 g.UseRegister(right));
 }
 
 
@@ -464,11 +514,19 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.right().Is(-1)) {
-    Emit(kArmMvn | AddressingModeField::encode(kMode_Operand2_R),
-         g.DefineSameAsFirst(node), g.UseRegister(m.left().node()));
-  } else {
-    VisitBinop(this, node, kArmEor, kArmEor);
+    InstructionCode opcode = kArmMvn;
+    InstructionOperand* value_operand;
+    InstructionOperand* shift_operand;
+    if (TryMatchShift(this, &opcode, m.left().node(), &value_operand,
+                      &shift_operand)) {
+      Emit(opcode, g.DefineAsRegister(node), value_operand, shift_operand);
+      return;
+    }
+    Emit(opcode | AddressingModeField::encode(kMode_Operand2_R),
+         g.DefineAsRegister(node), g.UseRegister(m.left().node()));
+    return;
   }
+  VisitBinop(this, node, kArmEor, kArmEor);
 }
 
 
@@ -539,6 +597,11 @@ void InstructionSelector::VisitInt32Add(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kArmAdd, kArmAdd);
+}
+
+
 void InstructionSelector::VisitInt32Sub(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);
@@ -550,6 +613,11 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
     return;
   }
   VisitBinop(this, node, kArmSub, kArmRsb);
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
+  VisitBinopWithOverflow(this, node, kArmSub, kArmRsb);
 }
 
 
@@ -652,28 +720,28 @@ void InstructionSelector::VisitInt32UMod(Node* node) {
 }
 
 
-void InstructionSelector::VisitConvertInt32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtF64S32, g.DefineAsDoubleRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertUint32ToFloat64(Node* node) {
+void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtF64U32, g.DefineAsDoubleRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToInt32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtS32F64, g.DefineAsRegister(node),
        g.UseDoubleRegister(node->InputAt(0)));
 }
 
 
-void InstructionSelector::VisitConvertFloat64ToUint32(Node* node) {
+void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtU32F64, g.DefineAsRegister(node),
        g.UseDoubleRegister(node->InputAt(0)));

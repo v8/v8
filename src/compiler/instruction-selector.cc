@@ -252,17 +252,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     if (buffer->descriptor->ReturnCount() == 1) {
       buffer->output_nodes[0] = call;
     } else {
-      // Iterate over all uses of {call} and collect the projections into the
-      // {result} buffer.
-      for (UseIter i = call->uses().begin(); i != call->uses().end(); ++i) {
-        if ((*i)->opcode() == IrOpcode::kProjection) {
-          int index = OpParameter<int32_t>(*i);
-          ASSERT_GE(index, 0);
-          ASSERT_LT(index, buffer->descriptor->ReturnCount());
-          ASSERT_EQ(NULL, buffer->output_nodes[index]);
-          buffer->output_nodes[index] = *i;
-        }
-      }
+      call->CollectProjections(buffer->descriptor->ReturnCount(),
+                               buffer->output_nodes);
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
@@ -447,13 +438,10 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kIfFalse:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kMerge:
-    case IrOpcode::kProjection:
     case IrOpcode::kLazyDeoptimization:
     case IrOpcode::kContinuation:
       // No code needed for these graph artifacts.
       return;
-    case IrOpcode::kPhi:
-      return VisitPhi(node);
     case IrOpcode::kParameter: {
       int index = OpParameter<int>(node);
       MachineRepresentation rep = linkage()
@@ -463,6 +451,10 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(rep, node);
       return VisitParameter(node);
     }
+    case IrOpcode::kPhi:
+      return VisitPhi(node);
+    case IrOpcode::kProjection:
+      return VisitProjection(node);
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
     case IrOpcode::kExternalConstant:
@@ -515,8 +507,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitWord64Equal(node);
     case IrOpcode::kInt32Add:
       return VisitInt32Add(node);
+    case IrOpcode::kInt32AddWithOverflow:
+      return VisitInt32AddWithOverflow(node);
     case IrOpcode::kInt32Sub:
       return VisitInt32Sub(node);
+    case IrOpcode::kInt32SubWithOverflow:
+      return VisitInt32SubWithOverflow(node);
     case IrOpcode::kInt32Mul:
       return VisitInt32Mul(node);
     case IrOpcode::kInt32Div:
@@ -557,14 +553,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitConvertInt32ToInt64(node);
     case IrOpcode::kConvertInt64ToInt32:
       return VisitConvertInt64ToInt32(node);
-    case IrOpcode::kConvertInt32ToFloat64:
-      return MarkAsDouble(node), VisitConvertInt32ToFloat64(node);
-    case IrOpcode::kConvertUint32ToFloat64:
-      return MarkAsDouble(node), VisitConvertUint32ToFloat64(node);
-    case IrOpcode::kConvertFloat64ToInt32:
-      return VisitConvertFloat64ToInt32(node);
-    case IrOpcode::kConvertFloat64ToUint32:
-      return VisitConvertFloat64ToUint32(node);
+    case IrOpcode::kChangeInt32ToFloat64:
+      return MarkAsDouble(node), VisitChangeInt32ToFloat64(node);
+    case IrOpcode::kChangeUint32ToFloat64:
+      return MarkAsDouble(node), VisitChangeUint32ToFloat64(node);
+    case IrOpcode::kChangeFloat64ToInt32:
+      return VisitChangeFloat64ToInt32(node);
+    case IrOpcode::kChangeFloat64ToUint32:
+      return VisitChangeFloat64ToUint32(node);
     case IrOpcode::kFloat64Add:
       return MarkAsDouble(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:
@@ -736,6 +732,13 @@ void InstructionSelector::VisitWord64Compare(Node* node,
 #endif  // V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_TARGET
 
 
+void InstructionSelector::VisitParameter(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineAsLocation(node, linkage()->GetParameterLocation(
+                                              OpParameter<int>(node))));
+}
+
+
 void InstructionSelector::VisitPhi(Node* node) {
   // TODO(bmeurer): Emit a PhiInstruction here.
   for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
@@ -744,10 +747,10 @@ void InstructionSelector::VisitPhi(Node* node) {
 }
 
 
-void InstructionSelector::VisitParameter(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchNop, g.DefineAsLocation(node, linkage()->GetParameterLocation(
-                                              OpParameter<int>(node))));
+void InstructionSelector::VisitProjection(Node* node) {
+  for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
+    MarkAsUsed(*i);
+  }
 }
 
 

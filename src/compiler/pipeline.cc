@@ -170,23 +170,23 @@ Handle<Code> Pipeline::GenerateCode() {
     }
   }
 
-  {
-    // Lower any remaining generic JSOperators.
-    PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
-                              "generic lowering");
-    MachineOperatorBuilder machine(zone());
-    JSGenericLowering lowering(info(), &jsgraph, &machine, &source_positions);
-    lowering.LowerAllNodes();
-
-    VerifyAndPrintGraph(&graph, "Lowered generic");
-  }
-
-  // Compute a schedule.
-  Schedule* schedule = ComputeSchedule(&graph);
-  TraceSchedule(schedule);
-
   Handle<Code> code = Handle<Code>::null();
   if (SupportedTarget()) {
+    {
+      // Lower any remaining generic JSOperators.
+      PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
+                                "generic lowering");
+      MachineOperatorBuilder machine(zone());
+      JSGenericLowering lowering(info(), &jsgraph, &machine, &source_positions);
+      lowering.LowerAllNodes();
+
+      VerifyAndPrintGraph(&graph, "Lowered generic");
+    }
+
+    // Compute a schedule.
+    Schedule* schedule = ComputeSchedule(&graph);
+    TraceSchedule(schedule);
+
     {
       // Generate optimized code.
       PhaseStats codegen_stats(info(), PhaseStats::CODEGEN, "codegen");
@@ -194,6 +194,7 @@ Handle<Code> Pipeline::GenerateCode() {
       code = GenerateCode(&linkage, &graph, schedule, &source_positions);
       info()->SetCode(code);
     }
+
     // Print optimized code.
     v8::internal::CodeGenerator::PrintCode(code, info());
   }

@@ -416,7 +416,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       !info()->is_osr()) {
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
-    return SetLastStatus(SUCCEEDED);
+    if (!info()->code().is_null()) {
+      return SetLastStatus(SUCCEEDED);
+    }
   }
 
   if (FLAG_trace_hydrogen) {

@@ -66,8 +66,8 @@ void SimplifiedLowering::DoChangeTaggedToUI32(Node* node, Node* effect,
   Node* loaded = graph()->NewNode(
       machine()->Load(kMachineFloat64), val,
       OffsetMinusTagConstant(HeapNumber::kValueOffset), effect);
-  Operator* op = is_signed ? machine()->ConvertFloat64ToInt32()
-                           : machine()->ConvertFloat64ToUint32();
+  Operator* op = is_signed ? machine()->ChangeFloat64ToInt32()
+                           : machine()->ChangeFloat64ToUint32();
   Node* converted = graph()->NewNode(op, loaded);
 
   // false branch.
@@ -100,7 +100,7 @@ void SimplifiedLowering::DoChangeTaggedToFloat64(Node* node, Node* effect,
   Node* fbranch = graph()->NewNode(common()->IfFalse(), branch);
   Node* untagged = Untag(val);
   Node* converted =
-      graph()->NewNode(machine()->ConvertInt32ToFloat64(), untagged);
+      graph()->NewNode(machine()->ChangeInt32ToFloat64(), untagged);
 
   // merge.
   Node* merge = graph()->NewNode(common()->Merge(2), tbranch, fbranch);
