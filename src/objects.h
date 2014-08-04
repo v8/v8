@@ -6767,8 +6767,9 @@ class Map: public HeapObject {
   bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
 
  private:
-  static Handle<TransitionArray> SetElementsTransitionMap(
-      Handle<Map> map, Handle<Map> transitioned_map);
+  static void ConnectElementsTransition(Handle<Map> parent, Handle<Map> child);
+  static void ConnectTransition(Handle<Map> parent, Handle<Map> child,
+                                Handle<Name> name, SimpleTransitionFlag flag);
 
   bool EquivalentToForTransition(Map* other);
   static Handle<Map> RawCopy(Handle<Map> map, int instance_size);

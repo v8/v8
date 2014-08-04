@@ -2074,15 +2074,10 @@ bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
 }
 
 
-Handle<TransitionArray> Map::SetElementsTransitionMap(
-    Handle<Map> map, Handle<Map> transitioned_map) {
-  Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
-      map,
-      map->GetIsolate()->factory()->elements_transition_symbol(),
-      transitioned_map,
-      FULL_TRANSITION);
-  map->set_transitions(*transitions);
-  return transitions;
+void Map::ConnectElementsTransition(Handle<Map> parent, Handle<Map> child) {
+  Isolate* isolate = parent->GetIsolate();
+  Handle<Name> name = isolate->factory()->elements_transition_symbol();
+  ConnectTransition(parent, child, name, FULL_TRANSITION);
 }
 
 
@@ -2090,7 +2085,17 @@ void JSObject::MigrateToMap(Handle<JSObject> object, Handle<Map> new_map) {
   if (object->map() == *new_map) return;
   if (object->HasFastProperties()) {
     if (!new_map->is_dictionary_map()) {
+      Handle<Map> old_map(object->map());
       MigrateFastToFast(object, new_map);
+      if (old_map->is_prototype_map()) {
+        // Clear out the old descriptor array to avoid problems to sharing
+        // the descriptor array without using an explicit.
+        old_map->InitializeDescriptors(
+            old_map->GetHeap()->empty_descriptor_array());
+        // Ensure that no transition was inserted for prototype migrations.
+        DCHECK(!old_map->HasTransitionArray());
+        DCHECK(new_map->GetBackPointer()->IsUndefined());
+      }
     } else {
       MigrateFastToSlow(object, new_map, 0);
     }
@@ -3459,10 +3464,12 @@ static Handle<Map> AddMissingElementsTransitions(Handle<Map> map,
   Handle<Map> current_map = map;
 
   ElementsKind kind = map->elements_kind();
-  while (kind != to_kind && !IsTerminalElementsKind(kind)) {
-    kind = GetNextTransitionElementsKind(kind);
-    current_map = Map::CopyAsElementsKind(
-        current_map, kind, INSERT_TRANSITION);
+  if (!map->is_prototype_map()) {
+    while (kind != to_kind && !IsTerminalElementsKind(kind)) {
+      kind = GetNextTransitionElementsKind(kind);
+      current_map =
+          Map::CopyAsElementsKind(current_map, kind, INSERT_TRANSITION);
+    }
   }
 
   // In case we are exiting the fast elements kind system, just add the map in
@@ -7110,8 +7117,6 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
 
   Handle<Map> result = CopyDropDescriptors(map);
   Handle<Name> name = descriptor->GetKey();
-  Handle<TransitionArray> transitions =
-      TransitionArray::CopyInsert(map, name, result, SIMPLE_TRANSITION);
 
   // Ensure there's space for the new descriptor in the shared descriptor array.
   if (descriptors->NumberOfSlackDescriptors() == 0) {
@@ -7124,19 +7129,30 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
     }
   }
 
-  // Commit the state atomically.
-  DisallowHeapAllocation no_gc;
-
-  descriptors->Append(descriptor);
-  result->SetBackPointer(*map);
-  result->InitializeDescriptors(*descriptors);
+  {
+    DisallowHeapAllocation no_gc;
+    descriptors->Append(descriptor);
+    result->InitializeDescriptors(*descriptors);
+  }
 
   DCHECK(result->NumberOfOwnDescriptors() == map->NumberOfOwnDescriptors() + 1);
-
-  map->set_transitions(*transitions);
-  map->set_owns_descriptors(false);
+  ConnectTransition(map, result, name, SIMPLE_TRANSITION);
 
   return result;
+}
+
+
+void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
+                            Handle<Name> name, SimpleTransitionFlag flag) {
+  parent->set_owns_descriptors(false);
+  if (parent->is_prototype_map()) {
+    DCHECK(child->is_prototype_map());
+  } else {
+    Handle<TransitionArray> transitions =
+        TransitionArray::CopyInsert(parent, name, child, flag);
+    parent->set_transitions(*transitions);
+    child->SetBackPointer(*parent);
+  }
 }
 
 
@@ -7150,19 +7166,18 @@ Handle<Map> Map::CopyReplaceDescriptors(Handle<Map> map,
   Handle<Map> result = CopyDropDescriptors(map);
   result->InitializeDescriptors(*descriptors);
 
-  if (flag == INSERT_TRANSITION && map->CanHaveMoreTransitions()) {
-    Handle<Name> name;
-    CHECK(maybe_name.ToHandle(&name));
-    Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
-        map, name, result, simple_flag);
-    map->set_transitions(*transitions);
-    result->SetBackPointer(*map);
-  } else {
-    int length = descriptors->number_of_descriptors();
-    for (int i = 0; i < length; i++) {
-      descriptors->SetRepresentation(i, Representation::Tagged());
-      if (descriptors->GetDetails(i).type() == FIELD) {
-        descriptors->SetValue(i, HeapType::Any());
+  if (!map->is_prototype_map()) {
+    if (flag == INSERT_TRANSITION && map->CanHaveMoreTransitions()) {
+      Handle<Name> name;
+      CHECK(maybe_name.ToHandle(&name));
+      ConnectTransition(map, result, name, simple_flag);
+    } else {
+      int length = descriptors->number_of_descriptors();
+      for (int i = 0; i < length; i++) {
+        descriptors->SetRepresentation(i, Representation::Tagged());
+        if (descriptors->GetDetails(i).type() == FIELD) {
+          descriptors->SetValue(i, HeapType::Any());
+        }
       }
     }
   }
@@ -7192,14 +7207,9 @@ Handle<Map> Map::CopyInstallDescriptors(Handle<Map> map,
   }
 
   result->set_unused_property_fields(unused_property_fields);
-  result->set_owns_descriptors(false);
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor));
-  Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
-      map, name, result, SIMPLE_TRANSITION);
-
-  map->set_transitions(*transitions);
-  result->SetBackPointer(*map);
+  ConnectTransition(map, result, name, SIMPLE_TRANSITION);
 
   return result;
 }
@@ -7228,12 +7238,10 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
     // transfer ownership to the new map.
     Handle<Map> new_map = CopyDropDescriptors(map);
 
-    SetElementsTransitionMap(map, new_map);
+    ConnectElementsTransition(map, new_map);
 
     new_map->set_elements_kind(kind);
     new_map->InitializeDescriptors(map->instance_descriptors());
-    new_map->SetBackPointer(*map);
-    map->set_owns_descriptors(false);
     return new_map;
   }
 
@@ -7245,8 +7253,7 @@ Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
   new_map->set_elements_kind(kind);
 
   if (insert_transition) {
-    SetElementsTransitionMap(map, new_map);
-    new_map->SetBackPointer(*map);
+    ConnectElementsTransition(map, new_map);
   }
 
   return new_map;
@@ -7264,22 +7271,18 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
   if (map->owns_descriptors()) {
     new_map = CopyDropDescriptors(map);
   } else {
+    DCHECK(!map->is_prototype_map());
     new_map = Copy(map);
   }
 
-  Handle<TransitionArray> transitions = TransitionArray::CopyInsert(
-      map, isolate->factory()->observed_symbol(), new_map, FULL_TRANSITION);
-
-  map->set_transitions(*transitions);
-
   new_map->set_is_observed();
-
   if (map->owns_descriptors()) {
     new_map->InitializeDescriptors(map->instance_descriptors());
-    map->set_owns_descriptors(false);
   }
 
-  new_map->SetBackPointer(*map);
+  Handle<Name> name = isolate->factory()->observed_symbol();
+  ConnectTransition(map, new_map, name, FULL_TRANSITION);
+
   return new_map;
 }
 
@@ -11923,7 +11926,9 @@ Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
                                         Handle<Map> target_map) {
   DCHECK(target_map->IsMap());
   DCHECK(HeapObject::cast(*prototype)->map()->IsMap());
-  // Don't cache prototype transition if this map is shared.
+  // Don't cache prototype transition if this map is either shared, or a map of
+  // a prototype.
+  if (map->is_prototype_map()) return map;
   if (map->is_shared() || !FLAG_cache_prototype_transitions) return map;
 
   const int step = kProtoTransitionElementsPerEntry;
