@@ -74,7 +74,7 @@ class PerThreadAssertScopeBase {
   ~PerThreadAssertScopeBase() {
     if (!data_->decrement_level()) return;
     for (int i = 0; i < LAST_PER_THREAD_ASSERT_TYPE; i++) {
-      ASSERT(data_->get(static_cast<PerThreadAssertType>(i)));
+      DCHECK(data_->get(static_cast<PerThreadAssertType>(i)));
     }
     delete data_;
     SetThreadLocalData(NULL);
