@@ -1065,7 +1065,7 @@ void Simulator::PrintSystemRegisters(bool print_all) {
       "0b10 (Round towards Minus Infinity)",
       "0b11 (Round towards Zero)"
     };
-    DCHECK(fpcr().RMode() <= (sizeof(rmode) / sizeof(rmode[0])));
+    DCHECK(fpcr().RMode() < ARRAY_SIZE(rmode));
     fprintf(stream_, "# %sFPCR: %sAHP:%d DN:%d FZ:%d RMode:%s%s\n",
             clr_flag_name,
             clr_flag_value,
