@@ -55,6 +55,7 @@ class Node : public GenericNode<NodeData, Node> {
   void Initialize(Operator* op) { set_op(op); }
 
   void CollectProjections(int projection_count, Node** projections);
+  Node* FindProjection(int32_t projection_index);
 };
 
 OStream& operator<<(OStream& os, const Node& n);

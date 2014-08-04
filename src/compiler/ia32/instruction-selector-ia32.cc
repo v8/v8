@@ -161,27 +161,10 @@ void InstructionSelector::VisitStore(Node* node) {
 
 // Shared routine for multiple binary operations.
 static void VisitBinop(InstructionSelector* selector, Node* node,
-                       ArchOpcode opcode) {
+                       InstructionCode opcode, FlagsContinuation* cont) {
   IA32OperandGenerator g(selector);
   Int32BinopMatcher m(node);
-  // TODO(turbofan): match complex addressing modes.
-  // TODO(turbofan): if commutative, pick the non-live-in operand as the left as
-  // this might be the last use and therefore its register can be reused.
-  if (g.CanBeImmediate(m.right().node())) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(m.left().node()),
-                   g.UseImmediate(m.right().node()));
-  } else {
-    selector->Emit(opcode, g.DefineSameAsFirst(node),
-                   g.UseRegister(m.left().node()), g.Use(m.right().node()));
-  }
-}
-
-
-static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
-                                   InstructionCode opcode) {
-  IA32OperandGenerator g(selector);
-  Int32BinopMatcher m(node);
-  InstructionOperand* inputs[2];
+  InstructionOperand* inputs[4];
   size_t input_count = 0;
   InstructionOperand* outputs[2];
   size_t output_count = 0;
@@ -197,19 +180,15 @@ static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.Use(m.right().node());
   }
 
-  // Define outputs depending on the projections.
-  Node* projections[2];
-  node->CollectProjections(ARRAY_SIZE(projections), projections);
-  if (projections[0]) {
-    outputs[output_count++] = g.DefineSameAsFirst(projections[0]);
+  if (cont->IsBranch()) {
+    inputs[input_count++] = g.Label(cont->true_block());
+    inputs[input_count++] = g.Label(cont->false_block());
   }
-  if (projections[1]) {
-    opcode |= FlagsModeField::encode(kFlags_set);
-    opcode |= FlagsConditionField::encode(kOverflow);
+
+  outputs[output_count++] = g.DefineSameAsFirst(node);
+  if (cont->IsSet()) {
     // TODO(turbofan): Use byte register here.
-    outputs[output_count++] =
-        (projections[0] ? g.DefineAsRegister(projections[1])
-                        : g.DefineSameAsFirst(projections[1]));
+    outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
 
   ASSERT_NE(0, input_count);
@@ -217,7 +196,17 @@ static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
   ASSERT_GE(ARRAY_SIZE(inputs), input_count);
   ASSERT_GE(ARRAY_SIZE(outputs), output_count);
 
-  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
+                                      outputs, input_count, inputs);
+  if (cont->IsBranch()) instr->MarkAsControl();
+}
+
+
+// Shared routine for multiple binary operations.
+static void VisitBinop(InstructionSelector* selector, Node* node,
+                       InstructionCode opcode) {
+  FlagsContinuation cont;
+  VisitBinop(selector, node, opcode, &cont);
 }
 
 
@@ -287,11 +276,6 @@ void InstructionSelector::VisitInt32Add(Node* node) {
 }
 
 
-void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
-  VisitBinopWithOverflow(this, node, kIA32Add);
-}
-
-
 void InstructionSelector::VisitInt32Sub(Node* node) {
   IA32OperandGenerator g(this);
   Int32BinopMatcher m(node);
@@ -300,11 +284,6 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   } else {
     VisitBinop(this, node, kIA32Sub);
   }
-}
-
-
-void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
-  VisitBinopWithOverflow(this, node, kIA32Sub);
 }
 
 
@@ -435,6 +414,18 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
   Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
        g.UseDoubleRegister(node->InputAt(0)),
        g.UseDoubleRegister(node->InputAt(1)), 1, temps);
+}
+
+
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  VisitBinop(this, node, kIA32Add, cont);
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  VisitBinop(this, node, kIA32Sub, cont);
 }
 
 

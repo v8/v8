@@ -23,6 +23,17 @@ void Node::CollectProjections(int projection_count, Node** projections) {
 }
 
 
+Node* Node::FindProjection(int32_t projection_index) {
+  for (UseIter i = uses().begin(); i != uses().end(); ++i) {
+    if ((*i)->opcode() == IrOpcode::kProjection &&
+        OpParameter<int32_t>(*i) == projection_index) {
+      return *i;
+    }
+  }
+  return NULL;
+}
+
+
 OStream& operator<<(OStream& os, const Operator& op) { return op.PrintTo(os); }
 
 

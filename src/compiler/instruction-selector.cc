@@ -20,6 +20,7 @@ InstructionSelector::InstructionSelector(InstructionSequence* sequence,
       source_positions_(source_positions),
       current_block_(NULL),
       instructions_(InstructionDeque::allocator_type(zone())),
+      defined_(graph()->NodeCount(), false, BoolVector::allocator_type(zone())),
       used_(graph()->NodeCount(), false, BoolVector::allocator_type(zone())) {}
 
 
@@ -146,6 +147,24 @@ bool InstructionSelector::IsNextInAssemblyOrder(const BasicBlock* block) const {
 bool InstructionSelector::CanCover(Node* user, Node* node) const {
   return node->OwnedBy(user) &&
          schedule()->block(node) == schedule()->block(user);
+}
+
+
+bool InstructionSelector::IsDefined(Node* node) const {
+  ASSERT_NOT_NULL(node);
+  NodeId id = node->id();
+  ASSERT(id >= 0);
+  ASSERT(id < static_cast<NodeId>(defined_.size()));
+  return defined_[id];
+}
+
+
+void InstructionSelector::MarkAsDefined(Node* node) {
+  ASSERT_NOT_NULL(node);
+  NodeId id = node->id();
+  ASSERT(id >= 0);
+  ASSERT(id < static_cast<NodeId>(defined_.size()));
+  defined_[id] = true;
 }
 
 
@@ -347,7 +366,8 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   for (BasicBlock::reverse_iterator i = block->rbegin(); i != block->rend();
        ++i) {
     Node* node = *i;
-    if (!IsUsed(node)) continue;
+    // Skip nodes that are unused or already defined.
+    if (!IsUsed(node) || IsDefined(node)) continue;
     // Generate code for this node "top down", but schedule the code "bottom
     // up".
     size_t current_node_end = instructions_.size();
@@ -630,6 +650,26 @@ void InstructionSelector::VisitWord64Equal(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
+  if (Node* ovf = node->FindProjection(1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitInt32AddWithOverflow(node, &cont);
+  }
+  FlagsContinuation cont;
+  VisitInt32AddWithOverflow(node, &cont);
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
+  if (Node* ovf = node->FindProjection(1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitInt32SubWithOverflow(node, &cont);
+  }
+  FlagsContinuation cont;
+  VisitInt32SubWithOverflow(node, &cont);
+}
+
+
 void InstructionSelector::VisitInt64LessThan(Node* node) {
   FlagsContinuation cont(kSignedLessThan, node);
   VisitWord64Compare(node, &cont);
@@ -748,8 +788,20 @@ void InstructionSelector::VisitPhi(Node* node) {
 
 
 void InstructionSelector::VisitProjection(Node* node) {
-  for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-    MarkAsUsed(*i);
+  OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  switch (value->opcode()) {
+    case IrOpcode::kInt32AddWithOverflow:
+    case IrOpcode::kInt32SubWithOverflow:
+      if (OpParameter<int32_t>(node) == 0) {
+        Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+      } else {
+        ASSERT_EQ(1, OpParameter<int32_t>(node));
+        MarkAsUsed(value);
+      }
+      break;
+    default:
+      break;
   }
 }
 
@@ -849,6 +901,31 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kFloat64LessThanOrEqual:
         cont.OverwriteAndNegateIfEqual(kUnorderedLessThanOrEqual);
         return VisitFloat64Compare(value, &cont);
+      case IrOpcode::kProjection:
+        // Check if this is the overflow output projection of an
+        // <Operation>WithOverflow node.
+        if (OpParameter<int32_t>(value) == 1) {
+          // We cannot combine the <Operation>WithOverflow with this branch
+          // unless the 0th projection (the use of the actual value of the
+          // <Operation> is either NULL, which means there's no use of the
+          // actual value, or was already defined, which means it is scheduled
+          // *AFTER* this branch).
+          Node* node = value->InputAt(0);
+          Node* result = node->FindProjection(0);
+          if (result == NULL || IsDefined(result)) {
+            switch (node->opcode()) {
+              case IrOpcode::kInt32AddWithOverflow:
+                cont.OverwriteAndNegateIfEqual(kOverflow);
+                return VisitInt32AddWithOverflow(node, &cont);
+              case IrOpcode::kInt32SubWithOverflow:
+                cont.OverwriteAndNegateIfEqual(kOverflow);
+                return VisitInt32SubWithOverflow(node, &cont);
+              default:
+                break;
+            }
+          }
+        }
+        break;
       default:
         break;
     }
@@ -885,12 +962,25 @@ void InstructionSelector::VisitDeoptimization(Node* deopt) {
   Emit(kArchDeoptimize | MiscField::encode(deoptimization_id), NULL);
 }
 
+
 #if !V8_TURBOFAN_TARGET
 
 #define DECLARE_UNIMPLEMENTED_SELECTOR(x) \
   void InstructionSelector::Visit##x(Node* node) { UNIMPLEMENTED(); }
 MACHINE_OP_LIST(DECLARE_UNIMPLEMENTED_SELECTOR)
 #undef DECLARE_UNIMPLEMENTED_SELECTOR
+
+
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  UNIMPLEMENTED();
+}
 
 
 void InstructionSelector::VisitWord32Test(Node* node, FlagsContinuation* cont) {
@@ -913,7 +1003,7 @@ void InstructionSelector::VisitFloat64Compare(Node* node,
 void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
                                     BasicBlock* deoptimization) {}
 
-#endif
+#endif  // !V8_TURBOFAN_TARGET
 
 }  // namespace compiler
 }  // namespace internal

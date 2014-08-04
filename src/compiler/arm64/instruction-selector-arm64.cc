@@ -110,34 +110,26 @@ static void VisitRRO(InstructionSelector* selector, ArchOpcode opcode,
 
 // Shared routine for multiple binary operations.
 static void VisitBinop(InstructionSelector* selector, Node* node,
-                       ArchOpcode opcode, ImmediateMode operand_mode,
-                       bool commutative) {
-  VisitRRO(selector, opcode, node, operand_mode);
-}
-
-
-static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
-                                   InstructionCode opcode) {
+                       InstructionCode opcode, ImmediateMode operand_mode,
+                       FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
   Int32BinopMatcher m(node);
-  InstructionOperand* inputs[2];
+  InstructionOperand* inputs[4];
   size_t input_count = 0;
   InstructionOperand* outputs[2];
   size_t output_count = 0;
 
   inputs[input_count++] = g.UseRegister(m.left().node());
-  inputs[input_count++] = g.UseRegister(m.right().node());
+  inputs[input_count++] = g.UseOperand(m.right().node(), operand_mode);
 
-  // Define outputs depending on the projections.
-  Node* projections[2];
-  node->CollectProjections(ARRAY_SIZE(projections), projections);
-  if (projections[0]) {
-    outputs[output_count++] = g.DefineAsRegister(projections[0]);
+  if (cont->IsBranch()) {
+    inputs[input_count++] = g.Label(cont->true_block());
+    inputs[input_count++] = g.Label(cont->false_block());
   }
-  if (projections[1]) {
-    opcode |= FlagsModeField::encode(kFlags_set);
-    opcode |= FlagsConditionField::encode(kOverflow);
-    outputs[output_count++] = g.DefineAsRegister(projections[1]);
+
+  outputs[output_count++] = g.DefineAsRegister(node);
+  if (cont->IsSet()) {
+    outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
 
   ASSERT_NE(0, input_count);
@@ -145,7 +137,17 @@ static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
   ASSERT_GE(ARRAY_SIZE(inputs), input_count);
   ASSERT_GE(ARRAY_SIZE(outputs), output_count);
 
-  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
+                                      outputs, input_count, inputs);
+  if (cont->IsBranch()) instr->MarkAsControl();
+}
+
+
+// Shared routine for multiple binary operations.
+static void VisitBinop(InstructionSelector* selector, Node* node,
+                       ArchOpcode opcode, ImmediateMode operand_mode) {
+  FlagsContinuation cont;
+  VisitBinop(selector, node, opcode, operand_mode);
 }
 
 
@@ -256,22 +258,22 @@ void InstructionSelector::VisitStore(Node* node) {
 
 
 void InstructionSelector::VisitWord32And(Node* node) {
-  VisitBinop(this, node, kArm64And32, kLogical32Imm, true);
+  VisitBinop(this, node, kArm64And32, kLogical32Imm);
 }
 
 
 void InstructionSelector::VisitWord64And(Node* node) {
-  VisitBinop(this, node, kArm64And, kLogical64Imm, true);
+  VisitBinop(this, node, kArm64And, kLogical64Imm);
 }
 
 
 void InstructionSelector::VisitWord32Or(Node* node) {
-  VisitBinop(this, node, kArm64Or32, kLogical32Imm, true);
+  VisitBinop(this, node, kArm64Or32, kLogical32Imm);
 }
 
 
 void InstructionSelector::VisitWord64Or(Node* node) {
-  VisitBinop(this, node, kArm64Or, kLogical64Imm, true);
+  VisitBinop(this, node, kArm64Or, kLogical64Imm);
 }
 
 
@@ -284,7 +286,7 @@ static void VisitXor(InstructionSelector* selector, Node* node,
     selector->Emit(not_opcode, g.DefineAsRegister(node),
                    g.UseRegister(m.left().node()));
   } else {
-    VisitBinop(selector, node, xor_opcode, kLogical32Imm, true);
+    VisitBinop(selector, node, xor_opcode, kLogical32Imm);
   }
 }
 
@@ -330,17 +332,12 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
 
 
 void InstructionSelector::VisitInt32Add(Node* node) {
-  VisitBinop(this, node, kArm64Add32, kArithimeticImm, true);
-}
-
-
-void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
-  VisitBinopWithOverflow(this, node, kArm64Add32);
+  VisitBinop(this, node, kArm64Add32, kArithimeticImm);
 }
 
 
 void InstructionSelector::VisitInt64Add(Node* node) {
-  VisitBinop(this, node, kArm64Add, kArithimeticImm, true);
+  VisitBinop(this, node, kArm64Add, kArithimeticImm);
 }
 
 
@@ -353,18 +350,13 @@ static void VisitSub(InstructionSelector* selector, Node* node,
     selector->Emit(neg_opcode, g.DefineAsRegister(node),
                    g.UseRegister(m.right().node()));
   } else {
-    VisitBinop(selector, node, sub_opcode, kArithimeticImm, false);
+    VisitBinop(selector, node, sub_opcode, kArithimeticImm);
   }
 }
 
 
 void InstructionSelector::VisitInt32Sub(Node* node) {
   VisitSub<int32_t>(this, node, kArm64Sub32, kArm64Neg32);
-}
-
-
-void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
-  VisitBinopWithOverflow(this, node, kArm64Sub32);
 }
 
 
@@ -486,6 +478,18 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
   Emit(kArm64Float64Mod, g.DefineAsFixedDouble(node, d0),
        g.UseFixedDouble(node->InputAt(0), d0),
        g.UseFixedDouble(node->InputAt(1), d1))->MarkAsCall();
+}
+
+
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  VisitBinop(this, node, kArm64Add32, kArithimeticImm, cont);
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  VisitBinop(this, node, kArm64Sub32, kArithimeticImm, cont);
 }
 
 
