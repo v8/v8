@@ -147,7 +147,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 static void VisitBinop(InstructionSelector* selector, Node* node,
                        ArchOpcode opcode, ImmediateMode operand_mode) {
   FlagsContinuation cont;
-  VisitBinop(selector, node, opcode, operand_mode);
+  VisitBinop(selector, node, opcode, operand_mode, &cont);
 }
 
 
@@ -247,7 +247,7 @@ void InstructionSelector::VisitStore(Node* node) {
   if (g.CanBeImmediate(index, kLoadStoreImm)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI), NULL,
          g.UseRegister(base), g.UseImmediate(index), val);
-  } else if (g.CanBeImmediate(index, kLoadStoreImm)) {
+  } else if (g.CanBeImmediate(base, kLoadStoreImm)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI), NULL,
          g.UseRegister(index), g.UseImmediate(base), val);
   } else {
