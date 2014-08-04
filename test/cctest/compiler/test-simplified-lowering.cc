@@ -372,7 +372,7 @@ TEST(RunLoadElementFromUntaggedBase) {
                  Smi::FromInt(4), Smi::FromInt(5)};
 
   for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {    // for header sizes
-    for (size_t j = i; j < ARRAY_SIZE(smis); j++) {  // for element index
+    for (size_t j = 0; (i + j) < ARRAY_SIZE(smis); j++) {  // for element index
       int offset = static_cast<int>(i * sizeof(Smi*));
       ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
                               kMachineTagged};
@@ -400,7 +400,7 @@ TEST(RunStoreElementFromUntaggedBase) {
                  Smi::FromInt(4), Smi::FromInt(5)};
 
   for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {    // for header sizes
-    for (size_t j = i; j < ARRAY_SIZE(smis); j++) {  // for element index
+    for (size_t j = 0; (i + j) < ARRAY_SIZE(smis); j++) {  // for element index
       int offset = static_cast<int>(i * sizeof(Smi*));
       ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
                               kMachineTagged};
@@ -420,6 +420,8 @@ TEST(RunStoreElementFromUntaggedBase) {
         CHECK_EQ(expected, t.Call(expected));
         CHECK_EQ(expected, smis[i + j]);
       }
+
+      // TODO(titzer): assert the contents of the array.
     }
   }
 }
