@@ -41,7 +41,7 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
     if (!use_value->operand_position(use_index).IsUnknown()) {
       new_value->set_position(use_value->operand_position(use_index));
     } else {
-      ASSERT(!FLAG_hydrogen_track_positions ||
+      DCHECK(!FLAG_hydrogen_track_positions ||
              !graph()->info()->IsOptimizing());
     }
   }
@@ -55,7 +55,7 @@ static bool IsNonDeoptingIntToSmiChange(HChange* change) {
   Representation from_rep = change->from();
   Representation to_rep = change->to();
   // Flags indicating Uint32 operations are set in a later Hydrogen phase.
-  ASSERT(!change->CheckFlag(HValue::kUint32));
+  DCHECK(!change->CheckFlag(HValue::kUint32));
   return from_rep.IsInteger32() && to_rep.IsSmi() && SmiValuesAre32Bits();
 }
 
@@ -93,7 +93,7 @@ void HRepresentationChangesPhase::InsertRepresentationChangesForValue(
     InsertRepresentationChangeForUse(value, use_value, use_index, req);
   }
   if (value->HasNoUses()) {
-    ASSERT(value->IsConstant() || value->IsForceRepresentation());
+    DCHECK(value->IsConstant() || value->IsForceRepresentation());
     value->DeleteAndReplaceWith(NULL);
   } else {
     // The only purpose of a HForceRepresentation is to represent the value

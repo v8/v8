@@ -180,12 +180,12 @@ class RecordWriteStub: public PlatformCodeStub {
 
   static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {
     masm->instr_at_put(pos, (masm->instr_at(pos) & ~B27) | (B24 | B20));
-    ASSERT(Assembler::IsTstImmediate(masm->instr_at(pos)));
+    DCHECK(Assembler::IsTstImmediate(masm->instr_at(pos)));
   }
 
   static void PatchNopIntoBranch(MacroAssembler* masm, int pos) {
     masm->instr_at_put(pos, (masm->instr_at(pos) & ~(B24 | B20)) | B27);
-    ASSERT(Assembler::IsBranch(masm->instr_at(pos)));
+    DCHECK(Assembler::IsBranch(masm->instr_at(pos)));
   }
 
   static Mode GetMode(Code* stub) {
@@ -197,13 +197,13 @@ class RecordWriteStub: public PlatformCodeStub {
       return INCREMENTAL;
     }
 
-    ASSERT(Assembler::IsTstImmediate(first_instruction));
+    DCHECK(Assembler::IsTstImmediate(first_instruction));
 
     if (Assembler::IsBranch(second_instruction)) {
       return INCREMENTAL_COMPACTION;
     }
 
-    ASSERT(Assembler::IsTstImmediate(second_instruction));
+    DCHECK(Assembler::IsTstImmediate(second_instruction));
 
     return STORE_BUFFER_ONLY;
   }
@@ -214,21 +214,21 @@ class RecordWriteStub: public PlatformCodeStub {
                         stub->instruction_size());
     switch (mode) {
       case STORE_BUFFER_ONLY:
-        ASSERT(GetMode(stub) == INCREMENTAL ||
+        DCHECK(GetMode(stub) == INCREMENTAL ||
                GetMode(stub) == INCREMENTAL_COMPACTION);
         PatchBranchIntoNop(&masm, 0);
         PatchBranchIntoNop(&masm, Assembler::kInstrSize);
         break;
       case INCREMENTAL:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         PatchNopIntoBranch(&masm, 0);
         break;
       case INCREMENTAL_COMPACTION:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         PatchNopIntoBranch(&masm, Assembler::kInstrSize);
         break;
     }
-    ASSERT(GetMode(stub) == mode);
+    DCHECK(GetMode(stub) == mode);
     CpuFeatures::FlushICache(stub->instruction_start(),
                              2 * Assembler::kInstrSize);
   }
@@ -245,12 +245,12 @@ class RecordWriteStub: public PlatformCodeStub {
         : object_(object),
           address_(address),
           scratch0_(scratch0) {
-      ASSERT(!AreAliased(scratch0, object, address, no_reg));
+      DCHECK(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegisterThatIsNotOneOf(object_, address_, scratch0_);
     }
 
     void Save(MacroAssembler* masm) {
-      ASSERT(!AreAliased(object_, address_, scratch1_, scratch0_));
+      DCHECK(!AreAliased(object_, address_, scratch1_, scratch0_));
       // We don't have to save scratch0_ because it was given to us as
       // a scratch register.
       masm->push(scratch1_);

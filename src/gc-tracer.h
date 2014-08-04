@@ -112,7 +112,7 @@ class GCTracer BASE_EMBEDDED {
     }
 
     ~Scope() {
-      ASSERT(scope_ < NUMBER_OF_SCOPES);  // scope_ is unsigned.
+      DCHECK(scope_ < NUMBER_OF_SCOPES);  // scope_ is unsigned.
       tracer_->current_.scopes[scope_] +=
           base::OS::TimeCurrentMillis() - start_time_;
     }

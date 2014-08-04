@@ -1683,26 +1683,26 @@ TEST(CanonicalizeCharacterSets) {
   list->Add(CharacterRange(30, 40), &zone);
   list->Add(CharacterRange(50, 60), &zone);
   set.Canonicalize();
-  ASSERT_EQ(3, list->length());
-  ASSERT_EQ(10, list->at(0).from());
-  ASSERT_EQ(20, list->at(0).to());
-  ASSERT_EQ(30, list->at(1).from());
-  ASSERT_EQ(40, list->at(1).to());
-  ASSERT_EQ(50, list->at(2).from());
-  ASSERT_EQ(60, list->at(2).to());
+  DCHECK_EQ(3, list->length());
+  DCHECK_EQ(10, list->at(0).from());
+  DCHECK_EQ(20, list->at(0).to());
+  DCHECK_EQ(30, list->at(1).from());
+  DCHECK_EQ(40, list->at(1).to());
+  DCHECK_EQ(50, list->at(2).from());
+  DCHECK_EQ(60, list->at(2).to());
 
   list->Rewind(0);
   list->Add(CharacterRange(10, 20), &zone);
   list->Add(CharacterRange(50, 60), &zone);
   list->Add(CharacterRange(30, 40), &zone);
   set.Canonicalize();
-  ASSERT_EQ(3, list->length());
-  ASSERT_EQ(10, list->at(0).from());
-  ASSERT_EQ(20, list->at(0).to());
-  ASSERT_EQ(30, list->at(1).from());
-  ASSERT_EQ(40, list->at(1).to());
-  ASSERT_EQ(50, list->at(2).from());
-  ASSERT_EQ(60, list->at(2).to());
+  DCHECK_EQ(3, list->length());
+  DCHECK_EQ(10, list->at(0).from());
+  DCHECK_EQ(20, list->at(0).to());
+  DCHECK_EQ(30, list->at(1).from());
+  DCHECK_EQ(40, list->at(1).to());
+  DCHECK_EQ(50, list->at(2).from());
+  DCHECK_EQ(60, list->at(2).to());
 
   list->Rewind(0);
   list->Add(CharacterRange(30, 40), &zone);
@@ -1711,26 +1711,26 @@ TEST(CanonicalizeCharacterSets) {
   list->Add(CharacterRange(100, 100), &zone);
   list->Add(CharacterRange(1, 1), &zone);
   set.Canonicalize();
-  ASSERT_EQ(5, list->length());
-  ASSERT_EQ(1, list->at(0).from());
-  ASSERT_EQ(1, list->at(0).to());
-  ASSERT_EQ(10, list->at(1).from());
-  ASSERT_EQ(20, list->at(1).to());
-  ASSERT_EQ(25, list->at(2).from());
-  ASSERT_EQ(25, list->at(2).to());
-  ASSERT_EQ(30, list->at(3).from());
-  ASSERT_EQ(40, list->at(3).to());
-  ASSERT_EQ(100, list->at(4).from());
-  ASSERT_EQ(100, list->at(4).to());
+  DCHECK_EQ(5, list->length());
+  DCHECK_EQ(1, list->at(0).from());
+  DCHECK_EQ(1, list->at(0).to());
+  DCHECK_EQ(10, list->at(1).from());
+  DCHECK_EQ(20, list->at(1).to());
+  DCHECK_EQ(25, list->at(2).from());
+  DCHECK_EQ(25, list->at(2).to());
+  DCHECK_EQ(30, list->at(3).from());
+  DCHECK_EQ(40, list->at(3).to());
+  DCHECK_EQ(100, list->at(4).from());
+  DCHECK_EQ(100, list->at(4).to());
 
   list->Rewind(0);
   list->Add(CharacterRange(10, 19), &zone);
   list->Add(CharacterRange(21, 30), &zone);
   list->Add(CharacterRange(20, 20), &zone);
   set.Canonicalize();
-  ASSERT_EQ(1, list->length());
-  ASSERT_EQ(10, list->at(0).from());
-  ASSERT_EQ(30, list->at(0).to());
+  DCHECK_EQ(1, list->length());
+  DCHECK_EQ(10, list->at(0).from());
+  DCHECK_EQ(30, list->at(0).to());
 }
 
 
@@ -1813,8 +1813,8 @@ TEST(CharacterRangeMerge) {
     offset += 9;
   }
 
-  ASSERT(CharacterRange::IsCanonical(&l1));
-  ASSERT(CharacterRange::IsCanonical(&l2));
+  DCHECK(CharacterRange::IsCanonical(&l1));
+  DCHECK(CharacterRange::IsCanonical(&l2));
 
   ZoneList<CharacterRange> first_only(4, &zone);
   ZoneList<CharacterRange> second_only(4, &zone);

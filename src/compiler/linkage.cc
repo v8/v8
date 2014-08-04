@@ -79,7 +79,7 @@ FrameOffset Linkage::GetFrameOffset(int spill_slot, Frame* frame, int extra) {
     return FrameOffset::FromFramePointer(offset);
   } else {
     // No frame. Retrieve all parameters relative to stack pointer.
-    ASSERT(spill_slot < 0);  // Must be a parameter.
+    DCHECK(spill_slot < 0);  // Must be a parameter.
     int register_save_area_size = frame->GetRegisterSaveAreaSize();
     int offset = register_save_area_size - (spill_slot + 1) * kPointerSize +
                  kPCOnStackSize + extra;

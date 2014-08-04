@@ -26,7 +26,7 @@ TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
     : native_context_(native_context),
       zone_(zone) {
   BuildDictionary(code);
-  ASSERT(dictionary_->IsDictionary());
+  DCHECK(dictionary_->IsDictionary());
   // We make a copy of the feedback vector because a GC could clear
   // the type feedback info contained therein.
   // TODO(mvstanton): revisit the decision to copy when we weakly
@@ -56,7 +56,7 @@ Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
 
 
 Handle<Object> TypeFeedbackOracle::GetInfo(int slot) {
-  ASSERT(slot >= 0 && slot < feedback_vector_->length());
+  DCHECK(slot >= 0 && slot < feedback_vector_->length());
   Object* obj = feedback_vector_->get(slot);
   if (!obj->IsJSFunction() ||
       !CanRetainOtherContext(JSFunction::cast(obj), *native_context_)) {
@@ -146,7 +146,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(int slot) {
     return Handle<JSFunction>::cast(info);
   }
 
-  ASSERT(info->IsAllocationSite());
+  DCHECK(info->IsAllocationSite());
   return Handle<JSFunction>(isolate()->native_context()->array_function());
 }
 
@@ -218,7 +218,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   if (!object->IsCode()) {
     // For some binary ops we don't have ICs, e.g. Token::COMMA, but for the
     // operations covered by the BinaryOpIC we should always have them.
-    ASSERT(op < BinaryOpIC::State::FIRST_TOKEN ||
+    DCHECK(op < BinaryOpIC::State::FIRST_TOKEN ||
            op > BinaryOpIC::State::LAST_TOKEN);
     *left = *right = *result = Type::None(zone());
     *fixed_right_arg = Maybe<int>();
@@ -226,9 +226,9 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
     return;
   }
   Handle<Code> code = Handle<Code>::cast(object);
-  ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
+  DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpIC::State state(isolate(), code->extra_ic_state());
-  ASSERT_EQ(op, state.op());
+  DCHECK_EQ(op, state.op());
 
   *left = state.GetLeftType(zone());
   *right = state.GetRightType(zone());
@@ -248,7 +248,7 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
   if (!object->IsCode()) return Type::None(zone());
   Handle<Code> code = Handle<Code>::cast(object);
-  ASSERT_EQ(Code::BINARY_OP_IC, code->kind());
+  DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpIC::State state(isolate(), code->extra_ic_state());
   return state.GetLeftType(zone());
 }
@@ -306,7 +306,7 @@ void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
   Handle<Object> object = GetInfo(ast_id);
   if (object->IsUndefined() || object->IsSmi()) return;
 
-  ASSERT(object->IsCode());
+  DCHECK(object->IsCode());
   Handle<Code> code(Handle<Code>::cast(object));
 
   if (FLAG_collect_megamorphic_maps_from_stub_cache &&
@@ -457,7 +457,7 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
 
 
 void TypeFeedbackOracle::SetInfo(TypeFeedbackId ast_id, Object* target) {
-  ASSERT(dictionary_->FindEntry(IdToKey(ast_id)) ==
+  DCHECK(dictionary_->FindEntry(IdToKey(ast_id)) ==
          UnseededNumberDictionary::kNotFound);
   // Dictionary has been allocated with sufficient size for all elements.
   DisallowHeapAllocation no_need_to_resize_dictionary;

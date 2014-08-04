@@ -236,7 +236,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeEntry(
 template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
     Heap* heap, RelocInfo* rinfo) {
-  ASSERT(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
+  DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
   HeapObject* object = HeapObject::cast(rinfo->target_object());
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, object);
   // TODO(ulan): It could be better to record slots only for strongly embedded
@@ -251,7 +251,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitEmbeddedPointer(
 template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitCell(
     Heap* heap, RelocInfo* rinfo) {
-  ASSERT(rinfo->rmode() == RelocInfo::CELL);
+  DCHECK(rinfo->rmode() == RelocInfo::CELL);
   Cell* cell = rinfo->target_cell();
   // No need to record slots because the cell space is not compacted during GC.
   if (!rinfo->host()->IsWeakObject(cell)) {
@@ -263,7 +263,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCell(
 template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitDebugTarget(
     Heap* heap, RelocInfo* rinfo) {
-  ASSERT((RelocInfo::IsJSReturn(rinfo->rmode()) &&
+  DCHECK((RelocInfo::IsJSReturn(rinfo->rmode()) &&
           rinfo->IsPatchedReturnSequence()) ||
          (RelocInfo::IsDebugBreakSlot(rinfo->rmode()) &&
           rinfo->IsPatchedDebugBreakSlotSequence()));
@@ -276,7 +276,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitDebugTarget(
 template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
     Heap* heap, RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
+  DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
   Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   // Monomorphic ICs are preserved when possible, but need to be flushed
   // when they might be keeping a Context alive, or when the heap is about
@@ -298,9 +298,9 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(
 template<typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitCodeAgeSequence(
     Heap* heap, RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
+  DCHECK(RelocInfo::IsCodeAgeSequence(rinfo->rmode()));
   Code* target = rinfo->code_age_stub();
-  ASSERT(target != NULL);
+  DCHECK(target != NULL);
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
   StaticVisitor::MarkObject(heap, target);
 }

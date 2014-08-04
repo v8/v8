@@ -94,7 +94,7 @@ class StructuredMachineAssembler
   virtual Node* MakeNode(Operator* op, int input_count, Node** inputs);
 
   Schedule* schedule() {
-    ASSERT(ScheduleValid());
+    DCHECK(ScheduleValid());
     return schedule_;
   }
 
@@ -182,12 +182,12 @@ class StructuredMachineAssembler::IfBuilder {
   void And();
   void Or();
   IfBuilder& OpenParen() {
-    ASSERT(smasm_->current_environment_ != NULL);
+    DCHECK(smasm_->current_environment_ != NULL);
     CurrentClause()->PushNewExpressionState();
     return *this;
   }
   IfBuilder& CloseParen() {
-    ASSERT(smasm_->current_environment_ == NULL);
+    DCHECK(smasm_->current_environment_ == NULL);
     CurrentClause()->PopExpressionState();
     return *this;
   }

@@ -76,7 +76,7 @@ class IC {
 
   bool IsNameCompatibleWithPrototypeFailure(Handle<Object> name);
   void MarkPrototypeFailure(Handle<Object> name) {
-    ASSERT(IsNameCompatibleWithPrototypeFailure(name));
+    DCHECK(IsNameCompatibleWithPrototypeFailure(name));
     state_ = PROTOTYPE_FAILURE;
   }
 
@@ -212,7 +212,7 @@ class IC {
   Code::Kind kind() const { return kind_; }
   Code::Kind handler_kind() const {
     if (kind_ == Code::KEYED_LOAD_IC) return Code::LOAD_IC;
-    ASSERT(kind_ == Code::LOAD_IC || kind_ == Code::STORE_IC ||
+    DCHECK(kind_ == Code::LOAD_IC || kind_ == Code::STORE_IC ||
            kind_ == Code::KEYED_STORE_IC);
     return kind_;
   }
@@ -433,7 +433,7 @@ class LoadIC: public IC {
 
   explicit LoadIC(FrameDepth depth, Isolate* isolate)
       : IC(depth, isolate) {
-    ASSERT(IsLoadStub());
+    DCHECK(IsLoadStub());
   }
 
   // Returns if this IC is for contextual (no explicit receiver)
@@ -442,7 +442,7 @@ class LoadIC: public IC {
     if (receiver->IsGlobalObject()) {
       return contextual_mode() == CONTEXTUAL;
     } else {
-      ASSERT(contextual_mode() != CONTEXTUAL);
+      DCHECK(contextual_mode() != CONTEXTUAL);
       return false;
     }
   }
@@ -466,7 +466,7 @@ class LoadIC: public IC {
  protected:
   void set_target(Code* code) {
     // The contextual mode must be preserved across IC patching.
-    ASSERT(GetContextualMode(code->extra_ic_state()) ==
+    DCHECK(GetContextualMode(code->extra_ic_state()) ==
            GetContextualMode(target()->extra_ic_state()));
 
     IC::set_target(code);
@@ -476,7 +476,7 @@ class LoadIC: public IC {
     if (kind() == Code::LOAD_IC) {
       return isolate()->builtins()->LoadIC_Slow();
     } else {
-      ASSERT_EQ(Code::KEYED_LOAD_IC, kind());
+      DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
       return isolate()->builtins()->KeyedLoadIC_Slow();
     }
   }
@@ -514,7 +514,7 @@ class KeyedLoadIC: public LoadIC {
  public:
   explicit KeyedLoadIC(FrameDepth depth, Isolate* isolate)
       : LoadIC(depth, isolate) {
-    ASSERT(target()->is_keyed_load_stub());
+    DCHECK(target()->is_keyed_load_stub());
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
@@ -596,7 +596,7 @@ class StoreIC: public IC {
 
   StoreIC(FrameDepth depth, Isolate* isolate)
       : IC(depth, isolate) {
-    ASSERT(IsStoreStub());
+    DCHECK(IsStoreStub());
   }
 
   StrictMode strict_mode() const {
@@ -657,7 +657,7 @@ class StoreIC: public IC {
  private:
   void set_target(Code* code) {
     // Strict mode must be preserved across IC patching.
-    ASSERT(GetStrictMode(code->extra_ic_state()) ==
+    DCHECK(GetStrictMode(code->extra_ic_state()) ==
            GetStrictMode(target()->extra_ic_state()));
     IC::set_target(code);
   }
@@ -708,7 +708,7 @@ class KeyedStoreIC: public StoreIC {
 
   KeyedStoreIC(FrameDepth depth, Isolate* isolate)
       : StoreIC(depth, isolate) {
-    ASSERT(target()->is_keyed_store_stub());
+    DCHECK(target()->is_keyed_store_stub());
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
@@ -756,7 +756,7 @@ class KeyedStoreIC: public StoreIC {
  private:
   void set_target(Code* code) {
     // Strict mode must be preserved across IC patching.
-    ASSERT(GetStrictMode(code->extra_ic_state()) == strict_mode());
+    DCHECK(GetStrictMode(code->extra_ic_state()) == strict_mode());
     IC::set_target(code);
   }
 
@@ -802,8 +802,8 @@ class BinaryOpIC: public IC {
     State(Isolate* isolate, Token::Value op, OverwriteMode mode)
         : op_(op), mode_(mode), left_kind_(NONE), right_kind_(NONE),
           result_kind_(NONE), isolate_(isolate) {
-      ASSERT_LE(FIRST_TOKEN, op);
-      ASSERT_LE(op, LAST_TOKEN);
+      DCHECK_LE(FIRST_TOKEN, op);
+      DCHECK_LE(op, LAST_TOKEN);
     }
 
     InlineCacheState GetICState() const {
@@ -835,7 +835,7 @@ class BinaryOpIC: public IC {
     // Returns true if the IC _could_ create allocation mementos.
     bool CouldCreateAllocationMementos() const {
       if (left_kind_ == STRING || right_kind_ == STRING) {
-        ASSERT_EQ(Token::ADD, op_);
+        DCHECK_EQ(Token::ADD, op_);
         return true;
       }
       return false;

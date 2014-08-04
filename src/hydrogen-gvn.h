@@ -24,7 +24,7 @@ class SideEffects V8_FINAL {
   static const int kNumberOfSpecials = 64 - kNumberOfFlags;
 
   SideEffects() : bits_(0) {
-    ASSERT(kNumberOfFlags + kNumberOfSpecials == sizeof(bits_) * CHAR_BIT);
+    DCHECK(kNumberOfFlags + kNumberOfSpecials == sizeof(bits_) * CHAR_BIT);
   }
   explicit SideEffects(GVNFlagSet flags) : bits_(flags.ToIntegral()) {}
   bool IsEmpty() const { return bits_ == 0; }
@@ -46,8 +46,8 @@ class SideEffects V8_FINAL {
     return static_cast<uint64_t>(1) << static_cast<unsigned>(flag);
   }
   uint64_t MaskSpecial(int special) const {
-    ASSERT(special >= 0);
-    ASSERT(special < kNumberOfSpecials);
+    DCHECK(special >= 0);
+    DCHECK(special < kNumberOfSpecials);
     return static_cast<uint64_t>(1) << static_cast<unsigned>(
         special + kNumberOfFlags);
   }
@@ -75,13 +75,13 @@ class SideEffectsTracker V8_FINAL BASE_EMBEDDED {
   bool ComputeInobjectField(HObjectAccess access, int* index);
 
   static int GlobalVar(int index) {
-    ASSERT(index >= 0);
-    ASSERT(index < kNumberOfGlobalVars);
+    DCHECK(index >= 0);
+    DCHECK(index < kNumberOfGlobalVars);
     return index;
   }
   static int InobjectField(int index) {
-    ASSERT(index >= 0);
-    ASSERT(index < kNumberOfInobjectFields);
+    DCHECK(index >= 0);
+    DCHECK(index < kNumberOfInobjectFields);
     return index + kNumberOfGlobalVars;
   }
 

@@ -31,7 +31,7 @@ class PhiReducer V8_FINAL : public Reducer {
         replacement = input;
       }
     }
-    ASSERT_NE(node, replacement);
+    DCHECK_NE(node, replacement);
     return Replace(replacement);
   }
 };

@@ -127,12 +127,12 @@ class CommonOperatorBuilder {
         IrOpcode::kHeapConstant, Operator::kPure, 0, 1, "HeapConstant", value);
   }
   Operator* Phi(int arguments) {
-    ASSERT(arguments > 0);  // Disallow empty phis.
+    DCHECK(arguments > 0);  // Disallow empty phis.
     return new (zone_) Operator1<int>(IrOpcode::kPhi, Operator::kPure,
                                       arguments, 1, "Phi", arguments);
   }
   Operator* EffectPhi(int arguments) {
-    ASSERT(arguments > 0);  // Disallow empty phis.
+    DCHECK(arguments > 0);  // Disallow empty phis.
     return new (zone_) Operator1<int>(IrOpcode::kEffectPhi, Operator::kPure, 0,
                                       0, "EffectPhi", arguments);
   }

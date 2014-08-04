@@ -21,7 +21,7 @@ LGapResolver::LGapResolver(LCodeGen* owner)
 
 
 void LGapResolver::Resolve(LParallelMove* parallel_move) {
-  ASSERT(HasBeenReset());
+  DCHECK(HasBeenReset());
   // Build up a worklist of moves.
   BuildInitialMoveList(parallel_move);
 
@@ -38,13 +38,13 @@ void LGapResolver::Resolve(LParallelMove* parallel_move) {
   // Perform the moves with constant sources.
   for (int i = 0; i < moves_.length(); ++i) {
     if (!moves_[i].IsEliminated()) {
-      ASSERT(moves_[i].source()->IsConstantOperand());
+      DCHECK(moves_[i].source()->IsConstantOperand());
       EmitMove(i);
     }
   }
 
   Finish();
-  ASSERT(HasBeenReset());
+  DCHECK(HasBeenReset());
 }
 
 
@@ -70,12 +70,12 @@ void LGapResolver::PerformMove(int index) {
   // which means that a call to PerformMove could change any source operand
   // in the move graph.
 
-  ASSERT(!moves_[index].IsPending());
-  ASSERT(!moves_[index].IsRedundant());
+  DCHECK(!moves_[index].IsPending());
+  DCHECK(!moves_[index].IsRedundant());
 
   // Clear this move's destination to indicate a pending move.  The actual
   // destination is saved on the side.
-  ASSERT(moves_[index].source() != NULL);  // Or else it will look eliminated.
+  DCHECK(moves_[index].source() != NULL);  // Or else it will look eliminated.
   LOperand* destination = moves_[index].destination();
   moves_[index].set_destination(NULL);
 
@@ -116,7 +116,7 @@ void LGapResolver::PerformMove(int index) {
   for (int i = 0; i < moves_.length(); ++i) {
     LMoveOperands other_move = moves_[i];
     if (other_move.Blocks(destination)) {
-      ASSERT(other_move.IsPending());
+      DCHECK(other_move.IsPending());
       EmitSwap(index);
       return;
     }
@@ -142,13 +142,13 @@ void LGapResolver::RemoveMove(int index) {
   LOperand* source = moves_[index].source();
   if (source->IsRegister()) {
     --source_uses_[source->index()];
-    ASSERT(source_uses_[source->index()] >= 0);
+    DCHECK(source_uses_[source->index()] >= 0);
   }
 
   LOperand* destination = moves_[index].destination();
   if (destination->IsRegister()) {
     --destination_uses_[destination->index()];
-    ASSERT(destination_uses_[destination->index()] >= 0);
+    DCHECK(destination_uses_[destination->index()] >= 0);
   }
 
   moves_[index].Eliminate();
@@ -190,12 +190,12 @@ bool LGapResolver::HasBeenReset() {
 
 
 void LGapResolver::Verify() {
-#ifdef ENABLE_SLOW_ASSERTS
+#ifdef ENABLE_SLOW_DCHECKS
   // No operand should be the destination for more than one move.
   for (int i = 0; i < moves_.length(); ++i) {
     LOperand* destination = moves_[i].destination();
     for (int j = i + 1; j < moves_.length(); ++j) {
-      SLOW_ASSERT(!destination->Equals(moves_[j].destination()));
+      SLOW_DCHECK(!destination->Equals(moves_[j].destination()));
     }
   }
 #endif
@@ -259,13 +259,13 @@ void LGapResolver::EmitMove(int index) {
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Register src = cgen_->ToRegister(source);
     Operand dst = cgen_->ToOperand(destination);
     __ mov(dst, src);
 
   } else if (source->IsStackSlot()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Operand src = cgen_->ToOperand(source);
     if (destination->IsRegister()) {
       Register dst = cgen_->ToRegister(destination);
@@ -305,7 +305,7 @@ void LGapResolver::EmitMove(int index) {
         __ add(esp, Immediate(kDoubleSize));
       }
     } else {
-      ASSERT(destination->IsStackSlot());
+      DCHECK(destination->IsStackSlot());
       Operand dst = cgen_->ToOperand(destination);
       Representation r = cgen_->IsSmi(constant_source)
           ? Representation::Smi() : Representation::Integer32();
@@ -324,12 +324,12 @@ void LGapResolver::EmitMove(int index) {
       XMMRegister dst = cgen_->ToDoubleRegister(destination);
       __ movaps(dst, src);
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       Operand dst = cgen_->ToOperand(destination);
       __ movsd(dst, src);
     }
   } else if (source->IsDoubleStackSlot()) {
-    ASSERT(destination->IsDoubleRegister() ||
+    DCHECK(destination->IsDoubleRegister() ||
            destination->IsDoubleStackSlot());
     Operand src = cgen_->ToOperand(source);
     if (destination->IsDoubleRegister()) {
@@ -414,7 +414,7 @@ void LGapResolver::EmitSwap(int index) {
   } else if (source->IsDoubleRegister() || destination->IsDoubleRegister()) {
     // XMM register-memory swap.  We rely on having xmm0
     // available as a fixed scratch register.
-    ASSERT(source->IsDoubleStackSlot() || destination->IsDoubleStackSlot());
+    DCHECK(source->IsDoubleStackSlot() || destination->IsDoubleStackSlot());
     XMMRegister reg = cgen_->ToDoubleRegister(source->IsDoubleRegister()
                                               ? source
                                               : destination);

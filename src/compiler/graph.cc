@@ -24,7 +24,7 @@ Graph::Graph(Zone* zone)
 
 
 Node* Graph::NewNode(Operator* op, int input_count, Node** inputs) {
-  ASSERT(op->InputCount() <= input_count);
+  DCHECK(op->InputCount() <= input_count);
   Node* result = Node::New(this, input_count, inputs);
   result->Initialize(op);
   for (DecoratorVector::iterator i = decorators_.begin();
@@ -42,7 +42,7 @@ void Graph::DeleteNode(Node* node) {
 #if DEBUG
   // Nodes can't be deleted if they have uses.
   Node::Uses::iterator use_iterator(node->uses().begin());
-  ASSERT(use_iterator == node->uses().end());
+  DCHECK(use_iterator == node->uses().end());
 #endif
 
 #if DEBUG

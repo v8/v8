@@ -94,12 +94,12 @@ void ExternalReferenceTable::Add(Address address,
                                  TypeCode type,
                                  uint16_t id,
                                  const char* name) {
-  ASSERT_NE(NULL, address);
+  DCHECK_NE(NULL, address);
   ExternalReferenceEntry entry;
   entry.address = address;
   entry.code = EncodeExternal(type, id);
   entry.name = name;
-  ASSERT_NE(0, entry.code);
+  DCHECK_NE(0, entry.code);
   refs_.Add(entry);
   if (id > max_id_[type]) max_id_[type] = id;
 }
@@ -554,7 +554,7 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate)
 
 uint32_t ExternalReferenceEncoder::Encode(Address key) const {
   int index = IndexOf(key);
-  ASSERT(key == NULL || index >= 0);
+  DCHECK(key == NULL || index >= 0);
   return index >= 0 ?
          ExternalReferenceTable::instance(isolate_)->code(index) : 0;
 }
@@ -666,11 +666,11 @@ class CodeAddressMap: public CodeEventLogger {
     void Move(Address from, Address to) {
       if (from == to) return;
       HashMap::Entry* from_entry = FindEntry(from);
-      ASSERT(from_entry != NULL);
+      DCHECK(from_entry != NULL);
       void* value = from_entry->value;
       RemoveEntry(from_entry);
       HashMap::Entry* to_entry = FindOrCreateEntry(to);
-      ASSERT(to_entry->value == NULL);
+      DCHECK(to_entry->value == NULL);
       to_entry->value = value;
     }
 
@@ -739,13 +739,13 @@ void Deserializer::FlushICacheForNewCodeObjects() {
 
 void Deserializer::Deserialize(Isolate* isolate) {
   isolate_ = isolate;
-  ASSERT(isolate_ != NULL);
+  DCHECK(isolate_ != NULL);
   isolate_->heap()->ReserveSpace(reservations_, &high_water_[0]);
   // No active threads.
-  ASSERT_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
+  DCHECK_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
-  ASSERT(isolate_->handle_scope_implementer()->blocks()->is_empty());
-  ASSERT_EQ(NULL, external_reference_decoder_);
+  DCHECK(isolate_->handle_scope_implementer()->blocks()->is_empty());
+  DCHECK_EQ(NULL, external_reference_decoder_);
   external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
   isolate_->heap()->IterateSmiRoots(this);
   isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
@@ -785,7 +785,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
 void Deserializer::DeserializePartial(Isolate* isolate, Object** root) {
   isolate_ = isolate;
   for (int i = NEW_SPACE; i < kNumberOfSpaces; i++) {
-    ASSERT(reservations_[i] != kUninitializedReservation);
+    DCHECK(reservations_[i] != kUninitializedReservation);
   }
   isolate_->heap()->ReserveSpace(reservations_, &high_water_[0]);
   if (external_reference_decoder_ == NULL) {
@@ -809,7 +809,7 @@ void Deserializer::DeserializePartial(Isolate* isolate, Object** root) {
 
 Deserializer::~Deserializer() {
   // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
-  // ASSERT(source_->AtEOF());
+  // DCHECK(source_->AtEOF());
   if (external_reference_decoder_) {
     delete external_reference_decoder_;
     external_reference_decoder_ = NULL;
@@ -842,7 +842,7 @@ class StringTableInsertionKey : public HashTableKey {
  public:
   explicit StringTableInsertionKey(String* string)
       : string_(string), hash_(HashForObject(string)) {
-    ASSERT(string->IsInternalizedString());
+    DCHECK(string->IsInternalizedString());
   }
 
   virtual bool IsMatch(Object* string) {
@@ -924,7 +924,7 @@ void Deserializer::ReadObject(int space_number,
   *write_back = obj;
 #ifdef DEBUG
   bool is_codespace = (space_number == CODE_SPACE);
-  ASSERT(obj->IsCode() == is_codespace);
+  DCHECK(obj->IsCode() == is_codespace);
 #endif
 }
 
@@ -988,20 +988,20 @@ void Deserializer::ReadChunk(Object** current,
           new_object = ProcessBackRefInSerializedCode(new_object);             \
         }                                                                      \
       } else if (where == kBuiltin) {                                          \
-        ASSERT(deserializing_user_code());                                     \
+        DCHECK(deserializing_user_code());                                     \
         int builtin_id = source_->GetInt();                                    \
-        ASSERT_LE(0, builtin_id);                                              \
-        ASSERT_LT(builtin_id, Builtins::builtin_count);                        \
+        DCHECK_LE(0, builtin_id);                                              \
+        DCHECK_LT(builtin_id, Builtins::builtin_count);                        \
         Builtins::Name name = static_cast<Builtins::Name>(builtin_id);         \
         new_object = isolate->builtins()->builtin(name);                       \
         emit_write_barrier = false;                                            \
       } else if (where == kAttachedReference) {                                \
-        ASSERT(deserializing_user_code());                                     \
+        DCHECK(deserializing_user_code());                                     \
         int index = source_->GetInt();                                         \
         new_object = attached_objects_->at(index);                             \
         emit_write_barrier = isolate->heap()->InNewSpace(new_object);          \
       } else {                                                                 \
-        ASSERT(where == kBackrefWithSkip);                                     \
+        DCHECK(where == kBackrefWithSkip);                                     \
         int skip = source_->GetInt();                                          \
         current = reinterpret_cast<Object**>(                                  \
             reinterpret_cast<Address>(current) + skip);                        \
@@ -1017,7 +1017,7 @@ void Deserializer::ReadChunk(Object** current,
           new_object =                                                         \
               reinterpret_cast<Object*>(new_code_object->instruction_start()); \
         } else {                                                               \
-          ASSERT(space_number == CODE_SPACE);                                  \
+          DCHECK(space_number == CODE_SPACE);                                  \
           Cell* cell = Cell::cast(new_object);                                 \
           new_object = reinterpret_cast<Object*>(cell->ValueAddress());        \
         }                                                                      \
@@ -1132,7 +1132,7 @@ void Deserializer::ReadChunk(Object** current,
       SIXTEEN_CASES(kRootArrayConstants + kNoSkipDistance + 16) {
         int root_id = RootArrayConstantFromByteCode(data);
         Object* object = isolate->heap()->roots_array_start()[root_id];
-        ASSERT(!isolate->heap()->InNewSpace(object));
+        DCHECK(!isolate->heap()->InNewSpace(object));
         *current++ = object;
         break;
       }
@@ -1144,7 +1144,7 @@ void Deserializer::ReadChunk(Object** current,
         current = reinterpret_cast<Object**>(
             reinterpret_cast<intptr_t>(current) + skip);
         Object* object = isolate->heap()->roots_array_start()[root_id];
-        ASSERT(!isolate->heap()->InNewSpace(object));
+        DCHECK(!isolate->heap()->InNewSpace(object));
         *current++ = object;
         break;
       }
@@ -1152,7 +1152,7 @@ void Deserializer::ReadChunk(Object** current,
       case kRepeat: {
         int repeats = source_->GetInt();
         Object* object = current[-1];
-        ASSERT(!isolate->heap()->InNewSpace(object));
+        DCHECK(!isolate->heap()->InNewSpace(object));
         for (int i = 0; i < repeats; i++) current[i] = object;
         current += repeats;
         break;
@@ -1167,7 +1167,7 @@ void Deserializer::ReadChunk(Object** current,
       FOUR_CASES(kConstantRepeat + 9) {
         int repeats = RepeatsForCode(data);
         Object* object = current[-1];
-        ASSERT(!isolate->heap()->InNewSpace(object));
+        DCHECK(!isolate->heap()->InNewSpace(object));
         for (int i = 0; i < repeats; i++) current[i] = object;
         current += repeats;
         break;
@@ -1284,7 +1284,7 @@ void Deserializer::ReadChunk(Object** current,
         UNREACHABLE();
     }
   }
-  ASSERT_EQ(limit, current);
+  DCHECK_EQ(limit, current);
 }
 
 
@@ -1406,7 +1406,7 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
   startup_serializer_->VisitPointer(reinterpret_cast<Object**>(&heap_object));
   // We don't recurse from the startup snapshot generator into the partial
   // snapshot generator.
-  ASSERT(length == isolate->serialize_partial_snapshot_cache_length() - 1);
+  DCHECK(length == isolate->serialize_partial_snapshot_cache_length() - 1);
   return length;
 }
 
@@ -1548,7 +1548,7 @@ void PartialSerializer::SerializeObject(
   if (heap_object->IsMap()) {
     // The code-caches link to context-specific code objects, which
     // the startup and context serializes cannot currently handle.
-    ASSERT(Map::cast(heap_object)->code_cache() ==
+    DCHECK(Map::cast(heap_object)->code_cache() ==
            heap_object->GetHeap()->empty_fixed_array());
   }
 
@@ -1574,10 +1574,10 @@ void PartialSerializer::SerializeObject(
   // Pointers from the partial snapshot to the objects in the startup snapshot
   // should go through the root array or through the partial snapshot cache.
   // If this is not the case you may have to add something to the root array.
-  ASSERT(!startup_serializer_->address_mapper()->IsMapped(heap_object));
+  DCHECK(!startup_serializer_->address_mapper()->IsMapped(heap_object));
   // All the internalized strings that the partial snapshot needs should be
   // either in the root table or in the partial snapshot cache.
-  ASSERT(!heap_object->IsInternalizedString());
+  DCHECK(!heap_object->IsInternalizedString());
 
   if (address_mapper_.IsMapped(heap_object)) {
     int space = SpaceOfObject(heap_object);
@@ -1652,7 +1652,7 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
           root_index != kInvalidRootIndex &&
           root_index < kRootArrayNumberOfConstantEncodings &&
           current_contents == current[-1]) {
-        ASSERT(!serializer_->isolate()->heap()->InNewSpace(current_contents));
+        DCHECK(!serializer_->isolate()->heap()->InNewSpace(current_contents));
         int repeat_count = 1;
         while (current < end - 1 && current[repeat_count] == current_contents) {
           repeat_count++;
@@ -1810,7 +1810,7 @@ int Serializer::ObjectSerializer::OutputRawData(
   bytes_processed_so_far_ += to_skip;
   // This assert will fail if the reloc info gives us the target_address_address
   // locations in a non-ascending order.  Luckily that doesn't happen.
-  ASSERT(to_skip >= 0);
+  DCHECK(to_skip >= 0);
   bool outputting_code = false;
   if (to_skip != 0 && code_object_ && !code_has_been_output_) {
     // Output the code all at once and fix later.
@@ -1863,7 +1863,7 @@ int Serializer::SpaceOfObject(HeapObject* object) {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     AllocationSpace s = static_cast<AllocationSpace>(i);
     if (object->GetHeap()->InSpace(object, s)) {
-      ASSERT(i < kNumberOfSpaces);
+      DCHECK(i < kNumberOfSpaces);
       return i;
     }
   }
@@ -1928,7 +1928,7 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
 
   // The code-caches link to context-specific code objects, which
   // the startup and context serializes cannot currently handle.
-  ASSERT(!heap_object->IsMap() ||
+  DCHECK(!heap_object->IsMap() ||
          Map::cast(heap_object)->code_cache() ==
              heap_object->GetHeap()->empty_fixed_array());
 
@@ -1941,7 +1941,7 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
   // TODO(yangguo) wire up stubs from stub cache.
   // TODO(yangguo) wire up global object.
   // TODO(yangguo) We cannot deal with different hash seeds yet.
-  ASSERT(!heap_object->IsHashTable());
+  DCHECK(!heap_object->IsHashTable());
 
   if (address_mapper_.IsMapped(heap_object)) {
     int space = SpaceOfObject(heap_object);
@@ -1990,11 +1990,11 @@ void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
     sink_->PutInt(skip, "SkipDistanceFromSerializeBuiltin");
   }
 
-  ASSERT((how_to_code == kPlain && where_to_point == kStartOfObject) ||
+  DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
   int builtin_index = builtin->builtin_index();
-  ASSERT_LT(builtin_index, Builtins::builtin_count);
-  ASSERT_LE(0, builtin_index);
+  DCHECK_LT(builtin_index, Builtins::builtin_count);
+  DCHECK_LE(0, builtin_index);
   sink_->Put(kBuiltin + how_to_code + where_to_point, "Builtin");
   sink_->PutInt(builtin_index, "builtin_index");
 }
@@ -2008,7 +2008,7 @@ void CodeSerializer::SerializeSourceObject(HowToCode how_to_code,
     sink_->PutInt(skip, "SkipDistanceFromSerializeSourceObject");
   }
 
-  ASSERT(how_to_code == kPlain && where_to_point == kStartOfObject);
+  DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
   sink_->Put(kAttachedReference + how_to_code + where_to_point, "Source");
   sink_->PutInt(kSourceObjectIndex, "kSourceObjectIndex");
 }
@@ -2049,7 +2049,7 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
   DisallowHeapAllocation no_gc;
   int data_length = payload->length() + kHeaderEntries * kIntSize;
   byte* data = NewArray<byte>(data_length);
-  ASSERT(IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment));
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment));
   CopyBytes(data + kHeaderEntries * kIntSize, payload->begin(),
             static_cast<size_t>(payload->length()));
   script_data_ = new ScriptData(data, data_length);

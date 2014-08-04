@@ -203,22 +203,22 @@ class AstGraphBuilder::Environment
   // Operations on parameter or local variables. The parameter indices are
   // shifted by 1 (receiver is parameter index -1 but environment index 0).
   void Bind(Variable* variable, Node* node) {
-    ASSERT(variable->IsStackAllocated());
+    DCHECK(variable->IsStackAllocated());
     if (variable->IsParameter()) {
       values()->at(variable->index() + 1) = node;
       parameters_dirty_ = true;
     } else {
-      ASSERT(variable->IsStackLocal());
+      DCHECK(variable->IsStackLocal());
       values()->at(variable->index() + parameters_count_) = node;
       locals_dirty_ = true;
     }
   }
   Node* Lookup(Variable* variable) {
-    ASSERT(variable->IsStackAllocated());
+    DCHECK(variable->IsStackAllocated());
     if (variable->IsParameter()) {
       return values()->at(variable->index() + 1);
     } else {
-      ASSERT(variable->IsStackLocal());
+      DCHECK(variable->IsStackLocal());
       return values()->at(variable->index() + parameters_count_);
     }
   }
@@ -229,11 +229,11 @@ class AstGraphBuilder::Environment
     stack_dirty_ = true;
   }
   Node* Top() {
-    ASSERT(stack_height() > 0);
+    DCHECK(stack_height() > 0);
     return values()->back();
   }
   Node* Pop() {
-    ASSERT(stack_height() > 0);
+    DCHECK(stack_height() > 0);
     Node* back = values()->back();
     values()->pop_back();
     return back;
@@ -241,17 +241,17 @@ class AstGraphBuilder::Environment
 
   // Direct mutations of the operand stack.
   void Poke(int depth, Node* node) {
-    ASSERT(depth >= 0 && depth < stack_height());
+    DCHECK(depth >= 0 && depth < stack_height());
     int index = static_cast<int>(values()->size()) - depth - 1;
     values()->at(index) = node;
   }
   Node* Peek(int depth) {
-    ASSERT(depth >= 0 && depth < stack_height());
+    DCHECK(depth >= 0 && depth < stack_height());
     int index = static_cast<int>(values()->size()) - depth - 1;
     return values()->at(index);
   }
   void Drop(int depth) {
-    ASSERT(depth >= 0 && depth <= stack_height());
+    DCHECK(depth >= 0 && depth <= stack_height());
     values()->erase(values()->end() - depth, values()->end());
   }
 

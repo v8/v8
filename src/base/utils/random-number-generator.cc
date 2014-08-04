@@ -45,9 +45,9 @@ RandomNumberGenerator::RandomNumberGenerator() {
   // https://code.google.com/p/v8/issues/detail?id=2905
   unsigned first_half, second_half;
   errno_t result = rand_s(&first_half);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = rand_s(&second_half);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   SetSeed((static_cast<int64_t>(first_half) << 32) + second_half);
 #else
   // Gather entropy from /dev/urandom if available.
@@ -79,7 +79,7 @@ RandomNumberGenerator::RandomNumberGenerator() {
 
 
 int RandomNumberGenerator::NextInt(int max) {
-  ASSERT_LE(0, max);
+  DCHECK_LE(0, max);
 
   // Fast path if max is a power of 2.
   if (IS_POWER_OF_TWO(max)) {
@@ -110,8 +110,8 @@ void RandomNumberGenerator::NextBytes(void* buffer, size_t buflen) {
 
 
 int RandomNumberGenerator::Next(int bits) {
-  ASSERT_LT(0, bits);
-  ASSERT_GE(32, bits);
+  DCHECK_LT(0, bits);
+  DCHECK_GE(32, bits);
   // Do unsigned multiplication, which has the intended modulo semantics, while
   // signed multiplication would expose undefined behavior.
   uint64_t product = static_cast<uint64_t>(seed_) * kMultiplier;

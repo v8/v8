@@ -77,7 +77,7 @@ class MyRandomNumberGenerator {
   }
 
   bool next(double threshold) {
-    ASSERT(threshold >= 0.0 && threshold <= 1.0);
+    DCHECK(threshold >= 0.0 && threshold <= 1.0);
     if (threshold == 1.0) return true;
     if (threshold == 0.0) return false;
     uint32_t value = next() % 100000;

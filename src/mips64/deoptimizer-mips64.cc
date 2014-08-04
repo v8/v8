@@ -59,13 +59,13 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     int call_size_in_bytes = MacroAssembler::CallSize(deopt_entry,
                                                       RelocInfo::NONE32);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
-    ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);
-    ASSERT(call_size_in_bytes <= patch_size());
+    DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
+    DCHECK(call_size_in_bytes <= patch_size());
     CodePatcher patcher(call_address, call_size_in_words);
     patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
-    ASSERT(prev_call_address == NULL ||
+    DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
-    ASSERT(call_address + patch_size() <= code->instruction_end());
+    DCHECK(call_address + patch_size() <= code->instruction_end());
 
 #ifdef DEBUG
     prev_call_address = call_address;
@@ -200,7 +200,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ ld(a1, MemOperand(v0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
-  ASSERT(Register::kNumRegisters == kNumberOfRegisters);
+  DCHECK(Register::kNumRegisters == kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     if ((saved_regs & (1 << i)) != 0) {
@@ -301,7 +301,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Technically restoring 'at' should work unless zero_reg is also restored
   // but it's safer to check for this.
-  ASSERT(!(at.bit() & restored_regs));
+  DCHECK(!(at.bit() & restored_regs));
   // Restore the registers from the last output frame.
   __ mov(at, a2);
   for (int i = kNumberOfRegisters - 1; i >= 0; i--) {
@@ -349,10 +349,10 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
       __ nop();
     }
 
-    ASSERT_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
+    DCHECK_EQ(table_entry_size_, masm()->SizeOfCodeGeneratedSince(&start));
   }
 
-  ASSERT_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
+  DCHECK_EQ(masm()->SizeOfCodeGeneratedSince(&table_start),
       count() * table_entry_size_);
 }
 

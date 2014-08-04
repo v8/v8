@@ -16,12 +16,12 @@ namespace internal {
 
 
 void DelayedMasm::StackSlotMove(LOperand* src, LOperand* dst) {
-  ASSERT(src->IsStackSlot());
-  ASSERT(dst->IsStackSlot());
+  DCHECK(src->IsStackSlot());
+  DCHECK(dst->IsStackSlot());
   MemOperand src_operand = cgen_->ToMemOperand(src);
   MemOperand dst_operand = cgen_->ToMemOperand(dst);
   if (pending_ == kStackSlotMove) {
-    ASSERT(pending_pc_ == masm_->pc_offset());
+    DCHECK(pending_pc_ == masm_->pc_offset());
     UseScratchRegisterScope scope(masm_);
     DoubleRegister temp1 = scope.AcquireD();
     DoubleRegister temp2 = scope.AcquireD();
@@ -66,7 +66,7 @@ void DelayedMasm::StackSlotMove(LOperand* src, LOperand* dst) {
 
 
 void DelayedMasm::StoreConstant(uint64_t value, const MemOperand& operand) {
-  ASSERT(!scratch_register_acquired_);
+  DCHECK(!scratch_register_acquired_);
   if ((pending_ == kStoreConstant) && (value == pending_value_)) {
     MemOperand::PairResult result =
         MemOperand::AreConsistentForPair(pending_address_dst_, operand);
@@ -75,7 +75,7 @@ void DelayedMasm::StoreConstant(uint64_t value, const MemOperand& operand) {
           (result == MemOperand::kPairAB) ?
               pending_address_dst_ :
               operand;
-      ASSERT(pending_pc_ == masm_->pc_offset());
+      DCHECK(pending_pc_ == masm_->pc_offset());
       if (pending_value_ == 0) {
         __ Stp(xzr, xzr, dst);
       } else {
@@ -104,18 +104,18 @@ void DelayedMasm::Load(const CPURegister& rd, const MemOperand& operand) {
       case MemOperand::kNotPair:
         break;
       case MemOperand::kPairAB:
-        ASSERT(pending_pc_ == masm_->pc_offset());
-        ASSERT(!IsScratchRegister(pending_register_) ||
+        DCHECK(pending_pc_ == masm_->pc_offset());
+        DCHECK(!IsScratchRegister(pending_register_) ||
                scratch_register_acquired_);
-        ASSERT(!IsScratchRegister(rd) || scratch_register_acquired_);
+        DCHECK(!IsScratchRegister(rd) || scratch_register_acquired_);
         __ Ldp(pending_register_, rd, pending_address_src_);
         ResetPending();
         return;
       case MemOperand::kPairBA:
-        ASSERT(pending_pc_ == masm_->pc_offset());
-        ASSERT(!IsScratchRegister(pending_register_) ||
+        DCHECK(pending_pc_ == masm_->pc_offset());
+        DCHECK(!IsScratchRegister(pending_register_) ||
                scratch_register_acquired_);
-        ASSERT(!IsScratchRegister(rd) || scratch_register_acquired_);
+        DCHECK(!IsScratchRegister(rd) || scratch_register_acquired_);
         __ Ldp(rd, pending_register_, operand);
         ResetPending();
         return;
@@ -139,12 +139,12 @@ void DelayedMasm::Store(const CPURegister& rd, const MemOperand& operand) {
       case MemOperand::kNotPair:
         break;
       case MemOperand::kPairAB:
-        ASSERT(pending_pc_ == masm_->pc_offset());
+        DCHECK(pending_pc_ == masm_->pc_offset());
         __ Stp(pending_register_, rd, pending_address_dst_);
         ResetPending();
         return;
       case MemOperand::kPairBA:
-        ASSERT(pending_pc_ == masm_->pc_offset());
+        DCHECK(pending_pc_ == masm_->pc_offset());
         __ Stp(rd, pending_register_, operand);
         ResetPending();
         return;
@@ -162,7 +162,7 @@ void DelayedMasm::Store(const CPURegister& rd, const MemOperand& operand) {
 
 
 void DelayedMasm::EmitPending() {
-  ASSERT((pending_ == kNone) || (pending_pc_ == masm_->pc_offset()));
+  DCHECK((pending_ == kNone) || (pending_pc_ == masm_->pc_offset()));
   switch (pending_) {
     case kNone:
       return;
@@ -175,7 +175,7 @@ void DelayedMasm::EmitPending() {
       }
       break;
     case kLoad:
-      ASSERT(!IsScratchRegister(pending_register_) ||
+      DCHECK(!IsScratchRegister(pending_register_) ||
               scratch_register_acquired_);
       __ Ldr(pending_register_, pending_address_src_);
       break;

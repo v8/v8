@@ -43,9 +43,9 @@ class Scheduler {
   IntVector schedule_early_rpo_index_;
 
   int GetRPONumber(BasicBlock* block) {
-    ASSERT(block->rpo_number_ >= 0 &&
+    DCHECK(block->rpo_number_ >= 0 &&
            block->rpo_number_ < static_cast<int>(schedule_->rpo_order_.size()));
-    ASSERT(schedule_->rpo_order_[block->rpo_number_] == block);
+    DCHECK(schedule_->rpo_order_[block->rpo_number_] == block);
     return block->rpo_number_;
   }
 

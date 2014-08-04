@@ -148,7 +148,7 @@ class SnapshotWriter {
       exit(1);
     }
 
-    ASSERT(data_to_be_written);
+    DCHECK(data_to_be_written);
     MaybeWriteRawFile(data_to_be_written, raw_file);
     WriteData(prefix, source_data, data_to_be_written);
   }
@@ -159,7 +159,7 @@ class SnapshotWriter {
 
     // Sanity check, whether i::List iterators truly return pointers to an
     // internal array.
-    ASSERT(data->end() - data->begin() == data->length());
+    DCHECK(data->end() - data->begin() == data->length());
 
     size_t written = fwrite(data->begin(), 1, data->length(), raw_file);
     if (written != (size_t)data->length()) {
@@ -272,7 +272,7 @@ class BZip2Decompressor : public StartupDataDecompressor {
                              int* raw_data_size,
                              const char* compressed_data,
                              int compressed_data_size) {
-    ASSERT_EQ(StartupData::kBZip2,
+    DCHECK_EQ(StartupData::kBZip2,
               V8::GetCompressedStartupDataAlgorithm());
     unsigned int decompressed_size = *raw_data_size;
     int result =

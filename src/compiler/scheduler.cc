@@ -167,7 +167,7 @@ void Scheduler::AddPredecessorsForLoopsAndMerges() {
        i != loops_and_merges_.end(); ++i) {
     Node* merge_or_loop = *i;
     BasicBlock* block = schedule_->block(merge_or_loop);
-    ASSERT(block != NULL);
+    DCHECK(block != NULL);
     // For all of the merge's control inputs, add a goto at the end to the
     // merge's basic block.
     for (InputIter j = (*i)->inputs().begin(); j != (*i)->inputs().end(); ++j) {
@@ -175,7 +175,7 @@ void Scheduler::AddPredecessorsForLoopsAndMerges() {
         BasicBlock* predecessor_block = schedule_->block(*j);
         if ((*j)->opcode() != IrOpcode::kReturn &&
             (*j)->opcode() != IrOpcode::kDeoptimize) {
-          ASSERT(predecessor_block != NULL);
+          DCHECK(predecessor_block != NULL);
           if (FLAG_trace_turbo_scheduler) {
             IrOpcode::Value opcode = (*i)->opcode();
             PrintF("node %d (%s) in block %d -> block %d\n", (*i)->id(),
@@ -193,8 +193,8 @@ void Scheduler::AddPredecessorsForLoopsAndMerges() {
 void Scheduler::AddSuccessorsForCalls() {
   for (NodeVectorIter i = calls_.begin(); i != calls_.end(); ++i) {
     Node* call = *i;
-    ASSERT(call->opcode() == IrOpcode::kCall);
-    ASSERT(NodeProperties::CanLazilyDeoptimize(call));
+    DCHECK(call->opcode() == IrOpcode::kCall);
+    DCHECK(NodeProperties::CanLazilyDeoptimize(call));
 
     Node* lazy_deopt_node = NULL;
     Node* cont_node = NULL;
@@ -203,12 +203,12 @@ void Scheduler::AddSuccessorsForCalls() {
          use_iter != call->uses().end(); ++use_iter) {
       switch ((*use_iter)->opcode()) {
         case IrOpcode::kContinuation: {
-          ASSERT(cont_node == NULL);
+          DCHECK(cont_node == NULL);
           cont_node = *use_iter;
           break;
         }
         case IrOpcode::kLazyDeoptimization: {
-          ASSERT(lazy_deopt_node == NULL);
+          DCHECK(lazy_deopt_node == NULL);
           lazy_deopt_node = *use_iter;
           break;
         }
@@ -216,8 +216,8 @@ void Scheduler::AddSuccessorsForCalls() {
           break;
       }
     }
-    ASSERT(lazy_deopt_node != NULL);
-    ASSERT(cont_node != NULL);
+    DCHECK(lazy_deopt_node != NULL);
+    DCHECK(cont_node != NULL);
     BasicBlock* cont_successor_block = schedule_->block(cont_node);
     BasicBlock* deopt_successor_block = schedule_->block(lazy_deopt_node);
     Node* call_block_node = NodeProperties::GetControlInput(call);
@@ -241,7 +241,7 @@ void Scheduler::AddSuccessorsForDeopts() {
   for (NodeVectorIter i = deopts_.begin(); i != deopts_.end(); ++i) {
     Node* deopt_block_node = NodeProperties::GetControlInput(*i);
     BasicBlock* deopt_block = schedule_->block(deopt_block_node);
-    ASSERT(deopt_block != NULL);
+    DCHECK(deopt_block != NULL);
     if (FLAG_trace_turbo_scheduler) {
       IrOpcode::Value opcode = (*i)->opcode();
       PrintF("node %d (%s) in block %d -> end\n", (*i)->id(),
@@ -255,28 +255,28 @@ void Scheduler::AddSuccessorsForDeopts() {
 void Scheduler::AddSuccessorsForBranches() {
   for (NodeVectorIter i = branches_.begin(); i != branches_.end(); ++i) {
     Node* branch = *i;
-    ASSERT(branch->opcode() == IrOpcode::kBranch);
+    DCHECK(branch->opcode() == IrOpcode::kBranch);
     Node* branch_block_node = NodeProperties::GetControlInput(branch);
     BasicBlock* branch_block = schedule_->block(branch_block_node);
-    ASSERT(branch_block != NULL);
+    DCHECK(branch_block != NULL);
     UseIter use_iter = branch->uses().begin();
     Node* first_successor = *use_iter;
     ++use_iter;
-    ASSERT(use_iter != branch->uses().end());
+    DCHECK(use_iter != branch->uses().end());
     Node* second_successor = *use_iter;
-    ASSERT(++use_iter == branch->uses().end());
+    DCHECK(++use_iter == branch->uses().end());
     Node* true_successor_node = first_successor->opcode() == IrOpcode::kIfTrue
                                     ? first_successor
                                     : second_successor;
     Node* false_successor_node = first_successor->opcode() == IrOpcode::kIfTrue
                                      ? second_successor
                                      : first_successor;
-    ASSERT(true_successor_node->opcode() == IrOpcode::kIfTrue);
-    ASSERT(false_successor_node->opcode() == IrOpcode::kIfFalse);
+    DCHECK(true_successor_node->opcode() == IrOpcode::kIfTrue);
+    DCHECK(false_successor_node->opcode() == IrOpcode::kIfFalse);
     BasicBlock* true_successor_block = schedule_->block(true_successor_node);
     BasicBlock* false_successor_block = schedule_->block(false_successor_node);
-    ASSERT(true_successor_block != NULL);
-    ASSERT(false_successor_block != NULL);
+    DCHECK(true_successor_block != NULL);
+    DCHECK(false_successor_block != NULL);
     if (FLAG_trace_turbo_scheduler) {
       IrOpcode::Value opcode = branch->opcode();
       PrintF("node %d (%s) in block %d -> block %d\n", branch->id(),
@@ -296,7 +296,7 @@ void Scheduler::AddSuccessorsForReturns() {
   for (NodeVectorIter i = returns_.begin(); i != returns_.end(); ++i) {
     Node* return_block_node = NodeProperties::GetControlInput(*i);
     BasicBlock* return_block = schedule_->block(return_block_node);
-    ASSERT(return_block != NULL);
+    DCHECK(return_block != NULL);
     if (FLAG_trace_turbo_scheduler) {
       IrOpcode::Value opcode = (*i)->opcode();
       PrintF("node %d (%s) in block %d -> end\n", (*i)->id(),
@@ -311,7 +311,7 @@ BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
   while (b1 != b2) {
     int b1_rpo = GetRPONumber(b1);
     int b2_rpo = GetRPONumber(b2);
-    ASSERT(b1_rpo != b2_rpo);
+    DCHECK(b1_rpo != b2_rpo);
     if (b1_rpo < b2_rpo) {
       b2 = schedule_->immediate_dominator_[b2->id()];
     } else {
@@ -335,7 +335,7 @@ void Scheduler::GenerateImmediateDominatorTree() {
           current_rpo->predecessors().begin();
       BasicBlock::Predecessors::iterator end =
           current_rpo->predecessors().end();
-      ASSERT(current_pred != end);
+      DCHECK(current_pred != end);
       BasicBlock* dominator = *current_pred;
       ++current_pred;
       // For multiple predecessors, walk up the rpo ordering until a common
@@ -371,7 +371,7 @@ class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
     // Fixed nodes already know their schedule early position.
     if (IsFixedNode(node)) {
       BasicBlock* block = schedule_->block(node);
-      ASSERT(block != NULL);
+      DCHECK(block != NULL);
       max_rpo = block->rpo_number_;
       if (scheduler_->schedule_early_rpo_index_[id] != max_rpo) {
         has_changed_rpo_constraints_ = true;
@@ -389,7 +389,7 @@ class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
     int max_rpo = 0;
     // Otherwise, the minimum rpo for the node is the max of all of the inputs.
     if (!IsFixedNode(node)) {
-      ASSERT(!NodeProperties::IsBasicBlockBegin(node));
+      DCHECK(!NodeProperties::IsBasicBlockBegin(node));
       for (InputIter i = node->inputs().begin(); i != node->inputs().end();
            ++i) {
         int control_rpo = scheduler_->schedule_early_rpo_index_[(*i)->id()];
@@ -462,7 +462,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
           opcode == IrOpcode::kParameter
               ? schedule_->entry()
               : schedule_->block(NodeProperties::GetControlInput(node));
-      ASSERT(block != NULL);
+      DCHECK(block != NULL);
       schedule_->AddNode(block, node);
     }
 
@@ -478,7 +478,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
     // for all of its inputs. The same criterion will be used in ScheduleLate
     // for decrementing use counts.
     if (!schedule_->IsScheduled(from) && NodeProperties::CanBeScheduled(from)) {
-      ASSERT(!NodeProperties::HasFixedSchedulePosition(from));
+      DCHECK(!NodeProperties::HasFixedSchedulePosition(from));
       ++scheduler_->unscheduled_uses_[to->id()];
       if (FLAG_trace_turbo_scheduler) {
         PrintF("Incrementing uses of node %d from %d to %d\n", to->id(),
@@ -514,7 +514,7 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
     if (!NodeProperties::CanBeScheduled(node) || schedule_->IsScheduled(node)) {
       return GenericGraphVisit::CONTINUE;
     }
-    ASSERT(!NodeProperties::HasFixedSchedulePosition(node));
+    DCHECK(!NodeProperties::HasFixedSchedulePosition(node));
 
     // If all the uses of a node have been scheduled, then the node itself can
     // be scheduled.
@@ -536,7 +536,7 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
                                               : scheduler_->GetCommonDominator(
                                                     block, use_block);
     }
-    ASSERT(block != NULL);
+    DCHECK(block != NULL);
 
     int min_rpo = scheduler_->schedule_early_rpo_index_[node->id()];
     if (FLAG_trace_turbo_scheduler) {
@@ -560,7 +560,7 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
       hoist_block = hoist_block->loop_header();
       if (hoist_block != NULL) {
         BasicBlock* pre_header = schedule_->dominator(hoist_block);
-        ASSERT(pre_header == NULL ||
+        DCHECK(pre_header == NULL ||
                *hoist_block->predecessors().begin() == pre_header);
         if (FLAG_trace_turbo_scheduler) {
           PrintF(
@@ -590,7 +590,7 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
       }
       use = NodeProperties::GetControlInput(use, 0);
       opcode = use->opcode();
-      ASSERT(opcode == IrOpcode::kMerge || opcode == IrOpcode::kLoop);
+      DCHECK(opcode == IrOpcode::kMerge || opcode == IrOpcode::kLoop);
       use = NodeProperties::GetControlInput(use, index);
     }
     BasicBlock* result = schedule_->block(use);
@@ -613,7 +613,7 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
     // Reduce the use count of the node's inputs to potentially make them
     // scheduable.
     for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-      ASSERT(scheduler_->unscheduled_uses_[(*i)->id()] > 0);
+      DCHECK(scheduler_->unscheduled_uses_[(*i)->id()] > 0);
       --scheduler_->unscheduled_uses_[(*i)->id()];
       if (FLAG_trace_turbo_scheduler) {
         PrintF("Decrementing use count for node %d from node %d (now %d)\n",
@@ -797,24 +797,24 @@ static void PrintRPO(int num_loops, LoopInfo* loops, BasicBlockVector* order) {
 
 static void VerifySpecialRPO(int num_loops, LoopInfo* loops,
                              BasicBlockVector* order) {
-  ASSERT(order->size() > 0);
-  ASSERT((*order)[0]->id() == 0);  // entry should be first.
+  DCHECK(order->size() > 0);
+  DCHECK((*order)[0]->id() == 0);  // entry should be first.
 
   for (int i = 0; i < num_loops; i++) {
     LoopInfo* loop = &loops[i];
     BasicBlock* header = loop->header;
 
-    ASSERT(header != NULL);
-    ASSERT(header->rpo_number_ >= 0);
-    ASSERT(header->rpo_number_ < static_cast<int>(order->size()));
-    ASSERT(header->loop_end_ >= 0);
-    ASSERT(header->loop_end_ <= static_cast<int>(order->size()));
-    ASSERT(header->loop_end_ > header->rpo_number_);
+    DCHECK(header != NULL);
+    DCHECK(header->rpo_number_ >= 0);
+    DCHECK(header->rpo_number_ < static_cast<int>(order->size()));
+    DCHECK(header->loop_end_ >= 0);
+    DCHECK(header->loop_end_ <= static_cast<int>(order->size()));
+    DCHECK(header->loop_end_ > header->rpo_number_);
 
     // Verify the start ... end list relationship.
     int links = 0;
     BlockList* l = loop->start;
-    ASSERT(l != NULL && l->block == header);
+    DCHECK(l != NULL && l->block == header);
     bool end_found;
     while (true) {
       if (l == NULL || l == loop->end) {
@@ -822,32 +822,32 @@ static void VerifySpecialRPO(int num_loops, LoopInfo* loops,
         break;
       }
       // The list should be in same order as the final result.
-      ASSERT(l->block->rpo_number_ == links + loop->header->rpo_number_);
+      DCHECK(l->block->rpo_number_ == links + loop->header->rpo_number_);
       links++;
       l = l->next;
-      ASSERT(links < static_cast<int>(2 * order->size()));  // cycle?
+      DCHECK(links < static_cast<int>(2 * order->size()));  // cycle?
     }
-    ASSERT(links > 0);
-    ASSERT(links == (header->loop_end_ - header->rpo_number_));
-    ASSERT(end_found);
+    DCHECK(links > 0);
+    DCHECK(links == (header->loop_end_ - header->rpo_number_));
+    DCHECK(end_found);
 
     // Check the contiguousness of loops.
     int count = 0;
     for (int j = 0; j < static_cast<int>(order->size()); j++) {
       BasicBlock* block = order->at(j);
-      ASSERT(block->rpo_number_ == j);
+      DCHECK(block->rpo_number_ == j);
       if (j < header->rpo_number_ || j >= header->loop_end_) {
-        ASSERT(!loop->members->Contains(block->id()));
+        DCHECK(!loop->members->Contains(block->id()));
       } else {
         if (block == header) {
-          ASSERT(!loop->members->Contains(block->id()));
+          DCHECK(!loop->members->Contains(block->id()));
         } else {
-          ASSERT(loop->members->Contains(block->id()));
+          DCHECK(loop->members->Contains(block->id()));
         }
         count++;
       }
     }
-    ASSERT(links == count);
+    DCHECK(links == count);
   }
 }
 #endif  // DEBUG
@@ -900,7 +900,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
         }
       } else {
         // Push the successor onto the stack.
-        ASSERT(succ->rpo_number_ == kBlockUnvisited1);
+        DCHECK(succ->rpo_number_ == kBlockUnvisited1);
         stack_depth = Push(stack, stack_depth, succ, kBlockUnvisited1);
       }
     } else {
@@ -941,7 +941,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
         if (block->rpo_number_ == kBlockOnStack) {
           // Finish the loop body the first time the header is left on the
           // stack.
-          ASSERT(loop != NULL && loop->header == block);
+          DCHECK(loop != NULL && loop->header == block);
           loop->start = order->Add(zone_, block);
           order = loop->end;
           block->rpo_number_ = kBlockVisited2;
@@ -955,7 +955,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
         // Use the next outgoing edge if there are any.
         int outgoing_index = frame->index - block->SuccessorCount();
         LoopInfo* info = &loops[block->loop_end_];
-        ASSERT(loop != info);
+        DCHECK(loop != info);
         if (info->outgoing != NULL &&
             outgoing_index < info->outgoing->length()) {
           succ = info->outgoing->at(outgoing_index);
@@ -967,7 +967,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
         // Process the next successor.
         if (succ->rpo_number_ == kBlockOnStack) continue;
         if (succ->rpo_number_ == kBlockVisited2) continue;
-        ASSERT(succ->rpo_number_ == kBlockUnvisited2);
+        DCHECK(succ->rpo_number_ == kBlockUnvisited2);
         if (loop != NULL && !loop->members->Contains(succ->id())) {
           // The successor is not in the current loop or any nested loop.
           // Add it to the outgoing edges of this loop and visit it later.
@@ -977,7 +977,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
           stack_depth = Push(stack, stack_depth, succ, kBlockUnvisited2);
           if (succ->IsLoopHeader()) {
             // Push the inner loop onto the loop stack.
-            ASSERT(succ->loop_end_ >= 0 && succ->loop_end_ < num_loops);
+            DCHECK(succ->loop_end_ >= 0 && succ->loop_end_ < num_loops);
             LoopInfo* next = &loops[succ->loop_end_];
             next->end = order;
             next->prev = loop;
@@ -1034,8 +1034,8 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
     } else {
       while (current_header != NULL &&
              current->rpo_number_ >= current_header->loop_end_) {
-        ASSERT(current_header->IsLoopHeader());
-        ASSERT(current_loop != NULL);
+        DCHECK(current_header->IsLoopHeader());
+        DCHECK(current_loop != NULL);
         current_loop = current_loop->prev;
         current_header = current_loop == NULL ? NULL : current_loop->header;
         --loop_depth;

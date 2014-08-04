@@ -177,16 +177,16 @@ class OperandGenerator {
   }
 
   UnallocatedOperand* Define(Node* node, UnallocatedOperand* operand) {
-    ASSERT_NOT_NULL(node);
-    ASSERT_NOT_NULL(operand);
+    DCHECK_NOT_NULL(node);
+    DCHECK_NOT_NULL(operand);
     operand->set_virtual_register(node->id());
     selector()->MarkAsDefined(node);
     return operand;
   }
 
   UnallocatedOperand* Use(Node* node, UnallocatedOperand* operand) {
-    ASSERT_NOT_NULL(node);
-    ASSERT_NOT_NULL(operand);
+    DCHECK_NOT_NULL(node);
+    DCHECK_NOT_NULL(operand);
     operand->set_virtual_register(node->id());
     selector()->MarkAsUsed(node);
     return operand;
@@ -230,43 +230,43 @@ class FlagsContinuation V8_FINAL {
         condition_(condition),
         true_block_(true_block),
         false_block_(false_block) {
-    ASSERT_NOT_NULL(true_block);
-    ASSERT_NOT_NULL(false_block);
+    DCHECK_NOT_NULL(true_block);
+    DCHECK_NOT_NULL(false_block);
   }
 
   // Creates a new flags continuation from the given condition and result node.
   FlagsContinuation(FlagsCondition condition, Node* result)
       : mode_(kFlags_set), condition_(condition), result_(result) {
-    ASSERT_NOT_NULL(result);
+    DCHECK_NOT_NULL(result);
   }
 
   bool IsNone() const { return mode_ == kFlags_none; }
   bool IsBranch() const { return mode_ == kFlags_branch; }
   bool IsSet() const { return mode_ == kFlags_set; }
   FlagsCondition condition() const {
-    ASSERT(!IsNone());
+    DCHECK(!IsNone());
     return condition_;
   }
   Node* result() const {
-    ASSERT(IsSet());
+    DCHECK(IsSet());
     return result_;
   }
   BasicBlock* true_block() const {
-    ASSERT(IsBranch());
+    DCHECK(IsBranch());
     return true_block_;
   }
   BasicBlock* false_block() const {
-    ASSERT(IsBranch());
+    DCHECK(IsBranch());
     return false_block_;
   }
 
   void Negate() {
-    ASSERT(!IsNone());
+    DCHECK(!IsNone());
     condition_ = static_cast<FlagsCondition>(condition_ ^ 1);
   }
 
   void Commute() {
-    ASSERT(!IsNone());
+    DCHECK(!IsNone());
     switch (condition_) {
       case kEqual:
       case kNotEqual:

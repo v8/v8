@@ -115,7 +115,7 @@ class Writer BASE_EMBEDDED {
     if (delta == 0) return;
     uintptr_t padding = align - delta;
     Ensure(position_ += padding);
-    ASSERT((position_ % align) == 0);
+    DCHECK((position_ % align) == 0);
   }
 
   void WriteULEB128(uintptr_t value) {
@@ -155,7 +155,7 @@ class Writer BASE_EMBEDDED {
 
   template<typename T>
   T* RawSlotAt(uintptr_t offset) {
-    ASSERT(offset < capacity_ && offset + sizeof(T) <= capacity_);
+    DCHECK(offset < capacity_ && offset + sizeof(T) <= capacity_);
     return reinterpret_cast<T*>(&buffer_[offset]);
   }
 
@@ -231,7 +231,7 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
       align_(align),
       flags_(flags) {
     if (align_ != 0) {
-      ASSERT(IsPowerOf2(align));
+      DCHECK(IsPowerOf2(align));
       align_ = WhichPowerOf2(align_);
     }
   }
@@ -250,8 +250,8 @@ class MachOSection : public DebugSectionBase<MachOSectionHeader> {
     header->reserved2 = 0;
     memset(header->sectname, 0, sizeof(header->sectname));
     memset(header->segname, 0, sizeof(header->segname));
-    ASSERT(strlen(name_) < sizeof(header->sectname));
-    ASSERT(strlen(segment_) < sizeof(header->segname));
+    DCHECK(strlen(name_) < sizeof(header->sectname));
+    DCHECK(strlen(segment_) < sizeof(header->segname));
     strncpy(header->sectname, name_, sizeof(header->sectname));
     strncpy(header->segname, segment_, sizeof(header->segname));
   }
@@ -443,7 +443,7 @@ class ELFStringTable : public ELFSection {
   }
 
   virtual void WriteBody(Writer::Slot<Header> header, Writer* w) {
-    ASSERT(writer_ == NULL);
+    DCHECK(writer_ == NULL);
     header->offset = offset_;
     header->size = size_;
   }
@@ -536,7 +536,7 @@ class MachO BASE_EMBEDDED {
 
 
   Writer::Slot<MachOHeader> WriteHeader(Writer* w) {
-    ASSERT(w->position() == 0);
+    DCHECK(w->position() == 0);
     Writer::Slot<MachOHeader> header = w->CreateSlotHere<MachOHeader>();
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
     header->magic = 0xFEEDFACEu;
@@ -648,7 +648,7 @@ class ELF BASE_EMBEDDED {
 
 
   void WriteHeader(Writer* w) {
-    ASSERT(w->position() == 0);
+    DCHECK(w->position() == 0);
     Writer::Slot<ELFHeader> header = w->CreateSlotHere<ELFHeader>();
 #if (V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_X87 || \
      (V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT))
@@ -691,7 +691,7 @@ class ELF BASE_EMBEDDED {
 
   void WriteSectionTable(Writer* w) {
     // Section headers table immediately follows file header.
-    ASSERT(w->position() == sizeof(ELFHeader));
+    DCHECK(w->position() == sizeof(ELFHeader));
 
     Writer::Slot<ELFSection::Header> headers =
         w->CreateSlotsHere<ELFSection::Header>(sections_.length());
@@ -987,12 +987,12 @@ class CodeDescription BASE_EMBEDDED {
 
 #if V8_TARGET_ARCH_X64
   uintptr_t GetStackStateStartAddress(StackState state) const {
-    ASSERT(state < STACK_STATE_MAX);
+    DCHECK(state < STACK_STATE_MAX);
     return stack_state_start_addresses_[state];
   }
 
   void SetStackStateStartAddress(StackState state, uintptr_t addr) {
-    ASSERT(state < STACK_STATE_MAX);
+    DCHECK(state < STACK_STATE_MAX);
     stack_state_start_addresses_[state] = addr;
   }
 #endif
@@ -1155,11 +1155,11 @@ class DebugInfoSection : public DebugSection {
       }
 
       // See contexts.h for more information.
-      ASSERT(Context::MIN_CONTEXT_SLOTS == 4);
-      ASSERT(Context::CLOSURE_INDEX == 0);
-      ASSERT(Context::PREVIOUS_INDEX == 1);
-      ASSERT(Context::EXTENSION_INDEX == 2);
-      ASSERT(Context::GLOBAL_OBJECT_INDEX == 3);
+      DCHECK(Context::MIN_CONTEXT_SLOTS == 4);
+      DCHECK(Context::CLOSURE_INDEX == 0);
+      DCHECK(Context::PREVIOUS_INDEX == 1);
+      DCHECK(Context::EXTENSION_INDEX == 2);
+      DCHECK(Context::GLOBAL_OBJECT_INDEX == 3);
       w->WriteULEB128(current_abbreviation++);
       w->WriteString(".closure");
       w->WriteULEB128(current_abbreviation++);
@@ -1307,7 +1307,7 @@ class DebugAbbrevSection : public DebugSection {
   bool WriteBodyInternal(Writer* w) {
     int current_abbreviation = 1;
     bool extra_info = desc_->IsInfoAvailable();
-    ASSERT(desc_->IsLineInfoAvailable());
+    DCHECK(desc_->IsLineInfoAvailable());
     w->WriteULEB128(current_abbreviation++);
     w->WriteULEB128(DW_TAG_COMPILE_UNIT);
     w->Write<uint8_t>(extra_info ? DW_CHILDREN_YES : DW_CHILDREN_NO);
@@ -1478,7 +1478,7 @@ class DebugLineSection : public DebugSection {
     int pc_info_length = pc_info->length();
     for (int i = 0; i < pc_info_length; i++) {
       LineInfo::PCInfo* info = &pc_info->at(i);
-      ASSERT(info->pc_ >= pc);
+      DCHECK(info->pc_ >= pc);
 
       // Reduce bloating in the debug line table by removing duplicate line
       // entries (per DWARF2 standard).
@@ -1648,7 +1648,7 @@ void UnwindInfoSection::WriteLength(Writer* w,
     }
   }
 
-  ASSERT((w->position() - initial_position) % kPointerSize == 0);
+  DCHECK((w->position() - initial_position) % kPointerSize == 0);
   length_slot->set(w->position() - initial_position);
 }
 
@@ -2088,7 +2088,7 @@ void GDBJITInterface::AddCode(const char* name,
   AddUnwindInfo(&code_desc);
   Isolate* isolate = code->GetIsolate();
   JITCodeEntry* entry = CreateELFObject(&code_desc, isolate);
-  ASSERT(!IsLineInfoTagged(entry));
+  DCHECK(!IsLineInfoTagged(entry));
 
   delete lineinfo;
   e->value = entry;
@@ -2149,9 +2149,9 @@ void GDBJITInterface::RemoveCodeRange(Address start, Address end) {
 
 static void RegisterDetailedLineInfo(Code* code, LineInfo* line_info) {
   base::LockGuard<base::Mutex> lock_guard(mutex.Pointer());
-  ASSERT(!IsLineInfoTagged(line_info));
+  DCHECK(!IsLineInfoTagged(line_info));
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
-  ASSERT(e->value == NULL);
+  DCHECK(e->value == NULL);
   e->value = TagLineInfo(line_info);
 }
 

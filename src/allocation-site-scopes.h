@@ -75,7 +75,7 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
       // Advance current site
       Object* nested_site = current()->nested_site();
       // Something is wrong if we advance to the end of the list here.
-      ASSERT(nested_site->IsAllocationSite());
+      DCHECK(nested_site->IsAllocationSite());
       update_current_site(AllocationSite::cast(nested_site));
     }
     return Handle<AllocationSite>(*current(), isolate());
@@ -85,7 +85,7 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
                         Handle<JSObject> object) {
     // This assert ensures that we are pointing at the right sub-object in a
     // recursive walk of a nested literal.
-    ASSERT(object.is_null() || *object == scope_site->transition_info());
+    DCHECK(object.is_null() || *object == scope_site->transition_info());
   }
 
   bool ShouldCreateMemento(Handle<JSObject> object);

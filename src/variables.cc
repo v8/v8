@@ -51,7 +51,7 @@ Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
       maybe_assigned_(maybe_assigned_flag),
       interface_(interface) {
   // Var declared variables never need initialization.
-  ASSERT(!(mode == VAR && initialization_flag == kNeedsInitialization));
+  DCHECK(!(mode == VAR && initialization_flag == kNeedsInitialization));
 }
 
 

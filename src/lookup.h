@@ -95,7 +95,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   Handle<Map> holder_map() const { return holder_map_; }
   template <class T>
   Handle<T> GetHolder() const {
-    ASSERT(IsFound());
+    DCHECK(IsFound());
     return Handle<T>::cast(maybe_holder_.ToHandleChecked());
   }
   Handle<JSReceiver> GetRoot() const;
@@ -124,15 +124,15 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
                                 PropertyAttributes attributes,
                                 Object::StoreFromKeyed store_mode);
   PropertyKind property_kind() const {
-    ASSERT(has_property_);
+    DCHECK(has_property_);
     return property_kind_;
   }
   PropertyEncoding property_encoding() const {
-    ASSERT(has_property_);
+    DCHECK(has_property_);
     return property_encoding_;
   }
   PropertyDetails property_details() const {
-    ASSERT(has_property_);
+    DCHECK(has_property_);
     return property_details_;
   }
   bool IsConfigurable() const { return !property_details().IsDontDelete(); }
@@ -176,13 +176,13 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return (configuration_ & CHECK_ACCESS_CHECK) != 0;
   }
   int descriptor_number() const {
-    ASSERT(has_property_);
-    ASSERT_EQ(DESCRIPTOR, property_encoding_);
+    DCHECK(has_property_);
+    DCHECK_EQ(DESCRIPTOR, property_encoding_);
     return number_;
   }
   int dictionary_entry() const {
-    ASSERT(has_property_);
-    ASSERT_EQ(DICTIONARY, property_encoding_);
+    DCHECK(has_property_);
+    DCHECK_EQ(DICTIONARY, property_encoding_);
     return number_;
   }
 

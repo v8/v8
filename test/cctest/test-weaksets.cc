@@ -71,7 +71,7 @@ static void WeakPointerCallback(
   std::pair<v8::Persistent<v8::Value>*, int>* p =
       reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
           data.GetParameter());
-  ASSERT_EQ(1234, p->second);
+  DCHECK_EQ(1234, p->second);
   NumberOfWeakCalls++;
   p->first->Reset();
 }

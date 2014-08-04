@@ -62,7 +62,6 @@ legal/copyright
 readability/boost
 readability/braces
 readability/casting
-readability/check
 readability/constructors
 readability/fn_size
 readability/function
@@ -102,6 +101,7 @@ whitespace/tab
 whitespace/todo
 """.split()
 
+# TODO(bmeurer): Fix and re-enable readability/check
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
 

@@ -74,7 +74,7 @@ class Graph : public GenericGraph<Node> {
   void RemoveDecorator(GraphDecorator* decorator) {
     DecoratorVector::iterator it =
         std::find(decorators_.begin(), decorators_.end(), decorator);
-    ASSERT(it != decorators_.end());
+    DCHECK(it != decorators_.end());
     decorators_.erase(it, it + 1);
   }
 

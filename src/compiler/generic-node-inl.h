@@ -62,10 +62,10 @@ void GenericNode<B, S>::ReplaceUses(GenericNode* replace_to) {
     use->from->GetInputRecordPtr(use->input_index)->to = replace_to;
   }
   if (replace_to->last_use_ == NULL) {
-    ASSERT_EQ(NULL, replace_to->first_use_);
+    DCHECK_EQ(NULL, replace_to->first_use_);
     replace_to->first_use_ = first_use_;
   } else {
-    ASSERT_NE(NULL, replace_to->first_use_);
+    DCHECK_NE(NULL, replace_to->first_use_);
     replace_to->last_use_->next = first_use_;
     first_use_->prev = replace_to->last_use_;
   }
@@ -103,7 +103,7 @@ template <class B, class S>
 void GenericNode<B, S>::TrimInputCount(int new_input_count) {
   if (new_input_count == input_count_) return;  // Nothing to do.
 
-  ASSERT(new_input_count < input_count_);
+  DCHECK(new_input_count < input_count_);
 
   // Update inline inputs.
   for (int i = new_input_count; i < input_count_; i++) {
@@ -167,7 +167,7 @@ void GenericNode<B, S>::AppendInput(Zone* zone, GenericNode<B, S>* to_append) {
 template <class B, class S>
 void GenericNode<B, S>::InsertInput(Zone* zone, int index,
                                     GenericNode<B, S>* to_insert) {
-  ASSERT(index >= 0 && index < InputCount());
+  DCHECK(index >= 0 && index < InputCount());
   // TODO(turbofan): Optimize this implementation!
   AppendInput(zone, InputAt(InputCount() - 1));
   for (int i = InputCount() - 1; i > index; --i) {

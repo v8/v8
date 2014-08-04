@@ -44,7 +44,7 @@ class IfBuilderModel {
     } else if (current_node_->then_node != NULL) {
       current_node_ = current_node_->then_node;
     }
-    ASSERT(current_expression_ == NULL);
+    DCHECK(current_expression_ == NULL);
     current_expression_ = new (zone_) Expression(zone_, NULL);
     current_node_->condition = current_expression_;
   }
@@ -57,15 +57,15 @@ class IfBuilderModel {
   void Or() { NewChild()->disjunction = true; }
 
   void Then() {
-    ASSERT(current_expression_ == NULL || current_expression_->parent == NULL);
+    DCHECK(current_expression_ == NULL || current_expression_->parent == NULL);
     current_expression_ = NULL;
-    ASSERT(current_node_->then_node == NULL);
+    DCHECK(current_node_->then_node == NULL);
     current_node_->then_node = new (zone_) Node(current_node_);
   }
   void Else() {
-    ASSERT(current_expression_ == NULL || current_expression_->parent == NULL);
+    DCHECK(current_expression_ == NULL || current_expression_->parent == NULL);
     current_expression_ = NULL;
-    ASSERT(current_node_->else_node == NULL);
+    DCHECK(current_node_->else_node == NULL);
     current_node_->else_node = new (zone_) Node(current_node_);
   }
   void Return() {
@@ -163,7 +163,7 @@ class IfBuilderModel {
   static void PrintRecursive(std::vector<char>* v, Expression* expression) {
     CHECK(expression != NULL);
     if (expression->conjunction) {
-      ASSERT(!expression->disjunction);
+      DCHECK(!expression->disjunction);
       v->push_back('&');
     } else if (expression->disjunction) {
       v->push_back('|');

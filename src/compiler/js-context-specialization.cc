@@ -50,7 +50,7 @@ void JSContextSpecializer::SpecializeToContext() {
 
 
 Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
-  ASSERT_EQ(IrOpcode::kJSLoadContext, node->opcode());
+  DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
 
   ContextAccess access =
       static_cast<Operator1<ContextAccess>*>(node->op())->parameter();

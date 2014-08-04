@@ -672,7 +672,7 @@ TEST(Utf8CharacterStream) {
                                     i,
                                     unibrow::Utf16::kNoPreviousCharacter);
   }
-  ASSERT(cursor == kAllUtf8CharsSizeU);
+  DCHECK(cursor == kAllUtf8CharsSizeU);
 
   i::Utf8ToUtf16CharacterStream stream(reinterpret_cast<const i::byte*>(buffer),
                                        kAllUtf8CharsSizeU);
@@ -761,8 +761,8 @@ TEST(StreamScanner) {
       i::Token::EOS,
       i::Token::ILLEGAL
   };
-  ASSERT_EQ('{', str2[19]);
-  ASSERT_EQ('}', str2[37]);
+  DCHECK_EQ('{', str2[19]);
+  DCHECK_EQ('}', str2[37]);
   TestStreamScanner(&stream2, expectations2, 20, 37);
 
   const char* str3 = "{}}}}";
@@ -2894,8 +2894,8 @@ TEST(SerializationOfMaybeAssignmentFlag) {
       new (&zone) i::Scope(NULL, i::GLOBAL_SCOPE, &avf, &zone);
   global_scope->Initialize();
   i::Scope* s = i::Scope::DeserializeScopeChain(context, global_scope, &zone);
-  ASSERT(s != global_scope);
-  ASSERT(name != NULL);
+  DCHECK(s != global_scope);
+  DCHECK(name != NULL);
 
   // Get result from h's function context (that is f's context)
   i::Variable* var = s->Lookup(name);
@@ -2941,7 +2941,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
       new (&zone) i::Scope(NULL, i::GLOBAL_SCOPE, &avf, &zone);
   global_scope->Initialize();
   i::Scope* s = i::Scope::DeserializeScopeChain(context, global_scope, &zone);
-  ASSERT(s != global_scope);
+  DCHECK(s != global_scope);
   const i::AstRawString* name_x = avf.GetOneByteString("x");
 
   // Get result from f's function context (that is g's outer context)
@@ -2988,7 +2988,7 @@ TEST(ExportsMaybeAssigned) {
       new (&zone) i::Scope(NULL, i::GLOBAL_SCOPE, &avf, &zone);
   global_scope->Initialize();
   i::Scope* s = i::Scope::DeserializeScopeChain(context, global_scope, &zone);
-  ASSERT(s != global_scope);
+  DCHECK(s != global_scope);
   const i::AstRawString* name_x = avf.GetOneByteString("x");
   const i::AstRawString* name_f = avf.GetOneByteString("f");
   const i::AstRawString* name_y = avf.GetOneByteString("y");

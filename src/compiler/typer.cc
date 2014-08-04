@@ -97,8 +97,8 @@ class Typer::Visitor : public NullNodeVisitor {
   Type* ContextType(Node* node) {
     Bounds result =
         NodeProperties::GetBounds(NodeProperties::GetContextInput(node));
-    ASSERT(result.upper->Is(Type::Internal()));
-    ASSERT(result.lower->Equals(result.upper));
+    DCHECK(result.upper->Is(Type::Internal()));
+    DCHECK(result.lower->Equals(result.upper));
     return result.upper;
   }
 
@@ -151,7 +151,7 @@ class Typer::NarrowVisitor : public Typer::Visitor {
     Bounds previous = NodeProperties::GetBounds(node);
     Bounds bounds = TypeNode(node);
     NodeProperties::SetBounds(node, Bounds::Both(bounds, previous, zone()));
-    ASSERT(bounds.Narrows(previous));
+    DCHECK(bounds.Narrows(previous));
     // Stop when nothing changed (but allow reentry in case it does later).
     return previous.Narrows(bounds) ? GenericGraphVisit::DEFER
                                     : GenericGraphVisit::REENTER;
@@ -171,8 +171,8 @@ class Typer::WidenVisitor : public Typer::Visitor {
   GenericGraphVisit::Control Pre(Node* node) {
     Bounds previous = NodeProperties::GetBounds(node);
     Bounds bounds = TypeNode(node);
-    ASSERT(previous.lower->Is(bounds.lower));
-    ASSERT(previous.upper->Is(bounds.upper));
+    DCHECK(previous.lower->Is(bounds.lower));
+    DCHECK(previous.upper->Is(bounds.upper));
     NodeProperties::SetBounds(node, bounds);  // TODO(rossberg): Either?
     // Stop when nothing changed (but allow reentry in case it does later).
     return bounds.Narrows(previous) ? GenericGraphVisit::DEFER
@@ -482,8 +482,8 @@ Bounds Typer::Visitor::TypeJSInstanceOf(Node* node) {
 
 Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
   Bounds outer = OperandType(node, 0);
-  ASSERT(outer.upper->Is(Type::Internal()));
-  ASSERT(outer.lower->Equals(outer.upper));
+  DCHECK(outer.upper->Is(Type::Internal()));
+  DCHECK(outer.lower->Equals(outer.upper));
   ContextAccess access = OpParameter<ContextAccess>(node);
   Type* context_type = outer.upper;
   MaybeHandle<Context> context;

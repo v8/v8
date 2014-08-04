@@ -84,9 +84,9 @@ void IncrementalMarking::RecordWrites(HeapObject* obj) {
 
 void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
                                                MarkBit mark_bit) {
-  ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
-  ASSERT(obj->Size() >= 2*kPointerSize);
-  ASSERT(IsMarking());
+  DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
+  DCHECK(obj->Size() >= 2*kPointerSize);
+  DCHECK(IsMarking());
   Marking::BlackToGrey(mark_bit);
   int obj_size = obj->Size();
   MemoryChunk::IncrementLiveBytesFromGC(obj->address(), -obj_size);

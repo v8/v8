@@ -91,13 +91,13 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
   const intptr_t kMaxInlineSlots = 64;
   const intptr_t kMaxSlots = kMaxInlineSlots + 1024;
   const intptr_t kPointerSize = sizeof(void*);
-  ASSERT(0 <= index && index < kMaxSlots);
+  DCHECK(0 <= index && index < kMaxSlots);
   if (index < kMaxInlineSlots) {
     return static_cast<intptr_t>(__readfsdword(kTibInlineTlsOffset +
                                                kPointerSize * index));
   }
   intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  ASSERT(extra != 0);
+  DCHECK(extra != 0);
   return *reinterpret_cast<intptr_t*>(extra +
                                       kPointerSize * (index - kMaxInlineSlots));
 }
@@ -351,7 +351,7 @@ class VirtualMemory {
   // necessarily aligned. The user might need to round it up to a multiple of
   // the alignment to get the start of the aligned block.
   void* address() {
-    ASSERT(IsReserved());
+    DCHECK(IsReserved());
     return address_;
   }
 
@@ -371,7 +371,7 @@ class VirtualMemory {
   bool Guard(void* address);
 
   void Release() {
-    ASSERT(IsReserved());
+    DCHECK(IsReserved());
     // Notice: Order is important here. The VirtualMemory object might live
     // inside the allocated region.
     void* address = address_;
@@ -379,13 +379,13 @@ class VirtualMemory {
     Reset();
     bool result = ReleaseRegion(address, size);
     USE(result);
-    ASSERT(result);
+    DCHECK(result);
   }
 
   // Assign control of the reserved region to a different VirtualMemory object.
   // The old object is no longer functional (IsReserved() returns false).
   void TakeControl(VirtualMemory* from) {
-    ASSERT(!IsReserved());
+    DCHECK(!IsReserved());
     address_ = from->address_;
     size_ = from->size_;
     from->Reset();
@@ -484,7 +484,7 @@ class Thread {
   static inline void* GetExistingThreadLocal(LocalStorageKey key) {
     void* result = reinterpret_cast<void*>(
         InternalGetExistingThreadLocal(static_cast<intptr_t>(key)));
-    ASSERT(result == GetThreadLocal(key));
+    DCHECK(result == GetThreadLocal(key));
     return result;
   }
 #else

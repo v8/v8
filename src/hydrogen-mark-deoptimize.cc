@@ -20,8 +20,8 @@ void HMarkDeoptimizeOnUndefinedPhase::Run() {
 
 
 void HMarkDeoptimizeOnUndefinedPhase::ProcessPhi(HPhi* phi) {
-  ASSERT(phi->CheckFlag(HValue::kAllowUndefinedAsNaN));
-  ASSERT(worklist_.is_empty());
+  DCHECK(phi->CheckFlag(HValue::kAllowUndefinedAsNaN));
+  DCHECK(worklist_.is_empty());
 
   // Push the phi onto the worklist
   phi->ClearFlag(HValue::kAllowUndefinedAsNaN);

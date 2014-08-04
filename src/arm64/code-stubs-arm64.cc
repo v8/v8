@@ -400,7 +400,7 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   {
     // Call the runtime system in a fresh internal frame.
     FrameScope scope(masm, StackFrame::INTERNAL);
-    ASSERT((param_count == 0) ||
+    DCHECK((param_count == 0) ||
            x0.Is(descriptor->GetEnvironmentParameterRegister(param_count - 1)));
 
     // Push arguments
@@ -422,10 +422,10 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label done;
   Register input = source();
   Register result = destination();
-  ASSERT(is_truncating());
+  DCHECK(is_truncating());
 
-  ASSERT(result.Is64Bits());
-  ASSERT(jssp.Is(masm->StackPointer()));
+  DCHECK(result.Is64Bits());
+  DCHECK(jssp.Is(masm->StackPointer()));
 
   int double_offset = offset();
 
@@ -505,7 +505,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
                                           FPRegister double_scratch,
                                           Label* slow,
                                           Condition cond) {
-  ASSERT(!AreAliased(left, right, scratch));
+  DCHECK(!AreAliased(left, right, scratch));
   Label not_identical, return_equal, heap_number;
   Register result = x0;
 
@@ -560,7 +560,7 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   // it is handled in the parser (see Parser::ParseBinaryExpression). We are
   // only concerned with cases ge, le and eq here.
   if ((cond != lt) && (cond != gt)) {
-    ASSERT((cond == ge) || (cond == le) || (cond == eq));
+    DCHECK((cond == ge) || (cond == le) || (cond == eq));
     __ Bind(&heap_number);
     // Left and right are identical pointers to a heap number object. Return
     // non-equal if the heap number is a NaN, and equal otherwise. Comparing
@@ -593,7 +593,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
                                            Register left_type,
                                            Register right_type,
                                            Register scratch) {
-  ASSERT(!AreAliased(left, right, left_type, right_type, scratch));
+  DCHECK(!AreAliased(left, right, left_type, right_type, scratch));
 
   if (masm->emit_debug_code()) {
     // We assume that the arguments are not identical.
@@ -611,7 +611,7 @@ static void EmitStrictTwoHeapObjectCompare(MacroAssembler* masm,
   __ B(lt, &right_non_object);
 
   // Return non-zero - x0 already contains a non-zero pointer.
-  ASSERT(left.is(x0) || right.is(x0));
+  DCHECK(left.is(x0) || right.is(x0));
   Label return_not_equal;
   __ Bind(&return_not_equal);
   __ Ret();
@@ -649,9 +649,9 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     Register scratch,
                                     Label* slow,
                                     bool strict) {
-  ASSERT(!AreAliased(left, right, scratch));
-  ASSERT(!AreAliased(left_d, right_d));
-  ASSERT((left.is(x0) && right.is(x1)) ||
+  DCHECK(!AreAliased(left, right, scratch));
+  DCHECK(!AreAliased(left_d, right_d));
+  DCHECK((left.is(x0) && right.is(x1)) ||
          (right.is(x0) && left.is(x1)));
   Register result = x0;
 
@@ -724,7 +724,7 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
                                                      Register right_type,
                                                      Label* possible_strings,
                                                      Label* not_both_strings) {
-  ASSERT(!AreAliased(left, right, left_map, right_map, left_type, right_type));
+  DCHECK(!AreAliased(left, right, left_map, right_map, left_type, right_type));
   Register result = x0;
 
   Label object_test;
@@ -844,7 +844,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   // Left and/or right is a NaN. Load the result register with whatever makes
   // the comparison fail, since comparisons with NaN always fail (except ne,
   // which is filtered out at a higher level.)
-  ASSERT(cond != ne);
+  DCHECK(cond != ne);
   if ((cond == lt) || (cond == le)) {
     __ Mov(result, GREATER);
   } else {
@@ -935,7 +935,7 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
     if ((cond == lt) || (cond == le)) {
       ncr = GREATER;
     } else {
-      ASSERT((cond == gt) || (cond == ge));  // remaining cases
+      DCHECK((cond == gt) || (cond == ge));  // remaining cases
       ncr = LESS;
     }
     __ Mov(x10, Smi::FromInt(ncr));
@@ -1243,7 +1243,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ Bind(&done);
     __ AllocateHeapNumber(result_tagged, &call_runtime, scratch0, scratch1,
                           result_double);
-    ASSERT(result_tagged.is(x0));
+    DCHECK(result_tagged.is(x0));
     __ IncrementCounter(
         isolate()->counters()->math_pow(), 1, scratch0, scratch1);
     __ Ret();
@@ -1347,7 +1347,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   //
   // The arguments are in reverse order, so that arg[argc-2] is actually the
   // first argument to the target function and arg[0] is the last.
-  ASSERT(jssp.Is(__ StackPointer()));
+  DCHECK(jssp.Is(__ StackPointer()));
   const Register& argc_input = x0;
   const Register& target_input = x1;
 
@@ -1374,7 +1374,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // registers.
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(save_doubles_, x10, 3);
-  ASSERT(csp.Is(__ StackPointer()));
+  DCHECK(csp.Is(__ StackPointer()));
 
   // Poke callee-saved registers into reserved space.
   __ Poke(argv, 1 * kPointerSize);
@@ -1424,7 +1424,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // untouched, and the stub either throws an exception by jumping to one of
   // the exception_returned label.
 
-  ASSERT(csp.Is(__ StackPointer()));
+  DCHECK(csp.Is(__ StackPointer()));
 
   // Prepare AAPCS64 arguments to pass to the builtin.
   __ Mov(x0, argc);
@@ -1471,7 +1471,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Peek(target, 3 * kPointerSize);
 
   __ LeaveExitFrame(save_doubles_, x10, true);
-  ASSERT(jssp.Is(__ StackPointer()));
+  DCHECK(jssp.Is(__ StackPointer()));
   // Pop or drop the remaining stack slots and return from the stub.
   //         jssp[24]:    Arguments array (of size argc), including receiver.
   //         jssp[16]:    Preserved x23 (used for target).
@@ -1543,7 +1543,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 // Output:
 //   x0: result.
 void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
-  ASSERT(jssp.Is(__ StackPointer()));
+  DCHECK(jssp.Is(__ StackPointer()));
   Register code_entry = x0;
 
   // Enable instruction instrumentation. This only works on the simulator, and
@@ -1597,7 +1597,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ B(&done);
   __ Bind(&non_outermost_js);
   // We spare one instruction by pushing xzr since the marker is 0.
-  ASSERT(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME) == NULL);
+  DCHECK(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME) == NULL);
   __ Push(xzr);
   __ Bind(&done);
 
@@ -1699,7 +1699,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Reset the stack to the callee saved registers.
   __ Drop(-EntryFrameConstants::kCallerFPOffset, kByteSizeInBytes);
   // Restore the callee-saved registers and return.
-  ASSERT(jssp.Is(__ StackPointer()));
+  DCHECK(jssp.Is(__ StackPointer()));
   __ Mov(csp, jssp);
   __ SetStackPointer(csp);
   __ PopCalleeSavedRegisters();
@@ -1832,7 +1832,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ Mov(result, res_true);
   __ Bind(&return_result);
   if (HasCallSiteInlineCheck()) {
-    ASSERT(ReturnTrueFalseObject());
+    DCHECK(ReturnTrueFalseObject());
     __ Add(map_check_site, map_check_site, kDeltaToLoadBoolResult);
     __ GetRelocatedValueLocation(map_check_site, scratch2);
     __ Str(result, MemOperand(scratch2));
@@ -2468,7 +2468,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Cbz(x10, &runtime);
 
   // Check that the first argument is a JSRegExp object.
-  ASSERT(jssp.Is(__ StackPointer()));
+  DCHECK(jssp.Is(__ StackPointer()));
   __ Peek(jsregexp_object, kJSRegExpOffset);
   __ JumpIfSmi(jsregexp_object, &runtime);
   __ JumpIfNotObjectType(jsregexp_object, x10, x10, JS_REGEXP_TYPE, &runtime);
@@ -2505,7 +2505,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Initialize offset for possibly sliced string.
   __ Mov(sliced_string_offset, 0);
 
-  ASSERT(jssp.Is(__ StackPointer()));
+  DCHECK(jssp.Is(__ StackPointer()));
   __ Peek(subject, kSubjectOffset);
   __ JumpIfSmi(subject, &runtime);
 
@@ -2588,7 +2588,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Check that the third argument is a positive smi less than the subject
   // string length. A negative value will be greater (unsigned comparison).
-  ASSERT(jssp.Is(__ StackPointer()));
+  DCHECK(jssp.Is(__ StackPointer()));
   __ Peek(x10, kPreviousIndexOffset);
   __ JumpIfNotSmi(x10, &runtime);
   __ Cmp(jsstring_length, x10);
@@ -2606,7 +2606,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Find the code object based on the assumptions above.
   // kDataAsciiCodeOffset and kDataUC16CodeOffset are adjacent, adds an offset
   // of kPointerSize to reach the latter.
-  ASSERT_EQ(JSRegExp::kDataAsciiCodeOffset + kPointerSize,
+  DCHECK_EQ(JSRegExp::kDataAsciiCodeOffset + kPointerSize,
             JSRegExp::kDataUC16CodeOffset);
   __ Mov(x10, kPointerSize);
   // We will need the encoding later: ASCII = 0x04
@@ -2630,7 +2630,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // Isolates: note we add an additional parameter here (isolate pointer).
   __ EnterExitFrame(false, x10, 1);
-  ASSERT(csp.Is(__ StackPointer()));
+  DCHECK(csp.Is(__ StackPointer()));
 
   // We have 9 arguments to pass to the regexp code, therefore we have to pass
   // one on the stack and the rest as registers.
@@ -2734,7 +2734,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Add(number_of_capture_registers, x10, 2);
 
   // Check that the fourth object is a JSArray object.
-  ASSERT(jssp.Is(__ StackPointer()));
+  DCHECK(jssp.Is(__ StackPointer()));
   __ Peek(x10, kLastMatchInfoOffset);
   __ JumpIfSmi(x10, &runtime);
   __ JumpIfNotObjectType(x10, x11, x11, JS_ARRAY_TYPE, &runtime);
@@ -2916,7 +2916,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm,
                                      Register scratch1,
                                      Register scratch2) {
   ASM_LOCATION("GenerateRecordCallTarget");
-  ASSERT(!AreAliased(scratch1, scratch2,
+  DCHECK(!AreAliased(scratch1, scratch2,
                      argc, function, feedback_vector, index));
   // Cache the called function in a feedback vector slot. Cache states are
   // uninitialized, monomorphic (indicated by a JSFunction), and megamorphic.
@@ -2926,9 +2926,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm,
   //  index :           slot in feedback vector (smi)
   Label initialize, done, miss, megamorphic, not_array_function;
 
-  ASSERT_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
+  DCHECK_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->megamorphic_symbol());
-  ASSERT_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
+  DCHECK_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->uninitialized_symbol());
 
   // Load the cache state.
@@ -2993,7 +2993,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm,
 
       // CreateAllocationSiteStub expect the feedback vector in x2 and the slot
       // index in x3.
-      ASSERT(feedback_vector.Is(x2) && index.Is(x3));
+      DCHECK(feedback_vector.Is(x2) && index.Is(x3));
       __ CallStub(&create_stub);
 
       __ Pop(index, feedback_vector, function, argc);
@@ -3419,7 +3419,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
   if (index_flags_ == STRING_INDEX_IS_NUMBER) {
     __ CallRuntime(Runtime::kNumberToIntegerMapMinusZero, 1);
   } else {
-    ASSERT(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
+    DCHECK(index_flags_ == STRING_INDEX_IS_ARRAY_INDEX);
     // NumberToSmi discards numbers that are not exact integers.
     __ CallRuntime(Runtime::kNumberToSmi, 1);
   }
@@ -3486,7 +3486,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
 
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   // Inputs are in x0 (lhs) and x1 (rhs).
-  ASSERT(state_ == CompareIC::SMI);
+  DCHECK(state_ == CompareIC::SMI);
   ASM_LOCATION("ICCompareStub[Smis]");
   Label miss;
   // Bail out (to 'miss') unless both x0 and x1 are smis.
@@ -3508,7 +3508,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
-  ASSERT(state_ == CompareIC::NUMBER);
+  DCHECK(state_ == CompareIC::NUMBER);
   ASM_LOCATION("ICCompareStub[HeapNumbers]");
 
   Label unordered, maybe_undefined1, maybe_undefined2;
@@ -3576,7 +3576,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
-  ASSERT(state_ == CompareIC::INTERNALIZED_STRING);
+  DCHECK(state_ == CompareIC::INTERNALIZED_STRING);
   ASM_LOCATION("ICCompareStub[InternalizedStrings]");
   Label miss;
 
@@ -3614,9 +3614,9 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
-  ASSERT(state_ == CompareIC::UNIQUE_NAME);
+  DCHECK(state_ == CompareIC::UNIQUE_NAME);
   ASM_LOCATION("ICCompareStub[UniqueNames]");
-  ASSERT(GetCondition() == eq);
+  DCHECK(GetCondition() == eq);
   Label miss;
 
   Register result = x0;
@@ -3653,7 +3653,7 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
-  ASSERT(state_ == CompareIC::STRING);
+  DCHECK(state_ == CompareIC::STRING);
   ASM_LOCATION("ICCompareStub[Strings]");
 
   Label miss;
@@ -3694,7 +3694,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
   // because we already know they are not identical. We know they are both
   // strings.
   if (equality) {
-    ASSERT(GetCondition() == eq);
+    DCHECK(GetCondition() == eq);
     STATIC_ASSERT(kInternalizedTag == 0);
     Label not_internalized_strings;
     __ Orr(x12, lhs_type, rhs_type);
@@ -3734,7 +3734,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
-  ASSERT(state_ == CompareIC::OBJECT);
+  DCHECK(state_ == CompareIC::OBJECT);
   ASM_LOCATION("ICCompareStub[Objects]");
 
   Label miss;
@@ -3748,7 +3748,7 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
   __ JumpIfNotObjectType(rhs, x10, x10, JS_OBJECT_TYPE, &miss);
   __ JumpIfNotObjectType(lhs, x10, x10, JS_OBJECT_TYPE, &miss);
 
-  ASSERT(GetCondition() == eq);
+  DCHECK(GetCondition() == eq);
   __ Sub(result, rhs, lhs);
   __ Ret();
 
@@ -3824,7 +3824,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register hash,
                                     Register character) {
-  ASSERT(!AreAliased(hash, character));
+  DCHECK(!AreAliased(hash, character));
 
   // hash = character + (character << 10);
   __ LoadRoot(hash, Heap::kHashSeedRootIndex);
@@ -3844,7 +3844,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
 void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
                                             Register hash,
                                             Register character) {
-  ASSERT(!AreAliased(hash, character));
+  DCHECK(!AreAliased(hash, character));
 
   // hash += character;
   __ Add(hash, hash, character);
@@ -3865,7 +3865,7 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   // Compute hashes modulo 2^32 using a 32-bit W register.
   Register hash_w = hash.W();
   Register scratch_w = scratch.W();
-  ASSERT(!AreAliased(hash_w, scratch_w));
+  DCHECK(!AreAliased(hash_w, scratch_w));
 
   // hash += hash << 3;
   __ Add(hash_w, hash_w, Operand(hash_w, LSL, 3));
@@ -4139,7 +4139,7 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
                                                       Register scratch1,
                                                       Register scratch2,
                                                       Register scratch3) {
-  ASSERT(!AreAliased(left, right, scratch1, scratch2, scratch3));
+  DCHECK(!AreAliased(left, right, scratch1, scratch2, scratch3));
   Register result = x0;
   Register left_length = scratch1;
   Register right_length = scratch2;
@@ -4182,7 +4182,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                                         Register scratch2,
                                                         Register scratch3,
                                                         Register scratch4) {
-  ASSERT(!AreAliased(left, right, scratch1, scratch2, scratch3, scratch4));
+  DCHECK(!AreAliased(left, right, scratch1, scratch2, scratch3, scratch4));
   Label result_not_equal, compare_lengths;
 
   // Find minimum length and length difference.
@@ -4203,7 +4203,7 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
   // Compare lengths - strings up to min-length are equal.
   __ Bind(&compare_lengths);
 
-  ASSERT(Smi::FromInt(EQUAL) == static_cast<Smi*>(0));
+  DCHECK(Smi::FromInt(EQUAL) == static_cast<Smi*>(0));
 
   // Use length_delta as result if it's zero.
   Register result = x0;
@@ -4228,7 +4228,7 @@ void StringCompareStub::GenerateAsciiCharsCompareLoop(
     Register scratch1,
     Register scratch2,
     Label* chars_not_equal) {
-  ASSERT(!AreAliased(left, right, length, scratch1, scratch2));
+  DCHECK(!AreAliased(left, right, length, scratch1, scratch2));
 
   // Change index to run from -length to -1 by adding length to string
   // start. This means that loop ends when index reaches zero, which
@@ -4368,8 +4368,8 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
   Register address =
     x0.Is(regs_.address()) ? regs_.scratch0() : regs_.address();
-  ASSERT(!address.Is(regs_.object()));
-  ASSERT(!address.Is(x0));
+  DCHECK(!address.Is(regs_.object()));
+  DCHECK(!address.Is(x0));
   __ Mov(address, regs_.address());
   __ Mov(x0, regs_.object());
   __ Mov(x1, address);
@@ -4609,7 +4609,7 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
     __ Bind(&entry_hook_call_start);
     __ Push(lr);
     __ CallStub(&stub);
-    ASSERT(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
+    DCHECK(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
            GetProfileEntryHookCallSize(masm));
 
     __ Pop(lr);
@@ -4624,7 +4624,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // from anywhere.
   // TODO(jbramley): What about FP registers?
   __ PushCPURegList(kCallerSaved);
-  ASSERT(kCallerSaved.IncludesAliasOf(lr));
+  DCHECK(kCallerSaved.IncludesAliasOf(lr));
   const int kNumSavedRegs = kCallerSaved.Count();
 
   // Compute the function's address as the first argument.
@@ -4685,7 +4685,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     Register target) {
   // Make sure the caller configured the stack pointer (see comment in
   // DirectCEntryStub::Generate).
-  ASSERT(csp.Is(__ StackPointer()));
+  DCHECK(csp.Is(__ StackPointer()));
 
   intptr_t code =
       reinterpret_cast<intptr_t>(GetCode().location());
@@ -4710,7 +4710,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(
     Register name,
     Register scratch1,
     Register scratch2) {
-  ASSERT(!AreAliased(elements, name, scratch1, scratch2));
+  DCHECK(!AreAliased(elements, name, scratch1, scratch2));
 
   // Assert that name contains a string.
   __ AssertName(name);
@@ -4727,7 +4727,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(
       // Add the probe offset (i + i * i) left shifted to avoid right shifting
       // the hash in a separate instruction. The value hash + i + i * i is right
       // shifted in the following and instruction.
-      ASSERT(NameDictionary::GetProbeOffset(i) <
+      DCHECK(NameDictionary::GetProbeOffset(i) <
           1 << (32 - Name::kHashFieldOffset));
       __ Add(scratch2, scratch2, Operand(
           NameDictionary::GetProbeOffset(i) << Name::kHashShift));
@@ -4735,7 +4735,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(
     __ And(scratch2, scratch1, Operand(scratch2, LSR, Name::kHashShift));
 
     // Scale the index by multiplying by the element size.
-    ASSERT(NameDictionary::kEntrySize == 3);
+    DCHECK(NameDictionary::kEntrySize == 3);
     __ Add(scratch2, scratch2, Operand(scratch2, LSL, 1));
 
     // Check if the key is identical to the name.
@@ -4758,7 +4758,7 @@ void NameDictionaryLookupStub::GeneratePositiveLookup(
   __ PushCPURegList(spill_list);
 
   if (name.is(x0)) {
-    ASSERT(!elements.is(x1));
+    DCHECK(!elements.is(x1));
     __ Mov(x1, name);
     __ Mov(x0, elements);
   } else {
@@ -4787,8 +4787,8 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
                                                       Register properties,
                                                       Handle<Name> name,
                                                       Register scratch0) {
-  ASSERT(!AreAliased(receiver, properties, scratch0));
-  ASSERT(name->IsUniqueName());
+  DCHECK(!AreAliased(receiver, properties, scratch0));
+  DCHECK(name->IsUniqueName());
   // If names of slots in range from 1 to kProbes - 1 for the hash value are
   // not equal to the name and kProbes-th slot is not used (its name is the
   // undefined value), it guarantees the hash table doesn't contain the
@@ -4804,7 +4804,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ And(index, index, name->Hash() + NameDictionary::GetProbeOffset(i));
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(NameDictionary::kEntrySize == 3);
+    DCHECK(NameDictionary::kEntrySize == 3);
     __ Add(index, index, Operand(index, LSL, 1));  // index *= 3.
 
     Register entity_name = scratch0;
@@ -4885,7 +4885,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
       // Add the probe offset (i + i * i) left shifted to avoid right shifting
       // the hash in a separate instruction. The value hash + i + i * i is right
       // shifted in the following and instruction.
-      ASSERT(NameDictionary::GetProbeOffset(i) <
+      DCHECK(NameDictionary::GetProbeOffset(i) <
              1 << (32 - Name::kHashFieldOffset));
       __ Add(index, hash,
              NameDictionary::GetProbeOffset(i) << Name::kHashShift);
@@ -4895,7 +4895,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ And(index, mask, Operand(index, LSR, Name::kHashShift));
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(NameDictionary::kEntrySize == 3);
+    DCHECK(NameDictionary::kEntrySize == 3);
     __ Add(index, index, Operand(index, LSL, 1));  // index *= 3.
 
     __ Add(index, dictionary, Operand(index, LSL, kPointerSizeLog2));
@@ -5331,7 +5331,7 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, x10, kApiStackSpace + kCallApiFunctionSpillSpace);
 
-  ASSERT(!AreAliased(x0, api_function_address));
+  DCHECK(!AreAliased(x0, api_function_address));
   // x0 = FunctionCallbackInfo&
   // Arguments is after the return address.
   __ Add(x0, masm->StackPointer(), 1 * kPointerSize);

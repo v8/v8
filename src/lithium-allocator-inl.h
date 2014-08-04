@@ -45,7 +45,7 @@ void LAllocator::SetLiveRangeAssignedRegister(LiveRange* range, int reg) {
   if (range->Kind() == DOUBLE_REGISTERS) {
     assigned_double_registers_->Add(reg);
   } else {
-    ASSERT(range->Kind() == GENERAL_REGISTERS);
+    DCHECK(range->Kind() == GENERAL_REGISTERS);
     assigned_registers_->Add(reg);
   }
   range->set_assigned_register(reg, chunk()->zone());

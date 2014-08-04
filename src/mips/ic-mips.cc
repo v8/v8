@@ -172,7 +172,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   // In the case that the object is a value-wrapper object,
   // we enter the runtime system to make sure that indexing into string
   // objects work as intended.
-  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
+  DCHECK(JS_OBJECT_TYPE > JS_VALUE_TYPE);
   __ lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
   __ Branch(slow, lt, scratch, Operand(JS_OBJECT_TYPE));
 }
@@ -279,8 +279,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is in lr.
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
-  ASSERT(receiver.is(a1));
-  ASSERT(name.is(a2));
+  DCHECK(receiver.is(a1));
+  DCHECK(name.is(a2));
 
   // Probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
@@ -295,8 +295,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   Register dictionary = a0;
-  ASSERT(!dictionary.is(ReceiverRegister()));
-  ASSERT(!dictionary.is(NameRegister()));
+  DCHECK(!dictionary.is(ReceiverRegister()));
+  DCHECK(!dictionary.is(NameRegister()));
 
   Label slow;
 
@@ -434,8 +434,8 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // The return address is in ra.
   Register receiver = ReceiverRegister();
   Register key = NameRegister();
-  ASSERT(receiver.is(a1));
-  ASSERT(key.is(a2));
+  DCHECK(receiver.is(a1));
+  DCHECK(key.is(a2));
 
   Label slow, notin;
   MemOperand mapped_location =
@@ -461,7 +461,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   Register receiver = ReceiverRegister();
   Register key = NameRegister();
   Register value = ValueRegister();
-  ASSERT(value.is(a0));
+  DCHECK(value.is(a0));
 
   Label slow, notin;
   // Store address is returned in register (of MemOperand) mapped_location.
@@ -469,7 +469,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
       masm, receiver, key, a3, t0, t1, &notin, &slow);
   __ sw(value, mapped_location);
   __ mov(t5, value);
-  ASSERT_EQ(mapped_location.offset(), 0);
+  DCHECK_EQ(mapped_location.offset(), 0);
   __ RecordWrite(a3, mapped_location.rm(), t5,
                  kRAHasNotBeenSaved, kDontSaveFPRegs);
   __ Ret(USE_DELAY_SLOT);
@@ -481,7 +481,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
       GenerateUnmappedArgumentsLookup(masm, key, a3, t0, &slow);
   __ sw(value, unmapped_location);
   __ mov(t5, value);
-  ASSERT_EQ(unmapped_location.offset(), 0);
+  DCHECK_EQ(unmapped_location.offset(), 0);
   __ RecordWrite(a3, unmapped_location.rm(), t5,
                  kRAHasNotBeenSaved, kDontSaveFPRegs);
   __ Ret(USE_DELAY_SLOT);
@@ -513,13 +513,13 @@ const Register LoadIC::NameRegister() { return a2; }
 
 
 const Register LoadIC::SlotRegister() {
-  ASSERT(FLAG_vector_ics);
+  DCHECK(FLAG_vector_ics);
   return a0;
 }
 
 
 const Register LoadIC::VectorRegister() {
-  ASSERT(FLAG_vector_ics);
+  DCHECK(FLAG_vector_ics);
   return a3;
 }
 
@@ -550,8 +550,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   Register key = NameRegister();
   Register receiver = ReceiverRegister();
-  ASSERT(key.is(a2));
-  ASSERT(receiver.is(a1));
+  DCHECK(key.is(a2));
+  DCHECK(receiver.is(a1));
 
   Isolate* isolate = masm->isolate();
 
@@ -721,7 +721,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   Register index = NameRegister();
   Register scratch = a3;
   Register result = v0;
-  ASSERT(!scratch.is(receiver) && !scratch.is(index));
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
 
   StringCharAtGenerator char_at_generator(receiver,
                                           index,
@@ -941,7 +941,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Register value = ValueRegister();
   Register key = NameRegister();
   Register receiver = ReceiverRegister();
-  ASSERT(value.is(a0));
+  DCHECK(value.is(a0));
   Register receiver_map = a3;
   Register elements_map = t2;
   Register elements = t3;  // Elements array of the receiver.
@@ -1029,8 +1029,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   Register key = NameRegister();
   Register scratch1 = a3;
   Register scratch2 = t0;
-  ASSERT(!scratch1.is(receiver) && !scratch1.is(key));
-  ASSERT(!scratch2.is(receiver) && !scratch2.is(key));
+  DCHECK(!scratch1.is(receiver) && !scratch1.is(key));
+  DCHECK(!scratch2.is(receiver) && !scratch2.is(key));
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, &slow);
@@ -1098,9 +1098,9 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
-  ASSERT(receiver.is(a1));
-  ASSERT(name.is(a2));
-  ASSERT(ValueRegister().is(a0));
+  DCHECK(receiver.is(a1));
+  DCHECK(name.is(a2));
+  DCHECK(ValueRegister().is(a0));
 
   // Get the receiver from the stack and probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
@@ -1128,9 +1128,9 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register name = NameRegister();
   Register value = ValueRegister();
   Register dictionary = a3;
-  ASSERT(receiver.is(a1));
-  ASSERT(name.is(a2));
-  ASSERT(value.is(a0));
+  DCHECK(receiver.is(a1));
+  DCHECK(name.is(a2));
+  DCHECK(value.is(a0));
 
   __ lw(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
@@ -1236,19 +1236,19 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   CodePatcher patcher(patch_address, 2);
   Register reg = Register::from_code(Assembler::GetRs(instr_at_patch));
   if (check == ENABLE_INLINED_SMI_CHECK) {
-    ASSERT(Assembler::IsAndImmediate(instr_at_patch));
-    ASSERT_EQ(0, Assembler::GetImmediate16(instr_at_patch));
+    DCHECK(Assembler::IsAndImmediate(instr_at_patch));
+    DCHECK_EQ(0, Assembler::GetImmediate16(instr_at_patch));
     patcher.masm()->andi(at, reg, kSmiTagMask);
   } else {
-    ASSERT(check == DISABLE_INLINED_SMI_CHECK);
-    ASSERT(Assembler::IsAndImmediate(instr_at_patch));
+    DCHECK(check == DISABLE_INLINED_SMI_CHECK);
+    DCHECK(Assembler::IsAndImmediate(instr_at_patch));
     patcher.masm()->andi(at, reg, 0);
   }
-  ASSERT(Assembler::IsBranch(branch_instr));
+  DCHECK(Assembler::IsBranch(branch_instr));
   if (Assembler::IsBeq(branch_instr)) {
     patcher.ChangeBranchCondition(ne);
   } else {
-    ASSERT(Assembler::IsBne(branch_instr));
+    DCHECK(Assembler::IsBne(branch_instr));
     patcher.ChangeBranchCondition(eq);
   }
 }

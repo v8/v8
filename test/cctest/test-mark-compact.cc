@@ -241,7 +241,7 @@ static void WeakPointerCallback(
   std::pair<v8::Persistent<v8::Value>*, int>* p =
       reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
           data.GetParameter());
-  ASSERT_EQ(1234, p->second);
+  DCHECK_EQ(1234, p->second);
   NumberOfWeakCalls++;
   p->first->Reset();
 }
@@ -366,7 +366,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
   bool has_been_disposed() { return has_been_disposed_; }
 
   virtual void Dispose() {
-    ASSERT(!has_been_disposed_);
+    DCHECK(!has_been_disposed_);
     has_been_disposed_ = true;
   }
 
@@ -394,7 +394,7 @@ TEST(EmptyObjectGroups) {
 
   TestRetainedObjectInfo info;
   global_handles->AddObjectGroup(NULL, 0, &info);
-  ASSERT(info.has_been_disposed());
+  DCHECK(info.has_been_disposed());
 
   global_handles->AddImplicitReferences(
         Handle<HeapObject>::cast(object).location(), NULL, 0);

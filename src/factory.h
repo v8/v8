@@ -110,7 +110,7 @@ class Factory V8_FINAL {
   inline Handle<String> NewStringFromStaticAscii(
       const char (&str)[N],
       PretenureFlag pretenure = NOT_TENURED) {
-    ASSERT(N == StrLength(str) + 1);
+    DCHECK(N == StrLength(str) + 1);
     return NewStringFromOneByte(
         STATIC_ASCII_VECTOR(str), pretenure).ToHandleChecked();
   }

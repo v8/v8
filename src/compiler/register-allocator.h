@@ -49,7 +49,7 @@ class LifetimePosition {
   // Returns the index of the instruction to which this lifetime position
   // corresponds.
   int InstructionIndex() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return value_ / kStep;
   }
 
@@ -60,28 +60,28 @@ class LifetimePosition {
   // Returns the lifetime position for the start of the instruction which
   // corresponds to this lifetime position.
   LifetimePosition InstructionStart() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return LifetimePosition(value_ & ~(kStep - 1));
   }
 
   // Returns the lifetime position for the end of the instruction which
   // corresponds to this lifetime position.
   LifetimePosition InstructionEnd() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return LifetimePosition(InstructionStart().Value() + kStep / 2);
   }
 
   // Returns the lifetime position for the beginning of the next instruction.
   LifetimePosition NextInstruction() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return LifetimePosition(InstructionStart().Value() + kStep);
   }
 
   // Returns the lifetime position for the beginning of the previous
   // instruction.
   LifetimePosition PrevInstruction() const {
-    ASSERT(IsValid());
-    ASSERT(value_ > 1);
+    DCHECK(IsValid());
+    DCHECK(value_ > 1);
     return LifetimePosition(InstructionStart().Value() - kStep);
   }
 
@@ -118,7 +118,7 @@ class UseInterval : public ZoneObject {
  public:
   UseInterval(LifetimePosition start, LifetimePosition end)
       : start_(start), end_(end), next_(NULL) {
-    ASSERT(start.Value() < end.Value());
+    DCHECK(start.Value() < end.Value());
   }
 
   LifetimePosition start() const { return start_; }
@@ -240,7 +240,7 @@ class LiveRange : public ZoneObject {
   bool IsSpilled() const { return spilled_; }
 
   InstructionOperand* current_hint_operand() const {
-    ASSERT(current_hint_operand_ == FirstHint());
+    DCHECK(current_hint_operand_ == FirstHint());
     return current_hint_operand_;
   }
   InstructionOperand* FirstHint() const {
@@ -251,12 +251,12 @@ class LiveRange : public ZoneObject {
   }
 
   LifetimePosition Start() const {
-    ASSERT(!IsEmpty());
+    DCHECK(!IsEmpty());
     return first_interval()->start();
   }
 
   LifetimePosition End() const {
-    ASSERT(!IsEmpty());
+    DCHECK(!IsEmpty());
     return last_interval_->end();
   }
 

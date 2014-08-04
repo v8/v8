@@ -49,7 +49,7 @@ class SourceCodeCache V8_FINAL BASE_EMBEDDED {
     cache_ = *new_array;
     Handle<String> str =
         factory->NewStringFromAscii(name, TENURED).ToHandleChecked();
-    ASSERT(!str.is_null());
+    DCHECK(!str.is_null());
     cache_->set(length, *str);
     cache_->set(length + 1, *shared);
     Script::cast(shared->script())->set_type(Smi::FromInt(type_));

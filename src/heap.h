@@ -390,7 +390,7 @@ class PromotionQueue {
   void Initialize();
 
   void Destroy() {
-    ASSERT(is_empty());
+    DCHECK(is_empty());
     delete emergency_stack_;
     emergency_stack_ = NULL;
   }
@@ -406,7 +406,7 @@ class PromotionQueue {
       return;
     }
 
-    ASSERT(GetHeadPage() == Page::FromAllocationTop(limit));
+    DCHECK(GetHeadPage() == Page::FromAllocationTop(limit));
     limit_ = reinterpret_cast<intptr_t*>(limit);
 
     if (limit_ <= rear_) {
@@ -436,7 +436,7 @@ class PromotionQueue {
   inline void insert(HeapObject* target, int size);
 
   void remove(HeapObject** target, int* size) {
-    ASSERT(!is_empty());
+    DCHECK(!is_empty());
     if (front_ == rear_) {
       Entry e = emergency_stack_->RemoveLast();
       *target = e.obj_;
@@ -447,7 +447,7 @@ class PromotionQueue {
     if (NewSpacePage::IsAtStart(reinterpret_cast<Address>(front_))) {
       NewSpacePage* front_page =
           NewSpacePage::FromAddress(reinterpret_cast<Address>(front_));
-      ASSERT(!front_page->prev_page()->is_anchor());
+      DCHECK(!front_page->prev_page()->is_anchor());
       front_ =
           reinterpret_cast<intptr_t*>(front_page->prev_page()->area_end());
     }
@@ -1158,12 +1158,12 @@ class Heap {
   void CheckNewSpaceExpansionCriteria();
 
   inline void IncrementPromotedObjectsSize(int object_size) {
-    ASSERT(object_size > 0);
+    DCHECK(object_size > 0);
     promoted_objects_size_ += object_size;
   }
 
   inline void IncrementSemiSpaceCopiedObjectSize(int object_size) {
-    ASSERT(object_size > 0);
+    DCHECK(object_size > 0);
     semi_space_copied_object_size_ += object_size;
   }
 
@@ -1180,7 +1180,7 @@ class Heap {
   }
 
   inline void IncrementYoungSurvivorsCounter(int survived) {
-    ASSERT(survived >= 0);
+    DCHECK(survived >= 0);
     survived_since_last_expansion_ += survived;
   }
 
@@ -1296,27 +1296,27 @@ class Heap {
 
   uint32_t HashSeed() {
     uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
-    ASSERT(FLAG_randomize_hashes || seed == 0);
+    DCHECK(FLAG_randomize_hashes || seed == 0);
     return seed;
   }
 
   void SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
-    ASSERT(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
+    DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
     set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
   }
 
   void SetConstructStubDeoptPCOffset(int pc_offset) {
-    ASSERT(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
+    DCHECK(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
     set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
   }
 
   void SetGetterStubDeoptPCOffset(int pc_offset) {
-    ASSERT(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
+    DCHECK(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
     set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
   }
 
   void SetSetterStubDeoptPCOffset(int pc_offset) {
-    ASSERT(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
+    DCHECK(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
     set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
   }
 
@@ -1362,7 +1362,7 @@ class Heap {
   };
 
   void RecordObjectStats(InstanceType type, size_t size) {
-    ASSERT(type <= LAST_TYPE);
+    DCHECK(type <= LAST_TYPE);
     object_counts_[type]++;
     object_sizes_[type] += size;
   }
@@ -1371,9 +1371,9 @@ class Heap {
     int code_sub_type_index = FIRST_CODE_KIND_SUB_TYPE + code_sub_type;
     int code_age_index =
         FIRST_CODE_AGE_SUB_TYPE + code_age - Code::kFirstCodeAge;
-    ASSERT(code_sub_type_index >= FIRST_CODE_KIND_SUB_TYPE &&
+    DCHECK(code_sub_type_index >= FIRST_CODE_KIND_SUB_TYPE &&
            code_sub_type_index < FIRST_CODE_AGE_SUB_TYPE);
-    ASSERT(code_age_index >= FIRST_CODE_AGE_SUB_TYPE &&
+    DCHECK(code_age_index >= FIRST_CODE_AGE_SUB_TYPE &&
            code_age_index < OBJECT_STATS_COUNT);
     object_counts_[code_sub_type_index]++;
     object_sizes_[code_sub_type_index] += size;
@@ -1382,7 +1382,7 @@ class Heap {
   }
 
   void RecordFixedArraySubTypeStats(int array_sub_type, size_t size) {
-    ASSERT(array_sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
+    DCHECK(array_sub_type <= LAST_FIXED_ARRAY_SUB_TYPE);
     object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]++;
     object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
   }
@@ -1565,7 +1565,7 @@ class Heap {
   inline void set_##name(type* value) {                                        \
     /* The deserializer makes use of the fact that these common roots are */   \
     /* never in new space and never on a page that is being compacted.    */   \
-    ASSERT(k##camel_name##RootIndex >= kOldSpaceRoots || !InNewSpace(value));  \
+    DCHECK(k##camel_name##RootIndex >= kOldSpaceRoots || !InNewSpace(value));  \
     roots_[k##camel_name##RootIndex] = value;                                  \
   }
   ROOT_LIST(ROOT_ACCESSOR)
@@ -1675,7 +1675,7 @@ class Heap {
 
   // Update the GC state. Called from the mark-compact collector.
   void MarkMapPointersAsEncoded(bool encoded) {
-    ASSERT(!encoded);
+    DCHECK(!encoded);
     gc_safe_size_of_old_object_ = &GcSafeSizeOfOldObject;
   }
 
@@ -1726,7 +1726,7 @@ class Heap {
   static AllocationSpace SelectSpace(int object_size,
                                      AllocationSpace preferred_old_space,
                                      PretenureFlag pretenure) {
-    ASSERT(preferred_old_space == OLD_POINTER_SPACE ||
+    DCHECK(preferred_old_space == OLD_POINTER_SPACE ||
            preferred_old_space == OLD_DATA_SPACE);
     if (object_size > Page::kMaxRegularHeapObjectSize) return LO_SPACE;
     return (pretenure == TENURED) ? preferred_old_space : NEW_SPACE;
@@ -2050,7 +2050,7 @@ class Heap {
   void ClearObjectStats(bool clear_last_time_stats = false);
 
   void set_weak_object_to_code_table(Object* value) {
-    ASSERT(!InNewSpace(value));
+    DCHECK(!InNewSpace(value));
     weak_object_to_code_table_ = value;
   }
 
@@ -2437,7 +2437,7 @@ class DescriptorLookupCache {
 
   // Update an element in the cache.
   void Update(Map* source, Name* name, int result) {
-    ASSERT(result != kAbsent);
+    DCHECK(result != kAbsent);
     if (name->IsUniqueName()) {
       int index = Hash(source, name);
       Key& key = keys_[index];
@@ -2542,13 +2542,13 @@ class IntrusiveMarking {
   static void ClearMark(HeapObject* object) {
     uintptr_t map_word = object->map_word().ToRawValue();
     object->set_map_word(MapWord::FromRawValue(map_word | kNotMarkedBit));
-    ASSERT(!IsMarked(object));
+    DCHECK(!IsMarked(object));
   }
 
   static void SetMark(HeapObject* object) {
     uintptr_t map_word = object->map_word().ToRawValue();
     object->set_map_word(MapWord::FromRawValue(map_word & ~kNotMarkedBit));
-    ASSERT(IsMarked(object));
+    DCHECK(IsMarked(object));
   }
 
   static Map* MapOfMarkedObject(HeapObject* object) {

@@ -116,7 +116,7 @@ void V8::ShutdownPlatform() {
 
 
 v8::Platform* V8::GetCurrentPlatform() {
-  ASSERT(platform_);
+  DCHECK(platform_);
   return platform_;
 }
 

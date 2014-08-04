@@ -29,7 +29,7 @@ class RawMachineAssembler : public GraphBuilder,
   class Label {
    public:
     Label() : block_(NULL), used_(false), bound_(false) {}
-    ~Label() { ASSERT(bound_ || !used_); }
+    ~Label() { DCHECK(bound_ || !used_); }
 
     BasicBlock* block() { return block_; }
 
@@ -97,7 +97,7 @@ class RawMachineAssembler : public GraphBuilder,
   virtual Node* MakeNode(Operator* op, int input_count, Node** inputs);
 
   Schedule* schedule() {
-    ASSERT(ScheduleValid());
+    DCHECK(ScheduleValid());
     return schedule_;
   }
 

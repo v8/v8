@@ -74,7 +74,7 @@ class FullCodeGenerator: public AstVisitor {
                          info->zone()),
         back_edges_(2, info->zone()),
         ic_total_count_(0) {
-    ASSERT(!info->IsStub());
+    DCHECK(!info->IsStub());
     Initialize();
   }
 
@@ -137,7 +137,7 @@ class FullCodeGenerator: public AstVisitor {
     }
     virtual ~NestedStatement() {
       // Unlink from codegen's nesting stack.
-      ASSERT_EQ(this, codegen_->nesting_stack_);
+      DCHECK_EQ(this, codegen_->nesting_stack_);
       codegen_->nesting_stack_ = previous_;
     }
 
@@ -581,7 +581,7 @@ class FullCodeGenerator: public AstVisitor {
   int loop_depth() { return loop_depth_; }
   void increment_loop_depth() { loop_depth_++; }
   void decrement_loop_depth() {
-    ASSERT(loop_depth_ > 0);
+    DCHECK(loop_depth_ > 0);
     loop_depth_--;
   }
 
@@ -765,7 +765,7 @@ class FullCodeGenerator: public AstVisitor {
           fall_through_(fall_through) { }
 
     static const TestContext* cast(const ExpressionContext* context) {
-      ASSERT(context->IsTest());
+      DCHECK(context->IsTest());
       return reinterpret_cast<const TestContext*>(context);
     }
 
@@ -866,7 +866,7 @@ class AccessorTable: public TemplateHashMap<Literal,
 class BackEdgeTable {
  public:
   BackEdgeTable(Code* code, DisallowHeapAllocation* required) {
-    ASSERT(code->kind() == Code::FUNCTION);
+    DCHECK(code->kind() == Code::FUNCTION);
     instruction_start_ = code->instruction_start();
     Address table_address = instruction_start_ + code->back_edge_table_offset();
     length_ = Memory::uint32_at(table_address);
@@ -930,7 +930,7 @@ class BackEdgeTable {
 
  private:
   Address entry_at(uint32_t index) {
-    ASSERT(index < length_);
+    DCHECK(index < length_);
     return start_ + index * kEntrySize;
   }
 

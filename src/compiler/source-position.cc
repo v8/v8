@@ -16,7 +16,7 @@ class SourcePositionTable::Decorator : public GraphDecorator {
       : source_positions_(source_positions) {}
 
   virtual void Decorate(Node* node) {
-    ASSERT(!source_positions_->current_position_.IsInvalid());
+    DCHECK(!source_positions_->current_position_.IsInvalid());
     source_positions_->table_.Set(node, source_positions_->current_position_);
   }
 
@@ -33,14 +33,14 @@ SourcePositionTable::SourcePositionTable(Graph* graph)
 
 
 void SourcePositionTable::AddDecorator() {
-  ASSERT(decorator_ == NULL);
+  DCHECK(decorator_ == NULL);
   decorator_ = new (graph_->zone()) Decorator(this);
   graph_->AddDecorator(decorator_);
 }
 
 
 void SourcePositionTable::RemoveDecorator() {
-  ASSERT(decorator_ != NULL);
+  DCHECK(decorator_ != NULL);
   graph_->RemoveDecorator(decorator_);
   decorator_ = NULL;
 }

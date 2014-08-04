@@ -41,7 +41,7 @@ HYDROGEN_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 
 
 Isolate* HValue::isolate() const {
-  ASSERT(block() != NULL);
+  DCHECK(block() != NULL);
   return block()->isolate();
 }
 
@@ -57,7 +57,7 @@ void HValue::AssumeRepresentation(Representation r) {
 
 
 void HValue::InferRepresentation(HInferRepresentationPhase* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
+  DCHECK(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
   new_rep = RepresentationFromUses();
@@ -292,7 +292,7 @@ void Range::KeepOrder() {
 
 #ifdef DEBUG
 void Range::Verify() const {
-  ASSERT(lower_ <= upper_);
+  DCHECK(lower_ <= upper_);
 }
 #endif
 
@@ -421,7 +421,7 @@ bool HValue::Equals(HValue* other) {
     if (OperandAt(i)->id() != other->OperandAt(i)->id()) return false;
   }
   bool result = DataEquals(other);
-  ASSERT(!result || Hashcode() == other->Hashcode());
+  DCHECK(!result || Hashcode() == other->Hashcode());
   return result;
 }
 
@@ -493,7 +493,7 @@ void HValue::ReplaceAllUsesWith(HValue* other) {
   while (use_list_ != NULL) {
     HUseListNode* list_node = use_list_;
     HValue* value = list_node->value();
-    ASSERT(!value->block()->IsStartBlock());
+    DCHECK(!value->block()->IsStartBlock());
     value->InternalSetOperandAt(list_node->index(), other);
     use_list_ = list_node->tail();
     list_node->set_tail(other->use_list_);
@@ -519,7 +519,7 @@ void HValue::Kill() {
 
 
 void HValue::SetBlock(HBasicBlock* block) {
-  ASSERT(block_ == NULL || block == NULL);
+  DCHECK(block_ == NULL || block == NULL);
   block_ = block;
   if (id_ == kNoNumber && block != NULL) {
     id_ = block->graph()->GetNextValueID(this);
@@ -597,23 +597,23 @@ void HValue::RegisterUse(int index, HValue* new_value) {
 void HValue::AddNewRange(Range* r, Zone* zone) {
   if (!HasRange()) ComputeInitialRange(zone);
   if (!HasRange()) range_ = new(zone) Range();
-  ASSERT(HasRange());
+  DCHECK(HasRange());
   r->StackUpon(range_);
   range_ = r;
 }
 
 
 void HValue::RemoveLastAddedRange() {
-  ASSERT(HasRange());
-  ASSERT(range_->next() != NULL);
+  DCHECK(HasRange());
+  DCHECK(range_->next() != NULL);
   range_ = range_->next();
 }
 
 
 void HValue::ComputeInitialRange(Zone* zone) {
-  ASSERT(!HasRange());
+  DCHECK(!HasRange());
   range_ = InferRange(zone);
-  ASSERT(HasRange());
+  DCHECK(HasRange());
 }
 
 
@@ -647,13 +647,13 @@ OStream& HInstruction::PrintDataTo(OStream& os) const {  // NOLINT
 
 
 void HInstruction::Unlink() {
-  ASSERT(IsLinked());
-  ASSERT(!IsControlInstruction());  // Must never move control instructions.
-  ASSERT(!IsBlockEntry());  // Doesn't make sense to delete these.
-  ASSERT(previous_ != NULL);
+  DCHECK(IsLinked());
+  DCHECK(!IsControlInstruction());  // Must never move control instructions.
+  DCHECK(!IsBlockEntry());  // Doesn't make sense to delete these.
+  DCHECK(previous_ != NULL);
   previous_->next_ = next_;
   if (next_ == NULL) {
-    ASSERT(block()->last() == this);
+    DCHECK(block()->last() == this);
     block()->set_last(previous_);
   } else {
     next_->previous_ = previous_;
@@ -663,11 +663,11 @@ void HInstruction::Unlink() {
 
 
 void HInstruction::InsertBefore(HInstruction* next) {
-  ASSERT(!IsLinked());
-  ASSERT(!next->IsBlockEntry());
-  ASSERT(!IsControlInstruction());
-  ASSERT(!next->block()->IsStartBlock());
-  ASSERT(next->previous_ != NULL);
+  DCHECK(!IsLinked());
+  DCHECK(!next->IsBlockEntry());
+  DCHECK(!IsControlInstruction());
+  DCHECK(!next->block()->IsStartBlock());
+  DCHECK(next->previous_ != NULL);
   HInstruction* prev = next->previous();
   prev->next_ = this;
   next->previous_ = this;
@@ -681,14 +681,14 @@ void HInstruction::InsertBefore(HInstruction* next) {
 
 
 void HInstruction::InsertAfter(HInstruction* previous) {
-  ASSERT(!IsLinked());
-  ASSERT(!previous->IsControlInstruction());
-  ASSERT(!IsControlInstruction() || previous->next_ == NULL);
+  DCHECK(!IsLinked());
+  DCHECK(!previous->IsControlInstruction());
+  DCHECK(!IsControlInstruction() || previous->next_ == NULL);
   HBasicBlock* block = previous->block();
   // Never insert anything except constants into the start block after finishing
   // it.
   if (block->IsStartBlock() && block->IsFinished() && !IsConstant()) {
-    ASSERT(block->end()->SecondSuccessor() == NULL);
+    DCHECK(block->end()->SecondSuccessor() == NULL);
     InsertAfter(block->end()->FirstSuccessor()->first());
     return;
   }
@@ -698,7 +698,7 @@ void HInstruction::InsertAfter(HInstruction* previous) {
   // simulate instruction instead.
   HInstruction* next = previous->next_;
   if (previous->HasObservableSideEffects() && next != NULL) {
-    ASSERT(next->IsSimulate());
+    DCHECK(next->IsSimulate());
     previous = next;
     next = previous->next_;
   }
@@ -748,19 +748,19 @@ void HInstruction::Verify() {
           cur = cur->previous();
         }
         // Must reach other operand in the same block!
-        ASSERT(cur == other_operand);
+        DCHECK(cur == other_operand);
       }
     } else {
       // If the following assert fires, you may have forgotten an
       // AddInstruction.
-      ASSERT(other_block->Dominates(cur_block));
+      DCHECK(other_block->Dominates(cur_block));
     }
   }
 
   // Verify that instructions that may have side-effects are followed
   // by a simulate instruction.
   if (HasObservableSideEffects() && !IsOsrEntry()) {
-    ASSERT(next()->IsSimulate());
+    DCHECK(next()->IsSimulate());
   }
 
   // Verify that instructions that can be eliminated by GVN have overridden
@@ -771,7 +771,7 @@ void HInstruction::Verify() {
   // Verify that all uses are in the graph.
   for (HUseIterator use = uses(); !use.Done(); use.Advance()) {
     if (use.value()->IsInstruction()) {
-      ASSERT(HInstruction::cast(use.value())->IsLinked());
+      DCHECK(HInstruction::cast(use.value())->IsLinked());
     }
   }
 }
@@ -969,7 +969,7 @@ void HBoundsCheck::ApplyIndexChange() {
   DecompositionResult decomposition;
   bool index_is_decomposable = index()->TryDecompose(&decomposition);
   if (index_is_decomposable) {
-    ASSERT(decomposition.base() == base());
+    DCHECK(decomposition.base() == base());
     if (decomposition.offset() == offset() &&
         decomposition.scale() == scale()) return;
   } else {
@@ -1030,7 +1030,7 @@ OStream& HBoundsCheck::PrintDataTo(OStream& os) const {  // NOLINT
 
 
 void HBoundsCheck::InferRepresentation(HInferRepresentationPhase* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
+  DCHECK(CheckFlag(kFlexibleRepresentation));
   HValue* actual_index = index()->ActualValue();
   HValue* actual_length = length()->ActualValue();
   Representation index_rep = actual_index->representation();
@@ -1171,8 +1171,8 @@ Representation HBranch::observed_input_representation(int index) {
 bool HBranch::KnownSuccessorBlock(HBasicBlock** block) {
   HValue* value = this->value();
   if (value->EmitAtUses()) {
-    ASSERT(value->IsConstant());
-    ASSERT(!value->representation().IsDouble());
+    DCHECK(value->IsConstant());
+    DCHECK(!value->representation().IsDouble());
     *block = HConstant::cast(value)->BooleanValue()
         ? FirstSuccessor()
         : SecondSuccessor();
@@ -1306,7 +1306,7 @@ static String* TypeOfString(HConstant* constant, Isolate* isolate) {
       if (unique.IsKnownGlobal(heap->null_value())) {
         return heap->object_string();
       }
-      ASSERT(unique.IsKnownGlobal(heap->undefined_value()));
+      DCHECK(unique.IsKnownGlobal(heap->undefined_value()));
       return heap->undefined_string();
     }
     case SYMBOL_TYPE:
@@ -1612,7 +1612,7 @@ HValue* HCheckInstanceType::Canonicalize() {
 
 void HCheckInstanceType::GetCheckInterval(InstanceType* first,
                                           InstanceType* last) {
-  ASSERT(is_interval_check());
+  DCHECK(is_interval_check());
   switch (check_) {
     case IS_SPEC_OBJECT:
       *first = FIRST_SPEC_OBJECT_TYPE;
@@ -1628,7 +1628,7 @@ void HCheckInstanceType::GetCheckInterval(InstanceType* first,
 
 
 void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
-  ASSERT(!is_interval_check());
+  DCHECK(!is_interval_check());
   switch (check_) {
     case IS_STRING:
       *mask = kIsNotStringMask;
@@ -2055,7 +2055,7 @@ void InductionVariableData::DecomposeBitwise(
 
 void InductionVariableData::AddCheck(HBoundsCheck* check,
                                      int32_t upper_limit) {
-  ASSERT(limit_validity() != NULL);
+  DCHECK(limit_validity() != NULL);
   if (limit_validity() != check->block() &&
       !limit_validity()->Dominates(check->block())) return;
   if (!phi()->block()->current_loop()->IsNestedInThisLoop(
@@ -2093,9 +2093,9 @@ void InductionVariableData::ChecksRelatedToLength::UseNewIndexInCurrentBlock(
     int32_t mask,
     HValue* index_base,
     HValue* context) {
-  ASSERT(first_check_in_block() != NULL);
+  DCHECK(first_check_in_block() != NULL);
   HValue* previous_index = first_check_in_block()->index();
-  ASSERT(context != NULL);
+  DCHECK(context != NULL);
 
   Zone* zone = index_base->block()->graph()->zone();
   set_added_constant(HConstant::New(zone, context, mask));
@@ -2109,13 +2109,13 @@ void InductionVariableData::ChecksRelatedToLength::UseNewIndexInCurrentBlock(
     first_check_in_block()->ReplaceAllUsesWith(first_check_in_block()->index());
     HInstruction* new_index =  HBitwise::New(zone, context, token, index_base,
                                              added_constant());
-    ASSERT(new_index->IsBitwise());
+    DCHECK(new_index->IsBitwise());
     new_index->ClearAllSideEffects();
     new_index->AssumeRepresentation(Representation::Integer32());
     set_added_index(HBitwise::cast(new_index));
     added_index()->InsertBefore(first_check_in_block());
   }
-  ASSERT(added_index()->op() == token);
+  DCHECK(added_index()->op() == token);
 
   added_index()->SetOperandAt(1, index_base);
   added_index()->SetOperandAt(2, added_constant());
@@ -2225,7 +2225,7 @@ int32_t InductionVariableData::ComputeIncrement(HPhi* phi,
  */
 void InductionVariableData::UpdateAdditionalLimit(
     InductionVariableLimitUpdate* update) {
-  ASSERT(update->updated_variable == this);
+  DCHECK(update->updated_variable == this);
   if (update->limit_is_upper) {
     swap(&additional_upper_limit_, &update->limit);
     swap(&additional_upper_limit_is_included_, &update->limit_is_included);
@@ -2356,7 +2356,7 @@ void InductionVariableData::ComputeLimitFromPredecessorBlock(
   } else {
     other_target = branch->SuccessorAt(0);
     token = Token::NegateCompareOp(token);
-    ASSERT(block == branch->SuccessorAt(1));
+    DCHECK(block == branch->SuccessorAt(1));
   }
 
   InductionVariableData* data;
@@ -2421,7 +2421,7 @@ Range* HMathMinMax::InferRange(Zone* zone) {
     if (operation_ == kMathMax) {
       res->CombinedMax(b);
     } else {
-      ASSERT(operation_ == kMathMin);
+      DCHECK(operation_ == kMathMin);
       res->CombinedMin(b);
     }
     return res;
@@ -2481,15 +2481,15 @@ HValue* HPhi::GetRedundantReplacement() {
     HValue* current = OperandAt(position++);
     if (current != this && current != candidate) return NULL;
   }
-  ASSERT(candidate != this);
+  DCHECK(candidate != this);
   return candidate;
 }
 
 
 void HPhi::DeleteFromGraph() {
-  ASSERT(block() != NULL);
+  DCHECK(block() != NULL);
   block()->RemovePhi(this);
-  ASSERT(block() == NULL);
+  DCHECK(block() == NULL);
 }
 
 
@@ -2590,7 +2590,7 @@ OStream& HSimulate::PrintDataTo(OStream& os) const {  // NOLINT
 
 void HSimulate::ReplayEnvironment(HEnvironment* env) {
   if (done_with_replay_) return;
-  ASSERT(env != NULL);
+  DCHECK(env != NULL);
   env->set_ast_id(ast_id());
   env->Drop(pop_count());
   for (int i = values()->length() - 1; i >= 0; --i) {
@@ -2623,7 +2623,7 @@ static void ReplayEnvironmentNested(const ZoneList<HValue*>* values,
 // Replay captured objects by replacing all captured objects with the
 // same capture id in the current and all outer environments.
 void HCapturedObject::ReplayEnvironment(HEnvironment* env) {
-  ASSERT(env != NULL);
+  DCHECK(env != NULL);
   while (env != NULL) {
     ReplayEnvironmentNested(env->values(), this);
     env = env->outer();
@@ -2639,7 +2639,7 @@ OStream& HCapturedObject::PrintDataTo(OStream& os) const {  // NOLINT
 
 void HEnterInlined::RegisterReturnTarget(HBasicBlock* return_target,
                                          Zone* zone) {
-  ASSERT(return_target->IsInlineReturnTarget());
+  DCHECK(return_target->IsInlineReturnTarget());
   return_targets_.Add(return_target, zone);
 }
 
@@ -2715,8 +2715,8 @@ HConstant::HConstant(Unique<Object> object,
     boolean_value_(boolean_value),
     is_undetectable_(is_undetectable),
     instance_type_(instance_type) {
-  ASSERT(!object.handle().is_null());
-  ASSERT(!type.IsTaggedNumber() || type.IsNone());
+  DCHECK(!object.handle().is_null());
+  DCHECK(!type.IsTaggedNumber() || type.IsNone());
   Initialize(r);
 }
 
@@ -2832,10 +2832,10 @@ bool HConstant::ImmortalImmovable() const {
     return false;
   }
 
-  ASSERT(!object_.handle().is_null());
+  DCHECK(!object_.handle().is_null());
   Heap* heap = isolate()->heap();
-  ASSERT(!object_.IsKnownGlobal(heap->minus_zero_value()));
-  ASSERT(!object_.IsKnownGlobal(heap->nan_value()));
+  DCHECK(!object_.IsKnownGlobal(heap->minus_zero_value()));
+  DCHECK(!object_.IsKnownGlobal(heap->nan_value()));
   return
 #define IMMORTAL_IMMOVABLE_ROOT(name) \
       object_.IsKnownGlobal(heap->name()) ||
@@ -2854,7 +2854,7 @@ bool HConstant::ImmortalImmovable() const {
 
 
 bool HConstant::EmitAtUses() {
-  ASSERT(IsLinked());
+  DCHECK(IsLinked());
   if (block()->graph()->has_osr() &&
       block()->graph()->IsStandardConstant(this)) {
     // TODO(titzer): this seems like a hack that should be fixed by custom OSR.
@@ -2882,7 +2882,7 @@ HConstant* HConstant::CopyToRepresentation(Representation r, Zone* zone) const {
   if (has_external_reference_value_) {
     return new(zone) HConstant(external_reference_value_);
   }
-  ASSERT(!object_.handle().is_null());
+  DCHECK(!object_.handle().is_null());
   return new(zone) HConstant(object_,
                              object_map_,
                              has_stable_map_value_,
@@ -2955,7 +2955,7 @@ OStream& HBinaryOperation::PrintDataTo(OStream& os) const {  // NOLINT
 
 
 void HBinaryOperation::InferRepresentation(HInferRepresentationPhase* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
+  DCHECK(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
 
@@ -3022,7 +3022,7 @@ void HBinaryOperation::AssumeRepresentation(Representation r) {
 
 
 void HMathMinMax::InferRepresentation(HInferRepresentationPhase* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
+  DCHECK(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
   // Do not care about uses.
@@ -3406,7 +3406,7 @@ OStream& HLoadKeyed::PrintDataTo(OStream& os) const {  // NOLINT
   if (!is_external()) {
     os << NameOf(elements());
   } else {
-    ASSERT(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
+    DCHECK(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
            elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
     os << NameOf(elements()) << "." << ElementsKindToString(elements_kind());
   }
@@ -3551,7 +3551,7 @@ OStream& HStoreKeyed::PrintDataTo(OStream& os) const {  // NOLINT
   if (!is_external()) {
     os << NameOf(elements());
   } else {
-    ASSERT(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
+    DCHECK(elements_kind() >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
            elements_kind() <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
     os << NameOf(elements()) << "." << ElementsKindToString(elements_kind());
   }
@@ -3674,7 +3674,7 @@ Representation HUnaryMathOperation::RepresentationFromInputs() {
 
 bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
                                           HValue* dominator) {
-  ASSERT(side_effect == kNewSpacePromotion);
+  DCHECK(side_effect == kNewSpacePromotion);
   Zone* zone = block()->zone();
   if (!FLAG_use_allocation_folding) return false;
 
@@ -3727,7 +3727,7 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
   if (!current_size->IsInteger32Constant()) {
     // If it's not constant then it is a size_in_bytes calculation graph
     // like this: (const_header_size + const_element_size * size).
-    ASSERT(current_size->IsInstruction());
+    DCHECK(current_size->IsInstruction());
 
     HInstruction* current_instr = HInstruction::cast(current_size);
     if (!current_instr->Dominates(dominator_allocate)) {
@@ -3741,7 +3741,7 @@ bool HAllocate::HandleSideEffectDominator(GVNFlag side_effect,
     }
   }
 
-  ASSERT((IsNewSpaceAllocation() &&
+  DCHECK((IsNewSpaceAllocation() &&
          dominator_allocate->IsNewSpaceAllocation()) ||
          (IsOldDataSpaceAllocation() &&
          dominator_allocate->IsOldDataSpaceAllocation()) ||
@@ -3889,7 +3889,7 @@ HAllocate* HAllocate::GetFoldableDominator(HAllocate* dominator) {
       return NULL;
     }
 
-    ASSERT((IsOldDataSpaceAllocation() &&
+    DCHECK((IsOldDataSpaceAllocation() &&
            dominator_dominator->IsOldDataSpaceAllocation()) ||
            (IsOldPointerSpaceAllocation() &&
            dominator_dominator->IsOldPointerSpaceAllocation()));
@@ -3915,7 +3915,7 @@ HAllocate* HAllocate::GetFoldableDominator(HAllocate* dominator) {
 
 
 void HAllocate::UpdateFreeSpaceFiller(int32_t free_space_size) {
-  ASSERT(filler_free_space_size_ != NULL);
+  DCHECK(filler_free_space_size_ != NULL);
   Zone* zone = block()->zone();
   // We must explicitly force Smi representation here because on x64 we
   // would otherwise automatically choose int32, but the actual store
@@ -3932,7 +3932,7 @@ void HAllocate::UpdateFreeSpaceFiller(int32_t free_space_size) {
 
 
 void HAllocate::CreateFreeSpaceFiller(int32_t free_space_size) {
-  ASSERT(filler_free_space_size_ == NULL);
+  DCHECK(filler_free_space_size_ == NULL);
   Zone* zone = block()->zone();
   HInstruction* free_space_instr =
       HInnerAllocatedObject::New(zone, context(), dominating_allocate_,
@@ -4410,8 +4410,8 @@ HInstruction* HSeqStringGetChar::New(Zone* zone,
     if (c_string->HasStringValue() && c_index->HasInteger32Value()) {
       Handle<String> s = c_string->StringValue();
       int32_t i = c_index->Integer32Value();
-      ASSERT_LE(0, i);
-      ASSERT_LT(i, s->length());
+      DCHECK_LE(0, i);
+      DCHECK_LT(i, s->length());
       return H_CONSTANT_INT(s->Get(i));
     }
   }
@@ -4466,7 +4466,7 @@ void HPhi::SimplifyConstantInputs() {
 
 
 void HPhi::InferRepresentation(HInferRepresentationPhase* h_infer) {
-  ASSERT(CheckFlag(kFlexibleRepresentation));
+  DCHECK(CheckFlag(kFlexibleRepresentation));
   Representation new_rep = RepresentationFromInputs();
   UpdateRepresentation(new_rep, h_infer, "inputs");
   new_rep = RepresentationFromUses();
@@ -4530,12 +4530,12 @@ bool HValue::HasNonSmiUse() {
 #ifdef DEBUG
 
 void HPhi::Verify() {
-  ASSERT(OperandCount() == block()->predecessors()->length());
+  DCHECK(OperandCount() == block()->predecessors()->length());
   for (int i = 0; i < OperandCount(); ++i) {
     HValue* value = OperandAt(i);
     HBasicBlock* defining_block = value->block();
     HBasicBlock* predecessor_block = block()->predecessors()->at(i);
-    ASSERT(defining_block == predecessor_block ||
+    DCHECK(defining_block == predecessor_block ||
            defining_block->Dominates(predecessor_block));
   }
 }
@@ -4543,27 +4543,27 @@ void HPhi::Verify() {
 
 void HSimulate::Verify() {
   HInstruction::Verify();
-  ASSERT(HasAstId() || next()->IsEnterInlined());
+  DCHECK(HasAstId() || next()->IsEnterInlined());
 }
 
 
 void HCheckHeapObject::Verify() {
   HInstruction::Verify();
-  ASSERT(HasNoUses());
+  DCHECK(HasNoUses());
 }
 
 
 void HCheckValue::Verify() {
   HInstruction::Verify();
-  ASSERT(HasNoUses());
+  DCHECK(HasNoUses());
 }
 
 #endif
 
 
 HObjectAccess HObjectAccess::ForFixedArrayHeader(int offset) {
-  ASSERT(offset >= 0);
-  ASSERT(offset < FixedArray::kHeaderSize);
+  DCHECK(offset >= 0);
+  DCHECK(offset < FixedArray::kHeaderSize);
   if (offset == FixedArray::kLengthOffset) return ForFixedArrayLength();
   return HObjectAccess(kInobject, offset);
 }
@@ -4571,7 +4571,7 @@ HObjectAccess HObjectAccess::ForFixedArrayHeader(int offset) {
 
 HObjectAccess HObjectAccess::ForMapAndOffset(Handle<Map> map, int offset,
     Representation representation) {
-  ASSERT(offset >= 0);
+  DCHECK(offset >= 0);
   Portion portion = kInobject;
 
   if (offset == JSObject::kElementsOffset) {
@@ -4611,16 +4611,16 @@ HObjectAccess HObjectAccess::ForAllocationSiteOffset(int offset) {
 
 
 HObjectAccess HObjectAccess::ForContextSlot(int index) {
-  ASSERT(index >= 0);
+  DCHECK(index >= 0);
   Portion portion = kInobject;
   int offset = Context::kHeaderSize + index * kPointerSize;
-  ASSERT_EQ(offset, Context::SlotOffset(index) + kHeapObjectTag);
+  DCHECK_EQ(offset, Context::SlotOffset(index) + kHeapObjectTag);
   return HObjectAccess(portion, offset, Representation::Tagged());
 }
 
 
 HObjectAccess HObjectAccess::ForJSArrayOffset(int offset) {
-  ASSERT(offset >= 0);
+  DCHECK(offset >= 0);
   Portion portion = kInobject;
 
   if (offset == JSObject::kElementsOffset) {
@@ -4636,7 +4636,7 @@ HObjectAccess HObjectAccess::ForJSArrayOffset(int offset) {
 
 HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
     Representation representation) {
-  ASSERT(offset >= 0);
+  DCHECK(offset >= 0);
   return HObjectAccess(kBackingStore, offset, representation,
                        Handle<String>::null(), false, false);
 }
@@ -4645,7 +4645,7 @@ HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
 HObjectAccess HObjectAccess::ForField(Handle<Map> map,
                                       LookupResult* lookup,
                                       Handle<String> name) {
-  ASSERT(lookup->IsField() || lookup->IsTransitionToField());
+  DCHECK(lookup->IsField() || lookup->IsTransitionToField());
   int index;
   Representation representation;
   if (lookup->IsField()) {

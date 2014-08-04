@@ -56,7 +56,7 @@ LCodeGenBase::LCodeGenBase(LChunk* chunk,
 
 
 bool LCodeGenBase::GenerateBody() {
-  ASSERT(is_generating());
+  DCHECK(is_generating());
   bool emit_instructions = true;
   LCodeGen* codegen = static_cast<LCodeGen*>(this);
   for (current_instruction_ = 0;
@@ -168,7 +168,7 @@ static void AddWeakObjectToCodeDependency(Isolate* isolate,
 
 
 void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
-  ASSERT(code->is_optimized_code());
+  DCHECK(code->is_optimized_code());
   ZoneList<Handle<Map> > maps(1, zone());
   ZoneList<Handle<JSObject> > objects(1, zone());
   ZoneList<Handle<Cell> > cells(1, zone());

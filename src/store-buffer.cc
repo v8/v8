@@ -50,11 +50,11 @@ void StoreBuffer::SetUp() {
       reinterpret_cast<Address*>(old_virtual_memory_->address());
   // Don't know the alignment requirements of the OS, but it is certainly not
   // less than 0xfff.
-  ASSERT((reinterpret_cast<uintptr_t>(old_start_) & 0xfff) == 0);
+  DCHECK((reinterpret_cast<uintptr_t>(old_start_) & 0xfff) == 0);
   int initial_length =
       static_cast<int>(base::OS::CommitPageSize() / kPointerSize);
-  ASSERT(initial_length > 0);
-  ASSERT(initial_length <= kOldStoreBufferLength);
+  DCHECK(initial_length > 0);
+  DCHECK(initial_length <= kOldStoreBufferLength);
   old_limit_ = old_start_ + initial_length;
   old_reserved_limit_ = old_start_ + kOldStoreBufferLength;
 
@@ -63,16 +63,16 @@ void StoreBuffer::SetUp() {
             (old_limit_ - old_start_) * kPointerSize,
             false));
 
-  ASSERT(reinterpret_cast<Address>(start_) >= virtual_memory_->address());
-  ASSERT(reinterpret_cast<Address>(limit_) >= virtual_memory_->address());
+  DCHECK(reinterpret_cast<Address>(start_) >= virtual_memory_->address());
+  DCHECK(reinterpret_cast<Address>(limit_) >= virtual_memory_->address());
   Address* vm_limit = reinterpret_cast<Address*>(
       reinterpret_cast<char*>(virtual_memory_->address()) +
           virtual_memory_->size());
-  ASSERT(start_ <= vm_limit);
-  ASSERT(limit_ <= vm_limit);
+  DCHECK(start_ <= vm_limit);
+  DCHECK(limit_ <= vm_limit);
   USE(vm_limit);
-  ASSERT((reinterpret_cast<uintptr_t>(limit_) & kStoreBufferOverflowBit) != 0);
-  ASSERT((reinterpret_cast<uintptr_t>(limit_ - 1) & kStoreBufferOverflowBit) ==
+  DCHECK((reinterpret_cast<uintptr_t>(limit_) & kStoreBufferOverflowBit) != 0);
+  DCHECK((reinterpret_cast<uintptr_t>(limit_ - 1) & kStoreBufferOverflowBit) ==
          0);
 
   CHECK(virtual_memory_->Commit(reinterpret_cast<Address>(start_),
@@ -109,7 +109,7 @@ void StoreBuffer::Uniq() {
   // Remove adjacent duplicates and cells that do not point at new space.
   Address previous = NULL;
   Address* write = old_start_;
-  ASSERT(may_move_store_buffer_entries_);
+  DCHECK(may_move_store_buffer_entries_);
   for (Address* read = old_start_; read < old_top_; read++) {
     Address current = *read;
     if (current != previous) {
@@ -141,7 +141,7 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
   if (SpaceAvailable(space_needed)) return;
 
   if (old_buffer_is_filtered_) return;
-  ASSERT(may_move_store_buffer_entries_);
+  DCHECK(may_move_store_buffer_entries_);
   Compact();
 
   old_buffer_is_filtered_ = true;
@@ -178,7 +178,7 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
   for (int i = 0; i < kSampleFinenesses; i++) {
     ExemptPopularPages(samples[i].prime_sample_step, samples[i].threshold);
     // As a last resort we mark all pages as being exempt from the store buffer.
-    ASSERT(i != (kSampleFinenesses - 1) || old_top_ == old_start_);
+    DCHECK(i != (kSampleFinenesses - 1) || old_top_ == old_start_);
     if (SpaceAvailable(space_needed)) return;
   }
   UNREACHABLE();
@@ -388,7 +388,7 @@ void StoreBuffer::FindPointersToNewSpaceInRegion(
         base::NoBarrier_Load(reinterpret_cast<base::AtomicWord*>(slot)));
     if (heap_->InNewSpace(object)) {
       HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-      ASSERT(heap_object->IsHeapObject());
+      DCHECK(heap_object->IsHeapObject());
       // The new space object was not promoted if it still contains a map
       // pointer. Clear the map field now lazily.
       if (clear_maps) ClearDeadObject(heap_object);
@@ -429,7 +429,7 @@ void StoreBuffer::IteratePointersInStoreBuffer(
           EnterDirectlyIntoStoreBuffer(reinterpret_cast<Address>(slot));
         }
       }
-      ASSERT(old_top_ == saved_top + 1 || old_top_ == saved_top);
+      DCHECK(old_top_ == saved_top + 1 || old_top_ == saved_top);
     }
   }
 }
@@ -482,7 +482,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
         if (chunk->owner() == heap_->lo_space()) {
           LargePage* large_page = reinterpret_cast<LargePage*>(chunk);
           HeapObject* array = large_page->GetObject();
-          ASSERT(array->IsFixedArray());
+          DCHECK(array->IsFixedArray());
           Address start = array->address();
           Address end = start + array->Size();
           FindPointersToNewSpaceInRegion(start, end, slot_callback, clear_maps);
@@ -492,7 +492,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
           Address start = page->area_start();
           Address end = page->area_end();
           if (owner == heap_->map_space()) {
-            ASSERT(page->WasSweptPrecisely());
+            DCHECK(page->WasSweptPrecisely());
             HeapObjectIterator iterator(page, NULL);
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
@@ -552,19 +552,19 @@ void StoreBuffer::Compact() {
 
   // There's no check of the limit in the loop below so we check here for
   // the worst case (compaction doesn't eliminate any pointers).
-  ASSERT(top <= limit_);
+  DCHECK(top <= limit_);
   heap_->public_set_store_buffer_top(start_);
   EnsureSpace(top - start_);
-  ASSERT(may_move_store_buffer_entries_);
+  DCHECK(may_move_store_buffer_entries_);
   // Goes through the addresses in the store buffer attempting to remove
   // duplicates.  In the interest of speed this is a lossy operation.  Some
   // duplicates will remain.  We have two hash sets with different hash
   // functions to reduce the number of unnecessary clashes.
   hash_sets_are_empty_ = false;  // Hash sets are in use.
   for (Address* current = start_; current < top; current++) {
-    ASSERT(!heap_->cell_space()->Contains(*current));
-    ASSERT(!heap_->code_space()->Contains(*current));
-    ASSERT(!heap_->old_data_space()->Contains(*current));
+    DCHECK(!heap_->cell_space()->Contains(*current));
+    DCHECK(!heap_->code_space()->Contains(*current));
+    DCHECK(!heap_->old_data_space()->Contains(*current));
     uintptr_t int_addr = reinterpret_cast<uintptr_t>(*current);
     // Shift out the last bits including any tags.
     int_addr >>= kPointerSizeLog2;
@@ -593,7 +593,7 @@ void StoreBuffer::Compact() {
     old_buffer_is_sorted_ = false;
     old_buffer_is_filtered_ = false;
     *old_top_++ = reinterpret_cast<Address>(int_addr << kPointerSizeLog2);
-    ASSERT(old_top_ <= old_limit_);
+    DCHECK(old_top_ <= old_limit_);
   }
   heap_->isolate()->counters()->store_buffer_compactions()->Increment();
 }

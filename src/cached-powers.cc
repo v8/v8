@@ -133,10 +133,10 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
   int foo = kCachedPowersOffset;
   int index =
       (foo + static_cast<int>(k) - 1) / kDecimalExponentDistance + 1;
-  ASSERT(0 <= index && index < kCachedPowersLength);
+  DCHECK(0 <= index && index < kCachedPowersLength);
   CachedPower cached_power = kCachedPowers[index];
-  ASSERT(min_exponent <= cached_power.binary_exponent);
-  ASSERT(cached_power.binary_exponent <= max_exponent);
+  DCHECK(min_exponent <= cached_power.binary_exponent);
+  DCHECK(cached_power.binary_exponent <= max_exponent);
   *decimal_exponent = cached_power.decimal_exponent;
   *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
 }
@@ -145,15 +145,15 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
 void PowersOfTenCache::GetCachedPowerForDecimalExponent(int requested_exponent,
                                                         DiyFp* power,
                                                         int* found_exponent) {
-  ASSERT(kMinDecimalExponent <= requested_exponent);
-  ASSERT(requested_exponent < kMaxDecimalExponent + kDecimalExponentDistance);
+  DCHECK(kMinDecimalExponent <= requested_exponent);
+  DCHECK(requested_exponent < kMaxDecimalExponent + kDecimalExponentDistance);
   int index =
       (requested_exponent + kCachedPowersOffset) / kDecimalExponentDistance;
   CachedPower cached_power = kCachedPowers[index];
   *power = DiyFp(cached_power.significand, cached_power.binary_exponent);
   *found_exponent = cached_power.decimal_exponent;
-  ASSERT(*found_exponent <= requested_exponent);
-  ASSERT(requested_exponent < *found_exponent + kDecimalExponentDistance);
+  DCHECK(*found_exponent <= requested_exponent);
+  DCHECK(requested_exponent < *found_exponent + kDecimalExponentDistance);
 }
 
 } }  // namespace v8::internal

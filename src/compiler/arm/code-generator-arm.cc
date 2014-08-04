@@ -120,10 +120,10 @@ class ArmOperandConverter : public InstructionOperandConverter {
   }
 
   MemOperand ToMemOperand(InstructionOperand* op) const {
-    ASSERT(op != NULL);
-    ASSERT(!op->IsRegister());
-    ASSERT(!op->IsDoubleRegister());
-    ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
+    DCHECK(op != NULL);
+    DCHECK(!op->IsRegister());
+    DCHECK(!op->IsDoubleRegister());
+    DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
     // The linkage computes where all spill slots are located.
     FrameOffset offset = linkage()->GetFrameOffset(op->index(), frame(), 0);
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
@@ -138,15 +138,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   switch (ArchOpcodeField::decode(instr->opcode())) {
     case kArchJmp:
       __ b(code_->GetLabel(i.InputBlock(0)));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchNop:
       // don't emit code for nops.
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchRet:
       AssembleReturn();
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchDeoptimize: {
       int deoptimization_id = MiscField::decode(instr->opcode());
@@ -155,7 +155,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
           isolate(), deoptimization_id, Deoptimizer::LAZY);
       __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmAdd:
@@ -182,24 +182,24 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       CpuFeatureScope scope(masm(), MLS);
       __ mls(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
              i.InputRegister(2));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmSdiv: {
       CpuFeatureScope scope(masm(), SUDIV);
       __ sdiv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmUdiv: {
       CpuFeatureScope scope(masm(), SUDIV);
       __ udiv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmMov:
       __ Move(i.OutputRegister(), i.InputOperand2(0));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmMvn:
       __ mvn(i.OutputRegister(), i.InputOperand2(0), i.OutputSBit());
@@ -223,14 +223,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArmBfc: {
       CpuFeatureScope scope(masm(), ARMv7);
       __ bfc(i.OutputRegister(), i.InputInt8(1), i.InputInt8(2));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmUbfx: {
       CpuFeatureScope scope(masm(), ARMv7);
       __ ubfx(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
               i.InputInt8(2));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmCallCodeObject: {
@@ -251,7 +251,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (lazy_deopt) {
         RecordLazyDeoptimizationEntry(instr);
       }
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmCallJSFunction: {
@@ -265,75 +265,75 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       RecordSafepoint(instr->pointer_map(), Safepoint::kSimple, 0,
                       Safepoint::kNoLazyDeopt);
       RecordLazyDeoptimizationEntry(instr);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmCallAddress: {
       DirectCEntryStub stub(isolate());
       stub.GenerateCall(masm(), i.InputRegister(0));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmPush:
       __ Push(i.InputRegister(0));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmDrop: {
       int words = MiscField::decode(instr->opcode());
       __ Drop(words);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmCmp:
       __ cmp(i.InputRegister(0), i.InputOperand2(1));
-      ASSERT_EQ(SetCC, i.OutputSBit());
+      DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmCmn:
       __ cmn(i.InputRegister(0), i.InputOperand2(1));
-      ASSERT_EQ(SetCC, i.OutputSBit());
+      DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmTst:
       __ tst(i.InputRegister(0), i.InputOperand2(1));
-      ASSERT_EQ(SetCC, i.OutputSBit());
+      DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmTeq:
       __ teq(i.InputRegister(0), i.InputOperand2(1));
-      ASSERT_EQ(SetCC, i.OutputSBit());
+      DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmVcmpF64:
       __ VFPCompareAndSetFlags(i.InputDoubleRegister(0),
                                i.InputDoubleRegister(1));
-      ASSERT_EQ(SetCC, i.OutputSBit());
+      DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmVaddF64:
       __ vadd(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
               i.InputDoubleRegister(1));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVsubF64:
       __ vsub(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
               i.InputDoubleRegister(1));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVmulF64:
       __ vmul(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
               i.InputDoubleRegister(1));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVmlaF64:
       __ vmla(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
               i.InputDoubleRegister(2));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVmlsF64:
       __ vmls(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
               i.InputDoubleRegister(2));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVdivF64:
       __ vdiv(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
               i.InputDoubleRegister(1));
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVmodF64: {
       // TODO(bmeurer): We should really get rid of this special instruction,
@@ -346,7 +346,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                        0, 2);
       // Move the result in the double result register.
       __ MovFromFloatResult(i.OutputDoubleRegister());
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmVnegF64:
@@ -356,39 +356,39 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vmov(scratch, i.InputRegister(0));
       __ vcvt_f64_s32(i.OutputDoubleRegister(), scratch);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmVcvtF64U32: {
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vmov(scratch, i.InputRegister(0));
       __ vcvt_f64_u32(i.OutputDoubleRegister(), scratch);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmVcvtS32F64: {
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vcvt_s32_f64(scratch, i.InputDoubleRegister(0));
       __ vmov(i.OutputRegister(), scratch);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmVcvtU32F64: {
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vcvt_u32_f64(scratch, i.InputDoubleRegister(0));
       __ vmov(i.OutputRegister(), scratch);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmLoadWord8:
       __ ldrb(i.OutputRegister(), i.InputOffset());
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmStoreWord8: {
       int index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ strb(i.InputRegister(index), operand);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmLoadWord16:
@@ -398,7 +398,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       int index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ strh(i.InputRegister(index), operand);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmLoadWord32:
@@ -408,18 +408,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       int index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ str(i.InputRegister(index), operand);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmFloat64Load:
       __ vldr(i.OutputDoubleRegister(), i.InputOffset());
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmFloat64Store: {
       int index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ vstr(i.InputDoubleRegister(index), operand);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmStoreWriteBarrier: {
@@ -432,7 +432,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
           frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
       LinkRegisterStatus lr_status = kLRHasNotBeenSaved;
       __ RecordWrite(object, index, value, lr_status, mode);
-      ASSERT_EQ(LeaveCC, i.OutputSBit());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
   }
@@ -522,7 +522,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
   Label check;
-  ASSERT_NE(0, instr->OutputCount());
+  DCHECK_NE(0, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = kNoCondition;
   switch (condition) {
@@ -685,7 +685,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Register src = g.ToRegister(source);
     if (destination->IsRegister()) {
       __ mov(g.ToRegister(destination), src);
@@ -693,7 +693,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ str(src, g.ToMemOperand(destination));
     }
   } else if (source->IsStackSlot()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsRegister()) {
       __ ldr(g.ToRegister(destination), src);
@@ -730,7 +730,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DwVfpRegister result = g.ToDoubleRegister(destination);
       __ vmov(result, g.ToDouble(source));
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       DwVfpRegister temp = kScratchDoubleReg;
       __ vmov(temp, g.ToDouble(source));
       __ vstr(temp, g.ToMemOperand(destination));
@@ -741,11 +741,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DwVfpRegister dst = g.ToDoubleRegister(destination);
       __ Move(dst, src);
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       __ vstr(src, g.ToMemOperand(destination));
     }
   } else if (source->IsDoubleStackSlot()) {
-    ASSERT(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
+    DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
     MemOperand src = g.ToMemOperand(source);
     if (destination->IsDoubleRegister()) {
       __ vldr(g.ToDoubleRegister(destination), src);
@@ -775,14 +775,14 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ Move(src, dst);
       __ Move(dst, temp);
     } else {
-      ASSERT(destination->IsStackSlot());
+      DCHECK(destination->IsStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
       __ mov(temp, src);
       __ ldr(src, dst);
       __ str(temp, dst);
     }
   } else if (source->IsStackSlot()) {
-    ASSERT(destination->IsStackSlot());
+    DCHECK(destination->IsStackSlot());
     Register temp_0 = kScratchReg;
     SwVfpRegister temp_1 = kScratchDoubleReg.low();
     MemOperand src = g.ToMemOperand(source);
@@ -800,14 +800,14 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ Move(src, dst);
       __ Move(src, temp);
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
       __ Move(temp, src);
       __ vldr(src, dst);
       __ vstr(temp, dst);
     }
   } else if (source->IsDoubleStackSlot()) {
-    ASSERT(destination->IsDoubleStackSlot());
+    DCHECK(destination->IsDoubleStackSlot());
     Register temp_0 = kScratchReg;
     DwVfpRegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);

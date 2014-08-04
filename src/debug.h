@@ -573,8 +573,8 @@ class Debug {
   bool CheckBreakPoint(Handle<Object> break_point_object);
 
   inline void AssertDebugContext() {
-    ASSERT(isolate_->context() == *debug_context());
-    ASSERT(in_debug_scope());
+    DCHECK(isolate_->context() == *debug_context());
+    DCHECK(in_debug_scope());
   }
 
   void ThreadInit();

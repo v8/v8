@@ -53,7 +53,7 @@ class InstructionTester : public HandleAndZoneScope {
       // Compute the RPO order.
       Scheduler scheduler(zone(), &graph, &schedule);
       scheduler.ComputeSpecialRPO();
-      ASSERT(schedule.rpo_order()->size() > 0);
+      DCHECK(schedule.rpo_order()->size() > 0);
     }
     code = new TestInstrSeq(&linkage, &graph, &schedule);
   }

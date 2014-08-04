@@ -78,7 +78,7 @@ static int* counter_function(const char* name) {
       return &local_counters[hash];
     }
     hash = (hash + 1) % kCounters;
-    ASSERT(hash != original_hash);  // Hash table has been filled up.
+    DCHECK(hash != original_hash);  // Hash table has been filled up.
   }
 }
 
@@ -433,7 +433,7 @@ TEST(PartialSerialization) {
       HandleScope scope(isolate);
       env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    ASSERT(!env.IsEmpty());
+    DCHECK(!env.IsEmpty());
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
@@ -451,7 +451,7 @@ TEST(PartialSerialization) {
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::String> foo = v8::String::NewFromUtf8(v8_isolate, "foo");
-      ASSERT(!foo.IsEmpty());
+      DCHECK(!foo.IsEmpty());
       raw_foo = *(v8::Utils::OpenHandle(*foo));
     }
 
@@ -549,7 +549,7 @@ TEST(ContextSerialization) {
       HandleScope scope(isolate);
       env.Reset(v8_isolate, v8::Context::New(v8_isolate));
     }
-    ASSERT(!env.IsEmpty());
+    DCHECK(!env.IsEmpty());
     {
       v8::HandleScope handle_scope(v8_isolate);
       v8::Local<v8::Context>::New(v8_isolate, env)->Enter();

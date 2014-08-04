@@ -19,11 +19,11 @@ const int kConstantPoolMarkerMask = 0xfff000f0;
 const int kConstantPoolMarker = 0xe7f000f0;
 const int kConstantPoolLengthMaxMask = 0xffff;
 inline int EncodeConstantPoolLength(int length) {
-  ASSERT((length & kConstantPoolLengthMaxMask) == length);
+  DCHECK((length & kConstantPoolLengthMaxMask) == length);
   return ((length & 0xfff0) << 4) | (length & 0xf);
 }
 inline int DecodeConstantPoolLength(int instr) {
-  ASSERT((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
+  DCHECK((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
   return ((instr >> 4) & 0xfff0) | (instr & 0xf);
 }
 
@@ -84,7 +84,7 @@ enum Condition {
 
 
 inline Condition NegateCondition(Condition cond) {
-  ASSERT(cond != al);
+  DCHECK(cond != al);
   return static_cast<Condition>(cond ^ ne);
 }
 

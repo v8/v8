@@ -251,7 +251,7 @@ class Context: public FixedArray {
  public:
   // Conversions.
   static Context* cast(Object* context) {
-    ASSERT(context->IsContext());
+    DCHECK(context->IsContext());
     return reinterpret_cast<Context*>(context);
   }
 
@@ -414,7 +414,7 @@ class Context: public FixedArray {
 
   Context* previous() {
     Object* result = unchecked_previous();
-    ASSERT(IsBootstrappingOrValidParentContext(result, this));
+    DCHECK(IsBootstrappingOrValidParentContext(result, this));
     return reinterpret_cast<Context*>(result);
   }
   void set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
@@ -432,7 +432,7 @@ class Context: public FixedArray {
 
   GlobalObject* global_object() {
     Object* result = get(GLOBAL_OBJECT_INDEX);
-    ASSERT(IsBootstrappingOrGlobalObject(this->GetIsolate(), result));
+    DCHECK(IsBootstrappingOrGlobalObject(this->GetIsolate(), result));
     return reinterpret_cast<GlobalObject*>(result);
   }
   void set_global_object(GlobalObject* object) {
@@ -507,15 +507,15 @@ class Context: public FixedArray {
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   void  set_##name(type* value) {                         \
-    ASSERT(IsNativeContext());                            \
+    DCHECK(IsNativeContext());                            \
     set(index, value);                                    \
   }                                                       \
   bool is_##name(type* value) {                           \
-    ASSERT(IsNativeContext());                            \
+    DCHECK(IsNativeContext());                            \
     return type::cast(get(index)) == value;               \
   }                                                       \
   type* name() {                                          \
-    ASSERT(IsNativeContext());                            \
+    DCHECK(IsNativeContext());                            \
     return type::cast(get(index));                        \
   }
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)

@@ -95,7 +95,7 @@ class Interface : public ZoneObject {
 
   // Assign an index.
   void Allocate(int index) {
-    ASSERT(IsModule() && IsFrozen() && Chase()->index_ == -1);
+    DCHECK(IsModule() && IsFrozen() && Chase()->index_ == -1);
     Chase()->index_ = index;
   }
 
@@ -124,14 +124,14 @@ class Interface : public ZoneObject {
   }
 
   int Length() {
-    ASSERT(IsModule() && IsFrozen());
+    DCHECK(IsModule() && IsFrozen());
     ZoneHashMap* exports = Chase()->exports_;
     return exports ? exports->occupancy() : 0;
   }
 
   // The context slot in the hosting global context pointing to this module.
   int Index() {
-    ASSERT(IsModule() && IsFrozen());
+    DCHECK(IsModule() && IsFrozen());
     return Chase()->index_;
   }
 
@@ -149,11 +149,11 @@ class Interface : public ZoneObject {
    public:
     bool done() const { return entry_ == NULL; }
     const AstRawString* name() const {
-      ASSERT(!done());
+      DCHECK(!done());
       return static_cast<const AstRawString*>(entry_->key);
     }
     Interface* interface() const {
-      ASSERT(!done());
+      DCHECK(!done());
       return static_cast<Interface*>(entry_->value);
     }
     void Advance() { entry_ = exports_->Next(entry_); }

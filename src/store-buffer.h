@@ -81,8 +81,8 @@ class StoreBuffer {
   Object*** Start() { return reinterpret_cast<Object***>(old_start_); }
   Object*** Top() { return reinterpret_cast<Object***>(old_top_); }
   void SetTop(Object*** top) {
-    ASSERT(top >= Start());
-    ASSERT(top <= Limit());
+    DCHECK(top >= Start());
+    DCHECK(top <= Limit());
     old_top_ = reinterpret_cast<Address*>(top);
   }
 

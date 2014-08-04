@@ -83,8 +83,8 @@ class HSideEffectMap V8_FINAL BASE_EMBEDDED {
   bool IsEmpty() const { return count_ == 0; }
 
   inline HInstruction* operator[](int i) const {
-    ASSERT(0 <= i);
-    ASSERT(i < kNumberOfTrackedSideEffects);
+    DCHECK(0 <= i);
+    DCHECK(i < kNumberOfTrackedSideEffects);
     return data_[i];
   }
   inline HInstruction* at(int i) const { return operator[](i); }
@@ -212,7 +212,7 @@ HInstruction* HInstructionMap::Lookup(HInstruction* instr) const {
 
 
 void HInstructionMap::Resize(int new_size, Zone* zone) {
-  ASSERT(new_size > count_);
+  DCHECK(new_size > count_);
   // Hashing the values into the new array has no more collisions than in the
   // old hash map, so we can use the existing lists_ array, if we are careful.
 
@@ -252,12 +252,12 @@ void HInstructionMap::Resize(int new_size, Zone* zone) {
     }
   }
   USE(old_count);
-  ASSERT(count_ == old_count);
+  DCHECK(count_ == old_count);
 }
 
 
 void HInstructionMap::ResizeLists(int new_size, Zone* zone) {
-  ASSERT(new_size > lists_size_);
+  DCHECK(new_size > lists_size_);
 
   HInstructionMapListElement* new_lists =
       zone->NewArray<HInstructionMapListElement>(new_size);
@@ -280,10 +280,10 @@ void HInstructionMap::ResizeLists(int new_size, Zone* zone) {
 
 
 void HInstructionMap::Insert(HInstruction* instr, Zone* zone) {
-  ASSERT(instr != NULL);
+  DCHECK(instr != NULL);
   // Resizing when half of the hashtable is filled up.
   if (count_ >= array_size_ >> 1) Resize(array_size_ << 1, zone);
-  ASSERT(count_ < array_size_);
+  DCHECK(count_ < array_size_);
   count_++;
   uint32_t pos = Bound(static_cast<uint32_t>(instr->Hashcode()));
   if (array_[pos].instr == NULL) {
@@ -294,11 +294,11 @@ void HInstructionMap::Insert(HInstruction* instr, Zone* zone) {
       ResizeLists(lists_size_ << 1, zone);
     }
     int new_element_pos = free_list_head_;
-    ASSERT(new_element_pos != kNil);
+    DCHECK(new_element_pos != kNil);
     free_list_head_ = lists_[free_list_head_].next;
     lists_[new_element_pos].instr = instr;
     lists_[new_element_pos].next = array_[pos].next;
-    ASSERT(array_[pos].next == kNil || lists_[array_[pos].next].instr != NULL);
+    DCHECK(array_[pos].next == kNil || lists_[array_[pos].next].instr != NULL);
     array_[pos].next = new_element_pos;
   }
 }
@@ -488,7 +488,7 @@ HGlobalValueNumberingPhase::HGlobalValueNumberingPhase(HGraph* graph)
       block_side_effects_(graph->blocks()->length(), zone()),
       loop_side_effects_(graph->blocks()->length(), zone()),
       visited_on_paths_(graph->blocks()->length(), zone()) {
-  ASSERT(!AllowHandleAllocation::IsAllowed());
+  DCHECK(!AllowHandleAllocation::IsAllowed());
   block_side_effects_.AddBlock(
       SideEffects(), graph->blocks()->length(), zone());
   loop_side_effects_.AddBlock(
@@ -497,7 +497,7 @@ HGlobalValueNumberingPhase::HGlobalValueNumberingPhase(HGraph* graph)
 
 
 void HGlobalValueNumberingPhase::Run() {
-  ASSERT(!removed_side_effects_);
+  DCHECK(!removed_side_effects_);
   for (int i = FLAG_gvn_iterations; i > 0; --i) {
     // Compute the side effects.
     ComputeBlockSideEffects();
@@ -513,8 +513,8 @@ void HGlobalValueNumberingPhase::Run() {
     removed_side_effects_ = false;
 
     // Clear all side effects.
-    ASSERT_EQ(block_side_effects_.length(), graph()->blocks()->length());
-    ASSERT_EQ(loop_side_effects_.length(), graph()->blocks()->length());
+    DCHECK_EQ(block_side_effects_.length(), graph()->blocks()->length());
+    DCHECK_EQ(loop_side_effects_.length(), graph()->blocks()->length());
     for (int i = 0; i < graph()->blocks()->length(); ++i) {
       block_side_effects_[i].RemoveAll();
       loop_side_effects_[i].RemoveAll();
@@ -841,10 +841,10 @@ void HGlobalValueNumberingPhase::AnalyzeGraph() {
       }
       if (instr->CheckFlag(HValue::kUseGVN) &&
           !instr->CheckFlag(HValue::kCantBeReplaced)) {
-        ASSERT(!instr->HasObservableSideEffects());
+        DCHECK(!instr->HasObservableSideEffects());
         HInstruction* other = map->Lookup(instr);
         if (other != NULL) {
-          ASSERT(instr->Equals(other) && other->Equals(instr));
+          DCHECK(instr->Equals(other) && other->Equals(instr));
           TRACE_GVN_4("Replacing instruction i%d (%s) with i%d (%s)\n",
                       instr->id(),
                       instr->Mnemonic(),

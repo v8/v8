@@ -195,7 +195,7 @@ inline T AddressFrom(intptr_t x) {
 // Return the largest multiple of m which is <= x.
 template <typename T>
 inline T RoundDown(T x, intptr_t m) {
-  ASSERT(IsPowerOf2(m));
+  DCHECK(IsPowerOf2(m));
   return AddressFrom<T>(OffsetFrom(x) & -m);
 }
 
@@ -212,7 +212,7 @@ inline T RoundUp(T x, intptr_t m) {
 // sizeof(*pointer) might not be 1.
 template<class T>
 T AlignUp(T pointer, size_t alignment) {
-  ASSERT(sizeof(pointer) == sizeof(uintptr_t));
+  DCHECK(sizeof(pointer) == sizeof(uintptr_t));
   uintptr_t pointer_raw = reinterpret_cast<uintptr_t>(pointer);
   return reinterpret_cast<T>(RoundUp(pointer_raw, alignment));
 }
@@ -229,7 +229,7 @@ inline bool IsAligned(T value, U alignment) {
 // Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
 // figure 3-3, page 48, where the function is called clp2.
 inline uint32_t RoundUpToPowerOf2(uint32_t x) {
-  ASSERT(x <= 0x80000000u);
+  DCHECK(x <= 0x80000000u);
   x = x - 1;
   x = x | (x >> 1);
   x = x | (x >> 2);

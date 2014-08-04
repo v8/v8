@@ -199,7 +199,7 @@ class ElementsAccessor {
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(ElementsKind elements_kind) {
-    ASSERT(elements_kind < kElementsKindCount);
+    DCHECK(elements_kind < kElementsKindCount);
     return elements_accessors_[elements_kind];
   }
 

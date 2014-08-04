@@ -61,7 +61,7 @@ class FuncNameInferrer : public ZoneObject {
 
   // Infers a function name and leaves names collection state.
   void Infer() {
-    ASSERT(IsOpen());
+    DCHECK(IsOpen());
     if (!funcs_to_infer_.is_empty()) {
       InferFunctionsNames();
     }
@@ -69,7 +69,7 @@ class FuncNameInferrer : public ZoneObject {
 
   // Leaves names collection state.
   void Leave() {
-    ASSERT(IsOpen());
+    DCHECK(IsOpen());
     names_stack_.Rewind(entries_stack_.RemoveLast());
     if (entries_stack_.is_empty())
       funcs_to_infer_.Clear();

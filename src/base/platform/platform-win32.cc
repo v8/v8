@@ -71,7 +71,7 @@ int fopen_s(FILE** pFile, const char* filename, const char* mode) {
 
 int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
                  const char* format, va_list argptr) {
-  ASSERT(count == _TRUNCATE);
+  DCHECK(count == _TRUNCATE);
   return _vsnprintf(buffer, sizeOfBuffer, format, argptr);
 }
 
@@ -689,7 +689,7 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
     n = _TRUNCATE;
   int result = strncpy_s(dest, length, src, n);
   USE(result);
-  ASSERT(result == 0 || (n == _TRUNCATE && result == STRUNCATE));
+  DCHECK(result == 0 || (n == _TRUNCATE && result == STRUNCATE));
 }
 
 
@@ -790,7 +790,7 @@ void* OS::Allocate(const size_t requested,
 
   if (mbase == NULL) return NULL;
 
-  ASSERT(IsAligned(reinterpret_cast<size_t>(mbase), OS::AllocateAlignment()));
+  DCHECK(IsAligned(reinterpret_cast<size_t>(mbase), OS::AllocateAlignment()));
 
   *allocated = msize;
   return mbase;
@@ -1228,7 +1228,7 @@ VirtualMemory::VirtualMemory(size_t size)
 
 VirtualMemory::VirtualMemory(size_t size, size_t alignment)
     : address_(NULL), size_(0) {
-  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
+  DCHECK(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
   void* address = ReserveRegion(request_size);
@@ -1237,11 +1237,11 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   // Try reducing the size by freeing and then reallocating a specific area.
   bool result = ReleaseRegion(address, request_size);
   USE(result);
-  ASSERT(result);
+  DCHECK(result);
   address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
   if (address != NULL) {
     request_size = size;
-    ASSERT(base == static_cast<uint8_t*>(address));
+    DCHECK(base == static_cast<uint8_t*>(address));
   } else {
     // Resizing failed, just go with a bigger area.
     address = ReserveRegion(request_size);
@@ -1255,7 +1255,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
     bool result = ReleaseRegion(address(), size());
-    ASSERT(result);
+    DCHECK(result);
     USE(result);
   }
 }
@@ -1278,7 +1278,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
-  ASSERT(IsReserved());
+  DCHECK(IsReserved());
   return UncommitRegion(address, size);
 }
 
@@ -1397,7 +1397,7 @@ void Thread::Join() {
 
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
   DWORD result = TlsAlloc();
-  ASSERT(result != TLS_OUT_OF_INDEXES);
+  DCHECK(result != TLS_OUT_OF_INDEXES);
   return static_cast<LocalStorageKey>(result);
 }
 
@@ -1405,7 +1405,7 @@ Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
 void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
   BOOL result = TlsFree(static_cast<DWORD>(key));
   USE(result);
-  ASSERT(result);
+  DCHECK(result);
 }
 
 
@@ -1417,7 +1417,7 @@ void* Thread::GetThreadLocal(LocalStorageKey key) {
 void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   BOOL result = TlsSetValue(static_cast<DWORD>(key), value);
   USE(result);
-  ASSERT(result);
+  DCHECK(result);
 }
 
 

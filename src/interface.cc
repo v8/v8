@@ -10,15 +10,15 @@ namespace v8 {
 namespace internal {
 
 Interface* Interface::Lookup(Handle<String> name, Zone* zone) {
-  ASSERT(IsModule());
+  DCHECK(IsModule());
   ZoneHashMap* map = Chase()->exports_;
   if (map == NULL) return NULL;
   ZoneAllocationPolicy allocator(zone);
   ZoneHashMap::Entry* p = map->Lookup(name.location(), name->Hash(), false,
                                       allocator);
   if (p == NULL) return NULL;
-  ASSERT(*static_cast<String**>(p->key) == *name);
-  ASSERT(p->value != NULL);
+  DCHECK(*static_cast<String**>(p->key) == *name);
+  DCHECK(p->value != NULL);
   return static_cast<Interface*>(p->value);
 }
 
@@ -91,8 +91,8 @@ void Interface::DoAdd(const void* name, uint32_t hash, Interface* interface,
 void Interface::Unify(Interface* that, Zone* zone, bool* ok) {
   if (this->forward_) return this->Chase()->Unify(that, zone, ok);
   if (that->forward_) return this->Unify(that->Chase(), zone, ok);
-  ASSERT(this->forward_ == NULL);
-  ASSERT(that->forward_ == NULL);
+  DCHECK(this->forward_ == NULL);
+  DCHECK(that->forward_ == NULL);
 
   *ok = true;
   if (this == that) return;
@@ -138,13 +138,13 @@ void Interface::Unify(Interface* that, Zone* zone, bool* ok) {
 
 
 void Interface::DoUnify(Interface* that, bool* ok, Zone* zone) {
-  ASSERT(this->forward_ == NULL);
-  ASSERT(that->forward_ == NULL);
-  ASSERT(!this->IsValue());
-  ASSERT(!that->IsValue());
-  ASSERT(this->index_ == -1);
-  ASSERT(that->index_ == -1);
-  ASSERT(*ok);
+  DCHECK(this->forward_ == NULL);
+  DCHECK(that->forward_ == NULL);
+  DCHECK(!this->IsValue());
+  DCHECK(!that->IsValue());
+  DCHECK(this->index_ == -1);
+  DCHECK(that->index_ == -1);
+  DCHECK(*ok);
 
 #ifdef DEBUG
     Nesting nested;

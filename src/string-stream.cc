@@ -20,7 +20,7 @@ char* HeapStringAllocator::allocate(unsigned bytes) {
 
 bool StringStream::Put(char c) {
   if (full()) return false;
-  ASSERT(length_ < capacity_);
+  DCHECK(length_ < capacity_);
   // Since the trailing '\0' is not accounted for in length_ fullness is
   // indicated by a difference of 1 between length_ and capacity_. Thus when
   // reaching a difference of 2 we need to grow the buffer.
@@ -32,7 +32,7 @@ bool StringStream::Put(char c) {
       buffer_ = new_buffer;
     } else {
       // Reached the end of the available buffer.
-      ASSERT(capacity_ >= 5);
+      DCHECK(capacity_ >= 5);
       length_ = capacity_ - 1;  // Indicate fullness of the stream.
       buffer_[length_ - 4] = '.';
       buffer_[length_ - 3] = '.';
@@ -90,26 +90,26 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
     FmtElm current = elms[elm++];
     switch (type) {
     case 's': {
-      ASSERT_EQ(FmtElm::C_STR, current.type_);
+      DCHECK_EQ(FmtElm::C_STR, current.type_);
       const char* value = current.data_.u_c_str_;
       Add(value);
       break;
     }
     case 'w': {
-      ASSERT_EQ(FmtElm::LC_STR, current.type_);
+      DCHECK_EQ(FmtElm::LC_STR, current.type_);
       Vector<const uc16> value = *current.data_.u_lc_str_;
       for (int i = 0; i < value.length(); i++)
         Put(static_cast<char>(value[i]));
       break;
     }
     case 'o': {
-      ASSERT_EQ(FmtElm::OBJ, current.type_);
+      DCHECK_EQ(FmtElm::OBJ, current.type_);
       Object* obj = current.data_.u_obj_;
       PrintObject(obj);
       break;
     }
     case 'k': {
-      ASSERT_EQ(FmtElm::INT, current.type_);
+      DCHECK_EQ(FmtElm::INT, current.type_);
       int value = current.data_.u_int_;
       if (0x20 <= value && value <= 0x7F) {
         Put(value);
@@ -157,7 +157,7 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
   }
 
   // Verify that the buffer is 0-terminated
-  ASSERT(buffer_[length_] == '\0');
+  DCHECK(buffer_[length_] == '\0');
 }
 
 

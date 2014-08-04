@@ -65,7 +65,7 @@ UnaryMathFunction CreateExpFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
 
   CpuFeatures::FlushICache(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -107,7 +107,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
     // the kPrefHintPrepareForStore hint is used, the code will not work
     // correctly.
     uint32_t max_pref_size = 128;
-    ASSERT(pref_chunk < max_pref_size);
+    DCHECK(pref_chunk < max_pref_size);
 
     // pref_limit is set based on the fact that we never use an offset
     // greater then 5 on a store pref and that a single pref can
@@ -120,7 +120,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
     // The initial prefetches may fetch bytes that are before the buffer being
     // copied. Start copies with an offset of 4 so avoid this situation when
     // using kPrefHintPrepareForStore.
-    ASSERT(pref_hint_store != kPrefHintPrepareForStore ||
+    DCHECK(pref_hint_store != kPrefHintPrepareForStore ||
            pref_chunk * 4 >= max_pref_size);
     // If the size is less than 8, go to lastb. Regardless of size,
     // copy dst pointer to v0 for the retuen value.
@@ -490,7 +490,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
   }
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
 
   CpuFeatures::FlushICache(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -517,7 +517,7 @@ UnaryMathFunction CreateSqrtFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
 
   CpuFeatures::FlushICache(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -533,14 +533,14 @@ UnaryMathFunction CreateSqrtFunction() {
 
 void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
   masm->EnterFrame(StackFrame::INTERNAL);
-  ASSERT(!masm->has_frame());
+  DCHECK(!masm->has_frame());
   masm->set_has_frame(true);
 }
 
 
 void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
   masm->LeaveFrame(StackFrame::INTERNAL);
-  ASSERT(masm->has_frame());
+  DCHECK(masm->has_frame());
   masm->set_has_frame(false);
 }
 
@@ -559,7 +559,7 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     AllocationSiteMode mode,
     Label* allocation_memento_found) {
   Register scratch_elements = a4;
-  ASSERT(!AreAliased(receiver, key, value, target_map,
+  DCHECK(!AreAliased(receiver, key, value, target_map,
                      scratch_elements));
 
   if (mode == TRACK_ALLOCATION_SITE) {
@@ -601,7 +601,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Register scratch3 = a7;
 
   // Verify input registers don't conflict with locals.
-  ASSERT(!AreAliased(receiver, key, value, target_map,
+  DCHECK(!AreAliased(receiver, key, value, target_map,
                      elements, length, array, scratch2));
 
   Register scratch = t2;
@@ -744,7 +744,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Register scratch = t1;
 
   // Verify input registers don't conflict with locals.
-  ASSERT(!AreAliased(receiver, key, value, target_map,
+  DCHECK(!AreAliased(receiver, key, value, target_map,
                      elements, array, length, scratch));
   if (mode == TRACK_ALLOCATION_SITE) {
     __ JumpIfJSArrayHasAllocationMemento(receiver, elements, fail);
@@ -979,16 +979,16 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
                                    Register temp1,
                                    Register temp2,
                                    Register temp3) {
-  ASSERT(!input.is(result));
-  ASSERT(!input.is(double_scratch1));
-  ASSERT(!input.is(double_scratch2));
-  ASSERT(!result.is(double_scratch1));
-  ASSERT(!result.is(double_scratch2));
-  ASSERT(!double_scratch1.is(double_scratch2));
-  ASSERT(!temp1.is(temp2));
-  ASSERT(!temp1.is(temp3));
-  ASSERT(!temp2.is(temp3));
-  ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(!input.is(result));
+  DCHECK(!input.is(double_scratch1));
+  DCHECK(!input.is(double_scratch2));
+  DCHECK(!result.is(double_scratch1));
+  DCHECK(!result.is(double_scratch2));
+  DCHECK(!double_scratch1.is(double_scratch2));
+  DCHECK(!temp1.is(temp2));
+  DCHECK(!temp1.is(temp3));
+  DCHECK(!temp2.is(temp3));
+  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
 
   Label zero, infinity, done;
   __ li(temp3, Operand(ExternalReference::math_exp_constants(0)));
@@ -1016,7 +1016,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   __ mul_d(result, result, double_scratch2);
   __ sub_d(result, result, double_scratch1);
   // Mov 1 in double_scratch2 as math_exp_constants_array[8] == 1.
-  ASSERT(*reinterpret_cast<double*>
+  DCHECK(*reinterpret_cast<double*>
          (ExternalReference::math_exp_constants(8).address()) == 1);
   __ Move(double_scratch2, 1);
   __ add_d(result, result, double_scratch2);
@@ -1060,7 +1060,7 @@ static const uint32_t kCodeAgePatchFirstInstruction = 0x00010180;
 
 
 CodeAgingHelper::CodeAgingHelper() {
-  ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // Since patcher is a large object, allocate it dynamically when needed,
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
@@ -1088,7 +1088,7 @@ bool CodeAgingHelper::IsOld(byte* candidate) const {
 
 bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
   bool result = isolate->code_aging_helper()->IsYoung(sequence);
-  ASSERT(result || isolate->code_aging_helper()->IsOld(sequence));
+  DCHECK(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 

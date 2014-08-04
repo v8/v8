@@ -46,7 +46,7 @@ struct ValueMatcher : public NodeMatcher {
 
   bool HasValue() const { return has_value_; }
   T Value() const {
-    ASSERT(HasValue());
+    DCHECK(HasValue());
     return value_;
   }
 

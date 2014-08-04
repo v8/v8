@@ -68,7 +68,7 @@ class JSGraph : public ZoneObject {
   Node* ExternalConstant(ExternalReference ref);
 
   Node* SmiConstant(int32_t immediate) {
-    ASSERT(Smi::IsValid(immediate));
+    DCHECK(Smi::IsValid(immediate));
     return Constant(immediate);
   }
 

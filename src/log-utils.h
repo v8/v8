@@ -103,9 +103,9 @@ class Log {
 
   // Implementation of writing to a log file.
   int WriteToFile(const char* msg, int length) {
-    ASSERT(output_handle_ != NULL);
+    DCHECK(output_handle_ != NULL);
     size_t rv = fwrite(msg, 1, length, output_handle_);
-    ASSERT(static_cast<size_t>(length) == rv);
+    DCHECK(static_cast<size_t>(length) == rv);
     USE(rv);
     fflush(output_handle_);
     return length;

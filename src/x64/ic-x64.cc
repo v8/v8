@@ -180,7 +180,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
   // In the case that the object is a value-wrapper object,
   // we enter the runtime system to make sure that indexing
   // into string objects work as intended.
-  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
+  DCHECK(JS_OBJECT_TYPE > JS_VALUE_TYPE);
   __ CmpObjectType(receiver, JS_OBJECT_TYPE, map);
   __ j(below, slow);
 
@@ -293,8 +293,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   Register receiver = ReceiverRegister();
   Register key = NameRegister();
-  ASSERT(receiver.is(rdx));
-  ASSERT(key.is(rcx));
+  DCHECK(receiver.is(rdx));
+  DCHECK(key.is(rcx));
 
   // Check that the key is a smi.
   __ JumpIfNotSmi(key, &check_name);
@@ -452,7 +452,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   Register index = NameRegister();
   Register scratch = rbx;
   Register result = rax;
-  ASSERT(!scratch.is(receiver) && !scratch.is(index));
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
 
   StringCharAtGenerator char_at_generator(receiver,
                                           index,
@@ -480,7 +480,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   Register receiver = ReceiverRegister();
   Register key = NameRegister();
   Register scratch = rax;
-  ASSERT(!scratch.is(receiver) && !scratch.is(key));
+  DCHECK(!scratch.is(receiver) && !scratch.is(key));
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, &slow);
@@ -529,9 +529,9 @@ static void KeyedStoreGenerateGenericHelper(
   Register receiver = KeyedStoreIC::ReceiverRegister();
   Register key = KeyedStoreIC::NameRegister();
   Register value = KeyedStoreIC::ValueRegister();
-  ASSERT(receiver.is(rdx));
-  ASSERT(key.is(rcx));
-  ASSERT(value.is(rax));
+  DCHECK(receiver.is(rdx));
+  DCHECK(key.is(rcx));
+  DCHECK(value.is(rax));
   // Fast case: Do the store, could be either Object or double.
   __ bind(fast_object);
   // rbx: receiver's elements array (a FixedArray)
@@ -676,8 +676,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Label array, extra, check_if_double_array;
   Register receiver = ReceiverRegister();
   Register key = NameRegister();
-  ASSERT(receiver.is(rdx));
-  ASSERT(key.is(rcx));
+  DCHECK(receiver.is(rdx));
+  DCHECK(key.is(rcx));
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(receiver, &slow_with_tagged_index);
@@ -838,8 +838,8 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // The return address is on the stack.
   Register receiver = ReceiverRegister();
   Register key = NameRegister();
-  ASSERT(receiver.is(rdx));
-  ASSERT(key.is(rcx));
+  DCHECK(receiver.is(rdx));
+  DCHECK(key.is(rcx));
 
   Label slow, notin;
   Operand mapped_location =
@@ -866,9 +866,9 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
   Register value = ValueRegister();
-  ASSERT(receiver.is(rdx));
-  ASSERT(name.is(rcx));
-  ASSERT(value.is(rax));
+  DCHECK(receiver.is(rdx));
+  DCHECK(name.is(rcx));
+  DCHECK(value.is(rax));
 
   Operand mapped_location = GenerateMappedArgumentsLookup(
       masm, receiver, name, rbx, rdi, r8, &notin, &slow);
@@ -905,8 +905,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is on the stack.
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
-  ASSERT(receiver.is(rdx));
-  ASSERT(name.is(rcx));
+  DCHECK(receiver.is(rdx));
+  DCHECK(name.is(rcx));
 
   // Probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
@@ -920,8 +920,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   Register dictionary = rax;
-  ASSERT(!dictionary.is(ReceiverRegister()));
-  ASSERT(!dictionary.is(NameRegister()));
+  DCHECK(!dictionary.is(ReceiverRegister()));
+  DCHECK(!dictionary.is(NameRegister()));
 
   Label slow;
 
@@ -1000,13 +1000,13 @@ const Register LoadIC::NameRegister() { return rcx; }
 
 
 const Register LoadIC::SlotRegister() {
-  ASSERT(FLAG_vector_ics);
+  DCHECK(FLAG_vector_ics);
   return rax;
 }
 
 
 const Register LoadIC::VectorRegister() {
-  ASSERT(FLAG_vector_ics);
+  DCHECK(FLAG_vector_ics);
   return rbx;
 }
 
@@ -1053,7 +1053,7 @@ static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register name = StoreIC::NameRegister();
   Register value = StoreIC::ValueRegister();
 
-  ASSERT(!rbx.is(receiver) && !rbx.is(name) && !rbx.is(value));
+  DCHECK(!rbx.is(receiver) && !rbx.is(name) && !rbx.is(value));
 
   __ PopReturnAddressTo(rbx);
   __ Push(receiver);
@@ -1097,7 +1097,7 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictMode strict_mode) {
   // Return address is on the stack.
-  ASSERT(!rbx.is(ReceiverRegister()) && !rbx.is(NameRegister()) &&
+  DCHECK(!rbx.is(ReceiverRegister()) && !rbx.is(NameRegister()) &&
          !rbx.is(ValueRegister()));
 
   __ PopReturnAddressTo(rbx);
@@ -1115,7 +1115,7 @@ void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
 void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
                                               StrictMode strict_mode) {
   // Return address is on the stack.
-  ASSERT(!rbx.is(ReceiverRegister()) && !rbx.is(NameRegister()) &&
+  DCHECK(!rbx.is(ReceiverRegister()) && !rbx.is(NameRegister()) &&
          !rbx.is(ValueRegister()));
 
   __ PopReturnAddressTo(rbx);
@@ -1203,7 +1203,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   // If the instruction following the call is not a test al, nothing
   // was inlined.
   if (*test_instruction_address != Assembler::kTestAlByte) {
-    ASSERT(*test_instruction_address == Assembler::kNopByte);
+    DCHECK(*test_instruction_address == Assembler::kNopByte);
     return;
   }
 
@@ -1220,7 +1220,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   // jump-if-carry/not-carry to jump-if-zero/not-zero, whereas disabling is the
   // reverse operation of that.
   Address jmp_address = test_instruction_address - delta;
-  ASSERT((check == ENABLE_INLINED_SMI_CHECK)
+  DCHECK((check == ENABLE_INLINED_SMI_CHECK)
          ? (*jmp_address == Assembler::kJncShortOpcode ||
             *jmp_address == Assembler::kJcShortOpcode)
          : (*jmp_address == Assembler::kJnzShortOpcode ||

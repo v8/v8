@@ -48,10 +48,10 @@ class LOperand : public ZoneObject {
 
   void PrintTo(StringStream* stream);
   void ConvertTo(Kind kind, int index) {
-    if (kind == REGISTER) ASSERT(index >= 0);
+    if (kind == REGISTER) DCHECK(index >= 0);
     value_ = KindField::encode(kind);
     value_ |= index << kKindFieldWidth;
-    ASSERT(this->index() == index);
+    DCHECK(this->index() == index);
   }
 
   // Calls SetUpCache()/TearDownCache() for each subclass.
@@ -107,14 +107,14 @@ class LUnallocated : public LOperand {
   }
 
   LUnallocated(BasicPolicy policy, int index) : LOperand(UNALLOCATED, 0) {
-    ASSERT(policy == FIXED_SLOT);
+    DCHECK(policy == FIXED_SLOT);
     value_ |= BasicPolicyField::encode(policy);
     value_ |= index << FixedSlotIndexField::kShift;
-    ASSERT(this->fixed_slot_index() == index);
+    DCHECK(this->fixed_slot_index() == index);
   }
 
   LUnallocated(ExtendedPolicy policy, int index) : LOperand(UNALLOCATED, 0) {
-    ASSERT(policy == FIXED_REGISTER || policy == FIXED_DOUBLE_REGISTER);
+    DCHECK(policy == FIXED_REGISTER || policy == FIXED_DOUBLE_REGISTER);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
@@ -135,7 +135,7 @@ class LUnallocated : public LOperand {
   }
 
   static LUnallocated* cast(LOperand* op) {
-    ASSERT(op->IsUnallocated());
+    DCHECK(op->IsUnallocated());
     return reinterpret_cast<LUnallocated*>(op);
   }
 
@@ -222,19 +222,19 @@ class LUnallocated : public LOperand {
 
   // [extended_policy]: Only for non-FIXED_SLOT. The finer-grained policy.
   ExtendedPolicy extended_policy() const {
-    ASSERT(basic_policy() == EXTENDED_POLICY);
+    DCHECK(basic_policy() == EXTENDED_POLICY);
     return ExtendedPolicyField::decode(value_);
   }
 
   // [fixed_slot_index]: Only for FIXED_SLOT.
   int fixed_slot_index() const {
-    ASSERT(HasFixedSlotPolicy());
+    DCHECK(HasFixedSlotPolicy());
     return static_cast<int>(value_) >> FixedSlotIndexField::kShift;
   }
 
   // [fixed_register_index]: Only for FIXED_REGISTER or FIXED_DOUBLE_REGISTER.
   int fixed_register_index() const {
-    ASSERT(HasFixedRegisterPolicy() || HasFixedDoubleRegisterPolicy());
+    DCHECK(HasFixedRegisterPolicy() || HasFixedDoubleRegisterPolicy());
     return FixedRegisterField::decode(value_);
   }
 
@@ -248,7 +248,7 @@ class LUnallocated : public LOperand {
 
   // [lifetime]: Only for non-FIXED_SLOT.
   bool IsUsedAtStart() {
-    ASSERT(basic_policy() == EXTENDED_POLICY);
+    DCHECK(basic_policy() == EXTENDED_POLICY);
     return LifetimeField::decode(value_) == USED_AT_START;
   }
 };
@@ -291,7 +291,7 @@ class LMoveOperands V8_FINAL BASE_EMBEDDED {
   // We clear both operands to indicate move that's been eliminated.
   void Eliminate() { source_ = destination_ = NULL; }
   bool IsEliminated() const {
-    ASSERT(source_ != NULL || destination_ == NULL);
+    DCHECK(source_ != NULL || destination_ == NULL);
     return source_ == NULL;
   }
 
@@ -305,13 +305,13 @@ template<LOperand::Kind kOperandKind, int kNumCachedOperands>
 class LSubKindOperand V8_FINAL : public LOperand {
  public:
   static LSubKindOperand* Create(int index, Zone* zone) {
-    ASSERT(index >= 0);
+    DCHECK(index >= 0);
     if (index < kNumCachedOperands) return &cache[index];
     return new(zone) LSubKindOperand(index);
   }
 
   static LSubKindOperand* cast(LOperand* op) {
-    ASSERT(op->kind() == kOperandKind);
+    DCHECK(op->kind() == kOperandKind);
     return reinterpret_cast<LSubKindOperand*>(op);
   }
 
@@ -368,7 +368,7 @@ class LPointerMap V8_FINAL : public ZoneObject {
   int lithium_position() const { return lithium_position_; }
 
   void set_lithium_position(int pos) {
-    ASSERT(lithium_position_ == -1);
+    DCHECK(lithium_position_ == -1);
     lithium_position_ = pos;
   }
 
@@ -435,7 +435,7 @@ class LEnvironment V8_FINAL : public ZoneObject {
                 bool is_uint32) {
     values_.Add(operand, zone());
     if (representation.IsSmiOrTagged()) {
-      ASSERT(!is_uint32);
+      DCHECK(!is_uint32);
       is_tagged_.Add(values_.length() - 1, zone());
     }
 
@@ -466,17 +466,17 @@ class LEnvironment V8_FINAL : public ZoneObject {
   }
 
   int ObjectDuplicateOfAt(int index) {
-    ASSERT(ObjectIsDuplicateAt(index));
+    DCHECK(ObjectIsDuplicateAt(index));
     return LengthOrDupeField::decode(object_mapping_[index]);
   }
 
   int ObjectLengthAt(int index) {
-    ASSERT(!ObjectIsDuplicateAt(index));
+    DCHECK(!ObjectIsDuplicateAt(index));
     return LengthOrDupeField::decode(object_mapping_[index]);
   }
 
   bool ObjectIsArgumentsAt(int index) {
-    ASSERT(!ObjectIsDuplicateAt(index));
+    DCHECK(!ObjectIsDuplicateAt(index));
     return IsArgumentsField::decode(object_mapping_[index]);
   }
 
@@ -487,7 +487,7 @@ class LEnvironment V8_FINAL : public ZoneObject {
   void Register(int deoptimization_index,
                 int translation_index,
                 int pc_offset) {
-    ASSERT(!HasBeenRegistered());
+    DCHECK(!HasBeenRegistered());
     deoptimization_index_ = deoptimization_index;
     translation_index_ = translation_index;
     pc_offset_ = pc_offset;
@@ -546,13 +546,13 @@ class ShallowIterator V8_FINAL BASE_EMBEDDED {
   bool Done() { return current_ >= limit_; }
 
   LOperand* Current() {
-    ASSERT(!Done());
-    ASSERT(env_->values()->at(current_) != NULL);
+    DCHECK(!Done());
+    DCHECK(env_->values()->at(current_) != NULL);
     return env_->values()->at(current_);
   }
 
   void Advance() {
-    ASSERT(!Done());
+    DCHECK(!Done());
     ++current_;
     SkipUninteresting();
   }
@@ -588,8 +588,8 @@ class DeepIterator V8_FINAL BASE_EMBEDDED {
   bool Done() { return current_iterator_.Done(); }
 
   LOperand* Current() {
-    ASSERT(!current_iterator_.Done());
-    ASSERT(current_iterator_.Current() != NULL);
+    DCHECK(!current_iterator_.Done());
+    DCHECK(current_iterator_.Current() != NULL);
     return current_iterator_.Current();
   }
 
@@ -650,16 +650,16 @@ class LChunk : public ZoneObject {
   }
 
   void AddDeprecationDependency(Handle<Map> map) {
-    ASSERT(!map->is_deprecated());
+    DCHECK(!map->is_deprecated());
     if (!map->CanBeDeprecated()) return;
-    ASSERT(!info_->IsStub());
+    DCHECK(!info_->IsStub());
     deprecation_dependencies_.insert(map);
   }
 
   void AddStabilityDependency(Handle<Map> map) {
-    ASSERT(map->is_stable());
+    DCHECK(map->is_stable());
     if (!map->CanTransition()) return;
-    ASSERT(!info_->IsStub());
+    DCHECK(!info_->IsStub());
     stability_dependencies_.insert(map);
   }
 

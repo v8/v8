@@ -55,7 +55,7 @@ class SingletonLogger : public ParserRecorder {
                            int literals,
                            int properties,
                            StrictMode strict_mode) {
-    ASSERT(!has_error_);
+    DCHECK(!has_error_);
     start_ = start;
     end_ = end;
     literals_ = literals;
@@ -85,24 +85,24 @@ class SingletonLogger : public ParserRecorder {
   int start() const { return start_; }
   int end() const { return end_; }
   int literals() const {
-    ASSERT(!has_error_);
+    DCHECK(!has_error_);
     return literals_;
   }
   int properties() const {
-    ASSERT(!has_error_);
+    DCHECK(!has_error_);
     return properties_;
   }
   StrictMode strict_mode() const {
-    ASSERT(!has_error_);
+    DCHECK(!has_error_);
     return strict_mode_;
   }
   int is_reference_error() const { return is_reference_error_; }
   const char* message() {
-    ASSERT(has_error_);
+    DCHECK(has_error_);
     return message_;
   }
   const char* argument_opt() const {
-    ASSERT(has_error_);
+    DCHECK(has_error_);
     return argument_opt_;
   }
 
@@ -157,7 +157,7 @@ class CompleteParserRecorder : public ParserRecorder {
     return static_cast<bool>(preamble_[PreparseDataConstants::kHasErrorOffset]);
   }
   Vector<unsigned> ErrorMessageData() {
-    ASSERT(HasError());
+    DCHECK(HasError());
     return function_store_.ToVector();
   }
 

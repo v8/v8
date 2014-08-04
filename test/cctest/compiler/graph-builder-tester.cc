@@ -19,7 +19,7 @@ MachineCallHelper::MachineCallHelper(Zone* zone,
 
 void MachineCallHelper::InitParameters(GraphBuilder* builder,
                                        CommonOperatorBuilder* common) {
-  ASSERT_EQ(NULL, parameters_);
+  DCHECK_EQ(NULL, parameters_);
   graph_ = builder->graph();
   if (parameter_count() == 0) return;
   parameters_ = builder->graph()->zone()->NewArray<Node*>(parameter_count());
@@ -30,7 +30,7 @@ void MachineCallHelper::InitParameters(GraphBuilder* builder,
 
 
 byte* MachineCallHelper::Generate() {
-  ASSERT(parameter_count() == 0 || parameters_ != NULL);
+  DCHECK(parameter_count() == 0 || parameters_ != NULL);
   if (code_.is_null()) {
     Zone* zone = graph_->zone();
     CompilationInfo info(zone->isolate(), zone);
@@ -54,8 +54,8 @@ void MachineCallHelper::VerifyParameters(
 
 
 Node* MachineCallHelper::Parameter(int offset) {
-  ASSERT_NE(NULL, parameters_);
-  ASSERT(0 <= offset && offset < parameter_count());
+  DCHECK_NE(NULL, parameters_);
+  DCHECK(0 <= offset && offset < parameter_count());
   return parameters_[offset];
 }
 

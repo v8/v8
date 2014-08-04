@@ -41,10 +41,10 @@ bool HUint32AnalysisPhase::IsSafeUint32Use(HValue* val, HValue* use) {
     return true;
   } else if (use->IsChange()) {
     // Conversions have special support for uint32.
-    // This ASSERT guards that the conversion in question is actually
+    // This DCHECK guards that the conversion in question is actually
     // implemented. Do not extend the whitelist without adding
     // support to LChunkBuilder::DoChange().
-    ASSERT(HChange::cast(use)->to().IsDouble() ||
+    DCHECK(HChange::cast(use)->to().IsDouble() ||
            HChange::cast(use)->to().IsSmi() ||
            HChange::cast(use)->to().IsTagged());
     return true;
@@ -55,9 +55,9 @@ bool HUint32AnalysisPhase::IsSafeUint32Use(HValue* val, HValue* use) {
       // operation.
       if (store->value() == val) {
         // Clamping or a conversion to double should have beed inserted.
-        ASSERT(store->elements_kind() != EXTERNAL_UINT8_CLAMPED_ELEMENTS);
-        ASSERT(store->elements_kind() != EXTERNAL_FLOAT32_ELEMENTS);
-        ASSERT(store->elements_kind() != EXTERNAL_FLOAT64_ELEMENTS);
+        DCHECK(store->elements_kind() != EXTERNAL_UINT8_CLAMPED_ELEMENTS);
+        DCHECK(store->elements_kind() != EXTERNAL_FLOAT32_ELEMENTS);
+        DCHECK(store->elements_kind() != EXTERNAL_FLOAT64_ELEMENTS);
         return true;
       }
     }

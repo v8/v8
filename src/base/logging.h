@@ -190,27 +190,27 @@ void DumpBacktrace();
 } }  // namespace v8::base
 
 
-// The ASSERT macro is equivalent to CHECK except that it only
+// The DCHECK macro is equivalent to CHECK except that it only
 // generates code in debug builds.
 #ifdef DEBUG
-#define ASSERT_RESULT(expr)    CHECK(expr)
-#define ASSERT(condition)      CHECK(condition)
-#define ASSERT_EQ(v1, v2)      CHECK_EQ(v1, v2)
-#define ASSERT_NE(v1, v2)      CHECK_NE(v1, v2)
-#define ASSERT_GE(v1, v2)      CHECK_GE(v1, v2)
-#define ASSERT_LT(v1, v2)      CHECK_LT(v1, v2)
-#define ASSERT_LE(v1, v2)      CHECK_LE(v1, v2)
+#define DCHECK_RESULT(expr)    CHECK(expr)
+#define DCHECK(condition)      CHECK(condition)
+#define DCHECK_EQ(v1, v2)      CHECK_EQ(v1, v2)
+#define DCHECK_NE(v1, v2)      CHECK_NE(v1, v2)
+#define DCHECK_GE(v1, v2)      CHECK_GE(v1, v2)
+#define DCHECK_LT(v1, v2)      CHECK_LT(v1, v2)
+#define DCHECK_LE(v1, v2)      CHECK_LE(v1, v2)
 #else
-#define ASSERT_RESULT(expr)    (expr)
-#define ASSERT(condition)      ((void) 0)
-#define ASSERT_EQ(v1, v2)      ((void) 0)
-#define ASSERT_NE(v1, v2)      ((void) 0)
-#define ASSERT_GE(v1, v2)      ((void) 0)
-#define ASSERT_LT(v1, v2)      ((void) 0)
-#define ASSERT_LE(v1, v2)      ((void) 0)
+#define DCHECK_RESULT(expr)    (expr)
+#define DCHECK(condition)      ((void) 0)
+#define DCHECK_EQ(v1, v2)      ((void) 0)
+#define DCHECK_NE(v1, v2)      ((void) 0)
+#define DCHECK_GE(v1, v2)      ((void) 0)
+#define DCHECK_LT(v1, v2)      ((void) 0)
+#define DCHECK_LE(v1, v2)      ((void) 0)
 #endif
 
-#define ASSERT_NOT_NULL(p)  ASSERT_NE(NULL, p)
+#define DCHECK_NOT_NULL(p)  DCHECK_NE(NULL, p)
 
 // "Extra checks" are lightweight checks that are enabled in some release
 // builds.

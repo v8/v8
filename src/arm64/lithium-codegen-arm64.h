@@ -44,7 +44,7 @@ class LCodeGen: public LCodeGenBase {
   }
 
   ~LCodeGen() {
-    ASSERT(!after_push_argument_ || inlined_arguments_);
+    DCHECK(!after_push_argument_ || inlined_arguments_);
   }
 
   // Simple accessors.
@@ -387,8 +387,8 @@ class LCodeGen: public LCodeGenBase {
    public:
     explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {
-      ASSERT(codegen_->info()->is_calling());
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      DCHECK(codegen_->info()->is_calling());
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
       codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
 
       UseScratchRegisterScope temps(codegen_->masm_);
@@ -402,7 +402,7 @@ class LCodeGen: public LCodeGenBase {
     }
 
     ~PushSafepointRegistersScope() {
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
       RestoreRegistersStateStub stub(codegen_->isolate());
       codegen_->masm_->CallStub(&stub);
       codegen_->expected_safepoint_kind_ = Safepoint::kSimple;

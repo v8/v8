@@ -25,7 +25,7 @@ class SnapshotByteSource V8_FINAL {
   bool HasMore() { return position_ < length_; }
 
   int Get() {
-    ASSERT(position_ < length_);
+    DCHECK(position_ < length_);
     return data_[position_++];
   }
 
@@ -73,7 +73,7 @@ class SnapshotByteSink {
   virtual ~SnapshotByteSink() { }
   virtual void Put(byte b, const char* description) = 0;
   virtual void PutSection(int b, const char* description) {
-    ASSERT_LE(b, kMaxUInt8);
+    DCHECK_LE(b, kMaxUInt8);
     Put(static_cast<byte>(b), description);
   }
   void PutInt(uintptr_t integer, const char* description);

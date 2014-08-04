@@ -53,7 +53,7 @@ void Scanner::Initialize(Utf16CharacterStream* source) {
 
 
 uc32 Scanner::ScanHexNumber(int expected_length) {
-  ASSERT(expected_length <= 4);  // prevent overflow
+  DCHECK(expected_length <= 4);  // prevent overflow
 
   uc32 digits[4] = { 0, 0, 0, 0 };
   uc32 x = 0;
@@ -367,7 +367,7 @@ void Scanner::TryToParseSourceURLComment() {
 
 
 Token::Value Scanner::SkipMultiLineComment() {
-  ASSERT(c0_ == '*');
+  DCHECK(c0_ == '*');
   Advance();
 
   while (c0_ >= 0) {
@@ -394,7 +394,7 @@ Token::Value Scanner::SkipMultiLineComment() {
 
 Token::Value Scanner::ScanHtmlComment() {
   // Check for <!-- comments.
-  ASSERT(c0_ == '!');
+  DCHECK(c0_ == '!');
   Advance();
   if (c0_ == '-') {
     Advance();
@@ -402,7 +402,7 @@ Token::Value Scanner::ScanHtmlComment() {
     PushBack('-');  // undo Advance()
   }
   PushBack('!');  // undo Advance()
-  ASSERT(c0_ == '!');
+  DCHECK(c0_ == '!');
   return Token::LT;
 }
 
@@ -661,9 +661,9 @@ void Scanner::SeekForward(int pos) {
   // the "next" token. The "current" token will be invalid.
   if (pos == next_.location.beg_pos) return;
   int current_pos = source_pos();
-  ASSERT_EQ(next_.location.end_pos, current_pos);
+  DCHECK_EQ(next_.location.end_pos, current_pos);
   // Positions inside the lookahead token aren't supported.
-  ASSERT(pos >= current_pos);
+  DCHECK(pos >= current_pos);
   if (pos != current_pos) {
     source_->SeekForward(pos - source_->pos());
     Advance();
@@ -783,7 +783,7 @@ void Scanner::ScanDecimalDigits() {
 
 
 Token::Value Scanner::ScanNumber(bool seen_period) {
-  ASSERT(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
+  DCHECK(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
 
   enum { DECIMAL, HEX, OCTAL, IMPLICIT_OCTAL, BINARY } kind = DECIMAL;
 
@@ -862,7 +862,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
   // scan exponent, if any
   if (c0_ == 'e' || c0_ == 'E') {
-    ASSERT(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
+    DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
     if (kind != DECIMAL) return Token::ILLEGAL;
     // scan exponent
     AddLiteralCharAdvance();
@@ -971,7 +971,7 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                              int input_length,
                                              bool harmony_scoping,
                                              bool harmony_modules) {
-  ASSERT(input_length >= 1);
+  DCHECK(input_length >= 1);
   const int kMinLength = 2;
   const int kMaxLength = 10;
   if (input_length < kMinLength || input_length > kMaxLength) {
@@ -1019,7 +1019,7 @@ bool Scanner::IdentifierIsFutureStrictReserved(
 
 
 Token::Value Scanner::ScanIdentifierOrKeyword() {
-  ASSERT(unicode_cache_->IsIdentifierStart(c0_));
+  DCHECK(unicode_cache_->IsIdentifierStart(c0_));
   LiteralScope literal(this);
   // Scan identifier start character.
   if (c0_ == '\\') {
@@ -1135,7 +1135,7 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
 
 
 bool Scanner::ScanLiteralUnicodeEscape() {
-  ASSERT(c0_ == '\\');
+  DCHECK(c0_ == '\\');
   uc32 chars_read[6] = {'\\', 'u', 0, 0, 0, 0};
   Advance();
   int i = 1;
@@ -1201,7 +1201,7 @@ const AstRawString* Scanner::NextSymbol(AstValueFactory* ast_value_factory) {
 
 
 double Scanner::DoubleValue() {
-  ASSERT(is_literal_one_byte());
+  DCHECK(is_literal_one_byte());
   return StringToDouble(
       unicode_cache_,
       literal_one_byte_string(),
@@ -1246,7 +1246,7 @@ int DuplicateFinder::AddSymbol(Vector<const uint8_t> key,
 
 
 int DuplicateFinder::AddNumber(Vector<const uint8_t> key, int value) {
-  ASSERT(key.length() > 0);
+  DCHECK(key.length() > 0);
   // Quick check for already being in canonical form.
   if (IsNumberCanonical(key)) {
     return AddOneByteSymbol(key, value);

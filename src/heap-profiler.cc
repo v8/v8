@@ -45,7 +45,7 @@ void HeapProfiler::RemoveSnapshot(HeapSnapshot* snapshot) {
 
 void HeapProfiler::DefineWrapperClass(
     uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback) {
-  ASSERT(class_id != v8::HeapProfiler::kPersistentHandleNoClassId);
+  DCHECK(class_id != v8::HeapProfiler::kPersistentHandleNoClassId);
   if (wrapper_callbacks_.length() <= class_id) {
     wrapper_callbacks_.AddBlock(
         NULL, class_id - wrapper_callbacks_.length() + 1);
@@ -93,7 +93,7 @@ HeapSnapshot* HeapProfiler::TakeSnapshot(
 void HeapProfiler::StartHeapObjectsTracking(bool track_allocations) {
   ids_->UpdateHeapObjectsMap();
   is_tracking_object_moves_ = true;
-  ASSERT(!is_tracking_allocations());
+  DCHECK(!is_tracking_allocations());
   if (track_allocations) {
     allocation_tracker_.Reset(new AllocationTracker(ids_.get(), names_.get()));
     heap()->DisableInlineAllocation();
@@ -180,7 +180,7 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
        obj != NULL;
        obj = iterator.next()) {
     if (ids_->FindEntry(obj->address()) == id) {
-      ASSERT(object == NULL);
+      DCHECK(object == NULL);
       object = obj;
       // Can't break -- kFilterUnreachable requires full heap traversal.
     }

@@ -30,7 +30,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
   // nop (in branch delay slot)
 
   // Make sure this constant matches the number if instructions we emit.
-  ASSERT(Assembler::kJSReturnSequenceInstructions == 7);
+  DCHECK(Assembler::kJSReturnSequenceInstructions == 7);
   CodePatcher patcher(rinfo()->pc(), Assembler::kJSReturnSequenceInstructions);
   // li and Call pseudo-instructions emit 6 + 2 instructions.
   patcher.masm()->li(v8::internal::t9, Operand(reinterpret_cast<int64_t>(
@@ -54,20 +54,20 @@ void BreakLocationIterator::ClearDebugBreakAtReturn() {
 // A debug break in the exit code is identified by the JS frame exit code
 // having been patched with li/call psuedo-instrunction (liu/ori/jalr).
 bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
+  DCHECK(RelocInfo::IsJSReturn(rinfo->rmode()));
   return rinfo->IsPatchedReturnSequence();
 }
 
 
 bool BreakLocationIterator::IsDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
+  DCHECK(IsDebugBreakSlot());
   // Check whether the debug break slot instructions have been patched.
   return rinfo()->IsPatchedDebugBreakSlotSequence();
 }
 
 
 void BreakLocationIterator::SetDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
+  DCHECK(IsDebugBreakSlot());
   // Patch the code changing the debug break slot code from:
   //   nop(DEBUG_BREAK_NOP) - nop(1) is sll(zero_reg, zero_reg, 1)
   //   nop(DEBUG_BREAK_NOP)
@@ -88,7 +88,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
 
 
 void BreakLocationIterator::ClearDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
+  DCHECK(IsDebugBreakSlot());
   rinfo()->PatchCode(original_rinfo()->pc(),
                      Assembler::kDebugBreakSlotInstructions);
 }
@@ -121,9 +121,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     // Store the registers containing live values on the expression stack to
     // make sure that these are correctly updated during GC. Non object values
     // are stored as a smi causing it to be untouched by GC.
-    ASSERT((object_regs & ~kJSCallerSaved) == 0);
-    ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
-    ASSERT((object_regs & non_object_regs) == 0);
+    DCHECK((object_regs & ~kJSCallerSaved) == 0);
+    DCHECK((non_object_regs & ~kJSCallerSaved) == 0);
+    DCHECK((object_regs & non_object_regs) == 0);
     for (int i = 0; i < kNumJSCallerSaved; i++) {
       int r = JSCallerSavedCode(i);
       Register reg = { r };
@@ -279,7 +279,7 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
   for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
     __ nop(MacroAssembler::DEBUG_BREAK_NOP);
   }
-  ASSERT_EQ(Assembler::kDebugBreakSlotInstructions,
+  DCHECK_EQ(Assembler::kDebugBreakSlotInstructions,
             masm->InstructionsGeneratedSince(&check_codesize));
 }
 

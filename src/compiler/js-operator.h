@@ -21,8 +21,8 @@ class ContextAccess {
  public:
   ContextAccess(int depth, int index, bool immutable)
       : immutable_(immutable), depth_(depth), index_(index) {
-    ASSERT(0 <= depth && depth <= kMaxUInt16);
-    ASSERT(0 <= index && static_cast<uint32_t>(index) <= kMaxUInt32);
+    DCHECK(0 <= depth && depth <= kMaxUInt16);
+    DCHECK(0 <= index && static_cast<uint32_t>(index) <= kMaxUInt32);
   }
   int depth() const { return depth_; }
   int index() const { return index_; }
@@ -154,7 +154,7 @@ class JSOperatorBuilder {
 
   Operator* Runtime(Runtime::FunctionId function, int arguments) {
     const Runtime::Function* f = Runtime::FunctionForId(function);
-    ASSERT(f->nargs == -1 || f->nargs == arguments);
+    DCHECK(f->nargs == -1 || f->nargs == arguments);
     OP1(JSCallRuntime, Runtime::FunctionId, function, Operator::kNoProperties,
         arguments, f->result_size);
   }

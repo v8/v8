@@ -50,7 +50,7 @@ typedef uint32_t (*HASH_FUNCTION)();
 void generate(MacroAssembler* masm, i::Vector<const uint8_t> string) {
   // GenerateHashInit takes the first character as an argument so it can't
   // handle the zero length string.
-  ASSERT(string.length() > 0);
+  DCHECK(string.length() > 0);
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87
   __ push(ebx);
   __ push(ecx);

@@ -74,21 +74,21 @@ class Isolate;
 
 // Some assertion macros used in the debugging mode.
 
-#define ASSERT_PAGE_ALIGNED(address)                                           \
-  ASSERT((OffsetFrom(address) & Page::kPageAlignmentMask) == 0)
+#define DCHECK_PAGE_ALIGNED(address)                                           \
+  DCHECK((OffsetFrom(address) & Page::kPageAlignmentMask) == 0)
 
-#define ASSERT_OBJECT_ALIGNED(address)                                         \
-  ASSERT((OffsetFrom(address) & kObjectAlignmentMask) == 0)
+#define DCHECK_OBJECT_ALIGNED(address)                                         \
+  DCHECK((OffsetFrom(address) & kObjectAlignmentMask) == 0)
 
-#define ASSERT_OBJECT_SIZE(size)                                               \
-  ASSERT((0 < size) && (size <= Page::kMaxRegularHeapObjectSize))
+#define DCHECK_OBJECT_SIZE(size)                                               \
+  DCHECK((0 < size) && (size <= Page::kMaxRegularHeapObjectSize))
 
-#define ASSERT_PAGE_OFFSET(offset)                                             \
-  ASSERT((Page::kObjectStartOffset <= offset)                                  \
+#define DCHECK_PAGE_OFFSET(offset)                                             \
+  DCHECK((Page::kObjectStartOffset <= offset)                                  \
       && (offset <= Page::kPageSize))
 
-#define ASSERT_MAP_PAGE_INDEX(index)                                           \
-  ASSERT((0 <= index) && (index <= MapSpace::kMaxMapPageIndex))
+#define DCHECK_MAP_PAGE_INDEX(index)                                           \
+  DCHECK((0 <= index) && (index <= MapSpace::kMaxMapPageIndex))
 
 
 class PagedSpace;
@@ -322,9 +322,9 @@ class MemoryChunk {
   }
 
   void set_owner(Space* space) {
-    ASSERT((reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask) == 0);
+    DCHECK((reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask) == 0);
     owner_ = reinterpret_cast<Address>(space) + kPageHeaderTag;
-    ASSERT((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
+    DCHECK((reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask) ==
            kPageHeaderTag);
   }
 
@@ -337,7 +337,7 @@ class MemoryChunk {
   }
 
   void set_reserved_memory(base::VirtualMemory* reservation) {
-    ASSERT_NOT_NULL(reservation);
+    DCHECK_NOT_NULL(reservation);
     reservation_.TakeControl(reservation);
   }
 
@@ -497,10 +497,10 @@ class MemoryChunk {
              live_byte_count_ + by);
     }
     live_byte_count_ += by;
-    ASSERT_LE(static_cast<unsigned>(live_byte_count_), size_);
+    DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
   }
   int LiveBytes() {
-    ASSERT(static_cast<unsigned>(live_byte_count_) <= size_);
+    DCHECK(static_cast<unsigned>(live_byte_count_) <= size_);
     return live_byte_count_;
   }
 
@@ -513,12 +513,12 @@ class MemoryChunk {
   }
 
   int progress_bar() {
-    ASSERT(IsFlagSet(HAS_PROGRESS_BAR));
+    DCHECK(IsFlagSet(HAS_PROGRESS_BAR));
     return progress_bar_;
   }
 
   void set_progress_bar(int progress_bar) {
-    ASSERT(IsFlagSet(HAS_PROGRESS_BAR));
+    DCHECK(IsFlagSet(HAS_PROGRESS_BAR));
     progress_bar_ = progress_bar;
   }
 
@@ -531,7 +531,7 @@ class MemoryChunk {
 
   bool IsLeftOfProgressBar(Object** slot) {
     Address slot_address = reinterpret_cast<Address>(slot);
-    ASSERT(slot_address > this->address());
+    DCHECK(slot_address > this->address());
     return (slot_address - (this->address() + kObjectStartOffset)) <
            progress_bar();
   }
@@ -659,12 +659,12 @@ class MemoryChunk {
   }
 
   void MarkEvacuationCandidate() {
-    ASSERT(slots_buffer_ == NULL);
+    DCHECK(slots_buffer_ == NULL);
     SetFlag(EVACUATION_CANDIDATE);
   }
 
   void ClearEvacuationCandidate() {
-    ASSERT(slots_buffer_ == NULL);
+    DCHECK(slots_buffer_ == NULL);
     ClearFlag(EVACUATION_CANDIDATE);
   }
 
@@ -786,7 +786,7 @@ class Page : public MemoryChunk {
 
   // Returns the address for a given offset to the this page.
   Address OffsetToAddress(int offset) {
-    ASSERT_PAGE_OFFSET(offset);
+    DCHECK_PAGE_OFFSET(offset);
     return address() + offset;
   }
 
@@ -936,7 +936,7 @@ class CodeRange {
 
   bool valid() { return code_range_ != NULL; }
   Address start() {
-    ASSERT(valid());
+    DCHECK(valid());
     return static_cast<Address>(code_range_->address());
   }
   bool contains(Address address) {
@@ -965,13 +965,13 @@ class CodeRange {
    public:
     FreeBlock(Address start_arg, size_t size_arg)
         : start(start_arg), size(size_arg) {
-      ASSERT(IsAddressAligned(start, MemoryChunk::kAlignment));
-      ASSERT(size >= static_cast<size_t>(Page::kPageSize));
+      DCHECK(IsAddressAligned(start, MemoryChunk::kAlignment));
+      DCHECK(size >= static_cast<size_t>(Page::kPageSize));
     }
     FreeBlock(void* start_arg, size_t size_arg)
         : start(static_cast<Address>(start_arg)), size(size_arg) {
-      ASSERT(IsAddressAligned(start, MemoryChunk::kAlignment));
-      ASSERT(size >= static_cast<size_t>(Page::kPageSize));
+      DCHECK(IsAddressAligned(start, MemoryChunk::kAlignment));
+      DCHECK(size >= static_cast<size_t>(Page::kPageSize));
     }
 
     Address start;
@@ -1333,13 +1333,13 @@ class AllocationInfo {
   }
 
   INLINE(void set_top(Address top)) {
-    SLOW_ASSERT(top == NULL ||
+    SLOW_DCHECK(top == NULL ||
         (reinterpret_cast<intptr_t>(top) & HeapObjectTagMask()) == 0);
     top_ = top;
   }
 
   INLINE(Address top()) const {
-    SLOW_ASSERT(top_ == NULL ||
+    SLOW_DCHECK(top_ == NULL ||
         (reinterpret_cast<intptr_t>(top_) & HeapObjectTagMask()) == 0);
     return top_;
   }
@@ -1349,13 +1349,13 @@ class AllocationInfo {
   }
 
   INLINE(void set_limit(Address limit)) {
-    SLOW_ASSERT(limit == NULL ||
+    SLOW_DCHECK(limit == NULL ||
         (reinterpret_cast<intptr_t>(limit) & HeapObjectTagMask()) == 0);
     limit_ = limit;
   }
 
   INLINE(Address limit()) const {
-    SLOW_ASSERT(limit_ == NULL ||
+    SLOW_DCHECK(limit_ == NULL ||
         (reinterpret_cast<intptr_t>(limit_) & HeapObjectTagMask()) == 0);
     return limit_;
   }
@@ -1432,7 +1432,7 @@ class AllocationStats BASE_EMBEDDED {
     if (capacity_ > max_capacity_) {
       max_capacity_ = capacity_;
     }
-    ASSERT(size_ >= 0);
+    DCHECK(size_ >= 0);
   }
 
   // Shrink the space by removing available bytes.  Since shrinking is done
@@ -1441,24 +1441,24 @@ class AllocationStats BASE_EMBEDDED {
   void ShrinkSpace(int size_in_bytes) {
     capacity_ -= size_in_bytes;
     size_ -= size_in_bytes;
-    ASSERT(size_ >= 0);
+    DCHECK(size_ >= 0);
   }
 
   // Allocate from available bytes (available -> size).
   void AllocateBytes(intptr_t size_in_bytes) {
     size_ += size_in_bytes;
-    ASSERT(size_ >= 0);
+    DCHECK(size_ >= 0);
   }
 
   // Free allocated bytes, making them available (size -> available).
   void DeallocateBytes(intptr_t size_in_bytes) {
     size_ -= size_in_bytes;
-    ASSERT(size_ >= 0);
+    DCHECK(size_ >= 0);
   }
 
   // Waste free bytes (available -> waste).
   void WasteBytes(int size_in_bytes) {
-    ASSERT(size_in_bytes >= 0);
+    DCHECK(size_in_bytes >= 0);
     waste_ += size_in_bytes;
   }
 
@@ -1716,7 +1716,7 @@ class AllocationResult {
   }
 
   AllocationSpace RetrySpace() {
-    ASSERT(IsRetry());
+    DCHECK(IsRetry());
     return retry_space_;
   }
 
@@ -1868,7 +1868,7 @@ class PagedSpace : public Space {
 
   // Set space allocation info.
   void SetTopAndLimit(Address top, Address limit) {
-    ASSERT(top == limit ||
+    DCHECK(top == limit ||
            Page::FromAddress(top) == Page::FromAddress(limit - 1));
     MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
     allocation_info_.set_top(top);
@@ -1934,7 +1934,7 @@ class PagedSpace : public Space {
   }
 
   void IncreaseUnsweptFreeBytes(Page* p) {
-    ASSERT(ShouldBeSweptBySweeperThreads(p));
+    DCHECK(ShouldBeSweptBySweeperThreads(p));
     unswept_free_bytes_ += (p->area_size() - p->LiveBytes());
   }
 
@@ -1943,7 +1943,7 @@ class PagedSpace : public Space {
   }
 
   void DecreaseUnsweptFreeBytes(Page* p) {
-    ASSERT(ShouldBeSweptBySweeperThreads(p));
+    DCHECK(ShouldBeSweptBySweeperThreads(p));
     unswept_free_bytes_ -= (p->area_size() - p->LiveBytes());
   }
 
@@ -2222,7 +2222,7 @@ class SemiSpace : public Space {
 
   // Returns the start address of the first page of the space.
   Address space_start() {
-    ASSERT(anchor_.next_page() != &anchor_);
+    DCHECK(anchor_.next_page() != &anchor_);
     return anchor_.next_page()->area_start();
   }
 
@@ -2382,7 +2382,7 @@ class SemiSpaceIterator : public ObjectIterator {
     if (NewSpacePage::IsAtEnd(current_)) {
       NewSpacePage* page = NewSpacePage::FromLimit(current_);
       page = page->next_page();
-      ASSERT(!page->is_anchor());
+      DCHECK(!page->is_anchor());
       current_ = page->area_start();
       if (current_ == limit_) return NULL;
     }
@@ -2502,13 +2502,13 @@ class NewSpace : public Space {
 
   // Return the current capacity of a semispace.
   intptr_t EffectiveCapacity() {
-    SLOW_ASSERT(to_space_.Capacity() == from_space_.Capacity());
+    SLOW_DCHECK(to_space_.Capacity() == from_space_.Capacity());
     return (to_space_.Capacity() / Page::kPageSize) * NewSpacePage::kAreaSize;
   }
 
   // Return the current capacity of a semispace.
   intptr_t Capacity() {
-    ASSERT(to_space_.Capacity() == from_space_.Capacity());
+    DCHECK(to_space_.Capacity() == from_space_.Capacity());
     return to_space_.Capacity();
   }
 
@@ -2534,7 +2534,7 @@ class NewSpace : public Space {
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
-    ASSERT(to_space_.MaximumCapacity() == from_space_.MaximumCapacity());
+    DCHECK(to_space_.MaximumCapacity() == from_space_.MaximumCapacity());
     return to_space_.MaximumCapacity();
   }
 
@@ -2544,24 +2544,24 @@ class NewSpace : public Space {
 
   // Returns the initial capacity of a semispace.
   int InitialCapacity() {
-    ASSERT(to_space_.InitialCapacity() == from_space_.InitialCapacity());
+    DCHECK(to_space_.InitialCapacity() == from_space_.InitialCapacity());
     return to_space_.InitialCapacity();
   }
 
   // Return the address of the allocation pointer in the active semispace.
   Address top() {
-    ASSERT(to_space_.current_page()->ContainsLimit(allocation_info_.top()));
+    DCHECK(to_space_.current_page()->ContainsLimit(allocation_info_.top()));
     return allocation_info_.top();
   }
 
   void set_top(Address top) {
-    ASSERT(to_space_.current_page()->ContainsLimit(top));
+    DCHECK(to_space_.current_page()->ContainsLimit(top));
     allocation_info_.set_top(top);
   }
 
   // Return the address of the allocation pointer limit in the active semispace.
   Address limit() {
-    ASSERT(to_space_.current_page()->ContainsLimit(allocation_info_.limit()));
+    DCHECK(to_space_.current_page()->ContainsLimit(allocation_info_.limit()));
     return allocation_info_.limit();
   }
 
@@ -2579,8 +2579,8 @@ class NewSpace : public Space {
   uintptr_t mask() { return address_mask_; }
 
   INLINE(uint32_t AddressToMarkbitIndex(Address addr)) {
-    ASSERT(Contains(addr));
-    ASSERT(IsAligned(OffsetFrom(addr), kPointerSize) ||
+    DCHECK(Contains(addr));
+    DCHECK(IsAligned(OffsetFrom(addr), kPointerSize) ||
            IsAligned(OffsetFrom(addr) - 1, kPointerSize));
     return static_cast<uint32_t>(addr - start_) >> kPointerSizeLog2;
   }
@@ -2746,8 +2746,8 @@ class OldSpace : public PagedSpace {
 
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
-#define ASSERT_SEMISPACE_ALLOCATION_INFO(info, space) \
-  SLOW_ASSERT((space).page_low() <= (info).top() \
+#define DCHECK_SEMISPACE_ALLOCATION_INFO(info, space) \
+  SLOW_DCHECK((space).page_low() <= (info).top() \
               && (info).top() <= (space).page_high() \
               && (info).limit() <= (space).page_high())
 

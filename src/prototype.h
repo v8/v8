@@ -60,11 +60,11 @@ class PrototypeIterator {
   ~PrototypeIterator() {}
 
   Object* GetCurrent() const {
-    ASSERT(handle_.is_null());
+    DCHECK(handle_.is_null());
     return object_;
   }
   static Handle<Object> GetCurrent(const PrototypeIterator& iterator) {
-    ASSERT(!iterator.handle_.is_null());
+    DCHECK(!iterator.handle_.is_null());
     return iterator.handle_;
   }
   void Advance() {
@@ -110,11 +110,11 @@ class PrototypeIterator {
     }
   }
   bool IsAtEnd(Object* final_object) {
-    ASSERT(handle_.is_null());
+    DCHECK(handle_.is_null());
     return object_->IsNull() || object_ == final_object;
   }
   bool IsAtEnd(Handle<Object> final_object) {
-    ASSERT(!handle_.is_null());
+    DCHECK(!handle_.is_null());
     return handle_->IsNull() || *handle_ == *final_object;
   }
 

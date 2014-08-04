@@ -12,7 +12,7 @@ namespace compiler {
 class LinkageHelper {
  public:
   static LinkageLocation TaggedStackSlot(int index) {
-    ASSERT(index < 0);
+    DCHECK(index < 0);
     return LinkageLocation(kMachineTagged, index);
   }
 
@@ -96,7 +96,7 @@ class LinkageHelper {
           TaggedRegisterLocation(LinkageTraits::ReturnValue2Reg());
     }
 
-    ASSERT_LE(return_count, 2);
+    DCHECK_LE(return_count, 2);
 
     locations[index++] = UnconstrainedRegister(kMachineTagged);  // CEntryStub
 

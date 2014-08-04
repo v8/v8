@@ -40,7 +40,7 @@ Node* SimplifiedLowering::OffsetMinusTagConstant(int32_t offset) {
 
 
 static void UpdateControlSuccessors(Node* before, Node* node) {
-  ASSERT(IrOpcode::IsControlOpcode(before->opcode()));
+  DCHECK(IrOpcode::IsControlOpcode(before->opcode()));
   UseIter iter = before->uses().begin();
   while (iter != before->uses().end()) {
     if (IrOpcode::IsControlOpcode((*iter)->opcode()) &&
@@ -118,7 +118,7 @@ void SimplifiedLowering::DoChangeUI32ToTagged(Node* node, Node* effect,
   if (is_signed) {
     if (SmiValuesAre32Bits()) {
       // All int32s fit in this case.
-      ASSERT(kPointerSize == 8);
+      DCHECK(kPointerSize == 8);
       return node->ReplaceUses(SmiTag(val));
     } else {
       // TODO(turbofan): use an Int32AddWithOverflow to tag and check here.

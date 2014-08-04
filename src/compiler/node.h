@@ -27,7 +27,7 @@ class NodeData {
   void set_op(Operator* op) { op_ = op; }
 
   IrOpcode::Value opcode() const {
-    ASSERT(op_->opcode() <= IrOpcode::kLast);
+    DCHECK(op_->opcode() <= IrOpcode::kLast);
     return static_cast<IrOpcode::Value>(op_->opcode());
   }
 

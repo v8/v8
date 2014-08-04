@@ -88,7 +88,7 @@ Code* IC::GetTargetAtAddress(Address address,
   // Convert target address to the code object. Code::GetCodeFromTargetAddress
   // is safe for use during GC where the map might be marked.
   Code* result = Code::GetCodeFromTargetAddress(target);
-  ASSERT(result->is_inline_cache_stub());
+  DCHECK(result->is_inline_cache_stub());
   return result;
 }
 
@@ -96,7 +96,7 @@ Code* IC::GetTargetAtAddress(Address address,
 void IC::SetTargetAtAddress(Address address,
                             Code* target,
                             ConstantPoolArray* constant_pool) {
-  ASSERT(target->is_inline_cache_stub() || target->is_compare_ic_stub());
+  DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());
   Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address, constant_pool);
 #ifdef DEBUG
@@ -104,7 +104,7 @@ void IC::SetTargetAtAddress(Address address,
   // ICs as strict mode. The strict-ness of the IC must be preserved.
   if (old_target->kind() == Code::STORE_IC ||
       old_target->kind() == Code::KEYED_STORE_IC) {
-    ASSERT(StoreIC::GetStrictMode(old_target->extra_ic_state()) ==
+    DCHECK(StoreIC::GetStrictMode(old_target->extra_ic_state()) ==
            StoreIC::GetStrictMode(target->extra_ic_state()));
   }
 #endif

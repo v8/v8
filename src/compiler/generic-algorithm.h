@@ -52,10 +52,10 @@ class GenericGraphVisit {
     BoolVector visited(Traits::max_id(graph), false, ZoneBoolAllocator(zone));
     Node* current = *root_begin;
     while (true) {
-      ASSERT(current != NULL);
+      DCHECK(current != NULL);
       const int id = current->id();
-      ASSERT(id >= 0);
-      ASSERT(id < Traits::max_id(graph));  // Must be a valid id.
+      DCHECK(id >= 0);
+      DCHECK(id < Traits::max_id(graph));  // Must be a valid id.
       bool visit = !GetVisited(&visited, id);
       if (visit) {
         Control control = visitor->Pre(current);
@@ -71,7 +71,7 @@ class GenericGraphVisit {
         if (top.first == top.second) {
           if (visit) {
             Control control = visitor->Post(post_order_node);
-            ASSERT(!IsSkip(control));
+            DCHECK(!IsSkip(control));
             SetVisited(&visited, post_order_node->id(), !IsReenter(control));
           }
           stack.pop();

@@ -69,7 +69,7 @@ class CounterMap {
         const_cast<char*>(name),
         Hash(name),
         true);
-    ASSERT(answer != NULL);
+    DCHECK(answer != NULL);
     answer->value = value;
   }
   class Iterator {

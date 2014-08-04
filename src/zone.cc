@@ -58,7 +58,7 @@ Zone::~Zone() {
   DeleteAll();
   DeleteKeptSegment();
 
-  ASSERT(segment_bytes_allocated_ == 0);
+  DCHECK(segment_bytes_allocated_ == 0);
 }
 
 
@@ -120,7 +120,7 @@ void Zone::DeleteKeptSegment() {
   static const unsigned char kZapDeadByte = 0xcd;
 #endif
 
-  ASSERT(segment_head_ == NULL || segment_head_->next() == NULL);
+  DCHECK(segment_head_ == NULL || segment_head_->next() == NULL);
   if (segment_head_ != NULL) {
     int size = segment_head_->size();
 #ifdef DEBUG
@@ -133,7 +133,7 @@ void Zone::DeleteKeptSegment() {
     segment_head_ = NULL;
   }
 
-  ASSERT(segment_bytes_allocated_ == 0);
+  DCHECK(segment_bytes_allocated_ == 0);
 }
 
 
@@ -160,8 +160,8 @@ void Zone::DeleteSegment(Segment* segment, int size) {
 Address Zone::NewExpand(int size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
-  ASSERT(size == RoundDown(size, kAlignment));
-  ASSERT(size > limit_ - position_);
+  DCHECK(size == RoundDown(size, kAlignment));
+  DCHECK(size > limit_ - position_);
 
   // Compute the new segment size. We use a 'high water mark'
   // strategy, where we increase the segment size every time we expand
@@ -210,7 +210,7 @@ Address Zone::NewExpand(int size) {
     return NULL;
   }
   limit_ = segment->end();
-  ASSERT(position_ <= limit_);
+  DCHECK(position_ <= limit_);
   return result;
 }
 

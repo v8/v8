@@ -37,7 +37,7 @@ class ObjectVisitor;
 struct ObjectGroup {
   explicit ObjectGroup(size_t length)
       : info(NULL), length(length) {
-    ASSERT(length > 0);
+    DCHECK(length > 0);
     objects = new Object**[length];
   }
   ~ObjectGroup();
@@ -51,7 +51,7 @@ struct ObjectGroup {
 struct ImplicitRefGroup {
   ImplicitRefGroup(HeapObject** parent, size_t length)
       : parent(parent), length(length) {
-    ASSERT(length > 0);
+    DCHECK(length > 0);
     children = new Object**[length];
   }
   ~ImplicitRefGroup();
@@ -335,7 +335,7 @@ class EternalHandles {
 
   // Grab the handle for an existing SingletonHandle.
   inline Handle<Object> GetSingleton(SingletonHandle singleton) {
-    ASSERT(Exists(singleton));
+    DCHECK(Exists(singleton));
     return Get(singleton_handles_[singleton]);
   }
 
@@ -367,7 +367,7 @@ class EternalHandles {
 
   // Gets the slot for an index
   inline Object** GetLocation(int index) {
-    ASSERT(index >= 0 && index < size_);
+    DCHECK(index >= 0 && index < size_);
     return &blocks_[index >> kShift][index & kMask];
   }
 

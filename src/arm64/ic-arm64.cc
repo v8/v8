@@ -52,8 +52,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
                                    Register result,
                                    Register scratch1,
                                    Register scratch2) {
-  ASSERT(!AreAliased(elements, name, scratch1, scratch2));
-  ASSERT(!AreAliased(result, scratch1, scratch2));
+  DCHECK(!AreAliased(elements, name, scratch1, scratch2));
+  DCHECK(!AreAliased(result, scratch1, scratch2));
 
   Label done;
 
@@ -99,7 +99,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
                                     Register value,
                                     Register scratch1,
                                     Register scratch2) {
-  ASSERT(!AreAliased(elements, name, value, scratch1, scratch2));
+  DCHECK(!AreAliased(elements, name, value, scratch1, scratch2));
 
   Label done;
 
@@ -147,7 +147,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
                                            Register scratch,
                                            int interceptor_bit,
                                            Label* slow) {
-  ASSERT(!AreAliased(map_scratch, scratch));
+  DCHECK(!AreAliased(map_scratch, scratch));
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(receiver, slow);
@@ -196,7 +196,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
                                   Register result,
                                   Label* not_fast_array,
                                   Label* slow) {
-  ASSERT(!AreAliased(receiver, key, elements, elements_map, scratch2));
+  DCHECK(!AreAliased(receiver, key, elements, elements_map, scratch2));
 
   // Check for fast array.
   __ Ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
@@ -245,7 +245,7 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
                                  Register hash_scratch,
                                  Label* index_string,
                                  Label* not_unique) {
-  ASSERT(!AreAliased(key, map_scratch, hash_scratch));
+  DCHECK(!AreAliased(key, map_scratch, hash_scratch));
 
   // Is the key a name?
   Label unique;
@@ -284,7 +284,7 @@ static MemOperand GenerateMappedArgumentsLookup(MacroAssembler* masm,
                                                 Register scratch2,
                                                 Label* unmapped_case,
                                                 Label* slow_case) {
-  ASSERT(!AreAliased(object, key, map, scratch1, scratch2));
+  DCHECK(!AreAliased(object, key, map, scratch1, scratch2));
 
   Heap* heap = masm->isolate()->heap();
 
@@ -339,7 +339,7 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
                                                   Register parameter_map,
                                                   Register scratch,
                                                   Label* slow_case) {
-  ASSERT(!AreAliased(key, parameter_map, scratch));
+  DCHECK(!AreAliased(key, parameter_map, scratch));
 
   // Element is in arguments backing store, which is referenced by the
   // second element of the parameter_map.
@@ -365,8 +365,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is in lr.
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
-  ASSERT(receiver.is(x1));
-  ASSERT(name.is(x2));
+  DCHECK(receiver.is(x1));
+  DCHECK(name.is(x2));
 
   // Probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
@@ -381,8 +381,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   Register dictionary = x0;
-  ASSERT(!dictionary.is(ReceiverRegister()));
-  ASSERT(!dictionary.is(NameRegister()));
+  DCHECK(!dictionary.is(ReceiverRegister()));
+  DCHECK(!dictionary.is(NameRegister()));
   Label slow;
 
   __ Ldr(dictionary,
@@ -423,8 +423,8 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   Register result = x0;
   Register receiver = ReceiverRegister();
   Register key = NameRegister();
-  ASSERT(receiver.is(x1));
-  ASSERT(key.is(x2));
+  DCHECK(receiver.is(x1));
+  DCHECK(key.is(x2));
 
   Label miss, unmapped;
 
@@ -453,9 +453,9 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   Register value = ValueRegister();
   Register key = NameRegister();
   Register receiver = ReceiverRegister();
-  ASSERT(receiver.is(x1));
-  ASSERT(key.is(x2));
-  ASSERT(value.is(x0));
+  DCHECK(receiver.is(x1));
+  DCHECK(key.is(x2));
+  DCHECK(value.is(x0));
 
   Register map = x3;
 
@@ -516,13 +516,13 @@ const Register LoadIC::ReceiverRegister() { return x1; }
 const Register LoadIC::NameRegister() { return x2; }
 
 const Register LoadIC::SlotRegister() {
-  ASSERT(FLAG_vector_ics);
+  DCHECK(FLAG_vector_ics);
   return x0;
 }
 
 
 const Register LoadIC::VectorRegister() {
-  ASSERT(FLAG_vector_ics);
+  DCHECK(FLAG_vector_ics);
   return x3;
 }
 
@@ -553,7 +553,7 @@ static void GenerateKeyedLoadWithSmiKey(MacroAssembler* masm,
                                         Register scratch4,
                                         Register scratch5,
                                         Label *slow) {
-  ASSERT(!AreAliased(
+  DCHECK(!AreAliased(
       key, receiver, scratch1, scratch2, scratch3, scratch4, scratch5));
 
   Isolate* isolate = masm->isolate();
@@ -594,7 +594,7 @@ static void GenerateKeyedLoadWithNameKey(MacroAssembler* masm,
                                          Register scratch4,
                                          Register scratch5,
                                          Label *slow) {
-  ASSERT(!AreAliased(
+  DCHECK(!AreAliased(
       key, receiver, scratch1, scratch2, scratch3, scratch4, scratch5));
 
   Isolate* isolate = masm->isolate();
@@ -713,8 +713,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   Register key = NameRegister();
   Register receiver = ReceiverRegister();
-  ASSERT(key.is(x2));
-  ASSERT(receiver.is(x1));
+  DCHECK(key.is(x2));
+  DCHECK(receiver.is(x1));
 
   __ JumpIfNotSmi(key, &check_name);
   __ Bind(&index_smi);
@@ -748,7 +748,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   Register index = NameRegister();
   Register result = x0;
   Register scratch = x3;
-  ASSERT(!scratch.is(receiver) && !scratch.is(index));
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
 
   StringCharAtGenerator char_at_generator(receiver,
                                           index,
@@ -777,7 +777,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   Register key = NameRegister();
   Register scratch1 = x3;
   Register scratch2 = x4;
-  ASSERT(!AreAliased(scratch1, scratch2, receiver, key));
+  DCHECK(!AreAliased(scratch1, scratch2, receiver, key));
 
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, &slow);
@@ -792,7 +792,7 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // Check that it has indexed interceptor and access checks
   // are not enabled for this object.
   __ Ldrb(scratch2, FieldMemOperand(map, Map::kBitFieldOffset));
-  ASSERT(kSlowCaseBitFieldMask ==
+  DCHECK(kSlowCaseBitFieldMask ==
       ((1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor)));
   __ Tbnz(scratch2, Map::kIsAccessCheckNeeded, &slow);
   __ Tbz(scratch2, Map::kHasIndexedInterceptor, &slow);
@@ -863,7 +863,7 @@ static void KeyedStoreGenerateGenericHelper(
     Register receiver_map,
     Register elements_map,
     Register elements) {
-  ASSERT(!AreAliased(
+  DCHECK(!AreAliased(
       value, key, receiver, receiver_map, elements_map, elements, x10, x11));
 
   Label transition_smi_elements;
@@ -1025,9 +1025,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Register value = ValueRegister();
   Register key = NameRegister();
   Register receiver = ReceiverRegister();
-  ASSERT(receiver.is(x1));
-  ASSERT(key.is(x2));
-  ASSERT(value.is(x0));
+  DCHECK(receiver.is(x1));
+  DCHECK(key.is(x2));
+  DCHECK(value.is(x0));
 
   Register receiver_map = x3;
   Register elements = x4;
@@ -1115,7 +1115,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
-  ASSERT(!AreAliased(receiver, name, ValueRegister(), x3, x4, x5, x6));
+  DCHECK(!AreAliased(receiver, name, ValueRegister(), x3, x4, x5, x6));
 
   // Probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
@@ -1144,7 +1144,7 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register receiver = ReceiverRegister();
   Register name = NameRegister();
   Register dictionary = x3;
-  ASSERT(!AreAliased(value, receiver, name, x3, x4, x5));
+  DCHECK(!AreAliased(value, receiver, name, x3, x4, x5));
 
   __ Ldr(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
@@ -1253,9 +1253,9 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   //   tb(!n)z test_reg, #0, <target>
   Instruction* to_patch = info.SmiCheck();
   PatchingAssembler patcher(to_patch, 1);
-  ASSERT(to_patch->IsTestBranch());
-  ASSERT(to_patch->ImmTestBranchBit5() == 0);
-  ASSERT(to_patch->ImmTestBranchBit40() == 0);
+  DCHECK(to_patch->IsTestBranch());
+  DCHECK(to_patch->ImmTestBranchBit5() == 0);
+  DCHECK(to_patch->ImmTestBranchBit40() == 0);
 
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagMask == 1);
@@ -1263,11 +1263,11 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   int branch_imm = to_patch->ImmTestBranch();
   Register smi_reg;
   if (check == ENABLE_INLINED_SMI_CHECK) {
-    ASSERT(to_patch->Rt() == xzr.code());
+    DCHECK(to_patch->Rt() == xzr.code());
     smi_reg = info.SmiRegister();
   } else {
-    ASSERT(check == DISABLE_INLINED_SMI_CHECK);
-    ASSERT(to_patch->Rt() != xzr.code());
+    DCHECK(check == DISABLE_INLINED_SMI_CHECK);
+    DCHECK(to_patch->Rt() != xzr.code());
     smi_reg = xzr;
   }
 
@@ -1275,7 +1275,7 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
     // This is JumpIfNotSmi(smi_reg, branch_imm).
     patcher.tbnz(smi_reg, 0, branch_imm);
   } else {
-    ASSERT(to_patch->Mask(TestBranchMask) == TBNZ);
+    DCHECK(to_patch->Mask(TestBranchMask) == TBNZ);
     // This is JumpIfSmi(smi_reg, branch_imm).
     patcher.tbz(smi_reg, 0, branch_imm);
   }

@@ -44,13 +44,13 @@ void TriggerFailureExtension::TriggerCheckFalse(
 
 void TriggerFailureExtension::TriggerAssertFalse(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  ASSERT(false);
+  DCHECK(false);
 }
 
 
 void TriggerFailureExtension::TriggerSlowAssertFalse(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
-  SLOW_ASSERT(false);
+  SLOW_DCHECK(false);
 }
 
 } }  // namespace v8::internal

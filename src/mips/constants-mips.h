@@ -499,7 +499,7 @@ enum Condition {
 // no_condition value (-2). As long as tests for no_condition check
 // for condition < 0, this will work as expected.
 inline Condition NegateCondition(Condition cc) {
-  ASSERT(cc != cc_always);
+  DCHECK(cc != cc_always);
   return static_cast<Condition>(cc ^ 1);
 }
 
@@ -660,29 +660,29 @@ class Instruction {
   }
 
   inline int RsValue() const {
-    ASSERT(InstructionType() == kRegisterType ||
+    DCHECK(InstructionType() == kRegisterType ||
            InstructionType() == kImmediateType);
     return Bits(kRsShift + kRsBits - 1, kRsShift);
   }
 
   inline int RtValue() const {
-    ASSERT(InstructionType() == kRegisterType ||
+    DCHECK(InstructionType() == kRegisterType ||
            InstructionType() == kImmediateType);
     return Bits(kRtShift + kRtBits - 1, kRtShift);
   }
 
   inline int RdValue() const {
-    ASSERT(InstructionType() == kRegisterType);
+    DCHECK(InstructionType() == kRegisterType);
     return Bits(kRdShift + kRdBits - 1, kRdShift);
   }
 
   inline int SaValue() const {
-    ASSERT(InstructionType() == kRegisterType);
+    DCHECK(InstructionType() == kRegisterType);
     return Bits(kSaShift + kSaBits - 1, kSaShift);
   }
 
   inline int FunctionValue() const {
-    ASSERT(InstructionType() == kRegisterType ||
+    DCHECK(InstructionType() == kRegisterType ||
            InstructionType() == kImmediateType);
     return Bits(kFunctionShift + kFunctionBits - 1, kFunctionShift);
   }
@@ -724,7 +724,7 @@ class Instruction {
   }
 
   inline int RsFieldRaw() const {
-    ASSERT(InstructionType() == kRegisterType ||
+    DCHECK(InstructionType() == kRegisterType ||
            InstructionType() == kImmediateType);
     return InstructionBits() & kRsFieldMask;
   }
@@ -735,18 +735,18 @@ class Instruction {
   }
 
   inline int RtFieldRaw() const {
-    ASSERT(InstructionType() == kRegisterType ||
+    DCHECK(InstructionType() == kRegisterType ||
            InstructionType() == kImmediateType);
     return InstructionBits() & kRtFieldMask;
   }
 
   inline int RdFieldRaw() const {
-    ASSERT(InstructionType() == kRegisterType);
+    DCHECK(InstructionType() == kRegisterType);
     return InstructionBits() & kRdFieldMask;
   }
 
   inline int SaFieldRaw() const {
-    ASSERT(InstructionType() == kRegisterType);
+    DCHECK(InstructionType() == kRegisterType);
     return InstructionBits() & kSaFieldMask;
   }
 
@@ -771,12 +771,12 @@ class Instruction {
   }
 
   inline int32_t Imm16Value() const {
-    ASSERT(InstructionType() == kImmediateType);
+    DCHECK(InstructionType() == kImmediateType);
     return Bits(kImm16Shift + kImm16Bits - 1, kImm16Shift);
   }
 
   inline int32_t Imm26Value() const {
-    ASSERT(InstructionType() == kJumpType);
+    DCHECK(InstructionType() == kJumpType);
     return Bits(kImm26Shift + kImm26Bits - 1, kImm26Shift);
   }
 

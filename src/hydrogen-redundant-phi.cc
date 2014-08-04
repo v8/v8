@@ -25,7 +25,7 @@ void HRedundantPhiEliminationPhase::Run() {
   // Make sure that we *really* removed all redundant phis.
   for (int i = 0; i < blocks->length(); ++i) {
     for (int j = 0; j < blocks->at(i)->phis()->length(); j++) {
-      ASSERT(blocks->at(i)->phis()->at(j)->GetRedundantReplacement() == NULL);
+      DCHECK(blocks->at(i)->phis()->at(j)->GetRedundantReplacement() == NULL);
     }
   }
 #endif

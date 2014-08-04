@@ -62,7 +62,7 @@ int fpclassify(double x) {
   if (flags & (_FPCLASS_PINF | _FPCLASS_NINF)) return FP_INFINITE;
 
   // All cases should be covered by the code above.
-  ASSERT(flags & (_FPCLASS_SNAN | _FPCLASS_QNAN));
+  DCHECK(flags & (_FPCLASS_SNAN | _FPCLASS_QNAN));
   return FP_NAN;
 }
 

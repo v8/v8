@@ -14,14 +14,14 @@ TaskQueue::TaskQueue() : process_queue_semaphore_(0), terminated_(false) {}
 
 TaskQueue::~TaskQueue() {
   base::LockGuard<base::Mutex> guard(&lock_);
-  ASSERT(terminated_);
-  ASSERT(task_queue_.empty());
+  DCHECK(terminated_);
+  DCHECK(task_queue_.empty());
 }
 
 
 void TaskQueue::Append(Task* task) {
   base::LockGuard<base::Mutex> guard(&lock_);
-  ASSERT(!terminated_);
+  DCHECK(!terminated_);
   task_queue_.push(task);
   process_queue_semaphore_.Signal();
 }
@@ -48,7 +48,7 @@ Task* TaskQueue::GetNext() {
 
 void TaskQueue::Terminate() {
   base::LockGuard<base::Mutex> guard(&lock_);
-  ASSERT(!terminated_);
+  DCHECK(!terminated_);
   terminated_ = true;
   process_queue_semaphore_.Signal();
 }

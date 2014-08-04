@@ -66,7 +66,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
     num_extra_args = 1;
     __ Push(x1);
   } else {
-    ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
+    DCHECK(extra_args == NO_EXTRA_ARGUMENTS);
   }
 
   // JumpToExternalReference expects x0 to contain the number of arguments
@@ -315,7 +315,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
   ASM_LOCATION("Builtins::Generate_JSConstructStubHelper");
   // Should never create mementos for api functions.
-  ASSERT(!is_api_function || !create_memento);
+  DCHECK(!is_api_function || !create_memento);
 
   Isolate* isolate = masm->isolate();
 
@@ -465,11 +465,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         __ FillFields(first_prop, prop_fields, filler);
         __ Add(first_prop, new_obj, Operand(obj_size, LSL, kPointerSizeLog2));
         __ LoadRoot(x14, Heap::kAllocationMementoMapRootIndex);
-        ASSERT_EQ(0 * kPointerSize, AllocationMemento::kMapOffset);
+        DCHECK_EQ(0 * kPointerSize, AllocationMemento::kMapOffset);
         __ Str(x14, MemOperand(first_prop, kPointerSize, PostIndex));
         // Load the AllocationSite
         __ Peek(x14, 2 * kXRegSize);
-        ASSERT_EQ(1 * kPointerSize, AllocationMemento::kAllocationSiteOffset);
+        DCHECK_EQ(1 * kPointerSize, AllocationMemento::kAllocationSiteOffset);
         __ Str(x14, MemOperand(first_prop, kPointerSize, PostIndex));
         first_prop = NoReg;
       } else {

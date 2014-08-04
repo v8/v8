@@ -19,7 +19,7 @@ StackGuard::StackGuard()
 
 
 void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
-  ASSERT(isolate_ != NULL);
+  DCHECK(isolate_ != NULL);
   thread_local_.jslimit_ = kInterruptLimit;
   thread_local_.climit_ = kInterruptLimit;
   isolate_->heap()->SetStackLimits();
@@ -27,7 +27,7 @@ void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
 
 
 void StackGuard::reset_limits(const ExecutionAccess& lock) {
-  ASSERT(isolate_ != NULL);
+  DCHECK(isolate_ != NULL);
   thread_local_.jslimit_ = thread_local_.real_jslimit_;
   thread_local_.climit_ = thread_local_.real_climit_;
   isolate_->heap()->SetStackLimits();
@@ -73,7 +73,7 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
 
   // Make sure that the global object of the context we're about to
   // make the current one is indeed a global object.
-  ASSERT(function->context()->global_object()->IsGlobalObject());
+  DCHECK(function->context()->global_object()->IsGlobalObject());
 
   {
     // Save and restore context around invocation and block the
@@ -97,7 +97,7 @@ MUST_USE_RESULT static MaybeHandle<Object> Invoke(
 
   // Update the pending exception flag and return the value.
   bool has_exception = value->IsException();
-  ASSERT(has_exception == isolate->has_pending_exception());
+  DCHECK(has_exception == isolate->has_pending_exception());
   if (has_exception) {
     isolate->ReportPendingMessages();
     // Reset stepping state when script exits with uncaught exception.
@@ -131,7 +131,7 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate,
       func->shared()->strict_mode() == SLOPPY) {
     if (receiver->IsUndefined() || receiver->IsNull()) {
       receiver = handle(func->global_proxy());
-      ASSERT(!receiver->IsJSBuiltinsObject());
+      DCHECK(!receiver->IsJSBuiltinsObject());
     } else {
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, receiver, ToObject(isolate, receiver), Object);
@@ -168,9 +168,9 @@ MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
   MaybeHandle<Object> maybe_result = Invoke(false, func, receiver, argc, args);
 
   if (maybe_result.is_null()) {
-    ASSERT(catcher.HasCaught());
-    ASSERT(isolate->has_pending_exception());
-    ASSERT(isolate->external_caught_exception());
+    DCHECK(catcher.HasCaught());
+    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->external_caught_exception());
     if (exception_out != NULL) {
       if (isolate->pending_exception() ==
           isolate->heap()->termination_exception()) {
@@ -182,15 +182,15 @@ MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
     isolate->OptionalRescheduleException(true);
   }
 
-  ASSERT(!isolate->has_pending_exception());
-  ASSERT(!isolate->external_caught_exception());
+  DCHECK(!isolate->has_pending_exception());
+  DCHECK(!isolate->external_caught_exception());
   return maybe_result;
 }
 
 
 Handle<Object> Execution::GetFunctionDelegate(Isolate* isolate,
                                               Handle<Object> object) {
-  ASSERT(!object->IsJSFunction());
+  DCHECK(!object->IsJSFunction());
   Factory* factory = isolate->factory();
 
   // If you return a function from here, it will be called when an
@@ -217,7 +217,7 @@ Handle<Object> Execution::GetFunctionDelegate(Isolate* isolate,
 
 MaybeHandle<Object> Execution::TryGetFunctionDelegate(Isolate* isolate,
                                                       Handle<Object> object) {
-  ASSERT(!object->IsJSFunction());
+  DCHECK(!object->IsJSFunction());
 
   // If object is a function proxy, get its handler. Iterate if necessary.
   Object* fun = *object;
@@ -245,7 +245,7 @@ MaybeHandle<Object> Execution::TryGetFunctionDelegate(Isolate* isolate,
 
 Handle<Object> Execution::GetConstructorDelegate(Isolate* isolate,
                                                  Handle<Object> object) {
-  ASSERT(!object->IsJSFunction());
+  DCHECK(!object->IsJSFunction());
 
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a constructor.
@@ -271,7 +271,7 @@ Handle<Object> Execution::GetConstructorDelegate(Isolate* isolate,
 
 MaybeHandle<Object> Execution::TryGetConstructorDelegate(
     Isolate* isolate, Handle<Object> object) {
-  ASSERT(!object->IsJSFunction());
+  DCHECK(!object->IsJSFunction());
 
   // If you return a function from here, it will be called when an
   // attempt is made to call the given object as a constructor.
@@ -346,7 +346,7 @@ void StackGuard::PopPostponeInterruptsScope() {
   ExecutionAccess access(isolate_);
   PostponeInterruptsScope* top = thread_local_.postpone_interrupts_;
   // Make intercepted interrupts active.
-  ASSERT((thread_local_.interrupt_flags_ & top->intercept_mask_) == 0);
+  DCHECK((thread_local_.interrupt_flags_ & top->intercept_mask_) == 0);
   thread_local_.interrupt_flags_ |= top->intercepted_flags_;
   if (has_pending_interrupts(access)) set_interrupt_limits(access);
   // Remove scope from chain.
@@ -444,7 +444,7 @@ bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
   bool should_set_stack_limits = false;
   if (real_climit_ == kIllegalLimit) {
     const uintptr_t kLimitSize = FLAG_stack_size * KB;
-    ASSERT(GetCurrentStackPosition() > kLimitSize);
+    DCHECK(GetCurrentStackPosition() > kLimitSize);
     uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
     real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
     jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
@@ -688,7 +688,7 @@ Object* StackGuard::HandleInterrupts() {
   }
 
   if (CheckAndClearInterrupt(INSTALL_CODE)) {
-    ASSERT(isolate_->concurrent_recompilation_enabled());
+    DCHECK(isolate_->concurrent_recompilation_enabled());
     isolate_->optimizing_compiler_thread()->InstallOptimizedFunctions();
   }
 

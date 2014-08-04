@@ -100,10 +100,10 @@ class JSBinopReduction {
   // Remove all effect and control inputs and outputs to this node and change
   // to the pure operator {op}, possibly inserting a boolean inversion.
   Reduction ChangeToPureOperator(Operator* op, bool invert = false) {
-    ASSERT_EQ(0, OperatorProperties::GetEffectInputCount(op));
-    ASSERT_EQ(false, OperatorProperties::HasContextInput(op));
-    ASSERT_EQ(0, OperatorProperties::GetControlInputCount(op));
-    ASSERT_EQ(2, OperatorProperties::GetValueInputCount(op));
+    DCHECK_EQ(0, OperatorProperties::GetEffectInputCount(op));
+    DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
+    DCHECK_EQ(0, OperatorProperties::GetControlInputCount(op));
+    DCHECK_EQ(2, OperatorProperties::GetValueInputCount(op));
 
     // Remove the effects from the node, if any, and update its effect usages.
     if (OperatorProperties::GetEffectInputCount(node_->op()) > 0) {

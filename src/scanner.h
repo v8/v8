@@ -211,7 +211,7 @@ class LiteralBuffer {
       }
       ConvertToTwoByte();
     }
-    ASSERT(code_unit < 0x10000u);
+    DCHECK(code_unit < 0x10000u);
     *reinterpret_cast<uint16_t*>(&backing_store_[position_]) = code_unit;
     position_ += kUC16Size;
   }
@@ -224,15 +224,15 @@ class LiteralBuffer {
   }
 
   Vector<const uint16_t> two_byte_literal() const {
-    ASSERT(!is_one_byte_);
-    ASSERT((position_ & 0x1) == 0);
+    DCHECK(!is_one_byte_);
+    DCHECK((position_ & 0x1) == 0);
     return Vector<const uint16_t>(
         reinterpret_cast<const uint16_t*>(backing_store_.start()),
         position_ >> 1);
   }
 
   Vector<const uint8_t> one_byte_literal() const {
-    ASSERT(is_one_byte_);
+    DCHECK(is_one_byte_);
     return Vector<const uint8_t>(
         reinterpret_cast<const uint8_t*>(backing_store_.start()),
         position_);
@@ -268,7 +268,7 @@ class LiteralBuffer {
   }
 
   void ConvertToTwoByte() {
-    ASSERT(is_one_byte_);
+    DCHECK(is_one_byte_);
     Vector<byte> new_store;
     int new_content_size = position_ * kUC16Size;
     if (new_content_size >= backing_store_.length()) {
@@ -372,11 +372,11 @@ class Scanner {
     return current_.literal_chars->length() != source_length;
   }
   bool is_literal_contextual_keyword(Vector<const char> keyword) {
-    ASSERT_NOT_NULL(current_.literal_chars);
+    DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->is_contextual_keyword(keyword);
   }
   bool is_next_contextual_keyword(Vector<const char> keyword) {
-    ASSERT_NOT_NULL(next_.literal_chars);
+    DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->is_contextual_keyword(keyword);
   }
 
@@ -491,7 +491,7 @@ class Scanner {
   }
 
   INLINE(void AddLiteralChar(uc32 c)) {
-    ASSERT_NOT_NULL(next_.literal_chars);
+    DCHECK_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
   }
 
@@ -540,37 +540,37 @@ class Scanner {
   // These functions only give the correct result if the literal
   // was scanned between calls to StartLiteral() and TerminateLiteral().
   Vector<const uint8_t> literal_one_byte_string() {
-    ASSERT_NOT_NULL(current_.literal_chars);
+    DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->one_byte_literal();
   }
   Vector<const uint16_t> literal_two_byte_string() {
-    ASSERT_NOT_NULL(current_.literal_chars);
+    DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->two_byte_literal();
   }
   bool is_literal_one_byte() {
-    ASSERT_NOT_NULL(current_.literal_chars);
+    DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->is_one_byte();
   }
   int literal_length() const {
-    ASSERT_NOT_NULL(current_.literal_chars);
+    DCHECK_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->length();
   }
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
   Vector<const uint8_t> next_literal_one_byte_string() {
-    ASSERT_NOT_NULL(next_.literal_chars);
+    DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->one_byte_literal();
   }
   Vector<const uint16_t> next_literal_two_byte_string() {
-    ASSERT_NOT_NULL(next_.literal_chars);
+    DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->two_byte_literal();
   }
   bool is_next_literal_one_byte() {
-    ASSERT_NOT_NULL(next_.literal_chars);
+    DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->is_one_byte();
   }
   int next_literal_length() const {
-    ASSERT_NOT_NULL(next_.literal_chars);
+    DCHECK_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->length();
   }
 

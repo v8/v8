@@ -229,7 +229,7 @@ static int DecodeIt(Isolate* isolate,
           uint32_t key = code->stub_key();
           uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
           CodeStub::Major major_key = CodeStub::GetMajorKey(code);
-          ASSERT(major_key == CodeStub::MajorKeyFromKey(key));
+          DCHECK(major_key == CodeStub::MajorKeyFromKey(key));
           out.AddFormatted(" %s, %s, ", Code::Kind2String(kind),
                            CodeStub::MajorName(major_key, false));
           switch (major_key) {

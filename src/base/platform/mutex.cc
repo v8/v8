@@ -17,17 +17,17 @@ static V8_INLINE void InitializeNativeHandle(pthread_mutex_t* mutex) {
   // Use an error checking mutex in debug mode.
   pthread_mutexattr_t attr;
   result = pthread_mutexattr_init(&attr);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_mutex_init(mutex, &attr);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_mutexattr_destroy(&attr);
 #else
   // Use a fast mutex (default attributes).
   result = pthread_mutex_init(mutex, NULL);
 #endif  // defined(DEBUG)
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
@@ -35,34 +35,34 @@ static V8_INLINE void InitializeNativeHandle(pthread_mutex_t* mutex) {
 static V8_INLINE void InitializeRecursiveNativeHandle(pthread_mutex_t* mutex) {
   pthread_mutexattr_t attr;
   int result = pthread_mutexattr_init(&attr);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_mutex_init(mutex, &attr);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_mutexattr_destroy(&attr);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
 
 static V8_INLINE void DestroyNativeHandle(pthread_mutex_t* mutex) {
   int result = pthread_mutex_destroy(mutex);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
 
 static V8_INLINE void LockNativeHandle(pthread_mutex_t* mutex) {
   int result = pthread_mutex_lock(mutex);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
 
 static V8_INLINE void UnlockNativeHandle(pthread_mutex_t* mutex) {
   int result = pthread_mutex_unlock(mutex);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
@@ -72,7 +72,7 @@ static V8_INLINE bool TryLockNativeHandle(pthread_mutex_t* mutex) {
   if (result == EBUSY) {
     return false;
   }
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   return true;
 }
 
@@ -120,7 +120,7 @@ Mutex::Mutex() {
 
 Mutex::~Mutex() {
   DestroyNativeHandle(&native_handle_);
-  ASSERT_EQ(0, level_);
+  DCHECK_EQ(0, level_);
 }
 
 
@@ -155,14 +155,14 @@ RecursiveMutex::RecursiveMutex() {
 
 RecursiveMutex::~RecursiveMutex() {
   DestroyNativeHandle(&native_handle_);
-  ASSERT_EQ(0, level_);
+  DCHECK_EQ(0, level_);
 }
 
 
 void RecursiveMutex::Lock() {
   LockNativeHandle(&native_handle_);
 #ifdef DEBUG
-  ASSERT_LE(0, level_);
+  DCHECK_LE(0, level_);
   level_++;
 #endif
 }
@@ -170,7 +170,7 @@ void RecursiveMutex::Lock() {
 
 void RecursiveMutex::Unlock() {
 #ifdef DEBUG
-  ASSERT_LT(0, level_);
+  DCHECK_LT(0, level_);
   level_--;
 #endif
   UnlockNativeHandle(&native_handle_);
@@ -182,7 +182,7 @@ bool RecursiveMutex::TryLock() {
     return false;
   }
 #ifdef DEBUG
-  ASSERT_LE(0, level_);
+  DCHECK_LE(0, level_);
   level_++;
 #endif
   return true;

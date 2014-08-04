@@ -289,7 +289,7 @@ void Decoder::PrintInstructionName(Instruction* instr) {
 // Handle all register based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatRegister(Instruction* instr, const char* format) {
-  ASSERT(format[0] == 'r');
+  DCHECK(format[0] == 'r');
   if (format[1] == 's') {  // 'rs: Rs register.
     int reg = instr->RsValue();
     PrintRegister(reg);
@@ -311,7 +311,7 @@ int Decoder::FormatRegister(Instruction* instr, const char* format) {
 // Handle all FPUregister based formatting in this function to reduce the
 // complexity of FormatOption.
 int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
-  ASSERT(format[0] == 'f');
+  DCHECK(format[0] == 'f');
   if (format[1] == 's') {  // 'fs: fs register.
     int reg = instr->FsValue();
     PrintFPURegister(reg);
@@ -342,26 +342,26 @@ int Decoder::FormatFPURegister(Instruction* instr, const char* format) {
 int Decoder::FormatOption(Instruction* instr, const char* format) {
   switch (format[0]) {
     case 'c': {   // 'code for break or trap instructions.
-      ASSERT(STRING_STARTS_WITH(format, "code"));
+      DCHECK(STRING_STARTS_WITH(format, "code"));
       PrintCode(instr);
       return 4;
     }
     case 'i': {   // 'imm16u or 'imm26.
       if (format[3] == '1') {
-        ASSERT(STRING_STARTS_WITH(format, "imm16"));
+        DCHECK(STRING_STARTS_WITH(format, "imm16"));
         if (format[5] == 's') {
-          ASSERT(STRING_STARTS_WITH(format, "imm16s"));
+          DCHECK(STRING_STARTS_WITH(format, "imm16s"));
           PrintSImm16(instr);
         } else if (format[5] == 'u') {
-          ASSERT(STRING_STARTS_WITH(format, "imm16u"));
+          DCHECK(STRING_STARTS_WITH(format, "imm16u"));
           PrintSImm16(instr);
         } else {
-          ASSERT(STRING_STARTS_WITH(format, "imm16x"));
+          DCHECK(STRING_STARTS_WITH(format, "imm16x"));
           PrintXImm16(instr);
         }
         return 6;
       } else {
-        ASSERT(STRING_STARTS_WITH(format, "imm26x"));
+        DCHECK(STRING_STARTS_WITH(format, "imm26x"));
         PrintXImm26(instr);
         return 6;
       }
@@ -375,22 +375,22 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
     case 's': {   // 'sa.
       switch (format[1]) {
         case 'a': {
-          ASSERT(STRING_STARTS_WITH(format, "sa"));
+          DCHECK(STRING_STARTS_WITH(format, "sa"));
           PrintSa(instr);
           return 2;
         }
         case 'd': {
-          ASSERT(STRING_STARTS_WITH(format, "sd"));
+          DCHECK(STRING_STARTS_WITH(format, "sd"));
           PrintSd(instr);
           return 2;
         }
         case 's': {
           if (format[2] == '1') {
-              ASSERT(STRING_STARTS_WITH(format, "ss1"));  /* ext size */
+              DCHECK(STRING_STARTS_WITH(format, "ss1"));  /* ext size */
               PrintSs1(instr);
               return 3;
           } else {
-              ASSERT(STRING_STARTS_WITH(format, "ss2"));  /* ins size */
+              DCHECK(STRING_STARTS_WITH(format, "ss2"));  /* ins size */
               PrintSs2(instr);
               return 3;
           }
@@ -398,12 +398,12 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       }
     }
     case 'b': {   // 'bc - Special for bc1 cc field.
-      ASSERT(STRING_STARTS_WITH(format, "bc"));
+      DCHECK(STRING_STARTS_WITH(format, "bc"));
       PrintBc(instr);
       return 2;
     }
     case 'C': {   // 'Cc - Special for c.xx.d cc field.
-      ASSERT(STRING_STARTS_WITH(format, "Cc"));
+      DCHECK(STRING_STARTS_WITH(format, "Cc"));
       PrintCc(instr);
       return 2;
     }

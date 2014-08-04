@@ -35,7 +35,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     int pc_offset = deopt_data->Pc(i)->value();
     if (pc_offset == -1) continue;
-    ASSERT_GE(pc_offset, prev_pc_offset);
+    DCHECK_GE(pc_offset, prev_pc_offset);
     int pc_delta = pc_offset - prev_pc_offset;
     // We use RUNTIME_ENTRY reloc info which has a size of 2 bytes
     // if encodable with small pc delta encoding and up to 6 bytes
@@ -81,7 +81,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
       byte* pos_before = reloc_info_writer.pos();
 #endif
       reloc_info_writer.Write(&rinfo);
-      ASSERT(RelocInfo::kMinRelocCommentSize ==
+      DCHECK(RelocInfo::kMinRelocCommentSize ==
              pos_before - reloc_info_writer.pos());
     }
     // Replace relocation information on the code object.
@@ -146,11 +146,11 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
                     reinterpret_cast<intptr_t>(deopt_entry),
                     NULL);
     reloc_info_writer.Write(&rinfo);
-    ASSERT_GE(reloc_info_writer.pos(),
+    DCHECK_GE(reloc_info_writer.pos(),
               reloc_info->address() + ByteArray::kHeaderSize);
-    ASSERT(prev_call_address == NULL ||
+    DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
-    ASSERT(call_address + patch_size() <= code->instruction_end());
+    DCHECK(call_address + patch_size() <= code->instruction_end());
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
@@ -166,7 +166,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
   // Handle the junk part after the new relocation info. We will create
   // a non-live object in the extra space at the end of the former reloc info.
   Address junk_address = reloc_info->address() + reloc_info->Size();
-  ASSERT(junk_address <= reloc_end_address);
+  DCHECK(junk_address <= reloc_end_address);
   isolate->heap()->CreateFillerObjectAt(junk_address,
                                         reloc_end_address - junk_address);
 }
@@ -218,7 +218,7 @@ bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
       input_frame_size - parameter_count * kPointerSize -
       StandardFrameConstants::kFixedFrameSize -
       kPointerSize;
-  ASSERT(JavaScriptFrameConstants::kDynamicAlignmentStateOffset ==
+  DCHECK(JavaScriptFrameConstants::kDynamicAlignmentStateOffset ==
       JavaScriptFrameConstants::kLocal0Offset);
   int32_t alignment_state = input_->GetFrameSlot(alignment_state_offset);
   return (alignment_state == kAlignmentPaddingPushed);
@@ -402,7 +402,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     USE(start);
     __ push_imm32(i);
     __ jmp(&done);
-    ASSERT(masm()->pc_offset() - start == table_entry_size_);
+    DCHECK(masm()->pc_offset() - start == table_entry_size_);
   }
   __ bind(&done);
 }

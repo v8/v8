@@ -17,7 +17,7 @@ SimplifiedGraphBuilder::SimplifiedGraphBuilder(
 
 
 void SimplifiedGraphBuilder::Begin() {
-  ASSERT(graph()->start() == NULL);
+  DCHECK(graph()->start() == NULL);
   Node* start = graph()->NewNode(common()->Start());
   graph()->SetStart(start);
   set_environment(new (zone()) Environment(this, start));
@@ -42,7 +42,7 @@ SimplifiedGraphBuilder::Environment::Environment(
 
 
 Node* SimplifiedGraphBuilder::Environment::Top() {
-  ASSERT(!values()->empty());
+  DCHECK(!values()->empty());
   return values()->back();
 }
 
@@ -53,7 +53,7 @@ void SimplifiedGraphBuilder::Environment::Push(Node* node) {
 
 
 Node* SimplifiedGraphBuilder::Environment::Pop() {
-  ASSERT(!values()->empty());
+  DCHECK(!values()->empty());
   Node* back = values()->back();
   values()->pop_back();
   return back;
@@ -61,14 +61,14 @@ Node* SimplifiedGraphBuilder::Environment::Pop() {
 
 
 void SimplifiedGraphBuilder::Environment::Poke(size_t depth, Node* node) {
-  ASSERT(depth < values()->size());
+  DCHECK(depth < values()->size());
   size_t index = values()->size() - depth - 1;
   values()->at(index) = node;
 }
 
 
 Node* SimplifiedGraphBuilder::Environment::Peek(size_t depth) {
-  ASSERT(depth < values()->size());
+  DCHECK(depth < values()->size());
   size_t index = values()->size() - depth - 1;
   return values()->at(index);
 }

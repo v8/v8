@@ -113,7 +113,7 @@ class BoundsCheckBbData: public ZoneObject {
   void UpdateUpperOffsets(HBoundsCheck* check, int32_t offset) {
     BoundsCheckBbData* data = FatherInDominatorTree();
     while (data != NULL && data->UpperCheck() == check) {
-      ASSERT(data->upper_offset_ < offset);
+      DCHECK(data->upper_offset_ < offset);
       data->upper_offset_ = offset;
       data = data->FatherInDominatorTree();
     }
@@ -122,7 +122,7 @@ class BoundsCheckBbData: public ZoneObject {
   void UpdateLowerOffsets(HBoundsCheck* check, int32_t offset) {
     BoundsCheckBbData* data = FatherInDominatorTree();
     while (data != NULL && data->LowerCheck() == check) {
-      ASSERT(data->lower_offset_ > offset);
+      DCHECK(data->lower_offset_ > offset);
       data->lower_offset_ = offset;
       data = data->FatherInDominatorTree();
     }
@@ -142,7 +142,7 @@ class BoundsCheckBbData: public ZoneObject {
   // new_offset, and new_check is removed.
   void CoverCheck(HBoundsCheck* new_check,
                   int32_t new_offset) {
-    ASSERT(new_check->index()->representation().IsSmiOrInteger32());
+    DCHECK(new_check->index()->representation().IsSmiOrInteger32());
     bool keep_new_check = false;
 
     if (new_offset > upper_offset_) {
@@ -184,7 +184,7 @@ class BoundsCheckBbData: public ZoneObject {
                         new_check->id(), first_check->id());
       }
       // The length is guaranteed to be live at first_check.
-      ASSERT(new_check->length() == first_check->length());
+      DCHECK(new_check->length() == first_check->length());
       HInstruction* old_position = new_check->next();
       new_check->Unlink();
       new_check->InsertAfter(first_check);
@@ -278,7 +278,7 @@ class BoundsCheckBbData: public ZoneObject {
   void TightenCheck(HBoundsCheck* original_check,
                     HBoundsCheck* tighter_check,
                     int32_t new_offset) {
-    ASSERT(original_check->length() == tighter_check->length());
+    DCHECK(original_check->length() == tighter_check->length());
     MoveIndexIfNecessary(tighter_check->index(), original_check, tighter_check);
     original_check->ReplaceAllUsesWith(original_check->index());
     original_check->SetOperandAt(0, tighter_check->index());

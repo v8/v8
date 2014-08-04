@@ -112,7 +112,7 @@ void InstructionSelector::VisitStore(Node* node) {
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
   MachineRepresentation rep = store_rep.rep;
   if (store_rep.write_barrier_kind == kFullWriteBarrier) {
-    ASSERT(rep == kMachineTagged);
+    DCHECK(rep == kMachineTagged);
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
     // TODO(dcarney): handle immediate indices.
@@ -122,7 +122,7 @@ void InstructionSelector::VisitStore(Node* node) {
          temps);
     return;
   }
-  ASSERT_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
+  DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
   bool is_immediate = false;
   InstructionOperand* val;
   if (rep == kMachineFloat64) {
@@ -205,10 +205,10 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
 
-  ASSERT_NE(0, input_count);
-  ASSERT_NE(0, output_count);
-  ASSERT_GE(ARRAY_SIZE(inputs), input_count);
-  ASSERT_GE(ARRAY_SIZE(outputs), output_count);
+  DCHECK_NE(0, input_count);
+  DCHECK_NE(0, output_count);
+  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
+  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
 
   Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
                                       outputs, input_count, inputs);
@@ -581,7 +581,7 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
     selector->Emit(opcode, NULL, left, right, g.Label(cont->true_block()),
                    g.Label(cont->false_block()))->MarkAsControl();
   } else {
-    ASSERT(cont->IsSet());
+    DCHECK(cont->IsSet());
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
   }
 }
@@ -707,14 +707,14 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
 
   call_instr->MarkAsCall();
   if (deoptimization != NULL) {
-    ASSERT(continuation != NULL);
+    DCHECK(continuation != NULL);
     call_instr->MarkAsControl();
   }
 
   // Caller clean up of stack for C-style calls.
   if (descriptor->kind() == CallDescriptor::kCallAddress &&
       buffer.pushed_count > 0) {
-    ASSERT(deoptimization == NULL && continuation == NULL);
+    DCHECK(deoptimization == NULL && continuation == NULL);
     Emit(kPopStack | MiscField::encode(buffer.pushed_count), NULL);
   }
 }

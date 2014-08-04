@@ -60,17 +60,17 @@ class ContextSlotCache {
   struct Value {
     Value(VariableMode mode, InitializationFlag init_flag,
           MaybeAssignedFlag maybe_assigned_flag, int index) {
-      ASSERT(ModeField::is_valid(mode));
-      ASSERT(InitField::is_valid(init_flag));
-      ASSERT(MaybeAssignedField::is_valid(maybe_assigned_flag));
-      ASSERT(IndexField::is_valid(index));
+      DCHECK(ModeField::is_valid(mode));
+      DCHECK(InitField::is_valid(init_flag));
+      DCHECK(MaybeAssignedField::is_valid(maybe_assigned_flag));
+      DCHECK(IndexField::is_valid(index));
       value_ = ModeField::encode(mode) | IndexField::encode(index) |
                InitField::encode(init_flag) |
                MaybeAssignedField::encode(maybe_assigned_flag);
-      ASSERT(mode == this->mode());
-      ASSERT(init_flag == this->initialization_flag());
-      ASSERT(maybe_assigned_flag == this->maybe_assigned_flag());
-      ASSERT(index == this->index());
+      DCHECK(mode == this->mode());
+      DCHECK(init_flag == this->initialization_flag());
+      DCHECK(maybe_assigned_flag == this->maybe_assigned_flag());
+      DCHECK(index == this->index());
     }
 
     explicit inline Value(uint32_t value) : value_(value) {}

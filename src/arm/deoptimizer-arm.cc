@@ -65,13 +65,13 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
                                                        deopt_entry,
                                                        RelocInfo::NONE32);
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
-    ASSERT(call_size_in_bytes % Assembler::kInstrSize == 0);
-    ASSERT(call_size_in_bytes <= patch_size());
+    DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
+    DCHECK(call_size_in_bytes <= patch_size());
     CodePatcher patcher(call_address, call_size_in_words);
     patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
-    ASSERT(prev_call_address == NULL ||
+    DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
-    ASSERT(call_address + patch_size() <= code->instruction_end());
+    DCHECK(call_address + patch_size() <= code->instruction_end());
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
@@ -142,8 +142,8 @@ void Deoptimizer::EntryGenerator::Generate() {
       kDoubleSize * DwVfpRegister::kMaxNumAllocatableRegisters;
 
   // Save all allocatable VFP registers before messing with them.
-  ASSERT(kDoubleRegZero.code() == 14);
-  ASSERT(kScratchDoubleReg.code() == 15);
+  DCHECK(kDoubleRegZero.code() == 14);
+  DCHECK(kScratchDoubleReg.code() == 15);
 
   // Check CPU flags for number of registers, setting the Z condition flag.
   __ CheckFor32DRegs(ip);
@@ -194,7 +194,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
 
   // Copy core registers into FrameDescription::registers_[kNumRegisters].
-  ASSERT(Register::kNumRegisters == kNumberOfRegisters);
+  DCHECK(Register::kNumRegisters == kNumberOfRegisters);
   for (int i = 0; i < kNumberOfRegisters; i++) {
     int offset = (i * kPointerSize) + FrameDescription::registers_offset();
     __ ldr(r2, MemOperand(sp, i * kPointerSize));
@@ -326,7 +326,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     USE(start);
     __ mov(ip, Operand(i));
     __ b(&done);
-    ASSERT(masm()->pc_offset() - start == table_entry_size_);
+    DCHECK(masm()->pc_offset() - start == table_entry_size_);
   }
   __ bind(&done);
   __ push(ip);
@@ -344,7 +344,7 @@ void FrameDescription::SetCallerFp(unsigned offset, intptr_t value) {
 
 
 void FrameDescription::SetCallerConstantPool(unsigned offset, intptr_t value) {
-  ASSERT(FLAG_enable_ool_constant_pool);
+  DCHECK(FLAG_enable_ool_constant_pool);
   SetFrameSlot(offset, value);
 }
 

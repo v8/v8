@@ -15,9 +15,9 @@ void Node::CollectProjections(int projection_count, Node** projections) {
   for (UseIter i = uses().begin(); i != uses().end(); ++i) {
     if ((*i)->opcode() != IrOpcode::kProjection) continue;
     int32_t index = OpParameter<int32_t>(*i);
-    ASSERT_GE(index, 0);
-    ASSERT_LT(index, projection_count);
-    ASSERT_EQ(NULL, projections[index]);
+    DCHECK_GE(index, 0);
+    DCHECK_LT(index, projection_count);
+    DCHECK_EQ(NULL, projections[index]);
     projections[index] = *i;
   }
 }

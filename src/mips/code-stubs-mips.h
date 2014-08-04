@@ -155,10 +155,10 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
         the_heap_number_(the_heap_number),
         scratch_(scratch),
         sign_(scratch2) {
-    ASSERT(IntRegisterBits::is_valid(the_int_.code()));
-    ASSERT(HeapNumberRegisterBits::is_valid(the_heap_number_.code()));
-    ASSERT(ScratchRegisterBits::is_valid(scratch_.code()));
-    ASSERT(SignRegisterBits::is_valid(sign_.code()));
+    DCHECK(IntRegisterBits::is_valid(the_int_.code()));
+    DCHECK(HeapNumberRegisterBits::is_valid(the_heap_number_.code()));
+    DCHECK(ScratchRegisterBits::is_valid(scratch_.code()));
+    DCHECK(SignRegisterBits::is_valid(sign_.code()));
   }
 
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
@@ -219,14 +219,14 @@ class RecordWriteStub: public PlatformCodeStub {
     const unsigned offset = masm->instr_at(pos) & kImm16Mask;
     masm->instr_at_put(pos, BNE | (zero_reg.code() << kRsShift) |
         (zero_reg.code() << kRtShift) | (offset & kImm16Mask));
-    ASSERT(Assembler::IsBne(masm->instr_at(pos)));
+    DCHECK(Assembler::IsBne(masm->instr_at(pos)));
   }
 
   static void PatchNopIntoBranch(MacroAssembler* masm, int pos) {
     const unsigned offset = masm->instr_at(pos) & kImm16Mask;
     masm->instr_at_put(pos, BEQ | (zero_reg.code() << kRsShift) |
         (zero_reg.code() << kRtShift) | (offset & kImm16Mask));
-    ASSERT(Assembler::IsBeq(masm->instr_at(pos)));
+    DCHECK(Assembler::IsBeq(masm->instr_at(pos)));
   }
 
   static Mode GetMode(Code* stub) {
@@ -238,13 +238,13 @@ class RecordWriteStub: public PlatformCodeStub {
       return INCREMENTAL;
     }
 
-    ASSERT(Assembler::IsBne(first_instruction));
+    DCHECK(Assembler::IsBne(first_instruction));
 
     if (Assembler::IsBeq(second_instruction)) {
       return INCREMENTAL_COMPACTION;
     }
 
-    ASSERT(Assembler::IsBne(second_instruction));
+    DCHECK(Assembler::IsBne(second_instruction));
 
     return STORE_BUFFER_ONLY;
   }
@@ -255,21 +255,21 @@ class RecordWriteStub: public PlatformCodeStub {
                         stub->instruction_size());
     switch (mode) {
       case STORE_BUFFER_ONLY:
-        ASSERT(GetMode(stub) == INCREMENTAL ||
+        DCHECK(GetMode(stub) == INCREMENTAL ||
                GetMode(stub) == INCREMENTAL_COMPACTION);
         PatchBranchIntoNop(&masm, 0);
         PatchBranchIntoNop(&masm, 2 * Assembler::kInstrSize);
         break;
       case INCREMENTAL:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         PatchNopIntoBranch(&masm, 0);
         break;
       case INCREMENTAL_COMPACTION:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         PatchNopIntoBranch(&masm, 2 * Assembler::kInstrSize);
         break;
     }
-    ASSERT(GetMode(stub) == mode);
+    DCHECK(GetMode(stub) == mode);
     CpuFeatures::FlushICache(stub->instruction_start(),
                              4 * Assembler::kInstrSize);
   }
@@ -286,12 +286,12 @@ class RecordWriteStub: public PlatformCodeStub {
         : object_(object),
           address_(address),
           scratch0_(scratch0) {
-      ASSERT(!AreAliased(scratch0, object, address, no_reg));
+      DCHECK(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegisterThatIsNotOneOf(object_, address_, scratch0_);
     }
 
     void Save(MacroAssembler* masm) {
-      ASSERT(!AreAliased(object_, address_, scratch1_, scratch0_));
+      DCHECK(!AreAliased(object_, address_, scratch1_, scratch0_));
       // We don't have to save scratch0_ because it was given to us as
       // a scratch register.
       masm->push(scratch1_);

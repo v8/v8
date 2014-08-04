@@ -31,7 +31,7 @@ RawMachineAssembler::RawMachineAssembler(
 
 Schedule* RawMachineAssembler::Export() {
   // Compute the correct codegen order.
-  ASSERT(schedule_->rpo_order()->empty());
+  DCHECK(schedule_->rpo_order()->empty());
   Scheduler scheduler(zone(), graph(), schedule_);
   scheduler.ComputeSpecialRPO();
   // Invalidate MachineAssembler.
@@ -42,7 +42,7 @@ Schedule* RawMachineAssembler::Export() {
 
 
 Node* RawMachineAssembler::Parameter(int index) {
-  ASSERT(0 <= index && index < parameter_count());
+  DCHECK(0 <= index && index < parameter_count());
   return parameters_[index];
 }
 
@@ -54,7 +54,7 @@ RawMachineAssembler::Label* RawMachineAssembler::Exit() {
 
 
 void RawMachineAssembler::Goto(Label* label) {
-  ASSERT(current_block_ != schedule()->exit());
+  DCHECK(current_block_ != schedule()->exit());
   schedule()->AddGoto(CurrentBlock(), Use(label));
   current_block_ = NULL;
 }
@@ -62,7 +62,7 @@ void RawMachineAssembler::Goto(Label* label) {
 
 void RawMachineAssembler::Branch(Node* condition, Label* true_val,
                                  Label* false_val) {
-  ASSERT(current_block_ != schedule()->exit());
+  DCHECK(current_block_ != schedule()->exit());
   Node* branch = NewNode(common()->Branch(), condition);
   schedule()->AddBranch(CurrentBlock(), branch, Use(true_val), Use(false_val));
   current_block_ = NULL;
@@ -116,8 +116,8 @@ Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
 
 
 void RawMachineAssembler::Bind(Label* label) {
-  ASSERT(current_block_ == NULL);
-  ASSERT(!label->bound_);
+  DCHECK(current_block_ == NULL);
+  DCHECK(!label->bound_);
   label->bound_ = true;
   current_block_ = EnsureBlock(label);
 }
@@ -136,15 +136,15 @@ BasicBlock* RawMachineAssembler::EnsureBlock(Label* label) {
 
 
 BasicBlock* RawMachineAssembler::CurrentBlock() {
-  ASSERT(current_block_);
+  DCHECK(current_block_);
   return current_block_;
 }
 
 
 Node* RawMachineAssembler::MakeNode(Operator* op, int input_count,
                                     Node** inputs) {
-  ASSERT(ScheduleValid());
-  ASSERT(current_block_ != NULL);
+  DCHECK(ScheduleValid());
+  DCHECK(current_block_ != NULL);
   Node* node = graph()->NewNode(op, input_count, inputs);
   BasicBlock* block = op->opcode() == IrOpcode::kParameter ? schedule()->start()
                                                            : CurrentBlock();

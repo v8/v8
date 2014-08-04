@@ -9,7 +9,7 @@ namespace internal {
 
 Counter::Counter(const char* name, CounterType type)
     : count_(0), enabled_(false), type_(type) {
-  ASSERT(name != NULL);
+  DCHECK(name != NULL);
   strncpy(name_, name, kCounterNameMaxLength);
 }
 
@@ -144,7 +144,7 @@ void Instrument::Update() {
   // Increment the instruction counter, and dump all counters if a sample period
   // has elapsed.
   static Counter* counter = GetCounter("Instruction");
-  ASSERT(counter->type() == Cumulative);
+  DCHECK(counter->type() == Cumulative);
   counter->Increment();
 
   if (counter->IsEnabled() && (counter->count() % sample_period_) == 0) {

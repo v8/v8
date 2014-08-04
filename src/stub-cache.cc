@@ -27,8 +27,8 @@ StubCache::StubCache(Isolate* isolate)
 
 
 void StubCache::Initialize() {
-  ASSERT(IsPowerOf2(kPrimaryTableSize));
-  ASSERT(IsPowerOf2(kSecondaryTableSize));
+  DCHECK(IsPowerOf2(kPrimaryTableSize));
+  DCHECK(IsPowerOf2(kSecondaryTableSize));
   Clear();
 }
 
@@ -39,18 +39,18 @@ static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
 
   // Validate that the name does not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
-  ASSERT(!name->GetHeap()->InNewSpace(name));
-  ASSERT(name->IsUniqueName());
+  DCHECK(!name->GetHeap()->InNewSpace(name));
+  DCHECK(name->IsUniqueName());
 
   // The state bits are not important to the hash function because the stub
   // cache only contains handlers. Make sure that the bits are the least
   // significant so they will be the ones masked out.
-  ASSERT_EQ(Code::HANDLER, Code::ExtractKindFromFlags(flags));
+  DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(flags));
   STATIC_ASSERT((Code::ICStateField::kMask & 1) == 1);
 
   // Make sure that the code type and cache holder are not included in the hash.
-  ASSERT(Code::ExtractTypeFromFlags(flags) == 0);
-  ASSERT(Code::ExtractCacheHolderFromFlags(flags) == 0);
+  DCHECK(Code::ExtractTypeFromFlags(flags) == 0);
+  DCHECK(Code::ExtractCacheHolderFromFlags(flags) == 0);
 
   return flags;
 }
@@ -149,7 +149,7 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
 
 #ifdef DEBUG
   if (kind == Code::KEYED_STORE_IC) {
-    ASSERT(STANDARD_STORE ==
+    DCHECK(STANDARD_STORE ==
            KeyedStoreIC::GetKeyedAccessStoreMode(extra_ic_state));
   }
 #endif
@@ -247,7 +247,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphic(
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, extra_state);
 
-  ASSERT(store_mode == STANDARD_STORE ||
+  DCHECK(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
@@ -261,7 +261,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphic(
       compiler.CompileKeyedStoreMonomorphic(receiver_map, store_mode);
 
   Map::UpdateCodeCache(receiver_map, name, code);
-  ASSERT(KeyedStoreIC::GetKeyedAccessStoreMode(code->extra_ic_state())
+  DCHECK(KeyedStoreIC::GetKeyedAccessStoreMode(code->extra_ic_state())
          == store_mode);
   return code;
 }
@@ -284,7 +284,7 @@ Code* PropertyICCompiler::FindPreMonomorphic(Isolate* isolate, Code::Kind kind,
   UnseededNumberDictionary* dictionary =
       isolate->heap()->non_monomorphic_cache();
   int entry = dictionary->FindEntry(isolate, flags);
-  ASSERT(entry != -1);
+  DCHECK(entry != -1);
   Object* code = dictionary->ValueAt(entry);
   // This might be called during the marking phase of the collector
   // hence the unchecked cast.
@@ -401,7 +401,7 @@ Handle<Code> PropertyICCompiler::ComputePolymorphic(
     int valid_types, Handle<Name> name, ExtraICState extra_ic_state) {
   Handle<Code> handler = handlers->at(0);
   Code::StubType type = valid_types == 1 ? handler->type() : Code::NORMAL;
-  ASSERT(kind == Code::LOAD_IC || kind == Code::STORE_IC);
+  DCHECK(kind == Code::LOAD_IC || kind == Code::STORE_IC);
   PropertyICCompiler ic_compiler(name->GetIsolate(), kind, extra_ic_state);
   return ic_compiler.CompilePolymorphic(types, handlers, name, type, PROPERTY);
 }
@@ -411,7 +411,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStorePolymorphic(
     MapHandleList* receiver_maps, KeyedAccessStoreMode store_mode,
     StrictMode strict_mode) {
   Isolate* isolate = receiver_maps->at(0)->GetIsolate();
-  ASSERT(store_mode == STANDARD_STORE ||
+  DCHECK(store_mode == STANDARD_STORE ||
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
@@ -500,12 +500,12 @@ RUNTIME_FUNCTION(StoreCallbackProperty) {
   Handle<Object> value = args.at<Object>(4);
   HandleScope scope(isolate);
 
-  ASSERT(callback->IsCompatibleReceiver(*receiver));
+  DCHECK(callback->IsCompatibleReceiver(*receiver));
 
   Address setter_address = v8::ToCData<Address>(callback->setter());
   v8::AccessorSetterCallback fun =
       FUNCTION_CAST<v8::AccessorSetterCallback>(setter_address);
-  ASSERT(fun != NULL);
+  DCHECK(fun != NULL);
 
   // TODO(rossberg): Support symbols in the API.
   if (name->IsSymbol()) return *value;
@@ -528,7 +528,7 @@ RUNTIME_FUNCTION(StoreCallbackProperty) {
  * provide any value for the given name.
  */
 RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
-  ASSERT(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
+  DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name_handle =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
   Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(
@@ -542,7 +542,7 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
   Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
   v8::NamedPropertyGetterCallback getter =
       FUNCTION_CAST<v8::NamedPropertyGetterCallback>(getter_address);
-  ASSERT(getter != NULL);
+  DCHECK(getter != NULL);
 
   Handle<JSObject> receiver =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
@@ -591,7 +591,7 @@ static Object* ThrowReferenceError(Isolate* isolate, Name* name) {
  */
 RUNTIME_FUNCTION(LoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
+  DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
   Handle<JSObject> receiver =
@@ -612,7 +612,7 @@ RUNTIME_FUNCTION(LoadPropertyWithInterceptor) {
 
 RUNTIME_FUNCTION(StorePropertyWithInterceptor) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
+  DCHECK(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<Name> name = args.at<Name>(1);
@@ -620,11 +620,11 @@ RUNTIME_FUNCTION(StorePropertyWithInterceptor) {
 #ifdef DEBUG
   if (receiver->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, receiver);
-    ASSERT(iter.IsAtEnd() ||
+    DCHECK(iter.IsAtEnd() ||
            Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter))
                ->HasNamedInterceptor());
   } else {
-    ASSERT(receiver->HasNamedInterceptor());
+    DCHECK(receiver->HasNamedInterceptor());
   }
 #endif
   Handle<Object> result;
@@ -638,7 +638,7 @@ RUNTIME_FUNCTION(StorePropertyWithInterceptor) {
 RUNTIME_FUNCTION(LoadElementWithInterceptor) {
   HandleScope scope(isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
-  ASSERT(args.smi_at(1) >= 0);
+  DCHECK(args.smi_at(1) >= 0);
   uint32_t index = args.smi_at(1);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -814,7 +814,7 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
     last_map = IC::TypeToMap(*type(), isolate());
     // If |type| has null as its prototype, |holder()| is
     // Handle<JSObject>::null().
-    ASSERT(last_map->prototype() == isolate()->heap()->null_value());
+    DCHECK(last_map->prototype() == isolate()->heap()->null_value());
   } else {
     holder_reg = FrontendHeader(receiver(), name, miss);
     last_map = handle(holder()->map());
@@ -829,10 +829,10 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
       GenerateCheckPropertyCell(masm(), global, name, scratch1, miss);
     } else {
       if (!name->IsUniqueName()) {
-        ASSERT(name->IsString());
+        DCHECK(name->IsString());
         name = factory()->InternalizeString(Handle<String>::cast(name));
       }
-      ASSERT(holder().is_null() ||
+      DCHECK(holder().is_null() ||
              holder()->property_dictionary()->FindEntry(name) ==
                  NameDictionary::kNotFound);
       GenerateDictionaryNegativeLookup(masm(), miss, holder_reg, name, scratch1,
@@ -878,7 +878,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization) {
-  ASSERT(call_optimization.is_simple_api_call());
+  DCHECK(call_optimization.is_simple_api_call());
   Handle<JSFunction> callback = call_optimization.constant_function();
   CallbackFrontend(receiver(), name, callback);
   Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
@@ -924,10 +924,10 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     }
   } else {
     // We found CALLBACKS property in prototype chain of interceptor's holder.
-    ASSERT(lookup->type() == CALLBACKS);
+    DCHECK(lookup->type() == CALLBACKS);
     Handle<ExecutableAccessorInfo> callback(
         ExecutableAccessorInfo::cast(lookup->GetCallbackObject()));
-    ASSERT(callback->getter() != NULL);
+    DCHECK(callback->getter() != NULL);
 
     set_type_for_object(holder());
     set_holder(real_named_property_holder);
@@ -980,7 +980,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     NonexistentFrontendHeader(name, &miss, scratch1(), scratch2());
   } else {
     FrontendHeader(receiver(), name, &miss);
-    ASSERT(holder()->HasFastProperties());
+    DCHECK(holder()->HasFastProperties());
   }
 
   GenerateStoreTransition(transition, name, receiver(), this->name(), value(),
@@ -1070,7 +1070,7 @@ Register* PropertyAccessCompiler::GetCallingConvention(Code::Kind kind) {
   if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
     return load_calling_convention();
   }
-  ASSERT(kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC);
+  DCHECK(kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC);
   return store_calling_convention();
 }
 
@@ -1119,7 +1119,7 @@ void ElementHandlerCompiler::CompileElementHandlers(
       } else if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
         cached_stub = isolate()->builtins()->KeyedLoadIC_SloppyArguments();
       } else {
-        ASSERT(elements_kind == DICTIONARY_ELEMENTS);
+        DCHECK(elements_kind == DICTIONARY_ELEMENTS);
         cached_stub = LoadDictionaryElementStub(isolate()).GetCode();
       }
     }
@@ -1165,7 +1165,7 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
                                        store_mode).GetCode();
       }
     }
-    ASSERT(!cached_stub.is_null());
+    DCHECK(!cached_stub.is_null());
     handlers.Add(cached_stub);
     transitioned_maps.Add(transitioned_map);
   }
@@ -1204,7 +1204,7 @@ CallOptimization::CallOptimization(Handle<JSFunction> function) {
 Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     Handle<Map> object_map,
     HolderLookup* holder_lookup) const {
-  ASSERT(is_simple_api_call());
+  DCHECK(is_simple_api_call());
   if (!object_map->IsJSObjectMap()) {
     *holder_lookup = kHolderNotFound;
     return Handle<JSObject>::null();
@@ -1231,7 +1231,7 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
 
 bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
                                             Handle<JSObject> holder) const {
-  ASSERT(is_simple_api_call());
+  DCHECK(is_simple_api_call());
   if (!receiver->IsJSObject()) return false;
   Handle<Map> map(JSObject::cast(*receiver)->map());
   HolderLookup holder_lookup;

@@ -14,7 +14,7 @@ namespace compiler {
 
 typedef ZoneList<MoveOperands>::iterator op_iterator;
 
-#ifdef ENABLE_SLOW_ASSERTS
+#ifdef ENABLE_SLOW_DCHECKS
 // TODO(svenpanne) Brush up InstructionOperand with comparison?
 struct InstructionOperandComparator {
   bool operator()(const InstructionOperand* x,
@@ -27,10 +27,10 @@ struct InstructionOperandComparator {
 
 // No operand should be the destination for more than one move.
 static void VerifyMovesAreInjective(ZoneList<MoveOperands>* moves) {
-#ifdef ENABLE_SLOW_ASSERTS
+#ifdef ENABLE_SLOW_DCHECKS
   std::set<InstructionOperand*, InstructionOperandComparator> seen;
   for (op_iterator i = moves->begin(); i != moves->end(); ++i) {
-    SLOW_ASSERT(seen.find(i->destination()) == seen.end());
+    SLOW_DCHECK(seen.find(i->destination()) == seen.end());
     seen.insert(i->destination());
   }
 #endif
@@ -60,12 +60,12 @@ void GapResolver::PerformMove(ZoneList<MoveOperands>* moves,
   // move as "pending" on entry to PerformMove in order to detect cycles in the
   // move graph.  We use operand swaps to resolve cycles, which means that a
   // call to PerformMove could change any source operand in the move graph.
-  ASSERT(!move->IsPending());
-  ASSERT(!move->IsRedundant());
+  DCHECK(!move->IsPending());
+  DCHECK(!move->IsRedundant());
 
   // Clear this move's destination to indicate a pending move.  The actual
   // destination is saved on the side.
-  ASSERT_NOT_NULL(move->source());  // Or else it will look eliminated.
+  DCHECK_NOT_NULL(move->source());  // Or else it will look eliminated.
   InstructionOperand* destination = move->destination();
   move->set_destination(NULL);
 
@@ -112,7 +112,7 @@ void GapResolver::PerformMove(ZoneList<MoveOperands>* moves,
     return;
   }
 
-  ASSERT(blocker->IsPending());
+  DCHECK(blocker->IsPending());
   // Ensure source is a register or both are stack slots, to limit swap cases.
   if (source->IsStackSlot() || source->IsDoubleStackSlot()) {
     std::swap(source, destination);

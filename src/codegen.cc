@@ -256,7 +256,7 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 
 int CEntryStub::MinorKey() const {
   int result = (save_doubles_ == kSaveFPRegs) ? 1 : 0;
-  ASSERT(result_size_ == 1 || result_size_ == 2);
+  DCHECK(result_size_ == 1 || result_size_ == 2);
 #ifdef _WIN64
   return result | ((result_size_ == 1) ? 0 : 2);
 #else

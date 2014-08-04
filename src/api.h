@@ -81,13 +81,13 @@ NeanderArray::NeanderArray(v8::internal::Handle<v8::internal::Object> obj)
 
 
 v8::internal::Object* NeanderObject::get(int offset) {
-  ASSERT(value()->HasFastObjectElements());
+  DCHECK(value()->HasFastObjectElements());
   return v8::internal::FixedArray::cast(value()->elements())->get(offset);
 }
 
 
 void NeanderObject::set(int offset, v8::internal::Object* value) {
-  ASSERT(value_->HasFastObjectElements());
+  DCHECK(value_->HasFastObjectElements());
   v8::internal::FixedArray::cast(value_->elements())->set(offset, value);
 }
 
@@ -264,7 +264,7 @@ OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
   template<class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj) {
-    ASSERT(obj.is_null() || !obj->IsTheHole());
+    DCHECK(obj.is_null() || !obj->IsTheHole());
     return Local<To>(reinterpret_cast<To*>(obj.location()));
   }
 
@@ -325,7 +325,7 @@ inline v8::Local<T> ToApiHandle(
 #define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype, size)        \
   Local<v8::Type##Array> Utils::ToLocal##Type##Array(                       \
       v8::internal::Handle<v8::internal::JSTypedArray> obj) {               \
-    ASSERT(obj->type() == kExternal##Type##Array);                          \
+    DCHECK(obj->type() == kExternal##Type##Array);                          \
     return Convert<v8::internal::JSTypedArray, v8::Type##Array>(obj);       \
   }
 
@@ -534,7 +534,7 @@ class HandleScopeImplementer {
   Isolate* isolate() const { return isolate_; }
 
   void ReturnBlock(Object** block) {
-    ASSERT(block != NULL);
+    DCHECK(block != NULL);
     if (spare_ != NULL) DeleteArray(spare_);
     spare_ = block;
   }
@@ -550,9 +550,9 @@ class HandleScopeImplementer {
   }
 
   void Free() {
-    ASSERT(blocks_.length() == 0);
-    ASSERT(entered_contexts_.length() == 0);
-    ASSERT(saved_contexts_.length() == 0);
+    DCHECK(blocks_.length() == 0);
+    DCHECK(entered_contexts_.length() == 0);
+    DCHECK(saved_contexts_.length() == 0);
     blocks_.Free();
     entered_contexts_.Free();
     saved_contexts_.Free();
@@ -560,7 +560,7 @@ class HandleScopeImplementer {
       DeleteArray(spare_);
       spare_ = NULL;
     }
-    ASSERT(call_depth_ == 0);
+    DCHECK(call_depth_ == 0);
   }
 
   void BeginDeferredScope();
@@ -663,7 +663,7 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
     }
     spare_ = block_start;
   }
-  ASSERT((blocks_.is_empty() && prev_limit == NULL) ||
+  DCHECK((blocks_.is_empty() && prev_limit == NULL) ||
          (!blocks_.is_empty() && prev_limit != NULL));
 }
 

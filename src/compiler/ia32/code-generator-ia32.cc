@@ -37,20 +37,20 @@ class IA32OperandConverter : public InstructionOperandConverter {
 
   Operand ToOperand(InstructionOperand* op, int extra = 0) {
     if (op->IsRegister()) {
-      ASSERT(extra == 0);
+      DCHECK(extra == 0);
       return Operand(ToRegister(op));
     } else if (op->IsDoubleRegister()) {
-      ASSERT(extra == 0);
+      DCHECK(extra == 0);
       return Operand(ToDoubleRegister(op));
     }
-    ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
+    DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
     // The linkage computes where all spill slots are located.
     FrameOffset offset = linkage()->GetFrameOffset(op->index(), frame(), extra);
     return Operand(offset.from_stack_pointer() ? esp : ebp, offset.offset());
   }
 
   Operand HighOperand(InstructionOperand* op) {
-    ASSERT(op->IsDoubleStackSlot());
+    DCHECK(op->IsDoubleStackSlot());
     return ToOperand(op, kPointerSize);
   }
 
@@ -485,7 +485,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // Materialize a full 32-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
   Label check;
-  ASSERT_NE(0, instr->OutputCount());
+  DCHECK_NE(0, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = no_condition;
   switch (condition) {
@@ -795,12 +795,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Register src = g.ToRegister(source);
     Operand dst = g.ToOperand(destination);
     __ mov(dst, src);
   } else if (source->IsStackSlot()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Operand src = g.ToOperand(source);
     if (destination->IsRegister()) {
       Register dst = g.ToRegister(destination);
@@ -818,7 +818,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         Register dst = g.ToRegister(destination);
         __ LoadHeapObject(dst, src);
       } else {
-        ASSERT(destination->IsStackSlot());
+        DCHECK(destination->IsStackSlot());
         Operand dst = g.ToOperand(destination);
         AllowDeferredHandleDereference embedding_raw_address;
         if (isolate()->heap()->InNewSpace(*src)) {
@@ -843,7 +843,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         XMMRegister dst = g.ToDoubleRegister(destination);
         __ Move(dst, v);
       } else {
-        ASSERT(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsDoubleStackSlot());
         Operand dst0 = g.ToOperand(destination);
         Operand dst1 = g.HighOperand(destination);
         __ mov(dst0, Immediate(lower));
@@ -856,12 +856,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       XMMRegister dst = g.ToDoubleRegister(destination);
       __ movaps(dst, src);
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       Operand dst = g.ToOperand(destination);
       __ movsd(dst, src);
     }
   } else if (source->IsDoubleStackSlot()) {
-    ASSERT(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
+    DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
     Operand src = g.ToOperand(source);
     if (destination->IsDoubleRegister()) {
       XMMRegister dst = g.ToDoubleRegister(destination);

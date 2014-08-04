@@ -174,7 +174,7 @@ class Token {
   // Returns a string corresponding to the C++ token name
   // (e.g. "LT" for the token LT).
   static const char* Name(Value tok) {
-    ASSERT(tok < NUM_TOKENS);  // tok is unsigned
+    DCHECK(tok < NUM_TOKENS);  // tok is unsigned
     return name_[tok];
   }
 
@@ -217,7 +217,7 @@ class Token {
   }
 
   static Value NegateCompareOp(Value op) {
-    ASSERT(IsArithmeticCompareOp(op));
+    DCHECK(IsArithmeticCompareOp(op));
     switch (op) {
       case EQ: return NE;
       case NE: return EQ;
@@ -234,7 +234,7 @@ class Token {
   }
 
   static Value ReverseCompareOp(Value op) {
-    ASSERT(IsArithmeticCompareOp(op));
+    DCHECK(IsArithmeticCompareOp(op));
     switch (op) {
       case EQ: return EQ;
       case NE: return NE;
@@ -270,14 +270,14 @@ class Token {
   // (.e., "<" for the token LT) or NULL if the token doesn't
   // have a (unique) string (e.g. an IDENTIFIER).
   static const char* String(Value tok) {
-    ASSERT(tok < NUM_TOKENS);  // tok is unsigned.
+    DCHECK(tok < NUM_TOKENS);  // tok is unsigned.
     return string_[tok];
   }
 
   // Returns the precedence > 0 for binary and compare
   // operators; returns 0 otherwise.
   static int Precedence(Value tok) {
-    ASSERT(tok < NUM_TOKENS);  // tok is unsigned.
+    DCHECK(tok < NUM_TOKENS);  // tok is unsigned.
     return precedence_[tok];
   }
 

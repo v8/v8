@@ -121,7 +121,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value)  \
   do {                                                               \
     if (!(call).ToHandle(&dst)) {                                    \
-      ASSERT((isolate)->has_pending_exception());                    \
+      DCHECK((isolate)->has_pending_exception());                    \
       return value;                                                  \
     }                                                                \
   } while (false)
@@ -136,7 +136,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value)            \
   do {                                                             \
     if ((call).is_null()) {                                        \
-      ASSERT((isolate)->has_pending_exception());                  \
+      DCHECK((isolate)->has_pending_exception());                  \
       return value;                                                \
     }                                                              \
   } while (false)
@@ -241,9 +241,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   }
 
   void Free() {
-    ASSERT(!has_pending_message_);
-    ASSERT(!external_caught_exception_);
-    ASSERT(try_catch_handler_ == NULL);
+    DCHECK(!has_pending_message_);
+    DCHECK(!external_caught_exception_);
+    DCHECK(try_catch_handler_ == NULL);
   }
 
   Isolate* isolate_;
@@ -466,7 +466,7 @@ class Isolate {
     EnsureInitialized();
     Isolate* isolate = reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
-    ASSERT(isolate != NULL);
+    DCHECK(isolate != NULL);
     return isolate;
   }
 
@@ -536,7 +536,7 @@ class Isolate {
   // Access to top context (where the current function object was created).
   Context* context() { return thread_local_top_.context_; }
   void set_context(Context* context) {
-    ASSERT(context == NULL || context->IsContext());
+    DCHECK(context == NULL || context->IsContext());
     thread_local_top_.context_ = context;
   }
   Context** context_address() { return &thread_local_top_.context_; }
@@ -548,18 +548,18 @@ class Isolate {
 
   // Interface to pending exception.
   Object* pending_exception() {
-    ASSERT(has_pending_exception());
-    ASSERT(!thread_local_top_.pending_exception_->IsException());
+    DCHECK(has_pending_exception());
+    DCHECK(!thread_local_top_.pending_exception_->IsException());
     return thread_local_top_.pending_exception_;
   }
 
   void set_pending_exception(Object* exception_obj) {
-    ASSERT(!exception_obj->IsException());
+    DCHECK(!exception_obj->IsException());
     thread_local_top_.pending_exception_ = exception_obj;
   }
 
   void clear_pending_exception() {
-    ASSERT(!thread_local_top_.pending_exception_->IsException());
+    DCHECK(!thread_local_top_.pending_exception_->IsException());
     thread_local_top_.pending_exception_ = heap_.the_hole_value();
   }
 
@@ -568,7 +568,7 @@ class Isolate {
   }
 
   bool has_pending_exception() {
-    ASSERT(!thread_local_top_.pending_exception_->IsException());
+    DCHECK(!thread_local_top_.pending_exception_->IsException());
     return !thread_local_top_.pending_exception_->IsTheHole();
   }
 
@@ -609,16 +609,16 @@ class Isolate {
   }
 
   Object* scheduled_exception() {
-    ASSERT(has_scheduled_exception());
-    ASSERT(!thread_local_top_.scheduled_exception_->IsException());
+    DCHECK(has_scheduled_exception());
+    DCHECK(!thread_local_top_.scheduled_exception_->IsException());
     return thread_local_top_.scheduled_exception_;
   }
   bool has_scheduled_exception() {
-    ASSERT(!thread_local_top_.scheduled_exception_->IsException());
+    DCHECK(!thread_local_top_.scheduled_exception_->IsException());
     return thread_local_top_.scheduled_exception_ != heap_.the_hole_value();
   }
   void clear_scheduled_exception() {
-    ASSERT(!thread_local_top_.scheduled_exception_->IsException());
+    DCHECK(!thread_local_top_.scheduled_exception_->IsException());
     thread_local_top_.scheduled_exception_ = heap_.the_hole_value();
   }
 
@@ -810,11 +810,11 @@ class Isolate {
   // Accessors.
 #define GLOBAL_ACCESSOR(type, name, initialvalue)                       \
   inline type name() const {                                            \
-    ASSERT(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
+    DCHECK(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
     return name##_;                                                     \
   }                                                                     \
   inline void set_##name(type value) {                                  \
-    ASSERT(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
+    DCHECK(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
     name##_ = value;                                                    \
   }
   ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)
@@ -822,7 +822,7 @@ class Isolate {
 
 #define GLOBAL_ARRAY_ACCESSOR(type, name, length)                       \
   inline type* name() {                                                 \
-    ASSERT(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
+    DCHECK(OFFSET_OF(Isolate, name##_) == name##_debug_offset_);        \
     return &(name##_)[0];                                               \
   }
   ISOLATE_INIT_ARRAY_LIST(GLOBAL_ARRAY_ACCESSOR)
@@ -842,7 +842,7 @@ class Isolate {
   Counters* counters() {
     // Call InitializeLoggingAndCounters() if logging is needed before
     // the isolate is fully initialized.
-    ASSERT(counters_ != NULL);
+    DCHECK(counters_ != NULL);
     return counters_;
   }
   CodeRange* code_range() { return code_range_; }
@@ -851,7 +851,7 @@ class Isolate {
   Logger* logger() {
     // Call InitializeLoggingAndCounters() if logging is needed before
     // the isolate is fully initialized.
-    ASSERT(logger_ != NULL);
+    DCHECK(logger_ != NULL);
     return logger_;
   }
   StackGuard* stack_guard() { return &stack_guard_; }
@@ -884,7 +884,7 @@ class Isolate {
   HandleScopeData* handle_scope_data() { return &handle_scope_data_; }
 
   HandleScopeImplementer* handle_scope_implementer() {
-    ASSERT(handle_scope_implementer_);
+    DCHECK(handle_scope_implementer_);
     return handle_scope_implementer_;
   }
   Zone* runtime_zone() { return &runtime_zone_; }
@@ -973,11 +973,11 @@ class Isolate {
   THREAD_LOCAL_TOP_ACCESSOR(StateTag, current_vm_state)
 
   void SetData(uint32_t slot, void* data) {
-    ASSERT(slot < Internals::kNumIsolateDataSlots);
+    DCHECK(slot < Internals::kNumIsolateDataSlots);
     embedder_data_[slot] = data;
   }
   void* GetData(uint32_t slot) {
-    ASSERT(slot < Internals::kNumIsolateDataSlots);
+    DCHECK(slot < Internals::kNumIsolateDataSlots);
     return embedder_data_[slot];
   }
 
@@ -985,7 +985,7 @@ class Isolate {
 
   void enable_serializer() {
     // The serializer can only be enabled before the isolate init.
-    ASSERT(state_ != INITIALIZED);
+    DCHECK(state_ != INITIALIZED);
     serializer_enabled_ = true;
   }
 
@@ -1041,14 +1041,14 @@ class Isolate {
 
   bool concurrent_recompilation_enabled() {
     // Thread is only available with flag enabled.
-    ASSERT(optimizing_compiler_thread_ == NULL ||
+    DCHECK(optimizing_compiler_thread_ == NULL ||
            FLAG_concurrent_recompilation);
     return optimizing_compiler_thread_ != NULL;
   }
 
   bool concurrent_osr_enabled() const {
     // Thread is only available with flag enabled.
-    ASSERT(optimizing_compiler_thread_ == NULL ||
+    DCHECK(optimizing_compiler_thread_ == NULL ||
            FLAG_concurrent_recompilation);
     return optimizing_compiler_thread_ != NULL && FLAG_concurrent_osr;
   }
@@ -1386,7 +1386,7 @@ class AssertNoContextChange BASE_EMBEDDED {
     : isolate_(isolate),
       context_(isolate->context(), isolate) { }
   ~AssertNoContextChange() {
-    ASSERT(isolate_->context() == *context_);
+    DCHECK(isolate_->context() == *context_);
   }
 
  private:

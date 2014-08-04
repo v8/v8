@@ -169,7 +169,7 @@ void OS::Free(void* address, const size_t size) {
   // TODO(1240712): munmap has a return value which is ignored here.
   int result = munmap(address, size);
   USE(result);
-  ASSERT(result == 0);
+  DCHECK(result == 0);
 }
 
 
@@ -357,12 +357,12 @@ TimezoneCache* OS::CreateTimezoneCache() {
 
 
 void OS::DisposeTimezoneCache(TimezoneCache* cache) {
-  ASSERT(cache == NULL);
+  DCHECK(cache == NULL);
 }
 
 
 void OS::ClearTimezoneCache(TimezoneCache* cache) {
-  ASSERT(cache == NULL);
+  DCHECK(cache == NULL);
 }
 
 
@@ -561,7 +561,7 @@ static void* ThreadEntry(void* arg) {
   // one).
   { LockGuard<Mutex> lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
-  ASSERT(thread->data()->thread_ != kNoThread);
+  DCHECK(thread->data()->thread_ != kNoThread);
   thread->NotifyStartedAndRun();
   return NULL;
 }
@@ -578,22 +578,22 @@ void Thread::Start() {
   pthread_attr_t attr;
   memset(&attr, 0, sizeof(attr));
   result = pthread_attr_init(&attr);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   // Native client uses default stack size.
 #if !V8_OS_NACL
   if (stack_size_ > 0) {
     result = pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
-    ASSERT_EQ(0, result);
+    DCHECK_EQ(0, result);
   }
 #endif
   {
     LockGuard<Mutex> lock_guard(&data_->thread_creation_mutex_);
     result = pthread_create(&data_->thread_, &attr, ThreadEntry, this);
   }
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_attr_destroy(&attr);
-  ASSERT_EQ(0, result);
-  ASSERT(data_->thread_ != kNoThread);
+  DCHECK_EQ(0, result);
+  DCHECK(data_->thread_ != kNoThread);
   USE(result);
 }
 
@@ -605,7 +605,7 @@ void Thread::Join() {
 
 void Thread::YieldCPU() {
   int result = sched_yield();
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
@@ -701,7 +701,7 @@ Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
 #endif
   pthread_key_t key;
   int result = pthread_key_create(&key, NULL);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
   LocalStorageKey local_key = PthreadKeyToLocalKey(key);
 #ifdef V8_FAST_TLS_SUPPORTED
@@ -715,7 +715,7 @@ Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
 void Thread::DeleteThreadLocalKey(LocalStorageKey key) {
   pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
   int result = pthread_key_delete(pthread_key);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
@@ -729,7 +729,7 @@ void* Thread::GetThreadLocal(LocalStorageKey key) {
 void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   pthread_key_t pthread_key = LocalKeyToPthreadKey(key);
   int result = pthread_setspecific(pthread_key, value);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 

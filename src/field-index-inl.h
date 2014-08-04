@@ -12,7 +12,7 @@ namespace internal {
 
 
 inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Map* map) {
-  ASSERT((offset % kPointerSize) == 0);
+  DCHECK((offset % kPointerSize) == 0);
   int index = offset / kPointerSize;
   if (map == NULL) {
     return FieldIndex(true, index, false, index + 1, 0, true);
@@ -29,7 +29,7 @@ inline FieldIndex FieldIndex::ForInObjectOffset(int offset, Map* map) {
 inline FieldIndex FieldIndex::ForPropertyIndex(Map* map,
                                                int property_index,
                                                bool is_double) {
-  ASSERT(map->instance_type() >= FIRST_NONSTRING_TYPE);
+  DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
   int inobject_properties = map->inobject_properties();
   bool is_inobject = property_index < inobject_properties;
   int first_inobject_offset;
@@ -64,7 +64,7 @@ inline FieldIndex FieldIndex::ForLoadByFieldIndex(Map* map, int orig_index) {
   }
   FieldIndex result(is_inobject, field_index, is_double,
                     map->inobject_properties(), first_inobject_offset);
-  ASSERT(result.GetLoadByFieldIndex() == orig_index);
+  DCHECK(result.GetLoadByFieldIndex() == orig_index);
   return result;
 }
 

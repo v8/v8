@@ -38,9 +38,9 @@ const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
 double OS::LocalTimeOffset(TimezoneCache* cache) {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(NULL);
-  ASSERT(utc != -1);
+  DCHECK(utc != -1);
   struct tm* loc = localtime(&utc);
-  ASSERT(loc != NULL);
+  DCHECK(loc != NULL);
   // time - localtime includes any daylight savings offset, so subtract it.
   return static_cast<double>((mktime(loc) - utc) * msPerSecond -
                              (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
@@ -205,7 +205,7 @@ VirtualMemory::VirtualMemory(size_t size)
 
 VirtualMemory::VirtualMemory(size_t size, size_t alignment)
     : address_(NULL), size_(0) {
-  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
+  DCHECK(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
   void* address = ReserveRegion(request_size);
@@ -214,11 +214,11 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
   // Try reducing the size by freeing and then reallocating a specific area.
   bool result = ReleaseRegion(address, request_size);
   USE(result);
-  ASSERT(result);
+  DCHECK(result);
   address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
   if (address != NULL) {
     request_size = size;
-    ASSERT(base == static_cast<uint8_t*>(address));
+    DCHECK(base == static_cast<uint8_t*>(address));
   } else {
     // Resizing failed, just go with a bigger area.
     address = ReserveRegion(request_size);
@@ -232,7 +232,7 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment)
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
     bool result = ReleaseRegion(address_, size_);
-    ASSERT(result);
+    DCHECK(result);
     USE(result);
   }
 }
@@ -255,7 +255,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
-  ASSERT(IsReserved());
+  DCHECK(IsReserved());
   return UncommitRegion(address, size);
 }
 

@@ -868,7 +868,7 @@ class TestJSONStream : public v8::OutputStream {
     return kContinue;
   }
   virtual WriteResult WriteUint32Chunk(uint32_t* buffer, int chars_written) {
-    ASSERT(false);
+    DCHECK(false);
     return kAbort;
   }
   void WriteTo(i::Vector<char> dest) { buffer_.WriteTo(dest); }
@@ -1037,13 +1037,13 @@ class TestStatsStream : public v8::OutputStream {
   virtual ~TestStatsStream() {}
   virtual void EndOfStream() { ++eos_signaled_; }
   virtual WriteResult WriteAsciiChunk(char* buffer, int chars_written) {
-    ASSERT(false);
+    DCHECK(false);
     return kAbort;
   }
   virtual WriteResult WriteHeapStatsChunk(v8::HeapStatsUpdate* buffer,
                                           int updates_written) {
     ++intervals_count_;
-    ASSERT(updates_written);
+    DCHECK(updates_written);
     updates_written_ += updates_written;
     entries_count_ = 0;
     if (first_interval_index_ == -1 && updates_written != 0)
@@ -2617,7 +2617,7 @@ TEST(ArrayBufferSharedBackingStore) {
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
   void* data = ab_contents.Data();
-  ASSERT(data != NULL);
+  DCHECK(data != NULL);
   v8::Local<v8::ArrayBuffer> ab2 =
       v8::ArrayBuffer::New(isolate, data, ab_contents.ByteLength());
   CHECK(ab2->IsExternal());

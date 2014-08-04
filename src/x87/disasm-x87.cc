@@ -211,7 +211,7 @@ void InstructionTable::CopyTable(const ByteMnemonic bm[],
     InstructionDesc* id = &instructions_[bm[i].b];
     id->mnem = bm[i].mnem;
     id->op_order_ = bm[i].op_order_;
-    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
+    DCHECK_EQ(NO_INSTR, id->type);  // Information not already entered.
     id->type = type;
   }
 }
@@ -223,7 +223,7 @@ void InstructionTable::SetTableRange(InstructionType type,
                                      const char* mnem) {
   for (byte b = start; b <= end; b++) {
     InstructionDesc* id = &instructions_[b];
-    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
+    DCHECK_EQ(NO_INSTR, id->type);  // Information not already entered.
     id->mnem = mnem;
     id->type = type;
   }
@@ -233,7 +233,7 @@ void InstructionTable::SetTableRange(InstructionType type,
 void InstructionTable::AddJumpConditionalShort() {
   for (byte b = 0x70; b <= 0x7F; b++) {
     InstructionDesc* id = &instructions_[b];
-    ASSERT_EQ(NO_INSTR, id->type);  // Information not already entered.
+    DCHECK_EQ(NO_INSTR, id->type);  // Information not already entered.
     id->mnem = jump_conditional_mnem[b & 0x0F];
     id->type = JUMP_CONDITIONAL_SHORT_INSTR;
   }
@@ -528,7 +528,7 @@ int DisassemblerX87::PrintImmediateOp(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX87::F7Instruction(byte* data) {
-  ASSERT_EQ(0xF7, *data);
+  DCHECK_EQ(0xF7, *data);
   byte modrm = *++data;
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
@@ -570,7 +570,7 @@ int DisassemblerX87::F7Instruction(byte* data) {
 
 int DisassemblerX87::D1D3C1Instruction(byte* data) {
   byte op = *data;
-  ASSERT(op == 0xD1 || op == 0xD3 || op == 0xC1);
+  DCHECK(op == 0xD1 || op == 0xD3 || op == 0xC1);
   byte modrm = *++data;
   int mod, regop, rm;
   get_modrm(modrm, &mod, &regop, &rm);
@@ -622,7 +622,7 @@ int DisassemblerX87::D1D3C1Instruction(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX87::JumpShort(byte* data) {
-  ASSERT_EQ(0xEB, *data);
+  DCHECK_EQ(0xEB, *data);
   byte b = *(data+1);
   byte* dest = data + static_cast<int8_t>(b) + 2;
   AppendToBuffer("jmp %s", NameOfAddress(dest));
@@ -632,7 +632,7 @@ int DisassemblerX87::JumpShort(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX87::JumpConditional(byte* data, const char* comment) {
-  ASSERT_EQ(0x0F, *data);
+  DCHECK_EQ(0x0F, *data);
   byte cond = *(data+1) & 0x0F;
   byte* dest = data + *reinterpret_cast<int32_t*>(data+2) + 6;
   const char* mnem = jump_conditional_mnem[cond];
@@ -660,7 +660,7 @@ int DisassemblerX87::JumpConditionalShort(byte* data, const char* comment) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX87::SetCC(byte* data) {
-  ASSERT_EQ(0x0F, *data);
+  DCHECK_EQ(0x0F, *data);
   byte cond = *(data+1) & 0x0F;
   const char* mnem = set_conditional_mnem[cond];
   AppendToBuffer("%s ", mnem);
@@ -671,7 +671,7 @@ int DisassemblerX87::SetCC(byte* data) {
 
 // Returns number of bytes used, including *data.
 int DisassemblerX87::CMov(byte* data) {
-  ASSERT_EQ(0x0F, *data);
+  DCHECK_EQ(0x0F, *data);
   byte cond = *(data + 1) & 0x0F;
   const char* mnem = conditional_move_mnem[cond];
   int op_size = PrintOperands(mnem, REG_OPER_OP_ORDER, data + 2);
@@ -682,7 +682,7 @@ int DisassemblerX87::CMov(byte* data) {
 // Returns number of bytes used, including *data.
 int DisassemblerX87::FPUInstruction(byte* data) {
   byte escape_opcode = *data;
-  ASSERT_EQ(0xD8, escape_opcode & 0xF8);
+  DCHECK_EQ(0xD8, escape_opcode & 0xF8);
   byte modrm_byte = *(data+1);
 
   if (modrm_byte >= 0xC0) {
@@ -1391,7 +1391,7 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
             int mod, regop, rm;
             get_modrm(*data, &mod, &regop, &rm);
             int8_t imm8 = static_cast<int8_t>(data[1]);
-            ASSERT(regop == esi || regop == edx);
+            DCHECK(regop == esi || regop == edx);
             AppendToBuffer("%s %s,%d",
                            (regop == esi) ? "psllq" : "psrlq",
                            NameOfXMMRegister(rm),
@@ -1658,7 +1658,7 @@ int DisassemblerX87::InstructionDecode(v8::internal::Vector<char> out_buffer,
   if (instr_len == 0) {
     printf("%02x", *data);
   }
-  ASSERT(instr_len > 0);  // Ensure progress.
+  DCHECK(instr_len > 0);  // Ensure progress.
 
   int outp = 0;
   // Instruction bytes.
