@@ -1431,11 +1431,11 @@
           '../../src/weak_collection.js',
           '../../src/promise.js',
           '../../src/object-observe.js',
+          '../../src/symbol.js',
           '../../src/macros.py',
         ],
         'experimental_library_files': [
           '../../src/macros.py',
-          '../../src/symbol.js',
           '../../src/proxy.js',
           '../../src/collection.js',
           '../../src/collection-iterator.js',

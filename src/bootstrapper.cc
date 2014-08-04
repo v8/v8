@@ -1134,6 +1134,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
                   isolate->initial_object_prototype(), Builtins::kIllegal);
 
+  {
+    // --- S y m b o l ---
+    Handle<JSFunction> symbol_fun = InstallFunction(
+        global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    native_context()->set_symbol_function(*symbol_fun);
+  }
+
   {  // --- sloppy arguments map
     // Make sure we can recognize argument objects at runtime.
     // This is done by introducing an anonymous function with
@@ -1307,14 +1315,6 @@ void Genesis::InitializeExperimentalGlobal() {
 
   // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
   // longer need to live behind flags, so functions get added to the snapshot.
-
-  if (FLAG_harmony_symbols) {
-    // --- S y m b o l ---
-    Handle<JSFunction> symbol_fun = InstallFunction(
-        global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
-        isolate()->initial_object_prototype(), Builtins::kIllegal);
-    native_context()->set_symbol_function(*symbol_fun);
-  }
 
   if (FLAG_harmony_collections) {
     // -- M a p
@@ -1621,6 +1621,7 @@ void Genesis::InstallNativeFunctions() {
                  native_object_get_notifier);
   INSTALL_NATIVE(JSFunction, "NativeObjectNotifierPerformChange",
                  native_object_notifier_perform_change);
+  INSTALL_NATIVE(Symbol, "symbolIterator", iterator_symbol);
 
   INSTALL_NATIVE_MATH(abs)
   INSTALL_NATIVE_MATH(acos)
@@ -1650,10 +1651,6 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
     INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
-  }
-
-  if (FLAG_harmony_symbols) {
-    INSTALL_NATIVE(Symbol, "symbolIterator", iterator_symbol);
   }
 }
 
@@ -2071,7 +2068,6 @@ bool Genesis::InstallExperimentalNatives() {
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount();
        i++) {
-    INSTALL_EXPERIMENTAL_NATIVE(i, symbols, "symbol.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection-iterator.js")

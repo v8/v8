@@ -27,7 +27,6 @@
 
 // Flags: --harmony-iteration
 // Flags: --harmony-generators --harmony-scoping --harmony-proxies
-// Flags: --harmony-symbols
 
 // Test for-of semantics.
 

@@ -153,7 +153,6 @@ DEFINE_BOOL(es_staging, false, "enable upcoming ES6+ features")
 DEFINE_BOOL(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_BOOL(harmony_modules, false,
             "enable harmony modules (implies block scoping)")
-DEFINE_BOOL(harmony_symbols, false, "enable harmony symbols")
 DEFINE_BOOL(harmony_proxies, false, "enable harmony proxies")
 DEFINE_BOOL(harmony_collections, false,
             "enable harmony collections (sets, maps)")
@@ -176,12 +175,8 @@ DEFINE_IMPLICATION(harmony, harmony_strings)
 DEFINE_IMPLICATION(harmony, harmony_arrays)
 DEFINE_IMPLICATION(harmony, harmony_arrow_functions)
 DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
-DEFINE_IMPLICATION(harmony_collections, harmony_symbols)
-DEFINE_IMPLICATION(harmony_generators, harmony_symbols)
-DEFINE_IMPLICATION(harmony_iteration, harmony_symbols)
 
 DEFINE_IMPLICATION(harmony, es_staging)
-DEFINE_IMPLICATION(es_staging, harmony_symbols)
 DEFINE_IMPLICATION(es_staging, harmony_collections)
 DEFINE_IMPLICATION(es_staging, harmony_iteration)
 

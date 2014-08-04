@@ -472,8 +472,6 @@ TEST(HeapSnapshotConsString) {
 
 
 TEST(HeapSnapshotSymbol) {
-  i::FLAG_harmony_symbols = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();

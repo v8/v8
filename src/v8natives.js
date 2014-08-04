@@ -1180,7 +1180,6 @@ function GetOwnEnumerablePropertyNames(object) {
     }
   }
 
-  // FLAG_harmony_symbols may be on, but symbols aren't included by for-in.
   var filter = PROPERTY_ATTRIBUTES_STRING | PROPERTY_ATTRIBUTES_PRIVATE_SYMBOL;
   var symbols = %GetOwnPropertyNames(object, filter);
   for (var i = 0; i < symbols.length; ++i) {
