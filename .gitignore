@@ -61,6 +61,8 @@ shell_g
 /test/test262/data
 /test/test262/data.old
 /test/test262/tc39-test262-*
+/testing/gmock
+/testing/gtest
 /third_party
 /tools/jsfunfuzz
 /tools/jsfunfuzz.zip

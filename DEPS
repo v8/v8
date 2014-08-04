@@ -19,6 +19,12 @@ deps = {
   "v8/buildtools":
     "https://chromium.googlesource.com/chromium/buildtools.git@" +
     Var("buildtools_revision"),
+
+  "v8/testing/gtest":
+    "http://googletest.googlecode.com/svn/trunk@643",
+
+  "v8/testing/gmock":
+    "http://googlemock.googlecode.com/svn/trunk@410",
 }
 
 deps_os = {

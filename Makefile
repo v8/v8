@@ -483,6 +483,10 @@ builddeps:
 	      https://src.chromium.org/chrome/trunk/deps/third_party/icu52 \
 	      third_party/icu --revision 277999 ; \
 	fi
+	svn checkout --force http://googletest.googlecode.com/svn/trunk \
+	    testing/gtest --revision 643
+	svn checkout --force http://googlemock.googlecode.com/svn/trunk \
+	    testing/gmock --revision 410
 
 dependencies: builddeps
 	# The spec is a copy of the hooks in v8's DEPS file.
