@@ -9,6 +9,7 @@
 #include "src/compiler/code-generator.h"
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
@@ -286,6 +287,16 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
   // Generate native sequence.
   CodeGenerator generator(&sequence);
   return generator.GenerateCode();
+}
+
+
+void Pipeline::SetUp() {
+  InstructionOperand::SetUpCaches();
+}
+
+
+void Pipeline::TearDown() {
+  InstructionOperand::TearDownCaches();
 }
 
 }  // namespace compiler

@@ -50,6 +50,9 @@ class Pipeline {
 #endif
   }
 
+  static void SetUp();
+  static void TearDown();
+
  private:
   CompilationInfo* info_;
 
