@@ -901,6 +901,7 @@ class HandlerStub : public HydrogenCodeStub {
  public:
   virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
   virtual ExtraICState GetExtraICState() const { return kind(); }
+  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
 
  protected:
   explicit HandlerStub(Isolate* isolate)
