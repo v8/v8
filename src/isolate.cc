@@ -523,10 +523,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       }
 
       if (options & StackTrace::kFunctionName) {
-        Handle<Object> fun_name(fun->shared()->name(), this);
-        if (!fun_name->BooleanValue()) {
-          fun_name = Handle<Object>(fun->shared()->inferred_name(), this);
-        }
+        Handle<Object> fun_name(fun->shared()->DebugName(), this);
         JSObject::AddProperty(stack_frame, function_key, fun_name, NONE);
       }
 
