@@ -11048,7 +11048,12 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
   }
 
   for (JavaScriptFrameIterator it(isolate, id); !it.done(); it.Advance()) {
-    n += it.frame()->GetInlineCount();
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    it.frame()->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0; i--) {
+      // Omit functions from native scripts.
+      if (!frames[i].function()->IsFromNativeScript()) n++;
+    }
   }
   return Smi::FromInt(n);
 }
@@ -11163,6 +11168,23 @@ RUNTIME_FUNCTION(Runtime_IsOptimized) {
 }
 
 
+// Advances the iterator to the frame that matches the index and returns the
+// inlined frame index, or -1 if not found.  Skips native JS functions.
+static int FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index) {
+  int count = -1;
+  for (; !it->done(); it->Advance()) {
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    it->frame()->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0; i--) {
+      // Omit functions from native scripts.
+      if (frames[i].function()->IsFromNativeScript()) continue;
+      if (++count == index) return i;
+    }
+  }
+  return -1;
+}
+
+
 // Return an array with frame details
 // args[0]: number: break id
 // args[1]: number: frame index
@@ -11196,22 +11218,13 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     return heap->undefined_value();
   }
 
-  int count = 0;
   JavaScriptFrameIterator it(isolate, id);
-  for (; !it.done(); it.Advance()) {
-    if (index < count + it.frame()->GetInlineCount()) break;
-    count += it.frame()->GetInlineCount();
-  }
-  if (it.done()) return heap->undefined_value();
+  // Inlined frame index in optimized frame, starting from outer function.
+  int inlined_jsframe_index = FindIndexedNonNativeFrame(&it, index);
+  if (inlined_jsframe_index == -1) return heap->undefined_value();
 
-  bool is_optimized = it.frame()->is_optimized();
-
-  int inlined_jsframe_index = 0;  // Inlined frame index in optimized frame.
-  if (is_optimized) {
-    inlined_jsframe_index =
-        it.frame()->GetInlineCount() - (index - count) - 1;
-  }
   FrameInspector frame_inspector(it.frame(), inlined_jsframe_index, isolate);
+  bool is_optimized = it.frame()->is_optimized();
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -13585,14 +13598,11 @@ RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
     return heap->undefined_value();
   }
 
-  int count = 0;
   JavaScriptFrameIterator it(isolate, id);
-  for (; !it.done(); it.Advance()) {
-    if (index < count + it.frame()->GetInlineCount()) break;
-    count += it.frame()->GetInlineCount();
-  }
-  if (it.done()) return heap->undefined_value();
-
+  int inlined_jsframe_index = FindIndexedNonNativeFrame(&it, index);
+  if (inlined_jsframe_index == -1) return heap->undefined_value();
+  // We don't really care what the inlined frame index is, since we are
+  // throwing away the entire frame anyways.
   const char* error_message = LiveEdit::RestartFrame(it.frame());
   if (error_message) {
     return *(isolate->factory()->InternalizeUtf8String(error_message));

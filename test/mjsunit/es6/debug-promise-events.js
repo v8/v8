@@ -32,6 +32,7 @@ function listener(event, exec_state, event_data, data) {
       // New promise.
       assertEquals("pending", event_data.promise().status());
       result.push({ promise: event_data.promise().value(), status: 0 });
+      assertTrue(exec_state.frame(0).sourceLineText().indexOf("// event") > 0);
     } else if (event_data.status() !== undefined) {
       // Resolve/reject promise.
       updatePromise(event_data.promise().value(),
@@ -43,6 +44,7 @@ function listener(event, exec_state, event_data, data) {
       assertTrue(event_data.parentPromise().isPromise());
       updatePromise(event_data.promise().value(),
                     event_data.parentPromise().value());
+      assertTrue(exec_state.frame(0).sourceLineText().indexOf("// event") > 0);
     }
   } catch (e) {
     print(e + e.stack)
@@ -52,15 +54,15 @@ function listener(event, exec_state, event_data, data) {
 
 Debug.setListener(listener);
 
-function resolver(resolve, reject) {
-  resolve();
-}
+function resolver(resolve, reject) { resolve(); }
 
-var p1 = new Promise(resolver);
-var p2 = p1.then().then();
-var p3 = new Promise(function(resolve, reject) { reject("rejected"); });
-var p4 = p3.then();
-var p5 = p1.then();
+var p1 = new Promise(resolver);  // event
+var p2 = p1.then().then();  // event
+var p3 = new Promise(function(resolve, reject) {  // event
+  reject("rejected");
+});
+var p4 = p3.then();  // event
+var p5 = p1.then();  // event
 
 function assertAsync(b, s) {
   if (b) {
