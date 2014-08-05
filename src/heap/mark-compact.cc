@@ -2580,8 +2580,118 @@ void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
   bool current_is_alive = map_mark.Get();
   bool parent_is_alive = Marking::MarkBitFrom(parent).Get();
   if (!current_is_alive && parent_is_alive) {
-    parent->ClearNonLiveTransitions(heap());
+    ClearMapTransitions(parent);
   }
+}
+
+
+// Clear a possible back pointer in case the transition leads to a dead map.
+// Return true in case a back pointer has been cleared and false otherwise.
+bool MarkCompactCollector::ClearMapBackPointer(Map* target) {
+  if (Marking::MarkBitFrom(target).Get()) return false;
+  target->SetBackPointer(heap_->undefined_value(), SKIP_WRITE_BARRIER);
+  return true;
+}
+
+
+void MarkCompactCollector::ClearMapTransitions(Map* map) {
+  // If there are no transitions to be cleared, return.
+  // TODO(verwaest) Should be an assert, otherwise back pointers are not
+  // properly cleared.
+  if (!map->HasTransitionArray()) return;
+
+  TransitionArray* t = map->transitions();
+
+  int transition_index = 0;
+
+  DescriptorArray* descriptors = map->instance_descriptors();
+  bool descriptors_owner_died = false;
+
+  // Compact all live descriptors to the left.
+  for (int i = 0; i < t->number_of_transitions(); ++i) {
+    Map* target = t->GetTarget(i);
+    if (ClearMapBackPointer(target)) {
+      if (target->instance_descriptors() == descriptors) {
+        descriptors_owner_died = true;
+      }
+    } else {
+      if (i != transition_index) {
+        Name* key = t->GetKey(i);
+        t->SetKey(transition_index, key);
+        Object** key_slot = t->GetKeySlot(transition_index);
+        RecordSlot(key_slot, key_slot, key);
+        // Target slots do not need to be recorded since maps are not compacted.
+        t->SetTarget(transition_index, t->GetTarget(i));
+      }
+      transition_index++;
+    }
+  }
+
+  // If there are no transitions to be cleared, return.
+  // TODO(verwaest) Should be an assert, otherwise back pointers are not
+  // properly cleared.
+  if (transition_index == t->number_of_transitions()) return;
+
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+
+  if (descriptors_owner_died) {
+    if (number_of_own_descriptors > 0) {
+      TrimDescriptorArray(map, descriptors, number_of_own_descriptors);
+      DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
+      map->set_owns_descriptors(true);
+    } else {
+      DCHECK(descriptors == heap_->empty_descriptor_array());
+    }
+  }
+
+  // Note that we never eliminate a transition array, though we might right-trim
+  // such that number_of_transitions() == 0. If this assumption changes,
+  // TransitionArray::CopyInsert() will need to deal with the case that a
+  // transition array disappeared during GC.
+  int trim = t->number_of_transitions() - transition_index;
+  if (trim > 0) {
+    heap_->RightTrimFixedArray<Heap::FROM_GC>(
+        t, t->IsSimpleTransition() ? trim
+                                   : trim * TransitionArray::kTransitionSize);
+  }
+  DCHECK(map->HasTransitionArray());
+}
+
+
+void MarkCompactCollector::TrimDescriptorArray(Map* map,
+                                               DescriptorArray* descriptors,
+                                               int number_of_own_descriptors) {
+  int number_of_descriptors = descriptors->number_of_descriptors_storage();
+  int to_trim = number_of_descriptors - number_of_own_descriptors;
+  if (to_trim == 0) return;
+
+  heap_->RightTrimFixedArray<Heap::FROM_GC>(
+      descriptors, to_trim * DescriptorArray::kDescriptorSize);
+  descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
+
+  if (descriptors->HasEnumCache()) TrimEnumCache(map, descriptors);
+  descriptors->Sort();
+}
+
+
+void MarkCompactCollector::TrimEnumCache(Map* map,
+                                         DescriptorArray* descriptors) {
+  int live_enum = map->EnumLength();
+  if (live_enum == kInvalidEnumCacheSentinel) {
+    live_enum = map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
+  }
+  if (live_enum == 0) return descriptors->ClearEnumCache();
+
+  FixedArray* enum_cache = descriptors->GetEnumCache();
+
+  int to_trim = enum_cache->length() - live_enum;
+  if (to_trim <= 0) return;
+  heap_->RightTrimFixedArray<Heap::FROM_GC>(descriptors->GetEnumCache(),
+                                            to_trim);
+
+  if (!descriptors->HasEnumIndicesCache()) return;
+  FixedArray* enum_indices_cache = descriptors->GetEnumIndicesCache();
+  heap_->RightTrimFixedArray<Heap::FROM_GC>(enum_indices_cache, to_trim);
 }
 
 
