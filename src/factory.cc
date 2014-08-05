@@ -1268,11 +1268,6 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
       ? isolate()->sloppy_function_with_readonly_prototype_map()
       : isolate()->sloppy_function_map();
   Handle<JSFunction> result = NewFunction(map, name, code);
-  if (!prototype->IsTheHole()) {
-    Handle<JSObject> js_proto = Handle<JSObject>::cast(prototype);
-    Handle<Map> new_map = Map::CopyAsPrototypeMap(handle(js_proto->map()));
-    JSObject::MigrateToMap(js_proto, new_map);
-  }
   result->set_prototype_or_initial_map(*prototype);
   return result;
 }

@@ -7288,7 +7288,6 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
 
 
 Handle<Map> Map::CopyAsPrototypeMap(Handle<Map> map) {
-  if (map->is_prototype_map()) return map;
   Handle<Map> result = Copy(map);
   result->mark_prototype_map();
   return result;
