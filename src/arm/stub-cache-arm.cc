@@ -838,50 +838,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
 }
 
 
-Register NamedLoadHandlerCompiler::CallbackFrontend(Register object_reg,
-                                                    Handle<Name> name,
-                                                    Handle<Object> callback) {
-  Label miss;
-
-  Register reg = FrontendHeader(object_reg, name, &miss);
-
-  if (!holder()->HasFastProperties()) {
-    DCHECK(!holder()->IsGlobalObject());
-    DCHECK(!reg.is(scratch2()));
-    DCHECK(!reg.is(scratch3()));
-    DCHECK(!reg.is(scratch4()));
-
-    // Load the properties dictionary.
-    Register dictionary = scratch4();
-    __ ldr(dictionary, FieldMemOperand(reg, JSObject::kPropertiesOffset));
-
-    // Probe the dictionary.
-    Label probe_done;
-    NameDictionaryLookupStub::GeneratePositiveLookup(masm(),
-                                                     &miss,
-                                                     &probe_done,
-                                                     dictionary,
-                                                     this->name(),
-                                                     scratch2(),
-                                                     scratch3());
-    __ bind(&probe_done);
-
-    // If probing finds an entry in the dictionary, scratch3 contains the
-    // pointer into the dictionary. Check that the value is the callback.
-    Register pointer = scratch3();
-    const int kElementsStartOffset = NameDictionary::kHeaderSize +
-        NameDictionary::kElementsStartIndex * kPointerSize;
-    const int kValueOffset = kElementsStartOffset + kPointerSize;
-    __ ldr(scratch2(), FieldMemOperand(pointer, kValueOffset));
-    __ cmp(scratch2(), Operand(callback));
-    __ b(ne, &miss);
-  }
-
-  FrontendFooter(name, &miss);
-  return reg;
-}
-
-
 void NamedLoadHandlerCompiler::GenerateLoadField(
     Register reg, FieldIndex field, Representation representation) {
   if (!reg.is(receiver())) __ mov(receiver(), reg);

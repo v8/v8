@@ -1001,14 +1001,13 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
                                                             type)) {
         return slow_stub();
       }
-      if (holder->IsGlobalObject()) return slow_stub();
+      if (!holder->HasFastProperties()) return slow_stub();
       return compiler.CompileLoadCallback(name, info);
     }
     if (accessors->IsAccessorPair()) {
       Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
                             isolate());
       if (!getter->IsJSFunction()) return slow_stub();
-      if (holder->IsGlobalObject()) return slow_stub();
       if (!holder->HasFastProperties()) return slow_stub();
       Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
       if (!object->IsJSObject() && !function->IsBuiltin() &&

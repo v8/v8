@@ -870,7 +870,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, Handle<ExecutableAccessorInfo> callback) {
-  Register reg = CallbackFrontend(receiver(), name, callback);
+  Register reg = Frontend(receiver(), name);
   GenerateLoadCallback(reg, callback);
   return GetCode(kind(), Code::FAST, name);
 }
@@ -879,8 +879,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization) {
   DCHECK(call_optimization.is_simple_api_call());
-  Handle<JSFunction> callback = call_optimization.constant_function();
-  CallbackFrontend(receiver(), name, callback);
+  Frontend(receiver(), name);
   Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
   GenerateFastApiCall(
       masm(), call_optimization, receiver_map,
@@ -912,26 +911,18 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
 void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     Register interceptor_reg, Handle<Name> name, LookupResult* lookup) {
   Handle<JSObject> real_named_property_holder(lookup->holder());
+
+  set_type_for_object(holder());
+  set_holder(real_named_property_holder);
+  Register reg = Frontend(interceptor_reg, name);
+
   if (lookup->IsField()) {
-    FieldIndex field = lookup->GetFieldIndex();
-    if (holder().is_identical_to(real_named_property_holder)) {
-      GenerateLoadField(interceptor_reg, field, lookup->representation());
-    } else {
-      set_type_for_object(holder());
-      set_holder(real_named_property_holder);
-      Register reg = Frontend(interceptor_reg, name);
-      GenerateLoadField(reg, field, lookup->representation());
-    }
+    GenerateLoadField(reg, lookup->GetFieldIndex(), lookup->representation());
   } else {
-    // We found CALLBACKS property in prototype chain of interceptor's holder.
     DCHECK(lookup->type() == CALLBACKS);
     Handle<ExecutableAccessorInfo> callback(
         ExecutableAccessorInfo::cast(lookup->GetCallbackObject()));
     DCHECK(callback->getter() != NULL);
-
-    set_type_for_object(holder());
-    set_holder(real_named_property_holder);
-    Register reg = CallbackFrontend(interceptor_reg, name, callback);
     GenerateLoadCallback(reg, callback);
   }
 }

@@ -794,51 +794,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
 }
 
 
-Register NamedLoadHandlerCompiler::CallbackFrontend(Register object_reg,
-                                                    Handle<Name> name,
-                                                    Handle<Object> callback) {
-  Label miss;
-
-  Register reg = FrontendHeader(object_reg, name, &miss);
-  // FrontendHeader can return its result into scratch1() so do not
-  // use it.
-  Register scratch2 = this->scratch2();
-  Register scratch3 = this->scratch3();
-  Register dictionary = this->scratch4();
-  DCHECK(!AreAliased(reg, scratch2, scratch3, dictionary));
-
-  if (!holder()->HasFastProperties()) {
-    DCHECK(!holder()->IsGlobalObject());
-    // Load the properties dictionary.
-    __ Ldr(dictionary, FieldMemOperand(reg, JSObject::kPropertiesOffset));
-
-    // Probe the dictionary.
-    Label probe_done;
-    NameDictionaryLookupStub::GeneratePositiveLookup(masm(),
-                                                     &miss,
-                                                     &probe_done,
-                                                     dictionary,
-                                                     this->name(),
-                                                     scratch2,
-                                                     scratch3);
-    __ Bind(&probe_done);
-
-    // If probing finds an entry in the dictionary, scratch3 contains the
-    // pointer into the dictionary. Check that the value is the callback.
-    Register pointer = scratch3;
-    const int kElementsStartOffset = NameDictionary::kHeaderSize +
-        NameDictionary::kElementsStartIndex * kPointerSize;
-    const int kValueOffset = kElementsStartOffset + kPointerSize;
-    __ Ldr(scratch2, FieldMemOperand(pointer, kValueOffset));
-    __ Cmp(scratch2, Operand(callback));
-    __ B(ne, &miss);
-  }
-
-  FrontendFooter(name, &miss);
-  return reg;
-}
-
-
 void NamedLoadHandlerCompiler::GenerateLoadField(
     Register reg, FieldIndex field, Representation representation) {
   __ Mov(receiver(), reg);

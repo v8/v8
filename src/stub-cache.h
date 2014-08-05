@@ -518,8 +518,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
 
  private:
-  Register CallbackFrontend(Register object_reg, Handle<Name> name,
-                            Handle<Object> callback);
   Handle<Code> CompileLoadNonexistent(Handle<Name> name);
   void GenerateLoadField(Register reg,
                          FieldIndex field,
