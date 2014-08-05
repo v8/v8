@@ -3260,15 +3260,6 @@ void Heap::AdjustLiveBytes(Address address, int by, InvocationMode mode) {
 }
 
 
-static void ZapFixedArrayForTrimming(Address address, int elements_to_trim) {
-  Object** zap = reinterpret_cast<Object**>(address);
-  zap++;  // Header of filler must be at least one word so skip that.
-  for (int i = 1; i < elements_to_trim; i++) {
-    *zap++ = Smi::FromInt(0);
-  }
-}
-
-
 FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
                                          int elements_to_trim) {
   const int element_size = object->IsFixedArray() ? kPointerSize : kDoubleSize;
@@ -3290,15 +3281,6 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
 
   // Calculate location of new array start.
   Address new_start = object->address() + bytes_to_trim;
-
-  if (bytes_to_trim > FreeSpace::kHeaderSize &&
-      object->IsFixedArray() &&
-      !new_space()->Contains(object)) {
-    // If we are doing a big trim in old space then we zap the space that was
-    // formerly part of the array so that the GC (aided by the card-based
-    // remembered set) won't find pointers to new-space there.
-    ZapFixedArrayForTrimming(object->address(), elements_to_trim);
-  }
 
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
@@ -3347,15 +3329,6 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
 
   // Calculate location of new array end.
   Address new_end = object->address() + object->Size() - bytes_to_trim;
-
-  if (bytes_to_trim > FreeSpace::kHeaderSize &&
-      object->IsFixedArray() &&
-      (mode != Heap::FROM_GC || Heap::ShouldZapGarbage())) {
-    // If we are doing a big trim in old space then we zap the space that was
-    // formerly part of the array so that the GC (aided by the card-based
-    // remembered set) won't find pointers to new-space there.
-    ZapFixedArrayForTrimming(new_end, elements_to_trim);
-  }
 
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
