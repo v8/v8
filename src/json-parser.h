@@ -9,8 +9,8 @@
 
 #include "src/char-predicates-inl.h"
 #include "src/conversions.h"
+#include "src/heap/spaces-inl.h"
 #include "src/messages.h"
-#include "src/spaces-inl.h"
 #include "src/token.h"
 
 namespace v8 {

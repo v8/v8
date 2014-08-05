@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_SWEEPER_THREAD_H_
-#define V8_SWEEPER_THREAD_H_
+#ifndef V8_HEAP_SWEEPER_THREAD_H_
+#define V8_HEAP_SWEEPER_THREAD_H_
 
 #include "src/base/atomicops.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
 #include "src/utils.h"
 
-#include "src/spaces.h"
+#include "src/heap/spaces.h"
 
-#include "src/heap.h"
+#include "src/heap/heap.h"
 
 namespace v8 {
 namespace internal {
@@ -39,7 +39,7 @@ class SweeperThread : public base::Thread {
   base::Semaphore stop_semaphore_;
   volatile base::AtomicWord stop_thread_;
 };
+}
+}  // namespace v8::internal
 
-} }  // namespace v8::internal
-
-#endif  // V8_SWEEPER_THREAD_H_
+#endif  // V8_HEAP_SWEEPER_THREAD_H_

@@ -37,10 +37,10 @@
 
 // Objects & heap
 #include "src/objects-inl.h"  // NOLINT
-#include "src/spaces-inl.h"  // NOLINT
-#include "src/heap-inl.h"  // NOLINT
-#include "src/incremental-marking-inl.h"  // NOLINT
-#include "src/mark-compact-inl.h"  // NOLINT
+#include "src/heap/spaces-inl.h"               // NOLINT
+#include "src/heap/heap-inl.h"                 // NOLINT
+#include "src/heap/incremental-marking-inl.h"  // NOLINT
+#include "src/heap/mark-compact-inl.h"         // NOLINT
 #include "src/log-inl.h"  // NOLINT
 #include "src/handles-inl.h"  // NOLINT
 #include "src/types-inl.h"  // NOLINT

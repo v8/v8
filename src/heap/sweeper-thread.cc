@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/sweeper-thread.h"
+#include "src/heap/sweeper-thread.h"
 
 #include "src/v8.h"
 
@@ -15,13 +15,13 @@ namespace internal {
 static const int kSweeperThreadStackSize = 64 * KB;
 
 SweeperThread::SweeperThread(Isolate* isolate)
-     : Thread(Thread::Options("v8:SweeperThread", kSweeperThreadStackSize)),
-       isolate_(isolate),
-       heap_(isolate->heap()),
-       collector_(heap_->mark_compact_collector()),
-       start_sweeping_semaphore_(0),
-       end_sweeping_semaphore_(0),
-       stop_semaphore_(0) {
+    : Thread(Thread::Options("v8:SweeperThread", kSweeperThreadStackSize)),
+      isolate_(isolate),
+      heap_(isolate->heap()),
+      collector_(heap_->mark_compact_collector()),
+      start_sweeping_semaphore_(0),
+      end_sweeping_semaphore_(0),
+      stop_semaphore_(0) {
   DCHECK(!FLAG_job_based_sweeping);
   base::NoBarrier_Store(&stop_thread_, static_cast<base::AtomicWord>(false));
 }
@@ -56,14 +56,10 @@ void SweeperThread::Stop() {
 }
 
 
-void SweeperThread::StartSweeping() {
-  start_sweeping_semaphore_.Signal();
-}
+void SweeperThread::StartSweeping() { start_sweeping_semaphore_.Signal(); }
 
 
-void SweeperThread::WaitForSweeperThread() {
-  end_sweeping_semaphore_.Wait();
-}
+void SweeperThread::WaitForSweeperThread() { end_sweeping_semaphore_.Wait(); }
 
 
 bool SweeperThread::SweepingCompleted() {
@@ -82,5 +78,5 @@ int SweeperThread::NumberOfThreads(int max_available) {
   DCHECK(FLAG_parallel_sweeping);
   return max_available;
 }
-
-} }  // namespace v8::internal
+}
+}  // namespace v8::internal

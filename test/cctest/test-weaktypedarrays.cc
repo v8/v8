@@ -31,7 +31,7 @@
 #include "test/cctest/cctest.h"
 
 #include "src/api.h"
-#include "src/heap.h"
+#include "src/heap/heap.h"
 #include "src/objects.h"
 
 using namespace v8::internal;

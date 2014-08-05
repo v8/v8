@@ -8,7 +8,7 @@
 
 #include "src/allocation.h"
 #include "src/handles.h"
-#include "src/heap.h"
+#include "src/heap/heap.h"
 #include "src/jsregexp.h"
 #include "src/objects.h"
 

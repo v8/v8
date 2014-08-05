@@ -15,6 +15,8 @@
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
 #include "src/deoptimizer.h"
+#include "src/heap/spaces.h"
+#include "src/heap/sweeper-thread.h"
 #include "src/heap-profiler.h"
 #include "src/hydrogen.h"
 #include "src/isolate-inl.h"
@@ -28,9 +30,7 @@
 #include "src/scopeinfo.h"
 #include "src/serialize.h"
 #include "src/simulator.h"
-#include "src/spaces.h"
 #include "src/stub-cache.h"
-#include "src/sweeper-thread.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 

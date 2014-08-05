@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MARK_COMPACT_INL_H_
-#define V8_MARK_COMPACT_INL_H_
+#ifndef V8_HEAP_MARK_COMPACT_INL_H_
+#define V8_HEAP_MARK_COMPACT_INL_H_
 
 #include <memory.h>
 
+#include "src/heap/mark-compact.h"
 #include "src/isolate.h"
-#include "src/mark-compact.h"
 
 
 namespace v8 {
@@ -57,23 +57,19 @@ bool MarkCompactCollector::IsMarked(Object* obj) {
 }
 
 
-void MarkCompactCollector::RecordSlot(Object** anchor_slot,
-                                      Object** slot,
+void MarkCompactCollector::RecordSlot(Object** anchor_slot, Object** slot,
                                       Object* object,
                                       SlotsBuffer::AdditionMode mode) {
   Page* object_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (object_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(anchor_slot)) {
     if (!SlotsBuffer::AddTo(&slots_buffer_allocator_,
-                            object_page->slots_buffer_address(),
-                            slot,
-                            mode)) {
+                            object_page->slots_buffer_address(), slot, mode)) {
       EvictEvacuationCandidate(object_page);
     }
   }
 }
+}
+}  // namespace v8::internal
 
-
-} }  // namespace v8::internal
-
-#endif  // V8_MARK_COMPACT_INL_H_
+#endif  // V8_HEAP_MARK_COMPACT_INL_H_

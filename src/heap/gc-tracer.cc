@@ -4,7 +4,7 @@
 
 #include "src/v8.h"
 
-#include "src/gc-tracer.h"
+#include "src/heap/gc-tracer.h"
 
 namespace v8 {
 namespace internal {
