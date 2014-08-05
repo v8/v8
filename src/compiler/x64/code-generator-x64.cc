@@ -687,7 +687,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // last output of the instruction.
   Label check;
   DCHECK_NE(0, instr->OutputCount());
-  Register reg = i.OutputRegister(instr->OutputCount() - 1);
+  Register reg = i.OutputRegister(static_cast<int>(instr->OutputCount() - 1));
   Condition cc = no_condition;
   switch (condition) {
     case kUnorderedEqual:
