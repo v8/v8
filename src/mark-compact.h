@@ -858,6 +858,10 @@ class MarkCompactCollector {
   // The linked list of all encountered weak maps is destroyed.
   void ClearWeakCollections();
 
+  // We have to remove all encountered weak maps from the list of weak
+  // collections when incremental marking is aborted.
+  void AbortWeakCollections();
+
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for
   // a non-compacting collection.

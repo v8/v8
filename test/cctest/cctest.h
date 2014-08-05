@@ -495,6 +495,26 @@ static inline void SimulateFullSpace(v8::internal::PagedSpace* space) {
 }
 
 
+// Helper function that simulates many incremental marking steps until
+// marking is completed.
+static inline void SimulateIncrementalMarking(i::Heap* heap) {
+  i::MarkCompactCollector* collector = heap->mark_compact_collector();
+  i::IncrementalMarking* marking = heap->incremental_marking();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+  CHECK(marking->IsMarking() || marking->IsStopped());
+  if (marking->IsStopped()) {
+    marking->Start();
+  }
+  CHECK(marking->IsMarking());
+  while (!marking->IsComplete()) {
+    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+  }
+  CHECK(marking->IsComplete());
+}
+
+
 // Helper class for new allocations tracking and checking.
 // To use checking of JS allocations tracking in a test,
 // just create an instance of this class.

@@ -968,6 +968,7 @@ void MarkCompactCollector::Prepare() {
   if (was_marked_incrementally_ && abort_incremental_marking_) {
     heap()->incremental_marking()->Abort();
     ClearMarkbits();
+    AbortWeakCollections();
     AbortCompaction();
     was_marked_incrementally_ = false;
   }
@@ -2793,6 +2794,20 @@ void MarkCompactCollector::ClearWeakCollections() {
         }
       }
     }
+    weak_collection_obj = weak_collection->next();
+    weak_collection->set_next(heap()->undefined_value());
+  }
+  heap()->set_encountered_weak_collections(Smi::FromInt(0));
+}
+
+
+void MarkCompactCollector::AbortWeakCollections() {
+  GCTracer::Scope gc_scope(heap()->tracer(),
+                           GCTracer::Scope::MC_WEAKCOLLECTION_ABORT);
+  Object* weak_collection_obj = heap()->encountered_weak_collections();
+  while (weak_collection_obj != Smi::FromInt(0)) {
+    JSWeakCollection* weak_collection =
+        reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
     weak_collection_obj = weak_collection->next();
     weak_collection->set_next(heap()->undefined_value());
   }

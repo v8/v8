@@ -255,3 +255,20 @@ TEST(Regress2060b) {
   heap->CollectAllGarbage(Heap::kNoGCFlags);
   heap->CollectAllGarbage(Heap::kNoGCFlags);
 }
+
+
+TEST(Regress399527) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  {
+    HandleScope scope(isolate);
+    AllocateJSWeakMap(isolate);
+    SimulateIncrementalMarking(heap);
+  }
+  // The weak map is marked black here but leaving the handle scope will make
+  // the object unreachable. Aborting incremental marking will clear all the
+  // marking bits which makes the weak map garbage.
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+}
