@@ -1202,68 +1202,35 @@ function MakeScriptObject_(script, include_source) {
 
 
 function MakePromiseEvent(event_data) {
-  if (event_data.type == "new") {
-    return new NewPromiseEvent(event_data);
-  }
-  if (event_data.type == "update") {
-    return new UpdatePromiseStatusEvent(event_data);
-  }
-  if (event_data.type == "chain") {
-    return new UpdatePromiseParentEvent(event_data);
-  }
+  return new PromiseEvent(event_data);
 }
 
 
-function PromiseGetter() {
-  return MakeMirror(this.promise_);
-}
-
-
-function NewPromiseEvent(event_data) {
-  this.resolver_ = event_data.resolver;
+function PromiseEvent(event_data) {
   this.promise_ = event_data.promise;
-}
-
-
-NewPromiseEvent.prototype.promise = PromiseGetter;
-
-
-NewPromiseEvent.prototype.resolver = function() {
-  return MakeMirror(this.resolver_);
-}
-
-
-function UpdatePromiseStatusEvent(event_data) {
-  this.promise_ = event_data.promise;
+  this.parentPromise_ = event_data.parentPromise;
   this.status_ = event_data.status;
   this.value_ = event_data.value;
 }
 
 
-UpdatePromiseStatusEvent.prototype.promise = PromiseGetter;
+PromiseEvent.prototype.promise = function() {
+  return MakeMirror(this.promise_);
+}
 
 
-UpdatePromiseStatusEvent.prototype.status = function() {
+PromiseEvent.prototype.parentPromise = function() {
+  return MakeMirror(this.parentPromise_);
+}
+
+
+PromiseEvent.prototype.status = function() {
   return this.status_;
 }
 
 
-UpdatePromiseStatusEvent.prototype.value = function() {
+PromiseEvent.prototype.value = function() {
   return MakeMirror(this.value_);
-}
-
-
-function UpdatePromiseParentEvent(event_data) {
-  this.promise_ = event_data.promise;
-  this.parentPromise_ = event_data.parentPromise;
-}
-
-
-UpdatePromiseParentEvent.prototype.promise = PromiseGetter;
-
-
-UpdatePromiseParentEvent.prototype.parentPromise = function() {
-  return MakeMirror(this.parentPromise_);
 }
 
 
