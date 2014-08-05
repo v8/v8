@@ -33,7 +33,6 @@
   'includes': ['toolchain.gypi'],
   'variables': {
     'component%': 'static_library',
-    'clang%': 0,
     'asan%': 0,
     'tsan%': 0,
     'visibility%': 'hidden',
@@ -116,6 +115,11 @@
         'v8_enable_gdbjit%': 1,
       }, {
         'v8_enable_gdbjit%': 0,
+      }],
+      ['OS=="mac"', {
+        'clang%': 1,
+      }, {
+        'clang%': 0,
       }],
     ],
     # Default ARM variable settings.
@@ -214,12 +218,9 @@
         'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                     '-Wno-long-long', '-pthread', '-fno-exceptions',
                     '-pedantic' ],
-        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti' ],
+        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          [ 'OS=="linux"', {
-            'cflags': [ '-ansi' ],
-          }],
           [ 'visibility=="hidden" and v8_enable_backtrace==0', {
             'cflags': [ '-fvisibility=hidden' ],
           }],
@@ -235,7 +236,7 @@
       'target_defaults': {
         'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
                     '-fno-exceptions' ],
-        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti' ],
+        'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'conditions': [
           [ 'visibility=="hidden"', {
             'cflags': [ '-fvisibility=hidden' ],
@@ -333,7 +334,7 @@
       'target_defaults': {
         'xcode_settings': {
           'ALWAYS_SEARCH_USER_PATHS': 'NO',
-          'GCC_C_LANGUAGE_STANDARD': 'ansi',        # -ansi
+          'GCC_C_LANGUAGE_STANDARD': 'c99',         # -std=c99
           'GCC_CW_ASM_SYNTAX': 'NO',                # No -fasm-blocks
           'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
                                                     # (Equivalent to -fPIC)
@@ -369,7 +370,7 @@
           ['clang==1', {
             'xcode_settings': {
               'GCC_VERSION': 'com.apple.compilers.llvm.clang.1_0',
-              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++11',  # -std=gnu++11
+              'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++0x',  # -std=gnu++0x
             },
           }],
         ],

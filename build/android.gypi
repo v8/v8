@@ -75,7 +75,12 @@
       },  # Release
     },  # configurations
     'cflags': [ '-Wno-abi', '-Wall', '-W', '-Wno-unused-parameter',
-                '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions', ],
+                '-Wnon-virtual-dtor', '-fno-rtti', '-fno-exceptions',
+                # Note: Using -std=c++0x will define __STRICT_ANSI__, which in
+                # turn will leave out some template stuff for 'long long'. What
+                # we want is -std=c++11, but this is not supported by GCC 4.6 or
+                # Xcode 4.2
+                '-std=gnu++0x' ],
     'target_conditions': [
       ['_toolset=="target"', {
         'cflags!': [
