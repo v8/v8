@@ -352,6 +352,8 @@ DEFINE_INT(interrupt_budget, 0x1800,
            "execution budget before interrupt is triggered")
 DEFINE_INT(type_info_threshold, 25,
            "percentage of ICs that must have type info to allow optimization")
+DEFINE_INT(generic_ic_threshold, 30,
+           "max percentage of megamorphic/generic ICs to allow optimization")
 DEFINE_INT(self_opt_count, 130, "call count before self-optimization")
 
 DEFINE_BOOL(trace_opt_verbose, false, "extra verbose compilation tracing")

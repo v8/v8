@@ -7071,6 +7071,7 @@ int TypeFeedbackInfo::ic_with_type_info_count() {
 
 
 void TypeFeedbackInfo::change_ic_with_type_info_count(int delta) {
+  if (delta == 0) return;
   int value = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
   int new_count = ICsWithTypeInfoCountField::decode(value) + delta;
   // We can get negative count here when the type-feedback info is
@@ -7086,9 +7087,25 @@ void TypeFeedbackInfo::change_ic_with_type_info_count(int delta) {
 }
 
 
+int TypeFeedbackInfo::ic_generic_count() {
+  return Smi::cast(READ_FIELD(this, kStorage3Offset))->value();
+}
+
+
+void TypeFeedbackInfo::change_ic_generic_count(int delta) {
+  if (delta == 0) return;
+  int new_count = ic_generic_count() + delta;
+  if (new_count >= 0) {
+    new_count &= ~Smi::kMinValue;
+    WRITE_FIELD(this, kStorage3Offset, Smi::FromInt(new_count));
+  }
+}
+
+
 void TypeFeedbackInfo::initialize_storage() {
   WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(0));
   WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(0));
+  WRITE_FIELD(this, kStorage3Offset, Smi::FromInt(0));
 }
 
 

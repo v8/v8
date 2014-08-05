@@ -486,7 +486,8 @@ void PolymorphicCodeCache::PolymorphicCodeCachePrint(OStream& os) {  // NOLINT
 void TypeFeedbackInfo::TypeFeedbackInfoPrint(OStream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "TypeFeedbackInfo");
   os << " - ic_total_count: " << ic_total_count()
-     << ", ic_with_type_info_count: " << ic_with_type_info_count() << "\n";
+     << ", ic_with_type_info_count: " << ic_with_type_info_count()
+     << ", ic_generic_count: " << ic_generic_count() << "\n";
 }
 
 

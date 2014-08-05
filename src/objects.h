@@ -8507,7 +8507,10 @@ class TypeFeedbackInfo: public Struct {
   inline void set_ic_total_count(int count);
 
   inline int ic_with_type_info_count();
-  inline void change_ic_with_type_info_count(int count);
+  inline void change_ic_with_type_info_count(int delta);
+
+  inline int ic_generic_count();
+  inline void change_ic_generic_count(int delta);
 
   inline void initialize_storage();
 
@@ -8526,7 +8529,8 @@ class TypeFeedbackInfo: public Struct {
 
   static const int kStorage1Offset = HeapObject::kHeaderSize;
   static const int kStorage2Offset = kStorage1Offset + kPointerSize;
-  static const int kSize = kStorage2Offset + kPointerSize;
+  static const int kStorage3Offset = kStorage2Offset + kPointerSize;
+  static const int kSize = kStorage3Offset + kPointerSize;
 
   // TODO(mvstanton): move these sentinel declarations to shared function info.
   // The object that indicates an uninitialized cache.
