@@ -4169,7 +4169,7 @@ void Heap::MakeHeapIterable() {
 
 void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
   incremental_marking()->Step(step_size,
-                              IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+                              IncrementalMarking::NO_GC_VIA_STACK_GUARD, true);
 
   if (incremental_marking()->IsComplete()) {
     bool uncommit = false;

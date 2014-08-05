@@ -83,7 +83,8 @@ class IncrementalMarking {
 
   void OldSpaceStep(intptr_t allocated);
 
-  void Step(intptr_t allocated, CompletionAction action);
+  void Step(intptr_t allocated, CompletionAction action,
+            bool force_marking = false);
 
   inline void RestartIfNotMarking() {
     if (state_ == COMPLETE) {

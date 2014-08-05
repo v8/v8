@@ -821,8 +821,8 @@ void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
 }
 
 
-void IncrementalMarking::Step(intptr_t allocated_bytes,
-                              CompletionAction action) {
+void IncrementalMarking::Step(intptr_t allocated_bytes, CompletionAction action,
+                              bool force_marking) {
   if (heap_->gc_state() != Heap::NOT_IN_GC || !FLAG_incremental_marking ||
       !FLAG_incremental_marking_steps ||
       (state_ != SWEEPING && state_ != MARKING)) {
@@ -831,7 +831,7 @@ void IncrementalMarking::Step(intptr_t allocated_bytes,
 
   allocated_ += allocated_bytes;
 
-  if (allocated_ < kAllocatedThreshold &&
+  if (!force_marking && allocated_ < kAllocatedThreshold &&
       write_barriers_invoked_since_last_step_ <
           kWriteBarriersInvokedThreshold) {
     return;
