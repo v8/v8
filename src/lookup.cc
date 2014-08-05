@@ -6,16 +6,36 @@
 
 #include "src/bootstrapper.h"
 #include "src/lookup.h"
+#include "src/lookup-inl.h"
 
 namespace v8 {
 namespace internal {
 
 
 void LookupIterator::Next() {
+  DisallowHeapAllocation no_gc;
   has_property_ = false;
-  do {
-    state_ = LookupInHolder();
-  } while (!IsFound() && NextHolder());
+
+  JSReceiver* holder = NULL;
+  Map* map = *holder_map_;
+
+  // Perform lookup on current holder.
+  state_ = LookupInHolder(map);
+
+  // Continue lookup if lookup on current holder failed.
+  while (!IsFound()) {
+    JSReceiver* maybe_holder = NextHolder(map);
+    if (maybe_holder == NULL) break;
+    holder = maybe_holder;
+    map = holder->map();
+    state_ = LookupInHolder(map);
+  }
+
+  // Either was found in the receiver, or the receiver has no prototype.
+  if (holder == NULL) return;
+
+  maybe_holder_ = handle(holder);
+  holder_map_ = handle(map);
 }
 
 
@@ -33,62 +53,6 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
   Handle<Object> receiver = GetReceiver();
   if (receiver->IsNumber()) return isolate_->factory()->heap_number_map();
   return handle(Handle<HeapObject>::cast(receiver)->map());
-}
-
-
-bool LookupIterator::NextHolder() {
-  if (holder_map_->prototype()->IsNull()) return false;
-
-  Handle<JSReceiver> next(JSReceiver::cast(holder_map_->prototype()));
-
-  if (!check_derived() &&
-      !(check_hidden() &&
-         // TODO(verwaest): Check if this is actually necessary currently. If it
-         // is, this should be handled by setting is_hidden_prototype on the
-         // global object behind the proxy.
-        (holder_map_->IsJSGlobalProxyMap() ||
-         next->map()->is_hidden_prototype()))) {
-    return false;
-  }
-
-  holder_map_ = handle(next->map());
-  maybe_holder_ = next;
-  return true;
-}
-
-
-LookupIterator::State LookupIterator::LookupInHolder() {
-  switch (state_) {
-    case NOT_FOUND:
-      if (holder_map_->IsJSProxyMap()) {
-        return JSPROXY;
-      }
-      if (check_access_check() && holder_map_->is_access_check_needed()) {
-        return ACCESS_CHECK;
-      }
-      // Fall through.
-    case ACCESS_CHECK:
-      if (check_interceptor() && holder_map_->has_named_interceptor()) {
-        return INTERCEPTOR;
-      }
-      // Fall through.
-    case INTERCEPTOR:
-      if (holder_map_->is_dictionary_map()) {
-        property_encoding_ = DICTIONARY;
-      } else {
-        DescriptorArray* descriptors = holder_map_->instance_descriptors();
-        number_ = descriptors->SearchWithCache(*name_, *holder_map_);
-        if (number_ == DescriptorArray::kNotFound) return NOT_FOUND;
-        property_encoding_ = DESCRIPTOR;
-      }
-      return PROPERTY;
-    case PROPERTY:
-      return NOT_FOUND;
-    case JSPROXY:
-      UNREACHABLE();
-  }
-  UNREACHABLE();
-  return state_;
 }
 
 
@@ -190,7 +154,7 @@ void LookupIterator::TransitionToDataProperty(
   // Reload the information.
   state_ = NOT_FOUND;
   configuration_ = CHECK_OWN_REAL;
-  state_ = LookupInHolder();
+  state_ = LookupInHolder(*holder_map_);
   DCHECK(IsFound());
   HasProperty();
 }

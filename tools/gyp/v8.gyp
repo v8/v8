@@ -649,6 +649,7 @@
         '../../src/log-utils.h',
         '../../src/log.cc',
         '../../src/log.h',
+        '../../src/lookup-inl.h',
         '../../src/lookup.cc',
         '../../src/lookup.h',
         '../../src/macro-assembler.h',
