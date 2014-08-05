@@ -171,6 +171,7 @@
       'conditions': [
         ['v8_target_arch=="ia32"', {
           'sources': [  ### gcmole(arch:ia32) ###
+            'compiler/test-instruction-selector-ia32.cc',
             'test-assembler-ia32.cc',
             'test-code-stubs.cc',
             'test-code-stubs-ia32.cc',

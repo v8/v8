@@ -176,6 +176,11 @@ class CpuFeatures : public AllStatic {
     ProbeImpl(cross_compile);
   }
 
+  static unsigned SupportedFeatures() {
+    Probe(false);
+    return supported_;
+  }
+
   static bool IsSupported(CpuFeature f) {
     return (supported_ & (1u << f)) != 0;
   }

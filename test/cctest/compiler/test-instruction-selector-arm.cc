@@ -119,6 +119,35 @@ TEST(InstructionSelectorDPIP) {
 }
 
 
+TEST(InstructionSelectorDPIImm) {
+  DPIs dpis;
+  Immediates immediates;
+  for (DPIs::const_iterator i = dpis.begin(); i != dpis.end(); ++i) {
+    DPI dpi = *i;
+    for (Immediates::const_iterator j = immediates.begin();
+         j != immediates.end(); ++j) {
+      int32_t imm = *j;
+      {
+        InstructionSelectorTester m;
+        m.Return(m.NewNode(dpi.op, m.Parameter(0), m.Int32Constant(imm)));
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(dpi.arch_opcode, m.code[0]->arch_opcode());
+        CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+      }
+      {
+        InstructionSelectorTester m;
+        m.Return(m.NewNode(dpi.op, m.Int32Constant(imm), m.Parameter(0)));
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(dpi.reverse_arch_opcode, m.code[0]->arch_opcode());
+        CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+      }
+    }
+  }
+}
+
+
 TEST(InstructionSelectorDPIAndShiftP) {
   DPIs dpis;
   Shifts shifts;
@@ -872,48 +901,12 @@ TEST(InstructionSelectorInt32MulImm) {
 }
 
 
-// The following tests depend on the exact CPU features available, which we do
-// only fully control in a simulator build.
-#ifdef USE_SIMULATOR
-
-TEST(InstructionSelectorDPIImm_ARMv7AndVFP3Disabled) {
-  i::FLAG_enable_armv7 = false;
-  i::FLAG_enable_vfp3 = false;
-  DPIs dpis;
-  Immediates immediates;
-  for (DPIs::const_iterator i = dpis.begin(); i != dpis.end(); ++i) {
-    DPI dpi = *i;
-    for (Immediates::const_iterator j = immediates.begin();
-         j != immediates.end(); ++j) {
-      int32_t imm = *j;
-      {
-        InstructionSelectorTester m;
-        m.Return(m.NewNode(dpi.op, m.Parameter(0), m.Int32Constant(imm)));
-        m.SelectInstructions();
-        CHECK_EQ(1, m.code.size());
-        CHECK_EQ(dpi.arch_opcode, m.code[0]->arch_opcode());
-        CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
-      }
-      {
-        InstructionSelectorTester m;
-        m.Return(m.NewNode(dpi.op, m.Int32Constant(imm), m.Parameter(0)));
-        m.SelectInstructions();
-        CHECK_EQ(1, m.code.size());
-        CHECK_EQ(dpi.reverse_arch_opcode, m.code[0]->arch_opcode());
-        CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
-      }
-    }
-  }
-}
-
-
-TEST(InstructionSelectorWord32AndImm_ARMv7Enabled) {
-  i::FLAG_enable_armv7 = true;
+TEST(InstructionSelectorWord32AndImm_ARMv7) {
   for (uint32_t width = 1; width <= 32; ++width) {
     InstructionSelectorTester m;
     m.Return(m.Word32And(m.Parameter(0),
                          m.Int32Constant(0xffffffffu >> (32 - width))));
-    m.SelectInstructions();
+    m.SelectInstructions(ARMv7);
     CHECK_EQ(1, m.code.size());
     CHECK_EQ(kArmUbfx, m.code[0]->arch_opcode());
     CHECK_EQ(3, m.code[0]->InputCount());
@@ -925,7 +918,7 @@ TEST(InstructionSelectorWord32AndImm_ARMv7Enabled) {
       uint32_t msk = ~((0xffffffffu >> (32 - width)) << lsb);
       InstructionSelectorTester m;
       m.Return(m.Word32And(m.Parameter(0), m.Int32Constant(msk)));
-      m.SelectInstructions();
+      m.SelectInstructions(ARMv7);
       CHECK_EQ(1, m.code.size());
       CHECK_EQ(kArmBfc, m.code[0]->arch_opcode());
       CHECK_EQ(1, m.code[0]->OutputCount());
@@ -939,15 +932,14 @@ TEST(InstructionSelectorWord32AndImm_ARMv7Enabled) {
 }
 
 
-TEST(InstructionSelectorWord32AndAndWord32ShrImm_ARMv7Enabled) {
-  i::FLAG_enable_armv7 = true;
+TEST(InstructionSelectorWord32AndAndWord32ShrImm_ARMv7) {
   for (uint32_t lsb = 0; lsb <= 31; ++lsb) {
     for (uint32_t width = 1; width <= 32 - lsb; ++width) {
       {
         InstructionSelectorTester m;
         m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb)),
                              m.Int32Constant(0xffffffffu >> (32 - width))));
-        m.SelectInstructions();
+        m.SelectInstructions(ARMv7);
         CHECK_EQ(1, m.code.size());
         CHECK_EQ(kArmUbfx, m.code[0]->arch_opcode());
         CHECK_EQ(3, m.code[0]->InputCount());
@@ -959,7 +951,7 @@ TEST(InstructionSelectorWord32AndAndWord32ShrImm_ARMv7Enabled) {
         m.Return(
             m.Word32And(m.Int32Constant(0xffffffffu >> (32 - width)),
                         m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb))));
-        m.SelectInstructions();
+        m.SelectInstructions(ARMv7);
         CHECK_EQ(1, m.code.size());
         CHECK_EQ(kArmUbfx, m.code[0]->arch_opcode());
         CHECK_EQ(3, m.code[0]->InputCount());
@@ -971,8 +963,7 @@ TEST(InstructionSelectorWord32AndAndWord32ShrImm_ARMv7Enabled) {
 }
 
 
-TEST(InstructionSelectorWord32ShrAndWord32AndImm_ARMv7Enabled) {
-  i::FLAG_enable_armv7 = true;
+TEST(InstructionSelectorWord32ShrAndWord32AndImm_ARMv7) {
   for (uint32_t lsb = 0; lsb <= 31; ++lsb) {
     for (uint32_t width = 1; width <= 32 - lsb; ++width) {
       uint32_t max = 1 << lsb;
@@ -983,7 +974,7 @@ TEST(InstructionSelectorWord32ShrAndWord32AndImm_ARMv7Enabled) {
         InstructionSelectorTester m;
         m.Return(m.Word32Shr(m.Word32And(m.Parameter(0), m.Int32Constant(msk)),
                              m.Int32Constant(lsb)));
-        m.SelectInstructions();
+        m.SelectInstructions(ARMv7);
         CHECK_EQ(1, m.code.size());
         CHECK_EQ(kArmUbfx, m.code[0]->arch_opcode());
         CHECK_EQ(3, m.code[0]->InputCount());
@@ -994,7 +985,7 @@ TEST(InstructionSelectorWord32ShrAndWord32AndImm_ARMv7Enabled) {
         InstructionSelectorTester m;
         m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(msk), m.Parameter(0)),
                              m.Int32Constant(lsb)));
-        m.SelectInstructions();
+        m.SelectInstructions(ARMv7);
         CHECK_EQ(1, m.code.size());
         CHECK_EQ(kArmUbfx, m.code[0]->arch_opcode());
         CHECK_EQ(3, m.code[0]->InputCount());
@@ -1006,19 +997,7 @@ TEST(InstructionSelectorWord32ShrAndWord32AndImm_ARMv7Enabled) {
 }
 
 
-TEST(InstructionSelectorInt32SubAndInt32MulP_MlsEnabled) {
-  i::FLAG_enable_mls = true;
-  InstructionSelectorTester m;
-  m.Return(
-      m.Int32Sub(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));
-  m.SelectInstructions();
-  CHECK_EQ(1, m.code.size());
-  CHECK_EQ(kArmMls, m.code[0]->arch_opcode());
-}
-
-
-TEST(InstructionSelectorInt32SubAndInt32MulP_MlsDisabled) {
-  i::FLAG_enable_mls = false;
+TEST(InstructionSelectorInt32SubAndInt32MulP) {
   InstructionSelectorTester m;
   m.Return(
       m.Int32Sub(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));
@@ -1032,19 +1011,17 @@ TEST(InstructionSelectorInt32SubAndInt32MulP_MlsDisabled) {
 }
 
 
-TEST(InstructionSelectorInt32DivP_ARMv7AndSudivEnabled) {
-  i::FLAG_enable_armv7 = true;
-  i::FLAG_enable_sudiv = true;
+TEST(InstructionSelectorInt32SubAndInt32MulP_MLS) {
   InstructionSelectorTester m;
-  m.Return(m.Int32Div(m.Parameter(0), m.Parameter(1)));
-  m.SelectInstructions();
+  m.Return(
+      m.Int32Sub(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));
+  m.SelectInstructions(MLS);
   CHECK_EQ(1, m.code.size());
-  CHECK_EQ(kArmSdiv, m.code[0]->arch_opcode());
+  CHECK_EQ(kArmMls, m.code[0]->arch_opcode());
 }
 
 
-TEST(InstructionSelectorInt32DivP_SudivDisabled) {
-  i::FLAG_enable_sudiv = false;
+TEST(InstructionSelectorInt32DivP) {
   InstructionSelectorTester m;
   m.Return(m.Int32Div(m.Parameter(0), m.Parameter(1)));
   m.SelectInstructions();
@@ -1064,19 +1041,16 @@ TEST(InstructionSelectorInt32DivP_SudivDisabled) {
 }
 
 
-TEST(InstructionSelectorInt32UDivP_ARMv7AndSudivEnabled) {
-  i::FLAG_enable_armv7 = true;
-  i::FLAG_enable_sudiv = true;
+TEST(InstructionSelectorInt32DivP_SUDIV) {
   InstructionSelectorTester m;
-  m.Return(m.Int32UDiv(m.Parameter(0), m.Parameter(1)));
-  m.SelectInstructions();
+  m.Return(m.Int32Div(m.Parameter(0), m.Parameter(1)));
+  m.SelectInstructions(SUDIV);
   CHECK_EQ(1, m.code.size());
-  CHECK_EQ(kArmUdiv, m.code[0]->arch_opcode());
+  CHECK_EQ(kArmSdiv, m.code[0]->arch_opcode());
 }
 
 
-TEST(InstructionSelectorInt32UDivP_SudivDisabled) {
-  i::FLAG_enable_sudiv = false;
+TEST(InstructionSelectorInt32UDivP) {
   InstructionSelectorTester m;
   m.Return(m.Int32UDiv(m.Parameter(0), m.Parameter(1)));
   m.SelectInstructions();
@@ -1096,54 +1070,16 @@ TEST(InstructionSelectorInt32UDivP_SudivDisabled) {
 }
 
 
-TEST(InstructionSelectorInt32ModP_ARMv7AndMlsAndSudivEnabled) {
-  i::FLAG_enable_armv7 = true;
-  i::FLAG_enable_mls = true;
-  i::FLAG_enable_sudiv = true;
+TEST(InstructionSelectorInt32UDivP_SUDIV) {
   InstructionSelectorTester m;
-  m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
-  m.SelectInstructions();
-  CHECK_EQ(2, m.code.size());
-  CHECK_EQ(kArmSdiv, m.code[0]->arch_opcode());
-  CHECK_EQ(1, m.code[0]->OutputCount());
-  CHECK_EQ(2, m.code[0]->InputCount());
-  CHECK_EQ(kArmMls, m.code[1]->arch_opcode());
-  CHECK_EQ(1, m.code[1]->OutputCount());
-  CHECK_EQ(3, m.code[1]->InputCount());
-  CheckSameVreg(m.code[0]->Output(), m.code[1]->InputAt(0));
-  CheckSameVreg(m.code[0]->InputAt(1), m.code[1]->InputAt(1));
-  CheckSameVreg(m.code[0]->InputAt(0), m.code[1]->InputAt(2));
+  m.Return(m.Int32UDiv(m.Parameter(0), m.Parameter(1)));
+  m.SelectInstructions(SUDIV);
+  CHECK_EQ(1, m.code.size());
+  CHECK_EQ(kArmUdiv, m.code[0]->arch_opcode());
 }
 
 
-TEST(InstructionSelectorInt32ModP_ARMv7AndSudivEnabled) {
-  i::FLAG_enable_armv7 = true;
-  i::FLAG_enable_mls = false;
-  i::FLAG_enable_sudiv = true;
-  InstructionSelectorTester m;
-  m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
-  m.SelectInstructions();
-  CHECK_EQ(3, m.code.size());
-  CHECK_EQ(kArmSdiv, m.code[0]->arch_opcode());
-  CHECK_EQ(1, m.code[0]->OutputCount());
-  CHECK_EQ(2, m.code[0]->InputCount());
-  CHECK_EQ(kArmMul, m.code[1]->arch_opcode());
-  CHECK_EQ(1, m.code[1]->OutputCount());
-  CHECK_EQ(2, m.code[1]->InputCount());
-  CheckSameVreg(m.code[0]->Output(), m.code[1]->InputAt(0));
-  CheckSameVreg(m.code[0]->InputAt(1), m.code[1]->InputAt(1));
-  CHECK_EQ(kArmSub, m.code[2]->arch_opcode());
-  CHECK_EQ(1, m.code[2]->OutputCount());
-  CHECK_EQ(2, m.code[2]->InputCount());
-  CheckSameVreg(m.code[0]->InputAt(0), m.code[2]->InputAt(0));
-  CheckSameVreg(m.code[1]->Output(), m.code[2]->InputAt(1));
-}
-
-
-TEST(InstructionSelectorInt32ModP_ARMv7AndMlsAndSudivDisabled) {
-  i::FLAG_enable_armv7 = false;
-  i::FLAG_enable_mls = false;
-  i::FLAG_enable_sudiv = false;
+TEST(InstructionSelectorInt32ModP) {
   InstructionSelectorTester m;
   m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
   m.SelectInstructions();
@@ -1173,35 +1109,12 @@ TEST(InstructionSelectorInt32ModP_ARMv7AndMlsAndSudivDisabled) {
 }
 
 
-TEST(InstructionSelectorInt32UModP_ARMv7AndMlsAndSudivEnabled) {
-  i::FLAG_enable_armv7 = true;
-  i::FLAG_enable_mls = true;
-  i::FLAG_enable_sudiv = true;
+TEST(InstructionSelectorInt32ModP_SUDIV) {
   InstructionSelectorTester m;
-  m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
-  m.SelectInstructions();
-  CHECK_EQ(2, m.code.size());
-  CHECK_EQ(kArmUdiv, m.code[0]->arch_opcode());
-  CHECK_EQ(1, m.code[0]->OutputCount());
-  CHECK_EQ(2, m.code[0]->InputCount());
-  CHECK_EQ(kArmMls, m.code[1]->arch_opcode());
-  CHECK_EQ(1, m.code[1]->OutputCount());
-  CHECK_EQ(3, m.code[1]->InputCount());
-  CheckSameVreg(m.code[0]->Output(), m.code[1]->InputAt(0));
-  CheckSameVreg(m.code[0]->InputAt(1), m.code[1]->InputAt(1));
-  CheckSameVreg(m.code[0]->InputAt(0), m.code[1]->InputAt(2));
-}
-
-
-TEST(InstructionSelectorInt32UModP_ARMv7AndSudivEnabled) {
-  i::FLAG_enable_armv7 = true;
-  i::FLAG_enable_mls = false;
-  i::FLAG_enable_sudiv = true;
-  InstructionSelectorTester m;
-  m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
-  m.SelectInstructions();
+  m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
+  m.SelectInstructions(SUDIV);
   CHECK_EQ(3, m.code.size());
-  CHECK_EQ(kArmUdiv, m.code[0]->arch_opcode());
+  CHECK_EQ(kArmSdiv, m.code[0]->arch_opcode());
   CHECK_EQ(1, m.code[0]->OutputCount());
   CHECK_EQ(2, m.code[0]->InputCount());
   CHECK_EQ(kArmMul, m.code[1]->arch_opcode());
@@ -1217,10 +1130,24 @@ TEST(InstructionSelectorInt32UModP_ARMv7AndSudivEnabled) {
 }
 
 
-TEST(InstructionSelectorInt32UModP_ARMv7AndMlsAndSudivDisabled) {
-  i::FLAG_enable_armv7 = false;
-  i::FLAG_enable_mls = false;
-  i::FLAG_enable_sudiv = false;
+TEST(InstructionSelectorInt32ModP_MLS_SUDIV) {
+  InstructionSelectorTester m;
+  m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
+  m.SelectInstructions(MLS, SUDIV);
+  CHECK_EQ(2, m.code.size());
+  CHECK_EQ(kArmSdiv, m.code[0]->arch_opcode());
+  CHECK_EQ(1, m.code[0]->OutputCount());
+  CHECK_EQ(2, m.code[0]->InputCount());
+  CHECK_EQ(kArmMls, m.code[1]->arch_opcode());
+  CHECK_EQ(1, m.code[1]->OutputCount());
+  CHECK_EQ(3, m.code[1]->InputCount());
+  CheckSameVreg(m.code[0]->Output(), m.code[1]->InputAt(0));
+  CheckSameVreg(m.code[0]->InputAt(1), m.code[1]->InputAt(1));
+  CheckSameVreg(m.code[0]->InputAt(0), m.code[1]->InputAt(2));
+}
+
+
+TEST(InstructionSelectorInt32UModP) {
   InstructionSelectorTester m;
   m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
   m.SelectInstructions();
@@ -1249,7 +1176,43 @@ TEST(InstructionSelectorInt32UModP_ARMv7AndMlsAndSudivDisabled) {
   CheckSameVreg(m.code[4]->Output(), m.code[5]->InputAt(1));
 }
 
-#endif  // USE_SIMULATOR
+
+TEST(InstructionSelectorInt32UModP_SUDIV) {
+  InstructionSelectorTester m;
+  m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
+  m.SelectInstructions(SUDIV);
+  CHECK_EQ(3, m.code.size());
+  CHECK_EQ(kArmUdiv, m.code[0]->arch_opcode());
+  CHECK_EQ(1, m.code[0]->OutputCount());
+  CHECK_EQ(2, m.code[0]->InputCount());
+  CHECK_EQ(kArmMul, m.code[1]->arch_opcode());
+  CHECK_EQ(1, m.code[1]->OutputCount());
+  CHECK_EQ(2, m.code[1]->InputCount());
+  CheckSameVreg(m.code[0]->Output(), m.code[1]->InputAt(0));
+  CheckSameVreg(m.code[0]->InputAt(1), m.code[1]->InputAt(1));
+  CHECK_EQ(kArmSub, m.code[2]->arch_opcode());
+  CHECK_EQ(1, m.code[2]->OutputCount());
+  CHECK_EQ(2, m.code[2]->InputCount());
+  CheckSameVreg(m.code[0]->InputAt(0), m.code[2]->InputAt(0));
+  CheckSameVreg(m.code[1]->Output(), m.code[2]->InputAt(1));
+}
+
+
+TEST(InstructionSelectorInt32UModP_MLS_SUDIV) {
+  InstructionSelectorTester m;
+  m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
+  m.SelectInstructions(MLS, SUDIV);
+  CHECK_EQ(2, m.code.size());
+  CHECK_EQ(kArmUdiv, m.code[0]->arch_opcode());
+  CHECK_EQ(1, m.code[0]->OutputCount());
+  CHECK_EQ(2, m.code[0]->InputCount());
+  CHECK_EQ(kArmMls, m.code[1]->arch_opcode());
+  CHECK_EQ(1, m.code[1]->OutputCount());
+  CHECK_EQ(3, m.code[1]->InputCount());
+  CheckSameVreg(m.code[0]->Output(), m.code[1]->InputAt(0));
+  CheckSameVreg(m.code[0]->InputAt(1), m.code[1]->InputAt(1));
+  CheckSameVreg(m.code[0]->InputAt(0), m.code[1]->InputAt(2));
+}
 
 
 TEST(InstructionSelectorWord32EqualP) {

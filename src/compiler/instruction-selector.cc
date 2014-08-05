@@ -14,10 +14,12 @@ namespace internal {
 namespace compiler {
 
 InstructionSelector::InstructionSelector(InstructionSequence* sequence,
-                                         SourcePositionTable* source_positions)
+                                         SourcePositionTable* source_positions,
+                                         Features features)
     : zone_(sequence->isolate()),
       sequence_(sequence),
       source_positions_(source_positions),
+      features_(features),
       current_block_(NULL),
       instructions_(InstructionDeque::allocator_type(zone())),
       defined_(graph()->NodeCount(), false, BoolVector::allocator_type(zone())),
