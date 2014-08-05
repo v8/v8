@@ -192,6 +192,7 @@ action("js2c") {
     "src/v8natives.js",
     "src/array.js",
     "src/string.js",
+    "src/symbol.js",
     "src/uri.js",
     "src/math.js",
     "src/messages.js",
@@ -204,6 +205,8 @@ action("js2c") {
     "src/regexp.js",
     "src/arraybuffer.js",
     "src/typedarray.js",
+    "src/collection.js",
+    "src/collection-iterator.js",
     "src/weak_collection.js",
     "src/promise.js",
     "src/object-observe.js",
@@ -244,10 +247,7 @@ action("js2c_experimental") {
 
   sources = [
     "src/macros.py",
-    "src/symbol.js",
     "src/proxy.js",
-    "src/collection.js",
-    "src/collection-iterator.js",
     "src/generator.js",
     "src/array-iterator.js",
     "src/harmony-string.js",

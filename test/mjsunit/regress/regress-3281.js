@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-collections --expose-natives-as=builtins
+// Flags: --expose-natives-as=builtins
 // Should not crash or raise an exception.
 
 var s = new Set();

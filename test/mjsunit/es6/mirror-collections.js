@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --expose-gc --harmony-collections
+// Flags: --expose-debug-as debug --expose-gc
 
 function testMapMirror(mirror) {
   // Create JSON representation.

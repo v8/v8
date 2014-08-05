@@ -494,8 +494,6 @@ TEST(HeapSnapshotSymbol) {
 
 
 TEST(HeapSnapshotWeakCollection) {
-  i::FLAG_harmony_collections = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -570,8 +568,6 @@ TEST(HeapSnapshotWeakCollection) {
 
 
 TEST(HeapSnapshotCollection) {
-  i::FLAG_harmony_collections = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();

@@ -1127,6 +1127,41 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     native_context()->set_data_view_fun(*data_view_fun);
   }
 
+  // -- M a p
+  InstallFunction(global, "Map", JS_MAP_TYPE, JSMap::kSize,
+                  isolate->initial_object_prototype(), Builtins::kIllegal);
+
+  // -- S e t
+  InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
+                  isolate->initial_object_prototype(), Builtins::kIllegal);
+
+  {  // Set up the iterator result object
+    STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
+    Handle<JSFunction> object_function(native_context()->object_function());
+    DCHECK(object_function->initial_map()->inobject_properties() == 0);
+    Handle<Map> iterator_result_map =
+        Map::Create(object_function, JSGeneratorObject::kResultPropertyCount);
+    DCHECK(iterator_result_map->inobject_properties() ==
+           JSGeneratorObject::kResultPropertyCount);
+    Map::EnsureDescriptorSlack(iterator_result_map,
+                               JSGeneratorObject::kResultPropertyCount);
+
+    FieldDescriptor value_descr(factory->value_string(),
+                                JSGeneratorObject::kResultValuePropertyIndex,
+                                NONE, Representation::Tagged());
+    iterator_result_map->AppendDescriptor(&value_descr);
+
+    FieldDescriptor done_descr(factory->done_string(),
+                               JSGeneratorObject::kResultDonePropertyIndex,
+                               NONE, Representation::Tagged());
+    iterator_result_map->AppendDescriptor(&done_descr);
+
+    iterator_result_map->set_unused_property_fields(0);
+    DCHECK_EQ(JSGeneratorObject::kResultSize,
+              iterator_result_map->instance_size());
+    native_context()->set_iterator_result_map(*iterator_result_map);
+  }
+
   // -- W e a k M a p
   InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
                   isolate->initial_object_prototype(), Builtins::kIllegal);
@@ -1311,39 +1346,8 @@ void Genesis::InstallTypedArray(
 
 
 void Genesis::InitializeExperimentalGlobal() {
-  Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
-
   // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
   // longer need to live behind flags, so functions get added to the snapshot.
-
-  if (FLAG_harmony_collections) {
-    // -- M a p
-    InstallFunction(global, "Map", JS_MAP_TYPE, JSMap::kSize,
-                    isolate()->initial_object_prototype(), Builtins::kIllegal);
-    // -- S e t
-    InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
-                    isolate()->initial_object_prototype(), Builtins::kIllegal);
-    {   // -- S e t I t e r a t o r
-      Handle<JSObject> builtins(native_context()->builtins());
-      Handle<JSFunction> set_iterator_function =
-          InstallFunction(builtins, "SetIterator", JS_SET_ITERATOR_TYPE,
-                          JSSetIterator::kSize,
-                          isolate()->initial_object_prototype(),
-                          Builtins::kIllegal);
-      native_context()->set_set_iterator_map(
-          set_iterator_function->initial_map());
-    }
-    {   // -- M a p I t e r a t o r
-      Handle<JSObject> builtins(native_context()->builtins());
-      Handle<JSFunction> map_iterator_function =
-          InstallFunction(builtins, "MapIterator", JS_MAP_ITERATOR_TYPE,
-                          JSMapIterator::kSize,
-                          isolate()->initial_object_prototype(),
-                          Builtins::kIllegal);
-      native_context()->set_map_iterator_map(
-          map_iterator_function->initial_map());
-    }
-  }
 
   if (FLAG_harmony_generators) {
     // Create generator meta-objects and install them on the builtins object.
@@ -1405,38 +1409,6 @@ void Genesis::InitializeExperimentalGlobal() {
         *generator_object_prototype);
     native_context()->set_generator_object_prototype_map(
         *generator_object_prototype_map);
-  }
-
-  if (FLAG_harmony_collections || FLAG_harmony_generators) {
-    // Collection forEach uses an iterator result object.
-    // Generators return iteraror result objects.
-
-    STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
-    Handle<JSFunction> object_function(native_context()->object_function());
-    DCHECK(object_function->initial_map()->inobject_properties() == 0);
-    Handle<Map> iterator_result_map = Map::Create(
-        object_function, JSGeneratorObject::kResultPropertyCount);
-    DCHECK(iterator_result_map->inobject_properties() ==
-        JSGeneratorObject::kResultPropertyCount);
-    Map::EnsureDescriptorSlack(
-        iterator_result_map, JSGeneratorObject::kResultPropertyCount);
-
-    FieldDescriptor value_descr(isolate()->factory()->value_string(),
-                                JSGeneratorObject::kResultValuePropertyIndex,
-                                NONE,
-                                Representation::Tagged());
-    iterator_result_map->AppendDescriptor(&value_descr);
-
-    FieldDescriptor done_descr(isolate()->factory()->done_string(),
-                               JSGeneratorObject::kResultDonePropertyIndex,
-                               NONE,
-                               Representation::Tagged());
-    iterator_result_map->AppendDescriptor(&done_descr);
-
-    iterator_result_map->set_unused_property_fields(0);
-    DCHECK_EQ(JSGeneratorObject::kResultSize,
-              iterator_result_map->instance_size());
-    native_context()->set_iterator_result_map(*iterator_result_map);
   }
 }
 
@@ -1925,6 +1897,22 @@ bool Genesis::InstallNatives() {
     InstallInternalArray(builtins, "InternalPackedArray", FAST_ELEMENTS);
   }
 
+  {  // -- S e t I t e r a t o r
+    Handle<JSFunction> set_iterator_function = InstallFunction(
+        builtins, "SetIterator", JS_SET_ITERATOR_TYPE, JSSetIterator::kSize,
+        isolate()->initial_object_prototype(), Builtins::kIllegal);
+    native_context()->set_set_iterator_map(
+        set_iterator_function->initial_map());
+  }
+
+  {  // -- M a p I t e r a t o r
+    Handle<JSFunction> map_iterator_function = InstallFunction(
+        builtins, "MapIterator", JS_MAP_ITERATOR_TYPE, JSMapIterator::kSize,
+        isolate()->initial_object_prototype(), Builtins::kIllegal);
+    native_context()->set_map_iterator_map(
+        map_iterator_function->initial_map());
+  }
+
   if (FLAG_disable_native_files) {
     PrintF("Warning: Running without installed natives!\n");
     return true;
@@ -2069,8 +2057,6 @@ bool Genesis::InstallExperimentalNatives() {
        i < ExperimentalNatives::GetBuiltinsCount();
        i++) {
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, collections, "collection-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "string-iterator.js")
