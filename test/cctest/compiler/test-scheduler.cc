@@ -1763,7 +1763,7 @@ TEST(BuildScheduleTrivialLazyDeoptCall) {
 
   Node* undef_node = graph.NewNode(common_builder.HeapConstant(undef_constant));
 
-  Node* start_node = graph.NewNode(common_builder.Start());
+  Node* start_node = graph.NewNode(common_builder.Start(0));
 
   CallDescriptor* descriptor = linkage.GetJSCallDescriptor(0);
   Node* call_node = graph.NewNode(common_builder.Call(descriptor),

@@ -604,7 +604,7 @@ void InstructionSelector::VisitNode(Node* node) {
 }
 
 
-#if V8_TURBOFAN_TARGET
+#if V8_TURBOFAN_BACKEND
 
 void InstructionSelector::VisitWord32Equal(Node* node) {
   FlagsContinuation cont(kEqual, node);
@@ -699,10 +699,10 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
   VisitFloat64Compare(node, &cont);
 }
 
-#endif  // V8_TURBOFAN_TARGET
+#endif  // V8_TURBOFAN_BACKEND
 
 // 32 bit targets do not implement the following instructions.
-#if V8_TARGET_ARCH_32_BIT && V8_TURBOFAN_TARGET
+#if V8_TARGET_ARCH_32_BIT && V8_TURBOFAN_BACKEND
 
 void InstructionSelector::VisitWord64And(Node* node) { UNIMPLEMENTED(); }
 
@@ -752,12 +752,12 @@ void InstructionSelector::VisitConvertInt32ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 
-#endif  // V8_TARGET_ARCH_32_BIT && V8_TURBOFAN_TARGET
+#endif  // V8_TARGET_ARCH_32_BIT && V8_TURBOFAN_BACKEND
 
 
 // 32-bit targets and unsupported architectures need dummy implementations of
 // selected 64-bit ops.
-#if V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_TARGET
+#if V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_BACKEND
 
 void InstructionSelector::VisitWord64Test(Node* node, FlagsContinuation* cont) {
   UNIMPLEMENTED();
@@ -769,7 +769,7 @@ void InstructionSelector::VisitWord64Compare(Node* node,
   UNIMPLEMENTED();
 }
 
-#endif  // V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_TARGET
+#endif  // V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_BACKEND
 
 
 void InstructionSelector::VisitParameter(Node* node) {
@@ -963,7 +963,7 @@ void InstructionSelector::VisitDeoptimization(Node* deopt) {
 }
 
 
-#if !V8_TURBOFAN_TARGET
+#if !V8_TURBOFAN_BACKEND
 
 #define DECLARE_UNIMPLEMENTED_SELECTOR(x) \
   void InstructionSelector::Visit##x(Node* node) { UNIMPLEMENTED(); }
@@ -1003,7 +1003,7 @@ void InstructionSelector::VisitFloat64Compare(Node* node,
 void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
                                     BasicBlock* deoptimization) {}
 
-#endif  // !V8_TURBOFAN_TARGET
+#endif  // !V8_TURBOFAN_BACKEND
 
 }  // namespace compiler
 }  // namespace internal
