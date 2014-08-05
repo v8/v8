@@ -7,7 +7,7 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
-#if V8_TURBOFAN_BACKEND
+#if V8_TURBOFAN_TARGET
 
 TEST(InstructionSelectionReturnZero) {
   InstructionSelectorTester m;
@@ -19,4 +19,4 @@ TEST(InstructionSelectionReturnZero) {
   CHECK_EQ(1, static_cast<int>(m.code[1]->InputCount()));
 }
 
-#endif  // !V8_TURBOFAN_BACKEND
+#endif  // !V8_TURBOFAN_TARGET
