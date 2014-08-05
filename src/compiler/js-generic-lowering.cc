@@ -29,6 +29,132 @@ static CodeStubInterfaceDescriptor* GetInterfaceDescriptor(Isolate* isolate,
 }
 
 
+// TODO(mstarzinger): This is a temporary shim to be able to call an IC stub
+// which doesn't have an interface descriptor yet. It mimics a hydrogen code
+// stub for the underlying IC stub code.
+class LoadICStubShim : public HydrogenCodeStub {
+ public:
+  LoadICStubShim(Isolate* isolate, ContextualMode contextual_mode)
+      : HydrogenCodeStub(isolate), contextual_mode_(contextual_mode) {
+    i::compiler::GetInterfaceDescriptor(isolate, this);
+  }
+
+  virtual Handle<Code> GenerateCode() V8_OVERRIDE {
+    ExtraICState extra_state = LoadIC::ComputeExtraICState(contextual_mode_);
+    return LoadIC::initialize_stub(isolate(), extra_state);
+  }
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
+    Register registers[] = { InterfaceDescriptor::ContextRegister(),
+                             LoadIC::ReceiverRegister(),
+                             LoadIC::NameRegister() };
+    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  }
+
+ private:
+  virtual Major MajorKey() const V8_OVERRIDE { return NoCache; }
+  virtual int NotMissMinorKey() const V8_OVERRIDE { return 0; }
+  virtual bool UseSpecialCache() V8_OVERRIDE { return true; }
+
+  ContextualMode contextual_mode_;
+};
+
+
+// TODO(mstarzinger): This is a temporary shim to be able to call an IC stub
+// which doesn't have an interface descriptor yet. It mimics a hydrogen code
+// stub for the underlying IC stub code.
+class KeyedLoadICStubShim : public HydrogenCodeStub {
+ public:
+  explicit KeyedLoadICStubShim(Isolate* isolate) : HydrogenCodeStub(isolate) {
+    i::compiler::GetInterfaceDescriptor(isolate, this);
+  }
+
+  virtual Handle<Code> GenerateCode() V8_OVERRIDE {
+    return isolate()->builtins()->KeyedLoadIC_Initialize();
+  }
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
+    Register registers[] = { InterfaceDescriptor::ContextRegister(),
+                             KeyedLoadIC::ReceiverRegister(),
+                             KeyedLoadIC::NameRegister() };
+    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  }
+
+ private:
+  virtual Major MajorKey() const V8_OVERRIDE { return NoCache; }
+  virtual int NotMissMinorKey() const V8_OVERRIDE { return 0; }
+  virtual bool UseSpecialCache() V8_OVERRIDE { return true; }
+};
+
+
+// TODO(mstarzinger): This is a temporary shim to be able to call an IC stub
+// which doesn't have an interface descriptor yet. It mimics a hydrogen code
+// stub for the underlying IC stub code.
+class StoreICStubShim : public HydrogenCodeStub {
+ public:
+  StoreICStubShim(Isolate* isolate, StrictMode strict_mode)
+      : HydrogenCodeStub(isolate), strict_mode_(strict_mode) {
+    i::compiler::GetInterfaceDescriptor(isolate, this);
+  }
+
+  virtual Handle<Code> GenerateCode() V8_OVERRIDE {
+    return StoreIC::initialize_stub(isolate(), strict_mode_);
+  }
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
+    Register registers[] = { InterfaceDescriptor::ContextRegister(),
+                             StoreIC::ReceiverRegister(),
+                             StoreIC::NameRegister(),
+                             StoreIC::ValueRegister() };
+    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  }
+
+ private:
+  virtual Major MajorKey() const V8_OVERRIDE { return NoCache; }
+  virtual int NotMissMinorKey() const V8_OVERRIDE { return 0; }
+  virtual bool UseSpecialCache() V8_OVERRIDE { return true; }
+
+  StrictMode strict_mode_;
+};
+
+
+// TODO(mstarzinger): This is a temporary shim to be able to call an IC stub
+// which doesn't have an interface descriptor yet. It mimics a hydrogen code
+// stub for the underlying IC stub code.
+class KeyedStoreICStubShim : public HydrogenCodeStub {
+ public:
+  KeyedStoreICStubShim(Isolate* isolate, StrictMode strict_mode)
+      : HydrogenCodeStub(isolate), strict_mode_(strict_mode) {
+    i::compiler::GetInterfaceDescriptor(isolate, this);
+  }
+
+  virtual Handle<Code> GenerateCode() V8_OVERRIDE {
+    return strict_mode_ == SLOPPY
+               ? isolate()->builtins()->KeyedStoreIC_Initialize()
+               : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
+  }
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
+    Register registers[] = { InterfaceDescriptor::ContextRegister(),
+                             KeyedStoreIC::ReceiverRegister(),
+                             KeyedStoreIC::NameRegister(),
+                             KeyedStoreIC::ValueRegister() };
+    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  }
+
+ private:
+  virtual Major MajorKey() const V8_OVERRIDE { return NoCache; }
+  virtual int NotMissMinorKey() const V8_OVERRIDE { return 0; }
+  virtual bool UseSpecialCache() V8_OVERRIDE { return true; }
+
+  StrictMode strict_mode_;
+};
+
+
 JSGenericLowering::JSGenericLowering(CompilationInfo* info, JSGraph* jsgraph,
                                      MachineOperatorBuilder* machine,
                                      SourcePositionTable* source_positions)
@@ -296,23 +422,19 @@ Node* JSGenericLowering::LowerJSToObject(Node* node) {
 
 
 Node* JSGenericLowering::LowerJSLoadProperty(Node* node) {
-  if (FLAG_compiled_keyed_generic_loads) {
-    KeyedLoadGenericStub stub(isolate());
-    ReplaceWithICStubCall(node, &stub);
-  } else {
-    ReplaceWithRuntimeCall(node, Runtime::kKeyedGetProperty);
-  }
+  KeyedLoadICStubShim stub(isolate());
+  ReplaceWithICStubCall(node, &stub);
   return node;
 }
 
 
 Node* JSGenericLowering::LowerJSLoadNamed(Node* node) {
-  Node* key =
-      jsgraph()->HeapConstant(OpParameter<PrintableUnique<Name> >(node));
-  PatchInsertInput(node, 1, key);
-  // TODO(mstarzinger): We cannot yet use KeyedLoadGenericElementStub here,
-  // because named interceptors would not fire correctly yet.
-  ReplaceWithRuntimeCall(node, Runtime::kGetProperty);
+  PrintableUnique<Name> key = OpParameter<PrintableUnique<Name> >(node);
+  // TODO(mstarzinger): The ContextualMode needs to be carried along in the
+  // operator to use JSLoadNamed for global variable loads.
+  LoadICStubShim stub(isolate(), NOT_CONTEXTUAL);
+  PatchInsertInput(node, 1, jsgraph()->HeapConstant(key));
+  ReplaceWithICStubCall(node, &stub);
   return node;
 }
 
@@ -321,21 +443,20 @@ Node* JSGenericLowering::LowerJSStoreProperty(Node* node) {
   // TODO(mstarzinger): The strict_mode needs to be carried along in the
   // operator so that graphs are fully compositional for inlining.
   StrictMode strict_mode = info()->strict_mode();
-  PatchInsertInput(node, 3, SmiConstant(strict_mode));
-  ReplaceWithRuntimeCall(node, Runtime::kSetProperty, 4);
+  KeyedStoreICStubShim stub(isolate(), strict_mode);
+  ReplaceWithICStubCall(node, &stub);
   return node;
 }
 
 
 Node* JSGenericLowering::LowerJSStoreNamed(Node* node) {
+  PrintableUnique<Name> key = OpParameter<PrintableUnique<Name> >(node);
   // TODO(mstarzinger): The strict_mode needs to be carried along in the
   // operator so that graphs are fully compositional for inlining.
   StrictMode strict_mode = info()->strict_mode();
-  Node* key =
-      jsgraph()->HeapConstant(OpParameter<PrintableUnique<Name> >(node));
-  PatchInsertInput(node, 1, key);
-  PatchInsertInput(node, 3, SmiConstant(strict_mode));
-  ReplaceWithRuntimeCall(node, Runtime::kSetProperty, 4);
+  StoreICStubShim stub(isolate(), strict_mode);
+  PatchInsertInput(node, 1, jsgraph()->HeapConstant(key));
+  ReplaceWithICStubCall(node, &stub);
   return node;
 }
 

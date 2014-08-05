@@ -1795,14 +1795,6 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
       // Global var, const, or let variable.
-      if (!info()->is_native()) {
-        // TODO(turbofan): This special case is needed only because we don't
-        // use StoreICs yet. Remove this once StoreNamed is lowered to an IC.
-        Node* name = jsgraph()->Constant(variable->name());
-        Node* strict = jsgraph()->Constant(strict_mode());
-        Operator* op = javascript()->Runtime(Runtime::kStoreLookupSlot, 4);
-        return NewNode(op, value, current_context(), name, strict);
-      }
       Node* global = BuildLoadGlobalObject();
       PrintableUnique<Name> name = MakeUnique(variable->name());
       Operator* op = javascript()->StoreNamed(name);
