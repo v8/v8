@@ -370,16 +370,6 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
 }
 
 
-void NamedStoreHandlerCompiler::GenerateRestoreName(MacroAssembler* masm,
-                                                    Label* label,
-                                                    Handle<Name> name) {
-  if (!label->is_unused()) {
-    __ bind(label);
-    __ mov(this->name(), Immediate(name));
-  }
-}
-
-
 // Generate code to check that a global property cell is empty. Create
 // the property cell at compilation time if no cell exists for the
 // property.
@@ -401,13 +391,31 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
 }
 
 
+void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
+                                              Handle<Code> code) {
+  __ jmp(code, RelocInfo::CODE_TARGET);
+}
+
+
+#undef __
+#define __ ACCESS_MASM(masm())
+
+
+void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
+                                                    Handle<Name> name) {
+  if (!label->is_unused()) {
+    __ bind(label);
+    __ mov(this->name(), Immediate(name));
+  }
+}
+
+
 // Receiver_reg is preserved on jumps to miss_label, but may be destroyed if
 // store is successful.
 void NamedStoreHandlerCompiler::GenerateStoreTransition(
-    MacroAssembler* masm, LookupResult* lookup, Handle<Map> transition,
-    Handle<Name> name, Register receiver_reg, Register storage_reg,
-    Register value_reg, Register scratch1, Register scratch2, Register unused,
-    Label* miss_label, Label* slow) {
+    Handle<Map> transition, Handle<Name> name, Register receiver_reg,
+    Register storage_reg, Register value_reg, Register scratch1,
+    Register scratch2, Register unused, Label* miss_label, Label* slow) {
   int descriptor = transition->LastAdded();
   DescriptorArray* descriptors = transition->instance_descriptors();
   PropertyDetails details = descriptors->GetDetails(descriptor);
@@ -415,7 +423,7 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
   DCHECK(!representation.IsNone());
 
   if (details.type() == CONSTANT) {
-    Handle<Object> constant(descriptors->GetValue(descriptor), masm->isolate());
+    Handle<Object> constant(descriptors->GetValue(descriptor), isolate());
     __ CmpObject(value_reg, constant);
     __ j(not_equal, miss_label);
   } else if (representation.IsSmi()) {
@@ -450,8 +458,8 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
     __ jmp(&do_store);
 
     __ bind(&heap_number);
-    __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
-                miss_label, DONT_DO_SMI_CHECK);
+    __ CheckMap(value_reg, isolate()->factory()->heap_number_map(), miss_label,
+                DONT_DO_SMI_CHECK);
     __ fld_d(FieldOperand(value_reg, HeapNumber::kValueOffset));
 
     __ bind(&do_store);
@@ -473,9 +481,8 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
     __ push(scratch1);
     __ TailCallExternalReference(
         ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
-                          masm->isolate()),
-        3,
-        1);
+                          isolate()),
+        3, 1);
     return;
   }
 
@@ -563,12 +570,12 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
 // Both name_reg and receiver_reg are preserved on jumps to miss_label,
 // but may be destroyed if store is successful.
 void NamedStoreHandlerCompiler::GenerateStoreField(
-    MacroAssembler* masm, Handle<JSObject> object, LookupResult* lookup,
-    Register receiver_reg, Register name_reg, Register value_reg,
-    Register scratch1, Register scratch2, Label* miss_label) {
-  // Stub never generated for non-global objects that require access
-  // checks.
-  DCHECK(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+    Handle<JSObject> object, LookupResult* lookup, Register receiver_reg,
+    Register name_reg, Register value_reg, Register scratch1, Register scratch2,
+    Label* miss_label) {
+  // Stub never generated for objects that require access checks.
+  DCHECK(!object->IsAccessCheckNeeded());
+  DCHECK(!object->IsJSGlobalProxy());
 
   FieldIndex index = lookup->GetFieldIndex();
 
@@ -612,8 +619,8 @@ void NamedStoreHandlerCompiler::GenerateStoreField(
     __ SmiTag(value_reg);
     __ jmp(&do_store);
     __ bind(&heap_number);
-    __ CheckMap(value_reg, masm->isolate()->factory()->heap_number_map(),
-                miss_label, DONT_DO_SMI_CHECK);
+    __ CheckMap(value_reg, isolate()->factory()->heap_number_map(), miss_label,
+                DONT_DO_SMI_CHECK);
     __ fld_d(FieldOperand(value_reg, HeapNumber::kValueOffset));
     __ bind(&do_store);
     __ fstp_d(FieldOperand(scratch1, HeapNumber::kValueOffset));
@@ -665,16 +672,6 @@ void NamedStoreHandlerCompiler::GenerateStoreField(
   DCHECK(value_reg.is(eax));
   __ ret(0);
 }
-
-
-void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
-                                              Handle<Code> code) {
-  __ jmp(code, RelocInfo::CODE_TARGET);
-}
-
-
-#undef __
-#define __ ACCESS_MASM(masm())
 
 
 Register PropertyHandlerCompiler::CheckPrototypes(
@@ -802,7 +799,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
   if (!miss->is_unused()) {
     Label success;
     __ jmp(&success);
-    GenerateRestoreName(masm(), miss, name);
+    GenerateRestoreName(miss, name);
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
@@ -1112,20 +1109,6 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
-}
-
-
-void NamedStoreHandlerCompiler::GenerateStoreArrayLength() {
-  // Prepare tail call to StoreIC_ArrayLength.
-  __ pop(scratch1());  // remove the return address
-  __ push(receiver());
-  __ push(value());
-  __ push(scratch1());  // restore return address
-
-  ExternalReference ref =
-      ExternalReference(IC_Utility(IC::kStoreIC_ArrayLength),
-                        masm()->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
 }
 
 
