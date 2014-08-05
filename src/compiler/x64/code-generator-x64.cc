@@ -16,8 +16,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#ifndef _WIN64
-
 #define __ masm()->
 
 
@@ -998,7 +996,6 @@ bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
 
 #endif
 
-#endif
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace internal
+}  // namespace compiler
+}  // namespace v8

@@ -9,8 +9,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#ifndef _WIN64
-
 // Adds X64-specific methods for generating operands.
 class X64OperandGenerator V8_FINAL : public OperandGenerator {
  public:
@@ -718,8 +716,6 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
     Emit(kPopStack | MiscField::encode(buffer.pushed_count), NULL);
   }
 }
-
-#endif
 
 }  // namespace compiler
 }  // namespace internal
