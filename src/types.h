@@ -7,11 +7,10 @@
 
 #include "src/factory.h"
 #include "src/handles.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
-
-class OStream;
 
 // SUMMARY
 //
@@ -512,6 +511,8 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
   static int Lub(TypeImpl* type);  // least upper bound that's a bitset
   static int Lub(i::Object* value);
   static int Lub(double value);
+  static int Lub(int32_t value);
+  static int Lub(uint32_t value);
   static int Lub(i::Map* map);
   static int InherentLub(TypeImpl* type);
 

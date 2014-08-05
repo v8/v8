@@ -69,9 +69,7 @@ class Typer::Visitor : public NullNodeVisitor {
 
   Bounds TypeNode(Node* node) {
     switch (node->opcode()) {
-#define DECLARE_CASE(x) \
-  case IrOpcode::k##x:  \
-    return Type##x(node);
+#define DECLARE_CASE(x) case IrOpcode::k##x: return Type##x(node);
       VALUE_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
@@ -119,12 +117,11 @@ class Typer::RunVisitor : public Typer::Visitor {
         phis(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
 
   GenericGraphVisit::Control Pre(Node* node) {
-    return NodeProperties::IsControl(node) &&
-                   node->opcode() != IrOpcode::kEnd &&
-                   node->opcode() != IrOpcode::kMerge &&
-                   node->opcode() != IrOpcode::kReturn
-               ? GenericGraphVisit::SKIP
-               : GenericGraphVisit::CONTINUE;
+    return NodeProperties::IsControl(node)
+        && node->opcode() != IrOpcode::kEnd
+        && node->opcode() != IrOpcode::kMerge
+        && node->opcode() != IrOpcode::kReturn
+        ? GenericGraphVisit::SKIP : GenericGraphVisit::CONTINUE;
   }
 
   GenericGraphVisit::Control Post(Node* node) {
@@ -153,8 +150,8 @@ class Typer::NarrowVisitor : public Typer::Visitor {
     NodeProperties::SetBounds(node, Bounds::Both(bounds, previous, zone()));
     DCHECK(bounds.Narrows(previous));
     // Stop when nothing changed (but allow reentry in case it does later).
-    return previous.Narrows(bounds) ? GenericGraphVisit::DEFER
-                                    : GenericGraphVisit::REENTER;
+    return previous.Narrows(bounds)
+        ? GenericGraphVisit::DEFER : GenericGraphVisit::REENTER;
   }
 
   GenericGraphVisit::Control Post(Node* node) {
@@ -175,8 +172,8 @@ class Typer::WidenVisitor : public Typer::Visitor {
     DCHECK(previous.upper->Is(bounds.upper));
     NodeProperties::SetBounds(node, bounds);  // TODO(rossberg): Either?
     // Stop when nothing changed (but allow reentry in case it does later).
-    return bounds.Narrows(previous) ? GenericGraphVisit::DEFER
-                                    : GenericGraphVisit::REENTER;
+    return bounds.Narrows(previous)
+        ? GenericGraphVisit::DEFER : GenericGraphVisit::REENTER;
   }
 
   GenericGraphVisit::Control Post(Node* node) {
@@ -344,23 +341,19 @@ Bounds Typer::Visitor::TypeJSAdd(Node* node) {
   Bounds left = OperandType(node, 0);
   Bounds right = OperandType(node, 1);
   Type* lower =
-      left.lower->Is(Type::None()) || right.lower->Is(Type::None())
-          ? Type::None(zone())
-          : left.lower->Is(Type::Number()) && right.lower->Is(Type::Number())
-                ? Type::SignedSmall(zone())
-                : left.lower->Is(Type::String()) ||
-                          right.lower->Is(Type::String())
-                      ? Type::String(zone())
-                      : Type::None(zone());
+      left.lower->Is(Type::None()) || right.lower->Is(Type::None()) ?
+          Type::None(zone()) :
+      left.lower->Is(Type::Number()) && right.lower->Is(Type::Number()) ?
+          Type::SignedSmall(zone()) :
+      left.lower->Is(Type::String()) || right.lower->Is(Type::String()) ?
+          Type::String(zone()) : Type::None(zone());
   Type* upper =
-      left.upper->Is(Type::None()) && right.upper->Is(Type::None())
-          ? Type::None(zone())
-          : left.upper->Is(Type::Number()) && right.upper->Is(Type::Number())
-                ? Type::Number(zone())
-                : left.upper->Is(Type::String()) ||
-                          right.upper->Is(Type::String())
-                      ? Type::String(zone())
-                      : Type::NumberOrString(zone());
+      left.upper->Is(Type::None()) && right.upper->Is(Type::None()) ?
+          Type::None(zone()) :
+      left.upper->Is(Type::Number()) && right.upper->Is(Type::Number()) ?
+          Type::Number(zone()) :
+      left.upper->Is(Type::String()) || right.upper->Is(Type::String()) ?
+          Type::String(zone()) : Type::NumberOrString(zone());
   return Bounds(lower, upper);
 }
 
@@ -437,12 +430,12 @@ Bounds Typer::Visitor::TypeJSLoadProperty(Node* node) {
   Bounds result = Bounds::Unbounded(zone());
   // TODO(rossberg): Use range types and sized array types to filter undefined.
   if (object.lower->IsArray() && name.lower->Is(Type::Integral32())) {
-    result.lower = Type::Union(object.lower->AsArray()->Element(),
-                               Type::Undefined(zone()), zone());
+    result.lower = Type::Union(
+        object.lower->AsArray()->Element(), Type::Undefined(zone()), zone());
   }
   if (object.upper->IsArray() && name.upper->Is(Type::Integral32())) {
-    result.upper = Type::Union(object.upper->AsArray()->Element(),
-                               Type::Undefined(zone()), zone());
+    result.upper = Type::Union(
+        object.upper->AsArray()->Element(),  Type::Undefined(zone()), zone());
   }
   return result;
 }
@@ -572,10 +565,10 @@ Bounds Typer::Visitor::TypeJSCallConstruct(Node* node) {
 
 Bounds Typer::Visitor::TypeJSCallFunction(Node* node) {
   Bounds fun = OperandType(node, 0);
-  Type* lower = fun.lower->IsFunction() ? fun.lower->AsFunction()->Result()
-                                        : Type::None(zone());
-  Type* upper = fun.upper->IsFunction() ? fun.upper->AsFunction()->Result()
-                                        : Type::Any(zone());
+  Type* lower = fun.lower->IsFunction()
+      ? fun.lower->AsFunction()->Result() : Type::None(zone());
+  Type* upper = fun.upper->IsFunction()
+      ? fun.upper->AsFunction()->Result() : Type::Any(zone());
   return Bounds(lower, upper);
 }
 
@@ -751,7 +744,7 @@ Bounds Typer::Visitor::TypeStoreElement(Node* node) {
 
 // TODO(rossberg): implement
 #define DEFINE_METHOD(x) \
-  Bounds Typer::Visitor::Type##x(Node* node) { return Bounds(Type::None()); }
+    Bounds Typer::Visitor::Type##x(Node* node) { return Bounds(Type::None()); }
 MACHINE_OP_LIST(DEFINE_METHOD)
 #undef DEFINE_METHOD
 
@@ -831,12 +824,14 @@ class TyperDecorator : public GraphDecorator {
  private:
   Typer* typer_;
 };
+
 }
 
 
 void Typer::DecorateGraph(Graph* graph) {
   graph->AddDecorator(new (zone()) TyperDecorator(this));
 }
+
 }
 }
 }  // namespace v8::internal::compiler
