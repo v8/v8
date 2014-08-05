@@ -37,6 +37,9 @@
         'gtest/src/gtest-test-part.cc',
         'gtest/src/gtest-typed-test.cc',
         'gtest/src/gtest.cc',
+        'multiprocess_func_list.cc',
+        'multiprocess_func_list.h',
+        'platform_test.h',
       ],
       'sources!': [
         'gtest/src/gtest-all.cc',  # Not needed by our build.
