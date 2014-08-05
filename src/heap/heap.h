@@ -700,15 +700,25 @@ class Heap {
   inline void FinalizeExternalString(String* string);
 
   // Initialize a filler object to keep the ability to iterate over the heap
-  // when shortening objects.
+  // when introducing gaps within pages.
   void CreateFillerObjectAt(Address addr, int size);
 
   bool CanMoveObjectStart(HeapObject* object);
 
+  // Indicates whether live bytes adjustment is triggered from within the GC
+  // code or from mutator code.
   enum InvocationMode { FROM_GC, FROM_MUTATOR };
 
-  // Maintain marking consistency for IncrementalMarking.
+  // Maintain consistency of live bytes during incremental marking.
   void AdjustLiveBytes(Address address, int by, InvocationMode mode);
+
+  // Trim the given array from the left. Note that this relocates the object
+  // start and hence is only valid if there is only a single reference to it.
+  FixedArrayBase* LeftTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
+
+  // Trim the given array from the right.
+  template<Heap::InvocationMode mode>
+  void RightTrimFixedArray(FixedArrayBase* obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
   inline Object* ToBoolean(bool condition);

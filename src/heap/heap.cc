@@ -3260,6 +3260,125 @@ void Heap::AdjustLiveBytes(Address address, int by, InvocationMode mode) {
 }
 
 
+static void ZapFixedArrayForTrimming(Address address, int elements_to_trim) {
+  Object** zap = reinterpret_cast<Object**>(address);
+  zap++;  // Header of filler must be at least one word so skip that.
+  for (int i = 1; i < elements_to_trim; i++) {
+    *zap++ = Smi::FromInt(0);
+  }
+}
+
+
+FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
+                                         int elements_to_trim) {
+  const int element_size = object->IsFixedArray() ? kPointerSize : kDoubleSize;
+  const int bytes_to_trim = elements_to_trim * element_size;
+  Map* map = object->map();
+
+  // For now this trick is only applied to objects in new and paged space.
+  // In large object space the object's start must coincide with chunk
+  // and thus the trick is just not applicable.
+  DCHECK(!lo_space()->Contains(object));
+  DCHECK(object->map() != fixed_cow_array_map());
+
+  STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
+  STATIC_ASSERT(FixedArrayBase::kLengthOffset == kPointerSize);
+  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
+
+  const int len = object->length();
+  DCHECK(elements_to_trim <= len);
+
+  // Calculate location of new array start.
+  Address new_start = object->address() + bytes_to_trim;
+
+  if (bytes_to_trim > FreeSpace::kHeaderSize &&
+      object->IsFixedArray() &&
+      !new_space()->Contains(object)) {
+    // If we are doing a big trim in old space then we zap the space that was
+    // formerly part of the array so that the GC (aided by the card-based
+    // remembered set) won't find pointers to new-space there.
+    ZapFixedArrayForTrimming(object->address(), elements_to_trim);
+  }
+
+  // Technically in new space this write might be omitted (except for
+  // debug mode which iterates through the heap), but to play safer
+  // we still do it.
+  CreateFillerObjectAt(object->address(), bytes_to_trim);
+
+  // Initialize header of the trimmed array. Since left trimming is only
+  // performed on pages which are not concurrently swept creating a filler
+  // object does not require synchronization.
+  DCHECK(CanMoveObjectStart(object));
+  Object** former_start = HeapObject::RawField(object, 0);
+  int new_start_index = elements_to_trim * (element_size / kPointerSize);
+  former_start[new_start_index] = map;
+  former_start[new_start_index + 1] = Smi::FromInt(len - elements_to_trim);
+  FixedArrayBase* new_object =
+      FixedArrayBase::cast(HeapObject::FromAddress(new_start));
+
+  // Maintain consistency of live bytes during incremental marking
+  marking()->TransferMark(object->address(), new_start);
+  AdjustLiveBytes(new_start, -bytes_to_trim, Heap::FROM_MUTATOR);
+
+  // Notify the heap profiler of change in object layout.
+  OnMoveEvent(new_object, object, new_object->Size());
+  return new_object;
+}
+
+
+// Force instantiation of templatized method.
+template
+void Heap::RightTrimFixedArray<Heap::FROM_GC>(FixedArrayBase*, int);
+template
+void Heap::RightTrimFixedArray<Heap::FROM_MUTATOR>(FixedArrayBase*, int);
+
+
+template<Heap::InvocationMode mode>
+void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
+  const int element_size = object->IsFixedArray() ? kPointerSize : kDoubleSize;
+  const int bytes_to_trim = elements_to_trim * element_size;
+
+  // For now this trick is only applied to objects in new and paged space.
+  DCHECK(!lo_space()->Contains(object));
+  DCHECK(object->map() != fixed_cow_array_map());
+
+  const int len = object->length();
+  DCHECK(elements_to_trim < len);
+
+  // Calculate location of new array end.
+  Address new_end = object->address() + object->Size() - bytes_to_trim;
+
+  if (bytes_to_trim > FreeSpace::kHeaderSize &&
+      object->IsFixedArray() &&
+      (mode != Heap::FROM_GC || Heap::ShouldZapGarbage())) {
+    // If we are doing a big trim in old space then we zap the space that was
+    // formerly part of the array so that the GC (aided by the card-based
+    // remembered set) won't find pointers to new-space there.
+    ZapFixedArrayForTrimming(new_end, elements_to_trim);
+  }
+
+  // Technically in new space this write might be omitted (except for
+  // debug mode which iterates through the heap), but to play safer
+  // we still do it.
+  CreateFillerObjectAt(new_end, bytes_to_trim);
+
+  // Initialize header of the trimmed array. We are storing the new length
+  // using release store after creating a filler for the left-over space to
+  // avoid races with the sweeper thread.
+  object->synchronized_set_length(len - elements_to_trim);
+
+  // Maintain consistency of live bytes during incremental marking
+  AdjustLiveBytes(object->address(), -bytes_to_trim, mode);
+
+  // Notify the heap profiler of change in object layout. The array may not be
+  // moved during GC, and size has to be adjusted nevertheless.
+  HeapProfiler* profiler = isolate()->heap_profiler();
+  if (profiler->is_tracking_allocations()) {
+    profiler->UpdateObjectSizeEvent(object->address(), object->Size());
+  }
+}
+
+
 AllocationResult Heap::AllocateExternalArray(int length,
                                              ExternalArrayType array_type,
                                              void* external_pointer,

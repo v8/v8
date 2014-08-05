@@ -873,8 +873,7 @@ class ElementsAccessorBase : public ElementsAccessor {
 
 // Super class for all fast element arrays.
 template<typename FastElementsAccessorSubclass,
-         typename KindTraits,
-         int ElementSize>
+         typename KindTraits>
 class FastElementsAccessor
     : public ElementsAccessorBase<FastElementsAccessorSubclass, KindTraits> {
  public:
@@ -916,15 +915,8 @@ class FastElementsAccessor
         if (length == 0) {
           array->initialize_elements();
         } else {
-          int filler_size = (old_capacity - length) * ElementSize;
-          Address filler_start = backing_store->address() +
-              BackingStore::OffsetOfElementAt(length);
-          array->GetHeap()->CreateFillerObjectAt(filler_start, filler_size);
-
-          // We are storing the new length using release store after creating a
-          // filler for the left-over space to avoid races with the sweeper
-          // thread.
-          backing_store->synchronized_set_length(length);
+          isolate->heap()->RightTrimFixedArray<Heap::FROM_MUTATOR>(
+              *backing_store, old_capacity - length);
         }
       } else {
         // Otherwise, fill the unused tail with holes.
@@ -1078,14 +1070,11 @@ static inline ElementsKind ElementsKindForArray(Handle<FixedArrayBase> array) {
 template<typename FastElementsAccessorSubclass,
          typename KindTraits>
 class FastSmiOrObjectElementsAccessor
-    : public FastElementsAccessor<FastElementsAccessorSubclass,
-                                  KindTraits,
-                                  kPointerSize> {
+    : public FastElementsAccessor<FastElementsAccessorSubclass, KindTraits> {
  public:
   explicit FastSmiOrObjectElementsAccessor(const char* name)
       : FastElementsAccessor<FastElementsAccessorSubclass,
-                             KindTraits,
-                             kPointerSize>(name) {}
+                             KindTraits>(name) {}
 
   static void CopyElementsImpl(Handle<FixedArrayBase> from,
                                uint32_t from_start,
@@ -1199,14 +1188,11 @@ class FastHoleyObjectElementsAccessor
 template<typename FastElementsAccessorSubclass,
          typename KindTraits>
 class FastDoubleElementsAccessor
-    : public FastElementsAccessor<FastElementsAccessorSubclass,
-                                  KindTraits,
-                                  kDoubleSize> {
+    : public FastElementsAccessor<FastElementsAccessorSubclass, KindTraits> {
  public:
   explicit FastDoubleElementsAccessor(const char* name)
       : FastElementsAccessor<FastElementsAccessorSubclass,
-                             KindTraits,
-                             kDoubleSize>(name) {}
+                             KindTraits>(name) {}
 
   static void SetFastElementsCapacityAndLength(Handle<JSObject> obj,
                                                uint32_t capacity,
