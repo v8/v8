@@ -125,7 +125,7 @@ OStream& operator<<(OStream& os, const ParallelMove& pm) {
 void PointerMap::RecordPointer(InstructionOperand* op, Zone* zone) {
   // Do not record arguments as pointers.
   if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
   pointer_operands_.Add(op, zone);
 }
 
@@ -133,7 +133,7 @@ void PointerMap::RecordPointer(InstructionOperand* op, Zone* zone) {
 void PointerMap::RemovePointer(InstructionOperand* op) {
   // Do not record arguments as pointers.
   if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
   for (int i = 0; i < pointer_operands_.length(); ++i) {
     if (pointer_operands_[i]->Equals(op)) {
       pointer_operands_.Remove(i);
@@ -146,7 +146,7 @@ void PointerMap::RemovePointer(InstructionOperand* op) {
 void PointerMap::RecordUntagged(InstructionOperand* op, Zone* zone) {
   // Do not record arguments as pointers.
   if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
   untagged_operands_.Add(op, zone);
 }
 
@@ -331,7 +331,7 @@ void InstructionSequence::StartBlock(BasicBlock* block) {
 
 void InstructionSequence::EndBlock(BasicBlock* block) {
   int end = static_cast<int>(instructions_.size());
-  ASSERT(block->code_start_ >= 0 && block->code_start_ < end);
+  DCHECK(block->code_start_ >= 0 && block->code_start_ < end);
   block->code_end_ = end;
 }
 
@@ -344,7 +344,7 @@ int InstructionSequence::AddInstruction(Instruction* instr, BasicBlock* block) {
   instructions_.push_back(instr);
   if (!instr->IsControl()) instructions_.push_back(gap);
   if (instr->NeedsPointerMap()) {
-    ASSERT(instr->pointer_map() == NULL);
+    DCHECK(instr->pointer_map() == NULL);
     PointerMap* pointer_map = new (zone()) PointerMap(zone());
     pointer_map->set_instruction_position(index);
     instr->set_pointer_map(pointer_map);
@@ -357,7 +357,7 @@ int InstructionSequence::AddInstruction(Instruction* instr, BasicBlock* block) {
 BasicBlock* InstructionSequence::GetBasicBlock(int instruction_index) {
   // TODO(turbofan): Optimize this.
   for (;;) {
-    ASSERT_LE(0, instruction_index);
+    DCHECK_LE(0, instruction_index);
     Instruction* instruction = InstructionAt(instruction_index--);
     if (instruction->IsBlockStart()) {
       return BlockStartInstruction::cast(instruction)->block();

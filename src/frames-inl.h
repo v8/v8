@@ -208,7 +208,7 @@ inline JavaScriptFrame::JavaScriptFrame(StackFrameIteratorBase* iterator)
 
 Address JavaScriptFrame::GetParameterSlot(int index) const {
   int param_count = ComputeParametersCount();
-  ASSERT(-1 <= index && index < param_count);
+  DCHECK(-1 <= index && index < param_count);
   int parameter_offset = (param_count - index - 1) * kPointerSize;
   return caller_sp() + parameter_offset;
 }
@@ -221,10 +221,10 @@ Object* JavaScriptFrame::GetParameter(int index) const {
 
 inline Address JavaScriptFrame::GetOperandSlot(int index) const {
   Address base = fp() + JavaScriptFrameConstants::kLocal0Offset;
-  ASSERT(IsAddressAligned(base, kPointerSize));
-  ASSERT_EQ(type(), JAVA_SCRIPT);
-  ASSERT_LT(index, ComputeOperandsCount());
-  ASSERT_LE(0, index);
+  DCHECK(IsAddressAligned(base, kPointerSize));
+  DCHECK_EQ(type(), JAVA_SCRIPT);
+  DCHECK_LT(index, ComputeOperandsCount());
+  DCHECK_LE(0, index);
   // Operand stack grows down.
   return base - index * kPointerSize;
 }
@@ -240,9 +240,9 @@ inline int JavaScriptFrame::ComputeOperandsCount() const {
   // Base points to low address of first operand and stack grows down, so add
   // kPointerSize to get the actual stack size.
   intptr_t stack_size_in_bytes = (base + kPointerSize) - sp();
-  ASSERT(IsAligned(stack_size_in_bytes, kPointerSize));
-  ASSERT(type() == JAVA_SCRIPT);
-  ASSERT(stack_size_in_bytes >= 0);
+  DCHECK(IsAligned(stack_size_in_bytes, kPointerSize));
+  DCHECK(type() == JAVA_SCRIPT);
+  DCHECK(stack_size_in_bytes >= 0);
   return static_cast<int>(stack_size_in_bytes >> kPointerSizeLog2);
 }
 
@@ -317,14 +317,14 @@ inline JavaScriptFrame* JavaScriptFrameIterator::frame() const {
   // the JavaScript frame type, because we may encounter arguments
   // adaptor frames.
   StackFrame* frame = iterator_.frame();
-  ASSERT(frame->is_java_script() || frame->is_arguments_adaptor());
+  DCHECK(frame->is_java_script() || frame->is_arguments_adaptor());
   return static_cast<JavaScriptFrame*>(frame);
 }
 
 
 inline StackFrame* SafeStackFrameIterator::frame() const {
-  ASSERT(!done());
-  ASSERT(frame_->is_java_script() || frame_->is_exit());
+  DCHECK(!done());
+  DCHECK(frame_->is_java_script() || frame_->is_exit());
   return frame_;
 }
 

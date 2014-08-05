@@ -149,7 +149,7 @@ bool AstValue::IsPropertyName() const {
 bool AstValue::BooleanValue() const {
   switch (type_) {
     case STRING:
-      ASSERT(string_ != NULL);
+      DCHECK(string_ != NULL);
       return !string_->IsEmpty();
     case SYMBOL:
       UNREACHABLE();
@@ -179,9 +179,9 @@ bool AstValue::BooleanValue() const {
 void AstValue::Internalize(Isolate* isolate) {
   switch (type_) {
     case STRING:
-      ASSERT(string_ != NULL);
+      DCHECK(string_ != NULL);
       // Strings are already internalized.
-      ASSERT(!string_->string().is_null());
+      DCHECK(!string_->string().is_null());
       break;
     case SYMBOL:
       value_ = Object::GetProperty(
@@ -202,7 +202,7 @@ void AstValue::Internalize(Isolate* isolate) {
       }
       break;
     case STRING_ARRAY: {
-      ASSERT(strings_ != NULL);
+      DCHECK(strings_ != NULL);
       Factory* factory = isolate->factory();
       int len = strings_->length();
       Handle<FixedArray> elements = factory->NewFixedArray(len, TENURED);
@@ -210,7 +210,7 @@ void AstValue::Internalize(Isolate* isolate) {
         const AstRawString* string = (*strings_)[i];
         Handle<Object> element = string->string();
         // Strings are already internalized.
-        ASSERT(!element.is_null());
+        DCHECK(!element.is_null());
         elements->set(i, *element);
       }
       value_ =
@@ -252,7 +252,7 @@ const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
   if (content.IsAscii()) {
     return GetOneByteString(content.ToOneByteVector());
   }
-  ASSERT(content.IsTwoByte());
+  DCHECK(content.IsTwoByte());
   return GetTwoByteString(content.ToUC16Vector());
 }
 
@@ -289,7 +289,7 @@ void AstValueFactory::Internalize(Isolate* isolate) {
 
 const AstValue* AstValueFactory::NewString(const AstRawString* string) {
   AstValue* value = new (zone_) AstValue(string);
-  ASSERT(string != NULL);
+  DCHECK(string != NULL);
   if (isolate_) {
     value->Internalize(isolate_);
   }

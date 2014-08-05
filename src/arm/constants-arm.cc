@@ -81,7 +81,7 @@ const char* VFPRegisters::names_[kNumVFPRegisters] = {
 
 
 const char* VFPRegisters::Name(int reg, bool is_double) {
-  ASSERT((0 <= reg) && (reg < kNumVFPRegisters));
+  DCHECK((0 <= reg) && (reg < kNumVFPRegisters));
   return names_[reg + (is_double ? kNumVFPSingleRegisters : 0)];
 }
 

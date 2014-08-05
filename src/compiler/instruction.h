@@ -73,10 +73,10 @@ class InstructionOperand : public ZoneObject {
   }
 
   void ConvertTo(Kind kind, int index) {
-    if (kind == REGISTER || kind == DOUBLE_REGISTER) ASSERT(index >= 0);
+    if (kind == REGISTER || kind == DOUBLE_REGISTER) DCHECK(index >= 0);
     value_ = KindField::encode(kind);
     value_ |= index << KindField::kSize;
-    ASSERT(this->index() == index);
+    DCHECK(this->index() == index);
   }
 
   // Calls SetUpCache()/TearDownCache() for each subclass.
@@ -127,15 +127,15 @@ class UnallocatedOperand : public InstructionOperand {
 
   UnallocatedOperand(BasicPolicy policy, int index)
       : InstructionOperand(UNALLOCATED, 0) {
-    ASSERT(policy == FIXED_SLOT);
+    DCHECK(policy == FIXED_SLOT);
     value_ |= BasicPolicyField::encode(policy);
     value_ |= index << FixedSlotIndexField::kShift;
-    ASSERT(this->fixed_slot_index() == index);
+    DCHECK(this->fixed_slot_index() == index);
   }
 
   UnallocatedOperand(ExtendedPolicy policy, int index)
       : InstructionOperand(UNALLOCATED, 0) {
-    ASSERT(policy == FIXED_REGISTER || policy == FIXED_DOUBLE_REGISTER);
+    DCHECK(policy == FIXED_REGISTER || policy == FIXED_DOUBLE_REGISTER);
     value_ |= BasicPolicyField::encode(EXTENDED_POLICY);
     value_ |= ExtendedPolicyField::encode(policy);
     value_ |= LifetimeField::encode(USED_AT_END);
@@ -156,12 +156,12 @@ class UnallocatedOperand : public InstructionOperand {
   }
 
   static const UnallocatedOperand* cast(const InstructionOperand* op) {
-    ASSERT(op->IsUnallocated());
+    DCHECK(op->IsUnallocated());
     return static_cast<const UnallocatedOperand*>(op);
   }
 
   static UnallocatedOperand* cast(InstructionOperand* op) {
-    ASSERT(op->IsUnallocated());
+    DCHECK(op->IsUnallocated());
     return static_cast<UnallocatedOperand*>(op);
   }
 
@@ -235,19 +235,19 @@ class UnallocatedOperand : public InstructionOperand {
 
   // [extended_policy]: Only for non-FIXED_SLOT. The finer-grained policy.
   ExtendedPolicy extended_policy() const {
-    ASSERT(basic_policy() == EXTENDED_POLICY);
+    DCHECK(basic_policy() == EXTENDED_POLICY);
     return ExtendedPolicyField::decode(value_);
   }
 
   // [fixed_slot_index]: Only for FIXED_SLOT.
   int fixed_slot_index() const {
-    ASSERT(HasFixedSlotPolicy());
+    DCHECK(HasFixedSlotPolicy());
     return static_cast<int>(value_) >> FixedSlotIndexField::kShift;
   }
 
   // [fixed_register_index]: Only for FIXED_REGISTER or FIXED_DOUBLE_REGISTER.
   int fixed_register_index() const {
-    ASSERT(HasFixedRegisterPolicy() || HasFixedDoubleRegisterPolicy());
+    DCHECK(HasFixedRegisterPolicy() || HasFixedDoubleRegisterPolicy());
     return FixedRegisterField::decode(value_);
   }
 
@@ -259,7 +259,7 @@ class UnallocatedOperand : public InstructionOperand {
 
   // [lifetime]: Only for non-FIXED_SLOT.
   bool IsUsedAtStart() {
-    ASSERT(basic_policy() == EXTENDED_POLICY);
+    DCHECK(basic_policy() == EXTENDED_POLICY);
     return LifetimeField::decode(value_) == USED_AT_START;
   }
 };
@@ -299,7 +299,7 @@ class MoveOperands V8_FINAL {
   // We clear both operands to indicate move that's been eliminated.
   void Eliminate() { source_ = destination_ = NULL; }
   bool IsEliminated() const {
-    ASSERT(source_ != NULL || destination_ == NULL);
+    DCHECK(source_ != NULL || destination_ == NULL);
     return source_ == NULL;
   }
 
@@ -314,13 +314,13 @@ template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
 class SubKindOperand V8_FINAL : public InstructionOperand {
  public:
   static SubKindOperand* Create(int index, Zone* zone) {
-    ASSERT(index >= 0);
+    DCHECK(index >= 0);
     if (index < kNumCachedOperands) return &cache[index];
     return new (zone) SubKindOperand(index);
   }
 
   static SubKindOperand* cast(InstructionOperand* op) {
-    ASSERT(op->kind() == kOperandKind);
+    DCHECK(op->kind() == kOperandKind);
     return reinterpret_cast<SubKindOperand*>(op);
   }
 
@@ -380,7 +380,7 @@ class PointerMap V8_FINAL : public ZoneObject {
   int instruction_position() const { return instruction_position_; }
 
   void set_instruction_position(int pos) {
-    ASSERT(instruction_position_ == -1);
+    DCHECK(instruction_position_ == -1);
     instruction_position_ = pos;
   }
 
@@ -404,19 +404,19 @@ class Instruction : public ZoneObject {
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
   InstructionOperand* Output() const { return OutputAt(0); }
   InstructionOperand* OutputAt(size_t i) const {
-    ASSERT(i < OutputCount());
+    DCHECK(i < OutputCount());
     return operands_[i];
   }
 
   size_t InputCount() const { return InputCountField::decode(bit_field_); }
   InstructionOperand* InputAt(size_t i) const {
-    ASSERT(i < InputCount());
+    DCHECK(i < InputCount());
     return operands_[OutputCount() + i];
   }
 
   size_t TempCount() const { return TempCountField::decode(bit_field_); }
   InstructionOperand* TempAt(size_t i) const {
-    ASSERT(i < TempCount());
+    DCHECK(i < TempCount());
     return operands_[OutputCount() + InputCount() + i];
   }
 
@@ -439,10 +439,10 @@ class Instruction : public ZoneObject {
                           size_t output_count, InstructionOperand** outputs,
                           size_t input_count, InstructionOperand** inputs,
                           size_t temp_count, InstructionOperand** temps) {
-    ASSERT(opcode >= 0);
-    ASSERT(output_count == 0 || outputs != NULL);
-    ASSERT(input_count == 0 || inputs != NULL);
-    ASSERT(temp_count == 0 || temps != NULL);
+    DCHECK(opcode >= 0);
+    DCHECK(output_count == 0 || outputs != NULL);
+    DCHECK(input_count == 0 || inputs != NULL);
+    DCHECK(temp_count == 0 || temps != NULL);
     InstructionOperand* none = NULL;
     USE(none);
     int size = static_cast<int>(RoundUp(sizeof(Instruction), kPointerSize) +
@@ -481,8 +481,8 @@ class Instruction : public ZoneObject {
   PointerMap* pointer_map() const { return pointer_map_; }
 
   void set_pointer_map(PointerMap* map) {
-    ASSERT(NeedsPointerMap());
-    ASSERT_EQ(NULL, pointer_map_);
+    DCHECK(NeedsPointerMap());
+    DCHECK_EQ(NULL, pointer_map_);
     pointer_map_ = map;
   }
 
@@ -567,12 +567,12 @@ class GapInstruction : public Instruction {
   }
 
   static GapInstruction* cast(Instruction* instr) {
-    ASSERT(instr->IsGapMoves());
+    DCHECK(instr->IsGapMoves());
     return static_cast<GapInstruction*>(instr);
   }
 
   static const GapInstruction* cast(const Instruction* instr) {
-    ASSERT(instr->IsGapMoves());
+    DCHECK(instr->IsGapMoves());
     return static_cast<const GapInstruction*>(instr);
   }
 
@@ -604,7 +604,7 @@ class BlockStartInstruction V8_FINAL : public GapInstruction {
   }
 
   static BlockStartInstruction* cast(Instruction* instr) {
-    ASSERT(instr->IsBlockStart());
+    DCHECK(instr->IsBlockStart());
     return static_cast<BlockStartInstruction*>(instr);
   }
 
@@ -627,12 +627,12 @@ class SourcePositionInstruction V8_FINAL : public Instruction {
   SourcePosition source_position() const { return source_position_; }
 
   static SourcePositionInstruction* cast(Instruction* instr) {
-    ASSERT(instr->IsSourcePosition());
+    DCHECK(instr->IsSourcePosition());
     return static_cast<SourcePositionInstruction*>(instr);
   }
 
   static const SourcePositionInstruction* cast(const Instruction* instr) {
-    ASSERT(instr->IsSourcePosition());
+    DCHECK(instr->IsSourcePosition());
     return static_cast<const SourcePositionInstruction*>(instr);
   }
 
@@ -640,8 +640,8 @@ class SourcePositionInstruction V8_FINAL : public Instruction {
   explicit SourcePositionInstruction(SourcePosition source_position)
       : Instruction(kSourcePositionInstruction),
         source_position_(source_position) {
-    ASSERT(!source_position_.IsInvalid());
-    ASSERT(!source_position_.IsUnknown());
+    DCHECK(!source_position_.IsInvalid());
+    DCHECK(!source_position_.IsUnknown());
   }
 
   SourcePosition source_position_;
@@ -663,29 +663,29 @@ class Constant V8_FINAL {
   Type type() const { return type_; }
 
   int32_t ToInt32() const {
-    ASSERT_EQ(kInt32, type());
+    DCHECK_EQ(kInt32, type());
     return static_cast<int32_t>(value_);
   }
 
   int64_t ToInt64() const {
     if (type() == kInt32) return ToInt32();
-    ASSERT_EQ(kInt64, type());
+    DCHECK_EQ(kInt64, type());
     return value_;
   }
 
   double ToFloat64() const {
     if (type() == kInt32) return ToInt32();
-    ASSERT_EQ(kFloat64, type());
+    DCHECK_EQ(kFloat64, type());
     return BitCast<double>(value_);
   }
 
   ExternalReference ToExternalReference() const {
-    ASSERT_EQ(kExternalReference, type());
+    DCHECK_EQ(kExternalReference, type());
     return BitCast<ExternalReference>(static_cast<intptr_t>(value_));
   }
 
   Handle<HeapObject> ToHeapObject() const {
-    ASSERT_EQ(kHeapObject, type());
+    DCHECK_EQ(kHeapObject, type());
     return BitCast<Handle<HeapObject> >(static_cast<intptr_t>(value_));
   }
 
@@ -771,8 +771,8 @@ class InstructionSequence V8_FINAL {
   }
   bool IsGapAt(int index) const { return InstructionAt(index)->IsGapMoves(); }
   Instruction* InstructionAt(int index) const {
-    ASSERT(index >= 0);
-    ASSERT(index < static_cast<int>(instructions_.size()));
+    DCHECK(index >= 0);
+    DCHECK(index < static_cast<int>(instructions_.size()));
     return instructions_[index];
   }
 
@@ -790,13 +790,13 @@ class InstructionSequence V8_FINAL {
   void EndBlock(BasicBlock* block);
 
   void AddConstant(int virtual_register, Constant constant) {
-    ASSERT(constants_.find(virtual_register) == constants_.end());
+    DCHECK(constants_.find(virtual_register) == constants_.end());
     constants_.insert(std::make_pair(virtual_register, constant));
   }
   Constant GetConstant(int virtual_register) const {
     ConstantMap::const_iterator it = constants_.find(virtual_register);
-    ASSERT(it != constants_.end());
-    ASSERT_EQ(virtual_register, it->first);
+    DCHECK(it != constants_.end());
+    DCHECK_EQ(virtual_register, it->first);
     return it->second;
   }
 
@@ -809,8 +809,8 @@ class InstructionSequence V8_FINAL {
     return index;
   }
   Constant GetImmediate(int index) const {
-    ASSERT(index >= 0);
-    ASSERT(index < static_cast<int>(immediates_.size()));
+    DCHECK(index >= 0);
+    DCHECK(index < static_cast<int>(immediates_.size()));
     return immediates_[index];
   }
 

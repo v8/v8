@@ -20,6 +20,7 @@ InstructionSelector::InstructionSelector(InstructionSequence* sequence,
       source_positions_(source_positions),
       current_block_(NULL),
       instructions_(InstructionDeque::allocator_type(zone())),
+      defined_(graph()->NodeCount(), false, BoolVector::allocator_type(zone())),
       used_(graph()->NodeCount(), false, BoolVector::allocator_type(zone())) {}
 
 
@@ -29,8 +30,8 @@ void InstructionSelector::SelectInstructions() {
   for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end(); ++i) {
     BasicBlock* block = *i;
     if (!block->IsLoopHeader()) continue;
-    ASSERT_NE(0, block->PredecessorCount());
-    ASSERT_NE(1, block->PredecessorCount());
+    DCHECK_NE(0, block->PredecessorCount());
+    DCHECK_NE(1, block->PredecessorCount());
     for (BasicBlock::const_iterator j = block->begin(); j != block->end();
          ++j) {
       Node* phi = *j;
@@ -149,33 +150,51 @@ bool InstructionSelector::CanCover(Node* user, Node* node) const {
 }
 
 
+bool InstructionSelector::IsDefined(Node* node) const {
+  DCHECK_NOT_NULL(node);
+  NodeId id = node->id();
+  DCHECK(id >= 0);
+  DCHECK(id < static_cast<NodeId>(defined_.size()));
+  return defined_[id];
+}
+
+
+void InstructionSelector::MarkAsDefined(Node* node) {
+  DCHECK_NOT_NULL(node);
+  NodeId id = node->id();
+  DCHECK(id >= 0);
+  DCHECK(id < static_cast<NodeId>(defined_.size()));
+  defined_[id] = true;
+}
+
+
 bool InstructionSelector::IsUsed(Node* node) const {
   if (!node->op()->HasProperty(Operator::kEliminatable)) return true;
   NodeId id = node->id();
-  ASSERT(id >= 0);
-  ASSERT(id < static_cast<NodeId>(used_.size()));
+  DCHECK(id >= 0);
+  DCHECK(id < static_cast<NodeId>(used_.size()));
   return used_[id];
 }
 
 
 void InstructionSelector::MarkAsUsed(Node* node) {
-  ASSERT_NOT_NULL(node);
+  DCHECK_NOT_NULL(node);
   NodeId id = node->id();
-  ASSERT(id >= 0);
-  ASSERT(id < static_cast<NodeId>(used_.size()));
+  DCHECK(id >= 0);
+  DCHECK(id < static_cast<NodeId>(used_.size()));
   used_[id] = true;
 }
 
 
 bool InstructionSelector::IsDouble(const Node* node) const {
-  ASSERT_NOT_NULL(node);
+  DCHECK_NOT_NULL(node);
   return sequence()->IsDouble(node->id());
 }
 
 
 void InstructionSelector::MarkAsDouble(Node* node) {
-  ASSERT_NOT_NULL(node);
-  ASSERT(!IsReference(node));
+  DCHECK_NOT_NULL(node);
+  DCHECK(!IsReference(node));
   sequence()->MarkAsDouble(node->id());
 
   // Propagate "doubleness" throughout phis.
@@ -189,14 +208,14 @@ void InstructionSelector::MarkAsDouble(Node* node) {
 
 
 bool InstructionSelector::IsReference(const Node* node) const {
-  ASSERT_NOT_NULL(node);
+  DCHECK_NOT_NULL(node);
   return sequence()->IsReference(node->id());
 }
 
 
 void InstructionSelector::MarkAsReference(Node* node) {
-  ASSERT_NOT_NULL(node);
-  ASSERT(!IsDouble(node));
+  DCHECK_NOT_NULL(node);
+  DCHECK(!IsDouble(node));
   sequence()->MarkAsReference(node->id());
 
   // Propagate "referenceness" throughout phis.
@@ -211,7 +230,7 @@ void InstructionSelector::MarkAsReference(Node* node) {
 
 void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
                                                Node* node) {
-  ASSERT_NOT_NULL(node);
+  DCHECK_NOT_NULL(node);
   if (rep == kMachineFloat64) MarkAsDouble(node);
   if (rep == kMachineTagged) MarkAsReference(node);
 }
@@ -244,8 +263,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                                                BasicBlock* cont_node,
                                                BasicBlock* deopt_node) {
   OperandGenerator g(this);
-  ASSERT_EQ(call->op()->OutputCount(), buffer->descriptor->ReturnCount());
-  ASSERT_EQ(NodeProperties::GetValueInputCount(call), buffer->input_count());
+  DCHECK_EQ(call->op()->OutputCount(), buffer->descriptor->ReturnCount());
+  DCHECK_EQ(NodeProperties::GetValueInputCount(call), buffer->input_count());
 
   if (buffer->descriptor->ReturnCount() > 0) {
     // Collect the projections that represent multiple outputs from this call.
@@ -299,14 +318,14 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   // argument to the call.
   InputIter iter(call->inputs().begin());
   for (int index = 0; index < input_count; ++iter, ++index) {
-    ASSERT(iter != call->inputs().end());
-    ASSERT(index == iter.index());
+    DCHECK(iter != call->inputs().end());
+    DCHECK(index == iter.index());
     if (index == 0) continue;  // The first argument (callee) is already done.
     InstructionOperand* op =
         g.UseLocation(*iter, buffer->descriptor->GetInputLocation(index));
     if (UnallocatedOperand::cast(op)->HasFixedSlotPolicy()) {
       int stack_index = -UnallocatedOperand::cast(op)->fixed_slot_index() - 1;
-      ASSERT(buffer->pushed_nodes[stack_index] == NULL);
+      DCHECK(buffer->pushed_nodes[stack_index] == NULL);
       buffer->pushed_nodes[stack_index] = *iter;
       buffer->pushed_count++;
     } else {
@@ -318,22 +337,22 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   // If the call can deoptimize, we add the continuation and deoptimization
   // block labels.
   if (buffer->descriptor->CanLazilyDeoptimize()) {
-    ASSERT(cont_node != NULL);
-    ASSERT(deopt_node != NULL);
+    DCHECK(cont_node != NULL);
+    DCHECK(deopt_node != NULL);
     buffer->fixed_and_control_args[buffer->fixed_count] = g.Label(cont_node);
     buffer->fixed_and_control_args[buffer->fixed_count + 1] =
         g.Label(deopt_node);
   } else {
-    ASSERT(cont_node == NULL);
-    ASSERT(deopt_node == NULL);
+    DCHECK(cont_node == NULL);
+    DCHECK(deopt_node == NULL);
   }
 
-  ASSERT(input_count == (buffer->fixed_count + buffer->pushed_count));
+  DCHECK(input_count == (buffer->fixed_count + buffer->pushed_count));
 }
 
 
 void InstructionSelector::VisitBlock(BasicBlock* block) {
-  ASSERT_EQ(NULL, current_block_);
+  DCHECK_EQ(NULL, current_block_);
   current_block_ = block;
   int current_block_end = static_cast<int>(instructions_.size());
 
@@ -347,7 +366,8 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   for (BasicBlock::reverse_iterator i = block->rbegin(); i != block->rend();
        ++i) {
     Node* node = *i;
-    if (!IsUsed(node)) continue;
+    // Skip nodes that are unused or already defined.
+    if (!IsUsed(node) || IsDefined(node)) continue;
     // Generate code for this node "top down", but schedule the code "bottom
     // up".
     size_t current_node_end = instructions_.size();
@@ -381,7 +401,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     case BasicBlockData::kGoto:
       return VisitGoto(block->SuccessorAt(0));
     case BasicBlockData::kBranch: {
-      ASSERT_EQ(IrOpcode::kBranch, input->opcode());
+      DCHECK_EQ(IrOpcode::kBranch, input->opcode());
       BasicBlock* tbranch = block->SuccessorAt(0);
       BasicBlock* fbranch = block->SuccessorAt(1);
       // SSA deconstruction requires targets of branches not to have phis.
@@ -410,7 +430,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlockData::kNone: {
       // TODO(titzer): exit block doesn't have control.
-      ASSERT(input == NULL);
+      DCHECK(input == NULL);
       break;
     }
     default:
@@ -421,10 +441,10 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
 
 
 void InstructionSelector::VisitNode(Node* node) {
-  ASSERT_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
+  DCHECK_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
   SourcePosition source_position = source_positions_->GetSourcePosition(node);
   if (!source_position.IsUnknown()) {
-    ASSERT(!source_position.IsInvalid());
+    DCHECK(!source_position.IsInvalid());
     if (FLAG_turbo_source_positions || node->opcode() == IrOpcode::kCall) {
       Emit(SourcePositionInstruction::New(instruction_zone(), source_position));
     }
@@ -630,6 +650,26 @@ void InstructionSelector::VisitWord64Equal(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
+  if (Node* ovf = node->FindProjection(1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitInt32AddWithOverflow(node, &cont);
+  }
+  FlagsContinuation cont;
+  VisitInt32AddWithOverflow(node, &cont);
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
+  if (Node* ovf = node->FindProjection(1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitInt32SubWithOverflow(node, &cont);
+  }
+  FlagsContinuation cont;
+  VisitInt32SubWithOverflow(node, &cont);
+}
+
+
 void InstructionSelector::VisitInt64LessThan(Node* node) {
   FlagsContinuation cont(kSignedLessThan, node);
   VisitWord64Compare(node, &cont);
@@ -748,8 +788,20 @@ void InstructionSelector::VisitPhi(Node* node) {
 
 
 void InstructionSelector::VisitProjection(Node* node) {
-  for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-    MarkAsUsed(*i);
+  OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  switch (value->opcode()) {
+    case IrOpcode::kInt32AddWithOverflow:
+    case IrOpcode::kInt32SubWithOverflow:
+      if (OpParameter<int32_t>(node) == 0) {
+        Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+      } else {
+        DCHECK_EQ(1, OpParameter<int32_t>(node));
+        MarkAsUsed(value);
+      }
+      break;
+    default:
+      break;
   }
 }
 
@@ -849,6 +901,31 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kFloat64LessThanOrEqual:
         cont.OverwriteAndNegateIfEqual(kUnorderedLessThanOrEqual);
         return VisitFloat64Compare(value, &cont);
+      case IrOpcode::kProjection:
+        // Check if this is the overflow output projection of an
+        // <Operation>WithOverflow node.
+        if (OpParameter<int32_t>(value) == 1) {
+          // We cannot combine the <Operation>WithOverflow with this branch
+          // unless the 0th projection (the use of the actual value of the
+          // <Operation> is either NULL, which means there's no use of the
+          // actual value, or was already defined, which means it is scheduled
+          // *AFTER* this branch).
+          Node* node = value->InputAt(0);
+          Node* result = node->FindProjection(0);
+          if (result == NULL || IsDefined(result)) {
+            switch (node->opcode()) {
+              case IrOpcode::kInt32AddWithOverflow:
+                cont.OverwriteAndNegateIfEqual(kOverflow);
+                return VisitInt32AddWithOverflow(node, &cont);
+              case IrOpcode::kInt32SubWithOverflow:
+                cont.OverwriteAndNegateIfEqual(kOverflow);
+                return VisitInt32SubWithOverflow(node, &cont);
+              default:
+                break;
+            }
+          }
+        }
+        break;
       default:
         break;
     }
@@ -875,9 +952,9 @@ void InstructionSelector::VisitThrow(Node* value) {
 
 
 void InstructionSelector::VisitDeoptimization(Node* deopt) {
-  ASSERT(deopt->op()->opcode() == IrOpcode::kDeoptimize);
+  DCHECK(deopt->op()->opcode() == IrOpcode::kDeoptimize);
   Node* state = deopt->InputAt(0);
-  ASSERT(state->op()->opcode() == IrOpcode::kFrameState);
+  DCHECK(state->op()->opcode() == IrOpcode::kFrameState);
   FrameStateDescriptor descriptor = OpParameter<FrameStateDescriptor>(state);
   // TODO(jarin) We should also add an instruction input for every input to
   // the framestate node (and recurse for the inlined framestates).
@@ -885,12 +962,25 @@ void InstructionSelector::VisitDeoptimization(Node* deopt) {
   Emit(kArchDeoptimize | MiscField::encode(deoptimization_id), NULL);
 }
 
+
 #if !V8_TURBOFAN_TARGET
 
 #define DECLARE_UNIMPLEMENTED_SELECTOR(x) \
   void InstructionSelector::Visit##x(Node* node) { UNIMPLEMENTED(); }
 MACHINE_OP_LIST(DECLARE_UNIMPLEMENTED_SELECTOR)
 #undef DECLARE_UNIMPLEMENTED_SELECTOR
+
+
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  UNIMPLEMENTED();
+}
 
 
 void InstructionSelector::VisitWord32Test(Node* node, FlagsContinuation* cont) {
@@ -913,7 +1003,7 @@ void InstructionSelector::VisitFloat64Compare(Node* node,
 void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
                                     BasicBlock* deoptimization) {}
 
-#endif
+#endif  // !V8_TURBOFAN_TARGET
 
 }  // namespace compiler
 }  // namespace internal

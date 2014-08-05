@@ -22,21 +22,21 @@ namespace base {
 Semaphore::Semaphore(int count) {
   kern_return_t result = semaphore_create(
       mach_task_self(), &native_handle_, SYNC_POLICY_FIFO, count);
-  ASSERT_EQ(KERN_SUCCESS, result);
+  DCHECK_EQ(KERN_SUCCESS, result);
   USE(result);
 }
 
 
 Semaphore::~Semaphore() {
   kern_return_t result = semaphore_destroy(mach_task_self(), native_handle_);
-  ASSERT_EQ(KERN_SUCCESS, result);
+  DCHECK_EQ(KERN_SUCCESS, result);
   USE(result);
 }
 
 
 void Semaphore::Signal() {
   kern_return_t result = semaphore_signal(native_handle_);
-  ASSERT_EQ(KERN_SUCCESS, result);
+  DCHECK_EQ(KERN_SUCCESS, result);
   USE(result);
 }
 
@@ -45,7 +45,7 @@ void Semaphore::Wait() {
   while (true) {
     kern_return_t result = semaphore_wait(native_handle_);
     if (result == KERN_SUCCESS) return;  // Semaphore was signalled.
-    ASSERT_EQ(KERN_ABORTED, result);
+    DCHECK_EQ(KERN_ABORTED, result);
   }
 }
 
@@ -65,7 +65,7 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
     kern_return_t result = semaphore_timedwait(native_handle_, ts);
     if (result == KERN_SUCCESS) return true;  // Semaphore was signalled.
     if (result == KERN_OPERATION_TIMED_OUT) return false;  // Timeout.
-    ASSERT_EQ(KERN_ABORTED, result);
+    DCHECK_EQ(KERN_ABORTED, result);
     now = TimeTicks::Now();
   }
 }
@@ -73,23 +73,23 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
 #elif V8_OS_POSIX
 
 Semaphore::Semaphore(int count) {
-  ASSERT(count >= 0);
+  DCHECK(count >= 0);
   int result = sem_init(&native_handle_, 0, count);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
 
 Semaphore::~Semaphore() {
   int result = sem_destroy(&native_handle_);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
 
 void Semaphore::Signal() {
   int result = sem_post(&native_handle_);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
@@ -99,8 +99,8 @@ void Semaphore::Wait() {
     int result = sem_wait(&native_handle_);
     if (result == 0) return;  // Semaphore was signalled.
     // Signal caused spurious wakeup.
-    ASSERT_EQ(-1, result);
-    ASSERT_EQ(EINTR, errno);
+    DCHECK_EQ(-1, result);
+    DCHECK_EQ(EINTR, errno);
   }
 }
 
@@ -126,23 +126,23 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
       return false;
     }
     // Signal caused spurious wakeup.
-    ASSERT_EQ(-1, result);
-    ASSERT_EQ(EINTR, errno);
+    DCHECK_EQ(-1, result);
+    DCHECK_EQ(EINTR, errno);
   }
 }
 
 #elif V8_OS_WIN
 
 Semaphore::Semaphore(int count) {
-  ASSERT(count >= 0);
+  DCHECK(count >= 0);
   native_handle_ = ::CreateSemaphoreA(NULL, count, 0x7fffffff, NULL);
-  ASSERT(native_handle_ != NULL);
+  DCHECK(native_handle_ != NULL);
 }
 
 
 Semaphore::~Semaphore() {
   BOOL result = CloseHandle(native_handle_);
-  ASSERT(result);
+  DCHECK(result);
   USE(result);
 }
 
@@ -150,14 +150,14 @@ Semaphore::~Semaphore() {
 void Semaphore::Signal() {
   LONG dummy;
   BOOL result = ReleaseSemaphore(native_handle_, 1, &dummy);
-  ASSERT(result);
+  DCHECK(result);
   USE(result);
 }
 
 
 void Semaphore::Wait() {
   DWORD result = WaitForSingleObject(native_handle_, INFINITE);
-  ASSERT(result == WAIT_OBJECT_0);
+  DCHECK(result == WAIT_OBJECT_0);
   USE(result);
 }
 
@@ -172,7 +172,7 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
       if (result == WAIT_OBJECT_0) {
         return true;
       }
-      ASSERT(result == WAIT_TIMEOUT);
+      DCHECK(result == WAIT_TIMEOUT);
       now = TimeTicks::Now();
     } else {
       DWORD result = WaitForSingleObject(
@@ -180,7 +180,7 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
       if (result == WAIT_TIMEOUT) {
         return false;
       }
-      ASSERT(result == WAIT_OBJECT_0);
+      DCHECK(result == WAIT_OBJECT_0);
       return true;
     }
   }

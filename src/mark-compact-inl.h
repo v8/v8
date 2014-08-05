@@ -31,27 +31,27 @@ void MarkCompactCollector::SetFlags(int flags) {
 
 
 void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
-  ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
+  DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
   if (!mark_bit.Get()) {
     mark_bit.Set();
     MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
-    ASSERT(IsMarked(obj));
-    ASSERT(obj->GetIsolate()->heap()->Contains(obj));
+    DCHECK(IsMarked(obj));
+    DCHECK(obj->GetIsolate()->heap()->Contains(obj));
     marking_deque_.PushBlack(obj);
   }
 }
 
 
 void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
-  ASSERT(!mark_bit.Get());
-  ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
+  DCHECK(!mark_bit.Get());
+  DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
   mark_bit.Set();
   MemoryChunk::IncrementLiveBytesFromGC(obj->address(), obj->Size());
 }
 
 
 bool MarkCompactCollector::IsMarked(Object* obj) {
-  ASSERT(obj->IsHeapObject());
+  DCHECK(obj->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(obj);
   return Marking::MarkBitFrom(heap_object).Get();
 }

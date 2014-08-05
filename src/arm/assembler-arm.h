@@ -100,17 +100,17 @@ struct Register {
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    ASSERT(reg.code() < kMaxNumAllocatableRegisters);
+    DCHECK(reg.code() < kMaxNumAllocatableRegisters);
     return reg.code();
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index);
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "r0",
       "r1",
@@ -136,17 +136,17 @@ struct Register {
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   bool is(Register reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
 
   void set_code(int code) {
     code_ = code;
-    ASSERT(is_valid());
+    DCHECK(is_valid());
   }
 
   // Unfortunately we can't make this private in a struct.
@@ -182,15 +182,15 @@ struct SwVfpRegister {
   bool is_valid() const { return 0 <= code_ && code_ < 32; }
   bool is(SwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
   void split_code(int* vm, int* m) const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     *m = code_ & 0x1;
     *vm = code_ >> 1;
   }
@@ -232,15 +232,15 @@ struct DwVfpRegister {
   }
   bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
   void split_code(int* vm, int* m) const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     *m = (code_ & 0x10) >> 4;
     *vm = code_ & 0x0F;
   }
@@ -271,21 +271,21 @@ struct LowDwVfpRegister {
   bool is(DwVfpRegister reg) const { return code_ == reg.code_; }
   bool is(LowDwVfpRegister reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   SwVfpRegister low() const {
     SwVfpRegister reg;
     reg.code_ = code_ * 2;
 
-    ASSERT(reg.is_valid());
+    DCHECK(reg.is_valid());
     return reg;
   }
   SwVfpRegister high() const {
     SwVfpRegister reg;
     reg.code_ = (code_ * 2) + 1;
 
-    ASSERT(reg.is_valid());
+    DCHECK(reg.is_valid());
     return reg;
   }
 
@@ -307,11 +307,11 @@ struct QwNeonRegister {
   }
   bool is(QwNeonRegister reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   void split_code(int* vm, int* m) const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     int encoded_code = code_ << 1;
     *m = (encoded_code & 0x10) >> 4;
     *vm = encoded_code & 0x0F;
@@ -425,11 +425,11 @@ struct CRegister {
   bool is_valid() const { return 0 <= code_ && code_ < 16; }
   bool is(CRegister creg) const { return code_ == creg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
 
@@ -533,7 +533,7 @@ class Operand BASE_EMBEDDED {
   bool must_output_reloc_info(const Assembler* assembler) const;
 
   inline int32_t immediate() const {
-    ASSERT(!rm_.is_valid());
+    DCHECK(!rm_.is_valid());
     return imm32_;
   }
 
@@ -581,12 +581,12 @@ class MemOperand BASE_EMBEDDED {
   }
 
   void set_offset(int32_t offset) {
-      ASSERT(rm_.is(no_reg));
+      DCHECK(rm_.is(no_reg));
       offset_ = offset;
   }
 
   uint32_t offset() const {
-      ASSERT(rm_.is(no_reg));
+      DCHECK(rm_.is(no_reg));
       return offset_;
   }
 
@@ -1353,12 +1353,12 @@ class Assembler : public AssemblerBase {
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.
   void SetRecordedAstId(TypeFeedbackId ast_id) {
-    ASSERT(recorded_ast_id_.IsNone());
+    DCHECK(recorded_ast_id_.IsNone());
     recorded_ast_id_ = ast_id;
   }
 
   TypeFeedbackId RecordedAstId() {
-    ASSERT(!recorded_ast_id_.IsNone());
+    DCHECK(!recorded_ast_id_.IsNone());
     return recorded_ast_id_;
   }
 
@@ -1517,10 +1517,10 @@ class Assembler : public AssemblerBase {
       // Max pool start (if we need a jump and an alignment).
       int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
-      ASSERT((num_pending_32_bit_reloc_info_ == 0) ||
+      DCHECK((num_pending_32_bit_reloc_info_ == 0) ||
              (start + num_pending_64_bit_reloc_info_ * kDoubleSize <
               (first_const_pool_32_use_ + kMaxDistToIntPool)));
-      ASSERT((num_pending_64_bit_reloc_info_ == 0) ||
+      DCHECK((num_pending_64_bit_reloc_info_ == 0) ||
              (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
 #endif
       // Two cases:

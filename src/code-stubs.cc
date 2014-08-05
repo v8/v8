@@ -39,7 +39,7 @@ void InterfaceDescriptor::Initialize(
   register_param_count_ = register_parameter_count;
 
   // An interface descriptor must have a context register.
-  ASSERT(register_parameter_count > 0 && registers[0].is(ContextRegister()));
+  DCHECK(register_parameter_count > 0 && registers[0].is(ContextRegister()));
 
   // InterfaceDescriptor owns a copy of the registers array.
   register_params_.Reset(NewArray<Register>(register_parameter_count));
@@ -54,7 +54,7 @@ void InterfaceDescriptor::Initialize(
         NewArray<Representation>(register_parameter_count));
     for (int i = 0; i < register_parameter_count; i++) {
       // If there is a context register, the representation must be tagged.
-      ASSERT(i != 0 || register_param_representations[i].Equals(
+      DCHECK(i != 0 || register_param_representations[i].Equals(
           Representation::Tagged()));
       register_param_representations_[i] = register_param_representations[i];
     }
@@ -178,7 +178,7 @@ Handle<Code> CodeStub::GetCode() {
   if (UseSpecialCache()
       ? FindCodeInSpecialCache(&code)
       : FindCodeInCache(&code)) {
-    ASSERT(GetCodeKind() == code->kind());
+    DCHECK(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }
 
@@ -216,7 +216,7 @@ Handle<Code> CodeStub::GetCode() {
   }
 
   Activate(code);
-  ASSERT(!NeedsImmovableCode() ||
+  DCHECK(!NeedsImmovableCode() ||
          heap->lo_space()->Contains(code) ||
          heap->code_space()->FirstPage()->Contains(code->address()));
   return Handle<Code>(code, isolate());
@@ -342,7 +342,7 @@ InlineCacheState ICCompareStub::GetICState() {
 
 
 void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
-  ASSERT(*known_map_ != NULL);
+  DCHECK(*known_map_ != NULL);
   Isolate* isolate = new_object->GetIsolate();
   Factory* factory = isolate->factory();
   return Map::UpdateCodeCache(known_map_,
@@ -358,7 +358,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
-  ASSERT(op_ == Token::EQ || op_ == Token::EQ_STRICT);
+  DCHECK(op_ == Token::EQ || op_ == Token::EQ_STRICT);
   Handle<Object> probe(
       known_map_->FindInCodeCache(
         strict() ?
@@ -372,7 +372,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
     Token::Value cached_op;
     ICCompareStub::DecodeKey((*code_out)->stub_key(), NULL, NULL, NULL,
                              &cached_op);
-    ASSERT(op_ == cached_op);
+    DCHECK(op_ == cached_op);
 #endif
     return true;
   }
@@ -435,7 +435,7 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
       GenerateObjects(masm);
       break;
     case CompareIC::KNOWN_OBJECT:
-      ASSERT(*known_map_ != NULL);
+      DCHECK(*known_map_ != NULL);
       GenerateKnownObjects(masm);
       break;
     case CompareIC::GENERIC:
@@ -446,7 +446,7 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 
 
 void CompareNilICStub::UpdateStatus(Handle<Object> object) {
-  ASSERT(!state_.Contains(GENERIC));
+  DCHECK(!state_.Contains(GENERIC));
   State old_state(state_);
   if (object->IsNull()) {
     state_.Add(NULL_TYPE);
@@ -471,7 +471,7 @@ template<class StateType>
 void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   // Note: Although a no-op transition is semantically OK, it is hinting at a
   // bug somewhere in our state transition machinery.
-  ASSERT(from != to);
+  DCHECK(from != to);
   if (!FLAG_trace_ic) return;
   OFStream os(stdout);
   os << "[";
@@ -824,7 +824,7 @@ bool ToBooleanStub::Types::UpdateStatus(Handle<Object> object) {
     Add(SYMBOL);
     return true;
   } else if (object->IsHeapNumber()) {
-    ASSERT(!object->IsUndetectableObject());
+    DCHECK(!object->IsUndetectableObject());
     Add(HEAP_NUMBER);
     double value = HeapNumber::cast(*object)->value();
     return value != 0 && !std::isnan(value);
@@ -862,7 +862,7 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
                                                intptr_t stack_pointer,
                                                Isolate* isolate) {
   FunctionEntryHook entry_hook = isolate->function_entry_hook();
-  ASSERT(entry_hook != NULL);
+  DCHECK(entry_hook != NULL);
   entry_hook(function, stack_pointer);
 }
 

@@ -105,10 +105,10 @@ Handle<Context> Snapshot::NewContextFromSnapshot(Isolate* isolate) {
 
 
 void SetSnapshotFromFile(StartupData* snapshot_blob) {
-  ASSERT(snapshot_blob);
-  ASSERT(snapshot_blob->data);
-  ASSERT(snapshot_blob->raw_size > 0);
-  ASSERT(!snapshot_impl_);
+  DCHECK(snapshot_blob);
+  DCHECK(snapshot_blob->data);
+  DCHECK(snapshot_blob->raw_size > 0);
+  DCHECK(!snapshot_impl_);
 
   snapshot_impl_ = new SnapshotImpl;
   SnapshotByteSource source(reinterpret_cast<const byte*>(snapshot_blob->data),
@@ -134,7 +134,7 @@ void SetSnapshotFromFile(StartupData* snapshot_blob) {
   snapshot_impl_->context_cell_space_used = source.GetInt();
   snapshot_impl_->context_property_cell_space_used = source.GetInt();
 
-  ASSERT(success);
+  DCHECK(success);
 }
 
 } }  // namespace v8::internal

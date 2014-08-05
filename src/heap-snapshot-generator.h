@@ -35,11 +35,11 @@ class HeapGraphEdge BASE_EMBEDDED {
 
   Type type() const { return static_cast<Type>(type_); }
   int index() const {
-    ASSERT(type_ == kElement || type_ == kHidden);
+    DCHECK(type_ == kElement || type_ == kHidden);
     return index_;
   }
   const char* name() const {
-    ASSERT(type_ == kContextVariable
+    DCHECK(type_ == kContextVariable
         || type_ == kProperty
         || type_ == kInternal
         || type_ == kShortcut

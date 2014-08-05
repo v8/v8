@@ -40,12 +40,12 @@ class ScriptData {
   int length() const { return length_; }
 
   void AcquireDataOwnership() {
-    ASSERT(!owns_data_);
+    DCHECK(!owns_data_);
     owns_data_ = true;
   }
 
   void ReleaseDataOwnership() {
-    ASSERT(owns_data_);
+    DCHECK(owns_data_);
     owns_data_ = false;
   }
 
@@ -97,17 +97,17 @@ class CompilationInfo {
   Code::Flags flags() const;
 
   void MarkAsEval() {
-    ASSERT(!is_lazy());
+    DCHECK(!is_lazy());
     flags_ |= IsEval::encode(true);
   }
 
   void MarkAsGlobal() {
-    ASSERT(!is_lazy());
+    DCHECK(!is_lazy());
     flags_ |= IsGlobal::encode(true);
   }
 
   void set_parameter_count(int parameter_count) {
-    ASSERT(IsStub());
+    DCHECK(IsStub());
     parameter_count_ = parameter_count;
   }
 
@@ -120,7 +120,7 @@ class CompilationInfo {
   }
 
   void SetStrictMode(StrictMode strict_mode) {
-    ASSERT(this->strict_mode() == SLOPPY || this->strict_mode() == strict_mode);
+    DCHECK(this->strict_mode() == SLOPPY || this->strict_mode() == strict_mode);
     flags_ = StrictModeField::update(flags_, strict_mode);
   }
 
@@ -204,12 +204,12 @@ class CompilationInfo {
   }
 
   void SetFunction(FunctionLiteral* literal) {
-    ASSERT(function_ == NULL);
+    DCHECK(function_ == NULL);
     function_ = literal;
   }
   void PrepareForCompilation(Scope* scope);
   void SetGlobalScope(Scope* global_scope) {
-    ASSERT(global_scope_ == NULL);
+    DCHECK(global_scope_ == NULL);
     global_scope_ = global_scope;
   }
   Handle<FixedArray> feedback_vector() const {
@@ -217,7 +217,7 @@ class CompilationInfo {
   }
   void SetCode(Handle<Code> code) { code_ = code; }
   void SetExtension(v8::Extension* extension) {
-    ASSERT(!is_lazy());
+    DCHECK(!is_lazy());
     extension_ = extension;
   }
   void SetCachedData(ScriptData** cached_data,
@@ -226,7 +226,7 @@ class CompilationInfo {
     if (compile_options == ScriptCompiler::kNoCompileOptions) {
       cached_data_ = NULL;
     } else {
-      ASSERT(!is_lazy());
+      DCHECK(!is_lazy());
       cached_data_ = cached_data;
     }
   }
@@ -263,7 +263,7 @@ class CompilationInfo {
   bool IsOptimizable() const { return mode_ == BASE; }
   bool IsStub() const { return mode_ == STUB; }
   void SetOptimizing(BailoutId osr_ast_id, Handle<Code> unoptimized) {
-    ASSERT(!shared_info_.is_null());
+    DCHECK(!shared_info_.is_null());
     SetMode(OPTIMIZE);
     osr_ast_id_ = osr_ast_id;
     unoptimized_code_ = unoptimized;
@@ -276,7 +276,7 @@ class CompilationInfo {
     return SupportsDeoptimization::decode(flags_);
   }
   void EnableDeoptimizationSupport() {
-    ASSERT(IsOptimizable());
+    DCHECK(IsOptimizable());
     flags_ |= SupportsDeoptimization::encode(true);
   }
 
@@ -284,7 +284,7 @@ class CompilationInfo {
   bool ShouldSelfOptimize();
 
   void set_deferred_handles(DeferredHandles* deferred_handles) {
-    ASSERT(deferred_handles_ == NULL);
+    DCHECK(deferred_handles_ == NULL);
     deferred_handles_ = deferred_handles;
   }
 
@@ -312,12 +312,12 @@ class CompilationInfo {
   void set_bailout_reason(BailoutReason reason) { bailout_reason_ = reason; }
 
   int prologue_offset() const {
-    ASSERT_NE(Code::kPrologueOffsetNotSet, prologue_offset_);
+    DCHECK_NE(Code::kPrologueOffsetNotSet, prologue_offset_);
     return prologue_offset_;
   }
 
   void set_prologue_offset(int prologue_offset) {
-    ASSERT_EQ(Code::kPrologueOffsetNotSet, prologue_offset_);
+    DCHECK_EQ(Code::kPrologueOffsetNotSet, prologue_offset_);
     prologue_offset_ = prologue_offset;
   }
 
@@ -343,12 +343,12 @@ class CompilationInfo {
   }
 
   void AbortDueToDependencyChange() {
-    ASSERT(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
+    DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
     abort_due_to_dependency_ = true;
   }
 
   bool HasAbortedDueToDependencyChange() {
-    ASSERT(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
+    DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
     return abort_due_to_dependency_;
   }
 
@@ -610,7 +610,7 @@ class OptimizedCompileJob: public ZoneObject {
   }
 
   void WaitForInstall() {
-    ASSERT(info_->is_osr());
+    DCHECK(info_->is_osr());
     awaiting_install_ = true;
   }
 
@@ -636,7 +636,7 @@ class OptimizedCompileJob: public ZoneObject {
   struct Timer {
     Timer(OptimizedCompileJob* job, base::TimeDelta* location)
         : job_(job), location_(location) {
-      ASSERT(location_ != NULL);
+      DCHECK(location_ != NULL);
       timer_.Start();
     }
 

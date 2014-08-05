@@ -16,24 +16,24 @@ Address StoreBuffer::TopAddress() {
 
 
 void StoreBuffer::Mark(Address addr) {
-  ASSERT(!heap_->cell_space()->Contains(addr));
-  ASSERT(!heap_->code_space()->Contains(addr));
-  ASSERT(!heap_->old_data_space()->Contains(addr));
+  DCHECK(!heap_->cell_space()->Contains(addr));
+  DCHECK(!heap_->code_space()->Contains(addr));
+  DCHECK(!heap_->old_data_space()->Contains(addr));
   Address* top = reinterpret_cast<Address*>(heap_->store_buffer_top());
   *top++ = addr;
   heap_->public_set_store_buffer_top(top);
   if ((reinterpret_cast<uintptr_t>(top) & kStoreBufferOverflowBit) != 0) {
-    ASSERT(top == limit_);
+    DCHECK(top == limit_);
     Compact();
   } else {
-    ASSERT(top < limit_);
+    DCHECK(top < limit_);
   }
 }
 
 
 void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
   if (store_buffer_rebuilding_enabled_) {
-    SLOW_ASSERT(!heap_->cell_space()->Contains(addr) &&
+    SLOW_DCHECK(!heap_->cell_space()->Contains(addr) &&
                 !heap_->code_space()->Contains(addr) &&
                 !heap_->old_data_space()->Contains(addr) &&
                 !heap_->new_space()->Contains(addr));
@@ -43,7 +43,7 @@ void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
     old_buffer_is_sorted_ = false;
     old_buffer_is_filtered_ = false;
     if (top >= old_limit_) {
-      ASSERT(callback_ != NULL);
+      DCHECK(callback_ != NULL);
       (*callback_)(heap_,
                    MemoryChunk::FromAnyPointerAddress(heap_, addr),
                    kStoreBufferFullEvent);

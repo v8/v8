@@ -58,7 +58,7 @@ template <class T, int s> int Mapping<T, s>::CalculateValue(uchar c, uchar n,
 
 
 uint16_t Latin1::ConvertNonLatin1ToLatin1(uint16_t c) {
-  ASSERT(c > Latin1::kMaxChar);
+  DCHECK(c > Latin1::kMaxChar);
   switch (c) {
     // This are equivalent characters in unicode.
     case 0x39c:
@@ -184,7 +184,7 @@ void Utf8Decoder<kBufferSize>::Reset(const char* stream, unsigned length) {
 template <unsigned kBufferSize>
 unsigned Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
                                               unsigned length) const {
-  ASSERT(length > 0);
+  DCHECK(length > 0);
   if (length > utf16_length_) length = utf16_length_;
   // memcpy everything in buffer.
   unsigned buffer_length =
@@ -192,7 +192,7 @@ unsigned Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
   unsigned memcpy_length = length <= buffer_length ? length : buffer_length;
   v8::internal::MemCopy(data, buffer_, memcpy_length * sizeof(uint16_t));
   if (length <= buffer_length) return length;
-  ASSERT(unbuffered_start_ != NULL);
+  DCHECK(unbuffered_start_ != NULL);
   // Copy the rest the slow way.
   WriteUtf16Slow(unbuffered_start_,
                  data + buffer_length,

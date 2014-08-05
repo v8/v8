@@ -47,7 +47,7 @@ HeapObjectIterator::HeapObjectIterator(PagedSpace* space,
 HeapObjectIterator::HeapObjectIterator(Page* page,
                                        HeapObjectCallback size_func) {
   Space* owner = page->owner();
-  ASSERT(owner == page->heap()->old_pointer_space() ||
+  DCHECK(owner == page->heap()->old_pointer_space() ||
          owner == page->heap()->old_data_space() ||
          owner == page->heap()->map_space() ||
          owner == page->heap()->cell_space() ||
@@ -58,7 +58,7 @@ HeapObjectIterator::HeapObjectIterator(Page* page,
              page->area_end(),
              kOnePageOnly,
              size_func);
-  ASSERT(page->WasSweptPrecisely() || page->SweepingCompleted());
+  DCHECK(page->WasSweptPrecisely() || page->SweepingCompleted());
 }
 
 
@@ -67,7 +67,7 @@ void HeapObjectIterator::Initialize(PagedSpace* space,
                                     HeapObjectIterator::PageMode mode,
                                     HeapObjectCallback size_f) {
   // Check that we actually can iterate this space.
-  ASSERT(space->swept_precisely());
+  DCHECK(space->swept_precisely());
 
   space_ = space;
   cur_addr_ = cur;
@@ -80,20 +80,20 @@ void HeapObjectIterator::Initialize(PagedSpace* space,
 // We have hit the end of the page and should advance to the next block of
 // objects.  This happens at the end of the page.
 bool HeapObjectIterator::AdvanceToNextPage() {
-  ASSERT(cur_addr_ == cur_end_);
+  DCHECK(cur_addr_ == cur_end_);
   if (page_mode_ == kOnePageOnly) return false;
   Page* cur_page;
   if (cur_addr_ == NULL) {
     cur_page = space_->anchor();
   } else {
     cur_page = Page::FromAddress(cur_addr_ - 1);
-    ASSERT(cur_addr_ == cur_page->area_end());
+    DCHECK(cur_addr_ == cur_page->area_end());
   }
   cur_page = cur_page->next_page();
   if (cur_page == space_->anchor()) return false;
   cur_addr_ = cur_page->area_start();
   cur_end_ = cur_page->area_end();
-  ASSERT(cur_page->WasSweptPrecisely());
+  DCHECK(cur_page->WasSweptPrecisely());
   return true;
 }
 
@@ -112,7 +112,7 @@ CodeRange::CodeRange(Isolate* isolate)
 
 
 bool CodeRange::SetUp(size_t requested) {
-  ASSERT(code_range_ == NULL);
+  DCHECK(code_range_ == NULL);
 
   if (requested == 0) {
     // When a target requires the code range feature, we put all code objects
@@ -125,7 +125,7 @@ bool CodeRange::SetUp(size_t requested) {
     }
   }
 
-  ASSERT(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
+  DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
   code_range_ = new base::VirtualMemory(requested);
   CHECK(code_range_ != NULL);
   if (!code_range_->IsReserved()) {
@@ -135,7 +135,7 @@ bool CodeRange::SetUp(size_t requested) {
   }
 
   // We are sure that we have mapped a block of requested addresses.
-  ASSERT(code_range_->size() == requested);
+  DCHECK(code_range_->size() == requested);
   LOG(isolate_,
       NewEvent("CodeRange", code_range_->address(), requested));
   Address base = reinterpret_cast<Address>(code_range_->address());
@@ -202,8 +202,8 @@ bool CodeRange::GetNextAllocationBlock(size_t requested) {
 Address CodeRange::AllocateRawMemory(const size_t requested_size,
                                      const size_t commit_size,
                                      size_t* allocated) {
-  ASSERT(commit_size <= requested_size);
-  ASSERT(current_allocation_block_index_ < allocation_list_.length());
+  DCHECK(commit_size <= requested_size);
+  DCHECK(current_allocation_block_index_ < allocation_list_.length());
   if (requested_size > allocation_list_[current_allocation_block_index_].size) {
     // Find an allocation block large enough.
     if (!GetNextAllocationBlock(requested_size)) return NULL;
@@ -217,8 +217,8 @@ Address CodeRange::AllocateRawMemory(const size_t requested_size,
   } else {
     *allocated = aligned_requested;
   }
-  ASSERT(*allocated <= current.size);
-  ASSERT(IsAddressAligned(current.start, MemoryChunk::kAlignment));
+  DCHECK(*allocated <= current.size);
+  DCHECK(IsAddressAligned(current.start, MemoryChunk::kAlignment));
   if (!isolate_->memory_allocator()->CommitExecutableMemory(code_range_,
                                                             current.start,
                                                             commit_size,
@@ -247,7 +247,7 @@ bool CodeRange::UncommitRawMemory(Address start, size_t length) {
 
 
 void CodeRange::FreeRawMemory(Address address, size_t length) {
-  ASSERT(IsAddressAligned(address, MemoryChunk::kAlignment));
+  DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
   free_list_.Add(FreeBlock(address, length));
   code_range_->Uncommit(address, length);
 }
@@ -279,7 +279,7 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate)
 bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable) {
   capacity_ = RoundUp(capacity, Page::kPageSize);
   capacity_executable_ = RoundUp(capacity_executable, Page::kPageSize);
-  ASSERT_GE(capacity_, capacity_executable_);
+  DCHECK_GE(capacity_, capacity_executable_);
 
   size_ = 0;
   size_executable_ = 0;
@@ -290,9 +290,9 @@ bool MemoryAllocator::SetUp(intptr_t capacity, intptr_t capacity_executable) {
 
 void MemoryAllocator::TearDown() {
   // Check that spaces were torn down before MemoryAllocator.
-  ASSERT(size_ == 0);
+  DCHECK(size_ == 0);
   // TODO(gc) this will be true again when we fix FreeMemory.
-  // ASSERT(size_executable_ == 0);
+  // DCHECK(size_executable_ == 0);
   capacity_ = 0;
   capacity_executable_ = 0;
 }
@@ -313,22 +313,22 @@ bool MemoryAllocator::CommitMemory(Address base,
 void MemoryAllocator::FreeMemory(base::VirtualMemory* reservation,
                                  Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
-  ASSERT(reservation->IsReserved());
+  DCHECK(reservation->IsReserved());
   size_t size = reservation->size();
-  ASSERT(size_ >= size);
+  DCHECK(size_ >= size);
   size_ -= size;
 
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
 
   if (executable == EXECUTABLE) {
-    ASSERT(size_executable_ >= size);
+    DCHECK(size_executable_ >= size);
     size_executable_ -= size;
   }
   // Code which is part of the code-range does not have its own VirtualMemory.
-  ASSERT(isolate_->code_range() == NULL ||
+  DCHECK(isolate_->code_range() == NULL ||
          !isolate_->code_range()->contains(
              static_cast<Address>(reservation->address())));
-  ASSERT(executable == NOT_EXECUTABLE ||
+  DCHECK(executable == NOT_EXECUTABLE ||
          isolate_->code_range() == NULL ||
          !isolate_->code_range()->valid());
   reservation->Release();
@@ -339,26 +339,26 @@ void MemoryAllocator::FreeMemory(Address base,
                                  size_t size,
                                  Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
-  ASSERT(size_ >= size);
+  DCHECK(size_ >= size);
   size_ -= size;
 
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
 
   if (executable == EXECUTABLE) {
-    ASSERT(size_executable_ >= size);
+    DCHECK(size_executable_ >= size);
     size_executable_ -= size;
   }
   if (isolate_->code_range() != NULL &&
       isolate_->code_range()->contains(static_cast<Address>(base))) {
-    ASSERT(executable == EXECUTABLE);
+    DCHECK(executable == EXECUTABLE);
     isolate_->code_range()->FreeRawMemory(base, size);
   } else {
-    ASSERT(executable == NOT_EXECUTABLE ||
+    DCHECK(executable == NOT_EXECUTABLE ||
            isolate_->code_range() == NULL ||
            !isolate_->code_range()->valid());
     bool result = base::VirtualMemory::ReleaseRegion(base, size);
     USE(result);
-    ASSERT(result);
+    DCHECK(result);
   }
 }
 
@@ -380,7 +380,7 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size,
 Address MemoryAllocator::AllocateAlignedMemory(
     size_t reserve_size, size_t commit_size, size_t alignment,
     Executability executable, base::VirtualMemory* controller) {
-  ASSERT(commit_size <= reserve_size);
+  DCHECK(commit_size <= reserve_size);
   base::VirtualMemory reservation;
   Address base = ReserveAlignedMemory(reserve_size, alignment, &reservation);
   if (base == NULL) return NULL;
@@ -438,7 +438,7 @@ NewSpacePage* NewSpacePage::Initialize(Heap* heap,
   bool in_to_space = (semi_space->id() != kFromSpace);
   chunk->SetFlag(in_to_space ? MemoryChunk::IN_TO_SPACE
                              : MemoryChunk::IN_FROM_SPACE);
-  ASSERT(!chunk->IsFlagSet(in_to_space ? MemoryChunk::IN_FROM_SPACE
+  DCHECK(!chunk->IsFlagSet(in_to_space ? MemoryChunk::IN_FROM_SPACE
                                        : MemoryChunk::IN_TO_SPACE));
   NewSpacePage* page = static_cast<NewSpacePage*>(chunk);
   heap->incremental_marking()->SetNewSpacePageFlags(page);
@@ -465,7 +465,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
                                      Space* owner) {
   MemoryChunk* chunk = FromAddress(base);
 
-  ASSERT(base == chunk->address());
+  DCHECK(base == chunk->address());
 
   chunk->heap_ = heap;
   chunk->size_ = size;
@@ -490,8 +490,8 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap,
   chunk->initialize_scan_on_scavenge(false);
   chunk->SetFlag(WAS_SWEPT_PRECISELY);
 
-  ASSERT(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
-  ASSERT(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
+  DCHECK(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
+  DCHECK(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
@@ -517,7 +517,7 @@ bool MemoryChunk::CommitArea(size_t requested) {
 
   if (commit_size > committed_size) {
     // Commit size should be less or equal than the reserved size.
-    ASSERT(commit_size <= size() - 2 * guard_size);
+    DCHECK(commit_size <= size() - 2 * guard_size);
     // Append the committed area.
     Address start = address() + committed_size + guard_size;
     size_t length = commit_size - committed_size;
@@ -530,7 +530,7 @@ bool MemoryChunk::CommitArea(size_t requested) {
       }
     } else {
       CodeRange* code_range = heap_->isolate()->code_range();
-      ASSERT(code_range != NULL && code_range->valid() &&
+      DCHECK(code_range != NULL && code_range->valid() &&
              IsFlagSet(IS_EXECUTABLE));
       if (!code_range->CommitRawMemory(start, length)) return false;
     }
@@ -539,7 +539,7 @@ bool MemoryChunk::CommitArea(size_t requested) {
       heap_->isolate()->memory_allocator()->ZapBlock(start, length);
     }
   } else if (commit_size < committed_size) {
-    ASSERT(commit_size > 0);
+    DCHECK(commit_size > 0);
     // Shrink the committed area.
     size_t length = committed_size - commit_size;
     Address start = address() + committed_size + guard_size - length;
@@ -547,7 +547,7 @@ bool MemoryChunk::CommitArea(size_t requested) {
       if (!reservation_.Uncommit(start, length)) return false;
     } else {
       CodeRange* code_range = heap_->isolate()->code_range();
-      ASSERT(code_range != NULL && code_range->valid() &&
+      DCHECK(code_range != NULL && code_range->valid() &&
              IsFlagSet(IS_EXECUTABLE));
       if (!code_range->UncommitRawMemory(start, length)) return false;
     }
@@ -582,7 +582,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
                                             intptr_t commit_area_size,
                                             Executability executable,
                                             Space* owner) {
-  ASSERT(commit_area_size <= reserve_area_size);
+  DCHECK(commit_area_size <= reserve_area_size);
 
   size_t chunk_size;
   Heap* heap = isolate_->heap();
@@ -642,7 +642,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
       base = isolate_->code_range()->AllocateRawMemory(chunk_size,
                                                        commit_size,
                                                        &chunk_size);
-      ASSERT(IsAligned(reinterpret_cast<intptr_t>(base),
+      DCHECK(IsAligned(reinterpret_cast<intptr_t>(base),
                        MemoryChunk::kAlignment));
       if (base == NULL) return NULL;
       size_ += chunk_size;
@@ -822,16 +822,16 @@ void MemoryAllocator::AddMemoryAllocationCallback(
     MemoryAllocationCallback callback,
     ObjectSpace space,
     AllocationAction action) {
-  ASSERT(callback != NULL);
+  DCHECK(callback != NULL);
   MemoryAllocationCallbackRegistration registration(callback, space, action);
-  ASSERT(!MemoryAllocator::MemoryAllocationCallbackRegistered(callback));
+  DCHECK(!MemoryAllocator::MemoryAllocationCallbackRegistered(callback));
   return memory_allocation_callbacks_.Add(registration);
 }
 
 
 void MemoryAllocator::RemoveMemoryAllocationCallback(
      MemoryAllocationCallback callback) {
-  ASSERT(callback != NULL);
+  DCHECK(callback != NULL);
   for (int i = 0; i < memory_allocation_callbacks_.length(); ++i) {
     if (memory_allocation_callbacks_[i].callback == callback) {
       memory_allocation_callbacks_.Remove(i);
@@ -989,7 +989,7 @@ size_t PagedSpace::CommittedPhysicalMemory() {
 
 Object* PagedSpace::FindObject(Address addr) {
   // Note: this function can only be called on precisely swept spaces.
-  ASSERT(!heap()->mark_compact_collector()->in_use());
+  DCHECK(!heap()->mark_compact_collector()->in_use());
 
   if (!Contains(addr)) return Smi::FromInt(0);  // Signaling not found.
 
@@ -1007,11 +1007,11 @@ Object* PagedSpace::FindObject(Address addr) {
 
 
 bool PagedSpace::CanExpand() {
-  ASSERT(max_capacity_ % AreaSize() == 0);
+  DCHECK(max_capacity_ % AreaSize() == 0);
 
   if (Capacity() == max_capacity_) return false;
 
-  ASSERT(Capacity() < max_capacity_);
+  DCHECK(Capacity() < max_capacity_);
 
   // Are we going to exceed capacity for this space?
   if ((Capacity() + Page::kPageSize) > max_capacity_) return false;
@@ -1033,7 +1033,7 @@ bool PagedSpace::Expand() {
       size, this, executable());
   if (p == NULL) return false;
 
-  ASSERT(Capacity() <= max_capacity_);
+  DCHECK(Capacity() <= max_capacity_);
 
   p->InsertAfter(anchor_.prev_page());
 
@@ -1114,13 +1114,13 @@ void PagedSpace::IncreaseCapacity(int size) {
 
 
 void PagedSpace::ReleasePage(Page* page) {
-  ASSERT(page->LiveBytes() == 0);
-  ASSERT(AreaSize() == page->area_size());
+  DCHECK(page->LiveBytes() == 0);
+  DCHECK(AreaSize() == page->area_size());
 
   if (page->WasSwept()) {
     intptr_t size = free_list_.EvictFreeListItems(page);
     accounting_stats_.AllocateBytes(size);
-    ASSERT_EQ(AreaSize(), static_cast<int>(size));
+    DCHECK_EQ(AreaSize(), static_cast<int>(size));
   } else {
     DecreaseUnsweptFreeBytes(page);
   }
@@ -1130,7 +1130,7 @@ void PagedSpace::ReleasePage(Page* page) {
     page->ClearFlag(MemoryChunk::SCAN_ON_SCAVENGE);
   }
 
-  ASSERT(!free_list_.ContainsPageFreeListItems(page));
+  DCHECK(!free_list_.ContainsPageFreeListItems(page));
 
   if (Page::FromAllocationTop(allocation_info_.top()) == page) {
     allocation_info_.set_top(NULL);
@@ -1144,7 +1144,7 @@ void PagedSpace::ReleasePage(Page* page) {
     heap()->QueueMemoryChunkForFree(page);
   }
 
-  ASSERT(Capacity() > 0);
+  DCHECK(Capacity() > 0);
   accounting_stats_.ShrinkSpace(AreaSize());
 }
 
@@ -1157,9 +1157,9 @@ void PagedSpace::CreateEmergencyMemory() {
 
 void PagedSpace::FreeEmergencyMemory() {
   Page* page = static_cast<Page*>(emergency_memory_);
-  ASSERT(page->LiveBytes() == 0);
-  ASSERT(AreaSize() == page->area_size());
-  ASSERT(!free_list_.ContainsPageFreeListItems(page));
+  DCHECK(page->LiveBytes() == 0);
+  DCHECK(AreaSize() == page->area_size());
+  DCHECK(!free_list_.ContainsPageFreeListItems(page));
   heap()->isolate()->memory_allocator()->Free(page);
   emergency_memory_ = NULL;
 }
@@ -1248,8 +1248,8 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   chunk_size_ = static_cast<uintptr_t>(size);
   LOG(heap()->isolate(), NewEvent("InitialChunk", chunk_base_, chunk_size_));
 
-  ASSERT(initial_semispace_capacity <= maximum_semispace_capacity);
-  ASSERT(IsPowerOf2(maximum_semispace_capacity));
+  DCHECK(initial_semispace_capacity <= maximum_semispace_capacity);
+  DCHECK(IsPowerOf2(maximum_semispace_capacity));
 
   // Allocate and set up the histogram arrays if necessary.
   allocated_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);
@@ -1260,10 +1260,10 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   INSTANCE_TYPE_LIST(SET_NAME)
 #undef SET_NAME
 
-  ASSERT(reserved_semispace_capacity == heap()->ReservedSemiSpaceSize());
-  ASSERT(static_cast<intptr_t>(chunk_size_) >=
+  DCHECK(reserved_semispace_capacity == heap()->ReservedSemiSpaceSize());
+  DCHECK(static_cast<intptr_t>(chunk_size_) >=
          2 * heap()->ReservedSemiSpaceSize());
-  ASSERT(IsAddressAligned(chunk_base_, 2 * reserved_semispace_capacity, 0));
+  DCHECK(IsAddressAligned(chunk_base_, 2 * reserved_semispace_capacity, 0));
 
   to_space_.SetUp(chunk_base_,
                   initial_semispace_capacity,
@@ -1274,7 +1274,7 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   if (!to_space_.Commit()) {
     return false;
   }
-  ASSERT(!from_space_.is_committed());  // No need to use memory yet.
+  DCHECK(!from_space_.is_committed());  // No need to use memory yet.
 
   start_ = chunk_base_;
   address_mask_ = ~(2 * reserved_semispace_capacity - 1);
@@ -1306,7 +1306,7 @@ void NewSpace::TearDown() {
 
   LOG(heap()->isolate(), DeleteEvent("InitialChunk", chunk_base_));
 
-  ASSERT(reservation_.IsReserved());
+  DCHECK(reservation_.IsReserved());
   heap()->isolate()->memory_allocator()->FreeMemory(&reservation_,
                                                     NOT_EXECUTABLE);
   chunk_base_ = NULL;
@@ -1321,7 +1321,7 @@ void NewSpace::Flip() {
 
 void NewSpace::Grow() {
   // Double the semispace size but only up to maximum capacity.
-  ASSERT(Capacity() < MaximumCapacity());
+  DCHECK(Capacity() < MaximumCapacity());
   int new_capacity = Min(MaximumCapacity(), 2 * static_cast<int>(Capacity()));
   if (to_space_.GrowTo(new_capacity)) {
     // Only grow from space if we managed to grow to-space.
@@ -1335,7 +1335,7 @@ void NewSpace::Grow() {
       }
     }
   }
-  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
@@ -1356,7 +1356,7 @@ void NewSpace::Shrink() {
       }
     }
   }
-  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
@@ -1365,7 +1365,7 @@ void NewSpace::UpdateAllocationInfo() {
   allocation_info_.set_top(to_space_.page_low());
   allocation_info_.set_limit(to_space_.page_high());
   UpdateInlineAllocationLimit(0);
-  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
@@ -1397,7 +1397,7 @@ void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
     Address new_limit = new_top + inline_allocation_limit_step_;
     allocation_info_.set_limit(Min(new_limit, high));
   }
-  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
@@ -1465,7 +1465,7 @@ AllocationResult NewSpace::SlowAllocateRaw(int size_in_bytes) {
 // that it works (it depends on the invariants we are checking).
 void NewSpace::Verify() {
   // The allocation pointer should be in the space or at the very end.
-  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   // There should be objects packed in from the low address up to the
   // allocation pointer.
@@ -1528,7 +1528,7 @@ void SemiSpace::SetUp(Address start,
   // otherwise.  In the mark-compact collector, the memory region of the from
   // space is used as the marking stack. It requires contiguous memory
   // addresses.
-  ASSERT(maximum_capacity >= Page::kPageSize);
+  DCHECK(maximum_capacity >= Page::kPageSize);
   initial_capacity_ = RoundDown(initial_capacity, Page::kPageSize);
   capacity_ = initial_capacity;
   maximum_capacity_ = RoundDown(maximum_capacity, Page::kPageSize);
@@ -1549,7 +1549,7 @@ void SemiSpace::TearDown() {
 
 
 bool SemiSpace::Commit() {
-  ASSERT(!is_committed());
+  DCHECK(!is_committed());
   int pages = capacity_ / Page::kPageSize;
   if (!heap()->isolate()->memory_allocator()->CommitBlock(start_,
                                                           capacity_,
@@ -1573,7 +1573,7 @@ bool SemiSpace::Commit() {
 
 
 bool SemiSpace::Uncommit() {
-  ASSERT(is_committed());
+  DCHECK(is_committed());
   Address start = start_ + maximum_capacity_ - capacity_;
   if (!heap()->isolate()->memory_allocator()->UncommitBlock(start, capacity_)) {
     return false;
@@ -1601,22 +1601,22 @@ bool SemiSpace::GrowTo(int new_capacity) {
   if (!is_committed()) {
     if (!Commit()) return false;
   }
-  ASSERT((new_capacity & Page::kPageAlignmentMask) == 0);
-  ASSERT(new_capacity <= maximum_capacity_);
-  ASSERT(new_capacity > capacity_);
+  DCHECK((new_capacity & Page::kPageAlignmentMask) == 0);
+  DCHECK(new_capacity <= maximum_capacity_);
+  DCHECK(new_capacity > capacity_);
   int pages_before = capacity_ / Page::kPageSize;
   int pages_after = new_capacity / Page::kPageSize;
 
   size_t delta = new_capacity - capacity_;
 
-  ASSERT(IsAligned(delta, base::OS::AllocateAlignment()));
+  DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
   if (!heap()->isolate()->memory_allocator()->CommitBlock(
       start_ + capacity_, delta, executable())) {
     return false;
   }
   SetCapacity(new_capacity);
   NewSpacePage* last_page = anchor()->prev_page();
-  ASSERT(last_page != anchor());
+  DCHECK(last_page != anchor());
   for (int i = pages_before; i < pages_after; i++) {
     Address page_address = start_ + i * Page::kPageSize;
     NewSpacePage* new_page = NewSpacePage::Initialize(heap(),
@@ -1634,12 +1634,12 @@ bool SemiSpace::GrowTo(int new_capacity) {
 
 
 bool SemiSpace::ShrinkTo(int new_capacity) {
-  ASSERT((new_capacity & Page::kPageAlignmentMask) == 0);
-  ASSERT(new_capacity >= initial_capacity_);
-  ASSERT(new_capacity < capacity_);
+  DCHECK((new_capacity & Page::kPageAlignmentMask) == 0);
+  DCHECK(new_capacity >= initial_capacity_);
+  DCHECK(new_capacity < capacity_);
   if (is_committed()) {
     size_t delta = capacity_ - new_capacity;
-    ASSERT(IsAligned(delta, base::OS::AllocateAlignment()));
+    DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
 
     MemoryAllocator* allocator = heap()->isolate()->memory_allocator();
     if (!allocator->UncommitBlock(start_ + new_capacity, delta)) {
@@ -1651,7 +1651,7 @@ bool SemiSpace::ShrinkTo(int new_capacity) {
         NewSpacePage::FromAddress(start_ + (pages_after - 1) * Page::kPageSize);
     new_last_page->set_next_page(anchor());
     anchor()->set_prev_page(new_last_page);
-    ASSERT((current_page_ >= first_page()) && (current_page_ <= new_last_page));
+    DCHECK((current_page_ >= first_page()) && (current_page_ <= new_last_page));
   }
 
   SetCapacity(new_capacity);
@@ -1682,8 +1682,8 @@ void SemiSpace::FlipPages(intptr_t flags, intptr_t mask) {
       page->SetFlag(MemoryChunk::IN_FROM_SPACE);
       page->ClearFlag(MemoryChunk::IN_TO_SPACE);
     }
-    ASSERT(page->IsFlagSet(MemoryChunk::SCAN_ON_SCAVENGE));
-    ASSERT(page->IsFlagSet(MemoryChunk::IN_TO_SPACE) ||
+    DCHECK(page->IsFlagSet(MemoryChunk::SCAN_ON_SCAVENGE));
+    DCHECK(page->IsFlagSet(MemoryChunk::IN_TO_SPACE) ||
            page->IsFlagSet(MemoryChunk::IN_FROM_SPACE));
     page = page->next_page();
   }
@@ -1691,15 +1691,15 @@ void SemiSpace::FlipPages(intptr_t flags, intptr_t mask) {
 
 
 void SemiSpace::Reset() {
-  ASSERT(anchor_.next_page() != &anchor_);
+  DCHECK(anchor_.next_page() != &anchor_);
   current_page_ = anchor_.next_page();
 }
 
 
 void SemiSpace::Swap(SemiSpace* from, SemiSpace* to) {
   // We won't be swapping semispaces without data in them.
-  ASSERT(from->anchor_.next_page() != &from->anchor_);
-  ASSERT(to->anchor_.next_page() != &to->anchor_);
+  DCHECK(from->anchor_.next_page() != &from->anchor_);
+  DCHECK(to->anchor_.next_page() != &to->anchor_);
 
   // Swap bits.
   SemiSpace tmp = *from;
@@ -1726,7 +1726,7 @@ void SemiSpace::SetCapacity(int new_capacity) {
 
 
 void SemiSpace::set_age_mark(Address mark) {
-  ASSERT(NewSpacePage::FromLimit(mark)->semi_space() == this);
+  DCHECK(NewSpacePage::FromLimit(mark)->semi_space() == this);
   age_mark_ = mark;
   // Mark all pages up to the one containing mark.
   NewSpacePageIterator it(space_start(), mark);
@@ -1866,8 +1866,8 @@ static void ReportCodeKindStatistics(int* code_kind_statistics) {
 static int CollectHistogramInfo(HeapObject* obj) {
   Isolate* isolate = obj->GetIsolate();
   InstanceType type = obj->map()->instance_type();
-  ASSERT(0 <= type && type <= LAST_TYPE);
-  ASSERT(isolate->heap_histograms()[type].name() != NULL);
+  DCHECK(0 <= type && type <= LAST_TYPE);
+  DCHECK(isolate->heap_histograms()[type].name() != NULL);
   isolate->heap_histograms()[type].increment_number(1);
   isolate->heap_histograms()[type].increment_bytes(obj->Size());
 
@@ -1990,7 +1990,7 @@ void NewSpace::ReportStatistics() {
 
 void NewSpace::RecordAllocation(HeapObject* obj) {
   InstanceType type = obj->map()->instance_type();
-  ASSERT(0 <= type && type <= LAST_TYPE);
+  DCHECK(0 <= type && type <= LAST_TYPE);
   allocated_histogram_[type].increment_number(1);
   allocated_histogram_[type].increment_bytes(obj->Size());
 }
@@ -1998,7 +1998,7 @@ void NewSpace::RecordAllocation(HeapObject* obj) {
 
 void NewSpace::RecordPromotion(HeapObject* obj) {
   InstanceType type = obj->map()->instance_type();
-  ASSERT(0 <= type && type <= LAST_TYPE);
+  DCHECK(0 <= type && type <= LAST_TYPE);
   promoted_histogram_[type].increment_number(1);
   promoted_histogram_[type].increment_bytes(obj->Size());
 }
@@ -2019,8 +2019,8 @@ size_t NewSpace::CommittedPhysicalMemory() {
 // Free lists for old object spaces implementation
 
 void FreeListNode::set_size(Heap* heap, int size_in_bytes) {
-  ASSERT(size_in_bytes > 0);
-  ASSERT(IsAligned(size_in_bytes, kPointerSize));
+  DCHECK(size_in_bytes > 0);
+  DCHECK(IsAligned(size_in_bytes, kPointerSize));
 
   // We write a map and possibly size information to the block.  If the block
   // is big enough to be a FreeSpace with at least one extra word (the next
@@ -2044,15 +2044,15 @@ void FreeListNode::set_size(Heap* heap, int size_in_bytes) {
   } else {
     UNREACHABLE();
   }
-  // We would like to ASSERT(Size() == size_in_bytes) but this would fail during
+  // We would like to DCHECK(Size() == size_in_bytes) but this would fail during
   // deserialization because the free space map is not done yet.
 }
 
 
 FreeListNode* FreeListNode::next() {
-  ASSERT(IsFreeListNode(this));
+  DCHECK(IsFreeListNode(this));
   if (map() == GetHeap()->raw_unchecked_free_space_map()) {
-    ASSERT(map() == NULL || Size() >= kNextOffset + kPointerSize);
+    DCHECK(map() == NULL || Size() >= kNextOffset + kPointerSize);
     return reinterpret_cast<FreeListNode*>(
         Memory::Address_at(address() + kNextOffset));
   } else {
@@ -2063,9 +2063,9 @@ FreeListNode* FreeListNode::next() {
 
 
 FreeListNode** FreeListNode::next_address() {
-  ASSERT(IsFreeListNode(this));
+  DCHECK(IsFreeListNode(this));
   if (map() == GetHeap()->raw_unchecked_free_space_map()) {
-    ASSERT(Size() >= kNextOffset + kPointerSize);
+    DCHECK(Size() >= kNextOffset + kPointerSize);
     return reinterpret_cast<FreeListNode**>(address() + kNextOffset);
   } else {
     return reinterpret_cast<FreeListNode**>(address() + kPointerSize);
@@ -2074,12 +2074,12 @@ FreeListNode** FreeListNode::next_address() {
 
 
 void FreeListNode::set_next(FreeListNode* next) {
-  ASSERT(IsFreeListNode(this));
+  DCHECK(IsFreeListNode(this));
   // While we are booting the VM the free space map will actually be null.  So
   // we have to make sure that we don't try to use it for anything at that
   // stage.
   if (map() == GetHeap()->raw_unchecked_free_space_map()) {
-    ASSERT(map() == NULL || Size() >= kNextOffset + kPointerSize);
+    DCHECK(map() == NULL || Size() >= kNextOffset + kPointerSize);
     base::NoBarrier_Store(
         reinterpret_cast<base::AtomicWord*>(address() + kNextOffset),
         reinterpret_cast<base::AtomicWord>(next));
@@ -2099,7 +2099,7 @@ intptr_t FreeListCategory::Concatenate(FreeListCategory* category) {
     // reverse order.
     base::LockGuard<base::Mutex> target_lock_guard(mutex());
     base::LockGuard<base::Mutex> source_lock_guard(category->mutex());
-    ASSERT(category->end_ != NULL);
+    DCHECK(category->end_ != NULL);
     free_bytes = category->available();
     if (end_ == NULL) {
       end_ = category->end();
@@ -2210,7 +2210,7 @@ void FreeListCategory::RepairFreeList(Heap* heap) {
     if (*map_location == NULL) {
       *map_location = heap->free_space_map();
     } else {
-      ASSERT(*map_location == heap->free_space_map());
+      DCHECK(*map_location == heap->free_space_map());
     }
     n = n->next();
   }
@@ -2270,7 +2270,7 @@ int FreeList::Free(Address start, int size_in_bytes) {
     page->add_available_in_huge_free_list(size_in_bytes);
   }
 
-  ASSERT(IsVeryLong() || available() == SumFreeLists());
+  DCHECK(IsVeryLong() || available() == SumFreeLists());
   return 0;
 }
 
@@ -2282,10 +2282,10 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kSmallAllocationMax) {
     node = small_list_.PickNodeFromList(node_size);
     if (node != NULL) {
-      ASSERT(size_in_bytes <= *node_size);
+      DCHECK(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_small_free_list(-(*node_size));
-      ASSERT(IsVeryLong() || available() == SumFreeLists());
+      DCHECK(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
@@ -2293,10 +2293,10 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kMediumAllocationMax) {
     node = medium_list_.PickNodeFromList(node_size);
     if (node != NULL) {
-      ASSERT(size_in_bytes <= *node_size);
+      DCHECK(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_medium_free_list(-(*node_size));
-      ASSERT(IsVeryLong() || available() == SumFreeLists());
+      DCHECK(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
@@ -2304,10 +2304,10 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   if (size_in_bytes <= kLargeAllocationMax) {
     node = large_list_.PickNodeFromList(node_size);
     if (node != NULL) {
-      ASSERT(size_in_bytes <= *node_size);
+      DCHECK(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_large_free_list(-(*node_size));
-      ASSERT(IsVeryLong() || available() == SumFreeLists());
+      DCHECK(IsVeryLong() || available() == SumFreeLists());
       return node;
     }
   }
@@ -2333,7 +2333,7 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
       break;
     }
 
-    ASSERT((*cur)->map() == heap_->raw_unchecked_free_space_map());
+    DCHECK((*cur)->map() == heap_->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(*cur);
     int size = cur_as_free_space->Size();
     if (size >= size_in_bytes) {
@@ -2355,34 +2355,34 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
   huge_list_.set_available(huge_list_available);
 
   if (node != NULL) {
-    ASSERT(IsVeryLong() || available() == SumFreeLists());
+    DCHECK(IsVeryLong() || available() == SumFreeLists());
     return node;
   }
 
   if (size_in_bytes <= kSmallListMax) {
     node = small_list_.PickNodeFromList(size_in_bytes, node_size);
     if (node != NULL) {
-      ASSERT(size_in_bytes <= *node_size);
+      DCHECK(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_small_free_list(-(*node_size));
     }
   } else if (size_in_bytes <= kMediumListMax) {
     node = medium_list_.PickNodeFromList(size_in_bytes, node_size);
     if (node != NULL) {
-      ASSERT(size_in_bytes <= *node_size);
+      DCHECK(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_medium_free_list(-(*node_size));
     }
   } else if (size_in_bytes <= kLargeListMax) {
     node = large_list_.PickNodeFromList(size_in_bytes, node_size);
     if (node != NULL) {
-      ASSERT(size_in_bytes <= *node_size);
+      DCHECK(size_in_bytes <= *node_size);
       page = Page::FromAddress(node->address());
       page->add_available_in_large_free_list(-(*node_size));
     }
   }
 
-  ASSERT(IsVeryLong() || available() == SumFreeLists());
+  DCHECK(IsVeryLong() || available() == SumFreeLists());
   return node;
 }
 
@@ -2392,11 +2392,11 @@ FreeListNode* FreeList::FindNodeFor(int size_in_bytes, int* node_size) {
 // the allocation fails then NULL is returned, and the caller can perform a GC
 // or allocate a new page before retrying.
 HeapObject* FreeList::Allocate(int size_in_bytes) {
-  ASSERT(0 < size_in_bytes);
-  ASSERT(size_in_bytes <= kMaxBlockSize);
-  ASSERT(IsAligned(size_in_bytes, kPointerSize));
+  DCHECK(0 < size_in_bytes);
+  DCHECK(size_in_bytes <= kMaxBlockSize);
+  DCHECK(IsAligned(size_in_bytes, kPointerSize));
   // Don't free list allocate if there is linear space available.
-  ASSERT(owner_->limit() - owner_->top() < size_in_bytes);
+  DCHECK(owner_->limit() - owner_->top() < size_in_bytes);
 
   int old_linear_size = static_cast<int>(owner_->limit() - owner_->top());
   // Mark the old linear allocation area with a free space map so it can be
@@ -2415,7 +2415,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   }
 
   int bytes_left = new_node_size - size_in_bytes;
-  ASSERT(bytes_left >= 0);
+  DCHECK(bytes_left >= 0);
 
 #ifdef DEBUG
   for (int i = 0; i < size_in_bytes / kPointerSize; i++) {
@@ -2427,7 +2427,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
   // The old-space-step might have finished sweeping and restarted marking.
   // Verify that it did not turn the page of the new node into an evacuation
   // candidate.
-  ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(new_node));
+  DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_node));
 
   const int kThreshold = IncrementalMarking::kAllocatedThreshold;
 
@@ -2439,7 +2439,7 @@ HeapObject* FreeList::Allocate(int size_in_bytes) {
     // Keep the linear allocation area empty if requested to do so, just
     // return area back to the free list instead.
     owner_->Free(new_node->address() + size_in_bytes, bytes_left);
-    ASSERT(owner_->top() == NULL && owner_->limit() == NULL);
+    DCHECK(owner_->top() == NULL && owner_->limit() == NULL);
   } else if (bytes_left > kThreshold &&
              owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
              FLAG_incremental_marking_steps) {
@@ -2504,7 +2504,7 @@ intptr_t FreeListCategory::SumFreeList() {
   intptr_t sum = 0;
   FreeListNode* cur = top();
   while (cur != NULL) {
-    ASSERT(cur->map() == cur->GetHeap()->raw_unchecked_free_space_map());
+    DCHECK(cur->map() == cur->GetHeap()->raw_unchecked_free_space_map());
     FreeSpace* cur_as_free_space = reinterpret_cast<FreeSpace*>(cur);
     sum += cur_as_free_space->nobarrier_size();
     cur = cur->next();
@@ -2568,7 +2568,7 @@ void PagedSpace::PrepareForMarkCompact() {
 
 
 intptr_t PagedSpace::SizeOfObjects() {
-  ASSERT(heap()->mark_compact_collector()->sweeping_in_progress() ||
+  DCHECK(heap()->mark_compact_collector()->sweeping_in_progress() ||
       (unswept_free_bytes_ == 0));
   return Size() - unswept_free_bytes_ - (limit() - top());
 }
@@ -2636,7 +2636,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
       HeapObject* object = free_list_.Allocate(size_in_bytes);
       // We should be able to allocate an object here since we just freed that
       // much memory.
-      ASSERT(object != NULL);
+      DCHECK(object != NULL);
       if (object != NULL) return object;
     }
   }
@@ -2654,7 +2654,7 @@ HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
 
   // Try to expand the space and allocate in the new next page.
   if (Expand()) {
-    ASSERT(CountTotalPages() > 1 || size_in_bytes <= free_list_.available());
+    DCHECK(CountTotalPages() > 1 || size_in_bytes <= free_list_.available());
     return free_list_.Allocate(size_in_bytes);
   }
 
@@ -2725,8 +2725,8 @@ static void EnterComment(Isolate* isolate, const char* comment, int delta) {
 // Call for each nested comment start (start marked with '[ xxx', end marked
 // with ']'.  RelocIterator 'it' must point to a comment reloc info.
 static void CollectCommentStatistics(Isolate* isolate, RelocIterator* it) {
-  ASSERT(!it->done());
-  ASSERT(it->rinfo()->rmode() == RelocInfo::COMMENT);
+  DCHECK(!it->done());
+  DCHECK(it->rinfo()->rmode() == RelocInfo::COMMENT);
   const char* tmp = reinterpret_cast<const char*>(it->rinfo()->data());
   if (tmp[0] != '[') {
     // Not a nested comment; skip
@@ -2742,7 +2742,7 @@ static void CollectCommentStatistics(Isolate* isolate, RelocIterator* it) {
   while (true) {
     // All nested comments must be terminated properly, and therefore exit
     // from loop.
-    ASSERT(!it->done());
+    DCHECK(!it->done());
     if (it->rinfo()->rmode() == RelocInfo::COMMENT) {
       const char* const txt =
           reinterpret_cast<const char*>(it->rinfo()->data());
@@ -2781,7 +2781,7 @@ void PagedSpace::CollectCodeStatistics() {
         it.next();
       }
 
-      ASSERT(code->instruction_start() <= prev_pc &&
+      DCHECK(code->instruction_start() <= prev_pc &&
              prev_pc <= code->instruction_end());
       delta += static_cast<int>(code->instruction_end() - prev_pc);
       EnterComment(isolate, "NoComment", delta);
@@ -2920,7 +2920,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   LargePage* page = heap()->isolate()->memory_allocator()->
       AllocateLargePage(object_size, this, executable);
   if (page == NULL) return AllocationResult::Retry(identity());
-  ASSERT(page->area_size() >= object_size);
+  DCHECK(page->area_size() >= object_size);
 
   size_ += static_cast<int>(page->size());
   objects_size_ += object_size;
@@ -2940,7 +2940,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
     HashMap::Entry* entry = chunk_map_.Lookup(reinterpret_cast<void*>(key),
                                               static_cast<uint32_t>(key),
                                               true);
-    ASSERT(entry != NULL);
+    DCHECK(entry != NULL);
     entry->value = page;
   }
 
@@ -2987,9 +2987,9 @@ LargePage* LargeObjectSpace::FindPage(Address a) {
                                         static_cast<uint32_t>(key),
                                         false);
   if (e != NULL) {
-    ASSERT(e->value != NULL);
+    DCHECK(e->value != NULL);
     LargePage* page = reinterpret_cast<LargePage*>(e->value);
-    ASSERT(page->is_valid());
+    DCHECK(page->is_valid());
     if (page->Contains(a)) {
       return page;
     }
@@ -3058,7 +3058,7 @@ bool LargeObjectSpace::Contains(HeapObject* object) {
 
   bool owned = (chunk->owner() == this);
 
-  SLOW_ASSERT(!owned || FindObject(address)->IsHeapObject());
+  SLOW_DCHECK(!owned || FindObject(address)->IsHeapObject());
 
   return owned;
 }

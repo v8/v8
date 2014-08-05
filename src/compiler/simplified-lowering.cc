@@ -40,7 +40,7 @@ Node* SimplifiedLowering::OffsetMinusTagConstant(int32_t offset) {
 
 
 static void UpdateControlSuccessors(Node* before, Node* node) {
-  ASSERT(IrOpcode::IsControlOpcode(before->opcode()));
+  DCHECK(IrOpcode::IsControlOpcode(before->opcode()));
   UseIter iter = before->uses().begin();
   while (iter != before->uses().end()) {
     if (IrOpcode::IsControlOpcode((*iter)->opcode()) &&
@@ -118,7 +118,7 @@ void SimplifiedLowering::DoChangeUI32ToTagged(Node* node, Node* effect,
   if (is_signed) {
     if (SmiValuesAre32Bits()) {
       // All int32s fit in this case.
-      ASSERT(kPointerSize == 8);
+      DCHECK(kPointerSize == 8);
       return node->ReplaceUses(SmiTag(val));
     } else {
       // TODO(turbofan): use an Int32AddWithOverflow to tag and check here.
@@ -193,9 +193,11 @@ void SimplifiedLowering::DoChangeBitToBool(Node* node, Node* effect,
 
 
 static WriteBarrierKind ComputeWriteBarrierKind(
-    MachineRepresentation representation, Type* type) {
+    BaseTaggedness base_is_tagged, MachineRepresentation representation,
+    Type* type) {
   // TODO(turbofan): skip write barriers for Smis, etc.
-  if (representation == kMachineTagged) {
+  if (base_is_tagged == kTaggedBase && representation == kMachineTagged) {
+    // Write barriers are only for writes into heap objects (i.e. tagged base).
     return kFullWriteBarrier;
   }
   return kNoWriteBarrier;
@@ -205,19 +207,17 @@ static WriteBarrierKind ComputeWriteBarrierKind(
 void SimplifiedLowering::DoLoadField(Node* node, Node* effect, Node* control) {
   const FieldAccess& access = FieldAccessOf(node->op());
   node->set_op(machine_.Load(access.representation));
-  Node* offset =
-      graph()->NewNode(common()->Int32Constant(access.offset - kHeapObjectTag));
+  Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
   node->InsertInput(zone(), 1, offset);
 }
 
 
 void SimplifiedLowering::DoStoreField(Node* node, Node* effect, Node* control) {
   const FieldAccess& access = FieldAccessOf(node->op());
-  WriteBarrierKind kind =
-      ComputeWriteBarrierKind(access.representation, access.type);
+  WriteBarrierKind kind = ComputeWriteBarrierKind(
+      access.base_is_tagged, access.representation, access.type);
   node->set_op(machine_.Store(access.representation, kind));
-  Node* offset =
-      graph()->NewNode(common()->Int32Constant(access.offset - kHeapObjectTag));
+  Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
   node->InsertInput(zone(), 1, offset);
 }
 
@@ -247,15 +247,13 @@ Node* SimplifiedLowering::ComputeIndex(const ElementAccess& access,
       break;
   }
   if (element_size != 1) {
-    index = graph()->NewNode(
-        machine()->Int32Mul(),
-        graph()->NewNode(common()->Int32Constant(element_size)), index);
+    index = graph()->NewNode(machine()->Int32Mul(),
+                             jsgraph()->Int32Constant(element_size), index);
   }
-  int fixed_offset = access.header_size - kHeapObjectTag;
+  int fixed_offset = access.header_size - access.tag();
   if (fixed_offset == 0) return index;
-  return graph()->NewNode(
-      machine()->Int32Add(),
-      graph()->NewNode(common()->Int32Constant(fixed_offset)), index);
+  return graph()->NewNode(machine()->Int32Add(),
+                          jsgraph()->Int32Constant(fixed_offset), index);
 }
 
 
@@ -270,8 +268,8 @@ void SimplifiedLowering::DoLoadElement(Node* node, Node* effect,
 void SimplifiedLowering::DoStoreElement(Node* node, Node* effect,
                                         Node* control) {
   const ElementAccess& access = ElementAccessOf(node->op());
-  WriteBarrierKind kind =
-      ComputeWriteBarrierKind(access.representation, access.type);
+  WriteBarrierKind kind = ComputeWriteBarrierKind(
+      access.base_is_tagged, access.representation, access.type);
   node->set_op(machine_.Store(access.representation, kind));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
 }

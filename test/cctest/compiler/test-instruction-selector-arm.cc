@@ -260,7 +260,7 @@ TEST(InstructionSelectorODPIP) {
       CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
       CHECK_EQ(kOverflow, m.code[0]->flags_condition());
       CHECK_EQ(2, m.code[0]->InputCount());
-      CHECK_EQ(1, m.code[0]->OutputCount());
+      CHECK_LE(1, m.code[0]->OutputCount());
     }
     {
       InstructionSelectorTester m;
@@ -272,7 +272,7 @@ TEST(InstructionSelectorODPIP) {
       CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
       CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
       CHECK_EQ(2, m.code[0]->InputCount());
-      CHECK_EQ(1, m.code[0]->OutputCount());
+      CHECK_LE(1, m.code[0]->OutputCount());
     }
     {
       InstructionSelectorTester m;
@@ -311,7 +311,7 @@ TEST(InstructionSelectorODPIImm) {
         CHECK_EQ(kOverflow, m.code[0]->flags_condition());
         CHECK_EQ(2, m.code[0]->InputCount());
         CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
-        CHECK_EQ(1, m.code[0]->OutputCount());
+        CHECK_LE(1, m.code[0]->OutputCount());
       }
       {
         InstructionSelectorTester m;
@@ -325,7 +325,7 @@ TEST(InstructionSelectorODPIImm) {
         CHECK_EQ(kOverflow, m.code[0]->flags_condition());
         CHECK_EQ(2, m.code[0]->InputCount());
         CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
-        CHECK_EQ(1, m.code[0]->OutputCount());
+        CHECK_LE(1, m.code[0]->OutputCount());
       }
       {
         InstructionSelectorTester m;
@@ -338,7 +338,7 @@ TEST(InstructionSelectorODPIImm) {
         CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
         CHECK_EQ(2, m.code[0]->InputCount());
         CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
-        CHECK_EQ(1, m.code[0]->OutputCount());
+        CHECK_LE(1, m.code[0]->OutputCount());
       }
       {
         InstructionSelectorTester m;
@@ -351,7 +351,7 @@ TEST(InstructionSelectorODPIImm) {
         CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
         CHECK_EQ(2, m.code[0]->InputCount());
         CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
-        CHECK_EQ(1, m.code[0]->OutputCount());
+        CHECK_LE(1, m.code[0]->OutputCount());
       }
       {
         InstructionSelectorTester m;
@@ -405,7 +405,7 @@ TEST(InstructionSelectorODPIAndShiftP) {
         CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
         CHECK_EQ(kOverflow, m.code[0]->flags_condition());
         CHECK_EQ(3, m.code[0]->InputCount());
-        CHECK_EQ(1, m.code[0]->OutputCount());
+        CHECK_LE(1, m.code[0]->OutputCount());
       }
       {
         InstructionSelectorTester m;
@@ -420,7 +420,7 @@ TEST(InstructionSelectorODPIAndShiftP) {
         CHECK_EQ(kFlags_set, m.code[0]->flags_mode());
         CHECK_EQ(kOverflow, m.code[0]->flags_condition());
         CHECK_EQ(3, m.code[0]->InputCount());
-        CHECK_EQ(1, m.code[0]->OutputCount());
+        CHECK_LE(1, m.code[0]->OutputCount());
       }
       {
         InstructionSelectorTester m;
@@ -433,7 +433,7 @@ TEST(InstructionSelectorODPIAndShiftP) {
         CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
         CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
         CHECK_EQ(3, m.code[0]->InputCount());
-        CHECK_EQ(1, m.code[0]->OutputCount());
+        CHECK_LE(1, m.code[0]->OutputCount());
       }
       {
         InstructionSelectorTester m;
@@ -447,7 +447,7 @@ TEST(InstructionSelectorODPIAndShiftP) {
         CHECK_EQ(shift.r_mode, m.code[0]->addressing_mode());
         CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
         CHECK_EQ(3, m.code[0]->InputCount());
-        CHECK_EQ(1, m.code[0]->OutputCount());
+        CHECK_LE(1, m.code[0]->OutputCount());
       }
       {
         InstructionSelectorTester m;
@@ -505,7 +505,7 @@ TEST(InstructionSelectorODPIAndShiftImm) {
           CHECK_EQ(kOverflow, m.code[0]->flags_condition());
           CHECK_EQ(3, m.code[0]->InputCount());
           CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
-          CHECK_EQ(1, m.code[0]->OutputCount());
+          CHECK_LE(1, m.code[0]->OutputCount());
         }
         {
           InstructionSelectorTester m;
@@ -521,7 +521,7 @@ TEST(InstructionSelectorODPIAndShiftImm) {
           CHECK_EQ(kOverflow, m.code[0]->flags_condition());
           CHECK_EQ(3, m.code[0]->InputCount());
           CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
-          CHECK_EQ(1, m.code[0]->OutputCount());
+          CHECK_LE(1, m.code[0]->OutputCount());
         }
         {
           InstructionSelectorTester m;
@@ -535,7 +535,7 @@ TEST(InstructionSelectorODPIAndShiftImm) {
           CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
           CHECK_EQ(3, m.code[0]->InputCount());
           CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
-          CHECK_EQ(1, m.code[0]->OutputCount());
+          CHECK_LE(1, m.code[0]->OutputCount());
         }
         {
           InstructionSelectorTester m;
@@ -550,7 +550,7 @@ TEST(InstructionSelectorODPIAndShiftImm) {
           CHECK_EQ(kFlags_none, m.code[0]->flags_mode());
           CHECK_EQ(3, m.code[0]->InputCount());
           CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(2)));
-          CHECK_EQ(1, m.code[0]->OutputCount());
+          CHECK_LE(1, m.code[0]->OutputCount());
         }
         {
           InstructionSelectorTester m;
@@ -1750,6 +1750,151 @@ TEST(InstructionSelectorBranchWithDPIP) {
       CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
       CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
       CHECK_EQ(kEqual, m.code[0]->flags_condition());
+    }
+  }
+}
+
+
+TEST(InstructionSelectorBranchWithODPIP) {
+  ODPIs odpis;
+  for (ODPIs::const_iterator i = odpis.begin(); i != odpis.end(); ++i) {
+    ODPI odpi = *i;
+    {
+      InstructionSelectorTester m;
+      MLabel blocka, blockb;
+      Node* node = m.NewNode(odpi.op, m.Parameter(0), m.Parameter(1));
+      m.Branch(m.Projection(1, node), &blocka, &blockb);
+      m.Bind(&blocka);
+      m.Return(m.Int32Constant(0));
+      m.Bind(&blockb);
+      m.Return(m.Projection(0, node));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(odpi.arch_opcode, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+      CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+    }
+    {
+      InstructionSelectorTester m;
+      MLabel blocka, blockb;
+      Node* node = m.NewNode(odpi.op, m.Parameter(0), m.Parameter(1));
+      m.Branch(m.Word32Equal(m.Projection(1, node), m.Int32Constant(0)),
+               &blocka, &blockb);
+      m.Bind(&blocka);
+      m.Return(m.Int32Constant(0));
+      m.Bind(&blockb);
+      m.Return(m.Projection(0, node));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(odpi.arch_opcode, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+      CHECK_EQ(kNotOverflow, m.code[0]->flags_condition());
+    }
+    {
+      InstructionSelectorTester m;
+      MLabel blocka, blockb;
+      Node* node = m.NewNode(odpi.op, m.Parameter(0), m.Parameter(1));
+      m.Branch(m.Word32Equal(m.Int32Constant(0), m.Projection(1, node)),
+               &blocka, &blockb);
+      m.Bind(&blocka);
+      m.Return(m.Int32Constant(0));
+      m.Bind(&blockb);
+      m.Return(m.Projection(0, node));
+      m.SelectInstructions();
+      CHECK_EQ(1, m.code.size());
+      CHECK_EQ(odpi.arch_opcode, m.code[0]->arch_opcode());
+      CHECK_EQ(kMode_Operand2_R, m.code[0]->addressing_mode());
+      CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+      CHECK_EQ(kNotOverflow, m.code[0]->flags_condition());
+    }
+  }
+}
+
+
+TEST(InstructionSelectorBranchWithODPIImm) {
+  ODPIs odpis;
+  Immediates immediates;
+  for (ODPIs::const_iterator i = odpis.begin(); i != odpis.end(); ++i) {
+    ODPI odpi = *i;
+    for (Immediates::const_iterator j = immediates.begin();
+         j != immediates.end(); ++j) {
+      int32_t imm = *j;
+      {
+        InstructionSelectorTester m;
+        MLabel blocka, blockb;
+        Node* node = m.NewNode(odpi.op, m.Parameter(0), m.Int32Constant(imm));
+        m.Branch(m.Projection(1, node), &blocka, &blockb);
+        m.Bind(&blocka);
+        m.Return(m.Int32Constant(0));
+        m.Bind(&blockb);
+        m.Return(m.Projection(0, node));
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(odpi.arch_opcode, m.code[0]->arch_opcode());
+        CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+        CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+        CHECK_LE(2, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      }
+      {
+        InstructionSelectorTester m;
+        MLabel blocka, blockb;
+        Node* node = m.NewNode(odpi.op, m.Int32Constant(imm), m.Parameter(0));
+        m.Branch(m.Projection(1, node), &blocka, &blockb);
+        m.Bind(&blocka);
+        m.Return(m.Int32Constant(0));
+        m.Bind(&blockb);
+        m.Return(m.Projection(0, node));
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(odpi.reverse_arch_opcode, m.code[0]->arch_opcode());
+        CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+        CHECK_EQ(kOverflow, m.code[0]->flags_condition());
+        CHECK_LE(2, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      }
+      {
+        InstructionSelectorTester m;
+        MLabel blocka, blockb;
+        Node* node = m.NewNode(odpi.op, m.Parameter(0), m.Int32Constant(imm));
+        m.Branch(m.Word32Equal(m.Projection(1, node), m.Int32Constant(0)),
+                 &blocka, &blockb);
+        m.Bind(&blocka);
+        m.Return(m.Int32Constant(0));
+        m.Bind(&blockb);
+        m.Return(m.Projection(0, node));
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(odpi.arch_opcode, m.code[0]->arch_opcode());
+        CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+        CHECK_EQ(kNotOverflow, m.code[0]->flags_condition());
+        CHECK_LE(2, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      }
+      {
+        InstructionSelectorTester m;
+        MLabel blocka, blockb;
+        Node* node = m.NewNode(odpi.op, m.Int32Constant(imm), m.Parameter(0));
+        m.Branch(m.Word32Equal(m.Projection(1, node), m.Int32Constant(0)),
+                 &blocka, &blockb);
+        m.Bind(&blocka);
+        m.Return(m.Int32Constant(0));
+        m.Bind(&blockb);
+        m.Return(m.Projection(0, node));
+        m.SelectInstructions();
+        CHECK_EQ(1, m.code.size());
+        CHECK_EQ(odpi.reverse_arch_opcode, m.code[0]->arch_opcode());
+        CHECK_EQ(kMode_Operand2_I, m.code[0]->addressing_mode());
+        CHECK_EQ(kFlags_branch, m.code[0]->flags_mode());
+        CHECK_EQ(kNotOverflow, m.code[0]->flags_condition());
+        CHECK_LE(2, m.code[0]->InputCount());
+        CHECK_EQ(imm, m.ToInt32(m.code[0]->InputAt(1)));
+      }
     }
   }
 }

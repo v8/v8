@@ -197,8 +197,8 @@ char* DoubleToFixedCString(double value, int f) {
   const int kMaxDigitsBeforePoint = 21;
   const double kFirstNonFixed = 1e21;
   const int kMaxDigitsAfterPoint = 20;
-  ASSERT(f >= 0);
-  ASSERT(f <= kMaxDigitsAfterPoint);
+  DCHECK(f >= 0);
+  DCHECK(f <= kMaxDigitsAfterPoint);
 
   bool negative = false;
   double abs_value = value;
@@ -299,7 +299,7 @@ static char* CreateExponentialRepresentation(char* decimal_rep,
 char* DoubleToExponentialCString(double value, int f) {
   const int kMaxDigitsAfterPoint = 20;
   // f might be -1 to signal that f was undefined in JavaScript.
-  ASSERT(f >= -1 && f <= kMaxDigitsAfterPoint);
+  DCHECK(f >= -1 && f <= kMaxDigitsAfterPoint);
 
   bool negative = false;
   if (value < 0) {
@@ -316,7 +316,7 @@ char* DoubleToExponentialCString(double value, int f) {
   const int kV8DtoaBufferCapacity = kMaxDigitsAfterPoint + 1 + 1;
   // Make sure that the buffer is big enough, even if we fall back to the
   // shortest representation (which happens when f equals -1).
-  ASSERT(kBase10MaximalLength <= kMaxDigitsAfterPoint + 1);
+  DCHECK(kBase10MaximalLength <= kMaxDigitsAfterPoint + 1);
   char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
@@ -330,8 +330,8 @@ char* DoubleToExponentialCString(double value, int f) {
                   Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
                   &sign, &decimal_rep_length, &decimal_point);
   }
-  ASSERT(decimal_rep_length > 0);
-  ASSERT(decimal_rep_length <= f + 1);
+  DCHECK(decimal_rep_length > 0);
+  DCHECK(decimal_rep_length <= f + 1);
 
   int exponent = decimal_point - 1;
   char* result =
@@ -344,7 +344,7 @@ char* DoubleToExponentialCString(double value, int f) {
 char* DoubleToPrecisionCString(double value, int p) {
   const int kMinimalDigits = 1;
   const int kMaximalDigits = 21;
-  ASSERT(p >= kMinimalDigits && p <= kMaximalDigits);
+  DCHECK(p >= kMinimalDigits && p <= kMaximalDigits);
   USE(kMinimalDigits);
 
   bool negative = false;
@@ -364,7 +364,7 @@ char* DoubleToPrecisionCString(double value, int p) {
   DoubleToAscii(value, DTOA_PRECISION, p,
                 Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
                 &sign, &decimal_rep_length, &decimal_point);
-  ASSERT(decimal_rep_length <= p);
+  DCHECK(decimal_rep_length <= p);
 
   int exponent = decimal_point - 1;
 
@@ -412,7 +412,7 @@ char* DoubleToPrecisionCString(double value, int p) {
 
 
 char* DoubleToRadixCString(double value, int radix) {
-  ASSERT(radix >= 2 && radix <= 36);
+  DCHECK(radix >= 2 && radix <= 36);
 
   // Character array used for conversion.
   static const char chars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -446,7 +446,7 @@ char* DoubleToRadixCString(double value, int radix) {
     integer_part /= radix;
   } while (integer_part >= 1.0);
   // Sanity check.
-  ASSERT(integer_pos > 0);
+  DCHECK(integer_pos > 0);
   // Add sign if needed.
   if (is_negative) integer_buffer[integer_pos--] = '-';
 

@@ -53,7 +53,7 @@ Node* AstGraphBuilder::GetFunctionContext() {
 
 bool AstGraphBuilder::CreateGraph() {
   Scope* scope = info()->scope();
-  ASSERT(graph() != NULL);
+  DCHECK(graph() != NULL);
 
   SourcePositionTable::Scope start_pos(
       source_positions(),
@@ -127,7 +127,7 @@ enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
 // Determine the left-hand side kind of an assignment.
 static LhsKind DetermineLhsKind(Expression* expr) {
   Property* property = expr->AsProperty();
-  ASSERT(expr->IsValidReferenceExpression());
+  DCHECK(expr->IsValidReferenceExpression());
   LhsKind lhs_kind =
       (property == NULL) ? VARIABLE : (property->key()->IsPropertyName())
                                           ? NAMED_PROPERTY
@@ -174,7 +174,7 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
       parameters_dirty_(false),
       locals_dirty_(false),
       stack_dirty_(false) {
-  ASSERT_EQ(scope->num_parameters() + 1, parameters_count());
+  DCHECK_EQ(scope->num_parameters() + 1, parameters_count());
 
   // Bind the receiver variable.
   Node* receiver = builder->graph()->NewNode(common()->Parameter(0));
@@ -242,17 +242,17 @@ AstGraphBuilder::AstContext::~AstContext() {
 
 
 AstGraphBuilder::AstEffectContext::~AstEffectContext() {
-  ASSERT(environment()->stack_height() == original_height_);
+  DCHECK(environment()->stack_height() == original_height_);
 }
 
 
 AstGraphBuilder::AstValueContext::~AstValueContext() {
-  ASSERT(environment()->stack_height() == original_height_ + 1);
+  DCHECK(environment()->stack_height() == original_height_ + 1);
 }
 
 
 AstGraphBuilder::AstTestContext::~AstTestContext() {
-  ASSERT(environment()->stack_height() == original_height_ + 1);
+  DCHECK(environment()->stack_height() == original_height_ + 1);
 }
 
 
@@ -291,7 +291,7 @@ AstGraphBuilder::BreakableScope* AstGraphBuilder::BreakableScope::FindBreakable(
     owner_->environment()->Drop(current->drop_extra_);
     current = current->next_;
   }
-  ASSERT(current != NULL);  // Always found (unless stack is malformed).
+  DCHECK(current != NULL);  // Always found (unless stack is malformed).
   return current;
 }
 
@@ -875,7 +875,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::CONSTANT:
         UNREACHABLE();
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        ASSERT(!CompileTimeValue::IsCompileTimeValue(property->value()));
+        DCHECK(!CompileTimeValue::IsCompileTimeValue(property->value()));
       // Fall through.
       case ObjectLiteral::Property::COMPUTED: {
         // It is safe to use [[Put]] here because the boilerplate already
@@ -985,7 +985,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
 
 void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
-  ASSERT(expr->IsValidReferenceExpression());
+  DCHECK(expr->IsValidReferenceExpression());
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->AsProperty();
@@ -1023,7 +1023,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
 
 
 void AstGraphBuilder::VisitAssignment(Assignment* expr) {
-  ASSERT(expr->target()->IsValidReferenceExpression());
+  DCHECK(expr->target()->IsValidReferenceExpression());
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->target()->AsProperty();
@@ -1162,7 +1162,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     }
     case Call::LOOKUP_SLOT_CALL: {
       Variable* variable = callee->AsVariableProxy()->var();
-      ASSERT(variable->location() == Variable::LOOKUP);
+      DCHECK(variable->location() == Variable::LOOKUP);
       Node* name = jsgraph()->Constant(variable->name());
       Operator* op = javascript()->Runtime(Runtime::kLoadLookupSlot, 2);
       Node* pair = NewNode(op, current_context(), name);
@@ -1284,7 +1284,7 @@ void AstGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   // Handle calls to runtime functions implemented in JavaScript separately as
   // the call follows JavaScript ABI and the callee is statically unknown.
   if (expr->is_jsruntime()) {
-    ASSERT(function == NULL && expr->name()->length() > 0);
+    DCHECK(function == NULL && expr->name()->length() > 0);
     return VisitCallJSRuntime(expr);
   }
 
@@ -1319,7 +1319,7 @@ void AstGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
 
 
 void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
-  ASSERT(expr->expression()->IsValidReferenceExpression());
+  DCHECK(expr->expression()->IsValidReferenceExpression());
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->expression()->AsProperty();
@@ -1473,7 +1473,7 @@ void AstGraphBuilder::VisitCaseClause(CaseClause* expr) { UNREACHABLE(); }
 
 
 void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
-  ASSERT(globals()->is_empty());
+  DCHECK(globals()->is_empty());
   AstVisitor::VisitDeclarations(declarations);
   if (globals()->is_empty()) return;
   Handle<FixedArray> data =
@@ -1509,7 +1509,7 @@ void AstGraphBuilder::VisitDelete(UnaryOperation* expr) {
     // Delete of an unqualified identifier is only allowed in classic mode but
     // deleting "this" is allowed in all language modes.
     Variable* variable = expr->expression()->AsVariableProxy()->var();
-    ASSERT(strict_mode() == SLOPPY || variable->is_this());
+    DCHECK(strict_mode() == SLOPPY || variable->is_this());
     value = BuildVariableDelete(variable);
   } else if (expr->expression()->IsProperty()) {
     Property* property = expr->expression()->AsProperty();
@@ -1591,7 +1591,7 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 
 
 Node* AstGraphBuilder::ProcessArguments(Operator* op, int arity) {
-  ASSERT(environment()->stack_height() >= arity);
+  DCHECK(environment()->stack_height() >= arity);
   Node** all = info()->zone()->NewArray<Node*>(arity);  // XXX: alloca?
   for (int i = arity - 1; i >= 0; --i) {
     all[i] = environment()->Pop();
@@ -1620,7 +1620,7 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
     // (receiver is parameter index -1 but environment index 0).
     Node* parameter = NewNode(common()->Parameter(i + 1));
     // Context variable (at bottom of the context chain).
-    ASSERT_EQ(0, info()->scope()->ContextChainLength(variable->scope()));
+    DCHECK_EQ(0, info()->scope()->ContextChainLength(variable->scope()));
     Operator* op = javascript()->StoreContext(0, variable->index());
     NewNode(op, local_context, parameter);
   }
@@ -1638,7 +1638,7 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   Node* object = NewNode(op, callee);
 
   // Assign the object to the arguments variable.
-  ASSERT(arguments->IsContextSlot() || arguments->IsStackAllocated());
+  DCHECK(arguments->IsContextSlot() || arguments->IsStackAllocated());
   BuildVariableAssignment(arguments, object, Token::ASSIGN);
 
   return object;
@@ -1957,7 +1957,7 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
 void AstGraphBuilder::BuildLazyBailout(Node* node, BailoutId ast_id) {
   if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
     // The deopting node should have an outgoing control dependency.
-    ASSERT(GetControlDependency() == node);
+    DCHECK(GetControlDependency() == node);
 
     StructuredGraphBuilder::Environment* continuation_env =
         environment_internal();

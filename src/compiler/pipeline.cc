@@ -244,10 +244,10 @@ Handle<Code> Pipeline::GenerateCodeForMachineGraph(Linkage* linkage,
 Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
                                     Schedule* schedule,
                                     SourcePositionTable* source_positions) {
-  ASSERT_NOT_NULL(graph);
-  ASSERT_NOT_NULL(linkage);
-  ASSERT_NOT_NULL(schedule);
-  ASSERT(SupportedTarget());
+  DCHECK_NOT_NULL(graph);
+  DCHECK_NOT_NULL(linkage);
+  DCHECK_NOT_NULL(schedule);
+  DCHECK(SupportedTarget());
 
   InstructionSequence sequence(linkage, graph, schedule);
 

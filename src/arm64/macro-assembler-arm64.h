@@ -366,7 +366,7 @@ class MacroAssembler : public Assembler {
   // Provide a template to allow other types to be converted automatically.
   template<typename T>
   void Fmov(FPRegister fd, T imm) {
-    ASSERT(allow_macro_instructions_);
+    DCHECK(allow_macro_instructions_);
     Fmov(fd, static_cast<double>(imm));
   }
   inline void Fmov(Register rd, FPRegister fn);
@@ -619,7 +619,7 @@ class MacroAssembler : public Assembler {
     explicit PushPopQueue(MacroAssembler* masm) : masm_(masm), size_(0) { }
 
     ~PushPopQueue() {
-      ASSERT(queued_.empty());
+      DCHECK(queued_.empty());
     }
 
     void Queue(const CPURegister& rt) {
@@ -771,7 +771,7 @@ class MacroAssembler : public Assembler {
 
   // Set the current stack pointer, but don't generate any code.
   inline void SetStackPointer(const Register& stack_pointer) {
-    ASSERT(!TmpList()->IncludesAliasOf(stack_pointer));
+    DCHECK(!TmpList()->IncludesAliasOf(stack_pointer));
     sp_ = stack_pointer;
   }
 
@@ -785,8 +785,8 @@ class MacroAssembler : public Assembler {
   inline void AlignAndSetCSPForFrame() {
     int sp_alignment = ActivationFrameAlignment();
     // AAPCS64 mandates at least 16-byte alignment.
-    ASSERT(sp_alignment >= 16);
-    ASSERT(IsPowerOf2(sp_alignment));
+    DCHECK(sp_alignment >= 16);
+    DCHECK(IsPowerOf2(sp_alignment));
     Bic(csp, StackPointer(), sp_alignment - 1);
     SetStackPointer(csp);
   }
@@ -841,7 +841,7 @@ class MacroAssembler : public Assembler {
     if (object->IsHeapObject()) {
       LoadHeapObject(result, Handle<HeapObject>::cast(object));
     } else {
-      ASSERT(object->IsSmi());
+      DCHECK(object->IsSmi());
       Mov(result, Operand(object));
     }
   }
@@ -981,7 +981,7 @@ class MacroAssembler : public Assembler {
                                  FPRegister scratch_d,
                                  Label* on_successful_conversion = NULL,
                                  Label* on_failed_conversion = NULL) {
-    ASSERT(as_int.Is32Bits());
+    DCHECK(as_int.Is32Bits());
     TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
                             on_failed_conversion);
   }
@@ -996,7 +996,7 @@ class MacroAssembler : public Assembler {
                                  FPRegister scratch_d,
                                  Label* on_successful_conversion = NULL,
                                  Label* on_failed_conversion = NULL) {
-    ASSERT(as_int.Is64Bits());
+    DCHECK(as_int.Is64Bits());
     TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
                             on_failed_conversion);
   }
@@ -2204,7 +2204,7 @@ class InstructionAccurateScope BASE_EMBEDDED {
     masm_->EndBlockPools();
 #ifdef DEBUG
     if (start_.is_bound()) {
-      ASSERT(masm_->SizeOfCodeGeneratedSince(&start_) == size_);
+      DCHECK(masm_->SizeOfCodeGeneratedSince(&start_) == size_);
     }
     masm_->set_allow_macro_instructions(previous_allow_macro_instructions_);
 #endif
@@ -2234,8 +2234,8 @@ class UseScratchRegisterScope {
         availablefp_(masm->FPTmpList()),
         old_available_(available_->list()),
         old_availablefp_(availablefp_->list()) {
-    ASSERT(available_->type() == CPURegister::kRegister);
-    ASSERT(availablefp_->type() == CPURegister::kFPRegister);
+    DCHECK(available_->type() == CPURegister::kRegister);
+    DCHECK(availablefp_->type() == CPURegister::kFPRegister);
   }
 
   ~UseScratchRegisterScope();

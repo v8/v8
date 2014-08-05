@@ -265,10 +265,10 @@ void JSObject::JSObjectVerify() {
         Representation r = descriptors->GetDetails(i).representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
         Object* value = RawFastPropertyAt(index);
-        if (r.IsDouble()) ASSERT(value->IsMutableHeapNumber());
+        if (r.IsDouble()) DCHECK(value->IsMutableHeapNumber());
         if (value->IsUninitialized()) continue;
-        if (r.IsSmi()) ASSERT(value->IsSmi());
-        if (r.IsHeapObject()) ASSERT(value->IsHeapObject());
+        if (r.IsSmi()) DCHECK(value->IsSmi());
+        if (r.IsHeapObject()) DCHECK(value->IsHeapObject());
         HeapType* field_type = descriptors->GetFieldType(i);
         if (r.IsNone()) {
           CHECK(field_type->Is(HeapType::None()));
@@ -300,10 +300,10 @@ void Map::MapVerify() {
           instance_size() < heap->Capacity()));
   VerifyHeapPointer(prototype());
   VerifyHeapPointer(instance_descriptors());
-  SLOW_ASSERT(instance_descriptors()->IsSortedNoDuplicates());
+  SLOW_DCHECK(instance_descriptors()->IsSortedNoDuplicates());
   if (HasTransitionArray()) {
-    SLOW_ASSERT(transitions()->IsSortedNoDuplicates());
-    SLOW_ASSERT(transitions()->IsConsistentWithBackPointers(this));
+    SLOW_DCHECK(transitions()->IsSortedNoDuplicates());
+    SLOW_DCHECK(transitions()->IsConsistentWithBackPointers(this));
   }
 }
 
@@ -1161,7 +1161,7 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 
 
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
-  ASSERT(valid_entries == -1);
+  DCHECK(valid_entries == -1);
   Name* current_key = NULL;
   uint32_t current = 0;
   for (int i = 0; i < number_of_transitions(); i++) {

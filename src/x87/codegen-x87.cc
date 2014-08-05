@@ -19,14 +19,14 @@ namespace internal {
 
 void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
   masm->EnterFrame(StackFrame::INTERNAL);
-  ASSERT(!masm->has_frame());
+  DCHECK(!masm->has_frame());
   masm->set_has_frame(true);
 }
 
 
 void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
   masm->LeaveFrame(StackFrame::INTERNAL);
-  ASSERT(masm->has_frame());
+  DCHECK(masm->has_frame());
   masm->set_has_frame(false);
 }
 
@@ -181,7 +181,7 @@ MemMoveFunction CreateMemMoveFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
   CpuFeatures::FlushICache(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   // TODO(jkummerow): It would be nice to register this code creation event
@@ -207,10 +207,10 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     AllocationSiteMode mode,
     Label* allocation_memento_found) {
   Register scratch = edi;
-  ASSERT(!AreAliased(receiver, key, value, target_map, scratch));
+  DCHECK(!AreAliased(receiver, key, value, target_map, scratch));
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    ASSERT(allocation_memento_found != NULL);
+    DCHECK(allocation_memento_found != NULL);
     __ JumpIfJSArrayHasAllocationMemento(
         receiver, scratch, allocation_memento_found);
   }
@@ -235,10 +235,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
     AllocationSiteMode mode,
     Label* fail) {
   // Return address is on the stack.
-  ASSERT(receiver.is(edx));
-  ASSERT(key.is(ecx));
-  ASSERT(value.is(eax));
-  ASSERT(target_map.is(ebx));
+  DCHECK(receiver.is(edx));
+  DCHECK(key.is(ecx));
+  DCHECK(value.is(eax));
+  DCHECK(target_map.is(ebx));
 
   Label loop, entry, convert_hole, gc_required, only_change_map;
 
@@ -357,10 +357,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
     AllocationSiteMode mode,
     Label* fail) {
   // Return address is on the stack.
-  ASSERT(receiver.is(edx));
-  ASSERT(key.is(ecx));
-  ASSERT(value.is(eax));
-  ASSERT(target_map.is(ebx));
+  DCHECK(receiver.is(edx));
+  DCHECK(key.is(ecx));
+  DCHECK(value.is(eax));
+  DCHECK(target_map.is(ebx));
 
   Label loop, entry, convert_hole, gc_required, only_change_map, success;
 
@@ -586,7 +586,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
 
 
 CodeAgingHelper::CodeAgingHelper() {
-  ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
   patcher.masm()->push(ebp);
   patcher.masm()->mov(ebp, esp);
@@ -604,7 +604,7 @@ bool CodeAgingHelper::IsOld(byte* candidate) const {
 
 bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
   bool result = isolate->code_aging_helper()->IsYoung(sequence);
-  ASSERT(result || isolate->code_aging_helper()->IsOld(sequence));
+  DCHECK(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 

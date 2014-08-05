@@ -99,8 +99,8 @@ int64_t TimeDelta::InNanoseconds() const {
 #if V8_OS_MACOSX
 
 TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
-  ASSERT_GE(ts.tv_nsec, 0);
-  ASSERT_LT(ts.tv_nsec,
+  DCHECK_GE(ts.tv_nsec, 0);
+  DCHECK_LT(ts.tv_nsec,
             static_cast<long>(Time::kNanosecondsPerSecond));  // NOLINT
   return TimeDelta(ts.tv_sec * Time::kMicrosecondsPerSecond +
                    ts.tv_nsec / Time::kNanosecondsPerMicrosecond);
@@ -109,7 +109,7 @@ TimeDelta TimeDelta::FromMachTimespec(struct mach_timespec ts) {
 
 struct mach_timespec TimeDelta::ToMachTimespec() const {
   struct mach_timespec ts;
-  ASSERT(delta_ >= 0);
+  DCHECK(delta_ >= 0);
   ts.tv_sec = delta_ / Time::kMicrosecondsPerSecond;
   ts.tv_nsec = (delta_ % Time::kMicrosecondsPerSecond) *
       Time::kNanosecondsPerMicrosecond;
@@ -122,8 +122,8 @@ struct mach_timespec TimeDelta::ToMachTimespec() const {
 #if V8_OS_POSIX
 
 TimeDelta TimeDelta::FromTimespec(struct timespec ts) {
-  ASSERT_GE(ts.tv_nsec, 0);
-  ASSERT_LT(ts.tv_nsec,
+  DCHECK_GE(ts.tv_nsec, 0);
+  DCHECK_LT(ts.tv_nsec,
             static_cast<long>(Time::kNanosecondsPerSecond));  // NOLINT
   return TimeDelta(ts.tv_sec * Time::kMicrosecondsPerSecond +
                    ts.tv_nsec / Time::kNanosecondsPerMicrosecond);
@@ -230,7 +230,7 @@ Time Time::FromFiletime(FILETIME ft) {
 
 
 FILETIME Time::ToFiletime() const {
-  ASSERT(us_ >= 0);
+  DCHECK(us_ >= 0);
   FILETIME ft;
   if (IsNull()) {
     ft.dwLowDateTime = 0;
@@ -253,7 +253,7 @@ FILETIME Time::ToFiletime() const {
 Time Time::Now() {
   struct timeval tv;
   int result = gettimeofday(&tv, NULL);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
   return FromTimeval(tv);
 }
@@ -265,8 +265,8 @@ Time Time::NowFromSystemTime() {
 
 
 Time Time::FromTimespec(struct timespec ts) {
-  ASSERT(ts.tv_nsec >= 0);
-  ASSERT(ts.tv_nsec < static_cast<long>(kNanosecondsPerSecond));  // NOLINT
+  DCHECK(ts.tv_nsec >= 0);
+  DCHECK(ts.tv_nsec < static_cast<long>(kNanosecondsPerSecond));  // NOLINT
   if (ts.tv_nsec == 0 && ts.tv_sec == 0) {
     return Time();
   }
@@ -298,8 +298,8 @@ struct timespec Time::ToTimespec() const {
 
 
 Time Time::FromTimeval(struct timeval tv) {
-  ASSERT(tv.tv_usec >= 0);
-  ASSERT(tv.tv_usec < static_cast<suseconds_t>(kMicrosecondsPerSecond));
+  DCHECK(tv.tv_usec >= 0);
+  DCHECK(tv.tv_usec < static_cast<suseconds_t>(kMicrosecondsPerSecond));
   if (tv.tv_usec == 0 && tv.tv_sec == 0) {
     return Time();
   }
@@ -397,14 +397,14 @@ class HighResolutionTickClock V8_FINAL : public TickClock {
  public:
   explicit HighResolutionTickClock(int64_t ticks_per_second)
       : ticks_per_second_(ticks_per_second) {
-    ASSERT_LT(0, ticks_per_second);
+    DCHECK_LT(0, ticks_per_second);
   }
   virtual ~HighResolutionTickClock() {}
 
   virtual int64_t Now() V8_OVERRIDE {
     LARGE_INTEGER now;
     BOOL result = QueryPerformanceCounter(&now);
-    ASSERT(result);
+    DCHECK(result);
     USE(result);
 
     // Intentionally calculate microseconds in a round about manner to avoid
@@ -500,7 +500,7 @@ static LazyDynamicInstance<TickClock, CreateHighResTickClockTrait,
 TimeTicks TimeTicks::Now() {
   // Make sure we never return 0 here.
   TimeTicks ticks(tick_clock.Pointer()->Now());
-  ASSERT(!ticks.IsNull());
+  DCHECK(!ticks.IsNull());
   return ticks;
 }
 
@@ -508,7 +508,7 @@ TimeTicks TimeTicks::Now() {
 TimeTicks TimeTicks::HighResolutionNow() {
   // Make sure we never return 0 here.
   TimeTicks ticks(high_res_tick_clock.Pointer()->Now());
-  ASSERT(!ticks.IsNull());
+  DCHECK(!ticks.IsNull());
   return ticks;
 }
 
@@ -539,7 +539,7 @@ TimeTicks TimeTicks::HighResolutionNow() {
   static struct mach_timebase_info info;
   if (info.denom == 0) {
     kern_return_t result = mach_timebase_info(&info);
-    ASSERT_EQ(KERN_SUCCESS, result);
+    DCHECK_EQ(KERN_SUCCESS, result);
     USE(result);
   }
   ticks = (mach_absolute_time() / Time::kNanosecondsPerMicrosecond *
@@ -552,13 +552,13 @@ TimeTicks TimeTicks::HighResolutionNow() {
   // cleanup the tools/gyp/v8.gyp file.
   struct timeval tv;
   int result = gettimeofday(&tv, NULL);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
   ticks = (tv.tv_sec * Time::kMicrosecondsPerSecond + tv.tv_usec);
 #elif V8_OS_POSIX
   struct timespec ts;
   int result = clock_gettime(CLOCK_MONOTONIC, &ts);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
   ticks = (ts.tv_sec * Time::kMicrosecondsPerSecond +
            ts.tv_nsec / Time::kNanosecondsPerMicrosecond);

@@ -112,7 +112,7 @@ void InstructionSelector::VisitStore(Node* node) {
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
   MachineRepresentation rep = store_rep.rep;
   if (store_rep.write_barrier_kind == kFullWriteBarrier) {
-    ASSERT(rep == kMachineTagged);
+    DCHECK(rep == kMachineTagged);
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
     // TODO(dcarney): handle immediate indices.
@@ -122,7 +122,7 @@ void InstructionSelector::VisitStore(Node* node) {
          temps);
     return;
   }
-  ASSERT_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
+  DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
   bool is_immediate = false;
   InstructionOperand* val;
   if (rep == kMachineFloat64) {
@@ -176,31 +176,10 @@ void InstructionSelector::VisitStore(Node* node) {
 
 // Shared routine for multiple binary operations.
 static void VisitBinop(InstructionSelector* selector, Node* node,
-                       ArchOpcode opcode, bool commutative) {
-  X64OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  // TODO(turbofan): match complex addressing modes.
-  // TODO(turbofan): if commutative, pick the non-live-in operand as the left as
-  // this might be the last use and therefore its register can be reused.
-  if (g.CanBeImmediate(right)) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
-                   g.UseImmediate(right));
-  } else if (commutative && g.CanBeImmediate(left)) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(right),
-                   g.UseImmediate(left));
-  } else {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
-                   g.Use(right));
-  }
-}
-
-
-static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
-                                   InstructionCode opcode) {
+                       InstructionCode opcode, FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
   Int32BinopMatcher m(node);
-  InstructionOperand* inputs[2];
+  InstructionOperand* inputs[4];
   size_t input_count = 0;
   InstructionOperand* outputs[2];
   size_t output_count = 0;
@@ -216,46 +195,52 @@ static void VisitBinopWithOverflow(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.Use(m.right().node());
   }
 
-  // Define outputs depending on the projections.
-  Node* projections[2];
-  node->CollectProjections(ARRAY_SIZE(projections), projections);
-  if (projections[0]) {
-    outputs[output_count++] = g.DefineSameAsFirst(projections[0]);
-  }
-  if (projections[1]) {
-    opcode |= FlagsModeField::encode(kFlags_set);
-    opcode |= FlagsConditionField::encode(kOverflow);
-    outputs[output_count++] =
-        (projections[0] ? g.DefineAsRegister(projections[1])
-                        : g.DefineSameAsFirst(projections[1]));
+  if (cont->IsBranch()) {
+    inputs[input_count++] = g.Label(cont->true_block());
+    inputs[input_count++] = g.Label(cont->false_block());
   }
 
-  ASSERT_NE(0, input_count);
-  ASSERT_NE(0, output_count);
-  ASSERT_GE(ARRAY_SIZE(inputs), input_count);
-  ASSERT_GE(ARRAY_SIZE(outputs), output_count);
+  outputs[output_count++] = g.DefineSameAsFirst(node);
+  if (cont->IsSet()) {
+    outputs[output_count++] = g.DefineAsRegister(cont->result());
+  }
 
-  selector->Emit(opcode, output_count, outputs, input_count, inputs);
+  DCHECK_NE(0, input_count);
+  DCHECK_NE(0, output_count);
+  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
+  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
+
+  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
+                                      outputs, input_count, inputs);
+  if (cont->IsBranch()) instr->MarkAsControl();
+}
+
+
+// Shared routine for multiple binary operations.
+static void VisitBinop(InstructionSelector* selector, Node* node,
+                       InstructionCode opcode) {
+  FlagsContinuation cont;
+  VisitBinop(selector, node, opcode, &cont);
 }
 
 
 void InstructionSelector::VisitWord32And(Node* node) {
-  VisitBinop(this, node, kX64And32, true);
+  VisitBinop(this, node, kX64And32);
 }
 
 
 void InstructionSelector::VisitWord64And(Node* node) {
-  VisitBinop(this, node, kX64And, true);
+  VisitBinop(this, node, kX64And);
 }
 
 
 void InstructionSelector::VisitWord32Or(Node* node) {
-  VisitBinop(this, node, kX64Or32, true);
+  VisitBinop(this, node, kX64Or32);
 }
 
 
 void InstructionSelector::VisitWord64Or(Node* node) {
-  VisitBinop(this, node, kX64Or, true);
+  VisitBinop(this, node, kX64Or);
 }
 
 
@@ -268,7 +253,7 @@ static void VisitXor(InstructionSelector* selector, Node* node,
     selector->Emit(not_opcode, g.DefineSameAsFirst(node),
                    g.Use(m.left().node()));
   } else {
-    VisitBinop(selector, node, xor_opcode, true);
+    VisitBinop(selector, node, xor_opcode);
   }
 }
 
@@ -366,17 +351,12 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
 
 
 void InstructionSelector::VisitInt32Add(Node* node) {
-  VisitBinop(this, node, kX64Add32, true);
-}
-
-
-void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
-  VisitBinopWithOverflow(this, node, kX64Add32);
+  VisitBinop(this, node, kX64Add32);
 }
 
 
 void InstructionSelector::VisitInt64Add(Node* node) {
-  VisitBinop(this, node, kX64Add, true);
+  VisitBinop(this, node, kX64Add);
 }
 
 
@@ -389,18 +369,13 @@ static void VisitSub(InstructionSelector* selector, Node* node,
     selector->Emit(neg_opcode, g.DefineSameAsFirst(node),
                    g.Use(m.right().node()));
   } else {
-    VisitBinop(selector, node, sub_opcode, false);
+    VisitBinop(selector, node, sub_opcode);
   }
 }
 
 
 void InstructionSelector::VisitInt32Sub(Node* node) {
   VisitSub<int32_t>(this, node, kX64Sub32, kX64Neg32);
-}
-
-
-void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
-  VisitBinopWithOverflow(this, node, kX64Sub32);
 }
 
 
@@ -584,6 +559,18 @@ void InstructionSelector::VisitConvertInt32ToInt64(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  VisitBinop(this, node, kX64Add32, cont);
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node,
+                                                    FlagsContinuation* cont) {
+  VisitBinop(this, node, kX64Sub32, cont);
+}
+
+
 // Shared routine for multiple compare operations.
 static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                          InstructionOperand* left, InstructionOperand* right,
@@ -594,7 +581,7 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
     selector->Emit(opcode, NULL, left, right, g.Label(cont->true_block()),
                    g.Label(cont->false_block()))->MarkAsControl();
   } else {
-    ASSERT(cont->IsSet());
+    DCHECK(cont->IsSet());
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
   }
 }
@@ -720,14 +707,14 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
 
   call_instr->MarkAsCall();
   if (deoptimization != NULL) {
-    ASSERT(continuation != NULL);
+    DCHECK(continuation != NULL);
     call_instr->MarkAsControl();
   }
 
   // Caller clean up of stack for C-style calls.
   if (descriptor->kind() == CallDescriptor::kCallAddress &&
       buffer.pushed_count > 0) {
-    ASSERT(deoptimization == NULL && continuation == NULL);
+    DCHECK(deoptimization == NULL && continuation == NULL);
     Emit(kPopStack | MiscField::encode(buffer.pushed_count), NULL);
   }
 }

@@ -55,8 +55,8 @@
 #include <unistd.h>  // NOLINT
 #endif
 
-#ifndef ASSERT
-#define ASSERT(condition) assert(condition)
+#ifndef DCHECK
+#define DCHECK(condition) assert(condition)
 #endif
 
 namespace v8 {
@@ -186,7 +186,7 @@ Local<UnboundScript> Shell::CompileString(
     } else if (compile_options == ScriptCompiler::kProduceParserCache) {
       compile_options = ScriptCompiler::kConsumeParserCache;
     } else {
-      ASSERT(false);  // A new compile option?
+      DCHECK(false);  // A new compile option?
     }
     ScriptCompiler::Source cached_source(
         source, origin, new v8::ScriptCompiler::CachedData(
@@ -235,13 +235,13 @@ bool Shell::ExecuteString(Isolate* isolate,
     realm->Exit();
     data->realm_current_ = data->realm_switch_;
     if (result.IsEmpty()) {
-      ASSERT(try_catch.HasCaught());
+      DCHECK(try_catch.HasCaught());
       // Print errors that happened during execution.
       if (report_exceptions && !FLAG_debugger)
         ReportException(isolate, &try_catch);
       return false;
     } else {
-      ASSERT(!try_catch.HasCaught());
+      DCHECK(!try_catch.HasCaught());
       if (print_result) {
 #if !defined(V8_SHARED)
         if (options.test_shell) {
@@ -747,7 +747,7 @@ Counter* Shell::GetCounter(const char* name, bool is_histogram) {
       counter->Bind(name, is_histogram);
     }
   } else {
-    ASSERT(counter->is_histogram() == is_histogram);
+    DCHECK(counter->is_histogram() == is_histogram);
   }
   return counter;
 }
@@ -843,7 +843,7 @@ class BZip2Decompressor : public v8::StartupDataDecompressor {
                              int* raw_data_size,
                              const char* compressed_data,
                              int compressed_data_size) {
-    ASSERT_EQ(v8::StartupData::kBZip2,
+    DCHECK_EQ(v8::StartupData::kBZip2,
               v8::V8::GetCompressedStartupDataAlgorithm());
     unsigned int decompressed_size = *raw_data_size;
     int result =
@@ -960,7 +960,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, NULL, global_template);
-  ASSERT(!context.IsEmpty());
+  DCHECK(!context.IsEmpty());
   Context::Scope scope(context);
 
 #ifndef V8_SHARED
@@ -1107,7 +1107,7 @@ static void ReadBufferWeakCallback(
 
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  ASSERT(sizeof(char) == sizeof(uint8_t));  // NOLINT
+  DCHECK(sizeof(char) == sizeof(uint8_t));  // NOLINT
   String::Utf8Value filename(args[0]);
   int length;
   if (*filename == NULL) {

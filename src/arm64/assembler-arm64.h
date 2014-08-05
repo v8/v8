@@ -106,18 +106,18 @@ struct Register : public CPURegister {
     reg_code = r.reg_code;
     reg_size = r.reg_size;
     reg_type = r.reg_type;
-    ASSERT(IsValidOrNone());
+    DCHECK(IsValidOrNone());
   }
 
   Register(const Register& r) {  // NOLINT(runtime/explicit)
     reg_code = r.reg_code;
     reg_size = r.reg_size;
     reg_type = r.reg_type;
-    ASSERT(IsValidOrNone());
+    DCHECK(IsValidOrNone());
   }
 
   bool IsValid() const {
-    ASSERT(IsRegister() || IsNone());
+    DCHECK(IsRegister() || IsNone());
     return IsValidRegister();
   }
 
@@ -169,7 +169,7 @@ struct Register : public CPURegister {
   }
 
   static Register FromAllocationIndex(unsigned index) {
-    ASSERT(index < static_cast<unsigned>(NumAllocatableRegisters()));
+    DCHECK(index < static_cast<unsigned>(NumAllocatableRegisters()));
     // cp is the last allocatable register.
     if (index == (static_cast<unsigned>(NumAllocatableRegisters() - 1))) {
       return from_code(kAllocatableContext);
@@ -182,8 +182,8 @@ struct Register : public CPURegister {
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT((index >= 0) && (index < NumAllocatableRegisters()));
-    ASSERT((kAllocatableLowRangeBegin == 0) &&
+    DCHECK((index >= 0) && (index < NumAllocatableRegisters()));
+    DCHECK((kAllocatableLowRangeBegin == 0) &&
            (kAllocatableLowRangeEnd == 15) &&
            (kAllocatableHighRangeBegin == 18) &&
            (kAllocatableHighRangeEnd == 24) &&
@@ -199,7 +199,7 @@ struct Register : public CPURegister {
   }
 
   static int ToAllocationIndex(Register reg) {
-    ASSERT(reg.IsAllocatable());
+    DCHECK(reg.IsAllocatable());
     unsigned code = reg.code();
     if (code == kAllocatableContext) {
       return NumAllocatableRegisters() - 1;
@@ -235,18 +235,18 @@ struct FPRegister : public CPURegister {
     reg_code = r.reg_code;
     reg_size = r.reg_size;
     reg_type = r.reg_type;
-    ASSERT(IsValidOrNone());
+    DCHECK(IsValidOrNone());
   }
 
   FPRegister(const FPRegister& r) {  // NOLINT(runtime/explicit)
     reg_code = r.reg_code;
     reg_size = r.reg_size;
     reg_type = r.reg_type;
-    ASSERT(IsValidOrNone());
+    DCHECK(IsValidOrNone());
   }
 
   bool IsValid() const {
-    ASSERT(IsFPRegister() || IsNone());
+    DCHECK(IsFPRegister() || IsNone());
     return IsValidFPRegister();
   }
 
@@ -282,7 +282,7 @@ struct FPRegister : public CPURegister {
   }
 
   static FPRegister FromAllocationIndex(unsigned int index) {
-    ASSERT(index < static_cast<unsigned>(NumAllocatableRegisters()));
+    DCHECK(index < static_cast<unsigned>(NumAllocatableRegisters()));
 
     return (index <= kAllocatableLowRangeEnd)
         ? from_code(index)
@@ -290,8 +290,8 @@ struct FPRegister : public CPURegister {
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT((index >= 0) && (index < NumAllocatableRegisters()));
-    ASSERT((kAllocatableLowRangeBegin == 0) &&
+    DCHECK((index >= 0) && (index < NumAllocatableRegisters()));
+    DCHECK((kAllocatableLowRangeBegin == 0) &&
            (kAllocatableLowRangeEnd == 14) &&
            (kAllocatableHighRangeBegin == 16) &&
            (kAllocatableHighRangeEnd == 28));
@@ -305,7 +305,7 @@ struct FPRegister : public CPURegister {
   }
 
   static int ToAllocationIndex(FPRegister reg) {
-    ASSERT(reg.IsAllocatable());
+    DCHECK(reg.IsAllocatable());
     unsigned code = reg.code();
 
     return (code <= kAllocatableLowRangeEnd)
@@ -451,40 +451,40 @@ class CPURegList {
                       CPURegister reg4 = NoCPUReg)
       : list_(reg1.Bit() | reg2.Bit() | reg3.Bit() | reg4.Bit()),
         size_(reg1.SizeInBits()), type_(reg1.type()) {
-    ASSERT(AreSameSizeAndType(reg1, reg2, reg3, reg4));
-    ASSERT(IsValid());
+    DCHECK(AreSameSizeAndType(reg1, reg2, reg3, reg4));
+    DCHECK(IsValid());
   }
 
   CPURegList(CPURegister::RegisterType type, unsigned size, RegList list)
       : list_(list), size_(size), type_(type) {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
   }
 
   CPURegList(CPURegister::RegisterType type, unsigned size,
              unsigned first_reg, unsigned last_reg)
       : size_(size), type_(type) {
-    ASSERT(((type == CPURegister::kRegister) &&
+    DCHECK(((type == CPURegister::kRegister) &&
             (last_reg < kNumberOfRegisters)) ||
            ((type == CPURegister::kFPRegister) &&
             (last_reg < kNumberOfFPRegisters)));
-    ASSERT(last_reg >= first_reg);
+    DCHECK(last_reg >= first_reg);
     list_ = (1UL << (last_reg + 1)) - 1;
     list_ &= ~((1UL << first_reg) - 1);
-    ASSERT(IsValid());
+    DCHECK(IsValid());
   }
 
   CPURegister::RegisterType type() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return type_;
   }
 
   RegList list() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return list_;
   }
 
   inline void set_list(RegList new_list) {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     list_ = new_list;
   }
 
@@ -529,7 +529,7 @@ class CPURegList {
   static CPURegList GetSafepointSavedRegisters();
 
   bool IsEmpty() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return list_ == 0;
   }
 
@@ -537,7 +537,7 @@ class CPURegList {
                        const CPURegister& other2 = NoCPUReg,
                        const CPURegister& other3 = NoCPUReg,
                        const CPURegister& other4 = NoCPUReg) const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     RegList list = 0;
     if (!other1.IsNone() && (other1.type() == type_)) list |= other1.Bit();
     if (!other2.IsNone() && (other2.type() == type_)) list |= other2.Bit();
@@ -547,23 +547,23 @@ class CPURegList {
   }
 
   int Count() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return CountSetBits(list_, kRegListSizeInBits);
   }
 
   unsigned RegisterSizeInBits() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return size_;
   }
 
   unsigned RegisterSizeInBytes() const {
     int size_in_bits = RegisterSizeInBits();
-    ASSERT((size_in_bits % kBitsPerByte) == 0);
+    DCHECK((size_in_bits % kBitsPerByte) == 0);
     return size_in_bits / kBitsPerByte;
   }
 
   unsigned TotalSizeInBytes() const {
-    ASSERT(IsValid());
+    DCHECK(IsValid());
     return RegisterSizeInBytes() * Count();
   }
 
@@ -829,7 +829,7 @@ class Assembler : public AssemblerBase {
   // Start generating code from the beginning of the buffer, discarding any code
   // and data that has already been emitted into the buffer.
   //
-  // In order to avoid any accidental transfer of state, Reset ASSERTs that the
+  // In order to avoid any accidental transfer of state, Reset DCHECKs that the
   // constant pool is not blocked.
   void Reset();
 
@@ -913,15 +913,15 @@ class Assembler : public AssemblerBase {
 
   // Size of the generated code in bytes
   uint64_t SizeOfGeneratedCode() const {
-    ASSERT((pc_ >= buffer_) && (pc_ < (buffer_ + buffer_size_)));
+    DCHECK((pc_ >= buffer_) && (pc_ < (buffer_ + buffer_size_)));
     return pc_ - buffer_;
   }
 
   // Return the code size generated from label to the current position.
   uint64_t SizeOfCodeGeneratedSince(const Label* label) {
-    ASSERT(label->is_bound());
-    ASSERT(pc_offset() >= label->pos());
-    ASSERT(pc_offset() < buffer_size_);
+    DCHECK(label->is_bound());
+    DCHECK(pc_offset() >= label->pos());
+    DCHECK(pc_offset() < buffer_size_);
     return pc_offset() - label->pos();
   }
 
@@ -931,8 +931,8 @@ class Assembler : public AssemblerBase {
   // TODO(jbramley): Work out what sign to use for these things and if possible,
   // change things to be consistent.
   void AssertSizeOfCodeGeneratedSince(const Label* label, ptrdiff_t size) {
-    ASSERT(size >= 0);
-    ASSERT(static_cast<uint64_t>(size) == SizeOfCodeGeneratedSince(label));
+    DCHECK(size >= 0);
+    DCHECK(static_cast<uint64_t>(size) == SizeOfCodeGeneratedSince(label));
   }
 
   // Return the number of instructions generated from label to the
@@ -1214,8 +1214,8 @@ class Assembler : public AssemblerBase {
            const Register& rn,
            unsigned lsb,
            unsigned width) {
-    ASSERT(width >= 1);
-    ASSERT(lsb + width <= rn.SizeInBits());
+    DCHECK(width >= 1);
+    DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
@@ -1224,15 +1224,15 @@ class Assembler : public AssemblerBase {
              const Register& rn,
              unsigned lsb,
              unsigned width) {
-    ASSERT(width >= 1);
-    ASSERT(lsb + width <= rn.SizeInBits());
+    DCHECK(width >= 1);
+    DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, lsb, lsb + width - 1);
   }
 
   // Sbfm aliases.
   // Arithmetic shift right.
   void asr(const Register& rd, const Register& rn, unsigned shift) {
-    ASSERT(shift < rd.SizeInBits());
+    DCHECK(shift < rd.SizeInBits());
     sbfm(rd, rn, shift, rd.SizeInBits() - 1);
   }
 
@@ -1241,8 +1241,8 @@ class Assembler : public AssemblerBase {
              const Register& rn,
              unsigned lsb,
              unsigned width) {
-    ASSERT(width >= 1);
-    ASSERT(lsb + width <= rn.SizeInBits());
+    DCHECK(width >= 1);
+    DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
@@ -1251,8 +1251,8 @@ class Assembler : public AssemblerBase {
             const Register& rn,
             unsigned lsb,
             unsigned width) {
-    ASSERT(width >= 1);
-    ASSERT(lsb + width <= rn.SizeInBits());
+    DCHECK(width >= 1);
+    DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, lsb, lsb + width - 1);
   }
 
@@ -1275,13 +1275,13 @@ class Assembler : public AssemblerBase {
   // Logical shift left.
   void lsl(const Register& rd, const Register& rn, unsigned shift) {
     unsigned reg_size = rd.SizeInBits();
-    ASSERT(shift < reg_size);
+    DCHECK(shift < reg_size);
     ubfm(rd, rn, (reg_size - shift) % reg_size, reg_size - shift - 1);
   }
 
   // Logical shift right.
   void lsr(const Register& rd, const Register& rn, unsigned shift) {
-    ASSERT(shift < rd.SizeInBits());
+    DCHECK(shift < rd.SizeInBits());
     ubfm(rd, rn, shift, rd.SizeInBits() - 1);
   }
 
@@ -1290,8 +1290,8 @@ class Assembler : public AssemblerBase {
              const Register& rn,
              unsigned lsb,
              unsigned width) {
-    ASSERT(width >= 1);
-    ASSERT(lsb + width <= rn.SizeInBits());
+    DCHECK(width >= 1);
+    DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
@@ -1300,8 +1300,8 @@ class Assembler : public AssemblerBase {
             const Register& rn,
             unsigned lsb,
             unsigned width) {
-    ASSERT(width >= 1);
-    ASSERT(lsb + width <= rn.SizeInBits());
+    DCHECK(width >= 1);
+    DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, lsb, lsb + width - 1);
   }
 
@@ -1571,7 +1571,7 @@ class Assembler : public AssemblerBase {
   };
 
   void nop(NopMarkerTypes n) {
-    ASSERT((FIRST_NOP_MARKER <= n) && (n <= LAST_NOP_MARKER));
+    DCHECK((FIRST_NOP_MARKER <= n) && (n <= LAST_NOP_MARKER));
     mov(Register::XRegFromCode(n), Register::XRegFromCode(n));
   }
 
@@ -1732,7 +1732,7 @@ class Assembler : public AssemblerBase {
   // subsequent instructions.
   void EmitStringData(const char * string) {
     size_t len = strlen(string) + 1;
-    ASSERT(RoundUp(len, kInstructionSize) <= static_cast<size_t>(kGap));
+    DCHECK(RoundUp(len, kInstructionSize) <= static_cast<size_t>(kGap));
     EmitData(string, len);
     // Pad with NULL characters until pc_ is aligned.
     const char pad[] = {'\0', '\0', '\0', '\0'};
@@ -1766,44 +1766,44 @@ class Assembler : public AssemblerBase {
 
   // Register encoding.
   static Instr Rd(CPURegister rd) {
-    ASSERT(rd.code() != kSPRegInternalCode);
+    DCHECK(rd.code() != kSPRegInternalCode);
     return rd.code() << Rd_offset;
   }
 
   static Instr Rn(CPURegister rn) {
-    ASSERT(rn.code() != kSPRegInternalCode);
+    DCHECK(rn.code() != kSPRegInternalCode);
     return rn.code() << Rn_offset;
   }
 
   static Instr Rm(CPURegister rm) {
-    ASSERT(rm.code() != kSPRegInternalCode);
+    DCHECK(rm.code() != kSPRegInternalCode);
     return rm.code() << Rm_offset;
   }
 
   static Instr Ra(CPURegister ra) {
-    ASSERT(ra.code() != kSPRegInternalCode);
+    DCHECK(ra.code() != kSPRegInternalCode);
     return ra.code() << Ra_offset;
   }
 
   static Instr Rt(CPURegister rt) {
-    ASSERT(rt.code() != kSPRegInternalCode);
+    DCHECK(rt.code() != kSPRegInternalCode);
     return rt.code() << Rt_offset;
   }
 
   static Instr Rt2(CPURegister rt2) {
-    ASSERT(rt2.code() != kSPRegInternalCode);
+    DCHECK(rt2.code() != kSPRegInternalCode);
     return rt2.code() << Rt2_offset;
   }
 
   // These encoding functions allow the stack pointer to be encoded, and
   // disallow the zero register.
   static Instr RdSP(Register rd) {
-    ASSERT(!rd.IsZero());
+    DCHECK(!rd.IsZero());
     return (rd.code() & kRegCodeMask) << Rd_offset;
   }
 
   static Instr RnSP(Register rn) {
-    ASSERT(!rn.IsZero());
+    DCHECK(!rn.IsZero());
     return (rn.code() & kRegCodeMask) << Rn_offset;
   }
 
@@ -2087,7 +2087,7 @@ class Assembler : public AssemblerBase {
   void Emit(Instr instruction) {
     STATIC_ASSERT(sizeof(*pc_) == 1);
     STATIC_ASSERT(sizeof(instruction) == kInstructionSize);
-    ASSERT((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
+    DCHECK((pc_ + sizeof(instruction)) <= (buffer_ + buffer_size_));
 
     memcpy(pc_, &instruction, sizeof(instruction));
     pc_ += sizeof(instruction);
@@ -2096,8 +2096,8 @@ class Assembler : public AssemblerBase {
 
   // Emit data inline in the instruction stream.
   void EmitData(void const * data, unsigned size) {
-    ASSERT(sizeof(*pc_) == 1);
-    ASSERT((pc_ + size) <= (buffer_ + buffer_size_));
+    DCHECK(sizeof(*pc_) == 1);
+    DCHECK((pc_ + size) <= (buffer_ + buffer_size_));
 
     // TODO(all): Somehow register we have some data here. Then we can
     // disassemble it correctly.
@@ -2174,7 +2174,7 @@ class Assembler : public AssemblerBase {
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.
   void SetRecordedAstId(TypeFeedbackId ast_id) {
-    ASSERT(recorded_ast_id_.IsNone());
+    DCHECK(recorded_ast_id_.IsNone());
     recorded_ast_id_ = ast_id;
   }
 
@@ -2222,7 +2222,7 @@ class Assembler : public AssemblerBase {
   static const int kVeneerDistanceCheckMargin =
     kVeneerNoProtectionFactor * kVeneerDistanceMargin;
   int unresolved_branches_first_limit() const {
-    ASSERT(!unresolved_branches_.empty());
+    DCHECK(!unresolved_branches_.empty());
     return unresolved_branches_.begin()->first;
   }
   // This is similar to next_constant_pool_check_ and helps reduce the overhead
@@ -2275,12 +2275,12 @@ class PatchingAssembler : public Assembler {
 
   ~PatchingAssembler() {
     // Const pool should still be blocked.
-    ASSERT(is_const_pool_blocked());
+    DCHECK(is_const_pool_blocked());
     EndBlockPools();
     // Verify we have generated the number of instruction we expected.
-    ASSERT((pc_offset() + kGap) == buffer_size_);
+    DCHECK((pc_offset() + kGap) == buffer_size_);
     // Verify no relocation information has been emitted.
-    ASSERT(IsConstPoolEmpty());
+    DCHECK(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
     CpuFeatures::FlushICache(buffer_, length);

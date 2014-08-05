@@ -53,7 +53,7 @@ class DeoptCodegenTester {
 
     FunctionTester::EnsureDeoptimizationSupport(&info);
 
-    ASSERT(info.shared_info()->has_deoptimization_support());
+    DCHECK(info.shared_info()->has_deoptimization_support());
 
     graph = new (scope_->main_zone()) Graph(scope_->main_zone());
   }

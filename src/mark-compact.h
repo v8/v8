@@ -170,7 +170,7 @@ class MarkingDeque {
   // otherwise mark the object as overflowed and wait for a rescan of the
   // heap.
   INLINE(void PushBlack(HeapObject* object)) {
-    ASSERT(object->IsHeapObject());
+    DCHECK(object->IsHeapObject());
     if (IsFull()) {
       Marking::BlackToGrey(object);
       MemoryChunk::IncrementLiveBytesFromGC(object->address(), -object->Size());
@@ -182,7 +182,7 @@ class MarkingDeque {
   }
 
   INLINE(void PushGrey(HeapObject* object)) {
-    ASSERT(object->IsHeapObject());
+    DCHECK(object->IsHeapObject());
     if (IsFull()) {
       SetOverflowed();
     } else {
@@ -192,15 +192,15 @@ class MarkingDeque {
   }
 
   INLINE(HeapObject* Pop()) {
-    ASSERT(!IsEmpty());
+    DCHECK(!IsEmpty());
     top_ = ((top_ - 1) & mask_);
     HeapObject* object = array_[top_];
-    ASSERT(object->IsHeapObject());
+    DCHECK(object->IsHeapObject());
     return object;
   }
 
   INLINE(void UnshiftGrey(HeapObject* object)) {
-    ASSERT(object->IsHeapObject());
+    DCHECK(object->IsHeapObject());
     if (IsFull()) {
       SetOverflowed();
     } else {
@@ -265,7 +265,7 @@ class SlotsBuffer {
   }
 
   void Add(ObjectSlot slot) {
-    ASSERT(0 <= idx_ && idx_ < kNumberOfElements);
+    DCHECK(0 <= idx_ && idx_ < kNumberOfElements);
     slots_[idx_++] = slot;
   }
 
@@ -404,7 +404,7 @@ class CodeFlusher {
   }
 
   void AddCandidate(JSFunction* function) {
-    ASSERT(function->code() == function->shared()->code());
+    DCHECK(function->code() == function->shared()->code());
     if (GetNextCandidate(function)->IsUndefined()) {
       SetNextCandidate(function, jsfunction_candidates_head_);
       jsfunction_candidates_head_ = function;
@@ -460,7 +460,7 @@ class CodeFlusher {
   }
 
   static void ClearNextCandidate(JSFunction* candidate, Object* undefined) {
-    ASSERT(undefined->IsUndefined());
+    DCHECK(undefined->IsUndefined());
     candidate->set_next_function_link(undefined, SKIP_WRITE_BARRIER);
   }
 
@@ -944,13 +944,13 @@ class MarkBitCellIterator BASE_EMBEDDED {
   inline bool HasNext() { return cell_index_ < last_cell_index_ - 1; }
 
   inline MarkBit::CellType* CurrentCell() {
-    ASSERT(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
+    DCHECK(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
         chunk_->AddressToMarkbitIndex(cell_base_))));
     return &cells_[cell_index_];
   }
 
   inline Address CurrentCellBase() {
-    ASSERT(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
+    DCHECK(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
         chunk_->AddressToMarkbitIndex(cell_base_))));
     return cell_base_;
   }

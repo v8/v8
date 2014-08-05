@@ -231,7 +231,7 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   };
 
   RegisterState GetRegisterState(int register_index) {
-    ASSERT(register_index >= 0);
+    DCHECK(register_index >= 0);
     if (register_index >= kNumCachedRegisters) {
       return STACKED;
     } else {

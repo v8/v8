@@ -68,21 +68,21 @@ class BasicBlockData {
   inline bool IsLoopHeader() const { return loop_end_ >= 0; }
   inline bool LoopContains(BasicBlockData* block) const {
     // RPO numbers must be initialized.
-    ASSERT(rpo_number_ >= 0);
-    ASSERT(block->rpo_number_ >= 0);
+    DCHECK(rpo_number_ >= 0);
+    DCHECK(block->rpo_number_ >= 0);
     if (loop_end_ < 0) return false;  // This is not a loop.
     return block->rpo_number_ >= rpo_number_ && block->rpo_number_ < loop_end_;
   }
   int first_instruction_index() {
-    ASSERT(code_start_ >= 0);
-    ASSERT(code_end_ > 0);
-    ASSERT(code_end_ >= code_start_);
+    DCHECK(code_start_ >= 0);
+    DCHECK(code_end_ > 0);
+    DCHECK(code_end_ >= code_start_);
     return code_start_;
   }
   int last_instruction_index() {
-    ASSERT(code_start_ >= 0);
-    ASSERT(code_end_ > 0);
-    ASSERT(code_end_ >= code_start_);
+    DCHECK(code_start_ >= 0);
+    DCHECK(code_end_ > 0);
+    DCHECK(code_end_ >= code_start_);
     return code_end_ - 1;
   }
 };
@@ -222,7 +222,7 @@ class Schedule : public GenericGraph<BasicBlock> {
       PrintF("Planning node %d for future add to block %d\n", node->id(),
              block->id());
     }
-    ASSERT(this->block(node) == NULL);
+    DCHECK(this->block(node) == NULL);
     SetBlockForNode(block, node);
   }
 
@@ -231,14 +231,14 @@ class Schedule : public GenericGraph<BasicBlock> {
     if (FLAG_trace_turbo_scheduler) {
       PrintF("Adding node %d to block %d\n", node->id(), block->id());
     }
-    ASSERT(this->block(node) == NULL || this->block(node) == block);
+    DCHECK(this->block(node) == NULL || this->block(node) == block);
     block->nodes_.push_back(node);
     SetBlockForNode(block, node);
   }
 
   // BasicBlock building: add a goto to the end of {block}.
   void AddGoto(BasicBlock* block, BasicBlock* succ) {
-    ASSERT(block->control_ == BasicBlock::kNone);
+    DCHECK(block->control_ == BasicBlock::kNone);
     block->control_ = BasicBlock::kGoto;
     AddSuccessor(block, succ);
   }
@@ -246,8 +246,8 @@ class Schedule : public GenericGraph<BasicBlock> {
   // BasicBlock building: add a (branching) call at the end of {block}.
   void AddCall(BasicBlock* block, Node* call, BasicBlock* cont_block,
                BasicBlock* deopt_block) {
-    ASSERT(block->control_ == BasicBlock::kNone);
-    ASSERT(call->opcode() == IrOpcode::kCall);
+    DCHECK(block->control_ == BasicBlock::kNone);
+    DCHECK(call->opcode() == IrOpcode::kCall);
     block->control_ = BasicBlock::kCall;
     // Insert the deopt block first so that the RPO order builder picks
     // it first (and thus it ends up late in the RPO order).
@@ -259,8 +259,8 @@ class Schedule : public GenericGraph<BasicBlock> {
   // BasicBlock building: add a branch at the end of {block}.
   void AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
                  BasicBlock* fblock) {
-    ASSERT(block->control_ == BasicBlock::kNone);
-    ASSERT(branch->opcode() == IrOpcode::kBranch);
+    DCHECK(block->control_ == BasicBlock::kNone);
+    DCHECK(branch->opcode() == IrOpcode::kBranch);
     block->control_ = BasicBlock::kBranch;
     AddSuccessor(block, tblock);
     AddSuccessor(block, fblock);
@@ -270,7 +270,7 @@ class Schedule : public GenericGraph<BasicBlock> {
   // BasicBlock building: add a return at the end of {block}.
   void AddReturn(BasicBlock* block, Node* input) {
     // TODO(titzer): require a Return node here.
-    ASSERT(block->control_ == BasicBlock::kNone);
+    DCHECK(block->control_ == BasicBlock::kNone);
     block->control_ = BasicBlock::kReturn;
     SetControlInput(block, input);
     if (block != exit()) AddSuccessor(block, exit());
@@ -278,7 +278,7 @@ class Schedule : public GenericGraph<BasicBlock> {
 
   // BasicBlock building: add a throw at the end of {block}.
   void AddThrow(BasicBlock* block, Node* input) {
-    ASSERT(block->control_ == BasicBlock::kNone);
+    DCHECK(block->control_ == BasicBlock::kNone);
     block->control_ = BasicBlock::kThrow;
     SetControlInput(block, input);
     if (block != exit()) AddSuccessor(block, exit());
@@ -286,7 +286,7 @@ class Schedule : public GenericGraph<BasicBlock> {
 
   // BasicBlock building: add a deopt at the end of {block}.
   void AddDeoptimize(BasicBlock* block, Node* state) {
-    ASSERT(block->control_ == BasicBlock::kNone);
+    DCHECK(block->control_ == BasicBlock::kNone);
     block->control_ = BasicBlock::kDeoptimize;
     SetControlInput(block, state);
     block->deferred_ = true;  // By default, consider deopts the slow path.

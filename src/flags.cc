@@ -45,32 +45,32 @@ struct Flag {
   const char* comment() const { return cmt_; }
 
   bool* bool_variable() const {
-    ASSERT(type_ == TYPE_BOOL);
+    DCHECK(type_ == TYPE_BOOL);
     return reinterpret_cast<bool*>(valptr_);
   }
 
   MaybeBoolFlag* maybe_bool_variable() const {
-    ASSERT(type_ == TYPE_MAYBE_BOOL);
+    DCHECK(type_ == TYPE_MAYBE_BOOL);
     return reinterpret_cast<MaybeBoolFlag*>(valptr_);
   }
 
   int* int_variable() const {
-    ASSERT(type_ == TYPE_INT);
+    DCHECK(type_ == TYPE_INT);
     return reinterpret_cast<int*>(valptr_);
   }
 
   double* float_variable() const {
-    ASSERT(type_ == TYPE_FLOAT);
+    DCHECK(type_ == TYPE_FLOAT);
     return reinterpret_cast<double*>(valptr_);
   }
 
   const char* string_value() const {
-    ASSERT(type_ == TYPE_STRING);
+    DCHECK(type_ == TYPE_STRING);
     return *reinterpret_cast<const char**>(valptr_);
   }
 
   void set_string_value(const char* value, bool owns_ptr) {
-    ASSERT(type_ == TYPE_STRING);
+    DCHECK(type_ == TYPE_STRING);
     const char** ptr = reinterpret_cast<const char**>(valptr_);
     if (owns_ptr_ && *ptr != NULL) DeleteArray(*ptr);
     *ptr = value;
@@ -78,32 +78,32 @@ struct Flag {
   }
 
   JSArguments* args_variable() const {
-    ASSERT(type_ == TYPE_ARGS);
+    DCHECK(type_ == TYPE_ARGS);
     return reinterpret_cast<JSArguments*>(valptr_);
   }
 
   bool bool_default() const {
-    ASSERT(type_ == TYPE_BOOL);
+    DCHECK(type_ == TYPE_BOOL);
     return *reinterpret_cast<const bool*>(defptr_);
   }
 
   int int_default() const {
-    ASSERT(type_ == TYPE_INT);
+    DCHECK(type_ == TYPE_INT);
     return *reinterpret_cast<const int*>(defptr_);
   }
 
   double float_default() const {
-    ASSERT(type_ == TYPE_FLOAT);
+    DCHECK(type_ == TYPE_FLOAT);
     return *reinterpret_cast<const double*>(defptr_);
   }
 
   const char* string_default() const {
-    ASSERT(type_ == TYPE_STRING);
+    DCHECK(type_ == TYPE_STRING);
     return *reinterpret_cast<const char* const *>(defptr_);
   }
 
   JSArguments args_default() const {
-    ASSERT(type_ == TYPE_ARGS);
+    DCHECK(type_ == TYPE_ARGS);
     return *reinterpret_cast<const JSArguments*>(defptr_);
   }
 
@@ -225,7 +225,7 @@ List<const char*>* FlagList::argv() {
     Flag* f = &flags[i];
     if (!f->IsDefault()) {
       if (f->type() == Flag::TYPE_ARGS) {
-        ASSERT(args_flag == NULL);
+        DCHECK(args_flag == NULL);
         args_flag = f;  // Must be last in arguments.
         continue;
       }

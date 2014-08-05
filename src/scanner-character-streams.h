@@ -82,7 +82,7 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
   virtual ~ExternalTwoByteStringUtf16CharacterStream();
 
   virtual void PushBack(uc32 character) {
-    ASSERT(buffer_cursor_ > raw_data_);
+    DCHECK(buffer_cursor_ > raw_data_);
     buffer_cursor_--;
     pos_--;
   }

@@ -20,7 +20,7 @@ class SafepointEntry BASE_EMBEDDED {
   SafepointEntry() : info_(0), bits_(NULL) {}
 
   SafepointEntry(unsigned info, uint8_t* bits) : info_(info), bits_(bits) {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
   }
 
   bool is_valid() const { return bits_ != NULL; }
@@ -35,7 +35,7 @@ class SafepointEntry BASE_EMBEDDED {
   }
 
   int deoptimization_index() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return DeoptimizationIndexField::decode(info_);
   }
 
@@ -55,17 +55,17 @@ class SafepointEntry BASE_EMBEDDED {
                     kSaveDoublesFieldBits> { }; // NOLINT
 
   int argument_count() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return ArgumentsField::decode(info_);
   }
 
   bool has_doubles() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return SaveDoublesField::decode(info_);
   }
 
   uint8_t* bits() {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return bits_;
   }
 
@@ -89,12 +89,12 @@ class SafepointTable BASE_EMBEDDED {
   unsigned entry_size() const { return entry_size_; }
 
   unsigned GetPcOffset(unsigned index) const {
-    ASSERT(index < length_);
+    DCHECK(index < length_);
     return Memory::uint32_at(GetPcOffsetLocation(index));
   }
 
   SafepointEntry GetEntry(unsigned index) const {
-    ASSERT(index < length_);
+    DCHECK(index < length_);
     unsigned info = Memory::uint32_at(GetInfoLocation(index));
     uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
     return SafepointEntry(info, bits);

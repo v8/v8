@@ -221,7 +221,7 @@ class RepresentationChanger {
       }
       case IrOpcode::kHeapConstant: {
         Handle<Object> handle = ValueOf<Handle<Object> >(node->op());
-        ASSERT(*handle == isolate()->heap()->true_value() ||
+        DCHECK(*handle == isolate()->heap()->true_value() ||
                *handle == isolate()->heap()->false_value());
         return jsgraph()->Int32Constant(
             *handle == isolate()->heap()->true_value() ? 1 : 0);

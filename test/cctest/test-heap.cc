@@ -2899,7 +2899,7 @@ TEST(TransitionArraySimpleToFull) {
   CompileRun("o = new F;"
              "root = new F");
   root = GetByName("root");
-  ASSERT(root->map()->transitions()->IsSimpleTransition());
+  DCHECK(root->map()->transitions()->IsSimpleTransition());
   AddPropertyTo(2, root, "happy");
 
   // Count number of live transitions after marking.  Note that one transition
@@ -3793,7 +3793,7 @@ TEST(DeferredHandles) {
   }
   // An entire block of handles has been filled.
   // Next handle would require a new block.
-  ASSERT(data->next == data->limit);
+  DCHECK(data->next == data->limit);
 
   DeferredHandleScope deferred(isolate);
   DummyVisitor visitor;
@@ -3814,7 +3814,7 @@ TEST(IncrementalMarkingStepMakesBigProgressWithLargeObjects) {
   if (marking->IsStopped()) marking->Start();
   // This big step should be sufficient to mark the whole array.
   marking->Step(100 * MB, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-  ASSERT(marking->IsComplete());
+  DCHECK(marking->IsComplete());
 }
 
 
@@ -3954,7 +3954,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
     heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   }
 
-  ASSERT(code->marked_for_deoptimization());
+  DCHECK(code->marked_for_deoptimization());
 }
 
 
@@ -3995,7 +3995,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
     heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   }
 
-  ASSERT(code->marked_for_deoptimization());
+  DCHECK(code->marked_for_deoptimization());
 }
 
 
@@ -4327,7 +4327,7 @@ TEST(Regress357137) {
   global->Set(v8::String::NewFromUtf8(isolate, "interrupt"),
               v8::FunctionTemplate::New(isolate, RequestInterrupt));
   v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
-  ASSERT(!context.IsEmpty());
+  DCHECK(!context.IsEmpty());
   v8::Context::Scope cscope(context);
 
   v8::Local<v8::Value> result = CompileRun(

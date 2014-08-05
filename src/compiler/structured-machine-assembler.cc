@@ -38,7 +38,7 @@ StructuredMachineAssembler::StructuredMachineAssembler(
 
 Schedule* StructuredMachineAssembler::Export() {
   // Compute the correct codegen order.
-  ASSERT(schedule_->rpo_order()->empty());
+  DCHECK(schedule_->rpo_order()->empty());
   Scheduler scheduler(zone(), graph(), schedule_);
   scheduler.ComputeSpecialRPO();
   // Invalidate MachineAssembler.
@@ -49,15 +49,15 @@ Schedule* StructuredMachineAssembler::Export() {
 
 
 Node* StructuredMachineAssembler::Parameter(int index) {
-  ASSERT(0 <= index && index < parameter_count());
+  DCHECK(0 <= index && index < parameter_count());
   return parameters_[index];
 }
 
 
 Node* StructuredMachineAssembler::MakeNode(Operator* op, int input_count,
                                            Node** inputs) {
-  ASSERT(ScheduleValid());
-  ASSERT(current_environment_ != NULL);
+  DCHECK(ScheduleValid());
+  DCHECK(current_environment_ != NULL);
   Node* node = graph()->NewNode(op, input_count, inputs);
   BasicBlock* block = NULL;
   switch (op->opcode()) {
@@ -73,7 +73,7 @@ Node* StructuredMachineAssembler::MakeNode(Operator* op, int input_count,
       break;
     default:
       // Verify all leaf nodes handled above.
-      ASSERT((op->OutputCount() == 0) == (op->opcode() == IrOpcode::kStore));
+      DCHECK((op->OutputCount() == 0) == (op->opcode() == IrOpcode::kStore));
       block = current_environment_->block_;
       break;
   }
@@ -100,13 +100,13 @@ Variable StructuredMachineAssembler::NewVariable(Node* initial_value) {
 
 
 Node* StructuredMachineAssembler::GetVariable(int offset) {
-  ASSERT(ScheduleValid());
+  DCHECK(ScheduleValid());
   return VariableAt(current_environment_, offset);
 }
 
 
 void StructuredMachineAssembler::SetVariable(int offset, Node* value) {
-  ASSERT(ScheduleValid());
+  DCHECK(ScheduleValid());
   Node*& ref = VariableAt(current_environment_, offset);
   ref = value;
 }
@@ -132,7 +132,7 @@ void StructuredMachineAssembler::Return(Node* value) {
 
 
 void StructuredMachineAssembler::CopyCurrentAsDead() {
-  ASSERT(current_environment_ != NULL);
+  DCHECK(current_environment_ != NULL);
   bool is_dead = current_environment_->is_dead_;
   current_environment_->is_dead_ = true;
   Environment* next = Copy(current_environment_);
@@ -149,7 +149,7 @@ StructuredMachineAssembler::Environment* StructuredMachineAssembler::Copy(
   }
   new_env->variables_.reserve(truncate_at);
   NodeVectorIter end = env->variables_.end();
-  ASSERT(truncate_at <= static_cast<int>(env->variables_.size()));
+  DCHECK(truncate_at <= static_cast<int>(env->variables_.size()));
   end -= static_cast<int>(env->variables_.size()) - truncate_at;
   new_env->variables_.insert(new_env->variables_.begin(),
                              env->variables_.begin(), end);
@@ -201,7 +201,7 @@ void StructuredMachineAssembler::MergeBackEdgesToLoopHeader(
 
 void StructuredMachineAssembler::Merge(EnvironmentVector* environments,
                                        int truncate_at) {
-  ASSERT(current_environment_ == NULL || current_environment_->is_dead_);
+  DCHECK(current_environment_ == NULL || current_environment_->is_dead_);
   Environment* next = new (zone()) Environment(zone(), NULL, false);
   current_environment_ = next;
   size_t n_vars = number_of_variables_;
@@ -226,7 +226,7 @@ void StructuredMachineAssembler::Merge(EnvironmentVector* environments,
     // Find first non equal variable.
     size_t i = 0;
     for (; i < n_envs; i++) {
-      ASSERT(live_environments[i]->variables_.size() <= n_vars);
+      DCHECK(live_environments[i]->variables_.size() <= n_vars);
       Node* val = NULL;
       if (j < static_cast<size_t>(truncate_at)) {
         val = live_environments[i]->variables_.at(j);
@@ -267,10 +267,10 @@ void StructuredMachineAssembler::Merge(EnvironmentVector* environments,
 
 void StructuredMachineAssembler::AddGoto(Environment* from, Environment* to) {
   if (to->is_dead_) {
-    ASSERT(from->is_dead_);
+    DCHECK(from->is_dead_);
     return;
   }
-  ASSERT(!from->is_dead_);
+  DCHECK(!from->is_dead_);
   schedule()->AddGoto(from->block_, to->block_);
 }
 
@@ -287,8 +287,8 @@ void StructuredMachineAssembler::AddBranch(Environment* environment,
                                            Node* condition,
                                            Environment* true_val,
                                            Environment* false_val) {
-  ASSERT(environment->is_dead_ == true_val->is_dead_);
-  ASSERT(environment->is_dead_ == false_val->is_dead_);
+  DCHECK(environment->is_dead_ == true_val->is_dead_);
+  DCHECK(environment->is_dead_ == false_val->is_dead_);
   if (true_val->block_ == false_val->block_) {
     if (environment->is_dead_) return;
     AddGoto(environment, true_val);
@@ -315,15 +315,15 @@ StructuredMachineAssembler::IfBuilder::IfBuilder(
     : smasm_(smasm),
       if_clauses_(IfClauses::allocator_type(smasm_->zone())),
       pending_exit_merges_(EnvironmentVector::allocator_type(smasm_->zone())) {
-  ASSERT(smasm_->current_environment_ != NULL);
+  DCHECK(smasm_->current_environment_ != NULL);
   PushNewIfClause();
-  ASSERT(!IsDone());
+  DCHECK(!IsDone());
 }
 
 
 StructuredMachineAssembler::IfBuilder&
 StructuredMachineAssembler::IfBuilder::If() {
-  ASSERT(smasm_->current_environment_ != NULL);
+  DCHECK(smasm_->current_environment_ != NULL);
   IfClause* clause = CurrentClause();
   if (clause->then_environment_ != NULL || clause->else_environment_ != NULL) {
     PushNewIfClause();
@@ -405,14 +405,14 @@ StructuredMachineAssembler::IfBuilder::IfClause::IfClause(
 StructuredMachineAssembler::IfBuilder::PendingMergeStackRange
 StructuredMachineAssembler::IfBuilder::IfClause::ComputeRelevantMerges(
     CombineType combine_type) {
-  ASSERT(!expression_states_.empty());
+  DCHECK(!expression_states_.empty());
   PendingMergeStack* stack;
   int start;
   if (combine_type == kCombineThen) {
     stack = &pending_then_merges_;
     start = expression_states_.back().pending_then_size_;
   } else {
-    ASSERT(combine_type == kCombineElse);
+    DCHECK(combine_type == kCombineElse);
     stack = &pending_else_merges_;
     start = expression_states_.back().pending_else_size_;
   }
@@ -427,10 +427,10 @@ StructuredMachineAssembler::IfBuilder::IfClause::ComputeRelevantMerges(
 void StructuredMachineAssembler::IfBuilder::IfClause::ResolvePendingMerges(
     StructuredMachineAssembler* smasm, CombineType combine_type,
     ResolutionType resolution_type) {
-  ASSERT(smasm->current_environment_ == NULL);
+  DCHECK(smasm->current_environment_ == NULL);
   PendingMergeStackRange data = ComputeRelevantMerges(combine_type);
-  ASSERT_EQ(data.merge_stack_->back(), unresolved_list_tail_);
-  ASSERT(data.size_ > 0);
+  DCHECK_EQ(data.merge_stack_->back(), unresolved_list_tail_);
+  DCHECK(data.size_ > 0);
   // TODO(dcarney): assert no new variables created during expression building.
   int truncate_at = initial_environment_size_;
   if (data.size_ == 1) {
@@ -442,29 +442,29 @@ void StructuredMachineAssembler::IfBuilder::IfClause::ResolvePendingMerges(
         EnvironmentVector::allocator_type(smasm->zone()));
     environments.reserve(data.size_);
     CopyEnvironments(data, &environments);
-    ASSERT(static_cast<int>(environments.size()) == data.size_);
+    DCHECK(static_cast<int>(environments.size()) == data.size_);
     smasm->Merge(&environments, truncate_at);
   }
   Environment* then_environment = then_environment_;
   Environment* else_environment = NULL;
   if (resolution_type == kExpressionDone) {
-    ASSERT(expression_states_.size() == 1);
+    DCHECK(expression_states_.size() == 1);
     // Set the current then_ or else_environment_ to the new merged environment.
     if (combine_type == kCombineThen) {
-      ASSERT(then_environment_ == NULL && else_environment_ == NULL);
+      DCHECK(then_environment_ == NULL && else_environment_ == NULL);
       this->then_environment_ = smasm->current_environment_;
     } else {
-      ASSERT(else_environment_ == NULL);
+      DCHECK(else_environment_ == NULL);
       this->else_environment_ = smasm->current_environment_;
     }
   } else {
-    ASSERT(resolution_type == kExpressionTerm);
-    ASSERT(then_environment_ == NULL && else_environment_ == NULL);
+    DCHECK(resolution_type == kExpressionTerm);
+    DCHECK(then_environment_ == NULL && else_environment_ == NULL);
   }
   if (combine_type == kCombineThen) {
     then_environment = smasm->current_environment_;
   } else {
-    ASSERT(combine_type == kCombineElse);
+    DCHECK(combine_type == kCombineElse);
     else_environment = smasm->current_environment_;
   }
   // Finalize branches and clear the pending stack.
@@ -493,7 +493,7 @@ void StructuredMachineAssembler::IfBuilder::IfClause::PushNewExpressionState() {
 
 void StructuredMachineAssembler::IfBuilder::IfClause::PopExpressionState() {
   expression_states_.pop_back();
-  ASSERT(!expression_states_.empty());
+  DCHECK(!expression_states_.empty());
 }
 
 
@@ -501,8 +501,8 @@ void StructuredMachineAssembler::IfBuilder::IfClause::FinalizeBranches(
     StructuredMachineAssembler* smasm, const PendingMergeStackRange& data,
     CombineType combine_type, Environment* const then_environment,
     Environment* const else_environment) {
-  ASSERT(unresolved_list_tail_ != NULL);
-  ASSERT(smasm->current_environment_ != NULL);
+  DCHECK(unresolved_list_tail_ != NULL);
+  DCHECK(smasm->current_environment_ != NULL);
   if (data.size_ == 0) return;
   PendingMergeStack::iterator curr = data.merge_stack_->begin();
   PendingMergeStack::iterator end = data.merge_stack_->end();
@@ -515,7 +515,7 @@ void StructuredMachineAssembler::IfBuilder::IfClause::FinalizeBranches(
   if (combine_type == kCombineThen) {
     next = &false_val;
   } else {
-    ASSERT(combine_type == kCombineElse);
+    DCHECK(combine_type == kCombineElse);
     next = &true_val;
   }
   for (curr += data.start_; curr != end; ++curr) {
@@ -524,7 +524,7 @@ void StructuredMachineAssembler::IfBuilder::IfClause::FinalizeBranches(
     smasm->AddBranch(branch->environment_, branch->condition_, true_val,
                      false_val);
   }
-  ASSERT(curr + 1 == data.merge_stack_->end());
+  DCHECK(curr + 1 == data.merge_stack_->end());
   // Now finalize the tail if possible.
   if (then_environment != NULL && else_environment != NULL) {
     UnresolvedBranch* branch = *curr;
@@ -535,19 +535,19 @@ void StructuredMachineAssembler::IfBuilder::IfClause::FinalizeBranches(
   PendingMergeStack::iterator begin = data.merge_stack_->begin();
   begin += data.start_;
   data.merge_stack_->erase(begin, data.merge_stack_->end());
-  ASSERT_EQ(static_cast<int>(data.merge_stack_->size()), data.start_);
+  DCHECK_EQ(static_cast<int>(data.merge_stack_->size()), data.start_);
 }
 
 
 void StructuredMachineAssembler::IfBuilder::End() {
-  ASSERT(!IsDone());
+  DCHECK(!IsDone());
   AddCurrentToPending();
   size_t current_pending = pending_exit_merges_.size();
   // All unresolved branch edges are now set to pending.
   for (IfClauses::iterator i = if_clauses_.begin(); i != if_clauses_.end();
        ++i) {
     IfClause* clause = *i;
-    ASSERT(clause->expression_states_.size() == 1);
+    DCHECK(clause->expression_states_.size() == 1);
     PendingMergeStackRange data;
     // Copy then environments.
     data = clause->ComputeRelevantMerges(kCombineThen);
@@ -564,7 +564,7 @@ void StructuredMachineAssembler::IfBuilder::End() {
     clause->CopyEnvironments(data, &pending_exit_merges_);
     if (head != NULL) {
       // Must have data to merge, or else head will never get a branch.
-      ASSERT(data.size_ != 0);
+      DCHECK(data.size_ != 0);
       pending_exit_merges_.push_back(head);
     }
   }
@@ -601,7 +601,7 @@ void StructuredMachineAssembler::IfBuilder::End() {
   // Future accesses to this builder should crash immediately.
   pending_exit_merges_.clear();
   if_clauses_.clear();
-  ASSERT(IsDone());
+  DCHECK(IsDone());
 }
 
 
@@ -611,7 +611,7 @@ StructuredMachineAssembler::LoopBuilder::LoopBuilder(
       header_environment_(NULL),
       pending_header_merges_(EnvironmentVector::allocator_type(smasm_->zone())),
       pending_exit_merges_(EnvironmentVector::allocator_type(smasm_->zone())) {
-  ASSERT(smasm_->current_environment_ != NULL);
+  DCHECK(smasm_->current_environment_ != NULL);
   // Create header environment.
   header_environment_ = smasm_->CopyForLoopHeader(smasm_->current_environment_);
   smasm_->AddGoto(smasm_->current_environment_, header_environment_);
@@ -619,26 +619,26 @@ StructuredMachineAssembler::LoopBuilder::LoopBuilder(
   Environment* body = smasm_->Copy(header_environment_);
   smasm_->AddGoto(header_environment_, body);
   smasm_->current_environment_ = body;
-  ASSERT(!IsDone());
+  DCHECK(!IsDone());
 }
 
 
 void StructuredMachineAssembler::LoopBuilder::Continue() {
-  ASSERT(!IsDone());
+  DCHECK(!IsDone());
   pending_header_merges_.push_back(smasm_->current_environment_);
   smasm_->CopyCurrentAsDead();
 }
 
 
 void StructuredMachineAssembler::LoopBuilder::Break() {
-  ASSERT(!IsDone());
+  DCHECK(!IsDone());
   pending_exit_merges_.push_back(smasm_->current_environment_);
   smasm_->CopyCurrentAsDead();
 }
 
 
 void StructuredMachineAssembler::LoopBuilder::End() {
-  ASSERT(!IsDone());
+  DCHECK(!IsDone());
   if (smasm_->current_environment_ != NULL) {
     Continue();
   }
@@ -655,7 +655,7 @@ void StructuredMachineAssembler::LoopBuilder::End() {
   pending_header_merges_.clear();
   pending_exit_merges_.clear();
   header_environment_ = NULL;
-  ASSERT(IsDone());
+  DCHECK(IsDone());
 }
 
 }  // namespace compiler

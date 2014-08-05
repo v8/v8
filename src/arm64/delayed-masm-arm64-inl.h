@@ -15,7 +15,7 @@ namespace internal {
 
 void DelayedMasm::EndDelayedUse() {
   EmitPending();
-  ASSERT(!scratch_register_acquired_);
+  DCHECK(!scratch_register_acquired_);
   ResetSavedValue();
 }
 
@@ -24,7 +24,7 @@ void DelayedMasm::Mov(const Register& rd,
                       const Operand& operand,
                       DiscardMoveMode discard_mode) {
   EmitPending();
-  ASSERT(!IsScratchRegister(rd) || scratch_register_acquired_);
+  DCHECK(!IsScratchRegister(rd) || scratch_register_acquired_);
   __ Mov(rd, operand, discard_mode);
 }
 
@@ -43,7 +43,7 @@ void DelayedMasm::Fmov(FPRegister fd, double imm) {
 
 void DelayedMasm::LoadObject(Register result, Handle<Object> object) {
   EmitPending();
-  ASSERT(!IsScratchRegister(result) || scratch_register_acquired_);
+  DCHECK(!IsScratchRegister(result) || scratch_register_acquired_);
   __ LoadObject(result, object);
 }
 

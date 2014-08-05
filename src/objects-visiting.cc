@@ -218,7 +218,7 @@ Object* VisitWeakList(Heap* heap,
         head = retained;
       } else {
         // Subsequent elements in the list.
-        ASSERT(tail != NULL);
+        DCHECK(tail != NULL);
         WeakListVisitor<T>::SetWeakNext(tail, retained);
         if (record_slots) {
           Object** next_slot =
@@ -227,7 +227,7 @@ Object* VisitWeakList(Heap* heap,
         }
       }
       // Retained object is new tail.
-      ASSERT(!retained->IsUndefined());
+      DCHECK(!retained->IsUndefined());
       candidate = reinterpret_cast<T*>(retained);
       tail = candidate;
 

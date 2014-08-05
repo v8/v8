@@ -210,7 +210,7 @@ class CodeStub BASE_EMBEDDED {
 
   // Computes the key based on major and minor.
   uint32_t GetKey() {
-    ASSERT(static_cast<int>(MajorKey()) < NUMBER_OF_IDS);
+    DCHECK(static_cast<int>(MajorKey()) < NUMBER_OF_IDS);
     return MinorKeyBits::encode(MinorKey()) | MajorKeyBits::encode(MajorKey());
   }
 
@@ -288,7 +288,7 @@ class InterfaceDescriptor {
   }
 
   Representation GetParameterRepresentation(int index) const {
-    ASSERT(index < register_param_count_);
+    DCHECK(index < register_param_count_);
     if (register_param_representations_.get() == NULL) {
       return Representation::Tagged();
     }
@@ -367,11 +367,11 @@ class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
     has_miss_handler_ = true;
     // Our miss handler infrastructure doesn't currently support
     // variable stack parameter counts.
-    ASSERT(!stack_parameter_count_.is_valid());
+    DCHECK(!stack_parameter_count_.is_valid());
   }
 
   ExternalReference miss_handler() const {
-    ASSERT(has_miss_handler_);
+    DCHECK(has_miss_handler_);
     return miss_handler_;
   }
 
@@ -628,7 +628,7 @@ class FastNewContextStub V8_FINAL : public HydrogenCodeStub {
 
   FastNewContextStub(Isolate* isolate, int slots)
       : HydrogenCodeStub(isolate), slots_(slots) {
-    ASSERT(slots_ > 0 && slots_ <= kMaximumSlots);
+    DCHECK(slots_ > 0 && slots_ <= kMaximumSlots);
   }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
@@ -688,8 +688,8 @@ class FastCloneShallowObjectStub : public HydrogenCodeStub {
 
   FastCloneShallowObjectStub(Isolate* isolate, int length)
       : HydrogenCodeStub(isolate), length_(length) {
-    ASSERT_GE(length_, 0);
-    ASSERT_LE(length_, kMaximumClonedProperties);
+    DCHECK_GE(length_, 0);
+    DCHECK_LE(length_, kMaximumClonedProperties);
   }
 
   int length() const { return length_; }
@@ -1105,7 +1105,7 @@ class CallApiFunctionStub : public PlatformCodeStub {
         IsStoreBits::encode(is_store) |
         CallDataUndefinedBits::encode(call_data_undefined) |
         ArgumentBits::encode(argc);
-    ASSERT(!is_store || argc == 1);
+    DCHECK(!is_store || argc == 1);
   }
 
  private:
@@ -1335,7 +1335,7 @@ class ICCompareStub: public PlatformCodeStub {
         left_(left),
         right_(right),
         state_(handler) {
-    ASSERT(Token::IsCompareOp(op));
+    DCHECK(Token::IsCompareOp(op));
   }
 
   virtual void Generate(MacroAssembler* masm);
@@ -1618,7 +1618,7 @@ class CallFunctionStub: public PlatformCodeStub {
  public:
   CallFunctionStub(Isolate* isolate, int argc, CallFunctionFlags flags)
       : PlatformCodeStub(isolate), argc_(argc), flags_(flags) {
-    ASSERT(argc <= Code::kMaxArguments);
+    DCHECK(argc <= Code::kMaxArguments);
   }
 
   void Generate(MacroAssembler* masm);
@@ -1723,8 +1723,8 @@ class StringCharCodeAtGenerator {
         index_not_number_(index_not_number),
         index_out_of_range_(index_out_of_range),
         index_flags_(index_flags) {
-    ASSERT(!result_.is(object_));
-    ASSERT(!result_.is(index_));
+    DCHECK(!result_.is(object_));
+    DCHECK(!result_.is(index_));
   }
 
   // Generates the fast case code. On the fallthrough path |result|
@@ -1771,7 +1771,7 @@ class StringCharFromCodeGenerator {
                               Register result)
       : code_(code),
         result_(result) {
-    ASSERT(!code_.is(result_));
+    DCHECK(!code_.is(result_));
   }
 
   // Generates the fast case code. On the fallthrough path |result|
@@ -2106,7 +2106,7 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
     // It only makes sense to override local allocation site behavior
     // if there is a difference between the global allocation site policy
     // for an ElementsKind and the desired usage of the stub.
-    ASSERT(override_mode != DISABLE_ALLOCATION_SITES ||
+    DCHECK(override_mode != DISABLE_ALLOCATION_SITES ||
            AllocationSite::GetMode(kind) == TRACK_ALLOCATION_SITE);
     bit_field_ = ElementsKindBits::encode(kind) |
         AllocationSiteOverrideModeBits::encode(override_mode);

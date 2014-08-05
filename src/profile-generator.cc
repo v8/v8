@@ -399,7 +399,7 @@ int CodeMap::GetSharedId(Address addr) {
   // For shared function entries, 'size' field is used to store their IDs.
   if (tree_.Find(addr, &locator)) {
     const CodeEntryInfo& entry = locator.value();
-    ASSERT(entry.entry == kSharedFunctionCodeEntry);
+    DCHECK(entry.entry == kSharedFunctionCodeEntry);
     return entry.size;
   } else {
     tree_.Insert(addr, &locator);

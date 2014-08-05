@@ -29,13 +29,13 @@ void PromotionQueue::insert(HeapObject* target, int size) {
   if (NewSpacePage::IsAtStart(reinterpret_cast<Address>(rear_))) {
     NewSpacePage* rear_page =
         NewSpacePage::FromAddress(reinterpret_cast<Address>(rear_));
-    ASSERT(!rear_page->prev_page()->is_anchor());
+    DCHECK(!rear_page->prev_page()->is_anchor());
     rear_ = reinterpret_cast<intptr_t*>(rear_page->prev_page()->area_end());
     ActivateGuardIfOnTheSamePage();
   }
 
   if (guard_) {
-    ASSERT(GetHeadPage() ==
+    DCHECK(GetHeadPage() ==
            Page::FromAllocationTop(reinterpret_cast<Address>(limit_)));
 
     if ((rear_ - 2) < limit_) {
@@ -118,7 +118,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
   answer->set_length(str.length());
   answer->set_hash_field(hash_field);
 
-  ASSERT_EQ(size, answer->Size());
+  DCHECK_EQ(size, answer->Size());
 
   // Fill in the characters.
   MemCopy(answer->address() + SeqOneByteString::kHeaderSize, str.start(),
@@ -148,7 +148,7 @@ AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   answer->set_length(str.length());
   answer->set_hash_field(hash_field);
 
-  ASSERT_EQ(size, answer->Size());
+  DCHECK_EQ(size, answer->Size());
 
   // Fill in the characters.
   MemCopy(answer->address() + SeqTwoByteString::kHeaderSize, str.start(),
@@ -178,9 +178,9 @@ AllocationResult Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
 AllocationResult Heap::AllocateRaw(int size_in_bytes,
                                    AllocationSpace space,
                                    AllocationSpace retry_space) {
-  ASSERT(AllowHandleAllocation::IsAllowed());
-  ASSERT(AllowHeapAllocation::IsAllowed());
-  ASSERT(gc_state_ == NOT_IN_GC);
+  DCHECK(AllowHandleAllocation::IsAllowed());
+  DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(gc_state_ == NOT_IN_GC);
 #ifdef DEBUG
   if (FLAG_gc_interval >= 0 &&
       AllowAllocationFailure::IsAllowed(isolate_) &&
@@ -225,7 +225,7 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes,
   } else if (PROPERTY_CELL_SPACE == space) {
     allocation = property_cell_space_->AllocateRaw(size_in_bytes);
   } else {
-    ASSERT(MAP_SPACE == space);
+    DCHECK(MAP_SPACE == space);
     allocation = map_space_->AllocateRaw(size_in_bytes);
   }
   if (allocation.To(&object)) {
@@ -322,7 +322,7 @@ void Heap::PrintAlloctionsHash() {
 
 
 void Heap::FinalizeExternalString(String* string) {
-  ASSERT(string->IsExternalString());
+  DCHECK(string->IsExternalString());
   v8::String::ExternalStringResourceBase** resource_addr =
       reinterpret_cast<v8::String::ExternalStringResourceBase**>(
           reinterpret_cast<byte*>(string) +
@@ -339,7 +339,7 @@ void Heap::FinalizeExternalString(String* string) {
 
 bool Heap::InNewSpace(Object* object) {
   bool result = new_space_.Contains(object);
-  ASSERT(!result ||                  // Either not in new space
+  DCHECK(!result ||                  // Either not in new space
          gc_state_ != NOT_IN_GC ||   // ... or in the middle of GC
          InToSpace(object));         // ... or in to-space (where we allocate).
   return result;
@@ -425,15 +425,15 @@ AllocationSpace Heap::TargetSpaceId(InstanceType type) {
   // know that object has the heap object tag.
 
   // These objects are never allocated in new space.
-  ASSERT(type != MAP_TYPE);
-  ASSERT(type != CODE_TYPE);
-  ASSERT(type != ODDBALL_TYPE);
-  ASSERT(type != CELL_TYPE);
-  ASSERT(type != PROPERTY_CELL_TYPE);
+  DCHECK(type != MAP_TYPE);
+  DCHECK(type != CODE_TYPE);
+  DCHECK(type != ODDBALL_TYPE);
+  DCHECK(type != CELL_TYPE);
+  DCHECK(type != PROPERTY_CELL_TYPE);
 
   if (type <= LAST_NAME_TYPE) {
     if (type == SYMBOL_TYPE) return OLD_POINTER_SPACE;
-    ASSERT(type < FIRST_NONSTRING_TYPE);
+    DCHECK(type < FIRST_NONSTRING_TYPE);
     // There are four string representations: sequential strings, external
     // strings, cons strings, and sliced strings.
     // Only the latter two contain non-map-word pointers to heap objects.
@@ -497,7 +497,7 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
 
 
 void Heap::MoveBlock(Address dst, Address src, int byte_size) {
-  ASSERT(IsAligned(byte_size, kPointerSize));
+  DCHECK(IsAligned(byte_size, kPointerSize));
 
   int size_in_words = byte_size / kPointerSize;
 
@@ -544,7 +544,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   // the test makes it possible to have a single, unified version of
   // FindAllocationMemento that is used both by the GC and the mutator.
   Address top = NewSpaceTop();
-  ASSERT(memento_address == top ||
+  DCHECK(memento_address == top ||
          memento_address + HeapObject::kHeaderSize <= top ||
          !NewSpacePage::OnSamePage(memento_address, top));
   if (memento_address == top) return NULL;
@@ -558,7 +558,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
 void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
                                         ScratchpadSlotMode mode) {
   Heap* heap = object->GetHeap();
-  ASSERT(heap->InFromSpace(object));
+  DCHECK(heap->InFromSpace(object));
 
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type())) return;
@@ -573,7 +573,7 @@ void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
 
 
 void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  ASSERT(object->GetIsolate()->heap()->InFromSpace(object));
+  DCHECK(object->GetIsolate()->heap()->InFromSpace(object));
 
   // We use the first word (where the map pointer usually is) of a heap
   // object to record the forwarding pointer.  A forwarding pointer can
@@ -585,7 +585,7 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   // copied.
   if (first_word.IsForwardingAddress()) {
     HeapObject* dest = first_word.ToForwardingAddress();
-    ASSERT(object->GetIsolate()->heap()->InFromSpace(*p));
+    DCHECK(object->GetIsolate()->heap()->InFromSpace(*p));
     *p = dest;
     return;
   }
@@ -593,7 +593,7 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   UpdateAllocationSiteFeedback(object, IGNORE_SCRATCHPAD_SLOT);
 
   // AllocationMementos are unrooted and shouldn't survive a scavenge
-  ASSERT(object->map() != object->GetHeap()->allocation_memento_map());
+  DCHECK(object->map() != object->GetHeap()->allocation_memento_map());
   // Call the slow part of scavenge object.
   return ScavengeObjectSlow(p, object);
 }
@@ -623,7 +623,7 @@ Isolate* Heap::isolate() {
 
 #define RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                      \
   if (__allocation__.To(&__object__)) {                                        \
-    ASSERT(__object__ != (ISOLATE)->heap()->exception());                      \
+    DCHECK(__object__ != (ISOLATE)->heap()->exception());                      \
     RETURN_VALUE;                                                              \
   }
 
@@ -668,7 +668,7 @@ Isolate* Heap::isolate() {
 
 
 void ExternalStringTable::AddString(String* string) {
-  ASSERT(string->IsExternalString());
+  DCHECK(string->IsExternalString());
   if (heap_->InNewSpace(string)) {
     new_space_strings_.Add(string);
   } else {
@@ -695,21 +695,21 @@ void ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (int i = 0; i < new_space_strings_.length(); ++i) {
     Object* obj = Object::cast(new_space_strings_[i]);
-    ASSERT(heap_->InNewSpace(obj));
-    ASSERT(obj != heap_->the_hole_value());
+    DCHECK(heap_->InNewSpace(obj));
+    DCHECK(obj != heap_->the_hole_value());
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
     Object* obj = Object::cast(old_space_strings_[i]);
-    ASSERT(!heap_->InNewSpace(obj));
-    ASSERT(obj != heap_->the_hole_value());
+    DCHECK(!heap_->InNewSpace(obj));
+    DCHECK(obj != heap_->the_hole_value());
   }
 #endif
 }
 
 
 void ExternalStringTable::AddOldString(String* string) {
-  ASSERT(string->IsExternalString());
-  ASSERT(!heap_->InNewSpace(string));
+  DCHECK(string->IsExternalString());
+  DCHECK(!heap_->InNewSpace(string));
   old_space_strings_.Add(string);
 }
 
@@ -746,14 +746,14 @@ AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
   // non-handle code to call handle code. The code still works but
   // performance will degrade, so we want to catch this situation
   // in debug mode.
-  ASSERT(heap_->always_allocate_scope_depth_ == 0);
+  DCHECK(heap_->always_allocate_scope_depth_ == 0);
   heap_->always_allocate_scope_depth_++;
 }
 
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_depth_--;
-  ASSERT(heap_->always_allocate_scope_depth_ == 0);
+  DCHECK(heap_->always_allocate_scope_depth_ == 0);
 }
 
 

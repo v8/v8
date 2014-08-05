@@ -115,12 +115,12 @@ class StaticVisitorBase : public AllStatic {
   static VisitorId GetVisitorIdForSize(VisitorId base,
                                        VisitorId generic,
                                        int object_size) {
-    ASSERT((base == kVisitDataObject) ||
+    DCHECK((base == kVisitDataObject) ||
            (base == kVisitStruct) ||
            (base == kVisitJSObject));
-    ASSERT(IsAligned(object_size, kPointerSize));
-    ASSERT(kMinObjectSizeInWords * kPointerSize <= object_size);
-    ASSERT(object_size <= Page::kMaxRegularHeapObjectSize);
+    DCHECK(IsAligned(object_size, kPointerSize));
+    DCHECK(kMinObjectSizeInWords * kPointerSize <= object_size);
+    DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
 
     const VisitorId specialization = static_cast<VisitorId>(
         base + (object_size >> kPointerSizeLog2) - kMinObjectSizeInWords);
@@ -151,7 +151,7 @@ class VisitorDispatchTable {
   }
 
   void Register(StaticVisitorBase::VisitorId id, Callback callback) {
-    ASSERT(id < StaticVisitorBase::kVisitorIdCount);  // id is unsigned.
+    DCHECK(id < StaticVisitorBase::kVisitorIdCount);  // id is unsigned.
     callbacks_[id] = reinterpret_cast<base::AtomicWord>(callback);
   }
 
@@ -219,7 +219,7 @@ class FlexibleBodyVisitor : public BodyVisitorBase<StaticVisitor> {
 
   template<int object_size>
   static inline ReturnType VisitSpecialized(Map* map, HeapObject* object) {
-    ASSERT(BodyDescriptor::SizeOf(map, object) == object_size);
+    DCHECK(BodyDescriptor::SizeOf(map, object) == object_size);
     BodyVisitorBase<StaticVisitor>::IteratePointers(
         map->GetHeap(),
         object,

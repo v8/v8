@@ -15,7 +15,7 @@ Context* Context::declaration_context() {
   Context* current = this;
   while (!current->IsFunctionContext() && !current->IsNativeContext()) {
     current = current->previous();
-    ASSERT(current->closure() == closure());
+    DCHECK(current->closure() == closure());
   }
   return current;
 }
@@ -26,7 +26,7 @@ JSBuiltinsObject* Context::builtins() {
   if (object->IsJSGlobalObject()) {
     return JSGlobalObject::cast(object)->builtins();
   } else {
-    ASSERT(object->IsJSBuiltinsObject());
+    DCHECK(object->IsJSBuiltinsObject());
     return JSBuiltinsObject::cast(object);
   }
 }
@@ -51,7 +51,7 @@ Context* Context::native_context() {
 
   // During bootstrapping, the global object might not be set and we
   // have to search the context chain to find the native context.
-  ASSERT(this->GetIsolate()->bootstrapper()->IsActive());
+  DCHECK(this->GetIsolate()->bootstrapper()->IsActive());
   Context* current = this;
   while (!current->IsNativeContext()) {
     JSFunction* closure = JSFunction::cast(current->closure());
@@ -114,7 +114,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
         maybe = JSReceiver::GetPropertyAttributes(object, name);
       }
       if (!maybe.has_value) return Handle<Object>();
-      ASSERT(!isolate->has_pending_exception());
+      DCHECK(!isolate->has_pending_exception());
       *attributes = maybe.value;
 
       if (maybe.value != ABSENT) {
@@ -145,7 +145,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
       MaybeAssignedFlag maybe_assigned_flag;
       int slot_index = ScopeInfo::ContextSlotIndex(
           scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
-      ASSERT(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
+      DCHECK(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
       if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %d)\n",
@@ -206,7 +206,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
           }
           *index = function_index;
           *attributes = READ_ONLY;
-          ASSERT(mode == CONST_LEGACY || mode == CONST);
+          DCHECK(mode == CONST_LEGACY || mode == CONST);
           *binding_flags = (mode == CONST_LEGACY)
               ? IMMUTABLE_IS_INITIALIZED : IMMUTABLE_IS_INITIALIZED_HARMONY;
           return context;
@@ -242,8 +242,8 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
 
 void Context::AddOptimizedFunction(JSFunction* function) {
-  ASSERT(IsNativeContext());
-#ifdef ENABLE_SLOW_ASSERTS
+  DCHECK(IsNativeContext());
+#ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
     Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
     while (!element->IsUndefined()) {
@@ -272,7 +272,7 @@ void Context::AddOptimizedFunction(JSFunction* function) {
     flusher->EvictCandidate(function);
   }
 
-  ASSERT(function->next_function_link()->IsUndefined());
+  DCHECK(function->next_function_link()->IsUndefined());
 
   function->set_next_function_link(get(OPTIMIZED_FUNCTIONS_LIST));
   set(OPTIMIZED_FUNCTIONS_LIST, function);
@@ -280,12 +280,12 @@ void Context::AddOptimizedFunction(JSFunction* function) {
 
 
 void Context::RemoveOptimizedFunction(JSFunction* function) {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   Object* element = get(OPTIMIZED_FUNCTIONS_LIST);
   JSFunction* prev = NULL;
   while (!element->IsUndefined()) {
     JSFunction* element_function = JSFunction::cast(element);
-    ASSERT(element_function->next_function_link()->IsUndefined() ||
+    DCHECK(element_function->next_function_link()->IsUndefined() ||
            element_function->next_function_link()->IsJSFunction());
     if (element_function == function) {
       if (prev == NULL) {
@@ -304,46 +304,46 @@ void Context::RemoveOptimizedFunction(JSFunction* function) {
 
 
 void Context::SetOptimizedFunctionsListHead(Object* head) {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   set(OPTIMIZED_FUNCTIONS_LIST, head);
 }
 
 
 Object* Context::OptimizedFunctionsListHead() {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   return get(OPTIMIZED_FUNCTIONS_LIST);
 }
 
 
 void Context::AddOptimizedCode(Code* code) {
-  ASSERT(IsNativeContext());
-  ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
-  ASSERT(code->next_code_link()->IsUndefined());
+  DCHECK(IsNativeContext());
+  DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(code->next_code_link()->IsUndefined());
   code->set_next_code_link(get(OPTIMIZED_CODE_LIST));
   set(OPTIMIZED_CODE_LIST, code);
 }
 
 
 void Context::SetOptimizedCodeListHead(Object* head) {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   set(OPTIMIZED_CODE_LIST, head);
 }
 
 
 Object* Context::OptimizedCodeListHead() {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   return get(OPTIMIZED_CODE_LIST);
 }
 
 
 void Context::SetDeoptimizedCodeListHead(Object* head) {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   set(DEOPTIMIZED_CODE_LIST, head);
 }
 
 
 Object* Context::DeoptimizedCodeListHead() {
-  ASSERT(IsNativeContext());
+  DCHECK(IsNativeContext());
   return get(DEOPTIMIZED_CODE_LIST);
 }
 

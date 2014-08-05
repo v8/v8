@@ -218,13 +218,13 @@ class RecordWriteStub: public PlatformCodeStub {
       return INCREMENTAL;
     }
 
-    ASSERT(first_instruction == kTwoByteNopInstruction);
+    DCHECK(first_instruction == kTwoByteNopInstruction);
 
     if (second_instruction == kFiveByteJumpInstruction) {
       return INCREMENTAL_COMPACTION;
     }
 
-    ASSERT(second_instruction == kFiveByteNopInstruction);
+    DCHECK(second_instruction == kFiveByteNopInstruction);
 
     return STORE_BUFFER_ONLY;
   }
@@ -232,22 +232,22 @@ class RecordWriteStub: public PlatformCodeStub {
   static void Patch(Code* stub, Mode mode) {
     switch (mode) {
       case STORE_BUFFER_ONLY:
-        ASSERT(GetMode(stub) == INCREMENTAL ||
+        DCHECK(GetMode(stub) == INCREMENTAL ||
                GetMode(stub) == INCREMENTAL_COMPACTION);
         stub->instruction_start()[0] = kTwoByteNopInstruction;
         stub->instruction_start()[2] = kFiveByteNopInstruction;
         break;
       case INCREMENTAL:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         stub->instruction_start()[0] = kTwoByteJumpInstruction;
         break;
       case INCREMENTAL_COMPACTION:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
         stub->instruction_start()[0] = kTwoByteNopInstruction;
         stub->instruction_start()[2] = kFiveByteJumpInstruction;
         break;
     }
-    ASSERT(GetMode(stub) == mode);
+    DCHECK(GetMode(stub) == mode);
     CpuFeatures::FlushICache(stub->instruction_start(), 7);
   }
 
@@ -266,7 +266,7 @@ class RecordWriteStub: public PlatformCodeStub {
           object_(object),
           address_(address),
           scratch0_(scratch0) {
-      ASSERT(!AreAliased(scratch0, object, address, no_reg));
+      DCHECK(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegThatIsNotEcxOr(object_, address_, scratch0_);
       if (scratch0.is(ecx)) {
         scratch0_ = GetRegThatIsNotEcxOr(object_, address_, scratch1_);
@@ -277,15 +277,15 @@ class RecordWriteStub: public PlatformCodeStub {
       if (address.is(ecx)) {
         address_ = GetRegThatIsNotEcxOr(object_, scratch0_, scratch1_);
       }
-      ASSERT(!AreAliased(scratch0_, object_, address_, ecx));
+      DCHECK(!AreAliased(scratch0_, object_, address_, ecx));
     }
 
     void Save(MacroAssembler* masm) {
-      ASSERT(!address_orig_.is(object_));
-      ASSERT(object_.is(object_orig_) || address_.is(address_orig_));
-      ASSERT(!AreAliased(object_, address_, scratch1_, scratch0_));
-      ASSERT(!AreAliased(object_orig_, address_, scratch1_, scratch0_));
-      ASSERT(!AreAliased(object_, address_orig_, scratch1_, scratch0_));
+      DCHECK(!address_orig_.is(object_));
+      DCHECK(object_.is(object_orig_) || address_.is(address_orig_));
+      DCHECK(!AreAliased(object_, address_, scratch1_, scratch0_));
+      DCHECK(!AreAliased(object_orig_, address_, scratch1_, scratch0_));
+      DCHECK(!AreAliased(object_, address_orig_, scratch1_, scratch0_));
       // We don't have to save scratch0_orig_ because it was given to us as
       // a scratch register.  But if we had to switch to a different reg then
       // we should save the new scratch0_.

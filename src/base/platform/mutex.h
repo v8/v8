@@ -74,14 +74,14 @@ class Mutex V8_FINAL {
 
   V8_INLINE void AssertHeldAndUnmark() {
 #ifdef DEBUG
-    ASSERT_EQ(1, level_);
+    DCHECK_EQ(1, level_);
     level_--;
 #endif
   }
 
   V8_INLINE void AssertUnheldAndMark() {
 #ifdef DEBUG
-    ASSERT_EQ(0, level_);
+    DCHECK_EQ(0, level_);
     level_++;
 #endif
   }

@@ -68,7 +68,7 @@ class LGapResolver BASE_EMBEDDED {
 
   // Registers used to solve cycles.
   const Register& SavedValueRegister() {
-    ASSERT(!masm_.ScratchRegister().IsAllocatable());
+    DCHECK(!masm_.ScratchRegister().IsAllocatable());
     return masm_.ScratchRegister();
   }
   // The scratch register is used to break cycles and to store constant.
@@ -79,7 +79,7 @@ class LGapResolver BASE_EMBEDDED {
     // We use the Crankshaft floating-point scratch register to break a cycle
     // involving double values as the MacroAssembler will not need it for the
     // operations performed by the gap resolver.
-    ASSERT(!crankshaft_fp_scratch.IsAllocatable());
+    DCHECK(!crankshaft_fp_scratch.IsAllocatable());
     return crankshaft_fp_scratch;
   }
 

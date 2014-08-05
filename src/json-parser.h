@@ -104,7 +104,7 @@ class JsonParser BASE_EMBEDDED {
       DisallowHeapAllocation no_gc;
       String::FlatContent content = expected->GetFlatContent();
       if (content.IsAscii()) {
-        ASSERT_EQ('"', c0_);
+        DCHECK_EQ('"', c0_);
         const uint8_t* input_chars = seq_source_->GetChars() + position_ + 1;
         const uint8_t* expected_chars = content.ToOneByteVector().start();
         for (int i = 0; i < length; i++) {
@@ -300,7 +300,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
       factory()->NewJSObject(object_constructor(), pretenure_);
   Handle<Map> map(json_object->map());
   ZoneList<Handle<Object> > properties(8, zone());
-  ASSERT_EQ(c0_, '{');
+  DCHECK_EQ(c0_, '{');
 
   bool transitioning = true;
 
@@ -397,7 +397,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
                       isolate(), expected_representation));
               Map::GeneralizeFieldType(target, descriptor, value_type);
             }
-            ASSERT(target->instance_descriptors()->GetFieldType(
+            DCHECK(target->instance_descriptors()->GetFieldType(
                     descriptor)->NowContains(value));
             properties.Add(value, zone());
             map = target;
@@ -451,7 +451,7 @@ template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJsonArray() {
   HandleScope scope(isolate());
   ZoneList<Handle<Object> > elements(4, zone());
-  ASSERT_EQ(c0_, '[');
+  DCHECK_EQ(c0_, '[');
 
   AdvanceSkipWhitespace();
   if (c0_ != ']') {
@@ -666,7 +666,7 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
     }
   }
 
-  ASSERT_EQ('"', c0_);
+  DCHECK_EQ('"', c0_);
   // Advance past the last '"'.
   AdvanceSkipWhitespace();
 
@@ -678,7 +678,7 @@ Handle<String> JsonParser<seq_ascii>::SlowScanJsonString(
 template <bool seq_ascii>
 template <bool is_internalized>
 Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
-  ASSERT_EQ('"', c0_);
+  DCHECK_EQ('"', c0_);
   Advance();
   if (c0_ == '"') {
     AdvanceSkipWhitespace();
@@ -741,7 +741,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
 #ifdef DEBUG
         uint32_t hash_field =
             (hash << String::kHashShift) | String::kIsNotArrayIndexMask;
-        ASSERT_EQ(static_cast<int>(result->Hash()),
+        DCHECK_EQ(static_cast<int>(result->Hash()),
                   static_cast<int>(hash_field >> String::kHashShift));
 #endif
         break;
@@ -779,7 +779,7 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
   uint8_t* dest = SeqOneByteString::cast(*result)->GetChars();
   String::WriteToFlat(*source_, dest, beg_pos, position_);
 
-  ASSERT_EQ('"', c0_);
+  DCHECK_EQ('"', c0_);
   // Advance past the last '"'.
   AdvanceSkipWhitespace();
   return result;

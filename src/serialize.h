@@ -123,7 +123,7 @@ class ExternalReferenceDecoder {
 
   Address* Lookup(uint32_t key) const {
     int type = key >> kReferenceTypeShift;
-    ASSERT(kFirstTypeCode <= type && type < kTypeCodeCount);
+    DCHECK(kFirstTypeCode <= type && type < kTypeCodeCount);
     int id = key & kReferenceIdMask;
     return &encodings_[type][id];
   }
@@ -208,11 +208,11 @@ class SerializerDeserializer: public ObjectVisitor {
   // 0x73-0x7f            Repeat last word (subtract 0x72 to get the count).
   static const int kMaxRepeats = 0x7f - 0x72;
   static int CodeForRepeats(int repeats) {
-    ASSERT(repeats >= 1 && repeats <= kMaxRepeats);
+    DCHECK(repeats >= 1 && repeats <= kMaxRepeats);
     return 0x72 + repeats;
   }
   static int RepeatsForCode(int byte_code) {
-    ASSERT(byte_code >= kConstantRepeat && byte_code <= 0x7f);
+    DCHECK(byte_code >= kConstantRepeat && byte_code <= 0x7f);
     return byte_code - 0x72;
   }
   static const int kRootArrayConstants = 0xa0;
@@ -245,8 +245,8 @@ class Deserializer: public SerializerDeserializer {
   void DeserializePartial(Isolate* isolate, Object** root);
 
   void set_reservation(int space_number, int reservation) {
-    ASSERT(space_number >= 0);
-    ASSERT(space_number <= LAST_SPACE);
+    DCHECK(space_number >= 0);
+    DCHECK(space_number <= LAST_SPACE);
     reservations_[space_number] = reservation;
   }
 
@@ -338,13 +338,13 @@ class SerializationAddressMapper {
   }
 
   int MappedTo(HeapObject* obj) {
-    ASSERT(IsMapped(obj));
+    DCHECK(IsMapped(obj));
     return static_cast<int>(reinterpret_cast<intptr_t>(
         serialization_map_->Lookup(Key(obj), Hash(obj), false)->value));
   }
 
   void AddMapping(HeapObject* obj, int to) {
-    ASSERT(!IsMapped(obj));
+    DCHECK(!IsMapped(obj));
     HashMap::Entry* entry =
         serialization_map_->Lookup(Key(obj), Hash(obj), true);
     entry->value = Value(to);
@@ -380,7 +380,7 @@ class Serializer : public SerializerDeserializer {
   // You can call this after serialization to find out how much space was used
   // in each space.
   int CurrentAllocationAddress(int space) const {
-    ASSERT(space < kNumberOfSpaces);
+    DCHECK(space < kNumberOfSpaces);
     return fullness_[space];
   }
 
@@ -399,7 +399,7 @@ class Serializer : public SerializerDeserializer {
   int RootIndex(HeapObject* heap_object, HowToCode from);
   intptr_t root_index_wave_front() { return root_index_wave_front_; }
   void set_root_index_wave_front(intptr_t value) {
-    ASSERT(value >= root_index_wave_front_);
+    DCHECK(value >= root_index_wave_front_);
     root_index_wave_front_ = value;
   }
 
@@ -525,7 +525,7 @@ class PartialSerializer : public Serializer {
     // allow them to be part of the partial snapshot because they contain a
     // unique ID, and deserializing several partial snapshots containing script
     // would cause dupes.
-    ASSERT(!o->IsScript());
+    DCHECK(!o->IsScript());
     return o->IsName() || o->IsSharedFunctionInfo() ||
            o->IsHeapNumber() || o->IsCode() ||
            o->IsScopeInfo() ||
@@ -593,7 +593,7 @@ class CodeSerializer : public Serializer {
   static const int kSourceObjectIndex = 0;
 
   String* source() {
-    ASSERT(!AllowHeapAllocation::IsAllowed());
+    DCHECK(!AllowHeapAllocation::IsAllowed());
     return source_;
   }
 
@@ -630,7 +630,7 @@ class SerializedCodeData {
   ScriptData* GetScriptData() {
     ScriptData* result = script_data_;
     script_data_ = NULL;
-    ASSERT(owns_script_data_);
+    DCHECK(owns_script_data_);
     owns_script_data_ = false;
     return result;
   }

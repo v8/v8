@@ -75,7 +75,7 @@ class Variable: public ZoneObject {
     return force_context_allocation_;
   }
   void ForceContextAllocation() {
-    ASSERT(mode_ != TEMPORARY);
+    DCHECK(mode_ != TEMPORARY);
     force_context_allocation_ = true;
   }
   bool is_used() { return is_used_; }
@@ -113,7 +113,7 @@ class Variable: public ZoneObject {
   }
 
   Variable* local_if_not_shadowed() const {
-    ASSERT(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
+    DCHECK(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
     return local_if_not_shadowed_;
   }
 

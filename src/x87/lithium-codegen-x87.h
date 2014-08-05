@@ -404,12 +404,12 @@ class LCodeGen: public LCodeGenBase {
     void LeavingBlock(int current_block_id, LGoto* goto_instr);
     int depth() const { return stack_depth_; }
     void pop() {
-      ASSERT(is_mutable_);
+      DCHECK(is_mutable_);
       stack_depth_--;
     }
     void push(X87Register reg) {
-      ASSERT(is_mutable_);
-      ASSERT(stack_depth_ < X87Register::kMaxNumAllocatableRegisters);
+      DCHECK(is_mutable_);
+      DCHECK(stack_depth_ < X87Register::kMaxNumAllocatableRegisters);
       stack_[stack_depth_] = reg;
       stack_depth_++;
     }
@@ -441,14 +441,14 @@ class LCodeGen: public LCodeGenBase {
    public:
     explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
       codegen_->masm_->PushSafepointRegisters();
       codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
-      ASSERT(codegen_->info()->is_calling());
+      DCHECK(codegen_->info()->is_calling());
     }
 
     ~PushSafepointRegistersScope() {
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
       codegen_->masm_->PopSafepointRegisters();
       codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
     }

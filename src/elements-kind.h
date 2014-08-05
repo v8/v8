@@ -106,7 +106,7 @@ inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
 
 
 inline bool IsFastElementsKind(ElementsKind kind) {
-  ASSERT(FIRST_FAST_ELEMENTS_KIND == 0);
+  DCHECK(FIRST_FAST_ELEMENTS_KIND == 0);
   return kind <= FAST_HOLEY_DOUBLE_ELEMENTS;
 }
 
@@ -209,7 +209,7 @@ inline ElementsKind GetHoleyElementsKind(ElementsKind packed_kind) {
 
 
 inline ElementsKind FastSmiToObjectElementsKind(ElementsKind from_kind) {
-  ASSERT(IsFastSmiElementsKind(from_kind));
+  DCHECK(IsFastSmiElementsKind(from_kind));
   return (from_kind == FAST_SMI_ELEMENTS)
       ? FAST_ELEMENTS
       : FAST_HOLEY_ELEMENTS;

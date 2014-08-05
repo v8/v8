@@ -49,9 +49,9 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     patcher.blr(ip0);
     patcher.dc64(reinterpret_cast<intptr_t>(deopt_entry));
 
-    ASSERT((prev_call_address == NULL) ||
+    DCHECK((prev_call_address == NULL) ||
            (call_address >= prev_call_address + patch_size()));
-    ASSERT(call_address + patch_size() <= code->instruction_end());
+    DCHECK(call_address + patch_size() <= code->instruction_end());
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
@@ -250,7 +250,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ B(lt, &outer_push_loop);
 
   __ Ldr(x1, MemOperand(x4, Deoptimizer::input_offset()));
-  ASSERT(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
+  DCHECK(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
          !saved_fp_registers.IncludesAliasOf(fp_zero) &&
          !saved_fp_registers.IncludesAliasOf(fp_scratch));
   int src_offset = FrameDescription::double_registers_offset();
@@ -277,7 +277,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // Note that lr is not in the list of saved_registers and will be restored
   // later. We can use it to hold the address of last output frame while
   // reloading the other registers.
-  ASSERT(!saved_registers.IncludesAliasOf(lr));
+  DCHECK(!saved_registers.IncludesAliasOf(lr));
   Register last_output_frame = lr;
   __ Mov(last_output_frame, current_frame);
 
@@ -320,14 +320,14 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     // The number of entry will never exceed kMaxNumberOfEntries.
     // As long as kMaxNumberOfEntries is a valid 16 bits immediate you can use
     // a movz instruction to load the entry id.
-    ASSERT(is_uint16(Deoptimizer::kMaxNumberOfEntries));
+    DCHECK(is_uint16(Deoptimizer::kMaxNumberOfEntries));
 
     for (int i = 0; i < count(); i++) {
       int start = masm()->pc_offset();
       USE(start);
       __ movz(entry_id, i);
       __ b(&done);
-      ASSERT(masm()->pc_offset() - start == table_entry_size_);
+      DCHECK(masm()->pc_offset() - start == table_entry_size_);
     }
   }
   __ Bind(&done);

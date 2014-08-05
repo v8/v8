@@ -22,7 +22,7 @@ SweeperThread::SweeperThread(Isolate* isolate)
        start_sweeping_semaphore_(0),
        end_sweeping_semaphore_(0),
        stop_semaphore_(0) {
-  ASSERT(!FLAG_job_based_sweeping);
+  DCHECK(!FLAG_job_based_sweeping);
   base::NoBarrier_Store(&stop_thread_, static_cast<base::AtomicWord>(false));
 }
 
@@ -79,7 +79,7 @@ int SweeperThread::NumberOfThreads(int max_available) {
   if (!FLAG_concurrent_sweeping && !FLAG_parallel_sweeping) return 0;
   if (FLAG_sweeper_threads > 0) return FLAG_sweeper_threads;
   if (FLAG_concurrent_sweeping) return max_available - 1;
-  ASSERT(FLAG_parallel_sweeping);
+  DCHECK(FLAG_parallel_sweeping);
   return max_available;
 }
 

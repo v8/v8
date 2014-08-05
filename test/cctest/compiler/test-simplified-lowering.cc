@@ -86,22 +86,23 @@ class SimplifiedGraphBuilderTester : public GraphBuilderTester<ReturnType> {
 namespace {
 
 FieldAccess ForJSObjectMap() {
-  FieldAccess access = {JSObject::kMapOffset, Handle<Name>(), Type::Any(),
-                        kMachineTagged};
+  FieldAccess access = {kTaggedBase, JSObject::kMapOffset, Handle<Name>(),
+                        Type::Any(), kMachineTagged};
   return access;
 }
 
 
 FieldAccess ForJSObjectProperties() {
-  FieldAccess access = {JSObject::kPropertiesOffset, Handle<Name>(),
-                        Type::Any(), kMachineTagged};
+  FieldAccess access = {kTaggedBase, JSObject::kPropertiesOffset,
+                        Handle<Name>(), Type::Any(), kMachineTagged};
   return access;
 }
 
 
 FieldAccess ForArrayBufferBackingStore() {
   FieldAccess access = {
-      JSArrayBuffer::kBackingStoreOffset, Handle<Name>(), Type::UntaggedPtr(),
+      kTaggedBase,                           JSArrayBuffer::kBackingStoreOffset,
+      Handle<Name>(),                        Type::UntaggedPtr(),
       MachineOperatorBuilder::pointer_rep(),
   };
   return access;
@@ -109,13 +110,16 @@ FieldAccess ForArrayBufferBackingStore() {
 
 
 ElementAccess ForFixedArrayElement() {
-  ElementAccess access = {FixedArray::kHeaderSize, Type::Any(), kMachineTagged};
+  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
+                          kMachineTagged};
   return access;
 }
 
 
 ElementAccess ForBackingStoreElement(MachineRepresentation rep) {
-  ElementAccess access = {kNonHeapObjectHeaderSize, Type::Any(), rep};
+  ElementAccess access = {kUntaggedBase,
+                          kNonHeapObjectHeaderSize - kHeapObjectTag,
+                          Type::Any(), rep};
   return access;
 }
 }
@@ -309,5 +313,115 @@ TEST(RunCopyFixedArray) {
   CHECK_EQ(kArraySize, t.Call(*src, *dst));
   for (int i = 0; i < kArraySize; i++) {
     CHECK_EQ(src_copy->get(i), dst->get(i));
+  }
+}
+
+
+TEST(RunLoadFieldFromUntaggedBase) {
+  Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3)};
+
+  for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {
+    int offset = static_cast<int>(i * sizeof(Smi*));
+    FieldAccess access = {kUntaggedBase, offset, Handle<Name>(),
+                          Type::Integral32(), kMachineTagged};
+
+    SimplifiedGraphBuilderTester<Object*> t;
+    Node* load = t.LoadField(access, t.PointerConstant(smis));
+    t.Return(load);
+    t.LowerAllNodes();
+
+    if (!Pipeline::SupportedTarget()) continue;
+
+    for (int j = -5; j <= 5; j++) {
+      Smi* expected = Smi::FromInt(j);
+      smis[i] = expected;
+      CHECK_EQ(expected, t.Call());
+    }
+  }
+}
+
+
+TEST(RunStoreFieldToUntaggedBase) {
+  Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3)};
+
+  for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {
+    int offset = static_cast<int>(i * sizeof(Smi*));
+    FieldAccess access = {kUntaggedBase, offset, Handle<Name>(),
+                          Type::Integral32(), kMachineTagged};
+
+    SimplifiedGraphBuilderTester<Object*> t(kMachineTagged);
+    Node* p0 = t.Parameter(0);
+    t.StoreField(access, t.PointerConstant(smis), p0);
+    t.Return(p0);
+    t.LowerAllNodes();
+
+    if (!Pipeline::SupportedTarget()) continue;
+
+    for (int j = -5; j <= 5; j++) {
+      Smi* expected = Smi::FromInt(j);
+      smis[i] = Smi::FromInt(-100);
+      CHECK_EQ(expected, t.Call(expected));
+      CHECK_EQ(expected, smis[i]);
+    }
+  }
+}
+
+
+TEST(RunLoadElementFromUntaggedBase) {
+  Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3),
+                 Smi::FromInt(4), Smi::FromInt(5)};
+
+  for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {    // for header sizes
+    for (size_t j = 0; (i + j) < ARRAY_SIZE(smis); j++) {  // for element index
+      int offset = static_cast<int>(i * sizeof(Smi*));
+      ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
+                              kMachineTagged};
+
+      SimplifiedGraphBuilderTester<Object*> t;
+      Node* load = t.LoadElement(access, t.PointerConstant(smis),
+                                 t.Int32Constant(static_cast<int>(j)));
+      t.Return(load);
+      t.LowerAllNodes();
+
+      if (!Pipeline::SupportedTarget()) continue;
+
+      for (int k = -5; k <= 5; k++) {
+        Smi* expected = Smi::FromInt(k);
+        smis[i + j] = expected;
+        CHECK_EQ(expected, t.Call());
+      }
+    }
+  }
+}
+
+
+TEST(RunStoreElementFromUntaggedBase) {
+  Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3),
+                 Smi::FromInt(4), Smi::FromInt(5)};
+
+  for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {    // for header sizes
+    for (size_t j = 0; (i + j) < ARRAY_SIZE(smis); j++) {  // for element index
+      int offset = static_cast<int>(i * sizeof(Smi*));
+      ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
+                              kMachineTagged};
+
+      SimplifiedGraphBuilderTester<Object*> t(kMachineTagged);
+      Node* p0 = t.Parameter(0);
+      t.StoreElement(access, t.PointerConstant(smis),
+                     t.Int32Constant(static_cast<int>(j)), p0);
+      t.Return(p0);
+      t.LowerAllNodes();
+
+      if (!Pipeline::SupportedTarget()) continue;
+
+      for (int k = -5; k <= 5; k++) {
+        Smi* expected = Smi::FromInt(k);
+        smis[i + j] = Smi::FromInt(-100);
+        CHECK_EQ(expected, t.Call(expected));
+        CHECK_EQ(expected, smis[i + j]);
+      }
+
+      // TODO(titzer): assert the contents of the array.
+    }
   }
 }

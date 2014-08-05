@@ -882,15 +882,15 @@ class MacroAssembler: public Assembler {
   void Move(Register dst, void* ptr, RelocInfo::Mode rmode) {
     // This method must not be used with heap object references. The stored
     // address is not GC safe. Use the handle version instead.
-    ASSERT(rmode > RelocInfo::LAST_GCED_ENUM);
+    DCHECK(rmode > RelocInfo::LAST_GCED_ENUM);
     movp(dst, ptr, rmode);
   }
 
   void Move(Register dst, Handle<Object> value, RelocInfo::Mode rmode) {
     AllowDeferredHandleDereference using_raw_address;
-    ASSERT(!RelocInfo::IsNone(rmode));
-    ASSERT(value->IsHeapObject());
-    ASSERT(!isolate()->heap()->InNewSpace(*value));
+    DCHECK(!RelocInfo::IsNone(rmode));
+    DCHECK(value->IsHeapObject());
+    DCHECK(!isolate()->heap()->InNewSpace(*value));
     movp(dst, reinterpret_cast<void*>(value.location()), rmode);
   }
 
@@ -1068,9 +1068,9 @@ class MacroAssembler: public Assembler {
     } else {
       static const int shift = Field::kShift;
       static const int mask = (Field::kMask >> Field::kShift) << kSmiTagSize;
-      ASSERT(SmiValuesAre31Bits());
-      ASSERT(kSmiShift == kSmiTagSize);
-      ASSERT((mask & 0x80000000u) == 0);
+      DCHECK(SmiValuesAre31Bits());
+      DCHECK(kSmiShift == kSmiTagSize);
+      DCHECK((mask & 0x80000000u) == 0);
       if (shift < kSmiShift) {
         shlp(reg, Immediate(kSmiShift - shift));
       } else if (shift > kSmiShift) {
@@ -1387,7 +1387,7 @@ class MacroAssembler: public Assembler {
   void Ret(int bytes_dropped, Register scratch);
 
   Handle<Object> CodeObject() {
-    ASSERT(!code_object_.is_null());
+    DCHECK(!code_object_.is_null());
     return code_object_;
   }
 

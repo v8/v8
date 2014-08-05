@@ -19,7 +19,7 @@ namespace internal {
 template<class Config>
 TypeImpl<Config>* TypeImpl<Config>::cast(typename Config::Base* object) {
   TypeImpl* t = static_cast<TypeImpl*>(object);
-  ASSERT(t->IsBitset() || t->IsClass() || t->IsConstant() || t->IsRange() ||
+  DCHECK(t->IsBitset() || t->IsClass() || t->IsConstant() || t->IsRange() ||
          t->IsUnion() || t->IsArray() || t->IsFunction() || t->IsContext());
   return t;
 }
@@ -88,14 +88,14 @@ bool ZoneTypeConfig::is_class(Type* type) {
 
 // static
 int ZoneTypeConfig::as_bitset(Type* type) {
-  ASSERT(is_bitset(type));
+  DCHECK(is_bitset(type));
   return static_cast<int>(reinterpret_cast<intptr_t>(type) >> 1);
 }
 
 
 // static
 ZoneTypeConfig::Struct* ZoneTypeConfig::as_struct(Type* type) {
-  ASSERT(!is_bitset(type));
+  DCHECK(!is_bitset(type));
   return reinterpret_cast<Struct*>(type);
 }
 
@@ -145,7 +145,7 @@ ZoneTypeConfig::Struct* ZoneTypeConfig::struct_create(
 
 // static
 void ZoneTypeConfig::struct_shrink(Struct* structure, int length) {
-  ASSERT(0 <= length && length <= struct_length(structure));
+  DCHECK(0 <= length && length <= struct_length(structure));
   structure[1] = reinterpret_cast<void*>(length);
 }
 
@@ -164,14 +164,14 @@ int ZoneTypeConfig::struct_length(Struct* structure) {
 
 // static
 Type* ZoneTypeConfig::struct_get(Struct* structure, int i) {
-  ASSERT(0 <= i && i <= struct_length(structure));
+  DCHECK(0 <= i && i <= struct_length(structure));
   return static_cast<Type*>(structure[2 + i]);
 }
 
 
 // static
 void ZoneTypeConfig::struct_set(Struct* structure, int i, Type* x) {
-  ASSERT(0 <= i && i <= struct_length(structure));
+  DCHECK(0 <= i && i <= struct_length(structure));
   structure[2 + i] = x;
 }
 
@@ -179,7 +179,7 @@ void ZoneTypeConfig::struct_set(Struct* structure, int i, Type* x) {
 // static
 template<class V>
 i::Handle<V> ZoneTypeConfig::struct_get_value(Struct* structure, int i) {
-  ASSERT(0 <= i && i <= struct_length(structure));
+  DCHECK(0 <= i && i <= struct_length(structure));
   return i::Handle<V>(static_cast<V**>(structure[2 + i]));
 }
 
@@ -188,7 +188,7 @@ i::Handle<V> ZoneTypeConfig::struct_get_value(Struct* structure, int i) {
 template<class V>
 void ZoneTypeConfig::struct_set_value(
     Struct* structure, int i, i::Handle<V> x) {
-  ASSERT(0 <= i && i <= struct_length(structure));
+  DCHECK(0 <= i && i <= struct_length(structure));
   structure[2 + i] = x.location();
 }
 

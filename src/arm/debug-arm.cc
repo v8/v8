@@ -47,20 +47,20 @@ void BreakLocationIterator::ClearDebugBreakAtReturn() {
 // A debug break in the frame exit code is identified by the JS frame exit code
 // having been patched with a call instruction.
 bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
+  DCHECK(RelocInfo::IsJSReturn(rinfo->rmode()));
   return rinfo->IsPatchedReturnSequence();
 }
 
 
 bool BreakLocationIterator::IsDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
+  DCHECK(IsDebugBreakSlot());
   // Check whether the debug break slot instructions have been patched.
   return rinfo()->IsPatchedDebugBreakSlotSequence();
 }
 
 
 void BreakLocationIterator::SetDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
+  DCHECK(IsDebugBreakSlot());
   // Patch the code changing the debug break slot code from
   //   mov r2, r2
   //   mov r2, r2
@@ -78,7 +78,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
 
 
 void BreakLocationIterator::ClearDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
+  DCHECK(IsDebugBreakSlot());
   rinfo()->PatchCode(original_rinfo()->pc(),
                      Assembler::kDebugBreakSlotInstructions);
 }
@@ -104,9 +104,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     // Store the registers containing live values on the expression stack to
     // make sure that these are correctly updated during GC. Non object values
     // are stored as a smi causing it to be untouched by GC.
-    ASSERT((object_regs & ~kJSCallerSaved) == 0);
-    ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
-    ASSERT((object_regs & non_object_regs) == 0);
+    DCHECK((object_regs & ~kJSCallerSaved) == 0);
+    DCHECK((non_object_regs & ~kJSCallerSaved) == 0);
+    DCHECK((object_regs & non_object_regs) == 0);
     if ((object_regs | non_object_regs) != 0) {
       for (int i = 0; i < kNumJSCallerSaved; i++) {
         int r = JSCallerSavedCode(i);
@@ -267,7 +267,7 @@ void DebugCodegen::GenerateSlot(MacroAssembler* masm) {
   for (int i = 0; i < Assembler::kDebugBreakSlotInstructions; i++) {
     __ nop(MacroAssembler::DEBUG_BREAK_NOP);
   }
-  ASSERT_EQ(Assembler::kDebugBreakSlotInstructions,
+  DCHECK_EQ(Assembler::kDebugBreakSlotInstructions,
             masm->InstructionsGeneratedSince(&check_codesize));
 }
 

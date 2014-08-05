@@ -98,8 +98,8 @@ class OptimizingCompilerThread : public base::Thread {
 
   inline int InputQueueIndex(int i) {
     int result = (i + input_queue_shift_) % input_queue_capacity_;
-    ASSERT_LE(0, result);
-    ASSERT_LT(result, input_queue_capacity_);
+    DCHECK_LE(0, result);
+    DCHECK_LT(result, input_queue_capacity_);
     return result;
   }
 

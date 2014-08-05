@@ -35,7 +35,7 @@ class IncrementalMarking {
   void TearDown();
 
   State state() {
-    ASSERT(state_ == STOPPED || FLAG_incremental_marking);
+    DCHECK(state_ == STOPPED || FLAG_incremental_marking);
     return state_;
   }
 

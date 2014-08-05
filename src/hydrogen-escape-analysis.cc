@@ -189,7 +189,7 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           HLoadNamedField* load = HLoadNamedField::cast(instr);
           int index = load->access().offset() / kPointerSize;
           if (load->object() != allocate) continue;
-          ASSERT(load->access().IsInobject());
+          DCHECK(load->access().IsInobject());
           HValue* replacement =
             NewLoadReplacement(load, state->OperandAt(index));
           load->DeleteAndReplaceWith(replacement);
@@ -203,7 +203,7 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
           HStoreNamedField* store = HStoreNamedField::cast(instr);
           int index = store->access().offset() / kPointerSize;
           if (store->object() != allocate) continue;
-          ASSERT(store->access().IsInobject());
+          DCHECK(store->access().IsInobject());
           state = NewStateCopy(store->previous(), state);
           state->SetOperandAt(index, store->value());
           if (store->has_transition()) {
@@ -286,7 +286,7 @@ void HEscapeAnalysisPhase::AnalyzeDataFlow(HInstruction* allocate) {
   }
 
   // All uses have been handled.
-  ASSERT(allocate->HasNoUses());
+  DCHECK(allocate->HasNoUses());
   allocate->DeleteAndReplaceWith(NULL);
 }
 
@@ -305,8 +305,8 @@ void HEscapeAnalysisPhase::PerformScalarReplacement() {
     AnalyzeDataFlow(allocate);
 
     cumulative_values_ += number_of_values_;
-    ASSERT(allocate->HasNoUses());
-    ASSERT(!allocate->IsLinked());
+    DCHECK(allocate->HasNoUses());
+    DCHECK(!allocate->IsLinked());
   }
 }
 

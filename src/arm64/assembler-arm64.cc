@@ -65,25 +65,25 @@ void CpuFeatures::PrintFeatures() { }
 // CPURegList utilities.
 
 CPURegister CPURegList::PopLowestIndex() {
-  ASSERT(IsValid());
+  DCHECK(IsValid());
   if (IsEmpty()) {
     return NoCPUReg;
   }
   int index = CountTrailingZeros(list_, kRegListSizeInBits);
-  ASSERT((1 << index) & list_);
+  DCHECK((1 << index) & list_);
   Remove(index);
   return CPURegister::Create(index, size_, type_);
 }
 
 
 CPURegister CPURegList::PopHighestIndex() {
-  ASSERT(IsValid());
+  DCHECK(IsValid());
   if (IsEmpty()) {
     return NoCPUReg;
   }
   int index = CountLeadingZeros(list_, kRegListSizeInBits);
   index = kRegListSizeInBits - 1 - index;
-  ASSERT((1 << index) & list_);
+  DCHECK((1 << index) & list_);
   Remove(index);
   return CPURegister::Create(index, size_, type_);
 }
@@ -95,8 +95,8 @@ void CPURegList::RemoveCalleeSaved() {
   } else if (type() == CPURegister::kFPRegister) {
     Remove(GetCalleeSavedFP(RegisterSizeInBits()));
   } else {
-    ASSERT(type() == CPURegister::kNoRegister);
-    ASSERT(IsEmpty());
+    DCHECK(type() == CPURegister::kNoRegister);
+    DCHECK(IsEmpty());
     // The list must already be empty, so do nothing.
   }
 }
@@ -227,7 +227,7 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
 
   const CPURegister regs[] = {reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8};
 
-  for (unsigned i = 0; i < sizeof(regs) / sizeof(regs[0]); i++) {
+  for (unsigned i = 0; i < ARRAY_SIZE(regs); i++) {
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
       unique_regs |= regs[i].Bit();
@@ -235,7 +235,7 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
       number_of_valid_fpregs++;
       unique_fpregs |= regs[i].Bit();
     } else {
-      ASSERT(!regs[i].IsValid());
+      DCHECK(!regs[i].IsValid());
     }
   }
 
@@ -244,8 +244,8 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
   int number_of_unique_fpregs =
     CountSetBits(unique_fpregs, sizeof(unique_fpregs) * kBitsPerByte);
 
-  ASSERT(number_of_valid_regs >= number_of_unique_regs);
-  ASSERT(number_of_valid_fpregs >= number_of_unique_fpregs);
+  DCHECK(number_of_valid_regs >= number_of_unique_regs);
+  DCHECK(number_of_valid_fpregs >= number_of_unique_fpregs);
 
   return (number_of_valid_regs != number_of_unique_regs) ||
          (number_of_valid_fpregs != number_of_unique_fpregs);
@@ -256,7 +256,7 @@ bool AreSameSizeAndType(const CPURegister& reg1, const CPURegister& reg2,
                         const CPURegister& reg3, const CPURegister& reg4,
                         const CPURegister& reg5, const CPURegister& reg6,
                         const CPURegister& reg7, const CPURegister& reg8) {
-  ASSERT(reg1.IsValid());
+  DCHECK(reg1.IsValid());
   bool match = true;
   match &= !reg2.IsValid() || reg2.IsSameSizeAndType(reg1);
   match &= !reg3.IsValid() || reg3.IsSameSizeAndType(reg1);
@@ -275,7 +275,7 @@ void Immediate::InitializeHandle(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    ASSERT(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
+    DCHECK(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     value_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
@@ -300,7 +300,7 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
 // Constant Pool.
 void ConstPool::RecordEntry(intptr_t data,
                             RelocInfo::Mode mode) {
-  ASSERT(mode != RelocInfo::COMMENT &&
+  DCHECK(mode != RelocInfo::COMMENT &&
          mode != RelocInfo::POSITION &&
          mode != RelocInfo::STATEMENT_POSITION &&
          mode != RelocInfo::CONST_POOL &&
@@ -331,7 +331,7 @@ void ConstPool::RecordEntry(intptr_t data,
 
 
 int ConstPool::DistanceToFirstUse() {
-  ASSERT(first_use_ >= 0);
+  DCHECK(first_use_ >= 0);
   return assm_->pc_offset() - first_use_;
 }
 
@@ -379,7 +379,7 @@ int ConstPool::SizeIfEmittedAtCurrentPc(bool require_jump) {
 
 
 void ConstPool::Emit(bool require_jump) {
-  ASSERT(!assm_->is_const_pool_blocked());
+  DCHECK(!assm_->is_const_pool_blocked());
   // Prevent recursive pool emission and protect from veneer pools.
   Assembler::BlockPoolsScope block_pools(assm_);
 
@@ -428,7 +428,7 @@ void ConstPool::Emit(bool require_jump) {
     assm_->bind(&after_pool);
   }
 
-  ASSERT(assm_->SizeOfCodeGeneratedSince(&size_check) ==
+  DCHECK(assm_->SizeOfCodeGeneratedSince(&size_check) ==
          static_cast<unsigned>(size));
 }
 
@@ -443,7 +443,7 @@ void ConstPool::Clear() {
 
 bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
   // Constant pool currently does not support 32-bit entries.
-  ASSERT(mode != RelocInfo::NONE32);
+  DCHECK(mode != RelocInfo::NONE32);
 
   return RelocInfo::IsNone(mode) ||
          (!assm_->serializer_enabled() && (mode >= RelocInfo::CELL));
@@ -467,8 +467,8 @@ MemOperand::PairResult MemOperand::AreConsistentForPair(
     const MemOperand& operandA,
     const MemOperand& operandB,
     int access_size_log2) {
-  ASSERT(access_size_log2 >= 0);
-  ASSERT(access_size_log2 <= 3);
+  DCHECK(access_size_log2 >= 0);
+  DCHECK(access_size_log2 <= 3);
   // Step one: check that they share the same base, that the mode is Offset
   // and that the offset is a multiple of access size.
   if (!operandA.base().Is(operandB.base()) ||
@@ -494,7 +494,7 @@ MemOperand::PairResult MemOperand::AreConsistentForPair(
 void ConstPool::EmitGuard() {
 #ifdef DEBUG
   Instruction* instr = reinterpret_cast<Instruction*>(assm_->pc());
-  ASSERT(instr->preceding()->IsLdrLiteralX() &&
+  DCHECK(instr->preceding()->IsLdrLiteralX() &&
          instr->preceding()->Rt() == xzr.code());
 #endif
   assm_->EmitPoolGuard();
@@ -502,7 +502,7 @@ void ConstPool::EmitGuard() {
 
 
 void ConstPool::EmitEntries() {
-  ASSERT(IsAligned(assm_->pc_offset(), 8));
+  DCHECK(IsAligned(assm_->pc_offset(), 8));
 
   typedef std::multimap<uint64_t, int>::const_iterator SharedEntriesIterator;
   SharedEntriesIterator value_it;
@@ -519,7 +519,7 @@ void ConstPool::EmitEntries() {
       Instruction* instr = assm_->InstructionAt(offset_it->second);
 
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
-      ASSERT(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
+      DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
       instr->SetImmPCOffsetTarget(assm_->pc());
     }
     assm_->dc64(data);
@@ -535,7 +535,7 @@ void ConstPool::EmitEntries() {
     Instruction* instr = assm_->InstructionAt(unique_it->second);
 
     // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
-    ASSERT(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
+    DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
     instr->SetImmPCOffsetTarget(assm_->pc());
     assm_->dc64(unique_it->first);
   }
@@ -558,18 +558,18 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
 
 
 Assembler::~Assembler() {
-  ASSERT(constpool_.IsEmpty());
-  ASSERT(const_pool_blocked_nesting_ == 0);
-  ASSERT(veneer_pool_blocked_nesting_ == 0);
+  DCHECK(constpool_.IsEmpty());
+  DCHECK(const_pool_blocked_nesting_ == 0);
+  DCHECK(veneer_pool_blocked_nesting_ == 0);
 }
 
 
 void Assembler::Reset() {
 #ifdef DEBUG
-  ASSERT((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
-  ASSERT(const_pool_blocked_nesting_ == 0);
-  ASSERT(veneer_pool_blocked_nesting_ == 0);
-  ASSERT(unresolved_branches_.empty());
+  DCHECK((pc_ >= buffer_) && (pc_ < buffer_ + buffer_size_));
+  DCHECK(const_pool_blocked_nesting_ == 0);
+  DCHECK(veneer_pool_blocked_nesting_ == 0);
+  DCHECK(unresolved_branches_.empty());
   memset(buffer_, 0, pc_ - buffer_);
 #endif
   pc_ = buffer_;
@@ -586,7 +586,7 @@ void Assembler::Reset() {
 void Assembler::GetCode(CodeDesc* desc) {
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
-  ASSERT(constpool_.IsEmpty());
+  DCHECK(constpool_.IsEmpty());
 
   // Set up code descriptor.
   if (desc) {
@@ -601,7 +601,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  ASSERT(m >= 4 && IsPowerOf2(m));
+  DCHECK(m >= 4 && IsPowerOf2(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -629,7 +629,7 @@ void Assembler::CheckLabelLinkChain(Label const * label) {
 void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
                                                Label* label,
                                                Instruction* label_veneer) {
-  ASSERT(label->is_linked());
+  DCHECK(label->is_linked());
 
   CheckLabelLinkChain(label);
 
@@ -645,7 +645,7 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
     link = next_link;
   }
 
-  ASSERT(branch == link);
+  DCHECK(branch == link);
   next_link = branch->ImmPCOffsetTarget();
 
   if (branch == prev_link) {
@@ -711,8 +711,8 @@ void Assembler::bind(Label* label) {
   // that are linked to this label will be updated to point to the newly-bound
   // label.
 
-  ASSERT(!label->is_near_linked());
-  ASSERT(!label->is_bound());
+  DCHECK(!label->is_near_linked());
+  DCHECK(!label->is_bound());
 
   DeleteUnresolvedBranchInfoForLabel(label);
 
@@ -735,11 +735,11 @@ void Assembler::bind(Label* label) {
 
     CheckLabelLinkChain(label);
 
-    ASSERT(linkoffset >= 0);
-    ASSERT(linkoffset < pc_offset());
-    ASSERT((linkoffset > prevlinkoffset) ||
+    DCHECK(linkoffset >= 0);
+    DCHECK(linkoffset < pc_offset());
+    DCHECK((linkoffset > prevlinkoffset) ||
            (linkoffset - prevlinkoffset == kStartOfLabelLinkChain));
-    ASSERT(prevlinkoffset >= 0);
+    DCHECK(prevlinkoffset >= 0);
 
     // Update the link to point to the label.
     link->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(pc_));
@@ -755,13 +755,13 @@ void Assembler::bind(Label* label) {
   }
   label->bind_to(pc_offset());
 
-  ASSERT(label->is_bound());
-  ASSERT(!label->is_linked());
+  DCHECK(label->is_bound());
+  DCHECK(!label->is_linked());
 }
 
 
 int Assembler::LinkAndGetByteOffsetTo(Label* label) {
-  ASSERT(sizeof(*pc_) == 1);
+  DCHECK(sizeof(*pc_) == 1);
   CheckLabelLinkChain(label);
 
   int offset;
@@ -776,7 +776,7 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
     // Note that offset can be zero for self-referential instructions. (This
     // could be useful for ADR, for example.)
     offset = label->pos() - pc_offset();
-    ASSERT(offset <= 0);
+    DCHECK(offset <= 0);
   } else {
     if (label->is_linked()) {
       // The label is linked, so the referring instruction should be added onto
@@ -785,7 +785,7 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
       // In this case, label->pos() returns the offset of the last linked
       // instruction from the start of the buffer.
       offset = label->pos() - pc_offset();
-      ASSERT(offset != kStartOfLabelLinkChain);
+      DCHECK(offset != kStartOfLabelLinkChain);
       // Note that the offset here needs to be PC-relative only so that the
       // first instruction in a buffer can link to an unbound label. Otherwise,
       // the offset would be 0 for this case, and 0 is reserved for
@@ -804,7 +804,7 @@ int Assembler::LinkAndGetByteOffsetTo(Label* label) {
 
 
 void Assembler::DeleteUnresolvedBranchInfoForLabelTraverse(Label* label) {
-  ASSERT(label->is_linked());
+  DCHECK(label->is_linked());
   CheckLabelLinkChain(label);
 
   int link_offset = label->pos();
@@ -839,7 +839,7 @@ void Assembler::DeleteUnresolvedBranchInfoForLabelTraverse(Label* label) {
 
 void Assembler::DeleteUnresolvedBranchInfoForLabel(Label* label) {
   if (unresolved_branches_.empty()) {
-    ASSERT(next_veneer_pool_check_ == kMaxInt);
+    DCHECK(next_veneer_pool_check_ == kMaxInt);
     return;
   }
 
@@ -869,7 +869,7 @@ void Assembler::StartBlockConstPool() {
 void Assembler::EndBlockConstPool() {
   if (--const_pool_blocked_nesting_ == 0) {
     // Check the constant pool hasn't been blocked for too long.
-    ASSERT(pc_offset() < constpool_.MaxPcOffset());
+    DCHECK(pc_offset() < constpool_.MaxPcOffset());
     // Two cases:
     //  * no_const_pool_before_ >= next_constant_pool_check_ and the emission is
     //    still blocked
@@ -894,7 +894,7 @@ bool Assembler::IsConstantPoolAt(Instruction* instr) {
 
   // It is still worth asserting the marker is complete.
   // 4: blr xzr
-  ASSERT(!result || (instr->following()->IsBranchAndLinkToRegister() &&
+  DCHECK(!result || (instr->following()->IsBranchAndLinkToRegister() &&
                      instr->following()->Rn() == xzr.code()));
 
   return result;
@@ -943,7 +943,7 @@ void Assembler::StartBlockVeneerPool() {
 void Assembler::EndBlockVeneerPool() {
   if (--veneer_pool_blocked_nesting_ == 0) {
     // Check the veneer pool hasn't been blocked for too long.
-    ASSERT(unresolved_branches_.empty() ||
+    DCHECK(unresolved_branches_.empty() ||
            (pc_offset() < unresolved_branches_first_limit()));
   }
 }
@@ -951,24 +951,24 @@ void Assembler::EndBlockVeneerPool() {
 
 void Assembler::br(const Register& xn) {
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(xn.Is64Bits());
+  DCHECK(xn.Is64Bits());
   Emit(BR | Rn(xn));
 }
 
 
 void Assembler::blr(const Register& xn) {
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(xn.Is64Bits());
+  DCHECK(xn.Is64Bits());
   // The pattern 'blr xzr' is used as a guard to detect when execution falls
   // through the constant pool. It should not be emitted.
-  ASSERT(!xn.Is(xzr));
+  DCHECK(!xn.Is(xzr));
   Emit(BLR | Rn(xn));
 }
 
 
 void Assembler::ret(const Register& xn) {
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(xn.Is64Bits());
+  DCHECK(xn.Is64Bits());
   Emit(RET | Rn(xn));
 }
 
@@ -1039,7 +1039,7 @@ void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     int imm14) {
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
+  DCHECK(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -1056,7 +1056,7 @@ void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      int imm14) {
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
+  DCHECK(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
 
@@ -1070,7 +1070,7 @@ void Assembler::tbnz(const Register& rt,
 
 
 void Assembler::adr(const Register& rd, int imm21) {
-  ASSERT(rd.Is64Bits());
+  DCHECK(rd.Is64Bits());
   Emit(ADR | ImmPCRelAddress(imm21) | Rd(rd));
 }
 
@@ -1239,8 +1239,8 @@ void Assembler::eon(const Register& rd,
 void Assembler::lslv(const Register& rd,
                      const Register& rn,
                      const Register& rm) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(rd.SizeInBits() == rm.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Emit(SF(rd) | LSLV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
@@ -1248,8 +1248,8 @@ void Assembler::lslv(const Register& rd,
 void Assembler::lsrv(const Register& rd,
                      const Register& rn,
                      const Register& rm) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(rd.SizeInBits() == rm.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Emit(SF(rd) | LSRV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
@@ -1257,8 +1257,8 @@ void Assembler::lsrv(const Register& rd,
 void Assembler::asrv(const Register& rd,
                      const Register& rn,
                      const Register& rm) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(rd.SizeInBits() == rm.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Emit(SF(rd) | ASRV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
@@ -1266,8 +1266,8 @@ void Assembler::asrv(const Register& rd,
 void Assembler::rorv(const Register& rd,
                      const Register& rn,
                      const Register& rm) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(rd.SizeInBits() == rm.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Emit(SF(rd) | RORV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
@@ -1277,7 +1277,7 @@ void Assembler::bfm(const Register& rd,
                      const Register& rn,
                      unsigned immr,
                      unsigned imms) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | BFM | N |
        ImmR(immr, rd.SizeInBits()) |
@@ -1290,7 +1290,7 @@ void Assembler::sbfm(const Register& rd,
                      const Register& rn,
                      unsigned immr,
                      unsigned imms) {
-  ASSERT(rd.Is64Bits() || rn.Is32Bits());
+  DCHECK(rd.Is64Bits() || rn.Is32Bits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | SBFM | N |
        ImmR(immr, rd.SizeInBits()) |
@@ -1303,7 +1303,7 @@ void Assembler::ubfm(const Register& rd,
                      const Register& rn,
                      unsigned immr,
                      unsigned imms) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | UBFM | N |
        ImmR(immr, rd.SizeInBits()) |
@@ -1316,8 +1316,8 @@ void Assembler::extr(const Register& rd,
                      const Register& rn,
                      const Register& rm,
                      unsigned lsb) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(rd.SizeInBits() == rm.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Instr N = SF(rd) >> (kSFOffset - kBitfieldNOffset);
   Emit(SF(rd) | EXTR | N | Rm(rm) |
        ImmS(lsb, rn.SizeInBits()) | Rn(rn) | Rd(rd));
@@ -1357,33 +1357,33 @@ void Assembler::csneg(const Register& rd,
 
 
 void Assembler::cset(const Register &rd, Condition cond) {
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK((cond != al) && (cond != nv));
   Register zr = AppropriateZeroRegFor(rd);
   csinc(rd, zr, zr, NegateCondition(cond));
 }
 
 
 void Assembler::csetm(const Register &rd, Condition cond) {
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK((cond != al) && (cond != nv));
   Register zr = AppropriateZeroRegFor(rd);
   csinv(rd, zr, zr, NegateCondition(cond));
 }
 
 
 void Assembler::cinc(const Register &rd, const Register &rn, Condition cond) {
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK((cond != al) && (cond != nv));
   csinc(rd, rn, rn, NegateCondition(cond));
 }
 
 
 void Assembler::cinv(const Register &rd, const Register &rn, Condition cond) {
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK((cond != al) && (cond != nv));
   csinv(rd, rn, rn, NegateCondition(cond));
 }
 
 
 void Assembler::cneg(const Register &rd, const Register &rn, Condition cond) {
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK((cond != al) && (cond != nv));
   csneg(rd, rn, rn, NegateCondition(cond));
 }
 
@@ -1393,8 +1393,8 @@ void Assembler::ConditionalSelect(const Register& rd,
                                   const Register& rm,
                                   Condition cond,
                                   ConditionalSelectOp op) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(rd.SizeInBits() == rm.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Emit(SF(rd) | op | Rm(rm) | Cond(cond) | Rn(rn) | Rd(rd));
 }
 
@@ -1427,7 +1427,7 @@ void Assembler::DataProcessing3Source(const Register& rd,
 void Assembler::mul(const Register& rd,
                     const Register& rn,
                     const Register& rm) {
-  ASSERT(AreSameSizeAndType(rd, rn, rm));
+  DCHECK(AreSameSizeAndType(rd, rn, rm));
   Register zr = AppropriateZeroRegFor(rn);
   DataProcessing3Source(rd, rn, rm, zr, MADD);
 }
@@ -1437,7 +1437,7 @@ void Assembler::madd(const Register& rd,
                      const Register& rn,
                      const Register& rm,
                      const Register& ra) {
-  ASSERT(AreSameSizeAndType(rd, rn, rm, ra));
+  DCHECK(AreSameSizeAndType(rd, rn, rm, ra));
   DataProcessing3Source(rd, rn, rm, ra, MADD);
 }
 
@@ -1445,7 +1445,7 @@ void Assembler::madd(const Register& rd,
 void Assembler::mneg(const Register& rd,
                      const Register& rn,
                      const Register& rm) {
-  ASSERT(AreSameSizeAndType(rd, rn, rm));
+  DCHECK(AreSameSizeAndType(rd, rn, rm));
   Register zr = AppropriateZeroRegFor(rn);
   DataProcessing3Source(rd, rn, rm, zr, MSUB);
 }
@@ -1455,7 +1455,7 @@ void Assembler::msub(const Register& rd,
                      const Register& rn,
                      const Register& rm,
                      const Register& ra) {
-  ASSERT(AreSameSizeAndType(rd, rn, rm, ra));
+  DCHECK(AreSameSizeAndType(rd, rn, rm, ra));
   DataProcessing3Source(rd, rn, rm, ra, MSUB);
 }
 
@@ -1464,8 +1464,8 @@ void Assembler::smaddl(const Register& rd,
                        const Register& rn,
                        const Register& rm,
                        const Register& ra) {
-  ASSERT(rd.Is64Bits() && ra.Is64Bits());
-  ASSERT(rn.Is32Bits() && rm.Is32Bits());
+  DCHECK(rd.Is64Bits() && ra.Is64Bits());
+  DCHECK(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, ra, SMADDL_x);
 }
 
@@ -1474,8 +1474,8 @@ void Assembler::smsubl(const Register& rd,
                        const Register& rn,
                        const Register& rm,
                        const Register& ra) {
-  ASSERT(rd.Is64Bits() && ra.Is64Bits());
-  ASSERT(rn.Is32Bits() && rm.Is32Bits());
+  DCHECK(rd.Is64Bits() && ra.Is64Bits());
+  DCHECK(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, ra, SMSUBL_x);
 }
 
@@ -1484,8 +1484,8 @@ void Assembler::umaddl(const Register& rd,
                        const Register& rn,
                        const Register& rm,
                        const Register& ra) {
-  ASSERT(rd.Is64Bits() && ra.Is64Bits());
-  ASSERT(rn.Is32Bits() && rm.Is32Bits());
+  DCHECK(rd.Is64Bits() && ra.Is64Bits());
+  DCHECK(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, ra, UMADDL_x);
 }
 
@@ -1494,8 +1494,8 @@ void Assembler::umsubl(const Register& rd,
                        const Register& rn,
                        const Register& rm,
                        const Register& ra) {
-  ASSERT(rd.Is64Bits() && ra.Is64Bits());
-  ASSERT(rn.Is32Bits() && rm.Is32Bits());
+  DCHECK(rd.Is64Bits() && ra.Is64Bits());
+  DCHECK(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, ra, UMSUBL_x);
 }
 
@@ -1503,8 +1503,8 @@ void Assembler::umsubl(const Register& rd,
 void Assembler::smull(const Register& rd,
                       const Register& rn,
                       const Register& rm) {
-  ASSERT(rd.Is64Bits());
-  ASSERT(rn.Is32Bits() && rm.Is32Bits());
+  DCHECK(rd.Is64Bits());
+  DCHECK(rn.Is32Bits() && rm.Is32Bits());
   DataProcessing3Source(rd, rn, rm, xzr, SMADDL_x);
 }
 
@@ -1512,7 +1512,7 @@ void Assembler::smull(const Register& rd,
 void Assembler::smulh(const Register& rd,
                       const Register& rn,
                       const Register& rm) {
-  ASSERT(AreSameSizeAndType(rd, rn, rm));
+  DCHECK(AreSameSizeAndType(rd, rn, rm));
   DataProcessing3Source(rd, rn, rm, xzr, SMULH_x);
 }
 
@@ -1520,8 +1520,8 @@ void Assembler::smulh(const Register& rd,
 void Assembler::sdiv(const Register& rd,
                      const Register& rn,
                      const Register& rm) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(rd.SizeInBits() == rm.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Emit(SF(rd) | SDIV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
@@ -1529,8 +1529,8 @@ void Assembler::sdiv(const Register& rd,
 void Assembler::udiv(const Register& rd,
                      const Register& rn,
                      const Register& rm) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(rd.SizeInBits() == rm.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rm.SizeInBits());
   Emit(SF(rd) | UDIV | Rm(rm) | Rn(rn) | Rd(rd));
 }
 
@@ -1549,7 +1549,7 @@ void Assembler::rev16(const Register& rd,
 
 void Assembler::rev32(const Register& rd,
                       const Register& rn) {
-  ASSERT(rd.Is64Bits());
+  DCHECK(rd.Is64Bits());
   DataProcessing1Source(rd, rn, REV);
 }
 
@@ -1589,7 +1589,7 @@ void Assembler::stp(const CPURegister& rt,
 void Assembler::ldpsw(const Register& rt,
                       const Register& rt2,
                       const MemOperand& src) {
-  ASSERT(rt.Is64Bits());
+  DCHECK(rt.Is64Bits());
   LoadStorePair(rt, rt2, src, LDPSW_x);
 }
 
@@ -1599,8 +1599,8 @@ void Assembler::LoadStorePair(const CPURegister& rt,
                               const MemOperand& addr,
                               LoadStorePairOp op) {
   // 'rt' and 'rt2' can only be aliased for stores.
-  ASSERT(((op & LoadStorePairLBit) == 0) || !rt.Is(rt2));
-  ASSERT(AreSameSizeAndType(rt, rt2));
+  DCHECK(((op & LoadStorePairLBit) == 0) || !rt.Is(rt2));
+  DCHECK(AreSameSizeAndType(rt, rt2));
 
   Instr memop = op | Rt(rt) | Rt2(rt2) | RnSP(addr.base()) |
                 ImmLSPair(addr.offset(), CalcLSPairDataSize(op));
@@ -1610,13 +1610,13 @@ void Assembler::LoadStorePair(const CPURegister& rt,
     addrmodeop = LoadStorePairOffsetFixed;
   } else {
     // Pre-index and post-index modes.
-    ASSERT(!rt.Is(addr.base()));
-    ASSERT(!rt2.Is(addr.base()));
-    ASSERT(addr.offset() != 0);
+    DCHECK(!rt.Is(addr.base()));
+    DCHECK(!rt2.Is(addr.base()));
+    DCHECK(addr.offset() != 0);
     if (addr.IsPreIndex()) {
       addrmodeop = LoadStorePairPreIndexFixed;
     } else {
-      ASSERT(addr.IsPostIndex());
+      DCHECK(addr.IsPostIndex());
       addrmodeop = LoadStorePairPostIndexFixed;
     }
   }
@@ -1644,9 +1644,9 @@ void Assembler::LoadStorePairNonTemporal(const CPURegister& rt,
                                          const CPURegister& rt2,
                                          const MemOperand& addr,
                                          LoadStorePairNonTemporalOp op) {
-  ASSERT(!rt.Is(rt2));
-  ASSERT(AreSameSizeAndType(rt, rt2));
-  ASSERT(addr.IsImmediateOffset());
+  DCHECK(!rt.Is(rt2));
+  DCHECK(AreSameSizeAndType(rt, rt2));
+  DCHECK(addr.IsImmediateOffset());
 
   LSDataSize size = CalcLSPairDataSize(
     static_cast<LoadStorePairOp>(op & LoadStorePairMask));
@@ -1697,7 +1697,7 @@ void Assembler::str(const CPURegister& rt, const MemOperand& src) {
 
 
 void Assembler::ldrsw(const Register& rt, const MemOperand& src) {
-  ASSERT(rt.Is64Bits());
+  DCHECK(rt.Is64Bits());
   LoadStore(rt, src, LDRSW_x);
 }
 
@@ -1705,14 +1705,14 @@ void Assembler::ldrsw(const Register& rt, const MemOperand& src) {
 void Assembler::ldr_pcrel(const CPURegister& rt, int imm19) {
   // The pattern 'ldr xzr, #offset' is used to indicate the beginning of a
   // constant pool. It should not be emitted.
-  ASSERT(!rt.IsZero());
+  DCHECK(!rt.IsZero());
   Emit(LoadLiteralOpFor(rt) | ImmLLiteral(imm19) | Rt(rt));
 }
 
 
 void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
   // Currently we only support 64-bit literals.
-  ASSERT(rt.Is64Bits());
+  DCHECK(rt.Is64Bits());
 
   RecordRelocInfo(imm.rmode(), imm.value());
   BlockConstPoolFor(1);
@@ -1740,13 +1740,13 @@ void Assembler::mvn(const Register& rd, const Operand& operand) {
 
 
 void Assembler::mrs(const Register& rt, SystemRegister sysreg) {
-  ASSERT(rt.Is64Bits());
+  DCHECK(rt.Is64Bits());
   Emit(MRS | ImmSystemRegister(sysreg) | Rt(rt));
 }
 
 
 void Assembler::msr(SystemRegister sysreg, const Register& rt) {
-  ASSERT(rt.Is64Bits());
+  DCHECK(rt.Is64Bits());
   Emit(MSR | Rt(rt) | ImmSystemRegister(sysreg));
 }
 
@@ -1772,35 +1772,35 @@ void Assembler::isb() {
 
 
 void Assembler::fmov(FPRegister fd, double imm) {
-  ASSERT(fd.Is64Bits());
-  ASSERT(IsImmFP64(imm));
+  DCHECK(fd.Is64Bits());
+  DCHECK(IsImmFP64(imm));
   Emit(FMOV_d_imm | Rd(fd) | ImmFP64(imm));
 }
 
 
 void Assembler::fmov(FPRegister fd, float imm) {
-  ASSERT(fd.Is32Bits());
-  ASSERT(IsImmFP32(imm));
+  DCHECK(fd.Is32Bits());
+  DCHECK(IsImmFP32(imm));
   Emit(FMOV_s_imm | Rd(fd) | ImmFP32(imm));
 }
 
 
 void Assembler::fmov(Register rd, FPRegister fn) {
-  ASSERT(rd.SizeInBits() == fn.SizeInBits());
+  DCHECK(rd.SizeInBits() == fn.SizeInBits());
   FPIntegerConvertOp op = rd.Is32Bits() ? FMOV_ws : FMOV_xd;
   Emit(op | Rd(rd) | Rn(fn));
 }
 
 
 void Assembler::fmov(FPRegister fd, Register rn) {
-  ASSERT(fd.SizeInBits() == rn.SizeInBits());
+  DCHECK(fd.SizeInBits() == rn.SizeInBits());
   FPIntegerConvertOp op = fd.Is32Bits() ? FMOV_sw : FMOV_dx;
   Emit(op | Rd(fd) | Rn(rn));
 }
 
 
 void Assembler::fmov(FPRegister fd, FPRegister fn) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
   Emit(FPType(fd) | FMOV | Rd(fd) | Rn(fn));
 }
 
@@ -1895,56 +1895,56 @@ void Assembler::fminnm(const FPRegister& fd,
 
 void Assembler::fabs(const FPRegister& fd,
                      const FPRegister& fn) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FABS);
 }
 
 
 void Assembler::fneg(const FPRegister& fd,
                      const FPRegister& fn) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FNEG);
 }
 
 
 void Assembler::fsqrt(const FPRegister& fd,
                       const FPRegister& fn) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FSQRT);
 }
 
 
 void Assembler::frinta(const FPRegister& fd,
                        const FPRegister& fn) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FRINTA);
 }
 
 
 void Assembler::frintm(const FPRegister& fd,
                        const FPRegister& fn) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FRINTM);
 }
 
 
 void Assembler::frintn(const FPRegister& fd,
                        const FPRegister& fn) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FRINTN);
 }
 
 
 void Assembler::frintz(const FPRegister& fd,
                        const FPRegister& fn) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
   FPDataProcessing1Source(fd, fn, FRINTZ);
 }
 
 
 void Assembler::fcmp(const FPRegister& fn,
                      const FPRegister& fm) {
-  ASSERT(fn.SizeInBits() == fm.SizeInBits());
+  DCHECK(fn.SizeInBits() == fm.SizeInBits());
   Emit(FPType(fn) | FCMP | Rm(fm) | Rn(fn));
 }
 
@@ -1955,7 +1955,7 @@ void Assembler::fcmp(const FPRegister& fn,
   // Although the fcmp instruction can strictly only take an immediate value of
   // +0.0, we don't need to check for -0.0 because the sign of 0.0 doesn't
   // affect the result of the comparison.
-  ASSERT(value == 0.0);
+  DCHECK(value == 0.0);
   Emit(FPType(fn) | FCMP_zero | Rn(fn));
 }
 
@@ -1964,7 +1964,7 @@ void Assembler::fccmp(const FPRegister& fn,
                       const FPRegister& fm,
                       StatusFlags nzcv,
                       Condition cond) {
-  ASSERT(fn.SizeInBits() == fm.SizeInBits());
+  DCHECK(fn.SizeInBits() == fm.SizeInBits());
   Emit(FPType(fn) | FCCMP | Rm(fm) | Cond(cond) | Rn(fn) | Nzcv(nzcv));
 }
 
@@ -1973,8 +1973,8 @@ void Assembler::fcsel(const FPRegister& fd,
                       const FPRegister& fn,
                       const FPRegister& fm,
                       Condition cond) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
-  ASSERT(fd.SizeInBits() == fm.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fm.SizeInBits());
   Emit(FPType(fd) | FCSEL | Rm(fm) | Cond(cond) | Rn(fn) | Rd(fd));
 }
 
@@ -1990,11 +1990,11 @@ void Assembler::fcvt(const FPRegister& fd,
                      const FPRegister& fn) {
   if (fd.Is64Bits()) {
     // Convert float to double.
-    ASSERT(fn.Is32Bits());
+    DCHECK(fn.Is32Bits());
     FPDataProcessing1Source(fd, fn, FCVT_ds);
   } else {
     // Convert double to float.
-    ASSERT(fn.Is64Bits());
+    DCHECK(fn.Is64Bits());
     FPDataProcessing1Source(fd, fn, FCVT_sd);
   }
 }
@@ -2069,7 +2069,7 @@ void Assembler::ucvtf(const FPRegister& fd,
 // negated bit.
 // If b is 1, then B is 0.
 Instr Assembler::ImmFP32(float imm) {
-  ASSERT(IsImmFP32(imm));
+  DCHECK(IsImmFP32(imm));
   // bits: aBbb.bbbc.defg.h000.0000.0000.0000.0000
   uint32_t bits = float_to_rawbits(imm);
   // bit7: a000.0000
@@ -2084,7 +2084,7 @@ Instr Assembler::ImmFP32(float imm) {
 
 
 Instr Assembler::ImmFP64(double imm) {
-  ASSERT(IsImmFP64(imm));
+  DCHECK(IsImmFP64(imm));
   // bits: aBbb.bbbb.bbcd.efgh.0000.0000.0000.0000
   //       0000.0000.0000.0000.0000.0000.0000.0000
   uint64_t bits = double_to_rawbits(imm);
@@ -2108,15 +2108,15 @@ void Assembler::MoveWide(const Register& rd,
   if (rd.Is32Bits()) {
     // Check that the top 32 bits are zero (a positive 32-bit number) or top
     // 33 bits are one (a negative 32-bit number, sign extended to 64 bits).
-    ASSERT(((imm >> kWRegSizeInBits) == 0) ||
+    DCHECK(((imm >> kWRegSizeInBits) == 0) ||
            ((imm >> (kWRegSizeInBits - 1)) == 0x1ffffffff));
     imm &= kWRegMask;
   }
 
   if (shift >= 0) {
     // Explicit shift specified.
-    ASSERT((shift == 0) || (shift == 16) || (shift == 32) || (shift == 48));
-    ASSERT(rd.Is64Bits() || (shift == 0) || (shift == 16));
+    DCHECK((shift == 0) || (shift == 16) || (shift == 32) || (shift == 48));
+    DCHECK(rd.Is64Bits() || (shift == 0) || (shift == 16));
     shift /= 16;
   } else {
     // Calculate a new immediate and shift combination to encode the immediate
@@ -2128,17 +2128,17 @@ void Assembler::MoveWide(const Register& rd,
       imm >>= 16;
       shift = 1;
     } else if ((imm & ~(0xffffUL << 32)) == 0) {
-      ASSERT(rd.Is64Bits());
+      DCHECK(rd.Is64Bits());
       imm >>= 32;
       shift = 2;
     } else if ((imm & ~(0xffffUL << 48)) == 0) {
-      ASSERT(rd.Is64Bits());
+      DCHECK(rd.Is64Bits());
       imm >>= 48;
       shift = 3;
     }
   }
 
-  ASSERT(is_uint16(imm));
+  DCHECK(is_uint16(imm));
 
   Emit(SF(rd) | MoveWideImmediateFixed | mov_op |
        Rd(rd) | ImmMoveWide(imm) | ShiftMoveWide(shift));
@@ -2150,17 +2150,17 @@ void Assembler::AddSub(const Register& rd,
                        const Operand& operand,
                        FlagsUpdate S,
                        AddSubOp op) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(!operand.NeedsRelocation(this));
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
     int64_t immediate = operand.ImmediateValue();
-    ASSERT(IsImmAddSub(immediate));
+    DCHECK(IsImmAddSub(immediate));
     Instr dest_reg = (S == SetFlags) ? Rd(rd) : RdSP(rd);
     Emit(SF(rd) | AddSubImmediateFixed | op | Flags(S) |
          ImmAddSub(immediate) | dest_reg | RnSP(rn));
   } else if (operand.IsShiftedRegister()) {
-    ASSERT(operand.reg().SizeInBits() == rd.SizeInBits());
-    ASSERT(operand.shift() != ROR);
+    DCHECK(operand.reg().SizeInBits() == rd.SizeInBits());
+    DCHECK(operand.shift() != ROR);
 
     // For instructions of the form:
     //   add/sub   wsp, <Wn>, <Wm> [, LSL #0-3 ]
@@ -2170,14 +2170,14 @@ void Assembler::AddSub(const Register& rd,
     // or their 64-bit register equivalents, convert the operand from shifted to
     // extended register mode, and emit an add/sub extended instruction.
     if (rn.IsSP() || rd.IsSP()) {
-      ASSERT(!(rd.IsSP() && (S == SetFlags)));
+      DCHECK(!(rd.IsSP() && (S == SetFlags)));
       DataProcExtendedRegister(rd, rn, operand.ToExtendedRegister(), S,
                                AddSubExtendedFixed | op);
     } else {
       DataProcShiftedRegister(rd, rn, operand, S, AddSubShiftedFixed | op);
     }
   } else {
-    ASSERT(operand.IsExtendedRegister());
+    DCHECK(operand.IsExtendedRegister());
     DataProcExtendedRegister(rd, rn, operand, S, AddSubExtendedFixed | op);
   }
 }
@@ -2188,22 +2188,22 @@ void Assembler::AddSubWithCarry(const Register& rd,
                                 const Operand& operand,
                                 FlagsUpdate S,
                                 AddSubWithCarryOp op) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(rd.SizeInBits() == operand.reg().SizeInBits());
-  ASSERT(operand.IsShiftedRegister() && (operand.shift_amount() == 0));
-  ASSERT(!operand.NeedsRelocation(this));
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == operand.reg().SizeInBits());
+  DCHECK(operand.IsShiftedRegister() && (operand.shift_amount() == 0));
+  DCHECK(!operand.NeedsRelocation(this));
   Emit(SF(rd) | op | Flags(S) | Rm(operand.reg()) | Rn(rn) | Rd(rd));
 }
 
 
 void Assembler::hlt(int code) {
-  ASSERT(is_uint16(code));
+  DCHECK(is_uint16(code));
   Emit(HLT | ImmException(code));
 }
 
 
 void Assembler::brk(int code) {
-  ASSERT(is_uint16(code));
+  DCHECK(is_uint16(code));
   Emit(BRK | ImmException(code));
 }
 
@@ -2223,11 +2223,11 @@ void Assembler::debug(const char* message, uint32_t code, Instr params) {
     // Refer to instructions-arm64.h for a description of the marker and its
     // arguments.
     hlt(kImmExceptionIsDebug);
-    ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugCodeOffset);
+    DCHECK(SizeOfCodeGeneratedSince(&start) == kDebugCodeOffset);
     dc32(code);
-    ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugParamsOffset);
+    DCHECK(SizeOfCodeGeneratedSince(&start) == kDebugParamsOffset);
     dc32(params);
-    ASSERT(SizeOfCodeGeneratedSince(&start) == kDebugMessageOffset);
+    DCHECK(SizeOfCodeGeneratedSince(&start) == kDebugMessageOffset);
     EmitStringData(message);
     hlt(kImmExceptionIsUnreachable);
 
@@ -2246,15 +2246,15 @@ void Assembler::Logical(const Register& rd,
                         const Register& rn,
                         const Operand& operand,
                         LogicalOp op) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
-  ASSERT(!operand.NeedsRelocation(this));
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
     int64_t immediate = operand.ImmediateValue();
     unsigned reg_size = rd.SizeInBits();
 
-    ASSERT(immediate != 0);
-    ASSERT(immediate != -1);
-    ASSERT(rd.Is64Bits() || is_uint32(immediate));
+    DCHECK(immediate != 0);
+    DCHECK(immediate != -1);
+    DCHECK(rd.Is64Bits() || is_uint32(immediate));
 
     // If the operation is NOT, invert the operation and immediate.
     if ((op & NOT) == NOT) {
@@ -2271,8 +2271,8 @@ void Assembler::Logical(const Register& rd,
       UNREACHABLE();
     }
   } else {
-    ASSERT(operand.IsShiftedRegister());
-    ASSERT(operand.reg().SizeInBits() == rd.SizeInBits());
+    DCHECK(operand.IsShiftedRegister());
+    DCHECK(operand.reg().SizeInBits() == rd.SizeInBits());
     Instr dp_op = static_cast<Instr>(op | LogicalShiftedFixed);
     DataProcShiftedRegister(rd, rn, operand, LeaveFlags, dp_op);
   }
@@ -2299,13 +2299,13 @@ void Assembler::ConditionalCompare(const Register& rn,
                                    Condition cond,
                                    ConditionalCompareOp op) {
   Instr ccmpop;
-  ASSERT(!operand.NeedsRelocation(this));
+  DCHECK(!operand.NeedsRelocation(this));
   if (operand.IsImmediate()) {
     int64_t immediate = operand.ImmediateValue();
-    ASSERT(IsImmConditionalCompare(immediate));
+    DCHECK(IsImmConditionalCompare(immediate));
     ccmpop = ConditionalCompareImmediateFixed | op | ImmCondCmp(immediate);
   } else {
-    ASSERT(operand.IsShiftedRegister() && (operand.shift_amount() == 0));
+    DCHECK(operand.IsShiftedRegister() && (operand.shift_amount() == 0));
     ccmpop = ConditionalCompareRegisterFixed | op | Rm(operand.reg());
   }
   Emit(SF(rn) | ccmpop | Cond(cond) | Rn(rn) | Nzcv(nzcv));
@@ -2315,7 +2315,7 @@ void Assembler::ConditionalCompare(const Register& rn,
 void Assembler::DataProcessing1Source(const Register& rd,
                                       const Register& rn,
                                       DataProcessing1SourceOp op) {
-  ASSERT(rd.SizeInBits() == rn.SizeInBits());
+  DCHECK(rd.SizeInBits() == rn.SizeInBits());
   Emit(SF(rn) | op | Rn(rn) | Rd(rd));
 }
 
@@ -2331,8 +2331,8 @@ void Assembler::FPDataProcessing2Source(const FPRegister& fd,
                                         const FPRegister& fn,
                                         const FPRegister& fm,
                                         FPDataProcessing2SourceOp op) {
-  ASSERT(fd.SizeInBits() == fn.SizeInBits());
-  ASSERT(fd.SizeInBits() == fm.SizeInBits());
+  DCHECK(fd.SizeInBits() == fn.SizeInBits());
+  DCHECK(fd.SizeInBits() == fm.SizeInBits());
   Emit(FPType(fd) | op | Rm(fm) | Rn(fn) | Rd(fd));
 }
 
@@ -2342,7 +2342,7 @@ void Assembler::FPDataProcessing3Source(const FPRegister& fd,
                                         const FPRegister& fm,
                                         const FPRegister& fa,
                                         FPDataProcessing3SourceOp op) {
-  ASSERT(AreSameSizeAndType(fd, fn, fm, fa));
+  DCHECK(AreSameSizeAndType(fd, fn, fm, fa));
   Emit(FPType(fd) | op | Rm(fm) | Rn(fn) | Rd(fd) | Ra(fa));
 }
 
@@ -2374,7 +2374,7 @@ void Assembler::EmitExtendShift(const Register& rd,
                                 const Register& rn,
                                 Extend extend,
                                 unsigned left_shift) {
-  ASSERT(rd.SizeInBits() >= rn.SizeInBits());
+  DCHECK(rd.SizeInBits() >= rn.SizeInBits());
   unsigned reg_size = rd.SizeInBits();
   // Use the correct size of register.
   Register rn_ = Register::Create(rn.code(), rd.SizeInBits());
@@ -2393,7 +2393,7 @@ void Assembler::EmitExtendShift(const Register& rd,
       case SXTW: sbfm(rd, rn_, non_shift_bits, high_bit); break;
       case UXTX:
       case SXTX: {
-        ASSERT(rn.SizeInBits() == kXRegSizeInBits);
+        DCHECK(rn.SizeInBits() == kXRegSizeInBits);
         // Nothing to extend. Just shift.
         lsl(rd, rn_, left_shift);
         break;
@@ -2412,9 +2412,9 @@ void Assembler::DataProcShiftedRegister(const Register& rd,
                                         const Operand& operand,
                                         FlagsUpdate S,
                                         Instr op) {
-  ASSERT(operand.IsShiftedRegister());
-  ASSERT(rn.Is64Bits() || (rn.Is32Bits() && is_uint5(operand.shift_amount())));
-  ASSERT(!operand.NeedsRelocation(this));
+  DCHECK(operand.IsShiftedRegister());
+  DCHECK(rn.Is64Bits() || (rn.Is32Bits() && is_uint5(operand.shift_amount())));
+  DCHECK(!operand.NeedsRelocation(this));
   Emit(SF(rd) | op | Flags(S) |
        ShiftDP(operand.shift()) | ImmDPShift(operand.shift_amount()) |
        Rm(operand.reg()) | Rn(rn) | Rd(rd));
@@ -2426,7 +2426,7 @@ void Assembler::DataProcExtendedRegister(const Register& rd,
                                          const Operand& operand,
                                          FlagsUpdate S,
                                          Instr op) {
-  ASSERT(!operand.NeedsRelocation(this));
+  DCHECK(!operand.NeedsRelocation(this));
   Instr dest_reg = (S == SetFlags) ? Rd(rd) : RdSP(rd);
   Emit(SF(rd) | op | Flags(S) | Rm(operand.reg()) |
        ExtendMode(operand.extend()) | ImmExtendShift(operand.shift_amount()) |
@@ -2470,18 +2470,18 @@ void Assembler::LoadStore(const CPURegister& rt,
 
     // Shifts are encoded in one bit, indicating a left shift by the memory
     // access size.
-    ASSERT((shift_amount == 0) ||
+    DCHECK((shift_amount == 0) ||
            (shift_amount == static_cast<unsigned>(CalcLSDataSize(op))));
     Emit(LoadStoreRegisterOffsetFixed | memop | Rm(addr.regoffset()) |
          ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
   } else {
     // Pre-index and post-index modes.
-    ASSERT(!rt.Is(addr.base()));
+    DCHECK(!rt.Is(addr.base()));
     if (IsImmLSUnscaled(offset)) {
       if (addr.IsPreIndex()) {
         Emit(LoadStorePreIndexFixed | memop | ImmLS(offset));
       } else {
-        ASSERT(addr.IsPostIndex());
+        DCHECK(addr.IsPostIndex());
         Emit(LoadStorePostIndexFixed | memop | ImmLS(offset));
       }
     } else {
@@ -2515,8 +2515,8 @@ bool Assembler::IsImmLogical(uint64_t value,
                              unsigned* n,
                              unsigned* imm_s,
                              unsigned* imm_r) {
-  ASSERT((n != NULL) && (imm_s != NULL) && (imm_r != NULL));
-  ASSERT((width == kWRegSizeInBits) || (width == kXRegSizeInBits));
+  DCHECK((n != NULL) && (imm_s != NULL) && (imm_r != NULL));
+  DCHECK((width == kWRegSizeInBits) || (width == kXRegSizeInBits));
 
   bool negate = false;
 
@@ -2657,9 +2657,8 @@ bool Assembler::IsImmLogical(uint64_t value,
   };
   int multiplier_idx = CountLeadingZeros(d, kXRegSizeInBits) - 57;
   // Ensure that the index to the multipliers array is within bounds.
-  ASSERT((multiplier_idx >= 0) &&
-         (static_cast<size_t>(multiplier_idx) <
-          (sizeof(multipliers) / sizeof(multipliers[0]))));
+  DCHECK((multiplier_idx >= 0) &&
+         (static_cast<size_t>(multiplier_idx) < ARRAY_SIZE(multipliers)));
   uint64_t multiplier = multipliers[multiplier_idx];
   uint64_t candidate = (b - a) * multiplier;
 
@@ -2821,7 +2820,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       (rmode == RelocInfo::CONST_POOL) ||
       (rmode == RelocInfo::VENEER_POOL)) {
     // Adjust code for new modes.
-    ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
+    DCHECK(RelocInfo::IsDebugBreakSlot(rmode)
            || RelocInfo::IsJSReturn(rmode)
            || RelocInfo::IsComment(rmode)
            || RelocInfo::IsPosition(rmode)
@@ -2841,7 +2840,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
         !serializer_enabled() && !emit_debug_code()) {
       return;
     }
-    ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
+    DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
       RelocInfo reloc_info_with_ast_id(
           reinterpret_cast<byte*>(pc_), rmode, RecordedAstId().ToInt(), NULL);
@@ -2859,7 +2858,7 @@ void Assembler::BlockConstPoolFor(int instructions) {
   if (no_const_pool_before_ < pc_limit) {
     no_const_pool_before_ = pc_limit;
     // Make sure the pool won't be blocked for too long.
-    ASSERT(pc_limit < constpool_.MaxPcOffset());
+    DCHECK(pc_limit < constpool_.MaxPcOffset());
   }
 
   if (next_constant_pool_check_ < no_const_pool_before_) {
@@ -2874,7 +2873,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // BlockConstPoolScope.
   if (is_const_pool_blocked()) {
     // Something is wrong if emission is forced and blocked at the same time.
-    ASSERT(!force_emit);
+    DCHECK(!force_emit);
     return;
   }
 
@@ -2915,7 +2914,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   Label size_check;
   bind(&size_check);
   constpool_.Emit(require_jump);
-  ASSERT(SizeOfCodeGeneratedSince(&size_check) <=
+  DCHECK(SizeOfCodeGeneratedSince(&size_check) <=
          static_cast<unsigned>(worst_case_size));
 
   // Since a constant pool was just emitted, move the check offset forward by
@@ -2980,7 +2979,7 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection, int margin) {
       branch->SetImmPCOffsetTarget(veneer);
       b(label);
 #ifdef DEBUG
-      ASSERT(SizeOfCodeGeneratedSince(&veneer_size_check) <=
+      DCHECK(SizeOfCodeGeneratedSince(&veneer_size_check) <=
              static_cast<uint64_t>(kMaxVeneerCodeSize));
       veneer_size_check.Unuse();
 #endif
@@ -3013,17 +3012,17 @@ void Assembler::CheckVeneerPool(bool force_emit, bool require_jump,
                                 int margin) {
   // There is nothing to do if there are no pending veneer pool entries.
   if (unresolved_branches_.empty())  {
-    ASSERT(next_veneer_pool_check_ == kMaxInt);
+    DCHECK(next_veneer_pool_check_ == kMaxInt);
     return;
   }
 
-  ASSERT(pc_offset() < unresolved_branches_first_limit());
+  DCHECK(pc_offset() < unresolved_branches_first_limit());
 
   // Some short sequence of instruction mustn't be broken up by veneer pool
   // emission, such sequences are protected by calls to BlockVeneerPoolFor and
   // BlockVeneerPoolScope.
   if (is_veneer_pool_blocked()) {
-    ASSERT(!force_emit);
+    DCHECK(!force_emit);
     return;
   }
 
@@ -3076,14 +3075,14 @@ void Assembler::RecordConstPool(int size) {
 
 Handle<ConstantPoolArray> Assembler::NewConstantPool(Isolate* isolate) {
   // No out-of-line constant pool support.
-  ASSERT(!FLAG_enable_ool_constant_pool);
+  DCHECK(!FLAG_enable_ool_constant_pool);
   return isolate->factory()->empty_constant_pool_array();
 }
 
 
 void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
   // No out-of-line constant pool support.
-  ASSERT(!FLAG_enable_ool_constant_pool);
+  DCHECK(!FLAG_enable_ool_constant_pool);
   return;
 }
 
@@ -3116,7 +3115,7 @@ void PatchingAssembler::PatchAdrFar(ptrdiff_t target_offset) {
   adr(rd, target_offset & 0xFFFF);
   movz(scratch, (target_offset >> 16) & 0xFFFF, 16);
   movk(scratch, (target_offset >> 32) & 0xFFFF, 32);
-  ASSERT((target_offset >> 48) == 0);
+  DCHECK((target_offset >> 48) == 0);
   add(rd, rd, scratch);
 }
 

@@ -17,14 +17,14 @@ namespace internal {
 
 void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
   masm->EnterFrame(StackFrame::INTERNAL);
-  ASSERT(!masm->has_frame());
+  DCHECK(!masm->has_frame());
   masm->set_has_frame(true);
 }
 
 
 void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
   masm->LeaveFrame(StackFrame::INTERNAL);
-  ASSERT(masm->has_frame());
+  DCHECK(masm->has_frame());
   masm->set_has_frame(false);
 }
 
@@ -56,7 +56,7 @@ UnaryMathFunction CreateExpFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
 
   CpuFeatures::FlushICache(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -79,7 +79,7 @@ UnaryMathFunction CreateSqrtFunction() {
 
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
 
   CpuFeatures::FlushICache(buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
@@ -193,10 +193,10 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
     Label* allocation_memento_found) {
   // Return address is on the stack.
   Register scratch = rdi;
-  ASSERT(!AreAliased(receiver, key, value, target_map, scratch));
+  DCHECK(!AreAliased(receiver, key, value, target_map, scratch));
 
   if (mode == TRACK_ALLOCATION_SITE) {
-    ASSERT(allocation_memento_found != NULL);
+    DCHECK(allocation_memento_found != NULL);
     __ JumpIfJSArrayHasAllocationMemento(
         receiver, scratch, allocation_memento_found);
   }
@@ -222,10 +222,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
     AllocationSiteMode mode,
     Label* fail) {
   // Return address is on the stack.
-  ASSERT(receiver.is(rdx));
-  ASSERT(key.is(rcx));
-  ASSERT(value.is(rax));
-  ASSERT(target_map.is(rbx));
+  DCHECK(receiver.is(rdx));
+  DCHECK(key.is(rcx));
+  DCHECK(value.is(rax));
+  DCHECK(target_map.is(rbx));
 
   // The fail label is not actually used since we do not allocate.
   Label allocated, new_backing_store, only_change_map, done;
@@ -250,7 +250,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   } else {
     // For x32 port we have to allocate a new backing store as SMI size is
     // not equal with double size.
-    ASSERT(kDoubleSize == 2 * kPointerSize);
+    DCHECK(kDoubleSize == 2 * kPointerSize);
     __ jmp(&new_backing_store);
   }
 
@@ -361,10 +361,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
     AllocationSiteMode mode,
     Label* fail) {
   // Return address is on the stack.
-  ASSERT(receiver.is(rdx));
-  ASSERT(key.is(rcx));
-  ASSERT(value.is(rax));
-  ASSERT(target_map.is(rbx));
+  DCHECK(receiver.is(rdx));
+  DCHECK(key.is(rcx));
+  DCHECK(value.is(rax));
+  DCHECK(target_map.is(rbx));
 
   Label loop, entry, convert_hole, gc_required, only_change_map;
 
@@ -580,11 +580,11 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
                                    XMMRegister double_scratch,
                                    Register temp1,
                                    Register temp2) {
-  ASSERT(!input.is(result));
-  ASSERT(!input.is(double_scratch));
-  ASSERT(!result.is(double_scratch));
-  ASSERT(!temp1.is(temp2));
-  ASSERT(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(!input.is(result));
+  DCHECK(!input.is(double_scratch));
+  DCHECK(!result.is(double_scratch));
+  DCHECK(!temp1.is(temp2));
+  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
 
   Label done;
 
@@ -629,7 +629,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 
 
 CodeAgingHelper::CodeAgingHelper() {
-  ASSERT(young_sequence_.length() == kNoCodeAgeSequenceLength);
+  DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // The sequence of instructions that is patched out for aging code is the
   // following boilerplate stack-building prologue that is found both in
   // FUNCTION and OPTIMIZED_FUNCTION code:
@@ -650,7 +650,7 @@ bool CodeAgingHelper::IsOld(byte* candidate) const {
 
 bool Code::IsYoungSequence(Isolate* isolate, byte* sequence) {
   bool result = isolate->code_aging_helper()->IsYoung(sequence);
-  ASSERT(result || isolate->code_aging_helper()->IsOld(sequence));
+  DCHECK(result || isolate->code_aging_helper()->IsOld(sequence));
   return result;
 }
 
@@ -689,7 +689,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
 
 
 Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
-  ASSERT(index >= 0);
+  DCHECK(index >= 0);
   int receiver = (receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER) ? 1 : 0;
   int displacement_to_last_argument = base_reg_.is(rsp) ?
       kPCOnStackSize : kFPOnStackSize + kPCOnStackSize;
@@ -697,7 +697,7 @@ Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
   if (argument_count_reg_.is(no_reg)) {
     // argument[0] is at base_reg_ + displacement_to_last_argument +
     // (argument_count_immediate_ + receiver - 1) * kPointerSize.
-    ASSERT(argument_count_immediate_ + receiver > 0);
+    DCHECK(argument_count_immediate_ + receiver > 0);
     return Operand(base_reg_, displacement_to_last_argument +
         (argument_count_immediate_ + receiver - 1 - index) * kPointerSize);
   } else {

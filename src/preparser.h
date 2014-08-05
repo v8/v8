@@ -179,8 +179,8 @@ class ParserBase : public Traits {
 
     void set_generator_object_variable(
         typename Traits::Type::GeneratorVariable* variable) {
-      ASSERT(variable != NULL);
-      ASSERT(!is_generator());
+      DCHECK(variable != NULL);
+      DCHECK(!is_generator());
       generator_object_variable_ = variable;
       is_generator_ = true;
     }
@@ -267,7 +267,7 @@ class ParserBase : public Traits {
     Token::Value next = Next();
     USE(next);
     USE(token);
-    ASSERT(next == token);
+    DCHECK(next == token);
   }
 
   bool Check(Token::Value token) {
@@ -667,7 +667,7 @@ class PreParserExpression {
   bool IsIdentifier() const { return (code_ & kTypeMask) == kTypeIdentifier; }
 
   PreParserIdentifier AsIdentifier() const {
-    ASSERT(IsIdentifier());
+    DCHECK(IsIdentifier());
     return PreParserIdentifier(
         static_cast<PreParserIdentifier::Type>(code_ >> kIdentifierShift));
   }
@@ -1526,7 +1526,7 @@ void ParserBase<Traits>::ReportUnexpectedToken(Token::Value token) {
           ? "unexpected_token_identifier" : "unexpected_strict_reserved");
     default:
       const char* name = Token::String(token);
-      ASSERT(name != NULL);
+      DCHECK(name != NULL);
       Traits::ReportMessageAt(source_location, "unexpected_token", name);
   }
 }
@@ -2087,7 +2087,7 @@ ParserBase<Traits>::ParseYieldExpression(bool* ok) {
         // a Yield::SUSPEND operation, given only one look-ahead token.
         if (kind == Yield::SUSPEND)
           break;
-        ASSERT(kind == Yield::DELEGATING);
+        DCHECK(kind == Yield::DELEGATING);
         // Delegating yields require an RHS; fall through.
       default:
         expression = ParseAssignmentExpression(false, CHECK_OK);
@@ -2130,7 +2130,7 @@ ParserBase<Traits>::ParseConditionalExpression(bool accept_IN, bool* ok) {
 template <class Traits>
 typename ParserBase<Traits>::ExpressionT
 ParserBase<Traits>::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
-  ASSERT(prec >= 4);
+  DCHECK(prec >= 4);
   ExpressionT x = this->ParseUnaryExpression(CHECK_OK);
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
@@ -2438,7 +2438,7 @@ ParserBase<Traits>::ParseMemberExpressionContinuation(ExpressionT expression,
         return expression;
     }
   }
-  ASSERT(false);
+  DCHECK(false);
   return this->EmptyExpression();
 }
 
@@ -2614,7 +2614,7 @@ void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
       // Both a data and an accessor property with the same name.
       parser()->ReportMessage("accessor_data_property");
     } else {
-      ASSERT(IsAccessorAccessorConflict(old_type, type));
+      DCHECK(IsAccessorAccessorConflict(old_type, type));
       // Both accessors of the same type.
       parser()->ReportMessage("accessor_get_set");
     }

@@ -23,7 +23,7 @@ CompleteParserRecorder::CompleteParserRecorder()
   preamble_[PreparseDataConstants::kHasErrorOffset] = false;
   preamble_[PreparseDataConstants::kFunctionsSizeOffset] = 0;
   preamble_[PreparseDataConstants::kSizeOffset] = 0;
-  ASSERT_EQ(5, PreparseDataConstants::kHeaderSize);
+  DCHECK_EQ(5, PreparseDataConstants::kHeaderSize);
 #ifdef DEBUG
   prev_start_ = -1;
 #endif
@@ -70,7 +70,7 @@ ScriptData* CompleteParserRecorder::GetScriptData() {
     function_store_.WriteTo(Vector<unsigned>(
         data + PreparseDataConstants::kHeaderSize, function_size));
   }
-  ASSERT(IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment));
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment));
   ScriptData* result = new ScriptData(reinterpret_cast<byte*>(data),
                                       total_size * sizeof(unsigned));
   result->AcquireDataOwnership();

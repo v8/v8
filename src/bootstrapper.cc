@@ -44,7 +44,7 @@ Bootstrapper::Bootstrapper(Isolate* isolate)
 
 
 Handle<String> Bootstrapper::NativesSourceLookup(int index) {
-  ASSERT(0 <= index && index < Natives::GetBuiltinsCount());
+  DCHECK(0 <= index && index < Natives::GetBuiltinsCount());
   Heap* heap = isolate_->heap();
   if (heap->natives_source_cache()->get(index)->IsUndefined()) {
     // We can use external strings for the natives.
@@ -121,7 +121,7 @@ char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
 void Bootstrapper::TearDown() {
   if (delete_these_non_arrays_on_tear_down_ != NULL) {
     int len = delete_these_non_arrays_on_tear_down_->length();
-    ASSERT(len < 24);  // Don't use this mechanism for unbounded allocations.
+    DCHECK(len < 24);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
       delete delete_these_non_arrays_on_tear_down_->at(i);
       delete_these_non_arrays_on_tear_down_->at(i) = NULL;
@@ -132,7 +132,7 @@ void Bootstrapper::TearDown() {
 
   if (delete_these_arrays_on_tear_down_ != NULL) {
     int len = delete_these_arrays_on_tear_down_->length();
-    ASSERT(len < 1000);  // Don't use this mechanism for unbounded allocations.
+    DCHECK(len < 1000);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
       delete[] delete_these_arrays_on_tear_down_->at(i);
       delete_these_arrays_on_tear_down_->at(i) = NULL;
@@ -551,7 +551,7 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
     FieldDescriptor d(length_string, 0, ro_attribs, Representation::Tagged());
     map->AppendDescriptor(&d);
   } else {
-    ASSERT(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
+    DCHECK(function_mode == FUNCTION_WITH_WRITEABLE_PROTOTYPE ||
            function_mode == FUNCTION_WITH_READONLY_PROTOTYPE ||
            function_mode == FUNCTION_WITHOUT_PROTOTYPE);
     Handle<AccessorInfo> length =
@@ -695,16 +695,16 @@ void Genesis::PoisonArgumentsAndCaller(Handle<Map> map) {
 
 
 static void AddToWeakNativeContextList(Context* context) {
-  ASSERT(context->IsNativeContext());
+  DCHECK(context->IsNativeContext());
   Heap* heap = context->GetIsolate()->heap();
 #ifdef DEBUG
   { // NOLINT
-    ASSERT(context->get(Context::NEXT_CONTEXT_LINK)->IsUndefined());
+    DCHECK(context->get(Context::NEXT_CONTEXT_LINK)->IsUndefined());
     // Check that context is not in the list yet.
     for (Object* current = heap->native_contexts_list();
          !current->IsUndefined();
          current = Context::cast(current)->get(Context::NEXT_CONTEXT_LINK)) {
-      ASSERT(current != context);
+      DCHECK(current != context);
     }
   }
 #endif
@@ -777,8 +777,8 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
     LookupIterator it(prototype, factory()->constructor_string(),
                       LookupIterator::CHECK_OWN_REAL);
     Handle<Object> value = JSReceiver::GetProperty(&it).ToHandleChecked();
-    ASSERT(it.IsFound());
-    ASSERT_EQ(*isolate()->object_function(), *value);
+    DCHECK(it.IsFound());
+    DCHECK_EQ(*isolate()->object_function(), *value);
 #endif
   } else {
     Handle<FunctionTemplateInfo> js_global_object_constructor(
@@ -914,7 +914,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 
     // This assert protects an optimization in
     // HGraphBuilder::JSArrayBuilder::EmitMapCode()
-    ASSERT(initial_map->elements_kind() == GetInitialFastElementsKind());
+    DCHECK(initial_map->elements_kind() == GetInitialFastElementsKind());
     Map::EnsureDescriptorSlack(initial_map, 1);
 
     PropertyAttributes attribs = static_cast<PropertyAttributes>(
@@ -1001,10 +1001,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
                         Builtins::kIllegal);
     native_context()->set_regexp_function(*regexp_fun);
 
-    ASSERT(regexp_fun->has_initial_map());
+    DCHECK(regexp_fun->has_initial_map());
     Handle<Map> initial_map(regexp_fun->initial_map());
 
-    ASSERT_EQ(0, initial_map->inobject_properties());
+    DCHECK_EQ(0, initial_map->inobject_properties());
 
     PropertyAttributes final =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
@@ -1088,7 +1088,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
         Handle<Object>(native_context()->initial_object_prototype(), isolate));
     cons->SetInstanceClassName(*name);
     Handle<JSObject> json_object = factory->NewJSObject(cons, TENURED);
-    ASSERT(json_object->IsJSObject());
+    DCHECK(json_object->IsJSObject());
     JSObject::AddProperty(global, name, json_object, DONT_ENUM);
     native_context()->set_json_object(*json_object);
   }
@@ -1167,20 +1167,20 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     map->set_inobject_properties(2);
     native_context()->set_sloppy_arguments_map(*map);
 
-    ASSERT(!function->has_initial_map());
+    DCHECK(!function->has_initial_map());
     function->set_initial_map(*map);
     map->set_constructor(*function);
 
-    ASSERT(map->inobject_properties() > Heap::kArgumentsCalleeIndex);
-    ASSERT(map->inobject_properties() > Heap::kArgumentsLengthIndex);
-    ASSERT(!map->is_dictionary_map());
-    ASSERT(IsFastObjectElementsKind(map->elements_kind()));
+    DCHECK(map->inobject_properties() > Heap::kArgumentsCalleeIndex);
+    DCHECK(map->inobject_properties() > Heap::kArgumentsLengthIndex);
+    DCHECK(!map->is_dictionary_map());
+    DCHECK(IsFastObjectElementsKind(map->elements_kind()));
   }
 
   {  // --- aliased arguments map
     Handle<Map> map = Map::Copy(isolate->sloppy_arguments_map());
     map->set_elements_kind(SLOPPY_ARGUMENTS_ELEMENTS);
-    ASSERT_EQ(2, map->pre_allocated_property_fields());
+    DCHECK_EQ(2, map->pre_allocated_property_fields());
     native_context()->set_aliased_arguments_map(*map);
   }
 
@@ -1231,9 +1231,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
 
     native_context()->set_strict_arguments_map(*map);
 
-    ASSERT(map->inobject_properties() > Heap::kArgumentsLengthIndex);
-    ASSERT(!map->is_dictionary_map());
-    ASSERT(IsFastObjectElementsKind(map->elements_kind()));
+    DCHECK(map->inobject_properties() > Heap::kArgumentsLengthIndex);
+    DCHECK(!map->is_dictionary_map());
+    DCHECK(IsFastObjectElementsKind(map->elements_kind()));
   }
 
   {  // --- context extension
@@ -1413,10 +1413,10 @@ void Genesis::InitializeExperimentalGlobal() {
 
     STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
     Handle<JSFunction> object_function(native_context()->object_function());
-    ASSERT(object_function->initial_map()->inobject_properties() == 0);
+    DCHECK(object_function->initial_map()->inobject_properties() == 0);
     Handle<Map> iterator_result_map = Map::Create(
         object_function, JSGeneratorObject::kResultPropertyCount);
-    ASSERT(iterator_result_map->inobject_properties() ==
+    DCHECK(iterator_result_map->inobject_properties() ==
         JSGeneratorObject::kResultPropertyCount);
     Map::EnsureDescriptorSlack(
         iterator_result_map, JSGeneratorObject::kResultPropertyCount);
@@ -1434,7 +1434,7 @@ void Genesis::InitializeExperimentalGlobal() {
     iterator_result_map->AppendDescriptor(&done_descr);
 
     iterator_result_map->set_unused_property_fields(0);
-    ASSERT_EQ(JSGeneratorObject::kResultSize,
+    DCHECK_EQ(JSGeneratorObject::kResultSize,
               iterator_result_map->instance_size());
     native_context()->set_iterator_result_map(*iterator_result_map);
   }
@@ -1480,7 +1480,7 @@ bool Genesis::CompileNative(Isolate* isolate,
                                     NULL,
                                     Handle<Context>(isolate->context()),
                                     true);
-  ASSERT(isolate->has_pending_exception() != result);
+  DCHECK(isolate->has_pending_exception() != result);
   if (!result) isolate->clear_pending_exception();
   return result;
 }
@@ -1500,7 +1500,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
   // If we can't find the function in the cache, we compile a new
   // function and insert it into the cache.
   if (cache == NULL || !cache->Lookup(name, &function_info)) {
-    ASSERT(source->IsOneByteRepresentation());
+    DCHECK(source->IsOneByteRepresentation());
     Handle<String> script_name =
         factory->NewStringFromUtf8(name).ToHandleChecked();
     function_info = Compiler::CompileScript(
@@ -1514,7 +1514,7 @@ bool Genesis::CompileScriptCached(Isolate* isolate,
   // Set up the function context. Conceptually, we should clone the
   // function before overwriting the context but since we're in a
   // single-threaded environment it is not strictly necessary.
-  ASSERT(top_context->IsNativeContext());
+  DCHECK(top_context->IsNativeContext());
   Handle<Context> context =
       Handle<Context>(use_runtime_context
                       ? Handle<Context>(top_context->runtime_context())
@@ -1547,11 +1547,11 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
             .ToHandleChecked());
   }
   const char* inner = period_pos + 1;
-  ASSERT_EQ(NULL, strchr(inner, '.'));
+  DCHECK_EQ(NULL, strchr(inner, '.'));
   Vector<const char> property(holder_expr,
                               static_cast<int>(period_pos - holder_expr));
   Handle<String> property_string = factory->InternalizeUtf8String(property);
-  ASSERT(!property_string.is_null());
+  DCHECK(!property_string.is_null());
   Handle<JSObject> object = Handle<JSObject>::cast(
       Object::GetProperty(global, property_string).ToHandleChecked());
   if (strcmp("prototype", inner) == 0) {
@@ -1559,7 +1559,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
     return Handle<JSObject>(JSObject::cast(function->prototype()));
   }
   Handle<String> inner_string = factory->InternalizeUtf8String(inner);
-  ASSERT(!inner_string.is_null());
+  DCHECK(!inner_string.is_null());
   Handle<Object> value =
       Object::GetProperty(object, inner_string).ToHandleChecked();
   return Handle<JSObject>::cast(value);
@@ -1751,7 +1751,7 @@ bool Genesis::InstallNatives() {
 
   // Create a bridge function that has context in the native context.
   Handle<JSFunction> bridge = factory()->NewFunction(factory()->empty_string());
-  ASSERT(bridge->context() == *isolate()->native_context());
+  DCHECK(bridge->context() == *isolate()->native_context());
 
   // Allocate the builtins context.
   Handle<Context> context =
@@ -1949,7 +1949,7 @@ bool Genesis::InstallNatives() {
   // Store the map for the string prototype after the natives has been compiled
   // and the String function has been set up.
   Handle<JSFunction> string_function(native_context()->string_function());
-  ASSERT(JSObject::cast(
+  DCHECK(JSObject::cast(
       string_function->initial_map()->prototype())->HasFastProperties());
   native_context()->set_string_function_prototype_map(
       HeapObject::cast(string_function->initial_map()->prototype())->map());
@@ -1980,7 +1980,7 @@ bool Genesis::InstallNatives() {
     // The code will never be called, but inline caching for call will
     // only work if it appears to be compiled.
     call->shared()->DontAdaptArguments();
-    ASSERT(call->is_compiled());
+    DCHECK(call->is_compiled());
 
     // Set the expected parameters for apply to 2; required by builtin.
     apply->shared()->set_formal_parameter_count(2);
@@ -2021,7 +2021,7 @@ bool Genesis::InstallNatives() {
       Handle<String> length = factory()->length_string();
       int old = array_descriptors->SearchWithCache(
           *length, array_function->initial_map());
-      ASSERT(old != DescriptorArray::kNotFound);
+      DCHECK(old != DescriptorArray::kNotFound);
       CallbacksDescriptor desc(length,
                                handle(array_descriptors->GetValue(old),
                                       isolate()),
@@ -2326,7 +2326,7 @@ bool Genesis::InstallExtension(Isolate* isolate,
                        "Circular extension dependency")) {
     return false;
   }
-  ASSERT(extension_states->get_state(current) == UNVISITED);
+  DCHECK(extension_states->get_state(current) == UNVISITED);
   extension_states->set_state(current, VISITED);
   v8::Extension* extension = current->extension();
   // Install the extension's dependencies
@@ -2348,7 +2348,7 @@ bool Genesis::InstallExtension(Isolate* isolate,
                                     extension,
                                     Handle<Context>(isolate->context()),
                                     false);
-  ASSERT(isolate->has_pending_exception() != result);
+  DCHECK(isolate->has_pending_exception() != result);
   if (!result) {
     // We print out the name of the extension that fail to install.
     // When an error is thrown during bootstrapping we automatically print
@@ -2419,15 +2419,15 @@ bool Genesis::ConfigureGlobalObjects(
 
 bool Genesis::ConfigureApiObject(Handle<JSObject> object,
                                  Handle<ObjectTemplateInfo> object_template) {
-  ASSERT(!object_template.is_null());
-  ASSERT(FunctionTemplateInfo::cast(object_template->constructor())
+  DCHECK(!object_template.is_null());
+  DCHECK(FunctionTemplateInfo::cast(object_template->constructor())
              ->IsTemplateFor(object->map()));;
 
   MaybeHandle<JSObject> maybe_obj =
       Execution::InstantiateObject(object_template);
   Handle<JSObject> obj;
   if (!maybe_obj.ToHandle(&obj)) {
-    ASSERT(isolate()->has_pending_exception());
+    DCHECK(isolate()->has_pending_exception());
     isolate()->clear_pending_exception();
     return false;
   }
@@ -2448,7 +2448,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           FieldIndex index = FieldIndex::ForDescriptor(from->map(), i);
-          ASSERT(!descs->GetDetails(i).representation().IsDouble());
+          DCHECK(!descs->GetDetails(i).representation().IsDouble());
           Handle<Object> value = Handle<Object>(from->RawFastPropertyAt(index),
                                                 isolate());
           JSObject::AddProperty(to, key, value, details.attributes());
@@ -2468,7 +2468,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           // If the property is already there we skip it
           if (result.IsFound()) continue;
           HandleScope inner(isolate());
-          ASSERT(!to->HasFastProperties());
+          DCHECK(!to->HasFastProperties());
           // Add to dictionary.
           Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
           PropertyDetails d = PropertyDetails(
@@ -2493,7 +2493,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
     for (int i = 0; i < capacity; i++) {
       Object* raw_key(properties->KeyAt(i));
       if (properties->IsKey(raw_key)) {
-        ASSERT(raw_key->IsName());
+        DCHECK(raw_key->IsName());
         // If the property is already there we skip it.
         LookupResult result(isolate());
         Handle<Name> key(Name::cast(raw_key));
@@ -2502,7 +2502,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         // Set the property.
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
                                               isolate());
-        ASSERT(!value->IsCell());
+        DCHECK(!value->IsCell());
         if (value->IsPropertyCell()) {
           value = Handle<Object>(PropertyCell::cast(*value)->value(),
                                  isolate());
@@ -2528,8 +2528,8 @@ void Genesis::TransferIndexedProperties(Handle<JSObject> from,
 void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
   HandleScope outer(isolate());
 
-  ASSERT(!from->IsJSArray());
-  ASSERT(!to->IsJSArray());
+  DCHECK(!from->IsJSArray());
+  DCHECK(!to->IsJSArray());
 
   TransferNamedProperties(from, to);
   TransferIndexedProperties(from, to);
@@ -2544,8 +2544,8 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
   // The maps with writable prototype are created in CreateEmptyFunction
   // and CreateStrictModeFunctionMaps respectively. Initially the maps are
   // created with read-only prototype for JS builtins processing.
-  ASSERT(!sloppy_function_map_writable_prototype_.is_null());
-  ASSERT(!strict_function_map_writable_prototype_.is_null());
+  DCHECK(!sloppy_function_map_writable_prototype_.is_null());
+  DCHECK(!strict_function_map_writable_prototype_.is_null());
 
   // Replace function instance maps to make prototype writable.
   native_context()->set_sloppy_function_map(
@@ -2736,7 +2736,7 @@ char* Bootstrapper::RestoreState(char* from) {
 
 // Called when the top-level V8 mutex is destroyed.
 void Bootstrapper::FreeThreadResources() {
-  ASSERT(!IsActive());
+  DCHECK(!IsActive());
 }
 
 } }  // namespace v8::internal

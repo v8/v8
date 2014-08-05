@@ -43,9 +43,9 @@ class Unique {
       // NOTE: we currently consider maps to be non-movable, so no special
       // assurance is required for creating a Unique<Map>.
       // TODO(titzer): other immortable immovable objects are also fine.
-      ASSERT(!AllowHeapAllocation::IsAllowed() || handle->IsMap());
+      DCHECK(!AllowHeapAllocation::IsAllowed() || handle->IsMap());
       raw_address_ = reinterpret_cast<Address>(*handle);
-      ASSERT_NE(raw_address_, NULL);  // Non-null should imply non-zero address.
+      DCHECK_NE(raw_address_, NULL);  // Non-null should imply non-zero address.
     }
     handle_ = handle;
   }
@@ -69,28 +69,28 @@ class Unique {
 
   template <typename U>
   inline bool operator==(const Unique<U>& other) const {
-    ASSERT(IsInitialized() && other.IsInitialized());
+    DCHECK(IsInitialized() && other.IsInitialized());
     return raw_address_ == other.raw_address_;
   }
 
   template <typename U>
   inline bool operator!=(const Unique<U>& other) const {
-    ASSERT(IsInitialized() && other.IsInitialized());
+    DCHECK(IsInitialized() && other.IsInitialized());
     return raw_address_ != other.raw_address_;
   }
 
   inline intptr_t Hashcode() const {
-    ASSERT(IsInitialized());
+    DCHECK(IsInitialized());
     return reinterpret_cast<intptr_t>(raw_address_);
   }
 
   inline bool IsNull() const {
-    ASSERT(IsInitialized());
+    DCHECK(IsInitialized());
     return raw_address_ == NULL;
   }
 
   inline bool IsKnownGlobal(void* global) const {
-    ASSERT(IsInitialized());
+    DCHECK(IsInitialized());
     return raw_address_ == reinterpret_cast<Address>(global);
   }
 
@@ -205,7 +205,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   UniqueSet(int capacity, Zone* zone)
       : size_(0), capacity_(capacity),
         array_(zone->NewArray<Unique<T> >(capacity)) {
-    ASSERT(capacity <= kMaxCapacity);
+    DCHECK(capacity <= kMaxCapacity);
   }
 
   // Singleton constructor.
@@ -216,7 +216,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
 
   // Add a new element to this unique set. Mutates this set. O(|this|).
   void Add(Unique<T> uniq, Zone* zone) {
-    ASSERT(uniq.IsInitialized());
+    DCHECK(uniq.IsInitialized());
     // Keep the set sorted by the {raw_address} of the unique elements.
     for (int i = 0; i < size_; i++) {
       if (array_[i] == uniq) return;
@@ -379,7 +379,7 @@ class UniqueSet V8_FINAL : public ZoneObject {
   }
 
   inline Unique<T> at(int index) const {
-    ASSERT(index >= 0 && index < size_);
+    DCHECK(index >= 0 && index < size_);
     return array_[index];
   }
 

@@ -67,8 +67,8 @@ class InstructionOperandConverter {
   BasicBlock* InputBlock(int index) {
     NodeId block_id = static_cast<NodeId>(instr_->InputAt(index)->index());
     // operand should be a block id.
-    ASSERT(block_id >= 0);
-    ASSERT(block_id < gen_->schedule()->BasicBlockCount());
+    DCHECK(block_id >= 0);
+    DCHECK(block_id < gen_->schedule()->BasicBlockCount());
     return gen_->schedule()->GetBlockById(block_id);
   }
 
@@ -83,12 +83,12 @@ class InstructionOperandConverter {
   Register TempRegister(int index) { return ToRegister(instr_->TempAt(index)); }
 
   Register ToRegister(InstructionOperand* op) {
-    ASSERT(op->IsRegister());
+    DCHECK(op->IsRegister());
     return Register::FromAllocationIndex(op->index());
   }
 
   DoubleRegister ToDoubleRegister(InstructionOperand* op) {
-    ASSERT(op->IsDoubleRegister());
+    DCHECK(op->IsDoubleRegister());
     return DoubleRegister::FromAllocationIndex(op->index());
   }
 

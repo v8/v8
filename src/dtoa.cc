@@ -32,8 +32,8 @@ static BignumDtoaMode DtoaToBignumDtoaMode(DtoaMode dtoa_mode) {
 
 void DoubleToAscii(double v, DtoaMode mode, int requested_digits,
                    Vector<char> buffer, int* sign, int* length, int* point) {
-  ASSERT(!Double(v).IsSpecial());
-  ASSERT(mode == DTOA_SHORTEST || requested_digits >= 0);
+  DCHECK(!Double(v).IsSpecial());
+  DCHECK(mode == DTOA_SHORTEST || requested_digits >= 0);
 
   if (Double(v).Sign() < 0) {
     *sign = 1;

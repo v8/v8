@@ -125,7 +125,7 @@ class StubCache {
   static int PrimaryOffset(Name* name, Code::Flags flags, Map* map) {
     STATIC_ASSERT(kCacheIndexShift == Name::kHashShift);
     // Compute the hash of the name (use entire hash field).
-    ASSERT(name->HasHashCode());
+    DCHECK(name->HasHashCode());
     uint32_t field = name->hash_field();
     // Using only the low bits in 64-bit mode is unlikely to increase the
     // risk of collision even if the heap is spread over an area larger than
@@ -356,7 +356,7 @@ class PropertyICCompiler : public PropertyAccessCompiler {
       return code->ic_state() == MONOMORPHIC ? Logger::STORE_IC_TAG
                                              : Logger::STORE_POLYMORPHIC_IC_TAG;
     } else {
-      ASSERT_EQ(Code::KEYED_STORE_IC, kind());
+      DCHECK_EQ(Code::KEYED_STORE_IC, kind());
       return code->ic_state() == MONOMORPHIC
                  ? Logger::KEYED_STORE_IC_TAG
                  : Logger::KEYED_STORE_POLYMORPHIC_IC_TAG;
@@ -391,6 +391,8 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   virtual void FrontendFooter(Handle<Name> name, Label* miss) { UNREACHABLE(); }
 
   Register Frontend(Register object_reg, Handle<Name> name);
+  void NonexistentFrontendHeader(Handle<Name> name, Label* miss,
+                                 Register scratch1, Register scratch2);
 
   // TODO(verwaest): Make non-static.
   static void GenerateFastApiCall(MacroAssembler* masm,
@@ -478,7 +480,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                                     Handle<JSFunction> getter);
 
   Handle<Code> CompileLoadGlobal(Handle<PropertyCell> cell, Handle<Name> name,
-                                 bool is_dont_delete);
+                                 bool is_configurable);
 
   // Static interface
   static Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
@@ -519,8 +521,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   Register CallbackFrontend(Register object_reg, Handle<Name> name,
                             Handle<Object> callback);
   Handle<Code> CompileLoadNonexistent(Handle<Name> name);
-  void NonexistentFrontend(Handle<Name> name);
-
   void GenerateLoadField(Register reg,
                          FieldIndex field,
                          Representation representation);
@@ -561,25 +561,16 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual ~NamedStoreHandlerCompiler() {}
 
-  Handle<Code> CompileStoreTransition(LookupResult* lookup,
-                                      Handle<Map> transition,
+  Handle<Code> CompileStoreTransition(Handle<Map> transition,
                                       Handle<Name> name);
-
   Handle<Code> CompileStoreField(LookupResult* lookup, Handle<Name> name);
-
-  Handle<Code> CompileStoreArrayLength(LookupResult* lookup, Handle<Name> name);
-
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<ExecutableAccessorInfo> callback);
-
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization);
-
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
                                      Handle<JSFunction> setter);
-
   Handle<Code> CompileStoreInterceptor(Handle<Name> name);
-
 
   static void GenerateStoreViaSetter(MacroAssembler* masm,
                                      Handle<HeapType> type, Register receiver,
@@ -595,40 +586,19 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                   Label* miss);
 
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
-  void GenerateRestoreName(MacroAssembler* masm, Label* label,
-                           Handle<Name> name);
+  void GenerateRestoreName(Label* label, Handle<Name> name);
 
  private:
-  void GenerateStoreArrayLength();
+  void GenerateStoreTransition(Handle<Map> transition, Handle<Name> name,
+                               Register receiver_reg, Register name_reg,
+                               Register value_reg, Register scratch1,
+                               Register scratch2, Register scratch3,
+                               Label* miss_label, Label* slow);
 
-  void GenerateNegativeHolderLookup(MacroAssembler* masm,
-                                    Handle<JSObject> holder,
-                                    Register holder_reg,
-                                    Handle<Name> name,
-                                    Label* miss);
-
-  void GenerateStoreTransition(MacroAssembler* masm,
-                               LookupResult* lookup,
-                               Handle<Map> transition,
-                               Handle<Name> name,
-                               Register receiver_reg,
-                               Register name_reg,
-                               Register value_reg,
-                               Register scratch1,
-                               Register scratch2,
-                               Register scratch3,
-                               Label* miss_label,
-                               Label* slow);
-
-  void GenerateStoreField(MacroAssembler* masm,
-                          Handle<JSObject> object,
-                          LookupResult* lookup,
-                          Register receiver_reg,
-                          Register name_reg,
-                          Register value_reg,
-                          Register scratch1,
-                          Register scratch2,
-                          Label* miss_label);
+  void GenerateStoreField(Handle<JSObject> object, LookupResult* lookup,
+                          Register receiver_reg, Register name_reg,
+                          Register value_reg, Register scratch1,
+                          Register scratch2, Label* miss_label);
 
   static Builtins::Name SlowBuiltin(Code::Kind kind) {
     switch (kind) {
@@ -672,7 +642,7 @@ class CallOptimization BASE_EMBEDDED {
   }
 
   Handle<JSFunction> constant_function() const {
-    ASSERT(is_constant_call());
+    DCHECK(is_constant_call());
     return constant_function_;
   }
 
@@ -681,12 +651,12 @@ class CallOptimization BASE_EMBEDDED {
   }
 
   Handle<FunctionTemplateInfo> expected_receiver_type() const {
-    ASSERT(is_simple_api_call());
+    DCHECK(is_simple_api_call());
     return expected_receiver_type_;
   }
 
   Handle<CallHandlerInfo> api_call_info() const {
-    ASSERT(is_simple_api_call());
+    DCHECK(is_simple_api_call());
     return api_call_info_;
   }
 

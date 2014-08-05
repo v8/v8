@@ -33,9 +33,9 @@ class DelayedMasm BASE_EMBEDDED {
 #endif
   }
   ~DelayedMasm() {
-    ASSERT(!scratch_register_acquired_);
-    ASSERT(!scratch_register_used_);
-    ASSERT(!pending());
+    DCHECK(!scratch_register_acquired_);
+    DCHECK(!scratch_register_used_);
+    DCHECK(!pending());
   }
   inline void EndDelayedUse();
 
@@ -53,13 +53,13 @@ class DelayedMasm BASE_EMBEDDED {
     EmitPending();
     ResetSavedValue();
 #ifdef DEBUG
-    ASSERT(!scratch_register_acquired_);
+    DCHECK(!scratch_register_acquired_);
     scratch_register_acquired_ = true;
 #endif
   }
   void ReleaseScratchRegister() {
 #ifdef DEBUG
-    ASSERT(scratch_register_acquired_);
+    DCHECK(scratch_register_acquired_);
     scratch_register_acquired_ = false;
 #endif
   }
@@ -100,7 +100,7 @@ class DelayedMasm BASE_EMBEDDED {
  private:
   // Set the saved value and load the ScratchRegister with it.
   void SetSavedValue(uint64_t saved_value) {
-    ASSERT(saved_value != 0);
+    DCHECK(saved_value != 0);
     if (saved_value_ != saved_value) {
       masm_->Mov(ScratchRegister(), saved_value);
       saved_value_ = saved_value;

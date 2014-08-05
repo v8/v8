@@ -112,26 +112,26 @@ class X64OperandConverter : public InstructionOperandConverter {
 
   Operand ToOperand(InstructionOperand* op, int extra = 0) {
     RegisterOrOperand result = ToRegisterOrOperand(op, extra);
-    ASSERT_EQ(kOperand, result.type);
+    DCHECK_EQ(kOperand, result.type);
     return result.operand;
   }
 
   RegisterOrOperand ToRegisterOrOperand(InstructionOperand* op, int extra = 0) {
     RegisterOrOperand result;
     if (op->IsRegister()) {
-      ASSERT(extra == 0);
+      DCHECK(extra == 0);
       result.type = kRegister;
       result.reg = ToRegister(op);
       return result;
     } else if (op->IsDoubleRegister()) {
-      ASSERT(extra == 0);
-      ASSERT(extra == 0);
+      DCHECK(extra == 0);
+      DCHECK(extra == 0);
       result.type = kDoubleRegister;
       result.double_reg = ToDoubleRegister(op);
       return result;
     }
 
-    ASSERT(op->IsStackSlot() || op->IsDoubleStackSlot());
+    DCHECK(op->IsStackSlot() || op->IsDoubleStackSlot());
 
     result.type = kOperand;
     // The linkage computes where all spill slots are located.
@@ -405,7 +405,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64CallAddress:
       if (HasImmediateInput(instr, 0)) {
         Immediate64 imm = i.InputImmediate64(0);
-        ASSERT_EQ(kImm64Value, imm.type);
+        DCHECK_EQ(kImm64Value, imm.type);
         __ Call(reinterpret_cast<byte*>(imm.value), RelocInfo::NONE64);
       } else {
         __ call(i.InputRegister(0));
@@ -688,7 +688,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // Materialize a full 64-bit 1 or 0 value. The result register is always the
   // last output of the instruction.
   Label check;
-  ASSERT_NE(0, instr->OutputCount());
+  DCHECK_NE(0, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
   Condition cc = no_condition;
   switch (condition) {
@@ -856,7 +856,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   // Dispatch on the source and destination operand kinds.  Not all
   // combinations are possible.
   if (source->IsRegister()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Register src = g.ToRegister(source);
     if (destination->IsRegister()) {
       __ movq(g.ToRegister(destination), src);
@@ -864,7 +864,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ movq(g.ToOperand(destination), src);
     }
   } else if (source->IsStackSlot()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
+    DCHECK(destination->IsRegister() || destination->IsStackSlot());
     Operand src = g.ToOperand(source);
     if (destination->IsRegister()) {
       Register dst = g.ToRegister(destination);
@@ -903,7 +903,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (destination->IsDoubleRegister()) {
         __ movq(g.ToDoubleRegister(destination), kScratchRegister);
       } else {
-        ASSERT(destination->IsDoubleStackSlot());
+        DCHECK(destination->IsDoubleStackSlot());
         __ movq(g.ToOperand(destination), kScratchRegister);
       }
     }
@@ -913,12 +913,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       XMMRegister dst = g.ToDoubleRegister(destination);
       __ movsd(dst, src);
     } else {
-      ASSERT(destination->IsDoubleStackSlot());
+      DCHECK(destination->IsDoubleStackSlot());
       Operand dst = g.ToOperand(destination);
       __ movsd(dst, src);
     }
   } else if (source->IsDoubleStackSlot()) {
-    ASSERT(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
+    DCHECK(destination->IsDoubleRegister() || destination->IsDoubleStackSlot());
     Operand src = g.ToOperand(source);
     if (destination->IsDoubleRegister()) {
       XMMRegister dst = g.ToDoubleRegister(destination);

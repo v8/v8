@@ -168,7 +168,7 @@ class DateCache {
 
   virtual int GetLocalOffsetFromOS() {
     double offset = base::OS::LocalTimeOffset(tz_cache_);
-    ASSERT(offset < kInvalidLocalOffsetInMs);
+    DCHECK(offset < kInvalidLocalOffsetInMs);
     return static_cast<int>(offset);
   }
 

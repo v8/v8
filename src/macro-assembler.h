@@ -114,7 +114,7 @@ class FrameScope {
   // scope, the MacroAssembler is still marked as being in a frame scope, and
   // the code will be generated again when it goes out of scope.
   void GenerateLeaveFrame() {
-    ASSERT(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
+    DCHECK(type_ != StackFrame::MANUAL && type_ != StackFrame::NONE);
     masm_->LeaveFrame(type_);
   }
 

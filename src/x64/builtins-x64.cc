@@ -41,7 +41,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
     __ Push(rdi);
     __ PushReturnAddressFrom(kScratchRegister);
   } else {
-    ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
+    DCHECK(extra_args == NO_EXTRA_ARGUMENTS);
   }
 
   // JumpToExternalReference expects rax to contain the number of arguments
@@ -109,7 +109,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // -----------------------------------
 
   // Should never create mementos for api functions.
-  ASSERT(!is_api_function || !create_memento);
+  DCHECK(!is_api_function || !create_memento);
 
   // Enter a construct frame.
   {
@@ -144,7 +144,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // rdi: constructor
       __ movp(rax, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
       // Will both indicate a NULL and a Smi
-      ASSERT(kSmiTag == 0);
+      DCHECK(kSmiTag == 0);
       __ JumpIfSmi(rax, &rt_call);
       // rdi: constructor
       // rax: initial map (if proven valid below)

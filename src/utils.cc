@@ -27,8 +27,8 @@ void SimpleStringBuilder::AddString(const char* s) {
 
 
 void SimpleStringBuilder::AddSubstring(const char* s, int n) {
-  ASSERT(!is_finalized() && position_ + n <= buffer_.length());
-  ASSERT(static_cast<size_t>(n) <= strlen(s));
+  DCHECK(!is_finalized() && position_ + n <= buffer_.length());
+  DCHECK(static_cast<size_t>(n) <= strlen(s));
   MemCopy(&buffer_[position_], s, n * kCharSize);
   position_ += n;
 }
@@ -60,7 +60,7 @@ void SimpleStringBuilder::AddDecimalInteger(int32_t value) {
 
 
 char* SimpleStringBuilder::Finalize() {
-  ASSERT(!is_finalized() && position_ <= buffer_.length());
+  DCHECK(!is_finalized() && position_ <= buffer_.length());
   // If there is no space for null termination, overwrite last character.
   if (position_ == buffer_.length()) {
     position_--;
@@ -70,9 +70,9 @@ char* SimpleStringBuilder::Finalize() {
   buffer_[position_] = '\0';
   // Make sure nobody managed to add a 0-character to the
   // buffer while building the string.
-  ASSERT(strlen(buffer_.start()) == static_cast<size_t>(position_));
+  DCHECK(strlen(buffer_.start()) == static_cast<size_t>(position_));
   position_ = -1;
-  ASSERT(is_finalized());
+  DCHECK(is_finalized());
   return buffer_.start();
 }
 
@@ -172,7 +172,7 @@ char* ReadLine(const char* prompt) {
     MemCopy(result + offset, line_buf, len * kCharSize);
     offset += len;
   }
-  ASSERT(result != NULL);
+  DCHECK(result != NULL);
   result[offset] = '\0';
   return result;
 }
@@ -323,7 +323,7 @@ void StringBuilder::AddFormatted(const char* format, ...) {
 
 
 void StringBuilder::AddFormattedList(const char* format, va_list list) {
-  ASSERT(!is_finalized() && position_ <= buffer_.length());
+  DCHECK(!is_finalized() && position_ <= buffer_.length());
   int n = VSNPrintF(buffer_ + position_, format, list);
   if (n < 0 || n >= (buffer_.length() - position_)) {
     position_ = buffer_.length();

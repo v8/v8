@@ -139,7 +139,7 @@ class StatsCounter {
   // given counter without calling the runtime system.
   int* GetInternalPointer() {
     int* loc = GetPtr();
-    ASSERT(loc != NULL);
+    DCHECK(loc != NULL);
     return loc;
   }
 

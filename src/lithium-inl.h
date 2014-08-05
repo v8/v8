@@ -38,7 +38,7 @@ bool TempIterator::Done() { return current_ >= limit_; }
 
 
 LOperand* TempIterator::Current() {
-  ASSERT(!Done());
+  DCHECK(!Done());
   return instr_->TempAt(current_);
 }
 
@@ -64,8 +64,8 @@ bool InputIterator::Done() { return current_ >= limit_; }
 
 
 LOperand* InputIterator::Current() {
-  ASSERT(!Done());
-  ASSERT(instr_->InputAt(current_) != NULL);
+  DCHECK(!Done());
+  DCHECK(instr_->InputAt(current_) != NULL);
   return instr_->InputAt(current_);
 }
 
@@ -95,10 +95,10 @@ bool UseIterator::Done() {
 
 
 LOperand* UseIterator::Current() {
-  ASSERT(!Done());
+  DCHECK(!Done());
   LOperand* result = input_iterator_.Done() ? env_iterator_.Current()
                                             : input_iterator_.Current();
-  ASSERT(result != NULL);
+  DCHECK(result != NULL);
   return result;
 }
 

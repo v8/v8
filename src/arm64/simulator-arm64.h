@@ -212,13 +212,13 @@ class Simulator : public DecoderVisitor {
     template<typename T>
     explicit CallArgument(T argument) {
       bits_ = 0;
-      ASSERT(sizeof(argument) <= sizeof(bits_));
+      DCHECK(sizeof(argument) <= sizeof(bits_));
       memcpy(&bits_, &argument, sizeof(argument));
       type_ = X_ARG;
     }
 
     explicit CallArgument(double argument) {
-      ASSERT(sizeof(argument) == sizeof(bits_));
+      DCHECK(sizeof(argument) == sizeof(bits_));
       memcpy(&bits_, &argument, sizeof(argument));
       type_ = D_ARG;
     }
@@ -229,10 +229,10 @@ class Simulator : public DecoderVisitor {
       UNIMPLEMENTED();
       // Make the D register a NaN to try to trap errors if the callee expects a
       // double. If it expects a float, the callee should ignore the top word.
-      ASSERT(sizeof(kFP64SignallingNaN) == sizeof(bits_));
+      DCHECK(sizeof(kFP64SignallingNaN) == sizeof(bits_));
       memcpy(&bits_, &kFP64SignallingNaN, sizeof(kFP64SignallingNaN));
       // Write the float payload to the S register.
-      ASSERT(sizeof(argument) <= sizeof(bits_));
+      DCHECK(sizeof(argument) <= sizeof(bits_));
       memcpy(&bits_, &argument, sizeof(argument));
       type_ = D_ARG;
     }
@@ -290,7 +290,7 @@ class Simulator : public DecoderVisitor {
   // Simulation helpers.
   template <typename T>
   void set_pc(T new_pc) {
-    ASSERT(sizeof(T) == sizeof(pc_));
+    DCHECK(sizeof(T) == sizeof(pc_));
     memcpy(&pc_, &new_pc, sizeof(T));
     pc_modified_ = true;
   }
@@ -309,7 +309,7 @@ class Simulator : public DecoderVisitor {
   }
 
   void ExecuteInstruction() {
-    ASSERT(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstructionSize));
+    DCHECK(IsAligned(reinterpret_cast<uintptr_t>(pc_), kInstructionSize));
     CheckBreakNext();
     Decode(pc_);
     LogProcessorState();
@@ -332,7 +332,7 @@ class Simulator : public DecoderVisitor {
   //
   template<typename T>
   T reg(unsigned code, Reg31Mode r31mode = Reg31IsZeroRegister) const {
-    ASSERT(code < kNumberOfRegisters);
+    DCHECK(code < kNumberOfRegisters);
     if (IsZeroRegister(code, r31mode)) {
       return 0;
     }
@@ -355,7 +355,7 @@ class Simulator : public DecoderVisitor {
   template<typename T>
   void set_reg(unsigned code, T value,
                Reg31Mode r31mode = Reg31IsZeroRegister) {
-    ASSERT(code < kNumberOfRegisters);
+    DCHECK(code < kNumberOfRegisters);
     if (!IsZeroRegister(code, r31mode))
       registers_[code].Set(value);
   }
@@ -374,13 +374,13 @@ class Simulator : public DecoderVisitor {
   // Commonly-used special cases.
   template<typename T>
   void set_lr(T value) {
-    ASSERT(sizeof(T) == kPointerSize);
+    DCHECK(sizeof(T) == kPointerSize);
     set_reg(kLinkRegCode, value);
   }
 
   template<typename T>
   void set_sp(T value) {
-    ASSERT(sizeof(T) == kPointerSize);
+    DCHECK(sizeof(T) == kPointerSize);
     set_reg(31, value, Reg31IsStackPointer);
   }
 
@@ -395,7 +395,7 @@ class Simulator : public DecoderVisitor {
 
   template<typename T>
   T fpreg(unsigned code) const {
-    ASSERT(code < kNumberOfRegisters);
+    DCHECK(code < kNumberOfRegisters);
     return fpregisters_[code].Get<T>();
   }
 
@@ -430,8 +430,8 @@ class Simulator : public DecoderVisitor {
   // This behaviour matches AArch64 register writes.
   template<typename T>
   void set_fpreg(unsigned code, T value) {
-    ASSERT((sizeof(value) == kDRegSize) || (sizeof(value) == kSRegSize));
-    ASSERT(code < kNumberOfFPRegisters);
+    DCHECK((sizeof(value) == kDRegSize) || (sizeof(value) == kSRegSize));
+    DCHECK(code < kNumberOfFPRegisters);
     fpregisters_[code].Set(value);
   }
 
@@ -744,8 +744,8 @@ class Simulator : public DecoderVisitor {
   // functions, or to save and restore it when entering and leaving generated
   // code.
   void AssertSupportedFPCR() {
-    ASSERT(fpcr().FZ() == 0);             // No flush-to-zero support.
-    ASSERT(fpcr().RMode() == FPTieEven);  // Ties-to-even rounding only.
+    DCHECK(fpcr().FZ() == 0);             // No flush-to-zero support.
+    DCHECK(fpcr().RMode() == FPTieEven);  // Ties-to-even rounding only.
 
     // The simulator does not support half-precision operations so fpcr().AHP()
     // is irrelevant, and is not checked here.

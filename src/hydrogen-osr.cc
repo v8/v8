@@ -15,13 +15,13 @@ bool HOsrBuilder::HasOsrEntryAt(IterationStatement* statement) {
 
 
 HBasicBlock* HOsrBuilder::BuildOsrLoopEntry(IterationStatement* statement) {
-  ASSERT(HasOsrEntryAt(statement));
+  DCHECK(HasOsrEntryAt(statement));
 
   Zone* zone = builder_->zone();
   HGraph* graph = builder_->graph();
 
   // only one OSR point per compile is allowed.
-  ASSERT(graph->osr() == NULL);
+  DCHECK(graph->osr() == NULL);
 
   // remember this builder as the one OSR builder in the graph.
   graph->set_osr(this);

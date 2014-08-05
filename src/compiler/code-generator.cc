@@ -136,7 +136,7 @@ void CodeGenerator::AssembleInstruction(Instruction* instr) {
 void CodeGenerator::AssembleSourcePosition(SourcePositionInstruction* instr) {
   SourcePosition source_position = instr->source_position();
   if (source_position == current_source_position_) return;
-  ASSERT(!source_position.IsInvalid());
+  DCHECK(!source_position.IsInvalid());
   if (!source_position.IsUnknown()) {
     int code_pos = source_position.raw();
     masm()->positions_recorder()->RecordPosition(source_position.raw());
@@ -223,7 +223,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   // Populate the return address patcher entries.
   for (int i = 0; i < patch_count; ++i) {
     LazyDeoptimizationEntry entry = lazy_deoptimization_entries_[i];
-    ASSERT(entry.position_after_call() == entry.continuation()->pos() ||
+    DCHECK(entry.position_after_call() == entry.continuation()->pos() ||
            IsNopForSmiCodeInlining(code_object, entry.position_after_call(),
                                    entry.continuation()->pos()));
     data->SetReturnAddressPc(i, Smi::FromInt(entry.position_after_call()));
@@ -267,7 +267,7 @@ int CodeGenerator::DefineDeoptimizationLiteral(Handle<Object> literal) {
 void CodeGenerator::BuildTranslation(Instruction* instr,
                                      int deoptimization_id) {
   // We should build translation only once.
-  ASSERT_EQ(NULL, deoptimization_states_[deoptimization_id]);
+  DCHECK_EQ(NULL, deoptimization_states_[deoptimization_id]);
 
   // TODO(jarin) This should build translation codes from the instruction inputs
   // and from the framestate descriptor. At the moment, we only create a dummy

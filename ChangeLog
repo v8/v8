@@ -1,3 +1,10 @@
+2014-08-05: Version 3.28.57
+
+        Add dependencies on gtest and gmock.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-04: Version 3.28.54
 
         Performance and stability improvements on all platforms.

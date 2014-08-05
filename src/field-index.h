@@ -48,14 +48,14 @@ class FieldIndex V8_FINAL {
   }
 
   int outobject_array_index() const {
-    ASSERT(!is_inobject());
+    DCHECK(!is_inobject());
     return index() - first_inobject_property_offset() / kPointerSize;
   }
 
   // Zero-based from the first inobject property. Overflows to out-of-object
   // properties.
   int property_index() const {
-    ASSERT(!IsHiddenField::decode(bit_field_));
+    DCHECK(!IsHiddenField::decode(bit_field_));
     int result = index() - first_inobject_property_offset() / kPointerSize;
     if (!is_inobject()) {
       result += InObjectPropertyBits::decode(bit_field_);
@@ -74,7 +74,7 @@ class FieldIndex V8_FINAL {
   FieldIndex(bool is_inobject, int local_index, bool is_double,
              int inobject_properties, int first_inobject_property_offset,
              bool is_hidden = false) {
-    ASSERT((first_inobject_property_offset & (kPointerSize - 1)) == 0);
+    DCHECK((first_inobject_property_offset & (kPointerSize - 1)) == 0);
     bit_field_ = IsInObjectBits::encode(is_inobject) |
       IsDoubleBits::encode(is_double) |
       FirstInobjectPropertyOffsetBits::encode(first_inobject_property_offset) |
@@ -84,7 +84,7 @@ class FieldIndex V8_FINAL {
   }
 
   int first_inobject_property_offset() const {
-    ASSERT(!IsHiddenField::decode(bit_field_));
+    DCHECK(!IsHiddenField::decode(bit_field_));
     return FirstInobjectPropertyOffsetBits::decode(bit_field_);
   }
 

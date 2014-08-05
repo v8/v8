@@ -137,7 +137,7 @@ void PrettyPrinter::VisitContinueStatement(ContinueStatement* node) {
   ZoneList<const AstRawString*>* labels = node->target()->labels();
   if (labels != NULL) {
     Print(" ");
-    ASSERT(labels->length() > 0);  // guaranteed to have at least one entry
+    DCHECK(labels->length() > 0);  // guaranteed to have at least one entry
     PrintLiteral(labels->at(0), false);  // any label from the list is fine
   }
   Print(";");
@@ -149,7 +149,7 @@ void PrettyPrinter::VisitBreakStatement(BreakStatement* node) {
   ZoneList<const AstRawString*>* labels = node->target()->labels();
   if (labels != NULL) {
     Print(" ");
-    ASSERT(labels->length() > 0);  // guaranteed to have at least one entry
+    DCHECK(labels->length() > 0);  // guaranteed to have at least one entry
     PrintLiteral(labels->at(0), false);  // any label from the list is fine
   }
   Print(";");
@@ -479,7 +479,7 @@ void PrettyPrinter::PrintOut(Zone* zone, AstNode* node) {
 
 void PrettyPrinter::Init() {
   if (size_ == 0) {
-    ASSERT(output_ == NULL);
+    DCHECK(output_ == NULL);
     const int initial_size = 256;
     output_ = NewArray<char>(initial_size);
     size_ = initial_size;
@@ -645,7 +645,7 @@ AstPrinter::AstPrinter(Zone* zone) : PrettyPrinter(zone), indent_(0) {
 
 
 AstPrinter::~AstPrinter() {
-  ASSERT(indent_ == 0);
+  DCHECK(indent_ == 0);
 }
 
 

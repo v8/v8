@@ -71,6 +71,13 @@ class InstructionSelector V8_FINAL {
   // edge and the two are in the same basic block.
   bool CanCover(Node* user, Node* node) const;
 
+  // Checks if {node} was already defined, and therefore code was already
+  // generated for it.
+  bool IsDefined(Node* node) const;
+
+  // Inform the instruction selection that {node} was just defined.
+  void MarkAsDefined(Node* node);
+
   // Checks if {node} has any uses, and therefore code has to be generated for
   // it.
   bool IsUsed(Node* node) const;
@@ -123,6 +130,9 @@ class InstructionSelector V8_FINAL {
   MACHINE_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
+  void VisitInt32AddWithOverflow(Node* node, FlagsContinuation* cont);
+  void VisitInt32SubWithOverflow(Node* node, FlagsContinuation* cont);
+
   void VisitWord32Test(Node* node, FlagsContinuation* cont);
   void VisitWord64Test(Node* node, FlagsContinuation* cont);
   void VisitWord32Compare(Node* node, FlagsContinuation* cont);
@@ -160,6 +170,7 @@ class InstructionSelector V8_FINAL {
   SourcePositionTable* source_positions_;
   BasicBlock* current_block_;
   Instructions instructions_;
+  BoolVector defined_;
   BoolVector used_;
 };
 

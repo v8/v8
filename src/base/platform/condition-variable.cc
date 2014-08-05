@@ -24,37 +24,37 @@ ConditionVariable::ConditionVariable() {
   // source for pthread_cond_timedwait() to use the monotonic clock.
   pthread_condattr_t attr;
   int result = pthread_condattr_init(&attr);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_cond_init(&native_handle_, &attr);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   result = pthread_condattr_destroy(&attr);
 #else
   int result = pthread_cond_init(&native_handle_, NULL);
 #endif
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
 
 ConditionVariable::~ConditionVariable() {
   int result = pthread_cond_destroy(&native_handle_);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
 
 void ConditionVariable::NotifyOne() {
   int result = pthread_cond_signal(&native_handle_);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
 
 void ConditionVariable::NotifyAll() {
   int result = pthread_cond_broadcast(&native_handle_);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
 }
 
@@ -62,7 +62,7 @@ void ConditionVariable::NotifyAll() {
 void ConditionVariable::Wait(Mutex* mutex) {
   mutex->AssertHeldAndUnmark();
   int result = pthread_cond_wait(&native_handle_, &mutex->native_handle());
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   USE(result);
   mutex->AssertUnheldAndMark();
 }
@@ -76,8 +76,8 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
   // Mac OS X provides pthread_cond_timedwait_relative_np(), which does
   // not depend on the real time clock, which is what you really WANT here!
   ts = rel_time.ToTimespec();
-  ASSERT_GE(ts.tv_sec, 0);
-  ASSERT_GE(ts.tv_nsec, 0);
+  DCHECK_GE(ts.tv_sec, 0);
+  DCHECK_GE(ts.tv_nsec, 0);
   result = pthread_cond_timedwait_relative_np(
       &native_handle_, &mutex->native_handle(), &ts);
 #else
@@ -89,14 +89,14 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
   // On Free/Net/OpenBSD and Linux with glibc we can change the time
   // source for pthread_cond_timedwait() to use the monotonic clock.
   result = clock_gettime(CLOCK_MONOTONIC, &ts);
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   Time now = Time::FromTimespec(ts);
 #else
   // The timeout argument to pthread_cond_timedwait() is in absolute time.
   Time now = Time::NowFromSystemTime();
 #endif
   Time end_time = now + rel_time;
-  ASSERT_GE(end_time, now);
+  DCHECK_GE(end_time, now);
   ts = end_time.ToTimespec();
   result = pthread_cond_timedwait(
       &native_handle_, &mutex->native_handle(), &ts);
@@ -105,7 +105,7 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
   if (result == ETIMEDOUT) {
     return false;
   }
-  ASSERT_EQ(0, result);
+  DCHECK_EQ(0, result);
   return true;
 }
 
@@ -113,12 +113,12 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 
 struct ConditionVariable::Event {
   Event() : handle_(::CreateEventA(NULL, true, false, NULL)) {
-    ASSERT(handle_ != NULL);
+    DCHECK(handle_ != NULL);
   }
 
   ~Event() {
     BOOL ok = ::CloseHandle(handle_);
-    ASSERT(ok);
+    DCHECK(ok);
     USE(ok);
   }
 
@@ -127,7 +127,7 @@ struct ConditionVariable::Event {
     if (result == WAIT_OBJECT_0) {
       return true;
     }
-    ASSERT(result == WAIT_TIMEOUT);
+    DCHECK(result == WAIT_TIMEOUT);
     return false;
   }
 
@@ -139,7 +139,7 @@ struct ConditionVariable::Event {
 
 
 ConditionVariable::NativeHandle::~NativeHandle() {
-  ASSERT(waitlist_ == NULL);
+  DCHECK(waitlist_ == NULL);
 
   while (freelist_ != NULL) {
     Event* event = freelist_;
@@ -165,7 +165,7 @@ ConditionVariable::Event* ConditionVariable::NativeHandle::Pre() {
 #ifdef DEBUG
   // The event must not be on the wait list.
   for (Event* we = waitlist_; we != NULL; we = we->next_) {
-    ASSERT_NE(event, we);
+    DCHECK_NE(event, we);
   }
 #endif
 
@@ -182,7 +182,7 @@ void ConditionVariable::NativeHandle::Post(Event* event, bool result) {
 
   // Remove the event from the wait list.
   for (Event** wep = &waitlist_;; wep = &(*wep)->next_) {
-    ASSERT_NE(NULL, *wep);
+    DCHECK_NE(NULL, *wep);
     if (*wep == event) {
       *wep = event->next_;
       break;
@@ -192,13 +192,13 @@ void ConditionVariable::NativeHandle::Post(Event* event, bool result) {
 #ifdef DEBUG
   // The event must not be on the free list.
   for (Event* fe = freelist_; fe != NULL; fe = fe->next_) {
-    ASSERT_NE(event, fe);
+    DCHECK_NE(event, fe);
   }
 #endif
 
   // Reset the event.
   BOOL ok = ::ResetEvent(event->handle_);
-  ASSERT(ok);
+  DCHECK(ok);
   USE(ok);
 
   // Insert the event into the free list.
@@ -208,7 +208,7 @@ void ConditionVariable::NativeHandle::Post(Event* event, bool result) {
   // Forward signals delivered after the timeout to the next waiting event.
   if (!result && event->notified_ && waitlist_ != NULL) {
     ok = ::SetEvent(waitlist_->handle_);
-    ASSERT(ok);
+    DCHECK(ok);
     USE(ok);
     waitlist_->notified_ = true;
   }
@@ -234,14 +234,14 @@ void ConditionVariable::NotifyOne() {
       continue;
     }
     int priority = GetThreadPriority(event->thread_);
-    ASSERT_NE(THREAD_PRIORITY_ERROR_RETURN, priority);
+    DCHECK_NE(THREAD_PRIORITY_ERROR_RETURN, priority);
     if (priority >= highest_priority) {
       highest_priority = priority;
       highest_event = event;
     }
   }
   if (highest_event != NULL) {
-    ASSERT(!highest_event->notified_);
+    DCHECK(!highest_event->notified_);
     ::SetEvent(highest_event->handle_);
     highest_event->notified_ = true;
   }
@@ -277,7 +277,7 @@ void ConditionVariable::Wait(Mutex* mutex) {
   mutex->Lock();
 
   // Release the wait event (we must have been notified).
-  ASSERT(event->notified_);
+  DCHECK(event->notified_);
   native_handle_.Post(event, true);
 }
 
@@ -311,7 +311,7 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
   mutex->Lock();
 
   // Release the wait event.
-  ASSERT(!result || event->notified_);
+  DCHECK(!result || event->notified_);
   native_handle_.Post(event, result);
 
   return result;

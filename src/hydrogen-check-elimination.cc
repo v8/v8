@@ -57,7 +57,7 @@ struct HCheckTableEntry {
         (state2 == CHECKED && state1 == CHECKED_STABLE)) {
       return CHECKED;
     }
-    ASSERT((state1 == CHECKED_STABLE && state2 == UNCHECKED_STABLE) ||
+    DCHECK((state1 == CHECKED_STABLE && state2 == UNCHECKED_STABLE) ||
            (state2 == CHECKED_STABLE && state1 == UNCHECKED_STABLE));
     return UNCHECKED_STABLE;
   }
@@ -177,7 +177,7 @@ class HCheckTable : public ZoneObject {
     HCheckTable* copy = new(zone) HCheckTable(phase_);
     for (int i = 0; i < size_; i++) {
       HCheckTableEntry* old_entry = &entries_[i];
-      ASSERT(old_entry->maps_->size() > 0);
+      DCHECK(old_entry->maps_->size() > 0);
       HCheckTableEntry* new_entry = &copy->entries_[i];
       new_entry->object_ = old_entry->object_;
       new_entry->maps_ = old_entry->maps_;
@@ -241,7 +241,7 @@ class HCheckTable : public ZoneObject {
             UniqueSet<Map>* maps = entry->maps_->Copy(zone);
             maps->Remove(cmp->map());
             entry->maps_ = maps;
-            ASSERT_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
+            DCHECK_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
           }
         }
         learned = true;
@@ -265,8 +265,8 @@ class HCheckTable : public ZoneObject {
           le->maps_ = re->maps_ = le->maps_->Intersect(re->maps_, zone);
           le->state_ = re->state_ = HCheckTableEntry::StateMerge(
               le->state_, re->state_);
-          ASSERT_NE(HCheckTableEntry::UNCHECKED_STABLE, le->state_);
-          ASSERT_NE(HCheckTableEntry::UNCHECKED_STABLE, re->state_);
+          DCHECK_NE(HCheckTableEntry::UNCHECKED_STABLE, le->state_);
+          DCHECK_NE(HCheckTableEntry::UNCHECKED_STABLE, re->state_);
         }
         learned = true;
       } else if (end->IsIsStringAndBranch()) {
@@ -281,14 +281,14 @@ class HCheckTable : public ZoneObject {
           } else {
             EnsureChecked(entry, object, cmp);
             entry->maps_ = entry->maps_->Intersect(string_maps(), zone);
-            ASSERT_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
+            DCHECK_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
           }
         } else {
           // Learn on the false branch of if(IsString(x)).
           if (entry != NULL) {
             EnsureChecked(entry, object, cmp);
             entry->maps_ = entry->maps_->Subtract(string_maps(), zone);
-            ASSERT_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
+            DCHECK_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
           }
         }
       }
@@ -344,7 +344,7 @@ class HCheckTable : public ZoneObject {
           if (this_entry->check_ != that_entry->check_) {
             this_entry->check_ = NULL;
           }
-          ASSERT(this_entry->maps_->size() > 0);
+          DCHECK(this_entry->maps_->size() > 0);
         }
       }
       if (compact) Compact();
@@ -367,13 +367,13 @@ class HCheckTable : public ZoneObject {
       if (entry->maps_->IsSubset(instr->maps())) {
         // The first check is more strict; the second is redundant.
         if (entry->check_ != NULL) {
-          ASSERT_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
+          DCHECK_NE(HCheckTableEntry::UNCHECKED_STABLE, entry->state_);
           TRACE(("Replacing redundant CheckMaps #%d at B%d with #%d\n",
               instr->id(), instr->block()->block_id(), entry->check_->id()));
           instr->DeleteAndReplaceWith(entry->check_);
           INC_STAT(redundant_);
         } else if (entry->state_ == HCheckTableEntry::UNCHECKED_STABLE) {
-          ASSERT_EQ(NULL, entry->check_);
+          DCHECK_EQ(NULL, entry->check_);
           TRACE(("Marking redundant CheckMaps #%d at B%d as stability check\n",
                  instr->id(), instr->block()->block_id()));
           instr->set_maps(entry->maps_->Copy(graph->zone()));
@@ -413,7 +413,7 @@ class HCheckTable : public ZoneObject {
             // There is a check in the same block so replace it with a more
             // strict check and eliminate the second check entirely.
             HCheckMaps* check = HCheckMaps::cast(entry->check_);
-            ASSERT(!check->IsStabilityCheck());
+            DCHECK(!check->IsStabilityCheck());
             TRACE(("CheckMaps #%d at B%d narrowed\n", check->id(),
                 check->block()->block_id()));
             // Update map set and ensure that the check is alive.
@@ -495,7 +495,7 @@ class HCheckTable : public ZoneObject {
       // Check if we introduce field maps here.
       MapSet maps = instr->maps();
       if (maps != NULL) {
-        ASSERT_NE(0, maps->size());
+        DCHECK_NE(0, maps->size());
         Insert(instr, NULL, maps, HCheckTableEntry::UNCHECKED_STABLE);
       }
       return;
@@ -666,7 +666,7 @@ class HCheckTable : public ZoneObject {
     bool compact = false;
     for (int i = 0; i < size_; ++i) {
       HCheckTableEntry* entry = &entries_[i];
-      ASSERT_NOT_NULL(entry->object_);
+      DCHECK_NOT_NULL(entry->object_);
       if (entry->state_ == HCheckTableEntry::CHECKED) {
         entry->object_ = NULL;
         compact = true;
@@ -684,14 +684,14 @@ class HCheckTable : public ZoneObject {
     bool compact = false;
     for (int i = 0; i < size_; i++) {
       HCheckTableEntry* entry = &entries_[i];
-      ASSERT(entry->object_ != NULL);
+      DCHECK(entry->object_ != NULL);
       if (phase_->aliasing_->MayAlias(entry->object_, object)) {
         entry->object_ = NULL;
         compact = true;
       }
     }
     if (compact) Compact();
-    ASSERT(Find(object) == NULL);
+    DCHECK(Find(object) == NULL);
   }
 
   void Compact() {
@@ -706,8 +706,8 @@ class HCheckTable : public ZoneObject {
         size_--;
       }
     }
-    ASSERT(size_ == dest);
-    ASSERT(cursor_ <= size_);
+    DCHECK(size_ == dest);
+    DCHECK(cursor_ <= size_);
 
     // Preserve the age of the entries by moving the older entries to the end.
     if (cursor_ == size_) return;  // Cursor already points at end.
@@ -734,7 +734,7 @@ class HCheckTable : public ZoneObject {
 
     for (int i = 0; i < table->size_; i++) {
       HCheckTableEntry* entry = &table->entries_[i];
-      ASSERT(entry->object_ != NULL);
+      DCHECK(entry->object_ != NULL);
       PrintF("  checkmaps-table @%d: %s #%d ", i,
              entry->object_->IsPhi() ? "phi" : "object", entry->object_->id());
       if (entry->check_ != NULL) {
@@ -755,7 +755,7 @@ class HCheckTable : public ZoneObject {
     for (int i = size_ - 1; i >= 0; i--) {
       // Search from most-recently-inserted to least-recently-inserted.
       HCheckTableEntry* entry = &entries_[i];
-      ASSERT(entry->object_ != NULL);
+      DCHECK(entry->object_ != NULL);
       if (phase_->aliasing_->MustAlias(entry->object_, object)) return entry;
     }
     return NULL;
@@ -772,7 +772,7 @@ class HCheckTable : public ZoneObject {
               HInstruction* check,
               MapSet maps,
               HCheckTableEntry::State state) {
-    ASSERT(state != HCheckTableEntry::UNCHECKED_STABLE || check == NULL);
+    DCHECK(state != HCheckTableEntry::UNCHECKED_STABLE || check == NULL);
     HCheckTableEntry* entry = &entries_[cursor_++];
     entry->object_ = object;
     entry->check_ = check;

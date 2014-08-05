@@ -93,22 +93,22 @@ inline int NodeProperties::PastControlIndex(Node* node) {
 // Input accessors.
 
 inline Node* NodeProperties::GetValueInput(Node* node, int index) {
-  ASSERT(0 <= index && index < GetValueInputCount(node));
+  DCHECK(0 <= index && index < GetValueInputCount(node));
   return node->InputAt(FirstValueIndex(node) + index);
 }
 
 inline Node* NodeProperties::GetContextInput(Node* node) {
-  ASSERT(GetContextInputCount(node) > 0);
+  DCHECK(GetContextInputCount(node) > 0);
   return node->InputAt(FirstContextIndex(node));
 }
 
 inline Node* NodeProperties::GetEffectInput(Node* node, int index) {
-  ASSERT(0 <= index && index < GetEffectInputCount(node));
+  DCHECK(0 <= index && index < GetEffectInputCount(node));
   return node->InputAt(FirstEffectIndex(node) + index);
 }
 
 inline Node* NodeProperties::GetControlInput(Node* node, int index) {
-  ASSERT(0 <= index && index < GetControlInputCount(node));
+  DCHECK(0 <= index && index < GetControlInputCount(node));
   return node->InputAt(FirstControlIndex(node) + index);
 }
 
@@ -208,7 +208,7 @@ inline bool NodeProperties::IsScheduleRoot(Node* node) {
 
 inline void NodeProperties::ReplaceEffectInput(Node* node, Node* effect,
                                                int index) {
-  ASSERT(index < GetEffectInputCount(node));
+  DCHECK(index < GetEffectInputCount(node));
   return node->ReplaceInput(
       GetValueInputCount(node) + GetContextInputCount(node) + index, effect);
 }

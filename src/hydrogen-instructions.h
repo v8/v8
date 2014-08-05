@@ -191,7 +191,7 @@ class OStream;
 #define DECLARE_ABSTRACT_INSTRUCTION(type)                              \
   virtual bool Is##type() const V8_FINAL V8_OVERRIDE { return true; }   \
   static H##type* cast(HValue* value) {                                 \
-    ASSERT(value->Is##type());                                          \
+    DCHECK(value->Is##type());                                          \
     return reinterpret_cast<H##type*>(value);                           \
   }
 
@@ -200,7 +200,7 @@ class OStream;
   virtual LInstruction* CompileToLithium(               \
      LChunkBuilder* builder) V8_FINAL V8_OVERRIDE;      \
   static H##type* cast(HValue* value) {                 \
-    ASSERT(value->Is##type());                          \
+    DCHECK(value->Is##type());                          \
     return reinterpret_cast<H##type*>(value);           \
   }                                                     \
   virtual Opcode opcode() const V8_FINAL V8_OVERRIDE {  \
@@ -321,12 +321,12 @@ class HUseIterator V8_FINAL BASE_EMBEDDED {
   void Advance();
 
   HValue* value() {
-    ASSERT(!Done());
+    DCHECK(!Done());
     return value_;
   }
 
   int index() {
-    ASSERT(!Done());
+    DCHECK(!Done());
     return index_;
   }
 
@@ -358,8 +358,8 @@ enum GVNFlag {
 
 
 static inline GVNFlag GVNFlagFromInt(int i) {
-  ASSERT(i >= 0);
-  ASSERT(i < kNumberOfFlags);
+  DCHECK(i >= 0);
+  DCHECK(i < kNumberOfFlags);
   return static_cast<GVNFlag>(i);
 }
 
@@ -585,8 +585,8 @@ class HValue : public ZoneObject {
 
   Representation representation() const { return representation_; }
   void ChangeRepresentation(Representation r) {
-    ASSERT(CheckFlag(kFlexibleRepresentation));
-    ASSERT(!CheckFlag(kCannotBeTagged) || !r.IsTagged());
+    DCHECK(CheckFlag(kFlexibleRepresentation));
+    DCHECK(!CheckFlag(kCannotBeTagged) || !r.IsTagged());
     RepresentationChanged(r);
     representation_ = r;
     if (r.IsTagged()) {
@@ -610,7 +610,7 @@ class HValue : public ZoneObject {
 
   HType type() const { return type_; }
   void set_type(HType new_type) {
-    ASSERT(new_type.IsSubtypeOf(type_));
+    DCHECK(new_type.IsSubtypeOf(type_));
     type_ = new_type;
   }
 
@@ -730,11 +730,11 @@ class HValue : public ZoneObject {
   }
 
   Range* range() const {
-    ASSERT(!range_poisoned_);
+    DCHECK(!range_poisoned_);
     return range_;
   }
   bool HasRange() const {
-    ASSERT(!range_poisoned_);
+    DCHECK(!range_poisoned_);
     return range_ != NULL;
   }
 #ifdef DEBUG
@@ -861,12 +861,12 @@ class HValue : public ZoneObject {
   virtual void DeleteFromGraph() = 0;
   virtual void InternalSetOperandAt(int index, HValue* value) = 0;
   void clear_block() {
-    ASSERT(block_ != NULL);
+    DCHECK(block_ != NULL);
     block_ = NULL;
   }
 
   void set_representation(Representation r) {
-    ASSERT(representation_.IsNone() && !r.IsNone());
+    DCHECK(representation_.IsNone() && !r.IsNone());
     representation_ = r;
   }
 
@@ -1089,7 +1089,7 @@ class HPositionInfo {
     data_ = reinterpret_cast<intptr_t>(positions);
     set_position(pos);
 
-    ASSERT(has_operand_positions());
+    DCHECK(has_operand_positions());
   }
 
   HSourcePosition operand_position(int idx) const {
@@ -1108,7 +1108,7 @@ class HPositionInfo {
   static const intptr_t kFirstOperandPosIndex = 1;
 
   HSourcePosition* operand_position_slot(int idx) const {
-    ASSERT(has_operand_positions());
+    DCHECK(has_operand_positions());
     return &(operand_positions()[kFirstOperandPosIndex + idx]);
   }
 
@@ -1117,7 +1117,7 @@ class HPositionInfo {
   }
 
   HSourcePosition* operand_positions() const {
-    ASSERT(has_operand_positions());
+    DCHECK(has_operand_positions());
     return reinterpret_cast<HSourcePosition*>(data_);
   }
 
@@ -1127,12 +1127,12 @@ class HPositionInfo {
     return (val & kPositionTag) != 0;
   }
   static intptr_t UntagPosition(intptr_t val) {
-    ASSERT(IsTaggedPosition(val));
+    DCHECK(IsTaggedPosition(val));
     return val >> kPositionShift;
   }
   static intptr_t TagPosition(intptr_t val) {
     const intptr_t result = (val << kPositionShift) | kPositionTag;
-    ASSERT(UntagPosition(result) == val);
+    DCHECK(UntagPosition(result) == val);
     return result;
   }
 
@@ -1173,8 +1173,8 @@ class HInstruction : public HValue {
     return !position().IsUnknown();
   }
   void set_position(HSourcePosition position) {
-    ASSERT(!has_position());
-    ASSERT(!position.IsUnknown());
+    DCHECK(!has_position());
+    DCHECK(!position.IsUnknown());
     position_.set_position(position);
   }
 
@@ -1183,7 +1183,7 @@ class HInstruction : public HValue {
     return pos.IsUnknown() ? position() : pos;
   }
   void set_operand_position(Zone* zone, int index, HSourcePosition pos) {
-    ASSERT(0 <= index && index < OperandCount());
+    DCHECK(0 <= index && index < OperandCount());
     position_.ensure_storage_for_operand_positions(zone, OperandCount());
     position_.set_operand_position(index, pos);
   }
@@ -1217,7 +1217,7 @@ class HInstruction : public HValue {
 
  private:
   void InitializeAsFirst(HBasicBlock* block) {
-    ASSERT(!IsLinked());
+    DCHECK(!IsLinked());
     SetBlock(block);
   }
 
@@ -1657,9 +1657,9 @@ class HChange V8_FINAL : public HUnaryOperation {
           bool is_truncating_to_smi,
           bool is_truncating_to_int32)
       : HUnaryOperation(value) {
-    ASSERT(!value->representation().IsNone());
-    ASSERT(!to.IsNone());
-    ASSERT(!value->representation().Equals(to));
+    DCHECK(!value->representation().IsNone());
+    DCHECK(!to.IsNone());
+    DCHECK(!value->representation().Equals(to));
     set_representation(to);
     SetFlag(kUseGVN);
     SetFlag(kCanOverflow);
@@ -1818,14 +1818,14 @@ class HSimulate V8_FINAL : public HInstruction {
   bool HasAstId() const { return !ast_id_.IsNone(); }
   BailoutId ast_id() const { return ast_id_; }
   void set_ast_id(BailoutId id) {
-    ASSERT(!HasAstId());
+    DCHECK(!HasAstId());
     ast_id_ = id;
   }
 
   int pop_count() const { return pop_count_; }
   const ZoneList<HValue*>* values() const { return &values_; }
   int GetAssignedIndexAt(int index) const {
-    ASSERT(HasAssignedIndexAt(index));
+    DCHECK(HasAssignedIndexAt(index));
     return assigned_indexes_[index];
   }
   bool HasAssignedIndexAt(int index) const {
@@ -1923,8 +1923,8 @@ class HEnvironmentMarker V8_FINAL : public HTemplateInstruction<1> {
 
 #ifdef DEBUG
   void set_closure(Handle<JSFunction> closure) {
-    ASSERT(closure_.is_null());
-    ASSERT(!closure.is_null());
+    DCHECK(closure_.is_null());
+    DCHECK(!closure.is_null());
     closure_ = closure;
   }
   Handle<JSFunction> closure() const { return closure_; }
@@ -2289,7 +2289,7 @@ class HCallJSFunction V8_FINAL : public HCall<1> {
 
   virtual Representation RequiredInputRepresentation(
       int index) V8_FINAL V8_OVERRIDE {
-    ASSERT(index == 0);
+    DCHECK(index == 0);
     return Representation::Tagged();
   }
 
@@ -2325,7 +2325,7 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
       int argument_count,
       const InterfaceDescriptor* descriptor,
       const Vector<HValue*>& operands) {
-    ASSERT(operands.length() == descriptor->GetEnvironmentLength());
+    DCHECK(operands.length() == descriptor->GetEnvironmentLength());
     HCallWithDescriptor* res =
         new(zone) HCallWithDescriptor(target, argument_count,
                                       descriptor, operands, zone);
@@ -2345,7 +2345,7 @@ class HCallWithDescriptor V8_FINAL : public HInstruction {
       return Representation::Tagged();
     } else {
       int par_index = index - 1;
-      ASSERT(par_index < descriptor_->GetEnvironmentLength());
+      DCHECK(par_index < descriptor_->GetEnvironmentLength());
       return descriptor_->GetParameterRepresentation(par_index);
     }
   }
@@ -2812,7 +2812,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
       : HTemplateInstruction<2>(HType::HeapObject()), maps_(maps),
         has_migration_target_(false), is_stability_check_(false),
         maps_are_stable_(maps_are_stable) {
-    ASSERT_NE(0, maps->size());
+    DCHECK_NE(0, maps->size());
     SetOperandAt(0, value);
     // Use the object value for the dependency.
     SetOperandAt(1, value);
@@ -2826,7 +2826,7 @@ class HCheckMaps V8_FINAL : public HTemplateInstruction<2> {
       : HTemplateInstruction<2>(HType::HeapObject()), maps_(maps),
         has_migration_target_(false), is_stability_check_(false),
         maps_are_stable_(true) {
-    ASSERT_NE(0, maps->size());
+    DCHECK_NE(0, maps->size());
     SetOperandAt(0, value);
     // Use the object value for the dependency if NULL is passed.
     SetOperandAt(1, typecheck ? typecheck : value);
@@ -3065,7 +3065,7 @@ class InductionVariableData V8_FINAL : public ZoneObject {
     InductionVariableCheck* next() { return next_; }
     bool HasUpperLimit() { return upper_limit_ >= 0; }
     int32_t upper_limit() {
-      ASSERT(HasUpperLimit());
+      DCHECK(HasUpperLimit());
       return upper_limit_;
     }
     void set_upper_limit(int32_t upper_limit) {
@@ -3268,7 +3268,7 @@ class HPhi V8_FINAL : public HValue {
       non_phi_uses_[i] = 0;
       indirect_uses_[i] = 0;
     }
-    ASSERT(merged_index >= 0 || merged_index == kInvalidMergedIndex);
+    DCHECK(merged_index >= 0 || merged_index == kInvalidMergedIndex);
     SetFlag(kFlexibleRepresentation);
     SetFlag(kAllowUndefinedAsNaN);
   }
@@ -3311,7 +3311,7 @@ class HPhi V8_FINAL : public HValue {
         induction_variable_data_->limit() != NULL;
   }
   void DetectInductionVariable() {
-    ASSERT(induction_variable_data_ == NULL);
+    DCHECK(induction_variable_data_ == NULL);
     induction_variable_data_ = InductionVariableData::ExaminePhi(this);
   }
 
@@ -3352,7 +3352,7 @@ class HPhi V8_FINAL : public HValue {
   int phi_id() { return phi_id_; }
 
   static HPhi* cast(HValue* value) {
-    ASSERT(value->IsPhi());
+    DCHECK(value->IsPhi());
     return reinterpret_cast<HPhi*>(value);
   }
   virtual Opcode opcode() const V8_OVERRIDE { return HValue::kPhi; }
@@ -3459,8 +3459,8 @@ class HCapturedObject V8_FINAL : public HDematerializedObject {
   HValue* map_value() const { return values()->first(); }
 
   void ReuseSideEffectsFromStore(HInstruction* store) {
-    ASSERT(store->HasObservableSideEffects());
-    ASSERT(store->IsStoreNamedField());
+    DCHECK(store->HasObservableSideEffects());
+    DCHECK(store->IsStoreNamedField());
     changes_flags_.Add(store->ChangesFlags());
   }
 
@@ -3535,7 +3535,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
           isolate->factory()->NewNumber(double_value_, TENURED));
     }
     AllowDeferredHandleDereference smi_check;
-    ASSERT(has_int32_value_ || !object_.handle()->IsSmi());
+    DCHECK(has_int32_value_ || !object_.handle()->IsSmi());
     return object_.handle();
   }
 
@@ -3579,13 +3579,13 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   Maybe<HConstant*> CopyToTruncatedNumber(Zone* zone);
   bool HasInteger32Value() const { return has_int32_value_; }
   int32_t Integer32Value() const {
-    ASSERT(HasInteger32Value());
+    DCHECK(HasInteger32Value());
     return int32_value_;
   }
   bool HasSmiValue() const { return has_smi_value_; }
   bool HasDoubleValue() const { return has_double_value_; }
   double DoubleValue() const {
-    ASSERT(HasDoubleValue());
+    DCHECK(HasDoubleValue());
     return double_value_;
   }
   bool IsTheHole() const {
@@ -3596,7 +3596,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   }
   bool HasNumberValue() const { return has_double_value_; }
   int32_t NumberValueAsInteger32() const {
-    ASSERT(HasNumberValue());
+    DCHECK(HasNumberValue());
     // Irrespective of whether a numeric HConstant can be safely
     // represented as an int32, we store the (in some cases lossy)
     // representation of the number in int32_value_.
@@ -3604,11 +3604,11 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
   }
   bool HasStringValue() const {
     if (has_double_value_ || has_int32_value_) return false;
-    ASSERT(!object_.handle().is_null());
+    DCHECK(!object_.handle().is_null());
     return instance_type_ < FIRST_NONSTRING_TYPE;
   }
   Handle<String> StringValue() const {
-    ASSERT(HasStringValue());
+    DCHECK(HasStringValue());
     return Handle<String>::cast(object_.handle());
   }
   bool HasInternalizedStringValue() const {
@@ -3629,17 +3629,17 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
 
   bool HasMapValue() const { return instance_type_ == MAP_TYPE; }
   Unique<Map> MapValue() const {
-    ASSERT(HasMapValue());
+    DCHECK(HasMapValue());
     return Unique<Map>::cast(GetUnique());
   }
   bool HasStableMapValue() const {
-    ASSERT(HasMapValue() || !has_stable_map_value_);
+    DCHECK(HasMapValue() || !has_stable_map_value_);
     return has_stable_map_value_;
   }
 
   bool HasObjectMap() const { return !object_map_.IsNull(); }
   Unique<Map> ObjectMap() const {
-    ASSERT(HasObjectMap());
+    DCHECK(HasObjectMap());
     return object_map_;
   }
 
@@ -3651,14 +3651,14 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
     } else if (has_external_reference_value_) {
       return reinterpret_cast<intptr_t>(external_reference_value_.address());
     } else {
-      ASSERT(!object_.handle().is_null());
+      DCHECK(!object_.handle().is_null());
       return object_.Hashcode();
     }
   }
 
   virtual void FinalizeUniqueness() V8_OVERRIDE {
     if (!has_double_value_ && !has_external_reference_value_) {
-      ASSERT(!object_.handle().is_null());
+      DCHECK(!object_.handle().is_null());
       object_ = Unique<Object>(object_.handle());
     }
   }
@@ -3690,7 +3690,7 @@ class HConstant V8_FINAL : public HTemplateInstruction<0> {
           other_constant->has_external_reference_value_) {
         return false;
       }
-      ASSERT(!object_.handle().is_null());
+      DCHECK(!object_.handle().is_null());
       return other_constant->object_ == object_;
     }
   }
@@ -3770,7 +3770,7 @@ class HBinaryOperation : public HTemplateInstruction<3> {
                    HType type = HType::Tagged())
       : HTemplateInstruction<3>(type),
         observed_output_representation_(Representation::None()) {
-    ASSERT(left != NULL && right != NULL);
+    DCHECK(left != NULL && right != NULL);
     SetOperandAt(0, context);
     SetOperandAt(1, left);
     SetOperandAt(2, right);
@@ -3806,7 +3806,7 @@ class HBinaryOperation : public HTemplateInstruction<3> {
   }
 
   void set_observed_input_representation(int index, Representation rep) {
-    ASSERT(index >= 1 && index <= 2);
+    DCHECK(index >= 1 && index <= 2);
     observed_input_representation_[index - 1] = rep;
   }
 
@@ -4033,7 +4033,7 @@ class HBoundsCheck V8_FINAL : public HTemplateInstruction<2> {
 
   void ApplyIndexChange();
   bool DetectCompoundIndex() {
-    ASSERT(base() == NULL);
+    DCHECK(base() == NULL);
 
     DecompositionResult decomposition;
     if (index()->TryDecompose(&decomposition)) {
@@ -4261,7 +4261,7 @@ class HCompareGeneric V8_FINAL : public HBinaryOperation {
                   Token::Value token)
       : HBinaryOperation(context, left, right, HType::Boolean()),
         token_(token) {
-    ASSERT(Token::IsCompareOp(token));
+    DCHECK(Token::IsCompareOp(token));
     set_representation(Representation::Tagged());
     SetAllSideEffects();
   }
@@ -4319,7 +4319,7 @@ class HCompareNumericAndBranch : public HTemplateControlInstruction<2, 2> {
                            HBasicBlock* false_target = NULL)
       : token_(token) {
     SetFlag(kFlexibleRepresentation);
-    ASSERT(Token::IsCompareOp(token));
+    DCHECK(Token::IsCompareOp(token));
     SetOperandAt(0, left);
     SetOperandAt(1, right);
     SetSuccessorAt(0, true_target);
@@ -4558,7 +4558,7 @@ class HStringCompareAndBranch : public HTemplateControlInstruction<2, 3> {
                           HValue* right,
                           Token::Value token)
       : token_(token) {
-    ASSERT(Token::IsCompareOp(token));
+    DCHECK(Token::IsCompareOp(token));
     SetOperandAt(0, context);
     SetOperandAt(1, left);
     SetOperandAt(2, right);
@@ -4609,7 +4609,7 @@ class HHasInstanceTypeAndBranch V8_FINAL : public HUnaryControlInstruction {
       : HUnaryControlInstruction(value, NULL, NULL), from_(type), to_(type) { }
   HHasInstanceTypeAndBranch(HValue* value, InstanceType from, InstanceType to)
       : HUnaryControlInstruction(value, NULL, NULL), from_(from), to_(to) {
-    ASSERT(to == LAST_TYPE);  // Others not implemented yet in backend.
+    DCHECK(to == LAST_TYPE);  // Others not implemented yet in backend.
   }
 
   InstanceType from_;
@@ -5092,7 +5092,7 @@ class HBitwise V8_FINAL : public HBitwiseBinaryOperation {
            HValue* right)
       : HBitwiseBinaryOperation(context, left, right),
         op_(op) {
-    ASSERT(op == Token::BIT_AND || op == Token::BIT_OR || op == Token::BIT_XOR);
+    DCHECK(op == Token::BIT_AND || op == Token::BIT_OR || op == Token::BIT_XOR);
     // BIT_AND with a smi-range positive value will always unset the
     // entire sign-extension of the smi-sign.
     if (op == Token::BIT_AND &&
@@ -5437,13 +5437,13 @@ class HLoadGlobalGeneric V8_FINAL : public HTemplateInstruction<2> {
   Handle<String> name() const { return name_; }
   bool for_typeof() const { return for_typeof_; }
   int slot() const {
-    ASSERT(FLAG_vector_ics &&
+    DCHECK(FLAG_vector_ics &&
            slot_ != FeedbackSlotInterface::kInvalidFeedbackSlot);
     return slot_;
   }
   Handle<FixedArray> feedback_vector() const { return feedback_vector_; }
   void SetVectorAndSlot(Handle<FixedArray> vector, int slot) {
-    ASSERT(FLAG_vector_ics);
+    DCHECK(FLAG_vector_ics);
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -5503,7 +5503,7 @@ class HAllocate V8_FINAL : public HTemplateInstruction<2> {
   bool has_size_upper_bound() { return size_upper_bound_ != NULL; }
   HConstant* size_upper_bound() { return size_upper_bound_; }
   void set_size_upper_bound(HConstant* value) {
-    ASSERT(size_upper_bound_ == NULL);
+    DCHECK(size_upper_bound_ == NULL);
     size_upper_bound_ = value;
   }
 
@@ -5713,8 +5713,8 @@ class HInnerAllocatedObject V8_FINAL : public HTemplateInstruction<2> {
   HInnerAllocatedObject(HValue* value,
                         HValue* offset,
                         HType type) : HTemplateInstruction<2>(type) {
-    ASSERT(value->IsAllocate());
-    ASSERT(type.IsHeapObject());
+    DCHECK(value->IsAllocate());
+    DCHECK(type.IsHeapObject());
     SetOperandAt(0, value);
     SetOperandAt(1, offset);
     set_representation(Representation::Tagged());
@@ -6280,12 +6280,12 @@ class HObjectAccess V8_FINAL {
              OffsetField::encode(offset)),
       name_(name) {
     // assert that the fields decode correctly
-    ASSERT(this->offset() == offset);
-    ASSERT(this->portion() == portion);
-    ASSERT(this->immutable() == immutable);
-    ASSERT(this->existing_inobject_property() == existing_inobject_property);
-    ASSERT(RepresentationField::decode(value_) == representation.kind());
-    ASSERT(!this->existing_inobject_property() || IsInobject());
+    DCHECK(this->offset() == offset);
+    DCHECK(this->portion() == portion);
+    DCHECK(this->immutable() == immutable);
+    DCHECK(this->existing_inobject_property() == existing_inobject_property);
+    DCHECK(RepresentationField::decode(value_) == representation.kind());
+    DCHECK(!this->existing_inobject_property() || IsInobject());
   }
 
   class PortionField : public BitField<Portion, 0, 3> {};
@@ -6320,7 +6320,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
 
   HValue* object() const { return OperandAt(0); }
   HValue* dependency() const {
-    ASSERT(HasDependency());
+    DCHECK(HasDependency());
     return OperandAt(1);
   }
   bool HasDependency() const { return OperandAt(0) != OperandAt(1); }
@@ -6373,7 +6373,7 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
                   HValue* dependency,
                   HObjectAccess access)
       : access_(access), maps_(NULL) {
-    ASSERT_NOT_NULL(object);
+    DCHECK_NOT_NULL(object);
     SetOperandAt(0, object);
     SetOperandAt(1, dependency ? dependency : object);
 
@@ -6409,15 +6409,15 @@ class HLoadNamedField V8_FINAL : public HTemplateInstruction<2> {
                   const UniqueSet<Map>* maps,
                   HType type)
       : HTemplateInstruction<2>(type), access_(access), maps_(maps) {
-    ASSERT_NOT_NULL(maps);
-    ASSERT_NE(0, maps->size());
+    DCHECK_NOT_NULL(maps);
+    DCHECK_NE(0, maps->size());
 
-    ASSERT_NOT_NULL(object);
+    DCHECK_NOT_NULL(object);
     SetOperandAt(0, object);
     SetOperandAt(1, dependency ? dependency : object);
 
-    ASSERT(access.representation().IsHeapObject());
-    ASSERT(type.IsHeapObject());
+    DCHECK(access.representation().IsHeapObject());
+    DCHECK(type.IsHeapObject());
     set_representation(Representation::Tagged());
 
     access.SetGVNFlags(this, LOAD);
@@ -6440,13 +6440,13 @@ class HLoadNamedGeneric V8_FINAL : public HTemplateInstruction<2> {
   Handle<Object> name() const { return name_; }
 
   int slot() const {
-    ASSERT(FLAG_vector_ics &&
+    DCHECK(FLAG_vector_ics &&
            slot_ != FeedbackSlotInterface::kInvalidFeedbackSlot);
     return slot_;
   }
   Handle<FixedArray> feedback_vector() const { return feedback_vector_; }
   void SetVectorAndSlot(Handle<FixedArray> vector, int slot) {
-    ASSERT(FLAG_vector_ics);
+    DCHECK(FLAG_vector_ics);
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -6547,7 +6547,7 @@ class HLoadKeyed V8_FINAL
   HValue* elements() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
   HValue* dependency() const {
-    ASSERT(HasDependency());
+    DCHECK(HasDependency());
     return OperandAt(2);
   }
   bool HasDependency() const { return OperandAt(0) != OperandAt(2); }
@@ -6628,7 +6628,7 @@ class HLoadKeyed V8_FINAL
     if (!is_typed_elements()) {
       // I can detect the case between storing double (holey and fast) and
       // smi/object by looking at elements_kind_.
-      ASSERT(IsFastSmiOrObjectElementsKind(elements_kind) ||
+      DCHECK(IsFastSmiOrObjectElementsKind(elements_kind) ||
              IsFastDoubleElementsKind(elements_kind));
 
       if (IsFastSmiOrObjectElementsKind(elements_kind)) {
@@ -6718,13 +6718,13 @@ class HLoadKeyedGeneric V8_FINAL : public HTemplateInstruction<3> {
   HValue* key() const { return OperandAt(1); }
   HValue* context() const { return OperandAt(2); }
   int slot() const {
-    ASSERT(FLAG_vector_ics &&
+    DCHECK(FLAG_vector_ics &&
            slot_ != FeedbackSlotInterface::kInvalidFeedbackSlot);
     return slot_;
   }
   Handle<FixedArray> feedback_vector() const { return feedback_vector_; }
   void SetVectorAndSlot(Handle<FixedArray> vector, int slot) {
-    ASSERT(FLAG_vector_ics);
+    DCHECK(FLAG_vector_ics);
     feedback_vector_ = vector;
     slot_ = slot;
   }
@@ -6807,7 +6807,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   }
   virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
-    ASSERT(side_effect == kNewSpacePromotion);
+    DCHECK(side_effect == kNewSpacePromotion);
     if (!FLAG_use_write_barrier_elimination) return false;
     dominator_ = dominator;
     return false;
@@ -6833,14 +6833,14 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
   }
 
   void SetTransition(HConstant* transition) {
-    ASSERT(!has_transition());  // Only set once.
+    DCHECK(!has_transition());  // Only set once.
     SetOperandAt(2, transition);
     has_transition_ = true;
     SetChangesFlag(kMaps);
   }
 
   bool NeedsWriteBarrier() const {
-    ASSERT(!field_representation().IsDouble() || !has_transition());
+    DCHECK(!field_representation().IsDouble() || !has_transition());
     if (field_representation().IsDouble()) return false;
     if (field_representation().IsSmi()) return false;
     if (field_representation().IsInteger32()) return false;
@@ -6896,7 +6896,7 @@ class HStoreNamedField V8_FINAL : public HTemplateInstruction<3> {
         store_mode_(store_mode) {
     // Stores to a non existing in-object property are allowed only to the
     // newly allocated objects (via HAllocate or HInnerAllocatedObject).
-    ASSERT(!access.IsInobject() || access.existing_inobject_property() ||
+    DCHECK(!access.IsInobject() || access.existing_inobject_property() ||
            obj->IsAllocate() || obj->IsInnerAllocatedObject());
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
@@ -6973,7 +6973,7 @@ class HStoreKeyed V8_FINAL
           OperandAt(1)->representation());
     }
 
-    ASSERT_EQ(index, 2);
+    DCHECK_EQ(index, 2);
     return RequiredValueRepresentation(elements_kind_, store_mode_);
   }
 
@@ -7046,7 +7046,7 @@ class HStoreKeyed V8_FINAL
 
   virtual bool HandleSideEffectDominator(GVNFlag side_effect,
                                          HValue* dominator) V8_OVERRIDE {
-    ASSERT(side_effect == kNewSpacePromotion);
+    DCHECK(side_effect == kNewSpacePromotion);
     dominator_ = dominator;
     return false;
   }
@@ -7537,10 +7537,10 @@ class HToFastProperties V8_FINAL : public HUnaryOperation {
     // This instruction is not marked as kChangesMaps, but does
     // change the map of the input operand. Use it only when creating
     // object literals via a runtime call.
-    ASSERT(value->IsCallRuntime());
+    DCHECK(value->IsCallRuntime());
 #ifdef DEBUG
     const Runtime::Function* function = HCallRuntime::cast(value)->function();
-    ASSERT(function->function_id == Runtime::kCreateObjectLiteral);
+    DCHECK(function->function_id == Runtime::kCreateObjectLiteral);
 #endif
   }
 
@@ -7598,7 +7598,7 @@ class HSeqStringGetChar V8_FINAL : public HTemplateInstruction<2> {
     if (encoding() == String::ONE_BYTE_ENCODING) {
       return new(zone) Range(0, String::kMaxOneByteCharCode);
     } else {
-      ASSERT_EQ(String::TWO_BYTE_ENCODING, encoding());
+      DCHECK_EQ(String::TWO_BYTE_ENCODING, encoding());
       return  new(zone) Range(0, String::kMaxUtf16CodeUnit);
     }
   }

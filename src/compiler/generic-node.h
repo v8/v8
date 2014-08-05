@@ -49,7 +49,7 @@ class GenericNode : public B {
 
   int UseCount() { return use_count_; }
   S* UseAt(int index) {
-    ASSERT(index < use_count_);
+    DCHECK(index < use_count_);
     Use* current = first_use_;
     while (index-- != 0) {
       current = current->next;
@@ -168,7 +168,7 @@ class GenericNode<B, S>::Edge {
   S* to() const { return static_cast<S*>(input_->to); }
   int index() const {
     int index = input_->use->input_index;
-    ASSERT(index < input_->use->from->input_count_);
+    DCHECK(index < input_->use->from->input_count_);
     return index;
   }
 
@@ -199,8 +199,8 @@ class GenericNode<B, S>::Inputs::iterator {
   }
   bool operator!=(const iterator& other) const { return !(other == *this); }
   iterator& operator++() {
-    ASSERT(node_ != NULL);
-    ASSERT(index_ < node_->input_count_);
+    DCHECK(node_ != NULL);
+    DCHECK(index_ < node_->input_count_);
     ++index_;
     return *this;
   }
@@ -235,13 +235,13 @@ class GenericNode<B, S>::Uses::iterator {
   bool operator==(const iterator& other) { return other.current_ == current_; }
   bool operator!=(const iterator& other) { return other.current_ != current_; }
   iterator& operator++() {
-    ASSERT(current_ != NULL);
+    DCHECK(current_ != NULL);
     index_++;
     current_ = current_->next;
     return *this;
   }
   iterator& UpdateToAndIncrement(GenericNode<B, S>* new_to) {
-    ASSERT(current_ != NULL);
+    DCHECK(current_ != NULL);
     index_++;
     typename GenericNode<B, S>::Input* input = CurrentInput();
     current_ = current_->next;

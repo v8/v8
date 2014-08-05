@@ -30,12 +30,12 @@ class Frame {
   inline int GetDoubleSpillSlotCount() { return double_spill_slot_count_; }
 
   void SetAllocatedRegisters(BitVector* regs) {
-    ASSERT(allocated_registers_ == NULL);
+    DCHECK(allocated_registers_ == NULL);
     allocated_registers_ = regs;
   }
 
   void SetAllocatedDoubleRegisters(BitVector* regs) {
-    ASSERT(allocated_double_registers_ == NULL);
+    DCHECK(allocated_double_registers_ == NULL);
     allocated_double_registers_ = regs;
   }
 
@@ -44,7 +44,7 @@ class Frame {
   }
 
   void SetRegisterSaveAreaSize(int size) {
-    ASSERT(IsAligned(size, kPointerSize));
+    DCHECK(IsAligned(size, kPointerSize));
     register_save_area_size_ = size;
   }
 
@@ -54,7 +54,7 @@ class Frame {
     // If 32-bit, skip one if the new slot is a double.
     if (is_double) {
       if (kDoubleSize > kPointerSize) {
-        ASSERT(kDoubleSize == kPointerSize * 2);
+        DCHECK(kDoubleSize == kPointerSize * 2);
         spill_slot_count_++;
         spill_slot_count_ |= 1;
       }
@@ -80,12 +80,12 @@ class FrameOffset {
   inline int offset() { return offset_ & ~1; }
 
   inline static FrameOffset FromStackPointer(int offset) {
-    ASSERT((offset & 1) == 0);
+    DCHECK((offset & 1) == 0);
     return FrameOffset(offset | kFromSp);
   }
 
   inline static FrameOffset FromFramePointer(int offset) {
-    ASSERT((offset & 1) == 0);
+    DCHECK((offset & 1) == 0);
     return FrameOffset(offset | kFromFp);
   }
 

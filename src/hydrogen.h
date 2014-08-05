@@ -94,8 +94,8 @@ class HBasicBlock V8_FINAL : public ZoneObject {
 
   void SetInitialEnvironment(HEnvironment* env);
   void ClearEnvironment() {
-    ASSERT(IsFinished());
-    ASSERT(end()->SuccessorCount() == 0);
+    DCHECK(IsFinished());
+    DCHECK(end()->SuccessorCount() == 0);
     last_environment_ = NULL;
   }
   bool HasEnvironment() const { return last_environment_ != NULL; }
@@ -103,7 +103,7 @@ class HBasicBlock V8_FINAL : public ZoneObject {
   HBasicBlock* parent_loop_header() const { return parent_loop_header_; }
 
   void set_parent_loop_header(HBasicBlock* block) {
-    ASSERT(parent_loop_header_ == NULL);
+    DCHECK(parent_loop_header_ == NULL);
     parent_loop_header_ = block;
   }
 
@@ -361,7 +361,7 @@ class HGraph V8_FINAL : public ZoneObject {
   int GetMaximumValueID() const { return values_.length(); }
   int GetNextBlockID() { return next_block_id_++; }
   int GetNextValueID(HValue* value) {
-    ASSERT(!disallow_adding_new_values_);
+    DCHECK(!disallow_adding_new_values_);
     values_.Add(value, zone());
     return values_.length() - 1;
   }
@@ -436,17 +436,17 @@ class HGraph V8_FINAL : public ZoneObject {
   }
 
   bool has_uint32_instructions() {
-    ASSERT(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
+    DCHECK(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
     return uint32_instructions_ != NULL;
   }
 
   ZoneList<HInstruction*>* uint32_instructions() {
-    ASSERT(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
+    DCHECK(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
     return uint32_instructions_;
   }
 
   void RecordUint32Instruction(HInstruction* instr) {
-    ASSERT(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
+    DCHECK(uint32_instructions_ == NULL || !uint32_instructions_->is_empty());
     if (uint32_instructions_ == NULL) {
       uint32_instructions_ = new(zone()) ZoneList<HInstruction*>(4, zone());
     }
@@ -606,7 +606,7 @@ class HEnvironment V8_FINAL : public ZoneObject {
 
   HValue* Lookup(int index) const {
     HValue* result = values_[index];
-    ASSERT(result != NULL);
+    DCHECK(result != NULL);
     return result;
   }
 
@@ -616,13 +616,13 @@ class HEnvironment V8_FINAL : public ZoneObject {
   }
 
   void Push(HValue* value) {
-    ASSERT(value != NULL);
+    DCHECK(value != NULL);
     ++push_count_;
     values_.Add(value, zone());
   }
 
   HValue* Pop() {
-    ASSERT(!ExpressionStackIsEmpty());
+    DCHECK(!ExpressionStackIsEmpty());
     if (push_count_ > 0) {
       --push_count_;
     } else {
@@ -639,7 +639,7 @@ class HEnvironment V8_FINAL : public ZoneObject {
 
   HValue* ExpressionStackAt(int index_from_top) const {
     int index = length() - index_from_top - 1;
-    ASSERT(HasExpressionAt(index));
+    DCHECK(HasExpressionAt(index));
     return values_[index];
   }
 
@@ -674,7 +674,7 @@ class HEnvironment V8_FINAL : public ZoneObject {
   }
 
   void SetValueAt(int index, HValue* value) {
-    ASSERT(index < length());
+    DCHECK(index < length());
     values_[index] = value;
   }
 
@@ -682,7 +682,7 @@ class HEnvironment V8_FINAL : public ZoneObject {
   // by 1 (receiver is parameter index -1 but environment index 0).
   // Stack-allocated local indices are shifted by the number of parameters.
   int IndexFor(Variable* variable) const {
-    ASSERT(variable->IsStackAllocated());
+    DCHECK(variable->IsStackAllocated());
     int shift = variable->IsParameter()
         ? 1
         : parameter_count_ + specials_count_;
@@ -872,7 +872,7 @@ class TestContext V8_FINAL : public AstContext {
                                   BailoutId ast_id) V8_OVERRIDE;
 
   static TestContext* cast(AstContext* context) {
-    ASSERT(context->IsTest());
+    DCHECK(context->IsTest());
     return reinterpret_cast<TestContext*>(context);
   }
 
@@ -974,11 +974,11 @@ class HIfContinuation V8_FINAL {
                   HBasicBlock* false_branch)
       : continuation_captured_(true), true_branch_(true_branch),
         false_branch_(false_branch) {}
-  ~HIfContinuation() { ASSERT(!continuation_captured_); }
+  ~HIfContinuation() { DCHECK(!continuation_captured_); }
 
   void Capture(HBasicBlock* true_branch,
                HBasicBlock* false_branch) {
-    ASSERT(!continuation_captured_);
+    DCHECK(!continuation_captured_);
     true_branch_ = true_branch;
     false_branch_ = false_branch;
     continuation_captured_ = true;
@@ -986,7 +986,7 @@ class HIfContinuation V8_FINAL {
 
   void Continue(HBasicBlock** true_branch,
                 HBasicBlock** false_branch) {
-    ASSERT(continuation_captured_);
+    DCHECK(continuation_captured_);
     *true_branch = true_branch_;
     *false_branch = false_branch_;
     continuation_captured_ = false;
@@ -1127,7 +1127,7 @@ class HGraphBuilder {
     HInstruction* result = AddInstruction(NewUncasted<I>(p1));
     // Specializations must have their parameters properly casted
     // to avoid landing here.
-    ASSERT(!result->IsReturn() && !result->IsSimulate() &&
+    DCHECK(!result->IsReturn() && !result->IsSimulate() &&
            !result->IsDeoptimize());
     return result;
   }
@@ -1137,7 +1137,7 @@ class HGraphBuilder {
     I* result = AddInstructionTyped(New<I>(p1));
     // Specializations must have their parameters properly casted
     // to avoid landing here.
-    ASSERT(!result->IsReturn() && !result->IsSimulate() &&
+    DCHECK(!result->IsReturn() && !result->IsSimulate() &&
            !result->IsDeoptimize());
     return result;
   }
@@ -1157,7 +1157,7 @@ class HGraphBuilder {
     HInstruction* result = AddInstruction(NewUncasted<I>(p1, p2));
     // Specializations must have their parameters properly casted
     // to avoid landing here.
-    ASSERT(!result->IsSimulate());
+    DCHECK(!result->IsSimulate());
     return result;
   }
 
@@ -1166,7 +1166,7 @@ class HGraphBuilder {
     I* result = AddInstructionTyped(New<I>(p1, p2));
     // Specializations must have their parameters properly casted
     // to avoid landing here.
-    ASSERT(!result->IsSimulate());
+    DCHECK(!result->IsSimulate());
     return result;
   }
 
@@ -1635,7 +1635,7 @@ class HGraphBuilder {
     HControlInstruction* AddCompare(HControlInstruction* compare);
 
     HGraphBuilder* builder() const {
-      ASSERT(builder_ != NULL);  // Have you called "Initialize"?
+      DCHECK(builder_ != NULL);  // Have you called "Initialize"?
       return builder_;
     }
 
@@ -1696,7 +1696,7 @@ class HGraphBuilder {
                 HValue* increment_amount);
 
     ~LoopBuilder() {
-      ASSERT(finished_);
+      DCHECK(finished_);
     }
 
     HValue* BeginBody(
@@ -1900,7 +1900,7 @@ class HGraphBuilder {
 
  protected:
   void SetSourcePosition(int position) {
-    ASSERT(position != RelocInfo::kNoPosition);
+    DCHECK(position != RelocInfo::kNoPosition);
     position_.set_position(position - start_position_);
   }
 
@@ -2480,10 +2480,10 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
       int offset;
       if (Accessors::IsJSObjectFieldAccessor<Type>(type_, name_, &offset)) {
         if (type_->Is(Type::String())) {
-          ASSERT(String::Equals(isolate()->factory()->length_string(), name_));
+          DCHECK(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForStringLength();
         } else if (type_->Is(Type::Array())) {
-          ASSERT(String::Equals(isolate()->factory()->length_string(), name_));
+          DCHECK(String::Equals(isolate()->factory()->length_string(), name_));
           *access = HObjectAccess::ForArrayLength(map()->elements_kind());
         } else {
           *access = HObjectAccess::ForMapAndOffset(map(), offset);
@@ -2841,7 +2841,7 @@ class HTracer V8_FINAL : public Malloced {
       tracer_->indent_--;
       tracer_->PrintIndent();
       tracer_->trace_.Add("end_%s\n", name_);
-      ASSERT(tracer_->indent_ >= 0);
+      DCHECK(tracer_->indent_ >= 0);
       tracer_->FlushToFile();
     }
 

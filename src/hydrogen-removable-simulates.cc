@@ -37,7 +37,7 @@ class State : public ZoneObject {
     }
     // Ensure there's a non-foldable HSimulate before an HEnterInlined to avoid
     // folding across HEnterInlined.
-    ASSERT(!(instr->IsEnterInlined() &&
+    DCHECK(!(instr->IsEnterInlined() &&
              HSimulate::cast(instr->previous())->is_candidate_for_removal()));
     if (instr->IsLeaveInlined() || instr->IsReturn()) {
       // Never fold simulates from inlined environments into simulates in the
@@ -64,7 +64,7 @@ class State : public ZoneObject {
       Remember(current_simulate);
       FlushSimulates();
     } else if (current_simulate->ast_id().IsNone()) {
-      ASSERT(current_simulate->next()->IsEnterInlined());
+      DCHECK(current_simulate->next()->IsEnterInlined());
       FlushSimulates();
     } else if (current_simulate->previous()->HasObservableSideEffects()) {
       Remember(current_simulate);
@@ -93,7 +93,7 @@ class State : public ZoneObject {
     }
     // For our current local analysis, we should not remember simulates across
     // block boundaries.
-    ASSERT(!state->HasRememberedSimulates());
+    DCHECK(!state->HasRememberedSimulates());
     // Nasty heuristic: Never remove the first simulate in a block. This
     // just so happens to have a beneficial effect on register allocation.
     state->first_ = true;
@@ -143,8 +143,8 @@ class State : public ZoneObject {
                Zone* zone) {
     // For our current local analysis, we should not remember simulates across
     // block boundaries.
-    ASSERT(!pred_state->HasRememberedSimulates());
-    ASSERT(!HasRememberedSimulates());
+    DCHECK(!pred_state->HasRememberedSimulates());
+    DCHECK(!HasRememberedSimulates());
     if (FLAG_trace_removable_simulates) {
       PrintF("[merge state %p from B%d into %p for B%d]\n",
              reinterpret_cast<void*>(pred_state), pred_block->block_id(),

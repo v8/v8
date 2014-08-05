@@ -13,22 +13,33 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// An access descriptor for loads/stores from/to fixed structures
-// like field accesses of heap objects.
+enum BaseTaggedness { kUntaggedBase, kTaggedBase };
+
+// An access descriptor for loads/stores of fixed structures like field
+// accesses of heap objects. Accesses from either tagged or untagged base
+// pointers are supported; untagging is done automatically during lowering.
 struct FieldAccess {
-  int offset;
-  Handle<Name> name;  // debug only.
-  Type* type;
-  MachineRepresentation representation;
+  BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
+  int offset;                     // offset of the field, without tag.
+  Handle<Name> name;              // debugging only.
+  Type* type;                     // type of the field.
+  MachineRepresentation representation;  // machine representation of field.
+
+  int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
 
 
-// An access descriptor for loads/stores of indexed structures
-// like characters in strings or off-heap backing stores.
+// An access descriptor for loads/stores of indexed structures like characters
+// in strings or off-heap backing stores. Accesses from either tagged or
+// untagged base pointers are supported; untagging is done automatically during
+// lowering.
 struct ElementAccess {
-  int header_size;
-  Type* type;
-  MachineRepresentation representation;
+  BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
+  int header_size;                // size of the header, without tag.
+  Type* type;                     // type of the element.
+  MachineRepresentation representation;  // machine representation of element.
+
+  int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
 
 
@@ -46,8 +57,8 @@ struct StaticParameterTraits<const FieldAccess> {
     return (val.offset < 16) | (val.representation & 0xffff);
   }
   static bool Equals(const FieldAccess& a, const FieldAccess& b) {
-    return a.offset == b.offset && a.representation == b.representation &&
-           a.type->Is(b.type);
+    return a.base_is_tagged == b.base_is_tagged && a.offset == b.offset &&
+           a.representation == b.representation && a.type->Is(b.type);
   }
 };
 
@@ -62,21 +73,22 @@ struct StaticParameterTraits<const ElementAccess> {
     return (val.header_size < 16) | (val.representation & 0xffff);
   }
   static bool Equals(const ElementAccess& a, const ElementAccess& b) {
-    return a.header_size == b.header_size &&
+    return a.base_is_tagged == b.base_is_tagged &&
+           a.header_size == b.header_size &&
            a.representation == b.representation && a.type->Is(b.type);
   }
 };
 
 
 inline const FieldAccess FieldAccessOf(Operator* op) {
-  ASSERT(op->opcode() == IrOpcode::kLoadField ||
+  DCHECK(op->opcode() == IrOpcode::kLoadField ||
          op->opcode() == IrOpcode::kStoreField);
   return static_cast<Operator1<FieldAccess>*>(op)->parameter();
 }
 
 
 inline const ElementAccess ElementAccessOf(Operator* op) {
-  ASSERT(op->opcode() == IrOpcode::kLoadElement ||
+  DCHECK(op->opcode() == IrOpcode::kLoadElement ||
          op->opcode() == IrOpcode::kStoreElement);
   return static_cast<Operator1<ElementAccess>*>(op)->parameter();
 }

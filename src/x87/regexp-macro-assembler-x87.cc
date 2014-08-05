@@ -91,7 +91,7 @@ RegExpMacroAssemblerX87::RegExpMacroAssemblerX87(
       success_label_(),
       backtrack_label_(),
       exit_label_() {
-  ASSERT_EQ(0, registers_to_save % 2);
+  DCHECK_EQ(0, registers_to_save % 2);
   __ jmp(&entry_label_);   // We'll write the entry code later.
   __ bind(&start_label_);  // And then continue from here.
 }
@@ -123,8 +123,8 @@ void RegExpMacroAssemblerX87::AdvanceCurrentPosition(int by) {
 
 
 void RegExpMacroAssemblerX87::AdvanceRegister(int reg, int by) {
-  ASSERT(reg >= 0);
-  ASSERT(reg < num_registers_);
+  DCHECK(reg >= 0);
+  DCHECK(reg < num_registers_);
   if (by != 0) {
     __ add(register_location(reg), Immediate(by));
   }
@@ -281,7 +281,7 @@ void RegExpMacroAssemblerX87::CheckNotBackReferenceIgnoreCase(
     // Compute new value of character position after the matched part.
     __ sub(edi, esi);
   } else {
-    ASSERT(mode_ == UC16);
+    DCHECK(mode_ == UC16);
     // Save registers before calling C function.
     __ push(esi);
     __ push(edi);
@@ -369,7 +369,7 @@ void RegExpMacroAssemblerX87::CheckNotBackReference(
     __ movzx_b(eax, Operand(edx, 0));
     __ cmpb_al(Operand(ebx, 0));
   } else {
-    ASSERT(mode_ == UC16);
+    DCHECK(mode_ == UC16);
     __ movzx_w(eax, Operand(edx, 0));
     __ cmpw_ax(Operand(ebx, 0));
   }
@@ -438,7 +438,7 @@ void RegExpMacroAssemblerX87::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  ASSERT(minus < String::kMaxUtf16CodeUnit);
+  DCHECK(minus < String::kMaxUtf16CodeUnit);
   __ lea(eax, Operand(current_character(), -minus));
   if (c == 0) {
     __ test(eax, Immediate(mask));
@@ -547,7 +547,7 @@ bool RegExpMacroAssemblerX87::CheckSpecialCharacterClass(uc16 type,
       __ cmp(current_character(), Immediate('z'));
       BranchOrBacktrack(above, on_no_match);
     }
-    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
     ExternalReference word_map = ExternalReference::re_word_character_map();
     __ test_b(current_character(),
               Operand::StaticArray(current_character(), times_1, word_map));
@@ -561,7 +561,7 @@ bool RegExpMacroAssemblerX87::CheckSpecialCharacterClass(uc16 type,
       __ cmp(current_character(), Immediate('z'));
       __ j(above, &done);
     }
-    ASSERT_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
+    DCHECK_EQ(0, word_character_map[0]);  // Character '\0' is not a word char.
     ExternalReference word_map = ExternalReference::re_word_character_map();
     __ test_b(current_character(),
               Operand::StaticArray(current_character(), times_1, word_map));
@@ -588,7 +588,7 @@ bool RegExpMacroAssemblerX87::CheckSpecialCharacterClass(uc16 type,
     } else {
       Label done;
       BranchOrBacktrack(below_equal, &done);
-      ASSERT_EQ(UC16, mode_);
+      DCHECK_EQ(UC16, mode_);
       // Compare original value to 0x2028 and 0x2029, using the already
       // computed (current_char ^ 0x01 - 0x0b). I.e., check for
       // 0x201d (0x2028 - 0x0b) or 0x201e.
@@ -946,8 +946,8 @@ void RegExpMacroAssemblerX87::LoadCurrentCharacter(int cp_offset,
                                                     Label* on_end_of_input,
                                                     bool check_bounds,
                                                     int characters) {
-  ASSERT(cp_offset >= -1);      // ^ and \b can look behind one character.
-  ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
+  DCHECK(cp_offset >= -1);      // ^ and \b can look behind one character.
+  DCHECK(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
   if (check_bounds) {
     CheckPosition(cp_offset + characters - 1, on_end_of_input);
   }
@@ -1009,7 +1009,7 @@ void RegExpMacroAssemblerX87::SetCurrentPositionFromEnd(int by)  {
 
 
 void RegExpMacroAssemblerX87::SetRegister(int register_index, int to) {
-  ASSERT(register_index >= num_saved_registers_);  // Reserved for positions!
+  DCHECK(register_index >= num_saved_registers_);  // Reserved for positions!
   __ mov(register_location(register_index), Immediate(to));
 }
 
@@ -1032,7 +1032,7 @@ void RegExpMacroAssemblerX87::WriteCurrentPositionToRegister(int reg,
 
 
 void RegExpMacroAssemblerX87::ClearRegisters(int reg_from, int reg_to) {
-  ASSERT(reg_from <= reg_to);
+  DCHECK(reg_from <= reg_to);
   __ mov(eax, Operand(ebp, kInputStartMinusOne));
   for (int reg = reg_from; reg <= reg_to; reg++) {
     __ mov(register_location(reg), eax);
@@ -1100,8 +1100,8 @@ int RegExpMacroAssemblerX87::CheckStackGuardState(Address* return_address,
   // Current string.
   bool is_ascii = subject->IsOneByteRepresentationUnderneath();
 
-  ASSERT(re_code->instruction_start() <= *return_address);
-  ASSERT(*return_address <=
+  DCHECK(re_code->instruction_start() <= *return_address);
+  DCHECK(*return_address <=
       re_code->instruction_start() + re_code->instruction_size());
 
   Object* result = isolate->stack_guard()->HandleInterrupts();
@@ -1140,7 +1140,7 @@ int RegExpMacroAssemblerX87::CheckStackGuardState(Address* return_address,
   // be a sequential or external string with the same content.
   // Update the start and end pointers in the stack frame to the current
   // location (whether it has actually moved or not).
-  ASSERT(StringShape(*subject_tmp).IsSequential() ||
+  DCHECK(StringShape(*subject_tmp).IsSequential() ||
       StringShape(*subject_tmp).IsExternal());
 
   // The original start address of the characters to match.
@@ -1172,7 +1172,7 @@ int RegExpMacroAssemblerX87::CheckStackGuardState(Address* return_address,
 
 
 Operand RegExpMacroAssemblerX87::register_location(int register_index) {
-  ASSERT(register_index < (1<<30));
+  DCHECK(register_index < (1<<30));
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
@@ -1226,7 +1226,7 @@ void RegExpMacroAssemblerX87::SafeCallTarget(Label* name) {
 
 
 void RegExpMacroAssemblerX87::Push(Register source) {
-  ASSERT(!source.is(backtrack_stackpointer()));
+  DCHECK(!source.is(backtrack_stackpointer()));
   // Notice: This updates flags, unlike normal Push.
   __ sub(backtrack_stackpointer(), Immediate(kPointerSize));
   __ mov(Operand(backtrack_stackpointer(), 0), source);
@@ -1241,7 +1241,7 @@ void RegExpMacroAssemblerX87::Push(Immediate value) {
 
 
 void RegExpMacroAssemblerX87::Pop(Register target) {
-  ASSERT(!target.is(backtrack_stackpointer()));
+  DCHECK(!target.is(backtrack_stackpointer()));
   __ mov(target, Operand(backtrack_stackpointer(), 0));
   // Notice: This updates flags, unlike normal Pop.
   __ add(backtrack_stackpointer(), Immediate(kPointerSize));
@@ -1283,16 +1283,16 @@ void RegExpMacroAssemblerX87::LoadCurrentCharacterUnchecked(int cp_offset,
     } else if (characters == 2) {
       __ movzx_w(current_character(), Operand(esi, edi, times_1, cp_offset));
     } else {
-      ASSERT(characters == 1);
+      DCHECK(characters == 1);
       __ movzx_b(current_character(), Operand(esi, edi, times_1, cp_offset));
     }
   } else {
-    ASSERT(mode_ == UC16);
+    DCHECK(mode_ == UC16);
     if (characters == 2) {
       __ mov(current_character(),
              Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
     } else {
-      ASSERT(characters == 1);
+      DCHECK(characters == 1);
       __ movzx_w(current_character(),
                  Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
     }

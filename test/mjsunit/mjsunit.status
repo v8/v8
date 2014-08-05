@@ -207,7 +207,7 @@
   # get the same random seed and would generate the same directory name. Besides
   # that, it doesn't make sense to run several variants of d8-os anyways.
   'd8-os': [PASS, NO_VARIANTS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
-  'tools/tickprocessor': [PASS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
+  'tools/tickprocessor': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
   ##############################################################################
   # Long running test that reproduces memory leak and should be run manually.

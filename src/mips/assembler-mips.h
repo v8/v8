@@ -90,7 +90,7 @@ struct Register {
   inline static int NumAllocatableRegisters();
 
   static int ToAllocationIndex(Register reg) {
-    ASSERT((reg.code() - 2) < (kMaxNumAllocatableRegisters - 1) ||
+    DCHECK((reg.code() - 2) < (kMaxNumAllocatableRegisters - 1) ||
            reg.is(from_code(kCpRegister)));
     return reg.is(from_code(kCpRegister)) ?
            kMaxNumAllocatableRegisters - 1 :  // Return last index for 'cp'.
@@ -98,14 +98,14 @@ struct Register {
   }
 
   static Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     return index == kMaxNumAllocatableRegisters - 1 ?
            from_code(kCpRegister) :  // Last index is always the 'cp' register.
            from_code(index + 2);  // zero_reg and 'at' are skipped.
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "v0",
       "v1",
@@ -133,11 +133,11 @@ struct Register {
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   bool is(Register reg) const { return code_ == reg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
 
@@ -226,7 +226,7 @@ struct FPURegister {
   static const char* AllocationIndexToString(int index);
 
   static FPURegister FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     return from_code(index * 2);
   }
 
@@ -239,32 +239,32 @@ struct FPURegister {
   bool is(FPURegister creg) const { return code_ == creg.code_; }
   FPURegister low() const {
     // Find low reg of a Double-reg pair, which is the reg itself.
-    ASSERT(code_ % 2 == 0);  // Specified Double reg must be even.
+    DCHECK(code_ % 2 == 0);  // Specified Double reg must be even.
     FPURegister reg;
     reg.code_ = code_;
-    ASSERT(reg.is_valid());
+    DCHECK(reg.is_valid());
     return reg;
   }
   FPURegister high() const {
     // Find high reg of a Doubel-reg pair, which is reg + 1.
-    ASSERT(code_ % 2 == 0);  // Specified Double reg must be even.
+    DCHECK(code_ % 2 == 0);  // Specified Double reg must be even.
     FPURegister reg;
     reg.code_ = code_ + 1;
-    ASSERT(reg.is_valid());
+    DCHECK(reg.is_valid());
     return reg;
   }
 
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
   void setcode(int f) {
     code_ = f;
-    ASSERT(is_valid());
+    DCHECK(is_valid());
   }
   // Unfortunately we can't make this private in a struct.
   int code_;
@@ -335,16 +335,16 @@ struct FPUControlRegister {
   bool is_valid() const { return code_ == kFCSRRegister; }
   bool is(FPUControlRegister creg) const { return code_ == creg.code_; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
   void setcode(int f) {
     code_ = f;
-    ASSERT(is_valid());
+    DCHECK(is_valid());
   }
   // Unfortunately we can't make this private in a struct.
   int code_;
@@ -377,7 +377,7 @@ class Operand BASE_EMBEDDED {
   INLINE(bool is_reg() const);
 
   inline int32_t immediate() const {
-    ASSERT(!is_reg());
+    DCHECK(!is_reg());
     return imm32_;
   }
 
@@ -467,7 +467,7 @@ class Assembler : public AssemblerBase {
   int32_t branch_offset(Label* L, bool jump_elimination_allowed);
   int32_t shifted_branch_offset(Label* L, bool jump_elimination_allowed) {
     int32_t o = branch_offset(L, jump_elimination_allowed);
-    ASSERT((o & 3) == 0);   // Assert the offset is aligned.
+    DCHECK((o & 3) == 0);   // Assert the offset is aligned.
     return o >> 2;
   }
   uint32_t jump_address(Label* L);
@@ -606,7 +606,7 @@ class Assembler : public AssemblerBase {
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero
   // marking, to avoid conflict with ssnop and ehb instructions.
   void nop(unsigned int type = 0) {
-    ASSERT(type < 32);
+    DCHECK(type < 32);
     Register nop_rt_reg = (type == 0) ? zero_reg : at;
     sll(zero_reg, nop_rt_reg, type, true);
   }
@@ -861,12 +861,12 @@ class Assembler : public AssemblerBase {
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.
   void SetRecordedAstId(TypeFeedbackId ast_id) {
-    ASSERT(recorded_ast_id_.IsNone());
+    DCHECK(recorded_ast_id_.IsNone());
     recorded_ast_id_ = ast_id;
   }
 
   TypeFeedbackId RecordedAstId() {
-    ASSERT(!recorded_ast_id_.IsNone());
+    DCHECK(!recorded_ast_id_.IsNone());
     return recorded_ast_id_;
   }
 
@@ -1021,12 +1021,12 @@ class Assembler : public AssemblerBase {
 
   // Temporarily block automatic assembly buffer growth.
   void StartBlockGrowBuffer() {
-    ASSERT(!block_buffer_growth_);
+    DCHECK(!block_buffer_growth_);
     block_buffer_growth_ = true;
   }
 
   void EndBlockGrowBuffer() {
-    ASSERT(block_buffer_growth_);
+    DCHECK(block_buffer_growth_);
     block_buffer_growth_ = false;
   }
 
@@ -1188,7 +1188,7 @@ class Assembler : public AssemblerBase {
         // We have run out of space on trampolines.
         // Make sure we fail in debug mode, so we become aware of each case
         // when this happens.
-        ASSERT(0);
+        DCHECK(0);
         // Internal exception will be caught.
       } else {
         trampoline_slot = next_slot_;

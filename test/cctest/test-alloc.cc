@@ -66,7 +66,7 @@ static AllocationResult AllocateAfterFailures() {
   static const int kLargeObjectSpaceFillerLength = 300000;
   static const int kLargeObjectSpaceFillerSize = FixedArray::SizeFor(
       kLargeObjectSpaceFillerLength);
-  ASSERT(kLargeObjectSpaceFillerSize > heap->old_pointer_space()->AreaSize());
+  DCHECK(kLargeObjectSpaceFillerSize > heap->old_pointer_space()->AreaSize());
   while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
     heap->AllocateFixedArray(
         kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
@@ -146,7 +146,7 @@ TEST(StressJS) {
   // Patch the map to have an accessor for "get".
   Handle<Map> map(function->initial_map());
   Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
-  ASSERT(instance_descriptors->IsEmpty());
+  DCHECK(instance_descriptors->IsEmpty());
 
   PropertyAttributes attrs = static_cast<PropertyAttributes>(0);
   Handle<AccessorInfo> foreign = TestAccessorInfo(isolate, attrs);

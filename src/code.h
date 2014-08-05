@@ -30,11 +30,11 @@ class ParameterCount BASE_EMBEDDED {
   bool is_immediate() const { return !is_reg(); }
 
   Register reg() const {
-    ASSERT(is_reg());
+    DCHECK(is_reg());
     return reg_;
   }
   int immediate() const {
-    ASSERT(is_immediate());
+    DCHECK(is_immediate());
     return immediate_;
   }
 

@@ -24,7 +24,7 @@ class HCheckEliminationPhase : public HPhase {
               graph->isolate()->factory()->name##_map()), zone());
     STRING_TYPE_LIST(ADD_STRING_MAP)
     #undef ADD_STRING_MAP
-    ASSERT_EQ(kStringMapsSize, string_maps_.size());
+    DCHECK_EQ(kStringMapsSize, string_maps_.size());
 #ifdef DEBUG
     redundant_ = 0;
     removed_ = 0;

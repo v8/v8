@@ -165,7 +165,7 @@ Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
                                         Handle<Object> value) {
   if (value->IsNumber() || !value->IsJSValue()) return value;
   Handle<JSValue> wrapper = Handle<JSValue>::cast(value);
-  ASSERT(wrapper->GetIsolate()->native_context()->number_function()->
+  DCHECK(wrapper->GetIsolate()->native_context()->number_function()->
       has_initial_map());
   if (wrapper->map() == isolate->number_function()->initial_map()) {
     return handle(wrapper->value(), isolate);
@@ -554,10 +554,10 @@ void Accessors::ScriptLineEndsGetter(
   Handle<Script> script(
       Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
   Script::InitLineEnds(script);
-  ASSERT(script->line_ends()->IsFixedArray());
+  DCHECK(script->line_ends()->IsFixedArray());
   Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
   // We do not want anyone to modify this array from JS.
-  ASSERT(*line_ends == isolate->heap()->empty_fixed_array() ||
+  DCHECK(*line_ends == isolate->heap()->empty_fixed_array() ||
          line_ends->map() == isolate->heap()->fixed_cow_array_map());
   Handle<JSArray> js_array =
       isolate->factory()->NewJSArrayWithElements(line_ends);
@@ -859,7 +859,7 @@ static Handle<Object> SetFunctionPrototype(Isolate* isolate,
   }
 
   JSFunction::SetPrototype(function, value);
-  ASSERT(function->prototype() == *value);
+  DCHECK(function->prototype() == *value);
 
   if (is_observed && !old_value->SameValue(*value)) {
     JSObject::EnqueueChangeRecord(
@@ -877,7 +877,7 @@ Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
 
 Handle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
                                                Handle<Object> prototype) {
-  ASSERT(function->should_have_prototype());
+  DCHECK(function->should_have_prototype());
   Isolate* isolate = function->GetIsolate();
   return SetFunctionPrototype(isolate, function, prototype);
 }
@@ -1095,7 +1095,7 @@ Handle<Object> GetFunctionArguments(Isolate* isolate,
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
 
     // Copy the parameters to the arguments object.
-    ASSERT(array->length() == length);
+    DCHECK(array->length() == length);
     for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
     arguments->set_elements(*array);
 
@@ -1196,7 +1196,7 @@ class FrameFunctionIterator {
     if (frame_iterator_.done()) return;
     JavaScriptFrame* frame = frame_iterator_.frame();
     frame->GetFunctions(&functions_);
-    ASSERT(functions_.length() > 0);
+    DCHECK(functions_.length() > 0);
     frame_iterator_.Advance();
     index_ = functions_.length() - 1;
   }
@@ -1304,7 +1304,7 @@ static void ModuleGetExport(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
   Context* context = Context::cast(instance->context());
-  ASSERT(context->IsModuleContext());
+  DCHECK(context->IsModuleContext());
   int slot = info.Data()->Int32Value();
   Object* value = context->get(slot);
   Isolate* isolate = instance->GetIsolate();
@@ -1325,7 +1325,7 @@ static void ModuleSetExport(
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   JSModule* instance = JSModule::cast(*v8::Utils::OpenHandle(*info.Holder()));
   Context* context = Context::cast(instance->context());
-  ASSERT(context->IsModuleContext());
+  DCHECK(context->IsModuleContext());
   int slot = info.Data()->Int32Value();
   Object* old_value = context->get(slot);
   if (old_value->IsTheHole()) {

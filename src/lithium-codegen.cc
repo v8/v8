@@ -56,7 +56,7 @@ LCodeGenBase::LCodeGenBase(LChunk* chunk,
 
 
 bool LCodeGenBase::GenerateBody() {
-  ASSERT(is_generating());
+  DCHECK(is_generating());
   bool emit_instructions = true;
   LCodeGen* codegen = static_cast<LCodeGen*>(this);
   for (current_instruction_ = 0;
@@ -116,12 +116,12 @@ void LCodeGenBase::CheckEnvironmentUsage() {
 
     HInstruction* hinstr = HInstruction::cast(hval);
     if (!hinstr->CanDeoptimize() && instr->HasEnvironment()) {
-      V8_Fatal(__FILE__, __LINE__, "CanDeoptimize is wrong for %s (%s)\n",
+      V8_Fatal(__FILE__, __LINE__, "CanDeoptimize is wrong for %s (%s)",
                hinstr->Mnemonic(), instr->Mnemonic());
     }
 
     if (instr->HasEnvironment() && !instr->environment()->has_been_used()) {
-      V8_Fatal(__FILE__, __LINE__, "unused environment for %s (%s)\n",
+      V8_Fatal(__FILE__, __LINE__, "unused environment for %s (%s)",
                hinstr->Mnemonic(), instr->Mnemonic());
     }
   }
@@ -168,7 +168,7 @@ static void AddWeakObjectToCodeDependency(Isolate* isolate,
 
 
 void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
-  ASSERT(code->is_optimized_code());
+  DCHECK(code->is_optimized_code());
   ZoneList<Handle<Map> > maps(1, zone());
   ZoneList<Handle<JSObject> > objects(1, zone());
   ZoneList<Handle<Cell> > cells(1, zone());

@@ -53,7 +53,7 @@ void IncrementalMarking::RecordWriteSlow(HeapObject* obj,
 void IncrementalMarking::RecordWriteFromCode(HeapObject* obj,
                                              Object** slot,
                                              Isolate* isolate) {
-  ASSERT(obj->IsHeapObject());
+  DCHECK(obj->IsHeapObject());
   IncrementalMarking* marking = isolate->heap()->incremental_marking();
 
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
@@ -94,7 +94,7 @@ void IncrementalMarking::RecordWriteOfCodeEntrySlow(JSFunction* host,
                                                     Object** slot,
                                                     Code* value) {
   if (BaseRecordWrite(host, slot, value)) {
-    ASSERT(slot != NULL);
+    DCHECK(slot != NULL);
     heap_->mark_compact_collector()->
         RecordCodeEntrySlot(reinterpret_cast<Address>(slot), value);
   }
@@ -142,22 +142,22 @@ static void MarkObjectGreyDoNotEnqueue(Object* obj) {
 static inline void MarkBlackOrKeepGrey(HeapObject* heap_object,
                                        MarkBit mark_bit,
                                        int size) {
-  ASSERT(!Marking::IsImpossible(mark_bit));
+  DCHECK(!Marking::IsImpossible(mark_bit));
   if (mark_bit.Get()) return;
   mark_bit.Set();
   MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(), size);
-  ASSERT(Marking::IsBlack(mark_bit));
+  DCHECK(Marking::IsBlack(mark_bit));
 }
 
 
 static inline void MarkBlackOrKeepBlack(HeapObject* heap_object,
                                         MarkBit mark_bit,
                                         int size) {
-  ASSERT(!Marking::IsImpossible(mark_bit));
+  DCHECK(!Marking::IsImpossible(mark_bit));
   if (Marking::IsBlack(mark_bit)) return;
   Marking::MarkBlack(mark_bit);
   MemoryChunk::IncrementLiveBytesFromGC(heap_object->address(), size);
-  ASSERT(Marking::IsBlack(mark_bit));
+  DCHECK(Marking::IsBlack(mark_bit));
 }
 
 
@@ -455,7 +455,7 @@ bool IncrementalMarking::WorthActivating() {
 
 
 void IncrementalMarking::ActivateGeneratedStub(Code* stub) {
-  ASSERT(RecordWriteStub::GetMode(stub) ==
+  DCHECK(RecordWriteStub::GetMode(stub) ==
          RecordWriteStub::STORE_BUFFER_ONLY);
 
   if (!IsMarking()) {
@@ -522,12 +522,12 @@ void IncrementalMarking::Start(CompactionFlag flag) {
   if (FLAG_trace_incremental_marking) {
     PrintF("[IncrementalMarking] Start\n");
   }
-  ASSERT(FLAG_incremental_marking);
-  ASSERT(FLAG_incremental_marking_steps);
-  ASSERT(state_ == STOPPED);
-  ASSERT(heap_->gc_state() == Heap::NOT_IN_GC);
-  ASSERT(!heap_->isolate()->serializer_enabled());
-  ASSERT(heap_->isolate()->IsInitialized());
+  DCHECK(FLAG_incremental_marking);
+  DCHECK(FLAG_incremental_marking_steps);
+  DCHECK(state_ == STOPPED);
+  DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
+  DCHECK(!heap_->isolate()->serializer_enabled());
+  DCHECK(heap_->isolate()->IsInitialized());
 
   ResetStepCounters();
 
@@ -622,7 +622,7 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
 
   while (current != limit) {
     HeapObject* obj = array[current];
-    ASSERT(obj->IsHeapObject());
+    DCHECK(obj->IsHeapObject());
     current = ((current + 1) & mask);
     if (heap_->InNewSpace(obj)) {
       MapWord map_word = obj->map_word();
@@ -630,10 +630,10 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
         HeapObject* dest = map_word.ToForwardingAddress();
         array[new_top] = dest;
         new_top = ((new_top + 1) & mask);
-        ASSERT(new_top != marking_deque_.bottom());
+        DCHECK(new_top != marking_deque_.bottom());
 #ifdef DEBUG
         MarkBit mark_bit = Marking::MarkBitFrom(obj);
-        ASSERT(Marking::IsGrey(mark_bit) ||
+        DCHECK(Marking::IsGrey(mark_bit) ||
                (obj->IsFiller() && Marking::IsWhite(mark_bit)));
 #endif
       }
@@ -642,11 +642,11 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
       // stack when we perform in place array shift.
       array[new_top] = obj;
       new_top = ((new_top + 1) & mask);
-      ASSERT(new_top != marking_deque_.bottom());
+      DCHECK(new_top != marking_deque_.bottom());
 #ifdef DEBUG
         MarkBit mark_bit = Marking::MarkBitFrom(obj);
         MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-        ASSERT(Marking::IsGrey(mark_bit) ||
+        DCHECK(Marking::IsGrey(mark_bit) ||
                (obj->IsFiller() && Marking::IsWhite(mark_bit)) ||
                (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
                 Marking::IsBlack(mark_bit)));
@@ -666,9 +666,9 @@ void IncrementalMarking::VisitObject(Map* map, HeapObject* obj, int size) {
   IncrementalMarkingMarkingVisitor::IterateBody(map, obj);
 
   MarkBit mark_bit = Marking::MarkBitFrom(obj);
-#if ENABLE_SLOW_ASSERTS
+#if ENABLE_SLOW_DCHECKS
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-  SLOW_ASSERT(Marking::IsGrey(mark_bit) ||
+  SLOW_DCHECK(Marking::IsGrey(mark_bit) ||
               (obj->IsFiller() && Marking::IsWhite(mark_bit)) ||
               (chunk->IsFlagSet(MemoryChunk::HAS_PROGRESS_BAR) &&
                Marking::IsBlack(mark_bit)));
@@ -803,7 +803,7 @@ void IncrementalMarking::Finalize() {
   PatchIncrementalMarkingRecordWriteStubs(heap_,
                                           RecordWriteStub::STORE_BUFFER_ONLY);
   DeactivateIncrementalWriteBarrier();
-  ASSERT(marking_deque_.IsEmpty());
+  DCHECK(marking_deque_.IsEmpty());
   heap_->isolate()->stack_guard()->ClearGC();
 }
 

@@ -79,12 +79,12 @@ class CallDescriptor : public ZoneObject {
   }
 
   LinkageLocation GetReturnLocation(int index) {
-    ASSERT(index < return_count_);
+    DCHECK(index < return_count_);
     return locations_[0 + index];  // return locations start at 0.
   }
 
   LinkageLocation GetInputLocation(int index) {
-    ASSERT(index < input_count_ + 1);  // input_count + 1 is the context.
+    DCHECK(index < input_count_ + 1);  // input_count + 1 is the context.
     return locations_[return_count_ + index];  // inputs start after returns.
   }
 

@@ -98,15 +98,15 @@ bool LookupIterator::IsBootstrapping() const {
 
 
 bool LookupIterator::HasAccess(v8::AccessType access_type) const {
-  ASSERT_EQ(ACCESS_CHECK, state_);
-  ASSERT(is_guaranteed_to_have_holder());
+  DCHECK_EQ(ACCESS_CHECK, state_);
+  DCHECK(is_guaranteed_to_have_holder());
   return isolate_->MayNamedAccess(GetHolder<JSObject>(), name_, access_type);
 }
 
 
 bool LookupIterator::HasProperty() {
-  ASSERT_EQ(PROPERTY, state_);
-  ASSERT(is_guaranteed_to_have_holder());
+  DCHECK_EQ(PROPERTY, state_);
+  DCHECK(is_guaranteed_to_have_holder());
 
   if (property_encoding_ == DICTIONARY) {
     Handle<JSObject> holder = GetHolder<JSObject>();
@@ -120,8 +120,9 @@ bool LookupIterator::HasProperty() {
       return false;
     }
   } else {
-    property_details_ = holder_map_->instance_descriptors()->GetDetails(
-        number_);
+    // Can't use descriptor_number() yet because has_property_ is still false.
+    property_details_ =
+        holder_map_->instance_descriptors()->GetDetails(number_);
   }
 
   switch (property_details_.type()) {
@@ -145,10 +146,11 @@ bool LookupIterator::HasProperty() {
 
 
 void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
-  ASSERT(has_property_);
-  ASSERT(HolderIsReceiver());
+  DCHECK(has_property_);
+  DCHECK(HolderIsReceiverOrHiddenPrototype());
   if (property_encoding_ == DICTIONARY) return;
-  holder_map_ = Map::PrepareForDataProperty(holder_map_, number_, value);
+  holder_map_ =
+      Map::PrepareForDataProperty(holder_map_, descriptor_number(), value);
   JSObject::MigrateToMap(GetHolder<JSObject>(), holder_map_);
   // Reload property information.
   if (holder_map_->is_dictionary_map()) {
@@ -163,7 +165,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 void LookupIterator::TransitionToDataProperty(
     Handle<Object> value, PropertyAttributes attributes,
     Object::StoreFromKeyed store_mode) {
-  ASSERT(!has_property_ || !HolderIsReceiver());
+  DCHECK(!has_property_ || !HolderIsReceiverOrHiddenPrototype());
 
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
@@ -172,7 +174,7 @@ void LookupIterator::TransitionToDataProperty(
 
   // Properties have to be added to context extension objects through
   // SetOwnPropertyIgnoreAttributes.
-  ASSERT(!receiver->IsJSContextExtensionObject());
+  DCHECK(!receiver->IsJSContextExtensionObject());
 
   if (receiver->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate(), receiver);
@@ -189,13 +191,13 @@ void LookupIterator::TransitionToDataProperty(
   state_ = NOT_FOUND;
   configuration_ = CHECK_OWN_REAL;
   state_ = LookupInHolder();
-  ASSERT(IsFound());
+  DCHECK(IsFound());
   HasProperty();
 }
 
 
-bool LookupIterator::HolderIsReceiver() const {
-  ASSERT(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
+bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
+  DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
   DisallowHeapAllocation no_gc;
   Handle<Object> receiver = GetReceiver();
   if (!receiver->IsJSReceiver()) return false;
@@ -209,7 +211,7 @@ bool LookupIterator::HolderIsReceiver() const {
                          PrototypeIterator::START_AT_RECEIVER);
   do {
     if (JSReceiver::cast(iter.GetCurrent()) == holder) return true;
-    ASSERT(!current->IsJSProxy());
+    DCHECK(!current->IsJSProxy());
     iter.Advance();
   } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));
   return false;
@@ -228,8 +230,8 @@ Handle<Object> LookupIterator::FetchValue() const {
       break;
     case DESCRIPTOR:
       if (property_details_.type() == v8::internal::FIELD) {
-        FieldIndex field_index = FieldIndex::ForDescriptor(
-            *holder_map_, number_);
+        FieldIndex field_index =
+            FieldIndex::ForDescriptor(*holder_map_, number_);
         return JSObject::FastPropertyAt(
             holder, property_details_.representation(), field_index);
       }
@@ -239,38 +241,55 @@ Handle<Object> LookupIterator::FetchValue() const {
 }
 
 
+FieldIndex LookupIterator::GetFieldIndex() const {
+  DCHECK_EQ(PROPERTY, state_);
+  int index =
+      holder_map()->instance_descriptors()->GetFieldIndex(descriptor_number());
+  bool is_double = representation().IsDouble();
+  return FieldIndex::ForPropertyIndex(*holder_map(), index, is_double);
+}
+
+
+Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
+  Handle<JSObject> holder = GetHolder<JSObject>();
+  Handle<GlobalObject> global = Handle<GlobalObject>::cast(holder);
+  Object* value = global->property_dictionary()->ValueAt(dictionary_entry());
+  return Handle<PropertyCell>(PropertyCell::cast(value));
+}
+
+
 Handle<Object> LookupIterator::GetAccessors() const {
-  ASSERT(has_property_);
-  ASSERT_EQ(ACCESSOR, property_kind_);
+  DCHECK(has_property_);
+  DCHECK_EQ(ACCESSOR, property_kind_);
   return FetchValue();
 }
 
 
 Handle<Object> LookupIterator::GetDataValue() const {
-  ASSERT(has_property_);
-  ASSERT_EQ(DATA, property_kind_);
+  DCHECK(has_property_);
+  DCHECK_EQ(DATA, property_kind_);
   Handle<Object> value = FetchValue();
   return value;
 }
 
 
 void LookupIterator::WriteDataValue(Handle<Object> value) {
-  ASSERT(is_guaranteed_to_have_holder());
-  ASSERT(has_property_);
+  DCHECK(is_guaranteed_to_have_holder());
+  DCHECK(has_property_);
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (property_encoding_ == DICTIONARY) {
     NameDictionary* property_dictionary = holder->property_dictionary();
     if (holder->IsGlobalObject()) {
       Handle<PropertyCell> cell(
-          PropertyCell::cast(property_dictionary->ValueAt(number_)));
+          PropertyCell::cast(property_dictionary->ValueAt(dictionary_entry())));
       PropertyCell::SetValueInferType(cell, value);
     } else {
-      property_dictionary->ValueAtPut(number_, *value);
+      property_dictionary->ValueAtPut(dictionary_entry(), *value);
     }
   } else if (property_details_.type() == v8::internal::FIELD) {
-    holder->WriteToField(number_, *value);
+    holder->WriteToField(descriptor_number(), *value);
   } else {
-    ASSERT_EQ(v8::internal::CONSTANT, property_details_.type());
+    DCHECK_EQ(v8::internal::CONSTANT, property_details_.type());
   }
 }
 

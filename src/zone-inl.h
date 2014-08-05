@@ -33,7 +33,7 @@ inline void* Zone::New(int size) {
   if (kPointerSize == 4 && kAlignment == 4) {
     position_ += ((~size) & 4) & (reinterpret_cast<intptr_t>(position_) & 4);
   } else {
-    ASSERT(kAlignment >= kPointerSize);
+    DCHECK(kAlignment >= kPointerSize);
   }
 
   // Check if the requested size is available without expanding.
@@ -54,12 +54,12 @@ inline void* Zone::New(int size) {
 
 #ifdef V8_USE_ADDRESS_SANITIZER
   Address redzone_position = result + size;
-  ASSERT(redzone_position + kASanRedzoneBytes == position_);
+  DCHECK(redzone_position + kASanRedzoneBytes == position_);
   ASAN_POISON_MEMORY_REGION(redzone_position, kASanRedzoneBytes);
 #endif
 
   // Check that the result has the proper alignment and return it.
-  ASSERT(IsAddressAligned(result, kAlignment, 0));
+  DCHECK(IsAddressAligned(result, kAlignment, 0));
   allocation_size_ += size;
   return reinterpret_cast<void*>(result);
 }
@@ -97,7 +97,7 @@ void* ZoneObject::operator new(size_t size, Zone* zone) {
 }
 
 inline void* ZoneAllocationPolicy::New(size_t size) {
-  ASSERT(zone_);
+  DCHECK(zone_);
   return zone_->New(static_cast<int>(size));
 }
 

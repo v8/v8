@@ -25,7 +25,7 @@ void RelocInfo::apply(intptr_t delta, ICacheFlushMode icache_flush_mode) {
 void RelocInfo::set_target_address(Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   Assembler::set_target_address_at(pc_, host_, target, icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
       IsCodeTarget(rmode_)) {
@@ -37,54 +37,54 @@ void RelocInfo::set_target_address(Address target,
 
 
 inline unsigned CPURegister::code() const {
-  ASSERT(IsValid());
+  DCHECK(IsValid());
   return reg_code;
 }
 
 
 inline CPURegister::RegisterType CPURegister::type() const {
-  ASSERT(IsValidOrNone());
+  DCHECK(IsValidOrNone());
   return reg_type;
 }
 
 
 inline RegList CPURegister::Bit() const {
-  ASSERT(reg_code < (sizeof(RegList) * kBitsPerByte));
+  DCHECK(reg_code < (sizeof(RegList) * kBitsPerByte));
   return IsValid() ? 1UL << reg_code : 0;
 }
 
 
 inline unsigned CPURegister::SizeInBits() const {
-  ASSERT(IsValid());
+  DCHECK(IsValid());
   return reg_size;
 }
 
 
 inline int CPURegister::SizeInBytes() const {
-  ASSERT(IsValid());
-  ASSERT(SizeInBits() % 8 == 0);
+  DCHECK(IsValid());
+  DCHECK(SizeInBits() % 8 == 0);
   return reg_size / 8;
 }
 
 
 inline bool CPURegister::Is32Bits() const {
-  ASSERT(IsValid());
+  DCHECK(IsValid());
   return reg_size == 32;
 }
 
 
 inline bool CPURegister::Is64Bits() const {
-  ASSERT(IsValid());
+  DCHECK(IsValid());
   return reg_size == 64;
 }
 
 
 inline bool CPURegister::IsValid() const {
   if (IsValidRegister() || IsValidFPRegister()) {
-    ASSERT(!IsNone());
+    DCHECK(!IsNone());
     return true;
   } else {
-    ASSERT(IsNone());
+    DCHECK(IsNone());
     return false;
   }
 }
@@ -106,21 +106,21 @@ inline bool CPURegister::IsValidFPRegister() const {
 
 inline bool CPURegister::IsNone() const {
   // kNoRegister types should always have size 0 and code 0.
-  ASSERT((reg_type != kNoRegister) || (reg_code == 0));
-  ASSERT((reg_type != kNoRegister) || (reg_size == 0));
+  DCHECK((reg_type != kNoRegister) || (reg_code == 0));
+  DCHECK((reg_type != kNoRegister) || (reg_size == 0));
 
   return reg_type == kNoRegister;
 }
 
 
 inline bool CPURegister::Is(const CPURegister& other) const {
-  ASSERT(IsValidOrNone() && other.IsValidOrNone());
+  DCHECK(IsValidOrNone() && other.IsValidOrNone());
   return Aliases(other) && (reg_size == other.reg_size);
 }
 
 
 inline bool CPURegister::Aliases(const CPURegister& other) const {
-  ASSERT(IsValidOrNone() && other.IsValidOrNone());
+  DCHECK(IsValidOrNone() && other.IsValidOrNone());
   return (reg_code == other.reg_code) && (reg_type == other.reg_type);
 }
 
@@ -146,27 +146,27 @@ inline bool CPURegister::IsValidOrNone() const {
 
 
 inline bool CPURegister::IsZero() const {
-  ASSERT(IsValid());
+  DCHECK(IsValid());
   return IsRegister() && (reg_code == kZeroRegCode);
 }
 
 
 inline bool CPURegister::IsSP() const {
-  ASSERT(IsValid());
+  DCHECK(IsValid());
   return IsRegister() && (reg_code == kSPRegInternalCode);
 }
 
 
 inline void CPURegList::Combine(const CPURegList& other) {
-  ASSERT(IsValid());
-  ASSERT(other.type() == type_);
-  ASSERT(other.RegisterSizeInBits() == size_);
+  DCHECK(IsValid());
+  DCHECK(other.type() == type_);
+  DCHECK(other.RegisterSizeInBits() == size_);
   list_ |= other.list();
 }
 
 
 inline void CPURegList::Remove(const CPURegList& other) {
-  ASSERT(IsValid());
+  DCHECK(IsValid());
   if (other.type() == type_) {
     list_ &= ~other.list();
   }
@@ -174,8 +174,8 @@ inline void CPURegList::Remove(const CPURegList& other) {
 
 
 inline void CPURegList::Combine(const CPURegister& other) {
-  ASSERT(other.type() == type_);
-  ASSERT(other.SizeInBits() == size_);
+  DCHECK(other.type() == type_);
+  DCHECK(other.SizeInBits() == size_);
   Combine(other.code());
 }
 
@@ -192,15 +192,15 @@ inline void CPURegList::Remove(const CPURegister& other1,
 
 
 inline void CPURegList::Combine(int code) {
-  ASSERT(IsValid());
-  ASSERT(CPURegister::Create(code, size_, type_).IsValid());
+  DCHECK(IsValid());
+  DCHECK(CPURegister::Create(code, size_, type_).IsValid());
   list_ |= (1UL << code);
 }
 
 
 inline void CPURegList::Remove(int code) {
-  ASSERT(IsValid());
-  ASSERT(CPURegister::Create(code, size_, type_).IsValid());
+  DCHECK(IsValid());
+  DCHECK(CPURegister::Create(code, size_, type_).IsValid());
   list_ &= ~(1UL << code);
 }
 
@@ -209,7 +209,7 @@ inline Register Register::XRegFromCode(unsigned code) {
   if (code == kSPRegInternalCode) {
     return csp;
   } else {
-    ASSERT(code < kNumberOfRegisters);
+    DCHECK(code < kNumberOfRegisters);
     return Register::Create(code, kXRegSizeInBits);
   }
 }
@@ -219,44 +219,44 @@ inline Register Register::WRegFromCode(unsigned code) {
   if (code == kSPRegInternalCode) {
     return wcsp;
   } else {
-    ASSERT(code < kNumberOfRegisters);
+    DCHECK(code < kNumberOfRegisters);
     return Register::Create(code, kWRegSizeInBits);
   }
 }
 
 
 inline FPRegister FPRegister::SRegFromCode(unsigned code) {
-  ASSERT(code < kNumberOfFPRegisters);
+  DCHECK(code < kNumberOfFPRegisters);
   return FPRegister::Create(code, kSRegSizeInBits);
 }
 
 
 inline FPRegister FPRegister::DRegFromCode(unsigned code) {
-  ASSERT(code < kNumberOfFPRegisters);
+  DCHECK(code < kNumberOfFPRegisters);
   return FPRegister::Create(code, kDRegSizeInBits);
 }
 
 
 inline Register CPURegister::W() const {
-  ASSERT(IsValidRegister());
+  DCHECK(IsValidRegister());
   return Register::WRegFromCode(reg_code);
 }
 
 
 inline Register CPURegister::X() const {
-  ASSERT(IsValidRegister());
+  DCHECK(IsValidRegister());
   return Register::XRegFromCode(reg_code);
 }
 
 
 inline FPRegister CPURegister::S() const {
-  ASSERT(IsValidFPRegister());
+  DCHECK(IsValidFPRegister());
   return FPRegister::SRegFromCode(reg_code);
 }
 
 
 inline FPRegister CPURegister::D() const {
-  ASSERT(IsValidFPRegister());
+  DCHECK(IsValidFPRegister());
   return FPRegister::DRegFromCode(reg_code);
 }
 
@@ -341,9 +341,9 @@ Operand::Operand(Register reg, Shift shift, unsigned shift_amount)
       shift_(shift),
       extend_(NO_EXTEND),
       shift_amount_(shift_amount) {
-  ASSERT(reg.Is64Bits() || (shift_amount < kWRegSizeInBits));
-  ASSERT(reg.Is32Bits() || (shift_amount < kXRegSizeInBits));
-  ASSERT(!reg.IsSP());
+  DCHECK(reg.Is64Bits() || (shift_amount < kWRegSizeInBits));
+  DCHECK(reg.Is32Bits() || (shift_amount < kXRegSizeInBits));
+  DCHECK(!reg.IsSP());
 }
 
 
@@ -353,12 +353,12 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
       shift_(NO_SHIFT),
       extend_(extend),
       shift_amount_(shift_amount) {
-  ASSERT(reg.IsValid());
-  ASSERT(shift_amount <= 4);
-  ASSERT(!reg.IsSP());
+  DCHECK(reg.IsValid());
+  DCHECK(shift_amount <= 4);
+  DCHECK(!reg.IsSP());
 
   // Extend modes SXTX and UXTX require a 64-bit register.
-  ASSERT(reg.Is64Bits() || ((extend != SXTX) && (extend != UXTX)));
+  DCHECK(reg.Is64Bits() || ((extend != SXTX) && (extend != UXTX)));
 }
 
 
@@ -387,44 +387,44 @@ bool Operand::IsZero() const {
 
 
 Operand Operand::ToExtendedRegister() const {
-  ASSERT(IsShiftedRegister());
-  ASSERT((shift_ == LSL) && (shift_amount_ <= 4));
+  DCHECK(IsShiftedRegister());
+  DCHECK((shift_ == LSL) && (shift_amount_ <= 4));
   return Operand(reg_, reg_.Is64Bits() ? UXTX : UXTW, shift_amount_);
 }
 
 
 Immediate Operand::immediate() const {
-  ASSERT(IsImmediate());
+  DCHECK(IsImmediate());
   return immediate_;
 }
 
 
 int64_t Operand::ImmediateValue() const {
-  ASSERT(IsImmediate());
+  DCHECK(IsImmediate());
   return immediate_.value();
 }
 
 
 Register Operand::reg() const {
-  ASSERT(IsShiftedRegister() || IsExtendedRegister());
+  DCHECK(IsShiftedRegister() || IsExtendedRegister());
   return reg_;
 }
 
 
 Shift Operand::shift() const {
-  ASSERT(IsShiftedRegister());
+  DCHECK(IsShiftedRegister());
   return shift_;
 }
 
 
 Extend Operand::extend() const {
-  ASSERT(IsExtendedRegister());
+  DCHECK(IsExtendedRegister());
   return extend_;
 }
 
 
 unsigned Operand::shift_amount() const {
-  ASSERT(IsShiftedRegister() || IsExtendedRegister());
+  DCHECK(IsShiftedRegister() || IsExtendedRegister());
   return shift_amount_;
 }
 
@@ -432,7 +432,7 @@ unsigned Operand::shift_amount() const {
 Operand Operand::UntagSmi(Register smi) {
   STATIC_ASSERT(kXRegSizeInBits == static_cast<unsigned>(kSmiShift +
                                                          kSmiValueSize));
-  ASSERT(smi.Is64Bits());
+  DCHECK(smi.Is64Bits());
   return Operand(smi, ASR, kSmiShift);
 }
 
@@ -440,8 +440,8 @@ Operand Operand::UntagSmi(Register smi) {
 Operand Operand::UntagSmiAndScale(Register smi, int scale) {
   STATIC_ASSERT(kXRegSizeInBits == static_cast<unsigned>(kSmiShift +
                                                          kSmiValueSize));
-  ASSERT(smi.Is64Bits());
-  ASSERT((scale >= 0) && (scale <= (64 - kSmiValueSize)));
+  DCHECK(smi.Is64Bits());
+  DCHECK((scale >= 0) && (scale <= (64 - kSmiValueSize)));
   if (scale > kSmiShift) {
     return Operand(smi, LSL, scale - kSmiShift);
   } else if (scale < kSmiShift) {
@@ -460,7 +460,7 @@ MemOperand::MemOperand()
 MemOperand::MemOperand(Register base, ptrdiff_t offset, AddrMode addrmode)
   : base_(base), regoffset_(NoReg), offset_(offset), addrmode_(addrmode),
     shift_(NO_SHIFT), extend_(NO_EXTEND), shift_amount_(0) {
-  ASSERT(base.Is64Bits() && !base.IsZero());
+  DCHECK(base.Is64Bits() && !base.IsZero());
 }
 
 
@@ -470,12 +470,12 @@ MemOperand::MemOperand(Register base,
                        unsigned shift_amount)
   : base_(base), regoffset_(regoffset), offset_(0), addrmode_(Offset),
     shift_(NO_SHIFT), extend_(extend), shift_amount_(shift_amount) {
-  ASSERT(base.Is64Bits() && !base.IsZero());
-  ASSERT(!regoffset.IsSP());
-  ASSERT((extend == UXTW) || (extend == SXTW) || (extend == SXTX));
+  DCHECK(base.Is64Bits() && !base.IsZero());
+  DCHECK(!regoffset.IsSP());
+  DCHECK((extend == UXTW) || (extend == SXTW) || (extend == SXTX));
 
   // SXTX extend mode requires a 64-bit offset register.
-  ASSERT(regoffset.Is64Bits() || (extend != SXTX));
+  DCHECK(regoffset.Is64Bits() || (extend != SXTX));
 }
 
 
@@ -485,22 +485,22 @@ MemOperand::MemOperand(Register base,
                        unsigned shift_amount)
   : base_(base), regoffset_(regoffset), offset_(0), addrmode_(Offset),
     shift_(shift), extend_(NO_EXTEND), shift_amount_(shift_amount) {
-  ASSERT(base.Is64Bits() && !base.IsZero());
-  ASSERT(regoffset.Is64Bits() && !regoffset.IsSP());
-  ASSERT(shift == LSL);
+  DCHECK(base.Is64Bits() && !base.IsZero());
+  DCHECK(regoffset.Is64Bits() && !regoffset.IsSP());
+  DCHECK(shift == LSL);
 }
 
 
 MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
   : base_(base), addrmode_(addrmode) {
-  ASSERT(base.Is64Bits() && !base.IsZero());
+  DCHECK(base.Is64Bits() && !base.IsZero());
 
   if (offset.IsImmediate()) {
     offset_ = offset.ImmediateValue();
 
     regoffset_ = NoReg;
   } else if (offset.IsShiftedRegister()) {
-    ASSERT(addrmode == Offset);
+    DCHECK(addrmode == Offset);
 
     regoffset_ = offset.reg();
     shift_= offset.shift();
@@ -510,11 +510,11 @@ MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
     offset_ = 0;
 
     // These assertions match those in the shifted-register constructor.
-    ASSERT(regoffset_.Is64Bits() && !regoffset_.IsSP());
-    ASSERT(shift_ == LSL);
+    DCHECK(regoffset_.Is64Bits() && !regoffset_.IsSP());
+    DCHECK(shift_ == LSL);
   } else {
-    ASSERT(offset.IsExtendedRegister());
-    ASSERT(addrmode == Offset);
+    DCHECK(offset.IsExtendedRegister());
+    DCHECK(addrmode == Offset);
 
     regoffset_ = offset.reg();
     extend_ = offset.extend();
@@ -524,9 +524,9 @@ MemOperand::MemOperand(Register base, const Operand& offset, AddrMode addrmode)
     offset_ = 0;
 
     // These assertions match those in the extended-register constructor.
-    ASSERT(!regoffset_.IsSP());
-    ASSERT((extend_ == UXTW) || (extend_ == SXTW) || (extend_ == SXTX));
-    ASSERT((regoffset_.Is64Bits() || (extend_ != SXTX)));
+    DCHECK(!regoffset_.IsSP());
+    DCHECK((extend_ == UXTW) || (extend_ == SXTW) || (extend_ == SXTX));
+    DCHECK((regoffset_.Is64Bits() || (extend_ != SXTX)));
   }
 }
 
@@ -553,7 +553,7 @@ Operand MemOperand::OffsetAsOperand() const {
   if (IsImmediateOffset()) {
     return offset();
   } else {
-    ASSERT(IsRegisterOffset());
+    DCHECK(IsRegisterOffset());
     if (extend() == NO_EXTEND) {
       return Operand(regoffset(), shift(), shift_amount());
     } else {
@@ -575,7 +575,7 @@ void Assembler::Unreachable() {
 
 Address Assembler::target_pointer_address_at(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
-  ASSERT(instr->IsLdrLiteralX());
+  DCHECK(instr->IsLdrLiteralX());
   return reinterpret_cast<Address>(instr->ImmPCOffsetTarget());
 }
 
@@ -602,7 +602,7 @@ Address Assembler::target_address_from_return_address(Address pc) {
   Address candidate = pc - 2 * kInstructionSize;
   Instruction* instr = reinterpret_cast<Instruction*>(candidate);
   USE(instr);
-  ASSERT(instr->IsLdrLiteralX());
+  DCHECK(instr->IsLdrLiteralX());
   return candidate;
 }
 
@@ -630,14 +630,14 @@ Address Assembler::return_address_from_call_start(Address pc) {
   Instruction* instr = reinterpret_cast<Instruction*>(pc);
   if (instr->IsMovz()) {
     // Verify the instruction sequence.
-    ASSERT(instr->following(1)->IsMovk());
-    ASSERT(instr->following(2)->IsMovk());
-    ASSERT(instr->following(3)->IsBranchAndLinkToRegister());
+    DCHECK(instr->following(1)->IsMovk());
+    DCHECK(instr->following(2)->IsMovk());
+    DCHECK(instr->following(3)->IsBranchAndLinkToRegister());
     return pc + Assembler::kCallSizeWithoutRelocation;
   } else {
     // Verify the instruction sequence.
-    ASSERT(instr->IsLdrLiteralX());
-    ASSERT(instr->following(1)->IsBranchAndLinkToRegister());
+    DCHECK(instr->IsLdrLiteralX());
+    DCHECK(instr->following(1)->IsBranchAndLinkToRegister());
     return pc + Assembler::kCallSizeWithRelocation;
   }
 }
@@ -680,13 +680,13 @@ int RelocInfo::target_address_size() {
 
 
 Address RelocInfo::target_address() {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   return Assembler::target_address_at(pc_, host_);
 }
 
 
 Address RelocInfo::target_address_address() {
-  ASSERT(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
                               || rmode_ == EXTERNAL_REFERENCE);
   return Assembler::target_pointer_address_at(pc_);
@@ -694,19 +694,19 @@ Address RelocInfo::target_address_address() {
 
 
 Address RelocInfo::constant_pool_entry_address() {
-  ASSERT(IsInConstantPool());
+  DCHECK(IsInConstantPool());
   return Assembler::target_pointer_address_at(pc_);
 }
 
 
 Object* RelocInfo::target_object() {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
 }
 
 
 Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return Handle<Object>(reinterpret_cast<Object**>(
       Assembler::target_address_at(pc_, host_)));
 }
@@ -715,7 +715,7 @@ Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
 void RelocInfo::set_target_object(Object* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
-  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
+  DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Assembler::set_target_address_at(pc_, host_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
@@ -729,13 +729,13 @@ void RelocInfo::set_target_object(Object* target,
 
 
 Address RelocInfo::target_reference() {
-  ASSERT(rmode_ == EXTERNAL_REFERENCE);
+  DCHECK(rmode_ == EXTERNAL_REFERENCE);
   return Assembler::target_address_at(pc_, host_);
 }
 
 
 Address RelocInfo::target_runtime_entry(Assembler* origin) {
-  ASSERT(IsRuntimeEntry(rmode_));
+  DCHECK(IsRuntimeEntry(rmode_));
   return target_address();
 }
 
@@ -743,7 +743,7 @@ Address RelocInfo::target_runtime_entry(Assembler* origin) {
 void RelocInfo::set_target_runtime_entry(Address target,
                                          WriteBarrierMode write_barrier_mode,
                                          ICacheFlushMode icache_flush_mode) {
-  ASSERT(IsRuntimeEntry(rmode_));
+  DCHECK(IsRuntimeEntry(rmode_));
   if (target_address() != target) {
     set_target_address(target, write_barrier_mode, icache_flush_mode);
   }
@@ -758,7 +758,7 @@ Handle<Cell> RelocInfo::target_cell_handle() {
 
 
 Cell* RelocInfo::target_cell() {
-  ASSERT(rmode_ == RelocInfo::CELL);
+  DCHECK(rmode_ == RelocInfo::CELL);
   return Cell::FromValueAddress(Memory::Address_at(pc_));
 }
 
@@ -781,7 +781,7 @@ Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
 
 
 Code* RelocInfo::code_age_stub() {
-  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
   // Read the stub entry point from the code age sequence.
   Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;
   return Code::GetCodeFromTargetAddress(Memory::Address_at(stub_entry_address));
@@ -790,8 +790,8 @@ Code* RelocInfo::code_age_stub() {
 
 void RelocInfo::set_code_age_stub(Code* stub,
                                   ICacheFlushMode icache_flush_mode) {
-  ASSERT(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
-  ASSERT(!Code::IsYoungSequence(stub->GetIsolate(), pc_));
+  DCHECK(rmode_ == RelocInfo::CODE_AGE_SEQUENCE);
+  DCHECK(!Code::IsYoungSequence(stub->GetIsolate(), pc_));
   // Overwrite the stub entry point in the code age sequence. This is loaded as
   // a literal so there is no need to call FlushICache here.
   Address stub_entry_address = pc_ + kCodeAgeStubEntryOffset;
@@ -800,7 +800,7 @@ void RelocInfo::set_code_age_stub(Code* stub,
 
 
 Address RelocInfo::call_address() {
-  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   // For the above sequences the Relocinfo points to the load literal loading
   // the call address.
@@ -809,7 +809,7 @@ Address RelocInfo::call_address() {
 
 
 void RelocInfo::set_call_address(Address target) {
-  ASSERT((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
+  DCHECK((IsJSReturn(rmode()) && IsPatchedReturnSequence()) ||
          (IsDebugBreakSlot(rmode()) && IsPatchedDebugBreakSlotSequence()));
   Assembler::set_target_address_at(pc_, host_, target);
   if (host() != NULL) {
@@ -821,7 +821,7 @@ void RelocInfo::set_call_address(Address target) {
 
 
 void RelocInfo::WipeOut() {
-  ASSERT(IsEmbeddedObject(rmode_) ||
+  DCHECK(IsEmbeddedObject(rmode_) ||
          IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
          IsExternalReference(rmode_));
@@ -893,11 +893,11 @@ void RelocInfo::Visit(Heap* heap) {
 
 
 LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
-  ASSERT(rt.IsValid());
+  DCHECK(rt.IsValid());
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDR_x : LDR_w;
   } else {
-    ASSERT(rt.IsFPRegister());
+    DCHECK(rt.IsFPRegister());
     return rt.Is64Bits() ? LDR_d : LDR_s;
   }
 }
@@ -905,23 +905,23 @@ LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {
 
 LoadStorePairOp Assembler::LoadPairOpFor(const CPURegister& rt,
                                          const CPURegister& rt2) {
-  ASSERT(AreSameSizeAndType(rt, rt2));
+  DCHECK(AreSameSizeAndType(rt, rt2));
   USE(rt2);
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDP_x : LDP_w;
   } else {
-    ASSERT(rt.IsFPRegister());
+    DCHECK(rt.IsFPRegister());
     return rt.Is64Bits() ? LDP_d : LDP_s;
   }
 }
 
 
 LoadStoreOp Assembler::StoreOpFor(const CPURegister& rt) {
-  ASSERT(rt.IsValid());
+  DCHECK(rt.IsValid());
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STR_x : STR_w;
   } else {
-    ASSERT(rt.IsFPRegister());
+    DCHECK(rt.IsFPRegister());
     return rt.Is64Bits() ? STR_d : STR_s;
   }
 }
@@ -929,12 +929,12 @@ LoadStoreOp Assembler::StoreOpFor(const CPURegister& rt) {
 
 LoadStorePairOp Assembler::StorePairOpFor(const CPURegister& rt,
                                           const CPURegister& rt2) {
-  ASSERT(AreSameSizeAndType(rt, rt2));
+  DCHECK(AreSameSizeAndType(rt, rt2));
   USE(rt2);
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STP_x : STP_w;
   } else {
-    ASSERT(rt.IsFPRegister());
+    DCHECK(rt.IsFPRegister());
     return rt.Is64Bits() ? STP_d : STP_s;
   }
 }
@@ -942,12 +942,12 @@ LoadStorePairOp Assembler::StorePairOpFor(const CPURegister& rt,
 
 LoadStorePairNonTemporalOp Assembler::LoadPairNonTemporalOpFor(
     const CPURegister& rt, const CPURegister& rt2) {
-  ASSERT(AreSameSizeAndType(rt, rt2));
+  DCHECK(AreSameSizeAndType(rt, rt2));
   USE(rt2);
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDNP_x : LDNP_w;
   } else {
-    ASSERT(rt.IsFPRegister());
+    DCHECK(rt.IsFPRegister());
     return rt.Is64Bits() ? LDNP_d : LDNP_s;
   }
 }
@@ -955,12 +955,12 @@ LoadStorePairNonTemporalOp Assembler::LoadPairNonTemporalOpFor(
 
 LoadStorePairNonTemporalOp Assembler::StorePairNonTemporalOpFor(
     const CPURegister& rt, const CPURegister& rt2) {
-  ASSERT(AreSameSizeAndType(rt, rt2));
+  DCHECK(AreSameSizeAndType(rt, rt2));
   USE(rt2);
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? STNP_x : STNP_w;
   } else {
-    ASSERT(rt.IsFPRegister());
+    DCHECK(rt.IsFPRegister());
     return rt.Is64Bits() ? STNP_d : STNP_s;
   }
 }
@@ -970,16 +970,16 @@ LoadLiteralOp Assembler::LoadLiteralOpFor(const CPURegister& rt) {
   if (rt.IsRegister()) {
     return rt.Is64Bits() ? LDR_x_lit : LDR_w_lit;
   } else {
-    ASSERT(rt.IsFPRegister());
+    DCHECK(rt.IsFPRegister());
     return rt.Is64Bits() ? LDR_d_lit : LDR_s_lit;
   }
 }
 
 
 int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {
-  ASSERT(kStartOfLabelLinkChain == 0);
+  DCHECK(kStartOfLabelLinkChain == 0);
   int offset = LinkAndGetByteOffsetTo(label);
-  ASSERT(IsAligned(offset, kInstructionSize));
+  DCHECK(IsAligned(offset, kInstructionSize));
   return offset >> kInstructionSizeLog2;
 }
 
@@ -1034,7 +1034,7 @@ Instr Assembler::ImmTestBranch(int imm14) {
 
 
 Instr Assembler::ImmTestBranchBit(unsigned bit_pos) {
-  ASSERT(is_uint6(bit_pos));
+  DCHECK(is_uint6(bit_pos));
   // Subtract five from the shift offset, as we need bit 5 from bit_pos.
   unsigned b5 = bit_pos << (ImmTestBranchBit5_offset - 5);
   unsigned b40 = bit_pos << ImmTestBranchBit40_offset;
@@ -1050,7 +1050,7 @@ Instr Assembler::SF(Register rd) {
 
 
 Instr Assembler::ImmAddSub(int64_t imm) {
-  ASSERT(IsImmAddSub(imm));
+  DCHECK(IsImmAddSub(imm));
   if (is_uint12(imm)) {  // No shift required.
     return imm << ImmAddSub_offset;
   } else {
@@ -1060,7 +1060,7 @@ Instr Assembler::ImmAddSub(int64_t imm) {
 
 
 Instr Assembler::ImmS(unsigned imms, unsigned reg_size) {
-  ASSERT(((reg_size == kXRegSizeInBits) && is_uint6(imms)) ||
+  DCHECK(((reg_size == kXRegSizeInBits) && is_uint6(imms)) ||
          ((reg_size == kWRegSizeInBits) && is_uint5(imms)));
   USE(reg_size);
   return imms << ImmS_offset;
@@ -1068,26 +1068,26 @@ Instr Assembler::ImmS(unsigned imms, unsigned reg_size) {
 
 
 Instr Assembler::ImmR(unsigned immr, unsigned reg_size) {
-  ASSERT(((reg_size == kXRegSizeInBits) && is_uint6(immr)) ||
+  DCHECK(((reg_size == kXRegSizeInBits) && is_uint6(immr)) ||
          ((reg_size == kWRegSizeInBits) && is_uint5(immr)));
   USE(reg_size);
-  ASSERT(is_uint6(immr));
+  DCHECK(is_uint6(immr));
   return immr << ImmR_offset;
 }
 
 
 Instr Assembler::ImmSetBits(unsigned imms, unsigned reg_size) {
-  ASSERT((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
-  ASSERT(is_uint6(imms));
-  ASSERT((reg_size == kXRegSizeInBits) || is_uint6(imms + 3));
+  DCHECK((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
+  DCHECK(is_uint6(imms));
+  DCHECK((reg_size == kXRegSizeInBits) || is_uint6(imms + 3));
   USE(reg_size);
   return imms << ImmSetBits_offset;
 }
 
 
 Instr Assembler::ImmRotate(unsigned immr, unsigned reg_size) {
-  ASSERT((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
-  ASSERT(((reg_size == kXRegSizeInBits) && is_uint6(immr)) ||
+  DCHECK((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
+  DCHECK(((reg_size == kXRegSizeInBits) && is_uint6(immr)) ||
          ((reg_size == kWRegSizeInBits) && is_uint5(immr)));
   USE(reg_size);
   return immr << ImmRotate_offset;
@@ -1101,21 +1101,21 @@ Instr Assembler::ImmLLiteral(int imm19) {
 
 
 Instr Assembler::BitN(unsigned bitn, unsigned reg_size) {
-  ASSERT((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
-  ASSERT((reg_size == kXRegSizeInBits) || (bitn == 0));
+  DCHECK((reg_size == kWRegSizeInBits) || (reg_size == kXRegSizeInBits));
+  DCHECK((reg_size == kXRegSizeInBits) || (bitn == 0));
   USE(reg_size);
   return bitn << BitN_offset;
 }
 
 
 Instr Assembler::ShiftDP(Shift shift) {
-  ASSERT(shift == LSL || shift == LSR || shift == ASR || shift == ROR);
+  DCHECK(shift == LSL || shift == LSR || shift == ASR || shift == ROR);
   return shift << ShiftDP_offset;
 }
 
 
 Instr Assembler::ImmDPShift(unsigned amount) {
-  ASSERT(is_uint6(amount));
+  DCHECK(is_uint6(amount));
   return amount << ImmDPShift_offset;
 }
 
@@ -1126,13 +1126,13 @@ Instr Assembler::ExtendMode(Extend extend) {
 
 
 Instr Assembler::ImmExtendShift(unsigned left_shift) {
-  ASSERT(left_shift <= 4);
+  DCHECK(left_shift <= 4);
   return left_shift << ImmExtendShift_offset;
 }
 
 
 Instr Assembler::ImmCondCmp(unsigned imm) {
-  ASSERT(is_uint5(imm));
+  DCHECK(is_uint5(imm));
   return imm << ImmCondCmp_offset;
 }
 
@@ -1143,75 +1143,75 @@ Instr Assembler::Nzcv(StatusFlags nzcv) {
 
 
 Instr Assembler::ImmLSUnsigned(int imm12) {
-  ASSERT(is_uint12(imm12));
+  DCHECK(is_uint12(imm12));
   return imm12 << ImmLSUnsigned_offset;
 }
 
 
 Instr Assembler::ImmLS(int imm9) {
-  ASSERT(is_int9(imm9));
+  DCHECK(is_int9(imm9));
   return truncate_to_int9(imm9) << ImmLS_offset;
 }
 
 
 Instr Assembler::ImmLSPair(int imm7, LSDataSize size) {
-  ASSERT(((imm7 >> size) << size) == imm7);
+  DCHECK(((imm7 >> size) << size) == imm7);
   int scaled_imm7 = imm7 >> size;
-  ASSERT(is_int7(scaled_imm7));
+  DCHECK(is_int7(scaled_imm7));
   return truncate_to_int7(scaled_imm7) << ImmLSPair_offset;
 }
 
 
 Instr Assembler::ImmShiftLS(unsigned shift_amount) {
-  ASSERT(is_uint1(shift_amount));
+  DCHECK(is_uint1(shift_amount));
   return shift_amount << ImmShiftLS_offset;
 }
 
 
 Instr Assembler::ImmException(int imm16) {
-  ASSERT(is_uint16(imm16));
+  DCHECK(is_uint16(imm16));
   return imm16 << ImmException_offset;
 }
 
 
 Instr Assembler::ImmSystemRegister(int imm15) {
-  ASSERT(is_uint15(imm15));
+  DCHECK(is_uint15(imm15));
   return imm15 << ImmSystemRegister_offset;
 }
 
 
 Instr Assembler::ImmHint(int imm7) {
-  ASSERT(is_uint7(imm7));
+  DCHECK(is_uint7(imm7));
   return imm7 << ImmHint_offset;
 }
 
 
 Instr Assembler::ImmBarrierDomain(int imm2) {
-  ASSERT(is_uint2(imm2));
+  DCHECK(is_uint2(imm2));
   return imm2 << ImmBarrierDomain_offset;
 }
 
 
 Instr Assembler::ImmBarrierType(int imm2) {
-  ASSERT(is_uint2(imm2));
+  DCHECK(is_uint2(imm2));
   return imm2 << ImmBarrierType_offset;
 }
 
 
 LSDataSize Assembler::CalcLSDataSize(LoadStoreOp op) {
-  ASSERT((SizeLS_offset + SizeLS_width) == (kInstructionSize * 8));
+  DCHECK((SizeLS_offset + SizeLS_width) == (kInstructionSize * 8));
   return static_cast<LSDataSize>(op >> SizeLS_offset);
 }
 
 
 Instr Assembler::ImmMoveWide(uint64_t imm) {
-  ASSERT(is_uint16(imm));
+  DCHECK(is_uint16(imm));
   return imm << ImmMoveWide_offset;
 }
 
 
 Instr Assembler::ShiftMoveWide(int64_t shift) {
-  ASSERT(is_uint2(shift));
+  DCHECK(is_uint2(shift));
   return shift << ShiftMoveWide_offset;
 }
 
@@ -1222,7 +1222,7 @@ Instr Assembler::FPType(FPRegister fd) {
 
 
 Instr Assembler::FPScale(unsigned scale) {
-  ASSERT(is_uint6(scale));
+  DCHECK(is_uint6(scale));
   return scale << FPScale_offset;
 }
 
@@ -1233,7 +1233,7 @@ const Register& Assembler::AppropriateZeroRegFor(const CPURegister& reg) const {
 
 
 inline void Assembler::CheckBufferSpace() {
-  ASSERT(pc_ < (buffer_ + buffer_size_));
+  DCHECK(pc_ < (buffer_ + buffer_size_));
   if (buffer_space() < kGap) {
     GrowBuffer();
   }
@@ -1252,7 +1252,7 @@ inline void Assembler::CheckBuffer() {
 
 
 TypeFeedbackId Assembler::RecordedAstId() {
-  ASSERT(!recorded_ast_id_.IsNone());
+  DCHECK(!recorded_ast_id_.IsNone());
   return recorded_ast_id_;
 }
 

@@ -67,13 +67,13 @@ void BreakLocationIterator::ClearDebugBreakAtReturn() {
 
 
 bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
+  DCHECK(RelocInfo::IsJSReturn(rinfo->rmode()));
   return rinfo->IsPatchedReturnSequence();
 }
 
 
 bool BreakLocationIterator::IsDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
+  DCHECK(IsDebugBreakSlot());
   // Check whether the debug break slot instructions have been patched.
   return rinfo()->IsPatchedDebugBreakSlotSequence();
 }
@@ -118,7 +118,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
 
 
 void BreakLocationIterator::ClearDebugBreakAtSlot() {
-  ASSERT(IsDebugBreakSlot());
+  DCHECK(IsDebugBreakSlot());
   rinfo()->PatchCode(original_rinfo()->pc(),
                      Assembler::kDebugBreakSlotInstructions);
 }
@@ -150,12 +150,12 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
     //    collector doesn't try to interpret them as pointers.
     //
     // TODO(jbramley): Why can't this handle callee-saved registers?
-    ASSERT((~kCallerSaved.list() & object_regs) == 0);
-    ASSERT((~kCallerSaved.list() & non_object_regs) == 0);
-    ASSERT((object_regs & non_object_regs) == 0);
-    ASSERT((scratch.Bit() & object_regs) == 0);
-    ASSERT((scratch.Bit() & non_object_regs) == 0);
-    ASSERT((masm->TmpList()->list() & (object_regs | non_object_regs)) == 0);
+    DCHECK((~kCallerSaved.list() & object_regs) == 0);
+    DCHECK((~kCallerSaved.list() & non_object_regs) == 0);
+    DCHECK((object_regs & non_object_regs) == 0);
+    DCHECK((scratch.Bit() & object_regs) == 0);
+    DCHECK((scratch.Bit() & non_object_regs) == 0);
+    DCHECK((masm->TmpList()->list() & (object_regs | non_object_regs)) == 0);
     STATIC_ASSERT(kSmiValueSize == 32);
 
     CPURegList non_object_list =

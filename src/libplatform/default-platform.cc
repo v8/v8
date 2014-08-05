@@ -57,7 +57,7 @@ DefaultPlatform::~DefaultPlatform() {
 
 void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
   base::LockGuard<base::Mutex> guard(&lock_);
-  ASSERT(thread_pool_size >= 0);
+  DCHECK(thread_pool_size >= 0);
   if (thread_pool_size < 1)
     thread_pool_size = base::OS::NumberOfProcessorsOnline();
   thread_pool_size_ =

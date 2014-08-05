@@ -47,7 +47,7 @@ class WaitAndSignalThread V8_FINAL : public v8::base::Thread {
       semaphore_->Wait();
       bool result =
           semaphore_->WaitFor(v8::base::TimeDelta::FromMicroseconds(1));
-      ASSERT(!result);
+      DCHECK(!result);
       USE(result);
       semaphore_->Signal();
     }
@@ -75,7 +75,7 @@ TEST(WaitAndSignal) {
   semaphore.Wait();
 
   bool result = semaphore.WaitFor(v8::base::TimeDelta::FromMicroseconds(1));
-  ASSERT(!result);
+  DCHECK(!result);
   USE(result);
 }
 
@@ -138,7 +138,7 @@ class ConsumerThread V8_FINAL : public v8::base::Thread {
   virtual void Run() V8_OVERRIDE {
     for (int n = 0; n < kDataSize; ++n) {
       used_space.Wait();
-      ASSERT_EQ(static_cast<int>(alphabet[n % kAlphabetSize]),
+      DCHECK_EQ(static_cast<int>(alphabet[n % kAlphabetSize]),
                 static_cast<int>(buffer[n % kBufferSize]));
       free_space.Signal();
     }

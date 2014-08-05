@@ -125,7 +125,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   ~LookupResult() {
-    ASSERT(isolate()->top_lookup_result() == this);
+    DCHECK(isolate()->top_lookup_result() == this);
     isolate()->set_top_lookup_result(next_);
   }
 
@@ -147,7 +147,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
         return value->FitsRepresentation(representation()) &&
             GetFieldType()->NowContains(value);
       case CONSTANT:
-        ASSERT(GetConstant() != *value ||
+        DCHECK(GetConstant() != *value ||
                value->FitsRepresentation(representation()));
         return GetConstant() == *value;
       case CALLBACKS:
@@ -200,29 +200,29 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   JSObject* holder() const {
-    ASSERT(IsFound());
+    DCHECK(IsFound());
     return JSObject::cast(holder_);
   }
 
   JSProxy* proxy() const {
-    ASSERT(IsHandler());
+    DCHECK(IsHandler());
     return JSProxy::cast(holder_);
   }
 
   PropertyType type() const {
-    ASSERT(IsFound());
+    DCHECK(IsFound());
     return details_.type();
   }
 
   Representation representation() const {
-    ASSERT(IsFound());
-    ASSERT(details_.type() != NONEXISTENT);
+    DCHECK(IsFound());
+    DCHECK(details_.type() != NONEXISTENT);
     return details_.representation();
   }
 
   PropertyAttributes GetAttributes() const {
-    ASSERT(IsFound());
-    ASSERT(details_.type() != NONEXISTENT);
+    DCHECK(IsFound());
+    DCHECK(details_.type() != NONEXISTENT);
     return details_.attributes();
   }
 
@@ -231,34 +231,34 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   bool IsFastPropertyType() const {
-    ASSERT(IsFound());
+    DCHECK(IsFound());
     return IsTransition() || type() != NORMAL;
   }
 
   // Property callbacks does not include transitions to callbacks.
   bool IsPropertyCallbacks() const {
-    ASSERT(!(details_.type() == CALLBACKS && !IsFound()));
+    DCHECK(!(details_.type() == CALLBACKS && !IsFound()));
     return !IsTransition() && details_.type() == CALLBACKS;
   }
 
   bool IsReadOnly() const {
-    ASSERT(IsFound());
-    ASSERT(details_.type() != NONEXISTENT);
+    DCHECK(IsFound());
+    DCHECK(details_.type() != NONEXISTENT);
     return details_.IsReadOnly();
   }
 
   bool IsField() const {
-    ASSERT(!(details_.type() == FIELD && !IsFound()));
+    DCHECK(!(details_.type() == FIELD && !IsFound()));
     return IsDescriptorOrDictionary() && type() == FIELD;
   }
 
   bool IsNormal() const {
-    ASSERT(!(details_.type() == NORMAL && !IsFound()));
+    DCHECK(!(details_.type() == NORMAL && !IsFound()));
     return IsDescriptorOrDictionary() && type() == NORMAL;
   }
 
   bool IsConstant() const {
-    ASSERT(!(details_.type() == CONSTANT && !IsFound()));
+    DCHECK(!(details_.type() == CONSTANT && !IsFound()));
     return IsDescriptorOrDictionary() && type() == CONSTANT;
   }
 
@@ -298,7 +298,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
             return true;
           case CALLBACKS: {
             Object* callback = GetCallbackObject();
-            ASSERT(!callback->IsForeign());
+            DCHECK(!callback->IsForeign());
             return callback->IsAccessorInfo();
           }
           case HANDLER:
@@ -352,7 +352,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   Map* GetTransitionTarget() const {
-    ASSERT(IsTransition());
+    DCHECK(IsTransition());
     return transition_;
   }
 
@@ -365,12 +365,12 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   int GetDescriptorIndex() const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE);
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE);
     return number_;
   }
 
   FieldIndex GetFieldIndex() const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
     return FieldIndex::ForLookupResult(this);
   }
@@ -380,17 +380,17 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   int GetDictionaryEntry() const {
-    ASSERT(lookup_type_ == DICTIONARY_TYPE);
+    DCHECK(lookup_type_ == DICTIONARY_TYPE);
     return number_;
   }
 
   JSFunction* GetConstantFunction() const {
-    ASSERT(type() == CONSTANT);
+    DCHECK(type() == CONSTANT);
     return JSFunction::cast(GetValue());
   }
 
   Object* GetConstantFromMap(Map* map) const {
-    ASSERT(type() == CONSTANT);
+    DCHECK(type() == CONSTANT);
     return GetValueFromMap(map);
   }
 
@@ -399,13 +399,13 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   Object* GetConstant() const {
-    ASSERT(type() == CONSTANT);
+    DCHECK(type() == CONSTANT);
     return GetValue();
   }
 
   Object* GetCallbackObject() const {
-    ASSERT(!IsTransition());
-    ASSERT(type() == CALLBACKS);
+    DCHECK(!IsTransition());
+    DCHECK(type() == CALLBACKS);
     return GetValue();
   }
 
@@ -416,37 +416,37 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
       return GetValueFromMap(transition_);
     }
     // In the dictionary case, the data is held in the value field.
-    ASSERT(lookup_type_ == DICTIONARY_TYPE);
+    DCHECK(lookup_type_ == DICTIONARY_TYPE);
     return holder()->GetNormalizedProperty(this);
   }
 
   Object* GetValueFromMap(Map* map) const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    DCHECK(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetValue(number_);
   }
 
   int GetFieldIndexFromMap(Map* map) const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    DCHECK(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetFieldIndex(number_);
   }
 
   HeapType* GetFieldType() const {
-    ASSERT(type() == FIELD);
+    DCHECK(type() == FIELD);
     if (lookup_type_ == DESCRIPTOR_TYPE) {
       return GetFieldTypeFromMap(holder()->map());
     }
-    ASSERT(lookup_type_ == TRANSITION_TYPE);
+    DCHECK(lookup_type_ == TRANSITION_TYPE);
     return GetFieldTypeFromMap(transition_);
   }
 
   HeapType* GetFieldTypeFromMap(Map* map) const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    DCHECK(number_ < map->NumberOfOwnDescriptors());
     return map->instance_descriptors()->GetFieldType(number_);
   }
 
@@ -455,9 +455,9 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   Map* GetFieldOwnerFromMap(Map* map) const {
-    ASSERT(lookup_type_ == DESCRIPTOR_TYPE ||
+    DCHECK(lookup_type_ == DESCRIPTOR_TYPE ||
            lookup_type_ == TRANSITION_TYPE);
-    ASSERT(number_ < map->NumberOfOwnDescriptors());
+    DCHECK(number_ < map->NumberOfOwnDescriptors());
     return map->FindFieldOwner(number_);
   }
 

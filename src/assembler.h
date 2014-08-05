@@ -183,7 +183,7 @@ class CpuFeatures : public AllStatic {
   static inline bool SupportsCrankshaft();
 
   static inline unsigned cache_line_size() {
-    ASSERT(cache_line_size_ != 0);
+    DCHECK(cache_line_size_ != 0);
     return cache_line_size_;
   }
 
@@ -223,8 +223,8 @@ class Label BASE_EMBEDDED {
   }
 
   INLINE(~Label()) {
-    ASSERT(!is_linked());
-    ASSERT(!is_near_linked());
+    DCHECK(!is_linked());
+    DCHECK(!is_near_linked());
   }
 
   INLINE(void Unuse()) { pos_ = 0; }
@@ -254,15 +254,15 @@ class Label BASE_EMBEDDED {
 
   void bind_to(int pos)  {
     pos_ = -pos - 1;
-    ASSERT(is_bound());
+    DCHECK(is_bound());
   }
   void link_to(int pos, Distance distance = kFar) {
     if (distance == kNear) {
       near_link_pos_ = pos + 1;
-      ASSERT(is_near_linked());
+      DCHECK(is_near_linked());
     } else {
       pos_ = pos + 1;
-      ASSERT(is_linked());
+      DCHECK(is_linked());
     }
   }
 
@@ -384,7 +384,7 @@ class RelocInfo {
         mode <= LAST_REAL_RELOC_MODE;
   }
   static inline bool IsPseudoRelocMode(Mode mode) {
-    ASSERT(!IsRealRelocMode(mode));
+    DCHECK(!IsRealRelocMode(mode));
     return mode >= FIRST_PSEUDO_RELOC_MODE &&
         mode <= LAST_PSEUDO_RELOC_MODE;
   }
@@ -681,7 +681,7 @@ class RelocIterator: public Malloced {
 
   // Return pointer valid until next next().
   RelocInfo* rinfo() {
-    ASSERT(!done());
+    DCHECK(!done());
     return &rinfo_;
   }
 
@@ -954,7 +954,7 @@ class ExternalReference BASE_EMBEDDED {
   static void set_redirector(Isolate* isolate,
                              ExternalReferenceRedirector* redirector) {
     // We can't stack them.
-    ASSERT(isolate->external_reference_redirector() == NULL);
+    DCHECK(isolate->external_reference_redirector() == NULL);
     isolate->set_external_reference_redirector(
         reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
   }

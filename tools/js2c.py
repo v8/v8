@@ -276,7 +276,7 @@ namespace internal {
 
   template <>
   void NativesCollection<%(type)s>::SetRawScriptsSource(Vector<const char> raw_source) {
-    ASSERT(%(raw_total_length)i == raw_source.length());
+    DCHECK(%(raw_total_length)i == raw_source.length());
     raw_sources = raw_source.start();
   }
 

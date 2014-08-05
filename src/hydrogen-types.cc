@@ -48,7 +48,7 @@ HType HType::FromValue(Handle<Object> value) {
   if (value->IsUndefined()) return HType::Undefined();
   if (value->IsJSArray()) return HType::JSArray();
   if (value->IsJSObject()) return HType::JSObject();
-  ASSERT(value->IsHeapObject());
+  DCHECK(value->IsHeapObject());
   return HType::HeapObject();
 }
 

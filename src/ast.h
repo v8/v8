@@ -428,7 +428,7 @@ class BreakableStatement : public Statement {
         breakable_type_(breakable_type),
         entry_id_(GetNextId(zone)),
         exit_id_(GetNextId(zone)) {
-    ASSERT(labels == NULL || labels->length() > 0);
+    DCHECK(labels == NULL || labels->length() > 0);
   }
 
 
@@ -501,7 +501,7 @@ class Declaration : public AstNode {
         proxy_(proxy),
         mode_(mode),
         scope_(scope) {
-    ASSERT(IsDeclaredVariableMode(mode));
+    DCHECK(IsDeclaredVariableMode(mode));
   }
 
  private:
@@ -552,8 +552,8 @@ class FunctionDeclaration V8_FINAL : public Declaration {
       : Declaration(zone, proxy, mode, scope, pos),
         fun_(fun) {
     // At the moment there are no "const functions" in JavaScript...
-    ASSERT(mode == VAR || mode == LET);
-    ASSERT(fun != NULL);
+    DCHECK(mode == VAR || mode == LET);
+    DCHECK(fun != NULL);
   }
 
  private:
@@ -925,7 +925,7 @@ class ForInStatement V8_FINAL : public ForEachStatement,
   virtual void SetFirstFeedbackSlot(int slot) { for_in_feedback_slot_ = slot; }
 
   int ForInFeedbackSlot() {
-    ASSERT(for_in_feedback_slot_ != kInvalidFeedbackSlot);
+    DCHECK(for_in_feedback_slot_ != kInvalidFeedbackSlot);
     return for_in_feedback_slot_;
   }
 
@@ -1346,12 +1346,12 @@ class Literal V8_FINAL : public Expression {
   }
 
   Handle<String> AsPropertyName() {
-    ASSERT(IsPropertyName());
+    DCHECK(IsPropertyName());
     return Handle<String>::cast(value());
   }
 
   const AstRawString* AsRawPropertyName() {
-    ASSERT(IsPropertyName());
+    DCHECK(IsPropertyName());
     return value_->AsString();
   }
 
@@ -1401,7 +1401,7 @@ class MaterializedLiteral : public Expression {
 
   int depth() const {
     // only callable after initialization.
-    ASSERT(depth_ >= 1);
+    DCHECK(depth_ >= 1);
     return depth_;
   }
 
@@ -1421,7 +1421,7 @@ class MaterializedLiteral : public Expression {
   friend class CompileTimeValue;
 
   void set_depth(int depth) {
-    ASSERT(depth >= 1);
+    DCHECK(depth >= 1);
     depth_ = depth;
   }
 
@@ -1859,12 +1859,12 @@ class CallNew V8_FINAL : public Expression, public FeedbackSlotInterface {
   }
 
   int CallNewFeedbackSlot() {
-    ASSERT(callnew_feedback_slot_ != kInvalidFeedbackSlot);
+    DCHECK(callnew_feedback_slot_ != kInvalidFeedbackSlot);
     return callnew_feedback_slot_;
   }
   int AllocationSiteFeedbackSlot() {
-    ASSERT(callnew_feedback_slot_ != kInvalidFeedbackSlot);
-    ASSERT(FLAG_pretenuring_call_new);
+    DCHECK(callnew_feedback_slot_ != kInvalidFeedbackSlot);
+    DCHECK(FLAG_pretenuring_call_new);
     return callnew_feedback_slot_ + 1;
   }
 
@@ -1930,7 +1930,7 @@ class CallRuntime V8_FINAL : public Expression, public FeedbackSlotInterface {
   }
 
   int CallRuntimeFeedbackSlot() {
-    ASSERT(!is_jsruntime() ||
+    DCHECK(!is_jsruntime() ||
            callruntime_feedback_slot_ != kInvalidFeedbackSlot);
     return callruntime_feedback_slot_;
   }
@@ -1979,7 +1979,7 @@ class UnaryOperation V8_FINAL : public Expression {
         expression_(expression),
         materialize_true_id_(GetNextId(zone)),
         materialize_false_id_(GetNextId(zone)) {
-    ASSERT(Token::IsUnaryOp(op));
+    DCHECK(Token::IsUnaryOp(op));
   }
 
  private:
@@ -2027,7 +2027,7 @@ class BinaryOperation V8_FINAL : public Expression {
         left_(left),
         right_(right),
         right_id_(GetNextId(zone)) {
-    ASSERT(Token::IsBinaryOp(op));
+    DCHECK(Token::IsBinaryOp(op));
   }
 
  private:
@@ -2135,7 +2135,7 @@ class CompareOperation V8_FINAL : public Expression {
         left_(left),
         right_(right),
         combined_type_(Type::None(zone)) {
-    ASSERT(Token::IsCompareOp(op));
+    DCHECK(Token::IsCompareOp(op));
   }
 
  private:
@@ -2225,7 +2225,7 @@ class Assignment V8_FINAL : public Expression {
 
   template<class Visitor>
   void Init(Zone* zone, AstNodeFactory<Visitor>* factory) {
-    ASSERT(Token::IsAssignmentOp(op_));
+    DCHECK(Token::IsAssignmentOp(op_));
     if (is_compound()) {
       binary_operation_ = factory->NewBinaryOperation(
           binary_op(), target_, value_, position() + 1);
@@ -2265,11 +2265,11 @@ class Yield V8_FINAL : public Expression, public FeedbackSlotInterface {
   // locates the catch handler in the handler table, and is equivalent to
   // TryCatchStatement::index().
   int index() const {
-    ASSERT(yield_kind() == DELEGATING);
+    DCHECK(yield_kind() == DELEGATING);
     return index_;
   }
   void set_index(int index) {
-    ASSERT(yield_kind() == DELEGATING);
+    DCHECK(yield_kind() == DELEGATING);
     index_ = index;
   }
 
@@ -2282,17 +2282,17 @@ class Yield V8_FINAL : public Expression, public FeedbackSlotInterface {
   }
 
   int KeyedLoadFeedbackSlot() {
-    ASSERT(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
+    DCHECK(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
     return yield_first_feedback_slot_;
   }
 
   int DoneFeedbackSlot() {
-    ASSERT(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
+    DCHECK(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
     return yield_first_feedback_slot_ + 1;
   }
 
   int ValueFeedbackSlot() {
-    ASSERT(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
+    DCHECK(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
     return yield_first_feedback_slot_ + 2;
   }
 
@@ -2402,7 +2402,7 @@ class FunctionLiteral V8_FINAL : public Expression {
 
   Handle<String> inferred_name() const {
     if (!inferred_name_.is_null()) {
-      ASSERT(raw_inferred_name_ == NULL);
+      DCHECK(raw_inferred_name_ == NULL);
       return inferred_name_;
     }
     if (raw_inferred_name_ != NULL) {
@@ -2414,16 +2414,16 @@ class FunctionLiteral V8_FINAL : public Expression {
 
   // Only one of {set_inferred_name, set_raw_inferred_name} should be called.
   void set_inferred_name(Handle<String> inferred_name) {
-    ASSERT(!inferred_name.is_null());
+    DCHECK(!inferred_name.is_null());
     inferred_name_ = inferred_name;
-    ASSERT(raw_inferred_name_== NULL || raw_inferred_name_->IsEmpty());
+    DCHECK(raw_inferred_name_== NULL || raw_inferred_name_->IsEmpty());
     raw_inferred_name_ = NULL;
   }
 
   void set_raw_inferred_name(const AstString* raw_inferred_name) {
-    ASSERT(raw_inferred_name != NULL);
+    DCHECK(raw_inferred_name != NULL);
     raw_inferred_name_ = raw_inferred_name;
-    ASSERT(inferred_name_.is_null());
+    DCHECK(inferred_name_.is_null());
     inferred_name_ = Handle<String>();
   }
 

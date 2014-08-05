@@ -161,7 +161,7 @@ class Differencer {
 
   // Each cell keeps a value plus direction. Value is multiplied by 4.
   void set_value4_and_dir(int i1, int i2, int value4, Direction dir) {
-    ASSERT((value4 & kDirectionMask) == 0);
+    DCHECK((value4 & kDirectionMask) == 0);
     get_cell(i1, i2) = value4 | dir;
   }
 
@@ -976,7 +976,7 @@ static void ReplaceCodeObject(Handle<Code> original,
   Heap* heap = original->GetHeap();
   HeapIterator iterator(heap);
 
-  ASSERT(!heap->InNewSpace(*substitution));
+  DCHECK(!heap->InNewSpace(*substitution));
 
   ReplacingVisitor visitor(*original, *substitution);
 
@@ -1160,7 +1160,7 @@ class DependentFunctionMarker: public OptimizedFunctionVisitor {
   virtual void LeaveContext(Context* context)  { }  // Don't care.
   virtual void VisitFunction(JSFunction* function) {
     // It should be guaranteed by the iterator that everything is optimized.
-    ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
+    DCHECK(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
     if (shared_info_ == function->shared() ||
         IsInlined(function, shared_info_)) {
       // Mark the code for deoptimization.
@@ -1279,7 +1279,7 @@ static int TranslatePosition(int original_position,
     CHECK(element->IsSmi());
     int chunk_end = Handle<Smi>::cast(element)->value();
     // Position mustn't be inside a chunk.
-    ASSERT(original_position >= chunk_end);
+    DCHECK(original_position >= chunk_end);
     element = Object::GetElement(
         isolate, position_change_array, i + 2).ToHandleChecked();
     CHECK(element->IsSmi());
@@ -1579,7 +1579,7 @@ static bool FixTryCatchHandler(StackFrame* top_frame,
 //   -- frame base
 static Object** SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
                                        Handle<Code> code) {
-  ASSERT(bottom_js_frame->is_java_script());
+  DCHECK(bottom_js_frame->is_java_script());
 
   Address fp = bottom_js_frame->fp();
 
@@ -1613,7 +1613,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   StackFrame* top_frame = frames[top_frame_index];
   StackFrame* bottom_js_frame = frames[bottom_js_frame_index];
 
-  ASSERT(bottom_js_frame->is_java_script());
+  DCHECK(bottom_js_frame->is_java_script());
 
   // Check the nature of the top frame.
   Isolate* isolate = bottom_js_frame->isolate();
@@ -1649,7 +1649,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   } else if (pre_top_frame->type() == StackFrame::ARGUMENTS_ADAPTOR) {
     // This must be adaptor that remain from the frame dropping that
     // is still on stack. A frame dropper frame must be above it.
-    ASSERT(frames[top_frame_index - 2]->LookupCode() ==
+    DCHECK(frames[top_frame_index - 2]->LookupCode() ==
            isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit));
     pre_top_frame = frames[top_frame_index - 3];
     top_frame = frames[top_frame_index - 2];
@@ -1667,7 +1667,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   Address* top_frame_pc_address = top_frame->pc_address();
 
   // top_frame may be damaged below this point. Do not used it.
-  ASSERT(!(top_frame = NULL));
+  DCHECK(!(top_frame = NULL));
 
   if (unused_stack_top > unused_stack_bottom) {
     if (frame_has_padding) {
@@ -1712,7 +1712,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
 
   FixTryCatchHandler(pre_top_frame, bottom_js_frame);
   // Make sure FixTryCatchHandler is idempotent.
-  ASSERT(!FixTryCatchHandler(pre_top_frame, bottom_js_frame));
+  DCHECK(!FixTryCatchHandler(pre_top_frame, bottom_js_frame));
 
   Handle<Code> code = isolate->builtins()->FrameDropper_LiveEdit();
   *top_frame_pc_address = code->entry();
@@ -1721,7 +1721,7 @@ static const char* DropFrames(Vector<StackFrame*> frames,
   *restarter_frame_function_pointer =
       SetUpFrameDropperFrame(bottom_js_frame, code);
 
-  ASSERT((**restarter_frame_function_pointer)->IsJSFunction());
+  DCHECK((**restarter_frame_function_pointer)->IsJSFunction());
 
   for (Address a = unused_stack_top;
       a < unused_stack_bottom;
@@ -1895,7 +1895,7 @@ bool LiveEdit::FindActiveGenerators(Handle<FixedArray> shared_info_array,
   Isolate* isolate = shared_info_array->GetIsolate();
   bool found_suspended_activations = false;
 
-  ASSERT_LE(len, result->length());
+  DCHECK_LE(len, result->length());
 
   FunctionPatchabilityStatus active = FUNCTION_BLOCKED_ACTIVE_GENERATOR;
 
@@ -1957,7 +1957,7 @@ Handle<JSArray> LiveEdit::CheckAndDropActivations(
   Isolate* isolate = shared_info_array->GetIsolate();
   int len = GetArrayLength(shared_info_array);
 
-  ASSERT(shared_info_array->HasFastElements());
+  DCHECK(shared_info_array->HasFastElements());
   Handle<FixedArray> shared_info_array_elements(
       FixedArray::cast(shared_info_array->elements()));
 

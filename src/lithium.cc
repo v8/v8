@@ -213,7 +213,7 @@ void LEnvironment::PrintTo(StringStream* stream) {
 void LPointerMap::RecordPointer(LOperand* op, Zone* zone) {
   // Do not record arguments as pointers.
   if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
   pointer_operands_.Add(op, zone);
 }
 
@@ -221,7 +221,7 @@ void LPointerMap::RecordPointer(LOperand* op, Zone* zone) {
 void LPointerMap::RemovePointer(LOperand* op) {
   // Do not record arguments as pointers.
   if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
   for (int i = 0; i < pointer_operands_.length(); ++i) {
     if (pointer_operands_[i]->Equals(op)) {
       pointer_operands_.Remove(i);
@@ -234,7 +234,7 @@ void LPointerMap::RemovePointer(LOperand* op) {
 void LPointerMap::RecordUntagged(LOperand* op, Zone* zone) {
   // Do not record arguments as pointers.
   if (op->IsStackSlot() && op->index() < 0) return;
-  ASSERT(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
+  DCHECK(!op->IsDoubleRegister() && !op->IsDoubleStackSlot());
   untagged_operands_.Add(op, zone);
 }
 
@@ -290,7 +290,7 @@ int LChunk::LookupDestination(int block_id) const {
 
 Label* LChunk::GetAssemblyLabel(int block_id) const {
   LLabel* label = GetLabel(block_id);
-  ASSERT(!label->HasReplacement());
+  DCHECK(!label->HasReplacement());
   return label->label();
 }
 
@@ -362,14 +362,14 @@ int LChunk::GetParameterStackSlot(int index) const {
   // spill slots.
   int result = index - info()->num_parameters() - 1;
 
-  ASSERT(result < 0);
+  DCHECK(result < 0);
   return result;
 }
 
 
 // A parameter relative to ebp in the arguments stub.
 int LChunk::ParameterAt(int index) {
-  ASSERT(-1 <= index);  // -1 is the receiver.
+  DCHECK(-1 <= index);  // -1 is the receiver.
   return (1 + info()->scope()->num_parameters() - index) *
       kPointerSize;
 }
@@ -412,16 +412,16 @@ void LChunk::CommitDependencies(Handle<Code> code) const {
   for (MapSet::const_iterator it = deprecation_dependencies_.begin(),
        iend = deprecation_dependencies_.end(); it != iend; ++it) {
     Handle<Map> map = *it;
-    ASSERT(!map->is_deprecated());
-    ASSERT(map->CanBeDeprecated());
+    DCHECK(!map->is_deprecated());
+    DCHECK(map->CanBeDeprecated());
     Map::AddDependentCode(map, DependentCode::kTransitionGroup, code);
   }
 
   for (MapSet::const_iterator it = stability_dependencies_.begin(),
        iend = stability_dependencies_.end(); it != iend; ++it) {
     Handle<Map> map = *it;
-    ASSERT(map->is_stable());
-    ASSERT(map->CanTransition());
+    DCHECK(map->is_stable());
+    DCHECK(map->CanTransition());
     Map::AddDependentCode(map, DependentCode::kPrototypeCheckGroup, code);
   }
 
@@ -482,7 +482,7 @@ Handle<Code> LChunk::Codegen() {
                    CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
-    ASSERT(!(info()->isolate()->serializer_enabled() &&
+    DCHECK(!(info()->isolate()->serializer_enabled() &&
              info()->GetMustNotHaveEagerFrame() &&
              generator.NeedsEagerFrame()));
     return code;
@@ -519,7 +519,7 @@ LEnvironment* LChunkBuilderBase::CreateEnvironment(
                                           argument_index_accumulator,
                                           objects_to_materialize);
   BailoutId ast_id = hydrogen_env->ast_id();
-  ASSERT(!ast_id.IsNone() ||
+  DCHECK(!ast_id.IsNone() ||
          hydrogen_env->frame_type() != JS_FUNCTION);
   int value_count = hydrogen_env->length() - hydrogen_env->specials_count();
   LEnvironment* result =
@@ -622,7 +622,7 @@ void LChunkBuilderBase::AddObjectToMaterialize(HValue* value,
       // Insert a hole for nested objects
       op = LEnvironment::materialization_marker();
     } else {
-      ASSERT(!arg_value->IsPushArguments());
+      DCHECK(!arg_value->IsPushArguments());
       // For ordinary values, tell the register allocator we need the value
       // to be alive here
       op = UseAny(arg_value);

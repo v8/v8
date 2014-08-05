@@ -229,9 +229,9 @@ EXPRESSION_NODE_LIST(DEF_VISIT)
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(CompilationInfo* info) {
   FunctionLiteral* function = info->function();
-  ASSERT(function != NULL);
+  DCHECK(function != NULL);
   Scope* scope = function->scope();
-  ASSERT(scope != NULL);
+  DCHECK(scope != NULL);
   if (!scope->is_global_scope() && !scope->is_eval_scope()) return true;
 
   ZoneList<Statement*>* body = function->body();
@@ -239,13 +239,13 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
     Variable* result =
         scope->NewTemporary(info->ast_value_factory()->dot_result_string());
     // The name string must be internalized at this point.
-    ASSERT(!result->name().is_null());
+    DCHECK(!result->name().is_null());
     Processor processor(result, info->zone());
     processor.Process(body);
     if (processor.HasStackOverflow()) return false;
 
     if (processor.result_assigned()) {
-      ASSERT(function->end_position() != RelocInfo::kNoPosition);
+      DCHECK(function->end_position() != RelocInfo::kNoPosition);
       // Set the position of the assignment statement one character past the
       // source code, such that it definitely is not in the source code range
       // of an immediate inner scope. For example in

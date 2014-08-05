@@ -40,7 +40,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
     num_extra_args = 1;
     __ push(r1);
   } else {
-    ASSERT(extra_args == NO_EXTRA_ARGUMENTS);
+    DCHECK(extra_args == NO_EXTRA_ARGUMENTS);
   }
 
   // JumpToExternalReference expects r0 to contain the number of arguments
@@ -323,7 +323,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // -----------------------------------
 
   // Should never create mementos for api functions.
-  ASSERT(!is_api_function || !create_memento);
+  DCHECK(!is_api_function || !create_memento);
 
   Isolate* isolate = masm->isolate();
 
@@ -411,11 +411,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r4: JSObject (not tagged)
       __ LoadRoot(r6, Heap::kEmptyFixedArrayRootIndex);
       __ mov(r5, r4);
-      ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
+      DCHECK_EQ(0 * kPointerSize, JSObject::kMapOffset);
       __ str(r2, MemOperand(r5, kPointerSize, PostIndex));
-      ASSERT_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
+      DCHECK_EQ(1 * kPointerSize, JSObject::kPropertiesOffset);
       __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
-      ASSERT_EQ(2 * kPointerSize, JSObject::kElementsOffset);
+      DCHECK_EQ(2 * kPointerSize, JSObject::kElementsOffset);
       __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
 
       // Fill all the in-object properties with the appropriate filler.
@@ -424,7 +424,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r3: object size (in words, including memento if create_memento)
       // r4: JSObject (not tagged)
       // r5: First in-object property of JSObject (not tagged)
-      ASSERT_EQ(3 * kPointerSize, JSObject::kHeaderSize);
+      DCHECK_EQ(3 * kPointerSize, JSObject::kHeaderSize);
       __ LoadRoot(r6, Heap::kUndefinedValueRootIndex);
 
       if (!is_api_function) {
@@ -463,11 +463,11 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
         // Fill in memento fields.
         // r5: points to the allocated but uninitialized memento.
         __ LoadRoot(r6, Heap::kAllocationMementoMapRootIndex);
-        ASSERT_EQ(0 * kPointerSize, AllocationMemento::kMapOffset);
+        DCHECK_EQ(0 * kPointerSize, AllocationMemento::kMapOffset);
         __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
         // Load the AllocationSite
         __ ldr(r6, MemOperand(sp, 2 * kPointerSize));
-        ASSERT_EQ(1 * kPointerSize, AllocationMemento::kAllocationSiteOffset);
+        DCHECK_EQ(1 * kPointerSize, AllocationMemento::kAllocationSiteOffset);
         __ str(r6, MemOperand(r5, kPointerSize, PostIndex));
       } else {
         __ add(r0, r4, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
@@ -522,9 +522,9 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r5: FixedArray (not tagged)
       __ LoadRoot(r6, Heap::kFixedArrayMapRootIndex);
       __ mov(r2, r5);
-      ASSERT_EQ(0 * kPointerSize, JSObject::kMapOffset);
+      DCHECK_EQ(0 * kPointerSize, JSObject::kMapOffset);
       __ str(r6, MemOperand(r2, kPointerSize, PostIndex));
-      ASSERT_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
+      DCHECK_EQ(1 * kPointerSize, FixedArray::kLengthOffset);
       __ SmiTag(r0, r3);
       __ str(r0, MemOperand(r2, kPointerSize, PostIndex));
 
@@ -535,7 +535,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
       // r4: JSObject
       // r5: FixedArray (not tagged)
       __ add(r6, r2, Operand(r3, LSL, kPointerSizeLog2));  // End of object.
-      ASSERT_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
+      DCHECK_EQ(2 * kPointerSize, FixedArray::kHeaderSize);
       { Label loop, entry;
         __ LoadRoot(r0, Heap::kUndefinedValueRootIndex);
         __ b(&entry);

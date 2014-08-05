@@ -38,17 +38,17 @@ class NativesStore {
         return i;
       }
     }
-    ASSERT(false);
+    DCHECK(false);
     return -1;
   }
 
   int GetRawScriptsSize() {
-    ASSERT(false);  // Used for compression. Doesn't really make sense here.
+    DCHECK(false);  // Used for compression. Doesn't really make sense here.
     return 0;
   }
 
   Vector<const byte> GetScriptsSource() {
-    ASSERT(false);  // Used for compression. Doesn't really make sense here.
+    DCHECK(false);  // Used for compression. Doesn't really make sense here.
     return Vector<const byte>();
   }
 
@@ -103,11 +103,11 @@ template<NativeType type>
 class NativesHolder {
  public:
   static NativesStore* get() {
-    ASSERT(holder_);
+    DCHECK(holder_);
     return holder_;
   }
   static void set(NativesStore* store) {
-    ASSERT(store);
+    DCHECK(store);
     holder_ = store;
   }
 
@@ -124,16 +124,16 @@ NativesStore* NativesHolder<type>::holder_ = NULL;
  * system.
  */
 void SetNativesFromFile(StartupData* natives_blob) {
-  ASSERT(natives_blob);
-  ASSERT(natives_blob->data);
-  ASSERT(natives_blob->raw_size > 0);
+  DCHECK(natives_blob);
+  DCHECK(natives_blob->data);
+  DCHECK(natives_blob->raw_size > 0);
 
   SnapshotByteSource bytes(
       reinterpret_cast<const byte*>(natives_blob->data),
       natives_blob->raw_size);
   NativesHolder<CORE>::set(NativesStore::MakeFromScriptsSource(&bytes));
   NativesHolder<EXPERIMENTAL>::set(NativesStore::MakeFromScriptsSource(&bytes));
-  ASSERT(!bytes.HasMore());
+  DCHECK(!bytes.HasMore());
 }
 
 

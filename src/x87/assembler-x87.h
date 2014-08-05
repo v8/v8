@@ -78,8 +78,8 @@ struct Register {
   static inline Register FromAllocationIndex(int index);
 
   static Register from_code(int code) {
-    ASSERT(code >= 0);
-    ASSERT(code < kNumRegisters);
+    DCHECK(code >= 0);
+    DCHECK(code < kNumRegisters);
     Register r = { code };
     return r;
   }
@@ -88,11 +88,11 @@ struct Register {
   // eax, ebx, ecx and edx are byte registers, the rest are not.
   bool is_byte_register() const { return code_ <= 3; }
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
   int bit() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return 1 << code_;
   }
 
@@ -122,7 +122,7 @@ const Register no_reg = { kRegister_no_reg_Code };
 
 
 inline const char* Register::AllocationIndexToString(int index) {
-  ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
   // This is the mapping of allocation indices to registers.
   const char* const kNames[] = { "eax", "ecx", "edx", "ebx", "esi", "edi" };
   return kNames[index];
@@ -130,13 +130,13 @@ inline const char* Register::AllocationIndexToString(int index) {
 
 
 inline int Register::ToAllocationIndex(Register reg) {
-  ASSERT(reg.is_valid() && !reg.is(esp) && !reg.is(ebp));
+  DCHECK(reg.is_valid() && !reg.is(esp) && !reg.is(ebp));
   return (reg.code() >= 6) ? reg.code() - 2 : reg.code();
 }
 
 
 inline Register Register::FromAllocationIndex(int index)  {
-  ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+  DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
   return (index >= 4) ? from_code(index + 2) : from_code(index);
 }
 
@@ -153,7 +153,7 @@ struct X87Register {
   }
 
   static const char* AllocationIndexToString(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     const char* const names[] = {
       "stX_0", "stX_1", "stX_2", "stX_3", "stX_4",
       "stX_5", "stX_6", "stX_7"
@@ -162,7 +162,7 @@ struct X87Register {
   }
 
   static X87Register FromAllocationIndex(int index) {
-    ASSERT(index >= 0 && index < kMaxNumAllocatableRegisters);
+    DCHECK(index >= 0 && index < kMaxNumAllocatableRegisters);
     X87Register result;
     result.code_ = index;
     return result;
@@ -173,7 +173,7 @@ struct X87Register {
   }
 
   int code() const {
-    ASSERT(is_valid());
+    DCHECK(is_valid());
     return code_;
   }
 
@@ -1034,7 +1034,7 @@ class EnsureSpace BASE_EMBEDDED {
 #ifdef DEBUG
   ~EnsureSpace() {
     int bytes_generated = space_before_ - assembler_->available_space();
-    ASSERT(bytes_generated < assembler_->kGap);
+    DCHECK(bytes_generated < assembler_->kGap);
   }
 #endif
 

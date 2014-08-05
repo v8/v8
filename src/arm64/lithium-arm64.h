@@ -186,7 +186,7 @@ class LCodeGen;
     return mnemonic;                                                        \
   }                                                                         \
   static L##type* cast(LInstruction* instr) {                               \
-    ASSERT(instr->Is##type());                                              \
+    DCHECK(instr->Is##type());                                              \
     return reinterpret_cast<L##type*>(instr);                               \
   }
 
@@ -391,7 +391,7 @@ class LGap : public LTemplateInstruction<0, 0, 0> {
   virtual bool IsGap() const V8_OVERRIDE { return true; }
   virtual void PrintDataTo(StringStream* stream) V8_OVERRIDE;
   static LGap* cast(LInstruction* instr) {
-    ASSERT(instr->IsGap());
+    DCHECK(instr->IsGap());
     return reinterpret_cast<LGap*>(instr);
   }
 
@@ -1528,7 +1528,7 @@ class LCallWithDescriptor V8_FINAL : public LTemplateResultInstruction<1> {
                       Zone* zone)
     : descriptor_(descriptor),
       inputs_(descriptor->GetRegisterParameterCount() + 1, zone) {
-    ASSERT(descriptor->GetRegisterParameterCount() + 1 == operands.length());
+    DCHECK(descriptor->GetRegisterParameterCount() + 1 == operands.length());
     inputs_.AddAll(operands, zone);
   }
 
@@ -2348,7 +2348,7 @@ class LReturn V8_FINAL : public LTemplateInstruction<0, 3, 0> {
     return parameter_count()->IsConstantOperand();
   }
   LConstantOperand* constant_parameter_count() {
-    ASSERT(has_constant_parameter_count());
+    DCHECK(has_constant_parameter_count());
     return LConstantOperand::cast(parameter_count());
   }
 
@@ -2491,7 +2491,7 @@ class LStoreKeyed : public LTemplateInstruction<0, 3, T> {
     }
 
     if (this->value() == NULL) {
-      ASSERT(hydrogen()->IsConstantHoleStore() &&
+      DCHECK(hydrogen()->IsConstantHoleStore() &&
              hydrogen()->value()->representation().IsDouble());
       stream->Add("<the hole(nan)>");
     } else {
@@ -3220,7 +3220,7 @@ class LChunkBuilder V8_FINAL : public LChunkBuilderBase {
     if (instr->IsAdd() || instr->IsSub()) {
       return Assembler::IsImmAddSub(imm) || Assembler::IsImmAddSub(-imm);
     } else {
-      ASSERT(instr->IsBitwise());
+      DCHECK(instr->IsBitwise());
       unsigned unused_n, unused_imm_s, unused_imm_r;
       return Assembler::IsImmLogical(imm, kWRegSizeInBits,
                                      &unused_n, &unused_imm_s, &unused_imm_r);

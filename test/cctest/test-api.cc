@@ -2972,7 +2972,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
   uint8_t* data = static_cast<uint8_t*>(ab_contents.Data());
-  ASSERT(data != NULL);
+  DCHECK(data != NULL);
   env->Global()->Set(v8_str("ab"), ab);
 
   v8::Handle<v8::Value> result = CompileRun("ab.byteLength");
@@ -10188,7 +10188,7 @@ THREADED_TEST(HiddenPrototypeIdentityHash) {
   int hash = o->GetIdentityHash();
   USE(hash);
   o->Set(v8_str("foo"), v8_num(42));
-  ASSERT_EQ(hash, o->GetIdentityHash());
+  DCHECK_EQ(hash, o->GetIdentityHash());
 }
 
 
@@ -10411,7 +10411,7 @@ THREADED_TEST(SetPrototypeThrows) {
   v8::TryCatch try_catch;
   CHECK(!o1->SetPrototype(o0));
   CHECK(!try_catch.HasCaught());
-  ASSERT(!CcTest::i_isolate()->has_pending_exception());
+  DCHECK(!CcTest::i_isolate()->has_pending_exception());
 
   CHECK_EQ(42, CompileRun("function f() { return 42; }; f()")->Int32Value());
 }
@@ -13994,12 +13994,12 @@ void SetFunctionEntryHookTest::RunLoopInNewEnv(v8::Isolate* isolate) {
   CompileRun(script);
   bar_func_ = i::Handle<i::JSFunction>::cast(
           v8::Utils::OpenHandle(*env->Global()->Get(v8_str("bar"))));
-  ASSERT(!bar_func_.is_null());
+  DCHECK(!bar_func_.is_null());
 
   foo_func_ =
       i::Handle<i::JSFunction>::cast(
            v8::Utils::OpenHandle(*env->Global()->Get(v8_str("foo"))));
-  ASSERT(!foo_func_.is_null());
+  DCHECK(!foo_func_.is_null());
 
   v8::Handle<v8::Value> value = CompileRun("bar();");
   CHECK(value->IsNumber());
@@ -15685,19 +15685,19 @@ THREADED_TEST(PixelArray) {
   i::Handle<i::Object> no_failure;
   no_failure = i::JSObject::SetElement(
       jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
-  ASSERT(!no_failure.is_null());
+  DCHECK(!no_failure.is_null());
   USE(no_failure);
   CheckElementValue(isolate, 2, jsobj, 1);
   *value.location() = i::Smi::FromInt(256);
   no_failure = i::JSObject::SetElement(
       jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
-  ASSERT(!no_failure.is_null());
+  DCHECK(!no_failure.is_null());
   USE(no_failure);
   CheckElementValue(isolate, 255, jsobj, 1);
   *value.location() = i::Smi::FromInt(-1);
   no_failure = i::JSObject::SetElement(
       jsobj, 1, value, NONE, i::SLOPPY).ToHandleChecked();
-  ASSERT(!no_failure.is_null());
+  DCHECK(!no_failure.is_null());
   USE(no_failure);
   CheckElementValue(isolate, 0, jsobj, 1);
 
@@ -17069,7 +17069,7 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const int kOverviewTest = 1;
   const int kDetailedTest = 2;
 
-  ASSERT(args.Length() == 1);
+  DCHECK(args.Length() == 1);
 
   int testGroup = args[0]->Int32Value();
   if (testGroup == kOverviewTest) {
@@ -22399,7 +22399,7 @@ class ApiCallOptimizationChecker {
         wrap_function.start(), key, key, key, key, key, key);
     v8::TryCatch try_catch;
     CompileRun(source.start());
-    ASSERT(!try_catch.HasCaught());
+    DCHECK(!try_catch.HasCaught());
     CHECK_EQ(9, count);
   }
 };

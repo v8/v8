@@ -112,8 +112,8 @@ class Representation {
     if (kind_ == kExternal && other.kind_ == kExternal) return false;
     if (kind_ == kNone && other.kind_ == kExternal) return false;
 
-    ASSERT(kind_ != kExternal);
-    ASSERT(other.kind_ != kExternal);
+    DCHECK(kind_ != kExternal);
+    DCHECK(other.kind_ != kExternal);
     if (IsHeapObject()) return other.IsNone();
     if (kind_ == kUInteger8 && other.kind_ == kInteger8) return false;
     if (kind_ == kUInteger16 && other.kind_ == kInteger16) return false;
@@ -133,7 +133,7 @@ class Representation {
   }
 
   int size() const {
-    ASSERT(!IsNone());
+    DCHECK(!IsNone());
     if (IsInteger8() || IsUInteger8()) {
       return sizeof(uint8_t);
     }
@@ -197,8 +197,8 @@ class PropertyDetails BASE_EMBEDDED {
         | AttributesField::encode(attributes)
         | DictionaryStorageField::encode(index);
 
-    ASSERT(type == this->type());
-    ASSERT(attributes == this->attributes());
+    DCHECK(type == this->type());
+    DCHECK(attributes == this->attributes());
   }
 
   PropertyDetails(PropertyAttributes attributes,
@@ -247,7 +247,7 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   Representation representation() const {
-    ASSERT(type() != NORMAL);
+    DCHECK(type() != NORMAL);
     return DecodeRepresentation(RepresentationField::decode(value_));
   }
 

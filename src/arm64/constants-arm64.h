@@ -262,7 +262,7 @@ enum Condition {
 inline Condition NegateCondition(Condition cond) {
   // Conditions al and nv behave identically, as "always true". They can't be
   // inverted, because there is no never condition.
-  ASSERT((cond != al) && (cond != nv));
+  DCHECK((cond != al) && (cond != nv));
   return static_cast<Condition>(cond ^ 1);
 }
 
@@ -400,7 +400,7 @@ enum SystemRegister {
 //
 // The enumerations can be used like this:
 //
-// ASSERT(instr->Mask(PCRelAddressingFMask) == PCRelAddressingFixed);
+// DCHECK(instr->Mask(PCRelAddressingFMask) == PCRelAddressingFixed);
 // switch(instr->Mask(PCRelAddressingMask)) {
 //   case ADR:  Format("adr 'Xd, 'AddrPCRelByte"); break;
 //   case ADRP: Format("adrp 'Xd, 'AddrPCRelPage"); break;

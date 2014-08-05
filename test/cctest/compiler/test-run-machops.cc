@@ -3903,8 +3903,9 @@ TEST(RunInt32AddWithOverflowP) {
   int32_t actual_val = -1;
   RawMachineAssemblerTester<int32_t> m;
   Int32BinopTester bt(&m);
-  Node* val, *ovf;
-  m.Int32AddWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  Node* add = m.Int32AddWithOverflow(bt.param0, bt.param1);
+  Node* val = m.Projection(0, add);
+  Node* ovf = m.Projection(1, add);
   m.StoreToPointer(&actual_val, kMachineWord32, val);
   bt.AddReturn(ovf);
   FOR_INT32_INPUTS(i) {
@@ -3923,8 +3924,9 @@ TEST(RunInt32AddWithOverflowImm) {
   FOR_INT32_INPUTS(i) {
     {
       RawMachineAssemblerTester<int32_t> m(kMachineWord32);
-      Node* val, *ovf;
-      m.Int32AddWithOverflow(m.Int32Constant(*i), m.Parameter(0), &val, &ovf);
+      Node* add = m.Int32AddWithOverflow(m.Int32Constant(*i), m.Parameter(0));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
       m.StoreToPointer(&actual_val, kMachineWord32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
@@ -3935,8 +3937,9 @@ TEST(RunInt32AddWithOverflowImm) {
     }
     {
       RawMachineAssemblerTester<int32_t> m(kMachineWord32);
-      Node* val, *ovf;
-      m.Int32AddWithOverflow(m.Parameter(0), m.Int32Constant(*i), &val, &ovf);
+      Node* add = m.Int32AddWithOverflow(m.Parameter(0), m.Int32Constant(*i));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
       m.StoreToPointer(&actual_val, kMachineWord32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
@@ -3947,9 +3950,10 @@ TEST(RunInt32AddWithOverflowImm) {
     }
     FOR_INT32_INPUTS(j) {
       RawMachineAssemblerTester<int32_t> m;
-      Node* val, *ovf;
-      m.Int32AddWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j), &val,
-                             &ovf);
+      Node* add =
+          m.Int32AddWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
       m.StoreToPointer(&actual_val, kMachineWord32, val);
       m.Return(ovf);
       int expected_ovf = sadd_overflow(*i, *j, &expected_val);
@@ -3961,20 +3965,22 @@ TEST(RunInt32AddWithOverflowImm) {
 
 
 TEST(RunInt32AddWithOverflowInBranchP) {
+  int constant = 911777;
   MLabel blocka, blockb;
   RawMachineAssemblerTester<int32_t> m;
   Int32BinopTester bt(&m);
-  Node* val, *ovf;
-  m.Int32AddWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  Node* add = m.Int32AddWithOverflow(bt.param0, bt.param1);
+  Node* ovf = m.Projection(1, add);
   m.Branch(ovf, &blocka, &blockb);
   m.Bind(&blocka);
-  bt.AddReturn(m.Word32Not(val));
+  bt.AddReturn(m.Int32Constant(constant));
   m.Bind(&blockb);
+  Node* val = m.Projection(0, add);
   bt.AddReturn(val);
   FOR_UINT32_INPUTS(i) {
     FOR_UINT32_INPUTS(j) {
       int32_t expected;
-      if (sadd_overflow(*i, *j, &expected)) expected = ~expected;
+      if (sadd_overflow(*i, *j, &expected)) expected = constant;
       CHECK_EQ(expected, bt.call(*i, *j));
     }
   }
@@ -3985,8 +3991,9 @@ TEST(RunInt32SubWithOverflowP) {
   int32_t actual_val = -1;
   RawMachineAssemblerTester<int32_t> m;
   Int32BinopTester bt(&m);
-  Node* val, *ovf;
-  m.Int32SubWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  Node* add = m.Int32SubWithOverflow(bt.param0, bt.param1);
+  Node* val = m.Projection(0, add);
+  Node* ovf = m.Projection(1, add);
   m.StoreToPointer(&actual_val, kMachineWord32, val);
   bt.AddReturn(ovf);
   FOR_INT32_INPUTS(i) {
@@ -4005,8 +4012,9 @@ TEST(RunInt32SubWithOverflowImm) {
   FOR_INT32_INPUTS(i) {
     {
       RawMachineAssemblerTester<int32_t> m(kMachineWord32);
-      Node* val, *ovf;
-      m.Int32SubWithOverflow(m.Int32Constant(*i), m.Parameter(0), &val, &ovf);
+      Node* add = m.Int32SubWithOverflow(m.Int32Constant(*i), m.Parameter(0));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
       m.StoreToPointer(&actual_val, kMachineWord32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
@@ -4017,8 +4025,9 @@ TEST(RunInt32SubWithOverflowImm) {
     }
     {
       RawMachineAssemblerTester<int32_t> m(kMachineWord32);
-      Node* val, *ovf;
-      m.Int32SubWithOverflow(m.Parameter(0), m.Int32Constant(*i), &val, &ovf);
+      Node* add = m.Int32SubWithOverflow(m.Parameter(0), m.Int32Constant(*i));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
       m.StoreToPointer(&actual_val, kMachineWord32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
@@ -4029,9 +4038,10 @@ TEST(RunInt32SubWithOverflowImm) {
     }
     FOR_INT32_INPUTS(j) {
       RawMachineAssemblerTester<int32_t> m;
-      Node* val, *ovf;
-      m.Int32SubWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j), &val,
-                             &ovf);
+      Node* add =
+          m.Int32SubWithOverflow(m.Int32Constant(*i), m.Int32Constant(*j));
+      Node* val = m.Projection(0, add);
+      Node* ovf = m.Projection(1, add);
       m.StoreToPointer(&actual_val, kMachineWord32, val);
       m.Return(ovf);
       int expected_ovf = ssub_overflow(*i, *j, &expected_val);
@@ -4043,20 +4053,22 @@ TEST(RunInt32SubWithOverflowImm) {
 
 
 TEST(RunInt32SubWithOverflowInBranchP) {
+  int constant = 911999;
   MLabel blocka, blockb;
   RawMachineAssemblerTester<int32_t> m;
   Int32BinopTester bt(&m);
-  Node* val, *ovf;
-  m.Int32SubWithOverflow(bt.param0, bt.param1, &val, &ovf);
+  Node* sub = m.Int32SubWithOverflow(bt.param0, bt.param1);
+  Node* ovf = m.Projection(1, sub);
   m.Branch(ovf, &blocka, &blockb);
   m.Bind(&blocka);
-  bt.AddReturn(m.Word32Not(val));
+  bt.AddReturn(m.Int32Constant(constant));
   m.Bind(&blockb);
+  Node* val = m.Projection(0, sub);
   bt.AddReturn(val);
   FOR_UINT32_INPUTS(i) {
     FOR_UINT32_INPUTS(j) {
       int32_t expected;
-      if (ssub_overflow(*i, *j, &expected)) expected = ~expected;
+      if (ssub_overflow(*i, *j, &expected)) expected = constant;
       CHECK_EQ(expected, bt.call(*i, *j));
     }
   }

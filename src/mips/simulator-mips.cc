@@ -107,7 +107,7 @@ void MipsDebugger::Stop(Instruction* instr) {
   char** msg_address =
     reinterpret_cast<char**>(sim_->get_pc() + Instr::kInstrSize);
   char* msg = *msg_address;
-  ASSERT(msg != NULL);
+  DCHECK(msg != NULL);
 
   // Update this stop description.
   if (!watched_stops_[code].desc) {
@@ -754,8 +754,8 @@ void MipsDebugger::Debug() {
 
 
 static bool ICacheMatch(void* one, void* two) {
-  ASSERT((reinterpret_cast<intptr_t>(one) & CachePage::kPageMask) == 0);
-  ASSERT((reinterpret_cast<intptr_t>(two) & CachePage::kPageMask) == 0);
+  DCHECK((reinterpret_cast<intptr_t>(one) & CachePage::kPageMask) == 0);
+  DCHECK((reinterpret_cast<intptr_t>(two) & CachePage::kPageMask) == 0);
   return one == two;
 }
 
@@ -792,7 +792,7 @@ void Simulator::FlushICache(v8::internal::HashMap* i_cache,
     FlushOnePage(i_cache, start, bytes_to_flush);
     start += bytes_to_flush;
     size -= bytes_to_flush;
-    ASSERT_EQ(0, start & CachePage::kPageMask);
+    DCHECK_EQ(0, start & CachePage::kPageMask);
     offset = 0;
   }
   if (size != 0) {
@@ -817,10 +817,10 @@ CachePage* Simulator::GetCachePage(v8::internal::HashMap* i_cache, void* page) {
 void Simulator::FlushOnePage(v8::internal::HashMap* i_cache,
                              intptr_t start,
                              int size) {
-  ASSERT(size <= CachePage::kPageSize);
-  ASSERT(AllOnOnePage(start, size - 1));
-  ASSERT((start & CachePage::kLineMask) == 0);
-  ASSERT((size & CachePage::kLineMask) == 0);
+  DCHECK(size <= CachePage::kPageSize);
+  DCHECK(AllOnOnePage(start, size - 1));
+  DCHECK((start & CachePage::kLineMask) == 0);
+  DCHECK((size & CachePage::kLineMask) == 0);
   void* page = reinterpret_cast<void*>(start & (~CachePage::kPageMask));
   int offset = (start & CachePage::kPageMask);
   CachePage* cache_page = GetCachePage(i_cache, page);
@@ -979,8 +979,8 @@ void* Simulator::RedirectExternalReference(void* external_function,
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
        isolate->FindOrAllocatePerThreadDataForThisThread();
-  ASSERT(isolate_data != NULL);
-  ASSERT(isolate_data != NULL);
+  DCHECK(isolate_data != NULL);
+  DCHECK(isolate_data != NULL);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == NULL) {
@@ -995,7 +995,7 @@ Simulator* Simulator::current(Isolate* isolate) {
 // Sets the register in the architecture state. It will also deal with updating
 // Simulator internal state for special registers such as PC.
 void Simulator::set_register(int reg, int32_t value) {
-  ASSERT((reg >= 0) && (reg < kNumSimuRegisters));
+  DCHECK((reg >= 0) && (reg < kNumSimuRegisters));
   if (reg == pc) {
     pc_modified_ = true;
   }
@@ -1006,26 +1006,26 @@ void Simulator::set_register(int reg, int32_t value) {
 
 
 void Simulator::set_dw_register(int reg, const int* dbl) {
-  ASSERT((reg >= 0) && (reg < kNumSimuRegisters));
+  DCHECK((reg >= 0) && (reg < kNumSimuRegisters));
   registers_[reg] = dbl[0];
   registers_[reg + 1] = dbl[1];
 }
 
 
 void Simulator::set_fpu_register(int fpureg, int32_t value) {
-  ASSERT((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   FPUregisters_[fpureg] = value;
 }
 
 
 void Simulator::set_fpu_register_float(int fpureg, float value) {
-  ASSERT((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   *BitCast<float*>(&FPUregisters_[fpureg]) = value;
 }
 
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
-  ASSERT((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
   *BitCast<double*>(&FPUregisters_[fpureg]) = value;
 }
 
@@ -1033,7 +1033,7 @@ void Simulator::set_fpu_register_double(int fpureg, double value) {
 // Get the register from the architecture state. This function does handle
 // the special case of accessing the PC register.
 int32_t Simulator::get_register(int reg) const {
-  ASSERT((reg >= 0) && (reg < kNumSimuRegisters));
+  DCHECK((reg >= 0) && (reg < kNumSimuRegisters));
   if (reg == 0)
     return 0;
   else
@@ -1042,7 +1042,7 @@ int32_t Simulator::get_register(int reg) const {
 
 
 double Simulator::get_double_from_register_pair(int reg) {
-  ASSERT((reg >= 0) && (reg < kNumSimuRegisters) && ((reg % 2) == 0));
+  DCHECK((reg >= 0) && (reg < kNumSimuRegisters) && ((reg % 2) == 0));
 
   double dm_val = 0.0;
   // Read the bits from the unsigned integer register_[] array
@@ -1055,27 +1055,27 @@ double Simulator::get_double_from_register_pair(int reg) {
 
 
 int32_t Simulator::get_fpu_register(int fpureg) const {
-  ASSERT((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   return FPUregisters_[fpureg];
 }
 
 
 int64_t Simulator::get_fpu_register_long(int fpureg) const {
-  ASSERT((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
   return *BitCast<int64_t*>(
       const_cast<int32_t*>(&FPUregisters_[fpureg]));
 }
 
 
 float Simulator::get_fpu_register_float(int fpureg) const {
-  ASSERT((fpureg >= 0) && (fpureg < kNumFPURegisters));
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
   return *BitCast<float*>(
       const_cast<int32_t*>(&FPUregisters_[fpureg]));
 }
 
 
 double Simulator::get_fpu_register_double(int fpureg) const {
-  ASSERT((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
+  DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
   return *BitCast<double*>(const_cast<int32_t*>(&FPUregisters_[fpureg]));
 }
 
@@ -1638,8 +1638,8 @@ bool Simulator::IsStopInstruction(Instruction* instr) {
 
 
 bool Simulator::IsEnabledStop(uint32_t code) {
-  ASSERT(code <= kMaxStopCode);
-  ASSERT(code > kMaxWatchpointCode);
+  DCHECK(code <= kMaxStopCode);
+  DCHECK(code > kMaxWatchpointCode);
   return !(watched_stops_[code].count & kStopDisabledBit);
 }
 
@@ -1659,7 +1659,7 @@ void Simulator::DisableStop(uint32_t code) {
 
 
 void Simulator::IncreaseStopCounter(uint32_t code) {
-  ASSERT(code <= kMaxStopCode);
+  DCHECK(code <= kMaxStopCode);
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
     PrintF("Stop counter for code %i has overflowed.\n"
            "Enabling this code and reseting the counter to 0.\n", code);
@@ -1740,7 +1740,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           break;
         case CFC1:
           // At the moment only FCSR is supported.
-          ASSERT(fs_reg == kFCSRRegister);
+          DCHECK(fs_reg == kFCSRRegister);
           *alu_out = FCSR_;
           break;
         case MFC1:
@@ -2011,7 +2011,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
           break;
         case CTC1:
           // At the moment only FCSR is supported.
-          ASSERT(fs_reg == kFCSRRegister);
+          DCHECK(fs_reg == kFCSRRegister);
           FCSR_ = registers_[rt_reg];
           break;
         case MTC1:
@@ -2103,7 +2103,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
               break;
             case CVT_W_D:   // Convert double to word.
               // Rounding modes are not yet supported.
-              ASSERT((FCSR_ & 3) == 0);
+              DCHECK((FCSR_ & 3) == 0);
               // In rounding mode 0 it should behave like ROUND.
             case ROUND_W_D:  // Round double to word (round half to even).
               {
@@ -2847,7 +2847,7 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   // Set up arguments.
 
   // First four arguments passed in registers.
-  ASSERT(argument_count >= 4);
+  DCHECK(argument_count >= 4);
   set_register(a0, va_arg(parameters, int32_t));
   set_register(a1, va_arg(parameters, int32_t));
   set_register(a2, va_arg(parameters, int32_t));
@@ -2886,7 +2886,7 @@ double Simulator::CallFP(byte* entry, double d0, double d1) {
     set_fpu_register_double(f14, d1);
   } else {
     int buffer[2];
-    ASSERT(sizeof(buffer[0]) * 2 == sizeof(d0));
+    DCHECK(sizeof(buffer[0]) * 2 == sizeof(d0));
     memcpy(buffer, &d0, sizeof(d0));
     set_dw_register(a0, buffer);
     memcpy(buffer, &d1, sizeof(d1));

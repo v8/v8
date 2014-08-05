@@ -46,7 +46,7 @@ void HInferTypesPhase::InferTypes(int from_inclusive, int to_inclusive) {
           }
         }
       }
-      ASSERT(in_worklist_.IsEmpty());
+      DCHECK(in_worklist_.IsEmpty());
     }
   }
 }

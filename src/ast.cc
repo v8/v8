@@ -87,10 +87,10 @@ VariableProxy::VariableProxy(Zone* zone,
 
 
 void VariableProxy::BindTo(Variable* var) {
-  ASSERT(var_ == NULL);  // must be bound only once
-  ASSERT(var != NULL);  // must bind
-  ASSERT(!FLAG_harmony_modules || interface_->IsUnified(var->interface()));
-  ASSERT((is_this() && var->is_this()) || name_ == var->raw_name());
+  DCHECK(var_ == NULL);  // must be bound only once
+  DCHECK(var != NULL);  // must bind
+  DCHECK(!FLAG_harmony_modules || interface_->IsUnified(var->interface()));
+  DCHECK((is_this() && var->is_this()) || name_ == var->raw_name());
   // Ideally CONST-ness should match. However, this is very hard to achieve
   // because we don't know the exact semantics of conflicting (const and
   // non-const) multiple variable declarations, const vars introduced via
@@ -402,8 +402,8 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   if (IsObjectLiteral()) {
     return AsObjectLiteral()->BuildConstantProperties(isolate);
   }
-  ASSERT(IsRegExpLiteral());
-  ASSERT(depth() >= 1);  // Depth should be initialized.
+  DCHECK(IsRegExpLiteral());
+  DCHECK(depth() >= 1);  // Depth should be initialized.
 }
 
 
@@ -593,7 +593,7 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
                                LookupResult* lookup) {
   target_ = Handle<JSFunction>::null();
   cell_ = Handle<Cell>::null();
-  ASSERT(lookup->IsFound() &&
+  DCHECK(lookup->IsFound() &&
          lookup->type() == NORMAL &&
          lookup->holder() == *global);
   cell_ = Handle<Cell>(global->GetPropertyCell(lookup));
@@ -960,7 +960,7 @@ OStream& RegExpTree::Print(OStream& os, Zone* zone) {  // NOLINT
 
 RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
     : alternatives_(alternatives) {
-  ASSERT(alternatives->length() > 1);
+  DCHECK(alternatives->length() > 1);
   RegExpTree* first_alternative = alternatives->at(0);
   min_match_ = first_alternative->min_match();
   max_match_ = first_alternative->max_match();
@@ -982,7 +982,7 @@ static int IncreaseBy(int previous, int increase) {
 
 RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
     : nodes_(nodes) {
-  ASSERT(nodes->length() > 1);
+  DCHECK(nodes->length() > 1);
   min_match_ = 0;
   max_match_ = 0;
   for (int i = 0; i < nodes->length(); i++) {
@@ -1127,7 +1127,7 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 
 Handle<String> Literal::ToString() {
   if (value_->IsString()) return value_->AsString()->string();
-  ASSERT(value_->IsNumber());
+  DCHECK(value_->IsNumber());
   char arr[100];
   Vector<char> buffer(arr, ARRAY_SIZE(arr));
   const char* str;

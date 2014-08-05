@@ -49,7 +49,7 @@ class DynamicScopePart : public ZoneObject {
 
   VariableMap* GetMap(VariableMode mode) {
     int index = mode - DYNAMIC;
-    ASSERT(index >= 0 && index < 3);
+    DCHECK(index >= 0 && index < 3);
     return maps_[index];
   }
 
@@ -118,7 +118,7 @@ class Scope: public ZoneObject {
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
   void DeclareFunctionVar(VariableDeclaration* declaration) {
-    ASSERT(is_function_scope());
+    DCHECK(is_function_scope());
     function_ = declaration;
   }
 
@@ -149,7 +149,7 @@ class Scope: public ZoneObject {
     // Note that we must not share the unresolved variables with
     // the same name because they may be removed selectively via
     // RemoveUnresolved().
-    ASSERT(!already_resolved());
+    DCHECK(!already_resolved());
     VariableProxy* proxy =
         factory->NewVariableProxy(name, false, interface, position);
     unresolved_.Add(proxy, zone_);
@@ -247,7 +247,7 @@ class Scope: public ZoneObject {
 
   // In some cases we want to force context allocation for a whole scope.
   void ForceContextAllocation() {
-    ASSERT(!already_resolved());
+    DCHECK(!already_resolved());
     force_context_allocation_ = true;
   }
   bool has_forced_context_allocation() const {
@@ -302,14 +302,14 @@ class Scope: public ZoneObject {
   // The variable holding the function literal for named function
   // literals, or NULL.  Only valid for function scopes.
   VariableDeclaration* function() const {
-    ASSERT(is_function_scope());
+    DCHECK(is_function_scope());
     return function_;
   }
 
   // Parameters. The left-most parameter has index 0.
   // Only valid for function scopes.
   Variable* parameter(int index) const {
-    ASSERT(is_function_scope());
+    DCHECK(is_function_scope());
     return params_[index];
   }
 

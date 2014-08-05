@@ -857,7 +857,7 @@ class MacroAssembler: public Assembler {
   void Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
 
   Handle<Object> CodeObject() {
-    ASSERT(!code_object_.is_null());
+    DCHECK(!code_object_.is_null());
     return code_object_;
   }
 

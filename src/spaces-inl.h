@@ -40,7 +40,7 @@ bool PageIterator::has_next() {
 
 
 Page* PageIterator::next() {
-  ASSERT(has_next());
+  DCHECK(has_next());
   prev_page_ = next_page_;
   next_page_ = next_page_->next_page();
   return prev_page_;
@@ -75,7 +75,7 @@ bool NewSpacePageIterator::has_next() {
 
 
 NewSpacePage* NewSpacePageIterator::next() {
-  ASSERT(has_next());
+  DCHECK(has_next());
   prev_page_ = next_page_;
   next_page_ = next_page_->next_page();
   return prev_page_;
@@ -93,9 +93,9 @@ HeapObject* HeapObjectIterator::FromCurrentPage() {
     HeapObject* obj = HeapObject::FromAddress(cur_addr_);
     int obj_size = (size_func_ == NULL) ? obj->Size() : size_func_(obj);
     cur_addr_ += obj_size;
-    ASSERT(cur_addr_ <= cur_end_);
+    DCHECK(cur_addr_ <= cur_end_);
     if (!obj->IsFiller()) {
-      ASSERT_OBJECT_SIZE(obj_size);
+      DCHECK_OBJECT_SIZE(obj_size);
       return obj;
     }
   }
@@ -142,8 +142,8 @@ Page* Page::Initialize(Heap* heap,
                        Executability executable,
                        PagedSpace* owner) {
   Page* page = reinterpret_cast<Page*>(chunk);
-  ASSERT(page->area_size() <= kMaxRegularHeapObjectSize);
-  ASSERT(chunk->owner() == owner);
+  DCHECK(page->area_size() <= kMaxRegularHeapObjectSize);
+  DCHECK(chunk->owner() == owner);
   owner->IncreaseCapacity(page->area_size());
   owner->Free(page->area_start(), page->area_size());
 
@@ -213,25 +213,25 @@ PointerChunkIterator::PointerChunkIterator(Heap* heap)
 
 
 Page* Page::next_page() {
-  ASSERT(next_chunk()->owner() == owner());
+  DCHECK(next_chunk()->owner() == owner());
   return static_cast<Page*>(next_chunk());
 }
 
 
 Page* Page::prev_page() {
-  ASSERT(prev_chunk()->owner() == owner());
+  DCHECK(prev_chunk()->owner() == owner());
   return static_cast<Page*>(prev_chunk());
 }
 
 
 void Page::set_next_page(Page* page) {
-  ASSERT(page->owner() == owner());
+  DCHECK(page->owner() == owner());
   set_next_chunk(page);
 }
 
 
 void Page::set_prev_page(Page* page) {
-  ASSERT(page->owner() == owner());
+  DCHECK(page->owner() == owner());
   set_prev_chunk(page);
 }
 
@@ -285,7 +285,7 @@ AllocationResult NewSpace::AllocateRaw(int size_in_bytes) {
 
   HeapObject* obj = HeapObject::FromAddress(old_top);
   allocation_info_.set_top(allocation_info_.top() + size_in_bytes);
-  ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
+  DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 
   return obj;
 }

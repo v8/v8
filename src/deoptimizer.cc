@@ -412,7 +412,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   for (int i = 0; i < codes.length(); i++) {
 #ifdef DEBUG
     if (codes[i] == topmost_optimized_code) {
-      ASSERT(safe_to_deopt_topmost_optimized_code);
+      DCHECK(safe_to_deopt_topmost_optimized_code);
     }
 #endif
     // It is finally time to die, code object.
@@ -633,7 +633,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   if (function->IsSmi()) {
     function = NULL;
   }
-  ASSERT(from != NULL);
+  DCHECK(from != NULL);
   if (function != NULL && function->IsOptimized()) {
     function->shared()->increment_deopt_count();
     if (bailout_type_ == Deoptimizer::SOFT) {
@@ -648,9 +648,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   compiled_code_ = FindOptimizedCode(function, optimized_code);
 
 #if DEBUG
-  ASSERT(compiled_code_ != NULL);
+  DCHECK(compiled_code_ != NULL);
   if (type == EAGER || type == SOFT || type == LAZY) {
-    ASSERT(compiled_code_->kind() != Code::FUNCTION);
+    DCHECK(compiled_code_->kind() != Code::FUNCTION);
   }
 #endif
 
@@ -681,7 +681,7 @@ Code* Deoptimizer::FindOptimizedCode(JSFunction* function,
           : compiled_code;
     }
     case Deoptimizer::DEBUGGER:
-      ASSERT(optimized_code->contains(from_));
+      DCHECK(optimized_code->contains(from_));
       return optimized_code;
   }
   FATAL("Could not find code for optimized function");
@@ -700,8 +700,8 @@ void Deoptimizer::PrintFunctionName() {
 
 
 Deoptimizer::~Deoptimizer() {
-  ASSERT(input_ == NULL && output_ == NULL);
-  ASSERT(disallow_heap_allocation_ == NULL);
+  DCHECK(input_ == NULL && output_ == NULL);
+  DCHECK(disallow_heap_allocation_ == NULL);
   delete trace_scope_;
 }
 
@@ -752,7 +752,7 @@ int Deoptimizer::GetDeoptimizationId(Isolate* isolate,
       addr >= start + (kMaxNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }
-  ASSERT_EQ(0,
+  DCHECK_EQ(0,
             static_cast<int>(addr - start) % table_entry_size_);
   return static_cast<int>(addr - start) / table_entry_size_;
 }
@@ -789,7 +789,7 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
     Object* element = native_context->DeoptimizedCodeListHead();
     while (!element->IsUndefined()) {
       Code* code = Code::cast(element);
-      ASSERT(code->kind() == Code::OPTIMIZED_FUNCTION);
+      DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
       length++;
       element = code->next_code_link();
     }
@@ -841,13 +841,13 @@ void Deoptimizer::DoComputeOutputFrames() {
   TranslationIterator iterator(translations, translation_index);
   Translation::Opcode opcode =
       static_cast<Translation::Opcode>(iterator.Next());
-  ASSERT(Translation::BEGIN == opcode);
+  DCHECK(Translation::BEGIN == opcode);
   USE(opcode);
   // Read the number of output frames and allocate an array for their
   // descriptions.
   int count = iterator.Next();
   iterator.Next();  // Drop JS frames count.
-  ASSERT(output_ == NULL);
+  DCHECK(output_ == NULL);
   output_ = new FrameDescription*[count];
   for (int i = 0; i < count; ++i) {
     output_[i] = NULL;
@@ -1035,7 +1035,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   }
   output_frame->SetCallerFp(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  ASSERT(!is_bottommost || (input_->GetRegister(fp_reg.code()) +
+  DCHECK(!is_bottommost || (input_->GetRegister(fp_reg.code()) +
       has_alignment_padding_ * kPointerSize) == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(fp_reg.code(), fp_value);
@@ -1045,7 +1045,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
            V8PRIxPTR " ; caller's fp\n",
            fp_value, output_offset, value);
   }
-  ASSERT(!is_bottommost || !has_alignment_padding_ ||
+  DCHECK(!is_bottommost || !has_alignment_padding_ ||
          (fp_value & kPointerSize) != 0);
 
   if (FLAG_enable_ool_constant_pool) {
@@ -1094,7 +1094,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   value = reinterpret_cast<intptr_t>(function);
   // The function for the bottommost output frame should also agree with the
   // input frame.
-  ASSERT(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
+  DCHECK(!is_bottommost || input_->GetFrameSlot(input_offset) == value);
   output_frame->SetFrameSlot(output_offset, value);
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
@@ -1260,7 +1260,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
            top_address + output_offset, output_offset, value, height - 1);
   }
 
-  ASSERT(0 == output_offset);
+  DCHECK(0 == output_offset);
 
   Builtins* builtins = isolate_->builtins();
   Code* adaptor_trampoline =
@@ -1298,8 +1298,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslationIterator* iterator,
   output_frame->SetFrameType(StackFrame::CONSTRUCT);
 
   // Construct stub can not be topmost or bottommost.
-  ASSERT(frame_index > 0 && frame_index < output_count_ - 1);
-  ASSERT(output_[frame_index] == NULL);
+  DCHECK(frame_index > 0 && frame_index < output_count_ - 1);
+  DCHECK(output_[frame_index] == NULL);
   output_[frame_index] = output_frame;
 
   // The top address of the frame is computed from the previous
@@ -1826,7 +1826,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   StubFunctionMode function_mode = descriptor->function_mode();
   StubFailureTrampolineStub(isolate_,
                             function_mode).FindCodeInCache(&trampoline);
-  ASSERT(trampoline != NULL);
+  DCHECK(trampoline != NULL);
   output_frame->SetPc(reinterpret_cast<intptr_t>(
       trampoline->instruction_start()));
   if (FLAG_enable_ool_constant_pool) {
@@ -1873,7 +1873,7 @@ Handle<Object> Deoptimizer::MaterializeNextHeapObject() {
     Handle<JSObject> arguments =
         isolate_->factory()->NewArgumentsObject(function, length);
     Handle<FixedArray> array = isolate_->factory()->NewFixedArray(length);
-    ASSERT_EQ(array->length(), length);
+    DCHECK_EQ(array->length(), length);
     arguments->set_elements(*array);
     materialized_objects_->Add(arguments);
     for (int i = 0; i < length; ++i) {
@@ -1964,7 +1964,7 @@ Handle<Object> Deoptimizer::MaterializeNextValue() {
 
 
 void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
-  ASSERT_NE(DEBUGGER, bailout_type_);
+  DCHECK_NE(DEBUGGER, bailout_type_);
 
   MaterializedObjectStore* materialized_store =
       isolate_->materialized_object_store();
@@ -2017,7 +2017,7 @@ void Deoptimizer::MaterializeHeapObjects(JavaScriptFrameIterator* it) {
              d.value(),
              d.destination());
     }
-    ASSERT(values.at(d.destination())->IsTheHole());
+    DCHECK(values.at(d.destination())->IsTheHole());
     values.Set(d.destination(), num);
   }
 
@@ -2851,7 +2851,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;
   masm.GetCode(&desc);
-  ASSERT(!RelocInfo::RequiresRelocation(desc));
+  DCHECK(!RelocInfo::RequiresRelocation(desc));
 
   MemoryChunk* chunk = data->deopt_entry_code_[type];
   CHECK(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
@@ -2945,7 +2945,7 @@ unsigned FrameDescription::GetExpressionCount() {
 
 
 Object* FrameDescription::GetExpression(int index) {
-  ASSERT_EQ(StackFrame::JAVA_SCRIPT, type_);
+  DCHECK_EQ(StackFrame::JAVA_SCRIPT, type_);
   unsigned offset = GetOffsetFromSlotIndex(index);
   return reinterpret_cast<Object*>(*GetFrameSlotPointer(offset));
 }
@@ -2971,7 +2971,7 @@ int32_t TranslationIterator::Next() {
   // bit of zero (marks the end).
   uint32_t bits = 0;
   for (int i = 0; true; i += 7) {
-    ASSERT(HasNext());
+    DCHECK(HasNext());
     uint8_t next = buffer_->get(index_++);
     bits |= (next >> 1) << i;
     if ((next & 1) == 0) break;

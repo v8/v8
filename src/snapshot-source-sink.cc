@@ -23,7 +23,7 @@ SnapshotByteSource::~SnapshotByteSource() { }
 
 
 int32_t SnapshotByteSource::GetUnalignedInt() {
-  ASSERT(position_ < length_);  // Require at least one byte left.
+  DCHECK(position_ < length_);  // Require at least one byte left.
 #if defined(V8_HOST_CAN_READ_UNALIGNED) &&  __BYTE_ORDER == __LITTLE_ENDIAN
   int32_t answer = *reinterpret_cast<const int32_t*>(data_ + position_);
 #else
@@ -43,7 +43,7 @@ void SnapshotByteSource::CopyRaw(byte* to, int number_of_bytes) {
 
 
 void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
-  ASSERT(integer < 1 << 22);
+  DCHECK(integer < 1 << 22);
   integer <<= 2;
   int bytes = 1;
   if (integer > 0xff) bytes = 2;

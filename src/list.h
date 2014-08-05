@@ -62,8 +62,8 @@ class List {
   // not safe to use after operations that can change the list's
   // backing store (e.g. Add).
   inline T& operator[](int i) const {
-    ASSERT(0 <= i);
-    SLOW_ASSERT(i < length_);
+    DCHECK(0 <= i);
+    SLOW_DCHECK(i < length_);
     return data_[i];
   }
   inline T& at(int i) const { return operator[](i); }

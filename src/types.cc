@@ -133,7 +133,7 @@ int TypeImpl<Config>::BitsetType::Lub(double value) {
   }
   if (IsInt32Double(value)) {
     int32_t i = FastD2I(value);
-    ASSERT(i < 0);
+    DCHECK(i < 0);
     if (i >= -0x40000000) return kOtherSignedSmall;
     return i::SmiValuesAre31Bits() ? kOtherSigned32 : kOtherSignedSmall;
   }
@@ -173,7 +173,7 @@ int TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
       if (map == heap->undefined_map()) return kUndefined;
       if (map == heap->null_map()) return kNull;
       if (map == heap->boolean_map()) return kBoolean;
-      ASSERT(map == heap->the_hole_map() ||
+      DCHECK(map == heap->the_hole_map() ||
              map == heap->uninitialized_map() ||
              map == heap->no_interceptor_result_sentinel_map() ||
              map == heap->termination_exception_map() ||
@@ -304,7 +304,7 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
 
   // T <= (T1 \/ ... \/ Tn)  <=>  (T <= T1) \/ ... \/ (T <= Tn)
   // (iff T is not a union)
-  ASSERT(!this->IsUnion() && that->IsUnion());
+  DCHECK(!this->IsUnion() && that->IsUnion());
   UnionHandle unioned = handle(that->AsUnion());
   for (int i = 0; i < unioned->Length(); ++i) {
     if (this->Is(unioned->Get(i))) return true;
@@ -368,7 +368,7 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
     return false;
   }
 
-  ASSERT(!this->IsUnion() && !that->IsUnion());
+  DCHECK(!this->IsUnion() && !that->IsUnion());
   if (this->IsBitset() || that->IsBitset()) {
     return BitsetType::IsInhabited(this->BitsetLub() & that->BitsetLub());
   }
@@ -409,12 +409,12 @@ bool TypeImpl<Config>::Contains(i::Object* value) {
 
 template<class Config>
 bool TypeImpl<Config>::UnionType::Wellformed() {
-  ASSERT(this->Length() >= 2);
+  DCHECK(this->Length() >= 2);
   for (int i = 0; i < this->Length(); ++i) {
-    ASSERT(!this->Get(i)->IsUnion());
-    if (i > 0) ASSERT(!this->Get(i)->IsBitset());
+    DCHECK(!this->Get(i)->IsUnion());
+    if (i > 0) DCHECK(!this->Get(i)->IsBitset());
     for (int j = 0; j < this->Length(); ++j) {
-      if (i != j) ASSERT(!this->Get(i)->Is(this->Get(j)));
+      if (i != j) DCHECK(!this->Get(i)->Is(this->Get(j)));
     }
   }
   return true;
@@ -453,7 +453,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Rebound(
 
 template<class Config>
 int TypeImpl<Config>::BoundBy(TypeImpl* that) {
-  ASSERT(!this->IsUnion());
+  DCHECK(!this->IsUnion());
   if (that->IsUnion()) {
     UnionType* unioned = that->AsUnion();
     int length = unioned->Length();
@@ -482,7 +482,7 @@ int TypeImpl<Config>::BoundBy(TypeImpl* that) {
 template<class Config>
 int TypeImpl<Config>::IndexInUnion(
     int bound, UnionHandle unioned, int current_size) {
-  ASSERT(!this->IsUnion());
+  DCHECK(!this->IsUnion());
   for (int i = 0; i < current_size; ++i) {
     TypeHandle that = unioned->Get(i);
     if (that->IsBitset()) {
@@ -515,13 +515,13 @@ int TypeImpl<Config>::ExtendUnion(
     UnionHandle unioned = handle(type->AsUnion());
     for (int i = 0; i < unioned->Length(); ++i) {
       TypeHandle type_i = unioned->Get(i);
-      ASSERT(i == 0 || !(type_i->IsBitset() || type_i->Is(unioned->Get(0))));
+      DCHECK(i == 0 || !(type_i->IsBitset() || type_i->Is(unioned->Get(0))));
       if (!type_i->IsBitset()) {
         size = ExtendUnion(result, size, type_i, other, is_intersect, region);
       }
     }
   } else if (!type->IsBitset()) {
-    ASSERT(type->IsClass() || type->IsConstant() ||
+    DCHECK(type->IsClass() || type->IsConstant() ||
            type->IsArray() || type->IsFunction() || type->IsContext());
     int inherent_bound = type->InherentBitsetLub();
     int old_bound = type->BitsetLub();
@@ -596,7 +596,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
   }
   int bitset = type1->BitsetGlb() | type2->BitsetGlb();
   if (bitset != BitsetType::kNone) ++size;
-  ASSERT(size >= 1);
+  DCHECK(size >= 1);
 
   UnionHandle unioned = UnionType::New(size, region);
   size = 0;
@@ -611,7 +611,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Union(
     return unioned->Get(0);
   } else {
     unioned->Shrink(size);
-    ASSERT(unioned->Wellformed());
+    DCHECK(unioned->Wellformed());
     return unioned;
   }
 }
@@ -646,7 +646,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
   }
   int bitset = type1->BitsetGlb() & type2->BitsetGlb();
   if (bitset != BitsetType::kNone) ++size;
-  ASSERT(size >= 1);
+  DCHECK(size >= 1);
 
   UnionHandle unioned = UnionType::New(size, region);
   size = 0;
@@ -663,7 +663,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Intersect(
     return unioned->Get(0);
   } else {
     unioned->Shrink(size);
-    ASSERT(unioned->Wellformed());
+    DCHECK(unioned->Wellformed());
     return unioned;
   }
 }
@@ -711,7 +711,7 @@ int TypeImpl<Config>::NumConstants() {
 template<class Config> template<class T>
 typename TypeImpl<Config>::TypeHandle
 TypeImpl<Config>::Iterator<T>::get_type() {
-  ASSERT(!Done());
+  DCHECK(!Done());
   return type_->IsUnion() ? type_->AsUnion()->Get(index_) : type_;
 }
 
@@ -875,7 +875,7 @@ void TypeImpl<Config>::BitsetType::Print(OStream& os,  // NOLINT
       bitset -= subset;
     }
   }
-  ASSERT(bitset == 0);
+  DCHECK(bitset == 0);
   os << ")";
 }
 

@@ -95,7 +95,7 @@ class BasicJsonStringifier BASE_EMBEDDED {
   INLINE(Result SerializeProperty(Handle<Object> object,
                                   bool deferred_comma,
                                   Handle<String> deferred_key)) {
-    ASSERT(!deferred_key.is_null());
+    DCHECK(!deferred_key.is_null());
     return Serialize_<true>(object, deferred_comma, deferred_key);
   }
 
@@ -263,7 +263,7 @@ MaybeHandle<Object> BasicJsonStringifier::Stringify(Handle<Object> object) {
     }
     return accumulator();
   }
-  ASSERT(result == EXCEPTION);
+  DCHECK(result == EXCEPTION);
   return MaybeHandle<Object>();
 }
 
@@ -281,7 +281,7 @@ MaybeHandle<Object> BasicJsonStringifier::StringifyString(
   }
 
   object = String::Flatten(object);
-  ASSERT(object->IsFlat());
+  DCHECK(object->IsFlat());
   if (object->IsOneByteRepresentationUnderneath()) {
     Handle<String> result = isolate->factory()->NewRawOneByteString(
         worst_case_length).ToHandleChecked();
@@ -506,9 +506,9 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSValue(
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
   } else {
-    ASSERT(class_name == isolate_->heap()->Boolean_string());
+    DCHECK(class_name == isolate_->heap()->Boolean_string());
     Object* value = JSValue::cast(*object)->value();
-    ASSERT(value->IsBoolean());
+    DCHECK(value->IsBoolean());
     AppendAscii(value->IsTrue() ? "true" : "false");
   }
   return SUCCESS;
@@ -631,7 +631,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
   HandleScope handle_scope(isolate_);
   Result stack_push = StackPush(object);
   if (stack_push != SUCCESS) return stack_push;
-  ASSERT(!object->IsJSGlobalProxy() && !object->IsGlobalObject());
+  DCHECK(!object->IsJSGlobalProxy() && !object->IsGlobalObject());
 
   Append('{');
   bool comma = false;
@@ -677,7 +677,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
         key_handle = Handle<String>(String::cast(key), isolate_);
         maybe_property = Object::GetPropertyOrElement(object, key_handle);
       } else {
-        ASSERT(key->IsNumber());
+        DCHECK(key->IsNumber());
         key_handle = factory_->NumberToString(Handle<Object>(key, isolate_));
         uint32_t index;
         if (key->IsSmi()) {
@@ -706,7 +706,7 @@ BasicJsonStringifier::Result BasicJsonStringifier::SerializeJSObject(
 
 
 void BasicJsonStringifier::ShrinkCurrentPart() {
-  ASSERT(current_index_ < part_length_);
+  DCHECK(current_index_ < part_length_);
   current_part_ = SeqString::Truncate(Handle<SeqString>::cast(current_part_),
                                       current_index_);
 }
@@ -736,7 +736,7 @@ void BasicJsonStringifier::Extend() {
     current_part_ =
         factory_->NewRawTwoByteString(part_length_).ToHandleChecked();
   }
-  ASSERT(!current_part_.is_null());
+  DCHECK(!current_part_.is_null());
   current_index_ = 0;
 }
 
@@ -746,7 +746,7 @@ void BasicJsonStringifier::ChangeEncoding() {
   Accumulate();
   current_part_ =
       factory_->NewRawTwoByteString(part_length_).ToHandleChecked();
-  ASSERT(!current_part_.is_null());
+  DCHECK(!current_part_.is_null());
   current_index_ = 0;
   is_ascii_ = false;
 }
@@ -760,7 +760,7 @@ int BasicJsonStringifier::SerializeStringUnchecked_(const SrcChar* src,
 
   // Assert that uc16 character is not truncated down to 8 bit.
   // The <uc16, char> version of this method must not be called.
-  ASSERT(sizeof(*dest) >= sizeof(*src));
+  DCHECK(sizeof(*dest) >= sizeof(*src));
 
   for (int i = 0; i < length; i++) {
     SrcChar c = src[i];
@@ -841,7 +841,7 @@ template <>
 Vector<const uint8_t> BasicJsonStringifier::GetCharVector(
     Handle<String> string) {
   String::FlatContent flat = string->GetFlatContent();
-  ASSERT(flat.IsAscii());
+  DCHECK(flat.IsAscii());
   return flat.ToOneByteVector();
 }
 
@@ -849,7 +849,7 @@ Vector<const uint8_t> BasicJsonStringifier::GetCharVector(
 template <>
 Vector<const uc16> BasicJsonStringifier::GetCharVector(Handle<String> string) {
   String::FlatContent flat = string->GetFlatContent();
-  ASSERT(flat.IsTwoByte());
+  DCHECK(flat.IsTwoByte());
   return flat.ToUC16Vector();
 }
 

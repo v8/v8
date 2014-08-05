@@ -78,8 +78,8 @@ uint64_t PerfJitLogger::GetTimestamp() {
 
 void PerfJitLogger::LogRecordedBuffer(Code* code, SharedFunctionInfo*,
                                       const char* name, int length) {
-  ASSERT(code->instruction_start() == code->address() + Code::kHeaderSize);
-  ASSERT(perf_output_handle_ != NULL);
+  DCHECK(code->instruction_start() == code->address() + Code::kHeaderSize);
+  DCHECK(perf_output_handle_ != NULL);
 
   const char* code_name = name;
   uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code->instruction_start());
@@ -123,13 +123,13 @@ void PerfJitLogger::SnapshotPositionEvent(Address addr, int pos) {}
 
 void PerfJitLogger::LogWriteBytes(const char* bytes, int size) {
   size_t rv = fwrite(bytes, 1, size, perf_output_handle_);
-  ASSERT(static_cast<size_t>(size) == rv);
+  DCHECK(static_cast<size_t>(size) == rv);
   USE(rv);
 }
 
 
 void PerfJitLogger::LogWriteHeader() {
-  ASSERT(perf_output_handle_ != NULL);
+  DCHECK(perf_output_handle_ != NULL);
   jitheader header;
   header.magic = JITHEADER_MAGIC;
   header.version = JITHEADER_VERSION;

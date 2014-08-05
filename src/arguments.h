@@ -32,7 +32,7 @@ class Arguments BASE_EMBEDDED {
       : length_(length), arguments_(arguments) { }
 
   Object*& operator[] (int index) {
-    ASSERT(0 <= index && index < length_);
+    DCHECK(0 <= index && index < length_);
     return *(reinterpret_cast<Object**>(reinterpret_cast<intptr_t>(arguments_) -
                                         index * kPointerSize));
   }
@@ -176,8 +176,8 @@ class PropertyCallbackArguments
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
-    ASSERT(values[T::kHolderIndex]->IsHeapObject());
-    ASSERT(values[T::kIsolateIndex]->IsSmi());
+    DCHECK(values[T::kHolderIndex]->IsHeapObject());
+    DCHECK(values[T::kIsolateIndex]->IsSmi());
   }
 
   /*
@@ -248,9 +248,9 @@ class FunctionCallbackArguments
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();
-    ASSERT(values[T::kCalleeIndex]->IsJSFunction());
-    ASSERT(values[T::kHolderIndex]->IsHeapObject());
-    ASSERT(values[T::kIsolateIndex]->IsSmi());
+    DCHECK(values[T::kCalleeIndex]->IsJSFunction());
+    DCHECK(values[T::kHolderIndex]->IsHeapObject());
+    DCHECK(values[T::kIsolateIndex]->IsSmi());
   }
 
   /*

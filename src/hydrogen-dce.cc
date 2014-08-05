@@ -59,7 +59,7 @@ void HDeadCodeEliminationPhase::MarkLiveInstructions() {
     }
   }
 
-  ASSERT(worklist.is_empty());  // Should have processed everything.
+  DCHECK(worklist.is_empty());  // Should have processed everything.
 }
 
 

@@ -355,14 +355,14 @@ class LCodeGen: public LCodeGenBase {
    public:
     explicit PushSafepointRegistersScope(LCodeGen* codegen)
         : codegen_(codegen) {
-      ASSERT(codegen_->info()->is_calling());
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      DCHECK(codegen_->info()->is_calling());
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
       codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
       codegen_->masm_->PushSafepointRegisters();
     }
 
     ~PushSafepointRegistersScope() {
-      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
+      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
       codegen_->masm_->PopSafepointRegisters();
       codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
     }

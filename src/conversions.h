@@ -199,7 +199,7 @@ inline bool TryNumberToSize(Isolate* isolate,
   SealHandleScope shs(isolate);
   if (number->IsSmi()) {
     int value = Smi::cast(number)->value();
-    ASSERT(static_cast<unsigned>(Smi::kMaxValue)
+    DCHECK(static_cast<unsigned>(Smi::kMaxValue)
            <= std::numeric_limits<size_t>::max());
     if (value >= 0) {
       *result = static_cast<size_t>(value);
@@ -207,7 +207,7 @@ inline bool TryNumberToSize(Isolate* isolate,
     }
     return false;
   } else {
-    ASSERT(number->IsHeapNumber());
+    DCHECK(number->IsHeapNumber());
     double value = HeapNumber::cast(number)->value();
     if (value >= 0 &&
         value <= std::numeric_limits<size_t>::max()) {

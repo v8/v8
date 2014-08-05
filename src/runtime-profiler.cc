@@ -76,7 +76,7 @@ static void GetICCounts(Code* shared_code,
 
 
 void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
-  ASSERT(function->IsOptimizable());
+  DCHECK(function->IsOptimizable());
 
   if (FLAG_trace_opt && function->PassesFilter(FLAG_hydrogen_filter)) {
     PrintF("[marking ");
@@ -101,7 +101,7 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
       // recompilation race.  This goes away as soon as OSR becomes one-shot.
       return;
     }
-    ASSERT(!function->IsInOptimizationQueue());
+    DCHECK(!function->IsInOptimizationQueue());
     function->MarkForConcurrentOptimization();
   } else {
     // The next call to the function will trigger optimization.
