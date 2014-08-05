@@ -11,13 +11,13 @@ namespace v8 {
 namespace internal {
 
 IsolateTest::IsolateTest() : isolate_(v8::Isolate::New()) {
-  ASSERT_THAT(isolate_, NotNull());
+  EXPECT_THAT(isolate_, NotNull());
   isolate_->Enter();
 }
 
 
 IsolateTest::~IsolateTest() {
-  ASSERT_THAT(isolate_, NotNull());
+  EXPECT_THAT(isolate_, NotNull());
   isolate_->Exit();
   isolate_->Dispose();
   isolate_ = NULL;
