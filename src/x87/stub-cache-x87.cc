@@ -1217,7 +1217,7 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
-    Handle<PropertyCell> cell, Handle<Name> name, bool is_dont_delete) {
+    Handle<PropertyCell> cell, Handle<Name> name, bool is_configurable) {
   Label miss;
 
   FrontendHeader(receiver(), name, &miss);
