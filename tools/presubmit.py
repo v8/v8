@@ -101,7 +101,7 @@ whitespace/tab
 whitespace/todo
 """.split()
 
-# TODO(bmeurer): Fix and re-enable readability/check
+#TODO(bmeurer) : Fix and re - enable readability / check
 
 LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
 
@@ -236,7 +236,8 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'include', 'samples', join('test', 'cctest')]
+    return ['src', 'include', 'samples', join('test', 'cctest'),
+            join('test', 'unittests')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
