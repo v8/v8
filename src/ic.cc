@@ -1448,7 +1448,6 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
       case FIELD:
         return compiler.CompileStoreField(lookup, name);
       case NORMAL:
-        if (kind() == Code::KEYED_STORE_IC) break;
         if (receiver->IsJSGlobalProxy() || receiver->IsGlobalObject()) {
           // The stub generated for the global object picks the value directly
           // from the property cell. So the property must be directly on the
@@ -1503,7 +1502,6 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
         break;
       }
       case INTERCEPTOR:
-        if (kind() == Code::KEYED_STORE_IC) break;
         DCHECK(HasInterceptorSetter(*holder));
         return compiler.CompileStoreInterceptor(name);
       case CONSTANT:
