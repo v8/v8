@@ -21,10 +21,12 @@ RawMachineAssembler::RawMachineAssembler(
       parameters_(NULL),
       exit_label_(schedule()->exit()),
       current_block_(schedule()->entry()) {
+  Node* s = graph->NewNode(common_.Start(parameter_count()));
+  graph->SetStart(s);
   if (parameter_count() == 0) return;
   parameters_ = zone()->NewArray<Node*>(parameter_count());
   for (int i = 0; i < parameter_count(); ++i) {
-    parameters_[i] = NewNode(common()->Parameter(i));
+    parameters_[i] = NewNode(common()->Parameter(i), graph->start());
   }
 }
 

@@ -14,12 +14,14 @@ using namespace v8::internal::compiler;
 
 class PhiReducerTester : HandleAndZoneScope {
  public:
-  PhiReducerTester()
+  explicit PhiReducerTester(int num_parameters = 0)
       : isolate(main_isolate()),
         common(main_zone()),
         graph(main_zone()),
-        self(graph.NewNode(common.Start())),
-        dead(graph.NewNode(common.Dead())) {}
+        self(graph.NewNode(common.Start(num_parameters))),
+        dead(graph.NewNode(common.Dead())) {
+    graph.SetStart(self);
+  }
 
   Isolate* isolate;
   CommonOperatorBuilder common;
@@ -47,7 +49,7 @@ class PhiReducerTester : HandleAndZoneScope {
   }
 
   Node* Parameter(int32_t index = 0) {
-    return graph.NewNode(common.Parameter(index));
+    return graph.NewNode(common.Parameter(index), graph.start());
   }
 
   Node* Phi(Node* a) {

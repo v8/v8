@@ -16,9 +16,9 @@ SimplifiedGraphBuilder::SimplifiedGraphBuilder(
       simplified_(simplified) {}
 
 
-void SimplifiedGraphBuilder::Begin() {
+void SimplifiedGraphBuilder::Begin(int num_parameters) {
   DCHECK(graph()->start() == NULL);
-  Node* start = graph()->NewNode(common()->Start());
+  Node* start = graph()->NewNode(common()->Start(num_parameters));
   graph()->SetStart(start);
   set_environment(new (zone()) Environment(this, start));
 }

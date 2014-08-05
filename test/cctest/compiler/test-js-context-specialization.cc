@@ -50,7 +50,7 @@ class ContextSpecializationTester
 TEST(ReduceJSLoadContext) {
   ContextSpecializationTester t;
 
-  Node* start = t.NewNode(t.common()->Start());
+  Node* start = t.NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
 
   // Make a context and initialize it a bit for this test.
@@ -64,7 +64,7 @@ TEST(ReduceJSLoadContext) {
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
-  Node* param_context = t.NewNode(t.common()->Parameter(0));
+  Node* param_context = t.NewNode(t.common()->Parameter(0), start);
   JSContextSpecializer spec(t.info(), t.jsgraph(), const_context);
 
   {
@@ -145,7 +145,7 @@ static void CheckEffectInput(Node* effect, Node* use) {
 TEST(SpecializeToContext) {
   ContextSpecializationTester t;
 
-  Node* start = t.NewNode(t.common()->Start());
+  Node* start = t.NewNode(t.common()->Start(0));
   t.graph()->SetStart(start);
 
   // Make a context and initialize it a bit for this test.
@@ -156,13 +156,13 @@ TEST(SpecializeToContext) {
   t.info()->SetContext(native);
 
   Node* const_context = t.jsgraph()->Constant(native);
-  Node* param_context = t.NewNode(t.common()->Parameter(0));
+  Node* param_context = t.NewNode(t.common()->Parameter(0), start);
   JSContextSpecializer spec(t.info(), t.jsgraph(), const_context);
 
   {
     // Check that SpecializeToContext() replaces values and forwards effects
     // correctly, and folds values from constant and non-constant contexts
-    Node* effect_in = t.NewNode(t.common()->Start());
+    Node* effect_in = t.NewNode(t.common()->Start(0));
     Node* load = t.NewNode(t.javascript()->LoadContext(0, slot, true),
                            const_context, const_context, effect_in, start);
 

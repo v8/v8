@@ -53,7 +53,7 @@ class SimplifiedGraphBuilder
   }
 
   // Initialize graph and builder.
-  void Begin();
+  void Begin(int num_parameters);
 
   void Return(Node* value);
 

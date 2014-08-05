@@ -23,8 +23,9 @@ class GraphTester : public HandleAndZoneScope, public Graph {
 
 class GraphWithStartNodeTester : public GraphTester {
  public:
-  GraphWithStartNodeTester()
-      : builder_(main_zone()), start_node_(NewNode(builder_.Start())) {
+  explicit GraphWithStartNodeTester(int num_parameters = 0)
+      : builder_(main_zone()),
+        start_node_(NewNode(builder_.Start(num_parameters))) {
     SetStart(start_node_);
   }
 

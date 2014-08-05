@@ -47,10 +47,12 @@ class MachineCallHelper : public CallHelper {
                                 MachineRepresentation* parameters);
   void InitParameters(GraphBuilder* builder, CommonOperatorBuilder* common);
 
- private:
+ protected:
   int parameter_count() const {
     return call_descriptor_builder_->parameter_count();
   }
+
+ private:
   MachineCallDescriptorBuilder* call_descriptor_builder_;
   Node** parameters_;
   // TODO(dcarney): shouldn't need graph stored.
@@ -97,7 +99,7 @@ class GraphBuilderTester
                 p0, p1, p2, p3, p4)),
         SimplifiedGraphBuilder(main_graph_, &main_common_, &main_machine_,
                                &main_simplified_) {
-    Begin();
+    Begin(parameter_count());
     InitParameters(this, &main_common_);
   }
   virtual ~GraphBuilderTester() {}

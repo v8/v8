@@ -16,7 +16,7 @@ using namespace v8::internal::compiler;
 
 class JSTypedLoweringTester : public HandleAndZoneScope {
  public:
-  JSTypedLoweringTester()
+  explicit JSTypedLoweringTester(int num_parameters = 0)
       : isolate(main_isolate()),
         binop(NULL),
         unop(NULL),
@@ -29,6 +29,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         source_positions(&graph),
         context_node(NULL) {
     typer.DecorateGraph(&graph);
+    Node* s = graph.NewNode(common.Start(num_parameters));
+    graph.SetStart(s);
   }
 
   Isolate* isolate;
@@ -44,7 +46,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   Node* context_node;
 
   Node* Parameter(Type* t, int32_t index = 0) {
-    Node* n = graph.NewNode(common.Parameter(index));
+    Node* n = graph.NewNode(common.Parameter(index), graph.start());
     NodeProperties::SetBounds(n, Bounds(Type::None(), t));
     return n;
   }
@@ -57,18 +59,11 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     return node;
   }
 
-  Node* start() {
-    Node* s = graph.start();
-    if (s == NULL) {
-      s = graph.NewNode(common.Start());
-      graph.SetStart(s);
-    }
-    return s;
-  }
+  Node* start() { return graph.start(); }
 
   Node* context() {
     if (context_node == NULL) {
-      context_node = graph.NewNode(common.Parameter(-1));
+      context_node = graph.NewNode(common.Parameter(-1), graph.start());
     }
     return context_node;
   }

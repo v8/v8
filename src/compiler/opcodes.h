@@ -23,7 +23,6 @@
 
 // Opcodes for common operators.
 #define LEAF_OP_LIST(V) \
-  V(Parameter)          \
   V(Int32Constant)      \
   V(Int64Constant)      \
   V(Float64Constant)    \
@@ -36,6 +35,7 @@
   V(EffectPhi)           \
   V(FrameState)          \
   V(Call)                \
+  V(Parameter)           \
   V(Projection)
 
 #define COMMON_OP_LIST(V) \

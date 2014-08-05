@@ -147,10 +147,10 @@ TEST(BuildMulNodeGraph) {
   CommonOperatorBuilder common(scope.main_zone());
   MachineOperatorBuilder machine(scope.main_zone(), kMachineWord32);
 
-  Node* start = graph.NewNode(common.Start());
+  Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);
-  Node* param0 = graph.NewNode(common.Parameter(0));
-  Node* param1 = graph.NewNode(common.Parameter(1));
+  Node* param0 = graph.NewNode(common.Parameter(0), graph.start());
+  Node* param1 = graph.NewNode(common.Parameter(1), graph.start());
 
   Node* mul = graph.NewNode(machine.Int32Mul(), param0, param1);
   Node* ret = graph.NewNode(common.Return(), mul, start);
