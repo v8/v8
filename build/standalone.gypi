@@ -216,7 +216,8 @@
        or OS=="netbsd"', {
       'target_defaults': {
         'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
-                    '-Wno-long-long', '-pthread', '-fno-exceptions' ],
+                    '-Wno-long-long', '-pthread', '-fno-exceptions',
+                    '-pedantic' ],
         'cflags_cc': [ '-Wnon-virtual-dtor', '-fno-rtti', '-std=gnu++0x' ],
         'ldflags': [ '-pthread', ],
         'conditions': [

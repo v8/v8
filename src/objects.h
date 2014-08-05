@@ -9005,7 +9005,8 @@ class Name: public HeapObject {
   STATIC_ASSERT(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
 
   static const unsigned int kContainsCachedArrayIndexMask =
-      (~kMaxCachedArrayIndexLength << ArrayIndexLengthBits::kShift) |
+      (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
+       << ArrayIndexLengthBits::kShift) |
       kIsNotArrayIndexMask;
 
   // Value of empty hash field indicating that the hash is not computed.
@@ -9089,7 +9090,8 @@ class String: public Name {
   STATIC_ASSERT(IS_POWER_OF_TWO(kMaxCachedArrayIndexLength + 1));
 
   static const unsigned int kContainsCachedArrayIndexMask =
-      (~kMaxCachedArrayIndexLength << ArrayIndexLengthBits::kShift) |
+      (~static_cast<unsigned>(kMaxCachedArrayIndexLength)
+       << ArrayIndexLengthBits::kShift) |
       kIsNotArrayIndexMask;
 
   // Representation of the flat content of a String.

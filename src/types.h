@@ -155,7 +155,8 @@ namespace internal {
   V(UntaggedFloat64,  1 << 27 | kSemantic) \
   V(UntaggedPtr,      1 << 28 | kSemantic) \
   V(TaggedInt,        1 << 29 | kSemantic) \
-  V(TaggedPtr,        -1 << 30 | kSemantic)  /* MSB has to be sign-extended */ \
+  /* MSB has to be sign-extended */        \
+  V(TaggedPtr,        static_cast<int>(~0u << 30) | kSemantic) \
   \
   V(UntaggedInt,      kUntaggedInt1 | kUntaggedInt8 |      \
                       kUntaggedInt16 | kUntaggedInt32)     \
