@@ -1629,15 +1629,13 @@ TEST(FunctionDetails) {
       const_cast<v8::CpuProfileNode*>(current))->Print(0);
   // The tree should look like this:
   //  0   (root) 0 #1
-  //  0    (anonymous function) 19 #2 no reason script_b:1
+  //  0    "" 19 #2 no reason script_b:1
   //  0      baz 19 #3 TryCatchStatement script_b:3
   //  0        foo 18 #4 TryCatchStatement script_a:2
   //  1          bar 18 #5 no reason script_a:3
   const v8::CpuProfileNode* root = profile->GetTopDownRoot();
-  const v8::CpuProfileNode* script = GetChild(env->GetIsolate(), root,
-      ProfileGenerator::kAnonymousFunctionName);
-  CheckFunctionDetails(env->GetIsolate(), script,
-                       ProfileGenerator::kAnonymousFunctionName, "script_b",
+  const v8::CpuProfileNode* script = GetChild(env->GetIsolate(), root, "");
+  CheckFunctionDetails(env->GetIsolate(), script, "", "script_b",
                        script_b->GetUnboundScript()->GetId(), 1, 1);
   const v8::CpuProfileNode* baz = GetChild(env->GetIsolate(), script, "baz");
   CheckFunctionDetails(env->GetIsolate(), baz, "baz", "script_b",

@@ -107,17 +107,12 @@ const char* StringsStorage::GetName(int index) {
 
 
 const char* StringsStorage::GetFunctionName(Name* name) {
-  return BeautifyFunctionName(GetName(name));
+  return GetName(name);
 }
 
 
 const char* StringsStorage::GetFunctionName(const char* name) {
-  return BeautifyFunctionName(GetCopy(name));
-}
-
-
-const char* StringsStorage::BeautifyFunctionName(const char* name) {
-  return (*name == 0) ? ProfileGenerator::kAnonymousFunctionName : name;
+  return GetCopy(name);
 }
 
 
@@ -552,8 +547,6 @@ CodeEntry* CpuProfilesCollection::NewCodeEntry(
 }
 
 
-const char* const ProfileGenerator::kAnonymousFunctionName =
-    "(anonymous function)";
 const char* const ProfileGenerator::kProgramEntryName =
     "(program)";
 const char* const ProfileGenerator::kIdleEntryName =

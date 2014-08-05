@@ -572,14 +572,14 @@ TEST(RecordStackTraceAtStartProfiling) {
   const_cast<ProfileNode*>(current)->Print(0);
   // The tree should look like this:
   //  (root)
-  //   (anonymous function)
+  //   ""
   //     a
   //       b
   //         c
   // There can also be:
   //           startProfiling
   // if the sampler managed to get a tick.
-  current = PickChild(current, "(anonymous function)");
+  current = PickChild(current, "");
   CHECK_NE(NULL, const_cast<ProfileNode*>(current));
   current = PickChild(current, "a");
   CHECK_NE(NULL, const_cast<ProfileNode*>(current));
@@ -651,13 +651,13 @@ TEST(ProfileNodeScriptId) {
       const_cast<v8::CpuProfileNode*>(current))->Print(0);
   // The tree should look like this:
   //  (root)
-  //   (anonymous function)
+  //   ""
   //     b
   //       a
   // There can also be:
   //         startProfiling
   // if the sampler managed to get a tick.
-  current = PickChild(current, i::ProfileGenerator::kAnonymousFunctionName);
+  current = PickChild(current, "");
   CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
 
   current = PickChild(current, "b");
@@ -760,10 +760,10 @@ TEST(BailoutReason) {
       const_cast<v8::CpuProfileNode*>(current))->Print(0);
   // The tree should look like this:
   //  (root)
-  //   (anonymous function)
+  //   ""
   //     kTryFinally
   //       kTryCatch
-  current = PickChild(current, i::ProfileGenerator::kAnonymousFunctionName);
+  current = PickChild(current, "");
   CHECK_NE(NULL, const_cast<v8::CpuProfileNode*>(current));
 
   current = PickChild(current, "TryFinally");
