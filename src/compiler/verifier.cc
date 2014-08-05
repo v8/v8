@@ -224,8 +224,10 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
 void Verifier::Run(Graph* graph) {
   Visitor visitor(graph->zone());
 
+  CHECK_NE(NULL, graph->start());
   visitor.from_start = true;
   graph->VisitNodeUsesFromStart(&visitor);
+  CHECK_NE(NULL, graph->end());
   visitor.from_start = false;
   graph->VisitNodeInputsFromEnd(&visitor);
 
