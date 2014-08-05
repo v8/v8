@@ -1232,6 +1232,11 @@ class PreParserTraits {
                                            Scanner* scanner,
                                            PreParserFactory* factory = NULL);
 
+  PreParserExpression GetIterator(PreParserExpression iterable,
+                                  PreParserFactory* factory) {
+    return PreParserExpression::Default();
+  }
+
   static PreParserExpressionList NewExpressionList(int size, void* zone) {
     return PreParserExpressionList();
   }
@@ -2093,6 +2098,10 @@ ParserBase<Traits>::ParseYieldExpression(bool* ok) {
         expression = ParseAssignmentExpression(false, CHECK_OK);
         break;
     }
+  }
+  if (kind == Yield::DELEGATING) {
+    // var iterator = subject[Symbol.iterator]();
+    expression = this->GetIterator(expression, factory());
   }
   typename Traits::Type::YieldExpression yield =
       factory()->NewYield(generator_object, expression, kind, pos);
