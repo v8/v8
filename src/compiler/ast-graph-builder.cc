@@ -404,7 +404,7 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
       Handle<SharedFunctionInfo> function =
-          Compiler::BuildFunctionInfo(decl->fun(), info()->script());
+          Compiler::BuildFunctionInfo(decl->fun(), info()->script(), info());
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
       globals()->Add(variable->name(), zone());
@@ -805,7 +805,7 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   Handle<SharedFunctionInfo> shared_info =
       SearchSharedFunctionInfo(info()->shared_info()->code(), expr);
   if (shared_info.is_null()) {
-    shared_info = Compiler::BuildFunctionInfo(expr, info()->script());
+    shared_info = Compiler::BuildFunctionInfo(expr, info()->script(), info());
     CHECK(!shared_info.is_null());  // TODO(mstarzinger): Set stack overflow?
   }
 
