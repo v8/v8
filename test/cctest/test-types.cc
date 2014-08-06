@@ -189,6 +189,21 @@ class Types {
   ValueVector values;
   DoubleVector doubles;  // Some floating-point values, excluding NaN.
 
+  // Range type helper functions, partially copied from types.cc.
+  // Note: le(min(x,y), max(x,y)) holds iff neither x nor y is NaN.
+  bool le(double x, double y) {
+    return x <= y && copysign(1, x) <= copysign(1, y);
+  }
+  bool eq(double x, double y) {
+    return le(x, y) && le(y, x);
+  }
+  double min(double x, double y) {
+    return le(x, y) ? x : y;
+  }
+  double max(double x, double y) {
+    return le(x, y) ? y : x;
+  }
+
   TypeHandle Of(Handle<i::Object> value) {
     return Type::Of(value, region_);
   }
@@ -549,8 +564,8 @@ struct Tests : Rep {
     // Constructor
     for (DoubleIterator i = T.doubles.begin(); i != T.doubles.end(); ++i) {
       for (DoubleIterator j = T.doubles.begin(); j != T.doubles.end(); ++j) {
-        double min = std::min(*i, *j);
-        double max = std::max(*i, *j);
+        double min = T.min(*i, *j);
+        double max = T.max(*i, *j);
         TypeHandle type = T.Range(min, max);
         CHECK(type->IsRange());
       }
@@ -559,8 +574,8 @@ struct Tests : Rep {
     // Range attributes
     for (DoubleIterator i = T.doubles.begin(); i != T.doubles.end(); ++i) {
       for (DoubleIterator j = T.doubles.begin(); j != T.doubles.end(); ++j) {
-        double min = std::min(*i, *j);
-        double max = std::max(*i, *j);
+        double min = T.min(*i, *j);
+        double max = T.max(*i, *j);
         printf("RangeType: min, max = %f, %f\n", min, max);
         TypeHandle type = T.Range(min, max);
         printf("RangeType: Min, Max = %f, %f\n",
@@ -579,13 +594,14 @@ struct Tests : Rep {
 //           i2 != T.doubles.end(); ++i2) {
 //        for (DoubleIterator j2 = T.doubles.begin();
 //             j2 != T.doubles.end(); ++j2) {
-//          double min1 = std::min(*i1, *j1);
-//          double max1 = std::max(*i1, *j1);
-//          double min2 = std::min(*i2, *j2);
-//          double max2 = std::max(*i2, *j2);
+//          double min1 = T.min(*i1, *j1);
+//          double max1 = T.max(*i1, *j1);
+//          double min2 = T.min(*i2, *j2);
+//          double max2 = T.max(*i2, *j2);
 //          TypeHandle type1 = T.Range(min1, max1);
 //          TypeHandle type2 = T.Range(min2, max2);
-//          CHECK(Equal(type1, type2) == (min1 == min2 && max1 == max2));
+//          CHECK(Equal(type1, type2) ==
+//                (T.eq(min1, min2) && T.eq(max1, max2)));
 //        }
 //      }
 //    }
