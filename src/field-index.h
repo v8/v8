@@ -65,7 +65,7 @@ class FieldIndex V8_FINAL {
 
   int GetKeyedLookupCacheIndex() const;
 
-  int GetLoadFieldStubKey() const {
+  int GetFieldAccessStubKey() const {
     return bit_field_ &
         (IsInObjectBits::kMask | IsDoubleBits::kMask | IndexBits::kMask);
   }

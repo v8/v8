@@ -76,6 +76,7 @@ namespace internal {
   V(CallApiGetter)                          \
   /* IC Handler stubs */                    \
   V(LoadField)                              \
+  V(StoreField)                             \
   V(LoadConstant)                           \
   V(StringLength)
 
@@ -920,19 +921,13 @@ class LoadFieldStub: public HandlerStub {
  public:
   LoadFieldStub(Isolate* isolate, FieldIndex index)
     : HandlerStub(isolate), index_(index) {
-    int property_index_key = index_.GetLoadFieldStubKey();
+    int property_index_key = index_.GetFieldAccessStubKey();
     bit_field_ = EncodedLoadFieldByIndexBits::encode(property_index_key);
   }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
 
-  Representation representation() {
-    if (unboxed_double()) return Representation::Double();
-    return Representation::Tagged();
-  }
-
   FieldIndex index() const { return index_; }
-  bool unboxed_double() { return index_.is_double(); }
 
  protected:
   explicit LoadFieldStub(Isolate* isolate);
@@ -977,6 +972,36 @@ class StringLengthStub: public HandlerStub {
 
  private:
   virtual CodeStub::Major MajorKey() const { return StringLength; }
+};
+
+
+class StoreFieldStub : public HandlerStub {
+ public:
+  StoreFieldStub(Isolate* isolate, FieldIndex index,
+                 Representation representation)
+      : HandlerStub(isolate), index_(index), representation_(representation) {
+    int property_index_key = index_.GetFieldAccessStubKey();
+    bit_field_ = EncodedStoreFieldByIndexBits::encode(property_index_key) |
+                 RepresentationBits::encode(
+                     PropertyDetails::EncodeRepresentation(representation));
+  }
+
+  virtual Handle<Code> GenerateCode() V8_OVERRIDE;
+
+  FieldIndex index() const { return index_; }
+  Representation representation() { return representation_; }
+
+ protected:
+  explicit StoreFieldStub(Isolate* isolate);
+  virtual Code::Kind kind() const { return Code::STORE_IC; }
+  virtual Code::StubType GetStubType() { return Code::FAST; }
+
+ private:
+  class EncodedStoreFieldByIndexBits : public BitField<int, 0, 13> {};
+  class RepresentationBits : public BitField<int, 13, 4> {};
+  virtual CodeStub::Major MajorKey() const { return StoreField; }
+  FieldIndex index_;
+  Representation representation_;
 };
 
 

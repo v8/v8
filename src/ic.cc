@@ -1474,6 +1474,11 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
   } else {
     switch (lookup->type()) {
       case FIELD:
+        if (!lookup->representation().IsHeapObject()) {
+          StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
+                              lookup->representation());
+          return stub.GetCode();
+        }
         return compiler.CompileStoreField(lookup, name);
       case NORMAL:
         if (receiver->IsJSGlobalProxy() || receiver->IsGlobalObject()) {

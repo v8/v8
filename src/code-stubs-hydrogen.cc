@@ -62,6 +62,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
 
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        FieldIndex index);
+  void BuildStoreNamedField(HValue* object, HValue* value, FieldIndex index,
+                            Representation representation);
 
   enum ArgumentClass {
     NONE,
@@ -605,6 +607,42 @@ HValue* CodeStubGraphBuilder<LoadConstantStub>::BuildCodeStub() {
 
 
 Handle<Code> LoadConstantStub::GenerateCode() { return DoGenerateCode(this); }
+
+
+void CodeStubGraphBuilderBase::BuildStoreNamedField(
+    HValue* object, HValue* value, FieldIndex index,
+    Representation representation) {
+  DCHECK(!index.is_double() || representation.IsDouble());
+  int offset = index.offset();
+  HObjectAccess access =
+      index.is_inobject()
+          ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
+          : HObjectAccess::ForBackingStoreOffset(offset, representation);
+
+  if (representation.IsDouble()) {
+    // Load the heap number.
+    object = Add<HLoadNamedField>(
+        object, static_cast<HValue*>(NULL),
+        access.WithRepresentation(Representation::Tagged()));
+    // Store the double value into it.
+    access = HObjectAccess::ForHeapNumberValue();
+  } else if (representation.IsHeapObject()) {
+    BuildCheckHeapObject(value);
+  }
+
+  Add<HStoreNamedField>(object, access, value, STORE_TO_INITIALIZED_ENTRY);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<StoreFieldStub>::BuildCodeStub() {
+  BuildStoreNamedField(GetParameter(0), GetParameter(2), casted_stub()->index(),
+                       casted_stub()->representation());
+  return GetParameter(2);
+}
+
+
+Handle<Code> StoreFieldStub::GenerateCode() { return DoGenerateCode(this); }
 
 
 template <>

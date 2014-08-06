@@ -528,85 +528,44 @@ void NamedStoreHandlerCompiler::GenerateStoreField(
 
   FieldIndex index = lookup->GetFieldIndex();
 
-  Representation representation = lookup->representation();
-  DCHECK(!representation.IsNone());
-  if (representation.IsSmi()) {
-    __ JumpIfNotSmi(value_reg, miss_label);
-  } else if (representation.IsHeapObject()) {
-    __ JumpIfSmi(value_reg, miss_label);
-    HeapType* field_type = lookup->GetFieldType();
-    HeapType::Iterator<Map> it = field_type->Classes();
-    if (!it.Done()) {
-      Label do_store;
-      while (true) {
-        __ CompareMap(value_reg, it.Current());
-        it.Advance();
-        if (it.Done()) {
-          __ j(not_equal, miss_label);
-          break;
-        }
-        __ j(equal, &do_store, Label::kNear);
+  DCHECK(lookup->representation().IsHeapObject());
+  __ JumpIfSmi(value_reg, miss_label);
+  HeapType* field_type = lookup->GetFieldType();
+  HeapType::Iterator<Map> it = field_type->Classes();
+  if (!it.Done()) {
+    Label do_store;
+    while (true) {
+      __ CompareMap(value_reg, it.Current());
+      it.Advance();
+      if (it.Done()) {
+        __ j(not_equal, miss_label);
+        break;
       }
-      __ bind(&do_store);
+      __ j(equal, &do_store, Label::kNear);
     }
-  } else if (representation.IsDouble()) {
-    // Load the double storage.
-    if (index.is_inobject()) {
-      __ movp(scratch1, FieldOperand(receiver_reg, index.offset()));
-    } else {
-      __ movp(scratch1,
-              FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-      __ movp(scratch1, FieldOperand(scratch1, index.offset()));
-    }
-
-    // Store the value into the storage.
-    Label do_store, heap_number;
-    __ JumpIfNotSmi(value_reg, &heap_number);
-    __ SmiToInteger32(scratch2, value_reg);
-    __ Cvtlsi2sd(xmm0, scratch2);
-    __ jmp(&do_store);
-
-    __ bind(&heap_number);
-    __ CheckMap(value_reg, isolate()->factory()->heap_number_map(), miss_label,
-                DONT_DO_SMI_CHECK);
-    __ movsd(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
     __ bind(&do_store);
-    __ movsd(FieldOperand(scratch1, HeapNumber::kValueOffset), xmm0);
-    // Return the value (register rax).
-    DCHECK(value_reg.is(rax));
-    __ ret(0);
-    return;
   }
 
-  // TODO(verwaest): Share this code as a code stub.
-  SmiCheck smi_check = representation.IsTagged()
-      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
   if (index.is_inobject()) {
     // Set the property straight into the object.
     __ movp(FieldOperand(receiver_reg, index.offset()), value_reg);
 
-    if (!representation.IsSmi()) {
-      // Update the write barrier for the array address.
-      // Pass the value being stored in the now unused name_reg.
-      __ movp(name_reg, value_reg);
-      __ RecordWriteField(
-          receiver_reg, index.offset(), name_reg, scratch1, kDontSaveFPRegs,
-          EMIT_REMEMBERED_SET, smi_check);
-    }
+    // Update the write barrier for the array address.
+    // Pass the value being stored in the now unused name_reg.
+    __ movp(name_reg, value_reg);
+    __ RecordWriteField(receiver_reg, index.offset(), name_reg, scratch1,
+                        kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   } else {
     // Write to the properties array.
     // Get the properties array (optimistically).
     __ movp(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
     __ movp(FieldOperand(scratch1, index.offset()), value_reg);
 
-    if (!representation.IsSmi()) {
-      // Update the write barrier for the array address.
-      // Pass the value being stored in the now unused name_reg.
-      __ movp(name_reg, value_reg);
-      __ RecordWriteField(
-          scratch1, index.offset(), name_reg, receiver_reg, kDontSaveFPRegs,
-          EMIT_REMEMBERED_SET, smi_check);
-    }
+    // Update the write barrier for the array address.
+    // Pass the value being stored in the now unused name_reg.
+    __ movp(name_reg, value_reg);
+    __ RecordWriteField(scratch1, index.offset(), name_reg, receiver_reg,
+                        kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   }
 
   // Return the value (register rax).
