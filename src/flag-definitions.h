@@ -161,6 +161,7 @@ DEFINE_BOOL(harmony_numeric_literals, false,
 DEFINE_BOOL(harmony_strings, false, "enable harmony string")
 DEFINE_BOOL(harmony_arrays, false, "enable harmony arrays")
 DEFINE_BOOL(harmony_arrow_functions, false, "enable harmony arrow functions")
+DEFINE_BOOL(harmony_unscopables, false, "enable harmony unscopables")
 DEFINE_BOOL(harmony, false, "enable all harmony features")
 
 DEFINE_IMPLICATION(harmony, harmony_scoping)

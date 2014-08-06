@@ -1625,6 +1625,10 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
     INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
   }
+
+  if (FLAG_harmony_unscopables) {
+    INSTALL_NATIVE(Symbol, "symbolUnscopables", unscopables_symbol);
+  }
 }
 
 #undef INSTALL_NATIVE
@@ -2063,6 +2067,7 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "string-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, unscopables, "unscopables.js")
   }
 
   InstallExperimentalNativeFunctions();

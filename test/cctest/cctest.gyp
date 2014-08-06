@@ -156,6 +156,7 @@
         'test-types.cc',
         'test-unbound-queue.cc',
         'test-unique.cc',
+        'test-unscopables-hidden-prototype.cc',
         'test-utils.cc',
         'test-version.cc',
         'test-weakmaps.cc',

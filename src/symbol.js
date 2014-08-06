@@ -105,7 +105,7 @@ function SetUpSymbol() {
     // "isRegExp", symbolIsRegExp,
     "iterator", symbolIterator
     // "toStringTag", symbolToStringTag,
-    // "unscopables", symbolUnscopables
+    // "unscopables", symbolUnscopables  // added in unscopables.js
   ));
   InstallFunctions($Symbol, DONT_ENUM, $Array(
     "for", SymbolFor,
