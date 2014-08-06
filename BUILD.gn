@@ -194,6 +194,7 @@ action("js2c") {
     "src/string.js",
     "src/symbol.js",
     "src/uri.js",
+    "third_party/fdlibm/fdlibm.js",
     "src/math.js",
     "src/messages.js",
     "src/apinatives.js",
@@ -865,6 +866,8 @@ source_set("v8_base") {
     "src/zone-inl.h",
     "src/zone.cc",
     "src/zone.h",
+    "third_party/fdlibm/fdlibm.cc',
+    "third_party/fdlibm/fdlibm.h',
   ]
 
   if (v8_target_arch == "x86") {

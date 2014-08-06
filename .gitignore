@@ -63,7 +63,7 @@ shell_g
 /test/test262/tc39-test262-*
 /testing/gmock
 /testing/gtest
-/third_party
+/third_party/icu
 /tools/jsfunfuzz
 /tools/jsfunfuzz.zip
 /tools/oom_dump/oom_dump

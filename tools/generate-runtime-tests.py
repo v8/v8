@@ -47,11 +47,11 @@ EXPAND_MACROS = [
 # that the parser doesn't bit-rot. Change the values as needed when you add,
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
-EXPECTED_FUNCTION_COUNT = 426
-EXPECTED_FUZZABLE_COUNT = 329
+EXPECTED_FUNCTION_COUNT = 427
+EXPECTED_FUZZABLE_COUNT = 330
 EXPECTED_CCTEST_COUNT = 7
 EXPECTED_UNKNOWN_COUNT = 16
-EXPECTED_BUILTINS_COUNT = 813
+EXPECTED_BUILTINS_COUNT = 809
 
 
 # Don't call these at all.
