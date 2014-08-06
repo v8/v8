@@ -472,7 +472,6 @@ class TypeImpl : public Config::Base {
   static int ExtendUnion(
       UnionHandle unioned, int current_size, TypeHandle t,
       TypeHandle other, bool is_intersect, Region* region);
-  static int NormalizeUnion(UnionHandle unioned, int current_size, int bitset);
 };
 
 
