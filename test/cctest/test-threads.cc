@@ -175,19 +175,3 @@ TEST(ThreadIdValidation) {
     delete threads[i];
   }
 }
-
-
-class ThreadC : public v8::base::Thread {
- public:
-  ThreadC() : Thread("ThreadC") { }
-  void Run() {
-    Join();
-  }
-};
-
-
-TEST(ThreadJoinSelf) {
-  ThreadC thread;
-  thread.Start();
-  thread.Join();
-}
