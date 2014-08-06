@@ -425,7 +425,7 @@ class EmbeddedVector : public Vector<T> {
   EmbeddedVector(const EmbeddedVector& rhs)
       : Vector<T>(rhs) {
     MemCopy(buffer_, rhs.buffer_, sizeof(T) * kSize);
-    set_start(buffer_);
+    this->set_start(buffer_);
   }
 
   EmbeddedVector& operator=(const EmbeddedVector& rhs) {
