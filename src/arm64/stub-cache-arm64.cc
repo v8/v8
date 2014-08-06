@@ -797,6 +797,13 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
 }
 
 
+void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
+  // Return the constant value.
+  __ LoadObject(x0, value);
+  __ Ret();
+}
+
+
 void NamedLoadHandlerCompiler::GenerateLoadCallback(
     Register reg, Handle<ExecutableAccessorInfo> callback) {
   DCHECK(!AreAliased(scratch2(), scratch3(), scratch4(), reg));
