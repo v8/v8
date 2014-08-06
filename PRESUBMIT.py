@@ -42,6 +42,7 @@ def _V8PresubmitChecks(input_api, output_api):
   from presubmit import CppLintProcessor
   from presubmit import SourceProcessor
   from presubmit import CheckGeneratedRuntimeTests
+  from presubmit import CheckExternalReferenceRegistration
 
   results = []
   if not CppLintProcessor().Run(input_api.PresubmitLocalPath()):
@@ -53,6 +54,9 @@ def _V8PresubmitChecks(input_api, output_api):
   if not CheckGeneratedRuntimeTests(input_api.PresubmitLocalPath()):
     results.append(output_api.PresubmitError(
         "Generated runtime tests check failed"))
+  if not CheckExternalReferenceRegistration(input_api.PresubmitLocalPath()):
+    results.append(output_api.PresubmitError(
+        "External references registration check failed"))
   return results
 
 

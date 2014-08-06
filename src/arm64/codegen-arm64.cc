@@ -520,6 +520,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
                      double_temp1, double_temp2,
                      temp1, temp2, temp3));
   DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(!masm->serializer_enabled());  // External references not serializable.
 
   Label done;
   DoubleRegister double_temp3 = result;

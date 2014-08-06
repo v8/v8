@@ -105,9 +105,6 @@ struct DoubleConstant BASE_EMBEDDED {
 double min_int;
 double one_half;
 double minus_one_half;
-double minus_zero;
-double zero;
-double uint8_max_value;
 double negative_infinity;
 double canonical_non_hole_nan;
 double the_hole_nan;
@@ -905,9 +902,6 @@ void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
   double_constants.one_half = 0.5;
   double_constants.minus_one_half = -0.5;
-  double_constants.minus_zero = -0.0;
-  double_constants.uint8_max_value = 255;
-  double_constants.zero = 0.0;
   double_constants.canonical_non_hole_nan = base::OS::nan_value();
   double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
@@ -1165,13 +1159,6 @@ ExternalReference ExternalReference::new_space_allocation_top_address(
 }
 
 
-ExternalReference ExternalReference::heap_always_allocate_scope_depth(
-    Isolate* isolate) {
-  Heap* heap = isolate->heap();
-  return ExternalReference(heap->always_allocate_scope_depth_address());
-}
-
-
 ExternalReference ExternalReference::new_space_allocation_limit_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->NewSpaceAllocationLimitAddress());
@@ -1261,23 +1248,6 @@ ExternalReference ExternalReference::address_of_one_half() {
 ExternalReference ExternalReference::address_of_minus_one_half() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.minus_one_half));
-}
-
-
-ExternalReference ExternalReference::address_of_minus_zero() {
-  return ExternalReference(
-      reinterpret_cast<void*>(&double_constants.minus_zero));
-}
-
-
-ExternalReference ExternalReference::address_of_zero() {
-  return ExternalReference(reinterpret_cast<void*>(&double_constants.zero));
-}
-
-
-ExternalReference ExternalReference::address_of_uint8_max_value() {
-  return ExternalReference(
-      reinterpret_cast<void*>(&double_constants.uint8_max_value));
 }
 
 

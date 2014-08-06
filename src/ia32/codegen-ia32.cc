@@ -929,6 +929,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   DCHECK(!result.is(double_scratch));
   DCHECK(!temp1.is(temp2));
   DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(!masm->serializer_enabled());  // External references not serializable.
 
   Label done;
 
