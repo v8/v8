@@ -1645,9 +1645,6 @@ Isolate::~Isolate() {
   delete entry_stack_;
   entry_stack_ = NULL;
 
-  delete[] assembler_spare_buffer_;
-  assembler_spare_buffer_ = NULL;
-
   delete unicode_cache_;
   unicode_cache_ = NULL;
 

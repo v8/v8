@@ -1910,13 +1910,7 @@ void Assembler::GrowBuffer() {
   MemMove(rc_delta + reloc_info_writer.pos(), reloc_info_writer.pos(),
           desc.reloc_size);
 
-  // Switch buffers.
-  if (isolate()->assembler_spare_buffer() == NULL &&
-      buffer_size_ == kMinimalBufferSize) {
-    isolate()->set_assembler_spare_buffer(buffer_);
-  } else {
-    DeleteArray(buffer_);
-  }
+  DeleteArray(buffer_);
   buffer_ = desc.buffer;
   buffer_size_ = desc.buffer_size;
   pc_ += pc_delta;

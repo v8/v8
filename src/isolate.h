@@ -340,8 +340,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(int, serialize_partial_snapshot_cache_capacity, 0)                         \
   V(Object**, serialize_partial_snapshot_cache, NULL)                          \
   /* Assembler state. */                                                       \
-  /* A previously allocated buffer of kMinimalBufferSize bytes, or NULL. */    \
-  V(byte*, assembler_spare_buffer, NULL)                                       \
   V(FatalErrorCallback, exception_behavior, NULL)                              \
   V(LogEventCallback, event_logger, NULL)                                      \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, NULL)     \

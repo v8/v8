@@ -136,14 +136,7 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
   }
   if (buffer == NULL) {
     // Do our own buffer management.
-    if (buffer_size <= kMinimalBufferSize) {
-      buffer_size = kMinimalBufferSize;
-      if (isolate->assembler_spare_buffer() != NULL) {
-        buffer = isolate->assembler_spare_buffer();
-        isolate->set_assembler_spare_buffer(NULL);
-      }
-    }
-    if (buffer == NULL) buffer = NewArray<byte>(buffer_size);
+    buffer = NewArray<byte>(buffer_size);
     own_buffer_ = true;
   } else {
     // Use externally provided buffer instead.
@@ -158,15 +151,7 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
 
 
 AssemblerBase::~AssemblerBase() {
-  if (own_buffer_) {
-    if (isolate() != NULL &&
-        isolate()->assembler_spare_buffer() == NULL &&
-        buffer_size_ == kMinimalBufferSize) {
-      isolate()->set_assembler_spare_buffer(buffer_);
-    } else {
-      DeleteArray(buffer_);
-    }
-  }
+  if (own_buffer_) DeleteArray(buffer_);
 }
 
 
