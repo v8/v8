@@ -1473,13 +1473,21 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
     }
   } else {
     switch (lookup->type()) {
-      case FIELD:
-        if (!lookup->representation().IsHeapObject()) {
+      case FIELD: {
+        bool use_stub = true;
+        if (lookup->representation().IsHeapObject()) {
+          // Only use a generic stub if no types need to be tracked.
+          HeapType* field_type = lookup->GetFieldType();
+          HeapType::Iterator<Map> it = field_type->Classes();
+          use_stub = it.Done();
+        }
+        if (use_stub) {
           StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
                               lookup->representation());
           return stub.GetCode();
         }
         return compiler.CompileStoreField(lookup, name);
+      }
       case NORMAL:
         if (receiver->IsJSGlobalProxy() || receiver->IsGlobalObject()) {
           // The stub generated for the global object picks the value directly

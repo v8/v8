@@ -995,14 +995,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupResult* lookup,
                                                           Handle<Name> name) {
   Label miss;
-
-  FrontendHeader(receiver(), name, &miss);
-
-  // Generate store field code.
-  GenerateStoreField(holder(), lookup, receiver(), this->name(), value(),
-                     scratch1(), scratch2(), &miss);
-
-  // Handle store cache miss.
+  GenerateStoreField(lookup, value(), &miss);
   __ bind(&miss);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
   return GetCode(kind(), Code::FAST, name);

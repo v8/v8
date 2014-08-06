@@ -589,10 +589,8 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                Register scratch2, Register scratch3,
                                Label* miss_label, Label* slow);
 
-  void GenerateStoreField(Handle<JSObject> object, LookupResult* lookup,
-                          Register receiver_reg, Register name_reg,
-                          Register value_reg, Register scratch1,
-                          Register scratch2, Label* miss_label);
+  void GenerateStoreField(LookupResult* lookup, Register value_reg,
+                          Label* miss_label);
 
   static Builtins::Name SlowBuiltin(Code::Kind kind) {
     switch (kind) {

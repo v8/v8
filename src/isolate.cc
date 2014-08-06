@@ -2003,6 +2003,7 @@ bool Isolate::Init(Deserializer* des) {
     StringAddStub::InstallDescriptors(this);
     RegExpConstructResultStub::InstallDescriptors(this);
     KeyedLoadGenericStub::InstallDescriptors(this);
+    StoreFieldStub::InstallDescriptors(this);
   }
 
   CallDescriptors::InitializeForIsolate(this);

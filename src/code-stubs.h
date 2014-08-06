@@ -990,6 +990,7 @@ class StoreFieldStub : public HandlerStub {
 
   FieldIndex index() const { return index_; }
   Representation representation() { return representation_; }
+  static void InstallDescriptors(Isolate* isolate);
 
  protected:
   explicit StoreFieldStub(Isolate* isolate);

@@ -937,6 +937,14 @@ void KeyedLoadGenericStub::InstallDescriptors(Isolate* isolate) {
 }
 
 
+// static
+void StoreFieldStub::InstallDescriptors(Isolate* isolate) {
+  StoreFieldStub stub(isolate, FieldIndex::ForInObjectOffset(0),
+                      Representation::None());
+  InstallDescriptor(isolate, &stub);
+}
+
+
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate), argument_count_(ANY) {
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
