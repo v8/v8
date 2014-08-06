@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <math.h>
+
 #include "src/types.h"
 
 #include "src/ostreams.h"
@@ -9,6 +11,21 @@
 
 namespace v8 {
 namespace internal {
+
+
+// -----------------------------------------------------------------------------
+// Range-related custom order on doubles.
+// We want -0 to be less than +0.
+
+static bool dle(double x, double y) {
+  return x <= y && copysign(1, x) <= copysign(1, y);
+}
+
+
+static bool deq(double x, double y) {
+  return dle(x, y) && dle(y, x);
+}
+
 
 // -----------------------------------------------------------------------------
 // Glb and lub computation.
@@ -48,6 +65,8 @@ int TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
         type->AsClass()->Bound(NULL)->AsBitset();
   } else if (type->IsConstant()) {
     return type->AsConstant()->Bound()->AsBitset();
+  } else if (type->IsRange()) {
+    return type->AsRange()->Bound()->AsBitset();
   } else if (type->IsContext()) {
     return type->AsContext()->Bound()->AsBitset();
   } else if (type->IsArray()) {
@@ -78,6 +97,8 @@ int TypeImpl<Config>::BitsetType::InherentLub(TypeImpl* type) {
     return Lub(*type->AsClass()->Map());
   } else if (type->IsConstant()) {
     return Lub(*type->AsConstant()->Value());
+  } else if (type->IsRange()) {
+    return Lub(type->AsRange()->Min(), type->AsRange()->Max());
   } else if (type->IsContext()) {
     return kInternal & kTaggedPtr;
   } else if (type->IsArray()) {
@@ -109,6 +130,18 @@ int TypeImpl<Config>::BitsetType::Lub(double value) {
   if (IsUint32Double(value)) return Lub(FastD2UI(value));
   if (IsInt32Double(value)) return Lub(FastD2I(value));
   return kOtherNumber;
+}
+
+
+template<class Config>
+int TypeImpl<Config>::BitsetType::Lub(double min, double max) {
+  DisallowHeapAllocation no_allocation;
+  DCHECK(dle(min, max));
+  if (deq(min, max)) return BitsetType::Lub(min);  // Singleton range.
+  int bitset = BitsetType::kNumber ^ SEMANTIC(BitsetType::kNaN);
+  if (dle(0, min) || max < 0) bitset ^= SEMANTIC(BitsetType::kMinusZero);
+  return bitset;
+  // TODO(neis): Could refine this further by doing more checks on min/max.
 }
 
 
@@ -256,6 +289,12 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
         && *this->AsConstant()->Value() == *that->AsConstant()->Value()
         && this->AsConstant()->Bound()->Is(that->AsConstant()->Bound());
   }
+  if (that->IsRange()) {
+    return this->IsRange()
+        && this->AsRange()->Bound()->Is(that->AsRange()->Bound())
+        && dle(that->AsRange()->Min(), this->AsRange()->Min())
+        && dle(this->AsRange()->Max(), that->AsRange()->Max());
+  }
   if (that->IsContext()) {
     return this->IsContext()
         && this->AsContext()->Outer()->Equals(that->AsContext()->Outer());
@@ -388,6 +427,12 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
 template<class Config>
 bool TypeImpl<Config>::Contains(i::Object* value) {
   DisallowHeapAllocation no_allocation;
+  if (this->IsRange()) {
+    return value->IsNumber() &&
+           dle(this->AsRange()->Min(), value->Number()) &&
+           dle(value->Number(), this->AsRange()->Max()) &&
+           BitsetType::Is(BitsetType::Lub(value), this->BitsetLub());
+  }
   for (Iterator<i::Object> it = this->Constants(); !it.Done(); it.Advance()) {
     if (*it.Current() == value) return true;
   }
@@ -420,6 +465,9 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Rebound(
     return ClassType::New(this->AsClass()->Map(), bound, region);
   } else if (this->IsConstant()) {
     return ConstantType::New(this->AsConstant()->Value(), bound, region);
+  } else if (this->IsRange()) {
+    return RangeType::New(
+        this->AsRange()->Min(), this->AsRange()->Max(), bound, region);
   } else if (this->IsContext()) {
     return ContextType::New(this->AsContext()->Outer(), bound, region);
   } else if (this->IsArray()) {
@@ -508,8 +556,8 @@ int TypeImpl<Config>::ExtendUnion(
       }
     }
   } else if (!type->IsBitset()) {
-    DCHECK(type->IsClass() || type->IsConstant() ||
-           type->IsArray() || type->IsFunction() || type->IsContext());
+    DCHECK(type->IsClass() || type->IsConstant() || type->IsRange() ||
+           type->IsContext() || type->IsArray() || type->IsFunction());
     int inherent_bound = type->InherentBitsetLub();
     int old_bound = type->BitsetLub();
     int other_bound = type->BoundBy(other->unhandle()) & inherent_bound;
@@ -752,6 +800,10 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
   } else if (type->IsConstant()) {
     TypeHandle bound = Convert<OtherType>(type->AsConstant()->Bound(), region);
     return ConstantType::New(type->AsConstant()->Value(), bound, region);
+  } else if (type->IsRange()) {
+    TypeHandle bound = Convert<OtherType>(type->AsRange()->Bound(), region);
+    return RangeType::New(
+        type->AsRange()->Min(), type->AsRange()->Max(), bound, region);
   } else if (type->IsContext()) {
     TypeHandle bound = Convert<OtherType>(type->AsContext()->Bound(), region);
     TypeHandle outer = Convert<OtherType>(type->AsContext()->Outer(), region);
