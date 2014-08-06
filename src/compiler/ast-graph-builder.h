@@ -236,6 +236,7 @@ class AstGraphBuilder::Environment
     DCHECK(stack_height() > 0);
     Node* back = values()->back();
     values()->pop_back();
+    stack_dirty_ = true;
     return back;
   }
 
@@ -244,6 +245,7 @@ class AstGraphBuilder::Environment
     DCHECK(depth >= 0 && depth < stack_height());
     int index = static_cast<int>(values()->size()) - depth - 1;
     values()->at(index) = node;
+    stack_dirty_ = true;
   }
   Node* Peek(int depth) {
     DCHECK(depth >= 0 && depth < stack_height());
@@ -253,6 +255,7 @@ class AstGraphBuilder::Environment
   void Drop(int depth) {
     DCHECK(depth >= 0 && depth <= stack_height());
     values()->erase(values()->end() - depth, values()->end());
+    stack_dirty_ = true;
   }
 
   // Preserve a checkpoint of the environment for the IR graph. Any

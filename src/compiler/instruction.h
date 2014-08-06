@@ -694,6 +694,30 @@ class Constant V8_FINAL {
   int64_t value_;
 };
 
+
+class FrameStateDescriptor : public ZoneObject {
+ public:
+  FrameStateDescriptor(BailoutId bailout_id, int parameters_count,
+                       int locals_count, int stack_count)
+      : bailout_id_(bailout_id),
+        parameters_count_(parameters_count),
+        locals_count_(locals_count),
+        stack_count_(stack_count) {}
+
+  BailoutId bailout_id() const { return bailout_id_; }
+  int parameters_count() { return parameters_count_; }
+  int locals_count() { return locals_count_; }
+  int stack_count() { return stack_count_; }
+
+  int size() { return parameters_count_ + locals_count_ + stack_count_; }
+
+ private:
+  BailoutId bailout_id_;
+  int parameters_count_;
+  int locals_count_;
+  int stack_count_;
+};
+
 OStream& operator<<(OStream& os, const Constant& constant);
 
 typedef std::deque<Constant, zone_allocator<Constant> > ConstantDeque;
@@ -704,7 +728,8 @@ typedef std::map<int, Constant, std::less<int>,
 typedef std::deque<Instruction*, zone_allocator<Instruction*> >
     InstructionDeque;
 typedef std::deque<PointerMap*, zone_allocator<PointerMap*> > PointerMapDeque;
-typedef std::vector<FrameStateDescriptor, zone_allocator<FrameStateDescriptor> >
+typedef std::vector<FrameStateDescriptor*,
+                    zone_allocator<FrameStateDescriptor*> >
     DeoptimizationVector;
 
 
@@ -814,8 +839,8 @@ class InstructionSequence V8_FINAL {
     return immediates_[index];
   }
 
-  int AddDeoptimizationEntry(const FrameStateDescriptor& descriptor);
-  FrameStateDescriptor GetDeoptimizationEntry(int deoptimization_id);
+  int AddDeoptimizationEntry(FrameStateDescriptor* descriptor);
+  FrameStateDescriptor* GetDeoptimizationEntry(int deoptimization_id);
   int GetDeoptimizationEntryCount();
 
  private:

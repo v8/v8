@@ -179,7 +179,7 @@ class InstructionSelector V8_FINAL {
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitReturn(Node* value);
   void VisitThrow(Node* value);
-  void VisitDeoptimization(Node* deopt);
+  void VisitDeoptimize(Node* deopt);
 
   // ===========================================================================
 

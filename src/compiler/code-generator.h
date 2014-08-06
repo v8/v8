@@ -85,6 +85,8 @@ class CodeGenerator V8_FINAL : public GapResolver::Assembler {
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
   void BuildTranslation(Instruction* instr, int deoptimization_id);
+  void AddTranslationForOperand(Translation* translation, Instruction* instr,
+                                InstructionOperand* op);
   void AddNopForSmiCodeInlining();
 #if DEBUG
   static bool IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,

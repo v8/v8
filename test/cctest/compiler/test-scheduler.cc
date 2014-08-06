@@ -1716,7 +1716,7 @@ TEST(BuildScheduleTrivialLazyDeoptCall) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Graph graph(scope.main_zone());
-  CommonOperatorBuilder common_builder(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
 
   InitializedHandleScope handles;
@@ -1761,37 +1761,40 @@ TEST(BuildScheduleTrivialLazyDeoptCall) {
       PrintableUnique<Object>::CreateUninitialized(scope.main_zone(),
                                                    undef_object);
 
-  Node* undef_node = graph.NewNode(common_builder.HeapConstant(undef_constant));
+  Node* undef_node = graph.NewNode(common.HeapConstant(undef_constant));
 
-  Node* start_node = graph.NewNode(common_builder.Start(0));
+  Node* start_node = graph.NewNode(common.Start(0));
 
   CallDescriptor* descriptor = linkage.GetJSCallDescriptor(0);
-  Node* call_node = graph.NewNode(common_builder.Call(descriptor),
+  Node* call_node = graph.NewNode(common.Call(descriptor),
                                   undef_node,   // function
                                   undef_node,   // context
                                   start_node,   // effect
                                   start_node);  // control
 
-  Node* cont_node = graph.NewNode(common_builder.Continuation(), call_node);
-  Node* lazy_deopt_node =
-      graph.NewNode(common_builder.LazyDeoptimization(), call_node);
+  Node* cont_node = graph.NewNode(common.Continuation(), call_node);
+  Node* lazy_deopt_node = graph.NewNode(common.LazyDeoptimization(), call_node);
 
-  FrameStateDescriptor stateDescriptor(BailoutId(1234));
-  Node* state_node = graph.NewNode(common_builder.FrameState(stateDescriptor));
+  Node* parameters = graph.NewNode(common.StateValues(1), undef_node);
+  Node* locals = graph.NewNode(common.StateValues(0));
+  Node* stack = graph.NewNode(common.StateValues(0));
 
-  Node* return_node = graph.NewNode(common_builder.Return(),
+  Node* state_node = graph.NewNode(common.FrameState(BailoutId(1234)),
+                                   parameters, locals, stack);
+
+  Node* return_node = graph.NewNode(common.Return(),
                                     undef_node,  // return value
                                     call_node,   // effect
                                     cont_node);  // control
-  Node* deoptimization_node = graph.NewNode(common_builder.Deoptimize(),
+  Node* deoptimization_node = graph.NewNode(common.Deoptimize(),
                                             state_node,  // deopt environment
                                             call_node,   // effect
                                             lazy_deopt_node);  // control
 
   Node* merge_node =
-      graph.NewNode(common_builder.Merge(2), return_node, deoptimization_node);
+      graph.NewNode(common.Merge(2), return_node, deoptimization_node);
 
-  Node* end_node = graph.NewNode(common_builder.End(), merge_node);
+  Node* end_node = graph.NewNode(common.End(), merge_node);
 
   graph.SetStart(start_node);
   graph.SetEnd(end_node);
@@ -1824,9 +1827,12 @@ TEST(BuildScheduleTrivialLazyDeoptCall) {
   CHECK(!cont_block->deferred_);
   // The lazy deopt block contains framestate + bailout (and nothing else).
   CHECK_EQ(deoptimization_node, deopt_block->control_input_);
-  CHECK_EQ(2, static_cast<int>(deopt_block->nodes_.size()));
+  CHECK_EQ(5, static_cast<int>(deopt_block->nodes_.size()));
   CHECK_EQ(lazy_deopt_node, deopt_block->nodes_[0]);
-  CHECK_EQ(state_node, deopt_block->nodes_[1]);
+  CHECK_EQ(IrOpcode::kStateValues, deopt_block->nodes_[1]->op()->opcode());
+  CHECK_EQ(IrOpcode::kStateValues, deopt_block->nodes_[2]->op()->opcode());
+  CHECK_EQ(IrOpcode::kStateValues, deopt_block->nodes_[3]->op()->opcode());
+  CHECK_EQ(state_node, deopt_block->nodes_[4]);
 }
 
 #endif
