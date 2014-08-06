@@ -1685,21 +1685,9 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
       // Global var, const, or let variable.
-      if (!info()->is_native()) {
-        // TODO(turbofan): This special case is needed only because we don't
-        // use LoadICs yet. Remove this once LoadNamed is lowered to an IC.
-        Node* name = jsgraph()->Constant(variable->name());
-        Runtime::FunctionId function_id =
-            (contextual_mode == CONTEXTUAL)
-                ? Runtime::kLoadLookupSlot
-                : Runtime::kLoadLookupSlotNoReferenceError;
-        Operator* op = javascript()->Runtime(function_id, 2);
-        Node* pair = NewNode(op, current_context(), name);
-        return NewNode(common()->Projection(0), pair);
-      }
       Node* global = BuildLoadGlobalObject();
       PrintableUnique<Name> name = MakeUnique(variable->name());
-      Operator* op = javascript()->LoadNamed(name);
+      Operator* op = javascript()->LoadNamed(name, contextual_mode);
       return NewNode(op, global);
     }
     case Variable::PARAMETER:

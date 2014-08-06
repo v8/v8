@@ -36,6 +36,13 @@ class ContextAccess {
   const uint32_t index_;
 };
 
+// Defines the property being loaded from an object by a named load. This is
+// used as a parameter by JSLoadNamed operators.
+struct LoadNamedParameters {
+  PrintableUnique<Name> name;
+  ContextualMode contextual_mode;
+};
+
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCall operators.
 struct CallParameters {
@@ -109,9 +116,11 @@ class JSOperatorBuilder {
   }
 
   Operator* LoadProperty() { BINOP(JSLoadProperty); }
-  Operator* LoadNamed(PrintableUnique<Name> name) {
-    OP1(JSLoadNamed, PrintableUnique<Name>, name, Operator::kNoProperties, 1,
-        1);
+  Operator* LoadNamed(PrintableUnique<Name> name,
+                      ContextualMode contextual_mode = NOT_CONTEXTUAL) {
+    LoadNamedParameters parameters = {name, contextual_mode};
+    OP1(JSLoadNamed, LoadNamedParameters, parameters, Operator::kNoProperties,
+        1, 1);
   }
 
   Operator* StoreProperty() { NOPROPS(JSStoreProperty, 3, 0); }
