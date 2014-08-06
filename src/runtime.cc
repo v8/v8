@@ -45,7 +45,6 @@
 #include "src/utils.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
-#include "third_party/fdlibm/fdlibm.h"
 
 #ifdef V8_I18N_SUPPORT
 #include "src/i18n.h"
@@ -7681,21 +7680,6 @@ RUNTIME_FUNCTION(Runtime_ConstructDouble) {
   CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
   uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
   return *isolate->factory()->NewNumber(uint64_to_double(result));
-}
-
-
-RUNTIME_FUNCTION(Runtime_RemPiO2) {
-  HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  Factory* factory = isolate->factory();
-  double y[2];
-  int n = rempio2(x, y);
-  Handle<FixedArray> array = factory->NewFixedArray(3);
-  array->set(0, Smi::FromInt(n));
-  array->set(1, *factory->NewHeapNumber(y[0]));
-  array->set(2, *factory->NewHeapNumber(y[1]));
-  return *factory->NewJSArrayWithElements(array);
 }
 
 
