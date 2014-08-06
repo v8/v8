@@ -13,6 +13,8 @@
 // modified significantly by Google Inc.
 // Copyright 2014 the V8 project authors. All rights reserved.
 
+#include <cmath>
+
 #include "src/v8.h"
 
 #include "src/double.h"
