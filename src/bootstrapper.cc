@@ -982,6 +982,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     }
   }
 
+  {
+    // --- S y m b o l ---
+    Handle<JSFunction> symbol_fun = InstallFunction(
+        global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    native_context()->set_symbol_function(*symbol_fun);
+  }
+
   {  // --- D a t e ---
     // Builtin functions for Date.prototype.
     Handle<JSFunction> date_fun =
@@ -1168,14 +1176,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   // -- W e a k S e t
   InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
                   isolate->initial_object_prototype(), Builtins::kIllegal);
-
-  {
-    // --- S y m b o l ---
-    Handle<JSFunction> symbol_fun = InstallFunction(
-        global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
-        isolate->initial_object_prototype(), Builtins::kIllegal);
-    native_context()->set_symbol_function(*symbol_fun);
-  }
 
   {  // --- sloppy arguments map
     // Make sure we can recognize argument objects at runtime.
@@ -1593,6 +1593,7 @@ void Genesis::InstallNativeFunctions() {
                  native_object_get_notifier);
   INSTALL_NATIVE(JSFunction, "NativeObjectNotifierPerformChange",
                  native_object_notifier_perform_change);
+
   INSTALL_NATIVE(Symbol, "symbolIterator", iterator_symbol);
 
   INSTALL_NATIVE_MATH(abs)
