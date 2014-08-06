@@ -543,6 +543,8 @@ class ParserTraits {
   Expression* ExpressionFromString(
       int pos, Scanner* scanner,
       AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* GetIterator(Expression* iterable,
+                          AstNodeFactory<AstConstructionVisitor>* factory);
   ZoneList<v8::internal::Expression*>* NewExpressionList(int size, Zone* zone) {
     return new(zone) ZoneList<v8::internal::Expression*>(size, zone);
   }

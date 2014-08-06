@@ -8,7 +8,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen.h"
-#include "src/mark-compact.h"
+#include "src/heap/mark-compact.h"
 #include "src/safepoint-table.h"
 #include "src/scopeinfo.h"
 #include "src/string-stream.h"

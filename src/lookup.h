@@ -150,8 +150,8 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
  private:
   Handle<Map> GetReceiverMap() const;
 
-  MUST_USE_RESULT bool NextHolder();
-  State LookupInHolder();
+  MUST_USE_RESULT inline JSReceiver* NextHolder(Map* map);
+  inline State LookupInHolder(Map* map);
   Handle<Object> FetchValue() const;
 
   bool IsBootstrapping() const;

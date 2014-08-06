@@ -11,9 +11,9 @@
 #include "src/builtins.h"
 #include "src/cpu-profiler.h"
 #include "src/gdb-jit.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap-profiler.h"
 #include "src/ic-inl.h"
-#include "src/mark-compact.h"
 #include "src/prototype.h"
 #include "src/stub-cache.h"
 #include "src/vm-state-inl.h"
@@ -179,70 +179,6 @@ static void MoveDoubleElements(FixedDoubleArray* dst, int dst_index,
   if (len == 0) return;
   MemMove(dst->data_start() + dst_index, src->data_start() + src_index,
           len * kDoubleSize);
-}
-
-
-static FixedArrayBase* LeftTrimFixedArray(Heap* heap,
-                                          FixedArrayBase* elms,
-                                          int to_trim) {
-  DCHECK(heap->CanMoveObjectStart(elms));
-
-  Map* map = elms->map();
-  int entry_size;
-  if (elms->IsFixedArray()) {
-    entry_size = kPointerSize;
-  } else {
-    entry_size = kDoubleSize;
-  }
-  DCHECK(elms->map() != heap->fixed_cow_array_map());
-  // For now this trick is only applied to fixed arrays in new and paged space.
-  // In large object space the object's start must coincide with chunk
-  // and thus the trick is just not applicable.
-  DCHECK(!heap->lo_space()->Contains(elms));
-
-  STATIC_ASSERT(FixedArrayBase::kMapOffset == 0);
-  STATIC_ASSERT(FixedArrayBase::kLengthOffset == kPointerSize);
-  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
-
-  Object** former_start = HeapObject::RawField(elms, 0);
-
-  const int len = elms->length();
-
-  if (to_trim * entry_size > FixedArrayBase::kHeaderSize &&
-      elms->IsFixedArray() &&
-      !heap->new_space()->Contains(elms)) {
-    // If we are doing a big trim in old space then we zap the space that was
-    // formerly part of the array so that the GC (aided by the card-based
-    // remembered set) won't find pointers to new-space there.
-    Object** zap = reinterpret_cast<Object**>(elms->address());
-    zap++;  // Header of filler must be at least one word so skip that.
-    for (int i = 1; i < to_trim; i++) {
-      *zap++ = Smi::FromInt(0);
-    }
-  }
-  // Technically in new space this write might be omitted (except for
-  // debug mode which iterates through the heap), but to play safer
-  // we still do it.
-  // Since left trimming is only performed on pages which are not concurrently
-  // swept creating a filler object does not require synchronization.
-  heap->CreateFillerObjectAt(elms->address(), to_trim * entry_size);
-
-  int new_start_index = to_trim * (entry_size / kPointerSize);
-  former_start[new_start_index] = map;
-  former_start[new_start_index + 1] = Smi::FromInt(len - to_trim);
-
-  // Maintain marking consistency for HeapObjectIterator and
-  // IncrementalMarking.
-  int size_delta = to_trim * entry_size;
-  Address new_start = elms->address() + size_delta;
-  heap->marking()->TransferMark(elms->address(), new_start);
-  heap->AdjustLiveBytes(new_start, -size_delta, Heap::FROM_MUTATOR);
-
-  FixedArrayBase* new_elms =
-      FixedArrayBase::cast(HeapObject::FromAddress(new_start));
-
-  heap->OnMoveEvent(new_elms, elms, new_elms->Size());
-  return new_elms;
 }
 
 
@@ -536,7 +472,7 @@ BUILTIN(ArrayShift) {
   }
 
   if (heap->CanMoveObjectStart(*elms_obj)) {
-    array->set_elements(LeftTrimFixedArray(heap, *elms_obj, 1));
+    array->set_elements(heap->LeftTrimFixedArray(*elms_obj, 1));
   } else {
     // Shift the elements.
     if (elms_obj->IsFixedArray()) {
@@ -881,7 +817,7 @@ BUILTIN(ArraySplice) {
 
       if (heap->CanMoveObjectStart(*elms_obj)) {
         // On the fast path we move the start of the object in memory.
-        elms_obj = handle(LeftTrimFixedArray(heap, *elms_obj, delta), isolate);
+        elms_obj = handle(heap->LeftTrimFixedArray(*elms_obj, delta));
       } else {
         // This is the slow path. We are going to move the elements to the left
         // by copying them. For trimmed values we store the hole.

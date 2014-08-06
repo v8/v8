@@ -211,6 +211,12 @@ static void LookupForRead(LookupIterator* it) {
         break;
       }
       case LookupIterator::ACCESS_CHECK:
+        // PropertyHandlerCompiler::CheckPrototypes() knows how to emit
+        // access checks for global proxies.
+        if (it->GetHolder<JSObject>()->IsJSGlobalProxy() &&
+            it->HasAccess(v8::ACCESS_GET)) {
+          break;
+        }
         return;
       case LookupIterator::PROPERTY:
         if (it->HasProperty()) return;  // Yay!
@@ -328,13 +334,39 @@ MaybeHandle<Object> IC::ReferenceError(const char* type, Handle<String> name) {
 }
 
 
-static int ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state) {
-  bool was_uninitialized =
-      old_state == UNINITIALIZED || old_state == PREMONOMORPHIC;
-  bool is_uninitialized =
-      new_state == UNINITIALIZED || new_state == PREMONOMORPHIC;
-  return (was_uninitialized && !is_uninitialized) ?  1 :
-         (!was_uninitialized && is_uninitialized) ? -1 : 0;
+static void ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state,
+                                      int* polymorphic_delta,
+                                      int* generic_delta) {
+  switch (old_state) {
+    case UNINITIALIZED:
+    case PREMONOMORPHIC:
+      if (new_state == UNINITIALIZED || new_state == PREMONOMORPHIC) break;
+      if (new_state == MONOMORPHIC || new_state == POLYMORPHIC) {
+        *polymorphic_delta = 1;
+      } else if (new_state == MEGAMORPHIC || new_state == GENERIC) {
+        *generic_delta = 1;
+      }
+      break;
+    case MONOMORPHIC:
+    case POLYMORPHIC:
+      if (new_state == MONOMORPHIC || new_state == POLYMORPHIC) break;
+      *polymorphic_delta = -1;
+      if (new_state == MEGAMORPHIC || new_state == GENERIC) {
+        *generic_delta = 1;
+      }
+      break;
+    case MEGAMORPHIC:
+    case GENERIC:
+      if (new_state == MEGAMORPHIC || new_state == GENERIC) break;
+      *generic_delta = -1;
+      if (new_state == MONOMORPHIC || new_state == POLYMORPHIC) {
+        *polymorphic_delta = 1;
+      }
+      break;
+    case PROTOTYPE_FAILURE:
+    case DEBUG_STUB:
+      UNREACHABLE();
+  }
 }
 
 
@@ -344,21 +376,20 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
       inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
   if (host->kind() != Code::FUNCTION) return;
 
-  if (FLAG_type_info_threshold > 0 &&
-      old_target->is_inline_cache_stub() &&
-      target->is_inline_cache_stub()) {
-    int delta = ComputeTypeInfoCountDelta(old_target->ic_state(),
-                                          target->ic_state());
-    // Call ICs don't have interesting state changes from this point
-    // of view.
-    DCHECK(target->kind() != Code::CALL_IC || delta == 0);
-
-    // Not all Code objects have TypeFeedbackInfo.
-    if (host->type_feedback_info()->IsTypeFeedbackInfo() && delta != 0) {
-      TypeFeedbackInfo* info =
-          TypeFeedbackInfo::cast(host->type_feedback_info());
-      info->change_ic_with_type_info_count(delta);
-    }
+  if (FLAG_type_info_threshold > 0 && old_target->is_inline_cache_stub() &&
+      target->is_inline_cache_stub() &&
+      // Call ICs don't have interesting state changes from this point
+      // of view.
+      target->kind() != Code::CALL_IC &&
+      // Not all Code objects have TypeFeedbackInfo.
+      host->type_feedback_info()->IsTypeFeedbackInfo()) {
+    int polymorphic_delta = 0;  // "Polymorphic" here includes monomorphic.
+    int generic_delta = 0;      // "Generic" here includes megamorphic.
+    ComputeTypeInfoCountDelta(old_target->ic_state(), target->ic_state(),
+                              &polymorphic_delta, &generic_delta);
+    TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
+    info->change_ic_with_type_info_count(polymorphic_delta);
+    info->change_ic_generic_count(generic_delta);
   }
   if (host->type_feedback_info()->IsTypeFeedbackInfo()) {
     TypeFeedbackInfo* info =
@@ -1001,14 +1032,13 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
                                                             type)) {
         return slow_stub();
       }
-      if (holder->IsGlobalObject()) return slow_stub();
+      if (!holder->HasFastProperties()) return slow_stub();
       return compiler.CompileLoadCallback(name, info);
     }
     if (accessors->IsAccessorPair()) {
       Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
                             isolate());
       if (!getter->IsJSFunction()) return slow_stub();
-      if (holder->IsGlobalObject()) return slow_stub();
       if (!holder->HasFastProperties()) return slow_stub();
       Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
       if (!object->IsJSObject() && !function->IsBuiltin() &&
@@ -1443,7 +1473,6 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
       case FIELD:
         return compiler.CompileStoreField(lookup, name);
       case NORMAL:
-        if (kind() == Code::KEYED_STORE_IC) break;
         if (receiver->IsJSGlobalProxy() || receiver->IsGlobalObject()) {
           // The stub generated for the global object picks the value directly
           // from the property cell. So the property must be directly on the
@@ -1498,7 +1527,6 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
         break;
       }
       case INTERCEPTOR:
-        if (kind() == Code::KEYED_STORE_IC) break;
         DCHECK(HasInterceptorSetter(*holder));
         return compiler.CompileStoreInterceptor(name);
       case CONSTANT:

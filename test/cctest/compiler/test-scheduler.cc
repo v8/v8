@@ -605,7 +605,7 @@ TEST(BuildScheduleEmpty) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder builder(scope.main_zone());
-  graph.SetStart(graph.NewNode(builder.Start()));
+  graph.SetStart(graph.NewNode(builder.Start(0)));
   graph.SetEnd(graph.NewNode(builder.End(), graph.start()));
 
   Scheduler scheduler(scope.main_zone());
@@ -617,9 +617,9 @@ TEST(BuildScheduleOneParameter) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder builder(scope.main_zone());
-  graph.SetStart(graph.NewNode(builder.Start()));
+  graph.SetStart(graph.NewNode(builder.Start(0)));
 
-  Node* p1 = graph.NewNode(builder.Parameter(0));
+  Node* p1 = graph.NewNode(builder.Parameter(0), graph.start());
   Node* ret = graph.NewNode(builder.Return(), p1, graph.start(), graph.start());
 
   graph.SetEnd(graph.NewNode(builder.End(), ret));
@@ -664,13 +664,13 @@ TEST(BuildScheduleIfSplit) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  graph.SetStart(graph.NewNode(builder.Start()));
+  graph.SetStart(graph.NewNode(builder.Start(3)));
 
-  Node* p1 = graph.NewNode(builder.Parameter(0));
-  Node* p2 = graph.NewNode(builder.Parameter(1));
-  Node* p3 = graph.NewNode(builder.Parameter(2));
-  Node* p4 = graph.NewNode(builder.Parameter(3));
-  Node* p5 = graph.NewNode(builder.Parameter(4));
+  Node* p1 = graph.NewNode(builder.Parameter(0), graph.start());
+  Node* p2 = graph.NewNode(builder.Parameter(1), graph.start());
+  Node* p3 = graph.NewNode(builder.Parameter(2), graph.start());
+  Node* p4 = graph.NewNode(builder.Parameter(3), graph.start());
+  Node* p5 = graph.NewNode(builder.Parameter(4), graph.start());
   Node* cmp = graph.NewNode(js_builder.LessThanOrEqual(), p1, p2, p3,
                             graph.start(), graph.start());
   Node* branch = graph.NewNode(builder.Branch(), cmp, graph.start());
@@ -715,6 +715,9 @@ TEST(BuildScheduleIfSplitWithEffects) {
   //     return c * c - a;
   //   }
   // }
+  op = common_builder.Start(0);
+  Node* n0 = graph.NewNode(op);
+  USE(n0);
   Node* nil = graph.NewNode(common_builder.Dead());
   op = common_builder.End();
   Node* n23 = graph.NewNode(op, nil);
@@ -738,11 +741,11 @@ TEST(BuildScheduleIfSplitWithEffects) {
   Node* n11 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n11);
   op = common_builder.Parameter(0);
-  Node* n2 = graph.NewNode(op);
+  Node* n2 = graph.NewNode(op, n0);
   USE(n2);
   n11->ReplaceInput(0, n2);
   op = common_builder.Parameter(0);
-  Node* n3 = graph.NewNode(op);
+  Node* n3 = graph.NewNode(op, n0);
   USE(n3);
   n11->ReplaceInput(1, n3);
   op = common_builder.HeapConstant(unique_constant);
@@ -755,9 +758,6 @@ TEST(BuildScheduleIfSplitWithEffects) {
   n8->ReplaceInput(0, n2);
   n8->ReplaceInput(1, n3);
   n8->ReplaceInput(2, n7);
-  op = common_builder.Start();
-  Node* n0 = graph.NewNode(op);
-  USE(n0);
   n8->ReplaceInput(3, n0);
   n8->ReplaceInput(4, n0);
   n11->ReplaceInput(3, n8);
@@ -776,7 +776,7 @@ TEST(BuildScheduleIfSplitWithEffects) {
   Node* n12 = graph.NewNode(op, nil, nil, nil, nil, nil);
   USE(n12);
   op = common_builder.Parameter(0);
-  Node* n4 = graph.NewNode(op);
+  Node* n4 = graph.NewNode(op, n0);
   USE(n4);
   n12->ReplaceInput(0, n4);
   n12->ReplaceInput(1, n4);
@@ -794,7 +794,7 @@ TEST(BuildScheduleIfSplitWithEffects) {
   n14->ReplaceInput(4, n10);
   n15->ReplaceInput(0, n14);
   op = common_builder.Parameter(0);
-  Node* n5 = graph.NewNode(op);
+  Node* n5 = graph.NewNode(op, n0);
   USE(n5);
   n15->ReplaceInput(1, n5);
   n15->ReplaceInput(2, n7);
@@ -867,6 +867,9 @@ TEST(BuildScheduleSimpleLoop) {
   //   }
   //   return a;
   // }
+  op = common_builder.Start(0);
+  Node* n0 = graph.NewNode(op);
+  USE(n0);
   Node* nil = graph.NewNode(common_builder.Dead());
   op = common_builder.End();
   Node* n20 = graph.NewNode(op, nil);
@@ -878,7 +881,7 @@ TEST(BuildScheduleSimpleLoop) {
   Node* n8 = graph.NewNode(op, nil, nil, nil);
   USE(n8);
   op = common_builder.Parameter(0);
-  Node* n2 = graph.NewNode(op);
+  Node* n2 = graph.NewNode(op, n0);
   USE(n2);
   n8->ReplaceInput(0, n2);
   op = js_builder.Add();
@@ -900,16 +903,13 @@ TEST(BuildScheduleSimpleLoop) {
   Node* n9 = graph.NewNode(op, nil, nil, nil);
   USE(n9);
   op = common_builder.Parameter(0);
-  Node* n3 = graph.NewNode(op);
+  Node* n3 = graph.NewNode(op, n0);
   USE(n3);
   n9->ReplaceInput(0, n3);
   n9->ReplaceInput(1, n9);
   op = common_builder.Loop(2);
   Node* n6 = graph.NewNode(op, nil, nil);
   USE(n6);
-  op = common_builder.Start();
-  Node* n0 = graph.NewNode(op);
-  USE(n0);
   n6->ReplaceInput(0, n0);
   op = common_builder.IfTrue();
   Node* n14 = graph.NewNode(op, nil);
@@ -993,6 +993,9 @@ TEST(BuildScheduleComplexLoops) {
   //   }
   //   return a;
   // }
+  op = common_builder.Start(0);
+  Node* n0 = graph.NewNode(op);
+  USE(n0);
   Node* nil = graph.NewNode(common_builder.Dead());
   op = common_builder.End();
   Node* n46 = graph.NewNode(op, nil);
@@ -1007,7 +1010,7 @@ TEST(BuildScheduleComplexLoops) {
   Node* n9 = graph.NewNode(op, nil, nil, nil);
   USE(n9);
   op = common_builder.Parameter(0);
-  Node* n2 = graph.NewNode(op);
+  Node* n2 = graph.NewNode(op, n0);
   USE(n2);
   n9->ReplaceInput(0, n2);
   op = common_builder.Phi(2);
@@ -1032,7 +1035,7 @@ TEST(BuildScheduleComplexLoops) {
   Node* n10 = graph.NewNode(op, nil, nil, nil);
   USE(n10);
   op = common_builder.Parameter(0);
-  Node* n3 = graph.NewNode(op);
+  Node* n3 = graph.NewNode(op, n0);
   USE(n3);
   n10->ReplaceInput(0, n3);
   op = common_builder.Phi(2);
@@ -1053,9 +1056,6 @@ TEST(BuildScheduleComplexLoops) {
   op = common_builder.Loop(2);
   Node* n7 = graph.NewNode(op, nil, nil);
   USE(n7);
-  op = common_builder.Start();
-  Node* n0 = graph.NewNode(op);
-  USE(n0);
   n7->ReplaceInput(0, n0);
   op = common_builder.IfFalse();
   Node* n30 = graph.NewNode(op, nil);
@@ -1073,7 +1073,7 @@ TEST(BuildScheduleComplexLoops) {
   Node* n11 = graph.NewNode(op, nil, nil, nil);
   USE(n11);
   op = common_builder.Parameter(0);
-  Node* n4 = graph.NewNode(op);
+  Node* n4 = graph.NewNode(op, n0);
   USE(n4);
   n11->ReplaceInput(0, n4);
   n11->ReplaceInput(1, n25);
@@ -1250,6 +1250,9 @@ TEST(BuildScheduleBreakAndContinue) {
   //   }
   //   return a + d;
   // }
+  op = common_builder.Start(0);
+  Node* n0 = graph.NewNode(op);
+  USE(n0);
   Node* nil = graph.NewNode(common_builder.Dead());
   op = common_builder.End();
   Node* n58 = graph.NewNode(op, nil);
@@ -1264,7 +1267,7 @@ TEST(BuildScheduleBreakAndContinue) {
   Node* n10 = graph.NewNode(op, nil, nil, nil);
   USE(n10);
   op = common_builder.Parameter(0);
-  Node* n2 = graph.NewNode(op);
+  Node* n2 = graph.NewNode(op, n0);
   USE(n2);
   n10->ReplaceInput(0, n2);
   op = common_builder.Phi(2);
@@ -1289,7 +1292,7 @@ TEST(BuildScheduleBreakAndContinue) {
   Node* n11 = graph.NewNode(op, nil, nil, nil);
   USE(n11);
   op = common_builder.Parameter(0);
-  Node* n3 = graph.NewNode(op);
+  Node* n3 = graph.NewNode(op, n0);
   USE(n3);
   n11->ReplaceInput(0, n3);
   op = common_builder.Phi(2);
@@ -1310,9 +1313,6 @@ TEST(BuildScheduleBreakAndContinue) {
   op = common_builder.Loop(2);
   Node* n8 = graph.NewNode(op, nil, nil);
   USE(n8);
-  op = common_builder.Start();
-  Node* n0 = graph.NewNode(op);
-  USE(n0);
   n8->ReplaceInput(0, n0);
   op = common_builder.Merge(2);
   Node* n53 = graph.NewNode(op, nil, nil);
@@ -1345,7 +1345,7 @@ TEST(BuildScheduleBreakAndContinue) {
   Node* n12 = graph.NewNode(op, nil, nil, nil);
   USE(n12);
   op = common_builder.Parameter(0);
-  Node* n4 = graph.NewNode(op);
+  Node* n4 = graph.NewNode(op, n0);
   USE(n4);
   n12->ReplaceInput(0, n4);
   op = common_builder.Phi(2);
@@ -1580,6 +1580,9 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   //   }
   //   return a;
   // }
+  op = common_builder.Start(0);
+  Node* n0 = graph.NewNode(op);
+  USE(n0);
   Node* nil = graph.NewNode(common_builder.Dead());
   op = common_builder.End();
   Node* n22 = graph.NewNode(op, nil);
@@ -1591,7 +1594,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Node* n9 = graph.NewNode(op, nil, nil, nil);
   USE(n9);
   op = common_builder.Parameter(0);
-  Node* n2 = graph.NewNode(op);
+  Node* n2 = graph.NewNode(op, n0);
   USE(n2);
   n9->ReplaceInput(0, n2);
   op = js_builder.Add();
@@ -1605,16 +1608,13 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Node* n10 = graph.NewNode(op, nil, nil, nil);
   USE(n10);
   op = common_builder.Parameter(0);
-  Node* n3 = graph.NewNode(op);
+  Node* n3 = graph.NewNode(op, n0);
   USE(n3);
   n10->ReplaceInput(0, n3);
   n10->ReplaceInput(1, n10);
   op = common_builder.Loop(2);
   Node* n7 = graph.NewNode(op, nil, nil);
   USE(n7);
-  op = common_builder.Start();
-  Node* n0 = graph.NewNode(op);
-  USE(n0);
   n7->ReplaceInput(0, n0);
   op = common_builder.IfTrue();
   Node* n17 = graph.NewNode(op, nil);
@@ -1656,7 +1656,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Node* n11 = graph.NewNode(op, nil, nil, nil);
   USE(n11);
   op = common_builder.Parameter(0);
-  Node* n4 = graph.NewNode(op);
+  Node* n4 = graph.NewNode(op, n0);
   USE(n4);
   n11->ReplaceInput(0, n4);
   n11->ReplaceInput(1, n11);
@@ -1763,7 +1763,7 @@ TEST(BuildScheduleTrivialLazyDeoptCall) {
 
   Node* undef_node = graph.NewNode(common_builder.HeapConstant(undef_constant));
 
-  Node* start_node = graph.NewNode(common_builder.Start());
+  Node* start_node = graph.NewNode(common_builder.Start(0));
 
   CallDescriptor* descriptor = linkage.GetJSCallDescriptor(0);
   Node* call_node = graph.NewNode(common_builder.Call(descriptor),

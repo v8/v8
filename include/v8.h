@@ -2226,12 +2226,6 @@ class V8_EXPORT Object : public Value {
   Local<String> ObjectProtoToString();
 
   /**
-   * Returns the function invoked as a constructor for this object.
-   * May be the null value.
-   */
-  Local<Value> GetConstructor();
-
-  /**
    * Returns the name of the function invoked as a constructor for this object.
    */
   Local<String> GetConstructorName();

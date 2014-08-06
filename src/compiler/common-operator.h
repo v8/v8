@@ -65,7 +65,12 @@ class CommonOperatorBuilder {
   return new (zone_) ControlOperator(IrOpcode::k##name, Operator::kFoldable, \
                                      inputs, 0, controls, #name);
 
-  Operator* Start() { CONTROL_OP(Start, 0, 0); }
+  Operator* Start(int num_formal_parameters) {
+    // Outputs are formal parameters, plus context, receiver, and JSFunction.
+    int outputs = num_formal_parameters + 3;
+    return new (zone_) ControlOperator(IrOpcode::kStart, Operator::kFoldable, 0,
+                                       outputs, 0, "Start");
+  }
   Operator* Dead() { CONTROL_OP(Dead, 0, 0); }
   Operator* End() { CONTROL_OP(End, 0, 1); }
   Operator* Branch() { CONTROL_OP(Branch, 1, 1); }
@@ -95,7 +100,7 @@ class CommonOperatorBuilder {
   }
 
   Operator* Parameter(int index) {
-    return new (zone_) Operator1<int>(IrOpcode::kParameter, Operator::kPure, 0,
+    return new (zone_) Operator1<int>(IrOpcode::kParameter, Operator::kPure, 1,
                                       1, "Parameter", index);
   }
   Operator* Int32Constant(int32_t value) {

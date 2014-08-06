@@ -25,6 +25,19 @@
 # define V8_INFINITY INFINITY
 #endif
 
+#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM || \
+    V8_TARGET_ARCH_ARM64
+#define V8_TURBOFAN_BACKEND 1
+#else
+#define V8_TURBOFAN_BACKEND 0
+#endif
+#if V8_TURBOFAN_BACKEND && !V8_TARGET_ARCH_ARM64 && \
+    !(V8_OS_WIN && V8_TARGET_ARCH_X64)
+#define V8_TURBOFAN_TARGET 1
+#else
+#define V8_TURBOFAN_TARGET 0
+#endif
+
 namespace v8 {
 
 namespace base {

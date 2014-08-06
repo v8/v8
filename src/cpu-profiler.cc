@@ -222,16 +222,16 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 }
 
 
-void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                                  Code* code,
+void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
                                   SharedFunctionInfo* shared,
-                                  CompilationInfo* info,
-                                  Name* name) {
+                                  CompilationInfo* info, Name* script_name) {
   if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
-  rec->entry = profiles_->NewCodeEntry(tag, profiles_->GetFunctionName(name));
+  rec->entry = profiles_->NewCodeEntry(
+      tag, profiles_->GetFunctionName(shared->DebugName()),
+      CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name));
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());
   }
@@ -248,21 +248,17 @@ void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
 }
 
 
-void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag,
-                                  Code* code,
+void CpuProfiler::CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
                                   SharedFunctionInfo* shared,
-                                  CompilationInfo* info,
-                                  Name* source, int line, int column) {
+                                  CompilationInfo* info, Name* script_name,
+                                  int line, int column) {
   if (FilterOutCodeCreateEvent(tag)) return;
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
   rec->entry = profiles_->NewCodeEntry(
-      tag,
-      profiles_->GetFunctionName(shared->DebugName()),
-      CodeEntry::kEmptyNamePrefix,
-      profiles_->GetName(source),
-      line,
+      tag, profiles_->GetFunctionName(shared->DebugName()),
+      CodeEntry::kEmptyNamePrefix, profiles_->GetName(script_name), line,
       column);
   if (info) {
     rec->entry->set_no_frame_ranges(info->ReleaseNoFrameRanges());

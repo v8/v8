@@ -451,13 +451,6 @@ class ParserBase : public Traits {
                                                 bool* ok);
   ExpressionT ParseArrowFunctionLiteral(int start_pos, ExpressionT params_ast,
                                         bool* ok);
-  ExpressionT ParseArrowFunctionLiteralBody(
-      FunctionState* function_state, typename Traits::Type::ScopePtr scope,
-      int num_parameters, const Scanner::Location& eval_args_error_loc,
-      const Scanner::Location& dupe_error_loc,
-      const Scanner::Location& reserved_loc,
-      FunctionLiteral::IsParenthesizedFlag parenthesized, int start_pos,
-      bool* ok);
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -1231,6 +1224,11 @@ class PreParserTraits {
   PreParserExpression ExpressionFromString(int pos,
                                            Scanner* scanner,
                                            PreParserFactory* factory = NULL);
+
+  PreParserExpression GetIterator(PreParserExpression iterable,
+                                  PreParserFactory* factory) {
+    return PreParserExpression::Default();
+  }
 
   static PreParserExpressionList NewExpressionList(int size, void* zone) {
     return PreParserExpressionList();
@@ -2094,6 +2092,10 @@ ParserBase<Traits>::ParseYieldExpression(bool* ok) {
         break;
     }
   }
+  if (kind == Yield::DELEGATING) {
+    // var iterator = subject[Symbol.iterator]();
+    expression = this->GetIterator(expression, factory());
+  }
   typename Traits::Type::YieldExpression yield =
       factory()->NewYield(generator_object, expression, kind, pos);
   if (kind == Yield::DELEGATING) {
@@ -2450,108 +2452,100 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
   // TODO(aperez): Change this to use ARROW_SCOPE
   typename Traits::Type::ScopePtr scope =
       this->NewScope(scope_, FUNCTION_SCOPE);
-
-  FunctionState function_state(&function_state_, &scope_, &scope, zone(),
-                               this->ast_value_factory());
-  Scanner::Location dupe_error_loc = Scanner::Location::invalid();
-  int num_params = Traits::DeclareArrowParametersFromExpression(
-      params_ast, scope_, &dupe_error_loc, ok);
-  if (!*ok) {
-    ReportMessageAt(Scanner::Location(start_pos, scanner()->location().beg_pos),
-                    "malformed_arrow_function_parameter_list");
-    return this->EmptyExpression();
-  }
-
-  if (num_params > Code::kMaxArguments) {
-    ReportMessageAt(Scanner::Location(params_ast->position(), position()),
-                    "too_many_parameters");
-    *ok = false;
-    return this->EmptyExpression();
-  }
-
-  ExpressionT expression = ParseArrowFunctionLiteralBody(
-      &function_state, scope, num_params, Scanner::Location::invalid(),
-      dupe_error_loc, Scanner::Location::invalid(),
-      FunctionLiteral::kNotParenthesized, start_pos, CHECK_OK);
-  return expression;
-}
-
-
-template <class Traits>
-typename ParserBase<Traits>::ExpressionT
-ParserBase<Traits>::ParseArrowFunctionLiteralBody(
-    FunctionState* function_state, typename Traits::Type::ScopePtr scope,
-    int num_parameters, const Scanner::Location& eval_args_error_loc,
-    const Scanner::Location& dupe_error_loc,
-    const Scanner::Location& reserved_loc,
-    FunctionLiteral::IsParenthesizedFlag parenthesized, int start_pos,
-    bool* ok) {
   typename Traits::Type::StatementList body;
   typename Traits::Type::AstProperties ast_properties;
   BailoutReason dont_optimize_reason = kNoReason;
+  int num_parameters = -1;
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   int handler_count = 0;
 
-  Expect(Token::ARROW, CHECK_OK);
-
-  if (peek() == Token::LBRACE) {
-    // Multiple statemente body
-    Consume(Token::LBRACE);
-    bool is_lazily_parsed =
-        (mode() == PARSE_LAZILY && scope_->AllowsLazyCompilation());
-    if (is_lazily_parsed) {
-      body = this->NewStatementList(0, zone());
-      this->SkipLazyFunctionBody(this->EmptyIdentifier(),
-                                 &materialized_literal_count,
-                                 &expected_property_count, CHECK_OK);
-    } else {
-      body = this->ParseEagerFunctionBody(
-          this->EmptyIdentifier(), RelocInfo::kNoPosition, NULL,
-          Token::INIT_VAR, false,  // Not a generator.
-          CHECK_OK);
-      materialized_literal_count = function_state->materialized_literal_count();
-      expected_property_count = function_state->expected_property_count();
-      handler_count = function_state->handler_count();
+  {
+    FunctionState function_state(&function_state_, &scope_, &scope, zone(),
+                                 this->ast_value_factory());
+    Scanner::Location dupe_error_loc = Scanner::Location::invalid();
+    num_parameters = Traits::DeclareArrowParametersFromExpression(
+        params_ast, scope_, &dupe_error_loc, ok);
+    if (!*ok) {
+      ReportMessageAt(
+          Scanner::Location(start_pos, scanner()->location().beg_pos),
+          "malformed_arrow_function_parameter_list");
+      return this->EmptyExpression();
     }
-  } else {
-    // Single-expression body
-    int pos = position();
-    parenthesized_function_ = false;
-    ExpressionT expression = ParseAssignmentExpression(true, CHECK_OK);
-    body = this->NewStatementList(1, zone());
-    body->Add(factory()->NewReturnStatement(expression, pos), zone());
-    materialized_literal_count = function_state->materialized_literal_count();
-    expected_property_count = function_state->expected_property_count();
-    handler_count = function_state->handler_count();
+
+    if (num_parameters > Code::kMaxArguments) {
+      ReportMessageAt(Scanner::Location(params_ast->position(), position()),
+                      "too_many_parameters");
+      *ok = false;
+      return this->EmptyExpression();
+    }
+
+    Expect(Token::ARROW, CHECK_OK);
+
+    if (peek() == Token::LBRACE) {
+      // Multiple statemente body
+      Consume(Token::LBRACE);
+      bool is_lazily_parsed =
+          (mode() == PARSE_LAZILY && scope_->AllowsLazyCompilation());
+      if (is_lazily_parsed) {
+        body = this->NewStatementList(0, zone());
+        this->SkipLazyFunctionBody(this->EmptyIdentifier(),
+                                   &materialized_literal_count,
+                                   &expected_property_count, CHECK_OK);
+      } else {
+        body = this->ParseEagerFunctionBody(
+            this->EmptyIdentifier(), RelocInfo::kNoPosition, NULL,
+            Token::INIT_VAR, false,  // Not a generator.
+            CHECK_OK);
+        materialized_literal_count =
+            function_state.materialized_literal_count();
+        expected_property_count = function_state.expected_property_count();
+        handler_count = function_state.handler_count();
+      }
+    } else {
+      // Single-expression body
+      int pos = position();
+      parenthesized_function_ = false;
+      ExpressionT expression = ParseAssignmentExpression(true, CHECK_OK);
+      body = this->NewStatementList(1, zone());
+      body->Add(factory()->NewReturnStatement(expression, pos), zone());
+      materialized_literal_count = function_state.materialized_literal_count();
+      expected_property_count = function_state.expected_property_count();
+      handler_count = function_state.handler_count();
+    }
+
+    scope->set_start_position(start_pos);
+    scope->set_end_position(scanner()->location().end_pos);
+
+    // Arrow function *parameter lists* are always checked as in strict mode.
+    bool function_name_is_strict_reserved = false;
+    Scanner::Location function_name_loc = Scanner::Location::invalid();
+    Scanner::Location eval_args_error_loc = Scanner::Location::invalid();
+    Scanner::Location reserved_loc = Scanner::Location::invalid();
+    this->CheckStrictFunctionNameAndParameters(
+        this->EmptyIdentifier(), function_name_is_strict_reserved,
+        function_name_loc, eval_args_error_loc, dupe_error_loc, reserved_loc,
+        CHECK_OK);
+
+    // Validate strict mode.
+    if (strict_mode() == STRICT) {
+      CheckOctalLiteral(start_pos, scanner()->location().end_pos, CHECK_OK);
+    }
+
+    if (allow_harmony_scoping() && strict_mode() == STRICT)
+      this->CheckConflictingVarDeclarations(scope, CHECK_OK);
+
+    ast_properties = *factory()->visitor()->ast_properties();
+    dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
   }
-
-  scope->set_start_position(start_pos);
-  scope->set_end_position(scanner()->location().end_pos);
-
-  // Arrow function *parameter lists* are always checked as in strict mode.
-  this->CheckStrictFunctionNameAndParameters(
-      this->EmptyIdentifier(), false, Scanner::Location::invalid(),
-      Scanner::Location::invalid(), dupe_error_loc,
-      Scanner::Location::invalid(), CHECK_OK);
-
-  // Validate strict mode.
-  if (strict_mode() == STRICT) {
-    CheckOctalLiteral(start_pos, scanner()->location().end_pos, CHECK_OK);
-  }
-
-  if (allow_harmony_scoping() && strict_mode() == STRICT)
-    this->CheckConflictingVarDeclarations(scope, CHECK_OK);
-
-  ast_properties = *factory()->visitor()->ast_properties();
-  dont_optimize_reason = factory()->visitor()->dont_optimize_reason();
 
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       this->EmptyIdentifierString(), this->ast_value_factory(), scope, body,
       materialized_literal_count, expected_property_count, handler_count,
       num_parameters, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kIsFunction,
-      parenthesized, FunctionLiteral::kArrowFunction, start_pos);
+      FunctionLiteral::kNotParenthesized, FunctionLiteral::kArrowFunction,
+      start_pos);
 
   function_literal->set_function_token_position(start_pos);
   function_literal->set_ast_properties(&ast_properties);

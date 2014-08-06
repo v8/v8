@@ -34,7 +34,6 @@ class StringsStorage {
   static const int kMaxNameSize = 1024;
 
   static bool StringsMatch(void* key1, void* key2);
-  const char* BeautifyFunctionName(const char* name);
   const char* AddOrDisposeString(char* str, int len);
   HashMap::Entry* GetEntry(const char* str, int len);
 
@@ -313,7 +312,6 @@ class ProfileGenerator {
 
   CodeMap* code_map() { return &code_map_; }
 
-  static const char* const kAnonymousFunctionName;
   static const char* const kProgramEntryName;
   static const char* const kIdleEntryName;
   static const char* const kGarbageCollectorEntryName;

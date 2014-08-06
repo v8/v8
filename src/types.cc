@@ -123,21 +123,31 @@ int TypeImpl<Config>::BitsetType::Lub(double value) {
   DisallowHeapAllocation no_allocation;
   if (i::IsMinusZero(value)) return kMinusZero;
   if (std::isnan(value)) return kNaN;
-  if (IsUint32Double(value)) {
-    uint32_t u = FastD2UI(value);
-    if (u < 0x40000000u) return kUnsignedSmall;
-    if (u < 0x80000000u) {
-      return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
-    }
-    return kOtherUnsigned32;
-  }
-  if (IsInt32Double(value)) {
-    int32_t i = FastD2I(value);
-    DCHECK(i < 0);
-    if (i >= -0x40000000) return kOtherSignedSmall;
-    return i::SmiValuesAre31Bits() ? kOtherSigned32 : kOtherSignedSmall;
-  }
+  if (IsUint32Double(value)) return Lub(FastD2UI(value));
+  if (IsInt32Double(value)) return Lub(FastD2I(value));
   return kOtherNumber;
+}
+
+
+template<class Config>
+int TypeImpl<Config>::BitsetType::Lub(int32_t value) {
+  if (value >= 0x40000000) {
+    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
+  }
+  if (value >= 0) return kUnsignedSmall;
+  if (value >= -0x40000000) return kOtherSignedSmall;
+  return i::SmiValuesAre31Bits() ? kOtherSigned32 : kOtherSignedSmall;
+}
+
+
+template<class Config>
+int TypeImpl<Config>::BitsetType::Lub(uint32_t value) {
+  DisallowHeapAllocation no_allocation;
+  if (value >= 0x80000000u) return kOtherUnsigned32;
+  if (value >= 0x40000000u) {
+    return i::SmiValuesAre31Bits() ? kOtherUnsigned31 : kUnsignedSmall;
+  }
+  return kUnsignedSmall;
 }
 
 
@@ -248,12 +258,11 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
   // Fast path for bitsets.
   if (this->IsNone()) return true;
   if (that->IsBitset()) {
-    return (BitsetType::Lub(this) | that->AsBitset()) == that->AsBitset();
+    return BitsetType::Is(BitsetType::Lub(this), that->AsBitset());
   }
   if (this->IsBitset() && SEMANTIC(this->AsBitset()) == BitsetType::kNone) {
     // Bitsets only have non-bitset supertypes along the representation axis.
-    int that_bitset = that->BitsetGlb();
-    return (BitsetType::Is(this->AsBitset(), that_bitset));
+    return BitsetType::Is(this->AsBitset(), that->BitsetGlb());
   }
 
   if (that->IsClass()) {
@@ -486,7 +495,7 @@ int TypeImpl<Config>::IndexInUnion(
   for (int i = 0; i < current_size; ++i) {
     TypeHandle that = unioned->Get(i);
     if (that->IsBitset()) {
-      if ((bound | that->AsBitset()) == that->AsBitset()) return i;
+      if (BitsetType::Is(bound, that->AsBitset())) return i;
     } else if (that->IsClass() && this->IsClass()) {
       if (*this->AsClass()->Map() == *that->AsClass()->Map()) return i;
     } else if (that->IsConstant() && this->IsConstant()) {
@@ -510,7 +519,6 @@ template<class Config>
 int TypeImpl<Config>::ExtendUnion(
     UnionHandle result, int size, TypeHandle type,
     TypeHandle other, bool is_intersect, Region* region) {
-  int old_size = size;
   if (type->IsUnion()) {
     UnionHandle unioned = handle(type->AsUnion());
     for (int i = 0; i < unioned->Length(); ++i) {
@@ -529,7 +537,7 @@ int TypeImpl<Config>::ExtendUnion(
     int new_bound =
         is_intersect ? (old_bound & other_bound) : (old_bound | other_bound);
     if (new_bound != BitsetType::kNone) {
-      int i = type->IndexInUnion(new_bound, result, old_size);
+      int i = type->IndexInUnion(new_bound, result, size);
       if (i == -1) {
         i = size++;
       } else if (result->Get(i)->IsBitset()) {
@@ -888,7 +896,7 @@ void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
       BitsetType::Print(os, SEMANTIC(this->AsBitset()));
     } else if (this->IsClass()) {
       os << "Class(" << static_cast<void*>(*this->AsClass()->Map()) << " < ";
-      return BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
+      BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
       os << ")";
     } else if (this->IsConstant()) {
       os << "Constant(" << static_cast<void*>(*this->AsConstant()->Value())

@@ -743,8 +743,8 @@ Register PropertyHandlerCompiler::CheckPrototypes(
 
     prototype = handle(JSObject::cast(current_map->prototype()));
     if (current_map->is_dictionary_map() &&
-        !current_map->IsJSGlobalObjectMap() &&
-        !current_map->IsJSGlobalProxyMap()) {
+        !current_map->IsJSGlobalObjectMap()) {
+      DCHECK(!current_map->IsJSGlobalProxyMap());  // Proxy maps are fast.
       if (!name->IsUniqueName()) {
         DCHECK(name->IsString());
         name = factory()->InternalizeString(Handle<String>::cast(name));
@@ -777,6 +777,9 @@ Register PropertyHandlerCompiler::CheckPrototypes(
       // Check access rights to the global object.  This has to happen after
       // the map check so that we know that the object is actually a global
       // object.
+      // This allows us to install generated handlers for accesses to the
+      // global proxy (as opposed to using slow ICs). See corresponding code
+      // in LookupForRead().
       if (current_map->IsJSGlobalProxyMap()) {
         __ CheckAccessGlobalProxy(reg, scratch2, miss);
       } else if (current_map->IsJSGlobalObjectMap()) {
@@ -838,49 +841,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
-}
-
-
-Register NamedLoadHandlerCompiler::CallbackFrontend(Register object_reg,
-                                                    Handle<Name> name,
-                                                    Handle<Object> callback) {
-  Label miss;
-
-  Register reg = FrontendHeader(object_reg, name, &miss);
-
-  if (!holder()->HasFastProperties()) {
-    DCHECK(!holder()->IsGlobalObject());
-    DCHECK(!reg.is(scratch2()));
-    DCHECK(!reg.is(scratch3()));
-    DCHECK(!reg.is(scratch4()));
-
-    // Load the properties dictionary.
-    Register dictionary = scratch4();
-    __ ld(dictionary, FieldMemOperand(reg, JSObject::kPropertiesOffset));
-
-    // Probe the dictionary.
-    Label probe_done;
-    NameDictionaryLookupStub::GeneratePositiveLookup(masm(),
-                                                     &miss,
-                                                     &probe_done,
-                                                     dictionary,
-                                                     this->name(),
-                                                     scratch2(),
-                                                     scratch3());
-    __ bind(&probe_done);
-
-    // If probing finds an entry in the dictionary, scratch3 contains the
-    // pointer into the dictionary. Check that the value is the callback.
-    Register pointer = scratch3();
-    const int kElementsStartOffset = NameDictionary::kHeaderSize +
-        NameDictionary::kElementsStartIndex * kPointerSize;
-    const int kValueOffset = kElementsStartOffset + kPointerSize;
-    __ ld(scratch2(), FieldMemOperand(pointer, kValueOffset));
-    __ Branch(&miss, ne, scratch2(), Operand(callback));
-  }
-
-  FrontendFooter(name, &miss);
-  return reg;
 }
 
 

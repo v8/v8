@@ -14,8 +14,8 @@
 #include "src/execution.h"
 #include "src/full-codegen.h"
 #include "src/global-handles.h"
+#include "src/heap/mark-compact.h"
 #include "src/isolate-inl.h"
-#include "src/mark-compact.h"
 #include "src/scopeinfo.h"
 
 namespace v8 {
@@ -57,21 +57,26 @@ RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
 }
 
 
-static void GetICCounts(Code* shared_code,
-                        int* ic_with_type_info_count,
-                        int* ic_total_count,
-                        int* percentage) {
+static void GetICCounts(Code* shared_code, int* ic_with_type_info_count,
+                        int* ic_generic_count, int* ic_total_count,
+                        int* type_info_percentage, int* generic_percentage) {
   *ic_total_count = 0;
+  *ic_generic_count = 0;
   *ic_with_type_info_count = 0;
   Object* raw_info = shared_code->type_feedback_info();
   if (raw_info->IsTypeFeedbackInfo()) {
     TypeFeedbackInfo* info = TypeFeedbackInfo::cast(raw_info);
     *ic_with_type_info_count = info->ic_with_type_info_count();
+    *ic_generic_count = info->ic_generic_count();
     *ic_total_count = info->ic_total_count();
   }
-  *percentage = *ic_total_count > 0
-      ? 100 * *ic_with_type_info_count / *ic_total_count
-      : 100;
+  if (*ic_total_count > 0) {
+    *type_info_percentage = 100 * *ic_with_type_info_count / *ic_total_count;
+    *generic_percentage = 100 * *ic_generic_count / *ic_total_count;
+  } else {
+    *type_info_percentage = 100;  // Compared against lower bound.
+    *generic_percentage = 0;      // Compared against upper bound.
+  }
 }
 
 
@@ -83,9 +88,12 @@ void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
     function->ShortPrint();
     PrintF(" for recompilation, reason: %s", reason);
     if (FLAG_type_info_threshold > 0) {
-      int typeinfo, total, percentage;
-      GetICCounts(function->shared()->code(), &typeinfo, &total, &percentage);
-      PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total, percentage);
+      int typeinfo, generic, total, type_percentage, generic_percentage;
+      GetICCounts(function->shared()->code(), &typeinfo, &generic, &total,
+                  &type_percentage, &generic_percentage);
+      PrintF(", ICs with typeinfo: %d/%d (%d%%)", typeinfo, total,
+             type_percentage);
+      PrintF(", generic ICs: %d/%d (%d%%)", generic, total, generic_percentage);
     }
     PrintF("]\n");
   }
@@ -227,9 +235,11 @@ void RuntimeProfiler::OptimizeNow() {
     int ticks = shared_code->profiler_ticks();
 
     if (ticks >= kProfilerTicksBeforeOptimization) {
-      int typeinfo, total, percentage;
-      GetICCounts(shared_code, &typeinfo, &total, &percentage);
-      if (percentage >= FLAG_type_info_threshold) {
+      int typeinfo, generic, total, type_percentage, generic_percentage;
+      GetICCounts(shared_code, &typeinfo, &generic, &total, &type_percentage,
+                  &generic_percentage);
+      if (type_percentage >= FLAG_type_info_threshold &&
+          generic_percentage <= FLAG_generic_ic_threshold) {
         // If this particular function hasn't had any ICs patched for enough
         // ticks, optimize it now.
         Optimize(function, "hot and stable");
@@ -240,15 +250,23 @@ void RuntimeProfiler::OptimizeNow() {
         if (FLAG_trace_opt_verbose) {
           PrintF("[not yet optimizing ");
           function->PrintName();
-          PrintF(", not enough type info: %d/%d (%d%%)]\n",
-                 typeinfo, total, percentage);
+          PrintF(", not enough type info: %d/%d (%d%%)]\n", typeinfo, total,
+                 type_percentage);
         }
       }
     } else if (!any_ic_changed_ &&
                shared_code->instruction_size() < kMaxSizeEarlyOpt) {
       // If no IC was patched since the last tick and this function is very
       // small, optimistically optimize it now.
-      Optimize(function, "small function");
+      int typeinfo, generic, total, type_percentage, generic_percentage;
+      GetICCounts(shared_code, &typeinfo, &generic, &total, &type_percentage,
+                  &generic_percentage);
+      if (type_percentage >= FLAG_type_info_threshold &&
+          generic_percentage <= FLAG_generic_ic_threshold) {
+        Optimize(function, "small function");
+      } else {
+        shared_code->set_profiler_ticks(ticks + 1);
+      }
     } else {
       shared_code->set_profiler_ticks(ticks + 1);
     }

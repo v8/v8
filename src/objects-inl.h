@@ -18,16 +18,16 @@
 #include "src/elements.h"
 #include "src/factory.h"
 #include "src/field-index-inl.h"
-#include "src/heap-inl.h"
-#include "src/heap.h"
-#include "src/incremental-marking.h"
+#include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "src/lookup.h"
 #include "src/objects.h"
 #include "src/objects-visiting.h"
 #include "src/property.h"
 #include "src/prototype.h"
-#include "src/spaces.h"
 #include "src/store-buffer.h"
 #include "src/transitions-inl.h"
 #include "src/v8memory.h"
@@ -7071,6 +7071,7 @@ int TypeFeedbackInfo::ic_with_type_info_count() {
 
 
 void TypeFeedbackInfo::change_ic_with_type_info_count(int delta) {
+  if (delta == 0) return;
   int value = Smi::cast(READ_FIELD(this, kStorage2Offset))->value();
   int new_count = ICsWithTypeInfoCountField::decode(value) + delta;
   // We can get negative count here when the type-feedback info is
@@ -7086,9 +7087,25 @@ void TypeFeedbackInfo::change_ic_with_type_info_count(int delta) {
 }
 
 
+int TypeFeedbackInfo::ic_generic_count() {
+  return Smi::cast(READ_FIELD(this, kStorage3Offset))->value();
+}
+
+
+void TypeFeedbackInfo::change_ic_generic_count(int delta) {
+  if (delta == 0) return;
+  int new_count = ic_generic_count() + delta;
+  if (new_count >= 0) {
+    new_count &= ~Smi::kMinValue;
+    WRITE_FIELD(this, kStorage3Offset, Smi::FromInt(new_count));
+  }
+}
+
+
 void TypeFeedbackInfo::initialize_storage() {
   WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(0));
   WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(0));
+  WRITE_FIELD(this, kStorage3Offset, Smi::FromInt(0));
 }
 
 

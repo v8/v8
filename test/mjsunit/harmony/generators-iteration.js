@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-generators --expose-gc
+// Flags: --harmony-generators --expose-gc --harmony-iteration
 
 // Test generator iteration.
 
@@ -355,6 +355,32 @@ TestGenerator(
     "foo",
     [undefined, undefined]);
 
+// TODO(wingo): We should use TestGenerator for these, except that
+// currently yield* will unconditionally propagate a throw() to the
+// delegate iterator, which fails for these iterators that don't have
+// throw().  See http://code.google.com/p/v8/issues/detail?id=3484.
+(function() {
+    function* g28() {
+      yield* [1, 2, 3];
+    }
+    var iter = g28();
+    assertIteratorResult(1, false, iter.next());
+    assertIteratorResult(2, false, iter.next());
+    assertIteratorResult(3, false, iter.next());
+    assertIteratorResult(undefined, true, iter.next());
+})();
+
+(function() {
+    function* g29() {
+      yield* "abc";
+    }
+    var iter = g29();
+    assertIteratorResult("a", false, iter.next());
+    assertIteratorResult("b", false, iter.next());
+    assertIteratorResult("c", false, iter.next());
+    assertIteratorResult(undefined, true, iter.next());
+})();
+
 // Generator function instances.
 TestGenerator(GeneratorFunction(),
               [undefined],
@@ -393,12 +419,16 @@ function TestDelegatingYield() {
     function next() {
       return results[i++];
     }
-    return { next: next }
+    var iter = { next: next };
+    var ret = {};
+    ret[Symbol.iterator] = function() { return iter; };
+    return ret;
   }
   function* yield_results(expected) {
     return yield* results(expected);
   }
-  function collect_results(iter) {
+  function collect_results(iterable) {
+    var iter = iterable[Symbol.iterator]();
     var ret = [];
     var result;
     do {

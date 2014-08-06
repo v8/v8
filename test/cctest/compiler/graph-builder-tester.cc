@@ -22,9 +22,9 @@ void MachineCallHelper::InitParameters(GraphBuilder* builder,
   DCHECK_EQ(NULL, parameters_);
   graph_ = builder->graph();
   if (parameter_count() == 0) return;
-  parameters_ = builder->graph()->zone()->NewArray<Node*>(parameter_count());
+  parameters_ = graph_->zone()->NewArray<Node*>(parameter_count());
   for (int i = 0; i < parameter_count(); ++i) {
-    parameters_[i] = builder->NewNode(common->Parameter(i));
+    parameters_[i] = builder->NewNode(common->Parameter(i), graph_->start());
   }
 }
 

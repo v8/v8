@@ -7,7 +7,7 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/codegen.h"
-#include "src/heap.h"
+#include "src/heap/heap.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

@@ -2737,8 +2737,6 @@ THREADED_TEST(GlobalProxyIdentityHash) {
 
 
 THREADED_TEST(SymbolProperties) {
-  i::FLAG_harmony_symbols = true;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -2887,8 +2885,6 @@ THREADED_TEST(PrivateProperties) {
 
 
 THREADED_TEST(GlobalSymbols) {
-  i::FLAG_harmony_symbols = true;
-
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -21411,7 +21407,6 @@ THREADED_TEST(Regress157124) {
 
 THREADED_TEST(Regress2535) {
   i::FLAG_harmony_collections = true;
-  i::FLAG_harmony_symbols = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Local<Value> set_value = CompileRun("new Set();");

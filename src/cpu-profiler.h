@@ -221,16 +221,13 @@ class CpuProfiler : public CodeEventListener {
                                Code* code, const char* comment);
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
                                Code* code, Name* name);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
                                SharedFunctionInfo* shared,
-                               CompilationInfo* info,
-                               Name* name);
-  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
-                               Code* code,
+                               CompilationInfo* info, Name* script_name);
+  virtual void CodeCreateEvent(Logger::LogEventsAndTags tag, Code* code,
                                SharedFunctionInfo* shared,
-                               CompilationInfo* info,
-                               Name* source, int line, int column);
+                               CompilationInfo* info, Name* script_name,
+                               int line, int column);
   virtual void CodeCreateEvent(Logger::LogEventsAndTags tag,
                                Code* code, int args_count);
   virtual void CodeMovingGCEvent() {}

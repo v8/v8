@@ -12,16 +12,6 @@
 // Note: TODO(turbofan) implies a performance improvement opportunity,
 //   and TODO(name) implies an incomplete implementation
 
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM
-#ifndef _WIN64
-#define V8_TURBOFAN_TARGET 1
-#else
-#define V8_TURBOFAN_TARGET 0
-#endif
-#else
-#define V8_TURBOFAN_TARGET 0
-#endif
-
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -49,6 +39,7 @@ class Pipeline {
   Zone* zone() { return info_->zone(); }
   Isolate* isolate() { return info_->isolate(); }
 
+  static inline bool SupportedBackend() { return V8_TURBOFAN_BACKEND != 0; }
   static inline bool SupportedTarget() { return V8_TURBOFAN_TARGET != 0; }
 
   static inline bool VerifyGraphs() {
@@ -58,6 +49,9 @@ class Pipeline {
     return FLAG_turbo_verify;
 #endif
   }
+
+  static void SetUp();
+  static void TearDown();
 
  private:
   CompilationInfo* info_;

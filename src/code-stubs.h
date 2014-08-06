@@ -828,26 +828,6 @@ class MathPowStub: public PlatformCodeStub {
 };
 
 
-class ICStub: public PlatformCodeStub {
- public:
-  ICStub(Isolate* isolate, Code::Kind kind)
-      : PlatformCodeStub(isolate), kind_(kind) { }
-  virtual Code::Kind GetCodeKind() const { return kind_; }
-  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
-
-  bool Describes(Code* code) { return code->stub_key() == GetKey(); }
-
- protected:
-  class KindBits: public BitField<Code::Kind, 0, 4> {};
-  Code::Kind kind() const { return kind_; }
-
-  virtual int MinorKey() const { return KindBits::encode(kind_); }
-
- private:
-  Code::Kind kind_;
-};
-
-
 class CallICStub: public PlatformCodeStub {
  public:
   CallICStub(Isolate* isolate, const CallIC::State& state)
@@ -917,47 +897,17 @@ class FunctionPrototypeStub : public PlatformCodeStub {
 };
 
 
-class StoreICStub: public ICStub {
- public:
-  StoreICStub(Isolate* isolate, Code::Kind kind, StrictMode strict_mode)
-      : ICStub(isolate, kind), strict_mode_(strict_mode) { }
-
- protected:
-  virtual ExtraICState GetExtraICState() const {
-    return StoreIC::ComputeExtraICState(strict_mode_);
-  }
-
- private:
-  STATIC_ASSERT(KindBits::kSize == 4);
-  class StrictModeBits: public BitField<bool, 4, 1> {};
-  virtual int MinorKey() const {
-    return KindBits::encode(kind()) | StrictModeBits::encode(strict_mode_);
-  }
-
-  StrictMode strict_mode_;
-};
-
-
-class HICStub: public HydrogenCodeStub {
- public:
-  explicit HICStub(Isolate* isolate) : HydrogenCodeStub(isolate) { }
-  virtual Code::Kind GetCodeKind() const { return kind(); }
-  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
-
- protected:
-  class KindBits: public BitField<Code::Kind, 0, 4> {};
-  virtual Code::Kind kind() const = 0;
-};
-
-
-class HandlerStub: public HICStub {
+class HandlerStub : public HydrogenCodeStub {
  public:
   virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
   virtual ExtraICState GetExtraICState() const { return kind(); }
+  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
 
  protected:
-  explicit HandlerStub(Isolate* isolate) : HICStub(isolate) { }
+  explicit HandlerStub(Isolate* isolate)
+      : HydrogenCodeStub(isolate), bit_field_(0) {}
   virtual int NotMissMinorKey() const { return bit_field_; }
+  virtual Code::Kind kind() const = 0;
   int bit_field_;
 };
 
@@ -966,7 +916,8 @@ class LoadFieldStub: public HandlerStub {
  public:
   LoadFieldStub(Isolate* isolate, FieldIndex index)
     : HandlerStub(isolate), index_(index) {
-    Initialize(Code::LOAD_IC);
+    int property_index_key = index_.GetLoadFieldStubKey();
+    bit_field_ = EncodedLoadFieldByIndexBits::encode(property_index_key);
   }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
@@ -979,32 +930,16 @@ class LoadFieldStub: public HandlerStub {
     return Representation::Tagged();
   }
 
-  virtual Code::Kind kind() const {
-    return KindBits::decode(bit_field_);
-  }
-
   FieldIndex index() const { return index_; }
-
-  bool unboxed_double() {
-    return index_.is_double();
-  }
-
-  virtual Code::StubType GetStubType() { return Code::FAST; }
+  bool unboxed_double() { return index_.is_double(); }
 
  protected:
   explicit LoadFieldStub(Isolate* isolate);
-
-  void Initialize(Code::Kind kind) {
-    int property_index_key = index_.GetLoadFieldStubKey();
-    // Save a copy of the essence of the property index into the bit field to
-    // make sure that hashing of unique stubs works correctly..
-    bit_field_ = KindBits::encode(kind) |
-        EncodedLoadFieldByIndexBits::encode(property_index_key);
-  }
+  virtual Code::Kind kind() const { return Code::LOAD_IC; }
+  virtual Code::StubType GetStubType() { return Code::FAST; }
 
  private:
-  STATIC_ASSERT(KindBits::kSize == 4);
-  class EncodedLoadFieldByIndexBits: public BitField<int, 4, 13> {};
+  class EncodedLoadFieldByIndexBits : public BitField<int, 0, 13> {};
   virtual CodeStub::Major MajorKey() const { return LoadField; }
   FieldIndex index_;
 };
@@ -1012,21 +947,14 @@ class LoadFieldStub: public HandlerStub {
 
 class StringLengthStub: public HandlerStub {
  public:
-  explicit StringLengthStub(Isolate* isolate) : HandlerStub(isolate) {
-    Initialize(Code::LOAD_IC);
-  }
+  explicit StringLengthStub(Isolate* isolate) : HandlerStub(isolate) {}
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
 
  protected:
-  virtual Code::Kind kind() const {
-    return KindBits::decode(bit_field_);
-  }
-
-  void Initialize(Code::Kind kind) {
-    bit_field_ = KindBits::encode(kind);
-  }
+  virtual Code::Kind kind() const { return Code::LOAD_IC; }
+  virtual Code::StubType GetStubType() { return Code::FAST; }
 
  private:
   virtual CodeStub::Major MajorKey() const { return StringLength; }

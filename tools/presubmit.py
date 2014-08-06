@@ -80,7 +80,6 @@ runtime/mutex
 runtime/nonconf
 runtime/printf
 runtime/printf_format
-runtime/references
 runtime/rtti
 runtime/sizeof
 runtime/string

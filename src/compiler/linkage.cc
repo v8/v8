@@ -105,7 +105,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 //==============================================================================
 // Provide unimplemented methods on unsupported architectures, to at least link.
 //==============================================================================
-#if !V8_TURBOFAN_TARGET
+#if !V8_TURBOFAN_BACKEND
 CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone) {
   UNIMPLEMENTED();
   return NULL;
@@ -134,7 +134,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   UNIMPLEMENTED();
   return NULL;
 }
-#endif  // !V8_TURBOFAN_TARGET
+#endif  // !V8_TURBOFAN_BACKEND
 }
 }
 }  // namespace v8::internal::compiler

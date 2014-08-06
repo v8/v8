@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MARK_COMPACT_H_
-#define V8_MARK_COMPACT_H_
+#ifndef V8_HEAP_MARK_COMPACT_H_
+#define V8_HEAP_MARK_COMPACT_H_
 
 #include "src/compiler-intrinsics.h"
-#include "src/spaces.h"
+#include "src/heap/spaces.h"
 
 namespace v8 {
 namespace internal {
@@ -25,9 +25,7 @@ class RootMarkingVisitor;
 
 class Marking {
  public:
-  explicit Marking(Heap* heap)
-      : heap_(heap) {
-  }
+  explicit Marking(Heap* heap) : heap_(heap) {}
 
   INLINE(static MarkBit MarkBitFrom(Address addr));
 
@@ -49,9 +47,7 @@ class Marking {
 
   // White markbits: 00 - this is required by the mark bit clearer.
   static const char* kWhiteBitPattern;
-  INLINE(static bool IsWhite(MarkBit mark_bit)) {
-    return !mark_bit.Get();
-  }
+  INLINE(static bool IsWhite(MarkBit mark_bit)) { return !mark_bit.Get(); }
 
   // Grey markbits: 11
   static const char* kGreyBitPattern;
@@ -64,18 +60,14 @@ class Marking {
     mark_bit.Next().Clear();
   }
 
-  INLINE(static void BlackToGrey(MarkBit markbit)) {
-    markbit.Next().Set();
-  }
+  INLINE(static void BlackToGrey(MarkBit markbit)) { markbit.Next().Set(); }
 
   INLINE(static void WhiteToGrey(MarkBit markbit)) {
     markbit.Set();
     markbit.Next().Set();
   }
 
-  INLINE(static void GreyToBlack(MarkBit markbit)) {
-    markbit.Next().Clear();
-  }
+  INLINE(static void GreyToBlack(MarkBit markbit)) { markbit.Next().Clear(); }
 
   INLINE(static void BlackToGrey(HeapObject* obj)) {
     BlackToGrey(MarkBitFrom(obj));
@@ -98,10 +90,14 @@ class Marking {
 
   static const char* ColorName(ObjectColor color) {
     switch (color) {
-      case BLACK_OBJECT: return "black";
-      case WHITE_OBJECT: return "white";
-      case GREY_OBJECT: return "grey";
-      case IMPOSSIBLE_COLOR: return "impossible";
+      case BLACK_OBJECT:
+        return "black";
+      case WHITE_OBJECT:
+        return "white";
+      case GREY_OBJECT:
+        return "grey";
+      case IMPOSSIBLE_COLOR:
+        return "impossible";
     }
     return "error";
   }
@@ -120,8 +116,7 @@ class Marking {
 #endif
 
   // Returns true if the transferred color is black.
-  INLINE(static bool TransferColor(HeapObject* from,
-                                   HeapObject* to)) {
+  INLINE(static bool TransferColor(HeapObject* from, HeapObject* to)) {
     MarkBit from_mark_bit = MarkBitFrom(from);
     MarkBit to_mark_bit = MarkBitFrom(to);
     bool is_black = false;
@@ -145,7 +140,7 @@ class Marking {
 class MarkingDeque {
  public:
   MarkingDeque()
-      : array_(NULL), top_(0), bottom_(0), mask_(0), overflowed_(false) { }
+      : array_(NULL), top_(0), bottom_(0), mask_(0), overflowed_(false) {}
 
   void Initialize(Address low, Address high) {
     HeapObject** obj_low = reinterpret_cast<HeapObject**>(low);
@@ -261,8 +256,7 @@ class SlotsBuffer {
     }
   }
 
-  ~SlotsBuffer() {
-  }
+  ~SlotsBuffer() {}
 
   void Add(ObjectSlot slot) {
     DCHECK(0 <= idx_ && idx_ < kNumberOfElements);
@@ -311,16 +305,11 @@ class SlotsBuffer {
                             (buffer->chain_length_ - 1) * kNumberOfElements);
   }
 
-  inline bool IsFull() {
-    return idx_ == kNumberOfElements;
-  }
+  inline bool IsFull() { return idx_ == kNumberOfElements; }
 
-  inline bool HasSpaceForTypedSlot() {
-    return idx_ < kNumberOfElements - 1;
-  }
+  inline bool HasSpaceForTypedSlot() { return idx_ < kNumberOfElements - 1; }
 
-  static void UpdateSlotsRecordedIn(Heap* heap,
-                                    SlotsBuffer* buffer,
+  static void UpdateSlotsRecordedIn(Heap* heap, SlotsBuffer* buffer,
                                     bool code_slots_filtering_required) {
     while (buffer != NULL) {
       if (code_slots_filtering_required) {
@@ -332,18 +321,14 @@ class SlotsBuffer {
     }
   }
 
-  enum AdditionMode {
-    FAIL_ON_OVERFLOW,
-    IGNORE_OVERFLOW
-  };
+  enum AdditionMode { FAIL_ON_OVERFLOW, IGNORE_OVERFLOW };
 
   static bool ChainLengthThresholdReached(SlotsBuffer* buffer) {
     return buffer != NULL && buffer->chain_length_ >= kChainLengthThreshold;
   }
 
   INLINE(static bool AddTo(SlotsBufferAllocator* allocator,
-                           SlotsBuffer** buffer_address,
-                           ObjectSlot slot,
+                           SlotsBuffer** buffer_address, ObjectSlot slot,
                            AdditionMode mode)) {
     SlotsBuffer* buffer = *buffer_address;
     if (buffer == NULL || buffer->IsFull()) {
@@ -361,9 +346,7 @@ class SlotsBuffer {
   static bool IsTypedSlot(ObjectSlot slot);
 
   static bool AddTo(SlotsBufferAllocator* allocator,
-                    SlotsBuffer** buffer_address,
-                    SlotType type,
-                    Address addr,
+                    SlotsBuffer** buffer_address, SlotType type, Address addr,
                     AdditionMode mode);
 
   static const int kNumberOfElements = 1021;
@@ -532,10 +515,7 @@ class MarkCompactCollector {
   // Performs a global garbage collection.
   void CollectGarbage();
 
-  enum CompactionMode {
-    INCREMENTAL_COMPACTION,
-    NON_INCREMENTAL_COMPACTION
-  };
+  enum CompactionMode { INCREMENTAL_COMPACTION, NON_INCREMENTAL_COMPACTION };
 
   bool StartCompaction(CompactionMode mode);
 
@@ -572,10 +552,7 @@ class MarkCompactCollector {
     PRECISE
   };
 
-  enum SweepingParallelism {
-    SWEEP_ON_MAIN_THREAD,
-    SWEEP_IN_PARALLEL
-  };
+  enum SweepingParallelism { SWEEP_ON_MAIN_THREAD, SWEEP_IN_PARALLEL };
 
 #ifdef VERIFY_HEAP
   void VerifyMarkbitsAreClean();
@@ -587,24 +564,23 @@ class MarkCompactCollector {
 
   // Sweep a single page from the given space conservatively.
   // Returns the size of the biggest continuous freed memory chunk in bytes.
-  template<SweepingParallelism type>
-  static int SweepConservatively(PagedSpace* space,
-                                      FreeList* free_list,
-                                      Page* p);
+  template <SweepingParallelism type>
+  static int SweepConservatively(PagedSpace* space, FreeList* free_list,
+                                 Page* p);
 
   INLINE(static bool ShouldSkipEvacuationSlotRecording(Object** anchor)) {
-    return Page::FromAddress(reinterpret_cast<Address>(anchor))->
-        ShouldSkipEvacuationSlotRecording();
+    return Page::FromAddress(reinterpret_cast<Address>(anchor))
+        ->ShouldSkipEvacuationSlotRecording();
   }
 
   INLINE(static bool ShouldSkipEvacuationSlotRecording(Object* host)) {
-    return Page::FromAddress(reinterpret_cast<Address>(host))->
-        ShouldSkipEvacuationSlotRecording();
+    return Page::FromAddress(reinterpret_cast<Address>(host))
+        ->ShouldSkipEvacuationSlotRecording();
   }
 
   INLINE(static bool IsOnEvacuationCandidate(Object* obj)) {
-    return Page::FromAddress(reinterpret_cast<Address>(obj))->
-        IsEvacuationCandidate();
+    return Page::FromAddress(reinterpret_cast<Address>(obj))
+        ->IsEvacuationCandidate();
   }
 
   INLINE(void EvictEvacuationCandidate(Page* page)) {
@@ -632,15 +608,11 @@ class MarkCompactCollector {
   void RecordCodeEntrySlot(Address slot, Code* target);
   void RecordCodeTargetPatch(Address pc, Code* target);
 
-  INLINE(void RecordSlot(Object** anchor_slot,
-                         Object** slot,
-                         Object* object,
-                         SlotsBuffer::AdditionMode mode =
-                             SlotsBuffer::FAIL_ON_OVERFLOW));
+  INLINE(void RecordSlot(
+      Object** anchor_slot, Object** slot, Object* object,
+      SlotsBuffer::AdditionMode mode = SlotsBuffer::FAIL_ON_OVERFLOW));
 
-  void MigrateObject(HeapObject* dst,
-                     HeapObject* src,
-                     int size,
+  void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                      AllocationSpace to_old_space);
 
   bool TryPromoteObject(HeapObject* object, int object_size);
@@ -684,9 +656,7 @@ class MarkCompactCollector {
     sequential_sweeping_ = sequential_sweeping;
   }
 
-  bool sequential_sweeping() const {
-    return sequential_sweeping_;
-  }
+  bool sequential_sweeping() const { return sequential_sweeping_; }
 
   // Mark the global table which maps weak objects to dependent code without
   // marking its contents.
@@ -841,6 +811,11 @@ class MarkCompactCollector {
   void ClearNonLiveReferences();
   void ClearNonLivePrototypeTransitions(Map* map);
   void ClearNonLiveMapTransitions(Map* map, MarkBit map_mark);
+  void ClearMapTransitions(Map* map);
+  bool ClearMapBackPointer(Map* map);
+  void TrimDescriptorArray(Map* map, DescriptorArray* descriptors,
+                           int number_of_own_descriptors);
+  void TrimEnumCache(Map* map, DescriptorArray* descriptors);
 
   void ClearDependentCode(DependentCode* dependent_code);
   void ClearDependentICList(Object* head);
@@ -857,6 +832,10 @@ class MarkCompactCollector {
   // with an unreachable key are removed from all encountered weak maps.
   // The linked list of all encountered weak maps is destroyed.
   void ClearWeakCollections();
+
+  // We have to remove all encountered weak maps from the list of weak
+  // collections when incremental marking is aborted.
+  void AbortWeakCollections();
 
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for
@@ -875,7 +854,7 @@ class MarkCompactCollector {
   void SweepSpaces();
 
   int DiscoverAndEvacuateBlackObjectsOnPage(NewSpace* new_space,
-                                           NewSpacePage* p);
+                                            NewSpacePage* p);
 
   void EvacuateNewSpace();
 
@@ -927,15 +906,12 @@ class MarkCompactCollector {
 
 class MarkBitCellIterator BASE_EMBEDDED {
  public:
-  explicit MarkBitCellIterator(MemoryChunk* chunk)
-      : chunk_(chunk) {
-    last_cell_index_ = Bitmap::IndexToCell(
-        Bitmap::CellAlignIndex(
-            chunk_->AddressToMarkbitIndex(chunk_->area_end())));
+  explicit MarkBitCellIterator(MemoryChunk* chunk) : chunk_(chunk) {
+    last_cell_index_ = Bitmap::IndexToCell(Bitmap::CellAlignIndex(
+        chunk_->AddressToMarkbitIndex(chunk_->area_end())));
     cell_base_ = chunk_->area_start();
     cell_index_ = Bitmap::IndexToCell(
-        Bitmap::CellAlignIndex(
-            chunk_->AddressToMarkbitIndex(cell_base_)));
+        Bitmap::CellAlignIndex(chunk_->AddressToMarkbitIndex(cell_base_)));
     cells_ = chunk_->markbits()->cells();
   }
 
@@ -945,13 +921,13 @@ class MarkBitCellIterator BASE_EMBEDDED {
 
   inline MarkBit::CellType* CurrentCell() {
     DCHECK(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
-        chunk_->AddressToMarkbitIndex(cell_base_))));
+                              chunk_->AddressToMarkbitIndex(cell_base_))));
     return &cells_[cell_index_];
   }
 
   inline Address CurrentCellBase() {
     DCHECK(cell_index_ == Bitmap::IndexToCell(Bitmap::CellAlignIndex(
-        chunk_->AddressToMarkbitIndex(cell_base_))));
+                              chunk_->AddressToMarkbitIndex(cell_base_))));
     return cell_base_;
   }
 
@@ -971,14 +947,12 @@ class MarkBitCellIterator BASE_EMBEDDED {
 
 class SequentialSweepingScope BASE_EMBEDDED {
  public:
-  explicit SequentialSweepingScope(MarkCompactCollector *collector) :
-    collector_(collector) {
+  explicit SequentialSweepingScope(MarkCompactCollector* collector)
+      : collector_(collector) {
     collector_->set_sequential_sweeping(true);
   }
 
-  ~SequentialSweepingScope() {
-    collector_->set_sequential_sweeping(false);
-  }
+  ~SequentialSweepingScope() { collector_->set_sequential_sweeping(false); }
 
  private:
   MarkCompactCollector* collector_;
@@ -986,7 +960,7 @@ class SequentialSweepingScope BASE_EMBEDDED {
 
 
 const char* AllocationSpaceName(AllocationSpace space);
+}
+}  // namespace v8::internal
 
-} }  // namespace v8::internal
-
-#endif  // V8_MARK_COMPACT_H_
+#endif  // V8_HEAP_MARK_COMPACT_H_

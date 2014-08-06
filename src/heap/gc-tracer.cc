@@ -4,7 +4,7 @@
 
 #include "src/v8.h"
 
-#include "src/gc-tracer.h"
+#include "src/heap/gc-tracer.h"
 
 namespace v8 {
 namespace internal {
@@ -258,6 +258,8 @@ void GCTracer::PrintNVP() const {
          current_.scopes[Scope::MC_WEAKCOLLECTION_PROCESS]);
   PrintF("weakcollection_clear=%.1f ",
          current_.scopes[Scope::MC_WEAKCOLLECTION_CLEAR]);
+  PrintF("weakcollection_abort=%.1f ",
+         current_.scopes[Scope::MC_WEAKCOLLECTION_ABORT]);
 
   PrintF("total_size_before=%" V8_PTR_PREFIX "d ", current_.start_object_size);
   PrintF("total_size_after=%" V8_PTR_PREFIX "d ", current_.end_object_size);

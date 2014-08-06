@@ -51,7 +51,7 @@ ifeq ($(ARCH), android_arm)
   DEFINES += arm_neon=0 arm_version=7
   TOOLCHAIN_ARCH = arm-linux-androideabi
   TOOLCHAIN_PREFIX = $(TOOLCHAIN_ARCH)
-  TOOLCHAIN_VER = 4.6
+  TOOLCHAIN_VER = 4.8
 else
   ifeq ($(ARCH), android_arm64)
     DEFINES  = target_arch=arm64 v8_target_arch=arm64 android_target_arch=arm64 android_target_platform=L

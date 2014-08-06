@@ -36,15 +36,27 @@ class InstructionSelectorTester : public HandleAndZoneScope,
     return array;
   }
 
-  explicit InstructionSelectorTester(Mode mode = kTargetMode)
+  InstructionSelectorTester()
       : RawMachineAssembler(
             new (main_zone()) Graph(main_zone()), new (main_zone())
             MachineCallDescriptorBuilder(kMachineWord32, kParameterCount,
                                          BuildParameterArray(main_zone())),
-            MachineOperatorBuilder::pointer_rep()),
-        mode_(mode) {}
+            MachineOperatorBuilder::pointer_rep()) {}
 
-  void SelectInstructions() {
+  void SelectInstructions(CpuFeature feature) {
+    SelectInstructions(InstructionSelector::Features(feature));
+  }
+
+  void SelectInstructions(CpuFeature feature1, CpuFeature feature2) {
+    SelectInstructions(InstructionSelector::Features(feature1, feature2));
+  }
+
+  void SelectInstructions(Mode mode = kTargetMode) {
+    SelectInstructions(InstructionSelector::Features(), mode);
+  }
+
+  void SelectInstructions(InstructionSelector::Features features,
+                          Mode mode = kTargetMode) {
     OFStream out(stdout);
     Schedule* schedule = Export();
     CHECK_NE(0, graph()->NodeCount());
@@ -52,7 +64,7 @@ class InstructionSelectorTester : public HandleAndZoneScope,
     Linkage linkage(&info, call_descriptor());
     InstructionSequence sequence(&linkage, graph(), schedule);
     SourcePositionTable source_positions(graph());
-    InstructionSelector selector(&sequence, &source_positions);
+    InstructionSelector selector(&sequence, &source_positions, features);
     selector.SelectInstructions();
     out << "--- Code sequence after instruction selection --- " << endl
         << sequence;
@@ -60,7 +72,7 @@ class InstructionSelectorTester : public HandleAndZoneScope,
          i != sequence.end(); ++i) {
       Instruction* instr = *i;
       if (instr->opcode() < 0) continue;
-      if (mode_ == kTargetMode) {
+      if (mode == kTargetMode) {
         switch (ArchOpcodeField::decode(instr->opcode())) {
 #define CASE(Name) \
   case k##Name:    \
@@ -98,9 +110,6 @@ class InstructionSelectorTester : public HandleAndZoneScope,
   VirtualRegisterSet doubles;
   VirtualRegisterSet references;
   std::deque<Constant> immediates;
-
- private:
-  Mode mode_;
 };
 
 

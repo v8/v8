@@ -9,8 +9,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#if V8_TURBOFAN_TARGET
-
 enum ImmediateMode {
   kArithimeticImm,  // 12 bit unsigned immediate shifted left 0 or 12 bits
   kShift32Imm,      // 0 - 31
@@ -663,8 +661,6 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
     Emit(kArm64Drop | MiscField::encode(aligned_push_count), NULL);
   }
 }
-
-#endif  // V8_TURBOFAN_TARGET
 
 }  // namespace compiler
 }  // namespace internal

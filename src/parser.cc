@@ -665,6 +665,19 @@ Expression* ParserTraits::ExpressionFromString(
 }
 
 
+Expression* ParserTraits::GetIterator(
+    Expression* iterable, AstNodeFactory<AstConstructionVisitor>* factory) {
+  Expression* iterator_symbol_literal =
+      factory->NewSymbolLiteral("symbolIterator", RelocInfo::kNoPosition);
+  int pos = iterable->position();
+  Expression* prop =
+      factory->NewProperty(iterable, iterator_symbol_literal, pos);
+  Zone* zone = parser_->zone();
+  ZoneList<Expression*>* args = new (zone) ZoneList<Expression*>(0, zone);
+  return factory->NewCall(prop, args, pos);
+}
+
+
 Literal* ParserTraits::GetLiteralTheHole(
     int position, AstNodeFactory<AstConstructionVisitor>* factory) {
   return factory->NewTheHoleLiteral(RelocInfo::kNoPosition);
@@ -2773,23 +2786,9 @@ void Parser::InitializeForEachStatement(ForEachStatement* stmt,
     Expression* assign_each;
 
     // var iterator = subject[Symbol.iterator]();
-    {
-      Expression* iterator_symbol_literal =
-          factory()->NewSymbolLiteral("symbolIterator", RelocInfo::kNoPosition);
-      // FIXME(wingo): Unhappily, it will be a common error that the RHS of a
-      // for-of doesn't have a Symbol.iterator property.  We should do better
-      // than informing the user that "undefined is not a function".
-      int pos = subject->position();
-      Expression* iterator_property =
-          factory()->NewProperty(subject, iterator_symbol_literal, pos);
-      ZoneList<Expression*>* iterator_arguments =
-          new(zone()) ZoneList<Expression*>(0, zone());
-      Expression* iterator_call = factory()->NewCall(
-          iterator_property, iterator_arguments, pos);
-      Expression* iterator_proxy = factory()->NewVariableProxy(iterator);
-      assign_iterator = factory()->NewAssignment(
-          Token::ASSIGN, iterator_proxy, iterator_call, RelocInfo::kNoPosition);
-    }
+    assign_iterator = factory()->NewAssignment(
+        Token::ASSIGN, factory()->NewVariableProxy(iterator),
+        GetIterator(subject, factory()), RelocInfo::kNoPosition);
 
     // var result = iterator.next();
     {

@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INCREMENTAL_MARKING_INL_H_
-#define V8_INCREMENTAL_MARKING_INL_H_
+#ifndef V8_HEAP_INCREMENTAL_MARKING_INL_H_
+#define V8_HEAP_INCREMENTAL_MARKING_INL_H_
 
-#include "src/incremental-marking.h"
+#include "src/heap/incremental-marking.h"
 
 namespace v8 {
 namespace internal {
 
 
-bool IncrementalMarking::BaseRecordWrite(HeapObject* obj,
-                                         Object** slot,
+bool IncrementalMarking::BaseRecordWrite(HeapObject* obj, Object** slot,
                                          Object* value) {
   HeapObject* value_heap_obj = HeapObject::cast(value);
   MarkBit value_bit = Marking::MarkBitFrom(value_heap_obj);
@@ -42,8 +41,7 @@ bool IncrementalMarking::BaseRecordWrite(HeapObject* obj,
 }
 
 
-void IncrementalMarking::RecordWrite(HeapObject* obj,
-                                     Object** slot,
+void IncrementalMarking::RecordWrite(HeapObject* obj, Object** slot,
                                      Object* value) {
   if (IsMarking() && value->IsHeapObject()) {
     RecordWriteSlow(obj, slot, value);
@@ -51,15 +49,13 @@ void IncrementalMarking::RecordWrite(HeapObject* obj,
 }
 
 
-void IncrementalMarking::RecordWriteOfCodeEntry(JSFunction* host,
-                                                Object** slot,
+void IncrementalMarking::RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
                                                 Code* value) {
   if (IsMarking()) RecordWriteOfCodeEntrySlow(host, slot, value);
 }
 
 
-void IncrementalMarking::RecordWriteIntoCode(HeapObject* obj,
-                                             RelocInfo* rinfo,
+void IncrementalMarking::RecordWriteIntoCode(HeapObject* obj, RelocInfo* rinfo,
                                              Object* value) {
   if (IsMarking() && value->IsHeapObject()) {
     RecordWriteIntoCodeSlow(obj, rinfo, value);
@@ -85,7 +81,7 @@ void IncrementalMarking::RecordWrites(HeapObject* obj) {
 void IncrementalMarking::BlackToGreyAndUnshift(HeapObject* obj,
                                                MarkBit mark_bit) {
   DCHECK(Marking::MarkBitFrom(obj) == mark_bit);
-  DCHECK(obj->Size() >= 2*kPointerSize);
+  DCHECK(obj->Size() >= 2 * kPointerSize);
   DCHECK(IsMarking());
   Marking::BlackToGrey(mark_bit);
   int obj_size = obj->Size();
@@ -115,8 +111,7 @@ void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
   Marking::WhiteToGrey(mark_bit);
   marking_deque_.PushGrey(obj);
 }
+}
+}  // namespace v8::internal
 
-
-} }  // namespace v8::internal
-
-#endif  // V8_INCREMENTAL_MARKING_INL_H_
+#endif  // V8_HEAP_INCREMENTAL_MARKING_INL_H_

@@ -10,13 +10,13 @@ using namespace v8::internal::compiler;
 #if V8_TURBOFAN_TARGET
 
 TEST(InstructionSelectionReturnZero) {
-  InstructionSelectorTester m(InstructionSelectorTester::kInternalMode);
+  InstructionSelectorTester m;
   m.Return(m.Int32Constant(0));
-  m.SelectInstructions();
+  m.SelectInstructions(InstructionSelectorTester::kInternalMode);
   CHECK_EQ(2, static_cast<int>(m.code.size()));
   CHECK_EQ(kArchNop, m.code[0]->opcode());
   CHECK_EQ(kArchRet, m.code[1]->opcode());
   CHECK_EQ(1, static_cast<int>(m.code[1]->InputCount()));
 }
 
-#endif
+#endif  // !V8_TURBOFAN_TARGET

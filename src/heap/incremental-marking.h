@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INCREMENTAL_MARKING_H_
-#define V8_INCREMENTAL_MARKING_H_
+#ifndef V8_HEAP_INCREMENTAL_MARKING_H_
+#define V8_HEAP_INCREMENTAL_MARKING_H_
 
 
 #include "src/execution.h"
-#include "src/mark-compact.h"
+#include "src/heap/mark-compact.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -16,17 +16,9 @@ namespace internal {
 
 class IncrementalMarking {
  public:
-  enum State {
-    STOPPED,
-    SWEEPING,
-    MARKING,
-    COMPLETE
-  };
+  enum State { STOPPED, SWEEPING, MARKING, COMPLETE };
 
-  enum CompletionAction {
-    GC_VIA_STACK_GUARD,
-    NO_GC_VIA_STACK_GUARD
-  };
+  enum CompletionAction { GC_VIA_STACK_GUARD, NO_GC_VIA_STACK_GUARD };
 
   explicit IncrementalMarking(Heap* heap);
 
@@ -91,7 +83,8 @@ class IncrementalMarking {
 
   void OldSpaceStep(intptr_t allocated);
 
-  void Step(intptr_t allocated, CompletionAction action);
+  void Step(intptr_t allocated, CompletionAction action,
+            bool force_marking = false);
 
   inline void RestartIfNotMarking() {
     if (state_ == COMPLETE) {
@@ -102,8 +95,7 @@ class IncrementalMarking {
     }
   }
 
-  static void RecordWriteFromCode(HeapObject* obj,
-                                  Object** slot,
+  static void RecordWriteFromCode(HeapObject* obj, Object** slot,
                                   Isolate* isolate);
 
   // Record a slot for compaction.  Returns false for objects that are
@@ -114,17 +106,14 @@ class IncrementalMarking {
   // the incremental cycle (stays white).
   INLINE(bool BaseRecordWrite(HeapObject* obj, Object** slot, Object* value));
   INLINE(void RecordWrite(HeapObject* obj, Object** slot, Object* value));
-  INLINE(void RecordWriteIntoCode(HeapObject* obj,
-                                  RelocInfo* rinfo,
+  INLINE(void RecordWriteIntoCode(HeapObject* obj, RelocInfo* rinfo,
                                   Object* value));
-  INLINE(void RecordWriteOfCodeEntry(JSFunction* host,
-                                     Object** slot,
+  INLINE(void RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
                                      Code* value));
 
 
   void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
-  void RecordWriteIntoCodeSlow(HeapObject* obj,
-                               RelocInfo* rinfo,
+  void RecordWriteIntoCodeSlow(HeapObject* obj, RelocInfo* rinfo,
                                Object* value);
   void RecordWriteOfCodeEntrySlow(JSFunction* host, Object** slot, Code* value);
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
@@ -154,22 +143,19 @@ class IncrementalMarking {
     if (IsMarking()) {
       if (marking_speed_ < kFastMarking) {
         if (FLAG_trace_gc) {
-          PrintPID("Increasing marking speed to %d "
-                   "due to high promotion rate\n",
-                   static_cast<int>(kFastMarking));
+          PrintPID(
+              "Increasing marking speed to %d "
+              "due to high promotion rate\n",
+              static_cast<int>(kFastMarking));
         }
         marking_speed_ = kFastMarking;
       }
     }
   }
 
-  void EnterNoMarkingScope() {
-    no_marking_scope_depth_++;
-  }
+  void EnterNoMarkingScope() { no_marking_scope_depth_++; }
 
-  void LeaveNoMarkingScope() {
-    no_marking_scope_depth_--;
-  }
+  void LeaveNoMarkingScope() { no_marking_scope_depth_--; }
 
   void UncommitMarkingDeque();
 
@@ -192,8 +178,7 @@ class IncrementalMarking {
   static void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
   void DeactivateIncrementalWriteBarrier();
 
-  static void SetOldSpacePageFlags(MemoryChunk* chunk,
-                                   bool is_marking,
+  static void SetOldSpacePageFlags(MemoryChunk* chunk, bool is_marking,
                                    bool is_compacting);
 
   static void SetNewSpacePageFlags(NewSpacePage* chunk, bool is_marking);
@@ -231,7 +216,7 @@ class IncrementalMarking {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };
+}
+}  // namespace v8::internal
 
-} }  // namespace v8::internal
-
-#endif  // V8_INCREMENTAL_MARKING_H_
+#endif  // V8_HEAP_INCREMENTAL_MARKING_H_

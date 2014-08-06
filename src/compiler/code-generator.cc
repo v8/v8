@@ -287,7 +287,8 @@ void CodeGenerator::BuildTranslation(Instruction* instr,
 }
 
 
-#if !V8_TURBOFAN_TARGET
+#if !V8_TURBOFAN_BACKEND
+
 void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   UNIMPLEMENTED();
 }
@@ -334,7 +335,7 @@ bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
 }
 #endif
 
-#endif
+#endif  // !V8_TURBOFAN_BACKEND
 
 
 }  // namespace compiler

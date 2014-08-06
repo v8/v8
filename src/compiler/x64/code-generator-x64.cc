@@ -16,8 +16,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#ifndef _WIN64
-
 #define __ masm()->
 
 
@@ -689,7 +687,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // last output of the instruction.
   Label check;
   DCHECK_NE(0, instr->OutputCount());
-  Register reg = i.OutputRegister(instr->OutputCount() - 1);
+  Register reg = i.OutputRegister(static_cast<int>(instr->OutputCount() - 1));
   Condition cc = no_condition;
   switch (condition) {
     case kUnorderedEqual:
@@ -998,7 +996,6 @@ bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
 
 #endif
 
-#endif
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace internal
+}  // namespace compiler
+}  // namespace v8

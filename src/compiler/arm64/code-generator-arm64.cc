@@ -15,8 +15,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-#if V8_TURBOFAN_TARGET
-
 #define __ masm()->
 
 
@@ -851,8 +849,6 @@ bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
 }
 
 #endif  // DEBUG
-
-#endif  // V8_TURBOFAN_TARGET
 
 }  // namespace compiler
 }  // namespace internal

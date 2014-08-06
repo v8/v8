@@ -472,8 +472,6 @@ TEST(HeapSnapshotConsString) {
 
 
 TEST(HeapSnapshotSymbol) {
-  i::FLAG_harmony_symbols = true;
-
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
@@ -2412,7 +2410,7 @@ TEST(ArrayGrowLeftTrim) {
     "for (var i = 0; i < 3; ++i)\n"
     "    a.shift();\n");
 
-  const char* names[] = { "(anonymous function)" };
+  const char* names[] = {""};
   AllocationTracker* tracker =
       reinterpret_cast<i::HeapProfiler*>(heap_profiler)->allocation_tracker();
   CHECK_NE(NULL, tracker);
@@ -2447,8 +2445,7 @@ TEST(TrackHeapAllocations) {
   // Print for better diagnostics in case of failure.
   tracker->trace_tree()->Print(tracker);
 
-  const char* names[] =
-      { "(anonymous function)", "start", "f_0_0", "f_0_1", "f_0_2" };
+  const char* names[] = {"", "start", "f_0_0", "f_0_1", "f_0_2"};
   AllocationTraceNode* node =
       FindNode(tracker, Vector<const char*>(names, ARRAY_SIZE(names)));
   CHECK_NE(NULL, node);
@@ -2483,7 +2480,7 @@ TEST(TrackBumpPointerAllocations) {
   LocalContext env;
 
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-  const char* names[] = { "(anonymous function)", "start", "f_0", "f_1" };
+  const char* names[] = {"", "start", "f_0", "f_1"};
   // First check that normally all allocations are recorded.
   {
     heap_profiler->StartTrackingHeapObjects(true);

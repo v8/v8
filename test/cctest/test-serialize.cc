@@ -34,6 +34,7 @@
 #include "src/bootstrapper.h"
 #include "src/compilation-cache.h"
 #include "src/debug.h"
+#include "src/heap/spaces.h"
 #include "src/ic-inl.h"
 #include "src/natives.h"
 #include "src/objects.h"
@@ -41,7 +42,6 @@
 #include "src/scopeinfo.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"
-#include "src/spaces.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

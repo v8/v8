@@ -28,10 +28,12 @@ StructuredMachineAssembler::StructuredMachineAssembler(
       current_environment_(new (zone())
                            Environment(zone(), schedule()->entry(), false)),
       number_of_variables_(0) {
+  Node* s = graph->NewNode(common_.Start(parameter_count()));
+  graph->SetStart(s);
   if (parameter_count() == 0) return;
   parameters_ = zone()->NewArray<Node*>(parameter_count());
   for (int i = 0; i < parameter_count(); ++i) {
-    parameters_[i] = NewNode(common()->Parameter(i));
+    parameters_[i] = NewNode(common()->Parameter(i), graph->start());
   }
 }
 

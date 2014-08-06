@@ -9,8 +9,8 @@
 
 #include "src/char-predicates-inl.h"
 #include "src/conversions.h"
+#include "src/heap/spaces-inl.h"
 #include "src/messages.h"
-#include "src/spaces-inl.h"
 #include "src/token.h"
 
 namespace v8 {
@@ -719,7 +719,8 @@ Handle<String> JsonParser<seq_ascii>::ScanJsonString() {
     } while (c0 != '"');
     int length = position - position_;
     uint32_t hash = (length <= String::kMaxHashCalcLength)
-        ? StringHasher::GetHashCore(running_hash) : length;
+                        ? StringHasher::GetHashCore(running_hash)
+                        : static_cast<uint32_t>(length);
     Vector<const uint8_t> string_vector(
         seq_source_->GetChars() + position_, length);
     StringTable* string_table = isolate()->heap()->string_table();

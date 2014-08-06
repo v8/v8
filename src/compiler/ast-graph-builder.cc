@@ -33,7 +33,7 @@ Node* AstGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
     // Parameter -1 is special for the function closure
     Operator* op = common()->Parameter(-1);
-    Node* node = NewNode(op);
+    Node* node = NewNode(op, graph()->start());
     function_closure_.set(node);
   }
   return function_closure_.get();
@@ -44,7 +44,7 @@ Node* AstGraphBuilder::GetFunctionContext() {
   if (!function_context_.is_set()) {
     // Parameter (arity + 1) is special for the outer context of the function
     Operator* op = common()->Parameter(info()->num_parameters() + 1);
-    Node* node = NewNode(op);
+    Node* node = NewNode(op, graph()->start());
     function_context_.set(node);
   }
   return function_context_.get();
@@ -60,7 +60,8 @@ bool AstGraphBuilder::CreateGraph() {
       SourcePosition(info()->shared_info()->start_position()));
 
   // Set up the basic structure of the graph.
-  graph()->SetStart(graph()->NewNode(common()->Start()));
+  graph()->SetStart(
+      graph()->NewNode(common()->Start(info()->num_parameters())));
 
   // Initialize the top-level environment.
   Environment env(this, scope, graph()->start());
@@ -177,13 +178,15 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
   DCHECK_EQ(scope->num_parameters() + 1, parameters_count());
 
   // Bind the receiver variable.
-  Node* receiver = builder->graph()->NewNode(common()->Parameter(0));
+  Node* receiver = builder->graph()->NewNode(common()->Parameter(0),
+                                             builder->graph()->start());
   values()->push_back(receiver);
 
   // Bind all parameter variables. The parameter indices are shifted by 1
   // (receiver is parameter index -1 but environment index 0).
   for (int i = 0; i < scope->num_parameters(); ++i) {
-    Node* parameter = builder->graph()->NewNode(common()->Parameter(i + 1));
+    Node* parameter = builder->graph()->NewNode(common()->Parameter(i + 1),
+                                                builder->graph()->start());
     values()->push_back(parameter);
   }
 
@@ -1618,7 +1621,7 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
     if (!variable->IsContextSlot()) continue;
     // Temporary parameter node. The parameter indices are shifted by 1
     // (receiver is parameter index -1 but environment index 0).
-    Node* parameter = NewNode(common()->Parameter(i + 1));
+    Node* parameter = NewNode(common()->Parameter(i + 1), graph()->start());
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, info()->scope()->ContextChainLength(variable->scope()));
     Operator* op = javascript()->StoreContext(0, variable->index());
@@ -1792,14 +1795,6 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
       // Global var, const, or let variable.
-      if (!info()->is_native()) {
-        // TODO(turbofan): This special case is needed only because we don't
-        // use StoreICs yet. Remove this once StoreNamed is lowered to an IC.
-        Node* name = jsgraph()->Constant(variable->name());
-        Node* strict = jsgraph()->Constant(strict_mode());
-        Operator* op = javascript()->Runtime(Runtime::kStoreLookupSlot, 4);
-        return NewNode(op, value, current_context(), name, strict);
-      }
       Node* global = BuildLoadGlobalObject();
       PrintableUnique<Name> name = MakeUnique(variable->name());
       Operator* op = javascript()->StoreNamed(name);

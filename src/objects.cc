@@ -20,12 +20,12 @@
 #include "src/field-index-inl.h"
 #include "src/field-index.h"
 #include "src/full-codegen.h"
+#include "src/heap/mark-compact.h"
 #include "src/hydrogen.h"
 #include "src/isolate-inl.h"
 #include "src/log.h"
 #include "src/lookup.h"
 #include "src/macro-assembler.h"
-#include "src/mark-compact.h"
 #include "src/objects-inl.h"
 #include "src/objects-visiting-inl.h"
 #include "src/prototype.h"
@@ -1991,54 +1991,6 @@ const char* Representation::Mnemonic() const {
 }
 
 
-static void ZapEndOfFixedArray(Address new_end, int to_trim) {
-  // If we are doing a big trim in old space then we zap the space.
-  Object** zap = reinterpret_cast<Object**>(new_end);
-  zap++;  // Header of filler must be at least one word so skip that.
-  for (int i = 1; i < to_trim; i++) {
-    *zap++ = Smi::FromInt(0);
-  }
-}
-
-
-template<Heap::InvocationMode mode>
-static void RightTrimFixedArray(Heap* heap, FixedArray* elms, int to_trim) {
-  DCHECK(elms->map() != heap->fixed_cow_array_map());
-  // For now this trick is only applied to fixed arrays in new and paged space.
-  DCHECK(!heap->lo_space()->Contains(elms));
-
-  const int len = elms->length();
-
-  DCHECK(to_trim < len);
-
-  Address new_end = elms->address() + FixedArray::SizeFor(len - to_trim);
-
-  if (mode != Heap::FROM_GC || Heap::ShouldZapGarbage()) {
-    ZapEndOfFixedArray(new_end, to_trim);
-  }
-
-  int size_delta = to_trim * kPointerSize;
-
-  // Technically in new space this write might be omitted (except for
-  // debug mode which iterates through the heap), but to play safer
-  // we still do it.
-  heap->CreateFillerObjectAt(new_end, size_delta);
-
-  // We are storing the new length using release store after creating a filler
-  // for the left-over space to avoid races with the sweeper thread.
-  elms->synchronized_set_length(len - to_trim);
-
-  heap->AdjustLiveBytes(elms->address(), -size_delta, mode);
-
-  // The array may not be moved during GC,
-  // and size has to be adjusted nevertheless.
-  HeapProfiler* profiler = heap->isolate()->heap_profiler();
-  if (profiler->is_tracking_allocations()) {
-    profiler->UpdateObjectSizeEvent(elms->address(), elms->Size());
-  }
-}
-
-
 bool Map::InstancesNeedRewriting(Map* target, int target_number_of_fields,
                                  int target_inobject, int target_unused,
                                  int* old_number_of_fields) {
@@ -2246,7 +2198,7 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   // If there are properties in the new backing store, trim it to the correct
   // size and install the backing store into the object.
   if (external > 0) {
-    RightTrimFixedArray<Heap::FROM_MUTATOR>(heap, *array, inobject);
+    heap->RightTrimFixedArray<Heap::FROM_MUTATOR>(*array, inobject);
     object->set_properties(*array);
   }
 
@@ -8225,8 +8177,8 @@ Handle<PolymorphicCodeCacheHashTable> PolymorphicCodeCacheHashTable::Put(
 void FixedArray::Shrink(int new_length) {
   DCHECK(0 <= new_length && new_length <= length());
   if (new_length < length()) {
-    RightTrimFixedArray<Heap::FROM_MUTATOR>(
-        GetHeap(), this, length() - new_length);
+    GetHeap()->RightTrimFixedArray<Heap::FROM_MUTATOR>(
+        this, length() - new_length);
   }
 }
 
@@ -9581,119 +9533,6 @@ void String::PrintOn(FILE* file) {
 }
 
 
-static void TrimEnumCache(Heap* heap, Map* map, DescriptorArray* descriptors) {
-  int live_enum = map->EnumLength();
-  if (live_enum == kInvalidEnumCacheSentinel) {
-    live_enum = map->NumberOfDescribedProperties(OWN_DESCRIPTORS, DONT_ENUM);
-  }
-  if (live_enum == 0) return descriptors->ClearEnumCache();
-
-  FixedArray* enum_cache = descriptors->GetEnumCache();
-
-  int to_trim = enum_cache->length() - live_enum;
-  if (to_trim <= 0) return;
-  RightTrimFixedArray<Heap::FROM_GC>(
-      heap, descriptors->GetEnumCache(), to_trim);
-
-  if (!descriptors->HasEnumIndicesCache()) return;
-  FixedArray* enum_indices_cache = descriptors->GetEnumIndicesCache();
-  RightTrimFixedArray<Heap::FROM_GC>(heap, enum_indices_cache, to_trim);
-}
-
-
-static void TrimDescriptorArray(Heap* heap,
-                                Map* map,
-                                DescriptorArray* descriptors,
-                                int number_of_own_descriptors) {
-  int number_of_descriptors = descriptors->number_of_descriptors_storage();
-  int to_trim = number_of_descriptors - number_of_own_descriptors;
-  if (to_trim == 0) return;
-
-  RightTrimFixedArray<Heap::FROM_GC>(
-      heap, descriptors, to_trim * DescriptorArray::kDescriptorSize);
-  descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
-
-  if (descriptors->HasEnumCache()) TrimEnumCache(heap, map, descriptors);
-  descriptors->Sort();
-}
-
-
-// Clear a possible back pointer in case the transition leads to a dead map.
-// Return true in case a back pointer has been cleared and false otherwise.
-static bool ClearBackPointer(Heap* heap, Map* target) {
-  if (Marking::MarkBitFrom(target).Get()) return false;
-  target->SetBackPointer(heap->undefined_value(), SKIP_WRITE_BARRIER);
-  return true;
-}
-
-
-// TODO(mstarzinger): This method should be moved into MarkCompactCollector,
-// because it cannot be called from outside the GC and we already have methods
-// depending on the transitions layout in the GC anyways.
-void Map::ClearNonLiveTransitions(Heap* heap) {
-  // If there are no transitions to be cleared, return.
-  // TODO(verwaest) Should be an assert, otherwise back pointers are not
-  // properly cleared.
-  if (!HasTransitionArray()) return;
-
-  TransitionArray* t = transitions();
-  MarkCompactCollector* collector = heap->mark_compact_collector();
-
-  int transition_index = 0;
-
-  DescriptorArray* descriptors = instance_descriptors();
-  bool descriptors_owner_died = false;
-
-  // Compact all live descriptors to the left.
-  for (int i = 0; i < t->number_of_transitions(); ++i) {
-    Map* target = t->GetTarget(i);
-    if (ClearBackPointer(heap, target)) {
-      if (target->instance_descriptors() == descriptors) {
-        descriptors_owner_died = true;
-      }
-    } else {
-      if (i != transition_index) {
-        Name* key = t->GetKey(i);
-        t->SetKey(transition_index, key);
-        Object** key_slot = t->GetKeySlot(transition_index);
-        collector->RecordSlot(key_slot, key_slot, key);
-        // Target slots do not need to be recorded since maps are not compacted.
-        t->SetTarget(transition_index, t->GetTarget(i));
-      }
-      transition_index++;
-    }
-  }
-
-  // If there are no transitions to be cleared, return.
-  // TODO(verwaest) Should be an assert, otherwise back pointers are not
-  // properly cleared.
-  if (transition_index == t->number_of_transitions()) return;
-
-  int number_of_own_descriptors = NumberOfOwnDescriptors();
-
-  if (descriptors_owner_died) {
-    if (number_of_own_descriptors > 0) {
-      TrimDescriptorArray(heap, this, descriptors, number_of_own_descriptors);
-      DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
-      set_owns_descriptors(true);
-    } else {
-      DCHECK(descriptors == GetHeap()->empty_descriptor_array());
-    }
-  }
-
-  // Note that we never eliminate a transition array, though we might right-trim
-  // such that number_of_transitions() == 0. If this assumption changes,
-  // TransitionArray::CopyInsert() will need to deal with the case that a
-  // transition array disappeared during GC.
-  int trim = t->number_of_transitions() - transition_index;
-  if (trim > 0) {
-    RightTrimFixedArray<Heap::FROM_GC>(heap, t, t->IsSimpleTransition()
-        ? trim : trim * TransitionArray::kTransitionSize);
-  }
-  DCHECK(HasTransitionArray());
-}
-
-
 int Map::Hash() {
   // For performance reasons we only hash the 3 most variable fields of a map:
   // constructor, prototype and bit_field2.
@@ -9963,7 +9802,7 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
   }
   if (dst != length) {
     // Always trim even when array is cleared because of heap verifier.
-    RightTrimFixedArray<Heap::FROM_MUTATOR>(GetHeap(), code_map, length - dst);
+    GetHeap()->RightTrimFixedArray<Heap::FROM_MUTATOR>(code_map, length - dst);
     if (code_map->length() == kEntriesStart) ClearOptimizedCodeMap();
   }
 }
@@ -9974,7 +9813,7 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
   DCHECK(shrink_by % kEntryLength == 0);
   DCHECK(shrink_by <= code_map->length() - kEntriesStart);
   // Always trim even when array is cleared because of heap verifier.
-  RightTrimFixedArray<Heap::FROM_GC>(GetHeap(), code_map, shrink_by);
+  GetHeap()->RightTrimFixedArray<Heap::FROM_GC>(code_map, shrink_by);
   if (code_map->length() == kEntriesStart) {
     ClearOptimizedCodeMap();
   }

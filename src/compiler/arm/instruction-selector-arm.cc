@@ -437,7 +437,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
       return;
     }
   }
-  if (CpuFeatures::IsSupported(ARMv7) && m.right().HasValue()) {
+  if (IsSupported(ARMv7) && m.right().HasValue()) {
     uint32_t value = m.right().Value();
     uint32_t width = CompilerIntrinsics::CountSetBits(value);
     uint32_t msb = CompilerIntrinsics::CountLeadingZeros(value);
@@ -525,7 +525,7 @@ void InstructionSelector::VisitWord32Shl(Node* node) {
 void InstructionSelector::VisitWord32Shr(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);
-  if (CpuFeatures::IsSupported(ARMv7) && m.left().IsWord32And() &&
+  if (IsSupported(ARMv7) && m.left().IsWord32And() &&
       m.right().IsInRange(0, 31)) {
     int32_t lsb = m.right().Value();
     Int32BinopMatcher mleft(m.left().node());
@@ -573,7 +573,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
 void InstructionSelector::VisitInt32Sub(Node* node) {
   ArmOperandGenerator g(this);
   Int32BinopMatcher m(node);
-  if (CpuFeatures::IsSupported(MLS) && m.right().IsInt32Mul() &&
+  if (IsSupported(MLS) && m.right().IsInt32Mul() &&
       CanCover(node, m.right().node())) {
     Int32BinopMatcher mright(m.right().node());
     Emit(kArmMls, g.DefineAsRegister(node), g.UseRegister(mright.left().node()),
@@ -615,7 +615,7 @@ static void EmitDiv(InstructionSelector* selector, ArchOpcode div_opcode,
                     InstructionOperand* left_operand,
                     InstructionOperand* right_operand) {
   ArmOperandGenerator g(selector);
-  if (CpuFeatures::IsSupported(SUDIV)) {
+  if (selector->IsSupported(SUDIV)) {
     selector->Emit(div_opcode, result_operand, left_operand, right_operand);
     return;
   }
@@ -662,7 +662,7 @@ static void VisitMod(InstructionSelector* selector, Node* node,
   InstructionOperand* right_operand = g.UseRegister(m.right().node());
   EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode, div_operand,
           left_operand, right_operand);
-  if (CpuFeatures::IsSupported(MLS)) {
+  if (selector->IsSupported(MLS)) {
     selector->Emit(kArmMls, result_operand, div_operand, right_operand,
                    left_operand);
     return;

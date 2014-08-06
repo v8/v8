@@ -17,7 +17,7 @@
 #include "src/global-handles.h"
 #include "src/handles.h"
 #include "src/hashmap.h"
-#include "src/heap.h"
+#include "src/heap/heap.h"
 #include "src/optimizing-compiler-thread.h"
 #include "src/regexp-stack.h"
 #include "src/runtime.h"

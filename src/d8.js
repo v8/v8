@@ -1997,10 +1997,7 @@ function Stringify(x, depth) {
       } catch(e) {}
       var props = [];
       var names = Object.getOwnPropertyNames(x);
-      if (Object.getOwnPropertySymbols) {
-        // FLAG_harmony_symbols is turned on.
-        names = names.concat(Object.getOwnPropertySymbols(x));
-      }
+      names = names.concat(Object.getOwnPropertySymbols(x));
       for (var i in names) {
         var name = names[i];
         var desc = Object.getOwnPropertyDescriptor(x, name);

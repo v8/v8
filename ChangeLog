@@ -1,3 +1,13 @@
+2014-08-06: Version 3.28.59
+
+        Removed GetConstructor from the API. Instead either get the
+        "constructor" property stored in the prototype, or keep a side-table.
+
+        Enable ES6 Symbols by default (issue 2158).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-05: Version 3.28.57
 
         Add dependencies on gtest and gmock.

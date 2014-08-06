@@ -102,7 +102,8 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
     Node::Uses uses = node->uses();
     for (Node::Uses::iterator it = uses.begin(); it != uses.end(); ++it) {
       CHECK(!NodeProperties::IsValueEdge(it.edge()) ||
-            (*it)->opcode() == IrOpcode::kProjection);
+            (*it)->opcode() == IrOpcode::kProjection ||
+            (*it)->opcode() == IrOpcode::kParameter);
     }
   }
 
@@ -148,10 +149,18 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
     case IrOpcode::kThrow:
       // TODO(rossberg): what are the constraints on these?
       break;
-    case IrOpcode::kParameter:
-      // Parameters have no inputs.
-      CHECK_EQ(0, input_count);
+    case IrOpcode::kParameter: {
+      // Parameters have the start node as inputs.
+      CHECK_EQ(1, input_count);
+      CHECK_EQ(IrOpcode::kStart,
+               NodeProperties::GetValueInput(node, 0)->opcode());
+      // Parameter has an input that produces enough values.
+      int index = static_cast<Operator1<int>*>(node->op())->parameter();
+      Node* input = NodeProperties::GetValueInput(node, 0);
+      // Currently, parameter indices start at -1 instead of 0.
+      CHECK_GT(NodeProperties::GetValueOutputCount(input), index + 1);
       break;
+    }
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
     case IrOpcode::kFloat64Constant:
@@ -215,8 +224,10 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
 void Verifier::Run(Graph* graph) {
   Visitor visitor(graph->zone());
 
+  CHECK_NE(NULL, graph->start());
   visitor.from_start = true;
   graph->VisitNodeUsesFromStart(&visitor);
+  CHECK_NE(NULL, graph->end());
   visitor.from_start = false;
   graph->VisitNodeInputsFromEnd(&visitor);
 
