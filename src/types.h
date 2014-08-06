@@ -431,6 +431,10 @@ class TypeImpl : public Config::Base {
 
   void PrintTo(OStream& os, PrintDimension dim = BOTH_DIMS);  // NOLINT
 
+#ifdef DEBUG
+  void Print();
+#endif
+
  protected:
   // Friends.
 

@@ -905,6 +905,16 @@ void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
 }
 
 
+#ifdef DEBUG
+template <class Config>
+void TypeImpl<Config>::Print() {
+  OFStream os(stdout);
+  PrintTo(os);
+  os << endl;
+}
+#endif
+
+
 // -----------------------------------------------------------------------------
 // Instantiations.
 
