@@ -218,6 +218,27 @@ def ExpandInlineMacros(lines):
     lines = ExpandMacroDefinition(lines, pos, name_pattern, macro, non_expander)
 
 
+INLINE_CONSTANT_PATTERN = re.compile(r'const\s+([a-zA-Z0-9_]+)\s*=\s*([^;\n]+)[;\n]')
+
+def ExpandInlineConstants(lines):
+  pos = 0
+  while True:
+    const_match = INLINE_CONSTANT_PATTERN.search(lines, pos)
+    if const_match is None:
+      # no more constants
+      return lines
+    name = const_match.group(1)
+    replacement = const_match.group(2)
+    name_pattern = re.compile("\\b%s\\b" % name)
+
+    # remove constant definition and replace
+    lines = (lines[:const_match.start()] +
+             re.sub(name_pattern, replacement, lines[const_match.end():]))
+
+    # advance position to where the constant defintion was
+    pos = const_match.start()
+
+
 HEADER_TEMPLATE = """\
 // Copyright 2011 Google Inc. All Rights Reserved.
 
@@ -333,6 +354,7 @@ def BuildFilterChain(macro_filename):
   filter_chain.extend([
     RemoveCommentsAndTrailingWhitespace,
     ExpandInlineMacros,
+    ExpandInlineConstants,
     Validate,
     jsmin.JavaScriptMinifier().JSMinify
   ])

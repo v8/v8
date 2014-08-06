@@ -56,12 +56,6 @@ function MathCeil(x) {
   return -MathFloor(-x);
 }
 
-// ECMA 262 - 15.8.2.7
-function MathCos(x) {
-  x = MathAbs(x);  // Convert to number and get rid of -0.
-  return TrigonometricInterpolation(x, 1);
-}
-
 // ECMA 262 - 15.8.2.8
 function MathExp(x) {
   return %MathExpRT(TO_NUMBER_INLINE(x));
@@ -164,96 +158,15 @@ function MathRound(x) {
   return %RoundNumber(TO_NUMBER_INLINE(x));
 }
 
-// ECMA 262 - 15.8.2.16
-function MathSin(x) {
-  x = x * 1;  // Convert to number and deal with -0.
-  if (%_IsMinusZero(x)) return x;
-  return TrigonometricInterpolation(x, 0);
-}
-
 // ECMA 262 - 15.8.2.17
 function MathSqrt(x) {
   return %_MathSqrtRT(TO_NUMBER_INLINE(x));
-}
-
-// ECMA 262 - 15.8.2.18
-function MathTan(x) {
-  return MathSin(x) / MathCos(x);
 }
 
 // Non-standard extension.
 function MathImul(x, y) {
   return %NumberImul(TO_NUMBER_INLINE(x), TO_NUMBER_INLINE(y));
 }
-
-
-var kInversePiHalf      = 0.636619772367581343;      // 2 / pi
-var kInversePiHalfS26   = 9.48637384723993156e-9;    // 2 / pi / (2^26)
-var kS26                = 1 << 26;
-var kTwoStepThreshold   = 1 << 27;
-// pi / 2 rounded up
-var kPiHalf             = 1.570796326794896780;      // 0x192d4454fb21f93f
-// We use two parts for pi/2 to emulate a higher precision.
-// pi_half_1 only has 26 significant bits for mantissa.
-// Note that pi_half > pi_half_1 + pi_half_2
-var kPiHalf1            = 1.570796325802803040;      // 0x00000054fb21f93f
-var kPiHalf2            = 9.920935796805404252e-10;  // 0x3326a611460b113e
-
-var kSamples;            // Initialized to a number during genesis.
-var kIndexConvert;       // Initialized to kSamples / (pi/2) during genesis.
-var kSinTable;           // Initialized to a Float64Array during genesis.
-var kCosXIntervalTable;  // Initialized to a Float64Array during genesis.
-
-// This implements sine using the following algorithm.
-// 1) Multiplication takes care of to-number conversion.
-// 2) Reduce x to the first quadrant [0, pi/2].
-//    Conveniently enough, in case of +/-Infinity, we get NaN.
-//    Note that we try to use only 26 instead of 52 significant bits for
-//    mantissa to avoid rounding errors when multiplying.  For very large
-//    input we therefore have additional steps.
-// 3) Replace x by (pi/2-x) if x was in the 2nd or 4th quadrant.
-// 4) Do a table lookup for the closest samples to the left and right of x.
-// 5) Find the derivatives at those sampling points by table lookup:
-//    dsin(x)/dx = cos(x) = sin(pi/2-x) for x in [0, pi/2].
-// 6) Use cubic spline interpolation to approximate sin(x).
-// 7) Negate the result if x was in the 3rd or 4th quadrant.
-// 8) Get rid of -0 by adding 0.
-function TrigonometricInterpolation(x, phase) {
-  if (x < 0 || x > kPiHalf) {
-    var multiple;
-    while (x < -kTwoStepThreshold || x > kTwoStepThreshold) {
-      // Let's assume this loop does not terminate.
-      // All numbers x in each loop forms a set S.
-      // (1) abs(x) > 2^27 for all x in S.
-      // (2) abs(multiple) != 0 since (2^27 * inverse_pi_half_s26) > 1
-      // (3) multiple is rounded down in 2^26 steps, so the rounding error is
-      //     at most max(ulp, 2^26).
-      // (4) so for x > 2^27, we subtract at most (1+pi/4)x and at least
-      //     (1-pi/4)x
-      // (5) The subtraction results in x' so that abs(x') <= abs(x)*pi/4.
-      //     Note that this difference cannot be simply rounded off.
-      // Set S cannot exist since (5) violates (1).  Loop must terminate.
-      multiple = MathFloor(x * kInversePiHalfS26) * kS26;
-      x = x - multiple * kPiHalf1 - multiple * kPiHalf2;
-    }
-    multiple = MathFloor(x * kInversePiHalf);
-    x = x - multiple * kPiHalf1 - multiple * kPiHalf2;
-    phase += multiple;
-  }
-  var double_index = x * kIndexConvert;
-  if (phase & 1) double_index = kSamples - double_index;
-  var index = double_index | 0;
-  var t1 = double_index - index;
-  var t2 = 1 - t1;
-  var y1 = kSinTable[index];
-  var y2 = kSinTable[index + 1];
-  var dy = y2 - y1;
-  return (t2 * y1 + t1 * y2 +
-              t1 * t2 * ((kCosXIntervalTable[index] - dy) * t2 +
-                         (dy - kCosXIntervalTable[index + 1]) * t1))
-         * (1 - (phase & 2)) + 0;
-}
-
 
 // ES6 draft 09-27-13, section 20.2.2.28.
 function MathSign(x) {
@@ -264,7 +177,6 @@ function MathSign(x) {
   return NAN;
 }
 
-
 // ES6 draft 09-27-13, section 20.2.2.34.
 function MathTrunc(x) {
   x = TO_NUMBER_INLINE(x);
@@ -274,7 +186,6 @@ function MathTrunc(x) {
   return NAN;
 }
 
-
 // ES6 draft 09-27-13, section 20.2.2.30.
 function MathSinh(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
@@ -283,14 +194,12 @@ function MathSinh(x) {
   return (MathExp(x) - MathExp(-x)) / 2;
 }
 
-
 // ES6 draft 09-27-13, section 20.2.2.12.
 function MathCosh(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
   if (!NUMBER_IS_FINITE(x)) return MathAbs(x);
   return (MathExp(x) + MathExp(-x)) / 2;
 }
-
 
 // ES6 draft 09-27-13, section 20.2.2.33.
 function MathTanh(x) {
@@ -304,7 +213,6 @@ function MathTanh(x) {
   return (exp1 - exp2) / (exp1 + exp2);
 }
 
-
 // ES6 draft 09-27-13, section 20.2.2.5.
 function MathAsinh(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
@@ -315,7 +223,6 @@ function MathAsinh(x) {
   return -MathLog(-x + MathSqrt(x * x + 1));
 }
 
-
 // ES6 draft 09-27-13, section 20.2.2.3.
 function MathAcosh(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
@@ -324,7 +231,6 @@ function MathAcosh(x) {
   if (!NUMBER_IS_FINITE(x)) return x;
   return MathLog(x + MathSqrt(x + 1) * MathSqrt(x - 1));
 }
-
 
 // ES6 draft 09-27-13, section 20.2.2.7.
 function MathAtanh(x) {
@@ -336,7 +242,6 @@ function MathAtanh(x) {
   return 0.5 * MathLog((1 + x) / (1 - x));
 }
 
-
 // ES6 draft 09-27-13, section 20.2.2.21.
 function MathLog10(x) {
   return MathLog(x) * 0.434294481903251828;  // log10(x) = log(x)/log(10).
@@ -347,7 +252,6 @@ function MathLog10(x) {
 function MathLog2(x) {
   return MathLog(x) * 1.442695040888963407;  // log2(x) = log(x)/log(2).
 }
-
 
 // ES6 draft 09-27-13, section 20.2.2.17.
 function MathHypot(x, y) {  // Function length is 2.
@@ -381,13 +285,12 @@ function MathHypot(x, y) {  // Function length is 2.
   return MathSqrt(sum) * max;
 }
 
-
 // ES6 draft 09-27-13, section 20.2.2.16.
 function MathFroundJS(x) {
   return %MathFround(TO_NUMBER_INLINE(x));
 }
 
-
+// ES6 draft 07-18-14, section 20.2.2.11
 function MathClz32(x) {
   x = ToUint32(TO_NUMBER_INLINE(x));
   if (x == 0) return 32;
@@ -400,7 +303,6 @@ function MathClz32(x) {
   if ((x & 0x80000000) === 0) { x <<=  1; result +=  1; };
   return result;
 }
-
 
 // ES6 draft 09-27-13, section 20.2.2.9.
 // Cube root approximation, refer to: http://metamerist.com/cbrt/cbrt.htm
@@ -425,8 +327,6 @@ function CubeRoot(x) {
   return NEWTON_ITERATION_CBRT(x, approx);
 }
 
-
-
 // ES6 draft 09-27-13, section 20.2.2.14.
 // Use Taylor series to approximate.
 // exp(x) - 1 at 0 == -1 + exp(0) + exp'(0)*x/1! + exp''(0)*x^2/2! + ...
@@ -446,7 +346,6 @@ function MathExpm1(x) {
     return MathExp(x) - 1;
   }
 }
-
 
 // ES6 draft 09-27-13, section 20.2.2.20.
 // Use Taylor series to approximate. With y = x + 1;
@@ -502,14 +401,14 @@ function SetUpMath() {
     "asin", MathAsinJS,
     "atan", MathAtanJS,
     "ceil", MathCeil,
-    "cos", MathCos,
+    "cos", MathCos,       // implemented by third_party/fdlibm
     "exp", MathExp,
     "floor", MathFloor,
     "log", MathLog,
     "round", MathRound,
-    "sin", MathSin,
+    "sin", MathSin,       // implemented by third_party/fdlibm
     "sqrt", MathSqrt,
-    "tan", MathTan,
+    "tan", MathTan,       // implemented by third_party/fdlibm
     "atan2", MathAtan2JS,
     "pow", MathPow,
     "max", MathMax,
@@ -537,8 +436,6 @@ function SetUpMath() {
   %SetInlineBuiltinFlag(MathRandom);
   %SetInlineBuiltinFlag(MathSin);
   %SetInlineBuiltinFlag(MathCos);
-  %SetInlineBuiltinFlag(MathTan);
-  %SetInlineBuiltinFlag(TrigonometricInterpolation);
 }
 
 SetUpMath();

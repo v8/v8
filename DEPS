@@ -41,6 +41,7 @@ include_rules = [
   # Everybody can use some things.
   "+include",
   "+unicode",
+  "+third_party/fdlibm",
 ]
 
 # checkdeps.py shouldn't check for includes in these directories:

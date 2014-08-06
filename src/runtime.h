@@ -149,6 +149,7 @@ namespace internal {
   F(MathExpRT, 1, 1)                                        \
   F(RoundNumber, 1, 1)                                      \
   F(MathFround, 1, 1)                                       \
+  F(RemPiO2, 1, 1)                                          \
                                                             \
   /* Regular expressions */                                 \
   F(RegExpCompile, 3, 1)                                    \

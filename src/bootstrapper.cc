@@ -14,7 +14,7 @@
 #include "src/isolate-inl.h"
 #include "src/natives.h"
 #include "src/snapshot.h"
-#include "src/trig-table.h"
+#include "third_party/fdlibm/fdlibm.h"
 
 namespace v8 {
 namespace internal {
@@ -121,7 +121,7 @@ char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
 void Bootstrapper::TearDown() {
   if (delete_these_non_arrays_on_tear_down_ != NULL) {
     int len = delete_these_non_arrays_on_tear_down_->length();
-    DCHECK(len < 24);  // Don't use this mechanism for unbounded allocations.
+    DCHECK(len < 25);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
       delete delete_these_non_arrays_on_tear_down_->at(i);
       delete_these_non_arrays_on_tear_down_->at(i) = NULL;
@@ -2651,43 +2651,19 @@ Genesis::Genesis(Isolate* isolate,
                                   NONE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
-    const int table_num_bytes = TrigonometricLookupTable::table_num_bytes();
-    v8::Local<v8::ArrayBuffer> sin_buffer = v8::ArrayBuffer::New(
+    const int constants_size = ARRAY_SIZE(TrigonometricConstants::constants);
+    const int table_num_bytes = constants_size * kDoubleSize;
+    v8::Local<v8::ArrayBuffer> trig_buffer = v8::ArrayBuffer::New(
         reinterpret_cast<v8::Isolate*>(isolate),
-        TrigonometricLookupTable::sin_table(), table_num_bytes);
-    v8::Local<v8::ArrayBuffer> cos_buffer = v8::ArrayBuffer::New(
-        reinterpret_cast<v8::Isolate*>(isolate),
-        TrigonometricLookupTable::cos_x_interval_table(), table_num_bytes);
-    v8::Local<v8::Float64Array> sin_table = v8::Float64Array::New(
-        sin_buffer, 0, TrigonometricLookupTable::table_size());
-    v8::Local<v8::Float64Array> cos_table = v8::Float64Array::New(
-        cos_buffer, 0, TrigonometricLookupTable::table_size());
+        const_cast<double*>(TrigonometricConstants::constants),
+        table_num_bytes);
+    v8::Local<v8::Float64Array> trig_table =
+        v8::Float64Array::New(trig_buffer, 0, constants_size);
 
-    Runtime::DefineObjectProperty(builtins,
-                                  factory()->InternalizeOneByteString(
-                                      STATIC_ASCII_VECTOR("kSinTable")),
-                                  Utils::OpenHandle(*sin_table),
-                                  NONE).Assert();
     Runtime::DefineObjectProperty(
         builtins,
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("kCosXIntervalTable")),
-        Utils::OpenHandle(*cos_table),
-        NONE).Assert();
-    Runtime::DefineObjectProperty(
-        builtins,
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("kSamples")),
-        factory()->NewHeapNumber(
-            TrigonometricLookupTable::samples()),
-        NONE).Assert();
-    Runtime::DefineObjectProperty(
-        builtins,
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("kIndexConvert")),
-        factory()->NewHeapNumber(
-            TrigonometricLookupTable::samples_over_pi_half()),
-        NONE).Assert();
+        factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("kTrig")),
+        Utils::OpenHandle(*trig_table), NONE).Assert();
   }
 
   result_ = native_context();
