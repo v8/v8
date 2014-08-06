@@ -866,8 +866,8 @@ source_set("v8_base") {
     "src/zone-inl.h",
     "src/zone.cc",
     "src/zone.h",
-    "third_party/fdlibm/fdlibm.cc',
-    "third_party/fdlibm/fdlibm.h',
+    "third_party/fdlibm/fdlibm.cc",
+    "third_party/fdlibm/fdlibm.h",
   ]
 
   if (v8_target_arch == "x86") {
