@@ -145,7 +145,7 @@ class OperandGenerator {
 
   InstructionOperand* Label(BasicBlock* block) {
     // TODO(bmeurer): We misuse ImmediateOperand here.
-    return TempImmediate(block->id());
+    return ImmediateOperand::Create(block->id(), zone());
   }
 
  protected:
