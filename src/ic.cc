@@ -1089,13 +1089,16 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
     if (receiver_is_holder) {
       return SimpleFieldLoad(field);
     }
-    return compiler.CompileLoadField(name, field, lookup->representation());
+    return compiler.CompileLoadField(name, field);
   }
 
   // -------------- Constant properties --------------
   DCHECK(lookup->property_details().type() == CONSTANT);
-  Handle<Object> constant = lookup->GetDataValue();
-  return compiler.CompileLoadConstant(name, constant);
+  if (receiver_is_holder) {
+    LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
+    return stub.GetCode();
+  }
+  return compiler.CompileLoadConstant(name, lookup->GetConstantIndex());
 }
 
 

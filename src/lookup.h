@@ -140,6 +140,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return property_details().representation();
   }
   FieldIndex GetFieldIndex() const;
+  int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
   Handle<Object> GetAccessors() const;
   Handle<Object> GetDataValue() const;

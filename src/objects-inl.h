@@ -2982,6 +2982,11 @@ Object** DescriptorArray::GetValueSlot(int descriptor_number) {
 }
 
 
+int DescriptorArray::GetValueOffset(int descriptor_number) {
+  return OffsetOfElementAt(ToValueIndex(descriptor_number));
+}
+
+
 Object* DescriptorArray::GetValue(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   return get(ToValueIndex(descriptor_number));

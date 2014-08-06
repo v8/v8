@@ -205,8 +205,18 @@ Handle<Object> LookupIterator::FetchValue() const {
 }
 
 
+int LookupIterator::GetConstantIndex() const {
+  DCHECK(has_property_);
+  DCHECK_EQ(DESCRIPTOR, property_encoding_);
+  DCHECK_EQ(v8::internal::CONSTANT, property_details_.type());
+  return descriptor_number();
+}
+
+
 FieldIndex LookupIterator::GetFieldIndex() const {
-  DCHECK_EQ(PROPERTY, state_);
+  DCHECK(has_property_);
+  DCHECK_EQ(DESCRIPTOR, property_encoding_);
+  DCHECK_EQ(v8::internal::FIELD, property_details_.type());
   int index =
       holder_map()->instance_descriptors()->GetFieldIndex(descriptor_number());
   bool is_double = representation().IsDouble();

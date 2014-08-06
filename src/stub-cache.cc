@@ -842,18 +842,22 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
 }
 
 
-Handle<Code> NamedLoadHandlerCompiler::CompileLoadField(
-    Handle<Name> name, FieldIndex field, Representation representation) {
+Handle<Code> NamedLoadHandlerCompiler::CompileLoadField(Handle<Name> name,
+                                                        FieldIndex field) {
   Register reg = Frontend(receiver(), name);
-  GenerateLoadField(reg, field, representation);
+  __ Move(receiver(), reg);
+  LoadFieldStub stub(isolate(), field);
+  GenerateTailCall(masm(), stub.GetCode());
   return GetCode(kind(), Code::FAST, name);
 }
 
 
-Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(
-    Handle<Name> name, Handle<Object> value) {
-  Frontend(receiver(), name);
-  GenerateLoadConstant(value);
+Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(Handle<Name> name,
+                                                           int constant_index) {
+  Register reg = Frontend(receiver(), name);
+  __ Move(receiver(), reg);
+  LoadConstantStub stub(isolate(), constant_index);
+  GenerateTailCall(masm(), stub.GetCode());
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -917,7 +921,9 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
   Register reg = Frontend(interceptor_reg, name);
 
   if (lookup->IsField()) {
-    GenerateLoadField(reg, lookup->GetFieldIndex(), lookup->representation());
+    __ Move(receiver(), reg);
+    LoadFieldStub stub(isolate(), lookup->GetFieldIndex());
+    GenerateTailCall(masm(), stub.GetCode());
   } else {
     DCHECK(lookup->type() == CALLBACKS);
     Handle<ExecutableAccessorInfo> callback(

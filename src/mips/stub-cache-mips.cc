@@ -840,14 +840,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
 }
 
 
-void NamedLoadHandlerCompiler::GenerateLoadField(
-    Register reg, FieldIndex field, Representation representation) {
-  if (!reg.is(receiver())) __ mov(receiver(), reg);
-  LoadFieldStub stub(isolate(), field);
-  GenerateTailCall(masm(), stub.GetCode());
-}
-
-
 void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
   // Return the constant value.
   __ li(v0, value);

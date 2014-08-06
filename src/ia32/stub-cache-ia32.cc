@@ -810,14 +810,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
 }
 
 
-void NamedLoadHandlerCompiler::GenerateLoadField(
-    Register reg, FieldIndex field, Representation representation) {
-  if (!reg.is(receiver())) __ mov(receiver(), reg);
-  LoadFieldStub stub(isolate(), field);
-  GenerateTailCall(masm(), stub.GetCode());
-}
-
-
 void NamedLoadHandlerCompiler::GenerateLoadCallback(
     Register reg, Handle<ExecutableAccessorInfo> callback) {
   // Insert additional parameters into the stack frame above return address.
