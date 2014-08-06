@@ -1797,7 +1797,7 @@ Disassembler::Disassembler(const NameConverter& converter)
     : converter_(converter) {}
 
 
-Disassembler::~Disassembler() {}
+Disassembler::~Disassembler() { USE(converter_); }
 
 
 int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,

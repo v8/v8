@@ -1,3 +1,10 @@
+2014-08-06: Version 3.28.60
+
+        Enable ES6 Map and Set by default (issue 1622).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-06: Version 3.28.59
 
         Removed GetConstructor from the API. Instead either get the

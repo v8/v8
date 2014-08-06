@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-collections --harmony-iteration
 // Flags: --expose-gc --allow-natives-syntax
 
 
@@ -290,20 +289,19 @@ assertEquals("WeakSet", WeakSet.name);
 
 
 // Test prototype property of Set, Map, WeakMap and WeakSet.
-// TODO(2793): Should all be non-writable, and the extra flag removed.
-function TestPrototype(C, writable) {
+function TestPrototype(C) {
   assertTrue(C.prototype instanceof Object);
   assertEquals({
     value: {},
-    writable: writable,
+    writable: false,
     enumerable: false,
     configurable: false
   }, Object.getOwnPropertyDescriptor(C, "prototype"));
 }
-TestPrototype(Set, true);
-TestPrototype(Map, true);
-TestPrototype(WeakMap, false);
-TestPrototype(WeakSet, false);
+TestPrototype(Set);
+TestPrototype(Map);
+TestPrototype(WeakMap);
+TestPrototype(WeakSet);
 
 
 // Test constructor property of the Set, Map, WeakMap and WeakSet prototype.
@@ -1029,11 +1027,17 @@ for (var i = 9; i >= 0; i--) {
 })();
 
 
+// Allows testing iterator-based constructors easily.
+var oneAndTwo = new Set();
+oneAndTwo.add(1);
+oneAndTwo.add(2);
+
+
 (function TestSetConstructorAddNotCallable() {
   var originalSetPrototypeAdd = Set.prototype.add;
   assertThrows(function() {
     Set.prototype.add = 42;
-    new Set([1, 2].values());
+    new Set(oneAndTwo.values());
   }, TypeError);
   Set.prototype.add = originalSetPrototypeAdd;
 })();
@@ -1048,7 +1052,7 @@ for (var i = 9; i >= 0; i--) {
       return function() {};
     }
   });
-  var s = new Set([1, 2].values());
+  var s = new Set(oneAndTwo.values());
   assertEquals(getAddCount, 1);
   assertEquals(s.size, 0);
   Object.defineProperty(Set.prototype, 'add', {
@@ -1066,7 +1070,7 @@ for (var i = 9; i >= 0; i--) {
     originalSetPrototypeAdd.call(this, value);
     Set.prototype.add = null;
   };
-  var s = new Set([1, 2].values());
+  var s = new Set(oneAndTwo.values());
   assertEquals(addCount, 2);
   assertEquals(s.size, 2);
   Set.prototype.add = originalSetPrototypeAdd;
@@ -1158,7 +1162,7 @@ for (var i = 9; i >= 0; i--) {
   var originalMapPrototypeSet = Map.prototype.set;
   assertThrows(function() {
     Map.prototype.set = 42;
-    new Map([1, 2].entries());
+    new Map(oneAndTwo.entries());
   }, TypeError);
   Map.prototype.set = originalMapPrototypeSet;
 })();
@@ -1173,7 +1177,7 @@ for (var i = 9; i >= 0; i--) {
       return function() {};
     }
   });
-  var m = new Map([1, 2].entries());
+  var m = new Map(oneAndTwo.entries());
   assertEquals(getSetCount, 1);
   assertEquals(m.size, 0);
   Object.defineProperty(Map.prototype, 'set', {
@@ -1191,7 +1195,7 @@ for (var i = 9; i >= 0; i--) {
     originalMapPrototypeSet.call(this, key, value);
     Map.prototype.set = null;
   };
-  var m = new Map([1, 2].entries());
+  var m = new Map(oneAndTwo.entries());
   assertEquals(setCount, 2);
   assertEquals(m.size, 2);
   Map.prototype.set = originalMapPrototypeSet;
@@ -1242,6 +1246,6 @@ for (var i = 9; i >= 0; i--) {
 
 (function TestMapConstructorIteratorNotObjectValues() {
   assertThrows(function() {
-    new Map([1, 2].values());
+    new Map(oneAndTwo.values());
   }, TypeError);
 })();

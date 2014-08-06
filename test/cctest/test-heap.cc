@@ -3001,7 +3001,8 @@ TEST(ReleaseOverReservedPages) {
 
   // Triggering one GC will cause a lot of garbage to be discovered but
   // even spread across all allocated pages.
-  heap->CollectAllGarbage(Heap::kNoGCFlags, "triggered for preparation");
+  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
+                          "triggered for preparation");
   CHECK_GE(number_of_test_pages + 1, old_pointer_space->CountTotalPages());
 
   // Triggering subsequent GCs should cause at least half of the pages

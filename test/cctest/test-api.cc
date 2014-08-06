@@ -21406,7 +21406,6 @@ THREADED_TEST(Regress157124) {
 
 
 THREADED_TEST(Regress2535) {
-  i::FLAG_harmony_collections = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Local<Value> set_value = CompileRun("new Set();");

@@ -38,8 +38,6 @@ using namespace v8::internal;
 
 
 TEST(Set) {
-  i::FLAG_harmony_collections = true;
-
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -105,8 +103,6 @@ TEST(Set) {
 
 
 TEST(Map) {
-  i::FLAG_harmony_collections = true;
-
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
