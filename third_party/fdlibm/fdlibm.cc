@@ -20,7 +20,7 @@
 
 
 namespace v8 {
-namespace internal {
+namespace fdlibm {
 
 #ifdef _MSC_VER
 inline double scalbn(double x, int y) { return _scalb(x, y); }
@@ -228,7 +228,7 @@ recompute:
 
 
 int rempio2(double x, double* y) {
-  int32_t hx = static_cast<int32_t>(double_to_uint64(x) >> 32);
+  int32_t hx = static_cast<int32_t>(internal::double_to_uint64(x) >> 32);
   int32_t ix = hx & 0x7fffffff;
 
   if (ix >= 0x7ff00000) {
@@ -237,9 +237,9 @@ int rempio2(double x, double* y) {
   }
 
   int32_t e0 = (ix >> 20) - 1046;
-  uint64_t zi = double_to_uint64(x) & 0xFFFFFFFFu;
+  uint64_t zi = internal::double_to_uint64(x) & 0xFFFFFFFFu;
   zi |= static_cast<uint64_t>(ix - (e0 << 20)) << 32;
-  double z = uint64_to_double(zi);
+  double z = internal::uint64_to_double(zi);
 
   double tx[3];
   for (int i = 0; i < 2; i++) {

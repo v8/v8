@@ -17,7 +17,7 @@
 #define V8_FDLIBM_H_
 
 namespace v8 {
-namespace internal {
+namespace fdlibm {
 
 int rempio2(double x, double* y);
 

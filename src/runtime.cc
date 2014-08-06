@@ -7690,7 +7690,7 @@ RUNTIME_FUNCTION(Runtime_RemPiO2) {
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   Factory* factory = isolate->factory();
   double y[2];
-  int n = rempio2(x, y);
+  int n = fdlibm::rempio2(x, y);
   Handle<FixedArray> array = factory->NewFixedArray(3);
   Handle<HeapNumber> y0 = factory->NewHeapNumber(y[0]);
   Handle<HeapNumber> y1 = factory->NewHeapNumber(y[1]);
