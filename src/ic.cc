@@ -1855,8 +1855,13 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver,
       isolate()->context()->native_context()->array_function(), isolate());
   if (array_function.is_identical_to(Handle<JSFunction>::cast(function))) {
     // Alter the slot.
-    Handle<AllocationSite> new_site = isolate()->factory()->NewAllocationSite();
-    vector->set(slot->value(), *new_site);
+    Object* feedback = vector->get(slot->value());
+    if (!feedback->IsAllocationSite()) {
+      Handle<AllocationSite> new_site =
+          isolate()->factory()->NewAllocationSite();
+      vector->set(slot->value(), *new_site);
+    }
+
     CallIC_ArrayStub stub(isolate(), state);
     set_target(*stub.GetCode());
     Handle<String> name;
@@ -1896,6 +1901,9 @@ void CallIC::HandleMiss(Handle<Object> receiver,
   State state(target()->extra_ic_state());
   Object* feedback = vector->get(slot->value());
 
+  // Hand-coded MISS handling is easier if CallIC slots don't contain smis.
+  ASSERT(!feedback->IsSmi());
+
   if (feedback->IsJSFunction() || !function->IsJSFunction()) {
     // We are going generic.
     vector->set(slot->value(),
@@ -1904,9 +1912,14 @@ void CallIC::HandleMiss(Handle<Object> receiver,
 
     TRACE_GENERIC_IC(isolate(), "CallIC", "megamorphic");
   } else {
-    // If we came here feedback must be the uninitialized sentinel,
-    // and we are going monomorphic.
-    ASSERT(feedback == *TypeFeedbackInfo::UninitializedSentinel(isolate()));
+    // The feedback is either uninitialized or an allocation site.
+    // It might be an allocation site because if we re-compile the full code
+    // to add deoptimization support, we call with the default call-ic, and
+    // merely need to patch the target to match the feedback.
+    // TODO(mvstanton): the better approach is to dispense with patching
+    // altogether, which is in progress.
+    ASSERT(feedback == *TypeFeedbackInfo::UninitializedSentinel(isolate()) ||
+           feedback->IsAllocationSite());
 
     // Do we want to install a custom handler?
     if (FLAG_use_ic &&

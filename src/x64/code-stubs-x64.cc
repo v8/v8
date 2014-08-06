@@ -2378,12 +2378,16 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ cmpq(rdi, rcx);
   __ j(not_equal, &miss);
 
-  __ movq(rax, Immediate(arg_count()));
-  __ movp(rbx, FieldOperand(rbx, rdx, times_pointer_size,
+  __ movp(rax, Immediate(arg_count()));
+  __ movp(rcx, FieldOperand(rbx, rdx, times_pointer_size,
                             FixedArray::kHeaderSize));
-
   // Verify that ecx contains an AllocationSite
-  __ AssertUndefinedOrAllocationSite(rbx);
+  Factory* factory = masm->isolate()->factory();
+  __ Cmp(FieldOperand(rcx, HeapObject::kMapOffset),
+         factory->allocation_site_map());
+  __ j(not_equal, &miss);
+
+  __ movp(rbx, rcx);
   ArrayConstructorStub stub(masm->isolate(), arg_count());
   __ TailCallStub(&stub);
 
@@ -2457,7 +2461,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ j(equal, &miss);
 
   if (!FLAG_trace_ic) {
-    // We are going megamorphic, and we don't want to visit the runtime.
+    // We are going megamorphic. If the feedback is a JSFunction, it is fine
+    // to handle it here. More complex cases are dealt with in the runtime.
+    __ AssertNotSmi(rcx);
+    __ CmpObjectType(rcx, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &miss);
     __ Move(FieldOperand(rbx, rdx, times_pointer_size,
                          FixedArray::kHeaderSize),
             TypeFeedbackInfo::MegamorphicSentinel(isolate));
