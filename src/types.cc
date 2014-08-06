@@ -425,7 +425,7 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Rebound(
   } else if (this->IsArray()) {
     return ArrayType::New(this->AsArray()->Element(), bound, region);
   } else if (this->IsFunction()) {
-    FunctionType* function = this->AsFunction();
+    FunctionHandle function = Config::handle(this->AsFunction());
     int arity = function->Arity();
     FunctionHandle type = FunctionType::New(
         function->Result(), function->Receiver(), bound, arity, region);
@@ -747,36 +747,37 @@ typename TypeImpl<Config>::TypeHandle TypeImpl<Config>::Convert(
   if (type->IsBitset()) {
     return BitsetType::New(type->AsBitset(), region);
   } else if (type->IsClass()) {
-    return ClassType::New(
-        type->AsClass()->Map(),
-        BitsetType::New(type->BitsetLub(), region), region);
+    TypeHandle bound = BitsetType::New(type->BitsetLub(), region);
+    return ClassType::New(type->AsClass()->Map(), bound, region);
   } else if (type->IsConstant()) {
-    return ConstantType::New(
-        type->AsConstant()->Value(),
-        Convert<OtherType>(type->AsConstant()->Bound(), region), region);
+    TypeHandle bound = Convert<OtherType>(type->AsConstant()->Bound(), region);
+    return ConstantType::New(type->AsConstant()->Value(), bound, region);
   } else if (type->IsContext()) {
+    TypeHandle bound = Convert<OtherType>(type->AsContext()->Bound(), region);
     TypeHandle outer = Convert<OtherType>(type->AsContext()->Outer(), region);
-    return ContextType::New(outer, region);
+    return ContextType::New(outer, bound, region);
   } else if (type->IsUnion()) {
     int length = type->AsUnion()->Length();
     UnionHandle unioned = UnionType::New(length, region);
     for (int i = 0; i < length; ++i) {
-      unioned->Set(i, Convert<OtherType>(type->AsUnion()->Get(i), region));
+      TypeHandle t = Convert<OtherType>(type->AsUnion()->Get(i), region);
+      unioned->Set(i, t);
     }
     return unioned;
   } else if (type->IsArray()) {
-    return ArrayType::New(
-        Convert<OtherType>(type->AsArray()->Element(), region),
-        Convert<OtherType>(type->AsArray()->Bound(), region), region);
+    TypeHandle element = Convert<OtherType>(type->AsArray()->Element(), region);
+    TypeHandle bound = Convert<OtherType>(type->AsArray()->Bound(), region);
+    return ArrayType::New(element, bound, region);
   } else if (type->IsFunction()) {
+    TypeHandle res = Convert<OtherType>(type->AsFunction()->Result(), region);
+    TypeHandle rcv = Convert<OtherType>(type->AsFunction()->Receiver(), region);
+    TypeHandle bound = Convert<OtherType>(type->AsFunction()->Bound(), region);
     FunctionHandle function = FunctionType::New(
-        Convert<OtherType>(type->AsFunction()->Result(), region),
-        Convert<OtherType>(type->AsFunction()->Receiver(), region),
-        Convert<OtherType>(type->AsFunction()->Bound(), region),
-        type->AsFunction()->Arity(), region);
+        res, rcv, bound, type->AsFunction()->Arity(), region);
     for (int i = 0; i < function->Arity(); ++i) {
-      function->InitParameter(i,
-          Convert<OtherType>(type->AsFunction()->Parameter(i), region));
+      TypeHandle param = Convert<OtherType>(
+          type->AsFunction()->Parameter(i), region);
+      function->InitParameter(i, param);
     }
     return function;
   } else {
