@@ -331,11 +331,8 @@ void Assembler::GrowBuffer() {
 
   // Compute new buffer size.
   CodeDesc desc;  // the new buffer
-  if (buffer_size_ == 0) {
-    desc.buffer_size = kMinimalBufferSize;
-  } else {
-    desc.buffer_size = 2*buffer_size_;
-  }
+  desc.buffer_size = 2 * buffer_size_;
+
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if ((desc.buffer_size > kMaximalBufferSize) ||

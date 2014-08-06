@@ -134,15 +134,10 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
-  if (buffer == NULL) {
-    // Do our own buffer management.
-    buffer = NewArray<byte>(buffer_size);
-    own_buffer_ = true;
-  } else {
-    // Use externally provided buffer instead.
-    DCHECK(buffer_size > 0);
-    own_buffer_ = false;
-  }
+  own_buffer_ = buffer == NULL;
+  if (buffer_size == 0) buffer_size = kMinimalBufferSize;
+  DCHECK(buffer_size > 0);
+  if (own_buffer_) buffer = NewArray<byte>(buffer_size);
   buffer_ = static_cast<byte*>(buffer);
   buffer_size_ = buffer_size;
 

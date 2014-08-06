@@ -457,8 +457,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
 
 
 Handle<Code> LChunk::Codegen() {
-  MacroAssembler assembler(info()->isolate(), NULL,
-                           Assembler::kMinimalBufferSize);
+  MacroAssembler assembler(info()->isolate(), NULL, 0);
   LOG_CODE_EVENT(info()->isolate(),
                  CodeStartLinePosInfoRecordEvent(
                      assembler.positions_recorder()));

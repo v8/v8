@@ -3202,9 +3202,7 @@ void Assembler::GrowBuffer() {
 
   // Compute new buffer size.
   CodeDesc desc;  // the new buffer
-  if (buffer_size_ == 0) {
-    desc.buffer_size = kMinimalBufferSize;
-  } else if (buffer_size_ < 1*MB) {
+  if (buffer_size_ < 1 * MB) {
     desc.buffer_size = 2*buffer_size_;
   } else {
     desc.buffer_size = buffer_size_ + 1*MB;
