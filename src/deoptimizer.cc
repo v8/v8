@@ -1624,6 +1624,9 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   int major_key = CodeStub::GetMajorKey(compiled_code_);
   CodeStubInterfaceDescriptor* descriptor =
       isolate_->code_stub_interface_descriptor(major_key);
+  // Check that there is a matching descriptor to the major key.
+  // This will fail if there has not been one installed to the isolate.
+  DCHECK_EQ(descriptor->MajorKey(), major_key);
 
   // The output frame must have room for all pushed register parameters
   // and the standard stack frame slots.  Include space for an argument
