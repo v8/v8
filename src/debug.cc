@@ -2326,7 +2326,7 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   // Find the call address in the running code. This address holds the call to
   // either a DebugBreakXXX or to the debug break return entry code if the
   // break point is still active after processing the break point.
-  Address addr = frame->pc() - Assembler::kPatchDebugBreakSlotReturnOffset;
+  Address addr = Assembler::break_address_from_return_address(frame->pc());
 
   // Check if the location is at JS exit or debug break slot.
   bool at_js_return = false;
@@ -2417,7 +2417,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 #endif
 
   // Find the call address in the running code.
-  Address addr = frame->pc() - Assembler::kPatchDebugBreakSlotReturnOffset;
+  Address addr = Assembler::break_address_from_return_address(frame->pc());
 
   // Check if the location is at JS return.
   RelocIterator it(debug_info->code());

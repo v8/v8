@@ -458,6 +458,11 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 
+Address Assembler::break_address_from_return_address(Address pc) {
+  return pc - Assembler::kPatchDebugBreakSlotReturnOffset;
+}
+
+
 Address Assembler::return_address_from_call_start(Address pc) {
   if (IsLdrPcImmediateOffset(Memory::int32_at(pc)) |
       IsLdrPpImmediateOffset(Memory::int32_at(pc))) {

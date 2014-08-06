@@ -781,6 +781,9 @@ class Assembler : public AssemblerBase {
   // in the instruction stream that the call will return from.
   INLINE(static Address return_address_from_call_start(Address pc));
 
+  // Return the code target address of the patch debug break slot
+  INLINE(static Address break_address_from_return_address(Address pc));
+
   // This sets the branch destination (which is in the constant pool on ARM).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
