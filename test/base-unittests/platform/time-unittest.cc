@@ -31,10 +31,10 @@ TEST(TimeDelta, FromAndIn) {
   EXPECT_EQ(static_cast<int>(13), TimeDelta::FromHours(13).InHours());
   EXPECT_EQ(static_cast<int>(13), TimeDelta::FromMinutes(13).InMinutes());
   EXPECT_EQ(static_cast<int64_t>(13), TimeDelta::FromSeconds(13).InSeconds());
-  EXPECT_EQ(13.0, TimeDelta::FromSeconds(13).InSecondsF());
+  EXPECT_DOUBLE_EQ(13.0, TimeDelta::FromSeconds(13).InSecondsF());
   EXPECT_EQ(static_cast<int64_t>(13),
             TimeDelta::FromMilliseconds(13).InMilliseconds());
-  EXPECT_EQ(13.0, TimeDelta::FromMilliseconds(13).InMillisecondsF());
+  EXPECT_DOUBLE_EQ(13.0, TimeDelta::FromMilliseconds(13).InMillisecondsF());
   EXPECT_EQ(static_cast<int64_t>(13),
             TimeDelta::FromMicroseconds(13).InMicroseconds());
 }
@@ -54,7 +54,7 @@ TEST(TimeDelta, MachTimespec) {
 
 TEST(Time, JsTime) {
   Time t = Time::FromJsTime(700000.3);
-  EXPECT_EQ(700000.3, t.ToJsTime());
+  EXPECT_DOUBLE_EQ(700000.3, t.ToJsTime());
 }
 
 
