@@ -4,6 +4,9 @@
 
 #include "src/base/platform/time.h"
 
+#if V8_OS_MACOSX
+#include <mach/mach_time.h>
+#endif
 #if V8_OS_POSIX
 #include <sys/time.h>
 #endif
