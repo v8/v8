@@ -5,51 +5,38 @@
 // Flags: --expose-debug-as debug
 
 // Test debug events when we only listen to uncaught exceptions and
-// there is a catch handler for the exception thrown in a Promise.
+// the Promise is rejected within a try-catch in the Promise constructor.
 // We expect an Exception debug event with a promise to be triggered.
 
 Debug = debug.Debug;
 
-var log = [];
 var step = 0;
-
-var p = new Promise(function(resolve, reject) {
-  log.push("resolve");
-  resolve();
-});
-
-var q = p.chain(
-  function() {
-    log.push("throw");
-    throw new Error("uncaught");  // event
-  });
+var exception = null;
 
 function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.AsyncTaskEvent) return;
   try {
-    // Ignore exceptions during startup in stress runs.
-    if (step >= 1) return;
-    assertEquals(["resolve", "end main", "throw"], log);
     if (event == Debug.DebugEvent.Exception) {
       assertEquals(0, step);
       assertEquals("uncaught", event_data.exception().message);
       assertTrue(event_data.promise() instanceof Promise);
-      assertEquals(q, event_data.promise());
       assertTrue(event_data.uncaught());
       // Assert that the debug event is triggered at the throw site.
       assertTrue(exec_state.frame(0).sourceLineText().indexOf("// event") > 0);
       step++;
     }
   } catch (e) {
-    // Signal a failure with exit code 1.  This is necessary since the
-    // debugger swallows exceptions and we expect the chained function
-    // and this listener to be executed after the main script is finished.
-    print("Unexpected exception: " + e + "\n" + e.stack);
-    quit(1);
+    exception = e;
   }
 }
 
 Debug.setBreakOnUncaughtException();
 Debug.setListener(listener);
 
-log.push("end main");
+var p = new Promise(function(resolve, reject) {
+  try {  // This try-catch must not prevent this uncaught reject event.
+    reject(new Error("uncaught"));  // event
+  } catch (e) { }
+});
+
+assertEquals(1, step);
+assertNull(exception);

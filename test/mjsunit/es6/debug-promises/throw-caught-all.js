@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 // Test debug events when we listen to all exceptions and
 // there is a catch handler for the exception thrown in a Promise.
@@ -10,8 +10,8 @@
 
 Debug = debug.Debug;
 
+var expected_events = 1;
 var log = [];
-var step = 0;
 
 var p = new Promise(function(resolve, reject) {
   log.push("resolve");
@@ -30,23 +30,16 @@ q.catch(
   });
 
 function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.AsyncTaskEvent) return;
   try {
-    // Ignore exceptions during startup in stress runs.
-    if (step >= 1) return;
-    assertEquals(["resolve", "end main", "throw"], log);
     if (event == Debug.DebugEvent.Exception) {
+      expected_events--;
+      assertTrue(expected_events >= 0);
       assertEquals("caught", event_data.exception().message);
-      assertEquals(undefined, event_data.promise());
+      assertEquals(q, event_data.promise());
       assertFalse(event_data.uncaught());
-      step++;
     }
   } catch (e) {
-    // Signal a failure with exit code 1.  This is necessary since the
-    // debugger swallows exceptions and we expect the chained function
-    // and this listener to be executed after the main script is finished.
-    print("Unexpected exception: " + e + "\n" + e.stack);
-    quit(1);
+    %AbortJS(e + "\n" + e.stack);
   }
 }
 
@@ -54,3 +47,25 @@ Debug.setBreakOnException();
 Debug.setListener(listener);
 
 log.push("end main");
+
+function testDone(iteration) {
+  function checkResult() {
+    try {
+      assertTrue(iteration < 10);
+      if (expected_events === 0) {
+        assertEquals(["resolve", "end main", "throw"], log);
+      } else {
+        testDone(iteration + 1);
+      }
+    } catch (e) {
+      %AbortJS(e + "\n" + e.stack);
+    }
+  }
+
+  // Run testDone through the Object.observe processing loop.
+  var dummy = {};
+  Object.observe(dummy, checkResult);
+  dummy.dummy = dummy;
+}
+
+testDone(0);

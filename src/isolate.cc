@@ -1026,7 +1026,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
 
   // Notify debugger of exception.
   if (catchable_by_javascript) {
-    debug()->OnException(exception_handle, report_exception);
+    debug()->OnThrow(exception_handle, report_exception);
   }
 
   // Generate the message if required.

@@ -5465,22 +5465,19 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
 }
 
 
-// The argument is a closure that is kept until the epilogue is called.
-// On exception, the closure is called, which returns the promise if the
-// exception is considered uncaught, or undefined otherwise.
-RUNTIME_FUNCTION(Runtime_DebugPromiseHandlePrologue) {
+RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, promise_getter, 0);
-  isolate->debug()->PromiseHandlePrologue(promise_getter);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  isolate->debug()->PushPromise(promise);
   return isolate->heap()->undefined_value();
 }
 
 
-RUNTIME_FUNCTION(Runtime_DebugPromiseHandleEpilogue) {
+RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   DCHECK(args.length() == 0);
   SealHandleScope shs(isolate);
-  isolate->debug()->PromiseHandleEpilogue();
+  isolate->debug()->PopPromise();
   return isolate->heap()->undefined_value();
 }
 
@@ -5490,6 +5487,16 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseEvent) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, data, 0);
   isolate->debug()->OnPromiseEvent(data);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_DebugPromiseRejectEvent) {
+  DCHECK(args.length() == 2);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  isolate->debug()->OnPromiseReject(promise, value);
   return isolate->heap()->undefined_value();
 }
 

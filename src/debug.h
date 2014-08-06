@@ -335,17 +335,16 @@ class LockingCommandMessageQueue BASE_EMBEDDED {
 
 class PromiseOnStack {
  public:
-  PromiseOnStack(Isolate* isolate,
-                 PromiseOnStack* prev,
-                 Handle<JSFunction> getter);
+  PromiseOnStack(Isolate* isolate, PromiseOnStack* prev,
+                 Handle<JSObject> getter);
   ~PromiseOnStack();
   StackHandler* handler() { return handler_; }
-  Handle<JSFunction> getter() { return getter_; }
+  Handle<JSObject> promise() { return promise_; }
   PromiseOnStack* prev() { return prev_; }
  private:
   Isolate* isolate_;
   StackHandler* handler_;
-  Handle<JSFunction> getter_;
+  Handle<JSObject> promise_;
   PromiseOnStack* prev_;
 };
 
@@ -361,7 +360,9 @@ class Debug {
  public:
   // Debug event triggers.
   void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
-  void OnException(Handle<Object> exception, bool uncaught);
+
+  void OnThrow(Handle<Object> exception, bool uncaught);
+  void OnPromiseReject(Handle<JSObject> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
   void OnBeforeCompile(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
@@ -452,8 +453,9 @@ class Debug {
   bool IsBreakAtReturn(JavaScriptFrame* frame);
 
   // Promise handling.
-  void PromiseHandlePrologue(Handle<JSFunction> promise_getter);
-  void PromiseHandleEpilogue();
+  // Push and pop a promise and the current try-catch handler.
+  void PushPromise(Handle<JSObject> promise);
+  void PopPromise();
 
   // Support for LiveEdit
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
@@ -523,6 +525,9 @@ class Debug {
   inline bool has_commands() const { return !command_queue_.IsEmpty(); }
   inline bool ignore_events() const { return is_suppressed_ || !is_active_; }
 
+  void OnException(Handle<Object> exception, bool uncaught,
+                   Handle<Object> promise);
+
   // Constructors for debug event objects.
   MUST_USE_RESULT MaybeHandle<Object> MakeJSObject(
       const char* constructor_name,
@@ -545,8 +550,9 @@ class Debug {
   // Mirror cache handling.
   void ClearMirrorCache();
 
-  // Returns a promise if it does not have a reject handler.
-  Handle<Object> GetPromiseForUncaughtException();
+  // Returns a promise if the pushed try-catch handler matches the current one.
+  Handle<Object> GetPromiseOnStackOnThrow();
+  bool PromiseHasRejectHandler(Handle<JSObject> promise);
 
   void CallEventCallback(v8::DebugEvent event,
                          Handle<Object> exec_state,

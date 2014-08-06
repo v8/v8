@@ -18,6 +18,7 @@ var PromiseReject;
 var PromiseChain;
 var PromiseCatch;
 var PromiseThen;
+var PromiseHasRejectHandler;
 
 // mirror-debugger.js currently uses builtins.promiseStatus. It would be nice
 // if we could move these property names into the closure below.
@@ -29,6 +30,7 @@ var promiseValue = GLOBAL_PRIVATE("Promise#value");
 var promiseOnResolve = GLOBAL_PRIVATE("Promise#onResolve");
 var promiseOnReject = GLOBAL_PRIVATE("Promise#onReject");
 var promiseRaw = GLOBAL_PRIVATE("Promise#raw");
+var promiseDebug = GLOBAL_PRIVATE("Promise#debug");
 var lastMicrotaskId = 0;
 
 (function() {
@@ -40,13 +42,13 @@ var lastMicrotaskId = 0;
       throw MakeTypeError('resolver_not_a_function', [resolver]);
     var promise = PromiseInit(this);
     try {
-      %DebugPromiseHandlePrologue(function() { return promise });
+      %DebugPushPromise(promise);
       resolver(function(x) { PromiseResolve(promise, x) },
                function(r) { PromiseReject(promise, r) });
     } catch (e) {
       PromiseReject(promise, e);
     } finally {
-      %DebugPromiseHandleEpilogue();
+      %DebugPopPromise();
     }
   }
 
@@ -98,11 +100,7 @@ var lastMicrotaskId = 0;
 
   function PromiseHandle(value, handler, deferred) {
     try {
-      %DebugPromiseHandlePrologue(
-          function() {
-            var queue = GET_PRIVATE(deferred.promise, promiseOnReject);
-            return (queue && queue.length == 0) ? deferred.promise : UNDEFINED;
-          });
+      %DebugPushPromise(deferred.promise);
       var result = handler(value);
       if (result === deferred.promise)
         throw MakeTypeError('promise_cyclic', [result]);
@@ -111,14 +109,9 @@ var lastMicrotaskId = 0;
       else
         deferred.resolve(result);
     } catch (exception) {
-      try {
-        %DebugPromiseHandlePrologue(function() { return deferred.promise });
-        deferred.reject(exception);
-      } catch (e) { } finally {
-        %DebugPromiseHandleEpilogue();
-      }
+      try { deferred.reject(exception); } catch (e) { }
     } finally {
-      %DebugPromiseHandleEpilogue();
+      %DebugPopPromise();
     }
   }
 
@@ -165,6 +158,13 @@ var lastMicrotaskId = 0;
   }
 
   PromiseReject = function PromiseReject(promise, r) {
+    // Check promise status to confirm that this reject has an effect.
+    // Check promiseDebug property to avoid duplicate event.
+    if (DEBUG_IS_ACTIVE &&
+        GET_PRIVATE(promise, promiseStatus) == 0 &&
+        !HAS_PRIVATE(promise, promiseDebug)) {
+      %DebugPromiseRejectEvent(promise, r);
+    }
     PromiseDone(promise, -1, r, promiseOnReject)
   }
 
@@ -321,6 +321,16 @@ var lastMicrotaskId = 0;
     }
     return deferred.promise;
   }
+
+
+  // Utility for debugger
+
+  PromiseHasRejectHandler = function PromiseHasRejectHandler() {
+    // Mark promise as already having triggered a reject event.
+    SET_PRIVATE(this, promiseDebug, true);
+    var queue = GET_PRIVATE(this, promiseOnReject);
+    return !IS_UNDEFINED(queue) && queue.length > 0;
+  };
 
   // -------------------------------------------------------------------
   // Install exported functions.

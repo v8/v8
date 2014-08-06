@@ -2,17 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
-// Test debug events when we listen to all exceptions and
+// Test debug events when we only listen to uncaught exceptions and
 // there is a catch handler for the exception thrown in a Promise.
 // We expect an Exception debug event with a promise to be triggered.
 
 Debug = debug.Debug;
 
+var expected_events = 1;
 var log = [];
-var step = 0;
-var exception = undefined;
 
 var p = new Promise(function(resolve, reject) {
   log.push("resolve");
@@ -28,29 +27,44 @@ var q = p.chain(
 function listener(event, exec_state, event_data, data) {
   if (event == Debug.DebugEvent.AsyncTaskEvent) return;
   try {
-    // Ignore exceptions during startup in stress runs.
-    if (step >= 1) return;
-    assertEquals(["resolve", "end main", "throw"], log);
     if (event == Debug.DebugEvent.Exception) {
-      assertEquals(0, step);
+      expected_events--;
+      assertTrue(expected_events >= 0);
       assertEquals("uncaught", event_data.exception().message);
       assertTrue(event_data.promise() instanceof Promise);
       assertEquals(q, event_data.promise());
       assertTrue(event_data.uncaught());
       // Assert that the debug event is triggered at the throw site.
       assertTrue(exec_state.frame(0).sourceLineText().indexOf("// event") > 0);
-      step++;
     }
   } catch (e) {
-    // Signal a failure with exit code 1.  This is necessary since the
-    // debugger swallows exceptions and we expect the chained function
-    // and this listener to be executed after the main script is finished.
-    print("Unexpected exception: " + e + "\n" + e.stack);
-    quit(1);
+    %AbortJS(e + "\n" + e.stack);
   }
 }
 
-Debug.setBreakOnException();
+Debug.setBreakOnUncaughtException();
 Debug.setListener(listener);
 
 log.push("end main");
+
+function testDone(iteration) {
+  function checkResult() {
+    try {
+      assertTrue(iteration < 10);
+      if (expected_events === 0) {
+        assertEquals(["resolve", "end main", "throw"], log);
+      } else {
+        testDone(iteration + 1);
+      }
+    } catch (e) {
+      %AbortJS(e + "\n" + e.stack);
+    }
+  }
+
+  // Run testDone through the Object.observe processing loop.
+  var dummy = {};
+  Object.observe(dummy, checkResult);
+  dummy.dummy = dummy;
+}
+
+testDone(0);
