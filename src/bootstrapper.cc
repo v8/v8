@@ -480,8 +480,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     Handle<JSFunction> object_fun = factory->NewFunction(object_name);
     Handle<Map> object_function_map =
         factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    object_fun->set_initial_map(*object_function_map);
-    object_function_map->set_constructor(*object_fun);
+    JSFunction::SetInitialMap(object_fun, object_function_map);
     object_function_map->set_unused_property_fields(
         JSObject::kInitialGlobalObjectUnusedPropertiesCount);
 
@@ -1211,8 +1210,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     native_context()->set_sloppy_arguments_map(*map);
 
     DCHECK(!function->has_initial_map());
-    function->set_initial_map(*map);
-    map->set_constructor(*function);
+    JSFunction::SetInitialMap(function, map);
 
     DCHECK(map->inobject_properties() > Heap::kArgumentsCalleeIndex);
     DCHECK(map->inobject_properties() > Heap::kArgumentsLengthIndex);
@@ -1336,8 +1334,7 @@ void Genesis::InstallTypedArray(
       JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSizeWithInternalFields,
       elements_kind);
-  result->set_initial_map(*initial_map);
-  initial_map->set_constructor(*result);
+  JSFunction::SetInitialMap(result, initial_map);
   *fun = result;
 
   ElementsKind external_kind = GetNextTransitionElementsKind(elements_kind);
@@ -1658,7 +1655,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   Handle<Map> original_map(array_function->initial_map());
   Handle<Map> initial_map = Map::Copy(original_map);
   initial_map->set_elements_kind(elements_kind);
-  array_function->set_initial_map(*initial_map);
+  JSFunction::SetInitialMap(array_function, initial_map);
 
   // Make "length" magic on instances.
   Map::EnsureDescriptorSlack(initial_map, 1);

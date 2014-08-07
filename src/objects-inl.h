@@ -4451,8 +4451,8 @@ bool Map::is_extensible() {
 }
 
 
-void Map::mark_prototype_map() {
-  set_bit_field2(IsPrototypeMapBits::update(bit_field2(), true));
+void Map::set_is_prototype_map(bool value) {
+  set_bit_field2(IsPrototypeMapBits::update(bit_field2(), value));
 }
 
 bool Map::is_prototype_map() {
@@ -5937,11 +5937,6 @@ ACCESSORS(JSFunction, prototype_or_initial_map, Object,
 
 Map* JSFunction::initial_map() {
   return Map::cast(prototype_or_initial_map());
-}
-
-
-void JSFunction::set_initial_map(Map* value) {
-  set_prototype_or_initial_map(value);
 }
 
 

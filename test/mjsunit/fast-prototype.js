@@ -50,6 +50,8 @@ function DoProtoMagic(proto, set__proto__) {
     (new Sub()).__proto__ = proto;
   } else {
     Sub.prototype = proto;
+    // Need to instantiate Sub to mark .prototype as prototype.
+    new Sub();
   }
 }
 

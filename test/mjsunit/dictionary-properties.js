@@ -39,6 +39,7 @@ function SlowPrototype() {
 SlowPrototype.prototype.bar = 2;
 SlowPrototype.prototype.baz = 3;
 delete SlowPrototype.prototype.baz;
+new SlowPrototype;
 
 // Prototypes stay fast even after deleting properties.
 assertTrue(%HasFastProperties(SlowPrototype.prototype));

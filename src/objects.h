@@ -6205,7 +6205,7 @@ class Map: public HeapObject {
 
   inline void set_is_extensible(bool value);
   inline bool is_extensible();
-  inline void mark_prototype_map();
+  inline void set_is_prototype_map(bool value);
   inline bool is_prototype_map();
 
   inline void set_elements_kind(ElementsKind elements_kind) {
@@ -6540,7 +6540,6 @@ class Map: public HeapObject {
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   static Handle<Map> Copy(Handle<Map> map);
-  static Handle<Map> CopyAsPrototypeMap(Handle<Map> map);
   static Handle<Map> Create(Handle<JSFunction> constructor,
                             int extra_inobject_properties);
 
@@ -7781,7 +7780,7 @@ class JSFunction: public JSObject {
 
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
-  inline void set_initial_map(Map* value);
+  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map);
   inline bool has_initial_map();
   static void EnsureHasInitialMap(Handle<JSFunction> function);
 
