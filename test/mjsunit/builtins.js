@@ -41,7 +41,9 @@ function isFunction(obj) {
 function isV8Native(name) {
   return name == "GeneratorFunctionPrototype" ||
       name == "SetIterator" ||
-      name == "MapIterator";
+      name == "MapIterator" ||
+      name == "ArrayIterator" ||
+      name == "StringIterator";
 }
 
 function checkConstructor(func, name) {

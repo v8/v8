@@ -200,6 +200,8 @@ action("js2c") {
     "src/promise.js",
     "src/object-observe.js",
     "src/macros.py",
+    "src/array-iterator.js",
+    "src/string-iterator.js",
   ]
 
   outputs = [
@@ -238,7 +240,6 @@ action("js2c_experimental") {
     "src/macros.py",
     "src/proxy.js",
     "src/generator.js",
-    "src/array-iterator.js",
     "src/harmony-string.js",
     "src/harmony-array.js",
     "src/unscopables.js",

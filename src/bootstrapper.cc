@@ -121,7 +121,7 @@ char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
 void Bootstrapper::TearDown() {
   if (delete_these_non_arrays_on_tear_down_ != NULL) {
     int len = delete_these_non_arrays_on_tear_down_->length();
-    DCHECK(len < 25);  // Don't use this mechanism for unbounded allocations.
+    DCHECK(len < 27);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
       delete delete_these_non_arrays_on_tear_down_->at(i);
       delete_these_non_arrays_on_tear_down_->at(i) = NULL;
@@ -2060,8 +2060,6 @@ bool Genesis::InstallExperimentalNatives() {
        i++) {
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "string-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, unscopables, "unscopables.js")

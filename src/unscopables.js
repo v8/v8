@@ -8,14 +8,14 @@
 // var $Array = global.Array;
 // var $Symbol = global.Symbol;
 
-function ExtendSymbol() {
+function UnscopablesExtendSymbol() {
   %CheckIsBootstrapping();
   InstallConstants($Symbol, $Array(
     "unscopables", symbolUnscopables
   ));
 }
 
-ExtendSymbol();
+UnscopablesExtendSymbol();
 
 
 var arrayUnscopables = {
@@ -30,10 +30,10 @@ var arrayUnscopables = {
 };
 
 
-function ExtendArrayPrototype() {
+function UnscopablesExtendArrayPrototype() {
   %CheckIsBootstrapping();
   %AddNamedProperty($Array.prototype, symbolUnscopables, arrayUnscopables,
                     DONT_ENUM | READ_ONLY);
 }
 
-ExtendArrayPrototype();
+UnscopablesExtendArrayPrototype();

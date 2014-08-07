@@ -155,10 +155,10 @@
   'harmony/regress/regress-3280': [PASS, NO_VARIANTS],
 
   # Support for ES6 for-of iteration is missing.
-  'harmony/array-iterator': [PASS, NO_VARIANTS],
-  'harmony/iteration-semantics': [PASS, NO_VARIANTS],
-  'harmony/string-iterator': [PASS, NO_VARIANTS],
-  'harmony/typed-array-iterator': [PASS, NO_VARIANTS],
+  'es6/array-iterator': [PASS, NO_VARIANTS],
+  'es6/iteration-semantics': [PASS, NO_VARIANTS],
+  'es6/string-iterator': [PASS, NO_VARIANTS],
+  'es6/typed-array-iterator': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.

@@ -81,7 +81,6 @@ class ParserBase : public Traits {
         allow_lazy_(false),
         allow_natives_syntax_(false),
         allow_generators_(false),
-        allow_for_of_(false),
         allow_arrow_functions_(false),
         zone_(zone) {}
 
@@ -90,7 +89,6 @@ class ParserBase : public Traits {
   bool allow_lazy() const { return allow_lazy_; }
   bool allow_natives_syntax() const { return allow_natives_syntax_; }
   bool allow_generators() const { return allow_generators_; }
-  bool allow_for_of() const { return allow_for_of_; }
   bool allow_arrow_functions() const { return allow_arrow_functions_; }
   bool allow_modules() const { return scanner()->HarmonyModules(); }
   bool allow_harmony_scoping() const { return scanner()->HarmonyScoping(); }
@@ -103,7 +101,6 @@ class ParserBase : public Traits {
   void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
   void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
   void set_allow_generators(bool allow) { allow_generators_ = allow; }
-  void set_allow_for_of(bool allow) { allow_for_of_ = allow; }
   void set_allow_arrow_functions(bool allow) { allow_arrow_functions_ = allow; }
   void set_allow_modules(bool allow) { scanner()->SetHarmonyModules(allow); }
   void set_allow_harmony_scoping(bool allow) {
@@ -570,7 +567,6 @@ class ParserBase : public Traits {
   bool allow_lazy_;
   bool allow_natives_syntax_;
   bool allow_generators_;
-  bool allow_for_of_;
   bool allow_arrow_functions_;
 
   typename Traits::Type::Zone* zone_;  // Only used by Parser.

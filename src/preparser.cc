@@ -653,8 +653,7 @@ PreParser::Statement PreParser::ParseWhileStatement(bool* ok) {
 
 bool PreParser::CheckInOrOf(bool accept_OF) {
   if (Check(Token::IN) ||
-      (allow_for_of() && accept_OF &&
-       CheckContextualKeyword(CStrVector("of")))) {
+      (accept_OF && CheckContextualKeyword(CStrVector("of")))) {
     return true;
   }
   return false;

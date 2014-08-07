@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-iteration
-
 
 var constructors = [Uint8Array, Int8Array,
                     Uint16Array, Int16Array,

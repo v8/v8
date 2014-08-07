@@ -1409,13 +1409,13 @@
           '../../src/collection.js',
           '../../src/collection-iterator.js',
           '../../src/macros.py',
+          '../../src/array-iterator.js',
+          '../../src/string-iterator.js'
         ],
         'experimental_library_files': [
           '../../src/macros.py',
           '../../src/proxy.js',
           '../../src/generator.js',
-          '../../src/array-iterator.js',
-          '../../src/string-iterator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
           '../../src/unscopables.js',

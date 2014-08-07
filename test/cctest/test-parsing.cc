@@ -1208,7 +1208,6 @@ enum ParserFlag {
   kAllowHarmonyScoping,
   kAllowModules,
   kAllowGenerators,
-  kAllowForOf,
   kAllowHarmonyNumericLiterals,
   kAllowArrowFunctions
 };
@@ -1228,7 +1227,6 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_scoping(flags.Contains(kAllowHarmonyScoping));
   parser->set_allow_modules(flags.Contains(kAllowModules));
   parser->set_allow_generators(flags.Contains(kAllowGenerators));
-  parser->set_allow_for_of(flags.Contains(kAllowForOf));
   parser->set_allow_harmony_numeric_literals(
       flags.Contains(kAllowHarmonyNumericLiterals));
   parser->set_allow_arrow_functions(flags.Contains(kAllowArrowFunctions));
@@ -1436,10 +1434,9 @@ TEST(ParserSync) {
   CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
                                                     128 * 1024);
 
-  static const ParserFlag flags1[] = {
-    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf, kAllowArrowFunctions
-  };
+  static const ParserFlag flags1[] = {kAllowLazy, kAllowHarmonyScoping,
+                                      kAllowModules, kAllowGenerators,
+                                      kAllowArrowFunctions};
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
       for (int k = 0; termination_data[k] != NULL; ++k) {
@@ -1514,9 +1511,8 @@ void RunParserSyncTest(const char* context_data[][2],
                                                     128 * 1024);
 
   static const ParserFlag default_flags[] = {
-    kAllowLazy, kAllowHarmonyScoping, kAllowModules, kAllowGenerators,
-    kAllowForOf, kAllowNativesSyntax, kAllowArrowFunctions
-  };
+      kAllowLazy,       kAllowHarmonyScoping, kAllowModules,
+      kAllowGenerators, kAllowNativesSyntax,  kAllowArrowFunctions};
   ParserFlag* generated_flags = NULL;
   if (flags == NULL) {
     flags = default_flags;
