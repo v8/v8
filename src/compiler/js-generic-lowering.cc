@@ -356,7 +356,7 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   int nargs = (nargs_override < 0) ? fun->nargs : nargs_override;
   CallDescriptor::DeoptimizationSupport deopt =
-      NodeProperties::CanLazilyDeoptimize(node)
+      OperatorProperties::CanLazilyDeoptimize(node->op())
           ? CallDescriptor::kCanDeoptimize
           : CallDescriptor::kCannotDeoptimize;
   CallDescriptor* desc =
@@ -554,7 +554,7 @@ Node* JSGenericLowering::LowerJSCallFunction(Node* node) {
 
 Node* JSGenericLowering::LowerJSCallRuntime(Node* node) {
   Runtime::FunctionId function = OpParameter<Runtime::FunctionId>(node);
-  int arity = NodeProperties::GetValueInputCount(node);
+  int arity = OperatorProperties::GetValueInputCount(node->op());
   ReplaceWithRuntimeCall(node, function, arity);
   return node;
 }
