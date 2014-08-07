@@ -286,7 +286,7 @@ class TypeImpl : public Config::Base {
     return ClassType::New(map, region);
   }
   static TypeHandle Constant(i::Handle<i::Object> value, Region* region) {
-    // TODO(neis): return RangeType for numerical values
+    // TODO(neis): Return RangeType for numerical values.
     return ConstantType::New(value, region);
   }
   static TypeHandle Range(double min, double max, Region* region) {
@@ -518,6 +518,7 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
   static int Lub(int32_t value);
   static int Lub(uint32_t value);
   static int Lub(i::Map* map);
+  static int Lub(double min, double max);
   static int InherentLub(TypeImpl* type);
 
   static const char* Name(int bitset);
@@ -690,8 +691,7 @@ class TypeImpl<Config>::RangeType : public StructuralType {
 
   static RangeHandle New(
       double min, double max, TypeHandle bound, Region* region) {
-    DCHECK(BitsetType::Is(bound->AsBitset(), BitsetType::kNumber));
-    DCHECK(!std::isnan(min) && !std::isnan(max) && min <= max);
+    DCHECK(BitsetType::Is(bound->AsBitset(), BitsetType::Lub(min, max)));
     RangeHandle type = Config::template cast<RangeType>(
         StructuralType::New(StructuralType::kRangeTag, 3, region));
     type->Set(0, bound);
@@ -704,7 +704,7 @@ class TypeImpl<Config>::RangeType : public StructuralType {
   }
 
   static RangeHandle New(double min, double max, Region* region) {
-    TypeHandle bound = BitsetType::New(BitsetType::kNumber, region);
+    TypeHandle bound = BitsetType::New(BitsetType::Lub(min, max), region);
     return New(min, max, bound, region);
   }
 

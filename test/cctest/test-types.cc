@@ -139,7 +139,7 @@ class Types {
     NumberFunction2 = Type::Function(Number, Number, Number, region);
     MethodFunction = Type::Function(String, Object, 0, region);
 
-    for (int i = 0; i < 40; ++i) {
+    for (int i = 0; i < 30; ++i) {
       types.push_back(Fuzz());
     }
   }
@@ -188,6 +188,21 @@ class Types {
   MapVector maps;
   ValueVector values;
   DoubleVector doubles;  // Some floating-point values, excluding NaN.
+
+  // Range type helper functions, partially copied from types.cc.
+  // Note: dle(dmin(x,y), dmax(x,y)) holds iff neither x nor y is NaN.
+  bool dle(double x, double y) {
+    return x <= y && (x != 0 || IsMinusZero(x) || !IsMinusZero(y));
+  }
+  bool deq(double x, double y) {
+    return dle(x, y) && dle(y, x);
+  }
+  double dmin(double x, double y) {
+    return dle(x, y) ? x : y;
+  }
+  double dmax(double x, double y) {
+    return dle(x, y) ? y : x;
+  }
 
   TypeHandle Of(Handle<i::Object> value) {
     return Type::Of(value, region_);
@@ -549,8 +564,8 @@ struct Tests : Rep {
     // Constructor
     for (DoubleIterator i = T.doubles.begin(); i != T.doubles.end(); ++i) {
       for (DoubleIterator j = T.doubles.begin(); j != T.doubles.end(); ++j) {
-        double min = std::min(*i, *j);
-        double max = std::max(*i, *j);
+        double min = T.dmin(*i, *j);
+        double max = T.dmax(*i, *j);
         TypeHandle type = T.Range(min, max);
         CHECK(type->IsRange());
       }
@@ -559,8 +574,8 @@ struct Tests : Rep {
     // Range attributes
     for (DoubleIterator i = T.doubles.begin(); i != T.doubles.end(); ++i) {
       for (DoubleIterator j = T.doubles.begin(); j != T.doubles.end(); ++j) {
-        double min = std::min(*i, *j);
-        double max = std::max(*i, *j);
+        double min = T.dmin(*i, *j);
+        double max = T.dmax(*i, *j);
         printf("RangeType: min, max = %f, %f\n", min, max);
         TypeHandle type = T.Range(min, max);
         printf("RangeType: Min, Max = %f, %f\n",
@@ -579,13 +594,14 @@ struct Tests : Rep {
 //           i2 != T.doubles.end(); ++i2) {
 //        for (DoubleIterator j2 = T.doubles.begin();
 //             j2 != T.doubles.end(); ++j2) {
-//          double min1 = std::min(*i1, *j1);
-//          double max1 = std::max(*i1, *j1);
-//          double min2 = std::min(*i2, *j2);
-//          double max2 = std::max(*i2, *j2);
+//          double min1 = T.dmin(*i1, *j1);
+//          double max1 = T.dmax(*i1, *j1);
+//          double min2 = T.dmin(*i2, *j2);
+//          double max2 = T.dmax(*i2, *j2);
 //          TypeHandle type1 = T.Range(min1, max1);
 //          TypeHandle type2 = T.Range(min2, max2);
-//          CHECK(Equal(type1, type2) == (min1 == min2 && max1 == max2));
+//          CHECK(Equal(type1, type2) ==
+//                (T.deq(min1, min2) && T.deq(max1, max2)));
 //        }
 //      }
 //    }
