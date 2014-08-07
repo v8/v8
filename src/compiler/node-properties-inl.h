@@ -24,7 +24,7 @@ namespace compiler {
 //     0 [ values, context, effects, control ] node->InputCount()
 
 inline bool NodeProperties::HasValueInput(Node* node) {
-  return OperatorProperties::GetValueInputCount(node->op()) > 0;
+  return OperatorProperties::HasValueInput(node->op());
 }
 
 inline bool NodeProperties::HasContextInput(Node* node) {
@@ -32,11 +32,11 @@ inline bool NodeProperties::HasContextInput(Node* node) {
 }
 
 inline bool NodeProperties::HasEffectInput(Node* node) {
-  return OperatorProperties::GetEffectInputCount(node->op()) > 0;
+  return OperatorProperties::HasEffectInput(node->op());
 }
 
 inline bool NodeProperties::HasControlInput(Node* node) {
-  return OperatorProperties::GetControlInputCount(node->op()) > 0;
+  return OperatorProperties::HasControlInput(node->op());
 }
 
 
@@ -45,7 +45,7 @@ inline int NodeProperties::GetValueInputCount(Node* node) {
 }
 
 inline int NodeProperties::GetContextInputCount(Node* node) {
-  return OperatorProperties::HasContextInput(node->op()) ? 1 : 0;
+  return OperatorProperties::GetContextInputCount(node->op());
 }
 
 inline int NodeProperties::GetEffectInputCount(Node* node) {
@@ -57,11 +57,12 @@ inline int NodeProperties::GetControlInputCount(Node* node) {
 }
 
 
-inline int NodeProperties::FirstValueIndex(Node* node) { return 0; }
-
-inline int NodeProperties::FirstContextIndex(Node* node) {
+inline int NodeProperties::GetContextIndex(Node* node) {
   return PastValueIndex(node);
 }
+
+
+inline int NodeProperties::FirstValueIndex(Node* node) { return 0; }
 
 inline int NodeProperties::FirstEffectIndex(Node* node) {
   return PastContextIndex(node);
@@ -77,7 +78,7 @@ inline int NodeProperties::PastValueIndex(Node* node) {
 }
 
 inline int NodeProperties::PastContextIndex(Node* node) {
-  return FirstContextIndex(node) + GetContextInputCount(node);
+  return GetContextIndex(node) + GetContextInputCount(node);
 }
 
 inline int NodeProperties::PastEffectIndex(Node* node) {
@@ -98,8 +99,8 @@ inline Node* NodeProperties::GetValueInput(Node* node, int index) {
 }
 
 inline Node* NodeProperties::GetContextInput(Node* node) {
-  DCHECK(GetContextInputCount(node) > 0);
-  return node->InputAt(FirstContextIndex(node));
+  DCHECK(HasContextInput(node));
+  return node->InputAt(GetContextIndex(node));
 }
 
 inline Node* NodeProperties::GetEffectInput(Node* node, int index) {
@@ -117,17 +118,15 @@ inline Node* NodeProperties::GetControlInput(Node* node, int index) {
 // Output counts.
 
 inline bool NodeProperties::HasValueOutput(Node* node) {
-  return GetValueOutputCount(node) > 0;
+  return OperatorProperties::HasValueOutput(node->op());
 }
 
 inline bool NodeProperties::HasEffectOutput(Node* node) {
-  return node->opcode() == IrOpcode::kStart ||
-         NodeProperties::GetEffectInputCount(node) > 0;
+  return OperatorProperties::HasEffectOutput(node->op());
 }
 
 inline bool NodeProperties::HasControlOutput(Node* node) {
-  return (node->opcode() != IrOpcode::kEnd && IsControl(node)) ||
-         NodeProperties::CanLazilyDeoptimize(node);
+  return OperatorProperties::HasControlOutput(node->op());
 }
 
 
@@ -136,12 +135,11 @@ inline int NodeProperties::GetValueOutputCount(Node* node) {
 }
 
 inline int NodeProperties::GetEffectOutputCount(Node* node) {
-  return HasEffectOutput(node) ? 1 : 0;
+  return OperatorProperties::GetEffectOutputCount(node->op());
 }
 
 inline int NodeProperties::GetControlOutputCount(Node* node) {
-  return node->opcode() == IrOpcode::kBranch ? 2 : HasControlOutput(node) ? 1
-                                                                          : 0;
+  return OperatorProperties::GetControlOutputCount(node->op());
 }
 
 
@@ -163,8 +161,7 @@ inline bool NodeProperties::IsValueEdge(Node::Edge edge) {
 
 inline bool NodeProperties::IsContextEdge(Node::Edge edge) {
   Node* node = edge.from();
-  return IsInputRange(edge, FirstContextIndex(node),
-                      GetContextInputCount(node));
+  return IsInputRange(edge, GetContextIndex(node), GetContextInputCount(node));
 }
 
 inline bool NodeProperties::IsEffectEdge(Node::Edge edge) {

@@ -28,6 +28,7 @@ class NodeProperties {
   static inline int GetContextInputCount(Node* node);
   static inline int GetEffectInputCount(Node* node);
   static inline int GetControlInputCount(Node* node);
+  static inline int GetTotalInputCount(Node* node);
 
   static inline Node* GetValueInput(Node* node, int index);
   static inline Node* GetContextInput(Node* node);
@@ -63,9 +64,10 @@ class NodeProperties {
 
   static inline bool CanLazilyDeoptimize(Node* node);
 
+  static inline int GetContextIndex(Node* node);
+
  private:
   static inline int FirstValueIndex(Node* node);
-  static inline int FirstContextIndex(Node* node);
   static inline int FirstEffectIndex(Node* node);
   static inline int FirstControlIndex(Node* node);
   static inline int PastValueIndex(Node* node);

@@ -15,19 +15,32 @@ class Operator;
 
 class OperatorProperties {
  public:
-  static int GetValueOutputCount(Operator* op);
-  static int GetValueInputCount(Operator* op);
-  static bool HasContextInput(Operator* op);
-  static int GetEffectInputCount(Operator* op);
-  static int GetControlInputCount(Operator* op);
+  static inline bool HasValueInput(Operator* node);
+  static inline bool HasContextInput(Operator* node);
+  static inline bool HasEffectInput(Operator* node);
+  static inline bool HasControlInput(Operator* node);
 
-  static bool IsBasicBlockBegin(Operator* op);
+  static inline int GetValueInputCount(Operator* op);
+  static inline int GetContextInputCount(Operator* op);
+  static inline int GetEffectInputCount(Operator* op);
+  static inline int GetControlInputCount(Operator* op);
+  static inline int GetTotalInputCount(Operator* op);
 
-  static bool CanBeScheduled(Operator* op);
-  static bool HasFixedSchedulePosition(Operator* op);
-  static bool IsScheduleRoot(Operator* op);
+  static inline bool HasValueOutput(Operator* op);
+  static inline bool HasEffectOutput(Operator* op);
+  static inline bool HasControlOutput(Operator* op);
 
-  static bool CanLazilyDeoptimize(Operator* op);
+  static inline int GetValueOutputCount(Operator* op);
+  static inline int GetEffectOutputCount(Operator* op);
+  static inline int GetControlOutputCount(Operator* op);
+
+  static inline bool IsBasicBlockBegin(Operator* op);
+
+  static inline bool CanBeScheduled(Operator* op);
+  static inline bool HasFixedSchedulePosition(Operator* op);
+  static inline bool IsScheduleRoot(Operator* op);
+
+  static inline bool CanLazilyDeoptimize(Operator* op);
 };
 }
 }
