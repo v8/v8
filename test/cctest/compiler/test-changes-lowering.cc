@@ -213,7 +213,8 @@ TEST(RunChangeTaggedToFloat64) {
   double result;
 
   t.BuildStoreAndLower(t.simplified()->ChangeTaggedToFloat64(),
-                       t.machine()->Store(kMachineFloat64), &result);
+                       t.machine()->Store(kMachineFloat64, kNoWriteBarrier),
+                       &result);
 
   if (Pipeline::SupportedTarget()) {
     FOR_INT32_INPUTS(i) {

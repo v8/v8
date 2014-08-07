@@ -100,7 +100,7 @@ class MachineNodeFactory {
     Store(rep, base, Int32Constant(0), value);
   }
   void Store(MachineRepresentation rep, Node* base, Node* index, Node* value) {
-    NEW_NODE_3(MACHINE()->Store(rep), base, index, value);
+    NEW_NODE_3(MACHINE()->Store(rep, kNoWriteBarrier), base, index, value);
   }
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {

@@ -639,8 +639,8 @@ TEST(ReduceLoadStore) {
   }
 
   {
-    Node* store =
-        R.graph.NewNode(R.machine.Store(kMachineWord32), base, index, load);
+    Node* store = R.graph.NewNode(
+        R.machine.Store(kMachineWord32, kNoWriteBarrier), base, index, load);
     MachineOperatorReducer reducer(&R.graph);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.

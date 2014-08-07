@@ -87,8 +87,7 @@ class MachineOperatorBuilder {
     OP1(Load, MachineRepresentation, rep, Operator::kNoWrite, 2, 1);
   }
   // store [base + index], value
-  Operator* Store(MachineRepresentation rep,
-                  WriteBarrierKind kind = kNoWriteBarrier) {
+  Operator* Store(MachineRepresentation rep, WriteBarrierKind kind) {
     StoreRepresentation store_rep = {rep, kind};
     OP1(Store, StoreRepresentation, store_rep, Operator::kNoRead, 3, 0);
   }
