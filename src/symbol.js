@@ -82,7 +82,6 @@ function ObjectGetOwnPropertySymbols(obj) {
 
 //-------------------------------------------------------------------
 
-var symbolCreate = InternalSymbol("Symbol.create");
 var symbolHasInstance = InternalSymbol("Symbol.hasInstance");
 var symbolIsConcatSpreadable = InternalSymbol("Symbol.isConcatSpreadable");
 var symbolIsRegExp = InternalSymbol("Symbol.isRegExp");
@@ -100,13 +99,13 @@ function SetUpSymbol() {
   %FunctionSetPrototype($Symbol, new $Object());
 
   InstallConstants($Symbol, $Array(
-    "create", symbolCreate,
-    "hasInstance", symbolHasInstance,
-    "isConcatSpreadable", symbolIsConcatSpreadable,
-    "isRegExp", symbolIsRegExp,
-    "iterator", symbolIterator,
-    "toStringTag", symbolToStringTag,
-    "unscopables", symbolUnscopables
+    // TODO(rossberg): expose when implemented.
+    // "hasInstance", symbolHasInstance,
+    // "isConcatSpreadable", symbolIsConcatSpreadable,
+    // "isRegExp", symbolIsRegExp,
+    "iterator", symbolIterator
+    // "toStringTag", symbolToStringTag,
+    // "unscopables", symbolUnscopables  // added in unscopables.js
   ));
   InstallFunctions($Symbol, DONT_ENUM, $Array(
     "for", SymbolFor,

@@ -483,6 +483,11 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 
+Address Assembler::break_address_from_return_address(Address pc) {
+  return pc - Assembler::kPatchDebugBreakSlotReturnOffset;
+}
+
+
 Displacement Assembler::disp_at(Label* L) {
   return Displacement(long_at(L->pos()));
 }

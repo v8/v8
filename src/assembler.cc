@@ -105,9 +105,6 @@ struct DoubleConstant BASE_EMBEDDED {
 double min_int;
 double one_half;
 double minus_one_half;
-double minus_zero;
-double zero;
-double uint8_max_value;
 double negative_infinity;
 double canonical_non_hole_nan;
 double the_hole_nan;
@@ -137,22 +134,10 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }
-  if (buffer == NULL) {
-    // Do our own buffer management.
-    if (buffer_size <= kMinimalBufferSize) {
-      buffer_size = kMinimalBufferSize;
-      if (isolate->assembler_spare_buffer() != NULL) {
-        buffer = isolate->assembler_spare_buffer();
-        isolate->set_assembler_spare_buffer(NULL);
-      }
-    }
-    if (buffer == NULL) buffer = NewArray<byte>(buffer_size);
-    own_buffer_ = true;
-  } else {
-    // Use externally provided buffer instead.
-    DCHECK(buffer_size > 0);
-    own_buffer_ = false;
-  }
+  own_buffer_ = buffer == NULL;
+  if (buffer_size == 0) buffer_size = kMinimalBufferSize;
+  DCHECK(buffer_size > 0);
+  if (own_buffer_) buffer = NewArray<byte>(buffer_size);
   buffer_ = static_cast<byte*>(buffer);
   buffer_size_ = buffer_size;
 
@@ -161,15 +146,7 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
 
 
 AssemblerBase::~AssemblerBase() {
-  if (own_buffer_) {
-    if (isolate() != NULL &&
-        isolate()->assembler_spare_buffer() == NULL &&
-        buffer_size_ == kMinimalBufferSize) {
-      isolate()->set_assembler_spare_buffer(buffer_);
-    } else {
-      DeleteArray(buffer_);
-    }
-  }
+  if (own_buffer_) DeleteArray(buffer_);
 }
 
 
@@ -905,9 +882,6 @@ void ExternalReference::SetUp() {
   double_constants.min_int = kMinInt;
   double_constants.one_half = 0.5;
   double_constants.minus_one_half = -0.5;
-  double_constants.minus_zero = -0.0;
-  double_constants.uint8_max_value = 255;
-  double_constants.zero = 0.0;
   double_constants.canonical_non_hole_nan = base::OS::nan_value();
   double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
@@ -1165,13 +1139,6 @@ ExternalReference ExternalReference::new_space_allocation_top_address(
 }
 
 
-ExternalReference ExternalReference::heap_always_allocate_scope_depth(
-    Isolate* isolate) {
-  Heap* heap = isolate->heap();
-  return ExternalReference(heap->always_allocate_scope_depth_address());
-}
-
-
 ExternalReference ExternalReference::new_space_allocation_limit_address(
     Isolate* isolate) {
   return ExternalReference(isolate->heap()->NewSpaceAllocationLimitAddress());
@@ -1261,23 +1228,6 @@ ExternalReference ExternalReference::address_of_one_half() {
 ExternalReference ExternalReference::address_of_minus_one_half() {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.minus_one_half));
-}
-
-
-ExternalReference ExternalReference::address_of_minus_zero() {
-  return ExternalReference(
-      reinterpret_cast<void*>(&double_constants.minus_zero));
-}
-
-
-ExternalReference ExternalReference::address_of_zero() {
-  return ExternalReference(reinterpret_cast<void*>(&double_constants.zero));
-}
-
-
-ExternalReference ExternalReference::address_of_uint8_max_value() {
-  return ExternalReference(
-      reinterpret_cast<void*>(&double_constants.uint8_max_value));
 }
 
 

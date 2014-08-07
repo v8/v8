@@ -998,12 +998,11 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
   Handle<HeapType> type = receiver_type();
   Handle<JSObject> holder = lookup->GetHolder<JSObject>();
   bool receiver_is_holder = object.is_identical_to(holder);
-  NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
-                                    cache_holder);
-
   // -------------- Interceptors --------------
   if (lookup->state() == LookupIterator::INTERCEPTOR) {
     DCHECK(!holder->GetNamedInterceptor()->getter()->IsUndefined());
+    NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                      cache_holder);
     return compiler.CompileLoadInterceptor(name);
   }
   DCHECK(lookup->state() == LookupIterator::PROPERTY);
@@ -1033,6 +1032,8 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         return slow_stub();
       }
       if (!holder->HasFastProperties()) return slow_stub();
+      NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                        cache_holder);
       return compiler.CompileLoadCallback(name, info);
     }
     if (accessors->IsAccessorPair()) {
@@ -1048,6 +1049,8 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
         return slow_stub();
       }
       CallOptimization call_optimization(function);
+      NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                        cache_holder);
       if (call_optimization.is_simple_api_call() &&
           call_optimization.IsCompatibleReceiver(object, holder)) {
         return compiler.CompileLoadCallback(name, call_optimization);
@@ -1064,6 +1067,8 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
   if (lookup->property_encoding() == LookupIterator::DICTIONARY) {
     if (kind() != Code::LOAD_IC) return slow_stub();
     if (holder->IsGlobalObject()) {
+      NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                        cache_holder);
       Handle<PropertyCell> cell = lookup->GetPropertyCell();
       Handle<Code> code =
           compiler.CompileLoadGlobal(cell, name, lookup->IsConfigurable());
@@ -1089,13 +1094,20 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
     if (receiver_is_holder) {
       return SimpleFieldLoad(field);
     }
-    return compiler.CompileLoadField(name, field, lookup->representation());
+    NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                      cache_holder);
+    return compiler.CompileLoadField(name, field);
   }
 
   // -------------- Constant properties --------------
   DCHECK(lookup->property_details().type() == CONSTANT);
-  Handle<Object> constant = lookup->GetDataValue();
-  return compiler.CompileLoadConstant(name, constant);
+  if (receiver_is_holder) {
+    LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
+    return stub.GetCode();
+  }
+  NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                    cache_holder);
+  return compiler.CompileLoadConstant(name, lookup->GetConstantIndex());
 }
 
 
@@ -1456,7 +1468,6 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
   Handle<JSObject> holder(lookup->holder());
-  NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
 
   if (lookup->IsTransition()) {
     // Explicitly pass in the receiver map since LookupForWrite may have
@@ -1466,12 +1477,27 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
 
     if (details.type() != CALLBACKS && details.attributes() == NONE &&
         holder->HasFastProperties()) {
+      NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
       return compiler.CompileStoreTransition(transition, name);
     }
   } else {
     switch (lookup->type()) {
-      case FIELD:
+      case FIELD: {
+        bool use_stub = true;
+        if (lookup->representation().IsHeapObject()) {
+          // Only use a generic stub if no types need to be tracked.
+          HeapType* field_type = lookup->GetFieldType();
+          HeapType::Iterator<Map> it = field_type->Classes();
+          use_stub = it.Done();
+        }
+        if (use_stub) {
+          StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
+                              lookup->representation());
+          return stub.GetCode();
+        }
+        NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
         return compiler.CompileStoreField(lookup, name);
+      }
       case NORMAL:
         if (receiver->IsJSGlobalProxy() || receiver->IsGlobalObject()) {
           // The stub generated for the global object picks the value directly
@@ -1505,6 +1531,8 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
                   isolate(), info, receiver_type())) {
             break;
           }
+          NamedStoreHandlerCompiler compiler(isolate(), receiver_type(),
+                                             holder);
           return compiler.CompileStoreCallback(receiver, name, info);
         } else if (callback->IsAccessorPair()) {
           Handle<Object> setter(
@@ -1514,6 +1542,8 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
           if (!holder->HasFastProperties()) break;
           Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
           CallOptimization call_optimization(function);
+          NamedStoreHandlerCompiler compiler(isolate(), receiver_type(),
+                                             holder);
           if (call_optimization.is_simple_api_call() &&
               call_optimization.IsCompatibleReceiver(receiver, holder)) {
             return compiler.CompileStoreCallback(receiver, name,
@@ -1526,9 +1556,11 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
         DCHECK(callback->IsDeclaredAccessorInfo());
         break;
       }
-      case INTERCEPTOR:
+      case INTERCEPTOR: {
         DCHECK(HasInterceptorSetter(*holder));
+        NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
         return compiler.CompileStoreInterceptor(name);
+      }
       case CONSTANT:
         break;
       case NONEXISTENT:

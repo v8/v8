@@ -7,25 +7,6 @@
 
 #include "src/base/logging.h"
 
-// Simulator specific helpers.
-// We can't use USE_SIMULATOR here because it isn't defined yet.
-#if V8_TARGET_ARCH_ARM64 && !V8_HOST_ARCH_ARM64
-  // TODO(all): If possible automatically prepend an indicator like
-  // UNIMPLEMENTED or LOCATION.
-  #define ASM_UNIMPLEMENTED(message)                                         \
-  __ Debug(message, __LINE__, NO_PARAM)
-  #define ASM_UNIMPLEMENTED_BREAK(message)                                   \
-  __ Debug(message, __LINE__,                                                \
-           FLAG_ignore_asm_unimplemented_break ? NO_PARAM : BREAK)
-  #define ASM_LOCATION(message)                                              \
-  __ Debug("LOCATION: " message, __LINE__, NO_PARAM)
-#else
-  #define ASM_UNIMPLEMENTED(message)
-  #define ASM_UNIMPLEMENTED_BREAK(message)
-  #define ASM_LOCATION(message)
-#endif
-
-
 #ifdef DEBUG
 #ifndef OPTIMIZED_DEBUG
 #define ENABLE_SLOW_DCHECKS    1

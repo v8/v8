@@ -190,6 +190,11 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 
+Address Assembler::break_address_from_return_address(Address pc) {
+  return pc - Assembler::kPatchDebugBreakSlotReturnOffset;
+}
+
+
 Object* RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));

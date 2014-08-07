@@ -331,11 +331,8 @@ void Assembler::GrowBuffer() {
 
   // Compute new buffer size.
   CodeDesc desc;  // the new buffer
-  if (buffer_size_ < 4*KB) {
-    desc.buffer_size = 4*KB;
-  } else {
-    desc.buffer_size = 2*buffer_size_;
-  }
+  desc.buffer_size = 2 * buffer_size_;
+
   // Some internal data structures overflow for very large buffers,
   // they must ensure that kMaximalBufferSize is not too large.
   if ((desc.buffer_size > kMaximalBufferSize) ||
@@ -364,13 +361,7 @@ void Assembler::GrowBuffer() {
           desc.reloc_size);
 
   // Switch buffers.
-  if (isolate() != NULL &&
-      isolate()->assembler_spare_buffer() == NULL &&
-      buffer_size_ == kMinimalBufferSize) {
-    isolate()->set_assembler_spare_buffer(buffer_);
-  } else {
-    DeleteArray(buffer_);
-  }
+  DeleteArray(buffer_);
   buffer_ = desc.buffer;
   buffer_size_ = desc.buffer_size;
   pc_ += pc_delta;

@@ -855,8 +855,8 @@ void Debug::Unload() {
   ClearAllBreakPoints();
   ClearStepping();
 
-  // Match unmatched PromiseHandlePrologue calls.
-  while (thread_local_.promise_on_stack_) PromiseHandleEpilogue();
+  // Match unmatched PopPromise calls.
+  while (thread_local_.promise_on_stack_) PopPromise();
 
   // Return debugger is not loaded.
   if (!is_loaded()) return;
@@ -1272,30 +1272,29 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 }
 
 
-PromiseOnStack::PromiseOnStack(Isolate* isolate,
-                                      PromiseOnStack* prev,
-                                      Handle<JSFunction> getter)
+PromiseOnStack::PromiseOnStack(Isolate* isolate, PromiseOnStack* prev,
+                               Handle<JSObject> promise)
     : isolate_(isolate), prev_(prev) {
   handler_ = StackHandler::FromAddress(
       Isolate::handler(isolate->thread_local_top()));
-  getter_ = Handle<JSFunction>::cast(
-      isolate->global_handles()->Create(*getter));
+  promise_ =
+      Handle<JSObject>::cast(isolate->global_handles()->Create(*promise));
 }
 
 
 PromiseOnStack::~PromiseOnStack() {
-  isolate_->global_handles()->Destroy(Handle<Object>::cast(getter_).location());
+  isolate_->global_handles()->Destroy(
+      Handle<Object>::cast(promise_).location());
 }
 
 
-void Debug::PromiseHandlePrologue(Handle<JSFunction> promise_getter) {
+void Debug::PushPromise(Handle<JSObject> promise) {
   PromiseOnStack* prev = thread_local_.promise_on_stack_;
-  thread_local_.promise_on_stack_ =
-      new PromiseOnStack(isolate_, prev, promise_getter);
+  thread_local_.promise_on_stack_ = new PromiseOnStack(isolate_, prev, promise);
 }
 
 
-void Debug::PromiseHandleEpilogue() {
+void Debug::PopPromise() {
   if (thread_local_.promise_on_stack_ == NULL) return;
   PromiseOnStack* prev = thread_local_.promise_on_stack_->prev();
   delete thread_local_.promise_on_stack_;
@@ -1303,32 +1302,37 @@ void Debug::PromiseHandleEpilogue() {
 }
 
 
-Handle<Object> Debug::GetPromiseForUncaughtException() {
+Handle<Object> Debug::GetPromiseOnStackOnThrow() {
   Handle<Object> undefined = isolate_->factory()->undefined_value();
   if (thread_local_.promise_on_stack_ == NULL) return undefined;
-  Handle<JSFunction> promise_getter = thread_local_.promise_on_stack_->getter();
-  StackHandler* promise_catch = thread_local_.promise_on_stack_->handler();
+  StackHandler* promise_try = thread_local_.promise_on_stack_->handler();
   // Find the top-most try-catch handler.
   StackHandler* handler = StackHandler::FromAddress(
       Isolate::handler(isolate_->thread_local_top()));
-  while (handler != NULL && !handler->is_catch()) {
+  do {
+    if (handler == promise_try) {
+      // Mark the pushed try-catch handler to prevent a later duplicate event
+      // triggered with the following reject.
+      return thread_local_.promise_on_stack_->promise();
+    }
     handler = handler->next();
-  }
-#ifdef DEBUG
-  // Make sure that our promise catch handler is in the list of handlers,
-  // even if it's not the top-most try-catch handler.
-  StackHandler* temp = handler;
-  while (temp != promise_catch && !temp->is_catch()) {
-    temp = temp->next();
-    CHECK(temp != NULL);
-  }
-#endif  // DEBUG
-
-  if (handler == promise_catch) {
-    return Execution::Call(
-        isolate_, promise_getter, undefined, 0, NULL).ToHandleChecked();
-  }
+    // There must be a try-catch handler if a promise is on stack.
+    DCHECK_NE(NULL, handler);
+    // Throwing inside a Promise can be intercepted by an inner try-catch, so
+    // we stop at the first try-catch handler.
+  } while (!handler->is_catch());
   return undefined;
+}
+
+
+bool Debug::PromiseHasRejectHandler(Handle<JSObject> promise) {
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(
+      JSObject::GetDataProperty(isolate_->js_builtins_object(),
+                                isolate_->factory()->NewStringFromStaticAscii(
+                                    "PromiseHasRejectHandler")));
+  Handle<Object> result =
+      Execution::Call(isolate_, fun, promise, 0, NULL).ToHandleChecked();
+  return result->IsTrue();
 }
 
 
@@ -2322,7 +2326,7 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   // Find the call address in the running code. This address holds the call to
   // either a DebugBreakXXX or to the debug break return entry code if the
   // break point is still active after processing the break point.
-  Address addr = frame->pc() - Assembler::kPatchDebugBreakSlotReturnOffset;
+  Address addr = Assembler::break_address_from_return_address(frame->pc());
 
   // Check if the location is at JS exit or debug break slot.
   bool at_js_return = false;
@@ -2413,7 +2417,7 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
 #endif
 
   // Find the call address in the running code.
-  Address addr = frame->pc() - Assembler::kPatchDebugBreakSlotReturnOffset;
+  Address addr = Assembler::break_address_from_return_address(frame->pc());
 
   // Check if the location is at JS return.
   RelocIterator it(debug_info->code());
@@ -2562,13 +2566,25 @@ MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
 }
 
 
-void Debug::OnException(Handle<Object> exception, bool uncaught) {
+void Debug::OnThrow(Handle<Object> exception, bool uncaught) {
   if (in_debug_scope() || ignore_events()) return;
-
   HandleScope scope(isolate_);
-  Handle<Object> promise = GetPromiseForUncaughtException();
-  uncaught |= !promise->IsUndefined();
+  OnException(exception, uncaught, GetPromiseOnStackOnThrow());
+}
 
+
+void Debug::OnPromiseReject(Handle<JSObject> promise, Handle<Object> value) {
+  if (in_debug_scope() || ignore_events()) return;
+  HandleScope scope(isolate_);
+  OnException(value, false, promise);
+}
+
+
+void Debug::OnException(Handle<Object> exception, bool uncaught,
+                        Handle<Object> promise) {
+  if (promise->IsJSObject()) {
+    uncaught |= !PromiseHasRejectHandler(Handle<JSObject>::cast(promise));
+  }
   // Bail out if exception breaks are not active
   if (uncaught) {
     // Uncaught exceptions are reported by either flags.

@@ -277,16 +277,16 @@ class Types {
         return Type::Array(element, region_);
       }
       case 5:
-      case 6:
-      case 7: {  // function
+      case 6: {  // function
         TypeHandle result = Fuzz(depth / 2);
         TypeHandle receiver = Fuzz(depth / 2);
         int arity = rng_->NextInt(3);
         TypeHandle type = Type::Function(result, receiver, arity, region_);
         for (int i = 0; i < type->AsFunction()->Arity(); ++i) {
-          TypeHandle parameter = Fuzz(depth - 1);
+          TypeHandle parameter = Fuzz(depth / 2);
           type->AsFunction()->InitParameter(i, parameter);
         }
+        return type;
       }
       default: {  // union
         int n = rng_->NextInt(10);

@@ -76,9 +76,10 @@ namespace internal {
   F(SetInlineBuiltinFlag, 1, 1)                             \
   F(StoreArrayLiteralElement, 5, 1)                         \
   F(DebugPrepareStepInIfStepping, 1, 1)                     \
-  F(DebugPromiseHandlePrologue, 1, 1)                       \
-  F(DebugPromiseHandleEpilogue, 0, 1)                       \
+  F(DebugPushPromise, 1, 1)                                 \
+  F(DebugPopPromise, 0, 1)                                  \
   F(DebugPromiseEvent, 1, 1)                                \
+  F(DebugPromiseRejectEvent, 2, 1)                          \
   F(DebugAsyncTaskEvent, 1, 1)                              \
   F(FlattenString, 1, 1)                                    \
   F(LoadMutableDouble, 2, 1)                                \
@@ -148,6 +149,7 @@ namespace internal {
   F(MathExpRT, 1, 1)                                        \
   F(RoundNumber, 1, 1)                                      \
   F(MathFround, 1, 1)                                       \
+  F(RemPiO2, 1, 1)                                          \
                                                             \
   /* Regular expressions */                                 \
   F(RegExpCompile, 3, 1)                                    \

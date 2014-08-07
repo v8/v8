@@ -539,6 +539,9 @@ class Assembler : public AssemblerBase {
   // of that call in the instruction stream.
   static inline Address target_address_from_return_address(Address pc);
 
+  // Return the code target address of the patch debug break slot
+  inline static Address break_address_from_return_address(Address pc);
+
   // This sets the branch destination (which is in the instruction on x64).
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(

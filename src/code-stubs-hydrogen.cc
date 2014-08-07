@@ -62,6 +62,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
 
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        FieldIndex index);
+  void BuildStoreNamedField(HValue* object, HValue* value, FieldIndex index,
+                            Representation representation);
 
   enum ArgumentClass {
     NONE,
@@ -590,7 +592,60 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 }
 
 
-template<>
+template <>
+HValue* CodeStubGraphBuilder<LoadConstantStub>::BuildCodeStub() {
+  HValue* map = AddLoadMap(GetParameter(0), NULL);
+  HObjectAccess descriptors_access = HObjectAccess::ForObservableJSObjectOffset(
+      Map::kDescriptorsOffset, Representation::Tagged());
+  HValue* descriptors =
+      Add<HLoadNamedField>(map, static_cast<HValue*>(NULL), descriptors_access);
+  HObjectAccess value_access = HObjectAccess::ForObservableJSObjectOffset(
+      DescriptorArray::GetValueOffset(casted_stub()->descriptor()));
+  return Add<HLoadNamedField>(descriptors, static_cast<HValue*>(NULL),
+                              value_access);
+}
+
+
+Handle<Code> LoadConstantStub::GenerateCode() { return DoGenerateCode(this); }
+
+
+void CodeStubGraphBuilderBase::BuildStoreNamedField(
+    HValue* object, HValue* value, FieldIndex index,
+    Representation representation) {
+  DCHECK(!index.is_double() || representation.IsDouble());
+  int offset = index.offset();
+  HObjectAccess access =
+      index.is_inobject()
+          ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
+          : HObjectAccess::ForBackingStoreOffset(offset, representation);
+
+  if (representation.IsDouble()) {
+    // Load the heap number.
+    object = Add<HLoadNamedField>(
+        object, static_cast<HValue*>(NULL),
+        access.WithRepresentation(Representation::Tagged()));
+    // Store the double value into it.
+    access = HObjectAccess::ForHeapNumberValue();
+  } else if (representation.IsHeapObject()) {
+    BuildCheckHeapObject(value);
+  }
+
+  Add<HStoreNamedField>(object, access, value, STORE_TO_INITIALIZED_ENTRY);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<StoreFieldStub>::BuildCodeStub() {
+  BuildStoreNamedField(GetParameter(0), GetParameter(2), casted_stub()->index(),
+                       casted_stub()->representation());
+  return GetParameter(2);
+}
+
+
+Handle<Code> StoreFieldStub::GenerateCode() { return DoGenerateCode(this); }
+
+
+template <>
 HValue* CodeStubGraphBuilder<StringLengthStub>::BuildCodeStub() {
   HValue* string = BuildLoadNamedField(GetParameter(0),
       FieldIndex::ForInObjectOffset(JSValue::kValueOffset));

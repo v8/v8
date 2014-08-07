@@ -866,8 +866,6 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable Heap::NewSpaceStart()
   static ExternalReference new_space_start(Isolate* isolate);
   static ExternalReference new_space_mask(Isolate* isolate);
-  static ExternalReference heap_always_allocate_scope_depth(Isolate* isolate);
-  static ExternalReference new_space_mark_bits(Isolate* isolate);
 
   // Write barrier.
   static ExternalReference store_buffer_top(Isolate* isolate);
@@ -901,9 +899,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_min_int();
   static ExternalReference address_of_one_half();
   static ExternalReference address_of_minus_one_half();
-  static ExternalReference address_of_minus_zero();
-  static ExternalReference address_of_zero();
-  static ExternalReference address_of_uint8_max_value();
   static ExternalReference address_of_negative_infinity();
   static ExternalReference address_of_canonical_non_hole_nan();
   static ExternalReference address_of_the_hole_nan();

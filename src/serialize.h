@@ -17,17 +17,16 @@ namespace internal {
 // A TypeCode is used to distinguish different kinds of external reference.
 // It is a single bit to make testing for types easy.
 enum TypeCode {
-  UNCLASSIFIED,        // One-of-a-kind references.
+  UNCLASSIFIED,  // One-of-a-kind references.
+  C_BUILTIN,
   BUILTIN,
   RUNTIME_FUNCTION,
   IC_UTILITY,
   STATS_COUNTER,
   TOP_ADDRESS,
-  C_BUILTIN,
-  EXTENSION,
   ACCESSOR,
-  RUNTIME_ENTRY,
   STUB_CACHE_TABLE,
+  RUNTIME_ENTRY,
   LAZY_DEOPTIMIZATION
 };
 
@@ -81,8 +80,12 @@ class ExternalReferenceTable {
   // For other types of references, the caller will figure out the address.
   void Add(Address address, TypeCode type, uint16_t id, const char* name);
 
+  void Add(Address address, const char* name) {
+    Add(address, UNCLASSIFIED, ++max_id_[UNCLASSIFIED], name);
+  }
+
   List<ExternalReferenceEntry> refs_;
-  int max_id_[kTypeCodeCount];
+  uint16_t max_id_[kTypeCodeCount];
 };
 
 

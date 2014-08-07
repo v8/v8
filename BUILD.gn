@@ -166,18 +166,6 @@ config("toolchain") {
 # Actions
 #
 
-action("generate_trig_table") {
-  visibility = ":*"  # Only targets in this file can depend on this.
-
-  script = "tools/generate-trig-table.py"
-
-  outputs = [
-    "$target_gen_dir/trig-table.cc"
-  ]
-
-  args = rebase_path(outputs, root_build_dir)
-}
-
 action("js2c") {
   visibility = ":*"  # Only targets in this file can depend on this.
 
@@ -194,6 +182,7 @@ action("js2c") {
     "src/string.js",
     "src/symbol.js",
     "src/uri.js",
+    "third_party/fdlibm/fdlibm.js",
     "src/math.js",
     "src/messages.js",
     "src/apinatives.js",
@@ -252,6 +241,7 @@ action("js2c_experimental") {
     "src/array-iterator.js",
     "src/harmony-string.js",
     "src/harmony-array.js",
+    "src/unscopables.js",
   ]
 
   outputs = [
@@ -360,14 +350,12 @@ source_set("v8_nosnapshot") {
   deps = [
     ":js2c",
     ":js2c_experimental",
-    ":generate_trig_table",
     ":v8_base",
   ]
 
   sources = [
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
-    "$target_gen_dir/trig-table.cc",
     "src/snapshot-empty.cc",
     "src/snapshot-common.cc",
   ]
@@ -383,7 +371,6 @@ source_set("v8_snapshot") {
   deps = [
     ":js2c",
     ":js2c_experimental",
-    ":generate_trig_table",
     ":run_mksnapshot",
     ":v8_base",
   ]
@@ -391,7 +378,6 @@ source_set("v8_snapshot") {
   sources = [
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/experimental-libraries.cc",
-    "$target_gen_dir/trig-table.cc",
     "$target_gen_dir/snapshot.cc",
     "src/snapshot-common.cc",
   ]
@@ -408,14 +394,12 @@ if (v8_use_external_startup_data) {
     deps = [
       ":js2c",
       ":js2c_experimental",
-      ":generate_trig_table",
       ":run_mksnapshot",
       ":v8_base",
       ":natives_blob",
     ]
 
     sources = [
-      "$target_gen_dir/trig-table.cc",
       "src/natives-external.cc",
       "src/snapshot-external.cc",
     ]
@@ -865,6 +849,8 @@ source_set("v8_base") {
     "src/zone-inl.h",
     "src/zone.cc",
     "src/zone.h",
+    "third_party/fdlibm/fdlibm.cc",
+    "third_party/fdlibm/fdlibm.h",
   ]
 
   if (v8_target_arch == "x86") {

@@ -45,6 +45,7 @@
 #include "src/utils.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
+#include "third_party/fdlibm/fdlibm.h"
 
 #ifdef V8_I18N_SUPPORT
 #include "src/i18n.h"
@@ -5465,22 +5466,19 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
 }
 
 
-// The argument is a closure that is kept until the epilogue is called.
-// On exception, the closure is called, which returns the promise if the
-// exception is considered uncaught, or undefined otherwise.
-RUNTIME_FUNCTION(Runtime_DebugPromiseHandlePrologue) {
+RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, promise_getter, 0);
-  isolate->debug()->PromiseHandlePrologue(promise_getter);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  isolate->debug()->PushPromise(promise);
   return isolate->heap()->undefined_value();
 }
 
 
-RUNTIME_FUNCTION(Runtime_DebugPromiseHandleEpilogue) {
+RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   DCHECK(args.length() == 0);
   SealHandleScope shs(isolate);
-  isolate->debug()->PromiseHandleEpilogue();
+  isolate->debug()->PopPromise();
   return isolate->heap()->undefined_value();
 }
 
@@ -5490,6 +5488,16 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseEvent) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, data, 0);
   isolate->debug()->OnPromiseEvent(data);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_DebugPromiseRejectEvent) {
+  DCHECK(args.length() == 2);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  isolate->debug()->OnPromiseReject(promise, value);
   return isolate->heap()->undefined_value();
 }
 
@@ -7673,6 +7681,23 @@ RUNTIME_FUNCTION(Runtime_ConstructDouble) {
   CONVERT_NUMBER_CHECKED(uint32_t, lo, Uint32, args[1]);
   uint64_t result = (static_cast<uint64_t>(hi) << 32) | lo;
   return *isolate->factory()->NewNumber(uint64_to_double(result));
+}
+
+
+RUNTIME_FUNCTION(Runtime_RemPiO2) {
+  HandleScope handle_scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_DOUBLE_ARG_CHECKED(x, 0);
+  Factory* factory = isolate->factory();
+  double y[2];
+  int n = fdlibm::rempio2(x, y);
+  Handle<FixedArray> array = factory->NewFixedArray(3);
+  Handle<HeapNumber> y0 = factory->NewHeapNumber(y[0]);
+  Handle<HeapNumber> y1 = factory->NewHeapNumber(y[1]);
+  array->set(0, Smi::FromInt(n));
+  array->set(1, *y0);
+  array->set(2, *y1);
+  return *factory->NewJSArrayWithElements(array);
 }
 
 

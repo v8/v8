@@ -3417,6 +3417,7 @@ class DescriptorArray: public FixedArray {
   inline Object* GetValue(int descriptor_number);
   inline void SetValue(int descriptor_number, Object* value);
   inline Object** GetValueSlot(int descriptor_number);
+  static inline int GetValueOffset(int descriptor_number);
   inline Object** GetDescriptorStartSlot(int descriptor_number);
   inline Object** GetDescriptorEndSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);

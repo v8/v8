@@ -568,110 +568,27 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
 }
 
 
-// Both name_reg and receiver_reg are preserved on jumps to miss_label,
-// but may be destroyed if store is successful.
-void NamedStoreHandlerCompiler::GenerateStoreField(
-    Handle<JSObject> object, LookupResult* lookup, Register receiver_reg,
-    Register name_reg, Register value_reg, Register scratch1, Register scratch2,
-    Label* miss_label) {
-  // Stub never generated for objects that require access checks.
-  DCHECK(!object->IsAccessCheckNeeded());
-  DCHECK(!object->IsJSGlobalProxy());
-
-  FieldIndex index = lookup->GetFieldIndex();
-
-  Representation representation = lookup->representation();
-  DCHECK(!representation.IsNone());
-  if (representation.IsSmi()) {
-    __ JumpIfNotSmi(value_reg, miss_label);
-  } else if (representation.IsHeapObject()) {
-    __ JumpIfSmi(value_reg, miss_label);
-    HeapType* field_type = lookup->GetFieldType();
-    HeapType::Iterator<Map> it = field_type->Classes();
-    if (!it.Done()) {
-      Label do_store;
-      while (true) {
-        __ CompareMap(value_reg, it.Current());
-        it.Advance();
-        if (it.Done()) {
-          __ j(not_equal, miss_label);
-          break;
-        }
-        __ j(equal, &do_store, Label::kNear);
-      }
-      __ bind(&do_store);
+void NamedStoreHandlerCompiler::GenerateStoreField(LookupResult* lookup,
+                                                   Register value_reg,
+                                                   Label* miss_label) {
+  DCHECK(lookup->representation().IsHeapObject());
+  __ JumpIfSmi(value_reg, miss_label);
+  HeapType::Iterator<Map> it = lookup->GetFieldType()->Classes();
+  Label do_store;
+  while (true) {
+    __ CompareMap(value_reg, it.Current());
+    it.Advance();
+    if (it.Done()) {
+      __ j(not_equal, miss_label);
+      break;
     }
-  } else if (representation.IsDouble()) {
-    // Load the double storage.
-    if (index.is_inobject()) {
-      __ mov(scratch1, FieldOperand(receiver_reg, index.offset()));
-    } else {
-      __ mov(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-      __ mov(scratch1, FieldOperand(scratch1, index.offset()));
-    }
-
-    // Store the value into the storage.
-    Label do_store, heap_number;
-    __ JumpIfNotSmi(value_reg, &heap_number);
-    __ SmiUntag(value_reg);
-    __ Cvtsi2sd(xmm0, value_reg);
-    __ SmiTag(value_reg);
-    __ jmp(&do_store);
-    __ bind(&heap_number);
-    __ CheckMap(value_reg, isolate()->factory()->heap_number_map(), miss_label,
-                DONT_DO_SMI_CHECK);
-    __ movsd(xmm0, FieldOperand(value_reg, HeapNumber::kValueOffset));
-    __ bind(&do_store);
-    __ movsd(FieldOperand(scratch1, HeapNumber::kValueOffset), xmm0);
-    // Return the value (register eax).
-    DCHECK(value_reg.is(eax));
-    __ ret(0);
-    return;
+    __ j(equal, &do_store, Label::kNear);
   }
+  __ bind(&do_store);
 
-  DCHECK(!representation.IsDouble());
-  // TODO(verwaest): Share this code as a code stub.
-  SmiCheck smi_check = representation.IsTagged()
-      ? INLINE_SMI_CHECK : OMIT_SMI_CHECK;
-  if (index.is_inobject()) {
-    // Set the property straight into the object.
-    __ mov(FieldOperand(receiver_reg, index.offset()), value_reg);
-
-    if (!representation.IsSmi()) {
-      // Update the write barrier for the array address.
-      // Pass the value being stored in the now unused name_reg.
-      __ mov(name_reg, value_reg);
-      __ RecordWriteField(receiver_reg,
-                          index.offset(),
-                          name_reg,
-                          scratch1,
-                          kDontSaveFPRegs,
-                          EMIT_REMEMBERED_SET,
-                          smi_check);
-    }
-  } else {
-    // Write to the properties array.
-    // Get the properties array (optimistically).
-    __ mov(scratch1, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-    __ mov(FieldOperand(scratch1, index.offset()), value_reg);
-
-    if (!representation.IsSmi()) {
-      // Update the write barrier for the array address.
-      // Pass the value being stored in the now unused name_reg.
-      __ mov(name_reg, value_reg);
-      __ RecordWriteField(scratch1,
-                          index.offset(),
-                          name_reg,
-                          receiver_reg,
-                          kDontSaveFPRegs,
-                          EMIT_REMEMBERED_SET,
-                          smi_check);
-    }
-  }
-
-  // Return the value (register eax).
-  DCHECK(value_reg.is(eax));
-  __ ret(0);
+  StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
+                      lookup->representation());
+  GenerateTailCall(masm(), stub.GetCode());
 }
 
 
@@ -807,14 +724,6 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
-}
-
-
-void NamedLoadHandlerCompiler::GenerateLoadField(
-    Register reg, FieldIndex field, Representation representation) {
-  if (!reg.is(receiver())) __ mov(receiver(), reg);
-  LoadFieldStub stub(isolate(), field);
-  GenerateTailCall(masm(), stub.GetCode());
 }
 
 

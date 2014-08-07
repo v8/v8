@@ -606,7 +606,7 @@ int DisassemblerIA32::D1D3C1Instruction(byte* data) {
   if (op == 0xD1) {
     imm8 = 1;
   } else if (op == 0xC1) {
-    imm8 = *(data + 2);
+    imm8 = *(data + 1);
     count++;
   } else if (op == 0xD3) {
     // Shift/rotate by cl.

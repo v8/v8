@@ -989,6 +989,7 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
   DCHECK(!temp1.is(temp3));
   DCHECK(!temp2.is(temp3));
   DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
+  DCHECK(!masm->serializer_enabled());  // External references not serializable.
 
   Label zero, infinity, done;
   __ li(temp3, Operand(ExternalReference::math_exp_constants(0)));

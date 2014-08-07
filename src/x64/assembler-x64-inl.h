@@ -206,6 +206,11 @@ Address Assembler::target_address_from_return_address(Address pc) {
 }
 
 
+Address Assembler::break_address_from_return_address(Address pc) {
+  return pc - Assembler::kPatchDebugBreakSlotReturnOffset;
+}
+
+
 Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   return code_targets_[Memory::int32_at(pc)];
 }

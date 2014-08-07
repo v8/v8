@@ -1026,7 +1026,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
 
   // Notify debugger of exception.
   if (catchable_by_javascript) {
-    debug()->OnException(exception_handle, report_exception);
+    debug()->OnThrow(exception_handle, report_exception);
   }
 
   // Generate the message if required.
@@ -1645,9 +1645,6 @@ Isolate::~Isolate() {
   delete entry_stack_;
   entry_stack_ = NULL;
 
-  delete[] assembler_spare_buffer_;
-  assembler_spare_buffer_ = NULL;
-
   delete unicode_cache_;
   unicode_cache_ = NULL;
 
@@ -2003,6 +2000,7 @@ bool Isolate::Init(Deserializer* des) {
     StringAddStub::InstallDescriptors(this);
     RegExpConstructResultStub::InstallDescriptors(this);
     KeyedLoadGenericStub::InstallDescriptors(this);
+    StoreFieldStub::InstallDescriptors(this);
   }
 
   CallDescriptors::InitializeForIsolate(this);

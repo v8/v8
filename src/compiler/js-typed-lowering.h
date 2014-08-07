@@ -16,8 +16,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class JSBinopReduction;
-
 // Lowers JS-level operators to simplified operators based on types.
 class JSTypedLowering : public LoweringBuilder {
  public:

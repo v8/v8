@@ -116,21 +116,21 @@ TEST(ExternalReferenceEncoder) {
            encoder.Encode(total_compile_size.address()));
   ExternalReference stack_limit_address =
       ExternalReference::address_of_stack_limit(isolate);
-  CHECK_EQ(make_code(UNCLASSIFIED, 4),
+  CHECK_EQ(make_code(UNCLASSIFIED, 2),
            encoder.Encode(stack_limit_address.address()));
   ExternalReference real_stack_limit_address =
       ExternalReference::address_of_real_stack_limit(isolate);
-  CHECK_EQ(make_code(UNCLASSIFIED, 5),
-           encoder.Encode(real_stack_limit_address.address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 16),
-           encoder.Encode(ExternalReference::debug_break(isolate).address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 10),
-           encoder.Encode(
-               ExternalReference::new_space_start(isolate).address()));
   CHECK_EQ(make_code(UNCLASSIFIED, 3),
-           encoder.Encode(
-               ExternalReference::roots_array_start(isolate).address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 52),
+           encoder.Encode(real_stack_limit_address.address()));
+  CHECK_EQ(make_code(UNCLASSIFIED, 8),
+           encoder.Encode(ExternalReference::debug_break(isolate).address()));
+  CHECK_EQ(
+      make_code(UNCLASSIFIED, 4),
+      encoder.Encode(ExternalReference::new_space_start(isolate).address()));
+  CHECK_EQ(
+      make_code(UNCLASSIFIED, 1),
+      encoder.Encode(ExternalReference::roots_array_start(isolate).address()));
+  CHECK_EQ(make_code(UNCLASSIFIED, 34),
            encoder.Encode(ExternalReference::cpu_features().address()));
 }
 
@@ -153,13 +153,13 @@ TEST(ExternalReferenceDecoder) {
                make_code(STATS_COUNTER,
                          Counters::k_total_compile_size)));
   CHECK_EQ(ExternalReference::address_of_stack_limit(isolate).address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 4)));
+           decoder.Decode(make_code(UNCLASSIFIED, 2)));
   CHECK_EQ(ExternalReference::address_of_real_stack_limit(isolate).address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 5)));
+           decoder.Decode(make_code(UNCLASSIFIED, 3)));
   CHECK_EQ(ExternalReference::debug_break(isolate).address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 16)));
+           decoder.Decode(make_code(UNCLASSIFIED, 8)));
   CHECK_EQ(ExternalReference::new_space_start(isolate).address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 10)));
+           decoder.Decode(make_code(UNCLASSIFIED, 4)));
 }
 
 

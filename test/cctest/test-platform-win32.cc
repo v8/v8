@@ -50,9 +50,3 @@ TEST(VirtualMemory) {
   CHECK(vm->Uncommit(block_addr, block_size));
   delete vm;
 }
-
-
-TEST(GetCurrentProcessId) {
-  CHECK_EQ(static_cast<int>(::GetCurrentProcessId()),
-           v8::base::OS::GetCurrentProcessId());
-}

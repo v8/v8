@@ -235,7 +235,9 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'include', 'samples', join('test', 'cctest')]
+    return ['src', 'include', 'samples',
+            join('test', 'base-unittests'),
+            join('test', 'cctest')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
@@ -423,6 +425,12 @@ def CheckGeneratedRuntimeTests(workspace):
   return code == 0
 
 
+def CheckExternalReferenceRegistration(workspace):
+  code = subprocess.call(
+      [sys.executable, join(workspace, "tools", "external-reference-check.py")])
+  return code == 0
+
+
 def GetOptions():
   result = optparse.OptionParser()
   result.add_option('--no-lint', help="Do not run cpplint", default=False,
@@ -442,6 +450,7 @@ def Main():
         "two empty lines between declarations check..."
   success = SourceProcessor().Run(workspace) and success
   success = CheckGeneratedRuntimeTests(workspace) and success
+  success = CheckExternalReferenceRegistration(workspace) and success
   if success:
     return 0
   else:

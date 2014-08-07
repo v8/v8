@@ -71,6 +71,38 @@ void Context::set_global_proxy(JSObject* object) {
 }
 
 
+/**
+ * Lookups a property in an object environment, taking the unscopables into
+ * account. This is used For HasBinding spec algorithms for ObjectEnvironment.
+ */
+static Maybe<PropertyAttributes> UnscopableLookup(LookupIterator* it) {
+  Isolate* isolate = it->isolate();
+
+  Maybe<PropertyAttributes> attrs = JSReceiver::GetPropertyAttributes(it);
+  DCHECK(attrs.has_value || isolate->has_pending_exception());
+  if (!attrs.has_value || attrs.value == ABSENT) return attrs;
+
+  Handle<Symbol> unscopables_symbol(
+      isolate->native_context()->unscopables_symbol(), isolate);
+  Handle<Object> receiver = it->GetReceiver();
+  Handle<Object> unscopables;
+  MaybeHandle<Object> maybe_unscopables =
+      Object::GetProperty(receiver, unscopables_symbol);
+  if (!maybe_unscopables.ToHandle(&unscopables)) {
+    return Maybe<PropertyAttributes>();
+  }
+  if (!unscopables->IsSpecObject()) return attrs;
+  Maybe<bool> blacklist = JSReceiver::HasProperty(
+      Handle<JSReceiver>::cast(unscopables), it->name());
+  if (!blacklist.has_value) {
+    DCHECK(isolate->has_pending_exception());
+    return Maybe<PropertyAttributes>();
+  }
+  if (blacklist.value) return maybe(ABSENT);
+  return attrs;
+}
+
+
 Handle<Object> Context::Lookup(Handle<String> name,
                                ContextLookupFlags flags,
                                int* index,
@@ -110,9 +142,13 @@ Handle<Object> Context::Lookup(Handle<String> name,
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
         maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
+      } else if (FLAG_harmony_unscopables && context->IsWithContext()) {
+        LookupIterator it(object, name);
+        maybe = UnscopableLookup(&it);
       } else {
         maybe = JSReceiver::GetPropertyAttributes(object, name);
       }
+
       if (!maybe.has_value) return Handle<Object>();
       DCHECK(!isolate->has_pending_exception());
       *attributes = maybe.value;

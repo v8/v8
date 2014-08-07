@@ -429,11 +429,9 @@ Node* JSGenericLowering::LowerJSLoadProperty(Node* node) {
 
 
 Node* JSGenericLowering::LowerJSLoadNamed(Node* node) {
-  PrintableUnique<Name> key = OpParameter<PrintableUnique<Name> >(node);
-  // TODO(mstarzinger): The ContextualMode needs to be carried along in the
-  // operator to use JSLoadNamed for global variable loads.
-  LoadICStubShim stub(isolate(), NOT_CONTEXTUAL);
-  PatchInsertInput(node, 1, jsgraph()->HeapConstant(key));
+  LoadNamedParameters p = OpParameter<LoadNamedParameters>(node);
+  LoadICStubShim stub(isolate(), p.contextual_mode);
+  PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name));
   ReplaceWithICStubCall(node, &stub);
   return node;
 }

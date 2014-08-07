@@ -34,6 +34,7 @@
   V(Phi)                 \
   V(EffectPhi)           \
   V(FrameState)          \
+  V(StateValues)         \
   V(Call)                \
   V(Parameter)           \
   V(Projection)

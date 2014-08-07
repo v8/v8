@@ -121,14 +121,12 @@
           'dependencies': [
             'mksnapshot#host',
             'js2c#host',
-            'generate_trig_table#host',
           ],
         }, {
           'toolsets': ['target'],
           'dependencies': [
             'mksnapshot',
             'js2c',
-            'generate_trig_table',
           ],
         }],
         ['component=="shared_library"', {
@@ -153,7 +151,6 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '<(INTERMEDIATE_DIR)/snapshot.cc',
         '../../src/snapshot-common.cc',
       ],
@@ -197,17 +194,16 @@
       'sources': [
         '<(SHARED_INTERMEDIATE_DIR)/libraries.cc',
         '<(SHARED_INTERMEDIATE_DIR)/experimental-libraries.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '../../src/snapshot-common.cc',
         '../../src/snapshot-empty.cc',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
-          'dependencies': ['js2c#host', 'generate_trig_table#host'],
+          'dependencies': ['js2c#host'],
         }, {
           'toolsets': ['target'],
-          'dependencies': ['js2c', 'generate_trig_table'],
+          'dependencies': ['js2c'],
         }],
         ['component=="shared_library"', {
           'defines': [
@@ -226,14 +222,12 @@
           'dependencies': [
             'mksnapshot#host',
             'js2c#host',
-            'generate_trig_table#host',
             'natives_blob#host',
         ]}, {
           'toolsets': ['target'],
           'dependencies': [
             'mksnapshot',
             'js2c',
-            'generate_trig_table',
             'natives_blob',
           ],
         }],
@@ -257,7 +251,6 @@
         '../..',
       ],
       'sources': [
-        '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
         '../../src/natives-external.cc',
         '../../src/snapshot-external.cc',
       ],
@@ -290,32 +283,6 @@
           ],
         },
       ],
-    },
-    { 'target_name': 'generate_trig_table',
-      'type': 'none',
-      'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host'],
-        }, {
-          'toolsets': ['target'],
-        }],
-      ],
-      'actions': [
-        {
-          'action_name': 'generate',
-          'inputs': [
-            '../../tools/generate-trig-table.py',
-          ],
-          'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/trig-table.cc',
-          ],
-          'action': [
-            'python',
-            '../../tools/generate-trig-table.py',
-            '<@(_outputs)',
-          ],
-        },
-      ]
     },
     {
       'target_name': 'v8_base',
@@ -768,6 +735,8 @@
         '../../src/zone-inl.h',
         '../../src/zone.cc',
         '../../src/zone.h',
+        '../../third_party/fdlibm/fdlibm.cc',
+        '../../third_party/fdlibm/fdlibm.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -1420,6 +1389,7 @@
           '../../src/array.js',
           '../../src/string.js',
           '../../src/uri.js',
+          '../../third_party/fdlibm/fdlibm.js',
           '../../src/math.js',
           '../../src/messages.js',
           '../../src/apinatives.js',
@@ -1447,6 +1417,7 @@
           '../../src/string-iterator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
+          '../../src/unscopables.js',
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',

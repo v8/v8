@@ -14,7 +14,7 @@
 #include "src/isolate-inl.h"
 #include "src/natives.h"
 #include "src/snapshot.h"
-#include "src/trig-table.h"
+#include "third_party/fdlibm/fdlibm.h"
 
 namespace v8 {
 namespace internal {
@@ -121,7 +121,7 @@ char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
 void Bootstrapper::TearDown() {
   if (delete_these_non_arrays_on_tear_down_ != NULL) {
     int len = delete_these_non_arrays_on_tear_down_->length();
-    DCHECK(len < 24);  // Don't use this mechanism for unbounded allocations.
+    DCHECK(len < 25);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
       delete delete_these_non_arrays_on_tear_down_->at(i);
       delete_these_non_arrays_on_tear_down_->at(i) = NULL;
@@ -982,6 +982,14 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     }
   }
 
+  {
+    // --- S y m b o l ---
+    Handle<JSFunction> symbol_fun = InstallFunction(
+        global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
+        isolate->initial_object_prototype(), Builtins::kIllegal);
+    native_context()->set_symbol_function(*symbol_fun);
+  }
+
   {  // --- D a t e ---
     // Builtin functions for Date.prototype.
     Handle<JSFunction> date_fun =
@@ -1168,14 +1176,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   // -- W e a k S e t
   InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
                   isolate->initial_object_prototype(), Builtins::kIllegal);
-
-  {
-    // --- S y m b o l ---
-    Handle<JSFunction> symbol_fun = InstallFunction(
-        global, "Symbol", JS_VALUE_TYPE, JSValue::kSize,
-        isolate->initial_object_prototype(), Builtins::kIllegal);
-    native_context()->set_symbol_function(*symbol_fun);
-  }
 
   {  // --- sloppy arguments map
     // Make sure we can recognize argument objects at runtime.
@@ -1593,6 +1593,7 @@ void Genesis::InstallNativeFunctions() {
                  native_object_get_notifier);
   INSTALL_NATIVE(JSFunction, "NativeObjectNotifierPerformChange",
                  native_object_notifier_perform_change);
+
   INSTALL_NATIVE(Symbol, "symbolIterator", iterator_symbol);
 
   INSTALL_NATIVE_MATH(abs)
@@ -1623,6 +1624,10 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
     INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
+  }
+
+  if (FLAG_harmony_unscopables) {
+    INSTALL_NATIVE(Symbol, "symbolUnscopables", unscopables_symbol);
   }
 }
 
@@ -2062,6 +2067,7 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "string-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, unscopables, "unscopables.js")
   }
 
   InstallExperimentalNativeFunctions();
@@ -2650,43 +2656,20 @@ Genesis::Genesis(Isolate* isolate,
                                   NONE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
-    const int table_num_bytes = TrigonometricLookupTable::table_num_bytes();
-    v8::Local<v8::ArrayBuffer> sin_buffer = v8::ArrayBuffer::New(
+    const int constants_size =
+        ARRAY_SIZE(fdlibm::TrigonometricConstants::constants);
+    const int table_num_bytes = constants_size * kDoubleSize;
+    v8::Local<v8::ArrayBuffer> trig_buffer = v8::ArrayBuffer::New(
         reinterpret_cast<v8::Isolate*>(isolate),
-        TrigonometricLookupTable::sin_table(), table_num_bytes);
-    v8::Local<v8::ArrayBuffer> cos_buffer = v8::ArrayBuffer::New(
-        reinterpret_cast<v8::Isolate*>(isolate),
-        TrigonometricLookupTable::cos_x_interval_table(), table_num_bytes);
-    v8::Local<v8::Float64Array> sin_table = v8::Float64Array::New(
-        sin_buffer, 0, TrigonometricLookupTable::table_size());
-    v8::Local<v8::Float64Array> cos_table = v8::Float64Array::New(
-        cos_buffer, 0, TrigonometricLookupTable::table_size());
+        const_cast<double*>(fdlibm::TrigonometricConstants::constants),
+        table_num_bytes);
+    v8::Local<v8::Float64Array> trig_table =
+        v8::Float64Array::New(trig_buffer, 0, constants_size);
 
-    Runtime::DefineObjectProperty(builtins,
-                                  factory()->InternalizeOneByteString(
-                                      STATIC_ASCII_VECTOR("kSinTable")),
-                                  Utils::OpenHandle(*sin_table),
-                                  NONE).Assert();
     Runtime::DefineObjectProperty(
         builtins,
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("kCosXIntervalTable")),
-        Utils::OpenHandle(*cos_table),
-        NONE).Assert();
-    Runtime::DefineObjectProperty(
-        builtins,
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("kSamples")),
-        factory()->NewHeapNumber(
-            TrigonometricLookupTable::samples()),
-        NONE).Assert();
-    Runtime::DefineObjectProperty(
-        builtins,
-        factory()->InternalizeOneByteString(
-            STATIC_ASCII_VECTOR("kIndexConvert")),
-        factory()->NewHeapNumber(
-            TrigonometricLookupTable::samples_over_pi_half()),
-        NONE).Assert();
+        factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("kTrig")),
+        Utils::OpenHandle(*trig_table), NONE).Assert();
   }
 
   result_ = native_context();

@@ -463,8 +463,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual ~NamedLoadHandlerCompiler() {}
 
-  Handle<Code> CompileLoadField(Handle<Name> name, FieldIndex index,
-                                Representation representation);
+  Handle<Code> CompileLoadField(Handle<Name> name, FieldIndex index);
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    Handle<ExecutableAccessorInfo> callback);
@@ -472,7 +471,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    const CallOptimization& call_optimization);
 
-  Handle<Code> CompileLoadConstant(Handle<Name> name, Handle<Object> value);
+  Handle<Code> CompileLoadConstant(Handle<Name> name, int constant_index);
 
   Handle<Code> CompileLoadInterceptor(Handle<Name> name);
 
@@ -519,9 +518,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
  private:
   Handle<Code> CompileLoadNonexistent(Handle<Name> name);
-  void GenerateLoadField(Register reg,
-                         FieldIndex field,
-                         Representation representation);
   void GenerateLoadConstant(Handle<Object> value);
   void GenerateLoadCallback(Register reg,
                             Handle<ExecutableAccessorInfo> callback);
@@ -593,10 +589,8 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                Register scratch2, Register scratch3,
                                Label* miss_label, Label* slow);
 
-  void GenerateStoreField(Handle<JSObject> object, LookupResult* lookup,
-                          Register receiver_reg, Register name_reg,
-                          Register value_reg, Register scratch1,
-                          Register scratch2, Label* miss_label);
+  void GenerateStoreField(LookupResult* lookup, Register value_reg,
+                          Label* miss_label);
 
   static Builtins::Name SlowBuiltin(Code::Kind kind) {
     switch (kind) {

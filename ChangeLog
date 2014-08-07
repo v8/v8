@@ -1,3 +1,26 @@
+2014-08-07: Version 3.28.62
+
+        Only escape U+0022 in argument values of `String.prototype` HTML methods
+        (issue 2217).
+
+        Update webkit test for expected own properties.
+
+        This implements unscopables (issue 3401).
+
+        Add `CheckObjectCoercible` for the `String.prototype` HTML methods
+        (issue 2218).
+
+        Add initial support for compiler unit tests using GTest/GMock (issue
+        3489).
+
+        Trigger exception debug events on Promise reject (Chromium issue
+        393913).
+
+        Refactor unit tests for the base library to use GTest (issue 3489).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-06: Version 3.28.60
 
         Enable ES6 Map and Set by default (issue 1622).

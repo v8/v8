@@ -79,9 +79,6 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(jarin): Lazy deoptimization test.
-  'test-run-deopt/TurboSimpleDeopt': [SKIP],
-
   # TODO(mstarzinger): These need investigation and are not categorized yet.
   'test-cpu-profiler/*': [SKIP],
   'test-heap/NextCodeLinkIsWeak': [PASS, NO_VARIANTS],
@@ -103,7 +100,6 @@
 
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
-  'test-api/ExternalArrays': [PASS, NO_VARIANTS],
   'test-api/RequestInterruptTestWithMathAbs': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],

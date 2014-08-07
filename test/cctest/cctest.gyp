@@ -100,10 +100,8 @@
         'test-checks.cc',
         'test-circular-queue.cc',
         'test-compiler.cc',
-        'test-condition-variable.cc',
         'test-constantpool.cc',
         'test-conversions.cc',
-        'test-cpu.cc',
         'test-cpu-profiler.cc',
         'test-dataflow.cc',
         'test-date.cc',
@@ -137,13 +135,11 @@
         'test-microtask-delivery.cc',
         'test-mark-compact.cc',
         'test-mementos.cc',
-        'test-mutex.cc',
         'test-object-observe.cc',
         'test-ordered-hash-table.cc',
         'test-ostreams.cc',
         'test-parsing.cc',
         'test-platform.cc',
-        'test-platform-tls.cc',
         'test-profile-generator.cc',
         'test-random-number-generator.cc',
         'test-regexp.cc',
@@ -157,10 +153,10 @@
         'test-strtod.cc',
         'test-thread-termination.cc',
         'test-threads.cc',
-        'test-time.cc',
         'test-types.cc',
         'test-unbound-queue.cc',
         'test-unique.cc',
+        'test-unscopables-hidden-prototype.cc',
         'test-utils.cc',
         'test-version.cc',
         'test-weakmaps.cc',
@@ -175,7 +171,6 @@
             'test-assembler-ia32.cc',
             'test-code-stubs.cc',
             'test-code-stubs-ia32.cc',
-            'test-cpu-ia32.cc',
             'test-disasm-ia32.cc',
             'test-macro-assembler-ia32.cc',
             'test-log-stack-tracer.cc'
@@ -186,7 +181,6 @@
             'test-assembler-x64.cc',
             'test-code-stubs.cc',
             'test-code-stubs-x64.cc',
-            'test-cpu-x64.cc',
             'test-disasm-x64.cc',
             'test-macro-assembler-x64.cc',
             'test-log-stack-tracer.cc'
@@ -237,7 +231,6 @@
             'test-assembler-x87.cc',
             'test-code-stubs.cc',
             'test-code-stubs-x87.cc',
-            'test-cpu-x87.cc',
             'test-disasm-x87.cc',
             'test-macro-assembler-x87.cc',
             'test-log-stack-tracer.cc'
@@ -246,11 +239,6 @@
         [ 'OS=="linux" or OS=="qnx"', {
           'sources': [
             'test-platform-linux.cc',
-          ],
-        }],
-        [ 'OS=="mac"', {
-          'sources': [
-            'test-platform-macos.cc',
           ],
         }],
         [ 'OS=="win"', {

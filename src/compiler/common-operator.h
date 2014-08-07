@@ -43,17 +43,6 @@ class CallOperator : public Operator1<CallDescriptor*> {
   }
 };
 
-class FrameStateDescriptor {
- public:
-  explicit FrameStateDescriptor(BailoutId bailout_id)
-      : bailout_id_(bailout_id) {}
-
-  BailoutId bailout_id() const { return bailout_id_; }
-
- private:
-  BailoutId bailout_id_;
-};
-
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 // TODO(titzer): Move the mnemonics into SimpleOperator and Operator1 classes.
@@ -141,9 +130,13 @@ class CommonOperatorBuilder {
     return new (zone_) Operator1<int>(IrOpcode::kEffectPhi, Operator::kPure, 0,
                                       0, "EffectPhi", arguments);
   }
-  Operator* FrameState(const FrameStateDescriptor& descriptor) {
-    return new (zone_) Operator1<FrameStateDescriptor>(
-        IrOpcode::kFrameState, Operator::kPure, 0, 1, "FrameState", descriptor);
+  Operator* StateValues(int arguments) {
+    return new (zone_) Operator1<int>(IrOpcode::kStateValues, Operator::kPure,
+                                      arguments, 1, "StateValues", arguments);
+  }
+  Operator* FrameState(BailoutId ast_id) {
+    return new (zone_) Operator1<BailoutId>(
+        IrOpcode::kFrameState, Operator::kPure, 3, 1, "FrameState", ast_id);
   }
   Operator* Call(CallDescriptor* descriptor) {
     return new (zone_) CallOperator(descriptor, "Call");

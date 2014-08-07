@@ -423,7 +423,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     case BasicBlockData::kThrow:
       return VisitThrow(input);
     case BasicBlockData::kDeoptimize:
-      return VisitDeoptimization(input);
+      return VisitDeoptimize(input);
     case BasicBlockData::kCall: {
       BasicBlock* deoptimization = block->SuccessorAt(0);
       BasicBlock* continuation = block->SuccessorAt(1);
@@ -490,7 +490,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kCall:
       return VisitCall(node, NULL, NULL);
     case IrOpcode::kFrameState:
-      // TODO(titzer): state nodes should be combined into their users.
+    case IrOpcode::kStateValues:
       return;
     case IrOpcode::kLoad: {
       MachineRepresentation load_rep = OpParameter<MachineRepresentation>(node);
@@ -953,15 +953,56 @@ void InstructionSelector::VisitThrow(Node* value) {
 }
 
 
-void InstructionSelector::VisitDeoptimization(Node* deopt) {
+static InstructionOperand* UseOrImmediate(OperandGenerator* g, Node* input) {
+  switch (input->opcode()) {
+    case IrOpcode::kInt32Constant:
+    case IrOpcode::kNumberConstant:
+    case IrOpcode::kFloat64Constant:
+    case IrOpcode::kHeapConstant:
+      return g->UseImmediate(input);
+    default:
+      return g->Use(input);
+  }
+}
+
+
+void InstructionSelector::VisitDeoptimize(Node* deopt) {
   DCHECK(deopt->op()->opcode() == IrOpcode::kDeoptimize);
   Node* state = deopt->InputAt(0);
   DCHECK(state->op()->opcode() == IrOpcode::kFrameState);
-  FrameStateDescriptor descriptor = OpParameter<FrameStateDescriptor>(state);
-  // TODO(jarin) We should also add an instruction input for every input to
-  // the framestate node (and recurse for the inlined framestates).
+  BailoutId ast_id = OpParameter<BailoutId>(state);
+
+  // Add the inputs.
+  Node* parameters = state->InputAt(0);
+  int parameters_count = OpParameter<int>(parameters);
+
+  Node* locals = state->InputAt(1);
+  int locals_count = OpParameter<int>(locals);
+
+  Node* stack = state->InputAt(2);
+  int stack_count = OpParameter<int>(stack);
+
+  OperandGenerator g(this);
+  std::vector<InstructionOperand*> inputs;
+  inputs.reserve(parameters_count + locals_count + stack_count);
+  for (int i = 0; i < parameters_count; i++) {
+    inputs.push_back(UseOrImmediate(&g, parameters->InputAt(i)));
+  }
+  for (int i = 0; i < locals_count; i++) {
+    inputs.push_back(UseOrImmediate(&g, locals->InputAt(i)));
+  }
+  for (int i = 0; i < stack_count; i++) {
+    inputs.push_back(UseOrImmediate(&g, stack->InputAt(i)));
+  }
+
+  FrameStateDescriptor* descriptor = new (instruction_zone())
+      FrameStateDescriptor(ast_id, parameters_count, locals_count, stack_count);
+
+  DCHECK_EQ(descriptor->size(), inputs.size());
+
   int deoptimization_id = sequence()->AddDeoptimizationEntry(descriptor);
-  Emit(kArchDeoptimize | MiscField::encode(deoptimization_id), NULL);
+  Emit(kArchDeoptimize | MiscField::encode(deoptimization_id), 0, NULL,
+       inputs.size(), &inputs.front(), 0, NULL);
 }
 
 

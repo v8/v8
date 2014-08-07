@@ -431,6 +431,10 @@ class TypeImpl : public Config::Base {
 
   void PrintTo(OStream& os, PrintDimension dim = BOTH_DIMS);  // NOLINT
 
+#ifdef DEBUG
+  void Print();
+#endif
+
  protected:
   // Friends.
 
@@ -472,7 +476,6 @@ class TypeImpl : public Config::Base {
   static int ExtendUnion(
       UnionHandle unioned, int current_size, TypeHandle t,
       TypeHandle other, bool is_intersect, Region* region);
-  static int NormalizeUnion(UnionHandle unioned, int current_size, int bitset);
 };
 
 
