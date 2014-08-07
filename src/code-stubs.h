@@ -183,9 +183,7 @@ class CodeStub BASE_EMBEDDED {
   virtual Major MajorKey() const = 0;
   virtual int MinorKey() const = 0;
 
-  virtual InlineCacheState GetICState() {
-    return UNINITIALIZED;
-  }
+  virtual InlineCacheState GetICState() const { return UNINITIALIZED; }
   virtual ExtraICState GetExtraICState() const { return kNoExtraICState; }
   virtual Code::StubType GetStubType() {
     return Code::NORMAL;
@@ -850,9 +848,7 @@ class CallICStub: public PlatformCodeStub {
     return Code::CALL_IC;
   }
 
-  virtual InlineCacheState GetICState() V8_FINAL V8_OVERRIDE {
-    return state_.GetICState();
-  }
+  virtual InlineCacheState GetICState() const V8_OVERRIDE { return DEFAULT; }
 
   virtual ExtraICState GetExtraICState() const V8_FINAL V8_OVERRIDE {
     return state_.GetExtraICState();
@@ -877,6 +873,10 @@ class CallIC_ArrayStub: public CallICStub {
       : CallICStub(isolate, state_in) {}
 
   virtual void Generate(MacroAssembler* masm);
+
+  virtual InlineCacheState GetICState() const V8_FINAL V8_OVERRIDE {
+    return MONOMORPHIC;
+  }
 
  protected:
   virtual void PrintState(OStream& os) const V8_OVERRIDE;  // NOLINT
@@ -903,7 +903,7 @@ class HandlerStub : public HydrogenCodeStub {
  public:
   virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
   virtual ExtraICState GetExtraICState() const { return kind(); }
-  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
+  virtual InlineCacheState GetICState() const { return MONOMORPHIC; }
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
@@ -1126,7 +1126,7 @@ class BinaryOpICStub : public HydrogenCodeStub {
     return Code::BINARY_OP_IC;
   }
 
-  virtual InlineCacheState GetICState() V8_FINAL V8_OVERRIDE {
+  virtual InlineCacheState GetICState() const V8_FINAL V8_OVERRIDE {
     return state_.GetICState();
   }
 
@@ -1179,7 +1179,7 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
     return Code::BINARY_OP_IC;
   }
 
-  virtual InlineCacheState GetICState() V8_OVERRIDE {
+  virtual InlineCacheState GetICState() const V8_OVERRIDE {
     return state_.GetICState();
   }
 
@@ -1316,7 +1316,7 @@ class ICCompareStub: public PlatformCodeStub {
                         CompareIC::State* right_state,
                         CompareIC::State* handler_state, Token::Value* op);
 
-  virtual InlineCacheState GetICState();
+  virtual InlineCacheState GetICState() const;
 
  private:
   class OpField: public BitField<int, 0, 3> { };
@@ -1384,7 +1384,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
         isolate->code_stub_interface_descriptor(CodeStub::CompareNilIC));
   }
 
-  virtual InlineCacheState GetICState() {
+  virtual InlineCacheState GetICState() const {
     if (state_.Contains(GENERIC)) {
       return MEGAMORPHIC;
     } else if (state_.Contains(MONOMORPHIC_MAP)) {
@@ -1875,7 +1875,7 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
   static void InstallDescriptors(Isolate* isolate);
 
   virtual Code::Kind GetCodeKind() const { return Code::KEYED_LOAD_IC; }
-  virtual InlineCacheState GetICState() { return GENERIC; }
+  virtual InlineCacheState GetICState() const { return GENERIC; }
 
  private:
   Major MajorKey() const { return KeyedLoadGeneric; }
@@ -2362,7 +2362,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 
   virtual ExtraICState GetExtraICState() const { return types_.ToIntegral(); }
 
-  virtual InlineCacheState GetICState() {
+  virtual InlineCacheState GetICState() const {
     if (types_.IsEmpty()) {
       return ::v8::internal::UNINITIALIZED;
     } else {

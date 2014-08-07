@@ -5878,11 +5878,10 @@ class Code: public HeapObject {
   static const int kProfilerTicksOffset = kFullCodeFlags + 1;
 
   // Flags layout.  BitField<type, shift, size>.
-  class ICStateField: public BitField<InlineCacheState, 0, 3> {};
-  class TypeField: public BitField<StubType, 3, 1> {};
-  class CacheHolderField : public BitField<CacheHolderFlag, 4, 2> {};
-  class KindField: public BitField<Kind, 6, 4> {};
-  // TODO(bmeurer): Bit 10 is available for free use. :-)
+  class ICStateField : public BitField<InlineCacheState, 0, 4> {};
+  class TypeField : public BitField<StubType, 4, 1> {};
+  class CacheHolderField : public BitField<CacheHolderFlag, 5, 2> {};
+  class KindField : public BitField<Kind, 7, 4> {};
   class ExtraICStateField: public BitField<ExtraICState, 11,
       PlatformSmiTagging::kSmiValueSize - 11 + 1> {};  // NOLINT
 

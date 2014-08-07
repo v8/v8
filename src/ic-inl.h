@@ -169,8 +169,10 @@ Handle<Map> IC::GetICCacheHolder(HeapType* type, Isolate* isolate,
 }
 
 
-IC::State CallIC::FeedbackObjectToState(Object* feedback) const {
+IC::State CallIC::FeedbackToState(Handle<FixedArray> vector,
+                                  Handle<Smi> slot) const {
   IC::State state = UNINITIALIZED;
+  Object* feedback = vector->get(slot->value());
 
   if (feedback == *TypeFeedbackInfo::MegamorphicSentinel(isolate())) {
     state = GENERIC;

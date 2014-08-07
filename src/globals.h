@@ -446,7 +446,11 @@ enum InlineCacheState {
   // A generic handler is installed and no extra typefeedback is recorded.
   GENERIC,
   // Special state for debug break or step in prepare stubs.
-  DEBUG_STUB
+  DEBUG_STUB,
+  // Type-vector-based ICs have a default state, with the full calculation
+  // of IC state only determined by a look at the IC and the typevector
+  // together.
+  DEFAULT
 };
 
 

@@ -11320,6 +11320,8 @@ const char* Code::ICState2String(InlineCacheState state) {
     case MEGAMORPHIC: return "MEGAMORPHIC";
     case GENERIC: return "GENERIC";
     case DEBUG_STUB: return "DEBUG_STUB";
+    case DEFAULT:
+      return "DEFAULT";
   }
   UNREACHABLE();
   return NULL;

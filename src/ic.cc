@@ -33,6 +33,9 @@ char IC::TransitionMarkFromState(IC::State state) {
     // computed from the original code - not the patched code. Let
     // these cases fall through to the unreachable code below.
     case DEBUG_STUB: break;
+    // Type-vector-based ICs resolve state to one of the above.
+    case DEFAULT:
+      break;
   }
   UNREACHABLE();
   return 0;
@@ -66,10 +69,20 @@ const char* GetTransitionMarkModifier(KeyedAccessStoreMode mode) {
 
 #endif  // DEBUG
 
+
 void IC::TraceIC(const char* type, Handle<Object> name) {
   if (FLAG_trace_ic) {
     Code* new_target = raw_target();
     State new_state = new_target->ic_state();
+    TraceIC(type, name, state(), new_state);
+  }
+}
+
+
+void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
+                 State new_state) {
+  if (FLAG_trace_ic) {
+    Code* new_target = raw_target();
     PrintF("[%s%s in ", new_target->is_keyed_stub() ? "Keyed" : "", type);
 
     // TODO(jkummerow): Add support for "apply". The logic is roughly:
@@ -92,10 +105,8 @@ void IC::TraceIC(const char* type, Handle<Object> name) {
       modifier = GetTransitionMarkModifier(
           KeyedStoreIC::GetKeyedAccessStoreMode(extra_state));
     }
-    PrintF(" (%c->%c%s)",
-           TransitionMarkFromState(state()),
-           TransitionMarkFromState(new_state),
-           modifier);
+    PrintF(" (%c->%c%s)", TransitionMarkFromState(old_state),
+           TransitionMarkFromState(new_state), modifier);
 #ifdef OBJECT_PRINT
     OFStream os(stdout);
     name->Print(os);
@@ -107,7 +118,8 @@ void IC::TraceIC(const char* type, Handle<Object> name) {
 }
 
 #define TRACE_IC(type, name) TraceIC(type, name)
-
+#define TRACE_VECTOR_IC(type, name, old_state, new_state) \
+  TraceIC(type, name, old_state, new_state)
 
 IC::IC(FrameDepth depth, Isolate* isolate)
     : isolate_(isolate),
@@ -365,6 +377,7 @@ static void ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state,
       break;
     case PROTOTYPE_FAILURE:
     case DEBUG_STUB:
+    case DEFAULT:
       UNREACHABLE();
   }
 }
@@ -807,6 +820,7 @@ void IC::PatchCache(Handle<String> name, Handle<Code> code) {
       break;
     case DEBUG_STUB:
       break;
+    case DEFAULT:
     case GENERIC:
       UNREACHABLE();
       break;
@@ -1950,6 +1964,7 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver,
       isolate()->native_context()->array_function());
   if (array_function.is_identical_to(Handle<JSFunction>::cast(function))) {
     // Alter the slot.
+    IC::State old_state = FeedbackToState(vector, slot);
     Object* feedback = vector->get(slot->value());
     if (!feedback->IsAllocationSite()) {
       Handle<AllocationSite> new_site =
@@ -1965,18 +1980,19 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver,
                             isolate());
     }
 
-    TRACE_IC("CallIC (Array call)", name);
-    Object* new_feedback = vector->get(slot->value());
-    UpdateTypeFeedbackInfo(feedback, new_feedback);
+    IC::State new_state = FeedbackToState(vector, slot);
+    OnTypeFeedbackChanged(isolate(), address(), old_state, new_state, true);
+    TRACE_VECTOR_IC("CallIC (custom handler)", name, old_state, new_state);
     return true;
   }
   return false;
 }
 
 
-void CallIC::PatchMegamorphic(Handle<FixedArray> vector,
-                              Handle<Smi> slot) {
+void CallIC::PatchMegamorphic(Handle<Object> function,
+                              Handle<FixedArray> vector, Handle<Smi> slot) {
   State state(target()->extra_ic_state());
+  IC::State old_state = FeedbackToState(vector, slot);
 
   // We are going generic.
   vector->set(slot->value(),
@@ -1987,15 +2003,15 @@ void CallIC::PatchMegamorphic(Handle<FixedArray> vector,
   Handle<Code> code = stub.GetCode();
   set_target(*code);
 
-  TRACE_GENERIC_IC(isolate(), "CallIC", "megamorphic");
-}
+  Handle<Object> name = isolate()->factory()->empty_string();
+  if (function->IsJSFunction()) {
+    Handle<JSFunction> js_function = Handle<JSFunction>::cast(function);
+    name = handle(js_function->shared()->name(), isolate());
+  }
 
-
-void CallIC::UpdateTypeFeedbackInfo(Object* old_feedback,
-                                    Object* new_feedback) {
-  IC::State old_state = FeedbackObjectToState(old_feedback);
-  IC::State new_state = FeedbackObjectToState(new_feedback);
+  IC::State new_state = FeedbackToState(vector, slot);
   OnTypeFeedbackChanged(isolate(), address(), old_state, new_state, true);
+  TRACE_VECTOR_IC("CallIC", name, old_state, new_state);
 }
 
 
@@ -2004,6 +2020,8 @@ void CallIC::HandleMiss(Handle<Object> receiver,
                         Handle<FixedArray> vector,
                         Handle<Smi> slot) {
   State state(target()->extra_ic_state());
+  IC::State old_state = FeedbackToState(vector, slot);
+  Handle<Object> name = isolate()->factory()->empty_string();
   Object* feedback = vector->get(slot->value());
 
   // Hand-coded MISS handling is easier if CallIC slots don't contain smis.
@@ -2014,8 +2032,6 @@ void CallIC::HandleMiss(Handle<Object> receiver,
     vector->set(slot->value(),
                 *TypeFeedbackInfo::MegamorphicSentinel(isolate()),
                 SKIP_WRITE_BARRIER);
-
-    TRACE_GENERIC_IC(isolate(), "CallIC", "megamorphic");
   } else {
     // The feedback is either uninitialized or an allocation site.
     // It might be an allocation site because if we re-compile the full code
@@ -2032,14 +2048,17 @@ void CallIC::HandleMiss(Handle<Object> receiver,
       return;
     }
 
-    Handle<JSFunction> js_function = Handle<JSFunction>::cast(function);
-    Handle<Object> name(js_function->shared()->name(), isolate());
-    TRACE_IC("CallIC", name);
     vector->set(slot->value(), *function);
   }
 
-  Object* new_feedback = vector->get(slot->value());
-  UpdateTypeFeedbackInfo(feedback, new_feedback);
+  if (function->IsJSFunction()) {
+    Handle<JSFunction> js_function = Handle<JSFunction>::cast(function);
+    name = handle(js_function->shared()->name(), isolate());
+  }
+
+  IC::State new_state = FeedbackToState(vector, slot);
+  OnTypeFeedbackChanged(isolate(), address(), old_state, new_state, true);
+  TRACE_VECTOR_IC("CallIC", name, old_state, new_state);
 }
 
 
@@ -2074,7 +2093,7 @@ RUNTIME_FUNCTION(CallIC_Customization_Miss) {
   Handle<Object> function = args.at<Object>(1);
   Handle<FixedArray> vector = args.at<FixedArray>(2);
   Handle<Smi> slot = args.at<Smi>(3);
-  ic.PatchMegamorphic(vector, slot);
+  ic.PatchMegamorphic(function, vector, slot);
   return *function;
 }
 

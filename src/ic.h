@@ -163,6 +163,8 @@ class IC {
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, Handle<Object> name);
+  void TraceIC(const char* type, Handle<Object> name, State old_state,
+               State new_state);
 
   MaybeHandle<Object> TypeError(const char* type,
                                 Handle<Object> object,
@@ -335,8 +337,6 @@ class CallIC: public IC {
         : argc_(argc), call_type_(call_type) {
     }
 
-    InlineCacheState GetICState() const { return ::v8::internal::GENERIC; }
-
     ExtraICState GetExtraICState() const;
 
     static void GenerateAheadOfTime(
@@ -359,7 +359,8 @@ class CallIC: public IC {
       : IC(EXTRA_CALL_FRAME, isolate) {
   }
 
-  void PatchMegamorphic(Handle<FixedArray> vector, Handle<Smi> slot);
+  void PatchMegamorphic(Handle<Object> function, Handle<FixedArray> vector,
+                        Handle<Smi> slot);
 
   void HandleMiss(Handle<Object> receiver,
                   Handle<Object> function,
@@ -382,8 +383,8 @@ class CallIC: public IC {
                     ConstantPoolArray* constant_pool);
 
  private:
-  void UpdateTypeFeedbackInfo(Object* old_feedback, Object* new_feedback);
-  inline IC::State FeedbackObjectToState(Object* feedback) const;
+  inline IC::State FeedbackToState(Handle<FixedArray> vector,
+                                   Handle<Smi> slot) const;
 };
 
 
