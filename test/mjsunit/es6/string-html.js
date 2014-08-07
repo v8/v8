@@ -6,7 +6,7 @@
 // http://mathias.html5.org/tests/javascript/string/
 
 assertEquals('_'.anchor('b'), '<a name="b">_</a>');
-//assertEquals('<'.anchor('<'), '<a name="<"><</a>'); // #2217
+assertEquals('<'.anchor('<'), '<a name="<"><</a>');
 assertEquals('_'.anchor(0x2A), '<a name="42">_</a>');
 assertEquals('_'.anchor('\x22'), '<a name="&quot;">_</a>');
 assertEquals(String.prototype.anchor.call(0x2A, 0x2A), '<a name="42">42</a>');
@@ -63,7 +63,7 @@ assertThrows(function() {
 assertEquals(String.prototype.fixed.length, 0);
 
 assertEquals('_'.fontcolor('b'), '<font color="b">_</font>');
-//assertEquals('<'.fontcolor('<'), '<font color="<"><</font>'); // #2217
+assertEquals('<'.fontcolor('<'), '<font color="<"><</font>');
 assertEquals('_'.fontcolor(0x2A), '<font color="42">_</font>');
 assertEquals('_'.fontcolor('\x22'), '<font color="&quot;">_</font>');
 assertEquals(String.prototype.fontcolor.call(0x2A, 0x2A),
@@ -77,7 +77,7 @@ assertThrows(function() {
 assertEquals(String.prototype.fontcolor.length, 1);
 
 assertEquals('_'.fontsize('b'), '<font size="b">_</font>');
-//assertEquals('<'.fontsize('<'), '<font size="<"><</font>'); // #2217
+assertEquals('<'.fontsize('<'), '<font size="<"><</font>');
 assertEquals('_'.fontsize(0x2A), '<font size="42">_</font>');
 assertEquals('_'.fontsize('\x22'), '<font size="&quot;">_</font>');
 assertEquals(String.prototype.fontsize.call(0x2A, 0x2A),
@@ -102,7 +102,7 @@ assertThrows(function() {
 assertEquals(String.prototype.italics.length, 0);
 
 assertEquals('_'.link('b'), '<a href="b">_</a>');
-//assertEquals('<'.link('<'), '<a href="<"><</a>'); // #2217
+assertEquals('<'.link('<'), '<a href="<"><</a>');
 assertEquals('_'.link(0x2A), '<a href="42">_</a>');
 assertEquals('_'.link('\x22'), '<a href="&quot;">_</a>');
 assertEquals(String.prototype.link.call(0x2A, 0x2A), '<a href="42">42</a>');
