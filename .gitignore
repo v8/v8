@@ -64,6 +64,7 @@ shell_g
 /testing/gmock
 /testing/gtest
 /third_party/icu
+/third_party/llvm
 /tools/jsfunfuzz
 /tools/jsfunfuzz.zip
 /tools/oom_dump/oom_dump
