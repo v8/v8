@@ -3467,10 +3467,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
 
       Variable* var = scope_->DeclareParameter(param_name, VAR);
-      // TODO(sigurds) Mark every parameter as maybe assigned. This is a
-      // conservative approximation necessary to account for parameters
-      // that are assigned via the arguments array.
-      var->set_maybe_assigned();
+      if (scope->strict_mode() == SLOPPY) {
+        // TODO(sigurds) Mark every parameter as maybe assigned. This is a
+        // conservative approximation necessary to account for parameters
+        // that are assigned via the arguments array.
+        var->set_maybe_assigned();
+      }
 
       num_parameters++;
       if (num_parameters > Code::kMaxArguments) {
