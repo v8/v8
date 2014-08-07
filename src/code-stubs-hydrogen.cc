@@ -630,7 +630,7 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
     BuildCheckHeapObject(value);
   }
 
-  Add<HStoreNamedField>(object, access, value, STORE_TO_INITIALIZED_ENTRY);
+  Add<HStoreNamedField>(object, access, value, INITIALIZING_STORE);
 }
 
 
