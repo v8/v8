@@ -1823,7 +1823,7 @@ v8::TryCatch::TryCatch()
       capture_message_(true),
       rethrow_(false),
       has_terminated_(false) {
-  Reset();
+  ResetInternal();
   // Special handling for simulators which have a separate JS stack.
   js_stack_comparable_address_ =
       reinterpret_cast<void*>(v8::internal::SimulatorStack::RegisterCTryCatch(
@@ -1935,6 +1935,17 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 
 void v8::TryCatch::Reset() {
   DCHECK(isolate_ == i::Isolate::Current());
+  if (!rethrow_ && HasCaught() && isolate_->has_scheduled_exception()) {
+    // If an exception was caught but is still scheduled because no API call
+    // promoted it, then it is canceled to prevent it from being propagated.
+    // Note that this will not cancel termination exceptions.
+    isolate_->CancelScheduledExceptionFromTryCatch(this);
+  }
+  ResetInternal();
+}
+
+
+void v8::TryCatch::ResetInternal() {
   i::Object* the_hole = isolate_->heap()->the_hole_value();
   exception_ = the_hole;
   message_obj_ = the_hole;

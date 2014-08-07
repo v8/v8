@@ -5421,6 +5421,31 @@ TEST(TryCatchNative) {
 }
 
 
+void TryCatchNativeResetHelper(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ApiTestFuzzer::Fuzz();
+  v8::TryCatch try_catch;
+  args.GetIsolate()->ThrowException(v8_str("boom"));
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  CHECK(!try_catch.HasCaught());
+}
+
+
+TEST(TryCatchNativeReset) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::V8::Initialize();
+  v8::TryCatch try_catch;
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->Set(v8_str("TryCatchNativeResetHelper"),
+             v8::FunctionTemplate::New(isolate, TryCatchNativeResetHelper));
+  LocalContext context(0, templ);
+  CompileRun("TryCatchNativeResetHelper();");
+  CHECK(!try_catch.HasCaught());
+}
+
+
 THREADED_TEST(Equality) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
