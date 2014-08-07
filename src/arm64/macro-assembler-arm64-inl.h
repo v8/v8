@@ -299,6 +299,16 @@ LS_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
 
+#define DEFINE_FUNCTION(FN, REGTYPE, REG, REG2, OP)              \
+  void MacroAssembler::FN(const REGTYPE REG, const REGTYPE REG2, \
+                          const MemOperand& addr) {              \
+    DCHECK(allow_macro_instructions_);                           \
+    LoadStorePairMacro(REG, REG2, addr, OP);                     \
+  }
+LSPAIR_MACRO_LIST(DEFINE_FUNCTION)
+#undef DEFINE_FUNCTION
+
+
 void MacroAssembler::Asr(const Register& rd,
                          const Register& rn,
                          unsigned shift) {
@@ -861,25 +871,6 @@ void MacroAssembler::Ldnp(const CPURegister& rt,
 }
 
 
-void MacroAssembler::Ldp(const CPURegister& rt,
-                         const CPURegister& rt2,
-                         const MemOperand& src) {
-  DCHECK(allow_macro_instructions_);
-  DCHECK(!AreAliased(rt, rt2));
-  ldp(rt, rt2, src);
-}
-
-
-void MacroAssembler::Ldpsw(const Register& rt,
-                           const Register& rt2,
-                           const MemOperand& src) {
-  DCHECK(allow_macro_instructions_);
-  DCHECK(!rt.IsZero());
-  DCHECK(!rt2.IsZero());
-  ldpsw(rt, rt2, src);
-}
-
-
 void MacroAssembler::Ldr(const CPURegister& rt, const Immediate& imm) {
   DCHECK(allow_macro_instructions_);
   ldr(rt, imm);
@@ -1133,14 +1124,6 @@ void MacroAssembler::Stnp(const CPURegister& rt,
                           const MemOperand& dst) {
   DCHECK(allow_macro_instructions_);
   stnp(rt, rt2, dst);
-}
-
-
-void MacroAssembler::Stp(const CPURegister& rt,
-                         const CPURegister& rt2,
-                         const MemOperand& dst) {
-  DCHECK(allow_macro_instructions_);
-  stp(rt, rt2, dst);
 }
 
 

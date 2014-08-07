@@ -2503,6 +2503,12 @@ bool Assembler::IsImmLSScaled(ptrdiff_t offset, LSDataSize size) {
 }
 
 
+bool Assembler::IsImmLSPair(ptrdiff_t offset, LSDataSize size) {
+  bool offset_is_size_multiple = (((offset >> size) << size) == offset);
+  return offset_is_size_multiple && is_int7(offset >> size);
+}
+
+
 // Test if a given value can be encoded in the immediate field of a logical
 // instruction.
 // If it can be encoded, the function returns true, and values pointed to by n,
