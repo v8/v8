@@ -175,6 +175,9 @@ class IC {
   static inline void SetTargetAtAddress(Address address,
                                         Code* target,
                                         ConstantPoolArray* constant_pool);
+  static void OnTypeFeedbackChanged(Isolate* isolate, Address address,
+                                    State old_state, State new_state,
+                                    bool target_remains_ic_stub);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
@@ -377,6 +380,10 @@ class CallIC: public IC {
 
   static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);
+
+ private:
+  void UpdateTypeFeedbackInfo(Object* old_feedback, Object* new_feedback);
+  inline IC::State FeedbackObjectToState(Object* feedback) const;
 };
 
 

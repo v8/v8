@@ -370,23 +370,20 @@ static void ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state,
 }
 
 
-void IC::PostPatching(Address address, Code* target, Code* old_target) {
-  Isolate* isolate = target->GetHeap()->isolate();
+void IC::OnTypeFeedbackChanged(Isolate* isolate, Address address,
+                               State old_state, State new_state,
+                               bool target_remains_ic_stub) {
   Code* host = isolate->
       inner_pointer_to_code_cache()->GetCacheEntry(address)->code;
   if (host->kind() != Code::FUNCTION) return;
 
-  if (FLAG_type_info_threshold > 0 && old_target->is_inline_cache_stub() &&
-      target->is_inline_cache_stub() &&
-      // Call ICs don't have interesting state changes from this point
-      // of view.
-      target->kind() != Code::CALL_IC &&
+  if (FLAG_type_info_threshold > 0 && target_remains_ic_stub &&
       // Not all Code objects have TypeFeedbackInfo.
       host->type_feedback_info()->IsTypeFeedbackInfo()) {
     int polymorphic_delta = 0;  // "Polymorphic" here includes monomorphic.
     int generic_delta = 0;      // "Generic" here includes megamorphic.
-    ComputeTypeInfoCountDelta(old_target->ic_state(), target->ic_state(),
-                              &polymorphic_delta, &generic_delta);
+    ComputeTypeInfoCountDelta(old_state, new_state, &polymorphic_delta,
+                              &generic_delta);
     TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
     info->change_ic_with_type_info_count(polymorphic_delta);
     info->change_ic_generic_count(generic_delta);
@@ -401,6 +398,26 @@ void IC::PostPatching(Address address, Code* target, Code* old_target) {
   // TODO(2029): When an optimized function is patched, it would
   // be nice to propagate the corresponding type information to its
   // unoptimized version for the benefit of later inlining.
+}
+
+
+void IC::PostPatching(Address address, Code* target, Code* old_target) {
+  // Type vector based ICs update these statistics at a different time because
+  // they don't always patch on state change.
+  if (target->kind() == Code::CALL_IC) return;
+
+  Isolate* isolate = target->GetHeap()->isolate();
+  State old_state = UNINITIALIZED;
+  State new_state = UNINITIALIZED;
+  bool target_remains_ic_stub = false;
+  if (old_target->is_inline_cache_stub() && target->is_inline_cache_stub()) {
+    old_state = old_target->ic_state();
+    new_state = target->ic_state();
+    target_remains_ic_stub = true;
+  }
+
+  OnTypeFeedbackChanged(isolate, address, old_state, new_state,
+                        target_remains_ic_stub);
 }
 
 
@@ -1949,6 +1966,8 @@ bool CallIC::DoCustomHandler(Handle<Object> receiver,
     }
 
     TRACE_IC("CallIC (Array call)", name);
+    Object* new_feedback = vector->get(slot->value());
+    UpdateTypeFeedbackInfo(feedback, new_feedback);
     return true;
   }
   return false;
@@ -1969,6 +1988,14 @@ void CallIC::PatchMegamorphic(Handle<FixedArray> vector,
   set_target(*code);
 
   TRACE_GENERIC_IC(isolate(), "CallIC", "megamorphic");
+}
+
+
+void CallIC::UpdateTypeFeedbackInfo(Object* old_feedback,
+                                    Object* new_feedback) {
+  IC::State old_state = FeedbackObjectToState(old_feedback);
+  IC::State new_state = FeedbackObjectToState(new_feedback);
+  OnTypeFeedbackChanged(isolate(), address(), old_state, new_state, true);
 }
 
 
@@ -2010,6 +2037,9 @@ void CallIC::HandleMiss(Handle<Object> receiver,
     TRACE_IC("CallIC", name);
     vector->set(slot->value(), *function);
   }
+
+  Object* new_feedback = vector->get(slot->value());
+  UpdateTypeFeedbackInfo(feedback, new_feedback);
 }
 
 
