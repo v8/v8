@@ -23,60 +23,60 @@ namespace internal {
 // Base class for all static visitors.
 class StaticVisitorBase : public AllStatic {
  public:
-#define VISITOR_ID_LIST(V)    \
-  V(SeqOneByteString)         \
-  V(SeqTwoByteString)         \
-  V(ShortcutCandidate)        \
-  V(ByteArray)                \
-  V(FreeSpace)                \
-  V(FixedArray)               \
-  V(FixedDoubleArray)         \
-  V(FixedTypedArray)          \
-  V(FixedFloat64Array)        \
-  V(ConstantPoolArray)        \
-  V(NativeContext)            \
-  V(AllocationSite)           \
-  V(DataObject2)              \
-  V(DataObject3)              \
-  V(DataObject4)              \
-  V(DataObject5)              \
-  V(DataObject6)              \
-  V(DataObject7)              \
-  V(DataObject8)              \
-  V(DataObject9)              \
-  V(DataObjectGeneric)        \
-  V(JSObject2)                \
-  V(JSObject3)                \
-  V(JSObject4)                \
-  V(JSObject5)                \
-  V(JSObject6)                \
-  V(JSObject7)                \
-  V(JSObject8)                \
-  V(JSObject9)                \
-  V(JSObjectGeneric)          \
-  V(Struct2)                  \
-  V(Struct3)                  \
-  V(Struct4)                  \
-  V(Struct5)                  \
-  V(Struct6)                  \
-  V(Struct7)                  \
-  V(Struct8)                  \
-  V(Struct9)                  \
-  V(StructGeneric)            \
-  V(ConsString)               \
-  V(SlicedString)             \
-  V(Symbol)                   \
-  V(Oddball)                  \
-  V(Code)                     \
-  V(Map)                      \
-  V(Cell)                     \
-  V(PropertyCell)             \
-  V(SharedFunctionInfo)       \
-  V(JSFunction)               \
-  V(JSWeakCollection)         \
-  V(JSArrayBuffer)            \
-  V(JSTypedArray)             \
-  V(JSDataView)               \
+#define VISITOR_ID_LIST(V) \
+  V(SeqOneByteString)      \
+  V(SeqTwoByteString)      \
+  V(ShortcutCandidate)     \
+  V(ByteArray)             \
+  V(FreeSpace)             \
+  V(FixedArray)            \
+  V(FixedDoubleArray)      \
+  V(FixedTypedArray)       \
+  V(FixedFloat64Array)     \
+  V(ConstantPoolArray)     \
+  V(NativeContext)         \
+  V(AllocationSite)        \
+  V(DataObject2)           \
+  V(DataObject3)           \
+  V(DataObject4)           \
+  V(DataObject5)           \
+  V(DataObject6)           \
+  V(DataObject7)           \
+  V(DataObject8)           \
+  V(DataObject9)           \
+  V(DataObjectGeneric)     \
+  V(JSObject2)             \
+  V(JSObject3)             \
+  V(JSObject4)             \
+  V(JSObject5)             \
+  V(JSObject6)             \
+  V(JSObject7)             \
+  V(JSObject8)             \
+  V(JSObject9)             \
+  V(JSObjectGeneric)       \
+  V(Struct2)               \
+  V(Struct3)               \
+  V(Struct4)               \
+  V(Struct5)               \
+  V(Struct6)               \
+  V(Struct7)               \
+  V(Struct8)               \
+  V(Struct9)               \
+  V(StructGeneric)         \
+  V(ConsString)            \
+  V(SlicedString)          \
+  V(Symbol)                \
+  V(Oddball)               \
+  V(Code)                  \
+  V(Map)                   \
+  V(Cell)                  \
+  V(PropertyCell)          \
+  V(SharedFunctionInfo)    \
+  V(JSFunction)            \
+  V(JSWeakCollection)      \
+  V(JSArrayBuffer)         \
+  V(JSTypedArray)          \
+  V(JSDataView)            \
   V(JSRegExp)
 
   // For data objects, JS objects and structs along with generic visitor which
@@ -89,7 +89,7 @@ class StaticVisitorBase : public AllStatic {
   // id of specialized visitor from given instance size, base visitor id and
   // generic visitor's id.
   enum VisitorId {
-#define VISITOR_ID_ENUM_DECL(id)  kVisit##id,
+#define VISITOR_ID_ENUM_DECL(id) kVisit##id,
     VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
 #undef VISITOR_ID_ENUM_DECL
     kVisitorIdCount,
@@ -112,11 +112,9 @@ class StaticVisitorBase : public AllStatic {
 
   // For visitors that allow specialization by size calculate VisitorId based
   // on size, base visitor id and generic visitor id.
-  static VisitorId GetVisitorIdForSize(VisitorId base,
-                                       VisitorId generic,
+  static VisitorId GetVisitorIdForSize(VisitorId base, VisitorId generic,
                                        int object_size) {
-    DCHECK((base == kVisitDataObject) ||
-           (base == kVisitStruct) ||
+    DCHECK((base == kVisitDataObject) || (base == kVisitStruct) ||
            (base == kVisitJSObject));
     DCHECK(IsAligned(object_size, kPointerSize));
     DCHECK(kMinObjectSizeInWords * kPointerSize <= object_size);
@@ -130,7 +128,7 @@ class StaticVisitorBase : public AllStatic {
 };
 
 
-template<typename Callback>
+template <typename Callback>
 class VisitorDispatchTable {
  public:
   void CopyFrom(VisitorDispatchTable* other) {
@@ -155,10 +153,8 @@ class VisitorDispatchTable {
     callbacks_[id] = reinterpret_cast<base::AtomicWord>(callback);
   }
 
-  template<typename Visitor,
-           StaticVisitorBase::VisitorId base,
-           StaticVisitorBase::VisitorId generic,
-           int object_size_in_words>
+  template <typename Visitor, StaticVisitorBase::VisitorId base,
+            StaticVisitorBase::VisitorId generic, int object_size_in_words>
   void RegisterSpecialization() {
     static const int size = object_size_in_words * kPointerSize;
     Register(StaticVisitorBase::GetVisitorIdForSize(base, generic, size),
@@ -166,12 +162,11 @@ class VisitorDispatchTable {
   }
 
 
-  template<typename Visitor,
-           StaticVisitorBase::VisitorId base,
-           StaticVisitorBase::VisitorId generic>
+  template <typename Visitor, StaticVisitorBase::VisitorId base,
+            StaticVisitorBase::VisitorId generic>
   void RegisterSpecializations() {
-    STATIC_ASSERT(
-        (generic - base + StaticVisitorBase::kMinObjectSizeInWords) == 10);
+    STATIC_ASSERT((generic - base + StaticVisitorBase::kMinObjectSizeInWords) ==
+                  10);
     RegisterSpecialization<Visitor, base, generic, 2>();
     RegisterSpecialization<Visitor, base, generic, 3>();
     RegisterSpecialization<Visitor, base, generic, 4>();
@@ -188,56 +183,46 @@ class VisitorDispatchTable {
 };
 
 
-template<typename StaticVisitor>
+template <typename StaticVisitor>
 class BodyVisitorBase : public AllStatic {
  public:
-  INLINE(static void IteratePointers(Heap* heap,
-                                     HeapObject* object,
-                                     int start_offset,
-                                     int end_offset)) {
-    Object** start_slot = reinterpret_cast<Object**>(object->address() +
-                                                     start_offset);
-    Object** end_slot = reinterpret_cast<Object**>(object->address() +
-                                                   end_offset);
+  INLINE(static void IteratePointers(Heap* heap, HeapObject* object,
+                                     int start_offset, int end_offset)) {
+    Object** start_slot =
+        reinterpret_cast<Object**>(object->address() + start_offset);
+    Object** end_slot =
+        reinterpret_cast<Object**>(object->address() + end_offset);
     StaticVisitor::VisitPointers(heap, start_slot, end_slot);
   }
 };
 
 
-template<typename StaticVisitor, typename BodyDescriptor, typename ReturnType>
+template <typename StaticVisitor, typename BodyDescriptor, typename ReturnType>
 class FlexibleBodyVisitor : public BodyVisitorBase<StaticVisitor> {
  public:
   INLINE(static ReturnType Visit(Map* map, HeapObject* object)) {
     int object_size = BodyDescriptor::SizeOf(map, object);
     BodyVisitorBase<StaticVisitor>::IteratePointers(
-        map->GetHeap(),
-        object,
-        BodyDescriptor::kStartOffset,
-        object_size);
+        map->GetHeap(), object, BodyDescriptor::kStartOffset, object_size);
     return static_cast<ReturnType>(object_size);
   }
 
-  template<int object_size>
+  template <int object_size>
   static inline ReturnType VisitSpecialized(Map* map, HeapObject* object) {
     DCHECK(BodyDescriptor::SizeOf(map, object) == object_size);
     BodyVisitorBase<StaticVisitor>::IteratePointers(
-        map->GetHeap(),
-        object,
-        BodyDescriptor::kStartOffset,
-        object_size);
+        map->GetHeap(), object, BodyDescriptor::kStartOffset, object_size);
     return static_cast<ReturnType>(object_size);
   }
 };
 
 
-template<typename StaticVisitor, typename BodyDescriptor, typename ReturnType>
+template <typename StaticVisitor, typename BodyDescriptor, typename ReturnType>
 class FixedBodyVisitor : public BodyVisitorBase<StaticVisitor> {
  public:
   INLINE(static ReturnType Visit(Map* map, HeapObject* object)) {
     BodyVisitorBase<StaticVisitor>::IteratePointers(
-        map->GetHeap(),
-        object,
-        BodyDescriptor::kStartOffset,
+        map->GetHeap(), object, BodyDescriptor::kStartOffset,
         BodyDescriptor::kEndOffset);
     return static_cast<ReturnType>(BodyDescriptor::kSize);
   }
@@ -260,7 +245,7 @@ class FixedBodyVisitor : public BodyVisitorBase<StaticVisitor> {
 // (see http://en.wikipedia.org/wiki/Curiously_recurring_template_pattern).
 // We use CRTP to guarantee aggressive compile time optimizations (i.e.
 // inlining and specialization of StaticVisitor::VisitPointers methods).
-template<typename StaticVisitor>
+template <typename StaticVisitor>
 class StaticNewSpaceVisitor : public StaticVisitorBase {
  public:
   static void Initialize();
@@ -283,11 +268,9 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     // Don't visit code entry. We are using this visitor only during scavenges.
 
     VisitPointers(
-        heap,
-        HeapObject::RawField(object,
-                             JSFunction::kCodeEntryOffset + kPointerSize),
-        HeapObject::RawField(object,
-                             JSFunction::kNonWeakFieldsEndOffset));
+        heap, HeapObject::RawField(object,
+                                   JSFunction::kCodeEntryOffset + kPointerSize),
+        HeapObject::RawField(object, JSFunction::kNonWeakFieldsEndOffset));
     return JSFunction::kSize;
   }
 
@@ -309,13 +292,13 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
   }
 
   INLINE(static int VisitSeqOneByteString(Map* map, HeapObject* object)) {
-    return SeqOneByteString::cast(object)->
-        SeqOneByteStringSize(map->instance_type());
+    return SeqOneByteString::cast(object)
+        ->SeqOneByteStringSize(map->instance_type());
   }
 
   INLINE(static int VisitSeqTwoByteString(Map* map, HeapObject* object)) {
-    return SeqTwoByteString::cast(object)->
-        SeqTwoByteStringSize(map->instance_type());
+    return SeqTwoByteString::cast(object)
+        ->SeqTwoByteStringSize(map->instance_type());
   }
 
   INLINE(static int VisitFreeSpace(Map* map, HeapObject* object)) {
@@ -328,7 +311,7 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
 
   class DataObjectVisitor {
    public:
-    template<int object_size>
+    template <int object_size>
     static inline int VisitSpecialized(Map* map, HeapObject* object) {
       return object_size;
     }
@@ -338,13 +321,11 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     }
   };
 
-  typedef FlexibleBodyVisitor<StaticVisitor,
-                              StructBodyDescriptor,
-                              int> StructVisitor;
+  typedef FlexibleBodyVisitor<StaticVisitor, StructBodyDescriptor, int>
+      StructVisitor;
 
-  typedef FlexibleBodyVisitor<StaticVisitor,
-                              JSObject::BodyDescriptor,
-                              int> JSObjectVisitor;
+  typedef FlexibleBodyVisitor<StaticVisitor, JSObject::BodyDescriptor, int>
+      JSObjectVisitor;
 
   typedef int (*Callback)(Map* map, HeapObject* object);
 
@@ -352,7 +333,7 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
 };
 
 
-template<typename StaticVisitor>
+template <typename StaticVisitor>
 VisitorDispatchTable<typename StaticNewSpaceVisitor<StaticVisitor>::Callback>
     StaticNewSpaceVisitor<StaticVisitor>::table_;
 
@@ -371,7 +352,7 @@ VisitorDispatchTable<typename StaticNewSpaceVisitor<StaticVisitor>::Callback>
 //   }
 //
 // This is an example of Curiously recurring template pattern.
-template<typename StaticVisitor>
+template <typename StaticVisitor>
 class StaticMarkingVisitor : public StaticVisitorBase {
  public:
   static void Initialize();
@@ -387,10 +368,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitDebugTarget(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitCodeTarget(Heap* heap, RelocInfo* rinfo));
   INLINE(static void VisitCodeAgeSequence(Heap* heap, RelocInfo* rinfo));
-  INLINE(static void VisitExternalReference(RelocInfo* rinfo)) { }
-  INLINE(static void VisitRuntimeEntry(RelocInfo* rinfo)) { }
+  INLINE(static void VisitExternalReference(RelocInfo* rinfo)) {}
+  INLINE(static void VisitRuntimeEntry(RelocInfo* rinfo)) {}
   // Skip the weak next code link in a code object.
-  INLINE(static void VisitNextCodeLink(Heap* heap, Object** slot)) { }
+  INLINE(static void VisitNextCodeLink(Heap* heap, Object** slot)) {}
 
   // TODO(mstarzinger): This should be made protected once refactoring is done.
   // Mark non-optimize code for functions inlined into the given optimized
@@ -429,25 +410,20 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   class DataObjectVisitor {
    public:
-    template<int size>
-    static inline void VisitSpecialized(Map* map, HeapObject* object) {
-    }
+    template <int size>
+    static inline void VisitSpecialized(Map* map, HeapObject* object) {}
 
-    INLINE(static void Visit(Map* map, HeapObject* object)) {
-    }
+    INLINE(static void Visit(Map* map, HeapObject* object)) {}
   };
 
-  typedef FlexibleBodyVisitor<StaticVisitor,
-                              FixedArray::BodyDescriptor,
-                              void> FixedArrayVisitor;
+  typedef FlexibleBodyVisitor<StaticVisitor, FixedArray::BodyDescriptor, void>
+      FixedArrayVisitor;
 
-  typedef FlexibleBodyVisitor<StaticVisitor,
-                              JSObject::BodyDescriptor,
-                              void> JSObjectVisitor;
+  typedef FlexibleBodyVisitor<StaticVisitor, JSObject::BodyDescriptor, void>
+      JSObjectVisitor;
 
-  typedef FlexibleBodyVisitor<StaticVisitor,
-                              StructBodyDescriptor,
-                              void> StructObjectVisitor;
+  typedef FlexibleBodyVisitor<StaticVisitor, StructBodyDescriptor, void>
+      StructObjectVisitor;
 
   typedef void (*Callback)(Map* map, HeapObject* object);
 
@@ -455,7 +431,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 };
 
 
-template<typename StaticVisitor>
+template <typename StaticVisitor>
 VisitorDispatchTable<typename StaticMarkingVisitor<StaticVisitor>::Callback>
     StaticMarkingVisitor<StaticVisitor>::table_;
 
@@ -470,7 +446,7 @@ class WeakObjectRetainer;
 // access the next-element pointers.
 template <class T>
 Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer);
-
-} }  // namespace v8::internal
+}
+}  // namespace v8::internal
 
 #endif  // V8_OBJECTS_VISITING_H_

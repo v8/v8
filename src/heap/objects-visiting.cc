@@ -4,16 +4,15 @@
 
 #include "src/v8.h"
 
+#include "src/heap/objects-visiting.h"
 #include "src/ic-inl.h"
-#include "src/objects-visiting.h"
 
 namespace v8 {
 namespace internal {
 
 
 StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
-    int instance_type,
-    int instance_size) {
+    int instance_type, int instance_size) {
   if (instance_type < FIRST_NONSTRING_TYPE) {
     switch (instance_type & kStringRepresentationMask) {
       case kSeqStringTag:
@@ -34,8 +33,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
         return kVisitSlicedString;
 
       case kExternalStringTag:
-        return GetVisitorIdForSize(kVisitDataObject,
-                                   kVisitDataObjectGeneric,
+        return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
                                    instance_size);
     }
     UNREACHABLE();
@@ -73,13 +71,11 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       return kVisitPropertyCell;
 
     case JS_SET_TYPE:
-      return GetVisitorIdForSize(kVisitStruct,
-                                 kVisitStructGeneric,
+      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
                                  JSSet::kSize);
 
     case JS_MAP_TYPE:
-      return GetVisitorIdForSize(kVisitStruct,
-                                 kVisitStructGeneric,
+      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
                                  JSMap::kSize);
 
     case JS_WEAK_MAP_TYPE:
@@ -93,18 +89,15 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       return kVisitSharedFunctionInfo;
 
     case JS_PROXY_TYPE:
-      return GetVisitorIdForSize(kVisitStruct,
-                                 kVisitStructGeneric,
+      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
                                  JSProxy::kSize);
 
     case JS_FUNCTION_PROXY_TYPE:
-      return GetVisitorIdForSize(kVisitStruct,
-                                 kVisitStructGeneric,
+      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
                                  JSFunctionProxy::kSize);
 
     case FOREIGN_TYPE:
-      return GetVisitorIdForSize(kVisitDataObject,
-                                 kVisitDataObjectGeneric,
+      return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
                                  Foreign::kSize);
 
     case SYMBOL_TYPE:
@@ -135,8 +128,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
-      return GetVisitorIdForSize(kVisitJSObject,
-                                 kVisitJSObjectGeneric,
+      return GetVisitorIdForSize(kVisitJSObject, kVisitJSObjectGeneric,
                                  instance_size);
 
     case JS_FUNCTION_TYPE:
@@ -144,12 +136,11 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
 
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
-#define EXTERNAL_ARRAY_CASE(Type, type, TYPE, ctype, size)                     \
-    case EXTERNAL_##TYPE##_ARRAY_TYPE:
+#define EXTERNAL_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case EXTERNAL_##TYPE##_ARRAY_TYPE:
 
-    TYPED_ARRAYS(EXTERNAL_ARRAY_CASE)
-      return GetVisitorIdForSize(kVisitDataObject,
-                                 kVisitDataObjectGeneric,
+      TYPED_ARRAYS(EXTERNAL_ARRAY_CASE)
+      return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
                                  instance_size);
 #undef EXTERNAL_ARRAY_CASE
 
@@ -166,17 +157,15 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case FIXED_FLOAT64_ARRAY_TYPE:
       return kVisitFixedFloat64Array;
 
-#define MAKE_STRUCT_CASE(NAME, Name, name) \
-        case NAME##_TYPE:
+#define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE:
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-          if (instance_type == ALLOCATION_SITE_TYPE) {
-            return kVisitAllocationSite;
-          }
+      if (instance_type == ALLOCATION_SITE_TYPE) {
+        return kVisitAllocationSite;
+      }
 
-          return GetVisitorIdForSize(kVisitStruct,
-                                     kVisitStructGeneric,
-                                     instance_size);
+      return GetVisitorIdForSize(kVisitStruct, kVisitStructGeneric,
+                                 instance_size);
 
     default:
       UNREACHABLE();
@@ -191,7 +180,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
 // have to record slots manually.
 static bool MustRecordSlots(Heap* heap) {
   return heap->gc_state() == Heap::MARK_COMPACT &&
-      heap->mark_compact_collector()->is_compacting();
+         heap->mark_compact_collector()->is_compacting();
 }
 
 
@@ -200,9 +189,7 @@ struct WeakListVisitor;
 
 
 template <class T>
-Object* VisitWeakList(Heap* heap,
-                      Object* list,
-                      WeakObjectRetainer* retainer) {
+Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
   Object* undefined = heap->undefined_value();
   Object* head = undefined;
   T* tail = NULL;
@@ -222,7 +209,7 @@ Object* VisitWeakList(Heap* heap,
         WeakListVisitor<T>::SetWeakNext(tail, retained);
         if (record_slots) {
           Object** next_slot =
-            HeapObject::RawField(tail, WeakListVisitor<T>::WeakNextOffset());
+              HeapObject::RawField(tail, WeakListVisitor<T>::WeakNextOffset());
           collector->RecordSlot(next_slot, next_slot, retained);
         }
       }
@@ -251,8 +238,7 @@ Object* VisitWeakList(Heap* heap,
 
 
 template <class T>
-static void ClearWeakList(Heap* heap,
-                          Object* list) {
+static void ClearWeakList(Heap* heap, Object* list) {
   Object* undefined = heap->undefined_value();
   while (list != undefined) {
     T* candidate = reinterpret_cast<T*>(list);
@@ -262,7 +248,7 @@ static void ClearWeakList(Heap* heap,
 }
 
 
-template<>
+template <>
 struct WeakListVisitor<JSFunction> {
   static void SetWeakNext(JSFunction* function, Object* next) {
     function->set_next_function_link(next);
@@ -272,9 +258,7 @@ struct WeakListVisitor<JSFunction> {
     return function->next_function_link();
   }
 
-  static int WeakNextOffset() {
-    return JSFunction::kNextFunctionLinkOffset;
-  }
+  static int WeakNextOffset() { return JSFunction::kNextFunctionLinkOffset; }
 
   static void VisitLiveObject(Heap*, JSFunction*, WeakObjectRetainer*) {}
 
@@ -282,19 +266,15 @@ struct WeakListVisitor<JSFunction> {
 };
 
 
-template<>
+template <>
 struct WeakListVisitor<Code> {
   static void SetWeakNext(Code* code, Object* next) {
     code->set_next_code_link(next);
   }
 
-  static Object* WeakNext(Code* code) {
-    return code->next_code_link();
-  }
+  static Object* WeakNext(Code* code) { return code->next_code_link(); }
 
-  static int WeakNextOffset() {
-    return Code::kNextCodeLinkOffset;
-  }
+  static int WeakNextOffset() { return Code::kNextCodeLinkOffset; }
 
   static void VisitLiveObject(Heap*, Code*, WeakObjectRetainer*) {}
 
@@ -302,12 +282,10 @@ struct WeakListVisitor<Code> {
 };
 
 
-template<>
+template <>
 struct WeakListVisitor<Context> {
   static void SetWeakNext(Context* context, Object* next) {
-    context->set(Context::NEXT_CONTEXT_LINK,
-                 next,
-                 UPDATE_WRITE_BARRIER);
+    context->set(Context::NEXT_CONTEXT_LINK, next, UPDATE_WRITE_BARRIER);
   }
 
   static Object* WeakNext(Context* context) {
@@ -318,21 +296,18 @@ struct WeakListVisitor<Context> {
     return FixedArray::SizeFor(Context::NEXT_CONTEXT_LINK);
   }
 
-  static void VisitLiveObject(Heap* heap,
-                              Context* context,
+  static void VisitLiveObject(Heap* heap, Context* context,
                               WeakObjectRetainer* retainer) {
     // Process the three weak lists linked off the context.
     DoWeakList<JSFunction>(heap, context, retainer,
-        Context::OPTIMIZED_FUNCTIONS_LIST);
+                           Context::OPTIMIZED_FUNCTIONS_LIST);
     DoWeakList<Code>(heap, context, retainer, Context::OPTIMIZED_CODE_LIST);
     DoWeakList<Code>(heap, context, retainer, Context::DEOPTIMIZED_CODE_LIST);
   }
 
-  template<class T>
-  static void DoWeakList(Heap* heap,
-                         Context* context,
-                         WeakObjectRetainer* retainer,
-                         int index) {
+  template <class T>
+  static void DoWeakList(Heap* heap, Context* context,
+                         WeakObjectRetainer* retainer, int index) {
     // Visit the weak list, removing dead intermediate elements.
     Object* list_head = VisitWeakList<T>(heap, context->get(index), retainer);
 
@@ -341,35 +316,31 @@ struct WeakListVisitor<Context> {
 
     if (MustRecordSlots(heap)) {
       // Record the updated slot if necessary.
-      Object** head_slot = HeapObject::RawField(
-          context, FixedArray::SizeFor(index));
-      heap->mark_compact_collector()->RecordSlot(
-          head_slot, head_slot, list_head);
+      Object** head_slot =
+          HeapObject::RawField(context, FixedArray::SizeFor(index));
+      heap->mark_compact_collector()->RecordSlot(head_slot, head_slot,
+                                                 list_head);
     }
   }
 
   static void VisitPhantomObject(Heap* heap, Context* context) {
     ClearWeakList<JSFunction>(heap,
-        context->get(Context::OPTIMIZED_FUNCTIONS_LIST));
+                              context->get(Context::OPTIMIZED_FUNCTIONS_LIST));
     ClearWeakList<Code>(heap, context->get(Context::OPTIMIZED_CODE_LIST));
     ClearWeakList<Code>(heap, context->get(Context::DEOPTIMIZED_CODE_LIST));
   }
 };
 
 
-template<>
+template <>
 struct WeakListVisitor<JSArrayBufferView> {
   static void SetWeakNext(JSArrayBufferView* obj, Object* next) {
     obj->set_weak_next(next);
   }
 
-  static Object* WeakNext(JSArrayBufferView* obj) {
-    return obj->weak_next();
-  }
+  static Object* WeakNext(JSArrayBufferView* obj) { return obj->weak_next(); }
 
-  static int WeakNextOffset() {
-    return JSArrayBufferView::kWeakNextOffset;
-  }
+  static int WeakNextOffset() { return JSArrayBufferView::kWeakNextOffset; }
 
   static void VisitLiveObject(Heap*, JSArrayBufferView*, WeakObjectRetainer*) {}
 
@@ -377,32 +348,24 @@ struct WeakListVisitor<JSArrayBufferView> {
 };
 
 
-template<>
+template <>
 struct WeakListVisitor<JSArrayBuffer> {
   static void SetWeakNext(JSArrayBuffer* obj, Object* next) {
     obj->set_weak_next(next);
   }
 
-  static Object* WeakNext(JSArrayBuffer* obj) {
-    return obj->weak_next();
-  }
+  static Object* WeakNext(JSArrayBuffer* obj) { return obj->weak_next(); }
 
-  static int WeakNextOffset() {
-    return JSArrayBuffer::kWeakNextOffset;
-  }
+  static int WeakNextOffset() { return JSArrayBuffer::kWeakNextOffset; }
 
-  static void VisitLiveObject(Heap* heap,
-                              JSArrayBuffer* array_buffer,
+  static void VisitLiveObject(Heap* heap, JSArrayBuffer* array_buffer,
                               WeakObjectRetainer* retainer) {
-    Object* typed_array_obj =
-        VisitWeakList<JSArrayBufferView>(
-            heap,
-            array_buffer->weak_first_view(),
-            retainer);
+    Object* typed_array_obj = VisitWeakList<JSArrayBufferView>(
+        heap, array_buffer->weak_first_view(), retainer);
     array_buffer->set_weak_first_view(typed_array_obj);
     if (typed_array_obj != heap->undefined_value() && MustRecordSlots(heap)) {
-      Object** slot = HeapObject::RawField(
-          array_buffer, JSArrayBuffer::kWeakFirstViewOffset);
+      Object** slot = HeapObject::RawField(array_buffer,
+                                           JSArrayBuffer::kWeakFirstViewOffset);
       heap->mark_compact_collector()->RecordSlot(slot, slot, typed_array_obj);
     }
   }
@@ -413,19 +376,15 @@ struct WeakListVisitor<JSArrayBuffer> {
 };
 
 
-template<>
+template <>
 struct WeakListVisitor<AllocationSite> {
   static void SetWeakNext(AllocationSite* obj, Object* next) {
     obj->set_weak_next(next);
   }
 
-  static Object* WeakNext(AllocationSite* obj) {
-    return obj->weak_next();
-  }
+  static Object* WeakNext(AllocationSite* obj) { return obj->weak_next(); }
 
-  static int WeakNextOffset() {
-    return AllocationSite::kWeakNextOffset;
-  }
+  static int WeakNextOffset() { return AllocationSite::kWeakNextOffset; }
 
   static void VisitLiveObject(Heap*, AllocationSite*, WeakObjectRetainer*) {}
 
@@ -433,23 +392,23 @@ struct WeakListVisitor<AllocationSite> {
 };
 
 
-template Object* VisitWeakList<Code>(
-    Heap* heap, Object* list, WeakObjectRetainer* retainer);
+template Object* VisitWeakList<Code>(Heap* heap, Object* list,
+                                     WeakObjectRetainer* retainer);
 
 
-template Object* VisitWeakList<JSFunction>(
-    Heap* heap, Object* list, WeakObjectRetainer* retainer);
+template Object* VisitWeakList<JSFunction>(Heap* heap, Object* list,
+                                           WeakObjectRetainer* retainer);
 
 
-template Object* VisitWeakList<Context>(
-    Heap* heap, Object* list, WeakObjectRetainer* retainer);
+template Object* VisitWeakList<Context>(Heap* heap, Object* list,
+                                        WeakObjectRetainer* retainer);
 
 
-template Object* VisitWeakList<JSArrayBuffer>(
-    Heap* heap, Object* list, WeakObjectRetainer* retainer);
+template Object* VisitWeakList<JSArrayBuffer>(Heap* heap, Object* list,
+                                              WeakObjectRetainer* retainer);
 
 
-template Object* VisitWeakList<AllocationSite>(
-    Heap* heap, Object* list, WeakObjectRetainer* retainer);
-
-} }  // namespace v8::internal
+template Object* VisitWeakList<AllocationSite>(Heap* heap, Object* list,
+                                               WeakObjectRetainer* retainer);
+}
+}  // namespace v8::internal

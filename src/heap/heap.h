@@ -14,9 +14,9 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/list.h"
-#include "src/objects-visiting.h"
 #include "src/splay-tree-inl.h"
 #include "src/store-buffer.h"
 
