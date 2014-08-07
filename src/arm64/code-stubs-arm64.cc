@@ -1766,7 +1766,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
   // If there is a call site cache, don't look in the global cache, but do the
   // real lookup and update the call site cache.
-  if (!HasCallSiteInlineCheck()) {
+  if (!HasCallSiteInlineCheck() && !ReturnTrueFalseObject()) {
     Label miss;
     __ JumpIfNotRoot(function, Heap::kInstanceofCacheFunctionRootIndex, &miss);
     __ JumpIfNotRoot(map, Heap::kInstanceofCacheMapRootIndex, &miss);
@@ -1798,6 +1798,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   }
 
   Label return_true, return_result;
+  Register smi_value = scratch1;
   {
     // Loop through the prototype chain looking for the function prototype.
     Register chain_map = x1;
@@ -1808,6 +1809,10 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(null_value, Heap::kNullValueRootIndex);
     // Speculatively set a result.
     __ Mov(result, res_false);
+    if (!HasCallSiteInlineCheck() && ReturnTrueFalseObject()) {
+      // Value to store in the cache cannot be an object.
+      __ Mov(smi_value, Smi::FromInt(1));
+    }
 
     __ Bind(&loop);
 
@@ -1830,6 +1835,10 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // We cannot fall through to here.
   __ Bind(&return_true);
   __ Mov(result, res_true);
+  if (!HasCallSiteInlineCheck() && ReturnTrueFalseObject()) {
+    // Value to store in the cache cannot be an object.
+    __ Mov(smi_value, Smi::FromInt(0));
+  }
   __ Bind(&return_result);
   if (HasCallSiteInlineCheck()) {
     DCHECK(ReturnTrueFalseObject());
@@ -1837,7 +1846,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ GetRelocatedValueLocation(map_check_site, scratch2);
     __ Str(result, MemOperand(scratch2));
   } else {
-    __ StoreRoot(result, Heap::kInstanceofCacheAnswerRootIndex);
+    Register cached_value = ReturnTrueFalseObject() ? smi_value : result;
+    __ StoreRoot(cached_value, Heap::kInstanceofCacheAnswerRootIndex);
   }
   __ Ret();
 
