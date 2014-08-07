@@ -3015,6 +3015,7 @@ void MacroAssembler::CheckPageFlagForMap(
     Label::Distance condition_met_distance) {
   DCHECK(cc == zero || cc == not_zero);
   Page* page = Page::FromAddress(map->address());
+  DCHECK(!serializer_enabled());  // Serializer cannot match page_flags.
   ExternalReference reference(ExternalReference::page_flags(page));
   // The inlined static address check of the page's flags relies
   // on maps never being compacted.
