@@ -20,7 +20,7 @@ class Node;
 template <class T>
 class NodeAuxData {
  public:
-  inline explicit NodeAuxData(Graph* graph);
+  inline explicit NodeAuxData(Zone* zone);
 
   inline void Set(Node* node, const T& data);
   inline T Get(Node* node);

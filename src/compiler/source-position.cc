@@ -29,7 +29,7 @@ SourcePositionTable::SourcePositionTable(Graph* graph)
     : graph_(graph),
       decorator_(NULL),
       current_position_(SourcePosition::Invalid()),
-      table_(graph) {}
+      table_(graph->zone()) {}
 
 
 void SourcePositionTable::AddDecorator() {
