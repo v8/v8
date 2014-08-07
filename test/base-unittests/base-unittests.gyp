@@ -12,8 +12,8 @@
       'target_name': 'base-unittests',
       'type': 'executable',
       'dependencies': [
-        '../../testing/gmock.gyp:gmock_main',
         '../../testing/gtest.gyp:gtest',
+        '../../testing/gtest.gyp:gtest_main',
         '../../tools/gyp/v8.gyp:v8_libbase',
       ],
       'include_dirs': [
