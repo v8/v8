@@ -583,6 +583,7 @@ void NamedStoreHandlerCompiler::GenerateStoreField(LookupResult* lookup,
     }
     __ j(equal, &do_store, Label::kNear);
   }
+  __ bind(&do_store);
 
   StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
                       lookup->representation());
