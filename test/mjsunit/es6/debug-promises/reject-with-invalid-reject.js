@@ -42,7 +42,6 @@ function listener(event, exec_state, event_data, data) {
       assertEquals("number is not a function", event_data.exception().message);
       // All of the frames on the stack are from native Javascript.
       assertEquals(0, exec_state.frameCount());
-      assertEquals(q, event_data.promise());
     }
   } catch (e) {
     %AbortJS(e + "\n" + e.stack);

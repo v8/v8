@@ -31,7 +31,7 @@ function listener(event, exec_state, event_data, data) {
       assertTrue(expected_events >= 0);
       assertEquals("uncaught reject", event_data.exception().message);
       assertTrue(event_data.promise() instanceof Promise);
-      assertEquals(q, event_data.promise());
+      assertSame(q, event_data.promise());
       assertTrue(event_data.uncaught());
       // All of the frames on the stack are from native Javascript.
       assertEquals(0, exec_state.frameCount());

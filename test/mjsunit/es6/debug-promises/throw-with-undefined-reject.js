@@ -53,7 +53,7 @@ function listener(event, exec_state, event_data, data) {
       } else {
         assertUnreachable();
       }
-      assertEquals(q, event_data.promise());
+      assertSame(q, event_data.promise());
     }
   } catch (e) {
     %AbortJS(e + "\n" + e.stack);

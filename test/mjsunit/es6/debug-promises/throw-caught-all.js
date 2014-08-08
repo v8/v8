@@ -35,7 +35,7 @@ function listener(event, exec_state, event_data, data) {
       expected_events--;
       assertTrue(expected_events >= 0);
       assertEquals("caught", event_data.exception().message);
-      assertEquals(q, event_data.promise());
+      assertSame(q, event_data.promise());
       assertFalse(event_data.uncaught());
     }
   } catch (e) {
