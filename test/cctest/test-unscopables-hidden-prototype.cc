@@ -20,8 +20,6 @@ static void Cleanup() {
 
 
 TEST(Unscopables) {
-  i::FLAG_harmony_unscopables = true;
-
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
   v8::HandleScope handle_scope(isolate);

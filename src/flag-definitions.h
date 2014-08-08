@@ -160,7 +160,6 @@ DEFINE_BOOL(harmony_numeric_literals, false,
 DEFINE_BOOL(harmony_strings, false, "enable harmony string")
 DEFINE_BOOL(harmony_arrays, false, "enable harmony arrays")
 DEFINE_BOOL(harmony_arrow_functions, false, "enable harmony arrow functions")
-DEFINE_BOOL(harmony_unscopables, false, "enable harmony unscopables")
 DEFINE_BOOL(harmony, false, "enable all harmony features (except proxies)")
 
 DEFINE_IMPLICATION(harmony, harmony_scoping)
@@ -175,7 +174,6 @@ DEFINE_IMPLICATION(harmony, harmony_arrow_functions)
 DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
 
 DEFINE_IMPLICATION(harmony, es_staging)
-DEFINE_IMPLICATION(es_staging, harmony_unscopables)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_dictionary_loads, true,

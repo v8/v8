@@ -1592,6 +1592,7 @@ void Genesis::InstallNativeFunctions() {
                  native_object_notifier_perform_change);
 
   INSTALL_NATIVE(Symbol, "symbolIterator", iterator_symbol);
+  INSTALL_NATIVE(Symbol, "symbolUnscopables", unscopables_symbol);
 
   INSTALL_NATIVE_MATH(abs)
   INSTALL_NATIVE_MATH(acos)
@@ -1621,10 +1622,6 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
     INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
-  }
-
-  if (FLAG_harmony_unscopables) {
-    INSTALL_NATIVE(Symbol, "symbolUnscopables", unscopables_symbol);
   }
 }
 
@@ -2062,7 +2059,6 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, unscopables, "unscopables.js")
   }
 
   InstallExperimentalNativeFunctions();

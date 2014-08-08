@@ -1471,6 +1471,20 @@ function SetUpArray() {
   // object.
   %AddNamedProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
 
+  // Set up unscopable properties on the Array.prototype object.
+  var unscopables = {
+    __proto__: null,
+    copyWithin: true,
+    entries: true,
+    fill: true,
+    find: true,
+    findIndex: true,
+    keys: true,
+    values: true,
+  };
+  %AddNamedProperty($Array.prototype, symbolUnscopables, unscopables,
+      DONT_ENUM | READ_ONLY);
+
   // Set up non-enumerable functions on the Array object.
   InstallFunctions($Array, DONT_ENUM, $Array(
     "isArray", ArrayIsArray

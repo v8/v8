@@ -1387,6 +1387,7 @@
         'library_files': [
           '../../src/runtime.js',
           '../../src/v8natives.js',
+          '../../src/symbol.js',
           '../../src/array.js',
           '../../src/string.js',
           '../../src/uri.js',
@@ -1405,7 +1406,6 @@
           '../../src/weak_collection.js',
           '../../src/promise.js',
           '../../src/object-observe.js',
-          '../../src/symbol.js',
           '../../src/collection.js',
           '../../src/collection-iterator.js',
           '../../src/macros.py',
@@ -1418,7 +1418,6 @@
           '../../src/generator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
-          '../../src/unscopables.js',
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
