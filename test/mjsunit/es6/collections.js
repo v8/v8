@@ -28,6 +28,13 @@
 // Flags: --expose-gc --allow-natives-syntax
 
 
+function assertSize(expected, collection) {
+  if (collection instanceof Map || collection instanceof Set) {
+    assertEquals(expected, collection.size);
+  }
+}
+
+
 // Test valid getter and setter calls on Sets and WeakSets
 function TestValidSetCalls(m) {
   assertDoesNotThrow(function () { m.add(new Object) });
@@ -309,6 +316,7 @@ function TestConstructor(C) {
   assertFalse(C === Object.prototype.constructor);
   assertSame(C, C.prototype.constructor);
   assertSame(C, (new C).__proto__.constructor);
+  assertEquals(1, C.length);
 }
 TestConstructor(Set);
 TestConstructor(Map);
@@ -987,23 +995,32 @@ for (var i = 9; i >= 0; i--) {
 })();
 
 
-(function TestSetConstructor() {
-  var s = new Set(null);
-  assertEquals(s.size, 0);
+// Allows testing iterator-based constructors easily.
+var oneAndTwo = new Map();
+var k0 = {key: 0};
+var k1 = {key: 1};
+var k2 = {key: 2};
+oneAndTwo.set(k1, 1);
+oneAndTwo.set(k2, 2);
 
-  s = new Set(undefined);
-  assertEquals(s.size, 0);
+
+function TestSetConstructor(ctor) {
+  var s = new ctor(null);
+  assertSize(0, s);
+
+  s = new ctor(undefined);
+  assertSize(0, s);
 
   // No @@iterator
   assertThrows(function() {
-    new Set({});
+    new ctor({});
   }, TypeError);
 
   // @@iterator not callable
   assertThrows(function() {
     var object = {};
     object[Symbol.iterator] = 42;
-    new Set(object);
+    new ctor(object);
   }, TypeError);
 
   // @@iterator result not object
@@ -1012,72 +1029,74 @@ for (var i = 9; i >= 0; i--) {
     object[Symbol.iterator] = function() {
       return 42;
     };
-    new Set(object);
+    new ctor(object);
   }, TypeError);
 
   var s2 = new Set();
-  s2.add('a');
-  s2.add('b');
-  s2.add('c');
-  s = new Set(s2.values());
-  assertEquals(s.size, 3);
-  assertTrue(s.has('a'));
-  assertTrue(s.has('b'));
-  assertTrue(s.has('c'));
-})();
+  s2.add(k0);
+  s2.add(k1);
+  s2.add(k2);
+  s = new ctor(s2.values());
+  assertSize(3, s);
+  assertTrue(s.has(k0));
+  assertTrue(s.has(k1));
+  assertTrue(s.has(k2));
+}
+TestSetConstructor(Set);
+TestSetConstructor(WeakSet);
 
 
-// Allows testing iterator-based constructors easily.
-var oneAndTwo = new Set();
-oneAndTwo.add(1);
-oneAndTwo.add(2);
-
-
-(function TestSetConstructorAddNotCallable() {
-  var originalSetPrototypeAdd = Set.prototype.add;
+function TestSetConstructorAddNotCallable(ctor) {
+  var originalPrototypeAdd = ctor.prototype.add;
   assertThrows(function() {
-    Set.prototype.add = 42;
-    new Set(oneAndTwo.values());
+    ctor.prototype.add = 42;
+    new ctor(oneAndTwo.values());
   }, TypeError);
-  Set.prototype.add = originalSetPrototypeAdd;
-})();
+  ctor.prototype.add = originalPrototypeAdd;
+}
+TestSetConstructorAddNotCallable(Set);
+TestSetConstructorAddNotCallable(WeakSet);
 
 
-(function TestSetConstructorGetAddOnce() {
-  var originalSetPrototypeAdd = Set.prototype.add;
+function TestSetConstructorGetAddOnce(ctor) {
+  var originalPrototypeAdd = ctor.prototype.add;
   var getAddCount = 0;
-  Object.defineProperty(Set.prototype, 'add', {
+  Object.defineProperty(ctor.prototype, 'add', {
     get: function() {
       getAddCount++;
       return function() {};
     }
   });
-  var s = new Set(oneAndTwo.values());
-  assertEquals(getAddCount, 1);
-  assertEquals(s.size, 0);
-  Object.defineProperty(Set.prototype, 'add', {
-    value: originalSetPrototypeAdd,
+  var s = new ctor(oneAndTwo.values());
+  assertEquals(1, getAddCount);
+  assertSize(0, s);
+  Object.defineProperty(ctor.prototype, 'add', {
+    value: originalPrototypeAdd,
     writable: true
   });
-})();
+}
+TestSetConstructorGetAddOnce(Set);
+TestSetConstructorGetAddOnce(WeakSet);
 
 
-(function TestSetConstructorAddReplaced() {
-  var originalSetPrototypeAdd = Set.prototype.add;
+function TestSetConstructorAddReplaced(ctor) {
+  var originalPrototypeAdd = ctor.prototype.add;
   var addCount = 0;
-  Set.prototype.add = function(value) {
+  ctor.prototype.add = function(value) {
     addCount++;
-    originalSetPrototypeAdd.call(this, value);
-    Set.prototype.add = null;
+    originalPrototypeAdd.call(this, value);
+    ctor.prototype.add = null;
   };
-  var s = new Set(oneAndTwo.values());
-  assertEquals(addCount, 2);
-  assertEquals(s.size, 2);
-  Set.prototype.add = originalSetPrototypeAdd;
-})();
+  var s = new ctor(oneAndTwo.keys());
+  assertEquals(2, addCount);
+  assertSize(2, s);
+  ctor.prototype.add = originalPrototypeAdd;
+}
+TestSetConstructorAddReplaced(Set);
+TestSetConstructorAddReplaced(WeakSet);
 
 
-(function TestSetConstructorOrderOfDoneValue() {
+function TestSetConstructorOrderOfDoneValue(ctor) {
   var valueCount = 0, doneCount = 0;
   var iterator = {
     next: function() {
@@ -1096,14 +1115,16 @@ oneAndTwo.add(2);
     return this;
   };
   assertThrows(function() {
-    new Set(iterator);
+    new ctor(iterator);
   });
-  assertEquals(doneCount, 1);
-  assertEquals(valueCount, 0);
-})();
+  assertEquals(1, doneCount);
+  assertEquals(0, valueCount);
+}
+TestSetConstructorOrderOfDoneValue(Set);
+TestSetConstructorOrderOfDoneValue(WeakSet);
 
 
-(function TestSetConstructorNextNotAnObject() {
+function TestSetConstructorNextNotAnObject(ctor) {
   var iterator = {
     next: function() {
       return 'abc';
@@ -1113,28 +1134,30 @@ oneAndTwo.add(2);
     return this;
   };
   assertThrows(function() {
-    new Set(iterator);
+    new ctor(iterator);
   }, TypeError);
-})();
+}
+TestSetConstructorNextNotAnObject(Set);
+TestSetConstructorNextNotAnObject(WeakSet);
 
 
-(function TestMapConstructor() {
-  var m = new Map(null);
-  assertEquals(m.size, 0);
+function TestMapConstructor(ctor) {
+  var m = new ctor(null);
+  assertSize(0, m);
 
-  m = new Map(undefined);
-  assertEquals(m.size, 0);
+  m = new ctor(undefined);
+  assertSize(0, m);
 
   // No @@iterator
   assertThrows(function() {
-    new Map({});
+    new ctor({});
   }, TypeError);
 
   // @@iterator not callable
   assertThrows(function() {
     var object = {};
     object[Symbol.iterator] = 42;
-    new Map(object);
+    new ctor(object);
   }, TypeError);
 
   // @@iterator result not object
@@ -1143,66 +1166,74 @@ oneAndTwo.add(2);
     object[Symbol.iterator] = function() {
       return 42;
     };
-    new Map(object);
+    new ctor(object);
   }, TypeError);
 
   var m2 = new Map();
-  m2.set(0, 'a');
-  m2.set(1, 'b');
-  m2.set(2, 'c');
-  m = new Map(m2.entries());
-  assertEquals(m.size, 3);
-  assertEquals(m.get(0), 'a');
-  assertEquals(m.get(1), 'b');
-  assertEquals(m.get(2), 'c');
-})();
+  m2.set(k0, 'a');
+  m2.set(k1, 'b');
+  m2.set(k2, 'c');
+  m = new ctor(m2.entries());
+  assertSize(3, m);
+  assertEquals('a', m.get(k0));
+  assertEquals('b', m.get(k1));
+  assertEquals('c', m.get(k2));
+}
+TestMapConstructor(Map);
+TestMapConstructor(WeakMap);
 
 
-(function TestMapConstructorSetNotCallable() {
-  var originalMapPrototypeSet = Map.prototype.set;
+function TestMapConstructorSetNotCallable(ctor) {
+  var originalPrototypeSet = ctor.prototype.set;
   assertThrows(function() {
-    Map.prototype.set = 42;
-    new Map(oneAndTwo.entries());
+    ctor.prototype.set = 42;
+    new ctor(oneAndTwo.entries());
   }, TypeError);
-  Map.prototype.set = originalMapPrototypeSet;
-})();
+  ctor.prototype.set = originalPrototypeSet;
+}
+TestMapConstructorSetNotCallable(Map);
+TestMapConstructorSetNotCallable(WeakMap);
 
 
-(function TestMapConstructorGetAddOnce() {
-  var originalMapPrototypeSet = Map.prototype.set;
+function TestMapConstructorGetAddOnce(ctor) {
+  var originalPrototypeSet = ctor.prototype.set;
   var getSetCount = 0;
-  Object.defineProperty(Map.prototype, 'set', {
+  Object.defineProperty(ctor.prototype, 'set', {
     get: function() {
       getSetCount++;
       return function() {};
     }
   });
-  var m = new Map(oneAndTwo.entries());
-  assertEquals(getSetCount, 1);
-  assertEquals(m.size, 0);
-  Object.defineProperty(Map.prototype, 'set', {
-    value: originalMapPrototypeSet,
+  var m = new ctor(oneAndTwo.entries());
+  assertEquals(1, getSetCount);
+  assertSize(0, m);
+  Object.defineProperty(ctor.prototype, 'set', {
+    value: originalPrototypeSet,
     writable: true
   });
-})();
+}
+TestMapConstructorGetAddOnce(Map);
+TestMapConstructorGetAddOnce(WeakMap);
 
 
-(function TestMapConstructorSetReplaced() {
-  var originalMapPrototypeSet = Map.prototype.set;
+function TestMapConstructorSetReplaced(ctor) {
+  var originalPrototypeSet = ctor.prototype.set;
   var setCount = 0;
-  Map.prototype.set = function(key, value) {
+  ctor.prototype.set = function(key, value) {
     setCount++;
-    originalMapPrototypeSet.call(this, key, value);
-    Map.prototype.set = null;
+    originalPrototypeSet.call(this, key, value);
+    ctor.prototype.set = null;
   };
-  var m = new Map(oneAndTwo.entries());
-  assertEquals(setCount, 2);
-  assertEquals(m.size, 2);
-  Map.prototype.set = originalMapPrototypeSet;
-})();
+  var m = new ctor(oneAndTwo.entries());
+  assertEquals(2, setCount);
+  assertSize(2, m);
+  ctor.prototype.set = originalPrototypeSet;
+}
+TestMapConstructorSetReplaced(Map);
+TestMapConstructorSetReplaced(WeakMap);
 
 
-(function TestMapConstructorOrderOfDoneValue() {
+function TestMapConstructorOrderOfDoneValue(ctor) {
   var valueCount = 0, doneCount = 0;
   function FakeError() {}
   var iterator = {
@@ -1222,14 +1253,16 @@ oneAndTwo.add(2);
     return this;
   };
   assertThrows(function() {
-    new Map(iterator);
+    new ctor(iterator);
   }, FakeError);
-  assertEquals(doneCount, 1);
-  assertEquals(valueCount, 0);
-})();
+  assertEquals(1, doneCount);
+  assertEquals(0, valueCount);
+}
+TestMapConstructorOrderOfDoneValue(Map);
+TestMapConstructorOrderOfDoneValue(WeakMap);
 
 
-(function TestMapConstructorNextNotAnObject() {
+function TestMapConstructorNextNotAnObject(ctor) {
   var iterator = {
     next: function() {
       return 'abc';
@@ -1239,13 +1272,17 @@ oneAndTwo.add(2);
     return this;
   };
   assertThrows(function() {
-    new Map(iterator);
+    new ctor(iterator);
   }, TypeError);
-})();
+}
+TestMapConstructorNextNotAnObject(Map);
+TestMapConstructorNextNotAnObject(WeakMap);
 
 
-(function TestMapConstructorIteratorNotObjectValues() {
+function TestMapConstructorIteratorNotObjectValues(ctor) {
   assertThrows(function() {
-    new Map(oneAndTwo.values());
+    new ctor(oneAndTwo.values());
   }, TypeError);
-})();
+}
+TestMapConstructorIteratorNotObjectValues(Map);
+TestMapConstructorIteratorNotObjectValues(WeakMap);

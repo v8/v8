@@ -12,35 +12,6 @@ var $Set = global.Set;
 var $Map = global.Map;
 
 
-// TODO(arv): Move these general functions to v8natives.js when Map and Set are
-// no longer experimental.
-
-
-// 7.4.1 CheckIterable ( obj )
-function ToIterable(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    return UNDEFINED;
-  }
-  return obj[symbolIterator];
-}
-
-
-// 7.4.2 GetIterator ( obj, method )
-function GetIterator(obj, method) {
-  if (IS_UNDEFINED(method)) {
-    method = ToIterable(obj);
-  }
-  if (!IS_SPEC_FUNCTION(method)) {
-    throw MakeTypeError('not_iterable', [obj]);
-  }
-  var iterator = %_CallFunction(obj, method);
-  if (!IS_SPEC_OBJECT(iterator)) {
-    throw MakeTypeError('not_an_iterator', [iterator]);
-  }
-  return iterator;
-}
-
-
 // -------------------------------------------------------------------
 // Harmony Set
 
