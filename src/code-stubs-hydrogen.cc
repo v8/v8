@@ -251,8 +251,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode() {
 template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   Isolate* isolate = stub->isolate();
-  CodeStub::Major  major_key =
-      static_cast<HydrogenCodeStub*>(stub)->MajorKey();
+  CodeStub::Major major_key = static_cast<CodeStub*>(stub)->MajorKey();
   CodeStubInterfaceDescriptor* descriptor =
       isolate->code_stub_interface_descriptor(major_key);
   if (!descriptor->IsInitialized()) {
