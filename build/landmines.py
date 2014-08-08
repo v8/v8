@@ -58,6 +58,9 @@ def set_up_landmines(target, new_landmines):
   if not os.path.exists(out_dir):
     return
 
+  if not os.path.exists(landmines_path):
+    print "Landmines tracker didn't exists."
+
   # Make sure the landmines tracker exists.
   open(landmines_path, 'a').close()
 
@@ -73,13 +76,15 @@ def set_up_landmines(target, new_landmines):
     with open(triggered, 'w') as f:
       f.writelines(diff)
     print "Setting landmine: %s" % triggered
-    print "Reason:\n%s" % diff
   elif os.path.exists(triggered):
     # Remove false triggered landmines.
     os.remove(triggered)
     print "Removing landmine: %s" % triggered
   with open(landmines_path, 'w') as f:
     f.writelines(new_landmines)
+  with open(landmines_path, 'r') as f:
+    print "Content of the landmines tracker:"
+    print f.read()
 
 
 def process_options():
