@@ -2315,6 +2315,12 @@ class ToBooleanStub: public HydrogenCodeStub {
     NUMBER_OF_TYPES
   };
 
+  enum ResultMode {
+    RESULT_AS_SMI,             // For Smi(1) on truthy value, Smi(0) otherwise.
+    RESULT_AS_ODDBALL,         // For {true} on truthy value, {false} otherwise.
+    RESULT_AS_INVERSE_ODDBALL  // For {false} on truthy value, {true} otherwise.
+  };
+
   // At most 8 different types can be distinguished, because the Code object
   // only has room for a single byte to hold a set of these types. :-P
   STATIC_ASSERT(NUMBER_OF_TYPES <= 8);
@@ -2333,13 +2339,16 @@ class ToBooleanStub: public HydrogenCodeStub {
     static Types Generic() { return Types((1 << NUMBER_OF_TYPES) - 1); }
   };
 
-  ToBooleanStub(Isolate* isolate, Types types = Types())
-      : HydrogenCodeStub(isolate), types_(types) { }
+  ToBooleanStub(Isolate* isolate, ResultMode mode, Types types = Types())
+      : HydrogenCodeStub(isolate), types_(types), mode_(mode) {}
   ToBooleanStub(Isolate* isolate, ExtraICState state)
-      : HydrogenCodeStub(isolate), types_(static_cast<byte>(state)) { }
+      : HydrogenCodeStub(isolate),
+        types_(static_cast<byte>(state)),
+        mode_(RESULT_AS_SMI) {}
 
   bool UpdateStatus(Handle<Object> object);
   Types GetTypes() { return types_; }
+  ResultMode GetMode() { return mode_; }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
   virtual void InitializeInterfaceDescriptor(
@@ -2351,7 +2360,7 @@ class ToBooleanStub: public HydrogenCodeStub {
   virtual bool SometimesSetsUpAFrame() { return false; }
 
   static void InstallDescriptors(Isolate* isolate) {
-    ToBooleanStub stub(isolate);
+    ToBooleanStub stub(isolate, RESULT_AS_SMI);
     stub.InitializeInterfaceDescriptor(
         isolate->code_stub_interface_descriptor(CodeStub::ToBoolean));
   }
@@ -2371,13 +2380,19 @@ class ToBooleanStub: public HydrogenCodeStub {
   }
 
  private:
-  Major MajorKey() const { return ToBoolean; }
-  int NotMissMinorKey() const { return GetExtraICState(); }
+  class TypesBits : public BitField<byte, 0, NUMBER_OF_TYPES> {};
+  class ResultModeBits : public BitField<ResultMode, NUMBER_OF_TYPES, 2> {};
 
-  ToBooleanStub(Isolate* isolate, InitializationState init_state) :
-      HydrogenCodeStub(isolate, init_state) {}
+  Major MajorKey() const { return ToBoolean; }
+  int NotMissMinorKey() const {
+    return TypesBits::encode(types_.ToByte()) | ResultModeBits::encode(mode_);
+  }
+
+  ToBooleanStub(Isolate* isolate, InitializationState init_state)
+      : HydrogenCodeStub(isolate, init_state), mode_(RESULT_AS_SMI) {}
 
   Types types_;
+  ResultMode mode_;
 };
 
 

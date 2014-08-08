@@ -382,35 +382,15 @@ Node* JSGenericLowering::LowerBranch(Node* node) {
 
 
 Node* JSGenericLowering::LowerJSUnaryNot(Node* node) {
-  ToBooleanStub stub(isolate());
-  CodeStubInterfaceDescriptor* d = stub.GetInterfaceDescriptor();
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(d);
-  Node* to_bool =
-      graph()->NewNode(common()->Call(desc), CodeConstant(stub.GetCode()),
-                       NodeProperties::GetValueInput(node, 0),
-                       NodeProperties::GetContextInput(node),
-                       NodeProperties::GetEffectInput(node),
-                       NodeProperties::GetControlInput(node));
-  node->ReplaceInput(0, to_bool);
-  PatchInsertInput(node, 1, SmiConstant(Token::EQ));
-  ReplaceWithRuntimeCall(node, Runtime::kBooleanize);
+  ToBooleanStub stub(isolate(), ToBooleanStub::RESULT_AS_INVERSE_ODDBALL);
+  ReplaceWithICStubCall(node, &stub);
   return node;
 }
 
 
 Node* JSGenericLowering::LowerJSToBoolean(Node* node) {
-  ToBooleanStub stub(isolate());
-  CodeStubInterfaceDescriptor* d = stub.GetInterfaceDescriptor();
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(d);
-  Node* to_bool =
-      graph()->NewNode(common()->Call(desc), CodeConstant(stub.GetCode()),
-                       NodeProperties::GetValueInput(node, 0),
-                       NodeProperties::GetContextInput(node),
-                       NodeProperties::GetEffectInput(node),
-                       NodeProperties::GetControlInput(node));
-  node->ReplaceInput(0, to_bool);
-  PatchInsertInput(node, 1, SmiConstant(Token::NE));
-  ReplaceWithRuntimeCall(node, Runtime::kBooleanize);
+  ToBooleanStub stub(isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
+  ReplaceWithICStubCall(node, &stub);
   return node;
 }
 
