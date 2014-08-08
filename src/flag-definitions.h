@@ -175,6 +175,7 @@ DEFINE_IMPLICATION(harmony, harmony_arrow_functions)
 DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
 
 DEFINE_IMPLICATION(harmony, es_staging)
+DEFINE_IMPLICATION(es_staging, harmony_unscopables)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_dictionary_loads, true,
