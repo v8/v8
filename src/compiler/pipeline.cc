@@ -87,7 +87,7 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
                                         SourcePositionTable* source_positions)
       : AstGraphBuilder(info, jsgraph), source_positions_(source_positions) {}
 
-  bool CreateGraph() V8_OVERRIDE {
+  bool CreateGraph() {
     SourcePositionTable::Scope pos(source_positions_,
                                    SourcePosition::Unknown());
     return AstGraphBuilder::CreateGraph();
