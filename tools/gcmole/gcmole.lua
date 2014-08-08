@@ -98,7 +98,7 @@ local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
      end
      plugin_args = " " .. table.concat(plugin_args, " ")
    end
-   return CLANG_BIN .. "/clang++ -c "
+   return CLANG_BIN .. "/clang++ -std=c++11 -c "
       .. " -Xclang -load -Xclang " .. CLANG_PLUGINS .. "/libgcmole.so"
       .. " -Xclang -plugin -Xclang "  .. plugin
       .. (plugin_args or "")
