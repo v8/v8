@@ -295,6 +295,10 @@
   'test-api/Threading2': [PASS, SLOW],
   'test-api/Threading3': [PASS, SLOW],
   'test-api/Threading4': [PASS, SLOW],
+
+  # Crashes due to OOM in simulator.
+  'test-types/Distributivity1': [PASS, FLAKY],
+  'test-types/Distributivity2': [PASS, FLAKY],
 }],  # 'arch == arm'
 
 ##############################################################################
