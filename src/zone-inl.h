@@ -24,54 +24,6 @@ namespace internal {
 static const int kASanRedzoneBytes = 24;  // Must be a multiple of 8.
 
 
-inline void* Zone::New(int size) {
-  // Round up the requested size to fit the alignment.
-  size = RoundUp(size, kAlignment);
-
-  // If the allocation size is divisible by 8 then we return an 8-byte aligned
-  // address.
-  if (kPointerSize == 4 && kAlignment == 4) {
-    position_ += ((~size) & 4) & (reinterpret_cast<intptr_t>(position_) & 4);
-  } else {
-    DCHECK(kAlignment >= kPointerSize);
-  }
-
-  // Check if the requested size is available without expanding.
-  Address result = position_;
-
-  int size_with_redzone =
-#ifdef V8_USE_ADDRESS_SANITIZER
-      size + kASanRedzoneBytes;
-#else
-      size;
-#endif
-
-  if (size_with_redzone > limit_ - position_) {
-     result = NewExpand(size_with_redzone);
-  } else {
-     position_ += size_with_redzone;
-  }
-
-#ifdef V8_USE_ADDRESS_SANITIZER
-  Address redzone_position = result + size;
-  DCHECK(redzone_position + kASanRedzoneBytes == position_);
-  ASAN_POISON_MEMORY_REGION(redzone_position, kASanRedzoneBytes);
-#endif
-
-  // Check that the result has the proper alignment and return it.
-  DCHECK(IsAddressAligned(result, kAlignment, 0));
-  allocation_size_ += size;
-  return reinterpret_cast<void*>(result);
-}
-
-
-template <typename T>
-T* Zone::NewArray(int length) {
-  CHECK(std::numeric_limits<int>::max() / static_cast<int>(sizeof(T)) > length);
-  return static_cast<T*>(New(length * sizeof(T)));
-}
-
-
 bool Zone::excess_allocation() {
   return segment_bytes_allocated_ > kExcessLimit;
 }
