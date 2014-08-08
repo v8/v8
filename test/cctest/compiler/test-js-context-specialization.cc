@@ -55,46 +55,45 @@ TEST(ReduceJSLoadContext) {
 
   // Make a context and initialize it a bit for this test.
   Handle<Context> native = t.factory()->NewNativeContext();
-  Handle<Context> ctx1 = t.factory()->NewNativeContext();
-  Handle<Context> ctx2 = t.factory()->NewNativeContext();
-  ctx2->set_previous(*ctx1);
-  ctx1->set_previous(*native);
+  Handle<Context> subcontext1 = t.factory()->NewNativeContext();
+  Handle<Context> subcontext2 = t.factory()->NewNativeContext();
+  subcontext2->set_previous(*subcontext1);
+  subcontext1->set_previous(*native);
   Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
   const int slot = Context::GLOBAL_OBJECT_INDEX;
   native->set(slot, *expected);
 
   Node* const_context = t.jsgraph()->Constant(native);
+  Node* deep_const_context = t.jsgraph()->Constant(subcontext2);
   Node* param_context = t.NewNode(t.common()->Parameter(0), start);
   JSContextSpecializer spec(t.info(), t.jsgraph(), const_context);
 
   {
     // Mutable slot, constant context, depth = 0 => do nothing.
-    t.info()->SetContext(native);
     Node* load = t.NewNode(t.javascript()->LoadContext(0, 0, false),
-                           const_context, start, start);
+                           const_context, const_context, start);
     Reduction r = spec.ReduceJSLoadContext(load);
     CHECK(!r.Changed());
   }
 
   {
     // Mutable slot, non-constant context, depth = 0 => do nothing.
-    t.info()->SetContext(native);
     Node* load = t.NewNode(t.javascript()->LoadContext(0, 0, false),
-                           param_context, start, start);
+                           param_context, param_context, start);
     Reduction r = spec.ReduceJSLoadContext(load);
     CHECK(!r.Changed());
   }
 
   {
-    // Mutable slot, non-constant context, depth > 0 => fold-in parent context.
-    t.info()->SetContext(ctx2);
+    // Mutable slot, constant context, depth > 0 => fold-in parent context.
     Node* load = t.NewNode(
         t.javascript()->LoadContext(2, Context::GLOBAL_EVAL_FUN_INDEX, false),
-        param_context, start, start);
+        deep_const_context, deep_const_context, start);
     Reduction r = spec.ReduceJSLoadContext(load);
     CHECK(r.Changed());
-    CHECK_EQ(IrOpcode::kHeapConstant, r.replacement()->InputAt(0)->opcode());
-    ValueMatcher<Handle<Context> > match(r.replacement()->InputAt(0));
+    Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
+    CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
+    ValueMatcher<Handle<Context> > match(new_context_input);
     CHECK_EQ(*native, *match.Value());
     ContextAccess access = static_cast<Operator1<ContextAccess>*>(
                                r.replacement()->op())->parameter();
@@ -104,24 +103,9 @@ TEST(ReduceJSLoadContext) {
   }
 
   {
-    // Immutable slot, constant context => specialize.
-    t.info()->SetContext(native);
+    // Immutable slot, constant context, depth = 0 => specialize.
     Node* load = t.NewNode(t.javascript()->LoadContext(0, slot, true),
-                           const_context, start, start);
-    Reduction r = spec.ReduceJSLoadContext(load);
-    CHECK(r.Changed());
-    CHECK(r.replacement() != load);
-
-    ValueMatcher<Handle<Object> > match(r.replacement());
-    CHECK(match.HasValue());
-    CHECK_EQ(*expected, *match.Value());
-  }
-
-  {
-    // Immutable slot, non-constant context => specialize.
-    t.info()->SetContext(native);
-    Node* load = t.NewNode(t.javascript()->LoadContext(0, slot, true),
-                           param_context, start, start);
+                           const_context, const_context, start);
     Reduction r = spec.ReduceJSLoadContext(load);
     CHECK(r.Changed());
     CHECK(r.replacement() != load);
@@ -133,6 +117,71 @@ TEST(ReduceJSLoadContext) {
 
   // TODO(titzer): test with other kinds of contexts, e.g. a function context.
   // TODO(sigurds): test that loads below create context are not optimized
+}
+
+
+TEST(ReduceJSStoreContext) {
+  ContextSpecializationTester t;
+
+  Node* start = t.NewNode(t.common()->Start(0));
+  t.graph()->SetStart(start);
+
+  // Make a context and initialize it a bit for this test.
+  Handle<Context> native = t.factory()->NewNativeContext();
+  Handle<Context> subcontext1 = t.factory()->NewNativeContext();
+  Handle<Context> subcontext2 = t.factory()->NewNativeContext();
+  subcontext2->set_previous(*subcontext1);
+  subcontext1->set_previous(*native);
+  Handle<Object> expected = t.factory()->InternalizeUtf8String("gboy!");
+  const int slot = Context::GLOBAL_OBJECT_INDEX;
+  native->set(slot, *expected);
+
+  Node* const_context = t.jsgraph()->Constant(native);
+  Node* deep_const_context = t.jsgraph()->Constant(subcontext2);
+  Node* param_context = t.NewNode(t.common()->Parameter(0), start);
+  JSContextSpecializer spec(t.info(), t.jsgraph(), const_context);
+
+  {
+    // Mutable slot, constant context, depth = 0 => do nothing.
+    Node* load = t.NewNode(t.javascript()->StoreContext(0, 0), const_context,
+                           const_context, start);
+    Reduction r = spec.ReduceJSStoreContext(load);
+    CHECK(!r.Changed());
+  }
+
+  {
+    // Mutable slot, non-constant context, depth = 0 => do nothing.
+    Node* load = t.NewNode(t.javascript()->StoreContext(0, 0), param_context,
+                           param_context, start);
+    Reduction r = spec.ReduceJSStoreContext(load);
+    CHECK(!r.Changed());
+  }
+
+  {
+    // Immutable slot, constant context, depth = 0 => do nothing.
+    Node* load = t.NewNode(t.javascript()->StoreContext(0, slot), const_context,
+                           const_context, start);
+    Reduction r = spec.ReduceJSStoreContext(load);
+    CHECK(!r.Changed());
+  }
+
+  {
+    // Mutable slot, constant context, depth > 0 => fold-in parent context.
+    Node* load = t.NewNode(
+        t.javascript()->StoreContext(2, Context::GLOBAL_EVAL_FUN_INDEX),
+        deep_const_context, deep_const_context, start);
+    Reduction r = spec.ReduceJSStoreContext(load);
+    CHECK(r.Changed());
+    Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
+    CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
+    ValueMatcher<Handle<Context> > match(new_context_input);
+    CHECK_EQ(*native, *match.Value());
+    ContextAccess access = static_cast<Operator1<ContextAccess>*>(
+                               r.replacement()->op())->parameter();
+    CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, access.index());
+    CHECK_EQ(0, access.depth());
+    CHECK_EQ(false, access.immutable());
+  }
 }
 
 
@@ -162,16 +211,24 @@ TEST(SpecializeToContext) {
   {
     // Check that SpecializeToContext() replaces values and forwards effects
     // correctly, and folds values from constant and non-constant contexts
-    Node* effect_in = t.NewNode(t.common()->Start(0));
+    Node* effect_in = start;
     Node* load = t.NewNode(t.javascript()->LoadContext(0, slot, true),
-                           const_context, const_context, effect_in, start);
+                           const_context, const_context, effect_in);
 
 
     Node* value_use = t.ChangeTaggedToInt32(load);
     Node* other_load = t.NewNode(t.javascript()->LoadContext(0, slot, true),
-                                 param_context, param_context, load, start);
+                                 param_context, param_context, load);
     Node* effect_use = other_load;
     Node* other_use = t.ChangeTaggedToInt32(other_load);
+
+    Node* add = t.NewNode(t.javascript()->Add(), value_use, other_use,
+                          param_context, other_load, start);
+
+    Node* ret = t.NewNode(t.common()->Return(), add, effect_use, start);
+    Node* end = t.NewNode(t.common()->End(), ret);
+    USE(end);
+    t.graph()->SetEnd(end);
 
     // Double check the above graph is what we expect, or the test is broken.
     CheckEffectInput(effect_in, load);

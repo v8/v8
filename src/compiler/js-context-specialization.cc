@@ -4,6 +4,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/generic-node-inl.h"
+#include "src/compiler/graph-inl.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-aux-data-inl.h"
@@ -16,12 +17,16 @@ namespace compiler {
 
 // TODO(titzer): factor this out to a common routine with js-typed-lowering.
 static void ReplaceEffectfulWithValue(Node* node, Node* value) {
-  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* effect = NULL;
+  if (OperatorProperties::HasEffectInput(node->op())) {
+    effect = NodeProperties::GetEffectInput(node);
+  }
 
   // Requires distinguishing between value and effect edges.
   UseIter iter = node->uses().begin();
   while (iter != node->uses().end()) {
     if (NodeProperties::IsEffectEdge(iter.edge())) {
+      DCHECK_NE(NULL, effect);
       iter = iter.UpdateToAndIncrement(effect);
     } else {
       iter = iter.UpdateToAndIncrement(value);
@@ -30,33 +35,59 @@ static void ReplaceEffectfulWithValue(Node* node, Node* value) {
 }
 
 
-void JSContextSpecializer::SpecializeToContext() {
-  ValueMatcher<Handle<Context> > match(context_);
+class ContextSpecializationVisitor : public NullNodeVisitor {
+ public:
+  explicit ContextSpecializationVisitor(JSContextSpecializer* spec)
+      : spec_(spec) {}
 
-  // Iterate over all uses of the context and try to replace {LoadContext}
-  // nodes with their values from the constant context.
-  UseIter iter = match.node()->uses().begin();
-  while (iter != match.node()->uses().end()) {
-    Node* use = *iter;
-    if (use->opcode() == IrOpcode::kJSLoadContext) {
-      Reduction r = ReduceJSLoadContext(use);
-      if (r.Changed() && r.replacement() != use) {
-        ReplaceEffectfulWithValue(use, r.replacement());
+  GenericGraphVisit::Control Post(Node* node) {
+    switch (node->opcode()) {
+      case IrOpcode::kJSLoadContext: {
+        Reduction r = spec_->ReduceJSLoadContext(node);
+        if (r.Changed() && r.replacement() != node) {
+          ReplaceEffectfulWithValue(node, r.replacement());
+        }
+        break;
       }
+      case IrOpcode::kJSStoreContext: {
+        Reduction r = spec_->ReduceJSStoreContext(node);
+        if (r.Changed() && r.replacement() != node) {
+          ReplaceEffectfulWithValue(node, r.replacement());
+        }
+        break;
+      }
+      default:
+        break;
     }
-    ++iter;
+    return GenericGraphVisit::CONTINUE;
   }
+
+ private:
+  JSContextSpecializer* spec_;
+};
+
+
+void JSContextSpecializer::SpecializeToContext() {
+  ReplaceEffectfulWithValue(context_, jsgraph_->Constant(info_->context()));
+
+  ContextSpecializationVisitor visitor(this);
+  jsgraph_->graph()->VisitNodeInputsFromEnd(&visitor);
 }
 
 
 Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
 
-  ContextAccess access =
-      static_cast<Operator1<ContextAccess>*>(node->op())->parameter();
+  ValueMatcher<Handle<Context> > match(NodeProperties::GetValueInput(node, 0));
+  // If the context is not constant, no reduction can occur.
+  if (!match.HasValue()) {
+    return Reducer::NoChange();
+  }
+
+  ContextAccess access = OpParameter<ContextAccess>(node);
 
   // Find the right parent context.
-  Context* context = *info_->context();
+  Context* context = *match.Value();
   for (int i = access.depth(); i > 0; --i) {
     context = context->previous();
   }
@@ -81,12 +112,45 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
   // before the function to which it belongs has initialized the slot.
   // We must be conservative and check if the value in the slot is currently the
   // hole or undefined. If it is neither of these, then it must be initialized.
-  if (value->IsUndefined() || value->IsTheHole()) return Reducer::NoChange();
+  if (value->IsUndefined() || value->IsTheHole()) {
+    return Reducer::NoChange();
+  }
 
   // Success. The context load can be replaced with the constant.
   // TODO(titzer): record the specialization for sharing code across multiple
   // contexts that have the same value in the corresponding context slot.
   return Reducer::Replace(jsgraph_->Constant(value));
+}
+
+
+Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
+
+  ValueMatcher<Handle<Context> > match(NodeProperties::GetValueInput(node, 0));
+  // If the context is not constant, no reduction can occur.
+  if (!match.HasValue()) {
+    return Reducer::NoChange();
+  }
+
+  ContextAccess access = OpParameter<ContextAccess>(node);
+
+  // The access does not have to look up a parent, nothing to fold.
+  if (access.depth() == 0) {
+    return Reducer::NoChange();
+  }
+
+  // Find the right parent context.
+  Context* context = *match.Value();
+  for (int i = access.depth(); i > 0; --i) {
+    context = context->previous();
+  }
+
+  Operator* op = jsgraph_->javascript()->StoreContext(0, access.index());
+  node->set_op(op);
+  Handle<Object> new_context_handle = Handle<Object>(context, info_->isolate());
+  node->ReplaceInput(0, jsgraph_->Constant(new_context_handle));
+
+  return Reducer::Changed(node);
 }
 }
 }
