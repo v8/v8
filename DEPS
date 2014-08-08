@@ -21,10 +21,10 @@ deps = {
     Var("buildtools_revision"),
 
   "v8/testing/gtest":
-    "http://googletest.googlecode.com/svn/trunk@643",
+    "http://googletest.googlecode.com/svn/trunk@692",
 
   "v8/testing/gmock":
-    "http://googlemock.googlecode.com/svn/trunk@410",
+    "http://googlemock.googlecode.com/svn/trunk@485",
 }
 
 deps_os = {

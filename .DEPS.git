@@ -16,9 +16,9 @@ deps = {
     'v8/buildtools':
         Var('git_url') + '/chromium/buildtools.git@fb782d4369d5ae04f17a2fceef7de5a63e50f07b',
     'v8/testing/gmock':
-        Var('git_url') + '/external/googlemock.git@6b1759c3816d574bddde3e1725c51a811c8870e7',
+        Var('git_url') + '/external/googlemock.git@896ba0e03f520fb9b6ed582bde2bd00847e3c3f2',
     'v8/testing/gtest':
-        Var('git_url') + '/external/googletest.git@74de57c951aedebc5dfe26a27604353432392b98',
+        Var('git_url') + '/external/googletest.git@4650552ff637bb44ecf7784060091cbed3252211',
     'v8/third_party/icu':
         Var('git_url') + '/chromium/deps/icu52.git@26d8859357ac0bfb86b939bf21c087b8eae22494',
 }
@@ -35,7 +35,8 @@ deps_os = {
 
 include_rules = [
     '+include',
-    '+unicode'
+    '+unicode',
+    '+third_party/fdlibm'
 ]
 
 skip_child_includes = [
