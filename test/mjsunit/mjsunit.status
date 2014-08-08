@@ -66,8 +66,6 @@
   # Some tests are over-restrictive about object layout.
   'array-constructor-feedback': [PASS, NO_VARIANTS],
   'array-feedback': [PASS, NO_VARIANTS],
-  'fast-non-keyed': [PASS, NO_VARIANTS],
-  'track-fields': [PASS, NO_VARIANTS],
 
   # Some tests are just too slow to run for now.
   'big-object-literal': [PASS, NO_VARIANTS],

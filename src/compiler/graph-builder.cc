@@ -56,15 +56,15 @@ Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
       *current_input++ = environment_->GetEffectDependency();
     }
     if (has_control) {
-      *current_input++ = GetControlDependency();
+      *current_input++ = environment_->GetControlDependency();
     }
     result = graph()->NewNode(op, input_count_with_deps, buffer);
     if (has_effect) {
       environment_->UpdateEffectDependency(result);
     }
     if (OperatorProperties::HasControlOutput(result->op()) &&
-        !environment_internal()->IsMarkedAsUnreachable()) {
-      UpdateControlDependency(result);
+        !environment()->IsMarkedAsUnreachable()) {
+      environment_->UpdateControlDependency(result);
     }
   }
 
@@ -72,23 +72,13 @@ Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
 }
 
 
-Node* StructuredGraphBuilder::GetControlDependency() {
-  return environment_->GetControlDependency();
-}
-
-
-void StructuredGraphBuilder::UpdateControlDependency(Node* new_control) {
-  environment_->UpdateControlDependency(new_control);
-}
-
-
 void StructuredGraphBuilder::UpdateControlDependencyToLeaveFunction(
     Node* exit) {
-  if (environment_internal()->IsMarkedAsUnreachable()) return;
+  if (environment()->IsMarkedAsUnreachable()) return;
   if (exit_control() != NULL) {
     exit = MergeControl(exit_control(), exit);
   }
-  environment_internal()->MarkAsUnreachable();
+  environment()->MarkAsUnreachable();
   set_exit_control(exit);
 }
 
