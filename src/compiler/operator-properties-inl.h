@@ -14,12 +14,39 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-inline int OperatorProperties::GetValueOutputCount(Operator* op) {
-  return op->OutputCount();
+inline bool OperatorProperties::HasValueInput(Operator* op) {
+  return OperatorProperties::GetValueInputCount(op) > 0;
 }
+
+inline bool OperatorProperties::HasContextInput(Operator* op) {
+  IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
+  return IrOpcode::IsJsOpcode(opcode);
+}
+
+inline bool OperatorProperties::HasEffectInput(Operator* op) {
+  return OperatorProperties::GetEffectInputCount(op) > 0;
+}
+
+inline bool OperatorProperties::HasControlInput(Operator* op) {
+  return OperatorProperties::GetControlInputCount(op) > 0;
+}
+
 
 inline int OperatorProperties::GetValueInputCount(Operator* op) {
   return op->InputCount();
+}
+
+inline int OperatorProperties::GetContextInputCount(Operator* op) {
+  return OperatorProperties::HasContextInput(op) ? 1 : 0;
+}
+
+inline int OperatorProperties::GetEffectInputCount(Operator* op) {
+  if (op->opcode() == IrOpcode::kEffectPhi) {
+    return static_cast<Operator1<int>*>(op)->parameter();
+  }
+  if (op->HasProperty(Operator::kNoRead) && op->HasProperty(Operator::kNoWrite))
+    return 0;  // no effects.
+  return 1;
 }
 
 inline int OperatorProperties::GetControlInputCount(Operator* op) {
@@ -42,19 +69,42 @@ inline int OperatorProperties::GetControlInputCount(Operator* op) {
   return 0;
 }
 
-inline int OperatorProperties::GetEffectInputCount(Operator* op) {
-  if (op->opcode() == IrOpcode::kEffectPhi) {
-    return static_cast<Operator1<int>*>(op)->parameter();
-  }
-  if (op->HasProperty(Operator::kNoRead) && op->HasProperty(Operator::kNoWrite))
-    return 0;  // no effects.
-  return 1;
+inline int OperatorProperties::GetTotalInputCount(Operator* op) {
+  return GetValueInputCount(op) + GetContextInputCount(op) +
+         GetEffectInputCount(op) + GetControlInputCount(op);
 }
 
-inline bool OperatorProperties::HasContextInput(Operator* op) {
-  IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
-  return IrOpcode::IsJsOpcode(opcode);
+// -----------------------------------------------------------------------------
+// Output properties.
+
+inline bool OperatorProperties::HasValueOutput(Operator* op) {
+  return GetValueOutputCount(op) > 0;
 }
+
+inline bool OperatorProperties::HasEffectOutput(Operator* op) {
+  return op->opcode() == IrOpcode::kStart || GetEffectInputCount(op) > 0;
+}
+
+inline bool OperatorProperties::HasControlOutput(Operator* op) {
+  IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
+  return (opcode != IrOpcode::kEnd && IrOpcode::IsControlOpcode(opcode)) ||
+         CanLazilyDeoptimize(op);
+}
+
+
+inline int OperatorProperties::GetValueOutputCount(Operator* op) {
+  return op->OutputCount();
+}
+
+inline int OperatorProperties::GetEffectOutputCount(Operator* op) {
+  return HasEffectOutput(op) ? 1 : 0;
+}
+
+inline int OperatorProperties::GetControlOutputCount(Operator* node) {
+  return node->opcode() == IrOpcode::kBranch ? 2 : HasControlOutput(node) ? 1
+                                                                          : 0;
+}
+
 
 inline bool OperatorProperties::IsBasicBlockBegin(Operator* op) {
   uint8_t opcode = op->opcode();

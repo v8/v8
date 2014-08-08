@@ -16,12 +16,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-AstGraphBuilder::AstGraphBuilder(CompilationInfo* info, JSGraph* jsgraph,
-                                 SourcePositionTable* source_positions)
+AstGraphBuilder::AstGraphBuilder(CompilationInfo* info, JSGraph* jsgraph)
     : StructuredGraphBuilder(jsgraph->graph(), jsgraph->common()),
       info_(info),
       jsgraph_(jsgraph),
-      source_positions_(source_positions),
       globals_(0, info->zone()),
       breakable_(NULL),
       execution_context_(NULL) {
@@ -55,13 +53,9 @@ bool AstGraphBuilder::CreateGraph() {
   Scope* scope = info()->scope();
   DCHECK(graph() != NULL);
 
-  SourcePositionTable::Scope start_pos(
-      source_positions(),
-      SourcePosition(info()->shared_info()->start_position()));
-
   // Set up the basic structure of the graph.
-  graph()->SetStart(
-      graph()->NewNode(common()->Start(info()->num_parameters())));
+  int parameter_count = info()->num_parameters();
+  graph()->SetStart(graph()->NewNode(common()->Start(parameter_count)));
 
   // Initialize the top-level environment.
   Environment env(this, scope, graph()->start());
@@ -97,10 +91,6 @@ bool AstGraphBuilder::CreateGraph() {
   // Visit statements in the function body.
   VisitStatements(info()->function()->body());
   if (HasStackOverflow()) return false;
-
-  SourcePositionTable::Scope end_pos(
-      source_positions(),
-      SourcePosition(info()->shared_info()->end_position() - 1));
 
   // Emit tracing call if requested to do so.
   if (FLAG_trace) {
@@ -1958,10 +1948,9 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
 void AstGraphBuilder::BuildLazyBailout(Node* node, BailoutId ast_id) {
   if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
     // The deopting node should have an outgoing control dependency.
-    DCHECK(GetControlDependency() == node);
+    DCHECK(environment()->GetControlDependency() == node);
 
-    StructuredGraphBuilder::Environment* continuation_env =
-        environment_internal();
+    StructuredGraphBuilder::Environment* continuation_env = environment();
     // Create environment for the deoptimization block, and build the block.
     StructuredGraphBuilder::Environment* deopt_env =
         CopyEnvironment(continuation_env);

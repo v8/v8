@@ -588,6 +588,39 @@ void MacroAssembler::LoadStoreMacro(const CPURegister& rt,
   }
 }
 
+void MacroAssembler::LoadStorePairMacro(const CPURegister& rt,
+                                        const CPURegister& rt2,
+                                        const MemOperand& addr,
+                                        LoadStorePairOp op) {
+  // TODO(all): Should we support register offset for load-store-pair?
+  DCHECK(!addr.IsRegisterOffset());
+
+  int64_t offset = addr.offset();
+  LSDataSize size = CalcLSPairDataSize(op);
+
+  // Check if the offset fits in the immediate field of the appropriate
+  // instruction. If not, emit two instructions to perform the operation.
+  if (IsImmLSPair(offset, size)) {
+    // Encodable in one load/store pair instruction.
+    LoadStorePair(rt, rt2, addr, op);
+  } else {
+    Register base = addr.base();
+    if (addr.IsImmediateOffset()) {
+      UseScratchRegisterScope temps(this);
+      Register temp = temps.AcquireSameSizeAs(base);
+      Add(temp, base, offset);
+      LoadStorePair(rt, rt2, MemOperand(temp), op);
+    } else if (addr.IsPostIndex()) {
+      LoadStorePair(rt, rt2, MemOperand(base), op);
+      Add(base, base, offset);
+    } else {
+      DCHECK(addr.IsPreIndex());
+      Add(base, base, offset);
+      LoadStorePair(rt, rt2, MemOperand(base), op);
+    }
+  }
+}
+
 
 void MacroAssembler::Load(const Register& rt,
                           const MemOperand& addr,

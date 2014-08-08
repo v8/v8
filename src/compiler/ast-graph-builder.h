@@ -25,8 +25,7 @@ class Graph;
 // of function inlining.
 class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
  public:
-  AstGraphBuilder(CompilationInfo* info, JSGraph* jsgraph,
-                  SourcePositionTable* source_positions_);
+  AstGraphBuilder(CompilationInfo* info, JSGraph* jsgraph);
 
   // Creates a graph by visiting the entire AST.
   bool CreateGraph();
@@ -41,7 +40,8 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   class Environment;
 
   Environment* environment() {
-    return reinterpret_cast<Environment*>(environment_internal());
+    return reinterpret_cast<Environment*>(
+        StructuredGraphBuilder::environment());
   }
 
   AstContext* ast_context() const { return ast_context_; }
@@ -56,8 +56,6 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // depends on the graph builder, but environments themselves are not virtual.
   typedef StructuredGraphBuilder::Environment BaseEnvironment;
   virtual BaseEnvironment* CopyEnvironment(BaseEnvironment* env);
-
-  SourcePositionTable* source_positions() { return source_positions_; }
 
   // TODO(mstarzinger): The pipeline only needs to be a friend to access the
   // function context. Remove as soon as the context is a parameter.
@@ -114,7 +112,6 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   CompilationInfo* info_;
   AstContext* ast_context_;
   JSGraph* jsgraph_;
-  SourcePositionTable* source_positions_;
 
   // List of global declarations for functions and variables.
   ZoneList<Handle<Object> > globals_;

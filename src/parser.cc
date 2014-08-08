@@ -729,7 +729,6 @@ Parser::Parser(CompilationInfo* info)
   set_allow_natives_syntax(FLAG_allow_natives_syntax || info->is_native());
   set_allow_lazy(false);  // Must be explicitly enabled.
   set_allow_generators(FLAG_harmony_generators);
-  set_allow_for_of(FLAG_harmony_iteration);
   set_allow_arrow_functions(FLAG_harmony_arrow_functions);
   set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
@@ -2759,8 +2758,7 @@ bool Parser::CheckInOrOf(bool accept_OF,
   if (Check(Token::IN)) {
     *visit_mode = ForEachStatement::ENUMERATE;
     return true;
-  } else if (allow_for_of() && accept_OF &&
-             CheckContextualKeyword(CStrVector("of"))) {
+  } else if (accept_OF && CheckContextualKeyword(CStrVector("of"))) {
     *visit_mode = ForEachStatement::ITERATE;
     return true;
   }
@@ -3467,10 +3465,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       }
 
       Variable* var = scope_->DeclareParameter(param_name, VAR);
-      // TODO(sigurds) Mark every parameter as maybe assigned. This is a
-      // conservative approximation necessary to account for parameters
-      // that are assigned via the arguments array.
-      var->set_maybe_assigned();
+      if (scope->strict_mode() == SLOPPY) {
+        // TODO(sigurds) Mark every parameter as maybe assigned. This is a
+        // conservative approximation necessary to account for parameters
+        // that are assigned via the arguments array.
+        var->set_maybe_assigned();
+      }
 
       num_parameters++;
       if (num_parameters > Code::kMaxArguments) {
@@ -3739,7 +3739,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_natives_syntax(allow_natives_syntax());
     reusable_preparser_->set_allow_lazy(true);
     reusable_preparser_->set_allow_generators(allow_generators());
-    reusable_preparser_->set_allow_for_of(allow_for_of());
     reusable_preparser_->set_allow_arrow_functions(allow_arrow_functions());
     reusable_preparser_->set_allow_harmony_numeric_literals(
         allow_harmony_numeric_literals());

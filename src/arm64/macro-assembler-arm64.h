@@ -43,6 +43,11 @@ namespace internal {
   V(Str, CPURegister&, rt, StoreOpFor(rt))                    \
   V(Ldrsw, Register&, rt, LDRSW_x)
 
+#define LSPAIR_MACRO_LIST(V)                             \
+  V(Ldp, CPURegister&, rt, rt2, LoadPairOpFor(rt, rt2))  \
+  V(Stp, CPURegister&, rt, rt2, StorePairOpFor(rt, rt2)) \
+  V(Ldpsw, CPURegister&, rt, rt2, LDPSW_x)
+
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -261,6 +266,14 @@ class MacroAssembler : public Assembler {
                       const MemOperand& addr,
                       LoadStoreOp op);
 
+#define DECLARE_FUNCTION(FN, REGTYPE, REG, REG2, OP) \
+  inline void FN(const REGTYPE REG, const REGTYPE REG2, const MemOperand& addr);
+  LSPAIR_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
+
+  void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
+                          const MemOperand& addr, LoadStorePairOp op);
+
   // V8-specific load/store helpers.
   void Load(const Register& rt, const MemOperand& addr, Representation r);
   void Store(const Register& rt, const MemOperand& addr, Representation r);
@@ -418,12 +431,6 @@ class MacroAssembler : public Assembler {
   inline void Ldnp(const CPURegister& rt,
                    const CPURegister& rt2,
                    const MemOperand& src);
-  inline void Ldp(const CPURegister& rt,
-                  const CPURegister& rt2,
-                  const MemOperand& src);
-  inline void Ldpsw(const Register& rt,
-                    const Register& rt2,
-                    const MemOperand& src);
   // Load a literal from the inline constant pool.
   inline void Ldr(const CPURegister& rt, const Immediate& imm);
   // Helper function for double immediate.
@@ -483,9 +490,6 @@ class MacroAssembler : public Assembler {
   inline void Stnp(const CPURegister& rt,
                    const CPURegister& rt2,
                    const MemOperand& dst);
-  inline void Stp(const CPURegister& rt,
-                  const CPURegister& rt2,
-                  const MemOperand& dst);
   inline void Sxtb(const Register& rd, const Register& rn);
   inline void Sxth(const Register& rd, const Register& rn);
   inline void Sxtw(const Register& rd, const Register& rn);

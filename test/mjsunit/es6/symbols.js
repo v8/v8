@@ -447,7 +447,7 @@ function TestWellKnown() {
   var symbols = [
     // TODO(rossberg): reactivate once implemented.
     // "hasInstance", "isConcatSpreadable", "isRegExp",
-    "iterator" //, "toStringTag", "unscopables"
+    "iterator", /* "toStringTag", */ "unscopables"
   ]
 
   for (var i in symbols) {

@@ -15,11 +15,35 @@ var $WeakSet = global.WeakSet;
 // -------------------------------------------------------------------
 // Harmony WeakMap
 
-function WeakMapConstructor() {
-  if (%_IsConstructCall()) {
-    %WeakCollectionInitialize(this);
-  } else {
+function WeakMapConstructor(iterable) {
+  if (!%_IsConstructCall()) {
     throw MakeTypeError('constructor_not_function', ['WeakMap']);
+  }
+
+  var iter, adder;
+
+  if (!IS_NULL_OR_UNDEFINED(iterable)) {
+    iter = GetIterator(iterable);
+    adder = this.set;
+    if (!IS_SPEC_FUNCTION(adder)) {
+      throw MakeTypeError('property_not_function', ['set', this]);
+    }
+  }
+
+  %WeakCollectionInitialize(this);
+
+  if (IS_UNDEFINED(iter)) return;
+
+  var next, done, nextItem;
+  while (!(next = iter.next()).done) {
+    if (!IS_SPEC_OBJECT(next)) {
+      throw MakeTypeError('iterator_result_not_an_object', [next]);
+    }
+    nextItem = next.value;
+    if (!IS_SPEC_OBJECT(nextItem)) {
+      throw MakeTypeError('iterator_value_not_an_object', [nextItem]);
+    }
+    %_CallFunction(this, nextItem[0], nextItem[1], adder);
   }
 }
 
@@ -107,11 +131,31 @@ SetUpWeakMap();
 // -------------------------------------------------------------------
 // Harmony WeakSet
 
-function WeakSetConstructor() {
-  if (%_IsConstructCall()) {
-    %WeakCollectionInitialize(this);
-  } else {
+function WeakSetConstructor(iterable) {
+  if (!%_IsConstructCall()) {
     throw MakeTypeError('constructor_not_function', ['WeakSet']);
+  }
+
+  var iter, adder;
+
+  if (!IS_NULL_OR_UNDEFINED(iterable)) {
+    iter = GetIterator(iterable);
+    adder = this.add;
+    if (!IS_SPEC_FUNCTION(adder)) {
+      throw MakeTypeError('property_not_function', ['add', this]);
+    }
+  }
+
+  %WeakCollectionInitialize(this);
+
+  if (IS_UNDEFINED(iter)) return;
+
+  var next, done;
+  while (!(next = iter.next()).done) {
+    if (!IS_SPEC_OBJECT(next)) {
+      throw MakeTypeError('iterator_result_not_an_object', [next]);
+    }
+    %_CallFunction(this, next.value, adder);
   }
 }
 

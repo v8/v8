@@ -21,13 +21,13 @@
 #include "src/field-index.h"
 #include "src/full-codegen.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/objects-visiting-inl.h"
 #include "src/hydrogen.h"
 #include "src/isolate-inl.h"
 #include "src/log.h"
 #include "src/lookup.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/objects-visiting-inl.h"
 #include "src/prototype.h"
 #include "src/safepoint-table.h"
 #include "src/string-search.h"
@@ -7239,14 +7239,6 @@ Handle<Map> Map::CopyForObserved(Handle<Map> map) {
 }
 
 
-Handle<Map> Map::CopyAsPrototypeMap(Handle<Map> map) {
-  if (map->is_prototype_map()) return map;
-  Handle<Map> result = Copy(map);
-  result->mark_prototype_map();
-  return result;
-}
-
-
 Handle<Map> Map::Copy(Handle<Map> map) {
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
@@ -9874,17 +9866,6 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
 
   DCHECK(value->IsJSReceiver());
 
-  // First some logic for the map of the prototype to make sure it is in fast
-  // mode.
-  if (value->IsJSObject()) {
-    Handle<JSObject> js_proto = Handle<JSObject>::cast(value);
-    JSObject::OptimizeAsPrototype(js_proto);
-    if (js_proto->HasFastProperties()) {
-      Handle<Map> new_map = Map::CopyAsPrototypeMap(handle(js_proto->map()));
-      JSObject::MigrateToMap(js_proto, new_map);
-    }
-  }
-
   // Now some logic for the maps of the objects that are created by using this
   // function as a constructor.
   if (function->has_initial_map()) {
@@ -9908,7 +9889,7 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
       CacheInitialJSArrayMaps(handle(native_context, isolate), new_map);
     }
 
-    function->set_initial_map(*new_map);
+    JSFunction::SetInitialMap(function, new_map);
 
     // Deoptimize all code that embeds the previous initial map.
     initial_map->dependent_code()->DeoptimizeDependentCodeGroup(
@@ -9975,6 +9956,32 @@ bool JSFunction::RemovePrototype() {
 }
 
 
+void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map) {
+  if (map->prototype()->IsJSObject()) {
+    Handle<JSObject> js_proto = handle(JSObject::cast(map->prototype()));
+    if (!js_proto->map()->is_prototype_map() &&
+        !js_proto->map()->IsGlobalObjectMap() &&
+        !js_proto->map()->IsJSGlobalProxyMap()) {
+      // Normalize and turn fast again to make all functions CONSTANT
+      // properties.
+      if (!js_proto->GetIsolate()->bootstrapper()->IsActive()) {
+        JSObject::NormalizeProperties(js_proto, KEEP_INOBJECT_PROPERTIES, 0);
+      }
+      if (!js_proto->HasFastProperties()) {
+        JSObject::MigrateSlowToFast(js_proto, 0);
+      }
+      if (js_proto->HasFastProperties()) {
+        Handle<Map> new_map = Map::Copy(handle(js_proto->map()));
+        JSObject::MigrateToMap(js_proto, new_map);
+        js_proto->map()->set_is_prototype_map(true);
+      }
+    }
+  }
+  function->set_prototype_or_initial_map(*map);
+  map->set_constructor(*function);
+}
+
+
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
@@ -10008,8 +10015,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   DCHECK(map->has_fast_object_elements());
 
   // Finally link initial map and constructor function.
-  function->set_initial_map(*map);
-  map->set_constructor(*function);
+  JSFunction::SetInitialMap(function, map);
 
   if (!function->shared()->is_generator()) {
     function->StartInobjectSlackTracking();
@@ -11320,6 +11326,8 @@ const char* Code::ICState2String(InlineCacheState state) {
     case MEGAMORPHIC: return "MEGAMORPHIC";
     case GENERIC: return "GENERIC";
     case DEBUG_STUB: return "DEBUG_STUB";
+    case DEFAULT:
+      return "DEFAULT";
   }
   UNREACHABLE();
   return NULL;

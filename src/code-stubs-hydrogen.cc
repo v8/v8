@@ -251,8 +251,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode() {
 template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   Isolate* isolate = stub->isolate();
-  CodeStub::Major  major_key =
-      static_cast<HydrogenCodeStub*>(stub)->MajorKey();
+  CodeStub::Major major_key = static_cast<CodeStub*>(stub)->MajorKey();
   CodeStubInterfaceDescriptor* descriptor =
       isolate->code_stub_interface_descriptor(major_key);
   if (!descriptor->IsInitialized()) {
@@ -630,7 +629,7 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
     BuildCheckHeapObject(value);
   }
 
-  Add<HStoreNamedField>(object, access, value, STORE_TO_INITIALIZED_ENTRY);
+  Add<HStoreNamedField>(object, access, value, INITIALIZING_STORE);
 }
 
 
@@ -1065,14 +1064,31 @@ Handle<Code> StringAddStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
   ToBooleanStub* stub = casted_stub();
+  HValue* true_value = NULL;
+  HValue* false_value = NULL;
+
+  switch (stub->GetMode()) {
+    case ToBooleanStub::RESULT_AS_SMI:
+      true_value = graph()->GetConstant1();
+      false_value = graph()->GetConstant0();
+      break;
+    case ToBooleanStub::RESULT_AS_ODDBALL:
+      true_value = graph()->GetConstantTrue();
+      false_value = graph()->GetConstantFalse();
+      break;
+    case ToBooleanStub::RESULT_AS_INVERSE_ODDBALL:
+      true_value = graph()->GetConstantFalse();
+      false_value = graph()->GetConstantTrue();
+      break;
+  }
 
   IfBuilder if_true(this);
   if_true.If<HBranch>(GetParameter(0), stub->GetTypes());
   if_true.Then();
-  if_true.Return(graph()->GetConstant1());
+  if_true.Return(true_value);
   if_true.Else();
   if_true.End();
-  return graph()->GetConstant0();
+  return false_value;
 }
 
 

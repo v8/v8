@@ -49,7 +49,8 @@ class SimplifiedGraphBuilder
   MachineOperatorBuilder* machine() const { return machine_; }
   SimplifiedOperatorBuilder* simplified() const { return simplified_; }
   Environment* environment() {
-    return reinterpret_cast<Environment*>(environment_internal());
+    return reinterpret_cast<Environment*>(
+        StructuredGraphBuilder::environment());
   }
 
   // Initialize graph and builder.

@@ -14,8 +14,8 @@ namespace internal {
 namespace compiler {
 
 template <class T>
-NodeAuxData<T>::NodeAuxData(Graph* graph)
-    : aux_data_(ZoneAllocator(graph->zone())) {}
+NodeAuxData<T>::NodeAuxData(Zone* zone)
+    : aux_data_(ZoneAllocator(zone)) {}
 
 
 template <class T>

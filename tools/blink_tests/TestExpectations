@@ -20,15 +20,6 @@ crbug.com/108833 [ Win Debug ] plugins/geturlnotify-during-document-teardown.htm
 webkit.org/b/48655 [ Win ] plugins/js-from-destroy.html [ Crash Timeout ]
 crbug.com/178745 [ Win Debug ] plugins/open-and-close-window-with-plugin.html [ Crash Failure Timeout ]
 
-# After the rebaseline in https://codereview.chromium.org/436353002 lands,
-# these should start passing and these expectations can be removed.
-crbug.com/400507 virtual/stable/webexposed/global-constructors-listing-dedicated-worker.html [ Failure ]
-crbug.com/400507 virtual/stable/webexposed/global-constructors-listing-shared-worker.html [ Failure ]
-crbug.com/400507 virtual/stable/webexposed/global-constructors-listing.html [ Failure ]
-crbug.com/400507 webexposed/global-constructors-listing-dedicated-worker.html [ Failure ]
-crbug.com/400507 webexposed/global-constructors-listing-shared-worker.html [ Failure ]
-crbug.com/400507 webexposed/global-constructors-listing.html [ Failure ]
-
 # Slow on the trunk builder:
 [ Linux Debug ] fast/js/regress/function-dot-apply.html [ Slow ]
 crbug.com/249894 [ Linux Debug ] fast/js/regress/inline-arguments-access.html  [ Pass Failure Crash Slow ]

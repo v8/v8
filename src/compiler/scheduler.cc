@@ -105,7 +105,7 @@ class CreateBlockVisitor : public NullNodeVisitor {
         break;
       }
       case IrOpcode::kCall: {
-        if (NodeProperties::CanLazilyDeoptimize(node)) {
+        if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
           scheduler_->calls_.push_back(node);
         }
         break;
@@ -171,7 +171,7 @@ void Scheduler::AddPredecessorsForLoopsAndMerges() {
     // For all of the merge's control inputs, add a goto at the end to the
     // merge's basic block.
     for (InputIter j = (*i)->inputs().begin(); j != (*i)->inputs().end(); ++j) {
-      if (NodeProperties::IsBasicBlockBegin(*i)) {
+      if (OperatorProperties::IsBasicBlockBegin((*i)->op())) {
         BasicBlock* predecessor_block = schedule_->block(*j);
         if ((*j)->opcode() != IrOpcode::kReturn &&
             (*j)->opcode() != IrOpcode::kDeoptimize) {
@@ -194,7 +194,7 @@ void Scheduler::AddSuccessorsForCalls() {
   for (NodeVectorIter i = calls_.begin(); i != calls_.end(); ++i) {
     Node* call = *i;
     DCHECK(call->opcode() == IrOpcode::kCall);
-    DCHECK(NodeProperties::CanLazilyDeoptimize(call));
+    DCHECK(OperatorProperties::CanLazilyDeoptimize(call->op()));
 
     Node* lazy_deopt_node = NULL;
     Node* cont_node = NULL;
@@ -389,7 +389,7 @@ class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
     int max_rpo = 0;
     // Otherwise, the minimum rpo for the node is the max of all of the inputs.
     if (!IsFixedNode(node)) {
-      DCHECK(!NodeProperties::IsBasicBlockBegin(node));
+      DCHECK(!OperatorProperties::IsBasicBlockBegin(node->op()));
       for (InputIter i = node->inputs().begin(); i != node->inputs().end();
            ++i) {
         int control_rpo = scheduler_->schedule_early_rpo_index_[(*i)->id()];
@@ -409,8 +409,8 @@ class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
   }
 
   static bool IsFixedNode(Node* node) {
-    return NodeProperties::HasFixedSchedulePosition(node) ||
-           !NodeProperties::CanBeScheduled(node);
+    return OperatorProperties::HasFixedSchedulePosition(node->op()) ||
+           !OperatorProperties::CanBeScheduled(node->op());
   }
 
   // TODO(mstarzinger): Dirty hack to unblock others, schedule early should be
@@ -452,7 +452,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
     // right place; it's a convenient place during the preparation of use counts
     // to schedule them.
     if (!schedule_->IsScheduled(node) &&
-        NodeProperties::HasFixedSchedulePosition(node)) {
+        OperatorProperties::HasFixedSchedulePosition(node->op())) {
       if (FLAG_trace_turbo_scheduler) {
         PrintF("Fixed position node %d is unscheduled, scheduling now\n",
                node->id());
@@ -466,7 +466,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
       schedule_->AddNode(block, node);
     }
 
-    if (NodeProperties::IsScheduleRoot(node)) {
+    if (OperatorProperties::IsScheduleRoot(node->op())) {
       scheduler_->schedule_root_nodes_.push_back(node);
     }
 
@@ -477,8 +477,9 @@ class PrepareUsesVisitor : public NullNodeVisitor {
     // If the edge is from an unscheduled node, then tally it in the use count
     // for all of its inputs. The same criterion will be used in ScheduleLate
     // for decrementing use counts.
-    if (!schedule_->IsScheduled(from) && NodeProperties::CanBeScheduled(from)) {
-      DCHECK(!NodeProperties::HasFixedSchedulePosition(from));
+    if (!schedule_->IsScheduled(from) &&
+        OperatorProperties::CanBeScheduled(from->op())) {
+      DCHECK(!OperatorProperties::HasFixedSchedulePosition(from->op()));
       ++scheduler_->unscheduled_uses_[to->id()];
       if (FLAG_trace_turbo_scheduler) {
         PrintF("Incrementing uses of node %d from %d to %d\n", to->id(),
@@ -511,10 +512,11 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
 
   GenericGraphVisit::Control Pre(Node* node) {
     // Don't schedule nodes that cannot be scheduled or are already scheduled.
-    if (!NodeProperties::CanBeScheduled(node) || schedule_->IsScheduled(node)) {
+    if (!OperatorProperties::CanBeScheduled(node->op()) ||
+        schedule_->IsScheduled(node)) {
       return GenericGraphVisit::CONTINUE;
     }
-    DCHECK(!NodeProperties::HasFixedSchedulePosition(node));
+    DCHECK(!OperatorProperties::HasFixedSchedulePosition(node->op()));
 
     // If all the uses of a node have been scheduled, then the node itself can
     // be scheduled.

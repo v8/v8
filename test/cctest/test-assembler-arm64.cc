@@ -2911,6 +2911,64 @@ TEST(ldp_stp_offset) {
 }
 
 
+TEST(ldp_stp_offset_wide) {
+  INIT_V8();
+  SETUP();
+
+  uint64_t src[3] = {0x0011223344556677, 0x8899aabbccddeeff,
+                     0xffeeddccbbaa9988};
+  uint64_t dst[7] = {0, 0, 0, 0, 0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+  // Move base too far from the array to force multiple instructions
+  // to be emitted.
+  const int64_t base_offset = 1024;
+
+  START();
+  __ Mov(x20, src_base - base_offset);
+  __ Mov(x21, dst_base - base_offset);
+  __ Mov(x18, src_base + base_offset + 24);
+  __ Mov(x19, dst_base + base_offset + 56);
+  __ Ldp(w0, w1, MemOperand(x20, base_offset));
+  __ Ldp(w2, w3, MemOperand(x20, base_offset + 4));
+  __ Ldp(x4, x5, MemOperand(x20, base_offset + 8));
+  __ Ldp(w6, w7, MemOperand(x18, -12 - base_offset));
+  __ Ldp(x8, x9, MemOperand(x18, -16 - base_offset));
+  __ Stp(w0, w1, MemOperand(x21, base_offset));
+  __ Stp(w2, w3, MemOperand(x21, base_offset + 8));
+  __ Stp(x4, x5, MemOperand(x21, base_offset + 16));
+  __ Stp(w6, w7, MemOperand(x19, -24 - base_offset));
+  __ Stp(x8, x9, MemOperand(x19, -16 - base_offset));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(0x44556677, x0);
+  CHECK_EQUAL_64(0x00112233, x1);
+  CHECK_EQUAL_64(0x0011223344556677UL, dst[0]);
+  CHECK_EQUAL_64(0x00112233, x2);
+  CHECK_EQUAL_64(0xccddeeff, x3);
+  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[1]);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[2]);
+  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
+  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[3]);
+  CHECK_EQUAL_64(0x8899aabb, x6);
+  CHECK_EQUAL_64(0xbbaa9988, x7);
+  CHECK_EQUAL_64(0xbbaa99888899aabbUL, dst[4]);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x8);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[5]);
+  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x9);
+  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[6]);
+  CHECK_EQUAL_64(src_base - base_offset, x20);
+  CHECK_EQUAL_64(dst_base - base_offset, x21);
+  CHECK_EQUAL_64(src_base + base_offset + 24, x18);
+  CHECK_EQUAL_64(dst_base + base_offset + 56, x19);
+
+  TEARDOWN();
+}
+
+
 TEST(ldnp_stnp_offset) {
   INIT_V8();
   SETUP();
@@ -3021,6 +3079,69 @@ TEST(ldp_stp_preindex) {
 }
 
 
+TEST(ldp_stp_preindex_wide) {
+  INIT_V8();
+  SETUP();
+
+  uint64_t src[3] = {0x0011223344556677, 0x8899aabbccddeeff,
+                     0xffeeddccbbaa9988};
+  uint64_t dst[5] = {0, 0, 0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+  // Move base too far from the array to force multiple instructions
+  // to be emitted.
+  const int64_t base_offset = 1024;
+
+  START();
+  __ Mov(x24, src_base - base_offset);
+  __ Mov(x25, dst_base + base_offset);
+  __ Mov(x18, dst_base + base_offset + 16);
+  __ Ldp(w0, w1, MemOperand(x24, base_offset + 4, PreIndex));
+  __ Mov(x19, x24);
+  __ Mov(x24, src_base - base_offset + 4);
+  __ Ldp(w2, w3, MemOperand(x24, base_offset - 4, PreIndex));
+  __ Stp(w2, w3, MemOperand(x25, 4 - base_offset, PreIndex));
+  __ Mov(x20, x25);
+  __ Mov(x25, dst_base + base_offset + 4);
+  __ Mov(x24, src_base - base_offset);
+  __ Stp(w0, w1, MemOperand(x25, -4 - base_offset, PreIndex));
+  __ Ldp(x4, x5, MemOperand(x24, base_offset + 8, PreIndex));
+  __ Mov(x21, x24);
+  __ Mov(x24, src_base - base_offset + 8);
+  __ Ldp(x6, x7, MemOperand(x24, base_offset - 8, PreIndex));
+  __ Stp(x7, x6, MemOperand(x18, 8 - base_offset, PreIndex));
+  __ Mov(x22, x18);
+  __ Mov(x18, dst_base + base_offset + 16 + 8);
+  __ Stp(x5, x4, MemOperand(x18, -8 - base_offset, PreIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(0x00112233, x0);
+  CHECK_EQUAL_64(0xccddeeff, x1);
+  CHECK_EQUAL_64(0x44556677, x2);
+  CHECK_EQUAL_64(0x00112233, x3);
+  CHECK_EQUAL_64(0xccddeeff00112233UL, dst[0]);
+  CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x4);
+  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x5);
+  CHECK_EQUAL_64(0x0011223344556677UL, x6);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x7);
+  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
+  CHECK_EQUAL_64(src_base, x24);
+  CHECK_EQUAL_64(dst_base, x25);
+  CHECK_EQUAL_64(dst_base + 16, x18);
+  CHECK_EQUAL_64(src_base + 4, x19);
+  CHECK_EQUAL_64(dst_base + 4, x20);
+  CHECK_EQUAL_64(src_base + 8, x21);
+  CHECK_EQUAL_64(dst_base + 24, x22);
+
+  TEARDOWN();
+}
+
+
 TEST(ldp_stp_postindex) {
   INIT_V8();
   SETUP();
@@ -3071,6 +3192,69 @@ TEST(ldp_stp_postindex) {
   CHECK_EQUAL_64(dst_base + 4, x20);
   CHECK_EQUAL_64(src_base + 8, x21);
   CHECK_EQUAL_64(dst_base + 24, x22);
+
+  TEARDOWN();
+}
+
+
+TEST(ldp_stp_postindex_wide) {
+  INIT_V8();
+  SETUP();
+
+  uint64_t src[4] = {0x0011223344556677, 0x8899aabbccddeeff, 0xffeeddccbbaa9988,
+                     0x7766554433221100};
+  uint64_t dst[5] = {0, 0, 0, 0, 0};
+  uintptr_t src_base = reinterpret_cast<uintptr_t>(src);
+  uintptr_t dst_base = reinterpret_cast<uintptr_t>(dst);
+  // Move base too far from the array to force multiple instructions
+  // to be emitted.
+  const int64_t base_offset = 1024;
+
+  START();
+  __ Mov(x24, src_base);
+  __ Mov(x25, dst_base);
+  __ Mov(x18, dst_base + 16);
+  __ Ldp(w0, w1, MemOperand(x24, base_offset + 4, PostIndex));
+  __ Mov(x19, x24);
+  __ Sub(x24, x24, base_offset);
+  __ Ldp(w2, w3, MemOperand(x24, base_offset - 4, PostIndex));
+  __ Stp(w2, w3, MemOperand(x25, 4 - base_offset, PostIndex));
+  __ Mov(x20, x25);
+  __ Sub(x24, x24, base_offset);
+  __ Add(x25, x25, base_offset);
+  __ Stp(w0, w1, MemOperand(x25, -4 - base_offset, PostIndex));
+  __ Ldp(x4, x5, MemOperand(x24, base_offset + 8, PostIndex));
+  __ Mov(x21, x24);
+  __ Sub(x24, x24, base_offset);
+  __ Ldp(x6, x7, MemOperand(x24, base_offset - 8, PostIndex));
+  __ Stp(x7, x6, MemOperand(x18, 8 - base_offset, PostIndex));
+  __ Mov(x22, x18);
+  __ Add(x18, x18, base_offset);
+  __ Stp(x5, x4, MemOperand(x18, -8 - base_offset, PostIndex));
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(0x44556677, x0);
+  CHECK_EQUAL_64(0x00112233, x1);
+  CHECK_EQUAL_64(0x00112233, x2);
+  CHECK_EQUAL_64(0xccddeeff, x3);
+  CHECK_EQUAL_64(0x4455667700112233UL, dst[0]);
+  CHECK_EQUAL_64(0x0000000000112233UL, dst[1]);
+  CHECK_EQUAL_64(0x0011223344556677UL, x4);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x5);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, x6);
+  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, x7);
+  CHECK_EQUAL_64(0xffeeddccbbaa9988UL, dst[2]);
+  CHECK_EQUAL_64(0x8899aabbccddeeffUL, dst[3]);
+  CHECK_EQUAL_64(0x0011223344556677UL, dst[4]);
+  CHECK_EQUAL_64(src_base + base_offset, x24);
+  CHECK_EQUAL_64(dst_base - base_offset, x25);
+  CHECK_EQUAL_64(dst_base - base_offset + 16, x18);
+  CHECK_EQUAL_64(src_base + base_offset + 4, x19);
+  CHECK_EQUAL_64(dst_base - base_offset + 4, x20);
+  CHECK_EQUAL_64(src_base + base_offset + 8, x21);
+  CHECK_EQUAL_64(dst_base - base_offset + 24, x22);
 
   TEARDOWN();
 }

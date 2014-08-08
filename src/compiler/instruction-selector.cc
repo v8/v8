@@ -266,7 +266,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                                                BasicBlock* deopt_node) {
   OperandGenerator g(this);
   DCHECK_EQ(call->op()->OutputCount(), buffer->descriptor->ReturnCount());
-  DCHECK_EQ(NodeProperties::GetValueInputCount(call), buffer->input_count());
+  DCHECK_EQ(OperatorProperties::GetValueInputCount(call->op()),
+            buffer->input_count());
 
   if (buffer->descriptor->ReturnCount() > 0) {
     // Collect the projections that represent multiple outputs from this call.

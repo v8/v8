@@ -121,7 +121,7 @@ char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
 void Bootstrapper::TearDown() {
   if (delete_these_non_arrays_on_tear_down_ != NULL) {
     int len = delete_these_non_arrays_on_tear_down_->length();
-    DCHECK(len < 25);  // Don't use this mechanism for unbounded allocations.
+    DCHECK(len < 27);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
       delete delete_these_non_arrays_on_tear_down_->at(i);
       delete_these_non_arrays_on_tear_down_->at(i) = NULL;
@@ -480,8 +480,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     Handle<JSFunction> object_fun = factory->NewFunction(object_name);
     Handle<Map> object_function_map =
         factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    object_fun->set_initial_map(*object_function_map);
-    object_function_map->set_constructor(*object_fun);
+    JSFunction::SetInitialMap(object_fun, object_function_map);
     object_function_map->set_unused_property_fields(
         JSObject::kInitialGlobalObjectUnusedPropertiesCount);
 
@@ -1211,8 +1210,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     native_context()->set_sloppy_arguments_map(*map);
 
     DCHECK(!function->has_initial_map());
-    function->set_initial_map(*map);
-    map->set_constructor(*function);
+    JSFunction::SetInitialMap(function, map);
 
     DCHECK(map->inobject_properties() > Heap::kArgumentsCalleeIndex);
     DCHECK(map->inobject_properties() > Heap::kArgumentsLengthIndex);
@@ -1336,8 +1334,7 @@ void Genesis::InstallTypedArray(
       JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSizeWithInternalFields,
       elements_kind);
-  result->set_initial_map(*initial_map);
-  initial_map->set_constructor(*result);
+  JSFunction::SetInitialMap(result, initial_map);
   *fun = result;
 
   ElementsKind external_kind = GetNextTransitionElementsKind(elements_kind);
@@ -1595,6 +1592,7 @@ void Genesis::InstallNativeFunctions() {
                  native_object_notifier_perform_change);
 
   INSTALL_NATIVE(Symbol, "symbolIterator", iterator_symbol);
+  INSTALL_NATIVE(Symbol, "symbolUnscopables", unscopables_symbol);
 
   INSTALL_NATIVE_MATH(abs)
   INSTALL_NATIVE_MATH(acos)
@@ -1625,10 +1623,6 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
     INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
   }
-
-  if (FLAG_harmony_unscopables) {
-    INSTALL_NATIVE(Symbol, "symbolUnscopables", unscopables_symbol);
-  }
 }
 
 #undef INSTALL_NATIVE
@@ -1658,7 +1652,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   Handle<Map> original_map(array_function->initial_map());
   Handle<Map> initial_map = Map::Copy(original_map);
   initial_map->set_elements_kind(elements_kind);
-  array_function->set_initial_map(*initial_map);
+  JSFunction::SetInitialMap(array_function, initial_map);
 
   // Make "length" magic on instances.
   Map::EnsureDescriptorSlack(initial_map, 1);
@@ -2063,11 +2057,8 @@ bool Genesis::InstallExperimentalNatives() {
        i++) {
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, generators, "generator.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "array-iterator.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, iteration, "string-iterator.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, unscopables, "unscopables.js")
   }
 
   InstallExperimentalNativeFunctions();

@@ -163,6 +163,8 @@ class IC {
 
   char TransitionMarkFromState(IC::State state);
   void TraceIC(const char* type, Handle<Object> name);
+  void TraceIC(const char* type, Handle<Object> name, State old_state,
+               State new_state);
 
   MaybeHandle<Object> TypeError(const char* type,
                                 Handle<Object> object,
@@ -175,6 +177,9 @@ class IC {
   static inline void SetTargetAtAddress(Address address,
                                         Code* target,
                                         ConstantPoolArray* constant_pool);
+  static void OnTypeFeedbackChanged(Isolate* isolate, Address address,
+                                    State old_state, State new_state,
+                                    bool target_remains_ic_stub);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
@@ -332,8 +337,6 @@ class CallIC: public IC {
         : argc_(argc), call_type_(call_type) {
     }
 
-    InlineCacheState GetICState() const { return ::v8::internal::GENERIC; }
-
     ExtraICState GetExtraICState() const;
 
     static void GenerateAheadOfTime(
@@ -356,7 +359,8 @@ class CallIC: public IC {
       : IC(EXTRA_CALL_FRAME, isolate) {
   }
 
-  void PatchMegamorphic(Handle<FixedArray> vector, Handle<Smi> slot);
+  void PatchMegamorphic(Handle<Object> function, Handle<FixedArray> vector,
+                        Handle<Smi> slot);
 
   void HandleMiss(Handle<Object> receiver,
                   Handle<Object> function,
@@ -377,6 +381,10 @@ class CallIC: public IC {
 
   static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);
+
+ private:
+  inline IC::State FeedbackToState(Handle<FixedArray> vector,
+                                   Handle<Smi> slot) const;
 };
 
 

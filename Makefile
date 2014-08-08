@@ -484,9 +484,9 @@ builddeps:
 	      third_party/icu --revision 277999 ; \
 	fi
 	svn checkout --force http://googletest.googlecode.com/svn/trunk \
-	    testing/gtest --revision 643
+	    testing/gtest --revision 692
 	svn checkout --force http://googlemock.googlecode.com/svn/trunk \
-	    testing/gmock --revision 410
+	    testing/gmock --revision 485
 
 dependencies: builddeps
 	# The spec is a copy of the hooks in v8's DEPS file.

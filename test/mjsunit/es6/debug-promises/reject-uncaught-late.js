@@ -38,7 +38,7 @@ function listener(event, exec_state, event_data, data) {
       assertTrue(expected_events >= 0);
       assertEquals("uncaught reject p", event_data.exception().message);
       assertTrue(event_data.promise() instanceof Promise);
-      assertEquals(p, event_data.promise());
+      assertSame(p, event_data.promise());
       assertTrue(event_data.uncaught());
       // Assert that the debug event is triggered at the throw site.
       assertTrue(exec_state.frame(0).sourceLineText().indexOf("// event") > 0);

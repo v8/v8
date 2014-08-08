@@ -9,8 +9,8 @@
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/conversions.h"
-#include "src/objects-visiting.h"
-#include "src/objects-visiting-inl.h"
+#include "src/heap/objects-visiting.h"
+#include "src/heap/objects-visiting-inl.h"
 
 namespace v8 {
 namespace internal {

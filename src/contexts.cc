@@ -142,7 +142,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
           object->IsJSContextExtensionObject()) {
         maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
-      } else if (FLAG_harmony_unscopables && context->IsWithContext()) {
+      } else if (context->IsWithContext()) {
         LookupIterator it(object, name);
         maybe = UnscopableLookup(&it);
       } else {

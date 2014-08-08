@@ -14,12 +14,12 @@
 #include "src/global-handles.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/objects-visiting.h"
+#include "src/heap/objects-visiting-inl.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/sweeper-thread.h"
 #include "src/heap-profiler.h"
 #include "src/ic-inl.h"
-#include "src/objects-visiting.h"
-#include "src/objects-visiting-inl.h"
 #include "src/stub-cache.h"
 
 namespace v8 {

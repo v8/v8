@@ -4,5 +4,5 @@ include_rules = [
   "+include/v8stdint.h",
   "-src",
   "+src/base",
-  "+testing",
+  "+testing/gtest",
 ]

@@ -46,11 +46,12 @@ class GraphVisualizer : public NullNodeVisitor {
 
 
 static Node* GetControlCluster(Node* node) {
-  if (NodeProperties::IsBasicBlockBegin(node)) {
+  if (OperatorProperties::IsBasicBlockBegin(node->op())) {
     return node;
-  } else if (NodeProperties::GetControlInputCount(node) == 1) {
+  } else if (OperatorProperties::GetControlInputCount(node->op()) == 1) {
     Node* control = NodeProperties::GetControlInput(node, 0);
-    return NodeProperties::IsBasicBlockBegin(control) ? control : NULL;
+    return OperatorProperties::IsBasicBlockBegin(control->op()) ? control
+                                                                : NULL;
   } else {
     return NULL;
   }
@@ -156,19 +157,23 @@ void GraphVisualizer::AnnotateNode(Node* node) {
   os_ << "    label=\"{{#" << node->id() << ":" << Escaped(label);
 
   InputIter i = node->inputs().begin();
-  for (int j = NodeProperties::GetValueInputCount(node); j > 0; ++i, j--) {
+  for (int j = OperatorProperties::GetValueInputCount(node->op()); j > 0;
+       ++i, j--) {
     os_ << "|<I" << i.index() << ">#" << (*i)->id();
   }
-  for (int j = NodeProperties::GetContextInputCount(node); j > 0; ++i, j--) {
+  for (int j = OperatorProperties::GetContextInputCount(node->op()); j > 0;
+       ++i, j--) {
     os_ << "|<I" << i.index() << ">X #" << (*i)->id();
   }
-  for (int j = NodeProperties::GetEffectInputCount(node); j > 0; ++i, j--) {
+  for (int j = OperatorProperties::GetEffectInputCount(node->op()); j > 0;
+       ++i, j--) {
     os_ << "|<I" << i.index() << ">E #" << (*i)->id();
   }
 
-  if (!use_to_def_ || NodeProperties::IsBasicBlockBegin(node) ||
+  if (!use_to_def_ || OperatorProperties::IsBasicBlockBegin(node->op()) ||
       GetControlCluster(node) == NULL) {
-    for (int j = NodeProperties::GetControlInputCount(node); j > 0; ++i, j--) {
+    for (int j = OperatorProperties::GetControlInputCount(node->op()); j > 0;
+         ++i, j--) {
       os_ << "|<I" << i.index() << ">C #" << (*i)->id();
     }
   }
@@ -191,9 +196,9 @@ void GraphVisualizer::PrintEdge(Node* from, int index, Node* to) {
   os_ << "  ID" << from->id();
   if (all_nodes_.count(to) == 0) {
     os_ << ":I" << index << ":n -> DEAD_INPUT";
-  } else if (NodeProperties::IsBasicBlockBegin(from) ||
+  } else if (OperatorProperties::IsBasicBlockBegin(from->op()) ||
              GetControlCluster(from) == NULL ||
-             (NodeProperties::GetControlInputCount(from) > 0 &&
+             (OperatorProperties::GetControlInputCount(from->op()) > 0 &&
               NodeProperties::GetControlInput(from) != to)) {
     os_ << ":I" << index << ":n -> ID" << to->id() << ":s";
     if (unconstrained) os_ << " [constraint=false,style=dotted]";

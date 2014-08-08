@@ -103,9 +103,9 @@ function SetUpSymbol() {
     // "hasInstance", symbolHasInstance,
     // "isConcatSpreadable", symbolIsConcatSpreadable,
     // "isRegExp", symbolIsRegExp,
-    "iterator", symbolIterator
+    "iterator", symbolIterator,
     // "toStringTag", symbolToStringTag,
-    // "unscopables", symbolUnscopables  // added in unscopables.js
+    "unscopables", symbolUnscopables
   ));
   InstallFunctions($Symbol, DONT_ENUM, $Array(
     "for", SymbolFor,

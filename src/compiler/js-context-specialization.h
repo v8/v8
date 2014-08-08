@@ -15,7 +15,7 @@ namespace internal {
 namespace compiler {
 
 // Specializes a given JSGraph to a given context, potentially constant folding
-// some {LoadContext} nodes.
+// some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
 class JSContextSpecializer {
  public:
   JSContextSpecializer(CompilationInfo* info, JSGraph* jsgraph, Node* context)
@@ -23,6 +23,7 @@ class JSContextSpecializer {
 
   void SpecializeToContext();
   Reduction ReduceJSLoadContext(Node* node);
+  Reduction ReduceJSStoreContext(Node* node);
 
  private:
   CompilationInfo* info_;

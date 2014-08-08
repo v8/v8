@@ -183,9 +183,7 @@ class CodeStub BASE_EMBEDDED {
   virtual Major MajorKey() const = 0;
   virtual int MinorKey() const = 0;
 
-  virtual InlineCacheState GetICState() {
-    return UNINITIALIZED;
-  }
+  virtual InlineCacheState GetICState() const { return UNINITIALIZED; }
   virtual ExtraICState GetExtraICState() const { return kNoExtraICState; }
   virtual Code::StubType GetStubType() {
     return Code::NORMAL;
@@ -850,9 +848,7 @@ class CallICStub: public PlatformCodeStub {
     return Code::CALL_IC;
   }
 
-  virtual InlineCacheState GetICState() V8_FINAL V8_OVERRIDE {
-    return state_.GetICState();
-  }
+  virtual InlineCacheState GetICState() const V8_OVERRIDE { return DEFAULT; }
 
   virtual ExtraICState GetExtraICState() const V8_FINAL V8_OVERRIDE {
     return state_.GetExtraICState();
@@ -877,6 +873,10 @@ class CallIC_ArrayStub: public CallICStub {
       : CallICStub(isolate, state_in) {}
 
   virtual void Generate(MacroAssembler* masm);
+
+  virtual InlineCacheState GetICState() const V8_FINAL V8_OVERRIDE {
+    return MONOMORPHIC;
+  }
 
  protected:
   virtual void PrintState(OStream& os) const V8_OVERRIDE;  // NOLINT
@@ -903,7 +903,7 @@ class HandlerStub : public HydrogenCodeStub {
  public:
   virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
   virtual ExtraICState GetExtraICState() const { return kind(); }
-  virtual InlineCacheState GetICState() { return MONOMORPHIC; }
+  virtual InlineCacheState GetICState() const { return MONOMORPHIC; }
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
@@ -1126,7 +1126,7 @@ class BinaryOpICStub : public HydrogenCodeStub {
     return Code::BINARY_OP_IC;
   }
 
-  virtual InlineCacheState GetICState() V8_FINAL V8_OVERRIDE {
+  virtual InlineCacheState GetICState() const V8_FINAL V8_OVERRIDE {
     return state_.GetICState();
   }
 
@@ -1179,7 +1179,7 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
     return Code::BINARY_OP_IC;
   }
 
-  virtual InlineCacheState GetICState() V8_OVERRIDE {
+  virtual InlineCacheState GetICState() const V8_OVERRIDE {
     return state_.GetICState();
   }
 
@@ -1316,7 +1316,7 @@ class ICCompareStub: public PlatformCodeStub {
                         CompareIC::State* right_state,
                         CompareIC::State* handler_state, Token::Value* op);
 
-  virtual InlineCacheState GetICState();
+  virtual InlineCacheState GetICState() const;
 
  private:
   class OpField: public BitField<int, 0, 3> { };
@@ -1384,7 +1384,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
         isolate->code_stub_interface_descriptor(CodeStub::CompareNilIC));
   }
 
-  virtual InlineCacheState GetICState() {
+  virtual InlineCacheState GetICState() const {
     if (state_.Contains(GENERIC)) {
       return MEGAMORPHIC;
     } else if (state_.Contains(MONOMORPHIC_MAP)) {
@@ -1875,7 +1875,7 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
   static void InstallDescriptors(Isolate* isolate);
 
   virtual Code::Kind GetCodeKind() const { return Code::KEYED_LOAD_IC; }
-  virtual InlineCacheState GetICState() { return GENERIC; }
+  virtual InlineCacheState GetICState() const { return GENERIC; }
 
  private:
   Major MajorKey() const { return KeyedLoadGeneric; }
@@ -2315,6 +2315,12 @@ class ToBooleanStub: public HydrogenCodeStub {
     NUMBER_OF_TYPES
   };
 
+  enum ResultMode {
+    RESULT_AS_SMI,             // For Smi(1) on truthy value, Smi(0) otherwise.
+    RESULT_AS_ODDBALL,         // For {true} on truthy value, {false} otherwise.
+    RESULT_AS_INVERSE_ODDBALL  // For {false} on truthy value, {true} otherwise.
+  };
+
   // At most 8 different types can be distinguished, because the Code object
   // only has room for a single byte to hold a set of these types. :-P
   STATIC_ASSERT(NUMBER_OF_TYPES <= 8);
@@ -2333,13 +2339,16 @@ class ToBooleanStub: public HydrogenCodeStub {
     static Types Generic() { return Types((1 << NUMBER_OF_TYPES) - 1); }
   };
 
-  ToBooleanStub(Isolate* isolate, Types types = Types())
-      : HydrogenCodeStub(isolate), types_(types) { }
+  ToBooleanStub(Isolate* isolate, ResultMode mode, Types types = Types())
+      : HydrogenCodeStub(isolate), types_(types), mode_(mode) {}
   ToBooleanStub(Isolate* isolate, ExtraICState state)
-      : HydrogenCodeStub(isolate), types_(static_cast<byte>(state)) { }
+      : HydrogenCodeStub(isolate),
+        types_(static_cast<byte>(state)),
+        mode_(RESULT_AS_SMI) {}
 
   bool UpdateStatus(Handle<Object> object);
   Types GetTypes() { return types_; }
+  ResultMode GetMode() { return mode_; }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
   virtual void InitializeInterfaceDescriptor(
@@ -2351,7 +2360,7 @@ class ToBooleanStub: public HydrogenCodeStub {
   virtual bool SometimesSetsUpAFrame() { return false; }
 
   static void InstallDescriptors(Isolate* isolate) {
-    ToBooleanStub stub(isolate);
+    ToBooleanStub stub(isolate, RESULT_AS_SMI);
     stub.InitializeInterfaceDescriptor(
         isolate->code_stub_interface_descriptor(CodeStub::ToBoolean));
   }
@@ -2362,7 +2371,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 
   virtual ExtraICState GetExtraICState() const { return types_.ToIntegral(); }
 
-  virtual InlineCacheState GetICState() {
+  virtual InlineCacheState GetICState() const {
     if (types_.IsEmpty()) {
       return ::v8::internal::UNINITIALIZED;
     } else {
@@ -2371,13 +2380,19 @@ class ToBooleanStub: public HydrogenCodeStub {
   }
 
  private:
-  Major MajorKey() const { return ToBoolean; }
-  int NotMissMinorKey() const { return GetExtraICState(); }
+  class TypesBits : public BitField<byte, 0, NUMBER_OF_TYPES> {};
+  class ResultModeBits : public BitField<ResultMode, NUMBER_OF_TYPES, 2> {};
 
-  ToBooleanStub(Isolate* isolate, InitializationState init_state) :
-      HydrogenCodeStub(isolate, init_state) {}
+  Major MajorKey() const { return ToBoolean; }
+  int NotMissMinorKey() const {
+    return TypesBits::encode(types_.ToByte()) | ResultModeBits::encode(mode_);
+  }
+
+  ToBooleanStub(Isolate* isolate, InitializationState init_state)
+      : HydrogenCodeStub(isolate, init_state), mode_(RESULT_AS_SMI) {}
 
   Types types_;
+  ResultMode mode_;
 };
 
 

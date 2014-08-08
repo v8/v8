@@ -861,9 +861,9 @@ class BinopEffectsTester {
   Node* CheckConverted(IrOpcode::Value opcode, Node* node, bool effects) {
     CHECK_EQ(opcode, node->opcode());
     if (effects) {
-      CHECK_LT(0, NodeProperties::GetEffectInputCount(node));
+      CHECK_LT(0, OperatorProperties::GetEffectInputCount(node->op()));
     } else {
-      CHECK_EQ(0, NodeProperties::GetEffectInputCount(node));
+      CHECK_EQ(0, OperatorProperties::GetEffectInputCount(node->op()));
     }
     return node;
   }

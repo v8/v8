@@ -320,7 +320,7 @@ void StringAddStub::PrintBaseName(OStream& os) const {  // NOLINT
 }
 
 
-InlineCacheState ICCompareStub::GetICState() {
+InlineCacheState ICCompareStub::GetICState() const {
   CompareIC::State state = Max(left_, right_);
   switch (state) {
     case CompareIC::UNINITIALIZED:
