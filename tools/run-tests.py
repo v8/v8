@@ -267,14 +267,6 @@ def ProcessOptions(options):
     # Buildbots run presubmit tests as a separate step.
     options.no_presubmit = True
     options.no_network = True
-
-    # FIXME(machenbach): Temporary hack to debug landmines on buildbot.
-    # Hardcoded for make/ninja.
-    src_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    target_dir  = options.mode[0] if options.mode else 'Release'
-    out_dir = os.path.join(src_dir, 'out', target_dir, '.landmines')
-    if os.path.exists(out_dir):
-      print "[INFO] Landmines tracker exists."
   if options.command_prefix:
     print("Specifying --command-prefix disables network distribution, "
           "running tests locally.")
