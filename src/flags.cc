@@ -372,7 +372,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           value == NULL) {
         if (i < *argc) {
           value = argv[i++];
-        } else {
+        }
+        if (!value) {
           PrintF(stderr, "Error: missing value for flag %s of type %s\n"
                  "Try --help for options\n",
                  arg, Type2String(flag->type()));

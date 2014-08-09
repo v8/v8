@@ -178,9 +178,9 @@ action("js2c") {
   sources = [
     "src/runtime.js",
     "src/v8natives.js",
+    "src/symbol.js",
     "src/array.js",
     "src/string.js",
-    "src/symbol.js",
     "src/uri.js",
     "third_party/fdlibm/fdlibm.js",
     "src/math.js",

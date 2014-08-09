@@ -1,3 +1,8 @@
+2014-08-09: Version 3.28.65
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-08: Version 3.28.64
 
         ES6: Implement WeakMap and WeakSet constructor logic (issue 3399).
