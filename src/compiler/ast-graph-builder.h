@@ -78,9 +78,11 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   Node* BuildArgumentsObject(Variable* arguments);
 
   // Builders for variable load and assignment.
-  Node* BuildVariableAssignment(Variable* var, Node* value, Token::Value op);
+  Node* BuildVariableAssignment(Variable* var, Node* value, Token::Value op,
+                                BailoutId bailout_id);
   Node* BuildVariableDelete(Variable* var);
-  Node* BuildVariableLoad(Variable* var, ContextualMode mode = CONTEXTUAL);
+  Node* BuildVariableLoad(Variable* var, BailoutId bailout_id,
+                          ContextualMode mode = CONTEXTUAL);
 
   // Builders for accessing the function context.
   Node* BuildLoadBuiltinsObject();
@@ -170,6 +172,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   void VisitForInAssignment(Expression* expr, Node* value);
 
   void BuildLazyBailout(Node* node, BailoutId ast_id);
+  void BuildLazyBailoutWithPushedNode(Node* node, BailoutId ast_id);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstGraphBuilder);
@@ -282,6 +285,7 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
   // Plug a node into this expression context.  Call this function in tail
   // position in the Visit functions for expressions.
   virtual void ProduceValue(Node* value) = 0;
+  virtual void ProduceValueWithLazyBailout(Node* value) = 0;
 
   // Unplugs a node from this expression context.  Call this to retrieve the
   // result of another Visit function that already plugged the context.
@@ -291,7 +295,8 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
   void ReplaceValue() { ProduceValue(ConsumeValue()); }
 
  protected:
-  AstContext(AstGraphBuilder* owner, Expression::Context kind);
+  AstContext(AstGraphBuilder* owner, Expression::Context kind,
+             BailoutId bailout_id);
   virtual ~AstContext();
 
   AstGraphBuilder* owner() const { return owner_; }
@@ -303,6 +308,8 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
   int original_height_;
 #endif
 
+  BailoutId bailout_id_;
+
  private:
   Expression::Context kind_;
   AstGraphBuilder* owner_;
@@ -313,10 +320,11 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
 // Context to evaluate expression for its side effects only.
 class AstGraphBuilder::AstEffectContext V8_FINAL : public AstContext {
  public:
-  explicit AstEffectContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kEffect) {}
+  explicit AstEffectContext(AstGraphBuilder* owner, BailoutId bailout_id)
+      : AstContext(owner, Expression::kEffect, bailout_id) {}
   virtual ~AstEffectContext();
   virtual void ProduceValue(Node* value) V8_OVERRIDE;
+  virtual void ProduceValueWithLazyBailout(Node* value) V8_OVERRIDE;
   virtual Node* ConsumeValue() V8_OVERRIDE;
 };
 
@@ -324,10 +332,11 @@ class AstGraphBuilder::AstEffectContext V8_FINAL : public AstContext {
 // Context to evaluate expression for its value (and side effects).
 class AstGraphBuilder::AstValueContext V8_FINAL : public AstContext {
  public:
-  explicit AstValueContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kValue) {}
+  explicit AstValueContext(AstGraphBuilder* owner, BailoutId bailout_id)
+      : AstContext(owner, Expression::kValue, bailout_id) {}
   virtual ~AstValueContext();
   virtual void ProduceValue(Node* value) V8_OVERRIDE;
+  virtual void ProduceValueWithLazyBailout(Node* value) V8_OVERRIDE;
   virtual Node* ConsumeValue() V8_OVERRIDE;
 };
 
@@ -335,10 +344,11 @@ class AstGraphBuilder::AstValueContext V8_FINAL : public AstContext {
 // Context to evaluate expression for a condition value (and side effects).
 class AstGraphBuilder::AstTestContext V8_FINAL : public AstContext {
  public:
-  explicit AstTestContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kTest) {}
+  explicit AstTestContext(AstGraphBuilder* owner, BailoutId bailout_id)
+      : AstContext(owner, Expression::kTest, bailout_id) {}
   virtual ~AstTestContext();
   virtual void ProduceValue(Node* value) V8_OVERRIDE;
+  virtual void ProduceValueWithLazyBailout(Node* value) V8_OVERRIDE;
   virtual Node* ConsumeValue() V8_OVERRIDE;
 };
 

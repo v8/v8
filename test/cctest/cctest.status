@@ -107,13 +107,7 @@
   'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
 
   # Support for lazy deoptimization is missing.
-  'test-deoptimization/DeoptimizeSimple': [PASS, NO_VARIANTS],
-  'test-deoptimization/DeoptimizeSimpleNested': [PASS, NO_VARIANTS],
-  'test-deoptimization/DeoptimizeSimpleWithArguments': [PASS, NO_VARIANTS],
-  'test-deoptimization/DeoptimizeBinaryOperation*': [PASS, NO_VARIANTS],
   'test-deoptimization/DeoptimizeCompare': [PASS, NO_VARIANTS],
-  'test-deoptimization/DeoptimizeLoadICStoreIC': [PASS, NO_VARIANTS],
-  'test-deoptimization/DeoptimizeLoadICStoreICNested': [PASS, NO_VARIANTS],
 
   # Support for breakpoints requires using LoadICs and StoreICs.
   'test-debug/BreakPointICStore': [PASS, NO_VARIANTS],

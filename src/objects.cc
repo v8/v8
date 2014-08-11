@@ -10726,7 +10726,26 @@ int Code::SourceStatementPosition(Address pc) {
 
 SafepointEntry Code::GetSafepointEntry(Address pc) {
   SafepointTable table(this);
-  return table.FindEntry(pc);
+  SafepointEntry entry = table.FindEntry(pc);
+  if (entry.is_valid() || !is_turbofanned()) {
+    return entry;
+  }
+
+  // If the code is turbofanned, we might be looking for
+  // an address that was patched by lazy deoptimization.
+  // In that case look through the patch table, try to
+  // lookup the original address there, and then use this
+  // to find the safepoint entry.
+  DeoptimizationInputData* deopt_data =
+      DeoptimizationInputData::cast(deoptimization_data());
+  intptr_t offset = pc - instruction_start();
+  for (int i = 0; i < deopt_data->ReturnAddressPatchCount(); i++) {
+    if (deopt_data->PatchedAddressPc(i)->value() == offset) {
+      int original_offset = deopt_data->ReturnAddressPc(i)->value();
+      return table.FindEntry(instruction_start() + original_offset);
+    }
+  }
+  return SafepointEntry();
 }
 
 
@@ -11128,7 +11147,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
   if (0 != deopt_count) {
     os << " index  ast id    argc     pc";
-    if (FLAG_print_code_verbose) os << "commands";
+    if (FLAG_print_code_verbose) os << "  commands";
     os << "\n";
   }
   for (int i = 0; i < deopt_count; i++) {
@@ -11158,7 +11177,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
            Translation::BEGIN !=
            (opcode = static_cast<Translation::Opcode>(iterator.Next()))) {
       Vector<char> buf2 = Vector<char>::New(128);
-      SNPrintF(buf2, "%24s    %s ", "", Translation::StringFor(opcode));
+      SNPrintF(buf2, "%27s    %s ", "", Translation::StringFor(opcode));
       os << buf2.start();
 
       switch (opcode) {
@@ -11284,11 +11303,11 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   if (return_address_patch_count != 0) {
     os << "Return address patch data (count = " << return_address_patch_count
        << ")\n";
-    os << "index pc    patched_pc\n";
+    os << " index    pc  patched_pc\n";
   }
   for (int i = 0; i < return_address_patch_count; i++) {
     Vector<char> buf = Vector<char>::New(128);
-    SNPrintF(buf, "%6d  %6d  %10d", i, ReturnAddressPc(i)->value(),
+    SNPrintF(buf, "%6d  %6d  %12d\n", i, ReturnAddressPc(i)->value(),
              PatchedAddressPc(i)->value());
     os << buf.start();
   }
