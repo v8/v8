@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_JS_OPERATOR_H_
 #define V8_COMPILER_JS_OPERATOR_H_
 
+#include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/unique.h"
@@ -48,6 +49,9 @@ struct LoadNamedParameters {
 struct CallParameters {
   int arity;
   CallFunctionFlags flags;
+  // TODO(jarin) Remove the deopt flag once we can deoptimize all JavaScript
+  // calls (specifically the FILTER_KEY call in ForInStatement).
+  CallDescriptor::DeoptimizationSupport can_deoptimize;
 };
 
 // Interface for building JavaScript-level operators, e.g. directly from the
@@ -103,8 +107,9 @@ class JSOperatorBuilder {
 
   Operator* Create() { SIMPLE(JSCreate, Operator::kEliminatable, 0, 1); }
 
-  Operator* Call(int arguments, CallFunctionFlags flags) {
-    CallParameters parameters = {arguments, flags};
+  Operator* Call(int arguments, CallFunctionFlags flags,
+                 CallDescriptor::DeoptimizationSupport can_deoptimize) {
+    CallParameters parameters = {arguments, flags, can_deoptimize};
     OP1(JSCallFunction, CallParameters, parameters, Operator::kNoProperties,
         arguments, 1);
   }

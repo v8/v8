@@ -7,6 +7,7 @@
 
 #include "src/v8.h"
 
+#include "src/compiler/js-operator.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 
@@ -130,6 +131,14 @@ inline bool OperatorProperties::IsScheduleRoot(Operator* op) {
 }
 
 inline bool OperatorProperties::CanLazilyDeoptimize(Operator* op) {
+  // TODO(jarin) This function allows turning on lazy deoptimization
+  // incrementally. It will change as we turn on lazy deopt for
+  // more nodes.
+
+  if (!FLAG_turbo_deoptimization) {
+    return false;
+  }
+
   if (op->opcode() == IrOpcode::kCall) {
     CallOperator* call_op = reinterpret_cast<CallOperator*>(op);
     CallDescriptor* descriptor = call_op->parameter();
@@ -141,6 +150,11 @@ inline bool OperatorProperties::CanLazilyDeoptimize(Operator* op) {
     Runtime::FunctionId function =
         reinterpret_cast<Operator1<Runtime::FunctionId>*>(op)->parameter();
     return function == Runtime::kDeoptimizeFunction;
+  }
+  if (op->opcode() == IrOpcode::kJSCallFunction) {
+    CallParameters p =
+        reinterpret_cast<Operator1<CallParameters>*>(op)->parameter();
+    return p.can_deoptimize == CallDescriptor::kCanDeoptimize;
   }
   return false;
 }

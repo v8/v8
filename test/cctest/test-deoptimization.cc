@@ -113,6 +113,8 @@ static Handle<JSFunction> GetJSFunction(v8::Handle<v8::Object> obj,
 
 
 TEST(DeoptimizeSimple) {
+  i::FLAG_turbo_deoptimization = true;
+
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -151,6 +153,8 @@ TEST(DeoptimizeSimple) {
 
 
 TEST(DeoptimizeSimpleWithArguments) {
+  i::FLAG_turbo_deoptimization = true;
+
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -190,6 +194,8 @@ TEST(DeoptimizeSimpleWithArguments) {
 
 
 TEST(DeoptimizeSimpleNested) {
+  i::FLAG_turbo_deoptimization = true;
+
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
