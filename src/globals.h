@@ -611,12 +611,8 @@ enum CpuFeature {
     MOVW_MOVT_IMMEDIATE_LOADS,
     VFP32DREGS,
     NEON,
-    // MIPS, MIPS64
+    // MIPS
     FPU,
-    FP64FPU,
-    MIPSr1,
-    MIPSr2,
-    MIPSr6,
     // ARM64
     ALWAYS_ALIGN_CSP,
     NUMBER_OF_CPU_FEATURES
