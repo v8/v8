@@ -391,7 +391,6 @@ class RegisterAllocator BASE_EMBEDDED {
   void MeetRegisterConstraints(BasicBlock* block);
   void MeetConstraintsBetween(Instruction* first, Instruction* second,
                               int gap_index);
-  void MeetRegisterConstraintsForLastInstructionInBlock(BasicBlock* block);
   void ResolvePhis(BasicBlock* block);
 
   // Helper methods for building intervals.

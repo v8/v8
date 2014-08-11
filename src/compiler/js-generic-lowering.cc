@@ -349,22 +349,18 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
 }
 
 
-static CallDescriptor::DeoptimizationSupport DeoptimizationSupportForNode(
-    Node* node) {
-  return OperatorProperties::CanLazilyDeoptimize(node->op())
-             ? CallDescriptor::kCanDeoptimize
-             : CallDescriptor::kCannotDeoptimize;
-}
-
-
 void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
                                                Runtime::FunctionId f,
                                                int nargs_override) {
   Operator::Property props = node->op()->properties();
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   int nargs = (nargs_override < 0) ? fun->nargs : nargs_override;
-  CallDescriptor* desc = linkage()->GetRuntimeCallDescriptor(
-      f, nargs, props, DeoptimizationSupportForNode(node));
+  CallDescriptor::DeoptimizationSupport deopt =
+      OperatorProperties::CanLazilyDeoptimize(node->op())
+          ? CallDescriptor::kCanDeoptimize
+          : CallDescriptor::kCannotDeoptimize;
+  CallDescriptor* desc =
+      linkage()->GetRuntimeCallDescriptor(f, nargs, props, deopt);
   Node* ref = ExternalConstant(ExternalReference(f, isolate()));
   Node* arity = Int32Constant(nargs);
   if (!centrystub_constant_.is_set()) {
@@ -528,8 +524,7 @@ Node* JSGenericLowering::LowerJSCallFunction(Node* node) {
   CallParameters p = OpParameter<CallParameters>(node);
   CallFunctionStub stub(isolate(), p.arity - 2, p.flags);
   CodeStubInterfaceDescriptor* d = GetInterfaceDescriptor(isolate(), &stub);
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-      d, p.arity - 1, DeoptimizationSupportForNode(node));
+  CallDescriptor* desc = linkage()->GetStubCallDescriptor(d, p.arity - 1);
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));

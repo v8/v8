@@ -147,13 +147,8 @@ class Linkage : public ZoneObject {
       Operator::Property properties,
       CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone);
 
-  CallDescriptor* GetStubCallDescriptor(
-      CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count = 0,
-      CallDescriptor::DeoptimizationSupport can_deoptimize =
-          CallDescriptor::kCannotDeoptimize);
-  static CallDescriptor* GetStubCallDescriptor(
-      CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-      CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone);
+  CallDescriptor* GetStubCallDescriptor(CodeStubInterfaceDescriptor* descriptor,
+                                        int stack_parameter_count = 0);
 
   // Creates a call descriptor for simplified C calls that is appropriate
   // for the host platform. This simplified calling convention only supports

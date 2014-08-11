@@ -722,13 +722,8 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
           environment()->Push(value);
           // result is either the string key or Smi(0) indicating the property
           // is gone.
-          // TODO(jarin) Insert lazy deoptimization support here - the call
-          // actually
-          // can deoptimize.
           Node* res = ProcessArguments(
-              javascript()->Call(3, NO_CALL_FUNCTION_FLAGS,
-                                 CallDescriptor::kCannotDeoptimize),
-              3);
+              javascript()->Call(3, NO_CALL_FUNCTION_FLAGS), 3);
           Node* property_missing = NewNode(javascript()->StrictEqual(), res,
                                            jsgraph()->ZeroConstant());
           {
@@ -1251,12 +1246,9 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   }
 
   // Create node to perform the function call.
-  Operator* call = javascript()->Call(args->length() + 2, flags,
-                                      CallDescriptor::kCanDeoptimize);
+  Operator* call = javascript()->Call(args->length() + 2, flags);
   Node* value = ProcessArguments(call, args->length() + 2);
   ast_context()->ProduceValue(value);
-
-  BuildLazyBailout(value, expr->id());
 }
 
 
@@ -1291,12 +1283,9 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   VisitForValues(args);
 
   // Create node to perform the JS runtime call.
-  Operator* call = javascript()->Call(args->length() + 2, flags,
-                                      CallDescriptor::kCanDeoptimize);
+  Operator* call = javascript()->Call(args->length() + 2, flags);
   Node* value = ProcessArguments(call, args->length() + 2);
   ast_context()->ProduceValue(value);
-
-  BuildLazyBailout(value, expr->id());
 }
 
 

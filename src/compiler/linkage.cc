@@ -102,14 +102,6 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 }
 
 
-CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-    CallDescriptor::DeoptimizationSupport can_deoptimize) {
-  return GetStubCallDescriptor(descriptor, stack_parameter_count,
-                               can_deoptimize, this->info_->zone());
-}
-
-
 //==============================================================================
 // Provide unimplemented methods on unsupported architectures, to at least link.
 //==============================================================================
@@ -130,8 +122,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
+    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count) {
   UNIMPLEMENTED();
   return NULL;
 }
