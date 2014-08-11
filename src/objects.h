@@ -7541,7 +7541,7 @@ class SharedFunctionInfo: public HeapObject {
 
 // Printing support.
 struct SourceCodeOf {
-  SourceCodeOf(SharedFunctionInfo* v, int max = -1)
+  explicit SourceCodeOf(SharedFunctionInfo* v, int max = -1)
       : value(v), max_length(max) {}
   const SharedFunctionInfo* value;
   int max_length;
@@ -9745,7 +9745,8 @@ class ConsStringNullOp {
 class ConsStringIteratorOp {
  public:
   inline ConsStringIteratorOp() {}
-  inline ConsStringIteratorOp(ConsString* cons_string, int offset = 0) {
+  inline explicit ConsStringIteratorOp(ConsString* cons_string,
+                                       int offset = 0) {
     Reset(cons_string, offset);
   }
   inline void Reset(ConsString* cons_string, int offset = 0) {
