@@ -407,9 +407,9 @@ class AccessTester : public HandleAndZoneScope {
     t.StoreElement(access, ptr, t.Int32Constant(to_index), load);
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
-    t.GenerateCode();
 
     if (Pipeline::SupportedTarget()) {
+      t.GenerateCode();
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
     }
@@ -429,9 +429,9 @@ class AccessTester : public HandleAndZoneScope {
     t.StoreField(to_access, ptr, load);
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
-    t.GenerateCode();
 
     if (Pipeline::SupportedTarget()) {
+      t.GenerateCode();
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
     }
@@ -468,9 +468,9 @@ class AccessTester : public HandleAndZoneScope {
     index = t.environment()->Pop();
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
-    t.GenerateCode();
 
     if (Pipeline::SupportedTarget()) {
+      t.GenerateCode();
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
     }
