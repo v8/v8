@@ -79,7 +79,7 @@
             ],
           },
         }],
-        ['OS=="android" and android_app_abi=="x86"', {
+        ['OS=="android"', {
           'defines': [
             'GTEST_HAS_CLONE=0',
           ],
