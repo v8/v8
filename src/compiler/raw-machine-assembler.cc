@@ -12,7 +12,7 @@ namespace compiler {
 
 RawMachineAssembler::RawMachineAssembler(
     Graph* graph, MachineCallDescriptorBuilder* call_descriptor_builder,
-    MachineRepresentation word)
+    MachineType word)
     : GraphBuilder(graph),
       schedule_(new (zone()) Schedule(zone())),
       machine_(zone(), word),

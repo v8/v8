@@ -45,9 +45,9 @@ class RawMachineAssembler : public GraphBuilder,
     DISALLOW_COPY_AND_ASSIGN(Label);
   };
 
-  RawMachineAssembler(
-      Graph* graph, MachineCallDescriptorBuilder* call_descriptor_builder,
-      MachineRepresentation word = MachineOperatorBuilder::pointer_rep());
+  RawMachineAssembler(Graph* graph,
+                      MachineCallDescriptorBuilder* call_descriptor_builder,
+                      MachineType word = MachineOperatorBuilder::pointer_rep());
   virtual ~RawMachineAssembler() {}
 
   Isolate* isolate() const { return zone()->isolate(); }
@@ -60,7 +60,7 @@ class RawMachineAssembler : public GraphBuilder,
   int parameter_count() const {
     return call_descriptor_builder_->parameter_count();
   }
-  const MachineRepresentation* parameter_types() const {
+  const MachineType* parameter_types() const {
     return call_descriptor_builder_->parameter_types();
   }
 
@@ -108,8 +108,7 @@ class RawMachineAssembler : public GraphBuilder,
   BasicBlock* EnsureBlock(Label* label);
   BasicBlock* CurrentBlock();
 
-  typedef std::vector<MachineRepresentation,
-                      zone_allocator<MachineRepresentation> >
+  typedef std::vector<MachineType, zone_allocator<MachineType> >
       RepresentationVector;
 
   Schedule* schedule_;

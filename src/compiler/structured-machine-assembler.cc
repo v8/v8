@@ -18,7 +18,7 @@ void Variable::Set(Node* value) const { smasm_->SetVariable(offset_, value); }
 
 StructuredMachineAssembler::StructuredMachineAssembler(
     Graph* graph, MachineCallDescriptorBuilder* call_descriptor_builder,
-    MachineRepresentation word)
+    MachineType word)
     : GraphBuilder(graph),
       schedule_(new (zone()) Schedule(zone())),
       machine_(zone(), word),

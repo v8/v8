@@ -22,17 +22,17 @@ namespace compiler {
 // TODO(titzer): replace with Radium locations when they are ready.
 class LinkageLocation {
  public:
-  LinkageLocation(MachineRepresentation rep, int location)
+  LinkageLocation(MachineType rep, int location)
       : rep_(rep), location_(location) {}
 
-  inline MachineRepresentation representation() const { return rep_; }
+  inline MachineType representation() const { return rep_; }
 
   static const int16_t ANY_REGISTER = 32767;
 
  private:
   friend class CallDescriptor;
   friend class OperandGenerator;
-  MachineRepresentation rep_;
+  MachineType rep_;
   int16_t location_;  // >= 0 implies register, otherwise stack slot.
 };
 
@@ -160,8 +160,8 @@ class Linkage : public ZoneObject {
   // integers and pointers of one word size each, i.e. no floating point,
   // structs, pointers to members, etc.
   static CallDescriptor* GetSimplifiedCDescriptor(
-      Zone* zone, int num_params, MachineRepresentation return_type,
-      const MachineRepresentation* param_types);
+      Zone* zone, int num_params, MachineType return_type,
+      const MachineType* param_types);
 
   // Get the location of an (incoming) parameter to this function.
   LinkageLocation GetParameterLocation(int index) {

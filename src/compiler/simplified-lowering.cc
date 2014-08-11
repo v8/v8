@@ -551,10 +551,10 @@ class RepresentationSelector {
       case IrOpcode::kLoad: {
         // TODO(titzer): machine loads/stores need to know BaseTaggedness!?
         RepType tBase = rTagged;
-        MachineRepresentation rep = OpParameter<MachineRepresentation>(node);
+        MachineType rep = OpParameter<MachineType>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kInt32);  // index
-        SetOutput(node, changer_->TypeForMachineRepresentation(rep));
+        SetOutput(node, changer_->TypeForMachineType(rep));
         break;
       }
       case IrOpcode::kStore: {
@@ -563,7 +563,7 @@ class RepresentationSelector {
         StoreRepresentation rep = OpParameter<StoreRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kInt32);  // index
-        ProcessInput(node, 2, changer_->TypeForMachineRepresentation(rep.rep));
+        ProcessInput(node, 2, changer_->TypeForMachineType(rep.rep));
         SetOutput(node, 0);
         break;
       }
@@ -893,9 +893,9 @@ void SimplifiedLowering::DoChangeBitToBool(Node* node, Node* effect,
 }
 
 
-static WriteBarrierKind ComputeWriteBarrierKind(
-    BaseTaggedness base_is_tagged, MachineRepresentation representation,
-    Type* type) {
+static WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
+                                                MachineType representation,
+                                                Type* type) {
   // TODO(turbofan): skip write barriers for Smis, etc.
   if (base_is_tagged == kTaggedBase && representation == kMachineTagged) {
     // Write barriers are only for writes into heap objects (i.e. tagged base).

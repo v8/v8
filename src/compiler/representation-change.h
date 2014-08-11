@@ -16,7 +16,7 @@ namespace compiler {
 
 // The types and representations tracked during representation inference
 // and change insertion.
-// TODO(titzer): First, merge MachineRepresentation and RepType.
+// TODO(titzer): First, merge MachineType and RepType.
 // TODO(titzer): Second, Use the real type system instead of RepType.
 enum RepType {
   // Representations.
@@ -265,8 +265,8 @@ class RepresentationChanger {
     return TypeError(node, output_type, rWord64);
   }
 
-  static RepType TypeForMachineRepresentation(MachineRepresentation rep) {
-    // TODO(titzer): merge MachineRepresentation and RepType.
+  static RepType TypeForMachineType(MachineType rep) {
+    // TODO(titzer): merge MachineType and RepType.
     switch (rep) {
       case kMachineWord8:
         return rWord32;
@@ -348,13 +348,13 @@ class RepresentationChanger {
 
   RepType TypeForField(const FieldAccess& access) {
     RepType tElement = static_cast<RepType>(0);  // TODO(titzer)
-    RepType rElement = TypeForMachineRepresentation(access.representation);
+    RepType rElement = TypeForMachineType(access.representation);
     return static_cast<RepType>(tElement | rElement);
   }
 
   RepType TypeForElement(const ElementAccess& access) {
     RepType tElement = static_cast<RepType>(0);  // TODO(titzer)
-    RepType rElement = TypeForMachineRepresentation(access.representation);
+    RepType rElement = TypeForMachineType(access.representation);
     return static_cast<RepType>(tElement | rElement);
   }
 

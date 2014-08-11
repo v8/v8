@@ -26,7 +26,7 @@ namespace compiler {
 template <typename R>
 struct ReturnValueTraits {
   static R Cast(uintptr_t r) { return reinterpret_cast<R>(r); }
-  static MachineRepresentation Representation() {
+  static MachineType Representation() {
     // TODO(dcarney): detect when R is of a subclass of Object* instead of this
     // type check.
     while (false) {
@@ -39,7 +39,7 @@ struct ReturnValueTraits {
 template <>
 struct ReturnValueTraits<int32_t*> {
   static int32_t* Cast(uintptr_t r) { return reinterpret_cast<int32_t*>(r); }
-  static MachineRepresentation Representation() {
+  static MachineType Representation() {
     return MachineOperatorBuilder::pointer_rep();
   }
 };
@@ -47,7 +47,7 @@ struct ReturnValueTraits<int32_t*> {
 template <>
 struct ReturnValueTraits<void> {
   static void Cast(uintptr_t r) {}
-  static MachineRepresentation Representation() {
+  static MachineType Representation() {
     return MachineOperatorBuilder::pointer_rep();
   }
 };
@@ -55,7 +55,7 @@ struct ReturnValueTraits<void> {
 template <>
 struct ReturnValueTraits<bool> {
   static bool Cast(uintptr_t r) { return static_cast<bool>(r); }
-  static MachineRepresentation Representation() {
+  static MachineType Representation() {
     return MachineOperatorBuilder::pointer_rep();
   }
 };
@@ -63,31 +63,31 @@ struct ReturnValueTraits<bool> {
 template <>
 struct ReturnValueTraits<int32_t> {
   static int32_t Cast(uintptr_t r) { return static_cast<int32_t>(r); }
-  static MachineRepresentation Representation() { return kMachineWord32; }
+  static MachineType Representation() { return kMachineWord32; }
 };
 
 template <>
 struct ReturnValueTraits<uint32_t> {
   static uint32_t Cast(uintptr_t r) { return static_cast<uint32_t>(r); }
-  static MachineRepresentation Representation() { return kMachineWord32; }
+  static MachineType Representation() { return kMachineWord32; }
 };
 
 template <>
 struct ReturnValueTraits<int64_t> {
   static int64_t Cast(uintptr_t r) { return static_cast<int64_t>(r); }
-  static MachineRepresentation Representation() { return kMachineWord64; }
+  static MachineType Representation() { return kMachineWord64; }
 };
 
 template <>
 struct ReturnValueTraits<uint64_t> {
   static uint64_t Cast(uintptr_t r) { return static_cast<uint64_t>(r); }
-  static MachineRepresentation Representation() { return kMachineWord64; }
+  static MachineType Representation() { return kMachineWord64; }
 };
 
 template <>
 struct ReturnValueTraits<int16_t> {
   static int16_t Cast(uintptr_t r) { return static_cast<int16_t>(r); }
-  static MachineRepresentation Representation() {
+  static MachineType Representation() {
     return MachineOperatorBuilder::pointer_rep();
   }
 };
@@ -95,7 +95,7 @@ struct ReturnValueTraits<int16_t> {
 template <>
 struct ReturnValueTraits<int8_t> {
   static int8_t Cast(uintptr_t r) { return static_cast<int8_t>(r); }
-  static MachineRepresentation Representation() {
+  static MachineType Representation() {
     return MachineOperatorBuilder::pointer_rep();
   }
 };
@@ -106,7 +106,7 @@ struct ReturnValueTraits<double> {
     UNREACHABLE();
     return 0.0;
   }
-  static MachineRepresentation Representation() { return kMachineFloat64; }
+  static MachineType Representation() { return kMachineFloat64; }
 };
 
 
@@ -131,15 +131,11 @@ class CallHelper {
   virtual ~CallHelper() {}
 
   static MachineCallDescriptorBuilder* ToCallDescriptorBuilder(
-      Zone* zone, MachineRepresentation return_type,
-      MachineRepresentation p0 = kMachineLast,
-      MachineRepresentation p1 = kMachineLast,
-      MachineRepresentation p2 = kMachineLast,
-      MachineRepresentation p3 = kMachineLast,
-      MachineRepresentation p4 = kMachineLast) {
+      Zone* zone, MachineType return_type, MachineType p0 = kMachineLast,
+      MachineType p1 = kMachineLast, MachineType p2 = kMachineLast,
+      MachineType p3 = kMachineLast, MachineType p4 = kMachineLast) {
     const int kSize = 5;
-    MachineRepresentation* params =
-        zone->NewArray<MachineRepresentation>(kSize);
+    MachineType* params = zone->NewArray<MachineType>(kSize);
     params[0] = p0;
     params[1] = p1;
     params[2] = p2;
@@ -158,7 +154,7 @@ class CallHelper {
 
  protected:
   virtual void VerifyParameters(int parameter_count,
-                                MachineRepresentation* parameters) = 0;
+                                MachineType* parameters) = 0;
   virtual byte* Generate() = 0;
 
  private:
@@ -280,35 +276,31 @@ class CallHelper {
 
   template <typename P1>
   void VerifyParameters1() {
-    MachineRepresentation parameters[] = {
-        ReturnValueTraits<P1>::Representation()};
+    MachineType parameters[] = {ReturnValueTraits<P1>::Representation()};
     VerifyParameters(ARRAY_SIZE(parameters), parameters);
   }
 
   template <typename P1, typename P2>
   void VerifyParameters2() {
-    MachineRepresentation parameters[] = {
-        ReturnValueTraits<P1>::Representation(),
-        ReturnValueTraits<P2>::Representation()};
+    MachineType parameters[] = {ReturnValueTraits<P1>::Representation(),
+                                ReturnValueTraits<P2>::Representation()};
     VerifyParameters(ARRAY_SIZE(parameters), parameters);
   }
 
   template <typename P1, typename P2, typename P3>
   void VerifyParameters3() {
-    MachineRepresentation parameters[] = {
-        ReturnValueTraits<P1>::Representation(),
-        ReturnValueTraits<P2>::Representation(),
-        ReturnValueTraits<P3>::Representation()};
+    MachineType parameters[] = {ReturnValueTraits<P1>::Representation(),
+                                ReturnValueTraits<P2>::Representation(),
+                                ReturnValueTraits<P3>::Representation()};
     VerifyParameters(ARRAY_SIZE(parameters), parameters);
   }
 
   template <typename P1, typename P2, typename P3, typename P4>
   void VerifyParameters4() {
-    MachineRepresentation parameters[] = {
-        ReturnValueTraits<P1>::Representation(),
-        ReturnValueTraits<P2>::Representation(),
-        ReturnValueTraits<P3>::Representation(),
-        ReturnValueTraits<P4>::Representation()};
+    MachineType parameters[] = {ReturnValueTraits<P1>::Representation(),
+                                ReturnValueTraits<P2>::Representation(),
+                                ReturnValueTraits<P3>::Representation(),
+                                ReturnValueTraits<P4>::Representation()};
     VerifyParameters(ARRAY_SIZE(parameters), parameters);
   }
 #endif

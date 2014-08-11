@@ -394,6 +394,7 @@
         '../../src/compiler/machine-operator-reducer.cc',
         '../../src/compiler/machine-operator-reducer.h',
         '../../src/compiler/machine-operator.h',
+        '../../src/compiler/machine-type.h',
         '../../src/compiler/node-aux-data-inl.h',
         '../../src/compiler/node-aux-data.h',
         '../../src/compiler/node-cache.cc',

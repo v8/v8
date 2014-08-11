@@ -23,7 +23,7 @@ struct FieldAccess {
   int offset;                     // offset of the field, without tag.
   Handle<Name> name;              // debugging only.
   Type* type;                     // type of the field.
-  MachineRepresentation representation;  // machine representation of field.
+  MachineType representation;     // machine representation of field.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -37,7 +37,7 @@ struct ElementAccess {
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int header_size;                // size of the header, without tag.
   Type* type;                     // type of the element.
-  MachineRepresentation representation;  // machine representation of element.
+  MachineType representation;     // machine representation of element.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };

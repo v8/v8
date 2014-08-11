@@ -72,8 +72,8 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
 
 
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(
-    Zone* zone, int num_params, MachineRepresentation return_type,
-    const MachineRepresentation* param_types) {
+    Zone* zone, int num_params, MachineType return_type,
+    const MachineType* param_types) {
   return LinkageHelper::GetSimplifiedCDescriptor<LinkageHelperTraits>(
       zone, num_params, return_type, param_types);
 }

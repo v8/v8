@@ -63,7 +63,7 @@ class StructuredMachineAssembler
 
   StructuredMachineAssembler(
       Graph* graph, MachineCallDescriptorBuilder* call_descriptor_builder,
-      MachineRepresentation word = MachineOperatorBuilder::pointer_rep());
+      MachineType word = MachineOperatorBuilder::pointer_rep());
   virtual ~StructuredMachineAssembler() {}
 
   Isolate* isolate() const { return zone()->isolate(); }
@@ -76,7 +76,7 @@ class StructuredMachineAssembler
   int parameter_count() const {
     return call_descriptor_builder_->parameter_count();
   }
-  const MachineRepresentation* parameter_types() const {
+  const MachineType* parameter_types() const {
     return call_descriptor_builder_->parameter_types();
   }
 
@@ -124,8 +124,7 @@ class StructuredMachineAssembler
   void MergeBackEdgesToLoopHeader(Environment* header,
                                   EnvironmentVector* environments);
 
-  typedef std::vector<MachineRepresentation,
-                      zone_allocator<MachineRepresentation> >
+  typedef std::vector<MachineType, zone_allocator<MachineType> >
       RepresentationVector;
 
   Schedule* schedule_;

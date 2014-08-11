@@ -305,7 +305,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
 
 void InstructionSelector::VisitLoad(Node* node) {
-  MachineRepresentation rep = OpParameter<MachineRepresentation>(node);
+  MachineType rep = OpParameter<MachineType>(node);
   ArmOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -354,7 +354,7 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
-  MachineRepresentation rep = store_rep.rep;
+  MachineType rep = store_rep.rep;
   if (store_rep.write_barrier_kind == kFullWriteBarrier) {
     DCHECK(rep == kMachineTagged);
     // TODO(dcarney): refactor RecordWrite function to take temp registers
