@@ -38,7 +38,7 @@ class Isolate;
 // may be larger than the page size.
 //
 // A store-buffer based write barrier is used to keep track of intergenerational
-// references.  See store-buffer.h.
+// references.  See heap/store-buffer.h.
 //
 // During scavenges and mark-sweep collections we sometimes (after a store
 // buffer overflow) iterate intergenerational pointers without decoding heap

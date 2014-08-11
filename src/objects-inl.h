@@ -23,12 +23,12 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
+#include "src/heap/store-buffer.h"
 #include "src/isolate.h"
 #include "src/lookup.h"
 #include "src/objects.h"
 #include "src/property.h"
 #include "src/prototype.h"
-#include "src/store-buffer.h"
 #include "src/transitions-inl.h"
 #include "src/v8memory.h"
 

@@ -13,6 +13,7 @@
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/frames.h"
+#include "src/heap/store-buffer.h"
 #include "src/heap-profiler.h"
 #include "src/hydrogen.h"
 #include "src/isolate.h"
@@ -21,7 +22,6 @@
 #include "src/runtime-profiler.h"
 #include "src/sampler.h"
 #include "src/serialize.h"
-#include "src/store-buffer.h"
 
 
 namespace v8 {

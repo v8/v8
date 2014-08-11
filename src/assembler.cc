@@ -52,7 +52,6 @@
 #include "src/regexp-stack.h"
 #include "src/runtime.h"
 #include "src/serialize.h"
-#include "src/store-buffer-inl.h"
 #include "src/stub-cache.h"
 #include "src/token.h"
 
