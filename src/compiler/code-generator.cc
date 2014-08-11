@@ -215,9 +215,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   for (int i = 0; i < deopt_count; i++) {
     FrameStateDescriptor* descriptor = code()->GetDeoptimizationEntry(i);
     data->SetAstId(i, descriptor->bailout_id());
-    CHECK_NE(NULL, deoptimization_states_[i]);
-    data->SetTranslationIndex(
-        i, Smi::FromInt(deoptimization_states_[i]->translation_id_));
+    data->SetTranslationIndex(i, Smi::FromInt(0));
     data->SetArgumentsStackHeight(i, Smi::FromInt(0));
     data->SetPc(i, Smi::FromInt(-1));
   }

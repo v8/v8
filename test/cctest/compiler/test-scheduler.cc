@@ -1713,8 +1713,6 @@ static Handle<JSFunction> Compile(const char* source) {
 
 
 TEST(BuildScheduleTrivialLazyDeoptCall) {
-  FLAG_turbo_deoptimization = true;
-
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Graph graph(scope.main_zone());
