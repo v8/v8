@@ -4441,8 +4441,6 @@ Handle<NormalizedMapCache> NormalizedMapCache::New(Isolate* isolate) {
 
 MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
                                          PropertyNormalizationMode mode) {
-  // Only use the cache once it is initialized.
-  if (!IsNormalizedMapCache(this)) return MaybeHandle<Map>();
   DisallowHeapAllocation no_gc;
   Object* value = FixedArray::get(GetIndex(fast_map));
   if (!value->IsMap() ||
@@ -4455,8 +4453,6 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
 
 void NormalizedMapCache::Set(Handle<Map> fast_map,
                              Handle<Map> normalized_map) {
-  // Only use the cache once it is initialized.
-  if (!IsNormalizedMapCache(this)) return;
   DisallowHeapAllocation no_gc;
   DCHECK(normalized_map->is_dictionary_map());
   FixedArray::set(GetIndex(fast_map), *normalized_map);
@@ -6980,11 +6976,14 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map,
   DCHECK(!fast_map->is_dictionary_map());
 
   Isolate* isolate = fast_map->GetIsolate();
-  Handle<NormalizedMapCache> cache(
-      isolate->context()->native_context()->normalized_map_cache());
+  Handle<Object> maybe_cache(isolate->native_context()->normalized_map_cache(),
+                             isolate);
+  bool use_cache = !maybe_cache->IsUndefined();
+  Handle<NormalizedMapCache> cache;
+  if (use_cache) cache = Handle<NormalizedMapCache>::cast(maybe_cache);
 
   Handle<Map> new_map;
-  if (cache->Get(fast_map, mode).ToHandle(&new_map)) {
+  if (use_cache && cache->Get(fast_map, mode).ToHandle(&new_map)) {
 #ifdef VERIFY_HEAP
     if (FLAG_verify_heap) new_map->DictionaryMapVerify();
 #endif
@@ -7008,8 +7007,10 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map,
 #endif
   } else {
     new_map = Map::CopyNormalized(fast_map, mode);
-    cache->Set(fast_map, new_map);
-    isolate->counters()->normalized_maps()->Increment();
+    if (use_cache) {
+      cache->Set(fast_map, new_map);
+      isolate->counters()->normalized_maps()->Increment();
+    }
   }
   fast_map->NotifyLeafMapLayoutChange();
   return new_map;
