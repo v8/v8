@@ -106,6 +106,7 @@ struct ReturnValueTraits<double> {
     UNREACHABLE();
     return 0.0;
   }
+  static MachineRepresentation Representation() { return kMachineFloat64; }
 };
 
 

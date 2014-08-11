@@ -859,7 +859,6 @@
   'js1_5/Regress/regress-404755': [SKIP],
   'js1_5/Regress/regress-451322': [SKIP],
 
-
   # BUG(1040): Allow this test to timeout.
   'js1_5/GC/regress-203278-2': [PASS, TIMEOUT, NO_VARIANTS],
 }],  # 'arch == arm or arch == arm64'
@@ -868,6 +867,9 @@
 ['arch ==  arm64', {
   # BUG(v8:3152): Runs out of stack in debug mode.
   'js1_5/extensions/regress-355497': [FAIL_OK, ['mode == debug', SKIP]],
+
+  # BUG(v8:3503): Times out in debug mode.
+  'js1_5/Regress/regress-280769-2': [PASS, FAIL, ['mode == debug', SKIP]],
 }],  # 'arch ==  arm64'
 
 

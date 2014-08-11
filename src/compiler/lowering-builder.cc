@@ -16,8 +16,12 @@ class LoweringBuilder::NodeVisitor : public NullNodeVisitor {
   explicit NodeVisitor(LoweringBuilder* lowering) : lowering_(lowering) {}
 
   GenericGraphVisit::Control Post(Node* node) {
-    SourcePositionTable::Scope pos(lowering_->source_positions_, node);
-    lowering_->Lower(node);
+    if (lowering_->source_positions_ != NULL) {
+      SourcePositionTable::Scope pos(lowering_->source_positions_, node);
+      lowering_->Lower(node);
+    } else {
+      lowering_->Lower(node);
+    }
     return GenericGraphVisit::CONTINUE;
   }
 

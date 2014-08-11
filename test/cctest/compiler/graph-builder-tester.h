@@ -41,6 +41,8 @@ class MachineCallHelper : public CallHelper {
 
   Node* Parameter(int offset);
 
+  void GenerateCode() { Generate(); }
+
  protected:
   virtual byte* Generate();
   virtual void VerifyParameters(int parameter_count,
@@ -71,7 +73,7 @@ class GraphAndBuilders {
 
  protected:
   // Prefixed with main_ to avoid naiming conflicts.
-  Graph* const main_graph_;
+  Graph* main_graph_;
   CommonOperatorBuilder main_common_;
   MachineOperatorBuilder main_machine_;
   SimplifiedOperatorBuilder main_simplified_;

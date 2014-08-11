@@ -231,7 +231,7 @@ Schedule* Pipeline::ComputeSchedule(Graph* graph) {
 Handle<Code> Pipeline::GenerateCodeForMachineGraph(Linkage* linkage,
                                                    Graph* graph,
                                                    Schedule* schedule) {
-  CHECK(SupportedTarget());
+  CHECK(SupportedBackend());
   if (schedule == NULL) {
     VerifyAndPrintGraph(graph, "Machine");
     schedule = ComputeSchedule(graph);
@@ -257,7 +257,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
   DCHECK_NOT_NULL(graph);
   DCHECK_NOT_NULL(linkage);
   DCHECK_NOT_NULL(schedule);
-  DCHECK(SupportedTarget());
+  CHECK(SupportedBackend());
 
   InstructionSequence sequence(linkage, graph, schedule);
 
