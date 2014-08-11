@@ -47,7 +47,9 @@ HeapObjectIterator::HeapObjectIterator(Page* page,
          owner == page->heap()->code_space());
   Initialize(reinterpret_cast<PagedSpace*>(owner), page->area_start(),
              page->area_end(), kOnePageOnly, size_func);
-  DCHECK(page->WasSweptPrecisely() || page->SweepingCompleted());
+  DCHECK(page->WasSweptPrecisely() ||
+         (static_cast<PagedSpace*>(owner)->swept_precisely() &&
+          page->SweepingCompleted()));
 }
 
 
@@ -81,7 +83,9 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   if (cur_page == space_->anchor()) return false;
   cur_addr_ = cur_page->area_start();
   cur_end_ = cur_page->area_end();
-  DCHECK(cur_page->WasSweptPrecisely());
+  DCHECK(cur_page->WasSweptPrecisely() ||
+         (static_cast<PagedSpace*>(cur_page->owner())->swept_precisely() &&
+          cur_page->SweepingCompleted()));
   return true;
 }
 
