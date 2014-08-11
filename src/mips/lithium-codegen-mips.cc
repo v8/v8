@@ -1164,7 +1164,7 @@ void LCodeGen::DoModI(LModI* instr) {
   const Register result_reg = ToRegister(instr->result());
 
   // div runs in the background while we check for special cases.
-  __ Mod(result_reg, left_reg, right_reg);
+  __ div(left_reg, right_reg);
 
   Label done;
   // Check for x % 0, we have to deopt in this case because we can't return a
@@ -1189,7 +1189,8 @@ void LCodeGen::DoModI(LModI* instr) {
   }
 
   // If we care about -0, test if the dividend is <0 and the result is 0.
-  __ Branch(&done, ge, left_reg, Operand(zero_reg));
+  __ Branch(USE_DELAY_SLOT, &done, ge, left_reg, Operand(zero_reg));
+  __ mfhi(result_reg);
   if (hmod->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(eq, instr->environment(), result_reg, Operand(zero_reg));
   }
@@ -1275,11 +1276,10 @@ void LCodeGen::DoDivI(LDivI* instr) {
   Register dividend = ToRegister(instr->dividend());
   Register divisor = ToRegister(instr->divisor());
   const Register result = ToRegister(instr->result());
-  Register remainder = ToRegister(instr->temp());
 
   // On MIPS div is asynchronous - it will run in the background while we
   // check for special cases.
-  __ Div(remainder, result, dividend, divisor);
+  __ div(dividend, divisor);
 
   // Check for x / 0.
   if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
@@ -1304,7 +1304,11 @@ void LCodeGen::DoDivI(LDivI* instr) {
   }
 
   if (!hdiv->CheckFlag(HValue::kAllUsesTruncatingToInt32)) {
-    DeoptimizeIf(ne, instr->environment(), remainder, Operand(zero_reg));
+    __ mfhi(result);
+    DeoptimizeIf(ne, instr->environment(), result, Operand(zero_reg));
+    __ mflo(result);
+  } else {
+    __ mflo(result);
   }
 }
 
@@ -1429,10 +1433,10 @@ void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
   Register dividend = ToRegister(instr->dividend());
   Register divisor = ToRegister(instr->divisor());
   const Register result = ToRegister(instr->result());
-  Register remainder = scratch0();
+
   // On MIPS div is asynchronous - it will run in the background while we
   // check for special cases.
-  __ Div(remainder, result, dividend, divisor);
+  __ div(dividend, divisor);
 
   // Check for x / 0.
   if (hdiv->CheckFlag(HValue::kCanBeDivByZero)) {
@@ -1458,6 +1462,9 @@ void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
 
   // We performed a truncating division. Correct the result if necessary.
   Label done;
+  Register remainder = scratch0();
+  __ mfhi(remainder);
+  __ mflo(result);
   __ Branch(&done, eq, remainder, Operand(zero_reg), USE_DELAY_SLOT);
   __ Xor(remainder, remainder, Operand(divisor));
   __ Branch(&done, ge, remainder, Operand(zero_reg));
@@ -1546,9 +1553,13 @@ void LCodeGen::DoMulI(LMulI* instr) {
       // hi:lo = left * right.
       if (instr->hydrogen()->representation().IsSmi()) {
         __ SmiUntag(result, left);
-        __ Mul(scratch, result, result, right);
+        __ mult(result, right);
+        __ mfhi(scratch);
+        __ mflo(result);
       } else {
-        __ Mul(scratch, result, left, right);
+        __ mult(left, right);
+        __ mfhi(scratch);
+        __ mflo(result);
       }
       __ sra(at, result, 31);
       DeoptimizeIf(ne, instr->environment(), scratch, Operand(at));
@@ -3729,7 +3740,7 @@ void LCodeGen::DoMathFloor(LMathFloor* instr) {
     // Test for -0.
     Label done;
     __ Branch(&done, ne, result, Operand(zero_reg));
-    __ Mfhc1(scratch1, input);
+    __ mfc1(scratch1, input.high());
     __ And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
     DeoptimizeIf(ne, instr->environment(), scratch1, Operand(zero_reg));
     __ bind(&done);
@@ -3745,7 +3756,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   Label done, check_sign_on_zero;
 
   // Extract exponent bits.
-  __ Mfhc1(result, input);
+  __ mfc1(result, input.high());
   __ Ext(scratch,
          result,
          HeapNumber::kExponentShift,
@@ -3775,7 +3786,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
 
   // Check sign of the result: if the sign changed, the input
   // value was in ]0.5, 0[ and the result should be -0.
-  __ Mfhc1(result, double_scratch0());
+  __ mfc1(result, double_scratch0().high());
   __ Xor(result, result, Operand(scratch));
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     // ARM uses 'mi' here, which is 'lt'
@@ -3805,7 +3816,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
     // Test for -0.
     __ Branch(&done, ne, result, Operand(zero_reg));
     __ bind(&check_sign_on_zero);
-    __ Mfhc1(scratch, input);
+    __ mfc1(scratch, input.high());
     __ And(scratch, scratch, Operand(HeapNumber::kSignMask));
     DeoptimizeIf(ne, instr->environment(), scratch, Operand(zero_reg));
   }
@@ -4832,7 +4843,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     if (deoptimize_on_minus_zero) {
       __ mfc1(at, result_reg.low());
       __ Branch(&done, ne, at, Operand(zero_reg));
-      __ Mfhc1(scratch, result_reg);
+      __ mfc1(scratch, result_reg.high());
       DeoptimizeIf(eq, env, scratch, Operand(HeapNumber::kSignMask));
     }
     __ Branch(&done);
@@ -4930,7 +4941,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ Branch(&done, ne, input_reg, Operand(zero_reg));
 
-      __ Mfhc1(scratch1, double_scratch);
+      __ mfc1(scratch1, double_scratch.high());
       __ And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
       DeoptimizeIf(ne, instr->environment(), scratch1, Operand(zero_reg));
     }
@@ -5018,7 +5029,7 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       Label done;
       __ Branch(&done, ne, result_reg, Operand(zero_reg));
-      __ Mfhc1(scratch1, double_input);
+      __ mfc1(scratch1, double_input.high());
       __ And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
       DeoptimizeIf(ne, instr->environment(), scratch1, Operand(zero_reg));
       __ bind(&done);
@@ -5051,7 +5062,7 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       Label done;
       __ Branch(&done, ne, result_reg, Operand(zero_reg));
-      __ Mfhc1(scratch1, double_input);
+      __ mfc1(scratch1, double_input.high());
       __ And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
       DeoptimizeIf(ne, instr->environment(), scratch1, Operand(zero_reg));
       __ bind(&done);

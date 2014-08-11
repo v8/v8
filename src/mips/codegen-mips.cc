@@ -73,8 +73,7 @@ UnaryMathFunction CreateExpFunction() {
 
 #if defined(V8_HOST_ARCH_MIPS)
 MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
-#if defined(USE_SIMULATOR) || defined(_MIPS_ARCH_MIPS32R6) || \
-    defined(_MIPS_ARCH_MIPS32RX)
+#if defined(USE_SIMULATOR)
   return stub;
 #else
   size_t actual_size;
