@@ -375,7 +375,8 @@ class AccessTester : public HandleAndZoneScope {
         original_elements(orig),
         num_elements(num),
         untagged_array(static_cast<E*>(malloc(ByteSize()))),
-        tagged_array(main_isolate()->factory()->NewByteArray(ByteSize())) {
+        tagged_array(main_isolate()->factory()->NewByteArray(
+            static_cast<int>(ByteSize()))) {
     Reinitialize();
   }
 
@@ -386,7 +387,7 @@ class AccessTester : public HandleAndZoneScope {
   // Nuke both {untagged_array} and {tagged_array} with {original_elements}.
   void Reinitialize() {
     memcpy(untagged_array, original_elements, ByteSize());
-    CHECK_EQ(ByteSize(), tagged_array->length());
+    CHECK_EQ(static_cast<int>(ByteSize()), tagged_array->length());
     E* raw = reinterpret_cast<E*>(tagged_array->GetDataStartAddress());
     memcpy(raw, original_elements, ByteSize());
   }
@@ -510,7 +511,7 @@ class AccessTester : public HandleAndZoneScope {
   void BoundsCheck(int index) {
     CHECK_GE(index, 0);
     CHECK_LT(index, static_cast<int>(num_elements));
-    CHECK_EQ(ByteSize(), tagged_array->length());
+    CHECK_EQ(static_cast<int>(ByteSize()), tagged_array->length());
   }
 };
 
