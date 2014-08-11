@@ -78,7 +78,7 @@ class Accessors : public AllStatic {
   // If true, *object_offset contains offset of object field.
   template <class T>
   static bool IsJSObjectFieldAccessor(typename T::TypeHandle type,
-                                      Handle<String> name,
+                                      Handle<Name> name,
                                       int* object_offset);
 
   static Handle<AccessorInfo> MakeAccessor(

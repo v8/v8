@@ -169,7 +169,7 @@ class IC {
   MaybeHandle<Object> TypeError(const char* type,
                                 Handle<Object> object,
                                 Handle<Object> key);
-  MaybeHandle<Object> ReferenceError(const char* type, Handle<String> name);
+  MaybeHandle<Object> ReferenceError(const char* type, Handle<Name> name);
 
   // Access the target code for the given IC address.
   static inline Code* GetTargetAtAddress(Address address,
@@ -184,11 +184,11 @@ class IC {
 
   // Compute the handler either by compiling or by retrieving a cached version.
   Handle<Code> ComputeHandler(LookupIterator* lookup, Handle<Object> object,
-                              Handle<String> name,
+                              Handle<Name> name,
                               Handle<Object> value = Handle<Code>::null());
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> object,
-                                      Handle<String> name, Handle<Object> value,
+                                      Handle<Name> name, Handle<Object> value,
                                       CacheHolderFlag cache_holder) {
     UNREACHABLE();
     return Handle<Code>::null();
@@ -196,24 +196,24 @@ class IC {
   // Temporary copy of the above, but using a LookupResult.
   // TODO(jkummerow): Migrate callers to LookupIterator and delete these.
   Handle<Code> ComputeStoreHandler(LookupResult* lookup, Handle<Object> object,
-                                   Handle<String> name,
+                                   Handle<Name> name,
                                    Handle<Object> value = Handle<Code>::null());
   virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
                                            Handle<Object> object,
-                                           Handle<String> name,
+                                           Handle<Name> name,
                                            Handle<Object> value,
                                            CacheHolderFlag cache_holder) {
     UNREACHABLE();
     return Handle<Code>::null();
   }
 
-  void UpdateMonomorphicIC(Handle<Code> handler, Handle<String> name);
-  bool UpdatePolymorphicIC(Handle<String> name, Handle<Code> code);
+  void UpdateMonomorphicIC(Handle<Code> handler, Handle<Name> name);
+  bool UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code);
   void UpdateMegamorphicCache(HeapType* type, Name* name, Code* code);
 
-  void CopyICToMegamorphicCache(Handle<String> name);
+  void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
-  void PatchCache(Handle<String> name, Handle<Code> code);
+  void PatchCache(Handle<Name> name, Handle<Code> code);
   Code::Kind kind() const { return kind_; }
   Code::Kind handler_kind() const {
     if (kind_ == Code::KEYED_LOAD_IC) return Code::LOAD_IC;
@@ -469,7 +469,7 @@ class LoadIC: public IC {
                                       ExtraICState extra_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
-                                           Handle<String> name);
+                                           Handle<Name> name);
 
  protected:
   void set_target(Code* code) {
@@ -494,11 +494,11 @@ class LoadIC: public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> object,
-                    Handle<String> name);
+                    Handle<Name> name);
 
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
                                       Handle<Object> object,
-                                      Handle<String> name,
+                                      Handle<Name> name,
                                       Handle<Object> unused,
                                       CacheHolderFlag cache_holder);
 
@@ -628,7 +628,7 @@ class StoreIC: public IC {
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object,
-      Handle<String> name,
+      Handle<Name> name,
       Handle<Object> value,
       JSReceiver::StoreFromKeyed store_mode =
           JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
@@ -654,11 +654,11 @@ class StoreIC: public IC {
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
                     Handle<JSObject> receiver,
-                    Handle<String> name,
+                    Handle<Name> name,
                     Handle<Object> value);
   virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
                                            Handle<Object> object,
-                                           Handle<String> name,
+                                           Handle<Name> name,
                                            Handle<Object> value,
                                            CacheHolderFlag cache_holder);
 

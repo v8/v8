@@ -338,7 +338,7 @@ MaybeHandle<Object> IC::TypeError(const char* type,
 }
 
 
-MaybeHandle<Object> IC::ReferenceError(const char* type, Handle<String> name) {
+MaybeHandle<Object> IC::ReferenceError(const char* type, Handle<Name> name) {
   HandleScope scope(isolate());
   Handle<Object> error = isolate()->factory()->NewReferenceError(
       type, HandleVector(&name, 1));
@@ -590,7 +590,7 @@ static bool MigrateDeprecated(Handle<Object> object) {
 }
 
 
-MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<String> name) {
+MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
@@ -660,7 +660,7 @@ static bool AddOneReceiverMapIfMissing(MapHandleList* receiver_maps,
 }
 
 
-bool IC::UpdatePolymorphicIC(Handle<String> name, Handle<Code> code) {
+bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Code> code) {
   if (!code->is_handler()) return false;
   if (target()->is_keyed_stub() && state() != PROTOTYPE_FAILURE) return false;
   Handle<HeapType> type = receiver_type();
@@ -766,7 +766,7 @@ template
 Handle<HeapType> IC::MapToType<HeapType>(Handle<Map> map, Isolate* region);
 
 
-void IC::UpdateMonomorphicIC(Handle<Code> handler, Handle<String> name) {
+void IC::UpdateMonomorphicIC(Handle<Code> handler, Handle<Name> name) {
   DCHECK(handler->is_handler());
   Handle<Code> ic = PropertyICCompiler::ComputeMonomorphic(
       kind(), name, receiver_type(), handler, extra_ic_state());
@@ -774,7 +774,7 @@ void IC::UpdateMonomorphicIC(Handle<Code> handler, Handle<String> name) {
 }
 
 
-void IC::CopyICToMegamorphicCache(Handle<String> name) {
+void IC::CopyICToMegamorphicCache(Handle<Name> name) {
   TypeHandleList types;
   CodeHandleList handlers;
   TargetTypes(&types);
@@ -800,7 +800,7 @@ bool IC::IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map) {
 }
 
 
-void IC::PatchCache(Handle<String> name, Handle<Code> code) {
+void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
   switch (state()) {
     case UNINITIALIZED:
     case PREMONOMORPHIC:
@@ -873,7 +873,7 @@ Handle<Code> LoadIC::SimpleFieldLoad(FieldIndex index) {
 
 
 void LoadIC::UpdateCaches(LookupIterator* lookup, Handle<Object> object,
-                          Handle<String> name) {
+                          Handle<Name> name) {
   if (state() == UNINITIALIZED) {
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
@@ -913,7 +913,7 @@ void IC::UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {
 
 
 Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> object,
-                                Handle<String> name, Handle<Object> value) {
+                                Handle<Name> name, Handle<Object> value) {
   bool receiver_is_holder =
       object.is_identical_to(lookup->GetHolder<JSObject>());
   CacheHolderFlag flag;
@@ -957,7 +957,7 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> object,
 
 
 Handle<Code> IC::ComputeStoreHandler(LookupResult* lookup,
-                                     Handle<Object> object, Handle<String> name,
+                                     Handle<Object> object, Handle<Name> name,
                                      Handle<Object> value) {
   bool receiver_is_holder = lookup->ReceiverIsHolder(object);
   CacheHolderFlag flag;
@@ -1001,24 +1001,24 @@ Handle<Code> IC::ComputeStoreHandler(LookupResult* lookup,
 
 
 Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
-                                    Handle<Object> object, Handle<String> name,
+                                    Handle<Object> object, Handle<Name> name,
                                     Handle<Object> unused,
                                     CacheHolderFlag cache_holder) {
   if (object->IsString() &&
-      String::Equals(isolate()->factory()->length_string(), name)) {
+      Name::Equals(isolate()->factory()->length_string(), name)) {
     FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset);
     return SimpleFieldLoad(index);
   }
 
   if (object->IsStringWrapper() &&
-      String::Equals(isolate()->factory()->length_string(), name)) {
+      Name::Equals(isolate()->factory()->length_string(), name)) {
     StringLengthStub string_length_stub(isolate());
     return string_length_stub.GetCode();
   }
 
   // Use specialized code for getting prototype of functions.
   if (object->IsJSFunction() &&
-      String::Equals(isolate()->factory()->prototype_string(), name) &&
+      Name::Equals(isolate()->factory()->prototype_string(), name) &&
       Handle<JSFunction>::cast(object)->should_have_prototype() &&
       !Handle<JSFunction>::cast(object)->map()->has_non_instance_prototype()) {
     Handle<Code> stub;
@@ -1237,11 +1237,11 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   // internalized string directly or is representable as a smi.
   key = TryConvertKey(key, isolate());
 
-  if (key->IsInternalizedString()) {
+  if (key->IsInternalizedString() || key->IsSymbol()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(),
         load_handle,
-        LoadIC::Load(object, Handle<String>::cast(key)),
+        LoadIC::Load(object, Handle<Name>::cast(key)),
         Object);
   } else if (FLAG_use_ic && !object->IsAccessCheckNeeded()) {
     if (object->IsString() && key->IsNumber()) {
@@ -1280,7 +1280,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
 }
 
 
-static bool LookupForWrite(Handle<Object> object, Handle<String> name,
+static bool LookupForWrite(Handle<Object> object, Handle<Name> name,
                            Handle<Object> value, LookupResult* lookup, IC* ic) {
   // Disable ICs for non-JSObjects for now.
   if (!object->IsJSObject()) return false;
@@ -1348,7 +1348,7 @@ static bool LookupForWrite(Handle<Object> object, Handle<String> name,
 
 
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object,
-                                   Handle<String> name,
+                                   Handle<Name> name,
                                    Handle<Object> value,
                                    JSReceiver::StoreFromKeyed store_mode) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
@@ -1473,7 +1473,7 @@ Handle<Code> StoreIC::pre_monomorphic_stub(Isolate* isolate,
 
 void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<JSObject> receiver,
-                           Handle<String> name,
+                           Handle<Name> name,
                            Handle<Object> value) {
   DCHECK(lookup->IsFound());
 
@@ -1489,7 +1489,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 
 Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
                                           Handle<Object> object,
-                                          Handle<String> name,
+                                          Handle<Name> name,
                                           Handle<Object> value,
                                           CacheHolderFlag cache_holder) {
   if (object->IsAccessCheckNeeded()) return slow_stub();
