@@ -1325,8 +1325,9 @@ LInstruction* LChunkBuilder::DoDivI(HDiv* instr) {
   DCHECK(instr->right()->representation().Equals(instr->representation()));
   LOperand* dividend = UseRegister(instr->left());
   LOperand* divisor = UseRegister(instr->right());
+  LOperand* temp = TempRegister();
   LInstruction* result =
-      DefineAsRegister(new(zone()) LDivI(dividend, divisor));
+      DefineAsRegister(new(zone()) LDivI(dividend, divisor, temp));
   if (instr->CheckFlag(HValue::kCanBeDivByZero) ||
       instr->CheckFlag(HValue::kBailoutOnMinusZero) ||
       (instr->CheckFlag(HValue::kCanOverflow) &&
@@ -1511,7 +1512,7 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
     return DefineAsRegister(mul);
 
   } else if (instr->representation().IsDouble()) {
-    if (kArchVariant == kMips32r2) {
+    if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
       if (instr->HasOneUse() && instr->uses().value()->IsAdd()) {
         HAdd* add = HAdd::cast(instr->uses().value());
         if (instr == add->left()) {
@@ -1584,7 +1585,7 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
     LInstruction* result = DefineAsRegister(add);
     return result;
   } else if (instr->representation().IsDouble()) {
-    if (kArchVariant == kMips32r2) {
+    if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
       if (instr->left()->IsMul())
         return DoMultiplyAdd(HMul::cast(instr->left()), instr->right());
 
