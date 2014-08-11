@@ -34,8 +34,7 @@ RawMachineAssembler::RawMachineAssembler(
 Schedule* RawMachineAssembler::Export() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
-  Scheduler scheduler(zone(), graph(), schedule_);
-  scheduler.ComputeSpecialRPO();
+  Scheduler::ComputeSpecialRPO(schedule_);
   // Invalidate MachineAssembler.
   Schedule* schedule = schedule_;
   schedule_ = NULL;

@@ -18,14 +18,15 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Computes a schedule from a graph, placing nodes into basic blocks and
+// ordering the basic blocks in the special RPO order.
 class Scheduler {
  public:
-  explicit Scheduler(Zone* zone);
-  Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
+  // Create a new schedule and place all computations from the graph in it.
+  static Schedule* ComputeSchedule(Graph* graph);
 
-  Schedule* NewSchedule(Graph* graph);
-
-  BasicBlockVector* ComputeSpecialRPO();
+  // Compute the RPO of blocks in an existing schedule.
+  static BasicBlockVector* ComputeSpecialRPO(Schedule* schedule);
 
  private:
   Zone* zone_;
@@ -41,6 +42,8 @@ class Scheduler {
   NodeVectorVector scheduled_nodes_;
   NodeVector schedule_root_nodes_;
   IntVector schedule_early_rpo_index_;
+
+  Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
 
   int GetRPONumber(BasicBlock* block) {
     DCHECK(block->rpo_number_ >= 0 &&

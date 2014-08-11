@@ -51,8 +51,7 @@ class InstructionTester : public HandleAndZoneScope {
   void allocCode() {
     if (schedule.rpo_order()->size() == 0) {
       // Compute the RPO order.
-      Scheduler scheduler(zone(), &graph, &schedule);
-      scheduler.ComputeSpecialRPO();
+      Scheduler::ComputeSpecialRPO(&schedule);
       DCHECK(schedule.rpo_order()->size() > 0);
     }
     code = new TestInstrSeq(&linkage, &graph, &schedule);
