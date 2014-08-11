@@ -40,7 +40,6 @@ class NodeProperties {
 
   static inline int GetContextIndex(Node* node);
 
- private:
   static inline int FirstValueIndex(Node* node);
   static inline int FirstEffectIndex(Node* node);
   static inline int FirstControlIndex(Node* node);

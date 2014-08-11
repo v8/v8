@@ -36,13 +36,27 @@ enum RepType {
   tAny = 1 << 11
 };
 
+#define REP_TYPE_STRLEN 24
+
 typedef uint16_t RepTypeUnion;
+
+
+inline void RenderRepTypeUnion(char* buf, RepTypeUnion info) {
+  base::OS::SNPrintF(buf, REP_TYPE_STRLEN, "{%s%s%s%s%s %s%s%s%s%s%s%s}",
+                     (info & rBit) ? "k" : " ", (info & rWord32) ? "w" : " ",
+                     (info & rWord64) ? "q" : " ",
+                     (info & rFloat64) ? "f" : " ",
+                     (info & rTagged) ? "t" : " ", (info & tBool) ? "Z" : " ",
+                     (info & tInt32) ? "I" : " ", (info & tUint32) ? "U" : " ",
+                     (info & tInt64) ? "L" : " ", (info & tUint64) ? "J" : " ",
+                     (info & tNumber) ? "N" : " ", (info & tAny) ? "*" : " ");
+}
+
 
 const RepTypeUnion rMask = rBit | rWord32 | rWord64 | rFloat64 | rTagged;
 const RepTypeUnion tMask =
     tBool | tInt32 | tUint32 | tInt64 | tUint64 | tNumber | tAny;
 const RepType rPtr = kPointerSize == 4 ? rWord32 : rWord64;
-
 
 // Contains logic related to changing the representation of values for constants
 // and other nodes, as well as lowering Simplified->Machine operators.
@@ -344,10 +358,24 @@ class RepresentationChanger {
     return static_cast<RepType>(tElement | rElement);
   }
 
-  RepType TypeForBasePointer(Node* node) {
-    Type* upper = NodeProperties::GetBounds(node).upper;
-    if (upper->Is(Type::UntaggedPtr())) return rPtr;
-    return static_cast<RepType>(tAny | rTagged);
+  RepType TypeForBasePointer(const FieldAccess& access) {
+    if (access.tag() != 0) return static_cast<RepType>(tAny | rTagged);
+    return kPointerSize == 8 ? rWord64 : rWord32;
+  }
+
+  RepType TypeForBasePointer(const ElementAccess& access) {
+    if (access.tag() != 0) return static_cast<RepType>(tAny | rTagged);
+    return kPointerSize == 8 ? rWord64 : rWord32;
+  }
+
+  RepType TypeFromUpperBound(Type* type) {
+    if (type->Is(Type::None()))
+      return tAny;  // TODO(titzer): should be an error
+    if (type->Is(Type::Signed32())) return tInt32;
+    if (type->Is(Type::Unsigned32())) return tUint32;
+    if (type->Is(Type::Number())) return tNumber;
+    if (type->Is(Type::Boolean())) return tBool;
+    return tAny;
   }
 
  private:
@@ -364,7 +392,14 @@ class RepresentationChanger {
   Node* TypeError(Node* node, RepTypeUnion output_type, RepTypeUnion use) {
     type_error_ = true;
     if (!testing_type_errors_) {
-      UNREACHABLE();  // TODO(titzer): report nicer type error
+      char buf1[REP_TYPE_STRLEN];
+      char buf2[REP_TYPE_STRLEN];
+      RenderRepTypeUnion(buf1, output_type);
+      RenderRepTypeUnion(buf2, use);
+      V8_Fatal(__FILE__, __LINE__,
+               "RepresentationChangerError: node #%d:%s of rep"
+               "%s cannot be changed to rep%s",
+               node->id(), node->op()->mnemonic(), buf1, buf2);
     }
     return node;
   }

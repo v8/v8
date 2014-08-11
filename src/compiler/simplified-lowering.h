@@ -25,21 +25,16 @@ class SimplifiedLowering : public LoweringBuilder {
         machine_(jsgraph->zone()) {}
   virtual ~SimplifiedLowering() {}
 
+  void LowerAllNodes();
+
   virtual void Lower(Node* node);
+  void LowerChange(Node* node, Node* effect, Node* control);
 
   // TODO(titzer): These are exposed for direct testing. Use a friend class.
-  void DoChangeTaggedToUI32(Node* node, Node* effect, Node* control,
-                            bool is_signed);
-  void DoChangeUI32ToTagged(Node* node, Node* effect, Node* control,
-                            bool is_signed);
-  void DoChangeTaggedToFloat64(Node* node, Node* effect, Node* control);
-  void DoChangeFloat64ToTagged(Node* node, Node* effect, Node* control);
-  void DoChangeBoolToBit(Node* node, Node* effect, Node* control);
-  void DoChangeBitToBool(Node* node, Node* effect, Node* control);
-  void DoLoadField(Node* node, Node* effect, Node* control);
-  void DoStoreField(Node* node, Node* effect, Node* control);
-  void DoLoadElement(Node* node, Node* effect, Node* control);
-  void DoStoreElement(Node* node, Node* effect, Node* control);
+  void DoLoadField(Node* node);
+  void DoStoreField(Node* node);
+  void DoLoadElement(Node* node);
+  void DoStoreElement(Node* node);
 
  private:
   JSGraph* jsgraph_;
@@ -49,8 +44,18 @@ class SimplifiedLowering : public LoweringBuilder {
   Node* IsTagged(Node* node);
   Node* Untag(Node* node);
   Node* OffsetMinusTagConstant(int32_t offset);
-
   Node* ComputeIndex(const ElementAccess& access, Node* index);
+
+  void DoChangeTaggedToUI32(Node* node, Node* effect, Node* control,
+                            bool is_signed);
+  void DoChangeUI32ToTagged(Node* node, Node* effect, Node* control,
+                            bool is_signed);
+  void DoChangeTaggedToFloat64(Node* node, Node* effect, Node* control);
+  void DoChangeFloat64ToTagged(Node* node, Node* effect, Node* control);
+  void DoChangeBoolToBit(Node* node, Node* effect, Node* control);
+  void DoChangeBitToBool(Node* node, Node* effect, Node* control);
+
+  friend class RepresentationSelector;
 
   Zone* zone() { return jsgraph_->zone(); }
   JSGraph* jsgraph() { return jsgraph_; }
