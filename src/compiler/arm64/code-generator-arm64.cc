@@ -611,7 +611,6 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   }
   __ bind(&check);
   __ Cset(reg, cc);
-  __ B(&done);
   __ Bind(&done);
 }
 

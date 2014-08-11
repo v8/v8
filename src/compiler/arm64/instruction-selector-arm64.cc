@@ -184,7 +184,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   if (g.CanBeImmediate(index, kLoadStoreImm)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI), result,
          g.UseRegister(base), g.UseImmediate(index));
-  } else if (g.CanBeImmediate(index, kLoadStoreImm)) {
+  } else if (g.CanBeImmediate(base, kLoadStoreImm)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI), result,
          g.UseRegister(index), g.UseImmediate(base));
   } else {
