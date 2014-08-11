@@ -16,8 +16,7 @@ namespace internal {
 namespace compiler {
 
 Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
-    : zone_(zone),
-      graph_(graph),
+    : graph_(graph),
       schedule_(schedule),
       branches_(NodeVector::allocator_type(zone)),
       calls_(NodeVector::allocator_type(zone)),
