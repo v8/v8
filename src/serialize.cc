@@ -1338,6 +1338,7 @@ void StartupSerializer::SerializeObject(
     int skip) {
   CHECK(o->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(o);
+  DCHECK(!heap_object->IsJSFunction());
 
   int root_index;
   if ((root_index = RootIndex(heap_object, how_to_code)) != kInvalidRootIndex) {

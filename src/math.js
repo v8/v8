@@ -372,7 +372,7 @@ function MathLog1p(x) {
 function SetUpMath() {
   %CheckIsBootstrapping();
 
-  %SetPrototype($Math, $Object.prototype);
+  %InternalSetPrototype($Math, $Object.prototype);
   %AddNamedProperty(global, "Math", $Math, DONT_ENUM);
   %FunctionSetInstanceClassName(MathConstructor, 'Math');
 
