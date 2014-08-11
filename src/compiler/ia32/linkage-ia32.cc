@@ -45,9 +45,10 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count) {
+    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
+    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
   return LinkageHelper::GetStubCallDescriptor<LinkageHelperTraits>(
-      this->info_->zone(), descriptor, stack_parameter_count);
+      zone, descriptor, stack_parameter_count, can_deoptimize);
 }
 
 
