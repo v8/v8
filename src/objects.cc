@@ -1052,11 +1052,10 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
                   resource->length() * sizeof(smart_chars[0])) == 0);
   }
 #endif  // DEBUG
-  Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
-  if (size < ExternalString::kShortSize) {
-    return false;
-  }
+  // Abort if size does not allow in-place conversion.
+  if (size < ExternalString::kShortSize) return false;
+  Heap* heap = GetHeap();
   bool is_ascii = this->IsOneByteRepresentation();
   bool is_internalized = this->IsInternalizedString();
 
@@ -1109,6 +1108,9 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 
 bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
+  // Externalizing twice leaks the external resource, so it's
+  // prohibited by the API.
+  DCHECK(!this->IsExternalString());
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
@@ -1125,11 +1127,10 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
                   resource->length() * sizeof(smart_chars[0])) == 0);
   }
 #endif  // DEBUG
-  Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
-  if (size < ExternalString::kShortSize) {
-    return false;
-  }
+  // Abort if size does not allow in-place conversion.
+  if (size < ExternalString::kShortSize) return false;
+  Heap* heap = GetHeap();
   bool is_internalized = this->IsInternalizedString();
 
   // Morph the string to an external string by replacing the map and

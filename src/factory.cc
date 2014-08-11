@@ -270,6 +270,7 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
   int length = string.length();
   const uc16* start = string.start();
   if (String::IsOneByte(start, length)) {
+    if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(),
