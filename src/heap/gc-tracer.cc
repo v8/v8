@@ -38,6 +38,8 @@ GCTracer::Event::Event(Type type, const char* gc_reason,
       incremental_marking_bytes(0),
       cumulative_incremental_marking_duration(0.0),
       incremental_marking_duration(0.0),
+      cumulative_pure_incremental_marking_duration(0.0),
+      pure_incremental_marking_duration(0.0),
       longest_incremental_marking_step(0.0) {
   for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
     scopes[i] = 0;
@@ -75,6 +77,7 @@ GCTracer::GCTracer(Heap* heap)
       cumulative_incremental_marking_steps_(0),
       cumulative_incremental_marking_bytes_(0),
       cumulative_incremental_marking_duration_(0.0),
+      cumulative_pure_incremental_marking_duration_(0.0),
       longest_incremental_marking_step_(0.0),
       cumulative_marking_duration_(0.0),
       cumulative_sweeping_duration_(0.0) {
@@ -107,6 +110,8 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
       cumulative_incremental_marking_bytes_;
   current_.cumulative_incremental_marking_duration =
       cumulative_incremental_marking_duration_;
+  current_.cumulative_pure_incremental_marking_duration =
+      cumulative_pure_incremental_marking_duration_;
   current_.longest_incremental_marking_step = longest_incremental_marking_step_;
 
   for (int i = 0; i < Scope::NUMBER_OF_SCOPES; i++) {
@@ -131,6 +136,9 @@ void GCTracer::Stop() {
     current_.incremental_marking_duration =
         current_.cumulative_incremental_marking_duration -
         previous_.cumulative_incremental_marking_duration;
+    current_.pure_incremental_marking_duration =
+        current_.cumulative_pure_incremental_marking_duration -
+        previous_.cumulative_pure_incremental_marking_duration;
     scavenger_events_.push_front(current_);
   } else {
     current_.incremental_marking_steps =
@@ -142,6 +150,10 @@ void GCTracer::Stop() {
     current_.incremental_marking_duration =
         current_.cumulative_incremental_marking_duration -
         previous_mark_compactor_event_.cumulative_incremental_marking_duration;
+    current_.pure_incremental_marking_duration =
+        current_.cumulative_pure_incremental_marking_duration -
+        previous_mark_compactor_event_
+            .cumulative_pure_incremental_marking_duration;
     longest_incremental_marking_step_ = 0.0;
     mark_compactor_events_.push_front(current_);
   }
@@ -177,6 +189,9 @@ void GCTracer::AddIncrementalMarkingStep(double duration, intptr_t bytes) {
   longest_incremental_marking_step_ =
       Max(longest_incremental_marking_step_, duration);
   cumulative_marking_duration_ += duration;
+  if (bytes > 0) {
+    cumulative_pure_incremental_marking_duration_ += duration;
+  }
 }
 
 
@@ -367,7 +382,7 @@ intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   // Use data from GCTracer instead of data from event buffers.
   if (mark_compactor_events_.empty()) {
     return static_cast<intptr_t>(cumulative_incremental_marking_bytes_ /
-                                 cumulative_incremental_marking_duration_);
+                                 cumulative_pure_incremental_marking_duration_);
   }
 
   intptr_t bytes = 0;
@@ -375,7 +390,7 @@ intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   EventBuffer::const_iterator iter = mark_compactor_events_.begin();
   while (iter != mark_compactor_events_.end()) {
     bytes += iter->incremental_marking_bytes;
-    durations += iter->incremental_marking_duration;
+    durations += iter->pure_incremental_marking_duration;
     ++iter;
   }
 
