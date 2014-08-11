@@ -36,6 +36,7 @@ function EQUALS(y) {
       while (true) {
         if (IS_NUMBER(y)) return %NumberEquals(x, y);
         if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+        if (IS_SYMBOL(y)) return 1;  // not equal
         if (!IS_SPEC_OBJECT(y)) {
           // String or boolean.
           return %NumberEquals(x, %ToNumber(y));
@@ -501,7 +502,7 @@ function ToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return NAN;
-  if (IS_SYMBOL(x)) return NAN;
+  if (IS_SYMBOL(x)) throw MakeTypeError('symbol_to_number', []);
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
@@ -512,7 +513,7 @@ function NonNumberToNumber(x) {
   }
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return NAN;
-  if (IS_SYMBOL(x)) return NAN;
+  if (IS_SYMBOL(x)) throw MakeTypeError('symbol_to_number', []);
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 }
 
