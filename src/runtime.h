@@ -260,6 +260,7 @@ namespace internal {
   F(CreateSymbol, 1, 1)                                               \
   F(CreatePrivateSymbol, 1, 1)                                        \
   F(CreateGlobalPrivateSymbol, 1, 1)                                  \
+  F(CreatePrivateOwnSymbol, 1, 1)                                     \
   F(NewSymbolWrapper, 1, 1)                                           \
   F(SymbolDescription, 1, 1)                                          \
   F(SymbolRegistry, 0, 1)                                             \
