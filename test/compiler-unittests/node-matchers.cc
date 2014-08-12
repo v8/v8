@@ -8,6 +8,7 @@
 
 #include "src/compiler/node-properties-inl.h"
 
+using testing::MakeMatcher;
 using testing::MatcherInterface;
 using testing::MatchResultListener;
 using testing::StringMatchResultListener;
