@@ -23,12 +23,11 @@ namespace compiler {
 // Inputs are always arranged in order as follows:
 //     0 [ values, context, effects, control ] node->InputCount()
 
+inline int NodeProperties::FirstValueIndex(Node* node) { return 0; }
 
-inline int NodeProperties::GetContextIndex(Node* node) {
+inline int NodeProperties::FirstContextIndex(Node* node) {
   return PastValueIndex(node);
 }
-
-inline int NodeProperties::FirstValueIndex(Node* node) { return 0; }
 
 inline int NodeProperties::FirstEffectIndex(Node* node) {
   return PastContextIndex(node);
@@ -45,7 +44,7 @@ inline int NodeProperties::PastValueIndex(Node* node) {
 }
 
 inline int NodeProperties::PastContextIndex(Node* node) {
-  return GetContextIndex(node) +
+  return FirstContextIndex(node) +
          OperatorProperties::GetContextInputCount(node->op());
 }
 
@@ -71,7 +70,7 @@ inline Node* NodeProperties::GetValueInput(Node* node, int index) {
 
 inline Node* NodeProperties::GetContextInput(Node* node) {
   DCHECK(OperatorProperties::HasContextInput(node->op()));
-  return node->InputAt(GetContextIndex(node));
+  return node->InputAt(FirstContextIndex(node));
 }
 
 inline Node* NodeProperties::GetEffectInput(Node* node, int index) {
@@ -106,7 +105,7 @@ inline bool NodeProperties::IsValueEdge(Node::Edge edge) {
 
 inline bool NodeProperties::IsContextEdge(Node::Edge edge) {
   Node* node = edge.from();
-  return IsInputRange(edge, GetContextIndex(node),
+  return IsInputRange(edge, FirstContextIndex(node),
                       OperatorProperties::GetContextInputCount(node->op()));
 }
 
@@ -134,13 +133,14 @@ inline bool NodeProperties::IsControl(Node* node) {
 // -----------------------------------------------------------------------------
 // Miscellaneous mutators.
 
+inline void NodeProperties::ReplaceControlInput(Node* node, Node* control) {
+  node->ReplaceInput(FirstControlIndex(node), control);
+}
+
 inline void NodeProperties::ReplaceEffectInput(Node* node, Node* effect,
                                                int index) {
   DCHECK(index < OperatorProperties::GetEffectInputCount(node->op()));
-  return node->ReplaceInput(
-      OperatorProperties::GetValueInputCount(node->op()) +
-          OperatorProperties::GetContextInputCount(node->op()) + index,
-      effect);
+  return node->ReplaceInput(FirstEffectIndex(node) + index, effect);
 }
 
 inline void NodeProperties::RemoveNonValueInputs(Node* node) {

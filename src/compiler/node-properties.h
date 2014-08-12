@@ -29,6 +29,7 @@ class NodeProperties {
 
   static inline bool IsControl(Node* node);
 
+  static inline void ReplaceControlInput(Node* node, Node* control);
   static inline void ReplaceEffectInput(Node* node, Node* effect,
                                         int index = 0);
   static inline void RemoveNonValueInputs(Node* node);
@@ -36,9 +37,9 @@ class NodeProperties {
   static inline Bounds GetBounds(Node* node);
   static inline void SetBounds(Node* node, Bounds bounds);
 
-  static inline int GetContextIndex(Node* node);
-
+ private:
   static inline int FirstValueIndex(Node* node);
+  static inline int FirstContextIndex(Node* node);
   static inline int FirstEffectIndex(Node* node);
   static inline int FirstControlIndex(Node* node);
   static inline int PastValueIndex(Node* node);

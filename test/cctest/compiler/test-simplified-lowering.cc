@@ -707,7 +707,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     Node* tb = graph()->NewNode(common()->IfTrue(), br);
     Node* fb = graph()->NewNode(common()->IfFalse(), br);
     Node* m = graph()->NewNode(common()->Merge(2), tb, fb);
-    ret->ReplaceInput(NodeProperties::FirstControlIndex(ret), m);
+    NodeProperties::ReplaceControlInput(ret, m);
     return br;
   }
 
