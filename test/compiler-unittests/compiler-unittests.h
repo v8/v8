@@ -13,23 +13,23 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// The COMPILER_TEST(Case, Name) macro works just like
+// The TARGET_TEST(Case, Name) macro works just like
 // TEST(Case, Name), except that the test is disabled
 // if the platform is not a supported TurboFan target.
 #if V8_TURBOFAN_TARGET
-#define COMPILER_TEST(Case, Name) TEST(Case, Name)
+#define TARGET_TEST(Case, Name) TEST(Case, Name)
 #else
-#define COMPILER_TEST(Case, Name) TEST(Case, DISABLED_##Name)
+#define TARGET_TEST(Case, Name) TEST(Case, DISABLED_##Name)
 #endif
 
 
-// The COMPILER_TEST_F(Case, Name) macro works just like
+// The TARGET_TEST_F(Case, Name) macro works just like
 // TEST_F(Case, Name), except that the test is disabled
 // if the platform is not a supported TurboFan target.
 #if V8_TURBOFAN_TARGET
-#define COMPILER_TEST_F(Case, Name) TEST_F(Case, Name)
+#define TARGET_TEST_F(Case, Name) TEST_F(Case, Name)
 #else
-#define COMPILER_TEST_F(Case, Name) TEST_F(Case, DISABLED_##Name)
+#define TARGET_TEST_F(Case, Name) TEST_F(Case, DISABLED_##Name)
 #endif
 
 
