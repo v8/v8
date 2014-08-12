@@ -23,6 +23,7 @@
 #include "src/compiler/verifier.h"
 #include "src/hydrogen.h"
 #include "src/ostreams.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -74,9 +75,25 @@ class PhaseStats {
 
 void Pipeline::VerifyAndPrintGraph(Graph* graph, const char* phase) {
   if (FLAG_trace_turbo) {
+    char buffer[256];
+    Vector<char> filename(buffer, sizeof(buffer));
+    SmartArrayPointer<char> functionname =
+        info_->shared_info()->DebugName()->ToCString();
+    if (strlen(functionname.get()) > 0) {
+      SNPrintF(filename, "turbo-%s-%s.dot", functionname.get(), phase);
+    } else {
+      SNPrintF(filename, "turbo-%p-%s.dot", static_cast<void*>(info_), phase);
+    }
+    std::replace(filename.start(), filename.start() + filename.length(), ' ',
+                 '_');
+    FILE* file = base::OS::FOpen(filename.start(), "w+");
+    OFStream of(file);
+    of << AsDOT(*graph);
+    fclose(file);
+
     OFStream os(stdout);
-    os << "-- " << phase << " graph -----------------------------------\n"
-       << AsDOT(*graph);
+    os << "-- " << phase << " graph printed to file " << filename.start()
+       << "\n";
   }
   if (VerifyGraphs()) Verifier::Run(graph);
 }
