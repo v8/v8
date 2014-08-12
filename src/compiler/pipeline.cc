@@ -14,6 +14,7 @@
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-typed-lowering.h"
+#include "src/compiler/phi-reducer.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
@@ -143,6 +144,17 @@ Handle<Code> Pipeline::GenerateCode() {
                                                &source_positions);
     graph_builder.CreateGraph();
     context_node = graph_builder.GetFunctionContext();
+  }
+  {
+    PhaseStats phi_reducer_stats(info(), PhaseStats::CREATE_GRAPH,
+                                 "phi reduction");
+    PhiReducer phi_reducer;
+    GraphReducer graph_reducer(&graph);
+    graph_reducer.AddReducer(&phi_reducer);
+    graph_reducer.ReduceGraph();
+    // TODO(mstarzinger): Running reducer once ought to be enough for everyone.
+    graph_reducer.ReduceGraph();
+    graph_reducer.ReduceGraph();
   }
 
   VerifyAndPrintGraph(&graph, "Initial untyped");
