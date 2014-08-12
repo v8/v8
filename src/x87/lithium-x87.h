@@ -426,7 +426,7 @@ class LLazyBailout V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 
 class LDummy V8_FINAL : public LTemplateInstruction<1, 0, 0> {
  public:
-  explicit LDummy() { }
+  LDummy() {}
   DECLARE_CONCRETE_INSTRUCTION(Dummy, "dummy")
 };
 

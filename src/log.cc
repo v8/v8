@@ -693,7 +693,7 @@ class Ticker: public Sampler {
 // Profiler implementation.
 //
 Profiler::Profiler(Isolate* isolate)
-    : base::Thread("v8:Profiler"),
+    : base::Thread(Options("v8:Profiler")),
       isolate_(isolate),
       head_(0),
       tail_(0),
@@ -701,8 +701,7 @@ Profiler::Profiler(Isolate* isolate)
       buffer_semaphore_(0),
       engaged_(false),
       running_(false),
-      paused_(false) {
-}
+      paused_(false) {}
 
 
 void Profiler::Engage() {

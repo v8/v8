@@ -428,7 +428,7 @@ class Thread {
   class Options {
    public:
     Options() : name_("v8:<unknown>"), stack_size_(0) {}
-    Options(const char* name, int stack_size = 0)
+    explicit Options(const char* name, int stack_size = 0)
         : name_(name), stack_size_(stack_size) {}
 
     const char* name() const { return name_; }

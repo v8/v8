@@ -32,8 +32,9 @@ namespace {
 class ThreadWithMutexAndConditionVariable V8_FINAL : public Thread {
  public:
   ThreadWithMutexAndConditionVariable()
-      : Thread("ThreadWithMutexAndConditionVariable"),
-        running_(false), finished_(false) {}
+      : Thread(Options("ThreadWithMutexAndConditionVariable")),
+        running_(false),
+        finished_(false) {}
   virtual ~ThreadWithMutexAndConditionVariable() {}
 
   virtual void Run() V8_OVERRIDE {
@@ -110,8 +111,11 @@ namespace {
 class ThreadWithSharedMutexAndConditionVariable V8_FINAL : public Thread {
  public:
   ThreadWithSharedMutexAndConditionVariable()
-      : Thread("ThreadWithSharedMutexAndConditionVariable"),
-        running_(false), finished_(false), cv_(NULL), mutex_(NULL) {}
+      : Thread(Options("ThreadWithSharedMutexAndConditionVariable")),
+        running_(false),
+        finished_(false),
+        cv_(NULL),
+        mutex_(NULL) {}
   virtual ~ThreadWithSharedMutexAndConditionVariable() {}
 
   virtual void Run() V8_OVERRIDE {
@@ -216,14 +220,15 @@ namespace {
 
 class LoopIncrementThread V8_FINAL : public Thread {
  public:
-  LoopIncrementThread(int rem,
-                      int* counter,
-                      int limit,
-                      int thread_count,
-                      ConditionVariable* cv,
-                      Mutex* mutex)
-      : Thread("LoopIncrementThread"), rem_(rem), counter_(counter),
-        limit_(limit), thread_count_(thread_count), cv_(cv), mutex_(mutex) {
+  LoopIncrementThread(int rem, int* counter, int limit, int thread_count,
+                      ConditionVariable* cv, Mutex* mutex)
+      : Thread(Options("LoopIncrementThread")),
+        rem_(rem),
+        counter_(counter),
+        limit_(limit),
+        thread_count_(thread_count),
+        cv_(cv),
+        mutex_(mutex) {
     EXPECT_LT(rem, thread_count);
     EXPECT_EQ(0, limit % thread_count);
   }

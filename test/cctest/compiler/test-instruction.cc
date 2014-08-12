@@ -25,7 +25,7 @@ typedef v8::internal::compiler::InstructionSequence TestInstrSeq;
 // A testing helper for the register code abstraction.
 class InstructionTester : public HandleAndZoneScope {
  public:  // We're all friends here.
-  explicit InstructionTester()
+  InstructionTester()
       : isolate(main_isolate()),
         graph(zone()),
         schedule(zone()),

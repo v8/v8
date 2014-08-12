@@ -22,22 +22,22 @@ class SharedFunctionInfo;
 
 class OptimizingCompilerThread : public base::Thread {
  public:
-  explicit OptimizingCompilerThread(Isolate *isolate) :
-      Thread("OptimizingCompilerThread"),
+  explicit OptimizingCompilerThread(Isolate* isolate)
+      : Thread(Options("OptimizingCompilerThread")),
 #ifdef DEBUG
-      thread_id_(0),
+        thread_id_(0),
 #endif
-      isolate_(isolate),
-      stop_semaphore_(0),
-      input_queue_semaphore_(0),
-      input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
-      input_queue_length_(0),
-      input_queue_shift_(0),
-      osr_buffer_capacity_(FLAG_concurrent_recompilation_queue_length + 4),
-      osr_buffer_cursor_(0),
-      osr_hits_(0),
-      osr_attempts_(0),
-      blocked_jobs_(0) {
+        isolate_(isolate),
+        stop_semaphore_(0),
+        input_queue_semaphore_(0),
+        input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
+        input_queue_length_(0),
+        input_queue_shift_(0),
+        osr_buffer_capacity_(FLAG_concurrent_recompilation_queue_length + 4),
+        osr_buffer_cursor_(0),
+        osr_hits_(0),
+        osr_attempts_(0),
+        blocked_jobs_(0) {
     base::NoBarrier_Store(&stop_thread_,
                           static_cast<base::AtomicWord>(CONTINUE));
     input_queue_ = NewArray<OptimizedCompileJob*>(input_queue_capacity_);

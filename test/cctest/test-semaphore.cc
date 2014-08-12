@@ -39,7 +39,7 @@ using namespace ::v8::internal;
 class WaitAndSignalThread V8_FINAL : public v8::base::Thread {
  public:
   explicit WaitAndSignalThread(v8::base::Semaphore* semaphore)
-      : Thread("WaitAndSignalThread"), semaphore_(semaphore) {}
+      : Thread(Options("WaitAndSignalThread")), semaphore_(semaphore) {}
   virtual ~WaitAndSignalThread() {}
 
   virtual void Run() V8_OVERRIDE {
@@ -117,7 +117,7 @@ static v8::base::Semaphore used_space(0);
 
 class ProducerThread V8_FINAL : public v8::base::Thread {
  public:
-  ProducerThread() : Thread("ProducerThread") {}
+  ProducerThread() : Thread(Options("ProducerThread")) {}
   virtual ~ProducerThread() {}
 
   virtual void Run() V8_OVERRIDE {
@@ -132,7 +132,7 @@ class ProducerThread V8_FINAL : public v8::base::Thread {
 
 class ConsumerThread V8_FINAL : public v8::base::Thread {
  public:
-  ConsumerThread() : Thread("ConsumerThread") {}
+  ConsumerThread() : Thread(Options("ConsumerThread")) {}
   virtual ~ConsumerThread() {}
 
   virtual void Run() V8_OVERRIDE {
