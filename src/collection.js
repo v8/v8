@@ -23,7 +23,7 @@ function SetConstructor(iterable) {
   var iter, adder;
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    iter = GetIterator(iterable);
+    iter = GetIterator(ToObject(iterable));
     adder = this.add;
     if (!IS_SPEC_FUNCTION(adder)) {
       throw MakeTypeError('property_not_function', ['add', this]);
@@ -147,7 +147,7 @@ function MapConstructor(iterable) {
   var iter, adder;
 
   if (!IS_NULL_OR_UNDEFINED(iterable)) {
-    iter = GetIterator(iterable);
+    iter = GetIterator(ToObject(iterable));
     adder = this.set;
     if (!IS_SPEC_FUNCTION(adder)) {
       throw MakeTypeError('property_not_function', ['set', this]);
