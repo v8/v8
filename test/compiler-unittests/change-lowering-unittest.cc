@@ -66,7 +66,7 @@ typedef ::testing::Types<int32_t, int64_t> ChangeLoweringTypes;
 TYPED_TEST_CASE(ChangeLoweringTest, ChangeLoweringTypes);
 
 
-TYPED_TEST(ChangeLoweringTest, ChangeBitToBool) {
+TARGET_TYPED_TEST(ChangeLoweringTest, ChangeBitToBool) {
   Node* val = this->Parameter(0);
   Node* node =
       this->graph()->NewNode(this->simplified()->ChangeBitToBool(), val);
@@ -92,7 +92,7 @@ TYPED_TEST(ChangeLoweringTest, ChangeBitToBool) {
 }
 
 
-TYPED_TEST(ChangeLoweringTest, StringAdd) {
+TARGET_TYPED_TEST(ChangeLoweringTest, StringAdd) {
   Node* node = this->graph()->NewNode(this->simplified()->StringAdd(),
                                       this->Parameter(0), this->Parameter(1));
   Reduction reduction = this->Reduce(node);
@@ -106,7 +106,7 @@ class ChangeLowering32Test : public ChangeLoweringTest<int32_t> {
 };
 
 
-TEST_F(ChangeLowering32Test, ChangeBoolToBit) {
+TARGET_TEST_F(ChangeLowering32Test, ChangeBoolToBit) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeBoolToBit(), val);
   Reduction reduction = Reduce(node);
@@ -117,7 +117,7 @@ TEST_F(ChangeLowering32Test, ChangeBoolToBit) {
 }
 
 
-TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
+TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), val);
   Reduction reduction = Reduce(node);
@@ -155,7 +155,7 @@ TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
 }
 
 
-TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
+TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeTaggedToFloat64(), val);
   Reduction reduction = Reduce(node);
@@ -195,7 +195,7 @@ class ChangeLowering64Test : public ChangeLoweringTest<int64_t> {
 };
 
 
-TEST_F(ChangeLowering64Test, ChangeBoolToBit) {
+TARGET_TEST_F(ChangeLowering64Test, ChangeBoolToBit) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeBoolToBit(), val);
   Reduction reduction = Reduce(node);
@@ -206,7 +206,7 @@ TEST_F(ChangeLowering64Test, ChangeBoolToBit) {
 }
 
 
-TEST_F(ChangeLowering64Test, ChangeInt32ToTagged) {
+TARGET_TEST_F(ChangeLowering64Test, ChangeInt32ToTagged) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeInt32ToTagged(), val);
   Reduction reduction = Reduce(node);
@@ -219,7 +219,7 @@ TEST_F(ChangeLowering64Test, ChangeInt32ToTagged) {
 }
 
 
-TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
+TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeTaggedToFloat64(), val);
   Reduction reduction = Reduce(node);
