@@ -1022,16 +1022,28 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Check if LESS condition is satisfied. If true, move conditionally
   // result to v0.
-  __ c(OLT, D, f12, f14);
-  __ Movt(v0, t0);
-  // Use previous check to store conditionally to v0 oposite condition
-  // (GREATER). If rhs is equal to lhs, this will be corrected in next
-  // check.
-  __ Movf(v0, t1);
-  // Check if EQUAL condition is satisfied. If true, move conditionally
-  // result to v0.
-  __ c(EQ, D, f12, f14);
-  __ Movt(v0, t2);
+  if (!IsMipsArchVariant(kMips32r6)) {
+    __ c(OLT, D, f12, f14);
+    __ Movt(v0, t0);
+    // Use previous check to store conditionally to v0 oposite condition
+    // (GREATER). If rhs is equal to lhs, this will be corrected in next
+    // check.
+    __ Movf(v0, t1);
+    // Check if EQUAL condition is satisfied. If true, move conditionally
+    // result to v0.
+    __ c(EQ, D, f12, f14);
+    __ Movt(v0, t2);
+  } else {
+    Label skip;
+    __ BranchF(USE_DELAY_SLOT, &skip, NULL, lt, f12, f14);
+    __ mov(v0, t0);  // Return LESS as result.
+
+    __ BranchF(USE_DELAY_SLOT, &skip, NULL, eq, f12, f14);
+    __ mov(v0, t2);  // Return EQUAL as result.
+
+    __ mov(v0, t1);  // Return GREATER as result.
+    __ bind(&skip);
+  }
 
   __ Ret();
 
