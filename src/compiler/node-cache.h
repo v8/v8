@@ -5,18 +5,13 @@
 #ifndef V8_COMPILER_NODE_CACHE_H_
 #define V8_COMPILER_NODE_CACHE_H_
 
-#include "src/base/macros.h"
+#include "src/v8.h"
+
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class Zone;
-
 namespace compiler {
-
-// Forward declarations.
-class Node;
 
 // A cache for nodes based on a key. Useful for implementing canonicalization of
 // nodes such as constants, parameters, etc.
@@ -41,21 +36,18 @@ class NodeCache {
   };
 
   Entry* entries_;  // lazily-allocated hash entries.
-  int size_;
-  int max_;
+  int32_t size_;
+  int32_t max_;
 
   bool Resize(Zone* zone);
-
-  DISALLOW_COPY_AND_ASSIGN(NodeCache);
 };
 
 // Various default cache types.
-typedef NodeCache<int32_t> Int32NodeCache;
 typedef NodeCache<int64_t> Int64NodeCache;
-typedef NodeCache<intptr_t> IntPtrNodeCache;
-
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+typedef NodeCache<int32_t> Int32NodeCache;
+typedef NodeCache<void*> PtrNodeCache;
+}
+}
+}  // namespace v8::internal::compiler
 
 #endif  // V8_COMPILER_NODE_CACHE_H_

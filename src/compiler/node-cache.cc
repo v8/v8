@@ -4,8 +4,6 @@
 
 #include "src/compiler/node-cache.h"
 
-#include "src/zone.h"
-
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -14,18 +12,32 @@ namespace compiler {
 #define LINEAR_PROBE 5
 
 template <typename Key>
-inline int NodeCacheHash(Key key);
-
+int32_t NodeCacheHash(Key key) {
+  UNIMPLEMENTED();
+  return 0;
+}
 
 template <>
-inline int NodeCacheHash(int32_t key) {
+inline int32_t NodeCacheHash(int32_t key) {
   return ComputeIntegerHash(key, 0);
 }
 
 
 template <>
-inline int NodeCacheHash(int64_t key) {
+inline int32_t NodeCacheHash(int64_t key) {
   return ComputeLongHash(key);
+}
+
+
+template <>
+inline int32_t NodeCacheHash(double key) {
+  return ComputeLongHash(BitCast<int64_t>(key));
+}
+
+
+template <>
+inline int32_t NodeCacheHash(void* key) {
+  return ComputePointerHash(key);
 }
 
 
@@ -64,7 +76,7 @@ bool NodeCache<Key>::Resize(Zone* zone) {
 
 template <typename Key>
 Node** NodeCache<Key>::Find(Zone* zone, Key key) {
-  int hash = NodeCacheHash(key);
+  int32_t hash = NodeCacheHash(key);
   if (entries_ == NULL) {
     // Allocate the initial entries and insert the first entry.
     int num_entries = INITIAL_SIZE + LINEAR_PROBE;
@@ -100,9 +112,9 @@ Node** NodeCache<Key>::Find(Zone* zone, Key key) {
 }
 
 
-template class NodeCache<int32_t>;
 template class NodeCache<int64_t>;
-
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+template class NodeCache<int32_t>;
+template class NodeCache<void*>;
+}
+}
+}  // namespace v8::internal::compiler
