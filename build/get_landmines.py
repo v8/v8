@@ -17,6 +17,8 @@ def main():
   """
   print 'Need to clobber after ICU52 roll.'
   print 'Landmines test.'
+  print 'Activating MSVS 2013.'
+  print 'Revert activation of MSVS 2013.'
   return 0
 
 

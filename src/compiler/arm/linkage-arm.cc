@@ -49,15 +49,16 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count) {
+    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
+    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
   return LinkageHelper::GetStubCallDescriptor<LinkageHelperTraits>(
-      this->info_->zone(), descriptor, stack_parameter_count);
+      zone, descriptor, stack_parameter_count, can_deoptimize);
 }
 
 
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(
-    Zone* zone, int num_params, MachineRepresentation return_type,
-    const MachineRepresentation* param_types) {
+    Zone* zone, int num_params, MachineType return_type,
+    const MachineType* param_types) {
   return LinkageHelper::GetSimplifiedCDescriptor<LinkageHelperTraits>(
       zone, num_params, return_type, param_types);
 }

@@ -150,7 +150,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
 
 void InstructionSelector::VisitLoad(Node* node) {
-  MachineRepresentation rep = OpParameter<MachineRepresentation>(node);
+  MachineType rep = OpParameter<MachineType>(node);
   Arm64OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -184,7 +184,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   if (g.CanBeImmediate(index, kLoadStoreImm)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI), result,
          g.UseRegister(base), g.UseImmediate(index));
-  } else if (g.CanBeImmediate(index, kLoadStoreImm)) {
+  } else if (g.CanBeImmediate(base, kLoadStoreImm)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI), result,
          g.UseRegister(index), g.UseImmediate(base));
   } else {
@@ -201,7 +201,7 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
-  MachineRepresentation rep = store_rep.rep;
+  MachineType rep = store_rep.rep;
   if (store_rep.write_barrier_kind == kFullWriteBarrier) {
     DCHECK(rep == kMachineTagged);
     // TODO(dcarney): refactor RecordWrite function to take temp registers

@@ -23,12 +23,12 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
+#include "src/heap/store-buffer.h"
 #include "src/isolate.h"
 #include "src/lookup.h"
 #include "src/objects.h"
 #include "src/property.h"
 #include "src/prototype.h"
-#include "src/store-buffer.h"
 #include "src/transitions-inl.h"
 #include "src/v8memory.h"
 
@@ -2206,7 +2206,8 @@ void FixedArray::set(int index, Smi* value) {
 
 
 void FixedArray::set(int index, Object* value) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map());
+  DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
+  DCHECK_EQ(FIXED_ARRAY_TYPE, map()->instance_type());
   DCHECK(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -4460,15 +4461,6 @@ bool Map::is_prototype_map() {
 }
 
 
-void Map::set_is_shared(bool value) {
-  set_bit_field3(IsShared::update(bit_field3(), value));
-}
-
-
-bool Map::is_shared() {
-  return IsShared::decode(bit_field3()); }
-
-
 void Map::set_dictionary_map(bool value) {
   uint32_t new_bit_field3 = DictionaryMap::update(bit_field3(), value);
   new_bit_field3 = IsUnstable::update(new_bit_field3, value);
@@ -4486,8 +4478,8 @@ Code::Flags Code::flags() {
 }
 
 
-void Map::set_owns_descriptors(bool is_shared) {
-  set_bit_field3(OwnsDescriptors::update(bit_field3(), is_shared));
+void Map::set_owns_descriptors(bool owns_descriptors) {
+  set_bit_field3(OwnsDescriptors::update(bit_field3(), owns_descriptors));
 }
 
 

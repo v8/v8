@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_MACHINE_OPERATOR_H_
 #define V8_COMPILER_MACHINE_OPERATOR_H_
 
+#include "src/compiler/machine-type.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/zone.h"
@@ -13,36 +14,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// An enumeration of the storage representations at the machine level.
-// - Words are uninterpreted bits of a given fixed size that can be used
-//   to store integers and pointers. They are normally allocated to general
-//   purpose registers by the backend and are not tracked for GC.
-// - Floats are bits of a given fixed size that are used to store floating
-//   point numbers. They are normally allocated to the floating point
-//   registers of the machine and are not tracked for the GC.
-// - Tagged values are the size of a reference into the heap and can store
-//   small words or references into the heap using a language and potentially
-//   machine-dependent tagging scheme. These values are tracked by the code
-//   generator for precise GC.
-enum MachineRepresentation {
-  kMachineWord8,
-  kMachineWord16,
-  kMachineWord32,
-  kMachineWord64,
-  kMachineFloat64,
-  kMachineTagged,
-  kMachineLast
-};
-
-
 // TODO(turbofan): other write barriers are possible based on type
 enum WriteBarrierKind { kNoWriteBarrier, kFullWriteBarrier };
 
 
-// A Store needs a MachineRepresentation and a WriteBarrierKind
+// A Store needs a MachineType and a WriteBarrierKind
 // in order to emit the correct write barrier.
 struct StoreRepresentation {
-  MachineRepresentation rep;
+  MachineType rep;
   WriteBarrierKind write_barrier_kind;
 };
 
@@ -52,8 +31,7 @@ struct StoreRepresentation {
 // for generating code to run on architectures such as ia32, x64, arm, etc.
 class MachineOperatorBuilder {
  public:
-  explicit MachineOperatorBuilder(Zone* zone,
-                                  MachineRepresentation word = pointer_rep())
+  explicit MachineOperatorBuilder(Zone* zone, MachineType word = pointer_rep())
       : zone_(zone), word_(word) {
     CHECK(word == kMachineWord32 || word == kMachineWord64);
   }
@@ -83,11 +61,11 @@ class MachineOperatorBuilder {
 
 #define WORD_SIZE(x) return is64() ? Word64##x() : Word32##x()
 
-  Operator* Load(MachineRepresentation rep) {  // load [base + index]
-    OP1(Load, MachineRepresentation, rep, Operator::kNoWrite, 2, 1);
+  Operator* Load(MachineType rep) {  // load [base + index]
+    OP1(Load, MachineType, rep, Operator::kNoWrite, 2, 1);
   }
   // store [base + index], value
-  Operator* Store(MachineRepresentation rep, WriteBarrierKind kind) {
+  Operator* Store(MachineType rep, WriteBarrierKind kind) {
     StoreRepresentation store_rep = {rep, kind};
     OP1(Store, StoreRepresentation, store_rep, Operator::kNoRead, 3, 0);
   }
@@ -167,9 +145,9 @@ class MachineOperatorBuilder {
 
   inline bool is32() const { return word_ == kMachineWord32; }
   inline bool is64() const { return word_ == kMachineWord64; }
-  inline MachineRepresentation word() const { return word_; }
+  inline MachineType word() const { return word_; }
 
-  static inline MachineRepresentation pointer_rep() {
+  static inline MachineType pointer_rep() {
     return kPointerSize == 8 ? kMachineWord64 : kMachineWord32;
   }
 
@@ -181,7 +159,7 @@ class MachineOperatorBuilder {
 
  private:
   Zone* zone_;
-  MachineRepresentation word_;
+  MachineType word_;
 };
 }
 }

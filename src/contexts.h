@@ -160,7 +160,7 @@ enum BindingFlags {
   V(CONFIGURE_GLOBAL_INDEX, JSFunction, configure_global_fun)                  \
   V(FUNCTION_CACHE_INDEX, JSObject, function_cache)                            \
   V(JSFUNCTION_RESULT_CACHES_INDEX, FixedArray, jsfunction_result_caches)      \
-  V(NORMALIZED_MAP_CACHE_INDEX, NormalizedMapCache, normalized_map_cache)      \
+  V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
   V(RUNTIME_CONTEXT_INDEX, Context, runtime_context)                           \
   V(CALL_AS_FUNCTION_DELEGATE_INDEX, JSFunction, call_as_function_delegate)    \
   V(CALL_AS_CONSTRUCTOR_DELEGATE_INDEX, JSFunction,                            \

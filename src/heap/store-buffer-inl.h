@@ -5,7 +5,7 @@
 #ifndef V8_STORE_BUFFER_INL_H_
 #define V8_STORE_BUFFER_INL_H_
 
-#include "src/store-buffer.h"
+#include "src/heap/store-buffer.h"
 
 namespace v8 {
 namespace internal {
@@ -44,8 +44,7 @@ void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
     old_buffer_is_filtered_ = false;
     if (top >= old_limit_) {
       DCHECK(callback_ != NULL);
-      (*callback_)(heap_,
-                   MemoryChunk::FromAnyPointerAddress(heap_, addr),
+      (*callback_)(heap_, MemoryChunk::FromAnyPointerAddress(heap_, addr),
                    kStoreBufferFullEvent);
     }
   }
@@ -58,8 +57,7 @@ void StoreBuffer::ClearDeadObject(HeapObject* object) {
     map_field = NULL;
   }
 }
-
-
-} }  // namespace v8::internal
+}
+}  // namespace v8::internal
 
 #endif  // V8_STORE_BUFFER_INL_H_

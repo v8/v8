@@ -230,8 +230,7 @@ void InstructionSelector::MarkAsReference(Node* node) {
 }
 
 
-void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
-                                               Node* node) {
+void InstructionSelector::MarkAsRepresentation(MachineType rep, Node* node) {
   DCHECK_NOT_NULL(node);
   if (rep == kMachineFloat64) MarkAsDouble(node);
   if (rep == kMachineTagged) MarkAsReference(node);
@@ -467,10 +466,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return;
     case IrOpcode::kParameter: {
       int index = OpParameter<int>(node);
-      MachineRepresentation rep = linkage()
-                                      ->GetIncomingDescriptor()
-                                      ->GetInputLocation(index)
-                                      .representation();
+      MachineType rep = linkage()
+                            ->GetIncomingDescriptor()
+                            ->GetInputLocation(index)
+                            .representation();
       MarkAsRepresentation(rep, node);
       return VisitParameter(node);
     }
@@ -494,7 +493,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kStateValues:
       return;
     case IrOpcode::kLoad: {
-      MachineRepresentation load_rep = OpParameter<MachineRepresentation>(node);
+      MachineType load_rep = OpParameter<MachineType>(node);
       MarkAsRepresentation(load_rep, node);
       return VisitLoad(node);
     }

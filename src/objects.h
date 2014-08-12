@@ -247,12 +247,12 @@ enum PropertyNormalizationMode {
 };
 
 
-// NormalizedMapSharingMode is used to specify whether a map may be shared
-// by different objects with normalized properties.
-enum NormalizedMapSharingMode {
-  UNIQUE_NORMALIZED_MAP,
-  SHARED_NORMALIZED_MAP
-};
+// Indicates how aggressively the prototype should be optimized. FAST_PROTOTYPE
+// will give the fastest result by tailoring the map to the prototype, but that
+// will cause polymorphism with other objects. REGULAR_PROTOTYPE is to be used
+// (at least for now) when dynamically modifying the prototype chain of an
+// object using __proto__ or Object.setPrototypeOf.
+enum PrototypeOptimizationMode { REGULAR_PROTOTYPE, FAST_PROTOTYPE };
 
 
 // Indicates whether transitions can be added to a source map or not.
@@ -2196,7 +2196,8 @@ class JSObject: public JSReceiver {
                                     Handle<Object> value,
                                     PropertyDetails details);
 
-  static void OptimizeAsPrototype(Handle<JSObject> object);
+  static void OptimizeAsPrototype(Handle<JSObject> object,
+                                  PrototypeOptimizationMode mode);
   static void ReoptimizeIfPrototype(Handle<JSObject> object);
 
   // Retrieve interceptors.
@@ -2475,9 +2476,7 @@ class JSObject: public JSReceiver {
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
   MUST_USE_RESULT static MaybeHandle<Object> SetPrototype(
-      Handle<JSObject> object,
-      Handle<Object> value,
-      bool skip_hidden_prototypes = false);
+      Handle<JSObject> object, Handle<Object> value, bool from_javascript);
 
   // Initializes the body after properties slot, properties slot is
   // initialized by set_properties.  Fill the pre-allocated fields with
@@ -6125,15 +6124,16 @@ class Map: public HeapObject {
   class NumberOfOwnDescriptorsBits: public BitField<int,
       kDescriptorIndexBitCount, kDescriptorIndexBitCount> {};  // NOLINT
   STATIC_ASSERT(kDescriptorIndexBitCount + kDescriptorIndexBitCount == 20);
-  class IsShared:                   public BitField<bool, 20,  1> {};
-  class DictionaryMap:              public BitField<bool, 21,  1> {};
-  class OwnsDescriptors:            public BitField<bool, 22,  1> {};
-  class HasInstanceCallHandler:     public BitField<bool, 23,  1> {};
-  class Deprecated:                 public BitField<bool, 24,  1> {};
-  class IsFrozen:                   public BitField<bool, 25,  1> {};
-  class IsUnstable:                 public BitField<bool, 26,  1> {};
-  class IsMigrationTarget:          public BitField<bool, 27,  1> {};
-  class DoneInobjectSlackTracking:  public BitField<bool, 28,  1> {};
+  class DictionaryMap : public BitField<bool, 20, 1> {};
+  class OwnsDescriptors : public BitField<bool, 21, 1> {};
+  class HasInstanceCallHandler : public BitField<bool, 22, 1> {};
+  class Deprecated : public BitField<bool, 23, 1> {};
+  class IsFrozen : public BitField<bool, 24, 1> {};
+  class IsUnstable : public BitField<bool, 25, 1> {};
+  class IsMigrationTarget : public BitField<bool, 26, 1> {};
+  class DoneInobjectSlackTracking : public BitField<bool, 27, 1> {};
+  // Bit 28 is free.
+
   // Keep this bit field at the very end for better code in
   // Builtins::kJSConstructStubGeneric stub.
   class ConstructionCount:          public BitField<int, 29, 3> {};
@@ -6335,12 +6335,6 @@ class Map: public HeapObject {
   // function that was used to instantiate the object).
   String* constructor_name();
 
-  // Tells whether the map is shared between objects that may have different
-  // behavior. If true, the map should never be modified, instead a clone
-  // should be created and modified.
-  inline void set_is_shared(bool value);
-  inline bool is_shared();
-
   // Tells whether the map is used for JSObjects in dictionary mode (ie
   // normalized objects, ie objects for which HasFastProperties returns false).
   // A map can never be used for both dictionary mode and fast mode JSObjects.
@@ -6460,7 +6454,7 @@ class Map: public HeapObject {
   }
 
   inline bool owns_descriptors();
-  inline void set_owns_descriptors(bool is_shared);
+  inline void set_owns_descriptors(bool owns_descriptors);
   inline bool has_instance_call_handler();
   inline void set_has_instance_call_handler();
   inline void freeze();
@@ -6649,7 +6643,7 @@ class Map: public HeapObject {
   DECLARE_VERIFIER(Map)
 
 #ifdef VERIFY_HEAP
-  void SharedMapVerify();
+  void DictionaryMapVerify();
   void VerifyOmittedMapChecks();
 #endif
 
@@ -6795,8 +6789,7 @@ class Map: public HeapObject {
                                            TransitionFlag flag);
 
   static Handle<Map> CopyNormalized(Handle<Map> map,
-                                    PropertyNormalizationMode mode,
-                                    NormalizedMapSharingMode sharing);
+                                    PropertyNormalizationMode mode);
 
   // Fires when the layout of an object with a leaf map changes.
   // This includes adding transitions to the leaf map or changing
@@ -7548,7 +7541,7 @@ class SharedFunctionInfo: public HeapObject {
 
 // Printing support.
 struct SourceCodeOf {
-  SourceCodeOf(SharedFunctionInfo* v, int max = -1)
+  explicit SourceCodeOf(SharedFunctionInfo* v, int max = -1)
       : value(v), max_length(max) {}
   const SharedFunctionInfo* value;
   int max_length;
@@ -7780,7 +7773,8 @@ class JSFunction: public JSObject {
 
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
-  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map);
+  static void SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
+                            Handle<Object> prototype);
   inline bool has_initial_map();
   static void EnsureHasInitialMap(Handle<JSFunction> function);
 
@@ -9751,7 +9745,8 @@ class ConsStringNullOp {
 class ConsStringIteratorOp {
  public:
   inline ConsStringIteratorOp() {}
-  inline ConsStringIteratorOp(ConsString* cons_string, int offset = 0) {
+  inline explicit ConsStringIteratorOp(ConsString* cons_string,
+                                       int offset = 0) {
     Reset(cons_string, offset);
   }
   inline void Reset(ConsString* cons_string, int offset = 0) {

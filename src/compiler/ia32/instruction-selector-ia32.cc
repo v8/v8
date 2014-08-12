@@ -41,7 +41,7 @@ class IA32OperandGenerator V8_FINAL : public OperandGenerator {
 
 
 void InstructionSelector::VisitLoad(Node* node) {
-  MachineRepresentation rep = OpParameter<MachineRepresentation>(node);
+  MachineType rep = OpParameter<MachineType>(node);
   IA32OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -94,7 +94,7 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
-  MachineRepresentation rep = store_rep.rep;
+  MachineType rep = store_rep.rep;
   if (store_rep.write_barrier_kind == kFullWriteBarrier) {
     DCHECK_EQ(kMachineTagged, rep);
     // TODO(dcarney): refactor RecordWrite function to take temp registers

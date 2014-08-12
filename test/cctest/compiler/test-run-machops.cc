@@ -2493,7 +2493,7 @@ TEST(RunDeadInt32Binops) {
 
 
 template <typename Type, typename CType>
-static void RunLoadImmIndex(MachineRepresentation rep) {
+static void RunLoadImmIndex(MachineType rep) {
   const int kNumElems = 3;
   CType buffer[kNumElems];
 
@@ -2532,7 +2532,7 @@ TEST(RunLoadImmIndex) {
 
 
 template <typename CType>
-static void RunLoadStore(MachineRepresentation rep) {
+static void RunLoadStore(MachineType rep) {
   const int kNumElems = 4;
   CType buffer[kNumElems];
 
@@ -3351,7 +3351,7 @@ TEST(RunCallSeven) {
 
     RawMachineAssemblerTester<int32_t> m;
     Node** args = NULL;
-    MachineRepresentation* arg_types = NULL;
+    MachineType* arg_types = NULL;
     Node* function =
         call_direct ? m.PointerConstant(function_address)
                     : m.LoadFromPointer(&function_address,
@@ -3371,7 +3371,7 @@ TEST(RunCallUnaryMinus) {
 
     RawMachineAssemblerTester<int32_t> m(kMachineWord32);
     Node* args[] = {m.Parameter(0)};
-    MachineRepresentation arg_types[] = {kMachineWord32};
+    MachineType arg_types[] = {kMachineWord32};
     Node* function =
         call_direct ? m.PointerConstant(function_address)
                     : m.LoadFromPointer(&function_address,
@@ -3394,7 +3394,7 @@ TEST(RunCallAPlusTwoB) {
 
     RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32);
     Node* args[] = {m.Parameter(0), m.Parameter(1)};
-    MachineRepresentation arg_types[] = {kMachineWord32, kMachineWord32};
+    MachineType arg_types[] = {kMachineWord32, kMachineWord32};
     Node* function =
         call_direct ? m.PointerConstant(function_address)
                     : m.LoadFromPointer(&function_address,
@@ -3596,7 +3596,7 @@ TEST(RunFloat64LessThan) {
 }
 
 
-template <typename IntType, MachineRepresentation kRepresentation>
+template <typename IntType, MachineType kRepresentation>
 static void LoadStoreTruncation() {
   IntType input;
 
@@ -3867,7 +3867,7 @@ TEST(RunSpillLotsOfThingsWithCall) {
   {
     void* func = reinterpret_cast<void*>(reinterpret_cast<intptr_t>(&Seven));
     Node** args = NULL;
-    MachineRepresentation* arg_types = NULL;
+    MachineType* arg_types = NULL;
     m.CallC(m.PointerConstant(func), kMachineWord32, arg_types, args, 0);
   }
   for (int i = 0; i < kInputSize; i++) {

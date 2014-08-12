@@ -120,7 +120,7 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
     //   deopt();
     // }
 
-    MachineRepresentation parameter_reps[] = {kMachineTagged};
+    MachineType parameter_reps[] = {kMachineTagged};
     MachineCallDescriptorBuilder descriptor_builder(kMachineTagged, 1,
                                                     parameter_reps);
 
@@ -256,7 +256,7 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     //   %DeoptimizeFunction(foo);
     // }
 
-    MachineRepresentation parameter_reps[] = {kMachineTagged};
+    MachineType parameter_reps[] = {kMachineTagged};
     MachineCallDescriptorBuilder descriptor_builder(kMachineTagged, 2,
                                                     parameter_reps);
 

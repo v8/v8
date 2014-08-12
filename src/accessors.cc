@@ -67,11 +67,11 @@ static C* FindInstanceOf(Isolate* isolate, Object* obj) {
 }
 
 
-static V8_INLINE bool CheckForName(Handle<String> name,
+static V8_INLINE bool CheckForName(Handle<Name> name,
                                    Handle<String> property_name,
                                    int offset,
                                    int* object_offset) {
-  if (String::Equals(name, property_name)) {
+  if (Name::Equals(name, property_name)) {
     *object_offset = offset;
     return true;
   }
@@ -83,7 +83,7 @@ static V8_INLINE bool CheckForName(Handle<String> name,
 // If true, *object_offset contains offset of object field.
 template <class T>
 bool Accessors::IsJSObjectFieldAccessor(typename T::TypeHandle type,
-                                        Handle<String> name,
+                                        Handle<Name> name,
                                         int* object_offset) {
   Isolate* isolate = name->GetIsolate();
 
@@ -126,13 +126,13 @@ bool Accessors::IsJSObjectFieldAccessor(typename T::TypeHandle type,
 
 template
 bool Accessors::IsJSObjectFieldAccessor<Type>(Type* type,
-                                              Handle<String> name,
+                                              Handle<Name> name,
                                               int* object_offset);
 
 
 template
 bool Accessors::IsJSObjectFieldAccessor<HeapType>(Handle<HeapType> type,
-                                                  Handle<String> name,
+                                                  Handle<Name> name,
                                                   int* object_offset);
 
 

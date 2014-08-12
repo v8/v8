@@ -22,17 +22,14 @@ namespace compiler {
 
 class MachineCallDescriptorBuilder : public ZoneObject {
  public:
-  MachineCallDescriptorBuilder(MachineRepresentation return_type,
-                               int parameter_count,
-                               const MachineRepresentation* parameter_types)
+  MachineCallDescriptorBuilder(MachineType return_type, int parameter_count,
+                               const MachineType* parameter_types)
       : return_type_(return_type),
         parameter_count_(parameter_count),
         parameter_types_(parameter_types) {}
 
   int parameter_count() const { return parameter_count_; }
-  const MachineRepresentation* parameter_types() const {
-    return parameter_types_;
-  }
+  const MachineType* parameter_types() const { return parameter_types_; }
 
   CallDescriptor* BuildCallDescriptor(Zone* zone) {
     return Linkage::GetSimplifiedCDescriptor(zone, parameter_count_,
@@ -40,9 +37,9 @@ class MachineCallDescriptorBuilder : public ZoneObject {
   }
 
  private:
-  const MachineRepresentation return_type_;
+  const MachineType return_type_;
   const int parameter_count_;
-  const MachineRepresentation* const parameter_types_;
+  const MachineType* const parameter_types_;
 };
 
 
@@ -90,16 +87,16 @@ class MachineNodeFactory {
   }
 
   // Memory Operations.
-  Node* Load(MachineRepresentation rep, Node* base) {
+  Node* Load(MachineType rep, Node* base) {
     return Load(rep, base, Int32Constant(0));
   }
-  Node* Load(MachineRepresentation rep, Node* base, Node* index) {
+  Node* Load(MachineType rep, Node* base, Node* index) {
     return NEW_NODE_2(MACHINE()->Load(rep), base, index);
   }
-  void Store(MachineRepresentation rep, Node* base, Node* value) {
+  void Store(MachineType rep, Node* base, Node* value) {
     Store(rep, base, Int32Constant(0), value);
   }
-  void Store(MachineRepresentation rep, Node* base, Node* index, Node* value) {
+  void Store(MachineType rep, Node* base, Node* index, Node* value) {
     NEW_NODE_3(MACHINE()->Store(rep, kNoWriteBarrier), base, index, value);
   }
   // Arithmetic Operations.
@@ -354,8 +351,8 @@ class MachineNodeFactory {
 
 #ifdef MACHINE_ASSEMBLER_SUPPORTS_CALL_C
   // Call to C.
-  Node* CallC(Node* function_address, MachineRepresentation return_type,
-              MachineRepresentation* arg_types, Node** args, int n_args) {
+  Node* CallC(Node* function_address, MachineType return_type,
+              MachineType* arg_types, Node** args, int n_args) {
     CallDescriptor* descriptor = Linkage::GetSimplifiedCDescriptor(
         ZONE(), n_args, return_type, arg_types);
     Node** passed_args =

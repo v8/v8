@@ -1862,6 +1862,20 @@ static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
 }
 
 
+RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, prototype, 1);
+  DCHECK(!obj->IsAccessCheckNeeded());
+  DCHECK(!obj->map()->is_observed());
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSObject::SetPrototype(obj, prototype, false));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_SetPrototype) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

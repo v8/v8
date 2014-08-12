@@ -3204,8 +3204,8 @@ bool v8::Object::SetPrototype(Handle<Value> value) {
   // to propagate outside.
   TryCatch try_catch;
   EXCEPTION_PREAMBLE(isolate);
-  i::MaybeHandle<i::Object> result = i::JSObject::SetPrototype(
-      self, value_obj);
+  i::MaybeHandle<i::Object> result =
+      i::JSObject::SetPrototype(self, value_obj, false);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
@@ -5475,7 +5475,7 @@ Local<String> v8::String::NewExternal(
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
-  if (i::StringShape(*obj).IsExternalTwoByte()) {
+  if (i::StringShape(*obj).IsExternal()) {
     return false;  // Already an external string.
   }
   ENTER_V8(isolate);
@@ -5488,6 +5488,8 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
   CHECK(resource && resource->data());
 
   bool result = obj->MakeExternal(resource);
+  // Assert that if CanMakeExternal(), then externalizing actually succeeds.
+  DCHECK(!CanMakeExternal() || result);
   if (result) {
     DCHECK(obj->IsExternalString());
     isolate->heap()->external_string_table()->AddString(*obj);
@@ -5515,7 +5517,7 @@ bool v8::String::MakeExternal(
     v8::String::ExternalAsciiStringResource* resource) {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
-  if (i::StringShape(*obj).IsExternalTwoByte()) {
+  if (i::StringShape(*obj).IsExternal()) {
     return false;  // Already an external string.
   }
   ENTER_V8(isolate);
@@ -5528,6 +5530,8 @@ bool v8::String::MakeExternal(
   CHECK(resource && resource->data());
 
   bool result = obj->MakeExternal(resource);
+  // Assert that if CanMakeExternal(), then externalizing actually succeeds.
+  DCHECK(!CanMakeExternal() || result);
   if (result) {
     DCHECK(obj->IsExternalString());
     isolate->heap()->external_string_table()->AddString(*obj);
@@ -5540,11 +5544,6 @@ bool v8::String::CanMakeExternal() {
   if (!internal::FLAG_clever_optimizations) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
-
-  // TODO(yangguo): Externalizing sliced/cons strings allocates.
-  // This rule can be removed when all code that can
-  // trigger an access check is handlified and therefore GC safe.
-  if (isolate->heap()->old_pointer_space()->Contains(*obj)) return false;
 
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) return false;
   int size = obj->Size();  // Byte size of the original string.

@@ -18,7 +18,7 @@ void Variable::Set(Node* value) const { smasm_->SetVariable(offset_, value); }
 
 StructuredMachineAssembler::StructuredMachineAssembler(
     Graph* graph, MachineCallDescriptorBuilder* call_descriptor_builder,
-    MachineRepresentation word)
+    MachineType word)
     : GraphBuilder(graph),
       schedule_(new (zone()) Schedule(zone())),
       machine_(zone(), word),
@@ -41,8 +41,7 @@ StructuredMachineAssembler::StructuredMachineAssembler(
 Schedule* StructuredMachineAssembler::Export() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
-  Scheduler scheduler(zone(), graph(), schedule_);
-  scheduler.ComputeSpecialRPO();
+  Scheduler::ComputeSpecialRPO(schedule_);
   // Invalidate MachineAssembler.
   Schedule* schedule = schedule_;
   schedule_ = NULL;

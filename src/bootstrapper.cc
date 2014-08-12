@@ -480,7 +480,8 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     Handle<JSFunction> object_fun = factory->NewFunction(object_name);
     Handle<Map> object_function_map =
         factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    JSFunction::SetInitialMap(object_fun, object_function_map);
+    JSFunction::SetInitialMap(object_fun, object_function_map,
+                              isolate->factory()->null_value());
     object_function_map->set_unused_property_fields(
         JSObject::kInitialGlobalObjectUnusedPropertiesCount);
 
@@ -490,6 +491,9 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
     Handle<JSObject> prototype = factory->NewJSObject(
         isolate->object_function(),
         TENURED);
+    Handle<Map> map = Map::Copy(handle(prototype->map()));
+    map->set_is_prototype_map(true);
+    prototype->set_map(*map);
 
     native_context()->set_initial_object_prototype(*prototype);
     // For bootstrapping set the array prototype to be the same as the object
@@ -507,6 +511,15 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<JSFunction> empty_function = factory->NewFunctionWithoutPrototype(
       empty_string, code);
 
+  // Allocate the function map first and then patch the prototype later
+  Handle<Map> empty_function_map =
+      CreateFunctionMap(FUNCTION_WITHOUT_PROTOTYPE);
+  DCHECK(!empty_function_map->is_dictionary_map());
+  empty_function_map->set_prototype(
+      native_context()->object_function()->prototype());
+  empty_function_map->set_is_prototype_map(true);
+  empty_function->set_map(*empty_function_map);
+
   // --- E m p t y ---
   Handle<String> source = factory->NewStringFromStaticAscii("() {}");
   Handle<Script> script = factory->NewScript(source);
@@ -521,13 +534,6 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   native_context()->sloppy_function_without_prototype_map()->
       set_prototype(*empty_function);
   sloppy_function_map_writable_prototype_->set_prototype(*empty_function);
-
-  // Allocate the function map first and then patch the prototype later
-  Handle<Map> empty_function_map =
-      CreateFunctionMap(FUNCTION_WITHOUT_PROTOTYPE);
-  empty_function_map->set_prototype(
-      native_context()->object_function()->prototype());
-  empty_function->set_map(*empty_function_map);
   return empty_function;
 }
 
@@ -1082,6 +1088,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     proto->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                  Smi::FromInt(0),
                                  SKIP_WRITE_BARRIER);  // It's a Smi.
+    proto_map->set_is_prototype_map(true);
     initial_map->set_prototype(*proto);
     factory->SetRegExpIrregexpData(Handle<JSRegExp>::cast(proto),
                                    JSRegExp::IRREGEXP, factory->empty_string(),
@@ -1204,13 +1211,13 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     }
 
     map->set_function_with_prototype(true);
-    map->set_prototype(native_context()->object_function()->prototype());
     map->set_pre_allocated_property_fields(2);
     map->set_inobject_properties(2);
     native_context()->set_sloppy_arguments_map(*map);
 
     DCHECK(!function->has_initial_map());
-    JSFunction::SetInitialMap(function, map);
+    JSFunction::SetInitialMap(function, map,
+                              isolate->initial_object_prototype());
 
     DCHECK(map->inobject_properties() > Heap::kArgumentsCalleeIndex);
     DCHECK(map->inobject_properties() > Heap::kArgumentsLengthIndex);
@@ -1334,7 +1341,8 @@ void Genesis::InstallTypedArray(
       JS_TYPED_ARRAY_TYPE,
       JSTypedArray::kSizeWithInternalFields,
       elements_kind);
-  JSFunction::SetInitialMap(result, initial_map);
+  JSFunction::SetInitialMap(result, initial_map,
+                            handle(initial_map->prototype(), isolate()));
   *fun = result;
 
   ElementsKind external_kind = GetNextTransitionElementsKind(elements_kind);
@@ -1652,7 +1660,7 @@ Handle<JSFunction> Genesis::InstallInternalArray(
   Handle<Map> original_map(array_function->initial_map());
   Handle<Map> initial_map = Map::Copy(original_map);
   initial_map->set_elements_kind(elements_kind);
-  JSFunction::SetInitialMap(array_function, initial_map);
+  JSFunction::SetInitialMap(array_function, initial_map, prototype);
 
   // Make "length" magic on instances.
   Map::EnsureDescriptorSlack(initial_map, 1);

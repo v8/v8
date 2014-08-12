@@ -19,8 +19,7 @@ class StoreBuffer;
 
 typedef void (*ObjectSlotCallback)(HeapObject** from, HeapObject* to);
 
-typedef void (StoreBuffer::*RegionCallback)(Address start,
-                                            Address end,
+typedef void (StoreBuffer::*RegionCallback)(Address start, Address end,
                                             ObjectSlotCallback slot_callback,
                                             bool clear_maps);
 
@@ -147,12 +146,11 @@ class StoreBuffer {
   void ExemptPopularPages(int prime_sample_step, int threshold);
 
   // Set the map field of the object to NULL if contains a map.
-  inline void ClearDeadObject(HeapObject *object);
+  inline void ClearDeadObject(HeapObject* object);
 
   void IteratePointersToNewSpace(ObjectSlotCallback callback, bool clear_maps);
 
-  void FindPointersToNewSpaceInRegion(Address start,
-                                      Address end,
+  void FindPointersToNewSpaceInRegion(Address start, Address end,
                                       ObjectSlotCallback slot_callback,
                                       bool clear_maps);
 
@@ -161,11 +159,9 @@ class StoreBuffer {
   // If either visit_pointer_region or callback can cause an allocation
   // in old space and changes in allocation watermark then
   // can_preallocate_during_iteration should be set to true.
-  void IteratePointersOnPage(
-      PagedSpace* space,
-      Page* page,
-      RegionCallback region_callback,
-      ObjectSlotCallback slot_callback);
+  void IteratePointersOnPage(PagedSpace* space, Page* page,
+                             RegionCallback region_callback,
+                             ObjectSlotCallback slot_callback);
 
   void IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
                                     bool clear_maps);
@@ -181,8 +177,7 @@ class StoreBuffer {
 
 class StoreBufferRebuildScope {
  public:
-  explicit StoreBufferRebuildScope(Heap* heap,
-                                   StoreBuffer* store_buffer,
+  explicit StoreBufferRebuildScope(Heap* heap, StoreBuffer* store_buffer,
                                    StoreBufferCallback callback)
       : store_buffer_(store_buffer),
         stored_state_(store_buffer->store_buffer_rebuilding_enabled_),
@@ -220,7 +215,7 @@ class DontMoveStoreBufferEntriesScope {
   StoreBuffer* store_buffer_;
   bool stored_state_;
 };
-
-} }  // namespace v8::internal
+}
+}  // namespace v8::internal
 
 #endif  // V8_STORE_BUFFER_H_

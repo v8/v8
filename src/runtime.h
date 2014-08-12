@@ -46,6 +46,7 @@ namespace internal {
                                                             \
   F(GetPrototype, 1, 1)                                     \
   F(SetPrototype, 2, 1)                                     \
+  F(InternalSetPrototype, 2, 1)                             \
   F(IsInPrototypeChain, 2, 1)                               \
                                                             \
   F(GetOwnProperty, 2, 1)                                   \

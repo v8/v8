@@ -29,11 +29,11 @@ using namespace v8::internal::compiler;
 template <typename ReturnType>
 class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
  public:
-  SimplifiedLoweringTester(MachineRepresentation p0 = kMachineLast,
-                           MachineRepresentation p1 = kMachineLast,
-                           MachineRepresentation p2 = kMachineLast,
-                           MachineRepresentation p3 = kMachineLast,
-                           MachineRepresentation p4 = kMachineLast)
+  SimplifiedLoweringTester(MachineType p0 = kMachineLast,
+                           MachineType p1 = kMachineLast,
+                           MachineType p2 = kMachineLast,
+                           MachineType p3 = kMachineLast,
+                           MachineType p4 = kMachineLast)
       : GraphBuilderTester<ReturnType>(p0, p1, p2, p3, p4),
         typer(this->zone()),
         source_positions(this->graph()),
@@ -89,7 +89,7 @@ ElementAccess ForFixedArrayElement() {
 }
 
 
-ElementAccess ForBackingStoreElement(MachineRepresentation rep) {
+ElementAccess ForBackingStoreElement(MachineType rep) {
   ElementAccess access = {kUntaggedBase,
                           kNonHeapObjectHeaderSize - kHeapObjectTag,
                           Type::Any(), rep};
@@ -363,13 +363,13 @@ template <typename E>
 class AccessTester : public HandleAndZoneScope {
  public:
   bool tagged;
-  MachineRepresentation rep;
+  MachineType rep;
   E* original_elements;
   size_t num_elements;
   E* untagged_array;
   Handle<ByteArray> tagged_array;  // TODO(titzer): use FixedArray for tagged.
 
-  AccessTester(bool t, MachineRepresentation r, E* orig, size_t num)
+  AccessTester(bool t, MachineType r, E* orig, size_t num)
       : tagged(t),
         rep(r),
         original_elements(orig),
@@ -407,9 +407,9 @@ class AccessTester : public HandleAndZoneScope {
     t.StoreElement(access, ptr, t.Int32Constant(to_index), load);
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
-    t.GenerateCode();
 
     if (Pipeline::SupportedTarget()) {
+      t.GenerateCode();
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
     }
@@ -429,9 +429,9 @@ class AccessTester : public HandleAndZoneScope {
     t.StoreField(to_access, ptr, load);
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
-    t.GenerateCode();
 
     if (Pipeline::SupportedTarget()) {
+      t.GenerateCode();
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
     }
@@ -468,9 +468,9 @@ class AccessTester : public HandleAndZoneScope {
     index = t.environment()->Pop();
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
-    t.GenerateCode();
 
     if (Pipeline::SupportedTarget()) {
+      t.GenerateCode();
       Object* result = t.Call();
       CHECK_EQ(t.isolate()->heap()->true_value(), result);
     }
@@ -517,8 +517,7 @@ class AccessTester : public HandleAndZoneScope {
 
 
 template <typename E>
-static void RunAccessTest(MachineRepresentation rep, E* original_elements,
-                          size_t num) {
+static void RunAccessTest(MachineType rep, E* original_elements, size_t num) {
   int num_elements = static_cast<int>(num);
 
   for (int taggedness = 0; taggedness < 2; taggedness++) {
@@ -1158,9 +1157,9 @@ Node* CheckElementAccessArithmetic(ElementAccess access, Node* load_or_store) {
 }
 
 
-static const MachineRepresentation machine_reps[] = {
-    kMachineWord8,  kMachineWord16,  kMachineWord32,
-    kMachineWord64, kMachineFloat64, kMachineTagged};
+static const MachineType machine_reps[] = {kMachineWord8,   kMachineWord16,
+                                           kMachineWord32,  kMachineWord64,
+                                           kMachineFloat64, kMachineTagged};
 
 
 // Representation types corresponding to those above.
@@ -1188,7 +1187,7 @@ TEST(LowerLoadField_to_load) {
     CHECK_EQ(t.p0, load->InputAt(0));
     CheckFieldAccessArithmetic(access, load);
 
-    MachineRepresentation rep = OpParameter<MachineRepresentation>(load);
+    MachineType rep = OpParameter<MachineType>(load);
     CHECK_EQ(machine_reps[i], rep);
   }
 }
@@ -1236,7 +1235,7 @@ TEST(LowerLoadElement_to_load) {
     CHECK_EQ(t.p0, load->InputAt(0));
     CheckElementAccessArithmetic(access, load);
 
-    MachineRepresentation rep = OpParameter<MachineRepresentation>(load);
+    MachineType rep = OpParameter<MachineType>(load);
     CHECK_EQ(machine_reps[i], rep);
   }
 }

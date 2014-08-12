@@ -27,22 +27,18 @@ class InstructionSelectorTest : public CompilerTest {
 
   class StreamBuilder V8_FINAL : public RawMachineAssembler {
    public:
-    StreamBuilder(InstructionSelectorTest* test,
-                  MachineRepresentation return_type)
+    StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
         : RawMachineAssembler(new (test->zone()) Graph(test->zone()),
                               CallDescriptorBuilder(test->zone(), return_type)),
           test_(test) {}
-    StreamBuilder(InstructionSelectorTest* test,
-                  MachineRepresentation return_type,
-                  MachineRepresentation parameter0_type)
+    StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
+                  MachineType parameter0_type)
         : RawMachineAssembler(new (test->zone()) Graph(test->zone()),
                               CallDescriptorBuilder(test->zone(), return_type,
                                                     parameter0_type)),
           test_(test) {}
-    StreamBuilder(InstructionSelectorTest* test,
-                  MachineRepresentation return_type,
-                  MachineRepresentation parameter0_type,
-                  MachineRepresentation parameter1_type)
+    StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
+                  MachineType parameter0_type, MachineType parameter1_type)
         : RawMachineAssembler(
               new (test->zone()) Graph(test->zone()),
               CallDescriptorBuilder(test->zone(), return_type, parameter0_type,
@@ -63,26 +59,22 @@ class InstructionSelectorTest : public CompilerTest {
 
    private:
     MachineCallDescriptorBuilder* CallDescriptorBuilder(
-        Zone* zone, MachineRepresentation return_type) {
+        Zone* zone, MachineType return_type) {
       return new (zone) MachineCallDescriptorBuilder(return_type, 0, NULL);
     }
 
     MachineCallDescriptorBuilder* CallDescriptorBuilder(
-        Zone* zone, MachineRepresentation return_type,
-        MachineRepresentation parameter0_type) {
-      MachineRepresentation* parameter_types =
-          zone->NewArray<MachineRepresentation>(1);
+        Zone* zone, MachineType return_type, MachineType parameter0_type) {
+      MachineType* parameter_types = zone->NewArray<MachineType>(1);
       parameter_types[0] = parameter0_type;
       return new (zone)
           MachineCallDescriptorBuilder(return_type, 1, parameter_types);
     }
 
     MachineCallDescriptorBuilder* CallDescriptorBuilder(
-        Zone* zone, MachineRepresentation return_type,
-        MachineRepresentation parameter0_type,
-        MachineRepresentation parameter1_type) {
-      MachineRepresentation* parameter_types =
-          zone->NewArray<MachineRepresentation>(2);
+        Zone* zone, MachineType return_type, MachineType parameter0_type,
+        MachineType parameter1_type) {
+      MachineType* parameter_types = zone->NewArray<MachineType>(2);
       parameter_types[0] = parameter0_type;
       parameter_types[1] = parameter1_type;
       return new (zone)

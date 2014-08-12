@@ -270,6 +270,7 @@ MaybeHandle<String> Factory::NewStringFromTwoByte(Vector<const uc16> string,
   int length = string.length();
   const uc16* start = string.start();
   if (String::IsOneByte(start, length)) {
+    if (length == 1) return LookupSingleCharacterStringFromCode(string[0]);
     Handle<SeqOneByteString> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(),
@@ -1289,8 +1290,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
     prototype = NewFunctionPrototype(function);
   }
 
-  initial_map->set_prototype(*prototype);
-  JSFunction::SetInitialMap(function, initial_map);
+  JSFunction::SetInitialMap(function, initial_map,
+                            Handle<JSReceiver>::cast(prototype));
 
   return function;
 }
@@ -1321,6 +1322,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
     new_map = handle(object_function->initial_map());
   }
 
+  DCHECK(!new_map->is_prototype_map());
   Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
 
   if (!function->shared()->is_generator()) {

@@ -25,7 +25,7 @@ class LinkageHelper {
                            Register::ToAllocationIndex(reg));
   }
 
-  static LinkageLocation UnconstrainedRegister(MachineRepresentation rep) {
+  static LinkageLocation UnconstrainedRegister(MachineType rep) {
     return LinkageLocation(rep, LinkageLocation::ANY_REGISTER);
   }
 
@@ -128,7 +128,8 @@ class LinkageHelper {
   template <typename LinkageTraits>
   static CallDescriptor* GetStubCallDescriptor(
       Zone* zone, CodeStubInterfaceDescriptor* descriptor,
-      int stack_parameter_count) {
+      int stack_parameter_count,
+      CallDescriptor::DeoptimizationSupport can_deoptimize) {
     int register_parameter_count = descriptor->GetEnvironmentParameterCount();
     int parameter_count = register_parameter_count + stack_parameter_count;
     const int code_count = 1;
@@ -165,16 +166,15 @@ class LinkageHelper {
                        locations,                        // locations
                        Operator::kNoProperties,          // properties
                        kNoCalleeSaved,  // callee-saved registers
-                       CallDescriptor::kCannotDeoptimize,  // deoptimization
+                       can_deoptimize,  // deoptimization
                        CodeStub::MajorName(descriptor->MajorKey(), false));
-    // TODO(jarin) should deoptimize!
   }
 
 
   template <typename LinkageTraits>
   static CallDescriptor* GetSimplifiedCDescriptor(
-      Zone* zone, int num_params, MachineRepresentation return_type,
-      const MachineRepresentation* param_types) {
+      Zone* zone, int num_params, MachineType return_type,
+      const MachineType* param_types) {
     LinkageLocation* locations =
         zone->NewArray<LinkageLocation>(num_params + 2);
     int index = 0;

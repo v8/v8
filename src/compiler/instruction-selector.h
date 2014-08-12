@@ -130,7 +130,7 @@ class InstructionSelector V8_FINAL {
 
   // Inform the register allocation of the representation of the value produced
   // by {node}.
-  void MarkAsRepresentation(MachineRepresentation rep, Node* node);
+  void MarkAsRepresentation(MachineType rep, Node* node);
 
   // Initialize the call buffer with the InstructionOperands, nodes, etc,
   // corresponding

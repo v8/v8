@@ -27,7 +27,7 @@ using namespace v8::internal::compiler;
 template <typename ReturnType>
 class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
  public:
-  explicit ChangesLoweringTester(MachineRepresentation p0 = kMachineLast)
+  explicit ChangesLoweringTester(MachineType p0 = kMachineLast)
       : GraphBuilderTester<ReturnType>(p0),
         typer(this->zone()),
         source_positions(this->graph()),

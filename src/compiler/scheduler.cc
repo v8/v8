@@ -15,25 +15,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Scheduler::Scheduler(Zone* zone)
-    : zone_(zone),
-      graph_(NULL),
-      schedule_(NULL),
-      branches_(NodeVector::allocator_type(zone)),
-      calls_(NodeVector::allocator_type(zone)),
-      deopts_(NodeVector::allocator_type(zone)),
-      returns_(NodeVector::allocator_type(zone)),
-      loops_and_merges_(NodeVector::allocator_type(zone)),
-      node_block_placement_(BasicBlockVector::allocator_type(zone)),
-      unscheduled_uses_(IntVector::allocator_type(zone)),
-      scheduled_nodes_(NodeVectorVector::allocator_type(zone)),
-      schedule_root_nodes_(NodeVector::allocator_type(zone)),
-      schedule_early_rpo_index_(IntVector::allocator_type(zone)) {}
-
-
 Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
-    : zone_(zone),
-      graph_(graph),
+    : graph_(graph),
       schedule_(schedule),
       branches_(NodeVector::allocator_type(zone)),
       calls_(NodeVector::allocator_type(zone)),
@@ -47,30 +30,26 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
       schedule_early_rpo_index_(IntVector::allocator_type(zone)) {}
 
 
-Schedule* Scheduler::NewSchedule(Graph* graph) {
-  graph_ = graph;
-  schedule_ = new (zone_) Schedule(zone_);
+Schedule* Scheduler::ComputeSchedule(Graph* graph) {
+  Zone tmp_zone(graph->zone()->isolate());
+  Schedule* schedule = new (graph->zone()) Schedule(graph->zone());
+  Scheduler scheduler(&tmp_zone, graph, schedule);
 
-  schedule_->AddNode(schedule_->end(), graph_->end());
+  schedule->AddNode(schedule->end(), graph->end());
 
-  PrepareAuxiliaryNodeData();
+  scheduler.PrepareAuxiliaryNodeData();
+  scheduler.CreateBlocks();
+  scheduler.WireBlocks();
+  scheduler.PrepareAuxiliaryBlockData();
 
-  // Create basic blocks for each block and merge node in the graph.
-  CreateBlocks();
+  Scheduler::ComputeSpecialRPO(schedule);
+  scheduler.GenerateImmediateDominatorTree();
 
-  // Wire the basic blocks together.
-  WireBlocks();
+  scheduler.PrepareUses();
+  scheduler.ScheduleEarly();
+  scheduler.ScheduleLate();
 
-  PrepareAuxiliaryBlockData();
-
-  ComputeSpecialRPO();
-  GenerateImmediateDominatorTree();
-
-  PrepareUses();
-  ScheduleEarly();
-  ScheduleLate();
-
-  return schedule_;
+  return schedule;
 }
 
 
@@ -866,20 +845,22 @@ static void VerifySpecialRPO(int num_loops, LoopInfo* loops,
 // 2. All loops are contiguous in the order (i.e. no intervening blocks that
 //    do not belong to the loop.)
 // Note a simple RPO traversal satisfies (1) but not (3).
-BasicBlockVector* Scheduler::ComputeSpecialRPO() {
+BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
+  Zone tmp_zone(schedule->zone()->isolate());
+  Zone* zone = &tmp_zone;
   if (FLAG_trace_turbo_scheduler) {
     PrintF("------------- COMPUTING SPECIAL RPO ---------------\n");
   }
   // RPO should not have been computed for this schedule yet.
-  CHECK_EQ(kBlockUnvisited1, schedule_->entry()->rpo_number_);
-  CHECK_EQ(0, static_cast<int>(schedule_->rpo_order_.size()));
+  CHECK_EQ(kBlockUnvisited1, schedule->entry()->rpo_number_);
+  CHECK_EQ(0, static_cast<int>(schedule->rpo_order_.size()));
 
   // Perform an iterative RPO traversal using an explicit stack,
   // recording backedges that form cycles. O(|B|).
-  ZoneList<std::pair<BasicBlock*, int> > backedges(1, zone_);
+  ZoneList<std::pair<BasicBlock*, int> > backedges(1, zone);
   SpecialRPOStackFrame* stack =
-      zone_->NewArray<SpecialRPOStackFrame>(schedule_->BasicBlockCount());
-  BasicBlock* entry = schedule_->entry();
+      zone->NewArray<SpecialRPOStackFrame>(schedule->BasicBlockCount());
+  BasicBlock* entry = schedule->entry();
   BlockList* order = NULL;
   int stack_depth = Push(stack, 0, entry, kBlockUnvisited1);
   int num_loops = 0;
@@ -895,7 +876,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
       if (succ->rpo_number_ == kBlockOnStack) {
         // The successor is on the stack, so this is a backedge (cycle).
         backedges.Add(
-            std::pair<BasicBlock*, int>(frame->block, frame->index - 1), zone_);
+            std::pair<BasicBlock*, int>(frame->block, frame->index - 1), zone);
         if (succ->loop_end_ < 0) {
           // Assign a new loop number to the header if it doesn't have one.
           succ->loop_end_ = num_loops++;
@@ -907,7 +888,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
       }
     } else {
       // Finished with all successors; pop the stack and add the block.
-      order = order->Add(zone_, frame->block);
+      order = order->Add(zone, frame->block);
       frame->block->rpo_number_ = kBlockVisited1;
       stack_depth--;
     }
@@ -918,8 +899,8 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
   if (num_loops != 0) {
     // Otherwise, compute the loop information from the backedges in order
     // to perform a traversal that groups loop bodies together.
-    loops = ComputeLoopInfo(zone_, stack, num_loops,
-                            schedule_->BasicBlockCount(), &backedges);
+    loops = ComputeLoopInfo(zone, stack, num_loops, schedule->BasicBlockCount(),
+                            &backedges);
 
     // Initialize the "loop stack". Note the entry could be a loop header.
     LoopInfo* loop = entry->IsLoopHeader() ? &loops[entry->loop_end_] : NULL;
@@ -944,7 +925,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
           // Finish the loop body the first time the header is left on the
           // stack.
           DCHECK(loop != NULL && loop->header == block);
-          loop->start = order->Add(zone_, block);
+          loop->start = order->Add(zone, block);
           order = loop->end;
           block->rpo_number_ = kBlockVisited2;
           // Pop the loop stack and continue visiting outgoing edges within the
@@ -973,7 +954,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
         if (loop != NULL && !loop->members->Contains(succ->id())) {
           // The successor is not in the current loop or any nested loop.
           // Add it to the outgoing edges of this loop and visit it later.
-          loop->AddOutgoing(zone_, succ);
+          loop->AddOutgoing(zone, succ);
         } else {
           // Push the successor onto the stack.
           stack_depth = Push(stack, stack_depth, succ, kBlockUnvisited2);
@@ -1001,7 +982,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
           order = info->start;
         } else {
           // Pop a single node off the stack and add it to the order.
-          order = order->Add(zone_, block);
+          order = order->Add(zone, block);
           block->rpo_number_ = kBlockVisited2;
         }
         stack_depth--;
@@ -1010,7 +991,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO() {
   }
 
   // Construct the final order from the list.
-  BasicBlockVector* final_order = &schedule_->rpo_order_;
+  BasicBlockVector* final_order = &schedule->rpo_order_;
   order->Serialize(final_order);
 
   // Compute the correct loop header for every block and set the correct loop

@@ -447,8 +447,11 @@ static int FindPatchAddressForReturnAddress(Code* code, int pc) {
   int patch_count = input_data->ReturnAddressPatchCount();
   for (int i = 0; i < patch_count; i++) {
     int return_pc = input_data->ReturnAddressPc(i)->value();
-    if (pc == return_pc) {
-      return input_data->PatchedAddressPc(i)->value();
+    int patch_pc = input_data->PatchedAddressPc(i)->value();
+    // If the supplied pc matches the return pc or if the address
+    // has been already patched, return the patch pc.
+    if (pc == return_pc || pc == patch_pc) {
+      return patch_pc;
     }
   }
   return -1;

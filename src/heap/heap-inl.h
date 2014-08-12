@@ -10,12 +10,12 @@
 #include "src/base/platform/platform.h"
 #include "src/cpu-profiler.h"
 #include "src/heap/heap.h"
+#include "src/heap/store-buffer.h"
+#include "src/heap/store-buffer-inl.h"
 #include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
 #include "src/objects.h"
-#include "src/store-buffer.h"
-#include "src/store-buffer-inl.h"
 
 namespace v8 {
 namespace internal {

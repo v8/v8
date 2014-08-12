@@ -2,15 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/store-buffer.h"
-
 #include <algorithm>
 
 #include "src/v8.h"
 
 #include "src/base/atomicops.h"
 #include "src/counters.h"
-#include "src/store-buffer-inl.h"
+#include "src/heap/store-buffer-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -32,8 +30,7 @@ StoreBuffer::StoreBuffer(Heap* heap)
       virtual_memory_(NULL),
       hash_set_1_(NULL),
       hash_set_2_(NULL),
-      hash_sets_are_empty_(true) {
-}
+      hash_sets_are_empty_(true) {}
 
 
 void StoreBuffer::SetUp() {
@@ -58,16 +55,15 @@ void StoreBuffer::SetUp() {
   old_limit_ = old_start_ + initial_length;
   old_reserved_limit_ = old_start_ + kOldStoreBufferLength;
 
-  CHECK(old_virtual_memory_->Commit(
-            reinterpret_cast<void*>(old_start_),
-            (old_limit_ - old_start_) * kPointerSize,
-            false));
+  CHECK(old_virtual_memory_->Commit(reinterpret_cast<void*>(old_start_),
+                                    (old_limit_ - old_start_) * kPointerSize,
+                                    false));
 
   DCHECK(reinterpret_cast<Address>(start_) >= virtual_memory_->address());
   DCHECK(reinterpret_cast<Address>(limit_) >= virtual_memory_->address());
   Address* vm_limit = reinterpret_cast<Address*>(
       reinterpret_cast<char*>(virtual_memory_->address()) +
-          virtual_memory_->size());
+      virtual_memory_->size());
   DCHECK(start_ <= vm_limit);
   DCHECK(limit_ <= vm_limit);
   USE(vm_limit);
@@ -133,8 +129,7 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
          old_limit_ < old_reserved_limit_) {
     size_t grow = old_limit_ - old_start_;  // Double size.
     CHECK(old_virtual_memory_->Commit(reinterpret_cast<void*>(old_limit_),
-                                      grow * kPointerSize,
-                                      false));
+                                      grow * kPointerSize, false));
     old_limit_ += grow;
   }
 
@@ -168,13 +163,12 @@ void StoreBuffer::EnsureSpace(intptr_t space_needed) {
   static const struct Samples {
     int prime_sample_step;
     int threshold;
-  } samples[kSampleFinenesses] =  {
-    { 97, ((Page::kPageSize / kPointerSize) / 97) / 8 },
-    { 23, ((Page::kPageSize / kPointerSize) / 23) / 16 },
-    { 7, ((Page::kPageSize / kPointerSize) / 7) / 32 },
-    { 3, ((Page::kPageSize / kPointerSize) / 3) / 256 },
-    { 1, 0}
-  };
+  } samples[kSampleFinenesses] = {
+        {97, ((Page::kPageSize / kPointerSize) / 97) / 8},
+        {23, ((Page::kPageSize / kPointerSize) / 23) / 16},
+        {7, ((Page::kPageSize / kPointerSize) / 7) / 32},
+        {3, ((Page::kPageSize / kPointerSize) / 3) / 256},
+        {1, 0}};
   for (int i = 0; i < kSampleFinenesses; i++) {
     ExemptPopularPages(samples[i].prime_sample_step, samples[i].threshold);
     // As a last resort we mark all pages as being exempt from the store buffer.
@@ -317,11 +311,9 @@ bool StoreBuffer::CellIsInStoreBuffer(Address cell_address) {
 
 void StoreBuffer::ClearFilteringHashSets() {
   if (!hash_sets_are_empty_) {
-    memset(reinterpret_cast<void*>(hash_set_1_),
-           0,
+    memset(reinterpret_cast<void*>(hash_set_1_), 0,
            sizeof(uintptr_t) * kHashSetLength);
-    memset(reinterpret_cast<void*>(hash_set_2_),
-           0,
+    memset(reinterpret_cast<void*>(hash_set_2_), 0,
            sizeof(uintptr_t) * kHashSetLength);
     hash_sets_are_empty_ = true;
   }
@@ -376,12 +368,9 @@ void StoreBuffer::GCEpilogue() {
 
 
 void StoreBuffer::FindPointersToNewSpaceInRegion(
-    Address start,
-    Address end,
-    ObjectSlotCallback slot_callback,
+    Address start, Address end, ObjectSlotCallback slot_callback,
     bool clear_maps) {
-  for (Address slot_address = start;
-       slot_address < end;
+  for (Address slot_address = start; slot_address < end;
        slot_address += kPointerSize) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     Object* object = reinterpret_cast<Object*>(
@@ -403,9 +392,8 @@ void StoreBuffer::FindPointersToNewSpaceInRegion(
 }
 
 
-void StoreBuffer::IteratePointersInStoreBuffer(
-    ObjectSlotCallback slot_callback,
-    bool clear_maps) {
+void StoreBuffer::IteratePointersInStoreBuffer(ObjectSlotCallback slot_callback,
+                                               bool clear_maps) {
   Address* limit = old_top_;
   old_top_ = old_start_;
   {
@@ -597,5 +585,5 @@ void StoreBuffer::Compact() {
   }
   heap_->isolate()->counters()->store_buffer_compactions()->Increment();
 }
-
-} }  // namespace v8::internal
+}
+}  // namespace v8::internal

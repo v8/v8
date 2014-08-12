@@ -263,7 +263,10 @@
   'regress/short-circuit': [SKIP],
   'stack-traces-overflow': [SKIP],
   'unicode-test': [SKIP],
-  'whitespaces': [SKIP]
+  'whitespaces': [SKIP],
+
+  # TODO(mstarzinger): Takes too long with TF.
+  'array-sort': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
 
 ##############################################################################

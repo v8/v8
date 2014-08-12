@@ -164,6 +164,7 @@ var kMessages = {
   harmony_const_assign:          ["Assignment to constant variable."],
   symbol_to_string:              ["Cannot convert a Symbol value to a string"],
   symbol_to_primitive:           ["Cannot convert a Symbol wrapper object to a primitive value"],
+  symbol_to_number:              ["Cannot convert a Symbol value to a number"],
   invalid_module_path:           ["Module does not export '", "%0", "', or export is not itself a module"],
   module_type_error:             ["Module '", "%0", "' used improperly"],
   module_export_undefined:       ["Export '", "%0", "' is not defined in module"]

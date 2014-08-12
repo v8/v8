@@ -1052,11 +1052,10 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
                   resource->length() * sizeof(smart_chars[0])) == 0);
   }
 #endif  // DEBUG
-  Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
-  if (size < ExternalString::kShortSize) {
-    return false;
-  }
+  // Abort if size does not allow in-place conversion.
+  if (size < ExternalString::kShortSize) return false;
+  Heap* heap = GetHeap();
   bool is_ascii = this->IsOneByteRepresentation();
   bool is_internalized = this->IsInternalizedString();
 
@@ -1109,6 +1108,9 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 
 bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
+  // Externalizing twice leaks the external resource, so it's
+  // prohibited by the API.
+  DCHECK(!this->IsExternalString());
 #ifdef ENABLE_SLOW_DCHECKS
   if (FLAG_enable_slow_asserts) {
     // Assert that the resource and the string are equivalent.
@@ -1125,11 +1127,10 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
                   resource->length() * sizeof(smart_chars[0])) == 0);
   }
 #endif  // DEBUG
-  Heap* heap = GetHeap();
   int size = this->Size();  // Byte size of the original string.
-  if (size < ExternalString::kShortSize) {
-    return false;
-  }
+  // Abort if size does not allow in-place conversion.
+  if (size < ExternalString::kShortSize) return false;
+  Heap* heap = GetHeap();
   bool is_internalized = this->IsInternalizedString();
 
   // Morph the string to an external string by replacing the map and
@@ -3470,7 +3471,7 @@ Handle<Map> Map::TransitionElementsToSlow(Handle<Map> map,
   bool allow_store_transition =
       // Only remember the map transition if there is not an already existing
       // non-matching element transition.
-      !map->IsUndefined() && !map->is_shared() &&
+      !map->IsUndefined() && !map->is_dictionary_map() &&
       IsTransitionElementsKind(from_kind);
 
   // Only store fast element maps in ascending generality.
@@ -6975,23 +6976,23 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map,
   DCHECK(!fast_map->is_dictionary_map());
 
   Isolate* isolate = fast_map->GetIsolate();
-  Handle<NormalizedMapCache> cache(
-      isolate->context()->native_context()->normalized_map_cache());
+  Handle<Object> maybe_cache(isolate->native_context()->normalized_map_cache(),
+                             isolate);
+  bool use_cache = !maybe_cache->IsUndefined();
+  Handle<NormalizedMapCache> cache;
+  if (use_cache) cache = Handle<NormalizedMapCache>::cast(maybe_cache);
 
   Handle<Map> new_map;
-  if (cache->Get(fast_map, mode).ToHandle(&new_map)) {
+  if (use_cache && cache->Get(fast_map, mode).ToHandle(&new_map)) {
 #ifdef VERIFY_HEAP
-    if (FLAG_verify_heap) {
-      new_map->SharedMapVerify();
-    }
+    if (FLAG_verify_heap) new_map->DictionaryMapVerify();
 #endif
 #ifdef ENABLE_SLOW_DCHECKS
     if (FLAG_enable_slow_asserts) {
       // The cached map should match newly created normalized map bit-by-bit,
       // except for the code cache, which can contain some ics which can be
       // applied to the shared map.
-      Handle<Map> fresh = Map::CopyNormalized(
-          fast_map, mode, SHARED_NORMALIZED_MAP);
+      Handle<Map> fresh = Map::CopyNormalized(fast_map, mode);
 
       DCHECK(memcmp(fresh->address(),
                     new_map->address(),
@@ -7005,9 +7006,11 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map,
     }
 #endif
   } else {
-    new_map = Map::CopyNormalized(fast_map, mode, SHARED_NORMALIZED_MAP);
-    cache->Set(fast_map, new_map);
-    isolate->counters()->normalized_maps()->Increment();
+    new_map = Map::CopyNormalized(fast_map, mode);
+    if (use_cache) {
+      cache->Set(fast_map, new_map);
+      isolate->counters()->normalized_maps()->Increment();
+    }
   }
   fast_map->NotifyLeafMapLayoutChange();
   return new_map;
@@ -7015,8 +7018,7 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map,
 
 
 Handle<Map> Map::CopyNormalized(Handle<Map> map,
-                                PropertyNormalizationMode mode,
-                                NormalizedMapSharingMode sharing) {
+                                PropertyNormalizationMode mode) {
   int new_instance_size = map->instance_size();
   if (mode == CLEAR_INOBJECT_PROPERTIES) {
     new_instance_size -= map->inobject_properties() * kPointerSize;
@@ -7028,14 +7030,11 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
     result->set_inobject_properties(map->inobject_properties());
   }
 
-  result->set_is_shared(sharing == SHARED_NORMALIZED_MAP);
   result->set_dictionary_map(true);
   result->set_migration_target(false);
 
 #ifdef VERIFY_HEAP
-  if (FLAG_verify_heap && result->is_shared()) {
-    result->SharedMapVerify();
-  }
+  if (FLAG_verify_heap) result->DictionaryMapVerify();
 #endif
 
   return result;
@@ -7051,7 +7050,6 @@ Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
 
   result->set_pre_allocated_property_fields(
       map->pre_allocated_property_fields());
-  result->set_is_shared(false);
   result->ClearCodeCache(map->GetHeap());
   map->NotifyLeafMapLayoutChange();
   return result;
@@ -9812,20 +9810,29 @@ void SharedFunctionInfo::TrimOptimizedCodeMap(int shrink_by) {
 }
 
 
-void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
+void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
+                                   PrototypeOptimizationMode mode) {
   if (object->IsGlobalObject()) return;
-
-  // Make sure prototypes are fast objects and their maps have the bit set
-  // so they remain fast.
+  if (object->IsJSGlobalProxy()) return;
+  if (mode == FAST_PROTOTYPE && !object->map()->is_prototype_map()) {
+    // First normalize to ensure all JSFunctions are CONSTANT.
+    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0);
+  }
   if (!object->HasFastProperties()) {
-    MigrateSlowToFast(object, 0);
+    JSObject::MigrateSlowToFast(object, 0);
+  }
+  if (mode == FAST_PROTOTYPE && object->HasFastProperties() &&
+      !object->map()->is_prototype_map()) {
+    Handle<Map> new_map = Map::Copy(handle(object->map()));
+    JSObject::MigrateToMap(object, new_map);
+    object->map()->set_is_prototype_map(true);
   }
 }
 
 
 void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
   if (!object->map()->is_prototype_map()) return;
-  OptimizeAsPrototype(object);
+  OptimizeAsPrototype(object, FAST_PROTOTYPE);
 }
 
 
@@ -9876,20 +9883,29 @@ void JSFunction::SetInstancePrototype(Handle<JSFunction> function,
     if (function->IsInobjectSlackTrackingInProgress()) {
       function->CompleteInobjectSlackTracking();
     }
+
     Handle<Map> initial_map(function->initial_map(), isolate);
-    Handle<Map> new_map = Map::Copy(initial_map);
-    new_map->set_prototype(*value);
 
-    // If the function is used as the global Array function, cache the
-    // initial map (and transitioned versions) in the native context.
-    Context* native_context = function->context()->native_context();
-    Object* array_function = native_context->get(Context::ARRAY_FUNCTION_INDEX);
-    if (array_function->IsJSFunction() &&
-        *function == JSFunction::cast(array_function)) {
-      CacheInitialJSArrayMaps(handle(native_context, isolate), new_map);
+    if (!initial_map->GetIsolate()->bootstrapper()->IsActive() &&
+        initial_map->instance_type() == JS_OBJECT_TYPE) {
+      // Put the value in the initial map field until an initial map is needed.
+      // At that point, a new initial map is created and the prototype is put
+      // into the initial map where it belongs.
+      function->set_prototype_or_initial_map(*value);
+    } else {
+      Handle<Map> new_map = Map::Copy(initial_map);
+      JSFunction::SetInitialMap(function, new_map, value);
+
+      // If the function is used as the global Array function, cache the
+      // initial map (and transitioned versions) in the native context.
+      Context* native_context = function->context()->native_context();
+      Object* array_function =
+          native_context->get(Context::ARRAY_FUNCTION_INDEX);
+      if (array_function->IsJSFunction() &&
+          *function == JSFunction::cast(array_function)) {
+        CacheInitialJSArrayMaps(handle(native_context, isolate), new_map);
+      }
     }
-
-    JSFunction::SetInitialMap(function, new_map);
 
     // Deoptimize all code that embeds the previous initial map.
     initial_map->dependent_code()->DeoptimizeDependentCodeGroup(
@@ -9956,27 +9972,13 @@ bool JSFunction::RemovePrototype() {
 }
 
 
-void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map) {
-  if (map->prototype()->IsJSObject()) {
-    Handle<JSObject> js_proto = handle(JSObject::cast(map->prototype()));
-    if (!js_proto->map()->is_prototype_map() &&
-        !js_proto->map()->IsGlobalObjectMap() &&
-        !js_proto->map()->IsJSGlobalProxyMap()) {
-      // Normalize and turn fast again to make all functions CONSTANT
-      // properties.
-      if (!js_proto->GetIsolate()->bootstrapper()->IsActive()) {
-        JSObject::NormalizeProperties(js_proto, KEEP_INOBJECT_PROPERTIES, 0);
-      }
-      if (!js_proto->HasFastProperties()) {
-        JSObject::MigrateSlowToFast(js_proto, 0);
-      }
-      if (js_proto->HasFastProperties()) {
-        Handle<Map> new_map = Map::Copy(handle(js_proto->map()));
-        JSObject::MigrateToMap(js_proto, new_map);
-        js_proto->map()->set_is_prototype_map(true);
-      }
-    }
+void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
+                               Handle<Object> prototype) {
+  if (prototype->IsJSObject()) {
+    Handle<JSObject> js_proto = Handle<JSObject>::cast(prototype);
+    JSObject::OptimizeAsPrototype(js_proto, FAST_PROTOTYPE);
   }
+  map->set_prototype(*prototype);
   function->set_prototype_or_initial_map(*map);
   map->set_constructor(*function);
 }
@@ -10011,11 +10013,10 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   }
   map->set_inobject_properties(in_object_properties);
   map->set_unused_property_fields(in_object_properties);
-  map->set_prototype(*prototype);
   DCHECK(map->has_fast_object_elements());
 
   // Finally link initial map and constructor function.
-  JSFunction::SetInitialMap(function, map);
+  JSFunction::SetInitialMap(function, map, Handle<JSReceiver>::cast(prototype));
 
   if (!function->shared()->is_generator()) {
     function->StartInobjectSlackTracking();
@@ -10726,7 +10727,26 @@ int Code::SourceStatementPosition(Address pc) {
 
 SafepointEntry Code::GetSafepointEntry(Address pc) {
   SafepointTable table(this);
-  return table.FindEntry(pc);
+  SafepointEntry entry = table.FindEntry(pc);
+  if (entry.is_valid() || !is_turbofanned()) {
+    return entry;
+  }
+
+  // If the code is turbofanned, we might be looking for
+  // an address that was patched by lazy deoptimization.
+  // In that case look through the patch table, try to
+  // lookup the original address there, and then use this
+  // to find the safepoint entry.
+  DeoptimizationInputData* deopt_data =
+      DeoptimizationInputData::cast(deoptimization_data());
+  intptr_t offset = pc - instruction_start();
+  for (int i = 0; i < deopt_data->ReturnAddressPatchCount(); i++) {
+    if (deopt_data->PatchedAddressPc(i)->value() == offset) {
+      int original_offset = deopt_data->ReturnAddressPc(i)->value();
+      return table.FindEntry(instruction_start() + original_offset);
+    }
+  }
+  return SafepointEntry();
 }
 
 
@@ -11128,7 +11148,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
   if (0 != deopt_count) {
     os << " index  ast id    argc     pc";
-    if (FLAG_print_code_verbose) os << "commands";
+    if (FLAG_print_code_verbose) os << "  commands";
     os << "\n";
   }
   for (int i = 0; i < deopt_count; i++) {
@@ -11158,7 +11178,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
            Translation::BEGIN !=
            (opcode = static_cast<Translation::Opcode>(iterator.Next()))) {
       Vector<char> buf2 = Vector<char>::New(128);
-      SNPrintF(buf2, "%24s    %s ", "", Translation::StringFor(opcode));
+      SNPrintF(buf2, "%27s    %s ", "", Translation::StringFor(opcode));
       os << buf2.start();
 
       switch (opcode) {
@@ -11284,11 +11304,11 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
   if (return_address_patch_count != 0) {
     os << "Return address patch data (count = " << return_address_patch_count
        << ")\n";
-    os << "index pc    patched_pc\n";
+    os << " index    pc  patched_pc\n";
   }
   for (int i = 0; i < return_address_patch_count; i++) {
     Vector<char> buf = Vector<char>::New(128);
-    SNPrintF(buf, "%6d  %6d  %10d", i, ReturnAddressPc(i)->value(),
+    SNPrintF(buf, "%6d  %6d  %12d\n", i, ReturnAddressPc(i)->value(),
              PatchedAddressPc(i)->value());
     os << buf.start();
   }
@@ -11777,7 +11797,7 @@ Handle<Map> Map::PutPrototypeTransition(Handle<Map> map,
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
   if (map->is_prototype_map()) return map;
-  if (map->is_shared() || !FLAG_cache_prototype_transitions) return map;
+  if (map->is_dictionary_map() || !FLAG_cache_prototype_transitions) return map;
 
   const int step = kProtoTransitionElementsPerEntry;
   const int header = kProtoTransitionHeaderSize;
@@ -12100,7 +12120,7 @@ Handle<Map> Map::TransitionToPrototype(Handle<Map> map,
 
 MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
                                            Handle<Object> value,
-                                           bool skip_hidden_prototypes) {
+                                           bool from_javascript) {
 #ifdef DEBUG
   int size = object->Size();
 #endif
@@ -12145,7 +12165,7 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
       object->map()->DictionaryElementsInPrototypeChainOnly();
   Handle<JSObject> real_receiver = object;
 
-  if (skip_hidden_prototypes) {
+  if (from_javascript) {
     // Find the first object in the chain whose prototype object is not
     // hidden and set the new prototype on that object.
     PrototypeIterator iter(isolate, real_receiver);
@@ -12163,7 +12183,9 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   if (map->prototype() == *value) return value;
 
   if (value->IsJSObject()) {
-    JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
+    PrototypeOptimizationMode mode =
+        from_javascript ? REGULAR_PROTOTYPE : FAST_PROTOTYPE;
+    JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value), mode);
   }
 
   Handle<Map> new_map = Map::TransitionToPrototype(map, value);

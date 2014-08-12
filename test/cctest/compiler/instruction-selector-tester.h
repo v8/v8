@@ -27,9 +27,8 @@ class InstructionSelectorTester : public HandleAndZoneScope,
   enum Mode { kTargetMode, kInternalMode };
 
   static const int kParameterCount = 3;
-  static MachineRepresentation* BuildParameterArray(Zone* zone) {
-    MachineRepresentation* array =
-        zone->NewArray<MachineRepresentation>(kParameterCount);
+  static MachineType* BuildParameterArray(Zone* zone) {
+    MachineType* array = zone->NewArray<MachineType>(kParameterCount);
     for (int i = 0; i < kParameterCount; ++i) {
       array[i] = kMachineWord32;
     }

@@ -22,10 +22,9 @@ class MachineAssemblerTester : public HandleAndZoneScope,
                                public CallHelper,
                                public MachineAssembler {
  public:
-  MachineAssemblerTester(MachineRepresentation return_type,
-                         MachineRepresentation p0, MachineRepresentation p1,
-                         MachineRepresentation p2, MachineRepresentation p3,
-                         MachineRepresentation p4)
+  MachineAssemblerTester(MachineType return_type, MachineType p0,
+                         MachineType p1, MachineType p2, MachineType p3,
+                         MachineType p4)
       : HandleAndZoneScope(),
         CallHelper(main_isolate()),
         MachineAssembler(new (main_zone()) Graph(main_zone()),
@@ -33,13 +32,12 @@ class MachineAssemblerTester : public HandleAndZoneScope,
                                                  p1, p2, p3, p4),
                          MachineOperatorBuilder::pointer_rep()) {}
 
-  Node* LoadFromPointer(void* address, MachineRepresentation rep,
-                        int32_t offset = 0) {
+  Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return this->Load(rep, this->PointerConstant(address),
                       this->Int32Constant(offset));
   }
 
-  void StoreToPointer(void* address, MachineRepresentation rep, Node* node) {
+  void StoreToPointer(void* address, MachineType rep, Node* node) {
     this->Store(rep, this->PointerConstant(address), node);
   }
 
@@ -62,9 +60,9 @@ class MachineAssemblerTester : public HandleAndZoneScope,
 
  protected:
   virtual void VerifyParameters(int parameter_count,
-                                MachineRepresentation* parameter_types) {
+                                MachineType* parameter_types) {
     CHECK_EQ(this->parameter_count(), parameter_count);
-    const MachineRepresentation* expected_types = this->parameter_types();
+    const MachineType* expected_types = this->parameter_types();
     for (int i = 0; i < parameter_count; i++) {
       CHECK_EQ(expected_types[i], parameter_types[i]);
     }
@@ -93,11 +91,11 @@ class RawMachineAssemblerTester
     : public MachineAssemblerTester<RawMachineAssembler>,
       public CallHelper2<ReturnType, RawMachineAssemblerTester<ReturnType> > {
  public:
-  RawMachineAssemblerTester(MachineRepresentation p0 = kMachineLast,
-                            MachineRepresentation p1 = kMachineLast,
-                            MachineRepresentation p2 = kMachineLast,
-                            MachineRepresentation p3 = kMachineLast,
-                            MachineRepresentation p4 = kMachineLast)
+  RawMachineAssemblerTester(MachineType p0 = kMachineLast,
+                            MachineType p1 = kMachineLast,
+                            MachineType p2 = kMachineLast,
+                            MachineType p3 = kMachineLast,
+                            MachineType p4 = kMachineLast)
       : MachineAssemblerTester<RawMachineAssembler>(
             ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3,
             p4) {}
@@ -129,11 +127,11 @@ class StructuredMachineAssemblerTester
       public CallHelper2<ReturnType,
                          StructuredMachineAssemblerTester<ReturnType> > {
  public:
-  StructuredMachineAssemblerTester(MachineRepresentation p0 = kMachineLast,
-                                   MachineRepresentation p1 = kMachineLast,
-                                   MachineRepresentation p2 = kMachineLast,
-                                   MachineRepresentation p3 = kMachineLast,
-                                   MachineRepresentation p4 = kMachineLast)
+  StructuredMachineAssemblerTester(MachineType p0 = kMachineLast,
+                                   MachineType p1 = kMachineLast,
+                                   MachineType p2 = kMachineLast,
+                                   MachineType p3 = kMachineLast,
+                                   MachineType p4 = kMachineLast)
       : MachineAssemblerTester<StructuredMachineAssembler>(
             ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3,
             p4) {}
@@ -147,7 +145,7 @@ static const int32_t CHECK_VALUE = 0x99BEEDCE;
 
 // TODO(titzer): use the C-style calling convention, or any register-based
 // calling convention for binop tests.
-template <typename CType, MachineRepresentation rep, bool use_result_buffer>
+template <typename CType, MachineType rep, bool use_result_buffer>
 class BinopTester {
  public:
   explicit BinopTester(RawMachineAssemblerTester<int32_t>* tester)

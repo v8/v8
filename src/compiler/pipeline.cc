@@ -222,9 +222,8 @@ Handle<Code> Pipeline::GenerateCode() {
 
 
 Schedule* Pipeline::ComputeSchedule(Graph* graph) {
-  Scheduler scheduler(zone());
   PhaseStats schedule_stats(info(), PhaseStats::CODEGEN, "scheduling");
-  return scheduler.NewSchedule(graph);
+  return Scheduler::ComputeSchedule(graph);
 }
 
 

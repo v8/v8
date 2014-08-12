@@ -744,6 +744,70 @@ void RegisterAllocator::MeetRegisterConstraints(BasicBlock* block) {
       if (!AllocationOk()) return;
     }
   }
+
+  // Meet register constraints for the instruction in the end.
+  if (!code()->IsGapAt(end)) {
+    MeetRegisterConstraintsForLastInstructionInBlock(block);
+  }
+}
+
+
+void RegisterAllocator::MeetRegisterConstraintsForLastInstructionInBlock(
+    BasicBlock* block) {
+  int end = block->last_instruction_index();
+  Instruction* last_instruction = InstructionAt(end);
+  for (size_t i = 0; i < last_instruction->OutputCount(); i++) {
+    InstructionOperand* output_operand = last_instruction->OutputAt(i);
+    DCHECK(!output_operand->IsConstant());
+    UnallocatedOperand* output = UnallocatedOperand::cast(output_operand);
+    int output_vreg = output->virtual_register();
+    LiveRange* range = LiveRangeFor(output_vreg);
+    bool assigned = false;
+    if (output->HasFixedPolicy()) {
+      AllocateFixed(output, -1, false);
+      // This value is produced on the stack, we never need to spill it.
+      if (output->IsStackSlot()) {
+        range->SetSpillOperand(output);
+        range->SetSpillStartIndex(end);
+        assigned = true;
+      }
+
+      BasicBlock::Successors successors = block->successors();
+      for (BasicBlock::Successors::iterator succ = successors.begin();
+           succ != successors.end(); ++succ) {
+        DCHECK((*succ)->PredecessorCount() == 1);
+        int gap_index = (*succ)->first_instruction_index() + 1;
+        DCHECK(code()->IsGapAt(gap_index));
+
+        // Create an unconstrained operand for the same virtual register
+        // and insert a gap move from the fixed output to the operand.
+        UnallocatedOperand* output_copy =
+            new (code_zone()) UnallocatedOperand(UnallocatedOperand::ANY);
+        output_copy->set_virtual_register(output_vreg);
+
+        code()->AddGapMove(gap_index, output, output_copy);
+      }
+    }
+
+    if (!assigned) {
+      BasicBlock::Successors successors = block->successors();
+      for (BasicBlock::Successors::iterator succ = successors.begin();
+           succ != successors.end(); ++succ) {
+        DCHECK((*succ)->PredecessorCount() == 1);
+        int gap_index = (*succ)->first_instruction_index() + 1;
+        range->SetSpillStartIndex(gap_index);
+
+        // This move to spill operand is not a real use. Liveness analysis
+        // and splitting of live ranges do not account for it.
+        // Thus it should be inserted to a lifetime position corresponding to
+        // the instruction end.
+        GapInstruction* gap = code()->GapAt(gap_index);
+        ParallelMove* move =
+            gap->GetOrCreateParallelMove(GapInstruction::BEFORE, code_zone());
+        move->AddMove(output, range->GetSpillOperand(), code_zone());
+      }
+    }
+  }
 }
 
 
@@ -786,6 +850,8 @@ void RegisterAllocator::MeetConstraintsBetween(Instruction* first,
           code()->AddGapMove(gap_index, first_output, output_copy);
         }
 
+        // Make sure we add a gap move for spilling (if we have not done
+        // so already).
         if (!assigned) {
           range->SetSpillStartIndex(gap_index);
 

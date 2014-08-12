@@ -197,6 +197,15 @@ class GCTracer BASE_EMBEDDED {
     // - last MARK_COMPACTOR event for MARK_COMPACTOR events
     double incremental_marking_duration;
 
+    // Cumulative pure duration of incremental marking steps since creation of
+    // tracer. (value at start of event)
+    double cumulative_pure_incremental_marking_duration;
+
+    // Duration of pure incremental marking steps since
+    // - last event for SCAVENGER events
+    // - last MARK_COMPACTOR event for MARK_COMPACTOR events
+    double pure_incremental_marking_duration;
+
     // Longest incremental marking step since start of marking.
     // (value at start of event)
     double longest_incremental_marking_step;
@@ -318,6 +327,10 @@ class GCTracer BASE_EMBEDDED {
 
   // Cumulative duration of incremental marking steps since creation of tracer.
   double cumulative_incremental_marking_duration_;
+
+  // Cumulative duration of pure incremental marking steps since creation of
+  // tracer.
+  double cumulative_pure_incremental_marking_duration_;
 
   // Longest incremental marking step since start of marking.
   double longest_incremental_marking_step_;
