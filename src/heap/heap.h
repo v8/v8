@@ -960,7 +960,7 @@ class Heap {
 
   // Returns deterministic "time" value in ms. Works only with
   // FLAG_verify_predictable.
-  double synthetic_time() { return allocations_count_ / 100.0; }
+  double synthetic_time() { return allocations_count_ / 2.0; }
 
   // Print short heap statistics.
   void PrintShortHeapStatistics();

@@ -29,7 +29,5 @@
 [ALWAYS, {
   # Too slow in Debug mode.
   'octane/mandreel': [PASS, ['mode == debug', SKIP]],
-  # TODO(mstarzinger,ishell): Timeout with TF in predictable mode.
-  'octane/richards': [PASS, NO_VARIANTS],
 }],  # ALWAYS
 ]
