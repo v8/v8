@@ -344,6 +344,8 @@
         '../../src/compilation-cache.h',
         '../../src/compiler/ast-graph-builder.cc',
         '../../src/compiler/ast-graph-builder.h',
+        '../../src/compiler/change-lowering.cc',
+        '../../src/compiler/change-lowering.h',
         '../../src/compiler/code-generator-impl.h',
         '../../src/compiler/code-generator.cc',
         '../../src/compiler/code-generator.h',

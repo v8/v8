@@ -41,7 +41,6 @@ class CompilerTest : public ::testing::Test {
   Isolate* isolate() const { return reinterpret_cast<Isolate*>(isolate_); }
   Zone* zone() { return &zone_; }
 
- protected:
   static void SetUpTestCase();
   static void TearDownTestCase();
 

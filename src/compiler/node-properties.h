@@ -5,15 +5,13 @@
 #ifndef V8_COMPILER_NODE_PROPERTIES_H_
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
-#include "src/v8.h"
-
+#include "src/compiler/node.h"
 #include "src/types.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class Node;
 class Operator;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
@@ -50,8 +48,9 @@ class NodeProperties {
 
   static inline bool IsInputRange(Node::Edge edge, int first, int count);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_NODE_PROPERTIES_H_
