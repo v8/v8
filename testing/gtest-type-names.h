@@ -11,10 +11,10 @@
 namespace testing {
 namespace internal {
 
-#define GET_TYPE_NAME(type)         \
-  template <>                       \
-  std::string GetTypeName<type>() { \
-    return #type;                   \
+#define GET_TYPE_NAME(type)                \
+  template <>                              \
+  inline std::string GetTypeName<type>() { \
+    return #type;                          \
   }
 GET_TYPE_NAME(int8_t)
 GET_TYPE_NAME(uint8_t)

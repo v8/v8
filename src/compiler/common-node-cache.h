@@ -7,6 +7,7 @@
 
 #include "src/assembler.h"
 #include "src/compiler/node-cache.h"
+#include "src/unique.h"
 
 namespace v8 {
 namespace internal {
@@ -27,7 +28,8 @@ class CommonNodeCache V8_FINAL : public ZoneObject {
   }
 
   Node** FindExternalConstant(ExternalReference reference) {
-    return external_constants_.Find(zone_, reference.address());
+    return external_constants_.Find(
+        zone_, reinterpret_cast<intptr_t>(reference.address()));
   }
 
   Node** FindNumberConstant(double value) {
@@ -35,17 +37,23 @@ class CommonNodeCache V8_FINAL : public ZoneObject {
     return number_constants_.Find(zone_, BitCast<int64_t>(value));
   }
 
-  Zone* zone() const { return zone_; }
+  Node** FindHeapConstant(PrintableUnique<HeapObject> object) {
+    return heap_constants_.Find(zone_, object.Hashcode());
+  }
 
  private:
   Int32NodeCache int32_constants_;
   Int64NodeCache float64_constants_;
-  PtrNodeCache external_constants_;
+  IntPtrNodeCache external_constants_;
   Int64NodeCache number_constants_;
+  IntPtrNodeCache heap_constants_;
   Zone* zone_;
+
+  DISALLOW_COPY_AND_ASSIGN(CommonNodeCache);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_COMMON_NODE_CACHE_H_

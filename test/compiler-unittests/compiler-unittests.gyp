@@ -21,8 +21,10 @@
       ],
       'sources': [  ### gcmole(all) ###
         'change-lowering-unittest.cc',
+        'common-node-cache-unittest.cc',
         'compiler-unittests.cc',
         'instruction-selector-unittest.cc',
+        'node-cache-unittest.cc',
         'node-matchers.cc',
         'node-matchers.h',
       ],

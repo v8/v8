@@ -65,7 +65,6 @@
         'compiler/test-linkage.cc',
         'compiler/test-machine-operator-reducer.cc',
         'compiler/test-node-algorithm.cc',
-        'compiler/test-node-cache.cc',
         'compiler/test-node.cc',
         'compiler/test-operator.cc',
         'compiler/test-phi-reducer.cc',

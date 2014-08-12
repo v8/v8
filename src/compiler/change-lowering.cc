@@ -34,8 +34,11 @@ Node* ChangeLoweringBase::ExternalConstant(ExternalReference reference) {
 
 
 Node* ChangeLoweringBase::HeapConstant(PrintableUnique<HeapObject> value) {
-  // TODO(bmeurer): Use common node cache.
-  return graph()->NewNode(common()->HeapConstant(value));
+  Node** loc = cache()->FindHeapConstant(value);
+  if (*loc == NULL) {
+    *loc = graph()->NewNode(common()->HeapConstant(value));
+  }
+  return *loc;
 }
 
 
