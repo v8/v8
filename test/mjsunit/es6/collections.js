@@ -1015,9 +1015,6 @@ function TestSetConstructor(ctor) {
   assertThrows(function() {
     new ctor({});
   }, TypeError);
-  assertThrows(function() {
-    new ctor(true);
-  }, TypeError);
 
   // @@iterator not callable
   assertThrows(function() {
@@ -1151,39 +1148,6 @@ TestSetConstructorNextNotAnObject(WeakSet);
 })();
 
 
-function TestSetConstructorIterableValue(ctor) {
-  'use strict';
-  // Strict mode is required to prevent implicit wrapping in the getter.
-  Object.defineProperty(Number.prototype, Symbol.iterator, {
-    get: function() {
-      assertEquals('object', typeof this);
-      return function() {
-        return oneAndTwo.keys();
-      };
-    },
-    configurable: true
-  });
-
-  var set = new ctor(42);
-  assertSize(2, set);
-  assertTrue(set.has(k1));
-  assertTrue(set.has(k2));
-
-  delete Number.prototype[Symbol.iterator];
-}
-TestSetConstructorIterableValue(Set);
-TestSetConstructorIterableValue(WeakSet);
-
-
-(function TestSetConstructorStringValue() {
-  var s = new Set('abc');
-  assertSize(3, s);
-  assertTrue(s.has('a'));
-  assertTrue(s.has('b'));
-  assertTrue(s.has('c'));
-})();
-
-
 function TestMapConstructor(ctor) {
   var m = new ctor(null);
   assertSize(0, m);
@@ -1194,9 +1158,6 @@ function TestMapConstructor(ctor) {
   // No @@iterator
   assertThrows(function() {
     new ctor({});
-  }, TypeError);
-  assertThrows(function() {
-    new ctor(true);
   }, TypeError);
 
   // @@iterator not callable
@@ -1339,27 +1300,3 @@ TestMapConstructorIteratorNotObjectValues(WeakMap);
     new WeakMap([[1, 2]])
   }, TypeError);
 })();
-
-
-function TestMapConstructorIterableValue(ctor) {
-  'use strict';
-  // Strict mode is required to prevent implicit wrapping in the getter.
-  Object.defineProperty(Number.prototype, Symbol.iterator, {
-    get: function() {
-      assertEquals('object', typeof this);
-      return function() {
-        return oneAndTwo.entries();
-      };
-    },
-    configurable: true
-  });
-
-  var map = new ctor(42);
-  assertSize(2, map);
-  assertEquals(1, map.get(k1));
-  assertEquals(2, map.get(k2));
-
-  delete Number.prototype[Symbol.iterator];
-}
-TestMapConstructorIterableValue(Map);
-TestMapConstructorIterableValue(WeakMap);
