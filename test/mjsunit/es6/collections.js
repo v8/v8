@@ -1141,6 +1141,13 @@ TestSetConstructorNextNotAnObject(Set);
 TestSetConstructorNextNotAnObject(WeakSet);
 
 
+(function TestWeakSetConstructorNonObjectKeys() {
+  assertThrows(function() {
+    new WeakSet([1]);
+  }, TypeError);
+})();
+
+
 function TestMapConstructor(ctor) {
   var m = new ctor(null);
   assertSize(0, m);
@@ -1286,3 +1293,10 @@ function TestMapConstructorIteratorNotObjectValues(ctor) {
 }
 TestMapConstructorIteratorNotObjectValues(Map);
 TestMapConstructorIteratorNotObjectValues(WeakMap);
+
+
+(function TestWeakMapConstructorNonObjectKeys() {
+  assertThrows(function() {
+    new WeakMap([[1, 2]])
+  }, TypeError);
+})();
