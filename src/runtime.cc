@@ -5495,7 +5495,7 @@ RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  isolate->debug()->PushPromise(promise);
+  isolate->PushPromise(promise);
   return isolate->heap()->undefined_value();
 }
 
@@ -5503,7 +5503,7 @@ RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
 RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   DCHECK(args.length() == 0);
   SealHandleScope shs(isolate);
-  isolate->debug()->PopPromise();
+  isolate->PopPromise();
   return isolate->heap()->undefined_value();
 }
 
