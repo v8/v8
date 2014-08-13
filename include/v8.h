@@ -1424,6 +1424,11 @@ class V8_EXPORT Value : public Data {
   bool IsDate() const;
 
   /**
+   * Returns true if this value is an Arguments object.
+   */
+  bool IsArgumentsObject() const;
+
+  /**
    * Returns true if this value is a Boolean object.
    */
   bool IsBooleanObject() const;

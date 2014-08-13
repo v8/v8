@@ -1541,6 +1541,19 @@ THREADED_TEST(IsNativeError) {
 }
 
 
+THREADED_TEST(ArgumentsObject) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Handle<Value> arguments_object =
+      CompileRun("var out = 0; (function(){ out = arguments; })(1,2,3); out;");
+  CHECK(arguments_object->IsArgumentsObject());
+  v8::Handle<Value> array = CompileRun("[1,2,3]");
+  CHECK(!array->IsArgumentsObject());
+  v8::Handle<Value> object = CompileRun("{a:42}");
+  CHECK(!object->IsArgumentsObject());
+}
+
+
 THREADED_TEST(StringObject) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

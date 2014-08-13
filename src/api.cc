@@ -2383,6 +2383,14 @@ bool Value::IsNumber() const {
 }
 
 
+bool Value::IsArgumentsObject() const {
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsHeapObject()) return false;
+  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
+  return obj->HasSpecificClassOf(isolate->heap()->Arguments_string());
+}
+
+
 bool Value::IsBoolean() const {
   return Utils::OpenHandle(this)->IsBoolean();
 }
