@@ -11209,15 +11209,6 @@ static SaveContext* FindSavedContextForFrame(Isolate* isolate,
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsOptimized) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  return isolate->heap()->ToBoolean(frame->is_optimized());
-}
-
-
 // Advances the iterator to the frame that matches the index and returns the
 // inlined frame index, or -1 if not found.  Skips native JS functions.
 static int FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index) {

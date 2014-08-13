@@ -68,7 +68,6 @@ namespace internal {
   F(OptimizeFunctionOnNextCall, -1, 1)                      \
   F(NeverOptimizeFunction, 1, 1)                            \
   F(GetOptimizationStatus, -1, 1)                           \
-  F(IsOptimized, 0, 1) /* TODO(turbofan): Only temporary */ \
   F(GetOptimizationCount, 1, 1)                             \
   F(UnblockConcurrentRecompilation, 0, 1)                   \
   F(CompileForOnStackReplacement, 1, 1)                     \
