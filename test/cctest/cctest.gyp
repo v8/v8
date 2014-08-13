@@ -198,6 +198,7 @@
         }],
         ['v8_target_arch=="arm64"', {
           'sources': [  ### gcmole(arch:arm64) ###
+            'compiler/test-instruction-selector-arm64.cc',
             'test-utils-arm64.cc',
             'test-assembler-arm64.cc',
             'test-code-stubs.cc',
