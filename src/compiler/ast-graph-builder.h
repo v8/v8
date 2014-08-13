@@ -171,18 +171,8 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Dispatched from VisitForInStatement.
   void VisitForInAssignment(Expression* expr, Node* value);
 
-  // Flag that describes how to combine the current environment with
-  // the output of a node to obtain a framestate for lazy bailout.
-  enum OutputFrameStateCombine {
-    PUSH_OUTPUT,   // Push the output on the expression stack.
-    IGNORE_OUTPUT  // Use the frame state as-is.
-  };
-
-  // Builds deoptimization for a given node.
-  void PrepareFrameState(Node* node, BailoutId ast_id,
-                         OutputFrameStateCombine combine = IGNORE_OUTPUT);
-
-  OutputFrameStateCombine StateCombineFromAstContext();
+  void BuildLazyBailout(Node* node, BailoutId ast_id);
+  void BuildLazyBailoutWithPushedNode(Node* node, BailoutId ast_id);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
   DISALLOW_COPY_AND_ASSIGN(AstGraphBuilder);
@@ -292,15 +282,10 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
   bool IsValue() const { return kind_ == Expression::kValue; }
   bool IsTest() const { return kind_ == Expression::kTest; }
 
-  // Determines how to combine the frame state with the value
-  // that is about to be plugged into this AstContext.
-  AstGraphBuilder::OutputFrameStateCombine GetStateCombine() {
-    return IsEffect() ? IGNORE_OUTPUT : PUSH_OUTPUT;
-  }
-
   // Plug a node into this expression context.  Call this function in tail
   // position in the Visit functions for expressions.
   virtual void ProduceValue(Node* value) = 0;
+  virtual void ProduceValueWithLazyBailout(Node* value) = 0;
 
   // Unplugs a node from this expression context.  Call this to retrieve the
   // result of another Visit function that already plugged the context.
@@ -310,7 +295,8 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
   void ReplaceValue() { ProduceValue(ConsumeValue()); }
 
  protected:
-  AstContext(AstGraphBuilder* owner, Expression::Context kind);
+  AstContext(AstGraphBuilder* owner, Expression::Context kind,
+             BailoutId bailout_id);
   virtual ~AstContext();
 
   AstGraphBuilder* owner() const { return owner_; }
@@ -322,6 +308,8 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
   int original_height_;
 #endif
 
+  BailoutId bailout_id_;
+
  private:
   Expression::Context kind_;
   AstGraphBuilder* owner_;
@@ -332,10 +320,11 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
 // Context to evaluate expression for its side effects only.
 class AstGraphBuilder::AstEffectContext V8_FINAL : public AstContext {
  public:
-  explicit AstEffectContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kEffect) {}
+  explicit AstEffectContext(AstGraphBuilder* owner, BailoutId bailout_id)
+      : AstContext(owner, Expression::kEffect, bailout_id) {}
   virtual ~AstEffectContext();
   virtual void ProduceValue(Node* value) V8_OVERRIDE;
+  virtual void ProduceValueWithLazyBailout(Node* value) V8_OVERRIDE;
   virtual Node* ConsumeValue() V8_OVERRIDE;
 };
 
@@ -343,10 +332,11 @@ class AstGraphBuilder::AstEffectContext V8_FINAL : public AstContext {
 // Context to evaluate expression for its value (and side effects).
 class AstGraphBuilder::AstValueContext V8_FINAL : public AstContext {
  public:
-  explicit AstValueContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kValue) {}
+  explicit AstValueContext(AstGraphBuilder* owner, BailoutId bailout_id)
+      : AstContext(owner, Expression::kValue, bailout_id) {}
   virtual ~AstValueContext();
   virtual void ProduceValue(Node* value) V8_OVERRIDE;
+  virtual void ProduceValueWithLazyBailout(Node* value) V8_OVERRIDE;
   virtual Node* ConsumeValue() V8_OVERRIDE;
 };
 
@@ -354,10 +344,11 @@ class AstGraphBuilder::AstValueContext V8_FINAL : public AstContext {
 // Context to evaluate expression for a condition value (and side effects).
 class AstGraphBuilder::AstTestContext V8_FINAL : public AstContext {
  public:
-  explicit AstTestContext(AstGraphBuilder* owner)
-      : AstContext(owner, Expression::kTest) {}
+  explicit AstTestContext(AstGraphBuilder* owner, BailoutId bailout_id)
+      : AstContext(owner, Expression::kTest, bailout_id) {}
   virtual ~AstTestContext();
   virtual void ProduceValue(Node* value) V8_OVERRIDE;
+  virtual void ProduceValueWithLazyBailout(Node* value) V8_OVERRIDE;
   virtual Node* ConsumeValue() V8_OVERRIDE;
 };
 

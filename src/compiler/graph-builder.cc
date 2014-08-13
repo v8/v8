@@ -30,8 +30,6 @@ StructuredGraphBuilder::StructuredGraphBuilder(Graph* graph,
 
 Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
                                        Node** value_inputs) {
-  DCHECK(op->InputCount() == value_input_count);
-
   bool has_context = OperatorProperties::HasContextInput(op);
   bool has_control = OperatorProperties::GetControlInputCount(op) == 1;
   bool has_effect = OperatorProperties::GetEffectInputCount(op) == 1;
