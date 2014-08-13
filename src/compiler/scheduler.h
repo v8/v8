@@ -29,6 +29,7 @@ class Scheduler {
   static BasicBlockVector* ComputeSpecialRPO(Schedule* schedule);
 
  private:
+  Zone* zone_;
   Graph* graph_;
   Schedule* schedule_;
   NodeVector branches_;

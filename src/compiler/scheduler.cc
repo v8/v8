@@ -16,7 +16,8 @@ namespace internal {
 namespace compiler {
 
 Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
-    : graph_(graph),
+    : zone_(zone),
+      graph_(graph),
       schedule_(schedule),
       branches_(NodeVector::allocator_type(zone)),
       calls_(NodeVector::allocator_type(zone)),
@@ -624,7 +625,7 @@ void Scheduler::ScheduleLate() {
        i != schedule_root_nodes_.end(); ++i) {
     GenericGraphVisit::Visit<ScheduleLateNodeVisitor,
                              NodeInputIterationTraits<Node> >(
-        graph_, *i, &schedule_late_visitor);
+        graph_, zone_, *i, &schedule_late_visitor);
   }
 
   // Add collected nodes for basic blocks to their blocks in the right order.

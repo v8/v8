@@ -38,10 +38,9 @@ class GenericGraphVisit {
   //   void PostEdge(Traits::Node* from, int index, Traits::Node* to);
   // }
   template <class Visitor, class Traits, class RootIterator>
-  static void Visit(GenericGraphBase* graph, RootIterator root_begin,
-                    RootIterator root_end, Visitor* visitor) {
-    // TODO(bmeurer): Pass "local" zone as parameter.
-    Zone* zone = graph->zone();
+  static void Visit(GenericGraphBase* graph, Zone* zone,
+                    RootIterator root_begin, RootIterator root_end,
+                    Visitor* visitor) {
     typedef typename Traits::Node Node;
     typedef typename Traits::Iterator Iterator;
     typedef std::pair<Iterator, Iterator> NodeState;
@@ -97,10 +96,10 @@ class GenericGraphVisit {
   }
 
   template <class Visitor, class Traits>
-  static void Visit(GenericGraphBase* graph, typename Traits::Node* current,
-                    Visitor* visitor) {
+  static void Visit(GenericGraphBase* graph, Zone* zone,
+                    typename Traits::Node* current, Visitor* visitor) {
     typename Traits::Node* array[] = {current};
-    Visit<Visitor, Traits>(graph, &array[0], &array[1], visitor);
+    Visit<Visitor, Traits>(graph, zone, &array[0], &array[1], visitor);
   }
 
   template <class B, class S>
