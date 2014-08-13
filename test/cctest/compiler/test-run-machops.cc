@@ -573,8 +573,7 @@ TEST(RunInt32AddAndWord32SarP) {
                         m.Word32Sar(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
       FOR_INT32_INPUTS(j) {
-        FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *k & 0x1F;
+        FOR_UINT32_SHIFTS(shift) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = *i + (*j >> shift);
           CHECK_EQ(expected, m.Call(*i, *j, shift));
@@ -588,9 +587,8 @@ TEST(RunInt32AddAndWord32SarP) {
     m.Return(m.Int32Add(m.Word32Sar(m.Parameter(0), m.Parameter(1)),
                         m.Parameter(2)));
     FOR_INT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
+      FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *j & 0x1F;
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = (*i >> shift) + *k;
           CHECK_EQ(expected, m.Call(*i, shift, *k));
@@ -609,8 +607,7 @@ TEST(RunInt32AddAndWord32ShlP) {
                         m.Word32Shl(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
       FOR_INT32_INPUTS(j) {
-        FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *k & 0x1F;
+        FOR_UINT32_SHIFTS(shift) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = *i + (*j << shift);
           CHECK_EQ(expected, m.Call(*i, *j, shift));
@@ -624,9 +621,8 @@ TEST(RunInt32AddAndWord32ShlP) {
     m.Return(m.Int32Add(m.Word32Shl(m.Parameter(0), m.Parameter(1)),
                         m.Parameter(2)));
     FOR_INT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
+      FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *j & 0x1F;
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = (*i << shift) + *k;
           CHECK_EQ(expected, m.Call(*i, shift, *k));
@@ -645,8 +641,7 @@ TEST(RunInt32AddAndWord32ShrP) {
                         m.Word32Shr(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
-        FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *k & 0x1F;
+        FOR_UINT32_SHIFTS(shift) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = *i + (*j >> shift);
           CHECK_EQ(expected, m.Call(*i, *j, shift));
@@ -660,9 +655,8 @@ TEST(RunInt32AddAndWord32ShrP) {
     m.Return(m.Int32Add(m.Word32Shr(m.Parameter(0), m.Parameter(1)),
                         m.Parameter(2)));
     FOR_UINT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
+      FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *j & 0x1F;
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = (*i >> shift) + *k;
           CHECK_EQ(expected, m.Call(*i, shift, *k));
@@ -764,8 +758,7 @@ TEST(RunInt32AddInBranch) {
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
-          FOR_UINT32_INPUTS(k) {
-            uint32_t shift = *k & 0x1F;
+          FOR_UINT32_SHIFTS(shift) {
             int32_t right;
             switch (shops[n]->opcode()) {
               default:
@@ -850,8 +843,7 @@ TEST(RunInt32AddInComparison) {
           m.Int32Constant(0)));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
-          FOR_UINT32_INPUTS(k) {
-            uint32_t shift = *k & 0x1F;
+          FOR_UINT32_SHIFTS(shift) {
             int32_t right;
             switch (shops[n]->opcode()) {
               default:
@@ -926,8 +918,7 @@ TEST(RunInt32SubAndWord32SarP) {
                         m.Word32Sar(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
       FOR_INT32_INPUTS(j) {
-        FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *k & 0x1F;
+        FOR_UINT32_SHIFTS(shift) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = *i - (*j >> shift);
           CHECK_EQ(expected, m.Call(*i, *j, shift));
@@ -941,9 +932,8 @@ TEST(RunInt32SubAndWord32SarP) {
     m.Return(m.Int32Sub(m.Word32Sar(m.Parameter(0), m.Parameter(1)),
                         m.Parameter(2)));
     FOR_INT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
+      FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *j & 0x1F;
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = (*i >> shift) - *k;
           CHECK_EQ(expected, m.Call(*i, shift, *k));
@@ -962,8 +952,7 @@ TEST(RunInt32SubAndWord32ShlP) {
                         m.Word32Shl(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
       FOR_INT32_INPUTS(j) {
-        FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *k & 0x1F;
+        FOR_UINT32_SHIFTS(shift) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = *i - (*j << shift);
           CHECK_EQ(expected, m.Call(*i, *j, shift));
@@ -977,9 +966,8 @@ TEST(RunInt32SubAndWord32ShlP) {
     m.Return(m.Int32Sub(m.Word32Shl(m.Parameter(0), m.Parameter(1)),
                         m.Parameter(2)));
     FOR_INT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
+      FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *j & 0x1F;
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = (*i << shift) - *k;
           CHECK_EQ(expected, m.Call(*i, shift, *k));
@@ -998,8 +986,7 @@ TEST(RunInt32SubAndWord32ShrP) {
                         m.Word32Shr(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
-        FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *k & 0x1F;
+        FOR_UINT32_SHIFTS(shift) {
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = *i - (*j >> shift);
           CHECK_EQ(expected, m.Call(*i, *j, shift));
@@ -1013,9 +1000,8 @@ TEST(RunInt32SubAndWord32ShrP) {
     m.Return(m.Int32Sub(m.Word32Shr(m.Parameter(0), m.Parameter(1)),
                         m.Parameter(2)));
     FOR_UINT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
+      FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *j & 0x1F;
           // Use uint32_t because signed overflow is UB in C.
           int32_t expected = (*i >> shift) - *k;
           CHECK_EQ(expected, m.Call(*i, shift, *k));
@@ -1117,8 +1103,7 @@ TEST(RunInt32SubInBranch) {
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
-          FOR_UINT32_INPUTS(k) {
-            uint32_t shift = *k & 0x1F;
+          FOR_UINT32_SHIFTS(shift) {
             int32_t right;
             switch (shops[n]->opcode()) {
               default:
@@ -1203,8 +1188,7 @@ TEST(RunInt32SubInComparison) {
           m.Int32Constant(0)));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
-          FOR_UINT32_INPUTS(k) {
-            uint32_t shift = *k & 0x1F;
+          FOR_UINT32_SHIFTS(shift) {
             int32_t right;
             switch (shops[n]->opcode()) {
               default:
@@ -1745,8 +1729,7 @@ TEST(RunWord32AndInBranch) {
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
-          FOR_UINT32_INPUTS(k) {
-            uint32_t shift = *k & 0x1F;
+          FOR_UINT32_SHIFTS(shift) {
             int32_t right;
             switch (shops[n]->opcode()) {
               default:
@@ -1973,8 +1956,7 @@ TEST(RunWord32OrInBranch) {
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
-          FOR_UINT32_INPUTS(k) {
-            uint32_t shift = *k & 0x1F;
+          FOR_UINT32_SHIFTS(shift) {
             int32_t right;
             switch (shops[n]->opcode()) {
               default:
@@ -2198,8 +2180,7 @@ TEST(RunWord32XorInBranch) {
       m.Return(m.Int32Constant(0 - constant));
       FOR_UINT32_INPUTS(i) {
         FOR_INT32_INPUTS(j) {
-          FOR_UINT32_INPUTS(k) {
-            uint32_t shift = *k & 0x1F;
+          FOR_UINT32_SHIFTS(shift) {
             int32_t right;
             switch (shops[n]->opcode()) {
               default:
@@ -2226,8 +2207,7 @@ TEST(RunWord32XorInBranch) {
 
 TEST(RunWord32ShlP) {
   {
-    FOR_UINT32_INPUTS(i) {
-      uint32_t shift = *i & 0x1F;
+    FOR_UINT32_SHIFTS(shift) {
       RawMachineAssemblerTester<int32_t> m(kMachineWord32);
       m.Return(m.Word32Shl(m.Parameter(0), m.Int32Constant(shift)));
       FOR_UINT32_INPUTS(j) {
@@ -2241,8 +2221,7 @@ TEST(RunWord32ShlP) {
     Int32BinopTester bt(&m);
     bt.AddReturn(m.Word32Shl(bt.param0, bt.param1));
     FOR_UINT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
-        uint32_t shift = *j & 0x1F;
+      FOR_UINT32_SHIFTS(shift) {
         uint32_t expected = *i << shift;
         CHECK_EQ(expected, bt.call(*i, shift));
       }
@@ -2253,8 +2232,7 @@ TEST(RunWord32ShlP) {
 
 TEST(RunWord32ShrP) {
   {
-    FOR_UINT32_INPUTS(i) {
-      uint32_t shift = *i & 0x1F;
+    FOR_UINT32_SHIFTS(shift) {
       RawMachineAssemblerTester<int32_t> m(kMachineWord32);
       m.Return(m.Word32Shr(m.Parameter(0), m.Int32Constant(shift)));
       FOR_UINT32_INPUTS(j) {
@@ -2268,8 +2246,7 @@ TEST(RunWord32ShrP) {
     Int32BinopTester bt(&m);
     bt.AddReturn(m.Word32Shr(bt.param0, bt.param1));
     FOR_UINT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
-        uint32_t shift = *j & 0x1F;
+      FOR_UINT32_SHIFTS(shift) {
         uint32_t expected = *i >> shift;
         CHECK_EQ(expected, bt.call(*i, shift));
       }
@@ -2281,8 +2258,7 @@ TEST(RunWord32ShrP) {
 
 TEST(RunWord32SarP) {
   {
-    FOR_INT32_INPUTS(i) {
-      int32_t shift = *i & 0x1F;
+    FOR_INT32_SHIFTS(shift) {
       RawMachineAssemblerTester<int32_t> m(kMachineWord32);
       m.Return(m.Word32Sar(m.Parameter(0), m.Int32Constant(shift)));
       FOR_INT32_INPUTS(j) {
@@ -2296,8 +2272,7 @@ TEST(RunWord32SarP) {
     Int32BinopTester bt(&m);
     bt.AddReturn(m.Word32Sar(bt.param0, bt.param1));
     FOR_INT32_INPUTS(i) {
-      FOR_INT32_INPUTS(j) {
-        int32_t shift = *j & 0x1F;
+      FOR_INT32_SHIFTS(shift) {
         int32_t expected = *i >> shift;
         CHECK_EQ(expected, bt.call(*i, shift));
       }
@@ -2335,8 +2310,7 @@ TEST(RunWord32EqualAndWord32SarP) {
                            m.Word32Sar(m.Parameter(1), m.Parameter(2))));
     FOR_INT32_INPUTS(i) {
       FOR_INT32_INPUTS(j) {
-        FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *k & 0x1F;
+        FOR_UINT32_SHIFTS(shift) {
           int32_t expected = (*i == (*j >> shift));
           CHECK_EQ(expected, m.Call(*i, *j, shift));
         }
@@ -2349,9 +2323,8 @@ TEST(RunWord32EqualAndWord32SarP) {
     m.Return(m.Word32Equal(m.Word32Sar(m.Parameter(0), m.Parameter(1)),
                            m.Parameter(2)));
     FOR_INT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
+      FOR_UINT32_SHIFTS(shift) {
         FOR_INT32_INPUTS(k) {
-          uint32_t shift = *j & 0x1F;
           int32_t expected = ((*i >> shift) == *k);
           CHECK_EQ(expected, m.Call(*i, shift, *k));
         }
@@ -2369,8 +2342,7 @@ TEST(RunWord32EqualAndWord32ShlP) {
                            m.Word32Shl(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
-        FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *k & 0x1F;
+        FOR_UINT32_SHIFTS(shift) {
           int32_t expected = (*i == (*j << shift));
           CHECK_EQ(expected, m.Call(*i, *j, shift));
         }
@@ -2383,9 +2355,8 @@ TEST(RunWord32EqualAndWord32ShlP) {
     m.Return(m.Word32Equal(m.Word32Shl(m.Parameter(0), m.Parameter(1)),
                            m.Parameter(2)));
     FOR_UINT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
+      FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *j & 0x1F;
           int32_t expected = ((*i << shift) == *k);
           CHECK_EQ(expected, m.Call(*i, shift, *k));
         }
@@ -2403,8 +2374,7 @@ TEST(RunWord32EqualAndWord32ShrP) {
                            m.Word32Shr(m.Parameter(1), m.Parameter(2))));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
-        FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *k & 0x1F;
+        FOR_UINT32_SHIFTS(shift) {
           int32_t expected = (*i == (*j >> shift));
           CHECK_EQ(expected, m.Call(*i, *j, shift));
         }
@@ -2417,9 +2387,8 @@ TEST(RunWord32EqualAndWord32ShrP) {
     m.Return(m.Word32Equal(m.Word32Shr(m.Parameter(0), m.Parameter(1)),
                            m.Parameter(2)));
     FOR_UINT32_INPUTS(i) {
-      FOR_UINT32_INPUTS(j) {
+      FOR_UINT32_SHIFTS(shift) {
         FOR_UINT32_INPUTS(k) {
-          uint32_t shift = *j & 0x1F;
           int32_t expected = ((*i >> shift) == *k);
           CHECK_EQ(expected, m.Call(*i, shift, *k));
         }
