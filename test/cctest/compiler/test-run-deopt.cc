@@ -11,6 +11,8 @@ using namespace v8;
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
+#if V8_TURBOFAN_TARGET
+
 static void IsOptimized(const FunctionCallbackInfo<v8::Value>& args) {
   JavaScriptFrameIterator it(CcTest::i_isolate());
   JavaScriptFrame* frame = it.frame();
@@ -24,7 +26,6 @@ static void InstallIsOptimizedHelper(v8::Isolate* isolate) {
   context->Global()->Set(v8_str("IsOptimized"), t->GetFunction());
 }
 
-#if V8_TURBOFAN_TARGET
 
 TEST(TurboSimpleDeopt) {
   FLAG_allow_natives_syntax = true;
