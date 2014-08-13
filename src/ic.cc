@@ -2105,7 +2105,7 @@ RUNTIME_FUNCTION(LoadIC_Miss) {
   DCHECK(args.length() == 2);
   LoadIC ic(IC::NO_EXTRA_FRAME, isolate);
   Handle<Object> receiver = args.at<Object>(0);
-  Handle<String> key = args.at<String>(1);
+  Handle<Name> key = args.at<Name>(1);
   ic.UpdateState(receiver, key);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
