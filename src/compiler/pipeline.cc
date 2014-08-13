@@ -73,6 +73,15 @@ class PhaseStats {
 };
 
 
+static inline bool VerifyGraphs() {
+#ifdef DEBUG
+  return true;
+#else
+  return FLAG_turbo_verify;
+#endif
+}
+
+
 void Pipeline::VerifyAndPrintGraph(Graph* graph, const char* phase) {
   if (FLAG_trace_turbo) {
     char buffer[256];
