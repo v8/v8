@@ -623,9 +623,11 @@ void Scheduler::ScheduleLate() {
 
   for (NodeVectorIter i = schedule_root_nodes_.begin();
        i != schedule_root_nodes_.end(); ++i) {
+    // TODO(mstarzinger): Make the scheduler eat less memory.
+    Zone zone(zone_->isolate());
     GenericGraphVisit::Visit<ScheduleLateNodeVisitor,
                              NodeInputIterationTraits<Node> >(
-        graph_, zone_, *i, &schedule_late_visitor);
+        graph_, &zone, *i, &schedule_late_visitor);
   }
 
   // Add collected nodes for basic blocks to their blocks in the right order.
