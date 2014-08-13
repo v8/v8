@@ -2290,7 +2290,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
                 }
                 set_fpu_register_word(fd_reg, result);
                 if (set_fcsr_round_error(fs, rounded)) {
-                  set_fpu_register(fd_reg, kFPUInvalidResult);
+                  set_fpu_register_word(fd_reg, kFPUInvalidResult);
                 }
               }
               break;
@@ -2300,7 +2300,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
                 int32_t result = static_cast<int32_t>(rounded);
                 set_fpu_register_word(fd_reg, result);
                 if (set_fcsr_round_error(fs, rounded)) {
-                  set_fpu_register(fd_reg, kFPUInvalidResult);
+                  set_fpu_register_word(fd_reg, kFPUInvalidResult);
                 }
               }
               break;
@@ -2310,7 +2310,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
                 int32_t result = static_cast<int32_t>(rounded);
                 set_fpu_register_word(fd_reg, result);
                 if (set_fcsr_round_error(fs, rounded)) {
-                  set_fpu_register(fd_reg, kFPUInvalidResult);
+                  set_fpu_register_word(fd_reg, kFPUInvalidResult);
                 }
               }
               break;
@@ -2320,7 +2320,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
                 int32_t result = static_cast<int32_t>(rounded);
                 set_fpu_register_word(fd_reg, result);
                 if (set_fcsr_round_error(fs, rounded)) {
-                  set_fpu_register(fd_reg, kFPUInvalidResult);
+                  set_fpu_register_word(fd_reg, kFPUInvalidResult);
                 }
               }
               break;
