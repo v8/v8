@@ -430,7 +430,8 @@ void Symbol::SymbolPrint(OStream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Symbol");
   os << " - hash: " << Hash();
   os << "\n - name: " << Brief(name());
-  os << " - private: " << is_private();
+  os << "\n - private: " << is_private();
+  os << "\n - own: " << is_own();
   os << "\n";
 }
 

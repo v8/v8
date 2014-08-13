@@ -37,7 +37,7 @@ namespace {
 
 class SelfJoinThread V8_FINAL : public Thread {
  public:
-  SelfJoinThread() : Thread("SelfJoinThread") {}
+  SelfJoinThread() : Thread(Options("SelfJoinThread")) {}
   virtual void Run() V8_OVERRIDE { Join(); }
 };
 
@@ -55,7 +55,7 @@ namespace {
 
 class ThreadLocalStorageTest : public Thread, public ::testing::Test {
  public:
-  ThreadLocalStorageTest() : Thread("ThreadLocalStorageTest") {
+  ThreadLocalStorageTest() : Thread(Options("ThreadLocalStorageTest")) {
     for (size_t i = 0; i < ARRAY_SIZE(keys_); ++i) {
       keys_[i] = Thread::CreateThreadLocalKey();
     }

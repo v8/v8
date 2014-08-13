@@ -649,7 +649,7 @@ class NeonListOperand BASE_EMBEDDED {
 // Class used to build a constant pool.
 class ConstantPoolBuilder BASE_EMBEDDED {
  public:
-  explicit ConstantPoolBuilder();
+  ConstantPoolBuilder();
   ConstantPoolArray::LayoutSection AddEntry(Assembler* assm,
                                             const RelocInfo& rinfo);
   void Relocate(int pc_delta);
