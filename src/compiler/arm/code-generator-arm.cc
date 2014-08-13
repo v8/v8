@@ -832,16 +832,6 @@ void CodeGenerator::AddNopForSmiCodeInlining() {
   UNREACHABLE();
 }
 
-#ifdef DEBUG
-
-// Checks whether the code between start_pc and end_pc is a no-op.
-bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
-                                            int end_pc) {
-  return false;
-}
-
-#endif  // DEBUG
-
 #undef __
 }
 }

@@ -179,11 +179,6 @@
 
   'test-api/Bug618': [PASS],
 
-  # TODO(turbofan): Deoptimization support buggy with snapshot=off.
-  'test-run-deopt/*': [PASS, ['no_snap == True', NO_VARIANTS]],
-  'test-deoptimization/*': [PASS, ['no_snap == True', NO_VARIANTS]],
-  'test-scheduler/BuildScheduleTrivialLazyDeoptCall': [PASS, ['no_snap == True', NO_VARIANTS]],
-
   # BUG(v8:3385).
   'test-serialize/DeserializeFromSecondSerialization': [PASS, FAIL],
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, FAIL],

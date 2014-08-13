@@ -88,10 +88,6 @@ class CodeGenerator V8_FINAL : public GapResolver::Assembler {
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op);
   void AddNopForSmiCodeInlining();
-#if DEBUG
-  static bool IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
-                                      int end_pc);
-#endif  // DEBUG
   // ===========================================================================
 
   class LazyDeoptimizationEntry V8_FINAL {

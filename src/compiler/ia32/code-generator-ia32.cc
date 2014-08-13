@@ -938,19 +938,6 @@ void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
 
 #undef __
 
-#ifdef DEBUG
-
-// Checks whether the code between start_pc and end_pc is a no-op.
-bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
-                                            int end_pc) {
-  if (start_pc + 1 != end_pc) {
-    return false;
-  }
-  return *(code->instruction_start() + start_pc) ==
-         v8::internal::Assembler::kNopByte;
-}
-
-#endif  // DEBUG
 }
 }
 }  // namespace v8::internal::compiler

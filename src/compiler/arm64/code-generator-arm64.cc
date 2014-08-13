@@ -832,23 +832,6 @@ void CodeGenerator::AddNopForSmiCodeInlining() { __ movz(xzr, 0); }
 
 #undef __
 
-#if DEBUG
-
-// Checks whether the code between start_pc and end_pc is a no-op.
-bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
-                                            int end_pc) {
-  if (start_pc + 4 != end_pc) {
-    return false;
-  }
-  Address instr_address = code->instruction_start() + start_pc;
-
-  v8::internal::Instruction* instr =
-      reinterpret_cast<v8::internal::Instruction*>(instr_address);
-  return instr->IsMovz() && instr->Rd() == xzr.code() && instr->SixtyFourBits();
-}
-
-#endif  // DEBUG
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
