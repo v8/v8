@@ -268,6 +268,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Sar32:
       ASSEMBLE_SHIFT(Asr, 32);
       break;
+    case kArm64Ror:
+      ASSEMBLE_SHIFT(Ror, 64);
+      break;
+    case kArm64Ror32:
+      ASSEMBLE_SHIFT(Ror, 32);
+      break;
     case kArm64CallCodeObject: {
       if (instr->InputAt(0)->IsImmediate()) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));

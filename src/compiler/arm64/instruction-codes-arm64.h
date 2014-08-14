@@ -46,6 +46,8 @@ namespace compiler {
   V(Arm64Shr32)                    \
   V(Arm64Sar)                      \
   V(Arm64Sar32)                    \
+  V(Arm64Ror)                      \
+  V(Arm64Ror32)                    \
   V(Arm64CallCodeObject)           \
   V(Arm64CallJSFunction)           \
   V(Arm64CallAddress)              \

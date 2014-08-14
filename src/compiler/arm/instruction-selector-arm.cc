@@ -126,48 +126,17 @@ static bool TryMatchROR(InstructionSelector* selector,
                         InstructionOperand** value_return,
                         InstructionOperand** shift_return) {
   ArmOperandGenerator g(selector);
-  if (node->opcode() != IrOpcode::kWord32Or) return false;
+  if (node->opcode() != IrOpcode::kWord32Ror) return false;
   Int32BinopMatcher m(node);
-  Node* shl = m.left().node();
-  Node* shr = m.right().node();
-  if (m.left().IsWord32Shr() && m.right().IsWord32Shl()) {
-    std::swap(shl, shr);
-  } else if (!m.left().IsWord32Shl() || !m.right().IsWord32Shr()) {
-    return false;
-  }
-  Int32BinopMatcher mshr(shr);
-  Int32BinopMatcher mshl(shl);
-  Node* value = mshr.left().node();
-  if (value != mshl.left().node()) return false;
-  Node* shift = mshr.right().node();
-  Int32Matcher mshift(shift);
-  if (mshift.IsInRange(1, 31)) {
-    if (mshl.right().Is(32 - mshift.Value())) {
-      *opcode_return |= AddressingModeField::encode(kMode_Operand2_R_ROR_I);
-      *value_return = g.UseRegister(value);
-      *shift_return = g.UseImmediate(shift);
-      return true;
-    }
-    if (mshl.right().IsInt32Sub()) {
-      Int32BinopMatcher mshlright(mshl.right().node());
-      if (mshlright.left().Is(32) && mshlright.right().Is(mshift.Value())) {
-        *opcode_return |= AddressingModeField::encode(kMode_Operand2_R_ROR_I);
-        *value_return = g.UseRegister(value);
-        *shift_return = g.UseImmediate(shift);
-        return true;
-      }
-    }
-  }
-  if (mshl.right().IsInt32Sub()) {
-    Int32BinopMatcher mshlright(mshl.right().node());
-    if (!mshlright.left().Is(32)) return false;
-    if (mshlright.right().node() != shift) return false;
+  *value_return = g.UseRegister(m.left().node());
+  if (m.right().IsInRange(1, 31)) {
+    *opcode_return |= AddressingModeField::encode(kMode_Operand2_R_ROR_I);
+    *shift_return = g.UseImmediate(m.right().node());
+  } else {
     *opcode_return |= AddressingModeField::encode(kMode_Operand2_R_ROR_R);
-    *value_return = g.UseRegister(value);
-    *shift_return = g.UseRegister(shift);
-    return true;
+    *shift_return = g.UseRegister(m.right().node());
   }
-  return false;
+  return true;
 }
 
 
@@ -482,14 +451,6 @@ void InstructionSelector::VisitWord32And(Node* node) {
 
 
 void InstructionSelector::VisitWord32Or(Node* node) {
-  ArmOperandGenerator g(this);
-  InstructionCode opcode = kArmMov;
-  InstructionOperand* value_operand;
-  InstructionOperand* shift_operand;
-  if (TryMatchROR(this, &opcode, node, &value_operand, &shift_operand)) {
-    Emit(opcode, g.DefineAsRegister(node), value_operand, shift_operand);
-    return;
-  }
   VisitBinop(this, node, kArmOrr, kArmOrr);
 }
 
@@ -559,6 +520,11 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitShift(this, node, TryMatchASR);
+}
+
+
+void InstructionSelector::VisitWord32Ror(Node* node) {
+  VisitShift(this, node, TryMatchROR);
 }
 
 

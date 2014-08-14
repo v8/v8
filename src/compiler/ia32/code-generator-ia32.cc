@@ -220,6 +220,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ sar_cl(i.OutputRegister());
       }
       break;
+    case kIA32Ror:
+      if (HasImmediateInput(instr, 1)) {
+        __ ror(i.OutputRegister(), i.InputInt5(1));
+      } else {
+        __ ror_cl(i.OutputRegister());
+      }
+      break;
     case kIA32Push:
       if (HasImmediateInput(instr, 0)) {
         __ push(i.InputImmediate(0));

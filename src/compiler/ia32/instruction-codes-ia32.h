@@ -27,6 +27,7 @@ namespace compiler {
   V(IA32Shl)                       \
   V(IA32Shr)                       \
   V(IA32Sar)                       \
+  V(IA32Ror)                       \
   V(IA32Push)                      \
   V(IA32CallCodeObject)            \
   V(IA32CallAddress)               \

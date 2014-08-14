@@ -432,6 +432,7 @@ Matcher<Node*> IsStore(const Matcher<MachineType>& type_matcher,
   }
 IS_BINOP_MATCHER(Word32And)
 IS_BINOP_MATCHER(Word32Sar)
+IS_BINOP_MATCHER(Word32Ror)
 IS_BINOP_MATCHER(Word32Equal)
 IS_BINOP_MATCHER(Word64And)
 IS_BINOP_MATCHER(Word64Sar)

@@ -23,6 +23,7 @@
         'change-lowering-unittest.cc',
         'compiler-unittests.cc',
         'instruction-selector-unittest.cc',
+        'machine-operator-reducer-unittest.cc',
         'node-matchers.cc',
         'node-matchers.h',
       ],

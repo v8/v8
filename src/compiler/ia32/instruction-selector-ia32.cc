@@ -271,6 +271,11 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord32Ror(Node* node) {
+  VisitShift(this, node, kIA32Ror);
+}
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop(this, node, kIA32Add);
 }

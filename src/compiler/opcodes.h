@@ -165,6 +165,7 @@
   V(Word32Shl)             \
   V(Word32Shr)             \
   V(Word32Sar)             \
+  V(Word32Ror)             \
   V(Word32Equal)           \
   V(Word64And)             \
   V(Word64Or)              \
@@ -172,6 +173,7 @@
   V(Word64Shl)             \
   V(Word64Shr)             \
   V(Word64Sar)             \
+  V(Word64Ror)             \
   V(Word64Equal)           \
   V(Int32Add)              \
   V(Int32AddWithOverflow)  \

@@ -370,6 +370,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64Sar:
       ASSEMBLE_SHIFT(sarq, 6);
       break;
+    case kX64Ror32:
+      ASSEMBLE_SHIFT(rorl, 5);
+      break;
+    case kX64Ror:
+      ASSEMBLE_SHIFT(rorq, 6);
+      break;
     case kX64Push: {
       RegisterOrOperand input = i.InputRegisterOrOperand(0);
       if (input.type == kRegister) {

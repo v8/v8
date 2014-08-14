@@ -76,6 +76,7 @@ class MachineOperatorBuilder {
   Operator* WordShl() { WORD_SIZE(Shl); }
   Operator* WordShr() { WORD_SIZE(Shr); }
   Operator* WordSar() { WORD_SIZE(Sar); }
+  Operator* WordRor() { WORD_SIZE(Ror); }
   Operator* WordEqual() { WORD_SIZE(Equal); }
 
   Operator* Word32And() { BINOP_AC(Word32And); }
@@ -84,6 +85,7 @@ class MachineOperatorBuilder {
   Operator* Word32Shl() { BINOP(Word32Shl); }
   Operator* Word32Shr() { BINOP(Word32Shr); }
   Operator* Word32Sar() { BINOP(Word32Sar); }
+  Operator* Word32Ror() { BINOP(Word32Ror); }
   Operator* Word32Equal() { BINOP_C(Word32Equal); }
 
   Operator* Word64And() { BINOP_AC(Word64And); }
@@ -92,6 +94,7 @@ class MachineOperatorBuilder {
   Operator* Word64Shl() { BINOP(Word64Shl); }
   Operator* Word64Shr() { BINOP(Word64Shr); }
   Operator* Word64Sar() { BINOP(Word64Sar); }
+  Operator* Word64Ror() { BINOP(Word64Ror); }
   Operator* Word64Equal() { BINOP_C(Word64Equal); }
 
   Operator* Int32Add() { BINOP_AC(Int32Add); }

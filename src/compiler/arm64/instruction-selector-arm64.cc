@@ -329,6 +329,16 @@ void InstructionSelector::VisitWord64Sar(Node* node) {
 }
 
 
+void InstructionSelector::VisitWord32Ror(Node* node) {
+  VisitRRO(this, kArm64Ror32, node, kShift32Imm);
+}
+
+
+void InstructionSelector::VisitWord64Ror(Node* node) {
+  VisitRRO(this, kArm64Ror, node, kShift64Imm);
+}
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop(this, node, kArm64Add32, kArithimeticImm);
 }

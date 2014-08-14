@@ -5,12 +5,14 @@
 #include <functional>
 #include <limits>
 
+#include "src/base/bits.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
 #if V8_TURBOFAN_TARGET
 
+using namespace v8::base;
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
@@ -2282,6 +2284,31 @@ TEST(RunWord32SarP) {
 }
 
 
+TEST(RunWord32RorP) {
+  {
+    FOR_UINT32_SHIFTS(shift) {
+      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
+      m.Return(m.Word32Ror(m.Parameter(0), m.Int32Constant(shift)));
+      FOR_UINT32_INPUTS(j) {
+        int32_t expected = bits::RotateRight32(*j, shift);
+        CHECK_EQ(expected, m.Call(*j));
+      }
+    }
+  }
+  {
+    RawMachineAssemblerTester<int32_t> m;
+    Int32BinopTester bt(&m);
+    bt.AddReturn(m.Word32Ror(bt.param0, bt.param1));
+    FOR_UINT32_INPUTS(i) {
+      FOR_UINT32_SHIFTS(shift) {
+        int32_t expected = bits::RotateRight32(*i, shift);
+        CHECK_EQ(expected, bt.call(*i, shift));
+      }
+    }
+  }
+}
+
+
 TEST(RunWord32NotP) {
   RawMachineAssemblerTester<int32_t> m(kMachineWord32);
   m.Return(m.Word32Not(m.Parameter(0)));
@@ -2439,16 +2466,16 @@ TEST(RunDeadInt32Binops) {
   RawMachineAssemblerTester<int32_t> m;
 
   Operator* ops[] = {
-      m.machine()->Word32And(),      m.machine()->Word32Or(),
-      m.machine()->Word32Xor(),      m.machine()->Word32Shl(),
-      m.machine()->Word32Shr(),      m.machine()->Word32Sar(),
-      m.machine()->Word32Equal(),    m.machine()->Int32Add(),
-      m.machine()->Int32Sub(),       m.machine()->Int32Mul(),
-      m.machine()->Int32Div(),       m.machine()->Int32UDiv(),
-      m.machine()->Int32Mod(),       m.machine()->Int32UMod(),
-      m.machine()->Int32LessThan(),  m.machine()->Int32LessThanOrEqual(),
-      m.machine()->Uint32LessThan(), m.machine()->Uint32LessThanOrEqual(),
-      NULL};
+      m.machine()->Word32And(),             m.machine()->Word32Or(),
+      m.machine()->Word32Xor(),             m.machine()->Word32Shl(),
+      m.machine()->Word32Shr(),             m.machine()->Word32Sar(),
+      m.machine()->Word32Ror(),             m.machine()->Word32Equal(),
+      m.machine()->Int32Add(),              m.machine()->Int32Sub(),
+      m.machine()->Int32Mul(),              m.machine()->Int32Div(),
+      m.machine()->Int32UDiv(),             m.machine()->Int32Mod(),
+      m.machine()->Int32UMod(),             m.machine()->Int32LessThan(),
+      m.machine()->Int32LessThanOrEqual(),  m.machine()->Uint32LessThan(),
+      m.machine()->Uint32LessThanOrEqual(), NULL};
 
   for (int i = 0; ops[i] != NULL; i++) {
     RawMachineAssemblerTester<int32_t> m(kMachineWord32, kMachineWord32);
@@ -3685,53 +3712,6 @@ TEST(RunTestIntPtrArithmetic) {
   for (int i = 0; i < kInputSize; i++) {
     CHECK_EQ(i, inputs[i]);
     CHECK_EQ(kInputSize - i - 1, outputs[i]);
-  }
-}
-
-
-static inline uint32_t rotr32(uint32_t i, uint32_t j) {
-  return (i >> j) | (i << (32 - j));
-}
-
-
-TEST(RunTestInt32RotateRightP) {
-  {
-    RawMachineAssemblerTester<int32_t> m;
-    Int32BinopTester bt(&m);
-    bt.AddReturn(m.Word32Or(
-        m.Word32Shr(bt.param0, bt.param1),
-        m.Word32Shl(bt.param0, m.Int32Sub(m.Int32Constant(32), bt.param1))));
-    bt.Run(ValueHelper::uint32_vector(), ValueHelper::ror_vector(), rotr32);
-  }
-  {
-    RawMachineAssemblerTester<int32_t> m;
-    Int32BinopTester bt(&m);
-    bt.AddReturn(m.Word32Or(
-        m.Word32Shl(bt.param0, m.Int32Sub(m.Int32Constant(32), bt.param1)),
-        m.Word32Shr(bt.param0, bt.param1)));
-    bt.Run(ValueHelper::uint32_vector(), ValueHelper::ror_vector(), rotr32);
-  }
-}
-
-
-TEST(RunTestInt32RotateRightImm) {
-  FOR_INPUTS(uint32_t, ror, i) {
-    {
-      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
-      Node* value = m.Parameter(0);
-      m.Return(m.Word32Or(m.Word32Shr(value, m.Int32Constant(*i)),
-                          m.Word32Shl(value, m.Int32Constant(32 - *i))));
-      m.Run(ValueHelper::uint32_vector(),
-            std::bind2nd(std::ptr_fun(&rotr32), *i));
-    }
-    {
-      RawMachineAssemblerTester<int32_t> m(kMachineWord32);
-      Node* value = m.Parameter(0);
-      m.Return(m.Word32Or(m.Word32Shl(value, m.Int32Constant(32 - *i)),
-                          m.Word32Shr(value, m.Int32Constant(*i))));
-      m.Run(ValueHelper::uint32_vector(),
-            std::bind2nd(std::ptr_fun(&rotr32), *i));
-    }
   }
 }
 
