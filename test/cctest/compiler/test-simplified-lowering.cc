@@ -1011,17 +1011,13 @@ void CheckChangeInsertion(IrOpcode::Value expected, MachineType from,
 
 
 TEST(InsertBasicChanges) {
-  if (false) {
-    // TODO(titzer): these changes need the output to have the right type.
-    CheckChangeInsertion(IrOpcode::kChangeFloat64ToInt32, kRepFloat64,
-                         kTypeInt32);
-    CheckChangeInsertion(IrOpcode::kChangeFloat64ToUint32, kRepFloat64,
-                         kTypeUint32);
-    CheckChangeInsertion(IrOpcode::kChangeTaggedToInt32, kRepTagged,
-                         kTypeInt32);
-    CheckChangeInsertion(IrOpcode::kChangeTaggedToUint32, kRepTagged,
-                         kTypeUint32);
-  }
+  CheckChangeInsertion(IrOpcode::kChangeFloat64ToInt32, kRepFloat64,
+                       kTypeInt32);
+  CheckChangeInsertion(IrOpcode::kChangeFloat64ToUint32, kRepFloat64,
+                       kTypeUint32);
+  CheckChangeInsertion(IrOpcode::kChangeTaggedToInt32, kRepTagged, kTypeInt32);
+  CheckChangeInsertion(IrOpcode::kChangeTaggedToUint32, kRepTagged,
+                       kTypeUint32);
 
   CheckChangeInsertion(IrOpcode::kChangeFloat64ToTagged, kRepFloat64,
                        kRepTagged);
