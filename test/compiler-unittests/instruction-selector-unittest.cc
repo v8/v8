@@ -4,14 +4,23 @@
 
 #include "test/compiler-unittests/instruction-selector-unittest.h"
 
+#include "src/flags.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+InstructionSelectorTest::InstructionSelectorTest() : rng_(FLAG_random_seed) {}
+
 
 InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
     InstructionSelector::Features features,
     InstructionSelectorTest::StreamBuilderMode mode) {
   Schedule* schedule = Export();
+  if (FLAG_trace_turbo) {
+    OFStream out(stdout);
+    out << "=== Schedule before instruction selection ===" << endl << *schedule;
+  }
   EXPECT_NE(0, graph()->NodeCount());
   CompilationInfo info(test_->isolate(), test_->zone());
   Linkage linkage(&info, call_descriptor());
@@ -21,7 +30,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
-    out << "--- Code sequence after instruction selection ---" << endl
+    out << "=== Code sequence after instruction selection ===" << endl
         << sequence;
   }
   Stream s;
@@ -62,7 +71,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
 }
 
 
-TARGET_TEST_F(InstructionSelectorTest, ReturnP) {
+TARGET_TEST_F(InstructionSelectorTest, ReturnParameter) {
   StreamBuilder m(this, kMachineWord32, kMachineWord32);
   m.Return(m.Parameter(0));
   Stream s = m.Build(kAllInstructions);
@@ -74,7 +83,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnP) {
 }
 
 
-TARGET_TEST_F(InstructionSelectorTest, ReturnImm) {
+TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
   StreamBuilder m(this, kMachineWord32);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build(kAllInstructions);

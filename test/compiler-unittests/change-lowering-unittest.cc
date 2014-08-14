@@ -10,7 +10,6 @@
 #include "src/factory.h"
 #include "test/compiler-unittests/compiler-unittests.h"
 #include "test/compiler-unittests/node-matchers.h"
-#include "testing/gtest-type-names.h"
 
 using testing::_;
 

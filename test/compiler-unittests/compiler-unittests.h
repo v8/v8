@@ -7,7 +7,7 @@
 
 #include "include/v8.h"
 #include "src/zone.h"
-#include "testing/gtest/include/gtest/gtest.h"
+#include "testing/gtest-support.h"
 
 namespace v8 {
 namespace internal {

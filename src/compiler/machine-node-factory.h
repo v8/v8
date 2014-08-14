@@ -118,6 +118,13 @@ class MachineNodeFactory {
   Node* WordSar(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->WordSar(), a, b);
   }
+  Node* WordRor(Node* a, Node* b) {
+    if (MACHINE()->is32()) {
+      return Word32Ror(a, b);
+    } else {
+      return Word64Ror(a, b);
+    }
+  }
   Node* WordEqual(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->WordEqual(), a, b);
   }
@@ -157,6 +164,10 @@ class MachineNodeFactory {
   Node* Word32Sar(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Word32Sar(), a, b);
   }
+  Node* Word32Ror(Node* a, Node* b) {
+    return Word32Or(Word32Shl(a, Int32Sub(Int32Constant(32), b)),
+                    Word32Shr(a, b));
+  }
   Node* Word32Equal(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Word32Equal(), a, b);
   }
@@ -183,6 +194,10 @@ class MachineNodeFactory {
   }
   Node* Word64Sar(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Word64Sar(), a, b);
+  }
+  Node* Word64Ror(Node* a, Node* b) {
+    return Word64Or(Word64Shl(a, Int64Sub(Int64Constant(64), b)),
+                    Word64Shr(a, b));
   }
   Node* Word64Equal(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Word64Equal(), a, b);

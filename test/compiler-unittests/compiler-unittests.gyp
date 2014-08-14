@@ -32,6 +32,16 @@
             'arm/instruction-selector-arm-unittest.cc',
           ],
         }],
+        ['v8_target_arch=="arm64"', {
+          'sources': [  ### gcmole(arch:arm64) ###
+            'arm64/instruction-selector-arm64-unittest.cc',
+          ],
+        }],
+        ['v8_target_arch=="ia32"', {
+          'sources': [  ### gcmole(arch:ia32) ###
+            'ia32/instruction-selector-ia32-unittest.cc',
+          ],
+        }],
         ['component=="shared_library"', {
           # compiler-unittests can't be built against a shared library, so we
           # need to depend on the underlying static target in that case.

@@ -141,11 +141,22 @@ static bool TryMatchROR(InstructionSelector* selector,
   if (value != mshl.left().node()) return false;
   Node* shift = mshr.right().node();
   Int32Matcher mshift(shift);
-  if (mshift.IsInRange(1, 31) && mshl.right().Is(32 - mshift.Value())) {
-    *opcode_return |= AddressingModeField::encode(kMode_Operand2_R_ROR_I);
-    *value_return = g.UseRegister(value);
-    *shift_return = g.UseImmediate(shift);
-    return true;
+  if (mshift.IsInRange(1, 31)) {
+    if (mshl.right().Is(32 - mshift.Value())) {
+      *opcode_return |= AddressingModeField::encode(kMode_Operand2_R_ROR_I);
+      *value_return = g.UseRegister(value);
+      *shift_return = g.UseImmediate(shift);
+      return true;
+    }
+    if (mshl.right().IsInt32Sub()) {
+      Int32BinopMatcher mshlright(mshl.right().node());
+      if (mshlright.left().Is(32) && mshlright.right().Is(mshift.Value())) {
+        *opcode_return |= AddressingModeField::encode(kMode_Operand2_R_ROR_I);
+        *value_return = g.UseRegister(value);
+        *shift_return = g.UseImmediate(shift);
+        return true;
+      }
+    }
   }
   if (mshl.right().IsInt32Sub()) {
     Int32BinopMatcher mshlright(mshl.right().node());
