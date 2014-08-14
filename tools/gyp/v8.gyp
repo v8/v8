@@ -390,8 +390,6 @@
         '../../src/compiler/linkage-impl.h',
         '../../src/compiler/linkage.cc',
         '../../src/compiler/linkage.h',
-        '../../src/compiler/lowering-builder.cc',
-        '../../src/compiler/lowering-builder.h',
         '../../src/compiler/machine-node-factory.h',
         '../../src/compiler/machine-operator-reducer.cc',
         '../../src/compiler/machine-operator-reducer.h',

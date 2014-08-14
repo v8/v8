@@ -728,7 +728,9 @@ void SimplifiedLowering::LowerAllNodes() {
   RepresentationSelector selector(jsgraph(), zone(), &changer);
   selector.Run(this);
 
-  LoweringBuilder::LowerAllNodes();
+  GraphReducer graph_reducer(graph());
+  graph_reducer.AddReducer(this);
+  graph_reducer.ReduceGraph();
 }
 
 
@@ -963,7 +965,7 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
 }
 
 
-void SimplifiedLowering::Lower(Node* node) {}
+Reduction SimplifiedLowering::Reduce(Node* node) { return NoChange(); }
 
 
 void SimplifiedLowering::LowerChange(Node* node, Node* effect, Node* control) {

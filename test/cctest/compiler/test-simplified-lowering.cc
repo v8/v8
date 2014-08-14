@@ -36,12 +36,10 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
                            MachineType p4 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0, p1, p2, p3, p4),
         typer(this->zone()),
-        source_positions(this->graph()),
         jsgraph(this->graph(), this->common(), &typer),
-        lowering(&jsgraph, &source_positions) {}
+        lowering(&jsgraph) {}
 
   Typer typer;
-  SourcePositionTable source_positions;
   JSGraph jsgraph;
   SimplifiedLowering lowering;
 
@@ -645,7 +643,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   }
 
   void Lower() {
-    SimplifiedLowering lowering(&jsgraph, NULL);
+    SimplifiedLowering lowering(&jsgraph);
     lowering.LowerAllNodes();
   }
 

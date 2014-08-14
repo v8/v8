@@ -211,8 +211,12 @@ Handle<Code> Pipeline::GenerateCode() {
       // Lower JSOperators where we can determine types.
       PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
                                 "typed lowering");
-      JSTypedLowering lowering(&jsgraph, &source_positions);
-      lowering.LowerAllNodes();
+      SourcePositionTable::Scope pos(&source_positions,
+                                     SourcePosition::Unknown());
+      JSTypedLowering lowering(&jsgraph);
+      GraphReducer graph_reducer(&graph);
+      graph_reducer.AddReducer(&lowering);
+      graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered typed");
     }
@@ -224,9 +228,13 @@ Handle<Code> Pipeline::GenerateCode() {
       // Lower any remaining generic JSOperators.
       PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
                                 "generic lowering");
+      SourcePositionTable::Scope pos(&source_positions,
+                                     SourcePosition::Unknown());
       MachineOperatorBuilder machine(zone());
-      JSGenericLowering lowering(info(), &jsgraph, &machine, &source_positions);
-      lowering.LowerAllNodes();
+      JSGenericLowering lowering(info(), &jsgraph, &machine);
+      GraphReducer graph_reducer(&graph);
+      graph_reducer.AddReducer(&lowering);
+      graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered generic");
     }

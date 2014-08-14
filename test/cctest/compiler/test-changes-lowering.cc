@@ -30,13 +30,11 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
   explicit ChangesLoweringTester(MachineType p0 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0),
         typer(this->zone()),
-        source_positions(this->graph()),
         jsgraph(this->graph(), this->common(), &typer),
-        lowering(&jsgraph, &source_positions),
+        lowering(&jsgraph),
         function(Handle<JSFunction>::null()) {}
 
   Typer typer;
-  SourcePositionTable source_positions;
   JSGraph jsgraph;
   SimplifiedLowering lowering;
   Handle<JSFunction> function;
