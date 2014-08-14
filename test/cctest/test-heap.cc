@@ -4475,6 +4475,51 @@ TEST(Regress388880) {
 }
 
 
+TEST(RegressStoreBufferMapUpdate) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+
+  // This test checks that we do not treat instance size field of the map
+  // as a heap pointer when processing the store buffer.
+
+  Handle<Map> map1 = Map::Create(isolate->object_function(), 1);
+
+  // Allocate a throw-away object.
+  factory->NewFixedArray(1, NOT_TENURED);
+
+  // Allocate a new-space object that will be moved by the GC (because
+  // the throw-away object will die).
+  Handle<FixedArray> object_to_move = factory->NewFixedArray(1, NOT_TENURED);
+
+  // Record the address before the GC.
+  Object* object_to_move_address = *object_to_move;
+
+  // Smash the new space pointer to the moving object into the instance size
+  // field of the map. The idea is to trick the GC into updating this pointer
+  // when the object moves. This would be wrong because instance size should
+  // not be treated as a heap pointer.
+  *(reinterpret_cast<Object**>(map1->address() + Map::kInstanceSizeOffset)) =
+      object_to_move_address;
+
+  // Make sure we scan the map's page on scavenge.
+  Page* page = Page::FromAddress(map1->address());
+  page->set_scan_on_scavenge(true);
+
+  heap->CollectGarbage(NEW_SPACE);
+
+  // Check the object has really moved.
+  CHECK(*object_to_move != object_to_move_address);
+
+  // Now check that we have not updated the instance size field of the map.
+  CHECK_EQ(object_to_move_address,
+           *(reinterpret_cast<Object**>(map1->address() +
+                                        Map::kInstanceSizeOffset)));
+}
+
+
 #ifdef DEBUG
 TEST(PathTracer) {
   CcTest::InitializeVM();
