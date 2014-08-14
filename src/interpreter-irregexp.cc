@@ -136,7 +136,9 @@ static int32_t Load16Aligned(const byte* pc) {
 // matching terminates.
 class BacktrackStack {
  public:
-  BacktrackStack() { data_ = NewArray<int>(kBacktrackStackSize); }
+  explicit BacktrackStack() {
+    data_ = NewArray<int>(kBacktrackStackSize);
+  }
 
   ~BacktrackStack() {
     DeleteArray(data_);

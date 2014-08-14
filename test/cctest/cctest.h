@@ -209,10 +209,11 @@ class ApiTestFuzzer: public v8::base::Thread {
 
  private:
   explicit ApiTestFuzzer(int num)
-      : Thread(Options("ApiTestFuzzer")),
+      : Thread("ApiTestFuzzer"),
         test_number_(num),
         gate_(0),
-        active_(true) {}
+        active_(true) {
+  }
   ~ApiTestFuzzer() {}
 
   static bool fuzzing_;

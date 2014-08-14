@@ -2834,7 +2834,7 @@ void Heap::CreateInitialObjects() {
 
   // Allocate the dictionary of intrinsic function names.
   Handle<NameDictionary> intrinsic_names =
-      NameDictionary::New(isolate(), Runtime::kNumFunctions, TENURED);
+      NameDictionary::New(isolate(), Runtime::kNumFunctions);
   Runtime::InitializeIntrinsicFunctionNames(isolate(), intrinsic_names);
   set_intrinsic_function_names(*intrinsic_names);
 

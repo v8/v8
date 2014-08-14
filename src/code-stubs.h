@@ -437,8 +437,7 @@ class HydrogenCodeStub : public CodeStub {
     INITIALIZED
   };
 
-  explicit HydrogenCodeStub(Isolate* isolate,
-                            InitializationState state = INITIALIZED)
+  HydrogenCodeStub(Isolate* isolate, InitializationState state = INITIALIZED)
       : CodeStub(isolate) {
     is_uninitialized_ = (state == UNINITIALIZED);
   }

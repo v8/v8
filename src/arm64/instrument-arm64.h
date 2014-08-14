@@ -32,7 +32,7 @@ enum CounterType {
 
 class Counter {
  public:
-  explicit Counter(const char* name, CounterType type = Gauge);
+  Counter(const char* name, CounterType type = Gauge);
 
   void Increment();
   void Enable();
