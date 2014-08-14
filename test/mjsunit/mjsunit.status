@@ -127,6 +127,7 @@
   'es6/debug-promises/throw-uncaught-all': [PASS, NO_VARIANTS],
   'es6/debug-promises/throw-uncaught-uncaught': [PASS, NO_VARIANTS],
   'es6/debug-promises/reject-uncaught-late': [PASS, NO_VARIANTS],
+  'es6/debug-promises/throw-caught-by-default-reject-handler': [PASS, NO_VARIANTS],
   'harmony/debug-blockscopes': [PASS, NO_VARIANTS],
   'harmony/generators-debug-scopes': [PASS, NO_VARIANTS],
   'regress/regress-1081309': [PASS, NO_VARIANTS],
