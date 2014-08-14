@@ -10175,10 +10175,10 @@ class OrderedHashTableIterator: public JSObject {
   DECL_ACCESSORS(table, Object)
 
   // [index]: The index into the data table.
-  DECL_ACCESSORS(index, Smi)
+  DECL_ACCESSORS(index, Object)
 
   // [kind]: The kind of iteration this is. One of the [Kind] enum values.
-  DECL_ACCESSORS(kind, Smi)
+  DECL_ACCESSORS(kind, Object)
 
 #ifdef OBJECT_PRINT
   void OrderedHashTableIteratorPrint(OStream& os);  // NOLINT

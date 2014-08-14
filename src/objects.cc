@@ -16309,7 +16309,7 @@ Smi* OrderedHashTableIterator<Derived, TableType>::Next(JSArray* value_array) {
     FixedArray* array = FixedArray::cast(value_array->elements());
     static_cast<Derived*>(this)->PopulateValueArray(array);
     MoveNext();
-    return kind();
+    return Smi::cast(kind());
   }
   return Smi::FromInt(0);
 }
