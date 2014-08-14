@@ -30,16 +30,16 @@ class InstructionSelectorTester : public HandleAndZoneScope,
   static MachineType* BuildParameterArray(Zone* zone) {
     MachineType* array = zone->NewArray<MachineType>(kParameterCount);
     for (int i = 0; i < kParameterCount; ++i) {
-      array[i] = kMachineWord32;
+      array[i] = kMachInt32;
     }
     return array;
   }
 
   InstructionSelectorTester()
       : RawMachineAssembler(
-            new (main_zone()) Graph(main_zone()), new (main_zone())
-            MachineCallDescriptorBuilder(kMachineWord32, kParameterCount,
-                                         BuildParameterArray(main_zone())),
+            new (main_zone()) Graph(main_zone()),
+            new (main_zone()) MachineCallDescriptorBuilder(
+                kMachInt32, kParameterCount, BuildParameterArray(main_zone())),
             MachineOperatorBuilder::pointer_rep()) {}
 
   void SelectInstructions(CpuFeature feature) {

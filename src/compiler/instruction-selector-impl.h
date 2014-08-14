@@ -201,7 +201,7 @@ class OperandGenerator {
       return new (zone()) UnallocatedOperand(UnallocatedOperand::FIXED_SLOT,
                                              location.location_);
     }
-    if (location.rep_ == kMachineFloat64) {
+    if (RepresentationOf(location.rep_) == kRepFloat64) {
       return new (zone()) UnallocatedOperand(
           UnallocatedOperand::FIXED_DOUBLE_REGISTER, location.location_);
     }

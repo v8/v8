@@ -56,30 +56,32 @@ class X64OperandGenerator V8_FINAL : public OperandGenerator {
 
 
 void InstructionSelector::VisitLoad(Node* node) {
-  MachineType rep = OpParameter<MachineType>(node);
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
   X64OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
-  InstructionOperand* output = rep == kMachineFloat64
+  InstructionOperand* output = rep == kRepFloat64
                                    ? g.DefineAsDoubleRegister(node)
                                    : g.DefineAsRegister(node);
   ArchOpcode opcode;
+  // TODO(titzer): signed/unsigned small loads
   switch (rep) {
-    case kMachineFloat64:
+    case kRepFloat64:
       opcode = kSSELoad;
       break;
-    case kMachineWord8:
+    case kRepBit:  // Fall through.
+    case kRepWord8:
       opcode = kX64LoadWord8;
       break;
-    case kMachineWord16:
+    case kRepWord16:
       opcode = kX64LoadWord16;
       break;
-    case kMachineWord32:
+    case kRepWord32:
       opcode = kX64LoadWord32;
       break;
-    case kMachineTagged:  // Fall through.
-    case kMachineWord64:
+    case kRepTagged:  // Fall through.
+    case kRepWord64:
       opcode = kX64LoadWord64;
       break;
     default:
@@ -108,9 +110,9 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
-  MachineType rep = store_rep.rep;
+  MachineType rep = RepresentationOf(store_rep.machine_type);
   if (store_rep.write_barrier_kind == kFullWriteBarrier) {
-    DCHECK(rep == kMachineTagged);
+    DCHECK(rep == kRepTagged);
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
     // TODO(dcarney): handle immediate indices.
@@ -123,13 +125,13 @@ void InstructionSelector::VisitStore(Node* node) {
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
   bool is_immediate = false;
   InstructionOperand* val;
-  if (rep == kMachineFloat64) {
+  if (rep == kRepFloat64) {
     val = g.UseDoubleRegister(value);
   } else {
     is_immediate = g.CanBeImmediate(value);
     if (is_immediate) {
       val = g.UseImmediate(value);
-    } else if (rep == kMachineWord8) {
+    } else if (rep == kRepWord8 || rep == kRepBit) {
       val = g.UseByteRegister(value);
     } else {
       val = g.UseRegister(value);
@@ -137,20 +139,21 @@ void InstructionSelector::VisitStore(Node* node) {
   }
   ArchOpcode opcode;
   switch (rep) {
-    case kMachineFloat64:
+    case kRepFloat64:
       opcode = kSSEStore;
       break;
-    case kMachineWord8:
+    case kRepBit:  // Fall through.
+    case kRepWord8:
       opcode = is_immediate ? kX64StoreWord8I : kX64StoreWord8;
       break;
-    case kMachineWord16:
+    case kRepWord16:
       opcode = is_immediate ? kX64StoreWord16I : kX64StoreWord16;
       break;
-    case kMachineWord32:
+    case kRepWord32:
       opcode = is_immediate ? kX64StoreWord32I : kX64StoreWord32;
       break;
-    case kMachineTagged:  // Fall through.
-    case kMachineWord64:
+    case kRepTagged:  // Fall through.
+    case kRepWord64:
       opcode = is_immediate ? kX64StoreWord64I : kX64StoreWord64;
       break;
     default:

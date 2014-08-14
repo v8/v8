@@ -136,7 +136,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
 
   const int32_t kValueOffset = HeapNumber::kValueOffset - kHeapObjectTag;
   EXPECT_THAT(NodeProperties::GetControlInput(merge, 0),
-              IsStore(kMachineFloat64, kNoWriteBarrier, heap_number,
+              IsStore(kMachFloat64, kNoWriteBarrier, heap_number,
                       IsInt32Constant(kValueOffset),
                       IsChangeInt32ToFloat64(val), _, heap_number));
 
@@ -164,11 +164,11 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
       kSmiTagSize + SmiTagging<kPointerSize>::kSmiShiftSize;
   const int32_t kValueOffset = HeapNumber::kValueOffset - kHeapObjectTag;
   Node* phi = reduction.replacement();
-  ASSERT_THAT(
-      phi, IsPhi(IsLoad(kMachineFloat64, val, IsInt32Constant(kValueOffset), _),
-                 IsChangeInt32ToFloat64(
-                     IsWord32Sar(val, IsInt32Constant(kShiftAmount))),
-                 _));
+  ASSERT_THAT(phi,
+              IsPhi(IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset), _),
+                    IsChangeInt32ToFloat64(
+                        IsWord32Sar(val, IsInt32Constant(kShiftAmount))),
+                    _));
 
   Node* merge = NodeProperties::GetControlInput(phi);
   ASSERT_EQ(IrOpcode::kMerge, merge->opcode());
@@ -228,11 +228,11 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
       kSmiTagSize + SmiTagging<kPointerSize>::kSmiShiftSize;
   const int32_t kValueOffset = HeapNumber::kValueOffset - kHeapObjectTag;
   Node* phi = reduction.replacement();
-  ASSERT_THAT(
-      phi, IsPhi(IsLoad(kMachineFloat64, val, IsInt32Constant(kValueOffset), _),
-                 IsChangeInt32ToFloat64(IsConvertInt64ToInt32(
-                     IsWord64Sar(val, IsInt32Constant(kShiftAmount)))),
-                 _));
+  ASSERT_THAT(phi,
+              IsPhi(IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset), _),
+                    IsChangeInt32ToFloat64(IsConvertInt64ToInt32(
+                        IsWord64Sar(val, IsInt32Constant(kShiftAmount)))),
+                    _));
 
   Node* merge = NodeProperties::GetControlInput(phi);
   ASSERT_EQ(IrOpcode::kMerge, merge->opcode());

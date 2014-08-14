@@ -13,11 +13,11 @@ class LinkageHelper {
  public:
   static LinkageLocation TaggedStackSlot(int index) {
     DCHECK(index < 0);
-    return LinkageLocation(kMachineTagged, index);
+    return LinkageLocation(kMachAnyTagged, index);
   }
 
   static LinkageLocation TaggedRegisterLocation(Register reg) {
-    return LinkageLocation(kMachineTagged, Register::ToAllocationIndex(reg));
+    return LinkageLocation(kMachAnyTagged, Register::ToAllocationIndex(reg));
   }
 
   static inline LinkageLocation WordRegisterLocation(Register reg) {
@@ -98,7 +98,7 @@ class LinkageHelper {
 
     DCHECK_LE(return_count, 2);
 
-    locations[index++] = UnconstrainedRegister(kMachineTagged);  // CEntryStub
+    locations[index++] = UnconstrainedRegister(kMachAnyTagged);  // CEntryStub
 
     for (int i = 0; i < parameter_count; i++) {
       // All parameters to runtime calls go on the stack.
@@ -143,7 +143,7 @@ class LinkageHelper {
     int index = 0;
     locations[index++] =
         TaggedRegisterLocation(LinkageTraits::ReturnValueReg());
-    locations[index++] = UnconstrainedRegister(kMachineTagged);  // code
+    locations[index++] = UnconstrainedRegister(kMachAnyTagged);  // code
     for (int i = 0; i < parameter_count; i++) {
       if (i < register_parameter_count) {
         // The first parameters to code stub calls go in registers.

@@ -123,7 +123,7 @@ typedef InstructionSelectorTestWithParam<DPI> InstructionSelectorDPITest;
 
 TEST_P(InstructionSelectorDPITest, Parameters) {
   const DPI dpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -137,7 +137,7 @@ TEST_P(InstructionSelectorDPITest, Parameters) {
 TEST_P(InstructionSelectorDPITest, Immediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return((m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -148,7 +148,7 @@ TEST_P(InstructionSelectorDPITest, Immediate) {
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return((m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -164,8 +164,7 @@ TEST_P(InstructionSelectorDPITest, Immediate) {
 TEST_P(InstructionSelectorDPITest, ShiftByParameter) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return((m.*dpi.constructor)(
         m.Parameter(0),
         (m.*shift.constructor)(m.Parameter(1), m.Parameter(2))));
@@ -177,8 +176,7 @@ TEST_P(InstructionSelectorDPITest, ShiftByParameter) {
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return((m.*dpi.constructor)(
         (m.*shift.constructor)(m.Parameter(0), m.Parameter(1)),
         m.Parameter(2)));
@@ -196,7 +194,7 @@ TEST_P(InstructionSelectorDPITest, ShiftByImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       m.Return((m.*dpi.constructor)(
           m.Parameter(0),
           (m.*shift.constructor)(m.Parameter(1), m.Int32Constant(imm))));
@@ -211,7 +209,7 @@ TEST_P(InstructionSelectorDPITest, ShiftByImmediate) {
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       m.Return((m.*dpi.constructor)(
           (m.*shift.constructor)(m.Parameter(0), m.Int32Constant(imm)),
           m.Parameter(1)));
@@ -229,7 +227,7 @@ TEST_P(InstructionSelectorDPITest, ShiftByImmediate) {
 
 TEST_P(InstructionSelectorDPITest, BranchWithParameters) {
   const DPI dpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
   m.Branch((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)), &a, &b);
   m.Bind(&a);
@@ -248,7 +246,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithParameters) {
 TEST_P(InstructionSelectorDPITest, BranchWithImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch((m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)), &a,
              &b);
@@ -264,7 +262,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithImmediate) {
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch((m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)), &a,
              &b);
@@ -285,8 +283,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithImmediate) {
 TEST_P(InstructionSelectorDPITest, BranchWithShiftByParameter) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch((m.*dpi.constructor)(
                  m.Parameter(0),
@@ -304,8 +301,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByParameter) {
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch((m.*dpi.constructor)(
                  (m.*shift.constructor)(m.Parameter(0), m.Parameter(1)),
@@ -329,7 +325,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       MLabel a, b;
       m.Branch((m.*dpi.constructor)(m.Parameter(0),
                                     (m.*shift.constructor)(
@@ -351,7 +347,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByImmediate) {
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       MLabel a, b;
       m.Branch((m.*dpi.constructor)(
                    (m.*shift.constructor)(m.Parameter(0), m.Int32Constant(imm)),
@@ -376,7 +372,7 @@ TEST_P(InstructionSelectorDPITest, BranchWithShiftByImmediate) {
 
 TEST_P(InstructionSelectorDPITest, BranchIfZeroWithParameters) {
   const DPI dpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
   m.Branch(m.Word32Equal((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)),
                          m.Int32Constant(0)),
@@ -396,7 +392,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfZeroWithParameters) {
 
 TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithParameters) {
   const DPI dpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
   m.Branch(
       m.Word32NotEqual((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)),
@@ -418,7 +414,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithParameters) {
 TEST_P(InstructionSelectorDPITest, BranchIfZeroWithImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch(m.Word32Equal(
                  (m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)),
@@ -436,7 +432,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfZeroWithImmediate) {
     EXPECT_EQ(kEqual, s[0]->flags_condition());
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch(m.Word32Equal(
                  (m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)),
@@ -459,7 +455,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfZeroWithImmediate) {
 TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch(m.Word32NotEqual(
                  (m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)),
@@ -477,7 +473,7 @@ TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithImmediate) {
     EXPECT_EQ(kNotEqual, s[0]->flags_condition());
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     m.Branch(m.Word32NotEqual(
                  (m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)),
@@ -510,7 +506,7 @@ typedef InstructionSelectorTestWithParam<ODPI> InstructionSelectorODPITest;
 
 TEST_P(InstructionSelectorODPITest, OvfWithParameters) {
   const ODPI odpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(
       m.Projection(1, (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream s = m.Build();
@@ -527,7 +523,7 @@ TEST_P(InstructionSelectorODPITest, OvfWithParameters) {
 TEST_P(InstructionSelectorODPITest, OvfWithImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Projection(
         1, (m.*odpi.constructor)(m.Parameter(0), m.Int32Constant(imm))));
     Stream s = m.Build();
@@ -541,7 +537,7 @@ TEST_P(InstructionSelectorODPITest, OvfWithImmediate) {
     EXPECT_EQ(kOverflow, s[0]->flags_condition());
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Projection(
         1, (m.*odpi.constructor)(m.Int32Constant(imm), m.Parameter(0))));
     Stream s = m.Build();
@@ -560,8 +556,7 @@ TEST_P(InstructionSelectorODPITest, OvfWithImmediate) {
 TEST_P(InstructionSelectorODPITest, OvfWithShiftByParameter) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return(m.Projection(
         1, (m.*odpi.constructor)(
                m.Parameter(0),
@@ -576,8 +571,7 @@ TEST_P(InstructionSelectorODPITest, OvfWithShiftByParameter) {
     EXPECT_EQ(kOverflow, s[0]->flags_condition());
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return(m.Projection(
         1, (m.*odpi.constructor)(
                (m.*shift.constructor)(m.Parameter(0), m.Parameter(1)),
@@ -598,7 +592,7 @@ TEST_P(InstructionSelectorODPITest, OvfWithShiftByImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       m.Return(m.Projection(
           1, (m.*odpi.constructor)(m.Parameter(0),
                                    (m.*shift.constructor)(
@@ -616,7 +610,7 @@ TEST_P(InstructionSelectorODPITest, OvfWithShiftByImmediate) {
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       m.Return(m.Projection(
           1, (m.*odpi.constructor)(
                  (m.*shift.constructor)(m.Parameter(1), m.Int32Constant(imm)),
@@ -637,7 +631,7 @@ TEST_P(InstructionSelectorODPITest, OvfWithShiftByImmediate) {
 
 TEST_P(InstructionSelectorODPITest, ValWithParameters) {
   const ODPI odpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(
       m.Projection(0, (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream s = m.Build();
@@ -653,7 +647,7 @@ TEST_P(InstructionSelectorODPITest, ValWithParameters) {
 TEST_P(InstructionSelectorODPITest, ValWithImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Projection(
         0, (m.*odpi.constructor)(m.Parameter(0), m.Int32Constant(imm))));
     Stream s = m.Build();
@@ -666,7 +660,7 @@ TEST_P(InstructionSelectorODPITest, ValWithImmediate) {
     EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Projection(
         0, (m.*odpi.constructor)(m.Int32Constant(imm), m.Parameter(0))));
     Stream s = m.Build();
@@ -684,8 +678,7 @@ TEST_P(InstructionSelectorODPITest, ValWithImmediate) {
 TEST_P(InstructionSelectorODPITest, ValWithShiftByParameter) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return(m.Projection(
         0, (m.*odpi.constructor)(
                m.Parameter(0),
@@ -699,8 +692,7 @@ TEST_P(InstructionSelectorODPITest, ValWithShiftByParameter) {
     EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return(m.Projection(
         0, (m.*odpi.constructor)(
                (m.*shift.constructor)(m.Parameter(0), m.Parameter(1)),
@@ -720,7 +712,7 @@ TEST_P(InstructionSelectorODPITest, ValWithShiftByImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       m.Return(m.Projection(
           0, (m.*odpi.constructor)(m.Parameter(0),
                                    (m.*shift.constructor)(
@@ -737,7 +729,7 @@ TEST_P(InstructionSelectorODPITest, ValWithShiftByImmediate) {
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       m.Return(m.Projection(
           0, (m.*odpi.constructor)(
                  (m.*shift.constructor)(m.Parameter(1), m.Int32Constant(imm)),
@@ -757,7 +749,7 @@ TEST_P(InstructionSelectorODPITest, ValWithShiftByImmediate) {
 
 TEST_P(InstructionSelectorODPITest, BothWithParameters) {
   const ODPI odpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
   m.Return(m.Word32Equal(m.Projection(0, n), m.Projection(1, n)));
   Stream s = m.Build();
@@ -774,7 +766,7 @@ TEST_P(InstructionSelectorODPITest, BothWithParameters) {
 TEST_P(InstructionSelectorODPITest, BothWithImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Int32Constant(imm));
     m.Return(m.Word32Equal(m.Projection(0, n), m.Projection(1, n)));
     Stream s = m.Build();
@@ -788,7 +780,7 @@ TEST_P(InstructionSelectorODPITest, BothWithImmediate) {
     EXPECT_EQ(kOverflow, s[0]->flags_condition());
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     Node* n = (m.*odpi.constructor)(m.Int32Constant(imm), m.Parameter(0));
     m.Return(m.Word32Equal(m.Projection(0, n), m.Projection(1, n)));
     Stream s = m.Build();
@@ -807,8 +799,7 @@ TEST_P(InstructionSelectorODPITest, BothWithImmediate) {
 TEST_P(InstructionSelectorODPITest, BothWithShiftByParameter) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     Node* n = (m.*odpi.constructor)(
         m.Parameter(0), (m.*shift.constructor)(m.Parameter(1), m.Parameter(2)));
     m.Return(m.Word32Equal(m.Projection(0, n), m.Projection(1, n)));
@@ -822,8 +813,7 @@ TEST_P(InstructionSelectorODPITest, BothWithShiftByParameter) {
     EXPECT_EQ(kOverflow, s[0]->flags_condition());
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     Node* n = (m.*odpi.constructor)(
         (m.*shift.constructor)(m.Parameter(0), m.Parameter(1)), m.Parameter(2));
     m.Return(m.Word32Equal(m.Projection(0, n), m.Projection(1, n)));
@@ -843,7 +833,7 @@ TEST_P(InstructionSelectorODPITest, BothWithShiftByImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       Node* n = (m.*odpi.constructor)(
           m.Parameter(0),
           (m.*shift.constructor)(m.Parameter(1), m.Int32Constant(imm)));
@@ -861,7 +851,7 @@ TEST_P(InstructionSelectorODPITest, BothWithShiftByImmediate) {
   }
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
       Node* n = (m.*odpi.constructor)(
           (m.*shift.constructor)(m.Parameter(0), m.Int32Constant(imm)),
           m.Parameter(1));
@@ -882,7 +872,7 @@ TEST_P(InstructionSelectorODPITest, BothWithShiftByImmediate) {
 
 TEST_P(InstructionSelectorODPITest, BranchWithParameters) {
   const ODPI odpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
   Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
   m.Branch(m.Projection(1, n), &a, &b);
@@ -904,7 +894,7 @@ TEST_P(InstructionSelectorODPITest, BranchWithParameters) {
 TEST_P(InstructionSelectorODPITest, BranchWithImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Int32Constant(imm));
     m.Branch(m.Projection(1, n), &a, &b);
@@ -923,7 +913,7 @@ TEST_P(InstructionSelectorODPITest, BranchWithImmediate) {
     EXPECT_EQ(kOverflow, s[0]->flags_condition());
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     MLabel a, b;
     Node* n = (m.*odpi.constructor)(m.Int32Constant(imm), m.Parameter(0));
     m.Branch(m.Projection(1, n), &a, &b);
@@ -946,7 +936,7 @@ TEST_P(InstructionSelectorODPITest, BranchWithImmediate) {
 
 TEST_P(InstructionSelectorODPITest, BranchIfZeroWithParameters) {
   const ODPI odpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
   Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
   m.Branch(m.Word32Equal(m.Projection(1, n), m.Int32Constant(0)), &a, &b);
@@ -967,7 +957,7 @@ TEST_P(InstructionSelectorODPITest, BranchIfZeroWithParameters) {
 
 TEST_P(InstructionSelectorODPITest, BranchIfNotZeroWithParameters) {
   const ODPI odpi = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
   Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
   m.Branch(m.Word32NotEqual(m.Projection(1, n), m.Int32Constant(0)), &a, &b);
@@ -999,7 +989,7 @@ typedef InstructionSelectorTestWithParam<Shift> InstructionSelectorShiftTest;
 
 TEST_P(InstructionSelectorShiftTest, Parameters) {
   const Shift shift = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return((m.*shift.constructor)(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -1013,7 +1003,7 @@ TEST_P(InstructionSelectorShiftTest, Parameters) {
 TEST_P(InstructionSelectorShiftTest, Immediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return((m.*shift.constructor)(m.Parameter(0), m.Int32Constant(imm)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1029,8 +1019,7 @@ TEST_P(InstructionSelectorShiftTest, Immediate) {
 TEST_P(InstructionSelectorShiftTest, Word32EqualWithParameter) {
   const Shift shift = GetParam();
   {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return(
         m.Word32Equal(m.Parameter(0),
                       (m.*shift.constructor)(m.Parameter(1), m.Parameter(2))));
@@ -1044,8 +1033,7 @@ TEST_P(InstructionSelectorShiftTest, Word32EqualWithParameter) {
     EXPECT_EQ(kEqual, s[0]->flags_condition());
   }
   {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return(
         m.Word32Equal((m.*shift.constructor)(m.Parameter(1), m.Parameter(2)),
                       m.Parameter(0)));
@@ -1064,7 +1052,7 @@ TEST_P(InstructionSelectorShiftTest, Word32EqualWithParameter) {
 TEST_P(InstructionSelectorShiftTest, Word32EqualWithParameterAndImmediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
     m.Return(m.Word32Equal(
         (m.*shift.constructor)(m.Parameter(1), m.Int32Constant(imm)),
         m.Parameter(0)));
@@ -1079,7 +1067,7 @@ TEST_P(InstructionSelectorShiftTest, Word32EqualWithParameterAndImmediate) {
     EXPECT_EQ(kEqual, s[0]->flags_condition());
   }
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
     m.Return(m.Word32Equal(
         m.Parameter(0),
         (m.*shift.constructor)(m.Parameter(1), m.Int32Constant(imm))));
@@ -1098,7 +1086,7 @@ TEST_P(InstructionSelectorShiftTest, Word32EqualWithParameterAndImmediate) {
 
 TEST_P(InstructionSelectorShiftTest, Word32NotWithParameters) {
   const Shift shift = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Word32Not((m.*shift.constructor)(m.Parameter(0), m.Parameter(1))));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -1112,7 +1100,7 @@ TEST_P(InstructionSelectorShiftTest, Word32NotWithParameters) {
 TEST_P(InstructionSelectorShiftTest, Word32NotWithImmediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Word32Not(
         (m.*shift.constructor)(m.Parameter(0), m.Int32Constant(imm))));
     Stream s = m.Build();
@@ -1128,8 +1116,7 @@ TEST_P(InstructionSelectorShiftTest, Word32NotWithImmediate) {
 
 TEST_P(InstructionSelectorShiftTest, Word32AndWithWord32NotWithParameters) {
   const Shift shift = GetParam();
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                  kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Word32And(m.Parameter(0), m.Word32Not((m.*shift.constructor)(
                                            m.Parameter(1), m.Parameter(2)))));
   Stream s = m.Build();
@@ -1144,7 +1131,7 @@ TEST_P(InstructionSelectorShiftTest, Word32AndWithWord32NotWithParameters) {
 TEST_P(InstructionSelectorShiftTest, Word32AndWithWord32NotWithImmediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
     m.Return(m.Word32And(m.Parameter(0),
                          m.Word32Not((m.*shift.constructor)(
                              m.Parameter(1), m.Int32Constant(imm)))));
@@ -1169,8 +1156,7 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
 
 TEST_F(InstructionSelectorTest, Int32AddWithInt32Mul) {
   {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return(
         m.Int32Add(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));
     Stream s = m.Build();
@@ -1180,8 +1166,7 @@ TEST_F(InstructionSelectorTest, Int32AddWithInt32Mul) {
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                    kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
     m.Return(
         m.Int32Add(m.Int32Mul(m.Parameter(1), m.Parameter(2)), m.Parameter(0)));
     Stream s = m.Build();
@@ -1194,7 +1179,7 @@ TEST_F(InstructionSelectorTest, Int32AddWithInt32Mul) {
 
 
 TEST_F(InstructionSelectorTest, Int32DivWithParameters) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32Div(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(4U, s.size());
@@ -1214,7 +1199,7 @@ TEST_F(InstructionSelectorTest, Int32DivWithParameters) {
 
 
 TEST_F(InstructionSelectorTest, Int32DivWithParametersForSUDIV) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32Div(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build(SUDIV);
   ASSERT_EQ(1U, s.size());
@@ -1223,7 +1208,7 @@ TEST_F(InstructionSelectorTest, Int32DivWithParametersForSUDIV) {
 
 
 TEST_F(InstructionSelectorTest, Int32ModWithParameters) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(6U, s.size());
@@ -1253,7 +1238,7 @@ TEST_F(InstructionSelectorTest, Int32ModWithParameters) {
 
 
 TEST_F(InstructionSelectorTest, Int32ModWithParametersForSUDIV) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build(SUDIV);
   ASSERT_EQ(3U, s.size());
@@ -1274,7 +1259,7 @@ TEST_F(InstructionSelectorTest, Int32ModWithParametersForSUDIV) {
 
 
 TEST_F(InstructionSelectorTest, Int32ModWithParametersForSUDIVAndMLS) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32Mod(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build(MLS, SUDIV);
   ASSERT_EQ(2U, s.size());
@@ -1291,7 +1276,7 @@ TEST_F(InstructionSelectorTest, Int32ModWithParametersForSUDIVAndMLS) {
 
 
 TEST_F(InstructionSelectorTest, Int32MulWithParameters) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32Mul(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -1304,7 +1289,7 @@ TEST_F(InstructionSelectorTest, Int32MulWithParameters) {
 TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
   // x * (2^k + 1) -> x + (x >> k)
   TRACED_FORRANGE(int32_t, k, 1, 30) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Int32Mul(m.Parameter(0), m.Int32Constant((1 << k) + 1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1317,7 +1302,7 @@ TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
   }
   // x * (2^k - 1) -> -x + (x >> k)
   TRACED_FORRANGE(int32_t, k, 3, 30) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Int32Mul(m.Parameter(0), m.Int32Constant((1 << k) - 1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1330,7 +1315,7 @@ TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
   }
   // (2^k + 1) * x -> x + (x >> k)
   TRACED_FORRANGE(int32_t, k, 1, 30) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Int32Mul(m.Int32Constant((1 << k) + 1), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1343,7 +1328,7 @@ TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
   }
   // x * (2^k - 1) -> -x + (x >> k)
   TRACED_FORRANGE(int32_t, k, 3, 30) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Int32Mul(m.Int32Constant((1 << k) - 1), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1358,8 +1343,7 @@ TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
 
 
 TEST_F(InstructionSelectorTest, Int32SubWithInt32Mul) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                  kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
   m.Return(
       m.Int32Sub(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));
   Stream s = m.Build();
@@ -1373,8 +1357,7 @@ TEST_F(InstructionSelectorTest, Int32SubWithInt32Mul) {
 
 
 TEST_F(InstructionSelectorTest, Int32SubWithInt32MulForMLS) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32,
-                  kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
   m.Return(
       m.Int32Sub(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));
   Stream s = m.Build(MLS);
@@ -1386,7 +1369,7 @@ TEST_F(InstructionSelectorTest, Int32SubWithInt32MulForMLS) {
 
 
 TEST_F(InstructionSelectorTest, Int32UDivWithParameters) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32UDiv(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(4U, s.size());
@@ -1406,7 +1389,7 @@ TEST_F(InstructionSelectorTest, Int32UDivWithParameters) {
 
 
 TEST_F(InstructionSelectorTest, Int32UDivWithParametersForSUDIV) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32UDiv(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build(SUDIV);
   ASSERT_EQ(1U, s.size());
@@ -1415,7 +1398,7 @@ TEST_F(InstructionSelectorTest, Int32UDivWithParametersForSUDIV) {
 
 
 TEST_F(InstructionSelectorTest, Int32UModWithParameters) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(6U, s.size());
@@ -1445,7 +1428,7 @@ TEST_F(InstructionSelectorTest, Int32UModWithParameters) {
 
 
 TEST_F(InstructionSelectorTest, Int32UModWithParametersForSUDIV) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build(SUDIV);
   ASSERT_EQ(3U, s.size());
@@ -1466,7 +1449,7 @@ TEST_F(InstructionSelectorTest, Int32UModWithParametersForSUDIV) {
 
 
 TEST_F(InstructionSelectorTest, Int32UModWithParametersForSUDIVAndMLS) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build(MLS, SUDIV);
   ASSERT_EQ(2U, s.size());
@@ -1484,7 +1467,7 @@ TEST_F(InstructionSelectorTest, Int32UModWithParametersForSUDIVAndMLS) {
 
 TEST_F(InstructionSelectorTest, Word32AndWithUbfxImmediateForARMv7) {
   TRACED_FORRANGE(int32_t, width, 1, 32) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Word32And(m.Parameter(0),
                          m.Int32Constant(0xffffffffu >> (32 - width))));
     Stream s = m.Build(ARMv7);
@@ -1495,7 +1478,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithUbfxImmediateForARMv7) {
     EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
   }
   TRACED_FORRANGE(int32_t, width, 1, 32) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Word32And(m.Int32Constant(0xffffffffu >> (32 - width)),
                          m.Parameter(0)));
     Stream s = m.Build(ARMv7);
@@ -1511,7 +1494,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithUbfxImmediateForARMv7) {
 TEST_F(InstructionSelectorTest, Word32AndWithBfcImmediateForARMv7) {
   TRACED_FORRANGE(int32_t, lsb, 0, 31) {
     TRACED_FORRANGE(int32_t, width, 1, (32 - lsb) - 1) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Word32And(
           m.Parameter(0),
           m.Int32Constant(~((0xffffffffu >> (32 - width)) << lsb))));
@@ -1528,7 +1511,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithBfcImmediateForARMv7) {
   }
   TRACED_FORRANGE(int32_t, lsb, 0, 31) {
     TRACED_FORRANGE(int32_t, width, 1, (32 - lsb) - 1) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(
           m.Word32And(m.Int32Constant(~((0xffffffffu >> (32 - width)) << lsb)),
                       m.Parameter(0)));
@@ -1553,7 +1536,7 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediateForARMv7) {
       if (max > static_cast<uint32_t>(kMaxInt)) max -= 1;
       uint32_t jnk = rng()->NextInt(max);
       uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
-      StreamBuilder m(this, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Word32Shr(m.Word32And(m.Parameter(0), m.Int32Constant(msk)),
                            m.Int32Constant(lsb)));
       Stream s = m.Build(ARMv7);
@@ -1570,7 +1553,7 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediateForARMv7) {
       if (max > static_cast<uint32_t>(kMaxInt)) max -= 1;
       uint32_t jnk = rng()->NextInt(max);
       uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
-      StreamBuilder m(this, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(msk), m.Parameter(0)),
                            m.Int32Constant(lsb)));
       Stream s = m.Build(ARMv7);
@@ -1586,7 +1569,7 @@ TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediateForARMv7) {
 
 TEST_F(InstructionSelectorTest, Word32AndWithWord32Not) {
   {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
     m.Return(m.Word32And(m.Parameter(0), m.Word32Not(m.Parameter(1))));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1596,7 +1579,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithWord32Not) {
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
   {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
     m.Return(m.Word32And(m.Word32Not(m.Parameter(0)), m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1609,7 +1592,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithWord32Not) {
 
 
 TEST_F(InstructionSelectorTest, Word32EqualWithParameters) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Word32Equal(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -1625,7 +1608,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithParameters) {
 TEST_F(InstructionSelectorTest, Word32EqualWithImmediate) {
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     if (imm == 0) continue;
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Word32Equal(m.Parameter(0), m.Int32Constant(imm)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1639,7 +1622,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithImmediate) {
   }
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     if (imm == 0) continue;
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Word32Equal(m.Int32Constant(imm), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1656,7 +1639,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithImmediate) {
 
 TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
   {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Word32Equal(m.Parameter(0), m.Int32Constant(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1669,7 +1652,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     EXPECT_EQ(kEqual, s[0]->flags_condition());
   }
   {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Word32Equal(m.Int32Constant(0), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -1685,7 +1668,7 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
 
 
 TEST_F(InstructionSelectorTest, Word32NotWithParameter) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32);
   m.Return(m.Word32Not(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -1699,7 +1682,7 @@ TEST_F(InstructionSelectorTest, Word32NotWithParameter) {
 TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrWithImmediateForARMv7) {
   TRACED_FORRANGE(int32_t, lsb, 0, 31) {
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb)),
                            m.Int32Constant(0xffffffffu >> (32 - width))));
       Stream s = m.Build(ARMv7);
@@ -1712,7 +1695,7 @@ TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrWithImmediateForARMv7) {
   }
   TRACED_FORRANGE(int32_t, lsb, 0, 31) {
     TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Word32And(m.Int32Constant(0xffffffffu >> (32 - width)),
                            m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb))));
       Stream s = m.Build(ARMv7);

@@ -173,7 +173,7 @@ Reduction ChangeLowering<4>::ChangeInt32ToTagged(Node* val, Node* effect,
                        Int32Constant(0), context, effect, if_true);
 
   Node* store = graph()->NewNode(
-      machine()->Store(kMachineFloat64, kNoWriteBarrier), heap_number,
+      machine()->Store(kMachFloat64, kNoWriteBarrier), heap_number,
       Int32Constant(HeapNumber::kValueOffset - kHeapObjectTag), number, effect,
       heap_number);
 
@@ -206,7 +206,7 @@ Reduction ChangeLowering<4>::ChangeTaggedToFloat64(Node* val, Node* effect,
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* load = graph()->NewNode(
-      machine()->Load(kMachineFloat64), val,
+      machine()->Load(kMachFloat64), val,
       Int32Constant(HeapNumber::kValueOffset - kHeapObjectTag), if_true);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -233,7 +233,7 @@ Reduction ChangeLowering<8>::ChangeTaggedToFloat64(Node* val, Node* effect,
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* load = graph()->NewNode(
-      machine()->Load(kMachineFloat64), val,
+      machine()->Load(kMachFloat64), val,
       Int32Constant(HeapNumber::kValueOffset - kHeapObjectTag), if_true);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

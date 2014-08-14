@@ -77,7 +77,7 @@ static const DPI kMulDivInstructions[] = {
 // TODO(all): Use TEST_P, see instruction-selector-arm-unittest.cc.
 TEST_F(InstructionSelectorTest, LogicalWithParameter) {
   TRACED_FOREACH(DPI, dpi, kLogicalInstructions) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
     m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -89,7 +89,7 @@ TEST_F(InstructionSelectorTest, LogicalWithParameter) {
 // TODO(all): Use TEST_P, see instruction-selector-arm-unittest.cc.
 TEST_F(InstructionSelectorTest, AddSubWithParameter) {
   TRACED_FOREACH(DPI, dpi, kAddSubInstructions) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
     m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
@@ -106,7 +106,7 @@ TEST_F(InstructionSelectorTest, AddSubWithImmediate) {
          j != immediates.end(); ++j) {
       int32_t imm = *j;
       SCOPED_TRACE(::testing::Message() << "imm = " << imm);
-      StreamBuilder m(this, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return((m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
@@ -120,7 +120,7 @@ TEST_F(InstructionSelectorTest, AddSubWithImmediate) {
 // TODO(all): Use TEST_P, see instruction-selector-arm-unittest.cc.
 TEST_F(InstructionSelectorTest, MulDivWithParameter) {
   TRACED_FOREACH(DPI, dpi, kMulDivInstructions) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
     m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());

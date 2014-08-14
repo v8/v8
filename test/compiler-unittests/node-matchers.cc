@@ -283,8 +283,9 @@ class IsStoreMatcher V8_FINAL : public NodeMatcher {
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
       V8_OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<StoreRepresentation>(node).rep,
-                                 "type", type_matcher_, listener) &&
+            PrintMatchAndExplain(
+                OpParameter<StoreRepresentation>(node).machine_type, "type",
+                type_matcher_, listener) &&
             PrintMatchAndExplain(
                 OpParameter<StoreRepresentation>(node).write_barrier_kind,
                 "write barrier", write_barrier_matcher_, listener) &&

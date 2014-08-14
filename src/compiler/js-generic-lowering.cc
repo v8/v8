@@ -479,13 +479,13 @@ Node* JSGenericLowering::LowerJSLoadContext(Node* node) {
   for (int i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
         0, graph()->NewNode(
-               machine()->Load(kMachineTagged),
+               machine()->Load(kMachAnyTagged),
                NodeProperties::GetValueInput(node, 0),
                Int32Constant(Context::SlotOffset(Context::PREVIOUS_INDEX)),
                NodeProperties::GetEffectInput(node)));
   }
   node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
-  PatchOperator(node, machine()->Load(kMachineTagged));
+  PatchOperator(node, machine()->Load(kMachAnyTagged));
   return node;
 }
 
@@ -497,14 +497,14 @@ Node* JSGenericLowering::LowerJSStoreContext(Node* node) {
   for (int i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
         0, graph()->NewNode(
-               machine()->Load(kMachineTagged),
+               machine()->Load(kMachAnyTagged),
                NodeProperties::GetValueInput(node, 0),
                Int32Constant(Context::SlotOffset(Context::PREVIOUS_INDEX)),
                NodeProperties::GetEffectInput(node)));
   }
   node->ReplaceInput(2, NodeProperties::GetValueInput(node, 1));
   node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
-  PatchOperator(node, machine()->Store(kMachineTagged, kFullWriteBarrier));
+  PatchOperator(node, machine()->Store(kMachAnyTagged, kFullWriteBarrier));
   return node;
 }
 

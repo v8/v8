@@ -424,9 +424,9 @@ class IfBuilderGenerator : public StructuredMachineAssemblerTester<int32_t> {
           m_.IfNode();
           {
             Node* offset = Int32Constant(offset_ * 4);
-            Store(kMachineWord32, Parameter(1), offset, var_.Get());
+            Store(kMachInt32, Parameter(1), offset, var_.Get());
             var_.Set(Int32Add(var_.Get(), Int32Constant(kIfInc)));
-            c_.If(Load(kMachineWord32, Parameter(0), offset));
+            c_.If(Load(kMachInt32, Parameter(0), offset));
             offset_++;
           }
           break;

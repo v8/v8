@@ -1536,7 +1536,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  MachineOperatorBuilder machine_builder(scope.main_zone(), kMachineWord32);
+  MachineOperatorBuilder machine_builder(scope.main_zone());
   Operator* op;
 
   Handle<Object> object =

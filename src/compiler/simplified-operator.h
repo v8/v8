@@ -23,7 +23,7 @@ struct FieldAccess {
   int offset;                     // offset of the field, without tag.
   Handle<Name> name;              // debugging only.
   Type* type;                     // type of the field.
-  MachineType representation;     // machine representation of field.
+  MachineType machine_type;       // machine type of the field.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -37,7 +37,7 @@ struct ElementAccess {
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int header_size;                // size of the header, without tag.
   Type* type;                     // type of the element.
-  MachineType representation;     // machine representation of element.
+  MachineType machine_type;       // machine type of the element.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
@@ -54,11 +54,11 @@ struct StaticParameterTraits<const FieldAccess> {
     return os << val.offset;
   }
   static int HashCode(const FieldAccess& val) {
-    return (val.offset < 16) | (val.representation & 0xffff);
+    return (val.offset < 16) | (val.machine_type & 0xffff);
   }
   static bool Equals(const FieldAccess& a, const FieldAccess& b) {
     return a.base_is_tagged == b.base_is_tagged && a.offset == b.offset &&
-           a.representation == b.representation && a.type->Is(b.type);
+           a.machine_type == b.machine_type && a.type->Is(b.type);
   }
 };
 
@@ -70,12 +70,12 @@ struct StaticParameterTraits<const ElementAccess> {
     return os << val.header_size;
   }
   static int HashCode(const ElementAccess& val) {
-    return (val.header_size < 16) | (val.representation & 0xffff);
+    return (val.header_size < 16) | (val.machine_type & 0xffff);
   }
   static bool Equals(const ElementAccess& a, const ElementAccess& b) {
     return a.base_is_tagged == b.base_is_tagged &&
-           a.header_size == b.header_size &&
-           a.representation == b.representation && a.type->Is(b.type);
+           a.header_size == b.header_size && a.machine_type == b.machine_type &&
+           a.type->Is(b.type);
   }
 };
 

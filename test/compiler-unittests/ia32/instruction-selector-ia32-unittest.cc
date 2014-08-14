@@ -19,7 +19,7 @@ static const int32_t kImmediates[] = {
 
 
 TEST_F(InstructionSelectorTest, Int32AddWithParameter) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32Add(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -30,7 +30,7 @@ TEST_F(InstructionSelectorTest, Int32AddWithParameter) {
 TEST_F(InstructionSelectorTest, Int32AddWithImmediate) {
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Int32Add(m.Parameter(0), m.Int32Constant(imm)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
@@ -39,7 +39,7 @@ TEST_F(InstructionSelectorTest, Int32AddWithImmediate) {
       EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
     }
     {
-      StreamBuilder m(this, kMachineWord32, kMachineWord32);
+      StreamBuilder m(this, kMachInt32, kMachInt32);
       m.Return(m.Int32Add(m.Int32Constant(imm), m.Parameter(0)));
       Stream s = m.Build();
       ASSERT_EQ(1U, s.size());
@@ -52,7 +52,7 @@ TEST_F(InstructionSelectorTest, Int32AddWithImmediate) {
 
 
 TEST_F(InstructionSelectorTest, Int32SubWithParameter) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Int32Sub(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -63,7 +63,7 @@ TEST_F(InstructionSelectorTest, Int32SubWithParameter) {
 
 TEST_F(InstructionSelectorTest, Int32SubWithImmediate) {
   TRACED_FOREACH(int32_t, imm, kImmediates) {
-    StreamBuilder m(this, kMachineWord32, kMachineWord32);
+    StreamBuilder m(this, kMachInt32, kMachInt32);
     m.Return(m.Int32Sub(m.Parameter(0), m.Int32Constant(imm)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());

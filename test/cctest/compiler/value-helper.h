@@ -128,7 +128,6 @@ class ValueHelper {
 
 #define FOR_UINT32_SHIFTS(var) for (uint32_t var = 0; var < 32; var++)
 
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

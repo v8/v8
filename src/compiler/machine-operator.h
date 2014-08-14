@@ -21,7 +21,7 @@ enum WriteBarrierKind { kNoWriteBarrier, kFullWriteBarrier };
 // A Store needs a MachineType and a WriteBarrierKind
 // in order to emit the correct write barrier.
 struct StoreRepresentation {
-  MachineType rep;
+  MachineType machine_type;
   WriteBarrierKind write_barrier_kind;
 };
 
@@ -33,7 +33,7 @@ class MachineOperatorBuilder {
  public:
   explicit MachineOperatorBuilder(Zone* zone, MachineType word = pointer_rep())
       : zone_(zone), word_(word) {
-    CHECK(word == kMachineWord32 || word == kMachineWord64);
+    CHECK(word == kRepWord32 || word == kRepWord64);
   }
 
 #define SIMPLE(name, properties, inputs, outputs) \
@@ -146,12 +146,12 @@ class MachineOperatorBuilder {
   Operator* Float64LessThan() { BINOP(Float64LessThan); }
   Operator* Float64LessThanOrEqual() { BINOP(Float64LessThanOrEqual); }
 
-  inline bool is32() const { return word_ == kMachineWord32; }
-  inline bool is64() const { return word_ == kMachineWord64; }
+  inline bool is32() const { return word_ == kRepWord32; }
+  inline bool is64() const { return word_ == kRepWord64; }
   inline MachineType word() const { return word_; }
 
   static inline MachineType pointer_rep() {
-    return kPointerSize == 8 ? kMachineWord64 : kMachineWord32;
+    return kPointerSize == 8 ? kRepWord64 : kRepWord32;
   }
 
 #undef WORD_SIZE

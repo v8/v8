@@ -87,11 +87,11 @@ class GraphBuilderTester
       public SimplifiedGraphBuilder,
       public CallHelper2<ReturnType, GraphBuilderTester<ReturnType> > {
  public:
-  explicit GraphBuilderTester(MachineType p0 = kMachineLast,
-                              MachineType p1 = kMachineLast,
-                              MachineType p2 = kMachineLast,
-                              MachineType p3 = kMachineLast,
-                              MachineType p4 = kMachineLast)
+  explicit GraphBuilderTester(MachineType p0 = kMachNone,
+                              MachineType p1 = kMachNone,
+                              MachineType p2 = kMachNone,
+                              MachineType p3 = kMachNone,
+                              MachineType p4 = kMachNone)
       : GraphAndBuilders(main_zone()),
         MachineCallHelper(
             main_zone(),

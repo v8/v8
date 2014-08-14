@@ -72,7 +72,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
 
 
 TARGET_TEST_F(InstructionSelectorTest, ReturnParameter) {
-  StreamBuilder m(this, kMachineWord32, kMachineWord32);
+  StreamBuilder m(this, kMachInt32, kMachInt32);
   m.Return(m.Parameter(0));
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(2U, s.size());
@@ -84,7 +84,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnParameter) {
 
 
 TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
-  StreamBuilder m(this, kMachineWord32);
+  StreamBuilder m(this, kMachInt32);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(2U, s.size());

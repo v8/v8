@@ -232,8 +232,8 @@ void InstructionSelector::MarkAsReference(Node* node) {
 
 void InstructionSelector::MarkAsRepresentation(MachineType rep, Node* node) {
   DCHECK_NOT_NULL(node);
-  if (rep == kMachineFloat64) MarkAsDouble(node);
-  if (rep == kMachineTagged) MarkAsReference(node);
+  if (RepresentationOf(rep) == kRepFloat64) MarkAsDouble(node);
+  if (RepresentationOf(rep) == kRepTagged) MarkAsReference(node);
 }
 
 

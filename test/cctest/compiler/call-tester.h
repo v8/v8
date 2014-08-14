@@ -23,6 +23,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// TODO(titzer): move MachineType selection for C types into machine-type.h
 template <typename R>
 struct ReturnValueTraits {
   static R Cast(uintptr_t r) { return reinterpret_cast<R>(r); }
@@ -32,72 +33,62 @@ struct ReturnValueTraits {
     while (false) {
       *(static_cast<Object* volatile*>(0)) = static_cast<R>(0);
     }
-    return kMachineTagged;
+    return kMachAnyTagged;
   }
 };
 
 template <>
 struct ReturnValueTraits<int32_t*> {
   static int32_t* Cast(uintptr_t r) { return reinterpret_cast<int32_t*>(r); }
-  static MachineType Representation() {
-    return MachineOperatorBuilder::pointer_rep();
-  }
+  static MachineType Representation() { return kMachPtr; }
 };
 
 template <>
 struct ReturnValueTraits<void> {
   static void Cast(uintptr_t r) {}
-  static MachineType Representation() {
-    return MachineOperatorBuilder::pointer_rep();
-  }
+  static MachineType Representation() { return kMachPtr; }
 };
 
 template <>
 struct ReturnValueTraits<bool> {
   static bool Cast(uintptr_t r) { return static_cast<bool>(r); }
-  static MachineType Representation() {
-    return MachineOperatorBuilder::pointer_rep();
-  }
+  static MachineType Representation() { return kRepBit; }
 };
 
 template <>
 struct ReturnValueTraits<int32_t> {
   static int32_t Cast(uintptr_t r) { return static_cast<int32_t>(r); }
-  static MachineType Representation() { return kMachineWord32; }
+  static MachineType Representation() { return kMachInt32; }
 };
 
 template <>
 struct ReturnValueTraits<uint32_t> {
   static uint32_t Cast(uintptr_t r) { return static_cast<uint32_t>(r); }
-  static MachineType Representation() { return kMachineWord32; }
+  static MachineType Representation() { return kMachUint32; }
 };
 
 template <>
 struct ReturnValueTraits<int64_t> {
   static int64_t Cast(uintptr_t r) { return static_cast<int64_t>(r); }
-  static MachineType Representation() { return kMachineWord64; }
+  static MachineType Representation() { return kMachInt64; }
 };
 
 template <>
 struct ReturnValueTraits<uint64_t> {
   static uint64_t Cast(uintptr_t r) { return static_cast<uint64_t>(r); }
-  static MachineType Representation() { return kMachineWord64; }
+  static MachineType Representation() { return kMachUint64; }
 };
 
 template <>
 struct ReturnValueTraits<int16_t> {
   static int16_t Cast(uintptr_t r) { return static_cast<int16_t>(r); }
-  static MachineType Representation() {
-    return MachineOperatorBuilder::pointer_rep();
-  }
+  static MachineType Representation() { return kMachInt16; }
 };
 
 template <>
 struct ReturnValueTraits<int8_t> {
   static int8_t Cast(uintptr_t r) { return static_cast<int8_t>(r); }
-  static MachineType Representation() {
-    return MachineOperatorBuilder::pointer_rep();
-  }
+  static MachineType Representation() { return kMachInt8; }
 };
 
 template <>
@@ -106,7 +97,7 @@ struct ReturnValueTraits<double> {
     UNREACHABLE();
     return 0.0;
   }
-  static MachineType Representation() { return kMachineFloat64; }
+  static MachineType Representation() { return kMachFloat64; }
 };
 
 
@@ -131,9 +122,9 @@ class CallHelper {
   virtual ~CallHelper() {}
 
   static MachineCallDescriptorBuilder* ToCallDescriptorBuilder(
-      Zone* zone, MachineType return_type, MachineType p0 = kMachineLast,
-      MachineType p1 = kMachineLast, MachineType p2 = kMachineLast,
-      MachineType p3 = kMachineLast, MachineType p4 = kMachineLast) {
+      Zone* zone, MachineType return_type, MachineType p0 = kMachNone,
+      MachineType p1 = kMachNone, MachineType p2 = kMachNone,
+      MachineType p3 = kMachNone, MachineType p4 = kMachNone) {
     const int kSize = 5;
     MachineType* params = zone->NewArray<MachineType>(kSize);
     params[0] = p0;
@@ -143,7 +134,7 @@ class CallHelper {
     params[4] = p4;
     int parameter_count = 0;
     for (int i = 0; i < kSize; ++i) {
-      if (params[i] == kMachineLast) {
+      if (params[i] == kMachNone) {
         break;
       }
       parameter_count++;
