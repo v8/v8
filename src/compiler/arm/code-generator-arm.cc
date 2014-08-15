@@ -665,12 +665,10 @@ void CodeGenerator::AssembleReturn() {
         __ ldm(ia_w, sp, saves);
       }
     }
-    __ mov(sp, fp);
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
+    __ LeaveFrame(StackFrame::MANUAL);
     __ Ret();
   } else {
-    __ mov(sp, fp);
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
+    __ LeaveFrame(StackFrame::MANUAL);
     int pop_count =
         descriptor->IsJSFunctionCall() ? descriptor->ParameterCount() : 0;
     __ Drop(pop_count);
