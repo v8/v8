@@ -621,13 +621,12 @@ void Scheduler::ScheduleLate() {
   // Schedule: Places nodes in dominator block of all their uses.
   ScheduleLateNodeVisitor schedule_late_visitor(this);
 
-  for (NodeVectorIter i = schedule_root_nodes_.begin();
-       i != schedule_root_nodes_.end(); ++i) {
-    // TODO(mstarzinger): Make the scheduler eat less memory.
+  {
     Zone zone(zone_->isolate());
     GenericGraphVisit::Visit<ScheduleLateNodeVisitor,
                              NodeInputIterationTraits<Node> >(
-        graph_, &zone, *i, &schedule_late_visitor);
+        graph_, &zone, schedule_root_nodes_.begin(), schedule_root_nodes_.end(),
+        &schedule_late_visitor);
   }
 
   // Add collected nodes for basic blocks to their blocks in the right order.
