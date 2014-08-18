@@ -15,6 +15,30 @@ CommonOperatorTest::CommonOperatorTest() : common_(zone()) {}
 
 CommonOperatorTest::~CommonOperatorTest() {}
 
+
+TEST_F(CommonOperatorTest, ControlEffect) {
+  Operator* op = common()->ControlEffect();
+  EXPECT_EQ(1, OperatorProperties::GetControlInputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
+  EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetEffectOutputCount(op));
+  EXPECT_EQ(0, OperatorProperties::GetValueOutputCount(op));
+}
+
+
+TEST_F(CommonOperatorTest, Finish) {
+  static const int kArguments[] = {1, 5, 6, 42, 100, 10000, kMaxInt};
+  TRACED_FOREACH(int, arguments, kArguments) {
+    Operator* op = common()->Finish(arguments);
+    EXPECT_EQ(1, OperatorProperties::GetValueInputCount(op));
+    EXPECT_EQ(arguments, OperatorProperties::GetEffectInputCount(op));
+    EXPECT_EQ(arguments + 1, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetEffectOutputCount(op));
+    EXPECT_EQ(1, OperatorProperties::GetValueOutputCount(op));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

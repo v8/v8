@@ -41,14 +41,27 @@ Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
                        const Matcher<Node*>& control1_matcher);
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsControlEffect(const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
+                        const Matcher<Node*>& effect_matcher);
+Matcher<Node*> IsExternalConstant(
+    const Matcher<ExternalReference>& value_matcher);
 Matcher<Node*> IsHeapConstant(
     const Matcher<PrintableUnique<HeapObject> >& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);
+Matcher<Node*> IsNumberConstant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsPhi(const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
                      const Matcher<Node*>& merge_matcher);
 Matcher<Node*> IsProjection(const Matcher<int32_t>& index_matcher,
                             const Matcher<Node*>& base_matcher);
+Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
+                      const Matcher<Node*>& value0_matcher,
+                      const Matcher<Node*>& value1_matcher,
+                      const Matcher<Node*>& value2_matcher,
+                      const Matcher<Node*>& value3_matcher,
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher);
 
 Matcher<Node*> IsLoad(const Matcher<MachineType>& type_matcher,
                       const Matcher<Node*>& base_matcher,

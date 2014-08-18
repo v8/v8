@@ -117,34 +117,33 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
   ASSERT_TRUE(reduction.Changed());
 
   Node* phi = reduction.replacement();
-  ASSERT_EQ(IrOpcode::kPhi, phi->opcode());
-
-  Node* smi = NodeProperties::GetValueInput(phi, 1);
-  ASSERT_THAT(smi, IsProjection(0, IsInt32AddWithOverflow(val, val)));
-
-  Node* heap_number = NodeProperties::GetValueInput(phi, 0);
-  ASSERT_EQ(IrOpcode::kCall, heap_number->opcode());
-
-  Node* merge = NodeProperties::GetControlInput(phi);
-  ASSERT_EQ(IrOpcode::kMerge, merge->opcode());
-
+  Capture<Node*> add, branch, heap_number, if_true;
   const int32_t kValueOffset = kHeapNumberValueOffset - kHeapObjectTag;
-  EXPECT_THAT(NodeProperties::GetControlInput(merge, 0),
-              IsStore(kMachFloat64, kNoWriteBarrier, heap_number,
+  EXPECT_THAT(
+      phi,
+      IsPhi(
+          IsFinish(
+              AllOf(
+                  CaptureEq(&heap_number),
+                  IsCall(
+                      _, IsHeapConstant(
+                             PrintableUnique<HeapObject>::CreateImmovable(
+                                 zone(), CEntryStub(isolate(), 1).GetCode())),
+                      IsExternalConstant(ExternalReference(
+                          Runtime::FunctionForId(Runtime::kAllocateHeapNumber),
+                          isolate())),
+                      IsInt32Constant(0), IsNumberConstant(0.0),
+                      graph()->start(), CaptureEq(&if_true))),
+              IsStore(kMachFloat64, kNoWriteBarrier, CaptureEq(&heap_number),
                       IsInt32Constant(kValueOffset),
-                      IsChangeInt32ToFloat64(val), _, heap_number));
-
-  Node* if_true = NodeProperties::GetControlInput(heap_number);
-  ASSERT_EQ(IrOpcode::kIfTrue, if_true->opcode());
-
-  Node* if_false = NodeProperties::GetControlInput(merge, 1);
-  ASSERT_EQ(IrOpcode::kIfFalse, if_false->opcode());
-
-  Node* branch = NodeProperties::GetControlInput(if_true);
-  EXPECT_EQ(branch, NodeProperties::GetControlInput(if_false));
-  EXPECT_THAT(branch,
-              IsBranch(IsProjection(1, IsInt32AddWithOverflow(val, val)),
-                       graph()->start()));
+                      IsChangeInt32ToFloat64(val), CaptureEq(&heap_number),
+                      CaptureEq(&if_true))),
+          IsProjection(
+              0, AllOf(CaptureEq(&add), IsInt32AddWithOverflow(val, val))),
+          IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
+                  IsIfFalse(AllOf(CaptureEq(&branch),
+                                  IsBranch(IsProjection(1, CaptureEq(&add)),
+                                           graph()->start()))))));
 }
 
 
@@ -161,17 +160,21 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
       kSmiTagSize + SmiTagging<kPointerSize>::kSmiShiftSize;
   const int32_t kValueOffset = kHeapNumberValueOffset - kHeapObjectTag;
   Node* phi = reduction.replacement();
-  Capture<Node*> branch;
+  Capture<Node*> branch, if_true;
   EXPECT_THAT(
       phi,
-      IsPhi(IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset), _),
-            IsChangeInt32ToFloat64(
-                IsWord32Sar(val, IsInt32Constant(kShiftAmount))),
-            IsMerge(IsIfTrue(AllOf(
+      IsPhi(
+          IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset),
+                 IsControlEffect(CaptureEq(&if_true))),
+          IsChangeInt32ToFloat64(
+              IsWord32Sar(val, IsInt32Constant(kShiftAmount))),
+          IsMerge(
+              AllOf(CaptureEq(&if_true),
+                    IsIfTrue(AllOf(
                         CaptureEq(&branch),
                         IsBranch(IsWord32And(val, IsInt32Constant(kSmiTagMask)),
-                                 graph()->start()))),
-                    IsIfFalse(CaptureEq(&branch)))));
+                                 graph()->start())))),
+              IsIfFalse(CaptureEq(&branch)))));
 }
 
 
@@ -218,17 +221,21 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
       kSmiTagSize + SmiTagging<kPointerSize>::kSmiShiftSize;
   const int32_t kValueOffset = kHeapNumberValueOffset - kHeapObjectTag;
   Node* phi = reduction.replacement();
-  Capture<Node*> branch;
+  Capture<Node*> branch, if_true;
   EXPECT_THAT(
       phi,
-      IsPhi(IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset), _),
-            IsChangeInt32ToFloat64(IsConvertInt64ToInt32(
-                IsWord64Sar(val, IsInt32Constant(kShiftAmount)))),
-            IsMerge(IsIfTrue(AllOf(
+      IsPhi(
+          IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset),
+                 IsControlEffect(CaptureEq(&if_true))),
+          IsChangeInt32ToFloat64(IsConvertInt64ToInt32(
+              IsWord64Sar(val, IsInt32Constant(kShiftAmount)))),
+          IsMerge(
+              AllOf(CaptureEq(&if_true),
+                    IsIfTrue(AllOf(
                         CaptureEq(&branch),
                         IsBranch(IsWord64And(val, IsInt32Constant(kSmiTagMask)),
-                                 graph()->start()))),
-                    IsIfFalse(CaptureEq(&branch)))));
+                                 graph()->start())))),
+              IsIfFalse(CaptureEq(&branch)))));
 }
 
 }  // namespace compiler

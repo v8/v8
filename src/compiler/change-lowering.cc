@@ -94,7 +94,6 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* effect,
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* number = graph()->NewNode(machine()->ChangeInt32ToFloat64(), val);
 
-  // TODO(bmeurer): Inline allocation if possible.
   const Runtime::Function* fn =
       Runtime::FunctionForId(Runtime::kAllocateHeapNumber);
   DCHECK_EQ(0, fn->nargs);
@@ -103,17 +102,17 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* effect,
   Node* heap_number = graph()->NewNode(
       common()->Call(desc), jsgraph()->CEntryStubConstant(),
       jsgraph()->ExternalConstant(ExternalReference(fn, isolate())),
-      jsgraph()->ZeroConstant(), context, effect, if_true);
-
+      jsgraph()->Int32Constant(fn->nargs), context, effect, if_true);
   Node* store = graph()->NewNode(
       machine()->Store(kMachFloat64, kNoWriteBarrier), heap_number,
-      HeapNumberValueIndexConstant(), number, effect, heap_number);
+      HeapNumberValueIndexConstant(), number, heap_number, if_true);
+  Node* finish = graph()->NewNode(common()->Finish(1), heap_number, store);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* smi = graph()->NewNode(common()->Projection(0), add);
 
-  Node* merge = graph()->NewNode(common()->Merge(2), store, if_false);
-  Node* phi = graph()->NewNode(common()->Phi(2), heap_number, smi, merge);
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* phi = graph()->NewNode(common()->Phi(2), finish, smi, merge);
 
   return Replace(phi);
 }
@@ -128,8 +127,9 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* val, Node* effect,
   Node* branch = graph()->NewNode(common()->Branch(), tag, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* load = graph()->NewNode(machine()->Load(kMachFloat64), val,
-                                HeapNumberValueIndexConstant(), if_true);
+  Node* load = graph()->NewNode(
+      machine()->Load(kMachFloat64), val, HeapNumberValueIndexConstant(),
+      graph()->NewNode(common()->ControlEffect(), if_true));
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* integer =
