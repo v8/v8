@@ -1094,6 +1094,43 @@ TEST_P(ShiftTest, Word32EqualWithParameterAndImmediate) {
 }
 
 
+TEST_P(ShiftTest, Word32EqualToZeroWithParameters) {
+  const Shift shift = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  m.Return(
+      m.Word32Equal(m.Int32Constant(0),
+                    (m.*shift.constructor)(m.Parameter(0), m.Parameter(1))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArmMov, s[0]->arch_opcode());
+  EXPECT_EQ(shift.r_mode, s[0]->addressing_mode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(2U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(kEqual, s[0]->flags_condition());
+}
+
+
+TEST_P(ShiftTest, Word32EqualToZeroWithImmediate) {
+  const Shift shift = GetParam();
+  TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(m.Word32Equal(
+        m.Int32Constant(0),
+        (m.*shift.constructor)(m.Parameter(0), m.Int32Constant(imm))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArmMov, s[0]->arch_opcode());
+    EXPECT_EQ(shift.i_mode, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(2U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+  }
+}
+
+
 TEST_P(ShiftTest, Word32NotWithParameters) {
   const Shift shift = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);

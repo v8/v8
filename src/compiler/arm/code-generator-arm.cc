@@ -198,8 +198,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArmMov:
-      __ Move(i.OutputRegister(), i.InputOperand2(0));
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      __ Move(i.OutputRegister(), i.InputOperand2(0), i.OutputSBit());
       break;
     case kArmMvn:
       __ mvn(i.OutputRegister(), i.InputOperand2(0), i.OutputSBit());

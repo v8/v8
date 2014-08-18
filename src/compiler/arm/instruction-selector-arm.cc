@@ -480,15 +480,44 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
 
 template <typename TryMatchShift>
 static inline void VisitShift(InstructionSelector* selector, Node* node,
-                              TryMatchShift try_match_shift) {
+                              TryMatchShift try_match_shift,
+                              FlagsContinuation* cont) {
   ArmOperandGenerator g(selector);
   InstructionCode opcode = kArmMov;
-  InstructionOperand* value_operand = NULL;
-  InstructionOperand* shift_operand = NULL;
-  CHECK(
-      try_match_shift(selector, &opcode, node, &value_operand, &shift_operand));
-  selector->Emit(opcode, g.DefineAsRegister(node), value_operand,
-                 shift_operand);
+  InstructionOperand* inputs[4];
+  size_t input_count = 2;
+  InstructionOperand* outputs[2];
+  size_t output_count = 0;
+
+  CHECK(try_match_shift(selector, &opcode, node, &inputs[0], &inputs[1]));
+
+  if (cont->IsBranch()) {
+    inputs[input_count++] = g.Label(cont->true_block());
+    inputs[input_count++] = g.Label(cont->false_block());
+  }
+
+  outputs[output_count++] = g.DefineAsRegister(node);
+  if (cont->IsSet()) {
+    outputs[output_count++] = g.DefineAsRegister(cont->result());
+  }
+
+  DCHECK_NE(0, input_count);
+  DCHECK_NE(0, output_count);
+  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
+  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
+  DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
+
+  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
+                                      outputs, input_count, inputs);
+  if (cont->IsBranch()) instr->MarkAsControl();
+}
+
+
+template <typename TryMatchShift>
+static inline void VisitShift(InstructionSelector* selector, Node* node,
+                              TryMatchShift try_match_shift) {
+  FlagsContinuation cont;
+  VisitShift(selector, node, try_match_shift, &cont);
 }
 
 
@@ -878,6 +907,14 @@ void InstructionSelector::VisitWord32Test(Node* node, FlagsContinuation* cont) {
       return VisitBinop(this, node, kArmOrr, kArmOrr, cont);
     case IrOpcode::kWord32Xor:
       return VisitWordCompare(this, node, kArmTeq, cont, true);
+    case IrOpcode::kWord32Sar:
+      return VisitShift(this, node, TryMatchASR, cont);
+    case IrOpcode::kWord32Shl:
+      return VisitShift(this, node, TryMatchLSL, cont);
+    case IrOpcode::kWord32Shr:
+      return VisitShift(this, node, TryMatchLSR, cont);
+    case IrOpcode::kWord32Ror:
+      return VisitShift(this, node, TryMatchROR, cont);
     default:
       break;
   }
