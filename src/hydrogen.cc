@@ -11185,6 +11185,11 @@ void HOptimizedGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 }
 
 
+void HOptimizedGraphBuilder::VisitSuperReference(SuperReference* expr) {
+  UNREACHABLE();
+}
+
+
 void HOptimizedGraphBuilder::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
   DCHECK(globals_.is_empty());

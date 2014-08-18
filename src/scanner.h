@@ -438,6 +438,12 @@ class Scanner {
   void SetHarmonyNumericLiterals(bool numeric_literals) {
     harmony_numeric_literals_ = numeric_literals;
   }
+  bool HarmonyClasses() const {
+    return harmony_classes_;
+  }
+  void SetHarmonyClasses(bool classes) {
+    harmony_classes_ = classes;
+  }
 
   // Returns true if there was a line terminator before the peek'ed token,
   // possibly inside a multi-line comment.
@@ -647,6 +653,8 @@ class Scanner {
   bool harmony_modules_;
   // Whether we scan 0o777 and 0b111 as numbers.
   bool harmony_numeric_literals_;
+  // Whether we scan 'super' as keyword.
+  bool harmony_classes_;
 };
 
 } }  // namespace v8::internal

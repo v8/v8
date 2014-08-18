@@ -1540,6 +1540,11 @@ void AstGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 }
 
 
+void AstGraphBuilder::VisitSuperReference(SuperReference* expr) {
+  UNREACHABLE();
+}
+
+
 void AstGraphBuilder::VisitCaseClause(CaseClause* expr) { UNREACHABLE(); }
 
 

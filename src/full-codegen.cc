@@ -285,6 +285,9 @@ void BreakableStatementChecker::VisitThisFunction(ThisFunction* expr) {
 }
 
 
+void BreakableStatementChecker::VisitSuperReference(SuperReference* expr) {}
+
+
 #define __ ACCESS_MASM(masm())
 
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
@@ -816,6 +819,12 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
       DebugCodegen::GenerateSlot(masm_);
     }
   }
+}
+
+
+void FullCodeGenerator::VisitSuperReference(SuperReference* super) {
+  DCHECK(FLAG_harmony_classes);
+  UNIMPLEMENTED();
 }
 
 

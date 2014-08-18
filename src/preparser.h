@@ -95,6 +95,7 @@ class ParserBase : public Traits {
   bool allow_harmony_numeric_literals() const {
     return scanner()->HarmonyNumericLiterals();
   }
+  bool allow_classes() const { return scanner()->HarmonyClasses(); }
 
   // Setters that determine whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -108,6 +109,9 @@ class ParserBase : public Traits {
   }
   void set_allow_harmony_numeric_literals(bool allow) {
     scanner()->SetHarmonyNumericLiterals(allow);
+  }
+  void set_allow_classes(bool allow) {
+    scanner()->SetHarmonyClasses(allow);
   }
 
  protected:
@@ -677,6 +681,10 @@ class PreParserExpression {
     return PreParserExpression(kThisExpression);
   }
 
+  static PreParserExpression Super() {
+    return PreParserExpression(kSuperExpression);
+  }
+
   static PreParserExpression ThisProperty() {
     return PreParserExpression(kThisPropertyExpression);
   }
@@ -798,7 +806,8 @@ class PreParserExpression {
     kThisExpression = (1 << 4),
     kThisPropertyExpression = (2 << 4),
     kPropertyExpression = (3 << 4),
-    kCallExpression = (4 << 4)
+    kCallExpression = (4 << 4),
+    kSuperExpression = (5 << 4)
   };
 
   explicit PreParserExpression(int expression_code) : code_(expression_code) {}
@@ -1246,6 +1255,11 @@ class PreParserTraits {
   static PreParserExpression ThisExpression(PreParserScope* scope,
                                             PreParserFactory* factory) {
     return PreParserExpression::This();
+  }
+
+  static PreParserExpression SuperReference(PreParserScope* scope,
+                                            PreParserFactory* factory) {
+    return PreParserExpression::Super();
   }
 
   static PreParserExpression ExpressionFromLiteral(
@@ -2383,7 +2397,12 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(bool* ok) {
   if (peek() == Token::NEW) {
     Consume(Token::NEW);
     int new_pos = position();
-    ExpressionT result = this->ParseMemberWithNewPrefixesExpression(CHECK_OK);
+    ExpressionT result = this->EmptyExpression();
+    if (Check(Token::SUPER)) {
+      result = this->SuperReference(scope_, factory());
+    } else {
+      result = this->ParseMemberWithNewPrefixesExpression(CHECK_OK);
+    }
     if (peek() == Token::LPAREN) {
       // NewExpression with arguments.
       typename Traits::Type::ExpressionList args =
@@ -2397,7 +2416,7 @@ ParserBase<Traits>::ParseMemberWithNewPrefixesExpression(bool* ok) {
     return factory()->NewCallNew(result, this->NewExpressionList(0, zone_),
                                  new_pos);
   }
-  // No 'new' keyword.
+  // No 'new' or 'super' keyword.
   return this->ParseMemberExpression(ok);
 }
 
@@ -2438,6 +2457,19 @@ ParserBase<Traits>::ParseMemberExpression(bool* ok) {
                                         function_type,
                                         FunctionLiteral::NORMAL_ARITY,
                                         CHECK_OK);
+  } else if (peek() == Token::SUPER) {
+    int beg_pos = position();
+    Consume(Token::SUPER);
+    Token::Value next = peek();
+    if (next == Token::PERIOD || next == Token::LBRACK ||
+        next == Token::LPAREN) {
+      result = this->SuperReference(scope_, factory());
+    } else {
+      ReportMessageAt(Scanner::Location(beg_pos, position()),
+                      "unexpected_super");
+      *ok = false;
+      return this->EmptyExpression();
+    }
   } else {
     result = ParsePrimaryExpression(CHECK_OK);
   }

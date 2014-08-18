@@ -72,6 +72,7 @@ TEST(ScanKeywords) {
       // The scanner should parse Harmony keywords for this test.
       scanner.SetHarmonyScoping(true);
       scanner.SetHarmonyModules(true);
+      scanner.SetHarmonyClasses(true);
       scanner.Initialize(&stream);
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -1209,7 +1210,8 @@ enum ParserFlag {
   kAllowModules,
   kAllowGenerators,
   kAllowHarmonyNumericLiterals,
-  kAllowArrowFunctions
+  kAllowArrowFunctions,
+  kAllowClasses
 };
 
 
@@ -1230,6 +1232,7 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_harmony_numeric_literals(
       flags.Contains(kAllowHarmonyNumericLiterals));
   parser->set_allow_arrow_functions(flags.Contains(kAllowArrowFunctions));
+  parser->set_allow_classes(flags.Contains(kAllowClasses));
 }
 
 
@@ -1512,7 +1515,8 @@ void RunParserSyncTest(const char* context_data[][2],
 
   static const ParserFlag default_flags[] = {
       kAllowLazy,       kAllowHarmonyScoping, kAllowModules,
-      kAllowGenerators, kAllowNativesSyntax,  kAllowArrowFunctions};
+      kAllowGenerators, kAllowNativesSyntax,  kAllowArrowFunctions,
+      kAllowClasses};
   ParserFlag* generated_flags = NULL;
   if (flags == NULL) {
     flags = default_flags;
@@ -3341,5 +3345,49 @@ TEST(NoErrorsArrowFunctions) {
 
   static const ParserFlag always_flags[] = {kAllowArrowFunctions};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, ARRAY_SIZE(always_flags));
+}
+
+
+TEST(NoErrorsSuper) {
+  // Tests that parser and preparser accept 'super' keyword in right places.
+  const char* context_data[][2] = {{"", ";"},
+                                   {"k = ", ";"},
+                                   {"foo(", ");"},
+                                   {NULL, NULL}};
+
+  const char* statement_data[] = {
+    "super.x",
+    "super[27]",
+    "new super",
+    "new super()",
+    "new super(12, 45)",
+    "new new super",
+    "new new super()",
+    "new new super()()",
+    "z.super",  // Ok, property lookup.
+    NULL};
+
+  static const ParserFlag always_flags[] = {kAllowClasses};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, ARRAY_SIZE(always_flags));
+}
+
+
+TEST(ErrorsSuper) {
+  // Tests that parser and preparser generate same errors for 'super'.
+  const char* context_data[][2] = {{"", ";"},
+                                   {"k = ", ";"},
+                                   {"foo(", ");"},
+                                   {NULL, NULL}};
+
+  const char* statement_data[] = {
+    "super = x",
+    "y = super",
+    "f(super)",
+    NULL};
+
+  static const ParserFlag always_flags[] = {kAllowClasses};
+  RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
                     always_flags, ARRAY_SIZE(always_flags));
 }
