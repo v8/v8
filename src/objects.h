@@ -1999,8 +1999,7 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LookupOwn(Handle<Name> name, LookupResult* result,
-                 bool search_hidden_prototypes = false);
+  void LookupOwn(Handle<Name> name, LookupResult* result);
   void Lookup(Handle<Name> name, LookupResult* result);
 
   enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };

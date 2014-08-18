@@ -143,6 +143,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return property_details_;
   }
   bool IsConfigurable() const { return !property_details().IsDontDelete(); }
+  bool IsReadOnly() const { return property_details().IsReadOnly(); }
   Representation representation() const {
     return property_details().representation();
   }

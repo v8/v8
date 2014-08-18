@@ -5771,8 +5771,7 @@ int Map::NextFreePropertyIndex() {
 }
 
 
-void JSReceiver::LookupOwn(
-    Handle<Name> name, LookupResult* result, bool search_hidden_prototypes) {
+void JSReceiver::LookupOwn(Handle<Name> name, LookupResult* result) {
   DisallowHeapAllocation no_gc;
   DCHECK(name->IsName());
 
@@ -5780,8 +5779,7 @@ void JSReceiver::LookupOwn(
     PrototypeIterator iter(GetIsolate(), this);
     if (iter.IsAtEnd()) return result->NotFound();
     DCHECK(iter.GetCurrent()->IsJSGlobalObject());
-    return JSReceiver::cast(iter.GetCurrent())
-        ->LookupOwn(name, result, search_hidden_prototypes);
+    return JSReceiver::cast(iter.GetCurrent())->LookupOwn(name, result);
   }
 
   if (IsJSProxy()) {
@@ -5805,14 +5803,6 @@ void JSReceiver::LookupOwn(
   }
 
   js_object->LookupOwnRealNamedProperty(name, result);
-  if (result->IsFound() || name->IsOwn() || !search_hidden_prototypes) return;
-
-  PrototypeIterator iter(GetIsolate(), js_object);
-  if (!iter.GetCurrent()->IsJSReceiver()) return;
-  JSReceiver* receiver = JSReceiver::cast(iter.GetCurrent());
-  if (receiver->map()->is_hidden_prototype()) {
-    receiver->LookupOwn(name, result, search_hidden_prototypes);
-  }
 }
 
 
@@ -5822,7 +5812,7 @@ void JSReceiver::Lookup(Handle<Name> name, LookupResult* result) {
   for (PrototypeIterator iter(GetIsolate(), this,
                               PrototypeIterator::START_AT_RECEIVER);
        !iter.IsAtEnd(); iter.Advance()) {
-    JSReceiver::cast(iter.GetCurrent())->LookupOwn(name, result, false);
+    JSReceiver::cast(iter.GetCurrent())->LookupOwn(name, result);
     if (result->IsFound()) return;
     if (name->IsOwn()) {
       result->NotFound();
@@ -6348,12 +6338,13 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
             Object::GetElement(isolate, object, index).ToHandleChecked();
       }
     } else {
-      LookupResult lookup(isolate);
-      object->LookupOwn(name, &lookup, true);
-      preexists = lookup.IsProperty();
-      if (preexists && lookup.IsDataProperty()) {
-        old_value =
-            Object::GetPropertyOrElement(object, name).ToHandleChecked();
+      LookupIterator it(object, name,
+                        LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR);
+      CHECK(GetPropertyAttributes(&it).has_value);
+      preexists = it.IsFound();
+      if (preexists && (it.property_kind() == LookupIterator::DATA ||
+                        it.GetAccessors()->IsAccessorInfo())) {
+        old_value = GetProperty(&it).ToHandleChecked();
       }
     }
   }
@@ -6543,11 +6534,12 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
     SetElementCallback(object, index, info, info->property_attributes());
   } else {
     // Lookup the name.
-    LookupResult result(isolate);
-    object->LookupOwn(name, &result, true);
+    LookupIterator it(object, name,
+                      LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR);
+    CHECK(GetPropertyAttributes(&it).has_value);
     // ES5 forbids turning a property into an accessor if it's not
-    // configurable (that is IsDontDelete in ES3 and v8), see 8.6.1 (Table 5).
-    if (result.IsFound() && (result.IsReadOnly() || result.IsDontDelete())) {
+    // configurable. See 8.6.1 (Table 5).
+    if (it.IsFound() && (it.IsReadOnly() || !it.IsConfigurable())) {
       return factory->undefined_value();
     }
 
