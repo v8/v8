@@ -163,15 +163,9 @@ class Schedule : public GenericGraph<BasicBlock> {
         nodeid_to_block_(BasicBlockVector::allocator_type(zone)),
         rpo_order_(BasicBlockVector::allocator_type(zone)),
         immediate_dominator_(BasicBlockVector::allocator_type(zone)) {
-    NewBasicBlock();  // entry.
-    NewBasicBlock();  // exit.
-    SetStart(entry());
-    SetEnd(exit());
+    SetStart(NewBasicBlock());  // entry.
+    SetEnd(NewBasicBlock());    // exit.
   }
-
-  // TODO(titzer): rewrite users of these methods to use start() and end().
-  BasicBlock* entry() const { return all_blocks_[0]; }  // Return entry block.
-  BasicBlock* exit() const { return all_blocks_[1]; }   // Return exit block.
 
   // Return the block which contains {node}, if any.
   BasicBlock* block(Node* node) const {
@@ -273,7 +267,7 @@ class Schedule : public GenericGraph<BasicBlock> {
     DCHECK(block->control_ == BasicBlock::kNone);
     block->control_ = BasicBlock::kReturn;
     SetControlInput(block, input);
-    if (block != exit()) AddSuccessor(block, exit());
+    if (block != end()) AddSuccessor(block, end());
   }
 
   // BasicBlock building: add a throw at the end of {block}.
@@ -281,7 +275,7 @@ class Schedule : public GenericGraph<BasicBlock> {
     DCHECK(block->control_ == BasicBlock::kNone);
     block->control_ = BasicBlock::kThrow;
     SetControlInput(block, input);
-    if (block != exit()) AddSuccessor(block, exit());
+    if (block != end()) AddSuccessor(block, end());
   }
 
   // BasicBlock building: add a deopt at the end of {block}.
@@ -290,7 +284,7 @@ class Schedule : public GenericGraph<BasicBlock> {
     block->control_ = BasicBlock::kDeoptimize;
     SetControlInput(block, state);
     block->deferred_ = true;  // By default, consider deopts the slow path.
-    if (block != exit()) AddSuccessor(block, exit());
+    if (block != end()) AddSuccessor(block, end());
   }
 
   friend class Scheduler;

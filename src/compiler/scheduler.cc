@@ -132,7 +132,7 @@ void Scheduler::CreateBlocks() {
   if (FLAG_trace_turbo_scheduler) {
     PrintF("---------------- CREATING BLOCKS ------------------\n");
   }
-  schedule_->AddNode(schedule_->entry(), graph_->start());
+  schedule_->AddNode(schedule_->start(), graph_->start());
   graph_->VisitNodeInputsFromEnd(&create_blocks);
 }
 
@@ -332,7 +332,7 @@ void Scheduler::GenerateImmediateDominatorTree() {
   }
   for (size_t i = 0; i < schedule_->rpo_order_.size(); i++) {
     BasicBlock* current_rpo = schedule_->rpo_order_[i];
-    if (current_rpo != schedule_->entry()) {
+    if (current_rpo != schedule_->start()) {
       BasicBlock::Predecessors::iterator current_pred =
           current_rpo->predecessors().begin();
       BasicBlock::Predecessors::iterator end =
@@ -462,7 +462,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
       IrOpcode::Value opcode = node->opcode();
       BasicBlock* block =
           opcode == IrOpcode::kParameter
-              ? schedule_->entry()
+              ? schedule_->start()
               : schedule_->block(NodeProperties::GetControlInput(node));
       DCHECK(block != NULL);
       schedule_->AddNode(block, node);
@@ -869,7 +869,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
     PrintF("------------- COMPUTING SPECIAL RPO ---------------\n");
   }
   // RPO should not have been computed for this schedule yet.
-  CHECK_EQ(kBlockUnvisited1, schedule->entry()->rpo_number_);
+  CHECK_EQ(kBlockUnvisited1, schedule->start()->rpo_number_);
   CHECK_EQ(0, static_cast<int>(schedule->rpo_order_.size()));
 
   // Perform an iterative RPO traversal using an explicit stack,
@@ -877,7 +877,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
   ZoneList<std::pair<BasicBlock*, int> > backedges(1, zone);
   SpecialRPOStackFrame* stack =
       zone->NewArray<SpecialRPOStackFrame>(schedule->BasicBlockCount());
-  BasicBlock* entry = schedule->entry();
+  BasicBlock* entry = schedule->start();
   BlockList* order = NULL;
   int stack_depth = Push(stack, 0, entry, kBlockUnvisited1);
   int num_loops = 0;
