@@ -5041,6 +5041,12 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
                                              ? KEEP_INOBJECT_PROPERTIES
                                              : CLEAR_INOBJECT_PROPERTIES;
         Handle<JSObject> holder = it.GetHolder<JSObject>();
+        // TODO(verwaest): Remove this temporary compatibility hack when blink
+        // tests are updated.
+        if (!holder.is_identical_to(object) &&
+            !(object->IsJSGlobalProxy() && holder->IsJSGlobalObject())) {
+          return it.isolate()->factory()->true_value();
+        }
         NormalizeProperties(holder, mode, 0);
         Handle<Object> result =
             DeleteNormalizedProperty(holder, name, delete_mode);
