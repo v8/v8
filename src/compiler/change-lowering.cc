@@ -42,8 +42,14 @@ Node* ChangeLowering::HeapNumberValueIndexConstant() {
 
 
 Node* ChangeLowering::SmiShiftBitsConstant() {
-  const int smi_shift_size = (machine()->is64() ? SmiTagging<8>::kSmiShiftSize
-                                                : SmiTagging<4>::kSmiShiftSize);
+  // TODO(turbofan): Work-around for weird GCC 4.6 linker issue:
+  // src/compiler/change-lowering.cc:46: undefined reference to
+  // `v8::internal::SmiTagging<4u>::kSmiShiftSize'
+  // src/compiler/change-lowering.cc:46: undefined reference to
+  // `v8::internal::SmiTagging<8u>::kSmiShiftSize'
+  STATIC_ASSERT(SmiTagging<4>::kSmiShiftSize == 0);
+  STATIC_ASSERT(SmiTagging<8>::kSmiShiftSize == 31);
+  const int smi_shift_size = machine()->is64() ? 31 : 0;
   return jsgraph()->Int32Constant(smi_shift_size + kSmiTagSize);
 }
 
