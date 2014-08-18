@@ -4855,56 +4855,32 @@ Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
 }
 
 
-Handle<Object> JSObject::DeletePropertyPostInterceptor(Handle<JSObject> object,
-                                                       Handle<Name> name,
-                                                       DeleteMode delete_mode) {
-  // Check own property, ignore interceptor.
-  Isolate* isolate = object->GetIsolate();
-  LookupResult lookup(isolate);
-  object->LookupOwnRealNamedProperty(name, &lookup);
-  if (!lookup.IsFound()) return isolate->factory()->true_value();
-
-  PropertyNormalizationMode mode = object->map()->is_prototype_map()
-                                       ? KEEP_INOBJECT_PROPERTIES
-                                       : CLEAR_INOBJECT_PROPERTIES;
-  // Normalize object if needed.
-  NormalizeProperties(object, mode, 0);
-
-  Handle<Object> result = DeleteNormalizedProperty(object, name, delete_mode);
-  ReoptimizeIfPrototype(object);
-  return result;
-}
-
-
 MaybeHandle<Object> JSObject::DeletePropertyWithInterceptor(
-    Handle<JSObject> object, Handle<Name> name) {
-  Isolate* isolate = object->GetIsolate();
+    Handle<JSObject> holder, Handle<JSObject> receiver, Handle<Name> name) {
+  Isolate* isolate = holder->GetIsolate();
 
   // TODO(rossberg): Support symbols in the API.
-  if (name->IsSymbol()) return isolate->factory()->false_value();
+  if (name->IsSymbol()) return MaybeHandle<Object>();
 
-  Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
-  if (!interceptor->deleter()->IsUndefined()) {
-    v8::NamedPropertyDeleterCallback deleter =
-        v8::ToCData<v8::NamedPropertyDeleterCallback>(interceptor->deleter());
-    LOG(isolate,
-        ApiNamedPropertyAccess("interceptor-named-delete", *object, *name));
-    PropertyCallbackArguments args(
-        isolate, interceptor->data(), *object, *object);
-    v8::Handle<v8::Boolean> result =
-        args.Call(deleter, v8::Utils::ToLocal(Handle<String>::cast(name)));
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    if (!result.IsEmpty()) {
-      DCHECK(result->IsBoolean());
-      Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
-      result_internal->VerifyApiCallResultType();
-      // Rebox CustomArguments::kReturnValueOffset before returning.
-      return handle(*result_internal, isolate);
-    }
-  }
-  Handle<Object> result =
-      DeletePropertyPostInterceptor(object, name, NORMAL_DELETION);
-  return result;
+  Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor());
+  if (interceptor->deleter()->IsUndefined()) return MaybeHandle<Object>();
+
+  v8::NamedPropertyDeleterCallback deleter =
+      v8::ToCData<v8::NamedPropertyDeleterCallback>(interceptor->deleter());
+  LOG(isolate,
+      ApiNamedPropertyAccess("interceptor-named-delete", *holder, *name));
+  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
+                                 *holder);
+  v8::Handle<v8::Boolean> result =
+      args.Call(deleter, v8::Utils::ToLocal(Handle<String>::cast(name)));
+  RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+  if (result.IsEmpty()) return MaybeHandle<Object>();
+
+  DCHECK(result->IsBoolean());
+  Handle<Object> result_internal = v8::Utils::OpenHandle(*result);
+  result_internal->VerifyApiCallResultType();
+  // Rebox CustomArguments::kReturnValueOffset before returning.
+  return handle(*result_internal, isolate);
 }
 
 
@@ -5020,87 +4996,89 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
 MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
                                              Handle<Name> name,
                                              DeleteMode delete_mode) {
-  Isolate* isolate = object->GetIsolate();
   // ECMA-262, 3rd, 8.6.2.5
   DCHECK(name->IsName());
-
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(object, name, v8::ACCESS_DELETE)) {
-    isolate->ReportFailedAccessCheck(object, v8::ACCESS_DELETE);
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    return isolate->factory()->false_value();
-  }
-
-  if (object->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, object);
-    if (iter.IsAtEnd()) return isolate->factory()->false_value();
-    DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return JSGlobalObject::DeleteProperty(
-        Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter)), name,
-        delete_mode);
-  }
 
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     return DeleteElement(object, index, delete_mode);
   }
 
-  LookupResult lookup(isolate);
-  object->LookupOwn(name, &lookup, true);
-  if (!lookup.IsFound()) return isolate->factory()->true_value();
-  // Ignore attributes if forcing a deletion.
-  if (lookup.IsDontDelete() && delete_mode != FORCE_DELETION) {
-    if (delete_mode == STRICT_DELETION) {
-      // Deleting a non-configurable property in strict mode.
-      Handle<Object> args[2] = { name, object };
-      Handle<Object> error = isolate->factory()->NewTypeError(
-          "strict_delete_property", HandleVector(args, ARRAY_SIZE(args)));
-      isolate->Throw(*error);
-      return Handle<Object>();
-    }
-    return isolate->factory()->false_value();
-  }
+  // Skip interceptors on FORCE_DELETION.
+  LookupIterator::Configuration config =
+      delete_mode == FORCE_DELETION ? LookupIterator::CHECK_HIDDEN_ACCESS
+                                    : LookupIterator::CHECK_OWN;
 
-  Handle<Object> old_value = isolate->factory()->the_hole_value();
+  LookupIterator it(object, name, config);
+
   bool is_observed = object->map()->is_observed() &&
-                     *name != isolate->heap()->hidden_string();
-  if (is_observed && lookup.IsDataProperty()) {
-    old_value = Object::GetPropertyOrElement(object, name).ToHandleChecked();
-  }
-  Handle<Object> result;
+                     *name != it.isolate()->heap()->hidden_string();
 
-  // Check for interceptor.
-  if (lookup.IsInterceptor()) {
-    // Skip interceptor if forcing a deletion.
-    if (delete_mode == FORCE_DELETION) {
-      result = DeletePropertyPostInterceptor(object, name, delete_mode);
-    } else {
-      ASSIGN_RETURN_ON_EXCEPTION(
-          isolate, result,
-          DeletePropertyWithInterceptor(object, name),
-          Object);
+  for (; it.IsFound(); it.Next()) {
+    switch (it.state()) {
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::JSPROXY:
+        UNREACHABLE();
+      case LookupIterator::ACCESS_CHECK:
+        if (it.HasAccess(v8::ACCESS_DELETE)) break;
+        it.isolate()->ReportFailedAccessCheck(it.GetHolder<JSObject>(),
+                                              v8::ACCESS_DELETE);
+        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it.isolate(), Object);
+        return it.isolate()->factory()->false_value();
+      case LookupIterator::INTERCEPTOR: {
+        MaybeHandle<Object> maybe_result =
+            JSObject::DeletePropertyWithInterceptor(it.GetHolder<JSObject>(),
+                                                    object, it.name());
+        // Delete with interceptor succeeded. Return result.
+        if (!maybe_result.is_null()) return maybe_result;
+        // An exception was thrown in the interceptor. Propagate.
+        if (it.isolate()->has_pending_exception()) return maybe_result;
+        break;
+      }
+      case LookupIterator::PROPERTY: {
+        if (!it.HasProperty()) continue;
+        if (delete_mode != FORCE_DELETION && !it.IsConfigurable()) {
+          // Fail if the property is not configurable.
+          if (delete_mode == STRICT_DELETION) {
+            Handle<Object> args[2] = {name, object};
+            Handle<Object> error = it.isolate()->factory()->NewTypeError(
+                "strict_delete_property", HandleVector(args, ARRAY_SIZE(args)));
+            it.isolate()->Throw(*error);
+            return Handle<Object>();
+          }
+          return it.isolate()->factory()->false_value();
+        }
+
+        Handle<Object> old_value;
+        if (is_observed) {
+          switch (it.property_kind()) {
+            case LookupIterator::ACCESSOR:
+              old_value = it.isolate()->factory()->the_hole_value();
+              break;
+            case LookupIterator::DATA:
+              old_value = it.GetDataValue();
+          }
+        }
+
+        PropertyNormalizationMode mode = object->map()->is_prototype_map()
+                                             ? KEEP_INOBJECT_PROPERTIES
+                                             : CLEAR_INOBJECT_PROPERTIES;
+        Handle<JSObject> holder = it.GetHolder<JSObject>();
+        NormalizeProperties(holder, mode, 0);
+        Handle<Object> result =
+            DeleteNormalizedProperty(holder, name, delete_mode);
+        ReoptimizeIfPrototype(holder);
+
+        if (is_observed) {
+          EnqueueChangeRecord(object, "delete", name, old_value);
+        }
+
+        return result;
+      }
     }
-  } else {
-    PropertyNormalizationMode mode = object->map()->is_prototype_map()
-                                         ? KEEP_INOBJECT_PROPERTIES
-                                         : CLEAR_INOBJECT_PROPERTIES;
-    // Normalize object if needed.
-    NormalizeProperties(object, mode, 0);
-    // Make sure the properties are normalized before removing the entry.
-    result = DeleteNormalizedProperty(object, name, delete_mode);
-    ReoptimizeIfPrototype(object);
   }
 
-  if (is_observed) {
-    Maybe<bool> maybe = HasOwnProperty(object, name);
-    if (!maybe.has_value) return MaybeHandle<Object>();
-    if (!maybe.value) {
-      EnqueueChangeRecord(object, "delete", name, old_value);
-    }
-  }
-
-  return result;
+  return it.isolate()->factory()->true_value();
 }
 
 

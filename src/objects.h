@@ -2692,12 +2692,8 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Name> name,
       DeleteMode mode);
-  static Handle<Object> DeletePropertyPostInterceptor(Handle<JSObject> object,
-                                                      Handle<Name> name,
-                                                      DeleteMode mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithInterceptor(
-      Handle<JSObject> object,
-      Handle<Name> name);
+      Handle<JSObject> holder, Handle<JSObject> receiver, Handle<Name> name);
 
   // Deletes the named property in a normalized object.
   static Handle<Object> DeleteNormalizedProperty(Handle<JSObject> object,
