@@ -5042,16 +5042,14 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
             js_object, name, obj_value, attr,
-            JSReceiver::MAY_BE_STORE_FROM_KEYED, JSObject::DONT_FORCE_FIELD));
+            JSObject::DONT_FORCE_FIELD));
     return *result;
   }
 
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::DefineObjectProperty(
-          js_object, name, obj_value, attr,
-          JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED));
+      Runtime::DefineObjectProperty(js_object, name, obj_value, attr));
   return *result;
 }
 
@@ -5163,12 +5161,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> Runtime::DefineObjectProperty(
-    Handle<JSObject> js_object,
-    Handle<Object> key,
-    Handle<Object> value,
-    PropertyAttributes attr,
-    JSReceiver::StoreFromKeyed store_from_keyed) {
+MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
+                                                  Handle<Object> key,
+                                                  Handle<Object> value,
+                                                  PropertyAttributes attr) {
   Isolate* isolate = js_object->GetIsolate();
   // Check if the given key is an array index.
   uint32_t index;
@@ -5196,7 +5192,7 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
-                                                      attr, store_from_keyed);
+                                                      attr);
     }
   }
 
@@ -5211,7 +5207,7 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
                                 SLOPPY, false, DEFINE_PROPERTY);
   } else {
     return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
-                                                    attr, store_from_keyed);
+                                                    attr);
   }
 }
 

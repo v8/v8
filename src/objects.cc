@@ -3894,7 +3894,6 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<Name> name,
     Handle<Object> value,
     PropertyAttributes attributes,
-    StoreFromKeyed store_from_keyed,
     ExecutableAccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
   LookupIterator it(object, name, LookupIterator::CHECK_HIDDEN_ACCESS);
@@ -4012,7 +4011,8 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     }
   }
 
-  return AddDataProperty(&it, value, attributes, STRICT, store_from_keyed);
+  return AddDataProperty(&it, value, attributes, STRICT,
+                         CERTAINLY_NOT_STORE_FROM_KEYED);
 }
 
 
