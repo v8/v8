@@ -2042,16 +2042,11 @@ int MarkCompactCollector::DiscoverAndPromoteBlackObjectsOnPage(
 static void DiscoverGreyObjectsInSpace(Heap* heap,
                                        MarkingDeque* marking_deque,
                                        PagedSpace* space) {
-  if (!space->was_swept_conservatively()) {
-    HeapObjectIterator it(space);
-    DiscoverGreyObjectsWithIterator(heap, marking_deque, &it);
-  } else {
-    PageIterator it(space);
-    while (it.has_next()) {
-      Page* p = it.next();
-      DiscoverGreyObjectsOnPage(marking_deque, p);
-      if (marking_deque->IsFull()) return;
-    }
+  PageIterator it(space);
+  while (it.has_next()) {
+    Page* p = it.next();
+    DiscoverGreyObjectsOnPage(marking_deque, p);
+    if (marking_deque->IsFull()) return;
   }
 }
 
