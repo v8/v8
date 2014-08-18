@@ -2923,8 +2923,7 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
     if (done) break;
   }
 
-  return AddDataProperty(it, value, NONE, strict_mode, store_mode,
-                         PERFORM_EXTENSIBILITY_CHECK);
+  return AddDataProperty(it, value, NONE, strict_mode, store_mode);
 }
 
 
@@ -2979,8 +2978,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
                                             Handle<Object> value,
                                             PropertyAttributes attributes,
                                             StrictMode strict_mode,
-                                            StoreFromKeyed store_mode,
-                                            ExtensibilityCheck check) {
+                                            StoreFromKeyed store_mode) {
   DCHECK(!it->GetReceiver()->IsJSProxy());
   if (!it->GetReceiver()->IsJSObject()) {
     // TODO(verwaest): Throw a TypeError with a more specific message.
@@ -2998,7 +2996,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
         Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
 
-  if (check == PERFORM_EXTENSIBILITY_CHECK &&
+  if (!it->name().is_identical_to(it->isolate()->factory()->hidden_string()) &&
       !receiver->map()->is_extensible()) {
     if (strict_mode == SLOPPY) return value;
 
@@ -3873,18 +3871,19 @@ void JSObject::WriteToField(int descriptor, Object* value) {
 void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
+  LookupIterator it(object, name, LookupIterator::CHECK_OWN_REAL);
 #ifdef DEBUG
   uint32_t index;
   DCHECK(!object->IsJSProxy());
   DCHECK(!name->AsArrayIndex(&index));
-  LookupIterator it(object, name, LookupIterator::CHECK_OWN_REAL);
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   DCHECK(!it.IsFound());
-  DCHECK(object->map()->is_extensible());
+  DCHECK(object->map()->is_extensible() ||
+         name.is_identical_to(it.isolate()->factory()->hidden_string()));
 #endif
-  SetOwnPropertyIgnoreAttributes(object, name, value, attributes,
-                                 OMIT_EXTENSIBILITY_CHECK).Check();
+  AddDataProperty(&it, value, attributes, STRICT,
+                  CERTAINLY_NOT_STORE_FROM_KEYED).Check();
 }
 
 
@@ -3895,7 +3894,6 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     Handle<Name> name,
     Handle<Object> value,
     PropertyAttributes attributes,
-    ExtensibilityCheck extensibility_check,
     StoreFromKeyed store_from_keyed,
     ExecutableAccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
@@ -4014,8 +4012,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     }
   }
 
-  return AddDataProperty(&it, value, attributes, STRICT, store_from_keyed,
-                         extensibility_check);
+  return AddDataProperty(&it, value, attributes, STRICT, store_from_keyed);
 }
 
 
@@ -4843,10 +4840,7 @@ Handle<ObjectHashTable> JSObject::GetOrCreateHiddenPropertiesHashtable(
                                      inline_value);
   }
 
-  JSObject::SetOwnPropertyIgnoreAttributes(
-      object, isolate->factory()->hidden_string(),
-      hashtable, DONT_ENUM).Assert();
-
+  SetHiddenPropertiesHashTable(object, hashtable);
   return hashtable;
 }
 
@@ -4854,31 +4848,9 @@ Handle<ObjectHashTable> JSObject::GetOrCreateHiddenPropertiesHashtable(
 Handle<Object> JSObject::SetHiddenPropertiesHashTable(Handle<JSObject> object,
                                                       Handle<Object> value) {
   DCHECK(!object->IsJSGlobalProxy());
-
   Isolate* isolate = object->GetIsolate();
-
-  // We can store the identity hash inline iff there is no backing store
-  // for hidden properties yet.
-  DCHECK(JSObject::HasHiddenProperties(object) != value->IsSmi());
-  if (object->HasFastProperties()) {
-    // If the object has fast properties, check whether the first slot
-    // in the descriptor array matches the hidden string. Since the
-    // hidden strings hash code is zero (and no other name has hash
-    // code zero) it will always occupy the first entry if present.
-    DescriptorArray* descriptors = object->map()->instance_descriptors();
-    if (descriptors->number_of_descriptors() > 0) {
-      int sorted_index = descriptors->GetSortedKeyIndex(0);
-      if (descriptors->GetKey(sorted_index) == isolate->heap()->hidden_string()
-          && sorted_index < object->map()->NumberOfOwnDescriptors()) {
-        object->WriteToField(sorted_index, *value);
-        return object;
-      }
-    }
-  }
-
-  SetOwnPropertyIgnoreAttributes(object, isolate->factory()->hidden_string(),
-                                 value, DONT_ENUM,
-                                 OMIT_EXTENSIBILITY_CHECK).Assert();
+  Handle<Name> name = isolate->factory()->hidden_string();
+  SetOwnPropertyIgnoreAttributes(object, name, value, DONT_ENUM).Assert();
   return object;
 }
 

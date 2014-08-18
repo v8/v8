@@ -247,14 +247,6 @@ enum PropertyNormalizationMode {
 };
 
 
-// Internal properties (e.g. the hidden properties dictionary) might
-// be added even though the receiver is non-extensible.
-enum ExtensibilityCheck {
-  PERFORM_EXTENSIBILITY_CHECK,
-  OMIT_EXTENSIBILITY_CHECK
-};
-
-
 // Indicates how aggressively the prototype should be optimized. FAST_PROTOTYPE
 // will give the fastest result by tailoring the map to the prototype, but that
 // will cause polymorphism with other objects. REGULAR_PROTOTYPE is to be used
@@ -1500,8 +1492,7 @@ class Object {
       LookupIterator* it, Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      StrictMode strict_mode, StoreFromKeyed store_mode,
-      ExtensibilityCheck check);
+      StrictMode strict_mode, StoreFromKeyed store_mode);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> object,
       Handle<Name> key);
@@ -2149,7 +2140,6 @@ class JSObject: public JSReceiver {
       Handle<Name> key,
       Handle<Object> value,
       PropertyAttributes attributes,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
       StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
       ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
 
