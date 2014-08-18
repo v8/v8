@@ -35,11 +35,6 @@ class OperatorProperties {
   static inline int GetControlOutputCount(Operator* op);
 
   static inline bool IsBasicBlockBegin(Operator* op);
-
-  static inline bool CanBeScheduled(Operator* op);
-  static inline bool HasFixedSchedulePosition(Operator* op);
-  static inline bool IsScheduleRoot(Operator* op);
-
   static inline bool CanLazilyDeoptimize(Operator* op);
 };
 }

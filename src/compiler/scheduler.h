@@ -44,6 +44,11 @@ class Scheduler {
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
 
+  bool IsBasicBlockBegin(Node* node);
+  bool CanBeScheduled(Node* node);
+  bool HasFixedSchedulePosition(Node* node);
+  bool IsScheduleRoot(Node* node);
+
   int GetRPONumber(BasicBlock* block) {
     DCHECK(block->rpo_number_ >= 0 &&
            block->rpo_number_ < static_cast<int>(schedule_->rpo_order_.size()));

@@ -123,21 +123,6 @@ inline bool OperatorProperties::IsBasicBlockBegin(Operator* op) {
          opcode == IrOpcode::kIfFalse;
 }
 
-inline bool OperatorProperties::CanBeScheduled(Operator* op) { return true; }
-
-inline bool OperatorProperties::HasFixedSchedulePosition(Operator* op) {
-  IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
-  return (IrOpcode::IsControlOpcode(opcode)) ||
-         opcode == IrOpcode::kParameter || opcode == IrOpcode::kEffectPhi ||
-         opcode == IrOpcode::kPhi;
-}
-
-inline bool OperatorProperties::IsScheduleRoot(Operator* op) {
-  uint8_t opcode = op->opcode();
-  return opcode == IrOpcode::kEnd || opcode == IrOpcode::kEffectPhi ||
-         opcode == IrOpcode::kPhi;
-}
-
 inline bool OperatorProperties::CanLazilyDeoptimize(Operator* op) {
   // TODO(jarin) This function allows turning on lazy deoptimization
   // incrementally. It will change as we turn on lazy deopt for
