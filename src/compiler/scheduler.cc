@@ -24,7 +24,6 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
       deopts_(NodeVector::allocator_type(zone)),
       returns_(NodeVector::allocator_type(zone)),
       loops_and_merges_(NodeVector::allocator_type(zone)),
-      node_block_placement_(BasicBlockVector::allocator_type(zone)),
       unscheduled_uses_(IntVector::allocator_type(zone)),
       scheduled_nodes_(NodeVectorVector::allocator_type(zone)),
       schedule_root_nodes_(NodeVector::allocator_type(zone)),

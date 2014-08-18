@@ -37,7 +37,6 @@ class Scheduler {
   NodeVector deopts_;
   NodeVector returns_;
   NodeVector loops_and_merges_;
-  BasicBlockVector node_block_placement_;
   IntVector unscheduled_uses_;
   NodeVectorVector scheduled_nodes_;
   NodeVector schedule_root_nodes_;
