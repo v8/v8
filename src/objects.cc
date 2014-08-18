@@ -6784,8 +6784,8 @@ bool JSObject::DefineFastAccessor(Handle<JSObject> object,
       ASSERT(target->NumberOfOwnDescriptors() ==
              object->map()->NumberOfOwnDescriptors());
       // This works since descriptors are sorted in order of addition.
-      ASSERT(object->map()->instance_descriptors()->
-             GetKey(descriptor_number) == *name);
+      ASSERT(Name::Equals(handle(object->map()->instance_descriptors()->
+             GetKey(descriptor_number)), name));
       return TryAccessorTransition(object, target, descriptor_number,
                                    component, accessor, attributes);
     }
