@@ -104,31 +104,6 @@ bool Object::IsCallable() const {
 }
 
 
-void Object::Lookup(Handle<Name> name, LookupResult* result) {
-  DisallowHeapAllocation no_gc;
-  Object* holder = NULL;
-  if (IsJSReceiver()) {
-    holder = this;
-  } else {
-    Context* native_context = result->isolate()->context()->native_context();
-    if (IsNumber()) {
-      holder = native_context->number_function()->instance_prototype();
-    } else if (IsString()) {
-      holder = native_context->string_function()->instance_prototype();
-    } else if (IsSymbol()) {
-      holder = native_context->symbol_function()->instance_prototype();
-    } else if (IsBoolean()) {
-      holder = native_context->boolean_function()->instance_prototype();
-    } else {
-      result->isolate()->PushStackTraceAndDie(
-          0xDEAD0000, this, JSReceiver::cast(this)->map(), 0xDEAD0001);
-    }
-  }
-  DCHECK(holder != NULL);  // Cannot handle null or undefined.
-  JSReceiver::cast(holder)->Lookup(name, result);
-}
-
-
 MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {

@@ -1473,8 +1473,6 @@ class Object {
   static MUST_USE_RESULT inline MaybeHandle<Smi> ToSmi(Isolate* isolate,
                                                        Handle<Object> object);
 
-  void Lookup(Handle<Name> name, LookupResult* result);
-
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
 
   // Implementation of [[Put]], ECMA-262 5th edition, section 8.12.5.

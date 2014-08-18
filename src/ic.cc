@@ -1034,7 +1034,12 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
     DCHECK(!holder->GetNamedInterceptor()->getter()->IsUndefined());
     NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
                                       cache_holder);
-    return compiler.CompileLoadInterceptor(name);
+    // Perform a lookup behind the interceptor. Copy the LookupIterator since
+    // the original iterator will be used to fetch the value.
+    LookupIterator it(lookup);
+    it.Next();
+    LookupForRead(&it);
+    return compiler.CompileLoadInterceptor(&it, name);
   }
   DCHECK(lookup->state() == LookupIterator::PROPERTY);
 

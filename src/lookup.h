@@ -48,6 +48,18 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     DESCRIPTOR
   };
 
+  explicit LookupIterator(const LookupIterator* other)
+      : configuration_(other->configuration_),
+        state_(other->state_),
+        property_kind_(other->property_kind_),
+        property_encoding_(other->property_encoding_),
+        property_details_(other->property_details_),
+        isolate_(other->isolate_),
+        name_(other->name_),
+        holder_map_(other->holder_map_),
+        maybe_receiver_(other->maybe_receiver_),
+        maybe_holder_(other->maybe_holder_) {}
+
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Configuration configuration = CHECK_DERIVED)
       : configuration_(ComputeConfiguration(configuration, name)),
