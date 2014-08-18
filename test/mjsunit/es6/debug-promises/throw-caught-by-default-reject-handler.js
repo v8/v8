@@ -5,8 +5,10 @@
 // Flags: --expose-debug-as debug --allow-natives-syntax
 
 // Test debug events when we only listen to uncaught exceptions and
-// there is a catch handler for the to-be-rejected Promise.
-// We expect an Exception debug event with a promise to be triggered.
+// there is only a default reject handler for the to-be-rejected Promise.
+// We expect two Exception debug events:
+//  - when the first Promise is rejected and only has default reject handlers.
+//  - when the default reject handler passes the rejection on.
 
 Debug = debug.Debug;
 

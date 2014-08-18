@@ -332,7 +332,7 @@ var lastMicrotaskId = 0;
     // the default PromiseIdRejectHandler.
     for (var i = 0; i < queue.length; i += 2) {
       if (queue[i] != PromiseIdRejectHandler) return true;
-      if (PromiseHasRejectHandlerRecursive(queue[i + 1])) return true;
+      if (PromiseHasRejectHandlerRecursive(queue[i + 1].promise)) return true;
     }
     return false;
   }
