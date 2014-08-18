@@ -7439,8 +7439,8 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
 
 class FunctionSorter {
  public:
-  FunctionSorter(int index = 0, int ticks = 0, int size = 0)
-      : index_(index), ticks_(ticks), size_(size) { }
+  explicit FunctionSorter(int index = 0, int ticks = 0, int size = 0)
+      : index_(index), ticks_(ticks), size_(size) {}
 
   int index() const { return index_; }
   int ticks() const { return ticks_; }

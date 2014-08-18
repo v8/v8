@@ -105,15 +105,13 @@ typedef SamplingCircularQueue<Record, 12> TestSampleQueue;
 
 class ProducerThread: public v8::base::Thread {
  public:
-  ProducerThread(TestSampleQueue* scq,
-                 int records_per_chunk,
-                 Record value,
+  ProducerThread(TestSampleQueue* scq, int records_per_chunk, Record value,
                  v8::base::Semaphore* finished)
-      : Thread("producer"),
+      : Thread(Options("producer")),
         scq_(scq),
         records_per_chunk_(records_per_chunk),
         value_(value),
-        finished_(finished) { }
+        finished_(finished) {}
 
   virtual void Run() {
     for (Record i = value_; i < value_ + records_per_chunk_; ++i) {

@@ -614,7 +614,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   Node* end;
   Node* ret;
 
-  TestingGraph(Type* p0_type, Type* p1_type = Type::None())
+  explicit TestingGraph(Type* p0_type, Type* p1_type = Type::None())
       : GraphAndBuilders(main_zone()),
         typer(main_zone()),
         jsgraph(graph(), common(), &typer) {

@@ -97,7 +97,9 @@ class TestTask : public v8::Task {
 class TestWorkerThread : public v8::base::Thread {
  public:
   explicit TestWorkerThread(v8::Task* task)
-      : Thread("libplatform TestWorkerThread"), semaphore_(0), task_(task) {}
+      : Thread(Options("libplatform TestWorkerThread")),
+        semaphore_(0),
+        task_(task) {}
   virtual ~TestWorkerThread() {}
 
   void Signal() { semaphore_.Signal(); }
