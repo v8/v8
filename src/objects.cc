@@ -575,8 +575,6 @@ MaybeHandle<Object> Object::SetPropertyWithDefinedSetter(
 
 
 static bool FindAllCanReadHolder(LookupIterator* it) {
-  it->skip_interceptor();
-  it->skip_access_check();
   for (; it->IsFound(); it->Next()) {
     if (it->state() == LookupIterator::PROPERTY &&
         it->HasProperty() &&
@@ -618,8 +616,6 @@ Maybe<PropertyAttributes> JSObject::GetPropertyAttributesWithFailedAccessCheck(
 
 
 static bool FindAllCanWriteHolder(LookupIterator* it) {
-  it->skip_interceptor();
-  it->skip_access_check();
   for (; it->IsFound(); it->Next()) {
     if (it->state() == LookupIterator::PROPERTY && it->HasProperty() &&
         it->property_kind() == LookupIterator::ACCESSOR) {
@@ -671,21 +667,6 @@ Handle<Object> JSObject::GetNormalizedProperty(Handle<JSObject> object,
   }
   DCHECK(!value->IsPropertyCell() && !value->IsCell());
   return value;
-}
-
-
-void JSObject::SetNormalizedProperty(Handle<JSObject> object,
-                                     const LookupResult* result,
-                                     Handle<Object> value) {
-  DCHECK(!object->HasFastProperties());
-  NameDictionary* property_dictionary = object->property_dictionary();
-  if (object->IsGlobalObject()) {
-    Handle<PropertyCell> cell(PropertyCell::cast(
-        property_dictionary->ValueAt(result->GetDictionaryEntry())));
-    PropertyCell::SetValueInferType(cell, value);
-  } else {
-    property_dictionary->ValueAtPut(result->GetDictionaryEntry(), *value);
-  }
 }
 
 
@@ -1823,37 +1804,6 @@ MaybeHandle<Map> Map::CopyWithConstant(Handle<Map> map,
 }
 
 
-void JSObject::AddFastProperty(Handle<JSObject> object,
-                               Handle<Name> name,
-                               Handle<Object> value,
-                               PropertyAttributes attributes,
-                               StoreFromKeyed store_mode,
-                               TransitionFlag flag) {
-  DCHECK(!object->IsJSGlobalProxy());
-
-  MaybeHandle<Map> maybe_map;
-  if (value->IsJSFunction()) {
-    maybe_map = Map::CopyWithConstant(
-        handle(object->map()), name, value, attributes, flag);
-  } else if (!object->map()->TooManyFastProperties(store_mode)) {
-    Isolate* isolate = object->GetIsolate();
-    Representation representation = value->OptimalRepresentation();
-    maybe_map = Map::CopyWithField(
-        handle(object->map(), isolate), name,
-        value->OptimalType(isolate, representation),
-        attributes, representation, flag);
-  }
-
-  Handle<Map> new_map;
-  if (!maybe_map.ToHandle(&new_map)) {
-    NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
-    return;
-  }
-
-  JSObject::MigrateToNewProperty(object, new_map, value);
-}
-
-
 void JSObject::AddSlowProperty(Handle<JSObject> object,
                                Handle<Name> name,
                                Handle<Object> value,
@@ -1883,45 +1833,6 @@ void JSObject::AddSlowProperty(Handle<JSObject> object,
   Handle<NameDictionary> result =
       NameDictionary::Add(dict, name, value, details);
   if (*dict != *result) object->set_properties(*result);
-}
-
-
-MaybeHandle<Object> JSObject::AddPropertyInternal(
-    Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-    PropertyAttributes attributes, JSReceiver::StoreFromKeyed store_mode,
-    ExtensibilityCheck extensibility_check, TransitionFlag transition_flag) {
-  DCHECK(!object->IsJSGlobalProxy());
-  Isolate* isolate = object->GetIsolate();
-
-  if (!name->IsUniqueName()) {
-    name = isolate->factory()->InternalizeString(
-        Handle<String>::cast(name));
-  }
-
-  if (extensibility_check == PERFORM_EXTENSIBILITY_CHECK &&
-      !object->map()->is_extensible()) {
-    Handle<Object> args[1] = {name};
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "object_not_extensible", HandleVector(args, ARRAY_SIZE(args)));
-    return isolate->Throw<Object>(error);
-  }
-
-  if (object->HasFastProperties()) {
-    AddFastProperty(object, name, value, attributes, store_mode,
-                    transition_flag);
-  }
-
-  if (!object->HasFastProperties()) {
-    AddSlowProperty(object, name, value, attributes);
-  }
-
-  if (object->map()->is_observed() &&
-      *name != isolate->heap()->hidden_string()) {
-    Handle<Object> old_value = isolate->factory()->the_hole_value();
-    EnqueueChangeRecord(object, "add", name, old_value);
-  }
-
-  return value;
 }
 
 
@@ -1956,23 +1867,6 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
                   Handle<JSFunction>(isolate->observers_notify_change()),
                   isolate->factory()->undefined_value(),
                   argc, args).Assert();
-}
-
-
-static void ReplaceSlowProperty(Handle<JSObject> object,
-                                Handle<Name> name,
-                                Handle<Object> value,
-                                PropertyAttributes attributes) {
-  NameDictionary* dictionary = object->property_dictionary();
-  int old_index = dictionary->FindEntry(name);
-  int new_enumeration_index = 0;  // 0 means "Use the next available index."
-  if (old_index != -1) {
-    // All calls to ReplaceSlowProperty have had all transitions removed.
-    new_enumeration_index = dictionary->DetailsAt(old_index).dictionary_index();
-  }
-
-  PropertyDetails new_details(attributes, NORMAL, new_enumeration_index);
-  JSObject::SetNormalizedProperty(object, name, value, new_details);
 }
 
 
@@ -3029,7 +2923,8 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
     if (done) break;
   }
 
-  return AddDataProperty(it, value, NONE, strict_mode, store_mode);
+  return AddDataProperty(it, value, NONE, strict_mode, store_mode,
+                         PERFORM_EXTENSIBILITY_CHECK);
 }
 
 
@@ -3084,7 +2979,8 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
                                             Handle<Object> value,
                                             PropertyAttributes attributes,
                                             StrictMode strict_mode,
-                                            StoreFromKeyed store_mode) {
+                                            StoreFromKeyed store_mode,
+                                            ExtensibilityCheck check) {
   DCHECK(!it->GetReceiver()->IsJSProxy());
   if (!it->GetReceiver()->IsJSObject()) {
     // TODO(verwaest): Throw a TypeError with a more specific message.
@@ -3102,7 +2998,8 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
         Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
 
-  if (!receiver->map()->is_extensible()) {
+  if (check == PERFORM_EXTENSIBILITY_CHECK &&
+      !receiver->map()->is_extensible()) {
     if (strict_mode == SLOPPY) return value;
 
     Handle<Object> args[1] = {it->name()};
@@ -3943,45 +3840,6 @@ bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
 }
 
 
-MaybeHandle<Object> JSObject::SetPropertyUsingTransition(
-    Handle<JSObject> object,
-    LookupResult* lookup,
-    Handle<Name> name,
-    Handle<Object> value,
-    PropertyAttributes attributes) {
-  Handle<Map> transition_map(lookup->GetTransitionTarget());
-  int descriptor = transition_map->LastAdded();
-
-  Handle<DescriptorArray> descriptors(transition_map->instance_descriptors());
-  PropertyDetails details = descriptors->GetDetails(descriptor);
-
-  if (details.type() == CALLBACKS || attributes != details.attributes()) {
-    // AddPropertyInternal will either normalize the object, or create a new
-    // fast copy of the map. If we get a fast copy of the map, all field
-    // representations will be tagged since the transition is omitted.
-    return JSObject::AddPropertyInternal(
-        object, name, value, attributes,
-        JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED,
-        JSReceiver::OMIT_EXTENSIBILITY_CHECK, OMIT_TRANSITION);
-  }
-
-  // Keep the target CONSTANT if the same value is stored.
-  // TODO(verwaest): Also support keeping the placeholder
-  // (value->IsUninitialized) as constant.
-  if (!lookup->CanHoldValue(value)) {
-    Representation field_representation = value->OptimalRepresentation();
-    Handle<HeapType> field_type = value->OptimalType(
-        lookup->isolate(), field_representation);
-    transition_map = Map::GeneralizeRepresentation(
-        transition_map, descriptor,
-        field_representation, field_type, FORCE_FIELD);
-  }
-
-  JSObject::MigrateToNewProperty(object, transition_map, value);
-  return value;
-}
-
-
 void JSObject::MigrateToNewProperty(Handle<JSObject> object,
                                     Handle<Map> map,
                                     Handle<Object> value) {
@@ -4008,65 +3866,6 @@ void JSObject::WriteToField(int descriptor, Object* value) {
     box->set_value(value->Number());
   } else {
     FastPropertyAtPut(index, value);
-  }
-}
-
-
-void JSObject::SetPropertyToField(LookupResult* lookup, Handle<Object> value) {
-  if (lookup->type() == CONSTANT || !lookup->CanHoldValue(value)) {
-    Representation field_representation = value->OptimalRepresentation();
-    Handle<HeapType> field_type = value->OptimalType(
-        lookup->isolate(), field_representation);
-    JSObject::GeneralizeFieldRepresentation(handle(lookup->holder()),
-                                            lookup->GetDescriptorIndex(),
-                                            field_representation, field_type);
-  }
-  lookup->holder()->WriteToField(lookup->GetDescriptorIndex(), *value);
-}
-
-
-void JSObject::ConvertAndSetOwnProperty(LookupResult* lookup,
-                                        Handle<Name> name,
-                                        Handle<Object> value,
-                                        PropertyAttributes attributes) {
-  Handle<JSObject> object(lookup->holder());
-  if (object->map()->TooManyFastProperties(Object::MAY_BE_STORE_FROM_KEYED)) {
-    JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0);
-  } else if (object->map()->is_prototype_map()) {
-    JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0);
-  }
-
-  if (!object->HasFastProperties()) {
-    ReplaceSlowProperty(object, name, value, attributes);
-    ReoptimizeIfPrototype(object);
-    return;
-  }
-
-  int descriptor_index = lookup->GetDescriptorIndex();
-  if (lookup->GetAttributes() == attributes) {
-    JSObject::GeneralizeFieldRepresentation(object, descriptor_index,
-                                            Representation::Tagged(),
-                                            HeapType::Any(lookup->isolate()));
-  } else {
-    Handle<Map> old_map(object->map());
-    Handle<Map> new_map = Map::CopyGeneralizeAllRepresentations(old_map,
-        descriptor_index, FORCE_FIELD, attributes, "attributes mismatch");
-    JSObject::MigrateToMap(object, new_map);
-  }
-
-  object->WriteToField(descriptor_index, *value);
-}
-
-
-void JSObject::SetPropertyToFieldWithAttributes(LookupResult* lookup,
-                                                Handle<Name> name,
-                                                Handle<Object> value,
-                                                PropertyAttributes attributes) {
-  if (lookup->GetAttributes() == attributes) {
-    if (value->IsUninitialized()) return;
-    SetPropertyToField(lookup, value);
-  } else {
-    ConvertAndSetOwnProperty(lookup, name, value, attributes);
   }
 }
 
@@ -4100,156 +3899,123 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     StoreFromKeyed store_from_keyed,
     ExecutableAccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
-  Isolate* isolate = object->GetIsolate();
-
-  // Make sure that the top context does not change when doing callbacks or
-  // interceptor calls.
-  AssertNoContextChange ncc(isolate);
-
-  LookupResult lookup(isolate);
-  object->LookupOwn(name, &lookup, true);
-  if (!lookup.IsFound()) {
-    object->map()->LookupTransition(*object, *name, &lookup);
-  }
-
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(object, name, v8::ACCESS_SET)) {
-      LookupIterator it(object, name, LookupIterator::CHECK_OWN);
-      return SetPropertyWithFailedAccessCheck(&it, value, SLOPPY);
-    }
-  }
-
-  if (object->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, object);
-    if (iter.IsAtEnd()) return value;
-    DCHECK(PrototypeIterator::GetCurrent(iter)->IsJSGlobalObject());
-    return SetOwnPropertyIgnoreAttributes(
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter)), name,
-        value, attributes, extensibility_check);
-  }
-
-  if (lookup.IsInterceptor() ||
-      (lookup.IsDescriptorOrDictionary() && lookup.type() == CALLBACKS)) {
-    object->LookupOwnRealNamedProperty(name, &lookup);
-  }
-
-  // Check for accessor in prototype chain removed here in clone.
-  if (!lookup.IsFound()) {
-    object->map()->LookupTransition(*object, *name, &lookup);
-    TransitionFlag flag = lookup.IsFound()
-        ? OMIT_TRANSITION : INSERT_TRANSITION;
-    // Neither properties nor transitions found.
-    return AddPropertyInternal(object, name, value, attributes,
-                               store_from_keyed, extensibility_check, flag);
-  }
-
-  Handle<Object> old_value = isolate->factory()->the_hole_value();
-  PropertyAttributes old_attributes = ABSENT;
+  LookupIterator it(object, name, LookupIterator::CHECK_HIDDEN_ACCESS);
   bool is_observed = object->map()->is_observed() &&
-                     *name != isolate->heap()->hidden_string();
-  if (is_observed && lookup.IsProperty()) {
-    if (lookup.IsDataProperty()) {
-      old_value = Object::GetPropertyOrElement(object, name).ToHandleChecked();
-    }
-    old_attributes = lookup.GetAttributes();
-  }
+                     *name != it.isolate()->heap()->hidden_string();
+  for (; it.IsFound(); it.Next()) {
+    switch (it.state()) {
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::JSPROXY:
+      case LookupIterator::INTERCEPTOR:
+        UNREACHABLE();
 
-  bool executed_set_prototype = false;
-
-  // Check of IsReadOnly removed from here in clone.
-  if (lookup.IsTransition()) {
-    Handle<Object> result;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result,
-        SetPropertyUsingTransition(
-            handle(lookup.holder()), &lookup, name, value, attributes),
-        Object);
-  } else {
-    switch (lookup.type()) {
-      case NORMAL:
-        ReplaceSlowProperty(object, name, value, attributes);
-        break;
-      case FIELD:
-        SetPropertyToFieldWithAttributes(&lookup, name, value, attributes);
-        break;
-      case CONSTANT:
-        // Only replace the constant if necessary.
-        if (lookup.GetAttributes() != attributes ||
-            *value != lookup.GetConstant()) {
-          SetPropertyToFieldWithAttributes(&lookup, name, value, attributes);
+      case LookupIterator::ACCESS_CHECK:
+        if (!it.isolate()->MayNamedAccess(object, name, v8::ACCESS_SET)) {
+          return SetPropertyWithFailedAccessCheck(&it, value, SLOPPY);
         }
         break;
-      case CALLBACKS:
-      {
-        Handle<Object> callback(lookup.GetCallbackObject(), isolate);
-        if (callback->IsExecutableAccessorInfo() &&
-            handling == DONT_FORCE_FIELD) {
-          Handle<Object> result;
-          ASSIGN_RETURN_ON_EXCEPTION(
-              isolate, result, JSObject::SetPropertyWithAccessor(
-                                   object, name, value, handle(lookup.holder()),
-                                   callback, STRICT),
-              Object);
 
-          if (attributes != lookup.GetAttributes()) {
-            Handle<ExecutableAccessorInfo> new_data =
-                Accessors::CloneAccessor(
-                    isolate, Handle<ExecutableAccessorInfo>::cast(callback));
-            new_data->set_property_attributes(attributes);
-            if (attributes & READ_ONLY) {
-              // This way we don't have to introduce a lookup to the setter,
-              // simply make it unavailable to reflect the attributes.
-              new_data->clear_setter();
+      case LookupIterator::PROPERTY: {
+        if (!it.HasProperty()) break;
+        if (it.HolderIsNonGlobalHiddenPrototype()) break;
+        PropertyDetails details = it.property_details();
+        Handle<Object> old_value = it.isolate()->factory()->the_hole_value();
+        switch (it.property_kind()) {
+          case LookupIterator::ACCESSOR: {
+            // Ensure the context isn't changed after calling into accessors.
+            AssertNoContextChange ncc(it.isolate());
+
+            Handle<Object> accessors = it.GetAccessors();
+
+            if (is_observed && accessors->IsAccessorInfo()) {
+              ASSIGN_RETURN_ON_EXCEPTION(
+                  it.isolate(), old_value,
+                  GetPropertyWithAccessor(it.GetReceiver(), it.name(),
+                                          it.GetHolder<JSObject>(), accessors),
+                  Object);
             }
 
-            SetPropertyCallback(object, name, new_data, attributes);
+            // Special handling for ExecutableAccessorInfo, which behaves like a
+            // data property.
+            if (handling == DONT_FORCE_FIELD &&
+                accessors->IsExecutableAccessorInfo()) {
+              Handle<Object> result;
+              ASSIGN_RETURN_ON_EXCEPTION(
+                  it.isolate(), result,
+                  JSObject::SetPropertyWithAccessor(
+                      it.GetReceiver(), it.name(), value,
+                      it.GetHolder<JSObject>(), accessors, STRICT),
+                  Object);
+              DCHECK(result->SameValue(*value));
+
+              if (details.attributes() == attributes) {
+                // Regular property update if the attributes match.
+                if (is_observed && !old_value->SameValue(*value)) {
+                  // If we are setting the prototype of a function and are
+                  // observed, don't send change records because the prototype
+                  // handles that itself.
+                  if (!object->IsJSFunction() ||
+                      !Name::Equals(it.isolate()->factory()->prototype_string(),
+                                    name) ||
+                      !Handle<JSFunction>::cast(object)
+                           ->should_have_prototype()) {
+                    EnqueueChangeRecord(object, "update", name, old_value);
+                  }
+                }
+                return value;
+              }
+
+              // Reconfigure the accessor if attributes mismatch.
+              Handle<ExecutableAccessorInfo> new_data =
+                  Accessors::CloneAccessor(
+                      it.isolate(),
+                      Handle<ExecutableAccessorInfo>::cast(accessors));
+              new_data->set_property_attributes(attributes);
+              // By clearing the setter we don't have to introduce a lookup to
+              // the setter, simply make it unavailable to reflect the
+              // attributes.
+              if (attributes & READ_ONLY) new_data->clear_setter();
+              SetPropertyCallback(object, name, new_data, attributes);
+              if (is_observed) {
+                if (old_value->SameValue(*value)) {
+                  old_value = it.isolate()->factory()->the_hole_value();
+                }
+                EnqueueChangeRecord(object, "reconfigure", name, old_value);
+              }
+              return value;
+            }
+
+            // Regular accessor. Reconfigure to data property.
+            break;
           }
-          if (is_observed) {
-            // If we are setting the prototype of a function and are observed,
-            // don't send change records because the prototype handles that
-            // itself.
-            executed_set_prototype = object->IsJSFunction() &&
-                String::Equals(isolate->factory()->prototype_string(),
-                               Handle<String>::cast(name)) &&
-                Handle<JSFunction>::cast(object)->should_have_prototype();
-          }
-        } else {
-          ConvertAndSetOwnProperty(&lookup, name, value, attributes);
+
+          case LookupIterator::DATA:
+            // Regular property update if the attributes match.
+            if (details.attributes() == attributes) {
+              return SetDataProperty(&it, value);
+            }
+            // Reconfigure the data property if the attributes mismatch.
+            if (is_observed) old_value = it.GetDataValue();
         }
-        break;
-      }
-      case NONEXISTENT:
-      case HANDLER:
-      case INTERCEPTOR:
-        UNREACHABLE();
-    }
-  }
 
-  if (is_observed && !executed_set_prototype) {
-    if (lookup.IsTransition()) {
-      EnqueueChangeRecord(object, "add", name, old_value);
-    } else if (old_value->IsTheHole()) {
-      EnqueueChangeRecord(object, "reconfigure", name, old_value);
-    } else {
-      LookupResult new_lookup(isolate);
-      object->LookupOwn(name, &new_lookup, true);
-      bool value_changed = false;
-      if (new_lookup.IsDataProperty()) {
-        Handle<Object> new_value =
-            Object::GetPropertyOrElement(object, name).ToHandleChecked();
-        value_changed = !old_value->SameValue(*new_value);
-      }
-      if (new_lookup.GetAttributes() != old_attributes) {
-        if (!value_changed) old_value = isolate->factory()->the_hole_value();
-        EnqueueChangeRecord(object, "reconfigure", name, old_value);
-      } else if (value_changed) {
-        EnqueueChangeRecord(object, "update", name, old_value);
+        it.ReconfigureDataProperty(value, attributes);
+        it.PrepareForDataProperty(value);
+        it.WriteDataValue(value);
+
+        if (is_observed) {
+          if (old_value->SameValue(*value)) {
+            old_value = it.isolate()->factory()->the_hole_value();
+          }
+          EnqueueChangeRecord(object, "reconfigure", name, old_value);
+        }
+
+        return value;
       }
     }
   }
 
-  return value;
+  return AddDataProperty(&it, value, attributes, STRICT, store_from_keyed,
+                         extensibility_check);
 }
 
 
@@ -7408,6 +7174,18 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   }
 
   return result;
+}
+
+
+Handle<Map> Map::ReconfigureDataProperty(Handle<Map> map, int descriptor,
+                                         PropertyAttributes attributes) {
+  // Dictionaries have to be reconfigured in-place.
+  DCHECK(!map->is_dictionary_map());
+
+  // For now, give up on transitioning and just create a unique map.
+  // TODO(verwaest/ishell): Cache transitions with different attributes.
+  return CopyGeneralizeAllRepresentations(map, descriptor, FORCE_FIELD,
+                                          attributes, "attributes mismatch");
 }
 
 

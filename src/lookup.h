@@ -15,15 +15,15 @@ namespace internal {
 class LookupIterator V8_FINAL BASE_EMBEDDED {
  public:
   enum Configuration {
-    CHECK_OWN_REAL     = 0,
-    CHECK_HIDDEN       = 1 << 0,
-    CHECK_DERIVED      = 1 << 1,
-    CHECK_INTERCEPTOR  = 1 << 2,
+    CHECK_OWN_REAL = 0,
+    CHECK_HIDDEN = 1 << 0,
+    CHECK_DERIVED = 1 << 1,
+    CHECK_INTERCEPTOR = 1 << 2,
     CHECK_ACCESS_CHECK = 1 << 3,
-    CHECK_ALL          = CHECK_HIDDEN | CHECK_DERIVED |
-                         CHECK_INTERCEPTOR | CHECK_ACCESS_CHECK,
-    SKIP_INTERCEPTOR   = CHECK_ALL ^ CHECK_INTERCEPTOR,
-    CHECK_OWN          = CHECK_ALL ^ CHECK_DERIVED
+    CHECK_HIDDEN_ACCESS = CHECK_HIDDEN | CHECK_ACCESS_CHECK,
+    SKIP_INTERCEPTOR = CHECK_HIDDEN_ACCESS | CHECK_DERIVED,
+    CHECK_ALL = SKIP_INTERCEPTOR | CHECK_INTERCEPTOR,
+    CHECK_OWN = CHECK_HIDDEN_ACCESS | CHECK_INTERCEPTOR
   };
 
   enum State {
@@ -90,7 +90,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   Heap* heap() const { return isolate_->heap(); }
   Factory* factory() const { return isolate_->factory(); }
   Handle<Object> GetReceiver() const {
-    return Handle<Object>::cast(maybe_receiver_.ToHandleChecked());
+    return maybe_receiver_.ToHandleChecked();
   }
   Handle<Map> holder_map() const { return holder_map_; }
   template <class T>
@@ -100,16 +100,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   }
   Handle<JSReceiver> GetRoot() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
-
-  /* Dynamically reduce the trapped types. */
-  void skip_interceptor() {
-    configuration_ = static_cast<Configuration>(
-        configuration_ & ~CHECK_INTERCEPTOR);
-  }
-  void skip_access_check() {
-    configuration_ = static_cast<Configuration>(
-        configuration_ & ~CHECK_ACCESS_CHECK);
-  }
+  bool HolderIsNonGlobalHiddenPrototype() const;
 
   /* ACCESS_CHECK */
   bool HasAccess(v8::AccessType access_type) const;
@@ -123,6 +114,8 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   void TransitionToDataProperty(Handle<Object> value,
                                 PropertyAttributes attributes,
                                 Object::StoreFromKeyed store_mode);
+  void ReconfigureDataProperty(Handle<Object> value,
+                               PropertyAttributes attributes);
   PropertyKind property_kind() const {
     DCHECK(has_property_);
     return property_kind_;
@@ -196,6 +189,8 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     }
   }
 
+  // If configuration_ becomes mutable, update
+  // HolderIsReceiverOrHiddenPrototype.
   Configuration configuration_;
   State state_;
   bool has_property_;

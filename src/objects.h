@@ -247,6 +247,14 @@ enum PropertyNormalizationMode {
 };
 
 
+// Internal properties (e.g. the hidden properties dictionary) might
+// be added even though the receiver is non-extensible.
+enum ExtensibilityCheck {
+  PERFORM_EXTENSIBILITY_CHECK,
+  OMIT_EXTENSIBILITY_CHECK
+};
+
+
 // Indicates how aggressively the prototype should be optimized. FAST_PROTOTYPE
 // will give the fastest result by tailoring the map to the prototype, but that
 // will cause polymorphism with other objects. REGULAR_PROTOTYPE is to be used
@@ -1492,7 +1500,8 @@ class Object {
       LookupIterator* it, Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
-      StrictMode strict_mode, StoreFromKeyed store_mode);
+      StrictMode strict_mode, StoreFromKeyed store_mode,
+      ExtensibilityCheck check);
   MUST_USE_RESULT static inline MaybeHandle<Object> GetPropertyOrElement(
       Handle<Object> object,
       Handle<Name> key);
@@ -1936,13 +1945,6 @@ class JSReceiver: public HeapObject {
     FORCE_DELETION
   };
 
-  // Internal properties (e.g. the hidden properties dictionary) might
-  // be added even though the receiver is non-extensible.
-  enum ExtensibilityCheck {
-    PERFORM_EXTENSIBILITY_CHECK,
-    OMIT_EXTENSIBILITY_CHECK
-  };
-
   DECLARE_CAST(JSReceiver)
 
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(
@@ -2171,12 +2173,6 @@ class JSObject: public JSReceiver {
   Object* GetNormalizedProperty(const LookupResult* result);
   static Handle<Object> GetNormalizedProperty(Handle<JSObject> object,
                                               const LookupResult* result);
-
-  // Sets the property value in a normalized object given a lookup result.
-  // Handles the special representation of JS global objects.
-  static void SetNormalizedProperty(Handle<JSObject> object,
-                                    const LookupResult* result,
-                                    Handle<Object> value);
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
@@ -2621,17 +2617,6 @@ class JSObject: public JSReceiver {
                                 Handle<Map> new_map,
                                 int expected_additional_properties);
 
-  static void SetPropertyToField(LookupResult* lookup, Handle<Object> value);
-
-  static void ConvertAndSetOwnProperty(LookupResult* lookup,
-                                       Handle<Name> name,
-                                       Handle<Object> value,
-                                       PropertyAttributes attributes);
-
-  static void SetPropertyToFieldWithAttributes(LookupResult* lookup,
-                                               Handle<Name> name,
-                                               Handle<Object> value,
-                                               PropertyAttributes attributes);
   static void GeneralizeFieldRepresentation(Handle<JSObject> object,
                                             int modify_index,
                                             Representation new_representation,
@@ -2705,28 +2690,8 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       bool check_prototype = true);
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyUsingTransition(
-      Handle<JSObject> object,
-      LookupResult* lookup,
-      Handle<Name> name,
-      Handle<Object> value,
-      PropertyAttributes attributes);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithFailedAccessCheck(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
-
-  // Add a property to an object.
-  MUST_USE_RESULT static MaybeHandle<Object> AddPropertyInternal(
-      Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-      PropertyAttributes attributes, StoreFromKeyed store_mode,
-      ExtensibilityCheck extensibility_check, TransitionFlag flag);
-
-  // Add a property to a fast-case object.
-  static void AddFastProperty(Handle<JSObject> object,
-                              Handle<Name> name,
-                              Handle<Object> value,
-                              PropertyAttributes attributes,
-                              StoreFromKeyed store_mode,
-                              TransitionFlag flag);
 
   // Add a property to a slow-case object.
   static void AddSlowProperty(Handle<JSObject> object,
@@ -6517,6 +6482,8 @@ class Map: public HeapObject {
                                               Handle<Object> value,
                                               PropertyAttributes attributes,
                                               StoreFromKeyed store_mode);
+  static Handle<Map> ReconfigureDataProperty(Handle<Map> map, int descriptor,
+                                             PropertyAttributes attributes);
 
   inline void AppendDescriptor(Descriptor* desc);
 

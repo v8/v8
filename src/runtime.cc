@@ -5041,10 +5041,8 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
-            js_object, name, obj_value, attr,
-            JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
-            JSReceiver::MAY_BE_STORE_FROM_KEYED,
-            JSObject::DONT_FORCE_FIELD));
+            js_object, name, obj_value, attr, PERFORM_EXTENSIBILITY_CHECK,
+            JSReceiver::MAY_BE_STORE_FROM_KEYED, JSObject::DONT_FORCE_FIELD));
     return *result;
   }
 
@@ -5198,7 +5196,7 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
       return JSObject::SetOwnPropertyIgnoreAttributes(
-          js_object, name, value, attr, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+          js_object, name, value, attr, PERFORM_EXTENSIBILITY_CHECK,
           store_from_keyed);
     }
   }
@@ -5214,7 +5212,7 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
                                 SLOPPY, false, DEFINE_PROPERTY);
   } else {
     return JSObject::SetOwnPropertyIgnoreAttributes(
-        js_object, name, value, attr, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
+        js_object, name, value, attr, PERFORM_EXTENSIBILITY_CHECK,
         store_from_keyed);
   }
 }
