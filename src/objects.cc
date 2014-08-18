@@ -3871,7 +3871,7 @@ void JSObject::WriteToField(int descriptor, Object* value) {
 void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
-  LookupIterator it(object, name, LookupIterator::CHECK_OWN_REAL);
+  LookupIterator it(object, name, LookupIterator::CHECK_PROPERTY);
 #ifdef DEBUG
   uint32_t index;
   DCHECK(!object->IsJSProxy());
@@ -3896,7 +3896,8 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     PropertyAttributes attributes,
     ExecutableAccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
-  LookupIterator it(object, name, LookupIterator::CHECK_HIDDEN_ACCESS);
+  LookupIterator it(object, name,
+                    LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR);
   bool is_observed = object->map()->is_observed() &&
                      *name != it.isolate()->heap()->hidden_string();
   for (; it.IsFound(); it.Next()) {
@@ -4066,7 +4067,7 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
   if (object->IsJSObject() && name->AsArrayIndex(&index)) {
     return GetOwnElementAttribute(object, index);
   }
-  LookupIterator it(object, name, LookupIterator::CHECK_OWN);
+  LookupIterator it(object, name, LookupIterator::CHECK_HIDDEN);
   return GetPropertyAttributes(&it);
 }
 
@@ -4774,7 +4775,7 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 
 bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
   Handle<Name> hidden = object->GetIsolate()->factory()->hidden_string();
-  LookupIterator it(object, hidden, LookupIterator::CHECK_OWN_REAL);
+  LookupIterator it(object, hidden, LookupIterator::CHECK_PROPERTY);
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   // Cannot get an exception since the hidden_string isn't accessible to JS.
   DCHECK(maybe.has_value);
@@ -5006,8 +5007,9 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
 
   // Skip interceptors on FORCE_DELETION.
   LookupIterator::Configuration config =
-      delete_mode == FORCE_DELETION ? LookupIterator::CHECK_HIDDEN_ACCESS
-                                    : LookupIterator::CHECK_OWN;
+      delete_mode == FORCE_DELETION
+          ? LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR
+          : LookupIterator::CHECK_HIDDEN;
 
   LookupIterator it(object, name, config);
 
@@ -6623,7 +6625,8 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
       }
     }
   } else {
-    LookupIterator it(object, name, LookupIterator::SKIP_INTERCEPTOR);
+    LookupIterator it(object, name,
+                      LookupIterator::CHECK_DERIVED_SKIP_INTERCEPTOR);
     for (; it.IsFound(); it.Next()) {
       switch (it.state()) {
         case LookupIterator::NOT_FOUND:

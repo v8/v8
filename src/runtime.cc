@@ -1980,7 +1980,7 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
     }
   } else {
     // Get attributes.
-    LookupIterator it(obj, name, LookupIterator::CHECK_OWN);
+    LookupIterator it(obj, name, LookupIterator::CHECK_HIDDEN);
     Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
     if (!maybe.has_value) return MaybeHandle<Object>();
     attrs = maybe.value;
@@ -2159,7 +2159,7 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<GlobalObject> global,
                               PropertyAttributes attr, bool is_var,
                               bool is_const, bool is_function) {
   // Do the lookup own properties only, see ES5 erratum.
-  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN);
+  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN_PROPERTY);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   PropertyAttributes old_attributes = maybe.value;
@@ -2289,7 +2289,7 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   Handle<GlobalObject> global = isolate->global_object();
 
   // Lookup the property as own on the global object.
-  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN);
+  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN_PROPERTY);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   PropertyAttributes old_attributes = maybe.value;
@@ -2439,7 +2439,7 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
     // code can run in between that modifies the declared property.
     DCHECK(holder->IsJSGlobalObject() || holder->IsJSContextExtensionObject());
 
-    LookupIterator it(holder, name, LookupIterator::CHECK_HIDDEN);
+    LookupIterator it(holder, name, LookupIterator::CHECK_HIDDEN_PROPERTY);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     if (!maybe.has_value) return isolate->heap()->exception();
     PropertyAttributes old_attributes = maybe.value;
@@ -5277,7 +5277,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
 #ifdef DEBUG
   uint32_t index = 0;
   DCHECK(!key->ToArrayIndex(&index));
-  LookupIterator it(object, key, LookupIterator::CHECK_OWN_REAL);
+  LookupIterator it(object, key, LookupIterator::CHECK_PROPERTY);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   RUNTIME_ASSERT(!it.IsFound());
@@ -5309,7 +5309,7 @@ RUNTIME_FUNCTION(Runtime_AddPropertyForTemplate) {
   bool duplicate;
   if (key->IsName()) {
     LookupIterator it(object, Handle<Name>::cast(key),
-                      LookupIterator::CHECK_OWN_REAL);
+                      LookupIterator::CHECK_PROPERTY);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     DCHECK(maybe.has_value);
     duplicate = it.IsFound();

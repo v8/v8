@@ -174,7 +174,7 @@ void LookupIterator::TransitionToDataProperty(
 
   // Reload the information.
   state_ = NOT_FOUND;
-  configuration_ = CHECK_OWN_REAL;
+  configuration_ = CHECK_PROPERTY;
   state_ = LookupInHolder(*holder_map_);
   DCHECK(IsFound());
   HasProperty();

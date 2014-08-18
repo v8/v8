@@ -780,7 +780,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
         name, code, prototype, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
 #ifdef DEBUG
     LookupIterator it(prototype, factory()->constructor_string(),
-                      LookupIterator::CHECK_OWN_REAL);
+                      LookupIterator::CHECK_PROPERTY);
     Handle<Object> value = JSReceiver::GetProperty(&it).ToHandleChecked();
     DCHECK(it.IsFound());
     DCHECK_EQ(*isolate()->object_function(), *value);

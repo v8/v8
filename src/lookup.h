@@ -15,15 +15,19 @@ namespace internal {
 class LookupIterator V8_FINAL BASE_EMBEDDED {
  public:
   enum Configuration {
-    CHECK_OWN_REAL = 0,
-    CHECK_HIDDEN = 1 << 0,
-    CHECK_DERIVED = 1 << 1,
+    // Configuration bits.
+    CHECK_HIDDEN_PROPERTY = 1 << 0,
+    CHECK_DERIVED_PROPERTY = 1 << 1,
     CHECK_INTERCEPTOR = 1 << 2,
     CHECK_ACCESS_CHECK = 1 << 3,
-    CHECK_HIDDEN_ACCESS = CHECK_HIDDEN | CHECK_ACCESS_CHECK,
-    SKIP_INTERCEPTOR = CHECK_HIDDEN_ACCESS | CHECK_DERIVED,
-    CHECK_ALL = SKIP_INTERCEPTOR | CHECK_INTERCEPTOR,
-    CHECK_OWN = CHECK_HIDDEN_ACCESS | CHECK_INTERCEPTOR
+
+    // Convience combinations of bits.
+    CHECK_PROPERTY = 0,
+    CHECK_HIDDEN_SKIP_INTERCEPTOR = CHECK_HIDDEN_PROPERTY | CHECK_ACCESS_CHECK,
+    CHECK_DERIVED_SKIP_INTERCEPTOR =
+        CHECK_HIDDEN_SKIP_INTERCEPTOR | CHECK_DERIVED_PROPERTY,
+    CHECK_DERIVED = CHECK_DERIVED_SKIP_INTERCEPTOR | CHECK_INTERCEPTOR,
+    CHECK_HIDDEN = CHECK_HIDDEN_SKIP_INTERCEPTOR | CHECK_INTERCEPTOR
   };
 
   enum State {
@@ -44,9 +48,8 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     DESCRIPTOR
   };
 
-  LookupIterator(Handle<Object> receiver,
-                 Handle<Name> name,
-                 Configuration configuration = CHECK_ALL)
+  LookupIterator(Handle<Object> receiver, Handle<Name> name,
+                 Configuration configuration = CHECK_DERIVED)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         property_kind_(DATA),
@@ -62,10 +65,9 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     Next();
   }
 
-  LookupIterator(Handle<Object> receiver,
-                 Handle<Name> name,
+  LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Handle<JSReceiver> holder,
-                 Configuration configuration = CHECK_ALL)
+                 Configuration configuration = CHECK_DERIVED)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         property_kind_(DATA),
@@ -161,10 +163,10 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return !IsBootstrapping() && (configuration_ & CHECK_INTERCEPTOR) != 0;
   }
   bool check_derived() const {
-    return (configuration_ & CHECK_DERIVED) != 0;
+    return (configuration_ & CHECK_DERIVED_PROPERTY) != 0;
   }
   bool check_hidden() const {
-    return (configuration_ & CHECK_HIDDEN) != 0;
+    return (configuration_ & CHECK_HIDDEN_PROPERTY) != 0;
   }
   bool check_access_check() const {
     return (configuration_ & CHECK_ACCESS_CHECK) != 0;
@@ -183,7 +185,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   static Configuration ComputeConfiguration(
       Configuration configuration, Handle<Name> name) {
     if (name->IsOwn()) {
-      return static_cast<Configuration>(configuration & CHECK_OWN);
+      return static_cast<Configuration>(configuration & CHECK_HIDDEN);
     } else {
       return configuration;
     }
