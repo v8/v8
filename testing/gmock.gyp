@@ -30,7 +30,7 @@
         'gmock/src/gmock-matchers.cc',
         'gmock/src/gmock-spec-builders.cc',
         'gmock/src/gmock.cc',
-        'gmock_mutant.h',  # gMock helpers
+        'gmock-support.h',  # gMock helpers
       ],
       'sources!': [
         'gmock/src/gmock-all.cc',  # Not needed by our build.

@@ -48,6 +48,7 @@ class CompilerTest : public ::testing::Test {
   CompilerTest();
   virtual ~CompilerTest();
 
+  Factory* factory() const;
   Isolate* isolate() const { return reinterpret_cast<Isolate*>(isolate_); }
   Zone* zone() { return &zone_; }
 

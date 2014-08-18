@@ -3,22 +3,17 @@
 // found in the LICENSE file.
 
 #include "src/base/bits.h"
-#include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/machine-operator-reducer.h"
-#include "test/compiler-unittests/compiler-unittests.h"
-#include "test/compiler-unittests/node-matchers.h"
+#include "test/compiler-unittests/graph-unittest.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class MachineOperatorReducerTest : public CompilerTest {
+class MachineOperatorReducerTest : public GraphTest {
  public:
   explicit MachineOperatorReducerTest(int num_parameters = 2)
-      : graph_(zone()), common_(zone()), machine_(zone()) {
-    graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
-  }
+      : GraphTest(num_parameters), machine_(zone()) {}
   virtual ~MachineOperatorReducerTest() {}
 
  protected:
@@ -34,13 +29,9 @@ class MachineOperatorReducerTest : public CompilerTest {
     return reducer.Reduce(node);
   }
 
-  Graph* graph() { return &graph_; }
-  CommonOperatorBuilder* common() { return &common_; }
   MachineOperatorBuilder* machine() { return &machine_; }
 
  private:
-  Graph graph_;
-  CommonOperatorBuilder common_;
   MachineOperatorBuilder machine_;
 };
 

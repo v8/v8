@@ -24,6 +24,15 @@ Node* JSGraph::NewNode(Operator* op) {
 }
 
 
+Node* JSGraph::CEntryStubConstant() {
+  if (!c_entry_stub_constant_.is_set()) {
+    c_entry_stub_constant_.set(
+        ImmovableHeapConstant(CEntryStub(isolate(), 1).GetCode()));
+  }
+  return c_entry_stub_constant_.get();
+}
+
+
 Node* JSGraph::UndefinedConstant() {
   if (!undefined_constant_.is_set()) {
     undefined_constant_.set(

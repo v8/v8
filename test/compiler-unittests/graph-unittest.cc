@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/compiler-unittests/node-matchers.h"
+#include "test/compiler-unittests/graph-unittest.h"
 
 #include <ostream>  // NOLINT(readability/streams)
 
@@ -24,6 +24,14 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 namespace compiler {
+
+GraphTest::GraphTest(int num_parameters) : graph_(zone()) {
+  graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
+}
+
+
+GraphTest::~GraphTest() {}
+
 
 namespace {
 
@@ -97,6 +105,86 @@ class IsBranchMatcher V8_FINAL : public NodeMatcher {
 
  private:
   const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsMergeMatcher V8_FINAL : public NodeMatcher {
+ public:
+  IsMergeMatcher(const Matcher<Node*>& control0_matcher,
+                 const Matcher<Node*>& control1_matcher)
+      : NodeMatcher(IrOpcode::kMerge),
+        control0_matcher_(control0_matcher),
+        control1_matcher_(control1_matcher) {}
+
+  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose control0 (";
+    control0_matcher_.DescribeTo(os);
+    *os << ") and control1 (";
+    control1_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
+      V8_OVERRIDE {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node, 0),
+                                 "control0", control0_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node, 1),
+                                 "control1", control1_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> control0_matcher_;
+  const Matcher<Node*> control1_matcher_;
+};
+
+
+class IsIfTrueMatcher V8_FINAL : public NodeMatcher {
+ public:
+  explicit IsIfTrueMatcher(const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kIfTrue), control_matcher_(control_matcher) {}
+
+  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
+      V8_OVERRIDE {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> control_matcher_;
+};
+
+
+class IsIfFalseMatcher V8_FINAL : public NodeMatcher {
+ public:
+  explicit IsIfFalseMatcher(const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kIfFalse), control_matcher_(control_matcher) {}
+
+  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
+      V8_OVERRIDE {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
   const Matcher<Node*> control_matcher_;
 };
 
@@ -366,13 +454,28 @@ class IsUnopMatcher V8_FINAL : public NodeMatcher {
  private:
   const Matcher<Node*> input_matcher_;
 };
-
 }
 
 
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsBranchMatcher(value_matcher, control_matcher));
+}
+
+
+Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
+                       const Matcher<Node*>& control1_matcher) {
+  return MakeMatcher(new IsMergeMatcher(control0_matcher, control1_matcher));
+}
+
+
+Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsIfTrueMatcher(control_matcher));
+}
+
+
+Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsIfFalseMatcher(control_matcher));
 }
 
 

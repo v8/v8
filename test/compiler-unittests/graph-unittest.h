@@ -2,10 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_UNITTESTS_NODE_MATCHERS_H_
-#define V8_COMPILER_UNITTESTS_NODE_MATCHERS_H_
+#ifndef V8_COMPILER_UNITTESTS_GRAPH_UNITTEST_H_
+#define V8_COMPILER_UNITTESTS_GRAPH_UNITTEST_H_
 
+#include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
+#include "test/compiler-unittests/common-operator-unittest.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace v8 {
@@ -18,13 +20,27 @@ class PrintableUnique;
 
 namespace compiler {
 
-// Forward declarations.
-class Node;
+class GraphTest : public CommonOperatorTest {
+ public:
+  explicit GraphTest(int parameters = 1);
+  virtual ~GraphTest();
 
-using testing::Matcher;
+ protected:
+  Graph* graph() { return &graph_; }
+
+ private:
+  Graph graph_;
+};
+
+
+using ::testing::Matcher;
 
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
+                       const Matcher<Node*>& control1_matcher);
+Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsHeapConstant(
     const Matcher<PrintableUnique<HeapObject> >& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);
@@ -70,4 +86,4 @@ Matcher<Node*> IsChangeInt32ToFloat64(const Matcher<Node*>& input_matcher);
 }  //  namespace internal
 }  //  namespace v8
 
-#endif  // V8_COMPILER_UNITTESTS_NODE_MATCHERS_H_
+#endif  // V8_COMPILER_UNITTESTS_GRAPH_UNITTEST_H_

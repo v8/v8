@@ -3,29 +3,33 @@
 // found in the LICENSE file.
 
 #include "src/compiler/change-lowering.h"
-#include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/factory.h"
-#include "test/compiler-unittests/compiler-unittests.h"
-#include "test/compiler-unittests/node-matchers.h"
+#include "src/compiler/typer.h"
+#include "test/compiler-unittests/graph-unittest.h"
+#include "testing/gmock-support.h"
 
 using testing::_;
+using testing::AllOf;
+using testing::Capture;
+using testing::CaptureEq;
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
 template <typename T>
-class ChangeLoweringTest : public CompilerTest {
+class ChangeLoweringTest : public GraphTest {
  public:
   static const size_t kPointerSize = sizeof(T);
+  static const MachineType kWordRepresentation =
+      (kPointerSize == 4) ? kRepWord32 : kRepWord64;
+  STATIC_ASSERT(HeapNumber::kValueOffset % kApiPointerSize == 0);
+  static const int kHeapNumberValueOffset = static_cast<int>(
+      (HeapNumber::kValueOffset / kApiPointerSize) * kPointerSize);
 
-  explicit ChangeLoweringTest(int num_parameters = 1)
-      : graph_(zone()), common_(zone()), simplified_(zone()) {
-    graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
-  }
+  ChangeLoweringTest() : simplified_(zone()) {}
   virtual ~ChangeLoweringTest() {}
 
  protected:
@@ -34,15 +38,15 @@ class ChangeLoweringTest : public CompilerTest {
   }
 
   Reduction Reduce(Node* node) {
+    Typer typer(zone());
+    JSGraph jsgraph(graph(), common(), &typer);
     CompilationInfo info(isolate(), zone());
     Linkage linkage(&info);
-    ChangeLowering<kPointerSize> reducer(graph(), &linkage);
+    MachineOperatorBuilder machine(zone(), kWordRepresentation);
+    ChangeLowering reducer(&jsgraph, &linkage, &machine);
     return reducer.Reduce(node);
   }
 
-  Graph* graph() { return &graph_; }
-  Factory* factory() const { return isolate()->factory(); }
-  CommonOperatorBuilder* common() { return &common_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
   PrintableUnique<HeapObject> true_unique() {
@@ -55,8 +59,6 @@ class ChangeLoweringTest : public CompilerTest {
   }
 
  private:
-  Graph graph_;
-  CommonOperatorBuilder common_;
   SimplifiedOperatorBuilder simplified_;
 };
 
@@ -73,21 +75,13 @@ TARGET_TYPED_TEST(ChangeLoweringTest, ChangeBitToBool) {
   ASSERT_TRUE(reduction.Changed());
 
   Node* phi = reduction.replacement();
-  EXPECT_THAT(phi, IsPhi(IsHeapConstant(this->true_unique()),
-                         IsHeapConstant(this->false_unique()), _));
-
-  Node* merge = NodeProperties::GetControlInput(phi);
-  ASSERT_EQ(IrOpcode::kMerge, merge->opcode());
-
-  Node* if_true = NodeProperties::GetControlInput(merge, 0);
-  ASSERT_EQ(IrOpcode::kIfTrue, if_true->opcode());
-
-  Node* if_false = NodeProperties::GetControlInput(merge, 1);
-  ASSERT_EQ(IrOpcode::kIfFalse, if_false->opcode());
-
-  Node* branch = NodeProperties::GetControlInput(if_true);
-  EXPECT_EQ(branch, NodeProperties::GetControlInput(if_false));
-  EXPECT_THAT(branch, IsBranch(val, this->graph()->start()));
+  Capture<Node*> branch;
+  EXPECT_THAT(
+      phi, IsPhi(IsHeapConstant(this->true_unique()),
+                 IsHeapConstant(this->false_unique()),
+                 IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
+                                        IsBranch(val, this->graph()->start()))),
+                         IsIfFalse(CaptureEq(&branch)))));
 }
 
 
@@ -134,7 +128,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
   Node* merge = NodeProperties::GetControlInput(phi);
   ASSERT_EQ(IrOpcode::kMerge, merge->opcode());
 
-  const int32_t kValueOffset = HeapNumber::kValueOffset - kHeapObjectTag;
+  const int32_t kValueOffset = kHeapNumberValueOffset - kHeapObjectTag;
   EXPECT_THAT(NodeProperties::GetControlInput(merge, 0),
               IsStore(kMachFloat64, kNoWriteBarrier, heap_number,
                       IsInt32Constant(kValueOffset),
@@ -155,6 +149,9 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
 
 
 TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeTaggedToFloat64(), val);
   Reduction reduction = Reduce(node);
@@ -162,29 +159,19 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
 
   const int32_t kShiftAmount =
       kSmiTagSize + SmiTagging<kPointerSize>::kSmiShiftSize;
-  const int32_t kValueOffset = HeapNumber::kValueOffset - kHeapObjectTag;
+  const int32_t kValueOffset = kHeapNumberValueOffset - kHeapObjectTag;
   Node* phi = reduction.replacement();
-  ASSERT_THAT(phi,
-              IsPhi(IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset), _),
-                    IsChangeInt32ToFloat64(
-                        IsWord32Sar(val, IsInt32Constant(kShiftAmount))),
-                    _));
-
-  Node* merge = NodeProperties::GetControlInput(phi);
-  ASSERT_EQ(IrOpcode::kMerge, merge->opcode());
-
-  Node* if_true = NodeProperties::GetControlInput(merge, 0);
-  ASSERT_EQ(IrOpcode::kIfTrue, if_true->opcode());
-
-  Node* if_false = NodeProperties::GetControlInput(merge, 1);
-  ASSERT_EQ(IrOpcode::kIfFalse, if_false->opcode());
-
-  Node* branch = NodeProperties::GetControlInput(if_true);
-  EXPECT_EQ(branch, NodeProperties::GetControlInput(if_false));
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  EXPECT_THAT(branch, IsBranch(IsWord32And(val, IsInt32Constant(kSmiTagMask)),
-                               graph()->start()));
+  Capture<Node*> branch;
+  EXPECT_THAT(
+      phi,
+      IsPhi(IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset), _),
+            IsChangeInt32ToFloat64(
+                IsWord32Sar(val, IsInt32Constant(kShiftAmount))),
+            IsMerge(IsIfTrue(AllOf(
+                        CaptureEq(&branch),
+                        IsBranch(IsWord32And(val, IsInt32Constant(kSmiTagMask)),
+                                 graph()->start()))),
+                    IsIfFalse(CaptureEq(&branch)))));
 }
 
 
@@ -219,6 +206,9 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeInt32ToTagged) {
 
 
 TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeTaggedToFloat64(), val);
   Reduction reduction = Reduce(node);
@@ -226,29 +216,19 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
 
   const int32_t kShiftAmount =
       kSmiTagSize + SmiTagging<kPointerSize>::kSmiShiftSize;
-  const int32_t kValueOffset = HeapNumber::kValueOffset - kHeapObjectTag;
+  const int32_t kValueOffset = kHeapNumberValueOffset - kHeapObjectTag;
   Node* phi = reduction.replacement();
-  ASSERT_THAT(phi,
-              IsPhi(IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset), _),
-                    IsChangeInt32ToFloat64(IsConvertInt64ToInt32(
-                        IsWord64Sar(val, IsInt32Constant(kShiftAmount)))),
-                    _));
-
-  Node* merge = NodeProperties::GetControlInput(phi);
-  ASSERT_EQ(IrOpcode::kMerge, merge->opcode());
-
-  Node* if_true = NodeProperties::GetControlInput(merge, 0);
-  ASSERT_EQ(IrOpcode::kIfTrue, if_true->opcode());
-
-  Node* if_false = NodeProperties::GetControlInput(merge, 1);
-  ASSERT_EQ(IrOpcode::kIfFalse, if_false->opcode());
-
-  Node* branch = NodeProperties::GetControlInput(if_true);
-  EXPECT_EQ(branch, NodeProperties::GetControlInput(if_false));
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  EXPECT_THAT(branch, IsBranch(IsWord64And(val, IsInt32Constant(kSmiTagMask)),
-                               graph()->start()));
+  Capture<Node*> branch;
+  EXPECT_THAT(
+      phi,
+      IsPhi(IsLoad(kMachFloat64, val, IsInt32Constant(kValueOffset), _),
+            IsChangeInt32ToFloat64(IsConvertInt64ToInt32(
+                IsWord64Sar(val, IsInt32Constant(kShiftAmount)))),
+            IsMerge(IsIfTrue(AllOf(
+                        CaptureEq(&branch),
+                        IsBranch(IsWord64And(val, IsInt32Constant(kSmiTagMask)),
+                                 graph()->start()))),
+                    IsIfFalse(CaptureEq(&branch)))));
 }
 
 }  // namespace compiler

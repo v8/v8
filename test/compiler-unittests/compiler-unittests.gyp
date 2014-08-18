@@ -21,11 +21,13 @@
       ],
       'sources': [  ### gcmole(all) ###
         'change-lowering-unittest.cc',
+        'common-operator-unittest.cc',
+        'common-operator-unittest.h',
         'compiler-unittests.cc',
+        'graph-unittest.cc',
+        'graph-unittest.h',
         'instruction-selector-unittest.cc',
         'machine-operator-reducer-unittest.cc',
-        'node-matchers.cc',
-        'node-matchers.h',
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {
