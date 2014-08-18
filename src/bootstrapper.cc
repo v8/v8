@@ -821,8 +821,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
                                      factory()->GlobalProxyType);
   }
 
-  Handle<String> global_name = factory()->InternalizeOneByteString(
-      STATIC_ASCII_VECTOR("global"));
+  Handle<String> global_name = factory()->global_string();
   global_proxy_function->shared()->set_instance_class_name(*global_name);
   global_proxy_function->initial_map()->set_is_access_check_needed(true);
 
@@ -861,11 +860,8 @@ void Genesis::HookUpGlobalObject(Handle<GlobalObject> global_object) {
   native_context()->set_security_token(*global_object);
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
-  Runtime::DefineObjectProperty(builtins_global,
-                                factory()->InternalizeOneByteString(
-                                    STATIC_ASCII_VECTOR("global")),
-                                global_object,
-                                attributes).Assert();
+  Runtime::DefineObjectProperty(builtins_global, factory()->global_string(),
+                                global_object, attributes).Assert();
   // Set up the reference from the global object to the builtins object.
   JSGlobalObject::cast(*global_object)->set_builtins(*builtins_global);
   TransferNamedProperties(global_object_from_snapshot, global_object);
@@ -1187,8 +1183,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     // Make sure we can recognize argument objects at runtime.
     // This is done by introducing an anonymous function with
     // class_name equals 'Arguments'.
-    Handle<String> arguments_string = factory->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("Arguments"));
+    Handle<String> arguments_string = factory->Arguments_string();
     Handle<Code> code(isolate->builtins()->builtin(Builtins::kIllegal));
     Handle<JSFunction> function = factory->NewFunctionWithoutPrototype(
         arguments_string, code);
@@ -1947,7 +1942,8 @@ bool Genesis::InstallNatives() {
       HeapObject::cast(string_function->initial_map()->prototype())->map());
 
   // Install Function.prototype.call and apply.
-  { Handle<String> key = factory()->function_class_string();
+  {
+    Handle<String> key = factory()->Function_string();
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(Object::GetProperty(
             handle(native_context()->global_object()), key).ToHandleChecked());

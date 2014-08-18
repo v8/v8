@@ -3304,7 +3304,8 @@ Local<String> v8::Object::ObjectProtoToString() {
     return v8::String::NewFromUtf8(isolate, "[object ]");
   } else {
     i::Handle<i::String> class_name = i::Handle<i::String>::cast(name);
-    if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Arguments"))) {
+    if (i::String::Equals(class_name,
+                          i_isolate->factory()->Arguments_string())) {
       return v8::String::NewFromUtf8(isolate, "[object Object]");
     } else {
       const char* prefix = "[object ";

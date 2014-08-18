@@ -1739,7 +1739,7 @@ void HeapNumber::HeapNumberPrint(OStream& os) {  // NOLINT
 
 String* JSReceiver::class_name() {
   if (IsJSFunction() || IsJSFunctionProxy()) {
-    return GetHeap()->function_class_string();
+    return GetHeap()->Function_string();
   }
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
