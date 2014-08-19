@@ -2327,8 +2327,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     kUseCell,
     kUseGeneric
   };
-  GlobalPropertyAccess LookupGlobalProperty(Variable* var,
-                                            LookupResult* lookup,
+  GlobalPropertyAccess LookupGlobalProperty(Variable* var, LookupIterator* it,
                                             PropertyAccessType access_type);
 
   void EnsureArgumentsArePushedForAccess();
