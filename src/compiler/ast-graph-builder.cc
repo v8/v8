@@ -6,7 +6,6 @@
 
 #include "src/compiler.h"
 #include "src/compiler/control-builders.h"
-#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/full-codegen.h"
@@ -738,12 +737,13 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
           test_should_filter.If(should_filter_cond);
           test_should_filter.Then();
           value = environment()->Pop();
-          Node* builtins = BuildLoadBuiltinsObject();
-          Node* function = BuildLoadObjectField(
-              builtins,
-              JSBuiltinsObject::OffsetOfFunctionWithId(Builtins::FILTER_KEY));
+          // TODO(dcarney): Better load from function context.
+          // See comment in BuildLoadBuiltinsObject.
+          Handle<JSFunction> function(JSFunction::cast(
+              info()->context()->builtins()->javascript_builtin(
+                  Builtins::FILTER_KEY)));
           // Callee.
-          environment()->Push(function);
+          environment()->Push(jsgraph()->HeapConstant(function));
           // Receiver.
           environment()->Push(obj);
           // Args.
@@ -875,11 +875,10 @@ void AstGraphBuilder::VisitLiteral(Literal* expr) {
 
 
 void AstGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
-  Node* closure = GetFunctionClosure();
+  Handle<JSFunction> closure = info()->closure();
 
   // Create node to materialize a regular expression literal.
-  Node* literals_array =
-      BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* literals_array = jsgraph()->Constant(handle(closure->literals()));
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* pattern = jsgraph()->Constant(expr->pattern());
   Node* flags = jsgraph()->Constant(expr->flags());
@@ -890,12 +889,11 @@ void AstGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 
 void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
-  Node* closure = GetFunctionClosure();
+  Handle<JSFunction> closure = info()->closure();
 
   // Create node to deep-copy the literal boilerplate.
   expr->BuildConstantProperties(isolate());
-  Node* literals_array =
-      BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* literals_array = jsgraph()->Constant(handle(closure->literals()));
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_properties());
   Node* flags = jsgraph()->Constant(expr->ComputeFlags());
@@ -1000,12 +998,11 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
 
 void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
-  Node* closure = GetFunctionClosure();
+  Handle<JSFunction> closure = info()->closure();
 
   // Create node to deep-copy the literal boilerplate.
   expr->BuildConstantElements(isolate());
-  Node* literals_array =
-      BuildLoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* literals_array = jsgraph()->Constant(handle(closure->literals()));
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_elements());
   Node* flags = jsgraph()->Constant(expr->ComputeFlags());
@@ -1941,28 +1938,25 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
 }
 
 
-Node* AstGraphBuilder::BuildLoadObjectField(Node* object, int offset) {
-  // TODO(sigurds) Use simplified load here once it is ready.
-  MachineOperatorBuilder machine(zone());
-  Node* field_load = NewNode(machine.Load(kMachAnyTagged), object,
-                             jsgraph_->Int32Constant(offset - kHeapObjectTag));
-  return field_load;
-}
-
-
 Node* AstGraphBuilder::BuildLoadBuiltinsObject() {
-  Node* global = BuildLoadGlobalObject();
-  Node* builtins =
-      BuildLoadObjectField(global, JSGlobalObject::kBuiltinsOffset);
-  return builtins;
+  // TODO(mstarzinger): Better load from function context, otherwise optimized
+  // code cannot be shared across native contexts.
+  return jsgraph()->Constant(handle(info()->context()->builtins()));
 }
 
 
 Node* AstGraphBuilder::BuildLoadGlobalObject() {
+#if 0
   Node* context = GetFunctionContext();
-  Operator* load_op =
-      javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true);
-  return NewNode(load_op, context);
+  // TODO(mstarzinger): Use mid-level operator on FixedArray instead of the
+  // JS-level operator that targets JSObject.
+  Node* index = jsgraph()->Constant(Context::GLOBAL_OBJECT_INDEX);
+  return NewNode(javascript()->LoadProperty(), context, index);
+#else
+  // TODO(mstarzinger): Better load from function context, otherwise optimized
+  // code cannot be shared across native contexts. See unused code above.
+  return jsgraph()->Constant(handle(info()->context()->global_object()));
+#endif
 }
 
 
