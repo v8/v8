@@ -13,6 +13,7 @@
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
+#include "src/compiler/js-inlining.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/phi-reducer.h"
 #include "src/compiler/register-allocator.h"
@@ -186,12 +187,20 @@ Handle<Code> Pipeline::GenerateCode() {
   VerifyAndPrintGraph(&graph, "Initial untyped");
 
   if (FLAG_context_specialization) {
-    SourcePositionTable::Scope pos_(&source_positions,
-                                    SourcePosition::Unknown());
+    SourcePositionTable::Scope pos(&source_positions,
+                                   SourcePosition::Unknown());
     // Specialize the code to the context as aggressively as possible.
     JSContextSpecializer spec(info(), &jsgraph, context_node);
     spec.SpecializeToContext();
     VerifyAndPrintGraph(&graph, "Context specialized");
+  }
+
+  if (FLAG_turbo_inlining) {
+    SourcePositionTable::Scope pos(&source_positions,
+                                   SourcePosition::Unknown());
+    JSInliner inliner(info(), &jsgraph);
+    inliner.Inline();
+    VerifyAndPrintGraph(&graph, "Inlined");
   }
 
   // Print a replay of the initial graph.
