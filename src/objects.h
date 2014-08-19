@@ -2157,6 +2157,8 @@ class JSObject: public JSReceiver {
   // Retrieve a value in a normalized object given a lookup result.
   // Handles the special representation of JS global objects.
   Object* GetNormalizedProperty(const LookupResult* result);
+  static Handle<Object> GetNormalizedProperty(Handle<JSObject> object,
+                                              const LookupResult* result);
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
