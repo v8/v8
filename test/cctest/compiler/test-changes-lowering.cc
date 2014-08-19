@@ -59,6 +59,9 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
       CHECK(Rewriter::Rewrite(&info));
       CHECK(Scope::Analyze(&info));
       CHECK_NE(NULL, info.scope());
+      Handle<ScopeInfo> scope_info =
+          ScopeInfo::Create(info.scope(), info.zone());
+      info.shared_info()->set_scope_info(*scope_info);
       Pipeline pipeline(&info);
       Linkage linkage(&info);
       Handle<Code> code =

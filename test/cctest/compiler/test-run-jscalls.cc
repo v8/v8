@@ -233,3 +233,15 @@ TEST(ReceiverPatching) {
   Handle<JSObject> g(T.function->context()->global_object()->global_proxy());
   T.CheckCall(g, T.undefined());
 }
+
+
+TEST(CallEval) {
+  FunctionTester T(
+      "var x = 42;"
+      "(function () {"
+      "function bar() { return eval('x') };"
+      "return bar;"
+      "})();");
+
+  T.CheckCall(T.Val(42), T.Val("x"), T.undefined());
+}
