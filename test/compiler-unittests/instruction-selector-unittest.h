@@ -130,11 +130,11 @@ class InstructionSelectorTest : public CompilerTest {
       ConstantMap::const_iterator i;
       if (operand->IsConstant()) {
         i = constants_.find(operand->index());
-        EXPECT_NE(constants_.end(), i);
+        EXPECT_FALSE(constants_.end() == i);
       } else {
         EXPECT_EQ(InstructionOperand::IMMEDIATE, operand->kind());
         i = immediates_.find(operand->index());
-        EXPECT_NE(immediates_.end(), i);
+        EXPECT_FALSE(immediates_.end() == i);
       }
       EXPECT_EQ(operand->index(), i->first);
       return i->second;
