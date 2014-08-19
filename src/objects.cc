@@ -630,21 +630,6 @@ Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
 }
 
 
-Handle<Object> JSObject::GetNormalizedProperty(Handle<JSObject> object,
-                                               const LookupResult* result) {
-  DCHECK(!object->HasFastProperties());
-  Isolate* isolate = object->GetIsolate();
-  Handle<Object> value(object->property_dictionary()->ValueAt(
-      result->GetDictionaryEntry()), isolate);
-  if (object->IsGlobalObject()) {
-    value = handle(Handle<PropertyCell>::cast(value)->value(), isolate);
-    DCHECK(!value->IsTheHole());
-  }
-  DCHECK(!value->IsPropertyCell() && !value->IsCell());
-  return value;
-}
-
-
 void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                                      Handle<Name> name,
                                      Handle<Object> value,
