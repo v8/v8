@@ -19,14 +19,14 @@ class MachineOperatorCommonTest : public CompilerTestWithParam<MachineType> {
   virtual ~MachineOperatorCommonTest() { EXPECT_THAT(machine_, IsNull()); }
 
   virtual void SetUp() V8_OVERRIDE {
-    CompilerTestWithParam::SetUp();
+    CompilerTestWithParam<MachineType>::SetUp();
     machine_ = new MachineOperatorBuilder(zone(), GetParam());
   }
 
   virtual void TearDown() V8_OVERRIDE {
     delete machine_;
     machine_ = NULL;
-    CompilerTestWithParam::TearDown();
+    CompilerTestWithParam<MachineType>::TearDown();
   }
 
  protected:
