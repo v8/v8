@@ -51,7 +51,8 @@ from testrunner.objects import context
 
 ARCH_GUESS = utils.DefaultArch()
 DEFAULT_TESTS = ["mjsunit", "fuzz-natives", "base-unittests",
-                 "cctest", "compiler-unittests", "message", "preparser"]
+                 "cctest", "compiler-unittests", "heap-unittests",
+                 "runtime-unittests", "message", "preparser"]
 TIMEOUT_DEFAULT = 60
 TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }

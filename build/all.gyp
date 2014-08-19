@@ -13,6 +13,8 @@
         '../test/base-unittests/base-unittests.gyp:*',
         '../test/cctest/cctest.gyp:*',
         '../test/compiler-unittests/compiler-unittests.gyp:*',
+        '../test/heap-unittests/heap-unittests.gyp:*',
+        '../test/runtime-unittests/runtime-unittests.gyp:*',
       ],
       'conditions': [
         ['component!="shared_library"', {
