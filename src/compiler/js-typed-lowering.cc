@@ -17,18 +17,39 @@ namespace compiler {
 // - relax effects from generic but not-side-effecting operations
 // - relax effects for ToNumber(mixed)
 
+// Replace value uses of {node} with {value} and effect uses of {node} with
+// {effect}. If {effect == NULL}, then use the effect input to {node}.
+// TODO(titzer): move into a GraphEditor?
+static void ReplaceUses(Node* node, Node* value, Node* effect) {
+  if (value == effect) {
+    // Effect and value updates are the same; no special iteration needed.
+    if (value != node) node->ReplaceUses(value);
+    return;
+  }
+
+  if (effect == NULL) effect = NodeProperties::GetEffectInput(node);
+
+  // The iteration requires distinguishing between value and effect edges.
+  UseIter iter = node->uses().begin();
+  while (iter != node->uses().end()) {
+    if (NodeProperties::IsEffectEdge(iter.edge())) {
+      iter = iter.UpdateToAndIncrement(effect);
+    } else {
+      iter = iter.UpdateToAndIncrement(value);
+    }
+  }
+}
+
 
 // Relax the effects of {node} by immediately replacing effect uses of {node}
 // with the effect input to {node}.
 // TODO(turbofan): replace the effect input to {node} with {graph->start()}.
 // TODO(titzer): move into a GraphEditor?
-static void RelaxEffects(Node* node) {
-  NodeProperties::ReplaceWithValue(node, node, NULL);
-}
+static void RelaxEffects(Node* node) { ReplaceUses(node, node, NULL); }
 
 
 Reduction JSTypedLowering::ReplaceEagerly(Node* old, Node* node) {
-  NodeProperties::ReplaceWithValue(old, node, node);
+  ReplaceUses(old, node, node);
   return Reducer::Changed(node);
 }
 
@@ -501,7 +522,7 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
 
 static Reduction ReplaceWithReduction(Node* node, Reduction reduction) {
   if (reduction.Changed()) {
-    NodeProperties::ReplaceWithValue(node, reduction.replacement());
+    ReplaceUses(node, reduction.replacement(), NULL);
     return reduction;
   }
   return Reducer::NoChange();
@@ -552,13 +573,13 @@ Reduction JSTypedLowering::Reduce(Node* node) {
         // !x => BooleanNot(x)
         value =
             graph()->NewNode(simplified()->BooleanNot(), result.replacement());
-        NodeProperties::ReplaceWithValue(node, value);
+        ReplaceUses(node, value, NULL);
         return Changed(value);
       } else {
         // !x => BooleanNot(JSToBoolean(x))
         value = graph()->NewNode(simplified()->BooleanNot(), node);
         node->set_op(javascript()->ToBoolean());
-        NodeProperties::ReplaceWithValue(node, value, node);
+        ReplaceUses(node, value, node);
         // Note: ReplaceUses() smashes all uses, so smash it back here.
         value->ReplaceInput(0, node);
         return ReplaceWith(value);

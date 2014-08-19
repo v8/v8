@@ -33,8 +33,6 @@ class NodeProperties {
   static inline void ReplaceEffectInput(Node* node, Node* effect,
                                         int index = 0);
   static inline void RemoveNonValueInputs(Node* node);
-  static inline void ReplaceWithValue(Node* node, Node* value,
-                                      Node* effect = NULL);
 
   static inline Bounds GetBounds(Node* node);
   static inline void SetBounds(Node* node, Bounds bounds);
