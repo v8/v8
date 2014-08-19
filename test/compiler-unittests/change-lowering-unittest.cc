@@ -113,12 +113,12 @@ class ChangeLoweringTest : public GraphTest {
 // -----------------------------------------------------------------------------
 // Common.
 
-namespace {
 
-class Common : public ChangeLoweringTest,
-               public ::testing::WithParamInterface<MachineType> {
+class ChangeLoweringCommonTest
+    : public ChangeLoweringTest,
+      public ::testing::WithParamInterface<MachineType> {
  public:
-  virtual ~Common() {}
+  virtual ~ChangeLoweringCommonTest() {}
 
   virtual MachineType WordRepresentation() const V8_FINAL V8_OVERRIDE {
     return GetParam();
@@ -126,7 +126,7 @@ class Common : public ChangeLoweringTest,
 };
 
 
-TARGET_TEST_P(Common, ChangeBitToBool) {
+TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBitToBool) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeBitToBool(), val);
   Reduction reduction = Reduce(node);
@@ -142,7 +142,7 @@ TARGET_TEST_P(Common, ChangeBitToBool) {
 }
 
 
-TARGET_TEST_P(Common, ChangeBoolToBit) {
+TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBoolToBit) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeBoolToBit(), val);
   Reduction reduction = Reduce(node);
@@ -152,7 +152,7 @@ TARGET_TEST_P(Common, ChangeBoolToBit) {
 }
 
 
-TARGET_TEST_P(Common, ChangeFloat64ToTagged) {
+TARGET_TEST_P(ChangeLoweringCommonTest, ChangeFloat64ToTagged) {
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeFloat64ToTagged(), val);
   Reduction reduction = Reduce(node);
@@ -171,17 +171,15 @@ TARGET_TEST_P(Common, ChangeFloat64ToTagged) {
 }
 
 
-TARGET_TEST_P(Common, StringAdd) {
+TARGET_TEST_P(ChangeLoweringCommonTest, StringAdd) {
   Node* node =
       graph()->NewNode(simplified()->StringAdd(), Parameter(0), Parameter(1));
   Reduction reduction = Reduce(node);
   EXPECT_FALSE(reduction.Changed());
 }
 
-}  // namespace
 
-
-INSTANTIATE_TEST_CASE_P(ChangeLoweringTest, Common,
+INSTANTIATE_TEST_CASE_P(ChangeLoweringTest, ChangeLoweringCommonTest,
                         ::testing::Values(kRepWord32, kRepWord64));
 
 

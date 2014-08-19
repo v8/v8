@@ -118,12 +118,10 @@ static const int32_t kImmediates[] = {
 // Data processing instructions.
 
 
-namespace {
-
-class DPITest : public InstructionSelectorTestWithParam<DPI> {};
+typedef InstructionSelectorTestWithParam<DPI> InstructionSelectorDPITest;
 
 
-TEST_P(DPITest, Parameters) {
+TEST_P(InstructionSelectorDPITest, Parameters) {
   const DPI dpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
@@ -136,7 +134,7 @@ TEST_P(DPITest, Parameters) {
 }
 
 
-TEST_P(DPITest, Immediate) {
+TEST_P(InstructionSelectorDPITest, Immediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -163,7 +161,7 @@ TEST_P(DPITest, Immediate) {
 }
 
 
-TEST_P(DPITest, ShiftByParameter) {
+TEST_P(InstructionSelectorDPITest, ShiftByParameter) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
@@ -192,7 +190,7 @@ TEST_P(DPITest, ShiftByParameter) {
 }
 
 
-TEST_P(DPITest, ShiftByImmediate) {
+TEST_P(InstructionSelectorDPITest, ShiftByImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
@@ -227,7 +225,7 @@ TEST_P(DPITest, ShiftByImmediate) {
 }
 
 
-TEST_P(DPITest, BranchWithParameters) {
+TEST_P(InstructionSelectorDPITest, BranchWithParameters) {
   const DPI dpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
@@ -245,7 +243,7 @@ TEST_P(DPITest, BranchWithParameters) {
 }
 
 
-TEST_P(DPITest, BranchWithImmediate) {
+TEST_P(InstructionSelectorDPITest, BranchWithImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -282,7 +280,7 @@ TEST_P(DPITest, BranchWithImmediate) {
 }
 
 
-TEST_P(DPITest, BranchWithShiftByParameter) {
+TEST_P(InstructionSelectorDPITest, BranchWithShiftByParameter) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
@@ -323,7 +321,7 @@ TEST_P(DPITest, BranchWithShiftByParameter) {
 }
 
 
-TEST_P(DPITest, BranchWithShiftByImmediate) {
+TEST_P(InstructionSelectorDPITest, BranchWithShiftByImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
@@ -372,7 +370,7 @@ TEST_P(DPITest, BranchWithShiftByImmediate) {
 }
 
 
-TEST_P(DPITest, BranchIfZeroWithParameters) {
+TEST_P(InstructionSelectorDPITest, BranchIfZeroWithParameters) {
   const DPI dpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
@@ -392,7 +390,7 @@ TEST_P(DPITest, BranchIfZeroWithParameters) {
 }
 
 
-TEST_P(DPITest, BranchIfNotZeroWithParameters) {
+TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithParameters) {
   const DPI dpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
@@ -413,7 +411,7 @@ TEST_P(DPITest, BranchIfNotZeroWithParameters) {
 }
 
 
-TEST_P(DPITest, BranchIfZeroWithImmediate) {
+TEST_P(InstructionSelectorDPITest, BranchIfZeroWithImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -454,7 +452,7 @@ TEST_P(DPITest, BranchIfZeroWithImmediate) {
 }
 
 
-TEST_P(DPITest, BranchIfNotZeroWithImmediate) {
+TEST_P(InstructionSelectorDPITest, BranchIfNotZeroWithImmediate) {
   const DPI dpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -494,10 +492,8 @@ TEST_P(DPITest, BranchIfNotZeroWithImmediate) {
   }
 }
 
-}  // namespace
 
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, DPITest,
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorDPITest,
                         ::testing::ValuesIn(kDPIs));
 
 
@@ -505,12 +501,10 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, DPITest,
 // Data processing instructions with overflow.
 
 
-namespace {
-
-class ODPITest : public InstructionSelectorTestWithParam<ODPI> {};
+typedef InstructionSelectorTestWithParam<ODPI> InstructionSelectorODPITest;
 
 
-TEST_P(ODPITest, OvfWithParameters) {
+TEST_P(InstructionSelectorODPITest, OvfWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(
@@ -526,7 +520,7 @@ TEST_P(ODPITest, OvfWithParameters) {
 }
 
 
-TEST_P(ODPITest, OvfWithImmediate) {
+TEST_P(InstructionSelectorODPITest, OvfWithImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -559,7 +553,7 @@ TEST_P(ODPITest, OvfWithImmediate) {
 }
 
 
-TEST_P(ODPITest, OvfWithShiftByParameter) {
+TEST_P(InstructionSelectorODPITest, OvfWithShiftByParameter) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
@@ -594,7 +588,7 @@ TEST_P(ODPITest, OvfWithShiftByParameter) {
 }
 
 
-TEST_P(ODPITest, OvfWithShiftByImmediate) {
+TEST_P(InstructionSelectorODPITest, OvfWithShiftByImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
@@ -635,7 +629,7 @@ TEST_P(ODPITest, OvfWithShiftByImmediate) {
 }
 
 
-TEST_P(ODPITest, ValWithParameters) {
+TEST_P(InstructionSelectorODPITest, ValWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(
@@ -650,7 +644,7 @@ TEST_P(ODPITest, ValWithParameters) {
 }
 
 
-TEST_P(ODPITest, ValWithImmediate) {
+TEST_P(InstructionSelectorODPITest, ValWithImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -681,7 +675,7 @@ TEST_P(ODPITest, ValWithImmediate) {
 }
 
 
-TEST_P(ODPITest, ValWithShiftByParameter) {
+TEST_P(InstructionSelectorODPITest, ValWithShiftByParameter) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
@@ -714,7 +708,7 @@ TEST_P(ODPITest, ValWithShiftByParameter) {
 }
 
 
-TEST_P(ODPITest, ValWithShiftByImmediate) {
+TEST_P(InstructionSelectorODPITest, ValWithShiftByImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
@@ -753,7 +747,7 @@ TEST_P(ODPITest, ValWithShiftByImmediate) {
 }
 
 
-TEST_P(ODPITest, BothWithParameters) {
+TEST_P(InstructionSelectorODPITest, BothWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   Node* n = (m.*odpi.constructor)(m.Parameter(0), m.Parameter(1));
@@ -769,7 +763,7 @@ TEST_P(ODPITest, BothWithParameters) {
 }
 
 
-TEST_P(ODPITest, BothWithImmediate) {
+TEST_P(InstructionSelectorODPITest, BothWithImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -802,7 +796,7 @@ TEST_P(ODPITest, BothWithImmediate) {
 }
 
 
-TEST_P(ODPITest, BothWithShiftByParameter) {
+TEST_P(InstructionSelectorODPITest, BothWithShiftByParameter) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
@@ -835,7 +829,7 @@ TEST_P(ODPITest, BothWithShiftByParameter) {
 }
 
 
-TEST_P(ODPITest, BothWithShiftByImmediate) {
+TEST_P(InstructionSelectorODPITest, BothWithShiftByImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(Shift, shift, kShifts) {
     TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
@@ -876,7 +870,7 @@ TEST_P(ODPITest, BothWithShiftByImmediate) {
 }
 
 
-TEST_P(ODPITest, BranchWithParameters) {
+TEST_P(InstructionSelectorODPITest, BranchWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
@@ -897,7 +891,7 @@ TEST_P(ODPITest, BranchWithParameters) {
 }
 
 
-TEST_P(ODPITest, BranchWithImmediate) {
+TEST_P(InstructionSelectorODPITest, BranchWithImmediate) {
   const ODPI odpi = GetParam();
   TRACED_FOREACH(int32_t, imm, kImmediates) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -940,7 +934,7 @@ TEST_P(ODPITest, BranchWithImmediate) {
 }
 
 
-TEST_P(ODPITest, BranchIfZeroWithParameters) {
+TEST_P(InstructionSelectorODPITest, BranchIfZeroWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
@@ -961,7 +955,7 @@ TEST_P(ODPITest, BranchIfZeroWithParameters) {
 }
 
 
-TEST_P(ODPITest, BranchIfNotZeroWithParameters) {
+TEST_P(InstructionSelectorODPITest, BranchIfNotZeroWithParameters) {
   const ODPI odpi = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   MLabel a, b;
@@ -982,9 +976,7 @@ TEST_P(ODPITest, BranchIfNotZeroWithParameters) {
 }
 
 
-}  // namespace
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, ODPITest,
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorODPITest,
                         ::testing::ValuesIn(kODPIs));
 
 
@@ -992,12 +984,10 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, ODPITest,
 // Shifts.
 
 
-namespace {
-
-class ShiftTest : public InstructionSelectorTestWithParam<Shift> {};
+typedef InstructionSelectorTestWithParam<Shift> InstructionSelectorShiftTest;
 
 
-TEST_P(ShiftTest, Parameters) {
+TEST_P(InstructionSelectorShiftTest, Parameters) {
   const Shift shift = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return((m.*shift.constructor)(m.Parameter(0), m.Parameter(1)));
@@ -1010,7 +1000,7 @@ TEST_P(ShiftTest, Parameters) {
 }
 
 
-TEST_P(ShiftTest, Immediate) {
+TEST_P(InstructionSelectorShiftTest, Immediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -1026,7 +1016,7 @@ TEST_P(ShiftTest, Immediate) {
 }
 
 
-TEST_P(ShiftTest, Word32EqualWithParameter) {
+TEST_P(InstructionSelectorShiftTest, Word32EqualWithParameter) {
   const Shift shift = GetParam();
   {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
@@ -1059,7 +1049,7 @@ TEST_P(ShiftTest, Word32EqualWithParameter) {
 }
 
 
-TEST_P(ShiftTest, Word32EqualWithParameterAndImmediate) {
+TEST_P(InstructionSelectorShiftTest, Word32EqualWithParameterAndImmediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
@@ -1094,7 +1084,7 @@ TEST_P(ShiftTest, Word32EqualWithParameterAndImmediate) {
 }
 
 
-TEST_P(ShiftTest, Word32EqualToZeroWithParameters) {
+TEST_P(InstructionSelectorShiftTest, Word32EqualToZeroWithParameters) {
   const Shift shift = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(
@@ -1111,7 +1101,7 @@ TEST_P(ShiftTest, Word32EqualToZeroWithParameters) {
 }
 
 
-TEST_P(ShiftTest, Word32EqualToZeroWithImmediate) {
+TEST_P(InstructionSelectorShiftTest, Word32EqualToZeroWithImmediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
@@ -1131,7 +1121,7 @@ TEST_P(ShiftTest, Word32EqualToZeroWithImmediate) {
 }
 
 
-TEST_P(ShiftTest, Word32NotWithParameters) {
+TEST_P(InstructionSelectorShiftTest, Word32NotWithParameters) {
   const Shift shift = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Word32Not((m.*shift.constructor)(m.Parameter(0), m.Parameter(1))));
@@ -1144,7 +1134,7 @@ TEST_P(ShiftTest, Word32NotWithParameters) {
 }
 
 
-TEST_P(ShiftTest, Word32NotWithImmediate) {
+TEST_P(InstructionSelectorShiftTest, Word32NotWithImmediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
     StreamBuilder m(this, kMachInt32, kMachInt32);
@@ -1161,7 +1151,7 @@ TEST_P(ShiftTest, Word32NotWithImmediate) {
 }
 
 
-TEST_P(ShiftTest, Word32AndWithWord32NotWithParameters) {
+TEST_P(InstructionSelectorShiftTest, Word32AndWithWord32NotWithParameters) {
   const Shift shift = GetParam();
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
   m.Return(m.Word32And(m.Parameter(0), m.Word32Not((m.*shift.constructor)(
@@ -1175,7 +1165,7 @@ TEST_P(ShiftTest, Word32AndWithWord32NotWithParameters) {
 }
 
 
-TEST_P(ShiftTest, Word32AndWithWord32NotWithImmediate) {
+TEST_P(InstructionSelectorShiftTest, Word32AndWithWord32NotWithImmediate) {
   const Shift shift = GetParam();
   TRACED_FORRANGE(int32_t, imm, shift.i_low, shift.i_high) {
     StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
@@ -1193,10 +1183,7 @@ TEST_P(ShiftTest, Word32AndWithWord32NotWithImmediate) {
 }
 
 
-}  // namespace
-
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, ShiftTest,
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
                         ::testing::ValuesIn(kShifts));
 
 
