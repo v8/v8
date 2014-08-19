@@ -629,12 +629,13 @@ class RepresentationSelector {
 
       case IrOpcode::kChangeInt32ToInt64:
         return VisitUnop(node, kTypeInt32 | kRepWord32,
-                         kTypeInt64 | kRepWord64);
+                         kTypeInt32 | kRepWord64);
       case IrOpcode::kChangeUint32ToUint64:
         return VisitUnop(node, kTypeUint32 | kRepWord32,
-                         kTypeUint64 | kRepWord64);
+                         kTypeUint32 | kRepWord64);
       case IrOpcode::kTruncateInt64ToInt32:
-        return VisitUnop(node, kTypeInt64 | kRepWord64,
+        // TODO(titzer): Is kTypeInt32 correct here?
+        return VisitUnop(node, kTypeInt32 | kRepWord64,
                          kTypeInt32 | kRepWord32);
 
       case IrOpcode::kChangeInt32ToFloat64:
