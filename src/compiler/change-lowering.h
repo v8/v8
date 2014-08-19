@@ -32,8 +32,10 @@ class ChangeLowering V8_FINAL : public Reducer {
 
   Reduction ChangeBitToBool(Node* val, Node* control);
   Reduction ChangeBoolToBit(Node* val);
-  Reduction ChangeInt32ToTagged(Node* val, Node* effect, Node* control);
-  Reduction ChangeTaggedToFloat64(Node* val, Node* effect, Node* control);
+  Reduction ChangeFloat64ToTagged(Node* val, Node* control);
+  Reduction ChangeInt32ToTagged(Node* val, Node* control);
+  Reduction ChangeTaggedToFloat64(Node* val, Node* control);
+  Reduction ChangeTaggedToInt32(Node* val, Node* control);
 
   Graph* graph() const;
   Isolate* isolate() const;
@@ -43,6 +45,8 @@ class ChangeLowering V8_FINAL : public Reducer {
   MachineOperatorBuilder* machine() const { return machine_; }
 
  private:
+  Node* AllocateHeapNumberWithValue(Node* value, Node* control);
+
   JSGraph* jsgraph_;
   Linkage* linkage_;
   MachineOperatorBuilder* machine_;

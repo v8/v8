@@ -34,6 +34,7 @@
   V(Phi)                 \
   V(EffectPhi)           \
   V(ControlEffect)       \
+  V(ValueEffect)         \
   V(Finish)              \
   V(FrameState)          \
   V(StateValues)         \

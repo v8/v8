@@ -35,6 +35,7 @@ class GraphTest : public CommonOperatorTest {
 
 using ::testing::Matcher;
 
+
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
@@ -42,6 +43,7 @@ Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsControlEffect(const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsValueEffect(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& effect_matcher);
 Matcher<Node*> IsExternalConstant(
@@ -93,6 +95,7 @@ Matcher<Node*> IsWord64Equal(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsInt32AddWithOverflow(const Matcher<Node*>& lhs_matcher,
                                       const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsConvertInt64ToInt32(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsChangeFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeInt32ToFloat64(const Matcher<Node*>& input_matcher);
 
 }  //  namespace compiler

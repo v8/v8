@@ -91,6 +91,7 @@ inline bool OperatorProperties::HasValueOutput(Operator* op) {
 inline bool OperatorProperties::HasEffectOutput(Operator* op) {
   return op->opcode() == IrOpcode::kStart ||
          op->opcode() == IrOpcode::kControlEffect ||
+         op->opcode() == IrOpcode::kValueEffect ||
          (op->opcode() != IrOpcode::kFinish && GetEffectInputCount(op) > 0);
 }
 

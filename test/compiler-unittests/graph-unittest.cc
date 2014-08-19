@@ -8,6 +8,7 @@
 
 #include "src/compiler/node-properties-inl.h"
 
+using testing::_;
 using testing::MakeMatcher;
 using testing::MatcherInterface;
 using testing::MatchResultListener;
@@ -567,6 +568,11 @@ Matcher<Node*> IsControlEffect(const Matcher<Node*>& control_matcher) {
 }
 
 
+Matcher<Node*> IsValueEffect(const Matcher<Node*>& value_matcher) {
+  return MakeMatcher(new IsUnopMatcher(IrOpcode::kValueEffect, value_matcher));
+}
+
+
 Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& effect_matcher) {
   return MakeMatcher(new IsFinishMatcher(value_matcher, effect_matcher));
@@ -671,6 +677,7 @@ IS_BINOP_MATCHER(Int32AddWithOverflow)
     return MakeMatcher(new IsUnopMatcher(IrOpcode::k##Name, input_matcher)); \
   }
 IS_UNOP_MATCHER(ConvertInt64ToInt32)
+IS_UNOP_MATCHER(ChangeFloat64ToInt32)
 IS_UNOP_MATCHER(ChangeInt32ToFloat64)
 #undef IS_UNOP_MATCHER
 
