@@ -5354,6 +5354,33 @@ RUNTIME_FUNCTION(Runtime_SetProperty) {
 }
 
 
+// Adds an element to an array.
+// This is used to create an indexed data property into an array.
+RUNTIME_FUNCTION(Runtime_AddElement) {
+  HandleScope scope(isolate);
+  RUNTIME_ASSERT(args.length() == 4);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_SMI_ARG_CHECKED(unchecked_attributes, 3);
+  RUNTIME_ASSERT(
+      (unchecked_attributes & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+  // Compute attributes.
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(unchecked_attributes);
+
+  uint32_t index = 0;
+  key->ToArrayIndex(&index);
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, JSObject::SetElement(object, index, value, attributes,
+                                            SLOPPY, false, DEFINE_PROPERTY));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 2);
