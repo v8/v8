@@ -5,8 +5,7 @@
 #ifndef V8_COMPILER_OPERATOR_PROPERTIES_INL_H_
 #define V8_COMPILER_OPERATOR_PROPERTIES_INL_H_
 
-#include "src/v8.h"
-
+#include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"

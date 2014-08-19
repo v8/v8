@@ -676,9 +676,11 @@ IS_BINOP_MATCHER(Int32AddWithOverflow)
   Matcher<Node*> Is##Name(const Matcher<Node*>& input_matcher) {             \
     return MakeMatcher(new IsUnopMatcher(IrOpcode::k##Name, input_matcher)); \
   }
-IS_UNOP_MATCHER(ConvertInt64ToInt32)
 IS_UNOP_MATCHER(ChangeFloat64ToInt32)
 IS_UNOP_MATCHER(ChangeInt32ToFloat64)
+IS_UNOP_MATCHER(ChangeInt32ToInt64)
+IS_UNOP_MATCHER(ChangeUint32ToUint64)
+IS_UNOP_MATCHER(TruncateInt64ToInt32)
 #undef IS_UNOP_MATCHER
 
 }  // namespace compiler

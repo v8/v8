@@ -513,6 +513,24 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
 }
 
 
+void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Movsxlq, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Movl, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Movl, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitFloat64Add(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
@@ -551,22 +569,6 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
   Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
        g.UseDoubleRegister(node->InputAt(0)),
        g.UseDoubleRegister(node->InputAt(1)), 1, temps);
-}
-
-
-void InstructionSelector::VisitConvertInt64ToInt32(Node* node) {
-  X64OperandGenerator g(this);
-  // TODO(dcarney): other modes
-  Emit(kX64Int64ToInt32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
-}
-
-
-void InstructionSelector::VisitConvertInt32ToInt64(Node* node) {
-  X64OperandGenerator g(this);
-  // TODO(dcarney): other modes
-  Emit(kX64Int32ToInt64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
 }
 
 

@@ -6,8 +6,6 @@
 
 #include "test/compiler-unittests/instruction-selector-unittest.h"
 
-#include "test/cctest/compiler/instruction-selector-tester.h"
-
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -126,6 +124,37 @@ TEST_F(InstructionSelectorTest, MulDivWithParameter) {
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
   }
+}
+
+
+// -----------------------------------------------------------------------------
+// Conversions.
+
+
+TEST_F(InstructionSelectorTest, ChangeInt32ToInt64WithParameter) {
+  StreamBuilder m(this, kMachInt64, kMachInt32);
+  m.Return(m.ChangeInt32ToInt64(m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Sxtw, s[0]->arch_opcode());
+}
+
+
+TEST_F(InstructionSelectorTest, ChangeUint32ToUint64WithParameter) {
+  StreamBuilder m(this, kMachUint64, kMachUint32);
+  m.Return(m.ChangeUint32ToUint64(m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Mov32, s[0]->arch_opcode());
+}
+
+
+TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithParameter) {
+  StreamBuilder m(this, kMachInt32, kMachInt64);
+  m.Return(m.TruncateInt64ToInt32(m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Mov32, s[0]->arch_opcode());
 }
 
 }  // namespace compiler

@@ -280,12 +280,13 @@ class MachineNodeFactory {
     return Int64LessThanOrEqual(b, a);
   }
 
+  // TODO(turbofan): What is this used for?
   Node* ConvertIntPtrToInt32(Node* a) {
-    return kPointerSize == 8 ? NEW_NODE_1(MACHINE()->ConvertInt64ToInt32(), a)
+    return kPointerSize == 8 ? NEW_NODE_1(MACHINE()->TruncateInt64ToInt32(), a)
                              : a;
   }
   Node* ConvertInt32ToIntPtr(Node* a) {
-    return kPointerSize == 8 ? NEW_NODE_1(MACHINE()->ConvertInt32ToInt64(), a)
+    return kPointerSize == 8 ? NEW_NODE_1(MACHINE()->ChangeInt32ToInt64(), a)
                              : a;
   }
 
@@ -339,12 +340,6 @@ class MachineNodeFactory {
   }
 
   // Conversions.
-  Node* ConvertInt32ToInt64(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertInt32ToInt64(), a);
-  }
-  Node* ConvertInt64ToInt32(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertInt64ToInt32(), a);
-  }
   Node* ChangeInt32ToFloat64(Node* a) {
     return NEW_NODE_1(MACHINE()->ChangeInt32ToFloat64(), a);
   }
@@ -356,6 +351,15 @@ class MachineNodeFactory {
   }
   Node* ChangeFloat64ToUint32(Node* a) {
     return NEW_NODE_1(MACHINE()->ChangeFloat64ToUint32(), a);
+  }
+  Node* ChangeInt32ToInt64(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeInt32ToInt64(), a);
+  }
+  Node* ChangeUint32ToUint64(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeUint32ToUint64(), a);
+  }
+  Node* TruncateInt64ToInt32(Node* a) {
+    return NEW_NODE_1(MACHINE()->TruncateInt64ToInt32(), a);
   }
 
 #ifdef MACHINE_ASSEMBLER_SUPPORTS_CALL_C

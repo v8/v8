@@ -295,7 +295,8 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeInt32ToTagged) {
   ASSERT_TRUE(reduction.Changed());
 
   EXPECT_THAT(reduction.replacement(),
-              IsWord64Shl(val, IsInt32Constant(SmiShiftAmount())));
+              IsWord64Shl(IsChangeInt32ToInt64(val),
+                          IsInt32Constant(SmiShiftAmount())));
 }
 
 
@@ -315,7 +316,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
       IsPhi(
           IsLoad(kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                  IsControlEffect(CaptureEq(&if_true))),
-          IsChangeInt32ToFloat64(IsConvertInt64ToInt32(
+          IsChangeInt32ToFloat64(IsTruncateInt64ToInt32(
               IsWord64Sar(val, IsInt32Constant(SmiShiftAmount())))),
           IsMerge(
               AllOf(CaptureEq(&if_true),
@@ -343,7 +344,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToInt32) {
       IsPhi(IsChangeFloat64ToInt32(IsLoad(
                 kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                 IsControlEffect(CaptureEq(&if_true)))),
-            IsConvertInt64ToInt32(
+            IsTruncateInt64ToInt32(
                 IsWord64Sar(val, IsInt32Constant(SmiShiftAmount()))),
             IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
                     IsIfFalse(AllOf(

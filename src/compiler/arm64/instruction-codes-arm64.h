@@ -48,6 +48,8 @@ namespace compiler {
   V(Arm64Sar32)                    \
   V(Arm64Ror)                      \
   V(Arm64Ror32)                    \
+  V(Arm64Mov32)                    \
+  V(Arm64Sxtw)                     \
   V(Arm64CallCodeObject)           \
   V(Arm64CallJSFunction)           \
   V(Arm64CallAddress)              \
@@ -62,8 +64,6 @@ namespace compiler {
   V(Arm64Float64Mul)               \
   V(Arm64Float64Div)               \
   V(Arm64Float64Mod)               \
-  V(Arm64Int32ToInt64)             \
-  V(Arm64Int64ToInt32)             \
   V(Arm64Float64ToInt32)           \
   V(Arm64Float64ToUint32)          \
   V(Arm64Int32ToFloat64)           \

@@ -46,6 +46,8 @@ namespace compiler {
   V(X64Ror32)                      \
   V(X64Push)                       \
   V(X64PushI)                      \
+  V(X64Movsxlq)                    \
+  V(X64Movl)                       \
   V(X64CallCodeObject)             \
   V(X64CallAddress)                \
   V(PopStack)                      \
@@ -56,8 +58,6 @@ namespace compiler {
   V(SSEFloat64Mul)                 \
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
-  V(X64Int32ToInt64)               \
-  V(X64Int64ToInt32)               \
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \

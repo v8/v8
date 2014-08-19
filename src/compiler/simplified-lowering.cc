@@ -627,10 +627,13 @@ class RepresentationSelector {
       case IrOpcode::kWord64Equal:
         return VisitBinop(node, kRepWord64, kRepBit);
 
-      case IrOpcode::kConvertInt32ToInt64:
+      case IrOpcode::kChangeInt32ToInt64:
         return VisitUnop(node, kTypeInt32 | kRepWord32,
-                         kTypeInt32 | kRepWord64);
-      case IrOpcode::kConvertInt64ToInt32:
+                         kTypeInt64 | kRepWord64);
+      case IrOpcode::kChangeUint32ToUint64:
+        return VisitUnop(node, kTypeUint32 | kRepWord32,
+                         kTypeUint64 | kRepWord64);
+      case IrOpcode::kTruncateInt64ToInt32:
         return VisitUnop(node, kTypeInt64 | kRepWord64,
                          kTypeInt32 | kRepWord32);
 

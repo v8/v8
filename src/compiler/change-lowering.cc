@@ -88,7 +88,9 @@ Reduction ChangeLowering::ChangeFloat64ToTagged(Node* val, Node* control) {
 Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* control) {
   if (machine()->is64()) {
     return Replace(
-        graph()->NewNode(machine()->WordShl(), val, SmiShiftBitsConstant()));
+        graph()->NewNode(machine()->Word64Shl(),
+                         graph()->NewNode(machine()->ChangeInt32ToInt64(), val),
+                         SmiShiftBitsConstant()));
   }
 
   Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), val, val);
@@ -129,7 +131,7 @@ Reduction ChangeLowering::ChangeTaggedToInt32(Node* val, Node* control) {
       graph()->NewNode(machine()->WordSar(), val, SmiShiftBitsConstant());
   Node* number =
       machine()->is64()
-          ? graph()->NewNode(machine()->ConvertInt64ToInt32(), integer)
+          ? graph()->NewNode(machine()->TruncateInt64ToInt32(), integer)
           : integer;
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
@@ -158,7 +160,7 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* val, Node* control) {
   Node* number = graph()->NewNode(
       machine()->ChangeInt32ToFloat64(),
       machine()->is64()
-          ? graph()->NewNode(machine()->ConvertInt64ToInt32(), integer)
+          ? graph()->NewNode(machine()->TruncateInt64ToInt32(), integer)
           : integer);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);

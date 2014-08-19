@@ -71,14 +71,6 @@ class Arm64OperandGenerator V8_FINAL : public OperandGenerator {
 };
 
 
-static void VisitRR(InstructionSelector* selector, ArchOpcode opcode,
-                    Node* node) {
-  Arm64OperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)));
-}
-
-
 static void VisitRRR(InstructionSelector* selector, ArchOpcode opcode,
                      Node* node) {
   Arm64OperandGenerator g(selector);
@@ -426,16 +418,6 @@ void InstructionSelector::VisitInt64UMod(Node* node) {
 }
 
 
-void InstructionSelector::VisitConvertInt32ToInt64(Node* node) {
-  VisitRR(this, kArm64Int32ToInt64, node);
-}
-
-
-void InstructionSelector::VisitConvertInt64ToInt32(Node* node) {
-  VisitRR(this, kArm64Int64ToInt32, node);
-}
-
-
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Int32ToFloat64, g.DefineAsDoubleRegister(node),
@@ -461,6 +443,24 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Float64ToUint32, g.DefineAsRegister(node),
        g.UseDoubleRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64Sxtw, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64Mov32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 

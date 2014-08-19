@@ -73,6 +73,11 @@ class CompilerTest : public ::testing::Test {
   Zone zone_;
 };
 
+
+template <typename T>
+class CompilerTestWithParam : public CompilerTest,
+                              public ::testing::WithParamInterface<T> {};
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

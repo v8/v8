@@ -4202,4 +4202,47 @@ TEST(RunInt32SubWithOverflowInBranchP) {
   }
 }
 
+
+TEST(RunChangeInt32ToInt64P) {
+  if (kPointerSize < 8) return;
+  int64_t actual = -1;
+  RawMachineAssemblerTester<int32_t> m(kMachInt32);
+  m.StoreToPointer(&actual, kMachInt64, m.ChangeInt32ToInt64(m.Parameter(0)));
+  m.Return(m.Int32Constant(0));
+  FOR_INT32_INPUTS(i) {
+    int64_t expected = *i;
+    CHECK_EQ(0, m.Call(*i));
+    CHECK_EQ(expected, actual);
+  }
+}
+
+
+TEST(RunChangeUint32ToUint64P) {
+  if (kPointerSize < 8) return;
+  int64_t actual = -1;
+  RawMachineAssemblerTester<int32_t> m(kMachUint32);
+  m.StoreToPointer(&actual, kMachUint64,
+                   m.ChangeUint32ToUint64(m.Parameter(0)));
+  m.Return(m.Int32Constant(0));
+  FOR_UINT32_INPUTS(i) {
+    int64_t expected = static_cast<uint64_t>(*i);
+    CHECK_EQ(0, m.Call(*i));
+    CHECK_EQ(expected, actual);
+  }
+}
+
+
+TEST(RunTruncateInt64ToInt32P) {
+  if (kPointerSize < 8) return;
+  int64_t expected = -1;
+  RawMachineAssemblerTester<int32_t> m;
+  m.Return(m.TruncateInt64ToInt32(m.LoadFromPointer(&expected, kMachInt64)));
+  FOR_UINT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(j) {
+      expected = (static_cast<uint64_t>(*j) << 32) | *i;
+      CHECK_UINT32_EQ(expected, m.Call());
+    }
+  }
+}
+
 #endif  // V8_TURBOFAN_TARGET

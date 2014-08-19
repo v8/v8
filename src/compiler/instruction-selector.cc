@@ -575,10 +575,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt64LessThan(node);
     case IrOpcode::kInt64LessThanOrEqual:
       return VisitInt64LessThanOrEqual(node);
-    case IrOpcode::kConvertInt32ToInt64:
-      return VisitConvertInt32ToInt64(node);
-    case IrOpcode::kConvertInt64ToInt32:
-      return VisitConvertInt64ToInt32(node);
     case IrOpcode::kChangeInt32ToFloat64:
       return MarkAsDouble(node), VisitChangeInt32ToFloat64(node);
     case IrOpcode::kChangeUint32ToFloat64:
@@ -587,6 +583,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitChangeFloat64ToInt32(node);
     case IrOpcode::kChangeFloat64ToUint32:
       return VisitChangeFloat64ToUint32(node);
+    case IrOpcode::kChangeInt32ToInt64:
+      return VisitChangeInt32ToInt64(node);
+    case IrOpcode::kChangeUint32ToUint64:
+      return VisitChangeUint32ToUint64(node);
+    case IrOpcode::kTruncateInt64ToInt32:
+      return VisitTruncateInt64ToInt32(node);
     case IrOpcode::kFloat64Add:
       return MarkAsDouble(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:
@@ -752,12 +754,17 @@ void InstructionSelector::VisitInt64Mod(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitInt64UMod(Node* node) { UNIMPLEMENTED(); }
 
 
-void InstructionSelector::VisitConvertInt64ToInt32(Node* node) {
+void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 
 
-void InstructionSelector::VisitConvertInt32ToInt64(Node* node) {
+void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   UNIMPLEMENTED();
 }
 

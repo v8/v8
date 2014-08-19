@@ -121,18 +121,21 @@ class MachineOperatorBuilder {
   Operator* Int64LessThan() { BINOP(Int64LessThan); }
   Operator* Int64LessThanOrEqual() { BINOP(Int64LessThanOrEqual); }
 
-  Operator* ConvertInt32ToInt64() { UNOP(ConvertInt32ToInt64); }
-  Operator* ConvertInt64ToInt32() { UNOP(ConvertInt64ToInt32); }
-
   // Convert representation of integers between float64 and int32/uint32.
   // The precise rounding mode and handling of out of range inputs are *not*
   // defined for these operators, since they are intended only for use with
   // integers.
-  // TODO(titzer): rename ConvertXXX to ChangeXXX in machine operators.
   Operator* ChangeInt32ToFloat64() { UNOP(ChangeInt32ToFloat64); }
   Operator* ChangeUint32ToFloat64() { UNOP(ChangeUint32ToFloat64); }
   Operator* ChangeFloat64ToInt32() { UNOP(ChangeFloat64ToInt32); }
   Operator* ChangeFloat64ToUint32() { UNOP(ChangeFloat64ToUint32); }
+
+  // Sign/zero extend int32/uint32 to int64/uint64.
+  Operator* ChangeInt32ToInt64() { UNOP(ChangeInt32ToInt64); }
+  Operator* ChangeUint32ToUint64() { UNOP(ChangeUint32ToUint64); }
+
+  // Truncate the high order bits and convert the remaining bits to int32.
+  Operator* TruncateInt64ToInt32() { UNOP(TruncateInt64ToInt32); }
 
   // Floating point operators always operate with IEEE 754 round-to-nearest.
   Operator* Float64Add() { BINOP_C(Float64Add); }
