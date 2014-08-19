@@ -4055,8 +4055,6 @@ Handle<Value> Function::GetDisplayName() const {
   i::Handle<i::String> property_name =
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("displayName"));
-  i::LookupIterator it(func, property_name,
-                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
 
   i::Handle<i::Object> value =
       i::JSObject::GetDataProperty(func, property_name);
