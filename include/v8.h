@@ -1960,7 +1960,12 @@ class V8_EXPORT Symbol : public Primitive {
   // registry that is not accessible by (and cannot clash with) JavaScript code.
   static Local<Symbol> ForApi(Isolate *isolate, Local<String> name);
 
+  // Well-known symbols
+  static Local<Symbol> GetIterator(Isolate* isolate);
+  static Local<Symbol> GetUnscopables(Isolate* isolate);
+
   V8_INLINE static Symbol* Cast(v8::Value* obj);
+
  private:
   Symbol();
   static void CheckCast(v8::Value* obj);
