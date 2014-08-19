@@ -778,102 +778,87 @@ void NamedLoadHandlerCompiler::GenerateLoadConstant(Handle<Object> value) {
 }
 
 
-void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg,
-                                                       LookupResult* lookup,
-                                                       Handle<Name> name) {
+void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
+    LookupIterator* it, Register holder_reg) {
   DCHECK(holder()->HasNamedInterceptor());
   DCHECK(!holder()->GetNamedInterceptor()->getter()->IsUndefined());
 
-  // So far the most popular follow ups for interceptor loads are FIELD
-  // and CALLBACKS, so inline only them, other cases may be added
-  // later.
-  bool compile_followup_inline = false;
-  if (lookup->IsFound() && lookup->IsCacheable()) {
-    if (lookup->IsField()) {
-      compile_followup_inline = true;
-    } else if (lookup->type() == CALLBACKS &&
-               lookup->GetCallbackObject()->IsExecutableAccessorInfo()) {
-      Handle<ExecutableAccessorInfo> callback(
-          ExecutableAccessorInfo::cast(lookup->GetCallbackObject()));
-      compile_followup_inline =
-          callback->getter() != NULL &&
-          ExecutableAccessorInfo::IsCompatibleReceiverType(isolate(), callback,
-                                                           type());
+  // Compile the interceptor call, followed by inline code to load the
+  // property from further up the prototype chain if the call fails.
+  // Check that the maps haven't changed.
+  DCHECK(holder_reg.is(receiver()) || holder_reg.is(scratch1()));
+
+  // Preserve the receiver register explicitly whenever it is different from the
+  // holder and it is needed should the interceptor return without any result.
+  // The ACCESSOR case needs the receiver to be passed into C++ code, the FIELD
+  // case might cause a miss during the prototype check.
+  bool must_perform_prototype_check =
+      !holder().is_identical_to(it->GetHolder<JSObject>());
+  bool must_preserve_receiver_reg =
+      !receiver().is(holder_reg) &&
+      (it->property_kind() == LookupIterator::ACCESSOR ||
+       must_perform_prototype_check);
+
+  // Save necessary data before invoking an interceptor.
+  // Requires a frame to make GC aware of pushed pointers.
+  {
+    FrameScope frame_scope(masm(), StackFrame::INTERNAL);
+
+    if (must_preserve_receiver_reg) {
+      __ push(receiver());
     }
-  }
+    __ push(holder_reg);
+    __ push(this->name());
 
-  if (compile_followup_inline) {
-    // Compile the interceptor call, followed by inline code to load the
-    // property from further up the prototype chain if the call fails.
-    // Check that the maps haven't changed.
-    DCHECK(holder_reg.is(receiver()) || holder_reg.is(scratch1()));
+    // Invoke an interceptor.  Note: map checks from receiver to
+    // interceptor's holder has been compiled before (see a caller
+    // of this method.)
+    CompileCallLoadPropertyWithInterceptor(
+        masm(), receiver(), holder_reg, this->name(), holder(),
+        IC::kLoadPropertyWithInterceptorOnly);
 
-    // Preserve the receiver register explicitly whenever it is different from
-    // the holder and it is needed should the interceptor return without any
-    // result. The CALLBACKS case needs the receiver to be passed into C++ code,
-    // the FIELD case might cause a miss during the prototype check.
-    bool must_perfrom_prototype_check = *holder() != lookup->holder();
-    bool must_preserve_receiver_reg = !receiver().is(holder_reg) &&
-        (lookup->type() == CALLBACKS || must_perfrom_prototype_check);
+    // Check if interceptor provided a value for property.  If it's
+    // the case, return immediately.
+    Label interceptor_failed;
+    __ cmp(eax, factory()->no_interceptor_result_sentinel());
+    __ j(equal, &interceptor_failed);
+    frame_scope.GenerateLeaveFrame();
+    __ ret(0);
 
-    // Save necessary data before invoking an interceptor.
-    // Requires a frame to make GC aware of pushed pointers.
-    {
-      FrameScope frame_scope(masm(), StackFrame::INTERNAL);
-
-      if (must_preserve_receiver_reg) {
-        __ push(receiver());
-      }
-      __ push(holder_reg);
-      __ push(this->name());
-
-      // Invoke an interceptor.  Note: map checks from receiver to
-      // interceptor's holder has been compiled before (see a caller
-      // of this method.)
-      CompileCallLoadPropertyWithInterceptor(
-          masm(), receiver(), holder_reg, this->name(), holder(),
-          IC::kLoadPropertyWithInterceptorOnly);
-
-      // Check if interceptor provided a value for property.  If it's
-      // the case, return immediately.
-      Label interceptor_failed;
-      __ cmp(eax, factory()->no_interceptor_result_sentinel());
-      __ j(equal, &interceptor_failed);
-      frame_scope.GenerateLeaveFrame();
-      __ ret(0);
-
-      // Clobber registers when generating debug-code to provoke errors.
-      __ bind(&interceptor_failed);
-      if (FLAG_debug_code) {
-        __ mov(receiver(), Immediate(BitCast<int32_t>(kZapValue)));
-        __ mov(holder_reg, Immediate(BitCast<int32_t>(kZapValue)));
-        __ mov(this->name(), Immediate(BitCast<int32_t>(kZapValue)));
-      }
-
-      __ pop(this->name());
-      __ pop(holder_reg);
-      if (must_preserve_receiver_reg) {
-        __ pop(receiver());
-      }
-
-      // Leave the internal frame.
+    // Clobber registers when generating debug-code to provoke errors.
+    __ bind(&interceptor_failed);
+    if (FLAG_debug_code) {
+      __ mov(receiver(), Immediate(BitCast<int32_t>(kZapValue)));
+      __ mov(holder_reg, Immediate(BitCast<int32_t>(kZapValue)));
+      __ mov(this->name(), Immediate(BitCast<int32_t>(kZapValue)));
     }
 
-    GenerateLoadPostInterceptor(holder_reg, name, lookup);
-  } else {  // !compile_followup_inline
-    // Call the runtime system to load the interceptor.
-    // Check that the maps haven't changed.
-    __ pop(scratch2());  // save old return address
-    PushInterceptorArguments(masm(), receiver(), holder_reg, this->name(),
-                             holder());
-    __ push(scratch2());  // restore old return address
+    __ pop(this->name());
+    __ pop(holder_reg);
+    if (must_preserve_receiver_reg) {
+      __ pop(receiver());
+    }
 
-    ExternalReference ref =
-        ExternalReference(IC_Utility(IC::kLoadPropertyWithInterceptor),
-                          isolate());
-    __ TailCallExternalReference(
-        ref, NamedLoadHandlerCompiler::kInterceptorArgsLength, 1);
+    // Leave the internal frame.
   }
+
+  GenerateLoadPostInterceptor(it, holder_reg);
+}
+
+
+void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
+  DCHECK(holder()->HasNamedInterceptor());
+  DCHECK(!holder()->GetNamedInterceptor()->getter()->IsUndefined());
+  // Call the runtime system to load the interceptor.
+  __ pop(scratch2());  // save old return address
+  PushInterceptorArguments(masm(), receiver(), holder_reg, this->name(),
+                           holder());
+  __ push(scratch2());  // restore old return address
+
+  ExternalReference ref = ExternalReference(
+      IC_Utility(IC::kLoadPropertyWithInterceptor), isolate());
+  __ TailCallExternalReference(
+      ref, NamedLoadHandlerCompiler::kInterceptorArgsLength, 1);
 }
 
 
