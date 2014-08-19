@@ -10878,61 +10878,56 @@ RUNTIME_FUNCTION(Runtime_Break) {
 }
 
 
-static Handle<Object> DebugLookupResultValue(Isolate* isolate,
-                                             Handle<Object> receiver,
-                                             Handle<Name> name,
-                                             LookupResult* result,
+static Handle<Object> DebugLookupResultValue(LookupIterator* it,
                                              bool* has_caught = NULL) {
-  Handle<Object> value = isolate->factory()->undefined_value();
-  if  (!result->IsFound()) return value;
-  switch (result->type()) {
-    case NORMAL:
-      return JSObject::GetNormalizedProperty(handle(result->holder(), isolate),
-                                             result);
-    case FIELD:
-      return JSObject::FastPropertyAt(handle(result->holder(), isolate),
-                                      result->representation(),
-                                      result->GetFieldIndex());
-    case CONSTANT:
-      return handle(result->GetConstant(), isolate);
-    case CALLBACKS: {
-      Handle<Object> structure(result->GetCallbackObject(), isolate);
-      DCHECK(!structure->IsForeign());
-      if (structure->IsAccessorInfo()) {
-        MaybeHandle<Object> obj = JSObject::GetPropertyWithAccessor(
-            receiver, name, handle(result->holder(), isolate), structure);
-        if (!obj.ToHandle(&value)) {
-          value = handle(isolate->pending_exception(), isolate);
-          isolate->clear_pending_exception();
-          if (has_caught != NULL) *has_caught = true;
-          return value;
+  for (; it->IsFound(); it->Next()) {
+    switch (it->state()) {
+      case LookupIterator::NOT_FOUND:
+        UNREACHABLE();
+      case LookupIterator::ACCESS_CHECK:
+        // Ignore access checks.
+        break;
+      case LookupIterator::INTERCEPTOR:
+      case LookupIterator::JSPROXY:
+        return it->isolate()->factory()->undefined_value();
+      case LookupIterator::PROPERTY:
+        if (!it->HasProperty()) continue;
+        switch (it->property_kind()) {
+          case LookupIterator::ACCESSOR: {
+            Handle<Object> accessors = it->GetAccessors();
+            if (!accessors->IsAccessorInfo()) {
+              return it->isolate()->factory()->undefined_value();
+            }
+            MaybeHandle<Object> maybe_result =
+                JSObject::GetPropertyWithAccessor(it->GetReceiver(), it->name(),
+                                                  it->GetHolder<JSObject>(),
+                                                  accessors);
+            Handle<Object> result;
+            if (!maybe_result.ToHandle(&result)) {
+              result =
+                  handle(it->isolate()->pending_exception(), it->isolate());
+              it->isolate()->clear_pending_exception();
+              if (has_caught != NULL) *has_caught = true;
+            }
+            return result;
+          }
+          case LookupIterator::DATA:
+            return it->GetDataValue();
         }
-      }
-      break;
     }
-    case INTERCEPTOR:
-    case HANDLER:
-      break;
-    case NONEXISTENT:
-      UNREACHABLE();
-      break;
   }
-  return value;
+
+  return it->isolate()->factory()->undefined_value();
 }
 
 
-// Get debugger related details for an object property.
-// args[0]: object holding property
-// args[1]: name of the property
-//
-// The array returned contains the following information:
+// Get debugger related details for an object property, in the following format:
 // 0: Property value
 // 1: Property details
 // 2: Property value is exception
 // 3: Getter function if defined
 // 4: Setter function if defined
-// Items 2-4 are only filled if the property has either a getter or a setter
-// defined through __defineGetter__ and/or __defineSetter__.
+// Items 2-4 are only filled if the property has either a getter or a setter.
 RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   HandleScope scope(isolate);
 
@@ -10967,53 +10962,36 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
     return *isolate->factory()->NewJSArrayWithElements(details);
   }
 
-  // Find the number of objects making up this.
-  int length = OwnPrototypeChainLength(*obj);
+  LookupIterator it(obj, name, LookupIterator::CHECK_HIDDEN);
+  bool has_caught = false;
+  Handle<Object> value = DebugLookupResultValue(&it, &has_caught);
+  if (!it.IsFound()) return isolate->heap()->undefined_value();
 
-  // Try own lookup on each of the objects.
-  PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
-  for (int i = 0; i < length; i++) {
-    DCHECK(!iter.IsAtEnd());
-    Handle<JSObject> jsproto =
-        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-    LookupResult result(isolate);
-    jsproto->LookupOwn(name, &result);
-    if (result.IsFound()) {
-      // LookupResult is not GC safe as it holds raw object pointers.
-      // GC can happen later in this code so put the required fields into
-      // local variables using handles when required for later use.
-      Handle<Object> result_callback_obj;
-      if (result.IsPropertyCallbacks()) {
-        result_callback_obj = Handle<Object>(result.GetCallbackObject(),
-                                             isolate);
-      }
-
-
-      bool has_caught = false;
-      Handle<Object> value = DebugLookupResultValue(
-          isolate, obj, name, &result, &has_caught);
-
-      // If the callback object is a fixed array then it contains JavaScript
-      // getter and/or setter.
-      bool has_js_accessors = result.IsPropertyCallbacks() &&
-                              result_callback_obj->IsAccessorPair();
-      Handle<FixedArray> details =
-          isolate->factory()->NewFixedArray(has_js_accessors ? 5 : 2);
-      details->set(0, *value);
-      details->set(1, result.GetPropertyDetails().AsSmi());
-      if (has_js_accessors) {
-        AccessorPair* accessors = AccessorPair::cast(*result_callback_obj);
-        details->set(2, isolate->heap()->ToBoolean(has_caught));
-        details->set(3, accessors->GetComponent(ACCESSOR_GETTER));
-        details->set(4, accessors->GetComponent(ACCESSOR_SETTER));
-      }
-
-      return *isolate->factory()->NewJSArrayWithElements(details);
-    }
-    iter.Advance();
+  Handle<Object> maybe_pair;
+  if (it.state() == LookupIterator::PROPERTY &&
+      it.property_kind() == LookupIterator::ACCESSOR) {
+    maybe_pair = it.GetAccessors();
   }
 
-  return isolate->heap()->undefined_value();
+  // If the callback object is a fixed array then it contains JavaScript
+  // getter and/or setter.
+  bool has_js_accessors = !maybe_pair.is_null() && maybe_pair->IsAccessorPair();
+  Handle<FixedArray> details =
+      isolate->factory()->NewFixedArray(has_js_accessors ? 5 : 2);
+  details->set(0, *value);
+  // TODO(verwaest): Get rid of this random way of handling interceptors.
+  PropertyDetails d = it.state() == LookupIterator::INTERCEPTOR
+                          ? PropertyDetails(NONE, INTERCEPTOR, 0)
+                          : it.property_details();
+  details->set(1, d.AsSmi());
+  if (has_js_accessors) {
+    AccessorPair* accessors = AccessorPair::cast(*maybe_pair);
+    details->set(2, isolate->heap()->ToBoolean(has_caught));
+    details->set(3, accessors->GetComponent(ACCESSOR_GETTER));
+    details->set(4, accessors->GetComponent(ACCESSOR_SETTER));
+  }
+
+  return *isolate->factory()->NewJSArrayWithElements(details);
 }
 
 
@@ -11025,9 +11003,8 @@ RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
-  LookupResult result(isolate);
-  obj->Lookup(name, &result);
-  return *DebugLookupResultValue(isolate, obj, name, &result);
+  LookupIterator it(obj, name, LookupIterator::CHECK_DERIVED);
+  return *DebugLookupResultValue(&it);
 }
 
 
