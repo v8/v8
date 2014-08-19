@@ -140,6 +140,34 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 }
 
 
+Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
+                                         Handle<Name> key) {
+  LookupIterator it(object, key, LookupIterator::CHECK_DERIVED_PROPERTY);
+  for (; it.IsFound(); it.Next()) {
+    switch (it.state()) {
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::ACCESS_CHECK:
+      case LookupIterator::INTERCEPTOR:
+        UNREACHABLE();
+      case LookupIterator::JSPROXY:
+        return it.isolate()->factory()->undefined_value();
+      case LookupIterator::PROPERTY:
+        if (!it.HasProperty()) continue;
+        switch (it.property_kind()) {
+          case LookupIterator::DATA:
+            return it.GetDataValue();
+          case LookupIterator::ACCESSOR:
+            // TODO(verwaest): For now this doesn't call into
+            // ExecutableAccessorInfo, since clients don't need it. Update once
+            // relevant.
+            return it.isolate()->factory()->undefined_value();
+        }
+    }
+  }
+  return it.isolate()->factory()->undefined_value();
+}
+
+
 bool Object::ToInt32(int32_t* value) {
   if (IsSmi()) {
     *value = Smi::cast(this)->value();
@@ -624,22 +652,6 @@ Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
   if (IsGlobalObject()) {
     value = PropertyCell::cast(value)->value();
-  }
-  DCHECK(!value->IsPropertyCell() && !value->IsCell());
-  return value;
-}
-
-
-Handle<Object> JSObject::GetNormalizedProperty(Handle<JSObject> object,
-                                               const LookupResult* result) {
-  DCHECK(!object->HasFastProperties());
-  Isolate* isolate = object->GetIsolate();
-  Handle<Object> value(
-      object->property_dictionary()->ValueAt(result->GetDictionaryEntry()),
-      isolate);
-  if (object->IsGlobalObject()) {
-    value = handle(Handle<PropertyCell>::cast(value)->value(), isolate);
-    DCHECK(!value->IsTheHole());
   }
   DCHECK(!value->IsPropertyCell() && !value->IsCell());
   return value;
@@ -3419,37 +3431,6 @@ void JSObject::LookupOwnRealNamedProperty(Handle<Name> name,
 }
 
 
-void JSObject::LookupRealNamedProperty(Handle<Name> name,
-                                       LookupResult* result) {
-  DisallowHeapAllocation no_gc;
-  LookupOwnRealNamedProperty(name, result);
-  if (result->IsFound()) return;
-
-  LookupRealNamedPropertyInPrototypes(name, result);
-}
-
-
-void JSObject::LookupRealNamedPropertyInPrototypes(Handle<Name> name,
-                                                   LookupResult* result) {
-  if (name->IsOwn()) {
-    result->NotFound();
-    return;
-  }
-
-  DisallowHeapAllocation no_gc;
-  Isolate* isolate = GetIsolate();
-  for (PrototypeIterator iter(isolate, this); !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent()->IsJSProxy()) {
-      return result->HandlerResult(JSProxy::cast(iter.GetCurrent()));
-    }
-    JSObject::cast(iter.GetCurrent())->LookupOwnRealNamedProperty(name, result);
-    DCHECK(!(result->IsFound() && result->type() == INTERCEPTOR));
-    if (result->IsFound()) return;
-  }
-  result->NotFound();
-}
-
-
 Maybe<bool> JSProxy::HasPropertyWithHandler(Handle<JSProxy> proxy,
                                             Handle<Name> name) {
   Isolate* isolate = proxy->GetIsolate();
@@ -5668,41 +5649,6 @@ MaybeHandle<JSObject> JSObject::DeepCopy(
   Handle<JSObject> for_assert;
   DCHECK(!copy.ToHandle(&for_assert) || !for_assert.is_identical_to(object));
   return copy;
-}
-
-
-Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
-                                         Handle<Name> key) {
-  Isolate* isolate = object->GetIsolate();
-  LookupResult lookup(isolate);
-  {
-    DisallowHeapAllocation no_allocation;
-    object->LookupRealNamedProperty(key, &lookup);
-  }
-  Handle<Object> result = isolate->factory()->undefined_value();
-  if (lookup.IsFound() && !lookup.IsTransition()) {
-    switch (lookup.type()) {
-      case NORMAL:
-        result = GetNormalizedProperty(
-            Handle<JSObject>(lookup.holder(), isolate), &lookup);
-        break;
-      case FIELD:
-        result = FastPropertyAt(Handle<JSObject>(lookup.holder(), isolate),
-                                lookup.representation(),
-                                lookup.GetFieldIndex());
-        break;
-      case CONSTANT:
-        result = Handle<Object>(lookup.GetConstant(), isolate);
-        break;
-      case CALLBACKS:
-      case HANDLER:
-      case INTERCEPTOR:
-        break;
-      case NONEXISTENT:
-        UNREACHABLE();
-    }
-  }
-  return result;
 }
 
 

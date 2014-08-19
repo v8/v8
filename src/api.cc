@@ -3564,24 +3564,12 @@ bool v8::Object::HasIndexedLookupInterceptor() {
 }
 
 
-static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
-                                        i::Handle<i::JSObject> receiver,
-                                        i::Handle<i::String> name,
-                                        i::LookupResult* lookup) {
-  if (!lookup->IsProperty()) {
-    // No real property was found.
-    return Local<Value>();
-  }
-
-  // If the property being looked up is a callback, it can throw
-  // an exception.
-  EXCEPTION_PREAMBLE(isolate);
-  i::LookupIterator it(receiver, name,
-                       i::Handle<i::JSReceiver>(lookup->holder(), isolate),
-                       i::LookupIterator::CHECK_DERIVED_SKIP_INTERCEPTOR);
+static Local<Value> GetPropertyByLookup(i::LookupIterator* it) {
+  // If the property being looked up is a callback, it can throw an exception.
+  EXCEPTION_PREAMBLE(it->isolate());
   i::Handle<i::Object> result;
-  has_pending_exception = !i::Object::GetProperty(&it).ToHandle(&result);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+  has_pending_exception = !i::Object::GetProperty(it).ToHandle(&result);
+  EXCEPTION_BAILOUT_CHECK(it->isolate(), Local<Value>());
 
   return Utils::ToLocal(result);
 }
@@ -3596,9 +3584,11 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupResult lookup(isolate);
-  self_obj->LookupRealNamedPropertyInPrototypes(key_obj, &lookup);
-  return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
+  i::PrototypeIterator iter(isolate, self_obj);
+  if (iter.IsAtEnd()) return Local<Value>();
+  i::LookupIterator it(i::PrototypeIterator::GetCurrent(iter), key_obj,
+                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
+  return GetPropertyByLookup(&it);
 }
 
 
@@ -3609,9 +3599,9 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupResult lookup(isolate);
-  self_obj->LookupRealNamedProperty(key_obj, &lookup);
-  return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
+  i::LookupIterator it(self_obj, key_obj,
+                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
+  return GetPropertyByLookup(&it);
 }
 
 
@@ -4065,15 +4055,16 @@ Handle<Value> Function::GetDisplayName() const {
   i::Handle<i::String> property_name =
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("displayName"));
-  i::LookupResult lookup(isolate);
-  func->LookupRealNamedProperty(property_name, &lookup);
-  if (lookup.IsFound()) {
-    i::Object* value = lookup.GetLazyValue();
-    if (value && value->IsString()) {
-      i::String* name = i::String::cast(value);
-      if (name->length() > 0) return Utils::ToLocal(i::Handle<i::String>(name));
-    }
+  i::LookupIterator it(func, property_name,
+                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
+
+  i::Handle<i::Object> value =
+      i::JSObject::GetDataProperty(func, property_name);
+  if (value->IsString()) {
+    i::Handle<i::String> name = i::Handle<i::String>::cast(value);
+    if (name->length() > 0) return Utils::ToLocal(name);
   }
+
   return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
 }
 
