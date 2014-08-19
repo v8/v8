@@ -11786,7 +11786,7 @@ bool DependentCode::MarkCodeForDeoptimization(
     if (is_code_at(i)) {
       Code* code = code_at(i);
       if (!code->marked_for_deoptimization()) {
-        code->set_marked_for_deoptimization(true);
+        SetMarkedForDeoptimization(code, group);
         marked = true;
       }
     } else {
@@ -11833,6 +11833,51 @@ void DependentCode::AddToDependentICList(Handle<Code> stub) {
   } else {
     stub->set_next_code_link(head);
     set_object_at(i, *stub);
+  }
+}
+
+
+void DependentCode::SetMarkedForDeoptimization(Code* code,
+                                               DependencyGroup group) {
+  code->set_marked_for_deoptimization(true);
+  if (FLAG_trace_deopt &&
+      (code->deoptimization_data() != code->GetHeap()->empty_fixed_array())) {
+    DeoptimizationInputData* deopt_data =
+        DeoptimizationInputData::cast(code->deoptimization_data());
+    CodeTracer::Scope scope(code->GetHeap()->isolate()->GetCodeTracer());
+    PrintF(scope.file(), "[marking dependent code 0x%08" V8PRIxPTR
+                         " (opt #%d) for deoptimization, reason: %s]\n",
+           reinterpret_cast<intptr_t>(code),
+           deopt_data->OptimizationId()->value(), DependencyGroupName(group));
+  }
+}
+
+
+const char* DependentCode::DependencyGroupName(DependencyGroup group) {
+  switch (group) {
+    case kWeakICGroup:
+      return "weak-ic";
+    case kWeakCodeGroup:
+      return "weak-code";
+    case kTransitionGroup:
+      return "transition";
+    case kPrototypeCheckGroup:
+      return "prototype-check";
+    case kElementsCantBeAddedGroup:
+      return "elements-cant-be-added";
+    case kPropertyCellChangedGroup:
+      return "property-cell-changed";
+    case kFieldTypeGroup:
+      return "field-type";
+    case kInitialMapChangedGroup:
+      return "initial-map-changed";
+    case kAllocationSiteTenuringChangedGroup:
+      return "allocation-site-tenuring-changed";
+    case kAllocationSiteTransitionChangedGroup:
+      return "allocation-site-transition-changed";
+    default:
+      UNREACHABLE();
+      return "?";
   }
 }
 

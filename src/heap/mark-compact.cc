@@ -2724,7 +2724,8 @@ void MarkCompactCollector::ClearDependentCode(DependentCode* entries) {
     DCHECK(entries->is_code_at(i));
     Code* code = entries->code_at(i);
     if (IsMarked(code) && !code->marked_for_deoptimization()) {
-      code->set_marked_for_deoptimization(true);
+      DependentCode::SetMarkedForDeoptimization(
+          code, static_cast<DependentCode::DependencyGroup>(g));
       code->InvalidateEmbeddedObjects();
       have_code_to_deoptimize_ = true;
     }

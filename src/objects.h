@@ -6006,6 +6006,9 @@ class DependentCode: public FixedArray {
   static DependentCode* ForObject(Handle<HeapObject> object,
                                   DependencyGroup group);
 
+  static const char* DependencyGroupName(DependencyGroup group);
+  static void SetMarkedForDeoptimization(Code* code, DependencyGroup group);
+
  private:
   // Make a room at the end of the given group by moving out the first
   // code objects of the subsequent groups.
