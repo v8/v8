@@ -4948,7 +4948,7 @@ static bool IsValidAccessor(Handle<Object> obj) {
 // Transform getter or setter into something DefineAccessor can handle.
 static Handle<Object> InstantiateAccessorComponent(Isolate* isolate,
                                                    Handle<Object> component) {
-  if (component->IsUndefined()) return isolate->factory()->null_value();
+  if (component->IsUndefined()) return isolate->factory()->undefined_value();
   Handle<FunctionTemplateInfo> info =
       Handle<FunctionTemplateInfo>::cast(component);
   return Utils::OpenHandle(*Utils::ToLocal(info)->GetFunction());

@@ -840,8 +840,18 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     //                 property.
     // Step 12 - updating an existing accessor property with an accessor
     //           descriptor.
-    var getter = desc.hasGetter() ? desc.getGet() : null;
-    var setter = desc.hasSetter() ? desc.getSet() : null;
+    var getter = null;
+    if (desc.hasGetter()) {
+      getter = desc.getGet();
+    } else if (IsAccessorDescriptor(current) && current.hasGetter()) {
+      getter = current.getGet();
+    }
+    var setter = null;
+    if (desc.hasSetter()) {
+      setter = desc.getSet();
+    } else if (IsAccessorDescriptor(current) && current.hasSetter()) {
+      setter = current.getSet();
+    }
     %DefineAccessorPropertyUnchecked(obj, p, getter, setter, flag);
   }
   return true;

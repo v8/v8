@@ -2724,22 +2724,6 @@ class JSObject: public JSReceiver {
                                     Handle<Object> getter,
                                     Handle<Object> setter,
                                     PropertyAttributes attributes);
-  static Handle<AccessorPair> CreateAccessorPairFor(Handle<JSObject> object,
-                                                    Handle<Name> name);
-  static void DefinePropertyAccessor(Handle<JSObject> object,
-                                     Handle<Name> name,
-                                     Handle<Object> getter,
-                                     Handle<Object> setter,
-                                     PropertyAttributes attributes);
-
-  // Try to define a single accessor paying attention to map transitions.
-  // Returns false if this was not possible and we have to use the slow case.
-  static bool DefineFastAccessor(Handle<JSObject> object,
-                                 Handle<Name> name,
-                                 AccessorComponent component,
-                                 Handle<Object> accessor,
-                                 PropertyAttributes attributes);
-
 
   // Return the hash table backing store or the inline stored identity hash,
   // whatever is found.
@@ -6462,6 +6446,9 @@ class Map: public HeapObject {
                                               Handle<Object> value,
                                               PropertyAttributes attributes,
                                               StoreFromKeyed store_mode);
+  static Handle<Map> TransitionToAccessorProperty(
+      Handle<Map> map, Handle<Name> name, AccessorComponent component,
+      Handle<Object> accessor, PropertyAttributes attributes);
   static Handle<Map> ReconfigureDataProperty(Handle<Map> map, int descriptor,
                                              PropertyAttributes attributes);
 
