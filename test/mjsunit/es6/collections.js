@@ -117,7 +117,8 @@ function TestMapBehavior2(m) {
     TestMapping(m, i / 10, new Object);
     TestMapping(m, 'key-' + i, new Object);
   }
-  var keys = [ +0, -0, +Infinity, -Infinity, true, false, null, undefined ];
+  // -0 is handled in TestMinusZeroMap
+  var keys = [ 0, +Infinity, -Infinity, true, false, null, undefined ];
   for (var i = 0; i < keys.length; i++) {
     TestMapping(m, keys[i], new Object);
   }
@@ -495,24 +496,26 @@ for (var i = 9; i >= 0; i--) {
 
 
 (function TestMinusZeroSet() {
-  var m = new Set();
-  m.add(0);
-  m.add(-0);
-  assertEquals(1, m.size);
-  assertTrue(m.has(0));
-  assertTrue(m.has(-0));
+  var s = new Set();
+  s.add(-0);
+  assertSame(0, s.values().next().value);
+  s.add(0);
+  assertEquals(1, s.size);
+  assertTrue(s.has(0));
+  assertTrue(s.has(-0));
 })();
 
 
 (function TestMinusZeroMap() {
   var m = new Map();
-  m.set(0, 'plus');
   m.set(-0, 'minus');
+  assertSame(0, m.keys().next().value);
+  m.set(0, 'plus');
   assertEquals(1, m.size);
   assertTrue(m.has(0));
   assertTrue(m.has(-0));
-  assertEquals('minus', m.get(0));
-  assertEquals('minus', m.get(-0));
+  assertEquals('plus', m.get(0));
+  assertEquals('plus', m.get(-0));
 })();
 
 

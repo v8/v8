@@ -49,6 +49,13 @@ function SetAddJS(key) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Set.prototype.add', this]);
   }
+  // Normalize -0 to +0 as required by the spec.
+  // Even though we use SameValueZero as the comparison for the keys we don't
+  // want to ever store -0 as the key since the key is directly exposed when
+  // doing iteration.
+  if (key === 0) {
+    key = 0;
+  }
   return %SetAdd(this, key);
 }
 
@@ -185,6 +192,13 @@ function MapSetJS(key, value) {
   if (!IS_MAP(this)) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['Map.prototype.set', this]);
+  }
+  // Normalize -0 to +0 as required by the spec.
+  // Even though we use SameValueZero as the comparison for the keys we don't
+  // want to ever store -0 as the key since the key is directly exposed when
+  // doing iteration.
+  if (key === 0) {
+    key = 0;
   }
   return %MapSet(this, key, value);
 }
