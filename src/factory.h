@@ -164,8 +164,11 @@ class Factory V8_FINAL {
       uint32_t hash_field);
 
   MUST_USE_RESULT Handle<String> NewOneByteInternalizedString(
-        Vector<const uint8_t> str,
-        uint32_t hash_field);
+      Vector<const uint8_t> str, uint32_t hash_field);
+
+  MUST_USE_RESULT Handle<String> NewOneByteInternalizedSubString(
+      Handle<SeqOneByteString> string, int offset, int length,
+      uint32_t hash_field);
 
   MUST_USE_RESULT Handle<String> NewTwoByteInternalizedString(
         Vector<const uc16> str,

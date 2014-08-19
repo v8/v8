@@ -13901,54 +13901,17 @@ Handle<Object> TwoByteStringKey::AsHandle(Isolate* isolate) {
 }
 
 
-template<>
-const uint8_t* SubStringKey<uint8_t>::GetChars() {
-  return string_->IsSeqOneByteString()
-      ? SeqOneByteString::cast(*string_)->GetChars()
-      : ExternalAsciiString::cast(*string_)->GetChars();
-}
-
-
-template<>
-const uint16_t* SubStringKey<uint16_t>::GetChars() {
-  return string_->IsSeqTwoByteString()
-      ? SeqTwoByteString::cast(*string_)->GetChars()
-      : ExternalTwoByteString::cast(*string_)->GetChars();
-}
-
-
-template<>
-Handle<Object> SubStringKey<uint8_t>::AsHandle(Isolate* isolate) {
+Handle<Object> SeqOneByteSubStringKey::AsHandle(Isolate* isolate) {
   if (hash_field_ == 0) Hash();
-  Vector<const uint8_t> chars(GetChars() + from_, length_);
-  return isolate->factory()->NewOneByteInternalizedString(chars, hash_field_);
+  return isolate->factory()->NewOneByteInternalizedSubString(
+      string_, from_, length_, hash_field_);
 }
 
 
-template<>
-Handle<Object> SubStringKey<uint16_t>::AsHandle(Isolate* isolate) {
-  if (hash_field_ == 0) Hash();
-  Vector<const uint16_t> chars(GetChars() + from_, length_);
-  return isolate->factory()->NewTwoByteInternalizedString(chars, hash_field_);
-}
-
-
-template<>
-bool SubStringKey<uint8_t>::IsMatch(Object* string) {
-  Vector<const uint8_t> chars(GetChars() + from_, length_);
+bool SeqOneByteSubStringKey::IsMatch(Object* string) {
+  Vector<const uint8_t> chars(string_->GetChars() + from_, length_);
   return String::cast(string)->IsOneByteEqualTo(chars);
 }
-
-
-template<>
-bool SubStringKey<uint16_t>::IsMatch(Object* string) {
-  Vector<const uint16_t> chars(GetChars() + from_, length_);
-  return String::cast(string)->IsTwoByteEqualTo(chars);
-}
-
-
-template class SubStringKey<uint8_t>;
-template class SubStringKey<uint16_t>;
 
 
 // InternalizedStringKey carries a string/internalized-string object as key.
