@@ -515,6 +515,8 @@
         '../../src/heap-snapshot-generator-inl.h',
         '../../src/heap-snapshot-generator.cc',
         '../../src/heap-snapshot-generator.h',
+        '../../src/heap/gc-idle-time-handler.cc',
+        '../../src/heap/gc-idle-time-handler.h',
         '../../src/heap/gc-tracer.cc',
         '../../src/heap/gc-tracer.h',
         '../../src/heap/heap-inl.h',
