@@ -990,10 +990,13 @@ bool PagedSpace::Expand() {
 
 
 intptr_t PagedSpace::SizeOfFirstPage() {
+  // If using an ool constant pool then transfer the constant pool allowance
+  // from the code space to the old pointer space.
+  static const int constant_pool_delta = FLAG_enable_ool_constant_pool ? 48 : 0;
   int size = 0;
   switch (identity()) {
     case OLD_POINTER_SPACE:
-      size = 112 * kPointerSize * KB;
+      size = (96 + constant_pool_delta) * kPointerSize * KB;
       break;
     case OLD_DATA_SPACE:
       size = 192 * KB;
@@ -1015,9 +1018,9 @@ intptr_t PagedSpace::SizeOfFirstPage() {
         // upgraded to handle small pages.
         size = AreaSize();
       } else {
-        size =
-            RoundUp(480 * KB * FullCodeGenerator::kBootCodeSizeMultiplier / 100,
-                    kPointerSize);
+        size = RoundUp((480 - constant_pool_delta) * KB *
+                           FullCodeGenerator::kBootCodeSizeMultiplier / 100,
+                       kPointerSize);
       }
       break;
     }
