@@ -410,8 +410,6 @@ function SetUpRegExp() {
                                    RegExpSetInput, DONT_DELETE);
   %DefineAccessorPropertyUnchecked($RegExp, '$_', RegExpGetInput,
                                    RegExpSetInput, DONT_ENUM | DONT_DELETE);
-  %DefineAccessorPropertyUnchecked($RegExp, '$input', RegExpGetInput,
-                                   RegExpSetInput, DONT_ENUM | DONT_DELETE);
 
   // The properties multiline and $* are aliases for each other.  When this
   // value is set in SpiderMonkey, the value it is set to is coerced to a
