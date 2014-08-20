@@ -30,8 +30,9 @@ intptr_t GCIdleTimeHandler::EstimateMarkingStepSize(
     return INT_MAX;
   }
 
-  return static_cast<intptr_t>(marking_step_size *
-                               GCIdleTimeHandler::kConservativeTimeRatio);
+  return Min(static_cast<intptr_t>(marking_step_size *
+                                   GCIdleTimeHandler::kConservativeTimeRatio),
+             static_cast<intptr_t>(INT_MAX));
 }
 }
 }
