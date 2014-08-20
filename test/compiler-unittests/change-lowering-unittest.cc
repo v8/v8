@@ -289,6 +289,31 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToInt32) {
 }
 
 
+TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToUint32) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  Node* val = Parameter(0);
+  Node* node = graph()->NewNode(simplified()->ChangeTaggedToUint32(), val);
+  Reduction reduction = Reduce(node);
+  ASSERT_TRUE(reduction.Changed());
+
+  Node* phi = reduction.replacement();
+  Capture<Node*> branch, if_true;
+  EXPECT_THAT(
+      phi,
+      IsPhi(IsTruncateFloat64ToInt32(IsLoad(
+                kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
+                IsControlEffect(CaptureEq(&if_true)))),
+            IsWord32Sar(val, IsInt32Constant(SmiShiftAmount())),
+            IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
+                    IsIfFalse(AllOf(
+                        CaptureEq(&branch),
+                        IsBranch(IsWord32And(val, IsInt32Constant(kSmiTagMask)),
+                                 graph()->start()))))));
+}
+
+
 TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -379,6 +404,32 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToInt32) {
 
   Node* val = Parameter(0);
   Node* node = graph()->NewNode(simplified()->ChangeTaggedToInt32(), val);
+  Reduction reduction = Reduce(node);
+  ASSERT_TRUE(reduction.Changed());
+
+  Node* phi = reduction.replacement();
+  Capture<Node*> branch, if_true;
+  EXPECT_THAT(
+      phi,
+      IsPhi(IsTruncateFloat64ToInt32(IsLoad(
+                kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
+                IsControlEffect(CaptureEq(&if_true)))),
+            IsTruncateInt64ToInt32(
+                IsWord64Sar(val, IsInt32Constant(SmiShiftAmount()))),
+            IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
+                    IsIfFalse(AllOf(
+                        CaptureEq(&branch),
+                        IsBranch(IsWord64And(val, IsInt32Constant(kSmiTagMask)),
+                                 graph()->start()))))));
+}
+
+
+TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToUint32) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  Node* val = Parameter(0);
+  Node* node = graph()->NewNode(simplified()->ChangeTaggedToUint32(), val);
   Reduction reduction = Reduce(node);
   ASSERT_TRUE(reduction.Changed());
 

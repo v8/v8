@@ -26,10 +26,14 @@ class ChangeLowering V8_FINAL : public Reducer {
 
   virtual Reduction Reduce(Node* node) V8_OVERRIDE;
 
- protected:
+ private:
   Node* HeapNumberValueIndexConstant();
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
+
+  Node* AllocateHeapNumberWithValue(Node* value, Node* control);
+  Node* ChangeSmiToInt32(Node* value);
+  Node* LoadHeapNumberValue(Node* value, Node* control);
 
   Reduction ChangeBitToBool(Node* val, Node* control);
   Reduction ChangeBoolToBit(Node* val);
@@ -45,9 +49,6 @@ class ChangeLowering V8_FINAL : public Reducer {
   Linkage* linkage() const { return linkage_; }
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const { return machine_; }
-
- private:
-  Node* AllocateHeapNumberWithValue(Node* value, Node* control);
 
   JSGraph* jsgraph_;
   Linkage* linkage_;

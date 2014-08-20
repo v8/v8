@@ -27,6 +27,11 @@ Reduction ChangeLowering::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToFloat64:
       return ChangeTaggedToFloat64(node->InputAt(0), control);
     case IrOpcode::kChangeTaggedToInt32:
+    case IrOpcode::kChangeTaggedToUint32:
+      // ToInt32 and ToUint32 perform exactly the same operation, just the
+      // interpretation of the resulting 32 bit value is different, so we can
+      // use the same subgraph for both operations.
+      // See ECMA-262 9.5: ToInt32 and ECMA-262 9.6: ToUint32.
       return ChangeTaggedToInt32(node->InputAt(0), control);
     case IrOpcode::kChangeUint32ToTagged:
       return ChangeUint32ToTagged(node->InputAt(0), control);
@@ -70,6 +75,43 @@ Node* ChangeLowering::SmiShiftBitsConstant() {
   STATIC_ASSERT(SmiTagging<8>::kSmiShiftSize == 31);
   const int smi_shift_size = machine()->is64() ? 31 : 0;
   return jsgraph()->Int32Constant(smi_shift_size + kSmiTagSize);
+}
+
+
+Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
+  // The AllocateHeapNumber() runtime function does not use the context, so we
+  // can safely pass in Smi zero here.
+  Node* context = jsgraph()->ZeroConstant();
+  Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
+  const Runtime::Function* function =
+      Runtime::FunctionForId(Runtime::kAllocateHeapNumber);
+  DCHECK_EQ(0, function->nargs);
+  CallDescriptor* desc = linkage()->GetRuntimeCallDescriptor(
+      function->function_id, 0, Operator::kNoProperties);
+  Node* heap_number = graph()->NewNode(
+      common()->Call(desc), jsgraph()->CEntryStubConstant(),
+      jsgraph()->ExternalConstant(ExternalReference(function, isolate())),
+      jsgraph()->Int32Constant(function->nargs), context, effect, control);
+  Node* store = graph()->NewNode(
+      machine()->Store(kMachFloat64, kNoWriteBarrier), heap_number,
+      HeapNumberValueIndexConstant(), value, heap_number, control);
+  return graph()->NewNode(common()->Finish(1), heap_number, store);
+}
+
+
+Node* ChangeLowering::ChangeSmiToInt32(Node* value) {
+  value = graph()->NewNode(machine()->WordSar(), value, SmiShiftBitsConstant());
+  if (machine()->is64()) {
+    value = graph()->NewNode(machine()->TruncateInt64ToInt32(), value);
+  }
+  return value;
+}
+
+
+Node* ChangeLowering::LoadHeapNumberValue(Node* value, Node* control) {
+  return graph()->NewNode(machine()->Load(kMachFloat64), value,
+                          HeapNumberValueIndexConstant(),
+                          graph()->NewNode(common()->ControlEffect(), control));
 }
 
 
@@ -137,18 +179,11 @@ Reduction ChangeLowering::ChangeTaggedToInt32(Node* val, Node* control) {
   Node* branch = graph()->NewNode(common()->Branch(), tag, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* load = graph()->NewNode(
-      machine()->Load(kMachFloat64), val, HeapNumberValueIndexConstant(),
-      graph()->NewNode(common()->ControlEffect(), if_true));
-  Node* change = graph()->NewNode(machine()->TruncateFloat64ToInt32(), load);
+  Node* change = graph()->NewNode(machine()->TruncateFloat64ToInt32(),
+                                  LoadHeapNumberValue(val, if_true));
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* integer =
-      graph()->NewNode(machine()->WordSar(), val, SmiShiftBitsConstant());
-  Node* number =
-      machine()->is64()
-          ? graph()->NewNode(machine()->TruncateInt64ToInt32(), integer)
-          : integer;
+  Node* number = ChangeSmiToInt32(val);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
   Node* phi = graph()->NewNode(common()->Phi(2), change, number, merge);
@@ -166,18 +201,11 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* val, Node* control) {
   Node* branch = graph()->NewNode(common()->Branch(), tag, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* load = graph()->NewNode(
-      machine()->Load(kMachFloat64), val, HeapNumberValueIndexConstant(),
-      graph()->NewNode(common()->ControlEffect(), if_true));
+  Node* load = LoadHeapNumberValue(val, if_true);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* integer =
-      graph()->NewNode(machine()->WordSar(), val, SmiShiftBitsConstant());
-  Node* number = graph()->NewNode(
-      machine()->ChangeInt32ToFloat64(),
-      machine()->is64()
-          ? graph()->NewNode(machine()->TruncateInt64ToInt32(), integer)
-          : integer);
+  Node* number = graph()->NewNode(machine()->ChangeInt32ToFloat64(),
+                                  ChangeSmiToInt32(val));
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
   Node* phi = graph()->NewNode(common()->Phi(2), load, number, merge);
@@ -221,27 +249,6 @@ Graph* ChangeLowering::graph() const { return jsgraph()->graph(); }
 
 CommonOperatorBuilder* ChangeLowering::common() const {
   return jsgraph()->common();
-}
-
-
-Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
-  // The AllocateHeapNumber() runtime function does not use the context, so we
-  // can safely pass in Smi zero here.
-  Node* context = jsgraph()->ZeroConstant();
-  Node* effect = graph()->NewNode(common()->ValueEffect(1), value);
-  const Runtime::Function* function =
-      Runtime::FunctionForId(Runtime::kAllocateHeapNumber);
-  DCHECK_EQ(0, function->nargs);
-  CallDescriptor* desc = linkage()->GetRuntimeCallDescriptor(
-      function->function_id, 0, Operator::kNoProperties);
-  Node* heap_number = graph()->NewNode(
-      common()->Call(desc), jsgraph()->CEntryStubConstant(),
-      jsgraph()->ExternalConstant(ExternalReference(function, isolate())),
-      jsgraph()->Int32Constant(function->nargs), context, effect, control);
-  Node* store = graph()->NewNode(
-      machine()->Store(kMachFloat64, kNoWriteBarrier), heap_number,
-      HeapNumberValueIndexConstant(), value, heap_number, control);
-  return graph()->NewNode(common()->Finish(1), heap_number, store);
 }
 
 }  // namespace compiler
