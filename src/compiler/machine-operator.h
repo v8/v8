@@ -134,6 +134,9 @@ class MachineOperatorBuilder {
   Operator* ChangeInt32ToInt64() { UNOP(ChangeInt32ToInt64); }
   Operator* ChangeUint32ToUint64() { UNOP(ChangeUint32ToUint64); }
 
+  // Truncate double to int32 using JavaScript semantics.
+  Operator* TruncateFloat64ToInt32() { UNOP(TruncateFloat64ToInt32); }
+
   // Truncate the high order bits and convert the remaining bits to int32.
   Operator* TruncateInt64ToInt32() { UNOP(TruncateInt64ToInt32); }
 

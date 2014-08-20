@@ -587,6 +587,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitChangeInt32ToInt64(node);
     case IrOpcode::kChangeUint32ToUint64:
       return VisitChangeUint32ToUint64(node);
+    case IrOpcode::kTruncateFloat64ToInt32:
+      return VisitTruncateFloat64ToInt32(node);
     case IrOpcode::kTruncateInt64ToInt32:
       return VisitTruncateInt64ToInt32(node);
     case IrOpcode::kFloat64Add:
@@ -687,6 +689,13 @@ void InstructionSelector::VisitInt64LessThan(Node* node) {
 void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
   FlagsContinuation cont(kSignedLessThanOrEqual, node);
   VisitWord64Compare(node, &cont);
+}
+
+
+void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchTruncateDoubleToI, g.DefineAsRegister(node),
+       g.UseDoubleRegister(node->InputAt(0)));
 }
 
 

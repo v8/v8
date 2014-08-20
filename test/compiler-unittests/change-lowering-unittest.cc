@@ -263,7 +263,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToInt32) {
   Capture<Node*> branch, if_true;
   EXPECT_THAT(
       phi,
-      IsPhi(IsChangeFloat64ToInt32(IsLoad(
+      IsPhi(IsTruncateFloat64ToInt32(IsLoad(
                 kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                 IsControlEffect(CaptureEq(&if_true)))),
             IsWord32Sar(val, IsInt32Constant(SmiShiftAmount())),
@@ -341,7 +341,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToInt32) {
   Capture<Node*> branch, if_true;
   EXPECT_THAT(
       phi,
-      IsPhi(IsChangeFloat64ToInt32(IsLoad(
+      IsPhi(IsTruncateFloat64ToInt32(IsLoad(
                 kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                 IsControlEffect(CaptureEq(&if_true)))),
             IsTruncateInt64ToInt32(

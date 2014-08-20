@@ -74,6 +74,7 @@ class ArmOperandGenerator V8_FINAL : public OperandGenerator {
       case kArchNop:
       case kArchRet:
       case kArchDeoptimize:
+      case kArchTruncateDoubleToI:
       case kArmMul:
       case kArmMla:
       case kArmMls:

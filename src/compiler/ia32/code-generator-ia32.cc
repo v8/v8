@@ -129,6 +129,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
       break;
     }
+    case kArchTruncateDoubleToI:
+      __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
     case kIA32Add:
       if (HasImmediateInput(instr, 1)) {
         __ add(i.InputOperand(0), i.InputImmediate(1));

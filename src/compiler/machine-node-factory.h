@@ -358,6 +358,9 @@ class MachineNodeFactory {
   Node* ChangeUint32ToUint64(Node* a) {
     return NEW_NODE_1(MACHINE()->ChangeUint32ToUint64(), a);
   }
+  Node* TruncateFloat64ToInt32(Node* a) {
+    return NEW_NODE_1(MACHINE()->TruncateFloat64ToInt32(), a);
+  }
   Node* TruncateInt64ToInt32(Node* a) {
     return NEW_NODE_1(MACHINE()->TruncateInt64ToInt32(), a);
   }

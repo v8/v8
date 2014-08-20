@@ -98,6 +98,7 @@ Matcher<Node*> IsChangeFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeInt32ToFloat64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeInt32ToInt64(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeUint32ToUint64(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsTruncateFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateInt64ToInt32(const Matcher<Node*>& input_matcher);
 
 }  //  namespace compiler

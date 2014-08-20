@@ -124,7 +124,7 @@ Reduction ChangeLowering::ChangeTaggedToInt32(Node* val, Node* control) {
   Node* load = graph()->NewNode(
       machine()->Load(kMachFloat64), val, HeapNumberValueIndexConstant(),
       graph()->NewNode(common()->ControlEffect(), if_true));
-  Node* change = graph()->NewNode(machine()->ChangeFloat64ToInt32(), load);
+  Node* change = graph()->NewNode(machine()->TruncateFloat64ToInt32(), load);
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* integer =

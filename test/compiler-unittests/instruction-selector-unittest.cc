@@ -71,6 +71,10 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
 }
 
 
+// -----------------------------------------------------------------------------
+// Return.
+
+
 TARGET_TEST_F(InstructionSelectorTest, ReturnParameter) {
   StreamBuilder m(this, kMachInt32, kMachInt32);
   m.Return(m.Parameter(0));
@@ -94,6 +98,23 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
   EXPECT_EQ(0, s.ToInt32(s[0]->OutputAt(0)));
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
   EXPECT_EQ(1U, s[1]->InputCount());
+}
+
+
+// -----------------------------------------------------------------------------
+// Conversions.
+
+
+TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToInt32WithParameter) {
+  StreamBuilder m(this, kMachInt32, kMachFloat64);
+  m.Return(m.TruncateFloat64ToInt32(m.Parameter(0)));
+  Stream s = m.Build(kAllInstructions);
+  ASSERT_EQ(3U, s.size());
+  EXPECT_EQ(kArchNop, s[0]->arch_opcode());
+  EXPECT_EQ(kArchTruncateDoubleToI, s[1]->arch_opcode());
+  EXPECT_EQ(1U, s[1]->InputCount());
+  EXPECT_EQ(1U, s[1]->OutputCount());
+  EXPECT_EQ(kArchRet, s[2]->arch_opcode());
 }
 
 }  // namespace compiler

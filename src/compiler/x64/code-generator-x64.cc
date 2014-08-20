@@ -222,6 +222,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
       break;
     }
+    case kArchTruncateDoubleToI:
+      __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
     case kX64Add32:
       ASSEMBLE_BINOP(addl);
       break;
