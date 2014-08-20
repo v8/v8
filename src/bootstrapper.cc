@@ -2447,11 +2447,10 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           break;
         }
         case CALLBACKS: {
-          LookupResult result(isolate());
-          Handle<Name> key(Name::cast(descs->GetKey(i)), isolate());
-          to->LookupOwn(key, &result);
+          Handle<Name> key(descs->GetKey(i));
+          LookupIterator it(to, key, LookupIterator::CHECK_PROPERTY);
           // If the property is already there we skip it
-          if (result.IsFound()) continue;
+          if (it.IsFound() && it.HasProperty()) continue;
           HandleScope inner(isolate());
           DCHECK(!to->HasFastProperties());
           // Add to dictionary.
@@ -2480,10 +2479,9 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       if (properties->IsKey(raw_key)) {
         DCHECK(raw_key->IsName());
         // If the property is already there we skip it.
-        LookupResult result(isolate());
         Handle<Name> key(Name::cast(raw_key));
-        to->LookupOwn(key, &result);
-        if (result.IsFound()) continue;
+        LookupIterator it(to, key, LookupIterator::CHECK_PROPERTY);
+        if (it.IsFound() && it.HasProperty()) continue;
         // Set the property.
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
                                               isolate());

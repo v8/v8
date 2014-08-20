@@ -6192,8 +6192,9 @@ class HObjectAccess V8_FINAL {
       Representation representation = Representation::Tagged());
 
   // Create an access to a resolved field (in-object or backing store).
-  static HObjectAccess ForField(Handle<Map> map,
-      LookupResult *lookup, Handle<String> name = Handle<String>::null());
+  static HObjectAccess ForField(Handle<Map> map, int index,
+                                Representation representation,
+                                Handle<String> name);
 
   // Create an access for the payload of a Cell or JSGlobalPropertyCell.
   static HObjectAccess ForCellPayload(Isolate* isolate);

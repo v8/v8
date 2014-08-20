@@ -278,11 +278,10 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
   }
 
   if (receiver->IsGlobalObject()) {
-    LookupResult lookup(isolate());
-    GlobalObject* global = GlobalObject::cast(*receiver);
-    global->LookupOwnRealNamedProperty(name, &lookup);
-    if (!lookup.IsFound()) return false;
-    PropertyCell* cell = global->GetPropertyCell(&lookup);
+    Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
+    LookupIterator it(global, name, LookupIterator::CHECK_PROPERTY);
+    if (!it.IsFound() || !it.HasProperty()) return false;
+    Handle<PropertyCell> cell = it.GetPropertyCell();
     return cell->type()->IsConstant();
   }
 

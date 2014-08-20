@@ -5977,7 +5977,9 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
 
   if (lookup_.IsField()) {
     // Construct the object field access.
-    access_ = HObjectAccess::ForField(map, &lookup_, name_);
+    int index = lookup_.GetLocalFieldIndexFromMap(*map);
+    Representation representation = lookup_.representation();
+    access_ = HObjectAccess::ForField(map, index, representation, name_);
 
     // Load field map for heap objects.
     LoadFieldMaps(map);
@@ -6087,7 +6089,14 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
   map->LookupTransition(NULL, *name_, &lookup_);
   if (lookup_.IsTransitionToField() && map->unused_property_fields() > 0) {
     // Construct the object field access.
-    access_ = HObjectAccess::ForField(map, &lookup_, name_);
+    int descriptor = transition()->LastAdded();
+    int index =
+        transition()->instance_descriptors()->GetFieldIndex(descriptor) -
+        map->inobject_properties();
+    PropertyDetails details =
+        transition()->instance_descriptors()->GetDetails(descriptor);
+    Representation representation = details.representation();
+    access_ = HObjectAccess::ForField(map, index, representation, name_);
 
     // Load field map for heap objects.
     LoadFieldMaps(transition());
