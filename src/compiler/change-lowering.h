@@ -28,6 +28,7 @@ class ChangeLowering V8_FINAL : public Reducer {
 
  protected:
   Node* HeapNumberValueIndexConstant();
+  Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
 
   Reduction ChangeBitToBool(Node* val, Node* control);
@@ -36,6 +37,7 @@ class ChangeLowering V8_FINAL : public Reducer {
   Reduction ChangeInt32ToTagged(Node* val, Node* control);
   Reduction ChangeTaggedToFloat64(Node* val, Node* control);
   Reduction ChangeTaggedToInt32(Node* val, Node* control);
+  Reduction ChangeUint32ToTagged(Node* val, Node* control);
 
   Graph* graph() const;
   Isolate* isolate() const;

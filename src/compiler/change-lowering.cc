@@ -28,6 +28,8 @@ Reduction ChangeLowering::Reduce(Node* node) {
       return ChangeTaggedToFloat64(node->InputAt(0), control);
     case IrOpcode::kChangeTaggedToInt32:
       return ChangeTaggedToInt32(node->InputAt(0), control);
+    case IrOpcode::kChangeUint32ToTagged:
+      return ChangeUint32ToTagged(node->InputAt(0), control);
     default:
       return NoChange();
   }
@@ -41,6 +43,20 @@ Node* ChangeLowering::HeapNumberValueIndexConstant() {
   const int heap_number_value_offset =
       ((HeapNumber::kValueOffset / kPointerSize) * (machine()->is64() ? 8 : 4));
   return jsgraph()->Int32Constant(heap_number_value_offset - kHeapObjectTag);
+}
+
+
+Node* ChangeLowering::SmiMaxValueConstant() {
+  // TODO(turbofan): Work-around for weird GCC 4.6 linker issue:
+  // src/compiler/change-lowering.cc:46: undefined reference to
+  // `v8::internal::SmiTagging<4u>::kSmiValueSize'
+  // src/compiler/change-lowering.cc:46: undefined reference to
+  // `v8::internal::SmiTagging<8u>::kSmiValueSize'
+  STATIC_ASSERT(SmiTagging<4>::kSmiValueSize == 31);
+  STATIC_ASSERT(SmiTagging<8>::kSmiValueSize == 32);
+  const int smi_value_size = machine()->is64() ? 32 : 31;
+  return jsgraph()->Int32Constant(
+      -(static_cast<int>(0xffffffffu << (smi_value_size - 1)) + 1));
 }
 
 
@@ -165,6 +181,33 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* val, Node* control) {
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
   Node* phi = graph()->NewNode(common()->Phi(2), load, number, merge);
+
+  return Replace(phi);
+}
+
+
+Reduction ChangeLowering::ChangeUint32ToTagged(Node* val, Node* control) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagMask == 1);
+
+  Node* cmp = graph()->NewNode(machine()->Uint32LessThanOrEqual(), val,
+                               SmiMaxValueConstant());
+  Node* branch = graph()->NewNode(common()->Branch(), cmp, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* smi = graph()->NewNode(
+      machine()->WordShl(),
+      machine()->is64()
+          ? graph()->NewNode(machine()->ChangeUint32ToUint64(), val)
+          : val,
+      SmiShiftBitsConstant());
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* heap_number = AllocateHeapNumberWithValue(
+      graph()->NewNode(machine()->ChangeUint32ToFloat64(), val), if_false);
+
+  Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* phi = graph()->NewNode(common()->Phi(2), smi, heap_number, merge);
 
   return Replace(phi);
 }
