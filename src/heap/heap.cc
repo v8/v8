@@ -4265,8 +4265,10 @@ void Heap::MakeHeapIterable() {
 
 
 void Heap::AdvanceIdleIncrementalMarking(int idle_time_in_ms) {
-  intptr_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-      idle_time_in_ms, tracer_.IncrementalMarkingSpeedInBytesPerMillisecond());
+  intptr_t step_size =
+      static_cast<size_t>(GCIdleTimeHandler::EstimateMarkingStepSize(
+          idle_time_in_ms,
+          tracer_.IncrementalMarkingSpeedInBytesPerMillisecond()));
 
   incremental_marking()->Step(step_size,
                               IncrementalMarking::NO_GC_VIA_STACK_GUARD, true);

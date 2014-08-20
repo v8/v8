@@ -2738,6 +2738,9 @@ void PagedSpace::ReportStatistics() {
          Capacity(), Waste(), Available(), pct);
 
   if (!swept_precisely_) return;
+  if (heap()->mark_compact_collector()->sweeping_in_progress()) {
+    heap()->mark_compact_collector()->EnsureSweepingCompleted();
+  }
   ClearHistograms(heap()->isolate());
   HeapObjectIterator obj_it(this);
   for (HeapObject* obj = obj_it.Next(); obj != NULL; obj = obj_it.Next())

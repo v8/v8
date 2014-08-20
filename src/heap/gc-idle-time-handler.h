@@ -14,12 +14,15 @@ namespace internal {
 // operations are executing during IdleNotification.
 class GCIdleTimeHandler {
  public:
-  static intptr_t EstimateMarkingStepSize(
-      int idle_time_in_ms, intptr_t marking_speed_in_bytes_per_ms);
+  static size_t EstimateMarkingStepSize(size_t idle_time_in_ms,
+                                        size_t marking_speed_in_bytes_per_ms);
 
   // If we haven't recorded any incremental marking events yet, we carefully
   // mark with a conservative lower bound for the marking speed.
-  static const intptr_t kInitialConservativeMarkingSpeed = 100 * KB;
+  static const size_t kInitialConservativeMarkingSpeed = 100 * KB;
+
+  // Maximum marking step size returned by EstimateMarkingStepSize.
+  static const size_t kMaximumMarkingStepSize = 700 * MB;
 
   // We have to make sure that we finish the IdleNotification before
   // idle_time_in_ms. Hence, we conservatively prune our workload estimate.
