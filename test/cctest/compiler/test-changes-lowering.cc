@@ -27,16 +27,14 @@ using namespace v8::internal::compiler;
 template <typename ReturnType>
 class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
  public:
-  explicit ChangesLoweringTester(MachineType p0 = kMachineLast)
+  explicit ChangesLoweringTester(MachineType p0 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0),
         typer(this->zone()),
-        source_positions(this->graph()),
         jsgraph(this->graph(), this->common(), &typer),
-        lowering(&jsgraph, &source_positions),
+        lowering(&jsgraph),
         function(Handle<JSFunction>::null()) {}
 
   Typer typer;
-  SourcePositionTable source_positions;
   JSGraph jsgraph;
   SimplifiedLowering lowering;
   Handle<JSFunction> function;
@@ -61,6 +59,9 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
       CHECK(Rewriter::Rewrite(&info));
       CHECK(Scope::Analyze(&info));
       CHECK_NE(NULL, info.scope());
+      Handle<ScopeInfo> scope_info =
+          ScopeInfo::Create(info.scope(), info.zone());
+      info.shared_info()->set_scope_info(*scope_info);
       Pipeline pipeline(&info);
       Linkage linkage(&info);
       Handle<Code> code =
@@ -77,22 +78,22 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
 
   void StoreFloat64(Node* node, double* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    this->Store(kMachineFloat64, ptr_node, node);
+    this->Store(kMachFloat64, ptr_node, node);
   }
 
   Node* LoadInt32(int32_t* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    return this->Load(kMachineWord32, ptr_node);
+    return this->Load(kMachInt32, ptr_node);
   }
 
   Node* LoadUint32(uint32_t* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    return this->Load(kMachineWord32, ptr_node);
+    return this->Load(kMachUint32, ptr_node);
   }
 
   Node* LoadFloat64(double* ptr) {
     Node* ptr_node = this->PointerConstant(ptr);
-    return this->Load(kMachineFloat64, ptr_node);
+    return this->Load(kMachFloat64, ptr_node);
   }
 
   void CheckNumber(double expected, Object* number) {
@@ -150,7 +151,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
 
 TEST(RunChangeTaggedToInt32) {
   // Build and lower a graph by hand.
-  ChangesLoweringTester<int32_t> t(kMachineTagged);
+  ChangesLoweringTester<int32_t> t(kMachAnyTagged);
   t.BuildAndLower(t.simplified()->ChangeTaggedToInt32());
 
   if (Pipeline::SupportedTarget()) {
@@ -180,7 +181,7 @@ TEST(RunChangeTaggedToInt32) {
 
 TEST(RunChangeTaggedToUint32) {
   // Build and lower a graph by hand.
-  ChangesLoweringTester<uint32_t> t(kMachineTagged);
+  ChangesLoweringTester<uint32_t> t(kMachAnyTagged);
   t.BuildAndLower(t.simplified()->ChangeTaggedToUint32());
 
   if (Pipeline::SupportedTarget()) {
@@ -209,11 +210,11 @@ TEST(RunChangeTaggedToUint32) {
 
 
 TEST(RunChangeTaggedToFloat64) {
-  ChangesLoweringTester<int32_t> t(kMachineTagged);
+  ChangesLoweringTester<int32_t> t(kMachAnyTagged);
   double result;
 
   t.BuildStoreAndLower(t.simplified()->ChangeTaggedToFloat64(),
-                       t.machine()->Store(kMachineFloat64, kNoWriteBarrier),
+                       t.machine()->Store(kMachFloat64, kNoWriteBarrier),
                        &result);
 
   if (Pipeline::SupportedTarget()) {
@@ -259,7 +260,7 @@ TEST(RunChangeTaggedToFloat64) {
 
 
 TEST(RunChangeBoolToBit) {
-  ChangesLoweringTester<int32_t> t(kMachineTagged);
+  ChangesLoweringTester<int32_t> t(kMachAnyTagged);
   t.BuildAndLower(t.simplified()->ChangeBoolToBit());
 
   if (Pipeline::SupportedTarget()) {
@@ -277,7 +278,7 @@ TEST(RunChangeBoolToBit) {
 
 
 TEST(RunChangeBitToBool) {
-  ChangesLoweringTester<Object*> t(kMachineWord32);
+  ChangesLoweringTester<Object*> t(kMachInt32);
   t.BuildAndLower(t.simplified()->ChangeBitToBool());
 
   if (Pipeline::SupportedTarget()) {
@@ -312,7 +313,7 @@ TEST(RunChangeInt32ToTagged) {
   ChangesLoweringTester<Object*> t;
   int32_t input;
   t.BuildLoadAndLower(t.simplified()->ChangeInt32ToTagged(),
-                      t.machine()->Load(kMachineWord32), &input);
+                      t.machine()->Load(kMachInt32), &input);
 
   if (Pipeline::SupportedTarget()) {
     FOR_INT32_INPUTS(i) {
@@ -341,7 +342,7 @@ TEST(RunChangeUint32ToTagged) {
   ChangesLoweringTester<Object*> t;
   uint32_t input;
   t.BuildLoadAndLower(t.simplified()->ChangeUint32ToTagged(),
-                      t.machine()->Load(kMachineWord32), &input);
+                      t.machine()->Load(kMachUint32), &input);
 
   if (Pipeline::SupportedTarget()) {
     FOR_UINT32_INPUTS(i) {
@@ -375,7 +376,7 @@ TEST(RunChangeFloat64ToTagged) {
   ChangesLoweringTester<Object*> t;
   double input;
   t.BuildLoadAndLower(t.simplified()->ChangeFloat64ToTagged(),
-                      t.machine()->Load(kMachineFloat64), &input);
+                      t.machine()->Load(kMachFloat64), &input);
 
   // TODO(titzer): need inline allocation to change float to tagged.
   if (TODO_FLOAT64_TO_TAGGED && Pipeline::SupportedTarget()) {

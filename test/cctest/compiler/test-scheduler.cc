@@ -71,7 +71,7 @@ TEST(RPODegenerate1) {
 
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 1, false);
-  CHECK_EQ(schedule.entry(), order->at(0));
+  CHECK_EQ(schedule.start(), order->at(0));
 }
 
 
@@ -79,11 +79,11 @@ TEST(RPODegenerate2) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  schedule.AddGoto(schedule.entry(), schedule.exit());
+  schedule.AddGoto(schedule.start(), schedule.end());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 2, false);
-  CHECK_EQ(schedule.entry(), order->at(0));
-  CHECK_EQ(schedule.exit(), order->at(1));
+  CHECK_EQ(schedule.start(), order->at(0));
+  CHECK_EQ(schedule.end(), order->at(1));
 }
 
 
@@ -93,7 +93,7 @@ TEST(RPOLine) {
   for (int i = 0; i < 10; i++) {
     Schedule schedule(scope.main_zone());
 
-    BasicBlock* last = schedule.entry();
+    BasicBlock* last = schedule.start();
     for (int j = 0; j < i; j++) {
       BasicBlock* block = schedule.NewBasicBlock();
       schedule.AddGoto(last, block);
@@ -117,10 +117,10 @@ TEST(RPOLine) {
 TEST(RPOSelfLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
-  schedule.AddSuccessor(schedule.entry(), schedule.entry());
+  schedule.AddSuccessor(schedule.start(), schedule.start());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 1, true);
-  BasicBlock* loop[] = {schedule.entry()};
+  BasicBlock* loop[] = {schedule.start()};
   CheckLoopContains(loop, 1);
 }
 
@@ -128,11 +128,11 @@ TEST(RPOSelfLoop) {
 TEST(RPOEntryLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
-  schedule.AddSuccessor(schedule.entry(), schedule.exit());
-  schedule.AddSuccessor(schedule.exit(), schedule.entry());
+  schedule.AddSuccessor(schedule.start(), schedule.end());
+  schedule.AddSuccessor(schedule.end(), schedule.start());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 2, true);
-  BasicBlock* loop[] = {schedule.entry(), schedule.exit()};
+  BasicBlock* loop[] = {schedule.start(), schedule.end()};
   CheckLoopContains(loop, 2);
 }
 
@@ -141,7 +141,7 @@ TEST(RPOEndLoop) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
-  schedule.AddSuccessor(schedule.entry(), loop1->header());
+  schedule.AddSuccessor(schedule.start(), loop1->header());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 3, true);
   CheckLoopContains(loop1->nodes, loop1->count);
@@ -152,8 +152,8 @@ TEST(RPOEndLoopNested) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 2));
-  schedule.AddSuccessor(schedule.entry(), loop1->header());
-  schedule.AddSuccessor(loop1->last(), schedule.entry());
+  schedule.AddSuccessor(schedule.start(), loop1->header());
+  schedule.AddSuccessor(loop1->last(), schedule.start());
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 3, true);
   CheckLoopContains(loop1->nodes, loop1->count);
@@ -164,10 +164,10 @@ TEST(RPODiamond) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.exit();
+  BasicBlock* D = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(A, C);
@@ -188,10 +188,10 @@ TEST(RPOLoop1) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.exit();
+  BasicBlock* D = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, C);
@@ -209,10 +209,10 @@ TEST(RPOLoop2) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.exit();
+  BasicBlock* D = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, C);
@@ -231,13 +231,13 @@ TEST(RPOLoopN) {
 
   for (int i = 0; i < 11; i++) {
     Schedule schedule(scope.main_zone());
-    BasicBlock* A = schedule.entry();
+    BasicBlock* A = schedule.start();
     BasicBlock* B = schedule.NewBasicBlock();
     BasicBlock* C = schedule.NewBasicBlock();
     BasicBlock* D = schedule.NewBasicBlock();
     BasicBlock* E = schedule.NewBasicBlock();
     BasicBlock* F = schedule.NewBasicBlock();
-    BasicBlock* G = schedule.exit();
+    BasicBlock* G = schedule.end();
 
     schedule.AddSuccessor(A, B);
     schedule.AddSuccessor(B, C);
@@ -273,12 +273,12 @@ TEST(RPOLoopNest1) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
   BasicBlock* D = schedule.NewBasicBlock();
   BasicBlock* E = schedule.NewBasicBlock();
-  BasicBlock* F = schedule.exit();
+  BasicBlock* F = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, C);
@@ -302,14 +302,14 @@ TEST(RPOLoopNest2) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
   BasicBlock* D = schedule.NewBasicBlock();
   BasicBlock* E = schedule.NewBasicBlock();
   BasicBlock* F = schedule.NewBasicBlock();
   BasicBlock* G = schedule.NewBasicBlock();
-  BasicBlock* H = schedule.exit();
+  BasicBlock* H = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, C);
@@ -343,8 +343,8 @@ TEST(RPOLoopFollow1) {
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 1));
   SmartPointer<TestLoop> loop2(CreateLoop(&schedule, 1));
 
-  BasicBlock* A = schedule.entry();
-  BasicBlock* E = schedule.exit();
+  BasicBlock* A = schedule.start();
+  BasicBlock* E = schedule.end();
 
   schedule.AddSuccessor(A, loop1->header());
   schedule.AddSuccessor(loop1->header(), loop2->header());
@@ -367,9 +367,9 @@ TEST(RPOLoopFollow2) {
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 1));
   SmartPointer<TestLoop> loop2(CreateLoop(&schedule, 1));
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* S = schedule.NewBasicBlock();
-  BasicBlock* E = schedule.exit();
+  BasicBlock* E = schedule.end();
 
   schedule.AddSuccessor(A, loop1->header());
   schedule.AddSuccessor(loop1->header(), S);
@@ -394,8 +394,8 @@ TEST(RPOLoopFollowN) {
       Schedule schedule(scope.main_zone());
       SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
       SmartPointer<TestLoop> loop2(CreateLoop(&schedule, size));
-      BasicBlock* A = schedule.entry();
-      BasicBlock* E = schedule.exit();
+      BasicBlock* A = schedule.start();
+      BasicBlock* E = schedule.end();
 
       schedule.AddSuccessor(A, loop1->header());
       schedule.AddSuccessor(loop1->nodes[exit], loop2->header());
@@ -418,10 +418,10 @@ TEST(RPONestedLoopFollow1) {
   SmartPointer<TestLoop> loop1(CreateLoop(&schedule, 1));
   SmartPointer<TestLoop> loop2(CreateLoop(&schedule, 1));
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* E = schedule.exit();
+  BasicBlock* E = schedule.end();
 
   schedule.AddSuccessor(A, B);
   schedule.AddSuccessor(B, loop1->header());
@@ -450,8 +450,8 @@ TEST(RPOLoopBackedges1) {
   for (int i = 0; i < size; i++) {
     for (int j = 0; j < size; j++) {
       Schedule schedule(scope.main_zone());
-      BasicBlock* A = schedule.entry();
-      BasicBlock* E = schedule.exit();
+      BasicBlock* A = schedule.start();
+      BasicBlock* E = schedule.end();
 
       SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
       schedule.AddSuccessor(A, loop1->header());
@@ -475,9 +475,9 @@ TEST(RPOLoopOutedges1) {
   for (int i = 0; i < size; i++) {
     for (int j = 0; j < size; j++) {
       Schedule schedule(scope.main_zone());
-      BasicBlock* A = schedule.entry();
+      BasicBlock* A = schedule.start();
       BasicBlock* D = schedule.NewBasicBlock();
-      BasicBlock* E = schedule.exit();
+      BasicBlock* E = schedule.end();
 
       SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
       schedule.AddSuccessor(A, loop1->header());
@@ -501,8 +501,8 @@ TEST(RPOLoopOutedges2) {
   int size = 8;
   for (int i = 0; i < size; i++) {
     Schedule schedule(scope.main_zone());
-    BasicBlock* A = schedule.entry();
-    BasicBlock* E = schedule.exit();
+    BasicBlock* A = schedule.start();
+    BasicBlock* E = schedule.end();
 
     SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
     schedule.AddSuccessor(A, loop1->header());
@@ -527,8 +527,8 @@ TEST(RPOLoopOutloops1) {
   int size = 8;
   for (int i = 0; i < size; i++) {
     Schedule schedule(scope.main_zone());
-    BasicBlock* A = schedule.entry();
-    BasicBlock* E = schedule.exit();
+    BasicBlock* A = schedule.start();
+    BasicBlock* E = schedule.end();
     SmartPointer<TestLoop> loop1(CreateLoop(&schedule, size));
     schedule.AddSuccessor(A, loop1->header());
     schedule.AddSuccessor(loop1->last(), E);
@@ -557,10 +557,10 @@ TEST(RPOLoopMultibackedge) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());
 
-  BasicBlock* A = schedule.entry();
+  BasicBlock* A = schedule.start();
   BasicBlock* B = schedule.NewBasicBlock();
   BasicBlock* C = schedule.NewBasicBlock();
-  BasicBlock* D = schedule.exit();
+  BasicBlock* D = schedule.end();
   BasicBlock* E = schedule.NewBasicBlock();
 
   schedule.AddSuccessor(A, B);
@@ -1536,7 +1536,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  MachineOperatorBuilder machine_builder(scope.main_zone(), kMachineWord32);
+  MachineOperatorBuilder machine_builder(scope.main_zone());
   Operator* op;
 
   Handle<Object> object =

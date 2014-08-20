@@ -268,6 +268,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Sar32:
       ASSEMBLE_SHIFT(Asr, 32);
       break;
+    case kArm64Ror:
+      ASSEMBLE_SHIFT(Ror, 64);
+      break;
+    case kArm64Ror32:
+      ASSEMBLE_SHIFT(Ror, 32);
+      break;
+    case kArm64Mov32:
+      __ Mov(i.OutputRegister32(), i.InputRegister32(0));
+      break;
+    case kArm64Sxtw:
+      __ Sxtw(i.OutputRegister(), i.InputRegister32(0));
+      break;
     case kArm64CallCodeObject: {
       if (instr->InputAt(0)->IsImmediate()) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
@@ -377,14 +389,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                        0, 2);
       break;
     }
-    case kArm64Int32ToInt64:
-      __ Sxtw(i.OutputRegister(), i.InputRegister(0));
-      break;
-    case kArm64Int64ToInt32:
-      if (!i.OutputRegister().is(i.InputRegister(0))) {
-        __ Mov(i.OutputRegister(), i.InputRegister(0));
-      }
-      break;
     case kArm64Float64ToInt32:
       __ Fcvtzs(i.OutputRegister32(), i.InputDoubleRegister(0));
       break;
@@ -831,23 +835,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 void CodeGenerator::AddNopForSmiCodeInlining() { __ movz(xzr, 0); }
 
 #undef __
-
-#if DEBUG
-
-// Checks whether the code between start_pc and end_pc is a no-op.
-bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
-                                            int end_pc) {
-  if (start_pc + 4 != end_pc) {
-    return false;
-  }
-  Address instr_address = code->instruction_start() + start_pc;
-
-  v8::internal::Instruction* instr =
-      reinterpret_cast<v8::internal::Instruction*>(instr_address);
-  return instr->IsMovz() && instr->Rd() == xzr.code() && instr->SixtyFourBits();
-}
-
-#endif  // DEBUG
 
 }  // namespace compiler
 }  // namespace internal

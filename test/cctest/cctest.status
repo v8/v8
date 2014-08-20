@@ -75,17 +75,13 @@
   # BUG(2999). (test/cpu-profiler/CollectCpuProfile)
   # BUG(3287). (test-cpu-profiler/SampleWhenFrameIsNotSetup)
   'test-cpu-profiler/*': [PASS, FLAKY],
+  'test-cpu-profiler/*': [SKIP],
 
   ##############################################################################
   # TurboFan compiler failures.
 
   # TODO(mstarzinger): These need investigation and are not categorized yet.
-  'test-cpu-profiler/*': [SKIP],
   'test-heap/NextCodeLinkIsWeak': [PASS, NO_VARIANTS],
-
-  # TODO(mstarzinger/verwaest): This access check API is borked.
-  'test-api/TurnOnAccessCheck': [PASS, NO_VARIANTS],
-  'test-api/TurnOnAccessCheckAndRecompile': [PASS, NO_VARIANTS],
 
   # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
   'test-debug/DebugEvaluateWithoutStack': [PASS, NO_VARIANTS],
@@ -100,7 +96,6 @@
 
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
-  'test-api/RequestInterruptTestWithMathAbs': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, NO_VARIANTS],
   'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],

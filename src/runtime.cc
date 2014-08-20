@@ -608,6 +608,17 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_CreatePrivateOwnSymbol) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
+  RUNTIME_ASSERT(name->IsString() || name->IsUndefined());
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateOwnSymbol();
+  if (name->IsString()) symbol->set_name(*name);
+  return *symbol;
+}
+
+
 RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
@@ -1969,7 +1980,7 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
     }
   } else {
     // Get attributes.
-    LookupIterator it(obj, name, LookupIterator::CHECK_OWN);
+    LookupIterator it(obj, name, LookupIterator::CHECK_HIDDEN);
     Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
     if (!maybe.has_value) return MaybeHandle<Object>();
     attrs = maybe.value;
@@ -2148,7 +2159,7 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<GlobalObject> global,
                               PropertyAttributes attr, bool is_var,
                               bool is_const, bool is_function) {
   // Do the lookup own properties only, see ES5 erratum.
-  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN);
+  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN_PROPERTY);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   PropertyAttributes old_attributes = maybe.value;
@@ -2278,7 +2289,7 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   Handle<GlobalObject> global = isolate->global_object();
 
   // Lookup the property as own on the global object.
-  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN);
+  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN_PROPERTY);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   PropertyAttributes old_attributes = maybe.value;
@@ -2428,7 +2439,7 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
     // code can run in between that modifies the declared property.
     DCHECK(holder->IsJSGlobalObject() || holder->IsJSContextExtensionObject());
 
-    LookupIterator it(holder, name, LookupIterator::CHECK_HIDDEN);
+    LookupIterator it(holder, name, LookupIterator::CHECK_HIDDEN_PROPERTY);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     if (!maybe.has_value) return isolate->heap()->exception();
     PropertyAttributes old_attributes = maybe.value;
@@ -5031,8 +5042,6 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
         isolate, result,
         JSObject::SetOwnPropertyIgnoreAttributes(
             js_object, name, obj_value, attr,
-            JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
-            JSReceiver::MAY_BE_STORE_FROM_KEYED,
             JSObject::DONT_FORCE_FIELD));
     return *result;
   }
@@ -5040,9 +5049,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
-      Runtime::DefineObjectProperty(
-          js_object, name, obj_value, attr,
-          JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED));
+      Runtime::DefineObjectProperty(js_object, name, obj_value, attr));
   return *result;
 }
 
@@ -5154,12 +5161,10 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
 }
 
 
-MaybeHandle<Object> Runtime::DefineObjectProperty(
-    Handle<JSObject> js_object,
-    Handle<Object> key,
-    Handle<Object> value,
-    PropertyAttributes attr,
-    JSReceiver::StoreFromKeyed store_from_keyed) {
+MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
+                                                  Handle<Object> key,
+                                                  Handle<Object> value,
+                                                  PropertyAttributes attr) {
   Isolate* isolate = js_object->GetIsolate();
   // Check if the given key is an array index.
   uint32_t index;
@@ -5186,9 +5191,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
                                   SLOPPY, false, DEFINE_PROPERTY);
     } else {
       if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
-      return JSObject::SetOwnPropertyIgnoreAttributes(
-          js_object, name, value, attr, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
-          store_from_keyed);
+      return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
+                                                      attr);
     }
   }
 
@@ -5202,9 +5206,8 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(
     return JSObject::SetElement(js_object, index, value, attr,
                                 SLOPPY, false, DEFINE_PROPERTY);
   } else {
-    return JSObject::SetOwnPropertyIgnoreAttributes(
-        js_object, name, value, attr, JSReceiver::PERFORM_EXTENSIBILITY_CHECK,
-        store_from_keyed);
+    return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
+                                                    attr);
   }
 }
 
@@ -5274,7 +5277,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
 #ifdef DEBUG
   uint32_t index = 0;
   DCHECK(!key->ToArrayIndex(&index));
-  LookupIterator it(object, key, LookupIterator::CHECK_OWN_REAL);
+  LookupIterator it(object, key, LookupIterator::CHECK_PROPERTY);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   RUNTIME_ASSERT(!it.IsFound());
@@ -5306,7 +5309,7 @@ RUNTIME_FUNCTION(Runtime_AddPropertyForTemplate) {
   bool duplicate;
   if (key->IsName()) {
     LookupIterator it(object, Handle<Name>::cast(key),
-                      LookupIterator::CHECK_OWN_REAL);
+                      LookupIterator::CHECK_PROPERTY);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     DCHECK(maybe.has_value);
     duplicate = it.IsFound();
@@ -5484,7 +5487,7 @@ RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  isolate->debug()->PushPromise(promise);
+  isolate->PushPromise(promise);
   return isolate->heap()->undefined_value();
 }
 
@@ -5492,7 +5495,7 @@ RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
 RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   DCHECK(args.length() == 0);
   SealHandleScope shs(isolate);
-  isolate->debug()->PopPromise();
+  isolate->PopPromise();
   return isolate->heap()->undefined_value();
 }
 
@@ -10530,10 +10533,10 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
     Handle<FixedArrayBase> storage =
         isolate->factory()->NewFixedDoubleArray(estimate_result_length);
     int j = 0;
+    bool failure = false;
     if (estimate_result_length > 0) {
       Handle<FixedDoubleArray> double_storage =
           Handle<FixedDoubleArray>::cast(storage);
-      bool failure = false;
       for (int i = 0; i < argument_count; i++) {
         Handle<Object> obj(elements->get(i), isolate);
         if (obj->IsSmi()) {
@@ -10554,6 +10557,11 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
                   FixedDoubleArray::cast(array->elements());
               for (uint32_t i = 0; i < length; i++) {
                 if (elements->is_the_hole(i)) {
+                  // TODO(jkummerow/verwaest): We could be a bit more clever
+                  // here: Check if there are no elements/getters on the
+                  // prototype chain, and if so, allow creation of a holey
+                  // result array.
+                  // Same thing below (holey smi case).
                   failure = true;
                   break;
                 }
@@ -10580,6 +10588,7 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
               break;
             }
             case FAST_HOLEY_ELEMENTS:
+            case FAST_ELEMENTS:
               DCHECK_EQ(0, length);
               break;
             default:
@@ -10589,14 +10598,17 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
         if (failure) break;
       }
     }
-    Handle<JSArray> array = isolate->factory()->NewJSArray(0);
-    Smi* length = Smi::FromInt(j);
-    Handle<Map> map;
-    map = JSObject::GetElementsTransitionMap(array, kind);
-    array->set_map(*map);
-    array->set_length(length);
-    array->set_elements(*storage);
-    return *array;
+    if (!failure) {
+      Handle<JSArray> array = isolate->factory()->NewJSArray(0);
+      Smi* length = Smi::FromInt(j);
+      Handle<Map> map;
+      map = JSObject::GetElementsTransitionMap(array, kind);
+      array->set_map(*map);
+      array->set_length(length);
+      array->set_elements(*storage);
+      return *array;
+    }
+    // In case of failure, fall through.
   }
 
   Handle<FixedArray> storage;
@@ -11195,15 +11207,6 @@ static SaveContext* FindSavedContextForFrame(Isolate* isolate,
   }
   DCHECK(save != NULL);
   return save;
-}
-
-
-RUNTIME_FUNCTION(Runtime_IsOptimized) {
-  SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
-  JavaScriptFrameIterator it(isolate);
-  JavaScriptFrame* frame = it.frame();
-  return isolate->heap()->ToBoolean(frame->is_optimized());
 }
 
 
@@ -14461,7 +14464,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
   if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
     return *isolate->factory()->NewStringFromStaticAscii("none");
   } else if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
-    return *isolate->factory()->NewStringFromStaticAscii("number");
+    return *isolate->factory()->number_string();
   } else if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
     return *isolate->factory()->NewStringFromStaticAscii("letter");
   } else if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {

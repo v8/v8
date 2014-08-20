@@ -156,10 +156,8 @@ class KeyedStoreICStubShim : public HydrogenCodeStub {
 
 
 JSGenericLowering::JSGenericLowering(CompilationInfo* info, JSGraph* jsgraph,
-                                     MachineOperatorBuilder* machine,
-                                     SourcePositionTable* source_positions)
-    : LoweringBuilder(jsgraph->graph(), source_positions),
-      info_(info),
+                                     MachineOperatorBuilder* machine)
+    : info_(info),
       jsgraph_(jsgraph),
       linkage_(new (jsgraph->zone()) Linkage(info)),
       machine_(machine) {}
@@ -200,7 +198,7 @@ Node* JSGenericLowering::ExternalConstant(ExternalReference ref) {
 }
 
 
-void JSGenericLowering::Lower(Node* node) {
+Reduction JSGenericLowering::Reduce(Node* node) {
   Node* replacement = NULL;
   // Dispatch according to the opcode.
   switch (node->opcode()) {
@@ -213,14 +211,10 @@ void JSGenericLowering::Lower(Node* node) {
 #undef DECLARE_CASE
     default:
       // Nothing to see.
-      return;
+      return NoChange();
   }
-
-  // Nothing to do if lowering was done by patching the existing node.
-  if (replacement == node) return;
-
-  // Iterate through uses of the original node and replace uses accordingly.
-  UNIMPLEMENTED();
+  DCHECK_EQ(node, replacement);
+  return Changed(replacement);
 }
 
 
@@ -479,13 +473,13 @@ Node* JSGenericLowering::LowerJSLoadContext(Node* node) {
   for (int i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
         0, graph()->NewNode(
-               machine()->Load(kMachineTagged),
+               machine()->Load(kMachAnyTagged),
                NodeProperties::GetValueInput(node, 0),
                Int32Constant(Context::SlotOffset(Context::PREVIOUS_INDEX)),
                NodeProperties::GetEffectInput(node)));
   }
   node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
-  PatchOperator(node, machine()->Load(kMachineTagged));
+  PatchOperator(node, machine()->Load(kMachAnyTagged));
   return node;
 }
 
@@ -497,14 +491,14 @@ Node* JSGenericLowering::LowerJSStoreContext(Node* node) {
   for (int i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
         0, graph()->NewNode(
-               machine()->Load(kMachineTagged),
+               machine()->Load(kMachAnyTagged),
                NodeProperties::GetValueInput(node, 0),
                Int32Constant(Context::SlotOffset(Context::PREVIOUS_INDEX)),
                NodeProperties::GetEffectInput(node)));
   }
   node->ReplaceInput(2, NodeProperties::GetValueInput(node, 1));
   node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
-  PatchOperator(node, machine()->Store(kMachineTagged, kFullWriteBarrier));
+  PatchOperator(node, machine()->Store(kMachAnyTagged, kFullWriteBarrier));
   return node;
 }
 

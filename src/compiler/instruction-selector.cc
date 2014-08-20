@@ -232,8 +232,8 @@ void InstructionSelector::MarkAsReference(Node* node) {
 
 void InstructionSelector::MarkAsRepresentation(MachineType rep, Node* node) {
   DCHECK_NOT_NULL(node);
-  if (rep == kMachineFloat64) MarkAsDouble(node);
-  if (rep == kMachineTagged) MarkAsReference(node);
+  if (RepresentationOf(rep) == kRepFloat64) MarkAsDouble(node);
+  if (RepresentationOf(rep) == kRepTagged) MarkAsReference(node);
 }
 
 
@@ -511,6 +511,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitWord32Shr(node);
     case IrOpcode::kWord32Sar:
       return VisitWord32Sar(node);
+    case IrOpcode::kWord32Ror:
+      return VisitWord32Ror(node);
     case IrOpcode::kWord32Equal:
       return VisitWord32Equal(node);
     case IrOpcode::kWord64And:
@@ -525,6 +527,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitWord64Shr(node);
     case IrOpcode::kWord64Sar:
       return VisitWord64Sar(node);
+    case IrOpcode::kWord64Ror:
+      return VisitWord64Ror(node);
     case IrOpcode::kWord64Equal:
       return VisitWord64Equal(node);
     case IrOpcode::kInt32Add:
@@ -571,10 +575,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt64LessThan(node);
     case IrOpcode::kInt64LessThanOrEqual:
       return VisitInt64LessThanOrEqual(node);
-    case IrOpcode::kConvertInt32ToInt64:
-      return VisitConvertInt32ToInt64(node);
-    case IrOpcode::kConvertInt64ToInt32:
-      return VisitConvertInt64ToInt32(node);
     case IrOpcode::kChangeInt32ToFloat64:
       return MarkAsDouble(node), VisitChangeInt32ToFloat64(node);
     case IrOpcode::kChangeUint32ToFloat64:
@@ -583,6 +583,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitChangeFloat64ToInt32(node);
     case IrOpcode::kChangeFloat64ToUint32:
       return VisitChangeFloat64ToUint32(node);
+    case IrOpcode::kChangeInt32ToInt64:
+      return VisitChangeInt32ToInt64(node);
+    case IrOpcode::kChangeUint32ToUint64:
+      return VisitChangeUint32ToUint64(node);
+    case IrOpcode::kTruncateInt64ToInt32:
+      return VisitTruncateInt64ToInt32(node);
     case IrOpcode::kFloat64Add:
       return MarkAsDouble(node), VisitFloat64Add(node);
     case IrOpcode::kFloat64Sub:
@@ -724,6 +730,9 @@ void InstructionSelector::VisitWord64Shr(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord64Sar(Node* node) { UNIMPLEMENTED(); }
 
 
+void InstructionSelector::VisitWord64Ror(Node* node) { UNIMPLEMENTED(); }
+
+
 void InstructionSelector::VisitInt64Add(Node* node) { UNIMPLEMENTED(); }
 
 
@@ -745,12 +754,17 @@ void InstructionSelector::VisitInt64Mod(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitInt64UMod(Node* node) { UNIMPLEMENTED(); }
 
 
-void InstructionSelector::VisitConvertInt64ToInt32(Node* node) {
+void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 
 
-void InstructionSelector::VisitConvertInt32ToInt64(Node* node) {
+void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+
+void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   UNIMPLEMENTED();
 }
 

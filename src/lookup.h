@@ -15,15 +15,19 @@ namespace internal {
 class LookupIterator V8_FINAL BASE_EMBEDDED {
  public:
   enum Configuration {
-    CHECK_OWN_REAL     = 0,
-    CHECK_HIDDEN       = 1 << 0,
-    CHECK_DERIVED      = 1 << 1,
-    CHECK_INTERCEPTOR  = 1 << 2,
+    // Configuration bits.
+    CHECK_HIDDEN_PROPERTY = 1 << 0,
+    CHECK_DERIVED_PROPERTY = 1 << 1,
+    CHECK_INTERCEPTOR = 1 << 2,
     CHECK_ACCESS_CHECK = 1 << 3,
-    CHECK_ALL          = CHECK_HIDDEN | CHECK_DERIVED |
-                         CHECK_INTERCEPTOR | CHECK_ACCESS_CHECK,
-    SKIP_INTERCEPTOR   = CHECK_ALL ^ CHECK_INTERCEPTOR,
-    CHECK_OWN          = CHECK_ALL ^ CHECK_DERIVED
+
+    // Convience combinations of bits.
+    CHECK_PROPERTY = 0,
+    CHECK_HIDDEN_SKIP_INTERCEPTOR = CHECK_HIDDEN_PROPERTY | CHECK_ACCESS_CHECK,
+    CHECK_DERIVED_SKIP_INTERCEPTOR =
+        CHECK_HIDDEN_SKIP_INTERCEPTOR | CHECK_DERIVED_PROPERTY,
+    CHECK_DERIVED = CHECK_DERIVED_SKIP_INTERCEPTOR | CHECK_INTERCEPTOR,
+    CHECK_HIDDEN = CHECK_HIDDEN_SKIP_INTERCEPTOR | CHECK_INTERCEPTOR
   };
 
   enum State {
@@ -44,10 +48,21 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     DESCRIPTOR
   };
 
-  LookupIterator(Handle<Object> receiver,
-                 Handle<Name> name,
-                 Configuration configuration = CHECK_ALL)
-      : configuration_(configuration),
+  explicit LookupIterator(const LookupIterator* other)
+      : configuration_(other->configuration_),
+        state_(other->state_),
+        property_kind_(other->property_kind_),
+        property_encoding_(other->property_encoding_),
+        property_details_(other->property_details_),
+        isolate_(other->isolate_),
+        name_(other->name_),
+        holder_map_(other->holder_map_),
+        maybe_receiver_(other->maybe_receiver_),
+        maybe_holder_(other->maybe_holder_) {}
+
+  LookupIterator(Handle<Object> receiver, Handle<Name> name,
+                 Configuration configuration = CHECK_DERIVED)
+      : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         property_kind_(DATA),
         property_encoding_(DESCRIPTOR),
@@ -62,11 +77,10 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     Next();
   }
 
-  LookupIterator(Handle<Object> receiver,
-                 Handle<Name> name,
+  LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Handle<JSReceiver> holder,
-                 Configuration configuration = CHECK_ALL)
-      : configuration_(configuration),
+                 Configuration configuration = CHECK_DERIVED)
+      : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         property_kind_(DATA),
         property_encoding_(DESCRIPTOR),
@@ -90,7 +104,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   Heap* heap() const { return isolate_->heap(); }
   Factory* factory() const { return isolate_->factory(); }
   Handle<Object> GetReceiver() const {
-    return Handle<Object>::cast(maybe_receiver_.ToHandleChecked());
+    return maybe_receiver_.ToHandleChecked();
   }
   Handle<Map> holder_map() const { return holder_map_; }
   template <class T>
@@ -100,16 +114,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   }
   Handle<JSReceiver> GetRoot() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
-
-  /* Dynamically reduce the trapped types. */
-  void skip_interceptor() {
-    configuration_ = static_cast<Configuration>(
-        configuration_ & ~CHECK_INTERCEPTOR);
-  }
-  void skip_access_check() {
-    configuration_ = static_cast<Configuration>(
-        configuration_ & ~CHECK_ACCESS_CHECK);
-  }
+  bool HolderIsNonGlobalHiddenPrototype() const;
 
   /* ACCESS_CHECK */
   bool HasAccess(v8::AccessType access_type) const;
@@ -123,6 +128,8 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   void TransitionToDataProperty(Handle<Object> value,
                                 PropertyAttributes attributes,
                                 Object::StoreFromKeyed store_mode);
+  void ReconfigureDataProperty(Handle<Object> value,
+                               PropertyAttributes attributes);
   PropertyKind property_kind() const {
     DCHECK(has_property_);
     return property_kind_;
@@ -136,6 +143,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return property_details_;
   }
   bool IsConfigurable() const { return !property_details().IsDontDelete(); }
+  bool IsReadOnly() const { return property_details().IsReadOnly(); }
   Representation representation() const {
     return property_details().representation();
   }
@@ -168,10 +176,10 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return !IsBootstrapping() && (configuration_ & CHECK_INTERCEPTOR) != 0;
   }
   bool check_derived() const {
-    return (configuration_ & CHECK_DERIVED) != 0;
+    return (configuration_ & CHECK_DERIVED_PROPERTY) != 0;
   }
   bool check_hidden() const {
-    return (configuration_ & CHECK_HIDDEN) != 0;
+    return (configuration_ & CHECK_HIDDEN_PROPERTY) != 0;
   }
   bool check_access_check() const {
     return (configuration_ & CHECK_ACCESS_CHECK) != 0;
@@ -187,6 +195,17 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return number_;
   }
 
+  static Configuration ComputeConfiguration(
+      Configuration configuration, Handle<Name> name) {
+    if (name->IsOwn()) {
+      return static_cast<Configuration>(configuration & CHECK_HIDDEN);
+    } else {
+      return configuration;
+    }
+  }
+
+  // If configuration_ becomes mutable, update
+  // HolderIsReceiverOrHiddenPrototype.
   Configuration configuration_;
   State state_;
   bool has_property_;

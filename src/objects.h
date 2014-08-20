@@ -1022,7 +1022,7 @@ template <class C> inline bool Is(Object* obj);
   V(OrderedHashTable)
 
 
-#define ERROR_MESSAGES_LIST(V) \
+#define ERROR_MESSAGES_LIST(V)                                                \
   V(kNoReason, "no reason")                                                   \
                                                                               \
   V(k32BitValueInRegisterIsNotZeroExtended,                                   \
@@ -1089,24 +1089,17 @@ template <class C> inline bool Is(Object* obj);
   V(kExpectedNonIdenticalObjects, "Expected non-identical objects")           \
   V(kExpectedNonNullContext, "Expected non-null context")                     \
   V(kExpectedPositiveZero, "Expected +0.0")                                   \
-  V(kExpectedAllocationSiteInCell,                                            \
-    "Expected AllocationSite in property cell")                               \
+  V(kExpectedAllocationSiteInCell, "Expected AllocationSite in property cell")\
   V(kExpectedFixedArrayInFeedbackVector,                                      \
     "Expected fixed array in feedback vector")                                \
-  V(kExpectedFixedArrayInRegisterA2,                                          \
-    "Expected fixed array in register a2")                                    \
-  V(kExpectedFixedArrayInRegisterEbx,                                         \
-    "Expected fixed array in register ebx")                                   \
-  V(kExpectedFixedArrayInRegisterR2,                                          \
-    "Expected fixed array in register r2")                                    \
-  V(kExpectedFixedArrayInRegisterRbx,                                         \
-    "Expected fixed array in register rbx")                                   \
+  V(kExpectedFixedArrayInRegisterA2, "Expected fixed array in register a2")   \
+  V(kExpectedFixedArrayInRegisterEbx, "Expected fixed array in register ebx") \
+  V(kExpectedFixedArrayInRegisterR2, "Expected fixed array in register r2")   \
+  V(kExpectedFixedArrayInRegisterRbx, "Expected fixed array in register rbx") \
   V(kExpectedNewSpaceObject, "Expected new space object")                     \
   V(kExpectedSmiOrHeapNumber, "Expected smi or HeapNumber")                   \
-  V(kExpectedUndefinedOrCell,                                                 \
-    "Expected undefined or cell in register")                                 \
-  V(kExpectingAlignmentForCopyBytes,                                          \
-    "Expecting alignment for CopyBytes")                                      \
+  V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")       \
+  V(kExpectingAlignmentForCopyBytes, "Expecting alignment for CopyBytes")     \
   V(kExportDeclaration, "Export declaration")                                 \
   V(kExternalStringExpectedButNotFound,                                       \
     "External string expected, but not found")                                \
@@ -1179,8 +1172,7 @@ template <class C> inline bool Is(Object* obj);
   V(kLhsHasBeenClobbered, "lhs has been clobbered")                           \
   V(kLiveBytesCountOverflowChunkSize, "Live Bytes Count overflow chunk size") \
   V(kLiveEdit, "LiveEdit")                                                    \
-  V(kLookupVariableInCountOperation,                                          \
-    "Lookup variable in count operation")                                     \
+  V(kLookupVariableInCountOperation, "Lookup variable in count operation")    \
   V(kMapBecameDeprecated, "Map became deprecated")                            \
   V(kMapBecameUnstable, "Map became unstable")                                \
   V(kMapIsNoLongerInEax, "Map is no longer in eax")                           \
@@ -1191,25 +1183,23 @@ template <class C> inline bool Is(Object* obj);
   V(kModuleVariable, "Module variable")                                       \
   V(kModuleUrl, "Module url")                                                 \
   V(kNativeFunctionLiteral, "Native function literal")                        \
+  V(kSuperReference, "Super reference")                                       \
   V(kNeedSmiLiteral, "Need a Smi literal here")                               \
   V(kNoCasesLeft, "No cases left")                                            \
   V(kNoEmptyArraysHereInEmitFastAsciiArrayJoin,                               \
     "No empty arrays here in EmitFastAsciiArrayJoin")                         \
-  V(kNonInitializerAssignmentToConst,                                         \
-    "Non-initializer assignment to const")                                    \
+  V(kNonInitializerAssignmentToConst, "Non-initializer assignment to const")  \
   V(kNonSmiIndex, "Non-smi index")                                            \
   V(kNonSmiKeyInArrayLiteral, "Non-smi key in array literal")                 \
   V(kNonSmiValue, "Non-smi value")                                            \
   V(kNonObject, "Non-object value")                                           \
   V(kNotEnoughVirtualRegistersForValues,                                      \
     "Not enough virtual registers for values")                                \
-  V(kNotEnoughSpillSlotsForOsr,                                               \
-    "Not enough spill slots for OSR")                                         \
+  V(kNotEnoughSpillSlotsForOsr, "Not enough spill slots for OSR")             \
   V(kNotEnoughVirtualRegistersRegalloc,                                       \
     "Not enough virtual registers (regalloc)")                                \
   V(kObjectFoundInSmiOnlyArray, "Object found in smi-only array")             \
-  V(kObjectLiteralWithComplexProperty,                                        \
-    "Object literal with complex property")                                   \
+  V(kObjectLiteralWithComplexProperty, "Object literal with complex property")\
   V(kOddballInStringTableIsNotUndefinedOrTheHole,                             \
     "Oddball in string table is not undefined or the hole")                   \
   V(kOffsetOutOfRange, "Offset out of range")                                 \
@@ -1235,12 +1225,11 @@ template <class C> inline bool Is(Object* obj);
   V(kReceivedInvalidReturnAddress, "Received invalid return address")         \
   V(kReferenceToAVariableWhichRequiresDynamicLookup,                          \
     "Reference to a variable which requires dynamic lookup")                  \
-  V(kReferenceToGlobalLexicalVariable,                                        \
-    "Reference to global lexical variable")                                   \
+  V(kReferenceToGlobalLexicalVariable, "Reference to global lexical variable")\
   V(kReferenceToUninitializedVariable, "Reference to uninitialized variable") \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root") \
   V(kRegisterWasClobbered, "Register was clobbered")                          \
-  V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
+  V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space")\
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")       \
   V(kRhsHasBeenClobbered, "Rhs has been clobbered")                           \
   V(kScopedBlock, "ScopedBlock")                                              \
@@ -1483,8 +1472,6 @@ class Object {
   // Converts this to a Smi if possible.
   static MUST_USE_RESULT inline MaybeHandle<Smi> ToSmi(Isolate* isolate,
                                                        Handle<Object> object);
-
-  void Lookup(Handle<Name> name, LookupResult* result);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetProperty(LookupIterator* it);
 
@@ -1947,13 +1934,6 @@ class JSReceiver: public HeapObject {
     FORCE_DELETION
   };
 
-  // Internal properties (e.g. the hidden properties dictionary) might
-  // be added even though the receiver is non-extensible.
-  enum ExtensibilityCheck {
-    PERFORM_EXTENSIBILITY_CHECK,
-    OMIT_EXTENSIBILITY_CHECK
-  };
-
   DECLARE_CAST(JSReceiver)
 
   MUST_USE_RESULT static MaybeHandle<Object> SetElement(
@@ -2019,8 +1999,7 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LookupOwn(Handle<Name> name, LookupResult* result,
-                 bool search_hidden_prototypes = false);
+  void LookupOwn(Handle<Name> name, LookupResult* result);
   void Lookup(Handle<Name> name, LookupResult* result);
 
   enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };
@@ -2158,8 +2137,6 @@ class JSObject: public JSReceiver {
       Handle<Name> key,
       Handle<Object> value,
       PropertyAttributes attributes,
-      ExtensibilityCheck extensibility_check = PERFORM_EXTENSIBILITY_CHECK,
-      StoreFromKeyed store_mode = MAY_BE_STORE_FROM_KEYED,
       ExecutableAccessorInfoHandling handling = DEFAULT_HANDLING);
 
   static void AddProperty(Handle<JSObject> object, Handle<Name> key,
@@ -2182,12 +2159,6 @@ class JSObject: public JSReceiver {
   Object* GetNormalizedProperty(const LookupResult* result);
   static Handle<Object> GetNormalizedProperty(Handle<JSObject> object,
                                               const LookupResult* result);
-
-  // Sets the property value in a normalized object given a lookup result.
-  // Handles the special representation of JS global objects.
-  static void SetNormalizedProperty(Handle<JSObject> object,
-                                    const LookupResult* result,
-                                    Handle<Object> value);
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
@@ -2632,17 +2603,6 @@ class JSObject: public JSReceiver {
                                 Handle<Map> new_map,
                                 int expected_additional_properties);
 
-  static void SetPropertyToField(LookupResult* lookup, Handle<Object> value);
-
-  static void ConvertAndSetOwnProperty(LookupResult* lookup,
-                                       Handle<Name> name,
-                                       Handle<Object> value,
-                                       PropertyAttributes attributes);
-
-  static void SetPropertyToFieldWithAttributes(LookupResult* lookup,
-                                               Handle<Name> name,
-                                               Handle<Object> value,
-                                               PropertyAttributes attributes);
   static void GeneralizeFieldRepresentation(Handle<JSObject> object,
                                             int modify_index,
                                             Representation new_representation,
@@ -2716,28 +2676,8 @@ class JSObject: public JSReceiver {
       StrictMode strict_mode,
       bool check_prototype = true);
 
-  MUST_USE_RESULT static MaybeHandle<Object> SetPropertyUsingTransition(
-      Handle<JSObject> object,
-      LookupResult* lookup,
-      Handle<Name> name,
-      Handle<Object> value,
-      PropertyAttributes attributes);
   MUST_USE_RESULT static MaybeHandle<Object> SetPropertyWithFailedAccessCheck(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
-
-  // Add a property to an object.
-  MUST_USE_RESULT static MaybeHandle<Object> AddPropertyInternal(
-      Handle<JSObject> object, Handle<Name> name, Handle<Object> value,
-      PropertyAttributes attributes, StoreFromKeyed store_mode,
-      ExtensibilityCheck extensibility_check, TransitionFlag flag);
-
-  // Add a property to a fast-case object.
-  static void AddFastProperty(Handle<JSObject> object,
-                              Handle<Name> name,
-                              Handle<Object> value,
-                              PropertyAttributes attributes,
-                              StoreFromKeyed store_mode,
-                              TransitionFlag flag);
 
   // Add a property to a slow-case object.
   static void AddSlowProperty(Handle<JSObject> object,
@@ -2749,12 +2689,8 @@ class JSObject: public JSReceiver {
       Handle<JSObject> object,
       Handle<Name> name,
       DeleteMode mode);
-  static Handle<Object> DeletePropertyPostInterceptor(Handle<JSObject> object,
-                                                      Handle<Name> name,
-                                                      DeleteMode mode);
   MUST_USE_RESULT static MaybeHandle<Object> DeletePropertyWithInterceptor(
-      Handle<JSObject> object,
-      Handle<Name> name);
+      Handle<JSObject> holder, Handle<JSObject> receiver, Handle<Name> name);
 
   // Deletes the named property in a normalized object.
   static Handle<Object> DeleteNormalizedProperty(Handle<JSObject> object,
@@ -6070,6 +6006,9 @@ class DependentCode: public FixedArray {
   static DependentCode* ForObject(Handle<HeapObject> object,
                                   DependencyGroup group);
 
+  static const char* DependencyGroupName(DependencyGroup group);
+  static void SetMarkedForDeoptimization(Code* code, DependencyGroup group);
+
  private:
   // Make a room at the end of the given group by moving out the first
   // code objects of the subsequent groups.
@@ -6528,6 +6467,8 @@ class Map: public HeapObject {
                                               Handle<Object> value,
                                               PropertyAttributes attributes,
                                               StoreFromKeyed store_mode);
+  static Handle<Map> ReconfigureDataProperty(Handle<Map> map, int descriptor,
+                                             PropertyAttributes attributes);
 
   inline void AppendDescriptor(Descriptor* desc);
 
@@ -8954,6 +8895,9 @@ class Name: public HeapObject {
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
 
+  // Whether name can only name own properties.
+  inline bool IsOwn();
+
   DECLARE_CAST(Name)
 
   DECLARE_PRINTER(Name)
@@ -9029,6 +8973,10 @@ class Symbol: public Name {
   // [is_private]: whether this is a private symbol.
   DECL_BOOLEAN_ACCESSORS(is_private)
 
+  // [is_own]: whether this is an own symbol, that is, only used to designate
+  // own properties of objects.
+  DECL_BOOLEAN_ACCESSORS(is_own)
+
   DECLARE_CAST(Symbol)
 
   // Dispatched behavior.
@@ -9044,6 +8992,7 @@ class Symbol: public Name {
 
  private:
   static const int kPrivateBit = 0;
+  static const int kOwnBit = 1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
 };
@@ -10167,10 +10116,10 @@ class OrderedHashTableIterator: public JSObject {
   DECL_ACCESSORS(table, Object)
 
   // [index]: The index into the data table.
-  DECL_ACCESSORS(index, Smi)
+  DECL_ACCESSORS(index, Object)
 
   // [kind]: The kind of iteration this is. One of the [Kind] enum values.
-  DECL_ACCESSORS(kind, Smi)
+  DECL_ACCESSORS(kind, Object)
 
 #ifdef OBJECT_PRINT
   void OrderedHashTableIteratorPrint(OStream& os);  // NOLINT

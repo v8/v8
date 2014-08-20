@@ -1,5 +1,7 @@
 include_rules = [
   "+src",
-  "+testing/gmock",
   "+testing/gtest",
+  "+testing/gtest-support.h",
+  "+testing/gmock",
+  "+testing/gmock-support.h",
 ]

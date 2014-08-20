@@ -20,6 +20,7 @@
         '../..',
       ],
       'sources': [  ### gcmole(all) ###
+        'bits-unittest.cc',
         'cpu-unittest.cc',
         'platform/condition-variable-unittest.cc',
         'platform/mutex-unittest.cc',

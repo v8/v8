@@ -33,7 +33,7 @@ struct Effect {
   Bounds bounds;
 
   Effect() : modality(DEFINITE) {}
-  Effect(Bounds b, Modality m = DEFINITE) : modality(m), bounds(b) {}
+  explicit Effect(Bounds b, Modality m = DEFINITE) : modality(m), bounds(b) {}
 
   // The unknown effect.
   static Effect Unknown(Zone* zone) {

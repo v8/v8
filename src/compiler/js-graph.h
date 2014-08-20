@@ -30,6 +30,7 @@ class JSGraph : public ZoneObject {
         cache_(zone()) {}
 
   // Canonicalized global constants.
+  Node* CEntryStubConstant();
   Node* UndefinedConstant();
   Node* TheHoleConstant();
   Node* TrueConstant();
@@ -76,6 +77,7 @@ class JSGraph : public ZoneObject {
   CommonOperatorBuilder* common() { return common_; }
   Graph* graph() { return graph_; }
   Zone* zone() { return graph()->zone(); }
+  Isolate* isolate() { return zone()->isolate(); }
 
  private:
   Graph* graph_;
@@ -83,6 +85,7 @@ class JSGraph : public ZoneObject {
   JSOperatorBuilder javascript_;
   Typer* typer_;
 
+  SetOncePointer<Node> c_entry_stub_constant_;
   SetOncePointer<Node> undefined_constant_;
   SetOncePointer<Node> the_hole_constant_;
   SetOncePointer<Node> true_constant_;
@@ -98,7 +101,7 @@ class JSGraph : public ZoneObject {
   Node* NumberConstant(double value);
   Node* NewNode(Operator* op);
 
-  Factory* factory() { return zone()->isolate()->factory(); }
+  Factory* factory() { return isolate()->factory(); }
 };
 }  // namespace compiler
 }  // namespace internal

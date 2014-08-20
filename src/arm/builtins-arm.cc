@@ -1422,13 +1422,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ ldr(r1, MemOperand(fp, -(StandardFrameConstants::kFixedFrameSizeFromFp +
                               kPointerSize)));
 
-  if (FLAG_enable_ool_constant_pool) {
-    __ add(sp, fp, Operand(StandardFrameConstants::kConstantPoolOffset));
-    __ ldm(ia_w, sp, pp.bit() | fp.bit() | lr.bit());
-  } else {
-    __ mov(sp, fp);;
-    __ ldm(ia_w, sp, fp.bit() | lr.bit());
-  }
+  __ LeaveFrame(StackFrame::ARGUMENTS_ADAPTOR);
   __ add(sp, sp, Operand::PointerOffsetFromSmiKey(r1));
   __ add(sp, sp, Operand(kPointerSize));  // adjust for receiver
 }

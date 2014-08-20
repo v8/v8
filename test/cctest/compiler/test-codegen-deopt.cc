@@ -50,6 +50,8 @@ class DeoptCodegenTester {
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
     CHECK_NE(NULL, info.scope());
+    Handle<ScopeInfo> scope_info = ScopeInfo::Create(info.scope(), info.zone());
+    info.shared_info()->set_scope_info(*scope_info);
 
     FunctionTester::EnsureDeoptimizationSupport(&info);
 
@@ -120,8 +122,8 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
     //   deopt();
     // }
 
-    MachineType parameter_reps[] = {kMachineTagged};
-    MachineCallDescriptorBuilder descriptor_builder(kMachineTagged, 1,
+    MachineType parameter_reps[] = {kMachAnyTagged};
+    MachineCallDescriptorBuilder descriptor_builder(kMachAnyTagged, 1,
                                                     parameter_reps);
 
     RawMachineAssembler m(graph, &descriptor_builder);
@@ -256,8 +258,8 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     //   %DeoptimizeFunction(foo);
     // }
 
-    MachineType parameter_reps[] = {kMachineTagged};
-    MachineCallDescriptorBuilder descriptor_builder(kMachineTagged, 2,
+    MachineType parameter_reps[] = {kMachAnyTagged};
+    MachineCallDescriptorBuilder descriptor_builder(kMachAnyTagged, 2,
                                                     parameter_reps);
 
     RawMachineAssembler m(graph, &descriptor_builder);

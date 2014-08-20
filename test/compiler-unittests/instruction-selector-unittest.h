@@ -6,7 +6,9 @@
 #define V8_COMPILER_UNITTESTS_INSTRUCTION_SELECTOR_UNITTEST_H_
 
 #include <deque>
+#include <ostream>  // NOLINT(readability/streams)
 
+#include "src/base/utils/random-number-generator.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "test/compiler-unittests/compiler-unittests.h"
@@ -17,8 +19,10 @@ namespace compiler {
 
 class InstructionSelectorTest : public CompilerTest {
  public:
-  InstructionSelectorTest() {}
+  InstructionSelectorTest();
   virtual ~InstructionSelectorTest() {}
+
+  base::RandomNumberGenerator* rng() { return &rng_; }
 
  protected:
   class Stream;
@@ -43,6 +47,14 @@ class InstructionSelectorTest : public CompilerTest {
               new (test->zone()) Graph(test->zone()),
               CallDescriptorBuilder(test->zone(), return_type, parameter0_type,
                                     parameter1_type)),
+          test_(test) {}
+    StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
+                  MachineType parameter0_type, MachineType parameter1_type,
+                  MachineType parameter2_type)
+        : RawMachineAssembler(
+              new (test->zone()) Graph(test->zone()),
+              CallDescriptorBuilder(test->zone(), return_type, parameter0_type,
+                                    parameter1_type, parameter2_type)),
           test_(test) {}
 
     Stream Build(CpuFeature feature) {
@@ -81,6 +93,17 @@ class InstructionSelectorTest : public CompilerTest {
           MachineCallDescriptorBuilder(return_type, 2, parameter_types);
     }
 
+    MachineCallDescriptorBuilder* CallDescriptorBuilder(
+        Zone* zone, MachineType return_type, MachineType parameter0_type,
+        MachineType parameter1_type, MachineType parameter2_type) {
+      MachineType* parameter_types = zone->NewArray<MachineType>(3);
+      parameter_types[0] = parameter0_type;
+      parameter_types[1] = parameter1_type;
+      parameter_types[2] = parameter2_type;
+      return new (zone)
+          MachineCallDescriptorBuilder(return_type, 3, parameter_types);
+    }
+
    private:
     InstructionSelectorTest* test_;
   };
@@ -97,16 +120,21 @@ class InstructionSelectorTest : public CompilerTest {
       return ToConstant(operand).ToInt32();
     }
 
+    int ToVreg(const InstructionOperand* operand) const {
+      EXPECT_EQ(InstructionOperand::UNALLOCATED, operand->kind());
+      return UnallocatedOperand::cast(operand)->virtual_register();
+    }
+
    private:
     Constant ToConstant(const InstructionOperand* operand) const {
       ConstantMap::const_iterator i;
       if (operand->IsConstant()) {
         i = constants_.find(operand->index());
-        EXPECT_NE(constants_.end(), i);
+        EXPECT_FALSE(constants_.end() == i);
       } else {
         EXPECT_EQ(InstructionOperand::IMMEDIATE, operand->kind());
         i = immediates_.find(operand->index());
-        EXPECT_NE(immediates_.end(), i);
+        EXPECT_FALSE(immediates_.end() == i);
       }
       EXPECT_EQ(operand->index(), i->first);
       return i->second;
@@ -120,7 +148,15 @@ class InstructionSelectorTest : public CompilerTest {
     ConstantMap immediates_;
     std::deque<Instruction*> instructions_;
   };
+
+  base::RandomNumberGenerator rng_;
 };
+
+
+template <typename T>
+class InstructionSelectorTestWithParam
+    : public InstructionSelectorTest,
+      public ::testing::WithParamInterface<T> {};
 
 }  // namespace compiler
 }  // namespace internal

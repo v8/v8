@@ -16,14 +16,14 @@ namespace internal {
 namespace compiler {
 
 Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
-    : graph_(graph),
+    : zone_(zone),
+      graph_(graph),
       schedule_(schedule),
       branches_(NodeVector::allocator_type(zone)),
       calls_(NodeVector::allocator_type(zone)),
       deopts_(NodeVector::allocator_type(zone)),
       returns_(NodeVector::allocator_type(zone)),
       loops_and_merges_(NodeVector::allocator_type(zone)),
-      node_block_placement_(BasicBlockVector::allocator_type(zone)),
       unscheduled_uses_(IntVector::allocator_type(zone)),
       scheduled_nodes_(NodeVectorVector::allocator_type(zone)),
       schedule_root_nodes_(NodeVector::allocator_type(zone)),
@@ -50,6 +50,29 @@ Schedule* Scheduler::ComputeSchedule(Graph* graph) {
   scheduler.ScheduleLate();
 
   return schedule;
+}
+
+
+bool Scheduler::IsBasicBlockBegin(Node* node) {
+  return OperatorProperties::IsBasicBlockBegin(node->op());
+}
+
+
+bool Scheduler::CanBeScheduled(Node* node) { return true; }
+
+
+bool Scheduler::HasFixedSchedulePosition(Node* node) {
+  IrOpcode::Value opcode = node->opcode();
+  return (IrOpcode::IsControlOpcode(opcode)) ||
+         opcode == IrOpcode::kParameter || opcode == IrOpcode::kEffectPhi ||
+         opcode == IrOpcode::kPhi;
+}
+
+
+bool Scheduler::IsScheduleRoot(Node* node) {
+  IrOpcode::Value opcode = node->opcode();
+  return opcode == IrOpcode::kEnd || opcode == IrOpcode::kEffectPhi ||
+         opcode == IrOpcode::kPhi;
 }
 
 
@@ -109,7 +132,7 @@ void Scheduler::CreateBlocks() {
   if (FLAG_trace_turbo_scheduler) {
     PrintF("---------------- CREATING BLOCKS ------------------\n");
   }
-  schedule_->AddNode(schedule_->entry(), graph_->start());
+  schedule_->AddNode(schedule_->start(), graph_->start());
   graph_->VisitNodeInputsFromEnd(&create_blocks);
 }
 
@@ -150,7 +173,7 @@ void Scheduler::AddPredecessorsForLoopsAndMerges() {
     // For all of the merge's control inputs, add a goto at the end to the
     // merge's basic block.
     for (InputIter j = (*i)->inputs().begin(); j != (*i)->inputs().end(); ++j) {
-      if (OperatorProperties::IsBasicBlockBegin((*i)->op())) {
+      if (IsBasicBlockBegin((*i))) {
         BasicBlock* predecessor_block = schedule_->block(*j);
         if ((*j)->opcode() != IrOpcode::kReturn &&
             (*j)->opcode() != IrOpcode::kDeoptimize) {
@@ -309,7 +332,7 @@ void Scheduler::GenerateImmediateDominatorTree() {
   }
   for (size_t i = 0; i < schedule_->rpo_order_.size(); i++) {
     BasicBlock* current_rpo = schedule_->rpo_order_[i];
-    if (current_rpo != schedule_->entry()) {
+    if (current_rpo != schedule_->start()) {
       BasicBlock::Predecessors::iterator current_pred =
           current_rpo->predecessors().begin();
       BasicBlock::Predecessors::iterator end =
@@ -368,7 +391,7 @@ class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
     int max_rpo = 0;
     // Otherwise, the minimum rpo for the node is the max of all of the inputs.
     if (!IsFixedNode(node)) {
-      DCHECK(!OperatorProperties::IsBasicBlockBegin(node->op()));
+      DCHECK(!scheduler_->IsBasicBlockBegin(node));
       for (InputIter i = node->inputs().begin(); i != node->inputs().end();
            ++i) {
         int control_rpo = scheduler_->schedule_early_rpo_index_[(*i)->id()];
@@ -387,9 +410,9 @@ class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
     return GenericGraphVisit::CONTINUE;
   }
 
-  static bool IsFixedNode(Node* node) {
-    return OperatorProperties::HasFixedSchedulePosition(node->op()) ||
-           !OperatorProperties::CanBeScheduled(node->op());
+  bool IsFixedNode(Node* node) {
+    return scheduler_->HasFixedSchedulePosition(node) ||
+           !scheduler_->CanBeScheduled(node);
   }
 
   // TODO(mstarzinger): Dirty hack to unblock others, schedule early should be
@@ -431,7 +454,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
     // right place; it's a convenient place during the preparation of use counts
     // to schedule them.
     if (!schedule_->IsScheduled(node) &&
-        OperatorProperties::HasFixedSchedulePosition(node->op())) {
+        scheduler_->HasFixedSchedulePosition(node)) {
       if (FLAG_trace_turbo_scheduler) {
         PrintF("Fixed position node %d is unscheduled, scheduling now\n",
                node->id());
@@ -439,13 +462,13 @@ class PrepareUsesVisitor : public NullNodeVisitor {
       IrOpcode::Value opcode = node->opcode();
       BasicBlock* block =
           opcode == IrOpcode::kParameter
-              ? schedule_->entry()
+              ? schedule_->start()
               : schedule_->block(NodeProperties::GetControlInput(node));
       DCHECK(block != NULL);
       schedule_->AddNode(block, node);
     }
 
-    if (OperatorProperties::IsScheduleRoot(node->op())) {
+    if (scheduler_->IsScheduleRoot(node)) {
       scheduler_->schedule_root_nodes_.push_back(node);
     }
 
@@ -456,9 +479,8 @@ class PrepareUsesVisitor : public NullNodeVisitor {
     // If the edge is from an unscheduled node, then tally it in the use count
     // for all of its inputs. The same criterion will be used in ScheduleLate
     // for decrementing use counts.
-    if (!schedule_->IsScheduled(from) &&
-        OperatorProperties::CanBeScheduled(from->op())) {
-      DCHECK(!OperatorProperties::HasFixedSchedulePosition(from->op()));
+    if (!schedule_->IsScheduled(from) && scheduler_->CanBeScheduled(from)) {
+      DCHECK(!scheduler_->HasFixedSchedulePosition(from));
       ++scheduler_->unscheduled_uses_[to->id()];
       if (FLAG_trace_turbo_scheduler) {
         PrintF("Incrementing uses of node %d from %d to %d\n", to->id(),
@@ -491,11 +513,10 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
 
   GenericGraphVisit::Control Pre(Node* node) {
     // Don't schedule nodes that cannot be scheduled or are already scheduled.
-    if (!OperatorProperties::CanBeScheduled(node->op()) ||
-        schedule_->IsScheduled(node)) {
+    if (!scheduler_->CanBeScheduled(node) || schedule_->IsScheduled(node)) {
       return GenericGraphVisit::CONTINUE;
     }
-    DCHECK(!OperatorProperties::HasFixedSchedulePosition(node->op()));
+    DCHECK(!scheduler_->HasFixedSchedulePosition(node));
 
     // If all the uses of a node have been scheduled, then the node itself can
     // be scheduled.
@@ -562,7 +583,7 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
   BasicBlock* GetBlockForUse(Node::Edge edge) {
     Node* use = edge.from();
     IrOpcode::Value opcode = use->opcode();
-    // If the use is a phi, forward through the the phi to the basic block
+    // If the use is a phi, forward through the phi to the basic block
     // corresponding to the phi's input.
     if (opcode == IrOpcode::kPhi || opcode == IrOpcode::kEffectPhi) {
       int index = edge.index();
@@ -580,11 +601,6 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
       PrintF("Must dominate use %d in block %d\n", use->id(), result->id());
     }
     return result;
-  }
-
-  bool IsNodeEligible(Node* node) {
-    bool eligible = scheduler_->unscheduled_uses_[node->id()] == 0;
-    return eligible;
   }
 
   void ScheduleNode(BasicBlock* block, Node* node) {
@@ -620,11 +636,12 @@ void Scheduler::ScheduleLate() {
   // Schedule: Places nodes in dominator block of all their uses.
   ScheduleLateNodeVisitor schedule_late_visitor(this);
 
-  for (NodeVectorIter i = schedule_root_nodes_.begin();
-       i != schedule_root_nodes_.end(); ++i) {
+  {
+    Zone zone(zone_->isolate());
     GenericGraphVisit::Visit<ScheduleLateNodeVisitor,
                              NodeInputIterationTraits<Node> >(
-        graph_, *i, &schedule_late_visitor);
+        graph_, &zone, schedule_root_nodes_.begin(), schedule_root_nodes_.end(),
+        &schedule_late_visitor);
   }
 
   // Add collected nodes for basic blocks to their blocks in the right order.
@@ -852,7 +869,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
     PrintF("------------- COMPUTING SPECIAL RPO ---------------\n");
   }
   // RPO should not have been computed for this schedule yet.
-  CHECK_EQ(kBlockUnvisited1, schedule->entry()->rpo_number_);
+  CHECK_EQ(kBlockUnvisited1, schedule->start()->rpo_number_);
   CHECK_EQ(0, static_cast<int>(schedule->rpo_order_.size()));
 
   // Perform an iterative RPO traversal using an explicit stack,
@@ -860,7 +877,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
   ZoneList<std::pair<BasicBlock*, int> > backedges(1, zone);
   SpecialRPOStackFrame* stack =
       zone->NewArray<SpecialRPOStackFrame>(schedule->BasicBlockCount());
-  BasicBlock* entry = schedule->entry();
+  BasicBlock* entry = schedule->start();
   BlockList* order = NULL;
   int stack_depth = Push(stack, 0, entry, kBlockUnvisited1);
   int num_loops = 0;

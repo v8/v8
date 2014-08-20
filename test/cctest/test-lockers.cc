@@ -59,7 +59,7 @@ using ::v8::V8;
 class KangarooThread : public v8::base::Thread {
  public:
   KangarooThread(v8::Isolate* isolate, v8::Handle<v8::Context> context)
-      : Thread("KangarooThread"),
+      : Thread(Options("KangarooThread")),
         isolate_(isolate),
         context_(isolate, context) {}
 
@@ -149,9 +149,8 @@ class JoinableThread {
   class ThreadWithSemaphore : public v8::base::Thread {
    public:
     explicit ThreadWithSemaphore(JoinableThread* joinable_thread)
-      : Thread(joinable_thread->name_),
-        joinable_thread_(joinable_thread) {
-    }
+        : Thread(Options(joinable_thread->name_)),
+          joinable_thread_(joinable_thread) {}
 
     virtual void Run() {
       joinable_thread_->Run();
@@ -223,9 +222,7 @@ TEST(IsolateLockingStress) {
 
 class IsolateNonlockingThread : public JoinableThread {
  public:
-  explicit IsolateNonlockingThread()
-    : JoinableThread("IsolateNonlockingThread") {
-  }
+  IsolateNonlockingThread() : JoinableThread("IsolateNonlockingThread") {}
 
   virtual void Run() {
     v8::Isolate* isolate = v8::Isolate::New();

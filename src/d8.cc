@@ -332,7 +332,6 @@ void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Isolate* v8_isolate = args.GetIsolate();
     i::Heap* heap = reinterpret_cast<i::Isolate*>(v8_isolate)->heap();
     args.GetReturnValue().Set(heap->synthetic_time());
-
   } else {
     base::TimeDelta delta =
         base::TimeTicks::HighResolutionNow() - kInitialTicks;

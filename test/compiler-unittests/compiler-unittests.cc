@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "include/libplatform/libplatform.h"
+#include "src/isolate-inl.h"
 #include "test/compiler-unittests/compiler-unittests.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -25,6 +26,9 @@ CompilerTest::CompilerTest()
 
 
 CompilerTest::~CompilerTest() {}
+
+
+Factory* CompilerTest::factory() const { return isolate()->factory(); }
 
 
 // static

@@ -1,3 +1,17 @@
+2014-08-20: Version 3.29.9
+
+        Correctly handle holes when concat()ing double arrays (Chromium issue
+        403409).
+
+        [turbofan] Refactor the InstructionSelector tests (issue 3489).
+
+        ES6: Make Map/Set constructors support iterable values (issue 3508).
+
+        WeakMap/WeakSet: Add test for non object keys (issue 3399).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-12: Version 3.28.71
 
         ToNumber(Symbol) should throw TypeError (issue 3499).

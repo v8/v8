@@ -7,7 +7,6 @@
 
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/lowering-builder.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
@@ -17,18 +16,15 @@ namespace internal {
 namespace compiler {
 
 // Lowers JS-level operators to simplified operators based on types.
-class JSTypedLowering : public LoweringBuilder {
+class JSTypedLowering : public Reducer {
  public:
-  explicit JSTypedLowering(JSGraph* jsgraph,
-                           SourcePositionTable* source_positions)
-      : LoweringBuilder(jsgraph->graph(), source_positions),
-        jsgraph_(jsgraph),
+  explicit JSTypedLowering(JSGraph* jsgraph)
+      : jsgraph_(jsgraph),
         simplified_(jsgraph->zone()),
         machine_(jsgraph->zone()) {}
   virtual ~JSTypedLowering() {}
 
-  Reduction Reduce(Node* node);
-  virtual void Lower(Node* node) { Reduce(node); }
+  virtual Reduction Reduce(Node* node);
 
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }
@@ -40,9 +36,7 @@ class JSTypedLowering : public LoweringBuilder {
   MachineOperatorBuilder machine_;
 
   Reduction ReplaceEagerly(Node* old, Node* node);
-  Reduction NoChange() { return Reducer::NoChange(); }
   Reduction ReplaceWith(Node* node) { return Reducer::Replace(node); }
-  Reduction Changed(Node* node) { return Reducer::Changed(node); }
   Reduction ReduceJSAdd(Node* node);
   Reduction ReduceJSComparison(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);

@@ -20,13 +20,35 @@
         '../..',
       ],
       'sources': [  ### gcmole(all) ###
+        'change-lowering-unittest.cc',
+        'common-operator-unittest.cc',
+        'common-operator-unittest.h',
         'compiler-unittests.cc',
+        'graph-unittest.cc',
+        'graph-unittest.h',
         'instruction-selector-unittest.cc',
+        'machine-operator-reducer-unittest.cc',
+        'machine-operator-unittest.cc',
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {
           'sources': [  ### gcmole(arch:arm) ###
             'arm/instruction-selector-arm-unittest.cc',
+          ],
+        }],
+        ['v8_target_arch=="arm64"', {
+          'sources': [  ### gcmole(arch:arm64) ###
+            'arm64/instruction-selector-arm64-unittest.cc',
+          ],
+        }],
+        ['v8_target_arch=="ia32"', {
+          'sources': [  ### gcmole(arch:ia32) ###
+            'ia32/instruction-selector-ia32-unittest.cc',
+          ],
+        }],
+        ['v8_target_arch=="x64"', {
+          'sources': [  ### gcmole(arch:x64) ###
+            'x64/instruction-selector-x64-unittest.cc',
           ],
         }],
         ['component=="shared_library"', {

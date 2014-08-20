@@ -549,6 +549,9 @@ class ParserTraits {
   Expression* ThisExpression(Scope* scope,
                              AstNodeFactory<AstConstructionVisitor>* factory,
                              int pos = RelocInfo::kNoPosition);
+  Expression* SuperReference(Scope* scope,
+                             AstNodeFactory<AstConstructionVisitor>* factory,
+                             int pos = RelocInfo::kNoPosition);
   Literal* ExpressionFromLiteral(
       Token::Value token, int pos, Scanner* scanner,
       AstNodeFactory<AstConstructionVisitor>* factory);

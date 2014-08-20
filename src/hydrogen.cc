@@ -7201,7 +7201,9 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
   HInstruction* result = NULL;
   if (expr->key()->IsPropertyName()) {
     Handle<String> name = expr->key()->AsLiteral()->AsPropertyName();
-    if (!name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("length"))) return false;
+    if (!String::Equals(name, isolate()->factory()->length_string())) {
+      return false;
+    }
 
     if (function_state()->outer() == NULL) {
       HInstruction* elements = Add<HArgumentsElements>(false);
@@ -7439,8 +7441,8 @@ HInstruction* HOptimizedGraphBuilder::BuildCallConstantFunction(
 
 class FunctionSorter {
  public:
-  FunctionSorter(int index = 0, int ticks = 0, int size = 0)
-      : index_(index), ticks_(ticks), size_(size) { }
+  explicit FunctionSorter(int index = 0, int ticks = 0, int size = 0)
+      : index_(index), ticks_(ticks), size_(size) {}
 
   int index() const { return index_; }
   int ticks() const { return ticks_; }
@@ -11180,6 +11182,11 @@ void HOptimizedGraphBuilder::VisitThisFunction(ThisFunction* expr) {
   DCHECK(current_block()->HasPredecessor());
   HInstruction* instr = BuildThisFunction();
   return ast_context()->ReturnInstruction(instr, expr->id());
+}
+
+
+void HOptimizedGraphBuilder::VisitSuperReference(SuperReference* expr) {
+  UNREACHABLE();
 }
 
 

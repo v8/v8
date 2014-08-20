@@ -5,30 +5,98 @@
 #ifndef V8_COMPILER_MACHINE_TYPE_H_
 #define V8_COMPILER_MACHINE_TYPE_H_
 
+#include "src/globals.h"
+
 namespace v8 {
 namespace internal {
+
+class OStream;
+
 namespace compiler {
 
-// An enumeration of the storage representations at the machine level.
-// - Words are uninterpreted bits of a given fixed size that can be used
-//   to store integers and pointers. They are normally allocated to general
-//   purpose registers by the backend and are not tracked for GC.
-// - Floats are bits of a given fixed size that are used to store floating
-//   point numbers. They are normally allocated to the floating point
-//   registers of the machine and are not tracked for the GC.
-// - Tagged values are the size of a reference into the heap and can store
-//   small words or references into the heap using a language and potentially
-//   machine-dependent tagging scheme. These values are tracked by the code
-//   generator for precise GC.
+// Machine-level types and representations.
+// TODO(titzer): Use the real type system instead of MachineType.
 enum MachineType {
-  kMachineWord8,
-  kMachineWord16,
-  kMachineWord32,
-  kMachineWord64,
-  kMachineFloat64,
-  kMachineTagged,
-  kMachineLast
+  // Representations.
+  kRepBit = 1 << 0,
+  kRepWord8 = 1 << 1,
+  kRepWord16 = 1 << 2,
+  kRepWord32 = 1 << 3,
+  kRepWord64 = 1 << 4,
+  kRepFloat64 = 1 << 5,
+  kRepTagged = 1 << 6,
+
+  // Types.
+  kTypeBool = 1 << 7,
+  kTypeInt32 = 1 << 8,
+  kTypeUint32 = 1 << 9,
+  kTypeInt64 = 1 << 10,
+  kTypeUint64 = 1 << 11,
+  kTypeNumber = 1 << 12,
+  kTypeAny = 1 << 13
 };
+
+OStream& operator<<(OStream& os, const MachineType& type);
+
+typedef uint16_t MachineTypeUnion;
+
+// Globally useful machine types and constants.
+const MachineTypeUnion kRepMask = kRepBit | kRepWord8 | kRepWord16 |
+                                  kRepWord32 | kRepWord64 | kRepFloat64 |
+                                  kRepTagged;
+const MachineTypeUnion kTypeMask = kTypeBool | kTypeInt32 | kTypeUint32 |
+                                   kTypeInt64 | kTypeUint64 | kTypeNumber |
+                                   kTypeAny;
+
+const MachineType kMachNone = static_cast<MachineType>(0);
+const MachineType kMachFloat64 =
+    static_cast<MachineType>(kRepFloat64 | kTypeNumber);
+const MachineType kMachInt8 = static_cast<MachineType>(kRepWord8 | kTypeInt32);
+const MachineType kMachUint8 =
+    static_cast<MachineType>(kRepWord8 | kTypeUint32);
+const MachineType kMachInt16 =
+    static_cast<MachineType>(kRepWord16 | kTypeInt32);
+const MachineType kMachUint16 =
+    static_cast<MachineType>(kRepWord16 | kTypeUint32);
+const MachineType kMachInt32 =
+    static_cast<MachineType>(kRepWord32 | kTypeInt32);
+const MachineType kMachUint32 =
+    static_cast<MachineType>(kRepWord32 | kTypeUint32);
+const MachineType kMachInt64 =
+    static_cast<MachineType>(kRepWord64 | kTypeInt64);
+const MachineType kMachUint64 =
+    static_cast<MachineType>(kRepWord64 | kTypeUint64);
+const MachineType kMachPtr = kPointerSize == 4 ? kRepWord32 : kRepWord64;
+const MachineType kMachAnyTagged =
+    static_cast<MachineType>(kRepTagged | kTypeAny);
+
+// Gets only the representation of the given type.
+inline MachineType RepresentationOf(MachineType machine_type) {
+  int result = machine_type & kRepMask;
+  CHECK(IsPowerOf2(result));
+  return static_cast<MachineType>(result);
+}
+
+// Gets the element size in bytes of the machine type.
+inline int ElementSizeOf(MachineType machine_type) {
+  switch (RepresentationOf(machine_type)) {
+    case kRepBit:
+    case kRepWord8:
+      return 1;
+    case kRepWord16:
+      return 2;
+    case kRepWord32:
+      return 4;
+    case kRepWord64:
+    case kRepFloat64:
+      return 8;
+    case kRepTagged:
+      return kPointerSize;
+    default:
+      UNREACHABLE();
+      return kPointerSize;
+  }
+}
 }
 }
 }  // namespace v8::internal::compiler

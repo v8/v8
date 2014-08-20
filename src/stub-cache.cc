@@ -893,43 +893,62 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
-    Handle<Name> name) {
-  // Perform a lookup after the interceptor.
-  LookupResult lookup(isolate());
-  holder()->LookupOwnRealNamedProperty(name, &lookup);
-  if (!lookup.IsFound()) {
-    PrototypeIterator iter(holder()->GetIsolate(), holder());
-    if (!iter.IsAtEnd()) {
-      PrototypeIterator::GetCurrent(iter)->Lookup(name, &lookup);
+    LookupIterator* it, Handle<Name> name) {
+  // So far the most popular follow ups for interceptor loads are FIELD and
+  // ExecutableAccessorInfo, so inline only them. Other cases may be added
+  // later.
+  bool inline_followup = it->state() == LookupIterator::PROPERTY;
+  if (inline_followup) {
+    switch (it->property_kind()) {
+      case LookupIterator::DATA:
+        inline_followup = it->property_details().type() == FIELD;
+        break;
+      case LookupIterator::ACCESSOR: {
+        Handle<Object> accessors = it->GetAccessors();
+        inline_followup = accessors->IsExecutableAccessorInfo();
+        if (!inline_followup) break;
+        Handle<ExecutableAccessorInfo> info =
+            Handle<ExecutableAccessorInfo>::cast(accessors);
+        inline_followup = info->getter() != NULL &&
+                          ExecutableAccessorInfo::IsCompatibleReceiverType(
+                              isolate(), info, type());
+      }
     }
   }
 
   Register reg = Frontend(receiver(), name);
-  // TODO(368): Compile in the whole chain: all the interceptors in
-  // prototypes and ultimate answer.
-  GenerateLoadInterceptor(reg, &lookup, name);
+  if (inline_followup) {
+    // TODO(368): Compile in the whole chain: all the interceptors in
+    // prototypes and ultimate answer.
+    GenerateLoadInterceptorWithFollowup(it, reg);
+  } else {
+    GenerateLoadInterceptor(reg);
+  }
   return GetCode(kind(), Code::FAST, name);
 }
 
 
 void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
-    Register interceptor_reg, Handle<Name> name, LookupResult* lookup) {
-  Handle<JSObject> real_named_property_holder(lookup->holder());
+    LookupIterator* it, Register interceptor_reg) {
+  Handle<JSObject> real_named_property_holder(it->GetHolder<JSObject>());
 
   set_type_for_object(holder());
   set_holder(real_named_property_holder);
-  Register reg = Frontend(interceptor_reg, name);
+  Register reg = Frontend(interceptor_reg, it->name());
 
-  if (lookup->IsField()) {
-    __ Move(receiver(), reg);
-    LoadFieldStub stub(isolate(), lookup->GetFieldIndex());
-    GenerateTailCall(masm(), stub.GetCode());
-  } else {
-    DCHECK(lookup->type() == CALLBACKS);
-    Handle<ExecutableAccessorInfo> callback(
-        ExecutableAccessorInfo::cast(lookup->GetCallbackObject()));
-    DCHECK(callback->getter() != NULL);
-    GenerateLoadCallback(reg, callback);
+  switch (it->property_kind()) {
+    case LookupIterator::DATA: {
+      DCHECK_EQ(FIELD, it->property_details().type());
+      __ Move(receiver(), reg);
+      LoadFieldStub stub(isolate(), it->GetFieldIndex());
+      GenerateTailCall(masm(), stub.GetCode());
+      break;
+    }
+    case LookupIterator::ACCESSOR:
+      Handle<ExecutableAccessorInfo> info =
+          Handle<ExecutableAccessorInfo>::cast(it->GetAccessors());
+      DCHECK_NE(NULL, info->getter());
+      GenerateLoadCallback(reg, info);
   }
 }
 

@@ -2369,12 +2369,9 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       break;
     case Token::MUL: {
       __ SmiUntag(scratch1, right);
-      __ Mult(left, scratch1);
-      __ mflo(scratch1);
-      __ mfhi(scratch2);
-      __ sra(scratch1, scratch1, 31);
+      __ Mul(scratch2, v0, left, scratch1);
+      __ sra(scratch1, v0, 31);
       __ Branch(&stub_call, ne, scratch1, Operand(scratch2));
-      __ mflo(v0);
       __ Branch(&done, ne, v0, Operand(zero_reg));
       __ Addu(scratch2, right, left);
       __ Branch(&stub_call, lt, scratch2, Operand(zero_reg));
@@ -3318,7 +3315,7 @@ void FullCodeGenerator::EmitClassOf(CallRuntime* expr) {
 
   // Functions have class 'Function'.
   __ bind(&function);
-  __ LoadRoot(v0, Heap::kfunction_class_stringRootIndex);
+  __ LoadRoot(v0, Heap::kFunction_stringRootIndex);
   __ jmp(&done);
 
   // Objects with a non-function constructor have class 'Object'.
@@ -3943,12 +3940,10 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // smi but the other values are, so the result is a smi.
   __ lw(scratch1, FieldMemOperand(separator, SeqOneByteString::kLengthOffset));
   __ Subu(string_length, string_length, Operand(scratch1));
-  __ Mult(array_length, scratch1);
+  __ Mul(scratch3, scratch2, array_length, scratch1);
   // Check for smi overflow. No overflow if higher 33 bits of 64-bit result are
   // zero.
-  __ mfhi(scratch2);
-  __ Branch(&bailout, ne, scratch2, Operand(zero_reg));
-  __ mflo(scratch2);
+  __ Branch(&bailout, ne, scratch3, Operand(zero_reg));
   __ And(scratch3, scratch2, Operand(0x80000000));
   __ Branch(&bailout, ne, scratch3, Operand(zero_reg));
   __ AdduAndCheckForOverflow(string_length, string_length, scratch2, scratch3);

@@ -79,6 +79,7 @@ void ThreadLocalTop::InitializeInternal() {
   save_context_ = NULL;
   catcher_ = NULL;
   top_lookup_result_ = NULL;
+  promise_on_stack_ = NULL;
 
   // These members are re-initialized later after deserialization
   // is complete.
@@ -97,6 +98,12 @@ void ThreadLocalTop::Initialize() {
   simulator_ = Simulator::current(isolate_);
 #endif
   thread_id_ = ThreadId::Current();
+}
+
+
+void ThreadLocalTop::Free() {
+  // Match unmatched PopPromise calls.
+  while (promise_on_stack_) isolate_->PopPromise();
 }
 
 
@@ -1049,8 +1056,8 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           // Look up as own property.  If the lookup fails, the exception is
           // probably not a valid Error object.  In that case, we fall through
           // and capture the stack trace at this throw site.
-          LookupIterator lookup(
-              exception_handle, key, LookupIterator::CHECK_OWN_REAL);
+          LookupIterator lookup(exception_handle, key,
+                                LookupIterator::CHECK_PROPERTY);
           Handle<Object> stack_trace_property;
           if (Object::GetProperty(&lookup).ToHandle(&stack_trace_property) &&
               stack_trace_property->IsJSArray()) {
@@ -1286,6 +1293,48 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   thread_local_top()->scheduled_exception_ = pending_exception();
   clear_pending_exception();
   return true;
+}
+
+
+void Isolate::PushPromise(Handle<JSObject> promise) {
+  ThreadLocalTop* tltop = thread_local_top();
+  PromiseOnStack* prev = tltop->promise_on_stack_;
+  StackHandler* handler = StackHandler::FromAddress(Isolate::handler(tltop));
+  Handle<JSObject> global_handle =
+      Handle<JSObject>::cast(global_handles()->Create(*promise));
+  tltop->promise_on_stack_ = new PromiseOnStack(handler, global_handle, prev);
+}
+
+
+void Isolate::PopPromise() {
+  ThreadLocalTop* tltop = thread_local_top();
+  if (tltop->promise_on_stack_ == NULL) return;
+  PromiseOnStack* prev = tltop->promise_on_stack_->prev();
+  Handle<Object> global_handle = tltop->promise_on_stack_->promise();
+  delete tltop->promise_on_stack_;
+  tltop->promise_on_stack_ = prev;
+  global_handles()->Destroy(global_handle.location());
+}
+
+
+Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
+  Handle<Object> undefined = factory()->undefined_value();
+  ThreadLocalTop* tltop = thread_local_top();
+  if (tltop->promise_on_stack_ == NULL) return undefined;
+  StackHandler* promise_try = tltop->promise_on_stack_->handler();
+  // Find the top-most try-catch handler.
+  StackHandler* handler = StackHandler::FromAddress(Isolate::handler(tltop));
+  do {
+    if (handler == promise_try) {
+      // Mark the pushed try-catch handler to prevent a later duplicate event
+      // triggered with the following reject.
+      return tltop->promise_on_stack_->promise();
+    }
+    handler = handler->next();
+    // Throwing inside a Promise can be intercepted by an inner try-catch, so
+    // we stop at the first try-catch handler.
+  } while (handler != NULL && !handler->is_catch());
+  return undefined;
 }
 
 
@@ -1551,6 +1600,8 @@ void Isolate::Deinit() {
     TRACE_ISOLATE(deinit);
 
     debug()->Unload();
+
+    FreeThreadResources();
 
     if (concurrent_recompilation_enabled()) {
       optimizing_compiler_thread_->Stop();

@@ -723,6 +723,9 @@ void AstTyper::VisitThisFunction(ThisFunction* expr) {
 }
 
 
+void AstTyper::VisitSuperReference(SuperReference* expr) {}
+
+
 void AstTyper::VisitDeclarations(ZoneList<Declaration*>* decls) {
   for (int i = 0; i < decls->length(); ++i) {
     Declaration* decl = decls->at(i);

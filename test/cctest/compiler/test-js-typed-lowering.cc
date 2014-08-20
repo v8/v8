@@ -26,7 +26,6 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         common(main_zone()),
         graph(main_zone()),
         typer(main_zone()),
-        source_positions(&graph),
         context_node(NULL) {
     typer.DecorateGraph(&graph);
     Node* s = graph.NewNode(common.Start(num_parameters));
@@ -42,7 +41,6 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   CommonOperatorBuilder common;
   Graph graph;
   Typer typer;
-  SourcePositionTable source_positions;
   Node* context_node;
 
   Node* Parameter(Type* t, int32_t index = 0) {
@@ -53,7 +51,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   Node* reduce(Node* node) {
     JSGraph jsgraph(&graph, &common, &typer);
-    JSTypedLowering reducer(&jsgraph, &source_positions);
+    JSTypedLowering reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();
     return node;

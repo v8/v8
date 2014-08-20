@@ -267,6 +267,19 @@ Bounds Typer::Visitor::TypeEffectPhi(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeControlEffect(Node* node) {
+  return Bounds(Type::None(zone()));
+}
+
+
+Bounds Typer::Visitor::TypeValueEffect(Node* node) {
+  return Bounds(Type::None(zone()));
+}
+
+
+Bounds Typer::Visitor::TypeFinish(Node* node) { return OperandType(node, 0); }
+
+
 Bounds Typer::Visitor::TypeFrameState(Node* node) {
   return Bounds(Type::None(zone()));
 }

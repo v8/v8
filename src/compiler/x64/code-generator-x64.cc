@@ -370,6 +370,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64Sar:
       ASSEMBLE_SHIFT(sarq, 6);
       break;
+    case kX64Ror32:
+      ASSEMBLE_SHIFT(rorl, 5);
+      break;
+    case kX64Ror:
+      ASSEMBLE_SHIFT(rorq, 6);
+      break;
     case kX64Push: {
       RegisterOrOperand input = i.InputRegisterOrOperand(0);
       if (input.type == kRegister) {
@@ -382,6 +388,24 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64PushI:
       __ pushq(i.InputImmediate(0));
       break;
+    case kX64Movl: {
+      RegisterOrOperand input = i.InputRegisterOrOperand(0);
+      if (input.type == kRegister) {
+        __ movl(i.OutputRegister(), input.reg);
+      } else {
+        __ movl(i.OutputRegister(), input.operand);
+      }
+      break;
+    }
+    case kX64Movsxlq: {
+      RegisterOrOperand input = i.InputRegisterOrOperand(0);
+      if (input.type == kRegister) {
+        __ movsxlq(i.OutputRegister(), input.reg);
+      } else {
+        __ movsxlq(i.OutputRegister(), input.operand);
+      }
+      break;
+    }
     case kX64CallCodeObject: {
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
@@ -478,12 +502,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ addq(rsp, Immediate(kDoubleSize));
       break;
     }
-    case kX64Int32ToInt64:
-      __ movzxwq(i.OutputRegister(), i.InputRegister(0));
-      break;
-    case kX64Int64ToInt32:
-      __ Move(i.OutputRegister(), i.InputRegister(0));
-      break;
     case kSSEFloat64ToInt32: {
       RegisterOrOperand input = i.InputRegisterOrOperand(0);
       if (input.type == kDoubleRegister) {
@@ -981,20 +999,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
 
 #undef __
-
-#ifdef DEBUG
-
-// Checks whether the code between start_pc and end_pc is a no-op.
-bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
-                                            int end_pc) {
-  if (start_pc + 1 != end_pc) {
-    return false;
-  }
-  return *(code->instruction_start() + start_pc) ==
-         v8::internal::Assembler::kNopByte;
-}
-
-#endif
 
 }  // namespace internal
 }  // namespace compiler

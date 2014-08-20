@@ -533,21 +533,17 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
 };
 
 
-template<class Char>
-class SubStringKey : public HashTableKey {
+class SeqOneByteSubStringKey : public HashTableKey {
  public:
-  SubStringKey(Handle<String> string, int from, int length)
+  SeqOneByteSubStringKey(Handle<SeqOneByteString> string, int from, int length)
       : string_(string), from_(from), length_(length) {
-    if (string_->IsSlicedString()) {
-      string_ = Handle<String>(Unslice(*string_, &from_));
-    }
-    DCHECK(string_->IsSeqString() || string->IsExternalString());
+    DCHECK(string_->IsSeqOneByteString());
   }
 
   virtual uint32_t Hash() V8_OVERRIDE {
     DCHECK(length_ >= 0);
     DCHECK(from_ + length_ <= string_->length());
-    const Char* chars = GetChars() + from_;
+    const uint8_t* chars = string_->GetChars() + from_;
     hash_field_ = StringHasher::HashSequentialString(
         chars, length_, string_->GetHeap()->HashSeed());
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -563,17 +559,7 @@ class SubStringKey : public HashTableKey {
   virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
 
  private:
-  const Char* GetChars();
-  String* Unslice(String* string, int* offset) {
-    while (string->IsSlicedString()) {
-      SlicedString* sliced = SlicedString::cast(string);
-      *offset += sliced->offset();
-      string = sliced->parent();
-    }
-    return string;
-  }
-
-  Handle<String> string_;
+  Handle<SeqOneByteString> string_;
   int from_;
   int length_;
   uint32_t hash_field_;
@@ -3372,6 +3358,7 @@ bool Name::Equals(Handle<Name> one, Handle<Name> two) {
 ACCESSORS(Symbol, name, Object, kNameOffset)
 ACCESSORS(Symbol, flags, Smi, kFlagsOffset)
 BOOL_ACCESSORS(Symbol, flags, is_private, kPrivateBit)
+BOOL_ACCESSORS(Symbol, flags, is_own, kOwnBit)
 
 
 bool String::Equals(String* other) {
@@ -6068,8 +6055,8 @@ ACCESSORS(JSCollection, table, Object, kTableOffset)
   }
 
 ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(table, Object, kTableOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(index, Smi, kIndexOffset)
-ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(kind, Smi, kKindOffset)
+ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(index, Object, kIndexOffset)
+ORDERED_HASH_TABLE_ITERATOR_ACCESSORS(kind, Object, kKindOffset)
 
 #undef ORDERED_HASH_TABLE_ITERATOR_ACCESSORS
 
@@ -6494,6 +6481,10 @@ uint32_t Name::Hash() {
   if (IsHashFieldComputed(field)) return field >> kHashShift;
   // Slow case: compute hash code and set it. Has to be a string.
   return String::cast(this)->ComputeAndSetHash();
+}
+
+bool Name::IsOwn() {
+  return this->IsSymbol() && Symbol::cast(this)->is_own();
 }
 
 

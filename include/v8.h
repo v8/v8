@@ -1424,6 +1424,11 @@ class V8_EXPORT Value : public Data {
   bool IsDate() const;
 
   /**
+   * Returns true if this value is an Arguments object.
+   */
+  bool IsArgumentsObject() const;
+
+  /**
    * Returns true if this value is a Boolean object.
    */
   bool IsBooleanObject() const;
@@ -5611,7 +5616,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 164;
+  static const int kEmptyStringRootIndex = 161;
 
   // The external allocation limit should be below 256 MB on all architectures
   // to avoid that resource-constrained embedders run low on memory.

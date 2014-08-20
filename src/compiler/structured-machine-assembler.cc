@@ -26,7 +26,7 @@ StructuredMachineAssembler::StructuredMachineAssembler(
       call_descriptor_builder_(call_descriptor_builder),
       parameters_(NULL),
       current_environment_(new (zone())
-                           Environment(zone(), schedule()->entry(), false)),
+                           Environment(zone(), schedule()->start(), false)),
       number_of_variables_(0) {
   Node* s = graph->NewNode(common_.Start(parameter_count()));
   graph->SetStart(s);

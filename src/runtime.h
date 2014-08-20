@@ -68,7 +68,6 @@ namespace internal {
   F(OptimizeFunctionOnNextCall, -1, 1)                      \
   F(NeverOptimizeFunction, 1, 1)                            \
   F(GetOptimizationStatus, -1, 1)                           \
-  F(IsOptimized, 0, 1) /* TODO(turbofan): Only temporary */ \
   F(GetOptimizationCount, 1, 1)                             \
   F(UnblockConcurrentRecompilation, 0, 1)                   \
   F(CompileForOnStackReplacement, 1, 1)                     \
@@ -260,6 +259,7 @@ namespace internal {
   F(CreateSymbol, 1, 1)                                               \
   F(CreatePrivateSymbol, 1, 1)                                        \
   F(CreateGlobalPrivateSymbol, 1, 1)                                  \
+  F(CreatePrivateOwnSymbol, 1, 1)                                     \
   F(NewSymbolWrapper, 1, 1)                                           \
   F(SymbolDescription, 1, 1)                                          \
   F(SymbolRegistry, 0, 1)                                             \
@@ -826,12 +826,8 @@ class Runtime : public AllStatic {
       Handle<Object> value, StrictMode strict_mode);
 
   MUST_USE_RESULT static MaybeHandle<Object> DefineObjectProperty(
-      Handle<JSObject> object,
-      Handle<Object> key,
-      Handle<Object> value,
-      PropertyAttributes attr,
-      JSReceiver::StoreFromKeyed store_from_keyed =
-          JSReceiver::MAY_BE_STORE_FROM_KEYED);
+      Handle<JSObject> object, Handle<Object> key, Handle<Object> value,
+      PropertyAttributes attr);
 
   MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
       Isolate* isolate,

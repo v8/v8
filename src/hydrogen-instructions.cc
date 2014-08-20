@@ -4675,9 +4675,8 @@ HObjectAccess HObjectAccess::ForField(Handle<Map> map,
 
 
 HObjectAccess HObjectAccess::ForCellPayload(Isolate* isolate) {
-  return HObjectAccess(
-      kInobject, Cell::kValueOffset, Representation::Tagged(),
-      Handle<String>(isolate->heap()->cell_value_string()));
+  return HObjectAccess(kInobject, Cell::kValueOffset, Representation::Tagged(),
+                       isolate->factory()->cell_value_string());
 }
 
 

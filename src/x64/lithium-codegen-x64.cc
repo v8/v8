@@ -2578,7 +2578,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
 
   __ JumpIfSmi(input, is_false);
 
-  if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Function"))) {
+  if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
     // Assuming the following assertions, we can use the same compares to test
     // for both being a function type and being in the object type range.
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
@@ -2609,7 +2609,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
 
   // Objects with a non-function constructor have class 'Object'.
   __ CmpObjectType(temp, JS_FUNCTION_TYPE, kScratchRegister);
-  if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Object"))) {
+  if (String::Equals(class_name, isolate()->factory()->Object_string())) {
     __ j(not_equal, is_true);
   } else {
     __ j(not_equal, is_false);

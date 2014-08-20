@@ -14,6 +14,7 @@
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-typed-lowering.h"
+#include "src/compiler/phi-reducer.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
@@ -22,6 +23,7 @@
 #include "src/compiler/verifier.h"
 #include "src/hydrogen.h"
 #include "src/ostreams.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -71,11 +73,36 @@ class PhaseStats {
 };
 
 
+static inline bool VerifyGraphs() {
+#ifdef DEBUG
+  return true;
+#else
+  return FLAG_turbo_verify;
+#endif
+}
+
+
 void Pipeline::VerifyAndPrintGraph(Graph* graph, const char* phase) {
   if (FLAG_trace_turbo) {
+    char buffer[256];
+    Vector<char> filename(buffer, sizeof(buffer));
+    SmartArrayPointer<char> functionname =
+        info_->shared_info()->DebugName()->ToCString();
+    if (strlen(functionname.get()) > 0) {
+      SNPrintF(filename, "turbo-%s-%s.dot", functionname.get(), phase);
+    } else {
+      SNPrintF(filename, "turbo-%p-%s.dot", static_cast<void*>(info_), phase);
+    }
+    std::replace(filename.start(), filename.start() + filename.length(), ' ',
+                 '_');
+    FILE* file = base::OS::FOpen(filename.start(), "w+");
+    OFStream of(file);
+    of << AsDOT(*graph);
+    fclose(file);
+
     OFStream os(stdout);
-    os << "-- " << phase << " graph -----------------------------------\n"
-       << AsDOT(*graph);
+    os << "-- " << phase << " graph printed to file " << filename.start()
+       << "\n";
   }
   if (VerifyGraphs()) Verifier::Run(graph);
 }
@@ -144,6 +171,17 @@ Handle<Code> Pipeline::GenerateCode() {
     graph_builder.CreateGraph();
     context_node = graph_builder.GetFunctionContext();
   }
+  {
+    PhaseStats phi_reducer_stats(info(), PhaseStats::CREATE_GRAPH,
+                                 "phi reduction");
+    PhiReducer phi_reducer;
+    GraphReducer graph_reducer(&graph);
+    graph_reducer.AddReducer(&phi_reducer);
+    graph_reducer.ReduceGraph();
+    // TODO(mstarzinger): Running reducer once ought to be enough for everyone.
+    graph_reducer.ReduceGraph();
+    graph_reducer.ReduceGraph();
+  }
 
   VerifyAndPrintGraph(&graph, "Initial untyped");
 
@@ -173,8 +211,12 @@ Handle<Code> Pipeline::GenerateCode() {
       // Lower JSOperators where we can determine types.
       PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
                                 "typed lowering");
-      JSTypedLowering lowering(&jsgraph, &source_positions);
-      lowering.LowerAllNodes();
+      SourcePositionTable::Scope pos(&source_positions,
+                                     SourcePosition::Unknown());
+      JSTypedLowering lowering(&jsgraph);
+      GraphReducer graph_reducer(&graph);
+      graph_reducer.AddReducer(&lowering);
+      graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered typed");
     }
@@ -186,9 +228,13 @@ Handle<Code> Pipeline::GenerateCode() {
       // Lower any remaining generic JSOperators.
       PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
                                 "generic lowering");
+      SourcePositionTable::Scope pos(&source_positions,
+                                     SourcePosition::Unknown());
       MachineOperatorBuilder machine(zone());
-      JSGenericLowering lowering(info(), &jsgraph, &machine, &source_positions);
-      lowering.LowerAllNodes();
+      JSGenericLowering lowering(info(), &jsgraph, &machine);
+      GraphReducer graph_reducer(&graph);
+      graph_reducer.AddReducer(&lowering);
+      graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered generic");
     }

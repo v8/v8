@@ -9,8 +9,8 @@
 
 #include "src/allocation.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
-#include "src/compiler/lowering-builder.h"
 #include "src/compiler/opcodes.h"
 #include "src/unique.h"
 
@@ -28,14 +28,13 @@ class MachineOperatorBuilder;
 class Linkage;
 
 // Lowers JS-level operators to runtime and IC calls in the "generic" case.
-class JSGenericLowering : public LoweringBuilder {
+class JSGenericLowering : public Reducer {
  public:
   JSGenericLowering(CompilationInfo* info, JSGraph* graph,
-                    MachineOperatorBuilder* machine,
-                    SourcePositionTable* source_positions);
+                    MachineOperatorBuilder* machine);
   virtual ~JSGenericLowering() {}
 
-  virtual void Lower(Node* node);
+  virtual Reduction Reduce(Node* node);
 
  protected:
 // Dispatched depending on opcode.

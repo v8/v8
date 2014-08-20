@@ -126,37 +126,17 @@ static bool TryMatchROR(InstructionSelector* selector,
                         InstructionOperand** value_return,
                         InstructionOperand** shift_return) {
   ArmOperandGenerator g(selector);
-  if (node->opcode() != IrOpcode::kWord32Or) return false;
+  if (node->opcode() != IrOpcode::kWord32Ror) return false;
   Int32BinopMatcher m(node);
-  Node* shl = m.left().node();
-  Node* shr = m.right().node();
-  if (m.left().IsWord32Shr() && m.right().IsWord32Shl()) {
-    std::swap(shl, shr);
-  } else if (!m.left().IsWord32Shl() || !m.right().IsWord32Shr()) {
-    return false;
-  }
-  Int32BinopMatcher mshr(shr);
-  Int32BinopMatcher mshl(shl);
-  Node* value = mshr.left().node();
-  if (value != mshl.left().node()) return false;
-  Node* shift = mshr.right().node();
-  Int32Matcher mshift(shift);
-  if (mshift.IsInRange(1, 31) && mshl.right().Is(32 - mshift.Value())) {
+  *value_return = g.UseRegister(m.left().node());
+  if (m.right().IsInRange(1, 31)) {
     *opcode_return |= AddressingModeField::encode(kMode_Operand2_R_ROR_I);
-    *value_return = g.UseRegister(value);
-    *shift_return = g.UseImmediate(shift);
-    return true;
-  }
-  if (mshl.right().IsInt32Sub()) {
-    Int32BinopMatcher mshlright(mshl.right().node());
-    if (!mshlright.left().Is(32)) return false;
-    if (mshlright.right().node() != shift) return false;
+    *shift_return = g.UseImmediate(m.right().node());
+  } else {
     *opcode_return |= AddressingModeField::encode(kMode_Operand2_R_ROR_R);
-    *value_return = g.UseRegister(value);
-    *shift_return = g.UseRegister(shift);
-    return true;
+    *shift_return = g.UseRegister(m.right().node());
   }
-  return false;
+  return true;
 }
 
 
@@ -305,28 +285,30 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
 
 void InstructionSelector::VisitLoad(Node* node) {
-  MachineType rep = OpParameter<MachineType>(node);
+  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
   ArmOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
-  InstructionOperand* result = rep == kMachineFloat64
+  InstructionOperand* result = rep == kRepFloat64
                                    ? g.DefineAsDoubleRegister(node)
                                    : g.DefineAsRegister(node);
 
   ArchOpcode opcode;
+  // TODO(titzer): signed/unsigned small loads
   switch (rep) {
-    case kMachineFloat64:
+    case kRepFloat64:
       opcode = kArmFloat64Load;
       break;
-    case kMachineWord8:
+    case kRepBit:  // Fall through.
+    case kRepWord8:
       opcode = kArmLoadWord8;
       break;
-    case kMachineWord16:
+    case kRepWord16:
       opcode = kArmLoadWord16;
       break;
-    case kMachineTagged:  // Fall through.
-    case kMachineWord32:
+    case kRepTagged:  // Fall through.
+    case kRepWord32:
       opcode = kArmLoadWord32;
       break;
     default:
@@ -354,9 +336,9 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
-  MachineType rep = store_rep.rep;
+  MachineType rep = RepresentationOf(store_rep.machine_type);
   if (store_rep.write_barrier_kind == kFullWriteBarrier) {
-    DCHECK(rep == kMachineTagged);
+    DCHECK(rep == kRepTagged);
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
     // TODO(dcarney): handle immediate indices.
@@ -367,22 +349,23 @@ void InstructionSelector::VisitStore(Node* node) {
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
-  InstructionOperand* val = rep == kMachineFloat64 ? g.UseDoubleRegister(value)
-                                                   : g.UseRegister(value);
+  InstructionOperand* val =
+      rep == kRepFloat64 ? g.UseDoubleRegister(value) : g.UseRegister(value);
 
   ArchOpcode opcode;
   switch (rep) {
-    case kMachineFloat64:
+    case kRepFloat64:
       opcode = kArmFloat64Store;
       break;
-    case kMachineWord8:
+    case kRepBit:  // Fall through.
+    case kRepWord8:
       opcode = kArmStoreWord8;
       break;
-    case kMachineWord16:
+    case kRepWord16:
       opcode = kArmStoreWord16;
       break;
-    case kMachineTagged:  // Fall through.
-    case kMachineWord32:
+    case kRepTagged:  // Fall through.
+    case kRepWord32:
       opcode = kArmStoreWord32;
       break;
     default:
@@ -471,14 +454,6 @@ void InstructionSelector::VisitWord32And(Node* node) {
 
 
 void InstructionSelector::VisitWord32Or(Node* node) {
-  ArmOperandGenerator g(this);
-  InstructionCode opcode = kArmMov;
-  InstructionOperand* value_operand;
-  InstructionOperand* shift_operand;
-  if (TryMatchROR(this, &opcode, node, &value_operand, &shift_operand)) {
-    Emit(opcode, g.DefineAsRegister(node), value_operand, shift_operand);
-    return;
-  }
   VisitBinop(this, node, kArmOrr, kArmOrr);
 }
 
@@ -505,15 +480,44 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
 
 template <typename TryMatchShift>
 static inline void VisitShift(InstructionSelector* selector, Node* node,
-                              TryMatchShift try_match_shift) {
+                              TryMatchShift try_match_shift,
+                              FlagsContinuation* cont) {
   ArmOperandGenerator g(selector);
   InstructionCode opcode = kArmMov;
-  InstructionOperand* value_operand = NULL;
-  InstructionOperand* shift_operand = NULL;
-  CHECK(
-      try_match_shift(selector, &opcode, node, &value_operand, &shift_operand));
-  selector->Emit(opcode, g.DefineAsRegister(node), value_operand,
-                 shift_operand);
+  InstructionOperand* inputs[4];
+  size_t input_count = 2;
+  InstructionOperand* outputs[2];
+  size_t output_count = 0;
+
+  CHECK(try_match_shift(selector, &opcode, node, &inputs[0], &inputs[1]));
+
+  if (cont->IsBranch()) {
+    inputs[input_count++] = g.Label(cont->true_block());
+    inputs[input_count++] = g.Label(cont->false_block());
+  }
+
+  outputs[output_count++] = g.DefineAsRegister(node);
+  if (cont->IsSet()) {
+    outputs[output_count++] = g.DefineAsRegister(cont->result());
+  }
+
+  DCHECK_NE(0, input_count);
+  DCHECK_NE(0, output_count);
+  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
+  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
+  DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
+
+  Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
+                                      outputs, input_count, inputs);
+  if (cont->IsBranch()) instr->MarkAsControl();
+}
+
+
+template <typename TryMatchShift>
+static inline void VisitShift(InstructionSelector* selector, Node* node,
+                              TryMatchShift try_match_shift) {
+  FlagsContinuation cont;
+  VisitShift(selector, node, try_match_shift, &cont);
 }
 
 
@@ -548,6 +552,11 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitShift(this, node, TryMatchASR);
+}
+
+
+void InstructionSelector::VisitWord32Ror(Node* node) {
+  VisitShift(this, node, TryMatchROR);
 }
 
 
@@ -898,6 +907,14 @@ void InstructionSelector::VisitWord32Test(Node* node, FlagsContinuation* cont) {
       return VisitBinop(this, node, kArmOrr, kArmOrr, cont);
     case IrOpcode::kWord32Xor:
       return VisitWordCompare(this, node, kArmTeq, cont, true);
+    case IrOpcode::kWord32Sar:
+      return VisitShift(this, node, TryMatchASR, cont);
+    case IrOpcode::kWord32Shl:
+      return VisitShift(this, node, TryMatchLSL, cont);
+    case IrOpcode::kWord32Shr:
+      return VisitShift(this, node, TryMatchLSR, cont);
+    case IrOpcode::kWord32Ror:
+      return VisitShift(this, node, TryMatchROR, cont);
     default:
       break;
   }

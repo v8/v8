@@ -2834,7 +2834,7 @@ void Heap::CreateInitialObjects() {
 
   // Allocate the dictionary of intrinsic function names.
   Handle<NameDictionary> intrinsic_names =
-      NameDictionary::New(isolate(), Runtime::kNumFunctions);
+      NameDictionary::New(isolate(), Runtime::kNumFunctions, TENURED);
   Runtime::InitializeIntrinsicFunctionNames(isolate(), intrinsic_names);
   set_intrinsic_function_names(*intrinsic_names);
 
@@ -3321,7 +3321,6 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   const int bytes_to_trim = elements_to_trim * element_size;
 
   // For now this trick is only applied to objects in new and paged space.
-  DCHECK(!lo_space()->Contains(object));
   DCHECK(object->map() != fixed_cow_array_map());
 
   const int len = object->length();
@@ -3333,7 +3332,12 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   // Technically in new space this write might be omitted (except for
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
-  CreateFillerObjectAt(new_end, bytes_to_trim);
+  // We do not create a filler for objects in large object space.
+  // TODO(hpayer): We should shrink the large object page if the size
+  // of the object changed significantly.
+  if (!lo_space()->Contains(object)) {
+    CreateFillerObjectAt(new_end, bytes_to_trim);
+  }
 
   // Initialize header of the trimmed array. We are storing the new length
   // using release store after creating a filler for the left-over space to

@@ -411,7 +411,7 @@ class LLazyBailout V8_FINAL : public LTemplateInstruction<0, 0, 0> {
 
 class LDummy V8_FINAL : public LTemplateInstruction<1, 0, 0> {
  public:
-  explicit LDummy() { }
+  LDummy() {}
   DECLARE_CONCRETE_INSTRUCTION(Dummy, "dummy")
 };
 
@@ -695,15 +695,17 @@ class LDivByConstI V8_FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 0> {
+class LDivI V8_FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
-  LDivI(LOperand* dividend, LOperand* divisor) {
+  LDivI(LOperand* dividend, LOperand* divisor, LOperand* temp) {
     inputs_[0] = dividend;
     inputs_[1] = divisor;
+    temps_[0] = temp;
   }
 
   LOperand* dividend() { return inputs_[0]; }
   LOperand* divisor() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(DivI, "div-i")
   DECLARE_HYDROGEN_ACCESSOR(BinaryOperation)

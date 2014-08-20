@@ -2358,7 +2358,7 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
   __ JumpIfSmi(input, false_label);
 
   Register map = scratch2;
-  if (class_name->IsUtf8EqualTo(CStrVector("Function"))) {
+  if (String::Equals(isolate()->factory()->Function_string(), class_name)) {
     // Assuming the following assertions, we can use the same compares to test
     // for both being a function type and being in the object type range.
     STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
@@ -2383,7 +2383,7 @@ void LCodeGen::DoClassOfTestAndBranch(LClassOfTestAndBranch* instr) {
   __ Ldr(scratch1, FieldMemOperand(map, Map::kConstructorOffset));
 
   // Objects with a non-function constructor have class 'Object'.
-  if (class_name->IsUtf8EqualTo(CStrVector("Object"))) {
+  if (String::Equals(class_name, isolate()->factory()->Object_string())) {
     __ JumpIfNotObjectType(
         scratch1, scratch2, scratch2, JS_FUNCTION_TYPE, true_label);
   } else {

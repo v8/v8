@@ -325,11 +325,22 @@ var lastMicrotaskId = 0;
 
   // Utility for debugger
 
+  function PromiseHasRejectHandlerRecursive(promise) {
+    var queue = GET_PRIVATE(promise, promiseOnReject);
+    if (IS_UNDEFINED(queue)) return false;
+    // Do a depth first search for a reject handler that's not
+    // the default PromiseIdRejectHandler.
+    for (var i = 0; i < queue.length; i += 2) {
+      if (queue[i] != PromiseIdRejectHandler) return true;
+      if (PromiseHasRejectHandlerRecursive(queue[i + 1].promise)) return true;
+    }
+    return false;
+  }
+
   PromiseHasRejectHandler = function PromiseHasRejectHandler() {
     // Mark promise as already having triggered a reject event.
     SET_PRIVATE(this, promiseDebug, true);
-    var queue = GET_PRIVATE(this, promiseOnReject);
-    return !IS_UNDEFINED(queue) && queue.length > 0;
+    return PromiseHasRejectHandlerRecursive(this);
   };
 
   // -------------------------------------------------------------------

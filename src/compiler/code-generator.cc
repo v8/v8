@@ -225,9 +225,6 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   // Populate the return address patcher entries.
   for (int i = 0; i < patch_count; ++i) {
     LazyDeoptimizationEntry entry = lazy_deoptimization_entries_[i];
-    DCHECK(entry.position_after_call() == entry.continuation()->pos() ||
-           IsNopForSmiCodeInlining(code_object, entry.position_after_call(),
-                                   entry.continuation()->pos()));
     data->SetReturnAddressPc(i, Smi::FromInt(entry.position_after_call()));
     data->SetPatchedAddressPc(i, Smi::FromInt(entry.deoptimization()->pos()));
   }
@@ -364,15 +361,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 
 
 void CodeGenerator::AddNopForSmiCodeInlining() { UNIMPLEMENTED(); }
-
-
-#ifdef DEBUG
-bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
-                                            int end_pc) {
-  UNIMPLEMENTED();
-  return false;
-}
-#endif
 
 #endif  // !V8_TURBOFAN_BACKEND
 

@@ -162,8 +162,8 @@ TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
 class TerminatorThread : public v8::base::Thread {
  public:
   explicit TerminatorThread(i::Isolate* isolate)
-      : Thread("TerminatorThread"),
-        isolate_(reinterpret_cast<v8::Isolate*>(isolate)) { }
+      : Thread(Options("TerminatorThread")),
+        isolate_(reinterpret_cast<v8::Isolate*>(isolate)) {}
   void Run() {
     semaphore->Wait();
     CHECK(!v8::V8::IsExecutionTerminating(isolate_));

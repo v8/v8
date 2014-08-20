@@ -65,16 +65,16 @@ class RepresentationChangerTester : public HandleAndZoneScope,
     return graph()->NewNode(common()->Parameter(index), graph()->start());
   }
 
-  void CheckTypeError(RepTypeUnion from, RepTypeUnion to) {
+  void CheckTypeError(MachineTypeUnion from, MachineTypeUnion to) {
     changer()->testing_type_errors_ = true;
     changer()->type_error_ = false;
     Node* n = Parameter(0);
     Node* c = changer()->GetRepresentationFor(n, from, to);
-    CHECK_EQ(n, c);
     CHECK(changer()->type_error_);
+    CHECK_EQ(n, c);
   }
 
-  void CheckNop(RepTypeUnion from, RepTypeUnion to) {
+  void CheckNop(MachineTypeUnion from, MachineTypeUnion to) {
     Node* n = Parameter(0);
     Node* c = changer()->GetRepresentationFor(n, from, to);
     CHECK_EQ(n, c);
@@ -85,7 +85,8 @@ class RepresentationChangerTester : public HandleAndZoneScope,
 }  // namespace v8::internal::compiler
 
 
-static const RepType all_reps[] = {rBit, rWord32, rWord64, rFloat64, rTagged};
+static const MachineType all_reps[] = {kRepBit, kRepWord32, kRepWord64,
+                                       kRepFloat64, kRepTagged};
 
 
 // TODO(titzer): lift this to ValueHelper
@@ -111,12 +112,13 @@ TEST(BoolToBit_constant) {
   RepresentationChangerTester r;
 
   Node* true_node = r.jsgraph()->TrueConstant();
-  Node* true_bit = r.changer()->GetRepresentationFor(true_node, rTagged, rBit);
+  Node* true_bit =
+      r.changer()->GetRepresentationFor(true_node, kRepTagged, kRepBit);
   r.CheckInt32Constant(true_bit, 1);
 
   Node* false_node = r.jsgraph()->FalseConstant();
   Node* false_bit =
-      r.changer()->GetRepresentationFor(false_node, rTagged, rBit);
+      r.changer()->GetRepresentationFor(false_node, kRepTagged, kRepBit);
   r.CheckInt32Constant(false_bit, 0);
 }
 
@@ -126,7 +128,7 @@ TEST(BitToBool_constant) {
 
   for (int i = -5; i < 5; i++) {
     Node* node = r.jsgraph()->Int32Constant(i);
-    Node* val = r.changer()->GetRepresentationFor(node, rBit, rTagged);
+    Node* val = r.changer()->GetRepresentationFor(node, kRepBit, kRepTagged);
     r.CheckHeapConstant(val, i == 0 ? r.isolate()->heap()->false_value()
                                     : r.isolate()->heap()->true_value());
   }
@@ -138,26 +140,28 @@ TEST(ToTagged_constant) {
 
   for (size_t i = 0; i < ARRAY_SIZE(double_inputs); i++) {
     Node* n = r.jsgraph()->Float64Constant(double_inputs[i]);
-    Node* c = r.changer()->GetRepresentationFor(n, rFloat64, rTagged);
+    Node* c = r.changer()->GetRepresentationFor(n, kRepFloat64, kRepTagged);
     r.CheckNumberConstant(c, double_inputs[i]);
   }
 
   for (size_t i = 0; i < ARRAY_SIZE(int32_inputs); i++) {
     Node* n = r.jsgraph()->Int32Constant(int32_inputs[i]);
-    Node* c = r.changer()->GetRepresentationFor(n, rWord32 | tInt32, rTagged);
+    Node* c = r.changer()->GetRepresentationFor(n, kRepWord32 | kTypeInt32,
+                                                kRepTagged);
     r.CheckNumberConstant(c, static_cast<double>(int32_inputs[i]));
   }
 
   for (size_t i = 0; i < ARRAY_SIZE(uint32_inputs); i++) {
     Node* n = r.jsgraph()->Int32Constant(uint32_inputs[i]);
-    Node* c = r.changer()->GetRepresentationFor(n, rWord32 | tUint32, rTagged);
+    Node* c = r.changer()->GetRepresentationFor(n, kRepWord32 | kTypeUint32,
+                                                kRepTagged);
     r.CheckNumberConstant(c, static_cast<double>(uint32_inputs[i]));
   }
 }
 
 
-static void CheckChange(IrOpcode::Value expected, RepTypeUnion from,
-                        RepTypeUnion to) {
+static void CheckChange(IrOpcode::Value expected, MachineTypeUnion from,
+                        MachineTypeUnion to) {
   RepresentationChangerTester r;
 
   Node* n = r.Parameter();
@@ -170,40 +174,43 @@ static void CheckChange(IrOpcode::Value expected, RepTypeUnion from,
 
 
 TEST(SingleChanges) {
-  CheckChange(IrOpcode::kChangeBoolToBit, rTagged, rBit);
-  CheckChange(IrOpcode::kChangeBitToBool, rBit, rTagged);
+  CheckChange(IrOpcode::kChangeBoolToBit, kRepTagged, kRepBit);
+  CheckChange(IrOpcode::kChangeBitToBool, kRepBit, kRepTagged);
 
-  CheckChange(IrOpcode::kChangeInt32ToTagged, rWord32 | tInt32, rTagged);
-  CheckChange(IrOpcode::kChangeUint32ToTagged, rWord32 | tUint32, rTagged);
-  CheckChange(IrOpcode::kChangeFloat64ToTagged, rFloat64, rTagged);
+  CheckChange(IrOpcode::kChangeInt32ToTagged, kRepWord32 | kTypeInt32,
+              kRepTagged);
+  CheckChange(IrOpcode::kChangeUint32ToTagged, kRepWord32 | kTypeUint32,
+              kRepTagged);
+  CheckChange(IrOpcode::kChangeFloat64ToTagged, kRepFloat64, kRepTagged);
 
-  CheckChange(IrOpcode::kChangeTaggedToInt32, rTagged | tInt32, rWord32);
-  CheckChange(IrOpcode::kChangeTaggedToUint32, rTagged | tUint32, rWord32);
-  CheckChange(IrOpcode::kChangeTaggedToFloat64, rTagged, rFloat64);
+  CheckChange(IrOpcode::kChangeTaggedToInt32, kRepTagged | kTypeInt32,
+              kRepWord32);
+  CheckChange(IrOpcode::kChangeTaggedToUint32, kRepTagged | kTypeUint32,
+              kRepWord32);
+  CheckChange(IrOpcode::kChangeTaggedToFloat64, kRepTagged, kRepFloat64);
 
   // Int32,Uint32 <-> Float64 are actually machine conversions.
-  CheckChange(IrOpcode::kChangeInt32ToFloat64, rWord32 | tInt32, rFloat64);
-  CheckChange(IrOpcode::kChangeUint32ToFloat64, rWord32 | tUint32, rFloat64);
-  CheckChange(IrOpcode::kChangeFloat64ToInt32, rFloat64 | tInt32, rWord32);
-  CheckChange(IrOpcode::kChangeFloat64ToUint32, rFloat64 | tUint32, rWord32);
+  CheckChange(IrOpcode::kChangeInt32ToFloat64, kRepWord32 | kTypeInt32,
+              kRepFloat64);
+  CheckChange(IrOpcode::kChangeUint32ToFloat64, kRepWord32 | kTypeUint32,
+              kRepFloat64);
+  CheckChange(IrOpcode::kChangeFloat64ToInt32, kRepFloat64 | kTypeInt32,
+              kRepWord32);
+  CheckChange(IrOpcode::kChangeFloat64ToUint32, kRepFloat64 | kTypeUint32,
+              kRepWord32);
 }
 
 
 TEST(SignednessInWord32) {
   RepresentationChangerTester r;
 
-  // TODO(titzer): these are currently type errors because the output type is
-  // not specified. Maybe the RepresentationChanger should assume anything to or
-  // from {rWord32} is {tInt32}, i.e. signed, if not it is explicitly otherwise?
-  r.CheckTypeError(rTagged, rWord32 | tInt32);
-  r.CheckTypeError(rTagged, rWord32 | tUint32);
-  r.CheckTypeError(rWord32, rFloat64);
-  r.CheckTypeError(rFloat64, rWord32);
-
-  //  CheckChange(IrOpcode::kChangeTaggedToInt32, rTagged, rWord32 | tInt32);
-  //  CheckChange(IrOpcode::kChangeTaggedToUint32, rTagged, rWord32 | tUint32);
-  //  CheckChange(IrOpcode::kChangeInt32ToFloat64, rWord32, rFloat64);
-  //  CheckChange(IrOpcode::kChangeFloat64ToInt32, rFloat64, rWord32);
+  // TODO(titzer): assume that uses of a word32 without a sign mean kTypeInt32.
+  CheckChange(IrOpcode::kChangeTaggedToInt32, kRepTagged,
+              kRepWord32 | kTypeInt32);
+  CheckChange(IrOpcode::kChangeTaggedToUint32, kRepTagged,
+              kRepWord32 | kTypeUint32);
+  CheckChange(IrOpcode::kChangeInt32ToFloat64, kRepWord32, kRepFloat64);
+  CheckChange(IrOpcode::kChangeFloat64ToInt32, kRepFloat64, kRepWord32);
 }
 
 
@@ -215,17 +222,30 @@ TEST(Nops) {
     r.CheckNop(all_reps[i], all_reps[i]);
   }
 
-  // 32-bit or 64-bit words can be used as branch conditions (rBit).
-  r.CheckNop(rWord32, rBit);
-  r.CheckNop(rWord32, rBit | tBool);
-  r.CheckNop(rWord64, rBit);
-  r.CheckNop(rWord64, rBit | tBool);
+  // 32-bit or 64-bit words can be used as branch conditions (kRepBit).
+  r.CheckNop(kRepWord32, kRepBit);
+  r.CheckNop(kRepWord32, kRepBit | kTypeBool);
+  r.CheckNop(kRepWord64, kRepBit);
+  r.CheckNop(kRepWord64, kRepBit | kTypeBool);
 
-  // rBit (result of comparison) is implicitly a wordish thing.
-  r.CheckNop(rBit, rWord32);
-  r.CheckNop(rBit | tBool, rWord32);
-  r.CheckNop(rBit, rWord64);
-  r.CheckNop(rBit | tBool, rWord64);
+  // 32-bit words can be used as smaller word sizes and vice versa, because
+  // loads from memory implicitly sign or zero extend the value to the
+  // full machine word size, and stores implicitly truncate.
+  r.CheckNop(kRepWord32, kRepWord8);
+  r.CheckNop(kRepWord32, kRepWord16);
+  r.CheckNop(kRepWord32, kRepWord32);
+  r.CheckNop(kRepWord8, kRepWord32);
+  r.CheckNop(kRepWord16, kRepWord32);
+
+  // kRepBit (result of comparison) is implicitly a wordish thing.
+  r.CheckNop(kRepBit, kRepWord8);
+  r.CheckNop(kRepBit | kTypeBool, kRepWord8);
+  r.CheckNop(kRepBit, kRepWord16);
+  r.CheckNop(kRepBit | kTypeBool, kRepWord16);
+  r.CheckNop(kRepBit, kRepWord32);
+  r.CheckNop(kRepBit | kTypeBool, kRepWord32);
+  r.CheckNop(kRepBit, kRepWord64);
+  r.CheckNop(kRepBit | kTypeBool, kRepWord64);
 }
 
 
@@ -233,31 +253,31 @@ TEST(TypeErrors) {
   RepresentationChangerTester r;
 
   // Floats cannot be implicitly converted to/from comparison conditions.
-  r.CheckTypeError(rFloat64, rBit);
-  r.CheckTypeError(rFloat64, rBit | tBool);
-  r.CheckTypeError(rBit, rFloat64);
-  r.CheckTypeError(rBit | tBool, rFloat64);
+  r.CheckTypeError(kRepFloat64, kRepBit);
+  r.CheckTypeError(kRepFloat64, kRepBit | kTypeBool);
+  r.CheckTypeError(kRepBit, kRepFloat64);
+  r.CheckTypeError(kRepBit | kTypeBool, kRepFloat64);
 
   // Word64 is internal and shouldn't be implicitly converted.
-  r.CheckTypeError(rWord64, rTagged | tBool);
-  r.CheckTypeError(rWord64, rTagged);
-  r.CheckTypeError(rWord64, rTagged | tBool);
-  r.CheckTypeError(rTagged, rWord64);
-  r.CheckTypeError(rTagged | tBool, rWord64);
+  r.CheckTypeError(kRepWord64, kRepTagged | kTypeBool);
+  r.CheckTypeError(kRepWord64, kRepTagged);
+  r.CheckTypeError(kRepWord64, kRepTagged | kTypeBool);
+  r.CheckTypeError(kRepTagged, kRepWord64);
+  r.CheckTypeError(kRepTagged | kTypeBool, kRepWord64);
 
   // Word64 / Word32 shouldn't be implicitly converted.
-  r.CheckTypeError(rWord64, rWord32);
-  r.CheckTypeError(rWord32, rWord64);
-  r.CheckTypeError(rWord64, rWord32 | tInt32);
-  r.CheckTypeError(rWord32 | tInt32, rWord64);
-  r.CheckTypeError(rWord64, rWord32 | tUint32);
-  r.CheckTypeError(rWord32 | tUint32, rWord64);
+  r.CheckTypeError(kRepWord64, kRepWord32);
+  r.CheckTypeError(kRepWord32, kRepWord64);
+  r.CheckTypeError(kRepWord64, kRepWord32 | kTypeInt32);
+  r.CheckTypeError(kRepWord32 | kTypeInt32, kRepWord64);
+  r.CheckTypeError(kRepWord64, kRepWord32 | kTypeUint32);
+  r.CheckTypeError(kRepWord32 | kTypeUint32, kRepWord64);
 
   for (size_t i = 0; i < ARRAY_SIZE(all_reps); i++) {
     for (size_t j = 0; j < ARRAY_SIZE(all_reps); j++) {
       if (i == j) continue;
       // Only a single from representation is allowed.
-      r.CheckTypeError(all_reps[i] | all_reps[j], rTagged);
+      r.CheckTypeError(all_reps[i] | all_reps[j], kRepTagged);
     }
   }
 }

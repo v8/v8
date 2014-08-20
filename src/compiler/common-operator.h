@@ -130,6 +130,20 @@ class CommonOperatorBuilder {
     return new (zone_) Operator1<int>(IrOpcode::kEffectPhi, Operator::kPure, 0,
                                       0, "EffectPhi", arguments);
   }
+  Operator* ControlEffect() {
+    return new (zone_) SimpleOperator(IrOpcode::kControlEffect, Operator::kPure,
+                                      0, 0, "ControlEffect");
+  }
+  Operator* ValueEffect(int arguments) {
+    DCHECK(arguments > 0);  // Disallow empty value effects.
+    return new (zone_) SimpleOperator(IrOpcode::kValueEffect, Operator::kPure,
+                                      arguments, 0, "ValueEffect");
+  }
+  Operator* Finish(int arguments) {
+    DCHECK(arguments > 0);  // Disallow empty finishes.
+    return new (zone_) Operator1<int>(IrOpcode::kFinish, Operator::kPure, 1, 1,
+                                      "Finish", arguments);
+  }
   Operator* StateValues(int arguments) {
     return new (zone_) Operator1<int>(IrOpcode::kStateValues, Operator::kPure,
                                       arguments, 1, "StateValues", arguments);

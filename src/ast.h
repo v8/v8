@@ -94,6 +94,7 @@ namespace internal {
   V(BinaryOperation)                            \
   V(CompareOperation)                           \
   V(ThisFunction)                               \
+  V(SuperReference)                             \
   V(CaseClause)
 
 #define AST_NODE_LIST(V)                        \
@@ -1710,6 +1711,10 @@ class Property V8_FINAL : public Expression, public FeedbackSlotInterface {
   void mark_for_call() { is_for_call_ = true; }
   bool IsForCall() { return is_for_call_; }
 
+  bool IsSuperAccess() {
+    return obj()->IsSuperReference();
+  }
+
   TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
 
   virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
@@ -2553,6 +2558,25 @@ class ThisFunction V8_FINAL : public Expression {
  protected:
   explicit ThisFunction(Zone* zone, int pos): Expression(zone, pos) {}
 };
+
+
+class SuperReference V8_FINAL : public Expression {
+ public:
+  DECLARE_NODE_TYPE(SuperReference)
+
+  VariableProxy* this_var() const { return this_var_; }
+
+  TypeFeedbackId HomeObjectFeedbackId() { return reuse(id()); }
+
+ protected:
+  explicit SuperReference(Zone* zone, VariableProxy* this_var, int pos)
+      : Expression(zone, pos), this_var_(this_var) {
+      DCHECK(this_var->is_this());
+  }
+
+  VariableProxy* this_var_;
+};
+
 
 #undef DECLARE_NODE_TYPE
 
@@ -3470,6 +3494,11 @@ class AstNodeFactory V8_FINAL BASE_EMBEDDED {
   ThisFunction* NewThisFunction(int pos) {
     ThisFunction* fun = new(zone_) ThisFunction(zone_, pos);
     VISIT_AND_RETURN(ThisFunction, fun)
+  }
+
+  SuperReference* NewSuperReference(VariableProxy* this_var, int pos) {
+    SuperReference* super = new (zone_) SuperReference(zone_, this_var, pos);
+    VISIT_AND_RETURN(SuperReference, super);
   }
 
 #undef VISIT_AND_RETURN

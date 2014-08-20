@@ -35,8 +35,8 @@ class SplayTree {
 
   class Locator;
 
-  SplayTree(AllocationPolicy allocator = AllocationPolicy())
-      : root_(NULL), allocator_(allocator) { }
+  explicit SplayTree(AllocationPolicy allocator = AllocationPolicy())
+      : root_(NULL), allocator_(allocator) {}
   ~SplayTree();
 
   INLINE(void* operator new(size_t size,

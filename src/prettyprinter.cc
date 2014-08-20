@@ -447,6 +447,11 @@ void PrettyPrinter::VisitThisFunction(ThisFunction* node) {
 }
 
 
+void PrettyPrinter::VisitSuperReference(SuperReference* node) {
+  Print("<super-reference>");
+}
+
+
 const char* PrettyPrinter::Print(AstNode* node) {
   Init();
   Visit(node);
@@ -1143,6 +1148,11 @@ void AstPrinter::VisitCompareOperation(CompareOperation* node) {
 
 void AstPrinter::VisitThisFunction(ThisFunction* node) {
   IndentedScope indent(this, "THIS-FUNCTION");
+}
+
+
+void AstPrinter::VisitSuperReference(SuperReference* node) {
+  IndentedScope indent(this, "SUPER-REFERENCE");
 }
 
 #endif  // DEBUG

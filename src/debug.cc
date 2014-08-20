@@ -568,7 +568,6 @@ void Debug::ThreadInit() {
   // TODO(isolates): frames_are_dropped_?
   thread_local_.current_debug_scope_ = NULL;
   thread_local_.restarter_frame_function_pointer_ = NULL;
-  thread_local_.promise_on_stack_ = NULL;
 }
 
 
@@ -854,9 +853,6 @@ bool Debug::Load() {
 void Debug::Unload() {
   ClearAllBreakPoints();
   ClearStepping();
-
-  // Match unmatched PopPromise calls.
-  while (thread_local_.promise_on_stack_) PopPromise();
 
   // Return debugger is not loaded.
   if (!is_loaded()) return;
@@ -1269,57 +1265,6 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
   } else {
     return break_on_exception_;
   }
-}
-
-
-PromiseOnStack::PromiseOnStack(Isolate* isolate, PromiseOnStack* prev,
-                               Handle<JSObject> promise)
-    : isolate_(isolate), prev_(prev) {
-  handler_ = StackHandler::FromAddress(
-      Isolate::handler(isolate->thread_local_top()));
-  promise_ =
-      Handle<JSObject>::cast(isolate->global_handles()->Create(*promise));
-}
-
-
-PromiseOnStack::~PromiseOnStack() {
-  isolate_->global_handles()->Destroy(
-      Handle<Object>::cast(promise_).location());
-}
-
-
-void Debug::PushPromise(Handle<JSObject> promise) {
-  PromiseOnStack* prev = thread_local_.promise_on_stack_;
-  thread_local_.promise_on_stack_ = new PromiseOnStack(isolate_, prev, promise);
-}
-
-
-void Debug::PopPromise() {
-  if (thread_local_.promise_on_stack_ == NULL) return;
-  PromiseOnStack* prev = thread_local_.promise_on_stack_->prev();
-  delete thread_local_.promise_on_stack_;
-  thread_local_.promise_on_stack_ = prev;
-}
-
-
-Handle<Object> Debug::GetPromiseOnStackOnThrow() {
-  Handle<Object> undefined = isolate_->factory()->undefined_value();
-  if (thread_local_.promise_on_stack_ == NULL) return undefined;
-  StackHandler* promise_try = thread_local_.promise_on_stack_->handler();
-  // Find the top-most try-catch handler.
-  StackHandler* handler = StackHandler::FromAddress(
-      Isolate::handler(isolate_->thread_local_top()));
-  do {
-    if (handler == promise_try) {
-      // Mark the pushed try-catch handler to prevent a later duplicate event
-      // triggered with the following reject.
-      return thread_local_.promise_on_stack_->promise();
-    }
-    handler = handler->next();
-    // Throwing inside a Promise can be intercepted by an inner try-catch, so
-    // we stop at the first try-catch handler.
-  } while (handler != NULL && !handler->is_catch());
-  return undefined;
 }
 
 
@@ -2567,7 +2512,7 @@ MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
 void Debug::OnThrow(Handle<Object> exception, bool uncaught) {
   if (in_debug_scope() || ignore_events()) return;
   HandleScope scope(isolate_);
-  OnException(exception, uncaught, GetPromiseOnStackOnThrow());
+  OnException(exception, uncaught, isolate_->GetPromiseOnStackOnThrow());
 }
 
 

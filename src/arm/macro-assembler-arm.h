@@ -152,8 +152,11 @@ class MacroAssembler: public Assembler {
   // Register move. May do nothing if the registers are identical.
   void Move(Register dst, Handle<Object> value);
   void Move(Register dst, Register src, Condition cond = al);
-  void Move(Register dst, const Operand& src, Condition cond = al) {
-    if (!src.is_reg() || !src.rm().is(dst)) mov(dst, src, LeaveCC, cond);
+  void Move(Register dst, const Operand& src, SBit sbit = LeaveCC,
+            Condition cond = al) {
+    if (!src.is_reg() || !src.rm().is(dst) || sbit != LeaveCC) {
+      mov(dst, src, sbit, cond);
+    }
   }
   void Move(DwVfpRegister dst, DwVfpRegister src);
 

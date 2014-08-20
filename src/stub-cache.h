@@ -473,7 +473,10 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
   Handle<Code> CompileLoadConstant(Handle<Name> name, int constant_index);
 
-  Handle<Code> CompileLoadInterceptor(Handle<Name> name);
+  // The LookupIterator is used to perform a lookup behind the interceptor. If
+  // the iterator points to a LookupIterator::PROPERTY, its access will be
+  // inlined.
+  Handle<Code> CompileLoadInterceptor(LookupIterator* it, Handle<Name> name);
 
   Handle<Code> CompileLoadViaGetter(Handle<Name> name,
                                     Handle<JSFunction> getter);
@@ -523,12 +526,10 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
                             Handle<ExecutableAccessorInfo> callback);
   void GenerateLoadCallback(const CallOptimization& call_optimization,
                             Handle<Map> receiver_map);
-  void GenerateLoadInterceptor(Register holder_reg,
-                               LookupResult* lookup,
-                               Handle<Name> name);
-  void GenerateLoadPostInterceptor(Register reg,
-                                   Handle<Name> name,
-                                   LookupResult* lookup);
+  void GenerateLoadInterceptor(Register holder_reg);
+  void GenerateLoadInterceptorWithFollowup(LookupIterator* it,
+                                           Register holder_reg);
+  void GenerateLoadPostInterceptor(LookupIterator* it, Register reg);
 
   // Generates prototype loading code that uses the objects from the
   // context we were in when this function was called. If the context

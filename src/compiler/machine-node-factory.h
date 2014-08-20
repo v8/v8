@@ -118,6 +118,9 @@ class MachineNodeFactory {
   Node* WordSar(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->WordSar(), a, b);
   }
+  Node* WordRor(Node* a, Node* b) {
+    return NEW_NODE_2(MACHINE()->WordRor(), a, b);
+  }
   Node* WordEqual(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->WordEqual(), a, b);
   }
@@ -157,6 +160,9 @@ class MachineNodeFactory {
   Node* Word32Sar(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Word32Sar(), a, b);
   }
+  Node* Word32Ror(Node* a, Node* b) {
+    return NEW_NODE_2(MACHINE()->Word32Ror(), a, b);
+  }
   Node* Word32Equal(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Word32Equal(), a, b);
   }
@@ -183,6 +189,9 @@ class MachineNodeFactory {
   }
   Node* Word64Sar(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Word64Sar(), a, b);
+  }
+  Node* Word64Ror(Node* a, Node* b) {
+    return NEW_NODE_2(MACHINE()->Word64Ror(), a, b);
   }
   Node* Word64Equal(Node* a, Node* b) {
     return NEW_NODE_2(MACHINE()->Word64Equal(), a, b);
@@ -271,12 +280,13 @@ class MachineNodeFactory {
     return Int64LessThanOrEqual(b, a);
   }
 
+  // TODO(turbofan): What is this used for?
   Node* ConvertIntPtrToInt32(Node* a) {
-    return kPointerSize == 8 ? NEW_NODE_1(MACHINE()->ConvertInt64ToInt32(), a)
+    return kPointerSize == 8 ? NEW_NODE_1(MACHINE()->TruncateInt64ToInt32(), a)
                              : a;
   }
   Node* ConvertInt32ToIntPtr(Node* a) {
-    return kPointerSize == 8 ? NEW_NODE_1(MACHINE()->ConvertInt32ToInt64(), a)
+    return kPointerSize == 8 ? NEW_NODE_1(MACHINE()->ChangeInt32ToInt64(), a)
                              : a;
   }
 
@@ -330,12 +340,6 @@ class MachineNodeFactory {
   }
 
   // Conversions.
-  Node* ConvertInt32ToInt64(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertInt32ToInt64(), a);
-  }
-  Node* ConvertInt64ToInt32(Node* a) {
-    return NEW_NODE_1(MACHINE()->ConvertInt64ToInt32(), a);
-  }
   Node* ChangeInt32ToFloat64(Node* a) {
     return NEW_NODE_1(MACHINE()->ChangeInt32ToFloat64(), a);
   }
@@ -347,6 +351,15 @@ class MachineNodeFactory {
   }
   Node* ChangeFloat64ToUint32(Node* a) {
     return NEW_NODE_1(MACHINE()->ChangeFloat64ToUint32(), a);
+  }
+  Node* ChangeInt32ToInt64(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeInt32ToInt64(), a);
+  }
+  Node* ChangeUint32ToUint64(Node* a) {
+    return NEW_NODE_1(MACHINE()->ChangeUint32ToUint64(), a);
+  }
+  Node* TruncateInt64ToInt32(Node* a) {
+    return NEW_NODE_1(MACHINE()->TruncateInt64ToInt32(), a);
   }
 
 #ifdef MACHINE_ASSEMBLER_SUPPORTS_CALL_C

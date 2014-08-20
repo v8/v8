@@ -91,11 +91,11 @@ class RawMachineAssemblerTester
     : public MachineAssemblerTester<RawMachineAssembler>,
       public CallHelper2<ReturnType, RawMachineAssemblerTester<ReturnType> > {
  public:
-  RawMachineAssemblerTester(MachineType p0 = kMachineLast,
-                            MachineType p1 = kMachineLast,
-                            MachineType p2 = kMachineLast,
-                            MachineType p3 = kMachineLast,
-                            MachineType p4 = kMachineLast)
+  RawMachineAssemblerTester(MachineType p0 = kMachNone,
+                            MachineType p1 = kMachNone,
+                            MachineType p2 = kMachNone,
+                            MachineType p3 = kMachNone,
+                            MachineType p4 = kMachNone)
       : MachineAssemblerTester<RawMachineAssembler>(
             ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3,
             p4) {}
@@ -127,11 +127,11 @@ class StructuredMachineAssemblerTester
       public CallHelper2<ReturnType,
                          StructuredMachineAssemblerTester<ReturnType> > {
  public:
-  StructuredMachineAssemblerTester(MachineType p0 = kMachineLast,
-                                   MachineType p1 = kMachineLast,
-                                   MachineType p2 = kMachineLast,
-                                   MachineType p3 = kMachineLast,
-                                   MachineType p4 = kMachineLast)
+  StructuredMachineAssemblerTester(MachineType p0 = kMachNone,
+                                   MachineType p1 = kMachNone,
+                                   MachineType p2 = kMachNone,
+                                   MachineType p3 = kMachNone,
+                                   MachineType p4 = kMachNone)
       : MachineAssemblerTester<StructuredMachineAssembler>(
             ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3,
             p4) {}
@@ -201,15 +201,25 @@ class BinopTester {
 // A helper class for testing code sequences that take two int parameters and
 // return an int value.
 class Int32BinopTester
-    : public BinopTester<int32_t, kMachineWord32, USE_RETURN_REGISTER> {
+    : public BinopTester<int32_t, kMachInt32, USE_RETURN_REGISTER> {
  public:
   explicit Int32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<int32_t, kMachineWord32, USE_RETURN_REGISTER>(tester) {}
+      : BinopTester<int32_t, kMachInt32, USE_RETURN_REGISTER>(tester) {}
+};
 
-  int32_t call(uint32_t a0, uint32_t a1) {
-    p0 = static_cast<int32_t>(a0);
-    p1 = static_cast<int32_t>(a1);
-    return T->Call();
+
+// A helper class for testing code sequences that take two uint parameters and
+// return an uint value.
+class Uint32BinopTester
+    : public BinopTester<uint32_t, kMachUint32, USE_RETURN_REGISTER> {
+ public:
+  explicit Uint32BinopTester(RawMachineAssemblerTester<int32_t>* tester)
+      : BinopTester<uint32_t, kMachUint32, USE_RETURN_REGISTER>(tester) {}
+
+  uint32_t call(uint32_t a0, uint32_t a1) {
+    p0 = a0;
+    p1 = a1;
+    return static_cast<uint32_t>(T->Call());
   }
 };
 
@@ -218,10 +228,10 @@ class Int32BinopTester
 // return a double value.
 // TODO(titzer): figure out how to return doubles correctly on ia32.
 class Float64BinopTester
-    : public BinopTester<double, kMachineFloat64, USE_RESULT_BUFFER> {
+    : public BinopTester<double, kMachFloat64, USE_RESULT_BUFFER> {
  public:
   explicit Float64BinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<double, kMachineFloat64, USE_RESULT_BUFFER>(tester) {}
+      : BinopTester<double, kMachFloat64, USE_RESULT_BUFFER>(tester) {}
 };
 
 
@@ -230,10 +240,10 @@ class Float64BinopTester
 // TODO(titzer): pick word size of pointers based on V8_TARGET.
 template <typename Type>
 class PointerBinopTester
-    : public BinopTester<Type*, kMachineWord32, USE_RETURN_REGISTER> {
+    : public BinopTester<Type*, kMachPtr, USE_RETURN_REGISTER> {
  public:
   explicit PointerBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, kMachineWord32, USE_RETURN_REGISTER>(tester) {}
+      : BinopTester<Type*, kMachPtr, USE_RETURN_REGISTER>(tester) {}
 };
 
 
@@ -241,10 +251,10 @@ class PointerBinopTester
 // return a tagged value.
 template <typename Type>
 class TaggedBinopTester
-    : public BinopTester<Type*, kMachineTagged, USE_RETURN_REGISTER> {
+    : public BinopTester<Type*, kMachAnyTagged, USE_RETURN_REGISTER> {
  public:
   explicit TaggedBinopTester(RawMachineAssemblerTester<int32_t>* tester)
-      : BinopTester<Type*, kMachineTagged, USE_RETURN_REGISTER>(tester) {}
+      : BinopTester<Type*, kMachAnyTagged, USE_RETURN_REGISTER>(tester) {}
 };
 
 // A helper class for testing compares. Wraps a machine opcode and provides

@@ -126,6 +126,31 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 }
 
 
+void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
+                                             PropertyAttributes attributes) {
+  DCHECK(has_property_);
+  DCHECK(HolderIsReceiverOrHiddenPrototype());
+  Handle<JSObject> holder = GetHolder<JSObject>();
+  if (property_encoding_ != DICTIONARY) {
+    holder_map_ = Map::ReconfigureDataProperty(holder_map_, descriptor_number(),
+                                               attributes);
+    JSObject::MigrateToMap(holder, holder_map_);
+  }
+
+  // Reload property information and update the descriptor if in dictionary
+  // mode.
+  if (holder_map_->is_dictionary_map()) {
+    property_encoding_ = DICTIONARY;
+    PropertyDetails details(attributes, NORMAL, 0);
+    JSObject::SetNormalizedProperty(holder, name(), value, details);
+  } else {
+    property_encoding_ = DESCRIPTOR;
+  }
+
+  CHECK(HasProperty());
+}
+
+
 void LookupIterator::TransitionToDataProperty(
     Handle<Object> value, PropertyAttributes attributes,
     Object::StoreFromKeyed store_mode) {
@@ -135,10 +160,6 @@ void LookupIterator::TransitionToDataProperty(
   // handled via a trap. Adding properties to primitive values is not
   // observable.
   Handle<JSObject> receiver = Handle<JSObject>::cast(GetReceiver());
-
-  // Properties have to be added to context extension objects through
-  // SetOwnPropertyIgnoreAttributes.
-  DCHECK(!receiver->IsJSContextExtensionObject());
 
   if (receiver->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate(), receiver);
@@ -153,7 +174,7 @@ void LookupIterator::TransitionToDataProperty(
 
   // Reload the information.
   state_ = NOT_FOUND;
-  configuration_ = CHECK_OWN_REAL;
+  configuration_ = CHECK_PROPERTY;
   state_ = LookupInHolder(*holder_map_);
   DCHECK(IsFound());
   HasProperty();
@@ -162,6 +183,8 @@ void LookupIterator::TransitionToDataProperty(
 
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
+  // Optimization that only works if configuration_ is not mutable.
+  if (!check_derived()) return true;
   DisallowHeapAllocation no_gc;
   Handle<Object> receiver = GetReceiver();
   if (!receiver->IsJSReceiver()) return false;
@@ -179,6 +202,16 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
     iter.Advance();
   } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));
   return false;
+}
+
+
+bool LookupIterator::HolderIsNonGlobalHiddenPrototype() const {
+  if (!HolderIsReceiverOrHiddenPrototype()) return false;
+  Handle<Object> receiver = GetReceiver();
+  Handle<JSReceiver> holder = GetHolder<JSReceiver>();
+  if (receiver.is_identical_to(holder)) return false;
+  if (receiver->IsJSGlobalProxy()) return !holder->IsJSGlobalObject();
+  return true;
 }
 
 

@@ -19,8 +19,8 @@ RawMachineAssembler::RawMachineAssembler(
       common_(zone()),
       call_descriptor_builder_(call_descriptor_builder),
       parameters_(NULL),
-      exit_label_(schedule()->exit()),
-      current_block_(schedule()->entry()) {
+      exit_label_(schedule()->end()),
+      current_block_(schedule()->start()) {
   Node* s = graph->NewNode(common_.Start(parameter_count()));
   graph->SetStart(s);
   if (parameter_count() == 0) return;
@@ -55,7 +55,7 @@ RawMachineAssembler::Label* RawMachineAssembler::Exit() {
 
 
 void RawMachineAssembler::Goto(Label* label) {
-  DCHECK(current_block_ != schedule()->exit());
+  DCHECK(current_block_ != schedule()->end());
   schedule()->AddGoto(CurrentBlock(), Use(label));
   current_block_ = NULL;
 }
@@ -63,7 +63,7 @@ void RawMachineAssembler::Goto(Label* label) {
 
 void RawMachineAssembler::Branch(Node* condition, Label* true_val,
                                  Label* false_val) {
-  DCHECK(current_block_ != schedule()->exit());
+  DCHECK(current_block_ != schedule()->end());
   Node* branch = NewNode(common()->Branch(), condition);
   schedule()->AddBranch(CurrentBlock(), branch, Use(true_val), Use(false_val));
   current_block_ = NULL;

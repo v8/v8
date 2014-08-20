@@ -409,7 +409,8 @@ THREADED_TEST(Script) {
 
 class TestResource: public String::ExternalStringResource {
  public:
-  TestResource(uint16_t* data, int* counter = NULL, bool owning_data = true)
+  explicit TestResource(uint16_t* data, int* counter = NULL,
+                        bool owning_data = true)
       : data_(data), length_(0), counter_(counter), owning_data_(owning_data) {
     while (data[length_]) ++length_;
   }
@@ -437,11 +438,12 @@ class TestResource: public String::ExternalStringResource {
 
 class TestAsciiResource: public String::ExternalAsciiStringResource {
  public:
-  TestAsciiResource(const char* data, int* counter = NULL, size_t offset = 0)
+  explicit TestAsciiResource(const char* data, int* counter = NULL,
+                             size_t offset = 0)
       : orig_data_(data),
         data_(data + offset),
         length_(strlen(data) - offset),
-        counter_(counter) { }
+        counter_(counter) {}
 
   ~TestAsciiResource() {
     i::DeleteArray(orig_data_);
@@ -1536,6 +1538,19 @@ THREADED_TEST(IsNativeError) {
   CHECK(!not_error->IsNativeError());
   v8::Handle<Value> not_object = CompileRun("42");
   CHECK(!not_object->IsNativeError());
+}
+
+
+THREADED_TEST(ArgumentsObject) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Handle<Value> arguments_object =
+      CompileRun("var out = 0; (function(){ out = arguments; })(1,2,3); out;");
+  CHECK(arguments_object->IsArgumentsObject());
+  v8::Handle<Value> array = CompileRun("[1,2,3]");
+  CHECK(!array->IsArgumentsObject());
+  v8::Handle<Value> object = CompileRun("{a:42}");
+  CHECK(!object->IsArgumentsObject());
 }
 
 
@@ -15158,7 +15173,7 @@ struct RegExpInterruptionData {
 class RegExpInterruptionThread : public v8::base::Thread {
  public:
   explicit RegExpInterruptionThread(v8::Isolate* isolate)
-      : Thread("TimeoutThread"), isolate_(isolate) {}
+      : Thread(Options("TimeoutThread")), isolate_(isolate) {}
 
   virtual void Run() {
     for (regexp_interruption_data.loop_count = 0;
@@ -19366,10 +19381,10 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
 class IsolateThread : public v8::base::Thread {
  public:
   IsolateThread(v8::Isolate* isolate, int fib_limit)
-      : Thread("IsolateThread"),
+      : Thread(Options("IsolateThread")),
         isolate_(isolate),
         fib_limit_(fib_limit),
-        result_(0) { }
+        result_(0) {}
 
   void Run() {
     result_ = CalcFibonacci(isolate_, fib_limit_);
@@ -19448,9 +19463,9 @@ class InitDefaultIsolateThread : public v8::base::Thread {
   };
 
   explicit InitDefaultIsolateThread(TestCase testCase)
-      : Thread("InitDefaultIsolateThread"),
+      : Thread(Options("InitDefaultIsolateThread")),
         testCase_(testCase),
-        result_(false) { }
+        result_(false) {}
 
   void Run() {
     v8::Isolate* isolate = v8::Isolate::New();
@@ -21508,7 +21523,7 @@ class ThreadInterruptTest {
   class InterruptThread : public v8::base::Thread {
    public:
     explicit InterruptThread(ThreadInterruptTest* test)
-        : Thread("InterruptThread"), test_(test) {}
+        : Thread(Options("InterruptThread")), test_(test) {}
 
     virtual void Run() {
       struct sigaction action;
@@ -21916,7 +21931,7 @@ class RequestInterruptTestBaseWithSimpleInterrupt
   class InterruptThread : public v8::base::Thread {
    public:
     explicit InterruptThread(RequestInterruptTestBase* test)
-        : Thread("RequestInterruptTest"), test_(test) {}
+        : Thread(Options("RequestInterruptTest")), test_(test) {}
 
     virtual void Run() {
       test_->sem_.Wait();
@@ -22136,7 +22151,7 @@ class ClearInterruptFromAnotherThread
   class InterruptThread : public v8::base::Thread {
    public:
     explicit InterruptThread(ClearInterruptFromAnotherThread* test)
-        : Thread("RequestInterruptTest"), test_(test) {}
+        : Thread(Options("RequestInterruptTest")), test_(test) {}
 
     virtual void Run() {
       test_->sem_.Wait();

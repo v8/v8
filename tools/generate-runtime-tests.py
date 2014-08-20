@@ -51,7 +51,7 @@ EXPECTED_FUNCTION_COUNT = 428
 EXPECTED_FUZZABLE_COUNT = 331
 EXPECTED_CCTEST_COUNT = 7
 EXPECTED_UNKNOWN_COUNT = 16
-EXPECTED_BUILTINS_COUNT = 809
+EXPECTED_BUILTINS_COUNT = 808
 
 
 # Don't call these at all.
@@ -226,6 +226,7 @@ CUSTOM_KNOWN_GOOD_INPUT = {
   "CreateBreakIterator": ["'en-US'", "{type: 'string'}", None, None],
   "CreateJSFunctionProxy": [None, "function() {}", None, None, None],
   "CreatePrivateSymbol": ["\"foo\"", None],
+  "CreatePrivateOwnSymbol": ["\"foo\"", None],
   "CreateSymbol": ["\"foo\"", None],
   "DateParseString": [None, "new Array(8)", None],
   "DefineAccessorPropertyUnchecked": [None, None, "function() {}",

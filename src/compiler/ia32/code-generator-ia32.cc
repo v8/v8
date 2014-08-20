@@ -220,6 +220,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ sar_cl(i.OutputRegister());
       }
       break;
+    case kIA32Ror:
+      if (HasImmediateInput(instr, 1)) {
+        __ ror(i.OutputRegister(), i.InputInt5(1));
+      } else {
+        __ ror_cl(i.OutputRegister());
+      }
+      break;
     case kIA32Push:
       if (HasImmediateInput(instr, 0)) {
         __ push(i.InputImmediate(0));
@@ -938,19 +945,6 @@ void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
 
 #undef __
 
-#ifdef DEBUG
-
-// Checks whether the code between start_pc and end_pc is a no-op.
-bool CodeGenerator::IsNopForSmiCodeInlining(Handle<Code> code, int start_pc,
-                                            int end_pc) {
-  if (start_pc + 1 != end_pc) {
-    return false;
-  }
-  return *(code->instruction_start() + start_pc) ==
-         v8::internal::Assembler::kNopByte;
-}
-
-#endif  // DEBUG
 }
 }
 }  // namespace v8::internal::compiler

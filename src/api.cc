@@ -2383,6 +2383,14 @@ bool Value::IsNumber() const {
 }
 
 
+bool Value::IsArgumentsObject() const {
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsHeapObject()) return false;
+  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
+  return obj->HasSpecificClassOf(isolate->heap()->Arguments_string());
+}
+
+
 bool Value::IsBoolean() const {
   return Utils::OpenHandle(this)->IsBoolean();
 }
@@ -3296,7 +3304,8 @@ Local<String> v8::Object::ObjectProtoToString() {
     return v8::String::NewFromUtf8(isolate, "[object ]");
   } else {
     i::Handle<i::String> class_name = i::Handle<i::String>::cast(name);
-    if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Arguments"))) {
+    if (i::String::Equals(class_name,
+                          i_isolate->factory()->Arguments_string())) {
       return v8::String::NewFromUtf8(isolate, "[object Object]");
     } else {
       const char* prefix = "[object ";
@@ -3567,9 +3576,9 @@ static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
   // If the property being looked up is a callback, it can throw
   // an exception.
   EXCEPTION_PREAMBLE(isolate);
-  i::LookupIterator it(
-      receiver, name, i::Handle<i::JSReceiver>(lookup->holder(), isolate),
-      i::LookupIterator::SKIP_INTERCEPTOR);
+  i::LookupIterator it(receiver, name,
+                       i::Handle<i::JSReceiver>(lookup->holder(), isolate),
+                       i::LookupIterator::CHECK_DERIVED_SKIP_INTERCEPTOR);
   i::Handle<i::Object> result;
   has_pending_exception = !i::Object::GetProperty(&it).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
@@ -4290,9 +4299,7 @@ class Utf8LengthHelper : public i::AllStatic {
 
   class Visitor {
    public:
-    inline explicit Visitor()
-        : utf8_length_(0),
-          state_(kInitialState) {}
+    Visitor() : utf8_length_(0), state_(kInitialState) {}
 
     void VisitOneByteString(const uint8_t* chars, int length) {
       int utf8_length = 0;

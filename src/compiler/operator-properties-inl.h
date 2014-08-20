@@ -5,8 +5,7 @@
 #ifndef V8_COMPILER_OPERATOR_PROPERTIES_INL_H_
 #define V8_COMPILER_OPERATOR_PROPERTIES_INL_H_
 
-#include "src/v8.h"
-
+#include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
@@ -42,7 +41,8 @@ inline int OperatorProperties::GetContextInputCount(Operator* op) {
 }
 
 inline int OperatorProperties::GetEffectInputCount(Operator* op) {
-  if (op->opcode() == IrOpcode::kEffectPhi) {
+  if (op->opcode() == IrOpcode::kEffectPhi ||
+      op->opcode() == IrOpcode::kFinish) {
     return static_cast<Operator1<int>*>(op)->parameter();
   }
   if (op->HasProperty(Operator::kNoRead) && op->HasProperty(Operator::kNoWrite))
@@ -54,6 +54,7 @@ inline int OperatorProperties::GetControlInputCount(Operator* op) {
   switch (op->opcode()) {
     case IrOpcode::kPhi:
     case IrOpcode::kEffectPhi:
+    case IrOpcode::kControlEffect:
       return 1;
 #define OPCODE_CASE(x) case IrOpcode::k##x:
       CONTROL_OP_LIST(OPCODE_CASE)
@@ -87,7 +88,10 @@ inline bool OperatorProperties::HasValueOutput(Operator* op) {
 }
 
 inline bool OperatorProperties::HasEffectOutput(Operator* op) {
-  return op->opcode() == IrOpcode::kStart || GetEffectInputCount(op) > 0;
+  return op->opcode() == IrOpcode::kStart ||
+         op->opcode() == IrOpcode::kControlEffect ||
+         op->opcode() == IrOpcode::kValueEffect ||
+         (op->opcode() != IrOpcode::kFinish && GetEffectInputCount(op) > 0);
 }
 
 inline bool OperatorProperties::HasControlOutput(Operator* op) {
@@ -117,21 +121,6 @@ inline bool OperatorProperties::IsBasicBlockBegin(Operator* op) {
          opcode == IrOpcode::kDead || opcode == IrOpcode::kLoop ||
          opcode == IrOpcode::kMerge || opcode == IrOpcode::kIfTrue ||
          opcode == IrOpcode::kIfFalse;
-}
-
-inline bool OperatorProperties::CanBeScheduled(Operator* op) { return true; }
-
-inline bool OperatorProperties::HasFixedSchedulePosition(Operator* op) {
-  IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
-  return (IrOpcode::IsControlOpcode(opcode)) ||
-         opcode == IrOpcode::kParameter || opcode == IrOpcode::kEffectPhi ||
-         opcode == IrOpcode::kPhi;
-}
-
-inline bool OperatorProperties::IsScheduleRoot(Operator* op) {
-  uint8_t opcode = op->opcode();
-  return opcode == IrOpcode::kEnd || opcode == IrOpcode::kEffectPhi ||
-         opcode == IrOpcode::kPhi;
 }
 
 inline bool OperatorProperties::CanLazilyDeoptimize(Operator* op) {

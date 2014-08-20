@@ -21,7 +21,7 @@ enum WriteBarrierKind { kNoWriteBarrier, kFullWriteBarrier };
 // A Store needs a MachineType and a WriteBarrierKind
 // in order to emit the correct write barrier.
 struct StoreRepresentation {
-  MachineType rep;
+  MachineType machine_type;
   WriteBarrierKind write_barrier_kind;
 };
 
@@ -33,7 +33,7 @@ class MachineOperatorBuilder {
  public:
   explicit MachineOperatorBuilder(Zone* zone, MachineType word = pointer_rep())
       : zone_(zone), word_(word) {
-    CHECK(word == kMachineWord32 || word == kMachineWord64);
+    CHECK(word == kRepWord32 || word == kRepWord64);
   }
 
 #define SIMPLE(name, properties, inputs, outputs) \
@@ -76,6 +76,7 @@ class MachineOperatorBuilder {
   Operator* WordShl() { WORD_SIZE(Shl); }
   Operator* WordShr() { WORD_SIZE(Shr); }
   Operator* WordSar() { WORD_SIZE(Sar); }
+  Operator* WordRor() { WORD_SIZE(Ror); }
   Operator* WordEqual() { WORD_SIZE(Equal); }
 
   Operator* Word32And() { BINOP_AC(Word32And); }
@@ -84,6 +85,7 @@ class MachineOperatorBuilder {
   Operator* Word32Shl() { BINOP(Word32Shl); }
   Operator* Word32Shr() { BINOP(Word32Shr); }
   Operator* Word32Sar() { BINOP(Word32Sar); }
+  Operator* Word32Ror() { BINOP(Word32Ror); }
   Operator* Word32Equal() { BINOP_C(Word32Equal); }
 
   Operator* Word64And() { BINOP_AC(Word64And); }
@@ -92,6 +94,7 @@ class MachineOperatorBuilder {
   Operator* Word64Shl() { BINOP(Word64Shl); }
   Operator* Word64Shr() { BINOP(Word64Shr); }
   Operator* Word64Sar() { BINOP(Word64Sar); }
+  Operator* Word64Ror() { BINOP(Word64Ror); }
   Operator* Word64Equal() { BINOP_C(Word64Equal); }
 
   Operator* Int32Add() { BINOP_AC(Int32Add); }
@@ -118,18 +121,21 @@ class MachineOperatorBuilder {
   Operator* Int64LessThan() { BINOP(Int64LessThan); }
   Operator* Int64LessThanOrEqual() { BINOP(Int64LessThanOrEqual); }
 
-  Operator* ConvertInt32ToInt64() { UNOP(ConvertInt32ToInt64); }
-  Operator* ConvertInt64ToInt32() { UNOP(ConvertInt64ToInt32); }
-
   // Convert representation of integers between float64 and int32/uint32.
   // The precise rounding mode and handling of out of range inputs are *not*
   // defined for these operators, since they are intended only for use with
   // integers.
-  // TODO(titzer): rename ConvertXXX to ChangeXXX in machine operators.
   Operator* ChangeInt32ToFloat64() { UNOP(ChangeInt32ToFloat64); }
   Operator* ChangeUint32ToFloat64() { UNOP(ChangeUint32ToFloat64); }
   Operator* ChangeFloat64ToInt32() { UNOP(ChangeFloat64ToInt32); }
   Operator* ChangeFloat64ToUint32() { UNOP(ChangeFloat64ToUint32); }
+
+  // Sign/zero extend int32/uint32 to int64/uint64.
+  Operator* ChangeInt32ToInt64() { UNOP(ChangeInt32ToInt64); }
+  Operator* ChangeUint32ToUint64() { UNOP(ChangeUint32ToUint64); }
+
+  // Truncate the high order bits and convert the remaining bits to int32.
+  Operator* TruncateInt64ToInt32() { UNOP(TruncateInt64ToInt32); }
 
   // Floating point operators always operate with IEEE 754 round-to-nearest.
   Operator* Float64Add() { BINOP_C(Float64Add); }
@@ -143,12 +149,12 @@ class MachineOperatorBuilder {
   Operator* Float64LessThan() { BINOP(Float64LessThan); }
   Operator* Float64LessThanOrEqual() { BINOP(Float64LessThanOrEqual); }
 
-  inline bool is32() const { return word_ == kMachineWord32; }
-  inline bool is64() const { return word_ == kMachineWord64; }
+  inline bool is32() const { return word_ == kRepWord32; }
+  inline bool is64() const { return word_ == kRepWord64; }
   inline MachineType word() const { return word_; }
 
   static inline MachineType pointer_rep() {
-    return kPointerSize == 8 ? kMachineWord64 : kMachineWord32;
+    return kPointerSize == 8 ? kRepWord64 : kRepWord32;
   }
 
 #undef WORD_SIZE

@@ -186,7 +186,7 @@ Handle<String> Factory::InternalizeOneByteString(Vector<const uint8_t> string) {
 
 Handle<String> Factory::InternalizeOneByteString(
     Handle<SeqOneByteString> string, int from, int length) {
-  SubStringKey<uint8_t> key(string, from, length);
+  SeqOneByteSubStringKey key(string, from, length);
   return InternalizeStringWithKey(&key);
 }
 
@@ -201,12 +201,6 @@ template<class StringTableKey>
 Handle<String> Factory::InternalizeStringWithKey(StringTableKey* key) {
   return StringTable::LookupKey(isolate(), key);
 }
-
-
-template Handle<String> Factory::InternalizeStringWithKey<
-    SubStringKey<uint8_t> > (SubStringKey<uint8_t>* key);
-template Handle<String> Factory::InternalizeStringWithKey<
-    SubStringKey<uint16_t> > (SubStringKey<uint16_t>* key);
 
 
 MaybeHandle<String> Factory::NewStringFromOneByte(Vector<const uint8_t> string,
@@ -309,6 +303,17 @@ MUST_USE_RESULT Handle<String> Factory::NewOneByteInternalizedString(
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateOneByteInternalizedString(str, hash_field),
+      String);
+}
+
+
+MUST_USE_RESULT Handle<String> Factory::NewOneByteInternalizedSubString(
+    Handle<SeqOneByteString> string, int offset, int length,
+    uint32_t hash_field) {
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocateOneByteInternalizedString(
+                     Vector<const uint8_t>(string->GetChars() + offset, length),
+                     hash_field),
       String);
 }
 
@@ -660,6 +665,14 @@ Handle<Symbol> Factory::NewSymbol() {
 Handle<Symbol> Factory::NewPrivateSymbol() {
   Handle<Symbol> symbol = NewSymbol();
   symbol->set_is_private(true);
+  return symbol;
+}
+
+
+Handle<Symbol> Factory::NewPrivateOwnSymbol() {
+  Handle<Symbol> symbol = NewSymbol();
+  symbol->set_is_private(true);
+  symbol->set_is_own(true);
   return symbol;
 }
 
@@ -2161,8 +2174,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   if (prototype->IsTheHole()) {
 #ifdef DEBUG
     LookupIterator it(handle(JSObject::cast(result->prototype())),
-                      constructor_string(),
-                      LookupIterator::CHECK_OWN_REAL);
+                      constructor_string(), LookupIterator::CHECK_PROPERTY);
     MaybeHandle<Object> maybe_prop = Object::GetProperty(&it);
     DCHECK(it.IsFound());
     DCHECK(maybe_prop.ToHandleChecked().is_identical_to(result));

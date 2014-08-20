@@ -24,7 +24,7 @@ namespace compiler {
 
 class GraphVisualizer : public NullNodeVisitor {
  public:
-  GraphVisualizer(OStream& os, const Graph* graph);  // NOLINT
+  GraphVisualizer(OStream& os, Zone* zone, const Graph* graph);  // NOLINT
 
   void Print();
 
@@ -35,6 +35,7 @@ class GraphVisualizer : public NullNodeVisitor {
   void AnnotateNode(Node* node);
   void PrintEdge(Node* from, int index, Node* to);
 
+  Zone* zone_;
   NodeSet all_nodes_;
   NodeSet white_nodes_;
   bool use_to_def_;
@@ -225,8 +226,8 @@ void GraphVisualizer::Print() {
   // Visit all uses of white nodes.
   use_to_def_ = false;
   GenericGraphVisit::Visit<GraphVisualizer, NodeUseIterationTraits<Node> >(
-      const_cast<Graph*>(graph_), white_nodes_.begin(), white_nodes_.end(),
-      this);
+      const_cast<Graph*>(graph_), zone_, white_nodes_.begin(),
+      white_nodes_.end(), this);
 
   os_ << "  DEAD_INPUT [\n"
       << "    style=\"filled\" \n"
@@ -246,18 +247,19 @@ void GraphVisualizer::Print() {
 }
 
 
-GraphVisualizer::GraphVisualizer(OStream& os, const Graph* graph)  // NOLINT
-    : all_nodes_(NodeSet::key_compare(),
-                 NodeSet::allocator_type(graph->zone())),
-      white_nodes_(NodeSet::key_compare(),
-                   NodeSet::allocator_type(graph->zone())),
+GraphVisualizer::GraphVisualizer(OStream& os, Zone* zone,
+                                 const Graph* graph)  // NOLINT
+    : zone_(zone),
+      all_nodes_(NodeSet::key_compare(), NodeSet::allocator_type(zone)),
+      white_nodes_(NodeSet::key_compare(), NodeSet::allocator_type(zone)),
       use_to_def_(true),
       os_(os),
       graph_(graph) {}
 
 
 OStream& operator<<(OStream& os, const AsDOT& ad) {
-  GraphVisualizer(os, &ad.graph).Print();
+  Zone tmp_zone(ad.graph.zone()->isolate());
+  GraphVisualizer(os, &tmp_zone, &ad.graph).Print();
   return os;
 }
 }
