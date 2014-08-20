@@ -6911,6 +6911,12 @@ void Debug::CancelDebugBreak(Isolate* isolate) {
 }
 
 
+bool Debug::CheckDebugBreak(Isolate* isolate) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return internal_isolate->stack_guard()->CheckDebugBreak();
+}
+
+
 void Debug::DebugBreakForCommand(Isolate* isolate, ClientData* data) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debug()->EnqueueDebugCommand(data);
