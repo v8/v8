@@ -3600,7 +3600,8 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupIterator it(self_obj, key_obj, i::LookupIterator::CHECK_PROPERTY);
+  i::LookupIterator it(self_obj, key_obj,
+                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
   return GetPropertyByLookup(&it);
 }
 
