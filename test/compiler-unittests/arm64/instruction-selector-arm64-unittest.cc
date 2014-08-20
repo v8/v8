@@ -134,7 +134,7 @@ TEST_P(InstructionSelectorLogicalTest, Immediate) {
   // TODO(all): Add support for testing 64-bit immediates.
   if (type == kMachInt32) {
     // Immediate on the right.
-    TRACED_FOREACH(uint32_t, imm, kLogicalImmediates) {
+    TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
       StreamBuilder m(this, type, type);
       m.Return((m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)));
       Stream s = m.Build();
@@ -147,7 +147,7 @@ TEST_P(InstructionSelectorLogicalTest, Immediate) {
     }
 
     // Immediate on the left; all logical ops should commute.
-    TRACED_FOREACH(uint32_t, imm, kLogicalImmediates) {
+    TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
       StreamBuilder m(this, type, type);
       m.Return((m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)));
       Stream s = m.Build();
