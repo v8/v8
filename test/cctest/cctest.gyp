@@ -71,6 +71,7 @@
         'compiler/test-pipeline.cc',
         'compiler/test-representation-change.cc',
         'compiler/test-run-deopt.cc',
+        'compiler/test-run-inlining.cc',
         'compiler/test-run-intrinsics.cc',
         'compiler/test-run-jsbranches.cc',
         'compiler/test-run-jscalls.cc',

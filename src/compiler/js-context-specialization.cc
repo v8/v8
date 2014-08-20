@@ -15,26 +15,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// TODO(titzer): factor this out to a common routine with js-typed-lowering.
-static void ReplaceEffectfulWithValue(Node* node, Node* value) {
-  Node* effect = NULL;
-  if (OperatorProperties::HasEffectInput(node->op())) {
-    effect = NodeProperties::GetEffectInput(node);
-  }
-
-  // Requires distinguishing between value and effect edges.
-  UseIter iter = node->uses().begin();
-  while (iter != node->uses().end()) {
-    if (NodeProperties::IsEffectEdge(iter.edge())) {
-      DCHECK_NE(NULL, effect);
-      iter = iter.UpdateToAndIncrement(effect);
-    } else {
-      iter = iter.UpdateToAndIncrement(value);
-    }
-  }
-}
-
-
 class ContextSpecializationVisitor : public NullNodeVisitor {
  public:
   explicit ContextSpecializationVisitor(JSContextSpecializer* spec)
@@ -45,14 +25,16 @@ class ContextSpecializationVisitor : public NullNodeVisitor {
       case IrOpcode::kJSLoadContext: {
         Reduction r = spec_->ReduceJSLoadContext(node);
         if (r.Changed() && r.replacement() != node) {
-          ReplaceEffectfulWithValue(node, r.replacement());
+          NodeProperties::ReplaceWithValue(node, r.replacement());
+          node->RemoveAllInputs();
         }
         break;
       }
       case IrOpcode::kJSStoreContext: {
         Reduction r = spec_->ReduceJSStoreContext(node);
         if (r.Changed() && r.replacement() != node) {
-          ReplaceEffectfulWithValue(node, r.replacement());
+          NodeProperties::ReplaceWithValue(node, r.replacement());
+          node->RemoveAllInputs();
         }
         break;
       }
@@ -68,7 +50,8 @@ class ContextSpecializationVisitor : public NullNodeVisitor {
 
 
 void JSContextSpecializer::SpecializeToContext() {
-  ReplaceEffectfulWithValue(context_, jsgraph_->Constant(info_->context()));
+  NodeProperties::ReplaceWithValue(context_,
+                                   jsgraph_->Constant(info_->context()));
 
   ContextSpecializationVisitor visitor(this);
   jsgraph_->graph()->VisitNodeInputsFromEnd(&visitor);

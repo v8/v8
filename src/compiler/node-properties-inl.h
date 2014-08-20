@@ -148,6 +148,28 @@ inline void NodeProperties::RemoveNonValueInputs(Node* node) {
 }
 
 
+// Replace value uses of {node} with {value} and effect uses of {node} with
+// {effect}. If {effect == NULL}, then use the effect input to {node}.
+inline void NodeProperties::ReplaceWithValue(Node* node, Node* value,
+                                             Node* effect) {
+  DCHECK(!OperatorProperties::HasControlOutput(node->op()));
+  if (effect == NULL && OperatorProperties::HasEffectInput(node->op())) {
+    effect = NodeProperties::GetEffectInput(node);
+  }
+
+  // Requires distinguishing between value and effect edges.
+  UseIter iter = node->uses().begin();
+  while (iter != node->uses().end()) {
+    if (NodeProperties::IsEffectEdge(iter.edge())) {
+      DCHECK_NE(NULL, effect);
+      iter = iter.UpdateToAndIncrement(effect);
+    } else {
+      iter = iter.UpdateToAndIncrement(value);
+    }
+  }
+}
+
+
 // -----------------------------------------------------------------------------
 // Type Bounds.
 
