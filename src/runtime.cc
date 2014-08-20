@@ -619,7 +619,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateOwnSymbol) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
+RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateOwnSymbol) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
@@ -635,6 +635,7 @@ RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
     DCHECK(symbol->IsUndefined());
     symbol = isolate->factory()->NewPrivateSymbol();
     Handle<Symbol>::cast(symbol)->set_name(*name);
+    Handle<Symbol>::cast(symbol)->set_is_own(true);
     JSObject::SetProperty(Handle<JSObject>::cast(privates), name, symbol,
                           STRICT).Assert();
   }

@@ -146,7 +146,7 @@ var lastMicrotaskId = 0;
   // For bootstrapper.
 
   IsPromise = function IsPromise(x) {
-    return IS_SPEC_OBJECT(x) && HAS_PRIVATE(x, promiseStatus);
+    return IS_SPEC_OBJECT(x) && HAS_DEFINED_PRIVATE(x, promiseStatus);
   }
 
   PromiseCreate = function PromiseCreate() {
@@ -162,7 +162,7 @@ var lastMicrotaskId = 0;
     // Check promiseDebug property to avoid duplicate event.
     if (DEBUG_IS_ACTIVE &&
         GET_PRIVATE(promise, promiseStatus) == 0 &&
-        !HAS_PRIVATE(promise, promiseDebug)) {
+        !HAS_DEFINED_PRIVATE(promise, promiseDebug)) {
       %DebugPromiseRejectEvent(promise, r);
     }
     PromiseDone(promise, -1, r, promiseOnReject)
