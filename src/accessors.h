@@ -43,10 +43,10 @@ class Accessors : public AllStatic {
   // Accessor descriptors.
 #define ACCESSOR_INFO_DECLARATION(name)                   \
   static void name##Getter(                               \
-      v8::Local<v8::String> name,                         \
+      v8::Local<v8::Name> name,                           \
       const v8::PropertyCallbackInfo<v8::Value>& info);   \
   static void name##Setter(                               \
-      v8::Local<v8::String> name,                         \
+      v8::Local<v8::Name> name,                           \
       v8::Local<v8::Value> value,                         \
       const v8::PropertyCallbackInfo<void>& info);   \
   static Handle<AccessorInfo> name##Info(                 \
@@ -83,9 +83,9 @@ class Accessors : public AllStatic {
 
   static Handle<AccessorInfo> MakeAccessor(
       Isolate* isolate,
-      Handle<String> name,
-      AccessorGetterCallback getter,
-      AccessorSetterCallback setter,
+      Handle<Name> name,
+      AccessorNameGetterCallback getter,
+      AccessorNameSetterCallback setter,
       PropertyAttributes attributes);
 
   static Handle<ExecutableAccessorInfo> CloneAccessor(

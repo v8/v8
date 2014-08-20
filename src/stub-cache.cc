@@ -503,18 +503,14 @@ RUNTIME_FUNCTION(StoreCallbackProperty) {
   DCHECK(callback->IsCompatibleReceiver(*receiver));
 
   Address setter_address = v8::ToCData<Address>(callback->setter());
-  v8::AccessorSetterCallback fun =
-      FUNCTION_CAST<v8::AccessorSetterCallback>(setter_address);
+  v8::AccessorNameSetterCallback fun =
+      FUNCTION_CAST<v8::AccessorNameSetterCallback>(setter_address);
   DCHECK(fun != NULL);
-
-  // TODO(rossberg): Support symbols in the API.
-  if (name->IsSymbol()) return *value;
-  Handle<String> str = Handle<String>::cast(name);
 
   LOG(isolate, ApiNamedPropertyAccess("store", *receiver, *name));
   PropertyCallbackArguments custom_args(isolate, callback->data(), *receiver,
                                         *holder);
-  custom_args.Call(fun, v8::Utils::ToLocal(str), v8::Utils::ToLocal(value));
+  custom_args.Call(fun, v8::Utils::ToLocal(name), v8::Utils::ToLocal(value));
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
 }

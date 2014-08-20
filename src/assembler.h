@@ -774,12 +774,12 @@ class ExternalReference BASE_EMBEDDED {
     PROFILING_API_CALL,
 
     // Direct call to accessor getter callback.
-    // void f(Local<String> property, PropertyCallbackInfo& info)
+    // void f(Local<Name> property, PropertyCallbackInfo& info)
     DIRECT_GETTER_CALL,
 
     // Call to accessor getter callback via InvokeAccessorGetterCallback.
-    // void f(Local<String> property, PropertyCallbackInfo& info,
-    //     AccessorGetterCallback callback)
+    // void f(Local<Name> property, PropertyCallbackInfo& info,
+    //     AccessorNameGetterCallback callback)
     PROFILING_GETTER_CALL
   };
 

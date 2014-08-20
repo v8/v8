@@ -428,9 +428,6 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
                                                         ARRAY_SIZE(args)));
       return isolate->Throw<Object>(error);
     }
-    // TODO(rossberg): Handling symbols in the API requires changing the API,
-    // so we do not support it for now.
-    if (name->IsSymbol()) return isolate->factory()->undefined_value();
     if (structure->IsDeclaredAccessorInfo()) {
       return GetDeclaredAccessorProperty(
           receiver,
@@ -440,15 +437,14 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
 
     Handle<ExecutableAccessorInfo> data =
         Handle<ExecutableAccessorInfo>::cast(structure);
-    v8::AccessorGetterCallback call_fun =
-        v8::ToCData<v8::AccessorGetterCallback>(data->getter());
+    v8::AccessorNameGetterCallback call_fun =
+        v8::ToCData<v8::AccessorNameGetterCallback>(data->getter());
     if (call_fun == NULL) return isolate->factory()->undefined_value();
 
-    Handle<String> key = Handle<String>::cast(name);
     LOG(isolate, ApiNamedPropertyAccess("load", *holder, *name));
     PropertyCallbackArguments args(isolate, data->data(), *receiver, *holder);
     v8::Handle<v8::Value> result =
-        args.Call(call_fun, v8::Utils::ToLocal(key));
+        args.Call(call_fun, v8::Utils::ToLocal(name));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.IsEmpty()) {
       return isolate->factory()->undefined_value();
@@ -504,17 +500,14 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
                                                         ARRAY_SIZE(args)));
       return isolate->Throw<Object>(error);
     }
-    // TODO(rossberg): Support symbols in the API.
-    if (name->IsSymbol()) return value;
     Object* call_obj = info->setter();
-    v8::AccessorSetterCallback call_fun =
-        v8::ToCData<v8::AccessorSetterCallback>(call_obj);
+    v8::AccessorNameSetterCallback call_fun =
+        v8::ToCData<v8::AccessorNameSetterCallback>(call_obj);
     if (call_fun == NULL) return value;
-    Handle<String> key = Handle<String>::cast(name);
     LOG(isolate, ApiNamedPropertyAccess("store", *holder, *name));
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder);
     args.Call(call_fun,
-              v8::Utils::ToLocal(key),
+              v8::Utils::ToLocal(name),
               v8::Utils::ToLocal(value));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return value;
@@ -11959,8 +11952,8 @@ MaybeHandle<Object> JSObject::GetElementWithCallback(
     Handle<ExecutableAccessorInfo> data =
         Handle<ExecutableAccessorInfo>::cast(structure);
     Object* fun_obj = data->getter();
-    v8::AccessorGetterCallback call_fun =
-        v8::ToCData<v8::AccessorGetterCallback>(fun_obj);
+    v8::AccessorNameGetterCallback call_fun =
+        v8::ToCData<v8::AccessorNameGetterCallback>(fun_obj);
     if (call_fun == NULL) return isolate->factory()->undefined_value();
     Handle<JSObject> holder_handle = Handle<JSObject>::cast(holder);
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
@@ -12017,8 +12010,8 @@ MaybeHandle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
     Handle<ExecutableAccessorInfo> data =
         Handle<ExecutableAccessorInfo>::cast(structure);
     Object* call_obj = data->setter();
-    v8::AccessorSetterCallback call_fun =
-        v8::ToCData<v8::AccessorSetterCallback>(call_obj);
+    v8::AccessorNameSetterCallback call_fun =
+        v8::ToCData<v8::AccessorNameSetterCallback>(call_obj);
     if (call_fun == NULL) return value;
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key(isolate->factory()->NumberToString(number));
