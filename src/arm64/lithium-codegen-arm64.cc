@@ -4891,13 +4891,12 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
       case Token::SAR: __ Asr(result, left, right); break;
       case Token::SHL: __ Lsl(result, left, right); break;
       case Token::SHR:
-        if (instr->can_deopt()) {
-          Label right_not_zero;
-          __ Cbnz(right, &right_not_zero);
-          DeoptimizeIfNegative(left, instr->environment());
-          __ Bind(&right_not_zero);
-        }
         __ Lsr(result, left, right);
+        if (instr->can_deopt()) {
+          // If `left >>> right` >= 0x80000000, the result is not representable
+          // in a signed 32-bit smi.
+          DeoptimizeIfNegative(result, instr->environment());
+        }
         break;
       default: UNREACHABLE();
     }
@@ -4952,15 +4951,14 @@ void LCodeGen::DoShiftS(LShiftS* instr) {
         __ Lsl(result, left, result);
         break;
       case Token::SHR:
-        if (instr->can_deopt()) {
-          Label right_not_zero;
-          __ Cbnz(right, &right_not_zero);
-          DeoptimizeIfNegative(left, instr->environment());
-          __ Bind(&right_not_zero);
-        }
         __ Ubfx(result, right, kSmiShift, 5);
         __ Lsr(result, left, result);
         __ Bic(result, result, kSmiShiftMask);
+        if (instr->can_deopt()) {
+          // If `left >>> right` >= 0x80000000, the result is not representable
+          // in a signed 32-bit smi.
+          DeoptimizeIfNegative(result, instr->environment());
+        }
         break;
       default: UNREACHABLE();
     }
