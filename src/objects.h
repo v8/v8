@@ -2154,10 +2154,6 @@ class JSObject: public JSReceiver {
   // or returns false if such a map is not yet available.
   static bool TryMigrateInstance(Handle<JSObject> instance);
 
-  // Retrieve a value in a normalized object given a lookup result.
-  // Handles the special representation of JS global objects.
-  Object* GetNormalizedProperty(const LookupResult* result);
-
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
   static void SetNormalizedProperty(Handle<JSObject> object,
@@ -2480,6 +2476,7 @@ class JSObject: public JSReceiver {
 
   static Handle<Object> GetDataProperty(Handle<JSObject> object,
                                         Handle<Name> key);
+  static Handle<Object> GetDataProperty(LookupIterator* it);
 
   DECLARE_CAST(JSObject)
 

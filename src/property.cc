@@ -34,8 +34,7 @@ OStream& operator<<(OStream& os, const LookupResult& r) {
       return os << " -type = normal\n"
                 << " -entry = " << r.GetDictionaryEntry() << "\n";
     case CONSTANT:
-      return os << " -type = constant\n"
-                << " -value:\n" << Brief(r.GetConstant()) << "\n";
+      return os << " -type = constant\n";
     case FIELD:
       os << " -type = field\n"
          << " -index = " << r.GetFieldIndex().property_index() << "\n"
@@ -43,8 +42,7 @@ OStream& operator<<(OStream& os, const LookupResult& r) {
       r.GetFieldType()->PrintTo(os);
       return os << "\n";
     case CALLBACKS:
-      return os << " -type = call backs\n"
-                << " -callback object:\n" << Brief(r.GetCallbackObject());
+      return os << " -type = call backs\n";
     case HANDLER:
       return os << " -type = lookup proxy\n";
     case INTERCEPTOR:

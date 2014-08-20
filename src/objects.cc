@@ -143,28 +143,35 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
                                          Handle<Name> key) {
   LookupIterator it(object, key, LookupIterator::CHECK_DERIVED_PROPERTY);
-  for (; it.IsFound(); it.Next()) {
-    switch (it.state()) {
+  return GetDataProperty(&it);
+}
+
+
+Handle<Object> JSObject::GetDataProperty(LookupIterator* it) {
+  for (; it->IsFound(); it->Next()) {
+    switch (it->state()) {
       case LookupIterator::NOT_FOUND:
       case LookupIterator::ACCESS_CHECK:
       case LookupIterator::INTERCEPTOR:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
-        return it.isolate()->factory()->undefined_value();
+        it->NotFound();
+        return it->isolate()->factory()->undefined_value();
       case LookupIterator::PROPERTY:
-        if (!it.HasProperty()) continue;
-        switch (it.property_kind()) {
+        if (!it->HasProperty()) continue;
+        switch (it->property_kind()) {
           case LookupIterator::DATA:
-            return it.GetDataValue();
+            return it->GetDataValue();
           case LookupIterator::ACCESSOR:
             // TODO(verwaest): For now this doesn't call into
             // ExecutableAccessorInfo, since clients don't need it. Update once
             // relevant.
-            return it.isolate()->factory()->undefined_value();
+            it->NotFound();
+            return it->isolate()->factory()->undefined_value();
         }
     }
   }
-  return it.isolate()->factory()->undefined_value();
+  return it->isolate()->factory()->undefined_value();
 }
 
 
@@ -643,17 +650,6 @@ MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
 
   it->isolate()->ReportFailedAccessCheck(checked, v8::ACCESS_SET);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
-  return value;
-}
-
-
-Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
-  DCHECK(!HasFastProperties());
-  Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
-  if (IsGlobalObject()) {
-    value = PropertyCell::cast(value)->value();
-  }
-  DCHECK(!value->IsPropertyCell() && !value->IsCell());
   return value;
 }
 
@@ -4766,12 +4762,11 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
     }
   } else {
     Isolate* isolate = GetIsolate();
-    LookupResult result(isolate);
-    LookupOwnRealNamedProperty(isolate->factory()->hidden_string(), &result);
-    if (result.IsFound()) {
-      DCHECK(result.IsNormal());
-      DCHECK(result.holder() == this);
-      return GetNormalizedProperty(&result);
+    LookupIterator it(handle(this), isolate->factory()->hidden_string(),
+                      LookupIterator::CHECK_PROPERTY);
+    if (it.IsFound() && it.HasProperty()) {
+      DCHECK_EQ(LookupIterator::DATA, it.property_kind());
+      return *it.GetDataValue();
     }
     return GetHeap()->undefined_value();
   }
