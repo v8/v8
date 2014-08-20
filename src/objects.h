@@ -1999,7 +1999,6 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LookupOwn(Handle<Name> name, LookupResult* result);
   void Lookup(Handle<Name> name, LookupResult* result);
 
   enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };
@@ -2011,6 +2010,7 @@ class JSReceiver: public HeapObject {
       KeyCollectionType type);
 
  private:
+  void LookupOwn(Handle<Name> name, LookupResult* result);
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
 
