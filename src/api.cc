@@ -3571,7 +3571,8 @@ static Local<Value> GetPropertyByLookup(i::LookupIterator* it) {
   has_pending_exception = !i::Object::GetProperty(it).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(it->isolate(), Local<Value>());
 
-  return Utils::ToLocal(result);
+  if (it->IsFound()) return Utils::ToLocal(result);
+  return Local<Value>();
 }
 
 
@@ -3599,8 +3600,7 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupIterator it(self_obj, key_obj,
-                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
+  i::LookupIterator it(self_obj, key_obj, i::LookupIterator::CHECK_PROPERTY);
   return GetPropertyByLookup(&it);
 }
 
