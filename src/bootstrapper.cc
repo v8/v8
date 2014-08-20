@@ -2204,6 +2204,8 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     debug_context->set_security_token(native_context->security_token());
     Handle<String> debug_string =
         factory->InternalizeUtf8String(FLAG_expose_debug_as);
+    uint32_t index;
+    if (debug_string->AsArrayIndex(&index)) return true;
     Handle<Object> global_proxy(debug_context->global_proxy(), isolate);
     JSObject::AddProperty(global, debug_string, global_proxy, DONT_ENUM);
   }
