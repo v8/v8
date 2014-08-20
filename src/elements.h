@@ -81,24 +81,6 @@ class ElementsAccessor {
     return GetAttributes(receiver, holder, key, handle(holder->elements()));
   }
 
-  // Returns an element's type, or NONEXISTENT if there is no such
-  // element. This method doesn't iterate up the prototype chain.  The caller
-  // can optionally pass in the backing store to use for the check, which must
-  // be compatible with the ElementsKind of the ElementsAccessor. If
-  // backing_store is NULL, the holder->elements() is used as the backing store.
-  MUST_USE_RESULT virtual PropertyType GetType(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) = 0;
-
-  MUST_USE_RESULT inline PropertyType GetType(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key) {
-    return GetType(receiver, holder, key, handle(holder->elements()));
-  }
-
   // Returns an element's accessors, or NULL if the element does not exist or
   // is plain. This method doesn't iterate up the prototype chain.  The caller
   // can optionally pass in the backing store to use for the check, which must
