@@ -12,6 +12,7 @@
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/assembler.h"
+#include "src/base/bits.h"
 #include "src/disasm.h"
 #include "src/globals.h"    // Need the BitCast.
 #include "src/mips64/constants-mips64.h"
@@ -2074,10 +2075,8 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
           } else {
             // MIPS spec: If no bits were set in GPR rs, the result written to
             // GPR rd is 32.
-            // GCC __builtin_clz: If input is 0, the result is undefined.
             DCHECK(instr->SaValue() == 1);
-            *alu_out =
-                rs_u == 0 ? 32 : CompilerIntrinsics::CountLeadingZeros(rs_u);
+            *alu_out = base::bits::CountLeadingZeros32(rs_u);
           }
           break;
         case MFLO:
@@ -2220,9 +2219,7 @@ void Simulator::ConfigureTypeRegister(Instruction* instr,
         case CLZ:
           // MIPS32 spec: If no bits were set in GPR rs, the result written to
           // GPR rd is 32.
-          // GCC __builtin_clz: If input is 0, the result is undefined.
-          *alu_out =
-              rs_u == 0 ? 32 : CompilerIntrinsics::CountLeadingZeros(rs_u);
+          *alu_out = base::bits::CountLeadingZeros32(rs_u);
           break;
         default:
           UNREACHABLE();

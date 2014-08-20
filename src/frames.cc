@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/ast.h"
+#include "src/base/bits.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen.h"
@@ -1579,7 +1580,7 @@ int StackHandler::Rewind(Isolate* isolate,
 // -------------------------------------------------------------------------
 
 int NumRegs(RegList reglist) {
-  return CompilerIntrinsics::CountSetBits(reglist);
+  return base::bits::CountSetBits32(reglist);
 }
 
 

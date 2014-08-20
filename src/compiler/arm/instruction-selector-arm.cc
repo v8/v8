@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/base/bits.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
-#include "src/compiler-intrinsics.h"
 
 namespace v8 {
 namespace internal {
@@ -423,10 +423,10 @@ void InstructionSelector::VisitWord32And(Node* node) {
   }
   if (IsSupported(ARMv7) && m.right().HasValue()) {
     uint32_t value = m.right().Value();
-    uint32_t width = CompilerIntrinsics::CountSetBits(value);
-    uint32_t msb = CompilerIntrinsics::CountLeadingZeros(value);
+    uint32_t width = base::bits::CountSetBits32(value);
+    uint32_t msb = base::bits::CountLeadingZeros32(value);
     if (width != 0 && msb + width == 32) {
-      DCHECK_EQ(0, CompilerIntrinsics::CountTrailingZeros(value));
+      DCHECK_EQ(0, base::bits::CountTrailingZeros32(value));
       if (m.left().IsWord32Shr()) {
         Int32BinopMatcher mleft(m.left().node());
         if (mleft.right().IsInRange(0, 31)) {
@@ -442,8 +442,8 @@ void InstructionSelector::VisitWord32And(Node* node) {
     }
     // Try to interpret this AND as BFC.
     width = 32 - width;
-    msb = CompilerIntrinsics::CountLeadingZeros(~value);
-    uint32_t lsb = CompilerIntrinsics::CountTrailingZeros(~value);
+    msb = base::bits::CountLeadingZeros32(~value);
+    uint32_t lsb = base::bits::CountTrailingZeros32(~value);
     if (msb + width + lsb == 32) {
       Emit(kArmBfc, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
            g.TempImmediate(lsb), g.TempImmediate(width));
@@ -536,10 +536,10 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
       uint32_t value = (mleft.right().Value() >> lsb) << lsb;
-      uint32_t width = CompilerIntrinsics::CountSetBits(value);
-      uint32_t msb = CompilerIntrinsics::CountLeadingZeros(value);
+      uint32_t width = base::bits::CountSetBits32(value);
+      uint32_t msb = base::bits::CountLeadingZeros32(value);
       if (msb + width + lsb == 32) {
-        DCHECK_EQ(lsb, CompilerIntrinsics::CountTrailingZeros(value));
+        DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(value));
         Emit(kArmUbfx, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
              g.TempImmediate(width));

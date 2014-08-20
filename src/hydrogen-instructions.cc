@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/base/bits.h"
 #include "src/double.h"
 #include "src/factory.h"
 #include "src/hydrogen-infer-representation.h"
@@ -4179,8 +4180,7 @@ HInstruction* HUnaryMathOperation::New(
         return H_CONSTANT_DOUBLE(Floor(d));
       case kMathClz32: {
         uint32_t i = DoubleToUint32(d);
-        return H_CONSTANT_INT(
-            (i == 0) ? 32 : CompilerIntrinsics::CountLeadingZeros(i));
+        return H_CONSTANT_INT(base::bits::CountLeadingZeros32(i));
       }
       default:
         UNREACHABLE();

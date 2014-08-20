@@ -5,7 +5,6 @@
 #ifndef V8_HEAP_MARK_COMPACT_H_
 #define V8_HEAP_MARK_COMPACT_H_
 
-#include "src/compiler-intrinsics.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
