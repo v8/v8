@@ -1087,6 +1087,11 @@ void Deserializer::ReadChunk(Object** current,
       // current object.
       CASE_STATEMENT(kRootArray, kPlain, kStartOfObject, 0)
       CASE_BODY(kRootArray, kPlain, kStartOfObject, 0)
+#if V8_OOL_CONSTANT_POOL
+      // Find an object in the roots array and write a pointer to it to in code.
+      CASE_STATEMENT(kRootArray, kFromCode, kStartOfObject, 0)
+      CASE_BODY(kRootArray, kFromCode, kStartOfObject, 0)
+#endif
       // Find an object in the partial snapshots cache and write a pointer to it
       // to the current object.
       CASE_STATEMENT(kPartialSnapshotCache, kPlain, kStartOfObject, 0)
@@ -1118,6 +1123,12 @@ void Deserializer::ReadChunk(Object** current,
       // Find a builtin and write a pointer to it to the current object.
       CASE_STATEMENT(kBuiltin, kPlain, kStartOfObject, 0)
       CASE_BODY(kBuiltin, kPlain, kStartOfObject, 0)
+#if V8_OOL_CONSTANT_POOL
+      // Find a builtin code entry and write a pointer to it to the current
+      // object.
+      CASE_STATEMENT(kBuiltin, kPlain, kInnerPointer, 0)
+      CASE_BODY(kBuiltin, kPlain, kInnerPointer, 0)
+#endif
       // Find a builtin and write a pointer to it in the current code object.
       CASE_STATEMENT(kBuiltin, kFromCode, kInnerPointer, 0)
       CASE_BODY(kBuiltin, kFromCode, kInnerPointer, 0)
@@ -1291,8 +1302,7 @@ int Serializer::RootIndex(HeapObject* heap_object, HowToCode from) {
   for (int i = 0; i < root_index_wave_front_; i++) {
     Object* root = heap->roots_array_start()[i];
     if (!root->IsSmi() && root == heap_object) {
-#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL || \
-    defined(V8_TARGET_ARCH_MIPS64)
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
       if (from == kFromCode) {
         // In order to avoid code bloat in the deserializer we don't have
         // support for the encoding that specifies a particular root should
@@ -1866,6 +1876,7 @@ void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
   }
 
   DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
+         (how_to_code == kPlain && where_to_point == kInnerPointer) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
   int builtin_index = builtin->builtin_index();
   DCHECK_LT(builtin_index, Builtins::builtin_count);
