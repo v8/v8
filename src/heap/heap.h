@@ -715,14 +715,11 @@ class Heap {
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   static const int kNoGCFlags = 0;
-  static const int kSweepPreciselyMask = 1;
-  static const int kReduceMemoryFootprintMask = 2;
-  static const int kAbortIncrementalMarkingMask = 4;
+  static const int kReduceMemoryFootprintMask = 1;
+  static const int kAbortIncrementalMarkingMask = 2;
 
-  // Making the heap iterable requires us to sweep precisely and abort any
-  // incremental marking as well.
-  static const int kMakeHeapIterableMask =
-      kSweepPreciselyMask | kAbortIncrementalMarkingMask;
+  // Making the heap iterable requires us to abort incremental marking.
+  static const int kMakeHeapIterableMask = kAbortIncrementalMarkingMask;
 
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap

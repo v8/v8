@@ -373,12 +373,9 @@ class MemoryChunk {
     EVACUATION_CANDIDATE,
     RESCAN_ON_EVACUATION,
 
-    // Pages swept precisely can be iterated, hitting only the live objects.
-    // Whereas those swept conservatively cannot be iterated over. Both flags
-    // indicate that marking bits have been cleared by the sweeper, otherwise
-    // marking bits are still intact.
-    WAS_SWEPT_PRECISELY,
-    WAS_SWEPT_CONSERVATIVELY,
+    // WAS_SWEPT indicates that marking bits have been cleared by the sweeper,
+    // otherwise marking bits are still intact.
+    WAS_SWEPT,
 
     // Large objects can have a progress bar in their page header. These object
     // are scanned in increments and will be kept black while being scanned.
@@ -765,15 +762,9 @@ class Page : public MemoryChunk {
 
   void InitializeAsAnchor(PagedSpace* owner);
 
-  bool WasSweptPrecisely() { return IsFlagSet(WAS_SWEPT_PRECISELY); }
-  bool WasSweptConservatively() { return IsFlagSet(WAS_SWEPT_CONSERVATIVELY); }
-  bool WasSwept() { return WasSweptPrecisely() || WasSweptConservatively(); }
-
-  void MarkSweptPrecisely() { SetFlag(WAS_SWEPT_PRECISELY); }
-  void MarkSweptConservatively() { SetFlag(WAS_SWEPT_CONSERVATIVELY); }
-
-  void ClearSweptPrecisely() { ClearFlag(WAS_SWEPT_PRECISELY); }
-  void ClearSweptConservatively() { ClearFlag(WAS_SWEPT_CONSERVATIVELY); }
+  bool WasSwept() { return IsFlagSet(WAS_SWEPT); }
+  void SetWasSwept() { SetFlag(WAS_SWEPT); }
+  void ClearWasSwept() { ClearFlag(WAS_SWEPT); }
 
   void ResetFreeListStatistics();
 
@@ -1830,14 +1821,11 @@ class PagedSpace : public Space {
   static void ResetCodeStatistics(Isolate* isolate);
 #endif
 
-  bool swept_precisely() { return swept_precisely_; }
-  void set_swept_precisely(bool b) { swept_precisely_ = b; }
-
   // Evacuation candidates are swept by evacuator.  Needs to return a valid
   // result before _and_ after evacuation has finished.
   static bool ShouldBeSweptBySweeperThreads(Page* p) {
     return !p->IsEvacuationCandidate() &&
-           !p->IsFlagSet(Page::RESCAN_ON_EVACUATION) && !p->WasSweptPrecisely();
+           !p->IsFlagSet(Page::RESCAN_ON_EVACUATION) && !p->WasSwept();
   }
 
   void IncrementUnsweptFreeBytes(intptr_t by) { unswept_free_bytes_ += by; }
@@ -1907,12 +1895,8 @@ class PagedSpace : public Space {
   // Normal allocation information.
   AllocationInfo allocation_info_;
 
-  // This space was swept precisely, hence it is iterable.
-  bool swept_precisely_;
-
   // The number of free bytes which could be reclaimed by advancing the
-  // concurrent sweeper threads.  This is only an estimation because concurrent
-  // sweeping is done conservatively.
+  // concurrent sweeper threads.
   intptr_t unswept_free_bytes_;
 
   // The sweeper threads iterate over the list of pointer and data space pages

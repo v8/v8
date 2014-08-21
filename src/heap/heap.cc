@@ -1273,14 +1273,10 @@ static void VerifyNonPointerSpacePointers(Heap* heap) {
        object = code_it.Next())
     object->Iterate(&v);
 
-  // The old data space was normally swept conservatively so that the iterator
-  // doesn't work, so we normally skip the next bit.
-  if (heap->old_data_space()->swept_precisely()) {
     HeapObjectIterator data_it(heap->old_data_space());
     for (HeapObject* object = data_it.Next(); object != NULL;
          object = data_it.Next())
       object->Iterate(&v);
-  }
 }
 #endif  // VERIFY_HEAP
 
@@ -4242,9 +4238,7 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
 bool Heap::IsHeapIterable() {
   // TODO(hpayer): This function is not correct. Allocation folding in old
   // space breaks the iterability.
-  return (old_pointer_space()->swept_precisely() &&
-          old_data_space()->swept_precisely() &&
-          new_space_top_after_last_gc_ == new_space()->top());
+  return new_space_top_after_last_gc_ == new_space()->top();
 }
 
 

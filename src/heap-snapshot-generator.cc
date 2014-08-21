@@ -2580,15 +2580,6 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;
-  CHECK(debug_heap->old_data_space()->swept_precisely());
-  CHECK(debug_heap->old_pointer_space()->swept_precisely());
-  CHECK(debug_heap->code_space()->swept_precisely());
-  CHECK(debug_heap->cell_space()->swept_precisely());
-  CHECK(debug_heap->property_cell_space()->swept_precisely());
-  CHECK(debug_heap->map_space()->swept_precisely());
-#endif
-
-#ifdef VERIFY_HEAP
   debug_heap->Verify();
 #endif
 

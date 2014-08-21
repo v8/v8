@@ -47,18 +47,13 @@ HeapObjectIterator::HeapObjectIterator(Page* page,
          owner == page->heap()->code_space());
   Initialize(reinterpret_cast<PagedSpace*>(owner), page->area_start(),
              page->area_end(), kOnePageOnly, size_func);
-  DCHECK(page->WasSweptPrecisely() ||
-         (static_cast<PagedSpace*>(owner)->swept_precisely() &&
-          page->SweepingCompleted()));
+  DCHECK(page->WasSwept() || page->SweepingCompleted());
 }
 
 
 void HeapObjectIterator::Initialize(PagedSpace* space, Address cur, Address end,
                                     HeapObjectIterator::PageMode mode,
                                     HeapObjectCallback size_f) {
-  // Check that we actually can iterate this space.
-  DCHECK(space->swept_precisely());
-
   space_ = space;
   cur_addr_ = cur;
   cur_end_ = end;
@@ -83,9 +78,7 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   if (cur_page == space_->anchor()) return false;
   cur_addr_ = cur_page->area_start();
   cur_end_ = cur_page->area_end();
-  DCHECK(cur_page->WasSweptPrecisely() ||
-         (static_cast<PagedSpace*>(cur_page->owner())->swept_precisely() &&
-          cur_page->SweepingCompleted()));
+  DCHECK(cur_page->WasSwept() || cur_page->SweepingCompleted());
   return true;
 }
 
@@ -459,7 +452,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->ResetLiveBytes();
   Bitmap::Clear(chunk);
   chunk->initialize_scan_on_scavenge(false);
-  chunk->SetFlag(WAS_SWEPT_PRECISELY);
+  chunk->SetFlag(WAS_SWEPT);
 
   DCHECK(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
   DCHECK(OFFSET_OF(MemoryChunk, live_byte_count_) == kLiveBytesOffset);
@@ -886,7 +879,6 @@ PagedSpace::PagedSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id,
                        Executability executable)
     : Space(heap, id, executable),
       free_list_(this),
-      swept_precisely_(true),
       unswept_free_bytes_(0),
       end_of_unswept_pages_(NULL),
       emergency_memory_(NULL) {
@@ -936,7 +928,7 @@ size_t PagedSpace::CommittedPhysicalMemory() {
 
 
 Object* PagedSpace::FindObject(Address addr) {
-  // Note: this function can only be called on precisely swept spaces.
+  // Note: this function can only be called on iterable spaces.
   DCHECK(!heap()->mark_compact_collector()->in_use());
 
   if (!Contains(addr)) return Smi::FromInt(0);  // Signaling not found.
@@ -1129,9 +1121,6 @@ void PagedSpace::Print() {}
 
 #ifdef VERIFY_HEAP
 void PagedSpace::Verify(ObjectVisitor* visitor) {
-  // We can only iterate over the pages if they were swept precisely.
-  if (!swept_precisely_) return;
-
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
   PageIterator page_iterator(this);
@@ -1141,7 +1130,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
     if (page == Page::FromAllocationTop(allocation_info_.top())) {
       allocation_pointer_found_in_space = true;
     }
-    CHECK(page->WasSweptPrecisely());
+    CHECK(page->WasSwept());
     HeapObjectIterator it(page, NULL);
     Address end_of_previous_object = page->area_start();
     Address top = page->area_end();
@@ -2737,7 +2726,6 @@ void PagedSpace::ReportStatistics() {
          ", available: %" V8_PTR_PREFIX "d, %%%d\n",
          Capacity(), Waste(), Available(), pct);
 
-  if (!swept_precisely_) return;
   if (heap()->mark_compact_collector()->sweeping_in_progress()) {
     heap()->mark_compact_collector()->EnsureSweepingCompleted();
   }
