@@ -130,6 +130,7 @@ class ParserBase : public Traits {
   };
 
   class CheckpointBase;
+  class ObjectLiteralChecker;
 
   // ---------------------------------------------------------------------------
   // FunctionState and BlockState together implement the parser's scope stack.
@@ -473,7 +474,8 @@ class ParserBase : public Traits {
   ExpressionT ParseExpression(bool accept_IN, bool* ok);
   ExpressionT ParseArrayLiteral(bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
-  ObjectLiteralPropertyT ParsePropertyDefinition(bool* ok);
+  ObjectLiteralPropertyT ParsePropertyDefinition(ObjectLiteralChecker* checker,
+                                                 bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
   ExpressionT ParseYieldExpression(bool* ok);
@@ -495,6 +497,60 @@ class ParserBase : public Traits {
   ExpressionT CheckAndRewriteReferenceExpression(
       ExpressionT expression,
       Scanner::Location location, const char* message, bool* ok);
+
+  // Used to detect duplicates in object literals. Each of the values
+  // kGetterProperty, kSetterProperty and kValueProperty represents
+  // a type of object literal property. When parsing a property, its
+  // type value is stored in the DuplicateFinder for the property name.
+  // Values are chosen so that having intersection bits means the there is
+  // an incompatibility.
+  // I.e., you can add a getter to a property that already has a setter, since
+  // kGetterProperty and kSetterProperty doesn't intersect, but not if it
+  // already has a getter or a value. Adding the getter to an existing
+  // setter will store the value (kGetterProperty | kSetterProperty), which
+  // is incompatible with adding any further properties.
+  enum PropertyKind {
+    kNone = 0,
+    // Bit patterns representing different object literal property types.
+    kGetterProperty = 1,
+    kSetterProperty = 2,
+    kValueProperty = 7,
+    // Helper constants.
+    kValueFlag = 4
+  };
+
+  // Validation per ECMA 262 - 11.1.5 "Object Initializer".
+  class ObjectLiteralChecker {
+   public:
+    ObjectLiteralChecker(ParserBase* parser, StrictMode strict_mode)
+        : parser_(parser),
+          finder_(scanner()->unicode_cache()),
+          strict_mode_(strict_mode) {}
+
+    void CheckProperty(Token::Value property, PropertyKind type, bool* ok);
+
+   private:
+    ParserBase* parser() const { return parser_; }
+    Scanner* scanner() const { return parser_->scanner(); }
+
+    // Checks the type of conflict based on values coming from PropertyType.
+    bool HasConflict(PropertyKind type1, PropertyKind type2) {
+      return (type1 & type2) != 0;
+    }
+    bool IsDataDataConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 & type2) & kValueFlag) != 0;
+    }
+    bool IsDataAccessorConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 ^ type2) & kValueFlag) != 0;
+    }
+    bool IsAccessorAccessorConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 | type2) & kValueFlag) == 0;
+    }
+
+    ParserBase* parser_;
+    DuplicateFinder finder_;
+    StrictMode strict_mode_;
+  };
 
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.
@@ -1793,8 +1849,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
 
 
 template <class Traits>
-typename ParserBase<Traits>::ObjectLiteralPropertyT
-ParserBase<Traits>::ParsePropertyDefinition(bool* ok) {
+typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
+    Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker, bool* ok) {
   LiteralT key = this->EmptyLiteral();
   Token::Value next = peek();
   int next_pos = peek_position();
@@ -1846,6 +1902,10 @@ ParserBase<Traits>::ParsePropertyDefinition(bool* ok) {
             name = ParseIdentifierName(
                 CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
         }
+        // Validate the property.
+        PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
+        checker->CheckProperty(next, type,
+                               CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
         typename Traits::Type::FunctionLiteral value =
             this->ParseFunctionLiteral(
                 name, scanner()->location(),
@@ -1862,6 +1922,10 @@ ParserBase<Traits>::ParsePropertyDefinition(bool* ok) {
       key = factory()->NewStringLiteral(id, next_pos);
     }
   }
+
+  // Validate the property
+  checker->CheckProperty(next, kValueProperty,
+                         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   Expect(Token::COLON, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
   ExpressionT value = this->ParseAssignmentExpression(
@@ -1883,12 +1947,15 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
 
+  ObjectLiteralChecker checker(this, strict_mode());
+
   Expect(Token::LBRACE, CHECK_OK);
 
   while (peek() != Token::RBRACE) {
     if (fni_ != NULL) fni_->Enter();
 
-    ObjectLiteralPropertyT property = this->ParsePropertyDefinition(CHECK_OK);
+    ObjectLiteralPropertyT property =
+        this->ParsePropertyDefinition(&checker, CHECK_OK);
 
     // Mark top-level object literals that contain function literals and
     // pretenure the literal so it can be added as a constant function
@@ -2572,6 +2639,32 @@ ParserBase<Traits>::CheckAndRewriteReferenceExpression(
 #undef CHECK_OK_CUSTOM
 
 
+template <typename Traits>
+void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
+    Token::Value property, PropertyKind type, bool* ok) {
+  int old;
+  if (property == Token::NUMBER) {
+    old = scanner()->FindNumber(&finder_, type);
+  } else {
+    old = scanner()->FindSymbol(&finder_, type);
+  }
+  PropertyKind old_type = static_cast<PropertyKind>(old);
+  if (HasConflict(old_type, type)) {
+    if (IsDataDataConflict(old_type, type)) {
+      // Both are data properties.
+      if (strict_mode_ == SLOPPY) return;
+      parser()->ReportMessage("strict_duplicate_property");
+    } else if (IsDataAccessorConflict(old_type, type)) {
+      // Both a data and an accessor property with the same name.
+      parser()->ReportMessage("accessor_data_property");
+    } else {
+      DCHECK(IsAccessorAccessorConflict(old_type, type));
+      // Both accessors of the same type.
+      parser()->ReportMessage("accessor_get_set");
+    }
+    *ok = false;
+  }
+}
 } }  // v8::internal
 
 #endif  // V8_PREPARSER_H
