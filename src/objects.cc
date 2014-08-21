@@ -12944,11 +12944,11 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
   uint32_t length = 0;
   CHECK(array->length()->ToArrayIndex(&length));
   if (length <= index) {
-    Isolate* isolate = array->GetIsolate();
-    LookupResult lookup(isolate);
-    Handle<Name> length_string = isolate->factory()->length_string();
-    array->LookupOwnRealNamedProperty(length_string, &lookup);
-    return lookup.IsReadOnly();
+    LookupIterator it(array, array->GetIsolate()->factory()->length_string(),
+                      LookupIterator::CHECK_PROPERTY);
+    CHECK(it.IsFound());
+    CHECK(it.HasProperty());
+    return it.IsReadOnly();
   }
   return false;
 }
@@ -13332,20 +13332,10 @@ MaybeHandle<JSObject> JSObject::GetKeysForIndexedInterceptor(
 
 Maybe<bool> JSObject::HasRealNamedProperty(Handle<JSObject> object,
                                            Handle<Name> key) {
-  Isolate* isolate = object->GetIsolate();
-  SealHandleScope shs(isolate);
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(object, key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
-      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Maybe<bool>());
-      return maybe(false);
-    }
-  }
-
-  LookupResult result(isolate);
-  object->LookupOwnRealNamedProperty(key, &result);
-  return maybe(result.IsFound() && !result.IsInterceptor());
+  LookupIterator it(object, key, LookupIterator::CHECK_ACCESS_CHECK);
+  Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
+  if (!maybe_result.has_value) return Maybe<bool>();
+  return maybe(it.IsFound());
 }
 
 
@@ -13380,20 +13370,10 @@ Maybe<bool> JSObject::HasRealElementProperty(Handle<JSObject> object,
 
 Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
                                                    Handle<Name> key) {
-  Isolate* isolate = object->GetIsolate();
-  SealHandleScope shs(isolate);
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(object, key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
-      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Maybe<bool>());
-      return maybe(false);
-    }
-  }
-
-  LookupResult result(isolate);
-  object->LookupOwnRealNamedProperty(key, &result);
-  return maybe(result.IsPropertyCallbacks());
+  LookupIterator it(object, key, LookupIterator::CHECK_ACCESS_CHECK);
+  Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
+  if (!maybe_result.has_value) return Maybe<bool>();
+  return maybe(it.IsFound() && it.property_kind() == LookupIterator::ACCESSOR);
 }
 
 
