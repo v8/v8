@@ -3176,6 +3176,7 @@ Instr Assembler::PatchShiftImm(Instr instr, int immed) {
   uint32_t immed_8 = 0;
   bool immed_fits = fits_shifter(immed, &rotate_imm, &immed_8, NULL);
   DCHECK(immed_fits);
+  USE(immed_fits);
   return (instr & ~kOff12Mask) | (rotate_imm << 8) | immed_8;
 }
 
