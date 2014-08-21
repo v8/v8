@@ -845,8 +845,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   // Start incremental marking for the next cycle. The heap snapshot
   // generator needs incremental marking to stay off after it aborted.
   if (!mark_compact_collector()->abort_incremental_marking() &&
-      incremental_marking()->IsStopped() &&
-      incremental_marking()->WorthActivating() && NextGCIsLikelyToBeFull()) {
+      WorthActivatingIncrementalMarking()) {
     incremental_marking()->Start();
   }
 
@@ -4277,6 +4276,12 @@ void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
 }
 
 
+bool Heap::WorthActivatingIncrementalMarking() {
+  return incremental_marking()->IsStopped() &&
+         incremental_marking()->WorthActivating() && NextGCIsLikelyToBeFull();
+}
+
+
 bool Heap::IdleNotification(int idle_time_in_ms) {
   // If incremental marking is off, we do not perform idle notification.
   if (!FLAG_incremental_marking) return true;
@@ -4285,9 +4290,16 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
   HistogramTimerScope idle_notification_scope(
       isolate_->counters()->gc_idle_notification());
 
-  GCIdleTimeAction action = gc_idle_time_handler_.Compute(
-      idle_time_in_ms, contexts_disposed_, static_cast<size_t>(SizeOfObjects()),
-      incremental_marking()->IsStopped(), tracer());
+  GCIdleTimeHandler::HeapState heap_state;
+  heap_state.contexts_disposed = contexts_disposed_;
+  heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
+  heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
+  heap_state.can_start_incremental_marking =
+      WorthActivatingIncrementalMarking();
+
+  GCIdleTimeAction action =
+      gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state, tracer());
+
   contexts_disposed_ = 0;
   bool result = false;
   switch (action.type) {
