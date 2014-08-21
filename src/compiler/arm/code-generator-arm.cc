@@ -150,7 +150,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArchDeoptimize: {
       int deoptimization_id = MiscField::decode(instr->opcode());
-      BuildTranslation(instr, deoptimization_id);
+      BuildTranslation(instr, 0, deoptimization_id);
 
       Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
           isolate(), deoptimization_id, Deoptimizer::LAZY);
@@ -240,20 +240,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       if (instr->InputAt(0)->IsImmediate()) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
         __ Call(code, RelocInfo::CODE_TARGET);
-        RecordSafepoint(instr->pointer_map(), Safepoint::kSimple, 0,
-                        Safepoint::kNoLazyDeopt);
       } else {
         Register reg = i.InputRegister(0);
         int entry = Code::kHeaderSize - kHeapObjectTag;
         __ ldr(reg, MemOperand(reg, entry));
         __ Call(reg);
-        RecordSafepoint(instr->pointer_map(), Safepoint::kSimple, 0,
-                        Safepoint::kNoLazyDeopt);
       }
-      bool lazy_deopt = (MiscField::decode(instr->opcode()) == 1);
-      if (lazy_deopt) {
-        RecordLazyDeoptimizationEntry(instr);
-      }
+
+      AddSafepointAndDeopt(instr);
+
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -265,9 +260,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(ip);
 
-      RecordSafepoint(instr->pointer_map(), Safepoint::kSimple, 0,
-                      Safepoint::kNoLazyDeopt);
-      RecordLazyDeoptimizationEntry(instr);
+      AddSafepointAndDeopt(instr);
+
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }

@@ -1324,8 +1324,14 @@ class DebuggerStatement V8_FINAL : public Statement {
  public:
   DECLARE_NODE_TYPE(DebuggerStatement)
 
+  BailoutId DebugBreakId() const { return debugger_id_; }
+
  protected:
-  explicit DebuggerStatement(Zone* zone, int pos): Statement(zone, pos) {}
+  explicit DebuggerStatement(Zone* zone, int pos)
+      : Statement(zone, pos), debugger_id_(GetNextId(zone)) {}
+
+ private:
+  const BailoutId debugger_id_;
 };
 
 

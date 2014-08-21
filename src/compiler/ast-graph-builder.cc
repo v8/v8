@@ -161,10 +161,7 @@ AstGraphBuilder::Environment::Environment(AstGraphBuilder* builder,
       locals_count_(scope->num_stack_slots()),
       parameters_node_(NULL),
       locals_node_(NULL),
-      stack_node_(NULL),
-      parameters_dirty_(true),
-      locals_dirty_(true),
-      stack_dirty_(true) {
+      stack_node_(NULL) {
   DCHECK_EQ(scope->num_parameters() + 1, parameters_count());
 
   // Bind the receiver variable.
@@ -193,43 +190,36 @@ AstGraphBuilder::Environment::Environment(const Environment& copy)
       locals_count_(copy.locals_count_),
       parameters_node_(copy.parameters_node_),
       locals_node_(copy.locals_node_),
-      stack_node_(copy.stack_node_),
-      parameters_dirty_(copy.parameters_dirty_),
-      locals_dirty_(copy.locals_dirty_),
-      stack_dirty_(copy.stack_dirty_) {}
+      stack_node_(copy.stack_node_) {}
+
+
+void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
+                                                     int offset, int count) {
+  bool should_update = false;
+  Node** env_values = (count == 0) ? NULL : &values()->at(offset);
+  if (*state_values == NULL || (*state_values)->InputCount() != count) {
+    should_update = true;
+  } else {
+    DCHECK(static_cast<size_t>(offset + count) <= values()->size());
+    for (int i = 0; i < count; i++) {
+      if ((*state_values)->InputAt(i) != env_values[i]) {
+        should_update = true;
+        break;
+      }
+    }
+  }
+  if (should_update) {
+    Operator* op = common()->StateValues(count);
+    (*state_values) = graph()->NewNode(op, count, env_values);
+  }
+}
 
 
 Node* AstGraphBuilder::Environment::Checkpoint(BailoutId ast_id) {
-  if (parameters_dirty_) {
-    Operator* op = common()->StateValues(parameters_count());
-    if (parameters_count() != 0) {
-      Node** parameters = &values()->front();
-      parameters_node_ = graph()->NewNode(op, parameters_count(), parameters);
-    } else {
-      parameters_node_ = graph()->NewNode(op);
-    }
-    parameters_dirty_ = false;
-  }
-  if (locals_dirty_) {
-    Operator* op = common()->StateValues(locals_count());
-    if (locals_count() != 0) {
-      Node** locals = &values()->at(parameters_count_);
-      locals_node_ = graph()->NewNode(op, locals_count(), locals);
-    } else {
-      locals_node_ = graph()->NewNode(op);
-    }
-    locals_dirty_ = false;
-  }
-  if (stack_dirty_) {
-    Operator* op = common()->StateValues(stack_height());
-    if (stack_height() != 0) {
-      Node** stack = &values()->at(parameters_count_ + locals_count_);
-      stack_node_ = graph()->NewNode(op, stack_height(), stack);
-    } else {
-      stack_node_ = graph()->NewNode(op);
-    }
-    stack_dirty_ = false;
-  }
+  UpdateStateValues(&parameters_node_, 0, parameters_count());
+  UpdateStateValues(&locals_node_, parameters_count(), locals_count());
+  UpdateStateValues(&stack_node_, parameters_count() + locals_count(),
+                    stack_height());
 
   Operator* op = common()->FrameState(ast_id);
 
@@ -238,12 +228,8 @@ Node* AstGraphBuilder::Environment::Checkpoint(BailoutId ast_id) {
 
 
 AstGraphBuilder::AstContext::AstContext(AstGraphBuilder* own,
-                                        Expression::Context kind,
-                                        BailoutId bailout_id)
-    : bailout_id_(bailout_id),
-      kind_(kind),
-      owner_(own),
-      outer_(own->ast_context()) {
+                                        Expression::Context kind)
+    : kind_(kind), owner_(own), outer_(own->ast_context()) {
   owner()->set_ast_context(this);  // Push.
 #ifdef DEBUG
   original_height_ = environment()->stack_height();
@@ -268,28 +254,6 @@ AstGraphBuilder::AstValueContext::~AstValueContext() {
 
 AstGraphBuilder::AstTestContext::~AstTestContext() {
   DCHECK(environment()->stack_height() == original_height_ + 1);
-}
-
-
-void AstGraphBuilder::AstEffectContext::ProduceValueWithLazyBailout(
-    Node* value) {
-  ProduceValue(value);
-  owner()->BuildLazyBailout(value, bailout_id_);
-}
-
-
-void AstGraphBuilder::AstValueContext::ProduceValueWithLazyBailout(
-    Node* value) {
-  ProduceValue(value);
-  owner()->BuildLazyBailout(value, bailout_id_);
-}
-
-
-void AstGraphBuilder::AstTestContext::ProduceValueWithLazyBailout(Node* value) {
-  environment()->Push(value);
-  owner()->BuildLazyBailout(value, bailout_id_);
-  environment()->Pop();
-  ProduceValue(value);
 }
 
 
@@ -359,7 +323,7 @@ void AstGraphBuilder::VisitForValues(ZoneList<Expression*>* exprs) {
 
 
 void AstGraphBuilder::VisitForValue(Expression* expr) {
-  AstValueContext for_value(this, expr->id());
+  AstValueContext for_value(this);
   if (!HasStackOverflow()) {
     expr->Accept(this);
   }
@@ -367,7 +331,7 @@ void AstGraphBuilder::VisitForValue(Expression* expr) {
 
 
 void AstGraphBuilder::VisitForEffect(Expression* expr) {
-  AstEffectContext for_effect(this, expr->id());
+  AstEffectContext for_effect(this);
   if (!HasStackOverflow()) {
     expr->Accept(this);
   }
@@ -375,7 +339,7 @@ void AstGraphBuilder::VisitForEffect(Expression* expr) {
 
 
 void AstGraphBuilder::VisitForTest(Expression* expr) {
-  AstTestContext for_condition(this, expr->id());
+  AstTestContext for_condition(this);
   if (!HasStackOverflow()) {
     expr->Accept(this);
   }
@@ -713,7 +677,7 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         Node* exit_cond =
             NewNode(javascript()->LessThan(), index, cache_length);
         // TODO(jarin): provide real bailout id.
-        BuildLazyBailout(exit_cond, BailoutId::None());
+        PrepareFrameState(exit_cond, BailoutId::None());
         for_loop.BreakUnless(exit_cond);
         // TODO(dcarney): this runtime call should be a handful of
         //                simplified instructions that
@@ -753,7 +717,7 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
           Node* res = ProcessArguments(
               javascript()->Call(3, NO_CALL_FUNCTION_FLAGS), 3);
           // TODO(jarin): provide real bailout id.
-          BuildLazyBailout(res, BailoutId::None());
+          PrepareFrameState(res, BailoutId::None());
           Node* property_missing = NewNode(javascript()->StrictEqual(), res,
                                            jsgraph()->ZeroConstant());
           {
@@ -763,9 +727,9 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
             // Inc counter and continue.
             Node* index_inc =
                 NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
-            environment()->Poke(0, index_inc);
             // TODO(jarin): provide real bailout id.
-            BuildLazyBailout(index_inc, BailoutId::None());
+            PrepareFrameState(index_inc, BailoutId::None());
+            environment()->Poke(0, index_inc);
             for_loop.Continue();
             is_property_missing.Else();
             is_property_missing.End();
@@ -782,9 +746,9 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         // Inc counter and continue.
         Node* index_inc =
             NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
-        environment()->Poke(0, index_inc);
         // TODO(jarin): provide real bailout id.
-        BuildLazyBailout(index_inc, BailoutId::None());
+        PrepareFrameState(index_inc, BailoutId::None());
+        environment()->Poke(0, index_inc);
         for_loop.EndBody();
         for_loop.EndLoop();
         environment()->Drop(5);
@@ -817,7 +781,8 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
   // TODO(turbofan): Do we really need a separate reloc-info for this?
-  NewNode(javascript()->Runtime(Runtime::kDebugBreak, 0));
+  Node* node = NewNode(javascript()->Runtime(Runtime::kDebugBreak, 0));
+  PrepareFrameState(node, stmt->DebugBreakId());
 }
 
 
@@ -932,7 +897,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             PrintableUnique<Name> name = MakeUnique(key->AsPropertyName());
             Node* store =
                 NewNode(javascript()->StoreNamed(name), literal, value);
-            BuildLazyBailout(store, key->id());
+            PrepareFrameState(store, key->id());
           } else {
             VisitForEffect(property->value());
           }
@@ -1024,7 +989,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     Node* value = environment()->Pop();
     Node* index = jsgraph()->Constant(i);
     Node* store = NewNode(javascript()->StoreProperty(), literal, index, value);
-    BuildLazyBailout(store, expr->GetIdForElement(i));
+    PrepareFrameState(store, expr->GetIdForElement(i));
   }
 
   environment()->Pop();  // Array literal index.
@@ -1056,7 +1021,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store = NewNode(javascript()->StoreNamed(name), object, value);
       // TODO(jarin) Fill in the correct bailout id.
-      BuildLazyBailout(store, BailoutId::None());
+      PrepareFrameState(store, BailoutId::None());
       break;
     }
     case KEYED_PROPERTY: {
@@ -1068,7 +1033,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
       value = environment()->Pop();
       Node* store = NewNode(javascript()->StoreProperty(), object, key, value);
       // TODO(jarin) Fill in the correct bailout id.
-      BuildLazyBailout(store, BailoutId::None());
+      PrepareFrameState(store, BailoutId::None());
       break;
     }
   }
@@ -1112,14 +1077,14 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
         PrintableUnique<Name> name =
             MakeUnique(property->key()->AsLiteral()->AsPropertyName());
         old_value = NewNode(javascript()->LoadNamed(name), object);
-        BuildLazyBailoutWithPushedNode(old_value, property->LoadId());
+        PrepareFrameState(old_value, property->LoadId(), PUSH_OUTPUT);
         break;
       }
       case KEYED_PROPERTY: {
         Node* key = environment()->Top();
         Node* object = environment()->Peek(1);
         old_value = NewNode(javascript()->LoadProperty(), object, key);
-        BuildLazyBailoutWithPushedNode(old_value, property->LoadId());
+        PrepareFrameState(old_value, property->LoadId(), PUSH_OUTPUT);
         break;
       }
     }
@@ -1128,8 +1093,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     Node* right = environment()->Pop();
     Node* left = environment()->Pop();
     Node* value = BuildBinaryOp(left, right, expr->binary_op());
+    PrepareFrameState(value, expr->binary_operation()->id(), PUSH_OUTPUT);
     environment()->Push(value);
-    BuildLazyBailout(value, expr->binary_operation()->id());
   } else {
     VisitForValue(expr->value());
   }
@@ -1148,14 +1113,14 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       PrintableUnique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store = NewNode(javascript()->StoreNamed(name), object, value);
-      BuildLazyBailout(store, expr->AssignmentId());
+      PrepareFrameState(store, expr->AssignmentId());
       break;
     }
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
       Node* store = NewNode(javascript()->StoreProperty(), object, key, value);
-      BuildLazyBailout(store, expr->AssignmentId());
+      PrepareFrameState(store, expr->AssignmentId());
       break;
     }
   }
@@ -1198,7 +1163,8 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
     Node* object = environment()->Pop();
     value = NewNode(javascript()->LoadProperty(), object, key);
   }
-  ast_context()->ProduceValueWithLazyBailout(value);
+  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  ast_context()->ProduceValue(value);
 }
 
 
@@ -1242,7 +1208,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
         Node* key = environment()->Pop();
         callee_value = NewNode(javascript()->LoadProperty(), object, key);
       }
-      BuildLazyBailoutWithPushedNode(callee_value, property->LoadId());
+      PrepareFrameState(callee_value, property->LoadId(), PUSH_OUTPUT);
       receiver_value = environment()->Pop();
       // Note that a PROPERTY_CALL requires the receiver to be wrapped into an
       // object for sloppy callees. This could also be modeled explicitly here,
@@ -1297,7 +1263,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   // Create node to perform the function call.
   Operator* call = javascript()->Call(args->length() + 2, flags);
   Node* value = ProcessArguments(call, args->length() + 2);
-  ast_context()->ProduceValueWithLazyBailout(value);
+  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  ast_context()->ProduceValue(value);
 }
 
 
@@ -1311,7 +1278,8 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   // Create node to perform the construct call.
   Operator* call = javascript()->CallNew(args->length() + 1);
   Node* value = ProcessArguments(call, args->length() + 1);
-  ast_context()->ProduceValueWithLazyBailout(value);
+  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  ast_context()->ProduceValue(value);
 }
 
 
@@ -1324,10 +1292,10 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   Node* receiver_value = BuildLoadBuiltinsObject();
   PrintableUnique<String> unique = MakeUnique(name);
   Node* callee_value = NewNode(javascript()->LoadNamed(unique), receiver_value);
-  environment()->Push(callee_value);
   // TODO(jarin): Find/create a bailout id to deoptimize to (crankshaft
   // refuses to optimize functions with jsruntime calls).
-  BuildLazyBailout(callee_value, BailoutId::None());
+  PrepareFrameState(callee_value, BailoutId::None(), PUSH_OUTPUT);
+  environment()->Push(callee_value);
   environment()->Push(receiver_value);
 
   // Evaluate all arguments to the JS runtime call.
@@ -1337,7 +1305,8 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   // Create node to perform the JS runtime call.
   Operator* call = javascript()->Call(args->length() + 2, flags);
   Node* value = ProcessArguments(call, args->length() + 2);
-  ast_context()->ProduceValueWithLazyBailout(value);
+  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  ast_context()->ProduceValue(value);
 }
 
 
@@ -1359,7 +1328,8 @@ void AstGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
   Runtime::FunctionId functionId = function->function_id;
   Operator* call = javascript()->Runtime(functionId, args->length());
   Node* value = ProcessArguments(call, args->length());
-  ast_context()->ProduceValueWithLazyBailout(value);
+  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+  ast_context()->ProduceValue(value);
 }
 
 
@@ -1406,7 +1376,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       PrintableUnique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       old_value = NewNode(javascript()->LoadNamed(name), object);
-      BuildLazyBailoutWithPushedNode(old_value, property->LoadId());
+      PrepareFrameState(old_value, property->LoadId(), PUSH_OUTPUT);
       stack_depth = 1;
       break;
     }
@@ -1416,7 +1386,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* key = environment()->Top();
       Node* object = environment()->Peek(1);
       old_value = NewNode(javascript()->LoadProperty(), object, key);
-      BuildLazyBailoutWithPushedNode(old_value, property->LoadId());
+      PrepareFrameState(old_value, property->LoadId(), PUSH_OUTPUT);
       stack_depth = 2;
       break;
     }
@@ -1433,7 +1403,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       BuildBinaryOp(old_value, jsgraph()->OneConstant(), expr->binary_op());
   // TODO(jarin) Insert proper bailout id here (will need to change
   // full code generator).
-  BuildLazyBailout(value, BailoutId::None());
+  PrepareFrameState(value, BailoutId::None());
 
   // Store the value.
   switch (assign_type) {
@@ -1448,14 +1418,14 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       PrintableUnique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store = NewNode(javascript()->StoreNamed(name), object, value);
-      BuildLazyBailout(store, expr->AssignmentId());
+      PrepareFrameState(store, expr->AssignmentId());
       break;
     }
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
       Node* store = NewNode(javascript()->StoreProperty(), object, key, value);
-      BuildLazyBailout(store, expr->AssignmentId());
+      PrepareFrameState(store, expr->AssignmentId());
       break;
     }
   }
@@ -1480,7 +1450,8 @@ void AstGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
       Node* right = environment()->Pop();
       Node* left = environment()->Pop();
       Node* value = BuildBinaryOp(left, right, expr->op());
-      ast_context()->ProduceValueWithLazyBailout(value);
+      PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
+      ast_context()->ProduceValue(value);
     }
   }
 }
@@ -1528,9 +1499,8 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
   Node* right = environment()->Pop();
   Node* left = environment()->Pop();
   Node* value = NewNode(op, left, right);
+  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
-
-  BuildLazyBailout(value, expr->id());
 }
 
 
@@ -1765,7 +1735,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       PrintableUnique<Name> name = MakeUnique(variable->name());
       Operator* op = javascript()->LoadNamed(name, contextual_mode);
       Node* node = NewNode(op, global);
-      BuildLazyBailoutWithPushedNode(node, bailout_id);
+      PrepareFrameState(node, bailout_id, PUSH_OUTPUT);
       return node;
     }
     case Variable::PARAMETER:
@@ -1866,7 +1836,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
       PrintableUnique<Name> name = MakeUnique(variable->name());
       Operator* op = javascript()->StoreNamed(name);
       Node* store = NewNode(op, global, value);
-      BuildLazyBailout(store, bailout_id);
+      PrepareFrameState(store, bailout_id);
       return store;
     }
     case Variable::PARAMETER:
@@ -2018,7 +1988,17 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
 }
 
 
-void AstGraphBuilder::BuildLazyBailout(Node* node, BailoutId ast_id) {
+void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
+                                        OutputFrameStateCombine combine) {
+  if (OperatorProperties::HasFrameStateInput(node->op())) {
+    int frame_state_index = NodeProperties::GetFrameStateIndex(node);
+
+    DCHECK(node->InputAt(frame_state_index)->op()->opcode() == IrOpcode::kDead);
+
+    Node* frame_state_node = environment()->Checkpoint(ast_id);
+    node->ReplaceInput(frame_state_index, frame_state_node);
+  }
+
   if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
     // The deopting node should have an outgoing control dependency.
     DCHECK(environment()->GetControlDependency() == node);
@@ -2029,32 +2009,25 @@ void AstGraphBuilder::BuildLazyBailout(Node* node, BailoutId ast_id) {
         CopyEnvironment(continuation_env);
     set_environment(deopt_env);
 
+    if (combine == PUSH_OUTPUT) {
+      environment()->Push(node);
+    }
+
     NewNode(common()->LazyDeoptimization());
 
     // TODO(jarin) If ast_id.IsNone(), perhaps we should generate an empty
     // deopt block and make sure there is no patch entry for this (so
     // that the deoptimizer dies when trying to deoptimize here).
-
     Node* state_node = environment()->Checkpoint(ast_id);
-
     Node* deoptimize_node = NewNode(common()->Deoptimize(), state_node);
-
     UpdateControlDependencyToLeaveFunction(deoptimize_node);
 
     // Continue with the original environment.
     set_environment(continuation_env);
-
     NewNode(common()->Continuation());
   }
 }
 
-
-void AstGraphBuilder::BuildLazyBailoutWithPushedNode(Node* node,
-                                                     BailoutId ast_id) {
-  environment()->Push(node);
-  BuildLazyBailout(node, ast_id);
-  environment()->Pop();
-}
 }
 }
 }  // namespace v8::internal::compiler

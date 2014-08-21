@@ -1472,6 +1472,8 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 
   __ DebugBreak();
   // Ignore the return value.
+
+  PrepareForBailoutForId(stmt->DebugBreakId(), NO_REGISTERS);
 }
 
 

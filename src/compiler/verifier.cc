@@ -58,11 +58,14 @@ class Verifier::Visitor : public NullNodeVisitor {
 GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
   int value_count = OperatorProperties::GetValueInputCount(node->op());
   int context_count = OperatorProperties::GetContextInputCount(node->op());
+  int frame_state_count =
+      OperatorProperties::GetFrameStateInputCount(node->op());
   int effect_count = OperatorProperties::GetEffectInputCount(node->op());
   int control_count = OperatorProperties::GetControlInputCount(node->op());
 
   // Verify number of inputs matches up.
-  int input_count = value_count + context_count + effect_count + control_count;
+  int input_count = value_count + context_count + frame_state_count +
+                    effect_count + control_count;
   CHECK_EQ(input_count, node->InputCount());
 
   // Verify all value inputs actually produce a value.

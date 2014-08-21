@@ -512,25 +512,32 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
                                     BasicBlock* deoptimization) {
   IA32OperandGenerator g(this);
   CallDescriptor* descriptor = OpParameter<CallDescriptor*>(call);
-  CallBuffer buffer(zone(), descriptor);
+
+  FrameStateDescriptor* frame_state_descriptor = NULL;
+
+  if (descriptor->NeedsFrameState()) {
+    frame_state_descriptor =
+        GetFrameStateDescriptor(call->InputAt(descriptor->InputCount()));
+  }
+
+  CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
 
   // Compute InstructionOperands for inputs and outputs.
   InitializeCallBuffer(call, &buffer, true, true, continuation, deoptimization);
 
   // Push any stack arguments.
-  for (int i = buffer.pushed_count - 1; i >= 0; --i) {
-    Node* input = buffer.pushed_nodes[i];
+  for (NodeVectorRIter input = buffer.pushed_nodes.rbegin();
+       input != buffer.pushed_nodes.rend(); input++) {
     // TODO(titzer): handle pushing double parameters.
     Emit(kIA32Push, NULL,
-         g.CanBeImmediate(input) ? g.UseImmediate(input) : g.Use(input));
+         g.CanBeImmediate(*input) ? g.UseImmediate(*input) : g.Use(*input));
   }
 
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   switch (descriptor->kind()) {
     case CallDescriptor::kCallCodeObject: {
-      bool lazy_deopt = descriptor->CanLazilyDeoptimize();
-      opcode = kIA32CallCodeObject | MiscField::encode(lazy_deopt ? 1 : 0);
+      opcode = kIA32CallCodeObject;
       break;
     }
     case CallDescriptor::kCallAddress:
@@ -543,11 +550,12 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
       UNREACHABLE();
       return;
   }
+  opcode |= MiscField::encode(descriptor->deoptimization_support());
 
   // Emit the call instruction.
   Instruction* call_instr =
-      Emit(opcode, buffer.output_count, buffer.outputs,
-           buffer.fixed_and_control_count(), buffer.fixed_and_control_args);
+      Emit(opcode, buffer.outputs.size(), &buffer.outputs.front(),
+           buffer.instruction_args.size(), &buffer.instruction_args.front());
 
   call_instr->MarkAsCall();
   if (deoptimization != NULL) {
@@ -557,9 +565,9 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
 
   // Caller clean up of stack for C-style calls.
   if (descriptor->kind() == CallDescriptor::kCallAddress &&
-      buffer.pushed_count > 0) {
+      buffer.pushed_nodes.size() > 0) {
     DCHECK(deoptimization == NULL && continuation == NULL);
-    Emit(kPopStack | MiscField::encode(buffer.pushed_count), NULL);
+    Emit(kPopStack | MiscField::encode(buffer.pushed_nodes.size()), NULL);
   }
 }
 

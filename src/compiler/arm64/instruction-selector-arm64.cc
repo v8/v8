@@ -596,7 +596,14 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
                                     BasicBlock* deoptimization) {
   Arm64OperandGenerator g(this);
   CallDescriptor* descriptor = OpParameter<CallDescriptor*>(call);
-  CallBuffer buffer(zone(), descriptor);  // TODO(turbofan): temp zone here?
+
+  FrameStateDescriptor* frame_state_descriptor = NULL;
+  if (descriptor->NeedsFrameState()) {
+    frame_state_descriptor =
+        GetFrameStateDescriptor(call->InputAt(descriptor->InputCount()));
+  }
+
+  CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
 
   // Compute InstructionOperands for inputs and outputs.
   // TODO(turbofan): on ARM64 it's probably better to use the code object in a
@@ -607,8 +614,8 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
 
   // Push the arguments to the stack.
   bool is_c_frame = descriptor->kind() == CallDescriptor::kCallAddress;
-  bool pushed_count_uneven = buffer.pushed_count & 1;
-  int aligned_push_count = buffer.pushed_count;
+  bool pushed_count_uneven = buffer.pushed_nodes.size() & 1;
+  int aligned_push_count = buffer.pushed_nodes.size();
   if (is_c_frame && pushed_count_uneven) {
     aligned_push_count++;
   }
@@ -622,7 +629,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   }
   // Move arguments to the stack.
   {
-    int slot = buffer.pushed_count - 1;
+    int slot = buffer.pushed_nodes.size() - 1;
     // Emit the uneven pushes.
     if (pushed_count_uneven) {
       Node* input = buffer.pushed_nodes[slot];
@@ -642,8 +649,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   InstructionCode opcode;
   switch (descriptor->kind()) {
     case CallDescriptor::kCallCodeObject: {
-      bool lazy_deopt = descriptor->CanLazilyDeoptimize();
-      opcode = kArm64CallCodeObject | MiscField::encode(lazy_deopt ? 1 : 0);
+      opcode = kArm64CallCodeObject;
       break;
     }
     case CallDescriptor::kCallAddress:
@@ -656,11 +662,12 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
       UNREACHABLE();
       return;
   }
+  opcode |= MiscField::encode(descriptor->deoptimization_support());
 
   // Emit the call instruction.
   Instruction* call_instr =
-      Emit(opcode, buffer.output_count, buffer.outputs,
-           buffer.fixed_and_control_count(), buffer.fixed_and_control_args);
+      Emit(opcode, buffer.outputs.size(), &buffer.outputs.front(),
+           buffer.instruction_args.size(), &buffer.instruction_args.front());
 
   call_instr->MarkAsCall();
   if (deoptimization != NULL) {

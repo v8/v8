@@ -35,7 +35,8 @@ class CallOperator : public Operator1<CallDescriptor*> {
  public:
   CallOperator(CallDescriptor* descriptor, const char* mnemonic)
       : Operator1<CallDescriptor*>(
-            IrOpcode::kCall, descriptor->properties(), descriptor->InputCount(),
+            IrOpcode::kCall, descriptor->properties(),
+            descriptor->InputCount() + descriptor->FrameStateCount(),
             descriptor->ReturnCount(), mnemonic, descriptor) {}
 
   virtual OStream& PrintParameter(OStream& os) const {  // NOLINT

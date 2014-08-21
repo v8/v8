@@ -288,9 +288,14 @@ REPLACE_UNIMPLEMENTED(JSDebugger)
 
 static CallDescriptor::DeoptimizationSupport DeoptimizationSupportForNode(
     Node* node) {
-  return OperatorProperties::CanLazilyDeoptimize(node->op())
-             ? CallDescriptor::kCanDeoptimize
-             : CallDescriptor::kCannotDeoptimize;
+  int result = CallDescriptor::kNoDeoptimization;
+  if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
+    result |= CallDescriptor::kLazyDeoptimization;
+  }
+  if (OperatorProperties::HasFrameStateInput(node->op())) {
+    result |= CallDescriptor::kNeedsFrameState;
+  }
+  return static_cast<CallDescriptor::DeoptimizationSupport>(result);
 }
 
 

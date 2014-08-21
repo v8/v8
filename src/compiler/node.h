@@ -54,7 +54,8 @@ class Node : public GenericNode<NodeData, Node> {
 
   void Initialize(Operator* op) { set_op(op); }
 
-  void CollectProjections(int projection_count, Node** projections);
+  void CollectProjections(
+      std::vector<Node*, zone_allocator<Node*> >* projections);
   Node* FindProjection(int32_t projection_index);
 };
 

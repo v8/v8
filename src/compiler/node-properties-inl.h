@@ -29,8 +29,12 @@ inline int NodeProperties::FirstContextIndex(Node* node) {
   return PastValueIndex(node);
 }
 
-inline int NodeProperties::FirstEffectIndex(Node* node) {
+inline int NodeProperties::FirstFrameStateIndex(Node* node) {
   return PastContextIndex(node);
+}
+
+inline int NodeProperties::FirstEffectIndex(Node* node) {
+  return PastFrameStateIndex(node);
 }
 
 inline int NodeProperties::FirstControlIndex(Node* node) {
@@ -46,6 +50,11 @@ inline int NodeProperties::PastValueIndex(Node* node) {
 inline int NodeProperties::PastContextIndex(Node* node) {
   return FirstContextIndex(node) +
          OperatorProperties::GetContextInputCount(node->op());
+}
+
+inline int NodeProperties::PastFrameStateIndex(Node* node) {
+  return FirstFrameStateIndex(node) +
+         OperatorProperties::GetFrameStateInputCount(node->op());
 }
 
 inline int NodeProperties::PastEffectIndex(Node* node) {
@@ -73,6 +82,11 @@ inline Node* NodeProperties::GetContextInput(Node* node) {
   return node->InputAt(FirstContextIndex(node));
 }
 
+inline Node* NodeProperties::GetFrameStateInput(Node* node) {
+  DCHECK(OperatorProperties::HasFrameStateInput(node->op()));
+  return node->InputAt(FirstFrameStateIndex(node));
+}
+
 inline Node* NodeProperties::GetEffectInput(Node* node, int index) {
   DCHECK(0 <= index &&
          index < OperatorProperties::GetEffectInputCount(node->op()));
@@ -85,6 +99,10 @@ inline Node* NodeProperties::GetControlInput(Node* node, int index) {
   return node->InputAt(FirstControlIndex(node) + index);
 }
 
+inline int NodeProperties::GetFrameStateIndex(Node* node) {
+  DCHECK(OperatorProperties::HasFrameStateInput(node->op()));
+  return FirstFrameStateIndex(node);
+}
 
 // -----------------------------------------------------------------------------
 // Edge kinds.
