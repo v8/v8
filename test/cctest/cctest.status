@@ -194,7 +194,10 @@
   'test-mark-compact/Promotion': [PASS, FAIL],
 
   # BUG(v8:3434).
-  ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP]
+  ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
+
+  # TODO(rodolph): Please investigate.
+  'test-run-machops/RunTruncateFloat64ToInt32P': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run == True', {

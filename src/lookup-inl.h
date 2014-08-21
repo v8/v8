@@ -29,6 +29,7 @@ JSReceiver* LookupIterator::NextHolder(Map* map) {
 
 
 LookupIterator::State LookupIterator::LookupInHolder(Map* map) {
+  STATIC_ASSERT(INTERCEPTOR == BEFORE_PROPERTY);
   DisallowHeapAllocation no_gc;
   switch (state_) {
     case NOT_FOUND:

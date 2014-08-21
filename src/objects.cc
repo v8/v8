@@ -140,6 +140,34 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 }
 
 
+Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
+                                         Handle<Name> key) {
+  LookupIterator it(object, key, LookupIterator::CHECK_DERIVED_PROPERTY);
+  for (; it.IsFound(); it.Next()) {
+    switch (it.state()) {
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::ACCESS_CHECK:
+      case LookupIterator::INTERCEPTOR:
+        UNREACHABLE();
+      case LookupIterator::JSPROXY:
+        return it.isolate()->factory()->undefined_value();
+      case LookupIterator::PROPERTY:
+        if (!it.HasProperty()) continue;
+        switch (it.property_kind()) {
+          case LookupIterator::DATA:
+            return it.GetDataValue();
+          case LookupIterator::ACCESSOR:
+            // TODO(verwaest): For now this doesn't call into
+            // ExecutableAccessorInfo, since clients don't need it. Update once
+            // relevant.
+            return it.isolate()->factory()->undefined_value();
+        }
+    }
+  }
+  return it.isolate()->factory()->undefined_value();
+}
+
+
 bool Object::ToInt32(int32_t* value) {
   if (IsSmi()) {
     *value = Smi::cast(this)->value();
@@ -624,22 +652,6 @@ Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
   Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
   if (IsGlobalObject()) {
     value = PropertyCell::cast(value)->value();
-  }
-  DCHECK(!value->IsPropertyCell() && !value->IsCell());
-  return value;
-}
-
-
-Handle<Object> JSObject::GetNormalizedProperty(Handle<JSObject> object,
-                                               const LookupResult* result) {
-  DCHECK(!object->HasFastProperties());
-  Isolate* isolate = object->GetIsolate();
-  Handle<Object> value(
-      object->property_dictionary()->ValueAt(result->GetDictionaryEntry()),
-      isolate);
-  if (object->IsGlobalObject()) {
-    value = handle(Handle<PropertyCell>::cast(value)->value(), isolate);
-    DCHECK(!value->IsTheHole());
   }
   DCHECK(!value->IsPropertyCell() && !value->IsCell());
   return value;
@@ -3419,37 +3431,6 @@ void JSObject::LookupOwnRealNamedProperty(Handle<Name> name,
 }
 
 
-void JSObject::LookupRealNamedProperty(Handle<Name> name,
-                                       LookupResult* result) {
-  DisallowHeapAllocation no_gc;
-  LookupOwnRealNamedProperty(name, result);
-  if (result->IsFound()) return;
-
-  LookupRealNamedPropertyInPrototypes(name, result);
-}
-
-
-void JSObject::LookupRealNamedPropertyInPrototypes(Handle<Name> name,
-                                                   LookupResult* result) {
-  if (name->IsOwn()) {
-    result->NotFound();
-    return;
-  }
-
-  DisallowHeapAllocation no_gc;
-  Isolate* isolate = GetIsolate();
-  for (PrototypeIterator iter(isolate, this); !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent()->IsJSProxy()) {
-      return result->HandlerResult(JSProxy::cast(iter.GetCurrent()));
-    }
-    JSObject::cast(iter.GetCurrent())->LookupOwnRealNamedProperty(name, result);
-    DCHECK(!(result->IsFound() && result->type() == INTERCEPTOR));
-    if (result->IsFound()) return;
-  }
-  result->NotFound();
-}
-
-
 Maybe<bool> JSProxy::HasPropertyWithHandler(Handle<JSProxy> proxy,
                                             Handle<Name> name) {
   Isolate* isolate = proxy->GetIsolate();
@@ -5671,41 +5652,6 @@ MaybeHandle<JSObject> JSObject::DeepCopy(
 }
 
 
-Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
-                                         Handle<Name> key) {
-  Isolate* isolate = object->GetIsolate();
-  LookupResult lookup(isolate);
-  {
-    DisallowHeapAllocation no_allocation;
-    object->LookupRealNamedProperty(key, &lookup);
-  }
-  Handle<Object> result = isolate->factory()->undefined_value();
-  if (lookup.IsFound() && !lookup.IsTransition()) {
-    switch (lookup.type()) {
-      case NORMAL:
-        result = GetNormalizedProperty(
-            Handle<JSObject>(lookup.holder(), isolate), &lookup);
-        break;
-      case FIELD:
-        result = FastPropertyAt(Handle<JSObject>(lookup.holder(), isolate),
-                                lookup.representation(),
-                                lookup.GetFieldIndex());
-        break;
-      case CONSTANT:
-        result = Handle<Object>(lookup.GetConstant(), isolate);
-        break;
-      case CALLBACKS:
-      case HANDLER:
-      case INTERCEPTOR:
-        break;
-      case NONEXISTENT:
-        UNREACHABLE();
-    }
-  }
-  return result;
-}
-
-
 // Tests for the fast common case for property enumeration:
 // - This object and all prototypes has an enum cache (which means that
 //   it is no proxy, has no interceptors and needs no access checks).
@@ -6156,51 +6102,6 @@ void JSObject::DefineElementAccessor(Handle<JSObject> object,
 }
 
 
-Handle<AccessorPair> JSObject::CreateAccessorPairFor(Handle<JSObject> object,
-                                                     Handle<Name> name) {
-  Isolate* isolate = object->GetIsolate();
-  LookupResult result(isolate);
-  object->LookupOwnRealNamedProperty(name, &result);
-  if (result.IsPropertyCallbacks()) {
-    // Note that the result can actually have IsDontDelete() == true when we
-    // e.g. have to fall back to the slow case while adding a setter after
-    // successfully reusing a map transition for a getter. Nevertheless, this is
-    // OK, because the assertion only holds for the whole addition of both
-    // accessors, not for the addition of each part. See first comment in
-    // DefinePropertyAccessor below.
-    Object* obj = result.GetCallbackObject();
-    if (obj->IsAccessorPair()) {
-      return AccessorPair::Copy(handle(AccessorPair::cast(obj), isolate));
-    }
-  }
-  return isolate->factory()->NewAccessorPair();
-}
-
-
-void JSObject::DefinePropertyAccessor(Handle<JSObject> object,
-                                      Handle<Name> name,
-                                      Handle<Object> getter,
-                                      Handle<Object> setter,
-                                      PropertyAttributes attributes) {
-  // We could assert that the property is configurable here, but we would need
-  // to do a lookup, which seems to be a bit of overkill.
-  bool only_attribute_changes = getter->IsNull() && setter->IsNull();
-  if (object->HasFastProperties() && !only_attribute_changes &&
-      (object->map()->NumberOfOwnDescriptors() <= kMaxNumberOfDescriptors)) {
-    bool getterOk = getter->IsNull() ||
-        DefineFastAccessor(object, name, ACCESSOR_GETTER, getter, attributes);
-    bool setterOk = !getterOk || setter->IsNull() ||
-        DefineFastAccessor(object, name, ACCESSOR_SETTER, setter, attributes);
-    if (getterOk && setterOk) return;
-  }
-
-  Handle<AccessorPair> accessors = CreateAccessorPairFor(object, name);
-  accessors->SetComponents(*getter, *setter);
-
-  SetPropertyCallback(object, name, accessors, attributes);
-}
-
-
 bool Map::DictionaryElementsInPrototypeChainOnly() {
   if (IsDictionaryElementsKind(elements_kind())) {
     return false;
@@ -6359,7 +6260,19 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   if (is_element) {
     DefineElementAccessor(object, index, getter, setter, attributes);
   } else {
-    DefinePropertyAccessor(object, name, getter, setter, attributes);
+    DCHECK(getter->IsSpecFunction() || getter->IsUndefined() ||
+           getter->IsNull());
+    DCHECK(setter->IsSpecFunction() || setter->IsUndefined() ||
+           setter->IsNull());
+    // At least one of the accessors needs to be a new value.
+    DCHECK(!getter->IsNull() || !setter->IsNull());
+    LookupIterator it(object, name, LookupIterator::CHECK_PROPERTY);
+    if (!getter->IsNull()) {
+      it.TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
+    }
+    if (!setter->IsNull()) {
+      it.TransitionToAccessorProperty(ACCESSOR_SETTER, setter, attributes);
+    }
   }
 
   if (is_observed) {
@@ -6368,111 +6281,6 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
   }
 
   return isolate->factory()->undefined_value();
-}
-
-
-static bool TryAccessorTransition(Handle<JSObject> self,
-                                  Handle<Map> transitioned_map,
-                                  int target_descriptor,
-                                  AccessorComponent component,
-                                  Handle<Object> accessor,
-                                  PropertyAttributes attributes) {
-  DescriptorArray* descs = transitioned_map->instance_descriptors();
-  PropertyDetails details = descs->GetDetails(target_descriptor);
-
-  // If the transition target was not callbacks, fall back to the slow case.
-  if (details.type() != CALLBACKS) return false;
-  Object* descriptor = descs->GetCallbacksObject(target_descriptor);
-  if (!descriptor->IsAccessorPair()) return false;
-
-  Object* target_accessor = AccessorPair::cast(descriptor)->get(component);
-  PropertyAttributes target_attributes = details.attributes();
-
-  // Reuse transition if adding same accessor with same attributes.
-  if (target_accessor == *accessor && target_attributes == attributes) {
-    JSObject::MigrateToMap(self, transitioned_map);
-    return true;
-  }
-
-  // If either not the same accessor, or not the same attributes, fall back to
-  // the slow case.
-  return false;
-}
-
-
-bool JSObject::DefineFastAccessor(Handle<JSObject> object,
-                                  Handle<Name> name,
-                                  AccessorComponent component,
-                                  Handle<Object> accessor,
-                                  PropertyAttributes attributes) {
-  DCHECK(accessor->IsSpecFunction() || accessor->IsUndefined());
-  Isolate* isolate = object->GetIsolate();
-  LookupResult result(isolate);
-  object->LookupOwn(name, &result);
-
-  if (result.IsFound() && !result.IsPropertyCallbacks()) {
-    return false;
-  }
-
-  // Return success if the same accessor with the same attributes already exist.
-  AccessorPair* source_accessors = NULL;
-  if (result.IsPropertyCallbacks()) {
-    Object* callback_value = result.GetCallbackObject();
-    if (callback_value->IsAccessorPair()) {
-      source_accessors = AccessorPair::cast(callback_value);
-      Object* entry = source_accessors->get(component);
-      if (entry == *accessor && result.GetAttributes() == attributes) {
-        return true;
-      }
-    } else {
-      return false;
-    }
-
-    int descriptor_number = result.GetDescriptorIndex();
-
-    object->map()->LookupTransition(*object, *name, &result);
-
-    if (result.IsFound()) {
-      Handle<Map> target(result.GetTransitionTarget());
-      DCHECK(target->NumberOfOwnDescriptors() ==
-             object->map()->NumberOfOwnDescriptors());
-      // This works since descriptors are sorted in order of addition.
-      DCHECK(Name::Equals(
-          handle(object->map()->instance_descriptors()->GetKey(
-              descriptor_number)),
-          name));
-      return TryAccessorTransition(object, target, descriptor_number,
-                                   component, accessor, attributes);
-    }
-  } else {
-    // If not, lookup a transition.
-    object->map()->LookupTransition(*object, *name, &result);
-
-    // If there is a transition, try to follow it.
-    if (result.IsFound()) {
-      Handle<Map> target(result.GetTransitionTarget());
-      int descriptor_number = target->LastAdded();
-      DCHECK(Name::Equals(name,
-          handle(target->instance_descriptors()->GetKey(descriptor_number))));
-      return TryAccessorTransition(object, target, descriptor_number,
-                                   component, accessor, attributes);
-    }
-  }
-
-  // If there is no transition yet, add a transition to the a new accessor pair
-  // containing the accessor.  Allocate a new pair if there were no source
-  // accessors.  Otherwise, copy the pair and modify the accessor.
-  Handle<AccessorPair> accessors = source_accessors != NULL
-      ? AccessorPair::Copy(Handle<AccessorPair>(source_accessors))
-      : isolate->factory()->NewAccessorPair();
-  accessors->set(component, *accessor);
-
-  CallbacksDescriptor new_accessors_desc(name, accessors, attributes);
-  Handle<Map> new_map = Map::CopyInsertDescriptor(
-      handle(object->map()), &new_accessors_desc, INSERT_TRANSITION);
-
-  JSObject::MigrateToMap(object, new_map);
-  return true;
 }
 
 
@@ -7113,6 +6921,101 @@ Handle<Map> Map::ReconfigureDataProperty(Handle<Map> map, int descriptor,
   // TODO(verwaest/ishell): Cache transitions with different attributes.
   return CopyGeneralizeAllRepresentations(map, descriptor, FORCE_FIELD,
                                           attributes, "attributes mismatch");
+}
+
+
+Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
+                                              Handle<Name> name,
+                                              AccessorComponent component,
+                                              Handle<Object> accessor,
+                                              PropertyAttributes attributes) {
+  Isolate* isolate = name->GetIsolate();
+
+  // Dictionary maps can always have additional data properties.
+  if (map->is_dictionary_map()) {
+    // For global objects, property cells are inlined. We need to change the
+    // map.
+    if (map->IsGlobalObjectMap()) return Copy(map);
+    return map;
+  }
+
+  // Migrate to the newest map before transitioning to the new property.
+  if (map->is_deprecated()) map = Update(map);
+
+  PropertyNormalizationMode mode = map->is_prototype_map()
+                                       ? KEEP_INOBJECT_PROPERTIES
+                                       : CLEAR_INOBJECT_PROPERTIES;
+
+  int index = map->SearchTransition(*name);
+  if (index != TransitionArray::kNotFound) {
+    Handle<Map> transition(map->GetTransition(index));
+    DescriptorArray* descriptors = transition->instance_descriptors();
+    // Fast path, assume that we're modifying the last added descriptor.
+    int descriptor = transition->LastAdded();
+    if (descriptors->GetKey(descriptor) != *name) {
+      // If not, search for the descriptor.
+      descriptor = descriptors->SearchWithCache(*name, *transition);
+    }
+
+    if (descriptors->GetDetails(descriptor).type() != CALLBACKS) {
+      return Map::Normalize(map, mode);
+    }
+
+    // TODO(verwaest): Handle attributes better.
+    if (descriptors->GetDetails(descriptor).attributes() != attributes) {
+      return Map::Normalize(map, mode);
+    }
+
+    Handle<Object> maybe_pair(descriptors->GetValue(descriptor), isolate);
+    if (!maybe_pair->IsAccessorPair()) {
+      return Map::Normalize(map, mode);
+    }
+
+    Handle<AccessorPair> pair = Handle<AccessorPair>::cast(maybe_pair);
+    if (pair->get(component) != *accessor) {
+      return Map::Normalize(map, mode);
+    }
+
+    return transition;
+  }
+
+  Handle<AccessorPair> pair;
+  DescriptorArray* old_descriptors = map->instance_descriptors();
+  int descriptor = old_descriptors->SearchWithCache(*name, *map);
+  if (descriptor != DescriptorArray::kNotFound) {
+    PropertyDetails old_details = old_descriptors->GetDetails(descriptor);
+    if (old_details.type() != CALLBACKS) {
+      return Map::Normalize(map, mode);
+    }
+
+    if (old_details.attributes() != attributes) {
+      return Map::Normalize(map, mode);
+    }
+
+    Handle<Object> maybe_pair(old_descriptors->GetValue(descriptor), isolate);
+    if (!maybe_pair->IsAccessorPair()) {
+      return Map::Normalize(map, mode);
+    }
+
+    Object* current = Handle<AccessorPair>::cast(maybe_pair)->get(component);
+    if (current == *accessor) return map;
+
+    if (!current->IsTheHole()) {
+      return Map::Normalize(map, mode);
+    }
+
+    pair = AccessorPair::Copy(Handle<AccessorPair>::cast(maybe_pair));
+  } else if (map->NumberOfOwnDescriptors() >= kMaxNumberOfDescriptors ||
+             map->TooManyFastProperties(CERTAINLY_NOT_STORE_FROM_KEYED)) {
+    return Map::Normalize(map, CLEAR_INOBJECT_PROPERTIES);
+  } else {
+    pair = isolate->factory()->NewAccessorPair();
+  }
+
+  pair->set(component, *accessor);
+  TransitionFlag flag = INSERT_TRANSITION;
+  CallbacksDescriptor new_desc(name, pair, attributes);
+  return Map::CopyInsertDescriptor(map, &new_desc, flag);
 }
 
 

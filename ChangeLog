@@ -1,3 +1,16 @@
+2014-08-21: Version 3.29.10
+
+        ES6: Make sure we do not store -0 as the key in Map/Set (issue 3515).
+
+        Remove removed flags from tests.
+
+        Expose well-known Symbols to C++ API (Chromium issue 341423).
+
+        Implement ES6 Array.of() (issue 3427).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-20: Version 3.29.9
 
         Correctly handle holes when concat()ing double arrays (Chromium issue

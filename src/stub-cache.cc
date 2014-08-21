@@ -1193,18 +1193,6 @@ void ElementHandlerCompiler::GenerateStoreDictionaryElement(
 }
 
 
-CallOptimization::CallOptimization(LookupResult* lookup) {
-  if (lookup->IsFound() &&
-      lookup->IsCacheable() &&
-      lookup->IsConstantFunction()) {
-    // We only optimize constant function calls.
-    Initialize(Handle<JSFunction>(lookup->GetConstantFunction()));
-  } else {
-    Initialize(Handle<JSFunction>::null());
-  }
-}
-
-
 CallOptimization::CallOptimization(Handle<JSFunction> function) {
   Initialize(function);
 }

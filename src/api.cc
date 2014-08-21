@@ -3564,24 +3564,12 @@ bool v8::Object::HasIndexedLookupInterceptor() {
 }
 
 
-static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
-                                        i::Handle<i::JSObject> receiver,
-                                        i::Handle<i::String> name,
-                                        i::LookupResult* lookup) {
-  if (!lookup->IsProperty()) {
-    // No real property was found.
-    return Local<Value>();
-  }
-
-  // If the property being looked up is a callback, it can throw
-  // an exception.
-  EXCEPTION_PREAMBLE(isolate);
-  i::LookupIterator it(receiver, name,
-                       i::Handle<i::JSReceiver>(lookup->holder(), isolate),
-                       i::LookupIterator::CHECK_DERIVED_SKIP_INTERCEPTOR);
+static Local<Value> GetPropertyByLookup(i::LookupIterator* it) {
+  // If the property being looked up is a callback, it can throw an exception.
+  EXCEPTION_PREAMBLE(it->isolate());
   i::Handle<i::Object> result;
-  has_pending_exception = !i::Object::GetProperty(&it).ToHandle(&result);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+  has_pending_exception = !i::Object::GetProperty(it).ToHandle(&result);
+  EXCEPTION_BAILOUT_CHECK(it->isolate(), Local<Value>());
 
   return Utils::ToLocal(result);
 }
@@ -3596,9 +3584,11 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupResult lookup(isolate);
-  self_obj->LookupRealNamedPropertyInPrototypes(key_obj, &lookup);
-  return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
+  i::PrototypeIterator iter(isolate, self_obj);
+  if (iter.IsAtEnd()) return Local<Value>();
+  i::LookupIterator it(i::PrototypeIterator::GetCurrent(iter), key_obj,
+                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
+  return GetPropertyByLookup(&it);
 }
 
 
@@ -3609,9 +3599,9 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupResult lookup(isolate);
-  self_obj->LookupRealNamedProperty(key_obj, &lookup);
-  return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
+  i::LookupIterator it(self_obj, key_obj,
+                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
+  return GetPropertyByLookup(&it);
 }
 
 
@@ -4065,15 +4055,14 @@ Handle<Value> Function::GetDisplayName() const {
   i::Handle<i::String> property_name =
       isolate->factory()->InternalizeOneByteString(
           STATIC_ASCII_VECTOR("displayName"));
-  i::LookupResult lookup(isolate);
-  func->LookupRealNamedProperty(property_name, &lookup);
-  if (lookup.IsFound()) {
-    i::Object* value = lookup.GetLazyValue();
-    if (value && value->IsString()) {
-      i::String* name = i::String::cast(value);
-      if (name->length() > 0) return Utils::ToLocal(i::Handle<i::String>(name));
-    }
+
+  i::Handle<i::Object> value =
+      i::JSObject::GetDataProperty(func, property_name);
+  if (value->IsString()) {
+    i::Handle<i::String> name = i::Handle<i::String>::cast(value);
+    if (name->length() > 0) return Utils::ToLocal(name);
   }
+
   return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
 }
 
@@ -6152,43 +6141,57 @@ Local<Symbol> v8::Symbol::New(Isolate* isolate, Local<String> name) {
 }
 
 
-Local<Symbol> v8::Symbol::For(Isolate* isolate, Local<String> name) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::String> i_name = Utils::OpenHandle(*name);
-  i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
-  i::Handle<i::String> part = i_isolate->factory()->for_string();
+static i::Handle<i::Symbol> SymbolFor(i::Isolate* isolate,
+                                      i::Handle<i::String> name,
+                                      i::Handle<i::String> part) {
+  i::Handle<i::JSObject> registry = isolate->GetSymbolRegistry();
   i::Handle<i::JSObject> symbols =
       i::Handle<i::JSObject>::cast(
           i::Object::GetPropertyOrElement(registry, part).ToHandleChecked());
   i::Handle<i::Object> symbol =
-      i::Object::GetPropertyOrElement(symbols, i_name).ToHandleChecked();
+      i::Object::GetPropertyOrElement(symbols, name).ToHandleChecked();
   if (!symbol->IsSymbol()) {
     DCHECK(symbol->IsUndefined());
-    symbol = i_isolate->factory()->NewSymbol();
-    i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(symbols, i_name, symbol, i::STRICT).Assert();
+    symbol = isolate->factory()->NewSymbol();
+    i::Handle<i::Symbol>::cast(symbol)->set_name(*name);
+    i::JSObject::SetProperty(symbols, name, symbol, i::STRICT).Assert();
   }
-  return Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
+  return i::Handle<i::Symbol>::cast(symbol);
+}
+
+
+Local<Symbol> v8::Symbol::For(Isolate* isolate, Local<String> name) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::String> i_name = Utils::OpenHandle(*name);
+  i::Handle<i::String> part = i_isolate->factory()->for_string();
+  return Utils::ToLocal(SymbolFor(i_isolate, i_name, part));
 }
 
 
 Local<Symbol> v8::Symbol::ForApi(Isolate* isolate, Local<String> name) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::String> i_name = Utils::OpenHandle(*name);
-  i::Handle<i::JSObject> registry = i_isolate->GetSymbolRegistry();
   i::Handle<i::String> part = i_isolate->factory()->for_api_string();
-  i::Handle<i::JSObject> symbols =
-      i::Handle<i::JSObject>::cast(
-          i::Object::GetPropertyOrElement(registry, part).ToHandleChecked());
-  i::Handle<i::Object> symbol =
-      i::Object::GetPropertyOrElement(symbols, i_name).ToHandleChecked();
-  if (!symbol->IsSymbol()) {
-    DCHECK(symbol->IsUndefined());
-    symbol = i_isolate->factory()->NewSymbol();
-    i::Handle<i::Symbol>::cast(symbol)->set_name(*i_name);
-    i::JSObject::SetProperty(symbols, i_name, symbol, i::STRICT).Assert();
-  }
-  return Utils::ToLocal(i::Handle<i::Symbol>::cast(symbol));
+  return Utils::ToLocal(SymbolFor(i_isolate, i_name, part));
+}
+
+
+static Local<Symbol> GetWellKnownSymbol(Isolate* isolate, const char* name) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Handle<i::String> i_name =
+      Utils::OpenHandle(*String::NewFromUtf8(isolate, name));
+  i::Handle<i::String> part = i_isolate->factory()->for_intern_string();
+  return Utils::ToLocal(SymbolFor(i_isolate, i_name, part));
+}
+
+
+Local<Symbol> v8::Symbol::GetIterator(Isolate* isolate) {
+  return GetWellKnownSymbol(isolate, "Symbol.iterator");
+}
+
+
+Local<Symbol> v8::Symbol::GetUnscopables(Isolate* isolate) {
+  return GetWellKnownSymbol(isolate, "Symbol.unscopables");
 }
 
 

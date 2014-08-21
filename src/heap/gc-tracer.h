@@ -171,6 +171,9 @@ class GCTracer BASE_EMBEDDED {
     // after the current GC.
     intptr_t end_holes_size;
 
+    // Size of new space objects in constructor.
+    intptr_t new_space_object_size;
+
     // Number of incremental marking steps since creation of tracer.
     // (value at start of event)
     int cumulative_incremental_marking_steps;
@@ -280,9 +283,13 @@ class GCTracer BASE_EMBEDDED {
   // Returns 0 if no incremental marking round has been completed.
   double MaxIncrementalMarkingDuration() const;
 
-  // Compute the average incremental marking speed in bytes/second. Returns 0 if
-  // no events have been recorded.
+  // Compute the average incremental marking speed in bytes/millisecond.
+  // Returns 0 if no events have been recorded.
   intptr_t IncrementalMarkingSpeedInBytesPerMillisecond() const;
+
+  // Compute the average scavenge speed in bytes/millisecond.
+  // Returns 0 if no events have been recorded.
+  intptr_t ScavengeSpeedInBytesPerMillisecond() const;
 
  private:
   // Print one detailed trace line in name=value format.

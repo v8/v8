@@ -83,31 +83,17 @@ class LCodeGen: public LCodeGenBase {
 
   enum IntegerSignedness { SIGNED_INT32, UNSIGNED_INT32 };
   // Support for converting LOperands to assembler types.
-  // LOperand must be a register.
   Register ToRegister(LOperand* op) const;
   Register ToRegister32(LOperand* op) const;
   Operand ToOperand(LOperand* op);
-  Operand ToOperand32I(LOperand* op);
-  Operand ToOperand32U(LOperand* op);
+  Operand ToOperand32(LOperand* op);
   enum StackMode { kMustUseFramePointer, kCanUseStackPointer };
   MemOperand ToMemOperand(LOperand* op,
                           StackMode stack_mode = kCanUseStackPointer) const;
   Handle<Object> ToHandle(LConstantOperand* op) const;
 
-  template<class LI>
-  Operand ToShiftedRightOperand32I(LOperand* right,
-                                   LI* shift_info) {
-    return ToShiftedRightOperand32(right, shift_info, SIGNED_INT32);
-  }
-  template<class LI>
-  Operand ToShiftedRightOperand32U(LOperand* right,
-                                   LI* shift_info) {
-    return ToShiftedRightOperand32(right, shift_info, UNSIGNED_INT32);
-  }
-  template<class LI>
-  Operand ToShiftedRightOperand32(LOperand* right,
-                                  LI* shift_info,
-                                  IntegerSignedness signedness);
+  template <class LI>
+  Operand ToShiftedRightOperand32(LOperand* right, LI* shift_info);
 
   int JSShiftAmountFromLConstant(LOperand* constant) {
     return ToInteger32(LConstantOperand::cast(constant)) & 0x1f;
@@ -157,8 +143,6 @@ class LCodeGen: public LCodeGenBase {
                                    Register result,
                                    Register object,
                                    Register index);
-
-  Operand ToOperand32(LOperand* op, IntegerSignedness signedness);
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);

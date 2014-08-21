@@ -1799,7 +1799,7 @@ class Call V8_FINAL : public Expression, public FeedbackSlotInterface {
   void set_allocation_site(Handle<AllocationSite> site) {
     allocation_site_ = site;
   }
-  bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupResult* lookup);
+  bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupIterator* it);
 
   BailoutId ReturnId() const { return return_id_; }
 

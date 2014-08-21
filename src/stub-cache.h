@@ -626,8 +626,6 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
 // Holds information about possible function call optimizations.
 class CallOptimization BASE_EMBEDDED {
  public:
-  explicit CallOptimization(LookupResult* lookup);
-
   explicit CallOptimization(Handle<JSFunction> function);
 
   bool is_constant_call() const {

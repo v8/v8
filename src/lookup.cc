@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/bootstrapper.h"
+#include "src/deoptimizer.h"
 #include "src/lookup.h"
 #include "src/lookup-inl.h"
 
@@ -109,6 +110,14 @@ bool LookupIterator::HasProperty() {
 }
 
 
+void LookupIterator::ReloadPropertyInformation() {
+  state_ = BEFORE_PROPERTY;
+  state_ = LookupInHolder(*holder_map_);
+  DCHECK(IsFound());
+  HasProperty();
+}
+
+
 void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   DCHECK(has_property_);
   DCHECK(HolderIsReceiverOrHiddenPrototype());
@@ -116,13 +125,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   holder_map_ =
       Map::PrepareForDataProperty(holder_map_, descriptor_number(), value);
   JSObject::MigrateToMap(GetHolder<JSObject>(), holder_map_);
-  // Reload property information.
-  if (holder_map_->is_dictionary_map()) {
-    property_encoding_ = DICTIONARY;
-  } else {
-    property_encoding_ = DESCRIPTOR;
-  }
-  CHECK(HasProperty());
+  ReloadPropertyInformation();
 }
 
 
@@ -137,17 +140,12 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     JSObject::MigrateToMap(holder, holder_map_);
   }
 
-  // Reload property information and update the descriptor if in dictionary
-  // mode.
   if (holder_map_->is_dictionary_map()) {
-    property_encoding_ = DICTIONARY;
     PropertyDetails details(attributes, NORMAL, 0);
     JSObject::SetNormalizedProperty(holder, name(), value, details);
-  } else {
-    property_encoding_ = DESCRIPTOR;
   }
 
-  CHECK(HasProperty());
+  ReloadPropertyInformation();
 }
 
 
@@ -172,12 +170,62 @@ void LookupIterator::TransitionToDataProperty(
                                               value, attributes, store_mode);
   JSObject::MigrateToMap(receiver, holder_map_);
 
-  // Reload the information.
-  state_ = NOT_FOUND;
-  configuration_ = CHECK_PROPERTY;
-  state_ = LookupInHolder(*holder_map_);
-  DCHECK(IsFound());
-  HasProperty();
+  ReloadPropertyInformation();
+}
+
+
+void LookupIterator::TransitionToAccessorProperty(
+    AccessorComponent component, Handle<Object> accessor,
+    PropertyAttributes attributes) {
+  DCHECK(!accessor->IsNull());
+  // Can only be called when the receiver is a JSObject. JSProxy has to be
+  // handled via a trap. Adding properties to primitive values is not
+  // observable.
+  Handle<JSObject> receiver = Handle<JSObject>::cast(GetReceiver());
+
+  if (receiver->IsJSGlobalProxy()) {
+    PrototypeIterator iter(isolate(), receiver);
+    receiver =
+        Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter));
+  }
+
+  maybe_holder_ = receiver;
+  holder_map_ = Map::TransitionToAccessorProperty(
+      handle(receiver->map()), name_, component, accessor, attributes);
+  JSObject::MigrateToMap(receiver, holder_map_);
+
+  ReloadPropertyInformation();
+
+  if (!holder_map_->is_dictionary_map()) return;
+
+  // We have to deoptimize since accesses to data properties may have been
+  // inlined without a corresponding map-check.
+  if (holder_map_->IsGlobalObjectMap()) {
+    Deoptimizer::DeoptimizeGlobalObject(*receiver);
+  }
+
+  // Install the accessor into the dictionary-mode object.
+  PropertyDetails details(attributes, CALLBACKS, 0);
+  Handle<AccessorPair> pair;
+  if (IsFound() && HasProperty() && property_kind() == ACCESSOR &&
+      GetAccessors()->IsAccessorPair()) {
+    pair = Handle<AccessorPair>::cast(GetAccessors());
+    // If the component and attributes are identical, nothing has to be done.
+    if (pair->get(component) == *accessor) {
+      if (property_details().attributes() == attributes) return;
+    } else {
+      pair = AccessorPair::Copy(pair);
+      pair->set(component, *accessor);
+    }
+  } else {
+    pair = isolate()->factory()->NewAccessorPair();
+    pair->set(component, *accessor);
+  }
+  JSObject::SetNormalizedProperty(receiver, name_, pair, details);
+
+  JSObject::ReoptimizeIfPrototype(receiver);
+  holder_map_ = handle(receiver->map());
+  ReloadPropertyInformation();
 }
 
 

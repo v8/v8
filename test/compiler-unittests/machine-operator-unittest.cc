@@ -57,6 +57,16 @@ TEST_P(MachineOperatorCommonTest, ChangeUint32ToUint64) {
 }
 
 
+TEST_P(MachineOperatorCommonTest, TruncateFloat64ToInt32) {
+  Operator* op = machine()->TruncateFloat64ToInt32();
+  EXPECT_EQ(1, OperatorProperties::GetValueInputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
+  EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+  EXPECT_EQ(0, OperatorProperties::GetEffectOutputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetValueOutputCount(op));
+}
+
+
 TEST_P(MachineOperatorCommonTest, TruncateInt64ToInt32) {
   Operator* op = machine()->TruncateInt64ToInt32();
   EXPECT_EQ(1, OperatorProperties::GetValueInputCount(op));

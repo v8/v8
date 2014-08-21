@@ -103,6 +103,8 @@ void GCTracer::Start(GarbageCollector collector, const char* gc_reason,
   current_.start_object_size = heap_->SizeOfObjects();
   current_.start_memory_size = heap_->isolate()->memory_allocator()->Size();
   current_.start_holes_size = CountTotalHolesSize(heap_);
+  current_.new_space_object_size =
+      heap_->new_space()->top() - heap_->new_space()->bottom();
 
   current_.cumulative_incremental_marking_steps =
       cumulative_incremental_marking_steps_;
@@ -296,6 +298,8 @@ void GCTracer::PrintNVP() const {
   if (current_.type == Event::SCAVENGER) {
     PrintF("steps_count=%d ", current_.incremental_marking_steps);
     PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
+    PrintF("scavenge_throughput=%" V8_PTR_PREFIX "d ",
+           ScavengeSpeedInBytesPerMillisecond());
   } else {
     PrintF("steps_count=%d ", current_.incremental_marking_steps);
     PrintF("steps_took=%.1f ", current_.incremental_marking_duration);
@@ -391,6 +395,22 @@ intptr_t GCTracer::IncrementalMarkingSpeedInBytesPerMillisecond() const {
   while (iter != mark_compactor_events_.end()) {
     bytes += iter->incremental_marking_bytes;
     durations += iter->pure_incremental_marking_duration;
+    ++iter;
+  }
+
+  if (durations == 0.0) return 0;
+
+  return static_cast<intptr_t>(bytes / durations);
+}
+
+
+intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond() const {
+  intptr_t bytes = 0;
+  double durations = 0.0;
+  EventBuffer::const_iterator iter = scavenger_events_.begin();
+  while (iter != scavenger_events_.end()) {
+    bytes += iter->new_space_object_size;
+    durations += iter->end_time - iter->start_time;
     ++iter;
   }
 

@@ -149,6 +149,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
       break;
     }
+    case kArchTruncateDoubleToI:
+      __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
+      break;
     case kArm64Add:
       __ Add(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
