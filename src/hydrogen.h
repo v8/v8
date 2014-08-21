@@ -2510,7 +2510,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool IsAccessor() const { return lookup_.IsPropertyCallbacks(); }
     bool IsTransition() const { return lookup_.IsTransition(); }
 
-    bool IsConfigurable() const { return !lookup_.IsDontDelete(); }
+    bool IsConfigurable() const { return lookup_.IsConfigurable(); }
     bool IsReadOnly() const { return lookup_.IsReadOnly(); }
     bool IsCacheable() const { return lookup_.IsCacheable(); }
 

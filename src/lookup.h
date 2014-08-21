@@ -153,7 +153,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     DCHECK(has_property_);
     return property_details_;
   }
-  bool IsConfigurable() const { return !property_details().IsDontDelete(); }
+  bool IsConfigurable() const { return property_details().IsConfigurable(); }
   bool IsReadOnly() const { return property_details().IsReadOnly(); }
   Representation representation() const {
     return property_details().representation();

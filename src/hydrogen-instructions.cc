@@ -3584,14 +3584,14 @@ OStream& HTransitionElementsKind::PrintDataTo(OStream& os) const {  // NOLINT
 
 OStream& HLoadGlobalCell::PrintDataTo(OStream& os) const {  // NOLINT
   os << "[" << *cell().handle() << "]";
-  if (!details_.IsDontDelete()) os << " (deleteable)";
+  if (details_.IsConfigurable()) os << " (configurable)";
   if (details_.IsReadOnly()) os << " (read-only)";
   return os;
 }
 
 
 bool HLoadGlobalCell::RequiresHoleCheck() const {
-  if (details_.IsDontDelete() && !details_.IsReadOnly()) return false;
+  if (!details_.IsConfigurable()) return false;
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     if (!use->IsChange()) return true;
@@ -3613,7 +3613,7 @@ OStream& HInnerAllocatedObject::PrintDataTo(OStream& os) const {  // NOLINT
 
 OStream& HStoreGlobalCell::PrintDataTo(OStream& os) const {  // NOLINT
   os << "[" << *cell().handle() << "] = " << NameOf(value());
-  if (!details_.IsDontDelete()) os << " (deleteable)";
+  if (details_.IsConfigurable()) os << " (configurable)";
   if (details_.IsReadOnly()) os << " (read-only)";
   return os;
 }

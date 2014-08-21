@@ -260,7 +260,7 @@ class PropertyDetails BASE_EMBEDDED {
   }
 
   bool IsReadOnly() const { return (attributes() & READ_ONLY) != 0; }
-  bool IsDontDelete() const { return (attributes() & DONT_DELETE) != 0; }
+  bool IsConfigurable() const { return (attributes() & DONT_DELETE) == 0; }
   bool IsDontEnum() const { return (attributes() & DONT_ENUM) != 0; }
   bool IsDeleted() const { return DeletedField::decode(value_) != 0;}
 

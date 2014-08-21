@@ -5793,9 +5793,7 @@ class HStoreGlobalCell V8_FINAL : public HUnaryOperation {
                                  Handle<PropertyCell>, PropertyDetails);
 
   Unique<PropertyCell> cell() const { return cell_; }
-  bool RequiresHoleCheck() {
-    return !details_.IsDontDelete() || details_.IsReadOnly();
-  }
+  bool RequiresHoleCheck() { return details_.IsConfigurable(); }
   bool NeedsWriteBarrier() {
     return StoringValueNeedsWriteBarrier(value());
   }

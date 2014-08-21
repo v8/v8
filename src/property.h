@@ -260,7 +260,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
     return IsDescriptorOrDictionary() && type() == CONSTANT;
   }
 
-  bool IsDontDelete() const { return details_.IsDontDelete(); }
+  bool IsConfigurable() const { return details_.IsConfigurable(); }
   bool IsDontEnum() const { return details_.IsDontEnum(); }
   bool IsFound() const { return lookup_type_ != NOT_FOUND; }
   bool IsDescriptorOrDictionary() const {

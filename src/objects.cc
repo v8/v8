@@ -709,11 +709,11 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
     // If we have a global object set the cell to the hole.
     if (object->IsGlobalObject()) {
       PropertyDetails details = dictionary->DetailsAt(entry);
-      if (details.IsDontDelete()) {
+      if (!details.IsConfigurable()) {
         if (mode != FORCE_DELETION) return isolate->factory()->false_value();
         // When forced to delete global properties, we have to make a
         // map change to invalidate any ICs that think they can load
-        // from the DontDelete cell without checking if it contains
+        // from the non-configurable cell without checking if it contains
         // the hole value.
         Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
         DCHECK(new_map->is_dictionary_map());
@@ -6008,7 +6008,7 @@ static bool UpdateGetterSetterInDictionary(
     Object* result = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
     if (details.type() == CALLBACKS && result->IsAccessorPair()) {
-      DCHECK(!details.IsDontDelete());
+      DCHECK(details.IsConfigurable());
       if (details.attributes() != attributes) {
         dictionary->DetailsAtPut(
             entry,
@@ -15121,7 +15121,7 @@ Handle<Object> Dictionary<Derived, Shape, Key>::DeleteProperty(
   Factory* factory = dictionary->GetIsolate()->factory();
   PropertyDetails details = dictionary->DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
-  if (details.IsDontDelete() && mode != JSReceiver::FORCE_DELETION) {
+  if (!details.IsConfigurable() && mode != JSReceiver::FORCE_DELETION) {
     return factory->false_value();
   }
 
