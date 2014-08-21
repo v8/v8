@@ -242,8 +242,6 @@ void JSObject::PrintProperties(OStream& os) {  // NOLINT
         case NORMAL:  // only in slow mode
         case HANDLER:  // only in lookup results, not in descriptors
         case INTERCEPTOR:  // only in lookup results, not in descriptors
-        // There are no transitions in the descriptor array.
-        case NONEXISTENT:
           UNREACHABLE();
           break;
       }
@@ -377,7 +375,6 @@ void JSObject::PrintTransitions(OStream& os) {  // NOLINT
         case NORMAL:
         case HANDLER:
         case INTERCEPTOR:
-        case NONEXISTENT:
           UNREACHABLE();
           break;
       }
@@ -1107,7 +1104,6 @@ void TransitionArray::PrintTransitions(OStream& os) {  // NOLINT
       case NORMAL:
       case HANDLER:
       case INTERCEPTOR:
-      case NONEXISTENT:
         UNREACHABLE();
         break;
     }

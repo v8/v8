@@ -46,16 +46,14 @@ class TypeInfo;
 // A copy of this is in mirror-debugger.js.
 enum PropertyType {
   // Only in slow mode.
-  NORMAL                    = 0,
+  NORMAL = 0,
   // Only in fast mode.
-  FIELD                     = 1,
-  CONSTANT                  = 2,
-  CALLBACKS                 = 3,
+  FIELD = 1,
+  CONSTANT = 2,
+  CALLBACKS = 3,
   // Only in lookup results, not in descriptors.
-  HANDLER                   = 4,
-  INTERCEPTOR               = 5,
-  // Only used as a marker in LookupResult.
-  NONEXISTENT               = 6
+  HANDLER = 4,
+  INTERCEPTOR = 5
 };
 
 

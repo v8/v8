@@ -47,9 +47,6 @@ OStream& operator<<(OStream& os, const LookupResult& r) {
       return os << " -type = lookup proxy\n";
     case INTERCEPTOR:
       return os << " -type = lookup interceptor\n";
-    case NONEXISTENT:
-      UNREACHABLE();
-      break;
   }
   return os;
 }

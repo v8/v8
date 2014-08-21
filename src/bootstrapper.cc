@@ -2464,7 +2464,6 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           // Do not occur since the from object has fast properties.
         case HANDLER:
         case INTERCEPTOR:
-        case NONEXISTENT:
           // No element in instance descriptors have proxy or interceptor type.
           UNREACHABLE();
           break;

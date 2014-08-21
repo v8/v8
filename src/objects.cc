@@ -2774,7 +2774,6 @@ MaybeHandle<Map> Map::TryUpdateInternal(Handle<Map> old_map) {
       case NORMAL:
       case HANDLER:
       case INTERCEPTOR:
-      case NONEXISTENT:
         UNREACHABLE();
     }
   }
@@ -4264,7 +4263,6 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
         break;
       case HANDLER:
       case NORMAL:
-      case NONEXISTENT:
         UNREACHABLE();
         break;
     }
@@ -6823,7 +6821,6 @@ bool DescriptorArray::CanHoldValue(int descriptor, Object* value) {
     case NORMAL:
     case INTERCEPTOR:
     case HANDLER:
-    case NONEXISTENT:
       break;
   }
 

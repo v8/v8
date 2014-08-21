@@ -120,7 +120,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
         holder_(NULL),
         transition_(NULL),
         cacheable_(true),
-        details_(NONE, NONEXISTENT, Representation::None()) {
+        details_(NONE, NORMAL, Representation::None()) {
     isolate->set_top_lookup_result(this);
   }
 
@@ -158,8 +158,6 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
       case HANDLER:
       case INTERCEPTOR:
         return true;
-      case NONEXISTENT:
-        UNREACHABLE();
     }
     UNREACHABLE();
     return true;
@@ -198,7 +196,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
 
   void NotFound() {
     lookup_type_ = NOT_FOUND;
-    details_ = PropertyDetails(NONE, NONEXISTENT, Representation::None());
+    details_ = PropertyDetails(NONE, NORMAL, Representation::None());
     holder_ = NULL;
     transition_ = NULL;
   }
@@ -220,13 +218,11 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
 
   Representation representation() const {
     DCHECK(IsFound());
-    DCHECK(details_.type() != NONEXISTENT);
     return details_.representation();
   }
 
   PropertyAttributes GetAttributes() const {
     DCHECK(IsFound());
-    DCHECK(details_.type() != NONEXISTENT);
     return details_.attributes();
   }
 
@@ -247,7 +243,6 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
 
   bool IsReadOnly() const {
     DCHECK(IsFound());
-    DCHECK(details_.type() != NONEXISTENT);
     return details_.IsReadOnly();
   }
 
