@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_GC_TRACER_H_
 #define V8_HEAP_GC_TRACER_H_
 
+#include "src/base/platform/platform.h"
+
 namespace v8 {
 namespace internal {
 
@@ -81,9 +83,9 @@ class RingBuffer {
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 // TODO(ernstm): Unit tests.
-class GCTracer BASE_EMBEDDED {
+class GCTracer {
  public:
-  class Scope BASE_EMBEDDED {
+  class Scope {
    public:
     enum ScopeId {
       EXTERNAL,
@@ -290,6 +292,10 @@ class GCTracer BASE_EMBEDDED {
   // Compute the average scavenge speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
   intptr_t ScavengeSpeedInBytesPerMillisecond() const;
+
+  // Compute the max mark-sweep speed in bytes/millisecond.
+  // Returns 0 if no events have been recorded.
+  intptr_t MarkCompactSpeedInBytesPerMillisecond() const;
 
  private:
   // Print one detailed trace line in name=value format.

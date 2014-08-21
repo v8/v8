@@ -45,5 +45,29 @@ TEST(EstimateMarkingStepSizeTest, EstimateMarkingStepSizeOverflow2) {
             step_size);
 }
 
+
+TEST(EstimateMarkCompactTimeTest, EstimateMarkCompactTimeInitial) {
+  size_t size = 100 * MB;
+  size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, 0);
+  EXPECT_EQ(size / GCIdleTimeHandler::kInitialConservativeMarkCompactSpeed,
+            time);
+}
+
+
+TEST(EstimateMarkCompactTimeTest, EstimateMarkCompactTimeNonZero) {
+  size_t size = 100 * MB;
+  size_t speed = 10 * KB;
+  size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, speed);
+  EXPECT_EQ(size / speed, time);
+}
+
+
+TEST(EstimateMarkCompactTimeTest, EstimateMarkCompactTimeMax) {
+  size_t size = std::numeric_limits<size_t>::max();
+  size_t speed = 1;
+  size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, speed);
+  EXPECT_EQ(GCIdleTimeHandler::kMaxMarkCompactTimeInMs, time);
+}
+
 }  // namespace internal
 }  // namespace v8
