@@ -32,6 +32,12 @@ int isfinite(double value);
 namespace v8 {
 namespace internal {
 
+class PreParserTraits::Checkpoint
+    : public ParserBase<PreParserTraits>::CheckpointBase {
+ public:
+  explicit Checkpoint(ParserBase<PreParserTraits>* parser)
+      : ParserBase<PreParserTraits>::CheckpointBase(parser) {}
+};
 
 void PreParserTraits::ReportMessageAt(Scanner::Location location,
                                       const char* message,

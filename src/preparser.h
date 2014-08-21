@@ -117,7 +117,7 @@ class ParserBase : public Traits {
   }
 
  protected:
-  friend class Traits::Type::Checkpoint;
+  friend class Traits::Checkpoint;
 
   enum AllowEvalOrArgumentsAsIdentifier {
     kAllowEvalOrArguments,
@@ -129,7 +129,7 @@ class ParserBase : public Traits {
     PARSE_EAGERLY
   };
 
-  class ParserCheckpoint;
+  class CheckpointBase;
 
   // ---------------------------------------------------------------------------
   // FunctionState and BlockState together implement the parser's scope stack.
@@ -226,18 +226,16 @@ class ParserBase : public Traits {
     typename Traits::Type::Factory factory_;
 
     friend class ParserTraits;
-    friend class ParserCheckpoint;
+    friend class CheckpointBase;
   };
 
   // Annoyingly, arrow functions first parse as comma expressions, then when we
   // see the => we have to go back and reinterpret the arguments as being formal
   // parameters.  To do so we need to reset some of the parser state back to
   // what it was before the arguments were first seen.
-  class ParserCheckpoint : public Traits::Type::Checkpoint {
+  class CheckpointBase BASE_EMBEDDED {
    public:
-    template <typename Parser>
-    explicit ParserCheckpoint(Parser* parser)
-        : Traits::Type::Checkpoint(parser) {
+    explicit CheckpointBase(ParserBase* parser) {
       function_state_ = parser->function_state_;
       next_materialized_literal_index_ =
           function_state_->next_materialized_literal_index_;
@@ -246,7 +244,6 @@ class ParserBase : public Traits {
     }
 
     void Restore() {
-      Traits::Type::Checkpoint::Restore();
       function_state_->next_materialized_literal_index_ =
           next_materialized_literal_index_;
       function_state_->next_handler_index_ = next_handler_index_;
@@ -1024,13 +1021,6 @@ class PreParserTraits {
     typedef PreParserScope Scope;
     typedef PreParserScope ScopePtr;
 
-    class Checkpoint BASE_EMBEDDED {
-     public:
-      template <typename Parser>
-      explicit Checkpoint(Parser* parser) {}
-      void Restore() {}
-    };
-
     // PreParser doesn't need to store generator variables.
     typedef void GeneratorVariable;
     // No interaction with Zones.
@@ -1053,6 +1043,8 @@ class PreParserTraits {
     // For constructing objects returned by the traversing functions.
     typedef PreParserFactory Factory;
   };
+
+  class Checkpoint;
 
   explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
 
@@ -1979,7 +1971,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   }
 
   if (fni_ != NULL) fni_->Enter();
-  ParserCheckpoint checkpoint(this);
+  typename Traits::Checkpoint checkpoint(this);
   ExpressionT expression =
       this->ParseConditionalExpression(accept_IN, CHECK_OK);
 
