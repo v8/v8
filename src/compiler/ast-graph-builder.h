@@ -88,6 +88,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   Node* BuildLoadBuiltinsObject();
   Node* BuildLoadGlobalObject();
   Node* BuildLoadClosure();
+  Node* BuildLoadObjectField(Node* object, int offset);
 
   // Builders for automatic type conversion.
   Node* BuildToBoolean(Node* value);

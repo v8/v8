@@ -186,7 +186,7 @@ Handle<Code> Pipeline::GenerateCode() {
 
   VerifyAndPrintGraph(&graph, "Initial untyped");
 
-  if (FLAG_context_specialization) {
+  if (context_specialization_) {
     SourcePositionTable::Scope pos(&source_positions,
                                    SourcePosition::Unknown());
     // Specialize the code to the context as aggressively as possible.

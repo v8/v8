@@ -26,10 +26,13 @@ namespace compiler {
 
 class FunctionTester : public InitializedHandleScope {
  public:
-  explicit FunctionTester(const char* source)
+  explicit FunctionTester(const char* source, bool context_specialization =
+                                                  FLAG_context_specialization)
       : isolate(main_isolate()),
-        function((FLAG_allow_natives_syntax = true, NewFunction(source))) {
+        function((FLAG_allow_natives_syntax = true, NewFunction(source))),
+        context_specialization_(context_specialization) {
     Compile(function);
+    USE(context_specialization_);
   }
 
   Isolate* isolate;
@@ -52,6 +55,7 @@ class FunctionTester : public InitializedHandleScope {
     EnsureDeoptimizationSupport(&info);
 
     Pipeline pipeline(&info);
+    pipeline.set_context_specialization(context_specialization_);
     Handle<Code> code = pipeline.GenerateCode();
 
     CHECK(!code.is_null());
@@ -188,6 +192,9 @@ class FunctionTester : public InitializedHandleScope {
   Handle<Object> true_value() { return isolate->factory()->true_value(); }
 
   Handle<Object> false_value() { return isolate->factory()->false_value(); }
+
+ private:
+  bool context_specialization_;
 };
 }
 }
