@@ -57,9 +57,9 @@ class Arm64OperandGenerator V8_FINAL : public OperandGenerator {
         // TODO(dcarney): -values can be handled by instruction swapping
         return Assembler::IsImmAddSub(value);
       case kShift32Imm:
-        return 0 <= value && value < 31;
+        return 0 <= value && value < 32;
       case kShift64Imm:
-        return 0 <= value && value < 63;
+        return 0 <= value && value < 64;
       case kLoadStoreImm:
         return (0 <= value && value < (1 << 9)) ||
                (-(1 << 6) <= value && value < (1 << 6));

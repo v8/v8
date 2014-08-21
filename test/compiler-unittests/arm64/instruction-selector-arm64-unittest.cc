@@ -37,6 +37,29 @@ static const DPI kLogicalInstructions[] = {
     {&RawMachineAssembler::Word64Xor, "Word64Xor", kArm64Xor, kMachInt64}};
 
 
+// ARM64 logical immediates: contiguous set bits, rotated about a power of two
+// sized block. The block is then duplicated across the word. Below is a random
+// subset of the 32-bit immediates.
+static const uint32_t kLogicalImmediates[] = {
+    0x00000002, 0x00000003, 0x00000070, 0x00000080, 0x00000100, 0x000001c0,
+    0x00000300, 0x000007e0, 0x00003ffc, 0x00007fc0, 0x0003c000, 0x0003f000,
+    0x0003ffc0, 0x0003fff8, 0x0007ff00, 0x0007ffe0, 0x000e0000, 0x001e0000,
+    0x001ffffc, 0x003f0000, 0x003f8000, 0x00780000, 0x007fc000, 0x00ff0000,
+    0x01800000, 0x01800180, 0x01f801f8, 0x03fe0000, 0x03ffffc0, 0x03fffffc,
+    0x06000000, 0x07fc0000, 0x07ffc000, 0x07ffffc0, 0x07ffffe0, 0x0ffe0ffe,
+    0x0ffff800, 0x0ffffff0, 0x0fffffff, 0x18001800, 0x1f001f00, 0x1f801f80,
+    0x30303030, 0x3ff03ff0, 0x3ff83ff8, 0x3fff0000, 0x3fff8000, 0x3fffffc0,
+    0x70007000, 0x7f7f7f7f, 0x7fc00000, 0x7fffffc0, 0x8000001f, 0x800001ff,
+    0x81818181, 0x9fff9fff, 0xc00007ff, 0xc0ffffff, 0xdddddddd, 0xe00001ff,
+    0xe00003ff, 0xe007ffff, 0xefffefff, 0xf000003f, 0xf001f001, 0xf3fff3ff,
+    0xf800001f, 0xf80fffff, 0xf87ff87f, 0xfbfbfbfb, 0xfc00001f, 0xfc0000ff,
+    0xfc0001ff, 0xfc03fc03, 0xfe0001ff, 0xff000001, 0xff03ff03, 0xff800000,
+    0xff800fff, 0xff801fff, 0xff87ffff, 0xffc0003f, 0xffc007ff, 0xffcfffcf,
+    0xffe00003, 0xffe1ffff, 0xfff0001f, 0xfff07fff, 0xfff80007, 0xfff87fff,
+    0xfffc00ff, 0xfffe07ff, 0xffff00ff, 0xffffc001, 0xfffff007, 0xfffff3ff,
+    0xfffff807, 0xfffff9ff, 0xfffffc0f, 0xfffffeff};
+
+
 // ARM64 Arithmetic instructions.
 static const DPI kAddSubInstructions[] = {
     {&RawMachineAssembler::Int32Add, "Int32Add", kArm64Add32, kMachInt32},
@@ -60,6 +83,18 @@ static const int32_t kAddSubImmediates[] = {
     7499776,  7573504,  7729152,  8634368,  8937472,  9465856,  10354688,
     10682368, 11059200, 11460608, 13168640, 13176832, 14336000, 15028224,
     15597568, 15892480, 16773120};
+
+
+// ARM64 shift instructions.
+static const DPI kShiftInstructions[] = {
+    {&RawMachineAssembler::Word32Shl, "Word32Shl", kArm64Shl32, kMachInt32},
+    {&RawMachineAssembler::Word64Shl, "Word64Shl", kArm64Shl, kMachInt64},
+    {&RawMachineAssembler::Word32Shr, "Word32Shr", kArm64Shr32, kMachInt32},
+    {&RawMachineAssembler::Word64Shr, "Word64Shr", kArm64Shr, kMachInt64},
+    {&RawMachineAssembler::Word32Sar, "Word32Sar", kArm64Sar32, kMachInt32},
+    {&RawMachineAssembler::Word64Sar, "Word64Sar", kArm64Sar, kMachInt64},
+    {&RawMachineAssembler::Word32Ror, "Word32Ror", kArm64Ror32, kMachInt32},
+    {&RawMachineAssembler::Word64Ror, "Word64Ror", kArm64Ror, kMachInt64}};
 
 
 // ARM64 Mul/Div instructions.
@@ -93,7 +128,38 @@ TEST_P(InstructionSelectorLogicalTest, Parameter) {
 }
 
 
-// TODO(all): add immediate tests.
+TEST_P(InstructionSelectorLogicalTest, Immediate) {
+  const DPI dpi = GetParam();
+  const MachineType type = dpi.machine_type;
+  // TODO(all): Add support for testing 64-bit immediates.
+  if (type == kMachInt32) {
+    // Immediate on the right.
+    TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
+      StreamBuilder m(this, type, type);
+      m.Return((m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+      ASSERT_EQ(2U, s[0]->InputCount());
+      EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    }
+
+    // Immediate on the left; all logical ops should commute.
+    TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
+      StreamBuilder m(this, type, type);
+      m.Return((m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+      ASSERT_EQ(2U, s[0]->InputCount());
+      EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    }
+  }
+}
 
 
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorLogicalTest,
@@ -137,6 +203,46 @@ TEST_P(InstructionSelectorAddSubTest, Immediate) {
 
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorAddSubTest,
                         ::testing::ValuesIn(kAddSubInstructions));
+
+
+// -----------------------------------------------------------------------------
+// Shift instructions.
+
+
+typedef InstructionSelectorTestWithParam<DPI> InstructionSelectorShiftTest;
+
+TEST_P(InstructionSelectorShiftTest, Parameter) {
+  const DPI dpi = GetParam();
+  const MachineType type = dpi.machine_type;
+  StreamBuilder m(this, type, type, type);
+  m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+
+TEST_P(InstructionSelectorShiftTest, Immediate) {
+  const DPI dpi = GetParam();
+  const MachineType type = dpi.machine_type;
+  TRACED_FORRANGE(int32_t, imm, 0, (ElementSizeOf(type) * 8) - 1) {
+    StreamBuilder m(this, type, type);
+    m.Return((m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+    EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
+                        ::testing::ValuesIn(kShiftInstructions));
 
 
 // -----------------------------------------------------------------------------

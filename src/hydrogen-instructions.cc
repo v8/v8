@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/base/bits.h"
 #include "src/double.h"
 #include "src/factory.h"
 #include "src/hydrogen-infer-representation.h"
@@ -4179,8 +4180,7 @@ HInstruction* HUnaryMathOperation::New(
         return H_CONSTANT_DOUBLE(Floor(d));
       case kMathClz32: {
         uint32_t i = DoubleToUint32(d);
-        return H_CONSTANT_INT(
-            (i == 0) ? 32 : CompilerIntrinsics::CountLeadingZeros(i));
+        return H_CONSTANT_INT(base::bits::CountLeadingZeros32(i));
       }
       default:
         UNREACHABLE();
@@ -4642,24 +4642,9 @@ HObjectAccess HObjectAccess::ForBackingStoreOffset(int offset,
 }
 
 
-HObjectAccess HObjectAccess::ForField(Handle<Map> map,
-                                      LookupResult* lookup,
+HObjectAccess HObjectAccess::ForField(Handle<Map> map, int index,
+                                      Representation representation,
                                       Handle<String> name) {
-  DCHECK(lookup->IsField() || lookup->IsTransitionToField());
-  int index;
-  Representation representation;
-  if (lookup->IsField()) {
-    index = lookup->GetLocalFieldIndexFromMap(*map);
-    representation = lookup->representation();
-  } else {
-    Map* transition = lookup->GetTransitionTarget();
-    int descriptor = transition->LastAdded();
-    index = transition->instance_descriptors()->GetFieldIndex(descriptor) -
-        map->inobject_properties();
-    PropertyDetails details =
-        transition->instance_descriptors()->GetDetails(descriptor);
-    representation = details.representation();
-  }
   if (index < 0) {
     // Negative property indices are in-object properties, indexed
     // from the end of the fixed part of the object.

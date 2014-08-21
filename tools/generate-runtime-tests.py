@@ -48,10 +48,10 @@ EXPAND_MACROS = [
 # remove or change runtime functions, but make sure we don't lose our ability
 # to parse them!
 EXPECTED_FUNCTION_COUNT = 429
-EXPECTED_FUZZABLE_COUNT = 331
+EXPECTED_FUZZABLE_COUNT = 330
 EXPECTED_CCTEST_COUNT = 7
 EXPECTED_UNKNOWN_COUNT = 17
-EXPECTED_BUILTINS_COUNT = 809
+EXPECTED_BUILTINS_COUNT = 808
 
 
 # Don't call these at all.
@@ -170,7 +170,10 @@ BLACKLISTED = [
 
   # Maths
   "MathPowSlow",
-  "MathPowRT"
+  "MathPowRT",
+
+  # Internal
+  "InternalSetPrototype",
 ]
 
 

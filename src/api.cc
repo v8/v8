@@ -828,7 +828,7 @@ static void TemplateSet(i::Isolate* isolate,
 }
 
 
-void Template::Set(v8::Handle<String> name,
+void Template::Set(v8::Handle<Name> name,
                    v8::Handle<Data> value,
                    v8::PropertyAttribute attribute) {
   i::Isolate* isolate = i::Isolate::Current();
@@ -845,7 +845,7 @@ void Template::Set(v8::Handle<String> name,
 
 
 void Template::SetAccessorProperty(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<FunctionTemplate> getter,
     v8::Local<FunctionTemplate> setter,
     v8::PropertyAttribute attribute,
@@ -1156,7 +1156,7 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
 
 static i::Handle<i::AccessorInfo> SetAccessorInfoProperties(
     i::Handle<i::AccessorInfo> obj,
-    v8::Handle<String> name,
+    v8::Handle<Name> name,
     v8::AccessControl settings,
     v8::PropertyAttribute attributes,
     v8::Handle<AccessorSignature> signature) {
@@ -1173,7 +1173,7 @@ static i::Handle<i::AccessorInfo> SetAccessorInfoProperties(
 
 template<typename Getter, typename Setter>
 static i::Handle<i::AccessorInfo> MakeAccessorInfo(
-    v8::Handle<String> name,
+    v8::Handle<Name> name,
     Getter getter,
     Setter setter,
     v8::Handle<Value> data,
@@ -1194,7 +1194,7 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
 
 
 static i::Handle<i::AccessorInfo> MakeAccessorInfo(
-    v8::Handle<String> name,
+    v8::Handle<Name> name,
     v8::Handle<v8::DeclaredAccessorDescriptor> descriptor,
     void* setter_ignored,
     void* data_ignored,
@@ -1345,10 +1345,10 @@ static inline i::Handle<i::TemplateInfo> GetTemplateInfo(
 }
 
 
-template<typename Setter, typename Getter, typename Data, typename Template>
+template<typename Getter, typename Setter, typename Data, typename Template>
 static bool TemplateSetAccessor(
     Template* template_obj,
-    v8::Local<String> name,
+    v8::Local<Name> name,
     Getter getter,
     Setter setter,
     Data data,
@@ -1368,7 +1368,7 @@ static bool TemplateSetAccessor(
 
 
 bool Template::SetDeclaredAccessor(
-    Local<String> name,
+    Local<Name> name,
     Local<DeclaredAccessorDescriptor> descriptor,
     PropertyAttribute attribute,
     Local<AccessorSignature> signature,
@@ -1391,9 +1391,33 @@ void Template::SetNativeDataProperty(v8::Local<String> name,
 }
 
 
+void Template::SetNativeDataProperty(v8::Local<Name> name,
+                                     AccessorNameGetterCallback getter,
+                                     AccessorNameSetterCallback setter,
+                                     v8::Handle<Value> data,
+                                     PropertyAttribute attribute,
+                                     v8::Local<AccessorSignature> signature,
+                                     AccessControl settings) {
+  TemplateSetAccessor(
+      this, name, getter, setter, data, settings, attribute, signature);
+}
+
+
 void ObjectTemplate::SetAccessor(v8::Handle<String> name,
                                  AccessorGetterCallback getter,
                                  AccessorSetterCallback setter,
+                                 v8::Handle<Value> data,
+                                 AccessControl settings,
+                                 PropertyAttribute attribute,
+                                 v8::Handle<AccessorSignature> signature) {
+  TemplateSetAccessor(
+      this, name, getter, setter, data, settings, attribute, signature);
+}
+
+
+void ObjectTemplate::SetAccessor(v8::Handle<Name> name,
+                                 AccessorNameGetterCallback getter,
+                                 AccessorNameSetterCallback setter,
                                  v8::Handle<Value> data,
                                  AccessControl settings,
                                  PropertyAttribute attribute,
@@ -2324,6 +2348,11 @@ bool Value::IsFunction() const {
 }
 
 
+bool Value::IsName() const {
+  return Utils::OpenHandle(this)->IsName();
+}
+
+
 bool Value::FullIsString() const {
   bool result = Utils::OpenHandle(this)->IsString();
   DCHECK_EQ(result, QuickIsString());
@@ -2637,6 +2666,14 @@ void v8::Function::CheckCast(Value* that) {
   Utils::ApiCheck(obj->IsJSFunction(),
                   "v8::Function::Cast()",
                   "Could not convert to function");
+}
+
+
+void v8::Name::CheckCast(v8::Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsName(),
+                  "v8::Name::Cast()",
+                  "Could not convert to name");
 }
 
 
@@ -3423,11 +3460,11 @@ bool v8::Object::Has(uint32_t index) {
 }
 
 
-template<typename Setter, typename Getter, typename Data>
+template<typename Getter, typename Setter, typename Data>
 static inline bool ObjectSetAccessor(Object* obj,
-                                     Handle<String> name,
-                                     Setter getter,
-                                     Getter setter,
+                                     Handle<Name> name,
+                                     Getter getter,
+                                     Setter setter,
                                      Data data,
                                      AccessControl settings,
                                      PropertyAttribute attributes) {
@@ -3462,7 +3499,18 @@ bool Object::SetAccessor(Handle<String> name,
 }
 
 
-bool Object::SetDeclaredAccessor(Local<String> name,
+bool Object::SetAccessor(Handle<Name> name,
+                         AccessorNameGetterCallback getter,
+                         AccessorNameSetterCallback setter,
+                         v8::Handle<Value> data,
+                         AccessControl settings,
+                         PropertyAttribute attributes) {
+  return ObjectSetAccessor(
+      this, name, getter, setter, data, settings, attributes);
+}
+
+
+bool Object::SetDeclaredAccessor(Local<Name> name,
                                  Local<DeclaredAccessorDescriptor> descriptor,
                                  PropertyAttribute attributes,
                                  AccessControl settings) {
@@ -3472,7 +3520,7 @@ bool Object::SetDeclaredAccessor(Local<String> name,
 }
 
 
-void Object::SetAccessorProperty(Local<String> name,
+void Object::SetAccessorProperty(Local<Name> name,
                                  Local<Function> getter,
                                  Handle<Function> setter,
                                  PropertyAttribute attribute,
@@ -3571,7 +3619,8 @@ static Local<Value> GetPropertyByLookup(i::LookupIterator* it) {
   has_pending_exception = !i::Object::GetProperty(it).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(it->isolate(), Local<Value>());
 
-  return Utils::ToLocal(result);
+  if (it->IsFound()) return Utils::ToLocal(result);
+  return Local<Value>();
 }
 
 
@@ -6911,6 +6960,12 @@ void Debug::CancelDebugBreak(Isolate* isolate) {
 }
 
 
+bool Debug::CheckDebugBreak(Isolate* isolate) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return internal_isolate->stack_guard()->CheckDebugBreak();
+}
+
+
 void Debug::DebugBreakForCommand(Isolate* isolate, ClientData* data) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   internal_isolate->debug()->EnqueueDebugCommand(data);
@@ -7630,9 +7685,9 @@ void DeferredHandles::Iterate(ObjectVisitor* v) {
 
 
 void InvokeAccessorGetterCallback(
-    v8::Local<v8::String> property,
+    v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info,
-    v8::AccessorGetterCallback getter) {
+    v8::AccessorNameGetterCallback getter) {
   // Leaving JavaScript.
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   Address getter_address = reinterpret_cast<Address>(reinterpret_cast<intptr_t>(

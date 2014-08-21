@@ -22,21 +22,21 @@ namespace compiler {
 // ordering the basic blocks in the special RPO order.
 class Scheduler {
  public:
-  // Create a new schedule and place all computations from the graph in it.
+  // The complete scheduling algorithm.
+  // Create a new schedule and place all nodes from the graph into it.
   static Schedule* ComputeSchedule(Graph* graph);
 
   // Compute the RPO of blocks in an existing schedule.
   static BasicBlockVector* ComputeSpecialRPO(Schedule* schedule);
 
+  // (Exposed for testing only)
+  // Build and connect the CFG for a node graph, but don't schedule nodes.
+  static void ComputeCFG(Graph* graph, Schedule* schedule);
+
  private:
   Zone* zone_;
   Graph* graph_;
   Schedule* schedule_;
-  NodeVector branches_;
-  NodeVector calls_;
-  NodeVector deopts_;
-  NodeVector returns_;
-  NodeVector loops_and_merges_;
   IntVector unscheduled_uses_;
   NodeVectorVector scheduled_nodes_;
   NodeVector schedule_root_nodes_;
@@ -45,7 +45,6 @@ class Scheduler {
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
 
   bool IsBasicBlockBegin(Node* node);
-  bool CanBeScheduled(Node* node);
   bool HasFixedSchedulePosition(Node* node);
   bool IsScheduleRoot(Node* node);
 
@@ -58,17 +57,6 @@ class Scheduler {
 
   void PrepareAuxiliaryNodeData();
   void PrepareAuxiliaryBlockData();
-
-  friend class CreateBlockVisitor;
-  void CreateBlocks();
-
-  void WireBlocks();
-
-  void AddPredecessorsForLoopsAndMerges();
-  void AddSuccessorsForBranches();
-  void AddSuccessorsForReturns();
-  void AddSuccessorsForCalls();
-  void AddSuccessorsForDeopts();
 
   void GenerateImmediateDominatorTree();
   BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);

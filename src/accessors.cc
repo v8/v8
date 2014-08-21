@@ -23,9 +23,9 @@ namespace internal {
 
 Handle<AccessorInfo> Accessors::MakeAccessor(
     Isolate* isolate,
-    Handle<String> name,
-    AccessorGetterCallback getter,
-    AccessorSetterCallback setter,
+    Handle<Name> name,
+    AccessorNameGetterCallback getter,
+    AccessorNameSetterCallback setter,
     PropertyAttributes attributes) {
   Factory* factory = isolate->factory();
   Handle<ExecutableAccessorInfo> info = factory->NewExecutableAccessorInfo();
@@ -138,7 +138,7 @@ bool Accessors::IsJSObjectFieldAccessor<HeapType>(Handle<HeapType> type,
 
 bool SetPropertyOnInstanceIfInherited(
     Isolate* isolate, const v8::PropertyCallbackInfo<void>& info,
-    v8::Local<v8::String> name, Handle<Object> value) {
+    v8::Local<v8::Name> name, Handle<Object> value) {
   Handle<Object> holder = Utils::OpenHandle(*info.Holder());
   Handle<Object> receiver = Utils::OpenHandle(*info.This());
   if (*holder == *receiver) return false;
@@ -176,7 +176,7 @@ Handle<Object> Accessors::FlattenNumber(Isolate* isolate,
 
 
 void Accessors::ArrayLengthGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -188,7 +188,7 @@ void Accessors::ArrayLengthGetter(
 
 
 void Accessors::ArrayLengthSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
@@ -244,7 +244,7 @@ Handle<AccessorInfo> Accessors::ArrayLengthInfo(
 //
 
 void Accessors::StringLengthGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -267,7 +267,7 @@ void Accessors::StringLengthGetter(
 
 
 void Accessors::StringLengthSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -290,7 +290,7 @@ Handle<AccessorInfo> Accessors::StringLengthInfo(
 
 
 void Accessors::ScriptColumnOffsetGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -302,7 +302,7 @@ void Accessors::ScriptColumnOffsetGetter(
 
 
 void Accessors::ScriptColumnOffsetSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -327,7 +327,7 @@ Handle<AccessorInfo> Accessors::ScriptColumnOffsetInfo(
 
 
 void Accessors::ScriptIdGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -339,7 +339,7 @@ void Accessors::ScriptIdGetter(
 
 
 void Accessors::ScriptIdSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -364,7 +364,7 @@ Handle<AccessorInfo> Accessors::ScriptIdInfo(
 
 
 void Accessors::ScriptNameGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -376,7 +376,7 @@ void Accessors::ScriptNameGetter(
 
 
 void Accessors::ScriptNameSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -399,7 +399,7 @@ Handle<AccessorInfo> Accessors::ScriptNameInfo(
 
 
 void Accessors::ScriptSourceGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -411,7 +411,7 @@ void Accessors::ScriptSourceGetter(
 
 
 void Accessors::ScriptSourceSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -434,7 +434,7 @@ Handle<AccessorInfo> Accessors::ScriptSourceInfo(
 
 
 void Accessors::ScriptLineOffsetGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -446,7 +446,7 @@ void Accessors::ScriptLineOffsetGetter(
 
 
 void Accessors::ScriptLineOffsetSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -471,7 +471,7 @@ Handle<AccessorInfo> Accessors::ScriptLineOffsetInfo(
 
 
 void Accessors::ScriptTypeGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -483,7 +483,7 @@ void Accessors::ScriptTypeGetter(
 
 
 void Accessors::ScriptTypeSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -508,7 +508,7 @@ Handle<AccessorInfo> Accessors::ScriptTypeInfo(
 
 
 void Accessors::ScriptCompilationTypeGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -521,7 +521,7 @@ void Accessors::ScriptCompilationTypeGetter(
 
 
 void Accessors::ScriptCompilationTypeSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -546,7 +546,7 @@ Handle<AccessorInfo> Accessors::ScriptCompilationTypeInfo(
 
 
 void Accessors::ScriptLineEndsGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
@@ -566,7 +566,7 @@ void Accessors::ScriptLineEndsGetter(
 
 
 void Accessors::ScriptLineEndsSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -591,7 +591,7 @@ Handle<AccessorInfo> Accessors::ScriptLineEndsInfo(
 
 
 void Accessors::ScriptSourceUrlGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -603,7 +603,7 @@ void Accessors::ScriptSourceUrlGetter(
 
 
 void Accessors::ScriptSourceUrlSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -626,7 +626,7 @@ Handle<AccessorInfo> Accessors::ScriptSourceUrlInfo(
 
 
 void Accessors::ScriptSourceMappingUrlGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -639,7 +639,7 @@ void Accessors::ScriptSourceMappingUrlGetter(
 
 
 void Accessors::ScriptSourceMappingUrlSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -662,7 +662,7 @@ Handle<AccessorInfo> Accessors::ScriptSourceMappingUrlInfo(
 
 
 void Accessors::ScriptContextDataGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   DisallowHeapAllocation no_allocation;
@@ -674,7 +674,7 @@ void Accessors::ScriptContextDataGetter(
 
 
 void Accessors::ScriptContextDataSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -699,7 +699,7 @@ Handle<AccessorInfo> Accessors::ScriptContextDataInfo(
 
 
 void Accessors::ScriptEvalFromScriptGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
@@ -721,7 +721,7 @@ void Accessors::ScriptEvalFromScriptGetter(
 
 
 void Accessors::ScriptEvalFromScriptSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -746,7 +746,7 @@ Handle<AccessorInfo> Accessors::ScriptEvalFromScriptInfo(
 
 
 void Accessors::ScriptEvalFromScriptPositionGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
@@ -767,7 +767,7 @@ void Accessors::ScriptEvalFromScriptPositionGetter(
 
 
 void Accessors::ScriptEvalFromScriptPositionSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -792,7 +792,7 @@ Handle<AccessorInfo> Accessors::ScriptEvalFromScriptPositionInfo(
 
 
 void Accessors::ScriptEvalFromFunctionNameGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
@@ -813,7 +813,7 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
 
 
 void Accessors::ScriptEvalFromFunctionNameSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   UNREACHABLE();
@@ -884,7 +884,7 @@ Handle<Object> Accessors::FunctionSetPrototype(Handle<JSFunction> function,
 
 
 void Accessors::FunctionPrototypeGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
@@ -896,7 +896,7 @@ void Accessors::FunctionPrototypeGetter(
 
 
 void Accessors::FunctionPrototypeSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
@@ -927,7 +927,7 @@ Handle<AccessorInfo> Accessors::FunctionPrototypeInfo(
 
 
 void Accessors::FunctionLengthGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
@@ -953,7 +953,7 @@ void Accessors::FunctionLengthGetter(
 
 
 void Accessors::FunctionLengthSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
   // Function length is non writable, non configurable.
@@ -977,7 +977,7 @@ Handle<AccessorInfo> Accessors::FunctionLengthInfo(
 
 
 void Accessors::FunctionNameGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
@@ -989,7 +989,7 @@ void Accessors::FunctionNameGetter(
 
 
 void Accessors::FunctionNameSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
   // Function name is non writable, non configurable.
@@ -1114,7 +1114,7 @@ Handle<Object> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
 
 
 void Accessors::FunctionArgumentsGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
@@ -1126,7 +1126,7 @@ void Accessors::FunctionArgumentsGetter(
 
 
 void Accessors::FunctionArgumentsSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
   // Function arguments is non writable, non configurable.
@@ -1257,7 +1257,7 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
 
 
 void Accessors::FunctionCallerGetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
@@ -1277,7 +1277,7 @@ void Accessors::FunctionCallerGetter(
 
 
 void Accessors::FunctionCallerSetter(
-    v8::Local<v8::String> name,
+    v8::Local<v8::Name> name,
     v8::Local<v8::Value> val,
     const v8::PropertyCallbackInfo<void>& info) {
   // Function caller is non writable, non configurable.

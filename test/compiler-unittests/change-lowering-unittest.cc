@@ -53,6 +53,10 @@ class ChangeLoweringTest : public GraphTest {
     UNREACHABLE();
     return 0;
   }
+  int SmiMaxValue() const { return -(SmiMinValue() + 1); }
+  int SmiMinValue() const {
+    return static_cast<int>(0xffffffffu << (SmiValueSize() - 1));
+  }
   int SmiShiftAmount() const { return kSmiTagSize + SmiShiftSize(); }
   int SmiShiftSize() const {
     // TODO(turbofan): Work-around for weird GCC 4.6 linker issue:
@@ -63,6 +67,16 @@ class ChangeLoweringTest : public GraphTest {
     STATIC_ASSERT(SmiTagging<4>::kSmiShiftSize == 0);
     STATIC_ASSERT(SmiTagging<8>::kSmiShiftSize == 31);
     return Is32() ? 0 : 31;
+  }
+  int SmiValueSize() const {
+    // TODO(turbofan): Work-around for weird GCC 4.6 linker issue:
+    // src/compiler/change-lowering.cc:46: undefined reference to
+    // `v8::internal::SmiTagging<4u>::kSmiValueSize'
+    // src/compiler/change-lowering.cc:46: undefined reference to
+    // `v8::internal::SmiTagging<8u>::kSmiValueSize'
+    STATIC_ASSERT(SmiTagging<4>::kSmiValueSize == 31);
+    STATIC_ASSERT(SmiTagging<8>::kSmiValueSize == 32);
+    return Is32() ? 31 : 32;
   }
 
   Node* Parameter(int32_t index = 0) {
@@ -275,6 +289,62 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToInt32) {
 }
 
 
+TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToUint32) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  Node* val = Parameter(0);
+  Node* node = graph()->NewNode(simplified()->ChangeTaggedToUint32(), val);
+  Reduction reduction = Reduce(node);
+  ASSERT_TRUE(reduction.Changed());
+
+  Node* phi = reduction.replacement();
+  Capture<Node*> branch, if_true;
+  EXPECT_THAT(
+      phi,
+      IsPhi(IsTruncateFloat64ToInt32(IsLoad(
+                kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
+                IsControlEffect(CaptureEq(&if_true)))),
+            IsWord32Sar(val, IsInt32Constant(SmiShiftAmount())),
+            IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
+                    IsIfFalse(AllOf(
+                        CaptureEq(&branch),
+                        IsBranch(IsWord32And(val, IsInt32Constant(kSmiTagMask)),
+                                 graph()->start()))))));
+}
+
+
+TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  Node* val = Parameter(0);
+  Node* node = graph()->NewNode(simplified()->ChangeUint32ToTagged(), val);
+  Reduction reduction = Reduce(node);
+  ASSERT_TRUE(reduction.Changed());
+
+  Node* phi = reduction.replacement();
+  Capture<Node*> branch, heap_number, if_false;
+  EXPECT_THAT(
+      phi,
+      IsPhi(
+          IsWord32Shl(val, IsInt32Constant(SmiShiftAmount())),
+          IsFinish(
+              AllOf(CaptureEq(&heap_number),
+                    IsAllocateHeapNumber(_, CaptureEq(&if_false))),
+              IsStore(kMachFloat64, kNoWriteBarrier, CaptureEq(&heap_number),
+                      IsInt32Constant(HeapNumberValueOffset()),
+                      IsChangeUint32ToFloat64(val), CaptureEq(&heap_number),
+                      CaptureEq(&if_false))),
+          IsMerge(
+              IsIfTrue(AllOf(CaptureEq(&branch),
+                             IsBranch(IsUint32LessThanOrEqual(
+                                          val, IsInt32Constant(SmiMaxValue())),
+                                      graph()->start()))),
+              AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
+}
+
+
 // -----------------------------------------------------------------------------
 // 64-bit
 
@@ -351,6 +421,64 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToInt32) {
                         CaptureEq(&branch),
                         IsBranch(IsWord64And(val, IsInt32Constant(kSmiTagMask)),
                                  graph()->start()))))));
+}
+
+
+TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToUint32) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  Node* val = Parameter(0);
+  Node* node = graph()->NewNode(simplified()->ChangeTaggedToUint32(), val);
+  Reduction reduction = Reduce(node);
+  ASSERT_TRUE(reduction.Changed());
+
+  Node* phi = reduction.replacement();
+  Capture<Node*> branch, if_true;
+  EXPECT_THAT(
+      phi,
+      IsPhi(IsTruncateFloat64ToInt32(IsLoad(
+                kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
+                IsControlEffect(CaptureEq(&if_true)))),
+            IsTruncateInt64ToInt32(
+                IsWord64Sar(val, IsInt32Constant(SmiShiftAmount()))),
+            IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
+                    IsIfFalse(AllOf(
+                        CaptureEq(&branch),
+                        IsBranch(IsWord64And(val, IsInt32Constant(kSmiTagMask)),
+                                 graph()->start()))))));
+}
+
+
+TARGET_TEST_F(ChangeLowering64Test, ChangeUint32ToTagged) {
+  STATIC_ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1);
+
+  Node* val = Parameter(0);
+  Node* node = graph()->NewNode(simplified()->ChangeUint32ToTagged(), val);
+  Reduction reduction = Reduce(node);
+  ASSERT_TRUE(reduction.Changed());
+
+  Node* phi = reduction.replacement();
+  Capture<Node*> branch, heap_number, if_false;
+  EXPECT_THAT(
+      phi,
+      IsPhi(
+          IsWord64Shl(IsChangeUint32ToUint64(val),
+                      IsInt32Constant(SmiShiftAmount())),
+          IsFinish(
+              AllOf(CaptureEq(&heap_number),
+                    IsAllocateHeapNumber(_, CaptureEq(&if_false))),
+              IsStore(kMachFloat64, kNoWriteBarrier, CaptureEq(&heap_number),
+                      IsInt32Constant(HeapNumberValueOffset()),
+                      IsChangeUint32ToFloat64(val), CaptureEq(&heap_number),
+                      CaptureEq(&if_false))),
+          IsMerge(
+              IsIfTrue(AllOf(CaptureEq(&branch),
+                             IsBranch(IsUint32LessThanOrEqual(
+                                          val, IsInt32Constant(SmiMaxValue())),
+                                      graph()->start()))),
+              AllOf(CaptureEq(&if_false), IsIfFalse(CaptureEq(&branch))))));
 }
 
 }  // namespace compiler

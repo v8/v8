@@ -2486,7 +2486,7 @@ TEST(StrictObjectLiteralChecking) {
     { NULL, NULL }
   };
 
-  // These are only errors in strict mode.
+  // ES6 allows duplicate properties even in strict mode.
   const char* statement_data[] = {
     "foo: 1, foo: 2",
     "\"foo\": 1, \"foo\": 2",
@@ -2499,7 +2499,7 @@ TEST(StrictObjectLiteralChecking) {
   };
 
   RunParserSyncTest(non_strict_context_data, statement_data, kSuccess);
-  RunParserSyncTest(strict_context_data, statement_data, kError);
+  RunParserSyncTest(strict_context_data, statement_data, kSuccess);
 }
 
 
@@ -2512,23 +2512,6 @@ TEST(ErrorsObjectLiteralChecking) {
 
   const char* statement_data[] = {
     ",",
-    "foo: 1, get foo() {}",
-    "foo: 1, set foo(v) {}",
-    "\"foo\": 1, get \"foo\"() {}",
-    "\"foo\": 1, set \"foo\"(v) {}",
-    "1: 1, get 1() {}",
-    "1: 1, set 1() {}",
-    // It's counter-intuitive, but these collide too (even in classic
-    // mode). Note that we can have "foo" and foo as properties in classic mode,
-    // but we cannot have "foo" and get foo, or foo and get "foo".
-    "foo: 1, get \"foo\"() {}",
-    "foo: 1, set \"foo\"(v) {}",
-    "\"foo\": 1, get foo() {}",
-    "\"foo\": 1, set foo(v) {}",
-    "1: 1, get \"1\"() {}",
-    "1: 1, set \"1\"() {}",
-    "\"1\": 1, get 1() {}"
-    "\"1\": 1, set 1(v) {}"
     // Wrong number of parameters
     "get bar(x) {}",
     "get bar(x, y) {}",
@@ -2582,6 +2565,24 @@ TEST(NoErrorsObjectLiteralChecking) {
     "super: 6",
     "eval: 7",
     "arguments: 8",
+    // Duplicate property names are allowed in ES6.
+    "foo: 1, get foo() {}",
+    "foo: 1, set foo(v) {}",
+    "\"foo\": 1, get \"foo\"() {}",
+    "\"foo\": 1, set \"foo\"(v) {}",
+    "1: 1, get 1() {}",
+    "1: 1, set 1(v) {}",
+    // It's counter-intuitive, but these collide too (even in classic
+    // mode). Note that we can have "foo" and foo as properties in classic mode,
+    // but we cannot have "foo" and get foo, or foo and get "foo".
+    "foo: 1, get \"foo\"() {}",
+    "foo: 1, set \"foo\"(v) {}",
+    "\"foo\": 1, get foo() {}",
+    "\"foo\": 1, set foo(v) {}",
+    "1: 1, get \"1\"() {}",
+    "1: 1, set \"1\"(v) {}",
+    "\"1\": 1, get 1() {}",
+    "\"1\": 1, set 1(v) {}",
     NULL
   };
 

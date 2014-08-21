@@ -11,7 +11,7 @@ namespace compiler {
 
 #define PRINT(bit)         \
   if (type & bit) {        \
-    if (before) os << "|"; \
+    if (before) os << "+"; \
     os << #bit;            \
     before = true;         \
   }

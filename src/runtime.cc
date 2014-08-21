@@ -619,7 +619,7 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateOwnSymbol) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
+RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateOwnSymbol) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
@@ -635,6 +635,7 @@ RUNTIME_FUNCTION(Runtime_CreateGlobalPrivateSymbol) {
     DCHECK(symbol->IsUndefined());
     symbol = isolate->factory()->NewPrivateSymbol();
     Handle<Symbol>::cast(symbol)->set_name(*name);
+    Handle<Symbol>::cast(symbol)->set_is_own(true);
     JSObject::SetProperty(Handle<JSObject>::cast(privates), name, symbol,
                           STRICT).Assert();
   }
@@ -4870,18 +4871,18 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         }
         // Lookup cache miss.  Perform lookup and update the cache if
         // appropriate.
-        LookupResult result(isolate);
-        receiver->LookupOwn(key, &result);
-        if (result.IsField()) {
-          FieldIndex field_index = result.GetFieldIndex();
+        LookupIterator it(receiver, key, LookupIterator::CHECK_OWN);
+        if (it.IsFound() && it.state() == LookupIterator::PROPERTY &&
+            it.HasProperty() && it.property_details().type() == FIELD) {
+          FieldIndex field_index = it.GetFieldIndex();
           // Do not track double fields in the keyed lookup cache. Reading
           // double values requires boxing.
-          if (!result.representation().IsDouble()) {
+          if (!it.representation().IsDouble()) {
             keyed_lookup_cache->Update(receiver_map, key,
                 field_index.GetKeyedLookupCacheIndex());
           }
           AllowHeapAllocation allow_allocation;
-          return *JSObject::FastPropertyAt(receiver, result.representation(),
+          return *JSObject::FastPropertyAt(receiver, it.representation(),
                                            field_index);
         }
       } else {

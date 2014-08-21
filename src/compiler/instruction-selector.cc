@@ -199,12 +199,18 @@ void InstructionSelector::MarkAsDouble(Node* node) {
   DCHECK(!IsReference(node));
   sequence()->MarkAsDouble(node->id());
 
-  // Propagate "doubleness" throughout phis.
+  // Propagate "doubleness" throughout Finish/Phi nodes.
   for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
     Node* user = *i;
-    if (user->opcode() != IrOpcode::kPhi) continue;
-    if (IsDouble(user)) continue;
-    MarkAsDouble(user);
+    switch (user->opcode()) {
+      case IrOpcode::kFinish:
+      case IrOpcode::kPhi:
+        if (IsDouble(user)) continue;
+        MarkAsDouble(user);
+        break;
+      default:
+        break;
+    }
   }
 }
 
@@ -220,12 +226,18 @@ void InstructionSelector::MarkAsReference(Node* node) {
   DCHECK(!IsDouble(node));
   sequence()->MarkAsReference(node->id());
 
-  // Propagate "referenceness" throughout phis.
+  // Propagate "referenceness" throughout Finish/Phi nodes.
   for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
     Node* user = *i;
-    if (user->opcode() != IrOpcode::kPhi) continue;
-    if (IsReference(user)) continue;
-    MarkAsReference(user);
+    switch (user->opcode()) {
+      case IrOpcode::kFinish:
+      case IrOpcode::kPhi:
+        if (IsReference(user)) continue;
+        MarkAsReference(user);
+        break;
+      default:
+        break;
+    }
   }
 }
 
@@ -464,13 +476,12 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kContinuation:
       // No code needed for these graph artifacts.
       return;
+    case IrOpcode::kFinish:
+      return VisitFinish(node);
     case IrOpcode::kParameter: {
-      int index = OpParameter<int>(node);
-      MachineType rep = linkage()
-                            ->GetIncomingDescriptor()
-                            ->GetInputLocation(index)
-                            .representation();
-      MarkAsRepresentation(rep, node);
+      LinkageLocation location =
+          linkage()->GetParameterLocation(OpParameter<int>(node));
+      MarkAsRepresentation(location.representation(), node);
       return VisitParameter(node);
     }
     case IrOpcode::kPhi:
@@ -795,6 +806,13 @@ void InstructionSelector::VisitWord64Compare(Node* node,
 }
 
 #endif  // V8_TARGET_ARCH_32_BIT || !V8_TURBOFAN_BACKEND
+
+
+void InstructionSelector::VisitFinish(Node* node) {
+  OperandGenerator g(this);
+  Node* value = node->InputAt(0);
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+}
 
 
 void InstructionSelector::VisitParameter(Node* node) {

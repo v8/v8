@@ -653,28 +653,6 @@ class ElementsAccessorBase : public ElementsAccessor {
           ? ABSENT : NONE;
   }
 
-  MUST_USE_RESULT virtual PropertyType GetType(
-      Handle<Object> receiver,
-      Handle<JSObject> holder,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) V8_FINAL V8_OVERRIDE {
-    return ElementsAccessorSubclass::GetTypeImpl(
-        receiver, holder, key, backing_store);
-  }
-
-  MUST_USE_RESULT static PropertyType GetTypeImpl(
-      Handle<Object> receiver,
-      Handle<JSObject> obj,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) {
-    if (key >= ElementsAccessorSubclass::GetCapacityImpl(backing_store)) {
-      return NONEXISTENT;
-    }
-    return
-        Handle<BackingStore>::cast(backing_store)->is_the_hole(key)
-          ? NONEXISTENT : FIELD;
-  }
-
   MUST_USE_RESULT virtual MaybeHandle<AccessorPair> GetAccessorPair(
       Handle<Object> receiver,
       Handle<JSObject> holder,
@@ -1310,16 +1288,6 @@ class TypedElementsAccessor
           ? NONE : ABSENT;
   }
 
-  MUST_USE_RESULT static PropertyType GetTypeImpl(
-      Handle<Object> receiver,
-      Handle<JSObject> obj,
-      uint32_t key,
-      Handle<FixedArrayBase> backing_store) {
-    return
-        key < AccessorClass::GetCapacityImpl(backing_store)
-          ? FIELD : NONEXISTENT;
-  }
-
   MUST_USE_RESULT static MaybeHandle<Object> SetLengthImpl(
       Handle<JSObject> obj,
       Handle<Object> length,
@@ -1530,20 +1498,6 @@ class DictionaryElementsAccessor
     return ABSENT;
   }
 
-  MUST_USE_RESULT static PropertyType GetTypeImpl(
-      Handle<Object> receiver,
-      Handle<JSObject> obj,
-      uint32_t key,
-      Handle<FixedArrayBase> store) {
-    Handle<SeededNumberDictionary> backing_store =
-        Handle<SeededNumberDictionary>::cast(store);
-    int entry = backing_store->FindEntry(key);
-    if (entry != SeededNumberDictionary::kNotFound) {
-      return backing_store->DetailsAt(entry).type();
-    }
-    return NONEXISTENT;
-  }
-
   MUST_USE_RESULT static MaybeHandle<AccessorPair> GetAccessorPairImpl(
       Handle<Object> receiver,
       Handle<JSObject> obj,
@@ -1644,23 +1598,6 @@ class SloppyArgumentsElementsAccessor : public ElementsAccessorBase<
       // If not aliased, check the arguments.
       Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
       return ElementsAccessor::ForArray(arguments)->GetAttributes(
-          receiver, obj, key, arguments);
-    }
-  }
-
-  MUST_USE_RESULT static PropertyType GetTypeImpl(
-      Handle<Object> receiver,
-      Handle<JSObject> obj,
-      uint32_t key,
-      Handle<FixedArrayBase> parameters) {
-    Handle<FixedArray> parameter_map = Handle<FixedArray>::cast(parameters);
-    Handle<Object> probe = GetParameterMapArg(obj, parameter_map, key);
-    if (!probe->IsTheHole()) {
-      return FIELD;
-    } else {
-      // If not aliased, check the arguments.
-      Handle<FixedArray> arguments(FixedArray::cast(parameter_map->get(1)));
-      return ElementsAccessor::ForArray(arguments)->GetType(
           receiver, obj, key, arguments);
     }
   }

@@ -278,11 +278,10 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
   }
 
   if (receiver->IsGlobalObject()) {
-    LookupResult lookup(isolate());
-    GlobalObject* global = GlobalObject::cast(*receiver);
-    global->LookupOwnRealNamedProperty(name, &lookup);
-    if (!lookup.IsFound()) return false;
-    PropertyCell* cell = global->GetPropertyCell(&lookup);
+    Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
+    LookupIterator it(global, name, LookupIterator::CHECK_PROPERTY);
+    if (!it.IsFound() || !it.HasProperty()) return false;
+    Handle<PropertyCell> cell = it.GetPropertyCell();
     return cell->type()->IsConstant();
   }
 
@@ -1557,12 +1556,13 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
         DCHECK(holder.is_identical_to(receiver));
         return isolate()->builtins()->StoreIC_Normal();
       case CALLBACKS: {
-        Handle<Object> callback(lookup->GetCallbackObject(), isolate());
+        if (!holder->HasFastProperties()) break;
+        Handle<Object> callback(lookup->GetValueFromMap(holder->map()),
+                                isolate());
         if (callback->IsExecutableAccessorInfo()) {
           Handle<ExecutableAccessorInfo> info =
               Handle<ExecutableAccessorInfo>::cast(callback);
           if (v8::ToCData<Address>(info->setter()) == 0) break;
-          if (!holder->HasFastProperties()) break;
           if (!ExecutableAccessorInfo::IsCompatibleReceiverType(
                   isolate(), info, receiver_type())) {
             break;
@@ -1574,8 +1574,6 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
           Handle<Object> setter(
               Handle<AccessorPair>::cast(callback)->setter(), isolate());
           if (!setter->IsJSFunction()) break;
-          if (holder->IsGlobalObject()) break;
-          if (!holder->HasFastProperties()) break;
           Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
           CallOptimization call_optimization(function);
           NamedStoreHandlerCompiler compiler(isolate(), receiver_type(),

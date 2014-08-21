@@ -204,6 +204,12 @@ class GenericNode<B, S>::Inputs::iterator {
     ++index_;
     return *this;
   }
+  iterator& UpdateToAndIncrement(GenericNode<B, S>* new_to) {
+    typename GenericNode<B, S>::Input* input = GetInput();
+    input->Update(new_to);
+    index_++;
+    return *this;
+  }
   int index() { return index_; }
 
  private:

@@ -30,7 +30,7 @@ namespace internal {
 // interface as AstNodeFactory, so ParserBase doesn't need to care which one is
 // used.
 
-// - Miscellanous other tasks interleaved with the recursive descent. For
+// - Miscellaneous other tasks interleaved with the recursive descent. For
 // example, Parser keeps track of which function literals should be marked as
 // pretenured, and PreParser doesn't care.
 
@@ -63,6 +63,8 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::Expression ExpressionT;
   typedef typename Traits::Type::Identifier IdentifierT;
   typedef typename Traits::Type::FunctionLiteral FunctionLiteralT;
+  typedef typename Traits::Type::Literal LiteralT;
+  typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
 
   ParserBase(Scanner* scanner, uintptr_t stack_limit, v8::Extension* extension,
              ParserRecorder* log, typename Traits::Type::Zone* zone,
@@ -474,6 +476,7 @@ class ParserBase : public Traits {
   ExpressionT ParseExpression(bool accept_IN, bool* ok);
   ExpressionT ParseArrayLiteral(bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
+  ObjectLiteralPropertyT ParsePropertyDefinition(bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
   ExpressionT ParseYieldExpression(bool* ok);
@@ -495,60 +498,6 @@ class ParserBase : public Traits {
   ExpressionT CheckAndRewriteReferenceExpression(
       ExpressionT expression,
       Scanner::Location location, const char* message, bool* ok);
-
-  // Used to detect duplicates in object literals. Each of the values
-  // kGetterProperty, kSetterProperty and kValueProperty represents
-  // a type of object literal property. When parsing a property, its
-  // type value is stored in the DuplicateFinder for the property name.
-  // Values are chosen so that having intersection bits means the there is
-  // an incompatibility.
-  // I.e., you can add a getter to a property that already has a setter, since
-  // kGetterProperty and kSetterProperty doesn't intersect, but not if it
-  // already has a getter or a value. Adding the getter to an existing
-  // setter will store the value (kGetterProperty | kSetterProperty), which
-  // is incompatible with adding any further properties.
-  enum PropertyKind {
-    kNone = 0,
-    // Bit patterns representing different object literal property types.
-    kGetterProperty = 1,
-    kSetterProperty = 2,
-    kValueProperty = 7,
-    // Helper constants.
-    kValueFlag = 4
-  };
-
-  // Validation per ECMA 262 - 11.1.5 "Object Initialiser".
-  class ObjectLiteralChecker {
-   public:
-    ObjectLiteralChecker(ParserBase* parser, StrictMode strict_mode)
-        : parser_(parser),
-          finder_(scanner()->unicode_cache()),
-          strict_mode_(strict_mode) { }
-
-    void CheckProperty(Token::Value property, PropertyKind type, bool* ok);
-
-   private:
-    ParserBase* parser() const { return parser_; }
-    Scanner* scanner() const { return parser_->scanner(); }
-
-    // Checks the type of conflict based on values coming from PropertyType.
-    bool HasConflict(PropertyKind type1, PropertyKind type2) {
-      return (type1 & type2) != 0;
-    }
-    bool IsDataDataConflict(PropertyKind type1, PropertyKind type2) {
-      return ((type1 & type2) & kValueFlag) != 0;
-    }
-    bool IsDataAccessorConflict(PropertyKind type1, PropertyKind type2) {
-      return ((type1 ^ type2) & kValueFlag) != 0;
-    }
-    bool IsAccessorAccessorConflict(PropertyKind type1, PropertyKind type2) {
-      return ((type1 | type2) & kValueFlag) == 0;
-    }
-
-    ParserBase* parser_;
-    DuplicateFinder finder_;
-    StrictMode strict_mode_;
-  };
 
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.
@@ -1163,7 +1112,8 @@ class PreParserTraits {
   }
 
   static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
-      PreParserScope* scope, PreParserExpression value, bool* has_function) {}
+      PreParserScope* scope, PreParserExpression property, bool* has_function) {
+  }
 
   static void CheckAssigningFunctionLiteralToProperty(
       PreParserExpression left, PreParserExpression right) {}
@@ -1233,6 +1183,9 @@ class PreParserTraits {
     return PreParserExpression::EmptyArrowParamList();
   }
   static PreParserExpression EmptyLiteral() {
+    return PreParserExpression::Default();
+  }
+  static PreParserExpression EmptyObjectLiteralProperty() {
     return PreParserExpression::Default();
   }
   static PreParserExpressionList NullExpressionList() {
@@ -1848,14 +1801,89 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
 
 
 template <class Traits>
+typename ParserBase<Traits>::ObjectLiteralPropertyT
+ParserBase<Traits>::ParsePropertyDefinition(bool* ok) {
+  LiteralT key = this->EmptyLiteral();
+  Token::Value next = peek();
+  int next_pos = peek_position();
+
+  switch (next) {
+    case Token::STRING: {
+      Consume(Token::STRING);
+      IdentifierT string = this->GetSymbol(scanner_);
+      if (fni_ != NULL) this->PushLiteralName(fni_, string);
+      uint32_t index;
+      if (this->IsArrayIndex(string, &index)) {
+        key = factory()->NewNumberLiteral(index, next_pos);
+        break;
+      }
+      key = factory()->NewStringLiteral(string, next_pos);
+      break;
+    }
+    case Token::NUMBER: {
+      Consume(Token::NUMBER);
+      key = this->ExpressionFromLiteral(Token::NUMBER, next_pos, scanner_,
+                                        factory());
+      break;
+    }
+    default: {
+      bool is_getter = false;
+      bool is_setter = false;
+      IdentifierT id = ParseIdentifierNameOrGetOrSet(
+          &is_getter, &is_setter, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+      if (fni_ != NULL) this->PushLiteralName(fni_, id);
+
+      if ((is_getter || is_setter) && peek() != Token::COLON) {
+        // Special handling of getter and setter syntax:
+        // { ... , get foo() { ... }, ... , set foo(v) { ... v ... } , ... }
+        // We have already read the "get" or "set" keyword.
+        IdentifierT name = this->EmptyIdentifier();
+        switch (peek()) {
+          case Token::STRING:
+            Consume(Token::STRING);
+            name = this->GetSymbol(scanner_);
+            break;
+          case Token::NUMBER:
+            Consume(Token::NUMBER);
+            // TODO(arv): Fix issue with numeric keys. get 1.0() should be
+            // treated as if the key was '1'
+            // https://code.google.com/p/v8/issues/detail?id=3507
+            name = this->GetSymbol(scanner_);
+            break;
+          default:
+            name = ParseIdentifierName(
+                CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        }
+        typename Traits::Type::FunctionLiteral value =
+            this->ParseFunctionLiteral(
+                name, scanner()->location(),
+                false,  // reserved words are allowed here
+                false,  // not a generator
+                RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
+                is_getter ? FunctionLiteral::GETTER_ARITY
+                          : FunctionLiteral::SETTER_ARITY,
+                CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+        return factory()->NewObjectLiteralProperty(is_getter, value, next_pos);
+      }
+      // Failed to parse as get/set property, so it's just a normal property
+      // (which might be called "get" or "set" or something else).
+      key = factory()->NewStringLiteral(id, next_pos);
+    }
+  }
+
+  Expect(Token::COLON, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+  ExpressionT value = this->ParseAssignmentExpression(
+      true, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+
+  return factory()->NewObjectLiteralProperty(key, value);
+}
+
+
+template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
     bool* ok) {
   // ObjectLiteral ::
-  // '{' ((
-  //       ((IdentifierName | String | Number) ':' AssignmentExpression) |
-  //       (('get' | 'set') (IdentifierName | String | Number) FunctionLiteral)
-  //      ) ',')* '}'
-  // (Except that the trailing comma is not required.)
+  // '{' (PropertyDefinition (',' PropertyDefinition)* ','? )? '}'
 
   int pos = peek_position();
   typename Traits::Type::PropertyList properties =
@@ -1863,125 +1891,17 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
 
-  ObjectLiteralChecker checker(this, strict_mode());
-
   Expect(Token::LBRACE, CHECK_OK);
 
   while (peek() != Token::RBRACE) {
     if (fni_ != NULL) fni_->Enter();
 
-    typename Traits::Type::Literal key = this->EmptyLiteral();
-    Token::Value next = peek();
-    int next_pos = peek_position();
-
-    switch (next) {
-      case Token::FUTURE_RESERVED_WORD:
-      case Token::FUTURE_STRICT_RESERVED_WORD:
-      case Token::LET:
-      case Token::YIELD:
-      case Token::IDENTIFIER: {
-        bool is_getter = false;
-        bool is_setter = false;
-        IdentifierT id =
-            ParseIdentifierNameOrGetOrSet(&is_getter, &is_setter, CHECK_OK);
-        if (fni_ != NULL) this->PushLiteralName(fni_, id);
-
-        if ((is_getter || is_setter) && peek() != Token::COLON) {
-          // Special handling of getter and setter syntax:
-          // { ... , get foo() { ... }, ... , set foo(v) { ... v ... } , ... }
-          // We have already read the "get" or "set" keyword.
-          Token::Value next = Next();
-          if (next != i::Token::IDENTIFIER &&
-              next != i::Token::FUTURE_RESERVED_WORD &&
-              next != i::Token::FUTURE_STRICT_RESERVED_WORD &&
-              next != i::Token::LET &&
-              next != i::Token::YIELD &&
-              next != i::Token::NUMBER &&
-              next != i::Token::STRING &&
-              !Token::IsKeyword(next)) {
-            ReportUnexpectedToken(next);
-            *ok = false;
-            return this->EmptyLiteral();
-          }
-          // Validate the property.
-          PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
-          checker.CheckProperty(next, type, CHECK_OK);
-          IdentifierT name = this->GetSymbol(scanner_);
-          typename Traits::Type::FunctionLiteral value =
-              this->ParseFunctionLiteral(
-                  name, scanner()->location(),
-                  false,  // reserved words are allowed here
-                  false,  // not a generator
-                  RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
-                  is_getter ? FunctionLiteral::GETTER_ARITY
-                            : FunctionLiteral::SETTER_ARITY,
-                  CHECK_OK);
-          typename Traits::Type::ObjectLiteralProperty property =
-              factory()->NewObjectLiteralProperty(is_getter, value, next_pos);
-          if (this->IsBoilerplateProperty(property)) {
-            number_of_boilerplate_properties++;
-          }
-          properties->Add(property, zone());
-          if (peek() != Token::RBRACE) {
-            // Need {} because of the CHECK_OK macro.
-            Expect(Token::COMMA, CHECK_OK);
-          }
-
-          if (fni_ != NULL) {
-            fni_->Infer();
-            fni_->Leave();
-          }
-          continue;  // restart the while
-        }
-        // Failed to parse as get/set property, so it's just a normal property
-        // (which might be called "get" or "set" or something else).
-        key = factory()->NewStringLiteral(id, next_pos);
-        break;
-      }
-      case Token::STRING: {
-        Consume(Token::STRING);
-        IdentifierT string = this->GetSymbol(scanner_);
-        if (fni_ != NULL) this->PushLiteralName(fni_, string);
-        uint32_t index;
-        if (this->IsArrayIndex(string, &index)) {
-          key = factory()->NewNumberLiteral(index, next_pos);
-          break;
-        }
-        key = factory()->NewStringLiteral(string, next_pos);
-        break;
-      }
-      case Token::NUMBER: {
-        Consume(Token::NUMBER);
-        key = this->ExpressionFromLiteral(Token::NUMBER, next_pos, scanner_,
-                                          factory());
-        break;
-      }
-      default:
-        if (Token::IsKeyword(next)) {
-          Consume(next);
-          IdentifierT string = this->GetSymbol(scanner_);
-          key = factory()->NewStringLiteral(string, next_pos);
-        } else {
-          Token::Value next = Next();
-          ReportUnexpectedToken(next);
-          *ok = false;
-          return this->EmptyLiteral();
-        }
-    }
-
-    // Validate the property
-    checker.CheckProperty(next, kValueProperty, CHECK_OK);
-
-    Expect(Token::COLON, CHECK_OK);
-    ExpressionT value = this->ParseAssignmentExpression(true, CHECK_OK);
-
-    typename Traits::Type::ObjectLiteralProperty property =
-        factory()->NewObjectLiteralProperty(key, value);
+    ObjectLiteralPropertyT property = this->ParsePropertyDefinition(CHECK_OK);
 
     // Mark top-level object literals that contain function literals and
     // pretenure the literal so it can be added as a constant function
     // property. (Parser only.)
-    this->CheckFunctionLiteralInsideTopLevelObjectLiteral(scope_, value,
+    this->CheckFunctionLiteralInsideTopLevelObjectLiteral(scope_, property,
                                                           &has_function);
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
@@ -2658,36 +2578,6 @@ ParserBase<Traits>::CheckAndRewriteReferenceExpression(
 
 #undef CHECK_OK
 #undef CHECK_OK_CUSTOM
-
-
-template <typename Traits>
-void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
-    Token::Value property,
-    PropertyKind type,
-    bool* ok) {
-  int old;
-  if (property == Token::NUMBER) {
-    old = scanner()->FindNumber(&finder_, type);
-  } else {
-    old = scanner()->FindSymbol(&finder_, type);
-  }
-  PropertyKind old_type = static_cast<PropertyKind>(old);
-  if (HasConflict(old_type, type)) {
-    if (IsDataDataConflict(old_type, type)) {
-      // Both are data properties.
-      if (strict_mode_ == SLOPPY) return;
-      parser()->ReportMessage("strict_duplicate_property");
-    } else if (IsDataAccessorConflict(old_type, type)) {
-      // Both a data and an accessor property with the same name.
-      parser()->ReportMessage("accessor_data_property");
-    } else {
-      DCHECK(IsAccessorAccessorConflict(old_type, type));
-      // Both accessors of the same type.
-      parser()->ReportMessage("accessor_get_set");
-    }
-    *ok = false;
-  }
-}
 
 
 } }  // v8::internal

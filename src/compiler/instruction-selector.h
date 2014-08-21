@@ -169,6 +169,7 @@ class InstructionSelector V8_FINAL {
   void VisitWord64Compare(Node* node, FlagsContinuation* cont);
   void VisitFloat64Compare(Node* node, FlagsContinuation* cont);
 
+  void VisitFinish(Node* node);
   void VisitParameter(Node* node);
   void VisitPhi(Node* node);
   void VisitProjection(Node* node);

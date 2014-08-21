@@ -259,7 +259,7 @@ namespace internal {
   /* Harmony symbols */                                               \
   F(CreateSymbol, 1, 1)                                               \
   F(CreatePrivateSymbol, 1, 1)                                        \
-  F(CreateGlobalPrivateSymbol, 1, 1)                                  \
+  F(CreateGlobalPrivateOwnSymbol, 1, 1)                               \
   F(CreatePrivateOwnSymbol, 1, 1)                                     \
   F(NewSymbolWrapper, 1, 1)                                           \
   F(SymbolDescription, 1, 1)                                          \

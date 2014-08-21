@@ -1786,25 +1786,8 @@ String* V8HeapExplorer::GetConstructorName(JSObject* object) {
   if (object->IsJSFunction()) return heap->closure_string();
   String* constructor_name = object->constructor_name();
   if (constructor_name == heap->Object_string()) {
-    // Look up an immediate "constructor" property, if it is a function,
-    // return its name. This is for instances of binding objects, which
-    // have prototype constructor type "Object".
-    Object* constructor_prop = NULL;
-    Isolate* isolate = heap->isolate();
-    LookupResult result(isolate);
-    object->LookupOwnRealNamedProperty(
-        isolate->factory()->constructor_string(), &result);
-    if (!result.IsFound()) return object->constructor_name();
-
-    constructor_prop = result.GetLazyValue();
-    if (constructor_prop->IsJSFunction()) {
-      Object* maybe_name =
-          JSFunction::cast(constructor_prop)->shared()->name();
-      if (maybe_name->IsString()) {
-        String* name = String::cast(maybe_name);
-        if (name->length() > 0) return name;
-      }
-    }
+    // TODO(verwaest): Try to get object.constructor.name in this case.
+    // This requires handlification of the V8HeapExplorer.
   }
   return object->constructor_name();
 }

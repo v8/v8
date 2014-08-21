@@ -439,7 +439,8 @@ class ParserTraits {
   }
 
   static void CheckFunctionLiteralInsideTopLevelObjectLiteral(
-      Scope* scope, Expression* value, bool* has_function) {
+      Scope* scope, ObjectLiteralProperty* property, bool* has_function) {
+    Expression* value = property->value();
     if (scope->DeclarationScope()->is_global_scope() &&
         value->AsFunctionLiteral() != NULL) {
       *has_function = true;
@@ -529,6 +530,7 @@ class ParserTraits {
   static Literal* EmptyLiteral() {
     return NULL;
   }
+  static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return NULL; }
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {

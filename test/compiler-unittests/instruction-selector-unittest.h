@@ -6,7 +6,7 @@
 #define V8_COMPILER_UNITTESTS_INSTRUCTION_SELECTOR_UNITTEST_H_
 
 #include <deque>
-#include <ostream>  // NOLINT(readability/streams)
+#include <set>
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/instruction-selector.h"
@@ -116,6 +116,14 @@ class InstructionSelectorTest : public CompilerTest {
       return instructions_[index];
     }
 
+    bool IsDouble(int virtual_register) const {
+      return doubles_.find(virtual_register) != doubles_.end();
+    }
+
+    bool IsReference(int virtual_register) const {
+      return references_.find(virtual_register) != references_.end();
+    }
+
     int32_t ToInt32(const InstructionOperand* operand) const {
       return ToConstant(operand).ToInt32();
     }
@@ -147,6 +155,8 @@ class InstructionSelectorTest : public CompilerTest {
     ConstantMap constants_;
     ConstantMap immediates_;
     std::deque<Instruction*> instructions_;
+    std::set<int> doubles_;
+    std::set<int> references_;
   };
 
   base::RandomNumberGenerator rng_;

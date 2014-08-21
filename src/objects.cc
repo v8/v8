@@ -143,28 +143,35 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
                                          Handle<Name> key) {
   LookupIterator it(object, key, LookupIterator::CHECK_DERIVED_PROPERTY);
-  for (; it.IsFound(); it.Next()) {
-    switch (it.state()) {
+  return GetDataProperty(&it);
+}
+
+
+Handle<Object> JSObject::GetDataProperty(LookupIterator* it) {
+  for (; it->IsFound(); it->Next()) {
+    switch (it->state()) {
       case LookupIterator::NOT_FOUND:
       case LookupIterator::ACCESS_CHECK:
       case LookupIterator::INTERCEPTOR:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
-        return it.isolate()->factory()->undefined_value();
+        it->NotFound();
+        return it->isolate()->factory()->undefined_value();
       case LookupIterator::PROPERTY:
-        if (!it.HasProperty()) continue;
-        switch (it.property_kind()) {
+        if (!it->HasProperty()) continue;
+        switch (it->property_kind()) {
           case LookupIterator::DATA:
-            return it.GetDataValue();
+            return it->GetDataValue();
           case LookupIterator::ACCESSOR:
             // TODO(verwaest): For now this doesn't call into
             // ExecutableAccessorInfo, since clients don't need it. Update once
             // relevant.
-            return it.isolate()->factory()->undefined_value();
+            it->NotFound();
+            return it->isolate()->factory()->undefined_value();
         }
     }
   }
-  return it.isolate()->factory()->undefined_value();
+  return it->isolate()->factory()->undefined_value();
 }
 
 
@@ -421,9 +428,6 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
                                                         ARRAY_SIZE(args)));
       return isolate->Throw<Object>(error);
     }
-    // TODO(rossberg): Handling symbols in the API requires changing the API,
-    // so we do not support it for now.
-    if (name->IsSymbol()) return isolate->factory()->undefined_value();
     if (structure->IsDeclaredAccessorInfo()) {
       return GetDeclaredAccessorProperty(
           receiver,
@@ -433,15 +437,14 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
 
     Handle<ExecutableAccessorInfo> data =
         Handle<ExecutableAccessorInfo>::cast(structure);
-    v8::AccessorGetterCallback call_fun =
-        v8::ToCData<v8::AccessorGetterCallback>(data->getter());
+    v8::AccessorNameGetterCallback call_fun =
+        v8::ToCData<v8::AccessorNameGetterCallback>(data->getter());
     if (call_fun == NULL) return isolate->factory()->undefined_value();
 
-    Handle<String> key = Handle<String>::cast(name);
     LOG(isolate, ApiNamedPropertyAccess("load", *holder, *name));
     PropertyCallbackArguments args(isolate, data->data(), *receiver, *holder);
     v8::Handle<v8::Value> result =
-        args.Call(call_fun, v8::Utils::ToLocal(key));
+        args.Call(call_fun, v8::Utils::ToLocal(name));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.IsEmpty()) {
       return isolate->factory()->undefined_value();
@@ -497,17 +500,14 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
                                                         ARRAY_SIZE(args)));
       return isolate->Throw<Object>(error);
     }
-    // TODO(rossberg): Support symbols in the API.
-    if (name->IsSymbol()) return value;
     Object* call_obj = info->setter();
-    v8::AccessorSetterCallback call_fun =
-        v8::ToCData<v8::AccessorSetterCallback>(call_obj);
+    v8::AccessorNameSetterCallback call_fun =
+        v8::ToCData<v8::AccessorNameSetterCallback>(call_obj);
     if (call_fun == NULL) return value;
-    Handle<String> key = Handle<String>::cast(name);
     LOG(isolate, ApiNamedPropertyAccess("store", *holder, *name));
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder);
     args.Call(call_fun,
-              v8::Utils::ToLocal(key),
+              v8::Utils::ToLocal(name),
               v8::Utils::ToLocal(value));
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     return value;
@@ -643,17 +643,6 @@ MaybeHandle<Object> JSObject::SetPropertyWithFailedAccessCheck(
 
   it->isolate()->ReportFailedAccessCheck(checked, v8::ACCESS_SET);
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(it->isolate(), Object);
-  return value;
-}
-
-
-Object* JSObject::GetNormalizedProperty(const LookupResult* result) {
-  DCHECK(!HasFastProperties());
-  Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
-  if (IsGlobalObject()) {
-    value = PropertyCell::cast(value)->value();
-  }
-  DCHECK(!value->IsPropertyCell() && !value->IsCell());
   return value;
 }
 
@@ -4766,12 +4755,11 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
     }
   } else {
     Isolate* isolate = GetIsolate();
-    LookupResult result(isolate);
-    LookupOwnRealNamedProperty(isolate->factory()->hidden_string(), &result);
-    if (result.IsFound()) {
-      DCHECK(result.IsNormal());
-      DCHECK(result.holder() == this);
-      return GetNormalizedProperty(&result);
+    LookupIterator it(handle(this), isolate->factory()->hidden_string(),
+                      LookupIterator::CHECK_PROPERTY);
+    if (it.IsFound() && it.HasProperty()) {
+      DCHECK_EQ(LookupIterator::DATA, it.property_kind());
+      return *it.GetDataValue();
     }
     return GetHeap()->undefined_value();
   }
@@ -11964,8 +11952,8 @@ MaybeHandle<Object> JSObject::GetElementWithCallback(
     Handle<ExecutableAccessorInfo> data =
         Handle<ExecutableAccessorInfo>::cast(structure);
     Object* fun_obj = data->getter();
-    v8::AccessorGetterCallback call_fun =
-        v8::ToCData<v8::AccessorGetterCallback>(fun_obj);
+    v8::AccessorNameGetterCallback call_fun =
+        v8::ToCData<v8::AccessorNameGetterCallback>(fun_obj);
     if (call_fun == NULL) return isolate->factory()->undefined_value();
     Handle<JSObject> holder_handle = Handle<JSObject>::cast(holder);
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
@@ -12022,8 +12010,8 @@ MaybeHandle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
     Handle<ExecutableAccessorInfo> data =
         Handle<ExecutableAccessorInfo>::cast(structure);
     Object* call_obj = data->setter();
-    v8::AccessorSetterCallback call_fun =
-        v8::ToCData<v8::AccessorSetterCallback>(call_obj);
+    v8::AccessorNameSetterCallback call_fun =
+        v8::ToCData<v8::AccessorNameSetterCallback>(call_obj);
     if (call_fun == NULL) return value;
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key(isolate->factory()->NumberToString(number));

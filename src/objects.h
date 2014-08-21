@@ -1999,7 +1999,6 @@ class JSReceiver: public HeapObject {
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.
-  void LookupOwn(Handle<Name> name, LookupResult* result);
   void Lookup(Handle<Name> name, LookupResult* result);
 
   enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };
@@ -2011,6 +2010,7 @@ class JSReceiver: public HeapObject {
       KeyCollectionType type);
 
  private:
+  void LookupOwn(Handle<Name> name, LookupResult* result);
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
 
@@ -2153,10 +2153,6 @@ class JSObject: public JSReceiver {
   // Migrates the given object only if the target map is already available,
   // or returns false if such a map is not yet available.
   static bool TryMigrateInstance(Handle<JSObject> instance);
-
-  // Retrieve a value in a normalized object given a lookup result.
-  // Handles the special representation of JS global objects.
-  Object* GetNormalizedProperty(const LookupResult* result);
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
@@ -2480,6 +2476,7 @@ class JSObject: public JSReceiver {
 
   static Handle<Object> GetDataProperty(Handle<JSObject> object,
                                         Handle<Name> key);
+  static Handle<Object> GetDataProperty(LookupIterator* it);
 
   DECLARE_CAST(JSObject)
 

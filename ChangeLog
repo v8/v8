@@ -1,3 +1,20 @@
+2014-08-21: Version 3.29.11
+
+        Refactor ParseObjectLiteral.
+
+        Support symbol-named properties in API (issue 3394).
+
+        Suppress test262 test that tests duplicate properties.
+
+        ES6: Duplicate properties are no longer an error (issue 3498).
+
+        Expose function CheckDebugBreak in the debugger api.
+
+        Remove RegExp.$input (issue 3486).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-21: Version 3.29.10
 
         ES6: Make sure we do not store -0 as the key in Map/Set (issue 3515).

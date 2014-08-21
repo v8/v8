@@ -1050,7 +1050,7 @@ class Heap {
   void DisableInlineAllocation();
 
   // Implements the corresponding V8 API function.
-  bool IdleNotification(int hint);
+  bool IdleNotification(int idle_time_in_ms);
 
   // Declare all the root indices.  This defines the root list order.
   enum RootListIndex {
@@ -1951,7 +1951,7 @@ class Heap {
     return heap_size_mb / kMbPerMs;
   }
 
-  void AdvanceIdleIncrementalMarking(intptr_t step_size);
+  void AdvanceIdleIncrementalMarking(int idle_time_in_ms);
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 

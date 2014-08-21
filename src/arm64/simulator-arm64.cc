@@ -704,7 +704,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
 
     case ExternalReference::PROFILING_GETTER_CALL: {
       // void f(Local<String> property, PropertyCallbackInfo& info,
-      //        AccessorGetterCallback callback)
+      //        AccessorNameGetterCallback callback)
       TraceSim("Type: PROFILING_GETTER_CALL\n");
       SimulatorRuntimeProfilingGetterCall target =
         reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(
