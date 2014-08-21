@@ -2203,8 +2203,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
     return DoArithmeticT(op, instr);
   }
 
-  DCHECK(instr->representation().IsInteger32() ||
-         instr->representation().IsSmi());
+  DCHECK(instr->representation().IsSmiOrInteger32());
   DCHECK(instr->left()->representation().Equals(instr->representation()));
   DCHECK(instr->right()->representation().Equals(instr->representation()));
 
@@ -2215,42 +2214,30 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
   LOperand* left = instr->representation().IsSmi()
       ? UseRegister(instr->left())
       : UseRegisterAtStart(instr->left());
+  LOperand* right = UseRegisterOrConstantAtStart(instr->right());
 
-  HValue* right_value = instr->right();
-  LOperand* right = NULL;
-  LOperand* temp = NULL;
-  int constant_value = 0;
-  if (right_value->IsConstant()) {
-    right = UseConstant(right_value);
-    constant_value = JSShiftAmountFromHConstant(right_value);
-  } else {
-    right = UseRegisterAtStart(right_value);
-    if (op == Token::ROR) {
-      temp = TempRegister();
-    }
-  }
-
-  // Shift operations can only deoptimize if we do a logical shift by 0 and the
-  // result cannot be truncated to int32.
-  bool does_deopt = false;
-  if ((op == Token::SHR) && (constant_value == 0)) {
+  // The only shift that can deoptimize is `left >>> 0`, where left is negative.
+  // In these cases, the result is a uint32 that is too large for an int32.
+  bool right_can_be_zero = !instr->right()->IsConstant() ||
+                           (JSShiftAmountFromHConstant(instr->right()) == 0);
+  bool can_deopt = false;
+  if ((op == Token::SHR) && right_can_be_zero) {
     if (FLAG_opt_safe_uint32_operations) {
-      does_deopt = !instr->CheckFlag(HInstruction::kUint32);
+      can_deopt = !instr->CheckFlag(HInstruction::kUint32);
     } else {
-      does_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToInt32);
+      can_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToInt32);
     }
   }
 
   LInstruction* result;
   if (instr->representation().IsInteger32()) {
-    result = DefineAsRegister(new(zone()) LShiftI(op, left, right, does_deopt));
+    result = DefineAsRegister(new (zone()) LShiftI(op, left, right, can_deopt));
   } else {
     DCHECK(instr->representation().IsSmi());
-    result = DefineAsRegister(
-        new(zone()) LShiftS(op, left, right, temp, does_deopt));
+    result = DefineAsRegister(new (zone()) LShiftS(op, left, right, can_deopt));
   }
 
-  return does_deopt ? AssignEnvironment(result) : result;
+  return can_deopt ? AssignEnvironment(result) : result;
 }
 
 
