@@ -448,9 +448,11 @@ void FullCodeGenerator::EmitReturnSequence() {
       PredictableCodeSizeScope predictable(masm_, -1);
       __ RecordJSReturn();
       int no_frame_start = __ LeaveFrame(StackFrame::JAVA_SCRIPT);
-      __ add(sp, sp, Operand(sp_delta));
-      __ Jump(lr);
-      info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
+      { ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
+        __ add(sp, sp, Operand(sp_delta));
+        __ Jump(lr);
+        info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
+      }
     }
 
 #ifdef DEBUG
