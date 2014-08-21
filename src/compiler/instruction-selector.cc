@@ -382,7 +382,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     DCHECK(deopt_node == NULL);
   }
 
-  DCHECK(input_count ==
+  DCHECK(static_cast<size_t>(input_count) ==
          (buffer->instruction_args.size() - buffer->control_count() +
           buffer->pushed_nodes.size() - buffer->frame_state_value_count()));
 }
