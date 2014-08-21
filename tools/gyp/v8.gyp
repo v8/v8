@@ -1425,6 +1425,7 @@
           '../../src/generator.js',
           '../../src/harmony-string.js',
           '../../src/harmony-array.js',
+          '../../src/harmony-classes.js',
         ],
         'libraries_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
         'libraries_experimental_bin_file': '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',

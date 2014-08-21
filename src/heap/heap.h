@@ -185,6 +185,7 @@ namespace internal {
   V(Symbol, stack_trace_symbol, StackTraceSymbol)                              \
   V(Symbol, detailed_stack_trace_symbol, DetailedStackTraceSymbol)             \
   V(Symbol, normal_ic_symbol, NormalICSymbol)                                  \
+  V(Symbol, home_object_symbol, HomeObjectSymbol)                              \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(FixedArray, microtask_queue, MicrotaskQueue)

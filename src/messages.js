@@ -44,6 +44,8 @@ var kMessages = {
   no_setter_in_callback:         ["Cannot set property ", "%0", " of ", "%1", " which has only a getter"],
   apply_non_function:            ["Function.prototype.apply was called on ", "%0", ", which is a ", "%1", " and not a function"],
   apply_wrong_args:              ["Function.prototype.apply: Arguments list has wrong type"],
+  toMethod_non_function:         ["Function.prototype.toMethod was called on ", "%0", ", which is a ", "%1", " and not a function"],
+  toMethod_non_object:           ["Function.prototype.toMethod: home object ", "%0", " is not an object"],
   invalid_in_operator_use:       ["Cannot use 'in' operator to search for '", "%0", "' in ", "%1"],
   instanceof_function_expected:  ["Expecting a function in instanceof check, but got ", "%0"],
   instanceof_nonobject_proto:    ["Function has non-object prototype '", "%0", "' in instanceof check"],

@@ -2051,6 +2051,25 @@ RUNTIME_FUNCTION(Runtime_PreventExtensions) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_ToMethod) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
+  Handle<JSFunction> clone = JSFunction::CloneClosure(fun);
+  Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
+  JSObject::SetOwnPropertyIgnoreAttributes(clone, home_object_symbol,
+                                           home_object, DONT_ENUM).Assert();
+  return *clone;
+}
+
+
+RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
+  DCHECK(args.length() == 0);
+  return isolate->heap()->home_object_symbol();
+}
+
+
 RUNTIME_FUNCTION(Runtime_IsExtensible) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
