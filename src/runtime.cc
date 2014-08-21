@@ -5027,15 +5027,12 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
     return isolate->heap()->undefined_value();
   }
 
-  LookupResult lookup(isolate);
-  js_object->LookupOwnRealNamedProperty(name, &lookup);
+  LookupIterator it(js_object, name, LookupIterator::CHECK_PROPERTY);
 
   // Take special care when attributes are different and there is already
-  // a property. For simplicity we normalize the property which enables us
-  // to not worry about changing the instance_descriptor and creating a new
-  // map.
-  if (lookup.IsFound() &&
-      (attr != lookup.GetAttributes() || lookup.IsPropertyCallbacks())) {
+  // a property.
+  if (it.IsFound() && it.HasProperty() &&
+      it.property_kind() == LookupIterator::ACCESSOR) {
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
     Handle<Object> result;

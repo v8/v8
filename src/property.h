@@ -252,8 +252,7 @@ class LookupResult V8_FINAL BASE_EMBEDDED {
   }
 
   bool IsNormal() const {
-    DCHECK(!(details_.type() == NORMAL && !IsFound()));
-    return IsDescriptorOrDictionary() && type() == NORMAL;
+    return IsFound() && IsDescriptorOrDictionary() && type() == NORMAL;
   }
 
   bool IsConstant() const {
