@@ -46,20 +46,22 @@ size_t GCIdleTimeHandler::EstimateMarkCompactTime(
 
 
 GCIdleTimeAction GCIdleTimeHandler::Compute(int idle_time_in_ms,
-                                            HeapState heap_state,
+                                            int contexts_disposed,
+                                            size_t size_of_objects,
+                                            bool incremental_marking_stopped,
                                             GCTracer* gc_tracer) {
   if (IsIdleRoundFinished()) {
-    if (EnoughGarbageSinceLastIdleRound() || heap_state.contexts_disposed > 0) {
+    if (EnoughGarbageSinceLastIdleRound() || contexts_disposed > 0) {
       StartIdleRound();
     } else {
       return GCIdleTimeAction::Nothing();
     }
   }
-  if (heap_state.incremental_marking_stopped) {
+  if (incremental_marking_stopped) {
     size_t speed =
         static_cast<size_t>(gc_tracer->MarkCompactSpeedInBytesPerMillisecond());
-    if (idle_time_in_ms >= static_cast<int>(EstimateMarkCompactTime(
-                               heap_state.size_of_objects, speed))) {
+    if (idle_time_in_ms >=
+        static_cast<int>(EstimateMarkCompactTime(size_of_objects, speed))) {
       // If there are no more than two GCs left in this idle round and we are
       // allowed to do a full GC, then make those GCs full in order to compact
       // the code space.
@@ -67,13 +69,9 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(int idle_time_in_ms,
       // can get rid of this special case and always start incremental marking.
       int remaining_mark_sweeps =
           kMaxMarkCompactsInIdleRound - mark_compacts_since_idle_round_started_;
-      if (heap_state.contexts_disposed > 0 || remaining_mark_sweeps <= 2 ||
-          !heap_state.can_start_incremental_marking) {
+      if (contexts_disposed > 0 || remaining_mark_sweeps <= 2) {
         return GCIdleTimeAction::FullGC();
       }
-    }
-    if (!heap_state.can_start_incremental_marking) {
-      return GCIdleTimeAction::Nothing();
     }
   }
   intptr_t speed = gc_tracer->IncrementalMarkingSpeedInBytesPerMillisecond();

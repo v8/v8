@@ -49,7 +49,6 @@ class GCIdleTimeAction {
   intptr_t parameter;
 };
 
-
 class GCTracer;
 
 // The idle time handler makes decisions about which garbage collection
@@ -74,18 +73,13 @@ class GCIdleTimeHandler {
   // Maximum mark-compact time returned by EstimateMarkCompactTime.
   static const size_t kMaxMarkCompactTimeInMs;
 
-  struct HeapState {
-    int contexts_disposed;
-    size_t size_of_objects;
-    bool incremental_marking_stopped;
-    bool can_start_incremental_marking;
-  };
-
   GCIdleTimeHandler()
       : mark_compacts_since_idle_round_started_(0),
         scavenges_since_last_idle_round_(0) {}
 
-  GCIdleTimeAction Compute(int idle_time_in_ms, HeapState heap_state,
+  GCIdleTimeAction Compute(int idle_time_in_ms, int contexts_disposed,
+                           size_t size_of_objects,
+                           bool incremental_marking_stopped,
                            GCTracer* gc_tracer);
 
   void NotifyIdleMarkCompact() {

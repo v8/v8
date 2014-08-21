@@ -1929,8 +1929,6 @@ class Heap {
 
   void AdvanceIdleIncrementalMarking(intptr_t step_size);
 
-  bool WorthActivatingIncrementalMarking();
-
   void ClearObjectStats(bool clear_last_time_stats = false);
 
   void set_weak_object_to_code_table(Object* value) {
