@@ -12,6 +12,8 @@ namespace internal {
 const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
 const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000000;
 const size_t GCIdleTimeHandler::kMinTimeForFinalizeSweeping = 100;
+const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 7;
+const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
 
 
 size_t GCIdleTimeHandler::EstimateMarkingStepSize(

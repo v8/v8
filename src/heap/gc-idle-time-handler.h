@@ -89,6 +89,13 @@ class GCIdleTimeHandler {
   // sweeper threads.
   static const size_t kMinTimeForFinalizeSweeping;
 
+  // Number of idle mark-compact events, after which idle handler will finish
+  // idle round.
+  static const int kMaxMarkCompactsInIdleRound;
+
+  // Number of scavenges that will trigger start of new idle round.
+  static const int kIdleScavengeThreshold;
+
   struct HeapState {
     int contexts_disposed;
     size_t size_of_objects;
@@ -133,8 +140,6 @@ class GCIdleTimeHandler {
     return scavenges_since_last_idle_round_ >= kIdleScavengeThreshold;
   }
 
-  static const int kMaxMarkCompactsInIdleRound = 7;
-  static const int kIdleScavengeThreshold = 5;
   int mark_compacts_since_idle_round_started_;
   int scavenges_since_last_idle_round_;
 

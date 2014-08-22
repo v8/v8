@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "test/heap-unittests/heap-unittest.h"
+
 #include <limits>
 
-#include "src/heap/gc-idle-time-handler.h"
-
-#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
@@ -68,6 +67,144 @@ TEST(EstimateMarkCompactTimeTest, EstimateMarkCompactTimeMax) {
   size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, speed);
   EXPECT_EQ(GCIdleTimeHandler::kMaxMarkCompactTimeInMs, time);
 }
+
+
+TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeLargeIdleTime) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.contexts_disposed = 1;
+  heap_state.incremental_marking_stopped = true;
+  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
+  int idle_time_ms = (heap_state.size_of_objects + speed - 1) / speed;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_FULL_GC, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.contexts_disposed = 1;
+  heap_state.incremental_marking_stopped = true;
+  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
+  int idle_time_ms = heap_state.size_of_objects / speed - 1;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.contexts_disposed = 1;
+  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
+  int idle_time_ms = heap_state.size_of_objects / speed - 1;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  size_t speed = heap_state.incremental_marking_speed_in_bytes_per_ms;
+  int idle_time_ms = 10;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+  EXPECT_GT(speed * idle_time_ms, action.parameter);
+  EXPECT_LT(0, action.parameter);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, IncrementalMarking2) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.incremental_marking_stopped = true;
+  size_t speed = heap_state.incremental_marking_speed_in_bytes_per_ms;
+  int idle_time_ms = 10;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+  EXPECT_GT(speed * idle_time_ms, action.parameter);
+  EXPECT_LT(0, action.parameter);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, NotEnoughTime) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.incremental_marking_stopped = true;
+  heap_state.can_start_incremental_marking = false;
+  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
+  int idle_time_ms = heap_state.size_of_objects / speed - 1;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, StopEventually1) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.incremental_marking_stopped = true;
+  heap_state.can_start_incremental_marking = false;
+  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
+  int idle_time_ms = heap_state.size_of_objects / speed + 1;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    EXPECT_EQ(DO_FULL_GC, action.type);
+    handler()->NotifyIdleMarkCompact();
+  }
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, StopEventually2) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  int idle_time_ms = 10;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    handler()->NotifyIdleMarkCompact();
+  }
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop1) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  heap_state.incremental_marking_stopped = true;
+  heap_state.can_start_incremental_marking = false;
+  size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
+  int idle_time_ms = heap_state.size_of_objects / speed + 1;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    EXPECT_EQ(DO_FULL_GC, action.type);
+    handler()->NotifyIdleMarkCompact();
+  }
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+  // Emulate mutator work.
+  for (int i = 0; i < GCIdleTimeHandler::kIdleScavengeThreshold; i++) {
+    handler()->NotifyScavenge();
+  }
+  action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_FULL_GC, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop2) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  int idle_time_ms = 10;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    if (action.type == DO_NOTHING) break;
+    EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    handler()->NotifyIdleMarkCompact();
+  }
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+  // Emulate mutator work.
+  for (int i = 0; i < GCIdleTimeHandler::kIdleScavengeThreshold; i++) {
+    handler()->NotifyScavenge();
+  }
+  action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+}
+
 
 }  // namespace internal
 }  // namespace v8
