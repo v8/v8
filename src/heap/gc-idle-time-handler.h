@@ -14,7 +14,8 @@ enum GCIdleTimeActionType {
   DO_NOTHING,
   DO_INCREMENTAL_MARKING,
   DO_SCAVENGE,
-  DO_FULL_GC
+  DO_FULL_GC,
+  DO_FINALIZE_SWEEPING
 };
 
 
@@ -26,21 +27,31 @@ class GCIdleTimeAction {
     result.parameter = 0;
     return result;
   }
+
   static GCIdleTimeAction IncrementalMarking(intptr_t step_size) {
     GCIdleTimeAction result;
     result.type = DO_INCREMENTAL_MARKING;
     result.parameter = step_size;
     return result;
   }
+
   static GCIdleTimeAction Scavenge() {
     GCIdleTimeAction result;
     result.type = DO_SCAVENGE;
     result.parameter = 0;
     return result;
   }
+
   static GCIdleTimeAction FullGC() {
     GCIdleTimeAction result;
     result.type = DO_FULL_GC;
+    result.parameter = 0;
+    return result;
+  }
+
+  static GCIdleTimeAction FinalizeSweeping() {
+    GCIdleTimeAction result;
+    result.type = DO_FINALIZE_SWEEPING;
     result.parameter = 0;
     return result;
   }
@@ -74,18 +85,23 @@ class GCIdleTimeHandler {
   // Maximum mark-compact time returned by EstimateMarkCompactTime.
   static const size_t kMaxMarkCompactTimeInMs;
 
+  // Minimum time to finalize sweeping phase. The main thread may wait for
+  // sweeper threads.
+  static const size_t kMinTimeForFinalizeSweeping;
+
   struct HeapState {
     int contexts_disposed;
     size_t size_of_objects;
     bool incremental_marking_stopped;
     bool can_start_incremental_marking;
+    bool sweeping_in_progress;
   };
 
   GCIdleTimeHandler()
       : mark_compacts_since_idle_round_started_(0),
         scavenges_since_last_idle_round_(0) {}
 
-  GCIdleTimeAction Compute(int idle_time_in_ms, HeapState heap_state,
+  GCIdleTimeAction Compute(size_t idle_time_in_ms, HeapState heap_state,
                            GCTracer* gc_tracer);
 
   void NotifyIdleMarkCompact() {
