@@ -47,6 +47,9 @@ inline bool OperatorProperties::HasFrameStateInput(Operator* op) {
       switch (function) {
         case Runtime::kDebugBreak:
         case Runtime::kDeoptimizeFunction:
+        case Runtime::kSetScriptBreakPoint:
+        case Runtime::kDebugGetLoadedScripts:
+        case Runtime::kStackGuard:
           return true;
         default:
           return false;
@@ -178,6 +181,9 @@ inline bool OperatorProperties::CanLazilyDeoptimize(Operator* op) {
       switch (function) {
         case Runtime::kDebugBreak:
         case Runtime::kDeoptimizeFunction:
+        case Runtime::kSetScriptBreakPoint:
+        case Runtime::kDebugGetLoadedScripts:
+        case Runtime::kStackGuard:
           return true;
         default:
           return false;

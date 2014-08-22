@@ -87,7 +87,8 @@ bool AstGraphBuilder::CreateGraph() {
   VisitDeclarations(scope->declarations());
 
   // TODO(mstarzinger): This should do an inlined stack check.
-  NewNode(javascript()->Runtime(Runtime::kStackGuard, 0));
+  Node* node = NewNode(javascript()->Runtime(Runtime::kStackGuard, 0));
+  PrepareFrameState(node, BailoutId::FunctionEntry());
 
   // Visit statements in the function body.
   VisitStatements(info()->function()->body());

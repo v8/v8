@@ -97,8 +97,6 @@
   'deserialize-reference': [PASS, NO_VARIANTS],
 
   # Support for %GetFrameDetails is missing and requires checkpoints.
-  'debug-backtrace-text': [PASS, NO_VARIANTS],
-  'debug-break-inline': [PASS, NO_VARIANTS],
   'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
   'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-const': [PASS, NO_VARIANTS],
@@ -110,7 +108,6 @@
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
   'debug-liveedit-restart-frame': [PASS, NO_VARIANTS],
   'debug-return-value': [PASS, NO_VARIANTS],
-  'debug-scopes': [PASS, NO_VARIANTS],
   'debug-set-variable-value': [PASS, NO_VARIANTS],
   'debug-step-stub-callfunction': [PASS, NO_VARIANTS],
   'debug-stepin-accessor': [PASS, NO_VARIANTS],

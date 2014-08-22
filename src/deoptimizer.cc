@@ -378,7 +378,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     CHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
     Object* next = code->next_code_link();
 
-    if (code->marked_for_deoptimization()) {
+    if (code->marked_for_deoptimization() &&
+        (!code->is_turbofanned() || FLAG_turbo_deoptimization)) {
       // Put the code into the list for later patching.
       codes.Add(code, &zone);
 
