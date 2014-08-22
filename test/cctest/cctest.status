@@ -79,6 +79,7 @@
 
   # BUG(3525). Test crashes flakily.
   'test-debug/RecursiveBreakpoints': [PASS, FLAKY],
+  'test-debug/RecursiveBreakpointsGlobal': [PASS, FLAKY],
 
   ##############################################################################
   # TurboFan compiler failures.
