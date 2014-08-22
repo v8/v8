@@ -95,14 +95,15 @@ class GCIdleTimeHandler {
     bool incremental_marking_stopped;
     bool can_start_incremental_marking;
     bool sweeping_in_progress;
+    size_t mark_compact_speed_in_bytes_per_ms;
+    size_t incremental_marking_speed_in_bytes_per_ms;
   };
 
   GCIdleTimeHandler()
       : mark_compacts_since_idle_round_started_(0),
         scavenges_since_last_idle_round_(0) {}
 
-  GCIdleTimeAction Compute(size_t idle_time_in_ms, HeapState heap_state,
-                           GCTracer* gc_tracer);
+  GCIdleTimeAction Compute(size_t idle_time_in_ms, HeapState heap_state);
 
   void NotifyIdleMarkCompact() {
     if (mark_compacts_since_idle_round_started_ < kMaxMarkCompactsInIdleRound) {

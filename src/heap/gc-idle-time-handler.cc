@@ -46,8 +46,7 @@ size_t GCIdleTimeHandler::EstimateMarkCompactTime(
 
 
 GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
-                                            HeapState heap_state,
-                                            GCTracer* gc_tracer) {
+                                            HeapState heap_state) {
   if (IsIdleRoundFinished()) {
     if (EnoughGarbageSinceLastIdleRound() || heap_state.contexts_disposed > 0) {
       StartIdleRound();
@@ -56,10 +55,9 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
     }
   }
   if (heap_state.incremental_marking_stopped) {
-    size_t speed =
-        static_cast<size_t>(gc_tracer->MarkCompactSpeedInBytesPerMillisecond());
-    if (idle_time_in_ms >=
-        EstimateMarkCompactTime(heap_state.size_of_objects, speed)) {
+    if (idle_time_in_ms >= EstimateMarkCompactTime(
+                               heap_state.size_of_objects,
+                               heap_state.mark_compact_speed_in_bytes_per_ms)) {
       // If there are no more than two GCs left in this idle round and we are
       // allowed to do a full GC, then make those GCs full in order to compact
       // the code space.
@@ -82,9 +80,8 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
     return GCIdleTimeAction::FinalizeSweeping();
   }
 
-  intptr_t speed = gc_tracer->IncrementalMarkingSpeedInBytesPerMillisecond();
-  size_t step_size =
-      static_cast<size_t>(EstimateMarkingStepSize(idle_time_in_ms, speed));
+  size_t step_size = EstimateMarkingStepSize(
+      idle_time_in_ms, heap_state.incremental_marking_speed_in_bytes_per_ms);
   return GCIdleTimeAction::IncrementalMarking(step_size);
 }
 }

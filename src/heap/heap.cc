@@ -4298,9 +4298,13 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
   heap_state.can_start_incremental_marking = true;
   heap_state.sweeping_in_progress =
       mark_compact_collector()->sweeping_in_progress();
+  heap_state.mark_compact_speed_in_bytes_per_ms =
+      static_cast<size_t>(tracer()->MarkCompactSpeedInBytesPerMillisecond());
+  heap_state.incremental_marking_speed_in_bytes_per_ms = static_cast<size_t>(
+      tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
 
   GCIdleTimeAction action =
-      gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state, tracer());
+      gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
 
   contexts_disposed_ = 0;
   bool result = false;
