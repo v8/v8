@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include "src/ic/call-optimization.h"
 #include "src/ic/ic-compiler.h"
 
 namespace v8 {
@@ -195,12 +196,6 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
   __ Cmp(FieldOperand(scratch, Cell::kValueOffset),
          masm->isolate()->factory()->the_hole_value());
   __ j(not_equal, miss);
-}
-
-
-void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
-                                              Handle<Code> code) {
-  __ jmp(code, RelocInfo::CODE_TARGET);
 }
 
 
@@ -765,25 +760,6 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
 
   // Return the generated code.
   return GetCode(kind(), Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
-}
-
-
-Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
-  static Register registers[] = {receiver, name, rax, rbx, rdi, r8};
-  return registers;
-}
-
-
-Register* PropertyAccessCompiler::store_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3.
-  Register receiver = KeyedStoreIC::ReceiverRegister();
-  Register name = KeyedStoreIC::NameRegister();
-  DCHECK(rbx.is(KeyedStoreIC::MapRegister()));
-  static Register registers[] = {receiver, name, rbx, rdi, r8};
-  return registers;
 }
 
 

@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_ARM64
 
+#include "src/ic/call-optimization.h"
 #include "src/ic/ic-compiler.h"
 
 namespace v8 {
@@ -202,12 +203,6 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
   // Jump to stub.
   CallApiFunctionStub stub(isolate, is_store, call_data_undefined, argc);
   __ TailCallStub(&stub);
-}
-
-
-void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
-                                              Handle<Code> code) {
-  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
 
@@ -760,32 +755,6 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
-}
-
-
-// TODO(all): The so-called scratch registers are significant in some cases. For
-// example, PropertyAccessCompiler::keyed_store_calling_convention()[3] (x3) is
-// actually
-// used for KeyedStoreCompiler::transition_map(). We should verify which
-// registers are actually scratch registers, and which are important. For now,
-// we use the same assignments as ARM to remain on the safe side.
-
-Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
-  static Register registers[] = {receiver, name, x3, x0, x4, x5};
-  return registers;
-}
-
-
-Register* PropertyAccessCompiler::store_calling_convention() {
-  // receiver, value, scratch1, scratch2, scratch3.
-  Register receiver = StoreIC::ReceiverRegister();
-  Register name = StoreIC::NameRegister();
-  DCHECK(x3.is(KeyedStoreIC::MapRegister()));
-  static Register registers[] = {receiver, name, x3, x4, x5};
-  return registers;
 }
 
 

@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/ic/call-optimization.h"
 #include "src/ic/ic-compiler.h"
 
 namespace v8 {
@@ -206,12 +207,6 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
   // Jump to stub.
   CallApiFunctionStub stub(isolate, is_store, call_data_undefined, argc);
   __ TailCallStub(&stub);
-}
-
-
-void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
-                                              Handle<Code> code) {
-  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
 
@@ -748,25 +743,6 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 
   // Return the generated code.
   return GetCode(kind(), Code::FAST, name);
-}
-
-
-Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
-  static Register registers[] = {receiver, name, r3, r0, r4, r5};
-  return registers;
-}
-
-
-Register* PropertyAccessCompiler::store_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3.
-  Register receiver = StoreIC::ReceiverRegister();
-  Register name = StoreIC::NameRegister();
-  DCHECK(r3.is(KeyedStoreIC::MapRegister()));
-  static Register registers[] = {receiver, name, r3, r4, r5};
-  return registers;
 }
 
 

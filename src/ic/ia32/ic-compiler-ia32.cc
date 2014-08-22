@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/ic/call-optimization.h"
 #include "src/ic/ic-compiler.h"
 
 namespace v8 {
@@ -203,12 +204,6 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
     __ cmp(Operand::ForCell(cell), Immediate(the_hole));
   }
   __ j(not_equal, miss);
-}
-
-
-void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
-                                              Handle<Code> code) {
-  __ jmp(code, RelocInfo::CODE_TARGET);
 }
 
 
@@ -775,25 +770,6 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
 
   // Return the generated code.
   return GetCode(kind(), Code::NORMAL, factory()->empty_string(), POLYMORPHIC);
-}
-
-
-Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
-  static Register registers[] = {receiver, name, ebx, eax, edi, no_reg};
-  return registers;
-}
-
-
-Register* PropertyAccessCompiler::store_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3.
-  Register receiver = StoreIC::ReceiverRegister();
-  Register name = StoreIC::NameRegister();
-  DCHECK(ebx.is(KeyedStoreIC::MapRegister()));
-  static Register registers[] = {receiver, name, ebx, edi, no_reg};
-  return registers;
 }
 
 

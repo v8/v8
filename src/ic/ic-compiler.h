@@ -6,6 +6,7 @@
 #define V8_IC_IC_COMPILER_H_
 
 #include "src/code-stubs.h"
+#include "src/ic/access-compiler.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
 
@@ -14,78 +15,10 @@ namespace internal {
 
 
 class CallOptimization;
-class SmallMapList;
-class StubCache;
 
 
 enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
 enum IcCheckType { ELEMENT, PROPERTY };
-
-
-class PropertyAccessCompiler BASE_EMBEDDED {
- public:
-  static Builtins::Name MissBuiltin(Code::Kind kind) {
-    switch (kind) {
-      case Code::LOAD_IC:
-        return Builtins::kLoadIC_Miss;
-      case Code::STORE_IC:
-        return Builtins::kStoreIC_Miss;
-      case Code::KEYED_LOAD_IC:
-        return Builtins::kKeyedLoadIC_Miss;
-      case Code::KEYED_STORE_IC:
-        return Builtins::kKeyedStoreIC_Miss;
-      default:
-        UNREACHABLE();
-    }
-    return Builtins::kLoadIC_Miss;
-  }
-
-  static void TailCallBuiltin(MacroAssembler* masm, Builtins::Name name);
-
- protected:
-  PropertyAccessCompiler(Isolate* isolate, Code::Kind kind,
-                         CacheHolderFlag cache_holder)
-      : registers_(GetCallingConvention(kind)),
-        kind_(kind),
-        cache_holder_(cache_holder),
-        isolate_(isolate),
-        masm_(isolate, NULL, 256) {}
-
-  Code::Kind kind() const { return kind_; }
-  CacheHolderFlag cache_holder() const { return cache_holder_; }
-  MacroAssembler* masm() { return &masm_; }
-  Isolate* isolate() const { return isolate_; }
-  Heap* heap() const { return isolate()->heap(); }
-  Factory* factory() const { return isolate()->factory(); }
-
-  Register receiver() const { return registers_[0]; }
-  Register name() const { return registers_[1]; }
-  Register scratch1() const { return registers_[2]; }
-  Register scratch2() const { return registers_[3]; }
-  Register scratch3() const { return registers_[4]; }
-
-  // Calling convention between indexed store IC and handler.
-  Register transition_map() const { return scratch1(); }
-
-  static Register* GetCallingConvention(Code::Kind);
-  static Register* load_calling_convention();
-  static Register* store_calling_convention();
-  static Register* keyed_store_calling_convention();
-
-  Register* registers_;
-
-  static void GenerateTailCall(MacroAssembler* masm, Handle<Code> code);
-
-  Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
-  Handle<Code> GetCodeWithFlags(Code::Flags flags, Handle<Name> name);
-
- private:
-  Code::Kind kind_;
-  CacheHolderFlag cache_holder_;
-
-  Isolate* isolate_;
-  MacroAssembler masm_;
-};
 
 
 class PropertyICCompiler : public PropertyAccessCompiler {
@@ -451,50 +384,6 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
 };
 
 
-// Holds information about possible function call optimizations.
-class CallOptimization BASE_EMBEDDED {
- public:
-  explicit CallOptimization(Handle<JSFunction> function);
-
-  bool is_constant_call() const { return !constant_function_.is_null(); }
-
-  Handle<JSFunction> constant_function() const {
-    DCHECK(is_constant_call());
-    return constant_function_;
-  }
-
-  bool is_simple_api_call() const { return is_simple_api_call_; }
-
-  Handle<FunctionTemplateInfo> expected_receiver_type() const {
-    DCHECK(is_simple_api_call());
-    return expected_receiver_type_;
-  }
-
-  Handle<CallHandlerInfo> api_call_info() const {
-    DCHECK(is_simple_api_call());
-    return api_call_info_;
-  }
-
-  enum HolderLookup { kHolderNotFound, kHolderIsReceiver, kHolderFound };
-  Handle<JSObject> LookupHolderOfExpectedType(
-      Handle<Map> receiver_map, HolderLookup* holder_lookup) const;
-
-  // Check if the api holder is between the receiver and the holder.
-  bool IsCompatibleReceiver(Handle<Object> receiver,
-                            Handle<JSObject> holder) const;
-
- private:
-  void Initialize(Handle<JSFunction> function);
-
-  // Determines whether the given function can be called using the
-  // fast api call builtin.
-  void AnalyzePossibleApiFunction(Handle<JSFunction> function);
-
-  Handle<JSFunction> constant_function_;
-  bool is_simple_api_call_;
-  Handle<FunctionTemplateInfo> expected_receiver_type_;
-  Handle<CallHandlerInfo> api_call_info_;
-};
 }
 }  // namespace v8::internal
 
