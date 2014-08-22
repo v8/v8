@@ -74,7 +74,8 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeLargeIdleTime) {
   heap_state.contexts_disposed = 1;
   heap_state.incremental_marking_stopped = true;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = (heap_state.size_of_objects + speed - 1) / speed;
+  int idle_time_ms =
+      static_cast<int>((heap_state.size_of_objects + speed - 1) / speed);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_FULL_GC, action.type);
 }
@@ -85,7 +86,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime1) {
   heap_state.contexts_disposed = 1;
   heap_state.incremental_marking_stopped = true;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = heap_state.size_of_objects / speed - 1;
+  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
 }
@@ -95,7 +96,7 @@ TEST_F(GCIdleTimeHandlerTest, AfterContextDisposeSmallIdleTime2) {
   GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
   heap_state.contexts_disposed = 1;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = heap_state.size_of_objects / speed - 1;
+  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
 }
@@ -131,7 +132,7 @@ TEST_F(GCIdleTimeHandlerTest, NotEnoughTime) {
   heap_state.incremental_marking_stopped = true;
   heap_state.can_start_incremental_marking = false;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = heap_state.size_of_objects / speed - 1;
+  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed - 1);
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_NOTHING, action.type);
 }
@@ -142,7 +143,7 @@ TEST_F(GCIdleTimeHandlerTest, StopEventually1) {
   heap_state.incremental_marking_stopped = true;
   heap_state.can_start_incremental_marking = false;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = heap_state.size_of_objects / speed + 1;
+  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed + 1);
   for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_FULL_GC, action.type);
@@ -171,7 +172,7 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop1) {
   heap_state.incremental_marking_stopped = true;
   heap_state.can_start_incremental_marking = false;
   size_t speed = heap_state.mark_compact_speed_in_bytes_per_ms;
-  int idle_time_ms = heap_state.size_of_objects / speed + 1;
+  int idle_time_ms = static_cast<int>(heap_state.size_of_objects / speed + 1);
   for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_FULL_GC, action.type);
