@@ -107,7 +107,8 @@ TEST_F(GCIdleTimeHandlerTest, IncrementalMarking1) {
   int idle_time_ms = 10;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
-  EXPECT_GT(speed * idle_time_ms, action.parameter);
+  EXPECT_GT(speed * static_cast<size_t>(idle_time_ms),
+            static_cast<size_t>(action.parameter));
   EXPECT_LT(0, action.parameter);
 }
 
@@ -119,7 +120,8 @@ TEST_F(GCIdleTimeHandlerTest, IncrementalMarking2) {
   int idle_time_ms = 10;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
-  EXPECT_GT(speed * idle_time_ms, action.parameter);
+  EXPECT_GT(speed * static_cast<size_t>(idle_time_ms),
+            static_cast<size_t>(action.parameter));
   EXPECT_LT(0, action.parameter);
 }
 
