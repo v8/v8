@@ -98,6 +98,7 @@
 
   # Support for %GetFrameDetails is missing and requires checkpoints.
   'debug-backtrace-text': [PASS, NO_VARIANTS],
+  'debug-break-inline': [PASS, NO_VARIANTS],
   'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
   'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-const': [PASS, NO_VARIANTS],
