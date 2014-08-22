@@ -93,6 +93,9 @@
   'regress/regress-debug-deopt-while-recompile': [PASS, NO_VARIANTS],
   'regress/regress-opt-after-debug-deopt': [PASS, NO_VARIANTS],
 
+  # Code serializer does not work correctly.
+  'deserialize-reference': [PASS, NO_VARIANTS],
+
   # Support for %GetFrameDetails is missing and requires checkpoints.
   'debug-backtrace-text': [PASS, NO_VARIANTS],
   'debug-break-inline': [PASS, NO_VARIANTS],
