@@ -964,6 +964,19 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
 }
 
 
+void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                                    StrictMode strict_mode) {
+  __ Push(StoreIC::ReceiverRegister(), StoreIC::NameRegister(),
+          StoreIC::ValueRegister());
+
+  __ mov(r0, Operand(Smi::FromInt(strict_mode)));
+  __ Push(r0);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
+}
+
+
 #undef __
 }
 }  // namespace v8::internal

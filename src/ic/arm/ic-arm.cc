@@ -8,6 +8,7 @@
 
 #include "src/codegen.h"
 #include "src/ic/ic.h"
+#include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
 
 namespace v8 {
@@ -756,18 +757,6 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                              StrictMode strict_mode) {
-  // Push receiver, key and value for runtime call.
-  __ Push(ReceiverRegister(), NameRegister(), ValueRegister());
-
-  __ mov(r0, Operand(Smi::FromInt(strict_mode)));  // Strict mode.
-  __ Push(r0);
-
-  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
-}
-
-
 static void KeyedStoreGenerateGenericHelper(
     MacroAssembler* masm, Label* fast_object, Label* fast_double, Label* slow,
     KeyedStoreCheckMap check_map, KeyedStoreIncrementLength increment_length,
@@ -965,7 +954,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // r0: value.
   // r1: key.
   // r2: receiver.
-  GenerateRuntimeSetProperty(masm, strict_mode);
+  PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -1059,18 +1048,6 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   __ bind(&miss);
   __ IncrementCounter(counters->store_normal_miss(), 1, r4, r5);
   GenerateMiss(masm);
-}
-
-
-void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictMode strict_mode) {
-  __ Push(ReceiverRegister(), NameRegister(), ValueRegister());
-
-  __ mov(r0, Operand(Smi::FromInt(strict_mode)));
-  __ Push(r0);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
 }
 
 

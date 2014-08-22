@@ -974,6 +974,22 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
 }
 
+
+void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                                    StrictMode strict_mode) {
+  ASM_LOCATION("PropertyICCompiler::GenerateRuntimeSetProperty");
+
+  __ Push(StoreIC::ReceiverRegister(), StoreIC::NameRegister(),
+          StoreIC::ValueRegister());
+
+  __ Mov(x10, Smi::FromInt(strict_mode));
+  __ Push(x10);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
+}
+
+
 #undef __
 }
 }  // namespace v8::internal

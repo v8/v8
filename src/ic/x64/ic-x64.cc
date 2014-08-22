@@ -8,6 +8,7 @@
 
 #include "src/codegen.h"
 #include "src/ic/ic.h"
+#include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
 
 namespace v8 {
@@ -649,7 +650,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&slow);
   __ Integer32ToSmi(key, key);
   __ bind(&slow_with_tagged_index);
-  GenerateRuntimeSetProperty(masm, strict_mode);
+  PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
   // Never returns to here.
 
   // Extra capacity case: Check if there is extra capacity to
@@ -1008,42 +1009,6 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   __ bind(&miss);
   __ IncrementCounter(counters->store_normal_miss(), 1);
   GenerateMiss(masm);
-}
-
-
-void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictMode strict_mode) {
-  // Return address is on the stack.
-  DCHECK(!rbx.is(ReceiverRegister()) && !rbx.is(NameRegister()) &&
-         !rbx.is(ValueRegister()));
-
-  __ PopReturnAddressTo(rbx);
-  __ Push(ReceiverRegister());
-  __ Push(NameRegister());
-  __ Push(ValueRegister());
-  __ Push(Smi::FromInt(strict_mode));
-  __ PushReturnAddressFrom(rbx);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
-}
-
-
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                              StrictMode strict_mode) {
-  // Return address is on the stack.
-  DCHECK(!rbx.is(ReceiverRegister()) && !rbx.is(NameRegister()) &&
-         !rbx.is(ValueRegister()));
-
-  __ PopReturnAddressTo(rbx);
-  __ Push(ReceiverRegister());
-  __ Push(NameRegister());
-  __ Push(ValueRegister());
-  __ Push(Smi::FromInt(strict_mode));  // Strict mode.
-  __ PushReturnAddressFrom(rbx);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
 }
 
 

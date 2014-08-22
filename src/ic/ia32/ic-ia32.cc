@@ -8,6 +8,7 @@
 
 #include "src/codegen.h"
 #include "src/ic/ic.h"
+#include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
 
 namespace v8 {
@@ -777,7 +778,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
   // Slow case: call runtime.
   __ bind(&slow);
-  GenerateRuntimeSetProperty(masm, strict_mode);
+  PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -1003,40 +1004,6 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   __ pop(receiver);
   __ IncrementCounter(counters->store_normal_miss(), 1);
   GenerateMiss(masm);
-}
-
-
-void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictMode strict_mode) {
-  // Return address is on the stack.
-  DCHECK(!ebx.is(ReceiverRegister()) && !ebx.is(NameRegister()) &&
-         !ebx.is(ValueRegister()));
-  __ pop(ebx);
-  __ push(ReceiverRegister());
-  __ push(NameRegister());
-  __ push(ValueRegister());
-  __ push(Immediate(Smi::FromInt(strict_mode)));
-  __ push(ebx);  // return address
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
-}
-
-
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                              StrictMode strict_mode) {
-  // Return address is on the stack.
-  DCHECK(!ebx.is(ReceiverRegister()) && !ebx.is(NameRegister()) &&
-         !ebx.is(ValueRegister()));
-  __ pop(ebx);
-  __ push(ReceiverRegister());
-  __ push(NameRegister());
-  __ push(ValueRegister());
-  __ push(Immediate(Smi::FromInt(strict_mode)));
-  __ push(ebx);  // return address
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
 }
 
 

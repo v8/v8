@@ -125,6 +125,12 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   static Handle<Code> ComputeCompareNil(Handle<Map> receiver_map,
                                         CompareNilICStub* stub);
 
+  // Helpers
+  // TODO(verwaest): Move all uses of these helpers to the PropertyICCompiler
+  // and make the helpers private.
+  static void GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                         StrictMode strict_mode);
+
 
  private:
   PropertyICCompiler(Isolate* isolate, Code::Kind kind,

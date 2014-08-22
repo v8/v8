@@ -968,6 +968,24 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
 }
 
 
+void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                                    StrictMode strict_mode) {
+  // Return address is on the stack.
+  DCHECK(!rbx.is(StoreIC::ReceiverRegister()) &&
+         !rbx.is(StoreIC::NameRegister()) && !rbx.is(StoreIC::ValueRegister()));
+
+  __ PopReturnAddressTo(rbx);
+  __ Push(StoreIC::ReceiverRegister());
+  __ Push(StoreIC::NameRegister());
+  __ Push(StoreIC::ValueRegister());
+  __ Push(Smi::FromInt(strict_mode));
+  __ PushReturnAddressFrom(rbx);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
+}
+
+
 #undef __
 }
 }  // namespace v8::internal

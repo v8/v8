@@ -387,7 +387,7 @@ Handle<Code> PropertyICCompiler::CompileStorePreMonomorphic(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
   ExtraICState extra_state = Code::ExtractExtraICStateFromFlags(flags);
   StrictMode strict_mode = StoreIC::GetStrictMode(extra_state);
-  StoreIC::GenerateRuntimeSetProperty(masm(), strict_mode);
+  GenerateRuntimeSetProperty(masm(), strict_mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
   PROFILE(isolate(), CodeCreateEvent(Logger::STORE_GENERIC_TAG, *code, 0));
   return code;
