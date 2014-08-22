@@ -307,7 +307,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
   CHECK_EQ(start, rpo_order->at(0));  // Start should be first.
   for (size_t b = 0; b < rpo_order->size(); b++) {
     BasicBlock* block = rpo_order->at(b);
-    CHECK_EQ(b, block->rpo_number_);
+    CHECK_EQ(static_cast<int>(b), block->rpo_number_);
     BasicBlock* dom = schedule->dominator(block);
     if (b == 0) {
       // All blocks except start should have a dominator.
