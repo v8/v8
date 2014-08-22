@@ -10,6 +10,7 @@ namespace v8 {
 namespace internal {
 
 const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
+const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000000;
 
 
 size_t GCIdleTimeHandler::EstimateMarkingStepSize(
@@ -29,7 +30,8 @@ size_t GCIdleTimeHandler::EstimateMarkingStepSize(
   if (marking_step_size > kMaximumMarkingStepSize)
     return kMaximumMarkingStepSize;
 
-  return static_cast<size_t>(marking_step_size * kConservativeTimeRatio);
+  return static_cast<size_t>(marking_step_size *
+                             GCIdleTimeHandler::kConservativeTimeRatio);
 }
 
 
@@ -43,7 +45,7 @@ size_t GCIdleTimeHandler::EstimateMarkCompactTime(
 }
 
 
-GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
+GCIdleTimeAction GCIdleTimeHandler::Compute(int idle_time_in_ms,
                                             HeapState heap_state,
                                             GCTracer* gc_tracer) {
   if (IsIdleRoundFinished()) {
@@ -56,8 +58,8 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
   if (heap_state.incremental_marking_stopped) {
     size_t speed =
         static_cast<size_t>(gc_tracer->MarkCompactSpeedInBytesPerMillisecond());
-    if (idle_time_in_ms >=
-        EstimateMarkCompactTime(heap_state.size_of_objects, speed)) {
+    if (idle_time_in_ms >= static_cast<int>(EstimateMarkCompactTime(
+                               heap_state.size_of_objects, speed))) {
       // If there are no more than two GCs left in this idle round and we are
       // allowed to do a full GC, then make those GCs full in order to compact
       // the code space.
@@ -74,12 +76,6 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
       return GCIdleTimeAction::Nothing();
     }
   }
-  // TODO(hpayer): Estimate finalize sweeping time.
-  if (heap_state.sweeping_in_progress &&
-      idle_time_in_ms >= kMinTimeForFinalizeSweeping) {
-    return GCIdleTimeAction::FinalizeSweeping();
-  }
-
   intptr_t speed = gc_tracer->IncrementalMarkingSpeedInBytesPerMillisecond();
   size_t step_size =
       static_cast<size_t>(EstimateMarkingStepSize(idle_time_in_ms, speed));
