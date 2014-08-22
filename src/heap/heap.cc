@@ -4296,6 +4296,8 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   // TODO(ulan): Start incremental marking only for large heaps.
   heap_state.can_start_incremental_marking = true;
+  heap_state.sweeping_in_progress =
+      mark_compact_collector()->sweeping_in_progress();
 
   GCIdleTimeAction action =
       gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state, tracer());
@@ -4321,17 +4323,11 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
     case DO_SCAVENGE:
       CollectGarbage(NEW_SPACE, "idle notification: scavenge");
       break;
+    case DO_FINALIZE_SWEEPING:
+      mark_compact_collector()->EnsureSweepingCompleted();
     case DO_NOTHING:
       result = true;
       break;
-  }
-  // If the IdleNotifcation is called with a large hint we will wait for
-  // the sweepter threads here.
-  // TODO(ulan): move this in GCIdleTimeHandler.
-  const int kMinHintForFullGC = 100;
-  if (idle_time_in_ms >= kMinHintForFullGC &&
-      mark_compact_collector()->sweeping_in_progress()) {
-    mark_compact_collector()->EnsureSweepingCompleted();
   }
 
   return result;
