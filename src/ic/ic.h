@@ -44,9 +44,9 @@ class IC {
  public:
   // The ids for utility called from the generated code.
   enum UtilityId {
-  #define CONST_NAME(name) k##name,
+#define CONST_NAME(name) k##name,
     IC_UTIL_LIST(CONST_NAME)
-  #undef CONST_NAME
+#undef CONST_NAME
     kUtilityCount
   };
 
@@ -58,10 +58,7 @@ class IC {
 
   // The IC code is either invoked with no extra frames on the stack
   // or with a single extra frame for supporting calls.
-  enum FrameDepth {
-    NO_EXTRA_FRAME = 0,
-    EXTRA_CALL_FRAME = 1
-  };
+  enum FrameDepth { NO_EXTRA_FRAME = 0, EXTRA_CALL_FRAME = 1 };
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
@@ -89,8 +86,7 @@ class IC {
   static void InvalidateMaps(Code* stub);
 
   // Clear the inline cache to initial state.
-  static void Clear(Isolate* isolate,
-                    Address address,
+  static void Clear(Isolate* isolate, Address address,
                     ConstantPoolArray* constant_pool);
 
 #ifdef DEBUG
@@ -102,9 +98,7 @@ class IC {
     return target()->is_store_stub() || target()->is_keyed_store_stub();
   }
 
-  bool IsCallStub() const {
-    return target()->is_call_stub();
-  }
+  bool IsCallStub() const { return target()->is_call_stub(); }
 #endif
 
   template <class TypeClass>
@@ -151,14 +145,7 @@ class IC {
   Code* GetOriginalCode() const;
 
   // Set the call-site target.
-  void set_target(Code* code) {
-#ifdef VERIFY_HEAP
-    code->VerifyEmbeddedObjectsDependency();
-#endif
-    SetTargetAtAddress(address(), code, constant_pool());
-    target_set_ = true;
-  }
-
+  inline void set_target(Code* code);
   bool is_target_set() { return target_set_; }
 
   char TransitionMarkFromState(IC::State state);
@@ -166,16 +153,14 @@ class IC {
   void TraceIC(const char* type, Handle<Object> name, State old_state,
                State new_state);
 
-  MaybeHandle<Object> TypeError(const char* type,
-                                Handle<Object> object,
+  MaybeHandle<Object> TypeError(const char* type, Handle<Object> object,
                                 Handle<Object> key);
   MaybeHandle<Object> ReferenceError(const char* type, Handle<Name> name);
 
   // Access the target code for the given IC address.
   static inline Code* GetTargetAtAddress(Address address,
                                          ConstantPoolArray* constant_pool);
-  static inline void SetTargetAtAddress(Address address,
-                                        Code* target,
+  static inline void SetTargetAtAddress(Address address, Code* target,
                                         ConstantPoolArray* constant_pool);
   static void OnTypeFeedbackChanged(Isolate* isolate, Address address,
                                     State old_state, State new_state,
@@ -215,9 +200,7 @@ class IC {
                                               Handle<String> name);
 
   ExtraICState extra_ic_state() const { return extra_ic_state_; }
-  void set_extra_ic_state(ExtraICState state) {
-    extra_ic_state_ = state;
-  }
+  void set_extra_ic_state(ExtraICState state) { extra_ic_state_ = state; }
 
   Handle<HeapType> receiver_type() { return receiver_type_; }
   void update_receiver_type(Handle<Object> receiver) {
@@ -244,14 +227,10 @@ class IC {
   }
 
  protected:
-  void UpdateTarget() {
-    target_ = handle(raw_target(), isolate_);
-  }
+  inline void UpdateTarget();
 
  private:
-  Code* raw_target() const {
-    return GetTargetAtAddress(address(), constant_pool());
-  }
+  inline Code* raw_target() const;
   inline ConstantPoolArray* constant_pool() const;
   inline ConstantPoolArray* raw_constant_pool() const;
 
@@ -302,18 +281,19 @@ class IC {
 class IC_Utility {
  public:
   explicit IC_Utility(IC::UtilityId id)
-    : address_(IC::AddressFromUtilityId(id)), id_(id) {}
+      : address_(IC::AddressFromUtilityId(id)), id_(id) {}
 
   Address address() const { return address_; }
 
   IC::UtilityId id() const { return id_; }
+
  private:
   Address address_;
   IC::UtilityId id_;
 };
 
 
-class CallIC: public IC {
+class CallIC : public IC {
  public:
   enum CallType { METHOD, FUNCTION };
 
@@ -321,14 +301,12 @@ class CallIC: public IC {
    public:
     explicit State(ExtraICState extra_ic_state);
 
-    State(int argc, CallType call_type)
-        : argc_(argc), call_type_(call_type) {
-    }
+    State(int argc, CallType call_type) : argc_(argc), call_type_(call_type) {}
 
     ExtraICState GetExtraICState() const;
 
-    static void GenerateAheadOfTime(
-        Isolate*, void (*Generate)(Isolate*, const State&));
+    static void GenerateAheadOfTime(Isolate*,
+                                    void (*Generate)(Isolate*, const State&));
 
     int arg_count() const { return argc_; }
     CallType call_type() const { return call_type_; }
@@ -336,35 +314,28 @@ class CallIC: public IC {
     bool CallAsMethod() const { return call_type_ == METHOD; }
 
    private:
-    class ArgcBits: public BitField<int, 0, Code::kArgumentsBits> {};
-    class CallTypeBits: public BitField<CallType, Code::kArgumentsBits, 1> {};
+    class ArgcBits : public BitField<int, 0, Code::kArgumentsBits> {};
+    class CallTypeBits : public BitField<CallType, Code::kArgumentsBits, 1> {};
 
     const int argc_;
     const CallType call_type_;
   };
 
-  explicit CallIC(Isolate* isolate)
-      : IC(EXTRA_CALL_FRAME, isolate) {
-  }
+  explicit CallIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
   void PatchMegamorphic(Handle<Object> function, Handle<FixedArray> vector,
                         Handle<Smi> slot);
 
-  void HandleMiss(Handle<Object> receiver,
-                  Handle<Object> function,
-                  Handle<FixedArray> vector,
-                  Handle<Smi> slot);
+  void HandleMiss(Handle<Object> receiver, Handle<Object> function,
+                  Handle<FixedArray> vector, Handle<Smi> slot);
 
   // Returns true if a custom handler was installed.
-  bool DoCustomHandler(Handle<Object> receiver,
-                       Handle<Object> function,
-                       Handle<FixedArray> vector,
-                       Handle<Smi> slot,
+  bool DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
+                       Handle<FixedArray> vector, Handle<Smi> slot,
                        const State& state);
 
   // Code generator routines.
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      int argc,
+  static Handle<Code> initialize_stub(Isolate* isolate, int argc,
                                       CallType call_type);
 
   static void Clear(Isolate* isolate, Address address, Code* target,
@@ -379,13 +350,9 @@ class CallIC: public IC {
 OStream& operator<<(OStream& os, const CallIC::State& s);
 
 
-class LoadIC: public IC {
+class LoadIC : public IC {
  public:
-  enum ParameterIndices {
-    kReceiverIndex,
-    kNameIndex,
-    kParameterCount
-  };
+  enum ParameterIndices { kReceiverIndex, kNameIndex, kParameterCount };
   static const Register ReceiverRegister();
   static const Register NameRegister();
 
@@ -396,8 +363,7 @@ class LoadIC: public IC {
 
   class State V8_FINAL BASE_EMBEDDED {
    public:
-    explicit State(ExtraICState extra_ic_state)
-        : state_(extra_ic_state) {}
+    explicit State(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
 
     explicit State(ContextualMode mode)
         : state_(ContextualModeBits::encode(mode)) {}
@@ -409,7 +375,7 @@ class LoadIC: public IC {
     }
 
    private:
-    class ContextualModeBits: public BitField<ContextualMode, 0, 1> {};
+    class ContextualModeBits : public BitField<ContextualMode, 0, 1> {};
     STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
 
     const ExtraICState state_;
@@ -427,8 +393,7 @@ class LoadIC: public IC {
     return GetContextualMode(extra_ic_state());
   }
 
-  explicit LoadIC(FrameDepth depth, Isolate* isolate)
-      : IC(depth, isolate) {
+  explicit LoadIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
     DCHECK(IsLoadStub());
   }
 
@@ -460,13 +425,7 @@ class LoadIC: public IC {
                                            Handle<Name> name);
 
  protected:
-  void set_target(Code* code) {
-    // The contextual mode must be preserved across IC patching.
-    DCHECK(GetContextualMode(code->extra_ic_state()) ==
-           GetContextualMode(target()->extra_ic_state()));
-
-    IC::set_target(code);
-  }
+  inline void set_target(Code* code);
 
   Handle<Code> slow_stub() const {
     if (kind() == Code::LOAD_IC) {
@@ -494,16 +453,14 @@ class LoadIC: public IC {
 
   Handle<Code> SimpleFieldLoad(FieldIndex index);
 
-  static void Clear(Isolate* isolate,
-                    Address address,
-                    Code* target,
+  static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);
 
   friend class IC;
 };
 
 
-class KeyedLoadIC: public LoadIC {
+class KeyedLoadIC : public LoadIC {
  public:
   explicit KeyedLoadIC(FrameDepth depth, Isolate* isolate)
       : LoadIC(depth, isolate) {
@@ -553,18 +510,16 @@ class KeyedLoadIC: public LoadIC {
     return isolate()->builtins()->KeyedLoadIC_String();
   }
 
-  static void Clear(Isolate* isolate,
-                    Address address,
-                    Code* target,
+  static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);
 
   friend class IC;
 };
 
 
-class StoreIC: public IC {
+class StoreIC : public IC {
  public:
-  class StrictModeState: public BitField<StrictMode, 1, 1> {};
+  class StrictModeState : public BitField<StrictMode, 1, 1> {};
   static ExtraICState ComputeExtraICState(StrictMode flag) {
     return StrictModeState::encode(flag);
   }
@@ -574,8 +529,7 @@ class StoreIC: public IC {
 
   // For convenience, a statically declared encoding of strict mode extra
   // IC state.
-  static const ExtraICState kStrictModeState =
-      1 << StrictModeState::kShift;
+  static const ExtraICState kStrictModeState = 1 << StrictModeState::kShift;
 
   enum ParameterIndices {
     kReceiverIndex,
@@ -587,8 +541,7 @@ class StoreIC: public IC {
   static const Register NameRegister();
   static const Register ValueRegister();
 
-  StoreIC(FrameDepth depth, Isolate* isolate)
-      : IC(depth, isolate) {
+  StoreIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
     DCHECK(IsStoreStub());
   }
 
@@ -608,13 +561,10 @@ class StoreIC: public IC {
   static void GenerateRuntimeSetProperty(MacroAssembler* masm,
                                          StrictMode strict_mode);
 
-  static Handle<Code> initialize_stub(Isolate* isolate,
-                                      StrictMode strict_mode);
+  static Handle<Code> initialize_stub(Isolate* isolate, StrictMode strict_mode);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
-      Handle<Object> object,
-      Handle<Name> name,
-      Handle<Object> value,
+      Handle<Object> object, Handle<Name> name, Handle<Object> value,
       JSReceiver::StoreFromKeyed store_mode =
           JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
 
@@ -647,45 +597,32 @@ class StoreIC: public IC {
                                       CacheHolderFlag cache_holder);
 
  private:
-  void set_target(Code* code) {
-    // Strict mode must be preserved across IC patching.
-    DCHECK(GetStrictMode(code->extra_ic_state()) ==
-           GetStrictMode(target()->extra_ic_state()));
-    IC::set_target(code);
-  }
+  inline void set_target(Code* code);
 
-  static void Clear(Isolate* isolate,
-                    Address address,
-                    Code* target,
+  static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);
 
   friend class IC;
 };
 
 
-enum KeyedStoreCheckMap {
-  kDontCheckMap,
-  kCheckMap
-};
+enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };
 
 
-enum KeyedStoreIncrementLength {
-  kDontIncrementLength,
-  kIncrementLength
-};
+enum KeyedStoreIncrementLength { kDontIncrementLength, kIncrementLength };
 
 
-class KeyedStoreIC: public StoreIC {
+class KeyedStoreIC : public StoreIC {
  public:
   // ExtraICState bits (building on IC)
   // ExtraICState bits
-  class ExtraICStateKeyedAccessStoreMode:
-      public BitField<KeyedAccessStoreMode, 2, 4> {};  // NOLINT
+  class ExtraICStateKeyedAccessStoreMode
+      : public BitField<KeyedAccessStoreMode, 2, 4> {};  // NOLINT
 
   static ExtraICState ComputeExtraICState(StrictMode flag,
                                           KeyedAccessStoreMode mode) {
     return StrictModeState::encode(flag) |
-        ExtraICStateKeyedAccessStoreMode::encode(mode);
+           ExtraICStateKeyedAccessStoreMode::encode(mode);
   }
 
   static KeyedAccessStoreMode GetKeyedAccessStoreMode(
@@ -698,8 +635,7 @@ class KeyedStoreIC: public StoreIC {
   // stub implementations requires it to be initialized.
   static const Register MapRegister();
 
-  KeyedStoreIC(FrameDepth depth, Isolate* isolate)
-      : StoreIC(depth, isolate) {
+  KeyedStoreIC(FrameDepth depth, Isolate* isolate) : StoreIC(depth, isolate) {
     DCHECK(target()->is_keyed_store_stub());
   }
 
@@ -746,11 +682,7 @@ class KeyedStoreIC: public StoreIC {
                                 KeyedAccessStoreMode store_mode);
 
  private:
-  void set_target(Code* code) {
-    // Strict mode must be preserved across IC patching.
-    DCHECK(GetStrictMode(code->extra_ic_state()) == strict_mode());
-    IC::set_target(code);
-  }
+  inline void set_target(Code* code);
 
   // Stub accessors.
   virtual Handle<Code> generic_stub() const {
@@ -765,14 +697,11 @@ class KeyedStoreIC: public StoreIC {
     return isolate()->builtins()->KeyedStoreIC_SloppyArguments();
   }
 
-  static void Clear(Isolate* isolate,
-                    Address address,
-                    Code* target,
+  static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);
 
   KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
-                                    Handle<Object> key,
-                                    Handle<Object> value);
+                                    Handle<Object> key, Handle<Object> value);
 
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
@@ -785,15 +714,19 @@ class KeyedStoreIC: public StoreIC {
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
 // Type Recording BinaryOpIC, that records the types of the inputs and outputs.
-class BinaryOpIC: public IC {
+class BinaryOpIC : public IC {
  public:
   class State V8_FINAL BASE_EMBEDDED {
    public:
     State(Isolate* isolate, ExtraICState extra_ic_state);
 
     State(Isolate* isolate, Token::Value op, OverwriteMode mode)
-        : op_(op), mode_(mode), left_kind_(NONE), right_kind_(NONE),
-          result_kind_(NONE), isolate_(isolate) {
+        : op_(op),
+          mode_(mode),
+          left_kind_(NONE),
+          right_kind_(NONE),
+          result_kind_(NONE),
+          isolate_(isolate) {
       DCHECK_LE(FIRST_TOKEN, op);
       DCHECK_LE(op, LAST_TOKEN);
     }
@@ -813,15 +746,15 @@ class BinaryOpIC: public IC {
 
     ExtraICState GetExtraICState() const;
 
-    static void GenerateAheadOfTime(
-        Isolate*, void (*Generate)(Isolate*, const State&));
+    static void GenerateAheadOfTime(Isolate*,
+                                    void (*Generate)(Isolate*, const State&));
 
     bool CanReuseDoubleBox() const {
       return (result_kind_ > SMI && result_kind_ <= NUMBER) &&
-          ((mode_ == OVERWRITE_LEFT &&
-            left_kind_ > SMI && left_kind_ <= NUMBER) ||
-           (mode_ == OVERWRITE_RIGHT &&
-            right_kind_ > SMI && right_kind_ <= NUMBER));
+             ((mode_ == OVERWRITE_LEFT && left_kind_ > SMI &&
+               left_kind_ <= NUMBER) ||
+              (mode_ == OVERWRITE_RIGHT && right_kind_ > SMI &&
+               right_kind_ <= NUMBER));
     }
 
     // Returns true if the IC _could_ create allocation mementos.
@@ -836,7 +769,7 @@ class BinaryOpIC: public IC {
     // Returns true if the IC _should_ create allocation mementos.
     bool ShouldCreateAllocationMementos() const {
       return FLAG_allocation_site_pretenuring &&
-          CouldCreateAllocationMementos();
+             CouldCreateAllocationMementos();
     }
 
     bool HasSideEffects() const {
@@ -856,16 +789,13 @@ class BinaryOpIC: public IC {
     OverwriteMode mode() const { return mode_; }
     Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
 
-    Type* GetLeftType(Zone* zone) const {
-      return KindToType(left_kind_, zone);
-    }
+    Type* GetLeftType(Zone* zone) const { return KindToType(left_kind_, zone); }
     Type* GetRightType(Zone* zone) const {
       return KindToType(right_kind_, zone);
     }
     Type* GetResultType(Zone* zone) const;
 
-    void Update(Handle<Object> left,
-                Handle<Object> right,
+    void Update(Handle<Object> left, Handle<Object> right,
                 Handle<Object> result);
 
     Isolate* isolate() const { return isolate_; }
@@ -885,15 +815,15 @@ class BinaryOpIC: public IC {
 
     // We truncate the last bit of the token.
     STATIC_ASSERT(LAST_TOKEN - FIRST_TOKEN < (1 << 4));
-    class OpField:                 public BitField<int, 0, 4> {};
-    class OverwriteModeField:      public BitField<OverwriteMode, 4, 2> {};
-    class ResultKindField:         public BitField<Kind, 6, 3> {};
-    class LeftKindField:           public BitField<Kind, 9,  3> {};
+    class OpField : public BitField<int, 0, 4> {};
+    class OverwriteModeField : public BitField<OverwriteMode, 4, 2> {};
+    class ResultKindField : public BitField<Kind, 6, 3> {};
+    class LeftKindField : public BitField<Kind, 9, 3> {};
     // When fixed right arg is set, we don't need to store the right kind.
     // Thus the two fields can overlap.
-    class HasFixedRightArgField:   public BitField<bool, 12, 1> {};
-    class FixedRightArgValueField: public BitField<int,  13, 4> {};
-    class RightKindField:          public BitField<Kind, 13, 3> {};
+    class HasFixedRightArgField : public BitField<bool, 12, 1> {};
+    class FixedRightArgValueField : public BitField<int, 13, 4> {};
+    class RightKindField : public BitField<Kind, 13, 3> {};
 
     Token::Value op_;
     OverwriteMode mode_;
@@ -904,7 +834,7 @@ class BinaryOpIC: public IC {
     Isolate* isolate_;
   };
 
-  explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
+  explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
   static Builtins::JavaScript TokenToJSBuiltin(Token::Value op);
 
@@ -917,7 +847,7 @@ class BinaryOpIC: public IC {
 OStream& operator<<(OStream& os, const BinaryOpIC::State& s);
 
 
-class CompareIC: public IC {
+class CompareIC : public IC {
  public:
   // The type/state lattice is defined by the following inequations:
   //   UNINITIALIZED < ...
@@ -931,16 +861,15 @@ class CompareIC: public IC {
     NUMBER,
     STRING,
     INTERNALIZED_STRING,
-    UNIQUE_NAME,    // Symbol or InternalizedString
-    OBJECT,         // JSObject
-    KNOWN_OBJECT,   // JSObject with specific map (faster check)
+    UNIQUE_NAME,   // Symbol or InternalizedString
+    OBJECT,        // JSObject
+    KNOWN_OBJECT,  // JSObject with specific map (faster check)
     GENERIC
   };
 
   static State NewInputState(State old_state, Handle<Object> value);
 
-  static Type* StateToType(Zone* zone,
-                           State state,
+  static Type* StateToType(Zone* zone, State state,
                            Handle<Map> map = Handle<Map>());
 
   static void StubInfoToType(uint32_t stub_key, Type** left_type,
@@ -948,7 +877,7 @@ class CompareIC: public IC {
                              Handle<Map> map, Zone* zone);
 
   CompareIC(Isolate* isolate, Token::Value op)
-      : IC(EXTRA_CALL_FRAME, isolate), op_(op) { }
+      : IC(EXTRA_CALL_FRAME, isolate), op_(op) {}
 
   // Update the inline cache for the given operands.
   Code* UpdateCaches(Handle<Object> x, Handle<Object> y);
@@ -965,11 +894,8 @@ class CompareIC: public IC {
  private:
   static bool HasInlinedSmiCode(Address address);
 
-  State TargetState(State old_state,
-                    State old_left,
-                    State old_right,
-                    bool has_inlined_smi_code,
-                    Handle<Object> x,
+  State TargetState(State old_state, State old_left, State old_right,
+                    bool has_inlined_smi_code, Handle<Object> x,
                     Handle<Object> y);
 
   bool strict() const { return op_ == Token::EQ_STRICT; }
@@ -977,9 +903,7 @@ class CompareIC: public IC {
 
   static Code* GetRawUninitialized(Isolate* isolate, Token::Value op);
 
-  static void Clear(Isolate* isolate,
-                    Address address,
-                    Code* target,
+  static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);
 
   Token::Value op_;
@@ -988,7 +912,7 @@ class CompareIC: public IC {
 };
 
 
-class CompareNilIC: public IC {
+class CompareNilIC : public IC {
  public:
   explicit CompareNilIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
@@ -996,8 +920,7 @@ class CompareNilIC: public IC {
 
   static Handle<Code> GetUninitialized();
 
-  static void Clear(Address address,
-                    Code* target,
+  static void Clear(Address address, Code* target,
                     ConstantPoolArray* constant_pool);
 
   static Handle<Object> DoCompareNilSlow(Isolate* isolate, NilValue nil,
@@ -1005,9 +928,9 @@ class CompareNilIC: public IC {
 };
 
 
-class ToBooleanIC: public IC {
+class ToBooleanIC : public IC {
  public:
-  explicit ToBooleanIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) { }
+  explicit ToBooleanIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
   Handle<Object> ToBoolean(Handle<Object> object);
 };
@@ -1027,7 +950,15 @@ DECLARE_RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite);
 DECLARE_RUNTIME_FUNCTION(CompareNilIC_Miss);
 DECLARE_RUNTIME_FUNCTION(ToBooleanIC_Miss);
 
+// Support functions for callbacks handlers.
+DECLARE_RUNTIME_FUNCTION(StoreCallbackProperty);
 
-} }  // namespace v8::internal
+// Support functions for interceptor handlers.
+DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly);
+DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptor);
+DECLARE_RUNTIME_FUNCTION(LoadElementWithInterceptor);
+DECLARE_RUNTIME_FUNCTION(StorePropertyWithInterceptor);
+}
+}  // namespace v8::internal
 
 #endif  // V8_IC_H_

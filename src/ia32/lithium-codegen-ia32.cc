@@ -11,8 +11,6 @@
 #include "src/deoptimizer.h"
 #include "src/hydrogen-osr.h"
 #include "src/ia32/lithium-codegen-ia32.h"
-#include "src/ic.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

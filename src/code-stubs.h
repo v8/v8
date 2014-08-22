@@ -9,6 +9,7 @@
 #include "src/assembler.h"
 #include "src/codegen.h"
 #include "src/globals.h"
+#include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
 

@@ -14,7 +14,6 @@
 #include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/scopes.h"
-#include "src/stub-cache.h"
 
 #include "src/arm64/code-stubs-arm64.h"
 #include "src/arm64/macro-assembler-arm64.h"

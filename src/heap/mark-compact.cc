@@ -20,8 +20,7 @@
 #include "src/heap/spaces-inl.h"
 #include "src/heap/sweeper-thread.h"
 #include "src/heap-profiler.h"
-#include "src/ic-inl.h"
-#include "src/stub-cache.h"
+#include "src/ic/stub-cache.h"
 
 namespace v8 {
 namespace internal {

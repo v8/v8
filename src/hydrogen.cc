@@ -39,8 +39,11 @@
 #include "src/runtime.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
-#include "src/stub-cache.h"
 #include "src/typing.h"
+// CallOptimization
+#include "src/ic/ic-compiler.h"
+// GetRootConstructor
+#include "src/ic/ic-inl.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/lithium-codegen-ia32.h"  // NOLINT

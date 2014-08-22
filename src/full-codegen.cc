@@ -14,7 +14,6 @@
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
 #include "src/snapshot.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

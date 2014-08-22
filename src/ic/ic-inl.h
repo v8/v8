@@ -5,7 +5,7 @@
 #ifndef V8_IC_INL_H_
 #define V8_IC_INL_H_
 
-#include "src/ic.h"
+#include "src/ic/ic.h"
 
 #include "src/compiler.h"
 #include "src/debug.h"
@@ -27,8 +27,8 @@ Address IC::address() const {
 
   // At least one break point is active perform additional test to ensure that
   // break point locations are updated correctly.
-  if (debug->IsDebugBreak(Assembler::target_address_at(result,
-                                                       raw_constant_pool()))) {
+  if (debug->IsDebugBreak(
+          Assembler::target_address_at(result, raw_constant_pool()))) {
     // If the call site is a call to debug break then return the address in
     // the original code instead of the address in the running code. This will
     // cause the original code to be updated and keeps the breakpoint active in
@@ -93,8 +93,7 @@ Code* IC::GetTargetAtAddress(Address address,
 }
 
 
-void IC::SetTargetAtAddress(Address address,
-                            Code* target,
+void IC::SetTargetAtAddress(Address address, Code* target,
                             ConstantPoolArray* constant_pool) {
   DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());
   Heap* heap = target->GetHeap();
@@ -108,8 +107,8 @@ void IC::SetTargetAtAddress(Address address,
            StoreIC::GetStrictMode(target->extra_ic_state()));
   }
 #endif
-  Assembler::set_target_address_at(
-      address, constant_pool, target->instruction_start());
+  Assembler::set_target_address_at(address, constant_pool,
+                                   target->instruction_start());
   if (heap->gc_state() == Heap::MARK_COMPACT) {
     heap->mark_compact_collector()->RecordCodeTargetPatch(address, target);
   } else {
@@ -117,6 +116,46 @@ void IC::SetTargetAtAddress(Address address,
   }
   PostPatching(address, target, old_target);
 }
+
+
+void IC::set_target(Code* code) {
+#ifdef VERIFY_HEAP
+  code->VerifyEmbeddedObjectsDependency();
+#endif
+  SetTargetAtAddress(address(), code, constant_pool());
+  target_set_ = true;
+}
+
+
+void LoadIC::set_target(Code* code) {
+  // The contextual mode must be preserved across IC patching.
+  DCHECK(GetContextualMode(code->extra_ic_state()) ==
+         GetContextualMode(target()->extra_ic_state()));
+
+  IC::set_target(code);
+}
+
+
+void StoreIC::set_target(Code* code) {
+  // Strict mode must be preserved across IC patching.
+  DCHECK(GetStrictMode(code->extra_ic_state()) ==
+         GetStrictMode(target()->extra_ic_state()));
+  IC::set_target(code);
+}
+
+
+void KeyedStoreIC::set_target(Code* code) {
+  // Strict mode must be preserved across IC patching.
+  DCHECK(GetStrictMode(code->extra_ic_state()) == strict_mode());
+  IC::set_target(code);
+}
+
+
+Code* IC::raw_target() const {
+  return GetTargetAtAddress(address(), constant_pool());
+}
+
+void IC::UpdateTarget() { target_ = handle(raw_target(), isolate_); }
 
 
 template <class TypeClass>
@@ -184,6 +223,7 @@ IC::State CallIC::FeedbackToState(Handle<FixedArray> vector,
 
   return state;
 }
-} }  // namespace v8::internal
+}
+}  // namespace v8::internal
 
 #endif  // V8_IC_INL_H_

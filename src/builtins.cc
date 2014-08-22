@@ -13,9 +13,9 @@
 #include "src/gdb-jit.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap-profiler.h"
-#include "src/ic-inl.h"
+#include "src/ic/ic.h"
+#include "src/ic/ic-compiler.h"
 #include "src/prototype.h"
-#include "src/stub-cache.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {

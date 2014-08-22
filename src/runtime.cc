@@ -40,7 +40,6 @@
 #include "src/scopeinfo.h"
 #include "src/smart-pointers.h"
 #include "src/string-search.h"
-#include "src/stub-cache.h"
 #include "src/uri.h"
 #include "src/utils.h"
 #include "src/v8threads.h"

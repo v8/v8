@@ -8,7 +8,6 @@
 
 #include "src/code-stubs.h"
 #include "src/hydrogen-osr.h"
-#include "src/stub-cache.h"
 #include "src/x64/lithium-codegen-x64.h"
 
 namespace v8 {

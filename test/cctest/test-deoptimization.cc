@@ -35,7 +35,6 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/isolate.h"
-#include "src/stub-cache.h"
 #include "test/cctest/cctest.h"
 
 using ::v8::base::OS;

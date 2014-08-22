@@ -35,7 +35,6 @@
 #include "src/compilation-cache.h"
 #include "src/debug.h"
 #include "src/heap/spaces.h"
-#include "src/ic-inl.h"
 #include "src/natives.h"
 #include "src/objects.h"
 #include "src/runtime.h"

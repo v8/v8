@@ -36,7 +36,6 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frames.h"
-#include "src/stub-cache.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 

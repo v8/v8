@@ -1,112 +1,23 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "src/v8.h"
 
-#include "src/api.h"
-#include "src/arguments.h"
-#include "src/ast.h"
-#include "src/code-stubs.h"
-#include "src/cpu-profiler.h"
-#include "src/gdb-jit.h"
-#include "src/ic-inl.h"
-#include "src/stub-cache.h"
-#include "src/type-info.h"
-#include "src/vm-state-inl.h"
+#include "src/ic/ic-inl.h"
+#include "src/ic/ic-compiler.h"
+
 
 namespace v8 {
 namespace internal {
-
-// -----------------------------------------------------------------------
-// StubCache implementation.
-
-
-StubCache::StubCache(Isolate* isolate)
-    : isolate_(isolate) { }
-
-
-void StubCache::Initialize() {
-  DCHECK(IsPowerOf2(kPrimaryTableSize));
-  DCHECK(IsPowerOf2(kSecondaryTableSize));
-  Clear();
-}
-
-
-static Code::Flags CommonStubCacheChecks(Name* name, Map* map,
-                                         Code::Flags flags) {
-  flags = Code::RemoveTypeAndHolderFromFlags(flags);
-
-  // Validate that the name does not move on scavenge, and that we
-  // can use identity checks instead of structural equality checks.
-  DCHECK(!name->GetHeap()->InNewSpace(name));
-  DCHECK(name->IsUniqueName());
-
-  // The state bits are not important to the hash function because the stub
-  // cache only contains handlers. Make sure that the bits are the least
-  // significant so they will be the ones masked out.
-  DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(flags));
-  STATIC_ASSERT((Code::ICStateField::kMask & 1) == 1);
-
-  // Make sure that the code type and cache holder are not included in the hash.
-  DCHECK(Code::ExtractTypeFromFlags(flags) == 0);
-  DCHECK(Code::ExtractCacheHolderFromFlags(flags) == 0);
-
-  return flags;
-}
-
-
-Code* StubCache::Set(Name* name, Map* map, Code* code) {
-  Code::Flags flags = CommonStubCacheChecks(name, map, code->flags());
-
-  // Compute the primary entry.
-  int primary_offset = PrimaryOffset(name, flags, map);
-  Entry* primary = entry(primary_, primary_offset);
-  Code* old_code = primary->value;
-
-  // If the primary entry has useful data in it, we retire it to the
-  // secondary cache before overwriting it.
-  if (old_code != isolate_->builtins()->builtin(Builtins::kIllegal)) {
-    Map* old_map = primary->map;
-    Code::Flags old_flags =
-        Code::RemoveTypeAndHolderFromFlags(old_code->flags());
-    int seed = PrimaryOffset(primary->key, old_flags, old_map);
-    int secondary_offset = SecondaryOffset(primary->key, old_flags, seed);
-    Entry* secondary = entry(secondary_, secondary_offset);
-    *secondary = *primary;
-  }
-
-  // Update primary cache.
-  primary->key = name;
-  primary->value = code;
-  primary->map = map;
-  isolate()->counters()->megamorphic_stub_cache_updates()->Increment();
-  return code;
-}
-
-
-Code* StubCache::Get(Name* name, Map* map, Code::Flags flags) {
-  flags = CommonStubCacheChecks(name, map, flags);
-  int primary_offset = PrimaryOffset(name, flags, map);
-  Entry* primary = entry(primary_, primary_offset);
-  if (primary->key == name && primary->map == map) {
-    return primary->value;
-  }
-  int secondary_offset = SecondaryOffset(name, flags, primary_offset);
-  Entry* secondary = entry(secondary_, secondary_offset);
-  if (secondary->key == name && secondary->map == map) {
-    return secondary->value;
-  }
-  return NULL;
-}
 
 
 Handle<Code> PropertyICCompiler::Find(Handle<Name> name,
                                       Handle<Map> stub_holder, Code::Kind kind,
                                       ExtraICState extra_state,
                                       CacheHolderFlag cache_holder) {
-  Code::Flags flags = Code::ComputeMonomorphicFlags(
-      kind, extra_state, cache_holder);
+  Code::Flags flags =
+      Code::ComputeMonomorphicFlags(kind, extra_state, cache_holder);
   Object* probe = stub_holder->FindInCodeCache(*name, flags);
   if (probe->IsCode()) return handle(Code::cast(probe));
   return Handle<Code>::null();
@@ -261,21 +172,13 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStoreMonomorphic(
       compiler.CompileKeyedStoreMonomorphic(receiver_map, store_mode);
 
   Map::UpdateCodeCache(receiver_map, name, code);
-  DCHECK(KeyedStoreIC::GetKeyedAccessStoreMode(code->extra_ic_state())
-         == store_mode);
+  DCHECK(KeyedStoreIC::GetKeyedAccessStoreMode(code->extra_ic_state()) ==
+         store_mode);
   return code;
 }
 
 
 #define CALL_LOGGER_TAG(kind, type) (Logger::KEYED_##type)
-
-static void FillCache(Isolate* isolate, Handle<Code> code) {
-  Handle<UnseededNumberDictionary> dictionary =
-      UnseededNumberDictionary::Set(isolate->factory()->non_monomorphic_cache(),
-                                    code->flags(),
-                                    code);
-  isolate->heap()->public_set_non_monomorphic_cache(*dictionary);
-}
 
 
 Code* PropertyICCompiler::FindPreMonomorphic(Isolate* isolate, Code::Kind kind,
@@ -289,6 +192,13 @@ Code* PropertyICCompiler::FindPreMonomorphic(Isolate* isolate, Code::Kind kind,
   // This might be called during the marking phase of the collector
   // hence the unchecked cast.
   return reinterpret_cast<Code*>(code);
+}
+
+
+static void FillCache(Isolate* isolate, Handle<Code> code) {
+  Handle<UnseededNumberDictionary> dictionary = UnseededNumberDictionary::Set(
+      isolate->factory()->non_monomorphic_cache(), code->flags(), code);
+  isolate->heap()->public_set_non_monomorphic_cache(*dictionary);
 }
 
 
@@ -417,8 +327,8 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStorePolymorphic(
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
   Handle<PolymorphicCodeCache> cache =
       isolate->factory()->polymorphic_code_cache();
-  ExtraICState extra_state = KeyedStoreIC::ComputeExtraICState(
-      strict_mode, store_mode);
+  ExtraICState extra_state =
+      KeyedStoreIC::ComputeExtraICState(strict_mode, store_mode);
   Code::Flags flags =
       Code::ComputeFlags(Code::KEYED_STORE_IC, POLYMORPHIC, extra_state);
   Handle<Object> probe = cache->Lookup(receiver_maps, flags);
@@ -432,227 +342,10 @@ Handle<Code> PropertyICCompiler::ComputeKeyedStorePolymorphic(
 }
 
 
-void StubCache::Clear() {
-  Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
-  for (int i = 0; i < kPrimaryTableSize; i++) {
-    primary_[i].key = isolate()->heap()->empty_string();
-    primary_[i].map = NULL;
-    primary_[i].value = empty;
-  }
-  for (int j = 0; j < kSecondaryTableSize; j++) {
-    secondary_[j].key = isolate()->heap()->empty_string();
-    secondary_[j].map = NULL;
-    secondary_[j].value = empty;
-  }
-}
-
-
-void StubCache::CollectMatchingMaps(SmallMapList* types,
-                                    Handle<Name> name,
-                                    Code::Flags flags,
-                                    Handle<Context> native_context,
-                                    Zone* zone) {
-  for (int i = 0; i < kPrimaryTableSize; i++) {
-    if (primary_[i].key == *name) {
-      Map* map = primary_[i].map;
-      // Map can be NULL, if the stub is constant function call
-      // with a primitive receiver.
-      if (map == NULL) continue;
-
-      int offset = PrimaryOffset(*name, flags, map);
-      if (entry(primary_, offset) == &primary_[i] &&
-          !TypeFeedbackOracle::CanRetainOtherContext(map, *native_context)) {
-        types->AddMapIfMissing(Handle<Map>(map), zone);
-      }
-    }
-  }
-
-  for (int i = 0; i < kSecondaryTableSize; i++) {
-    if (secondary_[i].key == *name) {
-      Map* map = secondary_[i].map;
-      // Map can be NULL, if the stub is constant function call
-      // with a primitive receiver.
-      if (map == NULL) continue;
-
-      // Lookup in primary table and skip duplicates.
-      int primary_offset = PrimaryOffset(*name, flags, map);
-
-      // Lookup in secondary table and add matches.
-      int offset = SecondaryOffset(*name, flags, primary_offset);
-      if (entry(secondary_, offset) == &secondary_[i] &&
-          !TypeFeedbackOracle::CanRetainOtherContext(map, *native_context)) {
-        types->AddMapIfMissing(Handle<Map>(map), zone);
-      }
-    }
-  }
-}
-
-
-// ------------------------------------------------------------------------
-// StubCompiler implementation.
-
-
-RUNTIME_FUNCTION(StoreCallbackProperty) {
-  Handle<JSObject> receiver = args.at<JSObject>(0);
-  Handle<JSObject> holder = args.at<JSObject>(1);
-  Handle<ExecutableAccessorInfo> callback = args.at<ExecutableAccessorInfo>(2);
-  Handle<Name> name = args.at<Name>(3);
-  Handle<Object> value = args.at<Object>(4);
-  HandleScope scope(isolate);
-
-  DCHECK(callback->IsCompatibleReceiver(*receiver));
-
-  Address setter_address = v8::ToCData<Address>(callback->setter());
-  v8::AccessorNameSetterCallback fun =
-      FUNCTION_CAST<v8::AccessorNameSetterCallback>(setter_address);
-  DCHECK(fun != NULL);
-
-  LOG(isolate, ApiNamedPropertyAccess("store", *receiver, *name));
-  PropertyCallbackArguments custom_args(isolate, callback->data(), *receiver,
-                                        *holder);
-  custom_args.Call(fun, v8::Utils::ToLocal(name), v8::Utils::ToLocal(value));
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  return *value;
-}
-
-
-/**
- * Attempts to load a property with an interceptor (which must be present),
- * but doesn't search the prototype chain.
- *
- * Returns |Heap::no_interceptor_result_sentinel()| if interceptor doesn't
- * provide any value for the given name.
- */
-RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly) {
-  DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
-  Handle<Name> name_handle =
-      args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<InterceptorInfo> interceptor_info = args.at<InterceptorInfo>(
-      NamedLoadHandlerCompiler::kInterceptorArgsInfoIndex);
-
-  // TODO(rossberg): Support symbols in the API.
-  if (name_handle->IsSymbol())
-    return isolate->heap()->no_interceptor_result_sentinel();
-  Handle<String> name = Handle<String>::cast(name_handle);
-
-  Address getter_address = v8::ToCData<Address>(interceptor_info->getter());
-  v8::NamedPropertyGetterCallback getter =
-      FUNCTION_CAST<v8::NamedPropertyGetterCallback>(getter_address);
-  DCHECK(getter != NULL);
-
-  Handle<JSObject> receiver =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
-  Handle<JSObject> holder =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
-  PropertyCallbackArguments callback_args(
-      isolate, interceptor_info->data(), *receiver, *holder);
-  {
-    // Use the interceptor getter.
-    HandleScope scope(isolate);
-    v8::Handle<v8::Value> r =
-        callback_args.Call(getter, v8::Utils::ToLocal(name));
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-    if (!r.IsEmpty()) {
-      Handle<Object> result = v8::Utils::OpenHandle(*r);
-      result->VerifyApiCallResultType();
-      return *v8::Utils::OpenHandle(*r);
-    }
-  }
-
-  return isolate->heap()->no_interceptor_result_sentinel();
-}
-
-
-static Object* ThrowReferenceError(Isolate* isolate, Name* name) {
-  // If the load is non-contextual, just return the undefined result.
-  // Note that both keyed and non-keyed loads may end up here.
-  HandleScope scope(isolate);
-  LoadIC ic(IC::NO_EXTRA_FRAME, isolate);
-  if (ic.contextual_mode() != CONTEXTUAL) {
-    return isolate->heap()->undefined_value();
-  }
-
-  // Throw a reference error.
-  Handle<Name> name_handle(name);
-  Handle<Object> error =
-      isolate->factory()->NewReferenceError("not_defined",
-                                            HandleVector(&name_handle, 1));
-  return isolate->Throw(*error);
-}
-
-
-/**
- * Loads a property with an interceptor performing post interceptor
- * lookup if interceptor failed.
- */
-RUNTIME_FUNCTION(LoadPropertyWithInterceptor) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
-  Handle<Name> name =
-      args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
-  Handle<JSObject> receiver =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
-  Handle<JSObject> holder =
-      args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
-
-  Handle<Object> result;
-  LookupIterator it(receiver, name, holder);
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, JSObject::GetProperty(&it));
-
-  if (it.IsFound()) return *result;
-
-  return ThrowReferenceError(isolate, Name::cast(args[0]));
-}
-
-
-RUNTIME_FUNCTION(StorePropertyWithInterceptor) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
-  Handle<JSObject> receiver = args.at<JSObject>(0);
-  Handle<Name> name = args.at<Name>(1);
-  Handle<Object> value = args.at<Object>(2);
-#ifdef DEBUG
-  PrototypeIterator iter(isolate, receiver,
-                         PrototypeIterator::START_AT_RECEIVER);
-  bool found = false;
-  while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
-    Handle<Object> current = PrototypeIterator::GetCurrent(iter);
-    if (current->IsJSObject() &&
-        Handle<JSObject>::cast(current)->HasNamedInterceptor()) {
-      found = true;
-      break;
-    }
-  }
-  DCHECK(found);
-#endif
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::SetProperty(receiver, name, value, ic.strict_mode()));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(LoadElementWithInterceptor) {
-  HandleScope scope(isolate);
-  Handle<JSObject> receiver = args.at<JSObject>(0);
-  DCHECK(args.smi_at(1) >= 0);
-  uint32_t index = args.smi_at(1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      JSObject::GetElementWithInterceptor(receiver, receiver, index));
-  return *result;
-}
-
-
 Handle<Code> PropertyICCompiler::CompileLoadInitialize(Code::Flags flags) {
   LoadIC::GenerateInitialize(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadInitialize");
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_INITIALIZE_TAG, *code, 0));
   return code;
 }
 
@@ -669,8 +362,7 @@ Handle<Code> PropertyICCompiler::CompileLoadPreMonomorphic(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileLoadMegamorphic(Code::Flags flags) {
   LoadIC::GenerateMegamorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileLoadMegamorphic");
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::LOAD_MEGAMORPHIC_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::LOAD_MEGAMORPHIC_TAG, *code, 0));
   return code;
 }
 
@@ -678,8 +370,7 @@ Handle<Code> PropertyICCompiler::CompileLoadMegamorphic(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileStoreInitialize(Code::Flags flags) {
   StoreIC::GenerateInitialize(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreInitialize");
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::STORE_INITIALIZE_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_INITIALIZE_TAG, *code, 0));
   return code;
 }
 
@@ -698,8 +389,7 @@ Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
   StrictMode strict_mode = StoreIC::GetStrictMode(extra_state);
   StoreIC::GenerateRuntimeSetProperty(masm(), strict_mode);
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreGeneric");
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::STORE_GENERIC_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_GENERIC_TAG, *code, 0));
   return code;
 }
 
@@ -707,8 +397,7 @@ Handle<Code> PropertyICCompiler::CompileStoreGeneric(Code::Flags flags) {
 Handle<Code> PropertyICCompiler::CompileStoreMegamorphic(Code::Flags flags) {
   StoreIC::GenerateMegamorphic(masm());
   Handle<Code> code = GetCodeWithFlags(flags, "CompileStoreMegamorphic");
-  PROFILE(isolate(),
-          CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG, *code, 0));
+  PROFILE(isolate(), CodeCreateEvent(Logger::STORE_MEGAMORPHIC_TAG, *code, 0));
   return code;
 }
 
@@ -736,8 +425,9 @@ Handle<Code> PropertyAccessCompiler::GetCodeWithFlags(Code::Flags flags,
 Handle<Code> PropertyAccessCompiler::GetCodeWithFlags(Code::Flags flags,
                                                       Handle<Name> name) {
   return (FLAG_print_code_stubs && !name.is_null() && name->IsString())
-      ? GetCodeWithFlags(flags, Handle<String>::cast(name)->ToCString().get())
-      : GetCodeWithFlags(flags, NULL);
+             ? GetCodeWithFlags(flags,
+                                Handle<String>::cast(name)->ToCString().get())
+             : GetCodeWithFlags(flags, NULL);
 }
 
 
@@ -762,8 +452,8 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
   }
 
   if (check_type == CHECK_ALL_MAPS) {
-    GenerateDirectLoadGlobalFunctionPrototype(
-        masm(), function_index, scratch1(), miss);
+    GenerateDirectLoadGlobalFunctionPrototype(masm(), function_index,
+                                              scratch1(), miss);
     Object* function = isolate()->native_context()->get(function_index);
     Object* prototype = JSFunction::cast(function)->instance_prototype();
     set_type_for_object(handle(prototype, isolate()));
@@ -885,9 +575,8 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
   DCHECK(call_optimization.is_simple_api_call());
   Frontend(receiver(), name);
   Handle<Map> receiver_map = IC::TypeToMap(*type(), isolate());
-  GenerateFastApiCall(
-      masm(), call_optimization, receiver_map,
-      receiver(), scratch1(), false, 0, NULL);
+  GenerateFastApiCall(masm(), call_optimization, receiver_map, receiver(),
+                      scratch1(), false, 0, NULL);
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -1033,10 +722,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     const CallOptimization& call_optimization) {
   Frontend(receiver(), name);
-  Register values[] = { value() };
-  GenerateFastApiCall(
-      masm(), call_optimization, handle(object->map()),
-      receiver(), scratch1(), true, 1, values);
+  Register values[] = {value()};
+  GenerateFastApiCall(masm(), call_optimization, handle(object->map()),
+                      receiver(), scratch1(), true, 1, values);
   return GetCode(kind(), Code::FAST, name);
 }
 
@@ -1198,8 +886,7 @@ CallOptimization::CallOptimization(Handle<JSFunction> function) {
 
 
 Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
-    Handle<Map> object_map,
-    HolderLookup* holder_lookup) const {
+    Handle<Map> object_map, HolderLookup* holder_lookup) const {
   DCHECK(is_simple_api_call());
   if (!object_map->IsJSObjectMap()) {
     *holder_lookup = kHolderNotFound;
@@ -1231,8 +918,7 @@ bool CallOptimization::IsCompatibleReceiver(Handle<Object> receiver,
   if (!receiver->IsJSObject()) return false;
   Handle<Map> map(JSObject::cast(*receiver)->map());
   HolderLookup holder_lookup;
-  Handle<JSObject> api_holder =
-      LookupHolderOfExpectedType(map, &holder_lookup);
+  Handle<JSObject> api_holder = LookupHolderOfExpectedType(map, &holder_lookup);
   switch (holder_lookup) {
     case kHolderNotFound:
       return false;
@@ -1286,14 +972,12 @@ void CallOptimization::AnalyzePossibleApiFunction(Handle<JSFunction> function) {
         Handle<SignatureInfo>(SignatureInfo::cast(info->signature()));
     if (!signature->args()->IsUndefined()) return;
     if (!signature->receiver()->IsUndefined()) {
-      expected_receiver_type_ =
-          Handle<FunctionTemplateInfo>(
-              FunctionTemplateInfo::cast(signature->receiver()));
+      expected_receiver_type_ = Handle<FunctionTemplateInfo>(
+          FunctionTemplateInfo::cast(signature->receiver()));
     }
   }
 
   is_simple_api_call_ = true;
 }
-
-
-} }  // namespace v8::internal
+}
+}  // namespace v8::internal
