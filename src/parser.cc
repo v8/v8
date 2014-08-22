@@ -628,6 +628,15 @@ const AstRawString* ParserTraits::GetSymbol(Scanner* scanner) {
 }
 
 
+const AstRawString* ParserTraits::GetNumberAsSymbol(Scanner* scanner) {
+  double double_value = parser_->scanner()->DoubleValue();
+  char array[100];
+  const char* string =
+      DoubleToCString(double_value, Vector<char>(array, ARRAY_SIZE(array)));
+  return ast_value_factory()->GetOneByteString(string);
+}
+
+
 const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) {
   return parser_->scanner()->NextSymbol(parser_->ast_value_factory_);
 }

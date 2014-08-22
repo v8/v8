@@ -1254,6 +1254,7 @@ class PreParserTraits {
 
   // Producing data during the recursive descent.
   PreParserIdentifier GetSymbol(Scanner* scanner);
+  PreParserIdentifier GetNumberAsSymbol(Scanner* scanner);
 
   static PreParserIdentifier GetNextSymbol(Scanner* scanner) {
     return PreParserIdentifier::Default();
@@ -1895,10 +1896,7 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
             break;
           case Token::NUMBER:
             Consume(Token::NUMBER);
-            // TODO(arv): Fix issue with numeric keys. get 1.0() should be
-            // treated as if the key was '1'
-            // https://code.google.com/p/v8/issues/detail?id=3507
-            name = this->GetSymbol(scanner_);
+            name = this->GetNumberAsSymbol(scanner_);
             break;
           default:
             name = ParseIdentifierName(

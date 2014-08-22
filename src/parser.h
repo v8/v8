@@ -534,6 +534,7 @@ class ParserTraits {
   // Producing data during the recursive descent.
   const AstRawString* GetSymbol(Scanner* scanner);
   const AstRawString* GetNextSymbol(Scanner* scanner);
+  const AstRawString* GetNumberAsSymbol(Scanner* scanner);
 
   Expression* ThisExpression(Scope* scope,
                              AstNodeFactory<AstConstructionVisitor>* factory,
