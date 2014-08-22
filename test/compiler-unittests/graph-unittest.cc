@@ -55,6 +55,11 @@ Node* GraphTest::Int32Constant(int32_t value) {
 }
 
 
+Node* GraphTest::Int64Constant(int64_t value) {
+  return graph()->NewNode(common()->Int64Constant(value));
+}
+
+
 Node* GraphTest::NumberConstant(double value) {
   return graph()->NewNode(common()->NumberConstant(value));
 }
@@ -644,6 +649,12 @@ Matcher<Node*> IsHeapConstant(
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher) {
   return MakeMatcher(
       new IsConstantMatcher<int32_t>(IrOpcode::kInt32Constant, value_matcher));
+}
+
+
+Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher) {
+  return MakeMatcher(
+      new IsConstantMatcher<int64_t>(IrOpcode::kInt64Constant, value_matcher));
 }
 
 

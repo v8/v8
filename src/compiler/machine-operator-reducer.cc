@@ -29,6 +29,15 @@ MachineOperatorReducer::MachineOperatorReducer(Graph* graph,
       machine_(graph->zone()) {}
 
 
+Node* MachineOperatorReducer::Float64Constant(volatile double value) {
+  Node** loc = cache_->FindFloat64Constant(value);
+  if (*loc == NULL) {
+    *loc = graph_->NewNode(common_.Float64Constant(value));
+  }
+  return *loc;
+}
+
+
 Node* MachineOperatorReducer::Int32Constant(int32_t value) {
   Node** loc = cache_->FindInt32Constant(value);
   if (*loc == NULL) {
@@ -38,12 +47,8 @@ Node* MachineOperatorReducer::Int32Constant(int32_t value) {
 }
 
 
-Node* MachineOperatorReducer::Float64Constant(volatile double value) {
-  Node** loc = cache_->FindFloat64Constant(value);
-  if (*loc == NULL) {
-    *loc = graph_->NewNode(common_.Float64Constant(value));
-  }
-  return *loc;
+Node* MachineOperatorReducer::Int64Constant(int64_t value) {
+  return graph_->NewNode(common_.Int64Constant(value));
 }
 
 
@@ -390,6 +395,50 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // K % K => K
         return ReplaceFloat64(modulo(m.left().Value(), m.right().Value()));
       }
+      break;
+    }
+    case IrOpcode::kChangeFloat64ToInt32: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(FastD2I(m.Value()));
+      if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
+      break;
+    }
+    case IrOpcode::kChangeFloat64ToUint32: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(FastD2UI(m.Value()));
+      if (m.IsChangeUint32ToFloat64()) return Replace(m.node()->InputAt(0));
+      break;
+    }
+    case IrOpcode::kChangeInt32ToFloat64: {
+      Int32Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(FastI2D(m.Value()));
+      break;
+    }
+    case IrOpcode::kChangeInt32ToInt64: {
+      Int32Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt64(m.Value());
+      break;
+    }
+    case IrOpcode::kChangeUint32ToFloat64: {
+      Uint32Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceFloat64(FastUI2D(m.Value()));
+      break;
+    }
+    case IrOpcode::kChangeUint32ToUint64: {
+      Uint32Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt64(static_cast<uint64_t>(m.Value()));
+      break;
+    }
+    case IrOpcode::kTruncateFloat64ToInt32: {
+      Float64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
+      if (m.IsChangeInt32ToFloat64()) return Replace(m.node()->InputAt(0));
+      break;
+    }
+    case IrOpcode::kTruncateInt64ToInt32: {
+      Int64Matcher m(node->InputAt(0));
+      if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
+      if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
       break;
     }
     // TODO(turbofan): strength-reduce and fold floating point operations.

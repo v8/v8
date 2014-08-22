@@ -32,6 +32,7 @@ class GraphTest : public CommonOperatorTest {
   Node* Parameter(int32_t index);
   Node* Float64Constant(double value);
   Node* Int32Constant(int32_t value);
+  Node* Int64Constant(int64_t value);
   Node* NumberConstant(double value);
   Node* HeapConstant(const PrintableUnique<HeapObject>& value);
   Node* FalseConstant();
@@ -63,6 +64,7 @@ Matcher<Node*> IsHeapConstant(
     const Matcher<PrintableUnique<HeapObject> >& value_matcher);
 Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);
+Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher);
 Matcher<Node*> IsNumberConstant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsPhi(const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
