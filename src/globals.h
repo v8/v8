@@ -66,7 +66,11 @@ namespace internal {
 #endif
 
 // Determine whether the architecture uses an out-of-line constant pool.
+#if V8_TARGET_ARCH_ARM
+#define V8_OOL_CONSTANT_POOL 1
+#else
 #define V8_OOL_CONSTANT_POOL 0
+#endif
 
 // Support for alternative bool type. This is only enabled if the code is
 // compiled with USE_MYBOOL defined. This catches some nasty type bugs.
