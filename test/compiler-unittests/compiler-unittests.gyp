@@ -29,6 +29,7 @@
         'instruction-selector-unittest.cc',
         'machine-operator-reducer-unittest.cc',
         'machine-operator-unittest.cc',
+        'simplified-operator-reducer-unittest.cc',
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {

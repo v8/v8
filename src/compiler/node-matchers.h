@@ -6,6 +6,7 @@
 #define V8_COMPILER_NODE_MATCHERS_H_
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
@@ -90,6 +91,18 @@ struct FloatMatcher V8_FINAL : public ValueMatcher<T> {
 };
 
 typedef FloatMatcher<double> Float64Matcher;
+
+
+// A pattern matcher for heap object constants.
+struct HeapObjectMatcher V8_FINAL
+    : public ValueMatcher<PrintableUnique<HeapObject> > {
+  explicit HeapObjectMatcher(Node* node)
+      : ValueMatcher<PrintableUnique<HeapObject> >(node) {}
+
+  bool IsKnownGlobal(HeapObject* global) const {
+    return HasValue() && Value().IsKnownGlobal(global);
+  }
+};
 
 
 // For shorter pattern matching code, this struct matches both the left and

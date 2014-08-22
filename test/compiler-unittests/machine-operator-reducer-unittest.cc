@@ -17,13 +17,6 @@ class MachineOperatorReducerTest : public GraphTest {
   virtual ~MachineOperatorReducerTest() {}
 
  protected:
-  Node* Parameter(int32_t index) {
-    return graph()->NewNode(common()->Parameter(index), graph()->start());
-  }
-  Node* Int32Constant(int32_t value) {
-    return graph()->NewNode(common()->Int32Constant(value));
-  }
-
   Reduction Reduce(Node* node) {
     MachineOperatorReducer reducer(graph());
     return reducer.Reduce(node);

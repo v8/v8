@@ -105,14 +105,6 @@ class ChangeLoweringTest : public GraphTest {
         IsInt32Constant(0), IsNumberConstant(0.0), effect_matcher,
         control_matcher);
   }
-  Matcher<Node*> IsFalse() {
-    return IsHeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
-        zone(), factory()->false_value()));
-  }
-  Matcher<Node*> IsTrue() {
-    return IsHeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
-        zone(), factory()->true_value()));
-  }
   Matcher<Node*> IsWordEqual(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher) {
     return Is32() ? IsWord32Equal(lhs_matcher, rhs_matcher)
@@ -149,7 +141,7 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBitToBool) {
   Node* phi = reduction.replacement();
   Capture<Node*> branch;
   EXPECT_THAT(phi,
-              IsPhi(IsTrue(), IsFalse(),
+              IsPhi(IsTrueConstant(), IsFalseConstant(),
                     IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
                                            IsBranch(val, graph()->start()))),
                             IsIfFalse(CaptureEq(&branch)))));
@@ -162,7 +154,7 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBoolToBit) {
   Reduction reduction = Reduce(node);
   ASSERT_TRUE(reduction.Changed());
 
-  EXPECT_THAT(reduction.replacement(), IsWordEqual(val, IsTrue()));
+  EXPECT_THAT(reduction.replacement(), IsWordEqual(val, IsTrueConstant()));
 }
 
 
