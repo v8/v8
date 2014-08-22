@@ -614,14 +614,18 @@ RUNTIME_FUNCTION(StorePropertyWithInterceptor) {
   Handle<Name> name = args.at<Name>(1);
   Handle<Object> value = args.at<Object>(2);
 #ifdef DEBUG
-  if (receiver->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate, receiver);
-    DCHECK(iter.IsAtEnd() ||
-           Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter))
-               ->HasNamedInterceptor());
-  } else {
-    DCHECK(receiver->HasNamedInterceptor());
+  PrototypeIterator iter(isolate, receiver,
+                         PrototypeIterator::START_AT_RECEIVER);
+  bool found = false;
+  while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
+    Handle<Object> current = PrototypeIterator::GetCurrent(iter);
+    if (current->IsJSObject() &&
+        Handle<JSObject>::cast(current)->HasNamedInterceptor()) {
+      found = true;
+      break;
+    }
   }
+  DCHECK(found);
 #endif
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -889,7 +893,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
-    LookupIterator* it, Handle<Name> name) {
+    LookupIterator* it) {
   // So far the most popular follow ups for interceptor loads are FIELD and
   // ExecutableAccessorInfo, so inline only them. Other cases may be added
   // later.
@@ -912,7 +916,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     }
   }
 
-  Register reg = Frontend(receiver(), name);
+  Register reg = Frontend(receiver(), it->name());
   if (inline_followup) {
     // TODO(368): Compile in the whole chain: all the interceptors in
     // prototypes and ultimate answer.
@@ -920,7 +924,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
   } else {
     GenerateLoadInterceptor(reg);
   }
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), Code::FAST, it->name());
 }
 
 
@@ -1007,13 +1011,12 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
 }
 
 
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupResult* lookup,
-                                                          Handle<Name> name) {
+Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
   Label miss;
-  GenerateStoreField(lookup, value(), &miss);
+  GenerateStoreField(it, value(), &miss);
   __ bind(&miss);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
-  return GetCode(kind(), Code::FAST, name);
+  return GetCode(kind(), Code::FAST, it->name());
 }
 
 

@@ -183,26 +183,11 @@ class IC {
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   // Compute the handler either by compiling or by retrieving a cached version.
-  Handle<Code> ComputeHandler(LookupIterator* lookup, Handle<Object> object,
-                              Handle<Name> name,
+  Handle<Code> ComputeHandler(LookupIterator* lookup,
                               Handle<Object> value = Handle<Code>::null());
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
-                                      Handle<Object> object,
-                                      Handle<Name> name, Handle<Object> value,
+                                      Handle<Object> value,
                                       CacheHolderFlag cache_holder) {
-    UNREACHABLE();
-    return Handle<Code>::null();
-  }
-  // Temporary copy of the above, but using a LookupResult.
-  // TODO(jkummerow): Migrate callers to LookupIterator and delete these.
-  Handle<Code> ComputeStoreHandler(LookupResult* lookup, Handle<Object> object,
-                                   Handle<Name> name,
-                                   Handle<Object> value = Handle<Code>::null());
-  virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
-                                           Handle<Object> object,
-                                           Handle<Name> name,
-                                           Handle<Object> value,
-                                           CacheHolderFlag cache_holder) {
     UNREACHABLE();
     return Handle<Code>::null();
   }
@@ -235,6 +220,9 @@ class IC {
   }
 
   Handle<HeapType> receiver_type() { return receiver_type_; }
+  void update_receiver_type(Handle<Object> receiver) {
+    receiver_type_ = CurrentTypeOf(receiver, isolate_);
+  }
 
   void TargetMaps(MapHandleList* list) {
     FindTargetMaps();
@@ -493,12 +481,9 @@ class LoadIC: public IC {
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
-  void UpdateCaches(LookupIterator* lookup, Handle<Object> object,
-                    Handle<Name> name);
+  void UpdateCaches(LookupIterator* lookup);
 
   virtual Handle<Code> CompileHandler(LookupIterator* lookup,
-                                      Handle<Object> object,
-                                      Handle<Name> name,
                                       Handle<Object> unused,
                                       CacheHolderFlag cache_holder);
 
@@ -633,6 +618,9 @@ class StoreIC: public IC {
       JSReceiver::StoreFromKeyed store_mode =
           JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED);
 
+  bool LookupForWrite(LookupIterator* it, Handle<Object> value,
+                      JSReceiver::StoreFromKeyed store_mode);
+
  protected:
   virtual Handle<Code> megamorphic_stub();
 
@@ -652,15 +640,11 @@ class StoreIC: public IC {
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
-  void UpdateCaches(LookupResult* lookup,
-                    Handle<JSObject> receiver,
-                    Handle<Name> name,
-                    Handle<Object> value);
-  virtual Handle<Code> CompileStoreHandler(LookupResult* lookup,
-                                           Handle<Object> object,
-                                           Handle<Name> name,
-                                           Handle<Object> value,
-                                           CacheHolderFlag cache_holder);
+  void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
+                    JSReceiver::StoreFromKeyed store_mode);
+  virtual Handle<Code> CompileHandler(LookupIterator* lookup,
+                                      Handle<Object> value,
+                                      CacheHolderFlag cache_holder);
 
  private:
   void set_target(Code* code) {

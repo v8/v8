@@ -61,6 +61,7 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map) {
     case PROPERTY:
       return NOT_FOUND;
     case JSPROXY:
+    case TRANSITION:
       UNREACHABLE();
   }
   UNREACHABLE();

@@ -476,7 +476,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   // The LookupIterator is used to perform a lookup behind the interceptor. If
   // the iterator points to a LookupIterator::PROPERTY, its access will be
   // inlined.
-  Handle<Code> CompileLoadInterceptor(LookupIterator* it, Handle<Name> name);
+  Handle<Code> CompileLoadInterceptor(LookupIterator* it);
 
   Handle<Code> CompileLoadViaGetter(Handle<Name> name,
                                     Handle<JSFunction> getter);
@@ -558,7 +558,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
   Handle<Code> CompileStoreTransition(Handle<Map> transition,
                                       Handle<Name> name);
-  Handle<Code> CompileStoreField(LookupResult* lookup, Handle<Name> name);
+  Handle<Code> CompileStoreField(LookupIterator* it);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<ExecutableAccessorInfo> callback);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
@@ -590,7 +590,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                Register scratch2, Register scratch3,
                                Label* miss_label, Label* slow);
 
-  void GenerateStoreField(LookupResult* lookup, Register value_reg,
+  void GenerateStoreField(LookupIterator* lookup, Register value_reg,
                           Label* miss_label);
 
   static Builtins::Name SlowBuiltin(Code::Kind kind) {

@@ -1997,10 +1997,6 @@ class JSReceiver: public HeapObject {
   inline static Handle<Smi> GetOrCreateIdentityHash(
       Handle<JSReceiver> object);
 
-  // Lookup a property.  If found, the result is valid and has
-  // detailed information.
-  void Lookup(Handle<Name> name, LookupResult* result);
-
   enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };
 
   // Computes the enumerable keys for a JSObject. Used for implementing
@@ -2010,7 +2006,6 @@ class JSReceiver: public HeapObject {
       KeyCollectionType type);
 
  private:
-  void LookupOwn(Handle<Name> name, LookupResult* result);
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
 
@@ -2367,9 +2362,6 @@ class JSObject: public JSReceiver {
   inline Object* GetInternalField(int index);
   inline void SetInternalField(int index, Object* value);
   inline void SetInternalField(int index, Smi* value);
-
-  // The following lookup functions skip interceptors.
-  void LookupOwnRealNamedProperty(Handle<Name> name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).

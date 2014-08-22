@@ -10900,6 +10900,7 @@ static Handle<Object> DebugLookupResultValue(LookupIterator* it,
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         // Ignore access checks.
