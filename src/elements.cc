@@ -1364,7 +1364,7 @@ class DictionaryElementsAccessor
           uint32_t number = static_cast<uint32_t>(key->Number());
           if (new_length <= number && number < old_length) {
             PropertyDetails details = dict->DetailsAt(i);
-            if (details.IsDontDelete()) new_length = number + 1;
+            if (!details.IsConfigurable()) new_length = number + 1;
           }
         }
       }

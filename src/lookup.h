@@ -70,7 +70,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
         state_(NOT_FOUND),
         property_kind_(DATA),
         property_encoding_(DESCRIPTOR),
-        property_details_(NONE, NONEXISTENT, Representation::None()),
+        property_details_(NONE, NORMAL, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
         maybe_receiver_(receiver),
@@ -88,7 +88,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
         state_(NOT_FOUND),
         property_kind_(DATA),
         property_encoding_(DESCRIPTOR),
-        property_details_(NONE, NONEXISTENT, Representation::None()),
+        property_details_(NONE, NORMAL, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
         holder_map_(holder->map()),
@@ -153,7 +153,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     DCHECK(has_property_);
     return property_details_;
   }
-  bool IsConfigurable() const { return !property_details().IsDontDelete(); }
+  bool IsConfigurable() const { return property_details().IsConfigurable(); }
   bool IsReadOnly() const { return property_details().IsReadOnly(); }
   Representation representation() const {
     return property_details().representation();

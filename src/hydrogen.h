@@ -2495,7 +2495,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     bool has_holder() { return !holder_.is_null(); }
     bool IsLoad() const { return access_type_ == LOAD; }
 
-    LookupResult* lookup() { return &lookup_; }
     Handle<JSObject> holder() { return holder_; }
     Handle<JSFunction> accessor() { return accessor_; }
     Handle<Object> constant() { return constant_; }
@@ -2504,10 +2503,38 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
     HType field_type() const { return field_type_; }
     HObjectAccess access() { return access_; }
 
+    bool IsFound() const { return lookup_.IsFound(); }
+    bool IsProperty() const { return lookup_.IsProperty(); }
+    bool IsField() const { return lookup_.IsField(); }
+    bool IsConstant() const { return lookup_.IsConstant(); }
+    bool IsAccessor() const { return lookup_.IsPropertyCallbacks(); }
+    bool IsTransition() const { return lookup_.IsTransition(); }
+
+    bool IsConfigurable() const { return lookup_.IsConfigurable(); }
+    bool IsReadOnly() const { return lookup_.IsReadOnly(); }
+    bool IsCacheable() const { return lookup_.IsCacheable(); }
+
    private:
+    Handle<Object> GetAccessorsFromMap(Handle<Map> map) const {
+      return handle(lookup_.GetValueFromMap(*map), isolate());
+    }
+    Handle<Object> GetConstantFromMap(Handle<Map> map) const {
+      return handle(lookup_.GetConstantFromMap(*map), isolate());
+    }
+    Handle<HeapType> GetFieldTypeFromMap(Handle<Map> map) const {
+      return handle(lookup_.GetFieldTypeFromMap(*map), isolate());
+    }
+    Handle<Map> GetFieldOwnerFromMap(Handle<Map> map) const {
+      return handle(lookup_.GetFieldOwnerFromMap(*map));
+    }
+    int GetLocalFieldIndexFromMap(Handle<Map> map) const {
+      return lookup_.GetLocalFieldIndexFromMap(*map);
+    }
+    Representation representation() const { return lookup_.representation(); }
+
     Type* ToType(Handle<Map> map) { return builder_->ToType(map); }
     Zone* zone() { return builder_->zone(); }
-    Isolate* isolate() { return lookup_.isolate(); }
+    Isolate* isolate() const { return lookup_.isolate(); }
     CompilationInfo* top_info() { return builder_->top_info(); }
     CompilationInfo* current_info() { return builder_->current_info(); }
 

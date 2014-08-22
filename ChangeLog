@@ -1,3 +1,11 @@
+2014-08-22: Version 3.29.14
+
+        Don't inline Array.shift() if receiver map is not extensible (Chromium
+        issue 405517).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-21: Version 3.29.11
 
         Refactor ParseObjectLiteral.

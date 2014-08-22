@@ -21771,7 +21771,6 @@ TEST(AccessCheckThrows) {
 
   // Create a context and set an x property on it's global object.
   LocalContext context0(NULL, global_template);
-  context0->Global()->Set(v8_str("x"), v8_num(42));
   v8::Handle<v8::Object> global0 = context0->Global();
 
   // Create a context with a different security token so that the

@@ -295,10 +295,15 @@ def ProcessOptions(options):
     return reduce(lambda x, y: x + y, args) <= 1
 
   if not excl(options.no_stress, options.stress_only, options.no_variants,
-              bool(options.variants), options.quickcheck):
+              bool(options.variants)):
     print("Use only one of --no-stress, --stress-only, --no-variants, "
-          "--variants, or --quickcheck.")
+          "or --variants.")
     return False
+  if options.quickcheck:
+    VARIANTS = ["default", "stress"]
+    options.flaky_tests = "skip"
+    options.slow_tests = "skip"
+    options.pass_fail_tests = "skip"
   if options.no_stress:
     VARIANTS = ["default", "nocrankshaft"]
   if options.no_variants:
@@ -310,11 +315,6 @@ def ProcessOptions(options):
     if not set(VARIANTS).issubset(VARIANT_FLAGS.keys()):
       print "All variants must be in %s" % str(VARIANT_FLAGS.keys())
       return False
-  if options.quickcheck:
-    VARIANTS = ["default", "stress"]
-    options.flaky_tests = "skip"
-    options.slow_tests = "skip"
-    options.pass_fail_tests = "skip"
   if options.predictable:
     VARIANTS = ["default"]
     options.extra_flags.append("--predictable")

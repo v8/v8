@@ -100,7 +100,6 @@ bool LookupIterator::HasProperty() {
       property_kind_ = ACCESSOR;
       break;
     case v8::internal::HANDLER:
-    case v8::internal::NONEXISTENT:
     case v8::internal::INTERCEPTOR:
       UNREACHABLE();
   }

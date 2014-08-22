@@ -179,7 +179,6 @@ PropertyType.Constant                = 2;
 PropertyType.Callbacks               = 3;
 PropertyType.Handler                 = 4;
 PropertyType.Interceptor             = 5;
-PropertyType.Nonexistent             = 6;
 
 
 // Different attributes for a property.

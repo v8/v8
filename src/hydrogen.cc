@@ -5602,7 +5602,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
               PropertyAccessInfo info(this, STORE, ToType(map), name);
               if (info.CanAccessMonomorphic()) {
                 HValue* checked_literal = Add<HCheckMaps>(literal, map);
-                DCHECK(!info.lookup()->IsPropertyCallbacks());
+                DCHECK(!info.IsAccessor());
                 store = BuildMonomorphicAccess(
                     &info, literal, checked_literal, value,
                     BailoutId::None(), BailoutId::None());
@@ -5789,9 +5789,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     PropertyAccessInfo* info,
     HValue* checked_object) {
   // See if this is a load for an immutable property
-  if (checked_object->ActualValue()->IsConstant() &&
-      info->lookup()->IsCacheable() &&
-      info->lookup()->IsReadOnly() && info->lookup()->IsDontDelete()) {
+  if (checked_object->ActualValue()->IsConstant() && info->IsCacheable() &&
+      info->IsReadOnly() && !info->IsConfigurable()) {
     Handle<Object> object(
         HConstant::cast(checked_object->ActualValue())->handle(isolate()));
 
@@ -5831,7 +5830,7 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     PropertyAccessInfo* info,
     HValue* checked_object,
     HValue* value) {
-  bool transition_to_field = info->lookup()->IsTransition();
+  bool transition_to_field = info->IsTransition();
   // TODO(verwaest): Move this logic into PropertyAccessInfo.
   HObjectAccess field_access = info->access();
 
@@ -5908,26 +5907,26 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::IsCompatible(
 
   if (!LookupDescriptor()) return false;
 
-  if (!lookup_.IsFound()) {
-    return (!info->lookup_.IsFound() || info->has_holder()) &&
-        map()->prototype() == info->map()->prototype();
+  if (!IsFound()) {
+    return (!info->IsFound() || info->has_holder()) &&
+           map()->prototype() == info->map()->prototype();
   }
 
   // Mismatch if the other access info found the property in the prototype
   // chain.
   if (info->has_holder()) return false;
 
-  if (lookup_.IsPropertyCallbacks()) {
+  if (IsAccessor()) {
     return accessor_.is_identical_to(info->accessor_) &&
         api_holder_.is_identical_to(info->api_holder_);
   }
 
-  if (lookup_.IsConstant()) {
+  if (IsConstant()) {
     return constant_.is_identical_to(info->constant_);
   }
 
-  DCHECK(lookup_.IsField());
-  if (!info->lookup_.IsField()) return false;
+  DCHECK(IsField());
+  if (!info->IsField()) return false;
 
   Representation r = access_.representation();
   if (IsLoad()) {
@@ -5970,25 +5969,23 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupDescriptor() {
 
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
-  if (!IsLoad() && lookup_.IsProperty() &&
-      (lookup_.IsReadOnly() || !lookup_.IsCacheable())) {
+  if (!IsLoad() && IsProperty() && (IsReadOnly() || !IsCacheable())) {
     return false;
   }
 
-  if (lookup_.IsField()) {
+  if (IsField()) {
     // Construct the object field access.
-    int index = lookup_.GetLocalFieldIndexFromMap(*map);
-    Representation representation = lookup_.representation();
-    access_ = HObjectAccess::ForField(map, index, representation, name_);
+    int index = GetLocalFieldIndexFromMap(map);
+    access_ = HObjectAccess::ForField(map, index, representation(), name_);
 
     // Load field map for heap objects.
     LoadFieldMaps(map);
-  } else if (lookup_.IsPropertyCallbacks()) {
-    Handle<Object> callback(lookup_.GetValueFromMap(*map), isolate());
-    if (!callback->IsAccessorPair()) return false;
-    Object* raw_accessor = IsLoad()
-        ? Handle<AccessorPair>::cast(callback)->getter()
-        : Handle<AccessorPair>::cast(callback)->setter();
+  } else if (IsAccessor()) {
+    Handle<Object> accessors = GetAccessorsFromMap(map);
+    if (!accessors->IsAccessorPair()) return false;
+    Object* raw_accessor =
+        IsLoad() ? Handle<AccessorPair>::cast(accessors)->getter()
+                 : Handle<AccessorPair>::cast(accessors)->setter();
     if (!raw_accessor->IsJSFunction()) return false;
     Handle<JSFunction> accessor = handle(JSFunction::cast(raw_accessor));
     if (accessor->shared()->IsApiFunction()) {
@@ -6001,8 +5998,8 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
       }
     }
     accessor_ = accessor;
-  } else if (lookup_.IsConstant()) {
-    constant_ = handle(lookup_.GetConstantFromMap(*map), isolate());
+  } else if (IsConstant()) {
+    constant_ = GetConstantFromMap(map);
   }
 
   return true;
@@ -6016,7 +6013,7 @@ void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
   field_type_ = HType::Tagged();
 
   // Figure out the field type from the accessor map.
-  Handle<HeapType> field_type(lookup_.GetFieldTypeFromMap(*map), isolate());
+  Handle<HeapType> field_type = GetFieldTypeFromMap(map);
 
   // Collect the (stable) maps from the field type.
   int num_field_maps = field_type->NumClasses();
@@ -6041,9 +6038,8 @@ void HOptimizedGraphBuilder::PropertyAccessInfo::LoadFieldMaps(
   DCHECK(field_type_.IsHeapObject());
 
   // Add dependency on the map that introduced the field.
-  Map::AddDependentCompilationInfo(
-      handle(lookup_.GetFieldOwnerFromMap(*map), isolate()),
-      DependentCode::kFieldTypeGroup, top_info());
+  Map::AddDependentCompilationInfo(GetFieldOwnerFromMap(map),
+                                   DependentCode::kFieldTypeGroup, top_info());
 }
 
 
@@ -6061,7 +6057,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupInPrototypes() {
       return false;
     }
     map->LookupDescriptor(*holder_, *name_, &lookup_);
-    if (lookup_.IsFound()) return LoadResult(map);
+    if (IsFound()) return LoadResult(map);
   }
   lookup_.NotFound();
   return true;
@@ -6077,14 +6073,14 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
     return IsLoad();
   }
   if (!LookupDescriptor()) return false;
-  if (lookup_.IsFound()) {
+  if (IsFound()) {
     if (IsLoad()) return true;
-    return !lookup_.IsReadOnly() && lookup_.IsCacheable();
+    return !IsReadOnly() && IsCacheable();
   }
   if (!LookupInPrototypes()) return false;
   if (IsLoad()) return true;
 
-  if (lookup_.IsPropertyCallbacks()) return true;
+  if (IsAccessor()) return true;
   Handle<Map> map = this->map();
   map->LookupTransition(NULL, *name_, &lookup_);
   if (lookup_.IsTransitionToField() && map->unused_property_fields() > 0) {
@@ -6131,8 +6127,8 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessAsMonomorphic(
   if (type_->Is(Type::Number())) return false;
 
   // Multiple maps cannot transition to the same target map.
-  DCHECK(!IsLoad() || !lookup_.IsTransition());
-  if (lookup_.IsTransition() && types->length() > 1) return false;
+  DCHECK(!IsLoad() || !IsTransition());
+  if (IsTransition() && types->length() > 1) return false;
 
   for (int i = 1; i < types->length(); ++i) {
     PropertyAccessInfo test_info(
@@ -6186,12 +6182,12 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     checked_holder = BuildCheckPrototypeMaps(prototype, info->holder());
   }
 
-  if (!info->lookup()->IsFound()) {
+  if (!info->IsFound()) {
     DCHECK(info->IsLoad());
     return graph()->GetConstantUndefined();
   }
 
-  if (info->lookup()->IsField()) {
+  if (info->IsField()) {
     if (info->IsLoad()) {
       return BuildLoadNamedField(info, checked_holder);
     } else {
@@ -6199,12 +6195,12 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     }
   }
 
-  if (info->lookup()->IsTransition()) {
+  if (info->IsTransition()) {
     DCHECK(!info->IsLoad());
     return BuildStoreNamedField(info, checked_object, value);
   }
 
-  if (info->lookup()->IsPropertyCallbacks()) {
+  if (info->IsAccessor()) {
     Push(checked_object);
     int argument_count = 1;
     if (!info->IsLoad()) {
@@ -6228,7 +6224,7 @@ HInstruction* HOptimizedGraphBuilder::BuildMonomorphicAccess(
     return BuildCallConstantFunction(info->accessor(), argument_count);
   }
 
-  DCHECK(info->lookup()->IsConstant());
+  DCHECK(info->IsConstant());
   if (info->IsLoad()) {
     return New<HConstant>(info->constant());
   } else {
@@ -7484,8 +7480,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
        i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
     PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
-    if (info.CanAccessMonomorphic() &&
-        info.lookup()->IsConstant() &&
+    if (info.CanAccessMonomorphic() && info.IsConstant() &&
         info.constant()->IsJSFunction()) {
       if (info.type()->Is(Type::String())) {
         if (handled_string) continue;
@@ -8343,7 +8338,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       ElementsKind kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(kind)) return false;
       if (receiver_map->is_observed()) return false;
-      DCHECK(receiver_map->is_extensible());
+      if (!receiver_map->is_extensible()) return false;
 
       // If there may be elements accessors in the prototype chain, the fast
       // inlined version can't be used.

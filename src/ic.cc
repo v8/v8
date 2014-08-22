@@ -1597,7 +1597,6 @@ Handle<Code> StoreIC::CompileStoreHandler(LookupResult* lookup,
       }
       case CONSTANT:
         break;
-      case NONEXISTENT:
       case HANDLER:
         UNREACHABLE();
         break;

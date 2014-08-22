@@ -709,11 +709,11 @@ Handle<Object> JSObject::DeleteNormalizedProperty(Handle<JSObject> object,
     // If we have a global object set the cell to the hole.
     if (object->IsGlobalObject()) {
       PropertyDetails details = dictionary->DetailsAt(entry);
-      if (details.IsDontDelete()) {
+      if (!details.IsConfigurable()) {
         if (mode != FORCE_DELETION) return isolate->factory()->false_value();
         // When forced to delete global properties, we have to make a
         // map change to invalidate any ICs that think they can load
-        // from the DontDelete cell without checking if it contains
+        // from the non-configurable cell without checking if it contains
         // the hole value.
         Handle<Map> new_map = Map::CopyDropDescriptors(handle(object->map()));
         DCHECK(new_map->is_dictionary_map());
@@ -2774,7 +2774,6 @@ MaybeHandle<Map> Map::TryUpdateInternal(Handle<Map> old_map) {
       case NORMAL:
       case HANDLER:
       case INTERCEPTOR:
-      case NONEXISTENT:
         UNREACHABLE();
     }
   }
@@ -4264,7 +4263,6 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
         break;
       case HANDLER:
       case NORMAL:
-      case NONEXISTENT:
         UNREACHABLE();
         break;
     }
@@ -6010,7 +6008,7 @@ static bool UpdateGetterSetterInDictionary(
     Object* result = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
     if (details.type() == CALLBACKS && result->IsAccessorPair()) {
-      DCHECK(!details.IsDontDelete());
+      DCHECK(details.IsConfigurable());
       if (details.attributes() != attributes) {
         dictionary->DetailsAtPut(
             entry,
@@ -6823,7 +6821,6 @@ bool DescriptorArray::CanHoldValue(int descriptor, Object* value) {
     case NORMAL:
     case INTERCEPTOR:
     case HANDLER:
-    case NONEXISTENT:
       break;
   }
 
@@ -12947,11 +12944,11 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
   uint32_t length = 0;
   CHECK(array->length()->ToArrayIndex(&length));
   if (length <= index) {
-    Isolate* isolate = array->GetIsolate();
-    LookupResult lookup(isolate);
-    Handle<Name> length_string = isolate->factory()->length_string();
-    array->LookupOwnRealNamedProperty(length_string, &lookup);
-    return lookup.IsReadOnly();
+    LookupIterator it(array, array->GetIsolate()->factory()->length_string(),
+                      LookupIterator::CHECK_PROPERTY);
+    CHECK(it.IsFound());
+    CHECK(it.HasProperty());
+    return it.IsReadOnly();
   }
   return false;
 }
@@ -13335,20 +13332,10 @@ MaybeHandle<JSObject> JSObject::GetKeysForIndexedInterceptor(
 
 Maybe<bool> JSObject::HasRealNamedProperty(Handle<JSObject> object,
                                            Handle<Name> key) {
-  Isolate* isolate = object->GetIsolate();
-  SealHandleScope shs(isolate);
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(object, key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
-      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Maybe<bool>());
-      return maybe(false);
-    }
-  }
-
-  LookupResult result(isolate);
-  object->LookupOwnRealNamedProperty(key, &result);
-  return maybe(result.IsFound() && !result.IsInterceptor());
+  LookupIterator it(object, key, LookupIterator::CHECK_ACCESS_CHECK);
+  Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
+  if (!maybe_result.has_value) return Maybe<bool>();
+  return maybe(it.IsFound());
 }
 
 
@@ -13383,20 +13370,10 @@ Maybe<bool> JSObject::HasRealElementProperty(Handle<JSObject> object,
 
 Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
                                                    Handle<Name> key) {
-  Isolate* isolate = object->GetIsolate();
-  SealHandleScope shs(isolate);
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded()) {
-    if (!isolate->MayNamedAccess(object, key, v8::ACCESS_HAS)) {
-      isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
-      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Maybe<bool>());
-      return maybe(false);
-    }
-  }
-
-  LookupResult result(isolate);
-  object->LookupOwnRealNamedProperty(key, &result);
-  return maybe(result.IsPropertyCallbacks());
+  LookupIterator it(object, key, LookupIterator::CHECK_ACCESS_CHECK);
+  Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
+  if (!maybe_result.has_value) return Maybe<bool>();
+  return maybe(it.IsFound() && it.property_kind() == LookupIterator::ACCESSOR);
 }
 
 
@@ -15144,7 +15121,7 @@ Handle<Object> Dictionary<Derived, Shape, Key>::DeleteProperty(
   Factory* factory = dictionary->GetIsolate()->factory();
   PropertyDetails details = dictionary->DetailsAt(entry);
   // Ignore attributes if forcing a deletion.
-  if (details.IsDontDelete() && mode != JSReceiver::FORCE_DELETION) {
+  if (!details.IsConfigurable() && mode != JSReceiver::FORCE_DELETION) {
     return factory->false_value();
   }
 
