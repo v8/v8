@@ -2932,8 +2932,8 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(LookupIterator* it,
 }
 
 
-MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
-                                            Handle<Object> value) {
+Handle<Object> Object::SetDataProperty(LookupIterator* it,
+                                       Handle<Object> value) {
   // Proxies are handled on the WithHandler path. Other non-JSObjects cannot
   // have own properties.
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());

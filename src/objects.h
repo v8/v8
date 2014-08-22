@@ -1486,8 +1486,8 @@ class Object {
       StoreFromKeyed store_mode);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> SetDataProperty(
-      LookupIterator* it, Handle<Object> value);
+  static Handle<Object> SetDataProperty(LookupIterator* it,
+                                        Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       StrictMode strict_mode, StoreFromKeyed store_mode);
