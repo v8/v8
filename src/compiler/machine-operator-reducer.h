@@ -32,17 +32,19 @@ class MachineOperatorReducer : public Reducer {
   CommonOperatorBuilder common_;
   MachineOperatorBuilder machine_;
 
-  Node* Int32Constant(int32_t value);
   Node* Float64Constant(volatile double value);
+  Node* Int32Constant(int32_t value);
+  Node* Int64Constant(int64_t value);
 
   Reduction ReplaceBool(bool value) { return ReplaceInt32(value ? 1 : 0); }
-
+  Reduction ReplaceFloat64(volatile double value) {
+    return Replace(Float64Constant(value));
+  }
   Reduction ReplaceInt32(int32_t value) {
     return Replace(Int32Constant(value));
   }
-
-  Reduction ReplaceFloat64(volatile double value) {
-    return Replace(Float64Constant(value));
+  Reduction ReplaceInt64(int64_t value) {
+    return Replace(Int64Constant(value));
   }
 };
 }

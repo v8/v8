@@ -166,6 +166,10 @@ void GraphVisualizer::AnnotateNode(Node* node) {
        ++i, j--) {
     os_ << "|<I" << i.index() << ">X #" << (*i)->id();
   }
+  for (int j = OperatorProperties::GetFrameStateInputCount(node->op()); j > 0;
+       ++i, j--) {
+    os_ << "|<I" << i.index() << ">X #" << (*i)->id();
+  }
   for (int j = OperatorProperties::GetEffectInputCount(node->op()); j > 0;
        ++i, j--) {
     os_ << "|<I" << i.index() << ">E #" << (*i)->id();

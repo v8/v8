@@ -40,6 +40,59 @@ GraphTest::GraphTest(int num_parameters) : graph_(zone()) {
 GraphTest::~GraphTest() {}
 
 
+Node* GraphTest::Parameter(int32_t index) {
+  return graph()->NewNode(common()->Parameter(index), graph()->start());
+}
+
+
+Node* GraphTest::Float64Constant(double value) {
+  return graph()->NewNode(common()->Float64Constant(value));
+}
+
+
+Node* GraphTest::Int32Constant(int32_t value) {
+  return graph()->NewNode(common()->Int32Constant(value));
+}
+
+
+Node* GraphTest::Int64Constant(int64_t value) {
+  return graph()->NewNode(common()->Int64Constant(value));
+}
+
+
+Node* GraphTest::NumberConstant(double value) {
+  return graph()->NewNode(common()->NumberConstant(value));
+}
+
+
+Node* GraphTest::HeapConstant(const PrintableUnique<HeapObject>& value) {
+  return graph()->NewNode(common()->HeapConstant(value));
+}
+
+
+Node* GraphTest::FalseConstant() {
+  return HeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
+      zone(), factory()->false_value()));
+}
+
+
+Node* GraphTest::TrueConstant() {
+  return HeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
+      zone(), factory()->true_value()));
+}
+
+
+Matcher<Node*> GraphTest::IsFalseConstant() {
+  return IsHeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
+      zone(), factory()->false_value()));
+}
+
+
+Matcher<Node*> GraphTest::IsTrueConstant() {
+  return IsHeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
+      zone(), factory()->true_value()));
+}
+
 namespace {
 
 template <typename T>
@@ -596,6 +649,18 @@ Matcher<Node*> IsHeapConstant(
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher) {
   return MakeMatcher(
       new IsConstantMatcher<int32_t>(IrOpcode::kInt32Constant, value_matcher));
+}
+
+
+Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher) {
+  return MakeMatcher(
+      new IsConstantMatcher<int64_t>(IrOpcode::kInt64Constant, value_matcher));
+}
+
+
+Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher) {
+  return MakeMatcher(
+      new IsConstantMatcher<double>(IrOpcode::kFloat64Constant, value_matcher));
 }
 
 

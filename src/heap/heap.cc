@@ -120,12 +120,7 @@ Heap::Heap()
       store_buffer_(this),
       marking_(this),
       incremental_marking_(this),
-      number_idle_notifications_(0),
-      last_idle_notification_gc_count_(0),
-      last_idle_notification_gc_count_init_(false),
-      mark_sweeps_since_idle_round_started_(0),
       gc_count_at_last_idle_gc_(0),
-      scavenges_since_last_idle_round_(kIdleScavengeThreshold),
       full_codegen_bytes_generated_(0),
       crankshaft_codegen_bytes_generated_(0),
       gcs_since_last_deopt_(0),
@@ -850,8 +845,7 @@ bool Heap::CollectGarbage(GarbageCollector collector, const char* gc_reason,
   // Start incremental marking for the next cycle. The heap snapshot
   // generator needs incremental marking to stay off after it aborted.
   if (!mark_compact_collector()->abort_incremental_marking() &&
-      incremental_marking()->IsStopped() &&
-      incremental_marking()->WorthActivating() && NextGCIsLikelyToBeFull()) {
+      WorthActivatingIncrementalMarking()) {
     incremental_marking()->Start();
   }
 
@@ -1278,14 +1272,10 @@ static void VerifyNonPointerSpacePointers(Heap* heap) {
        object = code_it.Next())
     object->Iterate(&v);
 
-  // The old data space was normally swept conservatively so that the iterator
-  // doesn't work, so we normally skip the next bit.
-  if (heap->old_data_space()->swept_precisely()) {
     HeapObjectIterator data_it(heap->old_data_space());
     for (HeapObject* object = data_it.Next(); object != NULL;
          object = data_it.Next())
       object->Iterate(&v);
-  }
 }
 #endif  // VERIFY_HEAP
 
@@ -1559,7 +1549,7 @@ void Heap::Scavenge() {
 
   gc_state_ = NOT_IN_GC;
 
-  scavenges_since_last_idle_round_++;
+  gc_idle_time_handler_.NotifyScavenge();
 }
 
 
@@ -2878,6 +2868,7 @@ void Heap::CreateInitialObjects() {
   set_observed_symbol(*factory->NewPrivateSymbol());
   set_stack_trace_symbol(*factory->NewPrivateSymbol());
   set_uninitialized_symbol(*factory->NewPrivateSymbol());
+  set_home_object_symbol(*factory->NewPrivateOwnSymbol());
 
   Handle<SeededNumberDictionary> slow_element_dictionary =
       SeededNumberDictionary::New(isolate(), 0, TENURED);
@@ -4246,9 +4237,7 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
 bool Heap::IsHeapIterable() {
   // TODO(hpayer): This function is not correct. Allocation folding in old
   // space breaks the iterability.
-  return (old_pointer_space()->swept_precisely() &&
-          old_data_space()->swept_precisely() &&
-          new_space_top_after_last_gc_ == new_space()->top());
+  return new_space_top_after_last_gc_ == new_space()->top();
 }
 
 
@@ -4264,12 +4253,7 @@ void Heap::MakeHeapIterable() {
 }
 
 
-void Heap::AdvanceIdleIncrementalMarking(int idle_time_in_ms) {
-  intptr_t step_size =
-      static_cast<size_t>(GCIdleTimeHandler::EstimateMarkingStepSize(
-          idle_time_in_ms,
-          tracer_.IncrementalMarkingSpeedInBytesPerMillisecond()));
-
+void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
   incremental_marking()->Step(step_size,
                               IncrementalMarking::NO_GC_VIA_STACK_GUARD, true);
 
@@ -4282,7 +4266,7 @@ void Heap::AdvanceIdleIncrementalMarking(int idle_time_in_ms) {
     }
     CollectAllGarbage(kReduceMemoryFootprintMask,
                       "idle notification: finalize incremental");
-    mark_sweeps_since_idle_round_started_++;
+    gc_idle_time_handler_.NotifyIdleMarkCompact();
     gc_count_at_last_idle_gc_ = gc_count_;
     if (uncommit) {
       new_space_.Shrink();
@@ -4292,86 +4276,66 @@ void Heap::AdvanceIdleIncrementalMarking(int idle_time_in_ms) {
 }
 
 
+bool Heap::WorthActivatingIncrementalMarking() {
+  return incremental_marking()->IsStopped() &&
+         incremental_marking()->WorthActivating() && NextGCIsLikelyToBeFull();
+}
+
+
 bool Heap::IdleNotification(int idle_time_in_ms) {
   // If incremental marking is off, we do not perform idle notification.
   if (!FLAG_incremental_marking) return true;
-
-  // Minimal hint that allows to do full GC.
-  const int kMinHintForFullGC = 100;
   isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(
       idle_time_in_ms);
   HistogramTimerScope idle_notification_scope(
       isolate_->counters()->gc_idle_notification());
 
-  if (contexts_disposed_ > 0) {
-    contexts_disposed_ = 0;
-    int mark_sweep_time = Min(TimeMarkSweepWouldTakeInMs(), 1000);
-    if (idle_time_in_ms >= mark_sweep_time && !FLAG_expose_gc &&
-        incremental_marking()->IsStopped()) {
+  GCIdleTimeHandler::HeapState heap_state;
+  heap_state.contexts_disposed = contexts_disposed_;
+  heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
+  heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
+  // TODO(ulan): Start incremental marking only for large heaps.
+  heap_state.can_start_incremental_marking = true;
+  heap_state.sweeping_in_progress =
+      mark_compact_collector()->sweeping_in_progress();
+  heap_state.mark_compact_speed_in_bytes_per_ms =
+      static_cast<size_t>(tracer()->MarkCompactSpeedInBytesPerMillisecond());
+  heap_state.incremental_marking_speed_in_bytes_per_ms = static_cast<size_t>(
+      tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
+
+  GCIdleTimeAction action =
+      gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
+
+  contexts_disposed_ = 0;
+  bool result = false;
+  switch (action.type) {
+    case DO_INCREMENTAL_MARKING:
+      if (incremental_marking()->IsStopped()) {
+        incremental_marking()->Start();
+      }
+      AdvanceIdleIncrementalMarking(action.parameter);
+      break;
+    case DO_FULL_GC: {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
-      CollectAllGarbage(kReduceMemoryFootprintMask,
-                        "idle notification: contexts disposed");
-    } else {
-      AdvanceIdleIncrementalMarking(idle_time_in_ms);
+      const char* message = contexts_disposed_
+                                ? "idle notification: contexts disposed"
+                                : "idle notification: finalize idle round";
+      CollectAllGarbage(kReduceMemoryFootprintMask, message);
+      gc_idle_time_handler_.NotifyIdleMarkCompact();
+      break;
     }
-
-    // After context disposal there is likely a lot of garbage remaining, reset
-    // the idle notification counters in order to trigger more incremental GCs
-    // on subsequent idle notifications.
-    StartIdleRound();
-    return false;
+    case DO_SCAVENGE:
+      CollectGarbage(NEW_SPACE, "idle notification: scavenge");
+      break;
+    case DO_FINALIZE_SWEEPING:
+      mark_compact_collector()->EnsureSweepingCompleted();
+      break;
+    case DO_NOTHING:
+      result = true;
+      break;
   }
 
-  // By doing small chunks of GC work in each IdleNotification,
-  // perform a round of incremental GCs and after that wait until
-  // the mutator creates enough garbage to justify a new round.
-  // An incremental GC progresses as follows:
-  // 1. many incremental marking steps,
-  // 2. one old space mark-sweep-compact,
-  // Use mark-sweep-compact events to count incremental GCs in a round.
-
-  if (mark_sweeps_since_idle_round_started_ >= kMaxMarkSweepsInIdleRound) {
-    if (EnoughGarbageSinceLastIdleRound()) {
-      StartIdleRound();
-    } else {
-      return true;
-    }
-  }
-
-  int remaining_mark_sweeps =
-      kMaxMarkSweepsInIdleRound - mark_sweeps_since_idle_round_started_;
-
-  if (incremental_marking()->IsStopped()) {
-    // If there are no more than two GCs left in this idle round and we are
-    // allowed to do a full GC, then make those GCs full in order to compact
-    // the code space.
-    // TODO(ulan): Once we enable code compaction for incremental marking,
-    // we can get rid of this special case and always start incremental marking.
-    if (remaining_mark_sweeps <= 2 && idle_time_in_ms >= kMinHintForFullGC) {
-      CollectAllGarbage(kReduceMemoryFootprintMask,
-                        "idle notification: finalize idle round");
-      mark_sweeps_since_idle_round_started_++;
-    } else {
-      incremental_marking()->Start();
-    }
-  }
-  if (!incremental_marking()->IsStopped()) {
-    AdvanceIdleIncrementalMarking(idle_time_in_ms);
-  }
-
-  if (mark_sweeps_since_idle_round_started_ >= kMaxMarkSweepsInIdleRound) {
-    FinishIdleRound();
-    return true;
-  }
-
-  // If the IdleNotifcation is called with a large hint we will wait for
-  // the sweepter threads here.
-  if (idle_time_in_ms >= kMinHintForFullGC &&
-      mark_compact_collector()->sweeping_in_progress()) {
-    mark_compact_collector()->EnsureSweepingCompleted();
-  }
-
-  return false;
+  return result;
 }
 
 

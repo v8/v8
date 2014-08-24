@@ -21,165 +21,169 @@ namespace internal {
 // WARNING: RUNTIME_FUNCTION_LIST_ALWAYS_* is a very large macro that caused
 // MSVC Intellisense to crash.  It was broken into two macros to work around
 // this problem. Please avoid large recursive macros whenever possible.
-#define RUNTIME_FUNCTION_LIST_ALWAYS_1(F)                   \
-  /* Property access */                                     \
-  F(GetProperty, 2, 1)                                      \
-  F(KeyedGetProperty, 2, 1)                                 \
-  F(DeleteProperty, 3, 1)                                   \
-  F(HasOwnProperty, 2, 1)                                   \
-  F(HasProperty, 2, 1)                                      \
-  F(HasElement, 2, 1)                                       \
-  F(IsPropertyEnumerable, 2, 1)                             \
-  F(GetPropertyNames, 1, 1)                                 \
-  F(GetPropertyNamesFast, 1, 1)                             \
-  F(GetOwnPropertyNames, 2, 1)                              \
-  F(GetOwnElementNames, 1, 1)                               \
-  F(GetInterceptorInfo, 1, 1)                               \
-  F(GetNamedInterceptorPropertyNames, 1, 1)                 \
-  F(GetIndexedInterceptorElementNames, 1, 1)                \
-  F(GetArgumentsProperty, 1, 1)                             \
-  F(ToFastProperties, 1, 1)                                 \
-  F(FinishArrayPrototypeSetup, 1, 1)                        \
-  F(SpecialArrayFunctions, 0, 1)                            \
-  F(IsSloppyModeFunction, 1, 1)                             \
-  F(GetDefaultReceiver, 1, 1)                               \
-                                                            \
-  F(GetPrototype, 1, 1)                                     \
-  F(SetPrototype, 2, 1)                                     \
-  F(InternalSetPrototype, 2, 1)                             \
-  F(IsInPrototypeChain, 2, 1)                               \
-                                                            \
-  F(GetOwnProperty, 2, 1)                                   \
-                                                            \
-  F(IsExtensible, 1, 1)                                     \
-  F(PreventExtensions, 1, 1)                                \
-                                                            \
-  /* Utilities */                                           \
-  F(CheckIsBootstrapping, 0, 1)                             \
-  F(GetRootNaN, 0, 1)                                       \
-  F(Call, -1 /* >= 2 */, 1)                                 \
-  F(Apply, 5, 1)                                            \
-  F(GetFunctionDelegate, 1, 1)                              \
-  F(GetConstructorDelegate, 1, 1)                           \
-  F(DeoptimizeFunction, 1, 1)                               \
-  F(ClearFunctionTypeFeedback, 1, 1)                        \
-  F(RunningInSimulator, 0, 1)                               \
-  F(IsConcurrentRecompilationSupported, 0, 1)               \
-  F(OptimizeFunctionOnNextCall, -1, 1)                      \
-  F(NeverOptimizeFunction, 1, 1)                            \
-  F(GetOptimizationStatus, -1, 1)                           \
-  F(GetOptimizationCount, 1, 1)                             \
-  F(UnblockConcurrentRecompilation, 0, 1)                   \
-  F(CompileForOnStackReplacement, 1, 1)                     \
-  F(SetAllocationTimeout, -1 /* 2 || 3 */, 1)               \
-  F(SetNativeFlag, 1, 1)                                    \
-  F(SetInlineBuiltinFlag, 1, 1)                             \
-  F(StoreArrayLiteralElement, 5, 1)                         \
-  F(DebugPrepareStepInIfStepping, 1, 1)                     \
-  F(DebugPushPromise, 1, 1)                                 \
-  F(DebugPopPromise, 0, 1)                                  \
-  F(DebugPromiseEvent, 1, 1)                                \
-  F(DebugPromiseRejectEvent, 2, 1)                          \
-  F(DebugAsyncTaskEvent, 1, 1)                              \
-  F(FlattenString, 1, 1)                                    \
-  F(LoadMutableDouble, 2, 1)                                \
-  F(TryMigrateInstance, 1, 1)                               \
-  F(NotifyContextDisposed, 0, 1)                            \
-                                                            \
-  /* Array join support */                                  \
-  F(PushIfAbsent, 2, 1)                                     \
-  F(ArrayConcat, 1, 1)                                      \
-                                                            \
-  /* Conversions */                                         \
-  F(ToBool, 1, 1)                                           \
-  F(Typeof, 1, 1)                                           \
-                                                            \
-  F(Booleanize, 2, 1) /* TODO(turbofan): Only temporary */  \
-                                                            \
-  F(StringToNumber, 1, 1)                                   \
-  F(StringParseInt, 2, 1)                                   \
-  F(StringParseFloat, 1, 1)                                 \
-  F(StringToLowerCase, 1, 1)                                \
-  F(StringToUpperCase, 1, 1)                                \
-  F(StringSplit, 3, 1)                                      \
-  F(CharFromCode, 1, 1)                                     \
-  F(URIEscape, 1, 1)                                        \
-  F(URIUnescape, 1, 1)                                      \
-                                                            \
-  F(NumberToInteger, 1, 1)                                  \
-  F(NumberToIntegerMapMinusZero, 1, 1)                      \
-  F(NumberToJSUint32, 1, 1)                                 \
-  F(NumberToJSInt32, 1, 1)                                  \
-                                                            \
-  /* Arithmetic operations */                               \
-  F(NumberAdd, 2, 1)                                        \
-  F(NumberSub, 2, 1)                                        \
-  F(NumberMul, 2, 1)                                        \
-  F(NumberDiv, 2, 1)                                        \
-  F(NumberMod, 2, 1)                                        \
-  F(NumberUnaryMinus, 1, 1)                                 \
-  F(NumberImul, 2, 1)                                       \
-                                                            \
-  F(StringBuilderConcat, 3, 1)                              \
-  F(StringBuilderJoin, 3, 1)                                \
-  F(SparseJoinWithSeparator, 3, 1)                          \
-                                                            \
-  /* Bit operations */                                      \
-  F(NumberOr, 2, 1)                                         \
-  F(NumberAnd, 2, 1)                                        \
-  F(NumberXor, 2, 1)                                        \
-                                                            \
-  F(NumberShl, 2, 1)                                        \
-  F(NumberShr, 2, 1)                                        \
-  F(NumberSar, 2, 1)                                        \
-                                                            \
-  /* Comparisons */                                         \
-  F(NumberEquals, 2, 1)                                     \
-  F(StringEquals, 2, 1)                                     \
-                                                            \
-  F(NumberCompare, 3, 1)                                    \
-  F(SmiLexicographicCompare, 2, 1)                          \
-                                                            \
-  /* Math */                                                \
-  F(MathAcos, 1, 1)                                         \
-  F(MathAsin, 1, 1)                                         \
-  F(MathAtan, 1, 1)                                         \
-  F(MathFloorRT, 1, 1)                                      \
-  F(MathAtan2, 2, 1)                                        \
-  F(MathExpRT, 1, 1)                                        \
-  F(RoundNumber, 1, 1)                                      \
-  F(MathFround, 1, 1)                                       \
-  F(RemPiO2, 1, 1)                                          \
-                                                            \
-  /* Regular expressions */                                 \
-  F(RegExpCompile, 3, 1)                                    \
-  F(RegExpExecMultiple, 4, 1)                               \
-  F(RegExpInitializeObject, 5, 1)                           \
-                                                            \
-  /* JSON */                                                \
-  F(ParseJson, 1, 1)                                        \
-  F(BasicJSONStringify, 1, 1)                               \
-  F(QuoteJSONString, 1, 1)                                  \
-                                                            \
-  /* Strings */                                             \
-  F(StringIndexOf, 3, 1)                                    \
-  F(StringLastIndexOf, 3, 1)                                \
-  F(StringLocaleCompare, 2, 1)                              \
-  F(StringReplaceGlobalRegExpWithString, 4, 1)              \
-  F(StringReplaceOneCharWithString, 3, 1)                   \
-  F(StringMatch, 3, 1)                                      \
-  F(StringTrim, 3, 1)                                       \
-  F(StringToArray, 2, 1)                                    \
-  F(NewStringWrapper, 1, 1)                                 \
-  F(NewString, 2, 1)                                        \
-  F(TruncateString, 2, 1)                                   \
-                                                            \
-  /* Numbers */                                             \
-  F(NumberToRadixString, 2, 1)                              \
-  F(NumberToFixed, 2, 1)                                    \
-  F(NumberToExponential, 2, 1)                              \
-  F(NumberToPrecision, 2, 1)                                \
-  F(IsValidSmi, 1, 1)
+#define RUNTIME_FUNCTION_LIST_ALWAYS_1(F)                  \
+  /* Property access */                                    \
+  F(GetProperty, 2, 1)                                     \
+  F(KeyedGetProperty, 2, 1)                                \
+  F(DeleteProperty, 3, 1)                                  \
+  F(HasOwnProperty, 2, 1)                                  \
+  F(HasProperty, 2, 1)                                     \
+  F(HasElement, 2, 1)                                      \
+  F(IsPropertyEnumerable, 2, 1)                            \
+  F(GetPropertyNames, 1, 1)                                \
+  F(GetPropertyNamesFast, 1, 1)                            \
+  F(GetOwnPropertyNames, 2, 1)                             \
+  F(GetOwnElementNames, 1, 1)                              \
+  F(GetInterceptorInfo, 1, 1)                              \
+  F(GetNamedInterceptorPropertyNames, 1, 1)                \
+  F(GetIndexedInterceptorElementNames, 1, 1)               \
+  F(GetArgumentsProperty, 1, 1)                            \
+  F(ToFastProperties, 1, 1)                                \
+  F(FinishArrayPrototypeSetup, 1, 1)                       \
+  F(SpecialArrayFunctions, 0, 1)                           \
+  F(IsSloppyModeFunction, 1, 1)                            \
+  F(GetDefaultReceiver, 1, 1)                              \
+                                                           \
+  F(GetPrototype, 1, 1)                                    \
+  F(SetPrototype, 2, 1)                                    \
+  F(InternalSetPrototype, 2, 1)                            \
+  F(IsInPrototypeChain, 2, 1)                              \
+                                                           \
+  F(GetOwnProperty, 2, 1)                                  \
+                                                           \
+  F(IsExtensible, 1, 1)                                    \
+  F(PreventExtensions, 1, 1)                               \
+                                                           \
+  /* Utilities */                                          \
+  F(CheckIsBootstrapping, 0, 1)                            \
+  F(GetRootNaN, 0, 1)                                      \
+  F(Call, -1 /* >= 2 */, 1)                                \
+  F(Apply, 5, 1)                                           \
+  F(GetFunctionDelegate, 1, 1)                             \
+  F(GetConstructorDelegate, 1, 1)                          \
+  F(DeoptimizeFunction, 1, 1)                              \
+  F(ClearFunctionTypeFeedback, 1, 1)                       \
+  F(RunningInSimulator, 0, 1)                              \
+  F(IsConcurrentRecompilationSupported, 0, 1)              \
+  F(OptimizeFunctionOnNextCall, -1, 1)                     \
+  F(NeverOptimizeFunction, 1, 1)                           \
+  F(GetOptimizationStatus, -1, 1)                          \
+  F(GetOptimizationCount, 1, 1)                            \
+  F(UnblockConcurrentRecompilation, 0, 1)                  \
+  F(CompileForOnStackReplacement, 1, 1)                    \
+  F(SetAllocationTimeout, -1 /* 2 || 3 */, 1)              \
+  F(SetNativeFlag, 1, 1)                                   \
+  F(SetInlineBuiltinFlag, 1, 1)                            \
+  F(StoreArrayLiteralElement, 5, 1)                        \
+  F(DebugPrepareStepInIfStepping, 1, 1)                    \
+  F(DebugPushPromise, 1, 1)                                \
+  F(DebugPopPromise, 0, 1)                                 \
+  F(DebugPromiseEvent, 1, 1)                               \
+  F(DebugPromiseRejectEvent, 2, 1)                         \
+  F(DebugAsyncTaskEvent, 1, 1)                             \
+  F(FlattenString, 1, 1)                                   \
+  F(LoadMutableDouble, 2, 1)                               \
+  F(TryMigrateInstance, 1, 1)                              \
+  F(NotifyContextDisposed, 0, 1)                           \
+                                                           \
+  /* Array join support */                                 \
+  F(PushIfAbsent, 2, 1)                                    \
+  F(ArrayConcat, 1, 1)                                     \
+                                                           \
+  /* Conversions */                                        \
+  F(ToBool, 1, 1)                                          \
+  F(Typeof, 1, 1)                                          \
+                                                           \
+  F(Booleanize, 2, 1) /* TODO(turbofan): Only temporary */ \
+                                                           \
+  F(StringToNumber, 1, 1)                                  \
+  F(StringParseInt, 2, 1)                                  \
+  F(StringParseFloat, 1, 1)                                \
+  F(StringToLowerCase, 1, 1)                               \
+  F(StringToUpperCase, 1, 1)                               \
+  F(StringSplit, 3, 1)                                     \
+  F(CharFromCode, 1, 1)                                    \
+  F(URIEscape, 1, 1)                                       \
+  F(URIUnescape, 1, 1)                                     \
+                                                           \
+  F(NumberToInteger, 1, 1)                                 \
+  F(NumberToIntegerMapMinusZero, 1, 1)                     \
+  F(NumberToJSUint32, 1, 1)                                \
+  F(NumberToJSInt32, 1, 1)                                 \
+                                                           \
+  /* Arithmetic operations */                              \
+  F(NumberAdd, 2, 1)                                       \
+  F(NumberSub, 2, 1)                                       \
+  F(NumberMul, 2, 1)                                       \
+  F(NumberDiv, 2, 1)                                       \
+  F(NumberMod, 2, 1)                                       \
+  F(NumberUnaryMinus, 1, 1)                                \
+  F(NumberImul, 2, 1)                                      \
+                                                           \
+  F(StringBuilderConcat, 3, 1)                             \
+  F(StringBuilderJoin, 3, 1)                               \
+  F(SparseJoinWithSeparator, 3, 1)                         \
+                                                           \
+  /* Bit operations */                                     \
+  F(NumberOr, 2, 1)                                        \
+  F(NumberAnd, 2, 1)                                       \
+  F(NumberXor, 2, 1)                                       \
+                                                           \
+  F(NumberShl, 2, 1)                                       \
+  F(NumberShr, 2, 1)                                       \
+  F(NumberSar, 2, 1)                                       \
+                                                           \
+  /* Comparisons */                                        \
+  F(NumberEquals, 2, 1)                                    \
+  F(StringEquals, 2, 1)                                    \
+                                                           \
+  F(NumberCompare, 3, 1)                                   \
+  F(SmiLexicographicCompare, 2, 1)                         \
+                                                           \
+  /* Math */                                               \
+  F(MathAcos, 1, 1)                                        \
+  F(MathAsin, 1, 1)                                        \
+  F(MathAtan, 1, 1)                                        \
+  F(MathFloorRT, 1, 1)                                     \
+  F(MathAtan2, 2, 1)                                       \
+  F(MathExpRT, 1, 1)                                       \
+  F(RoundNumber, 1, 1)                                     \
+  F(MathFround, 1, 1)                                      \
+  F(RemPiO2, 1, 1)                                         \
+                                                           \
+  /* Regular expressions */                                \
+  F(RegExpCompile, 3, 1)                                   \
+  F(RegExpExecMultiple, 4, 1)                              \
+  F(RegExpInitializeObject, 5, 1)                          \
+                                                           \
+  /* JSON */                                               \
+  F(ParseJson, 1, 1)                                       \
+  F(BasicJSONStringify, 1, 1)                              \
+  F(QuoteJSONString, 1, 1)                                 \
+                                                           \
+  /* Strings */                                            \
+  F(StringIndexOf, 3, 1)                                   \
+  F(StringLastIndexOf, 3, 1)                               \
+  F(StringLocaleCompare, 2, 1)                             \
+  F(StringReplaceGlobalRegExpWithString, 4, 1)             \
+  F(StringReplaceOneCharWithString, 3, 1)                  \
+  F(StringMatch, 3, 1)                                     \
+  F(StringTrim, 3, 1)                                      \
+  F(StringToArray, 2, 1)                                   \
+  F(NewStringWrapper, 1, 1)                                \
+  F(NewString, 2, 1)                                       \
+  F(TruncateString, 2, 1)                                  \
+                                                           \
+  /* Numbers */                                            \
+  F(NumberToRadixString, 2, 1)                             \
+  F(NumberToFixed, 2, 1)                                   \
+  F(NumberToExponential, 2, 1)                             \
+  F(NumberToPrecision, 2, 1)                               \
+  F(IsValidSmi, 1, 1)                                      \
+                                                           \
+  /* Classes support */                                    \
+  F(ToMethod, 2, 1)                                        \
+  F(HomeObjectSymbol, 0, 1)
 
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F)                             \

@@ -365,6 +365,8 @@ class CompilationInfo {
     ast_value_factory_owned_ = owned;
   }
 
+  AstNode::IdGen* ast_node_id_gen() { return &ast_node_id_gen_; }
+
  protected:
   CompilationInfo(Handle<Script> script,
                   Zone* zone);
@@ -511,6 +513,7 @@ class CompilationInfo {
 
   AstValueFactory* ast_value_factory_;
   bool ast_value_factory_owned_;
+  AstNode::IdGen ast_node_id_gen_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };

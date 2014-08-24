@@ -14,7 +14,6 @@
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
 #include "src/snapshot.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -1472,6 +1471,8 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 
   __ DebugBreak();
   // Ignore the return value.
+
+  PrepareForBailoutForId(stmt->DebugBreakId(), NO_REGISTERS);
 }
 
 

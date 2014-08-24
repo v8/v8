@@ -43,5 +43,8 @@
   'date-format/parse-mdyhms': [FAIL],
   'number-format/parse-decimal': [FAIL],
   'number-format/parse-percent': [FAIL],
+
+  # TODO(jbramley): This test times out with TurboFan. See issue 3526.
+  'overrides/string': [PASS, NO_VARIANTS],
 }],  # ALWAYS
 ]

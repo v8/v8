@@ -357,9 +357,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(Object*, string_stream_current_security_token, NULL)                       \
   /* Serializer state. */                                                      \
   V(ExternalReferenceTable*, external_reference_table, NULL)                   \
-  /* AstNode state. */                                                         \
-  V(int, ast_node_id, 0)                                                       \
-  V(unsigned, ast_node_count, 0)                                               \
   V(int, pending_microtask_count, 0)                                           \
   V(bool, autorun_microtasks, true)                                            \
   V(HStatistics*, hstatistics, NULL)                                           \

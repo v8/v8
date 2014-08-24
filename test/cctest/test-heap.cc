@@ -34,8 +34,8 @@
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/ic/ic.h"
 #include "src/macro-assembler.h"
-#include "src/stub-cache.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

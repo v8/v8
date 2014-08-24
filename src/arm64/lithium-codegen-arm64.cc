@@ -8,7 +8,6 @@
 #include "src/arm64/lithium-gap-resolver-arm64.h"
 #include "src/code-stubs.h"
 #include "src/hydrogen-osr.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -4926,32 +4925,33 @@ void LCodeGen::DoShiftS(LShiftS* instr) {
   Register left = ToRegister(instr->left());
   Register result = ToRegister(instr->result());
 
-  // Only ROR by register needs a temp.
-  DCHECK(((instr->op() == Token::ROR) && right_op->IsRegister()) ||
-         (instr->temp() == NULL));
-
   if (right_op->IsRegister()) {
     Register right = ToRegister(instr->right());
+
+    // JavaScript shifts only look at the bottom 5 bits of the 'right' operand.
+    // Since we're handling smis in X registers, we have to extract these bits
+    // explicitly.
+    __ Ubfx(result, right, kSmiShift, 5);
+
     switch (instr->op()) {
       case Token::ROR: {
-        Register temp = ToRegister(instr->temp());
-        __ Ubfx(temp, right, kSmiShift, 5);
-        __ SmiUntag(result, left);
-        __ Ror(result.W(), result.W(), temp.W());
+        // This is the only case that needs a scratch register. To keep things
+        // simple for the other cases, borrow a MacroAssembler scratch register.
+        UseScratchRegisterScope temps(masm());
+        Register temp = temps.AcquireW();
+        __ SmiUntag(temp, left);
+        __ Ror(result.W(), temp.W(), result.W());
         __ SmiTag(result);
         break;
       }
       case Token::SAR:
-        __ Ubfx(result, right, kSmiShift, 5);
         __ Asr(result, left, result);
         __ Bic(result, result, kSmiShiftMask);
         break;
       case Token::SHL:
-        __ Ubfx(result, right, kSmiShift, 5);
         __ Lsl(result, left, result);
         break;
       case Token::SHR:
-        __ Ubfx(result, right, kSmiShift, 5);
         __ Lsr(result, left, result);
         __ Bic(result, result, kSmiShiftMask);
         if (instr->can_deopt()) {

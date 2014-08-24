@@ -89,6 +89,9 @@ class InstructionOperand : public ZoneObject {
   unsigned value_;
 };
 
+typedef std::vector<InstructionOperand*, zone_allocator<InstructionOperand*> >
+    InstructionOperandVector;
+
 OStream& operator<<(OStream& os, const InstructionOperand& op);
 
 class UnallocatedOperand : public InstructionOperand {

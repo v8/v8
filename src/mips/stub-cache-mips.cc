@@ -576,7 +576,7 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
 }
 
 
-void NamedStoreHandlerCompiler::GenerateStoreField(LookupResult* lookup,
+void NamedStoreHandlerCompiler::GenerateStoreField(LookupIterator* lookup,
                                                    Register value_reg,
                                                    Label* miss_label) {
   DCHECK(lookup->representation().IsHeapObject());

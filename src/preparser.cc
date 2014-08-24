@@ -82,6 +82,11 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
 }
 
 
+PreParserIdentifier PreParserTraits::GetNumberAsSymbol(Scanner* scanner) {
+  return PreParserIdentifier::Default();
+}
+
+
 PreParserExpression PreParserTraits::ExpressionFromString(
     int pos, Scanner* scanner, PreParserFactory* factory) {
   if (scanner->UnescapedLiteralMatches("use strict", 10)) {

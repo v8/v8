@@ -43,7 +43,12 @@ class CallDescriptor : public ZoneObject {
   // or an address--all of which require different machine sequences to call.
   enum Kind { kCallCodeObject, kCallJSFunction, kCallAddress };
 
-  enum DeoptimizationSupport { kCanDeoptimize, kCannotDeoptimize };
+  // TODO(jarin) kLazyDeoptimization and kNeedsFrameState should be unified.
+  enum DeoptimizationSupport {
+    kNoDeoptimization = 0,
+    kLazyDeoptimization = 1,
+    kNeedsFrameState = 2
+  };
 
   CallDescriptor(Kind kind, int8_t return_count, int16_t parameter_count,
                  int16_t input_count, LinkageLocation* locations,
@@ -74,8 +79,18 @@ class CallDescriptor : public ZoneObject {
 
   int InputCount() const { return input_count_; }
 
+  int FrameStateCount() const { return NeedsFrameState() ? 1 : 0; }
+
   bool CanLazilyDeoptimize() const {
-    return deoptimization_support_ == kCanDeoptimize;
+    return (deoptimization_support() & kLazyDeoptimization) != 0;
+  }
+
+  bool NeedsFrameState() const {
+    return (deoptimization_support() & kNeedsFrameState) != 0;
+  }
+
+  DeoptimizationSupport deoptimization_support() const {
+    return deoptimization_support_;
   }
 
   LinkageLocation GetReturnLocation(int index) {
@@ -141,7 +156,7 @@ class Linkage : public ZoneObject {
       Runtime::FunctionId function, int parameter_count,
       Operator::Property properties,
       CallDescriptor::DeoptimizationSupport can_deoptimize =
-          CallDescriptor::kCannotDeoptimize);
+          CallDescriptor::kNoDeoptimization);
   static CallDescriptor* GetRuntimeCallDescriptor(
       Runtime::FunctionId function, int parameter_count,
       Operator::Property properties,
@@ -150,7 +165,7 @@ class Linkage : public ZoneObject {
   CallDescriptor* GetStubCallDescriptor(
       CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count = 0,
       CallDescriptor::DeoptimizationSupport can_deoptimize =
-          CallDescriptor::kCannotDeoptimize);
+          CallDescriptor::kNoDeoptimization);
   static CallDescriptor* GetStubCallDescriptor(
       CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
       CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone);

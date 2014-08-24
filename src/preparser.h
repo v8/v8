@@ -68,6 +68,7 @@ class ParserBase : public Traits {
 
   ParserBase(Scanner* scanner, uintptr_t stack_limit, v8::Extension* extension,
              ParserRecorder* log, typename Traits::Type::Zone* zone,
+             AstNode::IdGen* ast_node_id_gen,
              typename Traits::Type::Parser this_object)
       : Traits(this_object),
         parenthesized_function_(false),
@@ -84,7 +85,8 @@ class ParserBase : public Traits {
         allow_natives_syntax_(false),
         allow_generators_(false),
         allow_arrow_functions_(false),
-        zone_(zone) {}
+        zone_(zone),
+        ast_node_id_gen_(ast_node_id_gen) {}
 
   // Getters that indicate whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -130,6 +132,7 @@ class ParserBase : public Traits {
   };
 
   class CheckpointBase;
+  class ObjectLiteralChecker;
 
   // ---------------------------------------------------------------------------
   // FunctionState and BlockState together implement the parser's scope stack.
@@ -155,17 +158,18 @@ class ParserBase : public Traits {
 
   class FunctionState BASE_EMBEDDED {
    public:
-    FunctionState(
-        FunctionState** function_state_stack,
-        typename Traits::Type::Scope** scope_stack,
-        typename Traits::Type::Scope* scope,
-        typename Traits::Type::Zone* zone = NULL,
-        AstValueFactory* ast_value_factory = NULL);
+    FunctionState(FunctionState** function_state_stack,
+                  typename Traits::Type::Scope** scope_stack,
+                  typename Traits::Type::Scope* scope,
+                  typename Traits::Type::Zone* zone = NULL,
+                  AstValueFactory* ast_value_factory = NULL,
+                  AstNode::IdGen* ast_node_id_gen = NULL);
     FunctionState(FunctionState** function_state_stack,
                   typename Traits::Type::Scope** scope_stack,
                   typename Traits::Type::Scope** scope,
                   typename Traits::Type::Zone* zone = NULL,
-                  AstValueFactory* ast_value_factory = NULL);
+                  AstValueFactory* ast_value_factory = NULL,
+                  AstNode::IdGen* ast_node_id_gen = NULL);
     ~FunctionState();
 
     int NextMaterializedLiteralIndex() {
@@ -221,7 +225,8 @@ class ParserBase : public Traits {
     FunctionState* outer_function_state_;
     typename Traits::Type::Scope** scope_stack_;
     typename Traits::Type::Scope* outer_scope_;
-    int saved_ast_node_id_;  // Only used by ParserTraits.
+    AstNode::IdGen* ast_node_id_gen_;  // Only used by ParserTraits.
+    AstNode::IdGen saved_id_gen_;      // Ditto.
     typename Traits::Type::Zone* extra_param_;
     typename Traits::Type::Factory factory_;
 
@@ -280,6 +285,7 @@ class ParserBase : public Traits {
   void set_stack_overflow() { stack_overflow_ = true; }
   Mode mode() const { return mode_; }
   typename Traits::Type::Zone* zone() const { return zone_; }
+  AstNode::IdGen* ast_node_id_gen() const { return ast_node_id_gen_; }
 
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
@@ -473,7 +479,8 @@ class ParserBase : public Traits {
   ExpressionT ParseExpression(bool accept_IN, bool* ok);
   ExpressionT ParseArrayLiteral(bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
-  ObjectLiteralPropertyT ParsePropertyDefinition(bool* ok);
+  ObjectLiteralPropertyT ParsePropertyDefinition(ObjectLiteralChecker* checker,
+                                                 bool* ok);
   typename Traits::Type::ExpressionList ParseArguments(bool* ok);
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
   ExpressionT ParseYieldExpression(bool* ok);
@@ -495,6 +502,60 @@ class ParserBase : public Traits {
   ExpressionT CheckAndRewriteReferenceExpression(
       ExpressionT expression,
       Scanner::Location location, const char* message, bool* ok);
+
+  // Used to detect duplicates in object literals. Each of the values
+  // kGetterProperty, kSetterProperty and kValueProperty represents
+  // a type of object literal property. When parsing a property, its
+  // type value is stored in the DuplicateFinder for the property name.
+  // Values are chosen so that having intersection bits means the there is
+  // an incompatibility.
+  // I.e., you can add a getter to a property that already has a setter, since
+  // kGetterProperty and kSetterProperty doesn't intersect, but not if it
+  // already has a getter or a value. Adding the getter to an existing
+  // setter will store the value (kGetterProperty | kSetterProperty), which
+  // is incompatible with adding any further properties.
+  enum PropertyKind {
+    kNone = 0,
+    // Bit patterns representing different object literal property types.
+    kGetterProperty = 1,
+    kSetterProperty = 2,
+    kValueProperty = 7,
+    // Helper constants.
+    kValueFlag = 4
+  };
+
+  // Validation per ECMA 262 - 11.1.5 "Object Initializer".
+  class ObjectLiteralChecker {
+   public:
+    ObjectLiteralChecker(ParserBase* parser, StrictMode strict_mode)
+        : parser_(parser),
+          finder_(scanner()->unicode_cache()),
+          strict_mode_(strict_mode) {}
+
+    void CheckProperty(Token::Value property, PropertyKind type, bool* ok);
+
+   private:
+    ParserBase* parser() const { return parser_; }
+    Scanner* scanner() const { return parser_->scanner(); }
+
+    // Checks the type of conflict based on values coming from PropertyType.
+    bool HasConflict(PropertyKind type1, PropertyKind type2) {
+      return (type1 & type2) != 0;
+    }
+    bool IsDataDataConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 & type2) & kValueFlag) != 0;
+    }
+    bool IsDataAccessorConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 ^ type2) & kValueFlag) != 0;
+    }
+    bool IsAccessorAccessorConflict(PropertyKind type1, PropertyKind type2) {
+      return ((type1 | type2) & kValueFlag) == 0;
+    }
+
+    ParserBase* parser_;
+    DuplicateFinder finder_;
+    StrictMode strict_mode_;
+  };
 
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.
@@ -520,6 +581,7 @@ class ParserBase : public Traits {
   bool allow_arrow_functions_;
 
   typename Traits::Type::Zone* zone_;  // Only used by Parser.
+  AstNode::IdGen* ast_node_id_gen_;
 };
 
 
@@ -884,7 +946,7 @@ class PreParserScope {
 
 class PreParserFactory {
  public:
-  explicit PreParserFactory(void* extra_param1, void* extra_param2) {}
+  PreParserFactory(void*, void*, void*) {}
   PreParserExpression NewStringLiteral(PreParserIdentifier identifier,
                                        int pos) {
     return PreParserExpression::Default();
@@ -1050,10 +1112,10 @@ class PreParserTraits {
 
   // Custom operations executed when FunctionStates are created and
   // destructed. (The PreParser doesn't need to do anything.)
-  template<typename FunctionState>
-  static void SetUpFunctionState(FunctionState* function_state, void*) {}
-  template<typename FunctionState>
-  static void TearDownFunctionState(FunctionState* function_state, void*) {}
+  template <typename FunctionState>
+  static void SetUpFunctionState(FunctionState* function_state) {}
+  template <typename FunctionState>
+  static void TearDownFunctionState(FunctionState* function_state) {}
 
   // Helper functions for recursive descent.
   static bool IsEvalOrArguments(PreParserIdentifier identifier) {
@@ -1192,6 +1254,7 @@ class PreParserTraits {
 
   // Producing data during the recursive descent.
   PreParserIdentifier GetSymbol(Scanner* scanner);
+  PreParserIdentifier GetNumberAsSymbol(Scanner* scanner);
 
   static PreParserIdentifier GetNextSymbol(Scanner* scanner) {
     return PreParserIdentifier::Default();
@@ -1306,7 +1369,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   };
 
   PreParser(Scanner* scanner, ParserRecorder* log, uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, log, NULL,
+      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, log, NULL, NULL,
                                     this) {}
 
   // Pre-parse the program from the character stream; returns true on
@@ -1441,13 +1504,12 @@ PreParserStatementList PreParserTraits::ParseEagerFunctionBody(
 }
 
 
-template<class Traits>
+template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack,
     typename Traits::Type::Scope** scope_stack,
-    typename Traits::Type::Scope* scope,
-    typename Traits::Type::Zone* extra_param,
-    AstValueFactory* ast_value_factory)
+    typename Traits::Type::Scope* scope, typename Traits::Type::Zone* zone,
+    AstValueFactory* ast_value_factory, AstNode::IdGen* ast_node_id_gen)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
@@ -1457,12 +1519,11 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
-      saved_ast_node_id_(0),
-      extra_param_(extra_param),
-      factory_(extra_param, ast_value_factory) {
+      ast_node_id_gen_(ast_node_id_gen),
+      factory_(zone, ast_value_factory, ast_node_id_gen) {
   *scope_stack_ = scope;
   *function_state_stack = this;
-  Traits::SetUpFunctionState(this, extra_param);
+  Traits::SetUpFunctionState(this);
 }
 
 
@@ -1470,9 +1531,8 @@ template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack,
     typename Traits::Type::Scope** scope_stack,
-    typename Traits::Type::Scope** scope,
-    typename Traits::Type::Zone* extra_param,
-    AstValueFactory* ast_value_factory)
+    typename Traits::Type::Scope** scope, typename Traits::Type::Zone* zone,
+    AstValueFactory* ast_value_factory, AstNode::IdGen* ast_node_id_gen)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
@@ -1482,12 +1542,11 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
-      saved_ast_node_id_(0),
-      extra_param_(extra_param),
-      factory_(extra_param, ast_value_factory) {
+      ast_node_id_gen_(ast_node_id_gen),
+      factory_(zone, ast_value_factory, ast_node_id_gen) {
   *scope_stack_ = *scope;
   *function_state_stack = this;
-  Traits::SetUpFunctionState(this, extra_param);
+  Traits::SetUpFunctionState(this);
 }
 
 
@@ -1495,7 +1554,7 @@ template <class Traits>
 ParserBase<Traits>::FunctionState::~FunctionState() {
   *scope_stack_ = outer_scope_;
   *function_state_stack_ = outer_function_state_;
-  Traits::TearDownFunctionState(this, extra_param_);
+  Traits::TearDownFunctionState(this);
 }
 
 
@@ -1793,8 +1852,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseArrayLiteral(
 
 
 template <class Traits>
-typename ParserBase<Traits>::ObjectLiteralPropertyT
-ParserBase<Traits>::ParsePropertyDefinition(bool* ok) {
+typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
+    Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker, bool* ok) {
   LiteralT key = this->EmptyLiteral();
   Token::Value next = peek();
   int next_pos = peek_position();
@@ -1837,15 +1896,16 @@ ParserBase<Traits>::ParsePropertyDefinition(bool* ok) {
             break;
           case Token::NUMBER:
             Consume(Token::NUMBER);
-            // TODO(arv): Fix issue with numeric keys. get 1.0() should be
-            // treated as if the key was '1'
-            // https://code.google.com/p/v8/issues/detail?id=3507
-            name = this->GetSymbol(scanner_);
+            name = this->GetNumberAsSymbol(scanner_);
             break;
           default:
             name = ParseIdentifierName(
                 CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
         }
+        // Validate the property.
+        PropertyKind type = is_getter ? kGetterProperty : kSetterProperty;
+        checker->CheckProperty(next, type,
+                               CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
         typename Traits::Type::FunctionLiteral value =
             this->ParseFunctionLiteral(
                 name, scanner()->location(),
@@ -1862,6 +1922,10 @@ ParserBase<Traits>::ParsePropertyDefinition(bool* ok) {
       key = factory()->NewStringLiteral(id, next_pos);
     }
   }
+
+  // Validate the property
+  checker->CheckProperty(next, kValueProperty,
+                         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   Expect(Token::COLON, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
   ExpressionT value = this->ParseAssignmentExpression(
@@ -1883,12 +1947,15 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseObjectLiteral(
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
 
+  ObjectLiteralChecker checker(this, strict_mode());
+
   Expect(Token::LBRACE, CHECK_OK);
 
   while (peek() != Token::RBRACE) {
     if (fni_ != NULL) fni_->Enter();
 
-    ObjectLiteralPropertyT property = this->ParsePropertyDefinition(CHECK_OK);
+    ObjectLiteralPropertyT property =
+        this->ParsePropertyDefinition(&checker, CHECK_OK);
 
     // Mark top-level object literals that contain function literals and
     // pretenure the literal so it can be added as a constant function
@@ -2447,7 +2514,7 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
 
   {
     FunctionState function_state(&function_state_, &scope_, &scope, zone(),
-                                 this->ast_value_factory());
+                                 this->ast_value_factory(), ast_node_id_gen_);
     Scanner::Location dupe_error_loc = Scanner::Location::invalid();
     num_parameters = Traits::DeclareArrowParametersFromExpression(
         params_ast, scope_, &dupe_error_loc, ok);
@@ -2572,6 +2639,32 @@ ParserBase<Traits>::CheckAndRewriteReferenceExpression(
 #undef CHECK_OK_CUSTOM
 
 
+template <typename Traits>
+void ParserBase<Traits>::ObjectLiteralChecker::CheckProperty(
+    Token::Value property, PropertyKind type, bool* ok) {
+  int old;
+  if (property == Token::NUMBER) {
+    old = scanner()->FindNumber(&finder_, type);
+  } else {
+    old = scanner()->FindSymbol(&finder_, type);
+  }
+  PropertyKind old_type = static_cast<PropertyKind>(old);
+  if (HasConflict(old_type, type)) {
+    if (IsDataDataConflict(old_type, type)) {
+      // Both are data properties.
+      if (strict_mode_ == SLOPPY) return;
+      parser()->ReportMessage("strict_duplicate_property");
+    } else if (IsDataAccessorConflict(old_type, type)) {
+      // Both a data and an accessor property with the same name.
+      parser()->ReportMessage("accessor_data_property");
+    } else {
+      DCHECK(IsAccessorAccessorConflict(old_type, type));
+      // Both accessors of the same type.
+      parser()->ReportMessage("accessor_get_set");
+    }
+    *ok = false;
+  }
+}
 } }  // v8::internal
 
 #endif  // V8_PREPARSER_H

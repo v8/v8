@@ -1194,6 +1194,26 @@ Changed paths:
 Tagging version 3.28.40
 ------------------------------------------------------------------------
 """
+    c_hash2_commit_log = """Revert something.
+
+BUG=12345
+
+Reason:
+> Some reason.
+> Cr-Commit-Position: refs/heads/master@{#12345}
+> git-svn-id: svn://svn.chromium.org/chrome/trunk/src@12345 003-1c4
+
+Review URL: https://codereview.chromium.org/12345
+
+Cr-Commit-Position: refs/heads/master@{#4567}
+git-svn-id: svn://svn.chromium.org/chrome/trunk/src@4567 0039-1c4b
+
+"""
+    c_hash3_commit_log = """Simple.
+
+git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
+
+"""
     json_output = self.MakeEmptyTempFile()
     csv_output = self.MakeEmptyTempFile()
     TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
@@ -1270,12 +1290,16 @@ Tagging version 3.28.40
       Git("checkout -f master", ""),
       Git("pull", ""),
       Git("checkout -b %s" % TEST_CONFIG[BRANCHNAME], ""),
-      Git("log --format=%H --grep=\"V8\"", "c_hash1\nc_hash2\n"),
+      Git("log --format=%H --grep=\"V8\"", "c_hash1\nc_hash2\nc_hash3\n"),
       Git("diff --name-only c_hash1 c_hash1^", ""),
       Git("diff --name-only c_hash2 c_hash2^", TEST_CONFIG[DEPS_FILE]),
       Git("checkout -f c_hash2 -- %s" % TEST_CONFIG[DEPS_FILE], "",
+          cb=ResetDEPS(22624)),
+      Git("log -1 --format=%B c_hash2", c_hash2_commit_log),
+      Git("diff --name-only c_hash3 c_hash3^", TEST_CONFIG[DEPS_FILE]),
+      Git("checkout -f c_hash3 -- %s" % TEST_CONFIG[DEPS_FILE], "",
           cb=ResetDEPS(345)),
-      Git("svn find-rev c_hash2", "4567"),
+      Git("log -1 --format=%B c_hash3", c_hash3_commit_log),
       Git("checkout -f HEAD -- %s" % TEST_CONFIG[DEPS_FILE], "",
           cb=ResetDEPS(567)),
       Git("branch -r", " weird/123\n  branch-heads/7\n"),
@@ -1297,8 +1321,8 @@ Tagging version 3.28.40
 
     # Check expected output.
     csv = ("3.28.41,bleeding_edge,22626,,\r\n"
-           "3.28.40,bleeding_edge,22624,,\r\n"
-           "3.22.3,trunk,345,4567,\r\n"
+           "3.28.40,bleeding_edge,22624,4567,\r\n"
+           "3.22.3,trunk,345,3456:4566,\r\n"
            "3.21.2,3.21,123,,\r\n"
            "3.3.1.1,3.3,234,,12\r\n")
     self.assertEquals(csv, FileToText(csv_output))
@@ -1309,11 +1333,12 @@ Tagging version 3.28.40
        "review_link": "", "date": "01:23", "chromium_branch": "",
        "revision_link": "https://code.google.com/p/v8/source/detail?r=22626"},
       {"bleeding_edge": "22624", "patches_merged": "", "version": "3.28.40",
-       "chromium_revision": "", "branch": "bleeding_edge", "revision": "22624",
-       "review_link": "", "date": "02:34", "chromium_branch": "",
+       "chromium_revision": "4567", "branch": "bleeding_edge",
+       "revision": "22624", "review_link": "", "date": "02:34",
+       "chromium_branch": "",
        "revision_link": "https://code.google.com/p/v8/source/detail?r=22624"},
       {"bleeding_edge": "", "patches_merged": "", "version": "3.22.3",
-       "chromium_revision": "4567", "branch": "trunk", "revision": "345",
+       "chromium_revision": "3456:4566", "branch": "trunk", "revision": "345",
        "review_link": "", "date": "", "chromium_branch": "7",
        "revision_link": "https://code.google.com/p/v8/source/detail?r=345"},
       {"patches_merged": "", "bleeding_edge": "", "version": "3.21.2",

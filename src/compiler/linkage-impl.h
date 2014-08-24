@@ -64,7 +64,7 @@ class LinkageHelper {
                        locations,                        // locations
                        Operator::kNoProperties,          // properties
                        kNoCalleeSaved,  // callee-saved registers
-                       CallDescriptor::kCanDeoptimize);  // deoptimization
+                       CallDescriptor::kLazyDeoptimization);  // deoptimization
   }
 
 
@@ -196,7 +196,7 @@ class LinkageHelper {
     return new (zone) CallDescriptor(
         CallDescriptor::kCallAddress, 1, num_params, num_params + 1, locations,
         Operator::kNoProperties, LinkageTraits::CCalleeSaveRegisters(),
-        CallDescriptor::kCannotDeoptimize);  // TODO(jarin) should deoptimize!
+        CallDescriptor::kNoDeoptimization);  // TODO(jarin) should deoptimize!
   }
 };
 }

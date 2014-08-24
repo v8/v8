@@ -239,7 +239,9 @@ class CppLintProcessor(SourceFileProcessor):
     return ['src', 'include', 'samples',
             join('test', 'base-unittests'),
             join('test', 'cctest'),
-            join('test', 'compiler-unittests')]
+            join('test', 'compiler-unittests'),
+            join('test', 'heap-unittests'),
+            join('test', 'runtime-unittests')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):

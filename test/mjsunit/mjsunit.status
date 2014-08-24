@@ -93,10 +93,12 @@
   'regress/regress-debug-deopt-while-recompile': [PASS, NO_VARIANTS],
   'regress/regress-opt-after-debug-deopt': [PASS, NO_VARIANTS],
 
+  # Code serializer does not work correctly.
+  'deserialize-reference': [PASS, NO_VARIANTS],
+
   # Support for %GetFrameDetails is missing and requires checkpoints.
   'debug-backtrace-text': [PASS, NO_VARIANTS],
   'debug-break-inline': [PASS, NO_VARIANTS],
-  'debug-evaluate-arguments': [PASS, NO_VARIANTS],
   'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
   'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-const': [PASS, NO_VARIANTS],
@@ -107,9 +109,7 @@
   'debug-evaluate-with': [PASS, NO_VARIANTS],
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
   'debug-liveedit-restart-frame': [PASS, NO_VARIANTS],
-  'debug-receiver': [PASS, NO_VARIANTS],
   'debug-return-value': [PASS, NO_VARIANTS],
-  'debug-scopes': [PASS, NO_VARIANTS],
   'debug-set-variable-value': [PASS, NO_VARIANTS],
   'debug-step-stub-callfunction': [PASS, NO_VARIANTS],
   'debug-stepin-accessor': [PASS, NO_VARIANTS],
@@ -132,8 +132,8 @@
   'es6/debug-promises/throw-uncaught-uncaught': [PASS, NO_VARIANTS],
   'es6/debug-promises/reject-uncaught-late': [PASS, NO_VARIANTS],
   'es6/debug-promises/throw-caught-by-default-reject-handler': [PASS, NO_VARIANTS],
+  'es6/generators-debug-scopes': [PASS, NO_VARIANTS],
   'harmony/debug-blockscopes': [PASS, NO_VARIANTS],
-  'harmony/generators-debug-scopes': [PASS, NO_VARIANTS],
   'regress/regress-1081309': [PASS, NO_VARIANTS],
   'regress/regress-1170187': [PASS, NO_VARIANTS],
   'regress/regress-119609': [PASS, NO_VARIANTS],
@@ -148,14 +148,14 @@
 
   # Support for ES6 generators is missing.
   'regress-3225': [PASS, NO_VARIANTS],
-  'harmony/generators-debug-liveedit': [PASS, NO_VARIANTS],
-  'harmony/generators-iteration': [PASS, NO_VARIANTS],
-  'harmony/generators-parsing': [PASS, NO_VARIANTS],
-  'harmony/generators-poisoned-properties': [PASS, NO_VARIANTS],
-  'harmony/generators-relocation': [PASS, NO_VARIANTS],
-  'harmony/regress/regress-2681': [PASS, NO_VARIANTS],
-  'harmony/regress/regress-2691': [PASS, NO_VARIANTS],
-  'harmony/regress/regress-3280': [PASS, NO_VARIANTS],
+  'es6/generators-debug-liveedit': [PASS, NO_VARIANTS],
+  'es6/generators-iteration': [PASS, NO_VARIANTS],
+  'es6/generators-parsing': [PASS, NO_VARIANTS],
+  'es6/generators-poisoned-properties': [PASS, NO_VARIANTS],
+  'es6/generators-relocation': [PASS, NO_VARIANTS],
+  'es6/regress/regress-2681': [PASS, NO_VARIANTS],
+  'es6/regress/regress-2691': [PASS, NO_VARIANTS],
+  'es6/regress/regress-3280': [PASS, NO_VARIANTS],
 
   # Support for ES6 for-of iteration is missing.
   'es6/array-iterator': [PASS, NO_VARIANTS],

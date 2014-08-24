@@ -186,7 +186,7 @@ Handle<Code> Pipeline::GenerateCode() {
 
   VerifyAndPrintGraph(&graph, "Initial untyped");
 
-  if (FLAG_context_specialization) {
+  if (context_specialization_) {
     SourcePositionTable::Scope pos(&source_positions,
                                    SourcePosition::Unknown());
     // Specialize the code to the context as aggressively as possible.
@@ -248,11 +248,9 @@ Handle<Code> Pipeline::GenerateCode() {
       VerifyAndPrintGraph(&graph, "Lowered generic");
     }
 
-    // Compute a schedule.
-    Schedule* schedule = ComputeSchedule(&graph);
-    TraceSchedule(schedule);
-
     {
+      // Compute a schedule.
+      Schedule* schedule = ComputeSchedule(&graph);
       // Generate optimized code.
       PhaseStats codegen_stats(info(), PhaseStats::CODEGEN, "codegen");
       Linkage linkage(info());
@@ -278,7 +276,10 @@ Handle<Code> Pipeline::GenerateCode() {
 
 Schedule* Pipeline::ComputeSchedule(Graph* graph) {
   PhaseStats schedule_stats(info(), PhaseStats::CODEGEN, "scheduling");
-  return Scheduler::ComputeSchedule(graph);
+  Schedule* schedule = Scheduler::ComputeSchedule(graph);
+  TraceSchedule(schedule);
+  if (VerifyGraphs()) ScheduleVerifier::Run(schedule);
+  return schedule;
 }
 
 

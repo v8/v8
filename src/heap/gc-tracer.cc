@@ -418,5 +418,22 @@ intptr_t GCTracer::ScavengeSpeedInBytesPerMillisecond() const {
 
   return static_cast<intptr_t>(bytes / durations);
 }
+
+
+intptr_t GCTracer::MarkCompactSpeedInBytesPerMillisecond() const {
+  intptr_t bytes = 0;
+  double durations = 0.0;
+  EventBuffer::const_iterator iter = mark_compactor_events_.begin();
+  while (iter != mark_compactor_events_.end()) {
+    bytes += iter->start_object_size;
+    durations += iter->end_time - iter->start_time +
+                 iter->pure_incremental_marking_duration;
+    ++iter;
+  }
+
+  if (durations == 0.0) return 0;
+
+  return static_cast<intptr_t>(bytes / durations);
+}
 }
 }  // namespace v8::internal

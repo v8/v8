@@ -544,11 +544,9 @@ class MarkCompactCollector {
   void EnableCodeFlushing(bool enable);
 
   enum SweeperType {
-    PARALLEL_CONSERVATIVE,
-    CONCURRENT_CONSERVATIVE,
-    PARALLEL_PRECISE,
-    CONCURRENT_PRECISE,
-    PRECISE
+    PARALLEL_SWEEPING,
+    CONCURRENT_SWEEPING,
+    SEQUENTIAL_SWEEPING
   };
 
   enum SweepingParallelism { SWEEP_ON_MAIN_THREAD, SWEEP_IN_PARALLEL };
@@ -560,12 +558,6 @@ class MarkCompactCollector {
   void VerifyWeakEmbeddedObjectsInCode();
   void VerifyOmittedMapChecks();
 #endif
-
-  // Sweep a single page from the given space conservatively.
-  // Returns the size of the biggest continuous freed memory chunk in bytes.
-  template <SweepingParallelism type>
-  static int SweepConservatively(PagedSpace* space, FreeList* free_list,
-                                 Page* p);
 
   INLINE(static bool ShouldSkipEvacuationSlotRecording(Object** anchor)) {
     return Page::FromAddress(reinterpret_cast<Address>(anchor))
@@ -692,10 +684,6 @@ class MarkCompactCollector {
   // The current stage of the collector.
   CollectorState state_;
 #endif
-
-  // Global flag that forces sweeping to be precise, so we can traverse the
-  // heap.
-  bool sweep_precisely_;
 
   bool reduce_memory_footprint_;
 

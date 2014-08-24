@@ -30,7 +30,10 @@ StructuredGraphBuilder::StructuredGraphBuilder(Graph* graph,
 
 Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
                                        Node** value_inputs) {
+  DCHECK(op->InputCount() == value_input_count);
+
   bool has_context = OperatorProperties::HasContextInput(op);
+  bool has_framestate = OperatorProperties::HasFrameStateInput(op);
   bool has_control = OperatorProperties::GetControlInputCount(op) == 1;
   bool has_effect = OperatorProperties::GetEffectInputCount(op) == 1;
 
@@ -43,6 +46,7 @@ Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
   } else {
     int input_count_with_deps = value_input_count;
     if (has_context) ++input_count_with_deps;
+    if (has_framestate) ++input_count_with_deps;
     if (has_control) ++input_count_with_deps;
     if (has_effect) ++input_count_with_deps;
     void* raw_buffer = alloca(kPointerSize * input_count_with_deps);
@@ -51,6 +55,12 @@ Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
     Node** current_input = buffer + value_input_count;
     if (has_context) {
       *current_input++ = current_context();
+    }
+    if (has_framestate) {
+      // The frame state will be inserted later. Here we misuse
+      // the dead_control node as a sentinel to be later overwritten
+      // with the real frame state.
+      *current_input++ = dead_control();
     }
     if (has_effect) {
       *current_input++ = environment_->GetEffectDependency();

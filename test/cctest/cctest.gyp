@@ -145,7 +145,6 @@
         'test-regexp.cc',
         'test-reloc-info.cc',
         'test-representation.cc',
-        'test-semaphore.cc',
         'test-serialize.cc',
         'test-spaces.cc',
         'test-strings.cc',

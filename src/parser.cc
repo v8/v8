@@ -345,19 +345,18 @@ class ParserTraits::Checkpoint
     : public ParserBase<ParserTraits>::CheckpointBase {
  public:
   explicit Checkpoint(ParserBase<ParserTraits>* parser)
-      : CheckpointBase(parser) {
-    isolate_ = parser->zone()->isolate();
-    saved_ast_node_id_ = isolate_->ast_node_id();
+      : CheckpointBase(parser), parser_(parser) {
+    saved_ast_node_id_gen_ = *parser_->ast_node_id_gen_;
   }
 
   void Restore() {
     CheckpointBase::Restore();
-    isolate_->set_ast_node_id(saved_ast_node_id_);
+    *parser_->ast_node_id_gen_ = saved_ast_node_id_gen_;
   }
 
  private:
-  Isolate* isolate_;
-  int saved_ast_node_id_;
+  ParserBase<ParserTraits>* parser_;
+  AstNode::IdGen saved_ast_node_id_gen_;
 };
 
 
@@ -629,6 +628,15 @@ const AstRawString* ParserTraits::GetSymbol(Scanner* scanner) {
 }
 
 
+const AstRawString* ParserTraits::GetNumberAsSymbol(Scanner* scanner) {
+  double double_value = parser_->scanner()->DoubleValue();
+  char array[100];
+  const char* string =
+      DoubleToCString(double_value, Vector<char>(array, ARRAY_SIZE(array)));
+  return ast_value_factory()->GetOneByteString(string);
+}
+
+
 const AstRawString* ParserTraits::GetNextSymbol(Scanner* scanner) {
   return parser_->scanner()->NextSymbol(parser_->ast_value_factory_);
 }
@@ -732,9 +740,9 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 
 
 Parser::Parser(CompilationInfo* info)
-    : ParserBase<ParserTraits>(&scanner_,
-                               info->isolate()->stack_guard()->real_climit(),
-                               info->extension(), NULL, info->zone(), this),
+    : ParserBase<ParserTraits>(
+          &scanner_, info->isolate()->stack_guard()->real_climit(),
+          info->extension(), NULL, info->zone(), info->ast_node_id_gen(), this),
       isolate_(info->isolate()),
       script_(info->script()),
       scanner_(isolate_->unicode_cache()),
@@ -749,7 +757,6 @@ Parser::Parser(CompilationInfo* info)
       pending_error_arg_(NULL),
       pending_error_char_arg_(NULL) {
   DCHECK(!script_.is_null());
-  isolate_->set_ast_node_id(0);
   set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
   set_allow_modules(!info->is_native() && FLAG_harmony_modules);
   set_allow_natives_syntax(FLAG_allow_natives_syntax || info->is_native());
@@ -861,7 +868,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
 
     // Enters 'scope'.
     FunctionState function_state(&function_state_, &scope_, scope, zone(),
-                                 ast_value_factory_);
+                                 ast_value_factory_, info->ast_node_id_gen());
 
     scope_->SetStrictMode(info->strict_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
@@ -979,7 +986,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
     }
     original_scope_ = scope;
     FunctionState function_state(&function_state_, &scope_, scope, zone(),
-                                 ast_value_factory_);
+                                 ast_value_factory_, info()->ast_node_id_gen());
     DCHECK(scope->strict_mode() == SLOPPY || info()->strict_mode() == STRICT);
     DCHECK(info()->strict_mode() == shared_info->strict_mode());
     scope->SetStrictMode(shared_info->strict_mode());
@@ -3442,7 +3449,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Parse function body.
   {
     FunctionState function_state(&function_state_, &scope_, scope, zone(),
-                                 ast_value_factory_);
+                                 ast_value_factory_, info()->ast_node_id_gen());
     scope_->SetScopeName(function_name);
 
     if (is_generator) {

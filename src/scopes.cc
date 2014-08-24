@@ -267,9 +267,8 @@ bool Scope::Analyze(CompilationInfo* info) {
 
   // Allocate the variables.
   {
-    // Passing NULL as AstValueFactory is ok, because AllocateVariables doesn't
-    // need to create new strings or values.
-    AstNodeFactory<AstNullVisitor> ast_node_factory(info->zone(), NULL);
+    AstNodeFactory<AstNullVisitor> ast_node_factory(
+        info->zone(), info->ast_value_factory(), info->ast_node_id_gen());
     if (!top->AllocateVariables(info, &ast_node_factory)) return false;
   }
 

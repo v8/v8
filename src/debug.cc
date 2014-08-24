@@ -16,14 +16,11 @@
 #include "src/execution.h"
 #include "src/full-codegen.h"
 #include "src/global-handles.h"
-#include "src/ic.h"
-#include "src/ic-inl.h"
 #include "src/isolate-inl.h"
 #include "src/list.h"
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/natives.h"
-#include "src/stub-cache.h"
 
 #include "include/v8-debug.h"
 

@@ -31,6 +31,36 @@ inline bool OperatorProperties::HasControlInput(Operator* op) {
   return OperatorProperties::GetControlInputCount(op) > 0;
 }
 
+inline bool OperatorProperties::HasFrameStateInput(Operator* op) {
+  if (!FLAG_turbo_deoptimization) {
+    return false;
+  }
+
+  switch (op->opcode()) {
+    case IrOpcode::kJSCallFunction:
+      return true;
+    case IrOpcode::kJSCallRuntime: {
+      Runtime::FunctionId function =
+          reinterpret_cast<Operator1<Runtime::FunctionId>*>(op)->parameter();
+      // TODO(jarin) At the moment, we only add frame state for
+      // few chosen runtime functions.
+      switch (function) {
+        case Runtime::kDebugBreak:
+        case Runtime::kDeoptimizeFunction:
+        case Runtime::kSetScriptBreakPoint:
+        case Runtime::kDebugGetLoadedScripts:
+        case Runtime::kStackGuard:
+          return true;
+        default:
+          return false;
+      }
+      UNREACHABLE();
+    }
+
+    default:
+      return false;
+  }
+}
 
 inline int OperatorProperties::GetValueInputCount(Operator* op) {
   return op->InputCount();
@@ -38,6 +68,10 @@ inline int OperatorProperties::GetValueInputCount(Operator* op) {
 
 inline int OperatorProperties::GetContextInputCount(Operator* op) {
   return OperatorProperties::HasContextInput(op) ? 1 : 0;
+}
+
+inline int OperatorProperties::GetFrameStateInputCount(Operator* op) {
+  return OperatorProperties::HasFrameStateInput(op) ? 1 : 0;
 }
 
 inline int OperatorProperties::GetEffectInputCount(Operator* op) {
@@ -77,7 +111,8 @@ inline int OperatorProperties::GetControlInputCount(Operator* op) {
 
 inline int OperatorProperties::GetTotalInputCount(Operator* op) {
   return GetValueInputCount(op) + GetContextInputCount(op) +
-         GetEffectInputCount(op) + GetControlInputCount(op);
+         GetFrameStateInputCount(op) + GetEffectInputCount(op) +
+         GetControlInputCount(op);
 }
 
 // -----------------------------------------------------------------------------
@@ -142,8 +177,18 @@ inline bool OperatorProperties::CanLazilyDeoptimize(Operator* op) {
       Runtime::FunctionId function =
           reinterpret_cast<Operator1<Runtime::FunctionId>*>(op)->parameter();
       // TODO(jarin) At the moment, we only support lazy deoptimization for
-      // the %DeoptimizeFunction runtime function.
-      return function == Runtime::kDeoptimizeFunction;
+      // a few chosen runtime functions.
+      switch (function) {
+        case Runtime::kDebugBreak:
+        case Runtime::kDeoptimizeFunction:
+        case Runtime::kSetScriptBreakPoint:
+        case Runtime::kDebugGetLoadedScripts:
+        case Runtime::kStackGuard:
+          return true;
+        default:
+          return false;
+      }
+      UNREACHABLE();
     }
 
     // JS function calls

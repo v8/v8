@@ -137,6 +137,17 @@ class BitVector: public ZoneObject {
     }
   }
 
+  bool IntersectIsChanged(const BitVector& other) {
+    DCHECK(other.length() == length());
+    bool changed = false;
+    for (int i = 0; i < data_length_; i++) {
+      uint32_t old_data = data_[i];
+      data_[i] &= other.data_[i];
+      if (data_[i] != old_data) changed = true;
+    }
+    return changed;
+  }
+
   void Subtract(const BitVector& other) {
     DCHECK(other.length() == length());
     for (int i = 0; i < data_length_; i++) {

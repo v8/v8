@@ -34,12 +34,14 @@
 #include "src/hydrogen-sce.h"
 #include "src/hydrogen-store-elimination.h"
 #include "src/hydrogen-uint32-analysis.h"
+#include "src/ic/call-optimization.h"
+// GetRootConstructor
+#include "src/ic/ic-inl.h"
 #include "src/lithium-allocator.h"
 #include "src/parser.h"
 #include "src/runtime.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
-#include "src/stub-cache.h"
 #include "src/typing.h"
 
 #if V8_TARGET_ARCH_IA32

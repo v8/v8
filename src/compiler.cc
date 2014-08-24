@@ -44,8 +44,7 @@ ScriptData::ScriptData(const byte* data, int length)
 }
 
 
-CompilationInfo::CompilationInfo(Handle<Script> script,
-                                 Zone* zone)
+CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
     : flags_(StrictModeField::encode(SLOPPY)),
       script_(script),
       osr_ast_id_(BailoutId::None()),
@@ -86,8 +85,7 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
 }
 
 
-CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
-                                 Zone* zone)
+CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
     : flags_(StrictModeField::encode(SLOPPY) | IsLazy::encode(true)),
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
@@ -103,8 +101,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure,
 }
 
 
-CompilationInfo::CompilationInfo(HydrogenCodeStub* stub,
-                                 Isolate* isolate,
+CompilationInfo::CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate,
                                  Zone* zone)
     : flags_(StrictModeField::encode(SLOPPY) | IsLazy::encode(true)),
       osr_ast_id_(BailoutId::None()),
@@ -417,6 +414,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
     if (!info()->code().is_null()) {
+      info()->context()->native_context()->AddOptimizedCode(*info()->code());
       return SetLastStatus(SUCCEEDED);
     }
   }

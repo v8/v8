@@ -40,7 +40,6 @@
 #include "src/scopeinfo.h"
 #include "src/smart-pointers.h"
 #include "src/string-search.h"
-#include "src/stub-cache.h"
 #include "src/uri.h"
 #include "src/utils.h"
 #include "src/v8threads.h"
@@ -2048,6 +2047,25 @@ RUNTIME_FUNCTION(Runtime_PreventExtensions) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, JSObject::PreventExtensions(obj));
   return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ToMethod) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
+  Handle<JSFunction> clone = JSFunction::CloneClosure(fun);
+  Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
+  JSObject::SetOwnPropertyIgnoreAttributes(clone, home_object_symbol,
+                                           home_object, DONT_ENUM).Assert();
+  return *clone;
+}
+
+
+RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
+  DCHECK(args.length() == 0);
+  return isolate->heap()->home_object_symbol();
 }
 
 
@@ -10881,6 +10899,7 @@ static Handle<Object> DebugLookupResultValue(LookupIterator* it,
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         // Ignore access checks.
@@ -11481,11 +11500,13 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     if (receiver->IsUndefined()) {
       receiver = handle(function->global_proxy());
     } else {
-      DCHECK(!receiver->IsNull());
       Context* context = Context::cast(it.frame()->context());
       Handle<Context> native_context(Context::cast(context->native_context()));
-      receiver = Object::ToObject(
-          isolate, receiver, native_context).ToHandleChecked();
+      if (!Object::ToObject(isolate, receiver, native_context)
+               .ToHandle(&receiver)) {
+        // This only happens if the receiver is forcibly set in %_CallFunction.
+        return heap->undefined_value();
+      }
     }
   }
   details->set(kFrameDetailsReceiverIndex, *receiver);

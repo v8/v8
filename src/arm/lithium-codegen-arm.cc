@@ -8,7 +8,6 @@
 #include "src/arm/lithium-gap-resolver-arm.h"
 #include "src/code-stubs.h"
 #include "src/hydrogen-osr.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -2956,23 +2955,25 @@ void LCodeGen::DoReturn(LReturn* instr) {
   if (NeedsEagerFrame()) {
     no_frame_start = masm_->LeaveFrame(StackFrame::JAVA_SCRIPT);
   }
-  if (instr->has_constant_parameter_count()) {
-    int parameter_count = ToInteger32(instr->constant_parameter_count());
-    int32_t sp_delta = (parameter_count + 1) * kPointerSize;
-    if (sp_delta != 0) {
-      __ add(sp, sp, Operand(sp_delta));
+  { ConstantPoolUnavailableScope constant_pool_unavailable(masm());
+    if (instr->has_constant_parameter_count()) {
+      int parameter_count = ToInteger32(instr->constant_parameter_count());
+      int32_t sp_delta = (parameter_count + 1) * kPointerSize;
+      if (sp_delta != 0) {
+        __ add(sp, sp, Operand(sp_delta));
+      }
+    } else {
+      Register reg = ToRegister(instr->parameter_count());
+      // The argument count parameter is a smi
+      __ SmiUntag(reg);
+      __ add(sp, sp, Operand(reg, LSL, kPointerSizeLog2));
     }
-  } else {
-    Register reg = ToRegister(instr->parameter_count());
-    // The argument count parameter is a smi
-    __ SmiUntag(reg);
-    __ add(sp, sp, Operand(reg, LSL, kPointerSizeLog2));
-  }
 
-  __ Jump(lr);
+    __ Jump(lr);
 
-  if (no_frame_start != -1) {
-    info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
+    if (no_frame_start != -1) {
+      info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
+    }
   }
 }
 

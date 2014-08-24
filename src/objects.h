@@ -1486,8 +1486,8 @@ class Object {
       StoreFromKeyed store_mode);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
-  MUST_USE_RESULT static MaybeHandle<Object> SetDataProperty(
-      LookupIterator* it, Handle<Object> value);
+  static Handle<Object> SetDataProperty(LookupIterator* it,
+                                        Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       StrictMode strict_mode, StoreFromKeyed store_mode);
@@ -1997,10 +1997,6 @@ class JSReceiver: public HeapObject {
   inline static Handle<Smi> GetOrCreateIdentityHash(
       Handle<JSReceiver> object);
 
-  // Lookup a property.  If found, the result is valid and has
-  // detailed information.
-  void Lookup(Handle<Name> name, LookupResult* result);
-
   enum KeyCollectionType { OWN_ONLY, INCLUDE_PROTOS };
 
   // Computes the enumerable keys for a JSObject. Used for implementing
@@ -2010,7 +2006,6 @@ class JSReceiver: public HeapObject {
       KeyCollectionType type);
 
  private:
-  void LookupOwn(Handle<Name> name, LookupResult* result);
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSReceiver);
 };
 
@@ -2367,9 +2362,6 @@ class JSObject: public JSReceiver {
   inline Object* GetInternalField(int index);
   inline void SetInternalField(int index, Object* value);
   inline void SetInternalField(int index, Smi* value);
-
-  // The following lookup functions skip interceptors.
-  void LookupOwnRealNamedProperty(Handle<Name> name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -7710,6 +7702,11 @@ class JSFunction: public JSObject {
                            Handle<Object> value);
   static void SetInstancePrototype(Handle<JSFunction> function,
                                    Handle<Object> value);
+
+  // Creates a new closure for the fucntion with the same bindings,
+  // bound values, and prototype. An equivalent of spec operations
+  // ``CloneMethod`` and ``CloneBoundFunction``.
+  static Handle<JSFunction> CloneClosure(Handle<JSFunction> function);
 
   // After prototype is removed, it will not be created when accessed, and
   // [[Construct]] from this function will not be allowed.

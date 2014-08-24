@@ -2886,6 +2886,20 @@ THREADED_TEST(SymbolProperties) {
 }
 
 
+THREADED_TEST(SymbolTemplateProperties) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::FunctionTemplate> foo = v8::FunctionTemplate::New(isolate);
+  v8::Local<v8::Name> name = v8::Symbol::New(isolate);
+  CHECK(!name.IsEmpty());
+  foo->PrototypeTemplate()->Set(name, v8::FunctionTemplate::New(isolate));
+  v8::Local<v8::Object> new_instance = foo->InstanceTemplate()->NewInstance();
+  CHECK(!new_instance.IsEmpty());
+  CHECK(new_instance->Has(name));
+}
+
+
 THREADED_TEST(PrivateProperties) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();

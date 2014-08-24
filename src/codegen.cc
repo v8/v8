@@ -12,7 +12,6 @@
 #include "src/prettyprinter.h"
 #include "src/rewriter.h"
 #include "src/runtime.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

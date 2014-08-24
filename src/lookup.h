@@ -37,6 +37,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     JSPROXY,
     NOT_FOUND,
     PROPERTY,
+    TRANSITION,
     // Set state_ to BEFORE_PROPERTY to ensure that the next lookup will be a
     // PROPERTY lookup.
     BEFORE_PROPERTY = INTERCEPTOR
@@ -114,7 +115,12 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   Handle<Object> GetReceiver() const {
     return maybe_receiver_.ToHandleChecked();
   }
+  Handle<JSObject> GetStoreTarget() const;
   Handle<Map> holder_map() const { return holder_map_; }
+  Handle<Map> transition_map() const {
+    DCHECK_EQ(TRANSITION, state_);
+    return transition_map_;
+  }
   template <class T>
   Handle<T> GetHolder() const {
     DCHECK(IsFound());
@@ -133,9 +139,20 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   // answer, and loads extra information about the property.
   bool HasProperty();
   void PrepareForDataProperty(Handle<Object> value);
-  void TransitionToDataProperty(Handle<Object> value,
-                                PropertyAttributes attributes,
-                                Object::StoreFromKeyed store_mode);
+  void PrepareTransitionToDataProperty(Handle<Object> value,
+                                       PropertyAttributes attributes,
+                                       Object::StoreFromKeyed store_mode);
+  bool IsCacheableTransition() {
+    bool cacheable =
+        state_ == TRANSITION && transition_map()->GetBackPointer()->IsMap();
+    if (cacheable) {
+      property_details_ = transition_map_->GetLastDescriptorDetails();
+      LoadPropertyKind();
+      has_property_ = true;
+    }
+    return cacheable;
+  }
+  void ApplyTransitionToDataProperty();
   void ReconfigureDataProperty(Handle<Object> value,
                                PropertyAttributes attributes);
   void TransitionToAccessorProperty(AccessorComponent component,
@@ -159,6 +176,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     return property_details().representation();
   }
   FieldIndex GetFieldIndex() const;
+  Handle<HeapType> GetFieldType() const;
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
   Handle<Object> GetAccessors() const;
@@ -174,6 +192,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   inline State LookupInHolder(Map* map);
   Handle<Object> FetchValue() const;
   void ReloadPropertyInformation();
+  void LoadPropertyKind();
 
   bool IsBootstrapping() const;
 
@@ -227,6 +246,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   Isolate* isolate_;
   Handle<Name> name_;
   Handle<Map> holder_map_;
+  Handle<Map> transition_map_;
   MaybeHandle<Object> maybe_receiver_;
   MaybeHandle<JSReceiver> maybe_holder_;
 

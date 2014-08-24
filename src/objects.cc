@@ -108,6 +108,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return JSProxy::GetPropertyWithHandler(it->GetHolder<JSProxy>(),
@@ -150,9 +151,10 @@ Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
 Handle<Object> JSObject::GetDataProperty(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
-      case LookupIterator::NOT_FOUND:
       case LookupIterator::ACCESS_CHECK:
       case LookupIterator::INTERCEPTOR:
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         it->NotFound();
@@ -2714,6 +2716,7 @@ MaybeHandle<Map> Map::TryUpdate(Handle<Map> map) {
 
 // static
 Handle<Map> Map::Update(Handle<Map> map) {
+  if (!map->is_deprecated()) return map;
   return GeneralizeRepresentation(map, 0, Representation::None(),
                                   HeapType::None(map->GetIsolate()),
                                   ALLOW_AS_CONSTANT);
@@ -2894,9 +2897,23 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
         }
         done = true;
         break;
+
+      case LookupIterator::TRANSITION:
+        done = true;
+        break;
     }
 
     if (done) break;
+  }
+
+  // If the receiver is the JSGlobalObject, the store was contextual. In case
+  // the property did not exist yet on the global object itself, we have to
+  // throw a reference error in strict mode.
+  if (it->GetReceiver()->IsJSGlobalObject() && strict_mode == STRICT) {
+    Handle<Object> args[1] = {it->name()};
+    Handle<Object> error = it->isolate()->factory()->NewReferenceError(
+        "not_defined", HandleVector(args, 1));
+    return it->isolate()->Throw<Object>(error);
   }
 
   return AddDataProperty(it, value, NONE, strict_mode, store_mode);
@@ -2915,8 +2932,8 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(LookupIterator* it,
 }
 
 
-MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
-                                            Handle<Object> value) {
+Handle<Object> Object::SetDataProperty(LookupIterator* it,
+                                       Handle<Object> value) {
   // Proxies are handled on the WithHandler path. Other non-JSObjects cannot
   // have own properties.
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
@@ -2960,20 +2977,17 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
     // TODO(verwaest): Throw a TypeError with a more specific message.
     return WriteToReadOnlyProperty(it, value, strict_mode);
   }
-  Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
+
+  Handle<JSObject> receiver = it->GetStoreTarget();
 
   // If the receiver is a JSGlobalProxy, store on the prototype (JSGlobalObject)
   // instead. If the prototype is Null, the proxy is detached.
-  if (receiver->IsJSGlobalProxy()) {
-    // Trying to assign to a detached proxy.
-    PrototypeIterator iter(it->isolate(), receiver);
-    if (iter.IsAtEnd()) return value;
-    receiver =
-        Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter));
-  }
+  if (receiver->IsJSGlobalProxy()) return value;
 
-  if (!it->name().is_identical_to(it->isolate()->factory()->hidden_string()) &&
-      !receiver->map()->is_extensible()) {
+  // Possibly migrate to the most up-to-date map that will be able to store
+  // |value| under it->name() with |attributes|.
+  it->PrepareTransitionToDataProperty(value, attributes, store_mode);
+  if (it->state() != LookupIterator::TRANSITION) {
     if (strict_mode == SLOPPY) return value;
 
     Handle<Object> args[1] = {it->name()};
@@ -2981,10 +2995,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
         "object_not_extensible", HandleVector(args, ARRAY_SIZE(args)));
     return it->isolate()->Throw<Object>(error);
   }
-
-  // Possibly migrate to the most up-to-date map that will be able to store
-  // |value| under it->name() with |attributes|.
-  it->TransitionToDataProperty(value, attributes, store_mode);
+  it->ApplyTransitionToDataProperty();
 
   // TODO(verwaest): Encapsulate dictionary handling better.
   if (receiver->map()->is_dictionary_map()) {
@@ -3376,46 +3387,6 @@ Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
                                                ElementsKind to_kind) {
   Handle<Map> map(object->map());
   return Map::TransitionElementsTo(map, to_kind);
-}
-
-
-void JSObject::LookupOwnRealNamedProperty(Handle<Name> name,
-                                          LookupResult* result) {
-  DisallowHeapAllocation no_gc;
-  if (IsJSGlobalProxy()) {
-    PrototypeIterator iter(GetIsolate(), this);
-    if (iter.IsAtEnd()) return result->NotFound();
-    DCHECK(iter.GetCurrent()->IsJSGlobalObject());
-    return JSObject::cast(iter.GetCurrent())
-        ->LookupOwnRealNamedProperty(name, result);
-  }
-
-  if (HasFastProperties()) {
-    map()->LookupDescriptor(this, *name, result);
-    // A property or a map transition was found. We return all of these result
-    // types because LookupOwnRealNamedProperty is used when setting
-    // properties where map transitions are handled.
-    DCHECK(!result->IsFound() ||
-           (result->holder() == this && result->IsFastPropertyType()));
-    return;
-  }
-
-  int entry = property_dictionary()->FindEntry(name);
-  if (entry != NameDictionary::kNotFound) {
-    Object* value = property_dictionary()->ValueAt(entry);
-    if (IsGlobalObject()) {
-      PropertyDetails d = property_dictionary()->DetailsAt(entry);
-      if (d.IsDeleted() || PropertyCell::cast(value)->value()->IsTheHole()) {
-        result->NotFound();
-        return;
-      }
-      value = PropertyCell::cast(value)->value();
-    }
-    result->DictionaryResult(this, entry);
-    return;
-  }
-
-  result->NotFound();
 }
 
 
@@ -3847,9 +3818,10 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
                      *name != it.isolate()->heap()->hidden_string();
   for (; it.IsFound(); it.Next()) {
     switch (it.state()) {
-      case LookupIterator::NOT_FOUND:
-      case LookupIterator::JSPROXY:
       case LookupIterator::INTERCEPTOR:
+      case LookupIterator::JSPROXY:
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
         UNREACHABLE();
 
       case LookupIterator::ACCESS_CHECK:
@@ -4022,6 +3994,7 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return JSProxy::GetPropertyAttributesWithHandler(
@@ -4961,8 +4934,9 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
 
   for (; it.IsFound(); it.Next()) {
     switch (it.state()) {
-      case LookupIterator::NOT_FOUND:
       case LookupIterator::JSPROXY:
+      case LookupIterator::NOT_FOUND:
+      case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         if (it.HasAccess(v8::ACCESS_DELETE)) break;
@@ -5710,58 +5684,6 @@ int Map::NextFreePropertyIndex() {
 }
 
 
-void JSReceiver::LookupOwn(Handle<Name> name, LookupResult* result) {
-  DisallowHeapAllocation no_gc;
-  DCHECK(name->IsName());
-
-  if (IsJSGlobalProxy()) {
-    PrototypeIterator iter(GetIsolate(), this);
-    if (iter.IsAtEnd()) return result->NotFound();
-    DCHECK(iter.GetCurrent()->IsJSGlobalObject());
-    return JSReceiver::cast(iter.GetCurrent())->LookupOwn(name, result);
-  }
-
-  if (IsJSProxy()) {
-    result->HandlerResult(JSProxy::cast(this));
-    return;
-  }
-
-  // Do not use inline caching if the object is a non-global object
-  // that requires access checks.
-  if (IsAccessCheckNeeded()) {
-    result->DisallowCaching();
-  }
-
-  JSObject* js_object = JSObject::cast(this);
-
-  // Check for lookup interceptor except when bootstrapping.
-  if (js_object->HasNamedInterceptor() &&
-      !GetIsolate()->bootstrapper()->IsActive()) {
-    result->InterceptorResult(js_object);
-    return;
-  }
-
-  js_object->LookupOwnRealNamedProperty(name, result);
-}
-
-
-void JSReceiver::Lookup(Handle<Name> name, LookupResult* result) {
-  DisallowHeapAllocation no_gc;
-  // Ecma-262 3rd 8.6.2.4
-  for (PrototypeIterator iter(GetIsolate(), this,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(); iter.Advance()) {
-    JSReceiver::cast(iter.GetCurrent())->LookupOwn(name, result);
-    if (result->IsFound()) return;
-    if (name->IsOwn()) {
-      result->NotFound();
-      return;
-    }
-  }
-  result->NotFound();
-}
-
-
 static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
   int len = array->length();
   for (int i = 0; i < len; i++) {
@@ -6397,8 +6319,9 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
                       LookupIterator::CHECK_DERIVED_SKIP_INTERCEPTOR);
     for (; it.IsFound(); it.Next()) {
       switch (it.state()) {
-        case LookupIterator::NOT_FOUND:
         case LookupIterator::INTERCEPTOR:
+        case LookupIterator::NOT_FOUND:
+        case LookupIterator::TRANSITION:
           UNREACHABLE();
 
         case LookupIterator::ACCESS_CHECK:
@@ -6835,7 +6758,7 @@ Handle<Map> Map::PrepareForDataProperty(Handle<Map> map, int descriptor,
   if (map->is_dictionary_map()) return map;
 
   // Migrate to the newest map before storing the property.
-  if (map->is_deprecated()) map = Update(map);
+  map = Update(map);
 
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
 
@@ -6857,8 +6780,8 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
   // Dictionary maps can always have additional data properties.
   if (map->is_dictionary_map()) return map;
 
-  // Migrate to the newest map before transitioning to the new property.
-  if (map->is_deprecated()) map = Update(map);
+  // Migrate to the newest map before storing the property.
+  map = Update(map);
 
   int index = map->SearchTransition(*name);
   if (index != TransitionArray::kNotFound) {
@@ -6868,9 +6791,7 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
     // TODO(verwaest): Handle attributes better.
     DescriptorArray* descriptors = transition->instance_descriptors();
     if (descriptors->GetDetails(descriptor).attributes() != attributes) {
-      return CopyGeneralizeAllRepresentations(transition, descriptor,
-                                              FORCE_FIELD, attributes,
-                                              "attributes mismatch");
+      return Map::Normalize(map, CLEAR_INOBJECT_PROPERTIES);
     }
 
     return Map::PrepareForDataProperty(transition, descriptor, value);
@@ -6925,7 +6846,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Handle<Map> map,
   }
 
   // Migrate to the newest map before transitioning to the new property.
-  if (map->is_deprecated()) map = Update(map);
+  map = Update(map);
 
   PropertyNormalizationMode mode = map->is_prototype_map()
                                        ? KEEP_INOBJECT_PROPERTIES
@@ -9281,6 +9202,30 @@ void JSFunction::MarkInOptimizationQueue() {
   set_code_no_write_barrier(
       GetIsolate()->builtins()->builtin(Builtins::kInOptimizationQueue));
   // No write barrier required, since the builtin is part of the root set.
+}
+
+
+Handle<JSFunction> JSFunction::CloneClosure(Handle<JSFunction> function) {
+  Isolate* isolate = function->GetIsolate();
+  Handle<Map> map(function->map());
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<Context> context(function->context());
+  Handle<JSFunction> clone =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context);
+
+  if (shared->bound()) {
+    clone->set_function_bindings(function->function_bindings());
+  }
+
+  // In typical case, __proto__ of ``function`` is the default Function
+  // prototype, which means that SetPrototype below is a no-op.
+  // In rare cases when that is not true, we mutate the clone's __proto__.
+  Handle<Object> original_prototype(map->prototype(), isolate);
+  if (*original_prototype != clone->map()->prototype()) {
+    JSObject::SetPrototype(clone, original_prototype, false).Assert();
+  }
+
+  return clone;
 }
 
 

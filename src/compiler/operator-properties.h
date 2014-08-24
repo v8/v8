@@ -19,11 +19,13 @@ class OperatorProperties {
   static inline bool HasContextInput(Operator* node);
   static inline bool HasEffectInput(Operator* node);
   static inline bool HasControlInput(Operator* node);
+  static inline bool HasFrameStateInput(Operator* node);
 
   static inline int GetValueInputCount(Operator* op);
   static inline int GetContextInputCount(Operator* op);
   static inline int GetEffectInputCount(Operator* op);
   static inline int GetControlInputCount(Operator* op);
+  static inline int GetFrameStateInputCount(Operator* op);
   static inline int GetTotalInputCount(Operator* op);
 
   static inline bool HasValueOutput(Operator* op);

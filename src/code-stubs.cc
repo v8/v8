@@ -9,8 +9,8 @@
 #include "src/cpu-profiler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
+#include "src/ic/ic-compiler.h"
 #include "src/macro-assembler.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

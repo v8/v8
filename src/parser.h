@@ -378,17 +378,17 @@ class ParserTraits {
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
 
   // Custom operations executed when FunctionStates are created and destructed.
-  template<typename FunctionState>
-  static void SetUpFunctionState(FunctionState* function_state, Zone* zone) {
-    Isolate* isolate = zone->isolate();
-    function_state->saved_ast_node_id_ = isolate->ast_node_id();
-    isolate->set_ast_node_id(BailoutId::FirstUsable().ToInt());
+  template <typename FunctionState>
+  static void SetUpFunctionState(FunctionState* function_state) {
+    function_state->saved_id_gen_ = *function_state->ast_node_id_gen_;
+    *function_state->ast_node_id_gen_ =
+        AstNode::IdGen(BailoutId::FirstUsable().ToInt());
   }
 
-  template<typename FunctionState>
-  static void TearDownFunctionState(FunctionState* function_state, Zone* zone) {
+  template <typename FunctionState>
+  static void TearDownFunctionState(FunctionState* function_state) {
     if (function_state->outer_function_state_ != NULL) {
-      zone->isolate()->set_ast_node_id(function_state->saved_ast_node_id_);
+      *function_state->ast_node_id_gen_ = function_state->saved_id_gen_;
     }
   }
 
@@ -534,6 +534,7 @@ class ParserTraits {
   // Producing data during the recursive descent.
   const AstRawString* GetSymbol(Scanner* scanner);
   const AstRawString* GetNextSymbol(Scanner* scanner);
+  const AstRawString* GetNumberAsSymbol(Scanner* scanner);
 
   Expression* ThisExpression(Scope* scope,
                              AstNodeFactory<AstConstructionVisitor>* factory,

@@ -10,15 +10,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-void Node::CollectProjections(int projection_count, Node** projections) {
-  for (int i = 0; i < projection_count; ++i) projections[i] = NULL;
+void Node::CollectProjections(NodeVector* projections) {
   for (UseIter i = uses().begin(); i != uses().end(); ++i) {
     if ((*i)->opcode() != IrOpcode::kProjection) continue;
-    int32_t index = OpParameter<int32_t>(*i);
-    DCHECK_GE(index, 0);
-    DCHECK_LT(index, projection_count);
-    DCHECK_EQ(NULL, projections[index]);
-    projections[index] = *i;
+    DCHECK_GE(OpParameter<int32_t>(*i), 0);
+    projections->push_back(*i);
   }
 }
 

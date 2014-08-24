@@ -251,20 +251,19 @@ void InstructionSelector::MarkAsRepresentation(MachineType rep, Node* node) {
 
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
-CallBuffer::CallBuffer(Zone* zone, CallDescriptor* d)
-    : output_count(0),
-      descriptor(d),
-      output_nodes(zone->NewArray<Node*>(d->ReturnCount())),
-      outputs(zone->NewArray<InstructionOperand*>(d->ReturnCount())),
-      fixed_and_control_args(
-          zone->NewArray<InstructionOperand*>(input_count() + control_count())),
-      fixed_count(0),
-      pushed_nodes(zone->NewArray<Node*>(input_count())),
-      pushed_count(0) {
-  if (d->ReturnCount() > 1) {
-    memset(output_nodes, 0, sizeof(Node*) * d->ReturnCount());  // NOLINT
-  }
-  memset(pushed_nodes, 0, sizeof(Node*) * input_count());  // NOLINT
+CallBuffer::CallBuffer(Zone* zone, CallDescriptor* d,
+                       FrameStateDescriptor* frame_desc)
+    : descriptor(d),
+      frame_state_descriptor(frame_desc),
+      output_nodes(NodeVector::allocator_type(zone)),
+      outputs(InstructionOperandVector::allocator_type(zone)),
+      instruction_args(InstructionOperandVector::allocator_type(zone)),
+      pushed_nodes(NodeVector::allocator_type(zone)) {
+  output_nodes.reserve(d->ReturnCount());
+  outputs.reserve(d->ReturnCount());
+  pushed_nodes.reserve(input_count());
+  instruction_args.reserve(input_count() + control_count() +
+                           frame_state_value_count());
 }
 
 
@@ -278,90 +277,114 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   OperandGenerator g(this);
   DCHECK_EQ(call->op()->OutputCount(), buffer->descriptor->ReturnCount());
   DCHECK_EQ(OperatorProperties::GetValueInputCount(call->op()),
-            buffer->input_count());
+            buffer->input_count() + buffer->frame_state_count());
 
   if (buffer->descriptor->ReturnCount() > 0) {
     // Collect the projections that represent multiple outputs from this call.
     if (buffer->descriptor->ReturnCount() == 1) {
-      buffer->output_nodes[0] = call;
+      buffer->output_nodes.push_back(call);
     } else {
-      call->CollectProjections(buffer->descriptor->ReturnCount(),
-                               buffer->output_nodes);
+      call->CollectProjections(&buffer->output_nodes);
+      DCHECK(buffer->output_nodes.size() <=
+             static_cast<size_t>(buffer->descriptor->ReturnCount()));
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
-    for (int i = 0; i < buffer->descriptor->ReturnCount(); i++) {
+    for (size_t i = 0; i < buffer->output_nodes.size(); i++) {
       if (buffer->output_nodes[i] != NULL) {
         Node* output = buffer->output_nodes[i];
-        LinkageLocation location = buffer->descriptor->GetReturnLocation(i);
+        LinkageLocation location =
+            buffer->descriptor->GetReturnLocation(static_cast<int>(i));
         MarkAsRepresentation(location.representation(), output);
-        buffer->outputs[buffer->output_count++] =
-            g.DefineAsLocation(output, location);
+        buffer->outputs.push_back(g.DefineAsLocation(output, location));
       }
     }
   }
 
-  buffer->fixed_count = 1;  // First argument is always the callee.
+  // The first argument is always the callee code.
   Node* callee = call->InputAt(0);
   switch (buffer->descriptor->kind()) {
     case CallDescriptor::kCallCodeObject:
-      buffer->fixed_and_control_args[0] =
+      buffer->instruction_args.push_back(
           (call_code_immediate && callee->opcode() == IrOpcode::kHeapConstant)
               ? g.UseImmediate(callee)
-              : g.UseRegister(callee);
+              : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallAddress:
-      buffer->fixed_and_control_args[0] =
+      buffer->instruction_args.push_back(
           (call_address_immediate &&
            (callee->opcode() == IrOpcode::kInt32Constant ||
             callee->opcode() == IrOpcode::kInt64Constant))
               ? g.UseImmediate(callee)
-              : g.UseRegister(callee);
+              : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallJSFunction:
-      buffer->fixed_and_control_args[0] =
-          g.UseLocation(callee, buffer->descriptor->GetInputLocation(0));
+      buffer->instruction_args.push_back(
+          g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
       break;
   }
+  DCHECK_EQ(1, buffer->instruction_args.size());
+
+  // If the call needs a frame state, we insert the state information as
+  // follows (n is the number of value inputs to the frame state):
+  // arg 1               : deoptimization id.
+  // arg 2 - arg (n + 1) : value inputs to the frame state.
+  if (buffer->frame_state_descriptor != NULL) {
+    int deoptimization_id =
+        sequence()->AddDeoptimizationEntry(buffer->frame_state_descriptor);
+    buffer->instruction_args.push_back(g.TempImmediate(deoptimization_id));
+
+    Node* frame_state = call->InputAt(buffer->descriptor->InputCount());
+    AddFrameStateInputs(frame_state, &buffer->instruction_args,
+                        buffer->frame_state_descriptor);
+  }
+  DCHECK_EQ(1 + buffer->frame_state_value_count(),
+            buffer->instruction_args.size());
 
   int input_count = buffer->input_count();
 
-  // Split the arguments into pushed_nodes and fixed_args. Pushed arguments
-  // require an explicit push instruction before the call and do not appear
-  // as arguments to the call. Everything else ends up as an InstructionOperand
-  // argument to the call.
+  // Split the arguments into pushed_nodes and instruction_args. Pushed
+  // arguments require an explicit push instruction before the call and do
+  // not appear as arguments to the call. Everything else ends up
+  // as an InstructionOperand argument to the call.
   InputIter iter(call->inputs().begin());
+  int pushed_count = 0;
   for (int index = 0; index < input_count; ++iter, ++index) {
     DCHECK(iter != call->inputs().end());
     DCHECK(index == iter.index());
+    DCHECK((*iter)->op()->opcode() != IrOpcode::kFrameState);
     if (index == 0) continue;  // The first argument (callee) is already done.
     InstructionOperand* op =
         g.UseLocation(*iter, buffer->descriptor->GetInputLocation(index));
     if (UnallocatedOperand::cast(op)->HasFixedSlotPolicy()) {
       int stack_index = -UnallocatedOperand::cast(op)->fixed_slot_index() - 1;
-      DCHECK(buffer->pushed_nodes[stack_index] == NULL);
+      if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
+        buffer->pushed_nodes.resize(stack_index + 1, NULL);
+      }
+      DCHECK_EQ(NULL, buffer->pushed_nodes[stack_index]);
       buffer->pushed_nodes[stack_index] = *iter;
-      buffer->pushed_count++;
+      pushed_count++;
     } else {
-      buffer->fixed_and_control_args[buffer->fixed_count] = op;
-      buffer->fixed_count++;
+      buffer->instruction_args.push_back(op);
     }
   }
+  CHECK_EQ(pushed_count, static_cast<int>(buffer->pushed_nodes.size()));
 
   // If the call can deoptimize, we add the continuation and deoptimization
   // block labels.
   if (buffer->descriptor->CanLazilyDeoptimize()) {
     DCHECK(cont_node != NULL);
     DCHECK(deopt_node != NULL);
-    buffer->fixed_and_control_args[buffer->fixed_count] = g.Label(cont_node);
-    buffer->fixed_and_control_args[buffer->fixed_count + 1] =
-        g.Label(deopt_node);
+    buffer->instruction_args.push_back(g.Label(cont_node));
+    buffer->instruction_args.push_back(g.Label(deopt_node));
   } else {
     DCHECK(cont_node == NULL);
     DCHECK(deopt_node == NULL);
   }
 
-  DCHECK(input_count == (buffer->fixed_count + buffer->pushed_count));
+  DCHECK(static_cast<size_t>(input_count) ==
+         (buffer->instruction_args.size() - buffer->control_count() +
+          buffer->pushed_nodes.size() - buffer->frame_state_value_count()));
 }
 
 
@@ -994,6 +1017,20 @@ void InstructionSelector::VisitThrow(Node* value) {
 }
 
 
+FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
+    Node* state) {
+  DCHECK(state->op()->opcode() == IrOpcode::kFrameState);
+  BailoutId ast_id = OpParameter<BailoutId>(state);
+  Node* parameters = state->InputAt(0);
+  Node* locals = state->InputAt(1);
+  Node* stack = state->InputAt(2);
+
+  return new (instruction_zone())
+      FrameStateDescriptor(ast_id, OpParameter<int>(parameters),
+                           OpParameter<int>(locals), OpParameter<int>(stack));
+}
+
+
 static InstructionOperand* UseOrImmediate(OperandGenerator* g, Node* input) {
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
@@ -1007,37 +1044,42 @@ static InstructionOperand* UseOrImmediate(OperandGenerator* g, Node* input) {
 }
 
 
+void InstructionSelector::AddFrameStateInputs(
+    Node* state, InstructionOperandVector* inputs,
+    FrameStateDescriptor* descriptor) {
+  DCHECK_EQ(IrOpcode::kFrameState, state->op()->opcode());
+
+  Node* parameters = state->InputAt(0);
+  Node* locals = state->InputAt(1);
+  Node* stack = state->InputAt(2);
+
+  DCHECK_EQ(descriptor->parameters_count(), parameters->InputCount());
+  DCHECK_EQ(descriptor->locals_count(), locals->InputCount());
+  DCHECK_EQ(descriptor->stack_count(), stack->InputCount());
+
+  OperandGenerator g(this);
+  for (int i = 0; i < descriptor->parameters_count(); i++) {
+    inputs->push_back(UseOrImmediate(&g, parameters->InputAt(i)));
+  }
+  for (int i = 0; i < descriptor->locals_count(); i++) {
+    inputs->push_back(UseOrImmediate(&g, locals->InputAt(i)));
+  }
+  for (int i = 0; i < descriptor->stack_count(); i++) {
+    inputs->push_back(UseOrImmediate(&g, stack->InputAt(i)));
+  }
+}
+
+
 void InstructionSelector::VisitDeoptimize(Node* deopt) {
   DCHECK(deopt->op()->opcode() == IrOpcode::kDeoptimize);
   Node* state = deopt->InputAt(0);
-  DCHECK(state->op()->opcode() == IrOpcode::kFrameState);
-  BailoutId ast_id = OpParameter<BailoutId>(state);
+  FrameStateDescriptor* descriptor = GetFrameStateDescriptor(state);
 
-  // Add the inputs.
-  Node* parameters = state->InputAt(0);
-  int parameters_count = OpParameter<int>(parameters);
+  InstructionOperandVector inputs(
+      (InstructionOperandVector::allocator_type(zone())));
+  inputs.reserve(descriptor->size());
 
-  Node* locals = state->InputAt(1);
-  int locals_count = OpParameter<int>(locals);
-
-  Node* stack = state->InputAt(2);
-  int stack_count = OpParameter<int>(stack);
-
-  OperandGenerator g(this);
-  std::vector<InstructionOperand*> inputs;
-  inputs.reserve(parameters_count + locals_count + stack_count);
-  for (int i = 0; i < parameters_count; i++) {
-    inputs.push_back(UseOrImmediate(&g, parameters->InputAt(i)));
-  }
-  for (int i = 0; i < locals_count; i++) {
-    inputs.push_back(UseOrImmediate(&g, locals->InputAt(i)));
-  }
-  for (int i = 0; i < stack_count; i++) {
-    inputs.push_back(UseOrImmediate(&g, stack->InputAt(i)));
-  }
-
-  FrameStateDescriptor* descriptor = new (instruction_zone())
-      FrameStateDescriptor(ast_id, parameters_count, locals_count, stack_count);
+  AddFrameStateInputs(state, &inputs, descriptor);
 
   DCHECK_EQ(descriptor->size(), inputs.size());
 

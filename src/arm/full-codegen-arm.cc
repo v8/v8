@@ -14,7 +14,6 @@
 #include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/scopes.h"
-#include "src/stub-cache.h"
 
 #include "src/arm/code-stubs-arm.h"
 #include "src/arm/macro-assembler-arm.h"
@@ -346,7 +345,11 @@ void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
 }
 
 
+#ifdef CAN_USE_ARMV7_INSTRUCTIONS
 static const int kProfileCounterResetSequenceLength = 5 * Assembler::kInstrSize;
+#else
+static const int kProfileCounterResetSequenceLength = 7 * Assembler::kInstrSize;
+#endif
 
 
 void FullCodeGenerator::EmitProfilingCounterReset() {
@@ -361,10 +364,13 @@ void FullCodeGenerator::EmitProfilingCounterReset() {
     reset_value = FLAG_interrupt_budget >> 4;
   }
   __ mov(r2, Operand(profiling_counter_));
-  // The mov instruction above can be either 1, 2 or 3 instructions depending
-  // upon whether it is an extended constant pool - insert nop to compensate.
-  DCHECK(masm_->InstructionsGeneratedSince(&start) <= 3);
-  while (masm_->InstructionsGeneratedSince(&start) != 3) {
+  // The mov instruction above can be either 1 to 3 (for ARMv7) or 1 to 5
+  // instructions (for ARMv6) depending upon whether it is an extended constant
+  // pool - insert nop to compensate.
+  int expected_instr_count =
+      (kProfileCounterResetSequenceLength / Assembler::kInstrSize) - 2;
+  DCHECK(masm_->InstructionsGeneratedSince(&start) <= expected_instr_count);
+  while (masm_->InstructionsGeneratedSince(&start) != expected_instr_count) {
     __ nop();
   }
   __ mov(r3, Operand(Smi::FromInt(reset_value)));
@@ -448,9 +454,11 @@ void FullCodeGenerator::EmitReturnSequence() {
       PredictableCodeSizeScope predictable(masm_, -1);
       __ RecordJSReturn();
       int no_frame_start = __ LeaveFrame(StackFrame::JAVA_SCRIPT);
-      __ add(sp, sp, Operand(sp_delta));
-      __ Jump(lr);
-      info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
+      { ConstantPoolUnavailableScope constant_pool_unavailable(masm_);
+        __ add(sp, sp, Operand(sp_delta));
+        __ Jump(lr);
+        info_->AddNoFrameRange(no_frame_start, masm_->pc_offset());
+      }
     }
 
 #ifdef DEBUG
@@ -4785,14 +4793,35 @@ static Address GetInterruptImmediateLoadAddress(Address pc) {
     DCHECK(Assembler::IsLdrPcImmediateOffset(Memory::int32_at(load_address)));
   } else if (Assembler::IsLdrPpRegOffset(Memory::int32_at(load_address))) {
     // This is an extended constant pool lookup.
-    load_address -= 2 * Assembler::kInstrSize;
-    DCHECK(Assembler::IsMovW(Memory::int32_at(load_address)));
-    DCHECK(Assembler::IsMovT(
-        Memory::int32_at(load_address + Assembler::kInstrSize)));
-  } else if (Assembler::IsMovT(Memory::int32_at(load_address))) {
-    // This is a movw_movt immediate load.
+    if (CpuFeatures::IsSupported(ARMv7)) {
+      load_address -= 2 * Assembler::kInstrSize;
+      DCHECK(Assembler::IsMovW(Memory::int32_at(load_address)));
+      DCHECK(Assembler::IsMovT(
+          Memory::int32_at(load_address + Assembler::kInstrSize)));
+    } else {
+      load_address -= 4 * Assembler::kInstrSize;
+      DCHECK(Assembler::IsMovImmed(Memory::int32_at(load_address)));
+      DCHECK(Assembler::IsOrrImmed(
+          Memory::int32_at(load_address + Assembler::kInstrSize)));
+      DCHECK(Assembler::IsOrrImmed(
+          Memory::int32_at(load_address + 2 * Assembler::kInstrSize)));
+      DCHECK(Assembler::IsOrrImmed(
+          Memory::int32_at(load_address + 3 * Assembler::kInstrSize)));
+    }
+  } else if (CpuFeatures::IsSupported(ARMv7) &&
+             Assembler::IsMovT(Memory::int32_at(load_address))) {
+    // This is a movw / movt immediate load.
     load_address -= Assembler::kInstrSize;
     DCHECK(Assembler::IsMovW(Memory::int32_at(load_address)));
+  } else if (!CpuFeatures::IsSupported(ARMv7) &&
+             Assembler::IsOrrImmed(Memory::int32_at(load_address))) {
+    // This is a mov / orr immediate load.
+    load_address -= 3 * Assembler::kInstrSize;
+    DCHECK(Assembler::IsMovImmed(Memory::int32_at(load_address)));
+    DCHECK(Assembler::IsOrrImmed(
+        Memory::int32_at(load_address + Assembler::kInstrSize)));
+    DCHECK(Assembler::IsOrrImmed(
+        Memory::int32_at(load_address + 2 * Assembler::kInstrSize)));
   } else {
     // This is a small constant pool lookup.
     DCHECK(Assembler::IsLdrPpImmediateOffset(Memory::int32_at(load_address)));
@@ -4813,11 +4842,17 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
     {
       //  <decrement profiling counter>
       //   bpl ok
-      //   ; load interrupt stub address into ip - either of:
+      //   ; load interrupt stub address into ip - either of (for ARMv7):
       //   ; <small cp load>      |  <extended cp load> |  <immediate load>
       //   ldr ip, [pc/pp, #imm]  |   movw ip, #imm     |   movw ip, #imm
-      //                          |   movt ip, #imm>    |   movw ip, #imm
+      //                          |   movt ip, #imm     |   movw ip, #imm
       //                          |   ldr  ip, [pp, ip]
+      //   ; or (for ARMv6):
+      //   ; <small cp load>      |  <extended cp load> |  <immediate load>
+      //   ldr ip, [pc/pp, #imm]  |   mov ip, #imm      |   mov ip, #imm
+      //                          |   orr ip, ip, #imm> |   orr ip, ip, #imm
+      //                          |   orr ip, ip, #imm> |   orr ip, ip, #imm
+      //                          |   orr ip, ip, #imm> |   orr ip, ip, #imm
       //   blx ip
       //  <reset profiling counter>
       //  ok-label
@@ -4834,11 +4869,17 @@ void BackEdgeTable::PatchAt(Code* unoptimized_code,
     case OSR_AFTER_STACK_CHECK:
       //  <decrement profiling counter>
       //   mov r0, r0 (NOP)
-      //   ; load on-stack replacement address into ip - either of:
+      //   ; load on-stack replacement address into ip - either of (for ARMv7):
       //   ; <small cp load>      |  <extended cp load> |  <immediate load>
       //   ldr ip, [pc/pp, #imm]  |   movw ip, #imm     |   movw ip, #imm
       //                          |   movt ip, #imm>    |   movw ip, #imm
       //                          |   ldr  ip, [pp, ip]
+      //   ; or (for ARMv6):
+      //   ; <small cp load>      |  <extended cp load> |  <immediate load>
+      //   ldr ip, [pc/pp, #imm]  |   mov ip, #imm      |   mov ip, #imm
+      //                          |   orr ip, ip, #imm> |   orr ip, ip, #imm
+      //                          |   orr ip, ip, #imm> |   orr ip, ip, #imm
+      //                          |   orr ip, ip, #imm> |   orr ip, ip, #imm
       //   blx ip
       //  <reset profiling counter>
       //  ok-label

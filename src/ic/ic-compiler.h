@@ -1,270 +1,24 @@
-// Copyright 2012 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_STUB_CACHE_H_
-#define V8_STUB_CACHE_H_
+#ifndef V8_IC_IC_COMPILER_H_
+#define V8_IC_IC_COMPILER_H_
 
-#include "src/allocation.h"
-#include "src/arguments.h"
 #include "src/code-stubs.h"
-#include "src/ic-inl.h"
+#include "src/ic/access-compiler.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
-#include "src/zone-inl.h"
 
 namespace v8 {
 namespace internal {
 
 
-// The stub cache is used for megamorphic property accesses.
-// It maps (map, name, type) to property access handlers. The cache does not
-// need explicit invalidation when a prototype chain is modified, since the
-// handlers verify the chain.
-
-
 class CallOptimization;
-class SmallMapList;
-class StubCache;
-
-
-class SCTableReference {
- public:
-  Address address() const { return address_; }
-
- private:
-  explicit SCTableReference(Address address) : address_(address) {}
-
-  Address address_;
-
-  friend class StubCache;
-};
-
-
-class StubCache {
- public:
-  struct Entry {
-    Name* key;
-    Code* value;
-    Map* map;
-  };
-
-  void Initialize();
-  // Access cache for entry hash(name, map).
-  Code* Set(Name* name, Map* map, Code* code);
-  Code* Get(Name* name, Map* map, Code::Flags flags);
-  // Clear the lookup table (@ mark compact collection).
-  void Clear();
-  // Collect all maps that match the name and flags.
-  void CollectMatchingMaps(SmallMapList* types,
-                           Handle<Name> name,
-                           Code::Flags flags,
-                           Handle<Context> native_context,
-                           Zone* zone);
-  // Generate code for probing the stub cache table.
-  // Arguments extra, extra2 and extra3 may be used to pass additional scratch
-  // registers. Set to no_reg if not needed.
-  void GenerateProbe(MacroAssembler* masm,
-                     Code::Flags flags,
-                     Register receiver,
-                     Register name,
-                     Register scratch,
-                     Register extra,
-                     Register extra2 = no_reg,
-                     Register extra3 = no_reg);
-
-  enum Table {
-    kPrimary,
-    kSecondary
-  };
-
-  SCTableReference key_reference(StubCache::Table table) {
-    return SCTableReference(
-        reinterpret_cast<Address>(&first_entry(table)->key));
-  }
-
-  SCTableReference map_reference(StubCache::Table table) {
-    return SCTableReference(
-        reinterpret_cast<Address>(&first_entry(table)->map));
-  }
-
-  SCTableReference value_reference(StubCache::Table table) {
-    return SCTableReference(
-        reinterpret_cast<Address>(&first_entry(table)->value));
-  }
-
-  StubCache::Entry* first_entry(StubCache::Table table) {
-    switch (table) {
-      case StubCache::kPrimary: return StubCache::primary_;
-      case StubCache::kSecondary: return StubCache::secondary_;
-    }
-    UNREACHABLE();
-    return NULL;
-  }
-
-  Isolate* isolate() { return isolate_; }
-
-  // Setting the entry size such that the index is shifted by Name::kHashShift
-  // is convenient; shifting down the length field (to extract the hash code)
-  // automatically discards the hash bit field.
-  static const int kCacheIndexShift = Name::kHashShift;
-
- private:
-  explicit StubCache(Isolate* isolate);
-
-  // The stub cache has a primary and secondary level.  The two levels have
-  // different hashing algorithms in order to avoid simultaneous collisions
-  // in both caches.  Unlike a probing strategy (quadratic or otherwise) the
-  // update strategy on updates is fairly clear and simple:  Any existing entry
-  // in the primary cache is moved to the secondary cache, and secondary cache
-  // entries are overwritten.
-
-  // Hash algorithm for the primary table.  This algorithm is replicated in
-  // assembler for every architecture.  Returns an index into the table that
-  // is scaled by 1 << kCacheIndexShift.
-  static int PrimaryOffset(Name* name, Code::Flags flags, Map* map) {
-    STATIC_ASSERT(kCacheIndexShift == Name::kHashShift);
-    // Compute the hash of the name (use entire hash field).
-    DCHECK(name->HasHashCode());
-    uint32_t field = name->hash_field();
-    // Using only the low bits in 64-bit mode is unlikely to increase the
-    // risk of collision even if the heap is spread over an area larger than
-    // 4Gb (and not at all if it isn't).
-    uint32_t map_low32bits =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
-    // We always set the in_loop bit to zero when generating the lookup code
-    // so do it here too so the hash codes match.
-    uint32_t iflags =
-        (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
-    // Base the offset on a simple combination of name, flags, and map.
-    uint32_t key = (map_low32bits + field) ^ iflags;
-    return key & ((kPrimaryTableSize - 1) << kCacheIndexShift);
-  }
-
-  // Hash algorithm for the secondary table.  This algorithm is replicated in
-  // assembler for every architecture.  Returns an index into the table that
-  // is scaled by 1 << kCacheIndexShift.
-  static int SecondaryOffset(Name* name, Code::Flags flags, int seed) {
-    // Use the seed from the primary cache in the secondary cache.
-    uint32_t name_low32bits =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name));
-    // We always set the in_loop bit to zero when generating the lookup code
-    // so do it here too so the hash codes match.
-    uint32_t iflags =
-        (static_cast<uint32_t>(flags) & ~Code::kFlagsNotUsedInLookup);
-    uint32_t key = (seed - name_low32bits) + iflags;
-    return key & ((kSecondaryTableSize - 1) << kCacheIndexShift);
-  }
-
-  // Compute the entry for a given offset in exactly the same way as
-  // we do in generated code.  We generate an hash code that already
-  // ends in Name::kHashShift 0s.  Then we multiply it so it is a multiple
-  // of sizeof(Entry).  This makes it easier to avoid making mistakes
-  // in the hashed offset computations.
-  static Entry* entry(Entry* table, int offset) {
-    const int multiplier = sizeof(*table) >> Name::kHashShift;
-    return reinterpret_cast<Entry*>(
-        reinterpret_cast<Address>(table) + offset * multiplier);
-  }
-
-  static const int kPrimaryTableBits = 11;
-  static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
-  static const int kSecondaryTableBits = 9;
-  static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
-
-  Entry primary_[kPrimaryTableSize];
-  Entry secondary_[kSecondaryTableSize];
-  Isolate* isolate_;
-
-  friend class Isolate;
-  friend class SCTableReference;
-
-  DISALLOW_COPY_AND_ASSIGN(StubCache);
-};
-
-
-// ------------------------------------------------------------------------
-
-
-// Support functions for IC stubs for callbacks.
-DECLARE_RUNTIME_FUNCTION(StoreCallbackProperty);
-
-
-// Support functions for IC stubs for interceptors.
-DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptorOnly);
-DECLARE_RUNTIME_FUNCTION(LoadPropertyWithInterceptor);
-DECLARE_RUNTIME_FUNCTION(LoadElementWithInterceptor);
-DECLARE_RUNTIME_FUNCTION(StorePropertyWithInterceptor);
 
 
 enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
 enum IcCheckType { ELEMENT, PROPERTY };
-
-
-class PropertyAccessCompiler BASE_EMBEDDED {
- public:
-  static Builtins::Name MissBuiltin(Code::Kind kind) {
-    switch (kind) {
-      case Code::LOAD_IC:
-        return Builtins::kLoadIC_Miss;
-      case Code::STORE_IC:
-        return Builtins::kStoreIC_Miss;
-      case Code::KEYED_LOAD_IC:
-        return Builtins::kKeyedLoadIC_Miss;
-      case Code::KEYED_STORE_IC:
-        return Builtins::kKeyedStoreIC_Miss;
-      default:
-        UNREACHABLE();
-    }
-    return Builtins::kLoadIC_Miss;
-  }
-
-  static void TailCallBuiltin(MacroAssembler* masm, Builtins::Name name);
-
- protected:
-  PropertyAccessCompiler(Isolate* isolate, Code::Kind kind,
-                         CacheHolderFlag cache_holder)
-      : registers_(GetCallingConvention(kind)),
-        kind_(kind),
-        cache_holder_(cache_holder),
-        isolate_(isolate),
-        masm_(isolate, NULL, 256) {}
-
-  Code::Kind kind() const { return kind_; }
-  CacheHolderFlag cache_holder() const { return cache_holder_; }
-  MacroAssembler* masm() { return &masm_; }
-  Isolate* isolate() const { return isolate_; }
-  Heap* heap() const { return isolate()->heap(); }
-  Factory* factory() const { return isolate()->factory(); }
-
-  Register receiver() const { return registers_[0]; }
-  Register name() const { return registers_[1]; }
-  Register scratch1() const { return registers_[2]; }
-  Register scratch2() const { return registers_[3]; }
-  Register scratch3() const { return registers_[4]; }
-
-  // Calling convention between indexed store IC and handler.
-  Register transition_map() const { return scratch1(); }
-
-  static Register* GetCallingConvention(Code::Kind);
-  static Register* load_calling_convention();
-  static Register* store_calling_convention();
-  static Register* keyed_store_calling_convention();
-
-  Register* registers_;
-
-  static void GenerateTailCall(MacroAssembler* masm, Handle<Code> code);
-
-  Handle<Code> GetCodeWithFlags(Code::Flags flags, const char* name);
-  Handle<Code> GetCodeWithFlags(Code::Flags flags, Handle<Name> name);
-
- private:
-  Code::Kind kind_;
-  CacheHolderFlag cache_holder_;
-
-  Isolate* isolate_;
-  MacroAssembler masm_;
-};
 
 
 class PropertyICCompiler : public PropertyAccessCompiler {
@@ -303,6 +57,12 @@ class PropertyICCompiler : public PropertyAccessCompiler {
   // Compare nil
   static Handle<Code> ComputeCompareNil(Handle<Map> receiver_map,
                                         CompareNilICStub* stub);
+
+  // Helpers
+  // TODO(verwaest): Move all uses of these helpers to the PropertyICCompiler
+  // and make the helpers private.
+  static void GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                         StrictMode strict_mode);
 
 
  private:
@@ -409,8 +169,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
                                                Label* miss_label,
                                                Register receiver,
-                                               Handle<Name> name,
-                                               Register r0,
+                                               Handle<Name> name, Register r0,
                                                Register r1);
 
   // Generate code to check that a global property cell is empty. Create
@@ -418,8 +177,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   // property.
   static void GenerateCheckPropertyCell(MacroAssembler* masm,
                                         Handle<JSGlobalObject> global,
-                                        Handle<Name> name,
-                                        Register scratch,
+                                        Handle<Name> name, Register scratch,
                                         Label* miss);
 
   // Generates code that verifies that the property holder has not changed
@@ -476,7 +234,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   // The LookupIterator is used to perform a lookup behind the interceptor. If
   // the iterator points to a LookupIterator::PROPERTY, its access will be
   // inlined.
-  Handle<Code> CompileLoadInterceptor(LookupIterator* it, Handle<Name> name);
+  Handle<Code> CompileLoadInterceptor(LookupIterator* it);
 
   Handle<Code> CompileLoadViaGetter(Handle<Name> name,
                                     Handle<JSFunction> getter);
@@ -558,7 +316,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
   Handle<Code> CompileStoreTransition(Handle<Map> transition,
                                       Handle<Name> name);
-  Handle<Code> CompileStoreField(LookupResult* lookup, Handle<Name> name);
+  Handle<Code> CompileStoreField(LookupIterator* it);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<ExecutableAccessorInfo> callback);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
@@ -590,14 +348,17 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                Register scratch2, Register scratch3,
                                Label* miss_label, Label* slow);
 
-  void GenerateStoreField(LookupResult* lookup, Register value_reg,
+  void GenerateStoreField(LookupIterator* lookup, Register value_reg,
                           Label* miss_label);
 
   static Builtins::Name SlowBuiltin(Code::Kind kind) {
     switch (kind) {
-      case Code::STORE_IC: return Builtins::kStoreIC_Slow;
-      case Code::KEYED_STORE_IC: return Builtins::kKeyedStoreIC_Slow;
-      default: UNREACHABLE();
+      case Code::STORE_IC:
+        return Builtins::kStoreIC_Slow;
+      case Code::KEYED_STORE_IC:
+        return Builtins::kKeyedStoreIC_Slow;
+      default:
+        UNREACHABLE();
     }
     return Builtins::kStoreIC_Slow;
   }
@@ -623,61 +384,7 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
 };
 
 
-// Holds information about possible function call optimizations.
-class CallOptimization BASE_EMBEDDED {
- public:
-  explicit CallOptimization(Handle<JSFunction> function);
+}
+}  // namespace v8::internal
 
-  bool is_constant_call() const {
-    return !constant_function_.is_null();
-  }
-
-  Handle<JSFunction> constant_function() const {
-    DCHECK(is_constant_call());
-    return constant_function_;
-  }
-
-  bool is_simple_api_call() const {
-    return is_simple_api_call_;
-  }
-
-  Handle<FunctionTemplateInfo> expected_receiver_type() const {
-    DCHECK(is_simple_api_call());
-    return expected_receiver_type_;
-  }
-
-  Handle<CallHandlerInfo> api_call_info() const {
-    DCHECK(is_simple_api_call());
-    return api_call_info_;
-  }
-
-  enum HolderLookup {
-    kHolderNotFound,
-    kHolderIsReceiver,
-    kHolderFound
-  };
-  Handle<JSObject> LookupHolderOfExpectedType(
-      Handle<Map> receiver_map,
-      HolderLookup* holder_lookup) const;
-
-  // Check if the api holder is between the receiver and the holder.
-  bool IsCompatibleReceiver(Handle<Object> receiver,
-                            Handle<JSObject> holder) const;
-
- private:
-  void Initialize(Handle<JSFunction> function);
-
-  // Determines whether the given function can be called using the
-  // fast api call builtin.
-  void AnalyzePossibleApiFunction(Handle<JSFunction> function);
-
-  Handle<JSFunction> constant_function_;
-  bool is_simple_api_call_;
-  Handle<FunctionTemplateInfo> expected_receiver_type_;
-  Handle<CallHandlerInfo> api_call_info_;
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_STUB_CACHE_H_
+#endif  // V8_IC_IC_COMPILER_H_

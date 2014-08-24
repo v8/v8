@@ -59,8 +59,9 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 }
 
 
-VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
-    : Expression(zone, position),
+VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
+                             IdGen* id_gen)
+    : Expression(zone, position, id_gen),
       name_(var->raw_name()),
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
@@ -71,19 +72,15 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position)
 }
 
 
-VariableProxy::VariableProxy(Zone* zone,
-                             const AstRawString* name,
-                             bool is_this,
-                             Interface* interface,
-                             int position)
-    : Expression(zone, position),
+VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
+                             Interface* interface, int position, IdGen* id_gen)
+    : Expression(zone, position, id_gen),
       name_(name),
       var_(NULL),
       is_this_(is_this),
       is_assigned_(false),
       interface_(interface),
-      variable_feedback_slot_(kInvalidFeedbackSlot) {
-}
+      variable_feedback_slot_(kInvalidFeedbackSlot) {}
 
 
 void VariableProxy::BindTo(Variable* var) {
@@ -101,19 +98,16 @@ void VariableProxy::BindTo(Variable* var) {
 }
 
 
-Assignment::Assignment(Zone* zone,
-                       Token::Value op,
-                       Expression* target,
-                       Expression* value,
-                       int pos)
-    : Expression(zone, pos),
+Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
+                       Expression* value, int pos, IdGen* id_gen)
+    : Expression(zone, pos, id_gen),
       op_(op),
       target_(target),
       value_(value),
       binary_operation_(NULL),
-      assignment_id_(GetNextId(zone)),
+      assignment_id_(id_gen->GetNextId()),
       is_uninitialized_(false),
-      store_mode_(STANDARD_STORE) { }
+      store_mode_(STANDARD_STORE) {}
 
 
 Token::Value Assignment::binary_op() const {
@@ -993,17 +987,14 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 }
 
 
-CaseClause::CaseClause(Zone* zone,
-                       Expression* label,
-                       ZoneList<Statement*>* statements,
-                       int pos)
-    : Expression(zone, pos),
+CaseClause::CaseClause(Zone* zone, Expression* label,
+                       ZoneList<Statement*>* statements, int pos, IdGen* id_gen)
+    : Expression(zone, pos, id_gen),
       label_(label),
       statements_(statements),
       compare_type_(Type::None(zone)),
-      compare_id_(AstNode::GetNextId(zone)),
-      entry_id_(AstNode::GetNextId(zone)) {
-}
+      compare_id_(id_gen->GetNextId()),
+      entry_id_(id_gen->GetNextId()) {}
 
 
 #define REGULAR_NODE(NodeType) \

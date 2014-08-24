@@ -7,12 +7,10 @@
 #include "src/ast.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
-#include "src/ic.h"
+#include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
-#include "src/stub-cache.h"
 #include "src/type-info.h"
 
-#include "src/ic-inl.h"
 #include "src/objects-inl.h"
 
 namespace v8 {

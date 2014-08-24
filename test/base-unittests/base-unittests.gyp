@@ -25,6 +25,7 @@
         'platform/condition-variable-unittest.cc',
         'platform/mutex-unittest.cc',
         'platform/platform-unittest.cc',
+        'platform/semaphore-unittest.cc',
         'platform/time-unittest.cc',
         'utils/random-number-generator-unittest.cc',
       ],

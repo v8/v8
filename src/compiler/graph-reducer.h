@@ -38,6 +38,7 @@ class Reduction V8_FINAL {
 // phase.
 class Reducer {
  public:
+  Reducer() {}
   virtual ~Reducer() {}
 
   // Try to reduce a node if possible.
@@ -47,6 +48,9 @@ class Reducer {
   static Reduction NoChange() { return Reduction(); }
   static Reduction Replace(Node* node) { return Reduction(node); }
   static Reduction Changed(Node* node) { return Reduction(node); }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Reducer);
 };
 
 
@@ -69,9 +73,12 @@ class GraphReducer V8_FINAL {
 
   Graph* graph_;
   Reducers reducers_;
+
+  DISALLOW_COPY_AND_ASSIGN(GraphReducer);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_GRAPH_REDUCER_H_

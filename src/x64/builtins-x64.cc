@@ -9,7 +9,6 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

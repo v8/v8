@@ -57,6 +57,18 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
 }
 
 
+Handle<JSObject> LookupIterator::GetStoreTarget() const {
+  Handle<JSObject> receiver = Handle<JSObject>::cast(GetReceiver());
+
+  if (receiver->IsJSGlobalProxy()) {
+    PrototypeIterator iter(isolate(), receiver);
+    if (iter.IsAtEnd()) return receiver;
+    return Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter));
+  }
+  return receiver;
+}
+
+
 bool LookupIterator::IsBootstrapping() const {
   return isolate_->bootstrapper()->IsActive();
 }
@@ -90,6 +102,14 @@ bool LookupIterator::HasProperty() {
         holder_map_->instance_descriptors()->GetDetails(number_);
   }
 
+  LoadPropertyKind();
+
+  has_property_ = true;
+  return true;
+}
+
+
+void LookupIterator::LoadPropertyKind() {
   switch (property_details_.type()) {
     case v8::internal::FIELD:
     case v8::internal::NORMAL:
@@ -103,9 +123,6 @@ bool LookupIterator::HasProperty() {
     case v8::internal::INTERCEPTOR:
       UNREACHABLE();
   }
-
-  has_property_ = true;
-  return true;
 }
 
 
@@ -148,27 +165,37 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 }
 
 
-void LookupIterator::TransitionToDataProperty(
+void LookupIterator::PrepareTransitionToDataProperty(
     Handle<Object> value, PropertyAttributes attributes,
     Object::StoreFromKeyed store_mode) {
-  DCHECK(!has_property_ || !HolderIsReceiverOrHiddenPrototype());
+  if (state_ == TRANSITION) return;
+  DCHECK(!has_property_ || property_kind_ != ACCESSOR);
+  DCHECK(!(has_property_ || state_ == JSPROXY) ||
+         !HolderIsReceiverOrHiddenPrototype());
 
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
   // observable.
-  Handle<JSObject> receiver = Handle<JSObject>::cast(GetReceiver());
+  Handle<JSObject> receiver = GetStoreTarget();
 
-  if (receiver->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate(), receiver);
-    receiver =
-        Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter));
+  if (!name().is_identical_to(isolate()->factory()->hidden_string()) &&
+      !receiver->map()->is_extensible()) {
+    return;
   }
 
-  maybe_holder_ = receiver;
-  holder_map_ = Map::TransitionToDataProperty(handle(receiver->map()), name_,
-                                              value, attributes, store_mode);
-  JSObject::MigrateToMap(receiver, holder_map_);
+  transition_map_ = Map::TransitionToDataProperty(
+      handle(receiver->map()), name_, value, attributes, store_mode);
+  state_ = TRANSITION;
+}
 
+
+void LookupIterator::ApplyTransitionToDataProperty() {
+  DCHECK_EQ(TRANSITION, state_);
+
+  Handle<JSObject> receiver = GetStoreTarget();
+  maybe_holder_ = receiver;
+  holder_map_ = transition_map_;
+  JSObject::MigrateToMap(receiver, holder_map_);
   ReloadPropertyInformation();
 }
 
@@ -180,14 +207,7 @@ void LookupIterator::TransitionToAccessorProperty(
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
   // observable.
-  Handle<JSObject> receiver = Handle<JSObject>::cast(GetReceiver());
-
-  if (receiver->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate(), receiver);
-    receiver =
-        Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter));
-  }
-
+  Handle<JSObject> receiver = GetStoreTarget();
   maybe_holder_ = receiver;
   holder_map_ = Map::TransitionToAccessorProperty(
       handle(receiver->map()), name_, component, accessor, attributes);
@@ -301,6 +321,16 @@ FieldIndex LookupIterator::GetFieldIndex() const {
       holder_map()->instance_descriptors()->GetFieldIndex(descriptor_number());
   bool is_double = representation().IsDouble();
   return FieldIndex::ForPropertyIndex(*holder_map(), index, is_double);
+}
+
+
+Handle<HeapType> LookupIterator::GetFieldType() const {
+  DCHECK(has_property_);
+  DCHECK_EQ(DESCRIPTOR, property_encoding_);
+  DCHECK_EQ(v8::internal::FIELD, property_details_.type());
+  return handle(
+      holder_map()->instance_descriptors()->GetFieldType(descriptor_number()),
+      isolate_);
 }
 
 

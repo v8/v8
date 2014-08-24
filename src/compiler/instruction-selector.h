@@ -142,6 +142,10 @@ class InstructionSelector V8_FINAL {
                             bool call_address_immediate, BasicBlock* cont_node,
                             BasicBlock* deopt_node);
 
+  FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
+  void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,
+                           FrameStateDescriptor* descriptor);
+
   // ===========================================================================
   // ============= Architecture-specific graph covering methods. ===============
   // ===========================================================================

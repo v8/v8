@@ -11,6 +11,7 @@
 #include "src/assert-scope.h"
 #include "src/counters.h"
 #include "src/globals.h"
+#include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
@@ -185,6 +186,7 @@ namespace internal {
   V(Symbol, stack_trace_symbol, StackTraceSymbol)                              \
   V(Symbol, detailed_stack_trace_symbol, DetailedStackTraceSymbol)             \
   V(Symbol, normal_ic_symbol, NormalICSymbol)                                  \
+  V(Symbol, home_object_symbol, HomeObjectSymbol)                              \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(FixedArray, microtask_queue, MicrotaskQueue)
@@ -713,14 +715,11 @@ class Heap {
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
   static const int kNoGCFlags = 0;
-  static const int kSweepPreciselyMask = 1;
-  static const int kReduceMemoryFootprintMask = 2;
-  static const int kAbortIncrementalMarkingMask = 4;
+  static const int kReduceMemoryFootprintMask = 1;
+  static const int kAbortIncrementalMarkingMask = 2;
 
-  // Making the heap iterable requires us to sweep precisely and abort any
-  // incremental marking as well.
-  static const int kMakeHeapIterableMask =
-      kSweepPreciselyMask | kAbortIncrementalMarkingMask;
+  // Making the heap iterable requires us to abort incremental marking.
+  static const int kMakeHeapIterableMask = kAbortIncrementalMarkingMask;
 
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap
@@ -1928,30 +1927,9 @@ class Heap {
 
   void SelectScavengingVisitorsTable();
 
-  void StartIdleRound() { mark_sweeps_since_idle_round_started_ = 0; }
+  void AdvanceIdleIncrementalMarking(intptr_t step_size);
 
-  void FinishIdleRound() {
-    mark_sweeps_since_idle_round_started_ = kMaxMarkSweepsInIdleRound;
-    scavenges_since_last_idle_round_ = 0;
-  }
-
-  bool EnoughGarbageSinceLastIdleRound() {
-    return (scavenges_since_last_idle_round_ >= kIdleScavengeThreshold);
-  }
-
-  // Estimates how many milliseconds a Mark-Sweep would take to complete.
-  // In idle notification handler we assume that this function will return:
-  // - a number less than 10 for small heaps, which are less than 8Mb.
-  // - a number greater than 10 for large heaps, which are greater than 32Mb.
-  int TimeMarkSweepWouldTakeInMs() {
-    // Rough estimate of how many megabytes of heap can be processed in 1 ms.
-    static const int kMbPerMs = 2;
-
-    int heap_size_mb = static_cast<int>(SizeOfObjects() / MB);
-    return heap_size_mb / kMbPerMs;
-  }
-
-  void AdvanceIdleIncrementalMarking(int idle_time_in_ms);
+  bool WorthActivatingIncrementalMarking();
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 
@@ -2004,13 +1982,8 @@ class Heap {
 
   IncrementalMarking incremental_marking_;
 
-  int number_idle_notifications_;
-  unsigned int last_idle_notification_gc_count_;
-  bool last_idle_notification_gc_count_init_;
-
-  int mark_sweeps_since_idle_round_started_;
+  GCIdleTimeHandler gc_idle_time_handler_;
   unsigned int gc_count_at_last_idle_gc_;
-  int scavenges_since_last_idle_round_;
 
   // These two counters are monotomically increasing and never reset.
   size_t full_codegen_bytes_generated_;
@@ -2028,7 +2001,7 @@ class Heap {
   static const int kAllocationSiteScratchpadSize = 256;
   int allocation_sites_scratchpad_length_;
 
-  static const int kMaxMarkSweepsInIdleRound = 7;
+  static const int kMaxMarkCompactsInIdleRound = 7;
   static const int kIdleScavengeThreshold = 5;
 
   // Shared state read by the scavenge collector and set by ScavengeObject.

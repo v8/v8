@@ -233,6 +233,34 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
 }
 
 
+void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
+  CallDescriptor::DeoptimizationSupport deopt =
+      static_cast<CallDescriptor::DeoptimizationSupport>(
+          MiscField::decode(instr->opcode()));
+
+  if ((deopt & CallDescriptor::kLazyDeoptimization) != 0) {
+    RecordLazyDeoptimizationEntry(instr);
+  }
+
+  bool needs_frame_state = (deopt & CallDescriptor::kNeedsFrameState) != 0;
+
+  RecordSafepoint(
+      instr->pointer_map(), Safepoint::kSimple, 0,
+      needs_frame_state ? Safepoint::kLazyDeopt : Safepoint::kNoLazyDeopt);
+
+  if ((deopt & CallDescriptor::kNeedsFrameState) != 0) {
+    // If the frame state is present, it starts at argument 1
+    // (just after the code address).
+    InstructionOperandConverter converter(this, instr);
+    // Argument 1 is deoptimization id.
+    int deoptimization_id = converter.ToConstant(instr->InputAt(1)).ToInt32();
+    // The actual frame state values start with argument 2.
+    BuildTranslation(instr, 2, deoptimization_id);
+    safepoints()->RecordLazyDeoptimizationIndex(deoptimization_id);
+  }
+}
+
+
 void CodeGenerator::RecordLazyDeoptimizationEntry(Instruction* instr) {
   InstructionOperandConverter i(this, instr);
 
@@ -264,6 +292,7 @@ int CodeGenerator::DefineDeoptimizationLiteral(Handle<Object> literal) {
 
 
 void CodeGenerator::BuildTranslation(Instruction* instr,
+                                     int first_argument_index,
                                      int deoptimization_id) {
   // We should build translation only once.
   DCHECK_EQ(NULL, deoptimization_states_[deoptimization_id]);
@@ -276,7 +305,8 @@ void CodeGenerator::BuildTranslation(Instruction* instr,
                            descriptor->size() - descriptor->parameters_count());
 
   for (int i = 0; i < descriptor->size(); i++) {
-    AddTranslationForOperand(&translation, instr, instr->InputAt(i));
+    AddTranslationForOperand(&translation, instr,
+                             instr->InputAt(i + first_argument_index));
   }
 
   deoptimization_states_[deoptimization_id] =

@@ -346,22 +346,29 @@ class FlagsContinuation V8_FINAL {
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
 struct CallBuffer {
-  CallBuffer(Zone* zone, CallDescriptor* descriptor);
+  CallBuffer(Zone* zone, CallDescriptor* descriptor,
+             FrameStateDescriptor* frame_state);
 
-  int output_count;
   CallDescriptor* descriptor;
-  Node** output_nodes;
-  InstructionOperand** outputs;
-  InstructionOperand** fixed_and_control_args;
-  int fixed_count;
-  Node** pushed_nodes;
-  int pushed_count;
+  FrameStateDescriptor* frame_state_descriptor;
+  NodeVector output_nodes;
+  InstructionOperandVector outputs;
+  InstructionOperandVector instruction_args;
+  NodeVector pushed_nodes;
 
-  int input_count() { return descriptor->InputCount(); }
+  int input_count() const { return descriptor->InputCount(); }
 
-  int control_count() { return descriptor->CanLazilyDeoptimize() ? 2 : 0; }
+  int frame_state_count() const { return descriptor->FrameStateCount(); }
 
-  int fixed_and_control_count() { return fixed_count + control_count(); }
+  int frame_state_value_count() const {
+    return (frame_state_descriptor == NULL)
+               ? 0
+               : (frame_state_descriptor->size() + 1);
+  }
+
+  int control_count() const {
+    return descriptor->CanLazilyDeoptimize() ? 2 : 0;
+  }
 };
 
 }  // namespace compiler

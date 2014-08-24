@@ -167,7 +167,6 @@ DEFINE_IMPLICATION(harmony, harmony_scoping)
 DEFINE_IMPLICATION(harmony, harmony_modules)
 // TODO(rossberg): Reenable when problems are sorted out.
 // DEFINE_IMPLICATION(harmony, harmony_proxies)
-DEFINE_IMPLICATION(harmony, harmony_generators)
 DEFINE_IMPLICATION(harmony, harmony_numeric_literals)
 DEFINE_IMPLICATION(harmony, harmony_strings)
 DEFINE_IMPLICATION(harmony, harmony_arrays)
@@ -176,6 +175,7 @@ DEFINE_IMPLICATION(harmony, harmony_classes)
 DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
 
 DEFINE_IMPLICATION(harmony, es_staging)
+DEFINE_IMPLICATION(es_staging, harmony_generators)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_dictionary_loads, true,
@@ -526,7 +526,6 @@ DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_BOOL(track_gc_object_stats, false,
             "track object counts and memory usage")
-DEFINE_BOOL(always_precise_sweeping, true, "always sweep precisely")
 DEFINE_BOOL(parallel_sweeping, false, "enable parallel sweeping")
 DEFINE_BOOL(concurrent_sweeping, true, "enable concurrent sweeping")
 DEFINE_INT(sweeper_threads, 0,

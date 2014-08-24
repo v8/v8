@@ -20,20 +20,32 @@ class PrintableUnique;
 
 namespace compiler {
 
+using ::testing::Matcher;
+
+
 class GraphTest : public CommonOperatorTest {
  public:
   explicit GraphTest(int parameters = 1);
   virtual ~GraphTest();
 
  protected:
+  Node* Parameter(int32_t index);
+  Node* Float64Constant(double value);
+  Node* Int32Constant(int32_t value);
+  Node* Int64Constant(int64_t value);
+  Node* NumberConstant(double value);
+  Node* HeapConstant(const PrintableUnique<HeapObject>& value);
+  Node* FalseConstant();
+  Node* TrueConstant();
+
+  Matcher<Node*> IsFalseConstant();
+  Matcher<Node*> IsTrueConstant();
+
   Graph* graph() { return &graph_; }
 
  private:
   Graph graph_;
 };
-
-
-using ::testing::Matcher;
 
 
 Matcher<Node*> IsBranch(const Matcher<Node*>& value_matcher,
@@ -50,7 +62,9 @@ Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher);
 Matcher<Node*> IsHeapConstant(
     const Matcher<PrintableUnique<HeapObject> >& value_matcher);
+Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);
+Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher);
 Matcher<Node*> IsNumberConstant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsPhi(const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,

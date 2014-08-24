@@ -57,6 +57,77 @@ DEPS_RE = re.compile(r'^\s*(?:"v8_revision": "'
 BLEEDING_EDGE_TAGS_RE = re.compile(
     r"A \/tags\/([^\s]+) \(from \/branches\/bleeding_edge\:(\d+)\)")
 
+# Regular expression that matches a single commit footer line.
+COMMIT_FOOTER_ENTRY_RE = re.compile(r'([^:]+):\s+(.+)')
+
+# Footer metadata key for commit position.
+COMMIT_POSITION_FOOTER_KEY = 'Cr-Commit-Position'
+
+# Regular expression to parse a commit position
+COMMIT_POSITION_RE = re.compile(r'(.+)@\{#(\d+)\}')
+
+# Key for the 'git-svn' ID metadata commit footer entry.
+GIT_SVN_ID_FOOTER_KEY = 'git-svn-id'
+
+# e.g., git-svn-id: https://v8.googlecode.com/svn/trunk@23117
+#     ce2b1a6d-e550-0410-aec6-3dcde31c8c00
+GIT_SVN_ID_RE = re.compile(r'((?:\w+)://[^@]+)@(\d+)\s+(?:[a-zA-Z0-9\-]+)')
+
+
+# Copied from bot_update.py.
+def GetCommitMessageFooterMap(message):
+  """Returns: (dict) A dictionary of commit message footer entries.
+  """
+  footers = {}
+
+  # Extract the lines in the footer block.
+  lines = []
+  for line in message.strip().splitlines():
+    line = line.strip()
+    if len(line) == 0:
+      del(lines[:])
+      continue
+    lines.append(line)
+
+  # Parse the footer
+  for line in lines:
+    m = COMMIT_FOOTER_ENTRY_RE.match(line)
+    if not m:
+      # If any single line isn't valid, the entire footer is invalid.
+      footers.clear()
+      return footers
+    footers[m.group(1)] = m.group(2).strip()
+  return footers
+
+
+# Copied from bot_update.py and modified for svn-like numbers only.
+def GetCommitPositionNumber(step, git_hash):
+  """Dumps the 'git' log for a specific revision and parses out the commit
+  position number.
+
+  If a commit position metadata key is found, its number will be returned.
+
+  Otherwise, we will search for a 'git-svn' metadata entry. If one is found,
+  its SVN revision value is returned.
+  """
+  git_log = step.GitLog(format='%B', n=1, git_hash=git_hash)
+  footer_map = GetCommitMessageFooterMap(git_log)
+
+  # Search for commit position metadata
+  value = footer_map.get(COMMIT_POSITION_FOOTER_KEY)
+  if value:
+    match = COMMIT_POSITION_RE.match(value)
+    if match:
+      return match.group(2)
+
+  # Extract the svn revision from 'git-svn' metadata
+  value = footer_map.get(GIT_SVN_ID_FOOTER_KEY)
+  if value:
+    match = GIT_SVN_ID_RE.match(value)
+    if match:
+      return match.group(2)
+  return None
+
 
 def SortBranches(branches):
   """Sort branches with version number names."""
@@ -310,12 +381,13 @@ class RetrieveChromiumV8Releases(Step):
   def RunStep(self):
     os.chdir(self["chrome_path"])
 
-    trunk_releases = filter(lambda r: r["branch"] == "trunk", self["releases"])
-    if not trunk_releases:  # pragma: no cover
-      print "No trunk releases detected. Skipping chromium history."
+    releases = filter(
+        lambda r: r["branch"] in ["trunk", "bleeding_edge"], self["releases"])
+    if not releases:  # pragma: no cover
+      print "No releases detected. Skipping chromium history."
       return True
 
-    oldest_v8_rev = int(trunk_releases[-1]["revision"])
+    oldest_v8_rev = int(releases[-1]["revision"])
 
     cr_releases = []
     try:
@@ -327,9 +399,10 @@ class RetrieveChromiumV8Releases(Step):
         deps = FileToText(self.Config(DEPS_FILE))
         match = DEPS_RE.search(deps)
         if match:
-          svn_rev = self.GitSVNFindSVNRev(git_hash)
-          v8_rev = match.group(1)
-          cr_releases.append([svn_rev, v8_rev])
+          cr_rev = GetCommitPositionNumber(self, git_hash)
+          if cr_rev:
+            v8_rev = match.group(1)
+            cr_releases.append([cr_rev, v8_rev])
 
           # Stop after reaching beyond the last v8 revision we want to update.
           # We need a small buffer for possible revert/reland frenzies.
@@ -344,11 +417,11 @@ class RetrieveChromiumV8Releases(Step):
     # Clean up.
     self.GitCheckoutFileSafe(self._config[DEPS_FILE], "HEAD")
 
-    # Add the chromium ranges to the v8 trunk releases.
+    # Add the chromium ranges to the v8 trunk and bleeding_edge releases.
     all_ranges = BuildRevisionRanges(cr_releases)
-    trunk_dict = dict((r["revision"], r) for r in trunk_releases)
+    releases_dict = dict((r["revision"], r) for r in releases)
     for revision, ranges in all_ranges.iteritems():
-      trunk_dict.get(revision, {})["chromium_revision"] = ranges
+      releases_dict.get(revision, {})["chromium_revision"] = ranges
 
 
 # TODO(machenbach): Unify common code with method above.

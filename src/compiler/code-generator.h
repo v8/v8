@@ -81,10 +81,12 @@ class CodeGenerator V8_FINAL : public GapResolver::Assembler {
 
   // ===========================================================================
   // Deoptimization table construction
+  void AddSafepointAndDeopt(Instruction* instr);
   void RecordLazyDeoptimizationEntry(Instruction* instr);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
-  void BuildTranslation(Instruction* instr, int deoptimization_id);
+  void BuildTranslation(Instruction* instr, int first_argument_index,
+                        int deoptimization_id);
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op);
   void AddNopForSmiCodeInlining();
