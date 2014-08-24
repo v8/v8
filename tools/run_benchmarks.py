@@ -113,6 +113,8 @@ SUPPORTED_ARCHS = ["android_arm",
                    "x64",
                    "arm64"]
 
+GENERIC_RESULTS_RE = re.compile(
+    r"^Trace\(([^\)]+)\), Result\(([^\)]+)\), StdDev\(([^\)]+)\)$")
 
 class Results(object):
   """Place holder for result traces."""
@@ -249,7 +251,7 @@ class Runnable(Graph):
   """
   @property
   def main(self):
-    return self._suite["main"]
+    return self._suite.get("main", "")
 
   def ChangeCWD(self, suite_path):
     """Changes the cwd to to path defined in the current graph.
@@ -289,6 +291,33 @@ class RunnableTrace(Trace, Runnable):
     return self.GetResults()
 
 
+class RunnableGeneric(Runnable):
+  """Represents a runnable benchmark suite definition with generic traces."""
+  def __init__(self, suite, parent, arch):
+    super(RunnableGeneric, self).__init__(suite, parent, arch)
+
+  def Run(self, runner):
+    """Iterates over several runs and handles the output."""
+    traces = {}
+    for stdout in runner():
+      for line in stdout.strip().splitlines():
+        match = GENERIC_RESULTS_RE.match(line)
+        if match:
+          trace = match.group(1)
+          result = match.group(2)
+          stddev = match.group(3)
+          trace_result = traces.setdefault(trace, Results([{
+            "graphs": self.graphs + [trace],
+            "units": self.units,
+            "results": [],
+            "stddev": "",
+          }], []))
+          trace_result.traces[0]["results"].append(result)
+          trace_result.traces[0]["stddev"] = stddev
+
+    return reduce(lambda r, t: r + t, traces.itervalues(), Results())
+
+
 def MakeGraph(suite, arch, parent):
   """Factory method for making graph objects."""
   if isinstance(parent, Runnable):
@@ -302,6 +331,10 @@ def MakeGraph(suite, arch, parent):
     else:
       # This graph has no subbenchmarks, it's a leaf.
       return RunnableTrace(suite, parent, arch)
+  elif suite.get("generic"):
+    # This is a generic suite definition. It is either a runnable executable
+    # or has a main js file.
+    return RunnableGeneric(suite, parent, arch)
   elif suite.get("benchmarks"):
     # This is neither a leaf nor a runnable.
     return Graph(suite, parent, arch)
