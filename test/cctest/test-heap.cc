@@ -4050,6 +4050,7 @@ static int GetCodeChainLength(Code* code) {
 
 TEST(NextCodeLinkIsWeak) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_turbo_deoptimization = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   v8::internal::Heap* heap = CcTest::heap();

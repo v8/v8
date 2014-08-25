@@ -84,9 +84,6 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(mstarzinger): These need investigation and are not categorized yet.
-  'test-heap/NextCodeLinkIsWeak': [PASS, NO_VARIANTS],
-
   # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
   'test-debug/DebugEvaluateWithoutStack': [PASS, NO_VARIANTS],
   'test-debug/MessageQueues': [PASS, NO_VARIANTS],
