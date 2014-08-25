@@ -43,17 +43,14 @@ namespace compiler {
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
   V(SSEUint32ToFloat64)            \
-  V(SSELoad)                       \
-  V(SSEStore)                      \
-  V(IA32LoadWord8)                 \
-  V(IA32StoreWord8)                \
-  V(IA32StoreWord8I)               \
-  V(IA32LoadWord16)                \
-  V(IA32StoreWord16)               \
-  V(IA32StoreWord16I)              \
-  V(IA32LoadWord32)                \
-  V(IA32StoreWord32)               \
-  V(IA32StoreWord32I)              \
+  V(IA32Movsxbl)                   \
+  V(IA32Movzxbl)                   \
+  V(IA32Movb)                      \
+  V(IA32Movsxwl)                   \
+  V(IA32Movzxwl)                   \
+  V(IA32Movw)                      \
+  V(IA32Movl)                      \
+  V(IA32Movsd)                     \
   V(IA32StoreWriteBarrier)
 
 

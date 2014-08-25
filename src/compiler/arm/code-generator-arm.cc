@@ -377,42 +377,49 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
-    case kArmLoadWord8:
+    case kArmLdrb:
       __ ldrb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArmStoreWord8: {
+    case kArmLdrsb:
+      __ ldrsb(i.OutputRegister(), i.InputOffset());
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    case kArmStrb: {
       int index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ strb(i.InputRegister(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
-    case kArmLoadWord16:
+    case kArmLdrh:
       __ ldrh(i.OutputRegister(), i.InputOffset());
       break;
-    case kArmStoreWord16: {
+    case kArmLdrsh:
+      __ ldrsh(i.OutputRegister(), i.InputOffset());
+      break;
+    case kArmStrh: {
       int index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ strh(i.InputRegister(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
-    case kArmLoadWord32:
+    case kArmLdr:
       __ ldr(i.OutputRegister(), i.InputOffset());
       break;
-    case kArmStoreWord32: {
+    case kArmStr: {
       int index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ str(i.InputRegister(index), operand);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
-    case kArmFloat64Load:
+    case kArmVldr64:
       __ vldr(i.OutputDoubleRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArmFloat64Store: {
+    case kArmVstr64: {
       int index = 0;
       MemOperand operand = i.InputOffset(&index);
       __ vstr(i.InputDoubleRegister(index), operand);

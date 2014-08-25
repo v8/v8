@@ -391,24 +391,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64PushI:
       __ pushq(i.InputImmediate(0));
       break;
-    case kX64Movl: {
-      RegisterOrOperand input = i.InputRegisterOrOperand(0);
-      if (input.type == kRegister) {
-        __ movl(i.OutputRegister(), input.reg);
-      } else {
-        __ movl(i.OutputRegister(), input.operand);
-      }
-      break;
-    }
-    case kX64Movsxlq: {
-      RegisterOrOperand input = i.InputRegisterOrOperand(0);
-      if (input.type == kRegister) {
-        __ movsxlq(i.OutputRegister(), input.reg);
-      } else {
-        __ movsxlq(i.OutputRegister(), input.operand);
-      }
-      break;
-    }
     case kX64CallCodeObject: {
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
@@ -532,75 +514,91 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
 
-    case kSSELoad:
-      __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());
+    case kX64Movsd:
+      if (instr->HasOutput()) {
+        __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());
+      } else {
+        int index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ movsd(operand, i.InputDoubleRegister(index));
+      }
       break;
-    case kSSEStore: {
-      int index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ movsd(operand, i.InputDoubleRegister(index));
+    case kX64Movsxbl:
+      __ movsxbl(i.OutputRegister(), i.MemoryOperand());
       break;
-    }
-    case kX64LoadWord8:
+    case kX64Movzxbl:
       __ movzxbl(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kX64StoreWord8: {
+    case kX64Movb: {
       int index = 0;
       Operand operand = i.MemoryOperand(&index);
-      __ movb(operand, i.InputRegister(index));
+      if (HasImmediateInput(instr, index)) {
+        __ movb(operand, Immediate(i.InputInt8(index)));
+      } else {
+        __ movb(operand, i.InputRegister(index));
+      }
       break;
     }
-    case kX64StoreWord8I: {
-      int index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ movb(operand, Immediate(i.InputInt8(index)));
+    case kX64Movsxwl:
+      __ movsxwl(i.OutputRegister(), i.MemoryOperand());
       break;
-    }
-    case kX64LoadWord16:
+    case kX64Movzxwl:
       __ movzxwl(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kX64StoreWord16: {
+    case kX64Movw: {
       int index = 0;
       Operand operand = i.MemoryOperand(&index);
-      __ movw(operand, i.InputRegister(index));
+      if (HasImmediateInput(instr, index)) {
+        __ movw(operand, Immediate(i.InputInt16(index)));
+      } else {
+        __ movw(operand, i.InputRegister(index));
+      }
       break;
     }
-    case kX64StoreWord16I: {
-      int index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ movw(operand, Immediate(i.InputInt16(index)));
+    case kX64Movl:
+      if (instr->HasOutput()) {
+        if (instr->addressing_mode() == kMode_None) {
+          RegisterOrOperand input = i.InputRegisterOrOperand(0);
+          if (input.type == kRegister) {
+            __ movl(i.OutputRegister(), input.reg);
+          } else {
+            __ movl(i.OutputRegister(), input.operand);
+          }
+        } else {
+          __ movl(i.OutputRegister(), i.MemoryOperand());
+        }
+      } else {
+        int index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        if (HasImmediateInput(instr, index)) {
+          __ movl(operand, i.InputImmediate(index));
+        } else {
+          __ movl(operand, i.InputRegister(index));
+        }
+      }
+      break;
+    case kX64Movsxlq: {
+      RegisterOrOperand input = i.InputRegisterOrOperand(0);
+      if (input.type == kRegister) {
+        __ movsxlq(i.OutputRegister(), input.reg);
+      } else {
+        __ movsxlq(i.OutputRegister(), input.operand);
+      }
       break;
     }
-    case kX64LoadWord32:
-      __ movl(i.OutputRegister(), i.MemoryOperand());
+    case kX64Movq:
+      if (instr->HasOutput()) {
+        __ movq(i.OutputRegister(), i.MemoryOperand());
+      } else {
+        int index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        if (HasImmediateInput(instr, index)) {
+          __ movq(operand, i.InputImmediate(index));
+        } else {
+          __ movq(operand, i.InputRegister(index));
+        }
+      }
       break;
-    case kX64StoreWord32: {
-      int index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ movl(operand, i.InputRegister(index));
-      break;
-    }
-    case kX64StoreWord32I: {
-      int index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ movl(operand, i.InputImmediate(index));
-      break;
-    }
-    case kX64LoadWord64:
-      __ movq(i.OutputRegister(), i.MemoryOperand());
-      break;
-    case kX64StoreWord64: {
-      int index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ movq(operand, i.InputRegister(index));
-      break;
-    }
-    case kX64StoreWord64I: {
-      int index = 0;
-      Operand operand = i.MemoryOperand(&index);
-      __ movq(operand, i.InputImmediate(index));
-      break;
-    }
     case kX64StoreWriteBarrier: {
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);

@@ -298,6 +298,76 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithParameter) {
   EXPECT_EQ(kArm64Mov32, s[0]->arch_opcode());
 }
 
+
+// -----------------------------------------------------------------------------
+// Memory access instructions.
+
+
+namespace {
+
+struct MemoryAccess {
+  MachineType type;
+  ArchOpcode ldr_opcode;
+  ArchOpcode str_opcode;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const MemoryAccess& memacc) {
+  OStringStream ost;
+  ost << memacc.type;
+  return os << ost.c_str();
+}
+
+}  // namespace
+
+
+static const MemoryAccess kMemoryAccesses[] = {
+    {kMachInt8, kArm64Ldrsb, kArm64Strb},
+    {kMachUint8, kArm64Ldrb, kArm64Strb},
+    {kMachInt16, kArm64Ldrsh, kArm64Strh},
+    {kMachUint16, kArm64Ldrh, kArm64Strh},
+    {kMachInt32, kArm64LdrW, kArm64StrW},
+    {kMachUint32, kArm64LdrW, kArm64StrW},
+    {kMachInt64, kArm64Ldr, kArm64Str},
+    {kMachUint64, kArm64Ldr, kArm64Str},
+    {kMachFloat64, kArm64LdrD, kArm64StrD}};
+
+
+typedef InstructionSelectorTestWithParam<MemoryAccess>
+    InstructionSelectorMemoryAccessTest;
+
+
+TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
+  const MemoryAccess memacc = GetParam();
+  StreamBuilder m(this, memacc.type, kMachPtr, kMachInt32);
+  m.Return(m.Load(memacc.type, m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+
+TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
+  const MemoryAccess memacc = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachPtr, kMachInt32, memacc.type);
+  m.Store(memacc.type, m.Parameter(0), m.Parameter(1), m.Parameter(2));
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_MRR, s[0]->addressing_mode());
+  EXPECT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(0U, s[0]->OutputCount());
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorMemoryAccessTest,
+                        ::testing::ValuesIn(kMemoryAccesses));
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -68,16 +68,18 @@ namespace compiler {
   V(Arm64Float64ToUint32)          \
   V(Arm64Int32ToFloat64)           \
   V(Arm64Uint32ToFloat64)          \
-  V(Arm64Float64Load)              \
-  V(Arm64Float64Store)             \
-  V(Arm64LoadWord8)                \
-  V(Arm64StoreWord8)               \
-  V(Arm64LoadWord16)               \
-  V(Arm64StoreWord16)              \
-  V(Arm64LoadWord32)               \
-  V(Arm64StoreWord32)              \
-  V(Arm64LoadWord64)               \
-  V(Arm64StoreWord64)              \
+  V(Arm64LdrD)                     \
+  V(Arm64StrD)                     \
+  V(Arm64Ldrb)                     \
+  V(Arm64Ldrsb)                    \
+  V(Arm64Strb)                     \
+  V(Arm64Ldrh)                     \
+  V(Arm64Ldrsh)                    \
+  V(Arm64Strh)                     \
+  V(Arm64LdrW)                     \
+  V(Arm64StrW)                     \
+  V(Arm64Ldr)                      \
+  V(Arm64Str)                      \
   V(Arm64StoreWriteBarrier)
 
 

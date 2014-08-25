@@ -405,11 +405,13 @@ OStream& operator<<(OStream& os, const PointerMap& pm);
 class Instruction : public ZoneObject {
  public:
   size_t OutputCount() const { return OutputCountField::decode(bit_field_); }
-  InstructionOperand* Output() const { return OutputAt(0); }
   InstructionOperand* OutputAt(size_t i) const {
     DCHECK(i < OutputCount());
     return operands_[i];
   }
+
+  bool HasOutput() const { return OutputCount() == 1; }
+  InstructionOperand* Output() const { return OutputAt(0); }
 
   size_t InputCount() const { return InputCountField::decode(bit_field_); }
   InstructionOperand* InputAt(size_t i) const {

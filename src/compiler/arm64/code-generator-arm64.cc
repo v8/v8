@@ -396,34 +396,40 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Uint32ToFloat64:
       __ Ucvtf(i.OutputDoubleRegister(), i.InputRegister32(0));
       break;
-    case kArm64LoadWord8:
+    case kArm64Ldrb:
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kArm64StoreWord8:
+    case kArm64Ldrsb:
+      __ Ldrsb(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kArm64Strb:
       __ Strb(i.InputRegister(2), i.MemoryOperand());
       break;
-    case kArm64LoadWord16:
+    case kArm64Ldrh:
       __ Ldrh(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kArm64StoreWord16:
+    case kArm64Ldrsh:
+      __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kArm64Strh:
       __ Strh(i.InputRegister(2), i.MemoryOperand());
       break;
-    case kArm64LoadWord32:
+    case kArm64LdrW:
       __ Ldr(i.OutputRegister32(), i.MemoryOperand());
       break;
-    case kArm64StoreWord32:
+    case kArm64StrW:
       __ Str(i.InputRegister32(2), i.MemoryOperand());
       break;
-    case kArm64LoadWord64:
+    case kArm64Ldr:
       __ Ldr(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kArm64StoreWord64:
+    case kArm64Str:
       __ Str(i.InputRegister(2), i.MemoryOperand());
       break;
-    case kArm64Float64Load:
+    case kArm64LdrD:
       __ Ldr(i.OutputDoubleRegister(), i.MemoryOperand());
       break;
-    case kArm64Float64Store:
+    case kArm64StrD:
       __ Str(i.InputDoubleRegister(2), i.MemoryOperand());
       break;
     case kArm64StoreWriteBarrier: {
