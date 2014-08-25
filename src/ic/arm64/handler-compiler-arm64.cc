@@ -306,6 +306,34 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
 }
 
 
+void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
+  // Push receiver, name and value for runtime call.
+  __ Push(StoreIC::ReceiverRegister(), StoreIC::NameRegister(),
+          StoreIC::ValueRegister());
+
+  // The slow case calls into the runtime to complete the store without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  ExternalReference ref =
+      ExternalReference(IC_Utility(IC::kStoreIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
+void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
+  ASM_LOCATION("ElementHandlerCompiler::GenerateStoreSlow");
+
+  // Push receiver, key and value for runtime call.
+  __ Push(StoreIC::ReceiverRegister(), StoreIC::NameRegister(),
+          StoreIC::ValueRegister());
+
+  // The slow case calls into the runtime to complete the store without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  ExternalReference ref =
+      ExternalReference(IC_Utility(IC::kKeyedStoreIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
 #undef __
 #define __ ACCESS_MASM(masm())
 

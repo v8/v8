@@ -326,6 +326,41 @@ static void CompileCallLoadPropertyWithInterceptor(
 }
 
 
+static void StoreIC_PushArgs(MacroAssembler* masm) {
+  Register receiver = StoreIC::ReceiverRegister();
+  Register name = StoreIC::NameRegister();
+  Register value = StoreIC::ValueRegister();
+
+  DCHECK(!ebx.is(receiver) && !ebx.is(name) && !ebx.is(value));
+
+  __ pop(ebx);
+  __ push(receiver);
+  __ push(name);
+  __ push(value);
+  __ push(ebx);
+}
+
+
+void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
+  // Return address is on the stack.
+  StoreIC_PushArgs(masm);
+
+  // Do tail-call to runtime routine.
+  ExternalReference ref(IC_Utility(IC::kStoreIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
+void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
+  // Return address is on the stack.
+  StoreIC_PushArgs(masm);
+
+  // Do tail-call to runtime routine.
+  ExternalReference ref(IC_Utility(IC::kKeyedStoreIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
 #undef __
 #define __ ACCESS_MASM(masm())
 

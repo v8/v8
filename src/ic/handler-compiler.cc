@@ -388,11 +388,5 @@ void ElementHandlerCompiler::CompileElementHandlers(
     handlers->Add(cached_stub);
   }
 }
-
-
-void ElementHandlerCompiler::GenerateStoreDictionaryElement(
-    MacroAssembler* masm) {
-  KeyedStoreIC::GenerateSlow(masm);
-}
 }
 }  // namespace v8::internal

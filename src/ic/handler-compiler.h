@@ -221,6 +221,8 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                            Handle<JSFunction>());
   }
 
+  static void GenerateSlow(MacroAssembler* masm);
+
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
                                   Label* miss);
@@ -267,7 +269,7 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
                               CodeHandleList* handlers);
 
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
-  static void GenerateStoreDictionaryElement(MacroAssembler* masm);
+  static void GenerateStoreSlow(MacroAssembler* masm);
 };
 }
 }  // namespace v8::internal

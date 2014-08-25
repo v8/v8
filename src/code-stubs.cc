@@ -690,7 +690,7 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
       UNREACHABLE();
       break;
     case DICTIONARY_ELEMENTS:
-      ElementHandlerCompiler::GenerateStoreDictionaryElement(masm);
+      ElementHandlerCompiler::GenerateStoreSlow(masm);
       break;
     case SLOPPY_ARGUMENTS_ELEMENTS:
       UNREACHABLE();

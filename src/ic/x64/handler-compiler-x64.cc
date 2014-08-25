@@ -8,6 +8,7 @@
 
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/ic.h"
 
 namespace v8 {
 namespace internal {
@@ -316,6 +317,41 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
   //  -- rsp[0] : return address
   // -----------------------------------
   TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
+}
+
+
+static void StoreIC_PushArgs(MacroAssembler* masm) {
+  Register receiver = StoreIC::ReceiverRegister();
+  Register name = StoreIC::NameRegister();
+  Register value = StoreIC::ValueRegister();
+
+  DCHECK(!rbx.is(receiver) && !rbx.is(name) && !rbx.is(value));
+
+  __ PopReturnAddressTo(rbx);
+  __ Push(receiver);
+  __ Push(name);
+  __ Push(value);
+  __ PushReturnAddressFrom(rbx);
+}
+
+
+void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
+  // Return address is on the stack.
+  StoreIC_PushArgs(masm);
+
+  // Do tail-call to runtime routine.
+  ExternalReference ref(IC_Utility(IC::kStoreIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
+}
+
+
+void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
+  // Return address is on the stack.
+  StoreIC_PushArgs(masm);
+
+  // Do tail-call to runtime routine.
+  ExternalReference ref(IC_Utility(IC::kKeyedStoreIC_Slow), masm->isolate());
+  __ TailCallExternalReference(ref, 3, 1);
 }
 
 
