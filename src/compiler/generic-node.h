@@ -43,9 +43,9 @@ class GenericNode : public B {
   S* InputAt(int index) const {
     return static_cast<S*>(GetInputRecordPtr(index)->to);
   }
-  void ReplaceInput(int index, GenericNode* new_input);
-  void AppendInput(Zone* zone, GenericNode* new_input);
-  void InsertInput(Zone* zone, int index, GenericNode* new_input);
+  inline void ReplaceInput(int index, GenericNode* new_input);
+  inline void AppendInput(Zone* zone, GenericNode* new_input);
+  inline void InsertInput(Zone* zone, int index, GenericNode* new_input);
 
   int UseCount() { return use_count_; }
   S* UseAt(int index) {
@@ -59,7 +59,7 @@ class GenericNode : public B {
   inline void ReplaceUses(GenericNode* replace_to);
   template <class UnaryPredicate>
   inline void ReplaceUsesIf(UnaryPredicate pred, GenericNode* replace_to);
-  void RemoveAllInputs();
+  inline void RemoveAllInputs();
 
   void TrimInputCount(int input_count);
 
@@ -127,8 +127,8 @@ class GenericNode : public B {
     }
   }
 
-  void AppendUse(Use* use);
-  void RemoveUse(Use* use);
+  inline void AppendUse(Use* use);
+  inline void RemoveUse(Use* use);
 
   void* operator new(size_t, void* location) { return location; }
 
