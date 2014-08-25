@@ -100,7 +100,6 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     state_ = NOT_FOUND;
   }
 
-  Heap* heap() const { return isolate_->heap(); }
   Factory* factory() const { return isolate_->factory(); }
   Handle<Object> GetReceiver() const {
     return maybe_receiver_.ToHandleChecked();
@@ -118,7 +117,6 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   }
   Handle<JSReceiver> GetRoot() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
-  bool HolderIsNonGlobalHiddenPrototype() const;
 
   /* ACCESS_CHECK */
   bool HasAccess(v8::AccessType access_type) const;

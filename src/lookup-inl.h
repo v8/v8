@@ -23,7 +23,7 @@ JSReceiver* LookupIterator::NextHolder(Map* map) {
       !(check_hidden() && next->map()->is_hidden_prototype()) &&
       // Always lookup behind the JSGlobalProxy into the JSGlobalObject, even
       // when not checking other hidden prototypes.
-      !(map->IsJSGlobalProxyMap() && next->IsJSGlobalObject())) {
+      !map->IsJSGlobalProxyMap()) {
     return NULL;
   }
 

@@ -3812,7 +3812,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     PropertyAttributes attributes,
     ExecutableAccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
-  LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
+  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   bool is_observed = object->map()->is_observed() &&
                      *name != it.isolate()->heap()->hidden_string();
   for (; it.IsFound(); it.Next()) {
@@ -3831,7 +3831,6 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 
       case LookupIterator::PROPERTY: {
         if (!it.HasProperty()) break;
-        if (it.HolderIsNonGlobalHiddenPrototype()) break;
         PropertyDetails details = it.property_details();
         Handle<Object> old_value = it.isolate()->factory()->the_hole_value();
         switch (it.property_kind()) {

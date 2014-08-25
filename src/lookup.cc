@@ -273,16 +273,6 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 }
 
 
-bool LookupIterator::HolderIsNonGlobalHiddenPrototype() const {
-  if (!HolderIsReceiverOrHiddenPrototype()) return false;
-  Handle<Object> receiver = GetReceiver();
-  Handle<JSReceiver> holder = GetHolder<JSReceiver>();
-  if (receiver.is_identical_to(holder)) return false;
-  if (receiver->IsJSGlobalProxy()) return !holder->IsJSGlobalObject();
-  return true;
-}
-
-
 Handle<Object> LookupIterator::FetchValue() const {
   Object* result = NULL;
   Handle<JSObject> holder = GetHolder<JSObject>();
