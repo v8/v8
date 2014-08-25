@@ -423,7 +423,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
   }
   if (IsSupported(ARMv7) && m.right().HasValue()) {
     uint32_t value = m.right().Value();
-    uint32_t width = base::bits::CountSetBits32(value);
+    uint32_t width = base::bits::CountPopulation32(value);
     uint32_t msb = base::bits::CountLeadingZeros32(value);
     if (width != 0 && msb + width == 32) {
       DCHECK_EQ(0, base::bits::CountTrailingZeros32(value));
@@ -536,7 +536,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
       uint32_t value = (mleft.right().Value() >> lsb) << lsb;
-      uint32_t width = base::bits::CountSetBits32(value);
+      uint32_t width = base::bits::CountPopulation32(value);
       uint32_t msb = base::bits::CountLeadingZeros32(value);
       if (msb + width + lsb == 32) {
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(value));

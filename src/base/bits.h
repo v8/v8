@@ -17,8 +17,8 @@ namespace v8 {
 namespace base {
 namespace bits {
 
-// CountSetBits32(value) returns the number of bits set in |value|.
-inline uint32_t CountSetBits32(uint32_t value) {
+// CountPopulation32(value) returns the number of bits set in |value|.
+inline uint32_t CountPopulation32(uint32_t value) {
 #if V8_HAS_BUILTIN_POPCOUNT
   return __builtin_popcount(value);
 #else
@@ -47,7 +47,7 @@ inline uint32_t CountLeadingZeros32(uint32_t value) {
   value = value | (value >> 4);
   value = value | (value >> 8);
   value = value | (value >> 16);
-  return CountSetBits32(~value);
+  return CountPopulation32(~value);
 #endif
 }
 
