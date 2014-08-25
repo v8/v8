@@ -201,7 +201,8 @@ enum BindingFlags {
   V(MAP_ITERATOR_MAP_INDEX, Map, map_iterator_map)                             \
   V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)                             \
   V(ITERATOR_SYMBOL_INDEX, Symbol, iterator_symbol)                            \
-  V(UNSCOPABLES_SYMBOL_INDEX, Symbol, unscopables_symbol)
+  V(UNSCOPABLES_SYMBOL_INDEX, Symbol, unscopables_symbol)                      \
+  V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -396,6 +397,7 @@ class Context: public FixedArray {
     SET_ITERATOR_MAP_INDEX,
     ITERATOR_SYMBOL_INDEX,
     UNSCOPABLES_SYMBOL_INDEX,
+    ARRAY_VALUES_ITERATOR_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.

@@ -156,6 +156,46 @@ bool SetPropertyOnInstanceIfInherited(
 
 
 //
+// Accessors::ArgumentsIterator
+//
+
+
+void Accessors::ArgumentsIteratorGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  DisallowHeapAllocation no_allocation;
+  HandleScope scope(isolate);
+  Object* result = isolate->native_context()->array_values_iterator();
+  info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
+}
+
+
+void Accessors::ArgumentsIteratorSetter(
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<void>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Handle<JSObject> object = Utils::OpenHandle(*info.This());
+  Handle<Object> value = Utils::OpenHandle(*val);
+
+  if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) return;
+
+  LookupIterator it(object, Utils::OpenHandle(*name));
+  CHECK(it.HasProperty());
+  DCHECK(it.HolderIsReceiverOrHiddenPrototype());
+  Object::SetDataProperty(&it, value);
+}
+
+
+Handle<AccessorInfo> Accessors::ArgumentsIteratorInfo(
+    Isolate* isolate, PropertyAttributes attributes) {
+  Handle<Name> name(isolate->native_context()->iterator_symbol(), isolate);
+  return MakeAccessor(isolate, name, &ArgumentsIteratorGetter,
+                      &ArgumentsIteratorSetter, attributes);
+}
+
+
+//
 // Accessors::ArrayLength
 //
 

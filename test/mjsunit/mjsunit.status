@@ -160,6 +160,7 @@
   'es6/iteration-semantics': [PASS, NO_VARIANTS],
   'es6/string-iterator': [PASS, NO_VARIANTS],
   'es6/typed-array-iterator': [PASS, NO_VARIANTS],
+  'es6/arguments-iterator': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.

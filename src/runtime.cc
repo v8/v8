@@ -6011,6 +6011,10 @@ RUNTIME_FUNCTION(Runtime_GetArgumentsProperty) {
 
   HandleScope scope(isolate);
   if (raw_key->IsSymbol()) {
+    Handle<Symbol> symbol = Handle<Symbol>::cast(raw_key);
+    if (symbol->Equals(isolate->native_context()->iterator_symbol())) {
+      return isolate->native_context()->array_values_iterator();
+    }
     // Lookup in the initial Object.prototype object.
     Handle<Object> result;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
