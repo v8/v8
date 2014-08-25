@@ -394,7 +394,7 @@ function SetUpRegExp() {
   // The length of compile is 1 in SpiderMonkey.
   %FunctionSetLength($RegExp.prototype.compile, 1);
 
-  // The properties input, $input, and $_ are aliases for each other.  When this
+  // The properties `input` and `$_` are aliases for each other.  When this
   // value is set the value it is set to is coerced to a string.
   // Getter and setter for the input.
   var RegExpGetInput = function() {
