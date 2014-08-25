@@ -7012,6 +7012,16 @@ Handle<Object> TypeFeedbackInfo::MegamorphicSentinel(Isolate* isolate) {
 }
 
 
+Handle<Object> TypeFeedbackInfo::PremonomorphicSentinel(Isolate* isolate) {
+  return isolate->factory()->megamorphic_symbol();
+}
+
+
+Handle<Object> TypeFeedbackInfo::GenericSentinel(Isolate* isolate) {
+  return isolate->factory()->generic_symbol();
+}
+
+
 Handle<Object> TypeFeedbackInfo::MonomorphicArraySentinel(Isolate* isolate,
     ElementsKind elements_kind) {
   return Handle<Object>(Smi::FromInt(static_cast<int>(elements_kind)), isolate);

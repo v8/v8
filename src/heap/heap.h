@@ -183,6 +183,8 @@ namespace internal {
   V(Symbol, observed_symbol, ObservedSymbol)                                   \
   V(Symbol, uninitialized_symbol, UninitializedSymbol)                         \
   V(Symbol, megamorphic_symbol, MegamorphicSymbol)                             \
+  V(Symbol, premonomorphic_symbol, PremonomorphicSymbol)                       \
+  V(Symbol, generic_symbol, GenericSymbol)                                     \
   V(Symbol, stack_trace_symbol, StackTraceSymbol)                              \
   V(Symbol, detailed_stack_trace_symbol, DetailedStackTraceSymbol)             \
   V(Symbol, normal_ic_symbol, NormalICSymbol)                                  \

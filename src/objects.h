@@ -8407,6 +8407,12 @@ class TypeFeedbackInfo: public Struct {
   // The object that indicates a megamorphic state.
   static inline Handle<Object> MegamorphicSentinel(Isolate* isolate);
 
+  // The object that indicates a premonomorphic state.
+  static inline Handle<Object> PremonomorphicSentinel(Isolate* isolate);
+
+  // The object that indicates a generic state.
+  static inline Handle<Object> GenericSentinel(Isolate* isolate);
+
   // The object that indicates a monomorphic state of Array with
   // ElementsKind
   static inline Handle<Object> MonomorphicArraySentinel(Isolate* isolate,

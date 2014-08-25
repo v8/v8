@@ -2863,6 +2863,8 @@ void Heap::CreateInitialObjects() {
   set_elements_transition_symbol(*factory->NewPrivateSymbol());
   set_frozen_symbol(*factory->NewPrivateSymbol());
   set_megamorphic_symbol(*factory->NewPrivateSymbol());
+  set_premonomorphic_symbol(*factory->NewPrivateSymbol());
+  set_generic_symbol(*factory->NewPrivateSymbol());
   set_nonexistent_symbol(*factory->NewPrivateSymbol());
   set_normal_ic_symbol(*factory->NewPrivateSymbol());
   set_observed_symbol(*factory->NewPrivateSymbol());
