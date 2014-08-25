@@ -7797,9 +7797,6 @@ class GlobalObject: public JSObject {
   // [global proxy]: the global proxy object of the context
   DECL_ACCESSORS(global_proxy, JSObject)
 
-  // Retrieve the property cell used to store a property.
-  PropertyCell* GetPropertyCell(LookupResult* result);
-
   DECLARE_CAST(GlobalObject)
 
   // Layout description.

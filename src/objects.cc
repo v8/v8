@@ -12844,12 +12844,12 @@ void JSArray::JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
 
 
 bool JSArray::IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map) {
-    Isolate* isolate = jsarray_map->GetIsolate();
-    DCHECK(!jsarray_map->is_dictionary_map());
-    LookupResult lookup(isolate);
-    Handle<Name> length_string = isolate->factory()->length_string();
-    jsarray_map->LookupDescriptor(NULL, *length_string, &lookup);
-    return lookup.IsReadOnly();
+  Isolate* isolate = jsarray_map->GetIsolate();
+  DCHECK(!jsarray_map->is_dictionary_map());
+  LookupResult lookup(isolate);
+  Handle<Name> length_string = isolate->factory()->length_string();
+  jsarray_map->LookupDescriptor(NULL, *length_string, &lookup);
+  return lookup.IsReadOnly();
 }
 
 
@@ -14612,13 +14612,6 @@ Handle<Object> ExternalFloat64Array::SetValue(
     array->set(index, double_value);
   }
   return array->GetIsolate()->factory()->NewNumber(double_value);
-}
-
-
-PropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
-  DCHECK(!HasFastProperties());
-  Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
-  return PropertyCell::cast(value);
 }
 
 

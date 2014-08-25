@@ -53,18 +53,6 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     DESCRIPTOR
   };
 
-  explicit LookupIterator(const LookupIterator* other)
-      : configuration_(other->configuration_),
-        state_(other->state_),
-        property_kind_(other->property_kind_),
-        property_encoding_(other->property_encoding_),
-        property_details_(other->property_details_),
-        isolate_(other->isolate_),
-        name_(other->name_),
-        holder_map_(other->holder_map_),
-        maybe_receiver_(other->maybe_receiver_),
-        maybe_holder_(other->maybe_holder_) {}
-
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Configuration configuration = CHECK_DERIVED)
       : configuration_(ComputeConfiguration(configuration, name)),
@@ -77,7 +65,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
         maybe_receiver_(receiver),
         number_(DescriptorArray::kNotFound) {
     Handle<JSReceiver> root = GetRoot();
-    holder_map_ = handle(root->map());
+    holder_map_ = handle(root->map(), isolate_);
     maybe_holder_ = root;
     Next();
   }
@@ -92,7 +80,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
         property_details_(NONE, NORMAL, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
-        holder_map_(holder->map()),
+        holder_map_(holder->map(), isolate_),
         maybe_receiver_(receiver),
         maybe_holder_(holder),
         number_(DescriptorArray::kNotFound) {

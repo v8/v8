@@ -971,7 +971,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
                                       cache_holder);
     // Perform a lookup behind the interceptor. Copy the LookupIterator since
     // the original iterator will be used to fetch the value.
-    LookupIterator it(lookup);
+    LookupIterator it = *lookup;
     it.Next();
     LookupForRead(&it);
     return compiler.CompileLoadInterceptor(&it);

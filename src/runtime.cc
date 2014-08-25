@@ -10899,8 +10899,8 @@ RUNTIME_FUNCTION(Runtime_Break) {
 }
 
 
-static Handle<Object> DebugLookupResultValue(LookupIterator* it,
-                                             bool* has_caught = NULL) {
+static Handle<Object> DebugGetProperty(LookupIterator* it,
+                                       bool* has_caught = NULL) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
@@ -10986,7 +10986,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
 
   LookupIterator it(obj, name, LookupIterator::CHECK_HIDDEN);
   bool has_caught = false;
-  Handle<Object> value = DebugLookupResultValue(&it, &has_caught);
+  Handle<Object> value = DebugGetProperty(&it, &has_caught);
   if (!it.IsFound()) return isolate->heap()->undefined_value();
 
   Handle<Object> maybe_pair;
@@ -11026,7 +11026,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
   LookupIterator it(obj, name, LookupIterator::CHECK_DERIVED);
-  return *DebugLookupResultValue(&it);
+  return *DebugGetProperty(&it);
 }
 
 
