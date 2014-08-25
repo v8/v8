@@ -2045,7 +2045,7 @@ THREADED_TEST(ExecutableAccessorIsPreservedOnAttributeChange) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::LookupResult lookup(i_isolate);
   i::Handle<i::String> name(v8::Utils::OpenHandle(*v8_str("length")));
-  i::LookupIterator it(a, name, i::LookupIterator::CHECK_PROPERTY);
+  i::LookupIterator it(a, name, i::LookupIterator::OWN_PROPERTY);
   CHECK(it.HasProperty());
   CHECK(it.GetAccessors()->IsExecutableAccessorInfo());
 }

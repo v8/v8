@@ -780,7 +780,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
         name, code, prototype, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
 #ifdef DEBUG
     LookupIterator it(prototype, factory()->constructor_string(),
-                      LookupIterator::CHECK_PROPERTY);
+                      LookupIterator::OWN_PROPERTY);
     Handle<Object> value = JSReceiver::GetProperty(&it).ToHandleChecked();
     DCHECK(it.IsFound());
     DCHECK_EQ(*isolate()->object_function(), *value);
@@ -2480,7 +2480,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         }
         case CALLBACKS: {
           Handle<Name> key(descs->GetKey(i));
-          LookupIterator it(to, key, LookupIterator::CHECK_PROPERTY);
+          LookupIterator it(to, key, LookupIterator::OWN_PROPERTY);
           // If the property is already there we skip it
           if (it.IsFound() && it.HasProperty()) continue;
           HandleScope inner(isolate());
@@ -2511,7 +2511,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         DCHECK(raw_key->IsName());
         // If the property is already there we skip it.
         Handle<Name> key(Name::cast(raw_key));
-        LookupIterator it(to, key, LookupIterator::CHECK_PROPERTY);
+        LookupIterator it(to, key, LookupIterator::OWN_PROPERTY);
         if (it.IsFound() && it.HasProperty()) continue;
         // Set the property.
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),

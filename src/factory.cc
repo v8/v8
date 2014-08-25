@@ -2174,7 +2174,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   if (prototype->IsTheHole()) {
 #ifdef DEBUG
     LookupIterator it(handle(JSObject::cast(result->prototype())),
-                      constructor_string(), LookupIterator::CHECK_PROPERTY);
+                      constructor_string(), LookupIterator::OWN_PROPERTY);
     MaybeHandle<Object> maybe_prop = Object::GetProperty(&it);
     DCHECK(it.IsFound());
     DCHECK(maybe_prop.ToHandleChecked().is_identical_to(result));

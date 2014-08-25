@@ -3610,7 +3610,7 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   i::PrototypeIterator iter(isolate, self_obj);
   if (iter.IsAtEnd()) return Local<Value>();
   i::LookupIterator it(i::PrototypeIterator::GetCurrent(iter), key_obj,
-                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
+                       i::LookupIterator::PROTOTYPE_CHAIN_PROPERTY);
   return GetPropertyByLookup(&it);
 }
 
@@ -3623,7 +3623,7 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupIterator it(self_obj, key_obj,
-                       i::LookupIterator::CHECK_DERIVED_PROPERTY);
+                       i::LookupIterator::PROTOTYPE_CHAIN_PROPERTY);
   return GetPropertyByLookup(&it);
 }
 

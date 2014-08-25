@@ -1981,7 +1981,7 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
     }
   } else {
     // Get attributes.
-    LookupIterator it(obj, name, LookupIterator::CHECK_HIDDEN);
+    LookupIterator it(obj, name, LookupIterator::HIDDEN);
     Maybe<PropertyAttributes> maybe = JSObject::GetPropertyAttributes(&it);
     if (!maybe.has_value) return MaybeHandle<Object>();
     attrs = maybe.value;
@@ -2179,7 +2179,7 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<GlobalObject> global,
                               PropertyAttributes attr, bool is_var,
                               bool is_const, bool is_function) {
   // Do the lookup own properties only, see ES5 erratum.
-  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN_PROPERTY);
+  LookupIterator it(global, name, LookupIterator::HIDDEN_PROPERTY);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   PropertyAttributes old_attributes = maybe.value;
@@ -2309,7 +2309,7 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   Handle<GlobalObject> global = isolate->global_object();
 
   // Lookup the property as own on the global object.
-  LookupIterator it(global, name, LookupIterator::CHECK_HIDDEN_PROPERTY);
+  LookupIterator it(global, name, LookupIterator::HIDDEN_PROPERTY);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   PropertyAttributes old_attributes = maybe.value;
@@ -2459,7 +2459,7 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
     // code can run in between that modifies the declared property.
     DCHECK(holder->IsJSGlobalObject() || holder->IsJSContextExtensionObject());
 
-    LookupIterator it(holder, name, LookupIterator::CHECK_HIDDEN_PROPERTY);
+    LookupIterator it(holder, name, LookupIterator::HIDDEN_PROPERTY);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     if (!maybe.has_value) return isolate->heap()->exception();
     PropertyAttributes old_attributes = maybe.value;
@@ -4890,7 +4890,7 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         }
         // Lookup cache miss.  Perform lookup and update the cache if
         // appropriate.
-        LookupIterator it(receiver, key, LookupIterator::CHECK_OWN);
+        LookupIterator it(receiver, key, LookupIterator::OWN);
         if (it.IsFound() && it.state() == LookupIterator::PROPERTY &&
             it.HasProperty() && it.property_details().type() == FIELD) {
           FieldIndex field_index = it.GetFieldIndex();
@@ -5046,7 +5046,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
     return isolate->heap()->undefined_value();
   }
 
-  LookupIterator it(js_object, name, LookupIterator::CHECK_PROPERTY);
+  LookupIterator it(js_object, name, LookupIterator::OWN_PROPERTY);
 
   // Take special care when attributes are different and there is already
   // a property.
@@ -5294,7 +5294,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
 #ifdef DEBUG
   uint32_t index = 0;
   DCHECK(!key->ToArrayIndex(&index));
-  LookupIterator it(object, key, LookupIterator::CHECK_PROPERTY);
+  LookupIterator it(object, key, LookupIterator::OWN_PROPERTY);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   RUNTIME_ASSERT(!it.IsFound());
@@ -5326,7 +5326,7 @@ RUNTIME_FUNCTION(Runtime_AddPropertyForTemplate) {
   bool duplicate;
   if (key->IsName()) {
     LookupIterator it(object, Handle<Name>::cast(key),
-                      LookupIterator::CHECK_PROPERTY);
+                      LookupIterator::OWN_PROPERTY);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     DCHECK(maybe.has_value);
     duplicate = it.IsFound();
@@ -10984,7 +10984,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
     return *isolate->factory()->NewJSArrayWithElements(details);
   }
 
-  LookupIterator it(obj, name, LookupIterator::CHECK_HIDDEN);
+  LookupIterator it(obj, name, LookupIterator::HIDDEN);
   bool has_caught = false;
   Handle<Object> value = DebugGetProperty(&it, &has_caught);
   if (!it.IsFound()) return isolate->heap()->undefined_value();
@@ -11025,7 +11025,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
 
-  LookupIterator it(obj, name, LookupIterator::CHECK_DERIVED);
+  LookupIterator it(obj, name);
   return *DebugGetProperty(&it);
 }
 

@@ -143,7 +143,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 
 Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
                                          Handle<Name> key) {
-  LookupIterator it(object, key, LookupIterator::CHECK_DERIVED_PROPERTY);
+  LookupIterator it(object, key, LookupIterator::PROTOTYPE_CHAIN_PROPERTY);
   return GetDataProperty(&it);
 }
 
@@ -3787,7 +3787,7 @@ void JSObject::WriteToField(int descriptor, Object* value) {
 void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
-  LookupIterator it(object, name, LookupIterator::CHECK_PROPERTY);
+  LookupIterator it(object, name, LookupIterator::OWN_PROPERTY);
 #ifdef DEBUG
   uint32_t index;
   DCHECK(!object->IsJSProxy());
@@ -3812,8 +3812,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     PropertyAttributes attributes,
     ExecutableAccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
-  LookupIterator it(object, name,
-                    LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR);
+  LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
   bool is_observed = object->map()->is_observed() &&
                      *name != it.isolate()->heap()->hidden_string();
   for (; it.IsFound(); it.Next()) {
@@ -3984,7 +3983,7 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
   if (object->IsJSObject() && name->AsArrayIndex(&index)) {
     return GetOwnElementAttribute(object, index);
   }
-  LookupIterator it(object, name, LookupIterator::CHECK_HIDDEN);
+  LookupIterator it(object, name, LookupIterator::HIDDEN);
   return GetPropertyAttributes(&it);
 }
 
@@ -4692,7 +4691,7 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 
 bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
   Handle<Name> hidden = object->GetIsolate()->factory()->hidden_string();
-  LookupIterator it(object, hidden, LookupIterator::CHECK_PROPERTY);
+  LookupIterator it(object, hidden, LookupIterator::OWN_PROPERTY);
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   // Cannot get an exception since the hidden_string isn't accessible to JS.
   DCHECK(maybe.has_value);
@@ -4727,7 +4726,7 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
   } else {
     Isolate* isolate = GetIsolate();
     LookupIterator it(handle(this), isolate->factory()->hidden_string(),
-                      LookupIterator::CHECK_PROPERTY);
+                      LookupIterator::OWN_PROPERTY);
     if (it.IsFound() && it.HasProperty()) {
       DCHECK_EQ(LookupIterator::DATA, it.property_kind());
       return *it.GetDataValue();
@@ -4923,9 +4922,8 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
 
   // Skip interceptors on FORCE_DELETION.
   LookupIterator::Configuration config =
-      delete_mode == FORCE_DELETION
-          ? LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR
-          : LookupIterator::CHECK_HIDDEN;
+      delete_mode == FORCE_DELETION ? LookupIterator::HIDDEN_SKIP_INTERCEPTOR
+                                    : LookupIterator::HIDDEN;
 
   LookupIterator it(object, name, config);
 
@@ -6154,8 +6152,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
             Object::GetElement(isolate, object, index).ToHandleChecked();
       }
     } else {
-      LookupIterator it(object, name,
-                        LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR);
+      LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
       CHECK(GetPropertyAttributes(&it).has_value);
       preexists = it.IsFound();
       if (preexists && (it.property_kind() == LookupIterator::DATA ||
@@ -6174,7 +6171,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
            setter->IsNull());
     // At least one of the accessors needs to be a new value.
     DCHECK(!getter->IsNull() || !setter->IsNull());
-    LookupIterator it(object, name, LookupIterator::CHECK_PROPERTY);
+    LookupIterator it(object, name, LookupIterator::OWN_PROPERTY);
     if (!getter->IsNull()) {
       it.TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
     }
@@ -6257,8 +6254,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
     SetElementCallback(object, index, info, info->property_attributes());
   } else {
     // Lookup the name.
-    LookupIterator it(object, name,
-                      LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR);
+    LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
     CHECK(GetPropertyAttributes(&it).has_value);
     // ES5 forbids turning a property into an accessor if it's not
     // configurable. See 8.6.1 (Table 5).
@@ -6316,7 +6312,7 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
     }
   } else {
     LookupIterator it(object, name,
-                      LookupIterator::CHECK_DERIVED_SKIP_INTERCEPTOR);
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
     for (; it.IsFound(); it.Next()) {
       switch (it.state()) {
         case LookupIterator::INTERCEPTOR:
@@ -12859,7 +12855,7 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
   CHECK(array->length()->ToArrayIndex(&length));
   if (length <= index) {
     LookupIterator it(array, array->GetIsolate()->factory()->length_string(),
-                      LookupIterator::CHECK_PROPERTY);
+                      LookupIterator::OWN_PROPERTY);
     CHECK(it.IsFound());
     CHECK(it.HasProperty());
     return it.IsReadOnly();
@@ -13246,7 +13242,7 @@ MaybeHandle<JSObject> JSObject::GetKeysForIndexedInterceptor(
 
 Maybe<bool> JSObject::HasRealNamedProperty(Handle<JSObject> object,
                                            Handle<Name> key) {
-  LookupIterator it(object, key, LookupIterator::CHECK_ACCESS_CHECK);
+  LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
   if (!maybe_result.has_value) return Maybe<bool>();
   return maybe(it.IsFound());
@@ -13284,7 +13280,7 @@ Maybe<bool> JSObject::HasRealElementProperty(Handle<JSObject> object,
 
 Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
                                                    Handle<Name> key) {
-  LookupIterator it(object, key, LookupIterator::CHECK_ACCESS_CHECK);
+  LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
   if (!maybe_result.has_value) return Maybe<bool>();
   return maybe(it.IsFound() && it.property_kind() == LookupIterator::ACCESSOR);

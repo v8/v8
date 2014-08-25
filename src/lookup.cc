@@ -252,7 +252,7 @@ void LookupIterator::TransitionToAccessorProperty(
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
   // Optimization that only works if configuration_ is not mutable.
-  if (!check_derived()) return true;
+  if (!check_prototype_chain()) return true;
   DisallowHeapAllocation no_gc;
   Handle<Object> receiver = GetReceiver();
   if (!receiver->IsJSReceiver()) return false;

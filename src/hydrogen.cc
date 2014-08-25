@@ -5341,8 +5341,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       }
 
       Handle<GlobalObject> global(current_info()->global_object());
-      LookupIterator it(global, variable->name(),
-                        LookupIterator::CHECK_PROPERTY);
+      LookupIterator it(global, variable->name(), LookupIterator::OWN_PROPERTY);
       GlobalPropertyAccess type = LookupGlobalProperty(variable, &it, LOAD);
 
       if (type == kUseCell &&
@@ -5797,7 +5796,7 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
         HConstant::cast(checked_object->ActualValue())->handle(isolate()));
 
     if (object->IsJSObject()) {
-      LookupIterator it(object, info->name(), LookupIterator::CHECK_PROPERTY);
+      LookupIterator it(object, info->name(), LookupIterator::OWN_PROPERTY);
       Handle<Object> value = JSObject::GetDataProperty(&it);
       CHECK(it.IsFound());
       return New<HConstant>(value);
@@ -6463,7 +6462,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* value,
     BailoutId ast_id) {
   Handle<GlobalObject> global(current_info()->global_object());
-  LookupIterator it(global, var->name(), LookupIterator::CHECK_PROPERTY);
+  LookupIterator it(global, var->name(), LookupIterator::OWN_PROPERTY);
   GlobalPropertyAccess type = LookupGlobalProperty(var, &it, STORE);
   if (type == kUseCell) {
     Handle<PropertyCell> cell = it.GetPropertyCell();
@@ -9055,7 +9054,7 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       // access check is not enabled we assume that the function will not change
       // and generate optimized code for calling the function.
       Handle<GlobalObject> global(current_info()->global_object());
-      LookupIterator it(global, var->name(), LookupIterator::CHECK_PROPERTY);
+      LookupIterator it(global, var->name(), LookupIterator::OWN_PROPERTY);
       GlobalPropertyAccess type = LookupGlobalProperty(var, &it, LOAD);
       if (type == kUseCell &&
           !current_info()->global_object()->IsAccessCheckNeeded()) {
@@ -10699,7 +10698,7 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         !current_info()->global_object()->IsAccessCheckNeeded()) {
       Handle<String> name = proxy->name();
       Handle<GlobalObject> global(current_info()->global_object());
-      LookupIterator it(global, name, LookupIterator::CHECK_PROPERTY);
+      LookupIterator it(global, name, LookupIterator::OWN_PROPERTY);
       Handle<Object> value = JSObject::GetDataProperty(&it);
       if (it.IsFound() && value->IsJSFunction()) {
         Handle<JSFunction> candidate = Handle<JSFunction>::cast(value);
