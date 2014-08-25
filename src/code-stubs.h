@@ -1485,7 +1485,7 @@ class CEntryStub : public PlatformCodeStub {
 
   bool save_doubles() const { return SaveDoublesBits::decode(minor_key_); }
 #ifdef _WIN64
-  int result_size() const { ResultSizeBits::decode(minor_key_); }
+  int result_size() const { return ResultSizeBits::decode(minor_key_); }
 #endif  // _WIN64
 
   bool NeedsImmovableCode();
