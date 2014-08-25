@@ -1214,6 +1214,11 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@4567 0039-1c4b
 git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
 
 """
+    c_v8_22624_log = """V8 CL.
+
+git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@22624 123
+
+"""
     json_output = self.MakeEmptyTempFile()
     csv_output = self.MakeEmptyTempFile()
     TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
@@ -1222,6 +1227,8 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     if not os.path.exists(TEST_CONFIG[CHROMIUM]):
       os.makedirs(TEST_CONFIG[CHROMIUM])
+    if not os.path.exists(os.path.join(TEST_CONFIG[CHROMIUM], "v8")):
+      os.makedirs(os.path.join(TEST_CONFIG[CHROMIUM], "v8"))
     def WriteDEPS(revision):
       TextToFile("Line\n   \"v8_revision\": \"%s\",\n  line\n" % revision,
                  TEST_CONFIG[DEPS_FILE])
@@ -1290,12 +1297,17 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Git("checkout -f master", ""),
       Git("pull", ""),
       Git("checkout -b %s" % TEST_CONFIG[BRANCHNAME], ""),
+      Git("fetch origin", ""),
       Git("log --format=%H --grep=\"V8\"", "c_hash1\nc_hash2\nc_hash3\n"),
       Git("diff --name-only c_hash1 c_hash1^", ""),
       Git("diff --name-only c_hash2 c_hash2^", TEST_CONFIG[DEPS_FILE]),
       Git("checkout -f c_hash2 -- %s" % TEST_CONFIG[DEPS_FILE], "",
-          cb=ResetDEPS(22624)),
+          cb=ResetDEPS("0123456789012345678901234567890123456789")),
       Git("log -1 --format=%B c_hash2", c_hash2_commit_log),
+      Git("rev-list -n 1 0123456789012345678901234567890123456789",
+          "0123456789012345678901234567890123456789"),
+      Git("log -1 --format=%B 0123456789012345678901234567890123456789",
+          c_v8_22624_log),
       Git("diff --name-only c_hash3 c_hash3^", TEST_CONFIG[DEPS_FILE]),
       Git("checkout -f c_hash3 -- %s" % TEST_CONFIG[DEPS_FILE], "",
           cb=ResetDEPS(345)),

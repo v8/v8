@@ -47,10 +47,10 @@ REVIEW_LINK_RE = re.compile(r"^Review URL: (.+)$", re.M)
 
 # Expression with three versions (historical) for extracting the v8 revision
 # from the chromium DEPS file.
-DEPS_RE = re.compile(r'^\s*(?:"v8_revision": "'
-                      '|\(Var\("googlecode_url"\) % "v8"\) \+ "\/trunk@'
-                      '|"http\:\/\/v8\.googlecode\.com\/svn\/trunk@)'
-                      '([0-9]+)".*$', re.M)
+DEPS_RE = re.compile(r"""^\s*(?:["']v8_revision["']: ["']"""
+                     """|\(Var\("googlecode_url"\) % "v8"\) \+ "\/trunk@"""
+                     """|"http\:\/\/v8\.googlecode\.com\/svn\/trunk@)"""
+                     """([^"']+)["'].*$""", re.M)
 
 # Expression to pick tag and revision for bleeding edge tags. To be used with
 # output of 'svn log'.
@@ -374,6 +374,18 @@ class UpdateChromiumCheckout(Step):
     self.GitCreateBranch(self.Config(BRANCHNAME))
 
 
+def ConvertToCommitNumber(step, revision):
+  # Simple check for git hashes.
+  if revision.isdigit() and len(revision) < 8:
+    return revision
+  try:
+    # TODO(machenbach): Add cwd to git calls.
+    os.chdir(os.path.join(step["chrome_path"], "v8"))
+    return step.GitConvertToSVNRevision(revision)
+  finally:
+    os.chdir(step["chrome_path"])
+
+
 class RetrieveChromiumV8Releases(Step):
   MESSAGE = "Retrieve V8 releases from Chromium DEPS."
   REQUIRES = "chrome_path"
@@ -386,6 +398,14 @@ class RetrieveChromiumV8Releases(Step):
     if not releases:  # pragma: no cover
       print "No releases detected. Skipping chromium history."
       return True
+
+    # Update v8 checkout in chromium.
+    try:
+      # TODO(machenbach): Add cwd to git calls.
+      os.chdir(os.path.join(self["chrome_path"], "v8"))
+      self.GitFetchOrigin()
+    finally:
+      os.chdir(self["chrome_path"])
 
     oldest_v8_rev = int(releases[-1]["revision"])
 
@@ -401,7 +421,7 @@ class RetrieveChromiumV8Releases(Step):
         if match:
           cr_rev = GetCommitPositionNumber(self, git_hash)
           if cr_rev:
-            v8_rev = match.group(1)
+            v8_rev = ConvertToCommitNumber(self, match.group(1))
             cr_releases.append([cr_rev, v8_rev])
 
           # Stop after reaching beyond the last v8 revision we want to update.
@@ -458,7 +478,7 @@ class RietrieveChromiumBranches(Step):
         deps = FileToText(self.Config(DEPS_FILE))
         match = DEPS_RE.search(deps)
         if match:
-          v8_rev = match.group(1)
+          v8_rev = ConvertToCommitNumber(self, match.group(1))
           cr_branches.append([str(branch), v8_rev])
 
           # Stop after reaching beyond the last v8 revision we want to update.
