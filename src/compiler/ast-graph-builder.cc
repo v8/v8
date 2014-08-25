@@ -744,13 +744,13 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         // Bind value and do loop body.
         VisitForInAssignment(stmt->each(), value);
         VisitIterationBody(stmt, &for_loop, 5);
+        for_loop.EndBody();
         // Inc counter and continue.
         Node* index_inc =
             NewNode(javascript()->Add(), index, jsgraph()->OneConstant());
         // TODO(jarin): provide real bailout id.
         PrepareFrameState(index_inc, BailoutId::None());
         environment()->Poke(0, index_inc);
-        for_loop.EndBody();
         for_loop.EndLoop();
         environment()->Drop(5);
         // PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
