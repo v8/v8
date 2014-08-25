@@ -84,11 +84,9 @@ class UploadCL(Step):
     os.chdir(self["chrome_path"])
 
     # Patch DEPS file.
-    deps = FileToText(self.Config(DEPS_FILE))
-    deps = re.sub("(?<=\"v8_revision\": \")([0-9]+)(?=\")",
-                  self["trunk_revision"],
-                  deps)
-    TextToFile(deps, self.Config(DEPS_FILE))
+    if self._side_effect_handler.Command(
+        "roll-dep", "v8 %s" % self["trunk_revision"]) is None:
+      self.Die("Failed to create deps for %s" % self["trunk_revision"])
 
     if self._options.reviewer and not self._options.manual:
       print "Using account %s for review." % self._options.reviewer
