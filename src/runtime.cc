@@ -1714,7 +1714,8 @@ RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
       Handle<Object> key(table->KeyAt(i), isolate);
       if (table->IsKey(*key)) {
         entries->set(number_of_non_hole_elements++, *key);
-        entries->set(number_of_non_hole_elements++, table->Lookup(key));
+        Object* value = table->Lookup(key);
+        entries->set(number_of_non_hole_elements++, value);
       }
     }
     DCHECK_EQ(table->NumberOfElements() * 2, number_of_non_hole_elements);
