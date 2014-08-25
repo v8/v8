@@ -442,23 +442,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 }
 
 
-static int FindPatchAddressForReturnAddress(Code* code, int pc) {
-  DeoptimizationInputData* input_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  int patch_count = input_data->ReturnAddressPatchCount();
-  for (int i = 0; i < patch_count; i++) {
-    int return_pc = input_data->ReturnAddressPc(i)->value();
-    int patch_pc = input_data->PatchedAddressPc(i)->value();
-    // If the supplied pc matches the return pc or if the address
-    // has been already patched, return the patch pc.
-    if (pc == return_pc || pc == patch_pc) {
-      return patch_pc;
-    }
-  }
-  return -1;
-}
-
-
 // For all marked Turbofanned code on stack, change the return address to go
 // to the deoptimization block.
 void Deoptimizer::PatchStackForMarkedCode(Isolate* isolate) {
@@ -474,7 +457,8 @@ void Deoptimizer::PatchStackForMarkedCode(Isolate* isolate) {
         Address* pc_address = it.frame()->pc_address();
         int pc_offset =
             static_cast<int>(*pc_address - code->instruction_start());
-        int new_pc_offset = FindPatchAddressForReturnAddress(code, pc_offset);
+        SafepointEntry safepoint_entry = code->GetSafepointEntry(*pc_address);
+        unsigned new_pc_offset = safepoint_entry.deoptimization_pc();
 
         if (FLAG_trace_deopt) {
           CodeTracer::Scope scope(isolate->GetCodeTracer());
@@ -484,8 +468,8 @@ void Deoptimizer::PatchStackForMarkedCode(Isolate* isolate) {
                  new_pc_offset);
         }
 
-        CHECK_LE(0, new_pc_offset);
-        *pc_address += new_pc_offset - pc_offset;
+        CHECK(new_pc_offset != Safepoint::kNoDeoptimizationPc);
+        *pc_address += static_cast<int>(new_pc_offset) - pc_offset;
       }
     }
   }

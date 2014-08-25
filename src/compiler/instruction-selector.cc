@@ -1039,7 +1039,7 @@ static InstructionOperand* UseOrImmediate(OperandGenerator* g, Node* input) {
     case IrOpcode::kHeapConstant:
       return g->UseImmediate(input);
     default:
-      return g->Use(input);
+      return g->UseUnique(input);
   }
 }
 

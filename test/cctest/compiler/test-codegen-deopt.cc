@@ -201,11 +201,12 @@ TEST(TurboTrivialDeoptCodegen) {
   Label* cont_label = t.code->GetLabel(t.cont_block);
   Label* deopt_label = t.code->GetLabel(t.deopt_block);
 
-  // Check the patch table. It should patch the continuation address to the
-  // deoptimization block address.
-  CHECK_EQ(1, data->ReturnAddressPatchCount());
-  CHECK_EQ(cont_label->pos(), data->ReturnAddressPc(0)->value());
-  CHECK_EQ(deopt_label->pos(), data->PatchedAddressPc(0)->value());
+  // Check the safepoint - it should contain an entry for the call
+  // with the right deoptimization address.
+  SafepointEntry entry = t.result_code->GetSafepointEntry(
+      t.result_code->instruction_start() + cont_label->pos());
+  CHECK(entry.is_valid());
+  CHECK_EQ(deopt_label->pos(), entry.deoptimization_pc());
 
   // Check that we deoptimize to the right AST id.
   CHECK_EQ(1, data->DeoptCount());

@@ -717,19 +717,9 @@ bool Object::IsDeoptimizationInputData() const {
   // the entry size.
   int length = FixedArray::cast(this)->length();
   if (length == 0) return true;
-  if (length < DeoptimizationInputData::kFirstDeoptEntryIndex) return false;
 
-  FixedArray* self = FixedArray::cast(const_cast<Object*>(this));
-  int deopt_count =
-      Smi::cast(self->get(DeoptimizationInputData::kDeoptEntryCountIndex))
-          ->value();
-  int patch_count =
-      Smi::cast(
-          self->get(
-              DeoptimizationInputData::kReturnAddressPatchEntryCountIndex))
-          ->value();
-
-  return length == DeoptimizationInputData::LengthFor(deopt_count, patch_count);
+  length -= DeoptimizationInputData::kFirstDeoptEntryIndex;
+  return length >= 0 && length % DeoptimizationInputData::kDeoptEntrySize == 0;
 }
 
 

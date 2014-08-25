@@ -7933,17 +7933,11 @@ Object* AccessorPair::GetComponent(AccessorComponent component) {
 
 
 Handle<DeoptimizationInputData> DeoptimizationInputData::New(
-    Isolate* isolate, int deopt_entry_count, int return_patch_address_count,
-    PretenureFlag pretenure) {
-  DCHECK(deopt_entry_count + return_patch_address_count > 0);
-  Handle<FixedArray> deoptimization_data =
-      Handle<FixedArray>::cast(isolate->factory()->NewFixedArray(
-          LengthFor(deopt_entry_count, return_patch_address_count), pretenure));
-  deoptimization_data->set(kDeoptEntryCountIndex,
-                           Smi::FromInt(deopt_entry_count));
-  deoptimization_data->set(kReturnAddressPatchEntryCountIndex,
-                           Smi::FromInt(return_patch_address_count));
-  return Handle<DeoptimizationInputData>::cast(deoptimization_data);
+    Isolate* isolate, int deopt_entry_count, PretenureFlag pretenure) {
+  DCHECK(deopt_entry_count > 0);
+  return Handle<DeoptimizationInputData>::cast(
+      isolate->factory()->NewFixedArray(LengthFor(deopt_entry_count),
+                                        pretenure));
 }
 
 
@@ -10291,26 +10285,7 @@ int Code::SourceStatementPosition(Address pc) {
 
 SafepointEntry Code::GetSafepointEntry(Address pc) {
   SafepointTable table(this);
-  SafepointEntry entry = table.FindEntry(pc);
-  if (entry.is_valid() || !is_turbofanned()) {
-    return entry;
-  }
-
-  // If the code is turbofanned, we might be looking for
-  // an address that was patched by lazy deoptimization.
-  // In that case look through the patch table, try to
-  // lookup the original address there, and then use this
-  // to find the safepoint entry.
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(deoptimization_data());
-  intptr_t offset = pc - instruction_start();
-  for (int i = 0; i < deopt_data->ReturnAddressPatchCount(); i++) {
-    if (deopt_data->PatchedAddressPc(i)->value() == offset) {
-      int original_offset = deopt_data->ReturnAddressPc(i)->value();
-      return table.FindEntry(instruction_start() + original_offset);
-    }
-  }
-  return SafepointEntry();
+  return table.FindEntry(pc);
 }
 
 
@@ -10863,19 +10838,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
       os << "\n";
     }
   }
-
-  int return_address_patch_count = ReturnAddressPatchCount();
-  if (return_address_patch_count != 0) {
-    os << "Return address patch data (count = " << return_address_patch_count
-       << ")\n";
-    os << " index    pc  patched_pc\n";
-  }
-  for (int i = 0; i < return_address_patch_count; i++) {
-    Vector<char> buf = Vector<char>::New(128);
-    SNPrintF(buf, "%6d  %6d  %12d\n", i, ReturnAddressPc(i)->value(),
-             PatchedAddressPc(i)->value());
-    os << buf.start();
-  }
 }
 
 
@@ -11002,6 +10964,13 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
       if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
         Vector<char> buf2 = Vector<char>::New(30);
         SNPrintF(buf2, "%6d", entry.deoptimization_index());
+        os << buf2.start();
+      } else {
+        os << "<none>";
+      }
+      if (entry.deoptimization_pc() != Safepoint::kNoDeoptimizationPc) {
+        Vector<char> buf2 = Vector<char>::New(30);
+        SNPrintF(buf2, "%6d", entry.deoptimization_pc());
         os << buf2.start();
       } else {
         os << "<none>";
