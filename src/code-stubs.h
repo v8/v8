@@ -1491,7 +1491,7 @@ class CEntryStub : public PlatformCodeStub {
   bool NeedsImmovableCode();
 
   class SaveDoublesBits : public BitField<bool, 0, 1> {};
-  class ResultSizeBits : public BitField<int, 3, 1> {};
+  class ResultSizeBits : public BitField<int, 1, 3> {};
 };
 
 
