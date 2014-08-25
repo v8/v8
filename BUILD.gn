@@ -1046,7 +1046,6 @@ source_set("v8_base") {
       "src/mips/frames-mips.cc",
       "src/mips/frames-mips.h",
       "src/mips/full-codegen-mips.cc",
-      "src/mips/ic-mips.cc",
       "src/mips/lithium-codegen-mips.cc",
       "src/mips/lithium-codegen-mips.h",
       "src/mips/lithium-gap-resolver-mips.cc",
@@ -1058,7 +1057,9 @@ source_set("v8_base") {
       "src/mips/regexp-macro-assembler-mips.cc",
       "src/mips/regexp-macro-assembler-mips.h",
       "src/mips/simulator-mips.cc",
-      "src/mips/stub-cache-mips.cc",
+      "src/ic/mips/ic-mips.cc",
+      "src/ic/mips/ic-compiler-mips.cc",
+      "src/ic/mips/stub-cache-mips.cc",
     ]
   }
 

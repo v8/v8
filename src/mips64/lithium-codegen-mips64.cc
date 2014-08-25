@@ -8,7 +8,6 @@
 #include "src/hydrogen-osr.h"
 #include "src/mips64/lithium-codegen-mips64.h"
 #include "src/mips64/lithium-gap-resolver-mips64.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {

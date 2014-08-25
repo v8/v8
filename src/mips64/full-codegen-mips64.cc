@@ -22,7 +22,6 @@
 #include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/scopes.h"
-#include "src/stub-cache.h"
 
 #include "src/mips64/code-stubs-mips64.h"
 #include "src/mips64/macro-assembler-mips64.h"
