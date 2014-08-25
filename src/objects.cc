@@ -6909,20 +6909,21 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
   // interceptor calls.
   AssertNoContextChange ncc(isolate);
 
-  // Check access rights if needed.
-  if (object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(object, name, v8::ACCESS_HAS)) {
-    isolate->ReportFailedAccessCheck(object, v8::ACCESS_HAS);
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-    return isolate->factory()->undefined_value();
-  }
-
   // Make the lookup and include prototypes.
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     for (Handle<Object> obj = object;
          !obj->IsNull();
          obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
+      if (obj->IsAccessCheckNeeded() &&
+          !isolate->MayNamedAccess(Handle<JSObject>::cast(obj), name,
+                                   v8::ACCESS_HAS)) {
+        isolate->ReportFailedAccessCheck(Handle<JSObject>::cast(obj),
+                                         v8::ACCESS_HAS);
+        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+        return isolate->factory()->undefined_value();
+      }
+
       if (obj->IsJSObject() && JSObject::cast(*obj)->HasDictionaryElements()) {
         JSObject* js_object = JSObject::cast(*obj);
         SeededNumberDictionary* dictionary = js_object->element_dictionary();
@@ -6941,6 +6942,14 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
     for (Handle<Object> obj = object;
          !obj->IsNull();
          obj = handle(JSReceiver::cast(*obj)->GetPrototype(), isolate)) {
+      if (obj->IsAccessCheckNeeded() &&
+          !isolate->MayNamedAccess(Handle<JSObject>::cast(obj), name,
+                                   v8::ACCESS_HAS)) {
+        isolate->ReportFailedAccessCheck(Handle<JSObject>::cast(obj),
+                                         v8::ACCESS_HAS);
+        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+        return isolate->factory()->undefined_value();
+      }
       LookupResult result(isolate);
       JSReceiver::cast(*obj)->LookupOwn(name, &result);
       if (result.IsFound()) {
