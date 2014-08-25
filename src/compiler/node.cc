@@ -18,7 +18,7 @@ void Node::CollectProjections(NodeVector* projections) {
     if ((*i)->opcode() != IrOpcode::kProjection) continue;
     int32_t index = OpParameter<int32_t>(*i);
     DCHECK_GE(index, 0);
-    DCHECK_LT(index, projections->size());
+    DCHECK_LT(index, static_cast<int32_t>(projections->size()));
     DCHECK_EQ(NULL, (*projections)[index]);
     (*projections)[index] = *i;
   }
