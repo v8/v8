@@ -1062,6 +1062,7 @@ source_set("v8_base") {
       "src/mips/regexp-macro-assembler-mips.cc",
       "src/mips/regexp-macro-assembler-mips.h",
       "src/mips/simulator-mips.cc",
+      "src/ic/mips/access-compiler-mips.cc",
       "src/ic/mips/ic-mips.cc",
       "src/ic/mips/ic-compiler-mips.cc",
       "src/ic/mips/stub-cache-mips.cc",
