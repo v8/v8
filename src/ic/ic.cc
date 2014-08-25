@@ -11,6 +11,7 @@
 #include "src/conversions.h"
 #include "src/execution.h"
 #include "src/ic/call-optimization.h"
+#include "src/ic/handler-compiler.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"

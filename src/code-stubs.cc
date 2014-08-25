@@ -9,7 +9,7 @@
 #include "src/cpu-profiler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
-#include "src/ic/ic-compiler.h"
+#include "src/ic/handler-compiler.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
