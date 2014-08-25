@@ -42,6 +42,7 @@ class IA32OperandGenerator V8_FINAL : public OperandGenerator {
 
 void InstructionSelector::VisitLoad(Node* node) {
   MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
+  MachineType typ = TypeOf(OpParameter<MachineType>(node));
   IA32OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -53,18 +54,18 @@ void InstructionSelector::VisitLoad(Node* node) {
   // TODO(titzer): signed/unsigned small loads
   switch (rep) {
     case kRepFloat64:
-      opcode = kSSELoad;
+      opcode = kIA32Movsd;
       break;
     case kRepBit:  // Fall through.
     case kRepWord8:
-      opcode = kIA32LoadWord8;
+      opcode = typ == kTypeInt32 ? kIA32Movsxbl : kIA32Movzxbl;
       break;
     case kRepWord16:
-      opcode = kIA32LoadWord16;
+      opcode = typ == kTypeInt32 ? kIA32Movsxwl : kIA32Movzxwl;
       break;
     case kRepTagged:  // Fall through.
     case kRepWord32:
-      opcode = kIA32LoadWord32;
+      opcode = kIA32Movl;
       break;
     default:
       UNREACHABLE();
@@ -109,13 +110,11 @@ void InstructionSelector::VisitStore(Node* node) {
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
-  bool is_immediate = false;
   InstructionOperand* val;
   if (rep == kRepFloat64) {
     val = g.UseDoubleRegister(value);
   } else {
-    is_immediate = g.CanBeImmediate(value);
-    if (is_immediate) {
+    if (g.CanBeImmediate(value)) {
       val = g.UseImmediate(value);
     } else if (rep == kRepWord8 || rep == kRepBit) {
       val = g.UseByteRegister(value);
@@ -126,18 +125,18 @@ void InstructionSelector::VisitStore(Node* node) {
   ArchOpcode opcode;
   switch (rep) {
     case kRepFloat64:
-      opcode = kSSEStore;
+      opcode = kIA32Movsd;
       break;
     case kRepBit:  // Fall through.
     case kRepWord8:
-      opcode = is_immediate ? kIA32StoreWord8I : kIA32StoreWord8;
+      opcode = kIA32Movb;
       break;
     case kRepWord16:
-      opcode = is_immediate ? kIA32StoreWord16I : kIA32StoreWord16;
+      opcode = kIA32Movw;
       break;
     case kRepTagged:  // Fall through.
     case kRepWord32:
-      opcode = is_immediate ? kIA32StoreWord32I : kIA32StoreWord32;
+      opcode = kIA32Movl;
       break;
     default:
       UNREACHABLE();

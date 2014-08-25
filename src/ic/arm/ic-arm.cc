@@ -733,30 +733,6 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateSlow(MacroAssembler* masm) {
-  // Push receiver, key and value for runtime call.
-  __ Push(ReceiverRegister(), NameRegister(), ValueRegister());
-
-  // The slow case calls into the runtime to complete the store without causing
-  // an IC miss that would otherwise cause a transition to the generic stub.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kStoreIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
-}
-
-
-void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
-  // Push receiver, key and value for runtime call.
-  __ Push(ReceiverRegister(), NameRegister(), ValueRegister());
-
-  // The slow case calls into the runtime to complete the store without causing
-  // an IC miss that would otherwise cause a transition to the generic stub.
-  ExternalReference ref =
-      ExternalReference(IC_Utility(kKeyedStoreIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
-}
-
-
 static void KeyedStoreGenerateGenericHelper(
     MacroAssembler* masm, Label* fast_object, Label* fast_double, Label* slow,
     KeyedStoreCheckMap check_map, KeyedStoreIncrementLength increment_length,

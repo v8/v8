@@ -340,7 +340,7 @@ void BasicJsonStringifier::Append_(const Char* chars) {
 MaybeHandle<Object> BasicJsonStringifier::ApplyToJsonFunction(
     Handle<Object> object, Handle<Object> key) {
   LookupIterator it(object, tojson_string_,
-                    LookupIterator::CHECK_DERIVED_SKIP_INTERCEPTOR);
+                    LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   Handle<Object> fun;
   ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
   if (!fun->IsJSFunction()) return object;

@@ -1473,6 +1473,30 @@ class V8_EXPORT Value : public Data {
   bool IsPromise() const;
 
   /**
+   * Returns true if this value is a Map.
+   * This is an experimental feature.
+   */
+  bool IsMap() const;
+
+  /**
+   * Returns true if this value is a Set.
+   * This is an experimental feature.
+   */
+  bool IsSet() const;
+
+  /**
+   * Returns true if this value is a WeakMap.
+   * This is an experimental feature.
+   */
+  bool IsWeakMap() const;
+
+  /**
+   * Returns true if this value is a WeakSet.
+   * This is an experimental feature.
+   */
+  bool IsWeakSet() const;
+
+  /**
    * Returns true if this value is an ArrayBuffer.
    * This is an experimental feature.
    */
@@ -5669,7 +5693,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 162;
+  static const int kEmptyStringRootIndex = 164;
 
   // The external allocation limit should be below 256 MB on all architectures
   // to avoid that resource-constrained embedders run low on memory.

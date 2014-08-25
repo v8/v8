@@ -11,10 +11,16 @@ namespace internal {
 namespace compiler {
 
 void Node::CollectProjections(NodeVector* projections) {
+  for (size_t i = 0; i < projections->size(); i++) {
+    (*projections)[i] = NULL;
+  }
   for (UseIter i = uses().begin(); i != uses().end(); ++i) {
     if ((*i)->opcode() != IrOpcode::kProjection) continue;
-    DCHECK_GE(OpParameter<int32_t>(*i), 0);
-    projections->push_back(*i);
+    int32_t index = OpParameter<int32_t>(*i);
+    DCHECK_GE(index, 0);
+    DCHECK_LT(index, static_cast<int32_t>(projections->size()));
+    DCHECK_EQ(NULL, (*projections)[index]);
+    (*projections)[index] = *i;
   }
 }
 

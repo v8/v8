@@ -365,6 +365,9 @@ class LCodeGen: public LCodeGenBase {
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
 
+  template <class T>
+  void EmitVectorLoadICRegisters(T* instr);
+
   ZoneList<LEnvironment*> deoptimizations_;
   ZoneList<Deoptimizer::JumpTableEntry> deopt_jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;

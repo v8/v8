@@ -414,7 +414,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
     if (!info()->code().is_null()) {
-      info()->context()->native_context()->AddOptimizedCode(*info()->code());
+      if (FLAG_turbo_deoptimization) {
+        info()->context()->native_context()->AddOptimizedCode(*info()->code());
+      }
       return SetLastStatus(SUCCEEDED);
     }
   }

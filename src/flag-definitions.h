@@ -335,7 +335,7 @@ DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
 DEFINE_BOOL(turbo_types, false, "use typed lowering in TurboFan")
 DEFINE_BOOL(turbo_source_positions, false,
             "track source code positions when building TurboFan IR")
-DEFINE_BOOL(context_specialization, true,
+DEFINE_BOOL(context_specialization, false,
             "enable context specialization in TurboFan")
 DEFINE_BOOL(turbo_deoptimization, false, "enable deoptimization in TurboFan")
 DEFINE_BOOL(turbo_inlining, false, "enable inlining in TurboFan")

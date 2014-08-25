@@ -45,7 +45,7 @@ int BitVector::Count() const {
   int count = 0;
   for (int i = 0; i < data_length_; i++) {
     int data = data_[i];
-    if (data != 0) count += base::bits::CountSetBits32(data);
+    if (data != 0) count += base::bits::CountPopulation32(data);
   }
   return count;
 }

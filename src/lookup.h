@@ -16,19 +16,21 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
  public:
   enum Configuration {
     // Configuration bits.
-    CHECK_HIDDEN_PROPERTY = 1 << 0,
-    CHECK_DERIVED_PROPERTY = 1 << 1,
-    CHECK_INTERCEPTOR = 1 << 2,
-    CHECK_ACCESS_CHECK = 1 << 3,
+    kAccessCheck = 1 << 0,
+    kHidden = 1 << 1,
+    kInterceptor = 1 << 2,
+    kPrototypeChain = 1 << 3,
 
     // Convience combinations of bits.
-    CHECK_PROPERTY = 0,
-    CHECK_OWN = CHECK_ACCESS_CHECK | CHECK_INTERCEPTOR,
-    CHECK_HIDDEN_SKIP_INTERCEPTOR = CHECK_HIDDEN_PROPERTY | CHECK_ACCESS_CHECK,
-    CHECK_DERIVED_SKIP_INTERCEPTOR =
-        CHECK_HIDDEN_SKIP_INTERCEPTOR | CHECK_DERIVED_PROPERTY,
-    CHECK_DERIVED = CHECK_DERIVED_SKIP_INTERCEPTOR | CHECK_INTERCEPTOR,
-    CHECK_HIDDEN = CHECK_HIDDEN_SKIP_INTERCEPTOR | CHECK_INTERCEPTOR
+    OWN_PROPERTY = 0,
+    OWN_SKIP_INTERCEPTOR = kAccessCheck,
+    OWN = kAccessCheck | kInterceptor,
+    HIDDEN_PROPERTY = kHidden,
+    HIDDEN_SKIP_INTERCEPTOR = kAccessCheck | kHidden,
+    HIDDEN = kAccessCheck | kHidden | kInterceptor,
+    PROTOTYPE_CHAIN_PROPERTY = kHidden | kPrototypeChain,
+    PROTOTYPE_CHAIN_SKIP_INTERCEPTOR = kAccessCheck | kHidden | kPrototypeChain,
+    PROTOTYPE_CHAIN = kAccessCheck | kHidden | kPrototypeChain | kInterceptor
   };
 
   enum State {
@@ -53,20 +55,8 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     DESCRIPTOR
   };
 
-  explicit LookupIterator(const LookupIterator* other)
-      : configuration_(other->configuration_),
-        state_(other->state_),
-        property_kind_(other->property_kind_),
-        property_encoding_(other->property_encoding_),
-        property_details_(other->property_details_),
-        isolate_(other->isolate_),
-        name_(other->name_),
-        holder_map_(other->holder_map_),
-        maybe_receiver_(other->maybe_receiver_),
-        maybe_holder_(other->maybe_holder_) {}
-
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
-                 Configuration configuration = CHECK_DERIVED)
+                 Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         property_kind_(DATA),
@@ -77,14 +67,14 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
         maybe_receiver_(receiver),
         number_(DescriptorArray::kNotFound) {
     Handle<JSReceiver> root = GetRoot();
-    holder_map_ = handle(root->map());
+    holder_map_ = handle(root->map(), isolate_);
     maybe_holder_ = root;
     Next();
   }
 
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Handle<JSReceiver> holder,
-                 Configuration configuration = CHECK_DERIVED)
+                 Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
         property_kind_(DATA),
@@ -92,7 +82,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
         property_details_(NONE, NORMAL, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
-        holder_map_(holder->map()),
+        holder_map_(holder->map(), isolate_),
         maybe_receiver_(receiver),
         maybe_holder_(holder),
         number_(DescriptorArray::kNotFound) {
@@ -110,7 +100,6 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
     state_ = NOT_FOUND;
   }
 
-  Heap* heap() const { return isolate_->heap(); }
   Factory* factory() const { return isolate_->factory(); }
   Handle<Object> GetReceiver() const {
     return maybe_receiver_.ToHandleChecked();
@@ -128,7 +117,6 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   }
   Handle<JSReceiver> GetRoot() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
-  bool HolderIsNonGlobalHiddenPrototype() const;
 
   /* ACCESS_CHECK */
   bool HasAccess(v8::AccessType access_type) const;
@@ -203,17 +191,15 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   bool is_guaranteed_to_have_holder() const {
     return !maybe_receiver_.is_null();
   }
-  bool check_interceptor() const {
-    return !IsBootstrapping() && (configuration_ & CHECK_INTERCEPTOR) != 0;
-  }
-  bool check_derived() const {
-    return (configuration_ & CHECK_DERIVED_PROPERTY) != 0;
-  }
-  bool check_hidden() const {
-    return (configuration_ & CHECK_HIDDEN_PROPERTY) != 0;
-  }
   bool check_access_check() const {
-    return (configuration_ & CHECK_ACCESS_CHECK) != 0;
+    return (configuration_ & kAccessCheck) != 0;
+  }
+  bool check_hidden() const { return (configuration_ & kHidden) != 0; }
+  bool check_interceptor() const {
+    return !IsBootstrapping() && (configuration_ & kInterceptor) != 0;
+  }
+  bool check_prototype_chain() const {
+    return (configuration_ & kPrototypeChain) != 0;
   }
   int descriptor_number() const {
     DCHECK(has_property_);
@@ -229,7 +215,7 @@ class LookupIterator V8_FINAL BASE_EMBEDDED {
   static Configuration ComputeConfiguration(
       Configuration configuration, Handle<Name> name) {
     if (name->IsOwn()) {
-      return static_cast<Configuration>(configuration & CHECK_HIDDEN);
+      return static_cast<Configuration>(configuration & HIDDEN);
     } else {
       return configuration;
     }

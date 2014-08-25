@@ -2672,10 +2672,10 @@ TEST(RunDeadInt32Binops) {
 }
 
 
-template <typename Type, typename CType>
+template <typename Type>
 static void RunLoadImmIndex(MachineType rep) {
   const int kNumElems = 3;
-  CType buffer[kNumElems];
+  Type buffer[kNumElems];
 
   // initialize the buffer with raw data.
   byte* raw = reinterpret_cast<byte*>(buffer);
@@ -2692,19 +2692,21 @@ static void RunLoadImmIndex(MachineType rep) {
       m.Return(m.Load(rep, base, index));
 
       Type expected = buffer[i];
-      Type actual = static_cast<CType>(m.Call());
-      CHECK_EQ(expected, actual);
-      printf("XXX\n");
+      Type actual = m.Call();
+      CHECK(expected == actual);
     }
   }
 }
 
 
 TEST(RunLoadImmIndex) {
-  RunLoadImmIndex<int8_t, uint8_t>(kMachInt8);
-  RunLoadImmIndex<int16_t, uint16_t>(kMachInt16);
-  RunLoadImmIndex<int32_t, uint32_t>(kMachInt32);
-  RunLoadImmIndex<int32_t*, int32_t*>(kMachAnyTagged);
+  RunLoadImmIndex<int8_t>(kMachInt8);
+  RunLoadImmIndex<uint8_t>(kMachUint8);
+  RunLoadImmIndex<int16_t>(kMachInt16);
+  RunLoadImmIndex<uint16_t>(kMachUint16);
+  RunLoadImmIndex<int32_t>(kMachInt32);
+  RunLoadImmIndex<uint32_t>(kMachUint32);
+  RunLoadImmIndex<int32_t*>(kMachAnyTagged);
 
   // TODO(titzer): test kRepBit loads
   // TODO(titzer): test kMachFloat64 loads
@@ -2734,17 +2736,20 @@ static void RunLoadStore(MachineType rep) {
     m.Store(rep, base, index1, load);
     m.Return(m.Int32Constant(OK));
 
-    CHECK_NE(buffer[x], buffer[y]);
+    CHECK(buffer[x] != buffer[y]);
     CHECK_EQ(OK, m.Call());
-    CHECK_EQ(buffer[x], buffer[y]);
+    CHECK(buffer[x] == buffer[y]);
   }
 }
 
 
 TEST(RunLoadStore) {
   RunLoadStore<int8_t>(kMachInt8);
+  RunLoadStore<uint8_t>(kMachUint8);
   RunLoadStore<int16_t>(kMachInt16);
+  RunLoadStore<uint16_t>(kMachUint16);
   RunLoadStore<int32_t>(kMachInt32);
+  RunLoadStore<uint32_t>(kMachUint32);
   RunLoadStore<void*>(kMachAnyTagged);
   RunLoadStore<double>(kMachFloat64);
 }
@@ -3792,15 +3797,15 @@ static void LoadStoreTruncation() {
 
   // Test lower bound.
   input = min;
-  CHECK_EQ(max + 2, m.Call());
+  CHECK_EQ(static_cast<IntType>(max + 2), m.Call());
   CHECK_EQ(min + 1, input);
 
   // Test all one byte values that are not one byte bounds.
   for (int i = -127; i < 127; i++) {
     input = i;
     int expected = i >= 0 ? i + 1 : max + (i - min) + 2;
-    CHECK_EQ(expected, m.Call());
-    CHECK_EQ(i + 1, input);
+    CHECK_EQ(static_cast<IntType>(expected), m.Call());
+    CHECK_EQ(static_cast<IntType>(i + 1), input);
   }
 }
 

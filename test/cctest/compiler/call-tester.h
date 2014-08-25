@@ -86,9 +86,21 @@ struct ReturnValueTraits<int16_t> {
 };
 
 template <>
+struct ReturnValueTraits<uint16_t> {
+  static uint16_t Cast(uintptr_t r) { return static_cast<uint16_t>(r); }
+  static MachineType Representation() { return kMachUint16; }
+};
+
+template <>
 struct ReturnValueTraits<int8_t> {
   static int8_t Cast(uintptr_t r) { return static_cast<int8_t>(r); }
   static MachineType Representation() { return kMachInt8; }
+};
+
+template <>
+struct ReturnValueTraits<uint8_t> {
+  static uint8_t Cast(uintptr_t r) { return static_cast<uint8_t>(r); }
+  static MachineType Representation() { return kMachUint8; }
 };
 
 template <>

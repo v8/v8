@@ -28,7 +28,7 @@ class StoreBufferOverflowStub: public PlatformCodeStub {
   SaveFPRegsMode save_doubles_;
 
   Major MajorKey() const { return StoreBufferOverflow; }
-  int MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+  uint32_t MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
 };
 
 
@@ -63,7 +63,7 @@ class StoreRegistersStateStub: public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
   Major MajorKey() const { return StoreRegistersState; }
-  int MinorKey() const { return 0; }
+  uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -77,7 +77,7 @@ class RestoreRegistersStateStub: public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
   Major MajorKey() const { return RestoreRegistersState; }
-  int MinorKey() const { return 0; }
+  uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -303,16 +303,14 @@ class RecordWriteStub: public PlatformCodeStub {
 
   Major MajorKey() const { return RecordWrite; }
 
-  int MinorKey() const {
+  uint32_t MinorKey() const {
     return MinorKeyFor(object_, value_, address_, remembered_set_action_,
                        save_fp_regs_mode_);
   }
 
-  static int MinorKeyFor(Register object,
-                         Register value,
-                         Register address,
-                         RememberedSetAction action,
-                         SaveFPRegsMode fp_mode) {
+  static uint32_t MinorKeyFor(Register object, Register value, Register address,
+                              RememberedSetAction action,
+                              SaveFPRegsMode fp_mode) {
     DCHECK(object.Is64Bits());
     DCHECK(value.Is64Bits());
     DCHECK(address.Is64Bits());
@@ -353,7 +351,7 @@ class DirectCEntryStub: public PlatformCodeStub {
 
  private:
   Major MajorKey() const { return DirectCEntry; }
-  int MinorKey() const { return 0; }
+  uint32_t MinorKey() const { return 0; }
 
   bool NeedsImmovableCode() { return true; }
 };
@@ -400,7 +398,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
   Major MajorKey() const { return NameDictionaryLookup; }
 
-  int MinorKey() const { return LookupModeBits::encode(mode_); }
+  uint32_t MinorKey() const { return LookupModeBits::encode(mode_); }
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 
@@ -414,7 +412,7 @@ class SubStringStub: public PlatformCodeStub {
 
  private:
   Major MajorKey() const { return SubString; }
-  int MinorKey() const { return 0; }
+  uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -444,7 +442,7 @@ class StringCompareStub: public PlatformCodeStub {
 
  private:
   virtual Major MajorKey() const { return StringCompare; }
-  virtual int MinorKey() const { return 0; }
+  virtual uint32_t MinorKey() const { return 0; }
   virtual void Generate(MacroAssembler* masm);
 
   static void GenerateAsciiCharsCompareLoop(MacroAssembler* masm,

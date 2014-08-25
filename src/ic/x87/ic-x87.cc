@@ -7,9 +7,9 @@
 #if V8_TARGET_ARCH_X87
 
 #include "src/codegen.h"
-#include "src/ic-inl.h"
-#include "src/runtime.h"
-#include "src/stub-cache.h"
+#include "src/ic/ic.h"
+#include "src/ic/ic-compiler.h"
+#include "src/ic/stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -21,8 +21,7 @@ namespace internal {
 #define __ ACCESS_MASM(masm)
 
 
-static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
-                                            Register type,
+static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm, Register type,
                                             Label* global_object) {
   // Register usage:
   //   type: holds the receiver instance type on entry.
@@ -42,13 +41,9 @@ static void GenerateGlobalInstanceTypeCheck(MacroAssembler* masm,
 // name is not internalized, and will jump to the miss_label in that
 // case. The generated code assumes that the receiver has slow
 // properties, is not a global object and does not have interceptors.
-static void GenerateDictionaryLoad(MacroAssembler* masm,
-                                   Label* miss_label,
-                                   Register elements,
-                                   Register name,
-                                   Register r0,
-                                   Register r1,
-                                   Register result) {
+static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
+                                   Register elements, Register name,
+                                   Register r0, Register r1, Register result) {
   // Register use:
   //
   // elements - holds the property dictionary on entry and is unchanged.
@@ -66,13 +61,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   Label done;
 
   // Probe the dictionary.
-  NameDictionaryLookupStub::GeneratePositiveLookup(masm,
-                                                   miss_label,
-                                                   &done,
-                                                   elements,
-                                                   name,
-                                                   r0,
-                                                   r1);
+  NameDictionaryLookupStub::GeneratePositiveLookup(masm, miss_label, &done,
+                                                   elements, name, r0, r1);
 
   // If probing finds an entry in the dictionary, r0 contains the
   // index into the dictionary. Check that the value is a normal
@@ -99,13 +89,9 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 // call if name is not internalized, and will jump to the miss_label in
 // that case. The generated code assumes that the receiver has slow
 // properties, is not a global object and does not have interceptors.
-static void GenerateDictionaryStore(MacroAssembler* masm,
-                                    Label* miss_label,
-                                    Register elements,
-                                    Register name,
-                                    Register value,
-                                    Register r0,
-                                    Register r1) {
+static void GenerateDictionaryStore(MacroAssembler* masm, Label* miss_label,
+                                    Register elements, Register name,
+                                    Register value, Register r0, Register r1) {
   // Register use:
   //
   // elements - holds the property dictionary on entry and is clobbered.
@@ -121,13 +107,8 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
 
   // Probe the dictionary.
-  NameDictionaryLookupStub::GeneratePositiveLookup(masm,
-                                                   miss_label,
-                                                   &done,
-                                                   elements,
-                                                   name,
-                                                   r0,
-                                                   r1);
+  NameDictionaryLookupStub::GeneratePositiveLookup(masm, miss_label, &done,
+                                                   elements, name, r0, r1);
 
   // If probing finds an entry in the dictionary, r0 contains the
   // index into the dictionary. Check that the value is a normal
@@ -139,7 +120,8 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
   const int kDetailsOffset = kElementsStartOffset + 2 * kPointerSize;
   const int kTypeAndReadOnlyMask =
       (PropertyDetails::TypeField::kMask |
-       PropertyDetails::AttributesField::encode(READ_ONLY)) << kSmiTagSize;
+       PropertyDetails::AttributesField::encode(READ_ONLY))
+      << kSmiTagSize;
   __ test(Operand(elements, r0, times_4, kDetailsOffset - kHeapObjectTag),
           Immediate(kTypeAndReadOnlyMask));
   __ j(not_zero, miss_label);
@@ -158,10 +140,8 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 // Checks the receiver for special cases (value type, slow case bits).
 // Falls through for regular JS object.
 static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
-                                           Register receiver,
-                                           Register map,
-                                           int interceptor_bit,
-                                           Label* slow) {
+                                           Register receiver, Register map,
+                                           int interceptor_bit, Label* slow) {
   // Register use:
   //   receiver - holds the receiver and is unchanged.
   // Scratch registers:
@@ -190,12 +170,9 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 
 // Loads an indexed element from a fast case array.
 // If not_fast_array is NULL, doesn't perform the elements map check.
-static void GenerateFastArrayLoad(MacroAssembler* masm,
-                                  Register receiver,
-                                  Register key,
-                                  Register scratch,
-                                  Register result,
-                                  Label* not_fast_array,
+static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
+                                  Register key, Register scratch,
+                                  Register result, Label* not_fast_array,
                                   Label* out_of_range) {
   // Register use:
   //   receiver - holds the receiver and is unchanged.
@@ -233,12 +210,9 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
 
 // Checks whether a key is an array index string or a unique name.
 // Falls through if the key is a unique name.
-static void GenerateKeyNameCheck(MacroAssembler* masm,
-                                 Register key,
-                                 Register map,
-                                 Register hash,
-                                 Label* index_string,
-                                 Label* not_unique) {
+static void GenerateKeyNameCheck(MacroAssembler* masm, Register key,
+                                 Register map, Register hash,
+                                 Label* index_string, Label* not_unique) {
   // Register use:
   //   key - holds the key and is unchanged. Assumed to be non-smi.
   // Scratch registers:
@@ -266,13 +240,9 @@ static void GenerateKeyNameCheck(MacroAssembler* masm,
 }
 
 
-static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
-                                             Register object,
-                                             Register key,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* unmapped_case,
-                                             Label* slow_case) {
+static Operand GenerateMappedArgumentsLookup(
+    MacroAssembler* masm, Register object, Register key, Register scratch1,
+    Register scratch2, Label* unmapped_case, Label* slow_case) {
   Heap* heap = masm->isolate()->heap();
   Factory* factory = masm->isolate()->factory();
 
@@ -302,10 +272,8 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
 
   // Load element index and check whether it is the hole.
   const int kHeaderSize = FixedArray::kHeaderSize + 2 * kPointerSize;
-  __ mov(scratch2, FieldOperand(scratch1,
-                                key,
-                                times_half_pointer_size,
-                                kHeaderSize));
+  __ mov(scratch2,
+         FieldOperand(scratch1, key, times_half_pointer_size, kHeaderSize));
   __ cmp(scratch2, factory->the_hole_value());
   __ j(equal, unmapped_case);
 
@@ -314,9 +282,7 @@ static Operand GenerateMappedArgumentsLookup(MacroAssembler* masm,
   // map in scratch1).
   const int kContextOffset = FixedArray::kHeaderSize;
   __ mov(scratch1, FieldOperand(scratch1, kContextOffset));
-  return FieldOperand(scratch1,
-                      scratch2,
-                      times_half_pointer_size,
+  return FieldOperand(scratch1, scratch2, times_half_pointer_size,
                       Context::kHeaderSize);
 }
 
@@ -336,9 +302,7 @@ static Operand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
   __ mov(scratch, FieldOperand(backing_store, FixedArray::kLengthOffset));
   __ cmp(key, scratch);
   __ j(greater_equal, slow_case);
-  return FieldOperand(backing_store,
-                      key,
-                      times_half_pointer_size,
+  return FieldOperand(backing_store, key, times_half_pointer_size,
                       FixedArray::kHeaderSize);
 }
 
@@ -359,8 +323,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Now the key is known to be a smi. This place is also jumped to from
   // where a numeric string is converted to a smi.
 
-  GenerateKeyedLoadReceiverCheck(
-      masm, receiver, eax, Map::kHasIndexedInterceptor, &slow);
+  GenerateKeyedLoadReceiverCheck(masm, receiver, eax,
+                                 Map::kHasIndexedInterceptor, &slow);
 
   // Check the receiver's map to see if it has fast elements.
   __ CheckFastElements(eax, &check_number_dictionary);
@@ -379,9 +343,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Check whether the elements is a number dictionary.
   // ebx: untagged index
   // eax: elements
-  __ CheckMap(eax,
-              isolate->factory()->hash_table_map(),
-              &slow,
+  __ CheckMap(eax, isolate->factory()->hash_table_map(), &slow,
               DONT_DO_SMI_CHECK);
   Label slow_pop_receiver;
   // Push receiver on the stack to free up a register for the dictionary
@@ -404,8 +366,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ bind(&check_name);
   GenerateKeyNameCheck(masm, key, eax, ebx, &index_name, &slow);
 
-  GenerateKeyedLoadReceiverCheck(
-      masm, receiver, eax, Map::kHasNamedInterceptor, &slow);
+  GenerateKeyedLoadReceiverCheck(masm, receiver, eax, Map::kHasNamedInterceptor,
+                                 &slow);
 
   // If the receiver is a fast-case object, check the keyed lookup
   // cache. Otherwise probe the dictionary.
@@ -492,8 +454,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Load property array property.
   __ bind(&property_array_property);
   __ mov(eax, FieldOperand(receiver, JSObject::kPropertiesOffset));
-  __ mov(eax, FieldOperand(eax, edi, times_pointer_size,
-                           FixedArray::kHeaderSize));
+  __ mov(eax,
+         FieldOperand(eax, edi, times_pointer_size, FixedArray::kHeaderSize));
   __ IncrementCounter(counters->keyed_load_generic_lookup_cache(), 1);
   __ ret(0);
 
@@ -527,10 +489,7 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   Register result = eax;
   DCHECK(!result.is(scratch));
 
-  StringCharAtGenerator char_at_generator(receiver,
-                                          index,
-                                          scratch,
-                                          result,
+  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
                                           &miss,  // When index out of range.
@@ -597,9 +556,8 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
 
   Label slow, notin;
   Factory* factory = masm->isolate()->factory();
-  Operand mapped_location =
-      GenerateMappedArgumentsLookup(
-          masm, receiver, key, ebx, eax, &notin, &slow);
+  Operand mapped_location = GenerateMappedArgumentsLookup(
+      masm, receiver, key, ebx, eax, &notin, &slow);
   __ mov(eax, mapped_location);
   __ Ret();
   __ bind(&notin);
@@ -625,9 +583,8 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   DCHECK(name.is(ecx));
   DCHECK(value.is(eax));
 
-  Operand mapped_location =
-      GenerateMappedArgumentsLookup(masm, receiver, name, ebx, edi, &notin,
-                                    &slow);
+  Operand mapped_location = GenerateMappedArgumentsLookup(
+      masm, receiver, name, ebx, edi, &notin, &slow);
   __ mov(mapped_location, value);
   __ lea(ecx, mapped_location);
   __ mov(edx, value);
@@ -648,12 +605,8 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
 
 
 static void KeyedStoreGenerateGenericHelper(
-    MacroAssembler* masm,
-    Label* fast_object,
-    Label* fast_double,
-    Label* slow,
-    KeyedStoreCheckMap check_map,
-    KeyedStoreIncrementLength increment_length) {
+    MacroAssembler* masm, Label* fast_object, Label* fast_double, Label* slow,
+    KeyedStoreCheckMap check_map, KeyedStoreIncrementLength increment_length) {
   Label transition_smi_elements;
   Label finish_object_store, non_double_value, transition_double_elements;
   Label fast_double_without_map_check;
@@ -713,8 +666,7 @@ static void KeyedStoreGenerateGenericHelper(
   __ mov(FixedArrayElementOperand(ebx, key), value);
   // Update write barrier for the elements array address.
   __ mov(edx, value);  // Preserve the value which is returned.
-  __ RecordWriteArray(
-      ebx, edx, key, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ RecordWriteArray(ebx, edx, key, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ ret(0);
 
   __ bind(fast_double);
@@ -750,32 +702,24 @@ static void KeyedStoreGenerateGenericHelper(
   __ mov(ebx, FieldOperand(receiver, HeapObject::kMapOffset));
 
   // Transition the array appropriately depending on the value type.
-  __ CheckMap(value,
-              masm->isolate()->factory()->heap_number_map(),
-              &non_double_value,
-              DONT_DO_SMI_CHECK);
+  __ CheckMap(value, masm->isolate()->factory()->heap_number_map(),
+              &non_double_value, DONT_DO_SMI_CHECK);
 
   // Value is a double. Transition FAST_SMI_ELEMENTS -> FAST_DOUBLE_ELEMENTS
   // and complete the store.
   __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
-                                         FAST_DOUBLE_ELEMENTS,
-                                         ebx,
-                                         edi,
-                                         slow);
-  AllocationSiteMode mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS,
-                                                    FAST_DOUBLE_ELEMENTS);
-  ElementsTransitionGenerator::GenerateSmiToDouble(
-      masm, receiver, key, value, ebx, mode, slow);
+                                         FAST_DOUBLE_ELEMENTS, ebx, edi, slow);
+  AllocationSiteMode mode =
+      AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_DOUBLE_ELEMENTS);
+  ElementsTransitionGenerator::GenerateSmiToDouble(masm, receiver, key, value,
+                                                   ebx, mode, slow);
   __ mov(ebx, FieldOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&fast_double_without_map_check);
 
   __ bind(&non_double_value);
   // Value is not a double, FAST_SMI_ELEMENTS -> FAST_ELEMENTS
-  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS,
-                                         FAST_ELEMENTS,
-                                         ebx,
-                                         edi,
-                                         slow);
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ELEMENTS, FAST_ELEMENTS, ebx,
+                                         edi, slow);
   mode = AllocationSite::GetMode(FAST_SMI_ELEMENTS, FAST_ELEMENTS);
   ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
       masm, receiver, key, value, ebx, mode, slow);
@@ -787,14 +731,11 @@ static void KeyedStoreGenerateGenericHelper(
   // HeapNumber. Make sure that the receiver is a Array with FAST_ELEMENTS and
   // transition array from FAST_DOUBLE_ELEMENTS to FAST_ELEMENTS
   __ mov(ebx, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS,
-                                         FAST_ELEMENTS,
-                                         ebx,
-                                         edi,
-                                         slow);
+  __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS,
+                                         ebx, edi, slow);
   mode = AllocationSite::GetMode(FAST_DOUBLE_ELEMENTS, FAST_ELEMENTS);
-  ElementsTransitionGenerator::GenerateDoubleToObject(
-      masm, receiver, key, value, ebx, mode, slow);
+  ElementsTransitionGenerator::GenerateDoubleToObject(masm, receiver, key,
+                                                      value, ebx, mode, slow);
   __ mov(ebx, FieldOperand(receiver, JSObject::kElementsOffset));
   __ jmp(&finish_object_store);
 }
@@ -838,7 +779,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
   // Slow case: call runtime.
   __ bind(&slow);
-  GenerateRuntimeSetProperty(masm, strict_mode);
+  PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -877,8 +818,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ cmp(key, FieldOperand(receiver, JSArray::kLengthOffset));  // Compare smis.
   __ j(above_equal, &extra);
 
-  KeyedStoreGenerateGenericHelper(masm, &fast_object, &fast_double,
-                                  &slow, kCheckMap, kDontIncrementLength);
+  KeyedStoreGenerateGenericHelper(masm, &fast_object, &fast_double, &slow,
+                                  kCheckMap, kDontIncrementLength);
   KeyedStoreGenerateGenericHelper(masm, &fast_object_grow, &fast_double_grow,
                                   &slow, kDontCheckMap, kIncrementLength);
 }
@@ -894,8 +835,8 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::LOAD_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, flags, receiver, name, ebx, eax);
+  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, receiver, name, ebx,
+                                               eax);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
@@ -990,9 +931,7 @@ const Register StoreIC::NameRegister() { return ecx; }
 const Register StoreIC::ValueRegister() { return eax; }
 
 
-const Register KeyedStoreIC::MapRegister() {
-  return ebx;
-}
+const Register KeyedStoreIC::MapRegister() { return ebx; }
 
 
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
@@ -1008,9 +947,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // Return address is on the stack.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(
-      masm, flags, ReceiverRegister(), NameRegister(),
-      ebx, no_reg);
+  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, ReceiverRegister(),
+                                               NameRegister(), ebx, no_reg);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
@@ -1067,40 +1005,6 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   __ pop(receiver);
   __ IncrementCounter(counters->store_normal_miss(), 1);
   GenerateMiss(masm);
-}
-
-
-void StoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                         StrictMode strict_mode) {
-  // Return address is on the stack.
-  DCHECK(!ebx.is(ReceiverRegister()) && !ebx.is(NameRegister()) &&
-         !ebx.is(ValueRegister()));
-  __ pop(ebx);
-  __ push(ReceiverRegister());
-  __ push(NameRegister());
-  __ push(ValueRegister());
-  __ push(Immediate(Smi::FromInt(strict_mode)));
-  __ push(ebx);  // return address
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
-}
-
-
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
-                                              StrictMode strict_mode) {
-  // Return address is on the stack.
-  DCHECK(!ebx.is(ReceiverRegister()) && !ebx.is(NameRegister()) &&
-         !ebx.is(ValueRegister()));
-  __ pop(ebx);
-  __ push(ReceiverRegister());
-  __ push(NameRegister());
-  __ push(ValueRegister());
-  __ push(Immediate(Smi::FromInt(strict_mode)));
-  __ push(ebx);  // return address
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 4, 1);
 }
 
 
@@ -1186,8 +1090,8 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   // condition code uses at the patched jump.
   uint8_t delta = *reinterpret_cast<uint8_t*>(delta_address);
   if (FLAG_trace_ic) {
-    PrintF("[  patching ic at %p, test=%p, delta=%d\n",
-           address, test_instruction_address, delta);
+    PrintF("[  patching ic at %p, test=%p, delta=%d\n", address,
+           test_instruction_address, delta);
   }
 
   // Patch with a short conditional jump. Enabling means switching from a short
@@ -1195,17 +1099,17 @@ void PatchInlinedSmiCode(Address address, InlinedSmiCheck check) {
   // reverse operation of that.
   Address jmp_address = test_instruction_address - delta;
   DCHECK((check == ENABLE_INLINED_SMI_CHECK)
-         ? (*jmp_address == Assembler::kJncShortOpcode ||
-            *jmp_address == Assembler::kJcShortOpcode)
-         : (*jmp_address == Assembler::kJnzShortOpcode ||
-            *jmp_address == Assembler::kJzShortOpcode));
-  Condition cc = (check == ENABLE_INLINED_SMI_CHECK)
-      ? (*jmp_address == Assembler::kJncShortOpcode ? not_zero : zero)
-      : (*jmp_address == Assembler::kJnzShortOpcode ? not_carry : carry);
+             ? (*jmp_address == Assembler::kJncShortOpcode ||
+                *jmp_address == Assembler::kJcShortOpcode)
+             : (*jmp_address == Assembler::kJnzShortOpcode ||
+                *jmp_address == Assembler::kJzShortOpcode));
+  Condition cc =
+      (check == ENABLE_INLINED_SMI_CHECK)
+          ? (*jmp_address == Assembler::kJncShortOpcode ? not_zero : zero)
+          : (*jmp_address == Assembler::kJnzShortOpcode ? not_carry : carry);
   *jmp_address = static_cast<byte>(Assembler::kJccShortPrefix | cc);
 }
-
-
-} }  // namespace v8::internal
+}
+}  // namespace v8::internal
 
 #endif  // V8_TARGET_ARCH_X87

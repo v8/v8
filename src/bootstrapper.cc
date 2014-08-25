@@ -780,7 +780,7 @@ Handle<JSGlobalProxy> Genesis::CreateNewGlobals(
         name, code, prototype, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize);
 #ifdef DEBUG
     LookupIterator it(prototype, factory()->constructor_string(),
-                      LookupIterator::CHECK_PROPERTY);
+                      LookupIterator::OWN_PROPERTY);
     Handle<Object> value = JSReceiver::GetProperty(&it).ToHandleChecked();
     DCHECK(it.IsFound());
     DCHECK_EQ(*isolate()->object_function(), *value);
@@ -1204,6 +1204,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
                         DONT_ENUM, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
+    // @@iterator method is added later.
 
     map->set_function_with_prototype(true);
     map->set_pre_allocated_property_fields(2);
@@ -1262,6 +1263,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
       CallbacksDescriptor d(factory->caller_string(), caller, attributes);
       map->AppendDescriptor(&d);
     }
+    // @@iterator method is added later.
 
     map->set_function_with_prototype(true);
     map->set_prototype(native_context()->object_function()->prototype());
@@ -1596,6 +1598,7 @@ void Genesis::InstallNativeFunctions() {
 
   INSTALL_NATIVE(Symbol, "symbolIterator", iterator_symbol);
   INSTALL_NATIVE(Symbol, "symbolUnscopables", unscopables_symbol);
+  INSTALL_NATIVE(JSFunction, "ArrayValues", array_values_iterator);
 
   INSTALL_NATIVE_MATH(abs)
   INSTALL_NATIVE_MATH(acos)
@@ -2039,6 +2042,34 @@ bool Genesis::InstallNatives() {
     native_context()->set_regexp_result_map(*initial_map);
   }
 
+  // Add @@iterator method to the arguments object maps.
+  {
+    PropertyAttributes attribs = DONT_ENUM;
+    Handle<AccessorInfo> arguments_iterator =
+        Accessors::ArgumentsIteratorInfo(isolate(), attribs);
+    {
+      CallbacksDescriptor d(Handle<Name>(native_context()->iterator_symbol()),
+                            arguments_iterator, attribs);
+      Handle<Map> map(native_context()->sloppy_arguments_map());
+      Map::EnsureDescriptorSlack(map, 1);
+      map->AppendDescriptor(&d);
+    }
+    {
+      CallbacksDescriptor d(Handle<Name>(native_context()->iterator_symbol()),
+                            arguments_iterator, attribs);
+      Handle<Map> map(native_context()->aliased_arguments_map());
+      Map::EnsureDescriptorSlack(map, 1);
+      map->AppendDescriptor(&d);
+    }
+    {
+      CallbacksDescriptor d(Handle<Name>(native_context()->iterator_symbol()),
+                            arguments_iterator, attribs);
+      Handle<Map> map(native_context()->strict_arguments_map());
+      Map::EnsureDescriptorSlack(map, 1);
+      map->AppendDescriptor(&d);
+    }
+  }
+
 #ifdef VERIFY_HEAP
   builtins->ObjectVerify();
 #endif
@@ -2449,7 +2480,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         }
         case CALLBACKS: {
           Handle<Name> key(descs->GetKey(i));
-          LookupIterator it(to, key, LookupIterator::CHECK_PROPERTY);
+          LookupIterator it(to, key, LookupIterator::OWN_PROPERTY);
           // If the property is already there we skip it
           if (it.IsFound() && it.HasProperty()) continue;
           HandleScope inner(isolate());
@@ -2480,7 +2511,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         DCHECK(raw_key->IsName());
         // If the property is already there we skip it.
         Handle<Name> key(Name::cast(raw_key));
-        LookupIterator it(to, key, LookupIterator::CHECK_PROPERTY);
+        LookupIterator it(to, key, LookupIterator::OWN_PROPERTY);
         if (it.IsFound() && it.HasProperty()) continue;
         // Set the property.
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),

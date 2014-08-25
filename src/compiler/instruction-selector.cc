@@ -284,9 +284,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     if (buffer->descriptor->ReturnCount() == 1) {
       buffer->output_nodes.push_back(call);
     } else {
+      buffer->output_nodes.resize(buffer->descriptor->ReturnCount(), NULL);
       call->CollectProjections(&buffer->output_nodes);
-      DCHECK(buffer->output_nodes.size() <=
-             static_cast<size_t>(buffer->descriptor->ReturnCount()));
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
@@ -1039,7 +1038,7 @@ static InstructionOperand* UseOrImmediate(OperandGenerator* g, Node* input) {
     case IrOpcode::kHeapConstant:
       return g->UseImmediate(input);
     default:
-      return g->Use(input);
+      return g->UseUnique(input);
   }
 }
 

@@ -1,3 +1,8 @@
+2014-08-25: Version 3.29.17
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-24: Version 3.29.16
 
         Fix issue with numeric property names (issue 3507).

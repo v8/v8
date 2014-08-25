@@ -97,8 +97,6 @@
   'deserialize-reference': [PASS, NO_VARIANTS],
 
   # Support for %GetFrameDetails is missing and requires checkpoints.
-  'debug-backtrace-text': [PASS, NO_VARIANTS],
-  'debug-break-inline': [PASS, NO_VARIANTS],
   'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
   'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-const': [PASS, NO_VARIANTS],
@@ -162,6 +160,7 @@
   'es6/iteration-semantics': [PASS, NO_VARIANTS],
   'es6/string-iterator': [PASS, NO_VARIANTS],
   'es6/typed-array-iterator': [PASS, NO_VARIANTS],
+  'es6/arguments-iterator': [PASS, NO_VARIANTS],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.

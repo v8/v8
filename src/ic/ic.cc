@@ -11,6 +11,7 @@
 #include "src/conversions.h"
 #include "src/execution.h"
 #include "src/ic/call-optimization.h"
+#include "src/ic/handler-compiler.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
@@ -281,7 +282,7 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
 
   if (receiver->IsGlobalObject()) {
     Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-    LookupIterator it(global, name, LookupIterator::CHECK_PROPERTY);
+    LookupIterator it(global, name, LookupIterator::OWN_PROPERTY);
     if (!it.IsFound() || !it.HasProperty()) return false;
     Handle<PropertyCell> cell = it.GetPropertyCell();
     return cell->type()->IsConstant();
@@ -970,7 +971,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
                                       cache_holder);
     // Perform a lookup behind the interceptor. Copy the LookupIterator since
     // the original iterator will be used to fetch the value.
-    LookupIterator it(lookup);
+    LookupIterator it = *lookup;
     it.Next();
     LookupForRead(&it);
     return compiler.CompileLoadInterceptor(&it);

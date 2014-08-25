@@ -35,8 +35,8 @@ void LookupIterator::Next() {
   // Either was found in the receiver, or the receiver has no prototype.
   if (holder == NULL) return;
 
-  maybe_holder_ = handle(holder);
-  holder_map_ = handle(map);
+  maybe_holder_ = handle(holder, isolate_);
+  holder_map_ = handle(map, isolate_);
 }
 
 
@@ -53,7 +53,7 @@ Handle<JSReceiver> LookupIterator::GetRoot() const {
 Handle<Map> LookupIterator::GetReceiverMap() const {
   Handle<Object> receiver = GetReceiver();
   if (receiver->IsNumber()) return isolate_->factory()->heap_number_map();
-  return handle(Handle<HeapObject>::cast(receiver)->map());
+  return handle(Handle<HeapObject>::cast(receiver)->map(), isolate_);
 }
 
 
@@ -184,7 +184,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   }
 
   transition_map_ = Map::TransitionToDataProperty(
-      handle(receiver->map()), name_, value, attributes, store_mode);
+      handle(receiver->map(), isolate_), name_, value, attributes, store_mode);
   state_ = TRANSITION;
 }
 
@@ -209,8 +209,9 @@ void LookupIterator::TransitionToAccessorProperty(
   // observable.
   Handle<JSObject> receiver = GetStoreTarget();
   maybe_holder_ = receiver;
-  holder_map_ = Map::TransitionToAccessorProperty(
-      handle(receiver->map()), name_, component, accessor, attributes);
+  holder_map_ =
+      Map::TransitionToAccessorProperty(handle(receiver->map(), isolate_),
+                                        name_, component, accessor, attributes);
   JSObject::MigrateToMap(receiver, holder_map_);
 
   ReloadPropertyInformation();
@@ -243,7 +244,7 @@ void LookupIterator::TransitionToAccessorProperty(
   JSObject::SetNormalizedProperty(receiver, name_, pair, details);
 
   JSObject::ReoptimizeIfPrototype(receiver);
-  holder_map_ = handle(receiver->map());
+  holder_map_ = handle(receiver->map(), isolate_);
   ReloadPropertyInformation();
 }
 
@@ -251,7 +252,7 @@ void LookupIterator::TransitionToAccessorProperty(
 bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   DCHECK(has_property_ || state_ == INTERCEPTOR || state_ == JSPROXY);
   // Optimization that only works if configuration_ is not mutable.
-  if (!check_derived()) return true;
+  if (!check_prototype_chain()) return true;
   DisallowHeapAllocation no_gc;
   Handle<Object> receiver = GetReceiver();
   if (!receiver->IsJSReceiver()) return false;
@@ -269,16 +270,6 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
     iter.Advance();
   } while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN));
   return false;
-}
-
-
-bool LookupIterator::HolderIsNonGlobalHiddenPrototype() const {
-  if (!HolderIsReceiverOrHiddenPrototype()) return false;
-  Handle<Object> receiver = GetReceiver();
-  Handle<JSReceiver> holder = GetHolder<JSReceiver>();
-  if (receiver.is_identical_to(holder)) return false;
-  if (receiver->IsJSGlobalProxy()) return !holder->IsJSGlobalObject();
-  return true;
 }
 
 

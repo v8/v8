@@ -150,7 +150,7 @@ class CodeStub BASE_EMBEDDED {
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
   }
-  static int MinorKeyFromKey(uint32_t key) {
+  static uint32_t MinorKeyFromKey(uint32_t key) {
     return MinorKeyBits::decode(key);
   }
 
@@ -163,7 +163,7 @@ class CodeStub BASE_EMBEDDED {
 
   static const char* MajorName(Major major_key, bool allow_unknown_keys);
 
-  explicit CodeStub(Isolate* isolate) : isolate_(isolate) { }
+  explicit CodeStub(Isolate* isolate) : minor_key_(0), isolate_(isolate) {}
   virtual ~CodeStub() {}
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
@@ -182,7 +182,7 @@ class CodeStub BASE_EMBEDDED {
 
   // Returns information for computing the number key.
   virtual Major MajorKey() const = 0;
-  virtual int MinorKey() const = 0;
+  virtual uint32_t MinorKey() const { return minor_key_; }
 
   virtual InlineCacheState GetICState() const { return UNINITIALIZED; }
   virtual ExtraICState GetExtraICState() const { return kNoExtraICState; }
@@ -214,6 +214,8 @@ class CodeStub BASE_EMBEDDED {
     DCHECK(static_cast<int>(MajorKey()) < NUMBER_OF_IDS);
     return MinorKeyBits::encode(MinorKey()) | MajorKeyBits::encode(MajorKey());
   }
+
+  uint32_t minor_key_;
 
  private:
   // Perform bookkeeping required after code generation when stub code is
@@ -476,7 +478,7 @@ class HydrogenCodeStub : public CodeStub {
   class IsMissBits: public BitField<bool, kStubMinorKeyBits - 1, 1> {};
 
   void GenerateLightweightMiss(MacroAssembler* masm);
-  virtual int MinorKey() const {
+  virtual uint32_t MinorKey() const {
     return IsMissBits::encode(is_uninitialized_) |
         MinorKeyBits::encode(NotMissMinorKey());
   }
@@ -753,7 +755,7 @@ class InstanceofStub: public PlatformCodeStub {
 
  private:
   Major MajorKey() const { return Instanceof; }
-  int MinorKey() const { return static_cast<int>(flags_); }
+  uint32_t MinorKey() const { return static_cast<int>(flags_); }
 
   bool HasArgsInRegisters() const {
     return (flags_ & kArgsInRegisters) != 0;
@@ -794,7 +796,7 @@ class ArrayConstructorStub: public PlatformCodeStub {
   virtual void PrintName(OStream& os) const V8_OVERRIDE;  // NOLINT
 
   virtual CodeStub::Major MajorKey() const { return ArrayConstructor; }
-  virtual int MinorKey() const { return argument_count_; }
+  virtual uint32_t MinorKey() const { return argument_count_; }
 
   ArgumentCountKey argument_count_;
 };
@@ -808,7 +810,7 @@ class InternalArrayConstructorStub: public PlatformCodeStub {
 
  private:
   virtual CodeStub::Major MajorKey() const { return InternalArrayConstructor; }
-  virtual int MinorKey() const { return 0; }
+  virtual uint32_t MinorKey() const { return 0; }
 
   void GenerateCase(MacroAssembler* masm, ElementsKind kind);
 };
@@ -824,7 +826,7 @@ class MathPowStub: public PlatformCodeStub {
 
  private:
   virtual CodeStub::Major MajorKey() const { return MathPow; }
-  virtual int MinorKey() const { return exponent_type_; }
+  virtual uint32_t MinorKey() const { return exponent_type_; }
 
   ExponentType exponent_type_;
 };
@@ -857,7 +859,7 @@ class CallICStub: public PlatformCodeStub {
   }
 
  protected:
-  virtual int MinorKey() const { return GetExtraICState(); }
+  virtual uint32_t MinorKey() const { return GetExtraICState(); }
   virtual void PrintState(OStream& os) const V8_OVERRIDE;  // NOLINT
 
   virtual CodeStub::Major MajorKey() const { return CallIC; }
@@ -897,7 +899,7 @@ class FunctionPrototypeStub : public PlatformCodeStub {
 
  private:
   virtual CodeStub::Major MajorKey() const { return FunctionPrototype; }
-  virtual int MinorKey() const { return 0; }
+  virtual uint32_t MinorKey() const { return 0; }
 };
 
 
@@ -1083,7 +1085,7 @@ class CallApiFunctionStub : public PlatformCodeStub {
  private:
   virtual void Generate(MacroAssembler* masm) V8_OVERRIDE;
   virtual Major MajorKey() const V8_OVERRIDE { return CallApiFunction; }
-  virtual int MinorKey() const V8_OVERRIDE { return bit_field_; }
+  virtual uint32_t MinorKey() const V8_OVERRIDE { return bit_field_; }
 
   class IsStoreBits: public BitField<bool, 0, 1> {};
   class CallDataUndefinedBits: public BitField<bool, 1, 1> {};
@@ -1102,7 +1104,7 @@ class CallApiGetterStub : public PlatformCodeStub {
  private:
   virtual void Generate(MacroAssembler* masm) V8_OVERRIDE;
   virtual Major MajorKey() const V8_OVERRIDE { return CallApiGetter; }
-  virtual int MinorKey() const V8_OVERRIDE { return 0; }
+  virtual uint32_t MinorKey() const V8_OVERRIDE { return 0; }
 
   DISALLOW_COPY_AND_ASSIGN(CallApiGetterStub);
 };
@@ -1196,7 +1198,7 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
   virtual Major MajorKey() const V8_OVERRIDE {
     return BinaryOpICWithAllocationSite;
   }
-  virtual int MinorKey() const V8_OVERRIDE { return GetExtraICState(); }
+  virtual uint32_t MinorKey() const V8_OVERRIDE { return GetExtraICState(); }
 
  private:
   static void GenerateAheadOfTime(Isolate* isolate,
@@ -1327,7 +1329,7 @@ class ICCompareStub: public PlatformCodeStub {
   class HandlerStateField: public BitField<int, 11, 4> { };
 
   virtual CodeStub::Major MajorKey() const { return CompareIC; }
-  virtual int MinorKey() const;
+  virtual uint32_t MinorKey() const;
 
   virtual Code::Kind GetCodeKind() const { return Code::COMPARE_IC; }
 
@@ -1460,12 +1462,15 @@ OStream& operator<<(OStream& os, const CompareNilICStub::State& s);
 
 class CEntryStub : public PlatformCodeStub {
  public:
-  CEntryStub(Isolate* isolate,
-             int result_size,
+  CEntryStub(Isolate* isolate, int result_size,
              SaveFPRegsMode save_doubles = kDontSaveFPRegs)
-      : PlatformCodeStub(isolate),
-        result_size_(result_size),
-        save_doubles_(save_doubles) { }
+      : PlatformCodeStub(isolate) {
+    minor_key_ = SaveDoublesBits::encode(save_doubles == kSaveFPRegs);
+    DCHECK(result_size == 1 || result_size == 2);
+#ifdef _WIN64
+    minor_key_ = ResultSizeBits::update(minor_key_, result_size);
+#endif  // _WIN64
+  }
 
   void Generate(MacroAssembler* masm);
 
@@ -1476,14 +1481,17 @@ class CEntryStub : public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
-  // Number of pointers/values returned.
-  const int result_size_;
-  SaveFPRegsMode save_doubles_;
-
   Major MajorKey() const { return CEntry; }
-  int MinorKey() const;
+
+  bool save_doubles() const { return SaveDoublesBits::decode(minor_key_); }
+#ifdef _WIN64
+  int result_size() const { return ResultSizeBits::decode(minor_key_); }
+#endif  // _WIN64
 
   bool NeedsImmovableCode();
+
+  class SaveDoublesBits : public BitField<bool, 0, 1> {};
+  class ResultSizeBits : public BitField<int, 1, 3> {};
 };
 
 
@@ -1498,7 +1506,7 @@ class JSEntryStub : public PlatformCodeStub {
 
  private:
   Major MajorKey() const { return JSEntry; }
-  int MinorKey() const { return 0; }
+  uint32_t MinorKey() const { return 0; }
 
   virtual void FinishCode(Handle<Code> code);
 
@@ -1513,7 +1521,7 @@ class JSConstructEntryStub : public JSEntryStub {
   void Generate(MacroAssembler* masm) { GenerateBody(masm, true); }
 
  private:
-  int MinorKey() const { return 1; }
+  uint32_t MinorKey() const { return 1; }
 
   virtual void PrintName(OStream& os) const V8_OVERRIDE {  // NOLINT
     os << "JSConstructEntryStub";
@@ -1537,7 +1545,7 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   Type type_;
 
   Major MajorKey() const { return ArgumentsAccess; }
-  int MinorKey() const { return type_; }
+  uint32_t MinorKey() const { return type_; }
 
   void Generate(MacroAssembler* masm);
   void GenerateReadElement(MacroAssembler* masm);
@@ -1555,7 +1563,7 @@ class RegExpExecStub: public PlatformCodeStub {
 
  private:
   Major MajorKey() const { return RegExpExec; }
-  int MinorKey() const { return 0; }
+  uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 };
@@ -1615,7 +1623,7 @@ class CallFunctionStub: public PlatformCodeStub {
   STATIC_ASSERT(Code::kArgumentsBits + 2 <= kStubMinorKeyBits);
 
   Major MajorKey() const { return CallFunction; }
-  int MinorKey() const {
+  uint32_t MinorKey() const {
     // Encode the parameters in a unique 32 bit value.
     return FlagBits::encode(flags_) | ArgcBits::encode(argc_);
   }
@@ -1650,7 +1658,7 @@ class CallConstructStub: public PlatformCodeStub {
   virtual void PrintName(OStream& os) const V8_OVERRIDE;  // NOLINT
 
   Major MajorKey() const { return CallConstruct; }
-  int MinorKey() const { return flags_; }
+  uint32_t MinorKey() const { return flags_; }
 
   bool RecordCallTarget() const {
     return (flags_ & RECORD_CONSTRUCTOR_TARGET) != 0;
@@ -1859,7 +1867,7 @@ class LoadDictionaryElementPlatformStub : public PlatformCodeStub {
 
  private:
   Major MajorKey() const { return LoadElement; }
-  int MinorKey() const { return DICTIONARY_ELEMENTS; }
+  uint32_t MinorKey() const { return DICTIONARY_ELEMENTS; }
 
   DISALLOW_COPY_AND_ASSIGN(LoadDictionaryElementPlatformStub);
 };
@@ -1946,7 +1954,7 @@ class DoubleToIStub : public PlatformCodeStub {
       public BitField<int, 2 * kBitsPerRegisterNumber + 5, 1> {};  // NOLINT
 
   Major MajorKey() const { return DoubleToI; }
-  int MinorKey() const { return bit_field_; }
+  uint32_t MinorKey() const { return bit_field_; }
 
   int bit_field_;
 
@@ -2282,7 +2290,7 @@ class StoreElementStub : public PlatformCodeStub {
         store_mode_(store_mode) {}
 
   Major MajorKey() const { return StoreElement; }
-  int MinorKey() const {
+  uint32_t MinorKey() const {
     return ElementsKindBits::encode(elements_kind_) |
         IsJSArrayBits::encode(is_js_array_) |
         StoreModeBits::encode(store_mode_);
@@ -2472,7 +2480,7 @@ class StoreArrayLiteralElementStub : public PlatformCodeStub {
 
  private:
   Major MajorKey() const { return StoreArrayLiteralElement; }
-  int MinorKey() const { return 0; }
+  uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 
@@ -2492,7 +2500,9 @@ class StubFailureTrampolineStub : public PlatformCodeStub {
   class FunctionModeField: public BitField<StubFunctionMode,    0, 1> {};
 
   Major MajorKey() const { return StubFailureTrampoline; }
-  int MinorKey() const { return FunctionModeField::encode(function_mode_); }
+  uint32_t MinorKey() const {
+    return FunctionModeField::encode(function_mode_);
+  }
 
   void Generate(MacroAssembler* masm);
 
@@ -2518,7 +2528,7 @@ class ProfileEntryHookStub : public PlatformCodeStub {
                                   Isolate* isolate);
 
   Major MajorKey() const { return ProfileEntryHook; }
-  int MinorKey() const { return 0; }
+  uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
 

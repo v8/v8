@@ -1188,6 +1188,140 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
 
 
 // -----------------------------------------------------------------------------
+// Memory access instructions.
+
+
+namespace {
+
+struct MemoryAccess {
+  MachineType type;
+  ArchOpcode ldr_opcode;
+  ArchOpcode str_opcode;
+  const int32_t immediates[40];
+};
+
+
+std::ostream& operator<<(std::ostream& os, const MemoryAccess& memacc) {
+  OStringStream ost;
+  ost << memacc.type;
+  return os << ost.c_str();
+}
+
+
+static const MemoryAccess kMemoryAccesses[] = {
+    {kMachInt8,
+     kArmLdrsb,
+     kArmStrb,
+     {-4095, -3340, -3231, -3224, -3088, -1758, -1203, -123, -117, -91, -89,
+      -87, -86, -82, -44, -23, -3, 0, 7, 10, 39, 52, 69, 71, 91, 92, 107, 109,
+      115, 124, 286, 655, 1362, 1569, 2587, 3067, 3096, 3462, 3510, 4095}},
+    {kMachUint8,
+     kArmLdrb,
+     kArmStrb,
+     {-4095, -3914, -3536, -3234, -3185, -3169, -1073, -990, -859, -720, -434,
+      -127, -124, -122, -105, -91, -86, -64, -55, -53, -30, -10, -3, 0, 20, 28,
+      39, 58, 64, 73, 75, 100, 108, 121, 686, 963, 1363, 2759, 3449, 4095}},
+    {kMachInt16,
+     kArmLdrsh,
+     kArmStrh,
+     {-255, -251, -232, -220, -144, -138, -130, -126, -116, -115, -102, -101,
+      -98, -69, -59, -56, -39, -35, -23, -19, -7, 0, 22, 26, 37, 68, 83, 87, 98,
+      102, 108, 111, 117, 171, 195, 203, 204, 245, 246, 255}},
+    {kMachUint16,
+     kArmLdrh,
+     kArmStrh,
+     {-255, -230, -201, -172, -125, -119, -118, -105, -98, -79, -54, -42, -41,
+      -32, -12, -11, -5, -4, 0, 5, 9, 25, 28, 51, 58, 60, 89, 104, 108, 109,
+      114, 116, 120, 138, 150, 161, 166, 172, 228, 255}},
+    {kMachInt32,
+     kArmLdr,
+     kArmStr,
+     {-4095, -1898, -1685, -1562, -1408, -1313, -344, -128, -116, -100, -92,
+      -80, -72, -71, -56, -25, -21, -11, -9, 0, 3, 5, 27, 28, 42, 52, 63, 88,
+      93, 97, 125, 846, 1037, 2102, 2403, 2597, 2632, 2997, 3935, 4095}},
+    {kMachFloat64,
+     kArmVldr64,
+     kArmVstr64,
+     {-1020, -948, -796, -696, -612, -364, -320, -308, -128, -112, -108, -104,
+      -96, -84, -80, -56, -48, -40, -20, 0, 24, 28, 36, 48, 64, 84, 96, 100,
+      108, 116, 120, 140, 156, 408, 432, 444, 772, 832, 940, 1020}}};
+
+}  // namespace
+
+
+typedef InstructionSelectorTestWithParam<MemoryAccess>
+    InstructionSelectorMemoryAccessTest;
+
+
+TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
+  const MemoryAccess memacc = GetParam();
+  StreamBuilder m(this, memacc.type, kMachPtr, kMachInt32);
+  m.Return(m.Load(memacc.type, m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_Offset_RR, s[0]->addressing_mode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+
+TEST_P(InstructionSelectorMemoryAccessTest, LoadWithImmediateIndex) {
+  const MemoryAccess memacc = GetParam();
+  TRACED_FOREACH(int32_t, index, memacc.immediates) {
+    StreamBuilder m(this, memacc.type, kMachPtr);
+    m.Return(m.Load(memacc.type, m.Parameter(0), m.Int32Constant(index)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(memacc.ldr_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Offset_RI, s[0]->addressing_mode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
+  const MemoryAccess memacc = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachPtr, kMachInt32, memacc.type);
+  m.Store(memacc.type, m.Parameter(0), m.Parameter(1), m.Parameter(2));
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(kMode_Offset_RR, s[0]->addressing_mode());
+  EXPECT_EQ(3U, s[0]->InputCount());
+  EXPECT_EQ(0U, s[0]->OutputCount());
+}
+
+
+TEST_P(InstructionSelectorMemoryAccessTest, StoreWithImmediateIndex) {
+  const MemoryAccess memacc = GetParam();
+  TRACED_FOREACH(int32_t, index, memacc.immediates) {
+    StreamBuilder m(this, kMachInt32, kMachPtr, memacc.type);
+    m.Store(memacc.type, m.Parameter(0), m.Int32Constant(index),
+            m.Parameter(1));
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(memacc.str_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Offset_RI, s[0]->addressing_mode());
+    ASSERT_EQ(3U, s[0]->InputCount());
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(index, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(0U, s[0]->OutputCount());
+  }
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorMemoryAccessTest,
+                        ::testing::ValuesIn(kMemoryAccesses));
+
+
+// -----------------------------------------------------------------------------
 // Miscellaneous.
 
 

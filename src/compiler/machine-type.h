@@ -70,6 +70,12 @@ const MachineType kMachPtr = kPointerSize == 4 ? kRepWord32 : kRepWord64;
 const MachineType kMachAnyTagged =
     static_cast<MachineType>(kRepTagged | kTypeAny);
 
+// Gets only the type of the given type.
+inline MachineType TypeOf(MachineType machine_type) {
+  int result = machine_type & kTypeMask;
+  return static_cast<MachineType>(result);
+}
+
 // Gets only the representation of the given type.
 inline MachineType RepresentationOf(MachineType machine_type) {
   int result = machine_type & kRepMask;
@@ -97,8 +103,9 @@ inline int ElementSizeOf(MachineType machine_type) {
       return kPointerSize;
   }
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_MACHINE_TYPE_H_

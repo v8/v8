@@ -68,6 +68,15 @@ V8_NESTED_SUITES_JSON = {
   ]
 }
 
+V8_GENERIC_JSON = {
+  "path": ["."],
+  "binary": "cc",
+  "flags": ["--flag"],
+  "generic": True,
+  "run_count": 1,
+  "units": "ms",
+}
+
 Output = namedtuple("Output", "stdout, stderr")
 
 class BenchmarksTest(unittest.TestCase):
@@ -295,3 +304,17 @@ class BenchmarksTest(unittest.TestCase):
     self._VerifyErrors(
         ["Regexp \"^Richards: (.+)$\" didn't match for benchmark Richards."])
     self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
+
+  def testOneRunGeneric(self):
+    test_input = dict(V8_GENERIC_JSON)
+    self._WriteTestInput(test_input)
+    self._MockCommand(["."], [
+      "Trace(Test1), Result(1.234), StdDev(0.23)\n"
+      "Trace(Test2), Result(10657567), StdDev(106)\n"])
+    self.assertEquals(0, self._CallMain())
+    self._VerifyResults("test", "ms", [
+      {"name": "Test1", "results": ["1.234"], "stddev": "0.23"},
+      {"name": "Test2", "results": ["10657567"], "stddev": "106"},
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(path.join("out", "x64.release", "cc"), "--flag", "")

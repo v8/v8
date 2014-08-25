@@ -36,6 +36,7 @@ static void InstallAssertStackDepthHelper(v8::Isolate* isolate) {
 
 
 TEST(SimpleInlining) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function(){"
@@ -49,6 +50,7 @@ TEST(SimpleInlining) {
 
 
 TEST(SimpleInliningContext) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
@@ -63,6 +65,7 @@ TEST(SimpleInliningContext) {
 
 
 TEST(CaptureContext) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "var f = (function () {"
@@ -80,6 +83,7 @@ TEST(CaptureContext) {
 // TODO(sigurds) For now we do not inline any native functions. If we do at
 // some point, change this test.
 TEST(DontInlineEval) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "var x = 42;"
@@ -94,6 +98,7 @@ TEST(DontInlineEval) {
 
 
 TEST(InlineOmitArguments) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
@@ -108,6 +113,7 @@ TEST(InlineOmitArguments) {
 
 
 TEST(InlineSurplusArguments) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
@@ -123,6 +129,7 @@ TEST(InlineSurplusArguments) {
 
 
 TEST(InlineTwice) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
@@ -137,6 +144,7 @@ TEST(InlineTwice) {
 
 
 TEST(InlineTwiceDependent) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
@@ -152,6 +160,7 @@ TEST(InlineTwiceDependent) {
 
 
 TEST(InlineTwiceDependentDiamond) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
@@ -167,6 +176,7 @@ TEST(InlineTwiceDependentDiamond) {
 
 
 TEST(InlineTwiceDependentDiamondReal) {
+  FLAG_context_specialization = true;
   FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"

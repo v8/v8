@@ -9,7 +9,7 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/ic/ic-compiler.h"
+#include "src/ic/handler-compiler.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
@@ -2435,11 +2435,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Enter the exit frame that transitions from JavaScript to C++.
 #ifdef _WIN64
-  int arg_stack_space = (result_size_ < 2 ? 2 : 4);
-#else
+  int arg_stack_space = (result_size() < 2 ? 2 : 4);
+#else   // _WIN64
   int arg_stack_space = 0;
-#endif
-  __ EnterExitFrame(arg_stack_space, save_doubles_);
+#endif  // _WIN64
+  __ EnterExitFrame(arg_stack_space, save_doubles());
 
   // rbx: pointer to builtin function  (C callee-saved).
   // rbp: frame pointer of exit frame  (restored after C call).
@@ -2461,14 +2461,14 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Windows 64-bit ABI passes arguments in rcx, rdx, r8, r9.
   // Pass argv and argc as two parameters. The arguments object will
   // be created by stubs declared by DECLARE_RUNTIME_FUNCTION().
-  if (result_size_ < 2) {
+  if (result_size() < 2) {
     // Pass a pointer to the Arguments object as the first argument.
     // Return result in single register (rax).
     __ movp(rcx, r14);  // argc.
     __ movp(rdx, r15);  // argv.
     __ Move(r8, ExternalReference::isolate_address(isolate()));
   } else {
-    DCHECK_EQ(2, result_size_);
+    DCHECK_EQ(2, result_size());
     // Pass a pointer to the result location as the first argument.
     __ leap(rcx, StackSpaceOperand(2));
     // Pass a pointer to the Arguments object as the second argument.
@@ -2482,21 +2482,21 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ movp(rdi, r14);  // argc.
   __ movp(rsi, r15);  // argv.
   __ Move(rdx, ExternalReference::isolate_address(isolate()));
-#endif
+#endif  // _WIN64
   __ call(rbx);
   // Result is in rax - do not destroy this register!
 
 #ifdef _WIN64
   // If return value is on the stack, pop it to registers.
-  if (result_size_ > 1) {
-    DCHECK_EQ(2, result_size_);
+  if (result_size() > 1) {
+    DCHECK_EQ(2, result_size());
     // Read result values stored on stack. Result is stored
     // above the four argument mirror slots and the two
     // Arguments object slots.
     __ movq(rax, Operand(rsp, 6 * kRegisterSize));
     __ movq(rdx, Operand(rsp, 7 * kRegisterSize));
   }
-#endif
+#endif  // _WIN64
 
   // Runtime functions should not return 'the hole'.  Allowing it to escape may
   // lead to crashes in the IC code later.
@@ -2530,7 +2530,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   }
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(save_doubles_);
+  __ LeaveExitFrame(save_doubles());
   __ ret(0);
 
   // Handling of exception.

@@ -196,6 +196,9 @@ class LCodeGen: public LCodeGenBase {
                     int* offset,
                     AllocationSiteMode mode);
 
+  template <class T>
+  void EmitVectorLoadICRegisters(T* instr);
+
   // Emits optimized code for %_IsString(x).  Preserves input register.
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.

@@ -1556,6 +1556,42 @@ THREADED_TEST(ArgumentsObject) {
 }
 
 
+THREADED_TEST(IsMapOrSet) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Handle<Value> map = CompileRun("new Map()");
+  v8::Handle<Value> set = CompileRun("new Set()");
+  v8::Handle<Value> weak_map = CompileRun("new WeakMap()");
+  v8::Handle<Value> weak_set = CompileRun("new WeakSet()");
+  CHECK(map->IsMap());
+  CHECK(set->IsSet());
+  CHECK(weak_map->IsWeakMap());
+  CHECK(weak_set->IsWeakSet());
+
+  CHECK(!map->IsSet());
+  CHECK(!map->IsWeakMap());
+  CHECK(!map->IsWeakSet());
+
+  CHECK(!set->IsMap());
+  CHECK(!set->IsWeakMap());
+  CHECK(!set->IsWeakSet());
+
+  CHECK(!weak_map->IsMap());
+  CHECK(!weak_map->IsSet());
+  CHECK(!weak_map->IsWeakSet());
+
+  CHECK(!weak_set->IsMap());
+  CHECK(!weak_set->IsSet());
+  CHECK(!weak_set->IsWeakMap());
+
+  v8::Handle<Value> object = CompileRun("{a:42}");
+  CHECK(!object->IsMap());
+  CHECK(!object->IsSet());
+  CHECK(!object->IsWeakMap());
+  CHECK(!object->IsWeakSet());
+}
+
+
 THREADED_TEST(StringObject) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -2009,7 +2045,7 @@ THREADED_TEST(ExecutableAccessorIsPreservedOnAttributeChange) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::LookupResult lookup(i_isolate);
   i::Handle<i::String> name(v8::Utils::OpenHandle(*v8_str("length")));
-  i::LookupIterator it(a, name, i::LookupIterator::CHECK_PROPERTY);
+  i::LookupIterator it(a, name, i::LookupIterator::OWN_PROPERTY);
   CHECK(it.HasProperty());
   CHECK(it.GetAccessors()->IsExecutableAccessorInfo());
 }

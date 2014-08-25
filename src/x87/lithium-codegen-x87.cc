@@ -10,8 +10,6 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/hydrogen-osr.h"
-#include "src/ic.h"
-#include "src/stub-cache.h"
 #include "src/x87/lithium-codegen-x87.h"
 
 namespace v8 {
@@ -1095,7 +1093,7 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   int length = deoptimizations_.length();
   if (length == 0) return;
   Handle<DeoptimizationInputData> data =
-      DeoptimizationInputData::New(isolate(), length, 0, TENURED);
+      DeoptimizationInputData::New(isolate(), length, TENURED);
 
   Handle<ByteArray> translations =
       translations_.CreateByteArray(isolate()->factory());

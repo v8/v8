@@ -13,8 +13,8 @@
 #include "src/gdb-jit.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap-profiler.h"
+#include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
-#include "src/ic/ic-compiler.h"
 #include "src/prototype.h"
 #include "src/vm-state-inl.h"
 
@@ -1298,11 +1298,6 @@ static void Generate_KeyedLoadIC_SloppyArguments(MacroAssembler* masm) {
 }
 
 
-static void Generate_StoreIC_Slow(MacroAssembler* masm) {
-  StoreIC::GenerateSlow(masm);
-}
-
-
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }
@@ -1310,6 +1305,16 @@ static void Generate_StoreIC_Miss(MacroAssembler* masm) {
 
 static void Generate_StoreIC_Normal(MacroAssembler* masm) {
   StoreIC::GenerateNormal(masm);
+}
+
+
+static void Generate_StoreIC_Slow(MacroAssembler* masm) {
+  NamedStoreHandlerCompiler::GenerateSlow(masm);
+}
+
+
+static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
+  ElementHandlerCompiler::GenerateStoreSlow(masm);
 }
 
 
@@ -1330,11 +1335,6 @@ static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
 
 static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMiss(masm);
-}
-
-
-static void Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateSlow(masm);
 }
 
 

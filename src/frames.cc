@@ -1579,9 +1579,7 @@ int StackHandler::Rewind(Isolate* isolate,
 
 // -------------------------------------------------------------------------
 
-int NumRegs(RegList reglist) {
-  return base::bits::CountSetBits32(reglist);
-}
+int NumRegs(RegList reglist) { return base::bits::CountPopulation32(reglist); }
 
 
 struct JSCallerSavedCodeData {

@@ -79,7 +79,7 @@ class Test262TestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags + self.harness +
-            self.GetIncludesForTest(testcase) +
+            self.GetIncludesForTest(testcase) + ["--harmony"] +
             [os.path.join(self.testroot, testcase.path + ".js")])
 
   def LoadParseTestRecord(self):

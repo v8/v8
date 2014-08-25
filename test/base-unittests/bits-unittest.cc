@@ -10,13 +10,13 @@ namespace v8 {
 namespace base {
 namespace bits {
 
-TEST(BitsTest, CountSetBits32) {
-  EXPECT_EQ(0u, CountSetBits32(0));
-  EXPECT_EQ(1u, CountSetBits32(1));
-  EXPECT_EQ(8u, CountSetBits32(0x11111111));
-  EXPECT_EQ(16u, CountSetBits32(0xf0f0f0f0));
-  EXPECT_EQ(24u, CountSetBits32(0xfff0f0ff));
-  EXPECT_EQ(32u, CountSetBits32(0xffffffff));
+TEST(BitsTest, CountPopulation32) {
+  EXPECT_EQ(0u, CountPopulation32(0));
+  EXPECT_EQ(1u, CountPopulation32(1));
+  EXPECT_EQ(8u, CountPopulation32(0x11111111));
+  EXPECT_EQ(16u, CountPopulation32(0xf0f0f0f0));
+  EXPECT_EQ(24u, CountPopulation32(0xfff0f0ff));
+  EXPECT_EQ(32u, CountPopulation32(0xffffffff));
 }
 
 

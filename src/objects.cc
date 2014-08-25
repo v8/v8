@@ -143,7 +143,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 
 Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
                                          Handle<Name> key) {
-  LookupIterator it(object, key, LookupIterator::CHECK_DERIVED_PROPERTY);
+  LookupIterator it(object, key, LookupIterator::PROTOTYPE_CHAIN_PROPERTY);
   return GetDataProperty(&it);
 }
 
@@ -3787,7 +3787,7 @@ void JSObject::WriteToField(int descriptor, Object* value) {
 void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
-  LookupIterator it(object, name, LookupIterator::CHECK_PROPERTY);
+  LookupIterator it(object, name, LookupIterator::OWN_PROPERTY);
 #ifdef DEBUG
   uint32_t index;
   DCHECK(!object->IsJSProxy());
@@ -3812,8 +3812,7 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
     PropertyAttributes attributes,
     ExecutableAccessorInfoHandling handling) {
   DCHECK(!value->IsTheHole());
-  LookupIterator it(object, name,
-                    LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR);
+  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
   bool is_observed = object->map()->is_observed() &&
                      *name != it.isolate()->heap()->hidden_string();
   for (; it.IsFound(); it.Next()) {
@@ -3832,7 +3831,6 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
 
       case LookupIterator::PROPERTY: {
         if (!it.HasProperty()) break;
-        if (it.HolderIsNonGlobalHiddenPrototype()) break;
         PropertyDetails details = it.property_details();
         Handle<Object> old_value = it.isolate()->factory()->the_hole_value();
         switch (it.property_kind()) {
@@ -3984,7 +3982,7 @@ Maybe<PropertyAttributes> JSReceiver::GetOwnPropertyAttributes(
   if (object->IsJSObject() && name->AsArrayIndex(&index)) {
     return GetOwnElementAttribute(object, index);
   }
-  LookupIterator it(object, name, LookupIterator::CHECK_HIDDEN);
+  LookupIterator it(object, name, LookupIterator::HIDDEN);
   return GetPropertyAttributes(&it);
 }
 
@@ -4692,7 +4690,7 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 
 bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
   Handle<Name> hidden = object->GetIsolate()->factory()->hidden_string();
-  LookupIterator it(object, hidden, LookupIterator::CHECK_PROPERTY);
+  LookupIterator it(object, hidden, LookupIterator::OWN_PROPERTY);
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   // Cannot get an exception since the hidden_string isn't accessible to JS.
   DCHECK(maybe.has_value);
@@ -4727,7 +4725,7 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
   } else {
     Isolate* isolate = GetIsolate();
     LookupIterator it(handle(this), isolate->factory()->hidden_string(),
-                      LookupIterator::CHECK_PROPERTY);
+                      LookupIterator::OWN_PROPERTY);
     if (it.IsFound() && it.HasProperty()) {
       DCHECK_EQ(LookupIterator::DATA, it.property_kind());
       return *it.GetDataValue();
@@ -4923,9 +4921,8 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
 
   // Skip interceptors on FORCE_DELETION.
   LookupIterator::Configuration config =
-      delete_mode == FORCE_DELETION
-          ? LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR
-          : LookupIterator::CHECK_HIDDEN;
+      delete_mode == FORCE_DELETION ? LookupIterator::HIDDEN_SKIP_INTERCEPTOR
+                                    : LookupIterator::HIDDEN;
 
   LookupIterator it(object, name, config);
 
@@ -6154,8 +6151,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
             Object::GetElement(isolate, object, index).ToHandleChecked();
       }
     } else {
-      LookupIterator it(object, name,
-                        LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR);
+      LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
       CHECK(GetPropertyAttributes(&it).has_value);
       preexists = it.IsFound();
       if (preexists && (it.property_kind() == LookupIterator::DATA ||
@@ -6174,7 +6170,7 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
            setter->IsNull());
     // At least one of the accessors needs to be a new value.
     DCHECK(!getter->IsNull() || !setter->IsNull());
-    LookupIterator it(object, name, LookupIterator::CHECK_PROPERTY);
+    LookupIterator it(object, name, LookupIterator::OWN_PROPERTY);
     if (!getter->IsNull()) {
       it.TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
     }
@@ -6257,8 +6253,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
     SetElementCallback(object, index, info, info->property_attributes());
   } else {
     // Lookup the name.
-    LookupIterator it(object, name,
-                      LookupIterator::CHECK_HIDDEN_SKIP_INTERCEPTOR);
+    LookupIterator it(object, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
     CHECK(GetPropertyAttributes(&it).has_value);
     // ES5 forbids turning a property into an accessor if it's not
     // configurable. See 8.6.1 (Table 5).
@@ -6316,7 +6311,7 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
     }
   } else {
     LookupIterator it(object, name,
-                      LookupIterator::CHECK_DERIVED_SKIP_INTERCEPTOR);
+                      LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
     for (; it.IsFound(); it.Next()) {
       switch (it.state()) {
         case LookupIterator::INTERCEPTOR:
@@ -7933,17 +7928,11 @@ Object* AccessorPair::GetComponent(AccessorComponent component) {
 
 
 Handle<DeoptimizationInputData> DeoptimizationInputData::New(
-    Isolate* isolate, int deopt_entry_count, int return_patch_address_count,
-    PretenureFlag pretenure) {
-  DCHECK(deopt_entry_count + return_patch_address_count > 0);
-  Handle<FixedArray> deoptimization_data =
-      Handle<FixedArray>::cast(isolate->factory()->NewFixedArray(
-          LengthFor(deopt_entry_count, return_patch_address_count), pretenure));
-  deoptimization_data->set(kDeoptEntryCountIndex,
-                           Smi::FromInt(deopt_entry_count));
-  deoptimization_data->set(kReturnAddressPatchEntryCountIndex,
-                           Smi::FromInt(return_patch_address_count));
-  return Handle<DeoptimizationInputData>::cast(deoptimization_data);
+    Isolate* isolate, int deopt_entry_count, PretenureFlag pretenure) {
+  DCHECK(deopt_entry_count > 0);
+  return Handle<DeoptimizationInputData>::cast(
+      isolate->factory()->NewFixedArray(LengthFor(deopt_entry_count),
+                                        pretenure));
 }
 
 
@@ -10291,26 +10280,7 @@ int Code::SourceStatementPosition(Address pc) {
 
 SafepointEntry Code::GetSafepointEntry(Address pc) {
   SafepointTable table(this);
-  SafepointEntry entry = table.FindEntry(pc);
-  if (entry.is_valid() || !is_turbofanned()) {
-    return entry;
-  }
-
-  // If the code is turbofanned, we might be looking for
-  // an address that was patched by lazy deoptimization.
-  // In that case look through the patch table, try to
-  // lookup the original address there, and then use this
-  // to find the safepoint entry.
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(deoptimization_data());
-  intptr_t offset = pc - instruction_start();
-  for (int i = 0; i < deopt_data->ReturnAddressPatchCount(); i++) {
-    if (deopt_data->PatchedAddressPc(i)->value() == offset) {
-      int original_offset = deopt_data->ReturnAddressPc(i)->value();
-      return table.FindEntry(instruction_start() + original_offset);
-    }
-  }
-  return SafepointEntry();
+  return table.FindEntry(pc);
 }
 
 
@@ -10863,19 +10833,6 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
       os << "\n";
     }
   }
-
-  int return_address_patch_count = ReturnAddressPatchCount();
-  if (return_address_patch_count != 0) {
-    os << "Return address patch data (count = " << return_address_patch_count
-       << ")\n";
-    os << " index    pc  patched_pc\n";
-  }
-  for (int i = 0; i < return_address_patch_count; i++) {
-    Vector<char> buf = Vector<char>::New(128);
-    SNPrintF(buf, "%6d  %6d  %12d\n", i, ReturnAddressPc(i)->value(),
-             PatchedAddressPc(i)->value());
-    os << buf.start();
-  }
 }
 
 
@@ -11002,6 +10959,13 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
       if (entry.deoptimization_index() != Safepoint::kNoDeoptimizationIndex) {
         Vector<char> buf2 = Vector<char>::New(30);
         SNPrintF(buf2, "%6d", entry.deoptimization_index());
+        os << buf2.start();
+      } else {
+        os << "<none>";
+      }
+      if (entry.deoptimization_pc() != Safepoint::kNoDeoptimizationPc) {
+        Vector<char> buf2 = Vector<char>::New(30);
+        SNPrintF(buf2, "%6d", entry.deoptimization_pc());
         os << buf2.start();
       } else {
         os << "<none>";
@@ -11708,10 +11672,9 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-tenuring-changed";
     case kAllocationSiteTransitionChangedGroup:
       return "allocation-site-transition-changed";
-    default:
-      UNREACHABLE();
-      return "?";
   }
+  UNREACHABLE();
+  return "?";
 }
 
 
@@ -12875,12 +12838,12 @@ void JSArray::JSArrayUpdateLengthFromIndex(Handle<JSArray> array,
 
 
 bool JSArray::IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map) {
-    Isolate* isolate = jsarray_map->GetIsolate();
-    DCHECK(!jsarray_map->is_dictionary_map());
-    LookupResult lookup(isolate);
-    Handle<Name> length_string = isolate->factory()->length_string();
-    jsarray_map->LookupDescriptor(NULL, *length_string, &lookup);
-    return lookup.IsReadOnly();
+  Isolate* isolate = jsarray_map->GetIsolate();
+  DCHECK(!jsarray_map->is_dictionary_map());
+  LookupResult lookup(isolate);
+  Handle<Name> length_string = isolate->factory()->length_string();
+  jsarray_map->LookupDescriptor(NULL, *length_string, &lookup);
+  return lookup.IsReadOnly();
 }
 
 
@@ -12890,7 +12853,7 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
   CHECK(array->length()->ToArrayIndex(&length));
   if (length <= index) {
     LookupIterator it(array, array->GetIsolate()->factory()->length_string(),
-                      LookupIterator::CHECK_PROPERTY);
+                      LookupIterator::OWN_PROPERTY);
     CHECK(it.IsFound());
     CHECK(it.HasProperty());
     return it.IsReadOnly();
@@ -13277,7 +13240,7 @@ MaybeHandle<JSObject> JSObject::GetKeysForIndexedInterceptor(
 
 Maybe<bool> JSObject::HasRealNamedProperty(Handle<JSObject> object,
                                            Handle<Name> key) {
-  LookupIterator it(object, key, LookupIterator::CHECK_ACCESS_CHECK);
+  LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
   if (!maybe_result.has_value) return Maybe<bool>();
   return maybe(it.IsFound());
@@ -13315,7 +13278,7 @@ Maybe<bool> JSObject::HasRealElementProperty(Handle<JSObject> object,
 
 Maybe<bool> JSObject::HasRealNamedCallbackProperty(Handle<JSObject> object,
                                                    Handle<Name> key) {
-  LookupIterator it(object, key, LookupIterator::CHECK_ACCESS_CHECK);
+  LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe_result = GetPropertyAttributes(&it);
   if (!maybe_result.has_value) return Maybe<bool>();
   return maybe(it.IsFound() && it.property_kind() == LookupIterator::ACCESSOR);
@@ -14643,13 +14606,6 @@ Handle<Object> ExternalFloat64Array::SetValue(
     array->set(index, double_value);
   }
   return array->GetIsolate()->factory()->NewNumber(double_value);
-}
-
-
-PropertyCell* GlobalObject::GetPropertyCell(LookupResult* result) {
-  DCHECK(!HasFastProperties());
-  Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
-  return PropertyCell::cast(value);
 }
 
 

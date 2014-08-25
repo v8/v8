@@ -28,6 +28,9 @@
 
 import re
 
+SHA1_RE = re.compile('^[a-fA-F0-9]{40}$')
+GIT_SVN_ID_RE = re.compile('^git-svn-id: .*@([0-9]+) .*$')
+
 
 class GitFailedException(Exception):
   pass
@@ -184,6 +187,20 @@ class GitRecipesMixin(object):
 
   def GitPull(self):
     self.Git("pull")
+
+  def GitFetchOrigin(self):
+    self.Git("fetch origin")
+
+  def GitConvertToSVNRevision(self, git_hash):
+    result = self.Git(MakeArgs(["rev-list", "-n", "1", git_hash]))
+    if not result or not SHA1_RE.match(result):
+      raise GitFailedException("Git hash %s is unknown." % git_hash)
+    log = self.GitLog(n=1, format="%B", git_hash=git_hash)
+    for line in reversed(log.splitlines()):
+      match = GIT_SVN_ID_RE.match(line.strip())
+      if match:
+        return match.group(1)
+    raise GitFailedException("Couldn't convert %s to SVN." % git_hash)
 
   def GitSVNFetch(self):
     self.Git("svn fetch")

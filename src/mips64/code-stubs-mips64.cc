@@ -9,8 +9,11 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
+#include "src/ic/handler-compiler.h"
+#include "src/isolate.h"
+#include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
-#include "src/stub-cache.h"
+#include "src/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -403,7 +406,7 @@ class ConvertToDoubleStub : public PlatformCodeStub {
   class OpBits: public BitField<Token::Value, 2, 14> {};
 
   Major MajorKey() const { return ConvertToDouble; }
-  int MinorKey() const {
+  uint32_t MinorKey() const {
     // Encode the parameters in a unique 16 bit value.
     return  result1_.code() +
            (result2_.code() << 4) +
@@ -1477,7 +1480,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Enter the exit frame that transitions from JavaScript to C++.
   FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(save_doubles_);
+  __ EnterExitFrame(save_doubles());
 
   // s0: number of arguments  including receiver (C callee-saved)
   // s1: pointer to first argument (C callee-saved)
@@ -1564,7 +1567,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // sp: stack pointer
   // fp: frame pointer
   // s0: still holds argc (callee-saved).
-  __ LeaveExitFrame(save_doubles_, s0, true, EMIT_RETURN);
+  __ LeaveExitFrame(save_doubles(), s0, true, EMIT_RETURN);
 
   // Handling of exception.
   __ bind(&exception_returned);

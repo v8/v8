@@ -9,7 +9,7 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/ic/ic-compiler.h"
+#include "src/ic/handler-compiler.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
@@ -1377,7 +1377,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Enter the exit frame. Reserve three slots to preserve x21-x23 callee-saved
   // registers.
   FrameScope scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(save_doubles_, x10, 3);
+  __ EnterExitFrame(save_doubles(), x10, 3);
   DCHECK(csp.Is(__ StackPointer()));
 
   // Poke callee-saved registers into reserved space.
@@ -1474,7 +1474,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Peek(argc, 2 * kPointerSize);
   __ Peek(target, 3 * kPointerSize);
 
-  __ LeaveExitFrame(save_doubles_, x10, true);
+  __ LeaveExitFrame(save_doubles(), x10, true);
   DCHECK(jssp.Is(__ StackPointer()));
   // Pop or drop the remaining stack slots and return from the stub.
   //         jssp[24]:    Arguments array (of size argc), including receiver.

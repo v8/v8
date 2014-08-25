@@ -13,27 +13,28 @@ namespace internal {
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
-#define ACCESSOR_INFO_LIST(V)       \
-  V(ArrayLength)                    \
-  V(FunctionArguments)              \
-  V(FunctionCaller)                 \
-  V(FunctionName)                   \
-  V(FunctionLength)                 \
-  V(FunctionPrototype)              \
-  V(ScriptColumnOffset)             \
-  V(ScriptCompilationType)          \
-  V(ScriptContextData)              \
-  V(ScriptEvalFromScript)           \
-  V(ScriptEvalFromScriptPosition)   \
-  V(ScriptEvalFromFunctionName)     \
-  V(ScriptId)                       \
-  V(ScriptLineEnds)                 \
-  V(ScriptLineOffset)               \
-  V(ScriptName)                     \
-  V(ScriptSource)                   \
-  V(ScriptType)                     \
-  V(ScriptSourceUrl)                \
-  V(ScriptSourceMappingUrl)         \
+#define ACCESSOR_INFO_LIST(V)     \
+  V(ArgumentsIterator)            \
+  V(ArrayLength)                  \
+  V(FunctionArguments)            \
+  V(FunctionCaller)               \
+  V(FunctionName)                 \
+  V(FunctionLength)               \
+  V(FunctionPrototype)            \
+  V(ScriptColumnOffset)           \
+  V(ScriptCompilationType)        \
+  V(ScriptContextData)            \
+  V(ScriptEvalFromScript)         \
+  V(ScriptEvalFromScriptPosition) \
+  V(ScriptEvalFromFunctionName)   \
+  V(ScriptId)                     \
+  V(ScriptLineEnds)               \
+  V(ScriptLineOffset)             \
+  V(ScriptName)                   \
+  V(ScriptSource)                 \
+  V(ScriptType)                   \
+  V(ScriptSourceUrl)              \
+  V(ScriptSourceMappingUrl)       \
   V(StringLength)
 
 // Accessors contains all predefined proxy accessors.

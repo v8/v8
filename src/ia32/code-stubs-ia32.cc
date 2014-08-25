@@ -9,7 +9,7 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/ic/ic-compiler.h"
+#include "src/ic/handler-compiler.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
@@ -2557,7 +2557,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(save_doubles_ == kSaveFPRegs);
+  __ EnterExitFrame(save_doubles());
 
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
@@ -2565,7 +2565,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // edi: number of arguments including receiver  (C callee-saved)
   // esi: pointer to the first argument (C callee-saved)
 
-  // Result returned in eax, or eax+edx if result_size_ is 2.
+  // Result returned in eax, or eax+edx if result size is 2.
 
   // Check stack alignment.
   if (FLAG_debug_code) {
@@ -2613,7 +2613,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   }
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(save_doubles_ == kSaveFPRegs);
+  __ LeaveExitFrame(save_doubles());
   __ ret(0);
 
   // Handling of exception.

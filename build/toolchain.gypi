@@ -91,6 +91,9 @@
     # Allow to suppress the array bounds warning (default is no suppression).
     'wno_array_bounds%': '',
 
+    # Link-Time Optimizations
+    'use_lto%': 0,
+
     'variables': {
       # This is set when building the Android WebView inside the Android build
       # system, using the 'android' gyp backend.
@@ -239,6 +242,15 @@
                       'USE_EABI_HARDFLOAT=0',
                     ],
                   }],
+                ],
+              }],
+              # Disable LTO for v8
+              # v8 is optimized for speed, which takes precedence over
+              # size optimization in LTO.
+              ['use_lto==1', {
+                'cflags!': [
+                  '-flto',
+                  '-ffat-lto-objects',
                 ],
               }],
             ],
