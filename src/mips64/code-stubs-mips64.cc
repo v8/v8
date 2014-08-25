@@ -406,7 +406,7 @@ class ConvertToDoubleStub : public PlatformCodeStub {
   class OpBits: public BitField<Token::Value, 2, 14> {};
 
   Major MajorKey() const { return ConvertToDouble; }
-  int MinorKey() const {
+  uint32_t MinorKey() const {
     // Encode the parameters in a unique 16 bit value.
     return  result1_.code() +
            (result2_.code() << 4) +

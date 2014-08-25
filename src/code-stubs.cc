@@ -380,7 +380,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
 }
 
 
-int ICCompareStub::MinorKey() const {
+uint32_t ICCompareStub::MinorKey() const {
   return OpField::encode(op_ - Token::EQ) |
          LeftStateField::encode(left_) |
          RightStateField::encode(right_) |

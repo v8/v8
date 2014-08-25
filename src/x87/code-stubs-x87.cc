@@ -2240,7 +2240,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // edi: number of arguments including receiver  (C callee-saved)
   // esi: pointer to the first argument (C callee-saved)
 
-  // Result returned in eax, or eax+edx if result_size_ is 2.
+  // Result returned in eax, or eax+edx if result size is 2.
 
   // Check stack alignment.
   if (FLAG_debug_code) {
