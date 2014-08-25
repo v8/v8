@@ -5885,9 +5885,10 @@ class DependentCode: public FixedArray {
     kAllocationSiteTenuringChangedGroup,
     // Group of code that depends on element transition information in
     // AllocationSites not being changed.
-    kAllocationSiteTransitionChangedGroup,
-    kGroupCount = kAllocationSiteTransitionChangedGroup + 1
+    kAllocationSiteTransitionChangedGroup
   };
+
+  static const int kGroupCount = kAllocationSiteTransitionChangedGroup + 1;
 
   // Array for holding the index of the first code object of each group.
   // The last element stores the total number of code objects.

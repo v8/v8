@@ -11672,10 +11672,9 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-tenuring-changed";
     case kAllocationSiteTransitionChangedGroup:
       return "allocation-site-transition-changed";
-    default:
-      UNREACHABLE();
-      return "?";
   }
+  UNREACHABLE();
+  return "?";
 }
 
 
