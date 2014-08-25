@@ -2865,6 +2865,19 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
 }
 
 
+template <class T>
+void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
+  DCHECK(FLAG_vector_ics);
+  Register vector = ToRegister(instr->temp_vector());
+  DCHECK(vector.is(LoadIC::VectorRegister()));
+  __ li(vector, instr->hydrogen()->feedback_vector());
+  // No need to allocate this register.
+  DCHECK(LoadIC::SlotRegister().is(a0));
+  __ li(LoadIC::SlotRegister(),
+        Operand(Smi::FromInt(instr->hydrogen()->slot())));
+}
+
+
 void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
   DCHECK(ToRegister(instr->context()).is(cp));
   DCHECK(ToRegister(instr->global_object()).is(LoadIC::ReceiverRegister()));
@@ -2872,13 +2885,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
   __ li(LoadIC::NameRegister(), Operand(instr->name()));
   if (FLAG_vector_ics) {
-    Register vector = ToRegister(instr->temp_vector());
-    DCHECK(vector.is(LoadIC::VectorRegister()));
-    __ li(vector, instr->hydrogen()->feedback_vector());
-    // No need to allocate this register.
-    DCHECK(LoadIC::SlotRegister().is(a0));
-    __ li(LoadIC::SlotRegister(),
-          Operand(Smi::FromInt(instr->hydrogen()->slot())));
+    EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
   }
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
@@ -3020,13 +3027,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   // Name is always in a2.
   __ li(LoadIC::NameRegister(), Operand(instr->name()));
   if (FLAG_vector_ics) {
-    Register vector = ToRegister(instr->temp_vector());
-    DCHECK(vector.is(LoadIC::VectorRegister()));
-    __ li(vector, instr->hydrogen()->feedback_vector());
-    // No need to allocate this register.
-    DCHECK(LoadIC::SlotRegister().is(a0));
-    __ li(LoadIC::SlotRegister(),
-          Operand(Smi::FromInt(instr->hydrogen()->slot())));
+    EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
   }
   Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
@@ -3374,13 +3375,7 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->key()).is(LoadIC::NameRegister()));
 
   if (FLAG_vector_ics) {
-    Register vector = ToRegister(instr->temp_vector());
-    DCHECK(vector.is(LoadIC::VectorRegister()));
-    __ li(vector, instr->hydrogen()->feedback_vector());
-    // No need to allocate this register.
-    DCHECK(LoadIC::SlotRegister().is(a0));
-    __ li(LoadIC::SlotRegister(),
-          Operand(Smi::FromInt(instr->hydrogen()->slot())));
+    EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
   }
 
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
