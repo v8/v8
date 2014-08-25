@@ -314,6 +314,10 @@ class LCodeGen: public LCodeGenBase {
   void DoStoreKeyedExternalArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
+
+  template <class T>
+  void EmitVectorLoadICRegisters(T* instr);
+
 #ifdef _MSC_VER
   // On windows, you may not access the stack more than one page below
   // the most recently mapped page. To make the allocated area randomly
