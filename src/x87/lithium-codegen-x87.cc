@@ -10,8 +10,6 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/hydrogen-osr.h"
-#include "src/ic.h"
-#include "src/stub-cache.h"
 #include "src/x87/lithium-codegen-x87.h"
 
 namespace v8 {

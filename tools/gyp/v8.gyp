@@ -907,7 +907,6 @@
             '../../src/x87/frames-x87.cc',
             '../../src/x87/frames-x87.h',
             '../../src/x87/full-codegen-x87.cc',
-            '../../src/x87/ic-x87.cc',
             '../../src/x87/lithium-codegen-x87.cc',
             '../../src/x87/lithium-codegen-x87.h',
             '../../src/x87/lithium-gap-resolver-x87.cc',
@@ -918,7 +917,9 @@
             '../../src/x87/macro-assembler-x87.h',
             '../../src/x87/regexp-macro-assembler-x87.cc',
             '../../src/x87/regexp-macro-assembler-x87.h',
-            '../../src/x87/stub-cache-x87.cc',
+            '../../src/ic/x87/ic-x87.cc',
+            '../../src/ic/x87/ic-compiler-x87.cc',
+            '../../src/ic/x87/stub-cache-x87.cc',
           ],
         }],
         ['v8_target_arch=="mips" or v8_target_arch=="mipsel"', {

@@ -5,8 +5,7 @@
 #ifndef V8_X87_CODE_STUBS_X87_H_
 #define V8_X87_CODE_STUBS_X87_H_
 
-#include "src/ic-inl.h"
-#include "src/macro-assembler.h"
+#include "src/code-stubs.h"
 
 namespace v8 {
 namespace internal {

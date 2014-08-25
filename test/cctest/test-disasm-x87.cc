@@ -32,9 +32,9 @@
 #include "src/debug.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
+#include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"
-#include "src/stub-cache.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

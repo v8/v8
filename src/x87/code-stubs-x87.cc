@@ -9,11 +9,11 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
+#include "src/ic/ic-compiler.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/runtime.h"
-#include "src/stub-cache.h"
 
 namespace v8 {
 namespace internal {
