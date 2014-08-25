@@ -294,6 +294,10 @@ namespace internal {
   V(String_string, "String")                                       \
   V(symbol_string, "symbol")                                       \
   V(Symbol_string, "Symbol")                                       \
+  V(Map_string, "Map")                                             \
+  V(Set_string, "Set")                                             \
+  V(WeakMap_string, "WeakMap")                                     \
+  V(WeakSet_string, "WeakSet")                                     \
   V(for_string, "for")                                             \
   V(for_api_string, "for_api")                                     \
   V(for_intern_string, "for_intern")                               \

@@ -2412,12 +2412,26 @@ bool Value::IsNumber() const {
 }
 
 
-bool Value::IsArgumentsObject() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (!obj->IsHeapObject()) return false;
-  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  return obj->HasSpecificClassOf(isolate->heap()->Arguments_string());
-}
+#define VALUE_IS_SPECIFIC_TYPE(Type, Class)                            \
+  bool Value::Is##Type() const {                                       \
+    i::Handle<i::Object> obj = Utils::OpenHandle(this);                \
+    if (!obj->IsHeapObject()) return false;                            \
+    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();     \
+    return obj->HasSpecificClassOf(isolate->heap()->Class##_string()); \
+  }
+
+VALUE_IS_SPECIFIC_TYPE(ArgumentsObject, Arguments)
+VALUE_IS_SPECIFIC_TYPE(BooleanObject, Boolean)
+VALUE_IS_SPECIFIC_TYPE(NumberObject, Number)
+VALUE_IS_SPECIFIC_TYPE(StringObject, String)
+VALUE_IS_SPECIFIC_TYPE(SymbolObject, Symbol)
+VALUE_IS_SPECIFIC_TYPE(Date, Date)
+VALUE_IS_SPECIFIC_TYPE(Map, Map)
+VALUE_IS_SPECIFIC_TYPE(Set, Set)
+VALUE_IS_SPECIFIC_TYPE(WeakMap, WeakMap)
+VALUE_IS_SPECIFIC_TYPE(WeakSet, WeakSet)
+
+#undef VALUE_IS_SPECIFIC_TYPE
 
 
 bool Value::IsBoolean() const {
@@ -2454,38 +2468,6 @@ bool Value::IsUint32() const {
 }
 
 
-bool Value::IsDate() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (!obj->IsHeapObject()) return false;
-  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  return obj->HasSpecificClassOf(isolate->heap()->Date_string());
-}
-
-
-bool Value::IsStringObject() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (!obj->IsHeapObject()) return false;
-  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  return obj->HasSpecificClassOf(isolate->heap()->String_string());
-}
-
-
-bool Value::IsSymbolObject() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (!obj->IsHeapObject()) return false;
-  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  return obj->HasSpecificClassOf(isolate->heap()->Symbol_string());
-}
-
-
-bool Value::IsNumberObject() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (!obj->IsHeapObject()) return false;
-  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  return obj->HasSpecificClassOf(isolate->heap()->Number_string());
-}
-
-
 static bool CheckConstructor(i::Isolate* isolate,
                              i::Handle<i::JSObject> obj,
                              const char* class_name) {
@@ -2514,14 +2496,6 @@ bool Value::IsNativeError() const {
   } else {
     return false;
   }
-}
-
-
-bool Value::IsBooleanObject() const {
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  if (!obj->IsHeapObject()) return false;
-  i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  return obj->HasSpecificClassOf(isolate->heap()->Boolean_string());
 }
 
 
