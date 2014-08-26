@@ -45,11 +45,10 @@ ScriptData::ScriptData(const byte* data, int length)
 
 
 CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
-    : flags_(StrictModeField::encode(SLOPPY)),
+    : flags_(kThisHasUses),
       script_(script),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true),
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false) {
@@ -58,11 +57,10 @@ CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
 
 
 CompilationInfo::CompilationInfo(Isolate* isolate, Zone* zone)
-    : flags_(StrictModeField::encode(SLOPPY)),
+    : flags_(kThisHasUses),
       script_(Handle<Script>::null()),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true),
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false) {
@@ -72,12 +70,11 @@ CompilationInfo::CompilationInfo(Isolate* isolate, Zone* zone)
 
 CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
                                  Zone* zone)
-    : flags_(StrictModeField::encode(SLOPPY) | IsLazy::encode(true)),
+    : flags_(kLazy | kThisHasUses),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true),
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false) {
@@ -86,14 +83,13 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
 
 
 CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
-    : flags_(StrictModeField::encode(SLOPPY) | IsLazy::encode(true)),
+    : flags_(kLazy | kThisHasUses),
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       context_(closure->context()),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true),
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false) {
@@ -103,10 +99,9 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
 
 CompilationInfo::CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate,
                                  Zone* zone)
-    : flags_(StrictModeField::encode(SLOPPY) | IsLazy::encode(true)),
+    : flags_(kLazy | kThisHasUses),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
-      this_has_uses_(true),
       optimization_id_(-1),
       ast_value_factory_(NULL),
       ast_value_factory_owned_(false) {
