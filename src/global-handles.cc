@@ -845,23 +845,6 @@ void GlobalHandles::SetRetainedObjectInfo(UniqueId id,
 }
 
 
-void GlobalHandles::AddImplicitReferences(HeapObject** parent,
-                                          Object*** children,
-                                          size_t length) {
-#ifdef DEBUG
-  DCHECK(!Node::FromLocation(BitCast<Object**>(parent))->is_independent());
-  for (size_t i = 0; i < length; ++i) {
-    DCHECK(!Node::FromLocation(children[i])->is_independent());
-  }
-#endif
-  if (length == 0) return;
-  ImplicitRefGroup* group = new ImplicitRefGroup(parent, length);
-  for (size_t i = 0; i < length; ++i)
-    group->children[i] = children[i];
-  implicit_ref_groups_.Add(group);
-}
-
-
 void GlobalHandles::SetReferenceFromGroup(UniqueId id, Object** child) {
   DCHECK(!Node::FromLocation(child)->is_independent());
   implicit_ref_connections_.Add(ObjectGroupConnection(id, child));
