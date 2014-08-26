@@ -4594,7 +4594,7 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
   EmitLoadTypeFeedbackVector(masm, FullVectorLoadConvention::VectorRegister());
-  VectorLoadStub stub(isolate(), state_);
+  VectorLoadStub stub(isolate(), state());
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 

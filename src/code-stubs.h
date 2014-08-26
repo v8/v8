@@ -1944,7 +1944,9 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
 class LoadICTrampolineStub : public PlatformCodeStub {
  public:
   LoadICTrampolineStub(Isolate* isolate, const LoadIC::State& state)
-      : PlatformCodeStub(isolate), state_(state) {}
+      : PlatformCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
 
   virtual Code::Kind GetCodeKind() const V8_OVERRIDE { return Code::LOAD_IC; }
 
@@ -1953,16 +1955,17 @@ class LoadICTrampolineStub : public PlatformCodeStub {
   }
 
   virtual ExtraICState GetExtraICState() const V8_FINAL V8_OVERRIDE {
-    return state_.GetExtraICState();
+    return static_cast<ExtraICState>(minor_key_);
   }
 
+  virtual Major MajorKey() const V8_OVERRIDE { return LoadICTrampoline; }
+
  private:
-  Major MajorKey() const { return LoadICTrampoline; }
-  uint32_t MinorKey() const { return GetExtraICState(); }
+  LoadIC::State state() const {
+    return LoadIC::State(static_cast<ExtraICState>(minor_key_));
+  }
 
   virtual void Generate(MacroAssembler* masm);
-
-  const LoadIC::State state_;
 
   DISALLOW_COPY_AND_ASSIGN(LoadICTrampolineStub);
 };
@@ -1977,9 +1980,9 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
     return Code::KEYED_LOAD_IC;
   }
 
- private:
-  Major MajorKey() const { return KeyedLoadICTrampoline; }
+  virtual Major MajorKey() const V8_OVERRIDE { return KeyedLoadICTrampoline; }
 
+ private:
   virtual void Generate(MacroAssembler* masm);
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadICTrampolineStub);
@@ -2008,8 +2011,9 @@ class VectorLoadStub : public HydrogenCodeStub {
     return state_.GetExtraICState();
   }
 
+  virtual Major MajorKey() const V8_OVERRIDE { return VectorLoad; }
+
  private:
-  Major MajorKey() const { return VectorLoad; }
   int NotMissMinorKey() const { return state_.GetExtraICState(); }
 
   const LoadIC::State state_;
@@ -2034,9 +2038,9 @@ class VectorKeyedLoadStub : public VectorLoadStub {
     return Code::KEYED_LOAD_IC;
   }
 
- private:
-  Major MajorKey() const { return VectorKeyedLoad; }
+  virtual Major MajorKey() const V8_OVERRIDE { return VectorKeyedLoad; }
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(VectorKeyedLoadStub);
 };
 
