@@ -215,13 +215,20 @@ TEST(Regress3540) {
   CodeRange* code_range = new CodeRange(isolate);
   const size_t code_range_size = 4 * MB;
   if (!code_range->SetUp(code_range_size)) return;
-  size_t allocated_size;
-  Address result;
-  for (int i = 0; i < 5; i++) {
-    result = code_range->AllocateRawMemory(
-        code_range_size - MB, code_range_size - MB, &allocated_size);
-    CHECK((result != NULL) == (i == 0));
-  }
+  Address address;
+  size_t size;
+  address = code_range->AllocateRawMemory(code_range_size - MB,
+                                          code_range_size - MB, &size);
+  CHECK(address != NULL);
+  Address null_address;
+  size_t null_size;
+  null_address = code_range->AllocateRawMemory(
+      code_range_size - MB, code_range_size - MB, &null_size);
+  CHECK(null_address == NULL);
+  code_range->FreeRawMemory(address, size);
+  delete code_range;
+  memory_allocator->TearDown();
+  delete memory_allocator;
 }
 
 
