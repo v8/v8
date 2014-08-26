@@ -25,11 +25,6 @@ class OperandGenerator {
                   UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER));
   }
 
-  InstructionOperand* DefineAsDoubleRegister(Node* node) {
-    return Define(node, new (zone())
-                  UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER));
-  }
-
   InstructionOperand* DefineSameAsFirst(Node* result) {
     return Define(result, new (zone())
                   UnallocatedOperand(UnallocatedOperand::SAME_AS_FIRST_INPUT));
@@ -41,7 +36,7 @@ class OperandGenerator {
                                      Register::ToAllocationIndex(reg)));
   }
 
-  InstructionOperand* DefineAsFixedDouble(Node* node, DoubleRegister reg) {
+  InstructionOperand* DefineAsFixed(Node* node, DoubleRegister reg) {
     return Define(node, new (zone())
                   UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
                                      DoubleRegister::ToAllocationIndex(reg)));
@@ -69,12 +64,6 @@ class OperandGenerator {
                                   UnallocatedOperand::USED_AT_START));
   }
 
-  InstructionOperand* UseDoubleRegister(Node* node) {
-    return Use(node, new (zone())
-               UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
-                                  UnallocatedOperand::USED_AT_START));
-  }
-
   // Use register or operand for the node. If a register is chosen, it won't
   // alias any temporary or output registers.
   InstructionOperand* UseUnique(Node* node) {
@@ -88,20 +77,13 @@ class OperandGenerator {
                UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER));
   }
 
-  // Use a unique double register for the node that does not alias any temporary
-  // or output double registers.
-  InstructionOperand* UseUniqueDoubleRegister(Node* node) {
-    return Use(node, new (zone())
-               UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER));
-  }
-
   InstructionOperand* UseFixed(Node* node, Register reg) {
     return Use(node, new (zone())
                UnallocatedOperand(UnallocatedOperand::FIXED_REGISTER,
                                   Register::ToAllocationIndex(reg)));
   }
 
-  InstructionOperand* UseFixedDouble(Node* node, DoubleRegister reg) {
+  InstructionOperand* UseFixed(Node* node, DoubleRegister reg) {
     return Use(node, new (zone())
                UnallocatedOperand(UnallocatedOperand::FIXED_DOUBLE_REGISTER,
                                   DoubleRegister::ToAllocationIndex(reg)));

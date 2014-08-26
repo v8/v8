@@ -737,7 +737,7 @@ void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
 void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
   OperandGenerator g(this);
   Emit(kArchTruncateDoubleToI, g.DefineAsRegister(node),
-       g.UseDoubleRegister(node->InputAt(0)));
+       g.UseRegister(node->InputAt(0)));
 }
 
 

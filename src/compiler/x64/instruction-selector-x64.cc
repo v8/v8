@@ -62,9 +62,6 @@ void InstructionSelector::VisitLoad(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
-  InstructionOperand* output = (rep == kRepFloat32 || rep == kRepFloat64)
-                                   ? g.DefineAsDoubleRegister(node)
-                                   : g.DefineAsRegister(node);
   ArchOpcode opcode;
   // TODO(titzer): signed/unsigned small loads
   switch (rep) {
@@ -94,14 +91,14 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
   if (g.CanBeImmediate(base)) {
     // load [#base + %index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), output,
-         g.UseRegister(index), g.UseImmediate(base));
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(index), g.UseImmediate(base));
   } else if (g.CanBeImmediate(index)) {  // load [%base + #index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), output,
-         g.UseRegister(base), g.UseImmediate(index));
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
   } else {  // load [%base + %index + K]
-    Emit(opcode | AddressingModeField::encode(kMode_MR1I), output,
-         g.UseRegister(base), g.UseRegister(index));
+    Emit(opcode | AddressingModeField::encode(kMode_MR1I),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
   }
   // TODO(turbofan): addressing modes [r+r*{2,4,8}+K]
 }
@@ -128,16 +125,12 @@ void InstructionSelector::VisitStore(Node* node) {
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
   InstructionOperand* val;
-  if (rep == kRepFloat32 || rep == kRepFloat64) {
-    val = g.UseDoubleRegister(value);
+  if (g.CanBeImmediate(value)) {
+    val = g.UseImmediate(value);
+  } else if (rep == kRepWord8 || rep == kRepBit) {
+    val = g.UseByteRegister(value);
   } else {
-    if (g.CanBeImmediate(value)) {
-      val = g.UseImmediate(value);
-    } else if (rep == kRepWord8 || rep == kRepBit) {
-      val = g.UseByteRegister(value);
-    } else {
-      val = g.UseRegister(value);
-    }
+    val = g.UseRegister(value);
   }
   ArchOpcode opcode;
   switch (rep) {
@@ -491,15 +484,14 @@ void InstructionSelector::VisitInt64UMod(Node* node) {
 
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kSSEInt32ToFloat64, g.DefineAsDoubleRegister(node),
-       g.Use(node->InputAt(0)));
+  Emit(kSSEInt32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   X64OperandGenerator g(this);
   // TODO(turbofan): X64 SSE cvtqsi2sd should support operands.
-  Emit(kSSEUint32ToFloat64, g.DefineAsDoubleRegister(node),
+  Emit(kSSEUint32ToFloat64, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
@@ -514,7 +506,7 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   X64OperandGenerator g(this);
   // TODO(turbofan): X64 SSE cvttsd2siq should support operands.
   Emit(kSSEFloat64ToUint32, g.DefineAsRegister(node),
-       g.UseDoubleRegister(node->InputAt(0)));
+       g.UseRegister(node->InputAt(0)));
 }
 
 
@@ -539,32 +531,28 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
 void InstructionSelector::VisitFloat64Add(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64Sub, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 
 void InstructionSelector::VisitFloat64Mul(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64Mul, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 
 void InstructionSelector::VisitFloat64Div(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEFloat64Div, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 
@@ -572,8 +560,8 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand* temps[] = {g.TempRegister(rax)};
   Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)), 1, temps);
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), 1,
+       temps);
 }
 
 
@@ -672,8 +660,7 @@ void InstructionSelector::VisitFloat64Compare(Node* node,
   X64OperandGenerator g(this);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-  VisitCompare(this, kSSEFloat64Cmp, g.UseDoubleRegister(left), g.Use(right),
-               cont);
+  VisitCompare(this, kSSEFloat64Cmp, g.UseRegister(left), g.Use(right), cont);
 }
 
 

@@ -83,9 +83,9 @@ static void VisitRRR(InstructionSelector* selector, ArchOpcode opcode,
 static void VisitRRRFloat64(InstructionSelector* selector, ArchOpcode opcode,
                             Node* node) {
   Arm64OperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineAsDoubleRegister(node),
-                 g.UseDoubleRegister(node->InputAt(0)),
-                 g.UseDoubleRegister(node->InputAt(1)));
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)));
 }
 
 
@@ -147,13 +147,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   Arm64OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
-
-  InstructionOperand* result = (rep == kRepFloat32 || rep == kRepFloat64)
-                                   ? g.DefineAsDoubleRegister(node)
-                                   : g.DefineAsRegister(node);
-
   ArchOpcode opcode;
-  // TODO(titzer): signed/unsigned small loads
   switch (rep) {
     case kRepFloat32:
       opcode = kArm64LdrS;
@@ -180,11 +174,11 @@ void InstructionSelector::VisitLoad(Node* node) {
       return;
   }
   if (g.CanBeImmediate(index, kLoadStoreImm)) {
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), result,
-         g.UseRegister(base), g.UseImmediate(index));
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
   } else {
-    Emit(opcode | AddressingModeField::encode(kMode_MRR), result,
-         g.UseRegister(base), g.UseRegister(index));
+    Emit(opcode | AddressingModeField::encode(kMode_MRR),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
   }
 }
 
@@ -209,12 +203,6 @@ void InstructionSelector::VisitStore(Node* node) {
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
-  InstructionOperand* val;
-  if (rep == kRepFloat32 || rep == kRepFloat64) {
-    val = g.UseDoubleRegister(value);
-  } else {
-    val = g.UseRegister(value);
-  }
   ArchOpcode opcode;
   switch (rep) {
     case kRepFloat32:
@@ -243,10 +231,10 @@ void InstructionSelector::VisitStore(Node* node) {
   }
   if (g.CanBeImmediate(index, kLoadStoreImm)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI), NULL,
-         g.UseRegister(base), g.UseImmediate(index), val);
+         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
   } else {
     Emit(opcode | AddressingModeField::encode(kMode_MRR), NULL,
-         g.UseRegister(base), g.UseRegister(index), val);
+         g.UseRegister(base), g.UseRegister(index), g.UseRegister(value));
   }
 }
 
@@ -421,14 +409,14 @@ void InstructionSelector::VisitInt64UMod(Node* node) {
 
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64Int32ToFloat64, g.DefineAsDoubleRegister(node),
+  Emit(kArm64Int32ToFloat64, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64Uint32ToFloat64, g.DefineAsDoubleRegister(node),
+  Emit(kArm64Uint32ToFloat64, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
@@ -436,14 +424,14 @@ void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
 void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Float64ToInt32, g.DefineAsRegister(node),
-       g.UseDoubleRegister(node->InputAt(0)));
+       g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   Arm64OperandGenerator g(this);
   Emit(kArm64Float64ToUint32, g.DefineAsRegister(node),
-       g.UseDoubleRegister(node->InputAt(0)));
+       g.UseRegister(node->InputAt(0)));
 }
 
 
@@ -487,9 +475,9 @@ void InstructionSelector::VisitFloat64Div(Node* node) {
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64Float64Mod, g.DefineAsFixedDouble(node, d0),
-       g.UseFixedDouble(node->InputAt(0), d0),
-       g.UseFixedDouble(node->InputAt(1), d1))->MarkAsCall();
+  Emit(kArm64Float64Mod, g.DefineAsFixed(node, d0),
+       g.UseFixed(node->InputAt(0), d0),
+       g.UseFixed(node->InputAt(1), d1))->MarkAsCall();
 }
 
 
@@ -588,8 +576,8 @@ void InstructionSelector::VisitFloat64Compare(Node* node,
   Arm64OperandGenerator g(this);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-  VisitCompare(this, kArm64Float64Cmp, g.UseDoubleRegister(left),
-               g.UseDoubleRegister(right), cont);
+  VisitCompare(this, kArm64Float64Cmp, g.UseRegister(left),
+               g.UseRegister(right), cont);
 }
 
 
