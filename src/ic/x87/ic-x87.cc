@@ -1019,26 +1019,6 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  ExternalReference ref(IC_Utility(kStoreIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
-}
-
-
-void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  ExternalReference ref(IC_Utility(kKeyedStoreIC_Slow), masm->isolate());
-  __ TailCallExternalReference(ref, 3, 1);
-}
-
-
 #undef __
 
 
