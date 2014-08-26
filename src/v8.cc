@@ -54,6 +54,7 @@ void V8::TearDown() {
   Isolate::GlobalTearDown();
 
   Sampler::TearDown();
+  FlagList::ResetAllFlags();  // Frees memory held by string arguments.
 }
 
 
