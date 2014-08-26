@@ -138,6 +138,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   abort_due_to_dependency_ = false;
   if (script_->type()->value() == Script::TYPE_NATIVE) MarkAsNative();
   if (isolate_->debug()->is_active()) MarkAsDebug();
+  if (FLAG_context_specialization) MarkAsContextSpecializing();
 
   if (!shared_info_.is_null()) {
     DCHECK(strict_mode() == SLOPPY);
@@ -1145,7 +1146,7 @@ static void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;  // Nothing to do.
 
   // Context specialization folds-in the context, so no sharing can occur.
-  if (code->is_turbofanned() && FLAG_context_specialization) return;
+  if (code->is_turbofanned() && info->is_context_specializing()) return;
 
   // Cache optimized code.
   if (FLAG_cache_optimized_code) {
