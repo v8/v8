@@ -676,7 +676,7 @@ void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
 
 
 void StoreElementStub::Generate(MacroAssembler* masm) {
-  switch (elements_kind_) {
+  switch (elements_kind()) {
     case FAST_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case FAST_SMI_ELEMENTS:
@@ -701,9 +701,27 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
+  switch (type()) {
+    case READ_ELEMENT:
+      GenerateReadElement(masm);
+      break;
+    case NEW_SLOPPY_FAST:
+      GenerateNewSloppyFast(masm);
+      break;
+    case NEW_SLOPPY_SLOW:
+      GenerateNewSloppySlow(masm);
+      break;
+    case NEW_STRICT:
+      GenerateNewStrict(masm);
+      break;
+  }
+}
+
+
 void ArgumentsAccessStub::PrintName(OStream& os) const {  // NOLINT
   os << "ArgumentsAccessStub_";
-  switch (type_) {
+  switch (type()) {
     case READ_ELEMENT:
       os << "ReadElement";
       break;
@@ -722,7 +740,7 @@ void ArgumentsAccessStub::PrintName(OStream& os) const {  // NOLINT
 
 
 void CallFunctionStub::PrintName(OStream& os) const {  // NOLINT
-  os << "CallFunctionStub_Args" << argc_;
+  os << "CallFunctionStub_Args" << argc();
 }
 
 
@@ -734,7 +752,7 @@ void CallConstructStub::PrintName(OStream& os) const {  // NOLINT
 
 void ArrayConstructorStub::PrintName(OStream& os) const {  // NOLINT
   os << "ArrayConstructorStub";
-  switch (argument_count_) {
+  switch (argument_count()) {
     case ANY:
       os << "_Any";
       break;
@@ -948,7 +966,8 @@ void StoreFieldStub::InstallDescriptors(Isolate* isolate) {
 
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
-    : PlatformCodeStub(isolate), argument_count_(ANY) {
+    : PlatformCodeStub(isolate) {
+  minor_key_ = ArgumentCountBits::encode(ANY);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
@@ -957,11 +976,11 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
                                            int argument_count)
     : PlatformCodeStub(isolate) {
   if (argument_count == 0) {
-    argument_count_ = NONE;
+    minor_key_ = ArgumentCountBits::encode(NONE);
   } else if (argument_count == 1) {
-    argument_count_ = ONE;
+    minor_key_ = ArgumentCountBits::encode(ONE);
   } else if (argument_count >= 2) {
-    argument_count_ = MORE_THAN_ONE;
+    minor_key_ = ArgumentCountBits::encode(MORE_THAN_ONE);
   } else {
     UNREACHABLE();
   }

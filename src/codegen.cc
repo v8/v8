@@ -234,22 +234,4 @@ bool CodeGenerator::RecordPositions(MacroAssembler* masm,
   return false;
 }
 
-
-void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
-  switch (type_) {
-    case READ_ELEMENT:
-      GenerateReadElement(masm);
-      break;
-    case NEW_SLOPPY_FAST:
-      GenerateNewSloppyFast(masm);
-      break;
-    case NEW_SLOPPY_SLOW:
-      GenerateNewSloppySlow(masm);
-      break;
-    case NEW_STRICT:
-      GenerateNewStrict(masm);
-      break;
-  }
-}
-
 } }  // namespace v8::internal
