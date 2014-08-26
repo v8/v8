@@ -24,8 +24,7 @@ class Linkage;
 
 class Pipeline {
  public:
-  explicit Pipeline(CompilationInfo* info)
-      : info_(info), context_specialization_(FLAG_context_specialization) {}
+  explicit Pipeline(CompilationInfo* info) : info_(info) {}
 
   // Run the entire pipeline and generate a handle to a code object.
   Handle<Code> GenerateCode();
@@ -40,14 +39,9 @@ class Pipeline {
 
   static void SetUp();
   static void TearDown();
-  bool context_specialization() { return context_specialization_; }
-  void set_context_specialization(bool context_specialization) {
-    context_specialization_ = context_specialization;
-  }
 
  private:
   CompilationInfo* info_;
-  bool context_specialization_;
 
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() { return info_->isolate(); }

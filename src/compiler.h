@@ -79,7 +79,8 @@ class CompilationInfo {
     kDebug = 1 << 12,
     kCompilingForDebugging = 1 << 13,
     kParseRestriction = 1 << 14,
-    kSerializing = 1 << 15
+    kSerializing = 1 << 15,
+    kContextSpecializing = 1 << 16
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
@@ -180,6 +181,10 @@ class CompilationInfo {
   void PrepareForSerializing() { SetFlag(kSerializing); }
 
   bool will_serialize() const { return GetFlag(kSerializing); }
+
+  void MarkAsContextSpecializing() { SetFlag(kContextSpecializing); }
+
+  bool is_context_specializing() const { return GetFlag(kContextSpecializing); }
 
   bool IsCodePreAgingActive() const {
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&

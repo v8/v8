@@ -32,7 +32,6 @@ class FunctionTester : public InitializedHandleScope {
         function((FLAG_allow_natives_syntax = true, NewFunction(source))),
         context_specialization_(context_specialization) {
     Compile(function);
-    USE(context_specialization_);
   }
 
   Isolate* isolate;
@@ -46,6 +45,7 @@ class FunctionTester : public InitializedHandleScope {
     StrictMode strict_mode = info.function()->strict_mode();
     info.SetStrictMode(strict_mode);
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
+    if (context_specialization_) info.MarkAsContextSpecializing();
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
     CHECK_NE(NULL, info.scope());
@@ -55,7 +55,6 @@ class FunctionTester : public InitializedHandleScope {
     EnsureDeoptimizationSupport(&info);
 
     Pipeline pipeline(&info);
-    pipeline.set_context_specialization(context_specialization_);
     Handle<Code> code = pipeline.GenerateCode();
 
     CHECK(!code.is_null());
