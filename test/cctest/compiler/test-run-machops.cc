@@ -2751,6 +2751,7 @@ TEST(RunLoadStore) {
   RunLoadStore<int32_t>(kMachInt32);
   RunLoadStore<uint32_t>(kMachUint32);
   RunLoadStore<void*>(kMachAnyTagged);
+  RunLoadStore<float>(kMachFloat32);
   RunLoadStore<double>(kMachFloat64);
 }
 

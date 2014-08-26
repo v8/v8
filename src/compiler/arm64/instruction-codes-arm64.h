@@ -68,6 +68,8 @@ namespace compiler {
   V(Arm64Float64ToUint32)          \
   V(Arm64Int32ToFloat64)           \
   V(Arm64Uint32ToFloat64)          \
+  V(Arm64LdrS)                     \
+  V(Arm64StrS)                     \
   V(Arm64LdrD)                     \
   V(Arm64StrD)                     \
   V(Arm64Ldrb)                     \

@@ -55,6 +55,8 @@ class ArmOperandGenerator V8_FINAL : public OperandGenerator {
       case kArmRsb:
         return ImmediateFitsAddrMode1Instruction(value);
 
+      case kArmVldr32:
+      case kArmVstr32:
       case kArmVldr64:
       case kArmVstr64:
         return value >= -1020 && value <= 1020 && (value % 4) == 0;
@@ -294,12 +296,15 @@ void InstructionSelector::VisitLoad(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
-  InstructionOperand* result = rep == kRepFloat64
+  InstructionOperand* result = (rep == kRepFloat32 || rep == kRepFloat64)
                                    ? g.DefineAsDoubleRegister(node)
                                    : g.DefineAsRegister(node);
 
   ArchOpcode opcode;
   switch (rep) {
+    case kRepFloat32:
+      opcode = kArmVldr32;
+      break;
     case kRepFloat64:
       opcode = kArmVldr64;
       break;
@@ -349,11 +354,15 @@ void InstructionSelector::VisitStore(Node* node) {
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
-  InstructionOperand* val =
-      rep == kRepFloat64 ? g.UseDoubleRegister(value) : g.UseRegister(value);
+  InstructionOperand* val = (rep == kRepFloat32 || rep == kRepFloat64)
+                                ? g.UseDoubleRegister(value)
+                                : g.UseRegister(value);
 
   ArchOpcode opcode;
   switch (rep) {
+    case kRepFloat32:
+      opcode = kArmVstr32;
+      break;
     case kRepFloat64:
       opcode = kArmVstr64;
       break;

@@ -60,7 +60,6 @@ namespace compiler {
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \
   V(SSEUint32ToFloat64)            \
-  V(X64Movsd)                      \
   V(X64Movsxbl)                    \
   V(X64Movzxbl)                    \
   V(X64Movb)                       \
@@ -70,6 +69,8 @@ namespace compiler {
   V(X64Movl)                       \
   V(X64Movsxlq)                    \
   V(X64Movq)                       \
+  V(X64Movsd)                      \
+  V(X64Movss)                      \
   V(X64StoreWriteBarrier)
 
 

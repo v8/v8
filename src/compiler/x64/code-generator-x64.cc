@@ -514,15 +514,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
 
-    case kX64Movsd:
-      if (instr->HasOutput()) {
-        __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());
-      } else {
-        int index = 0;
-        Operand operand = i.MemoryOperand(&index);
-        __ movsd(operand, i.InputDoubleRegister(index));
-      }
-      break;
     case kX64Movsxbl:
       __ movsxbl(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -597,6 +588,26 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         } else {
           __ movq(operand, i.InputRegister(index));
         }
+      }
+      break;
+    case kX64Movss:
+      if (instr->HasOutput()) {
+        __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
+        __ cvtss2sd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
+      } else {
+        int index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ cvtsd2ss(xmm0, i.InputDoubleRegister(index));
+        __ movss(operand, xmm0);
+      }
+      break;
+    case kX64Movsd:
+      if (instr->HasOutput()) {
+        __ movsd(i.OutputDoubleRegister(), i.MemoryOperand());
+      } else {
+        int index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ movsd(operand, i.InputDoubleRegister(index));
       }
       break;
     case kX64StoreWriteBarrier: {

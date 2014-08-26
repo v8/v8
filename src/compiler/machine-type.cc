@@ -24,6 +24,7 @@ OStream& operator<<(OStream& os, const MachineType& type) {
   PRINT(kRepWord16);
   PRINT(kRepWord32);
   PRINT(kRepWord64);
+  PRINT(kRepFloat32);
   PRINT(kRepFloat64);
   PRINT(kRepTagged);
 

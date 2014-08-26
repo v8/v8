@@ -54,10 +54,10 @@ class RepresentationSelector {
  public:
   // Information for each node tracked during the fixpoint.
   struct NodeInfo {
-    MachineTypeUnion use : 14;     // Union of all usages for the node.
+    MachineTypeUnion use : 15;     // Union of all usages for the node.
     bool queued : 1;           // Bookkeeping for the traversal.
     bool visited : 1;          // Bookkeeping for the traversal.
-    MachineTypeUnion output : 14;  // Output type of the node.
+    MachineTypeUnion output : 15;  // Output type of the node.
   };
 
   RepresentationSelector(JSGraph* jsgraph, Zone* zone,

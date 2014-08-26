@@ -415,6 +415,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmVldr32: {
+      SwVfpRegister scratch = kScratchDoubleReg.low();
+      __ vldr(scratch, i.InputOffset());
+      __ vcvt_f64_f32(i.OutputDoubleRegister(), scratch);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArmVstr32: {
+      int index = 0;
+      SwVfpRegister scratch = kScratchDoubleReg.low();
+      MemOperand operand = i.InputOffset(&index);
+      __ vcvt_f32_f64(scratch, i.InputDoubleRegister(index));
+      __ vstr(scratch, operand);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArmVldr64:
       __ vldr(i.OutputDoubleRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());

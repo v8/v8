@@ -389,6 +389,17 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ movsd(operand, i.InputDoubleRegister(index));
       }
       break;
+    case kIA32Movss:
+      if (instr->HasOutput()) {
+        __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
+        __ cvtss2sd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
+      } else {
+        int index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ cvtsd2ss(xmm0, i.InputDoubleRegister(index));
+        __ movss(operand, xmm0);
+      }
+      break;
     case kIA32StoreWriteBarrier: {
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);

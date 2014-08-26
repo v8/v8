@@ -50,6 +50,7 @@ namespace compiler {
   V(IA32Movzxwl)                   \
   V(IA32Movw)                      \
   V(IA32Movl)                      \
+  V(IA32Movss)                     \
   V(IA32Movsd)                     \
   V(IA32StoreWriteBarrier)
 

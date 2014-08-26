@@ -50,6 +50,8 @@ namespace compiler {
   V(ArmVcvtF64U32)                 \
   V(ArmVcvtS32F64)                 \
   V(ArmVcvtU32F64)                 \
+  V(ArmVldr32)                     \
+  V(ArmVstr32)                     \
   V(ArmVldr64)                     \
   V(ArmVstr64)                     \
   V(ArmLdrb)                       \
