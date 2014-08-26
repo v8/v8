@@ -31,19 +31,37 @@ class Scheduler {
   static void ComputeCFG(Graph* graph, Schedule* schedule);
 
  private:
+  enum Placement { kUnknown, kSchedulable, kFixed };
+
+  // Per-node data tracked during scheduling.
+  struct SchedulerData {
+    int unscheduled_count_;      // Number of unscheduled uses of this node.
+    int minimum_rpo_;            // Minimum legal RPO placement.
+    bool is_connected_control_;  // {true} if control-connected to the end node.
+    bool is_floating_control_;   // {true} if control, but not control-connected
+                                 // to the end node.
+    Placement placement_ : 3;    // Whether the node is fixed, schedulable,
+                                 // or not yet known.
+  };
+
   Zone* zone_;
   Graph* graph_;
   Schedule* schedule_;
-  IntVector unscheduled_uses_;
   NodeVectorVector scheduled_nodes_;
   NodeVector schedule_root_nodes_;
-  IntVector schedule_early_rpo_index_;
+  ZoneVector<SchedulerData> node_data_;
+  bool has_floating_control_;
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
 
-  bool IsBasicBlockBegin(Node* node);
-  bool HasFixedSchedulePosition(Node* node);
-  bool IsScheduleRoot(Node* node);
+  SchedulerData* GetData(Node* node) {
+    DCHECK(node->id() < static_cast<int>(node_data_.size()));
+    return &node_data_[node->id()];
+  }
+
+  void BuildCFG();
+
+  Placement GetPlacement(Node* node);
 
   int GetRPONumber(BasicBlock* block) {
     DCHECK(block->rpo_number_ >= 0 &&
@@ -52,11 +70,10 @@ class Scheduler {
     return block->rpo_number_;
   }
 
-  void PrepareAuxiliaryNodeData();
-  void PrepareAuxiliaryBlockData();
-
   void GenerateImmediateDominatorTree();
   BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);
+
+  friend class CFGBuilder;
 
   friend class ScheduleEarlyNodeVisitor;
   void ScheduleEarly();
@@ -66,6 +83,10 @@ class Scheduler {
 
   friend class ScheduleLateNodeVisitor;
   void ScheduleLate();
+
+  bool ConnectFloatingControl();
+
+  void ConnectFloatingControlSubgraph(BasicBlock* block, Node* node);
 };
 }
 }
