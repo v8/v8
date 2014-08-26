@@ -262,8 +262,7 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
       schedule_(schedule),
       scheduled_nodes_(zone),
       schedule_root_nodes_(zone),
-      node_data_(graph_->NodeCount(),
-                 SchedulerData{0, 0, false, false, kUnknown}, zone),
+      node_data_(graph_->NodeCount(), {0, 0, false, false, kUnknown}, zone),
       has_floating_control_(false) {}
 
 
