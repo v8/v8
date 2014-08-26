@@ -1715,7 +1715,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
-  Register receiver = LoadIC::ReceiverRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, x10,
                                                           x11, &miss);

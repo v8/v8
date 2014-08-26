@@ -775,7 +775,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
-  Register receiver = LoadIC::ReceiverRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, r8,
                                                           r9, &miss);

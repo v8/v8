@@ -10,6 +10,7 @@
 #include "src/codegen.h"
 #include "src/globals.h"
 #include "src/ic/ic.h"
+#include "src/ic/ic-conventions.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
 
@@ -2442,12 +2443,14 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
   };
 
   static const Register ValueRegister() {
-    return KeyedStoreIC::ValueRegister();
+    return StoreConvention::ValueRegister();
   }
-  static const Register MapRegister() { return KeyedStoreIC::MapRegister(); }
-  static const Register KeyRegister() { return KeyedStoreIC::NameRegister(); }
+  static const Register MapRegister() { return StoreConvention::MapRegister(); }
+  static const Register KeyRegister() {
+    return StoreConvention::NameRegister();
+  }
   static const Register ObjectRegister() {
-    return KeyedStoreIC::ReceiverRegister();
+    return StoreConvention::ReceiverRegister();
   }
 
  private:

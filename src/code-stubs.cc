@@ -581,10 +581,10 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 
 void LoadFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kParameterCount == 2);
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          LoadConvention::ReceiverRegister(),
+                          LoadConvention::NameRegister()};
+  STATIC_ASSERT(LoadConvention::kParameterCount == 2);
   descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
@@ -592,10 +592,10 @@ void LoadFastElementStub::InitializeInterfaceDescriptor(
 
 void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kParameterCount == 2);
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          LoadConvention::ReceiverRegister(),
+                          LoadConvention::NameRegister()};
+  STATIC_ASSERT(LoadConvention::kParameterCount == 2);
   descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
@@ -603,10 +603,10 @@ void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
 
 void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kParameterCount == 2);
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          LoadConvention::ReceiverRegister(),
+                          LoadConvention::NameRegister()};
+  STATIC_ASSERT(LoadConvention::kParameterCount == 2);
   descriptor->Initialize(
       MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
@@ -617,13 +617,15 @@ void HandlerStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   if (kind() == Code::LOAD_IC) {
     Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            LoadIC::ReceiverRegister(), LoadIC::NameRegister()};
+                            LoadConvention::ReceiverRegister(),
+                            LoadConvention::NameRegister()};
     descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   } else {
     DCHECK_EQ(Code::STORE_IC, kind());
     Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            StoreIC::ReceiverRegister(),
-                            StoreIC::NameRegister(), StoreIC::ValueRegister()};
+                            StoreConvention::ReceiverRegister(),
+                            StoreConvention::NameRegister(),
+                            StoreConvention::ValueRegister()};
     descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                            FUNCTION_ADDR(StoreIC_MissFromStubFailure));
   }
@@ -632,10 +634,10 @@ void HandlerStub::InitializeInterfaceDescriptor(
 
 void StoreFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           KeyedStoreIC::ReceiverRegister(),
-                           KeyedStoreIC::NameRegister(),
-                           KeyedStoreIC::ValueRegister() };
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          StoreConvention::ReceiverRegister(),
+                          StoreConvention::NameRegister(),
+                          StoreConvention::ValueRegister()};
   descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
 }

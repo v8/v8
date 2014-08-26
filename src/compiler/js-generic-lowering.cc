@@ -46,9 +46,9 @@ class LoadICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
-    Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                             LoadIC::ReceiverRegister(),
-                             LoadIC::NameRegister() };
+    Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                            LoadConvention::ReceiverRegister(),
+                            LoadConvention::NameRegister()};
     descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   }
 
@@ -76,9 +76,9 @@ class KeyedLoadICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
-    Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                             KeyedLoadIC::ReceiverRegister(),
-                             KeyedLoadIC::NameRegister() };
+    Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                            LoadConvention::ReceiverRegister(),
+                            LoadConvention::NameRegister()};
     descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   }
 
@@ -105,10 +105,10 @@ class StoreICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
-    Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                             StoreIC::ReceiverRegister(),
-                             StoreIC::NameRegister(),
-                             StoreIC::ValueRegister() };
+    Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                            StoreConvention::ReceiverRegister(),
+                            StoreConvention::NameRegister(),
+                            StoreConvention::ValueRegister()};
     descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   }
 
@@ -139,10 +139,10 @@ class KeyedStoreICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
-    Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                             KeyedStoreIC::ReceiverRegister(),
-                             KeyedStoreIC::NameRegister(),
-                             KeyedStoreIC::ValueRegister() };
+    Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                            StoreConvention::ReceiverRegister(),
+                            StoreConvention::NameRegister(),
+                            StoreConvention::ValueRegister()};
     descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   }
 

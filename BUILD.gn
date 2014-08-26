@@ -725,6 +725,7 @@ source_set("v8_base") {
     "src/ic/ic.h",
     "src/ic/ic-compiler.cc",
     "src/ic/ic-compiler.h",
+    "src/ic/ic-conventions.h",
     "src/ic/stub-cache.cc",
     "src/ic/stub-cache.h",
     "src/interface.cc",
@@ -901,6 +902,7 @@ source_set("v8_base") {
       "src/compiler/ia32/instruction-selector-ia32.cc",
       "src/compiler/ia32/linkage-ia32.cc",
       "src/ic/ia32/ic-ia32.cc",
+      "src/ic/ia32/ic-conventions-ia32.cc",
       "src/ic/ia32/handler-ia32.cc",
       "src/ic/ia32/stub-cache-ia32.cc",
     ]
@@ -939,6 +941,7 @@ source_set("v8_base") {
       "src/ic/x64/handler-compiler-x64.cc",
       "src/ic/x64/ic-x64.cc",
       "src/ic/x64/ic-compiler-x64.cc",
+      "src/ic/x64/ic-conventions-x64.cc",
       "src/ic/x64/stub-cache-x64.cc",
     ]
   } else if (v8_target_arch == "arm") {
@@ -979,6 +982,7 @@ source_set("v8_base") {
       "src/ic/arm/handler-compiler-arm.cc",
       "src/ic/arm/ic-arm.cc",
       "src/ic/arm/ic-compiler-arm.cc",
+      "src/ic/arm/ic-conventions-arm.cc",
       "src/ic/arm/stub-cache-arm.cc",
     ]
   } else if (v8_target_arch == "arm64") {
@@ -1030,6 +1034,7 @@ source_set("v8_base") {
       "src/ic/arm64/handler-compiler-arm64.cc",
       "src/ic/arm64/ic-arm64.cc",
       "src/ic/arm64/ic-compiler-arm64.cc",
+      "src/ic/arm64/ic-conventions-arm64.cc",
       "src/ic/arm64/stub-cache-arm64.cc",
     ]
   } else if (v8_target_arch == "mipsel") {

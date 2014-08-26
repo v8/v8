@@ -285,8 +285,8 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
   Label slow, miss;
 
   Register result = x0;
-  Register key = LoadIC::NameRegister();
-  Register receiver = LoadIC::ReceiverRegister();
+  Register key = LoadConvention::NameRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
   DCHECK(receiver.is(x1));
   DCHECK(key.is(x2));
 
@@ -308,8 +308,8 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
 
 void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   // Push receiver, name and value for runtime call.
-  __ Push(StoreIC::ReceiverRegister(), StoreIC::NameRegister(),
-          StoreIC::ValueRegister());
+  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
+          StoreConvention::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -323,8 +323,8 @@ void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
   ASM_LOCATION("ElementHandlerCompiler::GenerateStoreSlow");
 
   // Push receiver, key and value for runtime call.
-  __ Push(StoreIC::ReceiverRegister(), StoreIC::NameRegister(),
-          StoreIC::ValueRegister());
+  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
+          StoreConvention::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -344,7 +344,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   FrontendHeader(receiver(), name, &miss);
 
   // Get the value from the cell.
-  Register result = StoreIC::ValueRegister();
+  Register result = StoreConvention::ValueRegister();
   __ Mov(result, Operand(cell));
   __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
 
@@ -382,7 +382,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 }
 
 
-Register NamedStoreHandlerCompiler::value() { return StoreIC::ValueRegister(); }
+Register NamedStoreHandlerCompiler::value() {
+  return StoreConvention::ValueRegister();
+}
 
 
 void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
