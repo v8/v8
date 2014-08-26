@@ -1952,7 +1952,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
-  Register receiver = LoadIC::ReceiverRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, a3,
                                                           a4, &miss);
   __ bind(&miss);

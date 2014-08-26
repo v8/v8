@@ -250,8 +250,8 @@ static void GenerateKeyNameCheck(MacroAssembler* masm, Register key,
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is in lr.
-  Register receiver = ReceiverRegister();
-  Register name = NameRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
+  Register name = LoadConvention::NameRegister();
   DCHECK(receiver.is(a1));
   DCHECK(name.is(a2));
 
@@ -268,13 +268,14 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   Register dictionary = a0;
-  DCHECK(!dictionary.is(ReceiverRegister()));
-  DCHECK(!dictionary.is(NameRegister()));
+  DCHECK(!dictionary.is(LoadConvention::ReceiverRegister()));
+  DCHECK(!dictionary.is(LoadConvention::NameRegister()));
   Label slow;
 
-  __ ld(dictionary,
-        FieldMemOperand(ReceiverRegister(), JSObject::kPropertiesOffset));
-  GenerateDictionaryLoad(masm, &slow, dictionary, NameRegister(), v0, a3, a4);
+  __ ld(dictionary, FieldMemOperand(LoadConvention::ReceiverRegister(),
+                                    JSObject::kPropertiesOffset));
+  GenerateDictionaryLoad(masm, &slow, dictionary,
+                         LoadConvention::NameRegister(), v0, a3, a4);
   __ Ret();
 
   // Dictionary load failed, go slow (but don't miss).
@@ -293,8 +294,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 
   __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, a3, a4);
 
-  __ mov(LoadIC_TempRegister(), ReceiverRegister());
-  __ Push(LoadIC_TempRegister(), NameRegister());
+  __ mov(LoadIC_TempRegister(), LoadConvention::ReceiverRegister());
+  __ Push(LoadIC_TempRegister(), LoadConvention::NameRegister());
 
   // Perform tail call to the entry.
   ExternalReference ref = ExternalReference(IC_Utility(kLoadIC_Miss), isolate);
@@ -305,8 +306,8 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is in ra.
 
-  __ mov(LoadIC_TempRegister(), ReceiverRegister());
-  __ Push(LoadIC_TempRegister(), NameRegister());
+  __ mov(LoadIC_TempRegister(), LoadConvention::ReceiverRegister());
+  __ Push(LoadIC_TempRegister(), LoadConvention::NameRegister());
 
   __ TailCallRuntime(Runtime::kGetProperty, 2, 1);
 }
@@ -391,8 +392,8 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
 
 void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // The return address is in ra.
-  Register receiver = ReceiverRegister();
-  Register key = NameRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
+  Register key = LoadConvention::NameRegister();
   DCHECK(receiver.is(a1));
   DCHECK(key.is(a2));
 
@@ -416,9 +417,9 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
 
 
 void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
-  Register receiver = ReceiverRegister();
-  Register key = NameRegister();
-  Register value = ValueRegister();
+  Register receiver = StoreConvention::ReceiverRegister();
+  Register key = StoreConvention::NameRegister();
+  Register value = StoreConvention::ValueRegister();
   DCHECK(value.is(a0));
 
   Label slow, notin;
@@ -455,7 +456,7 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 
   __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, a3, a4);
 
-  __ Push(ReceiverRegister(), NameRegister());
+  __ Push(LoadConvention::ReceiverRegister(), LoadConvention::NameRegister());
 
   // Perform tail call to the entry.
   ExternalReference ref =
@@ -465,35 +466,10 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-// IC register specifications
-const Register LoadIC::ReceiverRegister() { return a1; }
-const Register LoadIC::NameRegister() { return a2; }
-
-
-const Register LoadIC::SlotRegister() {
-  DCHECK(FLAG_vector_ics);
-  return a0;
-}
-
-
-const Register LoadIC::VectorRegister() {
-  DCHECK(FLAG_vector_ics);
-  return a3;
-}
-
-
-const Register StoreIC::ReceiverRegister() { return a1; }
-const Register StoreIC::NameRegister() { return a2; }
-const Register StoreIC::ValueRegister() { return a0; }
-
-
-const Register KeyedStoreIC::MapRegister() { return a3; }
-
-
 void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is in ra.
 
-  __ Push(ReceiverRegister(), NameRegister());
+  __ Push(LoadConvention::ReceiverRegister(), LoadConvention::NameRegister());
 
   __ TailCallRuntime(Runtime::kKeyedGetProperty, 2, 1);
 }
@@ -504,8 +480,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
 
-  Register key = NameRegister();
-  Register receiver = ReceiverRegister();
+  Register key = LoadConvention::NameRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
   DCHECK(key.is(a2));
   DCHECK(receiver.is(a1));
 
@@ -671,8 +647,8 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   // Return address is in ra.
   Label miss;
 
-  Register receiver = ReceiverRegister();
-  Register index = NameRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
+  Register index = LoadConvention::NameRegister();
   Register scratch = a3;
   Register result = v0;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
@@ -856,9 +832,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Label array, extra, check_if_double_array;
 
   // Register usage.
-  Register value = ValueRegister();
-  Register key = NameRegister();
-  Register receiver = ReceiverRegister();
+  Register value = StoreConvention::ValueRegister();
+  Register key = StoreConvention::NameRegister();
+  Register receiver = StoreConvention::ReceiverRegister();
   DCHECK(value.is(a0));
   Register receiver_map = a3;
   Register elements_map = a6;
@@ -942,8 +918,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // Return address is in ra.
   Label slow;
 
-  Register receiver = ReceiverRegister();
-  Register key = NameRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
+  Register key = LoadConvention::NameRegister();
   Register scratch1 = a3;
   Register scratch2 = a4;
   DCHECK(!scratch1.is(receiver) && !scratch1.is(key));
@@ -980,7 +956,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // Push receiver, key and value for runtime call.
-  __ Push(ReceiverRegister(), NameRegister(), ValueRegister());
+  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
+          StoreConvention::ValueRegister());
 
   ExternalReference ref =
       ExternalReference(IC_Utility(kKeyedStoreIC_Miss), masm->isolate());
@@ -989,11 +966,11 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
-  Register receiver = ReceiverRegister();
-  Register name = NameRegister();
+  Register receiver = StoreConvention::ReceiverRegister();
+  Register name = StoreConvention::NameRegister();
   DCHECK(receiver.is(a1));
   DCHECK(name.is(a2));
-  DCHECK(ValueRegister().is(a0));
+  DCHECK(StoreConvention::ValueRegister().is(a0));
 
   // Get the receiver from the stack and probe the stub cache.
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
@@ -1007,7 +984,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateMiss(MacroAssembler* masm) {
-  __ Push(ReceiverRegister(), NameRegister(), ValueRegister());
+  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
+          StoreConvention::ValueRegister());
   // Perform tail call to the entry.
   ExternalReference ref =
       ExternalReference(IC_Utility(kStoreIC_Miss), masm->isolate());
@@ -1017,9 +995,9 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 
 void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Label miss;
-  Register receiver = ReceiverRegister();
-  Register name = NameRegister();
-  Register value = ValueRegister();
+  Register receiver = StoreConvention::ReceiverRegister();
+  Register name = StoreConvention::NameRegister();
+  Register value = StoreConvention::ValueRegister();
   Register dictionary = a3;
   DCHECK(!AreAliased(value, receiver, name, dictionary, a4, a5));
 
