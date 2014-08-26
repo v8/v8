@@ -3282,7 +3282,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   Label extra_checks_or_miss, slow_start;
   Label slow, non_function, wrap, cont;
   Label have_js_function;
-  int argc = state_.arg_count();
+  int argc = arg_count();
   ParameterCount actual(argc);
 
   Register function = x1;
@@ -3301,7 +3301,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ B(ne, &extra_checks_or_miss);
 
   __ bind(&have_js_function);
-  if (state_.CallAsMethod()) {
+  if (CallAsMethod()) {
     EmitContinueIfStrictOrNative(masm, &cont);
 
     // Compute the receiver in sloppy mode.
@@ -3321,7 +3321,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   EmitSlowCase(masm, argc, function, type, &non_function);
 
-  if (state_.CallAsMethod()) {
+  if (CallAsMethod()) {
     __ bind(&wrap);
     EmitWrapCase(masm, argc, &cont);
   }
@@ -3364,7 +3364,7 @@ void CallICStub::GenerateMiss(MacroAssembler* masm, IC::UtilityId id) {
   ASM_LOCATION("CallICStub[Miss]");
 
   // Get the receiver of the function from the stack; 1 ~ return address.
-  __ Peek(x4, (state_.arg_count() + 1) * kPointerSize);
+  __ Peek(x4, (arg_count() + 1) * kPointerSize);
 
   {
     FrameScope scope(masm, StackFrame::INTERNAL);

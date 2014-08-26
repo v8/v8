@@ -854,39 +854,43 @@ class MathPowStub: public PlatformCodeStub {
 class CallICStub: public PlatformCodeStub {
  public:
   CallICStub(Isolate* isolate, const CallIC::State& state)
-      : PlatformCodeStub(isolate), state_(state) {}
-
-  bool CallAsMethod() const { return state_.CallAsMethod(); }
-
-  int arg_count() const { return state_.arg_count(); }
+      : PlatformCodeStub(isolate) {
+    minor_key_ = state.GetExtraICState();
+  }
 
   static int ExtractArgcFromMinorKey(int minor_key) {
-    CallIC::State state((ExtraICState) minor_key);
+    CallIC::State state(static_cast<ExtraICState>(minor_key));
     return state.arg_count();
   }
 
   virtual void Generate(MacroAssembler* masm);
 
-  virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
-    return Code::CALL_IC;
-  }
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE { return Code::CALL_IC; }
 
   virtual InlineCacheState GetICState() const V8_OVERRIDE { return DEFAULT; }
 
   virtual ExtraICState GetExtraICState() const V8_FINAL V8_OVERRIDE {
-    return state_.GetExtraICState();
+    return static_cast<ExtraICState>(minor_key_);
   }
 
  protected:
-  virtual uint32_t MinorKey() const { return GetExtraICState(); }
-  virtual void PrintState(OStream& os) const V8_OVERRIDE;  // NOLINT
+  bool CallAsMethod() const { return state().call_type() == CallIC::METHOD; }
 
-  virtual CodeStub::Major MajorKey() const { return CallIC; }
+  int arg_count() const { return state().arg_count(); }
+
+  CallIC::State state() const {
+    return CallIC::State(static_cast<ExtraICState>(minor_key_));
+  }
 
   // Code generation helpers.
   void GenerateMiss(MacroAssembler* masm, IC::UtilityId id);
 
-  const CallIC::State state_;
+ private:
+  virtual CodeStub::Major MajorKey() const { return CallIC; }
+
+  virtual void PrintState(OStream& os) const V8_OVERRIDE;  // NOLINT
+
+  DISALLOW_COPY_AND_ASSIGN(CallICStub);
 };
 
 
@@ -901,10 +905,12 @@ class CallIC_ArrayStub: public CallICStub {
     return MONOMORPHIC;
   }
 
- protected:
+ private:
   virtual void PrintState(OStream& os) const V8_OVERRIDE;  // NOLINT
 
   virtual CodeStub::Major MajorKey() const { return CallIC_Array; }
+
+  DISALLOW_COPY_AND_ASSIGN(CallIC_ArrayStub);
 };
 
 
@@ -1191,7 +1197,9 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
  public:
   BinaryOpICWithAllocationSiteStub(Isolate* isolate,
                                    const BinaryOpIC::State& state)
-      : PlatformCodeStub(isolate), state_(state) {}
+      : PlatformCodeStub(isolate), state_(state) {
+    minor_key_ = state.GetExtraICState();
+  }
 
   static void GenerateAheadOfTime(Isolate* isolate);
 

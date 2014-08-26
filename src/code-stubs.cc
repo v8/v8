@@ -554,12 +554,12 @@ Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
 
 
 void CallIC_ArrayStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_ << " (Array)";
+  os << state() << " (Array)";
 }
 
 
 void CallICStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_;
+  os << state();
 }
 
 
