@@ -54,6 +54,8 @@ class Scheduler {
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
 
+  SchedulerData DefaultSchedulerData();
+
   SchedulerData* GetData(Node* node) {
     DCHECK(node->id() < static_cast<int>(node_data_.size()));
     return &node_data_[node->id()];

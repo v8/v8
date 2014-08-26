@@ -256,13 +256,19 @@ class CFGBuilder {
 };
 
 
+Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
+  SchedulerData def = {0, 0, false, false, kUnknown};
+  return def;
+}
+
+
 Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
     : zone_(zone),
       graph_(graph),
       schedule_(schedule),
       scheduled_nodes_(zone),
       schedule_root_nodes_(zone),
-      node_data_(graph_->NodeCount(), {0, 0, false, false, kUnknown}, zone),
+      node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone),
       has_floating_control_(false) {}
 
 
