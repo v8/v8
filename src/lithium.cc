@@ -145,6 +145,7 @@ void LSubKindOperand<kOperandKind, kNumCachedOperands>::SetUpCache() {
 template<LOperand::Kind kOperandKind, int kNumCachedOperands>
 void LSubKindOperand<kOperandKind, kNumCachedOperands>::TearDownCache() {
   delete[] cache;
+  cache = NULL;
 }
 
 

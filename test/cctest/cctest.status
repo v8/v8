@@ -35,10 +35,6 @@
   # BUG(382): Weird test. Can't guarantee that it never times out.
   'test-api/ApplyInterruption': [PASS, TIMEOUT],
 
-  # TODO(mstarzinger): Fail gracefully on multiple V8::Dispose calls.
-  'test-api/InitializeAndDisposeOnce': [SKIP],
-  'test-api/InitializeAndDisposeMultiple': [SKIP],
-
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
   'test-serialize/TestThatAlwaysFails': [FAIL],

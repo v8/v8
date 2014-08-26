@@ -75,6 +75,7 @@ void SubKindOperand<kOperandKind, kNumCachedOperands>::SetUpCache() {
 template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
 void SubKindOperand<kOperandKind, kNumCachedOperands>::TearDownCache() {
   delete[] cache;
+  cache = NULL;
 }
 
 

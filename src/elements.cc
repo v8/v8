@@ -120,7 +120,7 @@ ELEMENTS_LIST(ELEMENTS_TRAITS)
 #undef ELEMENTS_TRAITS
 
 
-ElementsAccessor** ElementsAccessor::elements_accessors_;
+ElementsAccessor** ElementsAccessor::elements_accessors_ = NULL;
 
 
 static bool HasKey(Handle<FixedArray> array, Handle<Object> key_handle) {
@@ -1735,6 +1735,7 @@ void ElementsAccessor::InitializeOncePerProcess() {
 
 
 void ElementsAccessor::TearDown() {
+  if (elements_accessors_ == NULL) return;
 #define ACCESSOR_DELETE(Class, Kind, Store) delete elements_accessors_[Kind];
   ELEMENTS_LIST(ACCESSOR_DELETE)
 #undef ACCESSOR_DELETE
