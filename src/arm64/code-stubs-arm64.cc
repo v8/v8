@@ -4600,6 +4600,20 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, FullVectorLoadConvention::VectorRegister());
+  VectorLoadStub stub(isolate(), state_);
+  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, FullVectorLoadConvention::VectorRegister());
+  VectorKeyedLoadStub stub(isolate());
+  __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
 static unsigned int GetProfileEntryHookCallSize(MacroAssembler* masm) {
   // The entry hook is a "BumpSystemStackPointer" instruction (sub),
   // followed by a "Push lr" instruction, followed by a call.

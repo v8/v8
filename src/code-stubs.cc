@@ -664,6 +664,35 @@ void InstanceofStub::InitializeInterfaceDescriptor(
 }
 
 
+static void InitializeVectorLoadStub(CodeStubInterfaceDescriptor* descriptor,
+                                     CodeStub::Major major,
+                                     Address deoptimization_handler) {
+  DCHECK(FLAG_vector_ics);
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          FullVectorLoadConvention::ReceiverRegister(),
+                          FullVectorLoadConvention::NameRegister(),
+                          FullVectorLoadConvention::SlotRegister(),
+                          FullVectorLoadConvention::VectorRegister()};
+  descriptor->Initialize(major, arraysize(registers), registers,
+                         deoptimization_handler);
+}
+
+
+void VectorLoadStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeVectorLoadStub(descriptor, MajorKey(),
+                           FUNCTION_ADDR(VectorLoadIC_MissFromStubFailure));
+}
+
+
+void VectorKeyedLoadStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeVectorLoadStub(
+      descriptor, MajorKey(),
+      FUNCTION_ADDR(VectorKeyedLoadIC_MissFromStubFailure));
+}
+
+
 void LoadDictionaryElementPlatformStub::Generate(MacroAssembler* masm) {
   ElementHandlerCompiler::GenerateLoadDictionaryElement(masm);
 }

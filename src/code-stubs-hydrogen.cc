@@ -1790,4 +1790,26 @@ Handle<Code> KeyedLoadGenericStub::GenerateCode() {
 }
 
 
+template <>
+HValue* CodeStubGraphBuilder<VectorLoadStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(FullVectorLoadConvention::kReceiverIndex);
+  Add<HDeoptimize>("Always deopt", Deoptimizer::EAGER);
+  return receiver;
+}
+
+
+Handle<Code> VectorLoadStub::GenerateCode() { return DoGenerateCode(this); }
+
+
+template <>
+HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(FullVectorLoadConvention::kReceiverIndex);
+  Add<HDeoptimize>("Always deopt", Deoptimizer::EAGER);
+  return receiver;
+}
+
+
+Handle<Code> VectorKeyedLoadStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
 } }  // namespace v8::internal

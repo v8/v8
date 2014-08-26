@@ -76,6 +76,10 @@ namespace internal {
   V(StoreGlobal)                            \
   V(CallApiFunction)                        \
   V(CallApiGetter)                          \
+  V(LoadICTrampoline)                       \
+  V(VectorLoad)                             \
+  V(KeyedLoadICTrampoline)                  \
+  V(VectorKeyedLoad)                        \
   /* IC Handler stubs */                    \
   V(LoadField)                              \
   V(StoreField)                             \
@@ -1934,6 +1938,106 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
   int NotMissMinorKey() const { return 0; }
 
   DISALLOW_COPY_AND_ASSIGN(KeyedLoadGenericStub);
+};
+
+
+class LoadICTrampolineStub : public PlatformCodeStub {
+ public:
+  LoadICTrampolineStub(Isolate* isolate, const LoadIC::State& state)
+      : PlatformCodeStub(isolate), state_(state) {}
+
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE { return Code::LOAD_IC; }
+
+  virtual InlineCacheState GetICState() const V8_FINAL V8_OVERRIDE {
+    return GENERIC;
+  }
+
+  virtual ExtraICState GetExtraICState() const V8_FINAL V8_OVERRIDE {
+    return state_.GetExtraICState();
+  }
+
+ private:
+  Major MajorKey() const { return LoadICTrampoline; }
+  uint32_t MinorKey() const { return GetExtraICState(); }
+
+  virtual void Generate(MacroAssembler* masm);
+
+  const LoadIC::State state_;
+
+  DISALLOW_COPY_AND_ASSIGN(LoadICTrampolineStub);
+};
+
+
+class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
+ public:
+  explicit KeyedLoadICTrampolineStub(Isolate* isolate)
+      : LoadICTrampolineStub(isolate, LoadIC::State(0)) {}
+
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
+    return Code::KEYED_LOAD_IC;
+  }
+
+ private:
+  Major MajorKey() const { return KeyedLoadICTrampoline; }
+
+  virtual void Generate(MacroAssembler* masm);
+
+  DISALLOW_COPY_AND_ASSIGN(KeyedLoadICTrampolineStub);
+};
+
+
+class VectorLoadStub : public HydrogenCodeStub {
+ public:
+  explicit VectorLoadStub(Isolate* isolate, const LoadIC::State& state)
+      : HydrogenCodeStub(isolate), state_(state) {}
+
+  virtual Handle<Code> GenerateCode() V8_OVERRIDE;
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE { return Code::LOAD_IC; }
+
+  virtual InlineCacheState GetICState() const V8_FINAL V8_OVERRIDE {
+    return GENERIC;
+  }
+
+  virtual ExtraICState GetExtraICState() const V8_FINAL V8_OVERRIDE {
+    return state_.GetExtraICState();
+  }
+
+ private:
+  Major MajorKey() const { return VectorLoad; }
+  int NotMissMinorKey() const { return state_.GetExtraICState(); }
+
+  const LoadIC::State state_;
+
+  DISALLOW_COPY_AND_ASSIGN(VectorLoadStub);
+};
+
+
+class VectorKeyedLoadStub : public VectorLoadStub {
+ public:
+  explicit VectorKeyedLoadStub(Isolate* isolate)
+      : VectorLoadStub(isolate, LoadIC::State(0)) {}
+
+  virtual Handle<Code> GenerateCode() V8_OVERRIDE;
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
+
+  static void InstallDescriptors(Isolate* isolate);
+
+  virtual Code::Kind GetCodeKind() const V8_OVERRIDE {
+    return Code::KEYED_LOAD_IC;
+  }
+
+ private:
+  Major MajorKey() const { return VectorKeyedLoad; }
+
+  DISALLOW_COPY_AND_ASSIGN(VectorKeyedLoadStub);
 };
 
 
