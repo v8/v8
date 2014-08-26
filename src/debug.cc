@@ -1051,7 +1051,7 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
   Handle<Object> result;
   if (!Execution::TryCall(check_break_point,
                           isolate_->js_builtins_object(),
-                          ARRAY_SIZE(argv),
+                          arraysize(argv),
                           argv).ToHandle(&result)) {
     return false;
   }
@@ -2458,7 +2458,7 @@ MaybeHandle<Object> Debug::MakeJSObject(const char* constructor_name,
 MaybeHandle<Object> Debug::MakeExecutionState() {
   // Create the execution state object.
   Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()) };
-  return MakeJSObject("MakeExecutionState", ARRAY_SIZE(argv), argv);
+  return MakeJSObject("MakeExecutionState", arraysize(argv), argv);
 }
 
 
@@ -2466,7 +2466,7 @@ MaybeHandle<Object> Debug::MakeBreakEvent(Handle<Object> break_points_hit) {
   // Create the new break event object.
   Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()),
                             break_points_hit };
-  return MakeJSObject("MakeBreakEvent", ARRAY_SIZE(argv), argv);
+  return MakeJSObject("MakeBreakEvent", arraysize(argv), argv);
 }
 
 
@@ -2478,7 +2478,7 @@ MaybeHandle<Object> Debug::MakeExceptionEvent(Handle<Object> exception,
                             exception,
                             isolate_->factory()->ToBoolean(uncaught),
                             promise };
-  return MakeJSObject("MakeExceptionEvent", ARRAY_SIZE(argv), argv);
+  return MakeJSObject("MakeExceptionEvent", arraysize(argv), argv);
 }
 
 
@@ -2488,21 +2488,21 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
   Handle<Object> script_wrapper = Script::GetWrapper(script);
   Handle<Object> argv[] = { script_wrapper,
                             isolate_->factory()->NewNumberFromInt(type) };
-  return MakeJSObject("MakeCompileEvent", ARRAY_SIZE(argv), argv);
+  return MakeJSObject("MakeCompileEvent", arraysize(argv), argv);
 }
 
 
 MaybeHandle<Object> Debug::MakePromiseEvent(Handle<JSObject> event_data) {
   // Create the promise event object.
   Handle<Object> argv[] = { event_data };
-  return MakeJSObject("MakePromiseEvent", ARRAY_SIZE(argv), argv);
+  return MakeJSObject("MakePromiseEvent", arraysize(argv), argv);
 }
 
 
 MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
   // Create the async task event object.
   Handle<Object> argv[] = { task_event };
-  return MakeJSObject("MakeAsyncTaskEvent", ARRAY_SIZE(argv), argv);
+  return MakeJSObject("MakeAsyncTaskEvent", arraysize(argv), argv);
 }
 
 
@@ -2648,7 +2648,7 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   Handle<Object> argv[] = { wrapper };
   if (Execution::TryCall(Handle<JSFunction>::cast(update_script_break_points),
                          isolate_->js_builtins_object(),
-                         ARRAY_SIZE(argv),
+                         arraysize(argv),
                          argv).is_null()) {
     return;
   }
@@ -2765,7 +2765,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               event_listener_data_ };
     Handle<JSReceiver> global(isolate_->global_proxy());
     Execution::TryCall(Handle<JSFunction>::cast(event_listener_),
-                       global, ARRAY_SIZE(argv), argv);
+                       global, arraysize(argv), argv);
   }
 }
 
@@ -3004,7 +3004,7 @@ MaybeHandle<Object> Debug::Call(Handle<JSFunction> fun, Handle<Object> data) {
       isolate_,
       fun,
       Handle<Object>(debug_context()->global_proxy(), isolate_),
-      ARRAY_SIZE(argv),
+      arraysize(argv),
       argv);
 }
 

@@ -119,7 +119,7 @@ void InstructionSelector::VisitStore(Node* node) {
     // TODO(dcarney): handle immediate indices.
     InstructionOperand* temps[] = {g.TempRegister(rcx), g.TempRegister(rdx)};
     Emit(kX64StoreWriteBarrier, NULL, g.UseFixed(base, rbx),
-         g.UseFixed(index, rcx), g.UseFixed(value, rdx), ARRAY_SIZE(temps),
+         g.UseFixed(index, rcx), g.UseFixed(value, rdx), arraysize(temps),
          temps);
     return;
   }
@@ -206,8 +206,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
   DCHECK_NE(0, input_count);
   DCHECK_NE(0, output_count);
-  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
-  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
+  DCHECK_GE(arraysize(inputs), input_count);
+  DCHECK_GE(arraysize(outputs), output_count);
 
   Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
                                       outputs, input_count, inputs);
@@ -428,7 +428,7 @@ static void VisitDiv(InstructionSelector* selector, Node* node,
   InstructionOperand* temps[] = {g.TempRegister(rdx)};
   selector->Emit(
       opcode, g.DefineAsFixed(node, rax), g.UseFixed(node->InputAt(0), rax),
-      g.UseUniqueRegister(node->InputAt(1)), ARRAY_SIZE(temps), temps);
+      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 
@@ -458,7 +458,7 @@ static void VisitMod(InstructionSelector* selector, Node* node,
   InstructionOperand* temps[] = {g.TempRegister(rax), g.TempRegister(rdx)};
   selector->Emit(
       opcode, g.DefineAsFixed(node, rdx), g.UseFixed(node->InputAt(0), rax),
-      g.UseUniqueRegister(node->InputAt(1)), ARRAY_SIZE(temps), temps);
+      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
 

@@ -56,40 +56,40 @@ namespace {
 class ThreadLocalStorageTest : public Thread, public ::testing::Test {
  public:
   ThreadLocalStorageTest() : Thread(Options("ThreadLocalStorageTest")) {
-    for (size_t i = 0; i < ARRAY_SIZE(keys_); ++i) {
+    for (size_t i = 0; i < arraysize(keys_); ++i) {
       keys_[i] = Thread::CreateThreadLocalKey();
     }
   }
   ~ThreadLocalStorageTest() {
-    for (size_t i = 0; i < ARRAY_SIZE(keys_); ++i) {
+    for (size_t i = 0; i < arraysize(keys_); ++i) {
       Thread::DeleteThreadLocalKey(keys_[i]);
     }
   }
 
   virtual void Run() V8_FINAL V8_OVERRIDE {
-    for (size_t i = 0; i < ARRAY_SIZE(keys_); i++) {
+    for (size_t i = 0; i < arraysize(keys_); i++) {
       CHECK(!Thread::HasThreadLocal(keys_[i]));
     }
-    for (size_t i = 0; i < ARRAY_SIZE(keys_); i++) {
+    for (size_t i = 0; i < arraysize(keys_); i++) {
       Thread::SetThreadLocal(keys_[i], GetValue(i));
     }
-    for (size_t i = 0; i < ARRAY_SIZE(keys_); i++) {
+    for (size_t i = 0; i < arraysize(keys_); i++) {
       CHECK(Thread::HasThreadLocal(keys_[i]));
     }
-    for (size_t i = 0; i < ARRAY_SIZE(keys_); i++) {
+    for (size_t i = 0; i < arraysize(keys_); i++) {
       CHECK_EQ(GetValue(i), Thread::GetThreadLocal(keys_[i]));
       CHECK_EQ(GetValue(i), Thread::GetExistingThreadLocal(keys_[i]));
     }
-    for (size_t i = 0; i < ARRAY_SIZE(keys_); i++) {
-      Thread::SetThreadLocal(keys_[i], GetValue(ARRAY_SIZE(keys_) - i - 1));
+    for (size_t i = 0; i < arraysize(keys_); i++) {
+      Thread::SetThreadLocal(keys_[i], GetValue(arraysize(keys_) - i - 1));
     }
-    for (size_t i = 0; i < ARRAY_SIZE(keys_); i++) {
+    for (size_t i = 0; i < arraysize(keys_); i++) {
       CHECK(Thread::HasThreadLocal(keys_[i]));
     }
-    for (size_t i = 0; i < ARRAY_SIZE(keys_); i++) {
-      CHECK_EQ(GetValue(ARRAY_SIZE(keys_) - i - 1),
+    for (size_t i = 0; i < arraysize(keys_); i++) {
+      CHECK_EQ(GetValue(arraysize(keys_) - i - 1),
                Thread::GetThreadLocal(keys_[i]));
-      CHECK_EQ(GetValue(ARRAY_SIZE(keys_) - i - 1),
+      CHECK_EQ(GetValue(arraysize(keys_) - i - 1),
                Thread::GetExistingThreadLocal(keys_[i]));
     }
   }

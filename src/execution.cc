@@ -484,7 +484,7 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
     return Call(isolate,                                                \
                 isolate->name##_fun(),                                  \
                 isolate->js_builtins_object(),                          \
-                ARRAY_SIZE(argv), argv);                                \
+                arraysize(argv), argv);                                \
   } while (false)
 
 
@@ -575,7 +575,7 @@ Handle<Object> Execution::CharAt(Handle<String> string, uint32_t index) {
   Handle<Object> result;
   if (!TryCall(Handle<JSFunction>::cast(char_at),
                string,
-               ARRAY_SIZE(index_arg),
+               arraysize(index_arg),
                index_arg).ToHandle(&result)) {
     return factory->undefined_value();
   }
@@ -602,7 +602,7 @@ MaybeHandle<JSFunction> Execution::InstantiateFunction(
       Call(isolate,
            isolate->instantiate_fun(),
            isolate->js_builtins_object(),
-           ARRAY_SIZE(args),
+           arraysize(args),
            args),
       JSFunction);
   return Handle<JSFunction>::cast(result);
@@ -629,7 +629,7 @@ MaybeHandle<JSObject> Execution::InstantiateObject(
         Call(isolate,
              isolate->instantiate_fun(),
              isolate->js_builtins_object(),
-             ARRAY_SIZE(args),
+             arraysize(args),
              args),
         JSObject);
   }
@@ -645,7 +645,7 @@ MaybeHandle<Object> Execution::ConfigureInstance(
   return Execution::Call(isolate,
                          isolate->configure_instance_fun(),
                          isolate->js_builtins_object(),
-                         ARRAY_SIZE(args),
+                         arraysize(args),
                          args);
 }
 
@@ -659,7 +659,7 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
   MaybeHandle<Object> maybe_result =
       TryCall(isolate->get_stack_trace_line_fun(),
               isolate->js_builtins_object(),
-              ARRAY_SIZE(args),
+              arraysize(args),
               args);
   Handle<Object> result;
   if (!maybe_result.ToHandle(&result) || !result->IsString()) {

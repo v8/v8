@@ -494,7 +494,7 @@ class FrameDescription {
     // This convoluted DCHECK is needed to work around a gcc problem that
     // improperly detects an array bounds overflow in optimized debug builds
     // when using a plain DCHECK.
-    if (n >= ARRAY_SIZE(registers_)) {
+    if (n >= arraysize(registers_)) {
       DCHECK(false);
       return 0;
     }
@@ -503,17 +503,17 @@ class FrameDescription {
   }
 
   double GetDoubleRegister(unsigned n) const {
-    DCHECK(n < ARRAY_SIZE(double_registers_));
+    DCHECK(n < arraysize(double_registers_));
     return double_registers_[n];
   }
 
   void SetRegister(unsigned n, intptr_t value) {
-    DCHECK(n < ARRAY_SIZE(registers_));
+    DCHECK(n < arraysize(registers_));
     registers_[n] = value;
   }
 
   void SetDoubleRegister(unsigned n, double value) {
-    DCHECK(n < ARRAY_SIZE(double_registers_));
+    DCHECK(n < arraysize(double_registers_));
     double_registers_[n] = value;
   }
 

@@ -34,25 +34,25 @@ class Graph : public GenericGraph<Node> {
   Node* NewNode(Operator* op, Node* n1) { return NewNode(op, 1, &n1); }
   Node* NewNode(Operator* op, Node* n1, Node* n2) {
     Node* nodes[] = {n1, n2};
-    return NewNode(op, ARRAY_SIZE(nodes), nodes);
+    return NewNode(op, arraysize(nodes), nodes);
   }
   Node* NewNode(Operator* op, Node* n1, Node* n2, Node* n3) {
     Node* nodes[] = {n1, n2, n3};
-    return NewNode(op, ARRAY_SIZE(nodes), nodes);
+    return NewNode(op, arraysize(nodes), nodes);
   }
   Node* NewNode(Operator* op, Node* n1, Node* n2, Node* n3, Node* n4) {
     Node* nodes[] = {n1, n2, n3, n4};
-    return NewNode(op, ARRAY_SIZE(nodes), nodes);
+    return NewNode(op, arraysize(nodes), nodes);
   }
   Node* NewNode(Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
                 Node* n5) {
     Node* nodes[] = {n1, n2, n3, n4, n5};
-    return NewNode(op, ARRAY_SIZE(nodes), nodes);
+    return NewNode(op, arraysize(nodes), nodes);
   }
   Node* NewNode(Operator* op, Node* n1, Node* n2, Node* n3, Node* n4, Node* n5,
                 Node* n6) {
     Node* nodes[] = {n1, n2, n3, n4, n5, n6};
-    return NewNode(op, ARRAY_SIZE(nodes), nodes);
+    return NewNode(op, arraysize(nodes), nodes);
   }
 
   void ChangeOperator(Node* node, Operator* op);

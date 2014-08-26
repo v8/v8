@@ -91,7 +91,7 @@ Instruction* InstructionSelector::Emit(InstructionCode opcode,
                                        InstructionOperand** temps) {
   size_t output_count = output == NULL ? 0 : 1;
   InstructionOperand* inputs[] = {a, b};
-  size_t input_count = ARRAY_SIZE(inputs);
+  size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
 }
@@ -105,7 +105,7 @@ Instruction* InstructionSelector::Emit(InstructionCode opcode,
                                        InstructionOperand** temps) {
   size_t output_count = output == NULL ? 0 : 1;
   InstructionOperand* inputs[] = {a, b, c};
-  size_t input_count = ARRAY_SIZE(inputs);
+  size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
 }
@@ -117,7 +117,7 @@ Instruction* InstructionSelector::Emit(
     size_t temp_count, InstructionOperand** temps) {
   size_t output_count = output == NULL ? 0 : 1;
   InstructionOperand* inputs[] = {a, b, c, d};
-  size_t input_count = ARRAY_SIZE(inputs);
+  size_t input_count = arraysize(inputs);
   return Emit(opcode, output_count, &output, input_count, inputs, temp_count,
               temps);
 }

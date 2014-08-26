@@ -9767,7 +9767,7 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
         static_cast<int>(Runtime::kFirstInlineFunction);
     DCHECK(lookup_index >= 0);
     DCHECK(static_cast<size_t>(lookup_index) <
-           ARRAY_SIZE(kInlineFunctionGenerators));
+           arraysize(kInlineFunctionGenerators));
     InlineFunctionGenerator generator = kInlineFunctionGenerators[lookup_index];
 
     // Call the inline code generator using the pointer-to-member.

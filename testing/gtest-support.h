@@ -34,7 +34,7 @@ GET_TYPE_NAME(double)
 // inside the loop body.
 // TODO(bmeurer): Migrate to C++11 once we're ready.
 #define TRACED_FOREACH(_type, _var, _array)                                \
-  for (size_t _i = 0; _i < ARRAY_SIZE(_array); ++_i)                       \
+  for (size_t _i = 0; _i < arraysize(_array); ++_i)                        \
     for (bool _done = false; !_done;)                                      \
       for (const _type _var = _array[_i]; !_done;)                         \
         for (SCOPED_TRACE(::testing::Message() << #_var << " = " << _var); \

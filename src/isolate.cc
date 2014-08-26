@@ -2269,7 +2269,7 @@ Handle<JSObject> Isolate::GetSymbolRegistry() {
     static const char* nested[] = {
       "for", "for_api", "for_intern", "keyFor", "private_api", "private_intern"
     };
-    for (unsigned i = 0; i < ARRAY_SIZE(nested); ++i) {
+    for (unsigned i = 0; i < arraysize(nested); ++i) {
       Handle<String> name = factory()->InternalizeUtf8String(nested[i]);
       Handle<JSObject> obj = factory()->NewJSObjectFromMap(map);
       JSObject::NormalizeProperties(obj, KEEP_INOBJECT_PROPERTIES, 8);

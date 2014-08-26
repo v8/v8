@@ -132,7 +132,7 @@ void LCodeGenBase::CheckEnvironmentUsage() {
 void LCodeGenBase::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
   char buffer[4 * KB];
-  StringBuilder builder(buffer, ARRAY_SIZE(buffer));
+  StringBuilder builder(buffer, arraysize(buffer));
   va_list arguments;
   va_start(arguments, format);
   builder.AddFormattedList(format, arguments);

@@ -96,7 +96,7 @@ TEST(PhiReduce1) {
   Node* param = R.Parameter();
 
   Node* singles[] = {zero, one, oneish, param};
-  for (size_t i = 0; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 0; i < arraysize(singles); i++) {
     R.CheckReduce(singles[i], R.Phi(singles[i]));
   }
 }
@@ -110,18 +110,18 @@ TEST(PhiReduce2) {
   Node* param = R.Parameter();
 
   Node* singles[] = {zero, one, oneish, param};
-  for (size_t i = 0; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 0; i < arraysize(singles); i++) {
     Node* a = singles[i];
     R.CheckReduce(a, R.Phi(a, a));
   }
 
-  for (size_t i = 0; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 0; i < arraysize(singles); i++) {
     Node* a = singles[i];
     R.CheckReduce(a, R.Phi(R.self, a));
     R.CheckReduce(a, R.Phi(a, R.self));
   }
 
-  for (size_t i = 1; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 1; i < arraysize(singles); i++) {
     Node* a = singles[i], *b = singles[0];
     Node* phi1 = R.Phi(b, a);
     R.CheckReduce(phi1, phi1);
@@ -140,19 +140,19 @@ TEST(PhiReduce3) {
   Node* param = R.Parameter();
 
   Node* singles[] = {zero, one, oneish, param};
-  for (size_t i = 0; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 0; i < arraysize(singles); i++) {
     Node* a = singles[i];
     R.CheckReduce(a, R.Phi(a, a, a));
   }
 
-  for (size_t i = 0; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 0; i < arraysize(singles); i++) {
     Node* a = singles[i];
     R.CheckReduce(a, R.Phi(R.self, a, a));
     R.CheckReduce(a, R.Phi(a, R.self, a));
     R.CheckReduce(a, R.Phi(a, a, R.self));
   }
 
-  for (size_t i = 1; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 1; i < arraysize(singles); i++) {
     Node* a = singles[i], *b = singles[0];
     Node* phi1 = R.Phi(b, a, a);
     R.CheckReduce(phi1, phi1);
@@ -174,12 +174,12 @@ TEST(PhiReduce4) {
   Node* param = R.Parameter();
 
   Node* singles[] = {zero, one, oneish, param};
-  for (size_t i = 0; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 0; i < arraysize(singles); i++) {
     Node* a = singles[i];
     R.CheckReduce(a, R.Phi(a, a, a, a));
   }
 
-  for (size_t i = 0; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 0; i < arraysize(singles); i++) {
     Node* a = singles[i];
     R.CheckReduce(a, R.Phi(R.self, a, a, a));
     R.CheckReduce(a, R.Phi(a, R.self, a, a));
@@ -192,7 +192,7 @@ TEST(PhiReduce4) {
     R.CheckReduce(a, R.Phi(R.self, a, a, R.self));
   }
 
-  for (size_t i = 1; i < ARRAY_SIZE(singles); i++) {
+  for (size_t i = 1; i < arraysize(singles); i++) {
     Node* a = singles[i], *b = singles[0];
     Node* phi1 = R.Phi(b, a, a, a);
     R.CheckReduce(phi1, phi1);
@@ -217,7 +217,7 @@ TEST(PhiReduceShouldIgnoreControlNodes) {
   Node* param = R.Parameter();
 
   Node* singles[] = {zero, one, oneish, param};
-  for (size_t i = 0; i < ARRAY_SIZE(singles); ++i) {
+  for (size_t i = 0; i < arraysize(singles); ++i) {
     R.CheckReduce(singles[i], R.PhiWithControl(singles[i], R.dead));
     R.CheckReduce(singles[i], R.PhiWithControl(R.self, singles[i], R.dead));
     R.CheckReduce(singles[i], R.PhiWithControl(singles[i], R.self, R.dead));

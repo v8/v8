@@ -139,13 +139,13 @@ TEST(MarkCompactCollector) {
   heap->CollectGarbage(OLD_POINTER_SPACE, "trigger 1");
 
   // keep allocating garbage in new space until it fails
-  const int ARRAY_SIZE = 100;
+  const int arraysize = 100;
   AllocationResult allocation;
   do {
-    allocation = heap->AllocateFixedArray(ARRAY_SIZE);
+    allocation = heap->AllocateFixedArray(arraysize);
   } while (!allocation.IsRetry());
   heap->CollectGarbage(NEW_SPACE, "trigger 2");
-  heap->AllocateFixedArray(ARRAY_SIZE).ToObjectChecked();
+  heap->AllocateFixedArray(arraysize).ToObjectChecked();
 
   // keep allocating maps until it fails
   do {

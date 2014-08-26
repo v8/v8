@@ -49,7 +49,7 @@ class LoadICStubShim : public HydrogenCodeStub {
     Register registers[] = { InterfaceDescriptor::ContextRegister(),
                              LoadIC::ReceiverRegister(),
                              LoadIC::NameRegister() };
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   }
 
  private:
@@ -79,7 +79,7 @@ class KeyedLoadICStubShim : public HydrogenCodeStub {
     Register registers[] = { InterfaceDescriptor::ContextRegister(),
                              KeyedLoadIC::ReceiverRegister(),
                              KeyedLoadIC::NameRegister() };
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   }
 
  private:
@@ -109,7 +109,7 @@ class StoreICStubShim : public HydrogenCodeStub {
                              StoreIC::ReceiverRegister(),
                              StoreIC::NameRegister(),
                              StoreIC::ValueRegister() };
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   }
 
  private:
@@ -143,7 +143,7 @@ class KeyedStoreICStubShim : public HydrogenCodeStub {
                              KeyedStoreIC::ReceiverRegister(),
                              KeyedStoreIC::NameRegister(),
                              KeyedStoreIC::ValueRegister() };
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   }
 
  private:

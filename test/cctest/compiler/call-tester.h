@@ -280,14 +280,14 @@ class CallHelper {
   template <typename P1>
   void VerifyParameters1() {
     MachineType parameters[] = {ReturnValueTraits<P1>::Representation()};
-    VerifyParameters(ARRAY_SIZE(parameters), parameters);
+    VerifyParameters(arraysize(parameters), parameters);
   }
 
   template <typename P1, typename P2>
   void VerifyParameters2() {
     MachineType parameters[] = {ReturnValueTraits<P1>::Representation(),
                                 ReturnValueTraits<P2>::Representation()};
-    VerifyParameters(ARRAY_SIZE(parameters), parameters);
+    VerifyParameters(arraysize(parameters), parameters);
   }
 
   template <typename P1, typename P2, typename P3>
@@ -295,7 +295,7 @@ class CallHelper {
     MachineType parameters[] = {ReturnValueTraits<P1>::Representation(),
                                 ReturnValueTraits<P2>::Representation(),
                                 ReturnValueTraits<P3>::Representation()};
-    VerifyParameters(ARRAY_SIZE(parameters), parameters);
+    VerifyParameters(arraysize(parameters), parameters);
   }
 
   template <typename P1, typename P2, typename P3, typename P4>
@@ -304,7 +304,7 @@ class CallHelper {
                                 ReturnValueTraits<P2>::Representation(),
                                 ReturnValueTraits<P3>::Representation(),
                                 ReturnValueTraits<P4>::Representation()};
-    VerifyParameters(ARRAY_SIZE(parameters), parameters);
+    VerifyParameters(arraysize(parameters), parameters);
   }
 #endif
 

@@ -314,7 +314,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 #undef IC_ENTRY
   };  // end of ref_table[].
 
-  for (size_t i = 0; i < ARRAY_SIZE(ref_table); ++i) {
+  for (size_t i = 0; i < arraysize(ref_table); ++i) {
     AddFromId(ref_table[i].type,
               ref_table[i].id,
               ref_table[i].name,
@@ -340,7 +340,7 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   };  // end of stats_ref_table[].
 
   Counters* counters = isolate->counters();
-  for (size_t i = 0; i < ARRAY_SIZE(stats_ref_table); ++i) {
+  for (size_t i = 0; i < arraysize(stats_ref_table); ++i) {
     Add(reinterpret_cast<Address>(GetInternalPointer(
             (counters->*(stats_ref_table[i].counter))())),
         STATS_COUNTER,

@@ -1007,7 +1007,7 @@ void GlobalHandles::ComputeObjectGroupsAndImplicitReferences() {
 
 
 EternalHandles::EternalHandles() : size_(0) {
-  for (unsigned i = 0; i < ARRAY_SIZE(singleton_handles_); i++) {
+  for (unsigned i = 0; i < arraysize(singleton_handles_); i++) {
     singleton_handles_[i] = kInvalidIndex;
   }
 }

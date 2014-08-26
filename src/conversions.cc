@@ -211,7 +211,7 @@ char* DoubleToFixedCString(double value, int f) {
   // use the non-fixed conversion routine.
   if (abs_value >= kFirstNonFixed) {
     char arr[100];
-    Vector<char> buffer(arr, ARRAY_SIZE(arr));
+    Vector<char> buffer(arr, arraysize(arr));
     return StrDup(DoubleToCString(value, buffer));
   }
 

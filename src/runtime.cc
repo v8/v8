@@ -290,7 +290,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
       DCHECK(key->IsNumber());
       double num = key->Number();
       char arr[100];
-      Vector<char> buffer(arr, ARRAY_SIZE(arr));
+      Vector<char> buffer(arr, arraysize(arr));
       const char* str = DoubleToCString(num, buffer);
       Handle<String> name = isolate->factory()->NewStringFromAsciiChecked(str);
       maybe_result = JSObject::SetOwnPropertyIgnoreAttributes(boilerplate, name,
@@ -14333,7 +14333,7 @@ RUNTIME_FUNCTION(Runtime_StringNormalize) {
   CONVERT_ARG_HANDLE_CHECKED(String, stringValue, 0);
   CONVERT_NUMBER_CHECKED(int, form_id, Int32, args[1]);
   RUNTIME_ASSERT(form_id >= 0 &&
-                 static_cast<size_t>(form_id) < ARRAY_SIZE(normalizationForms));
+                 static_cast<size_t>(form_id) < arraysize(normalizationForms));
 
   v8::String::Value string_value(v8::Utils::ToLocal(stringValue));
   const UChar* u_value = reinterpret_cast<const UChar*>(*string_value);
@@ -14719,7 +14719,7 @@ RUNTIME_FUNCTION(Runtime_GetFromCache) {
     Handle<Object> argv[] = { key_handle };
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, value,
-        Execution::Call(isolate, factory, receiver, ARRAY_SIZE(argv), argv));
+        Execution::Call(isolate, factory, receiver, arraysize(argv), argv));
   }
 
 #ifdef VERIFY_HEAP
@@ -15643,7 +15643,7 @@ const Runtime::Function* Runtime::FunctionForName(Handle<String> name) {
 
 
 const Runtime::Function* Runtime::FunctionForEntry(Address entry) {
-  for (size_t i = 0; i < ARRAY_SIZE(kIntrinsicFunctions); ++i) {
+  for (size_t i = 0; i < arraysize(kIntrinsicFunctions); ++i) {
     if (entry == kIntrinsicFunctions[i].entry) {
       return &(kIntrinsicFunctions[i]);
     }

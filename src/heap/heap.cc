@@ -2500,7 +2500,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
 
-    for (unsigned i = 0; i < ARRAY_SIZE(string_type_table); i++) {
+    for (unsigned i = 0; i < arraysize(string_type_table); i++) {
       const StringTypeTable& entry = string_type_table[i];
       {
         AllocationResult allocation = AllocateMap(entry.type, entry.size);
@@ -2546,7 +2546,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(FILLER_TYPE, 2 * kPointerSize, two_pointer_filler)
 
 
-    for (unsigned i = 0; i < ARRAY_SIZE(struct_table); i++) {
+    for (unsigned i = 0; i < arraysize(struct_table); i++) {
       const StructTable& entry = struct_table[i];
       Map* map;
       if (!AllocateMap(entry.type, entry.size).To(&map)) return false;
@@ -2791,7 +2791,7 @@ void Heap::CreateInitialObjects() {
                                      handle(Smi::FromInt(-5), isolate()),
                                      Oddball::kException));
 
-  for (unsigned i = 0; i < ARRAY_SIZE(constant_string_table); i++) {
+  for (unsigned i = 0; i < arraysize(constant_string_table); i++) {
     Handle<String> str =
         factory->InternalizeUtf8String(constant_string_table[i].contents);
     roots_[constant_string_table[i].index] = *str;
@@ -2921,7 +2921,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
       kStringTableRootIndex,
   };
 
-  for (unsigned int i = 0; i < ARRAY_SIZE(writable_roots); i++) {
+  for (unsigned int i = 0; i < arraysize(writable_roots); i++) {
     if (root_index == writable_roots[i]) return true;
   }
   return false;

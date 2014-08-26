@@ -87,7 +87,7 @@ TEST(ScanKeywords) {
     }
     // Adding characters will make keyword matching fail.
     static const char chars_to_append[] = { 'z', '0', '_' };
-    for (int j = 0; j < static_cast<int>(ARRAY_SIZE(chars_to_append)); ++j) {
+    for (int j = 0; j < static_cast<int>(arraysize(chars_to_append)); ++j) {
       i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
       i::Utf8ToUtf16CharacterStream stream(buffer, length + 1);
@@ -265,7 +265,7 @@ TEST(PreparseFunctionDataIsUsed) {
       "var this_is_lazy = () => { if (   }; var foo = () => 25; foo();",
   };
 
-  for (unsigned i = 0; i < ARRAY_SIZE(good_code); i++) {
+  for (unsigned i = 0; i < arraysize(good_code); i++) {
     v8::ScriptCompiler::Source good_source(v8_str(good_code[i]));
     v8::ScriptCompiler::Compile(isolate, &good_source,
                                 v8::ScriptCompiler::kProduceDataToCache);
@@ -1459,7 +1459,7 @@ TEST(ParserSync) {
             termination_data[k],
             context_data[i][1]);
         CHECK(length == kProgramSize);
-        TestParserSync(program.start(), flags1, ARRAY_SIZE(flags1));
+        TestParserSync(program.start(), flags1, arraysize(flags1));
       }
     }
   }
@@ -1468,11 +1468,11 @@ TEST(ParserSync) {
   // interaction with the flags above, so test these separately to reduce
   // the combinatorial explosion.
   static const ParserFlag flags2[] = { kAllowHarmonyNumericLiterals };
-  TestParserSync("0o1234", flags2, ARRAY_SIZE(flags2));
-  TestParserSync("0b1011", flags2, ARRAY_SIZE(flags2));
+  TestParserSync("0o1234", flags2, arraysize(flags2));
+  TestParserSync("0b1011", flags2, arraysize(flags2));
 
   static const ParserFlag flags3[] = { kAllowNativesSyntax };
-  TestParserSync("%DebugPrint(123)", flags3, ARRAY_SIZE(flags3));
+  TestParserSync("%DebugPrint(123)", flags3, arraysize(flags3));
 }
 
 
@@ -1520,7 +1520,7 @@ void RunParserSyncTest(const char* context_data[][2],
   ParserFlag* generated_flags = NULL;
   if (flags == NULL) {
     flags = default_flags;
-    flags_len = ARRAY_SIZE(default_flags);
+    flags_len = arraysize(default_flags);
     if (always_true_flags != NULL) {
       // Remove always_true_flags from default_flags.
       CHECK(always_true_flags_len < flags_len);
@@ -1670,7 +1670,7 @@ TEST(NoErrorsEvalAndArgumentsStrict) {
 
   static const ParserFlag always_flags[] = {kAllowArrowFunctions};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_flags, ARRAY_SIZE(always_flags));
+                    always_flags, arraysize(always_flags));
 }
 
 
@@ -1703,7 +1703,7 @@ TEST(ErrorsFutureStrictReservedWords) {
 
   static const ParserFlag always_flags[] = {kAllowArrowFunctions};
   RunParserSyncTest(context_data, statement_data, kError, NULL, 0, always_flags,
-                    ARRAY_SIZE(always_flags));
+                    arraysize(always_flags));
 }
 
 
@@ -1732,7 +1732,7 @@ TEST(NoErrorsFutureStrictReservedWords) {
 
   static const ParserFlag always_flags[] = {kAllowArrowFunctions};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_flags, ARRAY_SIZE(always_flags));
+                    always_flags, arraysize(always_flags));
 }
 
 
@@ -2157,7 +2157,7 @@ TEST(NoErrorsIllegalWordsAsLabels) {
 
   static const ParserFlag always_flags[] = {kAllowArrowFunctions};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_flags, ARRAY_SIZE(always_flags));
+                    always_flags, arraysize(always_flags));
 }
 
 
@@ -3098,10 +3098,10 @@ TEST(InnerAssignment) {
   int prefix_len = Utf8LengthHelper(prefix);
   int midfix_len = Utf8LengthHelper(midfix);
   int suffix_len = Utf8LengthHelper(suffix);
-  for (unsigned i = 0; i < ARRAY_SIZE(outers); ++i) {
+  for (unsigned i = 0; i < arraysize(outers); ++i) {
     const char* outer = outers[i].source;
     int outer_len = Utf8LengthHelper(outer);
-    for (unsigned j = 0; j < ARRAY_SIZE(inners); ++j) {
+    for (unsigned j = 0; j < arraysize(inners); ++j) {
       for (unsigned outer_lazy = 0; outer_lazy < 2; ++outer_lazy) {
         for (unsigned inner_lazy = 0; inner_lazy < 2; ++inner_lazy) {
           if (outers[i].strict && inners[j].with) continue;
@@ -3280,7 +3280,7 @@ TEST(ErrorsArrowFunctions) {
   };
   static const ParserFlag always_flags[] = { kAllowArrowFunctions };
   RunParserSyncTest(context_data, statement_data, kError, flags,
-                    ARRAY_SIZE(flags), always_flags, ARRAY_SIZE(always_flags));
+                    arraysize(flags), always_flags, arraysize(always_flags));
 }
 
 
@@ -3334,7 +3334,7 @@ TEST(NoErrorsArrowFunctions) {
 
   static const ParserFlag always_flags[] = {kAllowArrowFunctions};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_flags, ARRAY_SIZE(always_flags));
+                    always_flags, arraysize(always_flags));
 }
 
 
@@ -3359,7 +3359,7 @@ TEST(NoErrorsSuper) {
 
   static const ParserFlag always_flags[] = {kAllowClasses};
   RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
-                    always_flags, ARRAY_SIZE(always_flags));
+                    always_flags, arraysize(always_flags));
 }
 
 
@@ -3378,5 +3378,5 @@ TEST(ErrorsSuper) {
 
   static const ParserFlag always_flags[] = {kAllowClasses};
   RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
-                    always_flags, ARRAY_SIZE(always_flags));
+                    always_flags, arraysize(always_flags));
 }

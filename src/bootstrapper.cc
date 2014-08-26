@@ -2682,7 +2682,7 @@ Genesis::Genesis(Isolate* isolate,
                                   NONE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
-    const int constants_size = ARRAY_SIZE(fdlibm::MathConstants::constants);
+    const int constants_size = arraysize(fdlibm::MathConstants::constants);
     const int table_num_bytes = constants_size * kDoubleSize;
     v8::Local<v8::ArrayBuffer> trig_buffer = v8::ArrayBuffer::New(
         reinterpret_cast<v8::Isolate*>(isolate),

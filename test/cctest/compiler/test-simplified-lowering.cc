@@ -247,7 +247,7 @@ TEST(RunLoadStoreArrayBuffer) {
 TEST(RunLoadFieldFromUntaggedBase) {
   Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3)};
 
-  for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {
+  for (size_t i = 0; i < arraysize(smis); i++) {
     int offset = static_cast<int>(i * sizeof(Smi*));
     FieldAccess access = {kUntaggedBase, offset, Handle<Name>(),
                           Type::Integral32(), kMachAnyTagged};
@@ -271,7 +271,7 @@ TEST(RunLoadFieldFromUntaggedBase) {
 TEST(RunStoreFieldToUntaggedBase) {
   Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3)};
 
-  for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {
+  for (size_t i = 0; i < arraysize(smis); i++) {
     int offset = static_cast<int>(i * sizeof(Smi*));
     FieldAccess access = {kUntaggedBase, offset, Handle<Name>(),
                           Type::Integral32(), kMachAnyTagged};
@@ -298,8 +298,8 @@ TEST(RunLoadElementFromUntaggedBase) {
   Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3),
                  Smi::FromInt(4), Smi::FromInt(5)};
 
-  for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {    // for header sizes
-    for (size_t j = 0; (i + j) < ARRAY_SIZE(smis); j++) {  // for element index
+  for (size_t i = 0; i < arraysize(smis); i++) {    // for header sizes
+    for (size_t j = 0; (i + j) < arraysize(smis); j++) {  // for element index
       int offset = static_cast<int>(i * sizeof(Smi*));
       ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
                               kMachAnyTagged};
@@ -326,8 +326,8 @@ TEST(RunStoreElementFromUntaggedBase) {
   Smi* smis[] = {Smi::FromInt(1), Smi::FromInt(2), Smi::FromInt(3),
                  Smi::FromInt(4), Smi::FromInt(5)};
 
-  for (size_t i = 0; i < ARRAY_SIZE(smis); i++) {    // for header sizes
-    for (size_t j = 0; (i + j) < ARRAY_SIZE(smis); j++) {  // for element index
+  for (size_t i = 0; i < arraysize(smis); i++) {    // for header sizes
+    for (size_t j = 0; (i + j) < arraysize(smis); j++) {  // for element index
       int offset = static_cast<int>(i * sizeof(Smi*));
       ElementAccess access = {kUntaggedBase, offset, Type::Integral32(),
                               kMachAnyTagged};
@@ -557,19 +557,19 @@ static void RunAccessTest(MachineType rep, E* original_elements, size_t num) {
 TEST(RunAccessTests_uint8) {
   uint8_t data[] = {0x07, 0x16, 0x25, 0x34, 0x43, 0x99,
                     0xab, 0x78, 0x89, 0x19, 0x2b, 0x38};
-  RunAccessTest<uint8_t>(kMachInt8, data, ARRAY_SIZE(data));
+  RunAccessTest<uint8_t>(kMachInt8, data, arraysize(data));
 }
 
 
 TEST(RunAccessTests_uint16) {
   uint16_t data[] = {0x071a, 0x162b, 0x253c, 0x344d, 0x435e, 0x7777};
-  RunAccessTest<uint16_t>(kMachInt16, data, ARRAY_SIZE(data));
+  RunAccessTest<uint16_t>(kMachInt16, data, arraysize(data));
 }
 
 
 TEST(RunAccessTests_int32) {
   int32_t data[] = {-211, 211, 628347, 2000000000, -2000000000, -1, -100000034};
-  RunAccessTest<int32_t>(kMachInt32, data, ARRAY_SIZE(data));
+  RunAccessTest<int32_t>(kMachInt32, data, arraysize(data));
 }
 
 
@@ -583,13 +583,13 @@ TEST(RunAccessTests_int64) {
                     V8_2PART_INT64(0x30313233, 34353637),
                     V8_2PART_INT64(0xa0a1a2a3, a4a5a6a7),
                     V8_2PART_INT64(0xf0f1f2f3, f4f5f6f7)};
-  RunAccessTest<int64_t>(kMachInt64, data, ARRAY_SIZE(data));
+  RunAccessTest<int64_t>(kMachInt64, data, arraysize(data));
 }
 
 
 TEST(RunAccessTests_float64) {
   double data[] = {1.25, -1.25, 2.75, 11.0, 11100.8};
-  RunAccessTest<double>(kMachFloat64, data, ARRAY_SIZE(data));
+  RunAccessTest<double>(kMachFloat64, data, arraysize(data));
 }
 
 
@@ -597,7 +597,7 @@ TEST(RunAccessTests_Smi) {
   Smi* data[] = {Smi::FromInt(-1),    Smi::FromInt(-9),
                  Smi::FromInt(0),     Smi::FromInt(666),
                  Smi::FromInt(77777), Smi::FromInt(Smi::kMaxValue)};
-  RunAccessTest<Smi*>(kMachAnyTagged, data, ARRAY_SIZE(data));
+  RunAccessTest<Smi*>(kMachAnyTagged, data, arraysize(data));
 }
 
 
@@ -813,7 +813,7 @@ TEST(LowerNumberCmp_to_uint32) {
 TEST(LowerNumberCmp_to_float64) {
   static Type* types[] = {Type::Number(), Type::Any()};
 
-  for (size_t i = 0; i < ARRAY_SIZE(types); i++) {
+  for (size_t i = 0; i < arraysize(types); i++) {
     TestingGraph t(types[i], types[i]);
 
     t.CheckLoweringBinop(IrOpcode::kFloat64Equal,
@@ -849,7 +849,7 @@ TEST(LowerNumberAddSub_to_uint32) {
 
 
 TEST(LowerNumberAddSub_to_float64) {
-  for (size_t i = 0; i < ARRAY_SIZE(test_types); i++) {
+  for (size_t i = 0; i < arraysize(test_types); i++) {
     TestingGraph t(test_types[i], test_types[i]);
 
     t.CheckLoweringBinop(IrOpcode::kFloat64Add, t.simplified()->NumberAdd());
@@ -860,7 +860,7 @@ TEST(LowerNumberAddSub_to_float64) {
 
 
 TEST(LowerNumberDivMod_to_float64) {
-  for (size_t i = 0; i < ARRAY_SIZE(test_types); i++) {
+  for (size_t i = 0; i < arraysize(test_types); i++) {
     TestingGraph t(test_types[i], test_types[i]);
 
     t.CheckLoweringBinop(IrOpcode::kFloat64Div, t.simplified()->NumberDivide());
@@ -1057,7 +1057,7 @@ TEST(InsertChangesAroundInt32Binops) {
                      t.machine()->Word32Or(),  t.machine()->Word32Xor(),
                      t.machine()->Word32Shl(), t.machine()->Word32Sar()};
 
-  for (size_t i = 0; i < ARRAY_SIZE(ops); i++) {
+  for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToInt32,
                             IrOpcode::kChangeInt32ToTagged);
   }
@@ -1070,7 +1070,7 @@ TEST(InsertChangesAroundInt32Cmp) {
   Operator* ops[] = {t.machine()->Int32LessThan(),
                      t.machine()->Int32LessThanOrEqual()};
 
-  for (size_t i = 0; i < ARRAY_SIZE(ops); i++) {
+  for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToInt32,
                             IrOpcode::kChangeBitToBool);
   }
@@ -1083,7 +1083,7 @@ TEST(InsertChangesAroundUint32Cmp) {
   Operator* ops[] = {t.machine()->Uint32LessThan(),
                      t.machine()->Uint32LessThanOrEqual()};
 
-  for (size_t i = 0; i < ARRAY_SIZE(ops); i++) {
+  for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToUint32,
                             IrOpcode::kChangeBitToBool);
   }
@@ -1099,7 +1099,7 @@ TEST(InsertChangesAroundFloat64Binops) {
       t.machine()->Float64Mod(),
   };
 
-  for (size_t i = 0; i < ARRAY_SIZE(ops); i++) {
+  for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToFloat64,
                             IrOpcode::kChangeFloat64ToTagged);
   }
@@ -1113,7 +1113,7 @@ TEST(InsertChangesAroundFloat64Cmp) {
                      t.machine()->Float64LessThan(),
                      t.machine()->Float64LessThanOrEqual()};
 
-  for (size_t i = 0; i < ARRAY_SIZE(ops); i++) {
+  for (size_t i = 0; i < arraysize(ops); i++) {
     CheckChangesAroundBinop(&t, ops[i], IrOpcode::kChangeTaggedToFloat64,
                             IrOpcode::kChangeBitToBool);
   }
@@ -1152,7 +1152,7 @@ static const MachineType machine_reps[] = {
 TEST(LowerLoadField_to_load) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
-  for (size_t i = 0; i < ARRAY_SIZE(machine_reps); i++) {
+  for (size_t i = 0; i < arraysize(machine_reps); i++) {
     FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                           Handle<Name>::null(), Type::Any(), machine_reps[i]};
 
@@ -1174,7 +1174,7 @@ TEST(LowerLoadField_to_load) {
 TEST(LowerStoreField_to_store) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
-  for (size_t i = 0; i < ARRAY_SIZE(machine_reps); i++) {
+  for (size_t i = 0; i < arraysize(machine_reps); i++) {
     FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                           Handle<Name>::null(), Type::Any(), machine_reps[i]};
 
@@ -1200,7 +1200,7 @@ TEST(LowerStoreField_to_store) {
 TEST(LowerLoadElement_to_load) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
-  for (size_t i = 0; i < ARRAY_SIZE(machine_reps); i++) {
+  for (size_t i = 0; i < arraysize(machine_reps); i++) {
     ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                             Type::Any(), machine_reps[i]};
 
@@ -1222,7 +1222,7 @@ TEST(LowerLoadElement_to_load) {
 TEST(LowerStoreElement_to_store) {
   TestingGraph t(Type::Any(), Type::Signed32());
 
-  for (size_t i = 0; i < ARRAY_SIZE(machine_reps); i++) {
+  for (size_t i = 0; i < arraysize(machine_reps); i++) {
     ElementAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
                             Type::Any(), machine_reps[i]};
 

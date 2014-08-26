@@ -106,7 +106,7 @@ void InstructionSelector::VisitStore(Node* node) {
     // TODO(dcarney): handle immediate indices.
     InstructionOperand* temps[] = {g.TempRegister(ecx), g.TempRegister(edx)};
     Emit(kIA32StoreWriteBarrier, NULL, g.UseFixed(base, ebx),
-         g.UseFixed(index, ecx), g.UseFixed(value, edx), ARRAY_SIZE(temps),
+         g.UseFixed(index, ecx), g.UseFixed(value, edx), arraysize(temps),
          temps);
     return;
   }
@@ -195,8 +195,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
   DCHECK_NE(0, input_count);
   DCHECK_NE(0, output_count);
-  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
-  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
+  DCHECK_GE(arraysize(inputs), input_count);
+  DCHECK_GE(arraysize(outputs), output_count);
 
   Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
                                       outputs, input_count, inputs);
@@ -316,7 +316,7 @@ static inline void VisitDiv(InstructionSelector* selector, Node* node,
                             ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand* temps[] = {g.TempRegister(edx)};
-  size_t temp_count = ARRAY_SIZE(temps);
+  size_t temp_count = arraysize(temps);
   selector->Emit(opcode, g.DefineAsFixed(node, eax),
                  g.UseFixed(node->InputAt(0), eax),
                  g.UseUnique(node->InputAt(1)), temp_count, temps);
@@ -337,7 +337,7 @@ static inline void VisitMod(InstructionSelector* selector, Node* node,
                             ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand* temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
-  size_t temp_count = ARRAY_SIZE(temps);
+  size_t temp_count = arraysize(temps);
   selector->Emit(opcode, g.DefineAsFixed(node, edx),
                  g.UseFixed(node->InputAt(0), eax),
                  g.UseUnique(node->InputAt(1)), temp_count, temps);

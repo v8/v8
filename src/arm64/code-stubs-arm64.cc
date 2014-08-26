@@ -24,7 +24,7 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
   // x2: function info
   Register registers[] = { cp, x2 };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
 }
 
@@ -34,7 +34,7 @@ void FastNewContextStub::InitializeInterfaceDescriptor(
   // cp: context
   // x1: function
   Register registers[] = { cp, x1 };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
@@ -43,7 +43,7 @@ void ToNumberStub::InitializeInterfaceDescriptor(
   // cp: context
   // x0: value
   Register registers[] = { cp, x0 };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
@@ -53,7 +53,7 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
   // x0: value
   Register registers[] = { cp, x0 };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
 }
 
@@ -71,7 +71,7 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Representation::Smi(),
     Representation::Tagged() };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry,
       representations);
 }
@@ -86,7 +86,7 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
   // x0: object literal flags
   Register registers[] = { cp, x3, x2, x1, x0 };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
 }
 
@@ -97,7 +97,7 @@ void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
   // x2: feedback vector
   // x3: call feedback slot
   Register registers[] = { cp, x2, x3 };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
@@ -105,7 +105,7 @@ void CallFunctionStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   // x1  function    the function to call
   Register registers[] = {cp, x1};
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
@@ -118,7 +118,7 @@ void CallConstructStub::InitializeInterfaceDescriptor(
   // TODO(turbofan): So far we don't gather type feedback and hence skip the
   // slot parameter, but ArrayConstructStub needs the vector to be undefined.
   Register registers[] = {cp, x0, x1, x2};
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
@@ -130,7 +130,7 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
   // x0: string
   Register registers[] = { cp, x2, x1, x0 };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
 }
 
@@ -143,7 +143,7 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
   Register registers[] = { cp, x0, x1 };
   Address entry =
       Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry;
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(entry));
 }
 
@@ -153,7 +153,7 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
   // cp: context
   // x0: value to compare
   Register registers[] = { cp, x0 };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(CompareNilIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate()));
@@ -175,7 +175,7 @@ static void InitializeArrayConstructorDescriptor(
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { cp, x1, x2 };
-    descriptor->Initialize(major, ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(major, arraysize(registers), registers,
                            deopt_handler, NULL, constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
@@ -186,7 +186,7 @@ static void InitializeArrayConstructorDescriptor(
         Representation::Tagged(),
         Representation::Tagged(),
         Representation::Integer32() };
-    descriptor->Initialize(major, ARRAY_SIZE(registers), registers, x0,
+    descriptor->Initialize(major, arraysize(registers), registers, x0,
                            deopt_handler, representations,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
@@ -223,7 +223,7 @@ static void InitializeInternalArrayConstructorDescriptor(
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { cp, x1 };
-    descriptor->Initialize(major, ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(major, arraysize(registers), registers,
                            deopt_handler, NULL, constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
@@ -233,7 +233,7 @@ static void InitializeInternalArrayConstructorDescriptor(
         Representation::Tagged(),
         Representation::Tagged(),
         Representation::Integer32() };
-    descriptor->Initialize(major, ARRAY_SIZE(registers), registers, x0,
+    descriptor->Initialize(major, arraysize(registers), registers, x0,
                            deopt_handler, representations,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
@@ -264,7 +264,7 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
   // cp: context
   // x0: value
   Register registers[] = { cp, x0 };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(ToBooleanIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate()));
@@ -277,7 +277,7 @@ void BinaryOpICStub::InitializeInterfaceDescriptor(
   // x1: left operand
   // x0: right operand
   Register registers[] = { cp, x1, x0 };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(BinaryOpIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate()));
@@ -291,7 +291,7 @@ void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
   // x1: left operand
   // x0: right operand
   Register registers[] = { cp, x2, x1, x0 };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite));
 }
 
@@ -302,7 +302,7 @@ void StringAddStub::InitializeInterfaceDescriptor(
   // x1: left operand
   // x0: right operand
   Register registers[] = { cp, x1, x0 };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          Runtime::FunctionForId(Runtime::kStringAdd)->entry);
 }
 
@@ -328,7 +328,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Integer32(),  // actual number of arguments
         Representation::Integer32(),  // expected number of arguments
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(arraysize(registers), registers,
                            representations, &default_descriptor);
   }
   {
@@ -341,7 +341,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),     // context
         Representation::Tagged(),     // key
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(arraysize(registers), registers,
                            representations, &noInlineDescriptor);
   }
   {
@@ -354,7 +354,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),     // context
         Representation::Tagged(),     // name
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(arraysize(registers), registers,
                            representations, &noInlineDescriptor);
   }
   {
@@ -367,7 +367,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),  // context
         Representation::Tagged(),  // receiver
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(arraysize(registers), registers,
                            representations, &default_descriptor);
   }
   {
@@ -386,7 +386,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),    // holder
         Representation::External(),  // api_function_address
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(arraysize(registers), registers,
                            representations, &default_descriptor);
   }
 }

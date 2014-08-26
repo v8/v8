@@ -279,8 +279,8 @@ static void RunIfBuilderDisjunction(size_t max, IfBuilderBranchType then_type,
 TEST(RunIfBuilderDisjunction) {
   size_t len = ValueHelper::int32_vector().size() - 1;
   size_t max = len > 10 ? 10 : len - 1;
-  for (size_t i = 0; i < ARRAY_SIZE(all_branch_types); i++) {
-    for (size_t j = 0; j < ARRAY_SIZE(all_branch_types); j++) {
+  for (size_t i = 0; i < arraysize(all_branch_types); i++) {
+    for (size_t j = 0; j < arraysize(all_branch_types); j++) {
       for (size_t size = 1; size < max; size++) {
         RunIfBuilderDisjunction(size, all_branch_types[i], all_branch_types[j]);
       }
@@ -345,8 +345,8 @@ static void RunIfBuilderConjunction(size_t max, IfBuilderBranchType then_type,
 TEST(RunIfBuilderConjunction) {
   size_t len = ValueHelper::int32_vector().size() - 1;
   size_t max = len > 10 ? 10 : len - 1;
-  for (size_t i = 0; i < ARRAY_SIZE(all_branch_types); i++) {
-    for (size_t j = 0; j < ARRAY_SIZE(all_branch_types); j++) {
+  for (size_t i = 0; i < arraysize(all_branch_types); i++) {
+    for (size_t j = 0; j < arraysize(all_branch_types); j++) {
       for (size_t size = 1; size < max; size++) {
         RunIfBuilderConjunction(size, all_branch_types[i], all_branch_types[j]);
       }
@@ -683,7 +683,7 @@ TEST(RunFib) {
   m.Return(res.Get());
 
   int32_t values[] = {0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144};
-  for (size_t i = 0; i < ARRAY_SIZE(values); i++) {
+  for (size_t i = 0; i < arraysize(values); i++) {
     CHECK_EQ(values[i], m.Call(static_cast<int32_t>(i)));
   }
 }
@@ -894,7 +894,7 @@ class QuicksortHelper : public StructuredMachineAssemblerTester<int32_t> {
     int32_t stack_space[20];
     // Do call.
     int32_t return_val = Call(input, input_length, stack_space,
-                              static_cast<int32_t>(ARRAY_SIZE(stack_space)));
+                              static_cast<int32_t>(arraysize(stack_space)));
     // Ran out of stack space.
     if (return_val != 0) return return_val;
     // Check sorted.
@@ -1018,7 +1018,7 @@ class QuicksortHelper : public StructuredMachineAssemblerTester<int32_t> {
 TEST(RunSimpleQuicksort) {
   QuicksortHelper m;
   int32_t inputs[] = {9, 7, 1, 8, 11};
-  CHECK_EQ(0, m.DoCall(inputs, ARRAY_SIZE(inputs)));
+  CHECK_EQ(0, m.DoCall(inputs, arraysize(inputs)));
 }
 
 

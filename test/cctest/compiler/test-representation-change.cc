@@ -138,20 +138,20 @@ TEST(BitToBool_constant) {
 TEST(ToTagged_constant) {
   RepresentationChangerTester r;
 
-  for (size_t i = 0; i < ARRAY_SIZE(double_inputs); i++) {
+  for (size_t i = 0; i < arraysize(double_inputs); i++) {
     Node* n = r.jsgraph()->Float64Constant(double_inputs[i]);
     Node* c = r.changer()->GetRepresentationFor(n, kRepFloat64, kRepTagged);
     r.CheckNumberConstant(c, double_inputs[i]);
   }
 
-  for (size_t i = 0; i < ARRAY_SIZE(int32_inputs); i++) {
+  for (size_t i = 0; i < arraysize(int32_inputs); i++) {
     Node* n = r.jsgraph()->Int32Constant(int32_inputs[i]);
     Node* c = r.changer()->GetRepresentationFor(n, kRepWord32 | kTypeInt32,
                                                 kRepTagged);
     r.CheckNumberConstant(c, static_cast<double>(int32_inputs[i]));
   }
 
-  for (size_t i = 0; i < ARRAY_SIZE(uint32_inputs); i++) {
+  for (size_t i = 0; i < arraysize(uint32_inputs); i++) {
     Node* n = r.jsgraph()->Int32Constant(uint32_inputs[i]);
     Node* c = r.changer()->GetRepresentationFor(n, kRepWord32 | kTypeUint32,
                                                 kRepTagged);
@@ -218,7 +218,7 @@ TEST(Nops) {
   RepresentationChangerTester r;
 
   // X -> X is always a nop for any single representation X.
-  for (size_t i = 0; i < ARRAY_SIZE(all_reps); i++) {
+  for (size_t i = 0; i < arraysize(all_reps); i++) {
     r.CheckNop(all_reps[i], all_reps[i]);
   }
 
@@ -273,8 +273,8 @@ TEST(TypeErrors) {
   r.CheckTypeError(kRepWord64, kRepWord32 | kTypeUint32);
   r.CheckTypeError(kRepWord32 | kTypeUint32, kRepWord64);
 
-  for (size_t i = 0; i < ARRAY_SIZE(all_reps); i++) {
-    for (size_t j = 0; j < ARRAY_SIZE(all_reps); j++) {
+  for (size_t i = 0; i < arraysize(all_reps); i++) {
+    for (size_t j = 0; j < arraysize(all_reps); j++) {
       if (i == j) continue;
       // Only a single from representation is allowed.
       r.CheckTypeError(all_reps[i] | all_reps[j], kRepTagged);

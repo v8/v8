@@ -324,9 +324,9 @@ TEST(InstructionOperands) {
       new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER),
       new (&zone) UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER)};
 
-  for (size_t i = 0; i < ARRAY_SIZE(outputs); i++) {
-    for (size_t j = 0; j < ARRAY_SIZE(inputs); j++) {
-      for (size_t k = 0; k < ARRAY_SIZE(temps); k++) {
+  for (size_t i = 0; i < arraysize(outputs); i++) {
+    for (size_t j = 0; j < arraysize(inputs); j++) {
+      for (size_t k = 0; k < arraysize(temps); k++) {
         TestInstr* m =
             TestInstr::New(&zone, 101, i, outputs, j, inputs, k, temps);
         CHECK(i == m->OutputCount());
