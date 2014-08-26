@@ -20,35 +20,6 @@
   (reinterpret_cast<intptr_t>(&(reinterpret_cast<type*>(4)->field)) - 4)
 
 
-// The arraysize(arr) macro returns the # of elements in an array arr.
-// The expression is a compile-time constant, and therefore can be
-// used in defining new arrays, for example.  If you use arraysize on
-// a pointer by mistake, you will get a compile-time error.
-//
-// One caveat is that arraysize() doesn't accept any array of an
-// anonymous type or a type defined inside a function.  In these rare
-// cases, you have to use the unsafe ARRAYSIZE_UNSAFE() macro below.  This is
-// due to a limitation in C++'s template system.  The limitation might
-// eventually be removed, but it hasn't happened yet.
-#define arraysize(array) (sizeof(ArraySizeHelper(array)))
-
-
-// This template function declaration is used in defining arraysize.
-// Note that the function doesn't need an implementation, as we only
-// use its type.
-template <typename T, size_t N>
-char (&ArraySizeHelper(T (&array)[N]))[N];
-
-
-#if V8_CC_GNU
-// That gcc wants both of these prototypes seems mysterious. VC, for
-// its part, can't decide which to use (another mystery). Matching of
-// template overloads: the final frontier.
-template <typename T, size_t N>
-char (&ArraySizeHelper(const T (&array)[N]))[N];
-#endif
-
-
 // ARRAYSIZE_UNSAFE performs essentially the same calculation as arraysize,
 // but can be used on anonymous types or types defined inside
 // functions.  It's less safe than arraysize as it accepts some
@@ -88,6 +59,46 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 #define ARRAYSIZE_UNSAFE(a)     \
   ((sizeof(a) / sizeof(*(a))) / \
    static_cast<size_t>(!(sizeof(a) % sizeof(*(a)))))  // NOLINT
+
+
+#if V8_OS_NACL
+
+// TODO(bmeurer): For some reason, the NaCl toolchain cannot handle the correct
+// definition of arraysize() below, so we have to use the unsafe version for
+// now.
+#define arraysize ARRAYSIZE_UNSAFE
+
+#else  // V8_OS_NACL
+
+// The arraysize(arr) macro returns the # of elements in an array arr.
+// The expression is a compile-time constant, and therefore can be
+// used in defining new arrays, for example.  If you use arraysize on
+// a pointer by mistake, you will get a compile-time error.
+//
+// One caveat is that arraysize() doesn't accept any array of an
+// anonymous type or a type defined inside a function.  In these rare
+// cases, you have to use the unsafe ARRAYSIZE_UNSAFE() macro below.  This is
+// due to a limitation in C++'s template system.  The limitation might
+// eventually be removed, but it hasn't happened yet.
+#define arraysize(array) (sizeof(ArraySizeHelper(array)))
+
+
+// This template function declaration is used in defining arraysize.
+// Note that the function doesn't need an implementation, as we only
+// use its type.
+template <typename T, size_t N>
+char (&ArraySizeHelper(T (&array)[N]))[N];
+
+
+#if !V8_CC_MSVC
+// That gcc wants both of these prototypes seems mysterious. VC, for
+// its part, can't decide which to use (another mystery). Matching of
+// template overloads: the final frontier.
+template <typename T, size_t N>
+char (&ArraySizeHelper(const T (&array)[N]))[N];
+#endif
+
+#endif  // V8_OS_NACL
 
 
 // A macro to disallow the evil copy constructor and operator= functions
