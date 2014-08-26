@@ -18,16 +18,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Graph::Graph(Zone* zone)
-    : GenericGraph<Node>(zone),
-      decorators_(DecoratorVector::allocator_type(zone)) {}
+Graph::Graph(Zone* zone) : GenericGraph<Node>(zone), decorators_(zone) {}
 
 
 Node* Graph::NewNode(Operator* op, int input_count, Node** inputs) {
   DCHECK(op->InputCount() <= input_count);
   Node* result = Node::New(this, input_count, inputs);
   result->Initialize(op);
-  for (DecoratorVector::iterator i = decorators_.begin();
+  for (ZoneVector<GraphDecorator*>::iterator i = decorators_.begin();
        i != decorators_.end(); ++i) {
     (*i)->Decorate(result);
   }

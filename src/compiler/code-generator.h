@@ -122,23 +122,15 @@ class CodeGenerator V8_FINAL : public GapResolver::Assembler {
         : translation_id_(translation_id) {}
   };
 
-  typedef std::deque<LazyDeoptimizationEntry,
-                     zone_allocator<LazyDeoptimizationEntry> >
-      LazyDeoptimizationEntries;
-  typedef std::deque<DeoptimizationState*,
-                     zone_allocator<DeoptimizationState*> >
-      DeoptimizationStates;
-  typedef std::deque<Handle<Object>, zone_allocator<Handle<Object> > > Literals;
-
   InstructionSequence* code_;
   BasicBlock* current_block_;
   SourcePosition current_source_position_;
   MacroAssembler masm_;
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
-  LazyDeoptimizationEntries lazy_deoptimization_entries_;
-  DeoptimizationStates deoptimization_states_;
-  Literals deoptimization_literals_;
+  ZoneDeque<LazyDeoptimizationEntry> lazy_deoptimization_entries_;
+  ZoneDeque<DeoptimizationState*> deoptimization_states_;
+  ZoneDeque<Handle<Object> > deoptimization_literals_;
   TranslationBuffer translations_;
 };
 

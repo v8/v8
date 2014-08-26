@@ -72,16 +72,14 @@ class Graph : public GenericGraph<Node> {
   }
 
   void RemoveDecorator(GraphDecorator* decorator) {
-    DecoratorVector::iterator it =
+    ZoneVector<GraphDecorator*>::iterator it =
         std::find(decorators_.begin(), decorators_.end(), decorator);
     DCHECK(it != decorators_.end());
     decorators_.erase(it, it + 1);
   }
 
  private:
-  typedef std::vector<GraphDecorator*, zone_allocator<GraphDecorator*> >
-      DecoratorVector;
-  DecoratorVector decorators_;
+  ZoneVector<GraphDecorator*> decorators_;
 };
 
 

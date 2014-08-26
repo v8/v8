@@ -54,8 +54,7 @@ class Node : public GenericNode<NodeData, Node> {
 
   void Initialize(Operator* op) { set_op(op); }
 
-  void CollectProjections(
-      std::vector<Node*, zone_allocator<Node*> >* projections);
+  void CollectProjections(ZoneVector<Node*>* projections);
   Node* FindProjection(int32_t projection_index);
 };
 
@@ -63,21 +62,15 @@ OStream& operator<<(OStream& os, const Node& n);
 
 typedef GenericGraphVisit::NullNodeVisitor<NodeData, Node> NullNodeVisitor;
 
-typedef zone_allocator<Node*> NodePtrZoneAllocator;
-
-typedef std::set<Node*, std::less<Node*>, NodePtrZoneAllocator> NodeSet;
+typedef std::set<Node*, std::less<Node*>, zone_allocator<Node*> > NodeSet;
 typedef NodeSet::iterator NodeSetIter;
 typedef NodeSet::reverse_iterator NodeSetRIter;
 
-typedef std::deque<Node*, NodePtrZoneAllocator> NodeDeque;
-typedef NodeDeque::iterator NodeDequeIter;
-
-typedef std::vector<Node*, NodePtrZoneAllocator> NodeVector;
+typedef ZoneVector<Node*> NodeVector;
 typedef NodeVector::iterator NodeVectorIter;
 typedef NodeVector::reverse_iterator NodeVectorRIter;
 
-typedef zone_allocator<NodeVector> ZoneNodeVectorAllocator;
-typedef std::vector<NodeVector, ZoneNodeVectorAllocator> NodeVectorVector;
+typedef ZoneVector<NodeVector> NodeVectorVector;
 typedef NodeVectorVector::iterator NodeVectorVectorIter;
 typedef NodeVectorVector::reverse_iterator NodeVectorVectorRIter;
 

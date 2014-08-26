@@ -13,7 +13,7 @@ namespace internal {
 namespace compiler {
 
 GraphReducer::GraphReducer(Graph* graph)
-    : graph_(graph), reducers_(Reducers::allocator_type(graph->zone())) {}
+    : graph_(graph), reducers_(graph->zone()) {}
 
 
 static bool NodeIdIsLessThan(const Node* node, NodeId id) {
@@ -22,14 +22,15 @@ static bool NodeIdIsLessThan(const Node* node, NodeId id) {
 
 
 void GraphReducer::ReduceNode(Node* node) {
-  Reducers::iterator skip = reducers_.end();
+  ZoneVector<Reducer*>::iterator skip = reducers_.end();
   static const unsigned kMaxAttempts = 16;
   bool reduce = true;
   for (unsigned attempts = 0; attempts <= kMaxAttempts; ++attempts) {
     if (!reduce) return;
     reduce = false;  // Assume we don't need to rerun any reducers.
     int before = graph_->NodeCount();
-    for (Reducers::iterator i = reducers_.begin(); i != reducers_.end(); ++i) {
+    for (ZoneVector<Reducer*>::iterator i = reducers_.begin();
+         i != reducers_.end(); ++i) {
       if (i == skip) continue;  // Skip this reducer.
       Reduction reduction = (*i)->Reduce(node);
       Node* replacement = reduction.replacement();

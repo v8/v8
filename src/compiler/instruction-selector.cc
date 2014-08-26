@@ -21,9 +21,9 @@ InstructionSelector::InstructionSelector(InstructionSequence* sequence,
       source_positions_(source_positions),
       features_(features),
       current_block_(NULL),
-      instructions_(InstructionDeque::allocator_type(zone())),
-      defined_(graph()->NodeCount(), false, BoolVector::allocator_type(zone())),
-      used_(graph()->NodeCount(), false, BoolVector::allocator_type(zone())) {}
+      instructions_(zone()),
+      defined_(graph()->NodeCount(), false, zone()),
+      used_(graph()->NodeCount(), false, zone()) {}
 
 
 void InstructionSelector::SelectInstructions() {
@@ -264,10 +264,10 @@ CallBuffer::CallBuffer(Zone* zone, CallDescriptor* d,
                        FrameStateDescriptor* frame_desc)
     : descriptor(d),
       frame_state_descriptor(frame_desc),
-      output_nodes(NodeVector::allocator_type(zone)),
-      outputs(InstructionOperandVector::allocator_type(zone)),
-      instruction_args(InstructionOperandVector::allocator_type(zone)),
-      pushed_nodes(NodeVector::allocator_type(zone)) {
+      output_nodes(zone),
+      outputs(zone),
+      instruction_args(zone),
+      pushed_nodes(zone) {
   output_nodes.reserve(d->ReturnCount());
   outputs.reserve(d->ReturnCount());
   pushed_nodes.reserve(input_count());
@@ -1083,8 +1083,7 @@ void InstructionSelector::VisitDeoptimize(Node* deopt) {
   Node* state = deopt->InputAt(0);
   FrameStateDescriptor* descriptor = GetFrameStateDescriptor(state);
 
-  InstructionOperandVector inputs(
-      (InstructionOperandVector::allocator_type(zone())));
+  InstructionOperandVector inputs(zone());
   inputs.reserve(descriptor->size());
 
   AddFrameStateInputs(state, &inputs, descriptor);

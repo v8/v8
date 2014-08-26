@@ -5,13 +5,10 @@
 #ifndef V8_COMPILER_SCHEDULER_H_
 #define V8_COMPILER_SCHEDULER_H_
 
-#include <vector>
-
 #include "src/v8.h"
 
 #include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
-#include "src/zone-allocator.h"
 #include "src/zone-containers.h"
 
 namespace v8 {

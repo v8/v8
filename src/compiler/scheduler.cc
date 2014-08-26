@@ -207,10 +207,10 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
     : zone_(zone),
       graph_(graph),
       schedule_(schedule),
-      unscheduled_uses_(IntVector::allocator_type(zone)),
-      scheduled_nodes_(NodeVectorVector::allocator_type(zone)),
-      schedule_root_nodes_(NodeVector::allocator_type(zone)),
-      schedule_early_rpo_index_(IntVector::allocator_type(zone)) {}
+      unscheduled_uses_(zone),
+      scheduled_nodes_(zone),
+      schedule_root_nodes_(zone),
+      schedule_early_rpo_index_(zone) {}
 
 
 Schedule* Scheduler::ComputeSchedule(Graph* graph) {
@@ -273,8 +273,7 @@ void Scheduler::PrepareAuxiliaryNodeData() {
 
 void Scheduler::PrepareAuxiliaryBlockData() {
   Zone* zone = schedule_->zone();
-  scheduled_nodes_.resize(schedule_->BasicBlockCount(),
-                          NodeVector(NodeVector::allocator_type(zone)));
+  scheduled_nodes_.resize(schedule_->BasicBlockCount(), NodeVector(zone));
   schedule_->immediate_dominator_.resize(schedule_->BasicBlockCount(), NULL);
 }
 

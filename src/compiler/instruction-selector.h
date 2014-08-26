@@ -197,15 +197,12 @@ class InstructionSelector V8_FINAL {
 
   // ===========================================================================
 
-  typedef zone_allocator<Instruction*> InstructionPtrZoneAllocator;
-  typedef std::deque<Instruction*, InstructionPtrZoneAllocator> Instructions;
-
   Zone zone_;
   InstructionSequence* sequence_;
   SourcePositionTable* source_positions_;
   Features features_;
   BasicBlock* current_block_;
-  Instructions instructions_;
+  ZoneDeque<Instruction*> instructions_;
   BoolVector defined_;
   BoolVector used_;
 };

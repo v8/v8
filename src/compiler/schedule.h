@@ -63,7 +63,7 @@ class BasicBlockData {
         deferred_(false),
         control_(kNone),
         control_input_(NULL),
-        nodes_(NodeVector::allocator_type(zone)) {}
+        nodes_(zone) {}
 
   inline bool IsLoopHeader() const { return loop_end_ >= 0; }
   inline bool LoopContains(BasicBlockData* block) const {
@@ -145,8 +145,7 @@ class BasicBlock V8_FINAL : public GenericNode<BasicBlockData, BasicBlock> {
 typedef GenericGraphVisit::NullNodeVisitor<BasicBlockData, BasicBlock>
     NullBasicBlockVisitor;
 
-typedef zone_allocator<BasicBlock*> BasicBlockPtrZoneAllocator;
-typedef std::vector<BasicBlock*, BasicBlockPtrZoneAllocator> BasicBlockVector;
+typedef ZoneVector<BasicBlock*> BasicBlockVector;
 typedef BasicBlockVector::iterator BasicBlockVectorIter;
 typedef BasicBlockVector::reverse_iterator BasicBlockVectorRIter;
 
@@ -159,10 +158,10 @@ class Schedule : public GenericGraph<BasicBlock> {
   explicit Schedule(Zone* zone)
       : GenericGraph<BasicBlock>(zone),
         zone_(zone),
-        all_blocks_(BasicBlockVector::allocator_type(zone)),
-        nodeid_to_block_(BasicBlockVector::allocator_type(zone)),
-        rpo_order_(BasicBlockVector::allocator_type(zone)),
-        immediate_dominator_(BasicBlockVector::allocator_type(zone)) {
+        all_blocks_(zone),
+        nodeid_to_block_(zone),
+        rpo_order_(zone),
+        immediate_dominator_(zone) {
     SetStart(NewBasicBlock());  // entry.
     SetEnd(NewBasicBlock());    // exit.
   }

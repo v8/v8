@@ -104,7 +104,7 @@ StructuredGraphBuilder::Environment::Environment(
     : builder_(builder),
       control_dependency_(control_dependency),
       effect_dependency_(control_dependency),
-      values_(NodeVector::allocator_type(zone())) {}
+      values_(zone()) {}
 
 
 StructuredGraphBuilder::Environment::Environment(const Environment& copy)

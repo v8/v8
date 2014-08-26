@@ -320,9 +320,9 @@ void ScheduleVerifier::Run(Schedule* schedule) {
   }
 
   // Verify that all blocks reachable from start are in the RPO.
-  BoolVector marked(count, false, BoolVector::allocator_type(zone));
+  BoolVector marked(count, false, zone);
   {
-    std::queue<BasicBlock*> queue;
+    ZoneQueue<BasicBlock*> queue(zone);
     queue.push(start);
     marked[start->id()] = true;
     while (!queue.empty()) {
@@ -358,7 +358,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
 
     // Compute a set of all the nodes that dominate a given node by using
     // a forward fixpoint. O(n^2).
-    std::queue<BasicBlock*> queue;
+    ZoneQueue<BasicBlock*> queue(zone);
     queue.push(start);
     dominators[start->id()] = new (zone) BitVector(count, zone);
     while (!queue.empty()) {
