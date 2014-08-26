@@ -994,6 +994,13 @@ void StoreFieldStub::InstallDescriptors(Isolate* isolate) {
 }
 
 
+// static
+void LoadFastElementStub::InstallDescriptors(Isolate* isolate) {
+  LoadFastElementStub stub(isolate, true, FAST_ELEMENTS);
+  InstallDescriptor(isolate, &stub);
+}
+
+
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {
   minor_key_ = ArgumentCountBits::encode(ANY);

@@ -177,8 +177,6 @@ PropertyType.Normal                  = 0;
 PropertyType.Field                   = 1;
 PropertyType.Constant                = 2;
 PropertyType.Callbacks               = 3;
-PropertyType.Handler                 = 4;
-PropertyType.Interceptor             = 5;
 
 
 // Different attributes for a property.
@@ -1367,10 +1365,11 @@ function PropertyMirror(mirror, name, details) {
   this.name_ = name;
   this.value_ = details[0];
   this.details_ = details[1];
-  if (details.length > 2) {
-    this.exception_ = details[2];
-    this.getter_ = details[3];
-    this.setter_ = details[4];
+  this.is_interceptor_ = details[2];
+  if (details.length > 3) {
+    this.exception_ = details[3];
+    this.getter_ = details[4];
+    this.setter_ = details[5];
   }
 }
 inherits(PropertyMirror, Mirror);
@@ -1488,7 +1487,7 @@ PropertyMirror.prototype.setter = function() {
  *     UndefinedMirror if there is no setter for this property
  */
 PropertyMirror.prototype.isNative = function() {
-  return (this.propertyType() == PropertyType.Interceptor) ||
+  return this.is_interceptor_ ||
          ((this.propertyType() == PropertyType.Callbacks) &&
           !this.hasGetter() && !this.hasSetter());
 };

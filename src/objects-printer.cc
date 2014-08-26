@@ -240,8 +240,6 @@ void JSObject::PrintProperties(OStream& os) {  // NOLINT
           os << Brief(descs->GetCallbacksObject(i)) << " (callback)\n";
           break;
         case NORMAL:  // only in slow mode
-        case HANDLER:  // only in lookup results, not in descriptors
-        case INTERCEPTOR:  // only in lookup results, not in descriptors
           UNREACHABLE();
           break;
       }
@@ -373,8 +371,6 @@ void JSObject::PrintTransitions(OStream& os) {  // NOLINT
           break;
         // Values below are never in the target descriptor array.
         case NORMAL:
-        case HANDLER:
-        case INTERCEPTOR:
           UNREACHABLE();
           break;
       }
@@ -1102,8 +1098,6 @@ void TransitionArray::PrintTransitions(OStream& os) {  // NOLINT
         break;
       // Values below are never in the target descriptor array.
       case NORMAL:
-      case HANDLER:
-      case INTERCEPTOR:
         UNREACHABLE();
         break;
     }

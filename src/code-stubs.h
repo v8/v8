@@ -2114,6 +2114,8 @@ class LoadFastElementStub : public HydrogenCodeStub {
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
 
+  static void InstallDescriptors(Isolate* isolate);
+
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
 

@@ -2053,6 +2053,7 @@ bool Isolate::Init(Deserializer* des) {
     RegExpConstructResultStub::InstallDescriptors(this);
     KeyedLoadGenericStub::InstallDescriptors(this);
     StoreFieldStub::InstallDescriptors(this);
+    LoadFastElementStub::InstallDescriptors(this);
   }
 
   CallDescriptors::InitializeForIsolate(this);

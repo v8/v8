@@ -10999,18 +10999,20 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   // getter and/or setter.
   bool has_js_accessors = !maybe_pair.is_null() && maybe_pair->IsAccessorPair();
   Handle<FixedArray> details =
-      isolate->factory()->NewFixedArray(has_js_accessors ? 5 : 2);
+      isolate->factory()->NewFixedArray(has_js_accessors ? 6 : 3);
   details->set(0, *value);
   // TODO(verwaest): Get rid of this random way of handling interceptors.
   PropertyDetails d = it.state() == LookupIterator::INTERCEPTOR
-                          ? PropertyDetails(NONE, INTERCEPTOR, 0)
+                          ? PropertyDetails(NONE, NORMAL, 0)
                           : it.property_details();
   details->set(1, d.AsSmi());
+  details->set(
+      2, isolate->heap()->ToBoolean(it.state() == LookupIterator::INTERCEPTOR));
   if (has_js_accessors) {
     AccessorPair* accessors = AccessorPair::cast(*maybe_pair);
-    details->set(2, isolate->heap()->ToBoolean(has_caught));
-    details->set(3, accessors->GetComponent(ACCESSOR_GETTER));
-    details->set(4, accessors->GetComponent(ACCESSOR_SETTER));
+    details->set(3, isolate->heap()->ToBoolean(has_caught));
+    details->set(4, accessors->GetComponent(ACCESSOR_GETTER));
+    details->set(5, accessors->GetComponent(ACCESSOR_SETTER));
   }
 
   return *isolate->factory()->NewJSArrayWithElements(details);

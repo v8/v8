@@ -490,7 +490,6 @@
         '../../src/fast-dtoa.cc',
         '../../src/fast-dtoa.h',
         '../../src/feedback-slots.h',
-        '../../src/field-index.cc',
         '../../src/field-index.h',
         '../../src/field-index-inl.h',
         '../../src/fixed-dtoa.cc',
