@@ -69,7 +69,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
       if (m.IsChangeFloat64ToTagged()) {
-        return Change(node, machine()->TruncateFloat64ToInt32(),
+        return Change(node, machine()->ChangeFloat64ToInt32(),
                       m.node()->InputAt(0));
       }
       if (m.IsChangeInt32ToTagged()) return Replace(m.node()->InputAt(0));
@@ -79,7 +79,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceUint32(DoubleToUint32(m.Value()));
       if (m.IsChangeFloat64ToTagged()) {
-        return Change(node, machine()->TruncateFloat64ToInt32(),
+        return Change(node, machine()->ChangeFloat64ToUint32(),
                       m.node()->InputAt(0));
       }
       if (m.IsChangeUint32ToTagged()) return Replace(m.node()->InputAt(0));

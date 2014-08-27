@@ -364,7 +364,7 @@ TEST_F(SimplifiedOperatorReducerTest,
       simplified()->ChangeTaggedToInt32(),
       graph()->NewNode(simplified()->ChangeFloat64ToTagged(), param0)));
   ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(), IsTruncateFloat64ToInt32(param0));
+  EXPECT_THAT(reduction.replacement(), IsChangeFloat64ToInt32(param0));
 }
 
 
@@ -418,7 +418,7 @@ TEST_F(SimplifiedOperatorReducerTest,
       simplified()->ChangeTaggedToUint32(),
       graph()->NewNode(simplified()->ChangeFloat64ToTagged(), param0)));
   ASSERT_TRUE(reduction.Changed());
-  EXPECT_THAT(reduction.replacement(), IsTruncateFloat64ToInt32(param0));
+  EXPECT_THAT(reduction.replacement(), IsChangeFloat64ToUint32(param0));
 }
 
 
