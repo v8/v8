@@ -1130,6 +1130,7 @@
         '../../src/base/build_config.h',
         '../../src/base/cpu.cc',
         '../../src/base/cpu.h',
+        '../../src/base/flags.h',
         '../../src/base/lazy-instance.h',
         '../../src/base/logging.cc',
         '../../src/base/logging.h',
