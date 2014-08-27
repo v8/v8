@@ -6,6 +6,7 @@
 
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compiler/ast-graph-builder.h"
+#include "src/compiler/change-lowering.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-visualizer.h"
@@ -232,6 +233,32 @@ Handle<Code> Pipeline::GenerateCode() {
       graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered typed");
+    }
+    {
+      // Lower simplified operators and insert changes.
+      PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
+                                "simplified lowering");
+      SourcePositionTable::Scope pos(&source_positions,
+                                     SourcePosition::Unknown());
+      SimplifiedLowering lowering(&jsgraph);
+      lowering.LowerAllNodes();
+
+      VerifyAndPrintGraph(&graph, "Lowered simplified");
+    }
+    {
+      // Lower changes that have been inserted before.
+      PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
+                                "change lowering");
+      SourcePositionTable::Scope pos(&source_positions,
+                                     SourcePosition::Unknown());
+      Linkage linkage(info());
+      MachineOperatorBuilder machine(zone());
+      ChangeLowering lowering(&jsgraph, &linkage, &machine);
+      GraphReducer graph_reducer(&graph);
+      graph_reducer.AddReducer(&lowering);
+      graph_reducer.ReduceGraph();
+
+      VerifyAndPrintGraph(&graph, "Lowered changes");
     }
   }
 
