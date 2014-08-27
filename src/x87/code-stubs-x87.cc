@@ -1964,7 +1964,7 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  CallFunctionNoFeedback(masm, argc_, NeedsChecks(), CallAsMethod());
+  CallFunctionNoFeedback(masm, argc(), NeedsChecks(), CallAsMethod());
 }
 
 
@@ -4133,9 +4133,8 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   __ mov(ebx, MemOperand(ebp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   __ pop(ecx);
-  int additional_offset = function_mode_ == JS_FUNCTION_STUB_MODE
-      ? kPointerSize
-      : 0;
+  int additional_offset =
+      function_mode() == JS_FUNCTION_STUB_MODE ? kPointerSize : 0;
   __ lea(esp, MemOperand(esp, ebx, times_pointer_size, additional_offset));
   __ jmp(ecx);  // Return to IC Miss stub, continuation still on stack.
 }
@@ -4335,7 +4334,7 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
 void ArrayConstructorStub::GenerateDispatchToArrayStub(
     MacroAssembler* masm,
     AllocationSiteOverrideMode mode) {
-  if (argument_count_ == ANY) {
+  if (argument_count() == ANY) {
     Label not_zero_case, not_one_case;
     __ test(eax, eax);
     __ j(not_zero, &not_zero_case);
@@ -4348,11 +4347,11 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
 
     __ bind(&not_one_case);
     CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
-  } else if (argument_count_ == NONE) {
+  } else if (argument_count() == NONE) {
     CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
-  } else if (argument_count_ == ONE) {
+  } else if (argument_count() == ONE) {
     CreateArrayDispatchOneArgument(masm, mode);
-  } else if (argument_count_ == MORE_THAN_ONE) {
+  } else if (argument_count() == MORE_THAN_ONE) {
     CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
   } else {
     UNREACHABLE();
@@ -4362,7 +4361,7 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
 
 void ArrayConstructorStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- eax : argc (only if argument_count_ == ANY)
+  //  -- eax : argc (only if argument_count() == ANY)
   //  -- ebx : AllocationSite or undefined
   //  -- edi : constructor
   //  -- esp[0] : return address
@@ -4510,9 +4509,9 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register return_address = edi;
   Register context = esi;
 
-  int argc = ArgumentBits::decode(bit_field_);
-  bool is_store = IsStoreBits::decode(bit_field_);
-  bool call_data_undefined = CallDataUndefinedBits::decode(bit_field_);
+  int argc = this->argc();
+  bool is_store = this->is_store();
+  bool call_data_undefined = this->call_data_undefined();
 
   typedef FunctionCallbackArguments FCA;
 
