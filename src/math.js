@@ -173,8 +173,8 @@ function MathSign(x) {
   x = TO_NUMBER_INLINE(x);
   if (x > 0) return 1;
   if (x < 0) return -1;
-  if (x === 0) return x;
-  return NAN;
+  // -0, 0 or NaN.
+  return x;
 }
 
 // ES6 draft 09-27-13, section 20.2.2.34.
@@ -182,8 +182,8 @@ function MathTrunc(x) {
   x = TO_NUMBER_INLINE(x);
   if (x > 0) return MathFloor(x);
   if (x < 0) return MathCeil(x);
-  if (x === 0) return x;
-  return NAN;
+  // -0, 0 or NaN.
+  return x;
 }
 
 // ES6 draft 09-27-13, section 20.2.2.30.
