@@ -2048,7 +2048,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   // edi - function
   // edx - slot id
   Label miss;
-  int argc = state_.arg_count();
+  int argc = arg_count();
   ParameterCount actual(argc);
 
   EmitLoadTypeFeedbackVector(masm, ebx);
@@ -2092,7 +2092,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   Label extra_checks_or_miss, slow_start;
   Label slow, non_function, wrap, cont;
   Label have_js_function;
-  int argc = state_.arg_count();
+  int argc = arg_count();
   ParameterCount actual(argc);
 
   EmitLoadTypeFeedbackVector(masm, ebx);
@@ -2103,7 +2103,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &extra_checks_or_miss);
 
   __ bind(&have_js_function);
-  if (state_.CallAsMethod()) {
+  if (CallAsMethod()) {
     EmitContinueIfStrictOrNative(masm, &cont);
 
     // Load the receiver from the stack.
@@ -2122,7 +2122,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   EmitSlowCase(isolate, masm, argc, &non_function);
 
-  if (state_.CallAsMethod()) {
+  if (CallAsMethod()) {
     __ bind(&wrap);
     EmitWrapCase(masm, argc, &cont);
   }
@@ -2171,7 +2171,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
 void CallICStub::GenerateMiss(MacroAssembler* masm, IC::UtilityId id) {
   // Get the receiver of the function from the stack; 1 ~ return address.
-  __ mov(ecx, Operand(esp, (state_.arg_count() + 1) * kPointerSize));
+  __ mov(ecx, Operand(esp, (arg_count() + 1) * kPointerSize));
 
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
