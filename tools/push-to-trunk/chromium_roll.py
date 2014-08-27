@@ -73,6 +73,12 @@ class UpdateChromiumCheckout(Step):
     os.chdir(self["chrome_path"])
     self.GitCheckout("master")
     self._side_effect_handler.Command("gclient", "sync --nohooks")
+    try:
+      # TODO(machenbach): Add cwd to git calls.
+      os.chdir(os.path.join(self["chrome_path"], "v8"))
+      self.GitFetchOrigin()
+    finally:
+      os.chdir(self["chrome_path"])
     self.GitCreateBranch("v8-roll-%s" % self["trunk_revision"])
 
 

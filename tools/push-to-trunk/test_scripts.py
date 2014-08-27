@@ -834,6 +834,8 @@ def get_list():
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     if not os.path.exists(TEST_CONFIG[CHROMIUM]):
       os.makedirs(TEST_CONFIG[CHROMIUM])
+    if not os.path.exists(os.path.join(TEST_CONFIG[CHROMIUM], "v8")):
+      os.makedirs(os.path.join(TEST_CONFIG[CHROMIUM], "v8"))
     TextToFile("Some line\n   \"v8_revision\": \"123444\",\n  some line",
                TEST_CONFIG[DEPS_FILE])
     def WriteDeps():
@@ -855,6 +857,7 @@ def get_list():
       Git("status -s -uno", ""),
       Git("checkout -f master", ""),
       Git("sync --nohooks", "syncing..."),
+      Git("fetch origin", ""),
       Git("checkout -b v8-roll-123455", ""),
       Git("v8 123455", "rolled", cb=WriteDeps),
       Git(("commit -am \"Update V8 to version 3.22.5 "
