@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_SIMPLIFIED_LOWERING_H_
 #define V8_COMPILER_SIMPLIFIED_LOWERING_H_
 
-#include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
@@ -15,16 +14,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SimplifiedLowering : public Reducer {
+class SimplifiedLowering {
  public:
   explicit SimplifiedLowering(JSGraph* jsgraph)
       : jsgraph_(jsgraph), machine_(jsgraph->zone()) {}
   virtual ~SimplifiedLowering() {}
 
   void LowerAllNodes();
-
-  virtual Reduction Reduce(Node* node);
-  void LowerChange(Node* node, Node* effect, Node* control);
 
   // TODO(titzer): These are exposed for direct testing. Use a friend class.
   void DoLoadField(Node* node);
@@ -41,15 +37,6 @@ class SimplifiedLowering : public Reducer {
   Node* Untag(Node* node);
   Node* OffsetMinusTagConstant(int32_t offset);
   Node* ComputeIndex(const ElementAccess& access, Node* index);
-
-  void DoChangeTaggedToUI32(Node* node, Node* effect, Node* control,
-                            bool is_signed);
-  void DoChangeUI32ToTagged(Node* node, Node* effect, Node* control,
-                            bool is_signed);
-  void DoChangeTaggedToFloat64(Node* node, Node* effect, Node* control);
-  void DoChangeFloat64ToTagged(Node* node, Node* effect, Node* control);
-  void DoChangeBoolToBit(Node* node, Node* effect, Node* control);
-  void DoChangeBitToBool(Node* node, Node* effect, Node* control);
 
   friend class RepresentationSelector;
 
