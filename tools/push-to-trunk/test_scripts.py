@@ -368,6 +368,7 @@ class ScriptTest(unittest.TestCase):
     print "Log: %s %s" % (cmd, args)
 
   MOCKS = {
+    "gclient": GitMock, # TODO(machenbach): Yet another hack. Unify all mocks.
     "git": GitMock,
     "roll-dep": GitMock, # TODO(machenbach): Yet another hack. Unify all mocks.
     # TODO(machenbach): Little hack to reuse the git mock for the one svn call
@@ -853,7 +854,7 @@ def get_list():
           "Version 3.22.5 (based on bleeding_edge revision r123454)\n"),
       Git("status -s -uno", ""),
       Git("checkout -f master", ""),
-      Git("pull", ""),
+      Git("sync --no-hooks", "syncing..."),
       Git("checkout -b v8-roll-123455", ""),
       Git("v8 123455", "rolled", cb=WriteDeps),
       Git(("commit -am \"Update V8 to version 3.22.5 "
