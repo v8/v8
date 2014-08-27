@@ -1082,17 +1082,19 @@ void InstructionSelector::VisitDeoptimize(Node* deopt) {
   DCHECK(deopt->op()->opcode() == IrOpcode::kDeoptimize);
   Node* state = deopt->InputAt(0);
   FrameStateDescriptor* descriptor = GetFrameStateDescriptor(state);
+  int deoptimization_id = sequence()->AddDeoptimizationEntry(descriptor);
 
   InstructionOperandVector inputs(zone());
-  inputs.reserve(descriptor->size());
+  inputs.reserve(descriptor->size() + 1);
+
+  OperandGenerator g(this);
+  inputs.push_back(g.TempImmediate(deoptimization_id));
 
   AddFrameStateInputs(state, &inputs, descriptor);
 
-  DCHECK_EQ(descriptor->size(), inputs.size());
+  DCHECK_EQ(descriptor->size() + 1, inputs.size());
 
-  int deoptimization_id = sequence()->AddDeoptimizationEntry(descriptor);
-  Emit(kArchDeoptimize | MiscField::encode(deoptimization_id), 0, NULL,
-       inputs.size(), &inputs.front(), 0, NULL);
+  Emit(kArchDeoptimize, 0, NULL, inputs.size(), &inputs.front(), 0, NULL);
 }
 
 

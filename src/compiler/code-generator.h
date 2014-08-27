@@ -87,8 +87,7 @@ class CodeGenerator V8_FINAL : public GapResolver::Assembler {
                                      Safepoint::Id safepoint_id);
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
-  void BuildTranslation(Instruction* instr, int first_argument_index,
-                        int deoptimization_id);
+  int BuildTranslation(Instruction* instr, int frame_state_offset);
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op);
   void AddNopForSmiCodeInlining();

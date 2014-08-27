@@ -26,7 +26,11 @@ class InstructionSelectorTest : public CompilerTest {
 
   class Stream;
 
-  enum StreamBuilderMode { kAllInstructions, kTargetInstructions };
+  enum StreamBuilderMode {
+    kAllInstructions,
+    kTargetInstructions,
+    kAllExceptNopInstructions
+  };
 
   class StreamBuilder V8_FINAL : public RawMachineAssembler {
    public:
@@ -146,6 +150,15 @@ class InstructionSelectorTest : public CompilerTest {
       return UnallocatedOperand::cast(operand)->virtual_register();
     }
 
+    FrameStateDescriptor* GetDeoptimizationEntry(int deoptimization_id) {
+      EXPECT_LT(deoptimization_id, GetDeoptimizationEntryCount());
+      return deoptimization_entries_[deoptimization_id];
+    }
+
+    int GetDeoptimizationEntryCount() {
+      return static_cast<int>(deoptimization_entries_.size());
+    }
+
    private:
     Constant ToConstant(const InstructionOperand* operand) const {
       ConstantMap::const_iterator i;
@@ -170,6 +183,7 @@ class InstructionSelectorTest : public CompilerTest {
     std::deque<Instruction*> instructions_;
     std::set<int> doubles_;
     std::set<int> references_;
+    std::deque<FrameStateDescriptor*> deoptimization_entries_;
   };
 
   base::RandomNumberGenerator rng_;

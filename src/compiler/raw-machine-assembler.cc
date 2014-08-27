@@ -83,6 +83,31 @@ void RawMachineAssembler::Deoptimize(Node* state) {
 }
 
 
+Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
+                                             Node* context, Node* frame_state,
+                                             Label* continuation,
+                                             Label* deoptimization,
+                                             CallFunctionFlags flags) {
+  CallFunctionStub stub(isolate(), 0, flags);
+  CodeStubInterfaceDescriptor* d = isolate()->code_stub_interface_descriptor(
+      reinterpret_cast<CodeStub*>(&stub)->MajorKey());
+  stub.InitializeInterfaceDescriptor(d);
+
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      d, 1, static_cast<CallDescriptor::DeoptimizationSupport>(
+                CallDescriptor::kLazyDeoptimization |
+                CallDescriptor::kNeedsFrameState),
+      zone());
+  Node* stub_code = HeapConstant(stub.GetCode());
+  Node* call = graph()->NewNode(common()->Call(desc), stub_code, function,
+                                receiver, context, frame_state);
+  schedule()->AddCall(CurrentBlock(), call, Use(continuation),
+                      Use(deoptimization));
+  current_block_ = NULL;
+  return call;
+}
+
+
 Node* RawMachineAssembler::CallJS0(Node* function, Node* receiver,
                                    Label* continuation, Label* deoptimization) {
   CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(1, zone());

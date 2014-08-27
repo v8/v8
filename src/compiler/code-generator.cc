@@ -258,10 +258,9 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
     // If the frame state is present, it starts at argument 1
     // (just after the code address).
     InstructionOperandConverter converter(this, instr);
-    // Argument 1 is deoptimization id.
-    int deoptimization_id = converter.ToConstant(instr->InputAt(1)).ToInt32();
-    // The actual frame state values start with argument 2.
-    int first_state_value_offset = 2;
+    // Deoptimization info starts at argument 1
+    int frame_state_offset = 1;
+    int deoptimization_id = BuildTranslation(instr, frame_state_offset);
 #if DEBUG
     // Make sure all the values live in stack slots or they are immediates.
     // (The values should not live in register because registers are clobbered
@@ -269,11 +268,10 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
     FrameStateDescriptor* descriptor =
         code()->GetDeoptimizationEntry(deoptimization_id);
     for (int i = 0; i < descriptor->size(); i++) {
-      InstructionOperand* op = instr->InputAt(first_state_value_offset + i);
+      InstructionOperand* op = instr->InputAt(frame_state_offset + 1 + i);
       CHECK(op->IsStackSlot() || op->IsImmediate());
     }
 #endif
-    BuildTranslation(instr, first_state_value_offset, deoptimization_id);
     safepoints()->RecordLazyDeoptimizationIndex(deoptimization_id);
   }
 }
@@ -310,9 +308,12 @@ int CodeGenerator::DefineDeoptimizationLiteral(Handle<Object> literal) {
 }
 
 
-void CodeGenerator::BuildTranslation(Instruction* instr,
-                                     int first_argument_index,
-                                     int deoptimization_id) {
+int CodeGenerator::BuildTranslation(Instruction* instr,
+                                    int frame_state_offset) {
+  InstructionOperandConverter i(this, instr);
+  int deoptimization_id = i.InputInt32(frame_state_offset);
+  frame_state_offset++;
+
   // We should build translation only once.
   DCHECK_EQ(NULL, deoptimization_states_[deoptimization_id]);
 
@@ -325,11 +326,13 @@ void CodeGenerator::BuildTranslation(Instruction* instr,
 
   for (int i = 0; i < descriptor->size(); i++) {
     AddTranslationForOperand(&translation, instr,
-                             instr->InputAt(i + first_argument_index));
+                             instr->InputAt(i + frame_state_offset));
   }
 
   deoptimization_states_[deoptimization_id] =
       new (zone()) DeoptimizationState(translation.index());
+
+  return deoptimization_id;
 }
 
 

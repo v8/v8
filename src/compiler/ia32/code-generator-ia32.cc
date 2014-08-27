@@ -141,8 +141,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchDeoptimize: {
-      int deoptimization_id = MiscField::decode(instr->opcode());
-      BuildTranslation(instr, 0, deoptimization_id);
+      int deoptimization_id = BuildTranslation(instr, 0);
 
       Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
           isolate(), deoptimization_id, Deoptimizer::LAZY);
