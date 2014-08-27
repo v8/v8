@@ -8,6 +8,7 @@
 
 #include "src/ast.h"
 #include "src/base/platform/platform.h"
+#include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
@@ -1947,7 +1948,7 @@ bool Isolate::Init(Deserializer* des) {
   if (max_available_threads_ < 1) {
     // Choose the default between 1 and 4.
     max_available_threads_ =
-        Max(Min(base::OS::NumberOfProcessorsOnline(), 4), 1);
+        Max(Min(base::SysInfo::NumberOfProcessors(), 4), 1);
   }
 
   if (!FLAG_job_based_sweeping) {

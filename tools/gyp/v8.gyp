@@ -1150,6 +1150,8 @@
         '../../src/base/safe_conversions_impl.h',
         '../../src/base/safe_math.h',
         '../../src/base/safe_math_impl.h',
+        '../../src/base/sys-info.cc',
+        '../../src/base/sys-info.h',
         '../../src/base/utils/random-number-generator.cc',
         '../../src/base/utils/random-number-generator.h',
       ],

@@ -45,6 +45,7 @@
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/base/sys-info.h"
 #include "src/d8-debug.h"
 #include "src/debug.h"
 #include "src/natives.h"
@@ -1614,9 +1615,9 @@ int Shell::Main(int argc, char* argv[]) {
   Isolate* isolate = Isolate::New();
 #ifndef V8_SHARED
   v8::ResourceConstraints constraints;
-  constraints.ConfigureDefaults(base::OS::TotalPhysicalMemory(),
-                                base::OS::MaxVirtualMemory(),
-                                base::OS::NumberOfProcessorsOnline());
+  constraints.ConfigureDefaults(base::SysInfo::AmountOfPhysicalMemory(),
+                                base::SysInfo::AmountOfVirtualMemory(),
+                                base::SysInfo::NumberOfProcessors());
   v8::SetResourceConstraints(isolate, &constraints);
 #endif
   DumbLineEditor dumb_line_editor(isolate);
