@@ -17,12 +17,13 @@ namespace internal {
 void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
                                                     StrictMode strict_mode) {
   // Return address is on the stack.
-  DCHECK(!ebx.is(StoreIC::ReceiverRegister()) &&
-         !ebx.is(StoreIC::NameRegister()) && !ebx.is(StoreIC::ValueRegister()));
+  DCHECK(!ebx.is(StoreConvention::ReceiverRegister()) &&
+         !ebx.is(StoreConvention::NameRegister()) &&
+         !ebx.is(StoreConvention::ValueRegister()));
   __ pop(ebx);
-  __ push(StoreIC::ReceiverRegister());
-  __ push(StoreIC::NameRegister());
-  __ push(StoreIC::ValueRegister());
+  __ push(StoreConvention::ReceiverRegister());
+  __ push(StoreConvention::NameRegister());
+  __ push(StoreConvention::ValueRegister());
   __ push(Immediate(Smi::FromInt(strict_mode)));
   __ push(ebx);  // return address
 
@@ -60,7 +61,7 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
   // Polymorphic keyed stores may use the map register
   Register map_reg = scratch1();
   DCHECK(kind() != Code::KEYED_STORE_IC ||
-         map_reg.is(KeyedStoreIC::MapRegister()));
+         map_reg.is(StoreConvention::MapRegister()));
   __ mov(map_reg, FieldOperand(receiver(), HeapObject::kMapOffset));
   int receiver_count = types->length();
   int number_of_handled_maps = 0;
