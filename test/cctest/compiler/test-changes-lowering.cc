@@ -14,6 +14,7 @@
 #include "src/compiler/typer.h"
 #include "src/compiler/verifier.h"
 #include "src/execution.h"
+#include "src/globals.h"
 #include "src/parser.h"
 #include "src/rewriter.h"
 #include "src/scopes.h"
@@ -302,7 +303,12 @@ TEST(RunChangeBitToBool) {
 }
 
 
-TEST(RunChangeInt32ToTagged) {
+#ifndef V8_TARGET_ARCH_ARM64
+// TODO(titzer): disabled on ARM64 because calling into the runtime to
+// allocate uses the wrong stack pointer.
+// TODO(titzer): disabled on ARM
+
+TEST(RunChangeInt32ToTaggedSmi) {
   ChangesLoweringTester<Object*> t;
   int32_t input;
   t.BuildLoadAndLower(t.simplified()->ChangeInt32ToTagged(),
@@ -311,17 +317,49 @@ TEST(RunChangeInt32ToTagged) {
   if (Pipeline::SupportedTarget()) {
     FOR_INT32_INPUTS(i) {
       input = *i;
-      Object* result = t.CallWithPotentialGC<Object>();
+      if (!Smi::IsValid(input)) continue;
+      Object* result = t.Call();
       t.CheckNumber(static_cast<double>(input), result);
     }
   }
+}
+
+
+TEST(RunChangeUint32ToTaggedSmi) {
+  ChangesLoweringTester<Object*> t;
+  uint32_t input;
+  t.BuildLoadAndLower(t.simplified()->ChangeUint32ToTagged(),
+                      t.machine()->Load(kMachUint32), &input);
 
   if (Pipeline::SupportedTarget()) {
-    FOR_INT32_INPUTS(i) {
+    FOR_UINT32_INPUTS(i) {
       input = *i;
-      CcTest::heap()->DisableInlineAllocation();
-      Object* result = t.CallWithPotentialGC<Object>();
-      t.CheckNumber(static_cast<double>(input), result);
+      if (input > static_cast<uint32_t>(Smi::kMaxValue)) continue;
+      Object* result = t.Call();
+      double expected = static_cast<double>(input);
+      t.CheckNumber(expected, result);
+    }
+  }
+}
+
+
+TEST(RunChangeInt32ToTagged) {
+  ChangesLoweringTester<Object*> t;
+  int32_t input;
+  t.BuildLoadAndLower(t.simplified()->ChangeInt32ToTagged(),
+                      t.machine()->Load(kMachInt32), &input);
+
+  if (Pipeline::SupportedTarget()) {
+    for (int m = 0; m < 3; m++) {  // Try 3 GC modes.
+      FOR_INT32_INPUTS(i) {
+        if (m == 0) CcTest::heap()->EnableInlineAllocation();
+        if (m == 1) CcTest::heap()->DisableInlineAllocation();
+        if (m == 2) SimulateFullSpace(CcTest::heap()->new_space());
+
+        input = *i;
+        Object* result = t.CallWithPotentialGC<Object>();
+        t.CheckNumber(static_cast<double>(input), result);
+      }
     }
   }
 }
@@ -334,21 +372,17 @@ TEST(RunChangeUint32ToTagged) {
                       t.machine()->Load(kMachUint32), &input);
 
   if (Pipeline::SupportedTarget()) {
-    FOR_UINT32_INPUTS(i) {
-      input = *i;
-      Object* result = t.CallWithPotentialGC<Object>();
-      double expected = static_cast<double>(input);
-      t.CheckNumber(expected, result);
-    }
-  }
+    for (int m = 0; m < 3; m++) {  // Try 3 GC modes.
+      FOR_UINT32_INPUTS(i) {
+        if (m == 0) CcTest::heap()->EnableInlineAllocation();
+        if (m == 1) CcTest::heap()->DisableInlineAllocation();
+        if (m == 2) SimulateFullSpace(CcTest::heap()->new_space());
 
-  if (Pipeline::SupportedTarget()) {
-    FOR_UINT32_INPUTS(i) {
-      input = *i;
-      CcTest::heap()->DisableInlineAllocation();
-      Object* result = t.CallWithPotentialGC<Object>();
-      double expected = static_cast<double>(static_cast<uint32_t>(input));
-      t.CheckNumber(expected, result);
+        input = *i;
+        Object* result = t.CallWithPotentialGC<Object>();
+        double expected = static_cast<double>(input);
+        t.CheckNumber(expected, result);
+      }
     }
   }
 }
@@ -360,20 +394,19 @@ TEST(RunChangeFloat64ToTagged) {
   t.BuildLoadAndLower(t.simplified()->ChangeFloat64ToTagged(),
                       t.machine()->Load(kMachFloat64), &input);
 
-  {
-    FOR_FLOAT64_INPUTS(i) {
-      input = *i;
-      Object* result = t.CallWithPotentialGC<Object>();
-      t.CheckNumber(input, result);
-    }
-  }
+  if (Pipeline::SupportedTarget()) {
+    for (int m = 0; m < 3; m++) {  // Try 3 GC modes.
+      FOR_FLOAT64_INPUTS(i) {
+        if (m == 0) CcTest::heap()->EnableInlineAllocation();
+        if (m == 1) CcTest::heap()->DisableInlineAllocation();
+        if (m == 2) SimulateFullSpace(CcTest::heap()->new_space());
 
-  {
-    FOR_FLOAT64_INPUTS(i) {
-      input = *i;
-      CcTest::heap()->DisableInlineAllocation();
-      Object* result = t.CallWithPotentialGC<Object>();
-      t.CheckNumber(input, result);
+        input = *i;
+        Object* result = t.CallWithPotentialGC<Object>();
+        t.CheckNumber(input, result);
+      }
     }
   }
 }
+
+#endif  // !V8_TARGET_ARCH_ARM64
