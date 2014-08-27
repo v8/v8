@@ -854,7 +854,7 @@ def get_list():
           "Version 3.22.5 (based on bleeding_edge revision r123454)\n"),
       Git("status -s -uno", ""),
       Git("checkout -f master", ""),
-      Git("sync --no-hooks", "syncing..."),
+      Git("sync --nohooks", "syncing..."),
       Git("checkout -b v8-roll-123455", ""),
       Git("v8 123455", "rolled", cb=WriteDeps),
       Git(("commit -am \"Update V8 to version 3.22.5 "
