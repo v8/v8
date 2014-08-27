@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_GENERIC_ALGORITHM_H_
 #define V8_COMPILER_GENERIC_ALGORITHM_H_
 
-#include <deque>
 #include <stack>
 
 #include "src/compiler/generic-graph.h"
@@ -44,11 +43,9 @@ class GenericGraphVisit {
     typedef typename Traits::Node Node;
     typedef typename Traits::Iterator Iterator;
     typedef std::pair<Iterator, Iterator> NodeState;
-    typedef zone_allocator<NodeState> ZoneNodeStateAllocator;
-    typedef std::deque<NodeState, ZoneNodeStateAllocator> NodeStateDeque;
-    typedef std::stack<NodeState, NodeStateDeque> NodeStateStack;
-    NodeStateStack stack((NodeStateDeque(ZoneNodeStateAllocator(zone))));
-    BoolVector visited(Traits::max_id(graph), false, ZoneBoolAllocator(zone));
+    typedef std::stack<NodeState, ZoneDeque<NodeState>> NodeStateStack;
+    NodeStateStack stack((ZoneDeque<NodeState>(zone)));
+    BoolVector visited(Traits::max_id(graph), false, zone);
     Node* current = *root_begin;
     while (true) {
       DCHECK(current != NULL);

@@ -130,19 +130,18 @@ static void SignatureCallback(
 
 
 // Tests that call v8::V8::Dispose() cannot be threaded.
-TEST(InitializeAndDisposeOnce) {
+UNINITIALIZED_TEST(InitializeAndDisposeOnce) {
   CHECK(v8::V8::Initialize());
   CHECK(v8::V8::Dispose());
 }
 
 
 // Tests that call v8::V8::Dispose() cannot be threaded.
-TEST(InitializeAndDisposeMultiple) {
+UNINITIALIZED_TEST(InitializeAndDisposeMultiple) {
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
-  // TODO(mstarzinger): This should fail gracefully instead of asserting.
-  // for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
+  for (int i = 0; i < 3; ++i) CHECK(v8::V8::Initialize());
   for (int i = 0; i < 3; ++i) CHECK(v8::V8::Dispose());
 }
 
@@ -263,7 +262,7 @@ THREADED_TEST(ReceiverSignature) {
   const char* test_objects[] = {
       "fun_instance", "sub_fun_instance", "obj", "unrel" };
   unsigned bad_signature_start_offset = 2;
-  for (unsigned i = 0; i < ARRAY_SIZE(test_objects); i++) {
+  for (unsigned i = 0; i < arraysize(test_objects); i++) {
     i::ScopedVector<char> source(200);
     i::SNPrintF(
         source, "var test_object = %s; test_object", test_objects[i]);
@@ -1189,7 +1188,7 @@ THREADED_PROFILED_TEST(FastReturnValues) {
       0, 234, -723,
       i::Smi::kMinValue, i::Smi::kMaxValue
   };
-  for (size_t i = 0; i < ARRAY_SIZE(int_values); i++) {
+  for (size_t i = 0; i < arraysize(int_values); i++) {
     for (int modifier = -1; modifier <= 1; modifier++) {
       int int_value = int_values[i] + modifier;
       // check int32_t
@@ -1221,7 +1220,7 @@ THREADED_PROFILED_TEST(FastReturnValues) {
       kUndefinedReturnValue,
       kEmptyStringReturnValue
   };
-  for (size_t i = 0; i < ARRAY_SIZE(oddballs); i++) {
+  for (size_t i = 0; i < arraysize(oddballs); i++) {
     fast_return_value_void = oddballs[i];
     value = TestFastReturnValues<void>();
     switch (fast_return_value_void) {
@@ -19203,7 +19202,7 @@ TEST(ContainsOnlyOneByte) {
       String::NewExternal(isolate,
                           new TestResource(string_contents, NULL, false));
   USE(two_byte); USE(cons_strings);
-  for (size_t i = 0; i < ARRAY_SIZE(cons_strings); i++) {
+  for (size_t i = 0; i < arraysize(cons_strings); i++) {
     // Base assumptions.
     string = cons_strings[i];
     CHECK(string->IsOneByte() && string->ContainsOnlyOneByte());
@@ -22418,12 +22417,12 @@ class ApiCallOptimizationChecker {
   void RunAll() {
     SignatureType signature_types[] =
       {kNoSignature, kSignatureOnReceiver, kSignatureOnPrototype};
-    for (unsigned i = 0; i < ARRAY_SIZE(signature_types); i++) {
+    for (unsigned i = 0; i < arraysize(signature_types); i++) {
       SignatureType signature_type = signature_types[i];
       for (int j = 0; j < 2; j++) {
         bool global = j == 0;
         int key = signature_type +
-            ARRAY_SIZE(signature_types) * (global ? 1 : 0);
+            arraysize(signature_types) * (global ? 1 : 0);
         Run(signature_type, global, key);
       }
     }

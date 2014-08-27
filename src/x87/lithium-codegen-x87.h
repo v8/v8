@@ -344,6 +344,9 @@ class LCodeGen: public LCodeGenBase {
   void DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr);
   void DoStoreKeyedFixedArray(LStoreKeyed* instr);
 
+  template <class T>
+  void EmitVectorLoadICRegisters(T* instr);
+
   void EmitReturn(LReturn* instr, bool dynamic_frame_alignment);
 
   // Emits code for pushing either a tagged constant, a (non-double)

@@ -76,7 +76,7 @@ class ValueHelper {
         -V8_INFINITY,    nan,             2147483647.375, 2147483647.75,
         2147483648.0,    2147483648.25,   2147483649.25,  -2147483647.0,
         -2147483647.125, -2147483647.875, -2147483648.25, -2147483649.5};
-    return std::vector<double>(&values[0], &values[ARRAY_SIZE(values)]);
+    return std::vector<double>(&values[0], &values[arraysize(values)]);
   }
 
   static const std::vector<int32_t> int32_vector() {
@@ -94,7 +94,7 @@ class ValueHelper {
         0xeeeeeeee, 0xfffffffd, 0xf0000000, 0x007fffff, 0x003fffff, 0x001fffff,
         0x000fffff, 0x0007ffff, 0x0003ffff, 0x0001ffff, 0x0000ffff, 0x00007fff,
         0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff};
-    return std::vector<uint32_t>(&kValues[0], &kValues[ARRAY_SIZE(kValues)]);
+    return std::vector<uint32_t>(&kValues[0], &kValues[arraysize(kValues)]);
   }
 
   static const std::vector<double> nan_vector(size_t limit = 0) {
@@ -102,14 +102,14 @@ class ValueHelper {
     static const double values[] = {-nan,               -V8_INFINITY * -0.0,
                                     -V8_INFINITY * 0.0, V8_INFINITY * -0.0,
                                     V8_INFINITY * 0.0,  nan};
-    return std::vector<double>(&values[0], &values[ARRAY_SIZE(values)]);
+    return std::vector<double>(&values[0], &values[arraysize(values)]);
   }
 
   static const std::vector<uint32_t> ror_vector() {
     static const uint32_t kValues[31] = {
         1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15, 16,
         17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
-    return std::vector<uint32_t>(&kValues[0], &kValues[ARRAY_SIZE(kValues)]);
+    return std::vector<uint32_t>(&kValues[0], &kValues[arraysize(kValues)]);
   }
 };
 

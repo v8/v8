@@ -554,12 +554,12 @@ Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
 
 
 void CallIC_ArrayStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_ << " (Array)";
+  os << state() << " (Array)";
 }
 
 
 void CallICStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_;
+  os << state();
 }
 
 
@@ -581,34 +581,34 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 
 void LoadFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kParameterCount == 2);
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          LoadConvention::ReceiverRegister(),
+                          LoadConvention::NameRegister()};
+  STATIC_ASSERT(LoadConvention::kParameterCount == 2);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
 
 void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kParameterCount == 2);
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          LoadConvention::ReceiverRegister(),
+                          LoadConvention::NameRegister()};
+  STATIC_ASSERT(LoadConvention::kParameterCount == 2);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
 
 void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           LoadIC::ReceiverRegister(),
-                           LoadIC::NameRegister() };
-  STATIC_ASSERT(LoadIC::kParameterCount == 2);
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          LoadConvention::ReceiverRegister(),
+                          LoadConvention::NameRegister()};
+  STATIC_ASSERT(LoadConvention::kParameterCount == 2);
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
 }
 
@@ -617,14 +617,16 @@ void HandlerStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   if (kind() == Code::LOAD_IC) {
     Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            LoadIC::ReceiverRegister(), LoadIC::NameRegister()};
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+                            LoadConvention::ReceiverRegister(),
+                            LoadConvention::NameRegister()};
+    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
   } else {
     DCHECK_EQ(Code::STORE_IC, kind());
     Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            StoreIC::ReceiverRegister(),
-                            StoreIC::NameRegister(), StoreIC::ValueRegister()};
-    descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+                            StoreConvention::ReceiverRegister(),
+                            StoreConvention::NameRegister(),
+                            StoreConvention::ValueRegister()};
+    descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                            FUNCTION_ADDR(StoreIC_MissFromStubFailure));
   }
 }
@@ -632,11 +634,11 @@ void HandlerStub::InitializeInterfaceDescriptor(
 
 void StoreFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           KeyedStoreIC::ReceiverRegister(),
-                           KeyedStoreIC::NameRegister(),
-                           KeyedStoreIC::ValueRegister() };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          StoreConvention::ReceiverRegister(),
+                          StoreConvention::NameRegister(),
+                          StoreConvention::ValueRegister()};
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
 }
 
@@ -648,7 +650,7 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
                            MapRegister(),
                            KeyRegister(),
                            ObjectRegister() };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
 }
 
@@ -658,7 +660,36 @@ void InstanceofStub::InitializeInterfaceDescriptor(
   Register registers[] = { InterfaceDescriptor::ContextRegister(),
                            InstanceofStub::left(),
                            InstanceofStub::right() };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
+}
+
+
+static void InitializeVectorLoadStub(CodeStubInterfaceDescriptor* descriptor,
+                                     CodeStub::Major major,
+                                     Address deoptimization_handler) {
+  DCHECK(FLAG_vector_ics);
+  Register registers[] = {InterfaceDescriptor::ContextRegister(),
+                          FullVectorLoadConvention::ReceiverRegister(),
+                          FullVectorLoadConvention::NameRegister(),
+                          FullVectorLoadConvention::SlotRegister(),
+                          FullVectorLoadConvention::VectorRegister()};
+  descriptor->Initialize(major, arraysize(registers), registers,
+                         deoptimization_handler);
+}
+
+
+void VectorLoadStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeVectorLoadStub(descriptor, MajorKey(),
+                           FUNCTION_ADDR(VectorLoadIC_MissFromStubFailure));
+}
+
+
+void VectorKeyedLoadStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  InitializeVectorLoadStub(
+      descriptor, MajorKey(),
+      FUNCTION_ADDR(VectorKeyedLoadIC_MissFromStubFailure));
 }
 
 
@@ -674,7 +705,7 @@ void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
 
 
 void StoreElementStub::Generate(MacroAssembler* masm) {
-  switch (elements_kind_) {
+  switch (elements_kind()) {
     case FAST_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case FAST_SMI_ELEMENTS:
@@ -699,9 +730,27 @@ void StoreElementStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
+  switch (type()) {
+    case READ_ELEMENT:
+      GenerateReadElement(masm);
+      break;
+    case NEW_SLOPPY_FAST:
+      GenerateNewSloppyFast(masm);
+      break;
+    case NEW_SLOPPY_SLOW:
+      GenerateNewSloppySlow(masm);
+      break;
+    case NEW_STRICT:
+      GenerateNewStrict(masm);
+      break;
+  }
+}
+
+
 void ArgumentsAccessStub::PrintName(OStream& os) const {  // NOLINT
   os << "ArgumentsAccessStub_";
-  switch (type_) {
+  switch (type()) {
     case READ_ELEMENT:
       os << "ReadElement";
       break;
@@ -720,7 +769,7 @@ void ArgumentsAccessStub::PrintName(OStream& os) const {  // NOLINT
 
 
 void CallFunctionStub::PrintName(OStream& os) const {  // NOLINT
-  os << "CallFunctionStub_Args" << argc_;
+  os << "CallFunctionStub_Args" << argc();
 }
 
 
@@ -732,7 +781,7 @@ void CallConstructStub::PrintName(OStream& os) const {  // NOLINT
 
 void ArrayConstructorStub::PrintName(OStream& os) const {  // NOLINT
   os << "ArrayConstructorStub";
-  switch (argument_count_) {
+  switch (argument_count()) {
     case ANY:
       os << "_Any";
       break;
@@ -945,8 +994,16 @@ void StoreFieldStub::InstallDescriptors(Isolate* isolate) {
 }
 
 
+// static
+void LoadFastElementStub::InstallDescriptors(Isolate* isolate) {
+  LoadFastElementStub stub(isolate, true, FAST_ELEMENTS);
+  InstallDescriptor(isolate, &stub);
+}
+
+
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
-    : PlatformCodeStub(isolate), argument_count_(ANY) {
+    : PlatformCodeStub(isolate) {
+  minor_key_ = ArgumentCountBits::encode(ANY);
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
@@ -955,11 +1012,11 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
                                            int argument_count)
     : PlatformCodeStub(isolate) {
   if (argument_count == 0) {
-    argument_count_ = NONE;
+    minor_key_ = ArgumentCountBits::encode(NONE);
   } else if (argument_count == 1) {
-    argument_count_ = ONE;
+    minor_key_ = ArgumentCountBits::encode(ONE);
   } else if (argument_count >= 2) {
-    argument_count_ = MORE_THAN_ONE;
+    minor_key_ = ArgumentCountBits::encode(MORE_THAN_ONE);
   } else {
     UNREACHABLE();
   }

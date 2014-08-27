@@ -29,8 +29,8 @@ void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
 
 Register* PropertyAccessCompiler::load_calling_convention() {
   // receiver, name, scratch1, scratch2, scratch3, scratch4.
-  Register receiver = LoadIC::ReceiverRegister();
-  Register name = LoadIC::NameRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
+  Register name = LoadConvention::NameRegister();
   static Register registers[] = {receiver, name, x3, x0, x4, x5};
   return registers;
 }
@@ -38,9 +38,9 @@ Register* PropertyAccessCompiler::load_calling_convention() {
 
 Register* PropertyAccessCompiler::store_calling_convention() {
   // receiver, value, scratch1, scratch2, scratch3.
-  Register receiver = StoreIC::ReceiverRegister();
-  Register name = StoreIC::NameRegister();
-  DCHECK(x3.is(KeyedStoreIC::MapRegister()));
+  Register receiver = StoreConvention::ReceiverRegister();
+  Register name = StoreConvention::NameRegister();
+  DCHECK(x3.is(StoreConvention::MapRegister()));
   static Register registers[] = {receiver, name, x3, x4, x5};
   return registers;
 }

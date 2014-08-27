@@ -138,7 +138,7 @@ Handle<String> MessageHandler::GetMessage(Isolate* isolate,
                             Handle<Object>(message->arguments(), isolate) };
 
   MaybeHandle<Object> maybe_result = Execution::TryCall(
-      fun, isolate->js_builtins_object(), ARRAY_SIZE(argv), argv);
+      fun, isolate->js_builtins_object(), arraysize(argv), argv);
   Handle<Object> result;
   if (!maybe_result.ToHandle(&result) || !result->IsString()) {
     return factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("<error>"));

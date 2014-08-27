@@ -632,7 +632,7 @@ const AstRawString* ParserTraits::GetNumberAsSymbol(Scanner* scanner) {
   double double_value = parser_->scanner()->DoubleValue();
   char array[100];
   const char* string =
-      DoubleToCString(double_value, Vector<char>(array, ARRAY_SIZE(array)));
+      DoubleToCString(double_value, Vector<char>(array, arraysize(array)));
   return ast_value_factory()->GetOneByteString(string);
 }
 

@@ -194,8 +194,8 @@ TEST(NoAliasing) {
                    T.OneConstant(),       T.NaNConstant(),     T.Constant(21),
                    T.Constant(22.2)};
 
-  for (size_t i = 0; i < ARRAY_SIZE(nodes); i++) {
-    for (size_t j = 0; j < ARRAY_SIZE(nodes); j++) {
+  for (size_t i = 0; i < arraysize(nodes); i++) {
+    for (size_t j = 0; j < arraysize(nodes); j++) {
       if (i != j) CHECK_NE(nodes[i], nodes[j]);
     }
   }

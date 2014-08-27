@@ -16,10 +16,12 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
+#include "src/compiler/verifier.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
+// TODO(titzer): pull RPO tests out to their own file.
 struct TestLoop {
   int count;
   BasicBlock** nodes;
@@ -62,6 +64,42 @@ static void CheckLoopContains(BasicBlock** blocks, int body_size) {
     CHECK(header->LoopContains(blocks[i]));
     CHECK(header->IsLoopHeader() || blocks[i]->loop_header_ == header);
   }
+}
+
+
+static int GetScheduledNodeCount(Schedule* schedule) {
+  int node_count = 0;
+  for (BasicBlockVectorIter i = schedule->rpo_order()->begin();
+       i != schedule->rpo_order()->end(); ++i) {
+    BasicBlock* block = *i;
+    for (BasicBlock::const_iterator j = block->begin(); j != block->end();
+         ++j) {
+      ++node_count;
+    }
+    BasicBlock::Control control = block->control_;
+    if (control != BasicBlock::kNone) {
+      ++node_count;
+    }
+  }
+  return node_count;
+}
+
+
+static Schedule* ComputeAndVerifySchedule(int expected, Graph* graph) {
+  if (FLAG_trace_turbo) {
+    OFStream os(stdout);
+    os << AsDOT(*graph);
+  }
+
+  Schedule* schedule = Scheduler::ComputeSchedule(graph);
+
+  if (FLAG_trace_turbo_scheduler) {
+    OFStream os(stdout);
+    os << *schedule << endl;
+  }
+  ScheduleVerifier::Run(schedule);
+  CHECK_EQ(expected, GetScheduledNodeCount(schedule));
+  return schedule;
 }
 
 
@@ -605,36 +643,6 @@ TEST(BuildScheduleOneParameter) {
 }
 
 
-static int GetScheduledNodeCount(Schedule* schedule) {
-  int node_count = 0;
-  for (BasicBlockVectorIter i = schedule->rpo_order()->begin();
-       i != schedule->rpo_order()->end(); ++i) {
-    BasicBlock* block = *i;
-    for (BasicBlock::const_iterator j = block->begin(); j != block->end();
-         ++j) {
-      ++node_count;
-    }
-    BasicBlock::Control control = block->control_;
-    if (control != BasicBlock::kNone) {
-      ++node_count;
-    }
-  }
-  return node_count;
-}
-
-
-static void PrintGraph(Graph* graph) {
-  OFStream os(stdout);
-  os << AsDOT(*graph);
-}
-
-
-static void PrintSchedule(Schedule* schedule) {
-  OFStream os(stdout);
-  os << *schedule << endl;
-}
-
-
 TEST(BuildScheduleIfSplit) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
@@ -658,14 +666,7 @@ TEST(BuildScheduleIfSplit) {
   Node* merge = graph.NewNode(builder.Merge(2), ret1, ret2);
   graph.SetEnd(graph.NewNode(builder.End(), merge));
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-
-  CHECK_EQ(13, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(13, &graph);
 }
 
 
@@ -811,13 +812,7 @@ TEST(BuildScheduleIfSplitWithEffects) {
   graph.SetStart(n0);
   graph.SetEnd(n23);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(20, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(20, &graph);
 }
 
 
@@ -930,13 +925,7 @@ TEST(BuildScheduleSimpleLoop) {
   graph.SetStart(n0);
   graph.SetEnd(n20);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(19, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(19, &graph);
 }
 
 
@@ -1184,13 +1173,7 @@ TEST(BuildScheduleComplexLoops) {
   graph.SetStart(n0);
   graph.SetEnd(n46);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(46, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(46, &graph);
 }
 
 
@@ -1520,13 +1503,7 @@ TEST(BuildScheduleBreakAndContinue) {
   graph.SetStart(n0);
   graph.SetEnd(n58);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(62, GetScheduledNodeCount(schedule));
+  ComputeAndVerifySchedule(62, &graph);
 }
 
 
@@ -1651,14 +1628,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   graph.SetStart(n0);
   graph.SetEnd(n22);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
-
-  CHECK_EQ(19, GetScheduledNodeCount(schedule));
-
+  Schedule* schedule = ComputeAndVerifySchedule(19, &graph);
   // Make sure the integer-only add gets hoisted to a different block that the
   // JSAdd.
   CHECK(schedule->block(n19) != schedule->block(n20));
@@ -1771,11 +1741,7 @@ TEST(BuildScheduleTrivialLazyDeoptCall) {
   graph.SetStart(start_node);
   graph.SetEnd(end_node);
 
-  PrintGraph(&graph);
-
-  Schedule* schedule = Scheduler::ComputeSchedule(&graph);
-
-  PrintSchedule(schedule);
+  Schedule* schedule = ComputeAndVerifySchedule(12, &graph);
 
   // Tests:
   // Continuation and deopt have basic blocks.
@@ -1804,6 +1770,85 @@ TEST(BuildScheduleTrivialLazyDeoptCall) {
   CHECK_EQ(IrOpcode::kStateValues, deopt_block->nodes_[2]->op()->opcode());
   CHECK_EQ(IrOpcode::kStateValues, deopt_block->nodes_[3]->op()->opcode());
   CHECK_EQ(state_node, deopt_block->nodes_[4]);
+}
+
+
+static Node* CreateDiamond(Graph* graph, CommonOperatorBuilder* common,
+                           Node* cond) {
+  Node* tv = graph->NewNode(common->Int32Constant(6));
+  Node* fv = graph->NewNode(common->Int32Constant(7));
+  Node* br = graph->NewNode(common->Branch(), cond, graph->start());
+  Node* t = graph->NewNode(common->IfTrue(), br);
+  Node* f = graph->NewNode(common->IfFalse(), br);
+  Node* m = graph->NewNode(common->Merge(2), t, f);
+  Node* phi = graph->NewNode(common->Phi(2), tv, fv, m);
+  return phi;
+}
+
+
+TEST(FloatingDiamond1) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(1));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* d1 = CreateDiamond(&graph, &common, p0);
+  Node* ret = graph.NewNode(common.Return(), d1, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(13, &graph);
+}
+
+
+TEST(FloatingDiamond2) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+  MachineOperatorBuilder machine(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* p1 = graph.NewNode(common.Parameter(1), start);
+  Node* d1 = CreateDiamond(&graph, &common, p0);
+  Node* d2 = CreateDiamond(&graph, &common, p1);
+  Node* add = graph.NewNode(machine.Int32Add(), d1, d2);
+  Node* ret = graph.NewNode(common.Return(), add, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(24, &graph);
+}
+
+
+TEST(FloatingDiamond3) {
+  HandleAndZoneScope scope;
+  Graph graph(scope.main_zone());
+  CommonOperatorBuilder common(scope.main_zone());
+  MachineOperatorBuilder machine(scope.main_zone());
+
+  Node* start = graph.NewNode(common.Start(2));
+  graph.SetStart(start);
+
+  Node* p0 = graph.NewNode(common.Parameter(0), start);
+  Node* p1 = graph.NewNode(common.Parameter(1), start);
+  Node* d1 = CreateDiamond(&graph, &common, p0);
+  Node* d2 = CreateDiamond(&graph, &common, p1);
+  Node* add = graph.NewNode(machine.Int32Add(), d1, d2);
+  Node* d3 = CreateDiamond(&graph, &common, add);
+  Node* ret = graph.NewNode(common.Return(), d3, start, start);
+  Node* end = graph.NewNode(common.End(), ret, start);
+
+  graph.SetEnd(end);
+
+  ComputeAndVerifySchedule(33, &graph);
 }
 
 #endif

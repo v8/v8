@@ -3052,27 +3052,6 @@ void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
 }
 
 
-void DescriptorArray::Append(Descriptor* desc,
-                             const WhitenessWitness& witness) {
-  DisallowHeapAllocation no_gc;
-  int descriptor_number = number_of_descriptors();
-  SetNumberOfDescriptors(descriptor_number + 1);
-  Set(descriptor_number, desc, witness);
-
-  uint32_t hash = desc->GetKey()->Hash();
-
-  int insertion;
-
-  for (insertion = descriptor_number; insertion > 0; --insertion) {
-    Name* key = GetSortedKey(insertion - 1);
-    if (key->Hash() <= hash) break;
-    SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
-  }
-
-  SetSortedKey(insertion, descriptor_number);
-}
-
-
 void DescriptorArray::Append(Descriptor* desc) {
   DisallowHeapAllocation no_gc;
   int descriptor_number = number_of_descriptors();

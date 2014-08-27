@@ -409,7 +409,7 @@ MaybeHandle<Object> JSProxy::GetPropertyWithHandler(Handle<JSProxy> proxy,
 
   Handle<Object> args[] = { receiver, name };
   return CallTrap(
-      proxy, "get",  isolate->derived_get_trap(), ARRAY_SIZE(args), args);
+      proxy, "get",  isolate->derived_get_trap(), arraysize(args), args);
 }
 
 
@@ -427,7 +427,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
       Handle<Object> error =
           isolate->factory()->NewTypeError("incompatible_method_receiver",
                                            HandleVector(args,
-                                                        ARRAY_SIZE(args)));
+                                                        arraysize(args)));
       return isolate->Throw<Object>(error);
     }
     if (structure->IsDeclaredAccessorInfo()) {
@@ -499,7 +499,7 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
       Handle<Object> error =
           isolate->factory()->NewTypeError("incompatible_method_receiver",
                                            HandleVector(args,
-                                                        ARRAY_SIZE(args)));
+                                                        arraysize(args)));
       return isolate->Throw<Object>(error);
     }
     Object* call_obj = info->setter();
@@ -573,7 +573,7 @@ MaybeHandle<Object> Object::SetPropertyWithDefinedSetter(
 
   Handle<Object> argv[] = { value };
   RETURN_ON_EXCEPTION(isolate, Execution::Call(isolate, setter, receiver,
-                                               ARRAY_SIZE(argv), argv, true),
+                                               arraysize(argv), argv, true),
                       Object);
   return value;
 }
@@ -2775,8 +2775,6 @@ MaybeHandle<Map> Map::TryUpdateInternal(Handle<Map> old_map) {
         break;
 
       case NORMAL:
-      case HANDLER:
-      case INTERCEPTOR:
         UNREACHABLE();
     }
   }
@@ -2927,7 +2925,7 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(LookupIterator* it,
 
   Handle<Object> args[] = {it->name(), it->GetReceiver()};
   Handle<Object> error = it->factory()->NewTypeError(
-      "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
+      "strict_read_only_property", HandleVector(args, arraysize(args)));
   return it->isolate()->Throw<Object>(error);
 }
 
@@ -2992,7 +2990,7 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
 
     Handle<Object> args[1] = {it->name()};
     Handle<Object> error = it->factory()->NewTypeError(
-        "object_not_extensible", HandleVector(args, ARRAY_SIZE(args)));
+        "object_not_extensible", HandleVector(args, arraysize(args)));
     return it->isolate()->Throw<Object>(error);
   }
   it->ApplyTransitionToDataProperty();
@@ -3401,7 +3399,7 @@ Maybe<bool> JSProxy::HasPropertyWithHandler(Handle<JSProxy> proxy,
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, result, CallTrap(proxy, "has", isolate->derived_has_trap(),
-                                ARRAY_SIZE(args), args),
+                                arraysize(args), args),
       Maybe<bool>());
 
   return maybe(result->BooleanValue());
@@ -3424,7 +3422,7 @@ MaybeHandle<Object> JSProxy::SetPropertyWithHandler(Handle<JSProxy> proxy,
       CallTrap(proxy,
                "set",
                isolate->derived_set_trap(),
-               ARRAY_SIZE(args),
+               arraysize(args),
                args),
       Object);
 
@@ -3452,7 +3450,7 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
       CallTrap(proxy,
                "getPropertyDescriptor",
                Handle<Object>(),
-               ARRAY_SIZE(args),
+               arraysize(args),
                args),
       Object);
 
@@ -3469,7 +3467,7 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
       Execution::Call(isolate,
                       isolate->to_complete_property_descriptor(),
                       result,
-                      ARRAY_SIZE(argv),
+                      arraysize(argv),
                       argv),
       Object);
 
@@ -3486,7 +3484,7 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
             STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
-        "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
+        "proxy_prop_not_configurable", HandleVector(args, arraysize(args)));
     return isolate->Throw<Object>(error);
   }
   DCHECK(configurable->IsTrue());
@@ -3510,7 +3508,7 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     if (strict_mode == SLOPPY) return value;
     Handle<Object> args[] = { name, receiver };
     Handle<Object> error = isolate->factory()->NewTypeError(
-        "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
+        "strict_read_only_property", HandleVector(args, arraysize(args)));
     return isolate->Throw<Object>(error);
   }
 
@@ -3527,7 +3525,7 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
   if (strict_mode == SLOPPY) return value;
   Handle<Object> args2[] = { name, proxy };
   Handle<Object> error = isolate->factory()->NewTypeError(
-      "no_setter_in_callback", HandleVector(args2, ARRAY_SIZE(args2)));
+      "no_setter_in_callback", HandleVector(args2, arraysize(args2)));
   return isolate->Throw<Object>(error);
 }
 
@@ -3546,7 +3544,7 @@ MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
       CallTrap(proxy,
                "delete",
                Handle<Object>(),
-               ARRAY_SIZE(args),
+               arraysize(args),
                args),
       Object);
 
@@ -3557,7 +3555,7 @@ MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
         STATIC_ASCII_VECTOR("delete"));
     Handle<Object> args[] = { handler, trap_name };
     Handle<Object> error = isolate->factory()->NewTypeError(
-        "handler_failed", HandleVector(args, ARRAY_SIZE(args)));
+        "handler_failed", HandleVector(args, arraysize(args)));
     return isolate->Throw<Object>(error);
   }
   return isolate->factory()->ToBoolean(result_bool);
@@ -3585,7 +3583,7 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, result,
       proxy->CallTrap(proxy, "getPropertyDescriptor", Handle<Object>(),
-                      ARRAY_SIZE(args), args),
+                      arraysize(args), args),
       Maybe<PropertyAttributes>());
 
   if (result->IsUndefined()) return maybe(ABSENT);
@@ -3595,7 +3593,7 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, desc,
       Execution::Call(isolate, isolate->to_complete_property_descriptor(),
-                      result, ARRAY_SIZE(argv), argv),
+                      result, arraysize(argv), argv),
       Maybe<PropertyAttributes>());
 
   // Convert result to PropertyAttributes.
@@ -3633,7 +3631,7 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
         STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
     Handle<Object> error = isolate->factory()->NewTypeError(
-        "proxy_prop_not_configurable", HandleVector(args, ARRAY_SIZE(args)));
+        "proxy_prop_not_configurable", HandleVector(args, arraysize(args)));
     isolate->Throw(*error);
     return maybe(NONE);
   }
@@ -3695,7 +3693,7 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
     if (derived.is_null()) {
       Handle<Object> args[] = { handler, trap_name };
       Handle<Object> error = isolate->factory()->NewTypeError(
-        "handler_trap_missing", HandleVector(args, ARRAY_SIZE(args)));
+        "handler_trap_missing", HandleVector(args, arraysize(args)));
       return isolate->Throw<Object>(error);
     }
     trap = Handle<Object>(derived);
@@ -4230,9 +4228,6 @@ void JSObject::MigrateFastToSlow(Handle<JSObject> object,
         dictionary = NameDictionary::Add(dictionary, key, value, d);
         break;
       }
-      case INTERCEPTOR:
-        break;
-      case HANDLER:
       case NORMAL:
         UNREACHABLE();
         break;
@@ -4958,7 +4953,7 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
           if (delete_mode == STRICT_DELETION) {
             Handle<Object> args[2] = {name, object};
             Handle<Object> error = it.isolate()->factory()->NewTypeError(
-                "strict_delete_property", HandleVector(args, ARRAY_SIZE(args)));
+                "strict_delete_property", HandleVector(args, arraysize(args)));
             it.isolate()->Throw(*error);
             return Handle<Object>();
           }
@@ -5823,7 +5818,7 @@ MaybeHandle<FixedArray> JSReceiver::GetKeys(Handle<JSReceiver> object,
           Execution::Call(isolate,
                           isolate->proxy_enumerate(),
                           object,
-                          ARRAY_SIZE(args),
+                          arraysize(args),
                           args),
           FixedArray);
       ASSIGN_RETURN_ON_EXCEPTION(
@@ -6737,8 +6732,7 @@ bool DescriptorArray::CanHoldValue(int descriptor, Object* value) {
       return false;
 
     case NORMAL:
-    case INTERCEPTOR:
-    case HANDLER:
+      UNREACHABLE();
       break;
   }
 
@@ -11168,7 +11162,7 @@ static void EnqueueSpliceRecord(Handle<JSArray> object,
   Execution::Call(isolate,
                   Handle<JSFunction>(isolate->observers_enqueue_splice()),
                   isolate->factory()->undefined_value(),
-                  ARRAY_SIZE(args),
+                  arraysize(args),
                   args).Assert();
 }
 
@@ -11181,7 +11175,7 @@ static void BeginPerformSplice(Handle<JSArray> object) {
   Execution::Call(isolate,
                   Handle<JSFunction>(isolate->observers_begin_perform_splice()),
                   isolate->factory()->undefined_value(),
-                  ARRAY_SIZE(args),
+                  arraysize(args),
                   args).Assert();
 }
 
@@ -11194,7 +11188,7 @@ static void EndPerformSplice(Handle<JSArray> object) {
   Execution::Call(isolate,
                   Handle<JSFunction>(isolate->observers_end_perform_splice()),
                   isolate->factory()->undefined_value(),
-                  ARRAY_SIZE(args),
+                  arraysize(args),
                   args).Assert();
 }
 
@@ -11714,7 +11708,7 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   if (!object->map()->is_extensible()) {
     Handle<Object> args[] = { object };
     Handle<Object> error = isolate->factory()->NewTypeError(
-        "non_extensible_proto", HandleVector(args, ARRAY_SIZE(args)));
+        "non_extensible_proto", HandleVector(args, arraysize(args)));
     return isolate->Throw<Object>(error);
   }
 
@@ -12413,7 +12407,7 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<Object> args[] = { object, number };
     Handle<Object> error = isolate->factory()->NewTypeError(
-        "redef_external_array_element", HandleVector(args, ARRAY_SIZE(args)));
+        "redef_external_array_element", HandleVector(args, arraysize(args)));
     return isolate->Throw<Object>(error);
   }
 
@@ -12867,7 +12861,7 @@ MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
   Handle<Name> length = isolate->factory()->length_string();
   Handle<Object> args[2] = { length, array };
   Handle<Object> error = isolate->factory()->NewTypeError(
-      "strict_read_only_property", HandleVector(args, ARRAY_SIZE(args)));
+      "strict_read_only_property", HandleVector(args, arraysize(args)));
   return isolate->Throw<Object>(error);
 }
 

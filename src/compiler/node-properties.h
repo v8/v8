@@ -42,7 +42,6 @@ class NodeProperties {
   static inline Bounds GetBounds(Node* node);
   static inline void SetBounds(Node* node, Bounds bounds);
 
- private:
   static inline int FirstValueIndex(Node* node);
   static inline int FirstContextIndex(Node* node);
   static inline int FirstFrameStateIndex(Node* node);

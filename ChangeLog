@@ -1,3 +1,13 @@
+2014-08-27: Version 3.29.20
+
+        Handle empty allocation list in CodeRange properly (issue 3540, Chromium
+        issue 407566).
+
+        Fixed inlining of constant values (issue 3529).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-25: Version 3.29.17
 
         Performance and stability improvements on all platforms.

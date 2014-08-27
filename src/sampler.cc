@@ -276,7 +276,7 @@ class SimulatorHelper {
 class SignalHandler : public AllStatic {
  public:
   static void SetUp() { if (!mutex_) mutex_ = new base::Mutex(); }
-  static void TearDown() { delete mutex_; }
+  static void TearDown() { delete mutex_; mutex_ = NULL; }
 
   static void IncreaseSamplerCount() {
     base::LockGuard<base::Mutex> lock_guard(mutex_);

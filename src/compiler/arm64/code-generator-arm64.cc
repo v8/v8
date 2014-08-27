@@ -426,6 +426,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Str:
       __ Str(i.InputRegister(2), i.MemoryOperand());
       break;
+    case kArm64LdrS: {
+      UseScratchRegisterScope scope(masm());
+      FPRegister scratch = scope.AcquireS();
+      __ Ldr(scratch, i.MemoryOperand());
+      __ Fcvt(i.OutputDoubleRegister(), scratch);
+      break;
+    }
+    case kArm64StrS: {
+      UseScratchRegisterScope scope(masm());
+      FPRegister scratch = scope.AcquireS();
+      __ Fcvt(scratch, i.InputDoubleRegister(2));
+      __ Str(scratch, i.MemoryOperand());
+      break;
+    }
     case kArm64LdrD:
       __ Ldr(i.OutputDoubleRegister(), i.MemoryOperand());
       break;

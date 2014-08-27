@@ -2512,7 +2512,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
 
     bool IsConfigurable() const { return lookup_.IsConfigurable(); }
     bool IsReadOnly() const { return lookup_.IsReadOnly(); }
-    bool IsCacheable() const { return lookup_.IsCacheable(); }
 
    private:
     Handle<Object> GetAccessorsFromMap(Handle<Map> map) const {

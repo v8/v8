@@ -141,7 +141,7 @@ template <class B, class S>
 void GenericNode<B, S>::EnsureAppendableInputs(Zone* zone) {
   if (!has_appendable_inputs_) {
     void* deque_buffer = zone->New(sizeof(InputDeque));
-    InputDeque* deque = new (deque_buffer) InputDeque(ZoneInputAllocator(zone));
+    InputDeque* deque = new (deque_buffer) InputDeque(zone);
     for (int i = 0; i < input_count_; ++i) {
       deque->push_back(inputs_.static_[i]);
     }

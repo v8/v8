@@ -369,6 +369,7 @@ class ScriptTest(unittest.TestCase):
 
   MOCKS = {
     "git": GitMock,
+    "roll-dep": GitMock, # TODO(machenbach): Yet another hack. Unify all mocks.
     # TODO(machenbach): Little hack to reuse the git mock for the one svn call
     # in merge-to-branch. The command should be made explicit in the test
     # expectations.
@@ -834,6 +835,9 @@ def get_list():
       os.makedirs(TEST_CONFIG[CHROMIUM])
     TextToFile("Some line\n   \"v8_revision\": \"123444\",\n  some line",
                TEST_CONFIG[DEPS_FILE])
+    def WriteDeps():
+      TextToFile("Some line\n   \"v8_revision\": \"123455\",\n  some line",
+                 TEST_CONFIG[DEPS_FILE])
 
     os.environ["EDITOR"] = "vi"
     force_flag = " -f" if not manual else ""
@@ -851,6 +855,7 @@ def get_list():
       Git("checkout -f master", ""),
       Git("pull", ""),
       Git("checkout -b v8-roll-123455", ""),
+      Git("v8 123455", "rolled", cb=WriteDeps),
       Git(("commit -am \"Update V8 to version 3.22.5 "
            "(based on bleeding_edge revision r123454).\n\n"
            "Please reply to the V8 sheriff c_name@chromium.org in "

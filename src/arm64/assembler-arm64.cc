@@ -227,7 +227,7 @@ bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
 
   const CPURegister regs[] = {reg1, reg2, reg3, reg4, reg5, reg6, reg7, reg8};
 
-  for (unsigned i = 0; i < ARRAY_SIZE(regs); i++) {
+  for (unsigned i = 0; i < arraysize(regs); i++) {
     if (regs[i].IsRegister()) {
       number_of_valid_regs++;
       unique_regs |= regs[i].Bit();
@@ -2664,7 +2664,7 @@ bool Assembler::IsImmLogical(uint64_t value,
   int multiplier_idx = CountLeadingZeros(d, kXRegSizeInBits) - 57;
   // Ensure that the index to the multipliers array is within bounds.
   DCHECK((multiplier_idx >= 0) &&
-         (static_cast<size_t>(multiplier_idx) < ARRAY_SIZE(multipliers)));
+         (static_cast<size_t>(multiplier_idx) < arraysize(multipliers)));
   uint64_t multiplier = multipliers[multiplier_idx];
   uint64_t candidate = (b - a) * multiplier;
 

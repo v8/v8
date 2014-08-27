@@ -108,9 +108,6 @@ class RawMachineAssembler : public GraphBuilder,
   BasicBlock* EnsureBlock(Label* label);
   BasicBlock* CurrentBlock();
 
-  typedef std::vector<MachineType, zone_allocator<MachineType> >
-      RepresentationVector;
-
   Schedule* schedule_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;

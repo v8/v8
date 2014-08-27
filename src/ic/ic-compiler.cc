@@ -409,8 +409,7 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
         cached_stub = StoreFastElementStub(isolate(), is_js_array,
                                            elements_kind, store_mode).GetCode();
       } else {
-        cached_stub = StoreElementStub(isolate(), is_js_array, elements_kind,
-                                       store_mode).GetCode();
+        cached_stub = StoreElementStub(isolate(), elements_kind).GetCode();
       }
     }
     DCHECK(!cached_stub.is_null());
@@ -440,8 +439,7 @@ Handle<Code> PropertyICCompiler::CompileKeyedStoreMonomorphic(
     stub = StoreFastElementStub(isolate(), is_jsarray, elements_kind,
                                 store_mode).GetCode();
   } else {
-    stub = StoreElementStub(isolate(), is_jsarray, elements_kind, store_mode)
-               .GetCode();
+    stub = StoreElementStub(isolate(), elements_kind).GetCode();
   }
 
   __ DispatchMap(receiver(), scratch1(), receiver_map, stub, DO_SMI_CHECK);

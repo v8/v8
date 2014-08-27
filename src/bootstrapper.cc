@@ -99,10 +99,15 @@ void Bootstrapper::InitializeOncePerProcess() {
 
 void Bootstrapper::TearDownExtensions() {
   delete free_buffer_extension_;
+  free_buffer_extension_ = NULL;
   delete gc_extension_;
+  gc_extension_ = NULL;
   delete externalize_string_extension_;
+  externalize_string_extension_ = NULL;
   delete statistics_extension_;
+  statistics_extension_ = NULL;
   delete trigger_failure_extension_;
+  trigger_failure_extension_ = NULL;
 }
 
 
@@ -2492,11 +2497,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
           break;
         }
+        // Do not occur since the from object has fast properties.
         case NORMAL:
-          // Do not occur since the from object has fast properties.
-        case HANDLER:
-        case INTERCEPTOR:
-          // No element in instance descriptors have proxy or interceptor type.
           UNREACHABLE();
           break;
       }
@@ -2682,7 +2684,7 @@ Genesis::Genesis(Isolate* isolate,
                                   NONE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
-    const int constants_size = ARRAY_SIZE(fdlibm::MathConstants::constants);
+    const int constants_size = arraysize(fdlibm::MathConstants::constants);
     const int table_num_bytes = constants_size * kDoubleSize;
     v8::Local<v8::ArrayBuffer> trig_buffer = v8::ArrayBuffer::New(
         reinterpret_cast<v8::Isolate*>(isolate),

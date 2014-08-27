@@ -259,7 +259,7 @@ static bool HasDominatingDef(Schedule* schedule, Node* node,
       if (block->nodes_[use_pos] == node) return true;
       use_pos--;
     }
-    block = schedule->dominator(block);
+    block = block->dominator_;
     if (block == NULL) break;
     use_pos = static_cast<int>(block->nodes_.size()) - 1;
     if (node == block->control_input_) return true;
@@ -308,7 +308,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
   for (size_t b = 0; b < rpo_order->size(); b++) {
     BasicBlock* block = rpo_order->at(b);
     CHECK_EQ(static_cast<int>(b), block->rpo_number_);
-    BasicBlock* dom = schedule->dominator(block);
+    BasicBlock* dom = block->dominator_;
     if (b == 0) {
       // All blocks except start should have a dominator.
       CHECK_EQ(NULL, dom);
@@ -320,9 +320,9 @@ void ScheduleVerifier::Run(Schedule* schedule) {
   }
 
   // Verify that all blocks reachable from start are in the RPO.
-  BoolVector marked(count, false, BoolVector::allocator_type(zone));
+  BoolVector marked(count, false, zone);
   {
-    std::queue<BasicBlock*> queue;
+    ZoneQueue<BasicBlock*> queue(zone);
     queue.push(start);
     marked[start->id()] = true;
     while (!queue.empty()) {
@@ -358,14 +358,14 @@ void ScheduleVerifier::Run(Schedule* schedule) {
 
     // Compute a set of all the nodes that dominate a given node by using
     // a forward fixpoint. O(n^2).
-    std::queue<BasicBlock*> queue;
+    ZoneQueue<BasicBlock*> queue(zone);
     queue.push(start);
     dominators[start->id()] = new (zone) BitVector(count, zone);
     while (!queue.empty()) {
       BasicBlock* block = queue.front();
       queue.pop();
       BitVector* block_doms = dominators[block->id()];
-      BasicBlock* idom = schedule->dominator(block);
+      BasicBlock* idom = block->dominator_;
       if (idom != NULL && !block_doms->Contains(idom->id())) {
         V8_Fatal(__FILE__, __LINE__, "Block B%d is not dominated by B%d",
                  block->id(), idom->id());
@@ -375,14 +375,14 @@ void ScheduleVerifier::Run(Schedule* schedule) {
         BitVector* succ_doms = dominators[succ->id()];
 
         if (succ_doms == NULL) {
-          // First time visiting the node. S.vec = B U B.vec
+          // First time visiting the node. S.doms = B U B.doms
           succ_doms = new (zone) BitVector(count, zone);
           succ_doms->CopyFrom(*block_doms);
           succ_doms->Add(block->id());
           dominators[succ->id()] = succ_doms;
           queue.push(succ);
         } else {
-          // Nth time visiting the successor. S.vec = S.vec ^ (B U B.vec)
+          // Nth time visiting the successor. S.doms = S.doms ^ (B U B.doms)
           bool had = succ_doms->Contains(block->id());
           if (had) succ_doms->Remove(block->id());
           if (succ_doms->IntersectIsChanged(*block_doms)) queue.push(succ);
@@ -395,7 +395,7 @@ void ScheduleVerifier::Run(Schedule* schedule) {
     for (BasicBlockVector::iterator b = rpo_order->begin();
          b != rpo_order->end(); ++b) {
       BasicBlock* block = *b;
-      BasicBlock* idom = schedule->dominator(block);
+      BasicBlock* idom = block->dominator_;
       if (idom == NULL) continue;
       BitVector* block_doms = dominators[block->id()];
 

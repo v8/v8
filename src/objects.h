@@ -3484,8 +3484,6 @@ class DescriptorArray: public FixedArray {
                   Descriptor* desc,
                   const WhitenessWitness&);
 
-  inline void Append(Descriptor* desc, const WhitenessWitness&);
-
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);
 

@@ -1139,7 +1139,7 @@ Handle<String> Factory::EmergencyNewError(const char* message,
   space -= Min(space, strlen(message));
   p = &buffer[kBufferSize] - space;
 
-  for (unsigned i = 0; i < ARRAY_SIZE(args); i++) {
+  for (int i = 0; i < Smi::cast(args->length())->value(); i++) {
     if (space > 0) {
       *p++ = ' ';
       space--;
@@ -1184,7 +1184,7 @@ Handle<Object> Factory::NewError(const char* maker,
   Handle<Object> exception;
   if (!Execution::TryCall(fun,
                           isolate()->js_builtins_object(),
-                          ARRAY_SIZE(argv),
+                          arraysize(argv),
                           argv,
                           &exception).ToHandle(&result)) {
     return exception;
@@ -1211,7 +1211,7 @@ Handle<Object> Factory::NewError(const char* constructor,
   Handle<Object> exception;
   if (!Execution::TryCall(fun,
                           isolate()->js_builtins_object(),
-                          ARRAY_SIZE(argv),
+                          arraysize(argv),
                           argv,
                           &exception).ToHandle(&result)) {
     return exception;
@@ -2039,7 +2039,7 @@ Handle<String> Factory::NumberToString(Handle<Object> number,
   }
 
   char arr[100];
-  Vector<char> buffer(arr, ARRAY_SIZE(arr));
+  Vector<char> buffer(arr, arraysize(arr));
   const char* str;
   if (number->IsSmi()) {
     int num = Handle<Smi>::cast(number)->value();

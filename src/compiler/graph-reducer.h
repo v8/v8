@@ -5,9 +5,7 @@
 #ifndef V8_COMPILER_GRAPH_REDUCER_H_
 #define V8_COMPILER_GRAPH_REDUCER_H_
 
-#include <list>
-
-#include "src/zone-allocator.h"
+#include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -69,10 +67,8 @@ class GraphReducer V8_FINAL {
   void ReduceGraph();
 
  private:
-  typedef std::list<Reducer*, zone_allocator<Reducer*> > Reducers;
-
   Graph* graph_;
-  Reducers reducers_;
+  ZoneVector<Reducer*> reducers_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphReducer);
 };

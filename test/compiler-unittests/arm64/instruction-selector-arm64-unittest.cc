@@ -330,6 +330,7 @@ static const MemoryAccess kMemoryAccesses[] = {
     {kMachUint32, kArm64LdrW, kArm64StrW},
     {kMachInt64, kArm64Ldr, kArm64Str},
     {kMachUint64, kArm64Ldr, kArm64Str},
+    {kMachFloat32, kArm64LdrS, kArm64StrS},
     {kMachFloat64, kArm64LdrD, kArm64StrD}};
 
 

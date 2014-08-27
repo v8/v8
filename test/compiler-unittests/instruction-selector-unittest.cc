@@ -186,18 +186,15 @@ TARGET_TEST_P(InstructionSelectorFinishTest, Parameter) {
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   ASSERT_TRUE(s[0]->Output()->IsUnallocated());
-  EXPECT_EQ(param->id(),
-            UnallocatedOperand::cast(s[0]->Output())->virtual_register());
+  EXPECT_EQ(param->id(), s.ToVreg(s[0]->Output()));
   EXPECT_EQ(kArchNop, s[1]->arch_opcode());
   ASSERT_EQ(1U, s[1]->InputCount());
   ASSERT_TRUE(s[1]->InputAt(0)->IsUnallocated());
-  EXPECT_EQ(param->id(),
-            UnallocatedOperand::cast(s[1]->InputAt(0))->virtual_register());
+  EXPECT_EQ(param->id(), s.ToVreg(s[1]->InputAt(0)));
   ASSERT_EQ(1U, s[1]->OutputCount());
   ASSERT_TRUE(s[1]->Output()->IsUnallocated());
   EXPECT_TRUE(UnallocatedOperand::cast(s[1]->Output())->HasSameAsInputPolicy());
-  EXPECT_EQ(finish->id(),
-            UnallocatedOperand::cast(s[1]->Output())->virtual_register());
+  EXPECT_EQ(finish->id(), s.ToVreg(s[1]->Output()));
 }
 
 

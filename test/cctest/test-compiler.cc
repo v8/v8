@@ -238,7 +238,7 @@ TEST(C2JSFrames) {
   Execution::Call(isolate,
                   Handle<JSFunction>::cast(fun1),
                   global,
-                  ARRAY_SIZE(argv),
+                  arraysize(argv),
                   argv).Check();
 }
 

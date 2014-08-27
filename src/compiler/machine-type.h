@@ -23,17 +23,18 @@ enum MachineType {
   kRepWord16 = 1 << 2,
   kRepWord32 = 1 << 3,
   kRepWord64 = 1 << 4,
-  kRepFloat64 = 1 << 5,
-  kRepTagged = 1 << 6,
+  kRepFloat32 = 1 << 5,
+  kRepFloat64 = 1 << 6,
+  kRepTagged = 1 << 7,
 
   // Types.
-  kTypeBool = 1 << 7,
-  kTypeInt32 = 1 << 8,
-  kTypeUint32 = 1 << 9,
-  kTypeInt64 = 1 << 10,
-  kTypeUint64 = 1 << 11,
-  kTypeNumber = 1 << 12,
-  kTypeAny = 1 << 13
+  kTypeBool = 1 << 8,
+  kTypeInt32 = 1 << 9,
+  kTypeUint32 = 1 << 10,
+  kTypeInt64 = 1 << 11,
+  kTypeUint64 = 1 << 12,
+  kTypeNumber = 1 << 13,
+  kTypeAny = 1 << 14
 };
 
 OStream& operator<<(OStream& os, const MachineType& type);
@@ -42,13 +43,15 @@ typedef uint16_t MachineTypeUnion;
 
 // Globally useful machine types and constants.
 const MachineTypeUnion kRepMask = kRepBit | kRepWord8 | kRepWord16 |
-                                  kRepWord32 | kRepWord64 | kRepFloat64 |
-                                  kRepTagged;
+                                  kRepWord32 | kRepWord64 | kRepFloat32 |
+                                  kRepFloat64 | kRepTagged;
 const MachineTypeUnion kTypeMask = kTypeBool | kTypeInt32 | kTypeUint32 |
                                    kTypeInt64 | kTypeUint64 | kTypeNumber |
                                    kTypeAny;
 
 const MachineType kMachNone = static_cast<MachineType>(0);
+const MachineType kMachFloat32 =
+    static_cast<MachineType>(kRepFloat32 | kTypeNumber);
 const MachineType kMachFloat64 =
     static_cast<MachineType>(kRepFloat64 | kTypeNumber);
 const MachineType kMachInt8 = static_cast<MachineType>(kRepWord8 | kTypeInt32);
@@ -92,6 +95,7 @@ inline int ElementSizeOf(MachineType machine_type) {
     case kRepWord16:
       return 2;
     case kRepWord32:
+    case kRepFloat32:
       return 4;
     case kRepWord64:
     case kRepFloat64:

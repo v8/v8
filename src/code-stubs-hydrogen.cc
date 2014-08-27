@@ -542,14 +542,10 @@ Handle<Code> CreateAllocationSiteStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<LoadFastElementStub>::BuildCodeStub() {
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
-      GetParameter(KeyedLoadIC::kReceiverIndex),
-      GetParameter(KeyedLoadIC::kNameIndex),
-      NULL,
-      casted_stub()->is_js_array(),
-      casted_stub()->elements_kind(),
-      LOAD,
-      NEVER_RETURN_HOLE,
-      STANDARD_STORE);
+      GetParameter(LoadConvention::kReceiverIndex),
+      GetParameter(LoadConvention::kNameIndex), NULL,
+      casted_stub()->is_js_array(), casted_stub()->elements_kind(), LOAD,
+      NEVER_RETURN_HOLE, STANDARD_STORE);
   return load;
 }
 
@@ -661,11 +657,11 @@ Handle<Code> StringLengthStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<StoreFastElementStub>::BuildCodeStub() {
   BuildUncheckedMonomorphicElementAccess(
-      GetParameter(StoreIC::kReceiverIndex),
-      GetParameter(StoreIC::kNameIndex),
-      GetParameter(StoreIC::kValueIndex),
-      casted_stub()->is_js_array(), casted_stub()->elements_kind(),
-      STORE, NEVER_RETURN_HOLE, casted_stub()->store_mode());
+      GetParameter(StoreConvention::kReceiverIndex),
+      GetParameter(StoreConvention::kNameIndex),
+      GetParameter(StoreConvention::kValueIndex), casted_stub()->is_js_array(),
+      casted_stub()->elements_kind(), STORE, NEVER_RETURN_HOLE,
+      casted_stub()->store_mode());
 
   return GetParameter(2);
 }
@@ -1105,7 +1101,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   Handle<PropertyCell> placeholder_cell =
       isolate()->factory()->NewPropertyCell(placeholer_value);
 
-  HParameter* value = GetParameter(StoreIC::kValueIndex);
+  HParameter* value = GetParameter(StoreConvention::kValueIndex);
 
   if (stub->check_global()) {
     // Check that the map of the global has not changed: use a placeholder map
@@ -1451,8 +1447,8 @@ Handle<Code> FastNewContextStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(KeyedLoadIC::kReceiverIndex);
-  HValue* key = GetParameter(KeyedLoadIC::kNameIndex);
+  HValue* receiver = GetParameter(LoadConvention::kReceiverIndex);
+  HValue* key = GetParameter(LoadConvention::kNameIndex);
 
   Add<HCheckSmi>(key);
 
@@ -1572,8 +1568,8 @@ void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildExternalElementLoad(
 
 
 HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(KeyedLoadIC::kReceiverIndex);
-  HValue* key = GetParameter(KeyedLoadIC::kNameIndex);
+  HValue* receiver = GetParameter(LoadConvention::kReceiverIndex);
+  HValue* key = GetParameter(LoadConvention::kNameIndex);
 
   // Split into a smi/integer case and unique string case.
   HIfContinuation index_name_split_continuation(graph()->CreateBasicBlock(),
@@ -1794,4 +1790,26 @@ Handle<Code> KeyedLoadGenericStub::GenerateCode() {
 }
 
 
+template <>
+HValue* CodeStubGraphBuilder<VectorLoadStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(FullVectorLoadConvention::kReceiverIndex);
+  Add<HDeoptimize>("Always deopt", Deoptimizer::EAGER);
+  return receiver;
+}
+
+
+Handle<Code> VectorLoadStub::GenerateCode() { return DoGenerateCode(this); }
+
+
+template <>
+HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(FullVectorLoadConvention::kReceiverIndex);
+  Add<HDeoptimize>("Always deopt", Deoptimizer::EAGER);
+  return receiver;
+}
+
+
+Handle<Code> VectorKeyedLoadStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
 } }  // namespace v8::internal

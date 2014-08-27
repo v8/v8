@@ -87,12 +87,16 @@ void Pipeline::VerifyAndPrintGraph(Graph* graph, const char* phase) {
   if (FLAG_trace_turbo) {
     char buffer[256];
     Vector<char> filename(buffer, sizeof(buffer));
-    SmartArrayPointer<char> functionname =
-        info_->shared_info()->DebugName()->ToCString();
-    if (strlen(functionname.get()) > 0) {
-      SNPrintF(filename, "turbo-%s-%s.dot", functionname.get(), phase);
+    if (!info_->shared_info().is_null()) {
+      SmartArrayPointer<char> functionname =
+          info_->shared_info()->DebugName()->ToCString();
+      if (strlen(functionname.get()) > 0) {
+        SNPrintF(filename, "turbo-%s-%s.dot", functionname.get(), phase);
+      } else {
+        SNPrintF(filename, "turbo-%p-%s.dot", static_cast<void*>(info_), phase);
+      }
     } else {
-      SNPrintF(filename, "turbo-%p-%s.dot", static_cast<void*>(info_), phase);
+      SNPrintF(filename, "turbo-none-%s.dot", phase);
     }
     std::replace(filename.start(), filename.start() + filename.length(), ' ',
                  '_');
@@ -186,7 +190,7 @@ Handle<Code> Pipeline::GenerateCode() {
 
   VerifyAndPrintGraph(&graph, "Initial untyped");
 
-  if (context_specialization_) {
+  if (info()->is_context_specializing()) {
     SourcePositionTable::Scope pos(&source_positions,
                                    SourcePosition::Unknown());
     // Specialize the code to the context as aggressively as possible.

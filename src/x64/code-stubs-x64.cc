@@ -23,7 +23,7 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rbx };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
 }
 
@@ -31,14 +31,14 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
 void FastNewContextStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rdi };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
 void ToNumberStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rax };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
@@ -46,7 +46,7 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rax };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
 }
 
@@ -61,7 +61,7 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     Representation::Tagged() };
 
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry,
       representations);
 }
@@ -71,7 +71,7 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rax, rbx, rcx, rdx };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
 }
 
@@ -79,14 +79,14 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
 void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rbx, rdx };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
 void CallFunctionStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = {rsi, rdi};
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
@@ -100,7 +100,7 @@ void CallConstructStub::InitializeInterfaceDescriptor(
   // TODO(turbofan): So far we don't gather type feedback and hence skip the
   // slot parameter, but ArrayConstructStub needs the vector to be undefined.
   Register registers[] = {rsi, rax, rdi, rbx};
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers);
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
 }
 
 
@@ -108,7 +108,7 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rcx, rbx, rax };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
 }
 
@@ -117,7 +117,7 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rax, rbx };
   descriptor->Initialize(
-      MajorKey(), ARRAY_SIZE(registers), registers,
+      MajorKey(), arraysize(registers), registers,
       Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry);
 }
 
@@ -137,7 +137,7 @@ static void InitializeArrayConstructorDescriptor(
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { rsi, rdi, rbx };
-    descriptor->Initialize(major, ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(major, arraysize(registers), registers,
                            deopt_handler, NULL, constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
@@ -148,7 +148,7 @@ static void InitializeArrayConstructorDescriptor(
         Representation::Tagged(),
         Representation::Tagged(),
         Representation::Integer32() };
-    descriptor->Initialize(major, ARRAY_SIZE(registers), registers, rax,
+    descriptor->Initialize(major, arraysize(registers), registers, rax,
                            deopt_handler, representations,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
@@ -168,7 +168,7 @@ static void InitializeInternalArrayConstructorDescriptor(
 
   if (constant_stack_parameter_count == 0) {
     Register registers[] = { rsi, rdi };
-    descriptor->Initialize(major, ARRAY_SIZE(registers), registers,
+    descriptor->Initialize(major, arraysize(registers), registers,
                            deopt_handler, NULL, constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
@@ -178,7 +178,7 @@ static void InitializeInternalArrayConstructorDescriptor(
         Representation::Tagged(),
         Representation::Tagged(),
         Representation::Integer32() };
-    descriptor->Initialize(major, ARRAY_SIZE(registers), registers, rax,
+    descriptor->Initialize(major, arraysize(registers), registers, rax,
                            deopt_handler, representations,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
@@ -225,7 +225,7 @@ void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
 void CompareNilICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rax };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(CompareNilIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate()));
@@ -235,7 +235,7 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
 void ToBooleanStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rax };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(ToBooleanIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate()));
@@ -245,7 +245,7 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
 void BinaryOpICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rdx, rax };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(BinaryOpIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate()));
@@ -255,7 +255,7 @@ void BinaryOpICStub::InitializeInterfaceDescriptor(
 void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rcx, rdx, rax };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite));
 }
 
@@ -263,7 +263,7 @@ void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
 void StringAddStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   Register registers[] = { rsi, rdx, rax };
-  descriptor->Initialize(MajorKey(), ARRAY_SIZE(registers), registers,
+  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          Runtime::FunctionForId(Runtime::kStringAdd)->entry);
 }
 
@@ -283,7 +283,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Integer32(),  // actual number of arguments
         Representation::Integer32(),  // expected number of arguments
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
+    descriptor->Initialize(arraysize(registers), registers, representations);
   }
   {
     CallInterfaceDescriptor* descriptor =
@@ -295,7 +295,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),     // context
         Representation::Tagged(),     // key
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
+    descriptor->Initialize(arraysize(registers), registers, representations);
   }
   {
     CallInterfaceDescriptor* descriptor =
@@ -307,7 +307,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),     // context
         Representation::Tagged(),     // name
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
+    descriptor->Initialize(arraysize(registers), registers, representations);
   }
   {
     CallInterfaceDescriptor* descriptor =
@@ -319,7 +319,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),  // context
         Representation::Tagged(),  // receiver
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
+    descriptor->Initialize(arraysize(registers), registers, representations);
   }
   {
     CallInterfaceDescriptor* descriptor =
@@ -337,7 +337,7 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
         Representation::Tagged(),    // holder
         Representation::External(),  // api_function_address
     };
-    descriptor->Initialize(ARRAY_SIZE(registers), registers, representations);
+    descriptor->Initialize(arraysize(registers), registers, representations);
   }
 }
 
@@ -529,7 +529,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ movp(scratch, Immediate(1));
   __ Cvtlsi2sd(double_result, scratch);
 
-  if (exponent_type_ == ON_STACK) {
+  if (exponent_type() == ON_STACK) {
     Label base_is_smi, unpack_exponent;
     // The exponent and base are supplied as arguments on the stack.
     // This can only happen if the stub is called from non-optimized code.
@@ -559,7 +559,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
                    Heap::kHeapNumberMapRootIndex);
     __ j(not_equal, &call_runtime);
     __ movsd(double_exponent, FieldOperand(exponent, HeapNumber::kValueOffset));
-  } else if (exponent_type_ == TAGGED) {
+  } else if (exponent_type() == TAGGED) {
     __ JumpIfNotSmi(exponent, &exponent_not_smi, Label::kNear);
     __ SmiToInteger32(exponent, exponent);
     __ jmp(&int_exponent);
@@ -568,7 +568,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ movsd(double_exponent, FieldOperand(exponent, HeapNumber::kValueOffset));
   }
 
-  if (exponent_type_ != INTEGER) {
+  if (exponent_type() != INTEGER) {
     Label fast_power, try_arithmetic_simplification;
     // Detect integer exponents stored as double.
     __ DoubleToI(exponent, double_exponent, double_scratch,
@@ -581,7 +581,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
     __ cmpl(exponent, Immediate(0x1));
     __ j(overflow, &call_runtime);
 
-    if (exponent_type_ == ON_STACK) {
+    if (exponent_type() == ON_STACK) {
       // Detect square root case.  Crankshaft detects constant +/-0.5 at
       // compile time and uses DoMathPowHalf instead.  We then skip this check
       // for non-constant cases of +/-0.5 as these hardly occur.
@@ -740,7 +740,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   // Returning or bailing out.
   Counters* counters = isolate()->counters();
-  if (exponent_type_ == ON_STACK) {
+  if (exponent_type() == ON_STACK) {
     // The arguments are still on the stack.
     __ bind(&call_runtime);
     __ TailCallRuntime(Runtime::kMathPowRT, 2, 1);
@@ -775,7 +775,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
-  Register receiver = LoadIC::ReceiverRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, r8,
                                                           r9, &miss);
@@ -2166,7 +2166,7 @@ static void CallFunctionNoFeedback(MacroAssembler* masm,
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  CallFunctionNoFeedback(masm, argc_, NeedsChecks(), CallAsMethod());
+  CallFunctionNoFeedback(masm, argc(), NeedsChecks(), CallAsMethod());
 }
 
 
@@ -2248,7 +2248,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   // rdi - function
   // rdx - slot id (as integer)
   Label miss;
-  int argc = state_.arg_count();
+  int argc = arg_count();
   ParameterCount actual(argc);
 
   EmitLoadTypeFeedbackVector(masm, rbx);
@@ -2293,7 +2293,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   Label extra_checks_or_miss, slow_start;
   Label slow, non_function, wrap, cont;
   Label have_js_function;
-  int argc = state_.arg_count();
+  int argc = arg_count();
   StackArgumentsAccessor args(rsp, argc);
   ParameterCount actual(argc);
 
@@ -2306,7 +2306,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &extra_checks_or_miss);
 
   __ bind(&have_js_function);
-  if (state_.CallAsMethod()) {
+  if (CallAsMethod()) {
     EmitContinueIfStrictOrNative(masm, &cont);
 
     // Load the receiver from the stack.
@@ -2325,7 +2325,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   EmitSlowCase(isolate, masm, &args, argc, &non_function);
 
-  if (state_.CallAsMethod()) {
+  if (CallAsMethod()) {
     __ bind(&wrap);
     EmitWrapCase(masm, &args, &cont);
   }
@@ -2372,7 +2372,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
 void CallICStub::GenerateMiss(MacroAssembler* masm, IC::UtilityId id) {
   // Get the receiver of the function from the stack; 1 ~ return address.
-  __ movp(rcx, Operand(rsp, (state_.arg_count() + 1) * kPointerSize));
+  __ movp(rcx, Operand(rsp, (arg_count() + 1) * kPointerSize));
 
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -4433,11 +4433,24 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   __ movp(rbx, MemOperand(rbp, parameter_count_offset));
   masm->LeaveFrame(StackFrame::STUB_FAILURE_TRAMPOLINE);
   __ PopReturnAddressTo(rcx);
-  int additional_offset = function_mode_ == JS_FUNCTION_STUB_MODE
-      ? kPointerSize
-      : 0;
+  int additional_offset =
+      function_mode() == JS_FUNCTION_STUB_MODE ? kPointerSize : 0;
   __ leap(rsp, MemOperand(rsp, rbx, times_pointer_size, additional_offset));
   __ jmp(rcx);  // Return to IC Miss stub, continuation still on stack.
+}
+
+
+void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, FullVectorLoadConvention::VectorRegister());
+  VectorLoadStub stub(isolate(), state());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+
+void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
+  EmitLoadTypeFeedbackVector(masm, FullVectorLoadConvention::VectorRegister());
+  VectorKeyedLoadStub stub(isolate());
+  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -4643,7 +4656,7 @@ void InternalArrayConstructorStubBase::GenerateStubsAheadOfTime(
 void ArrayConstructorStub::GenerateDispatchToArrayStub(
     MacroAssembler* masm,
     AllocationSiteOverrideMode mode) {
-  if (argument_count_ == ANY) {
+  if (argument_count() == ANY) {
     Label not_zero_case, not_one_case;
     __ testp(rax, rax);
     __ j(not_zero, &not_zero_case);
@@ -4656,11 +4669,11 @@ void ArrayConstructorStub::GenerateDispatchToArrayStub(
 
     __ bind(&not_one_case);
     CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
-  } else if (argument_count_ == NONE) {
+  } else if (argument_count() == NONE) {
     CreateArrayDispatch<ArrayNoArgumentConstructorStub>(masm, mode);
-  } else if (argument_count_ == ONE) {
+  } else if (argument_count() == ONE) {
     CreateArrayDispatchOneArgument(masm, mode);
-  } else if (argument_count_ == MORE_THAN_ONE) {
+  } else if (argument_count() == MORE_THAN_ONE) {
     CreateArrayDispatch<ArrayNArgumentsConstructorStub>(masm, mode);
   } else {
     UNREACHABLE();
@@ -4821,9 +4834,9 @@ void CallApiFunctionStub::Generate(MacroAssembler* masm) {
   Register return_address = rdi;
   Register context = rsi;
 
-  int argc = ArgumentBits::decode(bit_field_);
-  bool is_store = IsStoreBits::decode(bit_field_);
-  bool call_data_undefined = CallDataUndefinedBits::decode(bit_field_);
+  int argc = this->argc();
+  bool is_store = this->is_store();
+  bool call_data_undefined = this->call_data_undefined();
 
   typedef FunctionCallbackArguments FCA;
 

@@ -5790,8 +5790,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     PropertyAccessInfo* info,
     HValue* checked_object) {
   // See if this is a load for an immutable property
-  if (checked_object->ActualValue()->IsConstant() && info->IsCacheable() &&
-      info->IsReadOnly() && !info->IsConfigurable()) {
+  if (checked_object->ActualValue()->IsConstant() && info->IsReadOnly() &&
+      !info->IsConfigurable()) {
     Handle<Object> object(
         HConstant::cast(checked_object->ActualValue())->handle(isolate()));
 
@@ -5970,7 +5970,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::LookupDescriptor() {
 
 
 bool HOptimizedGraphBuilder::PropertyAccessInfo::LoadResult(Handle<Map> map) {
-  if (!IsLoad() && IsProperty() && (IsReadOnly() || !IsCacheable())) {
+  if (!IsLoad() && IsProperty() && IsReadOnly()) {
     return false;
   }
 
@@ -6074,10 +6074,7 @@ bool HOptimizedGraphBuilder::PropertyAccessInfo::CanAccessMonomorphic() {
     return IsLoad();
   }
   if (!LookupDescriptor()) return false;
-  if (IsFound()) {
-    if (IsLoad()) return true;
-    return !IsReadOnly() && IsCacheable();
-  }
+  if (IsFound()) return IsLoad() || !IsReadOnly();
   if (!LookupInPrototypes()) return false;
   if (IsLoad()) return true;
 
@@ -9767,7 +9764,7 @@ void HOptimizedGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
         static_cast<int>(Runtime::kFirstInlineFunction);
     DCHECK(lookup_index >= 0);
     DCHECK(static_cast<size_t>(lookup_index) <
-           ARRAY_SIZE(kInlineFunctionGenerators));
+           arraysize(kInlineFunctionGenerators));
     InlineFunctionGenerator generator = kInlineFunctionGenerators[lookup_index];
 
     // Call the inline code generator using the pointer-to-member.

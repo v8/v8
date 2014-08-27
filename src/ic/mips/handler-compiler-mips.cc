@@ -286,8 +286,8 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
   // The return address is in ra.
   Label slow, miss;
 
-  Register key = LoadIC::NameRegister();
-  Register receiver = LoadIC::ReceiverRegister();
+  Register key = LoadConvention::NameRegister();
+  Register receiver = LoadConvention::ReceiverRegister();
   DCHECK(receiver.is(a1));
   DCHECK(key.is(a2));
 
@@ -312,8 +312,8 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
 
 void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   // Push receiver, key and value for runtime call.
-  __ Push(StoreIC::ReceiverRegister(), StoreIC::NameRegister(),
-          StoreIC::ValueRegister());
+  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
+          StoreConvention::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -325,8 +325,8 @@ void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
 
 void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
   // Push receiver, key and value for runtime call.
-  __ Push(StoreIC::ReceiverRegister(), StoreIC::NameRegister(),
-          StoreIC::ValueRegister());
+  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
+          StoreConvention::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -828,7 +828,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 }
 
 
-Register NamedStoreHandlerCompiler::value() { return StoreIC::ValueRegister(); }
+Register NamedStoreHandlerCompiler::value() {
+  return StoreConvention::ValueRegister();
+}
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
@@ -838,7 +840,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   FrontendHeader(receiver(), name, &miss);
 
   // Get the value from the cell.
-  Register result = StoreIC::ValueRegister();
+  Register result = StoreConvention::ValueRegister();
   __ li(result, Operand(cell));
   __ lw(result, FieldMemOperand(result, Cell::kValueOffset));
 

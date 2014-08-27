@@ -19,11 +19,9 @@ CodeGenerator::CodeGenerator(InstructionSequence* code)
       masm_(code->zone()->isolate(), NULL, 0),
       resolver_(this),
       safepoints_(code->zone()),
-      lazy_deoptimization_entries_(
-          LazyDeoptimizationEntries::allocator_type(code->zone())),
-      deoptimization_states_(
-          DeoptimizationStates::allocator_type(code->zone())),
-      deoptimization_literals_(Literals::allocator_type(code->zone())),
+      lazy_deoptimization_entries_(code->zone()),
+      deoptimization_states_(code->zone()),
+      deoptimization_literals_(code->zone()),
       translations_(code->zone()) {
   deoptimization_states_.resize(code->GetDeoptimizationEntryCount(), NULL);
 }

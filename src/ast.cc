@@ -1119,7 +1119,7 @@ Handle<String> Literal::ToString() {
   if (value_->IsString()) return value_->AsString()->string();
   DCHECK(value_->IsNumber());
   char arr[100];
-  Vector<char> buffer(arr, ARRAY_SIZE(arr));
+  Vector<char> buffer(arr, arraysize(arr));
   const char* str;
   if (value()->IsSmi()) {
     // Optimization only, the heap number case would subsume this.

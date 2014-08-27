@@ -100,6 +100,7 @@ static const MemoryAccess kMemoryAccesses[] = {
     {kMachUint16, kIA32Movzxwl, kIA32Movw},
     {kMachInt32, kIA32Movl, kIA32Movl},
     {kMachUint32, kIA32Movl, kIA32Movl},
+    {kMachFloat32, kIA32Movss, kIA32Movss},
     {kMachFloat64, kIA32Movsd, kIA32Movsd}};
 
 }  // namespace

@@ -24,7 +24,6 @@ class InstructionSelectorTest : public CompilerTest {
 
   base::RandomNumberGenerator* rng() { return &rng_; }
 
- protected:
   class Stream;
 
   enum StreamBuilderMode { kAllInstructions, kTargetInstructions };
@@ -116,10 +115,23 @@ class InstructionSelectorTest : public CompilerTest {
       return instructions_[index];
     }
 
+    bool IsDouble(const InstructionOperand* operand) const {
+      return IsDouble(ToVreg(operand));
+    }
     bool IsDouble(int virtual_register) const {
       return doubles_.find(virtual_register) != doubles_.end();
     }
 
+    bool IsInteger(const InstructionOperand* operand) const {
+      return IsInteger(ToVreg(operand));
+    }
+    bool IsInteger(int virtual_register) const {
+      return !IsDouble(virtual_register) && !IsReference(virtual_register);
+    }
+
+    bool IsReference(const InstructionOperand* operand) const {
+      return IsReference(ToVreg(operand));
+    }
     bool IsReference(int virtual_register) const {
       return references_.find(virtual_register) != references_.end();
     }
@@ -129,6 +141,7 @@ class InstructionSelectorTest : public CompilerTest {
     }
 
     int ToVreg(const InstructionOperand* operand) const {
+      if (operand->IsConstant()) return operand->index();
       EXPECT_EQ(InstructionOperand::UNALLOCATED, operand->kind());
       return UnallocatedOperand::cast(operand)->virtual_register();
     }

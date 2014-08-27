@@ -119,9 +119,6 @@ void LookupIterator::LoadPropertyKind() {
     case v8::internal::CALLBACKS:
       property_kind_ = ACCESSOR;
       break;
-    case v8::internal::HANDLER:
-    case v8::internal::INTERCEPTOR:
-      UNREACHABLE();
   }
 }
 

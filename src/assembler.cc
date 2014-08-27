@@ -937,8 +937,11 @@ void ExternalReference::InitializeMathExpData() {
 
 void ExternalReference::TearDownMathExpData() {
   delete[] math_exp_constants_array;
+  math_exp_constants_array = NULL;
   delete[] math_exp_log_table_array;
+  math_exp_log_table_array = NULL;
   delete math_exp_data_mutex;
+  math_exp_data_mutex = NULL;
 }
 
 

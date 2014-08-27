@@ -24,29 +24,8 @@ OStream& operator<<(OStream& os, const LookupResult& r) {
   if (!r.IsFound()) return os << "Not Found\n";
 
   os << "LookupResult:\n";
-  os << " -cacheable = " << (r.IsCacheable() ? "true" : "false") << "\n";
-  os << " -attributes = " << hex << r.GetAttributes() << dec << "\n";
   if (r.IsTransition()) {
     os << " -transition target:\n" << Brief(r.GetTransitionTarget()) << "\n";
-  }
-  switch (r.type()) {
-    case NORMAL:
-      return os << " -type = normal\n"
-                << " -entry = " << r.GetDictionaryEntry() << "\n";
-    case CONSTANT:
-      return os << " -type = constant\n";
-    case FIELD:
-      os << " -type = field\n"
-         << " -index = " << r.GetFieldIndex().property_index() << "\n"
-         << " -field type:";
-      r.GetFieldType()->PrintTo(os);
-      return os << "\n";
-    case CALLBACKS:
-      return os << " -type = call backs\n";
-    case HANDLER:
-      return os << " -type = lookup proxy\n";
-    case INTERCEPTOR:
-      return os << " -type = lookup interceptor\n";
   }
   return os;
 }

@@ -1697,8 +1697,7 @@ void V8HeapExplorer::ExtractPropertyReferences(JSObject* js_obj, int entry) {
               descs->GetKey(i), descs->GetValue(i));
           break;
         case NORMAL:  // only in slow mode
-        case HANDLER:  // only in lookup results, not in descriptors
-        case INTERCEPTOR:  // only in lookup results, not in descriptors
+          UNREACHABLE();
           break;
       }
     }

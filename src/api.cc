@@ -413,6 +413,7 @@ void RegisteredExtension::UnregisterAll() {
     delete re;
     re = next;
   }
+  first_extension_ = NULL;
 }
 
 
@@ -2065,7 +2066,7 @@ MUST_USE_RESULT static i::MaybeHandle<i::Object> CallV8HeapFunction(
   i::Handle<i::Object> argv[] = { data };
   return CallV8HeapFunction(name,
                             i::Isolate::Current()->js_builtins_object(),
-                            ARRAY_SIZE(argv),
+                            arraysize(argv),
                             argv);
 }
 
@@ -2967,7 +2968,7 @@ bool Value::Equals(Handle<Value> that) const {
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result;
   has_pending_exception = !CallV8HeapFunction(
-      "EQUALS", obj, ARRAY_SIZE(args), args).ToHandle(&result);
+      "EQUALS", obj, arraysize(args), args).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return *result == i::Smi::FromInt(i::EQUAL);
 }
@@ -3196,7 +3197,7 @@ Local<Value> v8::Object::GetOwnPropertyDescriptor(Local<String> key) {
   has_pending_exception = !CallV8HeapFunction(
       "ObjectGetOwnPropertyDescriptor",
       isolate->factory()->undefined_value(),
-      ARRAY_SIZE(args),
+      arraysize(args),
       args).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
@@ -5735,7 +5736,7 @@ static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
   if ((flags & RegExp::kGlobal) != 0) flags_buf[num_flags++] = 'g';
   if ((flags & RegExp::kMultiline) != 0) flags_buf[num_flags++] = 'm';
   if ((flags & RegExp::kIgnoreCase) != 0) flags_buf[num_flags++] = 'i';
-  DCHECK(num_flags <= static_cast<int>(ARRAY_SIZE(flags_buf)));
+  DCHECK(num_flags <= static_cast<int>(arraysize(flags_buf)));
   return isolate->factory()->InternalizeOneByteString(
       i::Vector<const uint8_t>(flags_buf, num_flags));
 }
@@ -5841,7 +5842,7 @@ bool Value::IsPromise() const {
       isolate,
       isolate->is_promise(),
       isolate->factory()->undefined_value(),
-      ARRAY_SIZE(argv), argv,
+      arraysize(argv), argv,
       false).ToHandle(&b);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return b->BooleanValue();
@@ -5882,7 +5883,7 @@ void Promise::Resolver::Resolve(Handle<Value> value) {
       isolate,
       isolate->promise_resolve(),
       isolate->factory()->undefined_value(),
-      ARRAY_SIZE(argv), argv,
+      arraysize(argv), argv,
       false).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, /* void */ ;);
 }
@@ -5899,7 +5900,7 @@ void Promise::Resolver::Reject(Handle<Value> value) {
       isolate,
       isolate->promise_reject(),
       isolate->factory()->undefined_value(),
-      ARRAY_SIZE(argv), argv,
+      arraysize(argv), argv,
       false).is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, /* void */ ;);
 }
@@ -5917,7 +5918,7 @@ Local<Promise> Promise::Chain(Handle<Function> handler) {
       isolate,
       isolate->promise_chain(),
       promise,
-      ARRAY_SIZE(argv), argv,
+      arraysize(argv), argv,
       false).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise>());
   return Local<Promise>::Cast(Utils::ToLocal(result));
@@ -5936,7 +5937,7 @@ Local<Promise> Promise::Catch(Handle<Function> handler) {
       isolate,
       isolate->promise_catch(),
       promise,
-      ARRAY_SIZE(argv), argv,
+      arraysize(argv), argv,
       false).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise>());
   return Local<Promise>::Cast(Utils::ToLocal(result));
@@ -5955,7 +5956,7 @@ Local<Promise> Promise::Then(Handle<Function> handler) {
       isolate,
       isolate->promise_then(),
       promise,
-      ARRAY_SIZE(argv), argv,
+      arraysize(argv), argv,
       false).ToHandle(&result);
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Promise>());
   return Local<Promise>::Cast(Utils::ToLocal(result));
@@ -7575,7 +7576,7 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
   }
 
   List<Context*>* context_lists[2] = { &saved_contexts_, &entered_contexts_};
-  for (unsigned i = 0; i < ARRAY_SIZE(context_lists); i++) {
+  for (unsigned i = 0; i < arraysize(context_lists); i++) {
     if (context_lists[i]->is_empty()) continue;
     Object** start = reinterpret_cast<Object**>(&context_lists[i]->first());
     v->VisitPointers(start, start + context_lists[i]->length());

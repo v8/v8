@@ -352,15 +352,6 @@ OStream& operator<<(OStream& os, const CallIC::State& s);
 
 class LoadIC : public IC {
  public:
-  enum ParameterIndices { kReceiverIndex, kNameIndex, kParameterCount };
-  static const Register ReceiverRegister();
-  static const Register NameRegister();
-
-  // With flag vector-ics, there is an additional argument. And for calls from
-  // crankshaft, yet another.
-  static const Register SlotRegister();
-  static const Register VectorRegister();
-
   class State V8_FINAL BASE_EMBEDDED {
    public:
     explicit State(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
@@ -531,16 +522,6 @@ class StoreIC : public IC {
   // IC state.
   static const ExtraICState kStrictModeState = 1 << StrictModeState::kShift;
 
-  enum ParameterIndices {
-    kReceiverIndex,
-    kNameIndex,
-    kValueIndex,
-    kParameterCount
-  };
-  static const Register ReceiverRegister();
-  static const Register NameRegister();
-  static const Register ValueRegister();
-
   StoreIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
     DCHECK(IsStoreStub());
   }
@@ -629,11 +610,6 @@ class KeyedStoreIC : public StoreIC {
       ExtraICState extra_state) {
     return ExtraICStateKeyedAccessStoreMode::decode(extra_state);
   }
-
-  // The map register isn't part of the normal call specification, but
-  // ElementsTransitionAndStoreStub, used in polymorphic keyed store
-  // stub implementations requires it to be initialized.
-  static const Register MapRegister();
 
   KeyedStoreIC(FrameDepth depth, Isolate* isolate) : StoreIC(depth, isolate) {
     DCHECK(target()->is_keyed_store_stub());
@@ -947,6 +923,8 @@ DECLARE_RUNTIME_FUNCTION(BinaryOpIC_Miss);
 DECLARE_RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite);
 DECLARE_RUNTIME_FUNCTION(CompareNilIC_Miss);
 DECLARE_RUNTIME_FUNCTION(ToBooleanIC_Miss);
+DECLARE_RUNTIME_FUNCTION(VectorLoadIC_MissFromStubFailure);
+DECLARE_RUNTIME_FUNCTION(VectorKeyedLoadIC_MissFromStubFailure);
 
 // Support functions for callbacks handlers.
 DECLARE_RUNTIME_FUNCTION(StoreCallbackProperty);

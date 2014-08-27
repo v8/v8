@@ -3189,6 +3189,18 @@ RUNTIME_FUNCTION(LoadElementWithInterceptor) {
 }
 
 
+RUNTIME_FUNCTION(VectorLoadIC_MissFromStubFailure) {
+  // TODO(mvstanton): To be enabled when ICs can accept a vector and slot
+  return NULL;
+}
+
+
+RUNTIME_FUNCTION(VectorKeyedLoadIC_MissFromStubFailure) {
+  // TODO(mvstanton): To be enabled when ICs can accept a vector and slot
+  return NULL;
+}
+
+
 static const Address IC_utilities[] = {
 #define ADDR(name) FUNCTION_ADDR(name),
     IC_UTIL_LIST(ADDR) NULL

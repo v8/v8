@@ -55,6 +55,8 @@ class ArmOperandGenerator V8_FINAL : public OperandGenerator {
       case kArmRsb:
         return ImmediateFitsAddrMode1Instruction(value);
 
+      case kArmVldr32:
+      case kArmVstr32:
       case kArmVldr64:
       case kArmVstr64:
         return value >= -1020 && value <= 1020 && (value % 4) == 0;
@@ -118,9 +120,9 @@ class ArmOperandGenerator V8_FINAL : public OperandGenerator {
 static void VisitRRRFloat64(InstructionSelector* selector, ArchOpcode opcode,
                             Node* node) {
   ArmOperandGenerator g(selector);
-  selector->Emit(opcode, g.DefineAsDoubleRegister(node),
-                 g.UseDoubleRegister(node->InputAt(0)),
-                 g.UseDoubleRegister(node->InputAt(1)));
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(node->InputAt(0)),
+                 g.UseRegister(node->InputAt(1)));
 }
 
 
@@ -270,8 +272,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
   DCHECK_NE(0, input_count);
   DCHECK_NE(0, output_count);
-  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
-  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
+  DCHECK_GE(arraysize(inputs), input_count);
+  DCHECK_GE(arraysize(outputs), output_count);
   DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
 
   Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
@@ -294,12 +296,11 @@ void InstructionSelector::VisitLoad(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
-  InstructionOperand* result = rep == kRepFloat64
-                                   ? g.DefineAsDoubleRegister(node)
-                                   : g.DefineAsRegister(node);
-
   ArchOpcode opcode;
   switch (rep) {
+    case kRepFloat32:
+      opcode = kArmVldr32;
+      break;
     case kRepFloat64:
       opcode = kArmVldr64;
       break;
@@ -320,11 +321,11 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
 
   if (g.CanBeImmediate(index, opcode)) {
-    Emit(opcode | AddressingModeField::encode(kMode_Offset_RI), result,
-         g.UseRegister(base), g.UseImmediate(index));
+    Emit(opcode | AddressingModeField::encode(kMode_Offset_RI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
   } else {
-    Emit(opcode | AddressingModeField::encode(kMode_Offset_RR), result,
-         g.UseRegister(base), g.UseRegister(index));
+    Emit(opcode | AddressingModeField::encode(kMode_Offset_RR),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
   }
 }
 
@@ -344,16 +345,17 @@ void InstructionSelector::VisitStore(Node* node) {
     // TODO(dcarney): handle immediate indices.
     InstructionOperand* temps[] = {g.TempRegister(r5), g.TempRegister(r6)};
     Emit(kArmStoreWriteBarrier, NULL, g.UseFixed(base, r4),
-         g.UseFixed(index, r5), g.UseFixed(value, r6), ARRAY_SIZE(temps),
+         g.UseFixed(index, r5), g.UseFixed(value, r6), arraysize(temps),
          temps);
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
-  InstructionOperand* val =
-      rep == kRepFloat64 ? g.UseDoubleRegister(value) : g.UseRegister(value);
 
   ArchOpcode opcode;
   switch (rep) {
+    case kRepFloat32:
+      opcode = kArmVstr32;
+      break;
     case kRepFloat64:
       opcode = kArmVstr64;
       break;
@@ -375,10 +377,10 @@ void InstructionSelector::VisitStore(Node* node) {
 
   if (g.CanBeImmediate(index, opcode)) {
     Emit(opcode | AddressingModeField::encode(kMode_Offset_RI), NULL,
-         g.UseRegister(base), g.UseImmediate(index), val);
+         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
   } else {
     Emit(opcode | AddressingModeField::encode(kMode_Offset_RR), NULL,
-         g.UseRegister(base), g.UseRegister(index), val);
+         g.UseRegister(base), g.UseRegister(index), g.UseRegister(value));
   }
 }
 
@@ -500,8 +502,8 @@ static inline void VisitShift(InstructionSelector* selector, Node* node,
 
   DCHECK_NE(0, input_count);
   DCHECK_NE(0, output_count);
-  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
-  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
+  DCHECK_GE(arraysize(inputs), input_count);
+  DCHECK_GE(arraysize(outputs), output_count);
   DCHECK_NE(kMode_None, AddressingModeField::decode(opcode));
 
   Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
@@ -691,14 +693,14 @@ void InstructionSelector::VisitInt32UMod(Node* node) {
 
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   ArmOperandGenerator g(this);
-  Emit(kArmVcvtF64S32, g.DefineAsDoubleRegister(node),
+  Emit(kArmVcvtF64S32, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   ArmOperandGenerator g(this);
-  Emit(kArmVcvtF64U32, g.DefineAsDoubleRegister(node),
+  Emit(kArmVcvtF64U32, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
@@ -706,14 +708,14 @@ void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
 void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtS32F64, g.DefineAsRegister(node),
-       g.UseDoubleRegister(node->InputAt(0)));
+       g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVcvtU32F64, g.DefineAsRegister(node),
-       g.UseDoubleRegister(node->InputAt(0)));
+       g.UseRegister(node->InputAt(0)));
 }
 
 
@@ -756,8 +758,7 @@ void InstructionSelector::VisitFloat64Mul(Node* node) {
   ArmOperandGenerator g(this);
   Float64BinopMatcher m(node);
   if (m.right().Is(-1.0)) {
-    Emit(kArmVnegF64, g.DefineAsRegister(node),
-         g.UseDoubleRegister(m.left().node()));
+    Emit(kArmVnegF64, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
   } else {
     VisitRRRFloat64(this, kArmVmulF64, node);
   }
@@ -771,9 +772,8 @@ void InstructionSelector::VisitFloat64Div(Node* node) {
 
 void InstructionSelector::VisitFloat64Mod(Node* node) {
   ArmOperandGenerator g(this);
-  Emit(kArmVmodF64, g.DefineAsFixedDouble(node, d0),
-       g.UseFixedDouble(node->InputAt(0), d0),
-       g.UseFixedDouble(node->InputAt(1), d1))->MarkAsCall();
+  Emit(kArmVmodF64, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0),
+       g.UseFixed(node->InputAt(1), d1))->MarkAsCall();
 }
 
 
@@ -890,8 +890,8 @@ static void VisitWordCompare(InstructionSelector* selector, Node* node,
   }
 
   DCHECK_NE(0, input_count);
-  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
-  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
+  DCHECK_GE(arraysize(inputs), input_count);
+  DCHECK_GE(arraysize(outputs), output_count);
 
   Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
                                       outputs, input_count, inputs);
@@ -948,14 +948,13 @@ void InstructionSelector::VisitFloat64Compare(Node* node,
   ArmOperandGenerator g(this);
   Float64BinopMatcher m(node);
   if (cont->IsBranch()) {
-    Emit(cont->Encode(kArmVcmpF64), NULL, g.UseDoubleRegister(m.left().node()),
-         g.UseDoubleRegister(m.right().node()), g.Label(cont->true_block()),
+    Emit(cont->Encode(kArmVcmpF64), NULL, g.UseRegister(m.left().node()),
+         g.UseRegister(m.right().node()), g.Label(cont->true_block()),
          g.Label(cont->false_block()))->MarkAsControl();
   } else {
     DCHECK(cont->IsSet());
     Emit(cont->Encode(kArmVcmpF64), g.DefineAsRegister(cont->result()),
-         g.UseDoubleRegister(m.left().node()),
-         g.UseDoubleRegister(m.right().node()));
+         g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
   }
 }
 

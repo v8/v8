@@ -47,12 +47,12 @@ void InstructionSelector::VisitLoad(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
-  InstructionOperand* output = rep == kRepFloat64
-                                   ? g.DefineAsDoubleRegister(node)
-                                   : g.DefineAsRegister(node);
   ArchOpcode opcode;
   // TODO(titzer): signed/unsigned small loads
   switch (rep) {
+    case kRepFloat32:
+      opcode = kIA32Movss;
+      break;
     case kRepFloat64:
       opcode = kIA32Movsd;
       break;
@@ -73,18 +73,19 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
   if (g.CanBeImmediate(base)) {
     if (Int32Matcher(index).Is(0)) {  // load [#base + #0]
-      Emit(opcode | AddressingModeField::encode(kMode_MI), output,
-           g.UseImmediate(base));
+      Emit(opcode | AddressingModeField::encode(kMode_MI),
+           g.DefineAsRegister(node), g.UseImmediate(base));
     } else {  // load [#base + %index]
-      Emit(opcode | AddressingModeField::encode(kMode_MRI), output,
-           g.UseRegister(index), g.UseImmediate(base));
+      Emit(opcode | AddressingModeField::encode(kMode_MRI),
+           g.DefineAsRegister(node), g.UseRegister(index),
+           g.UseImmediate(base));
     }
   } else if (g.CanBeImmediate(index)) {  // load [%base + #index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), output,
-         g.UseRegister(base), g.UseImmediate(index));
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
   } else {  // load [%base + %index + K]
-    Emit(opcode | AddressingModeField::encode(kMode_MR1I), output,
-         g.UseRegister(base), g.UseRegister(index));
+    Emit(opcode | AddressingModeField::encode(kMode_MR1I),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
   }
   // TODO(turbofan): addressing modes [r+r*{2,4,8}+K]
 }
@@ -105,25 +106,24 @@ void InstructionSelector::VisitStore(Node* node) {
     // TODO(dcarney): handle immediate indices.
     InstructionOperand* temps[] = {g.TempRegister(ecx), g.TempRegister(edx)};
     Emit(kIA32StoreWriteBarrier, NULL, g.UseFixed(base, ebx),
-         g.UseFixed(index, ecx), g.UseFixed(value, edx), ARRAY_SIZE(temps),
+         g.UseFixed(index, ecx), g.UseFixed(value, edx), arraysize(temps),
          temps);
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
   InstructionOperand* val;
-  if (rep == kRepFloat64) {
-    val = g.UseDoubleRegister(value);
+  if (g.CanBeImmediate(value)) {
+    val = g.UseImmediate(value);
+  } else if (rep == kRepWord8 || rep == kRepBit) {
+    val = g.UseByteRegister(value);
   } else {
-    if (g.CanBeImmediate(value)) {
-      val = g.UseImmediate(value);
-    } else if (rep == kRepWord8 || rep == kRepBit) {
-      val = g.UseByteRegister(value);
-    } else {
-      val = g.UseRegister(value);
-    }
+    val = g.UseRegister(value);
   }
   ArchOpcode opcode;
   switch (rep) {
+    case kRepFloat32:
+      opcode = kIA32Movss;
+      break;
     case kRepFloat64:
       opcode = kIA32Movsd;
       break;
@@ -195,8 +195,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
   DCHECK_NE(0, input_count);
   DCHECK_NE(0, output_count);
-  DCHECK_GE(ARRAY_SIZE(inputs), input_count);
-  DCHECK_GE(ARRAY_SIZE(outputs), output_count);
+  DCHECK_GE(arraysize(inputs), input_count);
+  DCHECK_GE(arraysize(outputs), output_count);
 
   Instruction* instr = selector->Emit(cont->Encode(opcode), output_count,
                                       outputs, input_count, inputs);
@@ -316,7 +316,7 @@ static inline void VisitDiv(InstructionSelector* selector, Node* node,
                             ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand* temps[] = {g.TempRegister(edx)};
-  size_t temp_count = ARRAY_SIZE(temps);
+  size_t temp_count = arraysize(temps);
   selector->Emit(opcode, g.DefineAsFixed(node, eax),
                  g.UseFixed(node->InputAt(0), eax),
                  g.UseUnique(node->InputAt(1)), temp_count, temps);
@@ -337,7 +337,7 @@ static inline void VisitMod(InstructionSelector* selector, Node* node,
                             ArchOpcode opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand* temps[] = {g.TempRegister(eax), g.TempRegister(edx)};
-  size_t temp_count = ARRAY_SIZE(temps);
+  size_t temp_count = arraysize(temps);
   selector->Emit(opcode, g.DefineAsFixed(node, edx),
                  g.UseFixed(node->InputAt(0), eax),
                  g.UseUnique(node->InputAt(1)), temp_count, temps);
@@ -356,15 +356,14 @@ void InstructionSelector::VisitInt32UMod(Node* node) {
 
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   IA32OperandGenerator g(this);
-  Emit(kSSEInt32ToFloat64, g.DefineAsDoubleRegister(node),
-       g.Use(node->InputAt(0)));
+  Emit(kSSEInt32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   IA32OperandGenerator g(this);
   // TODO(turbofan): IA32 SSE LoadUint32() should take an operand.
-  Emit(kSSEUint32ToFloat64, g.DefineAsDoubleRegister(node),
+  Emit(kSSEUint32ToFloat64, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)));
 }
 
@@ -379,39 +378,35 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   IA32OperandGenerator g(this);
   // TODO(turbofan): IA32 SSE subsd() should take an operand.
   Emit(kSSEFloat64ToUint32, g.DefineAsRegister(node),
-       g.UseDoubleRegister(node->InputAt(0)));
+       g.UseRegister(node->InputAt(0)));
 }
 
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEFloat64Add, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEFloat64Sub, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 
 void InstructionSelector::VisitFloat64Mul(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEFloat64Mul, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 
 void InstructionSelector::VisitFloat64Div(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEFloat64Div, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)));
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 
@@ -419,8 +414,8 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand* temps[] = {g.TempRegister(eax)};
   Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
-       g.UseDoubleRegister(node->InputAt(0)),
-       g.UseDoubleRegister(node->InputAt(1)), 1, temps);
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), 1,
+       temps);
 }
 
 
@@ -502,8 +497,7 @@ void InstructionSelector::VisitFloat64Compare(Node* node,
   IA32OperandGenerator g(this);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-  VisitCompare(this, kSSEFloat64Cmp, g.UseDoubleRegister(left), g.Use(right),
-               cont);
+  VisitCompare(this, kSSEFloat64Cmp, g.UseRegister(left), g.Use(right), cont);
 }
 
 

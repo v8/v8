@@ -4,9 +4,6 @@
 
 #include "src/compiler/simplified-lowering.h"
 
-#include <deque>
-#include <queue>
-
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node-properties-inl.h"
@@ -54,10 +51,10 @@ class RepresentationSelector {
  public:
   // Information for each node tracked during the fixpoint.
   struct NodeInfo {
-    MachineTypeUnion use : 14;     // Union of all usages for the node.
+    MachineTypeUnion use : 15;     // Union of all usages for the node.
     bool queued : 1;           // Bookkeeping for the traversal.
     bool visited : 1;          // Bookkeeping for the traversal.
-    MachineTypeUnion output : 14;  // Output type of the node.
+    MachineTypeUnion output : 15;  // Output type of the node.
   };
 
   RepresentationSelector(JSGraph* jsgraph, Zone* zone,
@@ -65,13 +62,12 @@ class RepresentationSelector {
       : jsgraph_(jsgraph),
         count_(jsgraph->graph()->NodeCount()),
         info_(zone->NewArray<NodeInfo>(count_)),
-        nodes_(NodeVector::allocator_type(zone)),
-        replacements_(NodeVector::allocator_type(zone)),
+        nodes_(zone),
+        replacements_(zone),
         contains_js_nodes_(false),
         phase_(PROPAGATE),
         changer_(changer),
-        queue_(std::deque<Node*, NodePtrZoneAllocator>(
-            NodePtrZoneAllocator(zone))) {
+        queue_(zone) {
     memset(info_, 0, sizeof(NodeInfo) * count_);
   }
 
@@ -704,8 +700,7 @@ class RepresentationSelector {
   bool contains_js_nodes_;          // {true} if a JS operator was seen
   Phase phase_;                     // current phase of algorithm
   RepresentationChanger* changer_;  // for inserting representation changes
-
-  std::queue<Node*, std::deque<Node*, NodePtrZoneAllocator> > queue_;
+  ZoneQueue<Node*> queue_;          // queue for traversing the graph
 
   NodeInfo* GetInfo(Node* node) {
     DCHECK(node->id() >= 0);

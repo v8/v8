@@ -40,6 +40,7 @@ class BasicBlockData {
   };
 
   int32_t rpo_number_;       // special RPO number of the block.
+  BasicBlock* dominator_;    // Immediate dominator of the block.
   BasicBlock* loop_header_;  // Pointer to dominating loop header basic block,
                              // NULL if none. For loop headers, this points to
                              // enclosing loop header.
@@ -55,6 +56,7 @@ class BasicBlockData {
 
   explicit BasicBlockData(Zone* zone)
       : rpo_number_(-1),
+        dominator_(NULL),
         loop_header_(NULL),
         loop_depth_(0),
         loop_end_(-1),
@@ -63,7 +65,7 @@ class BasicBlockData {
         deferred_(false),
         control_(kNone),
         control_input_(NULL),
-        nodes_(NodeVector::allocator_type(zone)) {}
+        nodes_(zone) {}
 
   inline bool IsLoopHeader() const { return loop_end_ >= 0; }
   inline bool LoopContains(BasicBlockData* block) const {
@@ -145,8 +147,7 @@ class BasicBlock V8_FINAL : public GenericNode<BasicBlockData, BasicBlock> {
 typedef GenericGraphVisit::NullNodeVisitor<BasicBlockData, BasicBlock>
     NullBasicBlockVisitor;
 
-typedef zone_allocator<BasicBlock*> BasicBlockPtrZoneAllocator;
-typedef std::vector<BasicBlock*, BasicBlockPtrZoneAllocator> BasicBlockVector;
+typedef ZoneVector<BasicBlock*> BasicBlockVector;
 typedef BasicBlockVector::iterator BasicBlockVectorIter;
 typedef BasicBlockVector::reverse_iterator BasicBlockVectorRIter;
 
@@ -159,10 +160,9 @@ class Schedule : public GenericGraph<BasicBlock> {
   explicit Schedule(Zone* zone)
       : GenericGraph<BasicBlock>(zone),
         zone_(zone),
-        all_blocks_(BasicBlockVector::allocator_type(zone)),
-        nodeid_to_block_(BasicBlockVector::allocator_type(zone)),
-        rpo_order_(BasicBlockVector::allocator_type(zone)),
-        immediate_dominator_(BasicBlockVector::allocator_type(zone)) {
+        all_blocks_(zone),
+        nodeid_to_block_(zone),
+        rpo_order_(zone) {
     SetStart(NewBasicBlock());  // entry.
     SetEnd(NewBasicBlock());    // exit.
   }
@@ -173,10 +173,6 @@ class Schedule : public GenericGraph<BasicBlock> {
       return nodeid_to_block_[node->id()];
     }
     return NULL;
-  }
-
-  BasicBlock* dominator(BasicBlock* block) {
-    return immediate_dominator_[block->id()];
   }
 
   bool IsScheduled(Node* node) {
@@ -213,8 +209,8 @@ class Schedule : public GenericGraph<BasicBlock> {
   // doesn't actually add the node to the block.
   inline void PlanNode(BasicBlock* block, Node* node) {
     if (FLAG_trace_turbo_scheduler) {
-      PrintF("Planning node %d for future add to block %d\n", node->id(),
-             block->id());
+      PrintF("Planning #%d:%s for future add to B%d\n", node->id(),
+             node->op()->mnemonic(), block->id());
     }
     DCHECK(this->block(node) == NULL);
     SetBlockForNode(block, node);
@@ -223,7 +219,8 @@ class Schedule : public GenericGraph<BasicBlock> {
   // BasicBlock building: add a node to the end of the block.
   inline void AddNode(BasicBlock* block, Node* node) {
     if (FLAG_trace_turbo_scheduler) {
-      PrintF("Adding node %d to block %d\n", node->id(), block->id());
+      PrintF("Adding #%d:%s to B%d\n", node->id(), node->op()->mnemonic(),
+             block->id());
     }
     DCHECK(this->block(node) == NULL || this->block(node) == block);
     block->nodes_.push_back(node);
@@ -248,6 +245,7 @@ class Schedule : public GenericGraph<BasicBlock> {
     AddSuccessor(block, deopt_block);
     AddSuccessor(block, cont_block);
     SetControlInput(block, call);
+    SetBlockForNode(block, call);
   }
 
   // BasicBlock building: add a branch at the end of {block}.
@@ -259,15 +257,22 @@ class Schedule : public GenericGraph<BasicBlock> {
     AddSuccessor(block, tblock);
     AddSuccessor(block, fblock);
     SetControlInput(block, branch);
+    if (branch->opcode() == IrOpcode::kBranch) {
+      // TODO(titzer): require a Branch node here. (sloppy tests).
+      SetBlockForNode(block, branch);
+    }
   }
 
   // BasicBlock building: add a return at the end of {block}.
   void AddReturn(BasicBlock* block, Node* input) {
-    // TODO(titzer): require a Return node here.
     DCHECK(block->control_ == BasicBlock::kNone);
     block->control_ = BasicBlock::kReturn;
     SetControlInput(block, input);
     if (block != end()) AddSuccessor(block, end());
+    if (input->opcode() == IrOpcode::kReturn) {
+      // TODO(titzer): require a Return node here. (sloppy tests).
+      SetBlockForNode(block, input);
+    }
   }
 
   // BasicBlock building: add a throw at the end of {block}.
@@ -316,9 +321,6 @@ class Schedule : public GenericGraph<BasicBlock> {
   BasicBlockVector all_blocks_;           // All basic blocks in the schedule.
   BasicBlockVector nodeid_to_block_;      // Map from node to containing block.
   BasicBlockVector rpo_order_;            // Reverse-post-order block list.
-  BasicBlockVector immediate_dominator_;  // Maps to a block's immediate
-                                          // dominator, indexed by block
-                                          // id.
 };
 
 OStream& operator<<(OStream& os, const Schedule& s);

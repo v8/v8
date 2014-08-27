@@ -72,29 +72,18 @@
   'array-feedback': [PASS, NO_VARIANTS],
 
   # Some tests are just too slow to run for now.
-  'big-object-literal': [PASS, NO_VARIANTS],
   'bit-not': [PASS, NO_VARIANTS],
   'json2': [PASS, NO_VARIANTS],
   'packed-elements': [PASS, NO_VARIANTS],
-  'unbox-double-arrays': [PASS, NO_VARIANTS],
   'whitespaces': [PASS, NO_VARIANTS],
-  'compiler/optimized-for-in': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
-  'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
-  'es7/object-observe': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
-  'regress/regress-284': [PASS, NO_VARIANTS],
-  'regress/string-set-char-deopt': [PASS, NO_VARIANTS],
-  'tools/profviz': [PASS, NO_VARIANTS],
 
   # Support for breakpoints requires special relocation info for DebugBreak.
   'debug-clearbreakpointgroup': [PASS, NO_VARIANTS],
   'debug-step-2': [PASS, NO_VARIANTS],
   'regress/regress-debug-deopt-while-recompile': [PASS, NO_VARIANTS],
   'regress/regress-opt-after-debug-deopt': [PASS, NO_VARIANTS],
-
-  # Code serializer does not work correctly.
-  'deserialize-reference': [PASS, NO_VARIANTS],
 
   # Support for %GetFrameDetails is missing and requires checkpoints.
   'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],

@@ -4154,7 +4154,7 @@ TEST(DebugBreak) {
 
   // Call all functions with different argument count.
   break_point_hit_count = 0;
-  for (unsigned int i = 0; i < ARRAY_SIZE(argv); i++) {
+  for (unsigned int i = 0; i < arraysize(argv); i++) {
     f0->Call(env->Global(), i, argv);
     f1->Call(env->Global(), i, argv);
     f2->Call(env->Global(), i, argv);
@@ -4162,7 +4162,7 @@ TEST(DebugBreak) {
   }
 
   // One break for each function called.
-  CHECK_EQ(4 * ARRAY_SIZE(argv), break_point_hit_count);
+  CHECK_EQ(4 * arraysize(argv), break_point_hit_count);
 
   // Get rid of the debug event listener.
   v8::Debug::SetDebugEventListener(NULL);
@@ -4382,10 +4382,6 @@ TEST(InterceptorPropertyMirror) {
     SNPrintF(buffer,
              "named_values[%d] instanceof debug.PropertyMirror", i);
     CHECK(CompileRun(buffer.start())->BooleanValue());
-
-    SNPrintF(buffer, "named_values[%d].propertyType()", i);
-    CHECK_EQ(v8::internal::INTERCEPTOR,
-             CompileRun(buffer.start())->Int32Value());
 
     SNPrintF(buffer, "named_values[%d].isNative()", i);
     CHECK(CompileRun(buffer.start())->BooleanValue());

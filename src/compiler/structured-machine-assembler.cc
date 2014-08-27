@@ -306,16 +306,14 @@ void StructuredMachineAssembler::AddBranch(Environment* environment,
 StructuredMachineAssembler::Environment::Environment(Zone* zone,
                                                      BasicBlock* block,
                                                      bool is_dead)
-    : block_(block),
-      variables_(NodeVector::allocator_type(zone)),
-      is_dead_(is_dead) {}
+    : block_(block), variables_(zone), is_dead_(is_dead) {}
 
 
 StructuredMachineAssembler::IfBuilder::IfBuilder(
     StructuredMachineAssembler* smasm)
     : smasm_(smasm),
-      if_clauses_(IfClauses::allocator_type(smasm_->zone())),
-      pending_exit_merges_(EnvironmentVector::allocator_type(smasm_->zone())) {
+      if_clauses_(smasm_->zone()),
+      pending_exit_merges_(smasm_->zone()) {
   DCHECK(smasm_->current_environment_ != NULL);
   PushNewIfClause();
   DCHECK(!IsDone());
@@ -394,9 +392,9 @@ StructuredMachineAssembler::IfBuilder::IfClause::IfClause(
     Zone* zone, int initial_environment_size)
     : unresolved_list_tail_(NULL),
       initial_environment_size_(initial_environment_size),
-      expression_states_(ExpressionStates::allocator_type(zone)),
-      pending_then_merges_(PendingMergeStack::allocator_type(zone)),
-      pending_else_merges_(PendingMergeStack::allocator_type(zone)),
+      expression_states_(zone),
+      pending_then_merges_(zone),
+      pending_else_merges_(zone),
       then_environment_(NULL),
       else_environment_(NULL) {
   PushNewExpressionState();
@@ -439,8 +437,7 @@ void StructuredMachineAssembler::IfBuilder::IfClause::ResolvePendingMerges(
     smasm->current_environment_ =
         smasm->Copy(unresolved_list_tail_->environment_, truncate_at);
   } else {
-    EnvironmentVector environments(
-        EnvironmentVector::allocator_type(smasm->zone()));
+    EnvironmentVector environments(smasm->zone());
     environments.reserve(data.size_);
     CopyEnvironments(data, &environments);
     DCHECK(static_cast<int>(environments.size()) == data.size_);
@@ -610,8 +607,8 @@ StructuredMachineAssembler::LoopBuilder::LoopBuilder(
     StructuredMachineAssembler* smasm)
     : smasm_(smasm),
       header_environment_(NULL),
-      pending_header_merges_(EnvironmentVector::allocator_type(smasm_->zone())),
-      pending_exit_merges_(EnvironmentVector::allocator_type(smasm_->zone())) {
+      pending_header_merges_(smasm_->zone()),
+      pending_exit_merges_(smasm_->zone()) {
   DCHECK(smasm_->current_environment_ != NULL);
   // Create header environment.
   header_environment_ = smasm_->CopyForLoopHeader(smasm_->current_environment_);

@@ -102,7 +102,7 @@ TEST(RunGotoMultiple) {
   int constant = 9999977;
 
   MLabel labels[10];
-  for (size_t i = 0; i < ARRAY_SIZE(labels); i++) {
+  for (size_t i = 0; i < arraysize(labels); i++) {
     m.Goto(&labels[i]);
     m.Bind(&labels[i]);
   }
@@ -512,7 +512,7 @@ TEST(RunLoadInt32Offset) {
   int32_t offsets[] = {-2000000, -100, -101, 1,          3,
                        7,        120,  2000, 2000000000, 0xff};
 
-  for (size_t i = 0; i < ARRAY_SIZE(offsets); i++) {
+  for (size_t i = 0; i < arraysize(offsets); i++) {
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = offsets[i];
     byte* pointer = reinterpret_cast<byte*>(&p1) - offset;
@@ -741,7 +741,7 @@ TEST(RunInt32AddInBranch) {
     RawMachineAssemblerTester<void> m;
     Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
                          m.machine()->Word32Shr()};
-    for (size_t n = 0; n < ARRAY_SIZE(shops); n++) {
+    for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
       MLabel blocka, blockb;
@@ -832,7 +832,7 @@ TEST(RunInt32AddInComparison) {
     RawMachineAssemblerTester<void> m;
     Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
                          m.machine()->Word32Shr()};
-    for (size_t n = 0; n < ARRAY_SIZE(shops); n++) {
+    for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
       m.Return(m.Word32Equal(
@@ -1076,7 +1076,7 @@ TEST(RunInt32SubInBranch) {
     RawMachineAssemblerTester<void> m;
     Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
                          m.machine()->Word32Shr()};
-    for (size_t n = 0; n < ARRAY_SIZE(shops); n++) {
+    for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
       MLabel blocka, blockb;
@@ -1167,7 +1167,7 @@ TEST(RunInt32SubInComparison) {
     RawMachineAssemblerTester<void> m;
     Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
                          m.machine()->Word32Shr()};
-    for (size_t n = 0; n < ARRAY_SIZE(shops); n++) {
+    for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
       m.Return(m.Word32Equal(
@@ -1699,7 +1699,7 @@ TEST(RunWord32AndInBranch) {
     RawMachineAssemblerTester<void> m;
     Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
                          m.machine()->Word32Shr()};
-    for (size_t n = 0; n < ARRAY_SIZE(shops); n++) {
+    for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
       MLabel blocka, blockb;
@@ -1926,7 +1926,7 @@ TEST(RunWord32OrInBranch) {
     RawMachineAssemblerTester<void> m;
     Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
                          m.machine()->Word32Shr()};
-    for (size_t n = 0; n < ARRAY_SIZE(shops); n++) {
+    for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
       MLabel blocka, blockb;
@@ -2150,7 +2150,7 @@ TEST(RunWord32XorInBranch) {
     RawMachineAssemblerTester<void> m;
     Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
                          m.machine()->Word32Shr()};
-    for (size_t n = 0; n < ARRAY_SIZE(shops); n++) {
+    for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
       MLabel blocka, blockb;
@@ -2751,6 +2751,7 @@ TEST(RunLoadStore) {
   RunLoadStore<int32_t>(kMachInt32);
   RunLoadStore<uint32_t>(kMachUint32);
   RunLoadStore<void*>(kMachAnyTagged);
+  RunLoadStore<float>(kMachFloat32);
   RunLoadStore<double>(kMachFloat64);
 }
 
@@ -3700,7 +3701,7 @@ TEST(RunFloat64Compare) {
   for (int test = 0; test < kFloat64CompareHelperTestCases; test++) {
     for (int node_type = 0; node_type < kFloat64CompareHelperNodeType;
          node_type++) {
-      for (size_t input = 0; input < ARRAY_SIZE(inputs); input += 2) {
+      for (size_t input = 0; input < arraysize(inputs); input += 2) {
         RawMachineAssemblerTester<int32_t> m;
         int expected = Float64CompareHelper(&m, test, node_type, inputs[input],
                                             inputs[input + 1]);
@@ -3721,7 +3722,7 @@ TEST(RunFloat64UnorderedCompare) {
   double nan = v8::base::OS::nan_value();
 
   FOR_FLOAT64_INPUTS(i) {
-    for (size_t o = 0; o < ARRAY_SIZE(operators); ++o) {
+    for (size_t o = 0; o < arraysize(operators); ++o) {
       for (int j = 0; j < 2; j++) {
         RawMachineAssemblerTester<int32_t> m;
         Node* a = m.Float64Constant(*i);
@@ -3869,7 +3870,7 @@ TEST(RunIntPtrCompare) {
   intptr_t max = std::numeric_limits<intptr_t>::max();
   // An ascending chain of intptr_t
   intptr_t inputs[] = {min, min / 2, -1, 0, 1, max / 2, max};
-  for (size_t i = 0; i < ARRAY_SIZE(inputs) - 1; i++) {
+  for (size_t i = 0; i < arraysize(inputs) - 1; i++) {
     IntPtrCompare(inputs[i], inputs[i + 1]);
   }
 }
@@ -4314,7 +4315,7 @@ TEST(RunTruncateFloat64ToInt32P) {
   double input = -1.0;
   RawMachineAssemblerTester<int32_t> m;
   m.Return(m.TruncateFloat64ToInt32(m.LoadFromPointer(&input, kMachFloat64)));
-  for (size_t i = 0; i < ARRAY_SIZE(kValues); ++i) {
+  for (size_t i = 0; i < arraysize(kValues); ++i) {
     input = kValues[i].from;
     uint64_t expected = static_cast<int64_t>(kValues[i].raw);
     CHECK_EQ(static_cast<int>(expected), m.Call());

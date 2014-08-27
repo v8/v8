@@ -882,7 +882,7 @@ void TypeImpl<Config>::BitsetType::Print(OStream& os,  // NOLINT
 
   bool is_first = true;
   os << "(";
-  for (int i(ARRAY_SIZE(named_bitsets) - 1); bitset != 0 && i >= 0; --i) {
+  for (int i(arraysize(named_bitsets) - 1); bitset != 0 && i >= 0; --i) {
     int subset = named_bitsets[i];
     if ((bitset & subset) == subset) {
       if (!is_first) os << " | ";

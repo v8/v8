@@ -152,8 +152,8 @@ void Inlinee::UnifyReturn() {
   Operator* op_phi = jsgraph_->common()->Phi(predecessors);
   Operator* op_ephi = jsgraph_->common()->EffectPhi(predecessors);
 
-  NodeVector values(NodeVector::allocator_type(jsgraph_->zone()));
-  NodeVector effects(NodeVector::allocator_type(jsgraph_->zone()));
+  NodeVector values(jsgraph_->zone());
+  NodeVector effects(jsgraph_->zone());
   // Iterate over all control flow predecessors,
   // which must be return statements.
   InputIter iter = final_merge->inputs().begin();

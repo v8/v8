@@ -91,12 +91,12 @@ class SnapshotWriter {
 
     i::byte* snapshot_bytes = snapshot_data.begin();
     sink.PutBlob(snapshot_bytes, snapshot_data.length(), "snapshot");
-    for (size_t i = 0; i < ARRAY_SIZE(spaces); ++i)
+    for (size_t i = 0; i < arraysize(spaces); ++i)
       sink.PutInt(serializer.CurrentAllocationAddress(spaces[i]), "spaces");
 
     i::byte* context_bytes = context_snapshot_data.begin();
     sink.PutBlob(context_bytes, context_snapshot_data.length(), "context");
-    for (size_t i = 0; i < ARRAY_SIZE(spaces); ++i)
+    for (size_t i = 0; i < arraysize(spaces); ++i)
       sink.PutInt(context_serializer.CurrentAllocationAddress(spaces[i]),
                   "spaces");
 
