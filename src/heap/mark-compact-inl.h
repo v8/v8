@@ -5,8 +5,6 @@
 #ifndef V8_HEAP_MARK_COMPACT_INL_H_
 #define V8_HEAP_MARK_COMPACT_INL_H_
 
-#include <memory.h>
-
 #include "src/heap/mark-compact.h"
 #include "src/isolate.h"
 
