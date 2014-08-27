@@ -111,15 +111,35 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   IA32OperandConverter i(this, instr);
 
   switch (ArchOpcodeField::decode(instr->opcode())) {
-    case kArchJmp:
-      __ jmp(code()->GetLabel(i.InputBlock(0)));
+    case kArchCallAddress:
+      if (HasImmediateInput(instr, 0)) {
+        // TODO(dcarney): wire up EXTERNAL_REFERENCE instead of RUNTIME_ENTRY.
+        __ call(reinterpret_cast<byte*>(i.InputInt32(0)),
+                RelocInfo::RUNTIME_ENTRY);
+      } else {
+        __ call(i.InputRegister(0));
+      }
       break;
-    case kArchNop:
-      // don't emit code for nops.
+    case kArchCallCodeObject: {
+      if (HasImmediateInput(instr, 0)) {
+        Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
+        __ call(code, RelocInfo::CODE_TARGET);
+      } else {
+        Register reg = i.InputRegister(0);
+        __ call(Operand(reg, Code::kHeaderSize - kHeapObjectTag));
+      }
+      AddSafepointAndDeopt(instr);
+      AddNopForSmiCodeInlining();
       break;
-    case kArchRet:
-      AssembleReturn();
+    }
+    case kArchCallJSFunction: {
+      // TODO(jarin) The load of the context should be separated from the call.
+      Register func = i.InputRegister(0);
+      __ mov(esi, FieldOperand(func, JSFunction::kContextOffset));
+      __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
+      AddSafepointAndDeopt(instr);
       break;
+    }
     case kArchDeoptimize: {
       int deoptimization_id = MiscField::decode(instr->opcode());
       BuildTranslation(instr, 0, deoptimization_id);
@@ -129,6 +149,20 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
       break;
     }
+    case kArchDrop: {
+      int words = MiscField::decode(instr->opcode());
+      __ add(esp, Immediate(kPointerSize * words));
+      break;
+    }
+    case kArchJmp:
+      __ jmp(code()->GetLabel(i.InputBlock(0)));
+      break;
+    case kArchNop:
+      // don't emit code for nops.
+      break;
+    case kArchRet:
+      AssembleReturn();
+      break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
@@ -230,52 +264,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ ror_cl(i.OutputRegister());
       }
       break;
-    case kIA32Push:
-      if (HasImmediateInput(instr, 0)) {
-        __ push(i.InputImmediate(0));
-      } else {
-        __ push(i.InputOperand(0));
-      }
-      break;
-    case kIA32CallCodeObject: {
-      if (HasImmediateInput(instr, 0)) {
-        Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
-        __ call(code, RelocInfo::CODE_TARGET);
-      } else {
-        Register reg = i.InputRegister(0);
-        int entry = Code::kHeaderSize - kHeapObjectTag;
-        __ call(Operand(reg, entry));
-      }
-
-      AddSafepointAndDeopt(instr);
-
-      AddNopForSmiCodeInlining();
-      break;
-    }
-    case kIA32CallAddress:
-      if (HasImmediateInput(instr, 0)) {
-        // TODO(dcarney): wire up EXTERNAL_REFERENCE instead of RUNTIME_ENTRY.
-        __ call(reinterpret_cast<byte*>(i.InputInt32(0)),
-                RelocInfo::RUNTIME_ENTRY);
-      } else {
-        __ call(i.InputRegister(0));
-      }
-      break;
-    case kPopStack: {
-      int words = MiscField::decode(instr->opcode());
-      __ add(esp, Immediate(kPointerSize * words));
-      break;
-    }
-    case kIA32CallJSFunction: {
-      Register func = i.InputRegister(0);
-
-      // TODO(jarin) The load of the context should be separated from the call.
-      __ mov(esi, FieldOperand(func, JSFunction::kContextOffset));
-      __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
-
-      AddSafepointAndDeopt(instr);
-      break;
-    }
     case kSSEFloat64Cmp:
       __ ucomisd(i.InputDoubleRegister(0), i.InputOperand(1));
       break;
@@ -398,6 +386,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         Operand operand = i.MemoryOperand(&index);
         __ cvtsd2ss(xmm0, i.InputDoubleRegister(index));
         __ movss(operand, xmm0);
+      }
+      break;
+    case kIA32Push:
+      if (HasImmediateInput(instr, 0)) {
+        __ push(i.InputImmediate(0));
+      } else {
+        __ push(i.InputOperand(0));
       }
       break;
     case kIA32StoreWriteBarrier: {

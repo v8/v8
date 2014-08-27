@@ -136,6 +136,51 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   ArmOperandConverter i(this, instr);
 
   switch (ArchOpcodeField::decode(instr->opcode())) {
+    case kArchCallAddress: {
+      DirectCEntryStub stub(isolate());
+      stub.GenerateCall(masm(), i.InputRegister(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArchCallCodeObject: {
+      if (instr->InputAt(0)->IsImmediate()) {
+        __ Call(Handle<Code>::cast(i.InputHeapObject(0)),
+                RelocInfo::CODE_TARGET);
+      } else {
+        __ add(ip, i.InputRegister(0),
+               Operand(Code::kHeaderSize - kHeapObjectTag));
+        __ Call(ip);
+      }
+      AddSafepointAndDeopt(instr);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArchCallJSFunction: {
+      // TODO(jarin) The load of the context should be separated from the call.
+      Register func = i.InputRegister(0);
+      __ ldr(cp, FieldMemOperand(func, JSFunction::kContextOffset));
+      __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ Call(ip);
+      AddSafepointAndDeopt(instr);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArchDeoptimize: {
+      int deoptimization_id = MiscField::decode(instr->opcode());
+      BuildTranslation(instr, 0, deoptimization_id);
+      Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
+          isolate(), deoptimization_id, Deoptimizer::LAZY);
+      __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArchDrop: {
+      int words = MiscField::decode(instr->opcode());
+      __ Drop(words);
+      DCHECK_LT(0, words);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArchJmp:
       __ b(code_->GetLabel(i.InputBlock(0)));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -148,16 +193,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AssembleReturn();
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
-    case kArchDeoptimize: {
-      int deoptimization_id = MiscField::decode(instr->opcode());
-      BuildTranslation(instr, 0, deoptimization_id);
-
-      Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-          isolate(), deoptimization_id, Deoptimizer::LAZY);
-      __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
-    }
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -233,51 +268,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       CpuFeatureScope scope(masm(), ARMv7);
       __ ubfx(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
               i.InputInt8(2));
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
-    }
-    case kArmCallCodeObject: {
-      if (instr->InputAt(0)->IsImmediate()) {
-        Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
-        __ Call(code, RelocInfo::CODE_TARGET);
-      } else {
-        Register reg = i.InputRegister(0);
-        int entry = Code::kHeaderSize - kHeapObjectTag;
-        __ ldr(reg, MemOperand(reg, entry));
-        __ Call(reg);
-      }
-
-      AddSafepointAndDeopt(instr);
-
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
-    }
-    case kArmCallJSFunction: {
-      Register func = i.InputRegister(0);
-
-      // TODO(jarin) The load of the context should be separated from the call.
-      __ ldr(cp, FieldMemOperand(func, JSFunction::kContextOffset));
-      __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
-      __ Call(ip);
-
-      AddSafepointAndDeopt(instr);
-
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
-    }
-    case kArmCallAddress: {
-      DirectCEntryStub stub(isolate());
-      stub.GenerateCall(masm(), i.InputRegister(0));
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
-    }
-    case kArmPush:
-      __ Push(i.InputRegister(0));
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
-    case kArmDrop: {
-      int words = MiscField::decode(instr->opcode());
-      __ Drop(words);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -442,6 +432,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmPush:
+      __ Push(i.InputRegister(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArmStoreWriteBarrier: {
       Register object = i.InputRegister(0);
       Register index = i.InputRegister(1);

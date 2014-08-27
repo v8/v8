@@ -44,12 +44,6 @@ namespace compiler {
   V(X64Sar32)                      \
   V(X64Ror)                        \
   V(X64Ror32)                      \
-  V(X64Push)                       \
-  V(X64PushI)                      \
-  V(X64CallCodeObject)             \
-  V(X64CallAddress)                \
-  V(PopStack)                      \
-  V(X64CallJSFunction)             \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
@@ -71,6 +65,7 @@ namespace compiler {
   V(X64Movq)                       \
   V(X64Movsd)                      \
   V(X64Movss)                      \
+  V(X64Push)                       \
   V(X64StoreWriteBarrier)
 
 

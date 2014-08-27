@@ -131,6 +131,47 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   Arm64OperandConverter i(this, instr);
   InstructionCode opcode = instr->opcode();
   switch (ArchOpcodeField::decode(opcode)) {
+    case kArchCallAddress: {
+      DirectCEntryStub stub(isolate());
+      stub.GenerateCall(masm(), i.InputRegister(0));
+      break;
+    }
+    case kArchCallCodeObject: {
+      if (instr->InputAt(0)->IsImmediate()) {
+        __ Call(Handle<Code>::cast(i.InputHeapObject(0)),
+                RelocInfo::CODE_TARGET);
+      } else {
+        Register target = i.InputRegister(0);
+        __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
+        __ Call(target);
+      }
+      AddSafepointAndDeopt(instr);
+      // Meaningless instruction for ICs to overwrite.
+      AddNopForSmiCodeInlining();
+      break;
+    }
+    case kArchCallJSFunction: {
+      // TODO(jarin) The load of the context should be separated from the call.
+      Register func = i.InputRegister(0);
+      __ Ldr(cp, FieldMemOperand(func, JSFunction::kContextOffset));
+      __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
+      __ Call(x10);
+      AddSafepointAndDeopt(instr);
+      break;
+    }
+    case kArchDeoptimize: {
+      int deoptimization_id = MiscField::decode(instr->opcode());
+      BuildTranslation(instr, 0, deoptimization_id);
+      Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
+          isolate(), deoptimization_id, Deoptimizer::LAZY);
+      __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
+      break;
+    }
+    case kArchDrop: {
+      int words = MiscField::decode(instr->opcode());
+      __ Drop(words);
+      break;
+    }
     case kArchJmp:
       __ B(code_->GetLabel(i.InputBlock(0)));
       break;
@@ -140,15 +181,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchRet:
       AssembleReturn();
       break;
-    case kArchDeoptimize: {
-      int deoptimization_id = MiscField::decode(instr->opcode());
-      BuildTranslation(instr, 0, deoptimization_id);
-
-      Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-          isolate(), deoptimization_id, Deoptimizer::LAZY);
-      __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-      break;
-    }
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
@@ -283,38 +315,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Sxtw:
       __ Sxtw(i.OutputRegister(), i.InputRegister32(0));
       break;
-    case kArm64CallCodeObject: {
-      if (instr->InputAt(0)->IsImmediate()) {
-        Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
-        __ Call(code, RelocInfo::CODE_TARGET);
-      } else {
-        Register reg = i.InputRegister(0);
-        int entry = Code::kHeaderSize - kHeapObjectTag;
-        __ Ldr(reg, MemOperand(reg, entry));
-        __ Call(reg);
-      }
-
-      AddSafepointAndDeopt(instr);
-      // Meaningless instruction for ICs to overwrite.
-      AddNopForSmiCodeInlining();
-      break;
-    }
-    case kArm64CallJSFunction: {
-      Register func = i.InputRegister(0);
-
-      // TODO(jarin) The load of the context should be separated from the call.
-      __ Ldr(cp, FieldMemOperand(func, JSFunction::kContextOffset));
-      __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
-      __ Call(x10);
-
-      AddSafepointAndDeopt(instr);
-      break;
-    }
-    case kArm64CallAddress: {
-      DirectCEntryStub stub(isolate());
-      stub.GenerateCall(masm(), i.InputRegister(0));
-      break;
-    }
     case kArm64Claim: {
       int words = MiscField::decode(instr->opcode());
       __ Claim(words);
@@ -335,11 +335,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64PokePair: {
       int slot = MiscField::decode(instr->opcode()) - 1;
       __ PokePair(i.InputRegister(1), i.InputRegister(0), slot * kPointerSize);
-      break;
-    }
-    case kArm64Drop: {
-      int words = MiscField::decode(instr->opcode());
-      __ Drop(words);
       break;
     }
     case kArm64Cmp:

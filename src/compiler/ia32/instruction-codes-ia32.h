@@ -28,11 +28,6 @@ namespace compiler {
   V(IA32Shr)                       \
   V(IA32Sar)                       \
   V(IA32Ror)                       \
-  V(IA32Push)                      \
-  V(IA32CallCodeObject)            \
-  V(IA32CallAddress)               \
-  V(PopStack)                      \
-  V(IA32CallJSFunction)            \
   V(SSEFloat64Cmp)                 \
   V(SSEFloat64Add)                 \
   V(SSEFloat64Sub)                 \
@@ -52,6 +47,7 @@ namespace compiler {
   V(IA32Movl)                      \
   V(IA32Movss)                     \
   V(IA32Movsd)                     \
+  V(IA32Push)                      \
   V(IA32StoreWriteBarrier)
 
 

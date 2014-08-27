@@ -204,6 +204,49 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   X64OperandConverter i(this, instr);
 
   switch (ArchOpcodeField::decode(instr->opcode())) {
+    case kArchCallCodeObject: {
+      if (HasImmediateInput(instr, 0)) {
+        Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
+        __ Call(code, RelocInfo::CODE_TARGET);
+      } else {
+        Register reg = i.InputRegister(0);
+        int entry = Code::kHeaderSize - kHeapObjectTag;
+        __ Call(Operand(reg, entry));
+      }
+      AddSafepointAndDeopt(instr);
+      AddNopForSmiCodeInlining();
+      break;
+    }
+    case kArchCallAddress:
+      if (HasImmediateInput(instr, 0)) {
+        Immediate64 imm = i.InputImmediate64(0);
+        DCHECK_EQ(kImm64Value, imm.type);
+        __ Call(reinterpret_cast<byte*>(imm.value), RelocInfo::NONE64);
+      } else {
+        __ call(i.InputRegister(0));
+      }
+      break;
+    case kArchCallJSFunction: {
+      // TODO(jarin) The load of the context should be separated from the call.
+      Register func = i.InputRegister(0);
+      __ movp(rsi, FieldOperand(func, JSFunction::kContextOffset));
+      __ Call(FieldOperand(func, JSFunction::kCodeEntryOffset));
+      AddSafepointAndDeopt(instr);
+      break;
+    }
+    case kArchDeoptimize: {
+      int deoptimization_id = MiscField::decode(instr->opcode());
+      BuildTranslation(instr, 0, deoptimization_id);
+      Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
+          isolate(), deoptimization_id, Deoptimizer::LAZY);
+      __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
+      break;
+    }
+    case kArchDrop: {
+      int words = MiscField::decode(instr->opcode());
+      __ addq(rsp, Immediate(kPointerSize * words));
+      break;
+    }
     case kArchJmp:
       __ jmp(code_->GetLabel(i.InputBlock(0)));
       break;
@@ -213,15 +256,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArchRet:
       AssembleReturn();
       break;
-    case kArchDeoptimize: {
-      int deoptimization_id = MiscField::decode(instr->opcode());
-      BuildTranslation(instr, 0, deoptimization_id);
-
-      Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-          isolate(), deoptimization_id, Deoptimizer::LAZY);
-      __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-      break;
-    }
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
@@ -379,57 +413,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64Ror:
       ASSEMBLE_SHIFT(rorq, 6);
       break;
-    case kX64Push: {
-      RegisterOrOperand input = i.InputRegisterOrOperand(0);
-      if (input.type == kRegister) {
-        __ pushq(input.reg);
-      } else {
-        __ pushq(input.operand);
-      }
-      break;
-    }
-    case kX64PushI:
-      __ pushq(i.InputImmediate(0));
-      break;
-    case kX64CallCodeObject: {
-      if (HasImmediateInput(instr, 0)) {
-        Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
-        __ Call(code, RelocInfo::CODE_TARGET);
-      } else {
-        Register reg = i.InputRegister(0);
-        int entry = Code::kHeaderSize - kHeapObjectTag;
-        __ Call(Operand(reg, entry));
-      }
-
-      AddSafepointAndDeopt(instr);
-
-      AddNopForSmiCodeInlining();
-      break;
-    }
-    case kX64CallAddress:
-      if (HasImmediateInput(instr, 0)) {
-        Immediate64 imm = i.InputImmediate64(0);
-        DCHECK_EQ(kImm64Value, imm.type);
-        __ Call(reinterpret_cast<byte*>(imm.value), RelocInfo::NONE64);
-      } else {
-        __ call(i.InputRegister(0));
-      }
-      break;
-    case kPopStack: {
-      int words = MiscField::decode(instr->opcode());
-      __ addq(rsp, Immediate(kPointerSize * words));
-      break;
-    }
-    case kX64CallJSFunction: {
-      Register func = i.InputRegister(0);
-
-      // TODO(jarin) The load of the context should be separated from the call.
-      __ movp(rsi, FieldOperand(func, JSFunction::kContextOffset));
-      __ Call(FieldOperand(func, JSFunction::kCodeEntryOffset));
-
-      AddSafepointAndDeopt(instr);
-      break;
-    }
     case kSSEFloat64Cmp: {
       RegisterOrOperand input = i.InputRegisterOrOperand(1);
       if (input.type == kDoubleRegister) {
@@ -513,7 +496,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cvtqsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
       break;
     }
-
     case kX64Movsxbl:
       __ movsxbl(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -608,6 +590,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         int index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ movsd(operand, i.InputDoubleRegister(index));
+      }
+      break;
+    case kX64Push:
+      if (HasImmediateInput(instr, 0)) {
+        __ pushq(i.InputImmediate(0));
+      } else {
+        RegisterOrOperand input = i.InputRegisterOrOperand(0);
+        if (input.type == kRegister) {
+          __ pushq(input.reg);
+        } else {
+          __ pushq(input.operand);
+        }
       }
       break;
     case kX64StoreWriteBarrier: {

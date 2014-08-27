@@ -530,14 +530,14 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   InstructionCode opcode;
   switch (descriptor->kind()) {
     case CallDescriptor::kCallCodeObject: {
-      opcode = kIA32CallCodeObject;
+      opcode = kArchCallCodeObject;
       break;
     }
     case CallDescriptor::kCallAddress:
-      opcode = kIA32CallAddress;
+      opcode = kArchCallAddress;
       break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kIA32CallJSFunction;
+      opcode = kArchCallJSFunction;
       break;
     default:
       UNREACHABLE();
@@ -560,7 +560,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   if (descriptor->kind() == CallDescriptor::kCallAddress &&
       buffer.pushed_nodes.size() > 0) {
     DCHECK(deoptimization == NULL && continuation == NULL);
-    Emit(kPopStack | MiscField::encode(buffer.pushed_nodes.size()), NULL);
+    Emit(kArchDrop | MiscField::encode(buffer.pushed_nodes.size()), NULL);
   }
 }
 

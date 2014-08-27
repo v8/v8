@@ -686,25 +686,22 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   for (NodeVectorRIter input = buffer.pushed_nodes.rbegin();
        input != buffer.pushed_nodes.rend(); input++) {
     // TODO(titzer): handle pushing double parameters.
-    if (g.CanBeImmediate(*input)) {
-      Emit(kX64PushI, NULL, g.UseImmediate(*input));
-    } else {
-      Emit(kX64Push, NULL, g.Use(*input));
-    }
+    Emit(kX64Push, NULL,
+         g.CanBeImmediate(*input) ? g.UseImmediate(*input) : g.Use(*input));
   }
 
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;
   switch (descriptor->kind()) {
     case CallDescriptor::kCallCodeObject: {
-      opcode = kX64CallCodeObject;
+      opcode = kArchCallCodeObject;
       break;
     }
     case CallDescriptor::kCallAddress:
-      opcode = kX64CallAddress;
+      opcode = kArchCallAddress;
       break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kX64CallJSFunction;
+      opcode = kArchCallJSFunction;
       break;
     default:
       UNREACHABLE();
@@ -727,7 +724,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   if (descriptor->kind() == CallDescriptor::kCallAddress &&
       !buffer.pushed_nodes.empty()) {
     DCHECK(deoptimization == NULL && continuation == NULL);
-    Emit(kPopStack |
+    Emit(kArchDrop |
              MiscField::encode(static_cast<int>(buffer.pushed_nodes.size())),
          NULL);
   }

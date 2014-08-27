@@ -50,14 +50,10 @@ namespace compiler {
   V(Arm64Ror32)                    \
   V(Arm64Mov32)                    \
   V(Arm64Sxtw)                     \
-  V(Arm64CallCodeObject)           \
-  V(Arm64CallJSFunction)           \
-  V(Arm64CallAddress)              \
   V(Arm64Claim)                    \
   V(Arm64Poke)                     \
   V(Arm64PokePairZero)             \
   V(Arm64PokePair)                 \
-  V(Arm64Drop)                     \
   V(Arm64Float64Cmp)               \
   V(Arm64Float64Add)               \
   V(Arm64Float64Sub)               \
