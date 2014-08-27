@@ -3723,7 +3723,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 
   // Tail call into the stub that handles binary operations with allocation
   // sites.
-  BinaryOpWithAllocationSiteStub stub(isolate(), state_);
+  BinaryOpWithAllocationSiteStub stub(isolate(), state());
   __ TailCallStub(&stub);
 }
 

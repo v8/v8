@@ -1201,7 +1201,7 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
  public:
   BinaryOpICWithAllocationSiteStub(Isolate* isolate,
                                    const BinaryOpIC::State& state)
-      : PlatformCodeStub(isolate), state_(state) {
+      : PlatformCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
 
@@ -1218,11 +1218,11 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
   }
 
   virtual InlineCacheState GetICState() const V8_OVERRIDE {
-    return state_.GetICState();
+    return state().GetICState();
   }
 
   virtual ExtraICState GetExtraICState() const V8_OVERRIDE {
-    return state_.GetExtraICState();
+    return static_cast<ExtraICState>(minor_key_);
   }
 
   virtual void Generate(MacroAssembler* masm) V8_OVERRIDE;
@@ -1232,13 +1232,14 @@ class BinaryOpICWithAllocationSiteStub V8_FINAL : public PlatformCodeStub {
   virtual Major MajorKey() const V8_OVERRIDE {
     return BinaryOpICWithAllocationSite;
   }
-  virtual uint32_t MinorKey() const V8_OVERRIDE { return GetExtraICState(); }
 
  private:
+  BinaryOpIC::State state() const {
+    return BinaryOpIC::State(isolate(), static_cast<ExtraICState>(minor_key_));
+  }
+
   static void GenerateAheadOfTime(Isolate* isolate,
                                   const BinaryOpIC::State& state);
-
-  BinaryOpIC::State state_;
 
   DISALLOW_COPY_AND_ASSIGN(BinaryOpICWithAllocationSiteStub);
 };

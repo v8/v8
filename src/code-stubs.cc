@@ -291,7 +291,7 @@ void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
 
 void BinaryOpICWithAllocationSiteStub::PrintState(
     OStream& os) const {  // NOLINT
-  os << state_;
+  os << state();
 }
 
 
