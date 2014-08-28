@@ -1087,7 +1087,8 @@ void Deserializer::ReadChunk(Object** current,
       // current object.
       CASE_STATEMENT(kRootArray, kPlain, kStartOfObject, 0)
       CASE_BODY(kRootArray, kPlain, kStartOfObject, 0)
-#if V8_OOL_CONSTANT_POOL
+#if defined(V8_TARGET_ARCH_MIPS) || V8_OOL_CONSTANT_POOL || \
+    defined(V8_TARGET_ARCH_MIPS64)
       // Find an object in the roots array and write a pointer to it to in code.
       CASE_STATEMENT(kRootArray, kFromCode, kStartOfObject, 0)
       CASE_BODY(kRootArray, kFromCode, kStartOfObject, 0)
@@ -1302,14 +1303,6 @@ int Serializer::RootIndex(HeapObject* heap_object, HowToCode from) {
   for (int i = 0; i < root_index_wave_front_; i++) {
     Object* root = heap->roots_array_start()[i];
     if (!root->IsSmi() && root == heap_object) {
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
-      if (from == kFromCode) {
-        // In order to avoid code bloat in the deserializer we don't have
-        // support for the encoding that specifies a particular root should
-        // be written from within code.
-        return kInvalidRootIndex;
-      }
-#endif
       return i;
     }
   }
