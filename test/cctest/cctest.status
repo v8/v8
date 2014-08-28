@@ -255,6 +255,9 @@
   # BUG(v8:3433). Crashes on windows.
   'test-cpu-profiler/FunctionApplySample': [SKIP],
 
+  # TODO(mstarzinger): Investigate and fix.
+  'test-run-properties/TypedArrayLoad': [SKIP],
+
 }],  # 'system == windows'
 
 ##############################################################################
