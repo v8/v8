@@ -36,13 +36,13 @@ static void InstallAssertStackDepthHelper(v8::Isolate* isolate) {
 
 
 TEST(SimpleInlining) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function(){"
       "function foo(s) { AssertStackDepth(1); return s; };"
       "function bar(s, t) { return foo(s); };"
-      "return bar;})();");
+      "return bar;})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(1), T.Val(1), T.Val(2));
@@ -50,14 +50,14 @@ TEST(SimpleInlining) {
 
 
 TEST(SimpleInliningContext) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
       "function foo(s) { AssertStackDepth(1); var x = 12; return s + x; };"
       "function bar(s, t) { return foo(s); };"
       "return bar;"
-      "})();");
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(13), T.Val(1), T.Val(2));
@@ -65,15 +65,15 @@ TEST(SimpleInliningContext) {
 
 
 TEST(CaptureContext) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "var f = (function () {"
       "var x = 42;"
       "function bar(s) { return x + s; };"
       "return (function (s) { return bar(s); });"
       "})();"
-      "(function (s) { return f(s)})");
+      "(function (s) { return f(s)})",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 12), T.Val(12), T.undefined());
@@ -83,14 +83,14 @@ TEST(CaptureContext) {
 // TODO(sigurds) For now we do not inline any native functions. If we do at
 // some point, change this test.
 TEST(DontInlineEval) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "var x = 42;"
       "(function () {"
       "function bar(s, t) { return eval(\"AssertStackDepth(2); x\") };"
       "return bar;"
-      "})();");
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42), T.Val("x"), T.undefined());
@@ -98,14 +98,14 @@ TEST(DontInlineEval) {
 
 
 TEST(InlineOmitArguments) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
       "var x = 42;"
       "function bar(s, t, u, v) { AssertStackDepth(1); return x + s; };"
       "return (function (s,t) { return bar(s); });"
-      "})();");
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 12), T.Val(12), T.undefined());
@@ -113,15 +113,15 @@ TEST(InlineOmitArguments) {
 
 
 TEST(InlineSurplusArguments) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
       "var x = 42;"
       "function foo(s) { AssertStackDepth(1); return x + s; };"
       "function bar(s,t) { return foo(s,t,13); };"
       "return bar;"
-      "})();");
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 12), T.Val(12), T.undefined());
@@ -129,14 +129,14 @@ TEST(InlineSurplusArguments) {
 
 
 TEST(InlineTwice) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
       "var x = 42;"
       "function bar(s) { AssertStackDepth(1); return x + s; };"
       "return (function (s,t) { return bar(s) + bar(t); });"
-      "})();");
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(2 * 42 + 12 + 4), T.Val(12), T.Val(4));
@@ -144,15 +144,15 @@ TEST(InlineTwice) {
 
 
 TEST(InlineTwiceDependent) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
       "var x = 42;"
       "function foo(s) { AssertStackDepth(1); return x + s; };"
       "function bar(s,t) { return foo(foo(s)); };"
       "return bar;"
-      "})();");
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 42 + 12), T.Val(12), T.Val(4));
@@ -160,15 +160,15 @@ TEST(InlineTwiceDependent) {
 
 
 TEST(InlineTwiceDependentDiamond) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
       "function foo(s) { if (true) {"
       "                  return 12 } else { return 13; } };"
       "function bar(s,t) { return foo(foo(1)); };"
       "return bar;"
-      "})();");
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(12), T.undefined(), T.undefined());
@@ -176,8 +176,6 @@ TEST(InlineTwiceDependentDiamond) {
 
 
 TEST(InlineTwiceDependentDiamondReal) {
-  FLAG_context_specialization = true;
-  FLAG_turbo_inlining = true;
   FunctionTester T(
       "(function () {"
       "var x = 41;"
@@ -185,7 +183,9 @@ TEST(InlineTwiceDependentDiamondReal) {
       "                  return x - s } else { return x + s; } };"
       "function bar(s,t) { return foo(foo(s)); };"
       "return bar;"
-      "})();");
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(-11), T.Val(11), T.Val(4));

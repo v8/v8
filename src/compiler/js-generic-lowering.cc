@@ -422,9 +422,7 @@ Node* JSGenericLowering::LowerJSLoadNamed(Node* node) {
 
 
 Node* JSGenericLowering::LowerJSStoreProperty(Node* node) {
-  // TODO(mstarzinger): The strict_mode needs to be carried along in the
-  // operator so that graphs are fully compositional for inlining.
-  StrictMode strict_mode = info()->strict_mode();
+  StrictMode strict_mode = OpParameter<StrictMode>(node);
   KeyedStoreICStubShim stub(isolate(), strict_mode);
   ReplaceWithICStubCall(node, &stub);
   return node;
@@ -432,12 +430,9 @@ Node* JSGenericLowering::LowerJSStoreProperty(Node* node) {
 
 
 Node* JSGenericLowering::LowerJSStoreNamed(Node* node) {
-  PrintableUnique<Name> key = OpParameter<PrintableUnique<Name> >(node);
-  // TODO(mstarzinger): The strict_mode needs to be carried along in the
-  // operator so that graphs are fully compositional for inlining.
-  StrictMode strict_mode = info()->strict_mode();
-  StoreICStubShim stub(isolate(), strict_mode);
-  PatchInsertInput(node, 1, jsgraph()->HeapConstant(key));
+  StoreNamedParameters params = OpParameter<StoreNamedParameters>(node);
+  StoreICStubShim stub(isolate(), params.strict_mode);
+  PatchInsertInput(node, 1, jsgraph()->HeapConstant(params.name));
   ReplaceWithICStubCall(node, &stub);
   return node;
 }

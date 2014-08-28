@@ -898,8 +898,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForValue(property->value());
             Node* value = environment()->Pop();
             PrintableUnique<Name> name = MakeUnique(key->AsPropertyName());
-            Node* store =
-                NewNode(javascript()->StoreNamed(name), literal, value);
+            Node* store = NewNode(javascript()->StoreNamed(strict_mode(), name),
+                                  literal, value);
             PrepareFrameState(store, key->id());
           } else {
             VisitForEffect(property->value());
@@ -992,7 +992,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     VisitForValue(subexpr);
     Node* value = environment()->Pop();
     Node* index = jsgraph()->Constant(i);
-    Node* store = NewNode(javascript()->StoreProperty(), literal, index, value);
+    Node* store = NewNode(javascript()->StoreProperty(strict_mode()), literal,
+                          index, value);
     PrepareFrameState(store, expr->GetIdForElement(i));
   }
 
@@ -1023,7 +1024,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
       value = environment()->Pop();
       PrintableUnique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
-      Node* store = NewNode(javascript()->StoreNamed(name), object, value);
+      Node* store =
+          NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
       // TODO(jarin) Fill in the correct bailout id.
       PrepareFrameState(store, BailoutId::None());
       break;
@@ -1035,7 +1037,8 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
       value = environment()->Pop();
-      Node* store = NewNode(javascript()->StoreProperty(), object, key, value);
+      Node* store = NewNode(javascript()->StoreProperty(strict_mode()), object,
+                            key, value);
       // TODO(jarin) Fill in the correct bailout id.
       PrepareFrameState(store, BailoutId::None());
       break;
@@ -1116,14 +1119,16 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       Node* object = environment()->Pop();
       PrintableUnique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
-      Node* store = NewNode(javascript()->StoreNamed(name), object, value);
+      Node* store =
+          NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
       PrepareFrameState(store, expr->AssignmentId());
       break;
     }
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
-      Node* store = NewNode(javascript()->StoreProperty(), object, key, value);
+      Node* store = NewNode(javascript()->StoreProperty(strict_mode()), object,
+                            key, value);
       PrepareFrameState(store, expr->AssignmentId());
       break;
     }
@@ -1421,14 +1426,16 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* object = environment()->Pop();
       PrintableUnique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
-      Node* store = NewNode(javascript()->StoreNamed(name), object, value);
+      Node* store =
+          NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
       PrepareFrameState(store, expr->AssignmentId());
       break;
     }
     case KEYED_PROPERTY: {
       Node* key = environment()->Pop();
       Node* object = environment()->Pop();
-      Node* store = NewNode(javascript()->StoreProperty(), object, key, value);
+      Node* store = NewNode(javascript()->StoreProperty(strict_mode()), object,
+                            key, value);
       PrepareFrameState(store, expr->AssignmentId());
       break;
     }
@@ -1531,7 +1538,7 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
   for (int i = 0; i < globals()->length(); ++i) data->set(i, *globals()->at(i));
   int encoded_flags = DeclareGlobalsEvalFlag::encode(info()->is_eval()) |
                       DeclareGlobalsNativeFlag::encode(info()->is_native()) |
-                      DeclareGlobalsStrictMode::encode(info()->strict_mode());
+                      DeclareGlobalsStrictMode::encode(strict_mode());
   Node* flags = jsgraph()->Constant(encoded_flags);
   Node* pairs = jsgraph()->Constant(data);
   Operator* op = javascript()->Runtime(Runtime::kDeclareGlobals, 3);
@@ -1838,7 +1845,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       PrintableUnique<Name> name = MakeUnique(variable->name());
-      Operator* op = javascript()->StoreNamed(name);
+      Operator* op = javascript()->StoreNamed(strict_mode(), name);
       Node* store = NewNode(op, global, value);
       PrepareFrameState(store, bailout_id);
       return store;

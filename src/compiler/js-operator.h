@@ -51,6 +51,13 @@ struct CallParameters {
   CallFunctionFlags flags;
 };
 
+// Defines the property being stored to an object by a named store. This is
+// used as a parameter by JSStoreNamed operators.
+struct StoreNamedParameters {
+  StrictMode strict_mode;
+  PrintableUnique<Name> name;
+};
+
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
@@ -124,10 +131,15 @@ class JSOperatorBuilder {
         1, 1);
   }
 
-  Operator* StoreProperty() { NOPROPS(JSStoreProperty, 3, 0); }
-  Operator* StoreNamed(PrintableUnique<Name> name) {
-    OP1(JSStoreNamed, PrintableUnique<Name>, name, Operator::kNoProperties, 2,
+  Operator* StoreProperty(StrictMode strict_mode) {
+    OP1(JSStoreProperty, StrictMode, strict_mode, Operator::kNoProperties, 3,
         0);
+  }
+
+  Operator* StoreNamed(StrictMode strict_mode, PrintableUnique<Name> name) {
+    StoreNamedParameters parameters = {strict_mode, name};
+    OP1(JSStoreNamed, StoreNamedParameters, parameters, Operator::kNoProperties,
+        2, 0);
   }
 
   Operator* DeleteProperty(StrictMode strict_mode) {

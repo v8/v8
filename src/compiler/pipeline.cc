@@ -200,7 +200,7 @@ Handle<Code> Pipeline::GenerateCode() {
     VerifyAndPrintGraph(&graph, "Context specialized");
   }
 
-  if (FLAG_turbo_inlining) {
+  if (info()->is_inlining_enabled()) {
     SourcePositionTable::Scope pos(&source_positions,
                                    SourcePosition::Unknown());
     JSInliner inliner(info(), &jsgraph);
