@@ -638,14 +638,14 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   InstructionCode opcode;
   switch (descriptor->kind()) {
     case CallDescriptor::kCallCodeObject: {
-      opcode = kArm64CallCodeObject;
+      opcode = kArchCallCodeObject;
       break;
     }
     case CallDescriptor::kCallAddress:
-      opcode = kArm64CallAddress;
+      opcode = kArchCallAddress;
       break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kArm64CallJSFunction;
+      opcode = kArchCallJSFunction;
       break;
     default:
       UNREACHABLE();
@@ -667,7 +667,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   // Caller clean up of stack for C-style calls.
   if (is_c_frame && aligned_push_count > 0) {
     DCHECK(deoptimization == NULL && continuation == NULL);
-    Emit(kArm64Drop | MiscField::encode(aligned_push_count), NULL);
+    Emit(kArchDrop | MiscField::encode(aligned_push_count), NULL);
   }
 }
 

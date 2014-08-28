@@ -27,6 +27,7 @@
         'platform/platform-unittest.cc',
         'platform/semaphore-unittest.cc',
         'platform/time-unittest.cc',
+        'sys-info-unittest.cc',
         'utils/random-number-generator-unittest.cc',
       ],
       'conditions': [

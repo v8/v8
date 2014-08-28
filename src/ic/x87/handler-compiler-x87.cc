@@ -22,8 +22,8 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------
-  DCHECK(edx.is(LoadIC::ReceiverRegister()));
-  DCHECK(ecx.is(LoadIC::NameRegister()));
+  DCHECK(edx.is(LoadConvention::ReceiverRegister()));
+  DCHECK(ecx.is(LoadConvention::NameRegister()));
   Label slow, miss;
 
   // This stub is meant to be tail-jumped to, the receiver must already
@@ -327,9 +327,9 @@ static void CompileCallLoadPropertyWithInterceptor(
 
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreIC::ReceiverRegister();
-  Register name = StoreIC::NameRegister();
-  Register value = StoreIC::ValueRegister();
+  Register receiver = StoreConvention::ReceiverRegister();
+  Register name = StoreConvention::NameRegister();
+  Register value = StoreConvention::ValueRegister();
 
   DCHECK(!ebx.is(receiver) && !ebx.is(name) && !ebx.is(value));
 
@@ -854,7 +854,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 }
 
 
-Register NamedStoreHandlerCompiler::value() { return StoreIC::ValueRegister(); }
+Register NamedStoreHandlerCompiler::value() {
+  return StoreConvention::ValueRegister();
+}
 
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
@@ -863,7 +865,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
 
   FrontendHeader(receiver(), name, &miss);
   // Get the value from the cell.
-  Register result = StoreIC::ValueRegister();
+  Register result = StoreConvention::ValueRegister();
   if (masm()->serializer_enabled()) {
     __ mov(result, Immediate(cell));
     __ mov(result, FieldOperand(result, PropertyCell::kValueOffset));

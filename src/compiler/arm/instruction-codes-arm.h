@@ -32,11 +32,6 @@ namespace compiler {
   V(ArmMvn)                        \
   V(ArmBfc)                        \
   V(ArmUbfx)                       \
-  V(ArmCallCodeObject)             \
-  V(ArmCallJSFunction)             \
-  V(ArmCallAddress)                \
-  V(ArmPush)                       \
-  V(ArmDrop)                       \
   V(ArmVcmpF64)                    \
   V(ArmVaddF64)                    \
   V(ArmVsubF64)                    \
@@ -62,6 +57,7 @@ namespace compiler {
   V(ArmStrh)                       \
   V(ArmLdr)                        \
   V(ArmStr)                        \
+  V(ArmPush)                       \
   V(ArmStoreWriteBarrier)
 
 

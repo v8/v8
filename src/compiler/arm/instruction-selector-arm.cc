@@ -74,10 +74,14 @@ class ArmOperandGenerator V8_FINAL : public OperandGenerator {
       case kArmStrh:
         return value >= -255 && value <= 255;
 
+      case kArchCallAddress:
+      case kArchCallCodeObject:
+      case kArchCallJSFunction:
+      case kArchDeoptimize:
+      case kArchDrop:
       case kArchJmp:
       case kArchNop:
       case kArchRet:
-      case kArchDeoptimize:
       case kArchTruncateDoubleToI:
       case kArmMul:
       case kArmMla:
@@ -86,11 +90,6 @@ class ArmOperandGenerator V8_FINAL : public OperandGenerator {
       case kArmUdiv:
       case kArmBfc:
       case kArmUbfx:
-      case kArmCallCodeObject:
-      case kArmCallJSFunction:
-      case kArmCallAddress:
-      case kArmPush:
-      case kArmDrop:
       case kArmVcmpF64:
       case kArmVaddF64:
       case kArmVsubF64:
@@ -104,6 +103,7 @@ class ArmOperandGenerator V8_FINAL : public OperandGenerator {
       case kArmVcvtF64U32:
       case kArmVcvtS32F64:
       case kArmVcvtU32F64:
+      case kArmPush:
         return false;
     }
     UNREACHABLE();
@@ -808,14 +808,14 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   InstructionCode opcode;
   switch (descriptor->kind()) {
     case CallDescriptor::kCallCodeObject: {
-      opcode = kArmCallCodeObject;
+      opcode = kArchCallCodeObject;
       break;
     }
     case CallDescriptor::kCallAddress:
-      opcode = kArmCallAddress;
+      opcode = kArchCallAddress;
       break;
     case CallDescriptor::kCallJSFunction:
-      opcode = kArmCallJSFunction;
+      opcode = kArchCallJSFunction;
       break;
     default:
       UNREACHABLE();
@@ -838,7 +838,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   if (descriptor->kind() == CallDescriptor::kCallAddress &&
       !buffer.pushed_nodes.empty()) {
     DCHECK(deoptimization == NULL && continuation == NULL);
-    Emit(kArmDrop | MiscField::encode(buffer.pushed_nodes.size()), NULL);
+    Emit(kArchDrop | MiscField::encode(buffer.pushed_nodes.size()), NULL);
   }
 }
 

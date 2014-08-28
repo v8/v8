@@ -113,11 +113,6 @@ bool g_hard_abort = false;
 
 }  // namespace
 
-intptr_t OS::MaxVirtualMemory() {
-  return 0;
-}
-
-
 class TimezoneCache {
  public:
   TimezoneCache() : initialized_(false) { }
@@ -1168,18 +1163,6 @@ void OS::SignalCodeMovingGC() {
 }
 
 
-uint64_t OS::TotalPhysicalMemory() {
-  MEMORYSTATUSEX memory_info;
-  memory_info.dwLength = sizeof(memory_info);
-  if (!GlobalMemoryStatusEx(&memory_info)) {
-    UNREACHABLE();
-    return 0;
-  }
-
-  return static_cast<uint64_t>(memory_info.ullTotalPhys);
-}
-
-
 #else  // __MINGW32__
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return std::vector<OS::SharedLibraryAddress>();
@@ -1188,13 +1171,6 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 
 void OS::SignalCodeMovingGC() { }
 #endif  // __MINGW32__
-
-
-int OS::NumberOfProcessorsOnline() {
-  SYSTEM_INFO info;
-  GetSystemInfo(&info);
-  return info.dwNumberOfProcessors;
-}
 
 
 double OS::nan_value() {

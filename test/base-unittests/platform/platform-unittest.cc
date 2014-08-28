@@ -28,11 +28,6 @@ TEST(OS, GetCurrentProcessId) {
 }
 
 
-TEST(OS, NumberOfProcessorsOnline) {
-  EXPECT_GT(OS::NumberOfProcessorsOnline(), 0);
-}
-
-
 namespace {
 
 class SelfJoinThread V8_FINAL : public Thread {

@@ -1,3 +1,8 @@
+2014-08-28: Version 3.29.23
+
+        Performance and stability improvements on all platforms.
+
+
 2014-08-27: Version 3.29.20
 
         Handle empty allocation list in CodeRange properly (issue 3540, Chromium

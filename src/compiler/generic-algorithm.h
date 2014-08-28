@@ -43,7 +43,7 @@ class GenericGraphVisit {
     typedef typename Traits::Node Node;
     typedef typename Traits::Iterator Iterator;
     typedef std::pair<Iterator, Iterator> NodeState;
-    typedef std::stack<NodeState, ZoneDeque<NodeState> > NodeStateStack;
+    typedef std::stack<NodeState, ZoneDeque<NodeState>> NodeStateStack;
     NodeStateStack stack((ZoneDeque<NodeState>(zone)));
     BoolVector visited(Traits::max_id(graph), false, zone);
     Node* current = *root_begin;
