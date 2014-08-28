@@ -72,9 +72,8 @@ FieldAccess ForJSObjectProperties() {
 
 FieldAccess ForArrayBufferBackingStore() {
   FieldAccess access = {
-      kTaggedBase,                           JSArrayBuffer::kBackingStoreOffset,
-      Handle<Name>(),                        Type::UntaggedPtr(),
-      MachineOperatorBuilder::pointer_rep(),
+      kTaggedBase,         JSArrayBuffer::kBackingStoreOffset, Handle<Name>(),
+      Type::UntaggedPtr(), kMachPtr,
   };
   return access;
 }
@@ -94,6 +93,66 @@ ElementAccess ForBackingStoreElement(MachineType rep) {
   return access;
 }
 }
+
+
+#ifndef V8_TARGET_ARCH_ARM64
+// TODO(titzer): these result in a stub call that doesn't work on ARM64.
+// TODO(titzer): factor these tests out to test-run-simplifiedops.cc.
+// TODO(titzer): test tagged representation for input to NumberToInt32.
+TEST(RunNumberToInt32_float64) {
+  // TODO(titzer): explicit load/stores here are only because of representations
+  double input;
+  int32_t result;
+  SimplifiedLoweringTester<Object*> t;
+  FieldAccess load = {kUntaggedBase, 0, Handle<Name>(), Type::Number(),
+                      kMachFloat64};
+  Node* loaded = t.LoadField(load, t.PointerConstant(&input));
+  Node* convert = t.NumberToInt32(loaded);
+  FieldAccess store = {kUntaggedBase, 0, Handle<Name>(), Type::Signed32(),
+                       kMachInt32};
+  t.StoreField(store, t.PointerConstant(&result), convert);
+  t.Return(t.jsgraph.TrueConstant());
+  t.LowerAllNodes();
+  t.GenerateCode();
+
+  if (Pipeline::SupportedTarget()) {
+    FOR_FLOAT64_INPUTS(i) {
+      input = *i;
+      int32_t expected = DoubleToInt32(*i);
+      t.Call();
+      CHECK_EQ(expected, result);
+    }
+  }
+}
+
+
+// TODO(titzer): test tagged representation for input to NumberToUint32.
+TEST(RunNumberToUint32_float64) {
+  // TODO(titzer): explicit load/stores here are only because of representations
+  double input;
+  uint32_t result;
+  SimplifiedLoweringTester<Object*> t;
+  FieldAccess load = {kUntaggedBase, 0, Handle<Name>(), Type::Number(),
+                      kMachFloat64};
+  Node* loaded = t.LoadField(load, t.PointerConstant(&input));
+  Node* convert = t.NumberToUint32(loaded);
+  FieldAccess store = {kUntaggedBase, 0, Handle<Name>(), Type::Unsigned32(),
+                       kMachUint32};
+  t.StoreField(store, t.PointerConstant(&result), convert);
+  t.Return(t.jsgraph.TrueConstant());
+  t.LowerAllNodes();
+  t.GenerateCode();
+
+  if (Pipeline::SupportedTarget()) {
+    FOR_FLOAT64_INPUTS(i) {
+      input = *i;
+      uint32_t expected = DoubleToUint32(*i);
+      t.Call();
+      CHECK_EQ(static_cast<int32_t>(expected), static_cast<int32_t>(result));
+    }
+  }
+}
+#endif
 
 
 // Create a simple JSObject with a unique map.
@@ -909,6 +968,33 @@ TEST(LowerNumberToInt32_to_ChangeTaggedToInt32) {
 }
 
 
+TEST(LowerNumberToInt32_to_TruncateFloat64ToInt32) {
+  // NumberToInt32(x: kRepFloat64) used as kMachInt32
+  TestingGraph t(Type::Number());
+  Node* p0 = t.ExampleWithOutput(kMachFloat64);
+  Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), p0);
+  Node* use = t.Use(trunc, kMachInt32);
+  t.Return(use);
+  t.Lower();
+  CheckChangeOf(IrOpcode::kTruncateFloat64ToInt32, p0, use->InputAt(0));
+}
+
+
+TEST(LowerNumberToInt32_to_TruncateFloat64ToInt32_with_change) {
+  // NumberToInt32(x: kTypeNumber | kRepTagged) used as kMachInt32
+  TestingGraph t(Type::Number());
+  Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), t.p0);
+  Node* use = t.Use(trunc, kMachInt32);
+  t.Return(use);
+  t.Lower();
+  Node* node = use->InputAt(0);
+  CHECK_EQ(IrOpcode::kTruncateFloat64ToInt32, node->opcode());
+  Node* of = node->InputAt(0);
+  CHECK_EQ(IrOpcode::kChangeTaggedToFloat64, of->opcode());
+  CHECK_EQ(t.p0, of->InputAt(0));
+}
+
+
 TEST(LowerNumberToInt32_to_ChangeFloat64ToTagged) {
   // TODO(titzer): NumberToInt32(x: kRepFloat64 | kTypeInt32) used as kRepTagged
 }
@@ -917,12 +1003,6 @@ TEST(LowerNumberToInt32_to_ChangeFloat64ToTagged) {
 TEST(LowerNumberToInt32_to_ChangeFloat64ToInt32) {
   // TODO(titzer): NumberToInt32(x: kRepFloat64 | kTypeInt32) used as kRepWord32
   // | kTypeInt32
-}
-
-
-TEST(LowerNumberToInt32_to_TruncateFloat64ToInt32) {
-  // TODO(titzer): NumberToInt32(x: kRepFloat64) used as kRepWord32 |
-  // kTypeUint32
 }
 
 
@@ -956,6 +1036,33 @@ TEST(LowerNumberToUint32_to_ChangeTaggedToUint32) {
   t.Return(use);
   t.Lower();
   CheckChangeOf(IrOpcode::kChangeTaggedToUint32, t.p0, use->InputAt(0));
+}
+
+
+TEST(LowerNumberToUint32_to_TruncateFloat64ToInt32) {
+  // NumberToUint32(x: kRepFloat64) used as kMachUint32
+  TestingGraph t(Type::Number());
+  Node* p0 = t.ExampleWithOutput(kMachFloat64);
+  Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), p0);
+  Node* use = t.Use(trunc, kMachUint32);
+  t.Return(use);
+  t.Lower();
+  CheckChangeOf(IrOpcode::kTruncateFloat64ToInt32, p0, use->InputAt(0));
+}
+
+
+TEST(LowerNumberToUint32_to_TruncateFloat64ToInt32_with_change) {
+  // NumberToInt32(x: kTypeNumber | kRepTagged) used as kMachUint32
+  TestingGraph t(Type::Number());
+  Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), t.p0);
+  Node* use = t.Use(trunc, kMachUint32);
+  t.Return(use);
+  t.Lower();
+  Node* node = use->InputAt(0);
+  CHECK_EQ(IrOpcode::kTruncateFloat64ToInt32, node->opcode());
+  Node* of = node->InputAt(0);
+  CHECK_EQ(IrOpcode::kChangeTaggedToFloat64, of->opcode());
+  CHECK_EQ(t.p0, of->InputAt(0));
 }
 
 

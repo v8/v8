@@ -316,7 +316,7 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
 
 // -----------------------------------------------------------------------------
 // Calls with deoptimization.
-TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
+TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged);
 
   BailoutId bailout_id(42);
@@ -360,7 +360,7 @@ TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
 }
 
 
-TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
+TARGET_TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
   StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
                   kMachAnyTagged);
 

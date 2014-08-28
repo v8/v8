@@ -162,22 +162,6 @@ TEST(InlineTwiceDependent) {
 TEST(InlineTwiceDependentDiamond) {
   FunctionTester T(
       "(function () {"
-      "function foo(s) { if (true) {"
-      "                  return 12 } else { return 13; } };"
-      "function bar(s,t) { return foo(foo(1)); };"
-      "return bar;"
-      "})();",
-      CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing);
-
-  InstallAssertStackDepthHelper(CcTest::isolate());
-  T.CheckCall(T.Val(12), T.undefined(), T.undefined());
-}
-
-
-TEST(InlineTwiceDependentDiamondReal) {
-  FunctionTester T(
-      "(function () {"
       "var x = 41;"
       "function foo(s) { AssertStackDepth(1); if (s % 2 == 0) {"
       "                  return x - s } else { return x + s; } };"
@@ -189,6 +173,23 @@ TEST(InlineTwiceDependentDiamondReal) {
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(-11), T.Val(11), T.Val(4));
+}
+
+
+TEST(InlineTwiceDependentDiamondDifferent) {
+  FunctionTester T(
+      "(function () {"
+      "var x = 41;"
+      "function foo(s,t) { AssertStackDepth(1); if (s % 2 == 0) {"
+      "                    return x - s * t } else { return x + s * t; } };"
+      "function bar(s,t) { return foo(foo(s, 3), 5); };"
+      "return bar;"
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
+
+  InstallAssertStackDepthHelper(CcTest::isolate());
+  T.CheckCall(T.Val(-329), T.Val(11), T.Val(4));
 }
 
 #endif  // V8_TURBOFAN_TARGET

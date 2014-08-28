@@ -40,7 +40,7 @@ class InstructionSelectorTester : public HandleAndZoneScope,
             new (main_zone()) Graph(main_zone()),
             new (main_zone()) MachineCallDescriptorBuilder(
                 kMachInt32, kParameterCount, BuildParameterArray(main_zone())),
-            MachineOperatorBuilder::pointer_rep()) {}
+            kMachPtr) {}
 
   void SelectInstructions(CpuFeature feature) {
     SelectInstructions(InstructionSelector::Features(feature));

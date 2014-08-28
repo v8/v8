@@ -3534,10 +3534,9 @@ TEST(RunCallSeven) {
     RawMachineAssemblerTester<int32_t> m;
     Node** args = NULL;
     MachineType* arg_types = NULL;
-    Node* function =
-        call_direct ? m.PointerConstant(function_address)
-                    : m.LoadFromPointer(&function_address,
-                                        MachineOperatorBuilder::pointer_rep());
+    Node* function = call_direct
+                         ? m.PointerConstant(function_address)
+                         : m.LoadFromPointer(&function_address, kMachPtr);
     m.Return(m.CallC(function, kMachInt32, arg_types, args, 0));
 
     CHECK_EQ(7, m.Call());
@@ -3554,10 +3553,9 @@ TEST(RunCallUnaryMinus) {
     RawMachineAssemblerTester<int32_t> m(kMachInt32);
     Node* args[] = {m.Parameter(0)};
     MachineType arg_types[] = {kMachInt32};
-    Node* function =
-        call_direct ? m.PointerConstant(function_address)
-                    : m.LoadFromPointer(&function_address,
-                                        MachineOperatorBuilder::pointer_rep());
+    Node* function = call_direct
+                         ? m.PointerConstant(function_address)
+                         : m.LoadFromPointer(&function_address, kMachPtr);
     m.Return(m.CallC(function, kMachInt32, arg_types, args, 1));
 
     FOR_INT32_INPUTS(i) {
@@ -3577,10 +3575,9 @@ TEST(RunCallAPlusTwoB) {
     RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
     Node* args[] = {m.Parameter(0), m.Parameter(1)};
     MachineType arg_types[] = {kMachInt32, kMachInt32};
-    Node* function =
-        call_direct ? m.PointerConstant(function_address)
-                    : m.LoadFromPointer(&function_address,
-                                        MachineOperatorBuilder::pointer_rep());
+    Node* function = call_direct
+                         ? m.PointerConstant(function_address)
+                         : m.LoadFromPointer(&function_address, kMachPtr);
     m.Return(m.CallC(function, kMachInt32, arg_types, args, 2));
 
     FOR_INT32_INPUTS(i) {
@@ -3819,8 +3816,7 @@ TEST(RunLoadStoreTruncation) {
 
 static void IntPtrCompare(intptr_t left, intptr_t right) {
   for (int test = 0; test < 7; test++) {
-    RawMachineAssemblerTester<bool> m(MachineOperatorBuilder::pointer_rep(),
-                                      MachineOperatorBuilder::pointer_rep());
+    RawMachineAssemblerTester<bool> m(kMachPtr, kMachPtr);
     Node* p0 = m.Parameter(0);
     Node* p1 = m.Parameter(1);
     Node* res = NULL;

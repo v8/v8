@@ -21,8 +21,7 @@ class LinkageHelper {
   }
 
   static inline LinkageLocation WordRegisterLocation(Register reg) {
-    return LinkageLocation(MachineOperatorBuilder::pointer_rep(),
-                           Register::ToAllocationIndex(reg));
+    return LinkageLocation(kMachPtr, Register::ToAllocationIndex(reg));
   }
 
   static LinkageLocation UnconstrainedRegister(MachineType rep) {
@@ -180,8 +179,7 @@ class LinkageHelper {
     int index = 0;
     locations[index++] =
         TaggedRegisterLocation(LinkageTraits::ReturnValueReg());
-    locations[index++] = LinkageHelper::UnconstrainedRegister(
-        MachineOperatorBuilder::pointer_rep());
+    locations[index++] = LinkageHelper::UnconstrainedRegister(kMachPtr);
     // TODO(dcarney): test with lots of parameters.
     int i = 0;
     for (; i < LinkageTraits::CRegisterParametersLength() && i < num_params;

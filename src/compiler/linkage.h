@@ -9,7 +9,7 @@
 
 #include "src/code-stubs.h"
 #include "src/compiler/frame.h"
-#include "src/compiler/machine-operator.h"
+#include "src/compiler/machine-type.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/zone.h"

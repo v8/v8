@@ -63,7 +63,7 @@ class StructuredMachineAssembler
 
   StructuredMachineAssembler(
       Graph* graph, MachineCallDescriptorBuilder* call_descriptor_builder,
-      MachineType word = MachineOperatorBuilder::pointer_rep());
+      MachineType word = kMachPtr);
   virtual ~StructuredMachineAssembler() {}
 
   Isolate* isolate() const { return zone()->isolate(); }

@@ -47,7 +47,7 @@ class RawMachineAssembler : public GraphBuilder,
 
   RawMachineAssembler(Graph* graph,
                       MachineCallDescriptorBuilder* call_descriptor_builder,
-                      MachineType word = MachineOperatorBuilder::pointer_rep());
+                      MachineType word = kMachPtr);
   virtual ~RawMachineAssembler() {}
 
   Isolate* isolate() const { return zone()->isolate(); }

@@ -267,9 +267,7 @@ class IfBuilderModel {
 class IfBuilderGenerator : public StructuredMachineAssemblerTester<int32_t> {
  public:
   IfBuilderGenerator()
-      : StructuredMachineAssemblerTester<int32_t>(
-            MachineOperatorBuilder::pointer_rep(),
-            MachineOperatorBuilder::pointer_rep()),
+      : StructuredMachineAssemblerTester<int32_t>(kMachPtr, kMachPtr),
         var_(NewVariable(Int32Constant(kInitalVar))),
         c_(this),
         m_(this->zone()),
