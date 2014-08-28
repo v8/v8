@@ -31,7 +31,7 @@ struct StoreRepresentation {
 // for generating code to run on architectures such as ia32, x64, arm, etc.
 class MachineOperatorBuilder {
  public:
-  explicit MachineOperatorBuilder(Zone* zone, MachineType word = pointer_rep())
+  explicit MachineOperatorBuilder(Zone* zone, MachineType word = kMachPtr)
       : zone_(zone), word_(word) {
     CHECK(word == kRepWord32 || word == kRepWord64);
   }
@@ -155,10 +155,6 @@ class MachineOperatorBuilder {
   inline bool is32() const { return word_ == kRepWord32; }
   inline bool is64() const { return word_ == kRepWord64; }
   inline MachineType word() const { return word_; }
-
-  static inline MachineType pointer_rep() {
-    return kPointerSize == 8 ? kRepWord64 : kRepWord32;
-  }
 
 #undef WORD_SIZE
 #undef UNOP

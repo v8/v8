@@ -878,9 +878,8 @@ TEST(RunSimpleExpressionVariable1) {
 class QuicksortHelper : public StructuredMachineAssemblerTester<int32_t> {
  public:
   QuicksortHelper()
-      : StructuredMachineAssemblerTester<int32_t>(
-            MachineOperatorBuilder::pointer_rep(), kMachInt32,
-            MachineOperatorBuilder::pointer_rep(), kMachInt32),
+      : StructuredMachineAssemblerTester<int32_t>(kMachPtr, kMachInt32,
+                                                  kMachPtr, kMachInt32),
         input_(NULL),
         stack_limit_(NULL),
         one_(Int32Constant(1)),

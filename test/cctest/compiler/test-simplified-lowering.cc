@@ -72,9 +72,8 @@ FieldAccess ForJSObjectProperties() {
 
 FieldAccess ForArrayBufferBackingStore() {
   FieldAccess access = {
-      kTaggedBase,                           JSArrayBuffer::kBackingStoreOffset,
-      Handle<Name>(),                        Type::UntaggedPtr(),
-      MachineOperatorBuilder::pointer_rep(),
+      kTaggedBase,         JSArrayBuffer::kBackingStoreOffset, Handle<Name>(),
+      Type::UntaggedPtr(), kMachPtr,
   };
   return access;
 }

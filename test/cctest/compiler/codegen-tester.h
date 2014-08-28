@@ -30,7 +30,7 @@ class MachineAssemblerTester : public HandleAndZoneScope,
         MachineAssembler(new (main_zone()) Graph(main_zone()),
                          ToCallDescriptorBuilder(main_zone(), return_type, p0,
                                                  p1, p2, p3, p4),
-                         MachineOperatorBuilder::pointer_rep()) {}
+                         kMachPtr) {}
 
   Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return this->Load(rep, this->PointerConstant(address),

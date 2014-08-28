@@ -44,6 +44,7 @@
       ],
       'sources': [  ### gcmole(all) ###
         '<(generated_file)',
+        'compiler/c-signature.h',
         'compiler/codegen-tester.cc',
         'compiler/codegen-tester.h',
         'compiler/function-tester.h',

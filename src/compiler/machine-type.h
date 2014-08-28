@@ -108,6 +108,32 @@ inline int ElementSizeOf(MachineType machine_type) {
   }
 }
 
+// Describes the inputs and outputs of a function or call in terms of machine
+// types.
+class MachineSignature {
+ public:
+  MachineSignature(uint8_t return_count, uint16_t param_count,
+                   MachineType* reps)
+      : return_count_(return_count), param_count_(param_count), reps_(reps) {}
+
+  int GetReturnCount() const { return return_count_; }
+  int GetParamCount() const { return param_count_; }
+
+  MachineType GetParameterType(int index) const {
+    DCHECK(index >= 0 && index < param_count_);
+    return reps_[return_count_ + index];
+  }
+
+  MachineType GetReturnType(int index = 0) const {
+    DCHECK(index >= 0 && index < return_count_);
+    return reps_[index];
+  }
+
+ protected:
+  uint8_t return_count_;
+  uint16_t param_count_;
+  MachineType* reps_;
+};
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

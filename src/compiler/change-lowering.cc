@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/change-lowering.h"
+#include "src/compiler/machine-operator.h"
 
 #include "src/compiler/js-graph.h"
 

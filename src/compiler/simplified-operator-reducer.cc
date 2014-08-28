@@ -4,6 +4,7 @@
 
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator-reducer.h"
 
