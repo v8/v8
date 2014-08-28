@@ -293,6 +293,35 @@ class BenchmarksTest(unittest.TestCase):
     self._VerifyErrors([])
     self._VerifyMock(path.join("out", "Release", "d7"), "--flag", "run.js")
 
+  def testBuildbotWithTotal(self):
+    test_input = dict(V8_JSON)
+    test_input["total"] = True
+    self._WriteTestInput(test_input)
+    self._MockCommand(["."], ["Richards: 1.234\nDeltaBlue: 10657567\n"])
+    self.assertEquals(0, self._CallMain("--buildbot"))
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": ["1.234"], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["10657567"], "stddev": ""},
+      {"name": "Total", "results": ["3626.49109719"], "stddev": ""},
+    ])
+    self._VerifyErrors([])
+    self._VerifyMock(path.join("out", "Release", "d7"), "--flag", "run.js")
+
+  def testBuildbotWithTotalAndErrors(self):
+    test_input = dict(V8_JSON)
+    test_input["total"] = True
+    self._WriteTestInput(test_input)
+    self._MockCommand(["."], ["x\nRichaards: 1.234\nDeltaBlue: 10657567\ny\n"])
+    self.assertEquals(1, self._CallMain("--buildbot"))
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": [], "stddev": ""},
+      {"name": "DeltaBlue", "results": ["10657567"], "stddev": ""},
+    ])
+    self._VerifyErrors(
+        ["Regexp \"^Richards: (.+)$\" didn't match for benchmark Richards.",
+         "Not all traces have the same number of results."])
+    self._VerifyMock(path.join("out", "Release", "d7"), "--flag", "run.js")
+
   def testRegexpNoMatch(self):
     self._WriteTestInput(V8_JSON)
     self._MockCommand(["."], ["x\nRichaards: 1.234\nDeltaBlue: 10657567\ny\n"])
