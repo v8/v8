@@ -269,6 +269,9 @@
 ##############################################################################
 ['arch == arm', {
 
+  # TODO(mstarzinger): This fails on ARM hardware, but not in the simulator.
+  'test-run-properties/TypedArrayLoad': [SKIP],
+
   # BUG(355): Test crashes on ARM.
   'test-log/ProfLazyMode': [SKIP],
 
