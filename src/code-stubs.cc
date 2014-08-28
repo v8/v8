@@ -810,15 +810,17 @@ OStream& ArrayConstructorStubBase::BasePrintName(OStream& os,  // NOLINT
 
 
 bool ToBooleanStub::UpdateStatus(Handle<Object> object) {
-  Types old_types(types_);
-  bool to_boolean_value = types_.UpdateStatus(object);
-  TraceTransition(old_types, types_);
+  Types new_types = types();
+  Types old_types = new_types;
+  bool to_boolean_value = new_types.UpdateStatus(object);
+  TraceTransition(old_types, new_types);
+  set_sub_minor_key(TypesBits::update(sub_minor_key(), new_types.ToByte()));
   return to_boolean_value;
 }
 
 
 void ToBooleanStub::PrintState(OStream& os) const {  // NOLINT
-  os << types_;
+  os << types();
 }
 
 

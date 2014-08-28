@@ -80,7 +80,8 @@ class CompilationInfo {
     kCompilingForDebugging = 1 << 13,
     kParseRestriction = 1 << 14,
     kSerializing = 1 << 15,
-    kContextSpecializing = 1 << 16
+    kContextSpecializing = 1 << 16,
+    kInliningEnabled = 1 << 17
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
@@ -185,6 +186,10 @@ class CompilationInfo {
   void MarkAsContextSpecializing() { SetFlag(kContextSpecializing); }
 
   bool is_context_specializing() const { return GetFlag(kContextSpecializing); }
+
+  void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
+
+  bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
   bool IsCodePreAgingActive() const {
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&

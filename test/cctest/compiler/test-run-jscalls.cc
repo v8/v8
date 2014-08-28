@@ -255,7 +255,7 @@ TEST(ContextLoadedFromActivation) {
       "})()";
 
   // Disable context specialization.
-  FunctionTester T(script, false);
+  FunctionTester T(script);
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope scope(context);
   v8::Local<v8::Value> value = CompileRun(script);
@@ -276,7 +276,7 @@ TEST(BuiltinLoadedFromActivation) {
       "})()";
 
   // Disable context specialization.
-  FunctionTester T(script, false);
+  FunctionTester T(script);
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope scope(context);
   v8::Local<v8::Value> value = CompileRun(script);

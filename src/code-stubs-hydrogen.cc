@@ -1063,7 +1063,7 @@ HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
   HValue* true_value = NULL;
   HValue* false_value = NULL;
 
-  switch (stub->GetMode()) {
+  switch (stub->mode()) {
     case ToBooleanStub::RESULT_AS_SMI:
       true_value = graph()->GetConstant1();
       false_value = graph()->GetConstant0();
@@ -1079,7 +1079,7 @@ HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
   }
 
   IfBuilder if_true(this);
-  if_true.If<HBranch>(GetParameter(0), stub->GetTypes());
+  if_true.If<HBranch>(GetParameter(0), stub->types());
   if_true.Then();
   if_true.Return(true_value);
   if_true.Else();
