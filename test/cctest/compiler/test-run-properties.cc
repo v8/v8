@@ -29,10 +29,10 @@ static void TypedArrayLoadHelper(const char* array_type) {
   // - IsExternalArrayElementsKind(y)
   const char* source =
       "(function(a) {"
-      "  var x = (a = new %1$sArray(%2$d)); %3$s;"
-      "  var y = (a = new %1$sArray(%2$d)); %3$s; %%TypedArrayGetBuffer(y);"
-      "  if (!%%HasFixed%1$sElements(x)) %%AbortJS('x');"
-      "  if (!%%HasExternal%1$sElements(y)) %%AbortJS('y');"
+      "  var x = (a = new %sArray(%d)); %s;"
+      "  var y = (a = new %sArray(%d)); %s; %%TypedArrayGetBuffer(y);"
+      "  if (!%%HasFixed%sElements(x)) %%AbortJS('x');"
+      "  if (!%%HasExternal%sElements(y)) %%AbortJS('y');"
       "  function f(a,b) {"
       "    a = a | 0; b = b | 0;"
       "    return x[a] + y[b];"
@@ -40,7 +40,8 @@ static void TypedArrayLoadHelper(const char* array_type) {
       "  return f;"
       "})()";
   EmbeddedVector<char, 1024> source_buffer;
-  SNPrintF(source_buffer, source, array_type, size, values_buffer.start());
+  SNPrintF(source_buffer, source, array_type, size, values_buffer.start(),
+           array_type, size, values_buffer.start(), array_type, array_type);
 
   FunctionTester T(
       source_buffer.start(),
