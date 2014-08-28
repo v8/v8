@@ -1532,7 +1532,8 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
           current_contents == current[-1]) {
         DCHECK(!serializer_->isolate()->heap()->InNewSpace(current_contents));
         int repeat_count = 1;
-        while (current < end - 1 && current[repeat_count] == current_contents) {
+        while (&current[repeat_count] < end - 1 &&
+               current[repeat_count] == current_contents) {
           repeat_count++;
         }
         current += repeat_count;
