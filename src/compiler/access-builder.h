@@ -16,16 +16,45 @@ namespace compiler {
 // parameters to simplified load/store operators.
 class AccessBuilder : public AllStatic {
  public:
+  // Provides access to HeapObject::map() field.
+  static FieldAccess ForMap() {
+    return {kTaggedBase, HeapObject::kMapOffset, Handle<Name>(), Type::Any(),
+            kMachAnyTagged};
+  }
+
+  // Provides access to JSObject::properties() field.
+  static FieldAccess ForJSObjectProperties() {
+    return {kTaggedBase, JSObject::kPropertiesOffset, Handle<Name>(),
+            Type::Any(), kMachAnyTagged};
+  }
+
   // Provides access to JSObject::elements() field.
   static FieldAccess ForJSObjectElements() {
     return {kTaggedBase, JSObject::kElementsOffset, Handle<Name>(),
             Type::Internal(), kMachAnyTagged};
   }
 
+  // Provides access to JSArrayBuffer::backing_store() field.
+  static FieldAccess ForJSArrayBufferBackingStore() {
+    return {kTaggedBase, JSArrayBuffer::kBackingStoreOffset, Handle<Name>(),
+            Type::UntaggedPtr(), kMachPtr};
+  }
+
   // Provides access to ExternalArray::external_pointer() field.
   static FieldAccess ForExternalArrayPointer() {
     return {kTaggedBase, ExternalArray::kExternalPointerOffset, Handle<Name>(),
             Type::UntaggedPtr(), kMachPtr};
+  }
+
+  // Provides access to FixedArray elements.
+  static ElementAccess ForFixedArrayElement() {
+    return {kTaggedBase, FixedArray::kHeaderSize, Type::Any(), kMachAnyTagged};
+  }
+
+  // TODO(mstarzinger): Raw access only for testing, drop me.
+  static ElementAccess ForBackingStoreElement(MachineType rep) {
+    return {kUntaggedBase, kNonHeapObjectHeaderSize - kHeapObjectTag,
+            Type::Any(), rep};
   }
 
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
