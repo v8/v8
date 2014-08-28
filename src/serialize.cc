@@ -1636,6 +1636,7 @@ void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->pc(), kCanReturnSkipInsteadOfSkipping);
   Cell* object = Cell::cast(rinfo->target_cell());
   serializer_->SerializeObject(object, kPlain, kInnerPointer, skip);
+  bytes_processed_so_far_ += kPointerSize;
 }
 
 
