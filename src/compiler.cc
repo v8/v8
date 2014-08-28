@@ -139,6 +139,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   if (script_->type()->value() == Script::TYPE_NATIVE) MarkAsNative();
   if (isolate_->debug()->is_active()) MarkAsDebug();
   if (FLAG_context_specialization) MarkAsContextSpecializing();
+  if (FLAG_turbo_types) MarkAsTypingEnabled();
 
   if (!shared_info_.is_null()) {
     DCHECK(strict_mode() == SLOPPY);

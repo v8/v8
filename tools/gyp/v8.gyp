@@ -342,6 +342,7 @@
         '../../src/codegen.h',
         '../../src/compilation-cache.cc',
         '../../src/compilation-cache.h',
+        '../../src/compiler/access-builder.h',
         '../../src/compiler/ast-graph-builder.cc',
         '../../src/compiler/ast-graph-builder.h',
         '../../src/compiler/change-lowering.cc',

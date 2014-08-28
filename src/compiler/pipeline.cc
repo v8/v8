@@ -16,11 +16,13 @@
 #include "src/compiler/js-generic-lowering.h"
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/js-typed-lowering.h"
+#include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/phi-reducer.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/compiler/simplified-lowering.h"
+#include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/verifier.h"
 #include "src/hydrogen.h"
@@ -213,7 +215,7 @@ Handle<Code> Pipeline::GenerateCode() {
     GraphReplayPrinter::PrintReplay(&graph);
   }
 
-  if (FLAG_turbo_types) {
+  if (info()->is_typing_enabled()) {
     {
       // Type the graph.
       PhaseStats typer_stats(info(), PhaseStats::CREATE_GRAPH, "typer");
@@ -247,15 +249,20 @@ Handle<Code> Pipeline::GenerateCode() {
     }
     {
       // Lower changes that have been inserted before.
-      PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
+      PhaseStats lowering_stats(info(), PhaseStats::OPTIMIZATION,
                                 "change lowering");
       SourcePositionTable::Scope pos(&source_positions,
                                      SourcePosition::Unknown());
       Linkage linkage(info());
       MachineOperatorBuilder machine(zone());
+      SimplifiedOperatorReducer simple_reducer(&jsgraph, &machine);
       ChangeLowering lowering(&jsgraph, &linkage, &machine);
+      MachineOperatorReducer mach_reducer(&graph);
       GraphReducer graph_reducer(&graph);
+      // TODO(titzer): Figure out if we should run all reducers at once here.
+      graph_reducer.AddReducer(&simple_reducer);
       graph_reducer.AddReducer(&lowering);
+      graph_reducer.AddReducer(&mach_reducer);
       graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered changes");

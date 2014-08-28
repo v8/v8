@@ -32,7 +32,8 @@ class FunctionTester : public InitializedHandleScope {
         flags_(flags) {
     Compile(function);
     const uint32_t supported_flags = CompilationInfo::kContextSpecializing |
-                                     CompilationInfo::kInliningEnabled;
+                                     CompilationInfo::kInliningEnabled |
+                                     CompilationInfo::kTypingEnabled;
     CHECK_EQ(0, flags_ & ~supported_flags);
   }
 
@@ -52,6 +53,9 @@ class FunctionTester : public InitializedHandleScope {
     }
     if (flags_ & CompilationInfo::kInliningEnabled) {
       info.MarkAsInliningEnabled();
+    }
+    if (flags_ & CompilationInfo::kTypingEnabled) {
+      info.MarkAsTypingEnabled();
     }
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));

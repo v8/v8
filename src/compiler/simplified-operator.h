@@ -94,6 +94,55 @@ inline const ElementAccess ElementAccessOf(Operator* op) {
 }
 
 
+// This access helper provides a set of static methods constructing commonly
+// used FieldAccess and ElementAccess descriptors.
+class Access : public AllStatic {
+ public:
+  // Provides access to JSObject::elements() field.
+  static FieldAccess ForJSObjectElements() {
+    return {kTaggedBase, JSObject::kElementsOffset, Handle<Name>(),
+            Type::Internal(), kMachAnyTagged};
+  }
+
+  // Provides access to ExternalArray::external_pointer() field.
+  static FieldAccess ForExternalArrayPointer() {
+    return {kTaggedBase, ExternalArray::kExternalPointerOffset, Handle<Name>(),
+            Type::UntaggedPtr(), kMachPtr};
+  }
+
+  // Provides access to Fixed{type}TypedArray and External{type}Array elements.
+  static ElementAccess ForTypedArrayElement(ExternalArrayType type,
+                                            bool is_external) {
+    BaseTaggedness taggedness = is_external ? kUntaggedBase : kTaggedBase;
+    int header_size = is_external ? 0 : FixedTypedArrayBase::kDataOffset;
+    switch (type) {
+      case kExternalInt8Array:
+        return {taggedness, header_size, Type::Signed32(), kMachInt8};
+      case kExternalUint8Array:
+      case kExternalUint8ClampedArray:
+        return {taggedness, header_size, Type::Unsigned32(), kMachUint8};
+      case kExternalInt16Array:
+        return {taggedness, header_size, Type::Signed32(), kMachInt16};
+      case kExternalUint16Array:
+        return {taggedness, header_size, Type::Unsigned32(), kMachUint16};
+      case kExternalInt32Array:
+        return {taggedness, header_size, Type::Signed32(), kMachInt32};
+      case kExternalUint32Array:
+        return {taggedness, header_size, Type::Unsigned32(), kMachUint32};
+      case kExternalFloat32Array:
+        return {taggedness, header_size, Type::Number(), kRepFloat32};
+      case kExternalFloat64Array:
+        return {taggedness, header_size, Type::Number(), kRepFloat64};
+    }
+    UNREACHABLE();
+    return {kUntaggedBase, 0, Type::None(), kMachNone};
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(Access);
+};
+
+
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.

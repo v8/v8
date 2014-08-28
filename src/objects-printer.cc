@@ -751,7 +751,7 @@ void JSArrayBuffer::JSArrayBufferPrint(OStream& os) {  // NOLINT
 void JSTypedArray::JSTypedArrayPrint(OStream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSTypedArray");
   os << " - map = " << reinterpret_cast<void*>(map()) << "\n";
-  os << " - buffer =" << Brief(buffer());
+  os << " - buffer = " << Brief(buffer());
   os << "\n - byte_offset = " << Brief(byte_offset());
   os << "\n - byte_length = " << Brief(byte_length());
   os << "\n - length = " << Brief(length());
