@@ -25,15 +25,14 @@ namespace internal {
 namespace compiler {
 
 class FunctionTester : public InitializedHandleScope {
-  const uint32_t supported_flags =
-      CompilationInfo::kContextSpecializing | CompilationInfo::kInliningEnabled;
-
  public:
   explicit FunctionTester(const char* source, uint32_t flags = 0)
       : isolate(main_isolate()),
         function((FLAG_allow_natives_syntax = true, NewFunction(source))),
         flags_(flags) {
     Compile(function);
+    const uint32_t supported_flags = CompilationInfo::kContextSpecializing |
+                                     CompilationInfo::kInliningEnabled;
     CHECK_EQ(0, flags_ & ~supported_flags);
   }
 
