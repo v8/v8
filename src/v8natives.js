@@ -571,10 +571,6 @@ SetUpLockedPrototype(PropertyDescriptor, $Array(
 // property descriptor. For a description of the array layout please
 // see the runtime.cc file.
 function ConvertDescriptorArrayToDescriptor(desc_array) {
-  if (desc_array === false) {
-    throw 'Internal error: invalid desc_array';
-  }
-
   if (IS_UNDEFINED(desc_array)) {
     return UNDEFINED;
   }
@@ -649,9 +645,6 @@ function GetOwnPropertyJS(obj, v) {
   // If p is not a property on obj undefined is returned.
   var props = %GetOwnProperty(ToObject(obj), p);
 
-  // A false value here means that access checks failed.
-  if (props === false) return UNDEFINED;
-
   return ConvertDescriptorArrayToDescriptor(props);
 }
 
@@ -692,11 +685,8 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
 // ES5 8.12.9.
 function DefineObjectProperty(obj, p, desc, should_throw) {
-  var current_or_access = %GetOwnProperty(ToObject(obj), ToName(p));
-  // A false value here means that access checks failed.
-  if (current_or_access === false) return UNDEFINED;
-
-  var current = ConvertDescriptorArrayToDescriptor(current_or_access);
+  var current_array = %GetOwnProperty(ToObject(obj), ToName(p));
+  var current = ConvertDescriptorArrayToDescriptor(current_array);
   var extensible = %IsExtensible(ToObject(obj));
 
   // Error handling according to spec.

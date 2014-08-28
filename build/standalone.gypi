@@ -263,6 +263,7 @@
         'defines': [
           '_CRT_SECURE_NO_DEPRECATE',
           '_CRT_NONSTDC_NO_DEPRECATE',
+          '_USING_V110_SDK71_',
         ],
         'conditions': [
           ['component=="static_library"', {
@@ -298,6 +299,7 @@
             'AdditionalOptions': ['/ignore:4221'],
           },
           'VCLinkerTool': {
+            'MinimumRequiredVersion': '5.01',  # XP.
             'AdditionalDependencies': [
               'ws2_32.lib',
             ],

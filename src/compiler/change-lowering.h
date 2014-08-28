@@ -40,7 +40,7 @@ class ChangeLowering V8_FINAL : public Reducer {
   Reduction ChangeFloat64ToTagged(Node* val, Node* control);
   Reduction ChangeInt32ToTagged(Node* val, Node* control);
   Reduction ChangeTaggedToFloat64(Node* val, Node* control);
-  Reduction ChangeTaggedToInt32(Node* val, Node* control);
+  Reduction ChangeTaggedToI32(Node* val, Node* control, bool is_signed);
   Reduction ChangeUint32ToTagged(Node* val, Node* control);
 
   Graph* graph() const;

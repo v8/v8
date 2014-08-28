@@ -744,6 +744,7 @@ IS_BINOP_MATCHER(Uint32LessThanOrEqual)
     return MakeMatcher(new IsUnopMatcher(IrOpcode::k##Name, input_matcher)); \
   }
 IS_UNOP_MATCHER(ChangeFloat64ToInt32)
+IS_UNOP_MATCHER(ChangeFloat64ToUint32)
 IS_UNOP_MATCHER(ChangeInt32ToFloat64)
 IS_UNOP_MATCHER(ChangeInt32ToInt64)
 IS_UNOP_MATCHER(ChangeUint32ToFloat64)

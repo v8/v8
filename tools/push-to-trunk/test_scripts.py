@@ -368,6 +368,7 @@ class ScriptTest(unittest.TestCase):
     print "Log: %s %s" % (cmd, args)
 
   MOCKS = {
+    "gclient": GitMock, # TODO(machenbach): Yet another hack. Unify all mocks.
     "git": GitMock,
     "roll-dep": GitMock, # TODO(machenbach): Yet another hack. Unify all mocks.
     # TODO(machenbach): Little hack to reuse the git mock for the one svn call
@@ -833,6 +834,8 @@ def get_list():
     TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     if not os.path.exists(TEST_CONFIG[CHROMIUM]):
       os.makedirs(TEST_CONFIG[CHROMIUM])
+    if not os.path.exists(os.path.join(TEST_CONFIG[CHROMIUM], "v8")):
+      os.makedirs(os.path.join(TEST_CONFIG[CHROMIUM], "v8"))
     TextToFile("Some line\n   \"v8_revision\": \"123444\",\n  some line",
                TEST_CONFIG[DEPS_FILE])
     def WriteDeps():
@@ -853,7 +856,8 @@ def get_list():
           "Version 3.22.5 (based on bleeding_edge revision r123454)\n"),
       Git("status -s -uno", ""),
       Git("checkout -f master", ""),
-      Git("pull", ""),
+      Git("sync --nohooks", "syncing..."),
+      Git("fetch origin", ""),
       Git("checkout -b v8-roll-123455", ""),
       Git("v8 123455", "rolled", cb=WriteDeps),
       Git(("commit -am \"Update V8 to version 3.22.5 "

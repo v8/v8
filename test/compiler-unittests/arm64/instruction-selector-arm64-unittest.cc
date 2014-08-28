@@ -12,23 +12,26 @@ namespace compiler {
 
 namespace {
 
-typedef Node* (RawMachineAssembler::*Constructor)(Node*, Node*);
-
-struct DPI {
-  Constructor constructor;
+template <typename T>
+struct MachInst {
+  T constructor;
   const char* constructor_name;
   ArchOpcode arch_opcode;
   MachineType machine_type;
 };
 
+typedef MachInst<Node* (RawMachineAssembler::*)(Node*)> MachInst1;
+typedef MachInst<Node* (RawMachineAssembler::*)(Node*, Node*)> MachInst2;
 
-std::ostream& operator<<(std::ostream& os, const DPI& dpi) {
-  return os << dpi.constructor_name;
+
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const MachInst<T>& mi) {
+  return os << mi.constructor_name;
 }
 
 
-// ARM64 Logical instructions.
-static const DPI kLogicalInstructions[] = {
+// ARM64 logical instructions.
+static const MachInst2 kLogicalInstructions[] = {
     {&RawMachineAssembler::Word32And, "Word32And", kArm64And32, kMachInt32},
     {&RawMachineAssembler::Word64And, "Word64And", kArm64And, kMachInt64},
     {&RawMachineAssembler::Word32Or, "Word32Or", kArm64Or32, kMachInt32},
@@ -60,8 +63,8 @@ static const uint32_t kLogicalImmediates[] = {
     0xfffff807, 0xfffff9ff, 0xfffffc0f, 0xfffffeff};
 
 
-// ARM64 Arithmetic instructions.
-static const DPI kAddSubInstructions[] = {
+// ARM64 arithmetic instructions.
+static const MachInst2 kAddSubInstructions[] = {
     {&RawMachineAssembler::Int32Add, "Int32Add", kArm64Add32, kMachInt32},
     {&RawMachineAssembler::Int64Add, "Int64Add", kArm64Add, kMachInt64},
     {&RawMachineAssembler::Int32Sub, "Int32Sub", kArm64Sub32, kMachInt32},
@@ -86,7 +89,7 @@ static const int32_t kAddSubImmediates[] = {
 
 
 // ARM64 shift instructions.
-static const DPI kShiftInstructions[] = {
+static const MachInst2 kShiftInstructions[] = {
     {&RawMachineAssembler::Word32Shl, "Word32Shl", kArm64Shl32, kMachInt32},
     {&RawMachineAssembler::Word64Shl, "Word64Shl", kArm64Shl, kMachInt64},
     {&RawMachineAssembler::Word32Shr, "Word32Shr", kArm64Shr32, kMachInt32},
@@ -98,13 +101,86 @@ static const DPI kShiftInstructions[] = {
 
 
 // ARM64 Mul/Div instructions.
-static const DPI kMulDivInstructions[] = {
+static const MachInst2 kMulDivInstructions[] = {
     {&RawMachineAssembler::Int32Mul, "Int32Mul", kArm64Mul32, kMachInt32},
     {&RawMachineAssembler::Int64Mul, "Int64Mul", kArm64Mul, kMachInt64},
     {&RawMachineAssembler::Int32Div, "Int32Div", kArm64Idiv32, kMachInt32},
     {&RawMachineAssembler::Int64Div, "Int64Div", kArm64Idiv, kMachInt64},
     {&RawMachineAssembler::Int32UDiv, "Int32UDiv", kArm64Udiv32, kMachInt32},
     {&RawMachineAssembler::Int64UDiv, "Int64UDiv", kArm64Udiv, kMachInt64}};
+
+
+// ARM64 FP arithmetic instructions.
+static const MachInst2 kFPArithInstructions[] = {
+    {&RawMachineAssembler::Float64Add, "Float64Add", kArm64Float64Add,
+     kMachFloat64},
+    {&RawMachineAssembler::Float64Sub, "Float64Sub", kArm64Float64Sub,
+     kMachFloat64},
+    {&RawMachineAssembler::Float64Mul, "Float64Mul", kArm64Float64Mul,
+     kMachFloat64},
+    {&RawMachineAssembler::Float64Div, "Float64Div", kArm64Float64Div,
+     kMachFloat64}};
+
+
+struct FPCmp {
+  MachInst2 mi;
+  FlagsCondition cond;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const FPCmp& cmp) {
+  return os << cmp.mi;
+}
+
+
+// ARM64 FP comparison instructions.
+static const FPCmp kFPCmpInstructions[] = {
+    {{&RawMachineAssembler::Float64Equal, "Float64Equal", kArm64Float64Cmp,
+      kMachFloat64},
+     kUnorderedEqual},
+    {{&RawMachineAssembler::Float64LessThan, "Float64LessThan",
+      kArm64Float64Cmp, kMachFloat64},
+     kUnorderedLessThan},
+    {{&RawMachineAssembler::Float64LessThanOrEqual, "Float64LessThanOrEqual",
+      kArm64Float64Cmp, kMachFloat64},
+     kUnorderedLessThanOrEqual}};
+
+
+struct Conversion {
+  // The machine_type field in MachInst1 represents the destination type.
+  MachInst1 mi;
+  MachineType src_machine_type;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const Conversion& conv) {
+  return os << conv.mi;
+}
+
+
+// ARM64 type conversion instructions.
+static const Conversion kConversionInstructions[] = {
+    {{&RawMachineAssembler::ChangeInt32ToInt64, "ChangeInt32ToInt64",
+      kArm64Sxtw, kMachInt64},
+     kMachInt32},
+    {{&RawMachineAssembler::ChangeUint32ToUint64, "ChangeUint32ToUint64",
+      kArm64Mov32, kMachUint64},
+     kMachUint32},
+    {{&RawMachineAssembler::TruncateInt64ToInt32, "TruncateInt64ToInt32",
+      kArm64Mov32, kMachInt32},
+     kMachInt64},
+    {{&RawMachineAssembler::ChangeInt32ToFloat64, "ChangeInt32ToFloat64",
+      kArm64Int32ToFloat64, kMachFloat64},
+     kMachInt32},
+    {{&RawMachineAssembler::ChangeUint32ToFloat64, "ChangeUint32ToFloat64",
+      kArm64Uint32ToFloat64, kMachFloat64},
+     kMachUint32},
+    {{&RawMachineAssembler::ChangeFloat64ToInt32, "ChangeFloat64ToInt32",
+      kArm64Float64ToInt32, kMachInt32},
+     kMachFloat64},
+    {{&RawMachineAssembler::ChangeFloat64ToUint32, "ChangeFloat64ToUint32",
+      kArm64Float64ToUint32, kMachUint32},
+     kMachFloat64}};
 
 }  // namespace
 
@@ -113,10 +189,12 @@ static const DPI kMulDivInstructions[] = {
 // Logical instructions.
 
 
-typedef InstructionSelectorTestWithParam<DPI> InstructionSelectorLogicalTest;
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorLogicalTest;
+
 
 TEST_P(InstructionSelectorLogicalTest, Parameter) {
-  const DPI dpi = GetParam();
+  const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   StreamBuilder m(this, type, type, type);
   m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
@@ -129,7 +207,7 @@ TEST_P(InstructionSelectorLogicalTest, Parameter) {
 
 
 TEST_P(InstructionSelectorLogicalTest, Immediate) {
-  const DPI dpi = GetParam();
+  const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   // TODO(all): Add support for testing 64-bit immediates.
   if (type == kMachInt32) {
@@ -169,10 +247,12 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorLogicalTest,
 // -----------------------------------------------------------------------------
 // Add and Sub instructions.
 
-typedef InstructionSelectorTestWithParam<DPI> InstructionSelectorAddSubTest;
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorAddSubTest;
+
 
 TEST_P(InstructionSelectorAddSubTest, Parameter) {
-  const DPI dpi = GetParam();
+  const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   StreamBuilder m(this, type, type, type);
   m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
@@ -185,7 +265,7 @@ TEST_P(InstructionSelectorAddSubTest, Parameter) {
 
 
 TEST_P(InstructionSelectorAddSubTest, Immediate) {
-  const DPI dpi = GetParam();
+  const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
     StreamBuilder m(this, type, type);
@@ -209,10 +289,12 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorAddSubTest,
 // Shift instructions.
 
 
-typedef InstructionSelectorTestWithParam<DPI> InstructionSelectorShiftTest;
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorShiftTest;
+
 
 TEST_P(InstructionSelectorShiftTest, Parameter) {
-  const DPI dpi = GetParam();
+  const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   StreamBuilder m(this, type, type, type);
   m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
@@ -225,7 +307,7 @@ TEST_P(InstructionSelectorShiftTest, Parameter) {
 
 
 TEST_P(InstructionSelectorShiftTest, Immediate) {
-  const DPI dpi = GetParam();
+  const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   TRACED_FORRANGE(int32_t, imm, 0, (ElementSizeOf(type) * 8) - 1) {
     StreamBuilder m(this, type, type);
@@ -249,11 +331,12 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorShiftTest,
 // Mul and Div instructions.
 
 
-typedef InstructionSelectorTestWithParam<DPI> InstructionSelectorMulDivTest;
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorMulDivTest;
 
 
 TEST_P(InstructionSelectorMulDivTest, Parameter) {
-  const DPI dpi = GetParam();
+  const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   StreamBuilder m(this, type, type, type);
   m.Return((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)));
@@ -269,34 +352,71 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorMulDivTest,
 
 
 // -----------------------------------------------------------------------------
+// Floating point instructions.
+
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorFPArithTest;
+
+
+TEST_P(InstructionSelectorFPArithTest, Parameter) {
+  const MachInst2 fpa = GetParam();
+  StreamBuilder m(this, fpa.machine_type, fpa.machine_type, fpa.machine_type);
+  m.Return((m.*fpa.constructor)(m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(fpa.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFPArithTest,
+                        ::testing::ValuesIn(kFPArithInstructions));
+
+
+typedef InstructionSelectorTestWithParam<FPCmp> InstructionSelectorFPCmpTest;
+
+
+TEST_P(InstructionSelectorFPCmpTest, Parameter) {
+  const FPCmp cmp = GetParam();
+  StreamBuilder m(this, kMachInt32, cmp.mi.machine_type, cmp.mi.machine_type);
+  m.Return((m.*cmp.mi.constructor)(m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(cmp.mi.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(cmp.cond, s[0]->flags_condition());
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFPCmpTest,
+                        ::testing::ValuesIn(kFPCmpInstructions));
+
+
+// -----------------------------------------------------------------------------
 // Conversions.
 
+typedef InstructionSelectorTestWithParam<Conversion>
+    InstructionSelectorConversionTest;
 
-TEST_F(InstructionSelectorTest, ChangeInt32ToInt64WithParameter) {
-  StreamBuilder m(this, kMachInt64, kMachInt32);
-  m.Return(m.ChangeInt32ToInt64(m.Parameter(0)));
+
+TEST_P(InstructionSelectorConversionTest, Parameter) {
+  const Conversion conv = GetParam();
+  StreamBuilder m(this, conv.mi.machine_type, conv.src_machine_type);
+  m.Return((m.*conv.mi.constructor)(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Sxtw, s[0]->arch_opcode());
+  EXPECT_EQ(conv.mi.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
 }
 
 
-TEST_F(InstructionSelectorTest, ChangeUint32ToUint64WithParameter) {
-  StreamBuilder m(this, kMachUint64, kMachUint32);
-  m.Return(m.ChangeUint32ToUint64(m.Parameter(0)));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Mov32, s[0]->arch_opcode());
-}
-
-
-TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithParameter) {
-  StreamBuilder m(this, kMachInt32, kMachInt64);
-  m.Return(m.TruncateInt64ToInt32(m.Parameter(0)));
-  Stream s = m.Build();
-  ASSERT_EQ(1U, s.size());
-  EXPECT_EQ(kArm64Mov32, s[0]->arch_opcode());
-}
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorConversionTest,
+                        ::testing::ValuesIn(kConversionInstructions));
 
 
 // -----------------------------------------------------------------------------

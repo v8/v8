@@ -210,7 +210,6 @@ TEST(TurboTrivialDeoptCodegen) {
 
   // Check that we deoptimize to the right AST id.
   CHECK_EQ(1, data->DeoptCount());
-  CHECK_EQ(1, data->DeoptCount());
   CHECK_EQ(t.bailout_id.ToInt(), data->AstId(0).ToInt());
 }
 

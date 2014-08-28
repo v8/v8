@@ -6,7 +6,6 @@
 // own, but contains the parts which are the same across the POSIX platforms
 // Linux, MacOS, FreeBSD, OpenBSD, NetBSD and QNX.
 
-#include <dlfcn.h>
 #include <errno.h>
 #include <limits.h>
 #include <pthread.h>
@@ -20,20 +19,18 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#if !defined(__pnacl__)
 #include <sys/syscall.h>
+#endif
 #include <sys/time.h>
 #include <sys/types.h>
-#if defined(__linux__)
+#if defined(__linux__) && !defined(__pnacl__)
 #include <sys/prctl.h>  // NOLINT, for prctl
 #endif
 #if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
     defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/sysctl.h>  // NOLINT, for sysctl
 #endif
-
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <netinet/in.h>
 
 #undef MAP_TYPE
 
@@ -53,6 +50,10 @@
 
 #ifdef V8_FAST_TLS_SUPPORTED
 #include "src/base/atomicops.h"
+#endif
+
+#if V8_OS_MACOSX
+#include <dlfcn.h>
 #endif
 
 namespace v8 {
@@ -252,9 +253,13 @@ int OS::GetCurrentProcessId() {
 int OS::GetCurrentThreadId() {
 #if defined(ANDROID)
   return static_cast<int>(syscall(__NR_gettid));
-#else
+#elif defined(SYS_gettid)
   return static_cast<int>(syscall(SYS_gettid));
-#endif  // defined(ANDROID)
+#else
+  // PNaCL doesn't have a way to get an integral thread ID, but it doesn't
+  // really matter, because we only need it in PerfJitLogger::LogRecordedBuffer.
+  return 0;
+#endif
 }
 
 

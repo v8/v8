@@ -1895,7 +1895,6 @@ TEST_F(InstructionSelectorTest, Word32AndWithWord32ShrWithImmediateForARMv7) {
     }
   }
 }
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

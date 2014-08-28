@@ -57,6 +57,9 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
           continue;
       }
     }
+    if (mode == kAllExceptNopInstructions && instr->arch_opcode() == kArchNop) {
+      continue;
+    }
     for (size_t i = 0; i < instr->OutputCount(); ++i) {
       InstructionOperand* output = instr->OutputAt(i);
       EXPECT_NE(InstructionOperand::IMMEDIATE, output->kind());
@@ -93,6 +96,9 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
       EXPECT_FALSE(sequence.IsDouble(virtual_register));
       s.references_.insert(virtual_register);
     }
+  }
+  for (int i = 0; i < sequence.GetDeoptimizationEntryCount(); i++) {
+    s.deoptimization_entries_.push_back(sequence.GetDeoptimizationEntry(i));
   }
   return s;
 }
@@ -305,6 +311,159 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
     EXPECT_EQ(i1->InputCount(), i2->InputCount());
     EXPECT_EQ(i1->OutputCount(), i2->OutputCount());
   }
+}
+
+
+// -----------------------------------------------------------------------------
+// Calls with deoptimization.
+TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged);
+
+  BailoutId bailout_id(42);
+
+  Node* function_node = m.Parameter(0);
+  Node* receiver = m.Parameter(1);
+  StreamBuilder::Label deopt, cont;
+
+  // TODO(jarin) Add frame state.
+  Node* call = m.CallJS0(function_node, receiver, &cont, &deopt);
+
+  m.Bind(&cont);
+  m.NewNode(m.common()->Continuation(), call);
+  m.Return(call);
+
+  m.Bind(&deopt);
+  m.NewNode(m.common()->LazyDeoptimization(), call);
+
+  Node* parameters = m.NewNode(m.common()->StateValues(1), m.Int32Constant(1));
+  Node* locals = m.NewNode(m.common()->StateValues(0));
+  Node* stack = m.NewNode(m.common()->StateValues(0));
+
+  Node* state_node =
+      m.NewNode(m.common()->FrameState(bailout_id), parameters, locals, stack);
+  m.Deoptimize(state_node);
+
+  Stream s = m.Build(kAllExceptNopInstructions);
+
+  // Skip until kArchCallJSFunction.
+  size_t index = 0;
+  for (; index < s.size() && s[index]->arch_opcode() != kArchCallJSFunction;
+       index++) {
+  }
+  // Now we should have three instructions: call, return and deoptimize.
+  ASSERT_EQ(index + 3, s.size());
+
+  EXPECT_EQ(kArchCallJSFunction, s[index++]->arch_opcode());
+  EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
+  EXPECT_EQ(kArchDeoptimize, s[index++]->arch_opcode());
+  EXPECT_EQ(index, s.size());
+}
+
+
+TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
+                  kMachAnyTagged);
+
+  BailoutId bailout_id_before(42);
+  BailoutId bailout_id_after(54);
+
+  // Some arguments for the call node.
+  Node* function_node = m.Parameter(0);
+  Node* receiver = m.Parameter(1);
+  Node* context = m.Int32Constant(1);  // Context is ignored.
+
+  // Build frame state for the state before the call.
+  Node* parameters = m.NewNode(m.common()->StateValues(1), m.Int32Constant(43));
+  Node* locals = m.NewNode(m.common()->StateValues(1), m.Int32Constant(44));
+  Node* stack = m.NewNode(m.common()->StateValues(1), m.Int32Constant(45));
+  Node* frame_state_before = m.NewNode(
+      m.common()->FrameState(bailout_id_before), parameters, locals, stack);
+
+  StreamBuilder::Label deopt, cont;
+  // Build the call.
+  Node* call =
+      m.CallFunctionStub0(function_node, receiver, context, frame_state_before,
+                          &cont, &deopt, CALL_AS_METHOD);
+
+  // Create the continuation branch.
+  m.Bind(&cont);
+  m.NewNode(m.common()->Continuation(), call);
+  m.Return(call);
+
+  // Create the lazy deoptimization block (with a different frame state).
+  m.Bind(&deopt);
+  m.NewNode(m.common()->LazyDeoptimization(), call);
+
+  Node* stack_after =
+      m.NewNode(m.common()->StateValues(2), m.Int32Constant(55), call);
+
+  Node* frame_state_after = m.NewNode(m.common()->FrameState(bailout_id_after),
+                                      parameters, locals, stack_after);
+  m.Deoptimize(frame_state_after);
+
+  Stream s = m.Build(kAllExceptNopInstructions);
+
+  // Skip until kArchCallJSFunction.
+  size_t index = 0;
+  for (; index < s.size() && s[index]->arch_opcode() != kArchCallCodeObject;
+       index++) {
+  }
+  // Now we should have three instructions: call, return and deoptimize.
+  ASSERT_EQ(index + 3, s.size());
+
+  // Check the call instruction
+  const Instruction* call_instr = s[index++];
+  EXPECT_EQ(kArchCallCodeObject, call_instr->arch_opcode());
+  size_t num_operands =
+      1 +  // Code object.
+      1 +
+      3 +  // Frame state deopt id + one input for each value in frame state.
+      1 +  // Function.
+      1 +  // Context.
+      2;   // Continuation and deoptimization block labels.
+  ASSERT_EQ(num_operands, call_instr->InputCount());
+
+  // Code object.
+  EXPECT_TRUE(call_instr->InputAt(0)->IsImmediate());
+
+  // Deoptimization id.
+  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(1));
+  FrameStateDescriptor* desc_before = s.GetDeoptimizationEntry(deopt_id_before);
+  EXPECT_EQ(bailout_id_before, desc_before->bailout_id());
+  EXPECT_EQ(1, desc_before->parameters_count());
+  EXPECT_EQ(1, desc_before->locals_count());
+  EXPECT_EQ(1, desc_before->stack_count());
+  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(2)));
+  EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(3)));
+  EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(4)));
+
+  // Function.
+  EXPECT_EQ(function_node->id(), s.ToVreg(call_instr->InputAt(5)));
+  // Context.
+  EXPECT_EQ(context->id(), s.ToVreg(call_instr->InputAt(6)));
+  // Continuation.
+  EXPECT_EQ(cont.block()->id(), s.ToInt32(call_instr->InputAt(7)));
+  // Deoptimization.
+  EXPECT_EQ(deopt.block()->id(), s.ToInt32(call_instr->InputAt(8)));
+
+  EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
+
+  // Check the deoptimize instruction.
+  const Instruction* deopt_instr = s[index++];
+  EXPECT_EQ(kArchDeoptimize, deopt_instr->arch_opcode());
+  ASSERT_EQ(5U, deopt_instr->InputCount());
+  int32_t deopt_id_after = s.ToInt32(deopt_instr->InputAt(0));
+  FrameStateDescriptor* desc_after = s.GetDeoptimizationEntry(deopt_id_after);
+  EXPECT_EQ(bailout_id_after, desc_after->bailout_id());
+  EXPECT_EQ(1, desc_after->parameters_count());
+  EXPECT_EQ(1, desc_after->locals_count());
+  EXPECT_EQ(2, desc_after->stack_count());
+  // Parameter value from the frame state.
+  EXPECT_EQ(43, s.ToInt32(deopt_instr->InputAt(1)));
+  EXPECT_EQ(44, s.ToInt32(deopt_instr->InputAt(2)));
+  EXPECT_EQ(55, s.ToInt32(deopt_instr->InputAt(3)));
+  EXPECT_EQ(call->id(), s.ToVreg(deopt_instr->InputAt(4)));
+  EXPECT_EQ(index, s.size());
 }
 
 }  // namespace compiler
