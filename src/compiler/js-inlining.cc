@@ -49,35 +49,6 @@ void JSInliner::Inline() {
 }
 
 
-static void MoveWithDependencies(Graph* graph, Node* node, Node* old_block,
-                                 Node* new_block) {
-  if (OperatorProperties::HasControlInput(node->op())) {
-    // Check if we have left the old_block.
-    if (NodeProperties::GetControlInput(node) != old_block) return;
-    // If not, move this node to the new_block.
-    NodeProperties::ReplaceControlInput(node, new_block);
-  }
-  // Independent of whether a node has a control input or not,
-  // it might have a dependency that is pinned to old_block.
-  for (InputIter iter = node->inputs().begin(); iter != node->inputs().end();
-       ++iter) {
-    if (NodeProperties::IsControlEdge(iter.edge())) continue;
-    MoveWithDependencies(graph, *iter, old_block, new_block);
-  }
-}
-
-
-static void MoveAllControlNodes(Node* from, Node* to) {
-  for (UseIter iter = from->uses().begin(); iter != from->uses().end();) {
-    if (NodeProperties::IsControlEdge(iter.edge())) {
-      iter.UpdateToAndIncrement(to);
-    } else {
-      ++iter;
-    }
-  }
-}
-
-
 // TODO(sigurds) Find a home for this function and reuse it everywhere (esp. in
 // test cases, where similar code is currently duplicated).
 static void Parse(Handle<JSFunction> function, CompilationInfoWithZone* info) {
@@ -187,13 +158,9 @@ void Inlinee::UnifyReturn() {
 void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
   MachineOperatorBuilder machine(jsgraph->zone());
 
+  // The scheduler is smart enough to place our code; we just ensure {control}
+  // becomes the control input of the start of the inlinee.
   Node* control = NodeProperties::GetControlInput(call);
-  // Move all the nodes to the end block.
-  MoveAllControlNodes(control, end_block());
-  // Now move the ones the call depends on back up.
-  // We have to do this back-and-forth to treat the case where the call is
-  // pinned to the start block.
-  MoveWithDependencies(graph(), call, end_block(), control);
 
   // The inlinee uses the context from the JSFunction object. This will
   // also be the effect dependency for the inlinee as it produces an effect.
