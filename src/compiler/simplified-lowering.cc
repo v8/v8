@@ -453,10 +453,9 @@ class RepresentationSelector {
             DeferReplacement(node, node->InputAt(0));
           } else {
             // Require the input in float64 format and perform truncation.
-            // TODO(turbofan): could also avoid the truncation with a tag check.
+            // TODO(turbofan): avoid a truncation with a smi check.
             VisitUnop(node, kTypeInt32 | kRepFloat64, kTypeInt32 | kRepWord32);
-            // TODO(titzer): should be a truncation.
-            node->set_op(lowering->machine()->ChangeFloat64ToInt32());
+            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
           }
         } else {
           // Propagate a type to the input, but pass through representation.
@@ -475,11 +474,10 @@ class RepresentationSelector {
             DeferReplacement(node, node->InputAt(0));
           } else {
             // Require the input in float64 format to perform truncation.
-            // TODO(turbofan): could also avoid the truncation with a tag check.
+            // TODO(turbofan): avoid the truncation with a smi check.
             VisitUnop(node, kTypeUint32 | kRepFloat64,
                       kTypeUint32 | kRepWord32);
-            // TODO(titzer): should be a truncation.
-            node->set_op(lowering->machine()->ChangeFloat64ToUint32());
+            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
           }
         } else {
           // Propagate a type to the input, but pass through representation.
