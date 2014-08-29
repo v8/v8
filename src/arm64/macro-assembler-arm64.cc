@@ -3013,11 +3013,21 @@ void MacroAssembler::TryConvertDoubleToInt64(Register result,
 void MacroAssembler::TruncateDoubleToI(Register result,
                                        DoubleRegister double_input) {
   Label done;
-  DCHECK(jssp.Is(StackPointer()));
 
   // Try to convert the double to an int64. If successful, the bottom 32 bits
   // contain our truncated int32 result.
   TryConvertDoubleToInt64(result, double_input, &done);
+
+  const Register old_stack_pointer = StackPointer();
+  if (csp.Is(old_stack_pointer)) {
+    // This currently only happens during compiler-unittest. If it arises
+    // during regular code generation the DoubleToI stub should be updated to
+    // cope with csp and have an extra parameter indicating which stack pointer
+    // it should use.
+    Push(jssp, xzr);  // Push xzr to maintain csp required 16-bytes alignment.
+    Mov(jssp, csp);
+    SetStackPointer(jssp);
+  }
 
   // If we fell through then inline version didn't succeed - call stub instead.
   Push(lr, double_input);
@@ -3030,8 +3040,15 @@ void MacroAssembler::TruncateDoubleToI(Register result,
                      true);  // skip_fastpath
   CallStub(&stub);  // DoubleToIStub preserves any registers it needs to clobber
 
-  Drop(1, kDoubleSize);  // Drop the double input on the stack.
-  Pop(lr);
+  DCHECK_EQ(xzr.SizeInBytes(), double_input.SizeInBytes());
+  Pop(xzr, lr);  // xzr to drop the double input on the stack.
+
+  if (csp.Is(old_stack_pointer)) {
+    Mov(csp, jssp);
+    SetStackPointer(csp);
+    AssertStackConsistency();
+    Pop(xzr, jssp);
+  }
 
   Bind(&done);
 }
