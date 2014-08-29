@@ -710,3 +710,52 @@ function MathExpm1(x) {
   }
   return y;
 }
+
+
+// ES6 draft 09-27-13, section 20.2.2.30.
+// Math.sinh
+// Method :
+// mathematically sinh(x) if defined to be (exp(x)-exp(-x))/2
+//      1. Replace x by |x| (sinh(-x) = -sinh(x)).
+//      2.
+//                                                  E + E/(E+1)
+//          0        <= x <= 22     :  sinh(x) := --------------, E=expm1(x)
+//                                                      2
+//
+//          22       <= x <= lnovft :  sinh(x) := exp(x)/2 
+//          lnovft   <= x <= ln2ovft:  sinh(x) := exp(x/2)/2 * exp(x/2)
+//          ln2ovft  <  x           :  sinh(x) := x*shuge (overflow)
+//
+// Special cases:
+//      sinh(x) is |x| if x is +Infinity, -Infinity, or NaN.
+//      only sinh(0)=0 is exact for finite x.
+//
+const KSINH_OVERFLOW = kMath[52];
+const TWO_M28 = 3.725290298461914e-9;  // 2^-28, empty lower half
+const LOG_MAXD = 709.7822265625;  // 0x40862e42 00000000, empty lower half
+
+function MathSinh(x) {
+  x = x * 1;  // Convert to number.
+  var h = (x < 0) ? -0.5 : 0.5;
+  // |x| in [0, 22]. return sign(x)*0.5*(E+E/(E+1))
+  var ax = MathAbs(x);
+  if (ax < 22) {
+    // For |x| < 2^-28, sinh(x) = x
+    if (ax < TWO_M28) return x;
+    var t = MathExpm1(ax);
+    if (ax < 1) return h * (2 * t - t * t / (t + 1));
+    return h * (t + t / (t + 1));
+  }
+  // |x| in [22, log(maxdouble)], return 0.5 * exp(|x|)
+  if (ax < LOG_MAXD) return h * MathExp(ax);
+  // |x| in [log(maxdouble), overflowthreshold]
+  // overflowthreshold = 710.4758600739426
+  if (ax <= KSINH_OVERFLOW) {
+    var w = MathExp(0.5 * ax);
+    var t = h * w;
+    return t * w;
+  }
+  // |x| > overflowthreshold or is NaN.
+  // Return Infinity of the appropriate sign or NaN.
+  return x * INFINITY;
+}
