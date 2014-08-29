@@ -19,14 +19,8 @@
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
-#if !defined(__pnacl__)
-#include <sys/syscall.h>
-#endif
 #include <sys/time.h>
 #include <sys/types.h>
-#if defined(__linux__) && !defined(__pnacl__)
-#include <sys/prctl.h>  // NOLINT, for prctl
-#endif
 #if defined(__APPLE__) || defined(__DragonFly__) || defined(__FreeBSD__) || \
     defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/sysctl.h>  // NOLINT, for sysctl
@@ -54,6 +48,14 @@
 
 #if V8_OS_MACOSX
 #include <dlfcn.h>
+#endif
+
+#if V8_OS_LINUX
+#include <sys/prctl.h>  // NOLINT, for prctl
+#endif
+
+#if !V8_OS_NACL
+#include <sys/syscall.h>
 #endif
 
 namespace v8 {
@@ -223,11 +225,11 @@ void OS::DebugBreak() {
 #elif V8_HOST_ARCH_MIPS64
   asm("break");
 #elif V8_HOST_ARCH_IA32
-#if defined(__native_client__)
+#if V8_OS_NACL
   asm("hlt");
 #else
   asm("int $3");
-#endif  // __native_client__
+#endif  // V8_OS_NACL
 #elif V8_HOST_ARCH_X64
   asm("int $3");
 #else
@@ -268,12 +270,17 @@ int OS::GetCurrentThreadId() {
 //
 
 int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
+#if V8_OS_NACL
+  // Optionally used in Logger::ResourceEvent.
+  return -1;
+#else
   struct rusage usage;
 
   if (getrusage(RUSAGE_SELF, &usage) < 0) return -1;
   *secs = usage.ru_utime.tv_sec;
   *usecs = usage.ru_utime.tv_usec;
   return 0;
+#endif
 }
 
 
