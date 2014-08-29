@@ -50,7 +50,8 @@ static void TypedArrayLoadHelper(const char* array_type) {
       double value_a = static_cast<U>(kValues[i]);
       double value_b = static_cast<U>(kValues[j]);
       double expected = value_a + value_b;
-      T.CheckCall(T.Val(expected), T.Val(i), T.Val(j));
+      T.CheckCall(T.Val(expected), T.Val(static_cast<double>(i)),
+                  T.Val(static_cast<double>(j)));
     }
   }
 }
