@@ -64,12 +64,13 @@ void GenericNode<B, S>::ReplaceUses(GenericNode* replace_to) {
   if (replace_to->last_use_ == NULL) {
     DCHECK_EQ(NULL, replace_to->first_use_);
     replace_to->first_use_ = first_use_;
-  } else {
+    replace_to->last_use_ = last_use_;
+  } else if (first_use_ != NULL) {
     DCHECK_NE(NULL, replace_to->first_use_);
     replace_to->last_use_->next = first_use_;
     first_use_->prev = replace_to->last_use_;
+    replace_to->last_use_ = last_use_;
   }
-  replace_to->last_use_ = last_use_;
   replace_to->use_count_ += use_count_;
   use_count_ = 0;
   first_use_ = NULL;
