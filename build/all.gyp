@@ -9,8 +9,8 @@
       'type': 'none',
       'dependencies': [
         '../samples/samples.gyp:*',
+        '../src/base/base.gyp:*',
         '../src/d8.gyp:d8',
-        '../test/base-unittests/base-unittests.gyp:*',
         '../test/cctest/cctest.gyp:*',
         '../test/compiler-unittests/compiler-unittests.gyp:*',
         '../test/heap-unittests/heap-unittests.gyp:*',

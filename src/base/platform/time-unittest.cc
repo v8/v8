@@ -139,7 +139,7 @@ static void ResolutionTest(T (*Now)(), TimeDelta target_granularity) {
   EXPECT_LE(delta, target_granularity);
 }
 
-}
+}  // namespace
 
 
 TEST(Time, NowResolution) {
