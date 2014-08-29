@@ -72,6 +72,7 @@
         ['v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
           'dependencies': ['v8_base', 'v8_external_snapshot'],
           'inputs': [ '<(PRODUCT_DIR)/snapshot_blob.bin', ],
+        }],
         ['component=="shared_library"', {
           'type': '<(component)',
           'sources': [
