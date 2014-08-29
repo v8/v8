@@ -39,6 +39,7 @@ class JSTypedLowering : public Reducer {
   Reduction ReplaceWith(Node* node) { return Reducer::Replace(node); }
   Reduction ReduceJSAdd(Node* node);
   Reduction ReduceJSComparison(Node* node);
+  Reduction ReduceJSPropertyLoad(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
   Reduction ReduceJSToNumberInput(Node* input);

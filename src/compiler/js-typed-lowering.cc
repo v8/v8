@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/access-builder.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/node-aux-data-inl.h"
@@ -499,6 +500,43 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
 }
 
 
+Reduction JSTypedLowering::ReduceJSPropertyLoad(Node* node) {
+  Node* key = NodeProperties::GetValueInput(node, 1);
+  Node* base = NodeProperties::GetValueInput(node, 0);
+  Type* key_type = NodeProperties::GetBounds(key).upper;
+  Type* base_type = NodeProperties::GetBounds(base).upper;
+  // TODO(mstarzinger): This lowering is not correct if:
+  //   a) The typed array turns external (i.e. MaterializeArrayBuffer)
+  //   b) The typed array or it's buffer is neutered.
+  //   c) The index is out of bounds.
+  if (base_type->IsConstant() && key_type->Is(Type::Integral32()) &&
+      base_type->AsConstant()->Value()->IsJSTypedArray()) {
+    // JSLoadProperty(typed-array, int32)
+    JSTypedArray* array = JSTypedArray::cast(*base_type->AsConstant()->Value());
+    ElementsKind elements_kind = array->map()->elements_kind();
+    ExternalArrayType type = array->type();
+    ElementAccess element_access;
+    Node* elements = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
+        NodeProperties::GetEffectInput(node));
+    if (IsExternalArrayElementsKind(elements_kind)) {
+      elements = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
+          elements, NodeProperties::GetEffectInput(node));
+      element_access = AccessBuilder::ForTypedArrayElement(type, true);
+    } else {
+      DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
+      element_access = AccessBuilder::ForTypedArrayElement(type, false);
+    }
+    Node* value =
+        graph()->NewNode(simplified()->LoadElement(element_access), elements,
+                         key, NodeProperties::GetEffectInput(node));
+    return ReplaceEagerly(node, value);
+  }
+  return NoChange();
+}
+
+
 static Reduction ReplaceWithReduction(Node* node, Reduction reduction) {
   if (reduction.Changed()) {
     NodeProperties::ReplaceWithValue(node, reduction.replacement());
@@ -573,6 +611,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSToString:
       return ReplaceWithReduction(node,
                                   ReduceJSToStringInput(node->InputAt(0)));
+    case IrOpcode::kJSLoadProperty:
+      return ReduceJSPropertyLoad(node);
     default:
       break;
   }

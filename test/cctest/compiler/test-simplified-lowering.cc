@@ -4,6 +4,7 @@
 
 #include <limits>
 
+#include "src/compiler/access-builder.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph-visualizer.h"
@@ -51,48 +52,6 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
   Factory* factory() { return this->isolate()->factory(); }
   Heap* heap() { return this->isolate()->heap(); }
 };
-
-
-// TODO(dcarney): find a home for these functions.
-namespace {
-
-FieldAccess ForJSObjectMap() {
-  FieldAccess access = {kTaggedBase, JSObject::kMapOffset, Handle<Name>(),
-                        Type::Any(), kMachAnyTagged};
-  return access;
-}
-
-
-FieldAccess ForJSObjectProperties() {
-  FieldAccess access = {kTaggedBase, JSObject::kPropertiesOffset,
-                        Handle<Name>(), Type::Any(), kMachAnyTagged};
-  return access;
-}
-
-
-FieldAccess ForArrayBufferBackingStore() {
-  FieldAccess access = {
-      kTaggedBase,         JSArrayBuffer::kBackingStoreOffset, Handle<Name>(),
-      Type::UntaggedPtr(), kMachPtr,
-  };
-  return access;
-}
-
-
-ElementAccess ForFixedArrayElement() {
-  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
-                          kMachAnyTagged};
-  return access;
-}
-
-
-ElementAccess ForBackingStoreElement(MachineType rep) {
-  ElementAccess access = {kUntaggedBase,
-                          kNonHeapObjectHeaderSize - kHeapObjectTag,
-                          Type::Any(), rep};
-  return access;
-}
-}
 
 
 #ifndef V8_TARGET_ARCH_ARM64
@@ -166,7 +125,7 @@ static Handle<JSObject> TestObject() {
 
 TEST(RunLoadMap) {
   SimplifiedLoweringTester<Object*> t(kMachAnyTagged);
-  FieldAccess access = ForJSObjectMap();
+  FieldAccess access = AccessBuilder::ForMap();
   Node* load = t.LoadField(access, t.Parameter(0));
   t.Return(load);
 
@@ -184,7 +143,7 @@ TEST(RunLoadMap) {
 
 TEST(RunStoreMap) {
   SimplifiedLoweringTester<int32_t> t(kMachAnyTagged, kMachAnyTagged);
-  FieldAccess access = ForJSObjectMap();
+  FieldAccess access = AccessBuilder::ForMap();
   t.StoreField(access, t.Parameter(1), t.Parameter(0));
   t.Return(t.jsgraph.TrueConstant());
 
@@ -204,7 +163,7 @@ TEST(RunStoreMap) {
 
 TEST(RunLoadProperties) {
   SimplifiedLoweringTester<Object*> t(kMachAnyTagged);
-  FieldAccess access = ForJSObjectProperties();
+  FieldAccess access = AccessBuilder::ForJSObjectProperties();
   Node* load = t.LoadField(access, t.Parameter(0));
   t.Return(load);
 
@@ -222,7 +181,7 @@ TEST(RunLoadProperties) {
 
 TEST(RunLoadStoreMap) {
   SimplifiedLoweringTester<Object*> t(kMachAnyTagged, kMachAnyTagged);
-  FieldAccess access = ForJSObjectMap();
+  FieldAccess access = AccessBuilder::ForMap();
   Node* load = t.LoadField(access, t.Parameter(0));
   t.StoreField(access, t.Parameter(1), load);
   t.Return(load);
@@ -245,7 +204,7 @@ TEST(RunLoadStoreMap) {
 
 TEST(RunLoadStoreFixedArrayIndex) {
   SimplifiedLoweringTester<Object*> t(kMachAnyTagged);
-  ElementAccess access = ForFixedArrayElement();
+  ElementAccess access = AccessBuilder::ForFixedArrayElement();
   Node* load = t.LoadElement(access, t.Parameter(0), t.Int32Constant(0));
   t.StoreElement(access, t.Parameter(0), t.Int32Constant(1), load);
   t.Return(load);
@@ -270,9 +229,10 @@ TEST(RunLoadStoreFixedArrayIndex) {
 TEST(RunLoadStoreArrayBuffer) {
   SimplifiedLoweringTester<Object*> t(kMachAnyTagged);
   const int index = 12;
-  ElementAccess buffer_access = ForBackingStoreElement(kMachInt8);
-  Node* backing_store =
-      t.LoadField(ForArrayBufferBackingStore(), t.Parameter(0));
+  ElementAccess buffer_access =
+      AccessBuilder::ForBackingStoreElement(kMachInt8);
+  Node* backing_store = t.LoadField(
+      AccessBuilder::ForJSArrayBufferBackingStore(), t.Parameter(0));
   Node* load =
       t.LoadElement(buffer_access, backing_store, t.Int32Constant(index));
   t.StoreElement(buffer_access, backing_store, t.Int32Constant(index + 1),

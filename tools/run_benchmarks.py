@@ -92,6 +92,7 @@ Path pieces are concatenated. D8 is always run with the suite's path as cwd.
 """
 
 import json
+import math
 import optparse
 import os
 import re
@@ -115,6 +116,16 @@ SUPPORTED_ARCHS = ["android_arm",
 
 GENERIC_RESULTS_RE = re.compile(
     r"^Trace\(([^\)]+)\), Result\(([^\)]+)\), StdDev\(([^\)]+)\)$")
+
+
+def GeometricMean(values):
+  """Returns the geometric mean of a list of values.
+
+  The mean is calculated using log to avoid overflow.
+  """
+  values = map(float, values)
+  return str(math.exp(sum(map(math.log, values)) / len(values)))
+
 
 class Results(object):
   """Place holder for result traces."""
@@ -160,6 +171,7 @@ class DefaultSentinel(Node):
     self.results_regexp = None
     self.stddev_regexp = None
     self.units = "score"
+    self.total = False
 
 
 class Graph(Node):
@@ -187,6 +199,7 @@ class Graph(Node):
     self.run_count = suite.get("run_count", parent.run_count)
     self.run_count = suite.get("run_count_%s" % arch, self.run_count)
     self.units = suite.get("units", parent.units)
+    self.total = suite.get("total", parent.total)
 
     # A regular expression for results. If the parent graph provides a
     # regexp and the current suite has none, a string place holder for the
@@ -276,8 +289,29 @@ class Runnable(Graph):
     for stdout in runner():
       for trace in self._children:
         trace.ConsumeOutput(stdout)
-    return reduce(lambda r, t: r + t.GetResults(), self._children, Results())
+    res = reduce(lambda r, t: r + t.GetResults(), self._children, Results())
 
+    if not res.traces or not self.total:
+      return res
+
+    # Assume all traces have the same structure.
+    if len(set(map(lambda t: len(t["results"]), res.traces))) != 1:
+      res.errors.append("Not all traces have the same number of results.")
+      return res
+
+    # Calculate the geometric means for all traces. Above we made sure that
+    # there is at least one trace and that the number of results is the same
+    # for each trace.
+    n_results = len(res.traces[0]["results"])
+    total_results = [GeometricMean(t["results"][i] for t in res.traces)
+                     for i in range(0, n_results)]
+    res.traces.append({
+      "graphs": self.graphs + ["Total"],
+      "units": res.traces[0]["units"],
+      "results": total_results,
+      "stddev": "",
+    })
+    return res
 
 class RunnableTrace(Trace, Runnable):
   """Represents a runnable benchmark suite definition that is a leaf."""
