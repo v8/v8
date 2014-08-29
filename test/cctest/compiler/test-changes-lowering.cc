@@ -303,10 +303,7 @@ TEST(RunChangeBitToBool) {
 }
 
 
-#ifndef V8_TARGET_ARCH_ARM64
 #if V8_TURBOFAN_BACKEND
-// TODO(titzer): disabled on ARM64 because calling into the runtime to
-// allocate uses the wrong stack pointer.
 // TODO(titzer): disabled on ARM
 
 TEST(RunChangeInt32ToTaggedSmi) {
@@ -411,4 +408,3 @@ TEST(RunChangeFloat64ToTagged) {
 }
 
 #endif  // V8_TURBOFAN_BACKEND
-#endif  // !V8_TARGET_ARCH_ARM64
