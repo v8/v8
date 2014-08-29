@@ -9,7 +9,7 @@
       'type': 'none',
       'dependencies': [
         '../samples/samples.gyp:*',
-        '../src/base/base.gyp:base-unittests',
+        '../src/base/base.gyp:*',
         '../src/d8.gyp:d8',
         '../test/cctest/cctest.gyp:*',
         '../test/compiler-unittests/compiler-unittests.gyp:*',
