@@ -146,8 +146,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Call(target);
       }
       AddSafepointAndDeopt(instr);
-      // Meaningless instruction for ICs to overwrite.
-      AddNopForSmiCodeInlining();
       break;
     }
     case kArchCallJSFunction: {

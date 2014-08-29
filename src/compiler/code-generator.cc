@@ -240,17 +240,15 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
 
 
 void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
-  CallDescriptor::DeoptimizationSupport deopt =
-      static_cast<CallDescriptor::DeoptimizationSupport>(
-          MiscField::decode(instr->opcode()));
+  CallDescriptor::Flags flags(MiscField::decode(instr->opcode()));
 
-  bool needs_frame_state = (deopt & CallDescriptor::kNeedsFrameState) != 0;
+  bool needs_frame_state = (flags & CallDescriptor::kNeedsFrameState);
 
   Safepoint::Id safepoint_id = RecordSafepoint(
       instr->pointer_map(), Safepoint::kSimple, 0,
       needs_frame_state ? Safepoint::kLazyDeopt : Safepoint::kNoLazyDeopt);
 
-  if ((deopt & CallDescriptor::kLazyDeoptimization) != 0) {
+  if (flags & CallDescriptor::kLazyDeoptimization) {
     RecordLazyDeoptimizationEntry(instr, safepoint_id);
   }
 
@@ -273,6 +271,10 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
     }
 #endif
     safepoints()->RecordLazyDeoptimizationIndex(deoptimization_id);
+  }
+
+  if (flags & CallDescriptor::kNeedsNopAfterCall) {
+    AddNopForSmiCodeInlining();
   }
 }
 

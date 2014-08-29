@@ -55,7 +55,8 @@ class JSGenericLowering : public Reducer {
 
   // Helpers to replace existing nodes with a generic call.
   void ReplaceWithCompareIC(Node* node, Token::Value token, bool pure);
-  void ReplaceWithICStubCall(Node* node, HydrogenCodeStub* stub);
+  void ReplaceWithStubCall(Node* node, HydrogenCodeStub* stub,
+                           CallDescriptor::Flags flags);
   void ReplaceWithBuiltinCall(Node* node, Builtins::JavaScript id, int args);
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);
 
@@ -75,8 +76,9 @@ class JSGenericLowering : public Reducer {
   MachineOperatorBuilder* machine_;
   SetOncePointer<Node> centrystub_constant_;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_JS_GENERIC_LOWERING_H_

@@ -35,20 +35,21 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone) {
 }
 
 
-CallDescriptor* Linkage::GetRuntimeCallDescriptor(
-    Runtime::FunctionId function, int parameter_count,
-    Operator::Property properties,
-    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
+CallDescriptor* Linkage::GetRuntimeCallDescriptor(Runtime::FunctionId function,
+                                                  int parameter_count,
+                                                  Operator::Property properties,
+                                                  CallDescriptor::Flags flags,
+                                                  Zone* zone) {
   return LinkageHelper::GetRuntimeCallDescriptor<LinkageHelperTraits>(
-      zone, function, parameter_count, properties, can_deoptimize);
+      zone, function, parameter_count, properties, flags);
 }
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
     CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
+    CallDescriptor::Flags flags, Zone* zone) {
   return LinkageHelper::GetStubCallDescriptor<LinkageHelperTraits>(
-      zone, descriptor, stack_parameter_count, can_deoptimize);
+      zone, descriptor, stack_parameter_count, flags);
 }
 
 
@@ -58,6 +59,7 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   return LinkageHelper::GetSimplifiedCDescriptor<LinkageHelperTraits>(
       zone, num_params, return_type, param_types);
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

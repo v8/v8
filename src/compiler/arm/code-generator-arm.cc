@@ -841,10 +841,10 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 
 void CodeGenerator::AddNopForSmiCodeInlining() {
   // On 32-bit ARM we do not insert nops for inlined Smi code.
-  UNREACHABLE();
 }
 
 #undef __
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
