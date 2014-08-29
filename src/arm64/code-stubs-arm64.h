@@ -454,20 +454,6 @@ class StringCompareStub: public PlatformCodeStub {
                                             Label* chars_not_equal);
 };
 
-
-class PlatformInterfaceDescriptor {
- public:
-  explicit PlatformInterfaceDescriptor(
-      TargetAddressStorageMode storage_mode)
-      : storage_mode_(storage_mode) { }
-
-  TargetAddressStorageMode storage_mode() { return storage_mode_; }
-
- private:
-  TargetAddressStorageMode storage_mode_;
-};
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_ARM64_CODE_STUBS_ARM64_H_

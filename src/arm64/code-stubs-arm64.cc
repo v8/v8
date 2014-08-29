@@ -160,9 +160,6 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
 }
 
 
-const Register InterfaceDescriptor::ContextRegister() { return cp; }
-
-
 static void InitializeArrayConstructorDescriptor(
     CodeStub::Major major, CodeStubInterfaceDescriptor* descriptor,
     int constant_stack_parameter_count) {
@@ -304,91 +301,6 @@ void StringAddStub::InitializeInterfaceDescriptor(
   Register registers[] = { cp, x1, x0 };
   descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          Runtime::FunctionForId(Runtime::kStringAdd)->entry);
-}
-
-
-void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
-  static PlatformInterfaceDescriptor default_descriptor =
-      PlatformInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);
-
-  static PlatformInterfaceDescriptor noInlineDescriptor =
-      PlatformInterfaceDescriptor(NEVER_INLINE_TARGET_ADDRESS);
-
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::ArgumentAdaptorCall);
-    Register registers[] = { cp,  // context
-                             x1,  // JSFunction
-                             x0,  // actual number of arguments
-                             x2,  // expected number of arguments
-    };
-    Representation representations[] = {
-        Representation::Tagged(),     // context
-        Representation::Tagged(),     // JSFunction
-        Representation::Integer32(),  // actual number of arguments
-        Representation::Integer32(),  // expected number of arguments
-    };
-    descriptor->Initialize(arraysize(registers), registers,
-                           representations, &default_descriptor);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::KeyedCall);
-    Register registers[] = { cp,  // context
-                             x2,  // key
-    };
-    Representation representations[] = {
-        Representation::Tagged(),     // context
-        Representation::Tagged(),     // key
-    };
-    descriptor->Initialize(arraysize(registers), registers,
-                           representations, &noInlineDescriptor);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::NamedCall);
-    Register registers[] = { cp,  // context
-                             x2,  // name
-    };
-    Representation representations[] = {
-        Representation::Tagged(),     // context
-        Representation::Tagged(),     // name
-    };
-    descriptor->Initialize(arraysize(registers), registers,
-                           representations, &noInlineDescriptor);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::CallHandler);
-    Register registers[] = { cp,  // context
-                             x0,  // receiver
-    };
-    Representation representations[] = {
-        Representation::Tagged(),  // context
-        Representation::Tagged(),  // receiver
-    };
-    descriptor->Initialize(arraysize(registers), registers,
-                           representations, &default_descriptor);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::ApiFunctionCall);
-    Register registers[] = { cp,  // context
-                             x0,  // callee
-                             x4,  // call_data
-                             x2,  // holder
-                             x1,  // api_function_address
-    };
-    Representation representations[] = {
-        Representation::Tagged(),    // context
-        Representation::Tagged(),    // callee
-        Representation::Tagged(),    // call_data
-        Representation::Tagged(),    // holder
-        Representation::External(),  // api_function_address
-    };
-    descriptor->Initialize(arraysize(registers), registers,
-                           representations, &default_descriptor);
-  }
 }
 
 

@@ -7393,7 +7393,7 @@ HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
     HValue* fun, HValue* context,
     int argument_count, HValue* expected_param_count) {
   CallInterfaceDescriptor* descriptor =
-      isolate()->call_descriptor(Isolate::ArgumentAdaptorCall);
+      isolate()->call_descriptor(CallDescriptorKey::ArgumentAdaptorCall);
 
   HValue* arity = Add<HConstant>(argument_count - 1);
 
@@ -8644,7 +8644,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   };
 
   CallInterfaceDescriptor* descriptor =
-      isolate()->call_descriptor(Isolate::ApiFunctionCall);
+      isolate()->call_descriptor(CallDescriptorKey::ApiFunctionCall);
 
   CallApiFunctionStub stub(isolate(), is_store, call_data_is_undefined, argc);
   Handle<Code> code = stub.GetCode();

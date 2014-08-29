@@ -2030,6 +2030,8 @@ bool Isolate::Init(Deserializer* des) {
         kDeoptTableSerializeEntryCount - 1);
   }
 
+  CallDescriptors::InitializeForIsolate(this);
+
   if (!serializer_enabled()) {
     // Ensure that all stubs which need to be generated ahead of time, but
     // cannot be serialized into the snapshot have been generated.
@@ -2056,8 +2058,6 @@ bool Isolate::Init(Deserializer* des) {
     StoreFieldStub::InstallDescriptors(this);
     LoadFastElementStub::InstallDescriptors(this);
   }
-
-  CallDescriptors::InitializeForIsolate(this);
 
   initialized_from_snapshot_ = (des != NULL);
 
@@ -2242,9 +2242,8 @@ CodeStubInterfaceDescriptor*
 }
 
 
-CallInterfaceDescriptor*
-    Isolate::call_descriptor(CallDescriptorKey index) {
-  DCHECK(0 <= index && index < NUMBER_OF_CALL_DESCRIPTORS);
+CallInterfaceDescriptor* Isolate::call_descriptor(int index) {
+  DCHECK(0 <= index && index < CallDescriptorKey::NUMBER_OF_CALL_DESCRIPTORS);
   return &call_descriptors_[index];
 }
 
