@@ -385,9 +385,14 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 
 
 Node* JSGenericLowering::LowerBranch(Node* node) {
-  Node* test = graph()->NewNode(machine()->WordEqual(), node->InputAt(0),
-                                jsgraph()->TrueConstant());
-  node->ReplaceInput(0, test);
+  if (!info()->is_typing_enabled()) {
+    // TODO(mstarzinger): If typing is enabled then simplified lowering will
+    // have inserted the correct ChangeBoolToBit, otherwise we need to perform
+    // poor-man's representation inference here and insert manual change.
+    Node* test = graph()->NewNode(machine()->WordEqual(), node->InputAt(0),
+                                  jsgraph()->TrueConstant());
+    node->ReplaceInput(0, test);
+  }
   return node;
 }
 
