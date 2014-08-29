@@ -192,4 +192,55 @@ TEST(InlineTwiceDependentDiamondDifferent) {
   T.CheckCall(T.Val(-329), T.Val(11), T.Val(4));
 }
 
+
+TEST(InlineLoop) {
+  FunctionTester T(
+      "(function () {"
+      "var x = 41;"
+      "function foo(s) { AssertStackDepth(1); while (s > 0) {"
+      "                  s = s - 1; }; return s; };"
+      "function bar(s,t) { return foo(foo(s)); };"
+      "return bar;"
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
+
+  InstallAssertStackDepthHelper(CcTest::isolate());
+  T.CheckCall(T.Val(0.0), T.Val(11), T.Val(4));
+}
+
+
+TEST(InlineStrictIntoNonStrict) {
+  FunctionTester T(
+      "(function () {"
+      "var x = Object.create({}, { y: { value:42, writable:false } });"
+      "function foo(s) { 'use strict';"
+      "                   x.y = 9; };"
+      "function bar(s,t) { return foo(s); };"
+      "return bar;"
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
+
+  InstallAssertStackDepthHelper(CcTest::isolate());
+  T.CheckThrows(T.undefined(), T.undefined());
+}
+
+
+TEST(InlineNonStrictIntoStrict) {
+  FunctionTester T(
+      "(function () {"
+      "var x = Object.create({}, { y: { value:42, writable:false } });"
+      "function foo(s) { x.y = 9; return x.y; };"
+      "function bar(s,t) { \'use strict\'; return foo(s); };"
+      "return bar;"
+      "})();",
+      CompilationInfo::kInliningEnabled |
+          CompilationInfo::kContextSpecializing);
+
+  InstallAssertStackDepthHelper(CcTest::isolate());
+  T.CheckCall(T.Val(42), T.undefined(), T.undefined());
+}
+
+
 #endif  // V8_TURBOFAN_TARGET
