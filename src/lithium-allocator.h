@@ -153,6 +153,8 @@ class UseInterval: public ZoneObject {
   LifetimePosition end_;
   UseInterval* next_;
 
+  friend class LAllocator;  // Assigns to next_.
+  friend class SpillRange;  // Assigns to next_.
   friend class LiveRange;  // Assigns to start_.
 };
 
@@ -184,6 +186,8 @@ class UsePosition: public ZoneObject {
 
   friend class LiveRange;
 };
+
+class SpillRange;
 
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
@@ -267,6 +271,10 @@ class LiveRange: public ZoneObject {
   LOperand* GetSpillOperand() const { return spill_operand_; }
   void SetSpillOperand(LOperand* operand);
 
+  void SetSpillRange(SpillRange* spill_range) { spill_range_ = spill_range; }
+  SpillRange* GetSpillRange() const { return spill_range_; }
+  void CommitSpillOperand(LOperand* operand);
+
   void SetSpillStartIndex(int start) {
     spill_start_index_ = Min(start, spill_start_index_);
   }
@@ -299,6 +307,7 @@ class LiveRange: public ZoneObject {
 
  private:
   void ConvertOperands(Zone* zone);
+  void ConvertUsesToOperand(LOperand* op);
   UseInterval* FirstSearchIntervalForPosition(LifetimePosition position) const;
   void AdvanceLastProcessedMarker(UseInterval* to_start_of,
                                   LifetimePosition but_not_past) const;
@@ -319,8 +328,33 @@ class LiveRange: public ZoneObject {
   LOperand* current_hint_operand_;
   LOperand* spill_operand_;
   int spill_start_index_;
+  SpillRange* spill_range_;
 
   friend class LAllocator;  // Assigns to kind_.
+};
+
+
+class SpillRange : public ZoneObject {
+ public:
+  SpillRange(LiveRange* range, int id, Zone* zone);
+
+  bool TryMerge(SpillRange* other, Zone* zone);
+  void SetOperand(LOperand* op);
+  bool IsEmpty() { return live_ranges_.length() == 0; }
+  int id() const { return id_; }
+  UseInterval* interval() { return use_interval_; }
+  RegisterKind Kind() const { return live_ranges_.at(0)->Kind(); }
+  LifetimePosition End() const { return end_position_; }
+  bool IsIntersectingWith(SpillRange* other);
+
+ private:
+  int id_;
+  ZoneList<LiveRange*> live_ranges_;
+  UseInterval* use_interval_;
+  LifetimePosition end_position_;
+
+  // Merge intervals, making sure the use intervals are sorted
+  void MergeDisjointIntervals(UseInterval* other, Zone* zone);
 };
 
 
@@ -390,6 +424,7 @@ class LAllocator BASE_EMBEDDED {
   void ResolveControlFlow();
   void PopulatePointerMaps();
   void AllocateRegisters();
+  void ReuseSpillSlots();
   bool CanEagerlyResolveControlFlow(HBasicBlock* block) const;
   inline bool SafePointsAreInOrder() const;
 
@@ -425,12 +460,12 @@ class LAllocator BASE_EMBEDDED {
   void ActiveToInactive(LiveRange* range);
   void InactiveToHandled(LiveRange* range);
   void InactiveToActive(LiveRange* range);
-  void FreeSpillSlot(LiveRange* range);
-  LOperand* TryReuseSpillSlot(LiveRange* range);
+  SpillRange* AssignSpillRangeToLiveRange(LiveRange* range);
 
   // Helper methods for allocating registers.
   bool TryAllocateFreeReg(LiveRange* range);
   void AllocateBlockedReg(LiveRange* range);
+  bool TryReuseSpillForPhi(LiveRange* range);
 
   // Live range splitting helpers.
 
@@ -530,6 +565,7 @@ class LAllocator BASE_EMBEDDED {
   ZoneList<LiveRange*> active_live_ranges_;
   ZoneList<LiveRange*> inactive_live_ranges_;
   ZoneList<LiveRange*> reusable_slots_;
+  ZoneList<SpillRange*> spill_ranges_;
 
   // Next virtual register number to be assigned to temporaries.
   int next_virtual_register_;
