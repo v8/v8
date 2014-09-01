@@ -7891,10 +7891,9 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   Scope* saved_scope = scope();
   set_scope(target_info.scope());
   HEnterInlined* enter_inlined =
-      Add<HEnterInlined>(return_id, target, arguments_count, function,
+      Add<HEnterInlined>(return_id, target, context, arguments_count, function,
                          function_state()->inlining_kind(),
-                         function->scope()->arguments(),
-                         arguments_object);
+                         function->scope()->arguments(), arguments_object);
   function_state()->set_entry(enter_inlined);
 
   VisitDeclarations(target_info.scope()->declarations());

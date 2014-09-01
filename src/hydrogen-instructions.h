@@ -1994,22 +1994,20 @@ enum InliningKind {
 
 
 class HArgumentsObject;
+class HConstant;
 
 
 class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
  public:
-  static HEnterInlined* New(Zone* zone,
-                            HValue* context,
-                            BailoutId return_id,
+  static HEnterInlined* New(Zone* zone, HValue* context, BailoutId return_id,
                             Handle<JSFunction> closure,
-                            int arguments_count,
+                            HConstant* closure_context, int arguments_count,
                             FunctionLiteral* function,
-                            InliningKind inlining_kind,
-                            Variable* arguments_var,
+                            InliningKind inlining_kind, Variable* arguments_var,
                             HArgumentsObject* arguments_object) {
-    return new(zone) HEnterInlined(return_id, closure, arguments_count,
-                                   function, inlining_kind, arguments_var,
-                                   arguments_object, zone);
+    return new (zone) HEnterInlined(return_id, closure, closure_context,
+                                    arguments_count, function, inlining_kind,
+                                    arguments_var, arguments_object, zone);
   }
 
   void RegisterReturnTarget(HBasicBlock* return_target, Zone* zone);
@@ -2018,6 +2016,7 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   virtual OStream& PrintDataTo(OStream& os) const V8_OVERRIDE;  // NOLINT
 
   Handle<JSFunction> closure() const { return closure_; }
+  HConstant* closure_context() const { return closure_context_; }
   int arguments_count() const { return arguments_count_; }
   bool arguments_pushed() const { return arguments_pushed_; }
   void set_arguments_pushed() { arguments_pushed_ = true; }
@@ -2035,27 +2034,25 @@ class HEnterInlined V8_FINAL : public HTemplateInstruction<0> {
   DECLARE_CONCRETE_INSTRUCTION(EnterInlined)
 
  private:
-  HEnterInlined(BailoutId return_id,
-                Handle<JSFunction> closure,
-                int arguments_count,
-                FunctionLiteral* function,
-                InliningKind inlining_kind,
-                Variable* arguments_var,
-                HArgumentsObject* arguments_object,
+  HEnterInlined(BailoutId return_id, Handle<JSFunction> closure,
+                HConstant* closure_context, int arguments_count,
+                FunctionLiteral* function, InliningKind inlining_kind,
+                Variable* arguments_var, HArgumentsObject* arguments_object,
                 Zone* zone)
       : return_id_(return_id),
         closure_(closure),
+        closure_context_(closure_context),
         arguments_count_(arguments_count),
         arguments_pushed_(false),
         function_(function),
         inlining_kind_(inlining_kind),
         arguments_var_(arguments_var),
         arguments_object_(arguments_object),
-        return_targets_(2, zone) {
-  }
+        return_targets_(2, zone) {}
 
   BailoutId return_id_;
   Handle<JSFunction> closure_;
+  HConstant* closure_context_;
   int arguments_count_;
   bool arguments_pushed_;
   FunctionLiteral* function_;
@@ -3054,7 +3051,6 @@ struct InductionVariableLimitUpdate {
 
 class HBoundsCheck;
 class HPhi;
-class HConstant;
 class HBitwise;
 
 

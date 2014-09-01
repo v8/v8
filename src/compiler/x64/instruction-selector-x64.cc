@@ -678,7 +678,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
 
   // Compute InstructionOperands for inputs and outputs.
-  InitializeCallBuffer(call, &buffer, true, true, continuation, deoptimization);
+  InitializeCallBuffer(call, &buffer, true, true);
 
   // TODO(dcarney): stack alignment for c calls.
   // TODO(dcarney): shadow space on window for c calls.

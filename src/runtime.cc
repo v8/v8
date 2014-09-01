@@ -11196,6 +11196,9 @@ class FrameInspector {
         ? deoptimized_frame_->HasConstructStub()
         : frame_->IsConstructor();
   }
+  Object* GetContext() {
+    return is_optimized_ ? deoptimized_frame_->GetContext() : frame_->context();
+  }
 
   // To inspect all the provided arguments the frame might need to be
   // replaced with the arguments frame.
@@ -11344,7 +11347,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   if (local < local_count) {
     // Get the context containing declarations.
     Handle<Context> context(
-        Context::cast(it.frame()->context())->declaration_context());
+        Context::cast(frame_inspector.GetContext())->declaration_context());
     for (; i < scope_info->LocalCount(); ++i) {
       if (scope_info->LocalIsSynthetic(i))
         continue;
@@ -13029,7 +13032,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   isolate->set_context(*(save->context()));
 
   // Evaluate on the context of the frame.
-  Handle<Context> context(Context::cast(frame->context()));
+  Handle<Context> context(Context::cast(frame_inspector.GetContext()));
   DCHECK(!context.is_null());
 
   // Materialize stack locals and the arguments object.

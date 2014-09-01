@@ -289,9 +289,6 @@ REPLACE_UNIMPLEMENTED(JSDebugger)
 
 static CallDescriptor::Flags FlagsForNode(Node* node) {
   CallDescriptor::Flags result = CallDescriptor::kNoFlags;
-  if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
-    result |= CallDescriptor::kLazyDeoptimization;
-  }
   if (OperatorProperties::HasFrameStateInput(node->op())) {
     result |= CallDescriptor::kNeedsFrameState;
   }

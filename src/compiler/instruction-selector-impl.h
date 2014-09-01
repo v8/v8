@@ -347,10 +347,6 @@ struct CallBuffer {
                ? 0
                : (frame_state_descriptor->size() + 1);
   }
-
-  int control_count() const {
-    return descriptor->CanLazilyDeoptimize() ? 2 : 0;
-  }
 };
 
 }  // namespace compiler

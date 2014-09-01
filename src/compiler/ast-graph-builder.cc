@@ -217,15 +217,17 @@ void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
 }
 
 
-Node* AstGraphBuilder::Environment::Checkpoint(BailoutId ast_id) {
+Node* AstGraphBuilder::Environment::Checkpoint(
+    BailoutId ast_id, OutputFrameStateCombine combine) {
   UpdateStateValues(&parameters_node_, 0, parameters_count());
   UpdateStateValues(&locals_node_, parameters_count(), locals_count());
   UpdateStateValues(&stack_node_, parameters_count() + locals_count(),
                     stack_height());
 
-  Operator* op = common()->FrameState(ast_id);
+  Operator* op = common()->FrameState(ast_id, combine);
 
-  return graph()->NewNode(op, parameters_node_, locals_node_, stack_node_);
+  return graph()->NewNode(op, parameters_node_, locals_node_, stack_node_,
+                          GetContext());
 }
 
 
@@ -1084,14 +1086,14 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
         PrintableUnique<Name> name =
             MakeUnique(property->key()->AsLiteral()->AsPropertyName());
         old_value = NewNode(javascript()->LoadNamed(name), object);
-        PrepareFrameState(old_value, property->LoadId(), PUSH_OUTPUT);
+        PrepareFrameState(old_value, property->LoadId(), kPushOutput);
         break;
       }
       case KEYED_PROPERTY: {
         Node* key = environment()->Top();
         Node* object = environment()->Peek(1);
         old_value = NewNode(javascript()->LoadProperty(), object, key);
-        PrepareFrameState(old_value, property->LoadId(), PUSH_OUTPUT);
+        PrepareFrameState(old_value, property->LoadId(), kPushOutput);
         break;
       }
     }
@@ -1100,7 +1102,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     Node* right = environment()->Pop();
     Node* left = environment()->Pop();
     Node* value = BuildBinaryOp(left, right, expr->binary_op());
-    PrepareFrameState(value, expr->binary_operation()->id(), PUSH_OUTPUT);
+    PrepareFrameState(value, expr->binary_operation()->id(), kPushOutput);
     environment()->Push(value);
   } else {
     VisitForValue(expr->value());
@@ -1217,7 +1219,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
         Node* key = environment()->Pop();
         callee_value = NewNode(javascript()->LoadProperty(), object, key);
       }
-      PrepareFrameState(callee_value, property->LoadId(), PUSH_OUTPUT);
+      PrepareFrameState(callee_value, property->LoadId(), kPushOutput);
       receiver_value = environment()->Pop();
       // Note that a PROPERTY_CALL requires the receiver to be wrapped into an
       // object for sloppy callees. This could also be modeled explicitly here,
@@ -1303,7 +1305,7 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   Node* callee_value = NewNode(javascript()->LoadNamed(unique), receiver_value);
   // TODO(jarin): Find/create a bailout id to deoptimize to (crankshaft
   // refuses to optimize functions with jsruntime calls).
-  PrepareFrameState(callee_value, BailoutId::None(), PUSH_OUTPUT);
+  PrepareFrameState(callee_value, BailoutId::None(), kPushOutput);
   environment()->Push(callee_value);
   environment()->Push(receiver_value);
 
@@ -1385,7 +1387,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       PrintableUnique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       old_value = NewNode(javascript()->LoadNamed(name), object);
-      PrepareFrameState(old_value, property->LoadId(), PUSH_OUTPUT);
+      PrepareFrameState(old_value, property->LoadId(), kPushOutput);
       stack_depth = 1;
       break;
     }
@@ -1395,7 +1397,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* key = environment()->Top();
       Node* object = environment()->Peek(1);
       old_value = NewNode(javascript()->LoadProperty(), object, key);
-      PrepareFrameState(old_value, property->LoadId(), PUSH_OUTPUT);
+      PrepareFrameState(old_value, property->LoadId(), kPushOutput);
       stack_depth = 2;
       break;
     }
@@ -1746,7 +1748,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       PrintableUnique<Name> name = MakeUnique(variable->name());
       Operator* op = javascript()->LoadNamed(name, contextual_mode);
       Node* node = NewNode(op, global);
-      PrepareFrameState(node, bailout_id, PUSH_OUTPUT);
+      PrepareFrameState(node, bailout_id, kPushOutput);
       return node;
     }
     case Variable::PARAMETER:
@@ -2009,36 +2011,8 @@ void AstGraphBuilder::PrepareFrameState(Node* node, BailoutId ast_id,
 
     DCHECK(node->InputAt(frame_state_index)->op()->opcode() == IrOpcode::kDead);
 
-    Node* frame_state_node = environment()->Checkpoint(ast_id);
+    Node* frame_state_node = environment()->Checkpoint(ast_id, combine);
     node->ReplaceInput(frame_state_index, frame_state_node);
-  }
-
-  if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
-    // The deopting node should have an outgoing control dependency.
-    DCHECK(environment()->GetControlDependency() == node);
-
-    StructuredGraphBuilder::Environment* continuation_env = environment();
-    // Create environment for the deoptimization block, and build the block.
-    StructuredGraphBuilder::Environment* deopt_env =
-        CopyEnvironment(continuation_env);
-    set_environment(deopt_env);
-
-    if (combine == PUSH_OUTPUT) {
-      environment()->Push(node);
-    }
-
-    NewNode(common()->LazyDeoptimization());
-
-    // TODO(jarin) If ast_id.IsNone(), perhaps we should generate an empty
-    // deopt block and make sure there is no patch entry for this (so
-    // that the deoptimizer dies when trying to deoptimize here).
-    Node* state_node = environment()->Checkpoint(ast_id);
-    Node* deoptimize_node = NewNode(common()->Deoptimize(), state_node);
-    UpdateControlDependencyToLeaveFunction(deoptimize_node);
-
-    // Continue with the original environment.
-    set_environment(continuation_env);
-    NewNode(common()->Continuation());
   }
 }
 

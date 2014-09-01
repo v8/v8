@@ -150,12 +150,12 @@ class InstructionSelectorTest : public CompilerTest {
       return UnallocatedOperand::cast(operand)->virtual_register();
     }
 
-    FrameStateDescriptor* GetDeoptimizationEntry(int deoptimization_id) {
-      EXPECT_LT(deoptimization_id, GetDeoptimizationEntryCount());
+    FrameStateDescriptor* GetFrameStateDescriptor(int deoptimization_id) {
+      EXPECT_LT(deoptimization_id, GetFrameStateDescriptorCount());
       return deoptimization_entries_[deoptimization_id];
     }
 
-    int GetDeoptimizationEntryCount() {
+    int GetFrameStateDescriptorCount() {
       return static_cast<int>(deoptimization_entries_.size());
     }
 

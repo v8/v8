@@ -16,10 +16,7 @@
   V(IfFalse)               \
   V(Merge)                 \
   V(Return)                \
-  V(Throw)                 \
-  V(Continuation)          \
-  V(LazyDeoptimization)    \
-  V(Deoptimize)
+  V(Throw)
 
 // Opcodes for common operators.
 #define LEAF_OP_LIST(V) \

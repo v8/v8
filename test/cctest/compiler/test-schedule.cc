@@ -126,20 +126,6 @@ TEST(TestScheduleAddThrow) {
 }
 
 
-TEST(TestScheduleAddDeopt) {
-  HandleAndZoneScope scope;
-  Schedule schedule(scope.main_zone());
-  Graph graph(scope.main_zone());
-  Node* n0 = graph.NewNode(&dummy_operator);
-  BasicBlock* entry = schedule.start();
-  schedule.AddDeoptimize(entry, n0);
-
-  CHECK_EQ(0, entry->PredecessorCount());
-  CHECK_EQ(1, entry->SuccessorCount());
-  CHECK_EQ(schedule.end(), entry->SuccessorAt(0));
-}
-
-
 TEST(BuildMulNodeGraph) {
   HandleAndZoneScope scope;
   Schedule schedule(scope.main_zone());

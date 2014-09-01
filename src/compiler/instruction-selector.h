@@ -139,8 +139,7 @@ class InstructionSelector V8_FINAL {
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
                             bool call_code_immediate,
-                            bool call_address_immediate, BasicBlock* cont_node,
-                            BasicBlock* deopt_node);
+                            bool call_address_immediate);
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
   void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,

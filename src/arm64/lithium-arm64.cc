@@ -1475,6 +1475,7 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
       instr->arguments_object()->IsLinked()) {
     inner->Bind(instr->arguments_var(), instr->arguments_object());
   }
+  inner->BindContext(instr->closure_context());
   inner->set_entry(instr);
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());

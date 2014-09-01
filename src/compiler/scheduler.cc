@@ -95,12 +95,6 @@ class CFGBuilder {
       case IrOpcode::kBranch:
         BuildBlocksForSuccessors(node, IrOpcode::kIfTrue, IrOpcode::kIfFalse);
         break;
-      case IrOpcode::kCall:
-        if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
-          BuildBlocksForSuccessors(node, IrOpcode::kContinuation,
-                                   IrOpcode::kLazyDeoptimization);
-        }
-        break;
       default:
         break;
     }
@@ -115,15 +109,6 @@ class CFGBuilder {
       case IrOpcode::kBranch:
         scheduler_->schedule_root_nodes_.push_back(node);
         ConnectBranch(node);
-        break;
-      case IrOpcode::kDeoptimize:
-        scheduler_->schedule_root_nodes_.push_back(node);
-        ConnectDeoptimize(node);
-      case IrOpcode::kCall:
-        if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
-          scheduler_->schedule_root_nodes_.push_back(node);
-          ConnectCall(node);
-        }
         break;
       case IrOpcode::kReturn:
         scheduler_->schedule_root_nodes_.push_back(node);
@@ -152,7 +137,7 @@ class CFGBuilder {
   }
 
   // Collect the branch-related projections from a node, such as IfTrue,
-  // IfFalse, Continuation, and LazyDeoptimization.
+  // IfFalse.
   // TODO(titzer): consider moving this to node.h
   void CollectSuccessorProjections(Node* node, Node** buffer,
                                    IrOpcode::Value true_opcode,
@@ -206,19 +191,11 @@ class CFGBuilder {
     for (InputIter j = merge->inputs().begin(); j != merge->inputs().end();
          ++j) {
       BasicBlock* predecessor_block = schedule_->block(*j);
-      if ((*j)->opcode() != IrOpcode::kReturn &&
-          (*j)->opcode() != IrOpcode::kDeoptimize) {
+      if ((*j)->opcode() != IrOpcode::kReturn) {
         TraceConnect(merge, predecessor_block, block);
         schedule_->AddGoto(predecessor_block, block);
       }
     }
-  }
-
-  void ConnectDeoptimize(Node* deopt) {
-    Node* deopt_block_node = NodeProperties::GetControlInput(deopt);
-    BasicBlock* deopt_block = schedule_->block(deopt_block_node);
-    TraceConnect(deopt, deopt_block, NULL);
-    schedule_->AddDeoptimize(deopt_block, deopt);
   }
 
   void ConnectReturn(Node* ret) {
@@ -226,21 +203,6 @@ class CFGBuilder {
     BasicBlock* return_block = schedule_->block(return_block_node);
     TraceConnect(ret, return_block, NULL);
     schedule_->AddReturn(return_block, ret);
-  }
-
-  void ConnectCall(Node* call) {
-    Node* call_block_node = NodeProperties::GetControlInput(call);
-    BasicBlock* call_block = schedule_->block(call_block_node);
-
-    BasicBlock* successor_blocks[2];
-    CollectSuccessorBlocks(call, successor_blocks, IrOpcode::kContinuation,
-                           IrOpcode::kLazyDeoptimization);
-
-    TraceConnect(call, call_block, successor_blocks[0]);
-    TraceConnect(call, call_block, successor_blocks[1]);
-
-    schedule_->AddCall(call_block, call, successor_blocks[0],
-                       successor_blocks[1]);
   }
 
   void TraceConnect(Node* node, BasicBlock* block, BasicBlock* succ) {

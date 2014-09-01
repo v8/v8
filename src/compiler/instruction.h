@@ -701,22 +701,28 @@ class Constant V8_FINAL {
 
 class FrameStateDescriptor : public ZoneObject {
  public:
-  FrameStateDescriptor(BailoutId bailout_id, int parameters_count,
-                       int locals_count, int stack_count)
-      : bailout_id_(bailout_id),
+  FrameStateDescriptor(const FrameStateCallInfo& state_info,
+                       int parameters_count, int locals_count, int stack_count)
+      : bailout_id_(state_info.bailout_id()),
+        frame_state_combine_(state_info.state_combine()),
         parameters_count_(parameters_count),
         locals_count_(locals_count),
         stack_count_(stack_count) {}
 
   BailoutId bailout_id() const { return bailout_id_; }
+  OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
   int parameters_count() { return parameters_count_; }
   int locals_count() { return locals_count_; }
   int stack_count() { return stack_count_; }
 
-  int size() { return parameters_count_ + locals_count_ + stack_count_; }
+  int size() {
+    return parameters_count_ + locals_count_ + stack_count_ +
+           1;  // Includes context.
+  }
 
  private:
   BailoutId bailout_id_;
+  OutputFrameStateCombine frame_state_combine_;
   int parameters_count_;
   int locals_count_;
   int stack_count_;
@@ -838,9 +844,19 @@ class InstructionSequence V8_FINAL {
     return immediates_[index];
   }
 
-  int AddDeoptimizationEntry(FrameStateDescriptor* descriptor);
-  FrameStateDescriptor* GetDeoptimizationEntry(int deoptimization_id);
-  int GetDeoptimizationEntryCount();
+  class StateId {
+   public:
+    static StateId FromInt(int id) { return StateId(id); }
+    int ToInt() const { return id_; }
+
+   private:
+    explicit StateId(int id) : id_(id) {}
+    int id_;
+  };
+
+  StateId AddFrameStateDescriptor(FrameStateDescriptor* descriptor);
+  FrameStateDescriptor* GetFrameStateDescriptor(StateId deoptimization_id);
+  int GetFrameStateDescriptorCount();
 
  private:
   friend OStream& operator<<(OStream& os, const InstructionSequence& code);

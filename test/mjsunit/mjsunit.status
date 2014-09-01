@@ -79,21 +79,13 @@
   'compiler/osr-assert': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
 
-  # Support for breakpoints requires special relocation info for DebugBreak.
-  'debug-clearbreakpointgroup': [PASS, NO_VARIANTS],
-  'debug-step-2': [PASS, NO_VARIANTS],
-  'regress/regress-debug-deopt-while-recompile': [PASS, NO_VARIANTS],
-  'regress/regress-opt-after-debug-deopt': [PASS, NO_VARIANTS],
-
   # Support for %GetFrameDetails is missing and requires checkpoints.
   'debug-evaluate-bool-constructor': [PASS, NO_VARIANTS],
-  'debug-evaluate-closure': [PASS, NO_VARIANTS],
   'debug-evaluate-const': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized-double': [PASS, NO_VARIANTS],
   'debug-evaluate-locals-optimized': [PASS, NO_VARIANTS],
   'debug-evaluate-locals': [PASS, NO_VARIANTS],
   'debug-evaluate-with-context': [PASS, NO_VARIANTS],
-  'debug-evaluate-with': [PASS, NO_VARIANTS],
   'debug-liveedit-double-call': [PASS, NO_VARIANTS],
   'debug-liveedit-restart-frame': [PASS, NO_VARIANTS],
   'debug-return-value': [PASS, NO_VARIANTS],
@@ -122,14 +114,7 @@
   'es6/generators-debug-scopes': [PASS, NO_VARIANTS],
   'harmony/debug-blockscopes': [PASS, NO_VARIANTS],
   'regress/regress-1081309': [PASS, NO_VARIANTS],
-  'regress/regress-1170187': [PASS, NO_VARIANTS],
-  'regress/regress-119609': [PASS, NO_VARIANTS],
-  'regress/regress-131994': [PASS, NO_VARIANTS],
   'regress/regress-269': [PASS, NO_VARIANTS],
-  'regress/regress-325676': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-107996': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-171715': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-222893': [PASS, NO_VARIANTS],
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
   'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
 

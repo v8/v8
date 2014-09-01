@@ -394,20 +394,20 @@ void InstructionSequence::AddGapMove(int index, InstructionOperand* from,
 }
 
 
-int InstructionSequence::AddDeoptimizationEntry(
+InstructionSequence::StateId InstructionSequence::AddFrameStateDescriptor(
     FrameStateDescriptor* descriptor) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
   deoptimization_entries_.push_back(descriptor);
-  return deoptimization_id;
+  return StateId::FromInt(deoptimization_id);
 }
 
-FrameStateDescriptor* InstructionSequence::GetDeoptimizationEntry(
-    int deoptimization_id) {
-  return deoptimization_entries_[deoptimization_id];
+FrameStateDescriptor* InstructionSequence::GetFrameStateDescriptor(
+    InstructionSequence::StateId state_id) {
+  return deoptimization_entries_[state_id.ToInt()];
 }
 
 
-int InstructionSequence::GetDeoptimizationEntryCount() {
+int InstructionSequence::GetFrameStateDescriptorCount() {
   return static_cast<int>(deoptimization_entries_.size());
 }
 

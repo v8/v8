@@ -516,7 +516,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
 
   // Compute InstructionOperands for inputs and outputs.
-  InitializeCallBuffer(call, &buffer, true, true, continuation, deoptimization);
+  InitializeCallBuffer(call, &buffer, true, true);
 
   // Push any stack arguments.
   for (NodeVectorRIter input = buffer.pushed_nodes.rbegin();

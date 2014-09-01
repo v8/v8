@@ -45,10 +45,9 @@ class CallDescriptor V8_FINAL : public ZoneObject {
   enum Flag {
     // TODO(jarin) kLazyDeoptimization and kNeedsFrameState should be unified.
     kNoFlags = 0u,
-    kLazyDeoptimization = 1u << 0,
-    kNeedsFrameState = 1u << 1,
-    kPatchableCallSite = 1u << 2,
-    kNeedsNopAfterCall = 1u << 3,
+    kNeedsFrameState = 1u << 0,
+    kPatchableCallSite = 1u << 1,
+    kNeedsNopAfterCall = 1u << 2,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
   DEFINE_FLAGS(Flags, Flag);
@@ -85,7 +84,6 @@ class CallDescriptor V8_FINAL : public ZoneObject {
 
   Flags flags() const { return flags_; }
 
-  bool CanLazilyDeoptimize() const { return flags() & kLazyDeoptimization; }
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
 
   LinkageLocation GetReturnLocation(int index) {

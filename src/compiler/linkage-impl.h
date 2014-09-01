@@ -63,7 +63,7 @@ class LinkageHelper {
                        locations,                        // locations
                        Operator::kNoProperties,          // properties
                        kNoCalleeSaved,  // callee-saved registers
-                       CallDescriptor::kLazyDeoptimization);  // flags
+                       CallDescriptor::kNeedsFrameState);  // flags
   }
 
 

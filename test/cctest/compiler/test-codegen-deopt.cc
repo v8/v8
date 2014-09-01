@@ -140,30 +140,21 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
         PrintableUnique<Object>::CreateUninitialized(zone(), deopt_function);
     Node* deopt_fun_node = m.NewNode(common.HeapConstant(deopt_fun_constant));
 
-    MLabel deopt, cont;
-    Node* call = m.CallJS0(deopt_fun_node, undef_node, &cont, &deopt);
-
-    m.Bind(&cont);
-    m.NewNode(common.Continuation(), call);
-    m.Return(undef_node);
-
-    m.Bind(&deopt);
-    m.NewNode(common.LazyDeoptimization(), call);
 
     bailout_id = GetCallBailoutId();
     Node* parameters = m.NewNode(common.StateValues(1), undef_node);
     Node* locals = m.NewNode(common.StateValues(0));
     Node* stack = m.NewNode(common.StateValues(0));
 
-    Node* state_node =
-        m.NewNode(common.FrameState(bailout_id), parameters, locals, stack);
-    m.Deoptimize(state_node);
+    Node* state_node = m.NewNode(common.FrameState(bailout_id, kIgnoreOutput),
+                                 parameters, locals, stack, undef_node);
+
+    m.CallJS0(deopt_fun_node, undef_node, state_node);
+
+    m.Return(undef_node);
 
     // Schedule the graph:
     Schedule* schedule = m.Export();
-
-    cont_block = cont.block();
-    deopt_block = deopt.block();
 
     return schedule;
   }
@@ -179,9 +170,6 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
     CHECK(false);
     return BailoutId(-1);
   }
-
-  BasicBlock* cont_block;
-  BasicBlock* deopt_block;
 };
 
 
@@ -198,15 +186,7 @@ TEST(TurboTrivialDeoptCodegen) {
   DeoptimizationInputData* data =
       DeoptimizationInputData::cast(t.result_code->deoptimization_data());
 
-  Label* cont_label = t.code->GetLabel(t.cont_block);
-  Label* deopt_label = t.code->GetLabel(t.deopt_block);
-
-  // Check the safepoint - it should contain an entry for the call
-  // with the right deoptimization address.
-  SafepointEntry entry = t.result_code->GetSafepointEntry(
-      t.result_code->instruction_start() + cont_label->pos());
-  CHECK(entry.is_valid());
-  CHECK_EQ(deopt_label->pos(), entry.deoptimization_pc());
+  // TODO(jarin) Find a way to test the safepoint.
 
   // Check that we deoptimize to the right AST id.
   CHECK_EQ(1, data->DeoptCount());
@@ -274,31 +254,20 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
         PrintableUnique<Object>::CreateUninitialized(zone(), function);
     Node* this_fun_node = m.NewNode(common.HeapConstant(this_fun_constant));
 
-    MLabel deopt, cont;
-    Node* call = m.CallRuntime1(Runtime::kDeoptimizeFunction, this_fun_node,
-                                &cont, &deopt);
-
-    m.Bind(&cont);
-    m.NewNode(common.Continuation(), call);
-    m.Return(undef_node);
-
-    m.Bind(&deopt);
-    m.NewNode(common.LazyDeoptimization(), call);
-
     bailout_id = GetCallBailoutId();
     Node* parameters = m.NewNode(common.StateValues(1), undef_node);
     Node* locals = m.NewNode(common.StateValues(0));
     Node* stack = m.NewNode(common.StateValues(0));
 
-    Node* state_node =
-        m.NewNode(common.FrameState(bailout_id), parameters, locals, stack);
-    m.Deoptimize(state_node);
+    Node* state_node = m.NewNode(common.FrameState(bailout_id, kIgnoreOutput),
+                                 parameters, locals, stack, undef_node);
+
+    m.CallRuntime1(Runtime::kDeoptimizeFunction, this_fun_node, state_node);
+
+    m.Return(undef_node);
 
     // Schedule the graph:
     Schedule* schedule = m.Export();
-
-    cont_block = cont.block();
-    deopt_block = deopt.block();
 
     return schedule;
   }
@@ -314,9 +283,6 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     CHECK(false);
     return BailoutId(-1);
   }
-
-  BasicBlock* cont_block;
-  BasicBlock* deopt_block;
 };
 
 

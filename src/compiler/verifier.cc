@@ -194,20 +194,11 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
                OperatorProperties::GetControlInputCount(control->op()));
       break;
     }
-    case IrOpcode::kLazyDeoptimization:
-      // TODO(jarin): what are the constraints on these?
-      break;
-    case IrOpcode::kDeoptimize:
-      // TODO(jarin): what are the constraints on these?
-      break;
     case IrOpcode::kFrameState:
       // TODO(jarin): what are the constraints on these?
       break;
     case IrOpcode::kCall:
       // TODO(rossberg): what are the constraints on these?
-      break;
-    case IrOpcode::kContinuation:
-      // TODO(jarin): what are the constraints on these?
       break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.
