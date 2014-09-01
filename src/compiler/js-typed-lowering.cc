@@ -587,19 +587,19 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       Reduction result = ReduceJSToBooleanInput(node->InputAt(0));
       Node* value;
       if (result.Changed()) {
-        // !x => BooleanNot(x)
+        // JSUnaryNot(x) => BooleanNot(x)
         value =
             graph()->NewNode(simplified()->BooleanNot(), result.replacement());
         NodeProperties::ReplaceWithValue(node, value);
         return Changed(value);
       } else {
-        // !x => BooleanNot(JSToBoolean(x))
+        // JSUnaryNot(x) => BooleanNot(JSToBoolean(x))
         value = graph()->NewNode(simplified()->BooleanNot(), node);
         node->set_op(javascript()->ToBoolean());
         NodeProperties::ReplaceWithValue(node, value, node);
         // Note: ReplaceUses() smashes all uses, so smash it back here.
         value->ReplaceInput(0, node);
-        return ReplaceWith(value);
+        return Changed(node);
       }
     }
     case IrOpcode::kJSToBoolean:

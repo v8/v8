@@ -280,7 +280,6 @@ REPLACE_RUNTIME_CALL(JSCreateGlobalContext, Runtime::kAbort)
     UNIMPLEMENTED();                               \
     return node;                                   \
   }
-REPLACE_UNIMPLEMENTED(JSToString)
 REPLACE_UNIMPLEMENTED(JSToName)
 REPLACE_UNIMPLEMENTED(JSYield)
 REPLACE_UNIMPLEMENTED(JSDebugger)
@@ -398,6 +397,12 @@ Node* JSGenericLowering::LowerJSUnaryNot(Node* node) {
 Node* JSGenericLowering::LowerJSToBoolean(Node* node) {
   ToBooleanStub stub(isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
   ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
+  return node;
+}
+
+
+Node* JSGenericLowering::LowerJSToString(Node* node) {
+  ReplaceWithBuiltinCall(node, Builtins::TO_STRING, 1);
   return node;
 }
 
