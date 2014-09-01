@@ -532,7 +532,7 @@ DEFINE_BOOL(parallel_sweeping, false, "enable parallel sweeping")
 DEFINE_BOOL(concurrent_sweeping, true, "enable concurrent sweeping")
 DEFINE_INT(sweeper_threads, 0,
            "number of parallel and concurrent sweeping threads")
-DEFINE_BOOL(job_based_sweeping, false, "enable job based sweeping")
+DEFINE_BOOL(job_based_sweeping, true, "enable job based sweeping")
 #ifdef VERIFY_HEAP
 DEFINE_BOOL(verify_heap, false, "verify heap pointers before and after GC")
 #endif
