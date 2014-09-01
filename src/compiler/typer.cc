@@ -493,8 +493,10 @@ Bounds Typer::Visitor::TypeJSInstanceOf(Node* node) {
 
 Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
   Bounds outer = OperandType(node, 0);
-  DCHECK(outer.upper->Is(Type::Internal()));
-  DCHECK(outer.lower->Equals(outer.upper));
+  DCHECK(outer.upper->Maybe(Type::Internal()));
+  // TODO(rossberg): More precisely, instead of the above assertion, we should
+  // back-propagate the constraint that it has to be a subtype of Internal.
+
   ContextAccess access = OpParameter<ContextAccess>(node);
   Type* context_type = outer.upper;
   MaybeHandle<Context> context;
