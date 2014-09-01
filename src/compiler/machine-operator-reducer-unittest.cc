@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/base/bits.h"
+#include "src/compiler/graph-unittest.h"
 #include "src/compiler/machine-operator-reducer.h"
-#include "test/compiler-unittests/graph-unittest.h"
 
 namespace v8 {
 namespace internal {

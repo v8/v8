@@ -2,21 +2,31 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/compiler-unittests/common-operator-unittest.h"
-
+#include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-unittests.h"
 #include "src/compiler/operator-properties-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-static const int kArguments[] = {1, 5, 6, 42, 100, 10000, kMaxInt};
+namespace {
+
+class CommonOperatorTest : public CompilerTest {
+ public:
+  CommonOperatorTest() : common_(zone()) {}
+  virtual ~CommonOperatorTest() {}
+
+  CommonOperatorBuilder* common() { return &common_; }
+
+ private:
+  CommonOperatorBuilder common_;
+};
 
 
-CommonOperatorTest::CommonOperatorTest() : common_(zone()) {}
+const int kArguments[] = {1, 5, 6, 42, 100, 10000, kMaxInt};
 
-
-CommonOperatorTest::~CommonOperatorTest() {}
+}  // namespace
 
 
 TEST_F(CommonOperatorTest, ControlEffect) {

@@ -3,11 +3,11 @@
 // found in the LICENSE file.
 
 #include "src/compiler/change-lowering.h"
+#include "src/compiler/graph-unittest.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/typer.h"
-#include "test/compiler-unittests/graph-unittest.h"
 #include "testing/gmock-support.h"
 
 using testing::_;

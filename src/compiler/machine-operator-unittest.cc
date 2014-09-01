@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/compiler-unittests.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/operator-properties-inl.h"
-#include "test/compiler-unittests/compiler-unittests.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using testing::IsNull;

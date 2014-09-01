@@ -22,11 +22,12 @@
       'sources': [  ### gcmole(all) ###
         'change-lowering-unittest.cc',
         'common-operator-unittest.cc',
-        'common-operator-unittest.h',
         'compiler-unittests.cc',
+        'compiler-unittests.h',
         'graph-unittest.cc',
         'graph-unittest.h',
         'instruction-selector-unittest.cc',
+        'instruction-selector-unittest.h',
         'machine-operator-reducer-unittest.cc',
         'machine-operator-unittest.cc',
         'simplified-operator-reducer-unittest.cc',

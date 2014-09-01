@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_UNITTESTS_GRAPH_UNITTEST_H_
-#define V8_COMPILER_UNITTESTS_GRAPH_UNITTEST_H_
+#ifndef V8_COMPILER_GRAPH_UNITTEST_H_
+#define V8_COMPILER_GRAPH_UNITTEST_H_
 
+#include "src/compiler/common-operator.h"
+#include "src/compiler/compiler-unittests.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
-#include "test/compiler-unittests/common-operator-unittest.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace v8 {
@@ -23,7 +24,7 @@ namespace compiler {
 using ::testing::Matcher;
 
 
-class GraphTest : public CommonOperatorTest {
+class GraphTest : public CompilerTest {
  public:
   explicit GraphTest(int parameters = 1);
   virtual ~GraphTest();
@@ -41,9 +42,11 @@ class GraphTest : public CommonOperatorTest {
   Matcher<Node*> IsFalseConstant();
   Matcher<Node*> IsTrueConstant();
 
+  CommonOperatorBuilder* common() { return &common_; }
   Graph* graph() { return &graph_; }
 
  private:
+  CommonOperatorBuilder common_;
   Graph graph_;
 };
 
@@ -125,4 +128,4 @@ Matcher<Node*> IsTruncateInt64ToInt32(const Matcher<Node*>& input_matcher);
 }  //  namespace internal
 }  //  namespace v8
 
-#endif  // V8_COMPILER_UNITTESTS_GRAPH_UNITTEST_H_
+#endif  // V8_COMPILER_GRAPH_UNITTEST_H_

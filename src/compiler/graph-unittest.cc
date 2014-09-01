@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/compiler-unittests/graph-unittest.h"
+#include "src/compiler/graph-unittest.h"
 
 #include <ostream>  // NOLINT(readability/streams)
 
@@ -32,7 +32,7 @@ inline std::ostream& operator<<(std::ostream& os,
 
 namespace compiler {
 
-GraphTest::GraphTest(int num_parameters) : graph_(zone()) {
+GraphTest::GraphTest(int num_parameters) : common_(zone()), graph_(zone()) {
   graph()->SetStart(graph()->NewNode(common()->Start(num_parameters)));
 }
 

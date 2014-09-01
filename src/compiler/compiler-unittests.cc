@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "include/libplatform/libplatform.h"
+#include "src/compiler/compiler-unittests.h"
 #include "src/isolate-inl.h"
-#include "test/compiler-unittests/compiler-unittests.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 using testing::IsNull;
@@ -79,7 +79,7 @@ class CompilerTestEnvironment V8_FINAL : public ::testing::Environment {
   v8::Platform* platform_;
 };
 
-}
+}  // namespace
 
 
 int main(int argc, char** argv) {

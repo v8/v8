@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_UNITTESTS_INSTRUCTION_SELECTOR_UNITTEST_H_
-#define V8_COMPILER_UNITTESTS_INSTRUCTION_SELECTOR_UNITTEST_H_
+#ifndef V8_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
+#define V8_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
 
 #include <deque>
 #include <set>
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/compiler/compiler-unittests.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "test/compiler-unittests/compiler-unittests.h"
 
 namespace v8 {
 namespace internal {
@@ -199,4 +199,4 @@ class InstructionSelectorTestWithParam
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_UNITTESTS_INSTRUCTION_SELECTOR_UNITTEST_H_
+#endif  // V8_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_

@@ -11,6 +11,11 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class Factory;
+
+
 namespace compiler {
 
 // The TARGET_TEST(Case, Name) macro works just like

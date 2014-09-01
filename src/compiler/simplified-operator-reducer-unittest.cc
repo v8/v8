@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/graph-unittest.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/typer.h"
 #include "src/conversions.h"
-#include "test/compiler-unittests/graph-unittest.h"
 
 namespace v8 {
 namespace internal {
