@@ -264,7 +264,7 @@ TEST_P(InstructionSelectorAddSubTest, Parameter) {
 }
 
 
-TEST_P(InstructionSelectorAddSubTest, Immediate) {
+TEST_P(InstructionSelectorAddSubTest, ImmediateOnRight) {
   const MachInst2 dpi = GetParam();
   const MachineType type = dpi.machine_type;
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
@@ -281,8 +281,58 @@ TEST_P(InstructionSelectorAddSubTest, Immediate) {
 }
 
 
+TEST_P(InstructionSelectorAddSubTest, ImmediateOnLeft) {
+  const MachInst2 dpi = GetParam();
+  const MachineType type = dpi.machine_type;
+
+  TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+    StreamBuilder m(this, type, type);
+    m.Return((m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)));
+    Stream s = m.Build();
+
+    // Add can support an immediate on the left by commuting, but Sub can't
+    // commute. We test zero-on-left Sub later.
+    if (strstr(dpi.constructor_name, "Add") != NULL) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+      ASSERT_EQ(2U, s[0]->InputCount());
+      EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+    }
+  }
+}
+
+
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorAddSubTest,
                         ::testing::ValuesIn(kAddSubInstructions));
+
+
+TEST_F(InstructionSelectorTest, SubZeroOnLeft) {
+  // Subtraction with zero on the left maps to Neg.
+  {
+    // 32-bit subtract.
+    StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+    m.Return(m.Int32Sub(m.Int32Constant(0), m.Parameter(0)));
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Neg32, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    // 64-bit subtract.
+    StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
+    m.Return(m.Int64Sub(m.Int32Constant(0), m.Parameter(0)));
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Neg, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
 
 
 // -----------------------------------------------------------------------------
