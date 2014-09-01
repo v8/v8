@@ -107,7 +107,7 @@ assertEqualsDelta(-74.20321057778875, Math.sinh(-5), 1E-12);
 
 assertEqualsDelta(1.1276259652063807, Math.cosh(0.5), 1E-12);
 assertEqualsDelta(74.20994852478785, Math.cosh(5), 1E-12);
-assertEqualsDelta1.1276259652063807, Math.cosh(-0.5), 1E-12);
+assertEqualsDelta(1.1276259652063807, Math.cosh(-0.5), 1E-12);
 assertEqualsDelta(74.20994852478785, Math.cosh(-5), 1E-12);
 
 assertEqualsDelta(0.4621171572600, Math.tanh(0.5), 1E-12);
