@@ -12359,17 +12359,12 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type,
         trace_.Add(" \"%s\"", Register::AllocationIndexToString(assigned_reg));
       }
     } else if (range->IsSpilled()) {
-      int index = -1;
-      if (range->TopLevel()->GetSpillRange()->id() != -1) {
-        index = range->TopLevel()->GetSpillRange()->id();
+      LOperand* op = range->TopLevel()->GetSpillOperand();
+      if (op->IsDoubleStackSlot()) {
+        trace_.Add(" \"double_stack:%d\"", op->index());
       } else {
-        index = range->TopLevel()->GetSpillOperand()->index();
-      }
-      if (range->TopLevel()->Kind() == DOUBLE_REGISTERS) {
-        trace_.Add(" \"double_stack:%d\"", index);
-      } else {
-        DCHECK(range->TopLevel()->Kind() == GENERAL_REGISTERS);
-        trace_.Add(" \"stack:%d\"", index);
+        DCHECK(op->IsStackSlot());
+        trace_.Add(" \"stack:%d\"", op->index());
       }
     }
     int parent_index = -1;
