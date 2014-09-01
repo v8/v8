@@ -1855,9 +1855,11 @@ HValue* HGraphBuilder::BuildRegExpConstructResult(HValue* length,
   HAllocate* elements = BuildAllocateElements(elements_kind, size);
   BuildInitializeElementsHeader(elements, elements_kind, length);
 
-  HConstant* size_in_bytes_upper_bound = EstablishElementsAllocationSize(
-      elements_kind, max_length->Integer32Value());
-  elements->set_size_upper_bound(size_in_bytes_upper_bound);
+  if (!elements->has_size_upper_bound()) {
+    HConstant* size_in_bytes_upper_bound = EstablishElementsAllocationSize(
+        elements_kind, max_length->Integer32Value());
+    elements->set_size_upper_bound(size_in_bytes_upper_bound);
+  }
 
   Add<HStoreNamedField>(
       result, HObjectAccess::ForJSArrayOffset(JSArray::kElementsOffset),
