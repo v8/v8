@@ -59,24 +59,12 @@ class ChangeLoweringTest : public GraphTest {
   }
   int SmiShiftAmount() const { return kSmiTagSize + SmiShiftSize(); }
   int SmiShiftSize() const {
-    // TODO(turbofan): Work-around for weird GCC 4.6 linker issue:
-    // src/compiler/change-lowering.cc:46: undefined reference to
-    // `v8::internal::SmiTagging<4u>::kSmiShiftSize'
-    // src/compiler/change-lowering.cc:46: undefined reference to
-    // `v8::internal::SmiTagging<8u>::kSmiShiftSize'
-    STATIC_ASSERT(SmiTagging<4>::kSmiShiftSize == 0);
-    STATIC_ASSERT(SmiTagging<8>::kSmiShiftSize == 31);
-    return Is32() ? 0 : 31;
+    return Is32() ? SmiTagging<4>::SmiShiftSize()
+                  : SmiTagging<8>::SmiShiftSize();
   }
   int SmiValueSize() const {
-    // TODO(turbofan): Work-around for weird GCC 4.6 linker issue:
-    // src/compiler/change-lowering.cc:46: undefined reference to
-    // `v8::internal::SmiTagging<4u>::kSmiValueSize'
-    // src/compiler/change-lowering.cc:46: undefined reference to
-    // `v8::internal::SmiTagging<8u>::kSmiValueSize'
-    STATIC_ASSERT(SmiTagging<4>::kSmiValueSize == 31);
-    STATIC_ASSERT(SmiTagging<8>::kSmiValueSize == 32);
-    return Is32() ? 31 : 32;
+    return Is32() ? SmiTagging<4>::SmiValueSize()
+                  : SmiTagging<8>::SmiValueSize();
   }
 
   Node* Parameter(int32_t index = 0) {
