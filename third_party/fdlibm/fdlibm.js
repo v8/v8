@@ -759,3 +759,56 @@ function MathSinh(x) {
   // Return Infinity of the appropriate sign or NaN.
   return x * INFINITY;
 }
+
+
+// ES6 draft 09-27-13, section 20.2.2.12.
+// Math.cosh
+// Method : 
+// mathematically cosh(x) if defined to be (exp(x)+exp(-x))/2
+//      1. Replace x by |x| (cosh(x) = cosh(-x)). 
+//      2.
+//                                                      [ exp(x) - 1 ]^2 
+//          0        <= x <= ln2/2  :  cosh(x) := 1 + -------------------
+//                                                         2*exp(x)
+//
+//                                                 exp(x) + 1/exp(x)
+//          ln2/2    <= x <= 22     :  cosh(x) := -------------------
+//                                                        2
+//          22       <= x <= lnovft :  cosh(x) := exp(x)/2 
+//          lnovft   <= x <= ln2ovft:  cosh(x) := exp(x/2)/2 * exp(x/2)
+//          ln2ovft  <  x           :  cosh(x) := huge*huge (overflow)
+//
+// Special cases:
+//      cosh(x) is |x| if x is +INF, -INF, or NaN.
+//      only cosh(0)=1 is exact for finite x.
+//
+const KCOSH_OVERFLOW = kMath[52];
+
+function MathCosh(x) {
+  x = x * 1;  // Convert to number.
+  var ix = %_DoubleHi(x) & 0x7fffffff;
+  // |x| in [0,0.5*log2], return 1+expm1(|x|)^2/(2*exp(|x|))
+  if (ix < 0x3fd62e43) {
+    var t = MathExpm1(MathAbs(x));
+    var w = 1 + t;
+    // For |x| < 2^-55, cosh(x) = 1
+    if (ix < 0x3c800000) return w;
+    return 1 + (t * t) / (w + w);
+  }
+  // |x| in [0.5*log2, 22], return (exp(|x|)+1/exp(|x|)/2
+  if (ix < 0x40360000) {
+    var t = MathExp(MathAbs(x));
+    return 0.5 * t + 0.5 / t;
+  }
+  // |x| in [22, log(maxdouble)], return half*exp(|x|)
+  if (ix < 0x40862e42) return 0.5 * MathExp(MathAbs(x));
+  // |x| in [log(maxdouble), overflowthreshold]
+  if (MathAbs(x) <= KCOSH_OVERFLOW) {
+    var w = MathExp(0.5 * MathAbs(x));
+    var t = 0.5 * w;
+    return t * w;
+  }
+  if (NUMBER_IS_NAN(x)) return x;
+  // |x| > overflowthreshold.
+  return INFINITY;
+}

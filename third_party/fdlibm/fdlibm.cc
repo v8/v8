@@ -79,7 +79,7 @@ const double MathConstants::constants[] = {
     -7.93650757867487942473e-05,  //          49
     4.00821782732936239552e-06,   //          50
     -2.01099218183624371326e-07,  // Q5       51
-    710.4758600739439             //          52  overflow threshold for sinh
+    710.4758600739439             //          52  overflow threshold sinh, cosh
 };
 
 

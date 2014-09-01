@@ -186,13 +186,6 @@ function MathTrunc(x) {
   return x;
 }
 
-// ES6 draft 09-27-13, section 20.2.2.12.
-function MathCosh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  if (!NUMBER_IS_FINITE(x)) return MathAbs(x);
-  return (MathExp(x) + MathExp(-x)) / 2;
-}
-
 // ES6 draft 09-27-13, section 20.2.2.33.
 function MathTanh(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
@@ -369,7 +362,7 @@ function SetUpMath() {
     "sign", MathSign,
     "trunc", MathTrunc,
     "sinh", MathSinh,     // implemented by third_party/fdlibm
-    "cosh", MathCosh,
+    "cosh", MathCosh,     // implemented by third_party/fdlibm
     "tanh", MathTanh,
     "asinh", MathAsinh,
     "acosh", MathAcosh,
