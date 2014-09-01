@@ -84,6 +84,31 @@ class InterfaceDescriptor {
 
 
 enum CallDescriptorKey {
+  LoadICCall,
+  StoreICCall,
+  ElementTransitionAndStoreCall,
+  InstanceofCall,
+  VectorLoadICCall,
+  FastNewClosureCall,
+  FastNewContextCall,
+  ToNumberCall,
+  NumberToStringCall,
+  FastCloneShallowArrayCall,
+  FastCloneShallowObjectCall,
+  CreateAllocationSiteCall,
+  CallFunctionCall,
+  CallConstructCall,
+  RegExpConstructResultCall,
+  TransitionElementsKindCall,
+  ArrayConstructorConstantArgCountCall,
+  ArrayConstructorCall,
+  InternalArrayConstructorConstantArgCountCall,
+  InternalArrayConstructorCall,
+  CompareNilCall,
+  ToBooleanCall,
+  BinaryOpCall,
+  BinaryOpWithAllocationSiteCall,
+  StringAddCall,
   KeyedCall,
   NamedCall,
   CallHandler,
@@ -113,6 +138,9 @@ class CallInterfaceDescriptor : public InterfaceDescriptor {
 class CallDescriptors {
  public:
   static void InitializeForIsolate(Isolate* isolate);
+
+ private:
+  static void InitializeForIsolateAllPlatforms(Isolate* isolate);
 };
 }
 }  // namespace v8::internal

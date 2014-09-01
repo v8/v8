@@ -17,24 +17,21 @@ const Register LoadConvention::ReceiverRegister() { return rdx; }
 const Register LoadConvention::NameRegister() { return rcx; }
 
 
-const Register VectorLoadConvention::SlotRegister() {
-  DCHECK(FLAG_vector_ics);
-  return rax;
-}
+const Register VectorLoadConvention::SlotRegister() { return rax; }
 
 
-const Register FullVectorLoadConvention::VectorRegister() {
-  DCHECK(FLAG_vector_ics);
-  return rbx;
-}
+const Register FullVectorLoadConvention::VectorRegister() { return rbx; }
 
 
 const Register StoreConvention::ReceiverRegister() { return rdx; }
 const Register StoreConvention::NameRegister() { return rcx; }
 const Register StoreConvention::ValueRegister() { return rax; }
-
-
 const Register StoreConvention::MapRegister() { return rbx; }
+
+
+// Passing arguments in registers is not supported.
+const Register InstanceofConvention::left() { return rax; }
+const Register InstanceofConvention::right() { return rdx; }
 }
 }  // namespace v8::internal
 

@@ -281,19 +281,19 @@ enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
 enum HandlerArgumentsMode { DONT_PASS_ARGUMENTS, PASS_ARGUMENTS };
 
 
-class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
+class CodeStubInterfaceDescriptor {
  public:
   CodeStubInterfaceDescriptor();
 
-  void Initialize(CodeStub::Major major, int register_parameter_count,
-                  Register* registers, Address deoptimization_handler = NULL,
-                  Representation* register_param_representations = NULL,
+  void Initialize(CodeStub::Major major,
+                  CallInterfaceDescriptor* call_descriptor,
+                  Address deoptimization_handler = NULL,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
-  void Initialize(CodeStub::Major major, int register_parameter_count,
-                  Register* registers, Register stack_parameter_count,
+  void Initialize(CodeStub::Major major,
+                  CallInterfaceDescriptor* call_descriptor,
+                  Register stack_parameter_count,
                   Address deoptimization_handler = NULL,
-                  Representation* register_param_representations = NULL,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE,
                   HandlerArgumentsMode handler_mode = DONT_PASS_ARGUMENTS);
@@ -306,6 +306,38 @@ class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
     DCHECK(!stack_parameter_count_.is_valid());
   }
 
+  bool IsInitialized() const { return call_descriptor_ != NULL; }
+
+  CallInterfaceDescriptor* call_descriptor() const { return call_descriptor_; }
+
+  int GetEnvironmentLength() const {
+    return call_descriptor()->GetEnvironmentLength();
+  }
+
+  int GetRegisterParameterCount() const {
+    return call_descriptor()->GetRegisterParameterCount();
+  }
+
+  Register GetParameterRegister(int index) const {
+    return call_descriptor()->GetParameterRegister(index);
+  }
+
+  Representation GetParameterRepresentation(int index) const {
+    return call_descriptor()->GetParameterRepresentation(index);
+  }
+
+  int GetEnvironmentParameterCount() const {
+    return call_descriptor()->GetEnvironmentParameterCount();
+  }
+
+  Register GetEnvironmentParameterRegister(int index) const {
+    return call_descriptor()->GetEnvironmentParameterRegister(index);
+  }
+
+  Representation GetEnvironmentParameterRepresentation(int index) const {
+    return call_descriptor()->GetEnvironmentParameterRepresentation(index);
+  }
+
   ExternalReference miss_handler() const {
     DCHECK(has_miss_handler_);
     return miss_handler_;
@@ -316,11 +348,12 @@ class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
   }
 
   bool IsEnvironmentParameterCountRegister(int index) const {
-    return GetEnvironmentParameterRegister(index).is(stack_parameter_count_);
+    return call_descriptor()->GetEnvironmentParameterRegister(index).is(
+        stack_parameter_count_);
   }
 
   int GetHandlerParameterCount() const {
-    int params = GetEnvironmentParameterCount();
+    int params = call_descriptor()->GetEnvironmentParameterCount();
     if (handler_arguments_mode_ == PASS_ARGUMENTS) {
       params += 1;
     }
@@ -334,6 +367,7 @@ class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
   CodeStub::Major MajorKey() const { return major_; }
 
  private:
+  CallInterfaceDescriptor* call_descriptor_;
   Register stack_parameter_count_;
   // If hint_stack_parameter_count_ > 0, the code stub can optimize the
   // return sequence. Default value is -1, which means it is ignored.
@@ -671,8 +705,8 @@ class InstanceofStub: public PlatformCodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  static Register left();
-  static Register right();
+  static Register left() { return InstanceofConvention::left(); }
+  static Register right() { return InstanceofConvention::right(); }
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor);

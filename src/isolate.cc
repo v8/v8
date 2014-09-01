@@ -1917,6 +1917,8 @@ bool Isolate::Init(Deserializer* des) {
 
   deoptimizer_data_ = new DeoptimizerData(memory_allocator_);
 
+  CallDescriptors::InitializeForIsolate(this);
+
   const bool create_heap_objects = (des == NULL);
   if (create_heap_objects && !heap_.CreateHeapObjects()) {
     V8::FatalProcessOutOfMemory("heap object creation");
@@ -2026,8 +2028,6 @@ bool Isolate::Init(Deserializer* des) {
         Deoptimizer::LAZY,
         kDeoptTableSerializeEntryCount - 1);
   }
-
-  CallDescriptors::InitializeForIsolate(this);
 
   if (!serializer_enabled()) {
     // Ensure that all stubs which need to be generated ahead of time, but

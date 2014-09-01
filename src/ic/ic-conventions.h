@@ -58,6 +58,14 @@ class StoreConvention {
   // stub implementations requires it to be initialized.
   static const Register MapRegister();
 };
+
+
+class InstanceofConvention {
+ public:
+  enum ParameterIndices { kLeftIndex, kRightIndex, kParameterCount };
+  static const Register left();
+  static const Register right();
+};
 }
 }  // namespace v8::internal
 

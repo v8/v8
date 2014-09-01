@@ -17,25 +17,22 @@ namespace internal {
 
 
 CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
-    : stack_parameter_count_(no_reg),
+    : call_descriptor_(NULL),
+      stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       deoptimization_handler_(NULL),
       handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
-      has_miss_handler_(false) { }
+      has_miss_handler_(false) {}
 
 
 void CodeStubInterfaceDescriptor::Initialize(
-    CodeStub::Major major, int register_parameter_count, Register* registers,
-    Address deoptimization_handler,
-    Representation* register_param_representations,
-    int hint_stack_parameter_count, StubFunctionMode function_mode) {
-  InterfaceDescriptor::Initialize(register_parameter_count, registers,
-                                  register_param_representations);
-
+    CodeStub::Major major, CallInterfaceDescriptor* call_descriptor,
+    Address deoptimization_handler, int hint_stack_parameter_count,
+    StubFunctionMode function_mode) {
+  call_descriptor_ = call_descriptor;
   deoptimization_handler_ = deoptimization_handler;
-
   hint_stack_parameter_count_ = hint_stack_parameter_count;
   function_mode_ = function_mode;
   major_ = major;
@@ -43,14 +40,12 @@ void CodeStubInterfaceDescriptor::Initialize(
 
 
 void CodeStubInterfaceDescriptor::Initialize(
-    CodeStub::Major major, int register_parameter_count, Register* registers,
+    CodeStub::Major major, CallInterfaceDescriptor* call_descriptor,
     Register stack_parameter_count, Address deoptimization_handler,
-    Representation* register_param_representations,
     int hint_stack_parameter_count, StubFunctionMode function_mode,
     HandlerArgumentsMode handler_mode) {
-  Initialize(major, register_parameter_count, registers, deoptimization_handler,
-             register_param_representations, hint_stack_parameter_count,
-             function_mode);
+  Initialize(major, call_descriptor, deoptimization_handler,
+             hint_stack_parameter_count, function_mode);
   stack_parameter_count_ = stack_parameter_count;
   handler_arguments_mode_ = handler_mode;
 }
@@ -535,34 +530,28 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 
 void LoadFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                          LoadConvention::ReceiverRegister(),
-                          LoadConvention::NameRegister()};
-  STATIC_ASSERT(LoadConvention::kParameterCount == 2);
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+  descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
 
 void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                          LoadConvention::ReceiverRegister(),
-                          LoadConvention::NameRegister()};
-  STATIC_ASSERT(LoadConvention::kParameterCount == 2);
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+  descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
 
 void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                          LoadConvention::ReceiverRegister(),
-                          LoadConvention::NameRegister()};
-  STATIC_ASSERT(LoadConvention::kParameterCount == 2);
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
   descriptor->Initialize(
-      MajorKey(), arraysize(registers), registers,
+      MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
 }
 
@@ -570,17 +559,14 @@ void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
 void HandlerStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   if (kind() == Code::LOAD_IC) {
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            LoadConvention::ReceiverRegister(),
-                            LoadConvention::NameRegister()};
-    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
+    CallInterfaceDescriptor* call_descriptor =
+        isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+    descriptor->Initialize(MajorKey(), call_descriptor);
   } else {
     DCHECK_EQ(Code::STORE_IC, kind());
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            StoreConvention::ReceiverRegister(),
-                            StoreConvention::NameRegister(),
-                            StoreConvention::ValueRegister()};
-    descriptor->Initialize(MajorKey(), arraysize(registers), registers,
+    CallInterfaceDescriptor* call_descriptor =
+        isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
+    descriptor->Initialize(MajorKey(), call_descriptor,
                            FUNCTION_ADDR(StoreIC_MissFromStubFailure));
   }
 }
@@ -588,53 +574,44 @@ void HandlerStub::InitializeInterfaceDescriptor(
 
 void StoreFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                          StoreConvention::ReceiverRegister(),
-                          StoreConvention::NameRegister(),
-                          StoreConvention::ValueRegister()};
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
+  descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
 }
 
 
 void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           ValueRegister(),
-                           MapRegister(),
-                           KeyRegister(),
-                           ObjectRegister() };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
+  CallInterfaceDescriptor* call_descriptor = isolate()->call_descriptor(
+      CallDescriptorKey::ElementTransitionAndStoreCall);
+  descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
 }
 
 
 void InstanceofStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  Register registers[] = { InterfaceDescriptor::ContextRegister(),
-                           InstanceofStub::left(),
-                           InstanceofStub::right() };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::InstanceofCall);
+  descriptor->Initialize(MajorKey(), call_descriptor);
 }
 
 
-static void InitializeVectorLoadStub(CodeStubInterfaceDescriptor* descriptor,
+static void InitializeVectorLoadStub(Isolate* isolate,
+                                     CodeStubInterfaceDescriptor* descriptor,
                                      CodeStub::Major major,
                                      Address deoptimization_handler) {
   DCHECK(FLAG_vector_ics);
-  Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                          FullVectorLoadConvention::ReceiverRegister(),
-                          FullVectorLoadConvention::NameRegister(),
-                          FullVectorLoadConvention::SlotRegister(),
-                          FullVectorLoadConvention::VectorRegister()};
-  descriptor->Initialize(major, arraysize(registers), registers,
-                         deoptimization_handler);
+  CallInterfaceDescriptor* call_descriptor =
+      isolate->call_descriptor(CallDescriptorKey::VectorLoadICCall);
+  descriptor->Initialize(major, call_descriptor, deoptimization_handler);
 }
 
 
 void VectorLoadStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeVectorLoadStub(descriptor, MajorKey(),
+  InitializeVectorLoadStub(isolate(), descriptor, MajorKey(),
                            FUNCTION_ADDR(VectorLoadIC_MissFromStubFailure));
 }
 
@@ -642,8 +619,158 @@ void VectorLoadStub::InitializeInterfaceDescriptor(
 void VectorKeyedLoadStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   InitializeVectorLoadStub(
-      descriptor, MajorKey(),
+      isolate(), descriptor, MajorKey(),
       FUNCTION_ADDR(VectorKeyedLoadIC_MissFromStubFailure));
+}
+
+
+void FastNewClosureStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::FastNewClosureCall);
+  descriptor->Initialize(
+      MajorKey(), call_descriptor,
+      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
+}
+
+
+void FastNewContextStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::FastNewContextCall);
+  descriptor->Initialize(MajorKey(), call_descriptor);
+}
+
+
+void ToNumberStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::ToNumberCall);
+  descriptor->Initialize(MajorKey(), call_descriptor);
+}
+
+
+void NumberToStringStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::NumberToStringCall);
+  descriptor->Initialize(
+      MajorKey(), call_descriptor,
+      Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
+}
+
+
+void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::FastCloneShallowArrayCall);
+  descriptor->Initialize(
+      MajorKey(), call_descriptor,
+      Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry);
+}
+
+
+void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::FastCloneShallowObjectCall);
+  descriptor->Initialize(
+      MajorKey(), call_descriptor,
+      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
+}
+
+
+void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::CreateAllocationSiteCall);
+  descriptor->Initialize(MajorKey(), call_descriptor);
+}
+
+
+void CallFunctionStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::CallFunctionCall);
+  descriptor->Initialize(MajorKey(), call_descriptor);
+}
+
+
+void CallConstructStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::CallConstructCall);
+  descriptor->Initialize(MajorKey(), call_descriptor);
+}
+
+
+void RegExpConstructResultStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::RegExpConstructResultCall);
+  descriptor->Initialize(
+      MajorKey(), call_descriptor,
+      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
+}
+
+
+void TransitionElementsKindStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::TransitionElementsKindCall);
+  descriptor->Initialize(
+      MajorKey(), call_descriptor,
+      Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry);
+}
+
+
+void CompareNilICStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::CompareNilCall);
+  descriptor->Initialize(MajorKey(), call_descriptor,
+                         FUNCTION_ADDR(CompareNilIC_Miss));
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate()));
+}
+
+void ToBooleanStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::ToBooleanCall);
+  descriptor->Initialize(MajorKey(), call_descriptor,
+                         FUNCTION_ADDR(ToBooleanIC_Miss));
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate()));
+}
+
+
+void BinaryOpICStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::BinaryOpCall);
+  descriptor->Initialize(MajorKey(), call_descriptor,
+                         FUNCTION_ADDR(BinaryOpIC_Miss));
+  descriptor->SetMissHandler(
+      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate()));
+}
+
+
+void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor = isolate()->call_descriptor(
+      CallDescriptorKey::BinaryOpWithAllocationSiteCall);
+  descriptor->Initialize(MajorKey(), call_descriptor,
+                         FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite));
+}
+
+
+void StringAddStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  CallInterfaceDescriptor* call_descriptor =
+      isolate()->call_descriptor(CallDescriptorKey::StringAddCall);
+  descriptor->Initialize(MajorKey(), call_descriptor,
+                         Runtime::FunctionForId(Runtime::kStringAdd)->entry);
 }
 
 

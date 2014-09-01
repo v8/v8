@@ -46,10 +46,9 @@ class LoadICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            LoadConvention::ReceiverRegister(),
-                            LoadConvention::NameRegister()};
-    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
+    CallInterfaceDescriptor* call_descriptor =
+        isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+    descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
  private:
@@ -76,10 +75,9 @@ class KeyedLoadICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            LoadConvention::ReceiverRegister(),
-                            LoadConvention::NameRegister()};
-    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
+    CallInterfaceDescriptor* call_descriptor =
+        isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+    descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
  private:
@@ -105,11 +103,9 @@ class StoreICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            StoreConvention::ReceiverRegister(),
-                            StoreConvention::NameRegister(),
-                            StoreConvention::ValueRegister()};
-    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
+    CallInterfaceDescriptor* call_descriptor =
+        isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
+    descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
  private:
@@ -139,11 +135,9 @@ class KeyedStoreICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
-                            StoreConvention::ReceiverRegister(),
-                            StoreConvention::NameRegister(),
-                            StoreConvention::ValueRegister()};
-    descriptor->Initialize(MajorKey(), arraysize(registers), registers);
+    CallInterfaceDescriptor* call_descriptor =
+        isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
+    descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
  private:

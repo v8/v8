@@ -17,24 +17,20 @@ const Register LoadConvention::ReceiverRegister() { return r1; }
 const Register LoadConvention::NameRegister() { return r2; }
 
 
-const Register VectorLoadConvention::SlotRegister() {
-  DCHECK(FLAG_vector_ics);
-  return r0;
-}
+const Register VectorLoadConvention::SlotRegister() { return r0; }
 
 
-const Register FullVectorLoadConvention::VectorRegister() {
-  DCHECK(FLAG_vector_ics);
-  return r3;
-}
+const Register FullVectorLoadConvention::VectorRegister() { return r3; }
 
 
 const Register StoreConvention::ReceiverRegister() { return r1; }
 const Register StoreConvention::NameRegister() { return r2; }
 const Register StoreConvention::ValueRegister() { return r0; }
-
-
 const Register StoreConvention::MapRegister() { return r3; }
+
+
+const Register InstanceofConvention::left() { return r0; }
+const Register InstanceofConvention::right() { return r1; }
 }
 }  // namespace v8::internal
 
