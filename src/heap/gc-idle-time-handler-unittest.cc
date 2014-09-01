@@ -2,15 +2,47 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "test/heap-unittests/heap-unittest.h"
-
 #include <limits>
 
+#include "src/heap/gc-idle-time-handler.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
 
-TEST(EstimateMarkingStepSizeTest, EstimateMarkingStepSizeInitial) {
+namespace {
+
+class GCIdleTimeHandlerTest : public ::testing::Test {
+ public:
+  GCIdleTimeHandlerTest() {}
+  virtual ~GCIdleTimeHandlerTest() {}
+
+  GCIdleTimeHandler* handler() { return &handler_; }
+
+  GCIdleTimeHandler::HeapState DefaultHeapState() {
+    GCIdleTimeHandler::HeapState result;
+    result.contexts_disposed = 0;
+    result.size_of_objects = kSizeOfObjects;
+    result.incremental_marking_stopped = false;
+    result.can_start_incremental_marking = true;
+    result.sweeping_in_progress = false;
+    result.mark_compact_speed_in_bytes_per_ms = kMarkCompactSpeed;
+    result.incremental_marking_speed_in_bytes_per_ms = kMarkingSpeed;
+    return result;
+  }
+
+  static const size_t kSizeOfObjects = 100 * MB;
+  static const size_t kMarkCompactSpeed = 100 * KB;
+  static const size_t kMarkingSpeed = 100 * KB;
+
+ private:
+  GCIdleTimeHandler handler_;
+};
+
+}  // namespace
+
+
+TEST(GCIdleTimeHandler, EstimateMarkingStepSizeInitial) {
   size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(1, 0);
   EXPECT_EQ(
       static_cast<size_t>(GCIdleTimeHandler::kInitialConservativeMarkingSpeed *
@@ -19,7 +51,7 @@ TEST(EstimateMarkingStepSizeTest, EstimateMarkingStepSizeInitial) {
 }
 
 
-TEST(EstimateMarkingStepSizeTest, EstimateMarkingStepSizeNonZero) {
+TEST(GCIdleTimeHandler, EstimateMarkingStepSizeNonZero) {
   size_t marking_speed_in_bytes_per_millisecond = 100;
   size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
       1, marking_speed_in_bytes_per_millisecond);
@@ -29,7 +61,7 @@ TEST(EstimateMarkingStepSizeTest, EstimateMarkingStepSizeNonZero) {
 }
 
 
-TEST(EstimateMarkingStepSizeTest, EstimateMarkingStepSizeOverflow1) {
+TEST(GCIdleTimeHandler, EstimateMarkingStepSizeOverflow1) {
   size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
       10, std::numeric_limits<size_t>::max());
   EXPECT_EQ(static_cast<size_t>(GCIdleTimeHandler::kMaximumMarkingStepSize),
@@ -37,7 +69,7 @@ TEST(EstimateMarkingStepSizeTest, EstimateMarkingStepSizeOverflow1) {
 }
 
 
-TEST(EstimateMarkingStepSizeTest, EstimateMarkingStepSizeOverflow2) {
+TEST(GCIdleTimeHandler, EstimateMarkingStepSizeOverflow2) {
   size_t step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
       std::numeric_limits<size_t>::max(), 10);
   EXPECT_EQ(static_cast<size_t>(GCIdleTimeHandler::kMaximumMarkingStepSize),
@@ -45,7 +77,7 @@ TEST(EstimateMarkingStepSizeTest, EstimateMarkingStepSizeOverflow2) {
 }
 
 
-TEST(EstimateMarkCompactTimeTest, EstimateMarkCompactTimeInitial) {
+TEST(GCIdleTimeHandler, EstimateMarkCompactTimeInitial) {
   size_t size = 100 * MB;
   size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, 0);
   EXPECT_EQ(size / GCIdleTimeHandler::kInitialConservativeMarkCompactSpeed,
@@ -53,7 +85,7 @@ TEST(EstimateMarkCompactTimeTest, EstimateMarkCompactTimeInitial) {
 }
 
 
-TEST(EstimateMarkCompactTimeTest, EstimateMarkCompactTimeNonZero) {
+TEST(GCIdleTimeHandler, EstimateMarkCompactTimeNonZero) {
   size_t size = 100 * MB;
   size_t speed = 10 * KB;
   size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, speed);
@@ -61,7 +93,7 @@ TEST(EstimateMarkCompactTimeTest, EstimateMarkCompactTimeNonZero) {
 }
 
 
-TEST(EstimateMarkCompactTimeTest, EstimateMarkCompactTimeMax) {
+TEST(GCIdleTimeHandler, EstimateMarkCompactTimeMax) {
   size_t size = std::numeric_limits<size_t>::max();
   size_t speed = 1;
   size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, speed);
@@ -207,7 +239,6 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop2) {
   action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
 }
-
 
 }  // namespace internal
 }  // namespace v8

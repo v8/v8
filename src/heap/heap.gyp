@@ -12,16 +12,15 @@
       'target_name': 'heap-unittests',
       'type': 'executable',
       'dependencies': [
-        '../../testing/gmock.gyp:gmock',
         '../../testing/gtest.gyp:gtest',
+        '../../testing/gtest.gyp:gtest_main',
         '../../tools/gyp/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
         '../..',
       ],
       'sources': [  ### gcmole(all) ###
-        'heap-unittest.cc',
-        'heap-unittests.cc',
+        'gc-idle-time-handler-unittest.cc',
       ],
       'conditions': [
         ['component=="shared_library"', {
