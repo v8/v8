@@ -953,6 +953,7 @@
             '../../src/x87/frames-x87.cc',
             '../../src/x87/frames-x87.h',
             '../../src/x87/full-codegen-x87.cc',
+            '../../src/x87/interface-descriptors-x87.cc',
             '../../src/x87/lithium-codegen-x87.cc',
             '../../src/x87/lithium-codegen-x87.h',
             '../../src/x87/lithium-gap-resolver-x87.cc',

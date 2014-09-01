@@ -123,9 +123,6 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 }
 
 
-const Register InterfaceDescriptor::ContextRegister() { return esi; }
-
-
 static void InitializeArrayConstructorDescriptor(
     Isolate* isolate, CodeStub::Major major,
     CodeStubInterfaceDescriptor* descriptor,
@@ -265,80 +262,6 @@ void StringAddStub::InitializeInterfaceDescriptor(
   Register registers[] = { esi, edx, eax };
   descriptor->Initialize(MajorKey(), arraysize(registers), registers,
                          Runtime::FunctionForId(Runtime::kStringAdd)->entry);
-}
-
-
-void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::ArgumentAdaptorCall);
-    Register registers[] = { esi,  // context
-                             edi,  // JSFunction
-                             eax,  // actual number of arguments
-                             ebx,  // expected number of arguments
-    };
-    Representation representations[] = {
-        Representation::Tagged(),     // context
-        Representation::Tagged(),     // JSFunction
-        Representation::Integer32(),  // actual number of arguments
-        Representation::Integer32(),  // expected number of arguments
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::KeyedCall);
-    Register registers[] = { esi,  // context
-                             ecx,  // key
-    };
-    Representation representations[] = {
-        Representation::Tagged(),     // context
-        Representation::Tagged(),     // key
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::NamedCall);
-    Register registers[] = { esi,  // context
-                             ecx,  // name
-    };
-    Representation representations[] = {
-        Representation::Tagged(),     // context
-        Representation::Tagged(),     // name
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::CallHandler);
-    Register registers[] = { esi,  // context
-                             edx,  // name
-    };
-    Representation representations[] = {
-        Representation::Tagged(),     // context
-        Representation::Tagged(),     // receiver
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(Isolate::ApiFunctionCall);
-    Register registers[] = { esi,  // context
-                             eax,  // callee
-                             ebx,  // call_data
-                             ecx,  // holder
-                             edx,  // api_function_address
-    };
-    Representation representations[] = {
-        Representation::Tagged(),    // context
-        Representation::Tagged(),    // callee
-        Representation::Tagged(),    // call_data
-        Representation::Tagged(),    // holder
-        Representation::External(),  // api_function_address
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
 }
 
 
