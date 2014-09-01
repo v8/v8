@@ -11,6 +11,7 @@
         '../samples/samples.gyp:*',
         '../src/base/base.gyp:*',
         '../src/d8.gyp:d8',
+        '../src/libplatform/libplatform.gyp:libplatform-unittests',
         '../test/cctest/cctest.gyp:*',
         '../test/compiler-unittests/compiler-unittests.gyp:*',
         '../test/heap-unittests/heap-unittests.gyp:*',

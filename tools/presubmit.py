@@ -237,7 +237,6 @@ class CppLintProcessor(SourceFileProcessor):
 
   def GetPathsToSearch(self):
     return ['src', 'include', 'samples',
-            join('test', 'base-unittests'),
             join('test', 'cctest'),
             join('test', 'compiler-unittests'),
             join('test', 'heap-unittests'),
