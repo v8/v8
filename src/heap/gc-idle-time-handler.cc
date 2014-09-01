@@ -16,6 +16,27 @@ const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 7;
 const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
 
 
+void GCIdleTimeAction::Print() {
+  switch (type) {
+    case DO_NOTHING:
+      PrintF("no action");
+      break;
+    case DO_INCREMENTAL_MARKING:
+      PrintF("incremental marking with step %" V8_PTR_PREFIX "d", parameter);
+      break;
+    case DO_SCAVENGE:
+      PrintF("scavenge");
+      break;
+    case DO_FULL_GC:
+      PrintF("full GC");
+      break;
+    case DO_FINALIZE_SWEEPING:
+      PrintF("finalize sweeping");
+      break;
+  }
+}
+
+
 size_t GCIdleTimeHandler::EstimateMarkingStepSize(
     size_t idle_time_in_ms, size_t marking_speed_in_bytes_per_ms) {
   DCHECK(idle_time_in_ms > 0);

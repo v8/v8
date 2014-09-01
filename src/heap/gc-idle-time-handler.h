@@ -56,6 +56,8 @@ class GCIdleTimeAction {
     return result;
   }
 
+  void Print();
+
   GCIdleTimeActionType type;
   intptr_t parameter;
 };
