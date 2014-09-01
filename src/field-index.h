@@ -26,6 +26,7 @@ class FieldIndex V8_FINAL {
   static FieldIndex ForDescriptor(Map* map, int descriptor_index);
   static FieldIndex ForLoadByFieldIndex(Map* map, int index);
   static FieldIndex ForKeyedLookupCacheIndex(Map* map, int index);
+  static FieldIndex FromFieldAccessStubKey(int key);
 
   int GetLoadByFieldIndex() const;
 
@@ -81,6 +82,8 @@ class FieldIndex V8_FINAL {
       IndexBits::encode(local_index) |
       InObjectPropertyBits::encode(inobject_properties);
   }
+
+  explicit FieldIndex(int bit_field) : bit_field_(bit_field) {}
 
   int first_inobject_property_offset() const {
     DCHECK(!IsHiddenField::decode(bit_field_));

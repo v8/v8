@@ -438,8 +438,9 @@ class HydrogenCodeStub : public CodeStub {
 
   static const int kSubMinorKeyBits = kStubMinorKeyBits - 1;
 
- private:
   class SubMinorKeyBits : public BitField<int, 0, kSubMinorKeyBits> {};
+
+ private:
   class IsMissBits : public BitField<bool, kSubMinorKeyBits, 1> {};
 
   void GenerateLightweightMiss(MacroAssembler* masm);
@@ -897,25 +898,27 @@ class HandlerStub : public HydrogenCodeStub {
       CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE;
 
  protected:
-  explicit HandlerStub(Isolate* isolate)
-      : HydrogenCodeStub(isolate), bit_field_(0) {}
-  virtual int NotMissMinorKey() const { return bit_field_; }
+  explicit HandlerStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
   virtual Code::Kind kind() const = 0;
-  int bit_field_;
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(HandlerStub);
 };
 
 
 class LoadFieldStub: public HandlerStub {
  public:
-  LoadFieldStub(Isolate* isolate, FieldIndex index)
-    : HandlerStub(isolate), index_(index) {
-    int property_index_key = index_.GetFieldAccessStubKey();
-    bit_field_ = EncodedLoadFieldByIndexBits::encode(property_index_key);
+  LoadFieldStub(Isolate* isolate, FieldIndex index) : HandlerStub(isolate) {
+    int property_index_key = index.GetFieldAccessStubKey();
+    set_sub_minor_key(LoadFieldByIndexBits::encode(property_index_key));
   }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
 
-  FieldIndex index() const { return index_; }
+  FieldIndex index() const {
+    int property_index_key = LoadFieldByIndexBits::decode(sub_minor_key());
+    return FieldIndex::FromFieldAccessStubKey(property_index_key);
+  }
 
  protected:
   explicit LoadFieldStub(Isolate* isolate);
@@ -923,21 +926,26 @@ class LoadFieldStub: public HandlerStub {
   virtual Code::StubType GetStubType() { return Code::FAST; }
 
  private:
-  class EncodedLoadFieldByIndexBits : public BitField<int, 0, 13> {};
   virtual Major MajorKey() const V8_OVERRIDE { return LoadField; }
-  FieldIndex index_;
+
+  class LoadFieldByIndexBits : public BitField<int, 0, 13> {};
+
+  DISALLOW_COPY_AND_ASSIGN(LoadFieldStub);
 };
 
 
 class LoadConstantStub : public HandlerStub {
  public:
-  LoadConstantStub(Isolate* isolate, int descriptor) : HandlerStub(isolate) {
-    bit_field_ = descriptor;
+  LoadConstantStub(Isolate* isolate, int constant_index)
+      : HandlerStub(isolate) {
+    set_sub_minor_key(ConstantIndexBits::encode(constant_index));
   }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
 
-  int descriptor() const { return bit_field_; }
+  int constant_index() const {
+    return ConstantIndexBits::decode(sub_minor_key());
+  }
 
  protected:
   explicit LoadConstantStub(Isolate* isolate);
@@ -946,6 +954,10 @@ class LoadConstantStub : public HandlerStub {
 
  private:
   virtual Major MajorKey() const V8_OVERRIDE { return LoadConstant; }
+
+  class ConstantIndexBits : public BitField<int, 0, kSubMinorKeyBits> {};
+
+  DISALLOW_COPY_AND_ASSIGN(LoadConstantStub);
 };
 
 
@@ -960,6 +972,8 @@ class StringLengthStub: public HandlerStub {
 
  private:
   virtual Major MajorKey() const V8_OVERRIDE { return StringLength; }
+
+  DISALLOW_COPY_AND_ASSIGN(StringLengthStub);
 };
 
 
@@ -967,17 +981,25 @@ class StoreFieldStub : public HandlerStub {
  public:
   StoreFieldStub(Isolate* isolate, FieldIndex index,
                  Representation representation)
-      : HandlerStub(isolate), index_(index), representation_(representation) {
-    int property_index_key = index_.GetFieldAccessStubKey();
-    bit_field_ = EncodedStoreFieldByIndexBits::encode(property_index_key) |
-                 RepresentationBits::encode(
-                     PropertyDetails::EncodeRepresentation(representation));
+      : HandlerStub(isolate) {
+    int property_index_key = index.GetFieldAccessStubKey();
+    uint8_t repr = PropertyDetails::EncodeRepresentation(representation);
+    set_sub_minor_key(StoreFieldByIndexBits::encode(property_index_key) |
+                      RepresentationBits::encode(repr));
   }
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
 
-  FieldIndex index() const { return index_; }
-  Representation representation() { return representation_; }
+  FieldIndex index() const {
+    int property_index_key = StoreFieldByIndexBits::decode(sub_minor_key());
+    return FieldIndex::FromFieldAccessStubKey(property_index_key);
+  }
+
+  Representation representation() {
+    uint8_t repr = RepresentationBits::decode(sub_minor_key());
+    return PropertyDetails::DecodeRepresentation(repr);
+  }
+
   static void InstallDescriptors(Isolate* isolate);
 
  protected:
@@ -986,11 +1008,12 @@ class StoreFieldStub : public HandlerStub {
   virtual Code::StubType GetStubType() { return Code::FAST; }
 
  private:
-  class EncodedStoreFieldByIndexBits : public BitField<int, 0, 13> {};
-  class RepresentationBits : public BitField<int, 13, 4> {};
   virtual Major MajorKey() const V8_OVERRIDE { return StoreField; }
-  FieldIndex index_;
-  Representation representation_;
+
+  class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
+  class RepresentationBits : public BitField<uint8_t, 13, 4> {};
+
+  DISALLOW_COPY_AND_ASSIGN(StoreFieldStub);
 };
 
 
@@ -998,8 +1021,8 @@ class StoreGlobalStub : public HandlerStub {
  public:
   StoreGlobalStub(Isolate* isolate, bool is_constant, bool check_global)
       : HandlerStub(isolate) {
-    bit_field_ = IsConstantBits::encode(is_constant) |
-        CheckGlobalBits::encode(check_global);
+    set_sub_minor_key(IsConstantBits::encode(is_constant) |
+                      CheckGlobalBits::encode(check_global));
   }
 
   static Handle<HeapObject> global_placeholder(Isolate* isolate) {
@@ -1025,21 +1048,21 @@ class StoreGlobalStub : public HandlerStub {
 
   virtual Handle<Code> GenerateCode() V8_OVERRIDE;
 
-  bool is_constant() const {
-    return IsConstantBits::decode(bit_field_);
-  }
-  bool check_global() const {
-    return CheckGlobalBits::decode(bit_field_);
-  }
+  bool is_constant() const { return IsConstantBits::decode(sub_minor_key()); }
+
+  bool check_global() const { return CheckGlobalBits::decode(sub_minor_key()); }
+
   void set_is_constant(bool value) {
-    bit_field_ = IsConstantBits::update(bit_field_, value);
+    set_sub_minor_key(IsConstantBits::update(sub_minor_key(), value));
   }
 
   Representation representation() {
-    return Representation::FromKind(RepresentationBits::decode(bit_field_));
+    return Representation::FromKind(
+        RepresentationBits::decode(sub_minor_key()));
   }
+
   void set_representation(Representation r) {
-    bit_field_ = RepresentationBits::update(bit_field_, r.kind());
+    set_sub_minor_key(RepresentationBits::update(sub_minor_key(), r.kind()));
   }
 
  private:
