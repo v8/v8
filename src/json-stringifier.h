@@ -258,8 +258,7 @@ MaybeHandle<Object> BasicJsonStringifier::Stringify(Handle<Object> object) {
     ShrinkCurrentPart();
     Accumulate();
     if (overflowed_) {
-      return isolate_->Throw<Object>(
-          isolate_->factory()->NewInvalidStringLengthError());
+      THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), Object);
     }
     return accumulator();
   }
@@ -372,8 +371,10 @@ BasicJsonStringifier::Result BasicJsonStringifier::StackPush(
     for (int i = 0; i < length; i++) {
       if (elements->get(i) == *object) {
         AllowHeapAllocation allow_to_return_error;
-        isolate_->Throw(*factory_->NewTypeError(
-            "circular_structure", HandleVector<Object>(NULL, 0)));
+        Handle<Object> error;
+        MaybeHandle<Object> maybe_error = factory_->NewTypeError(
+            "circular_structure", HandleVector<Object>(NULL, 0));
+        if (maybe_error.ToHandle(&error)) isolate_->Throw(*error);
         return EXCEPTION;
       }
     }

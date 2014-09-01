@@ -46,12 +46,12 @@ class Execution V8_FINAL : public AllStatic {
   // any thrown exceptions. The return value is either the result of
   // calling the function (if caught exception is false) or the exception
   // that occurred (if caught exception is true).
-  static MaybeHandle<Object> TryCall(
-      Handle<JSFunction> func,
-      Handle<Object> receiver,
-      int argc,
-      Handle<Object> argv[],
-      Handle<Object>* exception_out = NULL);
+  // In the exception case, exception_out holds the caught exceptions, unless
+  // it is a termination exception.
+  static MaybeHandle<Object> TryCall(Handle<JSFunction> func,
+                                     Handle<Object> receiver, int argc,
+                                     Handle<Object> argv[],
+                                     MaybeHandle<Object>* exception_out = NULL);
 
   // ECMA-262 9.3
   MUST_USE_RESULT static MaybeHandle<Object> ToNumber(

@@ -424,11 +424,10 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
       Handle<Object> args[2] = { name, receiver };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("incompatible_method_receiver",
-                                           HandleVector(args,
-                                                        arraysize(args)));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError("incompatible_method_receiver",
+                                   HandleVector(args, arraysize(args))),
+                      Object);
     }
     if (structure->IsDeclaredAccessorInfo()) {
       return GetDeclaredAccessorProperty(
@@ -496,11 +495,10 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
     ExecutableAccessorInfo* info = ExecutableAccessorInfo::cast(*structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
       Handle<Object> args[2] = { name, receiver };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("incompatible_method_receiver",
-                                           HandleVector(args,
-                                                        arraysize(args)));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError("incompatible_method_receiver",
+                                   HandleVector(args, arraysize(args))),
+                      Object);
     }
     Object* call_obj = info->setter();
     v8::AccessorNameSetterCallback call_fun =
@@ -524,10 +522,9 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
     } else {
       if (strict_mode == SLOPPY) return value;
       Handle<Object> args[2] = { name, holder };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("no_setter_in_callback",
-                                           HandleVector(args, 2));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(
+          isolate, NewTypeError("no_setter_in_callback", HandleVector(args, 2)),
+          Object);
     }
   }
 
@@ -2909,9 +2906,9 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
   // throw a reference error in strict mode.
   if (it->GetReceiver()->IsJSGlobalObject() && strict_mode == STRICT) {
     Handle<Object> args[1] = {it->name()};
-    Handle<Object> error = it->isolate()->factory()->NewReferenceError(
-        "not_defined", HandleVector(args, 1));
-    return it->isolate()->Throw<Object>(error);
+    THROW_NEW_ERROR(it->isolate(),
+                    NewReferenceError("not_defined", HandleVector(args, 1)),
+                    Object);
   }
 
   return AddDataProperty(it, value, NONE, strict_mode, store_mode);
@@ -2924,9 +2921,10 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(LookupIterator* it,
   if (strict_mode != STRICT) return value;
 
   Handle<Object> args[] = {it->name(), it->GetReceiver()};
-  Handle<Object> error = it->factory()->NewTypeError(
-      "strict_read_only_property", HandleVector(args, arraysize(args)));
-  return it->isolate()->Throw<Object>(error);
+  THROW_NEW_ERROR(it->isolate(),
+                  NewTypeError("strict_read_only_property",
+                               HandleVector(args, arraysize(args))),
+                  Object);
 }
 
 
@@ -2989,9 +2987,10 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
     if (strict_mode == SLOPPY) return value;
 
     Handle<Object> args[1] = {it->name()};
-    Handle<Object> error = it->factory()->NewTypeError(
-        "object_not_extensible", HandleVector(args, arraysize(args)));
-    return it->isolate()->Throw<Object>(error);
+    THROW_NEW_ERROR(it->isolate(),
+                    NewTypeError("object_not_extensible",
+                                 HandleVector(args, arraysize(args))),
+                    Object);
   }
   it->ApplyTransitionToDataProperty();
 
@@ -3483,9 +3482,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
         isolate->factory()->InternalizeOneByteString(
             STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "proxy_prop_not_configurable", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("proxy_prop_not_configurable",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
   DCHECK(configurable->IsTrue());
 
@@ -3507,9 +3506,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     if (!*done) return isolate->factory()->the_hole_value();
     if (strict_mode == SLOPPY) return value;
     Handle<Object> args[] = { name, receiver };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "strict_read_only_property", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
 
   // We have an AccessorDescriptor.
@@ -3524,9 +3523,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
 
   if (strict_mode == SLOPPY) return value;
   Handle<Object> args2[] = { name, proxy };
-  Handle<Object> error = isolate->factory()->NewTypeError(
-      "no_setter_in_callback", HandleVector(args2, arraysize(args2)));
-  return isolate->Throw<Object>(error);
+  THROW_NEW_ERROR(isolate, NewTypeError("no_setter_in_callback",
+                                        HandleVector(args2, arraysize(args2))),
+                  Object);
 }
 
 
@@ -3554,9 +3553,9 @@ MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
     Handle<String> trap_name = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("delete"));
     Handle<Object> args[] = { handler, trap_name };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "handler_failed", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("handler_failed",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
   return isolate->factory()->ToBoolean(result_bool);
 }
@@ -3630,9 +3629,10 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
     Handle<String> trap = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
-    Handle<Object> error = isolate->factory()->NewTypeError(
+    Handle<Object> error;
+    MaybeHandle<Object> maybe_error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, arraysize(args)));
-    isolate->Throw(*error);
+    if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
     return maybe(NONE);
   }
 
@@ -3692,9 +3692,10 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
   if (trap->IsUndefined()) {
     if (derived.is_null()) {
       Handle<Object> args[] = { handler, trap_name };
-      Handle<Object> error = isolate->factory()->NewTypeError(
-        "handler_trap_missing", HandleVector(args, arraysize(args)));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError("handler_trap_missing",
+                                   HandleVector(args, arraysize(args))),
+                      Object);
     }
     trap = Handle<Object>(derived);
   }
@@ -4846,11 +4847,9 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
       // Deleting a non-configurable property in strict mode.
       Handle<Object> name = factory->NewNumberFromUint(index);
       Handle<Object> args[2] = { name, object };
-      Handle<Object> error =
-          factory->NewTypeError("strict_delete_property",
-                                HandleVector(args, 2));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      THROW_NEW_ERROR(isolate, NewTypeError("strict_delete_property",
+                                            HandleVector(args, 2)),
+                      Object);
     }
     return factory->false_value();
   }
@@ -4952,10 +4951,10 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
           // Fail if the property is not configurable.
           if (delete_mode == STRICT_DELETION) {
             Handle<Object> args[2] = {name, object};
-            Handle<Object> error = it.isolate()->factory()->NewTypeError(
-                "strict_delete_property", HandleVector(args, arraysize(args)));
-            it.isolate()->Throw(*error);
-            return Handle<Object>();
+            THROW_NEW_ERROR(it.isolate(),
+                            NewTypeError("strict_delete_property",
+                                         HandleVector(args, arraysize(args))),
+                            Object);
           }
           return it.isolate()->factory()->false_value();
         }
@@ -5180,11 +5179,10 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   // It's not possible to seal objects with external array elements
   if (object->HasExternalArrayElements() ||
       object->HasFixedTypedArrayElements()) {
-    Handle<Object> error  =
-        isolate->factory()->NewTypeError(
-            "cant_prevent_ext_external_array_elements",
-            HandleVector(&object, 1));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError("cant_prevent_ext_external_array_elements",
+                                 HandleVector(&object, 1)),
+                    Object);
   }
 
   // If there are fast elements we normalize.
@@ -5263,11 +5261,10 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
   // It's not possible to freeze objects with external array elements
   if (object->HasExternalArrayElements() ||
       object->HasFixedTypedArrayElements()) {
-    Handle<Object> error  =
-        isolate->factory()->NewTypeError(
-            "cant_prevent_ext_external_array_elements",
-            HandleVector(&object, 1));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError("cant_prevent_ext_external_array_elements",
+                                 HandleVector(&object, 1)),
+                    Object);
   }
 
   Handle<SeededNumberDictionary> new_element_dictionary;
@@ -11710,9 +11707,9 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   // paragraph.
   if (!object->map()->is_extensible()) {
     Handle<Object> args[] = { object };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "non_extensible_proto", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("non_extensible_proto",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
 
   // Before we can set the prototype we need to be sure
@@ -11724,9 +11721,9 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
        !iter.IsAtEnd(); iter.Advance()) {
     if (JSReceiver::cast(iter.GetCurrent()) == *object) {
       // Cycle detected.
-      Handle<Object> error = isolate->factory()->NewError(
-          "cyclic_proto", HandleVector<Object>(NULL, 0));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(isolate,
+                      NewError("cyclic_proto", HandleVector<Object>(NULL, 0)),
+                      Object);
     }
   }
 
@@ -11937,9 +11934,9 @@ MaybeHandle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
       if (strict_mode == SLOPPY) return value;
       Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
       Handle<Object> args[2] = { key, holder };
-      Handle<Object> error = isolate->factory()->NewTypeError(
-          "no_setter_in_callback", HandleVector(args, 2));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(
+          isolate, NewTypeError("no_setter_in_callback", HandleVector(args, 2)),
+          Object);
     }
   }
 
@@ -12148,10 +12145,9 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
         } else {
           Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
           Handle<Object> args[2] = { number, object };
-          Handle<Object> error =
-              isolate->factory()->NewTypeError("strict_read_only_property",
-                                               HandleVector(args, 2));
-          return isolate->Throw<Object>(error);
+          THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
+                                                HandleVector(args, 2)),
+                          Object);
         }
       }
       // Elements of the arguments object in slow mode might be slow aliases.
@@ -12186,10 +12182,9 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
         Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
         Handle<String> name = isolate->factory()->NumberToString(number);
         Handle<Object> args[1] = { name };
-        Handle<Object> error =
-            isolate->factory()->NewTypeError("object_not_extensible",
-                                             HandleVector(args, 1));
-        return isolate->Throw<Object>(error);
+        THROW_NEW_ERROR(isolate, NewTypeError("object_not_extensible",
+                                              HandleVector(args, 1)),
+                        Object);
       }
     }
 
@@ -12409,9 +12404,9 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
       set_mode == DEFINE_PROPERTY) {
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<Object> args[] = { object, number };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "redef_external_array_element", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("redef_external_array_element",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
 
   // Normalize the elements to enable attributes on the property.
@@ -12863,9 +12858,9 @@ MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
   Isolate* isolate = array->GetIsolate();
   Handle<Name> length = isolate->factory()->length_string();
   Handle<Object> args[2] = { length, array };
-  Handle<Object> error = isolate->factory()->NewTypeError(
-      "strict_read_only_property", HandleVector(args, arraysize(args)));
-  return isolate->Throw<Object>(error);
+  THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
+                                        HandleVector(args, arraysize(args))),
+                  Object);
 }
 
 

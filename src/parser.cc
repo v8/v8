@@ -3955,10 +3955,12 @@ void Parser::ThrowPendingError() {
     isolate()->debug()->OnCompileError(script_);
 
     Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-    Handle<Object> result = pending_error_is_reference_error_
-        ? factory->NewReferenceError(pending_error_message_, array)
-        : factory->NewSyntaxError(pending_error_message_, array);
-    isolate()->Throw(*result, &location);
+    Handle<Object> error;
+    MaybeHandle<Object> maybe_error =
+        pending_error_is_reference_error_
+            ? factory->NewReferenceError(pending_error_message_, array)
+            : factory->NewSyntaxError(pending_error_message_, array);
+    if (maybe_error.ToHandle(&error)) isolate()->Throw(*error, &location);
   }
 }
 

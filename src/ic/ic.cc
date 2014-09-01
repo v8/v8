@@ -333,17 +333,14 @@ MaybeHandle<Object> IC::TypeError(const char* type, Handle<Object> object,
                                   Handle<Object> key) {
   HandleScope scope(isolate());
   Handle<Object> args[2] = {key, object};
-  Handle<Object> error =
-      isolate()->factory()->NewTypeError(type, HandleVector(args, 2));
-  return isolate()->Throw<Object>(error);
+  THROW_NEW_ERROR(isolate(), NewTypeError(type, HandleVector(args, 2)), Object);
 }
 
 
 MaybeHandle<Object> IC::ReferenceError(const char* type, Handle<Name> name) {
   HandleScope scope(isolate());
-  Handle<Object> error =
-      isolate()->factory()->NewReferenceError(type, HandleVector(&name, 1));
-  return isolate()->Throw<Object>(error);
+  THROW_NEW_ERROR(isolate(), NewReferenceError(type, HandleVector(&name, 1)),
+                  Object);
 }
 
 
@@ -3116,9 +3113,8 @@ static Object* ThrowReferenceError(Isolate* isolate, Name* name) {
 
   // Throw a reference error.
   Handle<Name> name_handle(name);
-  Handle<Object> error = isolate->factory()->NewReferenceError(
-      "not_defined", HandleVector(&name_handle, 1));
-  return isolate->Throw(*error);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError("not_defined", HandleVector(&name_handle, 1)));
 }
 
 

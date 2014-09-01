@@ -88,8 +88,8 @@ static inline MaybeHandle<Object> ThrowRegExpException(
   elements->set(0, *pattern);
   elements->set(1, *error_text);
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> regexp_err = factory->NewSyntaxError(message, array);
-  return isolate->Throw<Object>(regexp_err);
+  Handle<Object> regexp_err;
+  THROW_NEW_ERROR(isolate, NewSyntaxError(message, array), Object);
 }
 
 
@@ -372,8 +372,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(
 }
 
 
-static bool CreateRegExpErrorObjectAndThrow(Handle<JSRegExp> re,
-                                            bool is_ascii,
+static void CreateRegExpErrorObjectAndThrow(Handle<JSRegExp> re, bool is_ascii,
                                             Handle<String> error_message,
                                             Isolate* isolate) {
   Factory* factory = isolate->factory();
@@ -381,10 +380,10 @@ static bool CreateRegExpErrorObjectAndThrow(Handle<JSRegExp> re,
   elements->set(0, re->Pattern());
   elements->set(1, *error_message);
   Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-  Handle<Object> regexp_err =
+  Handle<Object> error;
+  MaybeHandle<Object> maybe_error =
       factory->NewSyntaxError("malformed_regexp", array);
-  isolate->Throw(*regexp_err);
-  return false;
+  if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
 }
 
 

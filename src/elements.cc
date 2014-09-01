@@ -141,9 +141,9 @@ static bool HasKey(Handle<FixedArray> array, Handle<Object> key_handle) {
 
 MUST_USE_RESULT
 static MaybeHandle<Object> ThrowArrayLengthRangeError(Isolate* isolate) {
-  return isolate->Throw<Object>(
-      isolate->factory()->NewRangeError("invalid_array_length",
-                                        HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR(isolate, NewRangeError("invalid_array_length",
+                                         HandleVector<Object>(NULL, 0)),
+                  Object);
 }
 
 
@@ -1421,10 +1421,9 @@ class DictionaryElementsAccessor
           // Deleting a non-configurable property in strict mode.
           Handle<Object> name = isolate->factory()->NewNumberFromUint(key);
           Handle<Object> args[2] = { name, obj };
-          Handle<Object> error =
-              isolate->factory()->NewTypeError("strict_delete_property",
-                                               HandleVector(args, 2));
-          return isolate->Throw<Object>(error);
+          THROW_NEW_ERROR(isolate, NewTypeError("strict_delete_property",
+                                                HandleVector(args, 2)),
+                          Object);
         }
         return isolate->factory()->false_value();
       }

@@ -1080,9 +1080,10 @@ bool Scope::ResolveVariable(CompilationInfo* info,
     Isolate* isolate = info->isolate();
     Factory* factory = isolate->factory();
     Handle<JSArray> array = factory->NewJSArray(0);
-    Handle<Object> result =
+    Handle<Object> error;
+    MaybeHandle<Object> maybe_error =
         factory->NewSyntaxError("harmony_const_assign", array);
-    isolate->Throw(*result, &location);
+    if (maybe_error.ToHandle(&error)) isolate->Throw(*error, &location);
     return false;
   }
 
@@ -1114,9 +1115,10 @@ bool Scope::ResolveVariable(CompilationInfo* info,
       Factory* factory = isolate->factory();
       Handle<JSArray> array = factory->NewJSArray(1);
       JSObject::SetElement(array, 0, var->name(), NONE, STRICT).Assert();
-      Handle<Object> result =
+      Handle<Object> error;
+      MaybeHandle<Object> maybe_error =
           factory->NewSyntaxError("module_type_error", array);
-      isolate->Throw(*result, &location);
+      if (maybe_error.ToHandle(&error)) isolate->Throw(*error, &location);
       return false;
     }
   }

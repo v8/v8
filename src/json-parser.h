@@ -244,7 +244,9 @@ MaybeHandle<Object> JsonParser<seq_ascii>::ParseJson() {
     MessageLocation location(factory->NewScript(source_),
                              position_,
                              position_ + 1);
-    Handle<Object> error = factory->NewSyntaxError(message, array);
+    Handle<Object> error;
+    ASSIGN_RETURN_ON_EXCEPTION(isolate(), error,
+                               factory->NewSyntaxError(message, array), Object);
     return isolate()->template Throw<Object>(error, &location);
   }
   return result;
