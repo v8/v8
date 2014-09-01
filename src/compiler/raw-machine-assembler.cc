@@ -94,9 +94,8 @@ Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
   stub.InitializeInterfaceDescriptor(d);
 
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      d, 1, static_cast<CallDescriptor::DeoptimizationSupport>(
-                CallDescriptor::kLazyDeoptimization |
-                CallDescriptor::kNeedsFrameState),
+      d, 1,
+      CallDescriptor::kLazyDeoptimization | CallDescriptor::kNeedsFrameState,
       zone());
   Node* stub_code = HeapConstant(stub.GetCode());
   Node* call = graph()->NewNode(common()->Call(desc), stub_code, function,

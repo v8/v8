@@ -36,7 +36,7 @@ class SelfJoinThread V8_FINAL : public Thread {
   virtual void Run() V8_OVERRIDE { Join(); }
 };
 
-}
+}  // namespace
 
 
 TEST(Thread, SelfJoin) {
@@ -97,7 +97,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
   Thread::LocalStorageKey keys_[256];
 };
 
-}
+}  // namespace
 
 
 TEST_F(ThreadLocalStorageTest, DoTest) {

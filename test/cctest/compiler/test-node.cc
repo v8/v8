@@ -118,9 +118,14 @@ TEST(NodeUseIteratorOne) {
 TEST(NodeUseIteratorReplaceNoUses) {
   GraphTester graph;
   Node* n0 = graph.NewNode(&dummy_operator);
-  Node* n3 = graph.NewNode(&dummy_operator);
-  n0->ReplaceUses(n3);
+  Node* n1 = graph.NewNode(&dummy_operator);
+  Node* n2 = graph.NewNode(&dummy_operator);
+  Node* n3 = graph.NewNode(&dummy_operator, n2);
+  n0->ReplaceUses(n1);
   CHECK(n0->uses().begin() == n0->uses().end());
+  n0->ReplaceUses(n2);
+  CHECK(n0->uses().begin() == n0->uses().end());
+  USE(n3);
 }
 
 

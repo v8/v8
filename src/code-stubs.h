@@ -11,6 +11,7 @@
 #include "src/globals.h"
 #include "src/ic/ic.h"
 #include "src/ic/ic-conventions.h"
+#include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
 
@@ -280,79 +281,6 @@ enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
 enum HandlerArgumentsMode { DONT_PASS_ARGUMENTS, PASS_ARGUMENTS };
 
 
-class PlatformInterfaceDescriptor;
-
-
-class InterfaceDescriptor {
- public:
-  bool IsInitialized() const { return register_param_count_ >= 0; }
-
-  int GetEnvironmentLength() const { return register_param_count_; }
-
-  int GetRegisterParameterCount() const { return register_param_count_; }
-
-  Register GetParameterRegister(int index) const {
-    return register_params_[index];
-  }
-
-  Representation GetParameterRepresentation(int index) const {
-    DCHECK(index < register_param_count_);
-    if (register_param_representations_.get() == NULL) {
-      return Representation::Tagged();
-    }
-
-    return register_param_representations_[index];
-  }
-
-  // "Environment" versions of parameter functions. The first register
-  // parameter (context) is not included.
-  int GetEnvironmentParameterCount() const {
-    return GetEnvironmentLength() - 1;
-  }
-
-  Register GetEnvironmentParameterRegister(int index) const {
-    return GetParameterRegister(index + 1);
-  }
-
-  Representation GetEnvironmentParameterRepresentation(int index) const {
-    return GetParameterRepresentation(index + 1);
-  }
-
-  // Some platforms have extra information to associate with the descriptor.
-  PlatformInterfaceDescriptor* platform_specific_descriptor() const {
-    return platform_specific_descriptor_;
-  }
-
-  static const Register ContextRegister();
-
- protected:
-  InterfaceDescriptor();
-  virtual ~InterfaceDescriptor() {}
-
-  void Initialize(int register_parameter_count, Register* registers,
-                  Representation* register_param_representations,
-                  PlatformInterfaceDescriptor* platform_descriptor = NULL);
-
- private:
-  int register_param_count_;
-
-  // The Register params are allocated dynamically by the
-  // InterfaceDescriptor, and freed on destruction. This is because static
-  // arrays of Registers cause creation of runtime static initializers
-  // which we don't want.
-  SmartArrayPointer<Register> register_params_;
-  // Specifies Representations for the stub's parameter. Points to an array of
-  // Representations of the same length of the numbers of parameters to the
-  // stub, or if NULL (the default value), Representation of each parameter
-  // assumed to be Tagged().
-  SmartArrayPointer<Representation> register_param_representations_;
-
-  PlatformInterfaceDescriptor* platform_specific_descriptor_;
-
-  DISALLOW_COPY_AND_ASSIGN(InterfaceDescriptor);
-};
-
-
 class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
  public:
   CodeStubInterfaceDescriptor();
@@ -418,23 +346,6 @@ class CodeStubInterfaceDescriptor: public InterfaceDescriptor {
   ExternalReference miss_handler_;
   bool has_miss_handler_;
   CodeStub::Major major_;
-};
-
-
-class CallInterfaceDescriptor: public InterfaceDescriptor {
- public:
-  CallInterfaceDescriptor() { }
-
-  // A copy of the passed in registers and param_representations is made
-  // and owned by the CallInterfaceDescriptor.
-
-  // TODO(mvstanton): Instead of taking parallel arrays register and
-  // param_representations, how about a struct that puts the representation
-  // and register side by side (eg, RegRep(r1, Representation::Tagged()).
-  // The same should go for the CodeStubInterfaceDescriptor class.
-  void Initialize(int register_parameter_count, Register* registers,
-                  Representation* param_representations,
-                  PlatformInterfaceDescriptor* platform_descriptor = NULL);
 };
 
 
@@ -2659,11 +2570,6 @@ class ProfileEntryHookStub : public PlatformCodeStub {
   DISALLOW_COPY_AND_ASSIGN(ProfileEntryHookStub);
 };
 
-
-class CallDescriptors {
- public:
-  static void InitializeForIsolate(Isolate* isolate);
-};
 
 } }  // namespace v8::internal
 

@@ -27,6 +27,8 @@ class ChangeLowering V8_FINAL : public Reducer {
   virtual Reduction Reduce(Node* node) V8_OVERRIDE;
 
  private:
+  enum Signedness { kSigned, kUnsigned };
+
   Node* HeapNumberValueIndexConstant();
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
@@ -40,7 +42,7 @@ class ChangeLowering V8_FINAL : public Reducer {
   Reduction ChangeFloat64ToTagged(Node* val, Node* control);
   Reduction ChangeInt32ToTagged(Node* val, Node* control);
   Reduction ChangeTaggedToFloat64(Node* val, Node* control);
-  Reduction ChangeTaggedToI32(Node* val, Node* control, bool is_signed);
+  Reduction ChangeTaggedToUI32(Node* val, Node* control, Signedness signedness);
   Reduction ChangeUint32ToTagged(Node* val, Node* control);
 
   Graph* graph() const;

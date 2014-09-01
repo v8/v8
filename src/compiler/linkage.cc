@@ -93,20 +93,20 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count) {
 }
 
 
-CallDescriptor* Linkage::GetRuntimeCallDescriptor(
-    Runtime::FunctionId function, int parameter_count,
-    Operator::Property properties,
-    CallDescriptor::DeoptimizationSupport can_deoptimize) {
-  return GetRuntimeCallDescriptor(function, parameter_count, properties,
-                                  can_deoptimize, this->info_->zone());
+CallDescriptor* Linkage::GetRuntimeCallDescriptor(Runtime::FunctionId function,
+                                                  int parameter_count,
+                                                  Operator::Property properties,
+                                                  CallDescriptor::Flags flags) {
+  return GetRuntimeCallDescriptor(function, parameter_count, properties, flags,
+                                  this->info_->zone());
 }
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
     CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-    CallDescriptor::DeoptimizationSupport can_deoptimize) {
-  return GetStubCallDescriptor(descriptor, stack_parameter_count,
-                               can_deoptimize, this->info_->zone());
+    CallDescriptor::Flags flags) {
+  return GetStubCallDescriptor(descriptor, stack_parameter_count, flags,
+                               this->info_->zone());
 }
 
 
@@ -120,10 +120,11 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone) {
 }
 
 
-CallDescriptor* Linkage::GetRuntimeCallDescriptor(
-    Runtime::FunctionId function, int parameter_count,
-    Operator::Property properties,
-    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
+CallDescriptor* Linkage::GetRuntimeCallDescriptor(Runtime::FunctionId function,
+                                                  int parameter_count,
+                                                  Operator::Property properties,
+                                                  CallDescriptor::Flags flags,
+                                                  Zone* zone) {
   UNIMPLEMENTED();
   return NULL;
 }
@@ -131,7 +132,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
     CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-    CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone) {
+    CallDescriptor::Flags flags, Zone* zone) {
   UNIMPLEMENTED();
   return NULL;
 }

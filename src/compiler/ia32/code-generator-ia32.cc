@@ -129,7 +129,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ call(Operand(reg, Code::kHeaderSize - kHeapObjectTag));
       }
       AddSafepointAndDeopt(instr);
-      AddNopForSmiCodeInlining();
       break;
     }
     case kArchCallJSFunction: {
@@ -947,6 +946,6 @@ void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
 
 #undef __
 
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

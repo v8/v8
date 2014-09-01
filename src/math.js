@@ -186,14 +186,6 @@ function MathTrunc(x) {
   return x;
 }
 
-// ES6 draft 09-27-13, section 20.2.2.30.
-function MathSinh(x) {
-  if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  // Idempotent for NaN, +/-0 and +/-Infinity.
-  if (x === 0 || !NUMBER_IS_FINITE(x)) return x;
-  return (MathExp(x) - MathExp(-x)) / 2;
-}
-
 // ES6 draft 09-27-13, section 20.2.2.12.
 function MathCosh(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
@@ -376,7 +368,7 @@ function SetUpMath() {
     "imul", MathImul,
     "sign", MathSign,
     "trunc", MathTrunc,
-    "sinh", MathSinh,
+    "sinh", MathSinh,     // implemented by third_party/fdlibm
     "cosh", MathCosh,
     "tanh", MathTanh,
     "asinh", MathAsinh,

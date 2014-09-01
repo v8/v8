@@ -80,6 +80,9 @@
   ##############################################################################
   # TurboFan compiler failures.
 
+  # Scheduler cannot handle free-floating loops yet
+  'test-run-inlining/InlineLoop': [SKIP],
+
   # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
   'test-debug/DebugEvaluateWithoutStack': [PASS, NO_VARIANTS],
   'test-debug/MessageQueues': [PASS, NO_VARIANTS],
@@ -192,9 +195,6 @@
 
   # BUG(v8:3434).
   ' test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
-
-  # TODO(rodolph): Please investigate.
-  'test-run-machops/RunTruncateFloat64ToInt32P': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run == True', {
@@ -268,9 +268,6 @@
 
 ##############################################################################
 ['arch == arm', {
-
-  # TODO(mstarzinger): This fails on ARM hardware, but not in the simulator.
-  'test-run-properties/TypedArrayLoad': [SKIP],
 
   # BUG(355): Test crashes on ARM.
   'test-log/ProfLazyMode': [SKIP],

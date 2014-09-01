@@ -91,6 +91,9 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
     return 0;
   }
   return static_cast<int64_t>(stat_buf.st_size);
+#elif V8_OS_NACL
+  // No support for _SC_PHYS_PAGES, assume 2GB.
+  return static_cast<int64_t>(1) << 31;
 #elif V8_OS_POSIX
   long pages = sysconf(_SC_PHYS_PAGES);    // NOLINT(runtime/int)
   long page_size = sysconf(_SC_PAGESIZE);  // NOLINT(runtime/int)

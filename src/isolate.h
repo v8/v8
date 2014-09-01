@@ -1022,16 +1022,7 @@ class Isolate {
   CodeStubInterfaceDescriptor*
       code_stub_interface_descriptor(int index);
 
-  enum CallDescriptorKey {
-    KeyedCall,
-    NamedCall,
-    CallHandler,
-    ArgumentAdaptorCall,
-    ApiFunctionCall,
-    NUMBER_OF_CALL_DESCRIPTORS
-  };
-
-  CallInterfaceDescriptor* call_descriptor(CallDescriptorKey index);
+  CallInterfaceDescriptor* call_descriptor(int index);
 
   void IterateDeferredHandles(ObjectVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);

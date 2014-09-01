@@ -21621,7 +21621,7 @@ THREADED_TEST(JSONParseNumber) {
 }
 
 
-#if V8_OS_POSIX
+#if V8_OS_POSIX && !V8_OS_NACL
 class ThreadInterruptTest {
  public:
   ThreadInterruptTest() : sem_(0), sem_value_(0) { }

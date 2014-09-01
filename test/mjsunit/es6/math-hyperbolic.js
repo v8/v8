@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// TODO(3468): we rely on a precise Math.exp.
+// Flags: --no-fast-math
+
 [Math.sinh, Math.cosh, Math.tanh, Math.asinh, Math.acosh, Math.atanh].
     forEach(function(fun) {
   assertTrue(isNaN(fun(NaN)));
@@ -66,14 +69,14 @@ function test_id(fun, rev, value) {
 });
 
 
-assertEquals("Infinity", String(Math.cosh(-Infinity)));
-assertEquals("Infinity", String(Math.cosh(Infinity)));
-assertEquals("Infinity", String(Math.cosh("-Infinity")));
-assertEquals("Infinity", String(Math.cosh("Infinity")));
+assertEquals(Infinity, Math.cosh(-Infinity));
+assertEquals(Infinity, Math.cosh(Infinity));
+assertEquals(Infinity, Math.cosh("-Infinity"));
+assertEquals(Infinity, Math.cosh("Infinity"));
 
 
-assertEquals("-Infinity", String(Math.atanh(-1)));
-assertEquals("Infinity", String(Math.atanh(1)));
+assertEquals(-Infinity, Math.atanh(-1));
+assertEquals(Infinity, Math.atanh(1));
 
 // Math.atanh(x) is NaN for |x| > 1 and NaN
 [1.000000000001, Math.PI, 10000000, 2, Infinity, NaN].forEach(function(x) {
@@ -82,6 +85,8 @@ assertEquals("Infinity", String(Math.atanh(1)));
 });
 
 
+assertEquals(0, Math.sinh(0));
+assertEquals(-Infinity, 1/Math.sinh(-0));
 assertEquals(1, Math.tanh(Infinity));
 assertEquals(-1, Math.tanh(-Infinity));
 assertEquals(1, Math.cosh(0));
@@ -97,9 +102,7 @@ assertEquals("Infinity", String(Math.acosh(Infinity)));
 
 
 // Some random samples.
-assertEqualsDelta(0.5210953054937, Math.sinh(0.5), 1E-12);
 assertEqualsDelta(74.203210577788, Math.sinh(5), 1E-12);
-assertEqualsDelta(-0.5210953054937, Math.sinh(-0.5), 1E-12);
 assertEqualsDelta(-74.203210577788, Math.sinh(-5), 1E-12);
 
 assertEqualsDelta(1.1276259652063, Math.cosh(0.5), 1E-12);
@@ -134,3 +137,32 @@ assertEqualsDelta(-0.1003353477311, Math.atanh(-0.1), 1E-12);
 [1-(1E-16), 0, 1E-10, 1E-50].forEach(function(x) {
   assertEqualsDelta(Math.atanh(x), -Math.atanh(-x), 1E-12);
 });
+
+
+// Implementation-specific tests for sinh.
+// Case |x| < 2^-28
+assertEquals(Math.pow(2, -29), Math.sinh(Math.pow(2, -29)));
+assertEquals(-Math.pow(2, -29), Math.sinh(-Math.pow(2, -29)));
+// Case |x| < 1
+assertEquals(0.5210953054937474, Math.sinh(0.5));
+assertEquals(-0.5210953054937474, Math.sinh(-0.5));
+// sinh(10*log(2)) = 1048575/2048, case |x| < 22
+assertEquals(1048575/2048, Math.sinh(10*Math.LN2));
+assertEquals(-1048575/2048, Math.sinh(-10*Math.LN2));
+// Case |x| < 22
+assertEquals(11013.232874703393, Math.sinh(10));
+assertEquals(-11013.232874703393, Math.sinh(-10));
+// Case |x| in [22, log(maxdouble)]
+assertEquals(2.1474836479999983e9, Math.sinh(32*Math.LN2));
+assertEquals(-2.1474836479999983e9, Math.sinh(-32*Math.LN2));
+// Case |x| in [22, log(maxdouble)]
+assertEquals(1.3440585709080678e43, Math.sinh(100));
+assertEquals(-1.3440585709080678e43, Math.sinh(-100));
+// No overflow, case |x| in [log(maxdouble), threshold]
+assertEquals(1.7976931348621744e308, Math.sinh(710.4758600739439));
+assertEquals(-1.7976931348621744e308, Math.sinh(-710.4758600739439));
+// Overflow, case |x| > threshold
+assertEquals(Infinity, Math.sinh(710.475860073944));
+assertEquals(-Infinity, Math.sinh(-710.475860073944));
+assertEquals(Infinity, Math.sinh(1000));
+assertEquals(-Infinity, Math.sinh(-1000));

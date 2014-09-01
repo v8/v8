@@ -651,7 +651,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
       UNREACHABLE();
       return;
   }
-  opcode |= MiscField::encode(descriptor->deoptimization_support());
+  opcode |= MiscField::encode(descriptor->flags());
 
   // Emit the call instruction.
   Instruction* call_instr =

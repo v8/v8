@@ -28,9 +28,9 @@ Reduction ChangeLowering::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToFloat64:
       return ChangeTaggedToFloat64(node->InputAt(0), control);
     case IrOpcode::kChangeTaggedToInt32:
-      return ChangeTaggedToI32(node->InputAt(0), control, true);
+      return ChangeTaggedToUI32(node->InputAt(0), control, kSigned);
     case IrOpcode::kChangeTaggedToUint32:
-      return ChangeTaggedToI32(node->InputAt(0), control, false);
+      return ChangeTaggedToUI32(node->InputAt(0), control, kUnsigned);
     case IrOpcode::kChangeUint32ToTagged:
       return ChangeUint32ToTagged(node->InputAt(0), control);
     default:
@@ -168,8 +168,8 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* control) {
 }
 
 
-Reduction ChangeLowering::ChangeTaggedToI32(Node* val, Node* control,
-                                            bool is_signed) {
+Reduction ChangeLowering::ChangeTaggedToUI32(Node* val, Node* control,
+                                             Signedness signedness) {
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagMask == 1);
 
@@ -178,8 +178,8 @@ Reduction ChangeLowering::ChangeTaggedToI32(Node* val, Node* control,
   Node* branch = graph()->NewNode(common()->Branch(), tag, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Operator* op = is_signed ? machine()->ChangeFloat64ToInt32()
-                           : machine()->ChangeFloat64ToUint32();
+  Operator* op = (signedness == kSigned) ? machine()->ChangeFloat64ToInt32()
+                                         : machine()->ChangeFloat64ToUint32();
   Node* change = graph()->NewNode(op, LoadHeapNumberValue(val, if_true));
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

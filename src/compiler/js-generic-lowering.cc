@@ -17,7 +17,7 @@ namespace compiler {
 
 
 // TODO(mstarzinger): This is a temporary workaround for non-hydrogen stubs for
-// which we don't have an interface descriptor yet. Use ReplaceWithICStubCall
+// which we don't have an interface descriptor yet. Use ReplaceWithStubCall
 // once these stub have been made into a HydrogenCodeStub.
 template <typename T>
 static CodeStubInterfaceDescriptor* GetInterfaceDescriptor(Isolate* isolate,
@@ -218,28 +218,35 @@ Reduction JSGenericLowering::Reduce(Node* node) {
 }
 
 
-#define REPLACE_IC_STUB_CALL(op, StubDeclaration)  \
-  Node* JSGenericLowering::Lower##op(Node* node) { \
-    StubDeclaration;                               \
-    ReplaceWithICStubCall(node, &stub);            \
-    return node;                                   \
+#define REPLACE_BINARY_OP_IC_CALL(op, token)                        \
+  Node* JSGenericLowering::Lower##op(Node* node) {                  \
+    BinaryOpICStub stub(isolate(), token);                          \
+    ReplaceWithStubCall(node, &stub,                                \
+                        CallDescriptor::kPatchableCallSiteWithNop); \
+    return node;                                                    \
   }
-REPLACE_IC_STUB_CALL(JSBitwiseOr, BinaryOpICStub stub(isolate(), Token::BIT_OR))
-REPLACE_IC_STUB_CALL(JSBitwiseXor,
-                     BinaryOpICStub stub(isolate(), Token::BIT_XOR))
-REPLACE_IC_STUB_CALL(JSBitwiseAnd,
-                     BinaryOpICStub stub(isolate(), Token::BIT_AND))
-REPLACE_IC_STUB_CALL(JSShiftLeft, BinaryOpICStub stub(isolate(), Token::SHL))
-REPLACE_IC_STUB_CALL(JSShiftRight, BinaryOpICStub stub(isolate(), Token::SAR))
-REPLACE_IC_STUB_CALL(JSShiftRightLogical,
-                     BinaryOpICStub stub(isolate(), Token::SHR))
-REPLACE_IC_STUB_CALL(JSAdd, BinaryOpICStub stub(isolate(), Token::ADD))
-REPLACE_IC_STUB_CALL(JSSubtract, BinaryOpICStub stub(isolate(), Token::SUB))
-REPLACE_IC_STUB_CALL(JSMultiply, BinaryOpICStub stub(isolate(), Token::MUL))
-REPLACE_IC_STUB_CALL(JSDivide, BinaryOpICStub stub(isolate(), Token::DIV))
-REPLACE_IC_STUB_CALL(JSModulus, BinaryOpICStub stub(isolate(), Token::MOD))
-REPLACE_IC_STUB_CALL(JSToNumber, ToNumberStub stub(isolate()))
-#undef REPLACE_IC_STUB_CALL
+REPLACE_BINARY_OP_IC_CALL(JSBitwiseOr, Token::BIT_OR)
+REPLACE_BINARY_OP_IC_CALL(JSBitwiseXor, Token::BIT_XOR)
+REPLACE_BINARY_OP_IC_CALL(JSBitwiseAnd, Token::BIT_AND)
+REPLACE_BINARY_OP_IC_CALL(JSShiftLeft, Token::SHL)
+REPLACE_BINARY_OP_IC_CALL(JSShiftRight, Token::SAR)
+REPLACE_BINARY_OP_IC_CALL(JSShiftRightLogical, Token::SHR)
+REPLACE_BINARY_OP_IC_CALL(JSAdd, Token::ADD)
+REPLACE_BINARY_OP_IC_CALL(JSSubtract, Token::SUB)
+REPLACE_BINARY_OP_IC_CALL(JSMultiply, Token::MUL)
+REPLACE_BINARY_OP_IC_CALL(JSDivide, Token::DIV)
+REPLACE_BINARY_OP_IC_CALL(JSModulus, Token::MOD)
+#undef REPLACE_BINARY_OP_IC_CALL
+
+
+#define REPLACE_STUB_CALL(op, StubDeclaration)                  \
+  Node* JSGenericLowering::Lower##op(Node* node) {              \
+    StubDeclaration;                                            \
+    ReplaceWithStubCall(node, &stub, CallDescriptor::kNoFlags); \
+    return node;                                                \
+  }
+REPLACE_STUB_CALL(JSToNumber, ToNumberStub stub(isolate()))
+#undef REPLACE_STUB_CALL
 
 
 #define REPLACE_COMPARE_IC_CALL(op, token, pure)   \
@@ -286,16 +293,15 @@ REPLACE_UNIMPLEMENTED(JSDebugger)
 #undef REPLACE_UNIMPLEMENTED
 
 
-static CallDescriptor::DeoptimizationSupport DeoptimizationSupportForNode(
-    Node* node) {
-  int result = CallDescriptor::kNoDeoptimization;
+static CallDescriptor::Flags FlagsForNode(Node* node) {
+  CallDescriptor::Flags result = CallDescriptor::kNoFlags;
   if (OperatorProperties::CanLazilyDeoptimize(node->op())) {
     result |= CallDescriptor::kLazyDeoptimization;
   }
   if (OperatorProperties::HasFrameStateInput(node->op())) {
     result |= CallDescriptor::kNeedsFrameState;
   }
-  return static_cast<CallDescriptor::DeoptimizationSupport>(result);
+  return result;
 }
 
 
@@ -303,7 +309,8 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
                                              bool pure) {
   BinaryOpICStub stub(isolate(), Token::ADD);  // TODO(mstarzinger): Hack.
   CodeStubInterfaceDescriptor* d = stub.GetInterfaceDescriptor();
-  CallDescriptor* desc_compare = linkage()->GetStubCallDescriptor(d);
+  CallDescriptor* desc_compare = linkage()->GetStubCallDescriptor(
+      d, 0, CallDescriptor::kPatchableCallSiteWithNop);
   Handle<Code> ic = CompareIC::GetUninitialized(isolate(), token);
   Node* compare;
   if (pure) {
@@ -328,11 +335,11 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
 }
 
 
-void JSGenericLowering::ReplaceWithICStubCall(Node* node,
-                                              HydrogenCodeStub* stub) {
+void JSGenericLowering::ReplaceWithStubCall(Node* node, HydrogenCodeStub* stub,
+                                            CallDescriptor::Flags flags) {
   CodeStubInterfaceDescriptor* d = stub->GetInterfaceDescriptor();
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-      d, 0, DeoptimizationSupportForNode(node));
+  CallDescriptor* desc =
+      linkage()->GetStubCallDescriptor(d, 0, flags | FlagsForNode(node));
   Node* stub_code = CodeConstant(stub->GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
@@ -363,8 +370,8 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
   Operator::Property props = node->op()->properties();
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   int nargs = (nargs_override < 0) ? fun->nargs : nargs_override;
-  CallDescriptor* desc = linkage()->GetRuntimeCallDescriptor(
-      f, nargs, props, DeoptimizationSupportForNode(node));
+  CallDescriptor* desc =
+      linkage()->GetRuntimeCallDescriptor(f, nargs, props, FlagsForNode(node));
   Node* ref = ExternalConstant(ExternalReference(f, isolate()));
   Node* arity = Int32Constant(nargs);
   if (!centrystub_constant_.is_set()) {
@@ -378,23 +385,28 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 
 
 Node* JSGenericLowering::LowerBranch(Node* node) {
-  Node* test = graph()->NewNode(machine()->WordEqual(), node->InputAt(0),
-                                jsgraph()->TrueConstant());
-  node->ReplaceInput(0, test);
+  if (!info()->is_typing_enabled()) {
+    // TODO(mstarzinger): If typing is enabled then simplified lowering will
+    // have inserted the correct ChangeBoolToBit, otherwise we need to perform
+    // poor-man's representation inference here and insert manual change.
+    Node* test = graph()->NewNode(machine()->WordEqual(), node->InputAt(0),
+                                  jsgraph()->TrueConstant());
+    node->ReplaceInput(0, test);
+  }
   return node;
 }
 
 
 Node* JSGenericLowering::LowerJSUnaryNot(Node* node) {
   ToBooleanStub stub(isolate(), ToBooleanStub::RESULT_AS_INVERSE_ODDBALL);
-  ReplaceWithICStubCall(node, &stub);
+  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
 
 Node* JSGenericLowering::LowerJSToBoolean(Node* node) {
   ToBooleanStub stub(isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
-  ReplaceWithICStubCall(node, &stub);
+  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
@@ -407,7 +419,7 @@ Node* JSGenericLowering::LowerJSToObject(Node* node) {
 
 Node* JSGenericLowering::LowerJSLoadProperty(Node* node) {
   KeyedLoadICStubShim stub(isolate());
-  ReplaceWithICStubCall(node, &stub);
+  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
@@ -416,7 +428,7 @@ Node* JSGenericLowering::LowerJSLoadNamed(Node* node) {
   LoadNamedParameters p = OpParameter<LoadNamedParameters>(node);
   LoadICStubShim stub(isolate(), p.contextual_mode);
   PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name));
-  ReplaceWithICStubCall(node, &stub);
+  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
@@ -424,7 +436,7 @@ Node* JSGenericLowering::LowerJSLoadNamed(Node* node) {
 Node* JSGenericLowering::LowerJSStoreProperty(Node* node) {
   StrictMode strict_mode = OpParameter<StrictMode>(node);
   KeyedStoreICStubShim stub(isolate(), strict_mode);
-  ReplaceWithICStubCall(node, &stub);
+  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
@@ -433,7 +445,7 @@ Node* JSGenericLowering::LowerJSStoreNamed(Node* node) {
   StoreNamedParameters params = OpParameter<StoreNamedParameters>(node);
   StoreICStubShim stub(isolate(), params.strict_mode);
   PatchInsertInput(node, 1, jsgraph()->HeapConstant(params.name));
-  ReplaceWithICStubCall(node, &stub);
+  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
@@ -507,8 +519,8 @@ Node* JSGenericLowering::LowerJSCallConstruct(Node* node) {
   int arity = OpParameter<int>(node);
   CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
   CodeStubInterfaceDescriptor* d = GetInterfaceDescriptor(isolate(), &stub);
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-      d, arity, DeoptimizationSupportForNode(node));
+  CallDescriptor* desc =
+      linkage()->GetStubCallDescriptor(d, arity, FlagsForNode(node));
   Node* stub_code = CodeConstant(stub.GetCode());
   Node* construct = NodeProperties::GetValueInput(node, 0);
   PatchInsertInput(node, 0, stub_code);
@@ -524,8 +536,8 @@ Node* JSGenericLowering::LowerJSCallFunction(Node* node) {
   CallParameters p = OpParameter<CallParameters>(node);
   CallFunctionStub stub(isolate(), p.arity - 2, p.flags);
   CodeStubInterfaceDescriptor* d = GetInterfaceDescriptor(isolate(), &stub);
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
-      d, p.arity - 1, DeoptimizationSupportForNode(node));
+  CallDescriptor* desc =
+      linkage()->GetStubCallDescriptor(d, p.arity - 1, FlagsForNode(node));
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
@@ -539,6 +551,7 @@ Node* JSGenericLowering::LowerJSCallRuntime(Node* node) {
   ReplaceWithRuntimeCall(node, function, arity);
   return node;
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

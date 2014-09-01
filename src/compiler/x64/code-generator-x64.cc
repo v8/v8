@@ -214,7 +214,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Call(Operand(reg, entry));
       }
       AddSafepointAndDeopt(instr);
-      AddNopForSmiCodeInlining();
       break;
     }
     case kArchCallAddress:

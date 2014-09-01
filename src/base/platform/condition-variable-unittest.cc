@@ -54,7 +54,7 @@ class ThreadWithMutexAndConditionVariable V8_FINAL : public Thread {
   Mutex mutex_;
 };
 
-}
+}  // namespace
 
 
 TEST(ConditionVariable, MultipleThreadsWithSeparateConditionVariables) {
@@ -135,7 +135,7 @@ class ThreadWithSharedMutexAndConditionVariable V8_FINAL : public Thread {
   Mutex* mutex_;
 };
 
-}
+}  // namespace
 
 
 TEST(ConditionVariable, MultipleThreadsWithSharedSeparateConditionVariables) {
@@ -263,7 +263,7 @@ class LoopIncrementThread V8_FINAL : public Thread {
   Mutex* mutex_;
 };
 
-}
+}  // namespace
 
 
 TEST(ConditionVariable, LoopIncrement) {
@@ -275,10 +275,10 @@ TEST(ConditionVariable, LoopIncrement) {
     int counter = 0;
 
     // Setup the threads.
-    Thread** threads = new Thread*[thread_count];
+    Thread** threads = new Thread* [thread_count];
     for (int n = 0; n < thread_count; ++n) {
-      threads[n] = new LoopIncrementThread(
-          n, &counter, limit, thread_count, &cv, &mutex);
+      threads[n] = new LoopIncrementThread(n, &counter, limit, thread_count,
+                                           &cv, &mutex);
     }
 
     // Start all threads.

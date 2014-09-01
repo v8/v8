@@ -55,11 +55,23 @@
           # to appear before libv8_snapshot.a so it's listed explicitly.
           'dependencies': ['v8_base', 'v8_nosnapshot'],
         }],
+        ['v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
+          'dependencies': ['v8_base', 'v8_external_snapshot'],
+          'target_conditions': [
+            ['_toolset=="host"', {
+              'inputs': [
+                '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+              ],
+            }, {
+              'inputs': [
+                '<(PRODUCT_DIR)/snapshot_blob.bin',
+              ],
+            }],
+          ],
+        }],
         ['v8_use_external_startup_data==1 and want_separate_host_toolset==0', {
           'dependencies': ['v8_base', 'v8_external_snapshot'],
-        }],
-        ['v8_use_external_startup_data==1 and want_separate_host_toolset==1', {
-          'dependencies': ['v8_base', 'v8_external_snapshot#host'],
+          'inputs': [ '<(PRODUCT_DIR)/snapshot_blob.bin', ],
         }],
         ['component=="shared_library"', {
           'type': '<(component)',
@@ -218,11 +230,11 @@
       'type': 'static_library',
       'conditions': [
         ['want_separate_host_toolset==1', {
-          'toolsets': ['host'],
+          'toolsets': ['host', 'target'],
           'dependencies': [
             'mksnapshot#host',
             'js2c#host',
-            'natives_blob#host',
+            'natives_blob',
         ]}, {
           'toolsets': ['target'],
           'dependencies': [
@@ -260,9 +272,27 @@
           'inputs': [
             '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
           ],
-          'outputs': [
-            '<(INTERMEDIATE_DIR)/snapshot.cc',
-            '<(PRODUCT_DIR)/snapshot_blob.bin',
+          'conditions': [
+            ['want_separate_host_toolset==1', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'outputs': [
+                    '<(INTERMEDIATE_DIR)/snapshot.cc',
+                    '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+                  ],
+                }, {
+                  'outputs': [
+                    '<(INTERMEDIATE_DIR)/snapshot.cc',
+                    '<(PRODUCT_DIR)/snapshot_blob.bin',
+                  ],
+                }],
+              ],
+            }, {
+              'outputs': [
+                '<(INTERMEDIATE_DIR)/snapshot.cc',
+                '<(PRODUCT_DIR)/snapshot_blob.bin',
+              ],
+            }],
           ],
           'variables': {
             'mksnapshot_flags': [
@@ -613,6 +643,8 @@
         '../../src/ic/ic-conventions.h',
         '../../src/interface.cc',
         '../../src/interface.h',
+        '../../src/interface-descriptors.cc',
+        '../../src/interface-descriptors.h',
         '../../src/interpreter-irregexp.cc',
         '../../src/interpreter-irregexp.h',
         '../../src/isolate.cc',
@@ -781,6 +813,8 @@
             '../../src/arm/frames-arm.cc',
             '../../src/arm/frames-arm.h',
             '../../src/arm/full-codegen-arm.cc',
+            '../../src/arm/interface-descriptors-arm.cc',
+            '../../src/arm/interface-descriptors-arm.h',
             '../../src/arm/lithium-arm.cc',
             '../../src/arm/lithium-arm.h',
             '../../src/arm/lithium-codegen-arm.cc',
@@ -833,6 +867,8 @@
             '../../src/arm64/instructions-arm64.h',
             '../../src/arm64/instrument-arm64.cc',
             '../../src/arm64/instrument-arm64.h',
+            '../../src/arm64/interface-descriptors-arm64.cc',
+            '../../src/arm64/interface-descriptors-arm64.h',
             '../../src/arm64/lithium-arm64.cc',
             '../../src/arm64/lithium-arm64.h',
             '../../src/arm64/lithium-codegen-arm64.cc',
@@ -877,6 +913,7 @@
             '../../src/ia32/frames-ia32.cc',
             '../../src/ia32/frames-ia32.h',
             '../../src/ia32/full-codegen-ia32.cc',
+            '../../src/ia32/interface-descriptors-ia32.cc',
             '../../src/ia32/lithium-codegen-ia32.cc',
             '../../src/ia32/lithium-codegen-ia32.h',
             '../../src/ia32/lithium-gap-resolver-ia32.cc',
@@ -953,6 +990,7 @@
             '../../src/mips/frames-mips.cc',
             '../../src/mips/frames-mips.h',
             '../../src/mips/full-codegen-mips.cc',
+            '../../src/mips/interface-descriptors-mips.cc',
             '../../src/mips/lithium-codegen-mips.cc',
             '../../src/mips/lithium-codegen-mips.h',
             '../../src/mips/lithium-gap-resolver-mips.cc',
@@ -991,6 +1029,7 @@
             '../../src/mips64/frames-mips64.cc',
             '../../src/mips64/frames-mips64.h',
             '../../src/mips64/full-codegen-mips64.cc',
+            '../../src/mips64/interface-descriptors-mips64.cc',
             '../../src/mips64/lithium-codegen-mips64.cc',
             '../../src/mips64/lithium-codegen-mips64.h',
             '../../src/mips64/lithium-gap-resolver-mips64.cc',
@@ -1027,6 +1066,7 @@
             '../../src/x64/frames-x64.cc',
             '../../src/x64/frames-x64.h',
             '../../src/x64/full-codegen-x64.cc',
+            '../../src/x64/interface-descriptors-x64.cc',
             '../../src/x64/lithium-codegen-x64.cc',
             '../../src/x64/lithium-codegen-x64.h',
             '../../src/x64/lithium-gap-resolver-x64.cc',
@@ -1390,7 +1430,13 @@
       'type': 'none',
       'conditions': [
         [ 'v8_use_external_startup_data==1', {
-          'dependencies': ['js2c'],
+          'conditions': [
+            ['want_separate_host_toolset==1', {
+              'dependencies': ['js2c#host'],
+            }, {
+              'dependencies': ['js2c'],
+            }],
+          ],
           'actions': [{
             'action_name': 'concatenate_natives_blob',
             'inputs': [
@@ -1398,14 +1444,38 @@
               '<(SHARED_INTERMEDIATE_DIR)/libraries.bin',
               '<(SHARED_INTERMEDIATE_DIR)/libraries-experimental.bin',
             ],
-            'outputs': [
-              '<(PRODUCT_DIR)/natives_blob.bin',
+            'conditions': [
+              ['want_separate_host_toolset==1', {
+                'target_conditions': [
+                  ['_toolset=="host"', {
+                    'outputs': [
+                      '<(PRODUCT_DIR)/natives_blob_host.bin',
+                    ],
+                    'action': [
+                      'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob_host.bin'
+                    ],
+                  }, {
+                    'outputs': [
+                      '<(PRODUCT_DIR)/natives_blob.bin',
+                    ],
+                    'action': [
+                      'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
+                    ],
+                  }],
+                ],
+              }, {
+                'outputs': [
+                  '<(PRODUCT_DIR)/natives_blob.bin',
+                ],
+                'action': [
+                  'python', '<@(_inputs)', '<(PRODUCT_DIR)/natives_blob.bin'
+                ],
+              }],
             ],
-            'action': ['python', '<@(_inputs)', '<@(_outputs)'],
           }],
         }],
         ['want_separate_host_toolset==1', {
-          'toolsets': ['host'],
+          'toolsets': ['host', 'target'],
         }, {
           'toolsets': ['target'],
         }],

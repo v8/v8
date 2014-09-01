@@ -5,8 +5,7 @@
 #ifndef V8_COMPILER_LINKAGE_H_
 #define V8_COMPILER_LINKAGE_H_
 
-#include "src/v8.h"
-
+#include "src/base/flags.h"
 #include "src/code-stubs.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/machine-type.h"
@@ -37,24 +36,27 @@ class LinkageLocation {
 };
 
 
-class CallDescriptor : public ZoneObject {
+class CallDescriptor V8_FINAL : public ZoneObject {
  public:
   // Describes whether the first parameter is a code object, a JSFunction,
   // or an address--all of which require different machine sequences to call.
   enum Kind { kCallCodeObject, kCallJSFunction, kCallAddress };
 
-  // TODO(jarin) kLazyDeoptimization and kNeedsFrameState should be unified.
-  enum DeoptimizationSupport {
-    kNoDeoptimization = 0,
-    kLazyDeoptimization = 1,
-    kNeedsFrameState = 2
+  enum Flag {
+    // TODO(jarin) kLazyDeoptimization and kNeedsFrameState should be unified.
+    kNoFlags = 0u,
+    kLazyDeoptimization = 1u << 0,
+    kNeedsFrameState = 1u << 1,
+    kPatchableCallSite = 1u << 2,
+    kNeedsNopAfterCall = 1u << 3,
+    kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
+  DEFINE_FLAGS(Flags, Flag);
 
   CallDescriptor(Kind kind, int8_t return_count, int16_t parameter_count,
                  int16_t input_count, LinkageLocation* locations,
                  Operator::Property properties, RegList callee_saved_registers,
-                 DeoptimizationSupport deoptimization_support,
-                 const char* debug_name = "")
+                 Flags flags, const char* debug_name = "")
       : kind_(kind),
         return_count_(return_count),
         parameter_count_(parameter_count),
@@ -62,7 +64,7 @@ class CallDescriptor : public ZoneObject {
         locations_(locations),
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
-        deoptimization_support_(deoptimization_support),
+        flags_(flags),
         debug_name_(debug_name) {}
   // Returns the kind of this call.
   Kind kind() const { return kind_; }
@@ -81,17 +83,10 @@ class CallDescriptor : public ZoneObject {
 
   int FrameStateCount() const { return NeedsFrameState() ? 1 : 0; }
 
-  bool CanLazilyDeoptimize() const {
-    return (deoptimization_support() & kLazyDeoptimization) != 0;
-  }
+  Flags flags() const { return flags_; }
 
-  bool NeedsFrameState() const {
-    return (deoptimization_support() & kNeedsFrameState) != 0;
-  }
-
-  DeoptimizationSupport deoptimization_support() const {
-    return deoptimization_support_;
-  }
+  bool CanLazilyDeoptimize() const { return flags() & kLazyDeoptimization; }
+  bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
 
   LinkageLocation GetReturnLocation(int index) {
     DCHECK(index < return_count_);
@@ -121,9 +116,11 @@ class CallDescriptor : public ZoneObject {
   LinkageLocation* locations_;
   Operator::Property properties_;
   RegList callee_saved_registers_;
-  DeoptimizationSupport deoptimization_support_;
+  Flags flags_;
   const char* debug_name_;
 };
+
+DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)
 
 OStream& operator<<(OStream& os, const CallDescriptor& d);
 OStream& operator<<(OStream& os, const CallDescriptor::Kind& k);
@@ -155,20 +152,19 @@ class Linkage : public ZoneObject {
   CallDescriptor* GetRuntimeCallDescriptor(
       Runtime::FunctionId function, int parameter_count,
       Operator::Property properties,
-      CallDescriptor::DeoptimizationSupport can_deoptimize =
-          CallDescriptor::kNoDeoptimization);
-  static CallDescriptor* GetRuntimeCallDescriptor(
-      Runtime::FunctionId function, int parameter_count,
-      Operator::Property properties,
-      CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
+  static CallDescriptor* GetRuntimeCallDescriptor(Runtime::FunctionId function,
+                                                  int parameter_count,
+                                                  Operator::Property properties,
+                                                  CallDescriptor::Flags flags,
+                                                  Zone* zone);
 
   CallDescriptor* GetStubCallDescriptor(
       CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count = 0,
-      CallDescriptor::DeoptimizationSupport can_deoptimize =
-          CallDescriptor::kNoDeoptimization);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
   static CallDescriptor* GetStubCallDescriptor(
       CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
-      CallDescriptor::DeoptimizationSupport can_deoptimize, Zone* zone);
+      CallDescriptor::Flags flags, Zone* zone);
 
   // Creates a call descriptor for simplified C calls that is appropriate
   // for the host platform. This simplified calling convention only supports
@@ -201,8 +197,9 @@ class Linkage : public ZoneObject {
   CompilationInfo* info_;
   CallDescriptor* incoming_;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_LINKAGE_H_

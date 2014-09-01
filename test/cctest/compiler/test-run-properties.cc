@@ -11,16 +11,14 @@ using namespace v8::internal::compiler;
 
 template <typename U>
 static void TypedArrayLoadHelper(const char* array_type) {
-  const int64_t values[] = {
+  static const uint32_t kValues[] = {
       0x00000000, 0x00000001, 0x00000023, 0x00000042, 0x12345678, 0x87654321,
       0x0000003f, 0x0000007f, 0x00003fff, 0x00007fff, 0x3fffffff, 0x7fffffff,
-      0x000000ff, 0x00000080, 0x0000ffff, 0x00008000, 0xffffffff, 0x80000000,
-  };
-  size_t size = arraysize(values);
+      0x000000ff, 0x00000080, 0x0000ffff, 0x00008000, 0xffffffff, 0x80000000};
   EmbeddedVector<char, 1024> values_buffer;
   StringBuilder values_builder(values_buffer.start(), values_buffer.length());
-  for (unsigned i = 0; i < size; i++) {
-    values_builder.AddFormatted("a[%d] = 0x%08x;", i, values[i]);
+  for (size_t i = 0; i < arraysize(kValues); ++i) {
+    values_builder.AddFormatted("a[%d] = 0x%08x;", i, kValues[i]);
   }
 
   // Note that below source creates two different typed arrays with distinct
@@ -40,18 +38,20 @@ static void TypedArrayLoadHelper(const char* array_type) {
       "  return f;"
       "})()";
   EmbeddedVector<char, 1024> source_buffer;
-  SNPrintF(source_buffer, source, array_type, size, values_buffer.start(),
-           array_type, size, values_buffer.start(), array_type, array_type);
+  SNPrintF(source_buffer, source, array_type, arraysize(kValues),
+           values_buffer.start(), array_type, arraysize(kValues),
+           values_buffer.start(), array_type, array_type);
 
   FunctionTester T(
       source_buffer.start(),
       CompilationInfo::kContextSpecializing | CompilationInfo::kTypingEnabled);
-  for (unsigned i = 0; i < size; i++) {
-    for (unsigned j = 0; j < size; j++) {
-      double value_a = static_cast<U>(values[i]);
-      double value_b = static_cast<U>(values[j]);
+  for (size_t i = 0; i < arraysize(kValues); ++i) {
+    for (size_t j = 0; j < arraysize(kValues); ++j) {
+      double value_a = static_cast<U>(kValues[i]);
+      double value_b = static_cast<U>(kValues[j]);
       double expected = value_a + value_b;
-      T.CheckCall(T.Val(expected), T.Val(i), T.Val(j));
+      T.CheckCall(T.Val(expected), T.Val(static_cast<double>(i)),
+                  T.Val(static_cast<double>(j)));
     }
   }
 }

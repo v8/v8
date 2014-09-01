@@ -7393,7 +7393,7 @@ HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
     HValue* fun, HValue* context,
     int argument_count, HValue* expected_param_count) {
   CallInterfaceDescriptor* descriptor =
-      isolate()->call_descriptor(Isolate::ArgumentAdaptorCall);
+      isolate()->call_descriptor(CallDescriptorKey::ArgumentAdaptorCall);
 
   HValue* arity = Add<HConstant>(argument_count - 1);
 
@@ -8644,7 +8644,7 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
   };
 
   CallInterfaceDescriptor* descriptor =
-      isolate()->call_descriptor(Isolate::ApiFunctionCall);
+      isolate()->call_descriptor(CallDescriptorKey::ApiFunctionCall);
 
   CallApiFunctionStub stub(isolate(), is_store, call_data_is_undefined, argc);
   Handle<Code> code = stub.GetCode();
@@ -12359,12 +12359,17 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type,
         trace_.Add(" \"%s\"", Register::AllocationIndexToString(assigned_reg));
       }
     } else if (range->IsSpilled()) {
-      LOperand* op = range->TopLevel()->GetSpillOperand();
-      if (op->IsDoubleStackSlot()) {
-        trace_.Add(" \"double_stack:%d\"", op->index());
+      int index = -1;
+      if (range->TopLevel()->GetSpillRange()->id() != -1) {
+        index = range->TopLevel()->GetSpillRange()->id();
       } else {
-        DCHECK(op->IsStackSlot());
-        trace_.Add(" \"stack:%d\"", op->index());
+        index = range->TopLevel()->GetSpillOperand()->index();
+      }
+      if (range->TopLevel()->Kind() == DOUBLE_REGISTERS) {
+        trace_.Add(" \"double_stack:%d\"", index);
+      } else {
+        DCHECK(range->TopLevel()->Kind() == GENERAL_REGISTERS);
+        trace_.Add(" \"stack:%d\"", index);
       }
     }
     int parent_index = -1;
