@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-const Register InterfaceDescriptor::ContextRegister() { return esi; }
+const Register CallInterfaceDescriptor::ContextRegister() { return esi; }
 
 
 void CallDescriptors::InitializeForIsolate(Isolate* isolate) {

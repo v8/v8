@@ -10,10 +10,7 @@
 namespace v8 {
 namespace internal {
 
-InterfaceDescriptor::InterfaceDescriptor() : register_param_count_(-1) {}
-
-
-void InterfaceDescriptor::Initialize(
+void CallInterfaceDescriptor::Initialize(
     int register_parameter_count, Register* registers,
     Representation* register_param_representations,
     PlatformInterfaceDescriptor* platform_descriptor) {
@@ -45,20 +42,11 @@ void InterfaceDescriptor::Initialize(
 }
 
 
-void CallInterfaceDescriptor::Initialize(
-    int register_parameter_count, Register* registers,
-    Representation* param_representations,
-    PlatformInterfaceDescriptor* platform_descriptor) {
-  InterfaceDescriptor::Initialize(register_parameter_count, registers,
-                                  param_representations, platform_descriptor);
-}
-
-
 void CallDescriptors::InitializeForIsolateAllPlatforms(Isolate* isolate) {
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(CallDescriptorKey::LoadICCall);
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
+    Register registers[] = {CallInterfaceDescriptor::ContextRegister(),
                             LoadConvention::ReceiverRegister(),
                             LoadConvention::NameRegister()};
     descriptor->Initialize(arraysize(registers), registers, NULL);
@@ -66,7 +54,7 @@ void CallDescriptors::InitializeForIsolateAllPlatforms(Isolate* isolate) {
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(CallDescriptorKey::StoreICCall);
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
+    Register registers[] = {CallInterfaceDescriptor::ContextRegister(),
                             StoreConvention::ReceiverRegister(),
                             StoreConvention::NameRegister(),
                             StoreConvention::ValueRegister()};
@@ -76,7 +64,7 @@ void CallDescriptors::InitializeForIsolateAllPlatforms(Isolate* isolate) {
     CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
         CallDescriptorKey::ElementTransitionAndStoreCall);
     Register registers[] = {
-        InterfaceDescriptor::ContextRegister(),
+        CallInterfaceDescriptor::ContextRegister(),
         StoreConvention::ValueRegister(), StoreConvention::MapRegister(),
         StoreConvention::NameRegister(), StoreConvention::ReceiverRegister()};
     descriptor->Initialize(arraysize(registers), registers, NULL);
@@ -84,7 +72,7 @@ void CallDescriptors::InitializeForIsolateAllPlatforms(Isolate* isolate) {
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(CallDescriptorKey::InstanceofCall);
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
+    Register registers[] = {CallInterfaceDescriptor::ContextRegister(),
                             InstanceofConvention::left(),
                             InstanceofConvention::right()};
     descriptor->Initialize(arraysize(registers), registers, NULL);
@@ -92,7 +80,7 @@ void CallDescriptors::InitializeForIsolateAllPlatforms(Isolate* isolate) {
   {
     CallInterfaceDescriptor* descriptor =
         isolate->call_descriptor(CallDescriptorKey::VectorLoadICCall);
-    Register registers[] = {InterfaceDescriptor::ContextRegister(),
+    Register registers[] = {CallInterfaceDescriptor::ContextRegister(),
                             FullVectorLoadConvention::ReceiverRegister(),
                             FullVectorLoadConvention::NameRegister(),
                             FullVectorLoadConvention::SlotRegister(),

@@ -13,8 +13,21 @@ namespace internal {
 
 class PlatformInterfaceDescriptor;
 
-class InterfaceDescriptor {
+class CallInterfaceDescriptor {
  public:
+  CallInterfaceDescriptor() : register_param_count_(-1) {}
+
+  // A copy of the passed in registers and param_representations is made
+  // and owned by the CallInterfaceDescriptor.
+
+  // TODO(mvstanton): Instead of taking parallel arrays register and
+  // param_representations, how about a struct that puts the representation
+  // and register side by side (eg, RegRep(r1, Representation::Tagged()).
+  // The same should go for the CodeStubInterfaceDescriptor class.
+  void Initialize(int register_parameter_count, Register* registers,
+                  Representation* param_representations,
+                  PlatformInterfaceDescriptor* platform_descriptor = NULL);
+
   bool IsInitialized() const { return register_param_count_ >= 0; }
 
   int GetEnvironmentLength() const { return register_param_count_; }
@@ -55,14 +68,6 @@ class InterfaceDescriptor {
 
   static const Register ContextRegister();
 
- protected:
-  InterfaceDescriptor();
-  virtual ~InterfaceDescriptor() {}
-
-  void Initialize(int register_parameter_count, Register* registers,
-                  Representation* register_param_representations,
-                  PlatformInterfaceDescriptor* platform_descriptor = NULL);
-
  private:
   int register_param_count_;
 
@@ -79,7 +84,7 @@ class InterfaceDescriptor {
 
   PlatformInterfaceDescriptor* platform_specific_descriptor_;
 
-  DISALLOW_COPY_AND_ASSIGN(InterfaceDescriptor);
+  DISALLOW_COPY_AND_ASSIGN(CallInterfaceDescriptor);
 };
 
 
@@ -115,23 +120,6 @@ enum CallDescriptorKey {
   ArgumentAdaptorCall,
   ApiFunctionCall,
   NUMBER_OF_CALL_DESCRIPTORS
-};
-
-
-class CallInterfaceDescriptor : public InterfaceDescriptor {
- public:
-  CallInterfaceDescriptor() {}
-
-  // A copy of the passed in registers and param_representations is made
-  // and owned by the CallInterfaceDescriptor.
-
-  // TODO(mvstanton): Instead of taking parallel arrays register and
-  // param_representations, how about a struct that puts the representation
-  // and register side by side (eg, RegRep(r1, Representation::Tagged()).
-  // The same should go for the CodeStubInterfaceDescriptor class.
-  void Initialize(int register_parameter_count, Register* registers,
-                  Representation* param_representations,
-                  PlatformInterfaceDescriptor* platform_descriptor = NULL);
 };
 
 
