@@ -114,7 +114,7 @@ class ChangeLoweringCommonTest
  public:
   virtual ~ChangeLoweringCommonTest() {}
 
-  virtual MachineType WordRepresentation() const V8_FINAL V8_OVERRIDE {
+  virtual MachineType WordRepresentation() const FINAL OVERRIDE {
     return GetParam();
   }
 };
@@ -184,7 +184,7 @@ INSTANTIATE_TEST_CASE_P(ChangeLoweringTest, ChangeLoweringCommonTest,
 class ChangeLowering32Test : public ChangeLoweringTest {
  public:
   virtual ~ChangeLowering32Test() {}
-  virtual MachineType WordRepresentation() const V8_FINAL V8_OVERRIDE {
+  virtual MachineType WordRepresentation() const FINAL OVERRIDE {
     return kRepWord32;
   }
 };
@@ -332,7 +332,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
 class ChangeLowering64Test : public ChangeLoweringTest {
  public:
   virtual ~ChangeLowering64Test() {}
-  virtual MachineType WordRepresentation() const V8_FINAL V8_OVERRIDE {
+  virtual MachineType WordRepresentation() const FINAL OVERRIDE {
     return kRepWord64;
   }
 };

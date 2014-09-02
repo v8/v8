@@ -67,7 +67,7 @@ struct ValueMatcher : public NodeMatcher {
 
 // A pattern matcher for integer constants.
 template <typename T>
-struct IntMatcher V8_FINAL : public ValueMatcher<T> {
+struct IntMatcher FINAL : public ValueMatcher<T> {
   explicit IntMatcher(Node* node) : ValueMatcher<T>(node) {}
 
   bool IsPowerOf2() const {
@@ -84,7 +84,7 @@ typedef IntMatcher<uint64_t> Uint64Matcher;
 
 // A pattern matcher for floating point constants.
 template <typename T>
-struct FloatMatcher V8_FINAL : public ValueMatcher<T> {
+struct FloatMatcher FINAL : public ValueMatcher<T> {
   explicit FloatMatcher(Node* node) : ValueMatcher<T>(node) {}
 
   bool IsNaN() const { return this->HasValue() && std::isnan(this->Value()); }
@@ -94,7 +94,7 @@ typedef FloatMatcher<double> Float64Matcher;
 
 
 // A pattern matcher for heap object constants.
-struct HeapObjectMatcher V8_FINAL
+struct HeapObjectMatcher FINAL
     : public ValueMatcher<PrintableUnique<HeapObject> > {
   explicit HeapObjectMatcher(Node* node)
       : ValueMatcher<PrintableUnique<HeapObject> >(node) {}
@@ -109,7 +109,7 @@ struct HeapObjectMatcher V8_FINAL
 // right hand sides of a binary operation and can put constants on the right
 // if they appear on the left hand side of a commutative operation.
 template <typename Left, typename Right>
-struct BinopMatcher V8_FINAL : public NodeMatcher {
+struct BinopMatcher FINAL : public NodeMatcher {
   explicit BinopMatcher(Node* node)
       : NodeMatcher(node), left_(InputAt(0)), right_(InputAt(1)) {
     if (HasProperty(Operator::kCommutative)) PutConstantOnRight();

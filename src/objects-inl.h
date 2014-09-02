@@ -499,7 +499,7 @@ class SequentialStringKey : public HashTableKey {
   explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  virtual uint32_t Hash() V8_OVERRIDE {
+  virtual uint32_t Hash() OVERRIDE {
     hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
                                                            string_.length(),
                                                            seed_);
@@ -510,7 +510,7 @@ class SequentialStringKey : public HashTableKey {
   }
 
 
-  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
+  virtual uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
@@ -525,11 +525,11 @@ class OneByteStringKey : public SequentialStringKey<uint8_t> {
   OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
       : SequentialStringKey<uint8_t>(str, seed) { }
 
-  virtual bool IsMatch(Object* string) V8_OVERRIDE {
+  virtual bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->IsOneByteEqualTo(string_);
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
 };
 
 
@@ -540,7 +540,7 @@ class SeqOneByteSubStringKey : public HashTableKey {
     DCHECK(string_->IsSeqOneByteString());
   }
 
-  virtual uint32_t Hash() V8_OVERRIDE {
+  virtual uint32_t Hash() OVERRIDE {
     DCHECK(length_ >= 0);
     DCHECK(from_ + length_ <= string_->length());
     const uint8_t* chars = string_->GetChars() + from_;
@@ -551,12 +551,12 @@ class SeqOneByteSubStringKey : public HashTableKey {
     return result;
   }
 
-  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
+  virtual uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual bool IsMatch(Object* string) V8_OVERRIDE;
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
+  virtual bool IsMatch(Object* string) OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
 
  private:
   Handle<SeqOneByteString> string_;
@@ -571,11 +571,11 @@ class TwoByteStringKey : public SequentialStringKey<uc16> {
   explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
       : SequentialStringKey<uc16>(str, seed) { }
 
-  virtual bool IsMatch(Object* string) V8_OVERRIDE {
+  virtual bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->IsTwoByteEqualTo(string_);
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE;
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE;
 };
 
 
@@ -585,11 +585,11 @@ class Utf8StringKey : public HashTableKey {
   explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
       : string_(string), hash_field_(0), seed_(seed) { }
 
-  virtual bool IsMatch(Object* string) V8_OVERRIDE {
+  virtual bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->IsUtf8EqualTo(string_);
   }
 
-  virtual uint32_t Hash() V8_OVERRIDE {
+  virtual uint32_t Hash() OVERRIDE {
     if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
     hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
     uint32_t result = hash_field_ >> String::kHashShift;
@@ -597,11 +597,11 @@ class Utf8StringKey : public HashTableKey {
     return result;
   }
 
-  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
+  virtual uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     if (hash_field_ == 0) Hash();
     return isolate->factory()->NewInternalizedStringFromUtf8(
         string_, chars_, hash_field_);

@@ -12,7 +12,7 @@ namespace internal {
 
 // Interface for handle based allocation.
 
-class Factory V8_FINAL {
+class Factory FINAL {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map,
                              const char* to_string,

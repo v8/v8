@@ -18,12 +18,12 @@ class MachineOperatorCommonTest : public CompilerTestWithParam<MachineType> {
   MachineOperatorCommonTest() : machine_(NULL) {}
   virtual ~MachineOperatorCommonTest() { EXPECT_THAT(machine_, IsNull()); }
 
-  virtual void SetUp() V8_OVERRIDE {
+  virtual void SetUp() OVERRIDE {
     CompilerTestWithParam<MachineType>::SetUp();
     machine_ = new MachineOperatorBuilder(zone(), GetParam());
   }
 
-  virtual void TearDown() V8_OVERRIDE {
+  virtual void TearDown() OVERRIDE {
     delete machine_;
     machine_ = NULL;
     CompilerTestWithParam<MachineType>::TearDown();

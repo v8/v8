@@ -5,7 +5,7 @@
 #ifndef V8_BASE_FLAGS_H_
 #define V8_BASE_FLAGS_H_
 
-#include "include/v8config.h"
+#include "src/base/compiler-specific.h"
 
 namespace v8 {
 namespace base {
@@ -20,7 +20,7 @@ namespace base {
 // other enum value and passed on to a function that takes an int or unsigned
 // int.
 template <typename T, typename S = int>
-class Flags V8_FINAL {
+class Flags FINAL {
  public:
   typedef T flag_type;
   typedef S mask_type;
@@ -67,50 +67,52 @@ class Flags V8_FINAL {
 #define DEFINE_OPERATORS_FOR_FLAGS(Type)                                       \
   inline ::v8::base::Flags<Type::flag_type> operator&(                         \
       Type::flag_type lhs,                                                     \
-      Type::flag_type rhs)V8_UNUSED V8_WARN_UNUSED_RESULT;                     \
+      Type::flag_type rhs)ALLOW_UNUSED WARN_UNUSED_RESULT;                     \
   inline ::v8::base::Flags<Type::flag_type> operator&(Type::flag_type lhs,     \
                                                       Type::flag_type rhs) {   \
     return ::v8::base::Flags<Type::flag_type>(lhs) & rhs;                      \
   }                                                                            \
   inline ::v8::base::Flags<Type::flag_type> operator&(                         \
       Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs)      \
-      V8_UNUSED V8_WARN_UNUSED_RESULT;                                         \
+      ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
   inline ::v8::base::Flags<Type::flag_type> operator&(                         \
       Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs) {    \
     return rhs & lhs;                                                          \
   }                                                                            \
-  inline void operator&(Type::flag_type lhs, Type::mask_type rhs)V8_UNUSED;    \
+  inline void operator&(Type::flag_type lhs, Type::mask_type rhs)ALLOW_UNUSED; \
   inline void operator&(Type::flag_type lhs, Type::mask_type rhs) {}           \
   inline ::v8::base::Flags<Type::flag_type> operator|(Type::flag_type lhs,     \
                                                       Type::flag_type rhs)     \
-      V8_UNUSED V8_WARN_UNUSED_RESULT;                                         \
+      ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
   inline ::v8::base::Flags<Type::flag_type> operator|(Type::flag_type lhs,     \
                                                       Type::flag_type rhs) {   \
     return ::v8::base::Flags<Type::flag_type>(lhs) | rhs;                      \
   }                                                                            \
   inline ::v8::base::Flags<Type::flag_type> operator|(                         \
       Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs)      \
-      V8_UNUSED V8_WARN_UNUSED_RESULT;                                         \
+      ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
   inline ::v8::base::Flags<Type::flag_type> operator|(                         \
       Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs) {    \
     return rhs | lhs;                                                          \
   }                                                                            \
-  inline void operator|(Type::flag_type lhs, Type::mask_type rhs) V8_UNUSED;   \
+  inline void operator|(Type::flag_type lhs, Type::mask_type rhs)              \
+      ALLOW_UNUSED;                                                            \
   inline void operator|(Type::flag_type lhs, Type::mask_type rhs) {}           \
   inline ::v8::base::Flags<Type::flag_type> operator^(Type::flag_type lhs,     \
                                                       Type::flag_type rhs)     \
-      V8_UNUSED V8_WARN_UNUSED_RESULT;                                         \
+      ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
   inline ::v8::base::Flags<Type::flag_type> operator^(Type::flag_type lhs,     \
                                                       Type::flag_type rhs) {   \
     return ::v8::base::Flags<Type::flag_type>(lhs) ^ rhs;                      \
   } inline ::v8::base::Flags<Type::flag_type>                                  \
       operator^(Type::flag_type lhs,                                           \
                 const ::v8::base::Flags<Type::flag_type>& rhs)                 \
-      V8_UNUSED V8_WARN_UNUSED_RESULT;                                         \
+      ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
   inline ::v8::base::Flags<Type::flag_type> operator^(                         \
       Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs) {    \
     return rhs ^ lhs;                                                          \
-  } inline void operator^(Type::flag_type lhs, Type::mask_type rhs) V8_UNUSED; \
+  } inline void operator^(Type::flag_type lhs, Type::mask_type rhs)            \
+      ALLOW_UNUSED;                                                            \
   inline void operator^(Type::flag_type lhs, Type::mask_type rhs) {}
 
 }  // namespace base

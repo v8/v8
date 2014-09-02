@@ -92,7 +92,7 @@ OStream& operator<<(OStream& os, const BasicBlockData::Control& c);
 // A basic block contains an ordered list of nodes and ends with a control
 // node. Note that if a basic block has phis, then all phis must appear as the
 // first nodes in the block.
-class BasicBlock V8_FINAL : public GenericNode<BasicBlockData, BasicBlock> {
+class BasicBlock FINAL : public GenericNode<BasicBlockData, BasicBlock> {
  public:
   BasicBlock(GenericGraphBase* graph, int input_count)
       : GenericNode<BasicBlockData, BasicBlock>(graph, input_count) {}

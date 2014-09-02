@@ -36,7 +36,7 @@ class LinkageLocation {
 };
 
 
-class CallDescriptor V8_FINAL : public ZoneObject {
+class CallDescriptor FINAL : public ZoneObject {
  public:
   // Describes whether the first parameter is a code object, a JSFunction,
   // or an address--all of which require different machine sequences to call.

@@ -17,7 +17,7 @@ class Node;
 
 
 // Represents the result of trying to reduce a node in the graph.
-class Reduction V8_FINAL {
+class Reduction FINAL {
  public:
   explicit Reduction(Node* replacement = NULL) : replacement_(replacement) {}
 
@@ -53,7 +53,7 @@ class Reducer {
 
 
 // Performs an iterative reduction of a node graph.
-class GraphReducer V8_FINAL {
+class GraphReducer FINAL {
  public:
   explicit GraphReducer(Graph* graph);
 

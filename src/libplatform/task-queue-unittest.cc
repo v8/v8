@@ -21,12 +21,12 @@ struct MockTask : public Task {
 };
 
 
-class TaskQueueThread V8_FINAL : public base::Thread {
+class TaskQueueThread FINAL : public base::Thread {
  public:
   explicit TaskQueueThread(TaskQueue* queue)
       : Thread(Options("libplatform TaskQueueThread")), queue_(queue) {}
 
-  virtual void Run() V8_OVERRIDE { EXPECT_THAT(queue_->GetNext(), IsNull()); }
+  virtual void Run() OVERRIDE { EXPECT_THAT(queue_->GetNext(), IsNull()); }
 
  private:
   TaskQueue* queue_;

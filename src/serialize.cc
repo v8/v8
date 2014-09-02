@@ -727,14 +727,14 @@ class StringTableInsertionKey : public HashTableKey {
     return string_->SlowEquals(String::cast(string));
   }
 
-  virtual uint32_t Hash() V8_OVERRIDE { return hash_; }
+  virtual uint32_t Hash() OVERRIDE { return hash_; }
 
-  virtual uint32_t HashForObject(Object* key) V8_OVERRIDE {
+  virtual uint32_t HashForObject(Object* key) OVERRIDE {
     return String::cast(key)->Hash();
   }
 
   MUST_USE_RESULT virtual Handle<Object> AsHandle(Isolate* isolate)
-      V8_OVERRIDE {
+      OVERRIDE {
     return handle(string_, isolate);
   }
 

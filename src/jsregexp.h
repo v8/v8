@@ -406,7 +406,7 @@ FOR_EACH_REG_EXP_TREE_TYPE(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
 
-class TextElement V8_FINAL BASE_EMBEDDED {
+class TextElement FINAL BASE_EMBEDDED {
  public:
   enum TextType {
     ATOM,

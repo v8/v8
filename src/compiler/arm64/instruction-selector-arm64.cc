@@ -21,7 +21,7 @@ enum ImmediateMode {
 
 
 // Adds Arm64-specific methods for generating operands.
-class Arm64OperandGenerator V8_FINAL : public OperandGenerator {
+class Arm64OperandGenerator FINAL : public OperandGenerator {
  public:
   explicit Arm64OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}

@@ -39,22 +39,22 @@ class LoadICStubShim : public HydrogenCodeStub {
     i::compiler::GetInterfaceDescriptor(isolate, this);
   }
 
-  virtual Handle<Code> GenerateCode() V8_OVERRIDE {
+  virtual Handle<Code> GenerateCode() OVERRIDE {
     ExtraICState extra_state = LoadIC::ComputeExtraICState(contextual_mode_);
     return LoadIC::initialize_stub(isolate(), extra_state);
   }
 
   virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
+      CodeStubInterfaceDescriptor* descriptor) OVERRIDE {
     CallInterfaceDescriptor* call_descriptor =
         isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
     descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
  private:
-  virtual Major MajorKey() const V8_OVERRIDE { return NoCache; }
-  virtual int NotMissMinorKey() const V8_OVERRIDE { return 0; }
-  virtual bool UseSpecialCache() V8_OVERRIDE { return true; }
+  virtual Major MajorKey() const OVERRIDE { return NoCache; }
+  virtual int NotMissMinorKey() const OVERRIDE { return 0; }
+  virtual bool UseSpecialCache() OVERRIDE { return true; }
 
   ContextualMode contextual_mode_;
 };
@@ -69,21 +69,21 @@ class KeyedLoadICStubShim : public HydrogenCodeStub {
     i::compiler::GetInterfaceDescriptor(isolate, this);
   }
 
-  virtual Handle<Code> GenerateCode() V8_OVERRIDE {
+  virtual Handle<Code> GenerateCode() OVERRIDE {
     return isolate()->builtins()->KeyedLoadIC_Initialize();
   }
 
   virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
+      CodeStubInterfaceDescriptor* descriptor) OVERRIDE {
     CallInterfaceDescriptor* call_descriptor =
         isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
     descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
  private:
-  virtual Major MajorKey() const V8_OVERRIDE { return NoCache; }
-  virtual int NotMissMinorKey() const V8_OVERRIDE { return 0; }
-  virtual bool UseSpecialCache() V8_OVERRIDE { return true; }
+  virtual Major MajorKey() const OVERRIDE { return NoCache; }
+  virtual int NotMissMinorKey() const OVERRIDE { return 0; }
+  virtual bool UseSpecialCache() OVERRIDE { return true; }
 };
 
 
@@ -97,21 +97,21 @@ class StoreICStubShim : public HydrogenCodeStub {
     i::compiler::GetInterfaceDescriptor(isolate, this);
   }
 
-  virtual Handle<Code> GenerateCode() V8_OVERRIDE {
+  virtual Handle<Code> GenerateCode() OVERRIDE {
     return StoreIC::initialize_stub(isolate(), strict_mode_);
   }
 
   virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
+      CodeStubInterfaceDescriptor* descriptor) OVERRIDE {
     CallInterfaceDescriptor* call_descriptor =
         isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
     descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
  private:
-  virtual Major MajorKey() const V8_OVERRIDE { return NoCache; }
-  virtual int NotMissMinorKey() const V8_OVERRIDE { return 0; }
-  virtual bool UseSpecialCache() V8_OVERRIDE { return true; }
+  virtual Major MajorKey() const OVERRIDE { return NoCache; }
+  virtual int NotMissMinorKey() const OVERRIDE { return 0; }
+  virtual bool UseSpecialCache() OVERRIDE { return true; }
 
   StrictMode strict_mode_;
 };
@@ -127,23 +127,23 @@ class KeyedStoreICStubShim : public HydrogenCodeStub {
     i::compiler::GetInterfaceDescriptor(isolate, this);
   }
 
-  virtual Handle<Code> GenerateCode() V8_OVERRIDE {
+  virtual Handle<Code> GenerateCode() OVERRIDE {
     return strict_mode_ == SLOPPY
                ? isolate()->builtins()->KeyedStoreIC_Initialize()
                : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
   }
 
   virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) V8_OVERRIDE {
+      CodeStubInterfaceDescriptor* descriptor) OVERRIDE {
     CallInterfaceDescriptor* call_descriptor =
         isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
     descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
  private:
-  virtual Major MajorKey() const V8_OVERRIDE { return NoCache; }
-  virtual int NotMissMinorKey() const V8_OVERRIDE { return 0; }
-  virtual bool UseSpecialCache() V8_OVERRIDE { return true; }
+  virtual Major MajorKey() const OVERRIDE { return NoCache; }
+  virtual int NotMissMinorKey() const OVERRIDE { return 0; }
+  virtual bool UseSpecialCache() OVERRIDE { return true; }
 
   StrictMode strict_mode_;
 };

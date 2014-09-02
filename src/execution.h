@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-class Execution V8_FINAL : public AllStatic {
+class Execution FINAL : public AllStatic {
  public:
   // Call a function, the caller supplies a receiver and an array
   // of arguments. Arguments are Object* type. After function returns,
@@ -128,7 +128,7 @@ class PostponeInterruptsScope;
 // StackGuard contains the handling of the limits that are used to limit the
 // number of nested invocations of JavaScript and the stack size used in each
 // invocation.
-class StackGuard V8_FINAL {
+class StackGuard FINAL {
  public:
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.
@@ -233,7 +233,7 @@ class StackGuard V8_FINAL {
   void PushPostponeInterruptsScope(PostponeInterruptsScope* scope);
   void PopPostponeInterruptsScope();
 
-  class ThreadLocal V8_FINAL {
+  class ThreadLocal FINAL {
    public:
     ThreadLocal() { Clear(); }
     // You should hold the ExecutionAccess lock when you call Initialize or

@@ -17,14 +17,14 @@ class JSGraph;
 class Linkage;
 class MachineOperatorBuilder;
 
-class ChangeLowering V8_FINAL : public Reducer {
+class ChangeLowering FINAL : public Reducer {
  public:
   ChangeLowering(JSGraph* jsgraph, Linkage* linkage,
                  MachineOperatorBuilder* machine)
       : jsgraph_(jsgraph), linkage_(linkage), machine_(machine) {}
   virtual ~ChangeLowering();
 
-  virtual Reduction Reduce(Node* node) V8_OVERRIDE;
+  virtual Reduction Reduce(Node* node) OVERRIDE;
 
  private:
   enum Signedness { kSigned, kUnsigned };

@@ -115,12 +115,12 @@ class NodeMatcher : public MatcherInterface<Node*> {
  public:
   explicit NodeMatcher(IrOpcode::Value opcode) : opcode_(opcode) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     *os << "is a " << IrOpcode::Mnemonic(opcode_) << " node";
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     if (node == NULL) {
       *listener << "which is NULL";
       return false;
@@ -138,7 +138,7 @@ class NodeMatcher : public MatcherInterface<Node*> {
 };
 
 
-class IsBranchMatcher V8_FINAL : public NodeMatcher {
+class IsBranchMatcher FINAL : public NodeMatcher {
  public:
   IsBranchMatcher(const Matcher<Node*>& value_matcher,
                   const Matcher<Node*>& control_matcher)
@@ -146,7 +146,7 @@ class IsBranchMatcher V8_FINAL : public NodeMatcher {
         value_matcher_(value_matcher),
         control_matcher_(control_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose value (";
     value_matcher_.DescribeTo(os);
@@ -156,7 +156,7 @@ class IsBranchMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
                                  "value", value_matcher_, listener) &&
@@ -170,7 +170,7 @@ class IsBranchMatcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsMergeMatcher V8_FINAL : public NodeMatcher {
+class IsMergeMatcher FINAL : public NodeMatcher {
  public:
   IsMergeMatcher(const Matcher<Node*>& control0_matcher,
                  const Matcher<Node*>& control1_matcher)
@@ -178,7 +178,7 @@ class IsMergeMatcher V8_FINAL : public NodeMatcher {
         control0_matcher_(control0_matcher),
         control1_matcher_(control1_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose control0 (";
     control0_matcher_.DescribeTo(os);
@@ -188,7 +188,7 @@ class IsMergeMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(NodeProperties::GetControlInput(node, 0),
                                  "control0", control0_matcher_, listener) &&
@@ -202,13 +202,13 @@ class IsMergeMatcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsControl1Matcher V8_FINAL : public NodeMatcher {
+class IsControl1Matcher FINAL : public NodeMatcher {
  public:
   IsControl1Matcher(IrOpcode::Value opcode,
                     const Matcher<Node*>& control_matcher)
       : NodeMatcher(opcode), control_matcher_(control_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose control (";
     control_matcher_.DescribeTo(os);
@@ -216,7 +216,7 @@ class IsControl1Matcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(NodeProperties::GetControlInput(node),
                                  "control", control_matcher_, listener));
@@ -227,7 +227,7 @@ class IsControl1Matcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsFinishMatcher V8_FINAL : public NodeMatcher {
+class IsFinishMatcher FINAL : public NodeMatcher {
  public:
   IsFinishMatcher(const Matcher<Node*>& value_matcher,
                   const Matcher<Node*>& effect_matcher)
@@ -235,7 +235,7 @@ class IsFinishMatcher V8_FINAL : public NodeMatcher {
         value_matcher_(value_matcher),
         effect_matcher_(effect_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose value (";
     value_matcher_.DescribeTo(os);
@@ -245,7 +245,7 @@ class IsFinishMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
                                  "value", value_matcher_, listener) &&
@@ -260,12 +260,12 @@ class IsFinishMatcher V8_FINAL : public NodeMatcher {
 
 
 template <typename T>
-class IsConstantMatcher V8_FINAL : public NodeMatcher {
+class IsConstantMatcher FINAL : public NodeMatcher {
  public:
   IsConstantMatcher(IrOpcode::Value opcode, const Matcher<T>& value_matcher)
       : NodeMatcher(opcode), value_matcher_(value_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose value (";
     value_matcher_.DescribeTo(os);
@@ -273,7 +273,7 @@ class IsConstantMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(OpParameter<T>(node), "value", value_matcher_,
                                  listener));
@@ -284,7 +284,7 @@ class IsConstantMatcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsPhiMatcher V8_FINAL : public NodeMatcher {
+class IsPhiMatcher FINAL : public NodeMatcher {
  public:
   IsPhiMatcher(const Matcher<Node*>& value0_matcher,
                const Matcher<Node*>& value1_matcher,
@@ -294,7 +294,7 @@ class IsPhiMatcher V8_FINAL : public NodeMatcher {
         value1_matcher_(value1_matcher),
         control_matcher_(control_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose value0 (";
     value0_matcher_.DescribeTo(os);
@@ -306,7 +306,7 @@ class IsPhiMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
                                  "value0", value0_matcher_, listener) &&
@@ -323,7 +323,7 @@ class IsPhiMatcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsProjectionMatcher V8_FINAL : public NodeMatcher {
+class IsProjectionMatcher FINAL : public NodeMatcher {
  public:
   IsProjectionMatcher(const Matcher<int32_t>& index_matcher,
                       const Matcher<Node*>& base_matcher)
@@ -331,7 +331,7 @@ class IsProjectionMatcher V8_FINAL : public NodeMatcher {
         index_matcher_(index_matcher),
         base_matcher_(base_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose index (";
     index_matcher_.DescribeTo(os);
@@ -341,7 +341,7 @@ class IsProjectionMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(OpParameter<int32_t>(node), "index",
                                  index_matcher_, listener) &&
@@ -355,7 +355,7 @@ class IsProjectionMatcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsCallMatcher V8_FINAL : public NodeMatcher {
+class IsCallMatcher FINAL : public NodeMatcher {
  public:
   IsCallMatcher(const Matcher<CallDescriptor*>& descriptor_matcher,
                 const Matcher<Node*>& value0_matcher,
@@ -373,7 +373,7 @@ class IsCallMatcher V8_FINAL : public NodeMatcher {
         effect_matcher_(effect_matcher),
         control_matcher_(control_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose value0 (";
     value0_matcher_.DescribeTo(os);
@@ -391,7 +391,7 @@ class IsCallMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(OpParameter<CallDescriptor*>(node),
                                  "descriptor", descriptor_matcher_, listener) &&
@@ -420,7 +420,7 @@ class IsCallMatcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsLoadMatcher V8_FINAL : public NodeMatcher {
+class IsLoadMatcher FINAL : public NodeMatcher {
  public:
   IsLoadMatcher(const Matcher<MachineType>& type_matcher,
                 const Matcher<Node*>& base_matcher,
@@ -432,7 +432,7 @@ class IsLoadMatcher V8_FINAL : public NodeMatcher {
         index_matcher_(index_matcher),
         effect_matcher_(effect_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose type (";
     type_matcher_.DescribeTo(os);
@@ -446,7 +446,7 @@ class IsLoadMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(OpParameter<MachineType>(node), "type",
                                  type_matcher_, listener) &&
@@ -466,7 +466,7 @@ class IsLoadMatcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsStoreMatcher V8_FINAL : public NodeMatcher {
+class IsStoreMatcher FINAL : public NodeMatcher {
  public:
   IsStoreMatcher(const Matcher<MachineType>& type_matcher,
                  const Matcher<WriteBarrierKind> write_barrier_matcher,
@@ -484,7 +484,7 @@ class IsStoreMatcher V8_FINAL : public NodeMatcher {
         effect_matcher_(effect_matcher),
         control_matcher_(control_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose type (";
     type_matcher_.DescribeTo(os);
@@ -504,7 +504,7 @@ class IsStoreMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(
                 OpParameter<StoreRepresentation>(node).machine_type, "type",
@@ -535,7 +535,7 @@ class IsStoreMatcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsBinopMatcher V8_FINAL : public NodeMatcher {
+class IsBinopMatcher FINAL : public NodeMatcher {
  public:
   IsBinopMatcher(IrOpcode::Value opcode, const Matcher<Node*>& lhs_matcher,
                  const Matcher<Node*>& rhs_matcher)
@@ -543,7 +543,7 @@ class IsBinopMatcher V8_FINAL : public NodeMatcher {
         lhs_matcher_(lhs_matcher),
         rhs_matcher_(rhs_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose lhs (";
     lhs_matcher_.DescribeTo(os);
@@ -553,7 +553,7 @@ class IsBinopMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
                                  lhs_matcher_, listener) &&
@@ -567,12 +567,12 @@ class IsBinopMatcher V8_FINAL : public NodeMatcher {
 };
 
 
-class IsUnopMatcher V8_FINAL : public NodeMatcher {
+class IsUnopMatcher FINAL : public NodeMatcher {
  public:
   IsUnopMatcher(IrOpcode::Value opcode, const Matcher<Node*>& input_matcher)
       : NodeMatcher(opcode), input_matcher_(input_matcher) {}
 
-  virtual void DescribeTo(std::ostream* os) const V8_OVERRIDE {
+  virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
     *os << " whose input (";
     input_matcher_.DescribeTo(os);
@@ -580,7 +580,7 @@ class IsUnopMatcher V8_FINAL : public NodeMatcher {
   }
 
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
-      V8_OVERRIDE {
+      OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
                                  "input", input_matcher_, listener));

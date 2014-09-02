@@ -18,7 +18,7 @@ namespace internal {
 namespace compiler {
 
 // Generates native code for a sequence of instructions.
-class CodeGenerator V8_FINAL : public GapResolver::Assembler {
+class CodeGenerator FINAL : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(InstructionSequence* code);
 
@@ -77,9 +77,9 @@ class CodeGenerator V8_FINAL : public GapResolver::Assembler {
 
   // Interface used by the gap resolver to emit moves and swaps.
   virtual void AssembleMove(InstructionOperand* source,
-                            InstructionOperand* destination) V8_OVERRIDE;
+                            InstructionOperand* destination) OVERRIDE;
   virtual void AssembleSwap(InstructionOperand* source,
-                            InstructionOperand* destination) V8_OVERRIDE;
+                            InstructionOperand* destination) OVERRIDE;
 
   // ===========================================================================
   // Deoptimization table construction

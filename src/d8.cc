@@ -1529,13 +1529,13 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 
 class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  virtual void* Allocate(size_t) V8_OVERRIDE {
+  virtual void* Allocate(size_t) OVERRIDE {
     return malloc(0);
   }
-  virtual void* AllocateUninitialized(size_t length) V8_OVERRIDE {
+  virtual void* AllocateUninitialized(size_t length) OVERRIDE {
     return malloc(0);
   }
-  virtual void Free(void* p, size_t) V8_OVERRIDE {
+  virtual void Free(void* p, size_t) OVERRIDE {
     free(p);
   }
 };

@@ -30,10 +30,10 @@ TEST(OS, GetCurrentProcessId) {
 
 namespace {
 
-class SelfJoinThread V8_FINAL : public Thread {
+class SelfJoinThread FINAL : public Thread {
  public:
   SelfJoinThread() : Thread(Options("SelfJoinThread")) {}
-  virtual void Run() V8_OVERRIDE { Join(); }
+  virtual void Run() OVERRIDE { Join(); }
 };
 
 }  // namespace
@@ -61,7 +61,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
     }
   }
 
-  virtual void Run() V8_FINAL V8_OVERRIDE {
+  virtual void Run() FINAL OVERRIDE {
     for (size_t i = 0; i < arraysize(keys_); i++) {
       CHECK(!Thread::HasThreadLocal(keys_[i]));
     }

@@ -32,7 +32,7 @@ class InstructionSelectorTest : public CompilerTest {
     kAllExceptNopInstructions
   };
 
-  class StreamBuilder V8_FINAL : public RawMachineAssembler {
+  class StreamBuilder FINAL : public RawMachineAssembler {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
         : RawMachineAssembler(new (test->zone()) Graph(test->zone()),
@@ -111,7 +111,7 @@ class InstructionSelectorTest : public CompilerTest {
     InstructionSelectorTest* test_;
   };
 
-  class Stream V8_FINAL {
+  class Stream FINAL {
    public:
     size_t size() const { return instructions_.size(); }
     const Instruction* operator[](size_t index) const {

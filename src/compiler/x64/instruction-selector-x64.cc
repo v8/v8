@@ -10,7 +10,7 @@ namespace internal {
 namespace compiler {
 
 // Adds X64-specific methods for generating operands.
-class X64OperandGenerator V8_FINAL : public OperandGenerator {
+class X64OperandGenerator FINAL : public OperandGenerator {
  public:
   explicit X64OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}

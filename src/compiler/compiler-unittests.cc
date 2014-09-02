@@ -55,19 +55,19 @@ void CompilerTest::TearDownTestCase() {
 
 namespace {
 
-class CompilerTestEnvironment V8_FINAL : public ::testing::Environment {
+class CompilerTestEnvironment FINAL : public ::testing::Environment {
  public:
   CompilerTestEnvironment() : platform_(NULL) {}
   ~CompilerTestEnvironment() {}
 
-  virtual void SetUp() V8_OVERRIDE {
+  virtual void SetUp() OVERRIDE {
     EXPECT_THAT(platform_, IsNull());
     platform_ = v8::platform::CreateDefaultPlatform();
     v8::V8::InitializePlatform(platform_);
     ASSERT_TRUE(v8::V8::Initialize());
   }
 
-  virtual void TearDown() V8_OVERRIDE {
+  virtual void TearDown() OVERRIDE {
     ASSERT_THAT(platform_, NotNull());
     v8::V8::Dispose();
     v8::V8::ShutdownPlatform();

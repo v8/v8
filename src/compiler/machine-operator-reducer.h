@@ -19,12 +19,12 @@ class JSGraph;
 
 // Performs constant folding and strength reduction on nodes that have
 // machine operators.
-class MachineOperatorReducer V8_FINAL : public Reducer {
+class MachineOperatorReducer FINAL : public Reducer {
  public:
   explicit MachineOperatorReducer(JSGraph* jsgraph);
   ~MachineOperatorReducer();
 
-  virtual Reduction Reduce(Node* node) V8_OVERRIDE;
+  virtual Reduction Reduce(Node* node) OVERRIDE;
 
  private:
   Node* Float64Constant(volatile double value);

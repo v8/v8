@@ -20,7 +20,7 @@ namespace compiler {
 struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
 
-class InstructionSelector V8_FINAL {
+class InstructionSelector FINAL {
  public:
   // Forward declarations.
   class Features;
@@ -62,7 +62,7 @@ class InstructionSelector V8_FINAL {
   // ============== Architecture-independent CPU feature methods. ==============
   // ===========================================================================
 
-  class Features V8_FINAL {
+  class Features FINAL {
    public:
     Features() : bits_(0) {}
     explicit Features(unsigned bits) : bits_(bits) {}

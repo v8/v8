@@ -1170,6 +1170,7 @@
         '../../src/base/atomicops_internals_x86_msvc.h',
         '../../src/base/bits.h',
         '../../src/base/build_config.h',
+        '../../src/base/compiler-specific.h',
         '../../src/base/cpu.cc',
         '../../src/base/cpu.h',
         '../../src/base/flags.h',

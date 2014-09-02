@@ -254,7 +254,7 @@ class LUnallocated : public LOperand {
 };
 
 
-class LMoveOperands V8_FINAL BASE_EMBEDDED {
+class LMoveOperands FINAL BASE_EMBEDDED {
  public:
   LMoveOperands(LOperand* source, LOperand* destination)
       : source_(source), destination_(destination) {
@@ -302,7 +302,7 @@ class LMoveOperands V8_FINAL BASE_EMBEDDED {
 
 
 template<LOperand::Kind kOperandKind, int kNumCachedOperands>
-class LSubKindOperand V8_FINAL : public LOperand {
+class LSubKindOperand FINAL : public LOperand {
  public:
   static LSubKindOperand* Create(int index, Zone* zone) {
     DCHECK(index >= 0);
@@ -332,7 +332,7 @@ LITHIUM_OPERAND_LIST(LITHIUM_TYPEDEF_SUBKIND_OPERAND_CLASS)
 #undef LITHIUM_TYPEDEF_SUBKIND_OPERAND_CLASS
 
 
-class LParallelMove V8_FINAL : public ZoneObject {
+class LParallelMove FINAL : public ZoneObject {
  public:
   explicit LParallelMove(Zone* zone) : move_operands_(4, zone) { }
 
@@ -351,7 +351,7 @@ class LParallelMove V8_FINAL : public ZoneObject {
 };
 
 
-class LPointerMap V8_FINAL : public ZoneObject {
+class LPointerMap FINAL : public ZoneObject {
  public:
   explicit LPointerMap(Zone* zone)
       : pointer_operands_(8, zone),
@@ -384,7 +384,7 @@ class LPointerMap V8_FINAL : public ZoneObject {
 };
 
 
-class LEnvironment V8_FINAL : public ZoneObject {
+class LEnvironment FINAL : public ZoneObject {
  public:
   LEnvironment(Handle<JSFunction> closure,
                FrameType frame_type,
@@ -534,7 +534,7 @@ class LEnvironment V8_FINAL : public ZoneObject {
 
 
 // Iterates over the non-null, non-constant operands in an environment.
-class ShallowIterator V8_FINAL BASE_EMBEDDED {
+class ShallowIterator FINAL BASE_EMBEDDED {
  public:
   explicit ShallowIterator(LEnvironment* env)
       : env_(env),
@@ -578,7 +578,7 @@ class ShallowIterator V8_FINAL BASE_EMBEDDED {
 
 
 // Iterator for non-null, non-constant operands incl. outer environments.
-class DeepIterator V8_FINAL BASE_EMBEDDED {
+class DeepIterator FINAL BASE_EMBEDDED {
  public:
   explicit DeepIterator(LEnvironment* env)
       : current_iterator_(env) {
