@@ -30,13 +30,11 @@ class BasicBlockData {
  public:
   // Possible control nodes that can end a block.
   enum Control {
-    kNone,       // Control not initialized yet.
-    kGoto,       // Goto a single successor block.
-    kBranch,     // Branch if true to first successor, otherwise second.
-    kReturn,     // Return a value from this method.
-    kThrow,      // Throw an exception.
-    kCall,       // Call to a possibly deoptimizing or throwing function.
-    kDeoptimize  // Deoptimize.
+    kNone,    // Control not initialized yet.
+    kGoto,    // Goto a single successor block.
+    kBranch,  // Branch if true to first successor, otherwise second.
+    kReturn,  // Return a value from this method.
+    kThrow    // Throw an exception.
   };
 
   int32_t rpo_number_;       // special RPO number of the block.
@@ -94,7 +92,7 @@ OStream& operator<<(OStream& os, const BasicBlockData::Control& c);
 // A basic block contains an ordered list of nodes and ends with a control
 // node. Note that if a basic block has phis, then all phis must appear as the
 // first nodes in the block.
-class BasicBlock V8_FINAL : public GenericNode<BasicBlockData, BasicBlock> {
+class BasicBlock FINAL : public GenericNode<BasicBlockData, BasicBlock> {
  public:
   BasicBlock(GenericGraphBase* graph, int input_count)
       : GenericNode<BasicBlockData, BasicBlock>(graph, input_count) {}
@@ -234,20 +232,6 @@ class Schedule : public GenericGraph<BasicBlock> {
     AddSuccessor(block, succ);
   }
 
-  // BasicBlock building: add a (branching) call at the end of {block}.
-  void AddCall(BasicBlock* block, Node* call, BasicBlock* cont_block,
-               BasicBlock* deopt_block) {
-    DCHECK(block->control_ == BasicBlock::kNone);
-    DCHECK(call->opcode() == IrOpcode::kCall);
-    block->control_ = BasicBlock::kCall;
-    // Insert the deopt block first so that the RPO order builder picks
-    // it first (and thus it ends up late in the RPO order).
-    AddSuccessor(block, deopt_block);
-    AddSuccessor(block, cont_block);
-    SetControlInput(block, call);
-    SetBlockForNode(block, call);
-  }
-
   // BasicBlock building: add a branch at the end of {block}.
   void AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
                  BasicBlock* fblock) {
@@ -280,15 +264,6 @@ class Schedule : public GenericGraph<BasicBlock> {
     DCHECK(block->control_ == BasicBlock::kNone);
     block->control_ = BasicBlock::kThrow;
     SetControlInput(block, input);
-    if (block != end()) AddSuccessor(block, end());
-  }
-
-  // BasicBlock building: add a deopt at the end of {block}.
-  void AddDeoptimize(BasicBlock* block, Node* state) {
-    DCHECK(block->control_ == BasicBlock::kNone);
-    block->control_ = BasicBlock::kDeoptimize;
-    SetControlInput(block, state);
-    block->deferred_ = true;  // By default, consider deopts the slow path.
     if (block != end()) AddSuccessor(block, end());
   }
 

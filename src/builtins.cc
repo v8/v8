@@ -1010,15 +1010,17 @@ BUILTIN(ArrayConcat) {
 
 BUILTIN(StrictModePoisonPill) {
   HandleScope scope(isolate);
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "strict_poison_pill", HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError("strict_poison_pill", HandleVector<Object>(NULL, 0)));
 }
 
 
 BUILTIN(GeneratorPoisonPill) {
   HandleScope scope(isolate);
-  return isolate->Throw(*isolate->factory()->NewTypeError(
-      "generator_poison_pill", HandleVector<Object>(NULL, 0)));
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewTypeError("generator_poison_pill", HandleVector<Object>(NULL, 0)));
 }
 
 
@@ -1115,10 +1117,9 @@ MUST_USE_RESULT static Object* HandleApiCallHelper(
 
   if (raw_holder->IsNull()) {
     // This function cannot be called with the given receiver.  Abort!
-    Handle<Object> obj =
-        isolate->factory()->NewTypeError(
-            "illegal_invocation", HandleVector(&function, 1));
-    return isolate->Throw(*obj);
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate,
+        NewTypeError("illegal_invocation", HandleVector(&function, 1)));
   }
 
   Object* raw_call_data = fun_data->call_code();

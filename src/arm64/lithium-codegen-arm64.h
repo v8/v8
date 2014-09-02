@@ -273,7 +273,7 @@ class LCodeGen: public LCodeGenBase {
   void RestoreCallerDoubles();
 
   // Code generation steps.  Returns true if code generation should continue.
-  void GenerateBodyInstructionPre(LInstruction* instr) V8_OVERRIDE;
+  void GenerateBodyInstructionPre(LInstruction* instr) OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
   bool GenerateDeoptJumpTable();
@@ -325,7 +325,7 @@ class LCodeGen: public LCodeGenBase {
                          Register function_reg = NoReg);
 
   // Support for recording safepoint and position information.
-  void RecordAndWritePosition(int position) V8_OVERRIDE;
+  void RecordAndWritePosition(int position) OVERRIDE;
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,
@@ -338,7 +338,7 @@ class LCodeGen: public LCodeGenBase {
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
 
-  void EnsureSpaceForLazyDeopt(int space_needed) V8_OVERRIDE;
+  void EnsureSpaceForLazyDeopt(int space_needed) OVERRIDE;
 
   ZoneList<LEnvironment*> deoptimizations_;
   ZoneList<Deoptimizer::JumpTableEntry*> deopt_jump_table_;

@@ -2509,7 +2509,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     Expression* generator = factory()->NewVariableProxy(
         function_state_->generator_object_variable());
     Expression* yield = factory()->NewYield(
-        generator, return_value, Yield::FINAL, loc.beg_pos);
+        generator, return_value, Yield::kFinal, loc.beg_pos);
     result = factory()->NewExpressionStatement(yield, loc.beg_pos);
   } else {
     result = factory()->NewReturnStatement(return_value, loc.beg_pos);
@@ -3735,7 +3735,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
     VariableProxy* get_proxy = factory()->NewVariableProxy(
         function_state_->generator_object_variable());
     Yield* yield = factory()->NewYield(
-        get_proxy, assignment, Yield::INITIAL, RelocInfo::kNoPosition);
+        get_proxy, assignment, Yield::kInitial, RelocInfo::kNoPosition);
     body->Add(factory()->NewExpressionStatement(
         yield, RelocInfo::kNoPosition), zone());
   }
@@ -3747,7 +3747,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
         function_state_->generator_object_variable());
     Expression* undefined =
         factory()->NewUndefinedLiteral(RelocInfo::kNoPosition);
-    Yield* yield = factory()->NewYield(get_proxy, undefined, Yield::FINAL,
+    Yield* yield = factory()->NewYield(get_proxy, undefined, Yield::kFinal,
                                        RelocInfo::kNoPosition);
     body->Add(factory()->NewExpressionStatement(
         yield, RelocInfo::kNoPosition), zone());
@@ -3955,10 +3955,12 @@ void Parser::ThrowPendingError() {
     isolate()->debug()->OnCompileError(script_);
 
     Handle<JSArray> array = factory->NewJSArrayWithElements(elements);
-    Handle<Object> result = pending_error_is_reference_error_
-        ? factory->NewReferenceError(pending_error_message_, array)
-        : factory->NewSyntaxError(pending_error_message_, array);
-    isolate()->Throw(*result, &location);
+    Handle<Object> error;
+    MaybeHandle<Object> maybe_error =
+        pending_error_is_reference_error_
+            ? factory->NewReferenceError(pending_error_message_, array)
+            : factory->NewSyntaxError(pending_error_message_, array);
+    if (maybe_error.ToHandle(&error)) isolate()->Throw(*error, &location);
   }
 }
 

@@ -20,7 +20,7 @@ namespace compiler {
 struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
 
-class InstructionSelector V8_FINAL {
+class InstructionSelector FINAL {
  public:
   // Forward declarations.
   class Features;
@@ -62,7 +62,7 @@ class InstructionSelector V8_FINAL {
   // ============== Architecture-independent CPU feature methods. ==============
   // ===========================================================================
 
-  class Features V8_FINAL {
+  class Features FINAL {
    public:
     Features() : bits_(0) {}
     explicit Features(unsigned bits) : bits_(bits) {}
@@ -139,8 +139,7 @@ class InstructionSelector V8_FINAL {
   // {call_address_immediate} to generate immediate operands to address calls.
   void InitializeCallBuffer(Node* call, CallBuffer* buffer,
                             bool call_code_immediate,
-                            bool call_address_immediate, BasicBlock* cont_node,
-                            BasicBlock* deopt_node);
+                            bool call_address_immediate);
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
   void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,

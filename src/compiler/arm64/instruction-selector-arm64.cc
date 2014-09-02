@@ -21,7 +21,7 @@ enum ImmediateMode {
 
 
 // Adds Arm64-specific methods for generating operands.
-class Arm64OperandGenerator V8_FINAL : public OperandGenerator {
+class Arm64OperandGenerator FINAL : public OperandGenerator {
  public:
   explicit Arm64OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}
@@ -598,8 +598,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   // TODO(turbofan): on ARM64 it's probably better to use the code object in a
   // register if there are multiple uses of it. Improve constant pool and the
   // heuristics in the register allocator for where to emit constants.
-  InitializeCallBuffer(call, &buffer, true, false, continuation,
-                       deoptimization);
+  InitializeCallBuffer(call, &buffer, true, false);
 
   // Push the arguments to the stack.
   bool is_c_frame = descriptor->kind() == CallDescriptor::kCallAddress;

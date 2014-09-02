@@ -4287,6 +4287,10 @@ bool Heap::WorthActivatingIncrementalMarking() {
 bool Heap::IdleNotification(int idle_time_in_ms) {
   // If incremental marking is off, we do not perform idle notification.
   if (!FLAG_incremental_marking) return true;
+  base::ElapsedTimer timer;
+  if (FLAG_trace_idle_notification) {
+    timer.Start();
+  }
   isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(
       idle_time_in_ms);
   HistogramTimerScope idle_notification_scope(
@@ -4335,6 +4339,13 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
     case DO_NOTHING:
       result = true;
       break;
+  }
+  if (FLAG_trace_idle_notification) {
+    int actual_time_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
+    PrintF("Idle notification: requested idle time %d ms, actual time %d ms [",
+           idle_time_in_ms, actual_time_ms);
+    action.Print();
+    PrintF("]\n");
   }
 
   return result;

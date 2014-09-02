@@ -16,16 +16,11 @@ namespace internal {
 const Register LoadConvention::ReceiverRegister() { return x1; }
 const Register LoadConvention::NameRegister() { return x2; }
 
-const Register VectorLoadConvention::SlotRegister() {
-  DCHECK(FLAG_vector_ics);
-  return x0;
-}
+
+const Register VectorLoadConvention::SlotRegister() { return x0; }
 
 
-const Register FullVectorLoadConvention::VectorRegister() {
-  DCHECK(FLAG_vector_ics);
-  return x3;
-}
+const Register FullVectorLoadConvention::VectorRegister() { return x3; }
 
 
 const Register StoreConvention::ReceiverRegister() { return x1; }
@@ -34,6 +29,18 @@ const Register StoreConvention::ValueRegister() { return x0; }
 
 
 const Register StoreConvention::MapRegister() { return x3; }
+
+
+const Register InstanceofConvention::left() {
+  // Object to check (instanceof lhs).
+  return x11;
+}
+
+
+const Register InstanceofConvention::right() {
+  // Constructor function (instanceof rhs).
+  return x10;
+}
 }
 }  // namespace v8::internal
 

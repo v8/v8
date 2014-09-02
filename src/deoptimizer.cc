@@ -926,7 +926,7 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
     CHECK_EQ(Translation::kSelfLiteralId, closure_id);
     function = function_;
   }
-  unsigned height = iterator->Next();
+  unsigned height = iterator->Next() - 1;  // Do not count the context.
   unsigned height_in_bytes = height * kPointerSize;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(), "  translating ");
@@ -1061,12 +1061,12 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   Register context_reg = JavaScriptFrame::context_register();
   output_offset -= kPointerSize;
   input_offset -= kPointerSize;
-  if (is_bottommost) {
-    value = input_->GetFrameSlot(input_offset);
-  } else {
-    value = reinterpret_cast<intptr_t>(function->context());
-  }
-  output_frame->SetFrameSlot(output_offset, value);
+  // Read the context from the translations.
+  DoTranslateCommand(iterator, frame_index, output_offset);
+  value = output_frame->GetFrameSlot(output_offset);
+  // The context should not be a placeholder for a materialized object.
+  CHECK(value !=
+        reinterpret_cast<intptr_t>(isolate_->heap()->arguments_marker()));
   output_frame->SetContext(value);
   if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
   if (trace_scope_ != NULL) {
@@ -3630,6 +3630,7 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(Deoptimizer* deoptimizer,
                                            bool has_construct_stub) {
   FrameDescription* output_frame = deoptimizer->output_[frame_index];
   function_ = output_frame->GetFunction();
+  context_ = reinterpret_cast<Object*>(output_frame->GetContext());
   has_construct_stub_ = has_construct_stub;
   expression_count_ = output_frame->GetExpressionCount();
   expression_stack_ = new Object*[expression_count_];
@@ -3663,6 +3664,7 @@ DeoptimizedFrameInfo::~DeoptimizedFrameInfo() {
 
 void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
   v->VisitPointer(BitCast<Object**>(&function_));
+  v->VisitPointer(&context_);
   v->VisitPointers(parameters_, parameters_ + parameters_count_);
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }

@@ -757,13 +757,9 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
   Handle<JSFunction> function =
       factory->NewFunctionFromSharedFunctionInfo(function_info, context);
 
-  Handle<Object> exception;
-  MaybeHandle<Object> result =
-      Execution::TryCall(function,
-                         handle(context->global_proxy()),
-                         0,
-                         NULL,
-                         &exception);
+  MaybeHandle<Object> maybe_exception;
+  MaybeHandle<Object> result = Execution::TryCall(
+      function, handle(context->global_proxy()), 0, NULL, &maybe_exception);
 
   // Check for caught exceptions.
   if (result.is_null()) {
@@ -774,7 +770,8 @@ bool Debug::CompileDebuggerScript(Isolate* isolate, int index) {
         isolate, "error_loading_debugger", &computed_location,
         Vector<Handle<Object> >::empty(), Handle<JSArray>());
     DCHECK(!isolate->has_pending_exception());
-    if (!exception.is_null()) {
+    Handle<Object> exception;
+    if (maybe_exception.ToHandle(&exception)) {
       isolate->set_pending_exception(*exception);
       MessageHandler::ReportMessage(isolate, NULL, message);
       isolate->clear_pending_exception();
@@ -2865,11 +2862,12 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     Handle<String> request_text = isolate_->factory()->NewStringFromTwoByte(
         command_text).ToHandleChecked();
     Handle<Object> request_args[] = { request_text };
-    Handle<Object> exception;
     Handle<Object> answer_value;
     Handle<String> answer;
-    MaybeHandle<Object> maybe_result = Execution::TryCall(
-        process_debug_request, cmd_processor, 1, request_args, &exception);
+    MaybeHandle<Object> maybe_exception;
+    MaybeHandle<Object> maybe_result =
+        Execution::TryCall(process_debug_request, cmd_processor, 1,
+                           request_args, &maybe_exception);
 
     if (maybe_result.ToHandle(&answer_value)) {
       if (answer_value->IsUndefined()) {
@@ -2887,10 +2885,15 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
       Handle<Object> is_running_args[] = { answer };
       maybe_result = Execution::Call(
           isolate_, is_running, cmd_processor, 1, is_running_args);
-      running = maybe_result.ToHandleChecked()->IsTrue();
+      Handle<Object> result;
+      if (!maybe_result.ToHandle(&result)) break;
+      running = result->IsTrue();
     } else {
-      answer = Handle<String>::cast(
-          Execution::ToString(isolate_, exception).ToHandleChecked());
+      Handle<Object> exception;
+      if (!maybe_exception.ToHandle(&exception)) break;
+      Handle<Object> result;
+      if (!Execution::ToString(isolate_, exception).ToHandle(&result)) break;
+      answer = Handle<String>::cast(result);
     }
 
     // Return the result.
@@ -2903,6 +2906,7 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     // running state (through a continue command) or auto continue is active
     // and there are no more commands queued.
   } while (!running || has_commands());
+  command_queue_.Clear();
 }
 
 

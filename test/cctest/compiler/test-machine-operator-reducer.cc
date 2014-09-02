@@ -6,7 +6,9 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
+#include "src/compiler/typer.h"
 #include "test/cctest/compiler/value-helper.h"
 
 using namespace v8::internal;
@@ -37,6 +39,8 @@ class ReducerTester : public HandleAndZoneScope {
         machine(main_zone()),
         common(main_zone()),
         graph(main_zone()),
+        typer(main_zone()),
+        jsgraph(&graph, &common, &typer),
         maxuint32(Constant<int32_t>(kMaxUInt32)) {
     Node* s = graph.NewNode(common.Start(num_parameters));
     graph.SetStart(s);
@@ -48,6 +52,8 @@ class ReducerTester : public HandleAndZoneScope {
   MachineOperatorBuilder machine;
   CommonOperatorBuilder common;
   Graph graph;
+  Typer typer;
+  JSGraph jsgraph;
   Node* maxuint32;
 
   template <typename T>
@@ -68,7 +74,7 @@ class ReducerTester : public HandleAndZoneScope {
   void CheckFoldBinop(volatile T expect, Node* a, Node* b) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, a, b);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_NE(n, reduction.replacement());
@@ -80,7 +86,7 @@ class ReducerTester : public HandleAndZoneScope {
   void CheckBinop(Node* expect, Node* a, Node* b) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, a, b);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_EQ(expect, reduction.replacement());
@@ -92,7 +98,7 @@ class ReducerTester : public HandleAndZoneScope {
                       Node* right) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, left, right);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_EQ(binop, reduction.replacement()->op());
@@ -107,7 +113,7 @@ class ReducerTester : public HandleAndZoneScope {
                       Node* right_expect, Node* left, Node* right) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, left, right);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction r = reducer.Reduce(n);
     CHECK(r.Changed());
     CHECK_EQ(op_expect->opcode(), r.replacement()->op()->opcode());
@@ -122,7 +128,7 @@ class ReducerTester : public HandleAndZoneScope {
                       volatile T right_expect, Node* left, Node* right) {
     CHECK_NE(NULL, binop);
     Node* n = graph.NewNode(binop, left, right);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction r = reducer.Reduce(n);
     CHECK(r.Changed());
     CHECK_EQ(op_expect->opcode(), r.replacement()->op()->opcode());
@@ -139,7 +145,7 @@ class ReducerTester : public HandleAndZoneScope {
     Node* k = Constant<T>(constant);
     {
       Node* n = graph.NewNode(binop, k, p);
-      MachineOperatorReducer reducer(&graph);
+      MachineOperatorReducer reducer(&jsgraph);
       Reduction reduction = reducer.Reduce(n);
       CHECK(!reduction.Changed() || reduction.replacement() == n);
       CHECK_EQ(p, n->InputAt(0));
@@ -147,7 +153,7 @@ class ReducerTester : public HandleAndZoneScope {
     }
     {
       Node* n = graph.NewNode(binop, p, k);
-      MachineOperatorReducer reducer(&graph);
+      MachineOperatorReducer reducer(&jsgraph);
       Reduction reduction = reducer.Reduce(n);
       CHECK(!reduction.Changed());
       CHECK_EQ(p, n->InputAt(0));
@@ -163,7 +169,7 @@ class ReducerTester : public HandleAndZoneScope {
     Node* p = Parameter();
     Node* k = Constant<T>(constant);
     Node* n = graph.NewNode(binop, k, p);
-    MachineOperatorReducer reducer(&graph);
+    MachineOperatorReducer reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(n);
     CHECK(!reduction.Changed());
     CHECK_EQ(k, n->InputAt(0));
@@ -633,7 +639,7 @@ TEST(ReduceLoadStore) {
   Node* load = R.graph.NewNode(R.machine.Load(kMachInt32), base, index);
 
   {
-    MachineOperatorReducer reducer(&R.graph);
+    MachineOperatorReducer reducer(&R.jsgraph);
     Reduction reduction = reducer.Reduce(load);
     CHECK(!reduction.Changed());  // loads should not be reduced.
   }
@@ -641,7 +647,7 @@ TEST(ReduceLoadStore) {
   {
     Node* store = R.graph.NewNode(R.machine.Store(kMachInt32, kNoWriteBarrier),
                                   base, index, load);
-    MachineOperatorReducer reducer(&R.graph);
+    MachineOperatorReducer reducer(&R.jsgraph);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.
   }

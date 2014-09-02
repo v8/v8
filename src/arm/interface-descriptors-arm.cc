@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-const Register InterfaceDescriptor::ContextRegister() { return cp; }
+const Register CallInterfaceDescriptor::ContextRegister() { return cp; }
 
 
 void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
@@ -20,6 +20,156 @@ void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
 
   static PlatformInterfaceDescriptor noInlineDescriptor =
       PlatformInterfaceDescriptor(NEVER_INLINE_TARGET_ADDRESS);
+
+  InitializeForIsolateAllPlatforms(isolate);
+
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::FastNewClosureCall);
+    Register registers[] = {cp, r2};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::FastNewContextCall);
+    Register registers[] = {cp, r1};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::ToNumberCall);
+    Register registers[] = {cp, r0};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::NumberToStringCall);
+    Register registers[] = {cp, r0};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::FastCloneShallowArrayCall);
+    Register registers[] = {cp, r3, r2, r1};
+    Representation representations[] = {
+        Representation::Tagged(), Representation::Tagged(),
+        Representation::Smi(), Representation::Tagged()};
+    descriptor->Initialize(arraysize(registers), registers, representations);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::FastCloneShallowObjectCall);
+    Register registers[] = {cp, r3, r2, r1, r0};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::CreateAllocationSiteCall);
+    Register registers[] = {cp, r2, r3};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::CallFunctionCall);
+    Register registers[] = {cp, r1};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::CallConstructCall);
+    // r0 : number of arguments
+    // r1 : the function to call
+    // r2 : feedback vector
+    // r3 : (only if r2 is not the megamorphic symbol) slot in feedback
+    //      vector (Smi)
+    // TODO(turbofan): So far we don't gather type feedback and hence skip the
+    // slot parameter, but ArrayConstructStub needs the vector to be undefined.
+    Register registers[] = {cp, r0, r1, r2};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::RegExpConstructResultCall);
+    Register registers[] = {cp, r2, r1, r0};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::TransitionElementsKindCall);
+    Register registers[] = {cp, r0, r1};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
+        CallDescriptorKey::ArrayConstructorConstantArgCountCall);
+    // register state
+    // cp -- context
+    // r0 -- number of arguments
+    // r1 -- function
+    // r2 -- allocation site with elements kind
+    Register registers[] = {cp, r1, r2};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::ArrayConstructorCall);
+    // stack param count needs (constructor pointer, and single argument)
+    Register registers[] = {cp, r1, r2, r0};
+    Representation representations[] = {
+        Representation::Tagged(), Representation::Tagged(),
+        Representation::Tagged(), Representation::Integer32()};
+    descriptor->Initialize(arraysize(registers), registers, representations);
+  }
+  {
+    CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
+        CallDescriptorKey::InternalArrayConstructorConstantArgCountCall);
+    // register state
+    // cp -- context
+    // r0 -- number of arguments
+    // r1 -- constructor function
+    Register registers[] = {cp, r1};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
+        CallDescriptorKey::InternalArrayConstructorCall);
+    // stack param count needs (constructor pointer, and single argument)
+    Register registers[] = {cp, r1, r0};
+    Representation representations[] = {Representation::Tagged(),
+                                        Representation::Tagged(),
+                                        Representation::Integer32()};
+    descriptor->Initialize(arraysize(registers), registers, representations);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::CompareNilCall);
+    Register registers[] = {cp, r0};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::ToBooleanCall);
+    Register registers[] = {cp, r0};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::BinaryOpCall);
+    Register registers[] = {cp, r1, r0};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
+        CallDescriptorKey::BinaryOpWithAllocationSiteCall);
+    Register registers[] = {cp, r2, r1, r0};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
+  {
+    CallInterfaceDescriptor* descriptor =
+        isolate->call_descriptor(CallDescriptorKey::StringAddCall);
+    Register registers[] = {cp, r1, r0};
+    descriptor->Initialize(arraysize(registers), registers, NULL);
+  }
 
   {
     CallInterfaceDescriptor* descriptor =

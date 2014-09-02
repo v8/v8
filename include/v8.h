@@ -5606,8 +5606,9 @@ V8_INLINE internal::Object* IntToSmi(int value) {
 
 // Smi constants for 32-bit systems.
 template <> struct SmiTagging<4> {
-  static const int kSmiShiftSize = 0;
-  static const int kSmiValueSize = 31;
+  enum { kSmiShiftSize = 0, kSmiValueSize = 31 };
+  static int SmiShiftSize() { return kSmiShiftSize; }
+  static int SmiValueSize() { return kSmiValueSize; }
   V8_INLINE static int SmiToInt(const internal::Object* value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Throw away top 32 bits and shift down (requires >> to be sign extending).
@@ -5634,8 +5635,9 @@ template <> struct SmiTagging<4> {
 
 // Smi constants for 64-bit systems.
 template <> struct SmiTagging<8> {
-  static const int kSmiShiftSize = 31;
-  static const int kSmiValueSize = 32;
+  enum { kSmiShiftSize = 31, kSmiValueSize = 32 };
+  static int SmiShiftSize() { return kSmiShiftSize; }
+  static int SmiValueSize() { return kSmiValueSize; }
   V8_INLINE static int SmiToInt(const internal::Object* value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Shift down and throw away top 32 bits.

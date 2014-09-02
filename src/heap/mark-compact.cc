@@ -540,7 +540,7 @@ class MarkCompactCollector::SweeperTask : public v8::Task {
 
  private:
   // v8::Task overrides.
-  virtual void Run() V8_OVERRIDE {
+  virtual void Run() OVERRIDE {
     heap_->mark_compact_collector()->SweepInParallel(space_, 0);
     heap_->mark_compact_collector()->pending_sweeper_jobs_semaphore_.Signal();
   }

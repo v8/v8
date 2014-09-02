@@ -32,7 +32,6 @@ namespace compiler {
   V(ArchCallAddress)        \
   V(ArchCallCodeObject)     \
   V(ArchCallJSFunction)     \
-  V(ArchDeoptimize)         \
   V(ArchDrop)               \
   V(ArchJmp)                \
   V(ArchNop)                \

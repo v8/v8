@@ -11,7 +11,7 @@ namespace internal {
 namespace compiler {
 
 // Adds IA32-specific methods for generating operands.
-class IA32OperandGenerator V8_FINAL : public OperandGenerator {
+class IA32OperandGenerator FINAL : public OperandGenerator {
  public:
   explicit IA32OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}
@@ -516,7 +516,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
 
   // Compute InstructionOperands for inputs and outputs.
-  InitializeCallBuffer(call, &buffer, true, true, continuation, deoptimization);
+  InitializeCallBuffer(call, &buffer, true, true);
 
   // Push any stack arguments.
   for (NodeVectorRIter input = buffer.pushed_nodes.rbegin();

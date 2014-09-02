@@ -366,7 +366,7 @@ MaybeHandle<Map> Factory::InternalizedStringMapForString(
 MaybeHandle<SeqOneByteString> Factory::NewRawOneByteString(
     int length, PretenureFlag pretenure) {
   if (length > String::kMaxLength || length < 0) {
-    return isolate()->Throw<SeqOneByteString>(NewInvalidStringLengthError());
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqOneByteString);
   }
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -378,7 +378,7 @@ MaybeHandle<SeqOneByteString> Factory::NewRawOneByteString(
 MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
     int length, PretenureFlag pretenure) {
   if (length > String::kMaxLength || length < 0) {
-    return isolate()->Throw<SeqTwoByteString>(NewInvalidStringLengthError());
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqTwoByteString);
   }
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -483,7 +483,7 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
   // Make sure that an out of memory exception is thrown if the length
   // of the new cons string is too large.
   if (length > String::kMaxLength || length < 0) {
-    return isolate()->Throw<String>(NewInvalidStringLengthError());
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
 
   bool left_is_one_byte = left->IsOneByteRepresentation();
@@ -616,7 +616,7 @@ MaybeHandle<String> Factory::NewExternalStringFromAscii(
     const ExternalAsciiString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    return isolate()->Throw<String>(NewInvalidStringLengthError());
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
 
   Handle<Map> map = external_ascii_string_map();
@@ -634,7 +634,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
     const ExternalTwoByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
-    return isolate()->Throw<String>(NewInvalidStringLengthError());
+    THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
 
   // For small strings we check whether the resource contains only
@@ -1050,59 +1050,58 @@ Handle<HeapNumber> Factory::NewHeapNumber(double value,
 }
 
 
-Handle<Object> Factory::NewTypeError(const char* message,
-                                     Vector< Handle<Object> > args) {
+MaybeHandle<Object> Factory::NewTypeError(const char* message,
+                                          Vector<Handle<Object> > args) {
   return NewError("MakeTypeError", message, args);
 }
 
 
-Handle<Object> Factory::NewTypeError(Handle<String> message) {
+MaybeHandle<Object> Factory::NewTypeError(Handle<String> message) {
   return NewError("$TypeError", message);
 }
 
 
-Handle<Object> Factory::NewRangeError(const char* message,
-                                      Vector< Handle<Object> > args) {
+MaybeHandle<Object> Factory::NewRangeError(const char* message,
+                                           Vector<Handle<Object> > args) {
   return NewError("MakeRangeError", message, args);
 }
 
 
-Handle<Object> Factory::NewRangeError(Handle<String> message) {
+MaybeHandle<Object> Factory::NewRangeError(Handle<String> message) {
   return NewError("$RangeError", message);
 }
 
 
-Handle<Object> Factory::NewSyntaxError(const char* message,
-                                       Handle<JSArray> args) {
+MaybeHandle<Object> Factory::NewSyntaxError(const char* message,
+                                            Handle<JSArray> args) {
   return NewError("MakeSyntaxError", message, args);
 }
 
 
-Handle<Object> Factory::NewSyntaxError(Handle<String> message) {
+MaybeHandle<Object> Factory::NewSyntaxError(Handle<String> message) {
   return NewError("$SyntaxError", message);
 }
 
 
-Handle<Object> Factory::NewReferenceError(const char* message,
-                                          Vector< Handle<Object> > args) {
+MaybeHandle<Object> Factory::NewReferenceError(const char* message,
+                                               Vector<Handle<Object> > args) {
   return NewError("MakeReferenceError", message, args);
 }
 
 
-Handle<Object> Factory::NewReferenceError(const char* message,
-                                          Handle<JSArray> args) {
+MaybeHandle<Object> Factory::NewReferenceError(const char* message,
+                                               Handle<JSArray> args) {
   return NewError("MakeReferenceError", message, args);
 }
 
 
-Handle<Object> Factory::NewReferenceError(Handle<String> message) {
+MaybeHandle<Object> Factory::NewReferenceError(Handle<String> message) {
   return NewError("$ReferenceError", message);
 }
 
 
-Handle<Object> Factory::NewError(const char* maker,
-                                 const char* message,
-                                 Vector< Handle<Object> > args) {
+MaybeHandle<Object> Factory::NewError(const char* maker, const char* message,
+                                      Vector<Handle<Object> > args) {
   // Instantiate a closeable HandleScope for EscapeFrom.
   v8::EscapableHandleScope scope(reinterpret_cast<v8::Isolate*>(isolate()));
   Handle<FixedArray> array = NewFixedArray(args.length());
@@ -1110,19 +1109,21 @@ Handle<Object> Factory::NewError(const char* maker,
     array->set(i, *args[i]);
   }
   Handle<JSArray> object = NewJSArrayWithElements(array);
-  Handle<Object> result = NewError(maker, message, object);
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate(), result,
+                             NewError(maker, message, object), Object);
   return result.EscapeFrom(&scope);
 }
 
 
-Handle<Object> Factory::NewEvalError(const char* message,
-                                     Vector< Handle<Object> > args) {
+MaybeHandle<Object> Factory::NewEvalError(const char* message,
+                                          Vector<Handle<Object> > args) {
   return NewError("MakeEvalError", message, args);
 }
 
 
-Handle<Object> Factory::NewError(const char* message,
-                                 Vector< Handle<Object> > args) {
+MaybeHandle<Object> Factory::NewError(const char* message,
+                                      Vector<Handle<Object> > args) {
   return NewError("MakeError", message, args);
 }
 
@@ -1163,9 +1164,8 @@ Handle<String> Factory::EmergencyNewError(const char* message,
 }
 
 
-Handle<Object> Factory::NewError(const char* maker,
-                                 const char* message,
-                                 Handle<JSArray> args) {
+MaybeHandle<Object> Factory::NewError(const char* maker, const char* message,
+                                      Handle<JSArray> args) {
   Handle<String> make_str = InternalizeUtf8String(maker);
   Handle<Object> fun_obj = Object::GetProperty(
       isolate()->js_builtins_object(), make_str).ToHandleChecked();
@@ -1181,7 +1181,7 @@ Handle<Object> Factory::NewError(const char* maker,
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
   Handle<Object> result;
-  Handle<Object> exception;
+  MaybeHandle<Object> exception;
   if (!Execution::TryCall(fun,
                           isolate()->js_builtins_object(),
                           arraysize(argv),
@@ -1193,13 +1193,13 @@ Handle<Object> Factory::NewError(const char* maker,
 }
 
 
-Handle<Object> Factory::NewError(Handle<String> message) {
+MaybeHandle<Object> Factory::NewError(Handle<String> message) {
   return NewError("$Error", message);
 }
 
 
-Handle<Object> Factory::NewError(const char* constructor,
-                                 Handle<String> message) {
+MaybeHandle<Object> Factory::NewError(const char* constructor,
+                                      Handle<String> message) {
   Handle<String> constr = InternalizeUtf8String(constructor);
   Handle<JSFunction> fun = Handle<JSFunction>::cast(Object::GetProperty(
       isolate()->js_builtins_object(), constr).ToHandleChecked());
@@ -1208,7 +1208,7 @@ Handle<Object> Factory::NewError(const char* constructor,
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
   Handle<Object> result;
-  Handle<Object> exception;
+  MaybeHandle<Object> exception;
   if (!Execution::TryCall(fun,
                           isolate()->js_builtins_object(),
                           arraysize(argv),

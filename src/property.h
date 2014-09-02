@@ -73,7 +73,7 @@ class Descriptor BASE_EMBEDDED {
 OStream& operator<<(OStream& os, const Descriptor& d);
 
 
-class FieldDescriptor V8_FINAL : public Descriptor {
+class FieldDescriptor FINAL : public Descriptor {
  public:
   FieldDescriptor(Handle<Name> key,
                   int field_index,
@@ -91,7 +91,7 @@ class FieldDescriptor V8_FINAL : public Descriptor {
 };
 
 
-class ConstantDescriptor V8_FINAL : public Descriptor {
+class ConstantDescriptor FINAL : public Descriptor {
  public:
   ConstantDescriptor(Handle<Name> key,
                      Handle<Object> value,
@@ -101,7 +101,7 @@ class ConstantDescriptor V8_FINAL : public Descriptor {
 };
 
 
-class CallbacksDescriptor V8_FINAL : public Descriptor {
+class CallbacksDescriptor FINAL : public Descriptor {
  public:
   CallbacksDescriptor(Handle<Name> key,
                       Handle<Object> foreign,
@@ -111,7 +111,7 @@ class CallbacksDescriptor V8_FINAL : public Descriptor {
 };
 
 
-class LookupResult V8_FINAL BASE_EMBEDDED {
+class LookupResult FINAL BASE_EMBEDDED {
  public:
   explicit LookupResult(Isolate* isolate)
       : isolate_(isolate),

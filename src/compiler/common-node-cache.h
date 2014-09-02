@@ -13,7 +13,7 @@ namespace internal {
 namespace compiler {
 
 // Bundles various caches for common nodes.
-class CommonNodeCache V8_FINAL : public ZoneObject {
+class CommonNodeCache FINAL : public ZoneObject {
  public:
   explicit CommonNodeCache(Zone* zone) : zone_(zone) {}
 

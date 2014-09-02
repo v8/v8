@@ -44,6 +44,28 @@ class CallOperator : public Operator1<CallDescriptor*> {
   }
 };
 
+// Flag that describes how to combine the current environment with
+// the output of a node to obtain a framestate for lazy bailout.
+enum OutputFrameStateCombine {
+  kPushOutput,   // Push the output on the expression stack.
+  kIgnoreOutput  // Use the frame state as-is.
+};
+
+
+class FrameStateCallInfo {
+ public:
+  FrameStateCallInfo(BailoutId bailout_id,
+                     OutputFrameStateCombine state_combine)
+      : bailout_id_(bailout_id), frame_state_combine_(state_combine) {}
+
+  BailoutId bailout_id() const { return bailout_id_; }
+  OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
+
+ private:
+  BailoutId bailout_id_;
+  OutputFrameStateCombine frame_state_combine_;
+};
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 // TODO(titzer): Move the mnemonics into SimpleOperator and Operator1 classes.
@@ -67,13 +89,6 @@ class CommonOperatorBuilder {
   Operator* IfTrue() { CONTROL_OP(IfTrue, 0, 1); }
   Operator* IfFalse() { CONTROL_OP(IfFalse, 0, 1); }
   Operator* Throw() { CONTROL_OP(Throw, 1, 1); }
-  Operator* LazyDeoptimization() { CONTROL_OP(LazyDeoptimization, 0, 1); }
-  Operator* Continuation() { CONTROL_OP(Continuation, 0, 1); }
-
-  Operator* Deoptimize() {
-    return new (zone_)
-        ControlOperator(IrOpcode::kDeoptimize, 0, 1, 0, 1, "Deoptimize");
-  }
 
   Operator* Return() {
     return new (zone_) ControlOperator(IrOpcode::kReturn, 0, 1, 0, 1, "Return");
@@ -149,9 +164,10 @@ class CommonOperatorBuilder {
     return new (zone_) Operator1<int>(IrOpcode::kStateValues, Operator::kPure,
                                       arguments, 1, "StateValues", arguments);
   }
-  Operator* FrameState(BailoutId ast_id) {
-    return new (zone_) Operator1<BailoutId>(
-        IrOpcode::kFrameState, Operator::kPure, 3, 1, "FrameState", ast_id);
+  Operator* FrameState(BailoutId bailout_id, OutputFrameStateCombine combine) {
+    return new (zone_) Operator1<FrameStateCallInfo>(
+        IrOpcode::kFrameState, Operator::kPure, 4, 1, "FrameState",
+        FrameStateCallInfo(bailout_id, combine));
   }
   Operator* Call(CallDescriptor* descriptor) {
     return new (zone_) CallOperator(descriptor, "Call");

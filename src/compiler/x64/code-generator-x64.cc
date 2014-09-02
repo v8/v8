@@ -233,14 +233,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AddSafepointAndDeopt(instr);
       break;
     }
-    case kArchDeoptimize: {
-      int deoptimization_id = BuildTranslation(instr, 0);
-
-      Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-          isolate(), deoptimization_id, Deoptimizer::LAZY);
-      __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-      break;
-    }
     case kArchDrop: {
       int words = MiscField::decode(instr->opcode());
       __ addq(rsp, Immediate(kPointerSize * words));
@@ -779,6 +771,13 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ setcc(cc, reg);
   __ movzxbl(reg, reg);
   __ bind(&done);
+}
+
+
+void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
+  Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
+      isolate(), deoptimization_id, Deoptimizer::LAZY);
+  __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
 }
 
 

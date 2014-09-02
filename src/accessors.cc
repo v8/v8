@@ -262,9 +262,15 @@ void Accessors::ArrayLengthSetter(
     return;
   }
 
-  isolate->ScheduleThrow(
-      *isolate->factory()->NewRangeError("invalid_array_length",
-                                         HandleVector<Object>(NULL, 0)));
+  Handle<Object> exception;
+  maybe = isolate->factory()->NewRangeError("invalid_array_length",
+                                            HandleVector<Object>(NULL, 0));
+  if (!maybe.ToHandle(&exception)) {
+    isolate->OptionalRescheduleException(false);
+    return;
+  }
+
+  isolate->ScheduleThrow(*exception);
 }
 
 
@@ -1350,9 +1356,16 @@ static void ModuleGetExport(
   Isolate* isolate = instance->GetIsolate();
   if (value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
-    isolate->ScheduleThrow(
-        *isolate->factory()->NewReferenceError("not_defined",
-                                               HandleVector(&name, 1)));
+
+    Handle<Object> exception;
+    MaybeHandle<Object> maybe = isolate->factory()->NewReferenceError(
+        "not_defined", HandleVector(&name, 1));
+    if (!maybe.ToHandle(&exception)) {
+      isolate->OptionalRescheduleException(false);
+      return;
+    }
+
+    isolate->ScheduleThrow(*exception);
     return;
   }
   info.GetReturnValue().Set(v8::Utils::ToLocal(Handle<Object>(value, isolate)));
@@ -1368,12 +1381,18 @@ static void ModuleSetExport(
   DCHECK(context->IsModuleContext());
   int slot = info.Data()->Int32Value();
   Object* old_value = context->get(slot);
+  Isolate* isolate = context->GetIsolate();
   if (old_value->IsTheHole()) {
     Handle<String> name = v8::Utils::OpenHandle(*property);
-    Isolate* isolate = instance->GetIsolate();
-    isolate->ScheduleThrow(
-        *isolate->factory()->NewReferenceError("not_defined",
-                                               HandleVector(&name, 1)));
+    Handle<Object> exception;
+    MaybeHandle<Object> maybe = isolate->factory()->NewReferenceError(
+        "not_defined", HandleVector(&name, 1));
+    if (!maybe.ToHandle(&exception)) {
+      isolate->OptionalRescheduleException(false);
+      return;
+    }
+
+    isolate->ScheduleThrow(*exception);
     return;
   }
   context->set(slot, *v8::Utils::OpenHandle(*value));

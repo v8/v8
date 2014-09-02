@@ -279,7 +279,7 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
   }
 
 #define DEF_VISIT(type)                                 \
-  virtual void Visit##type(type* node) V8_OVERRIDE {    \
+  virtual void Visit##type(type* node) OVERRIDE {    \
     if (node->position() != RelocInfo::kNoPosition) {   \
       SetSourcePosition(node->position());              \
     }                                                   \
@@ -289,7 +289,7 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
 #undef DEF_VISIT
 
 #define DEF_VISIT(type)                                          \
-  virtual void Visit##type(type* node) V8_OVERRIDE {             \
+  virtual void Visit##type(type* node) OVERRIDE {             \
     if (node->position() != RelocInfo::kNoPosition) {            \
       SetSourcePosition(node->position());                       \
     }                                                            \
@@ -299,7 +299,7 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
 #undef DEF_VISIT
 
 #define DEF_VISIT(type)                                            \
-  virtual void Visit##type(type* node) V8_OVERRIDE {               \
+  virtual void Visit##type(type* node) OVERRIDE {               \
     HOptimizedGraphBuilder::Visit##type(node);                     \
   }
   MODULE_NODE_LIST(DEF_VISIT)

@@ -33,7 +33,7 @@ class GraphVisualizer : public NullNodeVisitor {
 
  private:
   void AnnotateNode(Node* node);
-  void PrintEdge(Node* from, int index, Node* to);
+  void PrintEdge(Node::Edge edge);
 
   Zone* zone_;
   NodeSet all_nodes_;
@@ -168,7 +168,7 @@ void GraphVisualizer::AnnotateNode(Node* node) {
   }
   for (int j = OperatorProperties::GetFrameStateInputCount(node->op()); j > 0;
        ++i, j--) {
-    os_ << "|<I" << i.index() << ">X #" << (*i)->id();
+    os_ << "|<I" << i.index() << ">F #" << (*i)->id();
   }
   for (int j = OperatorProperties::GetEffectInputCount(node->op()); j > 0;
        ++i, j--) {
@@ -196,7 +196,10 @@ void GraphVisualizer::AnnotateNode(Node* node) {
 }
 
 
-void GraphVisualizer::PrintEdge(Node* from, int index, Node* to) {
+void GraphVisualizer::PrintEdge(Node::Edge edge) {
+  Node* from = edge.from();
+  int index = edge.index();
+  Node* to = edge.to();
   bool unconstrained = IsLikelyBackEdge(from, index, to);
   os_ << "  ID" << from->id();
   if (all_nodes_.count(to) == 0) {
@@ -205,11 +208,15 @@ void GraphVisualizer::PrintEdge(Node* from, int index, Node* to) {
              GetControlCluster(from) == NULL ||
              (OperatorProperties::GetControlInputCount(from->op()) > 0 &&
               NodeProperties::GetControlInput(from) != to)) {
-    os_ << ":I" << index << ":n -> ID" << to->id() << ":s";
-    if (unconstrained) os_ << " [constraint=false,style=dotted]";
+    os_ << ":I" << index << ":n -> ID" << to->id() << ":s"
+        << "[" << (unconstrained ? "constraint=false" : "")
+        << (NodeProperties::IsControlEdge(edge) ? "style=bold" : "")
+        << (NodeProperties::IsEffectEdge(edge) ? "style=dotted" : "")
+        << (NodeProperties::IsContextEdge(edge) ? "style=dashed" : "") << "]";
   } else {
     os_ << " -> ID" << to->id() << ":s [color=transparent"
-        << (unconstrained ? ", constraint=false" : "") << "]";
+        << (unconstrained ? ", constraint=false" : "")
+        << (NodeProperties::IsControlEdge(edge) ? ", style=dashed" : "") << "]";
   }
   os_ << "\n";
 }
@@ -219,6 +226,10 @@ void GraphVisualizer::Print() {
   os_ << "digraph D {\n"
       << "  node [fontsize=8,height=0.25]\n"
       << "  rankdir=\"BT\"\n"
+      << "  ranksep=\"1.2 equally\"\n"
+      << "  overlap=\"false\"\n"
+      << "  splines=\"true\"\n"
+      << "  concentrate=\"true\"\n"
       << "  \n";
 
   // Make sure all nodes have been output before writing out the edges.
@@ -244,7 +255,7 @@ void GraphVisualizer::Print() {
     Node::Inputs inputs = (*i)->inputs();
     for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
          ++iter) {
-      PrintEdge(iter.edge().from(), iter.edge().index(), iter.edge().to());
+      PrintEdge(iter.edge());
     }
   }
   os_ << "}\n";

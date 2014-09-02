@@ -1,0 +1,4 @@
+# TODO(bmeurer): Temporary work-around, will be fixed soonish.
+include_rules = [
+  "+include/libplatform/libplatform.h"
+]

@@ -2102,9 +2102,9 @@ ParserBase<Traits>::ParseYieldExpression(bool* ok) {
   ExpressionT generator_object =
       factory()->NewVariableProxy(function_state_->generator_object_variable());
   ExpressionT expression = Traits::EmptyExpression();
-  Yield::Kind kind = Yield::SUSPEND;
+  Yield::Kind kind = Yield::kSuspend;
   if (!scanner()->HasAnyLineTerminatorBeforeNext()) {
-    if (Check(Token::MUL)) kind = Yield::DELEGATING;
+    if (Check(Token::MUL)) kind = Yield::kDelegating;
     switch (peek()) {
       case Token::EOS:
       case Token::SEMICOLON:
@@ -2116,23 +2116,23 @@ ParserBase<Traits>::ParseYieldExpression(bool* ok) {
         // The above set of tokens is the complete set of tokens that can appear
         // after an AssignmentExpression, and none of them can start an
         // AssignmentExpression.  This allows us to avoid looking for an RHS for
-        // a Yield::SUSPEND operation, given only one look-ahead token.
-        if (kind == Yield::SUSPEND)
+        // a Yield::kSuspend operation, given only one look-ahead token.
+        if (kind == Yield::kSuspend)
           break;
-        DCHECK(kind == Yield::DELEGATING);
+        DCHECK_EQ(Yield::kDelegating, kind);
         // Delegating yields require an RHS; fall through.
       default:
         expression = ParseAssignmentExpression(false, CHECK_OK);
         break;
     }
   }
-  if (kind == Yield::DELEGATING) {
+  if (kind == Yield::kDelegating) {
     // var iterator = subject[Symbol.iterator]();
     expression = this->GetIterator(expression, factory());
   }
   typename Traits::Type::YieldExpression yield =
       factory()->NewYield(generator_object, expression, kind, pos);
-  if (kind == Yield::DELEGATING) {
+  if (kind == Yield::kDelegating) {
     yield->set_index(function_state_->NextHandlerIndex());
   }
   return yield;

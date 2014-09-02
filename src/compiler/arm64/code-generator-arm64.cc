@@ -19,7 +19,7 @@ namespace compiler {
 
 
 // Adds Arm64-specific methods to convert InstructionOperands.
-class Arm64OperandConverter V8_FINAL : public InstructionOperandConverter {
+class Arm64OperandConverter FINAL : public InstructionOperandConverter {
  public:
   Arm64OperandConverter(CodeGenerator* gen, Instruction* instr)
       : InstructionOperandConverter(gen, instr) {}
@@ -155,14 +155,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(x10);
       AddSafepointAndDeopt(instr);
-      break;
-    }
-    case kArchDeoptimize: {
-      int deoptimization_id = BuildTranslation(instr, 0);
-
-      Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-          isolate(), deoptimization_id, Deoptimizer::LAZY);
-      __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
       break;
     }
     case kArchDrop: {
@@ -624,6 +616,13 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&check);
   __ Cset(reg, cc);
   __ Bind(&done);
+}
+
+
+void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
+  Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
+      isolate(), deoptimization_id, Deoptimizer::LAZY);
+  __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
 }
 
 

@@ -609,9 +609,8 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
   HEnvironment* hydrogen_env = current_block_->last_environment();
   int argument_index_accumulator = 0;
   ZoneList<HValue*> objects_to_materialize(0, zone());
-  instr->set_environment(CreateEnvironment(hydrogen_env,
-                                           &argument_index_accumulator,
-                                           &objects_to_materialize));
+  instr->set_environment(CreateEnvironment(
+      hydrogen_env, &argument_index_accumulator, &objects_to_materialize));
   return instr;
 }
 
@@ -1103,7 +1102,7 @@ LInstruction* LChunkBuilder::DoCallJSFunction(
 
 LInstruction* LChunkBuilder::DoCallWithDescriptor(
     HCallWithDescriptor* instr) {
-  const InterfaceDescriptor* descriptor = instr->descriptor();
+  const CallInterfaceDescriptor* descriptor = instr->descriptor();
 
   LOperand* target = UseRegisterOrConstantAtStart(instr->target());
   ZoneList<LOperand*> ops(instr->OperandCount(), zone());
@@ -2608,6 +2607,7 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
   if (instr->arguments_var() != NULL && instr->arguments_object()->IsLinked()) {
     inner->Bind(instr->arguments_var(), instr->arguments_object());
   }
+  inner->BindContext(instr->closure_context());
   inner->set_entry(instr);
   current_block_->UpdateEnvironment(inner);
   chunk_->AddInlinedClosure(instr->closure());

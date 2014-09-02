@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "include/v8stdint.h"
 #include "src/base/flags.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -16,7 +17,7 @@ enum Flag1 {
   kFlag1Second = 1u << 2,
   kFlag1All = kFlag1None | kFlag1First | kFlag1Second
 };
-DEFINE_FLAGS(Flags1, Flag1);
+typedef Flags<Flag1> Flags1;
 
 
 DEFINE_OPERATORS_FOR_FLAGS(Flags1)
@@ -60,7 +61,7 @@ enum Option {
   kOption2 = 2,
   kAllOptions = kNoOptions | kOption1 | kOption2
 };
-DEFINE_FLAGS(Options, Option);
+typedef Flags<Option> Options;
 
 }  // namespace foo
 
@@ -82,7 +83,7 @@ namespace {
 
 struct Foo {
   enum Enum { kEnum1 = 1, kEnum2 = 2 };
-  DEFINE_FLAGS(Enums, Enum);
+  typedef Flags<Enum, uint32_t> Enums;
 };
 
 

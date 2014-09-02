@@ -267,7 +267,7 @@ class UnallocatedOperand : public InstructionOperand {
 };
 
 
-class MoveOperands V8_FINAL {
+class MoveOperands FINAL {
  public:
   MoveOperands(InstructionOperand* source, InstructionOperand* destination)
       : source_(source), destination_(destination) {}
@@ -313,7 +313,7 @@ class MoveOperands V8_FINAL {
 OStream& operator<<(OStream& os, const MoveOperands& mo);
 
 template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
-class SubKindOperand V8_FINAL : public InstructionOperand {
+class SubKindOperand FINAL : public InstructionOperand {
  public:
   static SubKindOperand* Create(int index, Zone* zone) {
     DCHECK(index >= 0);
@@ -344,7 +344,7 @@ INSTRUCTION_OPERAND_LIST(INSTRUCTION_TYPEDEF_SUBKIND_OPERAND_CLASS)
 #undef INSTRUCTION_TYPEDEF_SUBKIND_OPERAND_CLASS
 
 
-class ParallelMove V8_FINAL : public ZoneObject {
+class ParallelMove FINAL : public ZoneObject {
  public:
   explicit ParallelMove(Zone* zone) : move_operands_(4, zone) {}
 
@@ -365,7 +365,7 @@ class ParallelMove V8_FINAL : public ZoneObject {
 
 OStream& operator<<(OStream& os, const ParallelMove& pm);
 
-class PointerMap V8_FINAL : public ZoneObject {
+class PointerMap FINAL : public ZoneObject {
  public:
   explicit PointerMap(Zone* zone)
       : pointer_operands_(8, zone),
@@ -597,7 +597,7 @@ class GapInstruction : public Instruction {
 // This special kind of gap move instruction represents the beginning of a
 // block of code.
 // TODO(titzer): move code_start and code_end from BasicBlock to here.
-class BlockStartInstruction V8_FINAL : public GapInstruction {
+class BlockStartInstruction FINAL : public GapInstruction {
  public:
   BasicBlock* block() const { return block_; }
   Label* label() { return &label_; }
@@ -621,7 +621,7 @@ class BlockStartInstruction V8_FINAL : public GapInstruction {
 };
 
 
-class SourcePositionInstruction V8_FINAL : public Instruction {
+class SourcePositionInstruction FINAL : public Instruction {
  public:
   static SourcePositionInstruction* New(Zone* zone, SourcePosition position) {
     void* buffer = zone->New(sizeof(SourcePositionInstruction));
@@ -652,7 +652,7 @@ class SourcePositionInstruction V8_FINAL : public Instruction {
 };
 
 
-class Constant V8_FINAL {
+class Constant FINAL {
  public:
   enum Type { kInt32, kInt64, kFloat64, kExternalReference, kHeapObject };
 
@@ -701,22 +701,28 @@ class Constant V8_FINAL {
 
 class FrameStateDescriptor : public ZoneObject {
  public:
-  FrameStateDescriptor(BailoutId bailout_id, int parameters_count,
-                       int locals_count, int stack_count)
-      : bailout_id_(bailout_id),
+  FrameStateDescriptor(const FrameStateCallInfo& state_info,
+                       int parameters_count, int locals_count, int stack_count)
+      : bailout_id_(state_info.bailout_id()),
+        frame_state_combine_(state_info.state_combine()),
         parameters_count_(parameters_count),
         locals_count_(locals_count),
         stack_count_(stack_count) {}
 
   BailoutId bailout_id() const { return bailout_id_; }
+  OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
   int parameters_count() { return parameters_count_; }
   int locals_count() { return locals_count_; }
   int stack_count() { return stack_count_; }
 
-  int size() { return parameters_count_ + locals_count_ + stack_count_; }
+  int size() {
+    return parameters_count_ + locals_count_ + stack_count_ +
+           1;  // Includes context.
+  }
 
  private:
   BailoutId bailout_id_;
+  OutputFrameStateCombine frame_state_combine_;
   int parameters_count_;
   int locals_count_;
   int stack_count_;
@@ -735,7 +741,7 @@ typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
 // TODO(titzer): s/IsDouble/IsFloat64/
-class InstructionSequence V8_FINAL {
+class InstructionSequence FINAL {
  public:
   InstructionSequence(Linkage* linkage, Graph* graph, Schedule* schedule)
       : graph_(graph),
@@ -838,9 +844,19 @@ class InstructionSequence V8_FINAL {
     return immediates_[index];
   }
 
-  int AddDeoptimizationEntry(FrameStateDescriptor* descriptor);
-  FrameStateDescriptor* GetDeoptimizationEntry(int deoptimization_id);
-  int GetDeoptimizationEntryCount();
+  class StateId {
+   public:
+    static StateId FromInt(int id) { return StateId(id); }
+    int ToInt() const { return id_; }
+
+   private:
+    explicit StateId(int id) : id_(id) {}
+    int id_;
+  };
+
+  StateId AddFrameStateDescriptor(FrameStateDescriptor* descriptor);
+  FrameStateDescriptor* GetFrameStateDescriptor(StateId deoptimization_id);
+  int GetFrameStateDescriptorCount();
 
  private:
   friend OStream& operator<<(OStream& os, const InstructionSequence& code);

@@ -17,7 +17,7 @@ namespace internal {
  *
  * Note: Memory ownership remains with callee.
  */
-class SnapshotByteSource V8_FINAL {
+class SnapshotByteSource FINAL {
  public:
   SnapshotByteSource(const byte* array, int length);
   ~SnapshotByteSource();
@@ -99,8 +99,8 @@ class DummySnapshotSink : public SnapshotByteSink {
 class DebugSnapshotSink : public SnapshotByteSink {
  public:
   explicit DebugSnapshotSink(SnapshotByteSink* chained) : sink_(chained) {}
-  virtual void Put(byte b, const char* description) V8_OVERRIDE;
-  virtual int Position() V8_OVERRIDE { return sink_->Position(); }
+  virtual void Put(byte b, const char* description) OVERRIDE;
+  virtual int Position() OVERRIDE { return sink_->Position(); }
 
  private:
   SnapshotByteSink* sink_;
@@ -110,10 +110,10 @@ class DebugSnapshotSink : public SnapshotByteSink {
 class ListSnapshotSink : public i::SnapshotByteSink {
  public:
   explicit ListSnapshotSink(i::List<byte>* data) : data_(data) {}
-  virtual void Put(byte b, const char* description) V8_OVERRIDE {
+  virtual void Put(byte b, const char* description) OVERRIDE {
     data_->Add(b);
   }
-  virtual int Position() V8_OVERRIDE { return data_->length(); }
+  virtual int Position() OVERRIDE { return data_->length(); }
 
  private:
   i::List<byte>* data_;

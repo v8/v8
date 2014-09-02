@@ -236,12 +236,7 @@ class CppLintProcessor(SourceFileProcessor):
               or (name in CppLintProcessor.IGNORE_LINT))
 
   def GetPathsToSearch(self):
-    return ['src', 'include', 'samples',
-            join('test', 'base-unittests'),
-            join('test', 'cctest'),
-            join('test', 'compiler-unittests'),
-            join('test', 'heap-unittests'),
-            join('test', 'runtime-unittests')]
+    return ['src', 'include', 'samples', join('test', 'cctest')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):

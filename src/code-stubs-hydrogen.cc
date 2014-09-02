@@ -595,7 +595,7 @@ HValue* CodeStubGraphBuilder<LoadConstantStub>::BuildCodeStub() {
   HValue* descriptors =
       Add<HLoadNamedField>(map, static_cast<HValue*>(NULL), descriptors_access);
   HObjectAccess value_access = HObjectAccess::ForObservableJSObjectOffset(
-      DescriptorArray::GetValueOffset(casted_stub()->descriptor()));
+      DescriptorArray::GetValueOffset(casted_stub()->constant_index()));
   return Add<HLoadNamedField>(descriptors, static_cast<HValue*>(NULL),
                               value_access);
 }

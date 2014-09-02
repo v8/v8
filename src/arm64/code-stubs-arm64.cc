@@ -18,150 +18,10 @@
 namespace v8 {
 namespace internal {
 
-void FastNewClosureStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x2: function info
-  Register registers[] = { cp, x2 };
-  descriptor->Initialize(
-      MajorKey(), arraysize(registers), registers,
-      Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
-}
-
-
-void FastNewContextStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x1: function
-  Register registers[] = { cp, x1 };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
-}
-
-
-void ToNumberStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x0: value
-  Register registers[] = { cp, x0 };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
-}
-
-
-void NumberToStringStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x0: value
-  Register registers[] = { cp, x0 };
-  descriptor->Initialize(
-      MajorKey(), arraysize(registers), registers,
-      Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
-}
-
-
-void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x3: array literals array
-  // x2: array literal index
-  // x1: constant elements
-  Register registers[] = { cp, x3, x2, x1 };
-  Representation representations[] = {
-    Representation::Tagged(),
-    Representation::Tagged(),
-    Representation::Smi(),
-    Representation::Tagged() };
-  descriptor->Initialize(
-      MajorKey(), arraysize(registers), registers,
-      Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry,
-      representations);
-}
-
-
-void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x3: object literals array
-  // x2: object literal index
-  // x1: constant properties
-  // x0: object literal flags
-  Register registers[] = { cp, x3, x2, x1, x0 };
-  descriptor->Initialize(
-      MajorKey(), arraysize(registers), registers,
-      Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
-}
-
-
-void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x2: feedback vector
-  // x3: call feedback slot
-  Register registers[] = { cp, x2, x3 };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
-}
-
-
-void CallFunctionStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // x1  function    the function to call
-  Register registers[] = {cp, x1};
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
-}
-
-
-void CallConstructStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // x0 : number of arguments
-  // x1 : the function to call
-  // x2 : feedback vector
-  // x3 : slot in feedback vector (smi) (if r2 is not the megamorphic symbol)
-  // TODO(turbofan): So far we don't gather type feedback and hence skip the
-  // slot parameter, but ArrayConstructStub needs the vector to be undefined.
-  Register registers[] = {cp, x0, x1, x2};
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers);
-}
-
-
-void RegExpConstructResultStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x2: length
-  // x1: index (of last match)
-  // x0: string
-  Register registers[] = { cp, x2, x1, x0 };
-  descriptor->Initialize(
-      MajorKey(), arraysize(registers), registers,
-      Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
-}
-
-
-void TransitionElementsKindStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x0: value (js_array)
-  // x1: to_map
-  Register registers[] = { cp, x0, x1 };
-  Address entry =
-      Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry;
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
-                         FUNCTION_ADDR(entry));
-}
-
-
-void CompareNilICStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x0: value to compare
-  Register registers[] = { cp, x0 };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
-                         FUNCTION_ADDR(CompareNilIC_Miss));
-  descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate()));
-}
-
 
 static void InitializeArrayConstructorDescriptor(
-    CodeStub::Major major, CodeStubInterfaceDescriptor* descriptor,
+    Isolate* isolate, CodeStub::Major major,
+    CodeStubInterfaceDescriptor* descriptor,
     int constant_stack_parameter_count) {
   // cp: context
   // x1: function
@@ -171,20 +31,15 @@ static void InitializeArrayConstructorDescriptor(
       Runtime::kArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
-    Register registers[] = { cp, x1, x2 };
-    descriptor->Initialize(major, arraysize(registers), registers,
-                           deopt_handler, NULL, constant_stack_parameter_count,
+    CallInterfaceDescriptor* call_descriptor = isolate->call_descriptor(
+        CallDescriptorKey::ArrayConstructorConstantArgCountCall);
+    descriptor->Initialize(major, call_descriptor, deopt_handler,
+                           constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
-    // stack param count needs (constructor pointer, and single argument)
-    Register registers[] = { cp, x1, x2, x0 };
-    Representation representations[] = {
-        Representation::Tagged(),
-        Representation::Tagged(),
-        Representation::Tagged(),
-        Representation::Integer32() };
-    descriptor->Initialize(major, arraysize(registers), registers, x0,
-                           deopt_handler, representations,
+    CallInterfaceDescriptor* call_descriptor =
+        isolate->call_descriptor(CallDescriptorKey::ArrayConstructorCall);
+    descriptor->Initialize(major, call_descriptor, x0, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
   }
@@ -193,45 +48,39 @@ static void InitializeArrayConstructorDescriptor(
 
 void ArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(MajorKey(), descriptor, 0);
+  InitializeArrayConstructorDescriptor(isolate(), MajorKey(), descriptor, 0);
 }
 
 
 void ArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(MajorKey(), descriptor, 1);
+  InitializeArrayConstructorDescriptor(isolate(), MajorKey(), descriptor, 1);
 }
 
 
 void ArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeArrayConstructorDescriptor(MajorKey(), descriptor, -1);
+  InitializeArrayConstructorDescriptor(isolate(), MajorKey(), descriptor, -1);
 }
 
 
 static void InitializeInternalArrayConstructorDescriptor(
-    CodeStub::Major major, CodeStubInterfaceDescriptor* descriptor,
+    Isolate* isolate, CodeStub::Major major,
+    CodeStubInterfaceDescriptor* descriptor,
     int constant_stack_parameter_count) {
-  // cp: context
-  // x1: constructor function
-  // x0: number of arguments to the constructor function
   Address deopt_handler = Runtime::FunctionForId(
       Runtime::kInternalArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
-    Register registers[] = { cp, x1 };
-    descriptor->Initialize(major, arraysize(registers), registers,
-                           deopt_handler, NULL, constant_stack_parameter_count,
+    CallInterfaceDescriptor* call_descriptor = isolate->call_descriptor(
+        CallDescriptorKey::InternalArrayConstructorConstantArgCountCall);
+    descriptor->Initialize(major, call_descriptor, deopt_handler,
+                           constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
-    // stack param count needs (constructor pointer, and single argument)
-    Register registers[] = { cp, x1, x0 };
-    Representation representations[] = {
-        Representation::Tagged(),
-        Representation::Tagged(),
-        Representation::Integer32() };
-    descriptor->Initialize(major, arraysize(registers), registers, x0,
-                           deopt_handler, representations,
+    CallInterfaceDescriptor* call_descriptor = isolate->call_descriptor(
+        CallDescriptorKey::InternalArrayConstructorCall);
+    descriptor->Initialize(major, call_descriptor, x0, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
   }
@@ -240,67 +89,22 @@ static void InitializeInternalArrayConstructorDescriptor(
 
 void InternalArrayNoArgumentConstructorStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(MajorKey(), descriptor, 0);
+  InitializeInternalArrayConstructorDescriptor(isolate(), MajorKey(),
+                                               descriptor, 0);
 }
 
 
 void InternalArraySingleArgumentConstructorStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(MajorKey(), descriptor, 1);
+  InitializeInternalArrayConstructorDescriptor(isolate(), MajorKey(),
+                                               descriptor, 1);
 }
 
 
 void InternalArrayNArgumentsConstructorStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  InitializeInternalArrayConstructorDescriptor(MajorKey(), descriptor, -1);
-}
-
-
-void ToBooleanStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x0: value
-  Register registers[] = { cp, x0 };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
-                         FUNCTION_ADDR(ToBooleanIC_Miss));
-  descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate()));
-}
-
-
-void BinaryOpICStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x1: left operand
-  // x0: right operand
-  Register registers[] = { cp, x1, x0 };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
-                         FUNCTION_ADDR(BinaryOpIC_Miss));
-  descriptor->SetMissHandler(
-      ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate()));
-}
-
-
-void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x2: allocation site
-  // x1: left operand
-  // x0: right operand
-  Register registers[] = { cp, x2, x1, x0 };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
-                         FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite));
-}
-
-
-void StringAddStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  // cp: context
-  // x1: left operand
-  // x0: right operand
-  Register registers[] = { cp, x1, x0 };
-  descriptor->Initialize(MajorKey(), arraysize(registers), registers,
-                         Runtime::FunctionForId(Runtime::kStringAdd)->entry);
+  InitializeInternalArrayConstructorDescriptor(isolate(), MajorKey(),
+                                               descriptor, -1);
 }
 
 
@@ -1815,18 +1619,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ Csel(result, res_true, res_false, eq);
   }
   __ Ret();
-}
-
-
-Register InstanceofStub::left() {
-  // Object to check (instanceof lhs).
-  return x11;
-}
-
-
-Register InstanceofStub::right() {
-  // Constructor function (instanceof rhs).
-  return x10;
 }
 
 

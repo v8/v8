@@ -297,7 +297,7 @@ class CallIC : public IC {
  public:
   enum CallType { METHOD, FUNCTION };
 
-  class State V8_FINAL BASE_EMBEDDED {
+  class State FINAL BASE_EMBEDDED {
    public:
     explicit State(ExtraICState extra_ic_state);
 
@@ -352,7 +352,7 @@ OStream& operator<<(OStream& os, const CallIC::State& s);
 
 class LoadIC : public IC {
  public:
-  class State V8_FINAL BASE_EMBEDDED {
+  class State FINAL BASE_EMBEDDED {
    public:
     explicit State(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
 
@@ -690,7 +690,7 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 // Type Recording BinaryOpIC, that records the types of the inputs and outputs.
 class BinaryOpIC : public IC {
  public:
-  class State V8_FINAL BASE_EMBEDDED {
+  class State FINAL BASE_EMBEDDED {
    public:
     State(Isolate* isolate, ExtraICState extra_ic_state);
 
@@ -814,7 +814,7 @@ class BinaryOpIC : public IC {
 
   MaybeHandle<Object> Transition(Handle<AllocationSite> allocation_site,
                                  Handle<Object> left,
-                                 Handle<Object> right) V8_WARN_UNUSED_RESULT;
+                                 Handle<Object> right) WARN_UNUSED_RESULT;
 };
 
 

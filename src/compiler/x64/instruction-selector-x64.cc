@@ -10,7 +10,7 @@ namespace internal {
 namespace compiler {
 
 // Adds X64-specific methods for generating operands.
-class X64OperandGenerator V8_FINAL : public OperandGenerator {
+class X64OperandGenerator FINAL : public OperandGenerator {
  public:
   explicit X64OperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}
@@ -678,7 +678,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
 
   // Compute InstructionOperands for inputs and outputs.
-  InitializeCallBuffer(call, &buffer, true, true, continuation, deoptimization);
+  InitializeCallBuffer(call, &buffer, true, true);
 
   // TODO(dcarney): stack alignment for c calls.
   // TODO(dcarney): shadow space on window for c calls.

@@ -424,11 +424,10 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(Handle<Object> receiver,
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
       Handle<Object> args[2] = { name, receiver };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("incompatible_method_receiver",
-                                           HandleVector(args,
-                                                        arraysize(args)));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError("incompatible_method_receiver",
+                                   HandleVector(args, arraysize(args))),
+                      Object);
     }
     if (structure->IsDeclaredAccessorInfo()) {
       return GetDeclaredAccessorProperty(
@@ -496,11 +495,10 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
     ExecutableAccessorInfo* info = ExecutableAccessorInfo::cast(*structure);
     if (!info->IsCompatibleReceiver(*receiver)) {
       Handle<Object> args[2] = { name, receiver };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("incompatible_method_receiver",
-                                           HandleVector(args,
-                                                        arraysize(args)));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError("incompatible_method_receiver",
+                                   HandleVector(args, arraysize(args))),
+                      Object);
     }
     Object* call_obj = info->setter();
     v8::AccessorNameSetterCallback call_fun =
@@ -524,10 +522,9 @@ MaybeHandle<Object> Object::SetPropertyWithAccessor(
     } else {
       if (strict_mode == SLOPPY) return value;
       Handle<Object> args[2] = { name, holder };
-      Handle<Object> error =
-          isolate->factory()->NewTypeError("no_setter_in_callback",
-                                           HandleVector(args, 2));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(
+          isolate, NewTypeError("no_setter_in_callback", HandleVector(args, 2)),
+          Object);
     }
   }
 
@@ -2909,9 +2906,9 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
   // throw a reference error in strict mode.
   if (it->GetReceiver()->IsJSGlobalObject() && strict_mode == STRICT) {
     Handle<Object> args[1] = {it->name()};
-    Handle<Object> error = it->isolate()->factory()->NewReferenceError(
-        "not_defined", HandleVector(args, 1));
-    return it->isolate()->Throw<Object>(error);
+    THROW_NEW_ERROR(it->isolate(),
+                    NewReferenceError("not_defined", HandleVector(args, 1)),
+                    Object);
   }
 
   return AddDataProperty(it, value, NONE, strict_mode, store_mode);
@@ -2924,9 +2921,10 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(LookupIterator* it,
   if (strict_mode != STRICT) return value;
 
   Handle<Object> args[] = {it->name(), it->GetReceiver()};
-  Handle<Object> error = it->factory()->NewTypeError(
-      "strict_read_only_property", HandleVector(args, arraysize(args)));
-  return it->isolate()->Throw<Object>(error);
+  THROW_NEW_ERROR(it->isolate(),
+                  NewTypeError("strict_read_only_property",
+                               HandleVector(args, arraysize(args))),
+                  Object);
 }
 
 
@@ -2989,9 +2987,10 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
     if (strict_mode == SLOPPY) return value;
 
     Handle<Object> args[1] = {it->name()};
-    Handle<Object> error = it->factory()->NewTypeError(
-        "object_not_extensible", HandleVector(args, arraysize(args)));
-    return it->isolate()->Throw<Object>(error);
+    THROW_NEW_ERROR(it->isolate(),
+                    NewTypeError("object_not_extensible",
+                                 HandleVector(args, arraysize(args))),
+                    Object);
   }
   it->ApplyTransitionToDataProperty();
 
@@ -3483,9 +3482,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
         isolate->factory()->InternalizeOneByteString(
             STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "proxy_prop_not_configurable", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("proxy_prop_not_configurable",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
   DCHECK(configurable->IsTrue());
 
@@ -3507,9 +3506,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
     if (!*done) return isolate->factory()->the_hole_value();
     if (strict_mode == SLOPPY) return value;
     Handle<Object> args[] = { name, receiver };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "strict_read_only_property", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
 
   // We have an AccessorDescriptor.
@@ -3524,9 +3523,9 @@ MaybeHandle<Object> JSProxy::SetPropertyViaPrototypesWithHandler(
 
   if (strict_mode == SLOPPY) return value;
   Handle<Object> args2[] = { name, proxy };
-  Handle<Object> error = isolate->factory()->NewTypeError(
-      "no_setter_in_callback", HandleVector(args2, arraysize(args2)));
-  return isolate->Throw<Object>(error);
+  THROW_NEW_ERROR(isolate, NewTypeError("no_setter_in_callback",
+                                        HandleVector(args2, arraysize(args2))),
+                  Object);
 }
 
 
@@ -3554,9 +3553,9 @@ MaybeHandle<Object> JSProxy::DeletePropertyWithHandler(
     Handle<String> trap_name = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("delete"));
     Handle<Object> args[] = { handler, trap_name };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "handler_failed", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("handler_failed",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
   return isolate->factory()->ToBoolean(result_bool);
 }
@@ -3630,9 +3629,10 @@ Maybe<PropertyAttributes> JSProxy::GetPropertyAttributesWithHandler(
     Handle<String> trap = isolate->factory()->InternalizeOneByteString(
         STATIC_ASCII_VECTOR("getPropertyDescriptor"));
     Handle<Object> args[] = { handler, trap, name };
-    Handle<Object> error = isolate->factory()->NewTypeError(
+    Handle<Object> error;
+    MaybeHandle<Object> maybe_error = isolate->factory()->NewTypeError(
         "proxy_prop_not_configurable", HandleVector(args, arraysize(args)));
-    isolate->Throw(*error);
+    if (maybe_error.ToHandle(&error)) isolate->Throw(*error);
     return maybe(NONE);
   }
 
@@ -3692,9 +3692,10 @@ MaybeHandle<Object> JSProxy::CallTrap(Handle<JSProxy> proxy,
   if (trap->IsUndefined()) {
     if (derived.is_null()) {
       Handle<Object> args[] = { handler, trap_name };
-      Handle<Object> error = isolate->factory()->NewTypeError(
-        "handler_trap_missing", HandleVector(args, arraysize(args)));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError("handler_trap_missing",
+                                   HandleVector(args, arraysize(args))),
+                      Object);
     }
     trap = Handle<Object>(derived);
   }
@@ -4846,11 +4847,9 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
       // Deleting a non-configurable property in strict mode.
       Handle<Object> name = factory->NewNumberFromUint(index);
       Handle<Object> args[2] = { name, object };
-      Handle<Object> error =
-          factory->NewTypeError("strict_delete_property",
-                                HandleVector(args, 2));
-      isolate->Throw(*error);
-      return Handle<Object>();
+      THROW_NEW_ERROR(isolate, NewTypeError("strict_delete_property",
+                                            HandleVector(args, 2)),
+                      Object);
     }
     return factory->false_value();
   }
@@ -4952,10 +4951,10 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
           // Fail if the property is not configurable.
           if (delete_mode == STRICT_DELETION) {
             Handle<Object> args[2] = {name, object};
-            Handle<Object> error = it.isolate()->factory()->NewTypeError(
-                "strict_delete_property", HandleVector(args, arraysize(args)));
-            it.isolate()->Throw(*error);
-            return Handle<Object>();
+            THROW_NEW_ERROR(it.isolate(),
+                            NewTypeError("strict_delete_property",
+                                         HandleVector(args, arraysize(args))),
+                            Object);
           }
           return it.isolate()->factory()->false_value();
         }
@@ -5180,11 +5179,10 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   // It's not possible to seal objects with external array elements
   if (object->HasExternalArrayElements() ||
       object->HasFixedTypedArrayElements()) {
-    Handle<Object> error  =
-        isolate->factory()->NewTypeError(
-            "cant_prevent_ext_external_array_elements",
-            HandleVector(&object, 1));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError("cant_prevent_ext_external_array_elements",
+                                 HandleVector(&object, 1)),
+                    Object);
   }
 
   // If there are fast elements we normalize.
@@ -5263,11 +5261,10 @@ MaybeHandle<Object> JSObject::Freeze(Handle<JSObject> object) {
   // It's not possible to freeze objects with external array elements
   if (object->HasExternalArrayElements() ||
       object->HasFixedTypedArrayElements()) {
-    Handle<Object> error  =
-        isolate->factory()->NewTypeError(
-            "cant_prevent_ext_external_array_elements",
-            HandleVector(&object, 1));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate,
+                    NewTypeError("cant_prevent_ext_external_array_elements",
+                                 HandleVector(&object, 1)),
+                    Object);
   }
 
   Handle<SeededNumberDictionary> new_element_dictionary;
@@ -7459,7 +7456,7 @@ class CodeCacheHashTableKey : public HashTableKey {
   CodeCacheHashTableKey(Handle<Name> name, Handle<Code> code)
       : name_(name), flags_(code->flags()), code_(code) { }
 
-  bool IsMatch(Object* other) V8_OVERRIDE {
+  bool IsMatch(Object* other) OVERRIDE {
     if (!other->IsFixedArray()) return false;
     FixedArray* pair = FixedArray::cast(other);
     Name* name = Name::cast(pair->get(0));
@@ -7474,16 +7471,16 @@ class CodeCacheHashTableKey : public HashTableKey {
     return name->Hash() ^ flags;
   }
 
-  uint32_t Hash() V8_OVERRIDE { return NameFlagsHashHelper(*name_, flags_); }
+  uint32_t Hash() OVERRIDE { return NameFlagsHashHelper(*name_, flags_); }
 
-  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
+  uint32_t HashForObject(Object* obj) OVERRIDE {
     FixedArray* pair = FixedArray::cast(obj);
     Name* name = Name::cast(pair->get(0));
     Code* code = Code::cast(pair->get(1));
     return NameFlagsHashHelper(name, code->flags());
   }
 
-  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     Handle<Code> code = code_.ToHandleChecked();
     Handle<FixedArray> pair = isolate->factory()->NewFixedArray(2);
     pair->set(0, *name_);
@@ -7587,7 +7584,7 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
       : maps_(maps),
         code_flags_(code_flags) {}
 
-  bool IsMatch(Object* other) V8_OVERRIDE {
+  bool IsMatch(Object* other) OVERRIDE {
     MapHandleList other_maps(kDefaultListAllocationSize);
     int other_flags;
     FromObject(other, &other_flags, &other_maps);
@@ -7622,18 +7619,18 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
     return hash;
   }
 
-  uint32_t Hash() V8_OVERRIDE {
+  uint32_t Hash() OVERRIDE {
     return MapsHashHelper(maps_, code_flags_);
   }
 
-  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
+  uint32_t HashForObject(Object* obj) OVERRIDE {
     MapHandleList other_maps(kDefaultListAllocationSize);
     int other_flags;
     FromObject(obj, &other_flags, &other_maps);
     return MapsHashHelper(&other_maps, other_flags);
   }
 
-  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+  MUST_USE_RESULT Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     // The maps in |maps_| must be copied to a newly allocated FixedArray,
     // both because the referenced MapList is short-lived, and because C++
     // objects can't be stored in the heap anyway.
@@ -11710,9 +11707,9 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   // paragraph.
   if (!object->map()->is_extensible()) {
     Handle<Object> args[] = { object };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "non_extensible_proto", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("non_extensible_proto",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
 
   // Before we can set the prototype we need to be sure
@@ -11724,9 +11721,9 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
        !iter.IsAtEnd(); iter.Advance()) {
     if (JSReceiver::cast(iter.GetCurrent()) == *object) {
       // Cycle detected.
-      Handle<Object> error = isolate->factory()->NewError(
-          "cyclic_proto", HandleVector<Object>(NULL, 0));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(isolate,
+                      NewError("cyclic_proto", HandleVector<Object>(NULL, 0)),
+                      Object);
     }
   }
 
@@ -11937,9 +11934,9 @@ MaybeHandle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
       if (strict_mode == SLOPPY) return value;
       Handle<Object> key(isolate->factory()->NewNumberFromUint(index));
       Handle<Object> args[2] = { key, holder };
-      Handle<Object> error = isolate->factory()->NewTypeError(
-          "no_setter_in_callback", HandleVector(args, 2));
-      return isolate->Throw<Object>(error);
+      THROW_NEW_ERROR(
+          isolate, NewTypeError("no_setter_in_callback", HandleVector(args, 2)),
+          Object);
     }
   }
 
@@ -12148,10 +12145,9 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
         } else {
           Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
           Handle<Object> args[2] = { number, object };
-          Handle<Object> error =
-              isolate->factory()->NewTypeError("strict_read_only_property",
-                                               HandleVector(args, 2));
-          return isolate->Throw<Object>(error);
+          THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
+                                                HandleVector(args, 2)),
+                          Object);
         }
       }
       // Elements of the arguments object in slow mode might be slow aliases.
@@ -12186,10 +12182,9 @@ MaybeHandle<Object> JSObject::SetDictionaryElement(
         Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
         Handle<String> name = isolate->factory()->NumberToString(number);
         Handle<Object> args[1] = { name };
-        Handle<Object> error =
-            isolate->factory()->NewTypeError("object_not_extensible",
-                                             HandleVector(args, 1));
-        return isolate->Throw<Object>(error);
+        THROW_NEW_ERROR(isolate, NewTypeError("object_not_extensible",
+                                              HandleVector(args, 1)),
+                        Object);
       }
     }
 
@@ -12409,9 +12404,9 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
       set_mode == DEFINE_PROPERTY) {
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<Object> args[] = { object, number };
-    Handle<Object> error = isolate->factory()->NewTypeError(
-        "redef_external_array_element", HandleVector(args, arraysize(args)));
-    return isolate->Throw<Object>(error);
+    THROW_NEW_ERROR(isolate, NewTypeError("redef_external_array_element",
+                                          HandleVector(args, arraysize(args))),
+                    Object);
   }
 
   // Normalize the elements to enable attributes on the property.
@@ -12863,9 +12858,9 @@ MaybeHandle<Object> JSArray::ReadOnlyLengthError(Handle<JSArray> array) {
   Isolate* isolate = array->GetIsolate();
   Handle<Name> length = isolate->factory()->length_string();
   Handle<Object> args[2] = { length, array };
-  Handle<Object> error = isolate->factory()->NewTypeError(
-      "strict_read_only_property", HandleVector(args, arraysize(args)));
-  return isolate->Throw<Object>(error);
+  THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
+                                        HandleVector(args, arraysize(args))),
+                  Object);
 }
 
 
@@ -13595,7 +13590,7 @@ class StringSharedKey : public HashTableKey {
         strict_mode_(strict_mode),
         scope_position_(scope_position) { }
 
-  bool IsMatch(Object* other) V8_OVERRIDE {
+  bool IsMatch(Object* other) OVERRIDE {
     DisallowHeapAllocation no_allocation;
     if (!other->IsFixedArray()) return false;
     FixedArray* other_array = FixedArray::cast(other);
@@ -13630,12 +13625,12 @@ class StringSharedKey : public HashTableKey {
     return hash;
   }
 
-  uint32_t Hash() V8_OVERRIDE {
+  uint32_t Hash() OVERRIDE {
     return StringSharedHashHelper(*source_, *shared_, strict_mode_,
                                   scope_position_);
   }
 
-  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
+  uint32_t HashForObject(Object* obj) OVERRIDE {
     DisallowHeapAllocation no_allocation;
     FixedArray* other_array = FixedArray::cast(obj);
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(other_array->get(0));
@@ -13649,7 +13644,7 @@ class StringSharedKey : public HashTableKey {
   }
 
 
-  Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(4);
     array->set(0, *shared_);
     array->set(1, *source_);
@@ -13677,22 +13672,22 @@ class RegExpKey : public HashTableKey {
   // stored value is stored where the key should be.  IsMatch then
   // compares the search key to the found object, rather than comparing
   // a key to a key.
-  bool IsMatch(Object* obj) V8_OVERRIDE {
+  bool IsMatch(Object* obj) OVERRIDE {
     FixedArray* val = FixedArray::cast(obj);
     return string_->Equals(String::cast(val->get(JSRegExp::kSourceIndex)))
         && (flags_ == val->get(JSRegExp::kFlagsIndex));
   }
 
-  uint32_t Hash() V8_OVERRIDE { return RegExpHash(*string_, flags_); }
+  uint32_t Hash() OVERRIDE { return RegExpHash(*string_, flags_); }
 
-  Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     // Plain hash maps, which is where regexp keys are used, don't
     // use this function.
     UNREACHABLE();
     return MaybeHandle<Object>().ToHandleChecked();
   }
 
-  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
+  uint32_t HashForObject(Object* obj) OVERRIDE {
     FixedArray* val = FixedArray::cast(obj);
     return RegExpHash(String::cast(val->get(JSRegExp::kSourceIndex)),
                       Smi::cast(val->get(JSRegExp::kFlagsIndex)));
@@ -13738,17 +13733,17 @@ class InternalizedStringKey : public HashTableKey {
   explicit InternalizedStringKey(Handle<String> string)
       : string_(string) { }
 
-  virtual bool IsMatch(Object* string) V8_OVERRIDE {
+  virtual bool IsMatch(Object* string) OVERRIDE {
     return String::cast(string)->Equals(*string_);
   }
 
-  virtual uint32_t Hash() V8_OVERRIDE { return string_->Hash(); }
+  virtual uint32_t Hash() OVERRIDE { return string_->Hash(); }
 
-  virtual uint32_t HashForObject(Object* other) V8_OVERRIDE {
+  virtual uint32_t HashForObject(Object* other) OVERRIDE {
     return String::cast(other)->Hash();
   }
 
-  virtual Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+  virtual Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     // Internalize the string if possible.
     MaybeHandle<Map> maybe_map =
         isolate->factory()->InternalizedStringMapForString(string_);
@@ -14665,7 +14660,7 @@ class TwoCharHashTableKey : public HashTableKey {
 #endif
   }
 
-  bool IsMatch(Object* o) V8_OVERRIDE {
+  bool IsMatch(Object* o) OVERRIDE {
     if (!o->IsString()) return false;
     String* other = String::cast(o);
     if (other->length() != 2) return false;
@@ -14673,13 +14668,13 @@ class TwoCharHashTableKey : public HashTableKey {
     return other->Get(1) == c2_;
   }
 
-  uint32_t Hash() V8_OVERRIDE { return hash_; }
-  uint32_t HashForObject(Object* key) V8_OVERRIDE {
+  uint32_t Hash() OVERRIDE { return hash_; }
+  uint32_t HashForObject(Object* key) OVERRIDE {
     if (!key->IsString()) return 0;
     return String::cast(key)->Hash();
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE {
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE {
     // The TwoCharHashTableKey is only used for looking in the string
     // table, not for adding to it.
     UNREACHABLE();
@@ -14877,7 +14872,7 @@ class StringsKey : public HashTableKey {
  public:
   explicit StringsKey(Handle<FixedArray> strings) : strings_(strings) { }
 
-  bool IsMatch(Object* strings) V8_OVERRIDE {
+  bool IsMatch(Object* strings) OVERRIDE {
     FixedArray* o = FixedArray::cast(strings);
     int len = strings_->length();
     if (o->length() != len) return false;
@@ -14887,9 +14882,9 @@ class StringsKey : public HashTableKey {
     return true;
   }
 
-  uint32_t Hash() V8_OVERRIDE { return HashForObject(*strings_); }
+  uint32_t Hash() OVERRIDE { return HashForObject(*strings_); }
 
-  uint32_t HashForObject(Object* obj) V8_OVERRIDE {
+  uint32_t HashForObject(Object* obj) OVERRIDE {
     FixedArray* strings = FixedArray::cast(obj);
     int len = strings->length();
     uint32_t hash = 0;
@@ -14899,7 +14894,7 @@ class StringsKey : public HashTableKey {
     return hash;
   }
 
-  Handle<Object> AsHandle(Isolate* isolate) V8_OVERRIDE { return strings_; }
+  Handle<Object> AsHandle(Isolate* isolate) OVERRIDE { return strings_; }
 
  private:
   Handle<FixedArray> strings_;

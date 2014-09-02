@@ -165,15 +165,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
-    case kArchDeoptimize: {
-      int deoptimization_id = BuildTranslation(instr, 0);
-
-      Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
-          isolate(), deoptimization_id, Deoptimizer::LAZY);
-      __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
-      DCHECK_EQ(LeaveCC, i.OutputSBit());
-      break;
-    }
     case kArchDrop: {
       int words = MiscField::decode(instr->opcode());
       __ Drop(words);
@@ -611,6 +602,13 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ mov(reg, Operand(0));
   __ mov(reg, Operand(1), LeaveCC, cc);
   __ bind(&done);
+}
+
+
+void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
+  Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
+      isolate(), deoptimization_id, Deoptimizer::LAZY);
+  __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
 }
 
 

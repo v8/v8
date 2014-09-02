@@ -12,7 +12,7 @@ namespace internal {
 
 // Interface for handle based allocation.
 
-class Factory V8_FINAL {
+class Factory FINAL {
  public:
   Handle<Oddball> NewOddball(Handle<Map> map,
                              const char* to_string,
@@ -507,40 +507,40 @@ class Factory V8_FINAL {
 
   // Interface for creating error objects.
 
-  Handle<Object> NewError(const char* maker, const char* message,
-                          Handle<JSArray> args);
+  MaybeHandle<Object> NewError(const char* maker, const char* message,
+                               Handle<JSArray> args);
   Handle<String> EmergencyNewError(const char* message, Handle<JSArray> args);
-  Handle<Object> NewError(const char* maker, const char* message,
-                          Vector< Handle<Object> > args);
-  Handle<Object> NewError(const char* message,
-                          Vector< Handle<Object> > args);
-  Handle<Object> NewError(Handle<String> message);
-  Handle<Object> NewError(const char* constructor,
-                          Handle<String> message);
+  MaybeHandle<Object> NewError(const char* maker, const char* message,
+                               Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewError(const char* message,
+                               Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewError(Handle<String> message);
+  MaybeHandle<Object> NewError(const char* constructor, Handle<String> message);
 
-  Handle<Object> NewTypeError(const char* message,
-                              Vector< Handle<Object> > args);
-  Handle<Object> NewTypeError(Handle<String> message);
+  MaybeHandle<Object> NewTypeError(const char* message,
+                                   Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewTypeError(Handle<String> message);
 
-  Handle<Object> NewRangeError(const char* message,
-                               Vector< Handle<Object> > args);
-  Handle<Object> NewRangeError(Handle<String> message);
+  MaybeHandle<Object> NewRangeError(const char* message,
+                                    Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewRangeError(Handle<String> message);
 
-  Handle<Object> NewInvalidStringLengthError() {
+  MaybeHandle<Object> NewInvalidStringLengthError() {
     return NewRangeError("invalid_string_length",
                          HandleVector<Object>(NULL, 0));
   }
 
-  Handle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
-  Handle<Object> NewSyntaxError(Handle<String> message);
+  MaybeHandle<Object> NewSyntaxError(const char* message, Handle<JSArray> args);
+  MaybeHandle<Object> NewSyntaxError(Handle<String> message);
 
-  Handle<Object> NewReferenceError(const char* message,
-                                   Vector< Handle<Object> > args);
-  Handle<Object> NewReferenceError(const char* message, Handle<JSArray> args);
-  Handle<Object> NewReferenceError(Handle<String> message);
+  MaybeHandle<Object> NewReferenceError(const char* message,
+                                        Vector<Handle<Object> > args);
+  MaybeHandle<Object> NewReferenceError(const char* message,
+                                        Handle<JSArray> args);
+  MaybeHandle<Object> NewReferenceError(Handle<String> message);
 
-  Handle<Object> NewEvalError(const char* message,
-                              Vector< Handle<Object> > args);
+  MaybeHandle<Object> NewEvalError(const char* message,
+                                   Vector<Handle<Object> > args);
 
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);

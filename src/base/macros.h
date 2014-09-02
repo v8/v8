@@ -7,6 +7,7 @@
 
 #include "include/v8stdint.h"
 #include "src/base/build_config.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 
 
@@ -124,8 +125,8 @@ char (&ArraySizeHelper(const T (&array)[N]))[N];
 #define NO_INLINE(declarator) V8_NOINLINE declarator
 
 
-// Newly written code should use V8_WARN_UNUSED_RESULT.
-#define MUST_USE_RESULT V8_WARN_UNUSED_RESULT
+// Newly written code should use WARN_UNUSED_RESULT.
+#define MUST_USE_RESULT WARN_UNUSED_RESULT
 
 
 // Define V8_USE_ADDRESS_SANITIZER macros.
@@ -173,7 +174,7 @@ template <int> class StaticAssertionHelper { };
 #define STATIC_ASSERT(test)                                                    \
   typedef                                                                     \
     StaticAssertionHelper<sizeof(StaticAssertion<static_cast<bool>((test))>)> \
-    SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) V8_UNUSED
+    SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) ALLOW_UNUSED
 
 #endif
 

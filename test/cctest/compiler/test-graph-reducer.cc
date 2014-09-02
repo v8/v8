@@ -102,10 +102,10 @@ class InPlaceBCReducer : public Reducer {
 
 
 // Wraps all "OPA0" nodes in "OPB1" operators by allocating new nodes.
-class A0Wrapper V8_FINAL : public Reducer {
+class A0Wrapper FINAL : public Reducer {
  public:
   explicit A0Wrapper(Graph* graph) : graph_(graph) {}
-  virtual Reduction Reduce(Node* node) V8_OVERRIDE {
+  virtual Reduction Reduce(Node* node) OVERRIDE {
     switch (node->op()->opcode()) {
       case OPCODE_A0:
         CHECK_EQ(0, node->InputCount());
@@ -118,10 +118,10 @@ class A0Wrapper V8_FINAL : public Reducer {
 
 
 // Wraps all "OPB0" nodes in two "OPC1" operators by allocating new nodes.
-class B0Wrapper V8_FINAL : public Reducer {
+class B0Wrapper FINAL : public Reducer {
  public:
   explicit B0Wrapper(Graph* graph) : graph_(graph) {}
-  virtual Reduction Reduce(Node* node) V8_OVERRIDE {
+  virtual Reduction Reduce(Node* node) OVERRIDE {
     switch (node->op()->opcode()) {
       case OPCODE_B0:
         CHECK_EQ(0, node->InputCount());

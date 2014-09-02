@@ -922,6 +922,9 @@ class DeoptimizedFrameInfo : public Malloced {
     return function_;
   }
 
+  // Get the frame context.
+  Object* GetContext() { return context_; }
+
   // Check if this frame is preceded by construct stub frame.  The bottom-most
   // inlined frame might still be called by an uninlined construct stub.
   bool HasConstructStub() {
@@ -958,6 +961,7 @@ class DeoptimizedFrameInfo : public Malloced {
   }
 
   JSFunction* function_;
+  Object* context_;
   bool has_construct_stub_;
   int parameters_count_;
   int expression_count_;

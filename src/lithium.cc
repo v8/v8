@@ -511,18 +511,22 @@ void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
 
 
 LEnvironment* LChunkBuilderBase::CreateEnvironment(
-    HEnvironment* hydrogen_env,
-    int* argument_index_accumulator,
+    HEnvironment* hydrogen_env, int* argument_index_accumulator,
     ZoneList<HValue*>* objects_to_materialize) {
   if (hydrogen_env == NULL) return NULL;
 
-  LEnvironment* outer = CreateEnvironment(hydrogen_env->outer(),
-                                          argument_index_accumulator,
-                                          objects_to_materialize);
+  LEnvironment* outer =
+      CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator,
+                        objects_to_materialize);
   BailoutId ast_id = hydrogen_env->ast_id();
   DCHECK(!ast_id.IsNone() ||
          hydrogen_env->frame_type() != JS_FUNCTION);
-  int value_count = hydrogen_env->length() - hydrogen_env->specials_count();
+
+  int omitted_count = (hydrogen_env->frame_type() == JS_FUNCTION)
+                          ? 0
+                          : hydrogen_env->specials_count();
+
+  int value_count = hydrogen_env->length() - omitted_count;
   LEnvironment* result =
       new(zone()) LEnvironment(hydrogen_env->closure(),
                                hydrogen_env->frame_type(),
@@ -538,8 +542,10 @@ LEnvironment* LChunkBuilderBase::CreateEnvironment(
   // Store the environment description into the environment
   // (with holes for nested objects)
   for (int i = 0; i < hydrogen_env->length(); ++i) {
-    if (hydrogen_env->is_special_index(i)) continue;
-
+    if (hydrogen_env->is_special_index(i) &&
+        hydrogen_env->frame_type() != JS_FUNCTION) {
+      continue;
+    }
     LOperand* op;
     HValue* value = hydrogen_env->values()->at(i);
     CHECK(!value->IsPushArguments());  // Do not deopt outgoing arguments

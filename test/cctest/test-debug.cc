@@ -4698,7 +4698,7 @@ TEST(NoHiddenProperties) {
 // The Wait() call blocks a thread until it is called for the Nth time, then all
 // calls return.  Each ThreadBarrier object can only be used once.
 template <int N>
-class ThreadBarrier V8_FINAL {
+class ThreadBarrier FINAL {
  public:
   ThreadBarrier() : num_blocked_(0) {}
 

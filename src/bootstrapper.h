@@ -15,7 +15,7 @@ namespace internal {
 // (runtime.js, etc.) to precompiled functions. Instead of mapping
 // names to functions it might make sense to let the JS2C tool
 // generate an index for each native JS file.
-class SourceCodeCache V8_FINAL BASE_EMBEDDED {
+class SourceCodeCache FINAL BASE_EMBEDDED {
  public:
   explicit SourceCodeCache(Script::Type type): type_(type), cache_(NULL) { }
 
@@ -64,7 +64,7 @@ class SourceCodeCache V8_FINAL BASE_EMBEDDED {
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
-class Bootstrapper V8_FINAL {
+class Bootstrapper FINAL {
  public:
   static void InitializeOncePerProcess();
   static void TearDownExtensions();
@@ -134,7 +134,7 @@ class Bootstrapper V8_FINAL {
 };
 
 
-class BootstrapperActive V8_FINAL BASE_EMBEDDED {
+class BootstrapperActive FINAL BASE_EMBEDDED {
  public:
   explicit BootstrapperActive(Bootstrapper* bootstrapper)
       : bootstrapper_(bootstrapper) {
@@ -152,14 +152,14 @@ class BootstrapperActive V8_FINAL BASE_EMBEDDED {
 };
 
 
-class NativesExternalStringResource V8_FINAL
+class NativesExternalStringResource FINAL
     : public v8::String::ExternalAsciiStringResource {
  public:
   NativesExternalStringResource(Bootstrapper* bootstrapper,
                                 const char* source,
                                 size_t length);
-  virtual const char* data() const V8_OVERRIDE { return data_; }
-  virtual size_t length() const V8_OVERRIDE { return length_; }
+  virtual const char* data() const OVERRIDE { return data_; }
+  virtual size_t length() const OVERRIDE { return length_; }
 
  private:
   const char* data_;

@@ -172,16 +172,9 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Dispatched from VisitForInStatement.
   void VisitForInAssignment(Expression* expr, Node* value);
 
-  // Flag that describes how to combine the current environment with
-  // the output of a node to obtain a framestate for lazy bailout.
-  enum OutputFrameStateCombine {
-    PUSH_OUTPUT,   // Push the output on the expression stack.
-    IGNORE_OUTPUT  // Use the frame state as-is.
-  };
-
   // Builds deoptimization for a given node.
   void PrepareFrameState(Node* node, BailoutId ast_id,
-                         OutputFrameStateCombine combine = IGNORE_OUTPUT);
+                         OutputFrameStateCombine combine = kIgnoreOutput);
 
   OutputFrameStateCombine StateCombineFromAstContext();
 
@@ -265,7 +258,7 @@ class AstGraphBuilder::Environment
 
   // Preserve a checkpoint of the environment for the IR graph. Any
   // further mutation of the environment will not affect checkpoints.
-  Node* Checkpoint(BailoutId ast_id);
+  Node* Checkpoint(BailoutId ast_id, OutputFrameStateCombine combine);
 
  private:
   void UpdateStateValues(Node** state_values, int offset, int count);
@@ -288,8 +281,8 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
 
   // Determines how to combine the frame state with the value
   // that is about to be plugged into this AstContext.
-  AstGraphBuilder::OutputFrameStateCombine GetStateCombine() {
-    return IsEffect() ? IGNORE_OUTPUT : PUSH_OUTPUT;
+  OutputFrameStateCombine GetStateCombine() {
+    return IsEffect() ? kIgnoreOutput : kPushOutput;
   }
 
   // Plug a node into this expression context.  Call this function in tail
@@ -324,35 +317,35 @@ class AstGraphBuilder::AstContext BASE_EMBEDDED {
 
 
 // Context to evaluate expression for its side effects only.
-class AstGraphBuilder::AstEffectContext V8_FINAL : public AstContext {
+class AstGraphBuilder::AstEffectContext FINAL : public AstContext {
  public:
   explicit AstEffectContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kEffect) {}
   virtual ~AstEffectContext();
-  virtual void ProduceValue(Node* value) V8_OVERRIDE;
-  virtual Node* ConsumeValue() V8_OVERRIDE;
+  virtual void ProduceValue(Node* value) OVERRIDE;
+  virtual Node* ConsumeValue() OVERRIDE;
 };
 
 
 // Context to evaluate expression for its value (and side effects).
-class AstGraphBuilder::AstValueContext V8_FINAL : public AstContext {
+class AstGraphBuilder::AstValueContext FINAL : public AstContext {
  public:
   explicit AstValueContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kValue) {}
   virtual ~AstValueContext();
-  virtual void ProduceValue(Node* value) V8_OVERRIDE;
-  virtual Node* ConsumeValue() V8_OVERRIDE;
+  virtual void ProduceValue(Node* value) OVERRIDE;
+  virtual Node* ConsumeValue() OVERRIDE;
 };
 
 
 // Context to evaluate expression for a condition value (and side effects).
-class AstGraphBuilder::AstTestContext V8_FINAL : public AstContext {
+class AstGraphBuilder::AstTestContext FINAL : public AstContext {
  public:
   explicit AstTestContext(AstGraphBuilder* owner)
       : AstContext(owner, Expression::kTest) {}
   virtual ~AstTestContext();
-  virtual void ProduceValue(Node* value) V8_OVERRIDE;
-  virtual Node* ConsumeValue() V8_OVERRIDE;
+  virtual void ProduceValue(Node* value) OVERRIDE;
+  virtual Node* ConsumeValue() OVERRIDE;
 };
 
 

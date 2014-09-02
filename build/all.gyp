@@ -9,12 +9,12 @@
       'type': 'none',
       'dependencies': [
         '../samples/samples.gyp:*',
-        '../src/base/base.gyp:*',
+        '../src/base/base.gyp:base-unittests',
+        '../src/compiler/compiler.gyp:compiler-unittests',
         '../src/d8.gyp:d8',
+        '../src/heap/heap.gyp:heap-unittests',
+        '../src/libplatform/libplatform.gyp:libplatform-unittests',
         '../test/cctest/cctest.gyp:*',
-        '../test/compiler-unittests/compiler-unittests.gyp:*',
-        '../test/heap-unittests/heap-unittests.gyp:*',
-        '../test/runtime-unittests/runtime-unittests.gyp:*',
       ],
       'conditions': [
         ['component!="shared_library"', {

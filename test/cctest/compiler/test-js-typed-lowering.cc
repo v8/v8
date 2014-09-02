@@ -755,9 +755,18 @@ TEST(UnaryNot) {
   Operator* opnot = R.javascript.UnaryNot();
 
   for (size_t i = 0; i < arraysize(kJSTypes); i++) {
-    Node* r = R.ReduceUnop(opnot, kJSTypes[i]);
+    Node* orig = R.Unop(opnot, R.Parameter(kJSTypes[i]));
+    Node* use = R.graph.NewNode(R.common.Return(), orig);
+    Node* r = R.reduce(orig);
     // TODO(titzer): test will break if/when js-typed-lowering constant folds.
-    CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
+    CHECK_EQ(IrOpcode::kBooleanNot, use->InputAt(0)->opcode());
+
+    if (r == orig && orig->opcode() == IrOpcode::kJSToBoolean) {
+      // The original node was turned into a ToBoolean.
+      CHECK_EQ(IrOpcode::kJSToBoolean, r->opcode());
+    } else {
+      CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
+    }
   }
 }
 
@@ -1184,16 +1193,16 @@ TEST(UnaryNotEffects) {
     Node* value_use = R.graph.NewNode(R.common.Return(), orig);
     Node* r = R.reduce(orig);
     // TODO(titzer): test will break if/when js-typed-lowering constant folds.
-    CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
+    CHECK_EQ(IrOpcode::kBooleanNot, value_use->InputAt(0)->opcode());
 
-    CHECK_EQ(r, value_use->InputAt(0));
-
-    if (r->InputAt(0) == orig && orig->opcode() == IrOpcode::kJSToBoolean) {
+    if (r == orig && orig->opcode() == IrOpcode::kJSToBoolean) {
       // The original node was turned into a ToBoolean, which has an effect.
+      CHECK_EQ(IrOpcode::kJSToBoolean, r->opcode());
       R.CheckEffectInput(R.start(), orig);
       R.CheckEffectInput(orig, effect_use);
     } else {
       // effect should have been removed from this node.
+      CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
       R.CheckEffectInput(R.start(), effect_use);
     }
   }

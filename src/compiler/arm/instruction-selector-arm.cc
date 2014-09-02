@@ -11,7 +11,7 @@ namespace internal {
 namespace compiler {
 
 // Adds Arm-specific methods for generating InstructionOperands.
-class ArmOperandGenerator V8_FINAL : public OperandGenerator {
+class ArmOperandGenerator FINAL : public OperandGenerator {
  public:
   explicit ArmOperandGenerator(InstructionSelector* selector)
       : OperandGenerator(selector) {}
@@ -77,7 +77,6 @@ class ArmOperandGenerator V8_FINAL : public OperandGenerator {
       case kArchCallAddress:
       case kArchCallCodeObject:
       case kArchCallJSFunction:
-      case kArchDeoptimize:
       case kArchDrop:
       case kArchJmp:
       case kArchNop:
@@ -794,8 +793,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   // TODO(turbofan): on ARM64 it's probably better to use the code object in a
   // register if there are multiple uses of it. Improve constant pool and the
   // heuristics in the register allocator for where to emit constants.
-  InitializeCallBuffer(call, &buffer, true, false, continuation,
-                       deoptimization);
+  InitializeCallBuffer(call, &buffer, true, false);
 
   // TODO(dcarney): might be possible to use claim/poke instead
   // Push any stack arguments.

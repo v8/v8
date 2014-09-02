@@ -36,7 +36,7 @@ class LinkageLocation {
 };
 
 
-class CallDescriptor V8_FINAL : public ZoneObject {
+class CallDescriptor FINAL : public ZoneObject {
  public:
   // Describes whether the first parameter is a code object, a JSFunction,
   // or an address--all of which require different machine sequences to call.
@@ -45,13 +45,12 @@ class CallDescriptor V8_FINAL : public ZoneObject {
   enum Flag {
     // TODO(jarin) kLazyDeoptimization and kNeedsFrameState should be unified.
     kNoFlags = 0u,
-    kLazyDeoptimization = 1u << 0,
-    kNeedsFrameState = 1u << 1,
-    kPatchableCallSite = 1u << 2,
-    kNeedsNopAfterCall = 1u << 3,
+    kNeedsFrameState = 1u << 0,
+    kPatchableCallSite = 1u << 1,
+    kNeedsNopAfterCall = 1u << 2,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
-  DEFINE_FLAGS(Flags, Flag);
+  typedef base::Flags<Flag> Flags;
 
   CallDescriptor(Kind kind, int8_t return_count, int16_t parameter_count,
                  int16_t input_count, LinkageLocation* locations,
@@ -85,7 +84,6 @@ class CallDescriptor V8_FINAL : public ZoneObject {
 
   Flags flags() const { return flags_; }
 
-  bool CanLazilyDeoptimize() const { return flags() & kLazyDeoptimization; }
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
 
   LinkageLocation GetReturnLocation(int index) {

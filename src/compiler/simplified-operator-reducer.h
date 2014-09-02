@@ -19,13 +19,13 @@ namespace compiler {
 class JSGraph;
 class MachineOperatorBuilder;
 
-class SimplifiedOperatorReducer V8_FINAL : public Reducer {
+class SimplifiedOperatorReducer FINAL : public Reducer {
  public:
   SimplifiedOperatorReducer(JSGraph* jsgraph, MachineOperatorBuilder* machine)
       : jsgraph_(jsgraph), machine_(machine) {}
   virtual ~SimplifiedOperatorReducer();
 
-  virtual Reduction Reduce(Node* node) V8_OVERRIDE;
+  virtual Reduction Reduce(Node* node) OVERRIDE;
 
  private:
   Reduction Change(Node* node, Operator* op, Node* a);

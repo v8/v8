@@ -150,40 +150,43 @@ MaybeHandle<Object> Execution::New(Handle<JSFunction> func,
 
 
 MaybeHandle<Object> Execution::TryCall(Handle<JSFunction> func,
-                                       Handle<Object> receiver,
-                                       int argc,
+                                       Handle<Object> receiver, int argc,
                                        Handle<Object> args[],
-                                       Handle<Object>* exception_out) {
+                                       MaybeHandle<Object>* exception_out) {
+  bool is_termination = false;
+  Isolate* isolate = func->GetIsolate();
+  MaybeHandle<Object> maybe_result;
+  if (exception_out != NULL) *exception_out = MaybeHandle<Object>();
   // Enter a try-block while executing the JavaScript code. To avoid
   // duplicate error printing it must be non-verbose.  Also, to avoid
   // creating message objects during stack overflow we shouldn't
   // capture messages.
-  v8::TryCatch catcher;
-  catcher.SetVerbose(false);
-  catcher.SetCaptureMessage(false);
+  {
+    v8::TryCatch catcher;
+    catcher.SetVerbose(false);
+    catcher.SetCaptureMessage(false);
 
-  // Get isolate now, because handle might be persistent
-  // and get destroyed in the next call.
-  Isolate* isolate = func->GetIsolate();
-  MaybeHandle<Object> maybe_result = Invoke(false, func, receiver, argc, args);
+    maybe_result = Invoke(false, func, receiver, argc, args);
 
-  if (maybe_result.is_null()) {
-    DCHECK(catcher.HasCaught());
-    DCHECK(isolate->has_pending_exception());
-    DCHECK(isolate->external_caught_exception());
-    if (exception_out != NULL) {
-      if (isolate->pending_exception() ==
-          isolate->heap()->termination_exception()) {
-        *exception_out = isolate->factory()->termination_exception();
-      } else {
-        *exception_out = v8::Utils::OpenHandle(*catcher.Exception());
+    if (maybe_result.is_null()) {
+      DCHECK(catcher.HasCaught());
+      DCHECK(isolate->has_pending_exception());
+      DCHECK(isolate->external_caught_exception());
+      if (exception_out != NULL) {
+        if (isolate->pending_exception() ==
+            isolate->heap()->termination_exception()) {
+          is_termination = true;
+        } else {
+          *exception_out = v8::Utils::OpenHandle(*catcher.Exception());
+        }
       }
+      isolate->OptionalRescheduleException(true);
     }
-    isolate->OptionalRescheduleException(true);
-  }
 
-  DCHECK(!isolate->has_pending_exception());
-  DCHECK(!isolate->external_caught_exception());
+    DCHECK(!isolate->has_pending_exception());
+    DCHECK(!isolate->external_caught_exception());
+  }
+  if (is_termination) isolate->TerminateExecution();
   return maybe_result;
 }
 
@@ -236,10 +239,9 @@ MaybeHandle<Object> Execution::TryGetFunctionDelegate(Isolate* isolate,
 
   // If the Object doesn't have an instance-call handler we should
   // throw a non-callable exception.
-  i::Handle<i::Object> error_obj = isolate->factory()->NewTypeError(
-      "called_non_callable", i::HandleVector<i::Object>(&object, 1));
-
-  return isolate->Throw<Object>(error_obj);
+  THROW_NEW_ERROR(isolate, NewTypeError("called_non_callable",
+                                        i::HandleVector<i::Object>(&object, 1)),
+                  Object);
 }
 
 
@@ -293,9 +295,9 @@ MaybeHandle<Object> Execution::TryGetConstructorDelegate(
 
   // If the Object doesn't have an instance-call handler we should
   // throw a non-callable exception.
-  i::Handle<i::Object> error_obj = isolate->factory()->NewTypeError(
-      "called_non_callable", i::HandleVector<i::Object>(&object, 1));
-  return isolate->Throw<Object>(error_obj);
+  THROW_NEW_ERROR(isolate, NewTypeError("called_non_callable",
+                                        i::HandleVector<i::Object>(&object, 1)),
+                  Object);
 }
 
 

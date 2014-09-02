@@ -271,8 +271,7 @@ CallBuffer::CallBuffer(Zone* zone, CallDescriptor* d,
   output_nodes.reserve(d->ReturnCount());
   outputs.reserve(d->ReturnCount());
   pushed_nodes.reserve(input_count());
-  instruction_args.reserve(input_count() + control_count() +
-                           frame_state_value_count());
+  instruction_args.reserve(input_count() + frame_state_value_count());
 }
 
 
@@ -280,9 +279,7 @@ CallBuffer::CallBuffer(Zone* zone, CallDescriptor* d,
 // InstructionSelector::VisitCall platform independent instead.
 void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                                                bool call_code_immediate,
-                                               bool call_address_immediate,
-                                               BasicBlock* cont_node,
-                                               BasicBlock* deopt_node) {
+                                               bool call_address_immediate) {
   OperandGenerator g(this);
   DCHECK_EQ(call->op()->OutputCount(), buffer->descriptor->ReturnCount());
   DCHECK_EQ(OperatorProperties::GetValueInputCount(call->op()),
@@ -338,9 +335,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   // arg 1               : deoptimization id.
   // arg 2 - arg (n + 1) : value inputs to the frame state.
   if (buffer->frame_state_descriptor != NULL) {
-    int deoptimization_id =
-        sequence()->AddDeoptimizationEntry(buffer->frame_state_descriptor);
-    buffer->instruction_args.push_back(g.TempImmediate(deoptimization_id));
+    InstructionSequence::StateId state_id =
+        sequence()->AddFrameStateDescriptor(buffer->frame_state_descriptor);
+    buffer->instruction_args.push_back(g.TempImmediate(state_id.ToInt()));
 
     Node* frame_state = call->InputAt(buffer->descriptor->InputCount());
     AddFrameStateInputs(frame_state, &buffer->instruction_args,
@@ -377,22 +374,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     }
   }
   CHECK_EQ(pushed_count, static_cast<int>(buffer->pushed_nodes.size()));
-
-  // If the call can deoptimize, we add the continuation and deoptimization
-  // block labels.
-  if (buffer->descriptor->CanLazilyDeoptimize()) {
-    DCHECK(cont_node != NULL);
-    DCHECK(deopt_node != NULL);
-    buffer->instruction_args.push_back(g.Label(cont_node));
-    buffer->instruction_args.push_back(g.Label(deopt_node));
-  } else {
-    DCHECK(cont_node == NULL);
-    DCHECK(deopt_node == NULL);
-  }
-
   DCHECK(static_cast<size_t>(input_count) ==
-         (buffer->instruction_args.size() - buffer->control_count() +
-          buffer->pushed_nodes.size() - buffer->frame_state_value_count()));
+         (buffer->instruction_args.size() + buffer->pushed_nodes.size() -
+          buffer->frame_state_value_count()));
 }
 
 
@@ -465,14 +449,6 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlockData::kThrow:
       return VisitThrow(input);
-    case BasicBlockData::kDeoptimize:
-      return VisitDeoptimize(input);
-    case BasicBlockData::kCall: {
-      BasicBlock* deoptimization = block->SuccessorAt(0);
-      BasicBlock* continuation = block->SuccessorAt(1);
-      VisitCall(input, continuation, deoptimization);
-      break;
-    }
     case BasicBlockData::kNone: {
       // TODO(titzer): exit block doesn't have control.
       DCHECK(input == NULL);
@@ -503,8 +479,6 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kIfFalse:
     case IrOpcode::kEffectPhi:
     case IrOpcode::kMerge:
-    case IrOpcode::kLazyDeoptimization:
-    case IrOpcode::kContinuation:
       // No code needed for these graph artifacts.
       return;
     case IrOpcode::kFinish:
@@ -1028,13 +1002,13 @@ void InstructionSelector::VisitThrow(Node* value) {
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
   DCHECK(state->op()->opcode() == IrOpcode::kFrameState);
-  BailoutId ast_id = OpParameter<BailoutId>(state);
+  FrameStateCallInfo state_info = OpParameter<FrameStateCallInfo>(state);
   Node* parameters = state->InputAt(0);
   Node* locals = state->InputAt(1);
   Node* stack = state->InputAt(2);
 
   return new (instruction_zone())
-      FrameStateDescriptor(ast_id, OpParameter<int>(parameters),
+      FrameStateDescriptor(state_info, OpParameter<int>(parameters),
                            OpParameter<int>(locals), OpParameter<int>(stack));
 }
 
@@ -1060,6 +1034,11 @@ void InstructionSelector::AddFrameStateInputs(
   Node* parameters = state->InputAt(0);
   Node* locals = state->InputAt(1);
   Node* stack = state->InputAt(2);
+  Node* context = state->InputAt(3);
+
+  DCHECK_EQ(IrOpcode::kStateValues, parameters->op()->opcode());
+  DCHECK_EQ(IrOpcode::kStateValues, locals->op()->opcode());
+  DCHECK_EQ(IrOpcode::kStateValues, stack->op()->opcode());
 
   DCHECK_EQ(descriptor->parameters_count(), parameters->InputCount());
   DCHECK_EQ(descriptor->locals_count(), locals->InputCount());
@@ -1069,32 +1048,13 @@ void InstructionSelector::AddFrameStateInputs(
   for (int i = 0; i < descriptor->parameters_count(); i++) {
     inputs->push_back(UseOrImmediate(&g, parameters->InputAt(i)));
   }
+  inputs->push_back(UseOrImmediate(&g, context));
   for (int i = 0; i < descriptor->locals_count(); i++) {
     inputs->push_back(UseOrImmediate(&g, locals->InputAt(i)));
   }
   for (int i = 0; i < descriptor->stack_count(); i++) {
     inputs->push_back(UseOrImmediate(&g, stack->InputAt(i)));
   }
-}
-
-
-void InstructionSelector::VisitDeoptimize(Node* deopt) {
-  DCHECK(deopt->op()->opcode() == IrOpcode::kDeoptimize);
-  Node* state = deopt->InputAt(0);
-  FrameStateDescriptor* descriptor = GetFrameStateDescriptor(state);
-  int deoptimization_id = sequence()->AddDeoptimizationEntry(descriptor);
-
-  InstructionOperandVector inputs(zone());
-  inputs.reserve(descriptor->size() + 1);
-
-  OperandGenerator g(this);
-  inputs.push_back(g.TempImmediate(deoptimization_id));
-
-  AddFrameStateInputs(state, &inputs, descriptor);
-
-  DCHECK_EQ(descriptor->size() + 1, inputs.size());
-
-  Emit(kArchDeoptimize, 0, NULL, inputs.size(), &inputs.front(), 0, NULL);
 }
 
 

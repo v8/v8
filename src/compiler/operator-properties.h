@@ -37,7 +37,6 @@ class OperatorProperties {
   static inline int GetControlOutputCount(Operator* op);
 
   static inline bool IsBasicBlockBegin(Operator* op);
-  static inline bool CanLazilyDeoptimize(Operator* op);
 };
 }
 }

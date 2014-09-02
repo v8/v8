@@ -101,6 +101,7 @@ class StructuredGraphBuilder : public GraphBuilder {
 
  protected:
   class Environment;
+  friend class Environment;
   friend class ControlBuilder;
 
   // The following method creates a new node having the specified operator and
@@ -201,6 +202,8 @@ class StructuredGraphBuilder::Environment : public ZoneObject {
     PrepareForLoop();
     return builder()->CopyEnvironment(this);
   }
+
+  Node* GetContext() { return builder_->current_context(); }
 
  protected:
   // TODO(mstarzinger): Use phase-local zone instead!

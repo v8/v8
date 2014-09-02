@@ -1,3 +1,13 @@
+2014-09-02: Version 3.29.38
+
+        Do not clear weak monomorphic IC after context disposal (Chromium issue
+        404020).
+
+        Turn on job-based sweeping (issue 3104).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-01: Version 3.29.35
 
         Performance and stability improvements on all platforms.

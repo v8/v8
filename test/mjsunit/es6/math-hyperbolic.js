@@ -102,13 +102,13 @@ assertEquals("Infinity", String(Math.acosh(Infinity)));
 
 
 // Some random samples.
-assertEqualsDelta(74.203210577788, Math.sinh(5), 1E-12);
-assertEqualsDelta(-74.203210577788, Math.sinh(-5), 1E-12);
+assertEqualsDelta(74.20321057778875, Math.sinh(5), 1E-12);
+assertEqualsDelta(-74.20321057778875, Math.sinh(-5), 1E-12);
 
-assertEqualsDelta(1.1276259652063, Math.cosh(0.5), 1E-12);
-assertEqualsDelta(74.209948524787, Math.cosh(5), 1E-12);
-assertEqualsDelta(1.1276259652063, Math.cosh(-0.5), 1E-12);
-assertEqualsDelta(74.209948524787, Math.cosh(-5), 1E-12);
+assertEqualsDelta(1.1276259652063807, Math.cosh(0.5), 1E-12);
+assertEqualsDelta(74.20994852478785, Math.cosh(5), 1E-12);
+assertEqualsDelta(1.1276259652063807, Math.cosh(-0.5), 1E-12);
+assertEqualsDelta(74.20994852478785, Math.cosh(-5), 1E-12);
 
 assertEqualsDelta(0.4621171572600, Math.tanh(0.5), 1E-12);
 assertEqualsDelta(0.9999092042625, Math.tanh(5), 1E-12);
@@ -166,3 +166,23 @@ assertEquals(Infinity, Math.sinh(710.475860073944));
 assertEquals(-Infinity, Math.sinh(-710.475860073944));
 assertEquals(Infinity, Math.sinh(1000));
 assertEquals(-Infinity, Math.sinh(-1000));
+
+// Implementation-specific tests for cosh.
+// Case |x| < 2^-55
+assertEquals(1, Math.cosh(Math.pow(2, -56)));
+assertEquals(1, Math.cosh(-Math.pow(2, -56)));
+// Case |x| < 1/2*log(2). cosh(Math.LN2/4) = (sqrt(2)+1)/2^(5/4)
+assertEquals(1.0150517651282178, Math.cosh(Math.LN2/4));
+assertEquals(1.0150517651282178, Math.cosh(-Math.LN2/4));
+// Case 1/2*log(2) < |x| < 22. cosh(10*Math.LN2) = 1048577/2048
+assertEquals(512.00048828125, Math.cosh(10*Math.LN2));
+assertEquals(512.00048828125, Math.cosh(-10*Math.LN2));
+// Case 22 <= |x| < log(maxdouble)
+assertEquals(2.1474836479999983e9, Math.cosh(32*Math.LN2));
+assertEquals(2.1474836479999983e9, Math.cosh(-32*Math.LN2));
+// Case log(maxdouble) <= |x| <= overflowthreshold
+assertEquals(1.7976931348621744e308, Math.cosh(710.4758600739439));
+assertEquals(1.7976931348621744e308, Math.cosh(-710.4758600739439));
+// Overflow.
+assertEquals(Infinity, Math.cosh(710.475860073944));
+assertEquals(Infinity, Math.cosh(-710.475860073944));

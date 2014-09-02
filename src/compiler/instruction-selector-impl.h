@@ -200,7 +200,7 @@ class OperandGenerator {
 // The whole instruction is treated as a unit by the register allocator, and
 // thus no spills or moves can be introduced between the flags-setting
 // instruction and the branch or set it should be combined with.
-class FlagsContinuation V8_FINAL {
+class FlagsContinuation FINAL {
  public:
   FlagsContinuation() : mode_(kFlags_none) {}
 
@@ -346,10 +346,6 @@ struct CallBuffer {
     return (frame_state_descriptor == NULL)
                ? 0
                : (frame_state_descriptor->size() + 1);
-  }
-
-  int control_count() const {
-    return descriptor->CanLazilyDeoptimize() ? 2 : 0;
   }
 };
 
