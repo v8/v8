@@ -254,13 +254,15 @@ class RepresentationSelector {
   // Helper for handling phis.
   void VisitPhi(Node* node, MachineTypeUnion use) {
     // First, propagate the usage information to inputs of the phi.
-    int values = OperatorProperties::GetValueInputCount(node->op());
-    Node::Inputs inputs = node->inputs();
-    for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-         ++iter, --values) {
+    if (!lower()) {
+      int values = OperatorProperties::GetValueInputCount(node->op());
       // Propagate {use} of the phi to value inputs, and 0 to control.
-      // TODO(titzer): it'd be nice to have distinguished edge kinds here.
-      ProcessInput(node, iter.index(), values > 0 ? use : 0);
+      Node::Inputs inputs = node->inputs();
+      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
+           ++iter, --values) {
+        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
+        ProcessInput(node, iter.index(), values > 0 ? use : 0);
+      }
     }
     // Phis adapt to whatever output representation their uses demand,
     // pushing representation changes to their inputs.
@@ -296,7 +298,19 @@ class RepresentationSelector {
     }
     // Preserve the usage type, but set the representation.
     Type* upper = NodeProperties::GetBounds(node).upper;
-    SetOutput(node, rep | changer_->TypeFromUpperBound(upper));
+    MachineTypeUnion output_type = rep | changer_->TypeFromUpperBound(upper);
+    SetOutput(node, output_type);
+
+    if (lower()) {
+      int values = OperatorProperties::GetValueInputCount(node->op());
+      // Convert inputs to the output representation of this phi.
+      Node::Inputs inputs = node->inputs();
+      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
+           ++iter, --values) {
+        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
+        ProcessInput(node, iter.index(), values > 0 ? output_type : 0);
+      }
+    }
   }
 
   Operator* Int32Op(Node* node) {
