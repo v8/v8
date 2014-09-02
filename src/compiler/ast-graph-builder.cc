@@ -227,8 +227,7 @@ Node* AstGraphBuilder::Environment::Checkpoint(
   Operator* op = common()->FrameState(ast_id, combine);
 
   return graph()->NewNode(op, parameters_node_, locals_node_, stack_node_,
-                          GetContext(),
-                          builder()->jsgraph()->UndefinedConstant());
+                          GetContext());
 }
 
 

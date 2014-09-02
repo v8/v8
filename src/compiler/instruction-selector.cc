@@ -1001,21 +1001,15 @@ void InstructionSelector::VisitThrow(Node* value) {
 
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
-  DCHECK(state->opcode() == IrOpcode::kFrameState);
-  DCHECK_EQ(5, state->InputCount());
+  DCHECK(state->op()->opcode() == IrOpcode::kFrameState);
   FrameStateCallInfo state_info = OpParameter<FrameStateCallInfo>(state);
-  int parameters = OpParameter<int>(state->InputAt(0));
-  int locals = OpParameter<int>(state->InputAt(1));
-  int stack = OpParameter<int>(state->InputAt(2));
-
-  FrameStateDescriptor* outer_state = NULL;
-  Node* outer_node = state->InputAt(4);
-  if (outer_node->opcode() == IrOpcode::kFrameState) {
-    outer_state = GetFrameStateDescriptor(outer_node);
-  }
+  Node* parameters = state->InputAt(0);
+  Node* locals = state->InputAt(1);
+  Node* stack = state->InputAt(2);
 
   return new (instruction_zone())
-      FrameStateDescriptor(state_info, parameters, locals, stack, outer_state);
+      FrameStateDescriptor(state_info, OpParameter<int>(parameters),
+                           OpParameter<int>(locals), OpParameter<int>(stack));
 }
 
 
@@ -1036,10 +1030,6 @@ void InstructionSelector::AddFrameStateInputs(
     Node* state, InstructionOperandVector* inputs,
     FrameStateDescriptor* descriptor) {
   DCHECK_EQ(IrOpcode::kFrameState, state->op()->opcode());
-
-  if (descriptor->outer_state() != NULL) {
-    AddFrameStateInputs(state->InputAt(4), inputs, descriptor->outer_state());
-  }
 
   Node* parameters = state->InputAt(0);
   Node* locals = state->InputAt(1);
