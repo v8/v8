@@ -365,22 +365,11 @@ class ScriptTest(unittest.TestCase):
     print "%s %s" % (cmd, args)
     return self._cmd_mock.Call(cmd + " " + args)
 
-  def LogMock(self, cmd, args=""):
-    print "Log: %s %s" % (cmd, args)
-
-  MOCKS = {
-    "gclient": CmdMock,
-    "git": CmdMock,
-    "roll-dep": CmdMock,
-    "svn": CmdMock,
-    "vi": LogMock,
-  }
-
   def Call(self, fun, *args, **kwargs):
     print "Calling %s with %s and %s" % (str(fun), str(args), str(kwargs))
 
   def Command(self, cmd, args="", prefix="", pipe=True):
-    return ScriptTest.MOCKS[cmd](self, cmd, args)
+    return self.CmdMock(cmd, args)
 
   def ReadLine(self):
     return self._rl_mock.Call()
@@ -596,7 +585,9 @@ class ScriptTest(unittest.TestCase):
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
     TextToFile("  New  \n\tLines  \n", TEST_CONFIG[CHANGELOG_ENTRY_FILE])
     os.environ["EDITOR"] = "vi"
-
+    self.ExpectCmd([
+      Cmd("vi %s" % TEST_CONFIG[CHANGELOG_ENTRY_FILE], ""),
+    ])
     self.ExpectReadline([
       RL(""),  # Open editor.
     ])
@@ -742,7 +733,7 @@ Performance and stability improvements on all platforms.""", commit)
           change_log)
 
     force_flag = " -f" if not manual else ""
-    self.ExpectCmd([
+    expectations = [
       Cmd("git status -s -uno", ""),
       Cmd("git status -s -b -uno", "## some_branch\n"),
       Cmd("git svn fetch", ""),
@@ -767,6 +758,10 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git log -1 --format=%s rev1", "Log text 1.\n"),
       Cmd("git log -1 --format=%B rev1", "Text\nLOG=YES\nBUG=v8:321\nText\n"),
       Cmd("git log -1 --format=%an rev1", "author1@chromium.org\n"),
+    ]
+    if not force:
+      expectations.append(Cmd("vi %s" % TEST_CONFIG[CHANGELOG_ENTRY_FILE], ""))
+    expectations += [
       Cmd("git svn fetch", "fetch result\n"),
       Cmd("git checkout -f svn/bleeding_edge", ""),
       Cmd("git diff svn/trunk push_hash", "patch content\n"),
@@ -786,7 +781,8 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG[BRANCHNAME], ""),
       Cmd("git branch -D %s" % TEST_CONFIG[TRUNKBRANCH], ""),
-    ])
+    ]
+    self.ExpectCmd(expectations)
 
     # Expected keyboard input in manual mode:
     if manual:
