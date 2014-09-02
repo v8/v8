@@ -521,7 +521,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringAdd: {
         VisitBinop(node, kMachAnyTagged, kMachAnyTagged);
-        // TODO(titzer): lower StringAdd to stub/runtime call.
+        if (lower()) lowering->DoStringAdd(node);
         break;
       }
       case IrOpcode::kLoadField: {
@@ -818,6 +818,19 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
       access.base_is_tagged, access.machine_type, access.type);
   node->set_op(machine_.Store(access.machine_type, kind));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
+}
+
+
+void SimplifiedLowering::DoStringAdd(Node* node) {
+  StringAddStub stub(zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+  CodeStubInterfaceDescriptor* d = stub.GetInterfaceDescriptor();
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(d, 0, flags, zone());
+  node->set_op(jsgraph()->common()->Call(desc));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(stub.GetCode()));
+  node->AppendInput(zone(), jsgraph()->UndefinedConstant());
+  node->AppendInput(zone(), graph()->start());
+  node->AppendInput(zone(), graph()->start());
 }
 
 
