@@ -1337,6 +1337,7 @@ component("v8") {
 
   direct_dependent_configs = [ ":external_config" ]
 
+  libs = []
   if (is_android && current_toolchain != host_toolchain) {
     libs += [ "log" ]
   }
