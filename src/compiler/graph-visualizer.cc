@@ -209,14 +209,14 @@ void GraphVisualizer::PrintEdge(Node::Edge edge) {
              (OperatorProperties::GetControlInputCount(from->op()) > 0 &&
               NodeProperties::GetControlInput(from) != to)) {
     os_ << ":I" << index << ":n -> ID" << to->id() << ":s"
-        << "[" << (unconstrained ? "constraint=false" : "")
-        << (NodeProperties::IsControlEdge(edge) ? "style=bold" : "")
-        << (NodeProperties::IsEffectEdge(edge) ? "style=dotted" : "")
-        << (NodeProperties::IsContextEdge(edge) ? "style=dashed" : "") << "]";
+        << "[" << (unconstrained ? "constraint=false, " : "")
+        << (NodeProperties::IsControlEdge(edge) ? "style=bold, " : "")
+        << (NodeProperties::IsEffectEdge(edge) ? "style=dotted, " : "")
+        << (NodeProperties::IsContextEdge(edge) ? "style=dashed, " : "") << "]";
   } else {
-    os_ << " -> ID" << to->id() << ":s [color=transparent"
-        << (unconstrained ? ", constraint=false" : "")
-        << (NodeProperties::IsControlEdge(edge) ? ", style=dashed" : "") << "]";
+    os_ << " -> ID" << to->id() << ":s [color=transparent, "
+        << (unconstrained ? "constraint=false, " : "")
+        << (NodeProperties::IsControlEdge(edge) ? "style=dashed, " : "") << "]";
   }
   os_ << "\n";
 }
