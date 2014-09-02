@@ -597,7 +597,16 @@ class ParserTraits {
 
 class Parser : public ParserBase<ParserTraits> {
  public:
-  explicit Parser(CompilationInfo* info);
+  // Note that the hash seed in ParseInfo must be the hash seed from the
+  // Isolate's heap, otherwise the heap will be in an inconsistent state once
+  // the strings created by the Parser are internalized.
+  struct ParseInfo {
+    uintptr_t stack_limit;
+    uint32_t hash_seed;
+    UnicodeCache* unicode_cache;
+  };
+
+  Parser(CompilationInfo* info, ParseInfo* parse_info);
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = NULL;
@@ -610,7 +619,10 @@ class Parser : public ParserBase<ParserTraits> {
   // nodes) if parsing failed.
   static bool Parse(CompilationInfo* info,
                     bool allow_lazy = false) {
-    Parser parser(info);
+    ParseInfo parse_info = {info->isolate()->stack_guard()->real_climit(),
+                            info->isolate()->heap()->HashSeed(),
+                            info->isolate()->unicode_cache()};
+    Parser parser(info, &parse_info);
     parser.set_allow_lazy(allow_lazy);
     return parser.Parse();
   }
@@ -797,7 +809,9 @@ class Parser : public ParserBase<ParserTraits> {
 
   void ThrowPendingError();
 
-  void InternalizeUseCounts();
+  // Handle errors detected during parsing, move statistics to Isolate,
+  // internalize strings (move them to the heap).
+  void Internalize();
 
   Isolate* isolate_;
 
@@ -819,7 +833,11 @@ class Parser : public ParserBase<ParserTraits> {
   const char* pending_error_char_arg_;
   bool pending_error_is_reference_error_;
 
+  // Other information which will be stored in Parser and moved to Isolate after
+  // parsing.
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
+  int total_preparse_skipped_;
+  HistogramTimer* pre_parse_timer_;
 };
 
 

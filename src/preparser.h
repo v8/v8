@@ -78,8 +78,8 @@ class ParserBase : public Traits {
         fni_(NULL),
         log_(log),
         mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
-        scanner_(scanner),
         stack_limit_(stack_limit),
+        scanner_(scanner),
         stack_overflow_(false),
         allow_lazy_(false),
         allow_natives_syntax_(false),
@@ -569,10 +569,10 @@ class ParserBase : public Traits {
   FuncNameInferrer* fni_;
   ParserRecorder* log_;
   Mode mode_;
+  uintptr_t stack_limit_;
 
  private:
   Scanner* scanner_;
-  uintptr_t stack_limit_;
   bool stack_overflow_;
 
   bool allow_lazy_;
