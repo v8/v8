@@ -50,7 +50,7 @@ class CallDescriptor V8_FINAL : public ZoneObject {
     kNeedsNopAfterCall = 1u << 2,
     kPatchableCallSiteWithNop = kPatchableCallSite | kNeedsNopAfterCall
   };
-  DEFINE_FLAGS(Flags, Flag);
+  typedef base::Flags<Flag> Flags;
 
   CallDescriptor(Kind kind, int8_t return_count, int16_t parameter_count,
                  int16_t input_count, LinkageLocation* locations,

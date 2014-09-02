@@ -11,18 +11,19 @@ namespace v8 {
 namespace base {
 
 // The Flags class provides a type-safe way of storing OR-combinations of enum
-// values. The Flags<T> class is a template class, where T is an enum type.
+// values. The Flags<T, S> class is a template class, where T is an enum type,
+// and S is the underlying storage type (usually int).
 //
 // The traditional C++ approach for storing OR-combinations of enum values is to
 // use an int or unsigned int variable. The inconvenience with this approach is
 // that there's no type checking at all; any enum value can be OR'd with any
 // other enum value and passed on to a function that takes an int or unsigned
 // int.
-template <typename T>
+template <typename T, typename S = int>
 class Flags V8_FINAL {
  public:
   typedef T flag_type;
-  typedef int mask_type;
+  typedef S mask_type;
 
   Flags() : mask_(0) {}
   Flags(flag_type flag) : mask_(flag) {}  // NOLINT(runtime/explicit)
@@ -62,8 +63,6 @@ class Flags V8_FINAL {
   mask_type mask_;
 };
 
-
-#define DEFINE_FLAGS(Type, Enum) typedef ::v8::base::Flags<Enum> Type
 
 #define DEFINE_OPERATORS_FOR_FLAGS(Type)                                       \
   inline ::v8::base::Flags<Type::flag_type> operator&(                         \
