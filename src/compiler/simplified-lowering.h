@@ -28,6 +28,7 @@ class SimplifiedLowering {
   void DoLoadElement(Node* node);
   void DoStoreElement(Node* node);
   void DoStringAdd(Node* node);
+  void DoStringEqual(Node* node);
 
  private:
   JSGraph* jsgraph_;

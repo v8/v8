@@ -1051,13 +1051,14 @@ TEST(LowerReferenceEqual_to_wordeq) {
 }
 
 
-TEST(LowerStringOps_to_calls) {
+TEST(LowerStringOps_to_call_and_wordeq) {
   TestingGraph t(Type::String(), Type::String());
+  IrOpcode::Value opcode =
+      static_cast<IrOpcode::Value>(t.machine()->WordEqual()->opcode());
+  t.CheckLoweringBinop(opcode, t.simplified()->StringEqual());
   if (false) {  // TODO(titzer): lower StringOps to stub/runtime calls
-    t.CheckLoweringBinop(IrOpcode::kCall, t.simplified()->StringEqual());
-    t.CheckLoweringBinop(IrOpcode::kCall, t.simplified()->StringLessThan());
-    t.CheckLoweringBinop(IrOpcode::kCall,
-                         t.simplified()->StringLessThanOrEqual());
+    t.CheckLoweringBinop(opcode, t.simplified()->StringLessThan());
+    t.CheckLoweringBinop(opcode, t.simplified()->StringLessThanOrEqual());
   }
   t.CheckLoweringBinop(IrOpcode::kCall, t.simplified()->StringAdd());
 }

@@ -506,7 +506,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringEqual: {
         VisitBinop(node, kMachAnyTagged, kRepBit);
-        // TODO(titzer): lower StringEqual to stub/runtime call.
+        if (lower()) lowering->DoStringEqual(node);
         break;
       }
       case IrOpcode::kStringLessThan: {
@@ -826,11 +826,32 @@ void SimplifiedLowering::DoStringAdd(Node* node) {
   CodeStubInterfaceDescriptor* d = stub.GetInterfaceDescriptor();
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(d, 0, flags, zone());
-  node->set_op(jsgraph()->common()->Call(desc));
+  node->set_op(common()->Call(desc));
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(stub.GetCode()));
   node->AppendInput(zone(), jsgraph()->UndefinedConstant());
   node->AppendInput(zone(), graph()->start());
   node->AppendInput(zone(), graph()->start());
+}
+
+
+void SimplifiedLowering::DoStringEqual(Node* node) {
+  CEntryStub stub(zone()->isolate(), 1);
+  ExternalReference ref(Runtime::kStringEquals, zone()->isolate());
+  Operator::Properties props = node->op()->properties();
+  // TODO(mstarzinger): We should call StringCompareStub here instead, once an
+  // interface descriptor is available for it.
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      Runtime::kStringEquals, 2, props, zone());
+  Node* call = graph()->NewNode(common()->Call(desc),
+                                jsgraph()->HeapConstant(stub.GetCode()),
+                                NodeProperties::GetValueInput(node, 0),
+                                NodeProperties::GetValueInput(node, 1),
+                                jsgraph()->ExternalConstant(ref),
+                                jsgraph()->Int32Constant(2),
+                                jsgraph()->UndefinedConstant());
+  node->set_op(machine()->WordEqual());
+  node->ReplaceInput(0, call);
+  node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
 }
 
 
