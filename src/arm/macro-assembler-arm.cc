@@ -3568,7 +3568,7 @@ void MacroAssembler::CallCFunctionHelper(Register function,
     int frame_alignment = base::OS::ActivationFrameAlignment();
     int frame_alignment_mask = frame_alignment - 1;
     if (frame_alignment > kPointerSize) {
-      DCHECK(IsPowerOf2(frame_alignment));
+      DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
       Label alignment_as_expected;
       tst(sp, Operand(frame_alignment_mask));
       b(eq, &alignment_as_expected);

@@ -1159,7 +1159,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     if (frame_alignment > kPointerSize) {
       Label alignment_as_expected;
-      DCHECK(IsPowerOf2(frame_alignment));
+      DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
       __ tst(sp, Operand(frame_alignment_mask));
       __ b(eq, &alignment_as_expected);
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
