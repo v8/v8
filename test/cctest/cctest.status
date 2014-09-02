@@ -298,6 +298,9 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # Test requires turbofan:
+  'test-simplified-lowering/LowerStringOps_to_call_and_wordeq': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -314,6 +317,9 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # Test requires turbofan:
+  'test-simplified-lowering/LowerStringOps_to_call_and_wordeq': [SKIP],
 }],  # 'arch == mips64el'
 
 ##############################################################################
