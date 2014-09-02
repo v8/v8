@@ -10,6 +10,7 @@
 #include "src/globals.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
+#include "src/base/bits.h"
 
 // Simulator specific helpers.
 #if USE_SIMULATOR
@@ -808,7 +809,7 @@ class MacroAssembler : public Assembler {
     int sp_alignment = ActivationFrameAlignment();
     // AAPCS64 mandates at least 16-byte alignment.
     DCHECK(sp_alignment >= 16);
-    DCHECK(IsPowerOf2(sp_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(sp_alignment));
     Bic(csp, StackPointer(), sp_alignment - 1);
     SetStackPointer(csp);
   }

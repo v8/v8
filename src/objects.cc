@@ -8,6 +8,7 @@
 #include "src/allocation-site-scopes.h"
 #include "src/api.h"
 #include "src/arguments.h"
+#include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
@@ -13784,7 +13785,7 @@ Handle<Derived> HashTable<Derived, Shape, Key>::New(
     MinimumCapacity capacity_option,
     PretenureFlag pretenure) {
   DCHECK(0 <= at_least_space_for);
-  DCHECK(!capacity_option || IsPowerOf2(at_least_space_for));
+  DCHECK(!capacity_option || base::bits::IsPowerOfTwo32(at_least_space_for));
   int capacity = (capacity_option == USE_CUSTOM_MINIMUM_CAPACITY)
                      ? at_least_space_for
                      : ComputeCapacity(at_least_space_for);
@@ -15441,7 +15442,7 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Allocate(
   // from number of buckets. If we decide to change kLoadFactor
   // to something other than 2, capacity should be stored as another
   // field of this object.
-  capacity = RoundUpToPowerOf2(Max(kMinCapacity, capacity));
+  capacity = base::bits::RoundUpToPowerOfTwo32(Max(kMinCapacity, capacity));
   if (capacity > kMaxCapacity) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
   }

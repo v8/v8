@@ -1171,6 +1171,7 @@
         '../../src/base/atomicops_internals_x86_gcc.cc',
         '../../src/base/atomicops_internals_x86_gcc.h',
         '../../src/base/atomicops_internals_x86_msvc.h',
+        '../../src/base/bits.cc',
         '../../src/base/bits.h',
         '../../src/base/build_config.h',
         '../../src/base/compiler-specific.h',

@@ -7,6 +7,7 @@
 #include "src/accessors.h"
 #include "src/api.h"
 #include "src/arguments.h"
+#include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/conversions.h"
 #include "src/execution.h"
@@ -2456,7 +2457,8 @@ void BinaryOpIC::State::Update(Handle<Object> left, Handle<Object> right,
   int32_t fixed_right_arg_value = 0;
   bool has_fixed_right_arg =
       op_ == Token::MOD && right->ToInt32(&fixed_right_arg_value) &&
-      fixed_right_arg_value > 0 && IsPowerOf2(fixed_right_arg_value) &&
+      fixed_right_arg_value > 0 &&
+      base::bits::IsPowerOfTwo32(fixed_right_arg_value) &&
       FixedRightArgValueField::is_valid(WhichPowerOf2(fixed_right_arg_value)) &&
       (left_kind_ == SMI || left_kind_ == INT32) &&
       (result_kind_ == NONE || !fixed_right_arg_.has_value);

@@ -8,6 +8,7 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
@@ -270,7 +271,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
   } else if (!(src2.instructions_required(this) == 1) &&
              !src2.must_output_reloc_info(this) &&
              CpuFeatures::IsSupported(ARMv7) &&
-             IsPowerOf2(src2.immediate() + 1)) {
+             base::bits::IsPowerOfTwo32(src2.immediate() + 1)) {
     ubfx(dst, src1, 0,
         WhichPowerOf2(static_cast<uint32_t>(src2.immediate()) + 1), cond);
   } else {
@@ -1074,7 +1075,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   sub(sp, sp, Operand((stack_space + 1) * kPointerSize));
   if (frame_alignment > 0) {
-    DCHECK(IsPowerOf2(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
   }
 
@@ -3488,7 +3489,7 @@ void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
     // and the original value of sp.
     mov(scratch, sp);
     sub(sp, sp, Operand((stack_passed_arguments + 1) * kPointerSize));
-    DCHECK(IsPowerOf2(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
     and_(sp, sp, Operand(-frame_alignment));
     str(scratch, MemOperand(sp, stack_passed_arguments * kPointerSize));
   } else {

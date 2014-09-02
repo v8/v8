@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include "src/base/bits.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"
 
@@ -265,7 +266,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(IsPowerOf2(m));
+  DCHECK(base::bits::IsPowerOfTwo32(m));
   int delta = (m - (pc_offset() & (m - 1))) & (m - 1);
   Nop(delta);
 }

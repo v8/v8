@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/full-codegen.h"
 #include "src/heap/mark-compact.h"
@@ -1190,7 +1191,7 @@ bool NewSpace::SetUp(int reserved_semispace_capacity,
   LOG(heap()->isolate(), NewEvent("InitialChunk", chunk_base_, chunk_size_));
 
   DCHECK(initial_semispace_capacity <= maximum_semispace_capacity);
-  DCHECK(IsPowerOf2(maximum_semispace_capacity));
+  DCHECK(base::bits::IsPowerOfTwo32(maximum_semispace_capacity));
 
   // Allocate and set up the histogram arrays if necessary.
   allocated_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);

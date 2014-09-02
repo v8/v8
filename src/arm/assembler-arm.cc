@@ -39,6 +39,7 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/assembler-arm-inl.h"
+#include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/macro-assembler.h"
 #include "src/serialize.h"
@@ -498,7 +499,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(m >= 4 && IsPowerOf2(m));
+  DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }

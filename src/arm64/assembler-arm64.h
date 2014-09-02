@@ -1733,16 +1733,7 @@ class Assembler : public AssemblerBase {
   // Copy a string into the instruction stream, including the terminating NULL
   // character. The instruction pointer (pc_) is then aligned correctly for
   // subsequent instructions.
-  void EmitStringData(const char * string) {
-    size_t len = strlen(string) + 1;
-    DCHECK(RoundUp(len, kInstructionSize) <= static_cast<size_t>(kGap));
-    EmitData(string, len);
-    // Pad with NULL characters until pc_ is aligned.
-    const char pad[] = {'\0', '\0', '\0', '\0'};
-    STATIC_ASSERT(sizeof(pad) == kInstructionSize);
-    byte* next_pc = AlignUp(pc_, kInstructionSize);
-    EmitData(&pad, next_pc - pc_);
-  }
+  void EmitStringData(const char* string);
 
   // Pseudo-instructions ------------------------------------------------------
 

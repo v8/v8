@@ -6,6 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "src/base/bits.h"
 #include "src/base/once.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
@@ -4854,8 +4855,10 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
 
   // The new space size must be a power of two to support single-bit testing
   // for containment.
-  max_semi_space_size_ = RoundUpToPowerOf2(max_semi_space_size_);
-  reserved_semispace_size_ = RoundUpToPowerOf2(reserved_semispace_size_);
+  max_semi_space_size_ =
+      base::bits::RoundUpToPowerOfTwo32(max_semi_space_size_);
+  reserved_semispace_size_ =
+      base::bits::RoundUpToPowerOfTwo32(reserved_semispace_size_);
 
   if (FLAG_min_semi_space_size > 0) {
     int initial_semispace_size = FLAG_min_semi_space_size * MB;

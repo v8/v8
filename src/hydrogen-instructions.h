@@ -8,6 +8,7 @@
 #include "src/v8.h"
 
 #include "src/allocation.h"
+#include "src/base/bits.h"
 #include "src/code-stubs.h"
 #include "src/conversions.h"
 #include "src/data-flow.h"
@@ -3845,7 +3846,10 @@ class HBinaryOperation : public HTemplateInstruction<3> {
   bool RightIsPowerOf2() {
     if (!right()->IsInteger32Constant()) return false;
     int32_t value = right()->GetInteger32Constant();
-    return IsPowerOf2(value) || IsPowerOf2(-value);
+    if (value < 0) {
+      return base::bits::IsPowerOfTwo32(static_cast<uint32_t>(-value));
+    }
+    return base::bits::IsPowerOfTwo32(static_cast<uint32_t>(value));
   }
 
   DECLARE_ABSTRACT_INSTRUCTION(BinaryOperation)

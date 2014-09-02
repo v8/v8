@@ -12,6 +12,7 @@
 
 #include "include/v8.h"
 #include "src/allocation.h"
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -27,7 +28,7 @@ namespace internal {
 
 // X must be a power of 2.  Returns the number of trailing zeros.
 inline int WhichPowerOf2(uint32_t x) {
-  DCHECK(IsPowerOf2(x));
+  DCHECK(base::bits::IsPowerOfTwo32(x));
   int bits = 0;
 #ifdef DEBUG
   int original_x = x;

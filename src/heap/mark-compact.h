@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_MARK_COMPACT_H_
 #define V8_HEAP_MARK_COMPACT_H_
 
+#include "src/base/bits.h"
 #include "src/heap/spaces.h"
 
 namespace v8 {
@@ -145,7 +146,9 @@ class MarkingDeque {
     HeapObject** obj_low = reinterpret_cast<HeapObject**>(low);
     HeapObject** obj_high = reinterpret_cast<HeapObject**>(high);
     array_ = obj_low;
-    mask_ = RoundDownToPowerOf2(static_cast<int>(obj_high - obj_low)) - 1;
+    mask_ = base::bits::RoundDownToPowerOfTwo32(
+                static_cast<uint32_t>(obj_high - obj_low)) -
+            1;
     top_ = bottom_ = 0;
     overflowed_ = false;
   }

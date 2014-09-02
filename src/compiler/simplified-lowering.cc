@@ -4,6 +4,7 @@
 
 #include "src/compiler/simplified-lowering.h"
 
+#include "src/base/bits.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node-properties-inl.h"
@@ -151,7 +152,8 @@ class RepresentationSelector {
     // Every node should have at most one output representation. Note that
     // phis can have 0, if they have not been used in a representation-inducing
     // instruction.
-    DCHECK((output & kRepMask) == 0 || IsPowerOf2(output & kRepMask));
+    DCHECK((output & kRepMask) == 0 ||
+           base::bits::IsPowerOfTwo32(output & kRepMask));
     GetInfo(node)->output = output;
   }
 

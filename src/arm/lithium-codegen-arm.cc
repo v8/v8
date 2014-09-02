@@ -6,6 +6,7 @@
 
 #include "src/arm/lithium-codegen-arm.h"
 #include "src/arm/lithium-gap-resolver-arm.h"
+#include "src/base/bits.h"
 #include "src/code-stubs.h"
 #include "src/hydrogen-osr.h"
 
@@ -1309,7 +1310,7 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
   Register dividend = ToRegister(instr->dividend());
   int32_t divisor = instr->divisor();
   Register result = ToRegister(instr->result());
-  DCHECK(divisor == kMinInt || IsPowerOf2(Abs(divisor)));
+  DCHECK(divisor == kMinInt || base::bits::IsPowerOfTwo32(Abs(divisor)));
   DCHECK(!result.is(dividend));
 
   // Check for (0 / -x) that will produce negative zero.
@@ -1666,17 +1667,17 @@ void LCodeGen::DoMulI(LMulI* instr) {
         int32_t mask = constant >> 31;
         uint32_t constant_abs = (constant + mask) ^ mask;
 
-        if (IsPowerOf2(constant_abs)) {
+        if (base::bits::IsPowerOfTwo32(constant_abs)) {
           int32_t shift = WhichPowerOf2(constant_abs);
           __ mov(result, Operand(left, LSL, shift));
           // Correct the sign of the result is the constant is negative.
           if (constant < 0)  __ rsb(result, result, Operand::Zero());
-        } else if (IsPowerOf2(constant_abs - 1)) {
+        } else if (base::bits::IsPowerOfTwo32(constant_abs - 1)) {
           int32_t shift = WhichPowerOf2(constant_abs - 1);
           __ add(result, left, Operand(left, LSL, shift));
           // Correct the sign of the result is the constant is negative.
           if (constant < 0)  __ rsb(result, result, Operand::Zero());
-        } else if (IsPowerOf2(constant_abs + 1)) {
+        } else if (base::bits::IsPowerOfTwo32(constant_abs + 1)) {
           int32_t shift = WhichPowerOf2(constant_abs + 1);
           __ rsb(result, left, Operand(left, LSL, shift));
           // Correct the sign of the result is the constant is negative.
@@ -5119,8 +5120,8 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
     uint8_t tag;
     instr->hydrogen()->GetCheckMaskAndTag(&mask, &tag);
 
-    if (IsPowerOf2(mask)) {
-      DCHECK(tag == 0 || IsPowerOf2(tag));
+    if (base::bits::IsPowerOfTwo32(mask)) {
+      DCHECK(tag == 0 || base::bits::IsPowerOfTwo32(tag));
       __ tst(scratch, Operand(mask));
       DeoptimizeIf(tag == 0 ? ne : eq, instr->environment());
     } else {

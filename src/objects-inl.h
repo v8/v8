@@ -13,6 +13,7 @@
 #define V8_OBJECTS_INL_H_
 
 #include "src/base/atomicops.h"
+#include "src/base/bits.h"
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
 #include "src/elements.h"
@@ -3095,7 +3096,7 @@ DescriptorArray::WhitenessWitness::~WhitenessWitness() {
 template<typename Derived, typename Shape, typename Key>
 int HashTable<Derived, Shape, Key>::ComputeCapacity(int at_least_space_for) {
   const int kMinCapacity = 32;
-  int capacity = RoundUpToPowerOf2(at_least_space_for * 2);
+  int capacity = base::bits::RoundUpToPowerOfTwo32(at_least_space_for * 2);
   if (capacity < kMinCapacity) {
     capacity = kMinCapacity;  // Guarantee min capacity.
   }
