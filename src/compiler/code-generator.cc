@@ -402,6 +402,11 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 }
 
 
+void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
+  UNIMPLEMENTED();
+}
+
+
 void CodeGenerator::AssemblePrologue() { UNIMPLEMENTED(); }
 
 
