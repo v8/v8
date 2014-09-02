@@ -3140,7 +3140,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   DCHECK(!a4.is(code_));
 
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK(IsPowerOf2(String::kMaxOneByteCharCode + 1));
+  DCHECK(base::bits::IsPowerOfTwo32(String::kMaxOneByteCharCode + 1));
   __ And(a4,
          code_,
          Operand(kSmiTagMask |
@@ -4650,7 +4650,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   int frame_alignment = masm->ActivationFrameAlignment();
   if (frame_alignment > kPointerSize) {
     __ mov(s5, sp);
-    DCHECK(IsPowerOf2(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
     __ And(sp, sp, Operand(-frame_alignment));
   }
 

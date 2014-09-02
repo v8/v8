@@ -37,6 +37,7 @@
 
 #if V8_TARGET_ARCH_MIPS
 
+#include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/mips/assembler-mips-inl.h"
 #include "src/serialize.h"
@@ -339,7 +340,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(m >= 4 && IsPowerOf2(m));
+  DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }

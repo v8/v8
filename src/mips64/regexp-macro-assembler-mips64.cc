@@ -1092,7 +1092,7 @@ void RegExpMacroAssemblerMIPS::CallCheckStackGuardState(Register scratch) {
   // Align the stack pointer and save the original sp value on the stack.
   __ mov(scratch, sp);
   __ Dsubu(sp, sp, Operand(kPointerSize));
-  DCHECK(IsPowerOf2(stack_alignment));
+  DCHECK(base::bits::IsPowerOfTwo32(stack_alignment));
   __ And(sp, sp, Operand(-stack_alignment));
   __ sd(scratch, MemOperand(sp));
 
