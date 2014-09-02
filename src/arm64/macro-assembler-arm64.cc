@@ -4301,8 +4301,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
 
   Bind(&store_buffer_overflow);
   Push(lr);
-  StoreBufferOverflowStub store_buffer_overflow_stub =
-      StoreBufferOverflowStub(isolate(), fp_mode);
+  StoreBufferOverflowStub store_buffer_overflow_stub(isolate(), fp_mode);
   CallStub(&store_buffer_overflow_stub);
   Pop(lr);
 

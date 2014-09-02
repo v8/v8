@@ -16,7 +16,7 @@ void ArrayNativeCode(MacroAssembler* masm,
                      Label* call_generic_code);
 
 
-class StoreBufferOverflowStub: public PlatformCodeStub {
+class StoreBufferOverflowStub : public PlatformCodeStub {
  public:
   StoreBufferOverflowStub(Isolate* isolate, SaveFPRegsMode save_fp)
       : PlatformCodeStub(isolate), save_doubles_(save_fp) { }

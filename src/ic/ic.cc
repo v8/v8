@@ -547,12 +547,11 @@ void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target,
 void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
                       ConstantPoolArray* constant_pool) {
   DCHECK(CodeStub::GetMajorKey(target) == CodeStub::CompareIC);
-  CompareIC::State handler_state;
-  Token::Value op;
-  ICCompareStub::DecodeKey(target->stub_key(), NULL, NULL, &handler_state, &op);
+  ICCompareStub stub(target->stub_key());
   // Only clear CompareICs that can retain objects.
-  if (handler_state != KNOWN_OBJECT) return;
-  SetTargetAtAddress(address, GetRawUninitialized(isolate, op), constant_pool);
+  if (stub.state() != KNOWN_OBJECT) return;
+  SetTargetAtAddress(address, GetRawUninitialized(isolate, stub.op()),
+                     constant_pool);
   PatchInlinedSmiCode(address, DISABLE_INLINED_SMI_CHECK);
 }
 
@@ -2744,12 +2743,10 @@ Type* CompareIC::StateToType(Zone* zone, CompareIC::State state,
 void CompareIC::StubInfoToType(uint32_t stub_key, Type** left_type,
                                Type** right_type, Type** overall_type,
                                Handle<Map> map, Zone* zone) {
-  State left_state, right_state, handler_state;
-  ICCompareStub::DecodeKey(stub_key, &left_state, &right_state, &handler_state,
-                           NULL);
-  *left_type = StateToType(zone, left_state);
-  *right_type = StateToType(zone, right_state);
-  *overall_type = StateToType(zone, handler_state, map);
+  ICCompareStub stub(stub_key);
+  *left_type = StateToType(zone, stub.left());
+  *right_type = StateToType(zone, stub.right());
+  *overall_type = StateToType(zone, stub.state(), map);
 }
 
 
@@ -2859,12 +2856,10 @@ CompareIC::State CompareIC::TargetState(State old_state, State old_left,
 
 Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope(isolate());
-  State previous_left, previous_right, previous_state;
-  ICCompareStub::DecodeKey(target()->stub_key(), &previous_left,
-                           &previous_right, &previous_state, NULL);
-  State new_left = NewInputState(previous_left, x);
-  State new_right = NewInputState(previous_right, y);
-  State state = TargetState(previous_state, previous_left, previous_right,
+  ICCompareStub old_stub(target()->stub_key());
+  State new_left = NewInputState(old_stub.left(), x);
+  State new_right = NewInputState(old_stub.right(), y);
+  State state = TargetState(old_stub.state(), old_stub.left(), old_stub.right(),
                             HasInlinedSmiCode(address()), x, y);
   ICCompareStub stub(isolate(), op_, new_left, new_right, state);
   if (state == KNOWN_OBJECT) {
@@ -2877,14 +2872,15 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   if (FLAG_trace_ic) {
     PrintF("[CompareIC in ");
     JavaScriptFrame::PrintTop(isolate(), stdout, false, true);
-    PrintF(" ((%s+%s=%s)->(%s+%s=%s))#%s @ %p]\n", GetStateName(previous_left),
-           GetStateName(previous_right), GetStateName(previous_state),
-           GetStateName(new_left), GetStateName(new_right), GetStateName(state),
-           Token::Name(op_), static_cast<void*>(*stub.GetCode()));
+    PrintF(" ((%s+%s=%s)->(%s+%s=%s))#%s @ %p]\n",
+           GetStateName(old_stub.left()), GetStateName(old_stub.right()),
+           GetStateName(old_stub.state()), GetStateName(new_left),
+           GetStateName(new_right), GetStateName(state), Token::Name(op_),
+           static_cast<void*>(*stub.GetCode()));
   }
 
   // Activate inlined smi code.
-  if (previous_state == UNINITIALIZED) {
+  if (old_stub.state() == UNINITIALIZED) {
     PatchInlinedSmiCode(address(), ENABLE_INLINED_SMI_CHECK);
   }
 
@@ -2938,7 +2934,7 @@ Handle<Object> CompareNilIC::CompareNil(Handle<Object> object) {
 
   stub.UpdateStatus(object);
 
-  NilValue nil = stub.GetNilValue();
+  NilValue nil = stub.nil_value();
 
   // Find or create the specialized stub to support the new set of types.
   Handle<Code> code;

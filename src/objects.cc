@@ -10901,14 +10901,11 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
     }
     if (is_compare_ic_stub()) {
       DCHECK(CodeStub::GetMajorKey(this) == CodeStub::CompareIC);
-      CompareIC::State left_state, right_state, handler_state;
-      Token::Value op;
-      ICCompareStub::DecodeKey(stub_key(), &left_state, &right_state,
-                               &handler_state, &op);
-      os << "compare_state = " << CompareIC::GetStateName(left_state) << "*"
-         << CompareIC::GetStateName(right_state) << " -> "
-         << CompareIC::GetStateName(handler_state) << "\n";
-      os << "compare_operation = " << Token::Name(op) << "\n";
+      ICCompareStub stub(stub_key());
+      os << "compare_state = " << CompareIC::GetStateName(stub.left()) << "*"
+         << CompareIC::GetStateName(stub.right()) << " -> "
+         << CompareIC::GetStateName(stub.state()) << "\n";
+      os << "compare_operation = " << Token::Name(stub.op()) << "\n";
     }
   }
   if ((name != NULL) && (name[0] != '\0')) {

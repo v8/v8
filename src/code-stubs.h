@@ -204,6 +204,8 @@ class CodeStub BASE_EMBEDDED {
   Isolate* isolate() const { return isolate_; }
 
  protected:
+  explicit CodeStub(uint32_t key) : minor_key_(MinorKeyFromKey(key)) {}
+
   // Generates the assembler code for the stub.
   virtual Handle<Code> GenerateCode() = 0;
 
@@ -274,6 +276,11 @@ class PlatformCodeStub : public CodeStub {
  protected:
   // Generates the assembler code for the stub.
   virtual void Generate(MacroAssembler* masm) = 0;
+
+  explicit PlatformCodeStub(uint32_t key) : CodeStub(key) {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(PlatformCodeStub);
 };
 
 
@@ -416,14 +423,6 @@ class HydrogenCodeStub : public CodeStub {
 
   bool IsUninitialized() const { return IsMissBits::decode(minor_key_); }
 
-  // TODO(yangguo): we use this temporarily to construct the minor key.
-  //   We want to remove NotMissMinorKey methods one by one and eventually
-  //   remove HydrogenStub::MinorKey and turn CodeStub::MinorKey into a
-  //   non-virtual method that directly returns minor_key_.
-  virtual int NotMissMinorKey() const {
-    return SubMinorKeyBits::decode(minor_key_);
-  }
-
   Handle<Code> GenerateLightweightMissCode();
 
   template<class StateType>
@@ -438,16 +437,13 @@ class HydrogenCodeStub : public CodeStub {
 
   static const int kSubMinorKeyBits = kStubMinorKeyBits - 1;
 
-  class SubMinorKeyBits : public BitField<int, 0, kSubMinorKeyBits> {};
-
  private:
   class IsMissBits : public BitField<bool, kSubMinorKeyBits, 1> {};
+  class SubMinorKeyBits : public BitField<int, 0, kSubMinorKeyBits> {};
 
   void GenerateLightweightMiss(MacroAssembler* masm);
-  virtual uint32_t MinorKey() const {
-    return IsMissBits::encode(IsUninitialized()) |
-           SubMinorKeyBits::encode(NotMissMinorKey());
-  }
+
+  DISALLOW_COPY_AND_ASSIGN(HydrogenCodeStub);
 };
 
 
@@ -1123,10 +1119,15 @@ class BinaryOpICStub : public HydrogenCodeStub {
  public:
   BinaryOpICStub(Isolate* isolate, Token::Value op,
                  OverwriteMode mode = NO_OVERWRITE)
-      : HydrogenCodeStub(isolate, UNINITIALIZED), state_(isolate, op, mode) {}
+      : HydrogenCodeStub(isolate, UNINITIALIZED) {
+    BinaryOpIC::State state(isolate, op, mode);
+    set_sub_minor_key(state.GetExtraICState());
+  }
 
   explicit BinaryOpICStub(Isolate* isolate, const BinaryOpIC::State& state)
-      : HydrogenCodeStub(isolate), state_(state) {}
+      : HydrogenCodeStub(isolate) {
+    set_sub_minor_key(state.GetExtraICState());
+  }
 
   static void GenerateAheadOfTime(Isolate* isolate);
 
@@ -1140,33 +1141,30 @@ class BinaryOpICStub : public HydrogenCodeStub {
   }
 
   virtual InlineCacheState GetICState() const FINAL OVERRIDE {
-    return state_.GetICState();
+    return state().GetICState();
   }
 
   virtual ExtraICState GetExtraICState() const FINAL OVERRIDE {
-    return state_.GetExtraICState();
+    return static_cast<ExtraICState>(sub_minor_key());
   }
 
   virtual Handle<Code> GenerateCode() OVERRIDE;
 
-  const BinaryOpIC::State& state() const { return state_; }
+  BinaryOpIC::State state() const {
+    return BinaryOpIC::State(isolate(), GetExtraICState());
+  }
 
   virtual void PrintState(OStream& os) const FINAL OVERRIDE;  // NOLINT
-
-  virtual Major MajorKey() const OVERRIDE { return BinaryOpIC; }
-  virtual int NotMissMinorKey() const FINAL OVERRIDE {
-    return GetExtraICState();
-  }
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kLeft = 0;
   static const int kRight = 1;
 
  private:
+  virtual Major MajorKey() const OVERRIDE { return BinaryOpIC; }
+
   static void GenerateAheadOfTime(Isolate* isolate,
                                   const BinaryOpIC::State& state);
-
-  BinaryOpIC::State state_;
 
   DISALLOW_COPY_AND_ASSIGN(BinaryOpICStub);
 };
@@ -1309,37 +1307,34 @@ class StringAddStub FINAL : public HydrogenCodeStub {
 
 class ICCompareStub: public PlatformCodeStub {
  public:
-  ICCompareStub(Isolate* isolate,
-                Token::Value op,
-                CompareIC::State left,
-                CompareIC::State right,
-                CompareIC::State handler)
-      : PlatformCodeStub(isolate),
-        op_(op),
-        left_(left),
-        right_(right),
-        state_(handler) {
+  ICCompareStub(Isolate* isolate, Token::Value op, CompareIC::State left,
+                CompareIC::State right, CompareIC::State state)
+      : PlatformCodeStub(isolate) {
     DCHECK(Token::IsCompareOp(op));
+    minor_key_ = OpBits::encode(op - Token::EQ) | LeftStateBits::encode(left) |
+                 RightStateBits::encode(right) | StateBits::encode(state);
   }
 
   virtual void Generate(MacroAssembler* masm);
 
   void set_known_map(Handle<Map> map) { known_map_ = map; }
 
-  static void DecodeKey(uint32_t stub_key, CompareIC::State* left_state,
-                        CompareIC::State* right_state,
-                        CompareIC::State* handler_state, Token::Value* op);
+  explicit ICCompareStub(uint32_t stub_key) : PlatformCodeStub(stub_key) {
+    DCHECK_EQ(MajorKeyFromKey(stub_key), MajorKey());
+  }
 
   virtual InlineCacheState GetICState() const;
 
- private:
-  class OpField: public BitField<int, 0, 3> { };
-  class LeftStateField: public BitField<int, 3, 4> { };
-  class RightStateField: public BitField<int, 7, 4> { };
-  class HandlerStateField: public BitField<int, 11, 4> { };
+  Token::Value op() const {
+    return static_cast<Token::Value>(Token::EQ + OpBits::decode(minor_key_));
+  }
 
+  CompareIC::State left() const { return LeftStateBits::decode(minor_key_); }
+  CompareIC::State right() const { return RightStateBits::decode(minor_key_); }
+  CompareIC::State state() const { return StateBits::decode(minor_key_); }
+
+ private:
   virtual Major MajorKey() const OVERRIDE { return CompareIC; }
-  virtual uint32_t MinorKey() const;
 
   virtual Code::Kind GetCodeKind() const { return Code::COMPARE_IC; }
 
@@ -1353,18 +1348,21 @@ class ICCompareStub: public PlatformCodeStub {
   void GenerateKnownObjects(MacroAssembler* masm);
   void GenerateGeneric(MacroAssembler* masm);
 
-  bool strict() const { return op_ == Token::EQ_STRICT; }
-  Condition GetCondition() const { return CompareIC::ComputeCondition(op_); }
+  bool strict() const { return op() == Token::EQ_STRICT; }
+  Condition GetCondition() const { return CompareIC::ComputeCondition(op()); }
 
   virtual void AddToSpecialCache(Handle<Code> new_object);
   virtual bool FindCodeInSpecialCache(Code** code_out);
-  virtual bool UseSpecialCache() { return state_ == CompareIC::KNOWN_OBJECT; }
+  virtual bool UseSpecialCache() { return state() == CompareIC::KNOWN_OBJECT; }
 
-  Token::Value op_;
-  CompareIC::State left_;
-  CompareIC::State right_;
-  CompareIC::State state_;
+  class OpBits : public BitField<int, 0, 3> {};
+  class LeftStateBits : public BitField<CompareIC::State, 3, 4> {};
+  class RightStateBits : public BitField<CompareIC::State, 7, 4> {};
+  class StateBits : public BitField<CompareIC::State, 11, 4> {};
+
   Handle<Map> known_map_;
+
+  DISALLOW_COPY_AND_ASSIGN(ICCompareStub);
 };
 
 
@@ -1373,16 +1371,15 @@ class CompareNilICStub : public HydrogenCodeStub  {
   Type* GetType(Zone* zone, Handle<Map> map = Handle<Map>());
   Type* GetInputType(Zone* zone, Handle<Map> map);
 
-  CompareNilICStub(Isolate* isolate, NilValue nil)
-      : HydrogenCodeStub(isolate), nil_value_(nil) { }
+  CompareNilICStub(Isolate* isolate, NilValue nil) : HydrogenCodeStub(isolate) {
+    set_sub_minor_key(NilValueBits::encode(nil));
+  }
 
-  CompareNilICStub(Isolate* isolate,
-                   ExtraICState ic_state,
+  CompareNilICStub(Isolate* isolate, ExtraICState ic_state,
                    InitializationState init_state = INITIALIZED)
-      : HydrogenCodeStub(isolate, init_state),
-        nil_value_(NilValueField::decode(ic_state)),
-        state_(State(TypesField::decode(ic_state))) {
-      }
+      : HydrogenCodeStub(isolate, init_state) {
+    set_sub_minor_key(ic_state);
+  }
 
   static Handle<Code> GetUninitialized(Isolate* isolate,
                                        NilValue nil) {
@@ -1399,9 +1396,10 @@ class CompareNilICStub : public HydrogenCodeStub  {
   }
 
   virtual InlineCacheState GetICState() const {
-    if (state_.Contains(GENERIC)) {
+    State state = this->state();
+    if (state.Contains(GENERIC)) {
       return MEGAMORPHIC;
-    } else if (state_.Contains(MONOMORPHIC_MAP)) {
+    } else if (state.Contains(MONOMORPHIC_MAP)) {
       return MONOMORPHIC;
     } else {
       return PREMONOMORPHIC;
@@ -1412,22 +1410,29 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   virtual Handle<Code> GenerateCode() OVERRIDE;
 
-  virtual ExtraICState GetExtraICState() const {
-    return NilValueField::encode(nil_value_) |
-           TypesField::encode(state_.ToIntegral());
-  }
+  virtual ExtraICState GetExtraICState() const { return sub_minor_key(); }
 
   void UpdateStatus(Handle<Object> object);
 
-  bool IsMonomorphic() const { return state_.Contains(MONOMORPHIC_MAP); }
-  NilValue GetNilValue() const { return nil_value_; }
-  void ClearState() { state_.RemoveAll(); }
+  bool IsMonomorphic() const { return state().Contains(MONOMORPHIC_MAP); }
+
+  NilValue nil_value() const { return NilValueBits::decode(sub_minor_key()); }
+
+  void ClearState() {
+    set_sub_minor_key(TypesBits::update(sub_minor_key(), 0));
+  }
 
   virtual void PrintState(OStream& os) const OVERRIDE;     // NOLINT
   virtual void PrintBaseName(OStream& os) const OVERRIDE;  // NOLINT
 
  private:
-  friend class CompareNilIC;
+  CompareNilICStub(Isolate* isolate, NilValue nil,
+                   InitializationState init_state)
+      : HydrogenCodeStub(isolate, init_state) {
+    set_sub_minor_key(NilValueBits::encode(nil));
+  }
+
+  virtual Major MajorKey() const OVERRIDE { return CompareNilIC; }
 
   enum CompareNilType {
     UNDEFINED,
@@ -1449,19 +1454,12 @@ class CompareNilICStub : public HydrogenCodeStub  {
   };
   friend OStream& operator<<(OStream& os, const State& s);
 
-  CompareNilICStub(Isolate* isolate,
-                   NilValue nil,
-                   InitializationState init_state)
-      : HydrogenCodeStub(isolate, init_state), nil_value_(nil) { }
+  State state() const { return State(TypesBits::decode(sub_minor_key())); }
 
-  class NilValueField : public BitField<NilValue, 0, 1> {};
-  class TypesField    : public BitField<byte,     1, NUMBER_OF_TYPES> {};
+  class NilValueBits : public BitField<NilValue, 0, 1> {};
+  class TypesBits : public BitField<byte, 1, NUMBER_OF_TYPES> {};
 
-  virtual Major MajorKey() const OVERRIDE { return CompareNilIC; }
-  virtual int NotMissMinorKey() const { return GetExtraICState(); }
-
-  NilValue nil_value_;
-  State state_;
+  friend class CompareNilIC;
 
   DISALLOW_COPY_AND_ASSIGN(CompareNilICStub);
 };
@@ -1967,7 +1965,9 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
 class VectorLoadStub : public HydrogenCodeStub {
  public:
   explicit VectorLoadStub(Isolate* isolate, const LoadIC::State& state)
-      : HydrogenCodeStub(isolate), state_(state) {}
+      : HydrogenCodeStub(isolate) {
+    set_sub_minor_key(state.GetExtraICState());
+  }
 
   virtual Handle<Code> GenerateCode() OVERRIDE;
 
@@ -1983,15 +1983,13 @@ class VectorLoadStub : public HydrogenCodeStub {
   }
 
   virtual ExtraICState GetExtraICState() const FINAL OVERRIDE {
-    return state_.GetExtraICState();
+    return static_cast<ExtraICState>(sub_minor_key());
   }
 
+ private:
   virtual Major MajorKey() const OVERRIDE { return VectorLoad; }
 
- private:
-  int NotMissMinorKey() const { return state_.GetExtraICState(); }
-
-  const LoadIC::State state_;
+  LoadIC::State state() const { return LoadIC::State(GetExtraICState()); }
 
   DISALLOW_COPY_AND_ASSIGN(VectorLoadStub);
 };
