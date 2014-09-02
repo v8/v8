@@ -53,7 +53,6 @@ class LoadICStubShim : public HydrogenCodeStub {
 
  private:
   virtual Major MajorKey() const OVERRIDE { return NoCache; }
-  virtual int NotMissMinorKey() const OVERRIDE { return 0; }
   virtual bool UseSpecialCache() OVERRIDE { return true; }
 
   ContextualMode contextual_mode_;
@@ -82,7 +81,6 @@ class KeyedLoadICStubShim : public HydrogenCodeStub {
 
  private:
   virtual Major MajorKey() const OVERRIDE { return NoCache; }
-  virtual int NotMissMinorKey() const OVERRIDE { return 0; }
   virtual bool UseSpecialCache() OVERRIDE { return true; }
 };
 
@@ -110,7 +108,6 @@ class StoreICStubShim : public HydrogenCodeStub {
 
  private:
   virtual Major MajorKey() const OVERRIDE { return NoCache; }
-  virtual int NotMissMinorKey() const OVERRIDE { return 0; }
   virtual bool UseSpecialCache() OVERRIDE { return true; }
 
   StrictMode strict_mode_;
@@ -142,7 +139,6 @@ class KeyedStoreICStubShim : public HydrogenCodeStub {
 
  private:
   virtual Major MajorKey() const OVERRIDE { return NoCache; }
-  virtual int NotMissMinorKey() const OVERRIDE { return 0; }
   virtual bool UseSpecialCache() OVERRIDE { return true; }
 
   StrictMode strict_mode_;
