@@ -4,7 +4,9 @@
 
 #include "src/base/bits.h"
 #include "src/compiler/graph-unittest.h"
+#include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
+#include "src/compiler/typer.h"
 
 namespace v8 {
 namespace internal {
@@ -18,7 +20,9 @@ class MachineOperatorReducerTest : public GraphTest {
 
  protected:
   Reduction Reduce(Node* node) {
-    MachineOperatorReducer reducer(graph());
+    Typer typer(zone());
+    JSGraph jsgraph(graph(), common(), &typer);
+    MachineOperatorReducer reducer(&jsgraph);
     return reducer.Reduce(node);
   }
 

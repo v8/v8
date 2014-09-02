@@ -257,7 +257,7 @@ Handle<Code> Pipeline::GenerateCode() {
       MachineOperatorBuilder machine(zone());
       SimplifiedOperatorReducer simple_reducer(&jsgraph, &machine);
       ChangeLowering lowering(&jsgraph, &linkage, &machine);
-      MachineOperatorReducer mach_reducer(&graph);
+      MachineOperatorReducer mach_reducer(&jsgraph);
       GraphReducer graph_reducer(&graph);
       // TODO(titzer): Figure out if we should run all reducers at once here.
       graph_reducer.AddReducer(&simple_reducer);
