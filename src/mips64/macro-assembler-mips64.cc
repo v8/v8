@@ -400,8 +400,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
     Ret(eq, t8, Operand(zero_reg));
   }
   push(ra);
-  StoreBufferOverflowStub store_buffer_overflow =
-      StoreBufferOverflowStub(isolate(), fp_mode);
+  StoreBufferOverflowStub store_buffer_overflow(isolate(), fp_mode);
   CallStub(&store_buffer_overflow);
   pop(ra);
   bind(&done);
