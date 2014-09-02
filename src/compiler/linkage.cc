@@ -93,11 +93,10 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count) {
 }
 
 
-CallDescriptor* Linkage::GetRuntimeCallDescriptor(Runtime::FunctionId function,
-                                                  int parameter_count,
-                                                  Operator::Property properties,
-                                                  CallDescriptor::Flags flags) {
-  return GetRuntimeCallDescriptor(function, parameter_count, properties, flags,
+CallDescriptor* Linkage::GetRuntimeCallDescriptor(
+    Runtime::FunctionId function, int parameter_count,
+    Operator::Property properties) {
+  return GetRuntimeCallDescriptor(function, parameter_count, properties,
                                   this->info_->zone());
 }
 
@@ -123,7 +122,6 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone) {
 CallDescriptor* Linkage::GetRuntimeCallDescriptor(Runtime::FunctionId function,
                                                   int parameter_count,
                                                   Operator::Property properties,
-                                                  CallDescriptor::Flags flags,
                                                   Zone* zone) {
   UNIMPLEMENTED();
   return NULL;

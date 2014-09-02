@@ -107,8 +107,7 @@ Node* RawMachineAssembler::CallJS0(Node* function, Node* receiver,
 Node* RawMachineAssembler::CallRuntime1(Runtime::FunctionId function,
                                         Node* arg0, Node* frame_state) {
   CallDescriptor* descriptor = Linkage::GetRuntimeCallDescriptor(
-      function, 1, Operator::kNoProperties, CallDescriptor::kNeedsFrameState,
-      zone());
+      function, 1, Operator::kNoProperties, zone());
 
   Node* centry = HeapConstant(CEntryStub(isolate(), 1).GetCode());
   Node* ref = NewNode(

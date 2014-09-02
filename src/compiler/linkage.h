@@ -147,14 +147,12 @@ class Linkage : public ZoneObject {
   CallDescriptor* GetIncomingDescriptor() { return incoming_; }
   CallDescriptor* GetJSCallDescriptor(int parameter_count);
   static CallDescriptor* GetJSCallDescriptor(int parameter_count, Zone* zone);
-  CallDescriptor* GetRuntimeCallDescriptor(
-      Runtime::FunctionId function, int parameter_count,
-      Operator::Property properties,
-      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
+  CallDescriptor* GetRuntimeCallDescriptor(Runtime::FunctionId function,
+                                           int parameter_count,
+                                           Operator::Property properties);
   static CallDescriptor* GetRuntimeCallDescriptor(Runtime::FunctionId function,
                                                   int parameter_count,
                                                   Operator::Property properties,
-                                                  CallDescriptor::Flags flags,
                                                   Zone* zone);
 
   CallDescriptor* GetStubCallDescriptor(
@@ -190,6 +188,8 @@ class Linkage : public ZoneObject {
   FrameOffset GetFrameOffset(int spill_slot, Frame* frame, int extra = 0);
 
   CompilationInfo* info() const { return info_; }
+
+  static bool NeedsFrameState(Runtime::FunctionId function);
 
  private:
   CompilationInfo* info_;
