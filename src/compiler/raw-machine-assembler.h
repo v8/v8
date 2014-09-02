@@ -64,6 +64,12 @@ class RawMachineAssembler : public GraphBuilder,
     return call_descriptor_builder_->parameter_types();
   }
 
+  Node* UndefinedConstant() {
+    PrintableUnique<Object> unique = PrintableUnique<Object>::CreateImmovable(
+        zone(), isolate()->factory()->undefined_value());
+    return NewNode(common()->HeapConstant(unique));
+  }
+
   // Parameters.
   Node* Parameter(int index);
 

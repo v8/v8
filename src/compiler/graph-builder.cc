@@ -41,7 +41,7 @@ Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
   DCHECK(OperatorProperties::GetEffectInputCount(op) < 2);
 
   Node* result = NULL;
-  if (!has_context && !has_control && !has_effect) {
+  if (!has_context && !has_framestate && !has_control && !has_effect) {
     result = graph()->NewNode(op, value_input_count, value_inputs);
   } else {
     int input_count_with_deps = value_input_count;
