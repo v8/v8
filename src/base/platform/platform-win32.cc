@@ -21,6 +21,7 @@
 
 #include "src/base/win32-headers.h"
 
+#include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
@@ -700,7 +701,7 @@ static size_t GetPageSize() {
   if (page_size == 0) {
     SYSTEM_INFO info;
     GetSystemInfo(&info);
-    page_size = RoundUpToPowerOf2(info.dwPageSize);
+    page_size = base::bits::RoundUpToPowerOfTwo32(info.dwPageSize);
   }
   return page_size;
 }
