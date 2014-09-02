@@ -860,6 +860,7 @@ def get_list():
       Cmd("git status -s -uno", ""),
       Cmd("git checkout -f master", ""),
       Cmd("gclient sync --nohooks", "syncing..."),
+      Cmd("git pull", ""),
       Cmd("git fetch origin", ""),
       Cmd("git checkout -b v8-roll-123455", ""),
       Cmd("roll-dep v8 123455", "rolled", cb=WriteDeps),
