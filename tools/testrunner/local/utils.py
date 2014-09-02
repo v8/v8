@@ -36,7 +36,9 @@ import urllib2
 
 
 def GetSuitePaths(test_root):
-  return [ f for f in os.listdir(test_root) if isdir(join(test_root, f)) ]
+  def IsSuite(path):
+    return isdir(path) and exists(join(path, 'testcfg.py'))
+  return [ f for f in os.listdir(test_root) if IsSuite(join(test_root, f)) ]
 
 
 # Reads a file into an array of strings
