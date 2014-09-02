@@ -12,6 +12,7 @@
 #include "src/v8.h"
 #else
 #include "include/v8.h"
+#include "src/base/compiler-specific.h"
 #endif  // !V8_SHARED
 
 namespace v8 {
