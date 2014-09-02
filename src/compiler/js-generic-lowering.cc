@@ -377,10 +377,11 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
 void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
                                                Runtime::FunctionId f,
                                                int nargs_override) {
-  Operator::Property props = node->op()->properties();
+  Operator::Properties properties = node->op()->properties();
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   int nargs = (nargs_override < 0) ? fun->nargs : nargs_override;
-  CallDescriptor* desc = linkage()->GetRuntimeCallDescriptor(f, nargs, props);
+  CallDescriptor* desc =
+      linkage()->GetRuntimeCallDescriptor(f, nargs, properties);
   Node* ref = ExternalConstant(ExternalReference(f, isolate()));
   Node* arity = Int32Constant(nargs);
   if (!centrystub_constant_.is_set()) {

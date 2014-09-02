@@ -14,79 +14,35 @@ namespace compiler {
 // This access builder provides a set of static methods constructing commonly
 // used FieldAccess and ElementAccess descriptors. These descriptors server as
 // parameters to simplified load/store operators.
-class AccessBuilder : public AllStatic {
+class AccessBuilder FINAL : public AllStatic {
  public:
   // Provides access to HeapObject::map() field.
-  static FieldAccess ForMap() {
-    return {kTaggedBase, HeapObject::kMapOffset, Handle<Name>(), Type::Any(),
-            kMachAnyTagged};
-  }
+  static FieldAccess ForMap();
 
   // Provides access to JSObject::properties() field.
-  static FieldAccess ForJSObjectProperties() {
-    return {kTaggedBase, JSObject::kPropertiesOffset, Handle<Name>(),
-            Type::Any(), kMachAnyTagged};
-  }
+  static FieldAccess ForJSObjectProperties();
 
   // Provides access to JSObject::elements() field.
-  static FieldAccess ForJSObjectElements() {
-    return {kTaggedBase, JSObject::kElementsOffset, Handle<Name>(),
-            Type::Internal(), kMachAnyTagged};
-  }
+  static FieldAccess ForJSObjectElements();
 
   // Provides access to JSArrayBuffer::backing_store() field.
-  static FieldAccess ForJSArrayBufferBackingStore() {
-    return {kTaggedBase, JSArrayBuffer::kBackingStoreOffset, Handle<Name>(),
-            Type::UntaggedPtr(), kMachPtr};
-  }
+  static FieldAccess ForJSArrayBufferBackingStore();
 
   // Provides access to ExternalArray::external_pointer() field.
-  static FieldAccess ForExternalArrayPointer() {
-    return {kTaggedBase, ExternalArray::kExternalPointerOffset, Handle<Name>(),
-            Type::UntaggedPtr(), kMachPtr};
-  }
+  static FieldAccess ForExternalArrayPointer();
 
   // Provides access to FixedArray elements.
-  static ElementAccess ForFixedArrayElement() {
-    return {kTaggedBase, FixedArray::kHeaderSize, Type::Any(), kMachAnyTagged};
-  }
+  static ElementAccess ForFixedArrayElement();
 
   // TODO(mstarzinger): Raw access only for testing, drop me.
-  static ElementAccess ForBackingStoreElement(MachineType rep) {
-    return {kUntaggedBase, kNonHeapObjectHeaderSize - kHeapObjectTag,
-            Type::Any(), rep};
-  }
+  static ElementAccess ForBackingStoreElement(MachineType rep);
 
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
-                                            bool is_external) {
-    BaseTaggedness taggedness = is_external ? kUntaggedBase : kTaggedBase;
-    int header_size = is_external ? 0 : FixedTypedArrayBase::kDataOffset;
-    switch (type) {
-      case kExternalInt8Array:
-        return {taggedness, header_size, Type::Signed32(), kMachInt8};
-      case kExternalUint8Array:
-      case kExternalUint8ClampedArray:
-        return {taggedness, header_size, Type::Unsigned32(), kMachUint8};
-      case kExternalInt16Array:
-        return {taggedness, header_size, Type::Signed32(), kMachInt16};
-      case kExternalUint16Array:
-        return {taggedness, header_size, Type::Unsigned32(), kMachUint16};
-      case kExternalInt32Array:
-        return {taggedness, header_size, Type::Signed32(), kMachInt32};
-      case kExternalUint32Array:
-        return {taggedness, header_size, Type::Unsigned32(), kMachUint32};
-      case kExternalFloat32Array:
-        return {taggedness, header_size, Type::Number(), kRepFloat32};
-      case kExternalFloat64Array:
-        return {taggedness, header_size, Type::Number(), kRepFloat64};
-    }
-    UNREACHABLE();
-    return {kUntaggedBase, 0, Type::None(), kMachNone};
-  }
+                                            bool is_external);
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(AccessBuilder);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
 };
 
 }  // namespace compiler

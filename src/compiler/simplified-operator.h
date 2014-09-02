@@ -11,6 +11,14 @@
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+template <class>
+class TypeImpl;
+struct ZoneTypeConfig;
+typedef TypeImpl<ZoneTypeConfig> Type;
+
+
 namespace compiler {
 
 enum BaseTaggedness { kUntaggedBase, kTaggedBase };
@@ -49,34 +57,27 @@ static const int kNonHeapObjectHeaderSize = kHeapObjectTag;
 
 // Specialization for static parameters of type {FieldAccess}.
 template <>
-struct StaticParameterTraits<const FieldAccess> {
+struct StaticParameterTraits<FieldAccess> {
   static OStream& PrintTo(OStream& os, const FieldAccess& val) {  // NOLINT
     return os << val.offset;
   }
   static int HashCode(const FieldAccess& val) {
     return (val.offset < 16) | (val.machine_type & 0xffff);
   }
-  static bool Equals(const FieldAccess& a, const FieldAccess& b) {
-    return a.base_is_tagged == b.base_is_tagged && a.offset == b.offset &&
-           a.machine_type == b.machine_type && a.type->Is(b.type);
-  }
+  static bool Equals(const FieldAccess& lhs, const FieldAccess& rhs);
 };
 
 
 // Specialization for static parameters of type {ElementAccess}.
 template <>
-struct StaticParameterTraits<const ElementAccess> {
+struct StaticParameterTraits<ElementAccess> {
   static OStream& PrintTo(OStream& os, const ElementAccess& val) {  // NOLINT
     return os << val.header_size;
   }
   static int HashCode(const ElementAccess& val) {
     return (val.header_size < 16) | (val.machine_type & 0xffff);
   }
-  static bool Equals(const ElementAccess& a, const ElementAccess& b) {
-    return a.base_is_tagged == b.base_is_tagged &&
-           a.header_size == b.header_size && a.machine_type == b.machine_type &&
-           a.type->Is(b.type);
-  }
+  static bool Equals(const ElementAccess& lhs, const ElementAccess& rhs);
 };
 
 
@@ -92,55 +93,6 @@ inline const ElementAccess ElementAccessOf(Operator* op) {
          op->opcode() == IrOpcode::kStoreElement);
   return static_cast<Operator1<ElementAccess>*>(op)->parameter();
 }
-
-
-// This access helper provides a set of static methods constructing commonly
-// used FieldAccess and ElementAccess descriptors.
-class Access : public AllStatic {
- public:
-  // Provides access to JSObject::elements() field.
-  static FieldAccess ForJSObjectElements() {
-    return {kTaggedBase, JSObject::kElementsOffset, Handle<Name>(),
-            Type::Internal(), kMachAnyTagged};
-  }
-
-  // Provides access to ExternalArray::external_pointer() field.
-  static FieldAccess ForExternalArrayPointer() {
-    return {kTaggedBase, ExternalArray::kExternalPointerOffset, Handle<Name>(),
-            Type::UntaggedPtr(), kMachPtr};
-  }
-
-  // Provides access to Fixed{type}TypedArray and External{type}Array elements.
-  static ElementAccess ForTypedArrayElement(ExternalArrayType type,
-                                            bool is_external) {
-    BaseTaggedness taggedness = is_external ? kUntaggedBase : kTaggedBase;
-    int header_size = is_external ? 0 : FixedTypedArrayBase::kDataOffset;
-    switch (type) {
-      case kExternalInt8Array:
-        return {taggedness, header_size, Type::Signed32(), kMachInt8};
-      case kExternalUint8Array:
-      case kExternalUint8ClampedArray:
-        return {taggedness, header_size, Type::Unsigned32(), kMachUint8};
-      case kExternalInt16Array:
-        return {taggedness, header_size, Type::Signed32(), kMachInt16};
-      case kExternalUint16Array:
-        return {taggedness, header_size, Type::Unsigned32(), kMachUint16};
-      case kExternalInt32Array:
-        return {taggedness, header_size, Type::Signed32(), kMachInt32};
-      case kExternalUint32Array:
-        return {taggedness, header_size, Type::Unsigned32(), kMachUint32};
-      case kExternalFloat32Array:
-        return {taggedness, header_size, Type::Number(), kRepFloat32};
-      case kExternalFloat64Array:
-        return {taggedness, header_size, Type::Number(), kRepFloat64};
-    }
-    UNREACHABLE();
-    return {kUntaggedBase, 0, Type::None(), kMachNone};
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(Access);
-};
 
 
 // Interface for building simplified operators, which represent the

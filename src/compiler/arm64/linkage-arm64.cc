@@ -39,10 +39,9 @@ CallDescriptor* Linkage::GetJSCallDescriptor(int parameter_count, Zone* zone) {
 }
 
 
-CallDescriptor* Linkage::GetRuntimeCallDescriptor(Runtime::FunctionId function,
-                                                  int parameter_count,
-                                                  Operator::Property properties,
-                                                  Zone* zone) {
+CallDescriptor* Linkage::GetRuntimeCallDescriptor(
+    Runtime::FunctionId function, int parameter_count,
+    Operator::Properties properties, Zone* zone) {
   return LinkageHelper::GetRuntimeCallDescriptor<LinkageHelperTraits>(
       zone, function, parameter_count, properties);
 }
@@ -63,6 +62,6 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
       zone, num_params, return_type, param_types);
 }
 
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

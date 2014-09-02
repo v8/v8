@@ -71,7 +71,7 @@ class LinkageHelper {
   template <typename LinkageTraits>
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function_id, int parameter_count,
-      Operator::Property properties) {
+      Operator::Properties properties) {
     const int code_count = 1;
     const int function_count = 1;
     const int num_args_count = 1;

@@ -65,51 +65,38 @@ class Flags FINAL {
 
 
 #define DEFINE_OPERATORS_FOR_FLAGS(Type)                                       \
-  inline ::v8::base::Flags<Type::flag_type> operator&(                         \
-      Type::flag_type lhs,                                                     \
-      Type::flag_type rhs)ALLOW_UNUSED WARN_UNUSED_RESULT;                     \
-  inline ::v8::base::Flags<Type::flag_type> operator&(Type::flag_type lhs,     \
-                                                      Type::flag_type rhs) {   \
-    return ::v8::base::Flags<Type::flag_type>(lhs) & rhs;                      \
+  inline Type operator&(Type::flag_type lhs,                                   \
+                        Type::flag_type rhs)ALLOW_UNUSED WARN_UNUSED_RESULT;   \
+  inline Type operator&(Type::flag_type lhs, Type::flag_type rhs) {            \
+    return Type(lhs) & rhs;                                                    \
   }                                                                            \
-  inline ::v8::base::Flags<Type::flag_type> operator&(                         \
-      Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs)      \
-      ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
-  inline ::v8::base::Flags<Type::flag_type> operator&(                         \
-      Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs) {    \
+  inline Type operator&(Type::flag_type lhs,                                   \
+                        const Type& rhs)ALLOW_UNUSED WARN_UNUSED_RESULT;       \
+  inline Type operator&(Type::flag_type lhs, const Type& rhs) {                \
     return rhs & lhs;                                                          \
   }                                                                            \
   inline void operator&(Type::flag_type lhs, Type::mask_type rhs)ALLOW_UNUSED; \
   inline void operator&(Type::flag_type lhs, Type::mask_type rhs) {}           \
-  inline ::v8::base::Flags<Type::flag_type> operator|(Type::flag_type lhs,     \
-                                                      Type::flag_type rhs)     \
+  inline Type operator|(Type::flag_type lhs, Type::flag_type rhs)              \
       ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
-  inline ::v8::base::Flags<Type::flag_type> operator|(Type::flag_type lhs,     \
-                                                      Type::flag_type rhs) {   \
-    return ::v8::base::Flags<Type::flag_type>(lhs) | rhs;                      \
+  inline Type operator|(Type::flag_type lhs, Type::flag_type rhs) {            \
+    return Type(lhs) | rhs;                                                    \
   }                                                                            \
-  inline ::v8::base::Flags<Type::flag_type> operator|(                         \
-      Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs)      \
+  inline Type operator|(Type::flag_type lhs, const Type& rhs)                  \
       ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
-  inline ::v8::base::Flags<Type::flag_type> operator|(                         \
-      Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs) {    \
+  inline Type operator|(Type::flag_type lhs, const Type& rhs) {                \
     return rhs | lhs;                                                          \
   }                                                                            \
   inline void operator|(Type::flag_type lhs, Type::mask_type rhs)              \
       ALLOW_UNUSED;                                                            \
   inline void operator|(Type::flag_type lhs, Type::mask_type rhs) {}           \
-  inline ::v8::base::Flags<Type::flag_type> operator^(Type::flag_type lhs,     \
-                                                      Type::flag_type rhs)     \
+  inline Type operator^(Type::flag_type lhs, Type::flag_type rhs)              \
       ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
-  inline ::v8::base::Flags<Type::flag_type> operator^(Type::flag_type lhs,     \
-                                                      Type::flag_type rhs) {   \
-    return ::v8::base::Flags<Type::flag_type>(lhs) ^ rhs;                      \
-  } inline ::v8::base::Flags<Type::flag_type>                                  \
-      operator^(Type::flag_type lhs,                                           \
-                const ::v8::base::Flags<Type::flag_type>& rhs)                 \
+  inline Type operator^(Type::flag_type lhs, Type::flag_type rhs) {            \
+    return Type(lhs) ^ rhs;                                                    \
+  } inline Type operator^(Type::flag_type lhs, const Type& rhs)                \
       ALLOW_UNUSED WARN_UNUSED_RESULT;                                         \
-  inline ::v8::base::Flags<Type::flag_type> operator^(                         \
-      Type::flag_type lhs, const ::v8::base::Flags<Type::flag_type>& rhs) {    \
+  inline Type operator^(Type::flag_type lhs, const Type& rhs) {                \
     return rhs ^ lhs;                                                          \
   } inline void operator^(Type::flag_type lhs, Type::mask_type rhs)            \
       ALLOW_UNUSED;                                                            \
