@@ -323,8 +323,9 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
     inputs.push_back(NodeProperties::GetEffectInput(node));
     inputs.push_back(NodeProperties::GetControlInput(node));
   }
-  Node* compare = graph()->NewNode(common()->Call(desc_compare), inputs.size(),
-                                   &inputs.front());
+  Node* compare =
+      graph()->NewNode(common()->Call(desc_compare),
+                       static_cast<int>(inputs.size()), &inputs.front());
 
   node->ReplaceInput(0, compare);
   node->ReplaceInput(1, SmiConstant(token));
