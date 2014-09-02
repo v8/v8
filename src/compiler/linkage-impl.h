@@ -199,26 +199,6 @@ class LinkageHelper {
         CallDescriptor::kNoFlags);  // TODO(jarin) should deoptimize!
   }
 };
-
-
-bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
-  if (!FLAG_turbo_deoptimization) {
-    return false;
-  }
-  // TODO(jarin) At the moment, we only add frame state for
-  // few chosen runtime functions.
-  switch (function) {
-    case Runtime::kDebugBreak:
-    case Runtime::kDeoptimizeFunction:
-    case Runtime::kSetScriptBreakPoint:
-    case Runtime::kDebugGetLoadedScripts:
-    case Runtime::kStackGuard:
-      return true;
-    default:
-      return false;
-  }
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
