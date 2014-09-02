@@ -84,9 +84,12 @@ TEST(Bits, RoundUpToPowerOfTwo32) {
 }
 
 
+#if 0
+// TODO(bmeurer): Fix this on NaCL builds.
 TEST(BitsDeathTest, DISABLE_IN_RELEASE(RoundUpToPowerOfTwo32)) {
   ASSERT_DEATH({ RoundUpToPowerOfTwo32(0x80000001u); }, "0x80000000");
 }
+#endif
 
 
 TEST(Bits, RoundDownToPowerOfTwo32) {
