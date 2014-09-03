@@ -188,6 +188,19 @@ class RepresentationSelector {
     }
   }
 
+  void ProcessRemainingInputs(Node* node, int index) {
+    DCHECK_GE(index, NodeProperties::PastValueIndex(node));
+    DCHECK_GE(index, NodeProperties::PastContextIndex(node));
+    for (int i = std::max(index, NodeProperties::FirstEffectIndex(node));
+         i < NodeProperties::PastEffectIndex(node); ++i) {
+      Enqueue(node->InputAt(i));  // Effect inputs: just visit
+    }
+    for (int i = std::max(index, NodeProperties::FirstControlIndex(node));
+         i < NodeProperties::PastControlIndex(node); ++i) {
+      Enqueue(node->InputAt(i));  // Control inputs: just visit
+    }
+  }
+
   // The default, most general visitation case. For {node}, process all value,
   // context, effect, and control inputs, assuming that value inputs should have
   // {kRepTagged} representation and can observe all output values {kTypeAny}.
@@ -529,6 +542,7 @@ class RepresentationSelector {
       case IrOpcode::kLoadField: {
         FieldAccess access = FieldAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
+        ProcessRemainingInputs(node, 1);
         SetOutput(node, access.machine_type);
         if (lower()) lowering->DoLoadField(node);
         break;
@@ -537,6 +551,7 @@ class RepresentationSelector {
         FieldAccess access = FieldAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessInput(node, 1, access.machine_type);
+        ProcessRemainingInputs(node, 2);
         SetOutput(node, 0);
         if (lower()) lowering->DoStoreField(node);
         break;
@@ -545,6 +560,7 @@ class RepresentationSelector {
         ElementAccess access = ElementAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessInput(node, 1, kMachInt32);  // element index
+        ProcessRemainingInputs(node, 2);
         SetOutput(node, access.machine_type);
         if (lower()) lowering->DoLoadElement(node);
         break;
@@ -554,6 +570,7 @@ class RepresentationSelector {
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessInput(node, 1, kMachInt32);  // element index
         ProcessInput(node, 2, access.machine_type);
+        ProcessRemainingInputs(node, 3);
         SetOutput(node, 0);
         if (lower()) lowering->DoStoreElement(node);
         break;
@@ -568,6 +585,7 @@ class RepresentationSelector {
         MachineType machine_type = OpParameter<MachineType>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
+        ProcessRemainingInputs(node, 2);
         SetOutput(node, machine_type);
         break;
       }
@@ -578,6 +596,7 @@ class RepresentationSelector {
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
         ProcessInput(node, 2, rep.machine_type);
+        ProcessRemainingInputs(node, 3);
         SetOutput(node, 0);
         break;
       }
