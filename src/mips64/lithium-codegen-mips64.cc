@@ -1156,7 +1156,7 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
   Register dividend = ToRegister(instr->dividend());
   int32_t divisor = instr->divisor();
   Register result = ToRegister(instr->result());
-  DCHECK(divisor == kMinInt || IsPowerOf2(Abs(divisor)));
+  DCHECK(divisor == kMinInt || base::bits::IsPowerOfTwo32(Abs(divisor)));
   DCHECK(!result.is(dividend));
 
   // Check for (0 / -x) that will produce negative zero.
@@ -1480,18 +1480,18 @@ void LCodeGen::DoMulI(LMulI* instr) {
         int32_t mask = constant >> 31;
         uint32_t constant_abs = (constant + mask) ^ mask;
 
-        if (IsPowerOf2(constant_abs)) {
+        if (base::bits::IsPowerOfTwo32(constant_abs)) {
           int32_t shift = WhichPowerOf2(constant_abs);
           __ dsll(result, left, shift);
           // Correct the sign of the result if the constant is negative.
           if (constant < 0)  __ Dsubu(result, zero_reg, result);
-        } else if (IsPowerOf2(constant_abs - 1)) {
+        } else if (base::bits::IsPowerOfTwo32(constant_abs - 1)) {
           int32_t shift = WhichPowerOf2(constant_abs - 1);
           __ dsll(scratch, left, shift);
           __ Daddu(result, scratch, left);
           // Correct the sign of the result if the constant is negative.
           if (constant < 0)  __ Dsubu(result, zero_reg, result);
-        } else if (IsPowerOf2(constant_abs + 1)) {
+        } else if (base::bits::IsPowerOfTwo32(constant_abs + 1)) {
           int32_t shift = WhichPowerOf2(constant_abs + 1);
           __ dsll(scratch, left, shift);
           __ Dsubu(result, scratch, left);
@@ -5139,8 +5139,8 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
     uint8_t tag;
     instr->hydrogen()->GetCheckMaskAndTag(&mask, &tag);
 
-    if (IsPowerOf2(mask)) {
-      DCHECK(tag == 0 || IsPowerOf2(tag));
+    if (base::bits::IsPowerOfTwo32(mask)) {
+      DCHECK(tag == 0 || base::bits::IsPowerOfTwo32(tag));
       __ And(at, scratch, mask);
       DeoptimizeIf(tag == 0 ? ne : eq, instr->environment(),
           at, Operand(zero_reg));

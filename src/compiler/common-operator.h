@@ -20,18 +20,20 @@ class OStream;
 
 namespace compiler {
 
-class ControlOperator : public Operator1<int> {
+class ControlOperator FINAL : public Operator1<int> {
  public:
-  ControlOperator(IrOpcode::Value opcode, uint16_t properties, int inputs,
+  ControlOperator(IrOpcode::Value opcode, Properties properties, int inputs,
                   int outputs, int controls, const char* mnemonic)
       : Operator1<int>(opcode, properties, inputs, outputs, mnemonic,
                        controls) {}
 
-  virtual OStream& PrintParameter(OStream& os) const { return os; }  // NOLINT
+  virtual OStream& PrintParameter(OStream& os) const OVERRIDE {  // NOLINT
+    return os;
+  }
   int ControlInputCount() const { return parameter(); }
 };
 
-class CallOperator : public Operator1<CallDescriptor*> {
+class CallOperator FINAL : public Operator1<CallDescriptor*> {
  public:
   CallOperator(CallDescriptor* descriptor, const char* mnemonic)
       : Operator1<CallDescriptor*>(
@@ -39,7 +41,7 @@ class CallOperator : public Operator1<CallDescriptor*> {
             descriptor->InputCount() + descriptor->FrameStateCount(),
             descriptor->ReturnCount(), mnemonic, descriptor) {}
 
-  virtual OStream& PrintParameter(OStream& os) const {  // NOLINT
+  virtual OStream& PrintParameter(OStream& os) const OVERRIDE {  // NOLINT
     return os << "[" << *parameter() << "]";
   }
 };
@@ -91,7 +93,8 @@ class CommonOperatorBuilder {
   Operator* Throw() { CONTROL_OP(Throw, 1, 1); }
 
   Operator* Return() {
-    return new (zone_) ControlOperator(IrOpcode::kReturn, 0, 1, 0, 1, "Return");
+    return new (zone_) ControlOperator(
+        IrOpcode::kReturn, Operator::kNoProperties, 1, 0, 1, "Return");
   }
 
   Operator* Merge(int controls) {

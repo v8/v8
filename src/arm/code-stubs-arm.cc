@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
@@ -704,8 +705,8 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   Condition cc = GetCondition();
 
   Label miss;
-  ICCompareStub_CheckInputType(masm, lhs, r2, left_, &miss);
-  ICCompareStub_CheckInputType(masm, rhs, r3, right_, &miss);
+  ICCompareStub_CheckInputType(masm, lhs, r2, left(), &miss);
+  ICCompareStub_CheckInputType(masm, rhs, r3, right(), &miss);
 
   Label slow;  // Call builtin.
   Label not_smis, both_loaded_as_doubles, lhs_not_nan;
@@ -1158,7 +1159,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     if (frame_alignment > kPointerSize) {
       Label alignment_as_expected;
-      DCHECK(IsPowerOf2(frame_alignment));
+      DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
       __ tst(sp, Operand(frame_alignment_mask));
       __ b(eq, &alignment_as_expected);
       // Don't use Check here, as it will call Runtime_Abort re-entering here.
@@ -2953,7 +2954,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   // Fast case of Heap::LookupSingleCharacterStringFromCode.
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiShiftSize == 0);
-  DCHECK(IsPowerOf2(String::kMaxOneByteCharCode + 1));
+  DCHECK(base::bits::IsPowerOfTwo32(String::kMaxOneByteCharCode + 1));
   __ tst(code_,
          Operand(kSmiTagMask |
                  ((~String::kMaxOneByteCharCode) << kSmiTagSize)));
@@ -3472,7 +3473,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::SMI);
+  DCHECK(state() == CompareIC::SMI);
   Label miss;
   __ orr(r2, r1, r0);
   __ JumpIfNotSmi(r2, &miss);
@@ -3493,16 +3494,16 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::NUMBER);
+  DCHECK(state() == CompareIC::NUMBER);
 
   Label generic_stub;
   Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
 
-  if (left_ == CompareIC::SMI) {
+  if (left() == CompareIC::SMI) {
     __ JumpIfNotSmi(r1, &miss);
   }
-  if (right_ == CompareIC::SMI) {
+  if (right() == CompareIC::SMI) {
     __ JumpIfNotSmi(r0, &miss);
   }
 
@@ -3544,12 +3545,12 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&unordered);
   __ bind(&generic_stub);
-  ICCompareStub stub(isolate(), op_, CompareIC::GENERIC, CompareIC::GENERIC,
+  ICCompareStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 
   __ bind(&maybe_undefined1);
-  if (Token::IsOrderedRelationalCompareOp(op_)) {
+  if (Token::IsOrderedRelationalCompareOp(op())) {
     __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
     __ b(ne, &miss);
     __ JumpIfSmi(r1, &unordered);
@@ -3559,7 +3560,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   }
 
   __ bind(&maybe_undefined2);
-  if (Token::IsOrderedRelationalCompareOp(op_)) {
+  if (Token::IsOrderedRelationalCompareOp(op())) {
     __ CompareRoot(r1, Heap::kUndefinedValueRootIndex);
     __ b(eq, &unordered);
   }
@@ -3570,7 +3571,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::INTERNALIZED_STRING);
+  DCHECK(state() == CompareIC::INTERNALIZED_STRING);
   Label miss;
 
   // Registers containing left and right operands respectively.
@@ -3608,7 +3609,7 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::UNIQUE_NAME);
+  DCHECK(state() == CompareIC::UNIQUE_NAME);
   DCHECK(GetCondition() == eq);
   Label miss;
 
@@ -3647,10 +3648,10 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::STRING);
+  DCHECK(state() == CompareIC::STRING);
   Label miss;
 
-  bool equality = Token::IsEqualityOp(op_);
+  bool equality = Token::IsEqualityOp(op());
 
   // Registers containing left and right operands respectively.
   Register left = r1;
@@ -3726,7 +3727,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::OBJECT);
+  DCHECK(state() == CompareIC::OBJECT);
   Label miss;
   __ and_(r2, r1, Operand(r0));
   __ JumpIfSmi(r2, &miss);
@@ -3774,7 +3775,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
     __ Push(r1, r0);
     __ Push(lr, r1, r0);
-    __ mov(ip, Operand(Smi::FromInt(op_)));
+    __ mov(ip, Operand(Smi::FromInt(op())));
     __ push(ip);
     __ CallExternalReference(miss, 3);
     // Compute the entry point of the rewritten stub.
@@ -4393,7 +4394,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   int frame_alignment = masm->ActivationFrameAlignment();
   if (frame_alignment > kPointerSize) {
     __ mov(r5, sp);
-    DCHECK(IsPowerOf2(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
     __ and_(sp, sp, Operand(-frame_alignment));
   }
 

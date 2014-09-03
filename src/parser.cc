@@ -739,23 +739,25 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 }
 
 
-Parser::Parser(CompilationInfo* info)
-    : ParserBase<ParserTraits>(
-          &scanner_, info->isolate()->stack_guard()->real_climit(),
-          info->extension(), NULL, info->zone(), info->ast_node_id_gen(), this),
+Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
+    : ParserBase<ParserTraits>(&scanner_, parse_info->stack_limit,
+                               info->extension(), NULL, info->zone(),
+                               info->ast_node_id_gen(), this),
       isolate_(info->isolate()),
       script_(info->script()),
-      scanner_(isolate_->unicode_cache()),
+      scanner_(parse_info->unicode_cache),
       reusable_preparser_(NULL),
       original_scope_(NULL),
       target_stack_(NULL),
       cached_parse_data_(NULL),
-      ast_value_factory_(NULL),
+      ast_value_factory_(info->ast_value_factory()),
       info_(info),
       has_pending_error_(false),
       pending_error_message_(NULL),
       pending_error_arg_(NULL),
-      pending_error_char_arg_(NULL) {
+      pending_error_char_arg_(NULL),
+      total_preparse_skipped_(0),
+      pre_parse_timer_(NULL) {
   DCHECK(!script_.is_null());
   set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
   set_allow_modules(!info->is_native() && FLAG_harmony_modules);
@@ -769,12 +771,18 @@ Parser::Parser(CompilationInfo* info)
        ++feature) {
     use_counts_[feature] = 0;
   }
+  if (ast_value_factory_ == NULL) {
+    ast_value_factory_ = new AstValueFactory(zone(), parse_info->hash_seed);
+  }
 }
 
 
 FunctionLiteral* Parser::ParseProgram() {
   // TODO(bmeurer): We temporarily need to pass allow_nesting = true here,
   // see comment for HistogramTimerScope class.
+
+  // It's OK to use the counters here, since this function is only called in
+  // the main thread.
   HistogramTimerScope timer_scope(isolate()->counters()->parse(), true);
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -808,6 +816,7 @@ FunctionLiteral* Parser::ParseProgram() {
     scanner_.Initialize(&stream);
     result = DoParseProgram(info(), source);
   }
+  HandleSourceURLComments();
 
   if (FLAG_trace_parse && result != NULL) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -876,8 +885,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
     int beg_pos = scanner()->location().beg_pos;
     ParseSourceElements(body, Token::EOS, info->is_eval(), true, &ok);
 
-    HandleSourceURLComments();
-
     if (ok && strict_mode() == STRICT) {
       CheckOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
     }
@@ -896,7 +903,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
       }
     }
 
-    ast_value_factory_->Internalize(isolate());
     if (ok) {
       result = factory()->NewFunctionLiteral(
           ast_value_factory_->empty_string(), ast_value_factory_, scope_, body,
@@ -910,10 +916,6 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
       result->set_ast_properties(factory()->visitor()->ast_properties());
       result->set_dont_optimize_reason(
           factory()->visitor()->dont_optimize_reason());
-    } else if (stack_overflow()) {
-      isolate()->StackOverflow();
-    } else {
-      ThrowPendingError();
     }
   }
 
@@ -925,6 +927,8 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
 
 
 FunctionLiteral* Parser::ParseLazy() {
+  // It's OK to use the counters here, since this function is only called in
+  // the main thread.
   HistogramTimerScope timer_scope(isolate()->counters()->parse_lazy());
   Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
@@ -1017,14 +1021,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
   // Make sure the target stack is empty.
   DCHECK(target_stack_ == NULL);
 
-  ast_value_factory_->Internalize(isolate());
-  if (result == NULL) {
-    if (stack_overflow()) {
-      isolate()->StackOverflow();
-    } else {
-      ThrowPendingError();
-    }
-  } else {
+  if (result != NULL) {
     Handle<String> inferred_name(shared_info->inferred_name());
     result->set_inferred_name(inferred_name);
   }
@@ -3654,8 +3651,7 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
     if (!*ok) {
       return;
     }
-    isolate()->counters()->total_preparse_skipped()->Increment(
-        scope_->end_position() - function_block_pos);
+    total_preparse_skipped_ += scope_->end_position() - function_block_pos;
     *materialized_literal_count = entry.literal_count();
     *expected_property_count = entry.property_count();
     scope_->SetStrictMode(entry.strict_mode());
@@ -3683,8 +3679,7 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
     if (!*ok) {
       return;
     }
-    isolate()->counters()->total_preparse_skipped()->Increment(
-        scope_->end_position() - function_block_pos);
+    total_preparse_skipped_ += scope_->end_position() - function_block_pos;
     *materialized_literal_count = logger.literals();
     *expected_property_count = logger.properties();
     scope_->SetStrictMode(logger.strict_mode());
@@ -3762,12 +3757,15 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
 
 PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     SingletonLogger* logger) {
-  HistogramTimerScope preparse_scope(isolate()->counters()->pre_parse());
+  // This function may be called on a background thread too; record only the
+  // main thread preparse times.
+  if (pre_parse_timer_ != NULL) {
+    pre_parse_timer_->Start();
+  }
   DCHECK_EQ(Token::LBRACE, scanner()->current_token());
 
   if (reusable_preparser_ == NULL) {
-    intptr_t stack_limit = isolate()->stack_guard()->real_climit();
-    reusable_preparser_ = new PreParser(&scanner_, NULL, stack_limit);
+    reusable_preparser_ = new PreParser(&scanner_, NULL, stack_limit_);
     reusable_preparser_->set_allow_harmony_scoping(allow_harmony_scoping());
     reusable_preparser_->set_allow_modules(allow_modules());
     reusable_preparser_->set_allow_natives_syntax(allow_natives_syntax());
@@ -3782,6 +3780,9 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
       reusable_preparser_->PreParseLazyFunction(strict_mode(),
                                                 is_generator(),
                                                 logger);
+  if (pre_parse_timer_ != NULL) {
+    pre_parse_timer_->Stop();
+  }
   return result;
 }
 
@@ -3965,13 +3966,28 @@ void Parser::ThrowPendingError() {
 }
 
 
-void Parser::InternalizeUseCounts() {
+void Parser::Internalize() {
+  // Internalize strings.
+  ast_value_factory_->Internalize(isolate());
+
+  // Error processing.
+  if (info()->function() == NULL) {
+    if (stack_overflow()) {
+      isolate()->StackOverflow();
+    } else {
+      ThrowPendingError();
+    }
+  }
+
+  // Move statistics to Isolate.
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     for (int i = 0; i < use_counts_[feature]; ++i) {
       isolate()->CountUsage(v8::Isolate::UseCounterFeature(feature));
     }
   }
+  isolate()->counters()->total_preparse_skipped()->Increment(
+      total_preparse_skipped_);
 }
 
 
@@ -4809,14 +4825,10 @@ bool RegExpParser::ParseRegExp(FlatStringReader* input,
 bool Parser::Parse() {
   DCHECK(info()->function() == NULL);
   FunctionLiteral* result = NULL;
-  ast_value_factory_ = info()->ast_value_factory();
-  if (ast_value_factory_ == NULL) {
-    ast_value_factory_ =
-        new AstValueFactory(zone(), isolate()->heap()->HashSeed());
-  }
+  pre_parse_timer_ = isolate()->counters()->pre_parse();
   if (allow_natives_syntax() || extension_ != NULL) {
     // If intrinsics are allowed, the Parser cannot operate independent of the
-    // V8 heap because of Rumtime. Tell the string table to internalize strings
+    // V8 heap because of Runtime. Tell the string table to internalize strings
     // and values right after they're created.
     ast_value_factory_->Internalize(isolate());
   }
@@ -4833,15 +4845,14 @@ bool Parser::Parse() {
     result = ParseProgram();
   }
   info()->SetFunction(result);
+
+  Internalize();
   DCHECK(ast_value_factory_->IsInternalized());
   // info takes ownership of ast_value_factory_.
   if (info()->ast_value_factory() == NULL) {
     info()->SetAstValueFactory(ast_value_factory_);
   }
   ast_value_factory_ = NULL;
-
-  InternalizeUseCounts();
-
   return (result != NULL);
 }
 

@@ -14,6 +14,7 @@
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
+#include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/conversions.h"
 #include "src/double.h"
@@ -288,7 +289,7 @@ double InternalStringToInt(UnicodeCache* unicode_cache,
     return JunkStringValue();
   }
 
-  if (IsPowerOf2(radix)) {
+  if (base::bits::IsPowerOfTwo32(radix)) {
     switch (radix) {
       case 2:
         return InternalStringToIntDouble<1>(

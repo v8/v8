@@ -596,14 +596,14 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   Int32BinopMatcher m(node);
   if (m.right().HasValue() && m.right().Value() > 0) {
     int32_t value = m.right().Value();
-    if (IsPowerOf2(value - 1)) {
+    if (base::bits::IsPowerOfTwo32(value - 1)) {
       Emit(kArmAdd | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(m.left().node()),
            g.TempImmediate(WhichPowerOf2(value - 1)));
       return;
     }
-    if (value < kMaxInt && IsPowerOf2(value + 1)) {
+    if (value < kMaxInt && base::bits::IsPowerOfTwo32(value + 1)) {
       Emit(kArmRsb | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(m.left().node()),

@@ -72,6 +72,37 @@ inline uint32_t CountTrailingZeros32(uint32_t value) {
 }
 
 
+// Returns true iff |value| is a power of 2.
+inline bool IsPowerOfTwo32(uint32_t value) {
+  return value && !(value & (value - 1));
+}
+
+
+// Returns true iff |value| is a power of 2.
+inline bool IsPowerOfTwo64(uint64_t value) {
+  return value && !(value & (value - 1));
+}
+
+
+// RoundUpToPowerOfTwo32(value) returns the smallest power of two which is
+// greater than or equal to |value|. If you pass in a |value| that is already a
+// power of two, it is returned as is. |value| must be less than or equal to
+// 0x80000000u. Implementation is from "Hacker's Delight" by Henry S. Warren,
+// Jr., figure 3-3, page 48, where the function is called clp2.
+uint32_t RoundUpToPowerOfTwo32(uint32_t value);
+
+
+// RoundDownToPowerOfTwo32(value) returns the greatest power of two which is
+// less than or equal to |value|. If you pass in a |value| that is already a
+// power of two, it is returned as is.
+inline uint32_t RoundDownToPowerOfTwo32(uint32_t value) {
+  if (value > 0x80000000u) return 0x80000000u;
+  uint32_t result = RoundUpToPowerOfTwo32(value);
+  if (result > value) result >>= 1;
+  return result;
+}
+
+
 inline uint32_t RotateRight32(uint32_t value, uint32_t shift) {
   if (shift == 0) return value;
   return (value >> shift) | (value << (32 - shift));

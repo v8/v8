@@ -6,11 +6,17 @@
 #include "src/base/macros.h"
 #include "testing/gtest-support.h"
 
+#ifdef DEBUG
+#define DISABLE_IN_RELEASE(Name) Name
+#else
+#define DISABLE_IN_RELEASE(Name) DISABLED_##Name
+#endif
+
 namespace v8 {
 namespace base {
 namespace bits {
 
-TEST(BitsTest, CountPopulation32) {
+TEST(Bits, CountPopulation32) {
   EXPECT_EQ(0u, CountPopulation32(0));
   EXPECT_EQ(1u, CountPopulation32(1));
   EXPECT_EQ(8u, CountPopulation32(0x11111111));
@@ -20,7 +26,7 @@ TEST(BitsTest, CountPopulation32) {
 }
 
 
-TEST(BitsTest, CountLeadingZeros32) {
+TEST(Bits, CountLeadingZeros32) {
   EXPECT_EQ(32u, CountLeadingZeros32(0));
   EXPECT_EQ(31u, CountLeadingZeros32(1));
   TRACED_FORRANGE(uint32_t, shift, 0, 31) {
@@ -30,7 +36,7 @@ TEST(BitsTest, CountLeadingZeros32) {
 }
 
 
-TEST(BitsTest, CountTrailingZeros32) {
+TEST(Bits, CountTrailingZeros32) {
   EXPECT_EQ(32u, CountTrailingZeros32(0));
   EXPECT_EQ(31u, CountTrailingZeros32(0x80000000));
   TRACED_FORRANGE(uint32_t, shift, 0, 31) {
@@ -40,7 +46,61 @@ TEST(BitsTest, CountTrailingZeros32) {
 }
 
 
-TEST(BitsTest, RotateRight32) {
+TEST(Bits, IsPowerOfTwo32) {
+  EXPECT_FALSE(IsPowerOfTwo32(0U));
+  TRACED_FORRANGE(uint32_t, shift, 0, 31) {
+    EXPECT_TRUE(IsPowerOfTwo32(1U << shift));
+    EXPECT_FALSE(IsPowerOfTwo32((1U << shift) + 5U));
+    EXPECT_FALSE(IsPowerOfTwo32(~(1U << shift)));
+  }
+  TRACED_FORRANGE(uint32_t, shift, 2, 31) {
+    EXPECT_FALSE(IsPowerOfTwo32((1U << shift) - 1U));
+  }
+  EXPECT_FALSE(IsPowerOfTwo32(0xffffffff));
+}
+
+
+TEST(Bits, IsPowerOfTwo64) {
+  EXPECT_FALSE(IsPowerOfTwo64(0U));
+  TRACED_FORRANGE(uint32_t, shift, 0, 63) {
+    EXPECT_TRUE(IsPowerOfTwo64(V8_UINT64_C(1) << shift));
+    EXPECT_FALSE(IsPowerOfTwo64((V8_UINT64_C(1) << shift) + 5U));
+    EXPECT_FALSE(IsPowerOfTwo64(~(V8_UINT64_C(1) << shift)));
+  }
+  TRACED_FORRANGE(uint32_t, shift, 2, 63) {
+    EXPECT_FALSE(IsPowerOfTwo64((V8_UINT64_C(1) << shift) - 1U));
+  }
+  EXPECT_FALSE(IsPowerOfTwo64(V8_UINT64_C(0xffffffffffffffff)));
+}
+
+
+TEST(Bits, RoundUpToPowerOfTwo32) {
+  TRACED_FORRANGE(uint32_t, shift, 0, 31) {
+    EXPECT_EQ(1u << shift, RoundUpToPowerOfTwo32(1u << shift));
+  }
+  EXPECT_EQ(0u, RoundUpToPowerOfTwo32(0));
+  EXPECT_EQ(4u, RoundUpToPowerOfTwo32(3));
+  EXPECT_EQ(0x80000000u, RoundUpToPowerOfTwo32(0x7fffffffu));
+}
+
+
+TEST(BitsDeathTest, DISABLE_IN_RELEASE(RoundUpToPowerOfTwo32)) {
+  ASSERT_DEATH_IF_SUPPORTED({ RoundUpToPowerOfTwo32(0x80000001u); },
+                            "0x80000000");
+}
+
+
+TEST(Bits, RoundDownToPowerOfTwo32) {
+  TRACED_FORRANGE(uint32_t, shift, 0, 31) {
+    EXPECT_EQ(1u << shift, RoundDownToPowerOfTwo32(1u << shift));
+  }
+  EXPECT_EQ(0u, RoundDownToPowerOfTwo32(0));
+  EXPECT_EQ(4u, RoundDownToPowerOfTwo32(5));
+  EXPECT_EQ(0x80000000u, RoundDownToPowerOfTwo32(0x80000001u));
+}
+
+
+TEST(Bits, RotateRight32) {
   TRACED_FORRANGE(uint32_t, shift, 0, 31) {
     EXPECT_EQ(0u, RotateRight32(0u, shift));
   }
@@ -50,7 +110,7 @@ TEST(BitsTest, RotateRight32) {
 }
 
 
-TEST(BitsTest, RotateRight64) {
+TEST(Bits, RotateRight64) {
   TRACED_FORRANGE(uint64_t, shift, 0, 63) {
     EXPECT_EQ(0u, RotateRight64(0u, shift));
   }

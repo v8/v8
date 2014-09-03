@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_ARM64
 
+#include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
@@ -2059,7 +2060,7 @@ void MacroAssembler::CallCFunction(Register function,
     int sp_alignment = ActivationFrameAlignment();
     // The ABI mandates at least 16-byte alignment.
     DCHECK(sp_alignment >= 16);
-    DCHECK(IsPowerOf2(sp_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(sp_alignment));
 
     // The current stack pointer is a callee saved register, and is preserved
     // across the call.
@@ -4301,8 +4302,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
 
   Bind(&store_buffer_overflow);
   Push(lr);
-  StoreBufferOverflowStub store_buffer_overflow_stub =
-      StoreBufferOverflowStub(isolate(), fp_mode);
+  StoreBufferOverflowStub store_buffer_overflow_stub(isolate(), fp_mode);
   CallStub(&store_buffer_overflow_stub);
   Pop(lr);
 

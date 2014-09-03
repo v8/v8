@@ -114,7 +114,7 @@ bool Semaphore::WaitFor(const TimeDelta& rel_time) {
   do {
     int result = sem_trywait(&native_handle_);
     if (result == 0) return true;
-    DCHECK(errno == EAGAIN || error == EINTR);
+    DCHECK(errno == EAGAIN || errno == EINTR);
   } while (!timer.HasExpired(rel_time));
   return false;
 #else

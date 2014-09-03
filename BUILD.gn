@@ -460,6 +460,7 @@ source_set("v8_base") {
     "src/codegen.h",
     "src/compilation-cache.cc",
     "src/compilation-cache.h",
+    "src/compiler/access-builder.cc",
     "src/compiler/access-builder.h",
     "src/compiler/ast-graph-builder.cc",
     "src/compiler/ast-graph-builder.h",
@@ -529,6 +530,7 @@ source_set("v8_base") {
     "src/compiler/opcodes.h",
     "src/compiler/operator-properties-inl.h",
     "src/compiler/operator-properties.h",
+    "src/compiler/operator.cc",
     "src/compiler/operator.h",
     "src/compiler/phi-reducer.h",
     "src/compiler/pipeline.cc",
@@ -547,6 +549,7 @@ source_set("v8_base") {
     "src/compiler/simplified-node-factory.h",
     "src/compiler/simplified-operator-reducer.cc",
     "src/compiler/simplified-operator-reducer.h",
+    "src/compiler/simplified-operator.cc",
     "src/compiler/simplified-operator.h",
     "src/compiler/source-position.cc",
     "src/compiler/source-position.h",
@@ -1172,6 +1175,7 @@ source_set("v8_libbase") {
     "src/base/atomicops_internals_x86_gcc.cc",
     "src/base/atomicops_internals_x86_gcc.h",
     "src/base/atomicops_internals_x86_msvc.h",
+    "src/base/bits.cc",
     "src/base/bits.h",
     "src/base/build_config.h",
     "src/base/cpu.cc",
@@ -1337,6 +1341,7 @@ component("v8") {
 
   direct_dependent_configs = [ ":external_config" ]
 
+  libs = []
   if (is_android && current_toolchain != host_toolchain) {
     libs += [ "log" ]
   }

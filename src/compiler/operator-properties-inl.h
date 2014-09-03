@@ -37,26 +37,28 @@ inline bool OperatorProperties::HasFrameStateInput(Operator* op) {
   }
 
   switch (op->opcode()) {
-    case IrOpcode::kJSCallFunction:
-    case IrOpcode::kJSCallConstruct:
-      return true;
     case IrOpcode::kJSCallRuntime: {
       Runtime::FunctionId function =
           reinterpret_cast<Operator1<Runtime::FunctionId>*>(op)->parameter();
-      // TODO(jarin) At the moment, we only add frame state for
-      // few chosen runtime functions.
-      switch (function) {
-        case Runtime::kDebugBreak:
-        case Runtime::kDeoptimizeFunction:
-        case Runtime::kSetScriptBreakPoint:
-        case Runtime::kDebugGetLoadedScripts:
-        case Runtime::kStackGuard:
-          return true;
-        default:
-          return false;
-      }
-      UNREACHABLE();
+      return Linkage::NeedsFrameState(function);
     }
+
+    // Strict equality cannot lazily deoptimize.
+    case IrOpcode::kJSStrictEqual:
+    case IrOpcode::kJSStrictNotEqual:
+      return false;
+
+    // Calls
+    case IrOpcode::kJSCallFunction:
+    case IrOpcode::kJSCallConstruct:
+
+    // Compare operations
+    case IrOpcode::kJSEqual:
+    case IrOpcode::kJSNotEqual:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kJSGreaterThanOrEqual:
 
     // Binary operations
     case IrOpcode::kJSBitwiseOr:

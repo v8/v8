@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_REPRESENTATION_CHANGE_H_
 #define V8_COMPILER_REPRESENTATION_CHANGE_H_
 
+#include "src/base/bits.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties-inl.h"
@@ -34,7 +35,7 @@ class RepresentationChanger {
 
   Node* GetRepresentationFor(Node* node, MachineTypeUnion output_type,
                              MachineTypeUnion use_type) {
-    if (!IsPowerOf2(output_type & kRepMask)) {
+    if (!base::bits::IsPowerOfTwo32(output_type & kRepMask)) {
       // There should be only one output representation.
       return TypeError(node, output_type, use_type);
     }

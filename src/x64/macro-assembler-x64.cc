@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
@@ -235,8 +236,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
     DCHECK(and_then == kFallThroughAtEnd);
     j(equal, &done, Label::kNear);
   }
-  StoreBufferOverflowStub store_buffer_overflow =
-      StoreBufferOverflowStub(isolate(), save_fp);
+  StoreBufferOverflowStub store_buffer_overflow(isolate(), save_fp);
   CallStub(&store_buffer_overflow);
   if (and_then == kReturnAtEnd) {
     ret(0);
@@ -545,7 +545,7 @@ void MacroAssembler::CheckStackAlignment() {
   int frame_alignment = base::OS::ActivationFrameAlignment();
   int frame_alignment_mask = frame_alignment - 1;
   if (frame_alignment > kPointerSize) {
-    DCHECK(IsPowerOf2(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
     Label alignment_as_expected;
     testp(rsp, Immediate(frame_alignment_mask));
     j(zero, &alignment_as_expected, Label::kNear);
@@ -4102,7 +4102,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();
   if (kFrameAlignment > 0) {
-    DCHECK(IsPowerOf2(kFrameAlignment));
+    DCHECK(base::bits::IsPowerOfTwo32(kFrameAlignment));
     DCHECK(is_int8(kFrameAlignment));
     andp(rsp, Immediate(-kFrameAlignment));
   }
@@ -4991,7 +4991,7 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments) {
 
   // Make stack end at alignment and allocate space for arguments and old rsp.
   movp(kScratchRegister, rsp);
-  DCHECK(IsPowerOf2(frame_alignment));
+  DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
   subp(rsp, Immediate((argument_slots_on_stack + 1) * kRegisterSize));

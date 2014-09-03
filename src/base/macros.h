@@ -188,14 +188,6 @@ inline void USE(T) { }
 #define IS_POWER_OF_TWO(x) ((x) != 0 && (((x) & ((x) - 1)) == 0))
 
 
-// Returns true iff x is a power of 2. Cannot be used with the maximally
-// negative value of the type T (the -1 overflows).
-template <typename T>
-inline bool IsPowerOf2(T x) {
-  return IS_POWER_OF_TWO(x);
-}
-
-
 // Define our own macros for writing 64-bit constants.  This is less fragile
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
 // works on compilers that don't have it (like MSVC).
@@ -268,7 +260,7 @@ inline T AddressFrom(intptr_t x) {
 // Return the largest multiple of m which is <= x.
 template <typename T>
 inline T RoundDown(T x, intptr_t m) {
-  DCHECK(IsPowerOf2(m));
+  DCHECK(IS_POWER_OF_TWO(m));
   return AddressFrom<T>(OffsetFrom(x) & -m);
 }
 
@@ -280,43 +272,9 @@ inline T RoundUp(T x, intptr_t m) {
 }
 
 
-// Increment a pointer until it has the specified alignment.
-// This works like RoundUp, but it works correctly on pointer types where
-// sizeof(*pointer) might not be 1.
-template<class T>
-T AlignUp(T pointer, size_t alignment) {
-  DCHECK(sizeof(pointer) == sizeof(uintptr_t));
-  uintptr_t pointer_raw = reinterpret_cast<uintptr_t>(pointer);
-  return reinterpret_cast<T>(RoundUp(pointer_raw, alignment));
-}
-
-
 template <typename T, typename U>
 inline bool IsAligned(T value, U alignment) {
   return (value & (alignment - 1)) == 0;
-}
-
-
-// Returns the smallest power of two which is >= x. If you pass in a
-// number that is already a power of two, it is returned as is.
-// Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
-// figure 3-3, page 48, where the function is called clp2.
-inline uint32_t RoundUpToPowerOf2(uint32_t x) {
-  DCHECK(x <= 0x80000000u);
-  x = x - 1;
-  x = x | (x >> 1);
-  x = x | (x >> 2);
-  x = x | (x >> 4);
-  x = x | (x >> 8);
-  x = x | (x >> 16);
-  return x + 1;
-}
-
-
-inline uint32_t RoundDownToPowerOf2(uint32_t x) {
-  uint32_t rounded_up = RoundUpToPowerOf2(x);
-  if (rounded_up > x) return rounded_up >> 1;
-  return rounded_up;
 }
 
 

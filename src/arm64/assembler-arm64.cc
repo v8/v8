@@ -33,6 +33,7 @@
 #define ARM64_DEFINE_REG_STATICS
 
 #include "src/arm64/assembler-arm64-inl.h"
+#include "src/base/bits.h"
 #include "src/base/cpu.h"
 
 namespace v8 {
@@ -601,7 +602,7 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 
 void Assembler::Align(int m) {
-  DCHECK(m >= 4 && IsPowerOf2(m));
+  DCHECK(m >= 4 && base::bits::IsPowerOfTwo32(m));
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -2205,6 +2206,17 @@ void Assembler::hlt(int code) {
 void Assembler::brk(int code) {
   DCHECK(is_uint16(code));
   Emit(BRK | ImmException(code));
+}
+
+
+void Assembler::EmitStringData(const char* string) {
+  size_t len = strlen(string) + 1;
+  DCHECK(RoundUp(len, kInstructionSize) <= static_cast<size_t>(kGap));
+  EmitData(string, len);
+  // Pad with NULL characters until pc_ is aligned.
+  const char pad[] = {'\0', '\0', '\0', '\0'};
+  STATIC_ASSERT(sizeof(pad) == kInstructionSize);
+  EmitData(pad, RoundUp(pc_offset(), kInstructionSize) - pc_offset());
 }
 
 

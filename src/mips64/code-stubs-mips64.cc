@@ -735,8 +735,8 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   Condition cc = GetCondition();
 
   Label miss;
-  ICCompareStub_CheckInputType(masm, lhs, a2, left_, &miss);
-  ICCompareStub_CheckInputType(masm, rhs, a3, right_, &miss);
+  ICCompareStub_CheckInputType(masm, lhs, a2, left(), &miss);
+  ICCompareStub_CheckInputType(masm, rhs, a3, right(), &miss);
 
   Label slow;  // Call builtin.
   Label not_smis, both_loaded_as_doubles;
@@ -3140,7 +3140,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   DCHECK(!a4.is(code_));
 
   STATIC_ASSERT(kSmiTag == 0);
-  DCHECK(IsPowerOf2(String::kMaxOneByteCharCode + 1));
+  DCHECK(base::bits::IsPowerOfTwo32(String::kMaxOneByteCharCode + 1));
   __ And(a4,
          code_,
          Operand(kSmiTagMask |
@@ -3684,7 +3684,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::SMI);
+  DCHECK(state() == CompareIC::SMI);
   Label miss;
   __ Or(a2, a1, a0);
   __ JumpIfNotSmi(a2, &miss);
@@ -3707,16 +3707,16 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::NUMBER);
+  DCHECK(state() == CompareIC::NUMBER);
 
   Label generic_stub;
   Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
 
-  if (left_ == CompareIC::SMI) {
+  if (left() == CompareIC::SMI) {
     __ JumpIfNotSmi(a1, &miss);
   }
-  if (right_ == CompareIC::SMI) {
+  if (right() == CompareIC::SMI) {
     __ JumpIfNotSmi(a0, &miss);
   }
 
@@ -3774,12 +3774,12 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&unordered);
   __ bind(&generic_stub);
-  ICCompareStub stub(isolate(), op_, CompareIC::GENERIC, CompareIC::GENERIC,
+  ICCompareStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 
   __ bind(&maybe_undefined1);
-  if (Token::IsOrderedRelationalCompareOp(op_)) {
+  if (Token::IsOrderedRelationalCompareOp(op())) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(&miss, ne, a0, Operand(at));
     __ JumpIfSmi(a1, &unordered);
@@ -3789,7 +3789,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   }
 
   __ bind(&maybe_undefined2);
-  if (Token::IsOrderedRelationalCompareOp(op_)) {
+  if (Token::IsOrderedRelationalCompareOp(op())) {
     __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
     __ Branch(&unordered, eq, a1, Operand(at));
   }
@@ -3800,7 +3800,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::INTERNALIZED_STRING);
+  DCHECK(state() == CompareIC::INTERNALIZED_STRING);
   Label miss;
 
   // Registers containing left and right operands respectively.
@@ -3840,7 +3840,7 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::UNIQUE_NAME);
+  DCHECK(state() == CompareIC::UNIQUE_NAME);
   DCHECK(GetCondition() == eq);
   Label miss;
 
@@ -3884,10 +3884,10 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::STRING);
+  DCHECK(state() == CompareIC::STRING);
   Label miss;
 
-  bool equality = Token::IsEqualityOp(op_);
+  bool equality = Token::IsEqualityOp(op());
 
   // Registers containing left and right operands respectively.
   Register left = a1;
@@ -3970,7 +3970,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::OBJECT);
+  DCHECK(state() == CompareIC::OBJECT);
   Label miss;
   __ And(a2, a1, Operand(a0));
   __ JumpIfSmi(a2, &miss);
@@ -4014,7 +4014,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(a1, a0);
     __ Push(ra, a1, a0);
-    __ li(a4, Operand(Smi::FromInt(op_)));
+    __ li(a4, Operand(Smi::FromInt(op())));
     __ daddiu(sp, sp, -kPointerSize);
     __ CallExternalReference(miss, 3, USE_DELAY_SLOT);
     __ sd(a4, MemOperand(sp));  // In the delay slot.
@@ -4650,7 +4650,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   int frame_alignment = masm->ActivationFrameAlignment();
   if (frame_alignment > kPointerSize) {
     __ mov(s5, sp);
-    DCHECK(IsPowerOf2(frame_alignment));
+    DCHECK(base::bits::IsPowerOfTwo32(frame_alignment));
     __ And(sp, sp, Operand(-frame_alignment));
   }
 

@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_MACHINE_TYPE_H_
 #define V8_COMPILER_MACHINE_TYPE_H_
 
+#include "src/base/bits.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -82,7 +83,7 @@ inline MachineType TypeOf(MachineType machine_type) {
 // Gets only the representation of the given type.
 inline MachineType RepresentationOf(MachineType machine_type) {
   int result = machine_type & kRepMask;
-  CHECK(IsPowerOf2(result));
+  CHECK(base::bits::IsPowerOfTwo32(result));
   return static_cast<MachineType>(result);
 }
 

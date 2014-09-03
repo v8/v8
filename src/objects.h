@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/assert-scope.h"
+#include "src/base/bits.h"
 #include "src/builtins.h"
 #include "src/checks.h"
 #include "src/elements-kind.h"
@@ -3694,7 +3695,7 @@ class HashTable: public FixedArray {
 
   // Returns probe entry.
   static uint32_t GetProbe(uint32_t hash, uint32_t number, uint32_t size) {
-    DCHECK(IsPowerOf2(size));
+    DCHECK(base::bits::IsPowerOfTwo32(size));
     return (hash + GetProbeOffset(number)) & (size - 1);
   }
 

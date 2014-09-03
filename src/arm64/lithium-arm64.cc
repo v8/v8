@@ -1937,12 +1937,12 @@ LInstruction* LChunkBuilder::DoMul(HMul* instr) {
       int32_t constant_abs = Abs(constant);
 
       if (!end_range_constant &&
-          (small_constant ||
-           (IsPowerOf2(constant_abs)) ||
-           (!can_overflow && (IsPowerOf2(constant_abs + 1) ||
-                              IsPowerOf2(constant_abs - 1))))) {
+          (small_constant || (base::bits::IsPowerOfTwo32(constant_abs)) ||
+           (!can_overflow && (base::bits::IsPowerOfTwo32(constant_abs + 1) ||
+                              base::bits::IsPowerOfTwo32(constant_abs - 1))))) {
         LConstantOperand* right = UseConstant(most_const);
-        bool need_register = IsPowerOf2(constant_abs) && !small_constant;
+        bool need_register =
+            base::bits::IsPowerOfTwo32(constant_abs) && !small_constant;
         LOperand* left = need_register ? UseRegister(least_const)
                                        : UseRegisterAtStart(least_const);
         LInstruction* result =

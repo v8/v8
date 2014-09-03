@@ -1446,8 +1446,8 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   Factory* factory = isolate()->factory();
 
   Label miss;
-  CheckInputType(masm, rdx, left_, &miss);
-  CheckInputType(masm, rax, right_, &miss);
+  CheckInputType(masm, rdx, left(), &miss);
+  CheckInputType(masm, rax, right(), &miss);
 
   // Compare two smis.
   Label non_smi, smi_done;
@@ -3358,7 +3358,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::SMI);
+  DCHECK(state() == CompareIC::SMI);
   Label miss;
   __ JumpIfNotBothSmi(rdx, rax, &miss, Label::kNear);
 
@@ -3382,16 +3382,16 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::NUMBER);
+  DCHECK(state() == CompareIC::NUMBER);
 
   Label generic_stub;
   Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
 
-  if (left_ == CompareIC::SMI) {
+  if (left() == CompareIC::SMI) {
     __ JumpIfNotSmi(rdx, &miss);
   }
-  if (right_ == CompareIC::SMI) {
+  if (right() == CompareIC::SMI) {
     __ JumpIfNotSmi(rax, &miss);
   }
 
@@ -3433,12 +3433,12 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&unordered);
   __ bind(&generic_stub);
-  ICCompareStub stub(isolate(), op_, CompareIC::GENERIC, CompareIC::GENERIC,
+  ICCompareStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 
   __ bind(&maybe_undefined1);
-  if (Token::IsOrderedRelationalCompareOp(op_)) {
+  if (Token::IsOrderedRelationalCompareOp(op())) {
     __ Cmp(rax, isolate()->factory()->undefined_value());
     __ j(not_equal, &miss);
     __ JumpIfSmi(rdx, &unordered);
@@ -3448,7 +3448,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   }
 
   __ bind(&maybe_undefined2);
-  if (Token::IsOrderedRelationalCompareOp(op_)) {
+  if (Token::IsOrderedRelationalCompareOp(op())) {
     __ Cmp(rdx, isolate()->factory()->undefined_value());
     __ j(equal, &unordered);
   }
@@ -3459,7 +3459,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::INTERNALIZED_STRING);
+  DCHECK(state() == CompareIC::INTERNALIZED_STRING);
   DCHECK(GetCondition() == equal);
 
   // Registers containing left and right operands respectively.
@@ -3502,7 +3502,7 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::UNIQUE_NAME);
+  DCHECK(state() == CompareIC::UNIQUE_NAME);
   DCHECK(GetCondition() == equal);
 
   // Registers containing left and right operands respectively.
@@ -3545,10 +3545,10 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::STRING);
+  DCHECK(state() == CompareIC::STRING);
   Label miss;
 
-  bool equality = Token::IsEqualityOp(op_);
+  bool equality = Token::IsEqualityOp(op());
 
   // Registers containing left and right operands respectively.
   Register left = rdx;
@@ -3632,7 +3632,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::OBJECT);
+  DCHECK(state() == CompareIC::OBJECT);
   Label miss;
   Condition either_smi = masm->CheckEitherSmi(rdx, rax);
   __ j(either_smi, &miss, Label::kNear);
@@ -3682,7 +3682,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
     __ Push(rax);
     __ Push(rdx);
     __ Push(rax);
-    __ Push(Smi::FromInt(op_));
+    __ Push(Smi::FromInt(op()));
     __ CallExternalReference(miss, 3);
 
     // Compute the entry point of the rewritten stub.

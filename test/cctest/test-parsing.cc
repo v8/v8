@@ -1128,7 +1128,10 @@ TEST(ScopePositions) {
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
-    i::Parser parser(&info);
+    i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
+                                       isolate->heap()->HashSeed(),
+                                       isolate->unicode_cache()};
+    i::Parser parser(&info, &parse_info);
     parser.set_allow_lazy(true);
     parser.set_allow_harmony_scoping(true);
     parser.set_allow_arrow_functions(true);
@@ -1263,7 +1266,10 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   {
     i::Handle<i::Script> script = factory->NewScript(source);
     i::CompilationInfoWithZone info(script);
-    i::Parser parser(&info);
+    i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
+                                       isolate->heap()->HashSeed(),
+                                       isolate->unicode_cache()};
+    i::Parser parser(&info, &parse_info);
     SetParserFlags(&parser, flags);
     info.MarkAsGlobal();
     parser.Parse();
@@ -3125,7 +3131,10 @@ TEST(InnerAssignment) {
 
           i::Handle<i::Script> script = factory->NewScript(source);
           i::CompilationInfoWithZone info(script);
-          i::Parser parser(&info);
+          i::Parser::ParseInfo parse_info = {
+              isolate->stack_guard()->real_climit(),
+              isolate->heap()->HashSeed(), isolate->unicode_cache()};
+          i::Parser parser(&info, &parse_info);
           parser.set_allow_harmony_scoping(true);
           CHECK(parser.Parse());
           CHECK(i::Rewriter::Rewrite(&info));

@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
+#include "src/base/bits.h"
 #include "src/base/platform/mutex.h"
 #include "src/hashmap.h"
 #include "src/list.h"
@@ -2620,7 +2621,7 @@ class MapSpace : public PagedSpace {
   static const int kMaxMapPageIndex = 1 << 16;
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
-    if (IsPowerOf2(Map::kSize)) {
+    if (base::bits::IsPowerOfTwo32(Map::kSize)) {
       return RoundDown(size, Map::kSize);
     } else {
       return (size / Map::kSize) * Map::kSize;
@@ -2655,7 +2656,7 @@ class CellSpace : public PagedSpace {
       : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE) {}
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
-    if (IsPowerOf2(Cell::kSize)) {
+    if (base::bits::IsPowerOfTwo32(Cell::kSize)) {
       return RoundDown(size, Cell::kSize);
     } else {
       return (size / Cell::kSize) * Cell::kSize;
@@ -2680,7 +2681,7 @@ class PropertyCellSpace : public PagedSpace {
       : PagedSpace(heap, max_capacity, id, NOT_EXECUTABLE) {}
 
   virtual int RoundSizeDownToObjectAlignment(int size) {
-    if (IsPowerOf2(PropertyCell::kSize)) {
+    if (base::bits::IsPowerOfTwo32(PropertyCell::kSize)) {
       return RoundDown(size, PropertyCell::kSize);
     } else {
       return (size / PropertyCell::kSize) * PropertyCell::kSize;

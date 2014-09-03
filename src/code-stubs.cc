@@ -219,7 +219,7 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
 
 
 void BinaryOpICStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_;
+  os << state();
 }
 
 
@@ -270,7 +270,7 @@ void StringAddStub::PrintBaseName(OStream& os) const {  // NOLINT
 
 
 InlineCacheState ICCompareStub::GetICState() const {
-  CompareIC::State state = Max(left_, right_);
+  CompareIC::State state = Max(left(), right());
   switch (state) {
     case CompareIC::UNINITIALIZED:
       return ::v8::internal::UNINITIALIZED;
@@ -307,7 +307,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
       UNINITIALIZED);
-  DCHECK(op_ == Token::EQ || op_ == Token::EQ_STRICT);
+  DCHECK(op() == Token::EQ || op() == Token::EQ_STRICT);
   Handle<Object> probe(
       known_map_->FindInCodeCache(
         strict() ?
@@ -318,10 +318,11 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
-    Token::Value cached_op;
-    ICCompareStub::DecodeKey((*code_out)->stub_key(), NULL, NULL, NULL,
-                             &cached_op);
-    DCHECK(op_ == cached_op);
+    ICCompareStub decode((*code_out)->stub_key());
+    DCHECK(op() == decode.op());
+    DCHECK(left() == decode.left());
+    DCHECK(right() == decode.right());
+    DCHECK(state() == decode.state());
 #endif
     return true;
   }
@@ -329,39 +330,8 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
 }
 
 
-uint32_t ICCompareStub::MinorKey() const {
-  return OpField::encode(op_ - Token::EQ) |
-         LeftStateField::encode(left_) |
-         RightStateField::encode(right_) |
-         HandlerStateField::encode(state_);
-}
-
-
-void ICCompareStub::DecodeKey(uint32_t stub_key, CompareIC::State* left_state,
-                              CompareIC::State* right_state,
-                              CompareIC::State* handler_state,
-                              Token::Value* op) {
-  int minor_key = MinorKeyFromKey(stub_key);
-  if (left_state) {
-    *left_state =
-        static_cast<CompareIC::State>(LeftStateField::decode(minor_key));
-  }
-  if (right_state) {
-    *right_state =
-        static_cast<CompareIC::State>(RightStateField::decode(minor_key));
-  }
-  if (handler_state) {
-    *handler_state =
-        static_cast<CompareIC::State>(HandlerStateField::decode(minor_key));
-  }
-  if (op) {
-    *op = static_cast<Token::Value>(OpField::decode(minor_key) + Token::EQ);
-  }
-}
-
-
 void ICCompareStub::Generate(MacroAssembler* masm) {
-  switch (state_) {
+  switch (state()) {
     case CompareIC::UNINITIALIZED:
       GenerateMiss(masm);
       break;
@@ -395,24 +365,26 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
 
 
 void CompareNilICStub::UpdateStatus(Handle<Object> object) {
-  DCHECK(!state_.Contains(GENERIC));
-  State old_state(state_);
+  State state = this->state();
+  DCHECK(!state.Contains(GENERIC));
+  State old_state = state;
   if (object->IsNull()) {
-    state_.Add(NULL_TYPE);
+    state.Add(NULL_TYPE);
   } else if (object->IsUndefined()) {
-    state_.Add(UNDEFINED);
+    state.Add(UNDEFINED);
   } else if (object->IsUndetectableObject() ||
              object->IsOddball() ||
              !object->IsHeapObject()) {
-    state_.RemoveAll();
-    state_.Add(GENERIC);
+    state.RemoveAll();
+    state.Add(GENERIC);
   } else if (IsMonomorphic()) {
-    state_.RemoveAll();
-    state_.Add(GENERIC);
+    state.RemoveAll();
+    state.Add(GENERIC);
   } else {
-    state_.Add(MONOMORPHIC_MAP);
+    state.Add(MONOMORPHIC_MAP);
   }
-  TraceTransition(old_state, state_);
+  TraceTransition(old_state, state);
+  set_sub_minor_key(TypesBits::update(sub_minor_key(), state.ToIntegral()));
 }
 
 
@@ -431,12 +403,12 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
 
 void CompareNilICStub::PrintBaseName(OStream& os) const {  // NOLINT
   CodeStub::PrintBaseName(os);
-  os << ((nil_value_ == kNullValue) ? "(NullValue)" : "(UndefinedValue)");
+  os << ((nil_value() == kNullValue) ? "(NullValue)" : "(UndefinedValue)");
 }
 
 
 void CompareNilICStub::PrintState(OStream& os) const {  // NOLINT
-  os << state_;
+  os << state();
 }
 
 
@@ -473,18 +445,17 @@ OStream& operator<<(OStream& os, const CompareNilICStub::State& s) {
 
 
 Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
-  if (state_.Contains(CompareNilICStub::GENERIC)) {
-    return Type::Any(zone);
-  }
+  State state = this->state();
+  if (state.Contains(CompareNilICStub::GENERIC)) return Type::Any(zone);
 
   Type* result = Type::None(zone);
-  if (state_.Contains(CompareNilICStub::UNDEFINED)) {
+  if (state.Contains(CompareNilICStub::UNDEFINED)) {
     result = Type::Union(result, Type::Undefined(zone), zone);
   }
-  if (state_.Contains(CompareNilICStub::NULL_TYPE)) {
+  if (state.Contains(CompareNilICStub::NULL_TYPE)) {
     result = Type::Union(result, Type::Null(zone), zone);
   }
-  if (state_.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
+  if (state.Contains(CompareNilICStub::MONOMORPHIC_MAP)) {
     Type* type =
         map.is_null() ? Type::Detectable(zone) : Type::Class(map, zone);
     result = Type::Union(result, type, zone);
@@ -497,7 +468,7 @@ Type* CompareNilICStub::GetType(Zone* zone, Handle<Map> map) {
 Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
   Type* output_type = GetType(zone, map);
   Type* nil_type =
-      nil_value_ == kNullValue ? Type::Null(zone) : Type::Undefined(zone);
+      nil_value() == kNullValue ? Type::Null(zone) : Type::Undefined(zone);
   return Type::Union(output_type, nil_type, zone);
 }
 

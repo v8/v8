@@ -71,7 +71,7 @@ class LinkageHelper {
   template <typename LinkageTraits>
   static CallDescriptor* GetRuntimeCallDescriptor(
       Zone* zone, Runtime::FunctionId function_id, int parameter_count,
-      Operator::Property properties, CallDescriptor::Flags flags) {
+      Operator::Properties properties) {
     const int code_count = 1;
     const int function_count = 1;
     const int num_args_count = 1;
@@ -108,6 +108,10 @@ class LinkageHelper {
     locations[index++] =
         WordRegisterLocation(LinkageTraits::RuntimeCallArgCountReg());
     locations[index++] = TaggedRegisterLocation(LinkageTraits::ContextReg());
+
+    CallDescriptor::Flags flags = Linkage::NeedsFrameState(function_id)
+                                      ? CallDescriptor::kNeedsFrameState
+                                      : CallDescriptor::kNoFlags;
 
     // TODO(titzer): refactor TurboFan graph to consider context a value input.
     return new (zone) CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
@@ -195,7 +199,6 @@ class LinkageHelper {
         CallDescriptor::kNoFlags);  // TODO(jarin) should deoptimize!
   }
 };
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

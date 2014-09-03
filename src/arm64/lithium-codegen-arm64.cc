@@ -6,6 +6,7 @@
 
 #include "src/arm64/lithium-codegen-arm64.h"
 #include "src/arm64/lithium-gap-resolver-arm64.h"
+#include "src/base/bits.h"
 #include "src/code-stubs.h"
 #include "src/hydrogen-osr.h"
 
@@ -2236,7 +2237,7 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
     uint8_t tag;
     instr->hydrogen()->GetCheckMaskAndTag(&mask, &tag);
 
-    if (IsPowerOf2(mask)) {
+    if (base::bits::IsPowerOfTwo32(mask)) {
       DCHECK((tag == 0) || (tag == mask));
       if (tag == 0) {
         DeoptimizeIfBitSet(scratch, MaskToBit(mask), instr->environment());
@@ -2669,7 +2670,7 @@ void LCodeGen::DoDivByPowerOf2I(LDivByPowerOf2I* instr) {
   Register dividend = ToRegister32(instr->dividend());
   int32_t divisor = instr->divisor();
   Register result = ToRegister32(instr->result());
-  DCHECK(divisor == kMinInt || IsPowerOf2(Abs(divisor)));
+  DCHECK(divisor == kMinInt || base::bits::IsPowerOfTwo32(Abs(divisor)));
   DCHECK(!result.is(dividend));
 
   // Check for (0 / -x) that will produce negative zero.
@@ -4360,7 +4361,7 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
       // can be done efficiently with shifted operands.
       int32_t right_abs = Abs(right);
 
-      if (IsPowerOf2(right_abs)) {
+      if (base::bits::IsPowerOfTwo32(right_abs)) {
         int right_log2 = WhichPowerOf2(right_abs);
 
         if (can_overflow) {
@@ -4393,10 +4394,10 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
       DCHECK(!can_overflow);
 
       if (right >= 0) {
-        if (IsPowerOf2(right - 1)) {
+        if (base::bits::IsPowerOfTwo32(right - 1)) {
           // result = left + left << log2(right - 1)
           __ Add(result, left, Operand(left, LSL, WhichPowerOf2(right - 1)));
-        } else if (IsPowerOf2(right + 1)) {
+        } else if (base::bits::IsPowerOfTwo32(right + 1)) {
           // result = -left + left << log2(right + 1)
           __ Sub(result, left, Operand(left, LSL, WhichPowerOf2(right + 1)));
           __ Neg(result, result);
@@ -4404,10 +4405,10 @@ void LCodeGen::DoMulConstIS(LMulConstIS* instr) {
           UNREACHABLE();
         }
       } else {
-        if (IsPowerOf2(-right + 1)) {
+        if (base::bits::IsPowerOfTwo32(-right + 1)) {
           // result = left - left << log2(-right + 1)
           __ Sub(result, left, Operand(left, LSL, WhichPowerOf2(-right + 1)));
-        } else if (IsPowerOf2(-right - 1)) {
+        } else if (base::bits::IsPowerOfTwo32(-right - 1)) {
           // result = -left - left << log2(-right - 1)
           __ Add(result, left, Operand(left, LSL, WhichPowerOf2(-right - 1)));
           __ Neg(result, result);

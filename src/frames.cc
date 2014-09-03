@@ -1501,7 +1501,7 @@ Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
 InnerPointerToCodeCache::InnerPointerToCodeCacheEntry*
     InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
   isolate_->counters()->pc_to_code()->Increment();
-  DCHECK(IsPowerOf2(kInnerPointerToCodeCacheSize));
+  DCHECK(base::bits::IsPowerOfTwo32(kInnerPointerToCodeCacheSize));
   uint32_t hash = ComputeIntegerHash(
       static_cast<uint32_t>(reinterpret_cast<uintptr_t>(inner_pointer)),
       v8::internal::kZeroHashSeed);

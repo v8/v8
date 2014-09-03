@@ -222,7 +222,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   if (r.OneInputIs(Type::String())) {
     r.ConvertInputsToString();
     return r.ChangeToPureOperator(simplified()->StringAdd());
-  } else if (r.NeitherInputCanBe(Type::String())) {
+  }
+  if (r.NeitherInputCanBe(Type::String())) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd());
   }

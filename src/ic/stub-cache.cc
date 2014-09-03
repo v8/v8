@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/base/bits.h"
 #include "src/ic/stub-cache.h"
 #include "src/type-info.h"
 
@@ -15,8 +16,8 @@ StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {}
 
 
 void StubCache::Initialize() {
-  DCHECK(IsPowerOf2(kPrimaryTableSize));
-  DCHECK(IsPowerOf2(kSecondaryTableSize));
+  DCHECK(base::bits::IsPowerOfTwo32(kPrimaryTableSize));
+  DCHECK(base::bits::IsPowerOfTwo32(kSecondaryTableSize));
   Clear();
 }
 

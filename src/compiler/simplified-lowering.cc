@@ -4,6 +4,7 @@
 
 #include "src/compiler/simplified-lowering.h"
 
+#include "src/base/bits.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node-properties-inl.h"
@@ -151,7 +152,8 @@ class RepresentationSelector {
     // Every node should have at most one output representation. Note that
     // phis can have 0, if they have not been used in a representation-inducing
     // instruction.
-    DCHECK((output & kRepMask) == 0 || IsPowerOf2(output & kRepMask));
+    DCHECK((output & kRepMask) == 0 ||
+           base::bits::IsPowerOfTwo32(output & kRepMask));
     GetInfo(node)->output = output;
   }
 
@@ -254,13 +256,15 @@ class RepresentationSelector {
   // Helper for handling phis.
   void VisitPhi(Node* node, MachineTypeUnion use) {
     // First, propagate the usage information to inputs of the phi.
-    int values = OperatorProperties::GetValueInputCount(node->op());
-    Node::Inputs inputs = node->inputs();
-    for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-         ++iter, --values) {
+    if (!lower()) {
+      int values = OperatorProperties::GetValueInputCount(node->op());
       // Propagate {use} of the phi to value inputs, and 0 to control.
-      // TODO(titzer): it'd be nice to have distinguished edge kinds here.
-      ProcessInput(node, iter.index(), values > 0 ? use : 0);
+      Node::Inputs inputs = node->inputs();
+      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
+           ++iter, --values) {
+        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
+        ProcessInput(node, iter.index(), values > 0 ? use : 0);
+      }
     }
     // Phis adapt to whatever output representation their uses demand,
     // pushing representation changes to their inputs.
@@ -296,7 +300,19 @@ class RepresentationSelector {
     }
     // Preserve the usage type, but set the representation.
     Type* upper = NodeProperties::GetBounds(node).upper;
-    SetOutput(node, rep | changer_->TypeFromUpperBound(upper));
+    MachineTypeUnion output_type = rep | changer_->TypeFromUpperBound(upper);
+    SetOutput(node, output_type);
+
+    if (lower()) {
+      int values = OperatorProperties::GetValueInputCount(node->op());
+      // Convert inputs to the output representation of this phi.
+      Node::Inputs inputs = node->inputs();
+      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
+           ++iter, --values) {
+        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
+        ProcessInput(node, iter.index(), values > 0 ? output_type : 0);
+      }
+    }
   }
 
   Operator* Int32Op(Node* node) {
@@ -492,7 +508,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringEqual: {
         VisitBinop(node, kMachAnyTagged, kRepBit);
-        // TODO(titzer): lower StringEqual to stub/runtime call.
+        if (lower()) lowering->DoStringEqual(node);
         break;
       }
       case IrOpcode::kStringLessThan: {
@@ -507,7 +523,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringAdd: {
         VisitBinop(node, kMachAnyTagged, kMachAnyTagged);
-        // TODO(titzer): lower StringAdd to stub/runtime call.
+        if (lower()) lowering->DoStringAdd(node);
         break;
       }
       case IrOpcode::kLoadField: {
@@ -804,6 +820,40 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
       access.base_is_tagged, access.machine_type, access.type);
   node->set_op(machine_.Store(access.machine_type, kind));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
+}
+
+
+void SimplifiedLowering::DoStringAdd(Node* node) {
+  StringAddStub stub(zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+  CodeStubInterfaceDescriptor* d = stub.GetInterfaceDescriptor();
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(d, 0, flags, zone());
+  node->set_op(common()->Call(desc));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(stub.GetCode()));
+  node->AppendInput(zone(), jsgraph()->UndefinedConstant());
+  node->AppendInput(zone(), graph()->start());
+  node->AppendInput(zone(), graph()->start());
+}
+
+
+void SimplifiedLowering::DoStringEqual(Node* node) {
+  CEntryStub stub(zone()->isolate(), 1);
+  ExternalReference ref(Runtime::kStringEquals, zone()->isolate());
+  Operator::Properties props = node->op()->properties();
+  // TODO(mstarzinger): We should call StringCompareStub here instead, once an
+  // interface descriptor is available for it.
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      Runtime::kStringEquals, 2, props, zone());
+  Node* call = graph()->NewNode(common()->Call(desc),
+                                jsgraph()->HeapConstant(stub.GetCode()),
+                                NodeProperties::GetValueInput(node, 0),
+                                NodeProperties::GetValueInput(node, 1),
+                                jsgraph()->ExternalConstant(ref),
+                                jsgraph()->Int32Constant(2),
+                                jsgraph()->UndefinedConstant());
+  node->set_op(machine()->WordEqual());
+  node->ReplaceInput(0, call);
+  node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
 }
 
 

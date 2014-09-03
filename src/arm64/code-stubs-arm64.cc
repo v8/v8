@@ -513,8 +513,8 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
   Condition cond = GetCondition();
 
   Label miss;
-  ICCompareStub_CheckInputType(masm, lhs, x2, left_, &miss);
-  ICCompareStub_CheckInputType(masm, rhs, x3, right_, &miss);
+  ICCompareStub_CheckInputType(masm, lhs, x2, left(), &miss);
+  ICCompareStub_CheckInputType(masm, rhs, x3, right(), &miss);
 
   Label slow;  // Call builtin.
   Label not_smis, both_loaded_as_doubles;
@@ -3204,7 +3204,7 @@ void StringCharFromCodeGenerator::GenerateSlow(
 
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   // Inputs are in x0 (lhs) and x1 (rhs).
-  DCHECK(state_ == CompareIC::SMI);
+  DCHECK(state() == CompareIC::SMI);
   ASM_LOCATION("ICCompareStub[Smis]");
   Label miss;
   // Bail out (to 'miss') unless both x0 and x1 are smis.
@@ -3226,7 +3226,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::NUMBER);
+  DCHECK(state() == CompareIC::NUMBER);
   ASM_LOCATION("ICCompareStub[HeapNumbers]");
 
   Label unordered, maybe_undefined1, maybe_undefined2;
@@ -3239,10 +3239,10 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   FPRegister rhs_d = d0;
   FPRegister lhs_d = d1;
 
-  if (left_ == CompareIC::SMI) {
+  if (left() == CompareIC::SMI) {
     __ JumpIfNotSmi(lhs, &miss);
   }
-  if (right_ == CompareIC::SMI) {
+  if (right() == CompareIC::SMI) {
     __ JumpIfNotSmi(rhs, &miss);
   }
 
@@ -3271,12 +3271,12 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ Ret();
 
   __ Bind(&unordered);
-  ICCompareStub stub(isolate(), op_, CompareIC::GENERIC, CompareIC::GENERIC,
+  ICCompareStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 
   __ Bind(&maybe_undefined1);
-  if (Token::IsOrderedRelationalCompareOp(op_)) {
+  if (Token::IsOrderedRelationalCompareOp(op())) {
     __ JumpIfNotRoot(rhs, Heap::kUndefinedValueRootIndex, &miss);
     __ JumpIfSmi(lhs, &unordered);
     __ JumpIfNotObjectType(lhs, x10, x10, HEAP_NUMBER_TYPE, &maybe_undefined2);
@@ -3284,7 +3284,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   }
 
   __ Bind(&maybe_undefined2);
-  if (Token::IsOrderedRelationalCompareOp(op_)) {
+  if (Token::IsOrderedRelationalCompareOp(op())) {
     __ JumpIfRoot(lhs, Heap::kUndefinedValueRootIndex, &unordered);
   }
 
@@ -3294,7 +3294,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::INTERNALIZED_STRING);
+  DCHECK(state() == CompareIC::INTERNALIZED_STRING);
   ASM_LOCATION("ICCompareStub[InternalizedStrings]");
   Label miss;
 
@@ -3332,7 +3332,7 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::UNIQUE_NAME);
+  DCHECK(state() == CompareIC::UNIQUE_NAME);
   ASM_LOCATION("ICCompareStub[UniqueNames]");
   DCHECK(GetCondition() == eq);
   Label miss;
@@ -3371,12 +3371,12 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::STRING);
+  DCHECK(state() == CompareIC::STRING);
   ASM_LOCATION("ICCompareStub[Strings]");
 
   Label miss;
 
-  bool equality = Token::IsEqualityOp(op_);
+  bool equality = Token::IsEqualityOp(op());
 
   Register result = x0;
   Register rhs = x0;
@@ -3452,7 +3452,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
 
 void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
-  DCHECK(state_ == CompareIC::OBJECT);
+  DCHECK(state() == CompareIC::OBJECT);
   ASM_LOCATION("ICCompareStub[Objects]");
 
   Label miss;
@@ -3522,7 +3522,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
     // Preserve some caller-saved registers.
     __ Push(x1, x0, lr);
     // Push the arguments.
-    __ Mov(op, Smi::FromInt(op_));
+    __ Mov(op, Smi::FromInt(this->op()));
     __ Push(left, right, op);
 
     // Call the miss handler. This also pops the arguments.

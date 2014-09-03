@@ -73,6 +73,14 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
                     effect_count + control_count;
   CHECK_EQ(input_count, node->InputCount());
 
+  // Verify that frame state has been inserted for the nodes that need it.
+  if (OperatorProperties::HasFrameStateInput(node->op())) {
+    Node* frame_state = NodeProperties::GetFrameStateInput(node);
+    CHECK(frame_state->opcode() == IrOpcode::kFrameState);
+    CHECK(IsDefUseChainLinkPresent(frame_state, node));
+    CHECK(IsUseDefChainLinkPresent(frame_state, node));
+  }
+
   // Verify all value inputs actually produce a value.
   for (int i = 0; i < value_count; ++i) {
     Node* value = NodeProperties::GetValueInput(node, i);

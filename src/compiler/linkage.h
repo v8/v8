@@ -54,8 +54,9 @@ class CallDescriptor FINAL : public ZoneObject {
 
   CallDescriptor(Kind kind, int8_t return_count, int16_t parameter_count,
                  int16_t input_count, LinkageLocation* locations,
-                 Operator::Property properties, RegList callee_saved_registers,
-                 Flags flags, const char* debug_name = "")
+                 Operator::Properties properties,
+                 RegList callee_saved_registers, Flags flags,
+                 const char* debug_name = "")
       : kind_(kind),
         return_count_(return_count),
         parameter_count_(parameter_count),
@@ -97,7 +98,7 @@ class CallDescriptor FINAL : public ZoneObject {
   }
 
   // Operator properties describe how this call can be optimized, if at all.
-  Operator::Property properties() const { return properties_; }
+  Operator::Properties properties() const { return properties_; }
 
   // Get the callee-saved registers, if any, across this call.
   RegList CalleeSavedRegisters() { return callee_saved_registers_; }
@@ -112,7 +113,7 @@ class CallDescriptor FINAL : public ZoneObject {
   int16_t parameter_count_;
   int16_t input_count_;
   LinkageLocation* locations_;
-  Operator::Property properties_;
+  Operator::Properties properties_;
   RegList callee_saved_registers_;
   Flags flags_;
   const char* debug_name_;
@@ -147,15 +148,12 @@ class Linkage : public ZoneObject {
   CallDescriptor* GetIncomingDescriptor() { return incoming_; }
   CallDescriptor* GetJSCallDescriptor(int parameter_count);
   static CallDescriptor* GetJSCallDescriptor(int parameter_count, Zone* zone);
-  CallDescriptor* GetRuntimeCallDescriptor(
+  CallDescriptor* GetRuntimeCallDescriptor(Runtime::FunctionId function,
+                                           int parameter_count,
+                                           Operator::Properties properties);
+  static CallDescriptor* GetRuntimeCallDescriptor(
       Runtime::FunctionId function, int parameter_count,
-      Operator::Property properties,
-      CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
-  static CallDescriptor* GetRuntimeCallDescriptor(Runtime::FunctionId function,
-                                                  int parameter_count,
-                                                  Operator::Property properties,
-                                                  CallDescriptor::Flags flags,
-                                                  Zone* zone);
+      Operator::Properties properties, Zone* zone);
 
   CallDescriptor* GetStubCallDescriptor(
       CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count = 0,
@@ -190,6 +188,8 @@ class Linkage : public ZoneObject {
   FrameOffset GetFrameOffset(int spill_slot, Frame* frame, int extra = 0);
 
   CompilationInfo* info() const { return info_; }
+
+  static bool NeedsFrameState(Runtime::FunctionId function);
 
  private:
   CompilationInfo* info_;

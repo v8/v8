@@ -29,8 +29,10 @@
 import imp
 import os
 
+from . import commands
 from . import statusfile
 from . import utils
+from ..objects import testcase
 
 class TestSuite(object):
 

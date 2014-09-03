@@ -101,9 +101,6 @@
   'test-debug/ThreadedDebugging': [PASS, NO_VARIANTS],
   'test-debug/DebugBreakLoop': [PASS, NO_VARIANTS],
 
-  # Support for lazy deoptimization is missing.
-  'test-deoptimization/DeoptimizeCompare': [PASS, NO_VARIANTS],
-
   # Support for breakpoints requires using LoadICs and StoreICs.
   'test-debug/BreakPointICStore': [PASS, NO_VARIANTS],
   'test-debug/BreakPointICLoad': [PASS, NO_VARIANTS],
@@ -301,6 +298,9 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # Test requires turbofan:
+  'test-simplified-lowering/LowerStringOps_to_call_and_wordeq': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -317,6 +317,9 @@
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [SKIP],
   'test-serialize/DeserializeAndRunScript2': [SKIP],
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
+
+  # Test requires turbofan:
+  'test-simplified-lowering/LowerStringOps_to_call_and_wordeq': [SKIP],
 }],  # 'arch == mips64el'
 
 ##############################################################################
