@@ -837,7 +837,7 @@ class CallICStub: public PlatformCodeStub {
   void GenerateMiss(MacroAssembler* masm, IC::UtilityId id);
 
  private:
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
+  virtual inline Major MajorKey() const OVERRIDE;
 
   virtual void PrintState(OStream& os) const OVERRIDE;  // NOLINT
 
@@ -1158,7 +1158,7 @@ class BinaryOpICStub : public HydrogenCodeStub {
   static const int kRight = 1;
 
  private:
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
+  virtual inline Major MajorKey() const OVERRIDE;
 
   static void GenerateAheadOfTime(Isolate* isolate,
                                   const BinaryOpIC::State& state);
@@ -1906,7 +1906,7 @@ class LoadICTrampolineStub : public PlatformCodeStub {
     return static_cast<ExtraICState>(minor_key_);
   }
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
+  virtual inline Major MajorKey() const OVERRIDE;
 
  private:
   LoadIC::State state() const {
@@ -1962,7 +1962,7 @@ class VectorLoadStub : public HydrogenCodeStub {
   }
 
  private:
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
+  virtual inline Major MajorKey() const OVERRIDE;
 
   LoadIC::State state() const { return LoadIC::State(GetExtraICState()); }
 
