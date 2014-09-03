@@ -482,7 +482,7 @@ class Simulator : public DecoderVisitor {
   void PrintRegisters(bool print_all_regs = false);
   void PrintFPRegisters(bool print_all_regs = false);
   void PrintProcessorState();
-  void PrintWrite(uint8_t* address, uint64_t value, unsigned num_bytes);
+  void PrintWrite(uintptr_t address, uint64_t value, unsigned num_bytes);
   void LogSystemRegisters() {
     if (log_parameters_ & LOG_SYS_REGS) PrintSystemRegisters();
   }
@@ -497,8 +497,14 @@ class Simulator : public DecoderVisitor {
     LogRegisters();
     LogFPRegisters();
   }
-  void LogWrite(uint8_t* address, uint64_t value, unsigned num_bytes) {
-    if (log_parameters_ & LOG_WRITE) PrintWrite(address, value, num_bytes);
+  template <typename T>
+  void LogWrite(uintptr_t address, T value) {
+    uint64_t raw_value = 0;
+    DCHECK(sizeof(value) <= sizeof(raw_value));
+    if (log_parameters_ & LOG_WRITE) {
+      memcpy(&raw_value, &value, sizeof(value));
+      PrintWrite(address, raw_value, sizeof(value));
+    }
   }
 
   int log_parameters() { return log_parameters_; }
@@ -597,20 +603,22 @@ class Simulator : public DecoderVisitor {
                           AddrMode addrmode);
   void CheckMemoryAccess(uint8_t* address, uint8_t* stack);
 
-  uint64_t MemoryRead(uint8_t* address, unsigned num_bytes);
-  uint8_t MemoryRead8(uint8_t* address);
-  uint16_t MemoryRead16(uint8_t* address);
-  uint32_t MemoryRead32(uint8_t* address);
-  float MemoryReadFP32(uint8_t* address);
-  uint64_t MemoryRead64(uint8_t* address);
-  double MemoryReadFP64(uint8_t* address);
+  template <typename T, typename A>
+  T MemoryRead(A address) {
+    T value;
+    STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+                  (sizeof(value) == 4) || (sizeof(value) == 8));
+    memcpy(&value, reinterpret_cast<const void*>(address), sizeof(value));
+    return value;
+  }
 
-  void MemoryWrite(uint8_t* address, uint64_t value, unsigned num_bytes);
-  void MemoryWrite32(uint8_t* address, uint32_t value);
-  void MemoryWriteFP32(uint8_t* address, float value);
-  void MemoryWrite64(uint8_t* address, uint64_t value);
-  void MemoryWriteFP64(uint8_t* address, double value);
-
+  template <typename T, typename A>
+  void MemoryWrite(A address, T value) {
+    STATIC_ASSERT((sizeof(value) == 1) || (sizeof(value) == 2) ||
+                  (sizeof(value) == 4) || (sizeof(value) == 8));
+    LogWrite(reinterpret_cast<uintptr_t>(address), value);
+    memcpy(reinterpret_cast<void*>(address), &value, sizeof(value));
+  }
 
   template <typename T>
   T ShiftOperand(T value,
