@@ -155,9 +155,8 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
 }
 
 
-CallDescriptor* Linkage::GetSimplifiedCDescriptor(
-    Zone* zone, int num_params, MachineType return_type,
-    const MachineType* param_types) {
+CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
+                                                  MachineSignature* sig) {
   UNIMPLEMENTED();
   return NULL;
 }
