@@ -333,11 +333,6 @@ class RecordWriteStub: public PlatformCodeStub {
   class RememberedSetActionBits: public BitField<RememberedSetAction, 15, 1> {};
   class SaveFPRegsModeBits: public BitField<SaveFPRegsMode, 16, 1> {};
 
-  Register object_;
-  Register value_;
-  Register address_;
-  RememberedSetAction remembered_set_action_;
-  SaveFPRegsMode save_fp_regs_mode_;
   Label slow_;
   RegisterAllocation regs_;
 };
