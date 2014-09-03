@@ -213,7 +213,8 @@ void StructuredMachineAssembler::Merge(EnvironmentVector* environments,
   vars.reserve(n_vars);
   Node** scratch = NULL;
   size_t n_envs = environments->size();
-  Environment** live_environments = zone()->NewArray<Environment*>(n_envs);
+  Environment** live_environments =
+      zone()->NewArray<Environment*>(static_cast<int>(n_envs));
   size_t n_live = 0;
   for (size_t i = 0; i < n_envs; i++) {
     if (environments->at(i)->is_dead_) continue;
@@ -249,7 +250,7 @@ void StructuredMachineAssembler::Merge(EnvironmentVector* environments,
       CHECK(resolved != NULL);
       // Init scratch buffer.
       if (scratch == NULL) {
-        scratch = zone()->NewArray<Node*>(n_envs);
+        scratch = zone()->NewArray<Node*>(static_cast<int>(n_envs));
       }
       for (size_t k = 0; k < i; k++) {
         scratch[k] = resolved;
