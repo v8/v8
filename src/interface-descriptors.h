@@ -104,8 +104,6 @@ class CallDescriptors {
 #undef DEF_ENUM
     NUMBER_OF_DESCRIPTORS
   };
-
-  static void InitializeForIsolate(Isolate* isolate);
 };
 
 
@@ -163,24 +161,18 @@ class CallInterfaceDescriptor {
  protected:
   const CallInterfaceDescriptorData* data() const { return data_; }
 
-  static void InitializeData(
-      Isolate* isolate, CallDescriptors::Key key, int register_parameter_count,
-      Register* registers, Representation* param_representations,
-      PlatformInterfaceDescriptor* platform_descriptor = NULL) {
-    isolate->call_descriptor_data(key)
-        ->Initialize(register_parameter_count, registers, param_representations,
-                     platform_descriptor);
-  }
-
  private:
   const CallInterfaceDescriptorData* data_;
 };
 
 
-#define DECLARE_DESCRIPTOR(name)                                               \
-  explicit name(Isolate* isolate) : CallInterfaceDescriptor(isolate, key()) {} \
-  static inline CallDescriptors::Key key();                                    \
-  static void Initialize(Isolate* isolate);
+#define DECLARE_DESCRIPTOR(name)                                              \
+  explicit name(Isolate* isolate) : CallInterfaceDescriptor(isolate, key()) { \
+    if (!data()->IsInitialized())                                             \
+      Initialize(isolate->call_descriptor_data(key()));                       \
+  }                                                                           \
+  static inline CallDescriptors::Key key();                                   \
+  void Initialize(CallInterfaceDescriptorData* data);
 
 
 class LoadDescriptor : public CallInterfaceDescriptor {

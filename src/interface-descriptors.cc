@@ -42,50 +42,39 @@ void CallInterfaceDescriptorData::Initialize(
 }
 
 
-void LoadDescriptor::Initialize(Isolate* isolate) {
+void LoadDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), ReceiverRegister(),
                           NameRegister()};
-  InitializeData(isolate, key(), arraysize(registers), registers, NULL);
+  data->Initialize(arraysize(registers), registers, NULL);
 }
 
 
-void StoreDescriptor::Initialize(Isolate* isolate) {
+void StoreDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
                           ValueRegister()};
-  InitializeData(isolate, key(), arraysize(registers), registers, NULL);
+  data->Initialize(arraysize(registers), registers, NULL);
 }
 
 
-void ElementTransitionAndStoreDescriptor::Initialize(Isolate* isolate) {
+void ElementTransitionAndStoreDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), ValueRegister(), MapRegister(),
                           NameRegister(), ReceiverRegister()};
-  InitializeData(isolate, key(), arraysize(registers), registers, NULL);
+  data->Initialize(arraysize(registers), registers, NULL);
 }
 
 
-void InstanceofDescriptor::Initialize(Isolate* isolate) {
+void InstanceofDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), left(), right()};
-  InitializeData(isolate, key(), arraysize(registers), registers, NULL);
+  data->Initialize(arraysize(registers), registers, NULL);
 }
 
 
-void VectorLoadICDescriptor::Initialize(Isolate* isolate) {
+void VectorLoadICDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
                           SlotRegister(), VectorRegister()};
-  InitializeData(isolate, key(), arraysize(registers), registers, NULL);
+  data->Initialize(arraysize(registers), registers, NULL);
 }
 
-
-void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
-// Mechanically initialize all descriptors. The DCHECK makes sure that the
-// Initialize() method did what it is supposed to do.
-
-#define INITIALIZE_DESCRIPTOR(D)      \
-  D##Descriptor::Initialize(isolate); \
-  DCHECK(D##Descriptor(isolate).IsInitialized());
-
-  INTERFACE_DESCRIPTOR_LIST(INITIALIZE_DESCRIPTOR)
-#undef INITIALIZE_DESCRIPTOR
-}
 }
 }  // namespace v8::internal
