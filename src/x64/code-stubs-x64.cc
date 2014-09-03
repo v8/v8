@@ -27,14 +27,12 @@ static void InitializeArrayConstructorDescriptor(
       Runtime::kArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
-    CallInterfaceDescriptor* call_descriptor = isolate->call_descriptor(
-        CallDescriptorKey::ArrayConstructorConstantArgCountCall);
+    ArrayConstructorConstantArgCountDescriptor call_descriptor(isolate);
     descriptor->Initialize(major, call_descriptor, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
-    CallInterfaceDescriptor* call_descriptor =
-        isolate->call_descriptor(CallDescriptorKey::ArrayConstructorCall);
+    ArrayConstructorDescriptor call_descriptor(isolate);
     descriptor->Initialize(major, call_descriptor, rax, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
@@ -46,22 +44,16 @@ static void InitializeInternalArrayConstructorDescriptor(
     Isolate* isolate, CodeStub::Major major,
     CodeStubInterfaceDescriptor* descriptor,
     int constant_stack_parameter_count) {
-  // register state
-  // rsi -- context
-  // rax -- number of arguments
-  // rdi -- constructor function
   Address deopt_handler = Runtime::FunctionForId(
       Runtime::kInternalArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
-    CallInterfaceDescriptor* call_descriptor = isolate->call_descriptor(
-        CallDescriptorKey::InternalArrayConstructorConstantArgCountCall);
+    InternalArrayConstructorConstantArgCountDescriptor call_descriptor(isolate);
     descriptor->Initialize(major, call_descriptor, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
-    CallInterfaceDescriptor* call_descriptor = isolate->call_descriptor(
-        CallDescriptorKey::InternalArrayConstructorCall);
+    InternalArrayConstructorDescriptor call_descriptor(isolate);
     descriptor->Initialize(major, call_descriptor, rax, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
@@ -541,7 +533,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
-  Register receiver = LoadConvention::ReceiverRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, r8,
                                                           r9, &miss);
@@ -4181,14 +4173,14 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 
 void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, FullVectorLoadConvention::VectorRegister());
+  EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
   VectorLoadStub stub(isolate(), state());
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, FullVectorLoadConvention::VectorRegister());
+  EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
   VectorKeyedLoadStub stub(isolate());
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }

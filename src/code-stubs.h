@@ -10,7 +10,6 @@
 #include "src/codegen.h"
 #include "src/globals.h"
 #include "src/ic/ic.h"
-#include "src/ic/ic-conventions.h"
 #include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
@@ -293,12 +292,12 @@ class CodeStubInterfaceDescriptor {
   CodeStubInterfaceDescriptor();
 
   void Initialize(CodeStub::Major major,
-                  CallInterfaceDescriptor* call_descriptor,
+                  CallInterfaceDescriptor call_descriptor,
                   Address deoptimization_handler = NULL,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
   void Initialize(CodeStub::Major major,
-                  CallInterfaceDescriptor* call_descriptor,
+                  CallInterfaceDescriptor call_descriptor,
                   Register stack_parameter_count,
                   Address deoptimization_handler = NULL,
                   int hint_stack_parameter_count = -1,
@@ -313,36 +312,36 @@ class CodeStubInterfaceDescriptor {
     DCHECK(!stack_parameter_count_.is_valid());
   }
 
-  bool IsInitialized() const { return call_descriptor_ != NULL; }
+  bool IsInitialized() const { return call_descriptor_.IsInitialized(); }
 
-  CallInterfaceDescriptor* call_descriptor() const { return call_descriptor_; }
+  CallInterfaceDescriptor call_descriptor() const { return call_descriptor_; }
 
   int GetEnvironmentLength() const {
-    return call_descriptor()->GetEnvironmentLength();
+    return call_descriptor().GetEnvironmentLength();
   }
 
   int GetRegisterParameterCount() const {
-    return call_descriptor()->GetRegisterParameterCount();
+    return call_descriptor().GetRegisterParameterCount();
   }
 
   Register GetParameterRegister(int index) const {
-    return call_descriptor()->GetParameterRegister(index);
+    return call_descriptor().GetParameterRegister(index);
   }
 
   Representation GetParameterRepresentation(int index) const {
-    return call_descriptor()->GetParameterRepresentation(index);
+    return call_descriptor().GetParameterRepresentation(index);
   }
 
   int GetEnvironmentParameterCount() const {
-    return call_descriptor()->GetEnvironmentParameterCount();
+    return call_descriptor().GetEnvironmentParameterCount();
   }
 
   Register GetEnvironmentParameterRegister(int index) const {
-    return call_descriptor()->GetEnvironmentParameterRegister(index);
+    return call_descriptor().GetEnvironmentParameterRegister(index);
   }
 
   Representation GetEnvironmentParameterRepresentation(int index) const {
-    return call_descriptor()->GetEnvironmentParameterRepresentation(index);
+    return call_descriptor().GetEnvironmentParameterRepresentation(index);
   }
 
   ExternalReference miss_handler() const {
@@ -355,12 +354,12 @@ class CodeStubInterfaceDescriptor {
   }
 
   bool IsEnvironmentParameterCountRegister(int index) const {
-    return call_descriptor()->GetEnvironmentParameterRegister(index).is(
+    return call_descriptor().GetEnvironmentParameterRegister(index).is(
         stack_parameter_count_);
   }
 
   int GetHandlerParameterCount() const {
-    int params = call_descriptor()->GetEnvironmentParameterCount();
+    int params = call_descriptor().GetEnvironmentParameterCount();
     if (handler_arguments_mode_ == PASS_ARGUMENTS) {
       params += 1;
     }
@@ -374,7 +373,7 @@ class CodeStubInterfaceDescriptor {
   CodeStub::Major MajorKey() const { return major_; }
 
  private:
-  CallInterfaceDescriptor* call_descriptor_;
+  CallInterfaceDescriptor call_descriptor_;
   Register stack_parameter_count_;
   // If hint_stack_parameter_count_ > 0, the code stub can optimize the
   // return sequence. Default value is -1, which means it is ignored.
@@ -702,8 +701,8 @@ class InstanceofStub: public PlatformCodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  static Register left() { return InstanceofConvention::left(); }
-  static Register right() { return InstanceofConvention::right(); }
+  static Register left() { return InstanceofDescriptor::left(); }
+  static Register right() { return InstanceofDescriptor::right(); }
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor);
@@ -2539,14 +2538,16 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
   };
 
   static const Register ValueRegister() {
-    return StoreConvention::ValueRegister();
+    return ElementTransitionAndStoreDescriptor::ValueRegister();
   }
-  static const Register MapRegister() { return StoreConvention::MapRegister(); }
+  static const Register MapRegister() {
+    return ElementTransitionAndStoreDescriptor::MapRegister();
+  }
   static const Register KeyRegister() {
-    return StoreConvention::NameRegister();
+    return ElementTransitionAndStoreDescriptor::NameRegister();
   }
   static const Register ObjectRegister() {
-    return StoreConvention::ReceiverRegister();
+    return ElementTransitionAndStoreDescriptor::ReceiverRegister();
   }
 
  private:

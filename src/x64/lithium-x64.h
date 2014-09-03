@@ -1877,10 +1877,10 @@ class LCallJSFunction FINAL : public LTemplateInstruction<1, 1, 0> {
 
 class LCallWithDescriptor FINAL : public LTemplateResultInstruction<1> {
  public:
-  LCallWithDescriptor(const CallInterfaceDescriptor* descriptor,
+  LCallWithDescriptor(CallInterfaceDescriptor descriptor,
                       const ZoneList<LOperand*>& operands, Zone* zone)
-      : inputs_(descriptor->GetRegisterParameterCount() + 1, zone) {
-    DCHECK(descriptor->GetRegisterParameterCount() + 1 == operands.length());
+      : inputs_(descriptor.GetRegisterParameterCount() + 1, zone) {
+    DCHECK(descriptor.GetRegisterParameterCount() + 1 == operands.length());
     inputs_.AddAll(operands, zone);
   }
 

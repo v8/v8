@@ -994,8 +994,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Copy all arguments from the array to the stack.
     Label entry, loop;
-    Register receiver = LoadConvention::ReceiverRegister();
-    Register key = LoadConvention::NameRegister();
+    Register receiver = LoadDescriptor::ReceiverRegister();
+    Register key = LoadDescriptor::NameRegister();
     __ mov(key, Operand(ebp, kIndexOffset));
     __ jmp(&entry);
     __ bind(&loop);
@@ -1003,7 +1003,8 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
     // Use inline caching to speed up access to arguments.
     if (FLAG_vector_ics) {
-      __ mov(VectorLoadConvention::SlotRegister(), Immediate(Smi::FromInt(0)));
+      __ mov(VectorLoadICDescriptor::SlotRegister(),
+             Immediate(Smi::FromInt(0)));
     }
     Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Initialize();
     __ call(ic, RelocInfo::CODE_TARGET);

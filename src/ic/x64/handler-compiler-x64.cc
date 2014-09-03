@@ -283,8 +283,8 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
-  DCHECK(rdx.is(LoadConvention::ReceiverRegister()));
-  DCHECK(rcx.is(LoadConvention::NameRegister()));
+  DCHECK(rdx.is(LoadDescriptor::ReceiverRegister()));
+  DCHECK(rcx.is(LoadDescriptor::NameRegister()));
   Label slow, miss;
 
   // This stub is meant to be tail-jumped to, the receiver must already
@@ -321,9 +321,9 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
 
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreConvention::ReceiverRegister();
-  Register name = StoreConvention::NameRegister();
-  Register value = StoreConvention::ValueRegister();
+  Register receiver = StoreDescriptor::ReceiverRegister();
+  Register name = StoreDescriptor::NameRegister();
+  Register value = StoreDescriptor::ValueRegister();
 
   DCHECK(!rbx.is(receiver) && !rbx.is(name) && !rbx.is(value));
 
@@ -839,7 +839,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 
 
 Register NamedStoreHandlerCompiler::value() {
-  return StoreConvention::ValueRegister();
+  return StoreDescriptor::ValueRegister();
 }
 
 
@@ -849,7 +849,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   FrontendHeader(receiver(), name, &miss);
 
   // Get the value from the cell.
-  Register result = StoreConvention::ValueRegister();
+  Register result = StoreDescriptor::ValueRegister();
   __ Move(result, cell);
   __ movp(result, FieldOperand(result, PropertyCell::kValueOffset));
 

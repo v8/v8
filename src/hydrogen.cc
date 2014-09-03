@@ -7394,9 +7394,7 @@ HInstruction* HOptimizedGraphBuilder::NewPlainFunctionCall(
 HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
     HValue* fun, HValue* context,
     int argument_count, HValue* expected_param_count) {
-  CallInterfaceDescriptor* descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::ArgumentAdaptorCall);
-
+  ArgumentAdaptorDescriptor descriptor(isolate());
   HValue* arity = Add<HConstant>(argument_count - 1);
 
   HValue* op_vals[] = { context, fun, arity, expected_param_count };
@@ -7407,7 +7405,7 @@ HInstruction* HOptimizedGraphBuilder::NewArgumentAdaptorCall(
 
   return New<HCallWithDescriptor>(
       adaptor_value, argument_count, descriptor,
-      Vector<HValue*>(op_vals, descriptor->GetEnvironmentLength()));
+      Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
 }
 
 
@@ -8644,19 +8642,16 @@ bool HOptimizedGraphBuilder::TryInlineApiCall(Handle<JSFunction> function,
     api_function_address
   };
 
-  CallInterfaceDescriptor* descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::ApiFunctionCall);
-
+  ApiFunctionDescriptor descriptor(isolate());
   CallApiFunctionStub stub(isolate(), is_store, call_data_is_undefined, argc);
   Handle<Code> code = stub.GetCode();
   HConstant* code_value = Add<HConstant>(code);
 
-  DCHECK((sizeof(op_vals) / kPointerSize) ==
-         descriptor->GetEnvironmentLength());
+  DCHECK((sizeof(op_vals) / kPointerSize) == descriptor.GetEnvironmentLength());
 
   HInstruction* call = New<HCallWithDescriptor>(
       code_value, argc + 1, descriptor,
-      Vector<HValue*>(op_vals, descriptor->GetEnvironmentLength()));
+      Vector<HValue*>(op_vals, descriptor.GetEnvironmentLength()));
 
   if (drop_extra) Drop(1);  // Drop function.
   ast_context()->ReturnInstruction(call, ast_id);

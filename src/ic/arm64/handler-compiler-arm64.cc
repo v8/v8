@@ -285,8 +285,8 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
   Label slow, miss;
 
   Register result = x0;
-  Register key = LoadConvention::NameRegister();
-  Register receiver = LoadConvention::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
   DCHECK(receiver.is(x1));
   DCHECK(key.is(x2));
 
@@ -308,8 +308,8 @@ void ElementHandlerCompiler::GenerateLoadDictionaryElement(
 
 void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   // Push receiver, name and value for runtime call.
-  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
-          StoreConvention::ValueRegister());
+  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
+          StoreDescriptor::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -323,8 +323,8 @@ void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
   ASM_LOCATION("ElementHandlerCompiler::GenerateStoreSlow");
 
   // Push receiver, key and value for runtime call.
-  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
-          StoreConvention::ValueRegister());
+  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
+          StoreDescriptor::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -344,7 +344,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   FrontendHeader(receiver(), name, &miss);
 
   // Get the value from the cell.
-  Register result = StoreConvention::ValueRegister();
+  Register result = StoreDescriptor::ValueRegister();
   __ Mov(result, Operand(cell));
   __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
 
@@ -383,7 +383,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 
 
 Register NamedStoreHandlerCompiler::value() {
-  return StoreConvention::ValueRegister();
+  return StoreDescriptor::ValueRegister();
 }
 
 
