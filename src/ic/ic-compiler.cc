@@ -101,9 +101,7 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
                                receiver_map->instance_type() == JS_ARRAY_TYPE,
                                elements_kind).GetCode();
   } else {
-    stub = FLAG_compiled_keyed_dictionary_loads
-               ? LoadDictionaryElementStub(isolate).GetCode()
-               : LoadDictionaryElementPlatformStub(isolate).GetCode();
+    stub = LoadDictionaryElementStub(isolate).GetCode();
   }
   PropertyICCompiler compiler(isolate, Code::KEYED_LOAD_IC);
   Handle<Code> code =

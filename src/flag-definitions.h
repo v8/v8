@@ -178,8 +178,6 @@ DEFINE_IMPLICATION(harmony, es_staging)
 DEFINE_IMPLICATION(es_staging, harmony_generators)
 
 // Flags for experimental implementation features.
-DEFINE_BOOL(compiled_keyed_dictionary_loads, true,
-            "use optimizing compiler to generate keyed dictionary load stubs")
 DEFINE_BOOL(compiled_keyed_generic_loads, false,
             "use optimizing compiler to generate keyed generic load stubs")
 DEFINE_BOOL(clever_optimizations, true,

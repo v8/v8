@@ -1568,7 +1568,7 @@ static void BranchIfNotInternalizedString(MacroAssembler* masm,
 }
 
 
-void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
+void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   Label check_unequal_objects;
   Condition cc = GetCondition();
 
@@ -3375,7 +3375,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
+void CompareICStub::GenerateSmis(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::SMI);
   Label miss;
   __ mov(ecx, edx);
@@ -3401,7 +3401,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
+void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::NUMBER);
 
   Label generic_stub;
@@ -3458,7 +3458,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&unordered);
   __ bind(&generic_stub);
-  ICCompareStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
+  CompareICStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 
@@ -3483,7 +3483,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
+void CompareICStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::INTERNALIZED_STRING);
   DCHECK(GetCondition() == equal);
 
@@ -3528,7 +3528,7 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
+void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::UNIQUE_NAME);
   DCHECK(GetCondition() == equal);
 
@@ -3573,7 +3573,7 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
+void CompareICStub::GenerateStrings(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::STRING);
   Label miss;
 
@@ -3662,7 +3662,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
+void CompareICStub::GenerateObjects(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::OBJECT);
   Label miss;
   __ mov(ecx, edx);
@@ -3683,7 +3683,7 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
+void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
   Label miss;
   __ mov(ecx, edx);
   __ and_(ecx, eax);
@@ -3704,7 +3704,7 @@ void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
+void CompareICStub::GenerateMiss(MacroAssembler* masm) {
   {
     // Call the runtime system in a fresh internal frame.
     ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),

@@ -483,8 +483,7 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
 }
 
 
-static void ICCompareStub_CheckInputType(MacroAssembler* masm,
-                                         Register input,
+static void CompareICStub_CheckInputType(MacroAssembler* masm, Register input,
                                          Register scratch,
                                          CompareIC::State expected,
                                          Label* fail) {
@@ -502,15 +501,15 @@ static void ICCompareStub_CheckInputType(MacroAssembler* masm,
 }
 
 
-void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
+void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   Register lhs = x1;
   Register rhs = x0;
   Register result = x0;
   Condition cond = GetCondition();
 
   Label miss;
-  ICCompareStub_CheckInputType(masm, lhs, x2, left(), &miss);
-  ICCompareStub_CheckInputType(masm, rhs, x3, right(), &miss);
+  CompareICStub_CheckInputType(masm, lhs, x2, left(), &miss);
+  CompareICStub_CheckInputType(masm, rhs, x3, right(), &miss);
 
   Label slow;  // Call builtin.
   Label not_smis, both_loaded_as_doubles;
@@ -3197,10 +3196,10 @@ void StringCharFromCodeGenerator::GenerateSlow(
 }
 
 
-void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
+void CompareICStub::GenerateSmis(MacroAssembler* masm) {
   // Inputs are in x0 (lhs) and x1 (rhs).
   DCHECK(state() == CompareIC::SMI);
-  ASM_LOCATION("ICCompareStub[Smis]");
+  ASM_LOCATION("CompareICStub[Smis]");
   Label miss;
   // Bail out (to 'miss') unless both x0 and x1 are smis.
   __ JumpIfEitherNotSmi(x0, x1, &miss);
@@ -3220,9 +3219,9 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
+void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::NUMBER);
-  ASM_LOCATION("ICCompareStub[HeapNumbers]");
+  ASM_LOCATION("CompareICStub[HeapNumbers]");
 
   Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss, handle_lhs, values_in_d_regs;
@@ -3266,7 +3265,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
   __ Ret();
 
   __ Bind(&unordered);
-  ICCompareStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
+  CompareICStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 
@@ -3288,9 +3287,9 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
+void CompareICStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::INTERNALIZED_STRING);
-  ASM_LOCATION("ICCompareStub[InternalizedStrings]");
+  ASM_LOCATION("CompareICStub[InternalizedStrings]");
   Label miss;
 
   Register result = x0;
@@ -3326,9 +3325,9 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
+void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::UNIQUE_NAME);
-  ASM_LOCATION("ICCompareStub[UniqueNames]");
+  ASM_LOCATION("CompareICStub[UniqueNames]");
   DCHECK(GetCondition() == eq);
   Label miss;
 
@@ -3365,9 +3364,9 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
+void CompareICStub::GenerateStrings(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::STRING);
-  ASM_LOCATION("ICCompareStub[Strings]");
+  ASM_LOCATION("CompareICStub[Strings]");
 
   Label miss;
 
@@ -3445,9 +3444,9 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
+void CompareICStub::GenerateObjects(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::OBJECT);
-  ASM_LOCATION("ICCompareStub[Objects]");
+  ASM_LOCATION("CompareICStub[Objects]");
 
   Label miss;
 
@@ -3469,8 +3468,8 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
-  ASM_LOCATION("ICCompareStub[KnownObjects]");
+void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
+  ASM_LOCATION("CompareICStub[KnownObjects]");
 
   Label miss;
 
@@ -3499,10 +3498,10 @@ void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
 
 // This method handles the case where a compare stub had the wrong
 // implementation. It calls a miss handler, which re-writes the stub. All other
-// ICCompareStub::Generate* methods should fall back into this one if their
+// CompareICStub::Generate* methods should fall back into this one if their
 // operands were not the expected types.
-void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
-  ASM_LOCATION("ICCompareStub[Miss]");
+void CompareICStub::GenerateMiss(MacroAssembler* masm) {
+  ASM_LOCATION("CompareICStub[Miss]");
 
   Register stub_entry = x11;
   {

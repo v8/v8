@@ -279,33 +279,6 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 }
 
 
-void ElementHandlerCompiler::GenerateLoadDictionaryElement(
-    MacroAssembler* masm) {
-  // The return address is in lr.
-  Label slow, miss;
-
-  Register result = x0;
-  Register key = LoadDescriptor::NameRegister();
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  DCHECK(receiver.is(x1));
-  DCHECK(key.is(x2));
-
-  __ JumpIfNotSmi(key, &miss);
-  __ Ldr(x4, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ LoadFromNumberDictionary(&slow, x4, key, result, x7, x3, x5, x6);
-  __ Ret();
-
-  __ Bind(&slow);
-  __ IncrementCounter(
-      masm->isolate()->counters()->keyed_load_external_array_slow(), 1, x4, x3);
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
-
-  // Miss case, call the runtime.
-  __ Bind(&miss);
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
-}
-
-
 void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   // Push receiver, name and value for runtime call.
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),

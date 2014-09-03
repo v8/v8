@@ -276,50 +276,6 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 }
 
 
-void ElementHandlerCompiler::GenerateLoadDictionaryElement(
-    MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  DCHECK(rdx.is(LoadDescriptor::ReceiverRegister()));
-  DCHECK(rcx.is(LoadDescriptor::NameRegister()));
-  Label slow, miss;
-
-  // This stub is meant to be tail-jumped to, the receiver must already
-  // have been verified by the caller to not be a smi.
-
-  __ JumpIfNotSmi(rcx, &miss);
-  __ SmiToInteger32(rbx, rcx);
-  __ movp(rax, FieldOperand(rdx, JSObject::kElementsOffset));
-
-  // Check whether the elements is a number dictionary.
-  // rdx: receiver
-  // rcx: key
-  // rbx: key as untagged int32
-  // rax: elements
-  __ LoadFromNumberDictionary(&slow, rax, rcx, rbx, r9, rdi, rax);
-  __ ret(0);
-
-  __ bind(&slow);
-  // ----------- S t a t e -------------
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
-
-  __ bind(&miss);
-  // ----------- S t a t e -------------
-  //  -- rcx    : key
-  //  -- rdx    : receiver
-  //  -- rsp[0] : return address
-  // -----------------------------------
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
-}
-
-
 static void StoreIC_PushArgs(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();

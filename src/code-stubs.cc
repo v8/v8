@@ -268,7 +268,7 @@ void StringAddStub::PrintBaseName(OStream& os) const {  // NOLINT
 }
 
 
-InlineCacheState ICCompareStub::GetICState() const {
+InlineCacheState CompareICStub::GetICState() const {
   CompareIC::State state = Max(left(), right());
   switch (state) {
     case CompareIC::UNINITIALIZED:
@@ -289,7 +289,7 @@ InlineCacheState ICCompareStub::GetICState() const {
 }
 
 
-void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
+void CompareICStub::AddToSpecialCache(Handle<Code> new_object) {
   DCHECK(*known_map_ != NULL);
   Isolate* isolate = new_object->GetIsolate();
   Factory* factory = isolate->factory();
@@ -301,7 +301,7 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
 }
 
 
-bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
+bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
   Factory* factory = isolate()->factory();
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
@@ -317,7 +317,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
-    ICCompareStub decode((*code_out)->stub_key());
+    CompareICStub decode((*code_out)->stub_key());
     DCHECK(op() == decode.op());
     DCHECK(left() == decode.left());
     DCHECK(right() == decode.right());
@@ -329,7 +329,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
 }
 
 
-void ICCompareStub::Generate(MacroAssembler* masm) {
+void CompareICStub::Generate(MacroAssembler* masm) {
   switch (state()) {
     case CompareIC::UNINITIALIZED:
       GenerateMiss(masm);
@@ -716,11 +716,6 @@ void StringAddStub::InitializeInterfaceDescriptor(
   StringAddDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          Runtime::FunctionForId(Runtime::kStringAdd)->entry);
-}
-
-
-void LoadDictionaryElementPlatformStub::Generate(MacroAssembler* masm) {
-  ElementHandlerCompiler::GenerateLoadDictionaryElement(masm);
 }
 
 
