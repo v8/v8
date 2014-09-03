@@ -4031,16 +4031,14 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
   // but we need to save them before using them.
   regs_.Save(masm);
 
-  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+  if (remembered_set_action() == EMIT_REMEMBERED_SET) {
     Label dont_need_remembered_set;
 
-    Register value = regs_.scratch0();
-    __ Ldr(value, MemOperand(regs_.address()));
-    __ JumpIfNotInNewSpace(value, &dont_need_remembered_set);
+    Register val = regs_.scratch0();
+    __ Ldr(val, MemOperand(regs_.address()));
+    __ JumpIfNotInNewSpace(val, &dont_need_remembered_set);
 
-    __ CheckPageFlagSet(regs_.object(),
-                        value,
-                        1 << MemoryChunk::SCAN_ON_SCAVENGE,
+    __ CheckPageFlagSet(regs_.object(), val, 1 << MemoryChunk::SCAN_ON_SCAVENGE,
                         &dont_need_remembered_set);
 
     // First notify the incremental marker if necessary, then update the
@@ -4050,11 +4048,9 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
     InformIncrementalMarker(masm);
     regs_.Restore(masm);  // Restore the extra scratch registers we used.
 
-    __ RememberedSetHelper(object_,
-                           address_,
-                           value_,            // scratch1
-                           save_fp_regs_mode_,
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(),
+                           value(),  // scratch1
+                           save_fp_regs_mode(), MacroAssembler::kReturnAtEnd);
 
     __ Bind(&dont_need_remembered_set);
   }
@@ -4068,7 +4064,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
 
 
 void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
-  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode_);
+  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode());
   Register address =
     x0.Is(regs_.address()) ? regs_.scratch0() : regs_.address();
   DCHECK(!address.Is(regs_.object()));
@@ -4084,7 +4080,7 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
           isolate());
   __ CallCFunction(function, 3, 0);
 
-  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode_);
+  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
 }
 
 
@@ -4111,25 +4107,22 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);  // Restore the extra scratch registers we used.
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object_,
-                           address_,
-                           value_,            // scratch1
-                           save_fp_regs_mode_,
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(),
+                           value(),  // scratch1
+                           save_fp_regs_mode(), MacroAssembler::kReturnAtEnd);
   } else {
     __ Ret();
   }
 
   __ Bind(&on_black);
   // Get the value from the slot.
-  Register value = regs_.scratch0();
-  __ Ldr(value, MemOperand(regs_.address()));
+  Register val = regs_.scratch0();
+  __ Ldr(val, MemOperand(regs_.address()));
 
   if (mode == INCREMENTAL_COMPACTION) {
     Label ensure_not_white;
 
-    __ CheckPageFlagClear(value,
-                          regs_.scratch1(),
+    __ CheckPageFlagClear(val, regs_.scratch1(),
                           MemoryChunk::kEvacuationCandidateMask,
                           &ensure_not_white);
 
@@ -4144,7 +4137,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   // We need extra registers for this, so we push the object and the address
   // register temporarily.
   __ Push(regs_.address(), regs_.object());
-  __ EnsureNotWhite(value,
+  __ EnsureNotWhite(val,
                     regs_.scratch1(),  // Scratch.
                     regs_.object(),    // Scratch.
                     regs_.address(),   // Scratch.
@@ -4154,11 +4147,9 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);  // Restore the extra scratch registers we used.
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object_,
-                           address_,
-                           value_,            // scratch1
-                           save_fp_regs_mode_,
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(),
+                           value(),  // scratch1
+                           save_fp_regs_mode(), MacroAssembler::kReturnAtEnd);
   } else {
     __ Ret();
   }
@@ -4186,12 +4177,10 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
     __ adr(xzr, &skip_to_incremental_compacting);
   }
 
-  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
-    __ RememberedSetHelper(object_,
-                           address_,
-                           value_,            // scratch1
-                           save_fp_regs_mode_,
-                           MacroAssembler::kReturnAtEnd);
+  if (remembered_set_action() == EMIT_REMEMBERED_SET) {
+    __ RememberedSetHelper(object(), address(),
+                           value(),  // scratch1
+                           save_fp_regs_mode(), MacroAssembler::kReturnAtEnd);
   }
   __ Ret();
 
@@ -4626,7 +4615,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ Cmp(entry_key, key);
     __ B(eq, &in_dictionary);
 
-    if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
+    if (i != kTotalProbes - 1 && mode() == NEGATIVE_LOOKUP) {
       // Check if the entry name is not a unique name.
       __ Ldr(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
       __ Ldrb(entry_key, FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
@@ -4638,7 +4627,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // If we are doing negative lookup then probing failure should be
   // treated as a lookup success. For positive lookup, probing failure
   // should be treated as lookup failure.
-  if (mode_ == POSITIVE_LOOKUP) {
+  if (mode() == POSITIVE_LOOKUP) {
     __ Mov(result, 0);
     __ Ret();
   }

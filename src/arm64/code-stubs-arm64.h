@@ -59,12 +59,15 @@ class StoreRegistersStateStub: public PlatformCodeStub {
       : PlatformCodeStub(isolate) {}
 
   static Register to_be_pushed_lr() { return ip0; }
+
   static void GenerateAheadOfTime(Isolate* isolate);
+
  private:
   Major MajorKey() const { return StoreRegistersState; }
-  uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
+
+  DISALLOW_COPY_AND_ASSIGN(StoreRegistersStateStub);
 };
 
 
@@ -76,9 +79,10 @@ class RestoreRegistersStateStub: public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
   Major MajorKey() const { return RestoreRegistersState; }
-  uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
+
+  DISALLOW_COPY_AND_ASSIGN(RestoreRegistersStateStub);
 };
 
 
@@ -94,14 +98,17 @@ class RecordWriteStub: public PlatformCodeStub {
                   RememberedSetAction remembered_set_action,
                   SaveFPRegsMode fp_mode)
       : PlatformCodeStub(isolate),
-        object_(object),
-        value_(value),
-        address_(address),
-        remembered_set_action_(remembered_set_action),
-        save_fp_regs_mode_(fp_mode),
         regs_(object,   // An input reg.
               address,  // An input reg.
               value) {  // One scratch reg.
+    DCHECK(object.Is64Bits());
+    DCHECK(value.Is64Bits());
+    DCHECK(address.Is64Bits());
+    minor_key_ = ObjectBits::encode(object.code()) |
+                 ValueBits::encode(value.code()) |
+                 AddressBits::encode(address.code()) |
+                 RememberedSetActionBits::encode(remembered_set_action) |
+                 SaveFPRegsModeBits::encode(fp_mode);
   }
 
   enum Mode {
@@ -281,47 +288,43 @@ class RecordWriteStub: public PlatformCodeStub {
     friend class RecordWriteStub;
   };
 
-  // A list of stub variants which are pregenerated.
-  // The variants are stored in the same format as the minor key, so
-  // MinorKeyFor() can be used to populate and check this list.
-  static const int kAheadOfTime[];
-
-  void Generate(MacroAssembler* masm);
-  void GenerateIncremental(MacroAssembler* masm, Mode mode);
-
   enum OnNoNeedToInformIncrementalMarker {
     kReturnOnNoNeedToInformIncrementalMarker,
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
+  Major MajorKey() const { return RecordWrite; }
+
+  void Generate(MacroAssembler* masm);
+  void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
       OnNoNeedToInformIncrementalMarker on_no_need,
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  Major MajorKey() const { return RecordWrite; }
-
-  uint32_t MinorKey() const {
-    return MinorKeyFor(object_, value_, address_, remembered_set_action_,
-                       save_fp_regs_mode_);
-  }
-
-  static uint32_t MinorKeyFor(Register object, Register value, Register address,
-                              RememberedSetAction action,
-                              SaveFPRegsMode fp_mode) {
-    DCHECK(object.Is64Bits());
-    DCHECK(value.Is64Bits());
-    DCHECK(address.Is64Bits());
-    return ObjectBits::encode(object.code()) |
-        ValueBits::encode(value.code()) |
-        AddressBits::encode(address.code()) |
-        RememberedSetActionBits::encode(action) |
-        SaveFPRegsModeBits::encode(fp_mode);
-  }
-
   void Activate(Code* code) {
     code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
+  }
+
+  Register object() const {
+    return Register::from_code(ObjectBits::decode(minor_key_));
+  }
+
+  Register value() const {
+    return Register::from_code(ValueBits::decode(minor_key_));
+  }
+
+  Register address() const {
+    return Register::from_code(AddressBits::decode(minor_key_));
+  }
+
+  RememberedSetAction remembered_set_action() const {
+    return RememberedSetActionBits::decode(minor_key_);
+  }
+
+  SaveFPRegsMode save_fp_regs_mode() const {
+    return SaveFPRegsModeBits::decode(minor_key_);
   }
 
   class ObjectBits: public BitField<int, 0, 5> {};
@@ -350,9 +353,10 @@ class DirectCEntryStub: public PlatformCodeStub {
 
  private:
   Major MajorKey() const { return DirectCEntry; }
-  uint32_t MinorKey() const { return 0; }
 
   bool NeedsImmovableCode() { return true; }
+
+  DISALLOW_COPY_AND_ASSIGN(DirectCEntryStub);
 };
 
 
@@ -361,7 +365,9 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
   NameDictionaryLookupStub(Isolate* isolate, LookupMode mode)
-      : PlatformCodeStub(isolate), mode_(mode) { }
+      : PlatformCodeStub(isolate) {
+    minor_key_ = LookupModeBits::encode(mode);
+  }
 
   void Generate(MacroAssembler* masm);
 
@@ -397,11 +403,11 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
   Major MajorKey() const { return NameDictionaryLookup; }
 
-  uint32_t MinorKey() const { return LookupModeBits::encode(mode_); }
+  LookupMode mode() const { return LookupModeBits::decode(minor_key_); }
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 
-  LookupMode mode_;
+  DISALLOW_COPY_AND_ASSIGN(NameDictionaryLookupStub);
 };
 
 } }  // namespace v8::internal

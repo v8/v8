@@ -187,7 +187,7 @@ class CodeStub BASE_EMBEDDED {
 
   // Returns information for computing the number key.
   virtual Major MajorKey() const = 0;
-  virtual uint32_t MinorKey() const { return minor_key_; }
+  uint32_t MinorKey() const { return minor_key_; }
 
   virtual InlineCacheState GetICState() const { return UNINITIALIZED; }
   virtual ExtraICState GetExtraICState() const { return kNoExtraICState; }
