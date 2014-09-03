@@ -526,12 +526,12 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringLessThan: {
         VisitBinop(node, kMachAnyTagged, kRepBit);
-        // TODO(titzer): lower StringLessThan to stub/runtime call.
+        if (lower()) lowering->DoStringLessThan(node);
         break;
       }
       case IrOpcode::kStringLessThanOrEqual: {
         VisitBinop(node, kMachAnyTagged, kRepBit);
-        // TODO(titzer): lower StringLessThanOrEqual to stub/runtime call.
+        if (lower()) lowering->DoStringLessThanOrEqual(node);
         break;
       }
       case IrOpcode::kStringAdd: {
@@ -855,23 +855,42 @@ void SimplifiedLowering::DoStringAdd(Node* node) {
 }
 
 
-void SimplifiedLowering::DoStringEqual(Node* node) {
+Node* SimplifiedLowering::StringComparison(Node* node, bool requires_ordering) {
   CEntryStub stub(zone()->isolate(), 1);
-  ExternalReference ref(Runtime::kStringEquals, zone()->isolate());
+  Runtime::FunctionId f =
+      requires_ordering ? Runtime::kStringCompare : Runtime::kStringEquals;
+  ExternalReference ref(f, zone()->isolate());
   Operator::Properties props = node->op()->properties();
   // TODO(mstarzinger): We should call StringCompareStub here instead, once an
   // interface descriptor is available for it.
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      Runtime::kStringEquals, 2, props, zone());
-  Node* call = graph()->NewNode(common()->Call(desc),
-                                jsgraph()->HeapConstant(stub.GetCode()),
-                                NodeProperties::GetValueInput(node, 0),
-                                NodeProperties::GetValueInput(node, 1),
-                                jsgraph()->ExternalConstant(ref),
-                                jsgraph()->Int32Constant(2),
-                                jsgraph()->UndefinedConstant());
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(f, 2, props, zone());
+  return graph()->NewNode(common()->Call(desc),
+                          jsgraph()->HeapConstant(stub.GetCode()),
+                          NodeProperties::GetValueInput(node, 0),
+                          NodeProperties::GetValueInput(node, 1),
+                          jsgraph()->ExternalConstant(ref),
+                          jsgraph()->Int32Constant(2),
+                          jsgraph()->UndefinedConstant());
+}
+
+
+void SimplifiedLowering::DoStringEqual(Node* node) {
   node->set_op(machine()->WordEqual());
-  node->ReplaceInput(0, call);
+  node->ReplaceInput(0, StringComparison(node, false));
+  node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
+}
+
+
+void SimplifiedLowering::DoStringLessThan(Node* node) {
+  node->set_op(machine()->IntLessThan());
+  node->ReplaceInput(0, StringComparison(node, true));
+  node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
+}
+
+
+void SimplifiedLowering::DoStringLessThanOrEqual(Node* node) {
+  node->set_op(machine()->IntLessThanOrEqual());
+  node->ReplaceInput(0, StringComparison(node, true));
   node->ReplaceInput(1, jsgraph()->SmiConstant(EQUAL));
 }
 

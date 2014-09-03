@@ -29,6 +29,8 @@ class SimplifiedLowering {
   void DoStoreElement(Node* node);
   void DoStringAdd(Node* node);
   void DoStringEqual(Node* node);
+  void DoStringLessThan(Node* node);
+  void DoStringLessThanOrEqual(Node* node);
 
  private:
   JSGraph* jsgraph_;
@@ -39,6 +41,7 @@ class SimplifiedLowering {
   Node* Untag(Node* node);
   Node* OffsetMinusTagConstant(int32_t offset);
   Node* ComputeIndex(const ElementAccess& access, Node* index);
+  Node* StringComparison(Node* node, bool requires_ordering);
 
   friend class RepresentationSelector;
 
