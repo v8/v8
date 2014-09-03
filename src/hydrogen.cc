@@ -5292,16 +5292,30 @@ void HOptimizedGraphBuilder::VisitConditional(Conditional* expr) {
 HOptimizedGraphBuilder::GlobalPropertyAccess
 HOptimizedGraphBuilder::LookupGlobalProperty(Variable* var, LookupIterator* it,
                                              PropertyAccessType access_type) {
-  DCHECK_EQ(*var->name(), *it->name());
   if (var->is_this() || !current_info()->has_global_object()) {
     return kUseGeneric;
   }
-  if (!it->HasProperty() || it->property_kind() != LookupIterator::DATA ||
-      (access_type == STORE && it->IsReadOnly())) {
-    return kUseGeneric;
-  }
 
-  return kUseCell;
+  switch (it->state()) {
+    case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::NOT_FOUND:
+      return kUseGeneric;
+    case LookupIterator::PROPERTY:
+      if (!it->HasProperty()) return kUseGeneric;
+      switch (it->property_kind()) {
+        case LookupIterator::DATA:
+          if (access_type == STORE && it->IsReadOnly()) return kUseGeneric;
+          return kUseCell;
+        case LookupIterator::ACCESSOR:
+          return kUseGeneric;
+      }
+    case LookupIterator::JSPROXY:
+    case LookupIterator::TRANSITION:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+  return kUseGeneric;
 }
 
 
@@ -5343,13 +5357,9 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
       }
 
       Handle<GlobalObject> global(current_info()->global_object());
-      LookupIterator it(global, variable->name(), LookupIterator::OWN_PROPERTY);
+      LookupIterator it(global, variable->name(),
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
       GlobalPropertyAccess type = LookupGlobalProperty(variable, &it, LOAD);
-
-      if (type == kUseCell &&
-          current_info()->global_object()->IsAccessCheckNeeded()) {
-        type = kUseGeneric;
-      }
 
       if (type == kUseCell) {
         Handle<PropertyCell> cell = it.GetPropertyCell();
@@ -5797,7 +5807,8 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
         HConstant::cast(checked_object->ActualValue())->handle(isolate()));
 
     if (object->IsJSObject()) {
-      LookupIterator it(object, info->name(), LookupIterator::OWN_PROPERTY);
+      LookupIterator it(object, info->name(),
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
       Handle<Object> value = JSObject::GetDataProperty(&it);
       if (it.IsFound() && it.IsReadOnly() && !it.IsConfigurable()) {
         return New<HConstant>(value);
@@ -6461,7 +6472,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* value,
     BailoutId ast_id) {
   Handle<GlobalObject> global(current_info()->global_object());
-  LookupIterator it(global, var->name(), LookupIterator::OWN_PROPERTY);
+  LookupIterator it(global, var->name(), LookupIterator::OWN_SKIP_INTERCEPTOR);
   GlobalPropertyAccess type = LookupGlobalProperty(var, &it, STORE);
   if (type == kUseCell) {
     Handle<PropertyCell> cell = it.GetPropertyCell();
@@ -9047,10 +9058,10 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
       // access check is not enabled we assume that the function will not change
       // and generate optimized code for calling the function.
       Handle<GlobalObject> global(current_info()->global_object());
-      LookupIterator it(global, var->name(), LookupIterator::OWN_PROPERTY);
+      LookupIterator it(global, var->name(),
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
       GlobalPropertyAccess type = LookupGlobalProperty(var, &it, LOAD);
-      if (type == kUseCell &&
-          !current_info()->global_object()->IsAccessCheckNeeded()) {
+      if (type == kUseCell) {
         Handle<GlobalObject> global(current_info()->global_object());
         known_global_function = expr->ComputeGlobalTarget(global, &it);
       }
@@ -10686,12 +10697,10 @@ void HOptimizedGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     Handle<JSFunction> target = Handle<JSFunction>::null();
     VariableProxy* proxy = expr->right()->AsVariableProxy();
     bool global_function = (proxy != NULL) && proxy->var()->IsUnallocated();
-    if (global_function &&
-        current_info()->has_global_object() &&
-        !current_info()->global_object()->IsAccessCheckNeeded()) {
+    if (global_function && current_info()->has_global_object()) {
       Handle<String> name = proxy->name();
       Handle<GlobalObject> global(current_info()->global_object());
-      LookupIterator it(global, name, LookupIterator::OWN_PROPERTY);
+      LookupIterator it(global, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
       Handle<Object> value = JSObject::GetDataProperty(&it);
       if (it.IsFound() && value->IsJSFunction()) {
         Handle<JSFunction> candidate = Handle<JSFunction>::cast(value);

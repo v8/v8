@@ -1055,7 +1055,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           // probably not a valid Error object.  In that case, we fall through
           // and capture the stack trace at this throw site.
           LookupIterator lookup(exception_handle, key,
-                                LookupIterator::OWN_PROPERTY);
+                                LookupIterator::OWN_SKIP_INTERCEPTOR);
           Handle<Object> stack_trace_property;
           if (Object::GetProperty(&lookup).ToHandle(&stack_trace_property) &&
               stack_trace_property->IsJSArray()) {
