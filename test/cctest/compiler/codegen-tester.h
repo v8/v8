@@ -26,11 +26,13 @@ class MachineAssemblerTester : public HandleAndZoneScope,
                          MachineType p1, MachineType p2, MachineType p3,
                          MachineType p4)
       : HandleAndZoneScope(),
-        CallHelper(main_isolate()),
-        MachineAssembler(new (main_zone()) Graph(main_zone()),
-                         ToCallDescriptorBuilder(main_zone(), return_type, p0,
-                                                 p1, p2, p3, p4),
-                         kMachPtr) {}
+        CallHelper(
+            main_isolate(),
+            MakeMachineSignature(main_zone(), return_type, p0, p1, p2, p3, p4)),
+        MachineAssembler(
+            new (main_zone()) Graph(main_zone()),
+            MakeMachineSignature(main_zone(), return_type, p0, p1, p2, p3, p4),
+            kMachPtr) {}
 
   Node* LoadFromPointer(void* address, MachineType rep, int32_t offset = 0) {
     return this->Load(rep, this->PointerConstant(address),
@@ -59,15 +61,6 @@ class MachineAssemblerTester : public HandleAndZoneScope,
   void GenerateCode() { Generate(); }
 
  protected:
-  virtual void VerifyParameters(int parameter_count,
-                                MachineType* parameter_types) {
-    CHECK_EQ(this->parameter_count(), parameter_count);
-    const MachineType* expected_types = this->parameter_types();
-    for (int i = 0; i < parameter_count; i++) {
-      CHECK_EQ(expected_types[i], parameter_types[i]);
-    }
-  }
-
   virtual byte* Generate() {
     if (code_.is_null()) {
       Schedule* schedule = this->Export();

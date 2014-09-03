@@ -37,24 +37,20 @@ class DirectGraphBuilder : public GraphBuilder {
 
 class MachineCallHelper : public CallHelper {
  public:
-  MachineCallHelper(Zone* zone, MachineCallDescriptorBuilder* builder);
+  MachineCallHelper(Zone* zone, MachineSignature* machine_sig);
 
-  Node* Parameter(int offset);
+  Node* Parameter(size_t index);
 
   void GenerateCode() { Generate(); }
 
  protected:
   virtual byte* Generate();
-  virtual void VerifyParameters(int parameter_count, MachineType* parameters);
   void InitParameters(GraphBuilder* builder, CommonOperatorBuilder* common);
 
  protected:
-  int parameter_count() const {
-    return call_descriptor_builder_->parameter_count();
-  }
+  size_t parameter_count() const { return machine_sig_->parameter_count(); }
 
  private:
-  MachineCallDescriptorBuilder* call_descriptor_builder_;
   Node** parameters_;
   // TODO(dcarney): shouldn't need graph stored.
   Graph* graph_;
@@ -95,12 +91,12 @@ class GraphBuilderTester
       : GraphAndBuilders(main_zone()),
         MachineCallHelper(
             main_zone(),
-            ToCallDescriptorBuilder(
+            MakeMachineSignature(
                 main_zone(), ReturnValueTraits<ReturnType>::Representation(),
                 p0, p1, p2, p3, p4)),
         SimplifiedGraphBuilder(main_graph_, &main_common_, &main_machine_,
                                &main_simplified_) {
-    Begin(parameter_count());
+    Begin(static_cast<int>(parameter_count()));
     InitParameters(this, &main_common_);
   }
   virtual ~GraphBuilderTester() {}

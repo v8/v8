@@ -61,27 +61,20 @@ class StructuredMachineAssembler
   class LoopBuilder;
   friend class LoopBuilder;
 
-  StructuredMachineAssembler(
-      Graph* graph, MachineCallDescriptorBuilder* call_descriptor_builder,
-      MachineType word = kMachPtr);
+  StructuredMachineAssembler(Graph* graph, MachineSignature* machine_sig,
+                             MachineType word = kMachPtr);
   virtual ~StructuredMachineAssembler() {}
 
   Isolate* isolate() const { return zone()->isolate(); }
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
-  CallDescriptor* call_descriptor() const {
-    return call_descriptor_builder_->BuildCallDescriptor(zone());
-  }
-  int parameter_count() const {
-    return call_descriptor_builder_->parameter_count();
-  }
-  const MachineType* parameter_types() const {
-    return call_descriptor_builder_->parameter_types();
-  }
+  CallDescriptor* call_descriptor() const { return call_descriptor_; }
+  size_t parameter_count() const { return machine_sig_->parameter_count(); }
+  MachineSignature* machine_sig() const { return machine_sig_; }
 
   // Parameters.
-  Node* Parameter(int index);
+  Node* Parameter(size_t index);
   // Variables.
   Variable NewVariable(Node* initial_value);
   // Control flow.
@@ -126,7 +119,8 @@ class StructuredMachineAssembler
   Schedule* schedule_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
-  MachineCallDescriptorBuilder* call_descriptor_builder_;
+  MachineSignature* machine_sig_;
+  CallDescriptor* call_descriptor_;
   Node** parameters_;
   Environment* current_environment_;
   int number_of_variables_;

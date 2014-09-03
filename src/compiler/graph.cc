@@ -22,7 +22,7 @@ Graph::Graph(Zone* zone) : GenericGraph<Node>(zone), decorators_(zone) {}
 
 
 Node* Graph::NewNode(Operator* op, int input_count, Node** inputs) {
-  DCHECK(op->InputCount() <= input_count);
+  DCHECK_LE(op->InputCount(), input_count);
   Node* result = Node::New(this, input_count, inputs);
   result->Initialize(op);
   for (ZoneVector<GraphDecorator*>::iterator i = decorators_.begin();

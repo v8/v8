@@ -284,12 +284,14 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
 // -----------------------------------------------------------------------------
 // Calls with deoptimization.
 TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
-  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged);
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
+                  kMachAnyTagged);
 
   BailoutId bailout_id(42);
 
   Node* function_node = m.Parameter(0);
   Node* receiver = m.Parameter(1);
+  Node* context = m.Parameter(2);
 
   Node* parameters = m.NewNode(m.common()->StateValues(1), m.Int32Constant(1));
   Node* locals = m.NewNode(m.common()->StateValues(0));
@@ -298,7 +300,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
 
   Node* state_node = m.NewNode(m.common()->FrameState(bailout_id, kPushOutput),
                                parameters, locals, stack, context_dummy);
-  Node* call = m.CallJS0(function_node, receiver, state_node);
+  Node* call = m.CallJS0(function_node, receiver, context, state_node);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);

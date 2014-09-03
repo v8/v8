@@ -671,8 +671,8 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
 
   FrameStateDescriptor* frame_state_descriptor = NULL;
   if (descriptor->NeedsFrameState()) {
-    frame_state_descriptor =
-        GetFrameStateDescriptor(call->InputAt(descriptor->InputCount()));
+    frame_state_descriptor = GetFrameStateDescriptor(
+        call->InputAt(static_cast<int>(descriptor->InputCount())));
   }
 
   CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
