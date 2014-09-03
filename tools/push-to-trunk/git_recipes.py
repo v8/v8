@@ -167,13 +167,15 @@ class GitRecipesMixin(object):
     # base files were uploaded, if not retry.
     self.Git(MakeArgs(args), pipe=False)
 
-  def GitCommit(self, message="", file_name=""):
+  def GitCommit(self, message="", file_name="", author=None):
     assert message or file_name
     args = ["commit"]
     if file_name:
       args += ["-aF", Quoted(file_name)]
     if message:
       args += ["-am", Quoted(message)]
+    if author:
+      args += ["--author", "\"%s <%s>\"" % (author, author)]
     self.Git(MakeArgs(args))
 
   def GitPresubmit(self):

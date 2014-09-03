@@ -842,7 +842,8 @@ def get_list():
       Cmd(("git commit -am \"Update V8 to version 3.22.5 "
            "(based on bleeding_edge revision r123454).\n\n"
            "Please reply to the V8 sheriff c_name@chromium.org in "
-           "case of problems.\n\nTBR=c_name@chromium.org\""),
+           "case of problems.\n\nTBR=c_name@chromium.org\" "
+           "--author \"author@chromium.org <author@chromium.org>\""),
           ""),
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f", ""),
     ]

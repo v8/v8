@@ -86,7 +86,8 @@ class UploadCL(Step):
       sheriff = ("\n\nPlease reply to the V8 sheriff %s in case of problems."
                  % self["sheriff"])
     self.GitCommit("%s%s\n\nTBR=%s" %
-                   (commit_title, sheriff, self._options.reviewer))
+                       (commit_title, sheriff, self._options.reviewer),
+                   author=self._options.author)
     if not self._options.dry_run:
       self.GitUpload(author=self._options.author,
                      force=True,
