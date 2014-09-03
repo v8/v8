@@ -349,8 +349,7 @@ class MachineNodeFactory {
               MachineType* arg_types, Node** args, int n_args) {
     CallDescriptor* descriptor =
         Linkage::GetSimplifiedCDescriptor(ZONE(), MACHINE_SIG());
-    Node** passed_args =
-        static_cast<Node**>(alloca((n_args + 1) * sizeof(args[0])));
+    Node** passed_args = ZONE()->NewArray<Node*>(n_args + 1);
     passed_args[0] = function_address;
     for (int i = 0; i < n_args; ++i) {
       passed_args[i + 1] = args[i];

@@ -1652,7 +1652,7 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 
 Node* AstGraphBuilder::ProcessArguments(Operator* op, int arity) {
   DCHECK(environment()->stack_height() >= arity);
-  Node** all = info()->zone()->NewArray<Node*>(arity);  // XXX: alloca?
+  Node** all = info()->zone()->NewArray<Node*>(arity);
   for (int i = arity - 1; i >= 0; --i) {
     all[i] = environment()->Pop();
   }
