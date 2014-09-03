@@ -178,13 +178,8 @@ TARGET_TEST_F(InstructionSelectorTest, ReferenceParameter) {
 // Finish.
 
 
-typedef InstructionSelectorTestWithParam<MachineType>
-    InstructionSelectorFinishTest;
-
-
-TARGET_TEST_P(InstructionSelectorFinishTest, Parameter) {
-  const MachineType type = GetParam();
-  StreamBuilder m(this, type, type);
+TARGET_TEST_F(InstructionSelectorTest, Parameter) {
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged);
   Node* param = m.Parameter(0);
   Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
   m.Return(finish);
@@ -205,37 +200,8 @@ TARGET_TEST_P(InstructionSelectorFinishTest, Parameter) {
 }
 
 
-TARGET_TEST_P(InstructionSelectorFinishTest, PropagateDoubleness) {
-  const MachineType type = GetParam();
-  StreamBuilder m(this, type, type);
-  Node* param = m.Parameter(0);
-  Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
-  m.Return(finish);
-  Stream s = m.Build(kAllInstructions);
-  EXPECT_EQ(s.IsDouble(param->id()), s.IsDouble(finish->id()));
-}
-
-
-TARGET_TEST_P(InstructionSelectorFinishTest, PropagateReferenceness) {
-  const MachineType type = GetParam();
-  StreamBuilder m(this, type, type);
-  Node* param = m.Parameter(0);
-  Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
-  m.Return(finish);
-  Stream s = m.Build(kAllInstructions);
-  EXPECT_EQ(s.IsReference(param->id()), s.IsReference(finish->id()));
-}
-
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFinishTest,
-                        ::testing::Values(kMachFloat64, kMachInt8, kMachUint8,
-                                          kMachInt16, kMachUint16, kMachInt32,
-                                          kMachUint32, kMachInt64, kMachUint64,
-                                          kMachPtr, kMachAnyTagged));
-
-
 // -----------------------------------------------------------------------------
-// Finish.
+// Phi.
 
 
 typedef InstructionSelectorTestWithParam<MachineType>

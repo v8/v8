@@ -199,11 +199,10 @@ void InstructionSelector::MarkAsDouble(Node* node) {
   DCHECK(!IsReference(node));
   sequence()->MarkAsDouble(node->id());
 
-  // Propagate "doubleness" throughout Finish/Phi nodes.
+  // Propagate "doubleness" throughout Phi nodes.
   for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
     Node* user = *i;
     switch (user->opcode()) {
-      case IrOpcode::kFinish:
       case IrOpcode::kPhi:
         if (IsDouble(user)) continue;
         MarkAsDouble(user);
@@ -226,11 +225,10 @@ void InstructionSelector::MarkAsReference(Node* node) {
   DCHECK(!IsDouble(node));
   sequence()->MarkAsReference(node->id());
 
-  // Propagate "referenceness" throughout Finish/Phi nodes.
+  // Propagate "referenceness" throughout Phi nodes.
   for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
     Node* user = *i;
     switch (user->opcode()) {
-      case IrOpcode::kFinish:
       case IrOpcode::kPhi:
         if (IsReference(user)) continue;
         MarkAsReference(user);
@@ -482,7 +480,7 @@ void InstructionSelector::VisitNode(Node* node) {
       // No code needed for these graph artifacts.
       return;
     case IrOpcode::kFinish:
-      return VisitFinish(node);
+      return MarkAsReference(node), VisitFinish(node);
     case IrOpcode::kParameter: {
       LinkageLocation location =
           linkage()->GetParameterLocation(OpParameter<int>(node));
