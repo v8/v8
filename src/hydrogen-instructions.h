@@ -3491,6 +3491,14 @@ class HConstant FINAL : public HTemplateInstruction<0> {
         zone, context, value, representation));
   }
 
+  virtual Handle<Map> GetMonomorphicJSObjectMap() OVERRIDE {
+    Handle<Object> object = object_.handle();
+    if (object->IsHeapObject()) {
+      return v8::internal::handle(HeapObject::cast(*object)->map());
+    }
+    return Handle<Map>();
+  }
+
   static HConstant* CreateAndInsertBefore(Zone* zone,
                                           HValue* context,
                                           int32_t value,
@@ -5512,7 +5520,7 @@ class HAllocate FINAL : public HTemplateInstruction<2> {
     }
   }
 
-  virtual Handle<Map> GetMonomorphicJSObjectMap() {
+  virtual Handle<Map> GetMonomorphicJSObjectMap() OVERRIDE {
     return known_initial_map_;
   }
 

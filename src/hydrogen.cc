@@ -5792,16 +5792,16 @@ HInstruction* HOptimizedGraphBuilder::BuildLoadNamedField(
     PropertyAccessInfo* info,
     HValue* checked_object) {
   // See if this is a load for an immutable property
-  if (checked_object->ActualValue()->IsConstant() && info->IsReadOnly() &&
-      !info->IsConfigurable()) {
+  if (checked_object->ActualValue()->IsConstant()) {
     Handle<Object> object(
         HConstant::cast(checked_object->ActualValue())->handle(isolate()));
 
     if (object->IsJSObject()) {
       LookupIterator it(object, info->name(), LookupIterator::OWN_PROPERTY);
       Handle<Object> value = JSObject::GetDataProperty(&it);
-      CHECK(it.IsFound());
-      return New<HConstant>(value);
+      if (it.IsFound() && it.IsReadOnly() && !it.IsConfigurable()) {
+        return New<HConstant>(value);
+      }
     }
   }
 
