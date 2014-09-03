@@ -318,13 +318,14 @@ class Step(GitRecipesMixin):
       got_exception = False
       try:
         result = cb()
-      except NoRetryException, e:
+      except NoRetryException as e:
         raise e
-      except Exception:
-        got_exception = True
+      except Exception as e:
+        got_exception = e
       if got_exception or retry_on(result):
         if not wait_plan:  # pragma: no cover
-          raise Exception("Retried too often. Giving up.")
+          raise Exception("Retried too often. Giving up. Reason: %s" %
+                          str(got_exception))
         wait_time = wait_plan.pop()
         print "Waiting for %f seconds." % wait_time
         self._side_effect_handler.Sleep(wait_time)
