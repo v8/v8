@@ -800,7 +800,7 @@ Performance and stability improvements on all platforms.""", commit)
   def testPushToTrunkForced(self):
     self._PushToTrunk(force=True)
 
-  def _ChromiumRoll(self, force=False, manual=False):
+  def testChromiumRoll(self):
     googlers_mapping_py = "%s-mapping.py" % TEST_CONFIG[PERSISTFILE_BASENAME]
     with open(googlers_mapping_py, "w") as f:
       f.write("""
@@ -820,8 +820,6 @@ def get_list():
       TextToFile("Some line\n   \"v8_revision\": \"123455\",\n  some line",
                  TEST_CONFIG[DEPS_FILE])
 
-    os.environ["EDITOR"] = "vi"
-    force_flag = " -f" if not manual else ""
     expectations = [
       Cmd("git status -s -uno", ""),
       Cmd("git status -s -b -uno", "## some_branch\n"),
@@ -841,38 +839,22 @@ def get_list():
       Cmd("git fetch origin", ""),
       Cmd("git checkout -b v8-roll-123455", ""),
       Cmd("roll-dep v8 123455", "rolled", cb=WriteDeps),
-    ]
-    if manual:
-      expectations.append(RL("c_name@chromium.org"))  # Chromium reviewer.
-    expectations += [
       Cmd(("git commit -am \"Update V8 to version 3.22.5 "
            "(based on bleeding_edge revision r123454).\n\n"
            "Please reply to the V8 sheriff c_name@chromium.org in "
            "case of problems.\n\nTBR=c_name@chromium.org\""),
           ""),
-      Cmd(("git cl upload --send-mail --email \"author@chromium.org\"%s"
-           % force_flag), ""),
+      Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f", ""),
     ]
     self.Expect(expectations)
 
     args = ["-a", "author@chromium.org", "-c", TEST_CONFIG[CHROMIUM],
-            "--sheriff", "--googlers-mapping", googlers_mapping_py]
-    if force: args.append("-f")
-    if manual: args.append("-m")
-    else: args += ["-r", "reviewer@chromium.org"]
+            "--sheriff", "--googlers-mapping", googlers_mapping_py,
+            "-r", "reviewer@chromium.org"]
     ChromiumRoll(TEST_CONFIG, self).Run(args)
 
     deps = FileToText(TEST_CONFIG[DEPS_FILE])
     self.assertTrue(re.search("\"v8_revision\": \"123455\"", deps))
-
-  def testChromiumRollManual(self):
-    self._ChromiumRoll(manual=True)
-
-  def testChromiumRollSemiAutomatic(self):
-    self._ChromiumRoll()
-
-  def testChromiumRollForced(self):
-    self._ChromiumRoll(force=True)
 
   def testCheckLastPushRecently(self):
     self.Expect([

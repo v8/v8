@@ -95,7 +95,6 @@ class RollChromium(Step):
         "--author", self._options.author,
         "--reviewer", self._options.reviewer,
         "--chromium", self._options.chromium,
-        "--force",
         "--use-commit-queue",
       ]
       if self._options.sheriff:
