@@ -2626,6 +2626,53 @@ class ProfileEntryHookStub : public PlatformCodeStub {
 };
 
 
+class StoreBufferOverflowStub : public PlatformCodeStub {
+ public:
+  StoreBufferOverflowStub(Isolate* isolate, SaveFPRegsMode save_fp)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = SaveDoublesBits::encode(save_fp == kSaveFPRegs);
+  }
+
+  void Generate(MacroAssembler* masm);
+
+  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
+  virtual bool SometimesSetsUpAFrame() { return false; }
+
+ private:
+  Major MajorKey() const OVERRIDE { return StoreBufferOverflow; }
+
+  bool save_doubles() const { return SaveDoublesBits::decode(minor_key_); }
+
+  class SaveDoublesBits : public BitField<bool, 0, 1> {};
+
+  DISALLOW_COPY_AND_ASSIGN(StoreBufferOverflowStub);
+};
+
+
+class SubStringStub : public PlatformCodeStub {
+ public:
+  explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+
+ private:
+  Major MajorKey() const OVERRIDE { return SubString; }
+
+  void Generate(MacroAssembler* masm);
+
+  DISALLOW_COPY_AND_ASSIGN(SubStringStub);
+};
+
+
+class StringCompareStub : public PlatformCodeStub {
+ public:
+  explicit StringCompareStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
+
+ private:
+  virtual Major MajorKey() const { return StringCompare; }
+
+  virtual void Generate(MacroAssembler* masm);
+
+  DISALLOW_COPY_AND_ASSIGN(StringCompareStub);
+};
 } }  // namespace v8::internal
 
 #endif  // V8_CODE_STUBS_H_

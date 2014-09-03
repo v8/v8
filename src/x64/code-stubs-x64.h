@@ -13,23 +13,6 @@ namespace internal {
 
 void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
 
-class StoreBufferOverflowStub: public PlatformCodeStub {
- public:
-  StoreBufferOverflowStub(Isolate* isolate, SaveFPRegsMode save_fp)
-      : PlatformCodeStub(isolate), save_doubles_(save_fp) { }
-
-  void Generate(MacroAssembler* masm);
-
-  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
-  virtual bool SometimesSetsUpAFrame() { return false; }
-
- private:
-  SaveFPRegsMode save_doubles_;
-
-  Major MajorKey() const { return StoreBufferOverflow; }
-  uint32_t MinorKey() const { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
-};
-
 
 class StringHelper : public AllStatic {
  public:
@@ -48,46 +31,22 @@ class StringHelper : public AllStatic {
                                Register hash,
                                Register character,
                                Register scratch);
+
   static void GenerateHashAddCharacter(MacroAssembler* masm,
                                        Register hash,
                                        Register character,
                                        Register scratch);
+
   static void GenerateHashGetHash(MacroAssembler* masm,
                                   Register hash,
                                   Register scratch);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
-class SubStringStub: public PlatformCodeStub {
- public:
-  explicit SubStringStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
- private:
-  Major MajorKey() const { return SubString; }
-  uint32_t MinorKey() const { return 0; }
-
-  void Generate(MacroAssembler* masm);
-};
-
-
-class StringCompareStub: public PlatformCodeStub {
- public:
-  explicit StringCompareStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
   // Compares two flat ASCII strings and returns result in rax.
-  static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
-                                              Register left,
-                                              Register right,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              Register scratch3,
-                                              Register scratch4);
+  static void GenerateCompareFlatAsciiStrings(
+      MacroAssembler* masm, Register left, Register right, Register scratch1,
+      Register scratch2, Register scratch3, Register scratch4);
 
-  // Compares two flat ASCII strings for equality and returns result
-  // in rax.
+  // Compares two flat ASCII strings for equality and returns result in rax.
   static void GenerateFlatAsciiStringEquals(MacroAssembler* masm,
                                             Register left,
                                             Register right,
@@ -95,10 +54,6 @@ class StringCompareStub: public PlatformCodeStub {
                                             Register scratch2);
 
  private:
-  virtual Major MajorKey() const { return StringCompare; }
-  virtual uint32_t MinorKey() const { return 0; }
-  virtual void Generate(MacroAssembler* masm);
-
   static void GenerateAsciiCharsCompareLoop(
       MacroAssembler* masm,
       Register left,
@@ -107,6 +62,8 @@ class StringCompareStub: public PlatformCodeStub {
       Register scratch,
       Label* chars_not_equal,
       Label::Distance near_jump = Label::kFar);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
 };
 
 

@@ -136,7 +136,7 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
 
 
 void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
-  __ PushCallerSaved(save_doubles_);
+  __ PushCallerSaved(save_doubles() ? kSaveFPRegs : kDontSaveFPRegs);
   const int argument_count = 1;
   __ PrepareCallCFunction(argument_count);
   __ LoadAddress(arg_reg_1,
@@ -146,7 +146,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   __ CallCFunction(
       ExternalReference::store_buffer_overflow_function(isolate()),
       argument_count);
-  __ PopCallerSaved(save_doubles_);
+  __ PopCallerSaved(save_doubles() ? kSaveFPRegs : kDontSaveFPRegs);
   __ ret(0);
 }
 
@@ -1624,19 +1624,10 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Inline comparison of ASCII strings.
   if (cc == equal) {
-    StringCompareStub::GenerateFlatAsciiStringEquals(masm,
-                                                     rdx,
-                                                     rax,
-                                                     rcx,
-                                                     rbx);
+    StringHelper::GenerateFlatAsciiStringEquals(masm, rdx, rax, rcx, rbx);
   } else {
-    StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
-                                                       rdx,
-                                                       rax,
-                                                       rcx,
-                                                       rbx,
-                                                       rdi,
-                                                       r8);
+    StringHelper::GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi,
+                                                  r8);
   }
 
 #ifdef DEBUG
@@ -3143,11 +3134,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
-                                                      Register left,
-                                                      Register right,
-                                                      Register scratch1,
-                                                      Register scratch2) {
+void StringHelper::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
+                                                 Register left, Register right,
+                                                 Register scratch1,
+                                                 Register scratch2) {
   Register length = scratch1;
 
   // Compare lengths.
@@ -3184,13 +3174,9 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
 }
 
 
-void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
-                                                        Register left,
-                                                        Register right,
-                                                        Register scratch1,
-                                                        Register scratch2,
-                                                        Register scratch3,
-                                                        Register scratch4) {
+void StringHelper::GenerateCompareFlatAsciiStrings(
+    MacroAssembler* masm, Register left, Register right, Register scratch1,
+    Register scratch2, Register scratch3, Register scratch4) {
   // Ensure that you can always subtract a string length from a non-negative
   // number (e.g. another length).
   STATIC_ASSERT(String::kMaxLength < 0x7fffffff);
@@ -3258,14 +3244,9 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 }
 
 
-void StringCompareStub::GenerateAsciiCharsCompareLoop(
-    MacroAssembler* masm,
-    Register left,
-    Register right,
-    Register length,
-    Register scratch,
-    Label* chars_not_equal,
-    Label::Distance near_jump) {
+void StringHelper::GenerateAsciiCharsCompareLoop(
+    MacroAssembler* masm, Register left, Register right, Register length,
+    Register scratch, Label* chars_not_equal, Label::Distance near_jump) {
   // Change index to run from -length to -1 by adding length to string
   // start. This means that loop ends when index reaches zero, which
   // doesn't need an additional compare.
@@ -3320,7 +3301,8 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ PopReturnAddressTo(rcx);
   __ addp(rsp, Immediate(2 * kPointerSize));
   __ PushReturnAddressFrom(rcx);
-  GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi, r8);
+  StringHelper::GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi,
+                                                r8);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
@@ -3607,11 +3589,10 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
   // Compare flat ASCII strings. Returns when done.
   if (equality) {
-    StringCompareStub::GenerateFlatAsciiStringEquals(
-        masm, left, right, tmp1, tmp2);
+    StringHelper::GenerateFlatAsciiStringEquals(masm, left, right, tmp1, tmp2);
   } else {
-    StringCompareStub::GenerateCompareFlatAsciiStrings(
-        masm, left, right, tmp1, tmp2, tmp3, kScratchRegister);
+    StringHelper::GenerateCompareFlatAsciiStrings(masm, left, right, tmp1, tmp2,
+                                                  tmp3, kScratchRegister);
   }
 
   // Handle more complex cases in runtime.

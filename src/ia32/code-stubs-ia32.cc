@@ -144,7 +144,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // store the registers in any particular way, but we do have to store and
   // restore them.
   __ pushad();
-  if (save_doubles_ == kSaveFPRegs) {
+  if (save_doubles()) {
     __ sub(esp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
@@ -160,7 +160,7 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   __ CallCFunction(
       ExternalReference::store_buffer_overflow_function(isolate()),
       argument_count);
-  if (save_doubles_ == kSaveFPRegs) {
+  if (save_doubles()) {
     for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       __ movsd(reg, Operand(esp, i * kDoubleSize));
@@ -1754,18 +1754,10 @@ void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
 
   // Inline comparison of ASCII strings.
   if (cc == equal) {
-    StringCompareStub::GenerateFlatAsciiStringEquals(masm,
-                                                     edx,
-                                                     eax,
-                                                     ecx,
-                                                     ebx);
+    StringHelper::GenerateFlatAsciiStringEquals(masm, edx, eax, ecx, ebx);
   } else {
-    StringCompareStub::GenerateCompareFlatAsciiStrings(masm,
-                                                       edx,
-                                                       eax,
-                                                       ecx,
-                                                       ebx,
-                                                       edi);
+    StringHelper::GenerateCompareFlatAsciiStrings(masm, edx, eax, ecx, ebx,
+                                                  edi);
   }
 #ifdef DEBUG
   __ Abort(kUnexpectedFallThroughFromStringComparison);
@@ -3196,11 +3188,10 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
-                                                      Register left,
-                                                      Register right,
-                                                      Register scratch1,
-                                                      Register scratch2) {
+void StringHelper::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
+                                                 Register left, Register right,
+                                                 Register scratch1,
+                                                 Register scratch2) {
   Register length = scratch1;
 
   // Compare lengths.
@@ -3232,12 +3223,9 @@ void StringCompareStub::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
 }
 
 
-void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
-                                                        Register left,
-                                                        Register right,
-                                                        Register scratch1,
-                                                        Register scratch2,
-                                                        Register scratch3) {
+void StringHelper::GenerateCompareFlatAsciiStrings(
+    MacroAssembler* masm, Register left, Register right, Register scratch1,
+    Register scratch2, Register scratch3) {
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->string_compare_native(), 1);
 
@@ -3298,13 +3286,9 @@ void StringCompareStub::GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
 }
 
 
-void StringCompareStub::GenerateAsciiCharsCompareLoop(
-    MacroAssembler* masm,
-    Register left,
-    Register right,
-    Register length,
-    Register scratch,
-    Label* chars_not_equal,
+void StringHelper::GenerateAsciiCharsCompareLoop(
+    MacroAssembler* masm, Register left, Register right, Register length,
+    Register scratch, Label* chars_not_equal,
     Label::Distance chars_not_equal_near) {
   // Change index to run from -length to -1 by adding length to string
   // start. This means that loop ends when index reaches zero, which
@@ -3358,7 +3342,7 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ pop(ecx);
   __ add(esp, Immediate(2 * kPointerSize));
   __ push(ecx);
-  GenerateCompareFlatAsciiStrings(masm, edx, eax, ecx, ebx, edi);
+  StringHelper::GenerateCompareFlatAsciiStrings(masm, edx, eax, ecx, ebx, edi);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
@@ -3659,11 +3643,10 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 
   // Compare flat ASCII strings. Returns when done.
   if (equality) {
-    StringCompareStub::GenerateFlatAsciiStringEquals(
-        masm, left, right, tmp1, tmp2);
+    StringHelper::GenerateFlatAsciiStringEquals(masm, left, right, tmp1, tmp2);
   } else {
-    StringCompareStub::GenerateCompareFlatAsciiStrings(
-        masm, left, right, tmp1, tmp2, tmp3);
+    StringHelper::GenerateCompareFlatAsciiStrings(masm, left, right, tmp1, tmp2,
+                                                  tmp3);
   }
 
   // Handle more complex cases in runtime.
