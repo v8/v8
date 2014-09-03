@@ -87,10 +87,15 @@ class UploadCL(Step):
                  % self["sheriff"])
     self.GitCommit("%s%s\n\nTBR=%s" %
                    (commit_title, sheriff, self._options.reviewer))
-    self.GitUpload(author=self._options.author,
-                   force=True,
-                   cq=self._options.use_commit_queue)
-    print "CL uploaded."
+    if not self._options.dry_run:
+      self.GitUpload(author=self._options.author,
+                     force=True,
+                     cq=self._options.use_commit_queue)
+      print "CL uploaded."
+    else:
+      self.GitCheckout("master")
+      self.GitDeleteBranch("v8-roll-%s" % self["trunk_revision"])
+      print "Dry run - don't upload."
 
 
 class SwitchV8(Step):

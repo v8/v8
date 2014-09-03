@@ -592,6 +592,8 @@ class ScriptsBase(object):
     parser = argparse.ArgumentParser(description=self._Description())
     parser.add_argument("-a", "--author", default="",
                         help="The author email used for rietveld.")
+    parser.add_argument("--dry-run", default=False, action="store_true",
+                        help="Perform only read-only actions.")
     parser.add_argument("-g", "--googlers-mapping",
                         help="Path to the script mapping google accounts.")
     parser.add_argument("-r", "--reviewer", default="",

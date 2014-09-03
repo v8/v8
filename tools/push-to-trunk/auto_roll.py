@@ -100,6 +100,8 @@ class RollChromium(Step):
       if self._options.sheriff:
         args.extend([
             "--sheriff", "--googlers-mapping", self._options.googlers_mapping])
+      if self._options.dry_run:
+        args.extend(["--dry-run"])
       R = chromium_roll.ChromiumRoll
       self._side_effect_handler.Call(
           R(chromium_roll.CONFIG, self._side_effect_handler).Run,
@@ -111,8 +113,7 @@ class AutoRoll(ScriptsBase):
     parser.add_argument("-c", "--chromium", required=True,
                         help=("The path to your Chromium src/ "
                               "directory to automate the V8 roll."))
-    parser.add_argument("--roll",
-                        help="Make Chromium roll. Dry run if unspecified.",
+    parser.add_argument("--roll", help="Call Chromium roll script.",
                         default=False, action="store_true")
 
   def _ProcessOptions(self, options):  # pragma: no cover
