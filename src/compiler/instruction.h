@@ -702,22 +702,46 @@ class Constant FINAL {
 class FrameStateDescriptor : public ZoneObject {
  public:
   FrameStateDescriptor(const FrameStateCallInfo& state_info,
-                       int parameters_count, int locals_count, int stack_count)
+                       int parameters_count, int locals_count, int stack_count,
+                       FrameStateDescriptor* outer_state = NULL)
       : bailout_id_(state_info.bailout_id()),
         frame_state_combine_(state_info.state_combine()),
         parameters_count_(parameters_count),
         locals_count_(locals_count),
-        stack_count_(stack_count) {}
+        stack_count_(stack_count),
+        outer_state_(outer_state) {}
 
   BailoutId bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
   int parameters_count() { return parameters_count_; }
   int locals_count() { return locals_count_; }
   int stack_count() { return stack_count_; }
+  FrameStateDescriptor* outer_state() { return outer_state_; }
+  void set_outer_state(FrameStateDescriptor* outer_state) {
+    outer_state_ = outer_state;
+  }
 
   int size() {
     return parameters_count_ + locals_count_ + stack_count_ +
            1;  // Includes context.
+  }
+
+  int total_size() {
+    int total_size = 0;
+    for (FrameStateDescriptor* iter = this; iter != NULL;
+         iter = iter->outer_state_) {
+      total_size += iter->size();
+    }
+    return total_size;
+  }
+
+  int GetFrameCount() {
+    int count = 0;
+    for (FrameStateDescriptor* iter = this; iter != NULL;
+         iter = iter->outer_state_) {
+      ++count;
+    }
+    return count;
   }
 
  private:
@@ -726,6 +750,7 @@ class FrameStateDescriptor : public ZoneObject {
   int parameters_count_;
   int locals_count_;
   int stack_count_;
+  FrameStateDescriptor* outer_state_;
 };
 
 OStream& operator<<(OStream& os, const Constant& constant);

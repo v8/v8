@@ -57,6 +57,12 @@ class RawMachineAssembler : public GraphBuilder,
   size_t parameter_count() const { return machine_sig_->parameter_count(); }
   MachineSignature* machine_sig() const { return machine_sig_; }
 
+  Node* UndefinedConstant() {
+    PrintableUnique<Object> unique = PrintableUnique<Object>::CreateImmovable(
+        zone(), isolate()->factory()->undefined_value());
+    return NewNode(common()->HeapConstant(unique));
+  }
+
   // Parameters.
   Node* Parameter(size_t index);
 

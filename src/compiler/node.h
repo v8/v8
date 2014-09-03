@@ -77,10 +77,17 @@ typedef NodeVectorVector::reverse_iterator NodeVectorVectorRIter;
 typedef Node::Uses::iterator UseIter;
 typedef Node::Inputs::iterator InputIter;
 
+// Helper to extract parameters from Operator1<*> operator.
+template <typename T>
+static inline T OpParameter(Operator* op) {
+  return reinterpret_cast<Operator1<T>*>(op)->parameter();
+}
+
+
 // Helper to extract parameters from Operator1<*> nodes.
 template <typename T>
 static inline T OpParameter(Node* node) {
-  return reinterpret_cast<Operator1<T>*>(node->op())->parameter();
+  return OpParameter<T>(node->op());
 }
 }
 }
