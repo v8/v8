@@ -963,120 +963,130 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
   Handle<HeapType> type = receiver_type();
   Handle<JSObject> holder = lookup->GetHolder<JSObject>();
   bool receiver_is_holder = receiver.is_identical_to(holder);
-  // -------------- Interceptors --------------
-  if (lookup->state() == LookupIterator::INTERCEPTOR) {
-    DCHECK(!holder->GetNamedInterceptor()->getter()->IsUndefined());
-    NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
-                                      cache_holder);
-    // Perform a lookup behind the interceptor. Copy the LookupIterator since
-    // the original iterator will be used to fetch the value.
-    LookupIterator it = *lookup;
-    it.Next();
-    LookupForRead(&it);
-    return compiler.CompileLoadInterceptor(&it);
-  }
-
-  // -------------- Accessors --------------
-  if (lookup->state() == LookupIterator::ACCESSOR) {
-    // Use simple field loads for some well-known callback properties.
-    if (receiver_is_holder) {
-      DCHECK(receiver->IsJSObject());
-      Handle<JSObject> js_receiver = Handle<JSObject>::cast(receiver);
-      int object_offset;
-      if (Accessors::IsJSObjectFieldAccessor<HeapType>(type, lookup->name(),
-                                                       &object_offset)) {
-        FieldIndex index =
-            FieldIndex::ForInObjectOffset(object_offset, js_receiver->map());
-        return SimpleFieldLoad(index);
-      }
-    }
-
-    Handle<Object> accessors = lookup->GetAccessors();
-    if (accessors->IsExecutableAccessorInfo()) {
-      Handle<ExecutableAccessorInfo> info =
-          Handle<ExecutableAccessorInfo>::cast(accessors);
-      if (v8::ToCData<Address>(info->getter()) == 0) return slow_stub();
-      if (!ExecutableAccessorInfo::IsCompatibleReceiverType(isolate(), info,
-                                                            type)) {
-        return slow_stub();
-      }
-      if (!holder->HasFastProperties()) return slow_stub();
+  switch (lookup->state()) {
+    case LookupIterator::INTERCEPTOR: {
+      DCHECK(!holder->GetNamedInterceptor()->getter()->IsUndefined());
       NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
                                         cache_holder);
-      return compiler.CompileLoadCallback(lookup->name(), info);
+      // Perform a lookup behind the interceptor. Copy the LookupIterator since
+      // the original iterator will be used to fetch the value.
+      LookupIterator it = *lookup;
+      it.Next();
+      LookupForRead(&it);
+      return compiler.CompileLoadInterceptor(&it);
     }
-    if (accessors->IsAccessorPair()) {
-      Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
-                            isolate());
-      if (!getter->IsJSFunction()) return slow_stub();
-      if (!holder->HasFastProperties()) return slow_stub();
-      Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
-      if (!receiver->IsJSObject() && !function->IsBuiltin() &&
-          function->shared()->strict_mode() == SLOPPY) {
-        // Calling sloppy non-builtins with a value as the receiver
-        // requires boxing.
-        return slow_stub();
+
+    case LookupIterator::ACCESSOR: {
+      // Use simple field loads for some well-known callback properties.
+      if (receiver_is_holder) {
+        DCHECK(receiver->IsJSObject());
+        Handle<JSObject> js_receiver = Handle<JSObject>::cast(receiver);
+        int object_offset;
+        if (Accessors::IsJSObjectFieldAccessor<HeapType>(type, lookup->name(),
+                                                         &object_offset)) {
+          FieldIndex index =
+              FieldIndex::ForInObjectOffset(object_offset, js_receiver->map());
+          return SimpleFieldLoad(index);
+        }
       }
-      CallOptimization call_optimization(function);
+
+      Handle<Object> accessors = lookup->GetAccessors();
+      if (accessors->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> info =
+            Handle<ExecutableAccessorInfo>::cast(accessors);
+        if (v8::ToCData<Address>(info->getter()) == 0) break;
+        if (!ExecutableAccessorInfo::IsCompatibleReceiverType(isolate(), info,
+                                                              type)) {
+          break;
+        }
+        if (!holder->HasFastProperties()) break;
+        NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                          cache_holder);
+        return compiler.CompileLoadCallback(lookup->name(), info);
+      }
+      if (accessors->IsAccessorPair()) {
+        Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
+                              isolate());
+        if (!getter->IsJSFunction()) break;
+        if (!holder->HasFastProperties()) break;
+        Handle<JSFunction> function = Handle<JSFunction>::cast(getter);
+        if (!receiver->IsJSObject() && !function->IsBuiltin() &&
+            function->shared()->strict_mode() == SLOPPY) {
+          // Calling sloppy non-builtins with a value as the receiver
+          // requires boxing.
+          break;
+        }
+        CallOptimization call_optimization(function);
+        NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                          cache_holder);
+        if (call_optimization.is_simple_api_call() &&
+            call_optimization.IsCompatibleReceiver(receiver, holder)) {
+          return compiler.CompileLoadCallback(lookup->name(),
+                                              call_optimization);
+        }
+        return compiler.CompileLoadViaGetter(lookup->name(), function);
+      }
+      // TODO(dcarney): Handle correctly.
+      DCHECK(accessors->IsDeclaredAccessorInfo());
+      break;
+    }
+
+    case LookupIterator::DATA: {
+      if (lookup->is_dictionary_holder()) {
+        if (kind() != Code::LOAD_IC) break;
+        if (holder->IsGlobalObject()) {
+          NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                            cache_holder);
+          Handle<PropertyCell> cell = lookup->GetPropertyCell();
+          Handle<Code> code = compiler.CompileLoadGlobal(
+              cell, lookup->name(), lookup->IsConfigurable());
+          // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
+          CacheHolderFlag flag;
+          Handle<Map> stub_holder_map = GetHandlerCacheHolder(
+              *type, receiver_is_holder, isolate(), &flag);
+          Map::UpdateCodeCache(stub_holder_map, lookup->name(), code);
+          return code;
+        }
+        // There is only one shared stub for loading normalized
+        // properties. It does not traverse the prototype chain, so the
+        // property must be found in the object for the stub to be
+        // applicable.
+        if (!receiver_is_holder) break;
+        return isolate()->builtins()->LoadIC_Normal();
+      }
+
+      // -------------- Fields --------------
+      if (lookup->property_details().type() == FIELD) {
+        FieldIndex field = lookup->GetFieldIndex();
+        if (receiver_is_holder) {
+          return SimpleFieldLoad(field);
+        }
+        NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
+                                          cache_holder);
+        return compiler.CompileLoadField(lookup->name(), field);
+      }
+
+      // -------------- Constant properties --------------
+      DCHECK(lookup->property_details().type() == CONSTANT);
+      if (receiver_is_holder) {
+        LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
+        return stub.GetCode();
+      }
       NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
                                         cache_holder);
-      if (call_optimization.is_simple_api_call() &&
-          call_optimization.IsCompatibleReceiver(receiver, holder)) {
-        return compiler.CompileLoadCallback(lookup->name(), call_optimization);
-      }
-      return compiler.CompileLoadViaGetter(lookup->name(), function);
+      return compiler.CompileLoadConstant(lookup->name(),
+                                          lookup->GetConstantIndex());
     }
-    // TODO(dcarney): Handle correctly.
-    DCHECK(accessors->IsDeclaredAccessorInfo());
-    return slow_stub();
+
+    case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::JSPROXY:
+    case LookupIterator::NOT_FOUND:
+    case LookupIterator::TRANSITION:
+    case LookupIterator::UNKNOWN:
+      UNREACHABLE();
   }
 
-  // -------------- Dictionary properties --------------
-  DCHECK(lookup->state() == LookupIterator::DATA);
-  if (lookup->is_dictionary_holder()) {
-    if (kind() != Code::LOAD_IC) return slow_stub();
-    if (holder->IsGlobalObject()) {
-      NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
-                                        cache_holder);
-      Handle<PropertyCell> cell = lookup->GetPropertyCell();
-      Handle<Code> code = compiler.CompileLoadGlobal(cell, lookup->name(),
-                                                     lookup->IsConfigurable());
-      // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
-      CacheHolderFlag flag;
-      Handle<Map> stub_holder_map =
-          GetHandlerCacheHolder(*type, receiver_is_holder, isolate(), &flag);
-      Map::UpdateCodeCache(stub_holder_map, lookup->name(), code);
-      return code;
-    }
-    // There is only one shared stub for loading normalized
-    // properties. It does not traverse the prototype chain, so the
-    // property must be found in the object for the stub to be
-    // applicable.
-    if (!receiver_is_holder) return slow_stub();
-    return isolate()->builtins()->LoadIC_Normal();
-  }
-
-  // -------------- Fields --------------
-  if (lookup->property_details().type() == FIELD) {
-    FieldIndex field = lookup->GetFieldIndex();
-    if (receiver_is_holder) {
-      return SimpleFieldLoad(field);
-    }
-    NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
-                                      cache_holder);
-    return compiler.CompileLoadField(lookup->name(), field);
-  }
-
-  // -------------- Constant properties --------------
-  DCHECK(lookup->property_details().type() == CONSTANT);
-  if (receiver_is_holder) {
-    LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
-    return stub.GetCode();
-  }
-  NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
-                                    cache_holder);
-  return compiler.CompileLoadConstant(lookup->name(),
-                                      lookup->GetConstantIndex());
+  return slow_stub();
 }
 
 
@@ -1400,96 +1410,102 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
   Handle<JSObject> holder = lookup->GetHolder<JSObject>();
   DCHECK(!receiver->IsAccessCheckNeeded());
 
-  // -------------- Transition --------------
-  if (lookup->state() == LookupIterator::TRANSITION) {
-    Handle<Map> transition = lookup->transition_map();
-    // Currently not handled by CompileStoreTransition.
-    if (!holder->HasFastProperties()) return slow_stub();
+  switch (lookup->state()) {
+    case LookupIterator::TRANSITION: {
+      Handle<Map> transition = lookup->transition_map();
+      // Currently not handled by CompileStoreTransition.
+      if (!holder->HasFastProperties()) break;
 
-    DCHECK(lookup->IsCacheableTransition());
-    NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
-    return compiler.CompileStoreTransition(transition, lookup->name());
-  }
-
-  // -------------- Interceptors --------------
-  if (lookup->state() == LookupIterator::INTERCEPTOR) {
-    DCHECK(!holder->GetNamedInterceptor()->setter()->IsUndefined());
-    NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
-    return compiler.CompileStoreInterceptor(lookup->name());
-  }
-
-  // -------------- Accessors --------------
-  if (lookup->state() == LookupIterator::ACCESSOR) {
-    if (!holder->HasFastProperties()) return slow_stub();
-    Handle<Object> accessors = lookup->GetAccessors();
-    if (accessors->IsExecutableAccessorInfo()) {
-      Handle<ExecutableAccessorInfo> info =
-          Handle<ExecutableAccessorInfo>::cast(accessors);
-      if (v8::ToCData<Address>(info->setter()) == 0) return slow_stub();
-      if (!ExecutableAccessorInfo::IsCompatibleReceiverType(isolate(), info,
-                                                            receiver_type())) {
-        return slow_stub();
-      }
+      DCHECK(lookup->IsCacheableTransition());
       NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
-      return compiler.CompileStoreCallback(receiver, lookup->name(), info);
-    } else if (accessors->IsAccessorPair()) {
-      Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
-                            isolate());
-      if (!setter->IsJSFunction()) return slow_stub();
-      Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
-      CallOptimization call_optimization(function);
+      return compiler.CompileStoreTransition(transition, lookup->name());
+    }
+
+    case LookupIterator::INTERCEPTOR: {
+      DCHECK(!holder->GetNamedInterceptor()->setter()->IsUndefined());
       NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
-      if (call_optimization.is_simple_api_call() &&
-          call_optimization.IsCompatibleReceiver(receiver, holder)) {
-        return compiler.CompileStoreCallback(receiver, lookup->name(),
-                                             call_optimization);
+      return compiler.CompileStoreInterceptor(lookup->name());
+    }
+
+    case LookupIterator::ACCESSOR: {
+      if (!holder->HasFastProperties()) break;
+      Handle<Object> accessors = lookup->GetAccessors();
+      if (accessors->IsExecutableAccessorInfo()) {
+        Handle<ExecutableAccessorInfo> info =
+            Handle<ExecutableAccessorInfo>::cast(accessors);
+        if (v8::ToCData<Address>(info->setter()) == 0) break;
+        if (!ExecutableAccessorInfo::IsCompatibleReceiverType(
+                isolate(), info, receiver_type())) {
+          break;
+        }
+        NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
+        return compiler.CompileStoreCallback(receiver, lookup->name(), info);
+      } else if (accessors->IsAccessorPair()) {
+        Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
+                              isolate());
+        if (!setter->IsJSFunction()) break;
+        Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
+        CallOptimization call_optimization(function);
+        NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
+        if (call_optimization.is_simple_api_call() &&
+            call_optimization.IsCompatibleReceiver(receiver, holder)) {
+          return compiler.CompileStoreCallback(receiver, lookup->name(),
+                                               call_optimization);
+        }
+        return compiler.CompileStoreViaSetter(receiver, lookup->name(),
+                                              Handle<JSFunction>::cast(setter));
       }
-      return compiler.CompileStoreViaSetter(receiver, lookup->name(),
-                                            Handle<JSFunction>::cast(setter));
+      // TODO(dcarney): Handle correctly.
+      DCHECK(accessors->IsDeclaredAccessorInfo());
+      break;
     }
-    // TODO(dcarney): Handle correctly.
-    DCHECK(accessors->IsDeclaredAccessorInfo());
-    return slow_stub();
-  }
 
-  // -------------- Dictionary properties --------------
-  DCHECK(lookup->state() == LookupIterator::DATA);
-  if (lookup->is_dictionary_holder()) {
-    if (holder->IsGlobalObject()) {
-      Handle<PropertyCell> cell = lookup->GetPropertyCell();
-      Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
-      StoreGlobalStub stub(isolate(), union_type->IsConstant(),
-                           receiver->IsJSGlobalProxy());
-      Handle<Code> code = stub.GetCodeCopyFromTemplate(
-          Handle<GlobalObject>::cast(holder), cell);
-      // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
-      HeapObject::UpdateMapCodeCache(receiver, lookup->name(), code);
-      return code;
-    }
-    DCHECK(holder.is_identical_to(receiver));
-    return isolate()->builtins()->StoreIC_Normal();
-  }
+    case LookupIterator::DATA: {
+      if (lookup->is_dictionary_holder()) {
+        if (holder->IsGlobalObject()) {
+          Handle<PropertyCell> cell = lookup->GetPropertyCell();
+          Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
+          StoreGlobalStub stub(isolate(), union_type->IsConstant(),
+                               receiver->IsJSGlobalProxy());
+          Handle<Code> code = stub.GetCodeCopyFromTemplate(
+              Handle<GlobalObject>::cast(holder), cell);
+          // TODO(verwaest): Move caching of these NORMAL stubs outside as well.
+          HeapObject::UpdateMapCodeCache(receiver, lookup->name(), code);
+          return code;
+        }
+        DCHECK(holder.is_identical_to(receiver));
+        return isolate()->builtins()->StoreIC_Normal();
+      }
 
-  // -------------- Fields --------------
-  if (lookup->property_details().type() == FIELD) {
-    bool use_stub = true;
-    if (lookup->representation().IsHeapObject()) {
-      // Only use a generic stub if no types need to be tracked.
-      Handle<HeapType> field_type = lookup->GetFieldType();
-      HeapType::Iterator<Map> it = field_type->Classes();
-      use_stub = it.Done();
-    }
-    if (use_stub) {
-      StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
-                          lookup->representation());
-      return stub.GetCode();
-    }
-    NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
-    return compiler.CompileStoreField(lookup);
-  }
+      // -------------- Fields --------------
+      if (lookup->property_details().type() == FIELD) {
+        bool use_stub = true;
+        if (lookup->representation().IsHeapObject()) {
+          // Only use a generic stub if no types need to be tracked.
+          Handle<HeapType> field_type = lookup->GetFieldType();
+          HeapType::Iterator<Map> it = field_type->Classes();
+          use_stub = it.Done();
+        }
+        if (use_stub) {
+          StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
+                              lookup->representation());
+          return stub.GetCode();
+        }
+        NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
+        return compiler.CompileStoreField(lookup);
+      }
 
-  // -------------- Constant properties --------------
-  DCHECK(lookup->property_details().type() == CONSTANT);
+      // -------------- Constant properties --------------
+      DCHECK(lookup->property_details().type() == CONSTANT);
+      break;
+    }
+
+    case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::JSPROXY:
+    case LookupIterator::NOT_FOUND:
+    case LookupIterator::UNKNOWN:
+      UNREACHABLE();
+  }
   return slow_stub();
 }
 
