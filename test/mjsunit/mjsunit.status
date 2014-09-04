@@ -510,8 +510,8 @@
 }],
 ##############################################################################
 ['system == windows', {
-  # Slow with turbo fan.
-  'big-object-literal': [PASS, SLOW],
+  # TODO(mstarzinger): Too slow with turbo fan.
+  'big-object-literal': [PASS, ['mode == debug', SKIP]],
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
