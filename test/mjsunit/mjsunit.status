@@ -510,6 +510,9 @@
 }],
 ##############################################################################
 ['system == windows', {
+  # Slow with turbo fan.
+  'big-object-literal': [PASS, SLOW],
+
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
 }],  # 'system == windows'
