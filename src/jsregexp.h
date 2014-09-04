@@ -445,7 +445,9 @@ class TextElement FINAL BASE_EMBEDDED {
 
 
 class Trace;
-
+struct PreloadState;
+class GreedyLoopState;
+class AlternativeGenerationList;
 
 struct NodeInfo {
   NodeInfo()
@@ -1076,7 +1078,9 @@ class ChoiceNode: public RegExpNode {
   bool not_at_start() { return not_at_start_; }
   void set_not_at_start() { not_at_start_ = true; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
-  virtual bool try_to_emit_quick_check_for_alternative(int i) { return true; }
+  virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
+    return true;
+  }
   virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
 
  protected:
@@ -1096,6 +1100,23 @@ class ChoiceNode: public RegExpNode {
                                  AlternativeGeneration* alt_gen,
                                  int preload_characters,
                                  bool next_expects_preload);
+  void SetUpPreLoad(RegExpCompiler* compiler,
+                    Trace* current_trace,
+                    PreloadState* preloads);
+  void AssertGuardsMentionRegisters(Trace* trace);
+  int EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler, Trace* trace);
+  Trace* EmitGreedyLoop(RegExpCompiler* compiler,
+                        Trace* trace,
+                        AlternativeGenerationList* alt_gens,
+                        PreloadState* preloads,
+                        GreedyLoopState* greedy_loop_state,
+                        int text_length);
+  void EmitChoices(RegExpCompiler* compiler,
+                   AlternativeGenerationList* alt_gens,
+                   int first_choice,
+                   Trace* trace,
+                   bool is_greedy_loop,
+                   PreloadState* preloads);
   DispatchTable* table_;
   // If true, this node is never checked at the start of the input.
   // Allows a new trace to start with at_start() set to false.
@@ -1131,7 +1152,9 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
   // starts by loading enough characters for the alternative that takes fewest
   // characters, but on a negative lookahead the negative branch did not take
   // part in that calculation (EatsAtLeast) so the assumptions don't hold.
-  virtual bool try_to_emit_quick_check_for_alternative(int i) { return i != 0; }
+  virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
+    return !is_first;
+  }
   virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
 };
 
@@ -1142,7 +1165,8 @@ class LoopChoiceNode: public ChoiceNode {
       : ChoiceNode(2, zone),
         loop_node_(NULL),
         continue_node_(NULL),
-        body_can_be_zero_length_(body_can_be_zero_length) { }
+        body_can_be_zero_length_(body_can_be_zero_length)
+        { }
   void AddLoopAlternative(GuardedAlternative alt);
   void AddContinueAlternative(GuardedAlternative alt);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
@@ -1293,7 +1317,7 @@ class BoyerMooreLookahead : public ZoneObject {
   void SetRest(int from_map) {
     for (int i = from_map; i < length_; i++) SetAll(i);
   }
-  bool EmitSkipInstructions(RegExpMacroAssembler* masm);
+  void EmitSkipInstructions(RegExpMacroAssembler* masm);
 
  private:
   // This is the value obtained by EatsAtLeast.  If we do not have at least this
@@ -1483,6 +1507,31 @@ class Trace {
   QuickCheckDetails quick_check_performed_;
   int flush_budget_;
   TriBool at_start_;
+};
+
+
+class GreedyLoopState {
+ public:
+  explicit GreedyLoopState(bool not_at_start);
+
+  Label* label() { return &label_; }
+  Trace* counter_backtrack_trace() { return &counter_backtrack_trace_; }
+
+ private:
+  Label label_;
+  Trace counter_backtrack_trace_;
+};
+
+
+struct PreloadState {
+  static const int kEatsAtLeastNotYetInitialized = -1;
+  bool preload_is_current_;
+  bool preload_has_checked_bounds_;
+  int preload_characters_;
+  int eats_at_least_;
+  void init() {
+    eats_at_least_ = kEatsAtLeastNotYetInitialized;
+  }
 };
 
 
