@@ -7,7 +7,6 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-builder.h"
-#include "src/compiler/machine-node-factory.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/simplified-operator.h"
 #include "test/cctest/cctest.h"
@@ -17,9 +16,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SimplifiedGraphBuilder
-    : public GraphBuilder,
-      public MachineNodeFactory<SimplifiedGraphBuilder> {
+class SimplifiedGraphBuilder : public GraphBuilder {
  public:
   SimplifiedGraphBuilder(Graph* graph, CommonOperatorBuilder* common,
                          MachineOperatorBuilder* machine,
@@ -39,6 +36,19 @@ class SimplifiedGraphBuilder
 
   // Close the graph.
   void End();
+
+  Node* PointerConstant(void* value) {
+    intptr_t intptr_value = reinterpret_cast<intptr_t>(value);
+    return kPointerSize == 8 ? NewNode(common()->Int64Constant(intptr_value))
+                             : Int32Constant(static_cast<int>(intptr_value));
+  }
+  Node* Int32Constant(int32_t value) {
+    return NewNode(common()->Int32Constant(value));
+  }
+  Node* HeapConstant(Handle<Object> object) {
+    Unique<Object> val = Unique<Object>::CreateUninitialized(object);
+    return NewNode(common()->HeapConstant(val));
+  }
 
   Node* BooleanNot(Node* a) { return NewNode(simplified()->BooleanNot(), a); }
 
