@@ -66,7 +66,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
             Int32BinopMatcher mrightright(mright.right().node());
             if (mrightright.left().Is(32) &&
                 mrightright.right().node() == mleft.right().node()) {
-              graph()->ChangeOperator(node, machine()->Word32Ror());
+              node->set_op(machine()->Word32Ror());
               node->ReplaceInput(0, mleft.left().node());
               node->ReplaceInput(1, mleft.right().node());
               return Changed(node);
@@ -75,7 +75,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
           // (x << K) | (x >> (32 - K)) => x ror K
           if (mleft.right().IsInRange(0, 31) &&
               mright.right().Is(32 - mleft.right().Value())) {
-            graph()->ChangeOperator(node, machine()->Word32Ror());
+            node->set_op(machine()->Word32Ror());
             node->ReplaceInput(0, mleft.left().node());
             node->ReplaceInput(1, mleft.right().node());
             return Changed(node);
@@ -91,7 +91,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
             Int32BinopMatcher mleftright(mleft.right().node());
             if (mleftright.left().Is(32) &&
                 mleftright.right().node() == mright.right().node()) {
-              graph()->ChangeOperator(node, machine()->Word32Ror());
+              node->set_op(machine()->Word32Ror());
               node->ReplaceInput(0, mright.left().node());
               node->ReplaceInput(1, mright.right().node());
               return Changed(node);
@@ -100,7 +100,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
           // (x >> (32 - K)) | (x << K) => x ror K
           if (mright.right().IsInRange(0, 31) &&
               mleft.right().Is(32 - mright.right().Value())) {
-            graph()->ChangeOperator(node, machine()->Word32Ror());
+            node->set_op(machine()->Word32Ror());
             node->ReplaceInput(0, mright.left().node());
             node->ReplaceInput(1, mright.right().node());
             return Changed(node);
@@ -193,13 +193,13 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceInt32(m.left().Value() * m.right().Value());
       }
       if (m.right().Is(-1)) {  // x * -1 => 0 - x
-        graph()->ChangeOperator(node, machine()->Int32Sub());
+        node->set_op(machine()->Int32Sub());
         node->ReplaceInput(0, Int32Constant(0));
         node->ReplaceInput(1, m.left().node());
         return Changed(node);
       }
       if (m.right().IsPowerOf2()) {  // x * 2^n => x << n
-        graph()->ChangeOperator(node, machine()->Word32Shl());
+        node->set_op(machine()->Word32Shl());
         node->ReplaceInput(1, Int32Constant(WhichPowerOf2(m.right().Value())));
         return Changed(node);
       }
@@ -217,7 +217,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceInt32(m.left().Value() / m.right().Value());
       }
       if (m.right().Is(-1)) {  // x / -1 => 0 - x
-        graph()->ChangeOperator(node, machine()->Int32Sub());
+        node->set_op(machine()->Int32Sub());
         node->ReplaceInput(0, Int32Constant(0));
         node->ReplaceInput(1, m.left().node());
         return Changed(node);
@@ -234,7 +234,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceInt32(m.left().Value() / m.right().Value());
       }
       if (m.right().IsPowerOf2()) {  // x / 2^n => x >> n
-        graph()->ChangeOperator(node, machine()->Word32Shr());
+        node->set_op(machine()->Word32Shr());
         node->ReplaceInput(1, Int32Constant(WhichPowerOf2(m.right().Value())));
         return Changed(node);
       }
@@ -263,7 +263,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceInt32(m.left().Value() % m.right().Value());
       }
       if (m.right().IsPowerOf2()) {  // x % 2^n => x & 2^n-1
-        graph()->ChangeOperator(node, machine()->Word32And());
+        node->set_op(machine()->Word32And());
         node->ReplaceInput(1, Int32Constant(m.right().Value() - 1));
         return Changed(node);
       }

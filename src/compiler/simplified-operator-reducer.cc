@@ -99,7 +99,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
 
 
 Reduction SimplifiedOperatorReducer::Change(Node* node, Operator* op, Node* a) {
-  graph()->ChangeOperator(node, op);
+  node->set_op(op);
   node->ReplaceInput(0, a);
   return Changed(node);
 }
