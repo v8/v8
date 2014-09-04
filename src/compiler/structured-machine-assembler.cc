@@ -17,23 +17,26 @@ void Variable::Set(Node* value) const { smasm_->SetVariable(offset_, value); }
 
 
 StructuredMachineAssembler::StructuredMachineAssembler(
-    Graph* graph, MachineCallDescriptorBuilder* call_descriptor_builder,
-    MachineType word)
+    Graph* graph, MachineSignature* machine_sig, MachineType word)
     : GraphBuilder(graph),
       schedule_(new (zone()) Schedule(zone())),
       machine_(zone(), word),
       common_(zone()),
-      call_descriptor_builder_(call_descriptor_builder),
+      machine_sig_(machine_sig),
+      call_descriptor_(
+          Linkage::GetSimplifiedCDescriptor(graph->zone(), machine_sig)),
       parameters_(NULL),
       current_environment_(new (zone())
                            Environment(zone(), schedule()->start(), false)),
       number_of_variables_(0) {
-  Node* s = graph->NewNode(common_.Start(parameter_count()));
+  int param_count = static_cast<int>(parameter_count());
+  Node* s = graph->NewNode(common_.Start(param_count));
   graph->SetStart(s);
   if (parameter_count() == 0) return;
-  parameters_ = zone()->NewArray<Node*>(parameter_count());
-  for (int i = 0; i < parameter_count(); ++i) {
-    parameters_[i] = NewNode(common()->Parameter(i), graph->start());
+  parameters_ = zone()->NewArray<Node*>(param_count);
+  for (size_t i = 0; i < parameter_count(); ++i) {
+    parameters_[i] =
+        NewNode(common()->Parameter(static_cast<int>(i)), graph->start());
   }
 }
 
@@ -49,8 +52,8 @@ Schedule* StructuredMachineAssembler::Export() {
 }
 
 
-Node* StructuredMachineAssembler::Parameter(int index) {
-  DCHECK(0 <= index && index < parameter_count());
+Node* StructuredMachineAssembler::Parameter(size_t index) {
+  DCHECK(index < parameter_count());
   return parameters_[index];
 }
 
@@ -210,8 +213,8 @@ void StructuredMachineAssembler::Merge(EnvironmentVector* environments,
   vars.reserve(n_vars);
   Node** scratch = NULL;
   size_t n_envs = environments->size();
-  Environment** live_environments = reinterpret_cast<Environment**>(
-      alloca(sizeof(environments->at(0)) * n_envs));
+  Environment** live_environments =
+      zone()->NewArray<Environment*>(static_cast<int>(n_envs));
   size_t n_live = 0;
   for (size_t i = 0; i < n_envs; i++) {
     if (environments->at(i)->is_dead_) continue;
@@ -247,7 +250,7 @@ void StructuredMachineAssembler::Merge(EnvironmentVector* environments,
       CHECK(resolved != NULL);
       // Init scratch buffer.
       if (scratch == NULL) {
-        scratch = static_cast<Node**>(alloca(n_envs * sizeof(resolved)));
+        scratch = zone()->NewArray<Node*>(static_cast<int>(n_envs));
       }
       for (size_t k = 0; k < i; k++) {
         scratch[k] = resolved;

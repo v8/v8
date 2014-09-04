@@ -2180,12 +2180,12 @@ static Object* DeclareGlobals(Isolate* isolate, Handle<GlobalObject> global,
                               PropertyAttributes attr, bool is_var,
                               bool is_const, bool is_function) {
   // Do the lookup own properties only, see ES5 erratum.
-  LookupIterator it(global, name, LookupIterator::HIDDEN_PROPERTY);
+  LookupIterator it(global, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  DCHECK(maybe.has_value);
-  PropertyAttributes old_attributes = maybe.value;
+  if (!maybe.has_value) return isolate->heap()->exception();
 
-  if (old_attributes != ABSENT) {
+  if (it.IsFound()) {
+    PropertyAttributes old_attributes = maybe.value;
     // The name was declared before; check for conflicting re-declarations.
     if (is_const) return ThrowRedeclarationError(isolate, name);
 
@@ -2310,7 +2310,7 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
   Handle<GlobalObject> global = isolate->global_object();
 
   // Lookup the property as own on the global object.
-  LookupIterator it(global, name, LookupIterator::HIDDEN_PROPERTY);
+  LookupIterator it(global, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   DCHECK(maybe.has_value);
   PropertyAttributes old_attributes = maybe.value;
@@ -2460,7 +2460,7 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
     // code can run in between that modifies the declared property.
     DCHECK(holder->IsJSGlobalObject() || holder->IsJSContextExtensionObject());
 
-    LookupIterator it(holder, name, LookupIterator::HIDDEN_PROPERTY);
+    LookupIterator it(holder, name, LookupIterator::HIDDEN_SKIP_INTERCEPTOR);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     if (!maybe.has_value) return isolate->heap()->exception();
     PropertyAttributes old_attributes = maybe.value;
@@ -5040,13 +5040,13 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
-  // Check access rights if needed.
-  if (js_object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(js_object, name, v8::ACCESS_SET)) {
-    return isolate->heap()->undefined_value();
+  LookupIterator it(js_object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  if (it.IsFound() && it.state() == LookupIterator::ACCESS_CHECK) {
+    if (!isolate->MayNamedAccess(js_object, name, v8::ACCESS_SET)) {
+      return isolate->heap()->undefined_value();
+    }
+    it.Next();
   }
-
-  LookupIterator it(js_object, name, LookupIterator::OWN_PROPERTY);
 
   // Take special care when attributes are different and there is already
   // a property.
@@ -5293,9 +5293,9 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
 #ifdef DEBUG
   uint32_t index = 0;
   DCHECK(!key->ToArrayIndex(&index));
-  LookupIterator it(object, key, LookupIterator::OWN_PROPERTY);
+  LookupIterator it(object, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  DCHECK(maybe.has_value);
+  if (!maybe.has_value) return isolate->heap()->exception();
   RUNTIME_ASSERT(!it.IsFound());
 #endif
 
@@ -5325,7 +5325,7 @@ RUNTIME_FUNCTION(Runtime_AddPropertyForTemplate) {
   bool duplicate;
   if (key->IsName()) {
     LookupIterator it(object, Handle<Name>::cast(key),
-                      LookupIterator::OWN_PROPERTY);
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
     DCHECK(maybe.has_value);
     duplicate = it.IsFound();

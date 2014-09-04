@@ -14,232 +14,281 @@ namespace internal {
 const Register CallInterfaceDescriptor::ContextRegister() { return rsi; }
 
 
-void CallDescriptors::InitializeForIsolate(Isolate* isolate) {
-  InitializeForIsolateAllPlatforms(isolate);
+const Register LoadDescriptor::ReceiverRegister() { return rdx; }
+const Register LoadDescriptor::NameRegister() { return rcx; }
 
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::FastNewClosureCall);
-    Register registers[] = {rsi, rbx};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::FastNewContextCall);
-    Register registers[] = {rsi, rdi};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::ToNumberCall);
-    // ToNumberStub invokes a function, and therefore needs a context.
-    Register registers[] = {rsi, rax};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::NumberToStringCall);
-    Register registers[] = {rsi, rax};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::FastCloneShallowArrayCall);
-    Register registers[] = {rsi, rax, rbx, rcx};
-    Representation representations[] = {
-        Representation::Tagged(), Representation::Tagged(),
-        Representation::Smi(), Representation::Tagged()};
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::FastCloneShallowObjectCall);
-    Register registers[] = {rsi, rax, rbx, rcx, rdx};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::CreateAllocationSiteCall);
-    Register registers[] = {rsi, rbx, rdx};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::CallFunctionCall);
-    Register registers[] = {rsi, rdi};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::CallConstructCall);
-    // rax : number of arguments
-    // rbx : feedback vector
-    // rdx : (only if rbx is not the megamorphic symbol) slot in feedback
-    //       vector (Smi)
-    // rdi : constructor function
-    // TODO(turbofan): So far we don't gather type feedback and hence skip the
-    // slot parameter, but ArrayConstructStub needs the vector to be undefined.
-    Register registers[] = {rsi, rax, rdi, rbx};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::RegExpConstructResultCall);
-    Register registers[] = {rsi, rcx, rbx, rax};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::TransitionElementsKindCall);
-    Register registers[] = {rsi, rax, rbx};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
-        CallDescriptorKey::ArrayConstructorConstantArgCountCall);
-    // register state
-    // rax -- number of arguments
-    // rdi -- function
-    // rbx -- allocation site with elements kind
-    Register registers[] = {rsi, rdi, rbx};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::ArrayConstructorCall);
-    // stack param count needs (constructor pointer, and single argument)
-    Register registers[] = {rsi, rdi, rbx, rax};
-    Representation representations[] = {
-        Representation::Tagged(), Representation::Tagged(),
-        Representation::Tagged(), Representation::Integer32()};
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
-        CallDescriptorKey::InternalArrayConstructorConstantArgCountCall);
-    // register state
-    // rsi -- context
-    // rax -- number of arguments
-    // rdi -- constructor function
-    Register registers[] = {rsi, rdi};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
-        CallDescriptorKey::InternalArrayConstructorCall);
-    // stack param count needs (constructor pointer, and single argument)
-    Register registers[] = {rsi, rdi, rax};
-    Representation representations[] = {Representation::Tagged(),
-                                        Representation::Tagged(),
-                                        Representation::Integer32()};
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::CompareNilCall);
-    Register registers[] = {rsi, rax};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::ToBooleanCall);
-    Register registers[] = {rsi, rax};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::BinaryOpCall);
-    Register registers[] = {rsi, rdx, rax};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
-        CallDescriptorKey::BinaryOpWithAllocationSiteCall);
-    Register registers[] = {rsi, rcx, rdx, rax};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::StringAddCall);
-    Register registers[] = {rsi, rdx, rax};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
 
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::ArgumentAdaptorCall);
-    Register registers[] = {
-        rsi,  // context
-        rdi,  // JSFunction
-        rax,  // actual number of arguments
-        rbx,  // expected number of arguments
-    };
-    Representation representations[] = {
-        Representation::Tagged(),     // context
-        Representation::Tagged(),     // JSFunction
-        Representation::Integer32(),  // actual number of arguments
-        Representation::Integer32(),  // expected number of arguments
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::KeyedCall);
-    Register registers[] = {
-        rsi,  // context
-        rcx,  // key
-    };
-    Representation representations[] = {
-        Representation::Tagged(),  // context
-        Representation::Tagged(),  // key
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::NamedCall);
-    Register registers[] = {
-        rsi,  // context
-        rcx,  // name
-    };
-    Representation representations[] = {
-        Representation::Tagged(),  // context
-        Representation::Tagged(),  // name
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::CallHandler);
-    Register registers[] = {
-        rsi,  // context
-        rdx,  // receiver
-    };
-    Representation representations[] = {
-        Representation::Tagged(),  // context
-        Representation::Tagged(),  // receiver
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::ApiFunctionCall);
-    Register registers[] = {
-        rsi,  // context
-        rax,  // callee
-        rbx,  // call_data
-        rcx,  // holder
-        rdx,  // api_function_address
-    };
-    Representation representations[] = {
-        Representation::Tagged(),    // context
-        Representation::Tagged(),    // callee
-        Representation::Tagged(),    // call_data
-        Representation::Tagged(),    // holder
-        Representation::External(),  // api_function_address
-    };
-    descriptor->Initialize(arraysize(registers), registers, representations);
-  }
+const Register VectorLoadICDescriptor::ReceiverRegister() {
+  return LoadDescriptor::ReceiverRegister();
+}
+
+
+const Register VectorLoadICDescriptor::NameRegister() {
+  return LoadDescriptor::NameRegister();
+}
+
+
+const Register VectorLoadICDescriptor::SlotRegister() { return rax; }
+const Register VectorLoadICDescriptor::VectorRegister() { return rbx; }
+
+
+const Register StoreDescriptor::ReceiverRegister() { return rdx; }
+const Register StoreDescriptor::NameRegister() { return rcx; }
+const Register StoreDescriptor::ValueRegister() { return rax; }
+
+
+const Register ElementTransitionAndStoreDescriptor::ReceiverRegister() {
+  return StoreDescriptor::ReceiverRegister();
+}
+
+
+const Register ElementTransitionAndStoreDescriptor::NameRegister() {
+  return StoreDescriptor::NameRegister();
+}
+
+
+const Register ElementTransitionAndStoreDescriptor::ValueRegister() {
+  return StoreDescriptor::ValueRegister();
+}
+
+
+const Register ElementTransitionAndStoreDescriptor::MapRegister() {
+  return rbx;
+}
+
+
+const Register InstanceofDescriptor::left() { return rax; }
+const Register InstanceofDescriptor::right() { return rdx; }
+
+
+void FastNewClosureDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rbx};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void FastNewContextDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rdi};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void ToNumberDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  // ToNumberStub invokes a function, and therefore needs a context.
+  Register registers[] = {rsi, rax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void NumberToStringDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void FastCloneShallowArrayDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rax, rbx, rcx};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(), Representation::Smi(),
+      Representation::Tagged()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void FastCloneShallowObjectDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rax, rbx, rcx, rdx};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void CreateAllocationSiteDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rbx, rdx};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void CallFunctionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rdi};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void CallConstructDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  // rax : number of arguments
+  // rbx : feedback vector
+  // rdx : (only if rbx is not the megamorphic symbol) slot in feedback
+  //       vector (Smi)
+  // rdi : constructor function
+  // TODO(turbofan): So far we don't gather type feedback and hence skip the
+  // slot parameter, but ArrayConstructStub needs the vector to be undefined.
+  Register registers[] = {rsi, rax, rdi, rbx};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void RegExpConstructResultDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rcx, rbx, rax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void TransitionElementsKindDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rax, rbx};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void ArrayConstructorConstantArgCountDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  // register state
+  // rax -- number of arguments
+  // rdi -- function
+  // rbx -- allocation site with elements kind
+  Register registers[] = {rsi, rdi, rbx};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void ArrayConstructorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  // stack param count needs (constructor pointer, and single argument)
+  Register registers[] = {rsi, rdi, rbx, rax};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(),
+      Representation::Tagged(), Representation::Integer32()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void InternalArrayConstructorConstantArgCountDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  // register state
+  // rsi -- context
+  // rax -- number of arguments
+  // rdi -- constructor function
+  Register registers[] = {rsi, rdi};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void InternalArrayConstructorDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  // stack param count needs (constructor pointer, and single argument)
+  Register registers[] = {rsi, rdi, rax};
+  Representation representations[] = {Representation::Tagged(),
+                                      Representation::Tagged(),
+                                      Representation::Integer32()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void CompareNilDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void ToBooleanDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void BinaryOpDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rdx, rax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void BinaryOpWithAllocationSiteDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rcx, rdx, rax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void StringAddDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {rsi, rdx, rax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void KeyedDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      rsi,  // context
+      rcx,  // key
+  };
+  Representation representations[] = {
+      Representation::Tagged(),  // context
+      Representation::Tagged(),  // key
+  };
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void NamedDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      rsi,  // context
+      rcx,  // name
+  };
+  Representation representations[] = {
+      Representation::Tagged(),  // context
+      Representation::Tagged(),  // name
+  };
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void CallHandlerDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      rsi,  // context
+      rdx,  // receiver
+  };
+  Representation representations[] = {
+      Representation::Tagged(),  // context
+      Representation::Tagged(),  // receiver
+  };
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void ArgumentAdaptorDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      rsi,  // context
+      rdi,  // JSFunction
+      rax,  // actual number of arguments
+      rbx,  // expected number of arguments
+  };
+  Representation representations[] = {
+      Representation::Tagged(),     // context
+      Representation::Tagged(),     // JSFunction
+      Representation::Integer32(),  // actual number of arguments
+      Representation::Integer32(),  // expected number of arguments
+  };
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void ApiFunctionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      rsi,  // context
+      rax,  // callee
+      rbx,  // call_data
+      rcx,  // holder
+      rdx,  // api_function_address
+  };
+  Representation representations[] = {
+      Representation::Tagged(),    // context
+      Representation::Tagged(),    // callee
+      Representation::Tagged(),    // call_data
+      Representation::Tagged(),    // holder
+      Representation::External(),  // api_function_address
+  };
+  data->Initialize(arraysize(registers), registers, representations);
 }
 }
 }  // namespace v8::internal

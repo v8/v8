@@ -283,7 +283,8 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
 
   if (receiver->IsGlobalObject()) {
     Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
-    LookupIterator it(global, name, LookupIterator::OWN_PROPERTY);
+    LookupIterator it(global, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+    if (it.state() == LookupIterator::ACCESS_CHECK) return false;
     if (!it.IsFound() || !it.HasProperty()) return false;
     Handle<PropertyCell> cell = it.GetPropertyCell();
     return cell->type()->IsConstant();
@@ -548,7 +549,7 @@ void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target,
 void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
                       ConstantPoolArray* constant_pool) {
   DCHECK(CodeStub::GetMajorKey(target) == CodeStub::CompareIC);
-  ICCompareStub stub(target->stub_key());
+  CompareICStub stub(target->stub_key());
   // Only clear CompareICs that can retain objects.
   if (stub.state() != KNOWN_OBJECT) return;
   SetTargetAtAddress(address, GetRawUninitialized(isolate, stub.op()),
@@ -2676,7 +2677,7 @@ RUNTIME_FUNCTION(BinaryOpIC_MissWithAllocationSite) {
 
 
 Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
-  ICCompareStub stub(isolate, op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
+  CompareICStub stub(isolate, op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
   Code* code = NULL;
   CHECK(stub.FindCodeInCache(&code));
   return code;
@@ -2684,7 +2685,7 @@ Code* CompareIC::GetRawUninitialized(Isolate* isolate, Token::Value op) {
 
 
 Handle<Code> CompareIC::GetUninitialized(Isolate* isolate, Token::Value op) {
-  ICCompareStub stub(isolate, op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
+  CompareICStub stub(isolate, op, UNINITIALIZED, UNINITIALIZED, UNINITIALIZED);
   return stub.GetCode();
 }
 
@@ -2745,7 +2746,7 @@ Type* CompareIC::StateToType(Zone* zone, CompareIC::State state,
 void CompareIC::StubInfoToType(uint32_t stub_key, Type** left_type,
                                Type** right_type, Type** overall_type,
                                Handle<Map> map, Zone* zone) {
-  ICCompareStub stub(stub_key);
+  CompareICStub stub(stub_key);
   *left_type = StateToType(zone, stub.left());
   *right_type = StateToType(zone, stub.right());
   *overall_type = StateToType(zone, stub.state(), map);
@@ -2858,12 +2859,12 @@ CompareIC::State CompareIC::TargetState(State old_state, State old_left,
 
 Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope(isolate());
-  ICCompareStub old_stub(target()->stub_key());
+  CompareICStub old_stub(target()->stub_key());
   State new_left = NewInputState(old_stub.left(), x);
   State new_right = NewInputState(old_stub.right(), y);
   State state = TargetState(old_stub.state(), old_stub.left(), old_stub.right(),
                             HasInlinedSmiCode(address()), x, y);
-  ICCompareStub stub(isolate(), op_, new_left, new_right, state);
+  CompareICStub stub(isolate(), op_, new_left, new_right, state);
   if (state == KNOWN_OBJECT) {
     stub.set_known_map(
         Handle<Map>(Handle<JSObject>::cast(x)->map(), isolate()));
@@ -2890,7 +2891,7 @@ Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
 }
 
 
-// Used from ICCompareStub::GenerateMiss in code-stubs-<arch>.cc.
+// Used from CompareICStub::GenerateMiss in code-stubs-<arch>.cc.
 RUNTIME_FUNCTION(CompareIC_Miss) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);

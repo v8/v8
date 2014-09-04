@@ -17,8 +17,7 @@ namespace internal {
 
 
 CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
-    : call_descriptor_(NULL),
-      stack_parameter_count_(no_reg),
+    : stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       deoptimization_handler_(NULL),
@@ -28,7 +27,7 @@ CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
 
 
 void CodeStubInterfaceDescriptor::Initialize(
-    CodeStub::Major major, CallInterfaceDescriptor* call_descriptor,
+    CodeStub::Major major, CallInterfaceDescriptor call_descriptor,
     Address deoptimization_handler, int hint_stack_parameter_count,
     StubFunctionMode function_mode) {
   call_descriptor_ = call_descriptor;
@@ -40,7 +39,7 @@ void CodeStubInterfaceDescriptor::Initialize(
 
 
 void CodeStubInterfaceDescriptor::Initialize(
-    CodeStub::Major major, CallInterfaceDescriptor* call_descriptor,
+    CodeStub::Major major, CallInterfaceDescriptor call_descriptor,
     Register stack_parameter_count, Address deoptimization_handler,
     int hint_stack_parameter_count, StubFunctionMode function_mode,
     HandlerArgumentsMode handler_mode) {
@@ -269,7 +268,7 @@ void StringAddStub::PrintBaseName(OStream& os) const {  // NOLINT
 }
 
 
-InlineCacheState ICCompareStub::GetICState() const {
+InlineCacheState CompareICStub::GetICState() const {
   CompareIC::State state = Max(left(), right());
   switch (state) {
     case CompareIC::UNINITIALIZED:
@@ -290,7 +289,7 @@ InlineCacheState ICCompareStub::GetICState() const {
 }
 
 
-void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
+void CompareICStub::AddToSpecialCache(Handle<Code> new_object) {
   DCHECK(*known_map_ != NULL);
   Isolate* isolate = new_object->GetIsolate();
   Factory* factory = isolate->factory();
@@ -302,7 +301,7 @@ void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
 }
 
 
-bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
+bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
   Factory* factory = isolate()->factory();
   Code::Flags flags = Code::ComputeFlags(
       GetCodeKind(),
@@ -318,7 +317,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
-    ICCompareStub decode((*code_out)->stub_key());
+    CompareICStub decode((*code_out)->stub_key());
     DCHECK(op() == decode.op());
     DCHECK(left() == decode.left());
     DCHECK(right() == decode.right());
@@ -330,7 +329,7 @@ bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
 }
 
 
-void ICCompareStub::Generate(MacroAssembler* masm) {
+void CompareICStub::Generate(MacroAssembler* masm) {
   switch (state()) {
     case CompareIC::UNINITIALIZED:
       GenerateMiss(masm);
@@ -501,8 +500,7 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 
 void LoadFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+  LoadDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
@@ -510,8 +508,7 @@ void LoadFastElementStub::InitializeInterfaceDescriptor(
 
 void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+  LoadDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
@@ -519,8 +516,7 @@ void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
 
 void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+  LoadDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
@@ -530,13 +526,11 @@ void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
 void HandlerStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   if (kind() == Code::LOAD_IC) {
-    CallInterfaceDescriptor* call_descriptor =
-        isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+    LoadDescriptor call_descriptor(isolate());
     descriptor->Initialize(MajorKey(), call_descriptor);
   } else {
     DCHECK_EQ(Code::STORE_IC, kind());
-    CallInterfaceDescriptor* call_descriptor =
-        isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
+    StoreDescriptor call_descriptor(isolate());
     descriptor->Initialize(MajorKey(), call_descriptor,
                            FUNCTION_ADDR(StoreIC_MissFromStubFailure));
   }
@@ -545,8 +539,7 @@ void HandlerStub::InitializeInterfaceDescriptor(
 
 void StoreFastElementStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
+  StoreDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
 }
@@ -554,8 +547,7 @@ void StoreFastElementStub::InitializeInterfaceDescriptor(
 
 void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor = isolate()->call_descriptor(
-      CallDescriptorKey::ElementTransitionAndStoreCall);
+  ElementTransitionAndStoreDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
 }
@@ -563,8 +555,7 @@ void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
 
 void InstanceofStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::InstanceofCall);
+  InstanceofDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor);
 }
 
@@ -574,8 +565,7 @@ static void InitializeVectorLoadStub(Isolate* isolate,
                                      CodeStub::Major major,
                                      Address deoptimization_handler) {
   DCHECK(FLAG_vector_ics);
-  CallInterfaceDescriptor* call_descriptor =
-      isolate->call_descriptor(CallDescriptorKey::VectorLoadICCall);
+  VectorLoadICDescriptor call_descriptor(isolate);
   descriptor->Initialize(major, call_descriptor, deoptimization_handler);
 }
 
@@ -597,8 +587,7 @@ void VectorKeyedLoadStub::InitializeInterfaceDescriptor(
 
 void FastNewClosureStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::FastNewClosureCall);
+  FastNewClosureDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
@@ -607,24 +596,21 @@ void FastNewClosureStub::InitializeInterfaceDescriptor(
 
 void FastNewContextStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::FastNewContextCall);
+  FastNewContextDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor);
 }
 
 
 void ToNumberStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::ToNumberCall);
+  ToNumberDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor);
 }
 
 
 void NumberToStringStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::NumberToStringCall);
+  NumberToStringDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
@@ -633,8 +619,7 @@ void NumberToStringStub::InitializeInterfaceDescriptor(
 
 void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::FastCloneShallowArrayCall);
+  FastCloneShallowArrayDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry);
@@ -643,8 +628,7 @@ void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
 
 void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::FastCloneShallowObjectCall);
+  FastCloneShallowObjectDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
@@ -653,32 +637,28 @@ void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
 
 void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::CreateAllocationSiteCall);
+  CreateAllocationSiteDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor);
 }
 
 
 void CallFunctionStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::CallFunctionCall);
+  CallFunctionDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor);
 }
 
 
 void CallConstructStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::CallConstructCall);
+  CallConstructDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor);
 }
 
 
 void RegExpConstructResultStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::RegExpConstructResultCall);
+  RegExpConstructResultDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
@@ -687,8 +667,7 @@ void RegExpConstructResultStub::InitializeInterfaceDescriptor(
 
 void TransitionElementsKindStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::TransitionElementsKindCall);
+  TransitionElementsKindDescriptor call_descriptor(isolate());
   descriptor->Initialize(
       MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry);
@@ -697,8 +676,7 @@ void TransitionElementsKindStub::InitializeInterfaceDescriptor(
 
 void CompareNilICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::CompareNilCall);
+  CompareNilDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(CompareNilIC_Miss));
   descriptor->SetMissHandler(
@@ -707,8 +685,7 @@ void CompareNilICStub::InitializeInterfaceDescriptor(
 
 void ToBooleanStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::ToBooleanCall);
+  ToBooleanDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(ToBooleanIC_Miss));
   descriptor->SetMissHandler(
@@ -718,8 +695,7 @@ void ToBooleanStub::InitializeInterfaceDescriptor(
 
 void BinaryOpICStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::BinaryOpCall);
+  BinaryOpDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(BinaryOpIC_Miss));
   descriptor->SetMissHandler(
@@ -729,8 +705,7 @@ void BinaryOpICStub::InitializeInterfaceDescriptor(
 
 void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor = isolate()->call_descriptor(
-      CallDescriptorKey::BinaryOpWithAllocationSiteCall);
+  BinaryOpWithAllocationSiteDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite));
 }
@@ -738,15 +713,9 @@ void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
 
 void StringAddStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
-  CallInterfaceDescriptor* call_descriptor =
-      isolate()->call_descriptor(CallDescriptorKey::StringAddCall);
+  StringAddDescriptor call_descriptor(isolate());
   descriptor->Initialize(MajorKey(), call_descriptor,
                          Runtime::FunctionForId(Runtime::kStringAdd)->entry);
-}
-
-
-void LoadDictionaryElementPlatformStub::Generate(MacroAssembler* masm) {
-  ElementHandlerCompiler::GenerateLoadDictionaryElement(masm);
 }
 
 

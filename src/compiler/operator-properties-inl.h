@@ -37,6 +37,8 @@ inline bool OperatorProperties::HasFrameStateInput(Operator* op) {
   }
 
   switch (op->opcode()) {
+    case IrOpcode::kFrameState:
+      return true;
     case IrOpcode::kJSCallRuntime: {
       Runtime::FunctionId function =
           reinterpret_cast<Operator1<Runtime::FunctionId>*>(op)->parameter();

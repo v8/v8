@@ -46,8 +46,7 @@ class LoadICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) OVERRIDE {
-    CallInterfaceDescriptor* call_descriptor =
-        isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+    LoadDescriptor call_descriptor(isolate());
     descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
@@ -74,8 +73,7 @@ class KeyedLoadICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) OVERRIDE {
-    CallInterfaceDescriptor* call_descriptor =
-        isolate()->call_descriptor(CallDescriptorKey::LoadICCall);
+    LoadDescriptor call_descriptor(isolate());
     descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
@@ -101,8 +99,7 @@ class StoreICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) OVERRIDE {
-    CallInterfaceDescriptor* call_descriptor =
-        isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
+    StoreDescriptor call_descriptor(isolate());
     descriptor->Initialize(MajorKey(), call_descriptor);
   }
 
@@ -132,8 +129,7 @@ class KeyedStoreICStubShim : public HydrogenCodeStub {
 
   virtual void InitializeInterfaceDescriptor(
       CodeStubInterfaceDescriptor* descriptor) OVERRIDE {
-    CallInterfaceDescriptor* call_descriptor =
-        isolate()->call_descriptor(CallDescriptorKey::StoreICCall);
+    StoreDescriptor call_descriptor(isolate());
     descriptor->Initialize(MajorKey(), call_descriptor);
   }
 

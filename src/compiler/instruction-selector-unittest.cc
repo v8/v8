@@ -4,6 +4,7 @@
 
 #include "src/compiler/instruction-selector-unittest.h"
 
+#include "src/compiler/compiler-test-utils.h"
 #include "src/flags.h"
 
 namespace v8 {
@@ -18,6 +19,9 @@ typedef RawMachineAssembler::Label MLabel;
 
 
 InstructionSelectorTest::InstructionSelectorTest() : rng_(FLAG_random_seed) {}
+
+
+InstructionSelectorTest::~InstructionSelectorTest() {}
 
 
 InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
@@ -178,13 +182,8 @@ TARGET_TEST_F(InstructionSelectorTest, ReferenceParameter) {
 // Finish.
 
 
-typedef InstructionSelectorTestWithParam<MachineType>
-    InstructionSelectorFinishTest;
-
-
-TARGET_TEST_P(InstructionSelectorFinishTest, Parameter) {
-  const MachineType type = GetParam();
-  StreamBuilder m(this, type, type);
+TARGET_TEST_F(InstructionSelectorTest, Parameter) {
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged);
   Node* param = m.Parameter(0);
   Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
   m.Return(finish);
@@ -205,37 +204,8 @@ TARGET_TEST_P(InstructionSelectorFinishTest, Parameter) {
 }
 
 
-TARGET_TEST_P(InstructionSelectorFinishTest, PropagateDoubleness) {
-  const MachineType type = GetParam();
-  StreamBuilder m(this, type, type);
-  Node* param = m.Parameter(0);
-  Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
-  m.Return(finish);
-  Stream s = m.Build(kAllInstructions);
-  EXPECT_EQ(s.IsDouble(param->id()), s.IsDouble(finish->id()));
-}
-
-
-TARGET_TEST_P(InstructionSelectorFinishTest, PropagateReferenceness) {
-  const MachineType type = GetParam();
-  StreamBuilder m(this, type, type);
-  Node* param = m.Parameter(0);
-  Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
-  m.Return(finish);
-  Stream s = m.Build(kAllInstructions);
-  EXPECT_EQ(s.IsReference(param->id()), s.IsReference(finish->id()));
-}
-
-
-INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorFinishTest,
-                        ::testing::Values(kMachFloat64, kMachInt8, kMachUint8,
-                                          kMachInt16, kMachUint16, kMachInt32,
-                                          kMachUint32, kMachInt64, kMachUint64,
-                                          kMachPtr, kMachAnyTagged));
-
-
 // -----------------------------------------------------------------------------
-// Finish.
+// Phi.
 
 
 typedef InstructionSelectorTestWithParam<MachineType>
@@ -318,21 +288,24 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
 // -----------------------------------------------------------------------------
 // Calls with deoptimization.
 TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
-  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged);
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
+                  kMachAnyTagged);
 
   BailoutId bailout_id(42);
 
   Node* function_node = m.Parameter(0);
   Node* receiver = m.Parameter(1);
+  Node* context = m.Parameter(2);
 
   Node* parameters = m.NewNode(m.common()->StateValues(1), m.Int32Constant(1));
   Node* locals = m.NewNode(m.common()->StateValues(0));
   Node* stack = m.NewNode(m.common()->StateValues(0));
   Node* context_dummy = m.Int32Constant(0);
 
-  Node* state_node = m.NewNode(m.common()->FrameState(bailout_id, kPushOutput),
-                               parameters, locals, stack, context_dummy);
-  Node* call = m.CallJS0(function_node, receiver, state_node);
+  Node* state_node =
+      m.NewNode(m.common()->FrameState(bailout_id, kPushOutput), parameters,
+                locals, stack, context_dummy, m.UndefinedConstant());
+  Node* call = m.CallJS0(function_node, receiver, context, state_node);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -367,10 +340,11 @@ TARGET_TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
   Node* parameters = m.NewNode(m.common()->StateValues(1), m.Int32Constant(43));
   Node* locals = m.NewNode(m.common()->StateValues(1), m.Int32Constant(44));
   Node* stack = m.NewNode(m.common()->StateValues(1), m.Int32Constant(45));
+
   Node* context_sentinel = m.Int32Constant(0);
-  Node* frame_state_before =
-      m.NewNode(m.common()->FrameState(bailout_id_before, kPushOutput),
-                parameters, locals, stack, context_sentinel);
+  Node* frame_state_before = m.NewNode(
+      m.common()->FrameState(bailout_id_before, kPushOutput), parameters,
+      locals, stack, context_sentinel, m.UndefinedConstant());
 
   // Build the call.
   Node* call = m.CallFunctionStub0(function_node, receiver, context,
@@ -423,6 +397,96 @@ TARGET_TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
 
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
 
+  EXPECT_EQ(index, s.size());
+}
+
+
+TARGET_TEST_F(InstructionSelectorTest,
+              CallFunctionStubDeoptRecursiveFrameState) {
+  StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
+                  kMachAnyTagged);
+
+  BailoutId bailout_id_before(42);
+  BailoutId bailout_id_parent(62);
+
+  // Some arguments for the call node.
+  Node* function_node = m.Parameter(0);
+  Node* receiver = m.Parameter(1);
+  Node* context = m.Int32Constant(66);
+
+  // Build frame state for the state before the call.
+  Node* parameters = m.NewNode(m.common()->StateValues(1), m.Int32Constant(63));
+  Node* locals = m.NewNode(m.common()->StateValues(1), m.Int32Constant(64));
+  Node* stack = m.NewNode(m.common()->StateValues(1), m.Int32Constant(65));
+  Node* frame_state_parent =
+      m.NewNode(m.common()->FrameState(bailout_id_parent, kIgnoreOutput),
+                parameters, locals, stack, context, m.UndefinedConstant());
+
+  Node* context2 = m.Int32Constant(46);
+  Node* parameters2 =
+      m.NewNode(m.common()->StateValues(1), m.Int32Constant(43));
+  Node* locals2 = m.NewNode(m.common()->StateValues(1), m.Int32Constant(44));
+  Node* stack2 = m.NewNode(m.common()->StateValues(1), m.Int32Constant(45));
+  Node* frame_state_before =
+      m.NewNode(m.common()->FrameState(bailout_id_before, kPushOutput),
+                parameters2, locals2, stack2, context2, frame_state_parent);
+
+  // Build the call.
+  Node* call = m.CallFunctionStub0(function_node, receiver, context2,
+                                   frame_state_before, CALL_AS_METHOD);
+
+  m.Return(call);
+
+  Stream s = m.Build(kAllExceptNopInstructions);
+
+  // Skip until kArchCallJSFunction.
+  size_t index = 0;
+  for (; index < s.size() && s[index]->arch_opcode() != kArchCallCodeObject;
+       index++) {
+  }
+  // Now we should have three instructions: call, return.
+  EXPECT_EQ(index + 2, s.size());
+
+  // Check the call instruction
+  const Instruction* call_instr = s[index++];
+  EXPECT_EQ(kArchCallCodeObject, call_instr->arch_opcode());
+  size_t num_operands =
+      1 +  // Code object.
+      1 +  // Frame state deopt id
+      4 +  // One input for each value in frame state + context.
+      4 +  // One input for each value in the parent frame state + context.
+      1 +  // Function.
+      1;   // Context.
+  EXPECT_EQ(num_operands, call_instr->InputCount());
+  // Code object.
+  EXPECT_TRUE(call_instr->InputAt(0)->IsImmediate());
+
+  // Deoptimization id.
+  int32_t deopt_id_before = s.ToInt32(call_instr->InputAt(1));
+  FrameStateDescriptor* desc_before =
+      s.GetFrameStateDescriptor(deopt_id_before);
+  EXPECT_EQ(bailout_id_before, desc_before->bailout_id());
+  EXPECT_EQ(1, desc_before->parameters_count());
+  EXPECT_EQ(1, desc_before->locals_count());
+  EXPECT_EQ(1, desc_before->stack_count());
+  EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(2)));
+  // Context:
+  EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(3)));
+  EXPECT_EQ(64, s.ToInt32(call_instr->InputAt(4)));
+  EXPECT_EQ(65, s.ToInt32(call_instr->InputAt(5)));
+  // Values from parent environment should follow.
+  EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(6)));
+  EXPECT_EQ(46, s.ToInt32(call_instr->InputAt(7)));
+  EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(8)));
+  EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(9)));
+
+  // Function.
+  EXPECT_EQ(function_node->id(), s.ToVreg(call_instr->InputAt(10)));
+  // Context.
+  EXPECT_EQ(context2->id(), s.ToVreg(call_instr->InputAt(11)));
+  // Continuation.
+
+  EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
   EXPECT_EQ(index, s.size());
 }
 

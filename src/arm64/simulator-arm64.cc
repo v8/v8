@@ -1140,17 +1140,16 @@ void Simulator::PrintProcessorState() {
 }
 
 
-void Simulator::PrintWrite(uint8_t* address,
-                           uint64_t value,
+void Simulator::PrintWrite(uintptr_t address, uint64_t value,
                            unsigned num_bytes) {
-  // The template is "# value -> address". The template is not directly used
-  // in the printf since compilers tend to struggle with the parametrized
-  // width (%0*).
-  const char* format = "# %s0x%0*" PRIx64 "%s -> %s0x%016" PRIx64 "%s\n";
+  // The template is "# value -> address". The format string is not used
+  // directly in the printf because some compilers struggle with the
+  // parametrized width field (%0*).
+  const char* format = "# %s0x%0*" PRIx64 "%s -> %s0x%016" PRIxPTR "%s\n";
   fprintf(stream_,
           format,
           clr_memory_value,
-          num_bytes * 2,  // The width in hexa characters.
+          num_bytes * 2,      // The width in hexadecimal characters.
           value,
           clr_normal,
           clr_memory_address,
@@ -1465,7 +1464,6 @@ void Simulator::LoadStoreHelper(Instruction* instr,
   unsigned srcdst = instr->Rt();
   unsigned addr_reg = instr->Rn();
   uint8_t* address = LoadStoreAddress(addr_reg, offset, addrmode);
-  int num_bytes = 1 << instr->SizeLS();
   uint8_t* stack = NULL;
 
   // Handle the writeback for stores before the store. On a CPU the writeback
@@ -1485,38 +1483,25 @@ void Simulator::LoadStoreHelper(Instruction* instr,
 
   LoadStoreOp op = static_cast<LoadStoreOp>(instr->Mask(LoadStoreOpMask));
   switch (op) {
-    case LDRB_w:
-    case LDRH_w:
-    case LDR_w:
-    case LDR_x: set_xreg(srcdst, MemoryRead(address, num_bytes)); break;
-    case STRB_w:
-    case STRH_w:
-    case STR_w:
-    case STR_x: MemoryWrite(address, xreg(srcdst), num_bytes); break;
-    case LDRSB_w: {
-      set_wreg(srcdst, ExtendValue<int32_t>(MemoryRead8(address), SXTB));
-      break;
-    }
-    case LDRSB_x: {
-      set_xreg(srcdst, ExtendValue<int64_t>(MemoryRead8(address), SXTB));
-      break;
-    }
-    case LDRSH_w: {
-      set_wreg(srcdst, ExtendValue<int32_t>(MemoryRead16(address), SXTH));
-      break;
-    }
-    case LDRSH_x: {
-      set_xreg(srcdst, ExtendValue<int64_t>(MemoryRead16(address), SXTH));
-      break;
-    }
-    case LDRSW_x: {
-      set_xreg(srcdst, ExtendValue<int64_t>(MemoryRead32(address), SXTW));
-      break;
-    }
-    case LDR_s: set_sreg(srcdst, MemoryReadFP32(address)); break;
-    case LDR_d: set_dreg(srcdst, MemoryReadFP64(address)); break;
-    case STR_s: MemoryWriteFP32(address, sreg(srcdst)); break;
-    case STR_d: MemoryWriteFP64(address, dreg(srcdst)); break;
+    case LDRB_w:  set_wreg(srcdst, MemoryRead<uint8_t>(address)); break;
+    case LDRH_w:  set_wreg(srcdst, MemoryRead<uint16_t>(address)); break;
+    case LDR_w:   set_wreg(srcdst, MemoryRead<uint32_t>(address)); break;
+    case LDR_x:   set_xreg(srcdst, MemoryRead<uint64_t>(address)); break;
+    case LDRSB_w: set_wreg(srcdst, MemoryRead<int8_t>(address)); break;
+    case LDRSH_w: set_wreg(srcdst, MemoryRead<int16_t>(address)); break;
+    case LDRSB_x: set_xreg(srcdst, MemoryRead<int8_t>(address)); break;
+    case LDRSH_x: set_xreg(srcdst, MemoryRead<int16_t>(address)); break;
+    case LDRSW_x: set_xreg(srcdst, MemoryRead<int32_t>(address)); break;
+    case LDR_s:   set_sreg(srcdst, MemoryRead<float>(address)); break;
+    case LDR_d:   set_dreg(srcdst, MemoryRead<double>(address)); break;
+
+    case STRB_w:  MemoryWrite<uint8_t>(address, wreg(srcdst)); break;
+    case STRH_w:  MemoryWrite<uint16_t>(address, wreg(srcdst)); break;
+    case STR_w:   MemoryWrite<uint32_t>(address, wreg(srcdst)); break;
+    case STR_x:   MemoryWrite<uint64_t>(address, xreg(srcdst)); break;
+    case STR_s:   MemoryWrite<float>(address, sreg(srcdst)); break;
+    case STR_d:   MemoryWrite<double>(address, dreg(srcdst)); break;
+
     default: UNIMPLEMENTED();
   }
 
@@ -1590,49 +1575,48 @@ void Simulator::LoadStorePairHelper(Instruction* instr,
 
   switch (op) {
     case LDP_w: {
-      set_wreg(rt, MemoryRead32(address));
-      set_wreg(rt2, MemoryRead32(address + kWRegSize));
+      set_wreg(rt, MemoryRead<uint32_t>(address));
+      set_wreg(rt2, MemoryRead<uint32_t>(address + kWRegSize));
       break;
     }
     case LDP_s: {
-      set_sreg(rt, MemoryReadFP32(address));
-      set_sreg(rt2, MemoryReadFP32(address + kSRegSize));
+      set_sreg(rt, MemoryRead<float>(address));
+      set_sreg(rt2, MemoryRead<float>(address + kSRegSize));
       break;
     }
     case LDP_x: {
-      set_xreg(rt, MemoryRead64(address));
-      set_xreg(rt2, MemoryRead64(address + kXRegSize));
+      set_xreg(rt, MemoryRead<uint64_t>(address));
+      set_xreg(rt2, MemoryRead<uint64_t>(address + kXRegSize));
       break;
     }
     case LDP_d: {
-      set_dreg(rt, MemoryReadFP64(address));
-      set_dreg(rt2, MemoryReadFP64(address + kDRegSize));
+      set_dreg(rt, MemoryRead<double>(address));
+      set_dreg(rt2, MemoryRead<double>(address + kDRegSize));
       break;
     }
     case LDPSW_x: {
-      set_xreg(rt, ExtendValue<int64_t>(MemoryRead32(address), SXTW));
-      set_xreg(rt2, ExtendValue<int64_t>(
-               MemoryRead32(address + kWRegSize), SXTW));
+      set_xreg(rt, MemoryRead<int32_t>(address));
+      set_xreg(rt2, MemoryRead<int32_t>(address + kWRegSize));
       break;
     }
     case STP_w: {
-      MemoryWrite32(address, wreg(rt));
-      MemoryWrite32(address + kWRegSize, wreg(rt2));
+      MemoryWrite<uint32_t>(address, wreg(rt));
+      MemoryWrite<uint32_t>(address + kWRegSize, wreg(rt2));
       break;
     }
     case STP_s: {
-      MemoryWriteFP32(address, sreg(rt));
-      MemoryWriteFP32(address + kSRegSize, sreg(rt2));
+      MemoryWrite<float>(address, sreg(rt));
+      MemoryWrite<float>(address + kSRegSize, sreg(rt2));
       break;
     }
     case STP_x: {
-      MemoryWrite64(address, xreg(rt));
-      MemoryWrite64(address + kXRegSize, xreg(rt2));
+      MemoryWrite<uint64_t>(address, xreg(rt));
+      MemoryWrite<uint64_t>(address + kXRegSize, xreg(rt2));
       break;
     }
     case STP_d: {
-      MemoryWriteFP64(address, dreg(rt));
-      MemoryWriteFP64(address + kDRegSize, dreg(rt2));
+      MemoryWrite<double>(address, dreg(rt));
+      MemoryWrite<double>(address + kDRegSize, dreg(rt2));
       break;
     }
     default: UNREACHABLE();
@@ -1661,10 +1645,10 @@ void Simulator::VisitLoadLiteral(Instruction* instr) {
   unsigned rt = instr->Rt();
 
   switch (instr->Mask(LoadLiteralMask)) {
-    case LDR_w_lit: set_wreg(rt, MemoryRead32(address));  break;
-    case LDR_x_lit: set_xreg(rt, MemoryRead64(address));  break;
-    case LDR_s_lit: set_sreg(rt, MemoryReadFP32(address));  break;
-    case LDR_d_lit: set_dreg(rt, MemoryReadFP64(address));  break;
+    case LDR_w_lit: set_wreg(rt, MemoryRead<uint32_t>(address)); break;
+    case LDR_x_lit: set_xreg(rt, MemoryRead<uint64_t>(address)); break;
+    case LDR_s_lit: set_sreg(rt, MemoryRead<float>(address)); break;
+    case LDR_d_lit: set_dreg(rt, MemoryRead<double>(address)); break;
     default: UNREACHABLE();
   }
 }
@@ -1710,76 +1694,6 @@ void Simulator::CheckMemoryAccess(uint8_t* address, uint8_t* stack) {
     fprintf(stream_, "\n");
     FATAL("ACCESS BELOW STACK POINTER");
   }
-}
-
-
-uint64_t Simulator::MemoryRead(uint8_t* address, unsigned num_bytes) {
-  DCHECK(address != NULL);
-  DCHECK((num_bytes > 0) && (num_bytes <= sizeof(uint64_t)));
-  uint64_t read = 0;
-  memcpy(&read, address, num_bytes);
-  return read;
-}
-
-
-uint8_t Simulator::MemoryRead8(uint8_t* address) {
-  return MemoryRead(address, sizeof(uint8_t));
-}
-
-
-uint16_t Simulator::MemoryRead16(uint8_t* address) {
-  return MemoryRead(address, sizeof(uint16_t));
-}
-
-
-uint32_t Simulator::MemoryRead32(uint8_t* address) {
-  return MemoryRead(address, sizeof(uint32_t));
-}
-
-
-float Simulator::MemoryReadFP32(uint8_t* address) {
-  return rawbits_to_float(MemoryRead32(address));
-}
-
-
-uint64_t Simulator::MemoryRead64(uint8_t* address) {
-  return MemoryRead(address, sizeof(uint64_t));
-}
-
-
-double Simulator::MemoryReadFP64(uint8_t* address) {
-  return rawbits_to_double(MemoryRead64(address));
-}
-
-
-void Simulator::MemoryWrite(uint8_t* address,
-                            uint64_t value,
-                            unsigned num_bytes) {
-  DCHECK(address != NULL);
-  DCHECK((num_bytes > 0) && (num_bytes <= sizeof(uint64_t)));
-
-  LogWrite(address, value, num_bytes);
-  memcpy(address, &value, num_bytes);
-}
-
-
-void Simulator::MemoryWrite32(uint8_t* address, uint32_t value) {
-  MemoryWrite(address, value, sizeof(uint32_t));
-}
-
-
-void Simulator::MemoryWriteFP32(uint8_t* address, float value) {
-  MemoryWrite32(address, float_to_rawbits(value));
-}
-
-
-void Simulator::MemoryWrite64(uint8_t* address, uint64_t value) {
-  MemoryWrite(address, value, sizeof(uint64_t));
-}
-
-
-void Simulator::MemoryWriteFP64(uint8_t* address, double value) {
-  MemoryWrite64(address, double_to_rawbits(value));
 }
 
 

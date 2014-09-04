@@ -318,13 +318,14 @@ class Step(GitRecipesMixin):
       got_exception = False
       try:
         result = cb()
-      except NoRetryException, e:
+      except NoRetryException as e:
         raise e
-      except Exception:
-        got_exception = True
+      except Exception as e:
+        got_exception = e
       if got_exception or retry_on(result):
         if not wait_plan:  # pragma: no cover
-          raise Exception("Retried too often. Giving up.")
+          raise Exception("Retried too often. Giving up. Reason: %s" %
+                          str(got_exception))
         wait_time = wait_plan.pop()
         print "Waiting for %f seconds." % wait_time
         self._side_effect_handler.Sleep(wait_time)
@@ -470,13 +471,14 @@ class Step(GitRecipesMixin):
     except GitFailedException:
       self.WaitForResolvingConflicts(patch_file)
 
-  def FindLastTrunkPush(self, parent_hash="", include_patches=False):
+  def FindLastTrunkPush(
+      self, parent_hash="", branch="", include_patches=False):
     push_pattern = "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*"
     if not include_patches:
       # Non-patched versions only have three numbers followed by the "(based
       # on...) comment."
       push_pattern += " (based"
-    branch = "" if parent_hash else "svn/trunk"
+    branch = "" if parent_hash else branch or "svn/trunk"
     return self.GitLog(n=1, format="%H", grep=push_pattern,
                        parent_hash=parent_hash, branch=branch)
 
@@ -592,6 +594,8 @@ class ScriptsBase(object):
     parser = argparse.ArgumentParser(description=self._Description())
     parser.add_argument("-a", "--author", default="",
                         help="The author email used for rietveld.")
+    parser.add_argument("--dry-run", default=False, action="store_true",
+                        help="Perform only read-only actions.")
     parser.add_argument("-g", "--googlers-mapping",
                         help="Path to the script mapping google accounts.")
     parser.add_argument("-r", "--reviewer", default="",

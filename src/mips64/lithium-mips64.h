@@ -1836,17 +1836,17 @@ class LCallJSFunction FINAL : public LTemplateInstruction<1, 1, 0> {
 
 class LCallWithDescriptor FINAL : public LTemplateResultInstruction<1> {
  public:
-  LCallWithDescriptor(const CallInterfaceDescriptor* descriptor,
+  LCallWithDescriptor(CallInterfaceDescriptor descriptor,
                       const ZoneList<LOperand*>& operands, Zone* zone)
       : descriptor_(descriptor),
-        inputs_(descriptor->GetRegisterParameterCount() + 1, zone) {
-    DCHECK(descriptor->GetRegisterParameterCount() + 1 == operands.length());
+        inputs_(descriptor.GetRegisterParameterCount() + 1, zone) {
+    DCHECK(descriptor.GetRegisterParameterCount() + 1 == operands.length());
     inputs_.AddAll(operands, zone);
   }
 
   LOperand* target() const { return inputs_[0]; }
 
-  const CallInterfaceDescriptor* descriptor() { return descriptor_; }
+  const CallInterfaceDescriptor descriptor() { return descriptor_; }
 
  private:
   DECLARE_CONCRETE_INSTRUCTION(CallWithDescriptor, "call-with-descriptor")
@@ -1856,7 +1856,7 @@ class LCallWithDescriptor FINAL : public LTemplateResultInstruction<1> {
 
   int arity() const { return hydrogen()->argument_count() - 1; }
 
-  const CallInterfaceDescriptor* descriptor_;
+  CallInterfaceDescriptor descriptor_;
   ZoneList<LOperand*> inputs_;
 
   // Iterator support.

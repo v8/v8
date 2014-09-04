@@ -76,7 +76,10 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
   // Verify that frame state has been inserted for the nodes that need it.
   if (OperatorProperties::HasFrameStateInput(node->op())) {
     Node* frame_state = NodeProperties::GetFrameStateInput(node);
-    CHECK(frame_state->opcode() == IrOpcode::kFrameState);
+    CHECK(frame_state->opcode() == IrOpcode::kFrameState ||
+          // kFrameState uses undefined as a sentinel.
+          (node->opcode() == IrOpcode::kFrameState &&
+           frame_state->opcode() == IrOpcode::kHeapConstant));
     CHECK(IsDefUseChainLinkPresent(frame_state, node));
     CHECK(IsUseDefChainLinkPresent(frame_state, node));
   }

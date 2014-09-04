@@ -506,7 +506,8 @@ TEST(JSToBoolean) {
 TEST(JSToBoolean_replacement) {
   JSTypedLoweringTester R;
 
-  Type* types[] = {Type::Null(), Type::Undefined(), Type::Boolean(),
+  Type* types[] = {Type::Null(),             Type::Undefined(),
+                   Type::Boolean(),          Type::Number(),
                    Type::DetectableObject(), Type::Undetectable()};
 
   for (size_t i = 0; i < arraysize(types); i++) {
@@ -521,6 +522,8 @@ TEST(JSToBoolean_replacement) {
 
     if (types[i]->Is(Type::Boolean())) {
       CHECK_EQ(n, r);
+    } else if (types[i]->Is(Type::Number())) {
+      CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
     } else {
       CHECK_EQ(IrOpcode::kHeapConstant, r->opcode());
     }

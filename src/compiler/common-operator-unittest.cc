@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/compiler-unittests.h"
 #include "src/compiler/operator-properties-inl.h"
+#include "src/test/test-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -12,7 +12,7 @@ namespace compiler {
 
 namespace {
 
-class CommonOperatorTest : public CompilerTest {
+class CommonOperatorTest : public TestWithZone {
  public:
   CommonOperatorTest() : common_(zone()) {}
   virtual ~CommonOperatorTest() {}

@@ -2,20 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_UNITTESTS_COMPILER_UNITTESTS_H_
-#define V8_COMPILER_UNITTESTS_COMPILER_UNITTESTS_H_
+#ifndef V8_COMPILER_COMPILER_TEST_UTILS_H_
+#define V8_COMPILER_COMPILER_TEST_UTILS_H_
 
-#include "include/v8.h"
-#include "src/zone.h"
-#include "testing/gtest-support.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class Factory;
-
-
 namespace compiler {
 
 // The TARGET_TEST(Case, Name) macro works just like
@@ -57,34 +50,8 @@ namespace compiler {
 #define TARGET_TYPED_TEST(Case, Name) TYPED_TEST(Case, DISABLED_##Name)
 #endif
 
-
-class CompilerTest : public ::testing::Test {
- public:
-  CompilerTest();
-  virtual ~CompilerTest();
-
-  Factory* factory() const;
-  Isolate* isolate() const { return reinterpret_cast<Isolate*>(isolate_); }
-  Zone* zone() { return &zone_; }
-
-  static void SetUpTestCase();
-  static void TearDownTestCase();
-
- private:
-  static v8::Isolate* isolate_;
-  v8::Isolate::Scope isolate_scope_;
-  v8::HandleScope handle_scope_;
-  v8::Context::Scope context_scope_;
-  Zone zone_;
-};
-
-
-template <typename T>
-class CompilerTestWithParam : public CompilerTest,
-                              public ::testing::WithParamInterface<T> {};
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_UNITTESTS_COMPILER_UNITTESTS_H_
+#endif  // V8_COMPILER_COMPILER_TEST_UTILS_H_

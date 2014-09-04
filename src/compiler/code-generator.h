@@ -91,6 +91,10 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
                                                 int frame_state_offset);
   int BuildTranslation(Instruction* instr, int frame_state_offset,
                        OutputFrameStateCombine state_combine);
+  void BuildTranslationForFrameStateDescriptor(
+      FrameStateDescriptor* descriptor, Instruction* instr,
+      Translation* translation, int frame_state_offset,
+      OutputFrameStateCombine state_combine);
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op);
   void AddNopForSmiCodeInlining();

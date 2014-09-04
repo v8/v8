@@ -9,18 +9,18 @@
 #include <set>
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/compiler/compiler-unittests.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/raw-machine-assembler.h"
+#include "src/test/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class InstructionSelectorTest : public CompilerTest {
+class InstructionSelectorTest : public TestWithContext, public TestWithZone {
  public:
   InstructionSelectorTest();
-  virtual ~InstructionSelectorTest() {}
+  virtual ~InstructionSelectorTest();
 
   base::RandomNumberGenerator* rng() { return &rng_; }
 
@@ -36,28 +36,28 @@ class InstructionSelectorTest : public CompilerTest {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
         : RawMachineAssembler(new (test->zone()) Graph(test->zone()),
-                              CallDescriptorBuilder(test->zone(), return_type)),
+                              MakeMachineSignature(test->zone(), return_type)),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type)
-        : RawMachineAssembler(new (test->zone()) Graph(test->zone()),
-                              CallDescriptorBuilder(test->zone(), return_type,
-                                                    parameter0_type)),
+        : RawMachineAssembler(
+              new (test->zone()) Graph(test->zone()),
+              MakeMachineSignature(test->zone(), return_type, parameter0_type)),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
         : RawMachineAssembler(
               new (test->zone()) Graph(test->zone()),
-              CallDescriptorBuilder(test->zone(), return_type, parameter0_type,
-                                    parameter1_type)),
+              MakeMachineSignature(test->zone(), return_type, parameter0_type,
+                                   parameter1_type)),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type,
                   MachineType parameter2_type)
         : RawMachineAssembler(
               new (test->zone()) Graph(test->zone()),
-              CallDescriptorBuilder(test->zone(), return_type, parameter0_type,
-                                    parameter1_type, parameter2_type)),
+              MakeMachineSignature(test->zone(), return_type, parameter0_type,
+                                   parameter1_type, parameter2_type)),
           test_(test) {}
 
     Stream Build(CpuFeature feature) {
@@ -73,38 +73,41 @@ class InstructionSelectorTest : public CompilerTest {
                  StreamBuilderMode mode = kTargetInstructions);
 
    private:
-    MachineCallDescriptorBuilder* CallDescriptorBuilder(
-        Zone* zone, MachineType return_type) {
-      return new (zone) MachineCallDescriptorBuilder(return_type, 0, NULL);
+    MachineSignature* MakeMachineSignature(Zone* zone,
+                                           MachineType return_type) {
+      MachineSignature::Builder builder(zone, 1, 0);
+      builder.AddReturn(return_type);
+      return builder.Build();
     }
 
-    MachineCallDescriptorBuilder* CallDescriptorBuilder(
-        Zone* zone, MachineType return_type, MachineType parameter0_type) {
-      MachineType* parameter_types = zone->NewArray<MachineType>(1);
-      parameter_types[0] = parameter0_type;
-      return new (zone)
-          MachineCallDescriptorBuilder(return_type, 1, parameter_types);
+    MachineSignature* MakeMachineSignature(Zone* zone, MachineType return_type,
+                                           MachineType parameter0_type) {
+      MachineSignature::Builder builder(zone, 1, 1);
+      builder.AddReturn(return_type);
+      builder.AddParam(parameter0_type);
+      return builder.Build();
     }
 
-    MachineCallDescriptorBuilder* CallDescriptorBuilder(
-        Zone* zone, MachineType return_type, MachineType parameter0_type,
-        MachineType parameter1_type) {
-      MachineType* parameter_types = zone->NewArray<MachineType>(2);
-      parameter_types[0] = parameter0_type;
-      parameter_types[1] = parameter1_type;
-      return new (zone)
-          MachineCallDescriptorBuilder(return_type, 2, parameter_types);
+    MachineSignature* MakeMachineSignature(Zone* zone, MachineType return_type,
+                                           MachineType parameter0_type,
+                                           MachineType parameter1_type) {
+      MachineSignature::Builder builder(zone, 1, 2);
+      builder.AddReturn(return_type);
+      builder.AddParam(parameter0_type);
+      builder.AddParam(parameter1_type);
+      return builder.Build();
     }
 
-    MachineCallDescriptorBuilder* CallDescriptorBuilder(
-        Zone* zone, MachineType return_type, MachineType parameter0_type,
-        MachineType parameter1_type, MachineType parameter2_type) {
-      MachineType* parameter_types = zone->NewArray<MachineType>(3);
-      parameter_types[0] = parameter0_type;
-      parameter_types[1] = parameter1_type;
-      parameter_types[2] = parameter2_type;
-      return new (zone)
-          MachineCallDescriptorBuilder(return_type, 3, parameter_types);
+    MachineSignature* MakeMachineSignature(Zone* zone, MachineType return_type,
+                                           MachineType parameter0_type,
+                                           MachineType parameter1_type,
+                                           MachineType parameter2_type) {
+      MachineSignature::Builder builder(zone, 1, 3);
+      builder.AddReturn(return_type);
+      builder.AddParam(parameter0_type);
+      builder.AddParam(parameter1_type);
+      builder.AddParam(parameter2_type);
+      return builder.Build();
     }
 
    private:

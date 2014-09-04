@@ -144,7 +144,8 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
 
 Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
                                          Handle<Name> key) {
-  LookupIterator it(object, key, LookupIterator::PROTOTYPE_CHAIN_PROPERTY);
+  LookupIterator it(object, key,
+                    LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   return GetDataProperty(&it);
 }
 
@@ -152,11 +153,13 @@ Handle<Object> JSObject::GetDataProperty(Handle<JSObject> object,
 Handle<Object> JSObject::GetDataProperty(LookupIterator* it) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
-      case LookupIterator::ACCESS_CHECK:
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
         UNREACHABLE();
+      case LookupIterator::ACCESS_CHECK:
+        if (it->HasAccess(v8::ACCESS_GET)) continue;
+      // Fall through.
       case LookupIterator::JSPROXY:
         it->NotFound();
         return it->isolate()->factory()->undefined_value();
@@ -3787,7 +3790,8 @@ void JSObject::WriteToField(int descriptor, Object* value) {
 void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
-  LookupIterator it(object, name, LookupIterator::OWN_PROPERTY);
+  LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
 #ifdef DEBUG
   uint32_t index;
   DCHECK(!object->IsJSProxy());
@@ -4687,11 +4691,9 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 
 bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
   Handle<Name> hidden = object->GetIsolate()->factory()->hidden_string();
-  LookupIterator it(object, hidden, LookupIterator::OWN_PROPERTY);
-  Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
-  // Cannot get an exception since the hidden_string isn't accessible to JS.
-  DCHECK(maybe.has_value);
-  return maybe.value != ABSENT;
+  LookupIterator it(object, hidden, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
+  return it.IsFound() && it.HasProperty();
 }
 
 
@@ -4722,7 +4724,8 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
   } else {
     Isolate* isolate = GetIsolate();
     LookupIterator it(handle(this), isolate->factory()->hidden_string(),
-                      LookupIterator::OWN_PROPERTY);
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
+    CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
     if (it.IsFound() && it.HasProperty()) {
       DCHECK_EQ(LookupIterator::DATA, it.property_kind());
       return *it.GetDataValue();
@@ -6163,7 +6166,8 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
            setter->IsNull());
     // At least one of the accessors needs to be a new value.
     DCHECK(!getter->IsNull() || !setter->IsNull());
-    LookupIterator it(object, name, LookupIterator::OWN_PROPERTY);
+    LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
+    CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
     if (!getter->IsNull()) {
       it.TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
     }
@@ -10902,7 +10906,7 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
     }
     if (is_compare_ic_stub()) {
       DCHECK(CodeStub::GetMajorKey(this) == CodeStub::CompareIC);
-      ICCompareStub stub(stub_key());
+      CompareICStub stub(stub_key());
       os << "compare_state = " << CompareIC::GetStateName(stub.left()) << "*"
          << CompareIC::GetStateName(stub.right()) << " -> "
          << CompareIC::GetStateName(stub.state()) << "\n";
@@ -12843,7 +12847,8 @@ bool JSArray::WouldChangeReadOnlyLength(Handle<JSArray> array,
   CHECK(array->length()->ToArrayIndex(&length));
   if (length <= index) {
     LookupIterator it(array, array->GetIsolate()->factory()->length_string(),
-                      LookupIterator::OWN_PROPERTY);
+                      LookupIterator::OWN_SKIP_INTERCEPTOR);
+    CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
     CHECK(it.IsFound());
     CHECK(it.HasProperty());
     return it.IsReadOnly();

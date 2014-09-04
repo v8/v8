@@ -34,7 +34,7 @@ OStream& operator<<(OStream& os, const CallDescriptor::Kind& k) {
 OStream& operator<<(OStream& os, const CallDescriptor& d) {
   // TODO(svenpanne) Output properties etc. and be less cryptic.
   return os << d.kind() << ":" << d.debug_name() << ":r" << d.ReturnCount()
-            << "p" << d.ParameterCount() << "i" << d.InputCount() << "f"
+            << "j" << d.JSParameterCount() << "i" << d.InputCount() << "f"
             << d.FrameStateCount();
 }
 
@@ -155,9 +155,8 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
 }
 
 
-CallDescriptor* Linkage::GetSimplifiedCDescriptor(
-    Zone* zone, int num_params, MachineType return_type,
-    const MachineType* param_types) {
+CallDescriptor* Linkage::GetSimplifiedCDescriptor(Zone* zone,
+                                                  MachineSignature* sig) {
   UNIMPLEMENTED();
   return NULL;
 }

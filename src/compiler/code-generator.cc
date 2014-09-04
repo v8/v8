@@ -301,11 +301,16 @@ FrameStateDescriptor* CodeGenerator::GetFrameStateDescriptor(
 }
 
 
-int CodeGenerator::BuildTranslation(Instruction* instr, int frame_state_offset,
-                                    OutputFrameStateCombine state_combine) {
-  FrameStateDescriptor* descriptor =
-      GetFrameStateDescriptor(instr, frame_state_offset);
-  frame_state_offset++;
+void CodeGenerator::BuildTranslationForFrameStateDescriptor(
+    FrameStateDescriptor* descriptor, Instruction* instr,
+    Translation* translation, int frame_state_offset,
+    OutputFrameStateCombine state_combine) {
+  // Outer-most state must be added to translation first.
+  if (descriptor->outer_state() != NULL) {
+    BuildTranslationForFrameStateDescriptor(
+        descriptor->outer_state(), instr, translation,
+        frame_state_offset + descriptor->size(), kIgnoreOutput);
+  }
 
   int height = descriptor->size() - descriptor->parameters_count();
   switch (state_combine) {
@@ -316,24 +321,35 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int frame_state_offset,
       break;
   }
 
-
-  Translation translation(&translations_, 1, 1, zone());
-  translation.BeginJSFrame(descriptor->bailout_id(),
-                           Translation::kSelfLiteralId, height);
+  translation->BeginJSFrame(descriptor->bailout_id(),
+                            Translation::kSelfLiteralId, height);
 
   for (int i = 0; i < descriptor->size(); i++) {
-    AddTranslationForOperand(&translation, instr,
+    AddTranslationForOperand(translation, instr,
                              instr->InputAt(i + frame_state_offset));
   }
 
   switch (state_combine) {
     case kPushOutput:
       DCHECK(instr->OutputCount() == 1);
-      AddTranslationForOperand(&translation, instr, instr->OutputAt(0));
+      AddTranslationForOperand(translation, instr, instr->OutputAt(0));
       break;
     case kIgnoreOutput:
       break;
   }
+}
+
+
+int CodeGenerator::BuildTranslation(Instruction* instr, int frame_state_offset,
+                                    OutputFrameStateCombine state_combine) {
+  FrameStateDescriptor* descriptor =
+      GetFrameStateDescriptor(instr, frame_state_offset);
+  frame_state_offset++;
+
+  int frame_count = descriptor->GetFrameCount();
+  Translation translation(&translations_, frame_count, frame_count, zone());
+  BuildTranslationForFrameStateDescriptor(descriptor, instr, &translation,
+                                          frame_state_offset, state_combine);
 
   int deoptimization_id = static_cast<int>(deoptimization_states_.size());
 

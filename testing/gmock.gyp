@@ -47,6 +47,13 @@
       'export_dependent_settings': [
         'gtest.gyp:gtest',
       ],
+      'conditions': [
+        ['want_separate_host_toolset==1', {
+          'toolsets': ['host', 'target'],
+        }, {
+          'toolsets': ['target'],
+        }],
+      ],
     },
     {
       'target_name': 'gmock_main',

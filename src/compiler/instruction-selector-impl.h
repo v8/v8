@@ -48,8 +48,9 @@ class OperandGenerator {
     return ConstantOperand::Create(node->id(), zone());
   }
 
-  InstructionOperand* DefineAsLocation(Node* node, LinkageLocation location) {
-    return Define(node, ToUnallocatedOperand(location));
+  InstructionOperand* DefineAsLocation(Node* node, LinkageLocation location,
+                                       MachineType type) {
+    return Define(node, ToUnallocatedOperand(location, type));
   }
 
   InstructionOperand* Use(Node* node) {
@@ -94,8 +95,9 @@ class OperandGenerator {
     return ImmediateOperand::Create(index, zone());
   }
 
-  InstructionOperand* UseLocation(Node* node, LinkageLocation location) {
-    return Use(node, ToUnallocatedOperand(location));
+  InstructionOperand* UseLocation(Node* node, LinkageLocation location,
+                                  MachineType type) {
+    return Use(node, ToUnallocatedOperand(location, type));
   }
 
   InstructionOperand* TempRegister() {
@@ -174,7 +176,8 @@ class OperandGenerator {
     return operand;
   }
 
-  UnallocatedOperand* ToUnallocatedOperand(LinkageLocation location) {
+  UnallocatedOperand* ToUnallocatedOperand(LinkageLocation location,
+                                           MachineType type) {
     if (location.location_ == LinkageLocation::ANY_REGISTER) {
       return new (zone())
           UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER);
@@ -183,7 +186,7 @@ class OperandGenerator {
       return new (zone()) UnallocatedOperand(UnallocatedOperand::FIXED_SLOT,
                                              location.location_);
     }
-    if (RepresentationOf(location.rep_) == kRepFloat64) {
+    if (RepresentationOf(type) == kRepFloat64) {
       return new (zone()) UnallocatedOperand(
           UnallocatedOperand::FIXED_DOUBLE_REGISTER, location.location_);
     }
@@ -338,14 +341,15 @@ struct CallBuffer {
   InstructionOperandVector instruction_args;
   NodeVector pushed_nodes;
 
-  int input_count() const { return descriptor->InputCount(); }
+  size_t input_count() const { return descriptor->InputCount(); }
 
-  int frame_state_count() const { return descriptor->FrameStateCount(); }
+  size_t frame_state_count() const { return descriptor->FrameStateCount(); }
 
-  int frame_state_value_count() const {
+  size_t frame_state_value_count() const {
     return (frame_state_descriptor == NULL)
                ? 0
-               : (frame_state_descriptor->size() + 1);
+               : (frame_state_descriptor->total_size() +
+                  1);  // Include deopt id.
   }
 };
 

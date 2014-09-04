@@ -20,32 +20,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class MachineCallDescriptorBuilder : public ZoneObject {
- public:
-  MachineCallDescriptorBuilder(MachineType return_type, int parameter_count,
-                               const MachineType* parameter_types)
-      : return_type_(return_type),
-        parameter_count_(parameter_count),
-        parameter_types_(parameter_types) {}
-
-  int parameter_count() const { return parameter_count_; }
-  const MachineType* parameter_types() const { return parameter_types_; }
-
-  CallDescriptor* BuildCallDescriptor(Zone* zone) {
-    return Linkage::GetSimplifiedCDescriptor(zone, parameter_count_,
-                                             return_type_, parameter_types_);
-  }
-
- private:
-  const MachineType return_type_;
-  const int parameter_count_;
-  const MachineType* const parameter_types_;
-};
-
-
 #define ZONE() static_cast<NodeFactory*>(this)->zone()
 #define COMMON() static_cast<NodeFactory*>(this)->common()
 #define MACHINE() static_cast<NodeFactory*>(this)->machine()
+#define MACHINE_SIG() static_cast<NodeFactory*>(this)->machine_sig()
 #define NEW_NODE_0(op) static_cast<NodeFactory*>(this)->NewNode(op)
 #define NEW_NODE_1(op, a) static_cast<NodeFactory*>(this)->NewNode(op, a)
 #define NEW_NODE_2(op, a, b) static_cast<NodeFactory*>(this)->NewNode(op, a, b)
@@ -369,10 +347,10 @@ class MachineNodeFactory {
   // Call to C.
   Node* CallC(Node* function_address, MachineType return_type,
               MachineType* arg_types, Node** args, int n_args) {
-    CallDescriptor* descriptor = Linkage::GetSimplifiedCDescriptor(
-        ZONE(), n_args, return_type, arg_types);
-    Node** passed_args =
-        static_cast<Node**>(alloca((n_args + 1) * sizeof(args[0])));
+    Zone* zone = ZONE();
+    CallDescriptor* descriptor =
+        Linkage::GetSimplifiedCDescriptor(ZONE(), MACHINE_SIG());
+    Node** passed_args = zone->NewArray<Node*>(n_args + 1);
     passed_args[0] = function_address;
     for (int i = 0; i < n_args; ++i) {
       passed_args[i + 1] = args[i];

@@ -41,7 +41,7 @@ Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
   DCHECK(OperatorProperties::GetEffectInputCount(op) < 2);
 
   Node* result = NULL;
-  if (!has_context && !has_control && !has_effect) {
+  if (!has_context && !has_framestate && !has_control && !has_effect) {
     result = graph()->NewNode(op, value_input_count, value_inputs);
   } else {
     int input_count_with_deps = value_input_count;
@@ -49,8 +49,7 @@ Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
     if (has_framestate) ++input_count_with_deps;
     if (has_control) ++input_count_with_deps;
     if (has_effect) ++input_count_with_deps;
-    void* raw_buffer = alloca(kPointerSize * input_count_with_deps);
-    Node** buffer = reinterpret_cast<Node**>(raw_buffer);
+    Node** buffer = zone()->NewArray<Node*>(input_count_with_deps);
     memcpy(buffer, value_inputs, kPointerSize * value_input_count);
     Node** current_input = buffer + value_input_count;
     if (has_context) {
@@ -163,8 +162,7 @@ void StructuredGraphBuilder::Environment::PrepareForLoop() {
 
 Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
   Operator* phi_op = common()->Phi(count);
-  void* raw_buffer = alloca(kPointerSize * (count + 1));
-  Node** buffer = reinterpret_cast<Node**>(raw_buffer);
+  Node** buffer = zone()->NewArray<Node*>(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
   return graph()->NewNode(phi_op, count + 1, buffer);
@@ -175,8 +173,7 @@ Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
 Node* StructuredGraphBuilder::NewEffectPhi(int count, Node* input,
                                            Node* control) {
   Operator* phi_op = common()->EffectPhi(count);
-  void* raw_buffer = alloca(kPointerSize * (count + 1));
-  Node** buffer = reinterpret_cast<Node**>(raw_buffer);
+  Node** buffer = zone()->NewArray<Node*>(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
   return graph()->NewNode(phi_op, count + 1, buffer);

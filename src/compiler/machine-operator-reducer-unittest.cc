@@ -16,7 +16,6 @@ class MachineOperatorReducerTest : public GraphTest {
  public:
   explicit MachineOperatorReducerTest(int num_parameters = 2)
       : GraphTest(num_parameters), machine_(zone()) {}
-  virtual ~MachineOperatorReducerTest() {}
 
  protected:
   Reduction Reduce(Node* node) {

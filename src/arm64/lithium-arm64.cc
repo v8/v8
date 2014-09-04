@@ -1036,14 +1036,14 @@ LInstruction* LChunkBuilder::DoCallJSFunction(
 
 LInstruction* LChunkBuilder::DoCallWithDescriptor(
     HCallWithDescriptor* instr) {
-  const CallInterfaceDescriptor* descriptor = instr->descriptor();
+  CallInterfaceDescriptor descriptor = instr->descriptor();
 
   LOperand* target = UseRegisterOrConstantAtStart(instr->target());
   ZoneList<LOperand*> ops(instr->OperandCount(), zone());
   ops.Add(target, zone());
   for (int i = 1; i < instr->OperandCount(); i++) {
-    LOperand* op = UseFixed(instr->OperandAt(i),
-        descriptor->GetParameterRegister(i - 1));
+    LOperand* op =
+        UseFixed(instr->OperandAt(i), descriptor.GetParameterRegister(i - 1));
     ops.Add(op, zone());
   }
 
@@ -1665,10 +1665,10 @@ LInstruction* LChunkBuilder::DoLoadGlobalCell(HLoadGlobalCell* instr) {
 LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* global_object =
-      UseFixed(instr->global_object(), LoadConvention::ReceiverRegister());
+      UseFixed(instr->global_object(), LoadDescriptor::ReceiverRegister());
   LOperand* vector = NULL;
   if (FLAG_vector_ics) {
-    vector = FixedTemp(FullVectorLoadConvention::VectorRegister());
+    vector = FixedTemp(VectorLoadICDescriptor::VectorRegister());
   }
 
   LLoadGlobalGeneric* result =
@@ -1727,11 +1727,11 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
 LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* object =
-      UseFixed(instr->object(), LoadConvention::ReceiverRegister());
-  LOperand* key = UseFixed(instr->key(), LoadConvention::NameRegister());
+      UseFixed(instr->object(), LoadDescriptor::ReceiverRegister());
+  LOperand* key = UseFixed(instr->key(), LoadDescriptor::NameRegister());
   LOperand* vector = NULL;
   if (FLAG_vector_ics) {
-    vector = FixedTemp(FullVectorLoadConvention::VectorRegister());
+    vector = FixedTemp(VectorLoadICDescriptor::VectorRegister());
   }
 
   LInstruction* result =
@@ -1750,10 +1750,10 @@ LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
 LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* object =
-      UseFixed(instr->object(), LoadConvention::ReceiverRegister());
+      UseFixed(instr->object(), LoadDescriptor::ReceiverRegister());
   LOperand* vector = NULL;
   if (FLAG_vector_ics) {
-    vector = FixedTemp(FullVectorLoadConvention::VectorRegister());
+    vector = FixedTemp(VectorLoadICDescriptor::VectorRegister());
   }
 
   LInstruction* result =
@@ -2370,9 +2370,9 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
 LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* object =
-      UseFixed(instr->object(), StoreConvention::ReceiverRegister());
-  LOperand* key = UseFixed(instr->key(), StoreConvention::NameRegister());
-  LOperand* value = UseFixed(instr->value(), StoreConvention::ValueRegister());
+      UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
+  LOperand* key = UseFixed(instr->key(), StoreDescriptor::NameRegister());
+  LOperand* value = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
 
   DCHECK(instr->object()->representation().IsTagged());
   DCHECK(instr->key()->representation().IsTagged());
@@ -2415,8 +2415,8 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
 LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
   LOperand* context = UseFixed(instr->context(), cp);
   LOperand* object =
-      UseFixed(instr->object(), StoreConvention::ReceiverRegister());
-  LOperand* value = UseFixed(instr->value(), StoreConvention::ValueRegister());
+      UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
+  LOperand* value = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
 
   LInstruction* result = new(zone()) LStoreNamedGeneric(context, object, value);
   return MarkAsCall(result, instr);

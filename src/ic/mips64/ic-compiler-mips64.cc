@@ -40,7 +40,7 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
   // Polymorphic keyed stores may use the map register
   Register map_reg = scratch1();
   DCHECK(kind() != Code::KEYED_STORE_IC ||
-         map_reg.is(StoreConvention::MapRegister()));
+         map_reg.is(ElementTransitionAndStoreDescriptor::MapRegister()));
 
   int receiver_count = types->length();
   int number_of_handled_maps = 0;
@@ -108,8 +108,8 @@ Handle<Code> PropertyICCompiler::CompileKeyedStorePolymorphic(
 
 void PropertyICCompiler::GenerateRuntimeSetProperty(MacroAssembler* masm,
                                                     StrictMode strict_mode) {
-  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
-          StoreConvention::ValueRegister());
+  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
+          StoreDescriptor::ValueRegister());
 
   __ li(a0, Operand(Smi::FromInt(strict_mode)));
   __ Push(a0);

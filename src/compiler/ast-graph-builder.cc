@@ -227,7 +227,8 @@ Node* AstGraphBuilder::Environment::Checkpoint(
   Operator* op = common()->FrameState(ast_id, combine);
 
   return graph()->NewNode(op, parameters_node_, locals_node_, stack_node_,
-                          GetContext());
+                          GetContext(),
+                          builder()->jsgraph()->UndefinedConstant());
 }
 
 
@@ -1652,7 +1653,7 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 
 Node* AstGraphBuilder::ProcessArguments(Operator* op, int arity) {
   DCHECK(environment()->stack_height() >= arity);
-  Node** all = info()->zone()->NewArray<Node*>(arity);  // XXX: alloca?
+  Node** all = info()->zone()->NewArray<Node*>(arity);
   for (int i = arity - 1; i >= 0; --i) {
     all[i] = environment()->Pop();
   }

@@ -2321,9 +2321,9 @@ class HCallWithDescriptor FINAL : public HInstruction {
  public:
   static HCallWithDescriptor* New(Zone* zone, HValue* context, HValue* target,
                                   int argument_count,
-                                  const CallInterfaceDescriptor* descriptor,
+                                  CallInterfaceDescriptor descriptor,
                                   const Vector<HValue*>& operands) {
-    DCHECK(operands.length() == descriptor->GetEnvironmentLength());
+    DCHECK(operands.length() == descriptor.GetEnvironmentLength());
     HCallWithDescriptor* res =
         new(zone) HCallWithDescriptor(target, argument_count,
                                       descriptor, operands, zone);
@@ -2343,8 +2343,8 @@ class HCallWithDescriptor FINAL : public HInstruction {
       return Representation::Tagged();
     } else {
       int par_index = index - 1;
-      DCHECK(par_index < descriptor_->GetEnvironmentLength());
-      return descriptor_->GetParameterRepresentation(par_index);
+      DCHECK(par_index < descriptor_.GetEnvironmentLength());
+      return descriptor_.GetParameterRepresentation(par_index);
     }
   }
 
@@ -2362,7 +2362,7 @@ class HCallWithDescriptor FINAL : public HInstruction {
     return -argument_count_;
   }
 
-  const CallInterfaceDescriptor* descriptor() const { return descriptor_; }
+  CallInterfaceDescriptor descriptor() const { return descriptor_; }
 
   HValue* target() {
     return OperandAt(0);
@@ -2373,10 +2373,10 @@ class HCallWithDescriptor FINAL : public HInstruction {
  private:
   // The argument count includes the receiver.
   HCallWithDescriptor(HValue* target, int argument_count,
-                      const CallInterfaceDescriptor* descriptor,
+                      CallInterfaceDescriptor descriptor,
                       const Vector<HValue*>& operands, Zone* zone)
       : descriptor_(descriptor),
-        values_(descriptor->GetEnvironmentLength() + 1, zone) {
+        values_(descriptor.GetEnvironmentLength() + 1, zone) {
     argument_count_ = argument_count;
     AddOperand(target, zone);
     for (int i = 0; i < operands.length(); i++) {
@@ -2396,7 +2396,7 @@ class HCallWithDescriptor FINAL : public HInstruction {
     values_[index] = value;
   }
 
-  const CallInterfaceDescriptor* descriptor_;
+  CallInterfaceDescriptor descriptor_;
   ZoneList<HValue*> values_;
   int argument_count_;
 };
@@ -3489,6 +3489,14 @@ class HConstant FINAL : public HTemplateInstruction<0> {
                                          HInstruction* instruction) {
     return instruction->Append(HConstant::New(
         zone, context, value, representation));
+  }
+
+  virtual Handle<Map> GetMonomorphicJSObjectMap() OVERRIDE {
+    Handle<Object> object = object_.handle();
+    if (object->IsHeapObject()) {
+      return v8::internal::handle(HeapObject::cast(*object)->map());
+    }
+    return Handle<Map>();
   }
 
   static HConstant* CreateAndInsertBefore(Zone* zone,
@@ -5512,7 +5520,7 @@ class HAllocate FINAL : public HTemplateInstruction<2> {
     }
   }
 
-  virtual Handle<Map> GetMonomorphicJSObjectMap() {
+  virtual Handle<Map> GetMonomorphicJSObjectMap() OVERRIDE {
     return known_initial_map_;
   }
 

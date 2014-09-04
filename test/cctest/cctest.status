@@ -300,7 +300,7 @@
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
 
   # Test requires turbofan:
-  'test-simplified-lowering/LowerStringOps_to_call_and_wordeq': [SKIP],
+  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -319,7 +319,7 @@
   'test-serialize/DeserializeFromSecondSerialization': [SKIP],
 
   # Test requires turbofan:
-  'test-simplified-lowering/LowerStringOps_to_call_and_wordeq': [SKIP],
+  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
 }],  # 'arch == mips64el'
 
 ##############################################################################

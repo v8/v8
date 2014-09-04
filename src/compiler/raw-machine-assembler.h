@@ -45,8 +45,7 @@ class RawMachineAssembler : public GraphBuilder,
     DISALLOW_COPY_AND_ASSIGN(Label);
   };
 
-  RawMachineAssembler(Graph* graph,
-                      MachineCallDescriptorBuilder* call_descriptor_builder,
+  RawMachineAssembler(Graph* graph, MachineSignature* machine_sig,
                       MachineType word = kMachPtr);
   virtual ~RawMachineAssembler() {}
 
@@ -54,18 +53,18 @@ class RawMachineAssembler : public GraphBuilder,
   Zone* zone() const { return graph()->zone(); }
   MachineOperatorBuilder* machine() { return &machine_; }
   CommonOperatorBuilder* common() { return &common_; }
-  CallDescriptor* call_descriptor() const {
-    return call_descriptor_builder_->BuildCallDescriptor(zone());
-  }
-  int parameter_count() const {
-    return call_descriptor_builder_->parameter_count();
-  }
-  const MachineType* parameter_types() const {
-    return call_descriptor_builder_->parameter_types();
+  CallDescriptor* call_descriptor() const { return call_descriptor_; }
+  size_t parameter_count() const { return machine_sig_->parameter_count(); }
+  MachineSignature* machine_sig() const { return machine_sig_; }
+
+  Node* UndefinedConstant() {
+    PrintableUnique<Object> unique = PrintableUnique<Object>::CreateImmovable(
+        zone(), isolate()->factory()->undefined_value());
+    return NewNode(common()->HeapConstant(unique));
   }
 
   // Parameters.
-  Node* Parameter(int index);
+  Node* Parameter(size_t index);
 
   // Control flow.
   Label* Exit();
@@ -75,9 +74,10 @@ class RawMachineAssembler : public GraphBuilder,
   Node* CallFunctionStub0(Node* function, Node* receiver, Node* context,
                           Node* frame_state, CallFunctionFlags flags);
   // Call to a JS function with zero parameters.
-  Node* CallJS0(Node* function, Node* receiver, Node* frame_state);
+  Node* CallJS0(Node* function, Node* receiver, Node* context,
+                Node* frame_state);
   // Call to a runtime function with zero parameters.
-  Node* CallRuntime1(Runtime::FunctionId function, Node* arg0,
+  Node* CallRuntime1(Runtime::FunctionId function, Node* arg0, Node* context,
                      Node* frame_state);
   void Return(Node* value);
   void Bind(Label* label);
@@ -113,7 +113,8 @@ class RawMachineAssembler : public GraphBuilder,
   Schedule* schedule_;
   MachineOperatorBuilder machine_;
   CommonOperatorBuilder common_;
-  MachineCallDescriptorBuilder* call_descriptor_builder_;
+  MachineSignature* machine_sig_;
+  CallDescriptor* call_descriptor_;
   Node** parameters_;
   Label exit_label_;
   BasicBlock* current_block_;

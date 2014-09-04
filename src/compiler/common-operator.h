@@ -35,11 +35,14 @@ class ControlOperator FINAL : public Operator1<int> {
 
 class CallOperator FINAL : public Operator1<CallDescriptor*> {
  public:
+  // TODO(titzer): Operator still uses int, whereas CallDescriptor uses size_t.
   CallOperator(CallDescriptor* descriptor, const char* mnemonic)
       : Operator1<CallDescriptor*>(
             IrOpcode::kCall, descriptor->properties(),
-            descriptor->InputCount() + descriptor->FrameStateCount(),
-            descriptor->ReturnCount(), mnemonic, descriptor) {}
+            static_cast<int>(descriptor->InputCount() +
+                             descriptor->FrameStateCount()),
+            static_cast<int>(descriptor->ReturnCount()), mnemonic, descriptor) {
+  }
 
   virtual OStream& PrintParameter(OStream& os) const OVERRIDE {  // NOLINT
     return os << "[" << *parameter() << "]";

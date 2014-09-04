@@ -281,40 +281,10 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
 }
 
 
-void ElementHandlerCompiler::GenerateLoadDictionaryElement(
-    MacroAssembler* masm) {
-  // The return address is in ra
-  Label slow, miss;
-
-  Register key = LoadConvention::NameRegister();
-  Register receiver = LoadConvention::ReceiverRegister();
-  DCHECK(receiver.is(a1));
-  DCHECK(key.is(a2));
-
-  __ UntagAndJumpIfNotSmi(a6, key, &miss);
-  __ ld(a4, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  DCHECK(kSmiTagSize + kSmiShiftSize == 32);
-  __ LoadFromNumberDictionary(&slow, a4, key, v0, a6, a3, a5);
-  __ Ret();
-
-  // Slow case, key and receiver still unmodified.
-  __ bind(&slow);
-  __ IncrementCounter(
-      masm->isolate()->counters()->keyed_load_external_array_slow(), 1, a2, a3);
-
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
-
-  // Miss case, call the runtime.
-  __ bind(&miss);
-
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
-}
-
-
 void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   // Push receiver, key and value for runtime call.
-  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
-          StoreConvention::ValueRegister());
+  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
+          StoreDescriptor::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -326,8 +296,8 @@ void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
 
 void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
   // Push receiver, key and value for runtime call.
-  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
-          StoreConvention::ValueRegister());
+  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
+          StoreDescriptor::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -830,7 +800,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 
 
 Register NamedStoreHandlerCompiler::value() {
-  return StoreConvention::ValueRegister();
+  return StoreDescriptor::ValueRegister();
 }
 
 
@@ -841,7 +811,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   FrontendHeader(receiver(), name, &miss);
 
   // Get the value from the cell.
-  Register result = StoreConvention::ValueRegister();
+  Register result = StoreDescriptor::ValueRegister();
   __ li(result, Operand(cell));
   __ ld(result, FieldMemOperand(result, Cell::kValueOffset));
 

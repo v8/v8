@@ -491,10 +491,7 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
     Node* cmp = graph()->NewNode(simplified()->NumberEqual(), input,
                                  jsgraph()->ZeroConstant());
     Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
-    ReplaceEagerly(input, inv);
-    // TODO(titzer): Ugly. ReplaceEagerly smashes all uses. Smash it back here.
-    cmp->ReplaceInput(0, input);
-    return Changed(inv);
+    return ReplaceWith(inv);
   }
   // TODO(turbofan): js-typed-lowering of ToBoolean(string)
   return NoChange();

@@ -20,6 +20,7 @@
 #include "src/parser.h"
 #include "src/rewriter.h"
 
+#include "test/cctest/compiler/c-signature.h"
 #include "test/cctest/compiler/function-tester.h"
 
 using namespace v8::internal;
@@ -64,7 +65,9 @@ class DeoptCodegenTester {
 
   void GenerateCodeFromSchedule(Schedule* schedule) {
     OFStream os(stdout);
-    os << *schedule;
+    if (FLAG_trace_turbo) {
+      os << *schedule;
+    }
 
     // Initialize the codegen and generate code.
     Linkage* linkage = new (scope_->main_zone()) Linkage(&info);
@@ -74,20 +77,26 @@ class DeoptCodegenTester {
     InstructionSelector selector(code, &source_positions);
     selector.SelectInstructions();
 
-    os << "----- Instruction sequence before register allocation -----\n"
-       << *code;
+    if (FLAG_trace_turbo) {
+      os << "----- Instruction sequence before register allocation -----\n"
+         << *code;
+    }
 
     RegisterAllocator allocator(code);
     CHECK(allocator.Allocate());
 
-    os << "----- Instruction sequence after register allocation -----\n"
-       << *code;
+    if (FLAG_trace_turbo) {
+      os << "----- Instruction sequence after register allocation -----\n"
+         << *code;
+    }
 
     compiler::CodeGenerator generator(code);
     result_code = generator.GenerateCode();
 
-#ifdef DEBUG
-    result_code->Print();
+#ifdef OBJECT_PRINT
+    if (FLAG_print_opt_code || FLAG_trace_turbo) {
+      result_code->Print();
+    }
 #endif
   }
 
@@ -114,7 +123,6 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
   }
 
   Schedule* BuildGraphAndSchedule(Graph* graph) {
-    Isolate* isolate = info.isolate();
     CommonOperatorBuilder common(zone());
 
     // Manually construct a schedule for the function below:
@@ -122,17 +130,8 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
     //   deopt();
     // }
 
-    MachineType parameter_reps[] = {kMachAnyTagged};
-    MachineCallDescriptorBuilder descriptor_builder(kMachAnyTagged, 1,
-                                                    parameter_reps);
-
-    RawMachineAssembler m(graph, &descriptor_builder);
-
-    Handle<Object> undef_object =
-        Handle<Object>(isolate->heap()->undefined_value(), isolate);
-    PrintableUnique<Object> undef_constant =
-        PrintableUnique<Object>::CreateUninitialized(zone(), undef_object);
-    Node* undef_node = m.NewNode(common.HeapConstant(undef_constant));
+    CSignature1<Object*, Object*> sig;
+    RawMachineAssembler m(graph, &sig);
 
     Handle<JSFunction> deopt_function =
         NewFunction("function deopt() { %DeoptimizeFunction(foo); }; deopt");
@@ -140,18 +139,23 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
         PrintableUnique<Object>::CreateUninitialized(zone(), deopt_function);
     Node* deopt_fun_node = m.NewNode(common.HeapConstant(deopt_fun_constant));
 
+    Handle<Context> context(deopt_function->context(), CcTest::i_isolate());
+    PrintableUnique<Object> context_constant =
+        PrintableUnique<Object>::CreateUninitialized(zone(), context);
+    Node* context_node = m.NewNode(common.HeapConstant(context_constant));
 
     bailout_id = GetCallBailoutId();
-    Node* parameters = m.NewNode(common.StateValues(1), undef_node);
+    Node* parameters = m.NewNode(common.StateValues(1), m.UndefinedConstant());
     Node* locals = m.NewNode(common.StateValues(0));
     Node* stack = m.NewNode(common.StateValues(0));
 
-    Node* state_node = m.NewNode(common.FrameState(bailout_id, kIgnoreOutput),
-                                 parameters, locals, stack, undef_node);
+    Node* state_node =
+        m.NewNode(common.FrameState(bailout_id, kIgnoreOutput), parameters,
+                  locals, stack, m.UndefinedConstant(), m.UndefinedConstant());
 
-    m.CallJS0(deopt_fun_node, undef_node, state_node);
+    m.CallJS0(deopt_fun_node, m.UndefinedConstant(), context_node, state_node);
 
-    m.Return(undef_node);
+    m.Return(m.UndefinedConstant());
 
     // Schedule the graph:
     Schedule* schedule = m.Export();
@@ -230,7 +234,6 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
   }
 
   Schedule* BuildGraphAndSchedule(Graph* graph) {
-    Isolate* isolate = info.isolate();
     CommonOperatorBuilder common(zone());
 
     // Manually construct a schedule for the function below:
@@ -238,33 +241,31 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     //   %DeoptimizeFunction(foo);
     // }
 
-    MachineType parameter_reps[] = {kMachAnyTagged};
-    MachineCallDescriptorBuilder descriptor_builder(kMachAnyTagged, 2,
-                                                    parameter_reps);
-
-    RawMachineAssembler m(graph, &descriptor_builder);
-
-    Handle<Object> undef_object =
-        Handle<Object>(isolate->heap()->undefined_value(), isolate);
-    PrintableUnique<Object> undef_constant =
-        PrintableUnique<Object>::CreateUninitialized(zone(), undef_object);
-    Node* undef_node = m.NewNode(common.HeapConstant(undef_constant));
+    CSignature1<Object*, Object*> sig;
+    RawMachineAssembler m(graph, &sig);
 
     PrintableUnique<Object> this_fun_constant =
         PrintableUnique<Object>::CreateUninitialized(zone(), function);
     Node* this_fun_node = m.NewNode(common.HeapConstant(this_fun_constant));
 
+    Handle<Context> context(function->context(), CcTest::i_isolate());
+    PrintableUnique<Object> context_constant =
+        PrintableUnique<Object>::CreateUninitialized(zone(), context);
+    Node* context_node = m.NewNode(common.HeapConstant(context_constant));
+
     bailout_id = GetCallBailoutId();
-    Node* parameters = m.NewNode(common.StateValues(1), undef_node);
+    Node* parameters = m.NewNode(common.StateValues(1), m.UndefinedConstant());
     Node* locals = m.NewNode(common.StateValues(0));
     Node* stack = m.NewNode(common.StateValues(0));
 
-    Node* state_node = m.NewNode(common.FrameState(bailout_id, kIgnoreOutput),
-                                 parameters, locals, stack, undef_node);
+    Node* state_node =
+        m.NewNode(common.FrameState(bailout_id, kIgnoreOutput), parameters,
+                  locals, stack, m.UndefinedConstant(), m.UndefinedConstant());
 
-    m.CallRuntime1(Runtime::kDeoptimizeFunction, this_fun_node, state_node);
+    m.CallRuntime1(Runtime::kDeoptimizeFunction, this_fun_node, context_node,
+                   state_node);
 
-    m.Return(undef_node);
+    m.Return(m.UndefinedConstant());
 
     // Schedule the graph:
     Schedule* schedule = m.Export();

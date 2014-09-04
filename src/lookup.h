@@ -16,21 +16,17 @@ class LookupIterator FINAL BASE_EMBEDDED {
  public:
   enum Configuration {
     // Configuration bits.
-    kAccessCheck = 1 << 0,
-    kHidden = 1 << 1,
-    kInterceptor = 1 << 2,
-    kPrototypeChain = 1 << 3,
+    kHidden = 1 << 0,
+    kInterceptor = 1 << 1,
+    kPrototypeChain = 1 << 2,
 
     // Convience combinations of bits.
-    OWN_PROPERTY = 0,
-    OWN_SKIP_INTERCEPTOR = kAccessCheck,
-    OWN = kAccessCheck | kInterceptor,
-    HIDDEN_PROPERTY = kHidden,
-    HIDDEN_SKIP_INTERCEPTOR = kAccessCheck | kHidden,
-    HIDDEN = kAccessCheck | kHidden | kInterceptor,
-    PROTOTYPE_CHAIN_PROPERTY = kHidden | kPrototypeChain,
-    PROTOTYPE_CHAIN_SKIP_INTERCEPTOR = kAccessCheck | kHidden | kPrototypeChain,
-    PROTOTYPE_CHAIN = kAccessCheck | kHidden | kPrototypeChain | kInterceptor
+    OWN_SKIP_INTERCEPTOR = 0,
+    OWN = kInterceptor,
+    HIDDEN_SKIP_INTERCEPTOR = kHidden,
+    HIDDEN = kHidden | kInterceptor,
+    PROTOTYPE_CHAIN_SKIP_INTERCEPTOR = kHidden | kPrototypeChain,
+    PROTOTYPE_CHAIN = kHidden | kPrototypeChain | kInterceptor
   };
 
   enum State {
@@ -190,9 +186,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
   // present via the receiver map.
   bool is_guaranteed_to_have_holder() const {
     return !maybe_receiver_.is_null();
-  }
-  bool check_access_check() const {
-    return (configuration_ & kAccessCheck) != 0;
   }
   bool check_hidden() const { return (configuration_ & kHidden) != 0; }
   bool check_interceptor() const {

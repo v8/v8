@@ -1055,7 +1055,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
           // probably not a valid Error object.  In that case, we fall through
           // and capture the stack trace at this throw site.
           LookupIterator lookup(exception_handle, key,
-                                LookupIterator::OWN_PROPERTY);
+                                LookupIterator::OWN_SKIP_INTERCEPTOR);
           Handle<Object> stack_trace_property;
           if (Object::GetProperty(&lookup).ToHandle(&stack_trace_property) &&
               stack_trace_property->IsJSArray()) {
@@ -1505,7 +1505,7 @@ Isolate::Isolate()
       regexp_stack_(NULL),
       date_cache_(NULL),
       code_stub_interface_descriptors_(NULL),
-      call_descriptors_(NULL),
+      call_descriptor_data_(NULL),
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
@@ -1704,8 +1704,8 @@ Isolate::~Isolate() {
   delete[] code_stub_interface_descriptors_;
   code_stub_interface_descriptors_ = NULL;
 
-  delete[] call_descriptors_;
-  call_descriptors_ = NULL;
+  delete[] call_descriptor_data_;
+  call_descriptor_data_ = NULL;
 
   delete regexp_stack_;
   regexp_stack_ = NULL;
@@ -1882,8 +1882,8 @@ bool Isolate::Init(Deserializer* des) {
   date_cache_ = new DateCache();
   code_stub_interface_descriptors_ =
       new CodeStubInterfaceDescriptor[CodeStub::NUMBER_OF_IDS];
-  call_descriptors_ =
-      new CallInterfaceDescriptor[NUMBER_OF_CALL_DESCRIPTORS];
+  call_descriptor_data_ =
+      new CallInterfaceDescriptorData[CallDescriptors::NUMBER_OF_DESCRIPTORS];
   cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
 
@@ -1916,8 +1916,6 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   deoptimizer_data_ = new DeoptimizerData(memory_allocator_);
-
-  CallDescriptors::InitializeForIsolate(this);
 
   const bool create_heap_objects = (des == NULL);
   if (create_heap_objects && !heap_.CreateHeapObjects()) {
@@ -2239,9 +2237,9 @@ CodeStubInterfaceDescriptor*
 }
 
 
-CallInterfaceDescriptor* Isolate::call_descriptor(int index) {
-  DCHECK(0 <= index && index < CallDescriptorKey::NUMBER_OF_CALL_DESCRIPTORS);
-  return &call_descriptors_[index];
+CallInterfaceDescriptorData* Isolate::call_descriptor_data(int index) {
+  DCHECK(0 <= index && index < CallDescriptors::NUMBER_OF_DESCRIPTORS);
+  return &call_descriptor_data_[index];
 }
 
 

@@ -279,37 +279,10 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 }
 
 
-void ElementHandlerCompiler::GenerateLoadDictionaryElement(
-    MacroAssembler* masm) {
-  // The return address is in lr.
-  Label slow, miss;
-
-  Register result = x0;
-  Register key = LoadConvention::NameRegister();
-  Register receiver = LoadConvention::ReceiverRegister();
-  DCHECK(receiver.is(x1));
-  DCHECK(key.is(x2));
-
-  __ JumpIfNotSmi(key, &miss);
-  __ Ldr(x4, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ LoadFromNumberDictionary(&slow, x4, key, result, x7, x3, x5, x6);
-  __ Ret();
-
-  __ Bind(&slow);
-  __ IncrementCounter(
-      masm->isolate()->counters()->keyed_load_external_array_slow(), 1, x4, x3);
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
-
-  // Miss case, call the runtime.
-  __ Bind(&miss);
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
-}
-
-
 void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   // Push receiver, name and value for runtime call.
-  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
-          StoreConvention::ValueRegister());
+  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
+          StoreDescriptor::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -323,8 +296,8 @@ void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
   ASM_LOCATION("ElementHandlerCompiler::GenerateStoreSlow");
 
   // Push receiver, key and value for runtime call.
-  __ Push(StoreConvention::ReceiverRegister(), StoreConvention::NameRegister(),
-          StoreConvention::ValueRegister());
+  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
+          StoreDescriptor::ValueRegister());
 
   // The slow case calls into the runtime to complete the store without causing
   // an IC miss that would otherwise cause a transition to the generic stub.
@@ -344,7 +317,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   FrontendHeader(receiver(), name, &miss);
 
   // Get the value from the cell.
-  Register result = StoreConvention::ValueRegister();
+  Register result = StoreDescriptor::ValueRegister();
   __ Mov(result, Operand(cell));
   __ Ldr(result, FieldMemOperand(result, Cell::kValueOffset));
 
@@ -383,7 +356,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreInterceptor(
 
 
 Register NamedStoreHandlerCompiler::value() {
-  return StoreConvention::ValueRegister();
+  return StoreDescriptor::ValueRegister();
 }
 
 

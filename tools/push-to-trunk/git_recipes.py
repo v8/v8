@@ -29,7 +29,49 @@
 import re
 
 SHA1_RE = re.compile('^[a-fA-F0-9]{40}$')
-GIT_SVN_ID_RE = re.compile('^git-svn-id: .*@([0-9]+) .*$')
+ROLL_DEPS_GIT_SVN_ID_RE = re.compile('^git-svn-id: .*@([0-9]+) .*$')
+
+# Regular expression that matches a single commit footer line.
+COMMIT_FOOTER_ENTRY_RE = re.compile(r'([^:]+):\s+(.+)')
+
+# Footer metadata key for commit position.
+COMMIT_POSITION_FOOTER_KEY = 'Cr-Commit-Position'
+
+# Regular expression to parse a commit position
+COMMIT_POSITION_RE = re.compile(r'(.+)@\{#(\d+)\}')
+
+# Key for the 'git-svn' ID metadata commit footer entry.
+GIT_SVN_ID_FOOTER_KEY = 'git-svn-id'
+
+# e.g., git-svn-id: https://v8.googlecode.com/svn/trunk@23117
+#     ce2b1a6d-e550-0410-aec6-3dcde31c8c00
+GIT_SVN_ID_RE = re.compile(r'((?:\w+)://[^@]+)@(\d+)\s+(?:[a-zA-Z0-9\-]+)')
+
+
+# Copied from bot_update.py.
+def GetCommitMessageFooterMap(message):
+  """Returns: (dict) A dictionary of commit message footer entries.
+  """
+  footers = {}
+
+  # Extract the lines in the footer block.
+  lines = []
+  for line in message.strip().splitlines():
+    line = line.strip()
+    if len(line) == 0:
+      del(lines[:])
+      continue
+    lines.append(line)
+
+  # Parse the footer
+  for line in lines:
+    m = COMMIT_FOOTER_ENTRY_RE.match(line)
+    if not m:
+      # If any single line isn't valid, the entire footer is invalid.
+      footers.clear()
+      return footers
+    footers[m.group(1)] = m.group(2).strip()
+  return footers
 
 
 class GitFailedException(Exception):
@@ -167,13 +209,15 @@ class GitRecipesMixin(object):
     # base files were uploaded, if not retry.
     self.Git(MakeArgs(args), pipe=False)
 
-  def GitCommit(self, message="", file_name=""):
+  def GitCommit(self, message="", file_name="", author=None):
     assert message or file_name
     args = ["commit"]
     if file_name:
       args += ["-aF", Quoted(file_name)]
     if message:
       args += ["-am", Quoted(message)]
+    if author:
+      args += ["--author", "\"%s <%s>\"" % (author, author)]
     self.Git(MakeArgs(args))
 
   def GitPresubmit(self):
@@ -197,10 +241,41 @@ class GitRecipesMixin(object):
       raise GitFailedException("Git hash %s is unknown." % git_hash)
     log = self.GitLog(n=1, format="%B", git_hash=git_hash)
     for line in reversed(log.splitlines()):
-      match = GIT_SVN_ID_RE.match(line.strip())
+      match = ROLL_DEPS_GIT_SVN_ID_RE.match(line.strip())
       if match:
         return match.group(1)
     raise GitFailedException("Couldn't convert %s to SVN." % git_hash)
+
+  @Strip
+  # Copied from bot_update.py and modified for svn-like numbers only.
+  def GetCommitPositionNumber(self, git_hash):
+    """Dumps the 'git' log for a specific revision and parses out the commit
+    position number.
+
+    If a commit position metadata key is found, its number will be returned.
+
+    Otherwise, we will search for a 'git-svn' metadata entry. If one is found,
+    its SVN revision value is returned.
+    """
+    git_log = self.GitLog(format='%B', n=1, git_hash=git_hash)
+    footer_map = GetCommitMessageFooterMap(git_log)
+
+    # Search for commit position metadata
+    value = footer_map.get(COMMIT_POSITION_FOOTER_KEY)
+    if value:
+      match = COMMIT_POSITION_RE.match(value)
+      if match:
+        return match.group(2)
+
+    # Extract the svn revision from 'git-svn' metadata
+    value = footer_map.get(GIT_SVN_ID_FOOTER_KEY)
+    if value:
+      match = GIT_SVN_ID_RE.match(value)
+      if match:
+        return match.group(2)
+    return None
+
+  ### Git svn stuff
 
   def GitSVNFetch(self):
     self.Git("svn fetch")

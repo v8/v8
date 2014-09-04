@@ -6,9 +6,9 @@
 #define V8_COMPILER_GRAPH_UNITTEST_H_
 
 #include "src/compiler/common-operator.h"
-#include "src/compiler/compiler-unittests.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
+#include "src/test/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace v8 {
@@ -24,7 +24,7 @@ namespace compiler {
 using ::testing::Matcher;
 
 
-class GraphTest : public CompilerTest {
+class GraphTest : public TestWithContext, public TestWithZone {
  public:
   explicit GraphTest(int parameters = 1);
   virtual ~GraphTest();

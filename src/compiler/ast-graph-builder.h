@@ -260,6 +260,12 @@ class AstGraphBuilder::Environment
   // further mutation of the environment will not affect checkpoints.
   Node* Checkpoint(BailoutId ast_id, OutputFrameStateCombine combine);
 
+ protected:
+  AstGraphBuilder* builder() const {
+    return reinterpret_cast<AstGraphBuilder*>(
+        StructuredGraphBuilder::Environment::builder());
+  }
+
  private:
   void UpdateStateValues(Node** state_values, int offset, int count);
 

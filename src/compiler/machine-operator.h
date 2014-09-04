@@ -60,6 +60,7 @@ class MachineOperatorBuilder {
 #define UNOP(name) SIMPLE(name, Operator::kPure, 1, 1)
 
 #define WORD_SIZE(x) return is64() ? Word64##x() : Word32##x()
+#define INT_SIZE(x) return is64() ? Int64##x() : Int32##x()
 
   Operator* Load(MachineType rep) {  // load [base + index]
     OP1(Load, MachineType, rep, Operator::kNoWrite, 2, 1);
@@ -121,6 +122,11 @@ class MachineOperatorBuilder {
   Operator* Int64LessThan() { BINOP(Int64LessThan); }
   Operator* Int64LessThanOrEqual() { BINOP(Int64LessThanOrEqual); }
 
+  // Signed comparison of word-sized integer values, translates to int32/int64
+  // comparisons depending on the word-size of the machine.
+  Operator* IntLessThan() { INT_SIZE(LessThan); }
+  Operator* IntLessThanOrEqual() { INT_SIZE(LessThanOrEqual); }
+
   // Convert representation of integers between float64 and int32/uint32.
   // The precise rounding mode and handling of out of range inputs are *not*
   // defined for these operators, since they are intended only for use with
@@ -157,6 +163,7 @@ class MachineOperatorBuilder {
   inline MachineType word() const { return word_; }
 
 #undef WORD_SIZE
+#undef INT_SIZE
 #undef UNOP
 #undef BINOP
 #undef OP1

@@ -4,13 +4,12 @@
 
 #include "src/v8.h"
 
-#include "src/ic/ic-conventions.h"
 #include "src/interface-descriptors.h"
 
 namespace v8 {
 namespace internal {
 
-void CallInterfaceDescriptor::Initialize(
+void CallInterfaceDescriptorData::Initialize(
     int register_parameter_count, Register* registers,
     Representation* register_param_representations,
     PlatformInterfaceDescriptor* platform_descriptor) {
@@ -18,7 +17,8 @@ void CallInterfaceDescriptor::Initialize(
   register_param_count_ = register_parameter_count;
 
   // An interface descriptor must have a context register.
-  DCHECK(register_parameter_count > 0 && registers[0].is(ContextRegister()));
+  DCHECK(register_parameter_count > 0 &&
+         registers[0].is(CallInterfaceDescriptor::ContextRegister()));
 
   // InterfaceDescriptor owns a copy of the registers array.
   register_params_.Reset(NewArray<Register>(register_parameter_count));
@@ -42,51 +42,39 @@ void CallInterfaceDescriptor::Initialize(
 }
 
 
-void CallDescriptors::InitializeForIsolateAllPlatforms(Isolate* isolate) {
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::LoadICCall);
-    Register registers[] = {CallInterfaceDescriptor::ContextRegister(),
-                            LoadConvention::ReceiverRegister(),
-                            LoadConvention::NameRegister()};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::StoreICCall);
-    Register registers[] = {CallInterfaceDescriptor::ContextRegister(),
-                            StoreConvention::ReceiverRegister(),
-                            StoreConvention::NameRegister(),
-                            StoreConvention::ValueRegister()};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor = isolate->call_descriptor(
-        CallDescriptorKey::ElementTransitionAndStoreCall);
-    Register registers[] = {
-        CallInterfaceDescriptor::ContextRegister(),
-        StoreConvention::ValueRegister(), StoreConvention::MapRegister(),
-        StoreConvention::NameRegister(), StoreConvention::ReceiverRegister()};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::InstanceofCall);
-    Register registers[] = {CallInterfaceDescriptor::ContextRegister(),
-                            InstanceofConvention::left(),
-                            InstanceofConvention::right()};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
-  {
-    CallInterfaceDescriptor* descriptor =
-        isolate->call_descriptor(CallDescriptorKey::VectorLoadICCall);
-    Register registers[] = {CallInterfaceDescriptor::ContextRegister(),
-                            FullVectorLoadConvention::ReceiverRegister(),
-                            FullVectorLoadConvention::NameRegister(),
-                            FullVectorLoadConvention::SlotRegister(),
-                            FullVectorLoadConvention::VectorRegister()};
-    descriptor->Initialize(arraysize(registers), registers, NULL);
-  }
+void LoadDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), ReceiverRegister(),
+                          NameRegister()};
+  data->Initialize(arraysize(registers), registers, NULL);
 }
+
+
+void StoreDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
+                          ValueRegister()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void ElementTransitionAndStoreDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), ValueRegister(), MapRegister(),
+                          NameRegister(), ReceiverRegister()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void InstanceofDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), left(), right()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void VectorLoadICDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
+                          SlotRegister(), VectorRegister()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
 }
 }  // namespace v8::internal

@@ -268,7 +268,6 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
   void CompileElementHandlers(MapHandleList* receiver_maps,
                               CodeHandleList* handlers);
 
-  static void GenerateLoadDictionaryElement(MacroAssembler* masm);
   static void GenerateStoreSlow(MacroAssembler* masm);
 };
 }

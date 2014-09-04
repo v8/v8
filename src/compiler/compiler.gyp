@@ -12,9 +12,7 @@
       'target_name': 'compiler-unittests',
       'type': 'executable',
       'dependencies': [
-        '../../testing/gmock.gyp:gmock',
-        '../../testing/gtest.gyp:gtest',
-        '../../tools/gyp/v8.gyp:v8_libplatform',
+        '../test/test.gyp:run-all-unittests',
       ],
       'include_dirs': [
         '../..',
@@ -22,8 +20,7 @@
       'sources': [  ### gcmole(all) ###
         'change-lowering-unittest.cc',
         'common-operator-unittest.cc',
-        'compiler-unittests.cc',
-        'compiler-unittests.h',
+        'compiler-test-utils.h',
         'graph-unittest.cc',
         'graph-unittest.h',
         'instruction-selector-unittest.cc',
@@ -51,29 +48,6 @@
         ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
             'x64/instruction-selector-x64-unittest.cc',
-          ],
-        }],
-        ['component=="shared_library"', {
-          # compiler-unittests can't be built against a shared library, so we
-          # need to depend on the underlying static target in that case.
-          'conditions': [
-            ['v8_use_snapshot=="true"', {
-              'dependencies': ['../../tools/gyp/v8.gyp:v8_snapshot'],
-            },
-            {
-              'dependencies': [
-                '../../tools/gyp/v8.gyp:v8_nosnapshot',
-              ],
-            }],
-          ],
-        }, {
-          'dependencies': ['../../tools/gyp/v8.gyp:v8'],
-        }],
-        ['os_posix == 1', {
-          # TODO(svenpanne): This is a temporary work-around to fix the warnings
-          # that show up because we use -std=gnu++0x instead of -std=c++11.
-          'cflags!': [
-            '-pedantic',
           ],
         }],
       ],
