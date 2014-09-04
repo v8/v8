@@ -4,7 +4,7 @@
 
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
-#include "src/compiler/structured-machine-assembler.h"
+#include "test/cctest/compiler/structured-machine-assembler.h"
 
 namespace v8 {
 namespace internal {
