@@ -900,7 +900,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
           if (property->emit_store()) {
             VisitForValue(property->value());
             Node* value = environment()->Pop();
-            PrintableUnique<Name> name = MakeUnique(key->AsPropertyName());
+            Unique<Name> name = MakeUnique(key->AsPropertyName());
             Node* store = NewNode(javascript()->StoreNamed(strict_mode(), name),
                                   literal, value);
             PrepareFrameState(store, key->id());
@@ -1025,7 +1025,7 @@ void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value) {
       VisitForValue(property->obj());
       Node* object = environment()->Pop();
       value = environment()->Pop();
-      PrintableUnique<Name> name =
+      Unique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store =
           NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
@@ -1084,7 +1084,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       }
       case NAMED_PROPERTY: {
         Node* object = environment()->Top();
-        PrintableUnique<Name> name =
+        Unique<Name> name =
             MakeUnique(property->key()->AsLiteral()->AsPropertyName());
         old_value = NewNode(javascript()->LoadNamed(name), object);
         PrepareFrameState(old_value, property->LoadId(), kPushOutput);
@@ -1120,7 +1120,7 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     }
     case NAMED_PROPERTY: {
       Node* object = environment()->Pop();
-      PrintableUnique<Name> name =
+      Unique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store =
           NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
@@ -1165,8 +1165,7 @@ void AstGraphBuilder::VisitProperty(Property* expr) {
   if (expr->key()->IsPropertyName()) {
     VisitForValue(expr->obj());
     Node* object = environment()->Pop();
-    PrintableUnique<Name> name =
-        MakeUnique(expr->key()->AsLiteral()->AsPropertyName());
+    Unique<Name> name = MakeUnique(expr->key()->AsLiteral()->AsPropertyName());
     value = NewNode(javascript()->LoadNamed(name), object);
   } else {
     VisitForValue(expr->obj());
@@ -1212,7 +1211,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       VisitForValue(property->obj());
       Node* object = environment()->Top();
       if (property->key()->IsPropertyName()) {
-        PrintableUnique<Name> name =
+        Unique<Name> name =
             MakeUnique(property->key()->AsLiteral()->AsPropertyName());
         callee_value = NewNode(javascript()->LoadNamed(name), object);
       } else {
@@ -1302,7 +1301,7 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   // before arguments are being evaluated.
   CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS;
   Node* receiver_value = BuildLoadBuiltinsObject();
-  PrintableUnique<String> unique = MakeUnique(name);
+  Unique<String> unique = MakeUnique(name);
   Node* callee_value = NewNode(javascript()->LoadNamed(unique), receiver_value);
   // TODO(jarin): Find/create a bailout id to deoptimize to (crankshaft
   // refuses to optimize functions with jsruntime calls).
@@ -1385,7 +1384,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     case NAMED_PROPERTY: {
       VisitForValue(property->obj());
       Node* object = environment()->Top();
-      PrintableUnique<Name> name =
+      Unique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       old_value = NewNode(javascript()->LoadNamed(name), object);
       PrepareFrameState(old_value, property->LoadId(), kPushOutput);
@@ -1427,7 +1426,7 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
     }
     case NAMED_PROPERTY: {
       Node* object = environment()->Pop();
-      PrintableUnique<Name> name =
+      Unique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store =
           NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
@@ -1746,7 +1745,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
     case Variable::UNALLOCATED: {
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
-      PrintableUnique<Name> name = MakeUnique(variable->name());
+      Unique<Name> name = MakeUnique(variable->name());
       Operator* op = javascript()->LoadNamed(name, contextual_mode);
       Node* node = NewNode(op, global);
       PrepareFrameState(node, bailout_id, kPushOutput);
@@ -1847,7 +1846,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
     case Variable::UNALLOCATED: {
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
-      PrintableUnique<Name> name = MakeUnique(variable->name());
+      Unique<Name> name = MakeUnique(variable->name());
       Operator* op = javascript()->StoreNamed(strict_mode(), name);
       Node* store = NewNode(op, global, value);
       PrepareFrameState(store, bailout_id);

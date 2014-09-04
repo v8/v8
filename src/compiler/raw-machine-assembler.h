@@ -58,8 +58,8 @@ class RawMachineAssembler : public GraphBuilder,
   MachineSignature* machine_sig() const { return machine_sig_; }
 
   Node* UndefinedConstant() {
-    PrintableUnique<Object> unique = PrintableUnique<Object>::CreateImmovable(
-        zone(), isolate()->factory()->undefined_value());
+    Unique<Object> unique = Unique<Object>::CreateImmovable(
+        isolate()->factory()->undefined_value());
     return NewNode(common()->HeapConstant(unique));
   }
 

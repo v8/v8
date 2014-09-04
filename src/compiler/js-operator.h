@@ -40,7 +40,7 @@ class ContextAccess {
 // Defines the property being loaded from an object by a named load. This is
 // used as a parameter by JSLoadNamed operators.
 struct LoadNamedParameters {
-  PrintableUnique<Name> name;
+  Unique<Name> name;
   ContextualMode contextual_mode;
 };
 
@@ -55,7 +55,7 @@ struct CallParameters {
 // used as a parameter by JSStoreNamed operators.
 struct StoreNamedParameters {
   StrictMode strict_mode;
-  PrintableUnique<Name> name;
+  Unique<Name> name;
 };
 
 // Interface for building JavaScript-level operators, e.g. directly from the
@@ -124,7 +124,7 @@ class JSOperatorBuilder {
   }
 
   Operator* LoadProperty() { BINOP(JSLoadProperty); }
-  Operator* LoadNamed(PrintableUnique<Name> name,
+  Operator* LoadNamed(Unique<Name> name,
                       ContextualMode contextual_mode = NOT_CONTEXTUAL) {
     LoadNamedParameters parameters = {name, contextual_mode};
     OP1(JSLoadNamed, LoadNamedParameters, parameters, Operator::kNoProperties,
@@ -136,7 +136,7 @@ class JSOperatorBuilder {
         0);
   }
 
-  Operator* StoreNamed(StrictMode strict_mode, PrintableUnique<Name> name) {
+  Operator* StoreNamed(StrictMode strict_mode, Unique<Name> name) {
     StoreNamedParameters parameters = {strict_mode, name};
     OP1(JSStoreNamed, StoreNamedParameters, parameters, Operator::kNoProperties,
         2, 0);
@@ -165,9 +165,9 @@ class JSOperatorBuilder {
 
   // TODO(titzer): nail down the static parts of each of these context flavors.
   Operator* CreateFunctionContext() { NOPROPS(JSCreateFunctionContext, 1, 1); }
-  Operator* CreateCatchContext(PrintableUnique<String> name) {
-    OP1(JSCreateCatchContext, PrintableUnique<String>, name,
-        Operator::kNoProperties, 1, 1);
+  Operator* CreateCatchContext(Unique<String> name) {
+    OP1(JSCreateCatchContext, Unique<String>, name, Operator::kNoProperties, 1,
+        1);
   }
   Operator* CreateWithContext() { NOPROPS(JSCreateWithContext, 2, 1); }
   Operator* CreateBlockContext() { NOPROPS(JSCreateBlockContext, 2, 1); }

@@ -55,8 +55,7 @@ class MachineNodeFactory {
     return NEW_NODE_0(COMMON()->Float64Constant(value));
   }
   Node* HeapConstant(Handle<Object> object) {
-    PrintableUnique<Object> val =
-        PrintableUnique<Object>::CreateUninitialized(ZONE(), object);
+    Unique<Object> val = Unique<Object>::CreateUninitialized(object);
     return NEW_NODE_0(COMMON()->HeapConstant(val));
   }
 

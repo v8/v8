@@ -680,8 +680,7 @@ TEST(BuildScheduleIfSplitWithEffects) {
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c, y) {
@@ -826,8 +825,7 @@ TEST(BuildScheduleSimpleLoop) {
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b) {
@@ -939,8 +937,7 @@ TEST(BuildScheduleComplexLoops) {
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c) {
@@ -1187,8 +1184,7 @@ TEST(BuildScheduleBreakAndContinue) {
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c) {
@@ -1518,8 +1514,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  PrintableUnique<Object> unique_constant =
-      PrintableUnique<Object>::CreateUninitialized(scope.main_zone(), object);
+  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c) {

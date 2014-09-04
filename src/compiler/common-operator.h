@@ -138,8 +138,8 @@ class CommonOperatorBuilder {
         Operator1<double>(IrOpcode::kNumberConstant, Operator::kPure, 0, 1,
                           "NumberConstant", value);
   }
-  Operator* HeapConstant(PrintableUnique<Object> value) {
-    return new (zone_) Operator1<PrintableUnique<Object> >(
+  Operator* HeapConstant(Unique<Object> value) {
+    return new (zone_) Operator1<Unique<Object> >(
         IrOpcode::kHeapConstant, Operator::kPure, 0, 1, "HeapConstant", value);
   }
   Operator* Phi(int arguments) {
@@ -289,23 +289,23 @@ struct CommonOperatorTraits<ExternalReference> {
 };
 
 template <typename T>
-struct CommonOperatorTraits<PrintableUnique<T> > {
+struct CommonOperatorTraits<Unique<T> > {
   static inline bool HasValue(const Operator* op) {
     return op->opcode() == IrOpcode::kHeapConstant;
   }
-  static inline PrintableUnique<T> ValueOf(const Operator* op) {
+  static inline Unique<T> ValueOf(const Operator* op) {
     CHECK_EQ(IrOpcode::kHeapConstant, op->opcode());
-    return OpParameter<PrintableUnique<T> >(op);
+    return OpParameter<Unique<T> >(op);
   }
 };
 
 template <typename T>
 struct CommonOperatorTraits<Handle<T> > {
   static inline bool HasValue(const Operator* op) {
-    return CommonOperatorTraits<PrintableUnique<T> >::HasValue(op);
+    return CommonOperatorTraits<Unique<T> >::HasValue(op);
   }
   static inline Handle<T> ValueOf(const Operator* op) {
-    return CommonOperatorTraits<PrintableUnique<T> >::ValueOf(op).handle();
+    return CommonOperatorTraits<Unique<T> >::ValueOf(op).handle();
   }
 };
 

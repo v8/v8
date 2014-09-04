@@ -17,7 +17,7 @@ namespace internal {
 // Forward declarations.
 class HeapObject;
 template <class T>
-class PrintableUnique;
+class Unique;
 
 namespace compiler {
 
@@ -35,7 +35,7 @@ class GraphTest : public TestWithContext, public TestWithZone {
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* NumberConstant(double value);
-  Node* HeapConstant(const PrintableUnique<HeapObject>& value);
+  Node* HeapConstant(const Unique<HeapObject>& value);
   Node* FalseConstant();
   Node* TrueConstant();
 
@@ -64,7 +64,7 @@ Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
 Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher);
 Matcher<Node*> IsHeapConstant(
-    const Matcher<PrintableUnique<HeapObject> >& value_matcher);
+    const Matcher<Unique<HeapObject> >& value_matcher);
 Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);
 Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher);
