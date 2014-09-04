@@ -8457,15 +8457,9 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
 
   Handle<Code> unoptimized(function->shared()->code());
-  if (!function->shared()->is_compiled()) {
-    // If the function is not compiled, do not optimize.
-    // This can happen if the debugger is activated and
-    // the function is returned to the not compiled state.
-    // TODO(yangguo): reconsider this.
-    function->ReplaceCode(function->shared()->code());
-  } else if (!isolate->use_crankshaft() ||
-             function->shared()->optimization_disabled() ||
-             isolate->DebuggerHasBreakPoints()) {
+  if (!isolate->use_crankshaft() ||
+      function->shared()->optimization_disabled() ||
+      isolate->DebuggerHasBreakPoints()) {
     // If the function is not optimizable or debugger is active continue
     // using the code from the full compiler.
     if (FLAG_trace_opt) {
@@ -8476,16 +8470,16 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
           isolate->DebuggerHasBreakPoints() ? "T" : "F");
     }
     function->ReplaceCode(*unoptimized);
+    return function->code();
+  }
+
+  Compiler::ConcurrencyMode mode =
+      concurrent ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
+  Handle<Code> code;
+  if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
+    function->ReplaceCode(*code);
   } else {
-    Compiler::ConcurrencyMode mode = concurrent ? Compiler::CONCURRENT
-                                                : Compiler::NOT_CONCURRENT;
-    Handle<Code> code;
-    if (Compiler::GetOptimizedCode(
-            function, unoptimized, mode).ToHandle(&code)) {
-      function->ReplaceCode(*code);
-    } else {
-      function->ReplaceCode(*unoptimized);
-    }
+    function->ReplaceCode(*unoptimized);
   }
 
   DCHECK(function->code()->kind() == Code::FUNCTION ||
@@ -8641,11 +8635,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  if (!function->IsOptimizable() &&
-      !function->IsMarkedForConcurrentOptimization() &&
-      !function->IsInOptimizationQueue()) {
-    return isolate->heap()->undefined_value();
-  }
+  if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
   function->MarkForOptimization();
 

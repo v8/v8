@@ -1246,7 +1246,14 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
-  DCHECK_NE(ScopeInfo::Empty(isolate), shared->scope_info());
+  if (ScopeInfo::Empty(isolate) == shared->scope_info()) {
+    // The function was never compiled. Compile it unoptimized first.
+    CompilationInfoWithZone nested(function);
+    nested.EnableDeoptimizationSupport();
+    if (!GetUnoptimizedCodeCommon(&nested).ToHandle(&current_code)) {
+      return MaybeHandle<Code>();
+    }
+  }
   int compiled_size = shared->end_position() - shared->start_position();
   isolate->counters()->total_compile_size()->Increment(compiled_size);
   current_code->set_profiler_ticks(0);
