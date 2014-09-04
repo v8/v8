@@ -108,16 +108,16 @@ namespace internal {
 // List of code stubs only used on MIPS platforms.
 #if V8_TARGET_ARCH_MIPS
 #define CODE_STUB_LIST_MIPS(V)  \
-  V(RegExpCEntry)               \
   V(DirectCEntry)               \
+  V(RestoreRegistersState)      \
   V(StoreRegistersState)        \
-  V(RestoreRegistersState)
+  V(WriteInt32ToHeapNumber)
 #elif V8_TARGET_ARCH_MIPS64
 #define CODE_STUB_LIST_MIPS(V)  \
-  V(RegExpCEntry)               \
   V(DirectCEntry)               \
+  V(RestoreRegistersState)      \
   V(StoreRegistersState)        \
-  V(RestoreRegistersState)
+  V(WriteInt32ToHeapNumber)
 #else
 #define CODE_STUB_LIST_MIPS(V)
 #endif

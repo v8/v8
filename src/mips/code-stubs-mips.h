@@ -79,7 +79,7 @@ class StoreRegistersStateStub: public PlatformCodeStub {
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
-  Major MajorKey() const { return StoreRegistersState; }
+  virtual inline Major MajorKey() const FINAL OVERRIDE;
   uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
@@ -92,7 +92,7 @@ class RestoreRegistersStateStub: public PlatformCodeStub {
 
   static void GenerateAheadOfTime(Isolate* isolate);
  private:
-  Major MajorKey() const { return RestoreRegistersState; }
+  virtual inline Major MajorKey() const FINAL OVERRIDE;
   uint32_t MinorKey() const { return 0; }
 
   void Generate(MacroAssembler* masm);
@@ -121,7 +121,7 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
 
  private:
-  Major MajorKey() const { return WriteInt32ToHeapNumber; }
+  virtual inline Major MajorKey() const FINAL OVERRIDE;
 
   void Generate(MacroAssembler* masm);
 
@@ -301,7 +301,7 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  Major MajorKey() const { return RecordWrite; }
+  virtual inline Major MajorKey() const FINAL OVERRIDE;
 
   void Generate(MacroAssembler* masm);
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
@@ -360,7 +360,7 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  Major MajorKey() const { return DirectCEntry; }
+  virtual inline Major MajorKey() const FINAL OVERRIDE;
 
   bool NeedsImmovableCode() { return true; }
 
@@ -409,7 +409,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() const { return NameDictionaryLookup; }
+  virtual inline Major MajorKey() const FINAL OVERRIDE;
 
   LookupMode mode() const { return LookupModeBits::decode(minor_key_); }
 

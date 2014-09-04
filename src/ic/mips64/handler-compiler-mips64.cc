@@ -281,36 +281,6 @@ void PropertyHandlerCompiler::GenerateFastApiCall(
 }
 
 
-void ElementHandlerCompiler::GenerateLoadDictionaryElement(
-    MacroAssembler* masm) {
-  // The return address is in ra
-  Label slow, miss;
-
-  Register key = LoadDescriptor::NameRegister();
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  DCHECK(receiver.is(a1));
-  DCHECK(key.is(a2));
-
-  __ UntagAndJumpIfNotSmi(a6, key, &miss);
-  __ ld(a4, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  DCHECK(kSmiTagSize + kSmiShiftSize == 32);
-  __ LoadFromNumberDictionary(&slow, a4, key, v0, a6, a3, a5);
-  __ Ret();
-
-  // Slow case, key and receiver still unmodified.
-  __ bind(&slow);
-  __ IncrementCounter(
-      masm->isolate()->counters()->keyed_load_external_array_slow(), 1, a2, a3);
-
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Slow);
-
-  // Miss case, call the runtime.
-  __ bind(&miss);
-
-  TailCallBuiltin(masm, Builtins::kKeyedLoadIC_Miss);
-}
-
-
 void NamedStoreHandlerCompiler::GenerateSlow(MacroAssembler* masm) {
   // Push receiver, key and value for runtime call.
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
