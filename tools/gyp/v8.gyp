@@ -466,6 +466,8 @@
         '../../src/compiler/source-position.h',
         '../../src/compiler/typer.cc',
         '../../src/compiler/typer.h',
+        '../../src/compiler/value-numbering-reducer.cc',
+        '../../src/compiler/value-numbering-reducer.h',
         '../../src/compiler/verifier.cc',
         '../../src/compiler/verifier.h',
         '../../src/compiler.cc',

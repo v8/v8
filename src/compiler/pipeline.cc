@@ -24,6 +24,7 @@
 #include "src/compiler/simplified-lowering.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/compiler/typer.h"
+#include "src/compiler/value-numbering-reducer.h"
 #include "src/compiler/verifier.h"
 #include "src/hydrogen.h"
 #include "src/ostreams.h"
@@ -255,11 +256,13 @@ Handle<Code> Pipeline::GenerateCode() {
                                      SourcePosition::Unknown());
       Linkage linkage(info());
       MachineOperatorBuilder machine(zone());
+      ValueNumberingReducer vn_reducer(zone());
       SimplifiedOperatorReducer simple_reducer(&jsgraph, &machine);
       ChangeLowering lowering(&jsgraph, &linkage, &machine);
       MachineOperatorReducer mach_reducer(&jsgraph);
       GraphReducer graph_reducer(&graph);
       // TODO(titzer): Figure out if we should run all reducers at once here.
+      graph_reducer.AddReducer(&vn_reducer);
       graph_reducer.AddReducer(&simple_reducer);
       graph_reducer.AddReducer(&lowering);
       graph_reducer.AddReducer(&mach_reducer);

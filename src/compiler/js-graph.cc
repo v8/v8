@@ -104,8 +104,14 @@ Node* JSGraph::HeapConstant(Handle<Object> value) {
   // TODO(titzer): We could also match against the addresses of immortable
   // immovables here, even without access to the heap, thus always
   // canonicalizing references to them.
-  return HeapConstant(
-      PrintableUnique<Object>::CreateUninitialized(zone(), value));
+  // return HeapConstant(
+  //    PrintableUnique<Object>::CreateUninitialized(zone(), value));
+  // TODO(turbofan): This is a work-around to make Unique::HashCode() work for
+  // value numbering. We need some sane way to compute a unique hash code for
+  // arbitrary handles here.
+  PrintableUnique<Object> unique(
+      zone(), reinterpret_cast<Address>(*value.location()), value);
+  return HeapConstant(unique);
 }
 
 
