@@ -115,7 +115,7 @@ inline int OperatorProperties::GetControlInputCount(const Operator* op) {
 #define OPCODE_CASE(x) case IrOpcode::k##x:
       CONTROL_OP_LIST(OPCODE_CASE)
 #undef OPCODE_CASE
-      return reinterpret_cast<const ControlOperator*>(op)->ControlInputCount();
+      return static_cast<const ControlOperator*>(op)->ControlInputCount();
     default:
       // Operators that have write effects must have a control
       // dependency. Effect dependencies only ensure the correct order of
