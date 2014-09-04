@@ -19,7 +19,6 @@ CONFIG = {
   CLUSTERFUZZ_API_KEY_FILE: ".cf_api_key",
 }
 
-CR_DEPS_URL = 'http://src.chromium.org/svn/trunk/src/DEPS'
 
 class CheckActiveRoll(Step):
   MESSAGE = "Check active roll."
@@ -60,9 +59,11 @@ class DetectLastRoll(Step):
 
   def RunStep(self):
     # Interpret the DEPS file to retrieve the v8 revision.
+    # TODO(machenbach): This should be part or the roll-deps api of
+    # depot_tools.
     Var = lambda var: '%s'
-    exec(self.ReadURL(CR_DEPS_URL))
-    last_roll = vars['v8_revision']
+    exec(FileToText(os.path.join(self._options.chromium, "DEPS")))
+    last_roll = self.GetCommitPositionNumber(vars['v8_revision'])
     # FIXME(machenbach): When rolling from bleeding edge and from trunk there
     # be different commit numbers here. Better use version?
     if int(last_roll) >= int(self["last_push"]):
