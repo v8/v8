@@ -49,8 +49,8 @@ void GraphReducer::ReduceNode(Node* node) {
         // If {node} was replaced by an old node, unlink {node} and assume that
         // {replacement} was already reduced and finish.
         if (replacement->id() < before) {
-          node->RemoveAllInputs();
           node->ReplaceUses(replacement);
+          node->Kill();
           return;
         }
         // Otherwise, {node} was replaced by a new node. Replace all old uses of
@@ -59,7 +59,9 @@ void GraphReducer::ReduceNode(Node* node) {
         node->ReplaceUsesIf(
             std::bind2nd(std::ptr_fun(&NodeIdIsLessThan), before), replacement);
         // Unlink {node} if it's no longer used.
-        if (node->uses().empty()) node->RemoveAllInputs();
+        if (node->uses().empty()) {
+          node->Kill();
+        }
         // Rerun all the reductions on the {replacement}.
         skip = reducers_.end();
         node = replacement;
@@ -90,6 +92,7 @@ void GraphReducer::ReduceGraph() {
 
 
 // TODO(titzer): partial graph reductions.
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

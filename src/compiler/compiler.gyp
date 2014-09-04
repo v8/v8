@@ -21,6 +21,7 @@
         'change-lowering-unittest.cc',
         'common-operator-unittest.cc',
         'compiler-test-utils.h',
+        'graph-reducer-unittest.cc',
         'graph-unittest.cc',
         'graph-unittest.h',
         'instruction-selector-unittest.cc',

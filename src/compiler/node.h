@@ -53,6 +53,7 @@ class Node : public GenericNode<NodeData, Node> {
       : GenericNode<NodeData, Node>(graph, input_count) {}
 
   void Initialize(Operator* op) { set_op(op); }
+  void Kill();
 
   void CollectProjections(ZoneVector<Node*>* projections);
   Node* FindProjection(int32_t projection_index);

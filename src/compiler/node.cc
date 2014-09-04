@@ -10,6 +10,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+void Node::Kill() {
+  DCHECK_NOT_NULL(op());
+  RemoveAllInputs();
+  DCHECK(uses().empty());
+  set_op(NULL);
+}
+
+
 void Node::CollectProjections(NodeVector* projections) {
   for (size_t i = 0; i < projections->size(); i++) {
     (*projections)[i] = NULL;
