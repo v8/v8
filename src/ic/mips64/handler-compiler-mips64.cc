@@ -710,8 +710,7 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
       !holder().is_identical_to(it->GetHolder<JSObject>());
   bool must_preserve_receiver_reg =
       !receiver().is(holder_reg) &&
-      (it->property_kind() == LookupIterator::ACCESSOR ||
-       must_perform_prototype_check);
+      (it->state() == LookupIterator::ACCESSOR || must_perform_prototype_check);
 
   // Save necessary data before invoking an interceptor.
   // Requires a frame to make GC aware of pushed pointers.

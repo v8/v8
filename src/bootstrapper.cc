@@ -2488,7 +2488,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
           CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
           // If the property is already there we skip it
-          if (it.IsFound() && it.HasProperty()) continue;
+          if (it.IsFound()) continue;
           HandleScope inner(isolate());
           DCHECK(!to->HasFastProperties());
           // Add to dictionary.
@@ -2516,7 +2516,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         Handle<Name> key(Name::cast(raw_key));
         LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
         CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-        if (it.IsFound() && it.HasProperty()) continue;
+        if (it.IsFound()) continue;
         // Set the property.
         Handle<Object> value = Handle<Object>(properties->ValueAt(i),
                                               isolate());

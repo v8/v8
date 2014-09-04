@@ -225,22 +225,28 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
   // So far the most popular follow ups for interceptor loads are FIELD and
   // ExecutableAccessorInfo, so inline only them. Other cases may be added
   // later.
-  bool inline_followup = it->state() == LookupIterator::PROPERTY;
-  if (inline_followup) {
-    switch (it->property_kind()) {
-      case LookupIterator::DATA:
-        inline_followup = it->property_details().type() == FIELD;
-        break;
-      case LookupIterator::ACCESSOR: {
-        Handle<Object> accessors = it->GetAccessors();
-        inline_followup = accessors->IsExecutableAccessorInfo();
-        if (!inline_followup) break;
-        Handle<ExecutableAccessorInfo> info =
-            Handle<ExecutableAccessorInfo>::cast(accessors);
-        inline_followup = info->getter() != NULL &&
-                          ExecutableAccessorInfo::IsCompatibleReceiverType(
-                              isolate(), info, type());
-      }
+  bool inline_followup = false;
+  switch (it->state()) {
+    case LookupIterator::TRANSITION:
+    case LookupIterator::UNKNOWN:
+      UNREACHABLE();
+    case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::JSPROXY:
+    case LookupIterator::NOT_FOUND:
+      break;
+    case LookupIterator::DATA:
+      inline_followup = it->property_details().type() == FIELD;
+      break;
+    case LookupIterator::ACCESSOR: {
+      Handle<Object> accessors = it->GetAccessors();
+      inline_followup = accessors->IsExecutableAccessorInfo();
+      if (!inline_followup) break;
+      Handle<ExecutableAccessorInfo> info =
+          Handle<ExecutableAccessorInfo>::cast(accessors);
+      inline_followup = info->getter() != NULL &&
+                        ExecutableAccessorInfo::IsCompatibleReceiverType(
+                            isolate(), info, type());
     }
   }
 
@@ -264,7 +270,14 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
   set_holder(real_named_property_holder);
   Register reg = Frontend(interceptor_reg, it->name());
 
-  switch (it->property_kind()) {
+  switch (it->state()) {
+    case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::INTERCEPTOR:
+    case LookupIterator::JSPROXY:
+    case LookupIterator::NOT_FOUND:
+    case LookupIterator::TRANSITION:
+    case LookupIterator::UNKNOWN:
+      UNREACHABLE();
     case LookupIterator::DATA: {
       DCHECK_EQ(FIELD, it->property_details().type());
       __ Move(receiver(), reg);

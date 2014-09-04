@@ -5297,21 +5297,17 @@ HOptimizedGraphBuilder::LookupGlobalProperty(Variable* var, LookupIterator* it,
   }
 
   switch (it->state()) {
+    case LookupIterator::ACCESSOR:
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::INTERCEPTOR:
     case LookupIterator::NOT_FOUND:
       return kUseGeneric;
-    case LookupIterator::PROPERTY:
-      if (!it->HasProperty()) return kUseGeneric;
-      switch (it->property_kind()) {
-        case LookupIterator::DATA:
-          if (access_type == STORE && it->IsReadOnly()) return kUseGeneric;
-          return kUseCell;
-        case LookupIterator::ACCESSOR:
-          return kUseGeneric;
-      }
+    case LookupIterator::DATA:
+      if (access_type == STORE && it->IsReadOnly()) return kUseGeneric;
+      return kUseCell;
     case LookupIterator::JSPROXY:
     case LookupIterator::TRANSITION:
+    case LookupIterator::UNKNOWN:
       UNREACHABLE();
   }
   UNREACHABLE();

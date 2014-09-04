@@ -14,25 +14,28 @@ namespace internal {
 
 
 void LookupIterator::Next() {
+  DCHECK_NE(JSPROXY, state_);
+  DCHECK_NE(TRANSITION, state_);
   DisallowHeapAllocation no_gc;
   has_property_ = false;
 
-  JSReceiver* holder = NULL;
+  JSReceiver* holder =
+      maybe_holder_.is_null() ? NULL : *maybe_holder_.ToHandleChecked();
   Map* map = *holder_map_;
 
   // Perform lookup on current holder.
-  state_ = LookupInHolder(map);
+  state_ = LookupInHolder(map, holder);
+  if (IsFound()) return;
 
   // Continue lookup if lookup on current holder failed.
-  while (!IsFound()) {
+  do {
     JSReceiver* maybe_holder = NextHolder(map);
     if (maybe_holder == NULL) break;
     holder = maybe_holder;
     map = holder->map();
-    state_ = LookupInHolder(map);
-  }
+    state_ = LookupInHolder(map, holder);
+  } while (!IsFound());
 
-  // Either was found in the receiver, or the receiver has no prototype.
   if (holder == NULL) return;
 
   maybe_holder_ = handle(holder, isolate_);
@@ -81,58 +84,15 @@ bool LookupIterator::HasAccess(v8::AccessType access_type) const {
 }
 
 
-bool LookupIterator::HasProperty() {
-  DCHECK_EQ(PROPERTY, state_);
-  DCHECK(is_guaranteed_to_have_holder());
-
-  if (property_encoding_ == DICTIONARY) {
-    Handle<JSObject> holder = GetHolder<JSObject>();
-    number_ = holder->property_dictionary()->FindEntry(name_);
-    if (number_ == NameDictionary::kNotFound) return false;
-
-    property_details_ = holder->property_dictionary()->DetailsAt(number_);
-    // Holes in dictionary cells are absent values.
-    if (holder->IsGlobalObject() &&
-        (property_details_.IsDeleted() || FetchValue()->IsTheHole())) {
-      return false;
-    }
-  } else {
-    // Can't use descriptor_number() yet because has_property_ is still false.
-    property_details_ =
-        holder_map_->instance_descriptors()->GetDetails(number_);
-  }
-
-  LoadPropertyKind();
-
-  has_property_ = true;
-  return true;
-}
-
-
-void LookupIterator::LoadPropertyKind() {
-  switch (property_details_.type()) {
-    case v8::internal::FIELD:
-    case v8::internal::NORMAL:
-    case v8::internal::CONSTANT:
-      property_kind_ = DATA;
-      break;
-    case v8::internal::CALLBACKS:
-      property_kind_ = ACCESSOR;
-      break;
-  }
-}
-
-
 void LookupIterator::ReloadPropertyInformation() {
   state_ = BEFORE_PROPERTY;
-  state_ = LookupInHolder(*holder_map_);
-  DCHECK(IsFound());
-  HasProperty();
+  state_ = LookupInHolder(*holder_map_, *maybe_holder_.ToHandleChecked());
+  DCHECK(IsFound() || holder_map_->is_dictionary_map());
 }
 
 
 void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
-  DCHECK(has_property_);
+  DCHECK(state_ == DATA || state_ == ACCESSOR);
   DCHECK(HolderIsReceiverOrHiddenPrototype());
   if (property_encoding_ == DICTIONARY) return;
   holder_map_ =
@@ -144,7 +104,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
 void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
                                              PropertyAttributes attributes) {
-  DCHECK(has_property_);
+  DCHECK(state_ == DATA || state_ == ACCESSOR);
   DCHECK(HolderIsReceiverOrHiddenPrototype());
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (property_encoding_ != DICTIONARY) {
@@ -166,9 +126,9 @@ void LookupIterator::PrepareTransitionToDataProperty(
     Handle<Object> value, PropertyAttributes attributes,
     Object::StoreFromKeyed store_mode) {
   if (state_ == TRANSITION) return;
-  DCHECK(!has_property_ || property_kind_ != ACCESSOR);
-  DCHECK(!(has_property_ || state_ == JSPROXY) ||
-         !HolderIsReceiverOrHiddenPrototype());
+  DCHECK(state_ != LookupIterator::ACCESSOR ||
+         GetAccessors()->IsDeclaredAccessorInfo());
+  DCHECK(state_ == NOT_FOUND || !HolderIsReceiverOrHiddenPrototype());
 
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
@@ -224,8 +184,7 @@ void LookupIterator::TransitionToAccessorProperty(
   // Install the accessor into the dictionary-mode object.
   PropertyDetails details(attributes, CALLBACKS, 0);
   Handle<AccessorPair> pair;
-  if (IsFound() && HasProperty() && property_kind() == ACCESSOR &&
-      GetAccessors()->IsAccessorPair()) {
+  if (state() == ACCESSOR && GetAccessors()->IsAccessorPair()) {
     pair = Handle<AccessorPair>::cast(GetAccessors());
     // If the component and attributes are identical, nothing has to be done.
     if (pair->get(component) == *accessor) {
@@ -331,15 +290,13 @@ Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
 
 
 Handle<Object> LookupIterator::GetAccessors() const {
-  DCHECK(has_property_);
-  DCHECK_EQ(ACCESSOR, property_kind_);
+  DCHECK_EQ(ACCESSOR, state_);
   return FetchValue();
 }
 
 
 Handle<Object> LookupIterator::GetDataValue() const {
-  DCHECK(has_property_);
-  DCHECK_EQ(DATA, property_kind_);
+  DCHECK_EQ(DATA, state_);
   Handle<Object> value = FetchValue();
   return value;
 }
@@ -347,7 +304,7 @@ Handle<Object> LookupIterator::GetDataValue() const {
 
 void LookupIterator::WriteDataValue(Handle<Object> value) {
   DCHECK(is_guaranteed_to_have_holder());
-  DCHECK(has_property_);
+  DCHECK_EQ(DATA, state_);
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (property_encoding_ == DICTIONARY) {
     NameDictionary* property_dictionary = holder->property_dictionary();

@@ -215,6 +215,7 @@ static void LookupForRead(LookupIterator* it) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
+      case LookupIterator::UNKNOWN:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return;
@@ -234,9 +235,9 @@ static void LookupForRead(LookupIterator* it) {
           break;
         }
         return;
-      case LookupIterator::PROPERTY:
-        if (it->HasProperty()) return;  // Yay!
-        break;
+      case LookupIterator::ACCESSOR:
+      case LookupIterator::DATA:
+        return;
     }
   }
 }
@@ -285,7 +286,7 @@ bool IC::TryRemoveInvalidPrototypeDependentStub(Handle<Object> receiver,
     Handle<GlobalObject> global = Handle<GlobalObject>::cast(receiver);
     LookupIterator it(global, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
     if (it.state() == LookupIterator::ACCESS_CHECK) return false;
-    if (!it.IsFound() || !it.HasProperty()) return false;
+    if (!it.IsFound()) return false;
     Handle<PropertyCell> cell = it.GetPropertyCell();
     return cell->type()->IsConstant();
   }
@@ -976,8 +977,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
   }
 
   // -------------- Accessors --------------
-  DCHECK(lookup->state() == LookupIterator::PROPERTY);
-  if (lookup->property_kind() == LookupIterator::ACCESSOR) {
+  if (lookup->state() == LookupIterator::ACCESSOR) {
     // Use simple field loads for some well-known callback properties.
     if (receiver_is_holder) {
       DCHECK(receiver->IsJSObject());
@@ -1032,7 +1032,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
   }
 
   // -------------- Dictionary properties --------------
-  DCHECK(lookup->property_kind() == LookupIterator::DATA);
+  DCHECK(lookup->state() == LookupIterator::DATA);
   if (lookup->property_encoding() == LookupIterator::DICTIONARY) {
     if (kind() != Code::LOAD_IC) return slow_stub();
     if (holder->IsGlobalObject()) {
@@ -1223,6 +1223,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
+      case LookupIterator::UNKNOWN:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return false;
@@ -1240,11 +1241,12 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
       case LookupIterator::ACCESS_CHECK:
         if (it->GetHolder<JSObject>()->IsAccessCheckNeeded()) return false;
         break;
-      case LookupIterator::PROPERTY:
-        if (!it->HasProperty()) break;
+      case LookupIterator::ACCESSOR:
+        return !it->IsReadOnly();
+      case LookupIterator::DATA: {
         if (it->IsReadOnly()) return false;
-        if (it->property_kind() == LookupIterator::ACCESSOR) return true;
-        if (it->GetHolder<Object>().is_identical_to(receiver)) {
+        Handle<JSObject> holder = it->GetHolder<JSObject>();
+        if (receiver.is_identical_to(holder)) {
           it->PrepareForDataProperty(value);
           // The previous receiver map might just have been deprecated,
           // so reload it.
@@ -1253,14 +1255,15 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
         }
 
         // Receiver != holder.
+        PrototypeIterator iter(it->isolate(), receiver);
         if (receiver->IsJSGlobalProxy()) {
-          PrototypeIterator iter(it->isolate(), receiver);
           return it->GetHolder<Object>().is_identical_to(
               PrototypeIterator::GetCurrent(iter));
         }
 
         it->PrepareTransitionToDataProperty(value, NONE, store_mode);
         return it->IsCacheableTransition();
+      }
     }
   }
 
@@ -1417,8 +1420,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
   }
 
   // -------------- Accessors --------------
-  DCHECK(lookup->state() == LookupIterator::PROPERTY);
-  if (lookup->property_kind() == LookupIterator::ACCESSOR) {
+  if (lookup->state() == LookupIterator::ACCESSOR) {
     if (!holder->HasFastProperties()) return slow_stub();
     Handle<Object> accessors = lookup->GetAccessors();
     if (accessors->IsExecutableAccessorInfo()) {
@@ -1452,7 +1454,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
   }
 
   // -------------- Dictionary properties --------------
-  DCHECK(lookup->property_kind() == LookupIterator::DATA);
+  DCHECK(lookup->state() == LookupIterator::DATA);
   if (lookup->property_encoding() == LookupIterator::DICTIONARY) {
     if (holder->IsGlobalObject()) {
       Handle<PropertyCell> cell = lookup->GetPropertyCell();

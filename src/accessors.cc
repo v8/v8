@@ -181,7 +181,7 @@ void Accessors::ArgumentsIteratorSetter(
   if (SetPropertyOnInstanceIfInherited(isolate, info, name, value)) return;
 
   LookupIterator it(object, Utils::OpenHandle(*name));
-  CHECK(it.HasProperty());
+  CHECK_EQ(LookupIterator::ACCESSOR, it.state());
   DCHECK(it.HolderIsReceiverOrHiddenPrototype());
   Object::SetDataProperty(&it, value);
 }
