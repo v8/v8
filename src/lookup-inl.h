@@ -47,7 +47,6 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
     // Fall through.
     case INTERCEPTOR:
       if (map->is_dictionary_map()) {
-        property_encoding_ = DICTIONARY;
         if (holder == NULL) return UNKNOWN;
         NameDictionary* dict = JSObject::cast(holder)->property_dictionary();
         number_ = dict->FindEntry(name_);
@@ -62,7 +61,6 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
         DescriptorArray* descriptors = map->instance_descriptors();
         number_ = descriptors->SearchWithCache(*name_, map);
         if (number_ == DescriptorArray::kNotFound) return NOT_FOUND;
-        property_encoding_ = DESCRIPTOR;
         property_details_ = descriptors->GetDetails(number_);
       }
       has_property_ = true;

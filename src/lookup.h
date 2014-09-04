@@ -43,16 +43,10 @@ class LookupIterator FINAL BASE_EMBEDDED {
     BEFORE_PROPERTY = INTERCEPTOR
   };
 
-  enum PropertyEncoding {
-    DICTIONARY,
-    DESCRIPTOR
-  };
-
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
-        property_encoding_(DESCRIPTOR),
         property_details_(NONE, NORMAL, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
@@ -69,7 +63,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
-        property_encoding_(DESCRIPTOR),
         property_details_(NONE, NORMAL, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
@@ -96,7 +89,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
     return maybe_receiver_.ToHandleChecked();
   }
   Handle<JSObject> GetStoreTarget() const;
-  Handle<Map> holder_map() const { return holder_map_; }
+  bool is_dictionary_holder() const { return holder_map_->is_dictionary_map(); }
   Handle<Map> transition_map() const {
     DCHECK_EQ(TRANSITION, state_);
     return transition_map_;
@@ -132,10 +125,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
   void TransitionToAccessorProperty(AccessorComponent component,
                                     Handle<Object> accessor,
                                     PropertyAttributes attributes);
-  PropertyEncoding property_encoding() const {
-    DCHECK(has_property_);
-    return property_encoding_;
-  }
   PropertyDetails property_details() const {
     DCHECK(has_property_);
     return property_details_;
@@ -181,12 +170,12 @@ class LookupIterator FINAL BASE_EMBEDDED {
   }
   int descriptor_number() const {
     DCHECK(has_property_);
-    DCHECK_EQ(DESCRIPTOR, property_encoding_);
+    DCHECK(!holder_map_->is_dictionary_map());
     return number_;
   }
   int dictionary_entry() const {
     DCHECK(has_property_);
-    DCHECK_EQ(DICTIONARY, property_encoding_);
+    DCHECK(holder_map_->is_dictionary_map());
     return number_;
   }
 
@@ -204,7 +193,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
   Configuration configuration_;
   State state_;
   bool has_property_;
-  PropertyEncoding property_encoding_;
   PropertyDetails property_details_;
   Isolate* isolate_;
   Handle<Name> name_;

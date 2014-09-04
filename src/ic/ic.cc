@@ -898,7 +898,7 @@ Handle<Code> IC::ComputeHandler(LookupIterator* lookup, Handle<Object> value) {
 
   Handle<Code> code = PropertyHandlerCompiler::Find(
       lookup->name(), stub_holder_map, kind(), flag,
-      lookup->holder_map()->is_dictionary_map() ? Code::NORMAL : Code::FAST);
+      lookup->is_dictionary_holder() ? Code::NORMAL : Code::FAST);
   // Use the cached value if it exists, and if it is different from the
   // handler that just missed.
   if (!code.is_null()) {
@@ -1033,7 +1033,7 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
 
   // -------------- Dictionary properties --------------
   DCHECK(lookup->state() == LookupIterator::DATA);
-  if (lookup->property_encoding() == LookupIterator::DICTIONARY) {
+  if (lookup->is_dictionary_holder()) {
     if (kind() != Code::LOAD_IC) return slow_stub();
     if (holder->IsGlobalObject()) {
       NamedLoadHandlerCompiler compiler(isolate(), receiver_type(), holder,
@@ -1057,7 +1057,6 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
   }
 
   // -------------- Fields --------------
-  DCHECK(lookup->property_encoding() == LookupIterator::DESCRIPTOR);
   if (lookup->property_details().type() == FIELD) {
     FieldIndex field = lookup->GetFieldIndex();
     if (receiver_is_holder) {
@@ -1455,7 +1454,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
 
   // -------------- Dictionary properties --------------
   DCHECK(lookup->state() == LookupIterator::DATA);
-  if (lookup->property_encoding() == LookupIterator::DICTIONARY) {
+  if (lookup->is_dictionary_holder()) {
     if (holder->IsGlobalObject()) {
       Handle<PropertyCell> cell = lookup->GetPropertyCell();
       Handle<HeapType> union_type = PropertyCell::UpdatedType(cell, value);
@@ -1472,7 +1471,6 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
   }
 
   // -------------- Fields --------------
-  DCHECK(lookup->property_encoding() == LookupIterator::DESCRIPTOR);
   if (lookup->property_details().type() == FIELD) {
     bool use_stub = true;
     if (lookup->representation().IsHeapObject()) {
