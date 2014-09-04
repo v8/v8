@@ -2213,6 +2213,8 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
     Handle<String> natives =
         factory->InternalizeUtf8String(FLAG_expose_natives_as);
+    uint32_t dummy_index;
+    if (natives->AsArrayIndex(&dummy_index)) return true;
     JSObject::AddProperty(global, natives, handle(global->builtins()),
                           DONT_ENUM);
   }
