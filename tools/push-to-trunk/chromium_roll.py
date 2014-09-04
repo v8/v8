@@ -23,7 +23,8 @@ class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    self.CommonPrepare()
+    # Update v8 remote tracking branches.
+    self.GitFetchOrigin()
 
 
 class DetectLastPush(Step):
@@ -31,8 +32,8 @@ class DetectLastPush(Step):
 
   def RunStep(self):
     self["last_push"] = self._options.last_push or self.FindLastTrunkPush(
-        include_patches=True)
-    self["trunk_revision"] = self.GitSVNFindSVNRev(self["last_push"])
+        branch="origin/master", include_patches=True)
+    self["trunk_revision"] = self.GetCommitPositionNumber(self["last_push"])
     self["push_title"] = self.GitLog(n=1, format="%s",
                                      git_hash=self["last_push"])
 

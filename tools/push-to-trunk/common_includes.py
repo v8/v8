@@ -471,13 +471,14 @@ class Step(GitRecipesMixin):
     except GitFailedException:
       self.WaitForResolvingConflicts(patch_file)
 
-  def FindLastTrunkPush(self, parent_hash="", include_patches=False):
+  def FindLastTrunkPush(
+      self, parent_hash="", branch="", include_patches=False):
     push_pattern = "^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*"
     if not include_patches:
       # Non-patched versions only have three numbers followed by the "(based
       # on...) comment."
       push_pattern += " (based"
-    branch = "" if parent_hash else "svn/trunk"
+    branch = "" if parent_hash else branch or "svn/trunk"
     return self.GitLog(n=1, format="%H", grep=push_pattern,
                        parent_hash=parent_hash, branch=branch)
 

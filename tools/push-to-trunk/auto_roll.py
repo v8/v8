@@ -50,8 +50,9 @@ class DetectLastPush(Step):
   MESSAGE = "Detect commit ID of the last push to trunk."
 
   def RunStep(self):
-    push_hash = self.FindLastTrunkPush(include_patches=True)
-    self["last_push"] = self.GitSVNFindSVNRev(push_hash)
+    push_hash = self.FindLastTrunkPush(
+        branch="origin/master", include_patches=True)
+    self["last_push"] = self.GetCommitPositionNumber(push_hash)
 
 
 class DetectLastRoll(Step):
@@ -62,7 +63,9 @@ class DetectLastRoll(Step):
     Var = lambda var: '%s'
     exec(self.ReadURL(CR_DEPS_URL))
     last_roll = vars['v8_revision']
-    if last_roll >= self["last_push"]:
+    # FIXME(machenbach): When rolling from bleeding edge and from trunk there
+    # be different commit numbers here. Better use version?
+    if int(last_roll) >= int(self["last_push"]):
       print("There is no newer v8 revision than the one in Chromium (%s)."
             % last_roll)
       return True

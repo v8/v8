@@ -57,77 +57,6 @@ DEPS_RE = re.compile(r"""^\s*(?:["']v8_revision["']: ["']"""
 BLEEDING_EDGE_TAGS_RE = re.compile(
     r"A \/tags\/([^\s]+) \(from \/branches\/bleeding_edge\:(\d+)\)")
 
-# Regular expression that matches a single commit footer line.
-COMMIT_FOOTER_ENTRY_RE = re.compile(r'([^:]+):\s+(.+)')
-
-# Footer metadata key for commit position.
-COMMIT_POSITION_FOOTER_KEY = 'Cr-Commit-Position'
-
-# Regular expression to parse a commit position
-COMMIT_POSITION_RE = re.compile(r'(.+)@\{#(\d+)\}')
-
-# Key for the 'git-svn' ID metadata commit footer entry.
-GIT_SVN_ID_FOOTER_KEY = 'git-svn-id'
-
-# e.g., git-svn-id: https://v8.googlecode.com/svn/trunk@23117
-#     ce2b1a6d-e550-0410-aec6-3dcde31c8c00
-GIT_SVN_ID_RE = re.compile(r'((?:\w+)://[^@]+)@(\d+)\s+(?:[a-zA-Z0-9\-]+)')
-
-
-# Copied from bot_update.py.
-def GetCommitMessageFooterMap(message):
-  """Returns: (dict) A dictionary of commit message footer entries.
-  """
-  footers = {}
-
-  # Extract the lines in the footer block.
-  lines = []
-  for line in message.strip().splitlines():
-    line = line.strip()
-    if len(line) == 0:
-      del(lines[:])
-      continue
-    lines.append(line)
-
-  # Parse the footer
-  for line in lines:
-    m = COMMIT_FOOTER_ENTRY_RE.match(line)
-    if not m:
-      # If any single line isn't valid, the entire footer is invalid.
-      footers.clear()
-      return footers
-    footers[m.group(1)] = m.group(2).strip()
-  return footers
-
-
-# Copied from bot_update.py and modified for svn-like numbers only.
-def GetCommitPositionNumber(step, git_hash):
-  """Dumps the 'git' log for a specific revision and parses out the commit
-  position number.
-
-  If a commit position metadata key is found, its number will be returned.
-
-  Otherwise, we will search for a 'git-svn' metadata entry. If one is found,
-  its SVN revision value is returned.
-  """
-  git_log = step.GitLog(format='%B', n=1, git_hash=git_hash)
-  footer_map = GetCommitMessageFooterMap(git_log)
-
-  # Search for commit position metadata
-  value = footer_map.get(COMMIT_POSITION_FOOTER_KEY)
-  if value:
-    match = COMMIT_POSITION_RE.match(value)
-    if match:
-      return match.group(2)
-
-  # Extract the svn revision from 'git-svn' metadata
-  value = footer_map.get(GIT_SVN_ID_FOOTER_KEY)
-  if value:
-    match = GIT_SVN_ID_RE.match(value)
-    if match:
-      return match.group(2)
-  return None
-
 
 def SortBranches(branches):
   """Sort branches with version number names."""
@@ -419,7 +348,7 @@ class RetrieveChromiumV8Releases(Step):
         deps = FileToText(self.Config(DEPS_FILE))
         match = DEPS_RE.search(deps)
         if match:
-          cr_rev = GetCommitPositionNumber(self, git_hash)
+          cr_rev = self.GetCommitPositionNumber(git_hash)
           if cr_rev:
             v8_rev = ConvertToCommitNumber(self, match.group(1))
             cr_releases.append([cr_rev, v8_rev])

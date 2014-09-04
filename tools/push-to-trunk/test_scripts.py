@@ -800,6 +800,18 @@ Performance and stability improvements on all platforms.""", commit)
   def testPushToTrunkForced(self):
     self._PushToTrunk(force=True)
 
+  C_V8_22624_LOG = """V8 CL.
+
+git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@22624 123
+
+"""
+
+  C_V8_123456_LOG = """V8 CL.
+
+git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123456 123
+
+"""
+
   def testChromiumRoll(self):
     googlers_mapping_py = "%s-mapping.py" % TEST_CONFIG[PERSISTFILE_BASENAME]
     with open(googlers_mapping_py, "w") as f:
@@ -817,19 +829,17 @@ def get_list():
     TextToFile("Some line\n   \"v8_revision\": \"123444\",\n  some line",
                TEST_CONFIG[DEPS_FILE])
     def WriteDeps():
-      TextToFile("Some line\n   \"v8_revision\": \"123455\",\n  some line",
+      TextToFile("Some line\n   \"v8_revision\": \"22624\",\n  some line",
                  TEST_CONFIG[DEPS_FILE])
 
     expectations = [
-      Cmd("git status -s -uno", ""),
-      Cmd("git status -s -b -uno", "## some_branch\n"),
-      Cmd("git svn fetch", ""),
+      Cmd("git fetch origin", ""),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "svn/trunk"), "push_hash\n"),
-      Cmd("git svn find-rev push_hash", "123455\n"),
+           "origin/master"), "push_hash\n"),
+      Cmd("git log -1 --format=%B push_hash", self.C_V8_22624_LOG),
       Cmd("git log -1 --format=%s push_hash",
-          "Version 3.22.5 (based on bleeding_edge revision r123454)\n"),
+          "Version 3.22.5 (based on bleeding_edge revision r22622)\n"),
       URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
           "document.write('g_name')"),
       Cmd("git status -s -uno", ""),
@@ -837,10 +847,10 @@ def get_list():
       Cmd("gclient sync --nohooks", "syncing..."),
       Cmd("git pull", ""),
       Cmd("git fetch origin", ""),
-      Cmd("git checkout -b v8-roll-123455", ""),
-      Cmd("roll-dep v8 123455", "rolled", cb=WriteDeps),
+      Cmd("git checkout -b v8-roll-22624", ""),
+      Cmd("roll-dep v8 22624", "rolled", cb=WriteDeps),
       Cmd(("git commit -am \"Update V8 to version 3.22.5 "
-           "(based on bleeding_edge revision r123454).\n\n"
+           "(based on bleeding_edge revision r22622).\n\n"
            "Please reply to the V8 sheriff c_name@chromium.org in "
            "case of problems.\n\nTBR=c_name@chromium.org\" "
            "--author \"author@chromium.org <author@chromium.org>\""),
@@ -855,7 +865,7 @@ def get_list():
     ChromiumRoll(TEST_CONFIG, self).Run(args)
 
     deps = FileToText(TEST_CONFIG[DEPS_FILE])
-    self.assertTrue(re.search("\"v8_revision\": \"123455\"", deps))
+    self.assertTrue(re.search("\"v8_revision\": \"22624\"", deps))
 
   def testCheckLastPushRecently(self):
     self.Expect([
@@ -960,8 +970,8 @@ deps = {
           ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "svn/trunk"), "push_hash\n"),
-      Cmd("git svn find-rev push_hash", "123455\n"),
+           "origin/master"), "push_hash\n"),
+      Cmd("git log -1 --format=%B push_hash", self.C_V8_22624_LOG),
       URL("http://src.chromium.org/svn/trunk/src/DEPS",
           self.FAKE_DEPS),
     ])
@@ -980,8 +990,8 @@ deps = {
           ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "svn/trunk"), "push_hash\n"),
-      Cmd("git svn find-rev push_hash", "123456\n"),
+           "origin/master"), "push_hash\n"),
+      Cmd("git log -1 --format=%B push_hash", self.C_V8_123456_LOG),
       URL("http://src.chromium.org/svn/trunk/src/DEPS",
           self.FAKE_DEPS),
     ])
@@ -1170,11 +1180,6 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@4567 0039-1c4b
 git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
 
 """
-    c_v8_22624_log = """V8 CL.
-
-git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@22624 123
-
-"""
     json_output = self.MakeEmptyTempFile()
     csv_output = self.MakeEmptyTempFile()
     TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
@@ -1263,7 +1268,7 @@ git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@22624 123
       Cmd("git rev-list -n 1 0123456789012345678901234567890123456789",
           "0123456789012345678901234567890123456789"),
       Cmd("git log -1 --format=%B 0123456789012345678901234567890123456789",
-          c_v8_22624_log),
+          self.C_V8_22624_LOG),
       Cmd("git diff --name-only c_hash3 c_hash3^", TEST_CONFIG[DEPS_FILE]),
       Cmd("git checkout -f c_hash3 -- %s" % TEST_CONFIG[DEPS_FILE], "",
           cb=ResetDEPS(345)),
