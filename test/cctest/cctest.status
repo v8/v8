@@ -301,6 +301,8 @@
 
   # Test requires turbofan:
   'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
+  'codegen-tester/CompareWrapper': [SKIP],
+  'codegen-tester/ParametersEqual': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -320,6 +322,8 @@
 
   # Test requires turbofan:
   'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
+  'codegen-tester/CompareWrapper': [SKIP],
+  'codegen-tester/ParametersEqual': [SKIP],
 }],  # 'arch == mips64el'
 
 ##############################################################################
