@@ -16,21 +16,6 @@ void ArrayNativeCode(MacroAssembler* masm, Label* call_generic_code);
 
 class StringHelper : public AllStatic {
  public:
-  // TODO(all): These don't seem to be used any more. Delete them.
-
-  // Generate string hash.
-  static void GenerateHashInit(MacroAssembler* masm,
-                               Register hash,
-                               Register character);
-
-  static void GenerateHashAddCharacter(MacroAssembler* masm,
-                                       Register hash,
-                                       Register character);
-
-  static void GenerateHashGetHash(MacroAssembler* masm,
-                                  Register hash,
-                                  Register scratch);
-
   // Compares two flat ASCII strings and returns result in x0.
   static void GenerateCompareFlatAsciiStrings(
       MacroAssembler* masm, Register left, Register right, Register scratch1,

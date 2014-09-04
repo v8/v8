@@ -3532,67 +3532,6 @@ void CompareICStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StringHelper::GenerateHashInit(MacroAssembler* masm,
-                                    Register hash,
-                                    Register character) {
-  DCHECK(!AreAliased(hash, character));
-
-  // hash = character + (character << 10);
-  __ LoadRoot(hash, Heap::kHashSeedRootIndex);
-  // Untag smi seed and add the character.
-  __ Add(hash, character, Operand::UntagSmi(hash));
-
-  // Compute hashes modulo 2^32 using a 32-bit W register.
-  Register hash_w = hash.W();
-
-  // hash += hash << 10;
-  __ Add(hash_w, hash_w, Operand(hash_w, LSL, 10));
-  // hash ^= hash >> 6;
-  __ Eor(hash_w, hash_w, Operand(hash_w, LSR, 6));
-}
-
-
-void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
-                                            Register hash,
-                                            Register character) {
-  DCHECK(!AreAliased(hash, character));
-
-  // hash += character;
-  __ Add(hash, hash, character);
-
-  // Compute hashes modulo 2^32 using a 32-bit W register.
-  Register hash_w = hash.W();
-
-  // hash += hash << 10;
-  __ Add(hash_w, hash_w, Operand(hash_w, LSL, 10));
-  // hash ^= hash >> 6;
-  __ Eor(hash_w, hash_w, Operand(hash_w, LSR, 6));
-}
-
-
-void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
-                                       Register hash,
-                                       Register scratch) {
-  // Compute hashes modulo 2^32 using a 32-bit W register.
-  Register hash_w = hash.W();
-  Register scratch_w = scratch.W();
-  DCHECK(!AreAliased(hash_w, scratch_w));
-
-  // hash += hash << 3;
-  __ Add(hash_w, hash_w, Operand(hash_w, LSL, 3));
-  // hash ^= hash >> 11;
-  __ Eor(hash_w, hash_w, Operand(hash_w, LSR, 11));
-  // hash += hash << 15;
-  __ Add(hash_w, hash_w, Operand(hash_w, LSL, 15));
-
-  __ Ands(hash_w, hash_w, String::kHashBitMask);
-
-  // if (hash == 0) hash = 27;
-  __ Mov(scratch_w, StringHasher::kZeroHash);
-  __ Csel(hash_w, scratch_w, hash_w, eq);
-}
-
-
 void SubStringStub::Generate(MacroAssembler* masm) {
   ASM_LOCATION("SubStringStub::Generate");
   Label runtime;
