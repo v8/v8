@@ -63,14 +63,16 @@ TEST_F(ValueNumberingReducerTest, OperatorEqualityNotIdentity) {
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
     const SimpleOperator op1(static_cast<Operator::Opcode>(input_count),
-                             Operator::kNoProperties, input_count, 1, "op");
-    Node* n1 = graph()->NewNode(&op1, input_count, inputs);
+                             Operator::kNoProperties,
+                             static_cast<int>(input_count), 1, "op");
+    Node* n1 = graph()->NewNode(&op1, static_cast<int>(input_count), inputs);
     Reduction r1 = Reduce(n1);
     EXPECT_FALSE(r1.Changed());
 
     const SimpleOperator op2(static_cast<Operator::Opcode>(input_count),
-                             Operator::kNoProperties, input_count, 1, "op");
-    Node* n2 = graph()->NewNode(&op2, input_count, inputs);
+                             Operator::kNoProperties,
+                             static_cast<int>(input_count), 1, "op");
+    Node* n2 = graph()->NewNode(&op2, static_cast<int>(input_count), inputs);
     Reduction r2 = Reduce(n2);
     EXPECT_TRUE(r2.Changed());
     EXPECT_EQ(n1, r2.replacement());
@@ -88,16 +90,17 @@ TEST_F(ValueNumberingReducerTest, SubsequentReductionsYieldTheSameNode) {
         opcode, Operator::kNoProperties, 0, 1, "Operator"));
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
-    const SimpleOperator op1(1, Operator::kNoProperties, input_count, 1, "op1");
-    Node* n = graph()->NewNode(&op1, input_count, inputs);
+    const SimpleOperator op1(1, Operator::kNoProperties,
+                             static_cast<int>(input_count), 1, "op1");
+    Node* n = graph()->NewNode(&op1, static_cast<int>(input_count), inputs);
     Reduction r = Reduce(n);
     EXPECT_FALSE(r.Changed());
 
-    r = Reduce(graph()->NewNode(&op1, input_count, inputs));
+    r = Reduce(graph()->NewNode(&op1, static_cast<int>(input_count), inputs));
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(n, r.replacement());
 
-    r = Reduce(graph()->NewNode(&op1, input_count, inputs));
+    r = Reduce(graph()->NewNode(&op1, static_cast<int>(input_count), inputs));
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(n, r.replacement());
   }
