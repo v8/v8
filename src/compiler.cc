@@ -321,11 +321,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // shared function info.
   DCHECK(!info()->shared_info()->optimization_disabled());
 
-  // Fall back to using the full code generator if it's not possible
-  // to use the Hydrogen-based optimizing compiler. We already have
-  // generated code for this from the shared function object.
-  if (FLAG_always_full_compiler) return AbortOptimization();
-
   // Do not use crankshaft if we need to be able to set break points.
   if (isolate()->DebuggerHasBreakPoints()) {
     return AbortOptimization(kDebuggerHasBreakPoints);
