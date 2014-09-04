@@ -656,7 +656,7 @@ class ScriptsBase(object):
                             options, self._side_effect_handler))
     for step in steps[options.step:]:
       if step.Run():
-        return 1
+        return 0
     return 0
 
   def Run(self, args=None):
