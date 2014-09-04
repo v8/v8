@@ -269,6 +269,13 @@ class Operator1 : public Operator {
 // Type definitions for operators with specific types of parameters.
 typedef Operator1<PrintableUnique<Name> > NameOperator;
 
+
+// Helper to extract parameters from Operator1<*> operator.
+template <typename T>
+static inline T OpParameter(const Operator* op) {
+  return reinterpret_cast<const Operator1<T>*>(op)->parameter();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

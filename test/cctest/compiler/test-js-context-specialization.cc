@@ -95,8 +95,7 @@ TEST(ReduceJSLoadContext) {
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     ValueMatcher<Handle<Context> > match(new_context_input);
     CHECK_EQ(*native, *match.Value());
-    ContextAccess access = static_cast<Operator1<ContextAccess>*>(
-                               r.replacement()->op())->parameter();
+    ContextAccess access = OpParameter<ContextAccess>(r.replacement());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, access.index());
     CHECK_EQ(0, access.depth());
     CHECK_EQ(false, access.immutable());
@@ -176,8 +175,7 @@ TEST(ReduceJSStoreContext) {
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
     ValueMatcher<Handle<Context> > match(new_context_input);
     CHECK_EQ(*native, *match.Value());
-    ContextAccess access = static_cast<Operator1<ContextAccess>*>(
-                               r.replacement()->op())->parameter();
+    ContextAccess access = OpParameter<ContextAccess>(r.replacement());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, access.index());
     CHECK_EQ(0, access.depth());
     CHECK_EQ(false, access.immutable());

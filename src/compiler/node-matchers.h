@@ -17,7 +17,7 @@ struct NodeMatcher {
   explicit NodeMatcher(Node* node) : node_(node) {}
 
   Node* node() const { return node_; }
-  Operator* op() const { return node()->op(); }
+  const Operator* op() const { return node()->op(); }
   IrOpcode::Value opcode() const { return node()->opcode(); }
 
   bool HasProperty(Operator::Property property) const {

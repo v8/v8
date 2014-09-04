@@ -184,7 +184,7 @@ void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
     Node* use = *iter;
     switch (use->opcode()) {
       case IrOpcode::kParameter: {
-        int index = 1 + static_cast<Operator1<int>*>(use->op())->parameter();
+        int index = 1 + OpParameter<int>(use->op());
         if (index < inliner_inputs && index < inlinee_context_index) {
           // There is an input from the call, and the index is a value
           // projection but not the context, so rewire the input.
