@@ -28,18 +28,6 @@ class StringHelper : public AllStatic {
                                      Register scratch,
                                      String::Encoding encoding);
 
-  // Generate string hash.
-  static void GenerateHashInit(MacroAssembler* masm,
-                               Register hash,
-                               Register character);
-
-  static void GenerateHashAddCharacter(MacroAssembler* masm,
-                                       Register hash,
-                                       Register character);
-
-  static void GenerateHashGetHash(MacroAssembler* masm,
-                                  Register hash);
-
   // Compare two flat ASCII strings and returns result in v0.
   static void GenerateCompareFlatAsciiStrings(MacroAssembler* masm,
                                               Register left,
