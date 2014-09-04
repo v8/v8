@@ -9,18 +9,18 @@
 #include <set>
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/compiler/compiler-unittests.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/raw-machine-assembler.h"
+#include "src/test/test-utils.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class InstructionSelectorTest : public CompilerTest {
+class InstructionSelectorTest : public TestWithContext, public TestWithZone {
  public:
   InstructionSelectorTest();
-  virtual ~InstructionSelectorTest() {}
+  virtual ~InstructionSelectorTest();
 
   base::RandomNumberGenerator* rng() { return &rng_; }
 

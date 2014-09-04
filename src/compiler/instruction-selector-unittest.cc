@@ -4,6 +4,7 @@
 
 #include "src/compiler/instruction-selector-unittest.h"
 
+#include "src/compiler/compiler-test-utils.h"
 #include "src/flags.h"
 
 namespace v8 {
@@ -18,6 +19,9 @@ typedef RawMachineAssembler::Label MLabel;
 
 
 InstructionSelectorTest::InstructionSelectorTest() : rng_(FLAG_random_seed) {}
+
+
+InstructionSelectorTest::~InstructionSelectorTest() {}
 
 
 InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(

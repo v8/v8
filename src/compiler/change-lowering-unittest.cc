@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/change-lowering.h"
+#include "src/compiler/compiler-test-utils.h"
 #include "src/compiler/graph-unittest.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
