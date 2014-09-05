@@ -2759,16 +2759,6 @@ Type* CompareIC::StateToType(Zone* zone, CompareIC::State state,
 }
 
 
-void CompareIC::StubInfoToType(uint32_t stub_key, Type** left_type,
-                               Type** right_type, Type** overall_type,
-                               Handle<Map> map, Zone* zone) {
-  CompareICStub stub(stub_key, map->GetIsolate());
-  *left_type = StateToType(zone, stub.left());
-  *right_type = StateToType(zone, stub.right());
-  *overall_type = StateToType(zone, stub.state(), map);
-}
-
-
 CompareIC::State CompareIC::NewInputState(State old_state,
                                           Handle<Object> value) {
   switch (old_state) {
