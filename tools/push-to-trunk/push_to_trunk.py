@@ -27,6 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import argparse
+import os
 import sys
 import tempfile
 import urllib2
@@ -312,7 +313,7 @@ class ApplyChanges(Step):
 
   def RunStep(self):
     self.ApplyPatch(self.Config(PATCH_FILE))
-    Command("rm", "-f %s*" % self.Config(PATCH_FILE))
+    os.remove(self.Config(PATCH_FILE))
 
 
 class AddChangeLog(Step):
@@ -345,7 +346,7 @@ class CommitTrunk(Step):
 
   def RunStep(self):
     self.GitCommit(file_name = self.Config(COMMITMSG_FILE))
-    Command("rm", "-f %s*" % self.Config(COMMITMSG_FILE))
+    os.remove(self.Config(COMMITMSG_FILE))
 
 
 class SanityCheck(Step):
