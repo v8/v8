@@ -5,8 +5,6 @@
 #ifndef V8_ARM_CODE_STUBS_ARM_H_
 #define V8_ARM_CODE_STUBS_ARM_H_
 
-#include "src/code-stubs.h"
-
 namespace v8 {
 namespace internal {
 
@@ -73,8 +71,6 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
   static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
 
  private:
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
-
   void Generate(MacroAssembler* masm);
 
   Register the_int() const {
@@ -94,7 +90,7 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
   class HeapNumberRegisterBits: public BitField<int, 4, 4> {};
   class ScratchRegisterBits: public BitField<int, 8, 4> {};
 
-  DISALLOW_COPY_AND_ASSIGN(WriteInt32ToHeapNumberStub);
+  DEFINE_CODE_STUB(WriteInt32ToHeapNumber, PlatformCodeStub);
 };
 
 
@@ -116,6 +112,9 @@ class RecordWriteStub: public PlatformCodeStub {
                  RememberedSetActionBits::encode(remembered_set_action) |
                  SaveFPRegsModeBits::encode(fp_mode);
   }
+
+  RecordWriteStub(uint32_t key, Isolate* isolate)
+      : PlatformCodeStub(key, isolate), regs_(object(), address(), value()) {}
 
   enum Mode {
     STORE_BUFFER_ONLY,
@@ -244,7 +243,7 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
+  virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
 
   void Generate(MacroAssembler* masm);
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
@@ -303,11 +302,9 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
-
   bool NeedsImmovableCode() { return true; }
 
-  DISALLOW_COPY_AND_ASSIGN(DirectCEntryStub);
+  DEFINE_CODE_STUB(DirectCEntry, PlatformCodeStub);
 };
 
 
@@ -352,13 +349,11 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
-
   LookupMode mode() const { return LookupModeBits::decode(minor_key_); }
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 
-  DISALLOW_COPY_AND_ASSIGN(NameDictionaryLookupStub);
+  DEFINE_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
 } }  // namespace v8::internal

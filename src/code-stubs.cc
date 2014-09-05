@@ -317,7 +317,7 @@ bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
-    CompareICStub decode((*code_out)->stub_key());
+    CompareICStub decode((*code_out)->stub_key(), isolate());
     DCHECK(op() == decode.op());
     DCHECK(left() == decode.left());
     DCHECK(right() == decode.right());

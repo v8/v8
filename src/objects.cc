@@ -10893,7 +10893,7 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
     }
     if (is_compare_ic_stub()) {
       DCHECK(CodeStub::GetMajorKey(this) == CodeStub::CompareIC);
-      CompareICStub stub(stub_key());
+      CompareICStub stub(stub_key(), GetIsolate());
       os << "compare_state = " << CompareIC::GetStateName(stub.left()) << "*"
          << CompareIC::GetStateName(stub.right()) << " -> "
          << CompareIC::GetStateName(stub.state()) << "\n";
