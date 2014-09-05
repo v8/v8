@@ -38,8 +38,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
         arguments_length_(NULL),
         info_(stub, isolate),
         context_(NULL) {
-    descriptor_ = stub->GetInterfaceDescriptor();
-    int parameter_count = descriptor_->GetEnvironmentParameterCount();
+    stub->InitializeInterfaceDescriptor(&descriptor_);
+    int parameter_count = descriptor_.GetEnvironmentParameterCount();
     parameters_.Reset(new HParameter*[parameter_count]);
   }
   virtual bool BuildGraph();
@@ -47,7 +47,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
  protected:
   virtual HValue* BuildCodeStub() = 0;
   HParameter* GetParameter(int parameter) {
-    DCHECK(parameter < descriptor_->GetEnvironmentParameterCount());
+    DCHECK(parameter < descriptor_.GetEnvironmentParameterCount());
     return parameters_[parameter];
   }
   HValue* GetArgumentsLength() {
@@ -103,7 +103,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   SmartArrayPointer<HParameter*> parameters_;
   HValue* arguments_length_;
   CompilationInfoWithZone info_;
-  CodeStubInterfaceDescriptor* descriptor_;
+  CodeStubInterfaceDescriptor descriptor_;
   HContext* context_;
 };
 
@@ -119,22 +119,22 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
     isolate()->GetHTracer()->TraceCompilation(&info_);
   }
 
-  int param_count = descriptor_->GetEnvironmentParameterCount();
+  int param_count = descriptor_.GetEnvironmentParameterCount();
   HEnvironment* start_environment = graph()->start_environment();
   HBasicBlock* next_block = CreateBasicBlock(start_environment);
   Goto(next_block);
   next_block->SetJoinId(BailoutId::StubEntry());
   set_current_block(next_block);
 
-  bool runtime_stack_params = descriptor_->stack_parameter_count().is_valid();
+  bool runtime_stack_params = descriptor_.stack_parameter_count().is_valid();
   HInstruction* stack_parameter_count = NULL;
   for (int i = 0; i < param_count; ++i) {
-    Representation r = descriptor_->GetEnvironmentParameterRepresentation(i);
+    Representation r = descriptor_.GetEnvironmentParameterRepresentation(i);
     HParameter* param = Add<HParameter>(i,
                                         HParameter::REGISTER_PARAMETER, r);
     start_environment->Bind(i, param);
     parameters_[i] = param;
-    if (descriptor_->IsEnvironmentParameterCountRegister(i)) {
+    if (descriptor_.IsEnvironmentParameterCountRegister(i)) {
       param->set_type(HType::Smi());
       stack_parameter_count = param;
       arguments_length_ = stack_parameter_count;
@@ -159,16 +159,16 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   // We might have extra expressions to pop from the stack in addition to the
   // arguments above.
   HInstruction* stack_pop_count = stack_parameter_count;
-  if (descriptor_->function_mode() == JS_FUNCTION_STUB_MODE) {
+  if (descriptor_.function_mode() == JS_FUNCTION_STUB_MODE) {
     if (!stack_parameter_count->IsConstant() &&
-        descriptor_->hint_stack_parameter_count() < 0) {
+        descriptor_.hint_stack_parameter_count() < 0) {
       HInstruction* constant_one = graph()->GetConstant1();
       stack_pop_count = AddUncasted<HAdd>(stack_parameter_count, constant_one);
       stack_pop_count->ClearFlag(HValue::kCanOverflow);
       // TODO(mvstanton): verify that stack_parameter_count+1 really fits in a
       // smi.
     } else {
-      int count = descriptor_->hint_stack_parameter_count();
+      int count = descriptor_.hint_stack_parameter_count();
       stack_pop_count = Add<HConstant>(count);
     }
   }
@@ -251,18 +251,14 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode() {
 template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   Isolate* isolate = stub->isolate();
-  CodeStub::Major major_key = static_cast<CodeStub*>(stub)->MajorKey();
-  CodeStubInterfaceDescriptor* descriptor =
-      isolate->code_stub_interface_descriptor(major_key);
-  if (!descriptor->IsInitialized()) {
-    stub->InitializeInterfaceDescriptor(descriptor);
-  }
+  CodeStubInterfaceDescriptor descriptor;
+  stub->InitializeInterfaceDescriptor(&descriptor);
 
   // If we are uninitialized we can use a light-weight stub to enter
   // the runtime that is significantly faster than using the standard
   // stub-failure deopt mechanism.
-  if (stub->IsUninitialized() && descriptor->has_miss_handler()) {
-    DCHECK(!descriptor->stack_parameter_count().is_valid());
+  if (stub->IsUninitialized() && descriptor.has_miss_handler()) {
+    DCHECK(!descriptor.stack_parameter_count().is_valid());
     return stub->GenerateLightweightMissCode();
   }
   base::ElapsedTimer timer;

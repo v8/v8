@@ -16,28 +16,13 @@ namespace internal {
 namespace compiler {
 
 
-// TODO(mstarzinger): This is a temporary workaround for non-hydrogen stubs for
-// which we don't have an interface descriptor yet. Use ReplaceWithStubCall
-// once these stub have been made into a HydrogenCodeStub.
-template <typename T>
-static CodeStubInterfaceDescriptor* GetInterfaceDescriptor(Isolate* isolate,
-                                                           T* stub) {
-  CodeStub::Major key = static_cast<CodeStub*>(stub)->MajorKey();
-  CodeStubInterfaceDescriptor* d = isolate->code_stub_interface_descriptor(key);
-  stub->InitializeInterfaceDescriptor(d);
-  return d;
-}
-
-
 // TODO(mstarzinger): This is a temporary shim to be able to call an IC stub
 // which doesn't have an interface descriptor yet. It mimics a hydrogen code
 // stub for the underlying IC stub code.
 class LoadICStubShim : public HydrogenCodeStub {
  public:
   LoadICStubShim(Isolate* isolate, ContextualMode contextual_mode)
-      : HydrogenCodeStub(isolate), contextual_mode_(contextual_mode) {
-    i::compiler::GetInterfaceDescriptor(isolate, this);
-  }
+      : HydrogenCodeStub(isolate), contextual_mode_(contextual_mode) {}
 
   virtual Handle<Code> GenerateCode() OVERRIDE {
     ExtraICState extra_state = LoadIC::ComputeExtraICState(contextual_mode_);
@@ -63,9 +48,7 @@ class LoadICStubShim : public HydrogenCodeStub {
 // stub for the underlying IC stub code.
 class KeyedLoadICStubShim : public HydrogenCodeStub {
  public:
-  explicit KeyedLoadICStubShim(Isolate* isolate) : HydrogenCodeStub(isolate) {
-    i::compiler::GetInterfaceDescriptor(isolate, this);
-  }
+  explicit KeyedLoadICStubShim(Isolate* isolate) : HydrogenCodeStub(isolate) {}
 
   virtual Handle<Code> GenerateCode() OVERRIDE {
     return isolate()->builtins()->KeyedLoadIC_Initialize();
@@ -89,9 +72,7 @@ class KeyedLoadICStubShim : public HydrogenCodeStub {
 class StoreICStubShim : public HydrogenCodeStub {
  public:
   StoreICStubShim(Isolate* isolate, StrictMode strict_mode)
-      : HydrogenCodeStub(isolate), strict_mode_(strict_mode) {
-    i::compiler::GetInterfaceDescriptor(isolate, this);
-  }
+      : HydrogenCodeStub(isolate), strict_mode_(strict_mode) {}
 
   virtual Handle<Code> GenerateCode() OVERRIDE {
     return StoreIC::initialize_stub(isolate(), strict_mode_);
@@ -117,9 +98,7 @@ class StoreICStubShim : public HydrogenCodeStub {
 class KeyedStoreICStubShim : public HydrogenCodeStub {
  public:
   KeyedStoreICStubShim(Isolate* isolate, StrictMode strict_mode)
-      : HydrogenCodeStub(isolate), strict_mode_(strict_mode) {
-    i::compiler::GetInterfaceDescriptor(isolate, this);
-  }
+      : HydrogenCodeStub(isolate), strict_mode_(strict_mode) {}
 
   virtual Handle<Code> GenerateCode() OVERRIDE {
     return strict_mode_ == SLOPPY
@@ -290,10 +269,11 @@ static CallDescriptor::Flags FlagsForNode(Node* node) {
 void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
                                              bool pure) {
   BinaryOpICStub stub(isolate(), Token::ADD);  // TODO(mstarzinger): Hack.
-  CodeStubInterfaceDescriptor* d = stub.GetInterfaceDescriptor();
+  CodeStubInterfaceDescriptor d;
+  stub.InitializeInterfaceDescriptor(&d);
   bool has_frame_state = OperatorProperties::HasFrameStateInput(node->op());
   CallDescriptor* desc_compare = linkage()->GetStubCallDescriptor(
-      d, 0, CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node));
+      &d, 0, CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node));
   Handle<Code> ic = CompareIC::GetUninitialized(isolate(), token);
   NodeVector inputs(zone());
   inputs.reserve(node->InputCount() + 1);
@@ -340,9 +320,10 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, HydrogenCodeStub* stub,
                                             CallDescriptor::Flags flags) {
-  CodeStubInterfaceDescriptor* d = stub->GetInterfaceDescriptor();
+  CodeStubInterfaceDescriptor d;
+  stub->InitializeInterfaceDescriptor(&d);
   CallDescriptor* desc =
-      linkage()->GetStubCallDescriptor(d, 0, flags | FlagsForNode(node));
+      linkage()->GetStubCallDescriptor(&d, 0, flags | FlagsForNode(node));
   Node* stub_code = CodeConstant(stub->GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
@@ -353,8 +334,9 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
                                                Builtins::JavaScript id,
                                                int nargs) {
   CallFunctionStub stub(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
-  CodeStubInterfaceDescriptor* d = GetInterfaceDescriptor(isolate(), &stub);
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(d, nargs);
+  CodeStubInterfaceDescriptor d;
+  stub.InitializeInterfaceDescriptor(&d);
+  CallDescriptor* desc = linkage()->GetStubCallDescriptor(&d, nargs);
   // TODO(mstarzinger): Accessing the builtins object this way prevents sharing
   // of code across native contexts. Fix this by loading from given context.
   Handle<JSFunction> function(
@@ -478,8 +460,9 @@ Node* JSGenericLowering::LowerJSInstanceOf(Node* node) {
       InstanceofStub::kReturnTrueFalseObject |
       InstanceofStub::kArgsInRegisters);
   InstanceofStub stub(isolate(), flags);
-  CodeStubInterfaceDescriptor* d = GetInterfaceDescriptor(isolate(), &stub);
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(d, 0);
+  CodeStubInterfaceDescriptor d;
+  stub.InitializeInterfaceDescriptor(&d);
+  CallDescriptor* desc = linkage()->GetStubCallDescriptor(&d, 0);
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
@@ -527,9 +510,10 @@ Node* JSGenericLowering::LowerJSStoreContext(Node* node) {
 Node* JSGenericLowering::LowerJSCallConstruct(Node* node) {
   int arity = OpParameter<int>(node);
   CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
-  CodeStubInterfaceDescriptor* d = GetInterfaceDescriptor(isolate(), &stub);
+  CodeStubInterfaceDescriptor d;
+  stub.InitializeInterfaceDescriptor(&d);
   CallDescriptor* desc =
-      linkage()->GetStubCallDescriptor(d, arity, FlagsForNode(node));
+      linkage()->GetStubCallDescriptor(&d, arity, FlagsForNode(node));
   Node* stub_code = CodeConstant(stub.GetCode());
   Node* construct = NodeProperties::GetValueInput(node, 0);
   PatchInsertInput(node, 0, stub_code);
@@ -544,9 +528,10 @@ Node* JSGenericLowering::LowerJSCallConstruct(Node* node) {
 Node* JSGenericLowering::LowerJSCallFunction(Node* node) {
   CallParameters p = OpParameter<CallParameters>(node);
   CallFunctionStub stub(isolate(), p.arity - 2, p.flags);
-  CodeStubInterfaceDescriptor* d = GetInterfaceDescriptor(isolate(), &stub);
+  CodeStubInterfaceDescriptor d;
+  stub.InitializeInterfaceDescriptor(&d);
   CallDescriptor* desc =
-      linkage()->GetStubCallDescriptor(d, p.arity - 1, FlagsForNode(node));
+      linkage()->GetStubCallDescriptor(&d, p.arity - 1, FlagsForNode(node));
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));

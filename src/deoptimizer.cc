@@ -1622,17 +1622,18 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   CHECK(compiled_code_->is_hydrogen_stub());
   int major_key = CodeStub::GetMajorKey(compiled_code_);
-  CodeStubInterfaceDescriptor* descriptor =
-      isolate_->code_stub_interface_descriptor(major_key);
+  CodeStubInterfaceDescriptor descriptor;
+  CodeStub::InitializeInterfaceDescriptor(isolate_, compiled_code_->stub_key(),
+                                          &descriptor);
   // Check that there is a matching descriptor to the major key.
   // This will fail if there has not been one installed to the isolate.
-  DCHECK_EQ(descriptor->MajorKey(), major_key);
+  DCHECK_EQ(descriptor.MajorKey(), major_key);
 
   // The output frame must have room for all pushed register parameters
   // and the standard stack frame slots.  Include space for an argument
   // object to the callee and optionally the space to pass the argument
   // object to the stub failure handler.
-  int param_count = descriptor->GetEnvironmentParameterCount();
+  int param_count = descriptor.GetEnvironmentParameterCount();
   CHECK_GE(param_count, 0);
 
   int height_in_bytes = kPointerSize * param_count + sizeof(Arguments) +
@@ -1730,7 +1731,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   }
 
   intptr_t caller_arg_count = 0;
-  bool arg_count_known = !descriptor->stack_parameter_count().is_valid();
+  bool arg_count_known = !descriptor.stack_parameter_count().is_valid();
 
   // Build the Arguments object for the caller's parameters and a pointer to it.
   output_frame_offset -= kPointerSize;
@@ -1782,8 +1783,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
     output_frame_offset -= kPointerSize;
     DoTranslateCommand(iterator, 0, output_frame_offset);
 
-    if (!arg_count_known &&
-        descriptor->IsEnvironmentParameterCountRegister(i)) {
+    if (!arg_count_known && descriptor.IsEnvironmentParameterCountRegister(i)) {
       arguments_length_offset = output_frame_offset;
     }
   }
@@ -1822,11 +1822,11 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
   CopyDoubleRegisters(output_frame);
 
   // Fill registers containing handler and number of parameters.
-  SetPlatformCompiledStubRegisters(output_frame, descriptor);
+  SetPlatformCompiledStubRegisters(output_frame, &descriptor);
 
   // Compute this frame's PC, state, and continuation.
   Code* trampoline = NULL;
-  StubFunctionMode function_mode = descriptor->function_mode();
+  StubFunctionMode function_mode = descriptor.function_mode();
   StubFailureTrampolineStub(isolate_,
                             function_mode).FindCodeInCache(&trampoline);
   DCHECK(trampoline != NULL);

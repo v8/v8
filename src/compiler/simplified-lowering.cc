@@ -852,9 +852,10 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
 
 void SimplifiedLowering::DoStringAdd(Node* node) {
   StringAddStub stub(zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-  CodeStubInterfaceDescriptor* d = stub.GetInterfaceDescriptor();
+  CodeStubInterfaceDescriptor d;
+  stub.InitializeInterfaceDescriptor(&d);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(d, 0, flags, zone());
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(&d, 0, flags, zone());
   node->set_op(common()->Call(desc));
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(stub.GetCode()));
   node->AppendInput(zone(), jsgraph()->UndefinedConstant());

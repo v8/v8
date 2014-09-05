@@ -133,7 +133,6 @@ namespace internal {
 class CodeStub BASE_EMBEDDED {
  public:
   enum Major {
-    UninitializedMajorKey = 0,
 #define DEF_ENUM(name) name,
     CODE_STUB_LIST(DEF_ENUM)
 #undef DEF_ENUM
@@ -179,6 +178,12 @@ class CodeStub BASE_EMBEDDED {
 
   // Lookup the code in the (possibly custom) cache.
   bool FindCodeInCache(Code** code_out);
+
+  virtual void InitializeInterfaceDescriptor(
+      CodeStubInterfaceDescriptor* descriptor) {}
+
+  static void InitializeInterfaceDescriptor(Isolate* isolate, uint32_t key,
+                                            CodeStubInterfaceDescriptor* desc);
 
   // Returns information for computing the number key.
   virtual Major MajorKey() const = 0;
@@ -247,6 +252,12 @@ class CodeStub BASE_EMBEDDED {
 
   // If a stub uses a special cache override this.
   virtual bool UseSpecialCache() { return false; }
+
+  // We use this dispatch to statically instantiate the correct code stub for
+  // the given stub key and call the passed function with that code stub.
+  typedef void (*DispatchedCall)(CodeStub* stub, void** value_out);
+  static void Dispatch(Isolate* isolate, uint32_t key, void** value_out,
+                       DispatchedCall call);
 
   STATIC_ASSERT(NUMBER_OF_IDS < (1 << kStubMajorKeyBits));
   class MajorKeyBits: public BitField<uint32_t, 0, kStubMajorKeyBits> {};
@@ -426,18 +437,11 @@ class HydrogenCodeStub : public CodeStub {
 
   virtual Code::Kind GetCodeKind() const { return Code::STUB; }
 
-  CodeStubInterfaceDescriptor* GetInterfaceDescriptor() {
-    return isolate()->code_stub_interface_descriptor(MajorKey());
-  }
-
   template<class SubClass>
   static Handle<Code> GetUninitialized(Isolate* isolate) {
     SubClass::GenerateAheadOfTime(isolate);
     return SubClass().GetCode(isolate);
   }
-
-  virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) = 0;
 
   // Retrieve the code for the stub. Generate the code if needed.
   virtual Handle<Code> GenerateCode() = 0;
@@ -542,12 +546,6 @@ class ToNumberStub: public HydrogenCodeStub {
  public:
   explicit ToNumberStub(Isolate* isolate) : HydrogenCodeStub(isolate) { }
 
-  static void InstallDescriptors(Isolate* isolate) {
-    ToNumberStub stub(isolate);
-    stub.InitializeInterfaceDescriptor(
-        isolate->code_stub_interface_descriptor(CodeStub::ToNumber));
-  }
-
   DEFINE_HYDROGEN_CODE_STUB(ToNumber, HydrogenCodeStub);
 };
 
@@ -555,8 +553,6 @@ class ToNumberStub: public HydrogenCodeStub {
 class NumberToStringStub FINAL : public HydrogenCodeStub {
  public:
   explicit NumberToStringStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
-  static void InstallDescriptors(Isolate* isolate);
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kNumber = 0;
@@ -573,8 +569,6 @@ class FastNewClosureStub : public HydrogenCodeStub {
     set_sub_minor_key(StrictModeBits::encode(strict_mode) |
                       IsGeneratorBits::encode(is_generator));
   }
-
-  static void InstallDescriptors(Isolate* isolate);
 
   StrictMode strict_mode() const {
     return StrictModeBits::decode(sub_minor_key());
@@ -599,8 +593,6 @@ class FastNewContextStub FINAL : public HydrogenCodeStub {
     set_sub_minor_key(SlotsBits::encode(slots));
   }
 
-  static void InstallDescriptors(Isolate* isolate);
-
   int slots() const { return SlotsBits::decode(sub_minor_key()); }
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
@@ -624,8 +616,6 @@ class FastCloneShallowArrayStub : public HydrogenCodeStub {
   AllocationSiteMode allocation_site_mode() const {
     return AllocationSiteModeBits::decode(sub_minor_key());
   }
-
-  static void InstallDescriptors(Isolate* isolate);
 
  private:
   class AllocationSiteModeBits: public BitField<AllocationSiteMode, 0, 1> {};
@@ -931,8 +921,6 @@ class StoreFieldStub : public HandlerStub {
     return PropertyDetails::DecodeRepresentation(repr);
   }
 
-  static void InstallDescriptors(Isolate* isolate);
-
  protected:
   virtual Code::Kind kind() const { return Code::STORE_IC; }
   virtual Code::StubType GetStubType() { return Code::FAST; }
@@ -1052,8 +1040,6 @@ class BinaryOpICStub : public HydrogenCodeStub {
 
   static void GenerateAheadOfTime(Isolate* isolate);
 
-  static void InstallDescriptors(Isolate* isolate);
-
   virtual Code::Kind GetCodeKind() const OVERRIDE {
     return Code::BINARY_OP_IC;
   }
@@ -1139,8 +1125,6 @@ class BinaryOpWithAllocationSiteStub FINAL : public BinaryOpICStub {
                                  const BinaryOpIC::State& state)
       : BinaryOpICStub(isolate, state) {}
 
-  static void InstallDescriptors(Isolate* isolate);
-
   virtual Code::Kind GetCodeKind() const FINAL OVERRIDE {
     return Code::STUB;
   }
@@ -1182,8 +1166,6 @@ class StringAddStub FINAL : public HydrogenCodeStub {
   PretenureFlag pretenure_flag() const {
     return PretenureFlagBits::decode(sub_minor_key());
   }
-
-  static void InstallDescriptors(Isolate* isolate);
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kLeft = 0;
@@ -1270,12 +1252,6 @@ class CompareNilICStub : public HydrogenCodeStub  {
   static Handle<Code> GetUninitialized(Isolate* isolate,
                                        NilValue nil) {
     return CompareNilICStub(isolate, nil, UNINITIALIZED).GetCode();
-  }
-
-  static void InstallDescriptors(Isolate* isolate) {
-    CompareNilICStub compare_stub(isolate, kNullValue, UNINITIALIZED);
-    compare_stub.InitializeInterfaceDescriptor(
-        isolate->code_stub_interface_descriptor(CodeStub::CompareNilIC));
   }
 
   virtual InlineCacheState GetICState() const {
@@ -1449,8 +1425,6 @@ class RegExpConstructResultStub FINAL : public HydrogenCodeStub {
  public:
   explicit RegExpConstructResultStub(Isolate* isolate)
       : HydrogenCodeStub(isolate) { }
-
-  static void InstallDescriptors(Isolate* isolate);
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kLength = 0;
@@ -1713,8 +1687,6 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
  public:
   explicit KeyedLoadGenericStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
 
-  static void InstallDescriptors(Isolate* isolate);
-
   virtual Code::Kind GetCodeKind() const { return Code::KEYED_LOAD_IC; }
   virtual InlineCacheState GetICState() const { return GENERIC; }
 
@@ -1768,8 +1740,6 @@ class VectorLoadStub : public HydrogenCodeStub {
     set_sub_minor_key(state.GetExtraICState());
   }
 
-  static void InstallDescriptors(Isolate* isolate);
-
   virtual Code::Kind GetCodeKind() const OVERRIDE { return Code::LOAD_IC; }
 
   virtual InlineCacheState GetICState() const FINAL OVERRIDE {
@@ -1791,8 +1761,6 @@ class VectorKeyedLoadStub : public VectorLoadStub {
  public:
   explicit VectorKeyedLoadStub(Isolate* isolate)
       : VectorLoadStub(isolate, LoadIC::State(0)) {}
-
-  static void InstallDescriptors(Isolate* isolate);
 
   virtual Code::Kind GetCodeKind() const OVERRIDE {
     return Code::KEYED_LOAD_IC;
@@ -1862,8 +1830,6 @@ class LoadFastElementStub : public HydrogenCodeStub {
   ElementsKind elements_kind() const {
     return ElementsKindBits::decode(sub_minor_key());
   }
-
-  static void InstallDescriptors(Isolate* isolate);
 
  private:
   class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
@@ -1954,7 +1920,6 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
   }
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
-  static void InstallDescriptors(Isolate* isolate);
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kConstructor = 0;
@@ -2040,7 +2005,6 @@ class InternalArrayConstructorStubBase : public HydrogenCodeStub {
   }
 
   static void GenerateStubsAheadOfTime(Isolate* isolate);
-  static void InstallDescriptors(Isolate* isolate);
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kConstructor = 0;
@@ -2167,12 +2131,6 @@ class ToBooleanStub: public HydrogenCodeStub {
   virtual void PrintState(OStream& os) const OVERRIDE;  // NOLINT
 
   virtual bool SometimesSetsUpAFrame() { return false; }
-
-  static void InstallDescriptors(Isolate* isolate) {
-    ToBooleanStub stub(isolate, RESULT_AS_SMI);
-    stub.InitializeInterfaceDescriptor(
-        isolate->code_stub_interface_descriptor(CodeStub::ToBoolean));
-  }
 
   static Handle<Code> GetUninitialized(Isolate* isolate) {
     return ToBooleanStub(isolate, UNINITIALIZED).GetCode();
