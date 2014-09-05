@@ -7,6 +7,7 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/base/bits.h"
+#include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
@@ -5368,12 +5369,14 @@ void MacroAssembler::JumpIfDictionaryInPrototypeChain(
 void MacroAssembler::TruncatingDiv(Register dividend, int32_t divisor) {
   DCHECK(!dividend.is(rax));
   DCHECK(!dividend.is(rdx));
-  MultiplierAndShift ms(divisor);
-  movl(rax, Immediate(ms.multiplier()));
+  base::MagicNumbersForDivision<uint32_t> mag =
+      base::SignedDivisionByConstant(static_cast<uint32_t>(divisor));
+  movl(rax, Immediate(mag.multiplier));
   imull(dividend);
-  if (divisor > 0 && ms.multiplier() < 0) addl(rdx, dividend);
-  if (divisor < 0 && ms.multiplier() > 0) subl(rdx, dividend);
-  if (ms.shift() > 0) sarl(rdx, Immediate(ms.shift()));
+  bool neg = (mag.multiplier & (static_cast<uint32_t>(1) << 31)) != 0;
+  if (divisor > 0 && neg) addl(rdx, dividend);
+  if (divisor < 0 && !neg && mag.multiplier > 0) subl(rdx, dividend);
+  if (mag.shift > 0) sarl(rdx, Immediate(mag.shift));
   movl(rax, dividend);
   shrl(rax, Immediate(31));
   addl(rdx, rax);

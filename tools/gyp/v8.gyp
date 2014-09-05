@@ -1167,6 +1167,8 @@
         '../../src/base/compiler-specific.h',
         '../../src/base/cpu.cc',
         '../../src/base/cpu.h',
+        '../../src/base/division-by-constant.cc',
+        '../../src/base/division-by-constant.h',
         '../../src/base/flags.h',
         '../../src/base/lazy-instance.h',
         '../../src/base/logging.cc',

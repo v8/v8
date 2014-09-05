@@ -9,6 +9,7 @@
 #if V8_TARGET_ARCH_MIPS
 
 #include "src/base/bits.h"
+#include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/cpu-profiler.h"
@@ -6106,16 +6107,18 @@ void MacroAssembler::TruncatingDiv(Register result,
   DCHECK(!dividend.is(result));
   DCHECK(!dividend.is(at));
   DCHECK(!result.is(at));
-  MultiplierAndShift ms(divisor);
-  li(at, Operand(ms.multiplier()));
+  base::MagicNumbersForDivision<uint32_t> mag =
+      base::SignedDivisionByConstant(static_cast<uint32_t>(divisor));
+  li(at, Operand(mag.multiplier));
   Mulh(result, dividend, Operand(at));
-  if (divisor > 0 && ms.multiplier() < 0) {
+  bool neg = (mag.multiplier & (static_cast<uint32_t>(1) << 31)) != 0;
+  if (divisor > 0 && neg) {
     Addu(result, result, Operand(dividend));
   }
-  if (divisor < 0 && ms.multiplier() > 0) {
+  if (divisor < 0 && !neg && mag.multiplier > 0) {
     Subu(result, result, Operand(dividend));
   }
-  if (ms.shift() > 0) sra(result, result, ms.shift());
+  if (mag.shift > 0) sra(result, result, mag.shift);
   srl(at, dividend, 31);
   Addu(result, result, Operand(at));
 }
