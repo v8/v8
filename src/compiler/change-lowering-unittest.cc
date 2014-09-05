@@ -130,7 +130,8 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBitToBool) {
   Node* phi = reduction.replacement();
   Capture<Node*> branch;
   EXPECT_THAT(phi,
-              IsPhi(kMachAnyTagged, IsTrueConstant(), IsFalseConstant(),
+              IsPhi(static_cast<MachineType>(kTypeBool | kRepTagged),
+                    IsTrueConstant(), IsFalseConstant(),
                     IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
                                            IsBranch(val, graph()->start()))),
                             IsIfFalse(CaptureEq(&branch)))));
