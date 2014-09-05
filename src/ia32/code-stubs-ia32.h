@@ -66,8 +66,6 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                  IndexBits::encode(index.code()) | LookupModeBits::encode(mode);
   }
 
-  void Generate(MacroAssembler* masm);
-
   static void GenerateNegativeLookup(MacroAssembler* masm,
                                      Label* miss,
                                      Label* done,
@@ -116,7 +114,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   class IndexBits: public BitField<int, 6, 3> {};
   class LookupModeBits: public BitField<LookupMode, 9, 1> {};
 
-  DEFINE_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
 
@@ -345,7 +343,7 @@ class RecordWriteStub: public PlatformCodeStub {
 
   virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
 
-  void Generate(MacroAssembler* masm);
+  virtual void Generate(MacroAssembler* masm) OVERRIDE;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,

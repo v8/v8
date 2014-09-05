@@ -2694,13 +2694,13 @@ void Heap::CreateApiObjects() {
 
 
 void Heap::CreateJSEntryStub() {
-  JSEntryStub stub(isolate());
+  JSEntryStub stub(isolate(), StackFrame::ENTRY);
   set_js_entry_code(*stub.GetCode());
 }
 
 
 void Heap::CreateJSConstructEntryStub() {
-  JSConstructEntryStub stub(isolate());
+  JSEntryStub stub(isolate(), StackFrame::ENTRY_CONSTRUCT);
   set_js_construct_entry_code(*stub.GetCode());
 }
 
