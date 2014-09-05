@@ -3520,7 +3520,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
-  StoreBufferOverflowStub stub(isolate);
+  StoreBufferOverflowStub stub(isolate, kDontSaveFPRegs);
   stub.GetCode();
 }
 
