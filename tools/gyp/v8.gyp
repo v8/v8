@@ -965,7 +965,6 @@
             '../../src/ic/x87/handler-compiler-x87.cc',
             '../../src/ic/x87/ic-x87.cc',
             '../../src/ic/x87/ic-compiler-x87.cc',
-            '../../src/ic/x87/ic-conventions-x87.cc',
             '../../src/ic/x87/stub-cache-x87.cc',
           ],
         }],

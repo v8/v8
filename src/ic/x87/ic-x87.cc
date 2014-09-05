@@ -312,8 +312,8 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
 
-  Register receiver = LoadConvention::ReceiverRegister();
-  Register key = LoadConvention::NameRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
   DCHECK(receiver.is(edx));
   DCHECK(key.is(ecx));
 
@@ -482,8 +482,8 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   // Return address is on the stack.
   Label miss;
 
-  Register receiver = LoadConvention::ReceiverRegister();
-  Register index = LoadConvention::NameRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register index = LoadDescriptor::NameRegister();
   Register scratch = ebx;
   DCHECK(!scratch.is(receiver) && !scratch.is(index));
   Register result = eax;
@@ -509,8 +509,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
   // Return address is on the stack.
   Label slow;
 
-  Register receiver = LoadConvention::ReceiverRegister();
-  Register key = LoadConvention::NameRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
   Register scratch = eax;
   DCHECK(!scratch.is(receiver) && !scratch.is(key));
 
@@ -549,8 +549,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 
 void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // The return address is on the stack.
-  Register receiver = LoadConvention::ReceiverRegister();
-  Register key = LoadConvention::NameRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
   DCHECK(receiver.is(edx));
   DCHECK(key.is(ecx));
 
@@ -576,9 +576,9 @@ void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
 void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // Return address is on the stack.
   Label slow, notin;
-  Register receiver = StoreConvention::ReceiverRegister();
-  Register name = StoreConvention::NameRegister();
-  Register value = StoreConvention::ValueRegister();
+  Register receiver = StoreDescriptor::ReceiverRegister();
+  Register name = StoreDescriptor::NameRegister();
+  Register value = StoreDescriptor::ValueRegister();
   DCHECK(receiver.is(edx));
   DCHECK(name.is(ecx));
   DCHECK(value.is(eax));
@@ -610,9 +610,9 @@ static void KeyedStoreGenerateGenericHelper(
   Label transition_smi_elements;
   Label finish_object_store, non_double_value, transition_double_elements;
   Label fast_double_without_map_check;
-  Register receiver = StoreConvention::ReceiverRegister();
-  Register key = StoreConvention::NameRegister();
-  Register value = StoreConvention::ValueRegister();
+  Register receiver = StoreDescriptor::ReceiverRegister();
+  Register key = StoreDescriptor::NameRegister();
+  Register value = StoreDescriptor::ValueRegister();
   DCHECK(receiver.is(edx));
   DCHECK(key.is(ecx));
   DCHECK(value.is(eax));
@@ -747,8 +747,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Label slow, fast_object, fast_object_grow;
   Label fast_double, fast_double_grow;
   Label array, extra, check_if_double_array;
-  Register receiver = StoreConvention::ReceiverRegister();
-  Register key = StoreConvention::NameRegister();
+  Register receiver = StoreDescriptor::ReceiverRegister();
+  Register key = StoreDescriptor::NameRegister();
   DCHECK(receiver.is(edx));
   DCHECK(key.is(ecx));
 
@@ -827,8 +827,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is on the stack.
-  Register receiver = LoadConvention::ReceiverRegister();
-  Register name = LoadConvention::NameRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register name = LoadDescriptor::NameRegister();
   DCHECK(receiver.is(edx));
   DCHECK(name.is(ecx));
 
@@ -845,15 +845,15 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   Register dictionary = eax;
-  DCHECK(!dictionary.is(LoadConvention::ReceiverRegister()));
-  DCHECK(!dictionary.is(LoadConvention::NameRegister()));
+  DCHECK(!dictionary.is(LoadDescriptor::ReceiverRegister()));
+  DCHECK(!dictionary.is(LoadDescriptor::NameRegister()));
 
   Label slow;
 
-  __ mov(dictionary, FieldOperand(LoadConvention::ReceiverRegister(),
+  __ mov(dictionary, FieldOperand(LoadDescriptor::ReceiverRegister(),
                                   JSObject::kPropertiesOffset));
   GenerateDictionaryLoad(masm, &slow, dictionary,
-                         LoadConvention::NameRegister(), edi, ebx, eax);
+                         LoadDescriptor::NameRegister(), edi, ebx, eax);
   __ ret(0);
 
   // Dictionary load failed, go slow (but don't miss).
@@ -863,8 +863,8 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
 
 static void LoadIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = LoadConvention::ReceiverRegister();
-  Register name = LoadConvention::NameRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register name = LoadDescriptor::NameRegister();
   DCHECK(!ebx.is(receiver) && !ebx.is(name));
 
   __ pop(ebx);
@@ -923,8 +923,8 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
       Code::ComputeHandlerFlags(Code::STORE_IC));
   masm->isolate()->stub_cache()->GenerateProbe(
-      masm, flags, StoreConvention::ReceiverRegister(),
-      StoreConvention::NameRegister(), ebx, no_reg);
+      masm, flags, StoreDescriptor::ReceiverRegister(),
+      StoreDescriptor::NameRegister(), ebx, no_reg);
 
   // Cache miss: Jump to runtime.
   GenerateMiss(masm);
@@ -932,9 +932,9 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreConvention::ReceiverRegister();
-  Register name = StoreConvention::NameRegister();
-  Register value = StoreConvention::ValueRegister();
+  Register receiver = StoreDescriptor::ReceiverRegister();
+  Register name = StoreDescriptor::NameRegister();
+  Register value = StoreDescriptor::ValueRegister();
 
   DCHECK(!ebx.is(receiver) && !ebx.is(name) && !ebx.is(value));
 
@@ -959,9 +959,9 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 
 void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Label restore_miss;
-  Register receiver = StoreConvention::ReceiverRegister();
-  Register name = StoreConvention::NameRegister();
-  Register value = StoreConvention::ValueRegister();
+  Register receiver = StoreDescriptor::ReceiverRegister();
+  Register name = StoreDescriptor::NameRegister();
+  Register value = StoreDescriptor::ValueRegister();
   Register dictionary = ebx;
 
   __ mov(dictionary, FieldOperand(receiver, JSObject::kPropertiesOffset));
