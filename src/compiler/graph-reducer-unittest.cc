@@ -20,7 +20,8 @@ namespace compiler {
 
 namespace {
 
-SimpleOperator OP0(0, Operator::kNoWrite, 0, 0, "op0");
+SimpleOperator OP0(0, Operator::kNoWrite, 0, 1, "op0");
+SimpleOperator OP1(1, Operator::kNoProperties, 1, 1, "op1");
 
 
 struct MockReducer : public Reducer {
@@ -73,6 +74,19 @@ class GraphReducerTest : public TestWithZone {
 };
 
 
+TEST_F(GraphReducerTest, NodeIsDeadAfterReplace) {
+  StrictMock<MockReducer> r;
+  Node* node0 = graph()->NewNode(&OP0);
+  Node* node1 = graph()->NewNode(&OP1, node0);
+  Node* node2 = graph()->NewNode(&OP1, node0);
+  EXPECT_CALL(r, Reduce(node1)).WillOnce(Return(Reducer::Replace(node2)));
+  ReduceNode(node1, &r);
+  EXPECT_FALSE(node0->IsDead());
+  EXPECT_TRUE(node1->IsDead());
+  EXPECT_FALSE(node2->IsDead());
+}
+
+
 TEST_F(GraphReducerTest, ReduceOnceForEveryReducer) {
   StrictMock<MockReducer> r1, r2;
   Node* node0 = graph()->NewNode(&OP0);
@@ -93,17 +107,6 @@ TEST_F(GraphReducerTest, ReduceAgainAfterChanged) {
   EXPECT_CALL(r1, Reduce(node0)).InSequence(s1);
   EXPECT_CALL(r2, Reduce(node0)).InSequence(s2);
   ReduceNode(node0, &r1, &r2, &r3);
-}
-
-
-TEST_F(GraphReducerTest, OperatorIsNullAfterReplace) {
-  StrictMock<MockReducer> r;
-  Node* node0 = graph()->NewNode(&OP0);
-  Node* node1 = graph()->NewNode(&OP0);
-  EXPECT_CALL(r, Reduce(node0)).WillOnce(Return(Reducer::Replace(node1)));
-  ReduceNode(node0, &r);
-  EXPECT_EQ(NULL, node0->op());
-  EXPECT_EQ(&OP0, node1->op());
 }
 
 }  // namespace compiler

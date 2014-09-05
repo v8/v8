@@ -14,7 +14,6 @@ void Node::Kill() {
   DCHECK_NOT_NULL(op());
   RemoveAllInputs();
   DCHECK(uses().empty());
-  set_op(NULL);
 }
 
 

@@ -53,6 +53,8 @@ class Node FINAL : public GenericNode<NodeData, Node> {
       : GenericNode<NodeData, Node>(graph, input_count) {}
 
   void Initialize(const Operator* op) { set_op(op); }
+
+  bool IsDead() const { return InputCount() > 0 && InputAt(0) == NULL; }
   void Kill();
 
   void CollectProjections(ZoneVector<Node*>* projections);
