@@ -1054,17 +1054,20 @@ TEST(LowerReferenceEqual_to_wordeq) {
 
 
 TEST(LowerStringOps_to_call_and_compare) {
-  TestingGraph t(Type::String(), Type::String());
-  IrOpcode::Value compare_eq =
-      static_cast<IrOpcode::Value>(t.machine()->WordEqual()->opcode());
-  IrOpcode::Value compare_lt =
-      static_cast<IrOpcode::Value>(t.machine()->IntLessThan()->opcode());
-  IrOpcode::Value compare_le =
-      static_cast<IrOpcode::Value>(t.machine()->IntLessThanOrEqual()->opcode());
-  t.CheckLoweringBinop(compare_eq, t.simplified()->StringEqual());
-  t.CheckLoweringBinop(compare_lt, t.simplified()->StringLessThan());
-  t.CheckLoweringBinop(compare_le, t.simplified()->StringLessThanOrEqual());
-  t.CheckLoweringBinop(IrOpcode::kCall, t.simplified()->StringAdd());
+  if (Pipeline::SupportedTarget()) {
+    // These tests need linkage for the calls.
+    TestingGraph t(Type::String(), Type::String());
+    IrOpcode::Value compare_eq =
+        static_cast<IrOpcode::Value>(t.machine()->WordEqual()->opcode());
+    IrOpcode::Value compare_lt =
+        static_cast<IrOpcode::Value>(t.machine()->IntLessThan()->opcode());
+    IrOpcode::Value compare_le = static_cast<IrOpcode::Value>(
+        t.machine()->IntLessThanOrEqual()->opcode());
+    t.CheckLoweringBinop(compare_eq, t.simplified()->StringEqual());
+    t.CheckLoweringBinop(compare_lt, t.simplified()->StringLessThan());
+    t.CheckLoweringBinop(compare_le, t.simplified()->StringLessThanOrEqual());
+    t.CheckLoweringBinop(IrOpcode::kCall, t.simplified()->StringAdd());
+  }
 }
 
 
