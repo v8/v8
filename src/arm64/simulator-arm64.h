@@ -537,7 +537,7 @@ class Simulator : public DecoderVisitor {
   enum PrintFPRegisterSizes {
     kPrintDRegValue = 1 << kDRegSize,
     kPrintSRegValue = 1 << kSRegSize,
-    kPrintAllFPRegValues = kPrintDRegValue | kPrintSRegValue,
+    kPrintAllFPRegValues = kPrintDRegValue | kPrintSRegValue
   };
 
   // Print individual register values (after update).
