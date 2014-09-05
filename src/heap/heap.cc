@@ -2064,7 +2064,10 @@ class ScavengingVisitor : public StaticVisitorBase {
     ObjectEvacuationStrategy<POINTER_OBJECT>::template VisitSpecialized<
         JSFunction::kSize>(map, slot, object);
 
-    HeapObject* target = *slot;
+    MapWord map_word = object->map_word();
+    DCHECK(map_word.IsForwardingAddress());
+    HeapObject* target = map_word.ToForwardingAddress();
+
     MarkBit mark_bit = Marking::MarkBitFrom(target);
     if (Marking::IsBlack(mark_bit)) {
       // This object is black and it might not be rescanned by marker.
