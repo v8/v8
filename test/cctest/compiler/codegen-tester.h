@@ -11,7 +11,6 @@
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/simulator.h"
 #include "test/cctest/compiler/call-tester.h"
-#include "test/cctest/compiler/structured-machine-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -111,23 +110,6 @@ class RawMachineAssemblerTester
       }
     }
   }
-};
-
-
-template <typename ReturnType>
-class StructuredMachineAssemblerTester
-    : public MachineAssemblerTester<StructuredMachineAssembler>,
-      public CallHelper2<ReturnType,
-                         StructuredMachineAssemblerTester<ReturnType> > {
- public:
-  StructuredMachineAssemblerTester(MachineType p0 = kMachNone,
-                                   MachineType p1 = kMachNone,
-                                   MachineType p2 = kMachNone,
-                                   MachineType p3 = kMachNone,
-                                   MachineType p4 = kMachNone)
-      : MachineAssemblerTester<StructuredMachineAssembler>(
-            ReturnValueTraits<ReturnType>::Representation(), p0, p1, p2, p3,
-            p4) {}
 };
 
 
