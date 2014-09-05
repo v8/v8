@@ -2054,10 +2054,7 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
   } else if (r.IsInteger32()) {
     return DefineAsRegister(new(zone()) LConstantI);
   } else if (r.IsDouble()) {
-    double value = instr->DoubleValue();
-    bool value_is_zero = BitCast<uint64_t, double>(value) == 0;
-    LOperand* temp = value_is_zero ? NULL : TempRegister();
-    return DefineAsRegister(new(zone()) LConstantD(temp));
+    return DefineAsRegister(new (zone()) LConstantD);
   } else if (r.IsExternal()) {
     return DefineAsRegister(new(zone()) LConstantE);
   } else if (r.IsTagged()) {
@@ -2248,8 +2245,10 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
 
     if (instr->value()->representation().IsDouble()) {
       LOperand* object = UseRegisterAtStart(instr->elements());
-      LOperand* val = NULL;
-      val = UseRegisterAtStart(instr->value());
+      // For storing double hole, no fp register required.
+      LOperand* val = instr->IsConstantHoleStore()
+                          ? NULL
+                          : UseRegisterAtStart(instr->value());
       LOperand* key = UseRegisterOrConstantAtStart(instr->key());
       return new(zone()) LStoreKeyed(object, key, val);
     } else {
