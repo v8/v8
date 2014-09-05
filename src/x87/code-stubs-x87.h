@@ -114,7 +114,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() const { return NameDictionaryLookup; }
+  virtual inline Major MajorKey() const FINAL OVERRIDE;
 
   Register dictionary() const {
     return Register::from_code(DictionaryBits::decode(minor_key_));
@@ -338,7 +338,7 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  Major MajorKey() const { return RecordWrite; }
+  virtual inline Major MajorKey() const FINAL OVERRIDE;
 
   void Generate(MacroAssembler* masm);
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
