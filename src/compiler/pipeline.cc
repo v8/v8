@@ -221,6 +221,7 @@ Handle<Code> Pipeline::GenerateCode() {
       // Type the graph.
       PhaseStats typer_stats(info(), PhaseStats::CREATE_GRAPH, "typer");
       typer.Run(&graph, info()->context());
+      VerifyAndPrintGraph(&graph, "Typed");
     }
     // All new nodes must be typed.
     typer.DecorateGraph(&graph);

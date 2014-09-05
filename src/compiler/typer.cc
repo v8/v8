@@ -117,14 +117,6 @@ class Typer::RunVisitor : public Typer::Visitor {
       : Visitor(typer, context),
         phis(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
 
-  GenericGraphVisit::Control Pre(Node* node) {
-    return NodeProperties::IsControl(node)
-        && node->opcode() != IrOpcode::kEnd
-        && node->opcode() != IrOpcode::kMerge
-        && node->opcode() != IrOpcode::kReturn
-        ? GenericGraphVisit::SKIP : GenericGraphVisit::CONTINUE;
-  }
-
   GenericGraphVisit::Control Post(Node* node) {
     Bounds bounds = TypeNode(node);
     if (node->opcode() == IrOpcode::kPhi) {
