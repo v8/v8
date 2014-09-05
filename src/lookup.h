@@ -34,29 +34,19 @@ class LookupIterator FINAL BASE_EMBEDDED {
     INTERCEPTOR,
     JSPROXY,
     NOT_FOUND,
-    PROPERTY,
+    UNKNOWN,  // Dictionary-mode holder map without a holder.
+    ACCESSOR,
+    DATA,
     TRANSITION,
     // Set state_ to BEFORE_PROPERTY to ensure that the next lookup will be a
     // PROPERTY lookup.
     BEFORE_PROPERTY = INTERCEPTOR
   };
 
-  enum PropertyKind {
-    DATA,
-    ACCESSOR
-  };
-
-  enum PropertyEncoding {
-    DICTIONARY,
-    DESCRIPTOR
-  };
-
   LookupIterator(Handle<Object> receiver, Handle<Name> name,
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
-        property_kind_(DATA),
-        property_encoding_(DESCRIPTOR),
         property_details_(NONE, NORMAL, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
@@ -73,8 +63,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
                  Configuration configuration = PROTOTYPE_CHAIN)
       : configuration_(ComputeConfiguration(configuration, name)),
         state_(NOT_FOUND),
-        property_kind_(DATA),
-        property_encoding_(DESCRIPTOR),
         property_details_(NONE, NORMAL, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
@@ -101,7 +89,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
     return maybe_receiver_.ToHandleChecked();
   }
   Handle<JSObject> GetStoreTarget() const;
-  Handle<Map> holder_map() const { return holder_map_; }
+  bool is_dictionary_holder() const { return holder_map_->is_dictionary_map(); }
   Handle<Map> transition_map() const {
     DCHECK_EQ(TRANSITION, state_);
     return transition_map_;
@@ -118,10 +106,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
   bool HasAccess(v8::AccessType access_type) const;
 
   /* PROPERTY */
-  // HasProperty needs to be called before any of the other PROPERTY methods
-  // below can be used. It ensures that we are able to provide a definite
-  // answer, and loads extra information about the property.
-  bool HasProperty();
   void PrepareForDataProperty(Handle<Object> value);
   void PrepareTransitionToDataProperty(Handle<Object> value,
                                        PropertyAttributes attributes,
@@ -131,7 +115,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
         state_ == TRANSITION && transition_map()->GetBackPointer()->IsMap();
     if (cacheable) {
       property_details_ = transition_map_->GetLastDescriptorDetails();
-      LoadPropertyKind();
       has_property_ = true;
     }
     return cacheable;
@@ -142,14 +125,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
   void TransitionToAccessorProperty(AccessorComponent component,
                                     Handle<Object> accessor,
                                     PropertyAttributes attributes);
-  PropertyKind property_kind() const {
-    DCHECK(has_property_);
-    return property_kind_;
-  }
-  PropertyEncoding property_encoding() const {
-    DCHECK(has_property_);
-    return property_encoding_;
-  }
   PropertyDetails property_details() const {
     DCHECK(has_property_);
     return property_details_;
@@ -173,10 +148,9 @@ class LookupIterator FINAL BASE_EMBEDDED {
   Handle<Map> GetReceiverMap() const;
 
   MUST_USE_RESULT inline JSReceiver* NextHolder(Map* map);
-  inline State LookupInHolder(Map* map);
+  inline State LookupInHolder(Map* map, JSReceiver* holder);
   Handle<Object> FetchValue() const;
   void ReloadPropertyInformation();
-  void LoadPropertyKind();
 
   bool IsBootstrapping() const;
 
@@ -196,12 +170,12 @@ class LookupIterator FINAL BASE_EMBEDDED {
   }
   int descriptor_number() const {
     DCHECK(has_property_);
-    DCHECK_EQ(DESCRIPTOR, property_encoding_);
+    DCHECK(!holder_map_->is_dictionary_map());
     return number_;
   }
   int dictionary_entry() const {
     DCHECK(has_property_);
-    DCHECK_EQ(DICTIONARY, property_encoding_);
+    DCHECK(holder_map_->is_dictionary_map());
     return number_;
   }
 
@@ -219,8 +193,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
   Configuration configuration_;
   State state_;
   bool has_property_;
-  PropertyKind property_kind_;
-  PropertyEncoding property_encoding_;
   PropertyDetails property_details_;
   Isolate* isolate_;
   Handle<Name> name_;

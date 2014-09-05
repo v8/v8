@@ -87,8 +87,8 @@ class ChangeLoweringTest : public GraphTest {
   Matcher<Node*> IsAllocateHeapNumber(const Matcher<Node*>& effect_matcher,
                                       const Matcher<Node*>& control_matcher) {
     return IsCall(
-        _, IsHeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
-               zone(), CEntryStub(isolate(), 1).GetCode())),
+        _, IsHeapConstant(Unique<HeapObject>::CreateImmovable(
+               CEntryStub(isolate(), 1).GetCode())),
         IsExternalConstant(ExternalReference(
             Runtime::FunctionForId(Runtime::kAllocateHeapNumber), isolate())),
         IsInt32Constant(0), IsNumberConstant(0.0), effect_matcher,

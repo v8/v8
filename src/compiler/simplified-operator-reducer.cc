@@ -19,10 +19,10 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
       HeapObjectMatcher m(node->InputAt(0));
-      if (m.IsKnownGlobal(heap()->false_value())) {
+      if (m.IsKnownGlobal(factory()->false_value())) {
         return Replace(jsgraph()->TrueConstant());
       }
-      if (m.IsKnownGlobal(heap()->true_value())) {
+      if (m.IsKnownGlobal(factory()->true_value())) {
         return Replace(jsgraph()->FalseConstant());
       }
       if (m.IsBooleanNot()) return Replace(m.node()->InputAt(0));
@@ -37,8 +37,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kChangeBoolToBit: {
       HeapObjectMatcher m(node->InputAt(0));
-      if (m.IsKnownGlobal(heap()->false_value())) return ReplaceInt32(0);
-      if (m.IsKnownGlobal(heap()->true_value())) return ReplaceInt32(1);
+      if (m.IsKnownGlobal(factory()->false_value())) return ReplaceInt32(0);
+      if (m.IsKnownGlobal(factory()->true_value())) return ReplaceInt32(1);
       if (m.IsChangeBitToBool()) return Replace(m.node()->InputAt(0));
       break;
     }
@@ -99,7 +99,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
 
 
 Reduction SimplifiedOperatorReducer::Change(Node* node, Operator* op, Node* a) {
-  graph()->ChangeOperator(node, op);
+  node->set_op(op);
   node->ReplaceInput(0, a);
   return Changed(node);
 }
@@ -128,8 +128,8 @@ Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {
 Graph* SimplifiedOperatorReducer::graph() const { return jsgraph()->graph(); }
 
 
-Heap* SimplifiedOperatorReducer::heap() const {
-  return jsgraph()->isolate()->heap();
+Factory* SimplifiedOperatorReducer::factory() const {
+  return jsgraph()->isolate()->factory();
 }
 
 }  // namespace compiler

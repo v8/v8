@@ -1990,8 +1990,7 @@ MUST_USE_RESULT static MaybeHandle<Object> GetOwnProperty(Isolate* isolate,
     if (attrs == ABSENT) return factory->undefined_value();
 
     // Get AccessorPair if present.
-    if (it.state() == LookupIterator::PROPERTY &&
-        it.property_kind() == LookupIterator::ACCESSOR &&
+    if (it.state() == LookupIterator::ACCESSOR &&
         it.GetAccessors()->IsAccessorPair()) {
       maybe_accessors = Handle<AccessorPair>::cast(it.GetAccessors());
     }
@@ -2323,7 +2322,7 @@ RUNTIME_FUNCTION(Runtime_InitializeConstGlobal) {
     // Ignore if we can't reconfigure the value.
     if ((old_attributes & DONT_DELETE) != 0) {
       if ((old_attributes & READ_ONLY) != 0 ||
-          it.property_kind() == LookupIterator::ACCESSOR) {
+          it.state() == LookupIterator::ACCESSOR) {
         return *value;
       }
       attr = static_cast<PropertyAttributes>(old_attributes | READ_ONLY);
@@ -2468,7 +2467,7 @@ RUNTIME_FUNCTION(Runtime_InitializeLegacyConstLookupSlot) {
     // Ignore if we can't reconfigure the value.
     if ((old_attributes & DONT_DELETE) != 0) {
       if ((old_attributes & READ_ONLY) != 0 ||
-          it.property_kind() == LookupIterator::ACCESSOR) {
+          it.state() == LookupIterator::ACCESSOR) {
         return *value;
       }
       attr = static_cast<PropertyAttributes>(old_attributes | READ_ONLY);
@@ -4891,8 +4890,8 @@ RUNTIME_FUNCTION(Runtime_KeyedGetProperty) {
         // Lookup cache miss.  Perform lookup and update the cache if
         // appropriate.
         LookupIterator it(receiver, key, LookupIterator::OWN);
-        if (it.IsFound() && it.state() == LookupIterator::PROPERTY &&
-            it.HasProperty() && it.property_details().type() == FIELD) {
+        if (it.state() == LookupIterator::DATA &&
+            it.property_details().type() == FIELD) {
           FieldIndex field_index = it.GetFieldIndex();
           // Do not track double fields in the keyed lookup cache. Reading
           // double values requires boxing.
@@ -5050,8 +5049,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyUnchecked) {
 
   // Take special care when attributes are different and there is already
   // a property.
-  if (it.IsFound() && it.HasProperty() &&
-      it.property_kind() == LookupIterator::ACCESSOR) {
+  if (it.state() == LookupIterator::ACCESSOR) {
     // Use IgnoreAttributes version since a readonly property may be
     // overridden and SetProperty does not allow this.
     Handle<Object> result;
@@ -8457,15 +8455,9 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   CONVERT_BOOLEAN_ARG_CHECKED(concurrent, 1);
 
   Handle<Code> unoptimized(function->shared()->code());
-  if (!function->shared()->is_compiled()) {
-    // If the function is not compiled, do not optimize.
-    // This can happen if the debugger is activated and
-    // the function is returned to the not compiled state.
-    // TODO(yangguo): reconsider this.
-    function->ReplaceCode(function->shared()->code());
-  } else if (!isolate->use_crankshaft() ||
-             function->shared()->optimization_disabled() ||
-             isolate->DebuggerHasBreakPoints()) {
+  if (!isolate->use_crankshaft() ||
+      function->shared()->optimization_disabled() ||
+      isolate->DebuggerHasBreakPoints()) {
     // If the function is not optimizable or debugger is active continue
     // using the code from the full compiler.
     if (FLAG_trace_opt) {
@@ -8476,16 +8468,16 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
           isolate->DebuggerHasBreakPoints() ? "T" : "F");
     }
     function->ReplaceCode(*unoptimized);
+    return function->code();
+  }
+
+  Compiler::ConcurrencyMode mode =
+      concurrent ? Compiler::CONCURRENT : Compiler::NOT_CONCURRENT;
+  Handle<Code> code;
+  if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
+    function->ReplaceCode(*code);
   } else {
-    Compiler::ConcurrencyMode mode = concurrent ? Compiler::CONCURRENT
-                                                : Compiler::NOT_CONCURRENT;
-    Handle<Code> code;
-    if (Compiler::GetOptimizedCode(
-            function, unoptimized, mode).ToHandle(&code)) {
-      function->ReplaceCode(*code);
-    } else {
-      function->ReplaceCode(*unoptimized);
-    }
+    function->ReplaceCode(*unoptimized);
   }
 
   DCHECK(function->code()->kind() == Code::FUNCTION ||
@@ -8641,11 +8633,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  if (!function->IsOptimizable() &&
-      !function->IsMarkedForConcurrentOptimization() &&
-      !function->IsInOptimizationQueue()) {
-    return isolate->heap()->undefined_value();
-  }
+  if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
   function->MarkForOptimization();
 
@@ -10908,6 +10896,7 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
+      case LookupIterator::UNKNOWN:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         // Ignore access checks.
@@ -10915,30 +10904,25 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::JSPROXY:
         return it->isolate()->factory()->undefined_value();
-      case LookupIterator::PROPERTY:
-        if (!it->HasProperty()) continue;
-        switch (it->property_kind()) {
-          case LookupIterator::ACCESSOR: {
-            Handle<Object> accessors = it->GetAccessors();
-            if (!accessors->IsAccessorInfo()) {
-              return it->isolate()->factory()->undefined_value();
-            }
-            MaybeHandle<Object> maybe_result =
-                JSObject::GetPropertyWithAccessor(it->GetReceiver(), it->name(),
-                                                  it->GetHolder<JSObject>(),
-                                                  accessors);
-            Handle<Object> result;
-            if (!maybe_result.ToHandle(&result)) {
-              result =
-                  handle(it->isolate()->pending_exception(), it->isolate());
-              it->isolate()->clear_pending_exception();
-              if (has_caught != NULL) *has_caught = true;
-            }
-            return result;
-          }
-          case LookupIterator::DATA:
-            return it->GetDataValue();
+      case LookupIterator::ACCESSOR: {
+        Handle<Object> accessors = it->GetAccessors();
+        if (!accessors->IsAccessorInfo()) {
+          return it->isolate()->factory()->undefined_value();
         }
+        MaybeHandle<Object> maybe_result = JSObject::GetPropertyWithAccessor(
+            it->GetReceiver(), it->name(), it->GetHolder<JSObject>(),
+            accessors);
+        Handle<Object> result;
+        if (!maybe_result.ToHandle(&result)) {
+          result = handle(it->isolate()->pending_exception(), it->isolate());
+          it->isolate()->clear_pending_exception();
+          if (has_caught != NULL) *has_caught = true;
+        }
+        return result;
+      }
+
+      case LookupIterator::DATA:
+        return it->GetDataValue();
     }
   }
 
@@ -10993,8 +10977,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
   if (!it.IsFound()) return isolate->heap()->undefined_value();
 
   Handle<Object> maybe_pair;
-  if (it.state() == LookupIterator::PROPERTY &&
-      it.property_kind() == LookupIterator::ACCESSOR) {
+  if (it.state() == LookupIterator::ACCESSOR) {
     maybe_pair = it.GetAccessors();
   }
 

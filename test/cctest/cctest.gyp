@@ -53,6 +53,8 @@
         'compiler/graph-tester.h',
         'compiler/simplified-graph-builder.cc',
         'compiler/simplified-graph-builder.h',
+        'compiler/structured-machine-assembler.cc',
+        'compiler/structured-machine-assembler.h',
         'compiler/test-branch-combine.cc',
         'compiler/test-changes-lowering.cc',
         'compiler/test-codegen-deopt.cc',

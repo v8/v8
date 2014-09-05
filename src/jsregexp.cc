@@ -3493,6 +3493,7 @@ void LoopChoiceNode::AddContinueAlternative(GuardedAlternative alt) {
 void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   if (trace->stop_node() == this) {
+    // Back edge of greedy optimized loop node graph.
     int text_length =
         GreedyLoopTextLengthForAlternative(&(alternatives_->at(0)));
     DCHECK(text_length != kNodeIsTooComplexForGreedyLoops);
@@ -3759,13 +3760,13 @@ int BoyerMooreLookahead::GetSkipTable(int min_lookahead,
 
 
 // See comment above on the implementation of GetSkipTable.
-bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
+void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   const int kSize = RegExpMacroAssembler::kTableSize;
 
   int min_lookahead = 0;
   int max_lookahead = 0;
 
-  if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead)) return false;
+  if (!FindWorthwhileInterval(&min_lookahead, &max_lookahead)) return;
 
   bool found_single_character = false;
   int single_character = 0;
@@ -3789,7 +3790,7 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
 
   if (found_single_character && lookahead_width == 1 && max_lookahead < 3) {
     // The mask-compare can probably handle this better.
-    return false;
+    return;
   }
 
   if (found_single_character) {
@@ -3806,7 +3807,7 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
     masm->AdvanceCurrentPosition(lookahead_width);
     masm->GoTo(&again);
     masm->Bind(&cont);
-    return true;
+    return;
   }
 
   Factory* factory = masm->zone()->isolate()->factory();
@@ -3822,8 +3823,6 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
   masm->AdvanceCurrentPosition(skip_distance);
   masm->GoTo(&again);
   masm->Bind(&cont);
-
-  return true;
 }
 
 
@@ -3905,10 +3904,15 @@ bool BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
  *        \______________/
  */
 
-void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
-  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
-  int choice_count = alternatives_->length();
+GreedyLoopState::GreedyLoopState(bool not_at_start) {
+  counter_backtrack_trace_.set_backtrack(&label_);
+  if (not_at_start) counter_backtrack_trace_.set_at_start(false);
+}
+
+
+void ChoiceNode::AssertGuardsMentionRegisters(Trace* trace) {
 #ifdef DEBUG
+  int choice_count = alternatives_->length();
   for (int i = 0; i < choice_count - 1; i++) {
     GuardedAlternative alternative = alternatives_->at(i);
     ZoneList<Guard*>* guards = alternative.guards();
@@ -3918,12 +3922,39 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     }
   }
 #endif
+}
+
+
+void ChoiceNode::SetUpPreLoad(RegExpCompiler* compiler,
+                              Trace* current_trace,
+                              PreloadState* state) {
+    if (state->eats_at_least_ == PreloadState::kEatsAtLeastNotYetInitialized) {
+      // Save some time by looking at most one machine word ahead.
+      state->eats_at_least_ =
+          EatsAtLeast(compiler->ascii() ? 4 : 2,
+                      kRecursionBudget,
+                      current_trace->at_start() == Trace::FALSE_VALUE);
+    }
+    state->preload_characters_ =
+        CalculatePreloadCharacters(compiler, state->eats_at_least_);
+
+    state->preload_is_current_ =
+        (current_trace->characters_preloaded() == state->preload_characters_);
+    state->preload_has_checked_bounds_ = state->preload_is_current_;
+}
+
+
+void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  int choice_count = alternatives_->length();
+
+  AssertGuardsMentionRegisters(trace);
 
   LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return;
   DCHECK(limit_result == CONTINUE);
 
-  int new_flush_budget = trace->flush_budget() / choice_count;
+  // For loop nodes we already flushed (see LoopChoiceNode::Emit), but for
+  // other choice nodes we only flush if we are out of code size budget.
   if (trace->flush_budget() == 0 && trace->actions() != NULL) {
     trace->Flush(compiler, this);
     return;
@@ -3931,143 +3962,216 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   RecursionCheck rc(compiler);
 
-  Trace* current_trace = trace;
+  PreloadState preload;
+  preload.init();
+  GreedyLoopState greedy_loop_state(not_at_start());
 
-  int text_length = GreedyLoopTextLengthForAlternative(&(alternatives_->at(0)));
-  bool greedy_loop = false;
-  Label greedy_loop_label;
-  Trace counter_backtrack_trace;
-  counter_backtrack_trace.set_backtrack(&greedy_loop_label);
-  if (not_at_start()) counter_backtrack_trace.set_at_start(false);
+  int text_length = GreedyLoopTextLengthForAlternative(&alternatives_->at(0));
+  AlternativeGenerationList alt_gens(choice_count, zone());
 
   if (choice_count > 1 && text_length != kNodeIsTooComplexForGreedyLoops) {
-    // Here we have special handling for greedy loops containing only text nodes
-    // and other simple nodes.  These are handled by pushing the current
-    // position on the stack and then incrementing the current position each
-    // time around the switch.  On backtrack we decrement the current position
-    // and check it against the pushed value.  This avoids pushing backtrack
-    // information for each iteration of the loop, which could take up a lot of
-    // space.
-    greedy_loop = true;
-    DCHECK(trace->stop_node() == NULL);
-    macro_assembler->PushCurrentPosition();
-    current_trace = &counter_backtrack_trace;
-    Label greedy_match_failed;
-    Trace greedy_match_trace;
-    if (not_at_start()) greedy_match_trace.set_at_start(false);
-    greedy_match_trace.set_backtrack(&greedy_match_failed);
-    Label loop_label;
-    macro_assembler->Bind(&loop_label);
-    greedy_match_trace.set_stop_node(this);
-    greedy_match_trace.set_loop_label(&loop_label);
-    alternatives_->at(0).node()->Emit(compiler, &greedy_match_trace);
-    macro_assembler->Bind(&greedy_match_failed);
+    trace = EmitGreedyLoop(compiler,
+                           trace,
+                           &alt_gens,
+                           &preload,
+                           &greedy_loop_state,
+                           text_length);
+  } else {
+    // TODO(erikcorry): Delete this.  We don't need this label, but it makes us
+    // match the traces produced pre-cleanup.
+    Label second_choice;
+    compiler->macro_assembler()->Bind(&second_choice);
+
+    preload.eats_at_least_ = EmitOptimizedUnanchoredSearch(compiler, trace);
+
+    EmitChoices(compiler,
+                &alt_gens,
+                0,
+                trace,
+                false,  // Not greedy loop.
+                &preload);
   }
+
+  // At this point we need to generate slow checks for the alternatives where
+  // the quick check was inlined.  We can recognize these because the associated
+  // label was bound.
+  int new_flush_budget = trace->flush_budget() / choice_count;
+  for (int i = 0; i < choice_count - 1; i++) {
+    AlternativeGeneration* alt_gen = alt_gens.at(i);
+    Trace new_trace(*trace);
+    // If there are actions to be flushed we have to limit how many times
+    // they are flushed.  Take the budget of the parent trace and distribute
+    // it fairly amongst the children.
+    if (new_trace.actions() != NULL) {
+      new_trace.set_flush_budget(new_flush_budget);
+    }
+    EmitOutOfLineContinuation(compiler,
+                              &new_trace,
+                              alternatives_->at(i),
+                              alt_gen,
+                              preload.preload_characters_,
+                              alt_gens.at(i + 1)->expects_preload);
+  }
+}
+
+
+Trace* ChoiceNode::EmitGreedyLoop(RegExpCompiler* compiler,
+                                  Trace* trace,
+                                  AlternativeGenerationList* alt_gens,
+                                  PreloadState* preload,
+                                  GreedyLoopState* greedy_loop_state,
+                                  int text_length) {
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  // Here we have special handling for greedy loops containing only text nodes
+  // and other simple nodes.  These are handled by pushing the current
+  // position on the stack and then incrementing the current position each
+  // time around the switch.  On backtrack we decrement the current position
+  // and check it against the pushed value.  This avoids pushing backtrack
+  // information for each iteration of the loop, which could take up a lot of
+  // space.
+  DCHECK(trace->stop_node() == NULL);
+  macro_assembler->PushCurrentPosition();
+  Label greedy_match_failed;
+  Trace greedy_match_trace;
+  if (not_at_start()) greedy_match_trace.set_at_start(false);
+  greedy_match_trace.set_backtrack(&greedy_match_failed);
+  Label loop_label;
+  macro_assembler->Bind(&loop_label);
+  greedy_match_trace.set_stop_node(this);
+  greedy_match_trace.set_loop_label(&loop_label);
+  alternatives_->at(0).node()->Emit(compiler, &greedy_match_trace);
+  macro_assembler->Bind(&greedy_match_failed);
 
   Label second_choice;  // For use in greedy matches.
   macro_assembler->Bind(&second_choice);
 
-  int first_normal_choice = greedy_loop ? 1 : 0;
+  Trace* new_trace = greedy_loop_state->counter_backtrack_trace();
 
-  bool not_at_start = current_trace->at_start() == Trace::FALSE_VALUE;
-  const int kEatsAtLeastNotYetInitialized = -1;
-  int eats_at_least = kEatsAtLeastNotYetInitialized;
+  EmitChoices(compiler,
+              alt_gens,
+              1,
+              new_trace,
+              true,  // Is greedy loop.
+              preload);
 
-  bool skip_was_emitted = false;
+  macro_assembler->Bind(greedy_loop_state->label());
+  // If we have unwound to the bottom then backtrack.
+  macro_assembler->CheckGreedyLoop(trace->backtrack());
+  // Otherwise try the second priority at an earlier position.
+  macro_assembler->AdvanceCurrentPosition(-text_length);
+  macro_assembler->GoTo(&second_choice);
+  return new_trace;
+}
 
-  if (!greedy_loop && choice_count == 2) {
-    GuardedAlternative alt1 = alternatives_->at(1);
-    if (alt1.guards() == NULL || alt1.guards()->length() == 0) {
-      RegExpNode* eats_anything_node = alt1.node();
-      if (eats_anything_node->GetSuccessorOfOmnivorousTextNode(compiler) ==
-          this) {
-        // At this point we know that we are at a non-greedy loop that will eat
-        // any character one at a time.  Any non-anchored regexp has such a
-        // loop prepended to it in order to find where it starts.  We look for
-        // a pattern of the form ...abc... where we can look 6 characters ahead
-        // and step forwards 3 if the character is not one of abc.  Abc need
-        // not be atoms, they can be any reasonably limited character class or
-        // small alternation.
-        DCHECK(trace->is_trivial());  // This is the case on LoopChoiceNodes.
-        BoyerMooreLookahead* lookahead = bm_info(not_at_start);
-        if (lookahead == NULL) {
-          eats_at_least = Min(kMaxLookaheadForBoyerMoore,
-                              EatsAtLeast(kMaxLookaheadForBoyerMoore,
-                                          kRecursionBudget,
-                                          not_at_start));
-          if (eats_at_least >= 1) {
-            BoyerMooreLookahead* bm =
-                new(zone()) BoyerMooreLookahead(eats_at_least,
-                                                compiler,
-                                                zone());
-            GuardedAlternative alt0 = alternatives_->at(0);
-            alt0.node()->FillInBMInfo(0, kRecursionBudget, bm, not_at_start);
-            skip_was_emitted = bm->EmitSkipInstructions(macro_assembler);
-          }
-        } else {
-          skip_was_emitted = lookahead->EmitSkipInstructions(macro_assembler);
-        }
-      }
+int ChoiceNode::EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler,
+                                              Trace* trace) {
+  int eats_at_least = PreloadState::kEatsAtLeastNotYetInitialized;
+  if (alternatives_->length() != 2) return eats_at_least;
+
+  GuardedAlternative alt1 = alternatives_->at(1);
+  if (alt1.guards() != NULL && alt1.guards()->length() != 0) {
+    return eats_at_least;
+  }
+  RegExpNode* eats_anything_node = alt1.node();
+  if (eats_anything_node->GetSuccessorOfOmnivorousTextNode(compiler) != this) {
+    return eats_at_least;
+  }
+
+  // Really we should be creating a new trace when we execute this function,
+  // but there is no need, because the code it generates cannot backtrack, and
+  // we always arrive here with a trivial trace (since it's the entry to a
+  // loop.  That also implies that there are no preloaded characters, which is
+  // good, because it means we won't be violating any assumptions by
+  // overwriting those characters with new load instructions.
+  DCHECK(trace->is_trivial());
+
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  // At this point we know that we are at a non-greedy loop that will eat
+  // any character one at a time.  Any non-anchored regexp has such a
+  // loop prepended to it in order to find where it starts.  We look for
+  // a pattern of the form ...abc... where we can look 6 characters ahead
+  // and step forwards 3 if the character is not one of abc.  Abc need
+  // not be atoms, they can be any reasonably limited character class or
+  // small alternation.
+  BoyerMooreLookahead* bm = bm_info(false);
+  if (bm == NULL) {
+    eats_at_least = Min(kMaxLookaheadForBoyerMoore,
+                        EatsAtLeast(kMaxLookaheadForBoyerMoore,
+                                    kRecursionBudget,
+                                    false));
+    if (eats_at_least >= 1) {
+      bm = new(zone()) BoyerMooreLookahead(eats_at_least,
+                                           compiler,
+                                           zone());
+      GuardedAlternative alt0 = alternatives_->at(0);
+      alt0.node()->FillInBMInfo(0, kRecursionBudget, bm, false);
     }
   }
-
-  if (eats_at_least == kEatsAtLeastNotYetInitialized) {
-    // Save some time by looking at most one machine word ahead.
-    eats_at_least =
-        EatsAtLeast(compiler->ascii() ? 4 : 2, kRecursionBudget, not_at_start);
+  if (bm != NULL) {
+    bm->EmitSkipInstructions(macro_assembler);
   }
-  int preload_characters = CalculatePreloadCharacters(compiler, eats_at_least);
+  return eats_at_least;
+}
 
-  bool preload_is_current = !skip_was_emitted &&
-      (current_trace->characters_preloaded() == preload_characters);
-  bool preload_has_checked_bounds = preload_is_current;
 
-  AlternativeGenerationList alt_gens(choice_count, zone());
+void ChoiceNode::EmitChoices(RegExpCompiler* compiler,
+                             AlternativeGenerationList* alt_gens,
+                             int first_choice,
+                             Trace* trace,
+                             bool is_greedy_loop,
+                             PreloadState* preload) {
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  SetUpPreLoad(compiler, trace, preload);
 
   // For now we just call all choices one after the other.  The idea ultimately
   // is to use the Dispatch table to try only the relevant ones.
-  for (int i = first_normal_choice; i < choice_count; i++) {
+  int choice_count = alternatives_->length();
+
+  int new_flush_budget = trace->flush_budget() / choice_count;
+
+  for (int i = first_choice; i < choice_count; i++) {
+    bool is_last = i == choice_count - 1;
     GuardedAlternative alternative = alternatives_->at(i);
-    AlternativeGeneration* alt_gen = alt_gens.at(i);
-    alt_gen->quick_check_details.set_characters(preload_characters);
+    AlternativeGeneration* alt_gen = alt_gens->at(i);
+    alt_gen->quick_check_details.set_characters(preload->preload_characters_);
     ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == NULL) ? 0 : guards->length();
-    Trace new_trace(*current_trace);
-    new_trace.set_characters_preloaded(preload_is_current ?
-                                         preload_characters :
+    Trace new_trace(*trace);
+    new_trace.set_characters_preloaded(preload->preload_is_current_ ?
+                                         preload->preload_characters_ :
                                          0);
-    if (preload_has_checked_bounds) {
-      new_trace.set_bound_checked_up_to(preload_characters);
+    if (preload->preload_has_checked_bounds_) {
+      new_trace.set_bound_checked_up_to(preload->preload_characters_);
     }
     new_trace.quick_check_performed()->Clear();
     if (not_at_start_) new_trace.set_at_start(Trace::FALSE_VALUE);
-    alt_gen->expects_preload = preload_is_current;
+    alt_gen->expects_preload = preload->preload_is_current_;
     bool generate_full_check_inline = false;
     if (FLAG_regexp_optimization &&
-        try_to_emit_quick_check_for_alternative(i) &&
+        try_to_emit_quick_check_for_alternative(i == 0) &&
         alternative.node()->EmitQuickCheck(compiler,
                                            &new_trace,
-                                           preload_has_checked_bounds,
+                                           preload->preload_has_checked_bounds_,
                                            &alt_gen->possible_success,
                                            &alt_gen->quick_check_details,
-                                           i < choice_count - 1)) {
+                                           !is_last)) {
       // Quick check was generated for this choice.
-      preload_is_current = true;
-      preload_has_checked_bounds = true;
+      preload->preload_is_current_ = true;
+      preload->preload_has_checked_bounds_ = true;
       // On the last choice in the ChoiceNode we generated the quick
       // check to fall through on possible success.  So now we need to
       // generate the full check inline.
-      if (i == choice_count - 1) {
+      if (is_last) {
         macro_assembler->Bind(&alt_gen->possible_success);
         new_trace.set_quick_check_performed(&alt_gen->quick_check_details);
-        new_trace.set_characters_preloaded(preload_characters);
-        new_trace.set_bound_checked_up_to(preload_characters);
+        new_trace.set_characters_preloaded(preload->preload_characters_);
+        new_trace.set_bound_checked_up_to(preload->preload_characters_);
         generate_full_check_inline = true;
       }
     } else if (alt_gen->quick_check_details.cannot_match()) {
-      if (i == choice_count - 1 && !greedy_loop) {
+      if (is_last && !is_greedy_loop) {
         macro_assembler->GoTo(trace->backtrack());
-      }
+      }  // Else just fall through to the next test.
       continue;
     } else {
       // No quick check was generated.  Put the full code here.
@@ -4075,11 +4179,11 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       // previous cases that go here when they fail.  There's no reason to
       // insist that they preload characters since the slow check we are about
       // to generate probably can't use it.
-      if (i != first_normal_choice) {
+      if (i != first_choice) {
         alt_gen->expects_preload = false;
         new_trace.InvalidateCurrentCharacter();
       }
-      if (i < choice_count - 1) {
+      if (!is_last) {
         new_trace.set_backtrack(&alt_gen->after);
       }
       generate_full_check_inline = true;
@@ -4092,37 +4196,9 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
         GenerateGuard(macro_assembler, guards->at(j), &new_trace);
       }
       alternative.node()->Emit(compiler, &new_trace);
-      preload_is_current = false;
+      preload->preload_is_current_ = false;
     }
     macro_assembler->Bind(&alt_gen->after);
-  }
-  if (greedy_loop) {
-    macro_assembler->Bind(&greedy_loop_label);
-    // If we have unwound to the bottom then backtrack.
-    macro_assembler->CheckGreedyLoop(trace->backtrack());
-    // Otherwise try the second priority at an earlier position.
-    macro_assembler->AdvanceCurrentPosition(-text_length);
-    macro_assembler->GoTo(&second_choice);
-  }
-
-  // At this point we need to generate slow checks for the alternatives where
-  // the quick check was inlined.  We can recognize these because the associated
-  // label was bound.
-  for (int i = first_normal_choice; i < choice_count - 1; i++) {
-    AlternativeGeneration* alt_gen = alt_gens.at(i);
-    Trace new_trace(*current_trace);
-    // If there are actions to be flushed we have to limit how many times
-    // they are flushed.  Take the budget of the parent trace and distribute
-    // it fairly amongst the children.
-    if (new_trace.actions() != NULL) {
-      new_trace.set_flush_budget(new_flush_budget);
-    }
-    EmitOutOfLineContinuation(compiler,
-                              &new_trace,
-                              alternatives_->at(i),
-                              alt_gen,
-                              preload_characters,
-                              alt_gens.at(i + 1)->expects_preload);
   }
 }
 

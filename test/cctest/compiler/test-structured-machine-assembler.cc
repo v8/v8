@@ -6,8 +6,8 @@
 #include "test/cctest/cctest.h"
 
 #include "src/base/utils/random-number-generator.h"
-#include "src/compiler/structured-machine-assembler.h"
 #include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/structured-machine-assembler.h"
 #include "test/cctest/compiler/value-helper.h"
 
 #if V8_TURBOFAN_TARGET

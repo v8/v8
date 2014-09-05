@@ -1067,6 +1067,18 @@ void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
   // The context should not be a placeholder for a materialized object.
   CHECK(value !=
         reinterpret_cast<intptr_t>(isolate_->heap()->arguments_marker()));
+  if (value ==
+      reinterpret_cast<intptr_t>(isolate_->heap()->undefined_value())) {
+    // If the context was optimized away, just use the context from
+    // the activation. This should only apply to Crankshaft code.
+    CHECK(!compiled_code_->is_turbofanned());
+    if (is_bottommost) {
+      value = input_->GetFrameSlot(input_offset);
+    } else {
+      value = reinterpret_cast<intptr_t>(function->context());
+    }
+    output_frame->SetFrameSlot(output_offset, value);
+  }
   output_frame->SetContext(value);
   if (is_topmost) output_frame->SetRegister(context_reg.code(), value);
   if (trace_scope_ != NULL) {

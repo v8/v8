@@ -19,9 +19,8 @@ namespace internal {
 
 // TODO(bmeurer): Find a new home for these functions.
 template <typename T>
-inline std::ostream& operator<<(std::ostream& os,
-                                const PrintableUnique<T>& value) {
-  return os << value.string();
+inline std::ostream& operator<<(std::ostream& os, const Unique<T>& value) {
+  return os << *value.handle();
 }
 inline std::ostream& operator<<(std::ostream& os,
                                 const ExternalReference& value) {
@@ -65,32 +64,32 @@ Node* GraphTest::NumberConstant(double value) {
 }
 
 
-Node* GraphTest::HeapConstant(const PrintableUnique<HeapObject>& value) {
+Node* GraphTest::HeapConstant(const Unique<HeapObject>& value) {
   return graph()->NewNode(common()->HeapConstant(value));
 }
 
 
 Node* GraphTest::FalseConstant() {
-  return HeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
-      zone(), factory()->false_value()));
+  return HeapConstant(
+      Unique<HeapObject>::CreateImmovable(factory()->false_value()));
 }
 
 
 Node* GraphTest::TrueConstant() {
-  return HeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
-      zone(), factory()->true_value()));
+  return HeapConstant(
+      Unique<HeapObject>::CreateImmovable(factory()->true_value()));
 }
 
 
 Matcher<Node*> GraphTest::IsFalseConstant() {
-  return IsHeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
-      zone(), factory()->false_value()));
+  return IsHeapConstant(
+      Unique<HeapObject>::CreateImmovable(factory()->false_value()));
 }
 
 
 Matcher<Node*> GraphTest::IsTrueConstant() {
-  return IsHeapConstant(PrintableUnique<HeapObject>::CreateImmovable(
-      zone(), factory()->true_value()));
+  return IsHeapConstant(
+      Unique<HeapObject>::CreateImmovable(factory()->true_value()));
 }
 
 namespace {
@@ -640,8 +639,8 @@ Matcher<Node*> IsExternalConstant(
 
 
 Matcher<Node*> IsHeapConstant(
-    const Matcher<PrintableUnique<HeapObject> >& value_matcher) {
-  return MakeMatcher(new IsConstantMatcher<PrintableUnique<HeapObject> >(
+    const Matcher<Unique<HeapObject> >& value_matcher) {
+  return MakeMatcher(new IsConstantMatcher<Unique<HeapObject> >(
       IrOpcode::kHeapConstant, value_matcher));
 }
 

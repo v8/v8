@@ -174,7 +174,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       CHECK_EQ(IrOpcode::kStart,
                NodeProperties::GetValueInput(node, 0)->opcode());
       // Parameter has an input that produces enough values.
-      int index = static_cast<Operator1<int>*>(node->op())->parameter();
+      int index = OpParameter<int>(node);
       Node* input = NodeProperties::GetValueInput(node, 0);
       // Currently, parameter indices start at -1 instead of 0.
       CHECK_GT(OperatorProperties::GetValueOutputCount(input->op()), index + 1);
@@ -213,7 +213,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.
-      int index = static_cast<Operator1<int>*>(node->op())->parameter();
+      int index = OpParameter<int>(node);
       Node* input = NodeProperties::GetValueInput(node, 0);
       CHECK_GT(OperatorProperties::GetValueOutputCount(input->op()), index);
       break;

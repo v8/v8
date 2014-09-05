@@ -81,17 +81,17 @@ struct StaticParameterTraits<ElementAccess> {
 };
 
 
-inline const FieldAccess FieldAccessOf(Operator* op) {
+inline const FieldAccess FieldAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kLoadField ||
          op->opcode() == IrOpcode::kStoreField);
-  return static_cast<Operator1<FieldAccess>*>(op)->parameter();
+  return OpParameter<FieldAccess>(op);
 }
 
 
-inline const ElementAccess ElementAccessOf(Operator* op) {
+inline const ElementAccess ElementAccessOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kLoadElement ||
          op->opcode() == IrOpcode::kStoreElement);
-  return static_cast<Operator1<ElementAccess>*>(op)->parameter();
+  return OpParameter<ElementAccess>(op);
 }
 
 

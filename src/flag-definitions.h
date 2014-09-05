@@ -434,8 +434,6 @@ DEFINE_BOOL(serialize_toplevel, false, "enable caching of toplevel scripts")
 // compiler.cc
 DEFINE_INT(min_preparse_length, 1024,
            "minimum length for automatic enable preparsing")
-DEFINE_BOOL(always_full_compiler, false,
-            "try to use the dedicated run-once backend for all code")
 DEFINE_INT(max_opt_count, 10,
            "maximum number of optimization attempts before giving up.")
 

@@ -128,8 +128,8 @@ class StructuredGraphBuilder : public GraphBuilder {
 
   // Helper to wrap a Handle<T> into a Unique<T>.
   template <class T>
-  PrintableUnique<T> MakeUnique(Handle<T> object) {
-    return PrintableUnique<T>::CreateUninitialized(zone(), object);
+  Unique<T> MakeUnique(Handle<T> object) {
+    return Unique<T>::CreateUninitialized(object);
   }
 
   // Support for control flow builders. The concrete type of the environment

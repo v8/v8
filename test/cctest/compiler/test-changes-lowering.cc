@@ -10,7 +10,6 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/pipeline.h"
-#include "src/compiler/simplified-node-factory.h"
 #include "src/compiler/typer.h"
 #include "src/compiler/verifier.h"
 #include "src/execution.h"

@@ -2846,65 +2846,6 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateHashInit(MacroAssembler* masm,
-                                    Register hash,
-                                    Register character,
-                                    Register scratch) {
-  // hash = (seed + character) + ((seed + character) << 10);
-  __ LoadRoot(scratch, Heap::kHashSeedRootIndex);
-  __ SmiToInteger32(scratch, scratch);
-  __ addl(scratch, character);
-  __ movl(hash, scratch);
-  __ shll(scratch, Immediate(10));
-  __ addl(hash, scratch);
-  // hash ^= hash >> 6;
-  __ movl(scratch, hash);
-  __ shrl(scratch, Immediate(6));
-  __ xorl(hash, scratch);
-}
-
-
-void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
-                                            Register hash,
-                                            Register character,
-                                            Register scratch) {
-  // hash += character;
-  __ addl(hash, character);
-  // hash += hash << 10;
-  __ movl(scratch, hash);
-  __ shll(scratch, Immediate(10));
-  __ addl(hash, scratch);
-  // hash ^= hash >> 6;
-  __ movl(scratch, hash);
-  __ shrl(scratch, Immediate(6));
-  __ xorl(hash, scratch);
-}
-
-
-void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
-                                       Register hash,
-                                       Register scratch) {
-  // hash += hash << 3;
-  __ leal(hash, Operand(hash, hash, times_8, 0));
-  // hash ^= hash >> 11;
-  __ movl(scratch, hash);
-  __ shrl(scratch, Immediate(11));
-  __ xorl(hash, scratch);
-  // hash += hash << 15;
-  __ movl(scratch, hash);
-  __ shll(scratch, Immediate(15));
-  __ addl(hash, scratch);
-
-  __ andl(hash, Immediate(String::kHashBitMask));
-
-  // if (hash == 0) hash = 27;
-  Label hash_not_zero;
-  __ j(not_zero, &hash_not_zero);
-  __ Set(hash, StringHasher::kZeroHash);
-  __ bind(&hash_not_zero);
-}
-
-
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 

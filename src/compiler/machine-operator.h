@@ -26,6 +26,17 @@ struct StoreRepresentation {
 };
 
 
+// TODO(bmeurer): Phi will probably also need this in the future.
+template <>
+struct StaticParameterTraits<MachineType> {
+  static OStream& PrintTo(OStream& os, MachineType type) {  // NOLINT
+    return os << type;
+  }
+  static int HashCode(MachineType type) { return type; }
+  static bool Equals(MachineType lhs, MachineType rhs) { return lhs == rhs; }
+};
+
+
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.

@@ -14,24 +14,24 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-inline bool OperatorProperties::HasValueInput(Operator* op) {
+inline bool OperatorProperties::HasValueInput(const Operator* op) {
   return OperatorProperties::GetValueInputCount(op) > 0;
 }
 
-inline bool OperatorProperties::HasContextInput(Operator* op) {
+inline bool OperatorProperties::HasContextInput(const Operator* op) {
   IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
   return IrOpcode::IsJsOpcode(opcode);
 }
 
-inline bool OperatorProperties::HasEffectInput(Operator* op) {
+inline bool OperatorProperties::HasEffectInput(const Operator* op) {
   return OperatorProperties::GetEffectInputCount(op) > 0;
 }
 
-inline bool OperatorProperties::HasControlInput(Operator* op) {
+inline bool OperatorProperties::HasControlInput(const Operator* op) {
   return OperatorProperties::GetControlInputCount(op) > 0;
 }
 
-inline bool OperatorProperties::HasFrameStateInput(Operator* op) {
+inline bool OperatorProperties::HasFrameStateInput(const Operator* op) {
   if (!FLAG_turbo_deoptimization) {
     return false;
   }
@@ -40,8 +40,7 @@ inline bool OperatorProperties::HasFrameStateInput(Operator* op) {
     case IrOpcode::kFrameState:
       return true;
     case IrOpcode::kJSCallRuntime: {
-      Runtime::FunctionId function =
-          reinterpret_cast<Operator1<Runtime::FunctionId>*>(op)->parameter();
+      Runtime::FunctionId function = OpParameter<Runtime::FunctionId>(op);
       return Linkage::NeedsFrameState(function);
     }
 
@@ -85,29 +84,29 @@ inline bool OperatorProperties::HasFrameStateInput(Operator* op) {
   }
 }
 
-inline int OperatorProperties::GetValueInputCount(Operator* op) {
+inline int OperatorProperties::GetValueInputCount(const Operator* op) {
   return op->InputCount();
 }
 
-inline int OperatorProperties::GetContextInputCount(Operator* op) {
+inline int OperatorProperties::GetContextInputCount(const Operator* op) {
   return OperatorProperties::HasContextInput(op) ? 1 : 0;
 }
 
-inline int OperatorProperties::GetFrameStateInputCount(Operator* op) {
+inline int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
   return OperatorProperties::HasFrameStateInput(op) ? 1 : 0;
 }
 
-inline int OperatorProperties::GetEffectInputCount(Operator* op) {
+inline int OperatorProperties::GetEffectInputCount(const Operator* op) {
   if (op->opcode() == IrOpcode::kEffectPhi ||
       op->opcode() == IrOpcode::kFinish) {
-    return static_cast<Operator1<int>*>(op)->parameter();
+    return OpParameter<int>(op);
   }
   if (op->HasProperty(Operator::kNoRead) && op->HasProperty(Operator::kNoWrite))
     return 0;  // no effects.
   return 1;
 }
 
-inline int OperatorProperties::GetControlInputCount(Operator* op) {
+inline int OperatorProperties::GetControlInputCount(const Operator* op) {
   switch (op->opcode()) {
     case IrOpcode::kPhi:
     case IrOpcode::kEffectPhi:
@@ -116,7 +115,7 @@ inline int OperatorProperties::GetControlInputCount(Operator* op) {
 #define OPCODE_CASE(x) case IrOpcode::k##x:
       CONTROL_OP_LIST(OPCODE_CASE)
 #undef OPCODE_CASE
-      return static_cast<ControlOperator*>(op)->ControlInputCount();
+      return static_cast<const ControlOperator*>(op)->ControlInputCount();
     default:
       // Operators that have write effects must have a control
       // dependency. Effect dependencies only ensure the correct order of
@@ -128,7 +127,7 @@ inline int OperatorProperties::GetControlInputCount(Operator* op) {
   return 0;
 }
 
-inline int OperatorProperties::GetTotalInputCount(Operator* op) {
+inline int OperatorProperties::GetTotalInputCount(const Operator* op) {
   return GetValueInputCount(op) + GetContextInputCount(op) +
          GetFrameStateInputCount(op) + GetEffectInputCount(op) +
          GetControlInputCount(op);
@@ -137,38 +136,38 @@ inline int OperatorProperties::GetTotalInputCount(Operator* op) {
 // -----------------------------------------------------------------------------
 // Output properties.
 
-inline bool OperatorProperties::HasValueOutput(Operator* op) {
+inline bool OperatorProperties::HasValueOutput(const Operator* op) {
   return GetValueOutputCount(op) > 0;
 }
 
-inline bool OperatorProperties::HasEffectOutput(Operator* op) {
+inline bool OperatorProperties::HasEffectOutput(const Operator* op) {
   return op->opcode() == IrOpcode::kStart ||
          op->opcode() == IrOpcode::kControlEffect ||
          op->opcode() == IrOpcode::kValueEffect ||
          (op->opcode() != IrOpcode::kFinish && GetEffectInputCount(op) > 0);
 }
 
-inline bool OperatorProperties::HasControlOutput(Operator* op) {
+inline bool OperatorProperties::HasControlOutput(const Operator* op) {
   IrOpcode::Value opcode = static_cast<IrOpcode::Value>(op->opcode());
   return (opcode != IrOpcode::kEnd && IrOpcode::IsControlOpcode(opcode));
 }
 
 
-inline int OperatorProperties::GetValueOutputCount(Operator* op) {
+inline int OperatorProperties::GetValueOutputCount(const Operator* op) {
   return op->OutputCount();
 }
 
-inline int OperatorProperties::GetEffectOutputCount(Operator* op) {
+inline int OperatorProperties::GetEffectOutputCount(const Operator* op) {
   return HasEffectOutput(op) ? 1 : 0;
 }
 
-inline int OperatorProperties::GetControlOutputCount(Operator* node) {
+inline int OperatorProperties::GetControlOutputCount(const Operator* node) {
   return node->opcode() == IrOpcode::kBranch ? 2 : HasControlOutput(node) ? 1
                                                                           : 0;
 }
 
 
-inline bool OperatorProperties::IsBasicBlockBegin(Operator* op) {
+inline bool OperatorProperties::IsBasicBlockBegin(const Operator* op) {
   uint8_t opcode = op->opcode();
   return opcode == IrOpcode::kStart || opcode == IrOpcode::kEnd ||
          opcode == IrOpcode::kDead || opcode == IrOpcode::kLoop ||
@@ -176,8 +175,8 @@ inline bool OperatorProperties::IsBasicBlockBegin(Operator* op) {
          opcode == IrOpcode::kIfFalse;
 }
 
-}
-}
-}  // namespace v8::internal::compiler
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_OPERATOR_PROPERTIES_INL_H_

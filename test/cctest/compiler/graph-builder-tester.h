@@ -10,9 +10,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-builder.h"
-#include "src/compiler/machine-node-factory.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/simplified-node-factory.h"
 #include "src/compiler/simplified-operator.h"
 #include "test/cctest/compiler/call-tester.h"
 #include "test/cctest/compiler/simplified-graph-builder.h"

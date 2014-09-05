@@ -21,6 +21,7 @@
         'change-lowering-unittest.cc',
         'common-operator-unittest.cc',
         'compiler-test-utils.h',
+        'graph-reducer-unittest.cc',
         'graph-unittest.cc',
         'graph-unittest.h',
         'instruction-selector-unittest.cc',
@@ -28,6 +29,7 @@
         'machine-operator-reducer-unittest.cc',
         'machine-operator-unittest.cc',
         'simplified-operator-reducer-unittest.cc',
+        'value-numbering-reducer-unittest.cc',
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {

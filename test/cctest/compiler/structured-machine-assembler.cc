@@ -4,7 +4,7 @@
 
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
-#include "src/compiler/structured-machine-assembler.h"
+#include "test/cctest/compiler/structured-machine-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -18,44 +18,10 @@ void Variable::Set(Node* value) const { smasm_->SetVariable(offset_, value); }
 
 StructuredMachineAssembler::StructuredMachineAssembler(
     Graph* graph, MachineSignature* machine_sig, MachineType word)
-    : GraphBuilder(graph),
-      schedule_(new (zone()) Schedule(zone())),
-      machine_(zone(), word),
-      common_(zone()),
-      machine_sig_(machine_sig),
-      call_descriptor_(
-          Linkage::GetSimplifiedCDescriptor(graph->zone(), machine_sig)),
-      parameters_(NULL),
+    : RawMachineAssembler(graph, machine_sig, word),
       current_environment_(new (zone())
                            Environment(zone(), schedule()->start(), false)),
-      number_of_variables_(0) {
-  int param_count = static_cast<int>(parameter_count());
-  Node* s = graph->NewNode(common_.Start(param_count));
-  graph->SetStart(s);
-  if (parameter_count() == 0) return;
-  parameters_ = zone()->NewArray<Node*>(param_count);
-  for (size_t i = 0; i < parameter_count(); ++i) {
-    parameters_[i] =
-        NewNode(common()->Parameter(static_cast<int>(i)), graph->start());
-  }
-}
-
-
-Schedule* StructuredMachineAssembler::Export() {
-  // Compute the correct codegen order.
-  DCHECK(schedule_->rpo_order()->empty());
-  Scheduler::ComputeSpecialRPO(schedule_);
-  // Invalidate MachineAssembler.
-  Schedule* schedule = schedule_;
-  schedule_ = NULL;
-  return schedule;
-}
-
-
-Node* StructuredMachineAssembler::Parameter(size_t index) {
-  DCHECK(index < parameter_count());
-  return parameters_[index];
-}
+      number_of_variables_(0) {}
 
 
 Node* StructuredMachineAssembler::MakeNode(Operator* op, int input_count,

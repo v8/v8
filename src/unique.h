@@ -118,8 +118,6 @@ class Unique {
   friend class UniqueSet<T>;  // Uses internal details for speed.
   template <class U>
   friend class Unique;  // For comparing raw_address values.
-  template <class U>
-  friend class PrintableUnique;  // For automatic up casting.
 
  protected:
   Unique<T>() : raw_address_(NULL) { }
@@ -128,73 +126,6 @@ class Unique {
   Handle<T> handle_;
 
   friend class SideEffectsTracker;
-};
-
-
-// TODO(danno): At some point if all of the uses of Unique end up using
-// PrintableUnique, then we should merge PrintableUnique into Unique and
-// predicate generating the printable string on a "am I tracing" check.
-template <class T>
-class PrintableUnique : public Unique<T> {
- public:
-  // TODO(titzer): make private and introduce a uniqueness scope.
-  PrintableUnique() : string_("null") {}
-
-  // TODO(titzer): make private and introduce a uniqueness scope.
-  explicit PrintableUnique(Zone* zone, Handle<T> handle) : Unique<T>(handle) {
-    InitializeString(zone);
-  }
-
-  // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
-  PrintableUnique(Zone* zone, Address raw_address, Handle<T> handle)
-      : Unique<T>(raw_address, handle) {
-    InitializeString(zone);
-  }
-
-  // Constructor for handling automatic up casting.
-  // Eg. PrintableUnique<JSFunction> can be passed when PrintableUnique<Object>
-  // is expected.
-  template <class S>
-  PrintableUnique(PrintableUnique<S> uniq)  // NOLINT
-      : Unique<T>(Handle<T>()) {
-#ifdef DEBUG
-    T* a = NULL;
-    S* b = NULL;
-    a = b;  // Fake assignment to enforce type checks.
-    USE(a);
-#endif
-    this->raw_address_ = uniq.raw_address_;
-    this->handle_ = uniq.handle_;
-    string_ = uniq.string();
-  }
-
-  // TODO(titzer): this is a hack to migrate to Unique<T> incrementally.
-  static PrintableUnique<T> CreateUninitialized(Zone* zone, Handle<T> handle) {
-    return PrintableUnique<T>(zone, reinterpret_cast<Address>(NULL), handle);
-  }
-
-  static PrintableUnique<T> CreateImmovable(Zone* zone, Handle<T> handle) {
-    return PrintableUnique<T>(zone, reinterpret_cast<Address>(*handle), handle);
-  }
-
-  const char* string() const { return string_; }
-
- private:
-  const char* string_;
-
-  void InitializeString(Zone* zone) {
-    // The stringified version of the parameter must be calculated when the
-    // Operator is constructed to avoid accessing the heap.
-    HeapStringAllocator temp_allocator;
-    StringStream stream(&temp_allocator);
-    this->handle_->ShortPrint(&stream);
-    SmartArrayPointer<const char> desc_string = stream.ToCString();
-    const char* desc_chars = desc_string.get();
-    int length = static_cast<int>(strlen(desc_chars));
-    char* desc_copy = zone->NewArray<char>(length + 1);
-    memcpy(desc_copy, desc_chars, length + 1);
-    string_ = desc_copy;
-  }
 };
 
 

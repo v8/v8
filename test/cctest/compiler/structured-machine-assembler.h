@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_STRUCTURED_MACHINE_ASSEMBLER_H_
-#define V8_COMPILER_STRUCTURED_MACHINE_ASSEMBLER_H_
+#ifndef V8_CCTEST_COMPILER_STRUCTURED_MACHINE_ASSEMBLER_H_
+#define V8_CCTEST_COMPILER_STRUCTURED_MACHINE_ASSEMBLER_H_
 
 #include "src/v8.h"
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-builder.h"
-#include "src/compiler/machine-node-factory.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
+#include "src/compiler/raw-machine-assembler.h"
 
 
 namespace v8 {
@@ -40,9 +40,7 @@ class Variable : public ZoneObject {
 };
 
 
-class StructuredMachineAssembler
-    : public GraphBuilder,
-      public MachineNodeFactory<StructuredMachineAssembler> {
+class StructuredMachineAssembler : public RawMachineAssembler {
  public:
   class Environment : public ZoneObject {
    public:
@@ -65,35 +63,15 @@ class StructuredMachineAssembler
                              MachineType word = kMachPtr);
   virtual ~StructuredMachineAssembler() {}
 
-  Isolate* isolate() const { return zone()->isolate(); }
-  Zone* zone() const { return graph()->zone(); }
-  MachineOperatorBuilder* machine() { return &machine_; }
-  CommonOperatorBuilder* common() { return &common_; }
-  CallDescriptor* call_descriptor() const { return call_descriptor_; }
-  size_t parameter_count() const { return machine_sig_->parameter_count(); }
-  MachineSignature* machine_sig() const { return machine_sig_; }
-
-  // Parameters.
-  Node* Parameter(size_t index);
   // Variables.
   Variable NewVariable(Node* initial_value);
   // Control flow.
   void Return(Node* value);
 
-  // MachineAssembler is invalid after export.
-  Schedule* Export();
-
  protected:
   virtual Node* MakeNode(Operator* op, int input_count, Node** inputs);
 
-  Schedule* schedule() {
-    DCHECK(ScheduleValid());
-    return schedule_;
-  }
-
  private:
-  bool ScheduleValid() { return schedule_ != NULL; }
-
   typedef ZoneVector<Environment*> EnvironmentVector;
 
   NodeVector* CurrentVars() { return &current_environment_->variables_; }
@@ -116,12 +94,6 @@ class StructuredMachineAssembler
   void MergeBackEdgesToLoopHeader(Environment* header,
                                   EnvironmentVector* environments);
 
-  Schedule* schedule_;
-  MachineOperatorBuilder machine_;
-  CommonOperatorBuilder common_;
-  MachineSignature* machine_sig_;
-  CallDescriptor* call_descriptor_;
-  Node** parameters_;
   Environment* current_environment_;
   int number_of_variables_;
 
@@ -296,4 +268,4 @@ class StructuredMachineAssembler::LoopBuilder {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_STRUCTURED_MACHINE_ASSEMBLER_H_
+#endif  // V8_CCTEST_COMPILER_STRUCTURED_MACHINE_ASSEMBLER_H_

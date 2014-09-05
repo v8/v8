@@ -3109,57 +3109,6 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateHashInit(MacroAssembler* masm,
-                                    Register hash,
-                                    Register character) {
-  // hash = seed + character + ((seed + character) << 10);
-  __ LoadRoot(hash, Heap::kHashSeedRootIndex);
-  // Untag smi seed and add the character.
-  __ SmiUntag(hash);
-  __ addu(hash, hash, character);
-  __ sll(at, hash, 10);
-  __ addu(hash, hash, at);
-  // hash ^= hash >> 6;
-  __ srl(at, hash, 6);
-  __ xor_(hash, hash, at);
-}
-
-
-void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
-                                            Register hash,
-                                            Register character) {
-  // hash += character;
-  __ addu(hash, hash, character);
-  // hash += hash << 10;
-  __ sll(at, hash, 10);
-  __ addu(hash, hash, at);
-  // hash ^= hash >> 6;
-  __ srl(at, hash, 6);
-  __ xor_(hash, hash, at);
-}
-
-
-void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
-                                       Register hash) {
-  // hash += hash << 3;
-  __ sll(at, hash, 3);
-  __ addu(hash, hash, at);
-  // hash ^= hash >> 11;
-  __ srl(at, hash, 11);
-  __ xor_(hash, hash, at);
-  // hash += hash << 15;
-  __ sll(at, hash, 15);
-  __ addu(hash, hash, at);
-
-  __ li(at, Operand(String::kHashBitMask));
-  __ and_(hash, hash, at);
-
-  // if (hash == 0) hash = 27;
-  __ ori(at, zero_reg, StringHasher::kZeroHash);
-  __ Movz(hash, at, hash);
-}
-
-
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
   // Stack frame on entry.

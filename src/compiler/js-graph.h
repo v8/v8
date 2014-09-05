@@ -42,7 +42,7 @@ class JSGraph : public ZoneObject {
 
   // Creates a HeapConstant node, possibly canonicalized, without inspecting the
   // object.
-  Node* HeapConstant(PrintableUnique<Object> value);
+  Node* HeapConstant(Unique<Object> value);
 
   // Creates a HeapConstant node, possibly canonicalized, and may access the
   // heap to inspect the object.

@@ -135,14 +135,15 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
 
     Handle<JSFunction> deopt_function =
         NewFunction("function deopt() { %DeoptimizeFunction(foo); }; deopt");
-    PrintableUnique<Object> deopt_fun_constant =
-        PrintableUnique<Object>::CreateUninitialized(zone(), deopt_function);
+    Unique<Object> deopt_fun_constant =
+        Unique<Object>::CreateUninitialized(deopt_function);
     Node* deopt_fun_node = m.NewNode(common.HeapConstant(deopt_fun_constant));
 
-    Handle<Context> context(deopt_function->context(), CcTest::i_isolate());
-    PrintableUnique<Object> context_constant =
-        PrintableUnique<Object>::CreateUninitialized(zone(), context);
-    Node* context_node = m.NewNode(common.HeapConstant(context_constant));
+    Handle<Context> caller_context(function->context(), CcTest::i_isolate());
+    Unique<Object> caller_context_constant =
+        Unique<Object>::CreateUninitialized(caller_context);
+    Node* caller_context_node =
+        m.NewNode(common.HeapConstant(caller_context_constant));
 
     bailout_id = GetCallBailoutId();
     Node* parameters = m.NewNode(common.StateValues(1), m.UndefinedConstant());
@@ -151,7 +152,12 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
 
     Node* state_node =
         m.NewNode(common.FrameState(bailout_id, kIgnoreOutput), parameters,
-                  locals, stack, m.UndefinedConstant(), m.UndefinedConstant());
+                  locals, stack, caller_context_node, m.UndefinedConstant());
+
+    Handle<Context> context(deopt_function->context(), CcTest::i_isolate());
+    Unique<Object> context_constant =
+        Unique<Object>::CreateUninitialized(context);
+    Node* context_node = m.NewNode(common.HeapConstant(context_constant));
 
     m.CallJS0(deopt_fun_node, m.UndefinedConstant(), context_node, state_node);
 
@@ -244,13 +250,13 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     CSignature1<Object*, Object*> sig;
     RawMachineAssembler m(graph, &sig);
 
-    PrintableUnique<Object> this_fun_constant =
-        PrintableUnique<Object>::CreateUninitialized(zone(), function);
+    Unique<Object> this_fun_constant =
+        Unique<Object>::CreateUninitialized(function);
     Node* this_fun_node = m.NewNode(common.HeapConstant(this_fun_constant));
 
     Handle<Context> context(function->context(), CcTest::i_isolate());
-    PrintableUnique<Object> context_constant =
-        PrintableUnique<Object>::CreateUninitialized(zone(), context);
+    Unique<Object> context_constant =
+        Unique<Object>::CreateUninitialized(context);
     Node* context_node = m.NewNode(common.HeapConstant(context_constant));
 
     bailout_id = GetCallBailoutId();
@@ -260,7 +266,7 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
 
     Node* state_node =
         m.NewNode(common.FrameState(bailout_id, kIgnoreOutput), parameters,
-                  locals, stack, m.UndefinedConstant(), m.UndefinedConstant());
+                  locals, stack, context_node, m.UndefinedConstant());
 
     m.CallRuntime1(Runtime::kDeoptimizeFunction, this_fun_node, context_node,
                    state_node);

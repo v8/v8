@@ -9,9 +9,9 @@
 
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
-#include "src/compiler/structured-machine-assembler.h"
 #include "src/simulator.h"
 #include "test/cctest/compiler/call-tester.h"
+#include "test/cctest/compiler/structured-machine-assembler.h"
 
 namespace v8 {
 namespace internal {

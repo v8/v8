@@ -1913,6 +1913,8 @@ TEST(Maybe) {
 }
 
 
+// TODO(rossberg): make me faster!
+#if 0
 TEST(Union1) {
   CcTest::InitializeVM();
   ZoneTests().Union1();
@@ -1953,7 +1955,7 @@ TEST(Distributivity2) {
   ZoneTests().Distributivity2();
   HeapTests().Distributivity2();
 }
-
+#endif  // TODO(rossberg): make me faster
 
 TEST(Convert) {
   CcTest::InitializeVM();

@@ -2919,48 +2919,6 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateHashInit(MacroAssembler* masm,
-                                    Register hash,
-                                    Register character) {
-  // hash = character + (character << 10);
-  __ LoadRoot(hash, Heap::kHashSeedRootIndex);
-  // Untag smi seed and add the character.
-  __ add(hash, character, Operand(hash, LSR, kSmiTagSize));
-  // hash += hash << 10;
-  __ add(hash, hash, Operand(hash, LSL, 10));
-  // hash ^= hash >> 6;
-  __ eor(hash, hash, Operand(hash, LSR, 6));
-}
-
-
-void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
-                                            Register hash,
-                                            Register character) {
-  // hash += character;
-  __ add(hash, hash, Operand(character));
-  // hash += hash << 10;
-  __ add(hash, hash, Operand(hash, LSL, 10));
-  // hash ^= hash >> 6;
-  __ eor(hash, hash, Operand(hash, LSR, 6));
-}
-
-
-void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
-                                       Register hash) {
-  // hash += hash << 3;
-  __ add(hash, hash, Operand(hash, LSL, 3));
-  // hash ^= hash >> 11;
-  __ eor(hash, hash, Operand(hash, LSR, 11));
-  // hash += hash << 15;
-  __ add(hash, hash, Operand(hash, LSL, 15));
-
-  __ and_(hash, hash, Operand(String::kHashBitMask), SetCC);
-
-  // if (hash == 0) hash = 27;
-  __ mov(hash, Operand(StringHasher::kZeroHash), LeaveCC, eq);
-}
-
-
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 

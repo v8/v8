@@ -17,7 +17,7 @@ struct NodeMatcher {
   explicit NodeMatcher(Node* node) : node_(node) {}
 
   Node* node() const { return node_; }
-  Operator* op() const { return node()->op(); }
+  const Operator* op() const { return node()->op(); }
   IrOpcode::Value opcode() const { return node()->opcode(); }
 
   bool HasProperty(Operator::Property property) const {
@@ -94,13 +94,12 @@ typedef FloatMatcher<double> Float64Matcher;
 
 
 // A pattern matcher for heap object constants.
-struct HeapObjectMatcher FINAL
-    : public ValueMatcher<PrintableUnique<HeapObject> > {
+struct HeapObjectMatcher FINAL : public ValueMatcher<Handle<HeapObject> > {
   explicit HeapObjectMatcher(Node* node)
-      : ValueMatcher<PrintableUnique<HeapObject> >(node) {}
+      : ValueMatcher<Handle<HeapObject> >(node) {}
 
-  bool IsKnownGlobal(HeapObject* global) const {
-    return HasValue() && Value().IsKnownGlobal(global);
+  bool IsKnownGlobal(Handle<HeapObject> global) const {
+    return HasValue() && Value().is_identical_to(global);
   }
 };
 

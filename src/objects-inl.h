@@ -4777,9 +4777,10 @@ int Code::profiler_ticks() {
 
 
 void Code::set_profiler_ticks(int ticks) {
-  DCHECK_EQ(FUNCTION, kind());
   DCHECK(ticks < 256);
-  WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
+  if (kind() == FUNCTION) {
+    WRITE_BYTE_FIELD(this, kProfilerTicksOffset, ticks);
+  }
 }
 
 

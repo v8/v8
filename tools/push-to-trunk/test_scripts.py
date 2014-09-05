@@ -806,6 +806,12 @@ git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@22624 123
 
 """
 
+  C_V8_123455_LOG = """V8 CL.
+
+git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123455 123
+
+"""
+
   C_V8_123456_LOG = """V8 CL.
 
 git-svn-id: https://v8.googlecode.com/svn/branches/bleeding_edge@123456 123
@@ -954,7 +960,7 @@ def get_list():
   # Snippet from the original DEPS file.
   FAKE_DEPS = """
 vars = {
-  "v8_revision": "123455",
+  "v8_revision": "abcd123455",
 }
 deps = {
   "src/v8":
@@ -964,6 +970,8 @@ deps = {
 """
 
   def testAutoRollUpToDate(self):
+    os.makedirs(TEST_CONFIG[CHROMIUM])
+    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG[CHROMIUM], "DEPS"))
     self.Expect([
       URL("https://codereview.chromium.org/search",
           "owner=author%40chromium.org&limit=30&closed=3&format=json",
@@ -972,8 +980,7 @@ deps = {
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "origin/master"), "push_hash\n"),
       Cmd("git log -1 --format=%B push_hash", self.C_V8_22624_LOG),
-      URL("http://src.chromium.org/svn/trunk/src/DEPS",
-          self.FAKE_DEPS),
+      Cmd("git log -1 --format=%B abcd123455", self.C_V8_123455_LOG),
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
@@ -981,6 +988,8 @@ deps = {
     self.assertEquals(1, result)
 
   def testAutoRoll(self):
+    os.makedirs(TEST_CONFIG[CHROMIUM])
+    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG[CHROMIUM], "DEPS"))
     TEST_CONFIG[CLUSTERFUZZ_API_KEY_FILE]  = self.MakeEmptyTempFile()
     TextToFile("fake key", TEST_CONFIG[CLUSTERFUZZ_API_KEY_FILE])
 
@@ -992,8 +1001,7 @@ deps = {
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "origin/master"), "push_hash\n"),
       Cmd("git log -1 --format=%B push_hash", self.C_V8_123456_LOG),
-      URL("http://src.chromium.org/svn/trunk/src/DEPS",
-          self.FAKE_DEPS),
+      Cmd("git log -1 --format=%B abcd123455", self.C_V8_123455_LOG),
     ])
 
     result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(

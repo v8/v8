@@ -321,11 +321,6 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   // shared function info.
   DCHECK(!info()->shared_info()->optimization_disabled());
 
-  // Fall back to using the full code generator if it's not possible
-  // to use the Hydrogen-based optimizing compiler. We already have
-  // generated code for this from the shared function object.
-  if (FLAG_always_full_compiler) return AbortOptimization();
-
   // Do not use crankshaft if we need to be able to set break points.
   if (isolate()->DebuggerHasBreakPoints()) {
     return AbortOptimization(kDebuggerHasBreakPoints);
@@ -1246,7 +1241,15 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   PostponeInterruptsScope postpone(isolate);
 
   Handle<SharedFunctionInfo> shared = info->shared_info();
-  DCHECK_NE(ScopeInfo::Empty(isolate), shared->scope_info());
+  if (shared->code()->kind() != Code::FUNCTION ||
+      ScopeInfo::Empty(isolate) == shared->scope_info()) {
+    // The function was never compiled. Compile it unoptimized first.
+    CompilationInfoWithZone nested(function);
+    nested.EnableDeoptimizationSupport();
+    if (!GetUnoptimizedCodeCommon(&nested).ToHandle(&current_code)) {
+      return MaybeHandle<Code>();
+    }
+  }
   int compiled_size = shared->end_position() - shared->start_position();
   isolate->counters()->total_compile_size()->Increment(compiled_size);
   current_code->set_profiler_ticks(0);

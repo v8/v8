@@ -38,7 +38,7 @@ class SimplifiedOperatorReducer FINAL : public Reducer {
   Reduction ReplaceNumber(int32_t value);
 
   Graph* graph() const;
-  Heap* heap() const;
+  Factory* factory() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   MachineOperatorBuilder* machine() const { return machine_; }
 
