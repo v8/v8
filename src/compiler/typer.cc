@@ -95,8 +95,9 @@ class Typer::Visitor : public NullNodeVisitor {
   Type* ContextType(Node* node) {
     Bounds result =
         NodeProperties::GetBounds(NodeProperties::GetContextInput(node));
-    DCHECK(result.upper->Is(Type::Internal()));
-    DCHECK(result.lower->Equals(result.upper));
+    DCHECK(result.upper->Maybe(Type::Internal()));
+    // TODO(rossberg): More precisely, instead of the above assertion, we should
+    // back-propagate the constraint that it has to be a subtype of Internal.
     return result.upper;
   }
 
