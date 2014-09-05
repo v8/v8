@@ -75,13 +75,13 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
 
-  NameDictionaryLookupStub(Isolate* isolate,
-                           Register dictionary,
-                           Register result,
-                           Register index,
-                           LookupMode mode)
-      : PlatformCodeStub(isolate),
-        dictionary_(dictionary), result_(result), index_(index), mode_(mode) { }
+  NameDictionaryLookupStub(Isolate* isolate, Register dictionary,
+                           Register result, Register index, LookupMode mode)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = DictionaryBits::encode(dictionary.code()) |
+                 ResultBits::encode(result.code()) |
+                 IndexBits::encode(index.code()) | LookupModeBits::encode(mode);
+  }
 
   void Generate(MacroAssembler* masm);
 
@@ -116,22 +116,26 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
   Major MajorKey() const { return NameDictionaryLookup; }
 
-  uint32_t MinorKey() const {
-    return DictionaryBits::encode(dictionary_.code()) |
-        ResultBits::encode(result_.code()) |
-        IndexBits::encode(index_.code()) |
-        LookupModeBits::encode(mode_);
+  Register dictionary() const {
+    return Register::from_code(DictionaryBits::decode(minor_key_));
   }
+
+  Register result() const {
+    return Register::from_code(ResultBits::decode(minor_key_));
+  }
+
+  Register index() const {
+    return Register::from_code(IndexBits::decode(minor_key_));
+  }
+
+  LookupMode mode() const { return LookupModeBits::decode(minor_key_); }
 
   class DictionaryBits: public BitField<int, 0, 3> {};
   class ResultBits: public BitField<int, 3, 3> {};
   class IndexBits: public BitField<int, 6, 3> {};
   class LookupModeBits: public BitField<LookupMode, 9, 1> {};
 
-  Register dictionary_;
-  Register result_;
-  Register index_;
-  LookupMode mode_;
+  DISALLOW_COPY_AND_ASSIGN(NameDictionaryLookupStub);
 };
 
 
@@ -143,13 +147,13 @@ class RecordWriteStub: public PlatformCodeStub {
                   Register address,
                   RememberedSetAction remembered_set_action)
       : PlatformCodeStub(isolate),
-        object_(object),
-        value_(value),
-        address_(address),
-        remembered_set_action_(remembered_set_action),
         regs_(object,   // An input reg.
               address,  // An input reg.
               value) {  // One scratch reg.
+    minor_key_ = ObjectBits::encode(object.code()) |
+                 ValueBits::encode(value.code()) |
+                 AddressBits::encode(address.code()) |
+                 RememberedSetActionBits::encode(remembered_set_action);
   }
 
   enum Mode {
@@ -332,8 +336,10 @@ class RecordWriteStub: public PlatformCodeStub {
   enum OnNoNeedToInformIncrementalMarker {
     kReturnOnNoNeedToInformIncrementalMarker,
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
-  }
-;
+  };
+
+  Major MajorKey() const { return RecordWrite; }
+
   void Generate(MacroAssembler* masm);
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
@@ -342,17 +348,24 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  Major MajorKey() const { return RecordWrite; }
-
-  uint32_t MinorKey() const {
-    return ObjectBits::encode(object_.code()) |
-        ValueBits::encode(value_.code()) |
-        AddressBits::encode(address_.code()) |
-        RememberedSetActionBits::encode(remembered_set_action_);
-  }
-
   void Activate(Code* code) {
     code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
+  }
+
+  Register object() const {
+    return Register::from_code(ObjectBits::decode(minor_key_));
+  }
+
+  Register value() const {
+    return Register::from_code(ValueBits::decode(minor_key_));
+  }
+
+  Register address() const {
+    return Register::from_code(AddressBits::decode(minor_key_));
+  }
+
+  RememberedSetAction remembered_set_action() const {
+    return RememberedSetActionBits::decode(minor_key_);
   }
 
   class ObjectBits: public BitField<int, 0, 3> {};
@@ -360,11 +373,9 @@ class RecordWriteStub: public PlatformCodeStub {
   class AddressBits: public BitField<int, 6, 3> {};
   class RememberedSetActionBits: public BitField<RememberedSetAction, 9, 1> {};
 
-  Register object_;
-  Register value_;
-  Register address_;
-  RememberedSetAction remembered_set_action_;
   RegisterAllocation regs_;
+
+  DISALLOW_COPY_AND_ASSIGN(RecordWriteStub);
 };
 
 
