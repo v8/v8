@@ -485,6 +485,8 @@ Bounds Typer::Visitor::TypeJSInstanceOf(Node* node) {
 // JS context operators.
 
 Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
+// TODO(rossberg): Fix this once we actually use the lower bound anywhere.
+#if 0
   Bounds outer = OperandType(node, 0);
   DCHECK(outer.upper->Maybe(Type::Internal()));
   // TODO(rossberg): More precisely, instead of the above assertion, we should
@@ -519,6 +521,9 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
     Type* lower = TypeConstant(value);
     return Bounds(lower, Type::Any(zone()));
   }
+#else
+  return Bounds::Unbounded(zone());
+#endif
 }
 
 
