@@ -1248,7 +1248,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 }
 
 
-void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
+void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Isolate* isolate = masm->isolate();
 
@@ -1288,7 +1288,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // We build an EntryFrame.
   __ li(a7, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  int marker = type();
   __ li(a6, Operand(Smi::FromInt(marker)));
   __ li(a5, Operand(Smi::FromInt(marker)));
   ExternalReference c_entry_fp(Isolate::kCEntryFPAddress, isolate);
@@ -1379,7 +1379,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // [ O32: 4 args slots]
   // args
 
-  if (is_construct) {
+  if (type() == StackFrame::ENTRY_CONSTRUCT) {
     ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
                                       isolate);
     __ li(a4, Operand(construct_entry));

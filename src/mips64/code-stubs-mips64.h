@@ -65,9 +65,7 @@ class StoreRegistersStateStub: public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
-  void Generate(MacroAssembler* masm);
-
-  DEFINE_CODE_STUB(StoreRegistersState, PlatformCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(StoreRegistersState, PlatformCodeStub);
 };
 
 
@@ -79,9 +77,7 @@ class RestoreRegistersStateStub: public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
-  void Generate(MacroAssembler* masm);
-
-  DEFINE_CODE_STUB(RestoreRegistersState, PlatformCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(RestoreRegistersState, PlatformCodeStub);
 };
 
 // This stub can convert a signed int32 to a heap number (double).  It does
@@ -289,7 +285,7 @@ class RecordWriteStub: public PlatformCodeStub {
 
   virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
 
-  void Generate(MacroAssembler* masm);
+  virtual void Generate(MacroAssembler* masm) OVERRIDE;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
@@ -342,13 +338,12 @@ class RecordWriteStub: public PlatformCodeStub {
 class DirectCEntryStub: public PlatformCodeStub {
  public:
   explicit DirectCEntryStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-  void Generate(MacroAssembler* masm);
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
   bool NeedsImmovableCode() { return true; }
 
-  DEFINE_CODE_STUB(DirectCEntry, PlatformCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);
 };
 
 
@@ -360,8 +355,6 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       : PlatformCodeStub(isolate) {
     minor_key_ = LookupModeBits::encode(mode);
   }
-
-  void Generate(MacroAssembler* masm);
 
   static void GenerateNegativeLookup(MacroAssembler* masm,
                                      Label* miss,
@@ -397,7 +390,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 
-  DEFINE_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
+  DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
 
