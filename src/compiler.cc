@@ -1249,6 +1249,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
     if (!GetUnoptimizedCodeCommon(&nested).ToHandle(&current_code)) {
       return MaybeHandle<Code>();
     }
+    shared->ReplaceCode(*current_code);
   }
   int compiled_size = shared->end_position() - shared->start_position();
   isolate->counters()->total_compile_size()->Increment(compiled_size);

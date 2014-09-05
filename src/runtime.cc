@@ -8477,7 +8477,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
     function->ReplaceCode(*code);
   } else {
-    function->ReplaceCode(*unoptimized);
+    function->ReplaceCode(function->shared()->code());
   }
 
   DCHECK(function->code()->kind() == Code::FUNCTION ||
