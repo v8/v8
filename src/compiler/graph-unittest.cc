@@ -285,17 +285,21 @@ class IsConstantMatcher FINAL : public NodeMatcher {
 
 class IsPhiMatcher FINAL : public NodeMatcher {
  public:
-  IsPhiMatcher(const Matcher<Node*>& value0_matcher,
+  IsPhiMatcher(const Matcher<MachineType>& type_matcher,
+               const Matcher<Node*>& value0_matcher,
                const Matcher<Node*>& value1_matcher,
                const Matcher<Node*>& control_matcher)
       : NodeMatcher(IrOpcode::kPhi),
+        type_matcher_(type_matcher),
         value0_matcher_(value0_matcher),
         value1_matcher_(value1_matcher),
         control_matcher_(control_matcher) {}
 
   virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
-    *os << " whose value0 (";
+    *os << " whose type (";
+    type_matcher_.DescribeTo(os);
+    *os << "), value0 (";
     value0_matcher_.DescribeTo(os);
     *os << "), value1 (";
     value1_matcher_.DescribeTo(os);
@@ -307,6 +311,8 @@ class IsPhiMatcher FINAL : public NodeMatcher {
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
       OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(OpParameter<MachineType>(node), "type",
+                                 type_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
                                  "value0", value0_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
@@ -316,6 +322,7 @@ class IsPhiMatcher FINAL : public NodeMatcher {
   }
 
  private:
+  const Matcher<MachineType> type_matcher_;
   const Matcher<Node*> value0_matcher_;
   const Matcher<Node*> value1_matcher_;
   const Matcher<Node*> control_matcher_;
@@ -669,11 +676,12 @@ Matcher<Node*> IsNumberConstant(const Matcher<double>& value_matcher) {
 }
 
 
-Matcher<Node*> IsPhi(const Matcher<Node*>& value0_matcher,
+Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
+                     const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
                      const Matcher<Node*>& merge_matcher) {
-  return MakeMatcher(
-      new IsPhiMatcher(value0_matcher, value1_matcher, merge_matcher));
+  return MakeMatcher(new IsPhiMatcher(type_matcher, value0_matcher,
+                                      value1_matcher, merge_matcher));
 }
 
 

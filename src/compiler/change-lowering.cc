@@ -111,8 +111,9 @@ Reduction ChangeLowering::ChangeBitToBool(Node* val, Node* control) {
   Node* false_value = jsgraph()->FalseConstant();
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi =
-      graph()->NewNode(common()->Phi(2), true_value, false_value, merge);
+  Node* phi = graph()->NewNode(
+      common()->Phi(static_cast<MachineType>(kTypeBool | kRepTagged), 2),
+      true_value, false_value, merge);
 
   return Replace(phi);
 }
@@ -150,7 +151,8 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* control) {
   Node* smi = graph()->NewNode(common()->Projection(0), add);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(common()->Phi(2), heap_number, smi, merge);
+  Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), heap_number,
+                               smi, merge);
 
   return Replace(phi);
 }
@@ -174,7 +176,9 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* val, Node* control,
   Node* number = ChangeSmiToInt32(val);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(common()->Phi(2), change, number, merge);
+  Node* phi = graph()->NewNode(
+      common()->Phi((signedness == kSigned) ? kMachInt32 : kMachUint32, 2),
+      change, number, merge);
 
   return Replace(phi);
 }
@@ -196,7 +200,8 @@ Reduction ChangeLowering::ChangeTaggedToFloat64(Node* val, Node* control) {
                                   ChangeSmiToInt32(val));
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(common()->Phi(2), load, number, merge);
+  Node* phi =
+      graph()->NewNode(common()->Phi(kMachFloat64, 2), load, number, merge);
 
   return Replace(phi);
 }
@@ -223,7 +228,8 @@ Reduction ChangeLowering::ChangeUint32ToTagged(Node* val, Node* control) {
       graph()->NewNode(machine()->ChangeUint32ToFloat64(), val), if_false);
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* phi = graph()->NewNode(common()->Phi(2), smi, heap_number, merge);
+  Node* phi = graph()->NewNode(common()->Phi(kMachAnyTagged, 2), smi,
+                               heap_number, merge);
 
   return Replace(phi);
 }

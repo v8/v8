@@ -1420,3 +1420,28 @@ TEST(InsertChangeForStoreField) {
   CHECK_EQ(t.p0, store->InputAt(0));
   CheckChangeOf(IrOpcode::kChangeTaggedToFloat64, t.p1, store->InputAt(2));
 }
+
+
+TEST(UpdatePhi) {
+  TestingGraph t(Type::Any(), Type::Signed32());
+  static const MachineType kMachineTypes[] = {kMachInt32, kMachUint32,
+                                              kMachFloat64};
+
+  for (size_t i = 0; i < arraysize(kMachineTypes); i++) {
+    FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
+                          Handle<Name>::null(), Type::Any(), kMachineTypes[i]};
+
+    Node* load0 =
+        t.graph()->NewNode(t.simplified()->LoadField(access), t.p0, t.start);
+    Node* load1 =
+        t.graph()->NewNode(t.simplified()->LoadField(access), t.p1, t.start);
+    Node* phi = t.graph()->NewNode(t.common()->Phi(kMachAnyTagged, 2), load0,
+                                   load1, t.start);
+    t.Return(t.Use(phi, kMachineTypes[i]));
+    t.Lower();
+
+    CHECK_EQ(IrOpcode::kPhi, phi->opcode());
+    CHECK_EQ(RepresentationOf(kMachineTypes[i]),
+             RepresentationOf(OpParameter<MachineType>(phi)));
+  }
+}

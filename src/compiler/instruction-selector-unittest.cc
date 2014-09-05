@@ -182,7 +182,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReferenceParameter) {
 // Finish.
 
 
-TARGET_TEST_F(InstructionSelectorTest, Parameter) {
+TARGET_TEST_F(InstructionSelectorTest, Finish) {
   StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged);
   Node* param = m.Parameter(0);
   Node* finish = m.NewNode(m.common()->Finish(1), param, m.graph()->start());
@@ -201,6 +201,7 @@ TARGET_TEST_F(InstructionSelectorTest, Parameter) {
   ASSERT_TRUE(s[1]->Output()->IsUnallocated());
   EXPECT_TRUE(UnallocatedOperand::cast(s[1]->Output())->HasSameAsInputPolicy());
   EXPECT_EQ(finish->id(), s.ToVreg(s[1]->Output()));
+  EXPECT_TRUE(s.IsReference(finish->id()));
 }
 
 
@@ -212,7 +213,7 @@ typedef InstructionSelectorTestWithParam<MachineType>
     InstructionSelectorPhiTest;
 
 
-TARGET_TEST_P(InstructionSelectorPhiTest, PropagateDoubleness) {
+TARGET_TEST_P(InstructionSelectorPhiTest, Doubleness) {
   const MachineType type = GetParam();
   StreamBuilder m(this, type, type, type);
   Node* param0 = m.Parameter(0);
@@ -224,7 +225,7 @@ TARGET_TEST_P(InstructionSelectorPhiTest, PropagateDoubleness) {
   m.Bind(&b);
   m.Goto(&c);
   m.Bind(&c);
-  Node* phi = m.Phi(param0, param1);
+  Node* phi = m.Phi(type, param0, param1);
   m.Return(phi);
   Stream s = m.Build(kAllInstructions);
   EXPECT_EQ(s.IsDouble(phi->id()), s.IsDouble(param0->id()));
@@ -232,7 +233,7 @@ TARGET_TEST_P(InstructionSelectorPhiTest, PropagateDoubleness) {
 }
 
 
-TARGET_TEST_P(InstructionSelectorPhiTest, PropagateReferenceness) {
+TARGET_TEST_P(InstructionSelectorPhiTest, Referenceness) {
   const MachineType type = GetParam();
   StreamBuilder m(this, type, type, type);
   Node* param0 = m.Parameter(0);
@@ -244,7 +245,7 @@ TARGET_TEST_P(InstructionSelectorPhiTest, PropagateReferenceness) {
   m.Bind(&b);
   m.Goto(&c);
   m.Bind(&c);
-  Node* phi = m.Phi(param0, param1);
+  Node* phi = m.Phi(type, param0, param1);
   m.Return(phi);
   Stream s = m.Build(kAllInstructions);
   EXPECT_EQ(s.IsReference(phi->id()), s.IsReference(param0->id()));

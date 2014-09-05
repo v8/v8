@@ -120,7 +120,7 @@ void Inlinee::UnifyReturn() {
 
   int predecessors =
       OperatorProperties::GetControlInputCount(final_merge->op());
-  Operator* op_phi = jsgraph_->common()->Phi(predecessors);
+  Operator* op_phi = jsgraph_->common()->Phi(kMachAnyTagged, predecessors);
   Operator* op_ephi = jsgraph_->common()->EffectPhi(predecessors);
 
   NodeVector values(jsgraph_->zone());

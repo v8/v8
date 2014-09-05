@@ -198,19 +198,6 @@ void InstructionSelector::MarkAsDouble(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsReference(node));
   sequence()->MarkAsDouble(node->id());
-
-  // Propagate "doubleness" throughout Phi nodes.
-  for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
-    Node* user = *i;
-    switch (user->opcode()) {
-      case IrOpcode::kPhi:
-        if (IsDouble(user)) continue;
-        MarkAsDouble(user);
-        break;
-      default:
-        break;
-    }
-  }
 }
 
 
@@ -224,19 +211,6 @@ void InstructionSelector::MarkAsReference(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsDouble(node));
   sequence()->MarkAsReference(node->id());
-
-  // Propagate "referenceness" throughout Phi nodes.
-  for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
-    Node* user = *i;
-    switch (user->opcode()) {
-      case IrOpcode::kPhi:
-        if (IsReference(user)) continue;
-        MarkAsReference(user);
-        break;
-      default:
-        break;
-    }
-  }
 }
 
 
@@ -491,8 +465,11 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(type, node);
       return VisitParameter(node);
     }
-    case IrOpcode::kPhi:
+    case IrOpcode::kPhi: {
+      MachineType type = OpParameter<MachineType>(node);
+      MarkAsRepresentation(type, node);
       return VisitPhi(node);
+    }
     case IrOpcode::kProjection:
       return VisitProjection(node);
     case IrOpcode::kInt32Constant:
@@ -845,10 +822,10 @@ void InstructionSelector::VisitProjection(Node* node) {
   switch (value->opcode()) {
     case IrOpcode::kInt32AddWithOverflow:
     case IrOpcode::kInt32SubWithOverflow:
-      if (OpParameter<int32_t>(node) == 0) {
+      if (OpParameter<int>(node) == 0) {
         Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
       } else {
-        DCHECK_EQ(1, OpParameter<int32_t>(node));
+        DCHECK_EQ(1, OpParameter<int>(node));
         MarkAsUsed(value);
       }
       break;
@@ -956,7 +933,7 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kProjection:
         // Check if this is the overflow output projection of an
         // <Operation>WithOverflow node.
-        if (OpParameter<int32_t>(value) == 1) {
+        if (OpParameter<int>(value) == 1) {
           // We cannot combine the <Operation>WithOverflow with this branch
           // unless the 0th projection (the use of the actual value of the
           // <Operation> is either NULL, which means there's no use of the

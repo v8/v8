@@ -130,7 +130,7 @@ TARGET_TEST_P(ChangeLoweringCommonTest, ChangeBitToBool) {
   Node* phi = reduction.replacement();
   Capture<Node*> branch;
   EXPECT_THAT(phi,
-              IsPhi(IsTrueConstant(), IsFalseConstant(),
+              IsPhi(kMachAnyTagged, IsTrueConstant(), IsFalseConstant(),
                     IsMerge(IsIfTrue(AllOf(CaptureEq(&branch),
                                            IsBranch(val, graph()->start()))),
                             IsIfFalse(CaptureEq(&branch)))));
@@ -201,7 +201,8 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeInt32ToTagged) {
   Capture<Node*> add, branch, heap_number, if_true;
   EXPECT_THAT(
       phi,
-      IsPhi(IsFinish(
+      IsPhi(kMachAnyTagged,
+            IsFinish(
                 AllOf(CaptureEq(&heap_number),
                       IsAllocateHeapNumber(_, CaptureEq(&if_true))),
                 IsStore(kMachFloat64, kNoWriteBarrier, CaptureEq(&heap_number),
@@ -231,6 +232,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
   EXPECT_THAT(
       phi,
       IsPhi(
+          kMachFloat64,
           IsLoad(kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                  IsControlEffect(CaptureEq(&if_true))),
           IsChangeInt32ToFloat64(
@@ -258,7 +260,8 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToInt32) {
   Capture<Node*> branch, if_true;
   EXPECT_THAT(
       phi,
-      IsPhi(IsChangeFloat64ToInt32(IsLoad(
+      IsPhi(kMachInt32,
+            IsChangeFloat64ToInt32(IsLoad(
                 kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                 IsControlEffect(CaptureEq(&if_true)))),
             IsWord32Sar(val, IsInt32Constant(SmiShiftAmount())),
@@ -283,7 +286,8 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToUint32) {
   Capture<Node*> branch, if_true;
   EXPECT_THAT(
       phi,
-      IsPhi(IsChangeFloat64ToUint32(IsLoad(
+      IsPhi(kMachUint32,
+            IsChangeFloat64ToUint32(IsLoad(
                 kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                 IsControlEffect(CaptureEq(&if_true)))),
             IsWord32Sar(val, IsInt32Constant(SmiShiftAmount())),
@@ -309,7 +313,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeUint32ToTagged) {
   EXPECT_THAT(
       phi,
       IsPhi(
-          IsWord32Shl(val, IsInt32Constant(SmiShiftAmount())),
+          kMachAnyTagged, IsWord32Shl(val, IsInt32Constant(SmiShiftAmount())),
           IsFinish(
               AllOf(CaptureEq(&heap_number),
                     IsAllocateHeapNumber(_, CaptureEq(&if_false))),
@@ -365,6 +369,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
   EXPECT_THAT(
       phi,
       IsPhi(
+          kMachFloat64,
           IsLoad(kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                  IsControlEffect(CaptureEq(&if_true))),
           IsChangeInt32ToFloat64(IsTruncateInt64ToInt32(
@@ -392,7 +397,8 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToInt32) {
   Capture<Node*> branch, if_true;
   EXPECT_THAT(
       phi,
-      IsPhi(IsChangeFloat64ToInt32(IsLoad(
+      IsPhi(kMachInt32,
+            IsChangeFloat64ToInt32(IsLoad(
                 kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                 IsControlEffect(CaptureEq(&if_true)))),
             IsTruncateInt64ToInt32(
@@ -418,7 +424,8 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToUint32) {
   Capture<Node*> branch, if_true;
   EXPECT_THAT(
       phi,
-      IsPhi(IsChangeFloat64ToUint32(IsLoad(
+      IsPhi(kMachUint32,
+            IsChangeFloat64ToUint32(IsLoad(
                 kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
                 IsControlEffect(CaptureEq(&if_true)))),
             IsTruncateInt64ToInt32(
@@ -445,8 +452,8 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeUint32ToTagged) {
   EXPECT_THAT(
       phi,
       IsPhi(
-          IsWord64Shl(IsChangeUint32ToUint64(val),
-                      IsInt32Constant(SmiShiftAmount())),
+          kMachAnyTagged, IsWord64Shl(IsChangeUint32ToUint64(val),
+                                      IsInt32Constant(SmiShiftAmount())),
           IsFinish(
               AllOf(CaptureEq(&heap_number),
                     IsAllocateHeapNumber(_, CaptureEq(&if_false))),
