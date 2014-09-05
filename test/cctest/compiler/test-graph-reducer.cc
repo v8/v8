@@ -470,9 +470,9 @@ TEST(ReduceForward1) {
     reducer.ReduceGraph();
     CHECK_EQ(before, graph.NodeCount());
     CHECK_EQ(&OPB0, n1->op());
-    CHECK_EQ(NULL, n2->op());
+    CHECK(n2->IsDead());
     CHECK_EQ(n1, end->InputAt(0));
-    CHECK_EQ(NULL, n3->op());
+    CHECK(n3->IsDead());
     CHECK_EQ(n1, end->InputAt(0));
     CHECK_EQ(&OPB2, end->op());
     CHECK_EQ(0, n2->UseCount());
