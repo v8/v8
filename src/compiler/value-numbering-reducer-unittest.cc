@@ -106,6 +106,13 @@ TEST_F(ValueNumberingReducerTest, SubsequentReductionsYieldTheSameNode) {
   }
 }
 
+
+TEST_F(ValueNumberingReducerTest, WontReplaceNodeWithItself) {
+  Node* n = graph()->NewNode(&kOp0);
+  EXPECT_FALSE(Reduce(n).Changed());
+  EXPECT_FALSE(Reduce(n).Changed());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
