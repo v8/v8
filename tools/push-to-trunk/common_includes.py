@@ -532,6 +532,9 @@ class Step(GitRecipesMixin):
   def SVNCommit(self, root, commit_message):
     patch = self.GitDiff("HEAD^", "HEAD")
     TextToFile(patch, self._config[PATCH_FILE])
+    self.Command("svn", "update", cwd=self._options.svn)
+    if self.Command("svn", "status", cwd=self._options.svn) != "":
+      self.Die("SVN checkout not clean.")
     if not self.Command("patch", "-d %s -p1 -i %s" %
                         (root, self._config[PATCH_FILE]),
                         cwd=self._options.svn):

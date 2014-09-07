@@ -1425,6 +1425,8 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
     expectations = self._bumpUpVersion()
     expectations += [
       Cmd("git diff HEAD^ HEAD", "patch content"),
+      Cmd("svn update", "", cwd="[SVN_ROOT]"),
+      Cmd("svn status", "", cwd="[SVN_ROOT]"),
       Cmd("patch -d branches/bleeding_edge -p1 -i %s" %
           TEST_CONFIG[PATCH_FILE], "Applied patch...", cwd="[SVN_ROOT]"),
       Cmd("svn commit --non-interactive --username=author@chromium.org "
