@@ -529,6 +529,20 @@ class Step(GitRecipesMixin):
       output += "%s\n" % line
     TextToFile(output, version_file)
 
+  def SVNCommit(self, root, commit_message):
+    patch = self.GitDiff("HEAD^", "HEAD")
+    TextToFile(patch, self._config[PATCH_FILE])
+    if not self.Command("patch", "-d %s -p1 -i %s" %
+                        (root, self._config[PATCH_FILE]),
+                        cwd=self._options.svn):
+      self.Die("Could not apply patch.")
+    self.Command(
+        "svn",
+        "commit --non-interactive --username=%s --config-dir=%s -m \"%s\"" %
+            (self._options.author, self._options.svn_config, commit_message),
+        cwd=self._options.svn)
+
+
 class UploadStep(Step):
   MESSAGE = "Upload for code review."
 
@@ -631,6 +645,11 @@ class ScriptsBase(object):
                         help=("Determine current sheriff to review CLs. On "
                               "success, this will overwrite the reviewer "
                               "option."))
+    parser.add_argument("--svn",
+                        help=("Optional full svn checkout for the commit."
+                              "The folder needs to be the svn root."))
+    parser.add_argument("--svn-config",
+                        help=("Optional folder used as svn --config-dir."))
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
@@ -648,6 +667,10 @@ class ScriptsBase(object):
       return None
     if options.sheriff and not options.googlers_mapping:  # pragma: no cover
       print "To determine the current sheriff, requires the googler mapping"
+      parser.print_help()
+      return None
+    if options.svn and not options.svn_config:
+      print "Using pure svn for committing requires also --svn-config"
       parser.print_help()
       return None
 

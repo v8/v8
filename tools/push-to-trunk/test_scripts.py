@@ -1370,7 +1370,7 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
     self.assertEquals(expected_json, json.loads(FileToText(json_output)))
 
 
-  def testBumpUpVersion(self):
+  def _bumpUpVersion(self):
     TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile()
 
@@ -1379,7 +1379,7 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
                                                build=build,
                                                patch=patch)
 
-    self.Expect([
+    return [
       Cmd("git status -s -uno", ""),
       Cmd("git checkout -f bleeding_edge", "", cb=ResetVersion(11, 4)),
       Cmd("git pull", ""),
@@ -1403,16 +1403,44 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("git checkout -b auto-bump-up-version bleeding_edge", "",
           cb=ResetVersion(11, 4)),
       Cmd("git commit -am \"[Auto-roll] Bump up version to 3.11.6.0\n\n"
-          "TBR=author@chromium.org\"", ""),
+          "TBR=author@chromium.org\" "
+          "--author \"author@chromium.org <author@chromium.org>\"", ""),
+    ]
+
+  def testBumpUpVersionGit(self):
+    expectations = self._bumpUpVersion()
+    expectations += [
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
           "--bypass-hooks", ""),
       Cmd("git cl dcommit -f --bypass-hooks", ""),
       Cmd("git checkout -f bleeding_edge", ""),
       Cmd("git branch", "auto-bump-up-version\n* bleeding_edge"),
       Cmd("git branch -D auto-bump-up-version", ""),
-    ])
+    ]
+    self.Expect(expectations)
 
     BumpUpVersion(TEST_CONFIG, self).Run(["-a", "author@chromium.org"])
+
+  def testBumpUpVersionSvn(self):
+    expectations = self._bumpUpVersion()
+    expectations += [
+      Cmd("git diff HEAD^ HEAD", "patch content"),
+      Cmd("patch -d branches/bleeding_edge -p1 -i %s" %
+          TEST_CONFIG[PATCH_FILE], "Applied patch...", cwd="[SVN_ROOT]"),
+      Cmd("svn commit --non-interactive --username=author@chromium.org "
+          "--config-dir=[CONFIG_DIR] "
+          "-m \"[Auto-roll] Bump up version to 3.11.6.0\"",
+          "", cwd="[SVN_ROOT]"),
+      Cmd("git checkout -f bleeding_edge", ""),
+      Cmd("git branch", "auto-bump-up-version\n* bleeding_edge"),
+      Cmd("git branch -D auto-bump-up-version", ""),
+    ]
+    self.Expect(expectations)
+
+    BumpUpVersion(TEST_CONFIG, self).Run(
+        ["-a", "author@chromium.org",
+         "--svn", "[SVN_ROOT]",
+         "--svn-config", "[CONFIG_DIR]"])
 
   def testAutoTag(self):
     TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()

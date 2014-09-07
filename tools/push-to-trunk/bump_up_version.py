@@ -27,6 +27,7 @@ from common_includes import *
 
 CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-bump-up-version-tempfile",
+  PATCH_FILE: "/tmp/v8-bump-up-version-tempfile-patch-file",
   VERSION_FILE: "src/version.cc",
 }
 
@@ -196,12 +197,16 @@ class ChangeVersion(Step):
     self.SetVersion(self.Config(VERSION_FILE), "new_")
 
     try:
-      self.GitCommit("[Auto-roll] Bump up version to %s\n\nTBR=%s" %
-                     (self["new_version"], self._options.author))
-      self.GitUpload(author=self._options.author,
-                     force=self._options.force_upload,
-                     bypass_hooks=True)
-      self.GitDCommit()
+      msg = "[Auto-roll] Bump up version to %s" % self["new_version"]
+      self.GitCommit("%s\n\nTBR=%s" % (msg, self._options.author),
+                     author=self._options.author)
+      if self._options.svn:
+        self.SVNCommit("branches/bleeding_edge", msg)
+      else:
+        self.GitUpload(author=self._options.author,
+                       force=self._options.force_upload,
+                       bypass_hooks=True)
+        self.GitDCommit()
       print "Successfully changed the version."
     finally:
       # Clean up.
