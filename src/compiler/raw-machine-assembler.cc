@@ -84,9 +84,7 @@ Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
                                              Node* context, Node* frame_state,
                                              CallFunctionFlags flags) {
   CallFunctionStub stub(isolate(), 0, flags);
-  CodeStubInterfaceDescriptor d;
-  stub.InitializeInterfaceDescriptor(&d);
-
+  CodeStubInterfaceDescriptor d(&stub);
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       &d, 1, CallDescriptor::kNeedsFrameState, zone());
   Node* stub_code = HeapConstant(stub.GetCode());

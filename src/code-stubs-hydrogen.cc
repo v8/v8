@@ -37,8 +37,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
       : HGraphBuilder(&info_),
         arguments_length_(NULL),
         info_(stub, isolate),
+        descriptor_(stub),
         context_(NULL) {
-    stub->InitializeInterfaceDescriptor(&descriptor_);
     int parameter_count = descriptor_.GetEnvironmentParameterCount();
     parameters_.Reset(new HParameter*[parameter_count]);
   }
@@ -251,8 +251,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode() {
 template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   Isolate* isolate = stub->isolate();
-  CodeStubInterfaceDescriptor descriptor;
-  stub->InitializeInterfaceDescriptor(&descriptor);
+  CodeStubInterfaceDescriptor descriptor(stub);
 
   // If we are uninitialized we can use a light-weight stub to enter
   // the runtime that is significantly faster than using the standard

@@ -269,8 +269,7 @@ static CallDescriptor::Flags FlagsForNode(Node* node) {
 void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
                                              bool pure) {
   BinaryOpICStub stub(isolate(), Token::ADD);  // TODO(mstarzinger): Hack.
-  CodeStubInterfaceDescriptor d;
-  stub.InitializeInterfaceDescriptor(&d);
+  CodeStubInterfaceDescriptor d(&stub);
   bool has_frame_state = OperatorProperties::HasFrameStateInput(node->op());
   CallDescriptor* desc_compare = linkage()->GetStubCallDescriptor(
       &d, 0, CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node));
@@ -320,8 +319,7 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, HydrogenCodeStub* stub,
                                             CallDescriptor::Flags flags) {
-  CodeStubInterfaceDescriptor d;
-  stub->InitializeInterfaceDescriptor(&d);
+  CodeStubInterfaceDescriptor d(stub);
   CallDescriptor* desc =
       linkage()->GetStubCallDescriptor(&d, 0, flags | FlagsForNode(node));
   Node* stub_code = CodeConstant(stub->GetCode());
@@ -334,8 +332,7 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
                                                Builtins::JavaScript id,
                                                int nargs) {
   CallFunctionStub stub(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
-  CodeStubInterfaceDescriptor d;
-  stub.InitializeInterfaceDescriptor(&d);
+  CodeStubInterfaceDescriptor d(&stub);
   CallDescriptor* desc = linkage()->GetStubCallDescriptor(&d, nargs);
   // TODO(mstarzinger): Accessing the builtins object this way prevents sharing
   // of code across native contexts. Fix this by loading from given context.
@@ -460,8 +457,7 @@ Node* JSGenericLowering::LowerJSInstanceOf(Node* node) {
       InstanceofStub::kReturnTrueFalseObject |
       InstanceofStub::kArgsInRegisters);
   InstanceofStub stub(isolate(), flags);
-  CodeStubInterfaceDescriptor d;
-  stub.InitializeInterfaceDescriptor(&d);
+  CodeStubInterfaceDescriptor d(&stub);
   CallDescriptor* desc = linkage()->GetStubCallDescriptor(&d, 0);
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
@@ -510,8 +506,7 @@ Node* JSGenericLowering::LowerJSStoreContext(Node* node) {
 Node* JSGenericLowering::LowerJSCallConstruct(Node* node) {
   int arity = OpParameter<int>(node);
   CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
-  CodeStubInterfaceDescriptor d;
-  stub.InitializeInterfaceDescriptor(&d);
+  CodeStubInterfaceDescriptor d(&stub);
   CallDescriptor* desc =
       linkage()->GetStubCallDescriptor(&d, arity, FlagsForNode(node));
   Node* stub_code = CodeConstant(stub.GetCode());
@@ -528,8 +523,7 @@ Node* JSGenericLowering::LowerJSCallConstruct(Node* node) {
 Node* JSGenericLowering::LowerJSCallFunction(Node* node) {
   CallParameters p = OpParameter<CallParameters>(node);
   CallFunctionStub stub(isolate(), p.arity - 2, p.flags);
-  CodeStubInterfaceDescriptor d;
-  stub.InitializeInterfaceDescriptor(&d);
+  CodeStubInterfaceDescriptor d(&stub);
   CallDescriptor* desc =
       linkage()->GetStubCallDescriptor(&d, p.arity - 1, FlagsForNode(node));
   Node* stub_code = CodeConstant(stub.GetCode());

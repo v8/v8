@@ -52,8 +52,7 @@ Linkage::Linkage(CompilationInfo* info) : info_(info) {
   } else if (info->code_stub() != NULL) {
     // Use the code stub interface descriptor.
     HydrogenCodeStub* stub = info->code_stub();
-    CodeStubInterfaceDescriptor descriptor;
-    stub->InitializeInterfaceDescriptor(&descriptor);
+    CodeStubInterfaceDescriptor descriptor(stub);
     incoming_ = GetStubCallDescriptor(&descriptor);
   } else {
     incoming_ = NULL;  // TODO(titzer): ?

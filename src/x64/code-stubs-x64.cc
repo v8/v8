@@ -107,8 +107,7 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
   isolate()->counters()->code_stubs()->Increment();
 
-  CodeStubInterfaceDescriptor descriptor;
-  InitializeInterfaceDescriptor(&descriptor);
+  CodeStubInterfaceDescriptor descriptor(this);
   int param_count = descriptor.GetEnvironmentParameterCount();
   {
     // Call the runtime system in a fresh internal frame.

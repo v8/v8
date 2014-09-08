@@ -852,8 +852,7 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
 
 void SimplifiedLowering::DoStringAdd(Node* node) {
   StringAddStub stub(zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-  CodeStubInterfaceDescriptor d;
-  stub.InitializeInterfaceDescriptor(&d);
+  CodeStubInterfaceDescriptor d(&stub);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(&d, 0, flags, zone());
   node->set_op(common()->Call(desc));

@@ -1622,9 +1622,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   CHECK(compiled_code_->is_hydrogen_stub());
   int major_key = CodeStub::GetMajorKey(compiled_code_);
-  CodeStubInterfaceDescriptor descriptor;
-  CodeStub::InitializeInterfaceDescriptor(isolate_, compiled_code_->stub_key(),
-                                          &descriptor);
+  CodeStubInterfaceDescriptor descriptor(isolate_, compiled_code_->stub_key());
   // Check that there is a matching descriptor to the major key.
   // This will fail if there has not been one installed to the isolate.
   DCHECK_EQ(descriptor.MajorKey(), major_key);

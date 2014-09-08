@@ -329,7 +329,9 @@ enum HandlerArgumentsMode { DONT_PASS_ARGUMENTS, PASS_ARGUMENTS };
 
 class CodeStubInterfaceDescriptor {
  public:
-  CodeStubInterfaceDescriptor();
+  explicit CodeStubInterfaceDescriptor(CodeStub* stub);
+
+  CodeStubInterfaceDescriptor(Isolate* isolate, uint32_t stub_key);
 
   void Initialize(CodeStub::Major major,
                   CallInterfaceDescriptor call_descriptor,

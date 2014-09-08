@@ -16,14 +16,29 @@ namespace v8 {
 namespace internal {
 
 
-CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
+CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor(CodeStub* stub)
     : stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       deoptimization_handler_(NULL),
       handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
-      has_miss_handler_(false) {}
+      has_miss_handler_(false) {
+  stub->InitializeInterfaceDescriptor(this);
+}
+
+
+CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor(Isolate* isolate,
+                                                         uint32_t stub_key)
+    : stack_parameter_count_(no_reg),
+      hint_stack_parameter_count_(-1),
+      function_mode_(NOT_JS_FUNCTION_STUB_MODE),
+      deoptimization_handler_(NULL),
+      handler_arguments_mode_(DONT_PASS_ARGUMENTS),
+      miss_handler_(),
+      has_miss_handler_(false) {
+  CodeStub::InitializeInterfaceDescriptor(isolate, stub_key, this);
+}
 
 
 void CodeStubInterfaceDescriptor::Initialize(
