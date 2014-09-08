@@ -786,7 +786,7 @@ void* OS::Allocate(const size_t requested,
 
   if (mbase == NULL) return NULL;
 
-  DCHECK((static_cast<uintptr_t>(mbase) % OS::AllocateAlignment()) == 0);
+  DCHECK((reinterpret_cast<uintptr_t>(mbase) % OS::AllocateAlignment()) == 0);
 
   *allocated = msize;
   return mbase;
