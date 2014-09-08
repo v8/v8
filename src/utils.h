@@ -112,6 +112,12 @@ int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
 }
 
 
+template <typename T, typename U>
+inline bool IsAligned(T value, U alignment) {
+  return (value & (alignment - 1)) == 0;
+}
+
+
 // Returns true if (addr + offset) is aligned.
 inline bool IsAddressAligned(Address addr,
                              intptr_t alignment,
@@ -1536,6 +1542,16 @@ bool StringToArrayIndex(Stream* stream, uint32_t* index) {
 }
 
 
-} }  // namespace v8::internal
+// Returns current value of top of the stack. Works correctly with ASAN.
+DISABLE_ASAN
+inline uintptr_t GetCurrentStackPosition() {
+  // Takes the address of the limit variable in order to find out where
+  // the top of stack is right now.
+  uintptr_t limit = reinterpret_cast<uintptr_t>(&limit);
+  return limit;
+}
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_UTILS_H_

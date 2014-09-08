@@ -145,8 +145,8 @@ TEST(ScanHTMLEndComments) {
   };
 
   // Parser/Scanner needs a stack limit.
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; tests[i]; i++) {
     const i::byte* source =
@@ -198,8 +198,8 @@ TEST(UsingCachedData) {
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
 
   // Source containing functions that might be lazily compiled  and all types
   // of symbols (string, propertyName, regexp).
@@ -251,8 +251,8 @@ TEST(PreparseFunctionDataIsUsed) {
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
 
   const char* good_code[] = {
       "function this_is_lazy() { var a; } function foo() { return 25; } foo();",
@@ -292,8 +292,8 @@ TEST(PreparseFunctionDataIsUsed) {
 TEST(StandAlonePreParser) {
   v8::V8::Initialize();
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
 
   const char* programs[] = {
       "{label: 42}",
@@ -329,8 +329,8 @@ TEST(StandAlonePreParser) {
 TEST(StandAlonePreParserNoNatives) {
   v8::V8::Initialize();
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
 
   const char* programs[] = {
       "%ArgleBargle(glop);",
@@ -365,8 +365,8 @@ TEST(PreparsingObjectLiterals) {
   v8::HandleScope handles(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
 
   {
     const char* source = "var myo = {if: \"foo\"}; myo.if;";
@@ -398,7 +398,8 @@ TEST(RegressChromium62639) {
   v8::V8::Initialize();
   i::Isolate* isolate = CcTest::i_isolate();
 
-  isolate->stack_guard()->SetStackLimit(GetCurrentStackPosition() - 128 * 1024);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
 
   const char* program = "var x = 'something';\n"
                         "escape: function() {}";
@@ -432,7 +433,8 @@ TEST(Regress928) {
   // as with-content, which made it assume that a function inside
   // the block could be lazily compiled, and an extra, unexpected,
   // entry was added to the data.
-  isolate->stack_guard()->SetStackLimit(GetCurrentStackPosition() - 128 * 1024);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
 
   const char* program =
       "try { } catch (e) { var foo = function () { /* first */ } }"
@@ -475,8 +477,8 @@ TEST(Regress928) {
 TEST(PreParseOverflow) {
   v8::V8::Initialize();
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
 
   size_t kProgramSize = 1024 * 1024;
   i::SmartArrayPointer<char> program(i::NewArray<char>(kProgramSize + 1));
@@ -1105,7 +1107,8 @@ TEST(ScopePositions) {
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  isolate->stack_guard()->SetStackLimit(GetCurrentStackPosition() - 128 * 1024);
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
 
   for (int i = 0; source_data[i].outer_prefix; i++) {
     int kPrefixLen = Utf8LengthHelper(source_data[i].outer_prefix);
@@ -1440,8 +1443,8 @@ TEST(ParserSync) {
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
 
   static const ParserFlag flags1[] = {kAllowLazy, kAllowHarmonyScoping,
                                       kAllowModules, kAllowGenerators,
@@ -1516,8 +1519,8 @@ void RunParserSyncTest(const char* context_data[][2],
   v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
 
   static const ParserFlag default_flags[] = {
       kAllowLazy,       kAllowHarmonyScoping, kAllowModules,
@@ -2251,8 +2254,8 @@ TEST(DontRegressPreParserDataSizes) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handles(isolate);
 
-  CcTest::i_isolate()->stack_guard()->SetStackLimit(GetCurrentStackPosition() -
-                                                    128 * 1024);
+  CcTest::i_isolate()->stack_guard()->SetStackLimit(
+      i::GetCurrentStackPosition() - 128 * 1024);
 
   struct TestCase {
     const char* program;
