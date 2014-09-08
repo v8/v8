@@ -15268,8 +15268,6 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInNext) {
   }
 
 U(IsStringWrapperSafeForDefaultValueOf)
-U(GeneratorNext)
-U(GeneratorThrow)
 U(DebugBreakInOptimizedCode)
 
 #undef U
@@ -15497,6 +15495,18 @@ RUNTIME_FUNCTION(RuntimeReference_FastAsciiArrayJoin) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_GeneratorNext) {
+  UNREACHABLE();  // Optimization disabled in SetUpGenerators().
+  return NULL;
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_GeneratorThrow) {
+  UNREACHABLE();  // Optimization disabled in SetUpGenerators().
+  return NULL;
 }
 
 
