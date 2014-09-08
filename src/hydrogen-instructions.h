@@ -3542,9 +3542,9 @@ class HConstant FINAL : public HTemplateInstruction<0> {
 
   bool IsSpecialDouble() const {
     return has_double_value_ &&
-        (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
-         FixedDoubleArray::is_the_hole_nan(double_value_) ||
-         std::isnan(double_value_));
+           (bit_cast<int64_t>(double_value_) == bit_cast<int64_t>(-0.0) ||
+            FixedDoubleArray::is_the_hole_nan(double_value_) ||
+            std::isnan(double_value_));
   }
 
   bool NotInNewSpace() const {
@@ -3648,7 +3648,7 @@ class HConstant FINAL : public HTemplateInstruction<0> {
     if (has_int32_value_) {
       return static_cast<intptr_t>(int32_value_);
     } else if (has_double_value_) {
-      return static_cast<intptr_t>(BitCast<int64_t>(double_value_));
+      return static_cast<intptr_t>(bit_cast<int64_t>(double_value_));
     } else if (has_external_reference_value_) {
       return reinterpret_cast<intptr_t>(external_reference_value_.address());
     } else {
@@ -3679,8 +3679,8 @@ class HConstant FINAL : public HTemplateInstruction<0> {
           int32_value_ == other_constant->int32_value_;
     } else if (has_double_value_) {
       return other_constant->has_double_value_ &&
-          BitCast<int64_t>(double_value_) ==
-          BitCast<int64_t>(other_constant->double_value_);
+             bit_cast<int64_t>(double_value_) ==
+                 bit_cast<int64_t>(other_constant->double_value_);
     } else if (has_external_reference_value_) {
       return other_constant->has_external_reference_value_ &&
           external_reference_value_ ==

@@ -212,8 +212,8 @@ void MacroAssembler::RecordWriteField(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    li(value, Operand(BitCast<int64_t>(kZapValue + 4)));
-    li(dst, Operand(BitCast<int64_t>(kZapValue + 8)));
+    li(value, Operand(bit_cast<int64_t>(kZapValue + 4)));
+    li(dst, Operand(bit_cast<int64_t>(kZapValue + 8)));
   }
 }
 
@@ -287,8 +287,8 @@ void MacroAssembler::RecordWriteForMap(Register object,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    li(dst, Operand(BitCast<int64_t>(kZapValue + 12)));
-    li(map, Operand(BitCast<int64_t>(kZapValue + 16)));
+    li(dst, Operand(bit_cast<int64_t>(kZapValue + 12)));
+    li(map, Operand(bit_cast<int64_t>(kZapValue + 16)));
   }
 }
 
@@ -362,8 +362,8 @@ void MacroAssembler::RecordWrite(
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    li(address, Operand(BitCast<int64_t>(kZapValue + 12)));
-    li(value, Operand(BitCast<int64_t>(kZapValue + 16)));
+    li(address, Operand(bit_cast<int64_t>(kZapValue + 12)));
+    li(value, Operand(bit_cast<int64_t>(kZapValue + 16)));
   }
 }
 

@@ -24,7 +24,7 @@ class SourceCodeCache FINAL BASE_EMBEDDED {
   }
 
   void Iterate(ObjectVisitor* v) {
-    v->VisitPointer(BitCast<Object**, FixedArray**>(&cache_));
+    v->VisitPointer(bit_cast<Object**, FixedArray**>(&cache_));
   }
 
   bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle) {

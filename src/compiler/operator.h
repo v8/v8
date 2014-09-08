@@ -171,10 +171,10 @@ struct StaticParameterTraits<double> {
     return os << val;
   }
   static int HashCode(double a) {
-    return static_cast<int>(BitCast<int64_t>(a));
+    return static_cast<int>(bit_cast<int64_t>(a));
   }
   static bool Equals(double a, double b) {
-    return BitCast<int64_t>(a) == BitCast<int64_t>(b);
+    return bit_cast<int64_t>(a) == bit_cast<int64_t>(b);
   }
 };
 

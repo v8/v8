@@ -191,16 +191,16 @@ void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
   v->VisitPointer(&thread->pending_exception_);
   v->VisitPointer(&(thread->pending_message_obj_));
-  v->VisitPointer(BitCast<Object**>(&(thread->pending_message_script_)));
-  v->VisitPointer(BitCast<Object**>(&(thread->context_)));
+  v->VisitPointer(bit_cast<Object**>(&(thread->pending_message_script_)));
+  v->VisitPointer(bit_cast<Object**>(&(thread->context_)));
   v->VisitPointer(&thread->scheduled_exception_);
 
   for (v8::TryCatch* block = thread->try_catch_handler();
        block != NULL;
        block = block->next_) {
-    v->VisitPointer(BitCast<Object**>(&(block->exception_)));
-    v->VisitPointer(BitCast<Object**>(&(block->message_obj_)));
-    v->VisitPointer(BitCast<Object**>(&(block->message_script_)));
+    v->VisitPointer(bit_cast<Object**>(&(block->exception_)));
+    v->VisitPointer(bit_cast<Object**>(&(block->message_obj_)));
+    v->VisitPointer(bit_cast<Object**>(&(block->message_script_)));
   }
 
   // Iterate over pointers on native execution stack.

@@ -25,7 +25,7 @@ namespace v8 {
 namespace internal {
 
 inline double JunkStringValue() {
-  return BitCast<double, uint64_t>(kQuietNaNMask);
+  return bit_cast<double, uint64_t>(kQuietNaNMask);
 }
 
 

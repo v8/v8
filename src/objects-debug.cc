@@ -371,9 +371,9 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
     if (!is_the_hole(i)) {
       double value = get_scalar(i);
       CHECK(!std::isnan(value) ||
-             (BitCast<uint64_t>(value) ==
-              BitCast<uint64_t>(canonical_not_the_hole_nan_as_double())) ||
-             ((BitCast<uint64_t>(value) & Double::kSignMask) != 0));
+            (bit_cast<uint64_t>(value) ==
+             bit_cast<uint64_t>(canonical_not_the_hole_nan_as_double())) ||
+            ((bit_cast<uint64_t>(value) & Double::kSignMask) != 0));
     }
   }
 }

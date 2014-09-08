@@ -427,8 +427,8 @@ void MacroAssembler::RecordWriteArray(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(index, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(index, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -472,8 +472,8 @@ void MacroAssembler::RecordWriteField(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(dst, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(dst, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -533,9 +533,9 @@ void MacroAssembler::RecordWriteForMap(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(scratch1, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(scratch2, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(scratch1, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(scratch2, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -603,8 +603,8 @@ void MacroAssembler::RecordWrite(
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(address, Immediate(BitCast<int32_t>(kZapValue)));
-    mov(value, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(address, Immediate(bit_cast<int32_t>(kZapValue)));
+    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -2124,7 +2124,7 @@ Operand ApiParameterOperand(int index) {
 void MacroAssembler::PrepareCallApiFunction(int argc) {
   EnterApiExitFrame(argc);
   if (emit_debug_code()) {
-    mov(esi, Immediate(BitCast<int32_t>(kZapValue)));
+    mov(esi, Immediate(bit_cast<int32_t>(kZapValue)));
   }
 }
 
@@ -2659,7 +2659,7 @@ void MacroAssembler::Move(const Operand& dst, const Immediate& x) {
 
 void MacroAssembler::Move(XMMRegister dst, double val) {
   // TODO(titzer): recognize double constants with ExternalReferences.
-  uint64_t int_val = BitCast<uint64_t, double>(val);
+  uint64_t int_val = bit_cast<uint64_t, double>(val);
   if (int_val == 0) {
     xorps(dst, dst);
   } else {

@@ -2082,7 +2082,7 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
     return DefineAsRegister(new(zone()) LConstantI);
   } else if (r.IsDouble()) {
     double value = instr->DoubleValue();
-    bool value_is_zero = BitCast<uint64_t, double>(value) == 0;
+    bool value_is_zero = bit_cast<uint64_t, double>(value) == 0;
     LOperand* temp = value_is_zero ? NULL : TempRegister();
     return DefineAsRegister(new(zone()) LConstantD(temp));
   } else if (r.IsExternal()) {

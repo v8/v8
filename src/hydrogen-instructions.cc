@@ -2644,7 +2644,7 @@ OStream& HEnterInlined::PrintDataTo(OStream& os) const {  // NOLINT
 
 static bool IsInteger32(double value) {
   double roundtrip_value = static_cast<double>(static_cast<int32_t>(value));
-  return BitCast<int64_t>(roundtrip_value) == BitCast<int64_t>(value);
+  return bit_cast<int64_t>(roundtrip_value) == bit_cast<int64_t>(value);
 }
 
 

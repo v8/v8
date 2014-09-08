@@ -3395,8 +3395,9 @@ void MacroAssembler::StoreNumberToDoubleElements(
   bind(&is_nan);
   // Convert all NaNs to the same canonical NaN value when they are stored in
   // the double array.
-  Set(kScratchRegister, BitCast<uint64_t>(
-      FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+  Set(kScratchRegister,
+      bit_cast<uint64_t>(
+          FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
   movq(xmm_scratch, kScratchRegister);
   jmp(&have_double_value, Label::kNear);
 

@@ -500,8 +500,8 @@ void MacroAssembler::RecordWriteField(
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(value, Operand(BitCast<int32_t>(kZapValue + 4)));
-    mov(dst, Operand(BitCast<int32_t>(kZapValue + 8)));
+    mov(value, Operand(bit_cast<int32_t>(kZapValue + 4)));
+    mov(dst, Operand(bit_cast<int32_t>(kZapValue + 8)));
   }
 }
 
@@ -570,8 +570,8 @@ void MacroAssembler::RecordWriteForMap(Register object,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(dst, Operand(BitCast<int32_t>(kZapValue + 12)));
-    mov(map, Operand(BitCast<int32_t>(kZapValue + 16)));
+    mov(dst, Operand(bit_cast<int32_t>(kZapValue + 12)));
+    mov(map, Operand(bit_cast<int32_t>(kZapValue + 16)));
   }
 }
 
@@ -642,8 +642,8 @@ void MacroAssembler::RecordWrite(
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    mov(address, Operand(BitCast<int32_t>(kZapValue + 12)));
-    mov(value, Operand(BitCast<int32_t>(kZapValue + 16)));
+    mov(address, Operand(bit_cast<int32_t>(kZapValue + 12)));
+    mov(value, Operand(bit_cast<int32_t>(kZapValue + 16)));
   }
 }
 

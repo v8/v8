@@ -62,7 +62,7 @@ int STDCALL ConvertDToICVersion(double d) {
     }
   } else {
     uint64_t big_result =
-        (BitCast<uint64_t>(d) & Double::kSignificandMask) | Double::kHiddenBit;
+        (bit_cast<uint64_t>(d) & Double::kSignificandMask) | Double::kHiddenBit;
     big_result = big_result >> (Double::kPhysicalSignificandSize - exponent);
     result = static_cast<uint32_t>(big_result);
   }

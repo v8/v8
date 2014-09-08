@@ -249,7 +249,7 @@ TEST_F(MachineOperatorReducerTest, ChangeFloat64ToUint32WithConstant) {
     Reduction reduction = Reduce(graph()->NewNode(
         machine()->ChangeFloat64ToUint32(), Float64Constant(FastUI2D(x))));
     ASSERT_TRUE(reduction.Changed());
-    EXPECT_THAT(reduction.replacement(), IsInt32Constant(BitCast<int32_t>(x)));
+    EXPECT_THAT(reduction.replacement(), IsInt32Constant(bit_cast<int32_t>(x)));
   }
 }
 
@@ -290,7 +290,7 @@ TEST_F(MachineOperatorReducerTest, ChangeUint32ToFloat64WithConstant) {
   TRACED_FOREACH(uint32_t, x, kUint32Values) {
     Reduction reduction =
         Reduce(graph()->NewNode(machine()->ChangeUint32ToFloat64(),
-                                Int32Constant(BitCast<int32_t>(x))));
+                                Int32Constant(bit_cast<int32_t>(x))));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsFloat64Constant(FastUI2D(x)));
   }
@@ -303,11 +303,12 @@ TEST_F(MachineOperatorReducerTest, ChangeUint32ToFloat64WithConstant) {
 
 TEST_F(MachineOperatorReducerTest, ChangeUint32ToUint64WithConstant) {
   TRACED_FOREACH(uint32_t, x, kUint32Values) {
-    Reduction reduction = Reduce(graph()->NewNode(
-        machine()->ChangeUint32ToUint64(), Int32Constant(BitCast<int32_t>(x))));
+    Reduction reduction =
+        Reduce(graph()->NewNode(machine()->ChangeUint32ToUint64(),
+                                Int32Constant(bit_cast<int32_t>(x))));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(),
-                IsInt64Constant(BitCast<int64_t>(static_cast<uint64_t>(x))));
+                IsInt64Constant(bit_cast<int64_t>(static_cast<uint64_t>(x))));
   }
 }
 
@@ -357,8 +358,8 @@ TEST_F(MachineOperatorReducerTest, TruncateInt64ToInt32WithConstant) {
         graph()->NewNode(machine()->TruncateInt64ToInt32(), Int64Constant(x)));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(),
-                IsInt32Constant(BitCast<int32_t>(
-                    static_cast<uint32_t>(BitCast<uint64_t>(x)))));
+                IsInt32Constant(bit_cast<int32_t>(
+                    static_cast<uint32_t>(bit_cast<uint64_t>(x)))));
   }
 }
 

@@ -847,7 +847,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ mov(dst, g.ToImmediate(source));
     } else {
       double v = g.ToDouble(source);
-      uint64_t int_val = BitCast<uint64_t, double>(v);
+      uint64_t int_val = bit_cast<uint64_t, double>(v);
       int32_t lower = static_cast<int32_t>(int_val);
       int32_t upper = static_cast<int32_t>(int_val >> kBitsPerInt);
       if (destination->IsDoubleRegister()) {

@@ -134,8 +134,8 @@ Node* JSGraph::Constant(Handle<Object> value) {
 
 
 Node* JSGraph::Constant(double value) {
-  if (BitCast<int64_t>(value) == BitCast<int64_t>(0.0)) return ZeroConstant();
-  if (BitCast<int64_t>(value) == BitCast<int64_t>(1.0)) return OneConstant();
+  if (bit_cast<int64_t>(value) == bit_cast<int64_t>(0.0)) return ZeroConstant();
+  if (bit_cast<int64_t>(value) == bit_cast<int64_t>(1.0)) return OneConstant();
   return NumberConstant(value);
 }
 

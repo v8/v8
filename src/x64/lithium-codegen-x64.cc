@@ -1721,7 +1721,7 @@ void LCodeGen::DoConstantD(LConstantD* instr) {
   DCHECK(instr->result()->IsDoubleRegister());
   XMMRegister res = ToDoubleRegister(instr->result());
   double v = instr->value();
-  uint64_t int_val = BitCast<uint64_t, double>(v);
+  uint64_t int_val = bit_cast<uint64_t, double>(v);
   // Use xor to produce +0.0 in a fast and compact way, but avoid to
   // do so if the constant is -0.0.
   if (int_val == 0) {
@@ -4347,8 +4347,9 @@ void LCodeGen::DoStoreKeyedFixedDoubleArray(LStoreKeyed* instr) {
     __ ucomisd(value, value);
     __ j(parity_odd, &have_value, Label::kNear);  // NaN.
 
-    __ Set(kScratchRegister, BitCast<uint64_t>(
-        FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+    __ Set(kScratchRegister,
+           bit_cast<uint64_t>(
+               FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
     __ movq(value, kScratchRegister);
 
     __ bind(&have_value);

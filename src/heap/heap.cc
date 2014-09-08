@@ -4724,7 +4724,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
 
-  v->VisitPointer(BitCast<Object**>(&hidden_string_));
+  v->VisitPointer(bit_cast<Object**>(&hidden_string_));
   v->Synchronize(VisitorSynchronization::kInternalizedString);
 
   isolate_->bootstrapper()->Iterate(v);
