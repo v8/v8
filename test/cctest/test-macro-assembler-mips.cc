@@ -149,8 +149,8 @@ static void TestNaN(const char *code) {
   i::FixedDoubleArray* a = i::FixedDoubleArray::cast(array1->elements());
   double value = a->get_scalar(0);
   CHECK(std::isnan(value) &&
-        i::bit_cast<uint64_t>(value) ==
-            i::bit_cast<uint64_t>(
+        bit_cast<uint64_t>(value) ==
+            bit_cast<uint64_t>(
                 i::FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
 }
 
