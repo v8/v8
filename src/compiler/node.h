@@ -58,7 +58,7 @@ class Node FINAL : public GenericNode<NodeData, Node> {
   void Kill();
 
   void CollectProjections(ZoneVector<Node*>* projections);
-  Node* FindProjection(int32_t projection_index);
+  Node* FindProjection(size_t projection_index);
 };
 
 OStream& operator<<(OStream& os, const Node& n);

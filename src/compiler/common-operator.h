@@ -114,8 +114,9 @@ class CommonOperatorBuilder {
                                       1, "Parameter", index);
   }
   Operator* Int32Constant(int32_t value) {
-    return new (zone_) Operator1<int>(IrOpcode::kInt32Constant, Operator::kPure,
-                                      0, 1, "Int32Constant", value);
+    return new (zone_)
+        Operator1<int32_t>(IrOpcode::kInt32Constant, Operator::kPure, 0, 1,
+                           "Int32Constant", value);
   }
   Operator* Int64Constant(int64_t value) {
     return new (zone_)
@@ -177,9 +178,9 @@ class CommonOperatorBuilder {
   Operator* Call(CallDescriptor* descriptor) {
     return new (zone_) CallOperator(descriptor, "Call");
   }
-  Operator* Projection(int index) {
-    return new (zone_) Operator1<int>(IrOpcode::kProjection, Operator::kPure, 1,
-                                      1, "Projection", index);
+  Operator* Projection(size_t index) {
+    return new (zone_) Operator1<size_t>(IrOpcode::kProjection, Operator::kPure,
+                                         1, 1, "Projection", index);
   }
 
  private:

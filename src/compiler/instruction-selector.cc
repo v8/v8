@@ -822,10 +822,10 @@ void InstructionSelector::VisitProjection(Node* node) {
   switch (value->opcode()) {
     case IrOpcode::kInt32AddWithOverflow:
     case IrOpcode::kInt32SubWithOverflow:
-      if (OpParameter<int>(node) == 0) {
+      if (OpParameter<size_t>(node) == 0) {
         Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
       } else {
-        DCHECK_EQ(1, OpParameter<int>(node));
+        DCHECK(OpParameter<size_t>(node) == 1u);
         MarkAsUsed(value);
       }
       break;
@@ -933,7 +933,7 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
       case IrOpcode::kProjection:
         // Check if this is the overflow output projection of an
         // <Operation>WithOverflow node.
-        if (OpParameter<int>(value) == 1) {
+        if (OpParameter<size_t>(value) == 1u) {
           // We cannot combine the <Operation>WithOverflow with this branch
           // unless the 0th projection (the use of the actual value of the
           // <Operation> is either NULL, which means there's no use of the
