@@ -907,7 +907,7 @@ source_set("v8_base") {
       "src/compiler/ia32/instruction-selector-ia32.cc",
       "src/compiler/ia32/linkage-ia32.cc",
       "src/ic/ia32/ic-ia32.cc",
-      "src/ic/ia32/handler-ia32.cc",
+      "src/ic/ia32/ic-compiler-ia32.cc",
       "src/ic/ia32/stub-cache-ia32.cc",
     ]
   } else if (v8_target_arch == "x64") {
@@ -1126,6 +1126,10 @@ source_set("v8_base") {
   defines = []
   deps = [ ":v8_libbase" ]
 
+  if (is_win) {
+    # TODO(jschuh): crbug.com/167187 fix size_t to int truncations.
+    cflags = [ "/wd4267" ]
+  }
   if (is_linux) {
     if (v8_compress_startup_data == "bz2") {
       libs += [ "bz2" ]
