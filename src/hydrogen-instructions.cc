@@ -846,6 +846,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kStoreNamedGeneric:
     case HValue::kStringCharCodeAt:
     case HValue::kStringCharFromCode:
+    case HValue::kTailCallThroughMegamorphicCache:
     case HValue::kThisFunction:
     case HValue::kTypeofIsAndBranch:
     case HValue::kUnknownOSRValue:
@@ -1699,6 +1700,15 @@ OStream& HCheckInstanceType::PrintDataTo(OStream& os) const {  // NOLINT
 OStream& HCallStub::PrintDataTo(OStream& os) const {  // NOLINT
   os << CodeStub::MajorName(major_key_, false) << " ";
   return HUnaryCall::PrintDataTo(os);
+}
+
+
+OStream& HTailCallThroughMegamorphicCache::PrintDataTo(
+    OStream& os) const {  // NOLINT
+  for (int i = 0; i < OperandCount(); i++) {
+    os << NameOf(OperandAt(i)) << " ";
+  }
+  return os << "flags: " << flags();
 }
 
 

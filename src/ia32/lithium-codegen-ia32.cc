@@ -12,6 +12,7 @@
 #include "src/deoptimizer.h"
 #include "src/hydrogen-osr.h"
 #include "src/ia32/lithium-codegen-ia32.h"
+#include "src/ic/stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -3147,11 +3148,9 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
 
   // Load the result.
   __ mov(result,
-         BuildFastArrayOperand(instr->elements(),
-                               instr->key(),
+         BuildFastArrayOperand(instr->elements(), instr->key(),
                                instr->hydrogen()->key()->representation(),
-                               FAST_ELEMENTS,
-                               instr->base_offset()));
+                               FAST_ELEMENTS, instr->base_offset()));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3444,6 +3443,32 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     ParameterCount expected(formal_parameter_count);
     __ InvokeFunction(function, expected, count, CALL_FUNCTION, generator);
   }
+}
+
+
+void LCodeGen::DoTailCallThroughMegamorphicCache(
+    LTailCallThroughMegamorphicCache* instr) {
+  Register receiver = ToRegister(instr->receiver());
+  Register name = ToRegister(instr->name());
+  DCHECK(receiver.is(LoadDescriptor::ReceiverRegister()));
+  DCHECK(name.is(LoadDescriptor::NameRegister()));
+
+  Register scratch = ebx;
+  Register extra = eax;
+  DCHECK(!scratch.is(receiver) && !scratch.is(name));
+  DCHECK(!extra.is(receiver) && !extra.is(name));
+
+  // Important for the tail-call.
+  bool must_teardown_frame = NeedsEagerFrame();
+
+  // The probe will tail call to a handler if found.
+  isolate()->stub_cache()->GenerateProbe(masm(), instr->hydrogen()->flags(),
+                                         must_teardown_frame, receiver, name,
+                                         scratch, extra);
+
+  // Tail call to miss if we ended up here.
+  if (must_teardown_frame) __ leave();
+  LoadIC::GenerateMiss(masm());
 }
 
 

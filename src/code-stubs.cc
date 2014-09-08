@@ -619,6 +619,13 @@ void VectorKeyedLoadStub::InitializeInterfaceDescriptor(
 }
 
 
+void MegamorphicLoadStub::InitializeInterfaceDescriptor(
+    CodeStubInterfaceDescriptor* descriptor) {
+  LoadDescriptor call_descriptor(isolate());
+  descriptor->Initialize(MajorKey(), call_descriptor);
+}
+
+
 void FastNewClosureStub::InitializeInterfaceDescriptor(
     CodeStubInterfaceDescriptor* descriptor) {
   FastNewClosureDescriptor call_descriptor(isolate());

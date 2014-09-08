@@ -1808,4 +1808,25 @@ HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
 Handle<Code> VectorKeyedLoadStub::GenerateCode() {
   return DoGenerateCode(this);
 }
+
+
+Handle<Code> MegamorphicLoadStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<MegamorphicLoadStub>::BuildCodeStub() {
+  // The return address is on the stack.
+  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
+  HValue* name = GetParameter(LoadDescriptor::kNameIndex);
+
+  // Probe the stub cache.
+  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::LOAD_IC));
+  Add<HTailCallThroughMegamorphicCache>(receiver, name, flags);
+
+  // We never continue.
+  return graph()->GetConstant0();
+}
 } }  // namespace v8::internal

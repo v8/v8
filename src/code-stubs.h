@@ -67,6 +67,7 @@ namespace internal {
   V(KeyedLoadGeneric)                       \
   V(LoadDictionaryElement)                  \
   V(LoadFastElement)                        \
+  V(MegamorphicLoad)                        \
   V(NameDictionaryLookup)                   \
   V(NumberToString)                         \
   V(RegExpConstructResult)                  \
@@ -1730,6 +1731,27 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
   }
 
   DEFINE_PLATFORM_CODE_STUB(KeyedLoadICTrampoline, LoadICTrampolineStub);
+};
+
+
+class MegamorphicLoadStub : public HydrogenCodeStub {
+ public:
+  MegamorphicLoadStub(Isolate* isolate, const LoadIC::State& state)
+      : HydrogenCodeStub(isolate) {
+    set_sub_minor_key(state.GetExtraICState());
+  }
+
+  virtual Code::Kind GetCodeKind() const OVERRIDE { return Code::LOAD_IC; }
+
+  virtual InlineCacheState GetICState() const FINAL OVERRIDE {
+    return MEGAMORPHIC;
+  }
+
+  virtual ExtraICState GetExtraICState() const FINAL OVERRIDE {
+    return static_cast<ExtraICState>(sub_minor_key());
+  }
+
+  DEFINE_HYDROGEN_CODE_STUB(MegamorphicLoad, HydrogenCodeStub);
 };
 
 
