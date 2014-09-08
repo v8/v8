@@ -59,7 +59,8 @@ ValueNumberingReducer::~ValueNumberingReducer() {}
 Reduction ValueNumberingReducer::Reduce(Node* node) {
   Entry** head = &buckets_[HashCode(node) % arraysize(buckets_)];
   for (Entry* entry = *head; entry; entry = entry->next()) {
-    if (entry->node()->op() == NULL) continue;
+    if (entry->node()->IsDead()) continue;
+    if (entry->node() == node) return NoChange();
     if (Equals(node, entry->node())) {
       return Replace(entry->node());
     }

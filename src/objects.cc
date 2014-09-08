@@ -4411,9 +4411,15 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
 
 void JSObject::ResetElements(Handle<JSObject> object) {
-  Heap* heap = object->GetIsolate()->heap();
-  CHECK(object->map() != heap->sloppy_arguments_elements_map());
-  object->set_elements(object->map()->GetInitialElements());
+  Isolate* isolate = object->GetIsolate();
+  CHECK(object->map() != isolate->heap()->sloppy_arguments_elements_map());
+  if (object->map()->has_dictionary_elements()) {
+    Handle<SeededNumberDictionary> new_elements =
+        SeededNumberDictionary::New(isolate, 0);
+    object->set_elements(*new_elements);
+  } else {
+    object->set_elements(object->map()->GetInitialElements());
+  }
 }
 
 
@@ -10893,7 +10899,7 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
     }
     if (is_compare_ic_stub()) {
       DCHECK(CodeStub::GetMajorKey(this) == CodeStub::CompareIC);
-      CompareICStub stub(stub_key());
+      CompareICStub stub(stub_key(), GetIsolate());
       os << "compare_state = " << CompareIC::GetStateName(stub.left()) << "*"
          << CompareIC::GetStateName(stub.right()) << " -> "
          << CompareIC::GetStateName(stub.state()) << "\n";

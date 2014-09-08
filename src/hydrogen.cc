@@ -3435,9 +3435,10 @@ HGraph::HGraph(CompilationInfo* info)
       inlined_functions_(5, info->zone()) {
   if (info->IsStub()) {
     HydrogenCodeStub* stub = info->code_stub();
-    CodeStubInterfaceDescriptor* descriptor = stub->GetInterfaceDescriptor();
-    start_environment_ = new(zone_) HEnvironment(
-        zone_, descriptor->GetEnvironmentParameterCount());
+    CodeStubInterfaceDescriptor descriptor;
+    stub->InitializeInterfaceDescriptor(&descriptor);
+    start_environment_ = new (zone_)
+        HEnvironment(zone_, descriptor.GetEnvironmentParameterCount());
   } else {
     TraceInlinedFunction(info->shared_info(), HSourcePosition::Unknown());
     start_environment_ =

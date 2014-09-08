@@ -69,7 +69,8 @@ Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);
 Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher);
 Matcher<Node*> IsNumberConstant(const Matcher<double>& value_matcher);
-Matcher<Node*> IsPhi(const Matcher<Node*>& value0_matcher,
+Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
+                     const Matcher<Node*>& value0_matcher,
                      const Matcher<Node*>& value1_matcher,
                      const Matcher<Node*>& merge_matcher);
 Matcher<Node*> IsProjection(const Matcher<int32_t>& index_matcher,

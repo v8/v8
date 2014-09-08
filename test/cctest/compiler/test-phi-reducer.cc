@@ -53,27 +53,32 @@ class PhiReducerTester : HandleAndZoneScope {
   }
 
   Node* Phi(Node* a) {
-    return SetSelfReferences(graph.NewNode(common.Phi(1), a));
+    return SetSelfReferences(graph.NewNode(common.Phi(kMachAnyTagged, 1), a));
   }
 
   Node* Phi(Node* a, Node* b) {
-    return SetSelfReferences(graph.NewNode(common.Phi(2), a, b));
+    return SetSelfReferences(
+        graph.NewNode(common.Phi(kMachAnyTagged, 2), a, b));
   }
 
   Node* Phi(Node* a, Node* b, Node* c) {
-    return SetSelfReferences(graph.NewNode(common.Phi(3), a, b, c));
+    return SetSelfReferences(
+        graph.NewNode(common.Phi(kMachAnyTagged, 3), a, b, c));
   }
 
   Node* Phi(Node* a, Node* b, Node* c, Node* d) {
-    return SetSelfReferences(graph.NewNode(common.Phi(4), a, b, c, d));
+    return SetSelfReferences(
+        graph.NewNode(common.Phi(kMachAnyTagged, 4), a, b, c, d));
   }
 
   Node* PhiWithControl(Node* a, Node* control) {
-    return SetSelfReferences(graph.NewNode(common.Phi(1), a, control));
+    return SetSelfReferences(
+        graph.NewNode(common.Phi(kMachAnyTagged, 1), a, control));
   }
 
   Node* PhiWithControl(Node* a, Node* b, Node* control) {
-    return SetSelfReferences(graph.NewNode(common.Phi(2), a, b, control));
+    return SetSelfReferences(
+        graph.NewNode(common.Phi(kMachAnyTagged, 2), a, b, control));
   }
 
   Node* SetSelfReferences(Node* node) {

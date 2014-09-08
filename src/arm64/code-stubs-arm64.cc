@@ -111,22 +111,23 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
   isolate()->counters()->code_stubs()->Increment();
 
-  CodeStubInterfaceDescriptor* descriptor = GetInterfaceDescriptor();
-  int param_count = descriptor->GetEnvironmentParameterCount();
+  CodeStubInterfaceDescriptor descriptor;
+  InitializeInterfaceDescriptor(&descriptor);
+  int param_count = descriptor.GetEnvironmentParameterCount();
   {
     // Call the runtime system in a fresh internal frame.
     FrameScope scope(masm, StackFrame::INTERNAL);
     DCHECK((param_count == 0) ||
-           x0.Is(descriptor->GetEnvironmentParameterRegister(param_count - 1)));
+           x0.Is(descriptor.GetEnvironmentParameterRegister(param_count - 1)));
 
     // Push arguments
     MacroAssembler::PushPopQueue queue(masm);
     for (int i = 0; i < param_count; ++i) {
-      queue.Queue(descriptor->GetEnvironmentParameterRegister(i));
+      queue.Queue(descriptor.GetEnvironmentParameterRegister(i));
     }
     queue.PushQueued();
 
-    ExternalReference miss = descriptor->miss_handler();
+    ExternalReference miss = descriptor.miss_handler();
     __ CallExternalReference(miss, param_count);
   }
 
@@ -1256,7 +1257,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 //   x4: argv.
 // Output:
 //   x0: result.
-void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
+void JSEntryStub::Generate(MacroAssembler* masm) {
   DCHECK(jssp.Is(__ StackPointer()));
   Register code_entry = x0;
 
@@ -1287,7 +1288,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ Fmov(fp_zero, 0.0);
 
   // Build an entry frame (see layout below).
-  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  int marker = type();
   int64_t bad_frame_pointer = -1L;  // Bad frame pointer to fail if it is used.
   __ Mov(x13, bad_frame_pointer);
   __ Mov(x12, Smi::FromInt(marker));
@@ -1372,8 +1373,9 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // x2: receiver.
   // x3: argc.
   // x4: argv.
-  ExternalReference entry(is_construct ? Builtins::kJSConstructEntryTrampoline
-                                       : Builtins::kJSEntryTrampoline,
+  ExternalReference entry(type() == StackFrame::ENTRY_CONSTRUCT
+                              ? Builtins::kJSConstructEntryTrampoline
+                              : Builtins::kJSEntryTrampoline,
                           isolate());
   __ Mov(x10, entry);
 

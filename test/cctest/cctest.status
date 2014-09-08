@@ -341,6 +341,11 @@
   'test-serialize/DeserializeAndRunScript2': [PASS, ['mode == debug', SKIP]],
   'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, ['mode == debug', SKIP]],
   'test-serialize/DeserializeFromSecondSerialization': [PASS, ['mode == debug', SKIP]],
+
+  # Test requires turbofan:
+  'codegen-tester/CompareWrapper': [SKIP],
+  'codegen-tester/ParametersEqual': [SKIP],
+  'test-simplified-lowering/LowerStringOps_to_call_and_compare': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################

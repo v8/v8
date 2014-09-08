@@ -195,8 +195,10 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
   }
 
   if (code->is_compare_ic_stub()) {
-    CompareIC::StubInfoToType(code->stub_key(), left_type, right_type,
-                              combined_type, map, zone());
+    CompareICStub stub(code->stub_key(), isolate());
+    *left_type = CompareIC::StateToType(zone(), stub.left());
+    *right_type = CompareIC::StateToType(zone(), stub.right());
+    *combined_type = CompareIC::StateToType(zone(), stub.state(), map);
   } else if (code->is_compare_nil_ic_stub()) {
     CompareNilICStub stub(isolate(), code->extra_ic_state());
     *combined_type = stub.GetType(zone(), map);

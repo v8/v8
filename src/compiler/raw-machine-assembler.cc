@@ -84,12 +84,11 @@ Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
                                              Node* context, Node* frame_state,
                                              CallFunctionFlags flags) {
   CallFunctionStub stub(isolate(), 0, flags);
-  CodeStubInterfaceDescriptor* d = isolate()->code_stub_interface_descriptor(
-      reinterpret_cast<CodeStub*>(&stub)->MajorKey());
-  stub.InitializeInterfaceDescriptor(d);
+  CodeStubInterfaceDescriptor d;
+  stub.InitializeInterfaceDescriptor(&d);
 
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      d, 1, CallDescriptor::kNeedsFrameState, zone());
+      &d, 1, CallDescriptor::kNeedsFrameState, zone());
   Node* stub_code = HeapConstant(stub.GetCode());
   Node* call = graph()->NewNode(common()->Call(desc), stub_code, function,
                                 receiver, context, frame_state);

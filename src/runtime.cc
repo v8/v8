@@ -8477,7 +8477,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized) {
   if (Compiler::GetOptimizedCode(function, unoptimized, mode).ToHandle(&code)) {
     function->ReplaceCode(*code);
   } else {
-    function->ReplaceCode(*unoptimized);
+    function->ReplaceCode(function->shared()->code());
   }
 
   DCHECK(function->code()->kind() == Code::FUNCTION ||
@@ -8632,7 +8632,14 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  // The following two assertions are lifted from the DCHECKs inside
+  // JSFunction::MarkForOptimization().
+  RUNTIME_ASSERT(!function->shared()->is_generator());
+  RUNTIME_ASSERT(function->shared()->allows_lazy_compilation() ||
+                 (function->code()->kind() == Code::FUNCTION &&
+                  function->code()->optimizable()));
 
+  // If the function is optimized, just return.
   if (function->IsOptimized()) return isolate->heap()->undefined_value();
 
   function->MarkForOptimization();

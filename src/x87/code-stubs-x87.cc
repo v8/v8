@@ -32,14 +32,12 @@ static void InitializeArrayConstructorDescriptor(
       Runtime::kArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
-    CallInterfaceDescriptor* call_descriptor = isolate->call_descriptor(
-        CallDescriptorKey::ArrayConstructorConstantArgCountCall);
+    ArrayConstructorConstantArgCountDescriptor call_descriptor(isolate);
     descriptor->Initialize(major, call_descriptor, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
-    CallInterfaceDescriptor* call_descriptor =
-        isolate->call_descriptor(CallDescriptorKey::ArrayConstructorCall);
+    ArrayConstructorDescriptor call_descriptor(isolate);
     descriptor->Initialize(major, call_descriptor, eax, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
@@ -58,14 +56,12 @@ static void InitializeInternalArrayConstructorDescriptor(
       Runtime::kInternalArrayConstructor)->entry;
 
   if (constant_stack_parameter_count == 0) {
-    CallInterfaceDescriptor* call_descriptor = isolate->call_descriptor(
-        CallDescriptorKey::InternalArrayConstructorConstantArgCountCall);
+    InternalArrayConstructorConstantArgCountDescriptor call_descriptor(isolate);
     descriptor->Initialize(major, call_descriptor, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE);
   } else {
-    CallInterfaceDescriptor* call_descriptor = isolate->call_descriptor(
-        CallDescriptorKey::InternalArrayConstructorCall);
+    InternalArrayConstructorDescriptor call_descriptor(isolate);
     descriptor->Initialize(major, call_descriptor, eax, deopt_handler,
                            constant_stack_parameter_count,
                            JS_FUNCTION_STUB_MODE, PASS_ARGUMENTS);
@@ -338,7 +334,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
 void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   Label miss;
-  Register receiver = LoadConvention::ReceiverRegister();
+  Register receiver = LoadDescriptor::ReceiverRegister();
 
   NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(masm, receiver, eax,
                                                           ebx, &miss);
@@ -1243,7 +1239,7 @@ static void BranchIfNotInternalizedString(MacroAssembler* masm,
 }
 
 
-void ICCompareStub::GenerateGeneric(MacroAssembler* masm) {
+void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   Label check_unequal_objects;
   Condition cc = GetCondition();
 
@@ -2574,74 +2570,6 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateHashInit(MacroAssembler* masm,
-                                    Register hash,
-                                    Register character,
-                                    Register scratch) {
-  // hash = (seed + character) + ((seed + character) << 10);
-  if (masm->serializer_enabled()) {
-    __ LoadRoot(scratch, Heap::kHashSeedRootIndex);
-    __ SmiUntag(scratch);
-    __ add(scratch, character);
-    __ mov(hash, scratch);
-    __ shl(scratch, 10);
-    __ add(hash, scratch);
-  } else {
-    int32_t seed = masm->isolate()->heap()->HashSeed();
-    __ lea(scratch, Operand(character, seed));
-    __ shl(scratch, 10);
-    __ lea(hash, Operand(scratch, character, times_1, seed));
-  }
-  // hash ^= hash >> 6;
-  __ mov(scratch, hash);
-  __ shr(scratch, 6);
-  __ xor_(hash, scratch);
-}
-
-
-void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
-                                            Register hash,
-                                            Register character,
-                                            Register scratch) {
-  // hash += character;
-  __ add(hash, character);
-  // hash += hash << 10;
-  __ mov(scratch, hash);
-  __ shl(scratch, 10);
-  __ add(hash, scratch);
-  // hash ^= hash >> 6;
-  __ mov(scratch, hash);
-  __ shr(scratch, 6);
-  __ xor_(hash, scratch);
-}
-
-
-void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
-                                       Register hash,
-                                       Register scratch) {
-  // hash += hash << 3;
-  __ mov(scratch, hash);
-  __ shl(scratch, 3);
-  __ add(hash, scratch);
-  // hash ^= hash >> 11;
-  __ mov(scratch, hash);
-  __ shr(scratch, 11);
-  __ xor_(hash, scratch);
-  // hash += hash << 15;
-  __ mov(scratch, hash);
-  __ shl(scratch, 15);
-  __ add(hash, scratch);
-
-  __ and_(hash, String::kHashBitMask);
-
-  // if (hash == 0) hash = 27;
-  Label hash_not_zero;
-  __ j(not_zero, &hash_not_zero, Label::kNear);
-  __ mov(hash, Immediate(StringHasher::kZeroHash));
-  __ bind(&hash_not_zero);
-}
-
-
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
@@ -3054,7 +2982,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
+void CompareICStub::GenerateSmis(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::SMI);
   Label miss;
   __ mov(ecx, edx);
@@ -3080,7 +3008,7 @@ void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
+void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::NUMBER);
 
   Label generic_stub;
@@ -3109,7 +3037,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&unordered);
   __ bind(&generic_stub);
-  ICCompareStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
+  CompareICStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
                      CompareIC::GENERIC);
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 
@@ -3134,7 +3062,7 @@ void ICCompareStub::GenerateNumbers(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
+void CompareICStub::GenerateInternalizedStrings(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::INTERNALIZED_STRING);
   DCHECK(GetCondition() == equal);
 
@@ -3179,7 +3107,7 @@ void ICCompareStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
+void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::UNIQUE_NAME);
   DCHECK(GetCondition() == equal);
 
@@ -3224,7 +3152,7 @@ void ICCompareStub::GenerateUniqueNames(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
+void CompareICStub::GenerateStrings(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::STRING);
   Label miss;
 
@@ -3313,7 +3241,7 @@ void ICCompareStub::GenerateStrings(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
+void CompareICStub::GenerateObjects(MacroAssembler* masm) {
   DCHECK(state() == CompareIC::OBJECT);
   Label miss;
   __ mov(ecx, edx);
@@ -3334,7 +3262,7 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
+void CompareICStub::GenerateKnownObjects(MacroAssembler* masm) {
   Label miss;
   __ mov(ecx, edx);
   __ and_(ecx, eax);
@@ -3355,7 +3283,7 @@ void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
+void CompareICStub::GenerateMiss(MacroAssembler* masm) {
   {
     // Call the runtime system in a fresh internal frame.
     ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),
@@ -3521,9 +3449,9 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
   Label in_dictionary, maybe_in_dictionary, not_in_dictionary;
 
-  Register scratch = result_;
+  Register scratch = result();
 
-  __ mov(scratch, FieldOperand(dictionary_, kCapacityOffset));
+  __ mov(scratch, FieldOperand(dictionary(), kCapacityOffset));
   __ dec(scratch);
   __ SmiUntag(scratch);
   __ push(scratch);
@@ -3543,13 +3471,11 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
     // Scale the index by multiplying by the entry size.
     DCHECK(NameDictionary::kEntrySize == 3);
-    __ lea(index_, Operand(scratch, scratch, times_2, 0));  // index *= 3.
+    __ lea(index(), Operand(scratch, scratch, times_2, 0));  // index *= 3.
 
     // Having undefined at this place means the name is not contained.
     DCHECK_EQ(kSmiTagSize, 1);
-    __ mov(scratch, Operand(dictionary_,
-                            index_,
-                            times_pointer_size,
+    __ mov(scratch, Operand(dictionary(), index(), times_pointer_size,
                             kElementsStartOffset - kHeapObjectTag));
     __ cmp(scratch, isolate()->factory()->undefined_value());
     __ j(equal, &not_in_dictionary);
@@ -3558,7 +3484,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     __ cmp(scratch, Operand(esp, 3 * kPointerSize));
     __ j(equal, &in_dictionary);
 
-    if (i != kTotalProbes - 1 && mode_ == NEGATIVE_LOOKUP) {
+    if (i != kTotalProbes - 1 && mode() == NEGATIVE_LOOKUP) {
       // If we hit a key that is not a unique name during negative
       // lookup we have to bailout as this key might be equal to the
       // key we are looking for.
@@ -3574,19 +3500,19 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // If we are doing negative lookup then probing failure should be
   // treated as a lookup success. For positive lookup probing failure
   // should be treated as lookup failure.
-  if (mode_ == POSITIVE_LOOKUP) {
-    __ mov(result_, Immediate(0));
+  if (mode() == POSITIVE_LOOKUP) {
+    __ mov(result(), Immediate(0));
     __ Drop(1);
     __ ret(2 * kPointerSize);
   }
 
   __ bind(&in_dictionary);
-  __ mov(result_, Immediate(1));
+  __ mov(result(), Immediate(1));
   __ Drop(1);
   __ ret(2 * kPointerSize);
 
   __ bind(&not_in_dictionary);
-  __ mov(result_, Immediate(0));
+  __ mov(result(), Immediate(0));
   __ Drop(1);
   __ ret(2 * kPointerSize);
 }
@@ -3594,7 +3520,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
 void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
-  StoreBufferOverflowStub stub(isolate);
+  StoreBufferOverflowStub stub(isolate, kDontSaveFPRegs);
   stub.GetCode();
 }
 
@@ -3614,10 +3540,8 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   __ jmp(&skip_to_incremental_noncompacting, Label::kNear);
   __ jmp(&skip_to_incremental_compacting, Label::kFar);
 
-  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
-    __ RememberedSetHelper(object_,
-                           address_,
-                           value_,
+  if (remembered_set_action() == EMIT_REMEMBERED_SET) {
+    __ RememberedSetHelper(object(), address(), value(),
                            MacroAssembler::kReturnAtEnd);
   } else {
     __ ret(0);
@@ -3639,7 +3563,7 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
 void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
   regs_.Save(masm);
 
-  if (remembered_set_action_ == EMIT_REMEMBERED_SET) {
+  if (remembered_set_action() == EMIT_REMEMBERED_SET) {
     Label dont_need_remembered_set;
 
     __ mov(regs_.scratch0(), Operand(regs_.address(), 0));
@@ -3661,9 +3585,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
         mode);
     InformIncrementalMarker(masm);
     regs_.Restore(masm);
-    __ RememberedSetHelper(object_,
-                           address_,
-                           value_,
+    __ RememberedSetHelper(object(), address(), value(),
                            MacroAssembler::kReturnAtEnd);
 
     __ bind(&dont_need_remembered_set);
@@ -3724,9 +3646,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object_,
-                           address_,
-                           value_,
+    __ RememberedSetHelper(object(), address(), value(),
                            MacroAssembler::kReturnAtEnd);
   } else {
     __ ret(0);
@@ -3771,9 +3691,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object_,
-                           address_,
-                           value_,
+    __ RememberedSetHelper(object(), address(), value(),
                            MacroAssembler::kReturnAtEnd);
   } else {
     __ ret(0);
@@ -3888,14 +3806,14 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
 
 
 void LoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, FullVectorLoadConvention::VectorRegister());
+  EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
   VectorLoadStub stub(isolate(), state());
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
 void KeyedLoadICTrampolineStub::Generate(MacroAssembler* masm) {
-  EmitLoadTypeFeedbackVector(masm, FullVectorLoadConvention::VectorRegister());
+  EmitLoadTypeFeedbackVector(masm, VectorLoadICDescriptor::VectorRegister());
   VectorKeyedLoadStub stub(isolate());
   __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }

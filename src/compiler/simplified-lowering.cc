@@ -267,7 +267,8 @@ class RepresentationSelector {
   void VisitUint64Cmp(Node* node) { VisitBinop(node, kMachUint64, kRepBit); }
 
   // Helper for handling phis.
-  void VisitPhi(Node* node, MachineTypeUnion use) {
+  void VisitPhi(Node* node, MachineTypeUnion use,
+                SimplifiedLowering* lowering) {
     // First, propagate the usage information to inputs of the phi.
     if (!lower()) {
       int values = OperatorProperties::GetValueInputCount(node->op());
@@ -318,6 +319,13 @@ class RepresentationSelector {
 
     if (lower()) {
       int values = OperatorProperties::GetValueInputCount(node->op());
+
+      // Update the phi operator.
+      MachineType type = static_cast<MachineType>(output_type);
+      if (type != OpParameter<MachineType>(node)) {
+        node->set_op(lowering->common()->Phi(type, values));
+      }
+
       // Convert inputs to the output representation of this phi.
       Node::Inputs inputs = node->inputs();
       for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
@@ -384,7 +392,7 @@ class RepresentationSelector {
         Enqueue(NodeProperties::GetControlInput(node, 0));
         break;
       case IrOpcode::kPhi:
-        return VisitPhi(node, use);
+        return VisitPhi(node, use, lowering);
 
 //------------------------------------------------------------------
 // JavaScript operators.
@@ -844,9 +852,10 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
 
 void SimplifiedLowering::DoStringAdd(Node* node) {
   StringAddStub stub(zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-  CodeStubInterfaceDescriptor* d = stub.GetInterfaceDescriptor();
+  CodeStubInterfaceDescriptor d;
+  stub.InitializeInterfaceDescriptor(&d);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(d, 0, flags, zone());
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(&d, 0, flags, zone());
   node->set_op(common()->Call(desc));
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(stub.GetCode()));
   node->AppendInput(zone(), jsgraph()->UndefinedConstant());

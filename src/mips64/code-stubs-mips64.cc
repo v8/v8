@@ -121,21 +121,22 @@ void HydrogenCodeStub::GenerateLightweightMiss(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
   isolate()->counters()->code_stubs()->Increment();
 
-  CodeStubInterfaceDescriptor* descriptor = GetInterfaceDescriptor();
-  int param_count = descriptor->GetEnvironmentParameterCount();
+  CodeStubInterfaceDescriptor descriptor;
+  InitializeInterfaceDescriptor(&descriptor);
+  int param_count = descriptor.GetEnvironmentParameterCount();
   {
     // Call the runtime system in a fresh internal frame.
     FrameScope scope(masm, StackFrame::INTERNAL);
     DCHECK((param_count == 0) ||
-           a0.is(descriptor->GetEnvironmentParameterRegister(param_count - 1)));
+           a0.is(descriptor.GetEnvironmentParameterRegister(param_count - 1)));
     // Push arguments, adjust sp.
     __ Dsubu(sp, sp, Operand(param_count * kPointerSize));
     for (int i = 0; i < param_count; ++i) {
       // Store argument to stack.
-      __ sd(descriptor->GetEnvironmentParameterRegister(i),
-            MemOperand(sp, (param_count-1-i) * kPointerSize));
+      __ sd(descriptor.GetEnvironmentParameterRegister(i),
+            MemOperand(sp, (param_count - 1 - i) * kPointerSize));
     }
-    ExternalReference miss = descriptor->miss_handler();
+    ExternalReference miss = descriptor.miss_handler();
     __ CallExternalReference(miss, param_count);
   }
 
@@ -1248,7 +1249,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 }
 
 
-void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
+void JSEntryStub::Generate(MacroAssembler* masm) {
   Label invoke, handler_entry, exit;
   Isolate* isolate = masm->isolate();
 
@@ -1288,7 +1289,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // We build an EntryFrame.
   __ li(a7, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  int marker = type();
   __ li(a6, Operand(Smi::FromInt(marker)));
   __ li(a5, Operand(Smi::FromInt(marker)));
   ExternalReference c_entry_fp(Isolate::kCEntryFPAddress, isolate);
@@ -1379,7 +1380,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // [ O32: 4 args slots]
   // args
 
-  if (is_construct) {
+  if (type() == StackFrame::ENTRY_CONSTRUCT) {
     ExternalReference construct_entry(Builtins::kJSConstructEntryTrampoline,
                                       isolate);
     __ li(a4, Operand(construct_entry));

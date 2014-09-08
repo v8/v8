@@ -409,12 +409,14 @@ class RawMachineAssembler : public GraphBuilder {
   void Deoptimize(Node* state);
 
   // Variables.
-  Node* Phi(Node* n1, Node* n2) { return NewNode(common()->Phi(2), n1, n2); }
-  Node* Phi(Node* n1, Node* n2, Node* n3) {
-    return NewNode(common()->Phi(3), n1, n2, n3);
+  Node* Phi(MachineType type, Node* n1, Node* n2) {
+    return NewNode(common()->Phi(type, 2), n1, n2);
   }
-  Node* Phi(Node* n1, Node* n2, Node* n3, Node* n4) {
-    return NewNode(common()->Phi(4), n1, n2, n3, n4);
+  Node* Phi(MachineType type, Node* n1, Node* n2, Node* n3) {
+    return NewNode(common()->Phi(type, 3), n1, n2, n3);
+  }
+  Node* Phi(MachineType type, Node* n1, Node* n2, Node* n3, Node* n4) {
+    return NewNode(common()->Phi(type, 4), n1, n2, n3, n4);
   }
 
   // MachineAssembler is invalid after export.

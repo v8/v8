@@ -1504,7 +1504,6 @@ Isolate::Isolate()
       string_tracker_(NULL),
       regexp_stack_(NULL),
       date_cache_(NULL),
-      code_stub_interface_descriptors_(NULL),
       call_descriptor_data_(NULL),
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
@@ -1701,9 +1700,6 @@ Isolate::~Isolate() {
   delete date_cache_;
   date_cache_ = NULL;
 
-  delete[] code_stub_interface_descriptors_;
-  code_stub_interface_descriptors_ = NULL;
-
   delete[] call_descriptor_data_;
   call_descriptor_data_ = NULL;
 
@@ -1880,8 +1876,6 @@ bool Isolate::Init(Deserializer* des) {
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
   date_cache_ = new DateCache();
-  code_stub_interface_descriptors_ =
-      new CodeStubInterfaceDescriptor[CodeStub::NUMBER_OF_IDS];
   call_descriptor_data_ =
       new CallInterfaceDescriptorData[CallDescriptors::NUMBER_OF_DESCRIPTORS];
   cpu_profiler_ = new CpuProfiler(this);
@@ -2034,24 +2028,6 @@ bool Isolate::Init(Deserializer* des) {
     CodeStub::GenerateFPStubs(this);
     StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
     StubFailureTrampolineStub::GenerateAheadOfTime(this);
-    // Ensure interface descriptors are initialized even when stubs have been
-    // deserialized out of the snapshot without using the graph builder.
-    FastCloneShallowArrayStub::InstallDescriptors(this);
-    BinaryOpICStub::InstallDescriptors(this);
-    BinaryOpWithAllocationSiteStub::InstallDescriptors(this);
-    CompareNilICStub::InstallDescriptors(this);
-    ToBooleanStub::InstallDescriptors(this);
-    ToNumberStub::InstallDescriptors(this);
-    ArrayConstructorStubBase::InstallDescriptors(this);
-    InternalArrayConstructorStubBase::InstallDescriptors(this);
-    FastNewClosureStub::InstallDescriptors(this);
-    FastNewContextStub::InstallDescriptors(this);
-    NumberToStringStub::InstallDescriptors(this);
-    StringAddStub::InstallDescriptors(this);
-    RegExpConstructResultStub::InstallDescriptors(this);
-    KeyedLoadGenericStub::InstallDescriptors(this);
-    StoreFieldStub::InstallDescriptors(this);
-    LoadFastElementStub::InstallDescriptors(this);
   }
 
   initialized_from_snapshot_ = (des != NULL);
@@ -2228,12 +2204,6 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
 
   iter.Advance();
   return iter.IsAtEnd();
-}
-
-
-CodeStubInterfaceDescriptor*
-    Isolate::code_stub_interface_descriptor(int index) {
-  return code_stub_interface_descriptors_ + index;
 }
 
 

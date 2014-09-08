@@ -95,8 +95,9 @@ class Typer::Visitor : public NullNodeVisitor {
   Type* ContextType(Node* node) {
     Bounds result =
         NodeProperties::GetBounds(NodeProperties::GetContextInput(node));
-    DCHECK(result.upper->Is(Type::Internal()));
-    DCHECK(result.lower->Equals(result.upper));
+    DCHECK(result.upper->Maybe(Type::Internal()));
+    // TODO(rossberg): More precisely, instead of the above assertion, we should
+    // back-propagate the constraint that it has to be a subtype of Internal.
     return result.upper;
   }
 
@@ -115,14 +116,6 @@ class Typer::RunVisitor : public Typer::Visitor {
   RunVisitor(Typer* typer, MaybeHandle<Context> context)
       : Visitor(typer, context),
         phis(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
-
-  GenericGraphVisit::Control Pre(Node* node) {
-    return NodeProperties::IsControl(node)
-        && node->opcode() != IrOpcode::kEnd
-        && node->opcode() != IrOpcode::kMerge
-        && node->opcode() != IrOpcode::kReturn
-        ? GenericGraphVisit::SKIP : GenericGraphVisit::CONTINUE;
-  }
 
   GenericGraphVisit::Control Post(Node* node) {
     Bounds bounds = TypeNode(node);
@@ -492,6 +485,8 @@ Bounds Typer::Visitor::TypeJSInstanceOf(Node* node) {
 // JS context operators.
 
 Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
+// TODO(rossberg): Fix this once we actually use the lower bound anywhere.
+#if 0
   Bounds outer = OperandType(node, 0);
   DCHECK(outer.upper->Maybe(Type::Internal()));
   // TODO(rossberg): More precisely, instead of the above assertion, we should
@@ -526,6 +521,9 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
     Type* lower = TypeConstant(value);
     return Bounds(lower, Type::Any(zone()));
   }
+#else
+  return Bounds::Unbounded(zone());
+#endif
 }
 
 

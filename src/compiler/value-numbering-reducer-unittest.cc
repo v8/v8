@@ -15,6 +15,7 @@ namespace compiler {
 namespace {
 
 const SimpleOperator kOp0(0, Operator::kNoProperties, 0, 1, "op0");
+const SimpleOperator kOp1(1, Operator::kNoProperties, 1, 1, "op1");
 
 }  // namespace
 
@@ -44,11 +45,12 @@ TEST_F(ValueNumberingReducerTest, AllInputsAreChecked) {
 }
 
 
-TEST_F(ValueNumberingReducerTest, KilledNodesAreNeverReturned) {
-  Node* n1 = graph()->NewNode(&kOp0);
+TEST_F(ValueNumberingReducerTest, DeadNodesAreNeverReturned) {
+  Node* n0 = graph()->NewNode(&kOp0);
+  Node* n1 = graph()->NewNode(&kOp1, n0);
   EXPECT_FALSE(Reduce(n1).Changed());
   n1->Kill();
-  EXPECT_FALSE(Reduce(graph()->NewNode(&kOp0)).Changed());
+  EXPECT_FALSE(Reduce(graph()->NewNode(&kOp1, n0)).Changed());
 }
 
 
@@ -104,6 +106,13 @@ TEST_F(ValueNumberingReducerTest, SubsequentReductionsYieldTheSameNode) {
     ASSERT_TRUE(r.Changed());
     EXPECT_EQ(n, r.replacement());
   }
+}
+
+
+TEST_F(ValueNumberingReducerTest, WontReplaceNodeWithItself) {
+  Node* n = graph()->NewNode(&kOp0);
+  EXPECT_FALSE(Reduce(n).Changed());
+  EXPECT_FALSE(Reduce(n).Changed());
 }
 
 }  // namespace compiler

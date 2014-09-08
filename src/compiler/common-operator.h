@@ -5,10 +5,9 @@
 #ifndef V8_COMPILER_COMMON_OPERATOR_H_
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
-#include "src/v8.h"
-
 #include "src/assembler.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/machine-type.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/unique.h"
@@ -142,10 +141,10 @@ class CommonOperatorBuilder {
     return new (zone_) Operator1<Unique<Object> >(
         IrOpcode::kHeapConstant, Operator::kPure, 0, 1, "HeapConstant", value);
   }
-  Operator* Phi(int arguments) {
+  Operator* Phi(MachineType type, int arguments) {
     DCHECK(arguments > 0);  // Disallow empty phis.
-    return new (zone_) Operator1<int>(IrOpcode::kPhi, Operator::kPure,
-                                      arguments, 1, "Phi", arguments);
+    return new (zone_) Operator1<MachineType>(IrOpcode::kPhi, Operator::kPure,
+                                              arguments, 1, "Phi", type);
   }
   Operator* EffectPhi(int arguments) {
     DCHECK(arguments > 0);  // Disallow empty phis.

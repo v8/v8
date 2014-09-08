@@ -2443,10 +2443,10 @@ LInstruction* LChunkBuilder::DoParameter(HParameter* instr) {
     return DefineAsSpilled(result, spill_index);
   } else {
     DCHECK(info()->IsStub());
-    CodeStubInterfaceDescriptor* descriptor =
-        info()->code_stub()->GetInterfaceDescriptor();
+    CodeStubInterfaceDescriptor descriptor;
+    info()->code_stub()->InitializeInterfaceDescriptor(&descriptor);
     int index = static_cast<int>(instr->index());
-    Register reg = descriptor->GetEnvironmentParameterRegister(index);
+    Register reg = descriptor.GetEnvironmentParameterRegister(index);
     return DefineFixed(result, reg);
   }
 }

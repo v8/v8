@@ -4826,7 +4826,7 @@ bool Parser::Parse() {
   DCHECK(info()->function() == NULL);
   FunctionLiteral* result = NULL;
   pre_parse_timer_ = isolate()->counters()->pre_parse();
-  if (allow_natives_syntax() || extension_ != NULL) {
+  if (FLAG_trace_parse || allow_natives_syntax() || extension_ != NULL) {
     // If intrinsics are allowed, the Parser cannot operate independent of the
     // V8 heap because of Runtime. Tell the string table to internalize strings
     // and values right after they're created.

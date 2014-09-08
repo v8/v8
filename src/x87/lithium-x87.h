@@ -1336,12 +1336,6 @@ class LConstantS FINAL : public LTemplateInstruction<1, 0, 0> {
 
 class LConstantD FINAL : public LTemplateInstruction<1, 0, 1> {
  public:
-  explicit LConstantD(LOperand* temp) {
-    temps_[0] = temp;
-  }
-
-  LOperand* temp() { return temps_[0]; }
-
   DECLARE_CONCRETE_INSTRUCTION(ConstantD, "constant-d")
   DECLARE_HYDROGEN_ACCESSOR(Constant)
 
@@ -1906,10 +1900,10 @@ class LCallJSFunction FINAL : public LTemplateInstruction<1, 1, 0> {
 
 class LCallWithDescriptor FINAL : public LTemplateResultInstruction<1> {
  public:
-  LCallWithDescriptor(const CallInterfaceDescriptor* descriptor,
+  LCallWithDescriptor(CallInterfaceDescriptor descriptor,
                       const ZoneList<LOperand*>& operands, Zone* zone)
-      : inputs_(descriptor->GetRegisterParameterCount() + 1, zone) {
-    DCHECK(descriptor->GetRegisterParameterCount() + 1 == operands.length());
+      : inputs_(descriptor.GetRegisterParameterCount() + 1, zone) {
+    DCHECK(descriptor.GetRegisterParameterCount() + 1 == operands.length());
     inputs_.AddAll(operands, zone);
   }
 

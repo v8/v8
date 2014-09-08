@@ -9,13 +9,11 @@ import sys
 
 from common_includes import *
 
-DEPS_FILE = "DEPS_FILE"
 CHROMIUM = "CHROMIUM"
 
 CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-chromium-roll-tempfile",
   DOT_GIT_LOCATION: ".git",
-  DEPS_FILE: "DEPS",
 }
 
 
@@ -43,13 +41,14 @@ class SwitchChromium(Step):
 
   def RunStep(self):
     self["v8_path"] = os.getcwd()
-    os.chdir(self._options.chromium)
+    cwd = self._options.chromium
+    os.chdir(cwd)
     self.InitialEnvironmentChecks()
     # Check for a clean workdir.
-    if not self.GitIsWorkdirClean():  # pragma: no cover
+    if not self.GitIsWorkdirClean(cwd=cwd):  # pragma: no cover
       self.Die("Workspace is not clean. Please commit or undo your changes.")
     # Assert that the DEPS file is there.
-    if not os.path.exists(self.Config(DEPS_FILE)):  # pragma: no cover
+    if not os.path.exists(os.path.join(cwd, "DEPS")):  # pragma: no cover
       self.Die("DEPS file not present.")
 
 
@@ -57,28 +56,25 @@ class UpdateChromiumCheckout(Step):
   MESSAGE = "Update the checkout and create a new branch."
 
   def RunStep(self):
-    os.chdir(self._options.chromium)
-    self.GitCheckout("master")
-    self._side_effect_handler.Command("gclient", "sync --nohooks")
-    self.GitPull()
-    try:
-      # TODO(machenbach): Add cwd to git calls.
-      os.chdir(os.path.join(self._options.chromium, "v8"))
-      self.GitFetchOrigin()
-    finally:
-      os.chdir(self._options.chromium)
-    self.GitCreateBranch("v8-roll-%s" % self["trunk_revision"])
+    self.GitCheckout("master", cwd=self._options.chromium)
+    self.Command("gclient", "sync --nohooks", cwd=self._options.chromium)
+    self.GitPull(cwd=self._options.chromium)
+
+    # Update v8 remotes.
+    self.GitFetchOrigin()
+
+    self.GitCreateBranch("v8-roll-%s" % self["trunk_revision"],
+                         cwd=self._options.chromium)
 
 
 class UploadCL(Step):
   MESSAGE = "Create and upload CL."
 
   def RunStep(self):
-    os.chdir(self._options.chromium)
-
     # Patch DEPS file.
-    if self._side_effect_handler.Command(
-        "roll-dep", "v8 %s" % self["trunk_revision"]) is None:
+    if self.Command(
+        "roll-dep", "v8 %s" % self["trunk_revision"],
+        cwd=self._options.chromium) is None:
       self.Die("Failed to create deps for %s" % self["trunk_revision"])
 
     commit_title = "Update V8 to %s." % self["push_title"].lower()
@@ -88,18 +84,23 @@ class UploadCL(Step):
                  % self["sheriff"])
     self.GitCommit("%s%s\n\nTBR=%s" %
                        (commit_title, sheriff, self._options.reviewer),
-                   author=self._options.author)
+                   author=self._options.author,
+                   cwd=self._options.chromium)
     if not self._options.dry_run:
       self.GitUpload(author=self._options.author,
                      force=True,
-                     cq=self._options.use_commit_queue)
+                     cq=self._options.use_commit_queue,
+                     cwd=self._options.chromium)
       print "CL uploaded."
     else:
-      self.GitCheckout("master")
-      self.GitDeleteBranch("v8-roll-%s" % self["trunk_revision"])
+      self.GitCheckout("master", cwd=self._options.chromium)
+      self.GitDeleteBranch("v8-roll-%s" % self["trunk_revision"],
+                           cwd=self._options.chromium)
       print "Dry run - don't upload."
 
 
+# TODO(machenbach): Make this obsolete. We are only in the chromium chechout
+# for the initial .git check.
 class SwitchV8(Step):
   MESSAGE = "Returning to V8 checkout."
 

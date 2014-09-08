@@ -177,15 +177,13 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 #define DEF_CASE(name) case name: return #name "Stub";
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
-    case UninitializedMajorKey: return "<UninitializedMajorKey>Stub";
     case NoCache:
       return "<NoCache>Stub";
-    default:
-      if (!allow_unknown_keys) {
-        UNREACHABLE();
-      }
+    case NUMBER_OF_IDS:
+      UNREACHABLE();
       return NULL;
   }
+  return NULL;
 }
 
 
@@ -197,6 +195,42 @@ void CodeStub::PrintBaseName(OStream& os) const {  // NOLINT
 void CodeStub::PrintName(OStream& os) const {  // NOLINT
   PrintBaseName(os);
   PrintState(os);
+}
+
+
+void CodeStub::Dispatch(Isolate* isolate, uint32_t key, void** value_out,
+                        DispatchedCall call) {
+  switch (MajorKeyFromKey(key)) {
+#define DEF_CASE(NAME)             \
+  case NAME: {                     \
+    NAME##Stub stub(key, isolate); \
+    CodeStub* pstub = &stub;       \
+    call(pstub, value_out);        \
+    break;                         \
+  }
+    CODE_STUB_LIST(DEF_CASE)
+#undef DEF_CASE
+    case NUMBER_OF_IDS:
+      UNREACHABLE();
+    case NoCache:
+      *value_out = NULL;
+      break;
+  }
+}
+
+
+static void GetInterfaceDescriptorDispatchedCall(CodeStub* stub,
+                                                 void** value_out) {
+  CodeStubInterfaceDescriptor* descriptor_out =
+      reinterpret_cast<CodeStubInterfaceDescriptor*>(value_out);
+  stub->InitializeInterfaceDescriptor(descriptor_out);
+}
+
+
+void CodeStub::InitializeInterfaceDescriptor(
+    Isolate* isolate, uint32_t key, CodeStubInterfaceDescriptor* desc) {
+  void** value_out = reinterpret_cast<void**>(desc);
+  Dispatch(isolate, key, value_out, &GetInterfaceDescriptorDispatchedCall);
 }
 
 
@@ -317,7 +351,7 @@ bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
   if (probe->IsCode()) {
     *code_out = Code::cast(*probe);
 #ifdef DEBUG
-    CompareICStub decode((*code_out)->stub_key());
+    CompareICStub decode((*code_out)->stub_key(), isolate());
     DCHECK(op() == decode.op());
     DCHECK(left() == decode.left());
     DCHECK(right() == decode.right());
@@ -928,102 +962,6 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
 }
 
 
-static void InstallDescriptor(Isolate* isolate, HydrogenCodeStub* stub) {
-  int major_key = stub->MajorKey();
-  CodeStubInterfaceDescriptor* descriptor =
-      isolate->code_stub_interface_descriptor(major_key);
-  if (!descriptor->IsInitialized()) {
-    stub->InitializeInterfaceDescriptor(descriptor);
-  }
-}
-
-
-void ArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  ArrayNoArgumentConstructorStub stub1(isolate, GetInitialFastElementsKind());
-  InstallDescriptor(isolate, &stub1);
-  ArraySingleArgumentConstructorStub stub2(isolate,
-                                           GetInitialFastElementsKind());
-  InstallDescriptor(isolate, &stub2);
-  ArrayNArgumentsConstructorStub stub3(isolate, GetInitialFastElementsKind());
-  InstallDescriptor(isolate, &stub3);
-}
-
-
-void NumberToStringStub::InstallDescriptors(Isolate* isolate) {
-  NumberToStringStub stub(isolate);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-void FastNewClosureStub::InstallDescriptors(Isolate* isolate) {
-  FastNewClosureStub stub(isolate, STRICT, false);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-void FastNewContextStub::InstallDescriptors(Isolate* isolate) {
-  FastNewContextStub stub(isolate, FastNewContextStub::kMaximumSlots);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void FastCloneShallowArrayStub::InstallDescriptors(Isolate* isolate) {
-  FastCloneShallowArrayStub stub(isolate, DONT_TRACK_ALLOCATION_SITE);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void BinaryOpICStub::InstallDescriptors(Isolate* isolate) {
-  BinaryOpICStub stub(isolate, Token::ADD, NO_OVERWRITE);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void BinaryOpWithAllocationSiteStub::InstallDescriptors(Isolate* isolate) {
-  BinaryOpWithAllocationSiteStub stub(isolate, Token::ADD, NO_OVERWRITE);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void StringAddStub::InstallDescriptors(Isolate* isolate) {
-  StringAddStub stub(isolate, STRING_ADD_CHECK_NONE, NOT_TENURED);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void RegExpConstructResultStub::InstallDescriptors(Isolate* isolate) {
-  RegExpConstructResultStub stub(isolate);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void KeyedLoadGenericStub::InstallDescriptors(Isolate* isolate) {
-  KeyedLoadGenericStub stub(isolate);
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void StoreFieldStub::InstallDescriptors(Isolate* isolate) {
-  StoreFieldStub stub(isolate, FieldIndex::ForInObjectOffset(0),
-                      Representation::None());
-  InstallDescriptor(isolate, &stub);
-}
-
-
-// static
-void LoadFastElementStub::InstallDescriptors(Isolate* isolate) {
-  LoadFastElementStub stub(isolate, true, FAST_ELEMENTS);
-  InstallDescriptor(isolate, &stub);
-}
-
-
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {
   minor_key_ = ArgumentCountBits::encode(ANY);
@@ -1046,15 +984,6 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
   ArrayConstructorStubBase::GenerateStubsAheadOfTime(isolate);
 }
 
-
-void InternalArrayConstructorStubBase::InstallDescriptors(Isolate* isolate) {
-  InternalArrayNoArgumentConstructorStub stub1(isolate, FAST_ELEMENTS);
-  InstallDescriptor(isolate, &stub1);
-  InternalArraySingleArgumentConstructorStub stub2(isolate, FAST_ELEMENTS);
-  InstallDescriptor(isolate, &stub2);
-  InternalArrayNArgumentsConstructorStub stub3(isolate, FAST_ELEMENTS);
-  InstallDescriptor(isolate, &stub3);
-}
 
 InternalArrayConstructorStub::InternalArrayConstructorStub(
     Isolate* isolate) : PlatformCodeStub(isolate) {

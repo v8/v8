@@ -29,10 +29,12 @@
 import argparse
 import datetime
 import httplib
+import glob
 import imp
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -51,6 +53,10 @@ CHANGELOG_FILE = "CHANGELOG_FILE"
 CHANGELOG_ENTRY_FILE = "CHANGELOG_ENTRY_FILE"
 COMMITMSG_FILE = "COMMITMSG_FILE"
 PATCH_FILE = "PATCH_FILE"
+
+# V8 base directory.
+DEFAULT_CWD = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def TextToFile(text, file_name):
@@ -183,16 +189,18 @@ def SortingKey(version):
 
 # Some commands don't like the pipe, e.g. calling vi from within the script or
 # from subscripts like git cl upload.
-def Command(cmd, args="", prefix="", pipe=True):
+def Command(cmd, args="", prefix="", pipe=True, cwd=None):
+  cwd = cwd or os.getcwd()
   # TODO(machenbach): Use timeout.
   cmd_line = "%s %s %s" % (prefix, cmd, args)
   print "Command: %s" % cmd_line
+  print "in %s" % cwd
   sys.stdout.flush()
   try:
     if pipe:
-      return subprocess.check_output(cmd_line, shell=True)
+      return subprocess.check_output(cmd_line, shell=True, cwd=cwd)
     else:
-      return subprocess.check_call(cmd_line, shell=True)
+      return subprocess.check_call(cmd_line, shell=True, cwd=cwd)
   except subprocess.CalledProcessError:
     return None
   finally:
@@ -205,8 +213,8 @@ class SideEffectHandler(object):  # pragma: no cover
   def Call(self, fun, *args, **kwargs):
     return fun(*args, **kwargs)
 
-  def Command(self, cmd, args="", prefix="", pipe=True):
-    return Command(cmd, args, prefix, pipe)
+  def Command(self, cmd, args="", prefix="", pipe=True, cwd=None):
+    return Command(cmd, args, prefix, pipe, cwd=cwd)
 
   def ReadLine(self):
     return sys.stdin.readline().strip()
@@ -263,6 +271,10 @@ class Step(GitRecipesMixin):
     self._state = state
     self._options = options
     self._side_effect_handler = handler
+
+    # The testing configuration might set a different default cwd.
+    self.default_cwd = self._config.get("DEFAULT_CWD") or DEFAULT_CWD
+
     assert self._number >= 0
     assert self._config is not None
     assert self._state is not None
@@ -341,21 +353,31 @@ class Step(GitRecipesMixin):
     else:
       return self._side_effect_handler.ReadLine()
 
-  def Git(self, args="", prefix="", pipe=True, retry_on=None):
-    cmd = lambda: self._side_effect_handler.Command("git", args, prefix, pipe)
+  def Command(self, name, args, cwd=None):
+    cmd = lambda: self._side_effect_handler.Command(
+        name, args, "", True, cwd=cwd or self.default_cwd)
+    return self.Retry(cmd, None, [5])
+
+  def Git(self, args="", prefix="", pipe=True, retry_on=None, cwd=None):
+    cmd = lambda: self._side_effect_handler.Command(
+        "git", args, prefix, pipe, cwd=cwd or self.default_cwd)
     result = self.Retry(cmd, retry_on, [5, 30])
     if result is None:
       raise GitFailedException("'git %s' failed." % args)
     return result
 
-  def SVN(self, args="", prefix="", pipe=True, retry_on=None):
-    cmd = lambda: self._side_effect_handler.Command("svn", args, prefix, pipe)
+  def SVN(self, args="", prefix="", pipe=True, retry_on=None, cwd=None):
+    cmd = lambda: self._side_effect_handler.Command(
+        "svn", args, prefix, pipe, cwd=cwd or self.default_cwd)
     return self.Retry(cmd, retry_on, [5, 30])
 
   def Editor(self, args):
     if self._options.requires_editor:
-      return self._side_effect_handler.Command(os.environ["EDITOR"], args,
-                                               pipe=False)
+      return self._side_effect_handler.Command(
+          os.environ["EDITOR"],
+          args,
+          pipe=False,
+          cwd=self.default_cwd)
 
   def ReadURL(self, url, params=None, retry_on=None, wait_plan=None):
     wait_plan = wait_plan or [3, 60, 600]
@@ -399,7 +421,8 @@ class Step(GitRecipesMixin):
 
     # Cancel if EDITOR is unset or not executable.
     if (self._options.requires_editor and (not os.environ.get("EDITOR") or
-        Command("which", os.environ["EDITOR"]) is None)):  # pragma: no cover
+        self.Command(
+            "which", os.environ["EDITOR"]) is None)):  # pragma: no cover
       self.Die("Please set your EDITOR environment variable, you'll need it.")
 
   def CommonPrepare(self):
@@ -423,7 +446,11 @@ class Step(GitRecipesMixin):
       self.GitDeleteBranch(self._config[BRANCHNAME])
 
     # Clean up all temporary files.
-    Command("rm", "-f %s*" % self._config[PERSISTFILE_BASENAME])
+    for f in glob.iglob("%s*" % self._config[PERSISTFILE_BASENAME]):
+      if os.path.isfile(f):
+        os.remove(f)
+      if os.path.isdir(f):
+        shutil.rmtree(f)
 
   def ReadAndPersistVersion(self, prefix=""):
     def ReadAndPersist(var_name, def_name):
@@ -501,6 +528,23 @@ class Step(GitRecipesMixin):
         line = re.sub("\d+$", self[prefix + "patch"], line)
       output += "%s\n" % line
     TextToFile(output, version_file)
+
+  def SVNCommit(self, root, commit_message):
+    patch = self.GitDiff("HEAD^", "HEAD")
+    TextToFile(patch, self._config[PATCH_FILE])
+    self.Command("svn", "update", cwd=self._options.svn)
+    if self.Command("svn", "status", cwd=self._options.svn) != "":
+      self.Die("SVN checkout not clean.")
+    if not self.Command("patch", "-d %s -p1 -i %s" %
+                        (root, self._config[PATCH_FILE]),
+                        cwd=self._options.svn):
+      self.Die("Could not apply patch.")
+    self.Command(
+        "svn",
+        "commit --non-interactive --username=%s --config-dir=%s -m \"%s\"" %
+            (self._options.author, self._options.svn_config, commit_message),
+        cwd=self._options.svn)
+
 
 class UploadStep(Step):
   MESSAGE = "Upload for code review."
@@ -604,10 +648,14 @@ class ScriptsBase(object):
                         help=("Determine current sheriff to review CLs. On "
                               "success, this will overwrite the reviewer "
                               "option."))
+    parser.add_argument("--svn",
+                        help=("Optional full svn checkout for the commit."
+                              "The folder needs to be the svn root."))
+    parser.add_argument("--svn-config",
+                        help=("Optional folder used as svn --config-dir."))
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
-
     self._PrepareOptions(parser)
 
     if args is None:  # pragma: no cover
@@ -622,6 +670,10 @@ class ScriptsBase(object):
       return None
     if options.sheriff and not options.googlers_mapping:  # pragma: no cover
       print "To determine the current sheriff, requires the googler mapping"
+      parser.print_help()
+      return None
+    if options.svn and not options.svn_config:
+      print "Using pure svn for committing requires also --svn-config"
       parser.print_help()
       return None
 

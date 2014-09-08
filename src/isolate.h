@@ -1034,9 +1034,6 @@ class Isolate {
 
   bool IsFastArrayConstructorPrototypeChainIntact();
 
-  CodeStubInterfaceDescriptor*
-      code_stub_interface_descriptor(int index);
-
   CallInterfaceDescriptorData* call_descriptor_data(int index);
 
   void IterateDeferredHandles(ObjectVisitor* visitor);

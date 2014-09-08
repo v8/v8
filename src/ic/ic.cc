@@ -550,7 +550,7 @@ void KeyedStoreIC::Clear(Isolate* isolate, Address address, Code* target,
 void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
                       ConstantPoolArray* constant_pool) {
   DCHECK(CodeStub::GetMajorKey(target) == CodeStub::CompareIC);
-  CompareICStub stub(target->stub_key());
+  CompareICStub stub(target->stub_key(), isolate);
   // Only clear CompareICs that can retain objects.
   if (stub.state() != KNOWN_OBJECT) return;
   SetTargetAtAddress(address, GetRawUninitialized(isolate, stub.op()),
@@ -2759,16 +2759,6 @@ Type* CompareIC::StateToType(Zone* zone, CompareIC::State state,
 }
 
 
-void CompareIC::StubInfoToType(uint32_t stub_key, Type** left_type,
-                               Type** right_type, Type** overall_type,
-                               Handle<Map> map, Zone* zone) {
-  CompareICStub stub(stub_key);
-  *left_type = StateToType(zone, stub.left());
-  *right_type = StateToType(zone, stub.right());
-  *overall_type = StateToType(zone, stub.state(), map);
-}
-
-
 CompareIC::State CompareIC::NewInputState(State old_state,
                                           Handle<Object> value) {
   switch (old_state) {
@@ -2875,7 +2865,7 @@ CompareIC::State CompareIC::TargetState(State old_state, State old_left,
 
 Code* CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
   HandleScope scope(isolate());
-  CompareICStub old_stub(target()->stub_key());
+  CompareICStub old_stub(target()->stub_key(), isolate());
   State new_left = NewInputState(old_stub.left(), x);
   State new_right = NewInputState(old_stub.right(), y);
   State state = TargetState(old_stub.state(), old_stub.left(), old_stub.right(),

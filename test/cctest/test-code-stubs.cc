@@ -172,3 +172,19 @@ void RunAllTruncationTests(ConvertDToICallWrapper callWrapper,
 #undef NaN
 #undef Infinity
 #undef RunOneTruncationTest
+
+
+TEST(CodeStubMajorKeys) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+
+#define CHECK_STUB(NAME)                        \
+  {                                             \
+    HandleScope scope(isolate);                 \
+    NAME##Stub stub_impl(0xabcd, isolate);      \
+    CodeStub* stub = &stub_impl;                \
+    CHECK_EQ(stub->MajorKey(), CodeStub::NAME); \
+  }
+  CODE_STUB_LIST(CHECK_STUB);
+}

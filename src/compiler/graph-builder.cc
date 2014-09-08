@@ -161,7 +161,7 @@ void StructuredGraphBuilder::Environment::PrepareForLoop() {
 
 
 Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
-  Operator* phi_op = common()->Phi(count);
+  Operator* phi_op = common()->Phi(kMachAnyTagged, count);
   Node** buffer = zone()->NewArray<Node*>(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
@@ -224,7 +224,7 @@ Node* StructuredGraphBuilder::MergeValue(Node* value, Node* other,
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control) {
     // Phi already exists, add input.
-    value->set_op(common()->Phi(inputs));
+    value->set_op(common()->Phi(kMachAnyTagged, inputs));
     value->InsertInput(zone(), inputs - 1, other);
   } else if (value != other) {
     // Phi does not exist yet, introduce one.

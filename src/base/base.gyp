@@ -22,6 +22,7 @@
       'sources': [  ### gcmole(all) ###
         'bits-unittest.cc',
         'cpu-unittest.cc',
+        'division-by-constant-unittest.cc',
         'flags-unittest.cc',
         'platform/condition-variable-unittest.cc',
         'platform/mutex-unittest.cc',
