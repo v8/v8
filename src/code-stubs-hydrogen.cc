@@ -103,7 +103,7 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   SmartArrayPointer<HParameter*> parameters_;
   HValue* arguments_length_;
   CompilationInfoWithZone info_;
-  CodeStubInterfaceDescriptor descriptor_;
+  CodeStubDescriptor descriptor_;
   HContext* context_;
 };
 
@@ -216,7 +216,8 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
 };
 
 
-Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode() {
+Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
+    ExternalReference miss) {
   Factory* factory = isolate()->factory();
 
   // Generate the new code.
@@ -229,7 +230,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode() {
     // Generate the code for the stub.
     masm.set_generating_stub(true);
     NoCurrentFrameScope scope(&masm);
-    GenerateLightweightMiss(&masm);
+    GenerateLightweightMiss(&masm, miss);
   }
 
   // Create the code object.
@@ -251,14 +252,14 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode() {
 template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   Isolate* isolate = stub->isolate();
-  CodeStubInterfaceDescriptor descriptor(stub);
+  CodeStubDescriptor descriptor(stub);
 
   // If we are uninitialized we can use a light-weight stub to enter
   // the runtime that is significantly faster than using the standard
   // stub-failure deopt mechanism.
   if (stub->IsUninitialized() && descriptor.has_miss_handler()) {
     DCHECK(!descriptor.stack_parameter_count().is_valid());
-    return stub->GenerateLightweightMissCode();
+    return stub->GenerateLightweightMissCode(descriptor.miss_handler());
   }
   base::ElapsedTimer timer;
   if (FLAG_profile_hydrogen_code_stub_compilation) {

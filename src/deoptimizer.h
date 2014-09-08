@@ -379,7 +379,7 @@ class Deoptimizer : public Malloced {
   // Fill the given output frame's registers to contain the failure handler
   // address and the number of parameters for a stub failure trampoline.
   void SetPlatformCompiledStubRegisters(FrameDescription* output_frame,
-                                        CodeStubInterfaceDescriptor* desc);
+                                        CodeStubDescriptor* desc);
 
   // Fill the given output frame's double registers with the original values
   // from the input frame's double registers.

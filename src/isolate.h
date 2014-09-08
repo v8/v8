@@ -36,7 +36,7 @@ class Bootstrapper;
 class CallInterfaceDescriptorData;
 class CodeGenerator;
 class CodeRange;
-class CodeStubInterfaceDescriptor;
+class CodeStubDescriptor;
 class CodeTracer;
 class CompilationCache;
 class ConsStringIteratorOp;
@@ -1270,7 +1270,6 @@ class Isolate {
   RegExpStack* regexp_stack_;
   DateCache* date_cache_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
-  CodeStubInterfaceDescriptor* code_stub_interface_descriptors_;
   CallInterfaceDescriptorData* call_descriptor_data_;
   base::RandomNumberGenerator* random_number_generator_;
 
