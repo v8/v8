@@ -16,8 +16,8 @@ namespace internal {
 
 
 static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
-                       Code::Flags flags, StubCache::Table table,
-                       Register receiver, Register name,
+                       Code::Flags flags, bool leave_frame,
+                       StubCache::Table table, Register receiver, Register name,
                        // Number of the cache entry, not scaled.
                        Register offset, Register scratch, Register scratch2,
                        Register offset_scratch) {
@@ -79,6 +79,8 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   }
 #endif
 
+  if (leave_frame) __ LeaveFrame(StackFrame::INTERNAL);
+
   // Jump to the first instruction in the code stub.
   __ Daddu(at, code, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Jump(at);
@@ -89,9 +91,9 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
 
 
 void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
-                              Register receiver, Register name,
-                              Register scratch, Register extra, Register extra2,
-                              Register extra3) {
+                              bool leave_frame, Register receiver,
+                              Register name, Register scratch, Register extra,
+                              Register extra2, Register extra3) {
   Isolate* isolate = masm->isolate();
   Label miss;
 
@@ -139,8 +141,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
   __ And(scratch, scratch, Operand(mask));
 
   // Probe the primary table.
-  ProbeTable(isolate, masm, flags, kPrimary, receiver, name, scratch, extra,
-             extra2, extra3);
+  ProbeTable(isolate, masm, flags, leave_frame, kPrimary, receiver, name,
+             scratch, extra, extra2, extra3);
 
   // Primary miss: Compute hash for secondary probe.
   __ dsrl(at, name, kCacheIndexShift);
@@ -150,8 +152,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Flags flags,
   __ And(scratch, scratch, Operand(mask2));
 
   // Probe the secondary table.
-  ProbeTable(isolate, masm, flags, kSecondary, receiver, name, scratch, extra,
-             extra2, extra3);
+  ProbeTable(isolate, masm, flags, leave_frame, kSecondary, receiver, name,
+             scratch, extra, extra2, extra3);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.
