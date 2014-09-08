@@ -324,7 +324,7 @@ TEST_F(InstructionSelectorTest, SubZeroOnLeft) {
   {
     // 64-bit subtract.
     StreamBuilder m(this, kMachInt64, kMachInt64, kMachInt64);
-    m.Return(m.Int64Sub(m.Int32Constant(0), m.Parameter(0)));
+    m.Return(m.Int64Sub(m.Int64Constant(0), m.Parameter(0)));
     Stream s = m.Build();
 
     ASSERT_EQ(1U, s.size());

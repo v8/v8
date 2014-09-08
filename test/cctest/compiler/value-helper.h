@@ -27,34 +27,29 @@ class ValueHelper {
 
   ValueHelper() : isolate_(CcTest::InitIsolateOnce()) {}
 
-  template <typename T>
-  void CheckConstant(T expected, Node* node) {
-    CHECK_EQ(expected, ValueOf<T>(node->op()));
-  }
-
   void CheckFloat64Constant(double expected, Node* node) {
     CHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
-    CHECK_EQ(expected, ValueOf<double>(node->op()));
+    CHECK_EQ(expected, OpParameter<double>(node));
   }
 
   void CheckNumberConstant(double expected, Node* node) {
     CHECK_EQ(IrOpcode::kNumberConstant, node->opcode());
-    CHECK_EQ(expected, ValueOf<double>(node->op()));
+    CHECK_EQ(expected, OpParameter<double>(node));
   }
 
   void CheckInt32Constant(int32_t expected, Node* node) {
     CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, ValueOf<int32_t>(node->op()));
+    CHECK_EQ(expected, OpParameter<int32_t>(node));
   }
 
   void CheckUint32Constant(int32_t expected, Node* node) {
     CHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
-    CHECK_EQ(expected, ValueOf<uint32_t>(node->op()));
+    CHECK_EQ(expected, OpParameter<uint32_t>(node));
   }
 
   void CheckHeapConstant(Object* expected, Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    CHECK_EQ(expected, *ValueOf<Handle<Object> >(node->op()));
+    CHECK_EQ(expected, *OpParameter<Unique<Object> >(node).handle());
   }
 
   void CheckTrue(Node* node) {

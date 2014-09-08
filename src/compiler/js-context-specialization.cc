@@ -61,16 +61,16 @@ void JSContextSpecializer::SpecializeToContext() {
 Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadContext, node->opcode());
 
-  ValueMatcher<Handle<Context> > match(NodeProperties::GetValueInput(node, 0));
+  HeapObjectMatcher<Context> m(NodeProperties::GetValueInput(node, 0));
   // If the context is not constant, no reduction can occur.
-  if (!match.HasValue()) {
+  if (!m.HasValue()) {
     return Reducer::NoChange();
   }
 
   ContextAccess access = OpParameter<ContextAccess>(node);
 
   // Find the right parent context.
-  Context* context = *match.Value();
+  Context* context = *m.Value().handle();
   for (int i = access.depth(); i > 0; --i) {
     context = context->previous();
   }
@@ -109,9 +109,9 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
 Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSStoreContext, node->opcode());
 
-  ValueMatcher<Handle<Context> > match(NodeProperties::GetValueInput(node, 0));
+  HeapObjectMatcher<Context> m(NodeProperties::GetValueInput(node, 0));
   // If the context is not constant, no reduction can occur.
-  if (!match.HasValue()) {
+  if (!m.HasValue()) {
     return Reducer::NoChange();
   }
 
@@ -123,7 +123,7 @@ Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
   }
 
   // Find the right parent context.
-  Context* context = *match.Value();
+  Context* context = *m.Value().handle();
   for (int i = access.depth(); i > 0; --i) {
     context = context->previous();
   }

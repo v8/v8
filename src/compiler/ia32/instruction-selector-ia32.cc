@@ -30,8 +30,8 @@ class IA32OperandGenerator FINAL : public OperandGenerator {
       case IrOpcode::kHeapConstant: {
         // Constants in new space cannot be used as immediates in V8 because
         // the GC does not scan code objects when collecting the new generation.
-        Handle<HeapObject> value = ValueOf<Handle<HeapObject> >(node->op());
-        return !isolate()->heap()->InNewSpace(*value);
+        Unique<HeapObject> value = OpParameter<Unique<HeapObject> >(node);
+        return !isolate()->heap()->InNewSpace(*value.handle());
       }
       default:
         return false;

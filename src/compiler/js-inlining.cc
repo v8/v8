@@ -237,12 +237,12 @@ void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
 void JSInliner::TryInlineCall(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
 
-  ValueMatcher<Handle<JSFunction> > match(node->InputAt(0));
+  HeapObjectMatcher<JSFunction> match(node->InputAt(0));
   if (!match.HasValue()) {
     return;
   }
 
-  Handle<JSFunction> function = match.Value();
+  Handle<JSFunction> function = match.Value().handle();
 
   if (function->shared()->native()) {
     if (FLAG_trace_turbo_inlining) {

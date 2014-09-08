@@ -45,8 +45,8 @@ class X64OperandGenerator FINAL : public OperandGenerator {
       case IrOpcode::kHeapConstant: {
         // Constants in new space cannot be used as immediates in V8 because
         // the GC does not scan code objects when collecting the new generation.
-        Handle<HeapObject> value = ValueOf<Handle<HeapObject> >(node->op());
-        return !isolate()->heap()->InNewSpace(*value);
+        Unique<HeapObject> value = OpParameter<Unique<HeapObject> >(node);
+        return !isolate()->heap()->InNewSpace(*value.handle());
       }
       default:
         return false;
@@ -243,27 +243,25 @@ void InstructionSelector::VisitWord64Or(Node* node) {
 }
 
 
-template <typename T>
-static void VisitXor(InstructionSelector* selector, Node* node,
-                     ArchOpcode xor_opcode, ArchOpcode not_opcode) {
-  X64OperandGenerator g(selector);
-  BinopMatcher<IntMatcher<T>, IntMatcher<T> > m(node);
+void InstructionSelector::VisitWord32Xor(Node* node) {
+  X64OperandGenerator g(this);
+  Uint32BinopMatcher m(node);
   if (m.right().Is(-1)) {
-    selector->Emit(not_opcode, g.DefineSameAsFirst(node),
-                   g.Use(m.left().node()));
+    Emit(kX64Not32, g.DefineSameAsFirst(node), g.Use(m.left().node()));
   } else {
-    VisitBinop(selector, node, xor_opcode);
+    VisitBinop(this, node, kX64Xor32);
   }
 }
 
 
-void InstructionSelector::VisitWord32Xor(Node* node) {
-  VisitXor<int32_t>(this, node, kX64Xor32, kX64Not32);
-}
-
-
 void InstructionSelector::VisitWord64Xor(Node* node) {
-  VisitXor<int64_t>(this, node, kX64Xor, kX64Not);
+  X64OperandGenerator g(this);
+  Uint64BinopMatcher m(node);
+  if (m.right().Is(-1)) {
+    Emit(kX64Not, g.DefineSameAsFirst(node), g.Use(m.left().node()));
+  } else {
+    VisitBinop(this, node, kX64Xor);
+  }
 }
 
 
@@ -369,27 +367,25 @@ void InstructionSelector::VisitInt64Add(Node* node) {
 }
 
 
-template <typename T>
-static void VisitSub(InstructionSelector* selector, Node* node,
-                     ArchOpcode sub_opcode, ArchOpcode neg_opcode) {
-  X64OperandGenerator g(selector);
-  BinopMatcher<IntMatcher<T>, IntMatcher<T> > m(node);
+void InstructionSelector::VisitInt32Sub(Node* node) {
+  X64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
   if (m.left().Is(0)) {
-    selector->Emit(neg_opcode, g.DefineSameAsFirst(node),
-                   g.Use(m.right().node()));
+    Emit(kX64Neg32, g.DefineSameAsFirst(node), g.Use(m.right().node()));
   } else {
-    VisitBinop(selector, node, sub_opcode);
+    VisitBinop(this, node, kX64Sub32);
   }
 }
 
 
-void InstructionSelector::VisitInt32Sub(Node* node) {
-  VisitSub<int32_t>(this, node, kX64Sub32, kX64Neg32);
-}
-
-
 void InstructionSelector::VisitInt64Sub(Node* node) {
-  VisitSub<int64_t>(this, node, kX64Sub, kX64Neg);
+  X64OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  if (m.left().Is(0)) {
+    Emit(kX64Neg, g.DefineSameAsFirst(node), g.Use(m.right().node()));
+  } else {
+    VisitBinop(this, node, kX64Sub);
+  }
 }
 
 

@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_NODE_MATCHERS_H_
 #define V8_COMPILER_NODE_MATCHERS_H_
 
-#include "src/compiler/common-operator.h"
 #include "src/compiler/node.h"
+#include "src/compiler/operator.h"
 
 namespace v8 {
 namespace internal {
@@ -36,27 +36,27 @@ struct NodeMatcher {
 
 
 // A pattern matcher for abitrary value constants.
-template <typename T>
+template <typename T, IrOpcode::Value kOpcode>
 struct ValueMatcher : public NodeMatcher {
   explicit ValueMatcher(Node* node)
-      : NodeMatcher(node),
-        value_(),
-        has_value_(CommonOperatorTraits<T>::HasValue(node->op())) {
-    if (has_value_) value_ = CommonOperatorTraits<T>::ValueOf(node->op());
+      : NodeMatcher(node), value_(), has_value_(opcode() == kOpcode) {
+    if (has_value_) {
+      value_ = OpParameter<T>(node);
+    }
   }
 
   bool HasValue() const { return has_value_; }
-  T Value() const {
+  const T& Value() const {
     DCHECK(HasValue());
     return value_;
   }
 
-  bool Is(T value) const {
-    return HasValue() && CommonOperatorTraits<T>::Equals(Value(), value);
+  bool Is(const T& value) const {
+    return this->HasValue() && this->Value() == value;
   }
 
-  bool IsInRange(T low, T high) const {
-    return HasValue() && low <= value_ && value_ <= high;
+  bool IsInRange(const T& low, const T& high) const {
+    return this->HasValue() && low <= this->Value() && this->Value() <= high;
   }
 
  private:
@@ -66,9 +66,9 @@ struct ValueMatcher : public NodeMatcher {
 
 
 // A pattern matcher for integer constants.
-template <typename T>
-struct IntMatcher FINAL : public ValueMatcher<T> {
-  explicit IntMatcher(Node* node) : ValueMatcher<T>(node) {}
+template <typename T, IrOpcode::Value kOpcode>
+struct IntMatcher FINAL : public ValueMatcher<T, kOpcode> {
+  explicit IntMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
   bool IsPowerOf2() const {
     return this->HasValue() && this->Value() > 0 &&
@@ -76,31 +76,30 @@ struct IntMatcher FINAL : public ValueMatcher<T> {
   }
 };
 
-typedef IntMatcher<int32_t> Int32Matcher;
-typedef IntMatcher<uint32_t> Uint32Matcher;
-typedef IntMatcher<int64_t> Int64Matcher;
-typedef IntMatcher<uint64_t> Uint64Matcher;
+typedef IntMatcher<int32_t, IrOpcode::kInt32Constant> Int32Matcher;
+typedef IntMatcher<uint32_t, IrOpcode::kInt32Constant> Uint32Matcher;
+typedef IntMatcher<int64_t, IrOpcode::kInt64Constant> Int64Matcher;
+typedef IntMatcher<uint64_t, IrOpcode::kInt64Constant> Uint64Matcher;
 
 
 // A pattern matcher for floating point constants.
-template <typename T>
-struct FloatMatcher FINAL : public ValueMatcher<T> {
-  explicit FloatMatcher(Node* node) : ValueMatcher<T>(node) {}
+template <typename T, IrOpcode::Value kOpcode>
+struct FloatMatcher FINAL : public ValueMatcher<T, kOpcode> {
+  explicit FloatMatcher(Node* node) : ValueMatcher<T, kOpcode>(node) {}
 
   bool IsNaN() const { return this->HasValue() && std::isnan(this->Value()); }
 };
 
-typedef FloatMatcher<double> Float64Matcher;
+typedef FloatMatcher<double, IrOpcode::kFloat64Constant> Float64Matcher;
+typedef FloatMatcher<double, IrOpcode::kNumberConstant> NumberMatcher;
 
 
 // A pattern matcher for heap object constants.
-struct HeapObjectMatcher FINAL : public ValueMatcher<Handle<HeapObject> > {
+template <typename T>
+struct HeapObjectMatcher FINAL
+    : public ValueMatcher<Unique<T>, IrOpcode::kHeapConstant> {
   explicit HeapObjectMatcher(Node* node)
-      : ValueMatcher<Handle<HeapObject> >(node) {}
-
-  bool IsKnownGlobal(Handle<HeapObject> global) const {
-    return HasValue() && Value().is_identical_to(global);
-  }
+      : ValueMatcher<Unique<T>, IrOpcode::kHeapConstant>(node) {}
 };
 
 
@@ -138,8 +137,9 @@ typedef BinopMatcher<Uint32Matcher, Uint32Matcher> Uint32BinopMatcher;
 typedef BinopMatcher<Int64Matcher, Int64Matcher> Int64BinopMatcher;
 typedef BinopMatcher<Uint64Matcher, Uint64Matcher> Uint64BinopMatcher;
 typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_NODE_MATCHERS_H_

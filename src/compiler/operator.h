@@ -266,7 +266,7 @@ typedef Operator1<Unique<Name> > NameOperator;
 
 // Helper to extract parameters from Operator1<*> operator.
 template <typename T>
-static inline T OpParameter(const Operator* op) {
+static inline const T& OpParameter(const Operator* op) {
   return reinterpret_cast<const Operator1<T>*>(op)->parameter();
 }
 

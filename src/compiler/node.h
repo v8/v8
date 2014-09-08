@@ -82,7 +82,7 @@ typedef Node::Inputs::iterator InputIter;
 
 // Helper to extract parameters from Operator1<*> nodes.
 template <typename T>
-static inline T OpParameter(const Node* node) {
+static inline const T& OpParameter(const Node* node) {
   return OpParameter<T>(node->op());
 }
 

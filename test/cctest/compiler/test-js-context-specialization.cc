@@ -90,8 +90,8 @@ TEST(ReduceJSLoadContext) {
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
-    ValueMatcher<Handle<Context> > match(new_context_input);
-    CHECK_EQ(*native, *match.Value());
+    HeapObjectMatcher<Context> match(new_context_input);
+    CHECK_EQ(*native, *match.Value().handle());
     ContextAccess access = OpParameter<ContextAccess>(r.replacement());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, access.index());
     CHECK_EQ(0, access.depth());
@@ -106,9 +106,9 @@ TEST(ReduceJSLoadContext) {
     CHECK(r.Changed());
     CHECK(r.replacement() != load);
 
-    ValueMatcher<Handle<Object> > match(r.replacement());
+    HeapObjectMatcher<Object> match(r.replacement());
     CHECK(match.HasValue());
-    CHECK_EQ(*expected, *match.Value());
+    CHECK_EQ(*expected, *match.Value().handle());
   }
 
   // TODO(titzer): test with other kinds of contexts, e.g. a function context.
@@ -170,8 +170,8 @@ TEST(ReduceJSStoreContext) {
     CHECK(r.Changed());
     Node* new_context_input = NodeProperties::GetValueInput(r.replacement(), 0);
     CHECK_EQ(IrOpcode::kHeapConstant, new_context_input->opcode());
-    ValueMatcher<Handle<Context> > match(new_context_input);
-    CHECK_EQ(*native, *match.Value());
+    HeapObjectMatcher<Context> match(new_context_input);
+    CHECK_EQ(*native, *match.Value().handle());
     ContextAccess access = OpParameter<ContextAccess>(r.replacement());
     CHECK_EQ(Context::GLOBAL_EVAL_FUN_INDEX, access.index());
     CHECK_EQ(0, access.depth());
@@ -240,9 +240,9 @@ TEST(SpecializeToContext) {
     CHECK_EQ(other_load, other_use->InputAt(0));
 
     Node* replacement = value_use->InputAt(0);
-    ValueMatcher<Handle<Object> > match(replacement);
+    HeapObjectMatcher<Object> match(replacement);
     CHECK(match.HasValue());
-    CHECK_EQ(*expected, *match.Value());
+    CHECK_EQ(*expected, *match.Value().handle());
   }
   // TODO(titzer): clean up above test and test more complicated effects.
 }

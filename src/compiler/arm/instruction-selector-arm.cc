@@ -24,15 +24,9 @@ class ArmOperandGenerator FINAL : public OperandGenerator {
   }
 
   bool CanBeImmediate(Node* node, InstructionCode opcode) {
-    int32_t value;
-    switch (node->opcode()) {
-      case IrOpcode::kInt32Constant:
-      case IrOpcode::kNumberConstant:
-        value = ValueOf<int32_t>(node->op());
-        break;
-      default:
-        return false;
-    }
+    Int32Matcher m(node);
+    if (!m.HasValue()) return false;
+    int32_t value = m.Value();
     switch (ArchOpcodeField::decode(opcode)) {
       case kArmAnd:
       case kArmMov:

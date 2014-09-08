@@ -43,19 +43,19 @@ class RepresentationChangerTester : public HandleAndZoneScope,
 
   // TODO(titzer): use ValueChecker / ValueUtil
   void CheckInt32Constant(Node* n, int32_t expected) {
-    ValueMatcher<int32_t> m(n);
+    Int32Matcher m(n);
     CHECK(m.HasValue());
     CHECK_EQ(expected, m.Value());
   }
 
-  void CheckHeapConstant(Node* n, Object* expected) {
-    ValueMatcher<Handle<Object> > m(n);
+  void CheckHeapConstant(Node* n, HeapObject* expected) {
+    HeapObjectMatcher<HeapObject> m(n);
     CHECK(m.HasValue());
-    CHECK_EQ(expected, *m.Value());
+    CHECK_EQ(expected, *m.Value().handle());
   }
 
   void CheckNumberConstant(Node* n, double expected) {
-    ValueMatcher<double> m(n);
+    NumberMatcher m(n);
     CHECK_EQ(IrOpcode::kNumberConstant, n->opcode());
     CHECK(m.HasValue());
     CHECK_EQ(expected, m.Value());
