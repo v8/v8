@@ -976,20 +976,10 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 
 
 void CodeStub::GenerateFPStubs(Isolate* isolate) {
+  // Generate if not already in cache.
   SaveFPRegsMode mode = kSaveFPRegs;
-  CEntryStub save_doubles(isolate, 1, mode);
-  StoreBufferOverflowStub stub(isolate, mode);
-  // These stubs might already be in the snapshot, detect that and don't
-  // regenerate, which would lead to code stub initialization state being messed
-  // up.
-  Code* save_doubles_code;
-  if (!save_doubles.FindCodeInCache(&save_doubles_code)) {
-    save_doubles_code = *save_doubles.GetCode();
-  }
-  Code* store_buffer_overflow_code;
-  if (!stub.FindCodeInCache(&store_buffer_overflow_code)) {
-      store_buffer_overflow_code = *stub.GetCode();
-  }
+  CEntryStub(isolate, 1, mode).GetCode();
+  StoreBufferOverflowStub(isolate, mode).GetCode();
   isolate->set_fp_stubs_generated(true);
 }
 

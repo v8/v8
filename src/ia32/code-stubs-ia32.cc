@@ -2273,13 +2273,8 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 
 
 void CodeStub::GenerateFPStubs(Isolate* isolate) {
-  CEntryStub save_doubles(isolate, 1, kSaveFPRegs);
-  // Stubs might already be in the snapshot, detect that and don't regenerate,
-  // which would lead to code stub initialization state being messed up.
-  Code* save_doubles_code;
-  if (!save_doubles.FindCodeInCache(&save_doubles_code)) {
-    save_doubles_code = *(save_doubles.GetCode());
-  }
+  // Generate if not already in cache.
+  CEntryStub(isolate, 1, kSaveFPRegs).GetCode();
   isolate->set_fp_stubs_generated(true);
 }
 
