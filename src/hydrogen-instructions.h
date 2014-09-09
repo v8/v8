@@ -3493,7 +3493,7 @@ class HConstant FINAL : public HTemplateInstruction<0> {
 
   virtual Handle<Map> GetMonomorphicJSObjectMap() OVERRIDE {
     Handle<Object> object = object_.handle();
-    if (object->IsHeapObject()) {
+    if (!object.is_null() && object->IsHeapObject()) {
       return v8::internal::handle(HeapObject::cast(*object)->map());
     }
     return Handle<Map>();
