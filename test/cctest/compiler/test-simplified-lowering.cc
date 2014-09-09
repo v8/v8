@@ -36,10 +36,13 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
                            MachineType p4 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0, p1, p2, p3, p4),
         typer(this->zone()),
-        jsgraph(this->graph(), this->common(), &typer),
+        javascript(this->zone()),
+        jsgraph(this->graph(), this->common(), &javascript, &typer,
+                this->machine()),
         lowering(&jsgraph) {}
 
   Typer typer;
+  JSOperatorBuilder javascript;
   JSGraph jsgraph;
   SimplifiedLowering lowering;
 
@@ -626,6 +629,7 @@ TEST(RunAccessTests_Smi) {
 class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
  public:
   Typer typer;
+  JSOperatorBuilder javascript;
   JSGraph jsgraph;
   Node* p0;
   Node* p1;
@@ -636,7 +640,8 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   explicit TestingGraph(Type* p0_type, Type* p1_type = Type::None())
       : GraphAndBuilders(main_zone()),
         typer(main_zone()),
-        jsgraph(graph(), common(), &typer) {
+        javascript(main_zone()),
+        jsgraph(graph(), common(), &javascript, &typer, machine()) {
     start = graph()->NewNode(common()->Start(2));
     graph()->SetStart(start);
     ret =

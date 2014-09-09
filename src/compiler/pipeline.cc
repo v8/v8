@@ -170,7 +170,9 @@ Handle<Code> Pipeline::GenerateCode() {
   // typer could sweep over later.
   Typer typer(zone());
   CommonOperatorBuilder common(zone());
-  JSGraph jsgraph(&graph, &common, &typer);
+  JSOperatorBuilder javascript(zone());
+  MachineOperatorBuilder machine(zone());
+  JSGraph jsgraph(&graph, &common, &javascript, &typer, &machine);
   Node* context_node;
   {
     PhaseStats graph_builder_stats(info(), PhaseStats::CREATE_GRAPH,
@@ -256,7 +258,6 @@ Handle<Code> Pipeline::GenerateCode() {
       SourcePositionTable::Scope pos(&source_positions,
                                      SourcePosition::Unknown());
       Linkage linkage(info());
-      MachineOperatorBuilder machine(zone());
       ValueNumberingReducer vn_reducer(zone());
       SimplifiedOperatorReducer simple_reducer(&jsgraph, &machine);
       ChangeLowering lowering(&jsgraph, &linkage, &machine);
@@ -281,7 +282,6 @@ Handle<Code> Pipeline::GenerateCode() {
                                 "generic lowering");
       SourcePositionTable::Scope pos(&source_positions,
                                      SourcePosition::Unknown());
-      MachineOperatorBuilder machine(zone());
       JSGenericLowering lowering(info(), &jsgraph, &machine);
       GraphReducer graph_reducer(&graph);
       graph_reducer.AddReducer(&lowering);

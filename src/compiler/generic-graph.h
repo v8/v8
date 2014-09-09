@@ -22,7 +22,6 @@ class GenericGraphBase : public ZoneObject {
 
   NodeId NextNodeID() { return next_node_id_++; }
   NodeId NodeCount() const { return next_node_id_; }
-  void SetNextNodeId(NodeId next) { next_node_id_ = next; }
 
  private:
   Zone* zone_;
