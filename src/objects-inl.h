@@ -1473,21 +1473,22 @@ int HeapObject::Size() {
 }
 
 
-bool HeapObject::MayContainNewSpacePointers() {
+bool HeapObject::MayContainRawValues() {
   InstanceType type = map()->instance_type();
   if (type <= LAST_NAME_TYPE) {
     if (type == SYMBOL_TYPE) {
-      return true;
+      return false;
     }
     DCHECK(type < FIRST_NONSTRING_TYPE);
     // There are four string representations: sequential strings, external
     // strings, cons strings, and sliced strings.
-    // Only the latter two contain non-map-word pointers to heap objects.
-    return ((type & kIsIndirectStringMask) == kIsIndirectStringTag);
+    // Only the former two contain raw values and no heap pointers (besides the
+    // map-word).
+    return ((type & kIsIndirectStringMask) != kIsIndirectStringTag);
   }
-  // The ConstantPoolArray contains heap pointers, but not new space pointers.
-  if (type == CONSTANT_POOL_ARRAY_TYPE) return false;
-  return (type > LAST_DATA_TYPE);
+  // The ConstantPoolArray contains heap pointers, but also raw values.
+  if (type == CONSTANT_POOL_ARRAY_TYPE) return true;
+  return (type <= LAST_DATA_TYPE);
 }
 
 

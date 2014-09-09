@@ -2898,10 +2898,7 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
 
       Memory::Object_at(dst_slot) = value;
 
-      // We special case ConstantPoolArrays below since they could contain
-      // integers value entries which look like tagged pointers.
-      // TODO(mstarzinger): restructure this code to avoid this special-casing.
-      if (!src->IsConstantPoolArray()) {
+      if (!src->MayContainRawValues()) {
         RecordMigratedSlot(value, dst_slot);
       }
 
@@ -2919,6 +2916,9 @@ void MarkCompactCollector::MigrateObject(HeapObject* dst, HeapObject* src,
                            SlotsBuffer::IGNORE_OVERFLOW);
       }
     } else if (dst->IsConstantPoolArray()) {
+      // We special case ConstantPoolArrays since they could contain integers
+      // value entries which look like tagged pointers.
+      // TODO(mstarzinger): restructure this code to avoid this special-casing.
       ConstantPoolArray* array = ConstantPoolArray::cast(dst);
       ConstantPoolArray::Iterator code_iter(array, ConstantPoolArray::CODE_PTR);
       while (!code_iter.is_finished()) {
