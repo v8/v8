@@ -94,6 +94,10 @@
   'test-run-machops/RunLoadImmIndex': [SKIP],
   'test-run-machops/RunSpillLotsOfThingsWithCall': [SKIP],
 
+  # TODO(sigurds): The schedule is borked with multiple inlinees.
+  'test-run-inlining/InlineTwiceDependentDiamond': [SKIP],
+  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [SKIP],
+
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],

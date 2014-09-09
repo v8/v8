@@ -25,6 +25,9 @@ class AccessBuilder FINAL : public AllStatic {
   // Provides access to JSObject::elements() field.
   static FieldAccess ForJSObjectElements();
 
+  // Provides access to JSFunction::context() field.
+  static FieldAccess ForJSFunctionContext();
+
   // Provides access to JSArrayBuffer::backing_store() field.
   static FieldAccess ForJSArrayBufferBackingStore();
 
