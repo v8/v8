@@ -49,7 +49,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
+    CallInterfaceDescriptor descriptor, int stack_parameter_count,
     CallDescriptor::Flags flags, Zone* zone) {
   return LH::GetStubCallDescriptor(zone, descriptor, stack_parameter_count,
                                    flags);

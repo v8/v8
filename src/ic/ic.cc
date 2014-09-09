@@ -815,8 +815,8 @@ Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
 
 Handle<Code> LoadIC::megamorphic_stub() {
   if (kind() == Code::LOAD_IC) {
-    return PropertyICCompiler::ComputeLoad(isolate(), MEGAMORPHIC,
-                                           extra_ic_state());
+    MegamorphicLoadStub stub(isolate(), State(extra_ic_state()));
+    return stub.GetCode();
   } else {
     DCHECK_EQ(Code::KEYED_LOAD_IC, kind());
     return KeyedLoadIC::generic_stub(isolate());

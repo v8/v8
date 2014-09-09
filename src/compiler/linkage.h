@@ -178,10 +178,10 @@ class Linkage : public ZoneObject {
       Operator::Properties properties, Zone* zone);
 
   CallDescriptor* GetStubCallDescriptor(
-      CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count = 0,
+      CallInterfaceDescriptor descriptor, int stack_parameter_count = 0,
       CallDescriptor::Flags flags = CallDescriptor::kNoFlags);
   static CallDescriptor* GetStubCallDescriptor(
-      CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
+      CallInterfaceDescriptor descriptor, int stack_parameter_count,
       CallDescriptor::Flags flags, Zone* zone);
 
   // Creates a call descriptor for simplified C calls that is appropriate

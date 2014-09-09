@@ -42,6 +42,24 @@ void CallInterfaceDescriptorData::Initialize(
 }
 
 
+const char* CallInterfaceDescriptor::DebugName(Isolate* isolate) {
+  CallInterfaceDescriptorData* start = isolate->call_descriptor_data(0);
+  size_t index = data_ - start;
+  DCHECK(index < CallDescriptors::NUMBER_OF_DESCRIPTORS);
+  CallDescriptors::Key key = static_cast<CallDescriptors::Key>(index);
+  switch (key) {
+#define DEF_CASE(NAME)        \
+  case CallDescriptors::NAME: \
+    return #NAME " Descriptor";
+    INTERFACE_DESCRIPTOR_LIST(DEF_CASE)
+#undef DEF_CASE
+    case CallDescriptors::NUMBER_OF_DESCRIPTORS:
+      break;
+  }
+  return "";
+}
+
+
 void LoadDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), ReceiverRegister(),
                           NameRegister()};

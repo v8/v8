@@ -786,7 +786,7 @@ void* OS::Allocate(const size_t requested,
 
   if (mbase == NULL) return NULL;
 
-  DCHECK(IsAligned(reinterpret_cast<size_t>(mbase), OS::AllocateAlignment()));
+  DCHECK((reinterpret_cast<uintptr_t>(mbase) % OS::AllocateAlignment()) == 0);
 
   *allocated = msize;
   return mbase;
@@ -1205,7 +1205,7 @@ VirtualMemory::VirtualMemory(size_t size)
 
 VirtualMemory::VirtualMemory(size_t size, size_t alignment)
     : address_(NULL), size_(0) {
-  DCHECK(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
+  DCHECK((alignment % OS::AllocateAlignment()) == 0);
   size_t request_size = RoundUp(size + alignment,
                                 static_cast<intptr_t>(OS::AllocateAlignment()));
   void* address = ReserveRegion(request_size);

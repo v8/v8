@@ -568,26 +568,26 @@ class Factory FINAL {
   MUST_USE_RESULT MaybeHandle<FunctionTemplateInfo> ConfigureInstance(
       Handle<FunctionTemplateInfo> desc, Handle<JSObject> instance);
 
-#define ROOT_ACCESSOR(type, name, camel_name)                                  \
-  inline Handle<type> name() {                                                 \
-    return Handle<type>(BitCast<type**>(                                       \
-        &isolate()->heap()->roots_[Heap::k##camel_name##RootIndex]));          \
+#define ROOT_ACCESSOR(type, name, camel_name)                         \
+  inline Handle<type> name() {                                        \
+    return Handle<type>(bit_cast<type**>(                             \
+        &isolate()->heap()->roots_[Heap::k##camel_name##RootIndex])); \
   }
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name)                                  \
-  inline Handle<Map> name##_map() {                                            \
-    return Handle<Map>(BitCast<Map**>(                                         \
-        &isolate()->heap()->roots_[Heap::k##Name##MapRootIndex]));             \
-    }
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name)                      \
+  inline Handle<Map> name##_map() {                                \
+    return Handle<Map>(bit_cast<Map**>(                            \
+        &isolate()->heap()->roots_[Heap::k##Name##MapRootIndex])); \
+  }
   STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
-#define STRING_ACCESSOR(name, str)                                             \
-  inline Handle<String> name() {                                               \
-    return Handle<String>(BitCast<String**>(                                   \
-        &isolate()->heap()->roots_[Heap::k##name##RootIndex]));                \
+#define STRING_ACCESSOR(name, str)                              \
+  inline Handle<String> name() {                                \
+    return Handle<String>(bit_cast<String**>(                   \
+        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
   }
   INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
 #undef STRING_ACCESSOR

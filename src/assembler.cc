@@ -883,7 +883,7 @@ void ExternalReference::SetUp() {
   double_constants.one_half = 0.5;
   double_constants.minus_one_half = -0.5;
   double_constants.canonical_non_hole_nan = base::OS::nan_value();
-  double_constants.the_hole_nan = BitCast<double>(kHoleNanInt64);
+  double_constants.the_hole_nan = bit_cast<double>(kHoleNanInt64);
   double_constants.negative_infinity = -V8_INFINITY;
   double_constants.uint32_bias =
     static_cast<double>(static_cast<uint32_t>(0xFFFFFFFF)) + 1;
@@ -924,9 +924,9 @@ void ExternalReference::InitializeMathExpData() {
     math_exp_log_table_array = new double[kTableSize];
     for (int i = 0; i < kTableSize; i++) {
       double value = std::pow(2, i / kTableSizeDouble);
-      uint64_t bits = BitCast<uint64_t, double>(value);
+      uint64_t bits = bit_cast<uint64_t, double>(value);
       bits &= (static_cast<uint64_t>(1) << 52) - 1;
-      double mantissa = BitCast<double, uint64_t>(bits);
+      double mantissa = bit_cast<double, uint64_t>(bits);
       math_exp_log_table_array[i] = mantissa;
     }
 

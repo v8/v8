@@ -171,10 +171,10 @@ struct StaticParameterTraits<double> {
     return os << val;
   }
   static int HashCode(double a) {
-    return static_cast<int>(BitCast<int64_t>(a));
+    return static_cast<int>(bit_cast<int64_t>(a));
   }
   static bool Equals(double a, double b) {
-    return BitCast<int64_t>(a) == BitCast<int64_t>(b);
+    return bit_cast<int64_t>(a) == bit_cast<int64_t>(b);
   }
 };
 
@@ -266,7 +266,7 @@ typedef Operator1<Unique<Name> > NameOperator;
 
 // Helper to extract parameters from Operator1<*> operator.
 template <typename T>
-static inline T OpParameter(const Operator* op) {
+static inline const T& OpParameter(const Operator* op) {
   return reinterpret_cast<const Operator1<T>*>(op)->parameter();
 }
 

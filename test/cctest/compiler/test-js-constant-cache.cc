@@ -36,7 +36,7 @@ class JSConstantCacheTester : public HandleAndZoneScope,
 
   Handle<Object> handle(Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    return ValueOf<Handle<Object> >(node->op());
+    return OpParameter<Unique<Object> >(node).handle();
   }
 
   Factory* factory() { return main_isolate()->factory(); }
@@ -87,8 +87,8 @@ TEST(MinusZeroConstant) {
   CHECK(!t->Is(Type::SignedSmall()));
   CHECK(!t->Is(Type::UnsignedSmall()));
 
-  double zero_value = ValueOf<double>(zero->op());
-  double minus_zero_value = ValueOf<double>(minus_zero->op());
+  double zero_value = OpParameter<double>(zero);
+  double minus_zero_value = OpParameter<double>(minus_zero);
 
   CHECK_EQ(0.0, zero_value);
   CHECK_NE(-0.0, zero_value);

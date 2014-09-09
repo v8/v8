@@ -51,10 +51,9 @@ Linkage::Linkage(CompilationInfo* info) : info_(info) {
     incoming_ = GetJSCallDescriptor(1 + shared->formal_parameter_count());
   } else if (info->code_stub() != NULL) {
     // Use the code stub interface descriptor.
-    HydrogenCodeStub* stub = info->code_stub();
-    CodeStubInterfaceDescriptor descriptor;
-    stub->InitializeInterfaceDescriptor(&descriptor);
-    incoming_ = GetStubCallDescriptor(&descriptor);
+    CallInterfaceDescriptor descriptor =
+        info->code_stub()->GetCallInterfaceDescriptor();
+    incoming_ = GetStubCallDescriptor(descriptor);
   } else {
     incoming_ = NULL;  // TODO(titzer): ?
   }
@@ -102,7 +101,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
+    CallInterfaceDescriptor descriptor, int stack_parameter_count,
     CallDescriptor::Flags flags) {
   return GetStubCallDescriptor(descriptor, stack_parameter_count, flags,
                                this->info_->zone());
@@ -148,7 +147,7 @@ CallDescriptor* Linkage::GetRuntimeCallDescriptor(
 
 
 CallDescriptor* Linkage::GetStubCallDescriptor(
-    CodeStubInterfaceDescriptor* descriptor, int stack_parameter_count,
+    CallInterfaceDescriptor descriptor, int stack_parameter_count,
     CallDescriptor::Flags flags, Zone* zone) {
   UNIMPLEMENTED();
   return NULL;

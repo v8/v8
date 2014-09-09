@@ -32,6 +32,8 @@ class UniqueSet;
 template <typename T>
 class Unique {
  public:
+  Unique<T>() : raw_address_(NULL) {}
+
   // TODO(titzer): make private and introduce a uniqueness scope.
   explicit Unique(Handle<T> handle) {
     if (handle.is_null()) {
@@ -120,8 +122,6 @@ class Unique {
   friend class Unique;  // For comparing raw_address values.
 
  protected:
-  Unique<T>() : raw_address_(NULL) { }
-
   Address raw_address_;
   Handle<T> handle_;
 

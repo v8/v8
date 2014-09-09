@@ -1622,12 +1622,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslationIterator* iterator,
 
   CHECK(compiled_code_->is_hydrogen_stub());
   int major_key = CodeStub::GetMajorKey(compiled_code_);
-  CodeStubInterfaceDescriptor descriptor;
-  CodeStub::InitializeInterfaceDescriptor(isolate_, compiled_code_->stub_key(),
-                                          &descriptor);
-  // Check that there is a matching descriptor to the major key.
-  // This will fail if there has not been one installed to the isolate.
-  DCHECK_EQ(descriptor.MajorKey(), major_key);
+  CodeStubDescriptor descriptor(isolate_, compiled_code_->stub_key());
 
   // The output frame must have room for all pushed register parameters
   // and the standard stack frame slots.  Include space for an argument
@@ -3675,7 +3670,7 @@ DeoptimizedFrameInfo::~DeoptimizedFrameInfo() {
 
 
 void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(BitCast<Object**>(&function_));
+  v->VisitPointer(bit_cast<Object**>(&function_));
   v->VisitPointer(&context_);
   v->VisitPointers(parameters_, parameters_ + parameters_count_);
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);

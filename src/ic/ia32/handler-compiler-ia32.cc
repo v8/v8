@@ -730,9 +730,9 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptorWithFollowup(
     // Clobber registers when generating debug-code to provoke errors.
     __ bind(&interceptor_failed);
     if (FLAG_debug_code) {
-      __ mov(receiver(), Immediate(BitCast<int32_t>(kZapValue)));
-      __ mov(holder_reg, Immediate(BitCast<int32_t>(kZapValue)));
-      __ mov(this->name(), Immediate(BitCast<int32_t>(kZapValue)));
+      __ mov(receiver(), Immediate(bit_cast<int32_t>(kZapValue)));
+      __ mov(holder_reg, Immediate(bit_cast<int32_t>(kZapValue)));
+      __ mov(this->name(), Immediate(bit_cast<int32_t>(kZapValue)));
     }
 
     __ pop(this->name());

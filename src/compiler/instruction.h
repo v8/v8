@@ -658,11 +658,11 @@ class Constant FINAL {
 
   explicit Constant(int32_t v) : type_(kInt32), value_(v) {}
   explicit Constant(int64_t v) : type_(kInt64), value_(v) {}
-  explicit Constant(double v) : type_(kFloat64), value_(BitCast<int64_t>(v)) {}
+  explicit Constant(double v) : type_(kFloat64), value_(bit_cast<int64_t>(v)) {}
   explicit Constant(ExternalReference ref)
-      : type_(kExternalReference), value_(BitCast<intptr_t>(ref)) {}
+      : type_(kExternalReference), value_(bit_cast<intptr_t>(ref)) {}
   explicit Constant(Handle<HeapObject> obj)
-      : type_(kHeapObject), value_(BitCast<intptr_t>(obj)) {}
+      : type_(kHeapObject), value_(bit_cast<intptr_t>(obj)) {}
 
   Type type() const { return type_; }
 
@@ -680,17 +680,17 @@ class Constant FINAL {
   double ToFloat64() const {
     if (type() == kInt32) return ToInt32();
     DCHECK_EQ(kFloat64, type());
-    return BitCast<double>(value_);
+    return bit_cast<double>(value_);
   }
 
   ExternalReference ToExternalReference() const {
     DCHECK_EQ(kExternalReference, type());
-    return BitCast<ExternalReference>(static_cast<intptr_t>(value_));
+    return bit_cast<ExternalReference>(static_cast<intptr_t>(value_));
   }
 
   Handle<HeapObject> ToHeapObject() const {
     DCHECK_EQ(kHeapObject, type());
-    return BitCast<Handle<HeapObject> >(static_cast<intptr_t>(value_));
+    return bit_cast<Handle<HeapObject> >(static_cast<intptr_t>(value_));
   }
 
  private:

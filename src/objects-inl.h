@@ -2193,18 +2193,18 @@ void FixedArray::set(int index, Object* value) {
 
 
 inline bool FixedDoubleArray::is_the_hole_nan(double value) {
-  return BitCast<uint64_t, double>(value) == kHoleNanInt64;
+  return bit_cast<uint64_t, double>(value) == kHoleNanInt64;
 }
 
 
 inline double FixedDoubleArray::hole_nan_as_double() {
-  return BitCast<double, uint64_t>(kHoleNanInt64);
+  return bit_cast<double, uint64_t>(kHoleNanInt64);
 }
 
 
 inline double FixedDoubleArray::canonical_not_the_hole_nan_as_double() {
-  DCHECK(BitCast<uint64_t>(base::OS::nan_value()) != kHoleNanInt64);
-  DCHECK((BitCast<uint64_t>(base::OS::nan_value()) >> 32) != kHoleNanUpper32);
+  DCHECK(bit_cast<uint64_t>(base::OS::nan_value()) != kHoleNanInt64);
+  DCHECK((bit_cast<uint64_t>(base::OS::nan_value()) >> 32) != kHoleNanUpper32);
   return base::OS::nan_value();
 }
 

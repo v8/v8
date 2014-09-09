@@ -143,16 +143,16 @@ class OperandGenerator {
   static Constant ToConstant(const Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
-        return Constant(ValueOf<int32_t>(node->op()));
+        return Constant(OpParameter<int32_t>(node));
       case IrOpcode::kInt64Constant:
-        return Constant(ValueOf<int64_t>(node->op()));
+        return Constant(OpParameter<int64_t>(node));
       case IrOpcode::kNumberConstant:
       case IrOpcode::kFloat64Constant:
-        return Constant(ValueOf<double>(node->op()));
+        return Constant(OpParameter<double>(node));
       case IrOpcode::kExternalConstant:
-        return Constant(ValueOf<ExternalReference>(node->op()));
+        return Constant(OpParameter<ExternalReference>(node));
       case IrOpcode::kHeapConstant:
-        return Constant(ValueOf<Handle<HeapObject> >(node->op()));
+        return Constant(OpParameter<Unique<HeapObject> >(node).handle());
       default:
         break;
     }

@@ -213,9 +213,10 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.
-      int index = OpParameter<int>(node);
+      size_t index = OpParameter<size_t>(node);
       Node* input = NodeProperties::GetValueInput(node, 0);
-      CHECK_GT(OperatorProperties::GetValueOutputCount(input->op()), index);
+      CHECK_GT(OperatorProperties::GetValueOutputCount(input->op()),
+               static_cast<int>(index));
       break;
     }
     default:

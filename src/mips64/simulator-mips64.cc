@@ -14,7 +14,6 @@
 #include "src/assembler.h"
 #include "src/base/bits.h"
 #include "src/disasm.h"
-#include "src/globals.h"    // Need the BitCast.
 #include "src/mips64/constants-mips64.h"
 #include "src/mips64/simulator-mips64.h"
 #include "src/ostreams.h"
@@ -1057,13 +1056,13 @@ void Simulator::set_fpu_register_hi_word(int fpureg, int32_t value) {
 
 void Simulator::set_fpu_register_float(int fpureg, float value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *BitCast<float*>(&FPUregisters_[fpureg]) = value;
+  *bit_cast<float*>(&FPUregisters_[fpureg]) = value;
 }
 
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *BitCast<double*>(&FPUregisters_[fpureg]) = value;
+  *bit_cast<double*>(&FPUregisters_[fpureg]) = value;
 }
 
 
@@ -1118,14 +1117,13 @@ uint32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
 
 float Simulator::get_fpu_register_float(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *BitCast<float*>(
-      const_cast<int64_t*>(&FPUregisters_[fpureg]));
+  return *bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
 }
 
 
 double Simulator::get_fpu_register_double(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *BitCast<double*>(&FPUregisters_[fpureg]);
+  return *bit_cast<double*>(&FPUregisters_[fpureg]);
 }
 
 

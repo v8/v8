@@ -18,11 +18,11 @@ SimplifiedOperatorReducer::~SimplifiedOperatorReducer() {}
 Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kBooleanNot: {
-      HeapObjectMatcher m(node->InputAt(0));
-      if (m.IsKnownGlobal(factory()->false_value())) {
+      HeapObjectMatcher<HeapObject> m(node->InputAt(0));
+      if (m.Is(Unique<HeapObject>::CreateImmovable(factory()->false_value()))) {
         return Replace(jsgraph()->TrueConstant());
       }
-      if (m.IsKnownGlobal(factory()->true_value())) {
+      if (m.Is(Unique<HeapObject>::CreateImmovable(factory()->true_value()))) {
         return Replace(jsgraph()->FalseConstant());
       }
       if (m.IsBooleanNot()) return Replace(m.node()->InputAt(0));
@@ -36,9 +36,13 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kChangeBoolToBit: {
-      HeapObjectMatcher m(node->InputAt(0));
-      if (m.IsKnownGlobal(factory()->false_value())) return ReplaceInt32(0);
-      if (m.IsKnownGlobal(factory()->true_value())) return ReplaceInt32(1);
+      HeapObjectMatcher<HeapObject> m(node->InputAt(0));
+      if (m.Is(Unique<HeapObject>::CreateImmovable(factory()->false_value()))) {
+        return ReplaceInt32(0);
+      }
+      if (m.Is(Unique<HeapObject>::CreateImmovable(factory()->true_value()))) {
+        return ReplaceInt32(1);
+      }
       if (m.IsChangeBitToBool()) return Replace(m.node()->InputAt(0));
       break;
     }
@@ -53,7 +57,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kChangeTaggedToFloat64: {
-      Float64Matcher m(node->InputAt(0));
+      NumberMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat64(m.Value());
       if (m.IsChangeFloat64ToTagged()) return Replace(m.node()->InputAt(0));
       if (m.IsChangeInt32ToTagged()) {
@@ -67,7 +71,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kChangeTaggedToInt32: {
-      Float64Matcher m(node->InputAt(0));
+      NumberMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
       if (m.IsChangeFloat64ToTagged()) {
         return Change(node, machine()->ChangeFloat64ToInt32(),
@@ -77,7 +81,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       break;
     }
     case IrOpcode::kChangeTaggedToUint32: {
-      Float64Matcher m(node->InputAt(0));
+      NumberMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceUint32(DoubleToUint32(m.Value()));
       if (m.IsChangeFloat64ToTagged()) {
         return Change(node, machine()->ChangeFloat64ToUint32(),

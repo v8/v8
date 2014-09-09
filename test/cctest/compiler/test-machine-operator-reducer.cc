@@ -30,6 +30,22 @@ Operator* NewConstantOperator<double>(CommonOperatorBuilder* common,
 }
 
 
+template <typename T>
+T ValueOfOperator(const Operator* op);
+
+template <>
+int32_t ValueOfOperator<int32_t>(const Operator* op) {
+  CHECK_EQ(IrOpcode::kInt32Constant, op->opcode());
+  return OpParameter<int32_t>(op);
+}
+
+template <>
+double ValueOfOperator<double>(const Operator* op) {
+  CHECK_EQ(IrOpcode::kFloat64Constant, op->opcode());
+  return OpParameter<double>(op);
+}
+
+
 class ReducerTester : public HandleAndZoneScope {
  public:
   explicit ReducerTester(int num_parameters = 0)
@@ -59,6 +75,11 @@ class ReducerTester : public HandleAndZoneScope {
   template <typename T>
   Node* Constant(volatile T value) {
     return graph.NewNode(NewConstantOperator<T>(&common, value));
+  }
+
+  template <typename T>
+  const T ValueOf(const Operator* op) {
+    return ValueOfOperator<T>(op);
   }
 
   // Check that the reduction of this binop applied to constants {a} and {b}

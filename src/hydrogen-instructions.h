@@ -37,133 +37,134 @@ class LInstruction;
 class LChunkBuilder;
 class OStream;
 
-#define HYDROGEN_ABSTRACT_INSTRUCTION_LIST(V)  \
-  V(ArithmeticBinaryOperation)                 \
-  V(BinaryOperation)                           \
-  V(BitwiseBinaryOperation)                    \
-  V(ControlInstruction)                        \
-  V(Instruction)                               \
+#define HYDROGEN_ABSTRACT_INSTRUCTION_LIST(V) \
+  V(ArithmeticBinaryOperation)                \
+  V(BinaryOperation)                          \
+  V(BitwiseBinaryOperation)                   \
+  V(ControlInstruction)                       \
+  V(Instruction)
 
 
-#define HYDROGEN_CONCRETE_INSTRUCTION_LIST(V)  \
-  V(AbnormalExit)                              \
-  V(AccessArgumentsAt)                         \
-  V(Add)                                       \
-  V(AllocateBlockContext)                      \
-  V(Allocate)                                  \
-  V(ApplyArguments)                            \
-  V(ArgumentsElements)                         \
-  V(ArgumentsLength)                           \
-  V(ArgumentsObject)                           \
-  V(Bitwise)                                   \
-  V(BlockEntry)                                \
-  V(BoundsCheck)                               \
-  V(BoundsCheckBaseIndexInformation)           \
-  V(Branch)                                    \
-  V(CallWithDescriptor)                        \
-  V(CallJSFunction)                            \
-  V(CallFunction)                              \
-  V(CallNew)                                   \
-  V(CallNewArray)                              \
-  V(CallRuntime)                               \
-  V(CallStub)                                  \
-  V(CapturedObject)                            \
-  V(Change)                                    \
-  V(CheckHeapObject)                           \
-  V(CheckInstanceType)                         \
-  V(CheckMaps)                                 \
-  V(CheckMapValue)                             \
-  V(CheckSmi)                                  \
-  V(CheckValue)                                \
-  V(ClampToUint8)                              \
-  V(ClassOfTestAndBranch)                      \
-  V(CompareNumericAndBranch)                   \
-  V(CompareHoleAndBranch)                      \
-  V(CompareGeneric)                            \
-  V(CompareMinusZeroAndBranch)                 \
-  V(CompareObjectEqAndBranch)                  \
-  V(CompareMap)                                \
-  V(Constant)                                  \
-  V(ConstructDouble)                           \
-  V(Context)                                   \
-  V(DateField)                                 \
-  V(DebugBreak)                                \
-  V(DeclareGlobals)                            \
-  V(Deoptimize)                                \
-  V(Div)                                       \
-  V(DoubleBits)                                \
-  V(DummyUse)                                  \
-  V(EnterInlined)                              \
-  V(EnvironmentMarker)                         \
-  V(ForceRepresentation)                       \
-  V(ForInCacheArray)                           \
-  V(ForInPrepareMap)                           \
-  V(FunctionLiteral)                           \
-  V(GetCachedArrayIndex)                       \
-  V(Goto)                                      \
-  V(HasCachedArrayIndexAndBranch)              \
-  V(HasInstanceTypeAndBranch)                  \
-  V(InnerAllocatedObject)                      \
-  V(InstanceOf)                                \
-  V(InstanceOfKnownGlobal)                     \
-  V(InvokeFunction)                            \
-  V(IsConstructCallAndBranch)                  \
-  V(IsObjectAndBranch)                         \
-  V(IsStringAndBranch)                         \
-  V(IsSmiAndBranch)                            \
-  V(IsUndetectableAndBranch)                   \
-  V(LeaveInlined)                              \
-  V(LoadContextSlot)                           \
-  V(LoadFieldByIndex)                          \
-  V(LoadFunctionPrototype)                     \
-  V(LoadGlobalCell)                            \
-  V(LoadGlobalGeneric)                         \
-  V(LoadKeyed)                                 \
-  V(LoadKeyedGeneric)                          \
-  V(LoadNamedField)                            \
-  V(LoadNamedGeneric)                          \
-  V(LoadRoot)                                  \
-  V(MapEnumLength)                             \
-  V(MathFloorOfDiv)                            \
-  V(MathMinMax)                                \
-  V(Mod)                                       \
-  V(Mul)                                       \
-  V(OsrEntry)                                  \
-  V(Parameter)                                 \
-  V(Power)                                     \
-  V(PushArguments)                             \
-  V(RegExpLiteral)                             \
-  V(Return)                                    \
-  V(Ror)                                       \
-  V(Sar)                                       \
-  V(SeqStringGetChar)                          \
-  V(SeqStringSetChar)                          \
-  V(Shl)                                       \
-  V(Shr)                                       \
-  V(Simulate)                                  \
-  V(StackCheck)                                \
-  V(StoreCodeEntry)                            \
-  V(StoreContextSlot)                          \
-  V(StoreFrameContext)                         \
-  V(StoreGlobalCell)                           \
-  V(StoreKeyed)                                \
-  V(StoreKeyedGeneric)                         \
-  V(StoreNamedField)                           \
-  V(StoreNamedGeneric)                         \
-  V(StringAdd)                                 \
-  V(StringCharCodeAt)                          \
-  V(StringCharFromCode)                        \
-  V(StringCompareAndBranch)                    \
-  V(Sub)                                       \
-  V(ThisFunction)                              \
-  V(ToFastProperties)                          \
-  V(TransitionElementsKind)                    \
-  V(TrapAllocationMemento)                     \
-  V(Typeof)                                    \
-  V(TypeofIsAndBranch)                         \
-  V(UnaryMathOperation)                        \
-  V(UnknownOSRValue)                           \
-  V(UseConst)                                  \
+#define HYDROGEN_CONCRETE_INSTRUCTION_LIST(V) \
+  V(AbnormalExit)                             \
+  V(AccessArgumentsAt)                        \
+  V(Add)                                      \
+  V(AllocateBlockContext)                     \
+  V(Allocate)                                 \
+  V(ApplyArguments)                           \
+  V(ArgumentsElements)                        \
+  V(ArgumentsLength)                          \
+  V(ArgumentsObject)                          \
+  V(Bitwise)                                  \
+  V(BlockEntry)                               \
+  V(BoundsCheck)                              \
+  V(BoundsCheckBaseIndexInformation)          \
+  V(Branch)                                   \
+  V(CallWithDescriptor)                       \
+  V(CallJSFunction)                           \
+  V(CallFunction)                             \
+  V(CallNew)                                  \
+  V(CallNewArray)                             \
+  V(CallRuntime)                              \
+  V(CallStub)                                 \
+  V(CapturedObject)                           \
+  V(Change)                                   \
+  V(CheckHeapObject)                          \
+  V(CheckInstanceType)                        \
+  V(CheckMaps)                                \
+  V(CheckMapValue)                            \
+  V(CheckSmi)                                 \
+  V(CheckValue)                               \
+  V(ClampToUint8)                             \
+  V(ClassOfTestAndBranch)                     \
+  V(CompareNumericAndBranch)                  \
+  V(CompareHoleAndBranch)                     \
+  V(CompareGeneric)                           \
+  V(CompareMinusZeroAndBranch)                \
+  V(CompareObjectEqAndBranch)                 \
+  V(CompareMap)                               \
+  V(Constant)                                 \
+  V(ConstructDouble)                          \
+  V(Context)                                  \
+  V(DateField)                                \
+  V(DebugBreak)                               \
+  V(DeclareGlobals)                           \
+  V(Deoptimize)                               \
+  V(Div)                                      \
+  V(DoubleBits)                               \
+  V(DummyUse)                                 \
+  V(EnterInlined)                             \
+  V(EnvironmentMarker)                        \
+  V(ForceRepresentation)                      \
+  V(ForInCacheArray)                          \
+  V(ForInPrepareMap)                          \
+  V(FunctionLiteral)                          \
+  V(GetCachedArrayIndex)                      \
+  V(Goto)                                     \
+  V(HasCachedArrayIndexAndBranch)             \
+  V(HasInstanceTypeAndBranch)                 \
+  V(InnerAllocatedObject)                     \
+  V(InstanceOf)                               \
+  V(InstanceOfKnownGlobal)                    \
+  V(InvokeFunction)                           \
+  V(IsConstructCallAndBranch)                 \
+  V(IsObjectAndBranch)                        \
+  V(IsStringAndBranch)                        \
+  V(IsSmiAndBranch)                           \
+  V(IsUndetectableAndBranch)                  \
+  V(LeaveInlined)                             \
+  V(LoadContextSlot)                          \
+  V(LoadFieldByIndex)                         \
+  V(LoadFunctionPrototype)                    \
+  V(LoadGlobalCell)                           \
+  V(LoadGlobalGeneric)                        \
+  V(LoadKeyed)                                \
+  V(LoadKeyedGeneric)                         \
+  V(LoadNamedField)                           \
+  V(LoadNamedGeneric)                         \
+  V(LoadRoot)                                 \
+  V(MapEnumLength)                            \
+  V(MathFloorOfDiv)                           \
+  V(MathMinMax)                               \
+  V(Mod)                                      \
+  V(Mul)                                      \
+  V(OsrEntry)                                 \
+  V(Parameter)                                \
+  V(Power)                                    \
+  V(PushArguments)                            \
+  V(RegExpLiteral)                            \
+  V(Return)                                   \
+  V(Ror)                                      \
+  V(Sar)                                      \
+  V(SeqStringGetChar)                         \
+  V(SeqStringSetChar)                         \
+  V(Shl)                                      \
+  V(Shr)                                      \
+  V(Simulate)                                 \
+  V(StackCheck)                               \
+  V(StoreCodeEntry)                           \
+  V(StoreContextSlot)                         \
+  V(StoreFrameContext)                        \
+  V(StoreGlobalCell)                          \
+  V(StoreKeyed)                               \
+  V(StoreKeyedGeneric)                        \
+  V(StoreNamedField)                          \
+  V(StoreNamedGeneric)                        \
+  V(StringAdd)                                \
+  V(StringCharCodeAt)                         \
+  V(StringCharFromCode)                       \
+  V(StringCompareAndBranch)                   \
+  V(Sub)                                      \
+  V(TailCallThroughMegamorphicCache)          \
+  V(ThisFunction)                             \
+  V(ToFastProperties)                         \
+  V(TransitionElementsKind)                   \
+  V(TrapAllocationMemento)                    \
+  V(Typeof)                                   \
+  V(TypeofIsAndBranch)                        \
+  V(UnaryMathOperation)                       \
+  V(UnknownOSRValue)                          \
+  V(UseConst)                                 \
   V(WrapReceiver)
 
 #define GVN_TRACKED_FLAG_LIST(V)               \
@@ -2324,9 +2325,8 @@ class HCallWithDescriptor FINAL : public HInstruction {
                                   CallInterfaceDescriptor descriptor,
                                   const Vector<HValue*>& operands) {
     DCHECK(operands.length() == descriptor.GetEnvironmentLength());
-    HCallWithDescriptor* res =
-        new(zone) HCallWithDescriptor(target, argument_count,
-                                      descriptor, operands, zone);
+    HCallWithDescriptor* res = new (zone)
+        HCallWithDescriptor(target, argument_count, descriptor, operands, zone);
     return res;
   }
 
@@ -3542,9 +3542,9 @@ class HConstant FINAL : public HTemplateInstruction<0> {
 
   bool IsSpecialDouble() const {
     return has_double_value_ &&
-        (BitCast<int64_t>(double_value_) == BitCast<int64_t>(-0.0) ||
-         FixedDoubleArray::is_the_hole_nan(double_value_) ||
-         std::isnan(double_value_));
+           (bit_cast<int64_t>(double_value_) == bit_cast<int64_t>(-0.0) ||
+            FixedDoubleArray::is_the_hole_nan(double_value_) ||
+            std::isnan(double_value_));
   }
 
   bool NotInNewSpace() const {
@@ -3648,7 +3648,7 @@ class HConstant FINAL : public HTemplateInstruction<0> {
     if (has_int32_value_) {
       return static_cast<intptr_t>(int32_value_);
     } else if (has_double_value_) {
-      return static_cast<intptr_t>(BitCast<int64_t>(double_value_));
+      return static_cast<intptr_t>(bit_cast<int64_t>(double_value_));
     } else if (has_external_reference_value_) {
       return reinterpret_cast<intptr_t>(external_reference_value_.address());
     } else {
@@ -3679,8 +3679,8 @@ class HConstant FINAL : public HTemplateInstruction<0> {
           int32_value_ == other_constant->int32_value_;
     } else if (has_double_value_) {
       return other_constant->has_double_value_ &&
-          BitCast<int64_t>(double_value_) ==
-          BitCast<int64_t>(other_constant->double_value_);
+             bit_cast<int64_t>(double_value_) ==
+                 bit_cast<int64_t>(other_constant->double_value_);
     } else if (has_external_reference_value_) {
       return other_constant->has_external_reference_value_ &&
           external_reference_value_ ==
@@ -5349,6 +5349,37 @@ class HCallStub FINAL : public HUnaryCall {
   }
 
   CodeStub::Major major_key_;
+};
+
+
+class HTailCallThroughMegamorphicCache FINAL : public HTemplateInstruction<3> {
+ public:
+  DECLARE_INSTRUCTION_WITH_CONTEXT_FACTORY_P3(HTailCallThroughMegamorphicCache,
+                                              HValue*, HValue*, Code::Flags);
+
+  virtual Representation RequiredInputRepresentation(int index) OVERRIDE {
+    return Representation::Tagged();
+  }
+
+  HValue* context() const { return OperandAt(0); }
+  HValue* receiver() const { return OperandAt(1); }
+  HValue* name() const { return OperandAt(2); }
+  Code::Flags flags() const { return flags_; }
+
+  virtual OStream& PrintDataTo(OStream& os) const OVERRIDE;  // NOLINT
+
+  DECLARE_CONCRETE_INSTRUCTION(TailCallThroughMegamorphicCache)
+
+ private:
+  HTailCallThroughMegamorphicCache(HValue* context, HValue* receiver,
+                                   HValue* name, Code::Flags flags)
+      : flags_(flags) {
+    SetOperandAt(0, context);
+    SetOperandAt(1, receiver);
+    SetOperandAt(2, name);
+  }
+
+  Code::Flags flags_;
 };
 
 

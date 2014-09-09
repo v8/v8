@@ -67,6 +67,7 @@ namespace internal {
   V(KeyedLoadGeneric)                       \
   V(LoadDictionaryElement)                  \
   V(LoadFastElement)                        \
+  V(MegamorphicLoad)                        \
   V(NameDictionaryLookup)                   \
   V(NumberToString)                         \
   V(RegExpConstructResult)                  \
@@ -179,11 +180,15 @@ class CodeStub BASE_EMBEDDED {
   // Lookup the code in the (possibly custom) cache.
   bool FindCodeInCache(Code** code_out);
 
-  virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) {}
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() {
+    UNREACHABLE();  // Default returns an uninitialized descriptor.
+    return CallInterfaceDescriptor();
+  }
 
-  static void InitializeInterfaceDescriptor(Isolate* isolate, uint32_t key,
-                                            CodeStubInterfaceDescriptor* desc);
+  virtual void InitializeDescriptor(CodeStubDescriptor* descriptor) {}
+
+  static void InitializeDescriptor(Isolate* isolate, uint32_t key,
+                                   CodeStubDescriptor* desc);
 
   // Returns information for computing the number key.
   virtual Major MajorKey() const = 0;
@@ -292,17 +297,22 @@ class CodeStub BASE_EMBEDDED {
   DEFINE_CODE_STUB(NAME, SUPER)
 
 
-#define DEFINE_HYDROGEN_CODE_STUB(NAME, SUPER)           \
- public:                                                 \
-  virtual void InitializeInterfaceDescriptor(            \
-      CodeStubInterfaceDescriptor* descriptor) OVERRIDE; \
-  virtual Handle<Code> GenerateCode() OVERRIDE;          \
+#define DEFINE_HYDROGEN_CODE_STUB(NAME, SUPER)                                \
+ public:                                                                      \
+  virtual void InitializeDescriptor(CodeStubDescriptor* descriptor) OVERRIDE; \
+  virtual Handle<Code> GenerateCode() OVERRIDE;                               \
   DEFINE_CODE_STUB(NAME, SUPER)
 
 #define DEFINE_HANDLER_CODE_STUB(NAME, SUPER)   \
  public:                                        \
   virtual Handle<Code> GenerateCode() OVERRIDE; \
   DEFINE_CODE_STUB(NAME, SUPER)
+
+#define DEFINE_CALL_INTERFACE_DESCRIPTOR(NAME)                            \
+ public:                                                                  \
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE { \
+    return NAME##Descriptor(isolate());                                   \
+  }
 
 
 class PlatformCodeStub : public CodeStub {
@@ -326,18 +336,16 @@ enum StubFunctionMode { NOT_JS_FUNCTION_STUB_MODE, JS_FUNCTION_STUB_MODE };
 enum HandlerArgumentsMode { DONT_PASS_ARGUMENTS, PASS_ARGUMENTS };
 
 
-class CodeStubInterfaceDescriptor {
+class CodeStubDescriptor {
  public:
-  CodeStubInterfaceDescriptor();
+  explicit CodeStubDescriptor(CodeStub* stub);
 
-  void Initialize(CodeStub::Major major,
-                  CallInterfaceDescriptor call_descriptor,
-                  Address deoptimization_handler = NULL,
+  CodeStubDescriptor(Isolate* isolate, uint32_t stub_key);
+
+  void Initialize(Address deoptimization_handler = NULL,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
-  void Initialize(CodeStub::Major major,
-                  CallInterfaceDescriptor call_descriptor,
-                  Register stack_parameter_count,
+  void Initialize(Register stack_parameter_count,
                   Address deoptimization_handler = NULL,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE,
@@ -351,32 +359,11 @@ class CodeStubInterfaceDescriptor {
     DCHECK(!stack_parameter_count_.is_valid());
   }
 
-  bool IsInitialized() const { return call_descriptor_.IsInitialized(); }
-
+  void set_call_descriptor(CallInterfaceDescriptor d) { call_descriptor_ = d; }
   CallInterfaceDescriptor call_descriptor() const { return call_descriptor_; }
-
-  int GetEnvironmentLength() const {
-    return call_descriptor().GetEnvironmentLength();
-  }
-
-  int GetRegisterParameterCount() const {
-    return call_descriptor().GetRegisterParameterCount();
-  }
-
-  Register GetParameterRegister(int index) const {
-    return call_descriptor().GetParameterRegister(index);
-  }
-
-  Representation GetParameterRepresentation(int index) const {
-    return call_descriptor().GetParameterRepresentation(index);
-  }
 
   int GetEnvironmentParameterCount() const {
     return call_descriptor().GetEnvironmentParameterCount();
-  }
-
-  Register GetEnvironmentParameterRegister(int index) const {
-    return call_descriptor().GetEnvironmentParameterRegister(index);
   }
 
   Representation GetEnvironmentParameterRepresentation(int index) const {
@@ -409,7 +396,6 @@ class CodeStubInterfaceDescriptor {
   Register stack_parameter_count() const { return stack_parameter_count_; }
   StubFunctionMode function_mode() const { return function_mode_; }
   Address deoptimization_handler() const { return deoptimization_handler_; }
-  CodeStub::Major MajorKey() const { return major_; }
 
  private:
   CallInterfaceDescriptor call_descriptor_;
@@ -424,7 +410,6 @@ class CodeStubInterfaceDescriptor {
 
   ExternalReference miss_handler_;
   bool has_miss_handler_;
-  CodeStub::Major major_;
 };
 
 
@@ -448,7 +433,7 @@ class HydrogenCodeStub : public CodeStub {
 
   bool IsUninitialized() const { return IsMissBits::decode(minor_key_); }
 
-  Handle<Code> GenerateLightweightMissCode();
+  Handle<Code> GenerateLightweightMissCode(ExternalReference miss);
 
   template<class StateType>
   void TraceTransition(StateType from, StateType to);
@@ -472,7 +457,7 @@ class HydrogenCodeStub : public CodeStub {
   class IsMissBits : public BitField<bool, kSubMinorKeyBits, 1> {};
   class SubMinorKeyBits : public BitField<int, 0, kSubMinorKeyBits> {};
 
-  void GenerateLightweightMiss(MacroAssembler* masm);
+  void GenerateLightweightMiss(MacroAssembler* masm, ExternalReference miss);
 
   DEFINE_CODE_STUB_BASE(HydrogenCodeStub, CodeStub);
 };
@@ -546,6 +531,7 @@ class ToNumberStub: public HydrogenCodeStub {
  public:
   explicit ToNumberStub(Isolate* isolate) : HydrogenCodeStub(isolate) { }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToNumber);
   DEFINE_HYDROGEN_CODE_STUB(ToNumber, HydrogenCodeStub);
 };
 
@@ -557,6 +543,7 @@ class NumberToStringStub FINAL : public HydrogenCodeStub {
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kNumber = 0;
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(NumberToString);
   DEFINE_HYDROGEN_CODE_STUB(NumberToString, HydrogenCodeStub);
 };
 
@@ -580,6 +567,7 @@ class FastNewClosureStub : public HydrogenCodeStub {
   class StrictModeBits : public BitField<StrictMode, 0, 1> {};
   class IsGeneratorBits : public BitField<bool, 1, 1> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
   DEFINE_HYDROGEN_CODE_STUB(FastNewClosure, HydrogenCodeStub);
 };
 
@@ -601,6 +589,7 @@ class FastNewContextStub FINAL : public HydrogenCodeStub {
  private:
   class SlotsBits : public BitField<int, 0, 8> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewContext);
   DEFINE_HYDROGEN_CODE_STUB(FastNewContext, HydrogenCodeStub);
 };
 
@@ -620,6 +609,7 @@ class FastCloneShallowArrayStub : public HydrogenCodeStub {
  private:
   class AllocationSiteModeBits: public BitField<AllocationSiteMode, 0, 1> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneShallowArray);
   DEFINE_HYDROGEN_CODE_STUB(FastCloneShallowArray, HydrogenCodeStub);
 };
 
@@ -641,6 +631,7 @@ class FastCloneShallowObjectStub : public HydrogenCodeStub {
  private:
   class LengthBits : public BitField<int, 0, 4> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneShallowObject);
   DEFINE_HYDROGEN_CODE_STUB(FastCloneShallowObject, HydrogenCodeStub);
 };
 
@@ -652,6 +643,7 @@ class CreateAllocationSiteStub : public HydrogenCodeStub {
 
   static void GenerateAheadOfTime(Isolate* isolate);
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CreateAllocationSite);
   DEFINE_HYDROGEN_CODE_STUB(CreateAllocationSite, HydrogenCodeStub);
 };
 
@@ -672,9 +664,6 @@ class InstanceofStub: public PlatformCodeStub {
   static Register left() { return InstanceofDescriptor::left(); }
   static Register right() { return InstanceofDescriptor::right(); }
 
-  virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor);
-
  private:
   Flags flags() const { return FlagBits::decode(minor_key_); }
 
@@ -692,6 +681,7 @@ class InstanceofStub: public PlatformCodeStub {
 
   class FlagBits : public BitField<Flags, 0, 3> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Instanceof);
   DEFINE_PLATFORM_CODE_STUB(Instanceof, PlatformCodeStub);
 };
 
@@ -831,8 +821,9 @@ class HandlerStub : public HydrogenCodeStub {
   virtual ExtraICState GetExtraICState() const { return kind(); }
   virtual InlineCacheState GetICState() const { return MONOMORPHIC; }
 
-  virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor) OVERRIDE;
+  virtual void InitializeDescriptor(CodeStubDescriptor* descriptor) OVERRIDE;
+
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE;
 
  protected:
   explicit HandlerStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
@@ -1066,6 +1057,7 @@ class BinaryOpICStub : public HydrogenCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate,
                                   const BinaryOpIC::State& state);
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
   DEFINE_HYDROGEN_CODE_STUB(BinaryOpIC, HydrogenCodeStub);
 };
 
@@ -1134,6 +1126,7 @@ class BinaryOpWithAllocationSiteStub FINAL : public BinaryOpICStub {
   static const int kLeft = 1;
   static const int kRight = 2;
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithAllocationSite);
   DEFINE_HYDROGEN_CODE_STUB(BinaryOpWithAllocationSite, BinaryOpICStub);
 };
 
@@ -1177,6 +1170,7 @@ class StringAddStub FINAL : public HydrogenCodeStub {
 
   virtual void PrintBaseName(OStream& os) const OVERRIDE;  // NOLINT
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StringAdd);
   DEFINE_HYDROGEN_CODE_STUB(StringAdd, HydrogenCodeStub);
 };
 
@@ -1316,6 +1310,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
 
   friend class CompareNilIC;
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CompareNil);
   DEFINE_HYDROGEN_CODE_STUB(CompareNilIC, HydrogenCodeStub);
 };
 
@@ -1431,6 +1426,7 @@ class RegExpConstructResultStub FINAL : public HydrogenCodeStub {
   static const int kIndex = 1;
   static const int kInput = 2;
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(RegExpConstructResult);
   DEFINE_HYDROGEN_CODE_STUB(RegExpConstructResult, HydrogenCodeStub);
 };
 
@@ -1442,9 +1438,6 @@ class CallFunctionStub: public PlatformCodeStub {
     DCHECK(argc >= 0 && argc <= Code::kMaxArguments);
     minor_key_ = ArgcBits::encode(argc) | FlagBits::encode(flags);
   }
-
-  virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor);
 
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
@@ -1467,6 +1460,7 @@ class CallFunctionStub: public PlatformCodeStub {
   class ArgcBits : public BitField<unsigned, 2, Code::kArgumentsBits> {};
   STATIC_ASSERT(Code::kArgumentsBits + 2 <= kStubMinorKeyBits);
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunction);
   DEFINE_PLATFORM_CODE_STUB(CallFunction, PlatformCodeStub);
 };
 
@@ -1477,9 +1471,6 @@ class CallConstructStub: public PlatformCodeStub {
       : PlatformCodeStub(isolate) {
     minor_key_ = FlagBits::encode(flags);
   }
-
-  virtual void InitializeInterfaceDescriptor(
-      CodeStubInterfaceDescriptor* descriptor);
 
   virtual void FinishCode(Handle<Code> code) {
     code->set_has_function_cache(RecordCallTarget());
@@ -1496,6 +1487,7 @@ class CallConstructStub: public PlatformCodeStub {
 
   class FlagBits : public BitField<CallConstructorFlags, 0, 1> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallConstruct);
   DEFINE_PLATFORM_CODE_STUB(CallConstruct, PlatformCodeStub);
 };
 
@@ -1679,6 +1671,7 @@ class LoadDictionaryElementStub : public HydrogenCodeStub {
   explicit LoadDictionaryElementStub(Isolate* isolate)
       : HydrogenCodeStub(isolate) {}
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
 };
 
@@ -1690,6 +1683,7 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
   virtual Code::Kind GetCodeKind() const { return Code::KEYED_LOAD_IC; }
   virtual InlineCacheState GetICState() const { return GENERIC; }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_HYDROGEN_CODE_STUB(KeyedLoadGeneric, HydrogenCodeStub);
 };
 
@@ -1733,6 +1727,28 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
 };
 
 
+class MegamorphicLoadStub : public HydrogenCodeStub {
+ public:
+  MegamorphicLoadStub(Isolate* isolate, const LoadIC::State& state)
+      : HydrogenCodeStub(isolate) {
+    set_sub_minor_key(state.GetExtraICState());
+  }
+
+  virtual Code::Kind GetCodeKind() const OVERRIDE { return Code::LOAD_IC; }
+
+  virtual InlineCacheState GetICState() const FINAL OVERRIDE {
+    return MEGAMORPHIC;
+  }
+
+  virtual ExtraICState GetExtraICState() const FINAL OVERRIDE {
+    return static_cast<ExtraICState>(sub_minor_key());
+  }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+  DEFINE_HYDROGEN_CODE_STUB(MegamorphicLoad, HydrogenCodeStub);
+};
+
+
 class VectorLoadStub : public HydrogenCodeStub {
  public:
   explicit VectorLoadStub(Isolate* isolate, const LoadIC::State& state)
@@ -1753,6 +1769,7 @@ class VectorLoadStub : public HydrogenCodeStub {
  private:
   LoadIC::State state() const { return LoadIC::State(GetExtraICState()); }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadIC);
   DEFINE_HYDROGEN_CODE_STUB(VectorLoad, HydrogenCodeStub);
 };
 
@@ -1766,6 +1783,7 @@ class VectorKeyedLoadStub : public VectorLoadStub {
     return Code::KEYED_LOAD_IC;
   }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadIC);
   DEFINE_HYDROGEN_CODE_STUB(VectorKeyedLoad, VectorLoadStub);
 };
 
@@ -1835,6 +1853,7 @@ class LoadFastElementStub : public HydrogenCodeStub {
   class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
   class IsJSArrayBits: public BitField<bool, 8, 1> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_HYDROGEN_CODE_STUB(LoadFastElement, HydrogenCodeStub);
 };
 
@@ -1864,6 +1883,7 @@ class StoreFastElementStub : public HydrogenCodeStub {
   class StoreModeBits: public BitField<KeyedAccessStoreMode, 8, 4> {};
   class IsJSArrayBits: public BitField<bool,                12, 1> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Store);
   DEFINE_HYDROGEN_CODE_STUB(StoreFastElement, HydrogenCodeStub);
 };
 
@@ -1892,6 +1912,7 @@ class TransitionElementsKindStub : public HydrogenCodeStub {
   class ToKindBits: public BitField<ElementsKind, 0, 8> {};
   class IsJSArrayBits: public BitField<bool, 16, 1> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(TransitionElementsKind);
   DEFINE_HYDROGEN_CODE_STUB(TransitionElementsKind, HydrogenCodeStub);
 };
 
@@ -1954,6 +1975,7 @@ class ArrayNoArgumentConstructorStub : public ArrayConstructorStubBase {
     BasePrintName(os, "ArrayNoArgumentConstructorStub");
   }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayConstructorConstantArgCount);
   DEFINE_HYDROGEN_CODE_STUB(ArrayNoArgumentConstructor,
                             ArrayConstructorStubBase);
 };
@@ -1973,6 +1995,7 @@ class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
     BasePrintName(os, "ArraySingleArgumentConstructorStub");
   }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayConstructor);
   DEFINE_HYDROGEN_CODE_STUB(ArraySingleArgumentConstructor,
                             ArrayConstructorStubBase);
 };
@@ -1992,6 +2015,7 @@ class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
     BasePrintName(os, "ArrayNArgumentsConstructorStub");
   }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayConstructor);
   DEFINE_HYDROGEN_CODE_STUB(ArrayNArgumentsConstructor,
                             ArrayConstructorStubBase);
 };
@@ -2027,6 +2051,7 @@ class InternalArrayNoArgumentConstructorStub : public
                                          ElementsKind kind)
       : InternalArrayConstructorStubBase(isolate, kind) { }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(InternalArrayConstructorConstantArgCount);
   DEFINE_HYDROGEN_CODE_STUB(InternalArrayNoArgumentConstructor,
                             InternalArrayConstructorStubBase);
 };
@@ -2039,6 +2064,7 @@ class InternalArraySingleArgumentConstructorStub : public
                                              ElementsKind kind)
       : InternalArrayConstructorStubBase(isolate, kind) { }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(InternalArrayConstructor);
   DEFINE_HYDROGEN_CODE_STUB(InternalArraySingleArgumentConstructor,
                             InternalArrayConstructorStubBase);
 };
@@ -2050,6 +2076,7 @@ class InternalArrayNArgumentsConstructorStub : public
   InternalArrayNArgumentsConstructorStub(Isolate* isolate, ElementsKind kind)
       : InternalArrayConstructorStubBase(isolate, kind) { }
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(InternalArrayConstructor);
   DEFINE_HYDROGEN_CODE_STUB(InternalArrayNArgumentsConstructor,
                             InternalArrayConstructorStubBase);
 };
@@ -2155,6 +2182,7 @@ class ToBooleanStub: public HydrogenCodeStub {
   class TypesBits : public BitField<byte, 0, NUMBER_OF_TYPES> {};
   class ResultModeBits : public BitField<ResultMode, NUMBER_OF_TYPES, 2> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ToBoolean);
   DEFINE_HYDROGEN_CODE_STUB(ToBoolean, HydrogenCodeStub);
 };
 
@@ -2208,6 +2236,7 @@ class ElementsTransitionAndStoreStub : public HydrogenCodeStub {
   class IsJSArrayBits : public BitField<bool, 16, 1> {};
   class StoreModeBits : public BitField<KeyedAccessStoreMode, 17, 4> {};
 
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ElementTransitionAndStore);
   DEFINE_HYDROGEN_CODE_STUB(ElementsTransitionAndStore, HydrogenCodeStub);
 };
 
@@ -2295,6 +2324,7 @@ class StringCompareStub : public PlatformCodeStub {
 };
 
 
+#undef DEFINE_CALL_INTERFACE_DESCRIPTOR
 #undef DEFINE_PLATFORM_CODE_STUB
 #undef DEFINE_HANDLER_CODE_STUB
 #undef DEFINE_HYDROGEN_CODE_STUB

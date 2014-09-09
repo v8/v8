@@ -16,35 +16,46 @@ namespace v8 {
 namespace internal {
 
 
-CodeStubInterfaceDescriptor::CodeStubInterfaceDescriptor()
+CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
+    : call_descriptor_(stub->GetCallInterfaceDescriptor()),
+      stack_parameter_count_(no_reg),
+      hint_stack_parameter_count_(-1),
+      function_mode_(NOT_JS_FUNCTION_STUB_MODE),
+      deoptimization_handler_(NULL),
+      handler_arguments_mode_(DONT_PASS_ARGUMENTS),
+      miss_handler_(),
+      has_miss_handler_(false) {
+  stub->InitializeDescriptor(this);
+}
+
+
+CodeStubDescriptor::CodeStubDescriptor(Isolate* isolate, uint32_t stub_key)
     : stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
       deoptimization_handler_(NULL),
       handler_arguments_mode_(DONT_PASS_ARGUMENTS),
       miss_handler_(),
-      has_miss_handler_(false) {}
-
-
-void CodeStubInterfaceDescriptor::Initialize(
-    CodeStub::Major major, CallInterfaceDescriptor call_descriptor,
-    Address deoptimization_handler, int hint_stack_parameter_count,
-    StubFunctionMode function_mode) {
-  call_descriptor_ = call_descriptor;
-  deoptimization_handler_ = deoptimization_handler;
-  hint_stack_parameter_count_ = hint_stack_parameter_count;
-  function_mode_ = function_mode;
-  major_ = major;
+      has_miss_handler_(false) {
+  CodeStub::InitializeDescriptor(isolate, stub_key, this);
 }
 
 
-void CodeStubInterfaceDescriptor::Initialize(
-    CodeStub::Major major, CallInterfaceDescriptor call_descriptor,
-    Register stack_parameter_count, Address deoptimization_handler,
-    int hint_stack_parameter_count, StubFunctionMode function_mode,
-    HandlerArgumentsMode handler_mode) {
-  Initialize(major, call_descriptor, deoptimization_handler,
-             hint_stack_parameter_count, function_mode);
+void CodeStubDescriptor::Initialize(Address deoptimization_handler,
+                                    int hint_stack_parameter_count,
+                                    StubFunctionMode function_mode) {
+  deoptimization_handler_ = deoptimization_handler;
+  hint_stack_parameter_count_ = hint_stack_parameter_count;
+  function_mode_ = function_mode;
+}
+
+
+void CodeStubDescriptor::Initialize(Register stack_parameter_count,
+                                    Address deoptimization_handler,
+                                    int hint_stack_parameter_count,
+                                    StubFunctionMode function_mode,
+                                    HandlerArgumentsMode handler_mode) {
+  Initialize(deoptimization_handler, hint_stack_parameter_count, function_mode);
   stack_parameter_count_ = stack_parameter_count;
   handler_arguments_mode_ = handler_mode;
 }
@@ -219,18 +230,19 @@ void CodeStub::Dispatch(Isolate* isolate, uint32_t key, void** value_out,
 }
 
 
-static void GetInterfaceDescriptorDispatchedCall(CodeStub* stub,
-                                                 void** value_out) {
-  CodeStubInterfaceDescriptor* descriptor_out =
-      reinterpret_cast<CodeStubInterfaceDescriptor*>(value_out);
-  stub->InitializeInterfaceDescriptor(descriptor_out);
+static void InitializeDescriptorDispatchedCall(CodeStub* stub,
+                                               void** value_out) {
+  CodeStubDescriptor* descriptor_out =
+      reinterpret_cast<CodeStubDescriptor*>(value_out);
+  stub->InitializeDescriptor(descriptor_out);
+  descriptor_out->set_call_descriptor(stub->GetCallInterfaceDescriptor());
 }
 
 
-void CodeStub::InitializeInterfaceDescriptor(
-    Isolate* isolate, uint32_t key, CodeStubInterfaceDescriptor* desc) {
+void CodeStub::InitializeDescriptor(Isolate* isolate, uint32_t key,
+                                    CodeStubDescriptor* desc) {
   void** value_out = reinterpret_cast<void**>(desc);
-  Dispatch(isolate, key, value_out, &GetInterfaceDescriptorDispatchedCall);
+  Dispatch(isolate, key, value_out, &InitializeDescriptorDispatchedCall);
 }
 
 
@@ -532,224 +544,158 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 }
 
 
-void LoadFastElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  LoadDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor,
-                         FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
+void LoadFastElementStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
 
-void LoadDictionaryElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  LoadDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor,
-                         FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
+void LoadDictionaryElementStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
 
-void KeyedLoadGenericStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  LoadDescriptor call_descriptor(isolate());
+void KeyedLoadGenericStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
-      MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kKeyedGetProperty)->entry);
 }
 
 
-void HandlerStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  if (kind() == Code::LOAD_IC) {
-    LoadDescriptor call_descriptor(isolate());
-    descriptor->Initialize(MajorKey(), call_descriptor);
-  } else {
-    DCHECK_EQ(Code::STORE_IC, kind());
-    StoreDescriptor call_descriptor(isolate());
-    descriptor->Initialize(MajorKey(), call_descriptor,
-                           FUNCTION_ADDR(StoreIC_MissFromStubFailure));
+void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  if (kind() == Code::STORE_IC) {
+    descriptor->Initialize(FUNCTION_ADDR(StoreIC_MissFromStubFailure));
   }
 }
 
 
-void StoreFastElementStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  StoreDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor,
-                         FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
+CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() {
+  if (kind() == Code::LOAD_IC) {
+    return LoadDescriptor(isolate());
+  } else {
+    DCHECK_EQ(Code::STORE_IC, kind());
+    return StoreDescriptor(isolate());
+  }
 }
 
 
-void ElementsTransitionAndStoreStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  ElementTransitionAndStoreDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor,
-                         FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
+void StoreFastElementStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(KeyedStoreIC_MissFromStubFailure));
 }
 
 
-void InstanceofStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  InstanceofDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor);
+void ElementsTransitionAndStoreStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
 }
 
 
 static void InitializeVectorLoadStub(Isolate* isolate,
-                                     CodeStubInterfaceDescriptor* descriptor,
-                                     CodeStub::Major major,
+                                     CodeStubDescriptor* descriptor,
                                      Address deoptimization_handler) {
   DCHECK(FLAG_vector_ics);
-  VectorLoadICDescriptor call_descriptor(isolate);
-  descriptor->Initialize(major, call_descriptor, deoptimization_handler);
+  descriptor->Initialize(deoptimization_handler);
 }
 
 
-void VectorLoadStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  InitializeVectorLoadStub(isolate(), descriptor, MajorKey(),
+void VectorLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  InitializeVectorLoadStub(isolate(), descriptor,
                            FUNCTION_ADDR(VectorLoadIC_MissFromStubFailure));
 }
 
 
-void VectorKeyedLoadStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
+void VectorKeyedLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   InitializeVectorLoadStub(
-      isolate(), descriptor, MajorKey(),
+      isolate(), descriptor,
       FUNCTION_ADDR(VectorKeyedLoadIC_MissFromStubFailure));
 }
 
 
-void FastNewClosureStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  FastNewClosureDescriptor call_descriptor(isolate());
+void MegamorphicLoadStub::InitializeDescriptor(CodeStubDescriptor* d) {}
+
+
+void FastNewClosureStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
-      MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kNewClosureFromStubFailure)->entry);
 }
 
 
-void FastNewContextStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  FastNewContextDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor);
-}
+void FastNewContextStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 
-void ToNumberStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  ToNumberDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor);
-}
+void ToNumberStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 
-void NumberToStringStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
+void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   NumberToStringDescriptor call_descriptor(isolate());
   descriptor->Initialize(
-      MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kNumberToStringRT)->entry);
 }
 
 
-void FastCloneShallowArrayStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
+void FastCloneShallowArrayStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
   FastCloneShallowArrayDescriptor call_descriptor(isolate());
   descriptor->Initialize(
-      MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry);
 }
 
 
-void FastCloneShallowObjectStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
+void FastCloneShallowObjectStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
   FastCloneShallowObjectDescriptor call_descriptor(isolate());
   descriptor->Initialize(
-      MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kCreateObjectLiteral)->entry);
 }
 
 
-void CreateAllocationSiteStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  CreateAllocationSiteDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor);
-}
+void CreateAllocationSiteStub::InitializeDescriptor(CodeStubDescriptor* d) {}
 
 
-void CallFunctionStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  CallFunctionDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor);
-}
-
-
-void CallConstructStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  CallConstructDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor);
-}
-
-
-void RegExpConstructResultStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  RegExpConstructResultDescriptor call_descriptor(isolate());
+void RegExpConstructResultStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
-      MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kRegExpConstructResult)->entry);
 }
 
 
-void TransitionElementsKindStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  TransitionElementsKindDescriptor call_descriptor(isolate());
+void TransitionElementsKindStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
-      MajorKey(), call_descriptor,
       Runtime::FunctionForId(Runtime::kTransitionElementsKind)->entry);
 }
 
 
-void CompareNilICStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  CompareNilDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor,
-                         FUNCTION_ADDR(CompareNilIC_Miss));
+void CompareNilICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(CompareNilIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kCompareNilIC_Miss), isolate()));
 }
 
-void ToBooleanStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  ToBooleanDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor,
-                         FUNCTION_ADDR(ToBooleanIC_Miss));
+
+void ToBooleanStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(ToBooleanIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kToBooleanIC_Miss), isolate()));
 }
 
 
-void BinaryOpICStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  BinaryOpDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor,
-                         FUNCTION_ADDR(BinaryOpIC_Miss));
+void BinaryOpICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(BinaryOpIC_Miss));
   descriptor->SetMissHandler(
       ExternalReference(IC_Utility(IC::kBinaryOpIC_Miss), isolate()));
 }
 
 
-void BinaryOpWithAllocationSiteStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  BinaryOpWithAllocationSiteDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor,
-                         FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite));
+void BinaryOpWithAllocationSiteStub::InitializeDescriptor(
+    CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(FUNCTION_ADDR(BinaryOpIC_MissWithAllocationSite));
 }
 
 
-void StringAddStub::InitializeInterfaceDescriptor(
-    CodeStubInterfaceDescriptor* descriptor) {
-  StringAddDescriptor call_descriptor(isolate());
-  descriptor->Initialize(MajorKey(), call_descriptor,
-                         Runtime::FunctionForId(Runtime::kStringAdd)->entry);
+void StringAddStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
+  descriptor->Initialize(Runtime::FunctionForId(Runtime::kStringAdd)->entry);
 }
 
 

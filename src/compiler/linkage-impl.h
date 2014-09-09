@@ -129,10 +129,10 @@ class LinkageHelper {
 
   // TODO(turbofan): cache call descriptors for code stub calls.
   static CallDescriptor* GetStubCallDescriptor(
-      Zone* zone, CodeStubInterfaceDescriptor* descriptor,
-      int stack_parameter_count, CallDescriptor::Flags flags) {
+      Zone* zone, CallInterfaceDescriptor descriptor, int stack_parameter_count,
+      CallDescriptor::Flags flags) {
     const int register_parameter_count =
-        descriptor->GetEnvironmentParameterCount();
+        descriptor.GetEnvironmentParameterCount();
     const int js_parameter_count =
         register_parameter_count + stack_parameter_count;
     const int context_count = 1;
@@ -151,7 +151,7 @@ class LinkageHelper {
     for (int i = 0; i < js_parameter_count; i++) {
       if (i < register_parameter_count) {
         // The first parameters go in registers.
-        Register reg = descriptor->GetEnvironmentParameterRegister(i);
+        Register reg = descriptor.GetEnvironmentParameterRegister(i);
         locations.AddParam(regloc(reg));
       } else {
         // The rest of the parameters go on the stack.
@@ -167,17 +167,16 @@ class LinkageHelper {
     // The target for stub calls is a code object.
     MachineType target_type = kMachAnyTagged;
     LinkageLocation target_loc = LinkageLocation::AnyRegister();
-    return new (zone)
-        CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
-                       target_type,                      // target MachineType
-                       target_loc,                       // target location
-                       types.Build(),                    // machine_sig
-                       locations.Build(),                // location_sig
-                       js_parameter_count,               // js_parameter_count
-                       Operator::kNoProperties,          // properties
-                       kNoCalleeSaved,  // callee-saved registers
-                       flags,           // flags
-                       CodeStub::MajorName(descriptor->MajorKey(), false));
+    return new (zone) CallDescriptor(CallDescriptor::kCallCodeObject,  // kind
+                                     target_type,         // target MachineType
+                                     target_loc,          // target location
+                                     types.Build(),       // machine_sig
+                                     locations.Build(),   // location_sig
+                                     js_parameter_count,  // js_parameter_count
+                                     Operator::kNoProperties,  // properties
+                                     kNoCalleeSaved,  // callee-saved registers
+                                     flags,           // flags
+                                     descriptor.DebugName(zone->isolate()));
   }
 
   static CallDescriptor* GetSimplifiedCDescriptor(Zone* zone,

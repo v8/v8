@@ -51,9 +51,11 @@ class StubCache {
   // Generate code for probing the stub cache table.
   // Arguments extra, extra2 and extra3 may be used to pass additional scratch
   // registers. Set to no_reg if not needed.
-  void GenerateProbe(MacroAssembler* masm, Code::Flags flags, Register receiver,
-                     Register name, Register scratch, Register extra,
-                     Register extra2 = no_reg, Register extra3 = no_reg);
+  // If leave_frame is true, then exit a frame before the tail call.
+  void GenerateProbe(MacroAssembler* masm, Code::Flags flags, bool leave_frame,
+                     Register receiver, Register name, Register scratch,
+                     Register extra, Register extra2 = no_reg,
+                     Register extra3 = no_reg);
 
   enum Table { kPrimary, kSecondary };
 
@@ -153,6 +155,7 @@ class StubCache {
   static const int kSecondaryTableBits = 9;
   static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
 
+ private:
   Entry primary_[kPrimaryTableSize];
   Entry secondary_[kSecondaryTableSize];
   Isolate* isolate_;

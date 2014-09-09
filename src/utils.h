@@ -112,6 +112,12 @@ int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
 }
 
 
+template <typename T, typename U>
+inline bool IsAligned(T value, U alignment) {
+  return (value & (alignment - 1)) == 0;
+}
+
+
 // Returns true if (addr + offset) is aligned.
 inline bool IsAddressAligned(Address addr,
                              intptr_t alignment,
@@ -732,62 +738,6 @@ inline int TenToThe(int exponent) {
   int answer = 10;
   for (int i = 1; i < exponent; i++) answer *= 10;
   return answer;
-}
-
-
-// The type-based aliasing rule allows the compiler to assume that pointers of
-// different types (for some definition of different) never alias each other.
-// Thus the following code does not work:
-//
-// float f = foo();
-// int fbits = *(int*)(&f);
-//
-// The compiler 'knows' that the int pointer can't refer to f since the types
-// don't match, so the compiler may cache f in a register, leaving random data
-// in fbits.  Using C++ style casts makes no difference, however a pointer to
-// char data is assumed to alias any other pointer.  This is the 'memcpy
-// exception'.
-//
-// Bit_cast uses the memcpy exception to move the bits from a variable of one
-// type of a variable of another type.  Of course the end result is likely to
-// be implementation dependent.  Most compilers (gcc-4.2 and MSVC 2005)
-// will completely optimize BitCast away.
-//
-// There is an additional use for BitCast.
-// Recent gccs will warn when they see casts that may result in breakage due to
-// the type-based aliasing rule.  If you have checked that there is no breakage
-// you can use BitCast to cast one pointer type to another.  This confuses gcc
-// enough that it can no longer see that you have cast one pointer type to
-// another thus avoiding the warning.
-
-// We need different implementations of BitCast for pointer and non-pointer
-// values. We use partial specialization of auxiliary struct to work around
-// issues with template functions overloading.
-template <class Dest, class Source>
-struct BitCastHelper {
-  STATIC_ASSERT(sizeof(Dest) == sizeof(Source));
-
-  INLINE(static Dest cast(const Source& source)) {
-    Dest dest;
-    memcpy(&dest, &source, sizeof(dest));
-    return dest;
-  }
-};
-
-template <class Dest, class Source>
-struct BitCastHelper<Dest, Source*> {
-  INLINE(static Dest cast(Source* source)) {
-    return BitCastHelper<Dest, uintptr_t>::
-        cast(reinterpret_cast<uintptr_t>(source));
-  }
-};
-
-template <class Dest, class Source>
-INLINE(Dest BitCast(const Source& source));
-
-template <class Dest, class Source>
-inline Dest BitCast(const Source& source) {
-  return BitCastHelper<Dest, Source>::cast(source);
 }
 
 
@@ -1536,6 +1486,16 @@ bool StringToArrayIndex(Stream* stream, uint32_t* index) {
 }
 
 
-} }  // namespace v8::internal
+// Returns current value of top of the stack. Works correctly with ASAN.
+DISABLE_ASAN
+inline uintptr_t GetCurrentStackPosition() {
+  // Takes the address of the limit variable in order to find out where
+  // the top of stack is right now.
+  uintptr_t limit = reinterpret_cast<uintptr_t>(&limit);
+  return limit;
+}
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_UTILS_H_

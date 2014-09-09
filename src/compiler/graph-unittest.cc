@@ -331,7 +331,7 @@ class IsPhiMatcher FINAL : public NodeMatcher {
 
 class IsProjectionMatcher FINAL : public NodeMatcher {
  public:
-  IsProjectionMatcher(const Matcher<int32_t>& index_matcher,
+  IsProjectionMatcher(const Matcher<size_t>& index_matcher,
                       const Matcher<Node*>& base_matcher)
       : NodeMatcher(IrOpcode::kProjection),
         index_matcher_(index_matcher),
@@ -349,14 +349,14 @@ class IsProjectionMatcher FINAL : public NodeMatcher {
   virtual bool MatchAndExplain(Node* node, MatchResultListener* listener) const
       OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<int32_t>(node), "index",
+            PrintMatchAndExplain(OpParameter<size_t>(node), "index",
                                  index_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
                                  base_matcher_, listener));
   }
 
  private:
-  const Matcher<int32_t> index_matcher_;
+  const Matcher<size_t> index_matcher_;
   const Matcher<Node*> base_matcher_;
 };
 
@@ -685,7 +685,7 @@ Matcher<Node*> IsPhi(const Matcher<MachineType>& type_matcher,
 }
 
 
-Matcher<Node*> IsProjection(const Matcher<int32_t>& index_matcher,
+Matcher<Node*> IsProjection(const Matcher<size_t>& index_matcher,
                             const Matcher<Node*>& base_matcher) {
   return MakeMatcher(new IsProjectionMatcher(index_matcher, base_matcher));
 }

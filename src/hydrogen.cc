@@ -3434,9 +3434,8 @@ HGraph::HGraph(CompilationInfo* info)
       next_inline_id_(0),
       inlined_functions_(5, info->zone()) {
   if (info->IsStub()) {
-    HydrogenCodeStub* stub = info->code_stub();
-    CodeStubInterfaceDescriptor descriptor;
-    stub->InitializeInterfaceDescriptor(&descriptor);
+    CallInterfaceDescriptor descriptor =
+        info->code_stub()->GetCallInterfaceDescriptor();
     start_environment_ = new (zone_)
         HEnvironment(zone_, descriptor.GetEnvironmentParameterCount());
   } else {

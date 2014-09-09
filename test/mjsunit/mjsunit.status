@@ -118,24 +118,6 @@
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
   'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
 
-  # Support for ES6 generators is missing.
-  'regress-3225': [PASS, NO_VARIANTS],
-  'es6/generators-debug-liveedit': [PASS, NO_VARIANTS],
-  'es6/generators-iteration': [PASS, NO_VARIANTS],
-  'es6/generators-parsing': [PASS, NO_VARIANTS],
-  'es6/generators-poisoned-properties': [PASS, NO_VARIANTS],
-  'es6/generators-relocation': [PASS, NO_VARIANTS],
-  'es6/regress/regress-2681': [PASS, NO_VARIANTS],
-  'es6/regress/regress-2691': [PASS, NO_VARIANTS],
-  'es6/regress/regress-3280': [PASS, NO_VARIANTS],
-
-  # Support for ES6 for-of iteration is missing.
-  'es6/array-iterator': [PASS, NO_VARIANTS],
-  'es6/iteration-semantics': [PASS, NO_VARIANTS],
-  'es6/string-iterator': [PASS, NO_VARIANTS],
-  'es6/typed-array-iterator': [PASS, NO_VARIANTS],
-  'es6/arguments-iterator': [PASS, NO_VARIANTS],
-
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],

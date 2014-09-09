@@ -56,7 +56,7 @@ class CallInterfaceDescriptorData {
   // TODO(mvstanton): Instead of taking parallel arrays register and
   // param_representations, how about a struct that puts the representation
   // and register side by side (eg, RegRep(r1, Representation::Tagged()).
-  // The same should go for the CodeStubInterfaceDescriptor class.
+  // The same should go for the CodeStubDescriptor class.
   void Initialize(int register_parameter_count, Register* registers,
                   Representation* param_representations,
                   PlatformInterfaceDescriptor* platform_descriptor = NULL);
@@ -114,10 +114,6 @@ class CallInterfaceDescriptor {
   CallInterfaceDescriptor(Isolate* isolate, CallDescriptors::Key key)
       : data_(isolate->call_descriptor_data(key)) {}
 
-  bool IsInitialized() const {
-    return data() != NULL && data()->IsInitialized();
-  }
-
   int GetEnvironmentLength() const { return data()->register_param_count(); }
 
   int GetRegisterParameterCount() const {
@@ -157,6 +153,8 @@ class CallInterfaceDescriptor {
   }
 
   static const Register ContextRegister();
+
+  const char* DebugName(Isolate* isolate);
 
  protected:
   const CallInterfaceDescriptorData* data() const { return data_; }

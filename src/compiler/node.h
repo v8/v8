@@ -58,7 +58,7 @@ class Node FINAL : public GenericNode<NodeData, Node> {
   void Kill();
 
   void CollectProjections(ZoneVector<Node*>* projections);
-  Node* FindProjection(int32_t projection_index);
+  Node* FindProjection(size_t projection_index);
 };
 
 OStream& operator<<(OStream& os, const Node& n);
@@ -82,7 +82,7 @@ typedef Node::Inputs::iterator InputIter;
 
 // Helper to extract parameters from Operator1<*> nodes.
 template <typename T>
-static inline T OpParameter(const Node* node) {
+static inline const T& OpParameter(const Node* node) {
   return OpParameter<T>(node->op());
 }
 

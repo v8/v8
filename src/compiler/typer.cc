@@ -212,31 +212,31 @@ Bounds Typer::Visitor::TypeParameter(Node* node) {
 
 Bounds Typer::Visitor::TypeInt32Constant(Node* node) {
   // TODO(titzer): only call Type::Of() if the type is not already known.
-  return Bounds(Type::Of(ValueOf<int32_t>(node->op()), zone()));
+  return Bounds(Type::Of(OpParameter<int32_t>(node), zone()));
 }
 
 
 Bounds Typer::Visitor::TypeInt64Constant(Node* node) {
   // TODO(titzer): only call Type::Of() if the type is not already known.
   return Bounds(
-      Type::Of(static_cast<double>(ValueOf<int64_t>(node->op())), zone()));
+      Type::Of(static_cast<double>(OpParameter<int64_t>(node)), zone()));
 }
 
 
 Bounds Typer::Visitor::TypeFloat64Constant(Node* node) {
   // TODO(titzer): only call Type::Of() if the type is not already known.
-  return Bounds(Type::Of(ValueOf<double>(node->op()), zone()));
+  return Bounds(Type::Of(OpParameter<double>(node), zone()));
 }
 
 
 Bounds Typer::Visitor::TypeNumberConstant(Node* node) {
   // TODO(titzer): only call Type::Of() if the type is not already known.
-  return Bounds(Type::Of(ValueOf<double>(node->op()), zone()));
+  return Bounds(Type::Of(OpParameter<double>(node), zone()));
 }
 
 
 Bounds Typer::Visitor::TypeHeapConstant(Node* node) {
-  return Bounds(TypeConstant(ValueOf<Handle<Object> >(node->op())));
+  return Bounds(TypeConstant(OpParameter<Unique<Object> >(node).handle()));
 }
 
 
@@ -485,8 +485,6 @@ Bounds Typer::Visitor::TypeJSInstanceOf(Node* node) {
 // JS context operators.
 
 Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
-// TODO(rossberg): Fix this once we actually use the lower bound anywhere.
-#if 0
   Bounds outer = OperandType(node, 0);
   DCHECK(outer.upper->Maybe(Type::Internal()));
   // TODO(rossberg): More precisely, instead of the above assertion, we should
@@ -509,7 +507,7 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
       if (context_type->IsConstant()) {
         context = Handle<Context>::cast(context_type->AsConstant()->Value());
       }
-    } else {
+    } else if (!context.is_null()) {
       context = handle(context.ToHandleChecked()->previous(), isolate());
     }
   }
@@ -521,9 +519,6 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
     Type* lower = TypeConstant(value);
     return Bounds(lower, Type::Any(zone()));
   }
-#else
-  return Bounds::Unbounded(zone());
-#endif
 }
 
 

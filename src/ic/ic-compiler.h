@@ -72,7 +72,6 @@ class PropertyICCompiler : public PropertyAccessCompiler {
 
   Handle<Code> CompileLoadInitialize(Code::Flags flags);
   Handle<Code> CompileLoadPreMonomorphic(Code::Flags flags);
-  Handle<Code> CompileLoadMegamorphic(Code::Flags flags);
   Handle<Code> CompileStoreInitialize(Code::Flags flags);
   Handle<Code> CompileStorePreMonomorphic(Code::Flags flags);
   Handle<Code> CompileStoreGeneric(Code::Flags flags);

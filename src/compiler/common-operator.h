@@ -114,8 +114,9 @@ class CommonOperatorBuilder {
                                       1, "Parameter", index);
   }
   Operator* Int32Constant(int32_t value) {
-    return new (zone_) Operator1<int>(IrOpcode::kInt32Constant, Operator::kPure,
-                                      0, 1, "Int32Constant", value);
+    return new (zone_)
+        Operator1<int32_t>(IrOpcode::kInt32Constant, Operator::kPure, 0, 1,
+                           "Int32Constant", value);
   }
   Operator* Int64Constant(int64_t value) {
     return new (zone_)
@@ -177,142 +178,14 @@ class CommonOperatorBuilder {
   Operator* Call(CallDescriptor* descriptor) {
     return new (zone_) CallOperator(descriptor, "Call");
   }
-  Operator* Projection(int index) {
-    return new (zone_) Operator1<int>(IrOpcode::kProjection, Operator::kPure, 1,
-                                      1, "Projection", index);
+  Operator* Projection(size_t index) {
+    return new (zone_) Operator1<size_t>(IrOpcode::kProjection, Operator::kPure,
+                                         1, 1, "Projection", index);
   }
 
  private:
   Zone* zone_;
 };
-
-
-template <typename T>
-struct CommonOperatorTraits {
-  static inline bool Equals(T a, T b);
-  static inline bool HasValue(const Operator* op);
-  static inline T ValueOf(const Operator* op);
-};
-
-template <>
-struct CommonOperatorTraits<int32_t> {
-  static inline bool Equals(int32_t a, int32_t b) { return a == b; }
-  static inline bool HasValue(const Operator* op) {
-    return op->opcode() == IrOpcode::kInt32Constant ||
-           op->opcode() == IrOpcode::kNumberConstant;
-  }
-  static inline int32_t ValueOf(const Operator* op) {
-    if (op->opcode() == IrOpcode::kNumberConstant) {
-      // TODO(titzer): cache the converted int32 value in NumberConstant.
-      return FastD2I(OpParameter<double>(op));
-    }
-    CHECK_EQ(IrOpcode::kInt32Constant, op->opcode());
-    return OpParameter<int32_t>(op);
-  }
-};
-
-template <>
-struct CommonOperatorTraits<uint32_t> {
-  static inline bool Equals(uint32_t a, uint32_t b) { return a == b; }
-  static inline bool HasValue(const Operator* op) {
-    return CommonOperatorTraits<int32_t>::HasValue(op);
-  }
-  static inline uint32_t ValueOf(const Operator* op) {
-    if (op->opcode() == IrOpcode::kNumberConstant) {
-      // TODO(titzer): cache the converted uint32 value in NumberConstant.
-      return FastD2UI(OpParameter<double>(op));
-    }
-    return static_cast<uint32_t>(CommonOperatorTraits<int32_t>::ValueOf(op));
-  }
-};
-
-template <>
-struct CommonOperatorTraits<int64_t> {
-  static inline bool Equals(int64_t a, int64_t b) { return a == b; }
-  static inline bool HasValue(const Operator* op) {
-    return op->opcode() == IrOpcode::kInt32Constant ||
-           op->opcode() == IrOpcode::kInt64Constant ||
-           op->opcode() == IrOpcode::kNumberConstant;
-  }
-  static inline int64_t ValueOf(const Operator* op) {
-    if (op->opcode() == IrOpcode::kInt32Constant) {
-      return static_cast<int64_t>(CommonOperatorTraits<int32_t>::ValueOf(op));
-    }
-    CHECK_EQ(IrOpcode::kInt64Constant, op->opcode());
-    return OpParameter<int64_t>(op);
-  }
-};
-
-template <>
-struct CommonOperatorTraits<uint64_t> {
-  static inline bool Equals(uint64_t a, uint64_t b) { return a == b; }
-  static inline bool HasValue(const Operator* op) {
-    return CommonOperatorTraits<int64_t>::HasValue(op);
-  }
-  static inline uint64_t ValueOf(const Operator* op) {
-    return static_cast<uint64_t>(CommonOperatorTraits<int64_t>::ValueOf(op));
-  }
-};
-
-template <>
-struct CommonOperatorTraits<double> {
-  static inline bool Equals(double a, double b) {
-    return DoubleRepresentation(a).bits == DoubleRepresentation(b).bits;
-  }
-  static inline bool HasValue(const Operator* op) {
-    return op->opcode() == IrOpcode::kFloat64Constant ||
-           op->opcode() == IrOpcode::kInt32Constant ||
-           op->opcode() == IrOpcode::kNumberConstant;
-  }
-  static inline double ValueOf(const Operator* op) {
-    if (op->opcode() == IrOpcode::kFloat64Constant ||
-        op->opcode() == IrOpcode::kNumberConstant) {
-      return OpParameter<double>(op);
-    }
-    return static_cast<double>(CommonOperatorTraits<int32_t>::ValueOf(op));
-  }
-};
-
-template <>
-struct CommonOperatorTraits<ExternalReference> {
-  static inline bool Equals(ExternalReference a, ExternalReference b) {
-    return a == b;
-  }
-  static inline bool HasValue(const Operator* op) {
-    return op->opcode() == IrOpcode::kExternalConstant;
-  }
-  static inline ExternalReference ValueOf(const Operator* op) {
-    CHECK_EQ(IrOpcode::kExternalConstant, op->opcode());
-    return OpParameter<ExternalReference>(op);
-  }
-};
-
-template <typename T>
-struct CommonOperatorTraits<Unique<T> > {
-  static inline bool HasValue(const Operator* op) {
-    return op->opcode() == IrOpcode::kHeapConstant;
-  }
-  static inline Unique<T> ValueOf(const Operator* op) {
-    CHECK_EQ(IrOpcode::kHeapConstant, op->opcode());
-    return OpParameter<Unique<T> >(op);
-  }
-};
-
-template <typename T>
-struct CommonOperatorTraits<Handle<T> > {
-  static inline bool HasValue(const Operator* op) {
-    return CommonOperatorTraits<Unique<T> >::HasValue(op);
-  }
-  static inline Handle<T> ValueOf(const Operator* op) {
-    return CommonOperatorTraits<Unique<T> >::ValueOf(op).handle();
-  }
-};
-
-
-template <typename T>
-inline T ValueOf(const Operator* op) {
-  return CommonOperatorTraits<T>::ValueOf(op);
-}
 
 }  // namespace compiler
 }  // namespace internal
