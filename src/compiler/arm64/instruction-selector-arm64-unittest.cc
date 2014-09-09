@@ -12,6 +12,8 @@ namespace compiler {
 
 namespace {
 
+typedef RawMachineAssembler::Label MLabel;
+
 template <typename T>
 struct MachInst {
   T constructor;
@@ -86,6 +88,13 @@ static const int32_t kAddSubImmediates[] = {
     7499776,  7573504,  7729152,  8634368,  8937472,  9465856,  10354688,
     10682368, 11059200, 11460608, 13168640, 13176832, 14336000, 15028224,
     15597568, 15892480, 16773120};
+
+
+// ARM64 flag setting data processing instructions.
+static const MachInst2 kDPFlagSetInstructions[] = {
+    {&RawMachineAssembler::Word32And, "Word32And", kArm64Tst32, kMachInt32},
+    {&RawMachineAssembler::Int32Add, "Int32Add", kArm64Cmn32, kMachInt32},
+    {&RawMachineAssembler::Int32Sub, "Int32Sub", kArm64Cmp32, kMachInt32}};
 
 
 // ARM64 arithmetic with overflow instructions.
@@ -344,6 +353,129 @@ TEST_F(InstructionSelectorTest, SubZeroOnLeft) {
 
 
 // -----------------------------------------------------------------------------
+// Data processing controlled branches.
+
+
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorDPFlagSetTest;
+
+
+TEST_P(InstructionSelectorDPFlagSetTest, BranchWithParameters) {
+  const MachInst2 dpi = GetParam();
+  const MachineType type = dpi.machine_type;
+  StreamBuilder m(this, type, type, type);
+  MLabel a, b;
+  m.Branch((m.*dpi.constructor)(m.Parameter(0), m.Parameter(1)), &a, &b);
+  m.Bind(&a);
+  m.Return(m.Int32Constant(1));
+  m.Bind(&b);
+  m.Return(m.Int32Constant(0));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorDPFlagSetTest,
+                        ::testing::ValuesIn(kDPFlagSetInstructions));
+
+
+TEST_F(InstructionSelectorTest, AndBranchWithImmediateOnRight) {
+  TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    m.Branch(m.Word32And(m.Parameter(0), m.Int32Constant(imm)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, AddBranchWithImmediateOnRight) {
+  TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    m.Branch(m.Int32Add(m.Parameter(0), m.Int32Constant(imm)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmn32, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, SubBranchWithImmediateOnRight) {
+  TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    m.Branch(m.Int32Sub(m.Parameter(0), m.Int32Constant(imm)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmp32, s[0]->arch_opcode());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, AndBranchWithImmediateOnLeft) {
+  TRACED_FOREACH(int32_t, imm, kLogicalImmediates) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    m.Branch(m.Word32And(m.Int32Constant(imm), m.Parameter(0)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    ASSERT_LE(1U, s[0]->InputCount());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, AddBranchWithImmediateOnLeft) {
+  TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    m.Branch(m.Int32Add(m.Int32Constant(imm), m.Parameter(0)), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(1));
+    m.Bind(&b);
+    m.Return(m.Int32Constant(0));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Cmn32, s[0]->arch_opcode());
+    ASSERT_LE(1U, s[0]->InputCount());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Add and subtract instructions with overflow.
 
 
@@ -454,6 +586,50 @@ TEST_P(InstructionSelectorOvfAddSubTest, BothImmediateOnRight) {
 }
 
 
+TEST_P(InstructionSelectorOvfAddSubTest, BranchWithParameters) {
+  const MachInst2 dpi = GetParam();
+  const MachineType type = dpi.machine_type;
+  StreamBuilder m(this, type, type, type);
+  MLabel a, b;
+  Node* n = (m.*dpi.constructor)(m.Parameter(0), m.Parameter(1));
+  m.Branch(m.Projection(1, n), &a, &b);
+  m.Bind(&a);
+  m.Return(m.Int32Constant(0));
+  m.Bind(&b);
+  m.Return(m.Projection(0, n));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+  EXPECT_EQ(kOverflow, s[0]->flags_condition());
+}
+
+
+TEST_P(InstructionSelectorOvfAddSubTest, BranchWithImmediateOnRight) {
+  const MachInst2 dpi = GetParam();
+  const MachineType type = dpi.machine_type;
+  TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+    StreamBuilder m(this, type, type);
+    MLabel a, b;
+    Node* n = (m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm));
+    m.Branch(m.Projection(1, n), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(0));
+    m.Bind(&b);
+    m.Return(m.Projection(0, n));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
+    ASSERT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
+    EXPECT_EQ(kOverflow, s[0]->flags_condition());
+  }
+}
+
+
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorOvfAddSubTest,
                         ::testing::ValuesIn(kOvfAddSubInstructions));
@@ -507,6 +683,29 @@ TEST_F(InstructionSelectorTest, OvfBothAddImmediateOnLeft) {
     EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(2U, s[0]->OutputCount());
     EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kOverflow, s[0]->flags_condition());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, OvfBranchWithImmediateOnLeft) {
+  TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    MLabel a, b;
+    Node* n = m.Int32AddWithOverflow(m.Int32Constant(imm), m.Parameter(0));
+    m.Branch(m.Projection(1, n), &a, &b);
+    m.Bind(&a);
+    m.Return(m.Int32Constant(0));
+    m.Bind(&b);
+    m.Return(m.Projection(0, n));
+    Stream s = m.Build();
+
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Add32, s[0]->arch_opcode());
+    ASSERT_EQ(4U, s[0]->InputCount());
+    EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kOverflow, s[0]->flags_condition());
   }
 }
