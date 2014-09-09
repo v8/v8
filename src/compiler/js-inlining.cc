@@ -171,8 +171,8 @@ class CopyVisitor : public NullNodeVisitor {
 
     // Reuse the operator in the copy. This assumes that op lives in a zone
     // that lives longer than graph()'s zone.
-    Node* copy =
-        target_graph_->NewNode(original->op(), inputs.size(), &inputs.front());
+    Node* copy = target_graph_->NewNode(
+        original->op(), static_cast<int>(inputs.size()), &inputs.front());
     copies_[original->id()] = copy;
     return GenericGraphVisit::CONTINUE;
   }
