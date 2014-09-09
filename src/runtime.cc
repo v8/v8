@@ -151,6 +151,15 @@ namespace internal {
   StrictMode name = static_cast<StrictMode>(args.smi_at(index));
 
 
+// Assert that the given argument is a number within the Int32 range
+// and convert it to int32_t.  If the argument is not an Int32 call
+// IllegalOperation and return.
+#define CONVERT_INT32_ARG_CHECKED(name, index)                       \
+  RUNTIME_ASSERT(args[index]->IsNumber());                           \
+  int32_t name = 0;                                                  \
+  RUNTIME_ASSERT(args[index]->ToInt32(&name));
+
+
 static Handle<Map> ComputeObjectLiteralMap(
     Handle<Context> context,
     Handle<FixedArray> constant_properties,
@@ -2501,10 +2510,10 @@ RUNTIME_FUNCTION(Runtime_RegExpExecRT) {
   DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
+  CONVERT_INT32_ARG_CHECKED(index, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CONVERT_SMI_ARG_CHECKED(index, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
   RUNTIME_ASSERT(index >= 0);
   RUNTIME_ASSERT(index <= subject->length());
   isolate->counters()->regexp_entry_runtime()->Increment();
@@ -6243,7 +6252,7 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
 RUNTIME_FUNCTION(Runtime_NewString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_SMI_ARG_CHECKED(length, 0);
+  CONVERT_INT32_ARG_CHECKED(length, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(is_one_byte, 1);
   if (length == 0) return isolate->heap()->empty_string();
   Handle<String> result;
@@ -6262,7 +6271,7 @@ RUNTIME_FUNCTION(Runtime_TruncateString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(SeqString, string, 0);
-  CONVERT_SMI_ARG_CHECKED(new_length, 1);
+  CONVERT_INT32_ARG_CHECKED(new_length, 1);
   RUNTIME_ASSERT(new_length >= 0);
   return *SeqString::Truncate(string, new_length);
 }
@@ -8940,8 +8949,8 @@ RUNTIME_FUNCTION(Runtime_Apply) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, fun, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, arguments, 2);
-  CONVERT_SMI_ARG_CHECKED(offset, 3);
-  CONVERT_SMI_ARG_CHECKED(argc, 4);
+  CONVERT_INT32_ARG_CHECKED(offset, 3);
+  CONVERT_INT32_ARG_CHECKED(argc, 4);
   RUNTIME_ASSERT(offset >= 0);
   // Loose upper bound to allow fuzzing. We'll most likely run out of
   // stack space before hitting this limit.
@@ -15227,17 +15236,17 @@ RUNTIME_FUNCTION(Runtime_ForInCacheArrayLength) {
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInNext) {
   SealHandleScope scope(isolate);
   DCHECK(args.length() == 4);
+  int32_t index;
   // This simulates CONVERT_ARG_HANDLE_CHECKED for calls returning pairs.
   // Not worth creating a macro atm as this function should be removed.
   if (!args[0]->IsJSReceiver() || !args[1]->IsFixedArray() ||
-      !args[2]->IsObject() || !args[3]->IsSmi()) {
+      !args[2]->IsObject() || !args[3]->ToInt32(&index)) {
     Object* error = isolate->ThrowIllegalOperation();
     return MakePair(error, isolate->heap()->undefined_value());
   }
   Handle<JSReceiver> object = args.at<JSReceiver>(0);
   Handle<FixedArray> array = args.at<FixedArray>(1);
   Handle<Object> cache_type = args.at<Object>(2);
-  int index = args.smi_at(3);
   // Figure out first if a slow check is needed for this object.
   bool slow_check_needed = false;
   if (cache_type->IsMap()) {
@@ -15395,8 +15404,8 @@ RUNTIME_FUNCTION(RuntimeReference_OneByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
   CONVERT_ARG_CHECKED(SeqOneByteString, string, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  CONVERT_SMI_ARG_CHECKED(value, 2);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  CONVERT_INT32_ARG_CHECKED(value, 2);
   string->SeqOneByteStringSet(index, value);
   return string;
 }
@@ -15406,8 +15415,8 @@ RUNTIME_FUNCTION(RuntimeReference_TwoByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
   CONVERT_ARG_CHECKED(SeqTwoByteString, string, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  CONVERT_SMI_ARG_CHECKED(value, 2);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  CONVERT_INT32_ARG_CHECKED(value, 2);
   string->SeqTwoByteStringSet(index, value);
   return string;
 }
