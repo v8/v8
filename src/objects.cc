@@ -1010,18 +1010,13 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   bool is_internalized = this->IsInternalizedString();
 
   // Morph the string to an external string by replacing the map and
-  // reinitializing the fields.  This won't work if
-  // - the space the existing string occupies is too small for a regular
-  //   external string.
-  // - the existing string is in old pointer space and the backing store of
-  //   the external string is not aligned.  The GC cannot deal with a field
-  //   containing a possibly unaligned address to outside of V8's heap.
-  // In either case we resort to a short external string instead, omitting
+  // reinitializing the fields.  This won't work if the space the existing
+  // string occupies is too small for a regular  external string.
+  // Instead, we resort to a short external string instead, omitting
   // the field caching the address of the backing store.  When we encounter
   // short external strings in generated code, we need to bailout to runtime.
   Map* new_map;
-  if (size < ExternalString::kSize ||
-      heap->old_pointer_space()->Contains(this)) {
+  if (size < ExternalString::kSize) {
     new_map = is_internalized
         ? (is_ascii
             ? heap->
@@ -1084,18 +1079,13 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   bool is_internalized = this->IsInternalizedString();
 
   // Morph the string to an external string by replacing the map and
-  // reinitializing the fields.  This won't work if
-  // - the space the existing string occupies is too small for a regular
-  //   external string.
-  // - the existing string is in old pointer space and the backing store of
-  //   the external string is not aligned.  The GC cannot deal with a field
-  //   containing a possibly unaligned address to outside of V8's heap.
-  // In either case we resort to a short external string instead, omitting
+  // reinitializing the fields.  This won't work if the space the existing
+  // string occupies is too small for a regular  external string.
+  // Instead, we resort to a short external string instead, omitting
   // the field caching the address of the backing store.  When we encounter
   // short external strings in generated code, we need to bailout to runtime.
   Map* new_map;
-  if (size < ExternalString::kSize ||
-      heap->old_pointer_space()->Contains(this)) {
+  if (size < ExternalString::kSize) {
     new_map = is_internalized
         ? heap->short_external_ascii_internalized_string_map()
         : heap->short_external_ascii_string_map();

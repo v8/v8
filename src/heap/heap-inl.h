@@ -461,8 +461,7 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
       return dst == src || dst == TargetSpaceId(type);
     case OLD_POINTER_SPACE:
       return dst == src && (dst == TargetSpaceId(type) || obj->IsFiller() ||
-                            (obj->IsExternalString() &&
-                             ExternalString::cast(obj)->is_short()));
+                            obj->IsExternalString());
     case OLD_DATA_SPACE:
       return dst == src && dst == TargetSpaceId(type);
     case CODE_SPACE:
