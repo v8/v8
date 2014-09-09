@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/base/bits.h"
 #include "src/base/macros.h"
 #include "testing/gtest-support.h"
@@ -117,6 +119,47 @@ TEST(Bits, RotateRight64) {
   EXPECT_EQ(1u, RotateRight64(1, 0));
   EXPECT_EQ(1u, RotateRight64(2, 1));
   EXPECT_EQ(V8_UINT64_C(0x8000000000000000), RotateRight64(1, 1));
+}
+
+
+TEST(Bits, SignedAddOverflow32) {
+  int32_t val = 0;
+  EXPECT_FALSE(SignedAddOverflow32(0, 0, &val));
+  EXPECT_EQ(0, val);
+  EXPECT_TRUE(
+      SignedAddOverflow32(std::numeric_limits<int32_t>::max(), 1, &val));
+  EXPECT_EQ(std::numeric_limits<int32_t>::min(), val);
+  EXPECT_TRUE(
+      SignedAddOverflow32(std::numeric_limits<int32_t>::min(), -1, &val));
+  EXPECT_EQ(std::numeric_limits<int32_t>::max(), val);
+  EXPECT_TRUE(SignedAddOverflow32(std::numeric_limits<int32_t>::max(),
+                                  std::numeric_limits<int32_t>::max(), &val));
+  EXPECT_EQ(-2, val);
+  TRACED_FORRANGE(int32_t, i, 1, 50) {
+    TRACED_FORRANGE(int32_t, j, 1, i) {
+      EXPECT_FALSE(SignedAddOverflow32(i, j, &val));
+      EXPECT_EQ(i + j, val);
+    }
+  }
+}
+
+
+TEST(Bits, SignedSubOverflow32) {
+  int32_t val = 0;
+  EXPECT_FALSE(SignedSubOverflow32(0, 0, &val));
+  EXPECT_EQ(0, val);
+  EXPECT_TRUE(
+      SignedSubOverflow32(std::numeric_limits<int32_t>::min(), 1, &val));
+  EXPECT_EQ(std::numeric_limits<int32_t>::max(), val);
+  EXPECT_TRUE(
+      SignedSubOverflow32(std::numeric_limits<int32_t>::max(), -1, &val));
+  EXPECT_EQ(std::numeric_limits<int32_t>::min(), val);
+  TRACED_FORRANGE(int32_t, i, 1, 50) {
+    TRACED_FORRANGE(int32_t, j, 1, i) {
+      EXPECT_FALSE(SignedSubOverflow32(i, j, &val));
+      EXPECT_EQ(i - j, val);
+    }
+  }
 }
 
 }  // namespace bits

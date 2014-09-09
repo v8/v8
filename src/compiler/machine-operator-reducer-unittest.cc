@@ -443,6 +443,98 @@ TEST_F(MachineOperatorReducerTest, Word32RorWithConstants) {
   }
 }
 
+
+// -----------------------------------------------------------------------------
+// Int32AddWithOverflow
+
+
+TEST_F(MachineOperatorReducerTest, Int32AddWithOverflowWithZero) {
+  Node* p0 = Parameter(0);
+  {
+    Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(),
+                                 Int32Constant(0), p0);
+
+    Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt32Constant(0));
+
+    r = Reduce(graph()->NewNode(common()->Projection(0), add));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(p0, r.replacement());
+  }
+  {
+    Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), p0,
+                                 Int32Constant(0));
+
+    Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsInt32Constant(0));
+
+    r = Reduce(graph()->NewNode(common()->Projection(0), add));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_EQ(p0, r.replacement());
+  }
+}
+
+
+TEST_F(MachineOperatorReducerTest, Int32AddWithOverflowWithConstant) {
+  TRACED_FOREACH(int32_t, x, kInt32Values) {
+    TRACED_FOREACH(int32_t, y, kInt32Values) {
+      int32_t z;
+      Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(),
+                                   Int32Constant(x), Int32Constant(y));
+
+      Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsInt32Constant(base::bits::SignedAddOverflow32(x, y, &z)));
+
+      r = Reduce(graph()->NewNode(common()->Projection(0), add));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Constant(z));
+    }
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Int32SubWithOverflow
+
+
+TEST_F(MachineOperatorReducerTest, Int32SubWithOverflowWithZero) {
+  Node* p0 = Parameter(0);
+  Node* add =
+      graph()->NewNode(machine()->Int32SubWithOverflow(), p0, Int32Constant(0));
+
+  Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsInt32Constant(0));
+
+  r = Reduce(graph()->NewNode(common()->Projection(0), add));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(p0, r.replacement());
+}
+
+
+TEST_F(MachineOperatorReducerTest, Int32SubWithOverflowWithConstant) {
+  TRACED_FOREACH(int32_t, x, kInt32Values) {
+    TRACED_FOREACH(int32_t, y, kInt32Values) {
+      int32_t z;
+      Node* add = graph()->NewNode(machine()->Int32SubWithOverflow(),
+                                   Int32Constant(x), Int32Constant(y));
+
+      Reduction r = Reduce(graph()->NewNode(common()->Projection(1), add));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(),
+                  IsInt32Constant(base::bits::SignedSubOverflow32(x, y, &z)));
+
+      r = Reduce(graph()->NewNode(common()->Projection(0), add));
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), IsInt32Constant(z));
+    }
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

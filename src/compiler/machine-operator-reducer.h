@@ -42,6 +42,8 @@ class MachineOperatorReducer FINAL : public Reducer {
     return Replace(Int64Constant(value));
   }
 
+  Reduction ReduceProjection(size_t index, Node* node);
+
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   CommonOperatorBuilder* common() const;
