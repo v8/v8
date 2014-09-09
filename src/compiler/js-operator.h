@@ -156,7 +156,7 @@ class JSOperatorBuilder {
   }
   Operator* StoreContext(uint16_t depth, uint32_t index) {
     ContextAccess access(depth, index, false);
-    OP1(JSStoreContext, ContextAccess, access, Operator::kNoProperties, 2, 1);
+    OP1(JSStoreContext, ContextAccess, access, Operator::kNoProperties, 2, 0);
   }
 
   Operator* TypeOf() { SIMPLE(JSTypeOf, Operator::kPure, 1, 1); }

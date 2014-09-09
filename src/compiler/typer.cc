@@ -303,14 +303,13 @@ Bounds Typer::Visitor::TypeFinish(Node* node) {
 
 
 Bounds Typer::Visitor::TypeFrameState(Node* node) {
-  UNREACHABLE();
-  return Bounds();
+  // TODO(rossberg): Ideally FrameState wouldn't have a value output.
+  return Bounds(Type::Internal(zone()));
 }
 
 
 Bounds Typer::Visitor::TypeStateValues(Node* node) {
-  UNREACHABLE();
-  return Bounds();
+  return Bounds(Type::Internal(zone()));
 }
 
 
