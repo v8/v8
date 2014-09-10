@@ -185,7 +185,7 @@ TEST(HeapObjects) {
   CHECK(factory->nan_value()->IsNumber());
   CHECK(std::isnan(factory->nan_value()->Number()));
 
-  Handle<String> s = factory->NewStringFromStaticAscii("fisk hest ");
+  Handle<String> s = factory->NewStringFromStaticChars("fisk hest ");
   CHECK(s->IsString());
   CHECK_EQ(10, s->length());
 
@@ -341,7 +341,7 @@ TEST(GlobalHandles) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
+    Handle<Object> i = factory->NewStringFromStaticChars("fisk");
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
@@ -396,7 +396,7 @@ TEST(WeakGlobalHandlesScavenge) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
+    Handle<Object> i = factory->NewStringFromStaticChars("fisk");
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
@@ -438,7 +438,7 @@ TEST(WeakGlobalHandlesMark) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
+    Handle<Object> i = factory->NewStringFromStaticChars("fisk");
     Handle<Object> u = factory->NewNumber(1.12344);
 
     h1 = global_handles->Create(*i);
@@ -484,7 +484,7 @@ TEST(DeleteWeakGlobalHandle) {
   {
     HandleScope scope(isolate);
 
-    Handle<Object> i = factory->NewStringFromStaticAscii("fisk");
+    Handle<Object> i = factory->NewStringFromStaticChars("fisk");
     h = global_handles->Create(*i);
   }
 
@@ -870,33 +870,34 @@ TEST(StringAllocation) {
   const unsigned char chars[] = { 0xe5, 0xa4, 0xa7 };
   for (int length = 0; length < 100; length++) {
     v8::HandleScope scope(CcTest::isolate());
-    char* non_ascii = NewArray<char>(3 * length + 1);
-    char* ascii = NewArray<char>(length + 1);
-    non_ascii[3 * length] = 0;
-    ascii[length] = 0;
+    char* non_one_byte = NewArray<char>(3 * length + 1);
+    char* one_byte = NewArray<char>(length + 1);
+    non_one_byte[3 * length] = 0;
+    one_byte[length] = 0;
     for (int i = 0; i < length; i++) {
-      ascii[i] = 'a';
-      non_ascii[3 * i] = chars[0];
-      non_ascii[3 * i + 1] = chars[1];
-      non_ascii[3 * i + 2] = chars[2];
+      one_byte[i] = 'a';
+      non_one_byte[3 * i] = chars[0];
+      non_one_byte[3 * i + 1] = chars[1];
+      non_one_byte[3 * i + 2] = chars[2];
     }
-    Handle<String> non_ascii_sym =
-        factory->InternalizeUtf8String(
-            Vector<const char>(non_ascii, 3 * length));
-    CHECK_EQ(length, non_ascii_sym->length());
-    Handle<String> ascii_sym =
-        factory->InternalizeOneByteString(OneByteVector(ascii, length));
-    CHECK_EQ(length, ascii_sym->length());
-    Handle<String> non_ascii_str = factory->NewStringFromUtf8(
-        Vector<const char>(non_ascii, 3 * length)).ToHandleChecked();
-    non_ascii_str->Hash();
-    CHECK_EQ(length, non_ascii_str->length());
-    Handle<String> ascii_str = factory->NewStringFromUtf8(
-        Vector<const char>(ascii, length)).ToHandleChecked();
-    ascii_str->Hash();
-    CHECK_EQ(length, ascii_str->length());
-    DeleteArray(non_ascii);
-    DeleteArray(ascii);
+    Handle<String> non_one_byte_sym = factory->InternalizeUtf8String(
+        Vector<const char>(non_one_byte, 3 * length));
+    CHECK_EQ(length, non_one_byte_sym->length());
+    Handle<String> one_byte_sym =
+        factory->InternalizeOneByteString(OneByteVector(one_byte, length));
+    CHECK_EQ(length, one_byte_sym->length());
+    Handle<String> non_one_byte_str =
+        factory->NewStringFromUtf8(Vector<const char>(non_one_byte, 3 * length))
+            .ToHandleChecked();
+    non_one_byte_str->Hash();
+    CHECK_EQ(length, non_one_byte_str->length());
+    Handle<String> one_byte_str =
+        factory->NewStringFromUtf8(Vector<const char>(one_byte, length))
+            .ToHandleChecked();
+    one_byte_str->Hash();
+    CHECK_EQ(length, one_byte_str->length());
+    DeleteArray(non_one_byte);
+    DeleteArray(one_byte);
   }
 }
 
@@ -934,10 +935,9 @@ TEST(Iteration) {
                                                 TENURED);
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
+  objs[next_objs_index++] = factory->NewStringFromStaticChars("abcdefghij");
   objs[next_objs_index++] =
-      factory->NewStringFromStaticAscii("abcdefghij");
-  objs[next_objs_index++] =
-      factory->NewStringFromStaticAscii("abcdefghij", TENURED);
+      factory->NewStringFromStaticChars("abcdefghij", TENURED);
 
   // Allocate a large string (for large object space).
   int large_size = Page::kMaxRegularHeapObjectSize + 1;
@@ -3275,7 +3275,7 @@ TEST(IncrementalMarkingClearsPolymorphicIC) {
 }
 
 
-class SourceResource: public v8::String::ExternalAsciiStringResource {
+class SourceResource : public v8::String::ExternalOneByteStringResource {
  public:
   explicit SourceResource(const char* data)
     : data_(data), length_(strlen(data)) { }
@@ -4434,7 +4434,7 @@ TEST(Regress388880) {
 
   Handle<Map> map1 = Map::Create(isolate->object_function(), 1);
   Handle<Map> map2 =
-      Map::CopyWithField(map1, factory->NewStringFromStaticAscii("foo"),
+      Map::CopyWithField(map1, factory->NewStringFromStaticChars("foo"),
                          HeapType::Any(isolate), NONE, Representation::Tagged(),
                          OMIT_TRANSITION).ToHandleChecked();
 

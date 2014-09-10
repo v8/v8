@@ -235,8 +235,8 @@ class GlobalHandles::Node {
     {
       // Check that we are not passing a finalized external string to
       // the callback.
-      DCHECK(!object_->IsExternalAsciiString() ||
-             ExternalAsciiString::cast(object_)->resource() != NULL);
+      DCHECK(!object_->IsExternalOneByteString() ||
+             ExternalOneByteString::cast(object_)->resource() != NULL);
       DCHECK(!object_->IsExternalTwoByteString() ||
              ExternalTwoByteString::cast(object_)->resource() != NULL);
       // Leaving V8.

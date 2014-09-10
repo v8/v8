@@ -107,7 +107,7 @@ class DebugLocalContext {
     Handle<JSGlobalProxy> global(Handle<JSGlobalProxy>::cast(
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
-        factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("debug"));
+        factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("debug"));
     v8::internal::Runtime::DefineObjectProperty(global, debug_string,
         handle(debug_context->global_proxy(), isolate), DONT_ENUM).Check();
   }

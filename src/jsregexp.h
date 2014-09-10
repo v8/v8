@@ -204,8 +204,8 @@ class RegExpImpl {
   static void SetIrregexpMaxRegisterCount(FixedArray* re, int value);
   static int IrregexpNumberOfCaptures(FixedArray* re);
   static int IrregexpNumberOfRegisters(FixedArray* re);
-  static ByteArray* IrregexpByteCode(FixedArray* re, bool is_ascii);
-  static Code* IrregexpNativeCode(FixedArray* re, bool is_ascii);
+  static ByteArray* IrregexpByteCode(FixedArray* re, bool is_one_byte);
+  static Code* IrregexpNativeCode(FixedArray* re, bool is_one_byte);
 
   // Limit the space regexps take up on the heap.  In order to limit this we
   // would like to keep track of the amount of regexp code on the heap.  This
@@ -216,10 +216,11 @@ class RegExpImpl {
   static const int kRegWxpCompiledLimit = 1 * MB;
 
  private:
-  static bool CompileIrregexp(
-      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
-  static inline bool EnsureCompiledIrregexp(
-      Handle<JSRegExp> re, Handle<String> sample_subject, bool is_ascii);
+  static bool CompileIrregexp(Handle<JSRegExp> re,
+                              Handle<String> sample_subject, bool is_one_byte);
+  static inline bool EnsureCompiledIrregexp(Handle<JSRegExp> re,
+                                            Handle<String> sample_subject,
+                                            bool is_one_byte);
 };
 
 
@@ -262,7 +263,7 @@ class CharacterRange {
   bool is_valid() { return from_ <= to_; }
   bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
-  void AddCaseEquivalents(ZoneList<CharacterRange>* ranges, bool is_ascii,
+  void AddCaseEquivalents(ZoneList<CharacterRange>* ranges, bool is_one_byte,
                           Zone* zone);
   static void Split(ZoneList<CharacterRange>* base,
                     Vector<const int> overlay,
@@ -526,11 +527,11 @@ class QuickCheckDetails {
         mask_(0),
         value_(0),
         cannot_match_(false) { }
-  bool Rationalize(bool ascii);
+  bool Rationalize(bool one_byte);
   // Merge in the information from another branch of an alternation.
   void Merge(QuickCheckDetails* other, int from_index);
   // Advance the current position by some amount.
-  void Advance(int by, bool ascii);
+  void Advance(int by, bool one_byte);
   void Clear();
   bool cannot_match() { return cannot_match_; }
   void set_cannot_match() { cannot_match_ = true; }
@@ -624,11 +625,13 @@ class RegExpNode: public ZoneObject {
     UNREACHABLE();
   }
 
-  // If we know that the input is ASCII then there are some nodes that can
+  // If we know that the input is one-byte then there are some nodes that can
   // never match.  This method returns a node that can be substituted for
   // itself, or NULL if the node can never match.
-  virtual RegExpNode* FilterASCII(int depth, bool ignore_case) { return this; }
-  // Helper for FilterASCII.
+  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case) {
+    return this;
+  }
+  // Helper for FilterOneByte.
   RegExpNode* replacement() {
     DCHECK(info()->replacement_calculated);
     return replacement_;
@@ -722,7 +725,7 @@ class SeqRegExpNode: public RegExpNode {
       : RegExpNode(on_success->zone()), on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
-  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
   virtual void FillInBMInfo(int offset,
                             int budget,
                             BoyerMooreLookahead* bm,
@@ -843,7 +846,7 @@ class TextNode: public SeqRegExpNode {
                                     int characters_filled_in,
                                     bool not_at_start);
   ZoneList<TextElement>* elements() { return elms_; }
-  void MakeCaseIndependent(bool is_ascii);
+  void MakeCaseIndependent(bool is_one_byte);
   virtual int GreedyLoopTextLength();
   virtual RegExpNode* GetSuccessorOfOmnivorousTextNode(
       RegExpCompiler* compiler);
@@ -852,11 +855,11 @@ class TextNode: public SeqRegExpNode {
                             BoyerMooreLookahead* bm,
                             bool not_at_start);
   void CalculateOffsets();
-  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
 
  private:
   enum TextEmitPassType {
-    NON_ASCII_MATCH,             // Check for characters that can't match.
+    NON_LATIN1_MATCH,            // Check for characters that can't match.
     SIMPLE_CHARACTER_MATCH,      // Case-dependent single character check.
     NON_LETTER_CHARACTER_MATCH,  // Check characters that have no case equivs.
     CASE_CHARACTER_MATCH,        // Case-independent single character check.
@@ -1081,7 +1084,7 @@ class ChoiceNode: public RegExpNode {
   virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
     return true;
   }
-  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
 
  protected:
   int GreedyLoopTextLengthForAlternative(GuardedAlternative* alternative);
@@ -1155,7 +1158,7 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
   virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
     return !is_first;
   }
-  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
 };
 
 
@@ -1183,7 +1186,7 @@ class LoopChoiceNode: public ChoiceNode {
   RegExpNode* continue_node() { return continue_node_; }
   bool body_can_be_zero_length() { return body_can_be_zero_length_; }
   virtual void Accept(NodeVisitor* visitor);
-  virtual RegExpNode* FilterASCII(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
 
  private:
   // AddAlternative is made private for loop nodes because alternatives
@@ -1326,7 +1329,7 @@ class BoyerMooreLookahead : public ZoneObject {
   // point.
   int length_;
   RegExpCompiler* compiler_;
-  // 0x7f for ASCII, 0xffff for UTF-16.
+  // 0xff for Latin1, 0xffff for UTF-16.
   int max_char_;
   ZoneList<BoyerMoorePositionInfo*>* bitmaps_;
 
@@ -1595,10 +1598,10 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 //   +-------+        +------------+
 class Analysis: public NodeVisitor {
  public:
-  Analysis(bool ignore_case, bool is_ascii)
+  Analysis(bool ignore_case, bool is_one_byte)
       : ignore_case_(ignore_case),
-        is_ascii_(is_ascii),
-        error_message_(NULL) { }
+        is_one_byte_(is_one_byte),
+        error_message_(NULL) {}
   void EnsureAnalyzed(RegExpNode* node);
 
 #define DECLARE_VISIT(Type)                                          \
@@ -1618,7 +1621,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 
  private:
   bool ignore_case_;
-  bool is_ascii_;
+  bool is_one_byte_;
   const char* error_message_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
@@ -1657,13 +1660,11 @@ class RegExpEngine: public AllStatic {
     int num_registers;
   };
 
-  static CompilationResult Compile(RegExpCompileData* input,
-                                   bool ignore_case,
-                                   bool global,
-                                   bool multiline,
+  static CompilationResult Compile(RegExpCompileData* input, bool ignore_case,
+                                   bool global, bool multiline,
                                    Handle<String> pattern,
                                    Handle<String> sample_subject,
-                                   bool is_ascii, Zone* zone);
+                                   bool is_one_byte, Zone* zone);
 
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
 };

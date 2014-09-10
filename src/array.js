@@ -144,7 +144,7 @@ function Join(array, length, separator, convert) {
         elements[elements_length++] = e;
       }
       elements.length = elements_length;
-      var result = %_FastAsciiArrayJoin(elements, '');
+      var result = %_FastOneByteArrayJoin(elements, '');
       if (!IS_UNDEFINED(result)) return result;
       return %StringBuilderConcat(elements, elements_length, '');
     }
@@ -168,7 +168,7 @@ function Join(array, length, separator, convert) {
         elements[i] = e;
       }
     }
-    var result = %_FastAsciiArrayJoin(elements, separator);
+    var result = %_FastOneByteArrayJoin(elements, separator);
     if (!IS_UNDEFINED(result)) return result;
 
     return %StringBuilderJoin(elements, length, separator);
@@ -375,7 +375,7 @@ function ArrayJoin(separator) {
     separator = NonStringToString(separator);
   }
 
-  var result = %_FastAsciiArrayJoin(array, separator);
+  var result = %_FastOneByteArrayJoin(array, separator);
   if (!IS_UNDEFINED(result)) return result;
 
   return Join(array, length, separator, ConvertToString);

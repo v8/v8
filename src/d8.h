@@ -172,7 +172,7 @@ class SourceGroup {
 };
 
 
-class BinaryResource : public v8::String::ExternalAsciiStringResource {
+class BinaryResource : public v8::String::ExternalOneByteStringResource {
  public:
   BinaryResource(const char* string, int length)
       : data_(string),

@@ -674,7 +674,7 @@ class SequenceCollector : public Collector<T, growth_factor, max_growth> {
 };
 
 
-// Compare ASCII/16bit chars to ASCII/16bit chars.
+// Compare 8bit/16bit chars to 8bit/16bit chars.
 template <typename lchar, typename rchar>
 inline int CompareCharsUnsigned(const lchar* lhs,
                                 const rchar* rhs,
@@ -1228,21 +1228,6 @@ inline void MemsetPointer(T** dest, U* value, int counter) {
 }
 
 
-// Simple wrapper that allows an ExternalString to refer to a
-// Vector<const char>. Doesn't assume ownership of the data.
-class AsciiStringAdapter: public v8::String::ExternalAsciiStringResource {
- public:
-  explicit AsciiStringAdapter(Vector<const char> data) : data_(data) {}
-
-  virtual const char* data() const { return data_.start(); }
-
-  virtual size_t length() const { return data_.length(); }
-
- private:
-  Vector<const char> data_;
-};
-
-
 // Simple support to read a file into a 0-terminated C-string.
 // The returned buffer must be freed by the caller.
 // On return, *exits tells whether the file existed.
@@ -1267,7 +1252,7 @@ INLINE(void CopyCharsUnsigned(uint8_t* dest, const uint8_t* src, int chars));
 INLINE(void CopyCharsUnsigned(uint16_t* dest, const uint16_t* src, int chars));
 #endif
 
-// Copy from ASCII/16bit chars to ASCII/16bit chars.
+// Copy from 8bit/16bit chars to 8bit/16bit chars.
 template <typename sourcechar, typename sinkchar>
 INLINE(void CopyChars(sinkchar* dest, const sourcechar* src, int chars));
 

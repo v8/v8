@@ -644,7 +644,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
     Object* source = isolate_->heap()->natives_source_cache()->get(i);
     if (!source->IsUndefined()) {
-      ExternalAsciiString::cast(source)->update_data_cache();
+      ExternalOneByteString::cast(source)->update_data_cache();
     }
   }
 
@@ -1634,16 +1634,16 @@ void Serializer::ObjectSerializer::VisitCell(RelocInfo* rinfo) {
 }
 
 
-void Serializer::ObjectSerializer::VisitExternalAsciiString(
-    v8::String::ExternalAsciiStringResource** resource_pointer) {
+void Serializer::ObjectSerializer::VisitExternalOneByteString(
+    v8::String::ExternalOneByteStringResource** resource_pointer) {
   Address references_start = reinterpret_cast<Address>(resource_pointer);
   OutputRawData(references_start);
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
     Object* source =
         serializer_->isolate()->heap()->natives_source_cache()->get(i);
     if (!source->IsUndefined()) {
-      ExternalAsciiString* string = ExternalAsciiString::cast(source);
-      typedef v8::String::ExternalAsciiStringResource Resource;
+      ExternalOneByteString* string = ExternalOneByteString::cast(source);
+      typedef v8::String::ExternalOneByteStringResource Resource;
       const Resource* resource = string->resource();
       if (resource == *resource_pointer) {
         sink_->Put(kNativesStringResource, "NativesStringResource");

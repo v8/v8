@@ -124,7 +124,7 @@ void TestSetter(
 
 Handle<AccessorInfo> TestAccessorInfo(
       Isolate* isolate, PropertyAttributes attributes) {
-  Handle<String> name = isolate->factory()->NewStringFromStaticAscii("get");
+  Handle<String> name = isolate->factory()->NewStringFromStaticChars("get");
   return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter,
                                  attributes);
 }

@@ -2611,13 +2611,9 @@ void MacroAssembler::JumpIfNotString(Register object,
 }
 
 
-void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(
-    Register first_object,
-    Register second_object,
-    Register scratch1,
-    Register scratch2,
-    Label* on_fail,
-    Label::Distance near_jump) {
+void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(
+    Register first_object, Register second_object, Register scratch1,
+    Register scratch2, Label* on_fail, Label::Distance near_jump) {
   // Check that both objects are not smis.
   Condition either_smi = CheckEitherSmi(first_object, second_object);
   j(either_smi, on_fail, near_jump);
@@ -2628,67 +2624,62 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(
   movzxbl(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
   movzxbl(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
 
-  // Check that both are flat ASCII strings.
+  // Check that both are flat one-byte strings.
   DCHECK(kNotStringTag != 0);
-  const int kFlatAsciiStringMask =
+  const int kFlatOneByteStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag =
+  const int kFlatOneByteStringTag =
       kStringTag | kOneByteStringTag | kSeqStringTag;
 
-  andl(scratch1, Immediate(kFlatAsciiStringMask));
-  andl(scratch2, Immediate(kFlatAsciiStringMask));
+  andl(scratch1, Immediate(kFlatOneByteStringMask));
+  andl(scratch2, Immediate(kFlatOneByteStringMask));
   // Interleave the bits to check both scratch1 and scratch2 in one test.
-  DCHECK_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
+  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << 3));
   leap(scratch1, Operand(scratch1, scratch2, times_8, 0));
   cmpl(scratch1,
-       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
+       Immediate(kFlatOneByteStringTag + (kFlatOneByteStringTag << 3)));
   j(not_equal, on_fail, near_jump);
 }
 
 
-void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(
-    Register instance_type,
-    Register scratch,
-    Label* failure,
+void MacroAssembler::JumpIfInstanceTypeIsNotSequentialOneByte(
+    Register instance_type, Register scratch, Label* failure,
     Label::Distance near_jump) {
   if (!scratch.is(instance_type)) {
     movl(scratch, instance_type);
   }
 
-  const int kFlatAsciiStringMask =
+  const int kFlatOneByteStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
 
-  andl(scratch, Immediate(kFlatAsciiStringMask));
+  andl(scratch, Immediate(kFlatOneByteStringMask));
   cmpl(scratch, Immediate(kStringTag | kSeqStringTag | kOneByteStringTag));
   j(not_equal, failure, near_jump);
 }
 
 
-void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialAscii(
-    Register first_object_instance_type,
-    Register second_object_instance_type,
-    Register scratch1,
-    Register scratch2,
-    Label* on_fail,
+void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialOneByte(
+    Register first_object_instance_type, Register second_object_instance_type,
+    Register scratch1, Register scratch2, Label* on_fail,
     Label::Distance near_jump) {
   // Load instance type for both strings.
   movp(scratch1, first_object_instance_type);
   movp(scratch2, second_object_instance_type);
 
-  // Check that both are flat ASCII strings.
+  // Check that both are flat one-byte strings.
   DCHECK(kNotStringTag != 0);
-  const int kFlatAsciiStringMask =
+  const int kFlatOneByteStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatAsciiStringTag =
+  const int kFlatOneByteStringTag =
       kStringTag | kOneByteStringTag | kSeqStringTag;
 
-  andl(scratch1, Immediate(kFlatAsciiStringMask));
-  andl(scratch2, Immediate(kFlatAsciiStringMask));
+  andl(scratch1, Immediate(kFlatOneByteStringMask));
+  andl(scratch2, Immediate(kFlatOneByteStringMask));
   // Interleave the bits to check both scratch1 and scratch2 in one test.
-  DCHECK_EQ(0, kFlatAsciiStringMask & (kFlatAsciiStringMask << 3));
+  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << 3));
   leap(scratch1, Operand(scratch1, scratch2, times_8, 0));
   cmpl(scratch1,
-       Immediate(kFlatAsciiStringTag + (kFlatAsciiStringTag << 3)));
+       Immediate(kFlatOneByteStringTag + (kFlatOneByteStringTag << 3)));
   j(not_equal, on_fail, near_jump);
 }
 
@@ -4652,12 +4643,10 @@ void MacroAssembler::AllocateTwoByteString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiString(Register result,
-                                         Register length,
-                                         Register scratch1,
-                                         Register scratch2,
-                                         Register scratch3,
-                                         Label* gc_required) {
+void MacroAssembler::AllocateOneByteString(Register result, Register length,
+                                           Register scratch1, Register scratch2,
+                                           Register scratch3,
+                                           Label* gc_required) {
   // Calculate the number of bytes needed for the characters in the string while
   // observing object alignment.
   const int kHeaderAlignment = SeqOneByteString::kHeaderSize &
@@ -4670,7 +4659,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
     subp(scratch1, Immediate(kHeaderAlignment));
   }
 
-  // Allocate ASCII string in new space.
+  // Allocate one-byte string in new space.
   Allocate(SeqOneByteString::kHeaderSize,
            times_1,
            scratch1,
@@ -4681,7 +4670,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
            TAG_OBJECT);
 
   // Set the map, length and hash field.
-  LoadRoot(kScratchRegister, Heap::kAsciiStringMapRootIndex);
+  LoadRoot(kScratchRegister, Heap::kOneByteStringMapRootIndex);
   movp(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
   Integer32ToSmi(scratch1, length);
   movp(FieldOperand(result, String::kLengthOffset), scratch1);
@@ -4704,10 +4693,10 @@ void MacroAssembler::AllocateTwoByteConsString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiConsString(Register result,
-                                             Register scratch1,
-                                             Register scratch2,
-                                             Label* gc_required) {
+void MacroAssembler::AllocateOneByteConsString(Register result,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
   Allocate(ConsString::kSize,
            result,
            scratch1,
@@ -4716,7 +4705,7 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
            TAG_OBJECT);
 
   // Set the map. The other fields are left uninitialized.
-  LoadRoot(kScratchRegister, Heap::kConsAsciiStringMapRootIndex);
+  LoadRoot(kScratchRegister, Heap::kConsOneByteStringMapRootIndex);
   movp(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 
@@ -4735,16 +4724,16 @@ void MacroAssembler::AllocateTwoByteSlicedString(Register result,
 }
 
 
-void MacroAssembler::AllocateAsciiSlicedString(Register result,
-                                               Register scratch1,
-                                               Register scratch2,
-                                               Label* gc_required) {
+void MacroAssembler::AllocateOneByteSlicedString(Register result,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Label* gc_required) {
   // Allocate heap number in new space.
   Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
            TAG_OBJECT);
 
   // Set the map. The other fields are left uninitialized.
-  LoadRoot(kScratchRegister, Heap::kSlicedAsciiStringMapRootIndex);
+  LoadRoot(kScratchRegister, Heap::kSlicedOneByteStringMapRootIndex);
   movp(FieldOperand(result, HeapObject::kMapOffset), kScratchRegister);
 }
 
@@ -5253,12 +5242,12 @@ void MacroAssembler::EnsureNotWhite(
   jmp(&is_data_object, Label::kNear);
 
   bind(&not_external);
-  // Sequential string, either ASCII or UC16.
+  // Sequential string, either Latin1 or UC16.
   DCHECK(kOneByteStringTag == 0x04);
   andp(length, Immediate(kStringEncodingMask));
   xorp(length, Immediate(kStringEncodingMask));
   addp(length, Immediate(0x04));
-  // Value now either 4 (if ASCII) or 8 (if UC16), i.e. char-size shifted by 2.
+  // Value now either 4 (if Latin1) or 8 (if UC16), i.e. char-size shifted by 2.
   imulp(length, FieldOperand(value, String::kLengthOffset));
   shrp(length, Immediate(2 + kSmiTagSize + kSmiShiftSize));
   addp(length, Immediate(SeqString::kHeaderSize + kObjectAlignmentMask));

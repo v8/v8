@@ -52,7 +52,6 @@ void PromotionQueue::insert(HeapObject* target, int size) {
 template <>
 bool inline Heap::IsOneByte(Vector<const char> str, int chars) {
   // TODO(dcarney): incorporate Latin-1 check when Latin-1 is supported?
-  // ASCII only check.
   return chars == str.length();
 }
 
@@ -87,7 +86,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
     Vector<const uint8_t> str, uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, str.length());
   // Compute map and object size.
-  Map* map = ascii_internalized_string_map();
+  Map* map = one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 

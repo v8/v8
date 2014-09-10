@@ -54,9 +54,9 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
                                           source.start(),
                                           source.length());
     // We do not expect this to throw an exception. Change this if it does.
-    Handle<String> source_code =
-        isolate_->factory()->NewExternalStringFromAscii(
-            resource).ToHandleChecked();
+    Handle<String> source_code = isolate_->factory()
+                                     ->NewExternalStringFromOneByte(resource)
+                                     .ToHandleChecked();
     heap->natives_source_cache()->set(index, *source_code);
   }
   Handle<Object> cached_source(heap->natives_source_cache()->get(index),
@@ -511,7 +511,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   // Allocate the empty function as the prototype for function ECMAScript
   // 262 15.3.4.
   Handle<String> empty_string =
-      factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("Empty"));
+      factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("Empty"));
   Handle<Code> code(isolate->builtins()->builtin(Builtins::kEmptyFunction));
   Handle<JSFunction> empty_function = factory->NewFunctionWithoutPrototype(
       empty_string, code);
@@ -526,7 +526,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   empty_function->set_map(*empty_function_map);
 
   // --- E m p t y ---
-  Handle<String> source = factory->NewStringFromStaticAscii("() {}");
+  Handle<String> source = factory->NewStringFromStaticChars("() {}");
   Handle<Script> script = factory->NewScript(source);
   script->set_type(Smi::FromInt(Script::TYPE_NATIVE));
   empty_function->shared()->set_script(*script);
@@ -604,7 +604,7 @@ void Genesis::SetStrictFunctionInstanceDescriptor(
 Handle<JSFunction> Genesis::GetStrictPoisonFunction() {
   if (strict_poison_function.is_null()) {
     Handle<String> name = factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("ThrowTypeError"));
+        STATIC_CHAR_VECTOR("ThrowTypeError"));
     Handle<Code> code(isolate()->builtins()->builtin(
         Builtins::kStrictModePoisonPill));
     strict_poison_function = factory()->NewFunctionWithoutPrototype(name, code);
@@ -620,7 +620,7 @@ Handle<JSFunction> Genesis::GetStrictPoisonFunction() {
 Handle<JSFunction> Genesis::GetGeneratorPoisonFunction() {
   if (generator_poison_function.is_null()) {
     Handle<String> name = factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("ThrowTypeError"));
+        STATIC_CHAR_VECTOR("ThrowTypeError"));
     Handle<Code> code(isolate()->builtins()->builtin(
         Builtins::kGeneratorPoisonPill));
     generator_poison_function = factory()->NewFunctionWithoutPrototype(
@@ -1295,7 +1295,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
         JSObject::kHeaderSize);
 
     Handle<String> name = factory->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("context_extension"));
+        STATIC_CHAR_VECTOR("context_extension"));
     context_extension_fun->shared()->set_instance_class_name(*name);
     native_context()->set_context_extension_function(*context_extension_fun);
   }
@@ -1433,9 +1433,8 @@ bool Genesis::CompileExperimentalBuiltin(Isolate* isolate, int index) {
   Factory* factory = isolate->factory();
   Handle<String> source_code;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, source_code,
-      factory->NewStringFromAscii(
-          ExperimentalNatives::GetRawScriptSource(index)),
+      isolate, source_code, factory->NewStringFromAscii(
+                                ExperimentalNatives::GetRawScriptSource(index)),
       false);
   return CompileNative(isolate, name, source_code);
 }
@@ -1545,11 +1544,12 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
 }
 
 
-#define INSTALL_NATIVE(Type, name, var)                                        \
-  Handle<String> var##_name =                                                  \
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR(name));          \
-  Handle<Object> var##_native = Object::GetProperty(                           \
-      handle(native_context()->builtins()), var##_name).ToHandleChecked();     \
+#define INSTALL_NATIVE(Type, name, var)                                     \
+  Handle<String> var##_name =                                               \
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR(name));        \
+  Handle<Object> var##_native =                                             \
+      Object::GetProperty(handle(native_context()->builtins()), var##_name) \
+          .ToHandleChecked();                                               \
   native_context()->set_##var(Type::cast(*var##_native));
 
 #define INSTALL_NATIVE_MATH(name)                                    \
@@ -1696,7 +1696,7 @@ bool Genesis::InstallNatives() {
       JSBuiltinsObject::kSize);
 
   Handle<String> name =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("builtins"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("builtins"));
   builtins_fun->shared()->set_instance_class_name(*name);
   builtins_fun->initial_map()->set_dictionary_map(true);
   builtins_fun->initial_map()->set_prototype(heap()->null_value());
@@ -1717,11 +1717,11 @@ bool Genesis::InstallNatives() {
   static const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
   Handle<String> global_string =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("global"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("global"));
   Handle<Object> global_obj(native_context()->global_object(), isolate());
   JSObject::AddProperty(builtins, global_string, global_obj, attributes);
   Handle<String> builtins_string =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("builtins"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("builtins"));
   JSObject::AddProperty(builtins, builtins_string, builtins, attributes);
 
   // Set up the reference from the global object to the builtins object.
@@ -2205,7 +2205,7 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   Handle<JSObject> Error = Handle<JSObject>::cast(
       Object::GetProperty(isolate, global, "Error").ToHandleChecked());
   Handle<String> name =
-      factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("stackTraceLimit"));
+      factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("stackTraceLimit"));
   Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
   JSObject::AddProperty(Error, name, stack_trace_limit, NONE);
 
@@ -2220,15 +2220,13 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   }
 
   // Expose the stack trace symbol to native JS.
-  RETURN_ON_EXCEPTION_VALUE(
-      isolate,
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          handle(native_context->builtins(), isolate),
-          factory->InternalizeOneByteString(
-              STATIC_ASCII_VECTOR("stack_trace_symbol")),
-          factory->stack_trace_symbol(),
-          NONE),
-      false);
+  RETURN_ON_EXCEPTION_VALUE(isolate,
+                            JSObject::SetOwnPropertyIgnoreAttributes(
+                                handle(native_context->builtins(), isolate),
+                                factory->InternalizeOneByteString(
+                                    STATIC_CHAR_VECTOR("stack_trace_symbol")),
+                                factory->stack_trace_symbol(), NONE),
+                            false);
 
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
@@ -2363,8 +2361,9 @@ bool Genesis::InstallExtension(Isolate* isolate,
   }
   // We do not expect this to throw an exception. Change this if it does.
   Handle<String> source_code =
-      isolate->factory()->NewExternalStringFromAscii(
-          extension->source()).ToHandleChecked();
+      isolate->factory()
+          ->NewExternalStringFromOneByte(extension->source())
+          .ToHandleChecked();
   bool result = CompileScriptCached(isolate,
                                     CStrVector(extension->name()),
                                     source_code,
@@ -2681,11 +2680,9 @@ Genesis::Genesis(Isolate* isolate,
     Utils::OpenHandle(*buffer)->set_should_be_freed(true);
     v8::Local<v8::Uint32Array> ta = v8::Uint32Array::New(buffer, 0, num_elems);
     Handle<JSBuiltinsObject> builtins(native_context()->builtins());
-    Runtime::DefineObjectProperty(builtins,
-                                  factory()->InternalizeOneByteString(
-                                      STATIC_ASCII_VECTOR("rngstate")),
-                                  Utils::OpenHandle(*ta),
-                                  NONE).Assert();
+    Runtime::DefineObjectProperty(builtins, factory()->InternalizeOneByteString(
+                                                STATIC_CHAR_VECTOR("rngstate")),
+                                  Utils::OpenHandle(*ta), NONE).Assert();
 
     // Initialize trigonometric lookup tables and constants.
     const int constants_size = arraysize(fdlibm::MathConstants::constants);
@@ -2698,7 +2695,7 @@ Genesis::Genesis(Isolate* isolate,
 
     Runtime::DefineObjectProperty(
         builtins,
-        factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("kMath")),
+        factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("kMath")),
         Utils::OpenHandle(*trig_table), NONE).Assert();
   }
 

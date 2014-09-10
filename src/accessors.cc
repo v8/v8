@@ -358,7 +358,7 @@ void Accessors::ScriptColumnOffsetSetter(
 Handle<AccessorInfo> Accessors::ScriptColumnOffsetInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("column_offset")));
+      STATIC_CHAR_VECTOR("column_offset")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptColumnOffsetGetter,
@@ -394,8 +394,8 @@ void Accessors::ScriptIdSetter(
 
 Handle<AccessorInfo> Accessors::ScriptIdInfo(
       Isolate* isolate, PropertyAttributes attributes) {
-  Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("id")));
+  Handle<String> name(
+      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("id")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptIdGetter,
@@ -502,7 +502,7 @@ void Accessors::ScriptLineOffsetSetter(
 Handle<AccessorInfo> Accessors::ScriptLineOffsetInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("line_offset")));
+      STATIC_CHAR_VECTOR("line_offset")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptLineOffsetGetter,
@@ -538,8 +538,8 @@ void Accessors::ScriptTypeSetter(
 
 Handle<AccessorInfo> Accessors::ScriptTypeInfo(
       Isolate* isolate, PropertyAttributes attributes) {
-  Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("type")));
+  Handle<String> name(
+      isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("type")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptTypeGetter,
@@ -577,7 +577,7 @@ void Accessors::ScriptCompilationTypeSetter(
 Handle<AccessorInfo> Accessors::ScriptCompilationTypeInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("compilation_type")));
+      STATIC_CHAR_VECTOR("compilation_type")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptCompilationTypeGetter,
@@ -622,7 +622,7 @@ void Accessors::ScriptLineEndsSetter(
 Handle<AccessorInfo> Accessors::ScriptLineEndsInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("line_ends")));
+      STATIC_CHAR_VECTOR("line_ends")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptLineEndsGetter,
@@ -730,7 +730,7 @@ void Accessors::ScriptContextDataSetter(
 Handle<AccessorInfo> Accessors::ScriptContextDataInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("context_data")));
+      STATIC_CHAR_VECTOR("context_data")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptContextDataGetter,
@@ -777,7 +777,7 @@ void Accessors::ScriptEvalFromScriptSetter(
 Handle<AccessorInfo> Accessors::ScriptEvalFromScriptInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("eval_from_script")));
+      STATIC_CHAR_VECTOR("eval_from_script")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptEvalFromScriptGetter,
@@ -823,7 +823,7 @@ void Accessors::ScriptEvalFromScriptPositionSetter(
 Handle<AccessorInfo> Accessors::ScriptEvalFromScriptPositionInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("eval_from_script_position")));
+      STATIC_CHAR_VECTOR("eval_from_script_position")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptEvalFromScriptPositionGetter,
@@ -869,7 +869,7 @@ void Accessors::ScriptEvalFromFunctionNameSetter(
 Handle<AccessorInfo> Accessors::ScriptEvalFromFunctionNameInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("eval_from_function_name")));
+      STATIC_CHAR_VECTOR("eval_from_function_name")));
   return MakeAccessor(isolate,
                       name,
                       &ScriptEvalFromFunctionNameGetter,

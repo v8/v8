@@ -607,7 +607,7 @@ void Name::NamePrint(OStream& os) {  // NOLINT
 
 
 // This method is only meant to be called from gdb for debugging purposes.
-// Since the string can also be in two-byte encoding, non-ASCII characters
+// Since the string can also be in two-byte encoding, non-Latin1 characters
 // will be ignored in the output.
 char* String::ToAsciiArray() {
   // Static so that subsequent calls frees previously allocated space.

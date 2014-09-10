@@ -1226,7 +1226,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ JumpIfNotSmi(ebx, &runtime);
   __ cmp(ebx, FieldOperand(edx, String::kLengthOffset));
   __ j(above_equal, &runtime);
-  __ mov(edx, FieldOperand(ecx, JSRegExp::kDataAsciiCodeOffset));
+  __ mov(edx, FieldOperand(ecx, JSRegExp::kDataOneByteCodeOffset));
   __ Move(ecx, Immediate(1));  // Type is one byte.
 
   // (E) Carry on.  String handling is done.
@@ -1240,7 +1240,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // eax: subject string
   // ebx: previous index (smi)
   // edx: code
-  // ecx: encoding of subject string (1 if ASCII, 0 if two_byte);
+  // ecx: encoding of subject string (1 if one_byte, 0 if two_byte);
   // All checks done. Now push arguments for native regexp code.
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->regexp_entry_native(), 1);
@@ -1285,7 +1285,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // esi: original subject string
   // eax: underlying subject string
   // ebx: previous index
-  // ecx: encoding of subject string (1 if ASCII 0 if two_byte);
+  // ecx: encoding of subject string (1 if one_byte 0 if two_byte);
   // edx: code
   // Argument 4: End of string data
   // Argument 3: Start of string data
@@ -1731,15 +1731,15 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
   __ bind(&check_for_strings);
 
-  __ JumpIfNotBothSequentialAsciiStrings(edx, eax, ecx, ebx,
-                                         &check_unequal_objects);
+  __ JumpIfNotBothSequentialOneByteStrings(edx, eax, ecx, ebx,
+                                           &check_unequal_objects);
 
-  // Inline comparison of ASCII strings.
+  // Inline comparison of one-byte strings.
   if (cc == equal) {
-    StringHelper::GenerateFlatAsciiStringEquals(masm, edx, eax, ecx, ebx);
+    StringHelper::GenerateFlatOneByteStringEquals(masm, edx, eax, ecx, ebx);
   } else {
-    StringHelper::GenerateCompareFlatAsciiStrings(masm, edx, eax, ecx, ebx,
-                                                  edi);
+    StringHelper::GenerateCompareFlatOneByteStrings(masm, edx, eax, ecx, ebx,
+                                                    edi);
   }
 #ifdef DEBUG
   __ Abort(kUnexpectedFallThroughFromStringComparison);
@@ -2814,7 +2814,7 @@ void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize == 1);
   STATIC_ASSERT(kSmiShiftSize == 0);
-  // At this point code register contains smi tagged ASCII char code.
+  // At this point code register contains smi tagged one byte char code.
   __ mov(result_, FieldOperand(result_,
                                code_, times_half_pointer_size,
                                FixedArray::kHeaderSize));
@@ -2978,7 +2978,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ test(ebx, Immediate(kStringEncodingMask));
     __ j(zero, &two_byte_slice, Label::kNear);
-    __ AllocateAsciiSlicedString(eax, ebx, no_reg, &runtime);
+    __ AllocateOneByteSlicedString(eax, ebx, no_reg, &runtime);
     __ jmp(&set_slice_header, Label::kNear);
     __ bind(&two_byte_slice);
     __ AllocateTwoByteSlicedString(eax, ebx, no_reg, &runtime);
@@ -3025,8 +3025,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ test_b(ebx, kStringEncodingMask);
   __ j(zero, &two_byte_sequential);
 
-  // Sequential ASCII string.  Allocate the result.
-  __ AllocateAsciiString(eax, ecx, ebx, edx, edi, &runtime_drop_two);
+  // Sequential one byte string.  Allocate the result.
+  __ AllocateOneByteString(eax, ecx, ebx, edx, edi, &runtime_drop_two);
 
   // eax: result string
   // ecx: result string length
@@ -3097,10 +3097,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StringHelper::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
-                                                 Register left, Register right,
-                                                 Register scratch1,
-                                                 Register scratch2) {
+void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
+                                                   Register left,
+                                                   Register right,
+                                                   Register scratch1,
+                                                   Register scratch2) {
   Register length = scratch1;
 
   // Compare lengths.
@@ -3123,8 +3124,8 @@ void StringHelper::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
 
   // Compare characters.
   __ bind(&compare_chars);
-  GenerateAsciiCharsCompareLoop(masm, left, right, length, scratch2,
-                                &strings_not_equal, Label::kNear);
+  GenerateOneByteCharsCompareLoop(masm, left, right, length, scratch2,
+                                  &strings_not_equal, Label::kNear);
 
   // Characters are equal.
   __ Move(eax, Immediate(Smi::FromInt(EQUAL)));
@@ -3132,7 +3133,7 @@ void StringHelper::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateCompareFlatAsciiStrings(
+void StringHelper::GenerateCompareFlatOneByteStrings(
     MacroAssembler* masm, Register left, Register right, Register scratch1,
     Register scratch2, Register scratch3) {
   Counters* counters = masm->isolate()->counters();
@@ -3160,8 +3161,8 @@ void StringHelper::GenerateCompareFlatAsciiStrings(
 
   // Compare characters.
   Label result_not_equal;
-  GenerateAsciiCharsCompareLoop(masm, left, right, min_length, scratch2,
-                                &result_not_equal, Label::kNear);
+  GenerateOneByteCharsCompareLoop(masm, left, right, min_length, scratch2,
+                                  &result_not_equal, Label::kNear);
 
   // Compare lengths -  strings up to min-length are equal.
   __ bind(&compare_lengths);
@@ -3195,7 +3196,7 @@ void StringHelper::GenerateCompareFlatAsciiStrings(
 }
 
 
-void StringHelper::GenerateAsciiCharsCompareLoop(
+void StringHelper::GenerateOneByteCharsCompareLoop(
     MacroAssembler* masm, Register left, Register right, Register length,
     Register scratch, Label* chars_not_equal,
     Label::Distance chars_not_equal_near) {
@@ -3243,15 +3244,16 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&not_same);
 
-  // Check that both objects are sequential ASCII strings.
-  __ JumpIfNotBothSequentialAsciiStrings(edx, eax, ecx, ebx, &runtime);
+  // Check that both objects are sequential one-byte strings.
+  __ JumpIfNotBothSequentialOneByteStrings(edx, eax, ecx, ebx, &runtime);
 
-  // Compare flat ASCII strings.
+  // Compare flat one-byte strings.
   // Drop arguments from the stack.
   __ pop(ecx);
   __ add(esp, Immediate(2 * kPointerSize));
   __ push(ecx);
-  StringHelper::GenerateCompareFlatAsciiStrings(masm, edx, eax, ecx, ebx, edi);
+  StringHelper::GenerateCompareFlatOneByteStrings(masm, edx, eax, ecx, ebx,
+                                                  edi);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
@@ -3546,16 +3548,17 @@ void CompareICStub::GenerateStrings(MacroAssembler* masm) {
     __ bind(&do_compare);
   }
 
-  // Check that both strings are sequential ASCII.
+  // Check that both strings are sequential one-byte.
   Label runtime;
-  __ JumpIfNotBothSequentialAsciiStrings(left, right, tmp1, tmp2, &runtime);
+  __ JumpIfNotBothSequentialOneByteStrings(left, right, tmp1, tmp2, &runtime);
 
-  // Compare flat ASCII strings. Returns when done.
+  // Compare flat one byte strings. Returns when done.
   if (equality) {
-    StringHelper::GenerateFlatAsciiStringEquals(masm, left, right, tmp1, tmp2);
+    StringHelper::GenerateFlatOneByteStringEquals(masm, left, right, tmp1,
+                                                  tmp2);
   } else {
-    StringHelper::GenerateCompareFlatAsciiStrings(masm, left, right, tmp1, tmp2,
-                                                  tmp3);
+    StringHelper::GenerateCompareFlatOneByteStrings(masm, left, right, tmp1,
+                                                    tmp2, tmp3);
   }
 
   // Handle more complex cases in runtime.

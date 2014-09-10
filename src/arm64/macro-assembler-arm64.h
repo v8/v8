@@ -1056,39 +1056,28 @@ class MacroAssembler : public Assembler {
   // ---- String Utilities ----
 
 
-  // Jump to label if either object is not a sequential ASCII string.
+  // Jump to label if either object is not a sequential one-byte string.
   // Optionally perform a smi check on the objects first.
-  void JumpIfEitherIsNotSequentialAsciiStrings(
-      Register first,
-      Register second,
-      Register scratch1,
-      Register scratch2,
-      Label* failure,
-      SmiCheckType smi_check = DO_SMI_CHECK);
+  void JumpIfEitherIsNotSequentialOneByteStrings(
+      Register first, Register second, Register scratch1, Register scratch2,
+      Label* failure, SmiCheckType smi_check = DO_SMI_CHECK);
 
-  // Check if instance type is sequential ASCII string and jump to label if
+  // Check if instance type is sequential one-byte string and jump to label if
   // it is not.
-  void JumpIfInstanceTypeIsNotSequentialAscii(Register type,
-                                              Register scratch,
-                                              Label* failure);
+  void JumpIfInstanceTypeIsNotSequentialOneByte(Register type, Register scratch,
+                                                Label* failure);
 
-  // Checks if both instance types are sequential ASCII strings and jumps to
+  // Checks if both instance types are sequential one-byte strings and jumps to
   // label if either is not.
-  void JumpIfEitherInstanceTypeIsNotSequentialAscii(
-      Register first_object_instance_type,
-      Register second_object_instance_type,
-      Register scratch1,
-      Register scratch2,
-      Label* failure);
+  void JumpIfEitherInstanceTypeIsNotSequentialOneByte(
+      Register first_object_instance_type, Register second_object_instance_type,
+      Register scratch1, Register scratch2, Label* failure);
 
-  // Checks if both instance types are sequential ASCII strings and jumps to
+  // Checks if both instance types are sequential one-byte strings and jumps to
   // label if either is not.
-  void JumpIfBothInstanceTypesAreNotSequentialAscii(
-      Register first_object_instance_type,
-      Register second_object_instance_type,
-      Register scratch1,
-      Register scratch2,
-      Label* failure);
+  void JumpIfBothInstanceTypesAreNotSequentialOneByte(
+      Register first_object_instance_type, Register second_object_instance_type,
+      Register scratch1, Register scratch2, Label* failure);
 
   void JumpIfNotUniqueName(Register type, Label* not_unique_name);
 
@@ -1370,32 +1359,25 @@ class MacroAssembler : public Assembler {
                              Register scratch2,
                              Register scratch3,
                              Label* gc_required);
-  void AllocateAsciiString(Register result,
-                           Register length,
-                           Register scratch1,
-                           Register scratch2,
-                           Register scratch3,
-                           Label* gc_required);
+  void AllocateOneByteString(Register result, Register length,
+                             Register scratch1, Register scratch2,
+                             Register scratch3, Label* gc_required);
   void AllocateTwoByteConsString(Register result,
                                  Register length,
                                  Register scratch1,
                                  Register scratch2,
                                  Label* gc_required);
-  void AllocateAsciiConsString(Register result,
-                               Register length,
-                               Register scratch1,
-                               Register scratch2,
-                               Label* gc_required);
+  void AllocateOneByteConsString(Register result, Register length,
+                                 Register scratch1, Register scratch2,
+                                 Label* gc_required);
   void AllocateTwoByteSlicedString(Register result,
                                    Register length,
                                    Register scratch1,
                                    Register scratch2,
                                    Label* gc_required);
-  void AllocateAsciiSlicedString(Register result,
-                                 Register length,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Label* gc_required);
+  void AllocateOneByteSlicedString(Register result, Register length,
+                                   Register scratch1, Register scratch2,
+                                   Label* gc_required);
 
   // Allocates a heap number or jumps to the gc_required label if the young
   // space is full and a scavenge is needed.

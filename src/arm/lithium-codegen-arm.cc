@@ -2721,7 +2721,7 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
 
   // Objects with a non-function constructor have class 'Object'.
   __ CompareObjectType(temp, temp2, temp2, JS_FUNCTION_TYPE);
-  if (class_name->IsOneByteEqualTo(STATIC_ASCII_VECTOR("Object"))) {
+  if (class_name->IsOneByteEqualTo(STATIC_CHAR_VECTOR("Object"))) {
     __ b(ne, is_true);
   } else {
     __ b(ne, is_false);

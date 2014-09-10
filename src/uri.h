@@ -22,7 +22,7 @@ static INLINE(Vector<const Char> GetCharVector(Handle<String> string));
 template <>
 Vector<const uint8_t> GetCharVector(Handle<String> string) {
   String::FlatContent flat = string->GetFlatContent();
-  DCHECK(flat.IsAscii());
+  DCHECK(flat.IsOneByte());
   return flat.ToOneByteVector();
 }
 
@@ -73,7 +73,7 @@ MaybeHandle<String> URIUnescape::Unescape(Isolate* isolate,
                                           Handle<String> source) {
   int index;
   { DisallowHeapAllocation no_allocation;
-    StringSearch<uint8_t, Char> search(isolate, STATIC_ASCII_VECTOR("%"));
+    StringSearch<uint8_t, Char> search(isolate, STATIC_CHAR_VECTOR("%"));
     index = search.Search(GetCharVector<Char>(source), 0);
     if (index < 0) return source;
   }

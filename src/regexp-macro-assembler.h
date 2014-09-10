@@ -171,7 +171,7 @@ class RegExpMacroAssembler {
 class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
  public:
   // Type of input string to generate code for.
-  enum Mode { ASCII = 1, UC16 = 2 };
+  enum Mode { LATIN1 = 1, UC16 = 2 };
 
   // Result of calling generated native RegExp code.
   // RETRY: Something significant changed during execution, and the matching

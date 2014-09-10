@@ -875,11 +875,11 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
 
       Factory* factory = isolate->factory();
       Handle<String> start_pos_key = factory->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("startPosition"));
-      Handle<String> end_pos_key = factory->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("endPosition"));
-      Handle<String> script_obj_key = factory->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("scriptObject"));
+          STATIC_CHAR_VECTOR("startPosition"));
+      Handle<String> end_pos_key =
+          factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("endPosition"));
+      Handle<String> script_obj_key =
+          factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptObject"));
       Handle<Smi> start_pos(
           Smi::FromInt(message_location.start_pos()), isolate);
       Handle<Smi> end_pos(Smi::FromInt(message_location.end_pos()), isolate);

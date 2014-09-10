@@ -330,9 +330,9 @@ void Scanner::TryToParseSourceURLComment() {
   if (!name.is_one_byte()) return;
   Vector<const uint8_t> name_literal = name.one_byte_literal();
   LiteralBuffer* value;
-  if (name_literal == STATIC_ASCII_VECTOR("sourceURL")) {
+  if (name_literal == STATIC_CHAR_VECTOR("sourceURL")) {
     value = &source_url_;
-  } else if (name_literal == STATIC_ASCII_VECTOR("sourceMappingURL")) {
+  } else if (name_literal == STATIC_CHAR_VECTOR("sourceMappingURL")) {
     value = &source_mapping_url_;
   } else {
     return;
@@ -1305,7 +1305,7 @@ bool DuplicateFinder::IsNumberCanonical(Vector<const uint8_t> number) {
 
 uint32_t DuplicateFinder::Hash(Vector<const uint8_t> key, bool is_one_byte) {
   // Primitive hash function, almost identical to the one used
-  // for strings (except that it's seeded by the length and ASCII-ness).
+  // for strings (except that it's seeded by the length and representation).
   int length = key.length();
   uint32_t hash = (length << 1) | (is_one_byte ? 1 : 0) ;
   for (int i = 0; i < length; i++) {
@@ -1319,10 +1319,10 @@ uint32_t DuplicateFinder::Hash(Vector<const uint8_t> key, bool is_one_byte) {
 
 bool DuplicateFinder::Match(void* first, void* second) {
   // Decode lengths.
-  // Length + ASCII-bit is encoded as base 128, most significant heptet first,
-  // with a 8th bit being non-zero while there are more heptets.
+  // Length + representation is encoded as base 128, most significant heptet
+  // first, with a 8th bit being non-zero while there are more heptets.
   // The value encodes the number of bytes following, and whether the original
-  // was ASCII.
+  // was Latin1.
   byte* s1 = reinterpret_cast<byte*>(first);
   byte* s2 = reinterpret_cast<byte*>(second);
   uint32_t length_one_byte_field = 0;

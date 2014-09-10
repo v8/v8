@@ -2067,11 +2067,11 @@ HValue* HGraphBuilder::BuildCreateConsString(
   HInstruction* right_instance_type = AddLoadStringInstanceType(right);
 
   // Allocate the cons string object. HAllocate does not care whether we
-  // pass CONS_STRING_TYPE or CONS_ASCII_STRING_TYPE here, so we just use
+  // pass CONS_STRING_TYPE or CONS_ONE_BYTE_STRING_TYPE here, so we just use
   // CONS_STRING_TYPE here. Below we decide whether the cons string is
   // one-byte or two-byte and set the appropriate map.
   DCHECK(HAllocate::CompatibleInstanceTypes(CONS_STRING_TYPE,
-                                            CONS_ASCII_STRING_TYPE));
+                                            CONS_ONE_BYTE_STRING_TYPE));
   HAllocate* result = BuildAllocate(Add<HConstant>(ConsString::kSize),
                                     HType::String(), CONS_STRING_TYPE,
                                     allocation_mode);
@@ -2116,7 +2116,7 @@ HValue* HGraphBuilder::BuildCreateConsString(
     // We can safely skip the write barrier for storing the map here.
     Add<HStoreNamedField>(
         result, HObjectAccess::ForMap(),
-        Add<HConstant>(isolate()->factory()->cons_ascii_string_map()));
+        Add<HConstant>(isolate()->factory()->cons_one_byte_string_map()));
   }
   if_onebyte.Else();
   {
@@ -2244,8 +2244,8 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
     {
       HConstant* string_map =
           Add<HConstant>(isolate()->factory()->string_map());
-      HConstant* ascii_string_map =
-          Add<HConstant>(isolate()->factory()->ascii_string_map());
+      HConstant* one_byte_string_map =
+          Add<HConstant>(isolate()->factory()->one_byte_string_map());
 
       // Determine map and size depending on whether result is one-byte string.
       IfBuilder if_onebyte(this);
@@ -2259,7 +2259,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
       {
         // Allocate sequential one-byte string object.
         Push(length);
-        Push(ascii_string_map);
+        Push(one_byte_string_map);
       }
       if_onebyte.Else();
       {
@@ -2279,7 +2279,7 @@ HValue* HGraphBuilder::BuildUncheckedStringAdd(
       HValue* size = BuildObjectSizeAlignment(Pop(), SeqString::kHeaderSize);
 
       // Allocate the string object. HAllocate does not care whether we pass
-      // STRING_TYPE or ASCII_STRING_TYPE here, so we just use STRING_TYPE here.
+      // STRING_TYPE or ONE_BYTE_STRING_TYPE here, so we just use STRING_TYPE.
       HAllocate* result = BuildAllocate(
           size, HType::String(), STRING_TYPE, allocation_mode);
       Add<HStoreNamedField>(result, HObjectAccess::ForMap(), map);
@@ -10460,7 +10460,7 @@ static bool IsClassOfTest(CompareOperation* expr) {
   Literal* literal = expr->right()->AsLiteral();
   if (literal == NULL) return false;
   if (!literal->value()->IsString()) return false;
-  if (!call->name()->IsOneByteEqualTo(STATIC_ASCII_VECTOR("_ClassOf"))) {
+  if (!call->name()->IsOneByteEqualTo(STATIC_CHAR_VECTOR("_ClassOf"))) {
     return false;
   }
   DCHECK(call->arguments()->length() == 1);
@@ -11842,8 +11842,8 @@ void HOptimizedGraphBuilder::GenerateGetCachedArrayIndex(CallRuntime* call) {
 }
 
 
-void HOptimizedGraphBuilder::GenerateFastAsciiArrayJoin(CallRuntime* call) {
-  return Bailout(kInlinedRuntimeFunctionFastAsciiArrayJoin);
+void HOptimizedGraphBuilder::GenerateFastOneByteArrayJoin(CallRuntime* call) {
+  return Bailout(kInlinedRuntimeFunctionFastOneByteArrayJoin);
 }
 
 
