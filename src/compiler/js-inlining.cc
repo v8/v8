@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/access-builder.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/generic-node-inl.h"
@@ -156,18 +157,16 @@ void Inlinee::UnifyReturn() {
 
 
 void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
-  MachineOperatorBuilder machine(jsgraph->zone());
-
   // The scheduler is smart enough to place our code; we just ensure {control}
   // becomes the control input of the start of the inlinee.
   Node* control = NodeProperties::GetControlInput(call);
 
   // The inlinee uses the context from the JSFunction object. This will
   // also be the effect dependency for the inlinee as it produces an effect.
-  // TODO(sigurds) Use simplified load once it is ready.
+  SimplifiedOperatorBuilder simplified(jsgraph->zone());
   Node* context = jsgraph->graph()->NewNode(
-      machine.Load(kMachAnyTagged), NodeProperties::GetValueInput(call, 0),
-      jsgraph->Int32Constant(JSFunction::kContextOffset - kHeapObjectTag),
+      simplified.LoadField(AccessBuilder::ForJSFunctionContext()),
+      NodeProperties::GetValueInput(call, 0),
       NodeProperties::GetEffectInput(call));
 
   // {inlinee_inputs} counts JSFunction, Receiver, arguments, context,
