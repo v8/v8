@@ -619,8 +619,14 @@ void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
-    __ Push(lr, fp);
-    __ mov(fp, sp);
+    if (FLAG_enable_ool_constant_pool) {
+      __ Push(lr, fp, pp);
+      // Adjust FP to point to saved FP.
+      __ sub(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+    } else {
+      __ Push(lr, fp);
+      __ mov(fp, sp);
+    }
     const RegList saves = descriptor->CalleeSavedRegisters();
     if (saves != 0) {  // Save callee-saved registers.
       int register_save_area_size = 0;
