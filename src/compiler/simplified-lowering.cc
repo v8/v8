@@ -336,15 +336,15 @@ class RepresentationSelector {
     }
   }
 
-  Operator* Int32Op(Node* node) {
+  const Operator* Int32Op(Node* node) {
     return changer_->Int32OperatorFor(node->opcode());
   }
 
-  Operator* Uint32Op(Node* node) {
+  const Operator* Uint32Op(Node* node) {
     return changer_->Uint32OperatorFor(node->opcode());
   }
 
-  Operator* Float64Op(Node* node) {
+  const Operator* Float64Op(Node* node) {
     return changer_->Float64OperatorFor(node->opcode());
   }
 

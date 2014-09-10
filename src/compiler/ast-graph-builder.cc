@@ -31,7 +31,7 @@ AstGraphBuilder::AstGraphBuilder(CompilationInfo* info, JSGraph* jsgraph)
 Node* AstGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
     // Parameter -1 is special for the function closure
-    Operator* op = common()->Parameter(-1);
+    const Operator* op = common()->Parameter(-1);
     Node* node = NewNode(op, graph()->start());
     function_closure_.set(node);
   }
@@ -42,7 +42,7 @@ Node* AstGraphBuilder::GetFunctionClosure() {
 Node* AstGraphBuilder::GetFunctionContext() {
   if (!function_context_.is_set()) {
     // Parameter (arity + 1) is special for the outer context of the function
-    Operator* op = common()->Parameter(info()->num_parameters() + 1);
+    const Operator* op = common()->Parameter(info()->num_parameters() + 1);
     Node* node = NewNode(op, graph()->start());
     function_context_.set(node);
   }
@@ -211,7 +211,7 @@ void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
     }
   }
   if (should_update) {
-    Operator* op = common()->StateValues(count);
+    const Operator* op = common()->StateValues(count);
     (*state_values) = graph()->NewNode(op, count, env_values);
   }
 }
@@ -224,7 +224,7 @@ Node* AstGraphBuilder::Environment::Checkpoint(
   UpdateStateValues(&stack_node_, parameters_count() + locals_count(),
                     stack_height());
 
-  Operator* op = common()->FrameState(ast_id, combine);
+  const Operator* op = common()->FrameState(ast_id, combine);
 
   return graph()->NewNode(op, parameters_node_, locals_node_, stack_node_,
                           GetContext(),
@@ -374,7 +374,7 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
     case Variable::CONTEXT:
       if (hole_init) {
         Node* value = jsgraph()->TheHoleConstant();
-        Operator* op = javascript()->StoreContext(0, variable->index());
+        const Operator* op = javascript()->StoreContext(0, variable->index());
         NewNode(op, current_context(), value);
       }
       break;
@@ -406,7 +406,7 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
     case Variable::CONTEXT: {
       VisitForValue(decl->fun());
       Node* value = environment()->Pop();
-      Operator* op = javascript()->StoreContext(0, variable->index());
+      const Operator* op = javascript()->StoreContext(0, variable->index());
       NewNode(op, current_context(), value);
       break;
     }
@@ -453,7 +453,7 @@ void AstGraphBuilder::VisitBlock(Block* stmt) {
     // Visit statements in the same scope, no declarations.
     VisitStatements(stmt->statements());
   } else {
-    Operator* op = javascript()->CreateBlockContext();
+    const Operator* op = javascript()->CreateBlockContext();
     Node* scope_info = jsgraph()->Constant(stmt->scope()->GetScopeInfo());
     Node* context = NewNode(op, scope_info, GetFunctionClosure());
     ContextScope scope(this, stmt->scope(), context);
@@ -519,7 +519,7 @@ void AstGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
 void AstGraphBuilder::VisitWithStatement(WithStatement* stmt) {
   VisitForValue(stmt->expression());
   Node* value = environment()->Pop();
-  Operator* op = javascript()->CreateWithContext();
+  const Operator* op = javascript()->CreateWithContext();
   Node* context = NewNode(op, value, GetFunctionClosure());
   ContextScope scope(this, stmt->scope(), context);
   Visit(stmt->statement());
@@ -551,7 +551,7 @@ void AstGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
     // value is still on the operand stack while the label is evaluated.
     VisitForValue(clause->label());
     Node* label = environment()->Pop();
-    Operator* op = javascript()->StrictEqual();
+    const Operator* op = javascript()->StrictEqual();
     Node* condition = NewNode(op, tag, label);
     compare_switch.BeginLabel(i, condition);
 
@@ -806,7 +806,7 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   Node* info = jsgraph()->Constant(shared_info);
   Node* pretenure = expr->pretenure() ? jsgraph()->TrueConstant()
                                       : jsgraph()->FalseConstant();
-  Operator* op = javascript()->Runtime(Runtime::kNewClosure, 3);
+  const Operator* op = javascript()->Runtime(Runtime::kNewClosure, 3);
   Node* value = NewNode(op, context, info, pretenure);
   ast_context()->ProduceValue(value);
 }
@@ -852,7 +852,8 @@ void AstGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* pattern = jsgraph()->Constant(expr->pattern());
   Node* flags = jsgraph()->Constant(expr->flags());
-  Operator* op = javascript()->Runtime(Runtime::kMaterializeRegExpLiteral, 4);
+  const Operator* op =
+      javascript()->Runtime(Runtime::kMaterializeRegExpLiteral, 4);
   Node* literal = NewNode(op, literals_array, literal_index, pattern, flags);
   ast_context()->ProduceValue(literal);
 }
@@ -868,7 +869,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_properties());
   Node* flags = jsgraph()->Constant(expr->ComputeFlags());
-  Operator* op = javascript()->Runtime(Runtime::kCreateObjectLiteral, 4);
+  const Operator* op = javascript()->Runtime(Runtime::kCreateObjectLiteral, 4);
   Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
 
   // The object is expected on the operand stack during computation of the
@@ -917,7 +918,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         Node* receiver = environment()->Pop();
         if (property->emit_store()) {
           Node* strict = jsgraph()->Constant(SLOPPY);
-          Operator* op = javascript()->Runtime(Runtime::kSetProperty, 4);
+          const Operator* op = javascript()->Runtime(Runtime::kSetProperty, 4);
           NewNode(op, receiver, key, value, strict);
         }
         break;
@@ -928,7 +929,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         Node* value = environment()->Pop();
         Node* receiver = environment()->Pop();
         if (property->emit_store()) {
-          Operator* op = javascript()->Runtime(Runtime::kSetPrototype, 2);
+          const Operator* op = javascript()->Runtime(Runtime::kSetPrototype, 2);
           NewNode(op, receiver, value);
         }
         break;
@@ -953,14 +954,14 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     Node* getter = environment()->Pop();
     Node* name = environment()->Pop();
     Node* attr = jsgraph()->Constant(NONE);
-    Operator* op =
+    const Operator* op =
         javascript()->Runtime(Runtime::kDefineAccessorPropertyUnchecked, 5);
     NewNode(op, literal, name, getter, setter, attr);
   }
 
   // Transform literals that contain functions to fast properties.
   if (expr->has_function()) {
-    Operator* op = javascript()->Runtime(Runtime::kToFastProperties, 1);
+    const Operator* op = javascript()->Runtime(Runtime::kToFastProperties, 1);
     NewNode(op, literal);
   }
 
@@ -978,7 +979,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_elements());
   Node* flags = jsgraph()->Constant(expr->ComputeFlags());
-  Operator* op = javascript()->Runtime(Runtime::kCreateArrayLiteral, 4);
+  const Operator* op = javascript()->Runtime(Runtime::kCreateArrayLiteral, 4);
   Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
 
   // The array and the literal index are both expected on the operand stack
@@ -1154,7 +1155,7 @@ void AstGraphBuilder::VisitYield(Yield* expr) {
 void AstGraphBuilder::VisitThrow(Throw* expr) {
   VisitForValue(expr->exception());
   Node* exception = environment()->Pop();
-  Operator* op = javascript()->Runtime(Runtime::kThrow, 1);
+  const Operator* op = javascript()->Runtime(Runtime::kThrow, 1);
   Node* value = NewNode(op, exception);
   ast_context()->ProduceValue(value);
 }
@@ -1200,7 +1201,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       Variable* variable = callee->AsVariableProxy()->var();
       DCHECK(variable->location() == Variable::LOOKUP);
       Node* name = jsgraph()->Constant(variable->name());
-      Operator* op = javascript()->Runtime(Runtime::kLoadLookupSlot, 2);
+      const Operator* op = javascript()->Runtime(Runtime::kLoadLookupSlot, 2);
       Node* pair = NewNode(op, current_context(), name);
       callee_value = NewNode(common()->Projection(0), pair);
       receiver_value = NewNode(common()->Projection(1), pair);
@@ -1260,7 +1261,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     Node* receiver = environment()->Lookup(info()->scope()->receiver());
     Node* strict = jsgraph()->Constant(strict_mode());
     Node* position = jsgraph()->Constant(info()->scope()->start_position());
-    Operator* op =
+    const Operator* op =
         javascript()->Runtime(Runtime::kResolvePossiblyDirectEval, 5);
     Node* pair = NewNode(op, callee, source, receiver, strict, position);
     Node* new_callee = NewNode(common()->Projection(0), pair);
@@ -1272,7 +1273,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   }
 
   // Create node to perform the function call.
-  Operator* call = javascript()->Call(args->length() + 2, flags);
+  const Operator* call = javascript()->Call(args->length() + 2, flags);
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -1287,7 +1288,7 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   VisitForValues(args);
 
   // Create node to perform the construct call.
-  Operator* call = javascript()->CallNew(args->length() + 1);
+  const Operator* call = javascript()->CallNew(args->length() + 1);
   Node* value = ProcessArguments(call, args->length() + 1);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -1314,7 +1315,7 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   VisitForValues(args);
 
   // Create node to perform the JS runtime call.
-  Operator* call = javascript()->Call(args->length() + 2, flags);
+  const Operator* call = javascript()->Call(args->length() + 2, flags);
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -1337,7 +1338,7 @@ void AstGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
   // Create node to perform the runtime call.
   Runtime::FunctionId functionId = function->function_id;
-  Operator* call = javascript()->Runtime(functionId, args->length());
+  const Operator* call = javascript()->Runtime(functionId, args->length());
   Node* value = ProcessArguments(call, args->length());
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -1471,7 +1472,7 @@ void AstGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
 
 
 void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
-  Operator* op;
+  const Operator* op;
   switch (expr->op()) {
     case Token::EQ:
       op = javascript()->Equal();
@@ -1543,7 +1544,7 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
                       DeclareGlobalsStrictMode::encode(strict_mode());
   Node* flags = jsgraph()->Constant(encoded_flags);
   Node* pairs = jsgraph()->Constant(data);
-  Operator* op = javascript()->Runtime(Runtime::kDeclareGlobals, 3);
+  const Operator* op = javascript()->Runtime(Runtime::kDeclareGlobals, 3);
   NewNode(op, current_context(), pairs, flags);
   globals()->Rewind(0);
 }
@@ -1650,7 +1651,7 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 }
 
 
-Node* AstGraphBuilder::ProcessArguments(Operator* op, int arity) {
+Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {
   DCHECK(environment()->stack_height() >= arity);
   Node** all = info()->zone()->NewArray<Node*>(arity);
   for (int i = arity - 1; i >= 0; --i) {
@@ -1667,7 +1668,7 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
   set_current_context(context);
 
   // Allocate a new local context.
-  Operator* op = javascript()->CreateFunctionContext();
+  const Operator* op = javascript()->CreateFunctionContext();
   Node* local_context = NewNode(op, closure);
   set_current_context(local_context);
 
@@ -1681,7 +1682,7 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Node* context, Node* closure) {
     Node* parameter = NewNode(common()->Parameter(i + 1), graph()->start());
     // Context variable (at bottom of the context chain).
     DCHECK_EQ(0, info()->scope()->ContextChainLength(variable->scope()));
-    Operator* op = javascript()->StoreContext(0, variable->index());
+    const Operator* op = javascript()->StoreContext(0, variable->index());
     NewNode(op, local_context, parameter);
   }
 
@@ -1694,7 +1695,7 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
 
   // Allocate and initialize a new arguments object.
   Node* callee = GetFunctionClosure();
-  Operator* op = javascript()->Runtime(Runtime::kNewArguments, 1);
+  const Operator* op = javascript()->Runtime(Runtime::kNewArguments, 1);
   Node* object = NewNode(op, callee);
 
   // Assign the object to the arguments variable.
@@ -1746,7 +1747,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Unique<Name> name = MakeUnique(variable->name());
-      Operator* op = javascript()->LoadNamed(name, contextual_mode);
+      const Operator* op = javascript()->LoadNamed(name, contextual_mode);
       Node* node = NewNode(op, global);
       PrepareFrameState(node, bailout_id, kPushOutput);
       return node;
@@ -1777,7 +1778,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       // Context variable (potentially up the context chain).
       int depth = current_scope()->ContextChainLength(variable->scope());
       bool immutable = variable->maybe_assigned() == kNotAssigned;
-      Operator* op =
+      const Operator* op =
           javascript()->LoadContext(depth, variable->index(), immutable);
       Node* value = NewNode(op, current_context());
       // TODO(titzer): initialization checks are redundant for already
@@ -1800,7 +1801,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
           (contextual_mode == CONTEXTUAL)
               ? Runtime::kLoadLookupSlot
               : Runtime::kLoadLookupSlotNoReferenceError;
-      Operator* op = javascript()->Runtime(function_id, 2);
+      const Operator* op = javascript()->Runtime(function_id, 2);
       Node* pair = NewNode(op, current_context(), name);
       return NewNode(common()->Projection(0), pair);
     }
@@ -1816,7 +1817,7 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable) {
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Node* name = jsgraph()->Constant(variable->name());
-      Operator* op = javascript()->DeleteProperty(strict_mode());
+      const Operator* op = javascript()->DeleteProperty(strict_mode());
       return NewNode(op, global, name);
     }
     case Variable::PARAMETER:
@@ -1828,7 +1829,7 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable) {
     case Variable::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
       Node* name = jsgraph()->Constant(variable->name());
-      Operator* op = javascript()->Runtime(Runtime::kDeleteLookupSlot, 2);
+      const Operator* op = javascript()->Runtime(Runtime::kDeleteLookupSlot, 2);
       return NewNode(op, current_context(), name);
     }
   }
@@ -1847,7 +1848,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Unique<Name> name = MakeUnique(variable->name());
-      Operator* op = javascript()->StoreNamed(strict_mode(), name);
+      const Operator* op = javascript()->StoreNamed(strict_mode(), name);
       Node* store = NewNode(op, global, value);
       PrepareFrameState(store, bailout_id);
       return store;
@@ -1886,7 +1887,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
       int depth = current_scope()->ContextChainLength(variable->scope());
       if (mode == CONST_LEGACY && op == Token::INIT_CONST_LEGACY) {
         // Perform an initialization check for legacy const variables.
-        Operator* op =
+        const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);
         Node* current = NewNode(op, current_context());
         value = BuildHoleCheckSilent(current, value, current);
@@ -1895,7 +1896,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
         return value;
       } else if (mode == LET && op != Token::INIT_LET) {
         // Perform an initialization check for let declared variables.
-        Operator* op =
+        const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);
         Node* current = NewNode(op, current_context());
         value = BuildHoleCheckThrow(current, variable, value);
@@ -1903,7 +1904,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
         // All assignments to const variables are early errors.
         UNREACHABLE();
       }
-      Operator* op = javascript()->StoreContext(depth, variable->index());
+      const Operator* op = javascript()->StoreContext(depth, variable->index());
       return NewNode(op, current_context(), value);
     }
     case Variable::LOOKUP: {
@@ -1912,7 +1913,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
       Node* strict = jsgraph()->Constant(strict_mode());
       // TODO(mstarzinger): Use Runtime::kInitializeLegacyConstLookupSlot for
       // initializations of const declarations.
-      Operator* op = javascript()->Runtime(Runtime::kStoreLookupSlot, 4);
+      const Operator* op = javascript()->Runtime(Runtime::kStoreLookupSlot, 4);
       return NewNode(op, value, current_context(), name, strict);
     }
   }
@@ -1940,7 +1941,7 @@ Node* AstGraphBuilder::BuildLoadBuiltinsObject() {
 
 Node* AstGraphBuilder::BuildLoadGlobalObject() {
   Node* context = GetFunctionContext();
-  Operator* load_op =
+  const Operator* load_op =
       javascript()->LoadContext(0, Context::GLOBAL_OBJECT_INDEX, true);
   return NewNode(load_op, context);
 }
@@ -1955,13 +1956,13 @@ Node* AstGraphBuilder::BuildToBoolean(Node* value) {
 Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable) {
   // TODO(mstarzinger): Should be unified with the VisitThrow implementation.
   Node* variable_name = jsgraph()->Constant(variable->name());
-  Operator* op = javascript()->Runtime(Runtime::kThrowReferenceError, 1);
+  const Operator* op = javascript()->Runtime(Runtime::kThrowReferenceError, 1);
   return NewNode(op, variable_name);
 }
 
 
 Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
-  Operator* js_op;
+  const Operator* js_op;
   switch (op) {
     case Token::BIT_OR:
       js_op = javascript()->BitwiseOr();

@@ -28,7 +28,8 @@ StructuredGraphBuilder::StructuredGraphBuilder(Graph* graph,
       exit_control_(NULL) {}
 
 
-Node* StructuredGraphBuilder::MakeNode(Operator* op, int value_input_count,
+Node* StructuredGraphBuilder::MakeNode(const Operator* op,
+                                       int value_input_count,
                                        Node** value_inputs) {
   DCHECK(op->InputCount() == value_input_count);
 
@@ -161,7 +162,7 @@ void StructuredGraphBuilder::Environment::PrepareForLoop() {
 
 
 Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
-  Operator* phi_op = common()->Phi(kMachAnyTagged, count);
+  const Operator* phi_op = common()->Phi(kMachAnyTagged, count);
   Node** buffer = zone()->NewArray<Node*>(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
@@ -172,7 +173,7 @@ Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
 // TODO(mstarzinger): Revisit this once we have proper effect states.
 Node* StructuredGraphBuilder::NewEffectPhi(int count, Node* input,
                                            Node* control) {
-  Operator* phi_op = common()->EffectPhi(count);
+  const Operator* phi_op = common()->EffectPhi(count);
   Node** buffer = zone()->NewArray<Node*>(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
@@ -184,17 +185,17 @@ Node* StructuredGraphBuilder::MergeControl(Node* control, Node* other) {
   int inputs = OperatorProperties::GetControlInputCount(control->op()) + 1;
   if (control->opcode() == IrOpcode::kLoop) {
     // Control node for loop exists, add input.
-    Operator* op = common()->Loop(inputs);
+    const Operator* op = common()->Loop(inputs);
     control->AppendInput(zone(), other);
     control->set_op(op);
   } else if (control->opcode() == IrOpcode::kMerge) {
     // Control node for merge exists, add input.
-    Operator* op = common()->Merge(inputs);
+    const Operator* op = common()->Merge(inputs);
     control->AppendInput(zone(), other);
     control->set_op(op);
   } else {
     // Control node is a singleton, introduce a merge.
-    Operator* op = common()->Merge(inputs);
+    const Operator* op = common()->Merge(inputs);
     control = graph()->NewNode(op, control, other);
   }
   return control;

@@ -73,101 +73,101 @@ class MachineOperatorBuilder {
 #define WORD_SIZE(x) return is64() ? Word64##x() : Word32##x()
 #define INT_SIZE(x) return is64() ? Int64##x() : Int32##x()
 
-  Operator* Load(MachineType rep) {  // load [base + index]
+  const Operator* Load(MachineType rep) {  // load [base + index]
     OP1(Load, MachineType, rep, Operator::kNoWrite, 2, 1);
   }
   // store [base + index], value
-  Operator* Store(MachineType rep, WriteBarrierKind kind) {
+  const Operator* Store(MachineType rep, WriteBarrierKind kind) {
     StoreRepresentation store_rep = {rep, kind};
     OP1(Store, StoreRepresentation, store_rep, Operator::kNoRead, 3, 0);
   }
 
-  Operator* WordAnd() { WORD_SIZE(And); }
-  Operator* WordOr() { WORD_SIZE(Or); }
-  Operator* WordXor() { WORD_SIZE(Xor); }
-  Operator* WordShl() { WORD_SIZE(Shl); }
-  Operator* WordShr() { WORD_SIZE(Shr); }
-  Operator* WordSar() { WORD_SIZE(Sar); }
-  Operator* WordRor() { WORD_SIZE(Ror); }
-  Operator* WordEqual() { WORD_SIZE(Equal); }
+  const Operator* WordAnd() { WORD_SIZE(And); }
+  const Operator* WordOr() { WORD_SIZE(Or); }
+  const Operator* WordXor() { WORD_SIZE(Xor); }
+  const Operator* WordShl() { WORD_SIZE(Shl); }
+  const Operator* WordShr() { WORD_SIZE(Shr); }
+  const Operator* WordSar() { WORD_SIZE(Sar); }
+  const Operator* WordRor() { WORD_SIZE(Ror); }
+  const Operator* WordEqual() { WORD_SIZE(Equal); }
 
-  Operator* Word32And() { BINOP_AC(Word32And); }
-  Operator* Word32Or() { BINOP_AC(Word32Or); }
-  Operator* Word32Xor() { BINOP_AC(Word32Xor); }
-  Operator* Word32Shl() { BINOP(Word32Shl); }
-  Operator* Word32Shr() { BINOP(Word32Shr); }
-  Operator* Word32Sar() { BINOP(Word32Sar); }
-  Operator* Word32Ror() { BINOP(Word32Ror); }
-  Operator* Word32Equal() { BINOP_C(Word32Equal); }
+  const Operator* Word32And() { BINOP_AC(Word32And); }
+  const Operator* Word32Or() { BINOP_AC(Word32Or); }
+  const Operator* Word32Xor() { BINOP_AC(Word32Xor); }
+  const Operator* Word32Shl() { BINOP(Word32Shl); }
+  const Operator* Word32Shr() { BINOP(Word32Shr); }
+  const Operator* Word32Sar() { BINOP(Word32Sar); }
+  const Operator* Word32Ror() { BINOP(Word32Ror); }
+  const Operator* Word32Equal() { BINOP_C(Word32Equal); }
 
-  Operator* Word64And() { BINOP_AC(Word64And); }
-  Operator* Word64Or() { BINOP_AC(Word64Or); }
-  Operator* Word64Xor() { BINOP_AC(Word64Xor); }
-  Operator* Word64Shl() { BINOP(Word64Shl); }
-  Operator* Word64Shr() { BINOP(Word64Shr); }
-  Operator* Word64Sar() { BINOP(Word64Sar); }
-  Operator* Word64Ror() { BINOP(Word64Ror); }
-  Operator* Word64Equal() { BINOP_C(Word64Equal); }
+  const Operator* Word64And() { BINOP_AC(Word64And); }
+  const Operator* Word64Or() { BINOP_AC(Word64Or); }
+  const Operator* Word64Xor() { BINOP_AC(Word64Xor); }
+  const Operator* Word64Shl() { BINOP(Word64Shl); }
+  const Operator* Word64Shr() { BINOP(Word64Shr); }
+  const Operator* Word64Sar() { BINOP(Word64Sar); }
+  const Operator* Word64Ror() { BINOP(Word64Ror); }
+  const Operator* Word64Equal() { BINOP_C(Word64Equal); }
 
-  Operator* Int32Add() { BINOP_AC(Int32Add); }
-  Operator* Int32AddWithOverflow() { BINOP_ACO(Int32AddWithOverflow); }
-  Operator* Int32Sub() { BINOP(Int32Sub); }
-  Operator* Int32SubWithOverflow() { BINOP_O(Int32SubWithOverflow); }
-  Operator* Int32Mul() { BINOP_AC(Int32Mul); }
-  Operator* Int32Div() { BINOP(Int32Div); }
-  Operator* Int32UDiv() { BINOP(Int32UDiv); }
-  Operator* Int32Mod() { BINOP(Int32Mod); }
-  Operator* Int32UMod() { BINOP(Int32UMod); }
-  Operator* Int32LessThan() { BINOP(Int32LessThan); }
-  Operator* Int32LessThanOrEqual() { BINOP(Int32LessThanOrEqual); }
-  Operator* Uint32LessThan() { BINOP(Uint32LessThan); }
-  Operator* Uint32LessThanOrEqual() { BINOP(Uint32LessThanOrEqual); }
+  const Operator* Int32Add() { BINOP_AC(Int32Add); }
+  const Operator* Int32AddWithOverflow() { BINOP_ACO(Int32AddWithOverflow); }
+  const Operator* Int32Sub() { BINOP(Int32Sub); }
+  const Operator* Int32SubWithOverflow() { BINOP_O(Int32SubWithOverflow); }
+  const Operator* Int32Mul() { BINOP_AC(Int32Mul); }
+  const Operator* Int32Div() { BINOP(Int32Div); }
+  const Operator* Int32UDiv() { BINOP(Int32UDiv); }
+  const Operator* Int32Mod() { BINOP(Int32Mod); }
+  const Operator* Int32UMod() { BINOP(Int32UMod); }
+  const Operator* Int32LessThan() { BINOP(Int32LessThan); }
+  const Operator* Int32LessThanOrEqual() { BINOP(Int32LessThanOrEqual); }
+  const Operator* Uint32LessThan() { BINOP(Uint32LessThan); }
+  const Operator* Uint32LessThanOrEqual() { BINOP(Uint32LessThanOrEqual); }
 
-  Operator* Int64Add() { BINOP_AC(Int64Add); }
-  Operator* Int64Sub() { BINOP(Int64Sub); }
-  Operator* Int64Mul() { BINOP_AC(Int64Mul); }
-  Operator* Int64Div() { BINOP(Int64Div); }
-  Operator* Int64UDiv() { BINOP(Int64UDiv); }
-  Operator* Int64Mod() { BINOP(Int64Mod); }
-  Operator* Int64UMod() { BINOP(Int64UMod); }
-  Operator* Int64LessThan() { BINOP(Int64LessThan); }
-  Operator* Int64LessThanOrEqual() { BINOP(Int64LessThanOrEqual); }
+  const Operator* Int64Add() { BINOP_AC(Int64Add); }
+  const Operator* Int64Sub() { BINOP(Int64Sub); }
+  const Operator* Int64Mul() { BINOP_AC(Int64Mul); }
+  const Operator* Int64Div() { BINOP(Int64Div); }
+  const Operator* Int64UDiv() { BINOP(Int64UDiv); }
+  const Operator* Int64Mod() { BINOP(Int64Mod); }
+  const Operator* Int64UMod() { BINOP(Int64UMod); }
+  const Operator* Int64LessThan() { BINOP(Int64LessThan); }
+  const Operator* Int64LessThanOrEqual() { BINOP(Int64LessThanOrEqual); }
 
   // Signed comparison of word-sized integer values, translates to int32/int64
   // comparisons depending on the word-size of the machine.
-  Operator* IntLessThan() { INT_SIZE(LessThan); }
-  Operator* IntLessThanOrEqual() { INT_SIZE(LessThanOrEqual); }
+  const Operator* IntLessThan() { INT_SIZE(LessThan); }
+  const Operator* IntLessThanOrEqual() { INT_SIZE(LessThanOrEqual); }
 
   // Convert representation of integers between float64 and int32/uint32.
   // The precise rounding mode and handling of out of range inputs are *not*
   // defined for these operators, since they are intended only for use with
   // integers.
-  Operator* ChangeInt32ToFloat64() { UNOP(ChangeInt32ToFloat64); }
-  Operator* ChangeUint32ToFloat64() { UNOP(ChangeUint32ToFloat64); }
-  Operator* ChangeFloat64ToInt32() { UNOP(ChangeFloat64ToInt32); }
-  Operator* ChangeFloat64ToUint32() { UNOP(ChangeFloat64ToUint32); }
+  const Operator* ChangeInt32ToFloat64() { UNOP(ChangeInt32ToFloat64); }
+  const Operator* ChangeUint32ToFloat64() { UNOP(ChangeUint32ToFloat64); }
+  const Operator* ChangeFloat64ToInt32() { UNOP(ChangeFloat64ToInt32); }
+  const Operator* ChangeFloat64ToUint32() { UNOP(ChangeFloat64ToUint32); }
 
   // Sign/zero extend int32/uint32 to int64/uint64.
-  Operator* ChangeInt32ToInt64() { UNOP(ChangeInt32ToInt64); }
-  Operator* ChangeUint32ToUint64() { UNOP(ChangeUint32ToUint64); }
+  const Operator* ChangeInt32ToInt64() { UNOP(ChangeInt32ToInt64); }
+  const Operator* ChangeUint32ToUint64() { UNOP(ChangeUint32ToUint64); }
 
   // Truncate double to int32 using JavaScript semantics.
-  Operator* TruncateFloat64ToInt32() { UNOP(TruncateFloat64ToInt32); }
+  const Operator* TruncateFloat64ToInt32() { UNOP(TruncateFloat64ToInt32); }
 
   // Truncate the high order bits and convert the remaining bits to int32.
-  Operator* TruncateInt64ToInt32() { UNOP(TruncateInt64ToInt32); }
+  const Operator* TruncateInt64ToInt32() { UNOP(TruncateInt64ToInt32); }
 
   // Floating point operators always operate with IEEE 754 round-to-nearest.
-  Operator* Float64Add() { BINOP_C(Float64Add); }
-  Operator* Float64Sub() { BINOP(Float64Sub); }
-  Operator* Float64Mul() { BINOP_C(Float64Mul); }
-  Operator* Float64Div() { BINOP(Float64Div); }
-  Operator* Float64Mod() { BINOP(Float64Mod); }
+  const Operator* Float64Add() { BINOP_C(Float64Add); }
+  const Operator* Float64Sub() { BINOP(Float64Sub); }
+  const Operator* Float64Mul() { BINOP_C(Float64Mul); }
+  const Operator* Float64Div() { BINOP(Float64Div); }
+  const Operator* Float64Mod() { BINOP(Float64Mod); }
 
   // Floating point comparisons complying to IEEE 754.
-  Operator* Float64Equal() { BINOP_C(Float64Equal); }
-  Operator* Float64LessThan() { BINOP(Float64LessThan); }
-  Operator* Float64LessThanOrEqual() { BINOP(Float64LessThanOrEqual); }
+  const Operator* Float64Equal() { BINOP_C(Float64Equal); }
+  const Operator* Float64LessThan() { BINOP(Float64LessThan); }
+  const Operator* Float64LessThanOrEqual() { BINOP(Float64LessThanOrEqual); }
 
   inline bool is32() const { return word_ == kRepWord32; }
   inline bool is64() const { return word_ == kRepWord64; }
@@ -184,8 +184,9 @@ class MachineOperatorBuilder {
   Zone* zone_;
   MachineType word_;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_MACHINE_OPERATOR_H_

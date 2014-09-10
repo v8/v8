@@ -99,7 +99,7 @@ class JSGraph : public ZoneObject {
 
   Node* ImmovableHeapConstant(Handle<Object> value);
   Node* NumberConstant(double value);
-  Node* NewNode(Operator* op);
+  Node* NewNode(const Operator* op);
 
   Factory* factory() { return isolate()->factory(); }
 };

@@ -91,7 +91,7 @@ class RepresentationChanger {
         break;
     }
     // Select the correct X -> Tagged operator.
-    Operator* op;
+    const Operator* op;
     if (output_type & kRepBit) {
       op = simplified()->ChangeBitToBool();
     } else if (output_type & rWord) {
@@ -129,7 +129,7 @@ class RepresentationChanger {
         break;
     }
     // Select the correct X -> Float64 operator.
-    Operator* op;
+    const Operator* op;
     if (output_type & kRepBit) {
       return TypeError(node, output_type, kRepFloat64);
     } else if (output_type & rWord) {
@@ -169,7 +169,7 @@ class RepresentationChanger {
         break;
     }
     // Select the correct X -> Word32 operator.
-    Operator* op = NULL;
+    const Operator* op = NULL;
     if (output_type & kRepFloat64) {
       if (output_type & kTypeUint32 || use_unsigned) {
         op = machine()->ChangeFloat64ToUint32();
@@ -207,7 +207,7 @@ class RepresentationChanger {
         break;
     }
     // Select the correct X -> Bit operator.
-    Operator* op;
+    const Operator* op;
     if (output_type & rWord) {
       return node;  // No change necessary.
     } else if (output_type & kRepWord64) {
@@ -228,7 +228,7 @@ class RepresentationChanger {
     return TypeError(node, output_type, kRepWord64);
   }
 
-  Operator* Int32OperatorFor(IrOpcode::Value opcode) {
+  const Operator* Int32OperatorFor(IrOpcode::Value opcode) {
     switch (opcode) {
       case IrOpcode::kNumberAdd:
         return machine()->Int32Add();
@@ -246,7 +246,7 @@ class RepresentationChanger {
     }
   }
 
-  Operator* Uint32OperatorFor(IrOpcode::Value opcode) {
+  const Operator* Uint32OperatorFor(IrOpcode::Value opcode) {
     switch (opcode) {
       case IrOpcode::kNumberAdd:
         return machine()->Int32Add();
@@ -264,7 +264,7 @@ class RepresentationChanger {
     }
   }
 
-  Operator* Float64OperatorFor(IrOpcode::Value opcode) {
+  const Operator* Float64OperatorFor(IrOpcode::Value opcode) {
     switch (opcode) {
       case IrOpcode::kNumberAdd:
         return machine()->Float64Add();

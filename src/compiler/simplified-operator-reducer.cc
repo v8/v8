@@ -102,7 +102,8 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
 }
 
 
-Reduction SimplifiedOperatorReducer::Change(Node* node, Operator* op, Node* a) {
+Reduction SimplifiedOperatorReducer::Change(Node* node, const Operator* op,
+                                            Node* a) {
   node->set_op(op);
   node->ReplaceInput(0, a);
   return Changed(node);

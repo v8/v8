@@ -45,10 +45,11 @@ class JSTypedLowering : public Reducer {
   Reduction ReduceJSToNumberInput(Node* input);
   Reduction ReduceJSToStringInput(Node* input);
   Reduction ReduceJSToBooleanInput(Node* input);
-  Reduction ReduceNumberBinop(Node* node, Operator* numberOp);
+  Reduction ReduceNumberBinop(Node* node, const Operator* numberOp);
   Reduction ReduceI32Binop(Node* node, bool left_signed, bool right_signed,
-                           Operator* intOp);
-  Reduction ReduceI32Shift(Node* node, bool left_signed, Operator* shift_op);
+                           const Operator* intOp);
+  Reduction ReduceI32Shift(Node* node, bool left_signed,
+                           const Operator* shift_op);
 
   JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }

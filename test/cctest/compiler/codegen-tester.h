@@ -242,7 +242,7 @@ class CompareWrapper {
     return m->NewNode(op(m->machine()), a, b);
   }
 
-  Operator* op(MachineOperatorBuilder* machine) {
+  const Operator* op(MachineOperatorBuilder* machine) {
     switch (opcode) {
       case IrOpcode::kWord32Equal:
         return machine->Word32Equal();

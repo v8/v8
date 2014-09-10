@@ -120,7 +120,7 @@ JSGenericLowering::JSGenericLowering(CompilationInfo* info, JSGraph* jsgraph,
       machine_(machine) {}
 
 
-void JSGenericLowering::PatchOperator(Node* node, Operator* op) {
+void JSGenericLowering::PatchOperator(Node* node, const Operator* op) {
   node->set_op(op);
 }
 

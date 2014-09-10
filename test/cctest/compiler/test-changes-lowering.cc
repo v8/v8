@@ -99,7 +99,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     CHECK(this->isolate()->factory()->NewNumber(expected)->SameValue(number));
   }
 
-  void BuildAndLower(Operator* op) {
+  void BuildAndLower(const Operator* op) {
     // We build a graph by hand here, because the raw machine assembler
     // does not add the correct control and effect nodes.
     Node* p0 = this->Parameter(0);
@@ -111,7 +111,8 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     LowerChange(change);
   }
 
-  void BuildStoreAndLower(Operator* op, Operator* store_op, void* location) {
+  void BuildStoreAndLower(const Operator* op, const Operator* store_op,
+                          void* location) {
     // We build a graph by hand here, because the raw machine assembler
     // does not add the correct control and effect nodes.
     Node* p0 = this->Parameter(0);
@@ -126,7 +127,8 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     LowerChange(change);
   }
 
-  void BuildLoadAndLower(Operator* op, Operator* load_op, void* location) {
+  void BuildLoadAndLower(const Operator* op, const Operator* load_op,
+                         void* location) {
     // We build a graph by hand here, because the raw machine assembler
     // does not add the correct control and effect nodes.
     Node* load =

@@ -79,7 +79,7 @@ class JSBinopReduction {
 
   // Remove all effect and control inputs and outputs to this node and change
   // to the pure operator {op}, possibly inserting a boolean inversion.
-  Reduction ChangeToPureOperator(Operator* op, bool invert = false) {
+  Reduction ChangeToPureOperator(const Operator* op, bool invert = false) {
     DCHECK_EQ(0, OperatorProperties::GetEffectInputCount(op));
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(0, OperatorProperties::GetControlInputCount(op));
@@ -205,8 +205,8 @@ class JSBinopReduction {
 
     if (input_type->Is(type)) return node;  // already in the value range.
 
-    Operator* op = is_signed ? simplified()->NumberToInt32()
-                             : simplified()->NumberToUint32();
+    const Operator* op = is_signed ? simplified()->NumberToInt32()
+                                   : simplified()->NumberToUint32();
     Node* n = graph()->NewNode(op, node);
     return n;
   }
@@ -231,7 +231,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 }
 
 
-Reduction JSTypedLowering::ReduceNumberBinop(Node* node, Operator* numberOp) {
+Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
+                                             const Operator* numberOp) {
   JSBinopReduction r(this, node);
   if (r.OneInputIs(Type::Primitive())) {
     // If at least one input is a primitive, then insert appropriate conversions
@@ -246,7 +247,8 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node, Operator* numberOp) {
 
 
 Reduction JSTypedLowering::ReduceI32Binop(Node* node, bool left_signed,
-                                          bool right_signed, Operator* intOp) {
+                                          bool right_signed,
+                                          const Operator* intOp) {
   JSBinopReduction r(this, node);
   // TODO(titzer): some Smi bitwise operations don't really require going
   // all the way to int32, which can save tagging/untagging for some operations
@@ -258,7 +260,7 @@ Reduction JSTypedLowering::ReduceI32Binop(Node* node, bool left_signed,
 
 
 Reduction JSTypedLowering::ReduceI32Shift(Node* node, bool left_signed,
-                                          Operator* shift_op) {
+                                          const Operator* shift_op) {
   JSBinopReduction r(this, node);
   r.ConvertInputsForShift(left_signed);
   return r.ChangeToPureOperator(shift_op);
@@ -269,7 +271,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::String())) {
     // If both inputs are definitely strings, perform a string comparison.
-    Operator* stringOp;
+    const Operator* stringOp;
     switch (node->opcode()) {
       case IrOpcode::kJSLessThan:
         stringOp = simplified()->StringLessThan();
@@ -291,8 +293,8 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     return r.ChangeToPureOperator(stringOp);
   } else if (r.OneInputCannotBe(Type::String())) {
     // If one input cannot be a string, then emit a number comparison.
-    Operator* less_than;
-    Operator* less_than_or_equal;
+    const Operator* less_than;
+    const Operator* less_than_or_equal;
     if (r.BothInputsAre(Type::Unsigned32())) {
       less_than = machine()->Uint32LessThan();
       less_than_or_equal = machine()->Uint32LessThanOrEqual();
@@ -305,7 +307,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
       less_than = simplified()->NumberLessThan();
       less_than_or_equal = simplified()->NumberLessThanOrEqual();
     }
-    Operator* comparison;
+    const Operator* comparison;
     switch (node->opcode()) {
       case IrOpcode::kJSLessThan:
         comparison = less_than;

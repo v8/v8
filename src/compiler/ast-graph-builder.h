@@ -140,7 +140,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
 
   // Process arguments to a call by popping {arity} elements off the operand
   // stack and build a call node using the given call operator.
-  Node* ProcessArguments(Operator* op, int arity);
+  Node* ProcessArguments(const Operator* op, int arity);
 
   // Visit statements.
   void VisitIfNotNull(Statement* stmt);

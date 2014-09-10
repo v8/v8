@@ -168,8 +168,9 @@ Reduction ChangeLowering::ChangeTaggedToUI32(Node* val, Node* control,
   Node* branch = graph()->NewNode(common()->Branch(), tag, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Operator* op = (signedness == kSigned) ? machine()->ChangeFloat64ToInt32()
-                                         : machine()->ChangeFloat64ToUint32();
+  const Operator* op = (signedness == kSigned)
+                           ? machine()->ChangeFloat64ToInt32()
+                           : machine()->ChangeFloat64ToUint32();
   Node* change = graph()->NewNode(op, LoadHeapNumberValue(val, if_true));
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

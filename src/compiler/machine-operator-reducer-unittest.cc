@@ -164,7 +164,7 @@ static const uint32_t kUint32Values[] = {
 namespace {
 
 struct UnaryOperator {
-  Operator* (MachineOperatorBuilder::*constructor)();
+  const Operator* (MachineOperatorBuilder::*constructor)();
   const char* constructor_name;
 };
 

@@ -28,7 +28,7 @@ class SimplifiedOperatorReducer FINAL : public Reducer {
   virtual Reduction Reduce(Node* node) OVERRIDE;
 
  private:
-  Reduction Change(Node* node, Operator* op, Node* a);
+  Reduction Change(Node* node, const Operator* op, Node* a);
   Reduction ReplaceFloat64(double value);
   Reduction ReplaceInt32(int32_t value);
   Reduction ReplaceUint32(uint32_t value) {

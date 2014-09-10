@@ -58,7 +58,7 @@ static Node* Int32Input(RawMachineAssemblerTester<int32_t>* m, int index) {
 TEST(CodeGenInt32Binop) {
   RawMachineAssemblerTester<void> m;
 
-  Operator* ops[] = {
+  const Operator* ops[] = {
       m.machine()->Word32And(),      m.machine()->Word32Or(),
       m.machine()->Word32Xor(),      m.machine()->Word32Shl(),
       m.machine()->Word32Shr(),      m.machine()->Word32Sar(),
@@ -741,8 +741,9 @@ TEST(RunInt32AddInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -832,8 +833,9 @@ TEST(RunInt32AddInComparison) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -1076,8 +1078,9 @@ TEST(RunInt32SubInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -1167,8 +1170,9 @@ TEST(RunInt32SubInComparison) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -1699,8 +1703,9 @@ TEST(RunWord32AndInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -1926,8 +1931,9 @@ TEST(RunWord32OrInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -2150,8 +2156,9 @@ TEST(RunWord32XorInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -2651,7 +2658,7 @@ TEST(RunDeadNodes) {
 TEST(RunDeadInt32Binops) {
   RawMachineAssemblerTester<int32_t> m;
 
-  Operator* ops[] = {
+  const Operator* ops[] = {
       m.machine()->Word32And(),             m.machine()->Word32Or(),
       m.machine()->Word32Xor(),             m.machine()->Word32Shl(),
       m.machine()->Word32Shr(),             m.machine()->Word32Sar(),
@@ -2762,12 +2769,12 @@ TEST(RunFloat64Binop) {
   RawMachineAssemblerTester<int32_t> m;
   double result;
 
-  Operator* ops[] = {m.machine()->Float64Add(), m.machine()->Float64Sub(),
-                     m.machine()->Float64Mul(), m.machine()->Float64Div(),
-                     m.machine()->Float64Mod(), NULL};
+  const Operator* ops[] = {m.machine()->Float64Add(), m.machine()->Float64Sub(),
+                           m.machine()->Float64Mul(), m.machine()->Float64Div(),
+                           m.machine()->Float64Mod(), NULL};
 
   double inf = V8_INFINITY;
-  Operator* inputs[] = {
+  const Operator* inputs[] = {
       m.common()->Float64Constant(0),     m.common()->Float64Constant(1),
       m.common()->Float64Constant(1),     m.common()->Float64Constant(0),
       m.common()->Float64Constant(0),     m.common()->Float64Constant(-1),
@@ -2797,9 +2804,9 @@ TEST(RunFloat64Binop) {
 TEST(RunDeadFloat64Binops) {
   RawMachineAssemblerTester<int32_t> m;
 
-  Operator* ops[] = {m.machine()->Float64Add(), m.machine()->Float64Sub(),
-                     m.machine()->Float64Mul(), m.machine()->Float64Div(),
-                     m.machine()->Float64Mod(), NULL};
+  const Operator* ops[] = {m.machine()->Float64Add(), m.machine()->Float64Sub(),
+                           m.machine()->Float64Mul(), m.machine()->Float64Div(),
+                           m.machine()->Float64Mod(), NULL};
 
   for (int i = 0; ops[i] != NULL; i++) {
     RawMachineAssemblerTester<int32_t> m;
@@ -3714,9 +3721,9 @@ TEST(RunFloat64Compare) {
 TEST(RunFloat64UnorderedCompare) {
   RawMachineAssemblerTester<int32_t> m;
 
-  Operator* operators[] = {m.machine()->Float64Equal(),
-                           m.machine()->Float64LessThan(),
-                           m.machine()->Float64LessThanOrEqual()};
+  const Operator* operators[] = {m.machine()->Float64Equal(),
+                                 m.machine()->Float64LessThan(),
+                                 m.machine()->Float64LessThanOrEqual()};
 
   double nan = v8::base::OS::nan_value();
 

@@ -81,8 +81,8 @@ Reduction JSContextSpecializer::ReduceJSLoadContext(Node* node) {
     if (access.depth() == 0) {
       return Reducer::NoChange();
     }
-    Operator* op = jsgraph_->javascript()->LoadContext(0, access.index(),
-                                                       access.immutable());
+    const Operator* op = jsgraph_->javascript()->LoadContext(
+        0, access.index(), access.immutable());
     node->set_op(op);
     Handle<Object> context_handle = Handle<Object>(context, info_->isolate());
     node->ReplaceInput(0, jsgraph_->Constant(context_handle));
@@ -128,13 +128,14 @@ Reduction JSContextSpecializer::ReduceJSStoreContext(Node* node) {
     context = context->previous();
   }
 
-  Operator* op = jsgraph_->javascript()->StoreContext(0, access.index());
+  const Operator* op = jsgraph_->javascript()->StoreContext(0, access.index());
   node->set_op(op);
   Handle<Object> new_context_handle = Handle<Object>(context, info_->isolate());
   node->ReplaceInput(0, jsgraph_->Constant(new_context_handle));
 
   return Reducer::Changed(node);
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

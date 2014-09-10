@@ -39,7 +39,7 @@ class MachineOperatorCommonTest
 
 
 TEST_P(MachineOperatorCommonTest, ChangeInt32ToInt64) {
-  Operator* op = machine()->ChangeInt32ToInt64();
+  const Operator* op = machine()->ChangeInt32ToInt64();
   EXPECT_EQ(1, OperatorProperties::GetValueInputCount(op));
   EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
   EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
@@ -49,7 +49,7 @@ TEST_P(MachineOperatorCommonTest, ChangeInt32ToInt64) {
 
 
 TEST_P(MachineOperatorCommonTest, ChangeUint32ToUint64) {
-  Operator* op = machine()->ChangeUint32ToUint64();
+  const Operator* op = machine()->ChangeUint32ToUint64();
   EXPECT_EQ(1, OperatorProperties::GetValueInputCount(op));
   EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
   EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
@@ -59,7 +59,7 @@ TEST_P(MachineOperatorCommonTest, ChangeUint32ToUint64) {
 
 
 TEST_P(MachineOperatorCommonTest, TruncateFloat64ToInt32) {
-  Operator* op = machine()->TruncateFloat64ToInt32();
+  const Operator* op = machine()->TruncateFloat64ToInt32();
   EXPECT_EQ(1, OperatorProperties::GetValueInputCount(op));
   EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
   EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
@@ -69,7 +69,7 @@ TEST_P(MachineOperatorCommonTest, TruncateFloat64ToInt32) {
 
 
 TEST_P(MachineOperatorCommonTest, TruncateInt64ToInt32) {
-  Operator* op = machine()->TruncateInt64ToInt32();
+  const Operator* op = machine()->TruncateInt64ToInt32();
   EXPECT_EQ(1, OperatorProperties::GetValueInputCount(op));
   EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
   EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
