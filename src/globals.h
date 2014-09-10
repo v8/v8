@@ -756,6 +756,41 @@ enum MinusZeroMode {
   FAIL_ON_MINUS_ZERO
 };
 
+
+enum FunctionKind {
+  kNormalFunction = 0,
+  kArrowFunction = 1,
+  kGeneratorFunction = 2,
+  kConciseMethod = 4
+};
+
+
+inline bool IsValidFunctionKind(FunctionKind kind) {
+  // At the moment these are mutually exclusive but in the future that wont be
+  // the case since ES6 allows concise generator methods.
+  return kind == FunctionKind::kNormalFunction ||
+         kind == FunctionKind::kArrowFunction ||
+         kind == FunctionKind::kGeneratorFunction ||
+         kind == FunctionKind::kConciseMethod;
+}
+
+
+inline bool IsArrowFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kArrowFunction;
+}
+
+
+inline bool IsGeneratorFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kGeneratorFunction;
+}
+
+
+inline bool IsConciseMethod(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kConciseMethod;
+}
 } }  // namespace v8::internal
 
 namespace i = v8::internal;

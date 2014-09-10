@@ -2775,6 +2775,14 @@ RUNTIME_FUNCTION(Runtime_FunctionIsArrow) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_FunctionIsConciseMethod) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, f, 0);
+  return isolate->heap()->ToBoolean(f->shared()->is_concise_method());
+}
+
+
 RUNTIME_FUNCTION(Runtime_FunctionRemovePrototype) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -8125,8 +8133,8 @@ RUNTIME_FUNCTION(Runtime_NewClosureFromStubFailure) {
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
   Handle<Context> context(isolate->context());
   PretenureFlag pretenure_flag = NOT_TENURED;
-  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared,  context, pretenure_flag);
+  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
+                                                                pretenure_flag);
 }
 
 

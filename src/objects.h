@@ -7121,6 +7121,12 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that this function is an arrow function.
   DECL_BOOLEAN_ACCESSORS(is_arrow)
 
+  // Indicates that this function is a concise method.
+  DECL_BOOLEAN_ACCESSORS(is_concise_method)
+
+  inline FunctionKind kind();
+  inline void set_kind(FunctionKind kind);
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -7315,17 +7321,20 @@ class SharedFunctionInfo: public HeapObject {
     kIsFunction,
     kDontCache,
     kDontFlush,
-    kIsGenerator,
     kIsArrow,
+    kIsGenerator,
+    kIsConciseMethod,
     kCompilerHintsCount  // Pseudo entry
   };
 
-  class DeoptCountBits: public BitField<int, 0, 4> {};
-  class OptReenableTriesBits: public BitField<int, 4, 18> {};
-  class ICAgeBits: public BitField<int, 22, 8> {};
+  class FunctionKindBits : public BitField<FunctionKind, kIsArrow, 3> {};
 
-  class OptCountBits: public BitField<int, 0, 22> {};
-  class DisabledOptimizationReasonBits: public BitField<int, 22, 8> {};
+  class DeoptCountBits : public BitField<int, 0, 4> {};
+  class OptReenableTriesBits : public BitField<int, 4, 18> {};
+  class ICAgeBits : public BitField<int, 22, 8> {};
+
+  class OptCountBits : public BitField<int, 0, 22> {};
+  class DisabledOptimizationReasonBits : public BitField<int, 22, 8> {};
 
  private:
 #if V8_HOST_ARCH_32_BIT

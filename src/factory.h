@@ -598,8 +598,8 @@ class Factory FINAL {
 
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
-      Handle<String> name, int number_of_literals, bool is_generator,
-      bool is_arrow, Handle<Code> code, Handle<ScopeInfo> scope_info,
+      Handle<String> name, int number_of_literals, FunctionKind kind,
+      Handle<Code> code, Handle<ScopeInfo> scope_info,
       Handle<FixedArray> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name,
                                                    MaybeHandle<Code> code);

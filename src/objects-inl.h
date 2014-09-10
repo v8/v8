@@ -5559,6 +5559,19 @@ void SharedFunctionInfo::set_strict_mode(StrictMode strict_mode) {
 }
 
 
+FunctionKind SharedFunctionInfo::kind() {
+  return FunctionKindBits::decode(compiler_hints());
+}
+
+
+void SharedFunctionInfo::set_kind(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  int hints = compiler_hints();
+  hints = FunctionKindBits::update(hints, kind);
+  set_compiler_hints(hints);
+}
+
+
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, inline_builtin,
                kInlineBuiltin)
@@ -5570,8 +5583,10 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_anonymous, kIsAnonymous)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_concise_method,
+               kIsConciseMethod)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)

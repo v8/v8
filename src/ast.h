@@ -2325,12 +2325,6 @@ class FunctionLiteral FINAL : public Expression {
     kNotParenthesized
   };
 
-  enum KindFlag {
-    kNormalFunction,
-    kArrowFunction,
-    kGeneratorFunction
-  };
-
   enum ArityRestriction {
     NORMAL_ARITY,
     GETTER_ARITY,
@@ -2420,8 +2414,16 @@ class FunctionLiteral FINAL : public Expression {
     bitfield_ = IsParenthesized::update(bitfield_, kIsParenthesized);
   }
 
-  bool is_generator() { return IsGenerator::decode(bitfield_); }
-  bool is_arrow() { return IsArrow::decode(bitfield_); }
+  FunctionKind kind() { return FunctionKindBits::decode(bitfield_); }
+  bool is_arrow() {
+    return IsArrowFunction(FunctionKindBits::decode(bitfield_));
+  }
+  bool is_generator() {
+    return IsGeneratorFunction(FunctionKindBits::decode(bitfield_));
+  }
+  bool is_concise_method() {
+    return IsConciseMethod(FunctionKindBits::decode(bitfield_));
+  }
 
   int ast_node_count() { return ast_properties_.node_count(); }
   AstProperties::Flags* flags() { return ast_properties_.flags(); }
@@ -2445,7 +2447,7 @@ class FunctionLiteral FINAL : public Expression {
                   int parameter_count, FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   IsFunctionFlag is_function,
-                  IsParenthesizedFlag is_parenthesized, KindFlag kind,
+                  IsParenthesizedFlag is_parenthesized, FunctionKind kind,
                   int position, IdGen* id_gen)
       : Expression(zone, position, id_gen),
         raw_name_(name),
@@ -2464,8 +2466,8 @@ class FunctionLiteral FINAL : public Expression {
                 HasDuplicateParameters::encode(has_duplicate_parameters) |
                 IsFunction::encode(is_function) |
                 IsParenthesized::encode(is_parenthesized) |
-                IsGenerator::encode(kind == kGeneratorFunction) |
-                IsArrow::encode(kind == kArrowFunction);
+                FunctionKindBits::encode(kind);
+    DCHECK(IsValidFunctionKind(kind));
   }
 
  private:
@@ -2486,14 +2488,13 @@ class FunctionLiteral FINAL : public Expression {
   int function_token_position_;
 
   unsigned bitfield_;
-  class IsExpression: public BitField<bool, 0, 1> {};
-  class IsAnonymous: public BitField<bool, 1, 1> {};
-  class Pretenure: public BitField<bool, 2, 1> {};
-  class HasDuplicateParameters: public BitField<ParameterFlag, 3, 1> {};
-  class IsFunction: public BitField<IsFunctionFlag, 4, 1> {};
-  class IsParenthesized: public BitField<IsParenthesizedFlag, 5, 1> {};
-  class IsGenerator : public BitField<bool, 6, 1> {};
-  class IsArrow : public BitField<bool, 7, 1> {};
+  class IsExpression : public BitField<bool, 0, 1> {};
+  class IsAnonymous : public BitField<bool, 1, 1> {};
+  class Pretenure : public BitField<bool, 2, 1> {};
+  class HasDuplicateParameters : public BitField<ParameterFlag, 3, 1> {};
+  class IsFunction : public BitField<IsFunctionFlag, 4, 1> {};
+  class IsParenthesized : public BitField<IsParenthesizedFlag, 5, 1> {};
+  class FunctionKindBits : public BitField<FunctionKind, 6, 3> {};
 };
 
 
@@ -3439,8 +3440,8 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::IsFunctionFlag is_function,
-      FunctionLiteral::IsParenthesizedFlag is_parenthesized,
-      FunctionLiteral::KindFlag kind, int position) {
+      FunctionLiteral::IsParenthesizedFlag is_parenthesized, FunctionKind kind,
+      int position) {
     FunctionLiteral* lit = new (zone_) FunctionLiteral(
         zone_, name, ast_value_factory, scope, body, materialized_literal_count,
         expected_property_count, handler_count, parameter_count, function_type,

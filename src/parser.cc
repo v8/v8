@@ -724,18 +724,13 @@ Expression* ParserTraits::ParseV8Intrinsic(bool* ok) {
 
 
 FunctionLiteral* ParserTraits::ParseFunctionLiteral(
-    const AstRawString* name,
-    Scanner::Location function_name_location,
-    bool name_is_strict_reserved,
-    bool is_generator,
-    int function_token_position,
-    FunctionLiteral::FunctionType type,
-    FunctionLiteral::ArityRestriction arity_restriction,
-    bool* ok) {
-  return parser_->ParseFunctionLiteral(name, function_name_location,
-                                       name_is_strict_reserved, is_generator,
-                                       function_token_position, type,
-                                       arity_restriction, ok);
+    const AstRawString* name, Scanner::Location function_name_location,
+    bool name_is_strict_reserved, FunctionKind kind,
+    int function_token_position, FunctionLiteral::FunctionType type,
+    FunctionLiteral::ArityRestriction arity_restriction, bool* ok) {
+  return parser_->ParseFunctionLiteral(
+      name, function_name_location, name_is_strict_reserved, kind,
+      function_token_position, type, arity_restriction, ok);
 }
 
 
@@ -767,6 +762,7 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
   set_allow_arrow_functions(FLAG_harmony_arrow_functions);
   set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   set_allow_classes(FLAG_harmony_classes);
+  set_allow_harmony_object_literals(FLAG_harmony_object_literals);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -911,8 +907,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
           function_state.handler_count(), 0,
           FunctionLiteral::kNoDuplicateParameters,
           FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::kGlobalOrEval,
-          FunctionLiteral::kNotParenthesized, FunctionLiteral::kNormalFunction,
-          0);
+          FunctionLiteral::kNotParenthesized, FunctionKind::kNormalFunction, 0);
       result->set_ast_properties(factory()->visitor()->ast_properties());
       result->set_dont_optimize_reason(
           factory()->visitor()->dont_optimize_reason());
@@ -999,18 +994,16 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
               ? FunctionLiteral::ANONYMOUS_EXPRESSION
               : FunctionLiteral::NAMED_EXPRESSION)
         : FunctionLiteral::DECLARATION;
-    bool is_generator = shared_info->is_generator();
     bool ok = true;
 
     if (shared_info->is_arrow()) {
-      DCHECK(!is_generator);
       Expression* expression = ParseExpression(false, &ok);
       DCHECK(expression->IsFunctionLiteral());
       result = expression->AsFunctionLiteral();
     } else {
       result = ParseFunctionLiteral(raw_name, Scanner::Location::invalid(),
                                     false,  // Strict mode name already checked.
-                                    is_generator, RelocInfo::kNoPosition,
+                                    shared_info->kind(), RelocInfo::kNoPosition,
                                     function_type,
                                     FunctionLiteral::NORMAL_ARITY, &ok);
     }
@@ -1894,14 +1887,12 @@ Statement* Parser::ParseFunctionDeclaration(
   bool is_strict_reserved = false;
   const AstRawString* name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
-  FunctionLiteral* fun = ParseFunctionLiteral(name,
-                                              scanner()->location(),
-                                              is_strict_reserved,
-                                              is_generator,
-                                              pos,
-                                              FunctionLiteral::DECLARATION,
-                                              FunctionLiteral::NORMAL_ARITY,
-                                              CHECK_OK);
+  FunctionLiteral* fun =
+      ParseFunctionLiteral(name, scanner()->location(), is_strict_reserved,
+                           is_generator ? FunctionKind::kGeneratorFunction
+                                        : FunctionKind::kNormalFunction,
+                           pos, FunctionLiteral::DECLARATION,
+                           FunctionLiteral::NORMAL_ARITY, CHECK_OK);
   // Even if we're not at the top-level of the global or a function
   // scope, we treat it as such and introduce the function with its
   // initial value upon entering the corresponding scope.
@@ -3365,14 +3356,10 @@ int ParserTraits::DeclareArrowParametersFromExpression(
 
 
 FunctionLiteral* Parser::ParseFunctionLiteral(
-    const AstRawString* function_name,
-    Scanner::Location function_name_location,
-    bool name_is_strict_reserved,
-    bool is_generator,
-    int function_token_pos,
+    const AstRawString* function_name, Scanner::Location function_name_location,
+    bool name_is_strict_reserved, FunctionKind kind, int function_token_pos,
     FunctionLiteral::FunctionType function_type,
-    FunctionLiteral::ArityRestriction arity_restriction,
-    bool* ok) {
+    FunctionLiteral::ArityRestriction arity_restriction, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
   //
@@ -3384,6 +3371,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   int pos = function_token_pos == RelocInfo::kNoPosition
       ? peek_position() : function_token_pos;
+
+  bool is_generator = IsGeneratorFunction(kind);
 
   // Anonymous functions were passed either the empty symbol or a null
   // handle as the function name.  Remember if we were passed a non-empty
@@ -3593,7 +3582,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
 
     // Validate strict mode.
-    if (strict_mode() == STRICT) {
+    // Concise methods use StrictFormalParameters.
+    if (strict_mode() == STRICT || IsConciseMethod(kind)) {
       CheckStrictFunctionNameAndParameters(function_name,
                                            name_is_strict_reserved,
                                            function_name_location,
@@ -3601,6 +3591,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                                            dupe_error_loc,
                                            reserved_loc,
                                            CHECK_OK);
+    }
+    if (strict_mode() == STRICT) {
       CheckOctalLiteral(scope->start_position(),
                         scope->end_position(),
                         CHECK_OK);
@@ -3613,9 +3605,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
   }
 
-  FunctionLiteral::KindFlag kind = is_generator
-                                       ? FunctionLiteral::kGeneratorFunction
-                                       : FunctionLiteral::kNormalFunction;
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
       function_name, ast_value_factory_, scope, body,
       materialized_literal_count, expected_property_count, handler_count,
@@ -3775,6 +3764,8 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_harmony_numeric_literals(
         allow_harmony_numeric_literals());
     reusable_preparser_->set_allow_classes(allow_classes());
+    reusable_preparser_->set_allow_harmony_object_literals(
+        allow_harmony_object_literals());
   }
   PreParser::PreParseResult result =
       reusable_preparser_->PreParseLazyFunction(strict_mode(),

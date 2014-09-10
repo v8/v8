@@ -551,21 +551,27 @@ class NumberToStringStub FINAL : public HydrogenCodeStub {
 class FastNewClosureStub : public HydrogenCodeStub {
  public:
   FastNewClosureStub(Isolate* isolate, StrictMode strict_mode,
-                     bool is_generator)
+                     FunctionKind kind)
       : HydrogenCodeStub(isolate) {
+    DCHECK(IsValidFunctionKind(kind));
     set_sub_minor_key(StrictModeBits::encode(strict_mode) |
-                      IsGeneratorBits::encode(is_generator));
+                      FunctionKindBits::encode(kind));
   }
 
   StrictMode strict_mode() const {
     return StrictModeBits::decode(sub_minor_key());
   }
 
-  bool is_generator() const { return IsGeneratorBits::decode(sub_minor_key()); }
+  FunctionKind kind() const {
+    return FunctionKindBits::decode(sub_minor_key());
+  }
+  bool is_arrow() const { return IsArrowFunction(kind()); }
+  bool is_generator() const { return IsGeneratorFunction(kind()); }
+  bool is_concise_method() const { return IsConciseMethod(kind()); }
 
  private:
   class StrictModeBits : public BitField<StrictMode, 0, 1> {};
-  class IsGeneratorBits : public BitField<bool, 1, 1> {};
+  class FunctionKindBits : public BitField<FunctionKind, 1, 3> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
   DEFINE_HYDROGEN_CODE_STUB(FastNewClosure, HydrogenCodeStub);

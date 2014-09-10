@@ -553,14 +553,20 @@ class Context: public FixedArray {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;
   }
 
-  static int FunctionMapIndex(StrictMode strict_mode, bool is_generator) {
-    return is_generator
-      ? (strict_mode == SLOPPY
-         ? SLOPPY_GENERATOR_FUNCTION_MAP_INDEX
-         : STRICT_GENERATOR_FUNCTION_MAP_INDEX)
-      : (strict_mode == SLOPPY
-         ? SLOPPY_FUNCTION_MAP_INDEX
-         : STRICT_FUNCTION_MAP_INDEX);
+  static int FunctionMapIndex(StrictMode strict_mode, FunctionKind kind) {
+    if (IsGeneratorFunction(kind)) {
+      return strict_mode == SLOPPY ? SLOPPY_GENERATOR_FUNCTION_MAP_INDEX
+                                   : STRICT_GENERATOR_FUNCTION_MAP_INDEX;
+    }
+
+    if (IsConciseMethod(kind)) {
+      return strict_mode == SLOPPY
+                 ? SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX
+                 : STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX;
+    }
+
+    return strict_mode == SLOPPY ? SLOPPY_FUNCTION_MAP_INDEX
+                                 : STRICT_FUNCTION_MAP_INDEX;
   }
 
   static const int kSize = kHeaderSize + NATIVE_CONTEXT_SLOTS * kPointerSize;

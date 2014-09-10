@@ -1217,7 +1217,8 @@ enum ParserFlag {
   kAllowGenerators,
   kAllowHarmonyNumericLiterals,
   kAllowArrowFunctions,
-  kAllowClasses
+  kAllowClasses,
+  kAllowHarmonyObjectLiterals
 };
 
 
@@ -1237,6 +1238,8 @@ void SetParserFlags(i::ParserBase<Traits>* parser,
   parser->set_allow_generators(flags.Contains(kAllowGenerators));
   parser->set_allow_harmony_numeric_literals(
       flags.Contains(kAllowHarmonyNumericLiterals));
+  parser->set_allow_harmony_object_literals(
+      flags.Contains(kAllowHarmonyObjectLiterals));
   parser->set_allow_arrow_functions(flags.Contains(kAllowArrowFunctions));
   parser->set_allow_classes(flags.Contains(kAllowClasses));
 }
@@ -1446,9 +1449,11 @@ TEST(ParserSync) {
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       i::GetCurrentStackPosition() - 128 * 1024);
 
-  static const ParserFlag flags1[] = {kAllowLazy, kAllowHarmonyScoping,
-                                      kAllowModules, kAllowGenerators,
-                                      kAllowArrowFunctions};
+  static const ParserFlag flags1[] = {
+      kAllowLazy,                 kAllowHarmonyScoping,
+      kAllowModules,              kAllowGenerators,
+      kAllowArrowFunctions,       kAllowHarmonyNumericLiterals,
+      kAllowHarmonyObjectLiterals};
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
       for (int k = 0; termination_data[k] != NULL; ++k) {
@@ -1523,9 +1528,12 @@ void RunParserSyncTest(const char* context_data[][2],
       i::GetCurrentStackPosition() - 128 * 1024);
 
   static const ParserFlag default_flags[] = {
-      kAllowLazy,       kAllowHarmonyScoping, kAllowModules,
-      kAllowGenerators, kAllowNativesSyntax,  kAllowArrowFunctions,
-      kAllowClasses};
+      kAllowArrowFunctions,        kAllowClasses,
+      kAllowGenerators,            kAllowHarmonyNumericLiterals,
+      kAllowHarmonyObjectLiterals, kAllowHarmonyScoping,
+      kAllowLazy,                  kAllowModules,
+      kAllowNativesSyntax,
+  };
   ParserFlag* generated_flags = NULL;
   if (flags == NULL) {
     flags = default_flags;
@@ -2520,23 +2528,36 @@ TEST(ErrorsObjectLiteralChecking) {
   };
 
   const char* statement_data[] = {
-      ",", "foo: 1, get foo() {}", "foo: 1, set foo(v) {}",
-      "\"foo\": 1, get \"foo\"() {}", "\"foo\": 1, set \"foo\"(v) {}",
-      "1: 1, get 1() {}", "1: 1, set 1() {}",
+      ",",
+      "foo: 1, get foo() {}",
+      "foo: 1, set foo(v) {}",
+      "\"foo\": 1, get \"foo\"() {}",
+      "\"foo\": 1, set \"foo\"(v) {}",
+      "1: 1, get 1() {}",
+      "1: 1, set 1() {}",
+      "get foo() {}, get foo() {}",
+      "set foo(_) {}, set foo(_) {}",
       // It's counter-intuitive, but these collide too (even in classic
       // mode). Note that we can have "foo" and foo as properties in classic
       // mode,
       // but we cannot have "foo" and get foo, or foo and get "foo".
-      "foo: 1, get \"foo\"() {}", "foo: 1, set \"foo\"(v) {}",
-      "\"foo\": 1, get foo() {}", "\"foo\": 1, set foo(v) {}",
-      "1: 1, get \"1\"() {}", "1: 1, set \"1\"() {}",
+      "foo: 1, get \"foo\"() {}",
+      "foo: 1, set \"foo\"(v) {}",
+      "\"foo\": 1, get foo() {}",
+      "\"foo\": 1, set foo(v) {}",
+      "1: 1, get \"1\"() {}",
+      "1: 1, set \"1\"() {}",
       "\"1\": 1, get 1() {}"
       "\"1\": 1, set 1(v) {}"
       // Wrong number of parameters
       "get bar(x) {}",
-      "get bar(x, y) {}", "set bar() {}", "set bar(x, y) {}",
+      "get bar(x, y) {}",
+      "set bar() {}",
+      "set bar(x, y) {}",
       // Parsing FunctionLiteral for getter or setter fails
-      "get foo( +", "get foo() \"error\"", NULL};
+      "get foo( +",
+      "get foo() \"error\"",
+      NULL};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -2573,6 +2594,8 @@ TEST(NoErrorsObjectLiteralChecking) {
     "\"foo\": 1, set \"bar\"(v) {}",
     "1: 1, get 2() {}",
     "1: 1, set 2(v) {}",
+    "get: 1, get foo() {}",
+    "set: 1, set foo(_) {}",
     // Keywords, future reserved and strict future reserved are also allowed as
     // property names.
     "if: 4",
@@ -3390,5 +3413,146 @@ TEST(ErrorsSuper) {
 
   static const ParserFlag always_flags[] = {kAllowClasses};
   RunParserSyncTest(context_data, statement_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(NoErrorsMethodDefinition) {
+  const char* context_data[][2] = {{"({", "});"},
+                                   {"'use strict'; ({", "});"},
+                                   {NULL, NULL}};
+
+  const char* object_literal_body_data[] = {
+    "m() {}",
+    "m(x) { return x; }",
+    "m(x, y) {}, n() {}",
+    "set(x, y) {}",
+    "get(x, y) {}",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+  RunParserSyncTest(context_data, object_literal_body_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(MethodDefinitionNames) {
+  const char* context_data[][2] = {{"({", "(x, y) {}});"},
+                                   {"'use strict'; ({", "(x, y) {}});"},
+                                   {NULL, NULL}};
+
+  const char* name_data[] = {
+    "m",
+    "'m'",
+    "\"m\"",
+    "\"m n\"",
+    "true",
+    "false",
+    "null",
+    "0",
+    "1.2",
+    "1e1",
+    "1E1",
+    "1e+1",
+    "1e-1",
+
+    // Keywords
+    "async",
+    "await",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "export",
+    "extends",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "implements",
+    "import",
+    "in",
+    "instanceof",
+    "interface",
+    "let",
+    "new",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "return",
+    "static",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    "yield",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+  RunParserSyncTest(context_data, name_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(MethodDefinitionStrictFormalParamereters) {
+  const char* context_data[][2] = {{"({method(", "){}});"},
+                                   {"'use strict'; ({method(", "){}});"},
+                                   {NULL, NULL}};
+
+  const char* params_data[] = {
+    "x, x",
+    "x, y, x",
+    "eval",
+    "arguments",
+    "var",
+    "const",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+  RunParserSyncTest(context_data, params_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(MethodDefinitionDuplicateProperty) {
+  // Duplicate properties are allowed in ES6 but we haven't removed that check
+  // yet.
+  const char* context_data[][2] = {{"'use strict'; ({", "});"},
+                                   {NULL, NULL}};
+
+  const char* params_data[] = {
+    "x: 1, x() {}",
+    "x() {}, x: 1",
+    "x() {}, get x() {}",
+    "x() {}, set x(_) {}",
+    "x() {}, x() {}",
+    "x() {}, y() {}, x() {}",
+    "x() {}, \"x\"() {}",
+    "x() {}, 'x'() {}",
+    "0() {}, '0'() {}",
+    "1.0() {}, 1: 1",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+  RunParserSyncTest(context_data, params_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
