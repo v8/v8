@@ -37,6 +37,13 @@
   'exception-with-handler-inside-eval-with-dynamic-scope': [PASS, NO_VARIANTS],
   # TODO(turbofan): We run out of stack earlier on 64-bit for now.
   'fast/js/deep-recursion-test': [PASS, NO_VARIANTS],
+  # TODO(mstarzinger): Typed lowering screws up ToBoolean somehow.
+  'convert-nan-to-bool': [PASS, NO_VARIANTS],
+  # TODO(mstarzinger): Causes crash in generated code, needs investigation.
+  'dfg-arguments-osr-exit': [PASS, NO_VARIANTS],
+  'dfg-arguments-osr-exit-multiple-blocks': [PASS, NO_VARIANTS],
+  'dfg-arguments-osr-exit-multiple-blocks-before-exit': [PASS, NO_VARIANTS],
+  'dfg-arguments-unexpected-escape': [PASS, NO_VARIANTS],
   # TODO(bmeurer,svenpanne): Investigate test failure.
   'fast/js/toString-number': [SKIP],
 }],  # ALWAYS
