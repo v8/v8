@@ -45,7 +45,7 @@
 
 using namespace v8::internal;
 
-class StringResource8 : public v8::String::ExternalAsciiStringResource {
+class StringResource8 : public v8::String::ExternalOneByteStringResource {
  public:
   StringResource8(const char* data, int length)
       : data_(data), length_(length) { }
