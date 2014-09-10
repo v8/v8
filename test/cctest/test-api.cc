@@ -23000,3 +23000,19 @@ TEST(GetOwnPropertyDescriptor) {
   set->Call(x, 1, args);
   CHECK_EQ(v8_num(14), get->Call(x, 0, NULL));
 }
+
+
+TEST(Regress411877) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedAccessCounter,
+                                           IndexedAccessCounter);
+
+  v8::Handle<Context> context = Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  context->Global()->Set(v8_str("o"), object_template->NewInstance());
+  CompileRun("Object.getOwnPropertyNames(o)");
+}

@@ -4684,8 +4684,10 @@ void JSObject::DeleteHiddenProperty(Handle<JSObject> object, Handle<Name> key) {
 bool JSObject::HasHiddenProperties(Handle<JSObject> object) {
   Handle<Name> hidden = object->GetIsolate()->factory()->hidden_string();
   LookupIterator it(object, hidden, LookupIterator::OWN_SKIP_INTERCEPTOR);
-  CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-  return it.IsFound();
+  Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
+  // Cannot get an exception since the hidden_string isn't accessible to JS.
+  DCHECK(maybe.has_value);
+  return maybe.value != ABSENT;
 }
 
 
