@@ -326,7 +326,7 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
 // Flags for TurboFan.
 DEFINE_STRING(turbo_filter, "~", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
-DEFINE_BOOL(trace_turbo_types, true, "trace generated TurboFan types")
+DEFINE_BOOL(trace_turbo_types, false, "trace generated TurboFan types")
 DEFINE_BOOL(trace_turbo_scheduler, false, "trace generated TurboFan scheduler")
 DEFINE_BOOL(turbo_verify, false, "verify TurboFan graphs at each phase")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
