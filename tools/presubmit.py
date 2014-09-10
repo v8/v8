@@ -73,7 +73,6 @@ readability/utf8
 runtime/arrays
 runtime/casting
 runtime/deprecated_fn
-runtime/explicit
 runtime/int
 runtime/memset
 runtime/mutex
