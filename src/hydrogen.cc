@@ -8227,7 +8227,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (!IsFastElementsKind(elements_kind)) return false;
       if (receiver_map->is_observed()) return false;
-      DCHECK(receiver_map->is_extensible());
+      if (!receiver_map->is_extensible()) return false;
 
       Drop(expr->arguments()->length());
       HValue* result;
@@ -8292,7 +8292,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (!IsFastElementsKind(elements_kind)) return false;
       if (receiver_map->is_observed()) return false;
       if (JSArray::IsReadOnlyLengthDescriptor(receiver_map)) return false;
-      DCHECK(receiver_map->is_extensible());
+      if (!receiver_map->is_extensible()) return false;
 
       // If there may be elements accessors in the prototype chain, the fast
       // inlined version can't be used.
@@ -8459,7 +8459,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       if (!IsFastElementsKind(kind)) return false;
       if (receiver_map->is_observed()) return false;
       if (argument_count != 2) return false;
-      DCHECK(receiver_map->is_extensible());
+      if (!receiver_map->is_extensible()) return false;
 
       // If there may be elements accessors in the prototype chain, the fast
       // inlined version can't be used.
