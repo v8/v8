@@ -1177,6 +1177,7 @@ void Assembler::movb(Register dst, const Operand& src) {
 void Assembler::movb(Register dst, Immediate imm) {
   EnsureSpace ensure_space(this);
   if (!dst.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
     emit_rex_32(dst);
   }
   emit(0xB0 + dst.low_bits());
@@ -1187,6 +1188,7 @@ void Assembler::movb(Register dst, Immediate imm) {
 void Assembler::movb(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   if (!src.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
     emit_rex_32(src, dst);
   } else {
     emit_optional_rex_32(src, dst);
@@ -1398,7 +1400,12 @@ void Assembler::emit_movzxb(Register dst, Register src, int size) {
   EnsureSpace ensure_space(this);
   // 32 bit operations zero the top 32 bits of 64 bit registers.  Therefore
   // there is no need to make this a 64 bit operation.
-  emit_optional_rex_32(dst, src);
+  if (!src.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+    emit_rex_32(dst, src);
+  } else {
+    emit_optional_rex_32(dst, src);
+  }
   emit(0x0F);
   emit(0xB6);
   emit_modrm(dst, src);
@@ -1654,7 +1661,8 @@ void Assembler::setcc(Condition cc, Register reg) {
   }
   EnsureSpace ensure_space(this);
   DCHECK(is_uint4(cc));
-  if (!reg.is_byte_register()) {  // Use x64 byte registers, where different.
+  if (!reg.is_byte_register()) {
+    // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
     emit_rex_32(reg);
   }
   emit(0x0F);
