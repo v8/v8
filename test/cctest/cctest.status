@@ -216,7 +216,7 @@
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
 
   # BUG(v8:3155).
-  'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
+  'test-strings/OneByteArrayJoin': [PASS, ['mode == debug', FAIL]],
 
   # BUG(v8:3247).
   'test-mark-compact/NoPromotion': [SKIP],
@@ -476,10 +476,10 @@
   'test-constantpool/ConstantPool' : [SKIP],
   'test-compiler/GetScriptLineNumber' : [SKIP],
   'test-api/ScriptMakingExternalString' : [SKIP],
-  'test-api/ScriptMakingExternalAsciiString' : [SKIP],
+  'test-api/ScriptMakingExternalOneByteString' : [SKIP],
   'test-api/MakingExternalStringConditions' : [SKIP],
-  'test-api/MakingExternalAsciiStringConditions' : [SKIP],
-  'test-api/MakingExternalUnalignedAsciiString' : [SKIP],
+  'test-api/MakingExternalOneByteStringConditions' : [SKIP],
+  'test-api/MakingExternalUnalignedOneByteString' : [SKIP],
   'test-api/IndexedInterceptorUnboxedDoubleWithIndexedAccessor' : [SKIP],
   'test-api/IndependentWeakHandle' : [SKIP],
   'test-api/GCFromWeakCallbacks' : [SKIP],
