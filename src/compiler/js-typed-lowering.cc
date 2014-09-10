@@ -28,9 +28,12 @@ static void RelaxEffects(Node* node) {
 }
 
 
+JSTypedLowering::~JSTypedLowering() {}
+
+
 Reduction JSTypedLowering::ReplaceEagerly(Node* old, Node* node) {
   NodeProperties::ReplaceWithValue(old, node, node);
-  return Reducer::Changed(node);
+  return Changed(node);
 }
 
 
@@ -500,7 +503,7 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
 }
 
 
-Reduction JSTypedLowering::ReduceJSPropertyLoad(Node* node) {
+Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Node* key = NodeProperties::GetValueInput(node, 1);
   Node* base = NodeProperties::GetValueInput(node, 0);
   Type* key_type = NodeProperties::GetBounds(key).upper;
@@ -532,6 +535,45 @@ Reduction JSTypedLowering::ReduceJSPropertyLoad(Node* node) {
         graph()->NewNode(simplified()->LoadElement(element_access), elements,
                          key, NodeProperties::GetEffectInput(node));
     return ReplaceEagerly(node, value);
+  }
+  return NoChange();
+}
+
+
+Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
+  Node* key = NodeProperties::GetValueInput(node, 1);
+  Node* base = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 2);
+  Type* key_type = NodeProperties::GetBounds(key).upper;
+  Type* base_type = NodeProperties::GetBounds(base).upper;
+  // TODO(mstarzinger): This lowering is not correct if:
+  //   a) The typed array turns external (i.e. MaterializeArrayBuffer)
+  //   b) The typed array or it's buffer is neutered.
+  //   c) The index is out of bounds
+  if (key_type->Is(Type::Integral32()) && base_type->IsConstant() &&
+      base_type->AsConstant()->Value()->IsJSTypedArray()) {
+    // JSStoreProperty(typed-array, int32, value)
+    JSTypedArray* array = JSTypedArray::cast(*base_type->AsConstant()->Value());
+    ElementsKind elements_kind = array->map()->elements_kind();
+    ExternalArrayType type = array->type();
+    ElementAccess element_access;
+    Node* elements = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
+        NodeProperties::GetEffectInput(node));
+    if (IsExternalArrayElementsKind(elements_kind)) {
+      elements = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
+          elements, NodeProperties::GetEffectInput(node));
+      element_access = AccessBuilder::ForTypedArrayElement(type, true);
+    } else {
+      DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
+      element_access = AccessBuilder::ForTypedArrayElement(type, false);
+    }
+    Node* store =
+        graph()->NewNode(simplified()->StoreElement(element_access), elements,
+                         key, value, NodeProperties::GetEffectInput(node),
+                         NodeProperties::GetControlInput(node));
+    return ReplaceEagerly(node, store);
   }
   return NoChange();
 }
@@ -612,12 +654,15 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReplaceWithReduction(node,
                                   ReduceJSToStringInput(node->InputAt(0)));
     case IrOpcode::kJSLoadProperty:
-      return ReduceJSPropertyLoad(node);
+      return ReduceJSLoadProperty(node);
+    case IrOpcode::kJSStoreProperty:
+      return ReduceJSStoreProperty(node);
     default:
       break;
   }
   return NoChange();
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

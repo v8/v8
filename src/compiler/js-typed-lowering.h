@@ -16,30 +16,28 @@ namespace internal {
 namespace compiler {
 
 // Lowers JS-level operators to simplified operators based on types.
-class JSTypedLowering : public Reducer {
+class JSTypedLowering FINAL : public Reducer {
  public:
   explicit JSTypedLowering(JSGraph* jsgraph)
       : jsgraph_(jsgraph),
         simplified_(jsgraph->zone()),
         machine_(jsgraph->zone()) {}
-  virtual ~JSTypedLowering() {}
+  virtual ~JSTypedLowering();
 
-  virtual Reduction Reduce(Node* node);
+  virtual Reduction Reduce(Node* node) OVERRIDE;
 
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }
 
  private:
   friend class JSBinopReduction;
-  JSGraph* jsgraph_;
-  SimplifiedOperatorBuilder simplified_;
-  MachineOperatorBuilder machine_;
 
   Reduction ReplaceEagerly(Node* old, Node* node);
   Reduction ReplaceWith(Node* node) { return Reducer::Replace(node); }
   Reduction ReduceJSAdd(Node* node);
   Reduction ReduceJSComparison(Node* node);
-  Reduction ReduceJSPropertyLoad(Node* node);
+  Reduction ReduceJSLoadProperty(Node* node);
+  Reduction ReduceJSStoreProperty(Node* node);
   Reduction ReduceJSEqual(Node* node, bool invert);
   Reduction ReduceJSStrictEqual(Node* node, bool invert);
   Reduction ReduceJSToNumberInput(Node* input);
@@ -55,9 +53,14 @@ class JSTypedLowering : public Reducer {
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   MachineOperatorBuilder* machine() { return &machine_; }
+
+  JSGraph* jsgraph_;
+  SimplifiedOperatorBuilder simplified_;
+  MachineOperatorBuilder machine_;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_OPERATOR_REDUCERS_H_
