@@ -1360,7 +1360,6 @@ bool NewSpace::AddFreshPage() {
   Address limit = NewSpacePage::FromLimit(top)->area_end();
   if (heap()->gc_state() == Heap::SCAVENGE) {
     heap()->promotion_queue()->SetNewLimit(limit);
-    heap()->promotion_queue()->ActivateGuardIfOnTheSamePage();
   }
 
   int remaining_in_page = static_cast<int>(limit - top);
