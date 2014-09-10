@@ -557,7 +557,8 @@ class UploadStep(Step):
       print "Please enter the email address of a V8 reviewer for your patch: ",
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
-    self.GitUpload(reviewer, self._options.author, self._options.force_upload)
+    self.GitUpload(reviewer, self._options.author, self._options.force_upload,
+                   bypass_hooks=self._options.bypass_upload_hooks)
 
 
 class DetermineV8Sheriff(Step):
@@ -680,6 +681,7 @@ class ScriptsBase(object):
     # Defaults for options, common to all scripts.
     options.manual = getattr(options, "manual", True)
     options.force = getattr(options, "force", False)
+    options.bypass_upload_hooks = False
 
     # Derived options.
     options.requires_editor = not options.force

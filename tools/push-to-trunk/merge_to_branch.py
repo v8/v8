@@ -309,6 +309,7 @@ class MergeToBranch(ScriptsBase):
       if not options.message:
         print "You must specify a merge comment if no patches are specified"
         return False
+    options.bypass_upload_hooks = True
     return True
 
   def _Steps(self):
