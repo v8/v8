@@ -20,8 +20,7 @@ class MachineOperatorReducerTest : public GraphTest {
  protected:
   Reduction Reduce(Node* node) {
     Typer typer(zone());
-    JSOperatorBuilder javascript(zone());
-    JSGraph jsgraph(graph(), common(), &javascript, &typer, &machine_);
+    JSGraph jsgraph(graph(), common(), &typer);
     MachineOperatorReducer reducer(&jsgraph);
     return reducer.Reduce(node);
   }

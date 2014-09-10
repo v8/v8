@@ -31,13 +31,6 @@ FieldAccess AccessBuilder::ForJSObjectElements() {
 
 
 // static
-FieldAccess AccessBuilder::ForJSFunctionContext() {
-  return {kTaggedBase, JSFunction::kContextOffset, Handle<Name>(),
-          Type::Internal(), kMachAnyTagged};
-}
-
-
-// static
 FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
   return {kTaggedBase, JSArrayBuffer::kBackingStoreOffset, Handle<Name>(),
           Type::UntaggedPtr(), kMachPtr};

@@ -31,13 +31,10 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
   explicit ChangesLoweringTester(MachineType p0 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0),
         typer(this->zone()),
-        javascript(this->zone()),
-        jsgraph(this->graph(), this->common(), &javascript, &typer,
-                this->machine()),
+        jsgraph(this->graph(), this->common(), &typer),
         function(Handle<JSFunction>::null()) {}
 
   Typer typer;
-  JSOperatorBuilder javascript;
   JSGraph jsgraph;
   Handle<JSFunction> function;
 

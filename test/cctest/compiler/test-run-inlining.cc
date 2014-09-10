@@ -42,8 +42,7 @@ TEST(SimpleInlining) {
       "function bar(s, t) { return foo(s); };"
       "return bar;})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(1), T.Val(1), T.Val(2));
@@ -58,8 +57,7 @@ TEST(SimpleInliningContext) {
       "return bar;"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(13), T.Val(1), T.Val(2));
@@ -75,8 +73,7 @@ TEST(CaptureContext) {
       "})();"
       "(function (s) { return f(s)})",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 12), T.Val(12), T.undefined());
@@ -93,8 +90,7 @@ TEST(DontInlineEval) {
       "return bar;"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42), T.Val("x"), T.undefined());
@@ -109,8 +105,7 @@ TEST(InlineOmitArguments) {
       "return (function (s,t) { return bar(s); });"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 12), T.Val(12), T.undefined());
@@ -126,8 +121,7 @@ TEST(InlineSurplusArguments) {
       "return bar;"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 12), T.Val(12), T.undefined());
@@ -142,8 +136,7 @@ TEST(InlineTwice) {
       "return (function (s,t) { return bar(s) + bar(t); });"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(2 * 42 + 12 + 4), T.Val(12), T.Val(4));
@@ -159,8 +152,7 @@ TEST(InlineTwiceDependent) {
       "return bar;"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42 + 42 + 12), T.Val(12), T.Val(4));
@@ -177,8 +169,7 @@ TEST(InlineTwiceDependentDiamond) {
       "return bar;"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(-11), T.Val(11), T.Val(4));
@@ -195,8 +186,7 @@ TEST(InlineTwiceDependentDiamondDifferent) {
       "return bar;"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(-329), T.Val(11), T.Val(4));
@@ -213,8 +203,7 @@ TEST(InlineLoop) {
       "return bar;"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(0.0), T.Val(11), T.Val(4));
@@ -231,8 +220,7 @@ TEST(InlineStrictIntoNonStrict) {
       "return bar;"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckThrows(T.undefined(), T.undefined());
@@ -248,8 +236,7 @@ TEST(InlineNonStrictIntoStrict) {
       "return bar;"
       "})();",
       CompilationInfo::kInliningEnabled |
-          CompilationInfo::kContextSpecializing |
-          CompilationInfo::kTypingEnabled);
+          CompilationInfo::kContextSpecializing);
 
   InstallAssertStackDepthHelper(CcTest::isolate());
   T.CheckCall(T.Val(42), T.undefined(), T.undefined());
