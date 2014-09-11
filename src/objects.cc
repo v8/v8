@@ -4714,12 +4714,8 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
     Isolate* isolate = GetIsolate();
     LookupIterator it(handle(this), isolate->factory()->hidden_string(),
                       LookupIterator::OWN_SKIP_INTERCEPTOR);
-    CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-    if (it.state() == LookupIterator::DATA) {
-      return *it.GetDataValue();
-    }
-    DCHECK(!it.IsFound());
-    return GetHeap()->undefined_value();
+    // Access check is always skipped for the hidden string anyways.
+    return *GetDataProperty(&it);
   }
 }
 
