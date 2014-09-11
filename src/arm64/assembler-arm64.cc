@@ -2455,7 +2455,7 @@ void Assembler::LoadStore(const CPURegister& rt,
                           const MemOperand& addr,
                           LoadStoreOp op) {
   Instr memop = op | Rt(rt) | RnSP(addr.base());
-  ptrdiff_t offset = addr.offset();
+  int64_t offset = addr.offset();
 
   if (addr.IsImmediateOffset()) {
     LSDataSize size = CalcLSDataSize(op);
@@ -2504,18 +2504,18 @@ void Assembler::LoadStore(const CPURegister& rt,
 }
 
 
-bool Assembler::IsImmLSUnscaled(ptrdiff_t offset) {
+bool Assembler::IsImmLSUnscaled(int64_t offset) {
   return is_int9(offset);
 }
 
 
-bool Assembler::IsImmLSScaled(ptrdiff_t offset, LSDataSize size) {
+bool Assembler::IsImmLSScaled(int64_t offset, LSDataSize size) {
   bool offset_is_size_multiple = (((offset >> size) << size) == offset);
   return offset_is_size_multiple && is_uint12(offset >> size);
 }
 
 
-bool Assembler::IsImmLSPair(ptrdiff_t offset, LSDataSize size) {
+bool Assembler::IsImmLSPair(int64_t offset, LSDataSize size) {
   bool offset_is_size_multiple = (((offset >> size) << size) == offset);
   return offset_is_size_multiple && is_int7(offset >> size);
 }
@@ -3103,7 +3103,7 @@ void Assembler::PopulateConstantPool(ConstantPoolArray* constant_pool) {
 }
 
 
-void PatchingAssembler::PatchAdrFar(ptrdiff_t target_offset) {
+void PatchingAssembler::PatchAdrFar(int64_t target_offset) {
   // The code at the current instruction should be:
   //   adr  rd, 0
   //   nop  (adr_far)

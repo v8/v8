@@ -1248,7 +1248,7 @@ Operand LCodeGen::ToOperand32(LOperand* op) {
 }
 
 
-static ptrdiff_t ArgumentsOffsetWithoutFrame(ptrdiff_t index) {
+static int64_t ArgumentsOffsetWithoutFrame(int index) {
   DCHECK(index < 0);
   return -(index + 1) * kPointerSize;
 }

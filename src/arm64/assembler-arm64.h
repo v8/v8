@@ -699,7 +699,7 @@ class MemOperand {
  public:
   inline MemOperand();
   inline explicit MemOperand(Register base,
-                             ptrdiff_t offset = 0,
+                             int64_t offset = 0,
                              AddrMode addrmode = Offset);
   inline explicit MemOperand(Register base,
                              Register regoffset,
@@ -715,7 +715,7 @@ class MemOperand {
 
   const Register& base() const { return base_; }
   const Register& regoffset() const { return regoffset_; }
-  ptrdiff_t offset() const { return offset_; }
+  int64_t offset() const { return offset_; }
   AddrMode addrmode() const { return addrmode_; }
   Shift shift() const { return shift_; }
   Extend extend() const { return extend_; }
@@ -742,7 +742,7 @@ class MemOperand {
  private:
   Register base_;
   Register regoffset_;
-  ptrdiff_t offset_;
+  int64_t offset_;
   AddrMode addrmode_;
   Shift shift_;
   Extend extend_;
@@ -1933,12 +1933,12 @@ class Assembler : public AssemblerBase {
   void LoadStore(const CPURegister& rt,
                  const MemOperand& addr,
                  LoadStoreOp op);
-  static bool IsImmLSUnscaled(ptrdiff_t offset);
-  static bool IsImmLSScaled(ptrdiff_t offset, LSDataSize size);
+  static bool IsImmLSUnscaled(int64_t offset);
+  static bool IsImmLSScaled(int64_t offset, LSDataSize size);
 
   void LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
                      const MemOperand& addr, LoadStorePairOp op);
-  static bool IsImmLSPair(ptrdiff_t offset, LSDataSize size);
+  static bool IsImmLSPair(int64_t offset, LSDataSize size);
 
   void Logical(const Register& rd,
                const Register& rn,
@@ -2283,7 +2283,7 @@ class PatchingAssembler : public Assembler {
   // See definition of PatchAdrFar() for details.
   static const int kAdrFarPatchableNNops = 2;
   static const int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
-  void PatchAdrFar(ptrdiff_t target_offset);
+  void PatchAdrFar(int64_t target_offset);
 };
 
 
