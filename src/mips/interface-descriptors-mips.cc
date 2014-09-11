@@ -18,17 +18,9 @@ const Register LoadDescriptor::ReceiverRegister() { return a1; }
 const Register LoadDescriptor::NameRegister() { return a2; }
 
 
-const Register VectorLoadICDescriptor::ReceiverRegister() {
-  return LoadDescriptor::ReceiverRegister();
-}
+const Register VectorLoadICTrampolineDescriptor::SlotRegister() { return a0; }
 
 
-const Register VectorLoadICDescriptor::NameRegister() {
-  return LoadDescriptor::NameRegister();
-}
-
-
-const Register VectorLoadICDescriptor::SlotRegister() { return a0; }
 const Register VectorLoadICDescriptor::VectorRegister() { return a3; }
 
 
@@ -37,26 +29,26 @@ const Register StoreDescriptor::NameRegister() { return a2; }
 const Register StoreDescriptor::ValueRegister() { return a0; }
 
 
-const Register ElementTransitionAndStoreDescriptor::ReceiverRegister() {
-  return StoreDescriptor::ReceiverRegister();
-}
-
-
-const Register ElementTransitionAndStoreDescriptor::NameRegister() {
-  return StoreDescriptor::NameRegister();
-}
-
-
-const Register ElementTransitionAndStoreDescriptor::ValueRegister() {
-  return StoreDescriptor::ValueRegister();
-}
-
-
 const Register ElementTransitionAndStoreDescriptor::MapRegister() { return a3; }
 
 
 const Register InstanceofDescriptor::left() { return a0; }
 const Register InstanceofDescriptor::right() { return a1; }
+
+
+const Register ArgumentsAccessReadDescriptor::index() { return a1; }
+const Register ArgumentsAccessReadDescriptor::parameter_count() { return a0; }
+
+
+const Register ApiGetterDescriptor::function_address() { return a2; }
+
+
+const Register MathPowTaggedDescriptor::exponent() { return a2; }
+
+
+const Register MathPowIntegerDescriptor::exponent() {
+  return MathPowTaggedDescriptor::exponent();
+}
 
 
 void FastNewClosureDescriptor::Initialize(CallInterfaceDescriptorData* data) {
@@ -107,9 +99,26 @@ void CreateAllocationSiteDescriptor::Initialize(
 }
 
 
+void StoreArrayLiteralElementDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {cp, a3, a0};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
 void CallFunctionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {cp, a1};
   data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void CallFunctionWithFeedbackDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {cp, a1, a3};
+  Representation representations[] = {Representation::Tagged(),
+                                      Representation::Tagged(),
+                                      Representation::Smi()};
+  data->Initialize(arraysize(registers), registers, representations);
 }
 
 

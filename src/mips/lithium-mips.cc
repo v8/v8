@@ -1640,9 +1640,10 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   Representation exponent_type = instr->right()->representation();
   DCHECK(instr->left()->representation().IsDouble());
   LOperand* left = UseFixedDouble(instr->left(), f2);
-  LOperand* right = exponent_type.IsDouble() ?
-      UseFixedDouble(instr->right(), f4) :
-      UseFixed(instr->right(), a2);
+  LOperand* right =
+      exponent_type.IsDouble()
+          ? UseFixedDouble(instr->right(), f4)
+          : UseFixed(instr->right(), MathPowTaggedDescriptor::exponent());
   LPower* result = new(zone()) LPower(left, right);
   return MarkAsCall(DefineFixedDouble(result, f0),
                     instr,

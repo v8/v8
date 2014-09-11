@@ -679,7 +679,7 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
 
   __ mov(a2, scratch2());  // Saved in case scratch2 == a1.
   // Abi for CallApiGetter.
-  Register getter_address_reg = a2;
+  Register getter_address_reg = ApiGetterDescriptor::function_address();
 
   Address getter_address = v8::ToCData<Address>(callback->getter());
   ApiFunction fun(getter_address);

@@ -836,7 +836,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register base = a1;
-  const Register exponent = a2;
+  const Register exponent = MathPowTaggedDescriptor::exponent();
+  DCHECK(exponent.is(a2));
   const Register heapnumbermap = t1;
   const Register heapnumber = v0;
   const DoubleRegister double_base = f2;
@@ -1598,6 +1599,8 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // relative to the frame pointer.
   const int kDisplacement =
       StandardFrameConstants::kCallerSPOffset - kPointerSize;
+  DCHECK(a1.is(ArgumentsAccessReadDescriptor::index()));
+  DCHECK(a0.is(ArgumentsAccessReadDescriptor::parameter_count()));
 
   // Check that the key is a smiGenerateReadElement.
   Label slow;
@@ -4827,7 +4830,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   //  -- a2                     : api_function_address
   // -----------------------------------
 
-  Register api_function_address = a2;
+  Register api_function_address = ApiGetterDescriptor::function_address();
+  DCHECK(api_function_address.is(a2));
 
   __ mov(a0, sp);  // a0 = Handle<Name>
   __ Addu(a1, a0, Operand(1 * kPointerSize));  // a1 = PCA

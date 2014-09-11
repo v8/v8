@@ -3893,10 +3893,11 @@ void LCodeGen::DoPower(LPower* instr) {
   Representation exponent_type = instr->hydrogen()->right()->representation();
   // Having marked this as a call, we can use any registers.
   // Just make sure that the input/output registers are the expected ones.
+  Register tagged_exponent = MathPowTaggedDescriptor::exponent();
   DCHECK(!instr->right()->IsDoubleRegister() ||
          ToDoubleRegister(instr->right()).is(f4));
   DCHECK(!instr->right()->IsRegister() ||
-         ToRegister(instr->right()).is(a2));
+         ToRegister(instr->right()).is(tagged_exponent));
   DCHECK(ToDoubleRegister(instr->left()).is(f2));
   DCHECK(ToDoubleRegister(instr->result()).is(f0));
 
@@ -3905,8 +3906,9 @@ void LCodeGen::DoPower(LPower* instr) {
     __ CallStub(&stub);
   } else if (exponent_type.IsTagged()) {
     Label no_deopt;
-    __ JumpIfSmi(a2, &no_deopt);
-    __ ld(a7, FieldMemOperand(a2, HeapObject::kMapOffset));
+    __ JumpIfSmi(tagged_exponent, &no_deopt);
+    DCHECK(!a7.is(tagged_exponent));
+    __ lw(a7, FieldMemOperand(tagged_exponent, HeapObject::kMapOffset));
     __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
     DeoptimizeIf(ne, instr->environment(), a7, Operand(at));
     __ bind(&no_deopt);
