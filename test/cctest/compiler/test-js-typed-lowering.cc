@@ -472,12 +472,12 @@ TEST(JSToBoolean) {
     CHECK_EQ(IrOpcode::kParameter, r->opcode());
   }
 
-  {  // ToBoolean(number)
-    Node* r = R.ReduceUnop(op, Type::Number());
+  {  // ToBoolean(ordered-number)
+    Node* r = R.ReduceUnop(op, Type::OrderedNumber());
     CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
     Node* i = r->InputAt(0);
     CHECK_EQ(IrOpcode::kNumberEqual, i->opcode());
-    // ToBoolean(number) => BooleanNot(NumberEqual(x, #0))
+    // ToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x, #0))
   }
 
   {  // ToBoolean(string)
@@ -507,7 +507,7 @@ TEST(JSToBoolean_replacement) {
   JSTypedLoweringTester R;
 
   Type* types[] = {Type::Null(),             Type::Undefined(),
-                   Type::Boolean(),          Type::Number(),
+                   Type::Boolean(),          Type::OrderedNumber(),
                    Type::DetectableObject(), Type::Undetectable()};
 
   for (size_t i = 0; i < arraysize(types); i++) {
@@ -522,7 +522,7 @@ TEST(JSToBoolean_replacement) {
 
     if (types[i]->Is(Type::Boolean())) {
       CHECK_EQ(n, r);
-    } else if (types[i]->Is(Type::Number())) {
+    } else if (types[i]->Is(Type::OrderedNumber())) {
       CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
     } else {
       CHECK_EQ(IrOpcode::kHeapConstant, r->opcode());

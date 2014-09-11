@@ -193,7 +193,8 @@ namespace internal {
   V(Signed32,            kSignedSmall | kOtherUnsigned31 | kOtherSigned32) \
   V(Unsigned32,          kUnsignedSmall | kOtherUnsigned31 | kOtherUnsigned32) \
   V(Integral32,          kSigned32 | kUnsigned32) \
-  V(Number,              kIntegral32 | kMinusZero | kNaN | kOtherNumber) \
+  V(OrderedNumber,       kIntegral32 | kMinusZero | kOtherNumber) \
+  V(Number,              kOrderedNumber | kNaN) \
   V(String,              kInternalizedString | kOtherString) \
   V(UniqueName,          kSymbol | kInternalizedString) \
   V(Name,                kSymbol | kString) \
