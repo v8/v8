@@ -6147,7 +6147,10 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
     // At least one of the accessors needs to be a new value.
     DCHECK(!getter->IsNull() || !setter->IsNull());
     LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
-    CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
+    if (it.state() == LookupIterator::ACCESS_CHECK) {
+      // We already did an access check before. We do have access.
+      it.Next();
+    }
     if (!getter->IsNull()) {
       it.TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
     }
