@@ -2673,7 +2673,7 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
                                                  HValue* new_capacity) {
   Add<HBoundsCheck>(new_capacity, Add<HConstant>(
           (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
-          ElementsKindToShiftSize(kind)));
+          ElementsKindToShiftSize(new_kind)));
 
   HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
       new_kind, new_capacity);
