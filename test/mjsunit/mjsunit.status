@@ -92,7 +92,6 @@
   'compiler/osr-warm': [PASS, NO_VARIANTS],
   'compiler/regress-3136962': [PASS, NO_VARIANTS],
   'harmony/proxies-json': [PASS, NO_VARIANTS],
-  'regress/regress-3476': [PASS, NO_VARIANTS],
   'regress/regress-760-1': [PASS, NO_VARIANTS],
   'regress/regress-760-2': [PASS, NO_VARIANTS],
   'regress/regress-crbug-357052': [PASS, NO_VARIANTS],

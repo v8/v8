@@ -1024,7 +1024,7 @@ TEST(OrderNumberBinopEffects2) {
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Number(), Type::Object());
+    BinopEffectsTester B(ops[j], Type::Number(), Type::Boolean());
 
     Node* i0 = B.CheckNoOp(0);
     Node* i1 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 1, true);
@@ -1037,7 +1037,7 @@ TEST(OrderNumberBinopEffects2) {
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Object(), Type::Number());
+    BinopEffectsTester B(ops[j], Type::Boolean(), Type::Number());
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
     Node* i1 = B.CheckNoOp(1);

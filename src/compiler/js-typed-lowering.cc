@@ -222,13 +222,22 @@ class JSBinopReduction {
 
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
-  if (r.OneInputIs(Type::String())) {
-    r.ConvertInputsToString();
-    return r.ChangeToPureOperator(simplified()->StringAdd());
+  if (r.BothInputsAre(Type::Number())) {
+    // JSAdd(x:number, y:number) => NumberAdd(x, y)
+    return r.ChangeToPureOperator(simplified()->NumberAdd());
   }
-  if (r.NeitherInputCanBe(Type::String())) {
+  Type* maybe_string = Type::Union(Type::String(), Type::Receiver(), zone());
+  if (r.NeitherInputCanBe(maybe_string)) {
+    // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd());
+  }
+  if (r.OneInputIs(Type::String())) {
+    // JSAdd(x:string, y:string) => StringAdd(x, y)
+    // JSAdd(x:string, y) => StringAdd(x, ToString(y))
+    // JSAdd(x, y:string) => StringAdd(ToString(x), y)
+    r.ConvertInputsToString();
+    return r.ChangeToPureOperator(simplified()->StringAdd());
   }
   return NoChange();
 }

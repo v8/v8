@@ -26,6 +26,7 @@ class JSTypedLowering FINAL : public Reducer {
 
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }
+  Zone* zone() { return jsgraph_->zone(); }
 
  private:
   friend class JSBinopReduction;
