@@ -1987,6 +1987,46 @@ TEST(HiddenPropertiesFastCase) {
 }
 
 
+TEST(AccessorInfo) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun("function foo(x) { }\n");
+  const v8::HeapSnapshot* snapshot =
+      heap_profiler->TakeHeapSnapshot(v8_str("AccessorInfoTest"));
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* foo =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, "foo");
+  CHECK_NE(NULL, foo);
+  const v8::HeapGraphNode* map =
+      GetProperty(foo, v8::HeapGraphEdge::kInternal, "map");
+  CHECK_NE(NULL, map);
+  const v8::HeapGraphNode* descriptors =
+      GetProperty(map, v8::HeapGraphEdge::kInternal, "descriptors");
+  CHECK_NE(NULL, descriptors);
+  const v8::HeapGraphNode* length_name =
+      GetProperty(descriptors, v8::HeapGraphEdge::kInternal, "2");
+  CHECK_NE(NULL, length_name);
+  CHECK_EQ("length", *v8::String::Utf8Value(length_name->GetName()));
+  const v8::HeapGraphNode* length_accessor =
+      GetProperty(descriptors, v8::HeapGraphEdge::kInternal, "4");
+  CHECK_NE(NULL, length_accessor);
+  CHECK_EQ("system / ExecutableAccessorInfo",
+           *v8::String::Utf8Value(length_accessor->GetName()));
+  const v8::HeapGraphNode* name =
+      GetProperty(length_accessor, v8::HeapGraphEdge::kInternal, "name");
+  CHECK_NE(NULL, name);
+  const v8::HeapGraphNode* getter =
+      GetProperty(length_accessor, v8::HeapGraphEdge::kInternal, "getter");
+  CHECK_NE(NULL, getter);
+  const v8::HeapGraphNode* setter =
+      GetProperty(length_accessor, v8::HeapGraphEdge::kInternal, "setter");
+  CHECK_NE(NULL, setter);
+}
+
+
 bool HasWeakEdge(const v8::HeapGraphNode* node) {
   for (int i = 0; i < node->GetChildrenCount(); ++i) {
     const v8::HeapGraphEdge* handle_edge = node->GetChild(i);
