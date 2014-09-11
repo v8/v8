@@ -590,11 +590,11 @@ class RepresentationSelector {
       case IrOpcode::kLoad: {
         // TODO(titzer): machine loads/stores need to know BaseTaggedness!?
         MachineType tBase = kRepTagged;
-        MachineType machine_type = OpParameter<MachineType>(node);
+        LoadRepresentation rep = OpParameter<LoadRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
         ProcessRemainingInputs(node, 2);
-        SetOutput(node, machine_type);
+        SetOutput(node, rep);
         break;
       }
       case IrOpcode::kStore: {
@@ -603,7 +603,7 @@ class RepresentationSelector {
         StoreRepresentation rep = OpParameter<StoreRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
-        ProcessInput(node, 2, rep.machine_type);
+        ProcessInput(node, 2, rep.machine_type());
         ProcessRemainingInputs(node, 3);
         SetOutput(node, 0);
         break;
@@ -814,7 +814,7 @@ void SimplifiedLowering::DoStoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   WriteBarrierKind kind = ComputeWriteBarrierKind(
       access.base_is_tagged, access.machine_type, access.type);
-  node->set_op(machine_.Store(access.machine_type, kind));
+  node->set_op(machine_.Store(StoreRepresentation(access.machine_type, kind)));
   Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
   node->InsertInput(zone(), 1, offset);
 }
@@ -845,7 +845,7 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
   WriteBarrierKind kind = ComputeWriteBarrierKind(
       access.base_is_tagged, access.machine_type, access.type);
-  node->set_op(machine_.Store(access.machine_type, kind));
+  node->set_op(machine_.Store(StoreRepresentation(access.machine_type, kind)));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
 }
 

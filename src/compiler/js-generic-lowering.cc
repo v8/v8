@@ -490,7 +490,8 @@ Node* JSGenericLowering::LowerJSStoreContext(Node* node) {
   }
   node->ReplaceInput(2, NodeProperties::GetValueInput(node, 1));
   node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
-  PatchOperator(node, machine()->Store(kMachAnyTagged, kFullWriteBarrier));
+  PatchOperator(node, machine()->Store(StoreRepresentation(kMachAnyTagged,
+                                                           kFullWriteBarrier)));
   return node;
 }
 

@@ -426,6 +426,7 @@
         '../../src/compiler/linkage.h',
         '../../src/compiler/machine-operator-reducer.cc',
         '../../src/compiler/machine-operator-reducer.h',
+        '../../src/compiler/machine-operator.cc',
         '../../src/compiler/machine-operator.h',
         '../../src/compiler/machine-type.cc',
         '../../src/compiler/machine-type.h',

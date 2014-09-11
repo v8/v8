@@ -15,7 +15,7 @@ namespace internal {
 namespace compiler {
 
 MachineOperatorReducer::MachineOperatorReducer(JSGraph* jsgraph)
-    : jsgraph_(jsgraph), machine_(jsgraph->zone()) {}
+    : jsgraph_(jsgraph) {}
 
 
 MachineOperatorReducer::~MachineOperatorReducer() {}

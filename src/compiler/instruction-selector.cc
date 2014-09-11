@@ -488,8 +488,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kStateValues:
       return;
     case IrOpcode::kLoad: {
-      MachineType load_rep = OpParameter<MachineType>(node);
-      MarkAsRepresentation(load_rep, node);
+      LoadRepresentation rep = OpParameter<LoadRepresentation>(node);
+      MarkAsRepresentation(rep, node);
       return VisitLoad(node);
     }
     case IrOpcode::kStore:

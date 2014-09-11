@@ -169,6 +169,7 @@ Handle<Code> Pipeline::GenerateCode() {
   // construction.  This is currently only needed for the node cache, which the
   // typer could sweep over later.
   Typer typer(zone());
+  MachineOperatorBuilder machine;
   CommonOperatorBuilder common(zone());
   JSGraph jsgraph(&graph, &common, &typer);
   Node* context_node;
@@ -256,7 +257,6 @@ Handle<Code> Pipeline::GenerateCode() {
       SourcePositionTable::Scope pos(&source_positions,
                                      SourcePosition::Unknown());
       Linkage linkage(info());
-      MachineOperatorBuilder machine(zone());
       ValueNumberingReducer vn_reducer(zone());
       SimplifiedOperatorReducer simple_reducer(&jsgraph, &machine);
       ChangeLowering lowering(&jsgraph, &linkage, &machine);
@@ -281,7 +281,6 @@ Handle<Code> Pipeline::GenerateCode() {
                                 "generic lowering");
       SourcePositionTable::Scope pos(&source_positions,
                                      SourcePosition::Unknown());
-      MachineOperatorBuilder machine(zone());
       JSGenericLowering lowering(info(), &jsgraph, &machine);
       GraphReducer graph_reducer(&graph);
       graph_reducer.AddReducer(&lowering);

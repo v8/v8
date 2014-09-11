@@ -131,7 +131,7 @@ TEST(BuildMulNodeGraph) {
   Schedule schedule(scope.main_zone());
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  MachineOperatorBuilder machine(scope.main_zone());
+  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);

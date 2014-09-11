@@ -7,6 +7,8 @@
 
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/operator.h"
+#include "src/handles.h"
 #include "src/zone.h"
 
 namespace v8 {

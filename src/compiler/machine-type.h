@@ -36,7 +36,22 @@ enum MachineType {
   kTypeInt64 = 1 << 11,
   kTypeUint64 = 1 << 12,
   kTypeNumber = 1 << 13,
-  kTypeAny = 1 << 14
+  kTypeAny = 1 << 14,
+
+  // Machine types.
+  kMachNone = 0,
+  kMachFloat32 = kRepFloat32 | kTypeNumber,
+  kMachFloat64 = kRepFloat64 | kTypeNumber,
+  kMachInt8 = kRepWord8 | kTypeInt32,
+  kMachUint8 = kRepWord8 | kTypeUint32,
+  kMachInt16 = kRepWord16 | kTypeInt32,
+  kMachUint16 = kRepWord16 | kTypeUint32,
+  kMachInt32 = kRepWord32 | kTypeInt32,
+  kMachUint32 = kRepWord32 | kTypeUint32,
+  kMachInt64 = kRepWord64 | kTypeInt64,
+  kMachUint64 = kRepWord64 | kTypeUint64,
+  kMachPtr = (kPointerSize == 4) ? kRepWord32 : kRepWord64,
+  kMachAnyTagged = kRepTagged | kTypeAny
 };
 
 OStream& operator<<(OStream& os, const MachineType& type);
@@ -50,30 +65,6 @@ const MachineTypeUnion kRepMask = kRepBit | kRepWord8 | kRepWord16 |
 const MachineTypeUnion kTypeMask = kTypeBool | kTypeInt32 | kTypeUint32 |
                                    kTypeInt64 | kTypeUint64 | kTypeNumber |
                                    kTypeAny;
-
-const MachineType kMachNone = static_cast<MachineType>(0);
-const MachineType kMachFloat32 =
-    static_cast<MachineType>(kRepFloat32 | kTypeNumber);
-const MachineType kMachFloat64 =
-    static_cast<MachineType>(kRepFloat64 | kTypeNumber);
-const MachineType kMachInt8 = static_cast<MachineType>(kRepWord8 | kTypeInt32);
-const MachineType kMachUint8 =
-    static_cast<MachineType>(kRepWord8 | kTypeUint32);
-const MachineType kMachInt16 =
-    static_cast<MachineType>(kRepWord16 | kTypeInt32);
-const MachineType kMachUint16 =
-    static_cast<MachineType>(kRepWord16 | kTypeUint32);
-const MachineType kMachInt32 =
-    static_cast<MachineType>(kRepWord32 | kTypeInt32);
-const MachineType kMachUint32 =
-    static_cast<MachineType>(kRepWord32 | kTypeUint32);
-const MachineType kMachInt64 =
-    static_cast<MachineType>(kRepWord64 | kTypeInt64);
-const MachineType kMachUint64 =
-    static_cast<MachineType>(kRepWord64 | kTypeUint64);
-const MachineType kMachPtr = kPointerSize == 4 ? kRepWord32 : kRepWord64;
-const MachineType kMachAnyTagged =
-    static_cast<MachineType>(kRepTagged | kTypeAny);
 
 // Gets only the type of the given type.
 inline MachineType TypeOf(MachineType machine_type) {

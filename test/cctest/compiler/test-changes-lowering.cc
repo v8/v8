@@ -222,9 +222,10 @@ TEST(RunChangeTaggedToFloat64) {
   ChangesLoweringTester<int32_t> t(kMachAnyTagged);
   double result;
 
-  t.BuildStoreAndLower(t.simplified()->ChangeTaggedToFloat64(),
-                       t.machine()->Store(kMachFloat64, kNoWriteBarrier),
-                       &result);
+  t.BuildStoreAndLower(
+      t.simplified()->ChangeTaggedToFloat64(),
+      t.machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
+      &result);
 
   if (Pipeline::SupportedTarget()) {
     FOR_INT32_INPUTS(i) {

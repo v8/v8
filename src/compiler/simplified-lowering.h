@@ -16,8 +16,7 @@ namespace compiler {
 
 class SimplifiedLowering {
  public:
-  explicit SimplifiedLowering(JSGraph* jsgraph)
-      : jsgraph_(jsgraph), machine_(jsgraph->zone()) {}
+  explicit SimplifiedLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
   virtual ~SimplifiedLowering() {}
 
   void LowerAllNodes();

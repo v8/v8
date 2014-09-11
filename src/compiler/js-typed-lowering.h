@@ -19,9 +19,7 @@ namespace compiler {
 class JSTypedLowering FINAL : public Reducer {
  public:
   explicit JSTypedLowering(JSGraph* jsgraph)
-      : jsgraph_(jsgraph),
-        simplified_(jsgraph->zone()),
-        machine_(jsgraph->zone()) {}
+      : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {}
   virtual ~JSTypedLowering();
 
   virtual Reduction Reduce(Node* node) OVERRIDE;

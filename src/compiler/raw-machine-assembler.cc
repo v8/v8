@@ -15,7 +15,7 @@ RawMachineAssembler::RawMachineAssembler(Graph* graph,
                                          MachineType word)
     : GraphBuilder(graph),
       schedule_(new (zone()) Schedule(zone())),
-      machine_(zone(), word),
+      machine_(word),
       common_(zone()),
       machine_sig_(machine_sig),
       call_descriptor_(
