@@ -37,8 +37,8 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-TEST_262_ARCHIVE_REVISION = "595a36b"  # This is the 2014-Aug-10 revision.
-TEST_262_ARCHIVE_MD5 = "89dfc8458f474cdb7e8e178f3215dd06"
+TEST_262_ARCHIVE_REVISION = "9bd6686"  # This is the 2014-08-25 revision.
+TEST_262_ARCHIVE_MD5 = "0f5928b391864890d5a397f8cdc82705"
 TEST_262_URL = "https://github.com/tc39/test262/tarball/%s"
 TEST_262_HARNESS_FILES = ["sta.js"]
 
