@@ -107,11 +107,18 @@ class CompilationInfo {
   Handle<JSFunction> closure() const { return closure_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   Handle<Script> script() const { return script_; }
+  void set_script(Handle<Script> script) { script_ = script; }
   HydrogenCodeStub* code_stub() const {return code_stub_; }
   v8::Extension* extension() const { return extension_; }
   ScriptData** cached_data() const { return cached_data_; }
   ScriptCompiler::CompileOptions compile_options() const {
     return compile_options_;
+  }
+  ScriptCompiler::ExternalSourceStream* source_stream() const {
+    return source_stream_;
+  }
+  ScriptCompiler::StreamedSource::Encoding source_stream_encoding() const {
+    return source_stream_encoding_;
   }
   Handle<Context> context() const { return context_; }
   BailoutId osr_ast_id() const { return osr_ast_id_; }
@@ -378,6 +385,10 @@ class CompilationInfo {
   CompilationInfo(HydrogenCodeStub* stub,
                   Isolate* isolate,
                   Zone* zone);
+  CompilationInfo(ScriptCompiler::ExternalSourceStream* source_stream,
+                  ScriptCompiler::StreamedSource::Encoding encoding,
+                  Isolate* isolate, Zone* zone);
+
 
  private:
   Isolate* isolate_;
@@ -427,6 +438,8 @@ class CompilationInfo {
   Handle<JSFunction> closure_;
   Handle<SharedFunctionInfo> shared_info_;
   Handle<Script> script_;
+  ScriptCompiler::ExternalSourceStream* source_stream_;  // Not owned.
+  ScriptCompiler::StreamedSource::Encoding source_stream_encoding_;
 
   // Fields possibly needed for eager compilation, NULL by default.
   v8::Extension* extension_;
@@ -508,6 +521,10 @@ class CompilationInfoWithZone: public CompilationInfo {
   CompilationInfoWithZone(HydrogenCodeStub* stub, Isolate* isolate)
       : CompilationInfo(stub, isolate, &zone_),
         zone_(isolate) {}
+  CompilationInfoWithZone(ScriptCompiler::ExternalSourceStream* stream,
+                          ScriptCompiler::StreamedSource::Encoding encoding,
+                          Isolate* isolate)
+      : CompilationInfo(stream, encoding, isolate, &zone_), zone_(isolate) {}
 
   // Virtual destructor because a CompilationInfoWithZone has to exit the
   // zone scope and get rid of dependent maps even when the destructor is
@@ -667,6 +684,9 @@ class Compiler : public AllStatic {
       ScriptCompiler::CompileOptions compile_options,
       NativesFlag is_natives_code);
 
+  static Handle<SharedFunctionInfo> CompileStreamedScript(CompilationInfo* info,
+                                                          int source_length);
+
   // Create a shared function info object (the code may be lazily compiled).
   static Handle<SharedFunctionInfo> BuildFunctionInfo(FunctionLiteral* node,
                                                       Handle<Script> script,
@@ -690,6 +710,9 @@ class Compiler : public AllStatic {
   static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                                         CompilationInfo* info,
                                         Handle<SharedFunctionInfo> shared);
+
+  static bool DebuggerWantsEagerCompilation(
+      CompilationInfo* info, bool allow_lazy_without_ctx = false);
 };
 
 

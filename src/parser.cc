@@ -750,7 +750,7 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
       pending_error_char_arg_(NULL),
       total_preparse_skipped_(0),
       pre_parse_timer_(NULL) {
-  DCHECK(!script().is_null());
+  DCHECK(!script().is_null() || info->source_stream() != NULL);
   set_allow_harmony_scoping(!info->is_native() && FLAG_harmony_scoping);
   set_allow_modules(!info->is_native() && FLAG_harmony_modules);
   set_allow_natives_syntax(FLAG_allow_natives_syntax || info->is_native());
@@ -798,6 +798,9 @@ FunctionLiteral* Parser::ParseProgram() {
 
   source = String::Flatten(source);
   FunctionLiteral* result;
+
+  Scope* top_scope = NULL;
+  Scope* eval_scope = NULL;
   if (source->IsExternalTwoByteString()) {
     // Notice that the stream is destroyed at the end of the branch block.
     // The last line of the blocks can't be moved outside, even though they're
@@ -805,11 +808,15 @@ FunctionLiteral* Parser::ParseProgram() {
     ExternalTwoByteStringUtf16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info(), source);
+    result = DoParseProgram(info(), &top_scope, &eval_scope);
   } else {
     GenericStringUtf16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    result = DoParseProgram(info(), source);
+    result = DoParseProgram(info(), &top_scope, &eval_scope);
+  }
+  top_scope->set_end_position(source->length());
+  if (eval_scope != NULL) {
+    eval_scope->set_end_position(source->length());
   }
   HandleSourceURLComments();
 
@@ -834,51 +841,52 @@ FunctionLiteral* Parser::ParseProgram() {
 }
 
 
-FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
-                                        Handle<String> source) {
+FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
+                                        Scope** eval_scope) {
   DCHECK(scope_ == NULL);
   DCHECK(target_stack_ == NULL);
 
   FunctionLiteral* result = NULL;
-  { Scope* scope = NewScope(scope_, GLOBAL_SCOPE);
-    info->SetGlobalScope(scope);
+  {
+    *scope = NewScope(scope_, GLOBAL_SCOPE);
+    info->SetGlobalScope(*scope);
     if (!info->context().is_null() && !info->context()->IsNativeContext()) {
-      scope = Scope::DeserializeScopeChain(*info->context(), scope, zone());
+      *scope = Scope::DeserializeScopeChain(*info->context(), *scope, zone());
       // The Scope is backed up by ScopeInfo (which is in the V8 heap); this
       // means the Parser cannot operate independent of the V8 heap. Tell the
       // string table to internalize strings and values right after they're
       // created.
       ast_value_factory()->Internalize(isolate());
     }
-    original_scope_ = scope;
+    original_scope_ = *scope;
     if (info->is_eval()) {
-      if (!scope->is_global_scope() || info->strict_mode() == STRICT) {
-        scope = NewScope(scope, EVAL_SCOPE);
+      if (!(*scope)->is_global_scope() || info->strict_mode() == STRICT) {
+        *scope = NewScope(*scope, EVAL_SCOPE);
       }
     } else if (info->is_global()) {
-      scope = NewScope(scope, GLOBAL_SCOPE);
+      *scope = NewScope(*scope, GLOBAL_SCOPE);
     }
-    scope->set_start_position(0);
-    scope->set_end_position(source->length());
+    (*scope)->set_start_position(0);
+    // End position will be set by the caller.
 
     // Compute the parsing mode.
     Mode mode = (FLAG_lazy && allow_lazy()) ? PARSE_LAZILY : PARSE_EAGERLY;
-    if (allow_natives_syntax() ||
-        extension_ != NULL ||
-        scope->is_eval_scope()) {
+    if (allow_natives_syntax() || extension_ != NULL ||
+        (*scope)->is_eval_scope()) {
       mode = PARSE_EAGERLY;
     }
     ParsingModeScope parsing_mode(this, mode);
 
     // Enters 'scope'.
-    FunctionState function_state(&function_state_, &scope_, scope, zone(),
+    FunctionState function_state(&function_state_, &scope_, *scope, zone(),
                                  ast_value_factory(), info->ast_node_id_gen());
 
     scope_->SetStrictMode(info->strict_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
-    ParseSourceElements(body, Token::EOS, info->is_eval(), true, &ok);
+    ParseSourceElements(body, Token::EOS, info->is_eval(), true, eval_scope,
+                        &ok);
 
     if (ok && strict_mode() == STRICT) {
       CheckOctalLiteral(beg_pos, scanner()->location().end_pos, &ok);
@@ -1023,10 +1031,8 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
 
 
 void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
-                                  int end_token,
-                                  bool is_eval,
-                                  bool is_global,
-                                  bool* ok) {
+                                  int end_token, bool is_eval, bool is_global,
+                                  Scope** eval_scope, bool* ok) {
   // SourceElements ::
   //   (ModuleElement)* <end_token>
 
@@ -1082,6 +1088,10 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
             scope->set_start_position(scope_->start_position());
             scope->set_end_position(scope_->end_position());
             scope_ = scope;
+            if (eval_scope != NULL) {
+              // Caller will correct the positions of the ad hoc eval scope.
+              *eval_scope = scope;
+            }
             mode_ = PARSE_EAGERLY;
           }
           scope_->SetStrictMode(STRICT);
@@ -3722,7 +3732,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
         yield, RelocInfo::kNoPosition), zone());
   }
 
-  ParseSourceElements(body, Token::RBRACE, false, false, CHECK_OK);
+  ParseSourceElements(body, Token::RBRACE, false, false, NULL, CHECK_OK);
 
   if (is_generator) {
     VariableProxy* get_proxy = factory()->NewVariableProxy(
@@ -4839,4 +4849,46 @@ bool Parser::Parse() {
   return (result != NULL);
 }
 
+
+void Parser::ParseOnBackground() {
+  DCHECK(info()->function() == NULL);
+  FunctionLiteral* result = NULL;
+  fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
+
+  CompleteParserRecorder recorder;
+  if (compile_options() == ScriptCompiler::kProduceParserCache) {
+    log_ = &recorder;
+  }
+
+  DCHECK(info()->source_stream() != NULL);
+  ExternalStreamingStream stream(info()->source_stream(),
+                                 info()->source_stream_encoding());
+  scanner_.Initialize(&stream);
+  DCHECK(info()->context().is_null() || info()->context()->IsNativeContext());
+
+  // When streaming, we don't know the length of the source until we have parsed
+  // it. The raw data can be UTF-8, so we wouldn't know the source length until
+  // we have decoded it anyway even if we knew the raw data length (which we
+  // don't). We work around this by storing all the scopes which need their end
+  // position set at the end of the script (the top scope and possible eval
+  // scopes) and set their end position after we know the script length.
+  Scope* top_scope = NULL;
+  Scope* eval_scope = NULL;
+  result = DoParseProgram(info(), &top_scope, &eval_scope);
+
+  top_scope->set_end_position(scanner()->location().end_pos);
+  if (eval_scope != NULL) {
+    eval_scope->set_end_position(scanner()->location().end_pos);
+  }
+
+  info()->SetFunction(result);
+
+  // We cannot internalize on a background thread; a foreground task will take
+  // care of calling Parser::Internalize just before compilation.
+
+  if (compile_options() == ScriptCompiler::kProduceParserCache) {
+    if (result != NULL) *info_->cached_data() = recorder.GetScriptData();
+    log_ = NULL;
+  }
+}
 } }  // namespace v8::internal
