@@ -25,7 +25,12 @@ function foo(x, y) {
 
   a.__proto__ = arguments;
   var c = [].concat(a);
-  assertEquals(2, c[0]);
-  assertEquals(undefined, c[1]);
+  for (var i = 0; i < arguments.length; i++) {
+    assertEquals(i + 2, c[i]);
+  }
+  assertEquals(undefined, c[arguments.length]);
+  assertEquals(undefined, c[arguments.length + 1]);
 }
 foo(2);
+foo(2, 3);
+foo(2, 3, 4);

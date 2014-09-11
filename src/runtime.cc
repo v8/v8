@@ -10334,8 +10334,10 @@ static void CollectElementIndices(Handle<JSObject> object,
       break;
     }
     case SLOPPY_ARGUMENTS_ELEMENTS: {
-      uint32_t length = static_cast<uint32_t>(
-          Handle<JSArray>::cast(object)->length()->Number());
+      MaybeHandle<Object> length_obj =
+          Object::GetProperty(object, isolate->factory()->length_string());
+      double length_num = length_obj.ToHandleChecked()->Number();
+      uint32_t length = static_cast<uint32_t>(DoubleToInt32(length_num));
       ElementsAccessor* accessor = object->GetElementsAccessor();
       for (uint32_t i = 0; i < length; i++) {
         if (accessor->HasElement(object, object, i)) {
