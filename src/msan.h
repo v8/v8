@@ -27,11 +27,4 @@
 # define MSAN_ALLOCATED_UNINITIALIZED_MEMORY(p, s)
 #endif
 
-#if defined(MEMORY_SANITIZER) && !defined(USE_SIMULATOR)
-// Marks a memory range as fully initialized.
-# define MSAN_MEMORY_IS_INITIALIZED_IN_JIT(p, s) __msan_unpoison((p), (s))
-#else
-# define MSAN_MEMORY_IS_INITIALIZED_IN_JIT(p, s)
-#endif
-
 #endif  // V8_MSAN_H_
