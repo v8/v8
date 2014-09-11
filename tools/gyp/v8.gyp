@@ -347,8 +347,6 @@
         '../../src/ast-value-factory.h',
         '../../src/ast.cc',
         '../../src/ast.h',
-        '../../src/background-parsing-task.cc',
-        '../../src/background-parsing-task.h',
         '../../src/bignum-dtoa.cc',
         '../../src/bignum-dtoa.h',
         '../../src/bignum.cc',
