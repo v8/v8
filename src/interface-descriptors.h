@@ -18,6 +18,7 @@ class PlatformInterfaceDescriptor;
   V(Store)                                    \
   V(ElementTransitionAndStore)                \
   V(Instanceof)                               \
+  V(VectorLoadICTrampoline)                   \
   V(VectorLoadIC)                             \
   V(FastNewClosure)                           \
   V(FastNewContext)                           \
@@ -27,6 +28,7 @@ class PlatformInterfaceDescriptor;
   V(FastCloneShallowObject)                   \
   V(CreateAllocationSite)                     \
   V(CallFunction)                             \
+  V(CallFunctionWithFeedback)                 \
   V(CallConstruct)                            \
   V(RegExpConstructResult)                    \
   V(TransitionElementsKind)                   \
@@ -43,7 +45,13 @@ class PlatformInterfaceDescriptor;
   V(Named)                                    \
   V(CallHandler)                              \
   V(ArgumentAdaptor)                          \
-  V(ApiFunction)
+  V(ApiGetter)                                \
+  V(ApiFunction)                              \
+  V(ArgumentsAccessRead)                      \
+  V(StoreArrayLiteralElement)                 \
+  V(MathPowTagged)                            \
+  V(MathPowInteger)                           \
+  V(ContextOnly)
 
 
 class CallInterfaceDescriptorData {
@@ -164,18 +172,24 @@ class CallInterfaceDescriptor {
 };
 
 
-#define DECLARE_DESCRIPTOR(name)                                              \
-  explicit name(Isolate* isolate) : CallInterfaceDescriptor(isolate, key()) { \
-    if (!data()->IsInitialized())                                             \
-      Initialize(isolate->call_descriptor_data(key()));                       \
-  }                                                                           \
-  static inline CallDescriptors::Key key();                                   \
-  void Initialize(CallInterfaceDescriptorData* data);
+#define DECLARE_DESCRIPTOR(name, base)                                     \
+  explicit name(Isolate* isolate) : base(isolate, key()) {                 \
+    if (!data()->IsInitialized())                                          \
+      Initialize(isolate->call_descriptor_data(key()));                    \
+  }                                                                        \
+                                                                           \
+ protected:                                                                \
+  void Initialize(CallInterfaceDescriptorData* data);                      \
+  name(Isolate* isolate, CallDescriptors::Key key) : base(isolate, key) {} \
+                                                                           \
+ public:                                                                   \
+  static inline CallDescriptors::Key key();
 
 
+// LoadDescriptor is used by all stubs that implement Load/KeyedLoad ICs.
 class LoadDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(LoadDescriptor)
+  DECLARE_DESCRIPTOR(LoadDescriptor, CallInterfaceDescriptor)
 
   enum ParameterIndices { kReceiverIndex, kNameIndex };
   static const Register ReceiverRegister();
@@ -185,7 +199,7 @@ class LoadDescriptor : public CallInterfaceDescriptor {
 
 class StoreDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(StoreDescriptor)
+  DECLARE_DESCRIPTOR(StoreDescriptor, CallInterfaceDescriptor)
 
   enum ParameterIndices {
     kReceiverIndex,
@@ -199,20 +213,17 @@ class StoreDescriptor : public CallInterfaceDescriptor {
 };
 
 
-class ElementTransitionAndStoreDescriptor : public CallInterfaceDescriptor {
+class ElementTransitionAndStoreDescriptor : public StoreDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ElementTransitionAndStoreDescriptor)
+  DECLARE_DESCRIPTOR(ElementTransitionAndStoreDescriptor, StoreDescriptor)
 
-  static const Register ReceiverRegister();
-  static const Register NameRegister();
-  static const Register ValueRegister();
   static const Register MapRegister();
 };
 
 
 class InstanceofDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(InstanceofDescriptor)
+  DECLARE_DESCRIPTOR(InstanceofDescriptor, CallInterfaceDescriptor)
 
   enum ParameterIndices { kLeftIndex, kRightIndex, kParameterCount };
   static const Register left();
@@ -220,174 +231,237 @@ class InstanceofDescriptor : public CallInterfaceDescriptor {
 };
 
 
-class VectorLoadICDescriptor : public CallInterfaceDescriptor {
+class VectorLoadICTrampolineDescriptor : public LoadDescriptor {
  public:
-  DECLARE_DESCRIPTOR(VectorLoadICDescriptor)
+  DECLARE_DESCRIPTOR(VectorLoadICTrampolineDescriptor, LoadDescriptor)
+
+  enum ParameterIndices { kReceiverIndex, kNameIndex, kSlotIndex };
+
+  static const Register SlotRegister();
+};
+
+
+class VectorLoadICDescriptor : public VectorLoadICTrampolineDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(VectorLoadICDescriptor, VectorLoadICTrampolineDescriptor)
 
   enum ParameterIndices {
     kReceiverIndex,
     kNameIndex,
     kSlotIndex,
-    kVectorIndex,
-    kParameterCount
+    kVectorIndex
   };
 
-  static const Register ReceiverRegister();
-  static const Register NameRegister();
-  static const Register SlotRegister();
   static const Register VectorRegister();
 };
 
 
 class FastNewClosureDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(FastNewClosureDescriptor)
+  DECLARE_DESCRIPTOR(FastNewClosureDescriptor, CallInterfaceDescriptor)
 };
 
 
 class FastNewContextDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(FastNewContextDescriptor)
+  DECLARE_DESCRIPTOR(FastNewContextDescriptor, CallInterfaceDescriptor)
 };
 
 
 class ToNumberDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ToNumberDescriptor)
+  DECLARE_DESCRIPTOR(ToNumberDescriptor, CallInterfaceDescriptor)
 };
 
 
 class NumberToStringDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(NumberToStringDescriptor)
+  DECLARE_DESCRIPTOR(NumberToStringDescriptor, CallInterfaceDescriptor)
 };
 
 
 class FastCloneShallowArrayDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(FastCloneShallowArrayDescriptor)
+  DECLARE_DESCRIPTOR(FastCloneShallowArrayDescriptor, CallInterfaceDescriptor)
 };
 
 
 class FastCloneShallowObjectDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(FastCloneShallowObjectDescriptor)
+  DECLARE_DESCRIPTOR(FastCloneShallowObjectDescriptor, CallInterfaceDescriptor)
 };
 
 
 class CreateAllocationSiteDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(CreateAllocationSiteDescriptor)
+  DECLARE_DESCRIPTOR(CreateAllocationSiteDescriptor, CallInterfaceDescriptor)
 };
 
 
 class CallFunctionDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(CallFunctionDescriptor)
+  DECLARE_DESCRIPTOR(CallFunctionDescriptor, CallInterfaceDescriptor)
+};
+
+
+class CallFunctionWithFeedbackDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(CallFunctionWithFeedbackDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 
 class CallConstructDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(CallConstructDescriptor)
+  DECLARE_DESCRIPTOR(CallConstructDescriptor, CallInterfaceDescriptor)
 };
 
 
 class RegExpConstructResultDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(RegExpConstructResultDescriptor)
+  DECLARE_DESCRIPTOR(RegExpConstructResultDescriptor, CallInterfaceDescriptor)
 };
 
 
 class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(TransitionElementsKindDescriptor)
+  DECLARE_DESCRIPTOR(TransitionElementsKindDescriptor, CallInterfaceDescriptor)
 };
 
 
 class ArrayConstructorConstantArgCountDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ArrayConstructorConstantArgCountDescriptor)
+  DECLARE_DESCRIPTOR(ArrayConstructorConstantArgCountDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 
 class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ArrayConstructorDescriptor)
+  DECLARE_DESCRIPTOR(ArrayConstructorDescriptor, CallInterfaceDescriptor)
 };
 
 
 class InternalArrayConstructorConstantArgCountDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(InternalArrayConstructorConstantArgCountDescriptor)
+  DECLARE_DESCRIPTOR(InternalArrayConstructorConstantArgCountDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 
 class InternalArrayConstructorDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(InternalArrayConstructorDescriptor)
+  DECLARE_DESCRIPTOR(InternalArrayConstructorDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 
 class CompareNilDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(CompareNilDescriptor)
+  DECLARE_DESCRIPTOR(CompareNilDescriptor, CallInterfaceDescriptor)
 };
 
 
 class ToBooleanDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ToBooleanDescriptor)
+  DECLARE_DESCRIPTOR(ToBooleanDescriptor, CallInterfaceDescriptor)
 };
 
 
 class BinaryOpDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(BinaryOpDescriptor)
+  DECLARE_DESCRIPTOR(BinaryOpDescriptor, CallInterfaceDescriptor)
 };
 
 
 class BinaryOpWithAllocationSiteDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(BinaryOpWithAllocationSiteDescriptor)
+  DECLARE_DESCRIPTOR(BinaryOpWithAllocationSiteDescriptor,
+                     CallInterfaceDescriptor)
 };
 
 
 class StringAddDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(StringAddDescriptor)
+  DECLARE_DESCRIPTOR(StringAddDescriptor, CallInterfaceDescriptor)
 };
 
 
 class KeyedDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(KeyedDescriptor)
+  DECLARE_DESCRIPTOR(KeyedDescriptor, CallInterfaceDescriptor)
 };
 
 
 class NamedDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(NamedDescriptor)
+  DECLARE_DESCRIPTOR(NamedDescriptor, CallInterfaceDescriptor)
 };
 
 
 class CallHandlerDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(CallHandlerDescriptor)
+  DECLARE_DESCRIPTOR(CallHandlerDescriptor, CallInterfaceDescriptor)
 };
 
 
 class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ArgumentAdaptorDescriptor)
+  DECLARE_DESCRIPTOR(ArgumentAdaptorDescriptor, CallInterfaceDescriptor)
 };
 
 
 class ApiFunctionDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ApiFunctionDescriptor)
+  DECLARE_DESCRIPTOR(ApiFunctionDescriptor, CallInterfaceDescriptor)
+};
+
+
+class ApiGetterDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(ApiGetterDescriptor, CallInterfaceDescriptor)
+
+  static const Register function_address();
+};
+
+
+class ArgumentsAccessReadDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(ArgumentsAccessReadDescriptor, CallInterfaceDescriptor)
+
+  static const Register index();
+  static const Register parameter_count();
+};
+
+
+class StoreArrayLiteralElementDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(StoreArrayLiteralElementDescriptor,
+                     CallInterfaceDescriptor)
+};
+
+
+class MathPowTaggedDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(MathPowTaggedDescriptor, CallInterfaceDescriptor)
+
+  static const Register exponent();
+};
+
+
+class MathPowIntegerDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(MathPowIntegerDescriptor, CallInterfaceDescriptor)
+
+  static const Register exponent();
+};
+
+
+class ContextOnlyDescriptor : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(ContextOnlyDescriptor, CallInterfaceDescriptor)
 };
 
 #undef DECLARE_DESCRIPTOR

@@ -88,9 +88,54 @@ void InstanceofDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 }
 
 
+void MathPowTaggedDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), exponent()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void MathPowIntegerDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), exponent()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void VectorLoadICTrampolineDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
+                          SlotRegister()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
 void VectorLoadICDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
                           SlotRegister(), VectorRegister()};
+  Representation representations[] = {
+      Representation::Tagged(), Representation::Tagged(),
+      Representation::Tagged(), Representation::Smi(),
+      Representation::Tagged()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void ApiGetterDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), function_address()};
+  Representation representations[] = {Representation::Tagged(),
+                                      Representation::External()};
+  data->Initialize(arraysize(registers), registers, representations);
+}
+
+
+void ArgumentsAccessReadDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), index(), parameter_count()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void ContextOnlyDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister()};
   data->Initialize(arraysize(registers), registers, NULL);
 }
 

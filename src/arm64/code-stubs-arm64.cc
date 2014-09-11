@@ -726,8 +726,10 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
   Register result_tagged = x0;
   Register base_tagged = x10;
-  Register exponent_tagged = x11;
-  Register exponent_integer = x12;
+  Register exponent_tagged = MathPowTaggedDescriptor::exponent();
+  DCHECK(exponent_tagged.is(x11));
+  Register exponent_integer = MathPowIntegerDescriptor::exponent();
+  DCHECK(exponent_integer.is(x12));
   Register scratch1 = x14;
   Register scratch0 = x15;
   Register saved_lr = x19;
@@ -1606,8 +1608,10 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
-  Register arg_count = x0;
-  Register key = x1;
+  Register arg_count = ArgumentsAccessReadDescriptor::parameter_count();
+  Register key = ArgumentsAccessReadDescriptor::index();
+  DCHECK(arg_count.is(x0));
+  DCHECK(key.is(x1));
 
   // The displacement is the offset of the last parameter (if any) relative
   // to the frame pointer.
@@ -5008,7 +5012,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   //  -- x2                     : api_function_address
   // -----------------------------------
 
-  Register api_function_address = x2;
+  Register api_function_address = ApiGetterDescriptor::function_address();
+  DCHECK(api_function_address.is(x2));
 
   __ Mov(x0, masm->StackPointer());  // x0 = Handle<Name>
   __ Add(x1, x0, 1 * kPointerSize);  // x1 = PCA

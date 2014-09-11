@@ -660,7 +660,7 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   __ PushReturnAddressFrom(scratch4());
 
   // Abi for CallApiGetter
-  Register api_function_address = r8;
+  Register api_function_address = ApiGetterDescriptor::function_address();
   Address getter_address = v8::ToCData<Address>(callback->getter());
   __ Move(api_function_address, getter_address, RelocInfo::EXTERNAL_REFERENCE);
 

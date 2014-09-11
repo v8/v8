@@ -109,6 +109,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   class IndexBits: public BitField<int, 6, 3> {};
   class LookupModeBits: public BitField<LookupMode, 9, 1> {};
 
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
@@ -189,6 +190,8 @@ class RecordWriteStub: public PlatformCodeStub {
     DCHECK(GetMode(stub) == mode);
     CpuFeatures::FlushICache(stub->instruction_start(), 7);
   }
+
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
 
  private:
   // This is a helper class for freeing up 3 scratch registers, where the third

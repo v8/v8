@@ -4086,11 +4086,14 @@ void LCodeGen::DoPower(LPower* instr) {
   Representation exponent_type = instr->hydrogen()->right()->representation();
   // Having marked this as a call, we can use any registers.
   // Just make sure that the input/output registers are the expected ones.
+  Register tagged_exponent = MathPowTaggedDescriptor::exponent();
+  Register integer_exponent = MathPowIntegerDescriptor::exponent();
   DCHECK(!instr->right()->IsDoubleRegister() ||
          ToDoubleRegister(instr->right()).is(d1));
   DCHECK(exponent_type.IsInteger32() || !instr->right()->IsRegister() ||
-         ToRegister(instr->right()).is(x11));
-  DCHECK(!exponent_type.IsInteger32() || ToRegister(instr->right()).is(x12));
+         ToRegister(instr->right()).is(tagged_exponent));
+  DCHECK(!exponent_type.IsInteger32() ||
+         ToRegister(instr->right()).is(integer_exponent));
   DCHECK(ToDoubleRegister(instr->left()).is(d0));
   DCHECK(ToDoubleRegister(instr->result()).is(d0));
 
@@ -4099,8 +4102,9 @@ void LCodeGen::DoPower(LPower* instr) {
     __ CallStub(&stub);
   } else if (exponent_type.IsTagged()) {
     Label no_deopt;
-    __ JumpIfSmi(x11, &no_deopt);
-    __ Ldr(x0, FieldMemOperand(x11, HeapObject::kMapOffset));
+    __ JumpIfSmi(tagged_exponent, &no_deopt);
+    DCHECK(!x0.is(tagged_exponent));
+    __ Ldr(x0, FieldMemOperand(tagged_exponent, HeapObject::kMapOffset));
     DeoptimizeIfNotRoot(x0, Heap::kHeapNumberMapRootIndex,
                         instr->environment());
     __ Bind(&no_deopt);
@@ -4109,8 +4113,7 @@ void LCodeGen::DoPower(LPower* instr) {
   } else if (exponent_type.IsInteger32()) {
     // Ensure integer exponent has no garbage in top 32-bits, as MathPowStub
     // supports large integer exponents.
-    Register exponent = ToRegister(instr->right());
-    __ Sxtw(exponent, exponent);
+    __ Sxtw(integer_exponent, integer_exponent);
     MathPowStub stub(isolate(), MathPowStub::INTEGER);
     __ CallStub(&stub);
   } else {
