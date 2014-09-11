@@ -166,6 +166,8 @@ class IncrementalMarking {
  private:
   int64_t SpaceLeftInOldSpace();
 
+  void SpeedUp();
+
   void ResetStepCounters();
 
   void StartMarking(CompactionFlag flag);

@@ -4079,7 +4079,7 @@ Handle<Value> Function::GetDisplayName() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   i::Handle<i::String> property_name =
       isolate->factory()->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("displayName"));
+          STATIC_CHAR_VECTOR("displayName"));
 
   i::Handle<i::Object> value =
       i::JSObject::GetDataProperty(func, property_name);
@@ -4317,7 +4317,7 @@ class Utf8LengthHelper : public i::AllStatic {
 
     void VisitOneByteString(const uint8_t* chars, int length) {
       int utf8_length = 0;
-      // Add in length 1 for each non-ASCII character.
+      // Add in length 1 for each non-Latin1 character.
       for (int i = 0; i < length; i++) {
         utf8_length += *chars++ >> 7;
       }
@@ -4719,7 +4719,7 @@ int String::WriteUtf8(char* buffer,
     // First check that the buffer is large enough.
     int utf8_bytes = v8::Utf8Length(*str, str->GetIsolate());
     if (utf8_bytes <= capacity) {
-      // ASCII fast path.
+      // one-byte fast path.
       if (utf8_bytes == string_length) {
         WriteOneByte(reinterpret_cast<uint8_t*>(buffer), 0, capacity, options);
         if (nchars_ref != NULL) *nchars_ref = string_length;
@@ -4798,9 +4798,9 @@ bool v8::String::IsExternal() const {
 }
 
 
-bool v8::String::IsExternalAscii() const {
+bool v8::String::IsExternalOneByte() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  return i::StringShape(*str).IsExternalAscii();
+  return i::StringShape(*str).IsExternalOneByte();
 }
 
 
@@ -4823,11 +4823,11 @@ void v8::String::VerifyExternalStringResourceBase(
   i::Handle<i::String> str = Utils::OpenHandle(this);
   const v8::String::ExternalStringResourceBase* expected;
   Encoding expectedEncoding;
-  if (i::StringShape(*str).IsExternalAscii()) {
+  if (i::StringShape(*str).IsExternalOneByte()) {
     const void* resource =
-        i::Handle<i::ExternalAsciiString>::cast(str)->resource();
+        i::Handle<i::ExternalOneByteString>::cast(str)->resource();
     expected = reinterpret_cast<const ExternalStringResourceBase*>(resource);
-    expectedEncoding = ASCII_ENCODING;
+    expectedEncoding = ONE_BYTE_ENCODING;
   } else if (i::StringShape(*str).IsExternalTwoByte()) {
     const void* resource =
         i::Handle<i::ExternalTwoByteString>::cast(str)->resource();
@@ -4835,20 +4835,20 @@ void v8::String::VerifyExternalStringResourceBase(
     expectedEncoding = TWO_BYTE_ENCODING;
   } else {
     expected = NULL;
-    expectedEncoding = str->IsOneByteRepresentation() ? ASCII_ENCODING
-        : TWO_BYTE_ENCODING;
+    expectedEncoding =
+        str->IsOneByteRepresentation() ? ONE_BYTE_ENCODING : TWO_BYTE_ENCODING;
   }
   CHECK_EQ(expected, value);
   CHECK_EQ(expectedEncoding, encoding);
 }
 
-const v8::String::ExternalAsciiStringResource*
-v8::String::GetExternalAsciiStringResource() const {
+const v8::String::ExternalOneByteStringResource*
+v8::String::GetExternalOneByteStringResource() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  if (i::StringShape(*str).IsExternalAscii()) {
+  if (i::StringShape(*str).IsExternalOneByte()) {
     const void* resource =
-        i::Handle<i::ExternalAsciiString>::cast(str)->resource();
-    return reinterpret_cast<const ExternalAsciiStringResource*>(resource);
+        i::Handle<i::ExternalOneByteString>::cast(str)->resource();
+    return reinterpret_cast<const ExternalOneByteStringResource*>(resource);
   } else {
     return NULL;
   }
@@ -5470,12 +5470,12 @@ static i::Handle<i::String> NewExternalStringHandle(
 }
 
 
-static i::Handle<i::String> NewExternalAsciiStringHandle(
-    i::Isolate* isolate,
-    v8::String::ExternalAsciiStringResource* resource) {
+static i::Handle<i::String> NewExternalOneByteStringHandle(
+    i::Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
   // We do not expect this to fail. Change this if it does.
-  return isolate->factory()->NewExternalStringFromAscii(
-      resource).ToHandleChecked();
+  return isolate->factory()
+      ->NewExternalStringFromOneByte(resource)
+      .ToHandleChecked();
 }
 
 
@@ -5520,22 +5520,21 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 
 Local<String> v8::String::NewExternal(
-    Isolate* isolate,
-    v8::String::ExternalAsciiStringResource* resource) {
+    Isolate* isolate, v8::String::ExternalOneByteStringResource* resource) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   EnsureInitializedForIsolate(i_isolate, "v8::String::NewExternal()");
   LOG_API(i_isolate, "String::NewExternal");
   ENTER_V8(i_isolate);
   CHECK(resource && resource->data());
   i::Handle<i::String> result =
-      NewExternalAsciiStringHandle(i_isolate, resource);
+      NewExternalOneByteStringHandle(i_isolate, resource);
   i_isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
 }
 
 
 bool v8::String::MakeExternal(
-    v8::String::ExternalAsciiStringResource* resource) {
+    v8::String::ExternalOneByteStringResource* resource) {
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
   if (i::StringShape(*obj).IsExternal()) {
@@ -5565,11 +5564,6 @@ bool v8::String::CanMakeExternal() {
   if (!internal::FLAG_clever_optimizations) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
-
-  // TODO(yangguo): Externalizing sliced/cons strings allocates.
-  // This rule can be removed when all code that can
-  // trigger an access check is handlified and therefore GC safe.
-  if (isolate->heap()->old_pointer_space()->Contains(*obj)) return false;
 
   if (isolate->string_tracker()->IsFreshUnusedString(obj)) return false;
   int size = obj->Size();  // Byte size of the original string.
@@ -6949,7 +6943,7 @@ Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
     i::Handle<i::JSObject> debug(
         isolate_debug->debug_context()->global_object());
     i::Handle<i::String> name = isolate->factory()->InternalizeOneByteString(
-        STATIC_ASCII_VECTOR("MakeMirror"));
+        STATIC_CHAR_VECTOR("MakeMirror"));
     i::Handle<i::Object> fun_obj =
         i::Object::GetProperty(debug, name).ToHandleChecked();
     i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);

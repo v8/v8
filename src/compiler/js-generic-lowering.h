@@ -50,7 +50,7 @@ class JSGenericLowering : public Reducer {
   Node* ExternalConstant(ExternalReference ref);
 
   // Helpers to patch existing nodes in the graph.
-  void PatchOperator(Node* node, Operator* new_op);
+  void PatchOperator(Node* node, const Operator* new_op);
   void PatchInsertInput(Node* node, int index, Node* input);
 
   // Helpers to replace existing nodes with a generic call.

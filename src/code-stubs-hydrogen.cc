@@ -1343,7 +1343,7 @@ HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
                                              NOT_TENURED, JS_FUNCTION_TYPE);
 
   int map_index = Context::FunctionMapIndex(casted_stub()->strict_mode(),
-                                            casted_stub()->is_generator());
+                                            casted_stub()->kind());
 
   // Compute the function map in the current native context and set that
   // as the map of the allocated object.

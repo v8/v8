@@ -130,8 +130,8 @@ struct AsReversiblyEscapedUC16 {
 };
 
 
-// Writes the given character to the output escaping everything outside
-// of printable ASCII range. Additionally escapes '\' making escaping
+// Writes the given character to the output escaping everything outside of
+// printable/space ASCII range. Additionally escapes '\' making escaping
 // reversible.
 OStream& operator<<(OStream& os, const AsReversiblyEscapedUC16& c);
 

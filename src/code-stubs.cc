@@ -134,9 +134,8 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 Handle<Code> CodeStub::GetCode() {
   Heap* heap = isolate()->heap();
   Code* code;
-  if (UseSpecialCache()
-      ? FindCodeInSpecialCache(&code)
-      : FindCodeInCache(&code)) {
+  if (UseSpecialCache() ? FindCodeInSpecialCache(&code)
+                        : FindCodeInCache(&code)) {
     DCHECK(GetCodeKind() == code->kind());
     return Handle<Code>(code);
   }

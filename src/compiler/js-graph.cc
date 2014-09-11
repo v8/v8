@@ -16,7 +16,7 @@ Node* JSGraph::ImmovableHeapConstant(Handle<Object> object) {
 }
 
 
-Node* JSGraph::NewNode(Operator* op) {
+Node* JSGraph::NewNode(const Operator* op) {
   Node* node = graph()->NewNode(op);
   typer_->Init(node);
   return node;

@@ -249,7 +249,7 @@ const AstRawString* AstValueFactory::GetTwoByteString(
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
   DisallowHeapAllocation no_gc;
   String::FlatContent content = literal->GetFlatContent();
-  if (content.IsAscii()) {
+  if (content.IsOneByte()) {
     return GetOneByteString(content.ToOneByteVector());
   }
   DCHECK(content.IsTwoByte());

@@ -525,6 +525,10 @@ static void VisitWordCompare(InstructionSelector* selector, Node* node,
 
 void InstructionSelector::VisitWord32Test(Node* node, FlagsContinuation* cont) {
   switch (node->opcode()) {
+    case IrOpcode::kInt32Add:
+      return VisitWordCompare(this, node, kArm64Cmn32, cont, true);
+    case IrOpcode::kInt32Sub:
+      return VisitWordCompare(this, node, kArm64Cmp32, cont, false);
     case IrOpcode::kWord32And:
       return VisitWordCompare(this, node, kArm64Tst32, cont, true);
     default:

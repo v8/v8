@@ -43,7 +43,8 @@ void SimplifiedGraphBuilder::End() {
 }
 
 
-Node* SimplifiedGraphBuilder::MakeNode(Operator* op, int value_input_count,
+Node* SimplifiedGraphBuilder::MakeNode(const Operator* op,
+                                       int value_input_count,
                                        Node** value_inputs) {
   DCHECK(op->InputCount() == value_input_count);
 

@@ -441,8 +441,8 @@ TEST(HeapSnapshotConsString) {
   CHECK_EQ(1, global->InternalFieldCount());
 
   i::Factory* factory = CcTest::i_isolate()->factory();
-  i::Handle<i::String> first = factory->NewStringFromStaticAscii("0123456789");
-  i::Handle<i::String> second = factory->NewStringFromStaticAscii("0123456789");
+  i::Handle<i::String> first = factory->NewStringFromStaticChars("0123456789");
+  i::Handle<i::String> second = factory->NewStringFromStaticChars("0123456789");
   i::Handle<i::String> cons_string =
       factory->NewConsString(first, second).ToHandleChecked();
 
@@ -875,9 +875,9 @@ class TestJSONStream : public v8::OutputStream {
   int abort_countdown_;
 };
 
-class AsciiResource: public v8::String::ExternalAsciiStringResource {
+class OneByteResource : public v8::String::ExternalOneByteStringResource {
  public:
-  explicit AsciiResource(i::Vector<char> string): data_(string.start()) {
+  explicit OneByteResource(i::Vector<char> string) : data_(string.start()) {
     length_ = string.length();
   }
   virtual const char* data() const { return data_; }
@@ -913,7 +913,7 @@ TEST(HeapSnapshotJSONSerialization) {
   stream.WriteTo(json);
 
   // Verify that snapshot string is valid JSON.
-  AsciiResource* json_res = new AsciiResource(json);
+  OneByteResource* json_res = new OneByteResource(json);
   v8::Local<v8::String> json_string =
       v8::String::NewExternal(env->GetIsolate(), json_res);
   env->Global()->Set(v8_str("json_snapshot"), json_string);
@@ -2654,7 +2654,7 @@ TEST(BoxObject) {
   v8::Handle<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
 
   i::Factory* factory = CcTest::i_isolate()->factory();
-  i::Handle<i::String> string = factory->NewStringFromStaticAscii("string");
+  i::Handle<i::String> string = factory->NewStringFromStaticChars("string");
   i::Handle<i::Object> box = factory->NewBox(string);
   global->Set(0, v8::ToApiHandle<v8::Object>(box));
 

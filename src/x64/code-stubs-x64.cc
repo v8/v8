@@ -1080,7 +1080,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (6) One byte sequential.  Load regexp code for one byte.
   __ bind(&seq_one_byte_string);
   // rax: RegExp data (FixedArray)
-  __ movp(r11, FieldOperand(rax, JSRegExp::kDataAsciiCodeOffset));
+  __ movp(r11, FieldOperand(rax, JSRegExp::kDataOneByteCodeOffset));
   __ Set(rcx, 1);  // Type is one byte.
 
   // (E) Carry on.  String handling is done.
@@ -1093,7 +1093,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // rdi: sequential subject string (or look-alike, external string)
   // r15: original subject string
-  // rcx: encoding of subject string (1 if ASCII, 0 if two_byte);
+  // rcx: encoding of subject string (1 if one_byte, 0 if two_byte);
   // r11: code
   // Load used arguments before starting to push arguments for call to native
   // RegExp code to avoid handling changing stack height.
@@ -1108,7 +1108,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // rdi: subject string
   // rbx: previous index
-  // rcx: encoding of subject string (1 if ASCII 0 if two_byte);
+  // rcx: encoding of subject string (1 if one_byte 0 if two_byte);
   // r11: code
   // All checks done. Now push arguments for native regexp code.
   Counters* counters = isolate()->counters();
@@ -1157,7 +1157,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // rdi: subject string
   // rbx: previous index
-  // rcx: encoding of subject string (1 if ASCII 0 if two_byte);
+  // rcx: encoding of subject string (1 if one_byte 0 if two_byte);
   // r11: code
   // r14: slice offset
   // r15: original subject string
@@ -1597,15 +1597,15 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
 
   __ bind(&check_for_strings);
 
-  __ JumpIfNotBothSequentialAsciiStrings(
-      rdx, rax, rcx, rbx, &check_unequal_objects);
+  __ JumpIfNotBothSequentialOneByteStrings(rdx, rax, rcx, rbx,
+                                           &check_unequal_objects);
 
-  // Inline comparison of ASCII strings.
+  // Inline comparison of one-byte strings.
   if (cc == equal) {
-    StringHelper::GenerateFlatAsciiStringEquals(masm, rdx, rax, rcx, rbx);
+    StringHelper::GenerateFlatOneByteStringEquals(masm, rdx, rax, rcx, rbx);
   } else {
-    StringHelper::GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi,
-                                                  r8);
+    StringHelper::GenerateCompareFlatOneByteStrings(masm, rdx, rax, rcx, rbx,
+                                                    rdi, r8);
   }
 
 #ifdef DEBUG
@@ -2674,11 +2674,6 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 // StringCharCodeAtGenerator
 
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
-  Label flat_string;
-  Label ascii_string;
-  Label got_char_code;
-  Label sliced_string;
-
   // If the receiver is a smi trigger the non-string case.
   __ JumpIfSmi(object_, receiver_not_string_);
 
@@ -2947,7 +2942,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
     STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
     __ testb(rbx, Immediate(kStringEncodingMask));
     __ j(zero, &two_byte_slice, Label::kNear);
-    __ AllocateAsciiSlicedString(rax, rbx, r14, &runtime);
+    __ AllocateOneByteSlicedString(rax, rbx, r14, &runtime);
     __ jmp(&set_slice_header, Label::kNear);
     __ bind(&two_byte_slice);
     __ AllocateTwoByteSlicedString(rax, rbx, r14, &runtime);
@@ -2992,7 +2987,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ j(zero, &two_byte_sequential);
 
   // Allocate the result.
-  __ AllocateAsciiString(rax, rcx, r11, r14, r15, &runtime);
+  __ AllocateOneByteString(rax, rcx, r11, r14, r15, &runtime);
 
   // rax: result string
   // rcx: result string length
@@ -3053,10 +3048,11 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StringHelper::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
-                                                 Register left, Register right,
-                                                 Register scratch1,
-                                                 Register scratch2) {
+void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
+                                                   Register left,
+                                                   Register right,
+                                                   Register scratch1,
+                                                   Register scratch2) {
   Register length = scratch1;
 
   // Compare lengths.
@@ -3079,8 +3075,8 @@ void StringHelper::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
   // Compare characters.
   __ bind(&compare_chars);
   Label strings_not_equal;
-  GenerateAsciiCharsCompareLoop(masm, left, right, length, scratch2,
-                                &strings_not_equal, Label::kNear);
+  GenerateOneByteCharsCompareLoop(masm, left, right, length, scratch2,
+                                  &strings_not_equal, Label::kNear);
 
   // Characters are equal.
   __ Move(rax, Smi::FromInt(EQUAL));
@@ -3093,7 +3089,7 @@ void StringHelper::GenerateFlatAsciiStringEquals(MacroAssembler* masm,
 }
 
 
-void StringHelper::GenerateCompareFlatAsciiStrings(
+void StringHelper::GenerateCompareFlatOneByteStrings(
     MacroAssembler* masm, Register left, Register right, Register scratch1,
     Register scratch2, Register scratch3, Register scratch4) {
   // Ensure that you can always subtract a string length from a non-negative
@@ -3125,11 +3121,11 @@ void StringHelper::GenerateCompareFlatAsciiStrings(
 
   // Compare loop.
   Label result_not_equal;
-  GenerateAsciiCharsCompareLoop(masm, left, right, min_length, scratch2,
-                                &result_not_equal,
-                                // In debug-code mode, SmiTest below might push
-                                // the target label outside the near range.
-                                Label::kFar);
+  GenerateOneByteCharsCompareLoop(
+      masm, left, right, min_length, scratch2, &result_not_equal,
+      // In debug-code mode, SmiTest below might push
+      // the target label outside the near range.
+      Label::kFar);
 
   // Completed loop without finding different characters.
   // Compare lengths (precomputed).
@@ -3163,7 +3159,7 @@ void StringHelper::GenerateCompareFlatAsciiStrings(
 }
 
 
-void StringHelper::GenerateAsciiCharsCompareLoop(
+void StringHelper::GenerateOneByteCharsCompareLoop(
     MacroAssembler* masm, Register left, Register right, Register length,
     Register scratch, Label* chars_not_equal, Label::Distance near_jump) {
   // Change index to run from -length to -1 by adding length to string
@@ -3211,17 +3207,17 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
 
   __ bind(&not_same);
 
-  // Check that both are sequential ASCII strings.
-  __ JumpIfNotBothSequentialAsciiStrings(rdx, rax, rcx, rbx, &runtime);
+  // Check that both are sequential one-byte strings.
+  __ JumpIfNotBothSequentialOneByteStrings(rdx, rax, rcx, rbx, &runtime);
 
-  // Inline comparison of ASCII strings.
+  // Inline comparison of one-byte strings.
   __ IncrementCounter(counters->string_compare_native(), 1);
   // Drop arguments from the stack
   __ PopReturnAddressTo(rcx);
   __ addp(rsp, Immediate(2 * kPointerSize));
   __ PushReturnAddressFrom(rcx);
-  StringHelper::GenerateCompareFlatAsciiStrings(masm, rdx, rax, rcx, rbx, rdi,
-                                                r8);
+  StringHelper::GenerateCompareFlatOneByteStrings(masm, rdx, rax, rcx, rbx, rdi,
+                                                  r8);
 
   // Call the runtime; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
@@ -3502,16 +3498,17 @@ void CompareICStub::GenerateStrings(MacroAssembler* masm) {
     __ bind(&do_compare);
   }
 
-  // Check that both strings are sequential ASCII.
+  // Check that both strings are sequential one-byte.
   Label runtime;
-  __ JumpIfNotBothSequentialAsciiStrings(left, right, tmp1, tmp2, &runtime);
+  __ JumpIfNotBothSequentialOneByteStrings(left, right, tmp1, tmp2, &runtime);
 
-  // Compare flat ASCII strings. Returns when done.
+  // Compare flat one-byte strings. Returns when done.
   if (equality) {
-    StringHelper::GenerateFlatAsciiStringEquals(masm, left, right, tmp1, tmp2);
+    StringHelper::GenerateFlatOneByteStringEquals(masm, left, right, tmp1,
+                                                  tmp2);
   } else {
-    StringHelper::GenerateCompareFlatAsciiStrings(masm, left, right, tmp1, tmp2,
-                                                  tmp3, kScratchRegister);
+    StringHelper::GenerateCompareFlatOneByteStrings(
+        masm, left, right, tmp1, tmp2, tmp3, kScratchRegister);
   }
 
   // Handle more complex cases in runtime.

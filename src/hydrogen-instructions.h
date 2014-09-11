@@ -3493,7 +3493,7 @@ class HConstant FINAL : public HTemplateInstruction<0> {
 
   virtual Handle<Map> GetMonomorphicJSObjectMap() OVERRIDE {
     Handle<Object> object = object_.handle();
-    if (object->IsHeapObject()) {
+    if (!object.is_null() && object->IsHeapObject()) {
       return v8::internal::handle(HeapObject::cast(*object)->map());
     }
     return Handle<Map>();
@@ -7481,18 +7481,20 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   bool pretenure() const { return pretenure_; }
   bool has_no_literals() const { return has_no_literals_; }
-  bool is_generator() const { return is_generator_; }
+  bool is_arrow() const { return IsArrowFunction(kind_); }
+  bool is_generator() const { return IsGeneratorFunction(kind_); }
+  bool is_concise_method() const { return IsConciseMethod(kind_); }
+  FunctionKind kind() const { return kind_; }
   StrictMode strict_mode() const { return strict_mode_; }
 
  private:
-  HFunctionLiteral(HValue* context,
-                   Handle<SharedFunctionInfo> shared,
+  HFunctionLiteral(HValue* context, Handle<SharedFunctionInfo> shared,
                    bool pretenure)
       : HTemplateInstruction<1>(HType::JSObject()),
         shared_info_(shared),
+        kind_(shared->kind()),
         pretenure_(pretenure),
         has_no_literals_(shared->num_literals() == 0),
-        is_generator_(shared->is_generator()),
         strict_mode_(shared->strict_mode()) {
     SetOperandAt(0, context);
     set_representation(Representation::Tagged());
@@ -7502,9 +7504,9 @@ class HFunctionLiteral FINAL : public HTemplateInstruction<1> {
   virtual bool IsDeletable() const OVERRIDE { return true; }
 
   Handle<SharedFunctionInfo> shared_info_;
+  FunctionKind kind_;
   bool pretenure_ : 1;
   bool has_no_literals_ : 1;
-  bool is_generator_ : 1;
   StrictMode strict_mode_;
 };
 

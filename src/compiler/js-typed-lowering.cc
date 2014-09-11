@@ -28,9 +28,12 @@ static void RelaxEffects(Node* node) {
 }
 
 
+JSTypedLowering::~JSTypedLowering() {}
+
+
 Reduction JSTypedLowering::ReplaceEagerly(Node* old, Node* node) {
   NodeProperties::ReplaceWithValue(old, node, node);
-  return Reducer::Changed(node);
+  return Changed(node);
 }
 
 
@@ -79,7 +82,7 @@ class JSBinopReduction {
 
   // Remove all effect and control inputs and outputs to this node and change
   // to the pure operator {op}, possibly inserting a boolean inversion.
-  Reduction ChangeToPureOperator(Operator* op, bool invert = false) {
+  Reduction ChangeToPureOperator(const Operator* op, bool invert = false) {
     DCHECK_EQ(0, OperatorProperties::GetEffectInputCount(op));
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(0, OperatorProperties::GetControlInputCount(op));
@@ -205,8 +208,8 @@ class JSBinopReduction {
 
     if (input_type->Is(type)) return node;  // already in the value range.
 
-    Operator* op = is_signed ? simplified()->NumberToInt32()
-                             : simplified()->NumberToUint32();
+    const Operator* op = is_signed ? simplified()->NumberToInt32()
+                                   : simplified()->NumberToUint32();
     Node* n = graph()->NewNode(op, node);
     return n;
   }
@@ -231,7 +234,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 }
 
 
-Reduction JSTypedLowering::ReduceNumberBinop(Node* node, Operator* numberOp) {
+Reduction JSTypedLowering::ReduceNumberBinop(Node* node,
+                                             const Operator* numberOp) {
   JSBinopReduction r(this, node);
   if (r.OneInputIs(Type::Primitive())) {
     // If at least one input is a primitive, then insert appropriate conversions
@@ -246,7 +250,8 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node, Operator* numberOp) {
 
 
 Reduction JSTypedLowering::ReduceI32Binop(Node* node, bool left_signed,
-                                          bool right_signed, Operator* intOp) {
+                                          bool right_signed,
+                                          const Operator* intOp) {
   JSBinopReduction r(this, node);
   // TODO(titzer): some Smi bitwise operations don't really require going
   // all the way to int32, which can save tagging/untagging for some operations
@@ -258,7 +263,7 @@ Reduction JSTypedLowering::ReduceI32Binop(Node* node, bool left_signed,
 
 
 Reduction JSTypedLowering::ReduceI32Shift(Node* node, bool left_signed,
-                                          Operator* shift_op) {
+                                          const Operator* shift_op) {
   JSBinopReduction r(this, node);
   r.ConvertInputsForShift(left_signed);
   return r.ChangeToPureOperator(shift_op);
@@ -269,7 +274,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::String())) {
     // If both inputs are definitely strings, perform a string comparison.
-    Operator* stringOp;
+    const Operator* stringOp;
     switch (node->opcode()) {
       case IrOpcode::kJSLessThan:
         stringOp = simplified()->StringLessThan();
@@ -291,8 +296,8 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     return r.ChangeToPureOperator(stringOp);
   } else if (r.OneInputCannotBe(Type::String())) {
     // If one input cannot be a string, then emit a number comparison.
-    Operator* less_than;
-    Operator* less_than_or_equal;
+    const Operator* less_than;
+    const Operator* less_than_or_equal;
     if (r.BothInputsAre(Type::Unsigned32())) {
       less_than = machine()->Uint32LessThan();
       less_than_or_equal = machine()->Uint32LessThanOrEqual();
@@ -305,7 +310,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
       less_than = simplified()->NumberLessThan();
       less_than_or_equal = simplified()->NumberLessThanOrEqual();
     }
-    Operator* comparison;
+    const Operator* comparison;
     switch (node->opcode()) {
       case IrOpcode::kJSLessThan:
         comparison = less_than;
@@ -498,7 +503,7 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
 }
 
 
-Reduction JSTypedLowering::ReduceJSPropertyLoad(Node* node) {
+Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Node* key = NodeProperties::GetValueInput(node, 1);
   Node* base = NodeProperties::GetValueInput(node, 0);
   Type* key_type = NodeProperties::GetBounds(key).upper;
@@ -530,6 +535,45 @@ Reduction JSTypedLowering::ReduceJSPropertyLoad(Node* node) {
         graph()->NewNode(simplified()->LoadElement(element_access), elements,
                          key, NodeProperties::GetEffectInput(node));
     return ReplaceEagerly(node, value);
+  }
+  return NoChange();
+}
+
+
+Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
+  Node* key = NodeProperties::GetValueInput(node, 1);
+  Node* base = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 2);
+  Type* key_type = NodeProperties::GetBounds(key).upper;
+  Type* base_type = NodeProperties::GetBounds(base).upper;
+  // TODO(mstarzinger): This lowering is not correct if:
+  //   a) The typed array turns external (i.e. MaterializeArrayBuffer)
+  //   b) The typed array or it's buffer is neutered.
+  //   c) The index is out of bounds
+  if (key_type->Is(Type::Integral32()) && base_type->IsConstant() &&
+      base_type->AsConstant()->Value()->IsJSTypedArray()) {
+    // JSStoreProperty(typed-array, int32, value)
+    JSTypedArray* array = JSTypedArray::cast(*base_type->AsConstant()->Value());
+    ElementsKind elements_kind = array->map()->elements_kind();
+    ExternalArrayType type = array->type();
+    ElementAccess element_access;
+    Node* elements = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
+        NodeProperties::GetEffectInput(node));
+    if (IsExternalArrayElementsKind(elements_kind)) {
+      elements = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
+          elements, NodeProperties::GetEffectInput(node));
+      element_access = AccessBuilder::ForTypedArrayElement(type, true);
+    } else {
+      DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
+      element_access = AccessBuilder::ForTypedArrayElement(type, false);
+    }
+    Node* store =
+        graph()->NewNode(simplified()->StoreElement(element_access), elements,
+                         key, value, NodeProperties::GetEffectInput(node),
+                         NodeProperties::GetControlInput(node));
+    return ReplaceEagerly(node, store);
   }
   return NoChange();
 }
@@ -610,12 +654,15 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReplaceWithReduction(node,
                                   ReduceJSToStringInput(node->InputAt(0)));
     case IrOpcode::kJSLoadProperty:
-      return ReduceJSPropertyLoad(node);
+      return ReduceJSLoadProperty(node);
+    case IrOpcode::kJSStoreProperty:
+      return ReduceJSStoreProperty(node);
     default:
       break;
   }
   return NoChange();
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8

@@ -248,7 +248,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
       isolate(), result,
       NewRawTwoByteString(non_ascii_start + utf16_length, pretenure),
       String);
-  // Copy ascii portion.
+  // Copy ASCII portion.
   uint16_t* data = result->GetChars();
   const char* ascii_data = string.start();
   for (int i = 0; i < non_ascii_start; i++) {
@@ -347,16 +347,17 @@ MaybeHandle<Map> Factory::InternalizedStringMapForString(
   // Find the corresponding internalized string map for strings.
   switch (string->map()->instance_type()) {
     case STRING_TYPE: return internalized_string_map();
-    case ASCII_STRING_TYPE: return ascii_internalized_string_map();
+    case ONE_BYTE_STRING_TYPE:
+      return one_byte_internalized_string_map();
     case EXTERNAL_STRING_TYPE: return external_internalized_string_map();
-    case EXTERNAL_ASCII_STRING_TYPE:
-      return external_ascii_internalized_string_map();
+    case EXTERNAL_ONE_BYTE_STRING_TYPE:
+      return external_one_byte_internalized_string_map();
     case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
       return external_internalized_string_with_one_byte_data_map();
     case SHORT_EXTERNAL_STRING_TYPE:
       return short_external_internalized_string_map();
-    case SHORT_EXTERNAL_ASCII_STRING_TYPE:
-      return short_external_ascii_internalized_string_map();
+    case SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE:
+      return short_external_one_byte_internalized_string_map();
     case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
       return short_external_internalized_string_with_one_byte_data_map();
     default: return MaybeHandle<Map>();  // No match found.
@@ -494,12 +495,12 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
   bool is_one_byte_data_in_two_byte_string = false;
   if (!is_one_byte) {
     // At least one of the strings uses two-byte representation so we
-    // can't use the fast case code for short ASCII strings below, but
-    // we can try to save memory if all chars actually fit in ASCII.
+    // can't use the fast case code for short one-byte strings below, but
+    // we can try to save memory if all chars actually fit in one-byte.
     is_one_byte_data_in_two_byte_string =
         left->HasOnlyOneByteChars() && right->HasOnlyOneByteChars();
     if (is_one_byte_data_in_two_byte_string) {
-      isolate()->counters()->string_add_runtime_ext_to_ascii()->Increment();
+      isolate()->counters()->string_add_runtime_ext_to_one_byte()->Increment();
     }
   }
 
@@ -517,14 +518,15 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
       DisallowHeapAllocation no_gc;
       uint8_t* dest = result->GetChars();
       // Copy left part.
-      const uint8_t* src = left->IsExternalString()
-          ? Handle<ExternalAsciiString>::cast(left)->GetChars()
-          : Handle<SeqOneByteString>::cast(left)->GetChars();
+      const uint8_t* src =
+          left->IsExternalString()
+              ? Handle<ExternalOneByteString>::cast(left)->GetChars()
+              : Handle<SeqOneByteString>::cast(left)->GetChars();
       for (int i = 0; i < left_length; i++) *dest++ = src[i];
       // Copy right part.
       src = right->IsExternalString()
-          ? Handle<ExternalAsciiString>::cast(right)->GetChars()
-          : Handle<SeqOneByteString>::cast(right)->GetChars();
+                ? Handle<ExternalOneByteString>::cast(right)->GetChars()
+                : Handle<SeqOneByteString>::cast(right)->GetChars();
       for (int i = 0; i < right_length; i++) *dest++ = src[i];
       return result;
     }
@@ -537,7 +539,8 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
   }
 
   Handle<Map> map = (is_one_byte || is_one_byte_data_in_two_byte_string)
-      ? cons_ascii_string_map()  : cons_string_map();
+                        ? cons_one_byte_string_map()
+                        : cons_string_map();
   Handle<ConsString> result =  New<ConsString>(map, NEW_SPACE);
 
   DisallowHeapAllocation no_gc;
@@ -602,8 +605,9 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
   }
 
   DCHECK(str->IsSeqString() || str->IsExternalString());
-  Handle<Map> map = str->IsOneByteRepresentation() ? sliced_ascii_string_map()
-                                                   : sliced_string_map();
+  Handle<Map> map = str->IsOneByteRepresentation()
+                        ? sliced_one_byte_string_map()
+                        : sliced_string_map();
   Handle<SlicedString> slice = New<SlicedString>(map, NEW_SPACE);
 
   slice->set_hash_field(String::kEmptyHashField);
@@ -614,16 +618,16 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
 }
 
 
-MaybeHandle<String> Factory::NewExternalStringFromAscii(
-    const ExternalAsciiString::Resource* resource) {
+MaybeHandle<String> Factory::NewExternalStringFromOneByte(
+    const ExternalOneByteString::Resource* resource) {
   size_t length = resource->length();
   if (length > static_cast<size_t>(String::kMaxLength)) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
 
-  Handle<Map> map = external_ascii_string_map();
-  Handle<ExternalAsciiString> external_string =
-      New<ExternalAsciiString>(map, NEW_SPACE);
+  Handle<Map> map = external_one_byte_string_map();
+  Handle<ExternalOneByteString> external_string =
+      New<ExternalOneByteString>(map, NEW_SPACE);
   external_string->set_length(static_cast<int>(length));
   external_string->set_hash_field(String::kEmptyHashField);
   external_string->set_resource(resource);
@@ -1233,6 +1237,9 @@ void Factory::InitializeFunction(Handle<JSFunction> function,
   function->set_prototype_or_initial_map(*the_hole_value());
   function->set_literals_or_bindings(*empty_fixed_array());
   function->set_next_function_link(*undefined_value());
+
+  // TODO(arv): This does not look correct. We need to make sure we use
+  // a Map that has no prototype property.
   if (info->is_arrow()) function->RemovePrototype();
 }
 
@@ -1352,8 +1359,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info,
     Handle<Context> context,
     PretenureFlag pretenure) {
-  int map_index = Context::FunctionMapIndex(info->strict_mode(),
-                                            info->is_generator());
+  int map_index = Context::FunctionMapIndex(info->strict_mode(), info->kind());
   Handle<Map> map(Map::cast(context->native_context()->get(map_index)));
   Handle<JSFunction> result = NewFunction(map, info, context, pretenure);
 
@@ -1800,7 +1806,7 @@ void Factory::ReinitializeJSProxy(Handle<JSProxy> proxy, InstanceType type,
   Heap* heap = isolate()->heap();
   MaybeHandle<SharedFunctionInfo> shared;
   if (type == JS_FUNCTION_TYPE) {
-    OneByteStringKey key(STATIC_ASCII_VECTOR("<freezing call trap>"),
+    OneByteStringKey key(STATIC_CHAR_VECTOR("<freezing call trap>"),
                          heap->HashSeed());
     Handle<String> name = InternalizeStringWithKey(&key);
     shared = NewSharedFunctionInfo(name, MaybeHandle<Code>());
@@ -1900,13 +1906,14 @@ Handle<FixedArray> Factory::NewTypeFeedbackVector(int slot_count) {
 
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name, int number_of_literals, bool is_generator,
-    bool is_arrow, Handle<Code> code, Handle<ScopeInfo> scope_info,
+    Handle<String> name, int number_of_literals, FunctionKind kind,
+    Handle<Code> code, Handle<ScopeInfo> scope_info,
     Handle<FixedArray> feedback_vector) {
+  DCHECK(IsValidFunctionKind(kind));
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name, code);
   shared->set_scope_info(*scope_info);
   shared->set_feedback_vector(*feedback_vector);
-  shared->set_is_arrow(is_arrow);
+  shared->set_kind(kind);
   int literals_array_size = number_of_literals;
   // If the function contains object, regexp or array literals,
   // allocate extra space for a literals array prefix containing the
@@ -1915,7 +1922,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     literals_array_size += JSFunction::kLiteralsPrefixSize;
   }
   shared->set_num_literals(literals_array_size);
-  if (is_generator) {
+  if (IsGeneratorFunction(kind)) {
     shared->set_instance_class_name(isolate()->heap()->Generator_string());
     shared->DisableOptimization(kGenerator);
   }
@@ -2354,9 +2361,9 @@ void Factory::SetRegExpIrregexpData(Handle<JSRegExp> regexp,
   store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
   store->set(JSRegExp::kSourceIndex, *source);
   store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
-  store->set(JSRegExp::kIrregexpASCIICodeIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpLatin1CodeIndex, uninitialized);
   store->set(JSRegExp::kIrregexpUC16CodeIndex, uninitialized);
-  store->set(JSRegExp::kIrregexpASCIICodeSavedIndex, uninitialized);
+  store->set(JSRegExp::kIrregexpLatin1CodeSavedIndex, uninitialized);
   store->set(JSRegExp::kIrregexpUC16CodeSavedIndex, uninitialized);
   store->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::FromInt(0));
   store->set(JSRegExp::kIrregexpCaptureCountIndex,

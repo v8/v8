@@ -70,21 +70,25 @@ class Typer::Visitor : public NullNodeVisitor {
   Bounds TypeNode(Node* node) {
     switch (node->opcode()) {
 #define DECLARE_CASE(x) case IrOpcode::k##x: return Type##x(node);
+      DECLARE_CASE(Start)
       VALUE_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(x) case IrOpcode::k##x:
-      CONTROL_OP_LIST(DECLARE_CASE)
+      DECLARE_CASE(End)
+      INNER_CONTROL_OP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
       break;
     }
-    return Bounds(Type::None(zone()));
+    UNREACHABLE();
+    return Bounds();
   }
 
   Type* TypeConstant(Handle<Object> value);
 
  protected:
 #define DECLARE_METHOD(x) inline Bounds Type##x(Node* node);
+  DECLARE_METHOD(Start)
   VALUE_OP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
@@ -118,12 +122,11 @@ class Typer::RunVisitor : public Typer::Visitor {
         phis(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
 
   GenericGraphVisit::Control Post(Node* node) {
-    Bounds bounds = TypeNode(node);
-    if (node->opcode() == IrOpcode::kPhi) {
-      // Remember phis for least fixpoint iteration.
-      phis.insert(node);
-    } else {
+    if (OperatorProperties::HasValueOutput(node->op())) {
+      Bounds bounds = TypeNode(node);
       NodeProperties::SetBounds(node, bounds);
+      // Remember phis for least fixpoint iteration.
+      if (node->opcode() == IrOpcode::kPhi) phis.insert(node);
     }
     return GenericGraphVisit::CONTINUE;
   }
@@ -138,13 +141,17 @@ class Typer::NarrowVisitor : public Typer::Visitor {
       : Visitor(typer, context) {}
 
   GenericGraphVisit::Control Pre(Node* node) {
-    Bounds previous = NodeProperties::GetBounds(node);
-    Bounds bounds = TypeNode(node);
-    NodeProperties::SetBounds(node, Bounds::Both(bounds, previous, zone()));
-    DCHECK(bounds.Narrows(previous));
-    // Stop when nothing changed (but allow reentry in case it does later).
-    return previous.Narrows(bounds)
-        ? GenericGraphVisit::DEFER : GenericGraphVisit::REENTER;
+    if (OperatorProperties::HasValueOutput(node->op())) {
+      Bounds previous = NodeProperties::GetBounds(node);
+      Bounds bounds = TypeNode(node);
+      NodeProperties::SetBounds(node, Bounds::Both(bounds, previous, zone()));
+      DCHECK(bounds.Narrows(previous));
+      // Stop when nothing changed (but allow re-entry in case it does later).
+      return previous.Narrows(bounds)
+          ? GenericGraphVisit::DEFER : GenericGraphVisit::REENTER;
+    } else {
+      return GenericGraphVisit::SKIP;
+    }
   }
 
   GenericGraphVisit::Control Post(Node* node) {
@@ -159,14 +166,18 @@ class Typer::WidenVisitor : public Typer::Visitor {
       : Visitor(typer, context) {}
 
   GenericGraphVisit::Control Pre(Node* node) {
-    Bounds previous = NodeProperties::GetBounds(node);
-    Bounds bounds = TypeNode(node);
-    DCHECK(previous.lower->Is(bounds.lower));
-    DCHECK(previous.upper->Is(bounds.upper));
-    NodeProperties::SetBounds(node, bounds);  // TODO(rossberg): Either?
-    // Stop when nothing changed (but allow reentry in case it does later).
-    return bounds.Narrows(previous)
-        ? GenericGraphVisit::DEFER : GenericGraphVisit::REENTER;
+    if (OperatorProperties::HasValueOutput(node->op())) {
+      Bounds previous = NodeProperties::GetBounds(node);
+      Bounds bounds = TypeNode(node);
+      DCHECK(previous.lower->Is(bounds.lower));
+      DCHECK(previous.upper->Is(bounds.upper));
+      NodeProperties::SetBounds(node, bounds);  // TODO(rossberg): Either?
+      // Stop when nothing changed (but allow re-entry in case it does later).
+      return bounds.Narrows(previous)
+          ? GenericGraphVisit::DEFER : GenericGraphVisit::REENTER;
+    } else {
+      return GenericGraphVisit::SKIP;
+    }
   }
 
   GenericGraphVisit::Control Post(Node* node) {
@@ -198,13 +209,26 @@ void Typer::Widen(Graph* graph, Node* start, MaybeHandle<Context> context) {
 
 
 void Typer::Init(Node* node) {
-  Visitor typing(this, MaybeHandle<Context>());
-  Bounds bounds = typing.TypeNode(node);
-  NodeProperties::SetBounds(node, bounds);
+  if (OperatorProperties::HasValueOutput(node->op())) {
+    Visitor typing(this, MaybeHandle<Context>());
+    Bounds bounds = typing.TypeNode(node);
+    NodeProperties::SetBounds(node, bounds);
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+
+
+// Control operators.
+
+Bounds Typer::Visitor::TypeStart(Node* node) {
+  return Bounds(Type::Internal(zone()));
 }
 
 
 // Common operators.
+
 Bounds Typer::Visitor::TypeParameter(Node* node) {
   return Bounds::Unbounded(zone());
 }
@@ -256,30 +280,36 @@ Bounds Typer::Visitor::TypePhi(Node* node) {
 
 
 Bounds Typer::Visitor::TypeEffectPhi(Node* node) {
-  return Bounds(Type::None(zone()));
+  UNREACHABLE();
+  return Bounds();
 }
 
 
 Bounds Typer::Visitor::TypeControlEffect(Node* node) {
-  return Bounds(Type::None(zone()));
+  UNREACHABLE();
+  return Bounds();
 }
 
 
 Bounds Typer::Visitor::TypeValueEffect(Node* node) {
-  return Bounds(Type::None(zone()));
+  UNREACHABLE();
+  return Bounds();
 }
 
 
-Bounds Typer::Visitor::TypeFinish(Node* node) { return OperandType(node, 0); }
+Bounds Typer::Visitor::TypeFinish(Node* node) {
+  return OperandType(node, 0);
+}
 
 
 Bounds Typer::Visitor::TypeFrameState(Node* node) {
-  return Bounds(Type::None(zone()));
+  // TODO(rossberg): Ideally FrameState wouldn't have a value output.
+  return Bounds(Type::Internal(zone()));
 }
 
 
 Bounds Typer::Visitor::TypeStateValues(Node* node) {
-  return Bounds(Type::None(zone()));
+  return Bounds(Type::Internal(zone()));
 }
 
 
@@ -424,7 +454,7 @@ Bounds Typer::Visitor::TypeJSToName(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSToObject(Node* node) {
-  return Bounds(Type::None(zone()), Type::Object(zone()));
+  return Bounds(Type::None(zone()), Type::Receiver(zone()));
 }
 
 
@@ -458,12 +488,14 @@ Bounds Typer::Visitor::TypeJSLoadNamed(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSStoreProperty(Node* node) {
-  return Bounds(Type::None(zone()));
+  UNREACHABLE();
+  return Bounds();
 }
 
 
 Bounds Typer::Visitor::TypeJSStoreNamed(Node* node) {
-  return Bounds(Type::None(zone()));
+  UNREACHABLE();
+  return Bounds();
 }
 
 
@@ -523,7 +555,8 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
 
 
 Bounds Typer::Visitor::TypeJSStoreContext(Node* node) {
-  return Bounds(Type::None(zone()));
+  UNREACHABLE();
+  return Bounds();
 }
 
 
@@ -744,12 +777,14 @@ Bounds Typer::Visitor::TypeLoadElement(Node* node) {
 
 
 Bounds Typer::Visitor::TypeStoreField(Node* node) {
-  return Bounds(Type::None());
+  UNREACHABLE();
+  return Bounds();
 }
 
 
 Bounds Typer::Visitor::TypeStoreElement(Node* node) {
-  return Bounds(Type::None());
+  UNREACHABLE();
+  return Bounds();
 }
 
 

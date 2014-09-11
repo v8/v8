@@ -151,6 +151,15 @@ namespace internal {
   StrictMode name = static_cast<StrictMode>(args.smi_at(index));
 
 
+// Assert that the given argument is a number within the Int32 range
+// and convert it to int32_t.  If the argument is not an Int32 call
+// IllegalOperation and return.
+#define CONVERT_INT32_ARG_CHECKED(name, index)                       \
+  RUNTIME_ASSERT(args[index]->IsNumber());                           \
+  int32_t name = 0;                                                  \
+  RUNTIME_ASSERT(args[index]->ToInt32(&name));
+
+
 static Handle<Map> ComputeObjectLiteralMap(
     Handle<Context> context,
     Handle<FixedArray> constant_properties,
@@ -2501,10 +2510,10 @@ RUNTIME_FUNCTION(Runtime_RegExpExecRT) {
   DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
+  CONVERT_INT32_ARG_CHECKED(index, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CONVERT_SMI_ARG_CHECKED(index, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, last_match_info, 3);
   RUNTIME_ASSERT(index >= 0);
   RUNTIME_ASSERT(index <= subject->length());
   isolate->counters()->regexp_entry_runtime()->Increment();
@@ -2763,6 +2772,14 @@ RUNTIME_FUNCTION(Runtime_FunctionIsArrow) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
   return isolate->heap()->ToBoolean(f->shared()->is_arrow());
+}
+
+
+RUNTIME_FUNCTION(Runtime_FunctionIsConciseMethod) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSFunction, f, 0);
+  return isolate->heap()->ToBoolean(f->shared()->is_concise_method());
 }
 
 
@@ -3229,14 +3246,13 @@ typedef BitField<int,
 
 class ReplacementStringBuilder {
  public:
-  ReplacementStringBuilder(Heap* heap,
-                           Handle<String> subject,
+  ReplacementStringBuilder(Heap* heap, Handle<String> subject,
                            int estimated_part_count)
       : heap_(heap),
         array_builder_(heap->isolate(), estimated_part_count),
         subject_(subject),
         character_count_(0),
-        is_ascii_(subject->IsOneByteRepresentation()) {
+        is_one_byte_(subject->IsOneByteRepresentation()) {
     // Require a non-zero initial size. Ensures that doubling the size to
     // extend the array will work.
     DCHECK(estimated_part_count > 0);
@@ -3277,7 +3293,7 @@ class ReplacementStringBuilder {
     DCHECK(length > 0);
     AddElement(*string);
     if (!string->IsOneByteRepresentation()) {
-      is_ascii_ = false;
+      is_one_byte_ = false;
     }
     IncrementCharacterCount(length);
   }
@@ -3290,7 +3306,7 @@ class ReplacementStringBuilder {
     }
 
     Handle<String> joined_string;
-    if (is_ascii_) {
+    if (is_one_byte_) {
       Handle<SeqOneByteString> seq;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, seq,
@@ -3305,7 +3321,7 @@ class ReplacementStringBuilder {
                                 array_builder_.length());
       joined_string = Handle<String>::cast(seq);
     } else {
-      // Non-ASCII.
+      // Two-byte.
       Handle<SeqTwoByteString> seq;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, seq,
@@ -3344,7 +3360,7 @@ class ReplacementStringBuilder {
   FixedArrayBuilder array_builder_;
   Handle<String> subject_;
   int character_count_;
-  bool is_ascii_;
+  bool is_one_byte_;
 };
 
 
@@ -3550,7 +3566,7 @@ bool CompiledReplacement::Compile(Handle<String> replacement,
     String::FlatContent content = replacement->GetFlatContent();
     DCHECK(content.IsFlat());
     bool simple = false;
-    if (content.IsAscii()) {
+    if (content.IsOneByte()) {
       simple = ParseReplacementPattern(&parts_,
                                        content.ToOneByteVector(),
                                        capture_count,
@@ -3628,11 +3644,9 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
 }
 
 
-void FindAsciiStringIndices(Vector<const uint8_t> subject,
-                            char pattern,
-                            ZoneList<int>* indices,
-                            unsigned int limit,
-                            Zone* zone) {
+void FindOneByteStringIndices(Vector<const uint8_t> subject, char pattern,
+                              ZoneList<int>* indices, unsigned int limit,
+                              Zone* zone) {
   DCHECK(limit > 0);
   // Collect indices of pattern in subject using memchr.
   // Stop after finding at most limit values.
@@ -3702,17 +3716,14 @@ void FindStringIndicesDispatch(Isolate* isolate,
     String::FlatContent pattern_content = pattern->GetFlatContent();
     DCHECK(subject_content.IsFlat());
     DCHECK(pattern_content.IsFlat());
-    if (subject_content.IsAscii()) {
+    if (subject_content.IsOneByte()) {
       Vector<const uint8_t> subject_vector = subject_content.ToOneByteVector();
-      if (pattern_content.IsAscii()) {
+      if (pattern_content.IsOneByte()) {
         Vector<const uint8_t> pattern_vector =
             pattern_content.ToOneByteVector();
         if (pattern_vector.length() == 1) {
-          FindAsciiStringIndices(subject_vector,
-                                 pattern_vector[0],
-                                 indices,
-                                 limit,
-                                 zone);
+          FindOneByteStringIndices(subject_vector, pattern_vector[0], indices,
+                                   limit, zone);
         } else {
           FindStringIndices(isolate,
                             subject_vector,
@@ -3731,7 +3742,7 @@ void FindStringIndicesDispatch(Isolate* isolate,
       }
     } else {
       Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
-      if (pattern_content.IsAscii()) {
+      if (pattern_content.IsOneByte()) {
         Vector<const uint8_t> pattern_vector =
             pattern_content.ToOneByteVector();
         if (pattern_vector.length() == 1) {
@@ -3813,7 +3824,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   int result_pos = 0;
 
   MaybeHandle<SeqString> maybe_res;
-  if (ResultSeqString::kHasAsciiEncoding) {
+  if (ResultSeqString::kHasOneByteEncoding) {
     maybe_res = isolate->factory()->NewRawOneByteString(result_len);
   } else {
     maybe_res = isolate->factory()->NewRawTwoByteString(result_len);
@@ -3993,7 +4004,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   if (new_length == 0) return isolate->heap()->empty_string();
 
   Handle<ResultSeqString> answer;
-  if (ResultSeqString::kHasAsciiEncoding) {
+  if (ResultSeqString::kHasOneByteEncoding) {
     answer = Handle<ResultSeqString>::cast(
         isolate->factory()->NewRawOneByteString(new_length).ToHandleChecked());
   } else {
@@ -4184,14 +4195,14 @@ int Runtime::StringMatch(Isolate* isolate,
   pat = String::Flatten(pat);
 
   DisallowHeapAllocation no_gc;  // ensure vectors stay valid
-  // Extract flattened substrings of cons strings before determining asciiness.
+  // Extract flattened substrings of cons strings before getting encoding.
   String::FlatContent seq_sub = sub->GetFlatContent();
   String::FlatContent seq_pat = pat->GetFlatContent();
 
   // dispatch on type of strings
-  if (seq_pat.IsAscii()) {
+  if (seq_pat.IsOneByte()) {
     Vector<const uint8_t> pat_vector = seq_pat.ToOneByteVector();
-    if (seq_sub.IsAscii()) {
+    if (seq_sub.IsOneByte()) {
       return SearchString(isolate,
                           seq_sub.ToOneByteVector(),
                           pat_vector,
@@ -4203,7 +4214,7 @@ int Runtime::StringMatch(Isolate* isolate,
                         start_index);
   }
   Vector<const uc16> pat_vector = seq_pat.ToUC16Vector();
-  if (seq_sub.IsAscii()) {
+  if (seq_sub.IsOneByte()) {
     return SearchString(isolate,
                         seq_sub.ToOneByteVector(),
                         pat_vector,
@@ -4299,9 +4310,9 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
   String::FlatContent sub_content = sub->GetFlatContent();
   String::FlatContent pat_content = pat->GetFlatContent();
 
-  if (pat_content.IsAscii()) {
+  if (pat_content.IsOneByte()) {
     Vector<const uint8_t> pat_vector = pat_content.ToOneByteVector();
-    if (sub_content.IsAscii()) {
+    if (sub_content.IsOneByte()) {
       position = StringMatchBackwards(sub_content.ToOneByteVector(),
                                       pat_vector,
                                       start_index);
@@ -4312,7 +4323,7 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
     }
   } else {
     Vector<const uc16> pat_vector = pat_content.ToUC16Vector();
-    if (sub_content.IsAscii()) {
+    if (sub_content.IsOneByte()) {
       position = StringMatchBackwards(sub_content.ToOneByteVector(),
                                       pat_vector,
                                       start_index);
@@ -6243,7 +6254,7 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
 RUNTIME_FUNCTION(Runtime_NewString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
-  CONVERT_SMI_ARG_CHECKED(length, 0);
+  CONVERT_INT32_ARG_CHECKED(length, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(is_one_byte, 1);
   if (length == 0) return isolate->heap()->empty_string();
   Handle<String> result;
@@ -6262,7 +6273,7 @@ RUNTIME_FUNCTION(Runtime_TruncateString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(SeqString, string, 0);
-  CONVERT_SMI_ARG_CHECKED(new_length, 1);
+  CONVERT_INT32_ARG_CHECKED(new_length, 1);
   RUNTIME_ASSERT(new_length >= 0);
   return *SeqString::Truncate(string, new_length);
 }
@@ -6337,7 +6348,7 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
     String::FlatContent flat = subject->GetFlatContent();
 
     // ECMA-262 section 15.1.2.3, empty string is NaN
-    if (flat.IsAscii()) {
+    if (flat.IsOneByte()) {
       value = StringToInt(
           isolate->unicode_cache(), flat.ToOneByteVector(), radix);
     } else {
@@ -6795,21 +6806,19 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
 }
 
 
-// Copies ASCII characters to the given fixed array looking up
+// Copies Latin1 characters to the given fixed array looking up
 // one-char strings in the cache. Gives up on the first char that is
 // not in the cache and fills the remainder with smi zeros. Returns
 // the length of the successfully copied prefix.
-static int CopyCachedAsciiCharsToArray(Heap* heap,
-                                       const uint8_t* chars,
-                                       FixedArray* elements,
-                                       int length) {
+static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
+                                         FixedArray* elements, int length) {
   DisallowHeapAllocation no_gc;
-  FixedArray* ascii_cache = heap->single_character_string_cache();
+  FixedArray* one_byte_cache = heap->single_character_string_cache();
   Object* undefined = heap->undefined_value();
   int i;
   WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
   for (i = 0; i < length; ++i) {
-    Object* value = ascii_cache->get(chars[i]);
+    Object* value = one_byte_cache->get(chars[i]);
     if (value == undefined) break;
     elements->set(i, value, mode);
   }
@@ -6847,14 +6856,12 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
 
     DisallowHeapAllocation no_gc;
     String::FlatContent content = s->GetFlatContent();
-    if (content.IsAscii()) {
+    if (content.IsOneByte()) {
       Vector<const uint8_t> chars = content.ToOneByteVector();
       // Note, this will initialize all elements (not only the prefix)
       // to prevent GC from seeing partially initialized array.
-      position = CopyCachedAsciiCharsToArray(isolate->heap(),
-                                             chars.start(),
-                                             *elements,
-                                             length);
+      position = CopyCachedOneByteCharsToArray(isolate->heap(), chars.start(),
+                                               *elements, length);
     } else {
       MemsetPointer(elements->data_start(),
                     isolate->heap()->undefined_value(),
@@ -7311,7 +7318,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   }
   DCHECK(sink == end);
 
-  // Use %_FastAsciiArrayJoin instead.
+  // Use %_FastOneByteArrayJoin instead.
   DCHECK(!answer->IsOneByteRepresentation());
   return *answer;
 }
@@ -7373,7 +7380,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
 
   // Find total length of join result.
   int string_length = 0;
-  bool is_ascii = separator->IsOneByteRepresentation();
+  bool is_one_byte = separator->IsOneByteRepresentation();
   bool overflow = false;
   CONVERT_NUMBER_CHECKED(int, elements_length, Int32, elements_array->length());
   RUNTIME_ASSERT(elements_length <= elements_array->elements()->length());
@@ -7390,8 +7397,8 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
     for (int i = 0; i < elements_length; i += 2) {
       String* string = String::cast(elements->get(i + 1));
       int length = string->length();
-      if (is_ascii && !string->IsOneByteRepresentation()) {
-        is_ascii = false;
+      if (is_one_byte && !string->IsOneByteRepresentation()) {
+        is_one_byte = false;
       }
       if (length > String::kMaxLength ||
           String::kMaxLength - length < string_length) {
@@ -7427,7 +7434,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
     THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
   }
 
-  if (is_ascii) {
+  if (is_one_byte) {
     Handle<SeqOneByteString> result = isolate->factory()->NewRawOneByteString(
         string_length).ToHandleChecked();
     JoinSparseArrayWithSeparator<uint8_t>(
@@ -7678,9 +7685,9 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
   int r;
   String::FlatContent x_content = x->GetFlatContent();
   String::FlatContent y_content = y->GetFlatContent();
-  if (x_content.IsAscii()) {
+  if (x_content.IsOneByte()) {
     Vector<const uint8_t> x_chars = x_content.ToOneByteVector();
-    if (y_content.IsAscii()) {
+    if (y_content.IsOneByte()) {
       Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     } else {
@@ -7689,7 +7696,7 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
     }
   } else {
     Vector<const uc16> x_chars = x_content.ToUC16Vector();
-    if (y_content.IsAscii()) {
+    if (y_content.IsOneByte()) {
       Vector<const uint8_t> y_chars = y_content.ToOneByteVector();
       r = CompareChars(x_chars.start(), y_chars.start(), prefix_length);
     } else {
@@ -8126,8 +8133,8 @@ RUNTIME_FUNCTION(Runtime_NewClosureFromStubFailure) {
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
   Handle<Context> context(isolate->context());
   PretenureFlag pretenure_flag = NOT_TENURED;
-  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared,  context, pretenure_flag);
+  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
+                                                                pretenure_flag);
 }
 
 
@@ -8648,12 +8655,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   if (args.length() == 2 &&
       unoptimized->kind() == Code::FUNCTION) {
     CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
-    if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("osr")) && FLAG_use_osr) {
+    if (type->IsOneByteEqualTo(STATIC_CHAR_VECTOR("osr")) && FLAG_use_osr) {
       // Start patching from the currently patched loop nesting level.
       DCHECK(BackEdgeTable::Verify(isolate, unoptimized));
       isolate->runtime_profiler()->AttemptOnStackReplacement(
           *function, Code::kMaxLoopNestingMarker);
-    } else if (type->IsOneByteEqualTo(STATIC_ASCII_VECTOR("concurrent")) &&
+    } else if (type->IsOneByteEqualTo(STATIC_CHAR_VECTOR("concurrent")) &&
                isolate->concurrent_recompilation_enabled()) {
       function->MarkForConcurrentOptimization();
     }
@@ -8681,7 +8688,7 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
   bool sync_with_compiler_thread = true;
   if (args.length() == 2) {
     CONVERT_ARG_HANDLE_CHECKED(String, sync, 1);
-    if (sync->IsOneByteEqualTo(STATIC_ASCII_VECTOR("no sync"))) {
+    if (sync->IsOneByteEqualTo(STATIC_CHAR_VECTOR("no sync"))) {
       sync_with_compiler_thread = false;
     }
   }
@@ -8940,8 +8947,8 @@ RUNTIME_FUNCTION(Runtime_Apply) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, fun, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, arguments, 2);
-  CONVERT_SMI_ARG_CHECKED(offset, 3);
-  CONVERT_SMI_ARG_CHECKED(argc, 4);
+  CONVERT_INT32_ARG_CHECKED(offset, 3);
+  CONVERT_INT32_ARG_CHECKED(argc, 4);
   RUNTIME_ASSERT(offset >= 0);
   // Loose upper bound to allow fuzzing. We'll most likely run out of
   // stack space before hitting this limit.
@@ -9682,7 +9689,7 @@ RUNTIME_FUNCTION(Runtime_DateParseString) {
 
   bool result;
   String::FlatContent str_content = str->GetFlatContent();
-  if (str_content.IsAscii()) {
+  if (str_content.IsOneByte()) {
     result = DateParser::Parse(str_content.ToOneByteVector(),
                                *output_array,
                                isolate->unicode_cache());
@@ -9775,7 +9782,7 @@ RUNTIME_FUNCTION(Runtime_ParseJson) {
   CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
 
   source = String::Flatten(source);
-  // Optimized fast case where we only have ASCII characters.
+  // Optimized fast case where we only have Latin1 characters.
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
@@ -13881,7 +13888,7 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
     return *factory->NewStringFromAsciiChecked(result);
   }
 
-  return *factory->NewStringFromStaticAscii("und");
+  return *factory->NewStringFromStaticChars("und");
 }
 
 
@@ -13898,8 +13905,8 @@ RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
   // Can be bumped when callers' requirements change.
   RUNTIME_ASSERT(length < 100);
   Handle<FixedArray> output = factory->NewFixedArray(length);
-  Handle<Name> maximized = factory->NewStringFromStaticAscii("maximized");
-  Handle<Name> base = factory->NewStringFromStaticAscii("base");
+  Handle<Name> maximized = factory->NewStringFromStaticChars("maximized");
+  Handle<Name> base = factory->NewStringFromStaticChars("base");
   for (unsigned int i = 0; i < length; ++i) {
     Handle<Object> locale_id;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -14076,8 +14083,8 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(date_format));
 
   Factory* factory = isolate->factory();
-  Handle<String> key = factory->NewStringFromStaticAscii("dateFormat");
-  Handle<String> value = factory->NewStringFromStaticAscii("valid");
+  Handle<String> key = factory->NewStringFromStaticChars("dateFormat");
+  Handle<String> value = factory->NewStringFromStaticChars("valid");
   JSObject::AddProperty(local_object, key, value, NONE);
 
   // Make object handle weak so we can delete the data format once GC kicks in.
@@ -14173,8 +14180,8 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(number_format));
 
   Factory* factory = isolate->factory();
-  Handle<String> key = factory->NewStringFromStaticAscii("numberFormat");
-  Handle<String> value = factory->NewStringFromStaticAscii("valid");
+  Handle<String> key = factory->NewStringFromStaticChars("numberFormat");
+  Handle<String> value = factory->NewStringFromStaticChars("valid");
   JSObject::AddProperty(local_object, key, value, NONE);
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
@@ -14279,8 +14286,8 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(collator));
 
   Factory* factory = isolate->factory();
-  Handle<String> key = factory->NewStringFromStaticAscii("collator");
-  Handle<String> value = factory->NewStringFromStaticAscii("valid");
+  Handle<String> key = factory->NewStringFromStaticChars("collator");
+  Handle<String> value = factory->NewStringFromStaticChars("valid");
   JSObject::AddProperty(local_object, key, value, NONE);
 
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
@@ -14383,8 +14390,8 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   local_object->SetInternalField(1, reinterpret_cast<Smi*>(NULL));
 
   Factory* factory = isolate->factory();
-  Handle<String> key = factory->NewStringFromStaticAscii("breakIterator");
-  Handle<String> value = factory->NewStringFromStaticAscii("valid");
+  Handle<String> key = factory->NewStringFromStaticChars("breakIterator");
+  Handle<String> value = factory->NewStringFromStaticChars("valid");
   JSObject::AddProperty(local_object, key, value, NONE);
 
   // Make object handle weak so we can delete the break iterator once GC kicks
@@ -14486,17 +14493,17 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
   int32_t status = rule_based_iterator->getRuleStatus();
   // Keep return values in sync with JavaScript BreakType enum.
   if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
-    return *isolate->factory()->NewStringFromStaticAscii("none");
+    return *isolate->factory()->NewStringFromStaticChars("none");
   } else if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
     return *isolate->factory()->number_string();
   } else if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
-    return *isolate->factory()->NewStringFromStaticAscii("letter");
+    return *isolate->factory()->NewStringFromStaticChars("letter");
   } else if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {
-    return *isolate->factory()->NewStringFromStaticAscii("kana");
+    return *isolate->factory()->NewStringFromStaticChars("kana");
   } else if (status >= UBRK_WORD_IDEO && status < UBRK_WORD_IDEO_LIMIT) {
-    return *isolate->factory()->NewStringFromStaticAscii("ideo");
+    return *isolate->factory()->NewStringFromStaticChars("ideo");
   } else {
-    return *isolate->factory()->NewStringFromStaticAscii("unknown");
+    return *isolate->factory()->NewStringFromStaticChars("unknown");
   }
 }
 #endif  // V8_I18N_SUPPORT
@@ -14791,21 +14798,21 @@ RUNTIME_FUNCTION(Runtime_ListNatives) {
   Handle<FixedArray> elements = factory->NewFixedArray(entry_count);
   int index = 0;
   bool inline_runtime_functions = false;
-#define ADD_ENTRY(Name, argc, ressize)                                       \
-  {                                                                          \
-    HandleScope inner(isolate);                                              \
-    Handle<String> name;                                                     \
-    /* Inline runtime functions have an underscore in front of the name. */  \
-    if (inline_runtime_functions) {                                          \
-      name = factory->NewStringFromStaticAscii("_" #Name);                   \
-    } else {                                                                 \
-      name = factory->NewStringFromStaticAscii(#Name);                       \
-    }                                                                        \
-    Handle<FixedArray> pair_elements = factory->NewFixedArray(2);            \
-    pair_elements->set(0, *name);                                            \
-    pair_elements->set(1, Smi::FromInt(argc));                               \
-    Handle<JSArray> pair = factory->NewJSArrayWithElements(pair_elements);   \
-    elements->set(index++, *pair);                                           \
+#define ADD_ENTRY(Name, argc, ressize)                                      \
+  {                                                                         \
+    HandleScope inner(isolate);                                             \
+    Handle<String> name;                                                    \
+    /* Inline runtime functions have an underscore in front of the name. */ \
+    if (inline_runtime_functions) {                                         \
+      name = factory->NewStringFromStaticChars("_" #Name);                  \
+    } else {                                                                \
+      name = factory->NewStringFromStaticChars(#Name);                      \
+    }                                                                       \
+    Handle<FixedArray> pair_elements = factory->NewFixedArray(2);           \
+    pair_elements->set(0, *name);                                           \
+    pair_elements->set(1, Smi::FromInt(argc));                              \
+    Handle<JSArray> pair = factory->NewJSArrayWithElements(pair_elements);  \
+    elements->set(index++, *pair);                                          \
   }
   inline_runtime_functions = false;
   RUNTIME_FUNCTION_LIST(ADD_ENTRY)
@@ -15227,17 +15234,17 @@ RUNTIME_FUNCTION(Runtime_ForInCacheArrayLength) {
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_ForInNext) {
   SealHandleScope scope(isolate);
   DCHECK(args.length() == 4);
+  int32_t index;
   // This simulates CONVERT_ARG_HANDLE_CHECKED for calls returning pairs.
   // Not worth creating a macro atm as this function should be removed.
   if (!args[0]->IsJSReceiver() || !args[1]->IsFixedArray() ||
-      !args[2]->IsObject() || !args[3]->IsSmi()) {
+      !args[2]->IsObject() || !args[3]->ToInt32(&index)) {
     Object* error = isolate->ThrowIllegalOperation();
     return MakePair(error, isolate->heap()->undefined_value());
   }
   Handle<JSReceiver> object = args.at<JSReceiver>(0);
   Handle<FixedArray> array = args.at<FixedArray>(1);
   Handle<Object> cache_type = args.at<Object>(2);
-  int index = args.smi_at(3);
   // Figure out first if a slow check is needed for this object.
   bool slow_check_needed = false;
   if (cache_type->IsMap()) {
@@ -15395,8 +15402,8 @@ RUNTIME_FUNCTION(RuntimeReference_OneByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
   CONVERT_ARG_CHECKED(SeqOneByteString, string, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  CONVERT_SMI_ARG_CHECKED(value, 2);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  CONVERT_INT32_ARG_CHECKED(value, 2);
   string->SeqOneByteStringSet(index, value);
   return string;
 }
@@ -15406,8 +15413,8 @@ RUNTIME_FUNCTION(RuntimeReference_TwoByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
   CONVERT_ARG_CHECKED(SeqTwoByteString, string, 0);
-  CONVERT_SMI_ARG_CHECKED(index, 1);
-  CONVERT_SMI_ARG_CHECKED(value, 2);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  CONVERT_INT32_ARG_CHECKED(value, 2);
   string->SeqTwoByteStringSet(index, value);
   return string;
 }
@@ -15491,7 +15498,7 @@ RUNTIME_FUNCTION(RuntimeReference_GetCachedArrayIndex) {
 }
 
 
-RUNTIME_FUNCTION(RuntimeReference_FastAsciiArrayJoin) {
+RUNTIME_FUNCTION(RuntimeReference_FastOneByteArrayJoin) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
   return isolate->heap()->undefined_value();

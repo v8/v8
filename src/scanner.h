@@ -152,7 +152,7 @@ class DuplicateFinder {
   int AddTwoByteSymbol(Vector<const uint16_t> key, int value);
   // Add a a number literal by converting it (if necessary)
   // to the string that ToString(ToNumber(literal)) would generate.
-  // and then adding that string with AddAsciiSymbol.
+  // and then adding that string with AddOneByteSymbol.
   // This string is the actual value used as key in an object literal,
   // and the one that must be different from the other keys.
   int AddNumber(Vector<const uint8_t> key, int value);
@@ -166,7 +166,7 @@ class DuplicateFinder {
   uint8_t* BackupKey(Vector<const uint8_t> key, bool is_one_byte);
 
   // Compare two encoded keys (both pointing into the backing store)
-  // for having the same base-127 encoded lengths and ASCII-ness,
+  // for having the same base-127 encoded lengths and representation.
   // and then having the same 'length' bytes following.
   static bool Match(void* first, void* second);
   // Creates a hash from a sequence of bytes.

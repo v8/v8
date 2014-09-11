@@ -430,8 +430,8 @@ class Serializer : public SerializerDeserializer {
     void VisitCell(RelocInfo* rinfo);
     void VisitRuntimeEntry(RelocInfo* reloc);
     // Used for seralizing the external strings that hold the natives source.
-    void VisitExternalAsciiString(
-        v8::String::ExternalAsciiStringResource** resource);
+    void VisitExternalOneByteString(
+        v8::String::ExternalOneByteStringResource** resource);
     // We can't serialize a heap with external two byte strings.
     void VisitExternalTwoByteString(
         v8::String::ExternalStringResource** resource) {

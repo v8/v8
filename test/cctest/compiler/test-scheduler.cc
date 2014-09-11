@@ -676,7 +676,7 @@ TEST(BuildScheduleIfSplitWithEffects) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  Operator* op;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
@@ -821,7 +821,7 @@ TEST(BuildScheduleSimpleLoop) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  Operator* op;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
@@ -933,7 +933,7 @@ TEST(BuildScheduleComplexLoops) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  Operator* op;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
@@ -1180,7 +1180,7 @@ TEST(BuildScheduleBreakAndContinue) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  Operator* op;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);
@@ -1510,7 +1510,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
   MachineOperatorBuilder machine_builder(scope.main_zone());
-  Operator* op;
+  const Operator* op;
 
   Handle<Object> object =
       Handle<Object>(isolate->heap()->undefined_value(), isolate);

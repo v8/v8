@@ -573,14 +573,10 @@ class ParserTraits {
   // Temporary glue; these functions will move to ParserBase.
   Expression* ParseV8Intrinsic(bool* ok);
   FunctionLiteral* ParseFunctionLiteral(
-      const AstRawString* name,
-      Scanner::Location function_name_location,
-      bool name_is_strict_reserved,
-      bool is_generator,
-      int function_token_position,
-      FunctionLiteral::FunctionType type,
-      FunctionLiteral::ArityRestriction arity_restriction,
-      bool* ok);
+      const AstRawString* name, Scanner::Location function_name_location,
+      bool name_is_strict_reserved, FunctionKind kind,
+      int function_token_position, FunctionLiteral::FunctionType type,
+      FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
   V8_INLINE void SkipLazyFunctionBody(const AstRawString* name,
                                       int* materialized_literal_count,
                                       int* expected_property_count, bool* ok);
@@ -746,14 +742,10 @@ class Parser : public ParserBase<ParserTraits> {
       Statement* body, bool* ok);
 
   FunctionLiteral* ParseFunctionLiteral(
-      const AstRawString* name,
-      Scanner::Location function_name_location,
-      bool name_is_strict_reserved,
-      bool is_generator,
-      int function_token_position,
-      FunctionLiteral::FunctionType type,
-      FunctionLiteral::ArityRestriction arity_restriction,
-      bool* ok);
+      const AstRawString* name, Scanner::Location function_name_location,
+      bool name_is_strict_reserved, FunctionKind kind,
+      int function_token_position, FunctionLiteral::FunctionType type,
+      FunctionLiteral::ArityRestriction arity_restriction, bool* ok);
 
   // Magical syntax support.
   Expression* ParseV8Intrinsic(bool* ok);

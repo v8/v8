@@ -252,7 +252,7 @@ bool Object::IsExternalString() const {
 }
 
 
-bool Object::IsExternalAsciiString() const {
+bool Object::IsExternalOneByteString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsExternal() &&
          String::cast(this)->IsOneByteRepresentation();
@@ -432,7 +432,7 @@ STATIC_ASSERT(static_cast<uint32_t>(kStringEncodingMask) ==
              Internals::kStringEncodingMask);
 
 
-bool StringShape::IsSequentialAscii() {
+bool StringShape::IsSequentialOneByte() {
   return full_representation_tag() == (kSeqStringTag | kOneByteStringTag);
 }
 
@@ -442,15 +442,15 @@ bool StringShape::IsSequentialTwoByte() {
 }
 
 
-bool StringShape::IsExternalAscii() {
+bool StringShape::IsExternalOneByte() {
   return full_representation_tag() == (kExternalStringTag | kOneByteStringTag);
 }
 
 
 STATIC_ASSERT((kExternalStringTag | kOneByteStringTag) ==
-             Internals::kExternalAsciiRepresentationTag);
+              Internals::kExternalOneByteRepresentationTag);
 
-STATIC_ASSERT(v8::String::ASCII_ENCODING == kOneByteStringTag);
+STATIC_ASSERT(v8::String::ONE_BYTE_ENCODING == kOneByteStringTag);
 
 
 bool StringShape::IsExternalTwoByte() {
@@ -465,7 +465,7 @@ STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
 
 uc32 FlatStringReader::Get(int index) {
   DCHECK(0 <= index && index <= length_);
-  if (is_ascii_) {
+  if (is_one_byte_) {
     return static_cast<const byte*>(start_)[index];
   } else {
     return static_cast<const uc16*>(start_)[index];
@@ -1473,21 +1473,22 @@ int HeapObject::Size() {
 }
 
 
-bool HeapObject::MayContainNewSpacePointers() {
+bool HeapObject::MayContainRawValues() {
   InstanceType type = map()->instance_type();
   if (type <= LAST_NAME_TYPE) {
     if (type == SYMBOL_TYPE) {
-      return true;
+      return false;
     }
     DCHECK(type < FIRST_NONSTRING_TYPE);
     // There are four string representations: sequential strings, external
     // strings, cons strings, and sliced strings.
-    // Only the latter two contain non-map-word pointers to heap objects.
-    return ((type & kIsIndirectStringMask) == kIsIndirectStringTag);
+    // Only the former two contain raw values and no heap pointers (besides the
+    // map-word).
+    return ((type & kIsIndirectStringMask) != kIsIndirectStringTag);
   }
-  // The ConstantPoolArray contains heap pointers, but not new space pointers.
-  if (type == CONSTANT_POOL_ARRAY_TYPE) return false;
-  return (type > LAST_DATA_TYPE);
+  // The ConstantPoolArray contains heap pointers, but also raw values.
+  if (type == CONSTANT_POOL_ARRAY_TYPE) return true;
+  return (type <= LAST_DATA_TYPE);
 }
 
 
@@ -3164,7 +3165,7 @@ CAST_ACCESSOR(DeoptimizationOutputData)
 CAST_ACCESSOR(DependentCode)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(ExternalArray)
-CAST_ACCESSOR(ExternalAsciiString)
+CAST_ACCESSOR(ExternalOneByteString)
 CAST_ACCESSOR(ExternalFloat32Array)
 CAST_ACCESSOR(ExternalFloat64Array)
 CAST_ACCESSOR(ExternalInt16Array)
@@ -3365,7 +3366,7 @@ uint16_t String::Get(int index) {
     case kConsStringTag | kTwoByteStringTag:
       return ConsString::cast(this)->ConsStringGet(index);
     case kExternalStringTag | kOneByteStringTag:
-      return ExternalAsciiString::cast(this)->ExternalAsciiStringGet(index);
+      return ExternalOneByteString::cast(this)->ExternalOneByteStringGet(index);
     case kExternalStringTag | kTwoByteStringTag:
       return ExternalTwoByteString::cast(this)->ExternalTwoByteStringGet(index);
     case kSlicedStringTag | kOneByteStringTag:
@@ -3431,7 +3432,7 @@ ConsString* String::VisitFlat(Visitor* visitor,
 
       case kExternalStringTag | kOneByteStringTag:
         visitor->VisitOneByteString(
-            ExternalAsciiString::cast(string)->GetChars() + slice_offset,
+            ExternalOneByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
         return NULL;
 
@@ -3569,12 +3570,12 @@ bool ExternalString::is_short() {
 }
 
 
-const ExternalAsciiString::Resource* ExternalAsciiString::resource() {
+const ExternalOneByteString::Resource* ExternalOneByteString::resource() {
   return *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset));
 }
 
 
-void ExternalAsciiString::update_data_cache() {
+void ExternalOneByteString::update_data_cache() {
   if (is_short()) return;
   const char** data_field =
       reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
@@ -3582,8 +3583,8 @@ void ExternalAsciiString::update_data_cache() {
 }
 
 
-void ExternalAsciiString::set_resource(
-    const ExternalAsciiString::Resource* resource) {
+void ExternalOneByteString::set_resource(
+    const ExternalOneByteString::Resource* resource) {
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(resource), kPointerSize));
   *reinterpret_cast<const Resource**>(
       FIELD_ADDR(this, kResourceOffset)) = resource;
@@ -3591,12 +3592,12 @@ void ExternalAsciiString::set_resource(
 }
 
 
-const uint8_t* ExternalAsciiString::GetChars() {
+const uint8_t* ExternalOneByteString::GetChars() {
   return reinterpret_cast<const uint8_t*>(resource()->data());
 }
 
 
-uint16_t ExternalAsciiString::ExternalAsciiStringGet(int index) {
+uint16_t ExternalOneByteString::ExternalOneByteStringGet(int index) {
   DCHECK(index >= 0 && index < length());
   return GetChars()[index];
 }
@@ -4259,8 +4260,8 @@ int HeapObject::SizeFromMap(Map* map) {
   if (instance_type == FIXED_ARRAY_TYPE) {
     return FixedArray::BodyDescriptor::SizeOf(map, this);
   }
-  if (instance_type == ASCII_STRING_TYPE ||
-      instance_type == ASCII_INTERNALIZED_STRING_TYPE) {
+  if (instance_type == ONE_BYTE_STRING_TYPE ||
+      instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE) {
     return SeqOneByteString::SizeFor(
         reinterpret_cast<SeqOneByteString*>(this)->length());
   }
@@ -5558,6 +5559,19 @@ void SharedFunctionInfo::set_strict_mode(StrictMode strict_mode) {
 }
 
 
+FunctionKind SharedFunctionInfo::kind() {
+  return FunctionKindBits::decode(compiler_hints());
+}
+
+
+void SharedFunctionInfo::set_kind(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  int hints = compiler_hints();
+  hints = FunctionKindBits::update(hints, kind);
+  set_compiler_hints(hints);
+}
+
+
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, inline_builtin,
                kInlineBuiltin)
@@ -5569,8 +5583,10 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_anonymous, kIsAnonymous)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_function, kIsFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_cache, kDontCache)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_arrow, kIsArrow)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_generator, kIsGenerator)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_concise_method,
+               kIsConciseMethod)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
@@ -5583,7 +5599,7 @@ bool Script::HasValidSource() {
   String* src_str = String::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
   if (src_str->IsOneByteRepresentation()) {
-    return ExternalAsciiString::cast(src)->resource() != NULL;
+    return ExternalOneByteString::cast(src)->resource() != NULL;
   } else if (src_str->IsTwoByteRepresentation()) {
     return ExternalTwoByteString::cast(src)->resource() != NULL;
   }
@@ -7140,17 +7156,17 @@ void Foreign::ForeignIterateBody() {
 }
 
 
-void ExternalAsciiString::ExternalAsciiStringIterateBody(ObjectVisitor* v) {
-  typedef v8::String::ExternalAsciiStringResource Resource;
-  v->VisitExternalAsciiString(
+void ExternalOneByteString::ExternalOneByteStringIterateBody(ObjectVisitor* v) {
+  typedef v8::String::ExternalOneByteStringResource Resource;
+  v->VisitExternalOneByteString(
       reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
 }
 
 
-template<typename StaticVisitor>
-void ExternalAsciiString::ExternalAsciiStringIterateBody() {
-  typedef v8::String::ExternalAsciiStringResource Resource;
-  StaticVisitor::VisitExternalAsciiString(
+template <typename StaticVisitor>
+void ExternalOneByteString::ExternalOneByteStringIterateBody() {
+  typedef v8::String::ExternalOneByteStringResource Resource;
+  StaticVisitor::VisitExternalOneByteString(
       reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)));
 }
 

@@ -490,7 +490,7 @@ double StringToDouble(UnicodeCache* unicode_cache,
   DisallowHeapAllocation no_gc;
   String::FlatContent flat = string->GetFlatContent();
   // ECMA-262 section 15.1.2.3, empty string is NaN
-  if (flat.IsAscii()) {
+  if (flat.IsOneByte()) {
     return StringToDouble(
         unicode_cache, flat.ToOneByteVector(), flags, empty_string_val);
   } else {

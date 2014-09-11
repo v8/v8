@@ -6,17 +6,20 @@
 #define V8_COMPILER_OPCODES_H_
 
 // Opcodes for control operators.
-#define CONTROL_OP_LIST(V) \
-  V(Start)                 \
+#define INNER_CONTROL_OP_LIST(V) \
   V(Dead)                  \
   V(Loop)                  \
-  V(End)                   \
   V(Branch)                \
   V(IfTrue)                \
   V(IfFalse)               \
   V(Merge)                 \
   V(Return)                \
   V(Throw)
+
+#define CONTROL_OP_LIST(V) \
+  INNER_CONTROL_OP_LIST(V) \
+  V(Start)                 \
+  V(End)
 
 // Opcodes for common operators.
 #define LEAF_OP_LIST(V) \
@@ -83,7 +86,8 @@
   V(JSToName)                      \
   V(JSToObject)
 
-#define JS_OTHER_UNOP_LIST(V) V(JSTypeOf)
+#define JS_OTHER_UNOP_LIST(V) \
+  V(JSTypeOf)
 
 #define JS_SIMPLE_UNOP_LIST(V) \
   JS_LOGIC_UNOP_LIST(V)        \

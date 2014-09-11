@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 
 // A SourceCodeCache uses a FixedArray to store pairs of
-// (AsciiString*, JSFunction*), mapping names of native code files
+// (OneByteString*, JSFunction*), mapping names of native code files
 // (runtime.js, etc.) to precompiled functions. Instead of mapping
 // names to functions it might make sense to let the JS2C tool
 // generate an index for each native JS file.
@@ -153,7 +153,7 @@ class BootstrapperActive FINAL BASE_EMBEDDED {
 
 
 class NativesExternalStringResource FINAL
-    : public v8::String::ExternalAsciiStringResource {
+    : public v8::String::ExternalOneByteStringResource {
  public:
   NativesExternalStringResource(Bootstrapper* bootstrapper,
                                 const char* source,

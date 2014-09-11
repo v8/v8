@@ -149,7 +149,7 @@ BasicBlock* RawMachineAssembler::CurrentBlock() {
 }
 
 
-Node* RawMachineAssembler::MakeNode(Operator* op, int input_count,
+Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
                                     Node** inputs) {
   DCHECK(ScheduleValid());
   DCHECK(current_block_ != NULL);

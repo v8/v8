@@ -58,7 +58,7 @@ static Node* Int32Input(RawMachineAssemblerTester<int32_t>* m, int index) {
 TEST(CodeGenInt32Binop) {
   RawMachineAssemblerTester<void> m;
 
-  Operator* ops[] = {
+  const Operator* ops[] = {
       m.machine()->Word32And(),      m.machine()->Word32Or(),
       m.machine()->Word32Xor(),      m.machine()->Word32Shl(),
       m.machine()->Word32Shr(),      m.machine()->Word32Sar(),
@@ -741,8 +741,9 @@ TEST(RunInt32AddInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -832,8 +833,9 @@ TEST(RunInt32AddInComparison) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -1076,8 +1078,9 @@ TEST(RunInt32SubInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -1167,8 +1170,9 @@ TEST(RunInt32SubInComparison) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -1699,8 +1703,9 @@ TEST(RunWord32AndInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -1926,8 +1931,9 @@ TEST(RunWord32OrInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -2150,8 +2156,9 @@ TEST(RunWord32XorInBranch) {
   }
   {
     RawMachineAssemblerTester<void> m;
-    Operator* shops[] = {m.machine()->Word32Sar(), m.machine()->Word32Shl(),
-                         m.machine()->Word32Shr()};
+    const Operator* shops[] = {m.machine()->Word32Sar(),
+                               m.machine()->Word32Shl(),
+                               m.machine()->Word32Shr()};
     for (size_t n = 0; n < arraysize(shops); n++) {
       RawMachineAssemblerTester<int32_t> m(kMachUint32, kMachInt32,
                                            kMachUint32);
@@ -2651,7 +2658,7 @@ TEST(RunDeadNodes) {
 TEST(RunDeadInt32Binops) {
   RawMachineAssemblerTester<int32_t> m;
 
-  Operator* ops[] = {
+  const Operator* ops[] = {
       m.machine()->Word32And(),             m.machine()->Word32Or(),
       m.machine()->Word32Xor(),             m.machine()->Word32Shl(),
       m.machine()->Word32Shr(),             m.machine()->Word32Sar(),
@@ -2762,12 +2769,12 @@ TEST(RunFloat64Binop) {
   RawMachineAssemblerTester<int32_t> m;
   double result;
 
-  Operator* ops[] = {m.machine()->Float64Add(), m.machine()->Float64Sub(),
-                     m.machine()->Float64Mul(), m.machine()->Float64Div(),
-                     m.machine()->Float64Mod(), NULL};
+  const Operator* ops[] = {m.machine()->Float64Add(), m.machine()->Float64Sub(),
+                           m.machine()->Float64Mul(), m.machine()->Float64Div(),
+                           m.machine()->Float64Mod(), NULL};
 
   double inf = V8_INFINITY;
-  Operator* inputs[] = {
+  const Operator* inputs[] = {
       m.common()->Float64Constant(0),     m.common()->Float64Constant(1),
       m.common()->Float64Constant(1),     m.common()->Float64Constant(0),
       m.common()->Float64Constant(0),     m.common()->Float64Constant(-1),
@@ -2797,9 +2804,9 @@ TEST(RunFloat64Binop) {
 TEST(RunDeadFloat64Binops) {
   RawMachineAssemblerTester<int32_t> m;
 
-  Operator* ops[] = {m.machine()->Float64Add(), m.machine()->Float64Sub(),
-                     m.machine()->Float64Mul(), m.machine()->Float64Div(),
-                     m.machine()->Float64Mod(), NULL};
+  const Operator* ops[] = {m.machine()->Float64Add(), m.machine()->Float64Sub(),
+                           m.machine()->Float64Mul(), m.machine()->Float64Div(),
+                           m.machine()->Float64Mod(), NULL};
 
   for (int i = 0; ops[i] != NULL; i++) {
     RawMachineAssemblerTester<int32_t> m;
@@ -3714,9 +3721,9 @@ TEST(RunFloat64Compare) {
 TEST(RunFloat64UnorderedCompare) {
   RawMachineAssemblerTester<int32_t> m;
 
-  Operator* operators[] = {m.machine()->Float64Equal(),
-                           m.machine()->Float64LessThan(),
-                           m.machine()->Float64LessThanOrEqual()};
+  const Operator* operators[] = {m.machine()->Float64Equal(),
+                                 m.machine()->Float64LessThan(),
+                                 m.machine()->Float64LessThanOrEqual()};
 
   double nan = v8::base::OS::nan_value();
 
@@ -4016,22 +4023,6 @@ TEST(RunSpillLotsOfThingsWithCall) {
 #endif  // MACHINE_ASSEMBLER_SUPPORTS_CALL_C
 
 
-static bool sadd_overflow(int32_t x, int32_t y, int32_t* val) {
-  int32_t v =
-      static_cast<int32_t>(static_cast<uint32_t>(x) + static_cast<uint32_t>(y));
-  *val = v;
-  return (((v ^ x) & (v ^ y)) >> 31) & 1;
-}
-
-
-static bool ssub_overflow(int32_t x, int32_t y, int32_t* val) {
-  int32_t v =
-      static_cast<int32_t>(static_cast<uint32_t>(x) - static_cast<uint32_t>(y));
-  *val = v;
-  return (((v ^ x) & (v ^ ~y)) >> 31) & 1;
-}
-
-
 TEST(RunInt32AddWithOverflowP) {
   int32_t actual_val = -1;
   RawMachineAssemblerTester<int32_t> m;
@@ -4044,7 +4035,7 @@ TEST(RunInt32AddWithOverflowP) {
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
       int32_t expected_val;
-      int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+      int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
       CHECK_EQ(expected_ovf, bt.call(*i, *j));
       CHECK_EQ(expected_val, actual_val);
     }
@@ -4063,7 +4054,7 @@ TEST(RunInt32AddWithOverflowImm) {
       m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
-        int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+        int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
         CHECK_EQ(expected_ovf, m.Call(*j));
         CHECK_EQ(expected_val, actual_val);
       }
@@ -4076,7 +4067,7 @@ TEST(RunInt32AddWithOverflowImm) {
       m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
-        int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+        int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
         CHECK_EQ(expected_ovf, m.Call(*j));
         CHECK_EQ(expected_val, actual_val);
       }
@@ -4089,7 +4080,7 @@ TEST(RunInt32AddWithOverflowImm) {
       Node* ovf = m.Projection(1, add);
       m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
-      int expected_ovf = sadd_overflow(*i, *j, &expected_val);
+      int expected_ovf = bits::SignedAddOverflow32(*i, *j, &expected_val);
       CHECK_EQ(expected_ovf, m.Call());
       CHECK_EQ(expected_val, actual_val);
     }
@@ -4113,7 +4104,7 @@ TEST(RunInt32AddWithOverflowInBranchP) {
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
       int32_t expected;
-      if (sadd_overflow(*i, *j, &expected)) expected = constant;
+      if (bits::SignedAddOverflow32(*i, *j, &expected)) expected = constant;
       CHECK_EQ(expected, bt.call(*i, *j));
     }
   }
@@ -4132,7 +4123,7 @@ TEST(RunInt32SubWithOverflowP) {
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
       int32_t expected_val;
-      int expected_ovf = ssub_overflow(*i, *j, &expected_val);
+      int expected_ovf = bits::SignedSubOverflow32(*i, *j, &expected_val);
       CHECK_EQ(expected_ovf, bt.call(*i, *j));
       CHECK_EQ(expected_val, actual_val);
     }
@@ -4151,7 +4142,7 @@ TEST(RunInt32SubWithOverflowImm) {
       m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
-        int expected_ovf = ssub_overflow(*i, *j, &expected_val);
+        int expected_ovf = bits::SignedSubOverflow32(*i, *j, &expected_val);
         CHECK_EQ(expected_ovf, m.Call(*j));
         CHECK_EQ(expected_val, actual_val);
       }
@@ -4164,7 +4155,7 @@ TEST(RunInt32SubWithOverflowImm) {
       m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
       FOR_INT32_INPUTS(j) {
-        int expected_ovf = ssub_overflow(*j, *i, &expected_val);
+        int expected_ovf = bits::SignedSubOverflow32(*j, *i, &expected_val);
         CHECK_EQ(expected_ovf, m.Call(*j));
         CHECK_EQ(expected_val, actual_val);
       }
@@ -4177,7 +4168,7 @@ TEST(RunInt32SubWithOverflowImm) {
       Node* ovf = m.Projection(1, add);
       m.StoreToPointer(&actual_val, kMachInt32, val);
       m.Return(ovf);
-      int expected_ovf = ssub_overflow(*i, *j, &expected_val);
+      int expected_ovf = bits::SignedSubOverflow32(*i, *j, &expected_val);
       CHECK_EQ(expected_ovf, m.Call());
       CHECK_EQ(expected_val, actual_val);
     }
@@ -4201,7 +4192,7 @@ TEST(RunInt32SubWithOverflowInBranchP) {
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
       int32_t expected;
-      if (ssub_overflow(*i, *j, &expected)) expected = constant;
+      if (bits::SignedSubOverflow32(*i, *j, &expected)) expected = constant;
       CHECK_EQ(expected, bt.call(*i, *j));
     }
   }

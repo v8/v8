@@ -507,7 +507,7 @@ void StoreBuffer::IteratePointersToNewSpace(ObjectSlotCallback slot_callback,
             for (HeapObject* heap_object = iterator.Next(); heap_object != NULL;
                  heap_object = iterator.Next()) {
               // We iterate over objects that contain new space pointers only.
-              if (heap_object->MayContainNewSpacePointers()) {
+              if (!heap_object->MayContainRawValues()) {
                 FindPointersToNewSpaceInRegion(
                     heap_object->address() + HeapObject::kHeaderSize,
                     heap_object->address() + heap_object->Size(), slot_callback,

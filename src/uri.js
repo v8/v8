@@ -217,13 +217,13 @@
     var index = 0;
     var k = 0;
 
-    // Optimistically assume ascii string.
+    // Optimistically assume one-byte string.
     for ( ; k < uriLength; k++) {
       var code = uri.charCodeAt(k);
       if (code == 37) {  // '%'
         if (k + 2 >= uriLength) throw new $URIError("URI malformed");
         var cc = URIHexCharsToCharCode(uri.charCodeAt(k+1), uri.charCodeAt(k+2));
-        if (cc >> 7) break;  // Assumption wrong, two byte string.
+        if (cc >> 7) break;  // Assumption wrong, two-byte string.
         if (reserved(cc)) {
           %_OneByteSeqStringSetChar(one_byte, index++, 37);  // '%'.
           %_OneByteSeqStringSetChar(one_byte, index++, uri.charCodeAt(k+1));
@@ -233,7 +233,7 @@
         }
         k += 2;
       } else {
-        if (code > 0x7f) break;  // Assumption wrong, two byte string.
+        if (code > 0x7f) break;  // Assumption wrong, two-byte string.
         %_OneByteSeqStringSetChar(one_byte, index++, code);
       }
     }

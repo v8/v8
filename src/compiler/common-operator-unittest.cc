@@ -30,7 +30,7 @@ const int kArguments[] = {1, 5, 6, 42, 100, 10000, kMaxInt};
 
 
 TEST_F(CommonOperatorTest, ControlEffect) {
-  Operator* op = common()->ControlEffect();
+  const Operator* op = common()->ControlEffect();
   EXPECT_EQ(1, OperatorProperties::GetControlInputCount(op));
   EXPECT_EQ(1, OperatorProperties::GetTotalInputCount(op));
   EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
@@ -41,7 +41,7 @@ TEST_F(CommonOperatorTest, ControlEffect) {
 
 TEST_F(CommonOperatorTest, ValueEffect) {
   TRACED_FOREACH(int, arguments, kArguments) {
-    Operator* op = common()->ValueEffect(arguments);
+    const Operator* op = common()->ValueEffect(arguments);
     EXPECT_EQ(arguments, OperatorProperties::GetValueInputCount(op));
     EXPECT_EQ(arguments, OperatorProperties::GetTotalInputCount(op));
     EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
@@ -53,7 +53,7 @@ TEST_F(CommonOperatorTest, ValueEffect) {
 
 TEST_F(CommonOperatorTest, Finish) {
   TRACED_FOREACH(int, arguments, kArguments) {
-    Operator* op = common()->Finish(arguments);
+    const Operator* op = common()->Finish(arguments);
     EXPECT_EQ(1, OperatorProperties::GetValueInputCount(op));
     EXPECT_EQ(arguments, OperatorProperties::GetEffectInputCount(op));
     EXPECT_EQ(arguments + 1, OperatorProperties::GetTotalInputCount(op));

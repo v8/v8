@@ -85,34 +85,31 @@ class Factory FINAL {
   // allocated in the old generation.  The pretenure flag defaults to
   // DONT_TENURE.
   //
-  // Creates a new String object.  There are two String encodings: ASCII and
-  // two byte.  One should choose between the three string factory functions
+  // Creates a new String object.  There are two String encodings: one-byte and
+  // two-byte.  One should choose between the three string factory functions
   // based on the encoding of the string buffer that the string is
   // initialized from.
-  //   - ...FromAscii initializes the string from a buffer that is ASCII
-  //     encoded (it does not check that the buffer is ASCII encoded) and
-  //     the result will be ASCII encoded.
+  //   - ...FromOneByte initializes the string from a buffer that is Latin1
+  //     encoded (it does not check that the buffer is Latin1 encoded) and
+  //     the result will be Latin1 encoded.
   //   - ...FromUtf8 initializes the string from a buffer that is UTF-8
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be ASCII encoded, otherwise it will converted to two
-  //     byte.
-  //   - ...FromTwoByte initializes the string from a buffer that is two
-  //     byte encoded.  If the characters are all single-byte characters,
-  //     the result will be converted to ASCII, otherwise it will be left as
-  //     two byte.
+  //     encoded.  If the characters are all ASCII characters, the result
+  //     will be Latin1 encoded, otherwise it will converted to two-byte.
+  //   - ...FromTwoByte initializes the string from a buffer that is two-byte
+  //     encoded.  If the characters are all Latin1 characters, the result
+  //     will be converted to Latin1, otherwise it will be left as two-byte.
   //
-  // ASCII strings are pretenured when used as keys in the SourceCodeCache.
+  // One-byte strings are pretenured when used as keys in the SourceCodeCache.
   MUST_USE_RESULT MaybeHandle<String> NewStringFromOneByte(
       Vector<const uint8_t> str,
       PretenureFlag pretenure = NOT_TENURED);
 
-  template<size_t N>
-  inline Handle<String> NewStringFromStaticAscii(
-      const char (&str)[N],
-      PretenureFlag pretenure = NOT_TENURED) {
+  template <size_t N>
+  inline Handle<String> NewStringFromStaticChars(
+      const char (&str)[N], PretenureFlag pretenure = NOT_TENURED) {
     DCHECK(N == StrLength(str) + 1);
-    return NewStringFromOneByte(
-        STATIC_ASCII_VECTOR(str), pretenure).ToHandleChecked();
+    return NewStringFromOneByte(STATIC_CHAR_VECTOR(str), pretenure)
+        .ToHandleChecked();
   }
 
   inline Handle<String> NewStringFromAsciiChecked(
@@ -123,20 +120,19 @@ class Factory FINAL {
   }
 
 
-  // Allocates and fully initializes a String.  There are two String
-  // encodings: ASCII and two byte. One should choose between the three string
+  // Allocates and fully initializes a String.  There are two String encodings:
+  // one-byte and two-byte. One should choose between the threestring
   // allocation functions based on the encoding of the string buffer used to
   // initialized the string.
-  //   - ...FromAscii initializes the string from a buffer that is ASCII
-  //     encoded (it does not check that the buffer is ASCII encoded) and the
-  //     result will be ASCII encoded.
+  //   - ...FromOneByte initializes the string from a buffer that is Latin1
+  //     encoded (it does not check that the buffer is Latin1 encoded) and the
+  //     result will be Latin1 encoded.
   //   - ...FromUTF8 initializes the string from a buffer that is UTF-8
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be ASCII encoded, otherwise it will converted to two
-  //     byte.
+  //     encoded.  If the characters are all ASCII characters, the result
+  //     will be Latin1 encoded, otherwise it will converted to two-byte.
   //   - ...FromTwoByte initializes the string from a buffer that is two-byte
-  //     encoded.  If the characters are all single-byte characters, the
-  //     result will be converted to ASCII, otherwise it will be left as
+  //     encoded.  If the characters are all Latin1 characters, the
+  //     result will be converted to Latin1, otherwise it will be left as
   //     two-byte.
 
   // TODO(dcarney): remove this function.
@@ -182,7 +178,7 @@ class Factory FINAL {
   MUST_USE_RESULT MaybeHandle<Map> InternalizedStringMapForString(
       Handle<String> string);
 
-  // Allocates and partially initializes an ASCII or TwoByte String. The
+  // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
   MUST_USE_RESULT MaybeHandle<SeqOneByteString> NewRawOneByteString(
@@ -193,7 +189,7 @@ class Factory FINAL {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Creates a single character string where the character has given code.
-  // A cache is used for ASCII codes.
+  // A cache is used for Latin1 codes.
   Handle<String> LookupSingleCharacterStringFromCode(uint32_t code);
 
   // Create a new cons string object which consists of a pair of strings.
@@ -212,12 +208,12 @@ class Factory FINAL {
   }
 
   // Creates a new external String object.  There are two String encodings
-  // in the system: ASCII and two byte.  Unlike other String types, it does
+  // in the system: one-byte and two-byte.  Unlike other String types, it does
   // not make sense to have a UTF-8 factory function for external strings,
   // because we cannot change the underlying buffer.  Note that these strings
   // are backed by a string resource that resides outside the V8 heap.
-  MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromAscii(
-      const ExternalAsciiString::Resource* resource);
+  MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromOneByte(
+      const ExternalOneByteString::Resource* resource);
   MUST_USE_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
       const ExternalTwoByteString::Resource* resource);
 
@@ -602,8 +598,8 @@ class Factory FINAL {
 
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
-      Handle<String> name, int number_of_literals, bool is_generator,
-      bool is_arrow, Handle<Code> code, Handle<ScopeInfo> scope_info,
+      Handle<String> name, int number_of_literals, FunctionKind kind,
+      Handle<Code> code, Handle<ScopeInfo> scope_info,
       Handle<FixedArray> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name,
                                                    MaybeHandle<Code> code);

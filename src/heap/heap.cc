@@ -1365,7 +1365,6 @@ void PromotionQueue::Initialize() {
   front_ = rear_ =
       reinterpret_cast<intptr_t*>(heap_->new_space()->ToSpaceEnd());
   emergency_stack_ = NULL;
-  guard_ = false;
 }
 
 
@@ -1963,14 +1962,15 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     HeapObject* target = NULL;  // Initialization to please compiler.
     if (allocation.To(&target)) {
+      // Order is important here: Set the promotion limit before storing a
+      // filler for double alignment or migrating the object. Otherwise we
+      // may end up overwriting promotion queue entries when we migrate the
+      // object.
+      heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
+
       if (alignment != kObjectAlignment) {
         target = EnsureDoubleAligned(heap, target, allocation_size);
       }
-
-      // Order is important here: Set the promotion limit before migrating
-      // the object. Otherwise we may end up overwriting promotion queue
-      // entries when we migrate the object.
-      heap->promotion_queue()->SetNewLimit(heap->new_space()->top());
 
       // Order is important: slot might be inside of the target if target
       // was allocated over a dead object and slot comes from the store
@@ -2520,8 +2520,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(STRING_TYPE, undetectable_string)
     undetectable_string_map()->set_is_undetectable();
 
-    ALLOCATE_VARSIZE_MAP(ASCII_STRING_TYPE, undetectable_ascii_string);
-    undetectable_ascii_string_map()->set_is_undetectable();
+    ALLOCATE_VARSIZE_MAP(ONE_BYTE_STRING_TYPE, undetectable_one_byte_string);
+    undetectable_one_byte_string_map()->set_is_undetectable();
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
@@ -3765,7 +3765,7 @@ AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
 
 static inline void WriteOneByteData(Vector<const char> vector, uint8_t* chars,
                                     int len) {
-  // Only works for ascii.
+  // Only works for one byte strings.
   DCHECK(vector.length() == len);
   MemCopy(chars, vector.start(), len);
 }
@@ -3820,7 +3820,7 @@ AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
   DCHECK_LE(0, chars);
   DCHECK_GE(String::kMaxLength, chars);
   if (is_one_byte) {
-    map = ascii_internalized_string_map();
+    map = one_byte_internalized_string_map();
     size = SeqOneByteString::SizeFor(chars);
   } else {
     map = internalized_string_map();
@@ -3878,7 +3878,7 @@ AllocationResult Heap::AllocateRawOneByteString(int length,
   }
 
   // Partially initialize the object.
-  result->set_map_no_write_barrier(ascii_string_map());
+  result->set_map_no_write_barrier(one_byte_string_map());
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   DCHECK_EQ(size, HeapObject::cast(result)->Size());

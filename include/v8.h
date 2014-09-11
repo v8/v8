@@ -1648,7 +1648,7 @@ class V8_EXPORT String : public Name {
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
     TWO_BYTE_ENCODING = 0x0,
-    ASCII_ENCODING = 0x4,
+    ASCII_ENCODING = 0x4,  // TODO(yangguo): deprecate this.
     ONE_BYTE_ENCODING = 0x4
   };
   /**
@@ -1704,7 +1704,8 @@ class V8_EXPORT String : public Name {
     NO_OPTIONS = 0,
     HINT_MANY_WRITES_EXPECTED = 1,
     NO_NULL_TERMINATION = 2,
-    PRESERVE_ASCII_NULL = 4,
+    PRESERVE_ASCII_NULL = 4,  // TODO(yangguo): deprecate this.
+    PRESERVE_ONE_BYTE_NULL = 4,
     // Used by WriteUtf8 to replace orphan surrogate code units with the
     // unicode replacement character. Needs to be set to guarantee valid UTF-8
     // output.
@@ -1738,9 +1739,12 @@ class V8_EXPORT String : public Name {
   bool IsExternal() const;
 
   /**
-   * Returns true if the string is both external and ASCII
+   * Returns true if the string is both external and one-byte.
    */
-  bool IsExternalAscii() const;
+  bool IsExternalOneByte() const;
+
+  // TODO(yangguo): deprecate this.
+  bool IsExternalAscii() const { return IsExternalOneByte(); }
 
   class V8_EXPORT ExternalStringResourceBase {  // NOLINT
    public:
@@ -1795,33 +1799,32 @@ class V8_EXPORT String : public Name {
   };
 
   /**
-   * An ExternalAsciiStringResource is a wrapper around an ASCII
+   * An ExternalOneByteStringResource is a wrapper around an one-byte
    * string buffer that resides outside V8's heap. Implement an
-   * ExternalAsciiStringResource to manage the life cycle of the
+   * ExternalOneByteStringResource to manage the life cycle of the
    * underlying buffer.  Note that the string data must be immutable
-   * and that the data must be strict (7-bit) ASCII, not Latin-1 or
-   * UTF-8, which would require special treatment internally in the
-   * engine and, in the case of UTF-8, do not allow efficient indexing.
-   * Use String::New or convert to 16 bit data for non-ASCII.
+   * and that the data must be Latin-1 and not UTF-8, which would require
+   * special treatment internally in the engine and do not allow efficient
+   * indexing.  Use String::New or convert to 16 bit data for non-Latin1.
    */
 
-  class V8_EXPORT ExternalAsciiStringResource
+  class V8_EXPORT ExternalOneByteStringResource
       : public ExternalStringResourceBase {
    public:
     /**
      * Override the destructor to manage the life cycle of the underlying
      * buffer.
      */
-    virtual ~ExternalAsciiStringResource() {}
+    virtual ~ExternalOneByteStringResource() {}
     /** The string data from the underlying buffer.*/
     virtual const char* data() const = 0;
-    /** The number of ASCII characters in the string.*/
+    /** The number of Latin-1 characters in the string.*/
     virtual size_t length() const = 0;
    protected:
-    ExternalAsciiStringResource() {}
+    ExternalOneByteStringResource() {}
   };
 
-  typedef ExternalAsciiStringResource ExternalOneByteStringResource;
+  typedef ExternalOneByteStringResource ExternalAsciiStringResource;
 
   /**
    * If the string is an external string, return the ExternalStringResourceBase
@@ -1838,10 +1841,15 @@ class V8_EXPORT String : public Name {
   V8_INLINE ExternalStringResource* GetExternalStringResource() const;
 
   /**
-   * Get the ExternalAsciiStringResource for an external ASCII string.
-   * Returns NULL if IsExternalAscii() doesn't return true.
+   * Get the ExternalOneByteStringResource for an external one-byte string.
+   * Returns NULL if IsExternalOneByte() doesn't return true.
    */
-  const ExternalAsciiStringResource* GetExternalAsciiStringResource() const;
+  const ExternalOneByteStringResource* GetExternalOneByteStringResource() const;
+
+  // TODO(yangguo): deprecate this.
+  const ExternalAsciiStringResource* GetExternalAsciiStringResource() const {
+    return GetExternalOneByteStringResource();
+  }
 
   V8_INLINE static String* Cast(v8::Value* obj);
 
@@ -1898,7 +1906,7 @@ class V8_EXPORT String : public Name {
   bool MakeExternal(ExternalStringResource* resource);
 
   /**
-   * Creates a new external string using the ASCII data defined in the given
+   * Creates a new external string using the one-byte data defined in the given
    * resource. When the external string is no longer live on V8's heap the
    * resource will be disposed by calling its Dispose method. The caller of
    * this function should not otherwise delete or modify the resource. Neither
@@ -1906,7 +1914,7 @@ class V8_EXPORT String : public Name {
    * destructor of the external string resource.
    */
   static Local<String> NewExternal(Isolate* isolate,
-                                   ExternalAsciiStringResource* resource);
+                                   ExternalOneByteStringResource* resource);
 
   /**
    * Associate an external string resource with this string by transforming it
@@ -1917,7 +1925,7 @@ class V8_EXPORT String : public Name {
    * The string is not modified if the operation fails. See NewExternal for
    * information on the lifetime of the resource.
    */
-  bool MakeExternal(ExternalAsciiStringResource* resource);
+  bool MakeExternal(ExternalOneByteStringResource* resource);
 
   /**
    * Returns true if this string can be made external.
@@ -3874,11 +3882,11 @@ class V8_EXPORT TypeSwitch : public Data {
 
 // --- Extensions ---
 
-class V8_EXPORT ExternalAsciiStringResourceImpl
-    : public String::ExternalAsciiStringResource {
+class V8_EXPORT ExternalOneByteStringResourceImpl
+    : public String::ExternalOneByteStringResource {
  public:
-  ExternalAsciiStringResourceImpl() : data_(0), length_(0) {}
-  ExternalAsciiStringResourceImpl(const char* data, size_t length)
+  ExternalOneByteStringResourceImpl() : data_(0), length_(0) {}
+  ExternalOneByteStringResourceImpl(const char* data, size_t length)
       : data_(data), length_(length) {}
   const char* data() const { return data_; }
   size_t length() const { return length_; }
@@ -3908,7 +3916,7 @@ class V8_EXPORT Extension {  // NOLINT
 
   const char* name() const { return name_; }
   size_t source_length() const { return source_length_; }
-  const String::ExternalAsciiStringResource* source() const {
+  const String::ExternalOneByteStringResource* source() const {
     return &source_; }
   int dependency_count() { return dep_count_; }
   const char** dependencies() { return deps_; }
@@ -3918,7 +3926,7 @@ class V8_EXPORT Extension {  // NOLINT
  private:
   const char* name_;
   size_t source_length_;  // expected to initialize before source_
-  ExternalAsciiStringResourceImpl source_;
+  ExternalOneByteStringResourceImpl source_;
   int dep_count_;
   const char** deps_;
   bool auto_enable_;
@@ -5599,8 +5607,8 @@ template <size_t ptr_size> struct SmiTagging;
 template<int kSmiShiftSize>
 V8_INLINE internal::Object* IntToSmi(int value) {
   int smi_shift_bits = kSmiTagSize + kSmiShiftSize;
-  intptr_t tagged_value =
-      (static_cast<intptr_t>(value) << smi_shift_bits) | kSmiTag;
+  uintptr_t tagged_value =
+      (static_cast<uintptr_t>(value) << smi_shift_bits) | kSmiTag;
   return reinterpret_cast<internal::Object*>(tagged_value);
 }
 
@@ -5681,7 +5689,7 @@ class Internals {
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;
-  static const int kExternalAsciiRepresentationTag = 0x06;
+  static const int kExternalOneByteRepresentationTag = 0x06;
 
   static const int kIsolateEmbedderDataOffset = 0 * kApiPointerSize;
   static const int kAmountOfExternalAllocatedMemoryOffset =
@@ -5770,7 +5778,7 @@ class Internals {
   V8_INLINE static void UpdateNodeFlag(internal::Object** obj,
                                        bool value, int shift) {
       uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + kNodeFlagsOffset;
-      uint8_t mask = static_cast<uint8_t>(1 << shift);
+      uint8_t mask = static_cast<uint8_t>(1U << shift);
       *addr = static_cast<uint8_t>((*addr & ~mask) | (value << shift));
   }
 
@@ -6352,7 +6360,7 @@ String::ExternalStringResourceBase* String::GetExternalStringResourceBase(
   int type = I::GetInstanceType(obj) & I::kFullStringRepresentationMask;
   *encoding_out = static_cast<Encoding>(type & I::kStringEncodingMask);
   ExternalStringResourceBase* resource = NULL;
-  if (type == I::kExternalAsciiRepresentationTag ||
+  if (type == I::kExternalOneByteRepresentationTag ||
       type == I::kExternalTwoByteRepresentationTag) {
     void* value = I::ReadField<void*>(obj, I::kStringResourceOffset);
     resource = static_cast<ExternalStringResourceBase*>(value);

@@ -1288,9 +1288,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       !pretenure &&
       scope()->is_function_scope() &&
       info->num_literals() == 0) {
-    FastNewClosureStub stub(isolate(),
-                            info->strict_mode(),
-                            info->is_generator());
+    FastNewClosureStub stub(isolate(), info->strict_mode(), info->kind());
     __ Move(rbx, info);
     __ CallStub(&stub);
   } else {
@@ -3745,7 +3743,7 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
+void FullCodeGenerator::EmitFastOneByteArrayJoin(CallRuntime* expr) {
   Label bailout, return_result, done, one_char_separator, long_separator,
       non_trivial_array, not_size_one_array, loop,
       loop_1, loop_1_condition, loop_2, loop_2_entry, loop_3, loop_3_entry;
@@ -3806,7 +3804,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   array = no_reg;
 
 
-  // Check that all array elements are sequential ASCII strings, and
+  // Check that all array elements are sequential one-byte strings, and
   // accumulate the sum of their lengths, as a smi-encoded value.
   __ Set(index, 0);
   __ Set(string_length, 0);
@@ -3815,7 +3813,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //                      scratch, string_length(int32), elements(FixedArray*).
   if (generate_debug_code_) {
     __ cmpp(index, array_length);
-    __ Assert(below, kNoEmptyArraysHereInEmitFastAsciiArrayJoin);
+    __ Assert(below, kNoEmptyArraysHereInEmitFastOneByteArrayJoin);
   }
   __ bind(&loop);
   __ movp(string, FieldOperand(elements,
@@ -3859,7 +3857,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // elements: FixedArray of strings.
   // index: Array length.
 
-  // Check that the separator is a sequential ASCII string.
+  // Check that the separator is a sequential one-byte string.
   __ movp(string, separator_operand);
   __ JumpIfSmi(string, &bailout);
   __ movp(scratch, FieldOperand(string, HeapObject::kMapOffset));
@@ -3887,8 +3885,8 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   // Live registers and stack values:
   //   string_length: Total length of result string.
   //   elements: FixedArray of strings.
-  __ AllocateAsciiString(result_pos, string_length, scratch,
-                         index, string, &bailout);
+  __ AllocateOneByteString(result_pos, string_length, scratch, index, string,
+                           &bailout);
   __ movp(result_operand, result_pos);
   __ leap(result_pos, FieldOperand(result_pos, SeqOneByteString::kHeaderSize));
 
@@ -3935,7 +3933,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // One-character separator case
   __ bind(&one_char_separator);
-  // Get the separator ASCII character value.
+  // Get the separator one-byte character value.
   // Register "string" holds the separator.
   __ movzxbl(scratch, FieldOperand(string, SeqOneByteString::kHeaderSize));
   __ Set(index, 0);

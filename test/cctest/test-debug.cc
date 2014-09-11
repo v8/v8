@@ -107,7 +107,7 @@ class DebugLocalContext {
     Handle<JSGlobalProxy> global(Handle<JSGlobalProxy>::cast(
         v8::Utils::OpenHandle(*context_->Global())));
     Handle<v8::internal::String> debug_string =
-        factory->InternalizeOneByteString(STATIC_ASCII_VECTOR("debug"));
+        factory->InternalizeOneByteString(STATIC_CHAR_VECTOR("debug"));
     v8::internal::Runtime::DefineObjectProperty(global, debug_string,
         handle(debug_context->global_proxy(), isolate), DONT_ENUM).Check();
   }
@@ -6531,9 +6531,25 @@ class SendCommandThread : public v8::base::Thread {
         semaphore_(0),
         isolate_(isolate) {}
 
-  static void ProcessDebugMessages(v8::Isolate* isolate, void* data) {
-    v8::Debug::ProcessDebugMessages();
-    reinterpret_cast<v8::base::Semaphore*>(data)->Signal();
+  class ClientDataImpl : public v8::Debug::ClientData {
+   public:
+    explicit ClientDataImpl(v8::base::Semaphore* semaphore)
+        : semaphore_(semaphore) {}
+    v8::base::Semaphore* semaphore() { return semaphore_; }
+
+   private:
+    v8::base::Semaphore* semaphore_;
+  };
+
+  static void CountingAndSignallingMessageHandler(
+      const v8::Debug::Message& message) {
+    if (message.IsResponse()) {
+      counting_message_handler_counter++;
+      ClientDataImpl* data =
+          reinterpret_cast<ClientDataImpl*>(message.GetClientData());
+      v8::base::Semaphore* semaphore = data->semaphore();
+      semaphore->Signal();
+    }
   }
 
   virtual void Run() {
@@ -6550,18 +6566,16 @@ class SendCommandThread : public v8::base::Thread {
     for (int i = 0; i < 100; i++) {
       CHECK_EQ(i, counting_message_handler_counter);
       // Queue debug message.
-      v8::Debug::SendCommand(isolate_, buffer, length);
-      // Synchronize with the main thread to force message processing.
-      isolate_->RequestInterrupt(ProcessDebugMessages, &semaphore_);
+      v8::Debug::SendCommand(isolate_, buffer, length,
+                             new ClientDataImpl(&semaphore_));
+      // Wait for the message handler to pick up the response.
       semaphore_.Wait();
     }
 
     v8::V8::TerminateExecution(isolate_);
   }
 
-  void StartSending() {
-    semaphore_.Signal();
-  }
+  void StartSending() { semaphore_.Signal(); }
 
  private:
   v8::base::Semaphore semaphore_;
@@ -6584,7 +6598,8 @@ TEST(ProcessDebugMessagesThreaded) {
 
   counting_message_handler_counter = 0;
 
-  v8::Debug::SetMessageHandler(CountingMessageHandler);
+  v8::Debug::SetMessageHandler(
+      SendCommandThread::CountingAndSignallingMessageHandler);
   send_command_thread_ = new SendCommandThread(isolate);
   send_command_thread_->Start();
 

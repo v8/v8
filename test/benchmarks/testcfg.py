@@ -186,7 +186,8 @@ class BenchmarksTestSuite(testsuite.TestSuite):
     # Both --nocrankshaft and --stressopt are very slow. Add TF but without
     # always opt to match the way the benchmarks are run for performance
     # testing.
-    return [[], ["--turbo-filter=*"]]
+    # TODO(mstarzinger): Enable typed pipeline soon!
+    return [[], ["--turbo-filter=*", "--noturbo-types"]]
 
 
 def GetSuite(name, root):

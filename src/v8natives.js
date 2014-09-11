@@ -1757,7 +1757,12 @@ function FunctionSourceString(func) {
   var name = %FunctionNameShouldPrintAsAnonymous(func)
       ? 'anonymous'
       : %FunctionGetName(func);
-  var head = %FunctionIsGenerator(func) ? 'function* ' : 'function ';
+
+  // TODO(arv): Handle concise generator methods.
+
+  var head = %FunctionIsConciseMethod(func)
+      ? ''
+      : %FunctionIsGenerator(func) ? 'function* ' : 'function ';
   return head + name + source;
 }
 

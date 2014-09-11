@@ -453,22 +453,22 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   Handle<JSArray> stack_trace = factory()->NewJSArray(frame_limit);
 
   Handle<String> column_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("column"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("column"));
   Handle<String> line_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("lineNumber"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("lineNumber"));
   Handle<String> script_id_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("scriptId"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptId"));
   Handle<String> script_name_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("scriptName"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("scriptName"));
   Handle<String> script_name_or_source_url_key =
       factory()->InternalizeOneByteString(
-          STATIC_ASCII_VECTOR("scriptNameOrSourceURL"));
+          STATIC_CHAR_VECTOR("scriptNameOrSourceURL"));
   Handle<String> function_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("functionName"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("functionName"));
   Handle<String> eval_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("isEval"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("isEval"));
   Handle<String> constructor_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("isConstructor"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("isConstructor"));
 
   StackTraceFrameIterator it(this);
   int frames_seen = 0;
@@ -992,7 +992,7 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
   if (!obj->IsJSObject()) return false;
 
   Handle<String> error_key =
-      factory()->InternalizeOneByteString(STATIC_ASCII_VECTOR("$Error"));
+      factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("$Error"));
   Handle<Object> error_constructor = Object::GetProperty(
       js_builtins_object(), error_key).ToHandleChecked();
 
@@ -1079,7 +1079,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
             Execution::ToDetailString(this, exception_arg);
         if (!maybe_exception.ToHandle(&exception_arg)) {
           exception_arg = factory()->InternalizeOneByteString(
-              STATIC_ASCII_VECTOR("exception"));
+              STATIC_CHAR_VECTOR("exception"));
         }
       }
       Handle<Object> message_obj = MessageHandler::MakeMessageObject(

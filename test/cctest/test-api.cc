@@ -437,16 +437,16 @@ class TestResource: public String::ExternalStringResource {
 };
 
 
-class TestAsciiResource: public String::ExternalAsciiStringResource {
+class TestOneByteResource : public String::ExternalOneByteStringResource {
  public:
-  explicit TestAsciiResource(const char* data, int* counter = NULL,
-                             size_t offset = 0)
+  explicit TestOneByteResource(const char* data, int* counter = NULL,
+                               size_t offset = 0)
       : orig_data_(data),
         data_(data + offset),
         length_(strlen(data) - offset),
         counter_(counter) {}
 
-  ~TestAsciiResource() {
+  ~TestOneByteResource() {
     i::DeleteArray(orig_data_);
     if (counter_ != NULL) ++*counter_;
   }
@@ -496,22 +496,22 @@ THREADED_TEST(ScriptUsingStringResource) {
 }
 
 
-THREADED_TEST(ScriptUsingAsciiStringResource) {
+THREADED_TEST(ScriptUsingOneByteStringResource) {
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
-    TestAsciiResource* resource = new TestAsciiResource(i::StrDup(c_source),
-                                                        &dispose_count);
+    TestOneByteResource* resource =
+        new TestOneByteResource(i::StrDup(c_source), &dispose_count);
     Local<String> source = String::NewExternal(env->GetIsolate(), resource);
-    CHECK(source->IsExternalAscii());
+    CHECK(source->IsExternalOneByte());
     CHECK_EQ(static_cast<const String::ExternalStringResourceBase*>(resource),
-             source->GetExternalAsciiStringResource());
+             source->GetExternalOneByteStringResource());
     String::Encoding encoding = String::UNKNOWN_ENCODING;
     CHECK_EQ(static_cast<const String::ExternalStringResourceBase*>(resource),
              source->GetExternalStringResourceBase(&encoding));
-    CHECK_EQ(String::ASCII_ENCODING, encoding);
+    CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
     Local<Script> script = v8_compile(source);
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
@@ -537,10 +537,10 @@ THREADED_TEST(ScriptMakingExternalString) {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
     CHECK_EQ(source->IsExternal(), false);
-    CHECK_EQ(source->IsExternalAscii(), false);
+    CHECK_EQ(source->IsExternalOneByte(), false);
     String::Encoding encoding = String::UNKNOWN_ENCODING;
     CHECK_EQ(NULL, source->GetExternalStringResourceBase(&encoding));
-    CHECK_EQ(String::ASCII_ENCODING, encoding);
+    CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
     bool success = source->MakeExternal(new TestResource(two_byte_source,
                                                          &dispose_count));
     CHECK(success);
@@ -557,7 +557,7 @@ THREADED_TEST(ScriptMakingExternalString) {
 }
 
 
-THREADED_TEST(ScriptMakingExternalAsciiString) {
+THREADED_TEST(ScriptMakingExternalOneByteString) {
   int dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {
@@ -568,7 +568,7 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in old gen now
     bool success = source->MakeExternal(
-        new TestAsciiResource(i::StrDup(c_source), &dispose_count));
+        new TestOneByteResource(i::StrDup(c_source), &dispose_count));
     CHECK(success);
     Local<Script> script = v8_compile(source);
     Local<Value> value = script->Run();
@@ -631,7 +631,7 @@ TEST(MakingExternalStringConditions) {
 }
 
 
-TEST(MakingExternalAsciiStringConditions) {
+TEST(MakingExternalOneByteStringConditions) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -668,7 +668,7 @@ TEST(MakingExternalAsciiStringConditions) {
 }
 
 
-TEST(MakingExternalUnalignedAsciiString) {
+TEST(MakingExternalUnalignedOneByteString) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -688,12 +688,12 @@ TEST(MakingExternalUnalignedAsciiString) {
 
   // Turn into external string with unaligned resource data.
   const char* c_cons = "_abcdefghijklmnopqrstuvwxyz";
-  bool success = cons->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_cons), NULL, 1));
+  bool success =
+      cons->MakeExternal(new TestOneByteResource(i::StrDup(c_cons), NULL, 1));
   CHECK(success);
   const char* c_slice = "_bcdefghijklmnopqrstuvwxyz";
-  success = slice->MakeExternal(
-      new TestAsciiResource(i::StrDup(c_slice), NULL, 1));
+  success =
+      slice->MakeExternal(new TestOneByteResource(i::StrDup(c_slice), NULL, 1));
   CHECK(success);
 
   // Trigger GCs and force evacuation.
@@ -722,13 +722,13 @@ THREADED_TEST(UsingExternalString) {
 }
 
 
-THREADED_TEST(UsingExternalAsciiString) {
+THREADED_TEST(UsingExternalOneByteString) {
   i::Factory* factory = CcTest::i_isolate()->factory();
   {
     v8::HandleScope scope(CcTest::isolate());
     const char* one_byte_string = "test string";
     Local<String> string = String::NewExternal(
-        CcTest::isolate(), new TestAsciiResource(i::StrDup(one_byte_string)));
+        CcTest::isolate(), new TestOneByteResource(i::StrDup(one_byte_string)));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     // Trigger GCs so that the newly allocated string moves to old gen.
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);  // in survivor space now
@@ -764,7 +764,7 @@ THREADED_TEST(ScavengeExternalString) {
 }
 
 
-THREADED_TEST(ScavengeExternalAsciiString) {
+THREADED_TEST(ScavengeExternalOneByteString) {
   i::FLAG_stress_compaction = false;
   i::FLAG_gc_global = false;
   int dispose_count = 0;
@@ -774,7 +774,7 @@ THREADED_TEST(ScavengeExternalAsciiString) {
     const char* one_byte_string = "test string";
     Local<String> string = String::NewExternal(
         CcTest::isolate(),
-        new TestAsciiResource(i::StrDup(one_byte_string), &dispose_count));
+        new TestOneByteResource(i::StrDup(one_byte_string), &dispose_count));
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
     CcTest::heap()->CollectGarbage(i::NEW_SPACE);
     in_new_space = CcTest::heap()->InNewSpace(*istring);
@@ -787,15 +787,14 @@ THREADED_TEST(ScavengeExternalAsciiString) {
 }
 
 
-class TestAsciiResourceWithDisposeControl: public TestAsciiResource {
+class TestOneByteResourceWithDisposeControl : public TestOneByteResource {
  public:
   // Only used by non-threaded tests, so it can use static fields.
   static int dispose_calls;
   static int dispose_count;
 
-  TestAsciiResourceWithDisposeControl(const char* data, bool dispose)
-      : TestAsciiResource(data, &dispose_count),
-        dispose_(dispose) { }
+  TestOneByteResourceWithDisposeControl(const char* data, bool dispose)
+      : TestOneByteResource(data, &dispose_count), dispose_(dispose) {}
 
   void Dispose() {
     ++dispose_calls;
@@ -806,17 +805,17 @@ class TestAsciiResourceWithDisposeControl: public TestAsciiResource {
 };
 
 
-int TestAsciiResourceWithDisposeControl::dispose_count = 0;
-int TestAsciiResourceWithDisposeControl::dispose_calls = 0;
+int TestOneByteResourceWithDisposeControl::dispose_count = 0;
+int TestOneByteResourceWithDisposeControl::dispose_calls = 0;
 
 
 TEST(ExternalStringWithDisposeHandling) {
   const char* c_source = "1 + 2 * 3";
 
   // Use a stack allocated external string resource allocated object.
-  TestAsciiResourceWithDisposeControl::dispose_count = 0;
-  TestAsciiResourceWithDisposeControl::dispose_calls = 0;
-  TestAsciiResourceWithDisposeControl res_stack(i::StrDup(c_source), false);
+  TestOneByteResourceWithDisposeControl::dispose_count = 0;
+  TestOneByteResourceWithDisposeControl::dispose_calls = 0;
+  TestOneByteResourceWithDisposeControl res_stack(i::StrDup(c_source), false);
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
@@ -826,18 +825,18 @@ TEST(ExternalStringWithDisposeHandling) {
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
     CcTest::heap()->CollectAllAvailableGarbage();
-    CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
+    CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
-  CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
+  CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
+  CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
 
   // Use a heap allocated external string resource allocated object.
-  TestAsciiResourceWithDisposeControl::dispose_count = 0;
-  TestAsciiResourceWithDisposeControl::dispose_calls = 0;
-  TestAsciiResource* res_heap =
-      new TestAsciiResourceWithDisposeControl(i::StrDup(c_source), true);
+  TestOneByteResourceWithDisposeControl::dispose_count = 0;
+  TestOneByteResourceWithDisposeControl::dispose_calls = 0;
+  TestOneByteResource* res_heap =
+      new TestOneByteResourceWithDisposeControl(i::StrDup(c_source), true);
   {
     LocalContext env;
     v8::HandleScope scope(env->GetIsolate());
@@ -847,12 +846,12 @@ TEST(ExternalStringWithDisposeHandling) {
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
     CcTest::heap()->CollectAllAvailableGarbage();
-    CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
+    CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
   CcTest::heap()->CollectAllAvailableGarbage();
-  CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
-  CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_count);
+  CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
+  CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_count);
 }
 
 
@@ -876,7 +875,8 @@ THREADED_TEST(StringConcat) {
 
     Local<String> source = String::Concat(left, right);
     right = String::NewExternal(
-        env->GetIsolate(), new TestAsciiResource(i::StrDup(one_byte_extern_1)));
+        env->GetIsolate(),
+        new TestOneByteResource(i::StrDup(one_byte_extern_1)));
     source = String::Concat(source, right);
     right = String::NewExternal(
         env->GetIsolate(),
@@ -15134,11 +15134,11 @@ TEST(ObjectClone) {
 }
 
 
-class AsciiVectorResource : public v8::String::ExternalAsciiStringResource {
+class OneByteVectorResource : public v8::String::ExternalOneByteStringResource {
  public:
-  explicit AsciiVectorResource(i::Vector<const char> vector)
+  explicit OneByteVectorResource(i::Vector<const char> vector)
       : data_(vector) {}
-  virtual ~AsciiVectorResource() {}
+  virtual ~OneByteVectorResource() {}
   virtual size_t length() const { return data_.length(); }
   virtual const char* data() const { return data_.start(); }
  private:
@@ -15159,12 +15159,12 @@ class UC16VectorResource : public v8::String::ExternalStringResource {
 
 
 static void MorphAString(i::String* string,
-                         AsciiVectorResource* ascii_resource,
+                         OneByteVectorResource* one_byte_resource,
                          UC16VectorResource* uc16_resource) {
   CHECK(i::StringShape(string).IsExternal());
   if (string->IsOneByteRepresentation()) {
     // Check old map is not internalized or long.
-    CHECK(string->map() == CcTest::heap()->external_ascii_string_map());
+    CHECK(string->map() == CcTest::heap()->external_one_byte_string_map());
     // Morph external string to be TwoByte string.
     string->set_map(CcTest::heap()->external_string_map());
     i::ExternalTwoByteString* morphed =
@@ -15173,11 +15173,10 @@ static void MorphAString(i::String* string,
   } else {
     // Check old map is not internalized or long.
     CHECK(string->map() == CcTest::heap()->external_string_map());
-    // Morph external string to be ASCII string.
-    string->set_map(CcTest::heap()->external_ascii_string_map());
-    i::ExternalAsciiString* morphed =
-         i::ExternalAsciiString::cast(string);
-    morphed->set_resource(ascii_resource);
+    // Morph external string to be one-byte string.
+    string->set_map(CcTest::heap()->external_one_byte_string_map());
+    i::ExternalOneByteString* morphed = i::ExternalOneByteString::cast(string);
+    morphed->set_resource(one_byte_resource);
   }
 }
 
@@ -15193,18 +15192,18 @@ THREADED_TEST(MorphCompositeStringTest) {
     LocalContext env;
     i::Factory* factory = CcTest::i_isolate()->factory();
     v8::HandleScope scope(env->GetIsolate());
-    AsciiVectorResource ascii_resource(
+    OneByteVectorResource one_byte_resource(
         i::Vector<const char>(c_string, i::StrLength(c_string)));
     UC16VectorResource uc16_resource(
         i::Vector<const uint16_t>(two_byte_string,
                                   i::StrLength(c_string)));
 
-    Local<String> lhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromAscii(&ascii_resource)
-            .ToHandleChecked()));
-    Local<String> rhs(v8::Utils::ToLocal(
-        factory->NewExternalStringFromAscii(&ascii_resource)
-            .ToHandleChecked()));
+    Local<String> lhs(
+        v8::Utils::ToLocal(factory->NewExternalStringFromOneByte(
+                                        &one_byte_resource).ToHandleChecked()));
+    Local<String> rhs(
+        v8::Utils::ToLocal(factory->NewExternalStringFromOneByte(
+                                        &one_byte_resource).ToHandleChecked()));
 
     env->Global()->Set(v8_str("lhs"), lhs);
     env->Global()->Set(v8_str("rhs"), rhs);
@@ -15217,8 +15216,10 @@ THREADED_TEST(MorphCompositeStringTest) {
     CHECK(lhs->IsOneByte());
     CHECK(rhs->IsOneByte());
 
-    MorphAString(*v8::Utils::OpenHandle(*lhs), &ascii_resource, &uc16_resource);
-    MorphAString(*v8::Utils::OpenHandle(*rhs), &ascii_resource, &uc16_resource);
+    MorphAString(*v8::Utils::OpenHandle(*lhs), &one_byte_resource,
+                 &uc16_resource);
+    MorphAString(*v8::Utils::OpenHandle(*rhs), &one_byte_resource,
+                 &uc16_resource);
 
     // This should UTF-8 without flattening, since everything is ASCII.
     Handle<String> cons = v8_compile("cons")->Run().As<String>();
@@ -15261,16 +15262,15 @@ TEST(CompileExternalTwoByteSource) {
 
   // This is a very short list of sources, which currently is to check for a
   // regression caused by r2703.
-  const char* ascii_sources[] = {
-    "0.5",
-    "-0.5",   // This mainly testes PushBack in the Scanner.
-    "--0.5",  // This mainly testes PushBack in the Scanner.
-    NULL
-  };
+  const char* one_byte_sources[] = {
+      "0.5",
+      "-0.5",   // This mainly testes PushBack in the Scanner.
+      "--0.5",  // This mainly testes PushBack in the Scanner.
+      NULL};
 
   // Compile the sources as external two byte strings.
-  for (int i = 0; ascii_sources[i] != NULL; i++) {
-    uint16_t* two_byte_string = AsciiToTwoByteString(ascii_sources[i]);
+  for (int i = 0; one_byte_sources[i] != NULL; i++) {
+    uint16_t* two_byte_string = AsciiToTwoByteString(one_byte_sources[i]);
     TestResource* uc16_resource = new TestResource(two_byte_string);
     v8::Local<v8::String> source =
         v8::String::NewExternal(context->GetIsolate(), uc16_resource);
@@ -15329,14 +15329,14 @@ TEST(RegExpInterruption) {
   RegExpInterruptionThread timeout_thread(CcTest::isolate());
 
   v8::V8::AddGCPrologueCallback(RunBeforeGC);
-  static const char* ascii_content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-  i::uc16* uc16_content = AsciiToTwoByteString(ascii_content);
-  v8::Local<v8::String> string = v8_str(ascii_content);
+  static const char* one_byte_content = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  i::uc16* uc16_content = AsciiToTwoByteString(one_byte_content);
+  v8::Local<v8::String> string = v8_str(one_byte_content);
 
   CcTest::global()->Set(v8_str("a"), string);
   regexp_interruption_data.string.Reset(CcTest::isolate(), string);
   regexp_interruption_data.string_resource = new UC16VectorResource(
-      i::Vector<const i::uc16>(uc16_content, i::StrLength(ascii_content)));
+      i::Vector<const i::uc16>(uc16_content, i::StrLength(one_byte_content)));
 
   v8::TryCatch try_catch;
   timeout_thread.Start();
@@ -17968,7 +17968,7 @@ class VisitorImpl : public v8::ExternalResourceVisitor {
   virtual ~VisitorImpl() {}
   virtual void VisitExternalString(v8::Handle<v8::String> string) {
     if (!string->IsExternal()) {
-      CHECK(string->IsExternalAscii());
+      CHECK(string->IsExternalOneByte());
       return;
     }
     v8::String::ExternalStringResource* resource =
@@ -18025,12 +18025,12 @@ TEST(ExternalizeOldSpaceOneByteCons) {
   CHECK(CcTest::heap()->old_pointer_space()->Contains(
             *v8::Utils::OpenHandle(*cons)));
 
-  TestAsciiResource* resource =
-      new TestAsciiResource(i::StrDup("Romeo Montague Juliet Capulet"));
+  TestOneByteResource* resource =
+      new TestOneByteResource(i::StrDup("Romeo Montague Juliet Capulet"));
   cons->MakeExternal(resource);
 
-  CHECK(cons->IsExternalAscii());
-  CHECK_EQ(resource, cons->GetExternalAsciiStringResource());
+  CHECK(cons->IsExternalOneByte());
+  CHECK_EQ(resource, cons->GetExternalOneByteStringResource());
   String::Encoding encoding;
   CHECK_EQ(resource, cons->GetExternalStringResourceBase(&encoding));
   CHECK_EQ(String::ONE_BYTE_ENCODING, encoding);
@@ -18085,8 +18085,8 @@ TEST(ExternalStringCollectedAtTearDown) {
   { v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
     const char* s = "One string to test them all, one string to find them.";
-    TestAsciiResource* inscription =
-        new TestAsciiResource(i::StrDup(s), &destroyed);
+    TestOneByteResource* inscription =
+        new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = v8::String::NewExternal(isolate, inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
@@ -18107,8 +18107,8 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
     v8::HandleScope handle_scope(isolate);
     CompileRun("var ring = 'One string to test them all';");
     const char* s = "One string to test them all";
-    TestAsciiResource* inscription =
-        new TestAsciiResource(i::StrDup(s), &destroyed);
+    TestOneByteResource* inscription =
+        new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = CompileRun("ring")->ToString();
     CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
     ring->MakeExternal(inscription);
@@ -18129,8 +18129,8 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
     v8::HandleScope handle_scope(env->GetIsolate());
     CompileRun("var ring = 'One string to test them all';");
     const char* s = "One string to test them all";
-    TestAsciiResource* inscription =
-        new TestAsciiResource(i::StrDup(s), &destroyed);
+    TestOneByteResource* inscription =
+        new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = CompileRun("ring")->ToString();
     CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
     ring->MakeExternal(inscription);
@@ -19073,7 +19073,7 @@ THREADED_TEST(TestEviction) {
 }
 
 
-THREADED_TEST(TwoByteStringInAsciiCons) {
+THREADED_TEST(TwoByteStringInOneByteCons) {
   // See Chromium issue 47824.
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -19111,10 +19111,10 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
 
   // If the cons string has been short-circuited, skip the following checks.
   if (!string.is_identical_to(flat_string)) {
-    // At this point, we should have a Cons string which is flat and ASCII,
+    // At this point, we should have a Cons string which is flat and one-byte,
     // with a first half that is a two-byte string (although it only contains
-    // ASCII characters). This is a valid sequence of steps, and it can happen
-    // in real pages.
+    // one-byte characters). This is a valid sequence of steps, and it can
+    // happen in real pages.
     CHECK(string->IsOneByteRepresentation());
     i::ConsString* cons = i::ConsString::cast(*string);
     CHECK_EQ(0, cons->second()->length());
@@ -22999,4 +22999,20 @@ TEST(GetOwnPropertyDescriptor) {
   Handle<Value> args[] = { v8_num(14) };
   set->Call(x, 1, args);
   CHECK_EQ(v8_num(14), get->Call(x, 0, NULL));
+}
+
+
+TEST(Regress411877) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedAccessCounter,
+                                           IndexedAccessCounter);
+
+  v8::Handle<Context> context = Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  context->Global()->Set(v8_str("o"), object_template->NewInstance());
+  CompileRun("Object.getOwnPropertyNames(o)");
 }

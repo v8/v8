@@ -133,45 +133,49 @@ class SimplifiedOperatorBuilder {
 #define UNOP(name) SIMPLE(name, Operator::kPure, 1, 1)
 #define BINOP(name) SIMPLE(name, Operator::kPure, 2, 1)
 
-  Operator* BooleanNot() const { UNOP(BooleanNot); }
+  const Operator* BooleanNot() const { UNOP(BooleanNot); }
 
-  Operator* NumberEqual() const { BINOP(NumberEqual); }
-  Operator* NumberLessThan() const { BINOP(NumberLessThan); }
-  Operator* NumberLessThanOrEqual() const { BINOP(NumberLessThanOrEqual); }
-  Operator* NumberAdd() const { BINOP(NumberAdd); }
-  Operator* NumberSubtract() const { BINOP(NumberSubtract); }
-  Operator* NumberMultiply() const { BINOP(NumberMultiply); }
-  Operator* NumberDivide() const { BINOP(NumberDivide); }
-  Operator* NumberModulus() const { BINOP(NumberModulus); }
-  Operator* NumberToInt32() const { UNOP(NumberToInt32); }
-  Operator* NumberToUint32() const { UNOP(NumberToUint32); }
+  const Operator* NumberEqual() const { BINOP(NumberEqual); }
+  const Operator* NumberLessThan() const { BINOP(NumberLessThan); }
+  const Operator* NumberLessThanOrEqual() const {
+    BINOP(NumberLessThanOrEqual);
+  }
+  const Operator* NumberAdd() const { BINOP(NumberAdd); }
+  const Operator* NumberSubtract() const { BINOP(NumberSubtract); }
+  const Operator* NumberMultiply() const { BINOP(NumberMultiply); }
+  const Operator* NumberDivide() const { BINOP(NumberDivide); }
+  const Operator* NumberModulus() const { BINOP(NumberModulus); }
+  const Operator* NumberToInt32() const { UNOP(NumberToInt32); }
+  const Operator* NumberToUint32() const { UNOP(NumberToUint32); }
 
-  Operator* ReferenceEqual(Type* type) const { BINOP(ReferenceEqual); }
+  const Operator* ReferenceEqual(Type* type) const { BINOP(ReferenceEqual); }
 
-  Operator* StringEqual() const { BINOP(StringEqual); }
-  Operator* StringLessThan() const { BINOP(StringLessThan); }
-  Operator* StringLessThanOrEqual() const { BINOP(StringLessThanOrEqual); }
-  Operator* StringAdd() const { BINOP(StringAdd); }
+  const Operator* StringEqual() const { BINOP(StringEqual); }
+  const Operator* StringLessThan() const { BINOP(StringLessThan); }
+  const Operator* StringLessThanOrEqual() const {
+    BINOP(StringLessThanOrEqual);
+  }
+  const Operator* StringAdd() const { BINOP(StringAdd); }
 
-  Operator* ChangeTaggedToInt32() const { UNOP(ChangeTaggedToInt32); }
-  Operator* ChangeTaggedToUint32() const { UNOP(ChangeTaggedToUint32); }
-  Operator* ChangeTaggedToFloat64() const { UNOP(ChangeTaggedToFloat64); }
-  Operator* ChangeInt32ToTagged() const { UNOP(ChangeInt32ToTagged); }
-  Operator* ChangeUint32ToTagged() const { UNOP(ChangeUint32ToTagged); }
-  Operator* ChangeFloat64ToTagged() const { UNOP(ChangeFloat64ToTagged); }
-  Operator* ChangeBoolToBit() const { UNOP(ChangeBoolToBit); }
-  Operator* ChangeBitToBool() const { UNOP(ChangeBitToBool); }
+  const Operator* ChangeTaggedToInt32() const { UNOP(ChangeTaggedToInt32); }
+  const Operator* ChangeTaggedToUint32() const { UNOP(ChangeTaggedToUint32); }
+  const Operator* ChangeTaggedToFloat64() const { UNOP(ChangeTaggedToFloat64); }
+  const Operator* ChangeInt32ToTagged() const { UNOP(ChangeInt32ToTagged); }
+  const Operator* ChangeUint32ToTagged() const { UNOP(ChangeUint32ToTagged); }
+  const Operator* ChangeFloat64ToTagged() const { UNOP(ChangeFloat64ToTagged); }
+  const Operator* ChangeBoolToBit() const { UNOP(ChangeBoolToBit); }
+  const Operator* ChangeBitToBool() const { UNOP(ChangeBitToBool); }
 
-  Operator* LoadField(const FieldAccess& access) const {
+  const Operator* LoadField(const FieldAccess& access) const {
     OP1(LoadField, FieldAccess, access, Operator::kNoWrite, 1, 1);
   }
-  Operator* StoreField(const FieldAccess& access) const {
+  const Operator* StoreField(const FieldAccess& access) const {
     OP1(StoreField, FieldAccess, access, Operator::kNoRead, 2, 0);
   }
-  Operator* LoadElement(const ElementAccess& access) const {
+  const Operator* LoadElement(const ElementAccess& access) const {
     OP1(LoadElement, ElementAccess, access, Operator::kNoWrite, 2, 1);
   }
-  Operator* StoreElement(const ElementAccess& access) const {
+  const Operator* StoreElement(const ElementAccess& access) const {
     OP1(StoreElement, ElementAccess, access, Operator::kNoRead, 3, 0);
   }
 

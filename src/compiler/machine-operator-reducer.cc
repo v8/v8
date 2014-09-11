@@ -39,6 +39,8 @@ Node* MachineOperatorReducer::Int64Constant(int64_t value) {
 // Perform constant folding and strength reduction on machine operators.
 Reduction MachineOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kProjection:
+      return ReduceProjection(OpParameter<size_t>(node), node->InputAt(0));
     case IrOpcode::kWord32And: {
       Int32BinopMatcher m(node);
       if (m.right().Is(0)) return Replace(m.right().node());  // x & 0  => 0
@@ -426,6 +428,43 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       break;
     }
     // TODO(turbofan): strength-reduce and fold floating point operations.
+    default:
+      break;
+  }
+  return NoChange();
+}
+
+
+Reduction MachineOperatorReducer::ReduceProjection(size_t index, Node* node) {
+  switch (node->opcode()) {
+    case IrOpcode::kInt32AddWithOverflow: {
+      DCHECK(index == 0 || index == 1);
+      Int32BinopMatcher m(node);
+      if (m.IsFoldable()) {
+        int32_t val;
+        bool ovf = base::bits::SignedAddOverflow32(m.left().Value(),
+                                                   m.right().Value(), &val);
+        return ReplaceInt32((index == 0) ? val : ovf);
+      }
+      if (m.right().Is(0)) {
+        return (index == 0) ? Replace(m.left().node()) : ReplaceInt32(0);
+      }
+      break;
+    }
+    case IrOpcode::kInt32SubWithOverflow: {
+      DCHECK(index == 0 || index == 1);
+      Int32BinopMatcher m(node);
+      if (m.IsFoldable()) {
+        int32_t val;
+        bool ovf = base::bits::SignedSubOverflow32(m.left().Value(),
+                                                   m.right().Value(), &val);
+        return ReplaceInt32((index == 0) ? val : ovf);
+      }
+      if (m.right().Is(0)) {
+        return (index == 0) ? Replace(m.left().node()) : ReplaceInt32(0);
+      }
+      break;
+    }
     default:
       break;
   }

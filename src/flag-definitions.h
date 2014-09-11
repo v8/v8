@@ -161,6 +161,8 @@ DEFINE_BOOL(harmony_strings, false, "enable harmony string")
 DEFINE_BOOL(harmony_arrays, false, "enable harmony arrays")
 DEFINE_BOOL(harmony_arrow_functions, false, "enable harmony arrow functions")
 DEFINE_BOOL(harmony_classes, false, "enable harmony classes")
+DEFINE_BOOL(harmony_object_literals, false,
+            "enable harmony object literal extensions")
 DEFINE_BOOL(harmony, false, "enable all harmony features (except proxies)")
 
 DEFINE_IMPLICATION(harmony, harmony_scoping)
@@ -172,6 +174,7 @@ DEFINE_IMPLICATION(harmony, harmony_strings)
 DEFINE_IMPLICATION(harmony, harmony_arrays)
 DEFINE_IMPLICATION(harmony, harmony_arrow_functions)
 DEFINE_IMPLICATION(harmony, harmony_classes)
+DEFINE_IMPLICATION(harmony, harmony_object_literals)
 DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
 
 DEFINE_IMPLICATION(harmony, es_staging)

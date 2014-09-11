@@ -5,8 +5,6 @@
 #ifndef V8_X87_CODE_STUBS_X87_H_
 #define V8_X87_CODE_STUBS_X87_H_
 
-#include "src/code-stubs.h"
-
 namespace v8 {
 namespace internal {
 
@@ -68,8 +66,6 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                  IndexBits::encode(index.code()) | LookupModeBits::encode(mode);
   }
 
-  void Generate(MacroAssembler* masm);
-
   static void GenerateNegativeLookup(MacroAssembler* masm,
                                      Label* miss,
                                      Label* done,
@@ -99,8 +95,6 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
-
   Register dictionary() const {
     return Register::from_code(DictionaryBits::decode(minor_key_));
   }
@@ -120,7 +114,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   class IndexBits: public BitField<int, 6, 3> {};
   class LookupModeBits: public BitField<LookupMode, 9, 1> {};
 
-  DISALLOW_COPY_AND_ASSIGN(NameDictionaryLookupStub);
+  DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
 
@@ -140,6 +134,9 @@ class RecordWriteStub: public PlatformCodeStub {
                  AddressBits::encode(address.code()) |
                  RememberedSetActionBits::encode(remembered_set_action);
   }
+
+  RecordWriteStub(uint32_t key, Isolate* isolate)
+      : PlatformCodeStub(key, isolate), regs_(object(), address(), value()) {}
 
   enum Mode {
     STORE_BUFFER_ONLY,
@@ -323,9 +320,9 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE;
+  virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
 
-  void Generate(MacroAssembler* masm);
+  virtual void Generate(MacroAssembler* masm) OVERRIDE;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,

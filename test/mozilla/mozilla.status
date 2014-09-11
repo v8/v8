@@ -63,6 +63,9 @@
   # TODO(turbofan): Large switch statements crash.
   'js1_5/Regress/regress-398085-01': [PASS, NO_VARIANTS],
 
+  # TODO(mstarzinger): Typed lowering screws up ToBoolean somehow.
+  'ecma/TypeConversion/9.2': [PASS, NO_VARIANTS],
+
   ##################### SKIPPED TESTS #####################
 
   # This test checks that we behave properly in an out-of-memory

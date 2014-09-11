@@ -352,9 +352,9 @@ class Instruction {
   // Patch a literal load instruction to load from 'source'.
   void SetImmLLiteral(Instruction* source);
 
-  uint8_t* LiteralAddress() {
+  uintptr_t LiteralAddress() {
     int offset = ImmLLiteral() << kLoadLiteralScaleLog2;
-    return reinterpret_cast<uint8_t*>(this) + offset;
+    return reinterpret_cast<uintptr_t>(this) + offset;
   }
 
   enum CheckAlignment { NO_CHECK, CHECK_ALIGNMENT };

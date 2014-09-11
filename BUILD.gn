@@ -25,7 +25,7 @@ v8_random_seed = "314159265"
 # Configurations
 #
 config("internal_config") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   include_dirs = [ "." ]
 
@@ -38,7 +38,7 @@ config("internal_config") {
 }
 
 config("internal_config_base") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   include_dirs = [ "." ]
 }
@@ -56,7 +56,7 @@ config("external_config") {
 }
 
 config("features") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   defines = []
 
@@ -118,7 +118,7 @@ config("features") {
 }
 
 config("toolchain") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   defines = []
   cflags = []
@@ -167,7 +167,7 @@ config("toolchain") {
 #
 
 action("js2c") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   script = "tools/js2c.py"
 
@@ -228,7 +228,7 @@ action("js2c") {
 }
 
 action("js2c_experimental") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   script = "tools/js2c.py"
 
@@ -266,7 +266,7 @@ action("js2c_experimental") {
 
 if (v8_use_external_startup_data) {
   action("natives_blob") {
-    visibility = ":*"  # Only targets in this file can depend on this.
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
       ":js2c",
@@ -289,7 +289,7 @@ if (v8_use_external_startup_data) {
 }
 
 action("postmortem-metadata") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   script = "tools/gen-postmortem-metadata.py"
 
@@ -308,7 +308,7 @@ action("postmortem-metadata") {
 }
 
 action("run_mksnapshot") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [ ":mksnapshot($host_toolchain)" ]
 
@@ -346,7 +346,7 @@ action("run_mksnapshot") {
 #
 
 source_set("v8_nosnapshot") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
     ":js2c",
@@ -367,7 +367,7 @@ source_set("v8_nosnapshot") {
 }
 
 source_set("v8_snapshot") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
     ":js2c",
@@ -390,7 +390,7 @@ source_set("v8_snapshot") {
 
 if (v8_use_external_startup_data) {
   source_set("v8_external_snapshot") {
-    visibility = ":*"  # Only targets in this file can depend on this.
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
       ":js2c",
@@ -412,7 +412,7 @@ if (v8_use_external_startup_data) {
 }
 
 source_set("v8_base") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
     "src/accessors.cc",
@@ -1157,7 +1157,7 @@ source_set("v8_base") {
 }
 
 source_set("v8_libbase") {
-  visibility = ":*"  # Only targets in this file can depend on this.
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = [
     "src/base/atomicops.h",
@@ -1282,7 +1282,7 @@ source_set("v8_libplatform") {
 
 if (current_toolchain == host_toolchain) {
   executable("mksnapshot") {
-    visibility = ":*"  # Only targets in this file can depend on this.
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     sources = [
       "src/mksnapshot.cc",

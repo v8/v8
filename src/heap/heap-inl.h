@@ -31,18 +31,12 @@ void PromotionQueue::insert(HeapObject* target, int size) {
         NewSpacePage::FromAddress(reinterpret_cast<Address>(rear_));
     DCHECK(!rear_page->prev_page()->is_anchor());
     rear_ = reinterpret_cast<intptr_t*>(rear_page->prev_page()->area_end());
-    ActivateGuardIfOnTheSamePage();
   }
 
-  if (guard_) {
-    DCHECK(GetHeadPage() ==
-           Page::FromAllocationTop(reinterpret_cast<Address>(limit_)));
-
-    if ((rear_ - 2) < limit_) {
-      RelocateQueueHead();
-      emergency_stack_->Add(Entry(target, size));
-      return;
-    }
+  if ((rear_ - 2) < limit_) {
+    RelocateQueueHead();
+    emergency_stack_->Add(Entry(target, size));
+    return;
   }
 
   *(--rear_) = reinterpret_cast<intptr_t>(target);
@@ -55,17 +49,9 @@ void PromotionQueue::insert(HeapObject* target, int size) {
 }
 
 
-void PromotionQueue::ActivateGuardIfOnTheSamePage() {
-  guard_ = guard_ ||
-           heap_->new_space()->active_space()->current_page()->address() ==
-               GetHeadPage()->address();
-}
-
-
 template <>
 bool inline Heap::IsOneByte(Vector<const char> str, int chars) {
   // TODO(dcarney): incorporate Latin-1 check when Latin-1 is supported?
-  // ASCII only check.
   return chars == str.length();
 }
 
@@ -100,7 +86,7 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
     Vector<const uint8_t> str, uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, str.length());
   // Compute map and object size.
-  Map* map = ascii_internalized_string_map();
+  Map* map = one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
   AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
@@ -461,8 +447,7 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
       return dst == src || dst == TargetSpaceId(type);
     case OLD_POINTER_SPACE:
       return dst == src && (dst == TargetSpaceId(type) || obj->IsFiller() ||
-                            (obj->IsExternalString() &&
-                             ExternalString::cast(obj)->is_short()));
+                            obj->IsExternalString());
     case OLD_DATA_SPACE:
       return dst == src && dst == TargetSpaceId(type);
     case CODE_SPACE:

@@ -94,6 +94,40 @@
   'test-run-machops/RunLoadImmIndex': [SKIP],
   'test-run-machops/RunSpillLotsOfThingsWithCall': [SKIP],
 
+  # TODO(sigurds): The schedule is borked with multiple inlinees.
+  'test-run-inlining/InlineTwiceDependentDiamond': [SKIP],
+  'test-run-inlining/InlineTwiceDependentDiamondDifferent': [SKIP],
+
+  # TODO(mstarzinger): Causes crash in generated code, needs investigation.
+  'test-api/FixedUint8Array': [PASS, NO_VARIANTS],
+  'test-api/FixedUint8ClampedArray': [PASS, NO_VARIANTS],
+  'test-api/FixedInt8Array': [PASS, NO_VARIANTS],
+  'test-api/FixedUint16Array': [PASS, NO_VARIANTS],
+  'test-api/FixedInt16Array': [PASS, NO_VARIANTS],
+  'test-api/FixedUint32Array': [PASS, NO_VARIANTS],
+  'test-api/FixedInt32Array': [PASS, NO_VARIANTS],
+  'test-api/FixedFloat32Array': [PASS, NO_VARIANTS],
+  'test-api/FixedFloat64Array': [PASS, NO_VARIANTS],
+  'test-api/ExternalInt8Array': [PASS, NO_VARIANTS],
+  'test-api/ExternalUint8Array': [PASS, NO_VARIANTS],
+  'test-api/ExternalUint8ClampedArray': [PASS, NO_VARIANTS],
+  'test-api/ExternalInt16Array': [PASS, NO_VARIANTS],
+  'test-api/ExternalUint32Array': [PASS, NO_VARIANTS],
+  'test-api/ExternalUint16Array': [PASS, NO_VARIANTS],
+  'test-api/ExternalInt32Array': [PASS, NO_VARIANTS],
+  'test-api/ExternalFloat32Array': [PASS, NO_VARIANTS],
+  'test-api/ExternalArrays': [PASS, NO_VARIANTS],
+  'test-api/ExternalFloat64Array': [PASS, NO_VARIANTS],
+  'test-api/Uint8Array': [PASS, NO_VARIANTS],
+  'test-api/Int8Array': [PASS, NO_VARIANTS],
+  'test-api/Uint16Array': [PASS, NO_VARIANTS],
+  'test-api/Int16Array': [PASS, NO_VARIANTS],
+  'test-api/Uint32Array': [PASS, NO_VARIANTS],
+  'test-api/Int32Array': [PASS, NO_VARIANTS],
+  'test-api/Float64Array': [PASS, NO_VARIANTS],
+  'test-api/Float32Array': [PASS, NO_VARIANTS],
+  'test-api/Uint8ClampedArray': [PASS, NO_VARIANTS],
+
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
   'test-heap/IncrementalMarkingStepMakesBigProgressWithLargeObjects': [PASS, NO_VARIANTS],
@@ -182,7 +216,7 @@
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
 
   # BUG(v8:3155).
-  'test-strings/AsciiArrayJoin': [PASS, ['mode == debug', FAIL]],
+  'test-strings/OneByteArrayJoin': [PASS, ['mode == debug', FAIL]],
 
   # BUG(v8:3247).
   'test-mark-compact/NoPromotion': [SKIP],
@@ -442,10 +476,10 @@
   'test-constantpool/ConstantPool' : [SKIP],
   'test-compiler/GetScriptLineNumber' : [SKIP],
   'test-api/ScriptMakingExternalString' : [SKIP],
-  'test-api/ScriptMakingExternalAsciiString' : [SKIP],
+  'test-api/ScriptMakingExternalOneByteString' : [SKIP],
   'test-api/MakingExternalStringConditions' : [SKIP],
-  'test-api/MakingExternalAsciiStringConditions' : [SKIP],
-  'test-api/MakingExternalUnalignedAsciiString' : [SKIP],
+  'test-api/MakingExternalOneByteStringConditions' : [SKIP],
+  'test-api/MakingExternalUnalignedOneByteString' : [SKIP],
   'test-api/IndexedInterceptorUnboxedDoubleWithIndexedAccessor' : [SKIP],
   'test-api/IndependentWeakHandle' : [SKIP],
   'test-api/GCFromWeakCallbacks' : [SKIP],
