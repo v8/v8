@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_IA32
 
+#include "src/code-factory.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen.h"
@@ -1006,7 +1007,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
       __ mov(VectorLoadICDescriptor::SlotRegister(),
              Immediate(Smi::FromInt(0)));
     }
-    Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Initialize();
+    Handle<Code> ic = CodeFactory::KeyedLoadIC(masm->isolate()).code();
     __ call(ic, RelocInfo::CODE_TARGET);
     // It is important that we do not have a test instruction after the
     // call.  A test instruction after the call is used to indicate that

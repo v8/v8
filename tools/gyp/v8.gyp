@@ -364,6 +364,8 @@
         '../../src/checks.h',
         '../../src/circular-queue-inl.h',
         '../../src/circular-queue.h',
+        '../../src/code-factory.cc',
+        '../../src/code-factory.h',
         '../../src/code-stubs.cc',
         '../../src/code-stubs.h',
         '../../src/code-stubs-hydrogen.cc',

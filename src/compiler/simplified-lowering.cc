@@ -5,6 +5,7 @@
 #include "src/compiler/simplified-lowering.h"
 
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node-properties-inl.h"
@@ -851,12 +852,13 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
 
 
 void SimplifiedLowering::DoStringAdd(Node* node) {
-  StringAddStub stub(zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-  CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
+  Callable callable = CodeFactory::StringAdd(
+      zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(d, 0, flags, zone());
+  CallDescriptor* desc =
+      Linkage::GetStubCallDescriptor(callable.descriptor(), 0, flags, zone());
   node->set_op(common()->Call(desc));
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(stub.GetCode()));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(callable.code()));
   node->AppendInput(zone(), jsgraph()->UndefinedConstant());
   node->AppendInput(zone(), graph()->start());
   node->AppendInput(zone(), graph()->start());
