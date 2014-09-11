@@ -130,7 +130,7 @@ class Heap;
 class HeapObject;
 class Isolate;
 class Object;
-class StreamedSource;
+struct StreamedSource;
 template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
