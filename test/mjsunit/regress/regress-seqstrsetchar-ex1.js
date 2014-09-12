@@ -47,7 +47,7 @@ function StringFromCharCode(code) {
   var two_byte = %NewString(n - i, false);
   for (var j = 0; i < n; i++, j++) {
     var code = %_Arguments(i);
-    %_TwoByteSeqStringSetChar(j, code, two_byte);
+    %_TwoByteSeqStringSetChar(two_byte, j, code);
   }
   return one_byte + two_byte;
 }

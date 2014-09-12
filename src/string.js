@@ -812,7 +812,7 @@ function StringFromCharCode(code) {
     if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
     if (code < 0) code = code & 0xffff;
     if (code > 0xff) break;
-    %_OneByteSeqStringSetChar(i, code, one_byte);
+    %_OneByteSeqStringSetChar(one_byte, i, code);
   }
   if (i == n) return one_byte;
   one_byte = %TruncateString(one_byte, i);
@@ -821,7 +821,7 @@ function StringFromCharCode(code) {
   for (var j = 0; i < n; i++, j++) {
     var code = %_Arguments(i);
     if (!%_IsSmi(code)) code = ToNumber(code) & 0xffff;
-    %_TwoByteSeqStringSetChar(j, code, two_byte);
+    %_TwoByteSeqStringSetChar(two_byte, j, code);
   }
   return one_byte + two_byte;
 }

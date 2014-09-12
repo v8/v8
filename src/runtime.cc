@@ -15415,9 +15415,9 @@ RUNTIME_FUNCTION(RuntimeReference_StringCharAt) {
 RUNTIME_FUNCTION(RuntimeReference_OneByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
-  CONVERT_INT32_ARG_CHECKED(index, 0);
-  CONVERT_INT32_ARG_CHECKED(value, 1);
-  CONVERT_ARG_CHECKED(SeqOneByteString, string, 2);
+  CONVERT_ARG_CHECKED(SeqOneByteString, string, 0);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  CONVERT_INT32_ARG_CHECKED(value, 2);
   string->SeqOneByteStringSet(index, value);
   return string;
 }
@@ -15426,9 +15426,9 @@ RUNTIME_FUNCTION(RuntimeReference_OneByteSeqStringSetChar) {
 RUNTIME_FUNCTION(RuntimeReference_TwoByteSeqStringSetChar) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 3);
-  CONVERT_INT32_ARG_CHECKED(index, 0);
-  CONVERT_INT32_ARG_CHECKED(value, 1);
-  CONVERT_ARG_CHECKED(SeqTwoByteString, string, 2);
+  CONVERT_ARG_CHECKED(SeqTwoByteString, string, 0);
+  CONVERT_INT32_ARG_CHECKED(index, 1);
+  CONVERT_INT32_ARG_CHECKED(value, 2);
   string->SeqTwoByteStringSet(index, value);
   return string;
 }

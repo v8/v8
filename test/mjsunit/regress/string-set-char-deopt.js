@@ -34,7 +34,7 @@
 
   function f(string, osr) {
     var world = " world";
-    %_OneByteSeqStringSetChar(0, (deopt(), 0x48), string);
+    %_OneByteSeqStringSetChar(string, 0, (deopt(), 0x48));
 
     if (osr) while (%GetOptimizationStatus(f) == 2) {}
 
@@ -56,7 +56,7 @@
   }
 
   function f(string) {
-    g(%_OneByteSeqStringSetChar(0, (deopt(), 0x48), string));
+    g(%_OneByteSeqStringSetChar(string, 0, (deopt(), 0x48)));
     return string;
   }
 
@@ -75,7 +75,7 @@
   }
 
   function f(string) {
-    g(%_TwoByteSeqStringSetChar(0, (deopt(), 0x48), string));
+    g(%_TwoByteSeqStringSetChar(string, 0, (deopt(), 0x48)));
     return string;
   }
 
