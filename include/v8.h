@@ -130,6 +130,7 @@ class Heap;
 class HeapObject;
 class Isolate;
 class Object;
+struct StreamedSource;
 template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
@@ -1088,6 +1089,73 @@ class V8_EXPORT ScriptCompiler {
     CachedData* cached_data;
   };
 
+  /**
+   * For streaming incomplete script data to V8. The embedder should implement a
+   * subclass of this class.
+   */
+  class ExternalSourceStream {
+   public:
+    virtual ~ExternalSourceStream() {}
+
+    /**
+     * V8 calls this to request the next chunk of data from the embedder. This
+     * function will be called on a background thread, so it's OK to block and
+     * wait for the data, if the embedder doesn't have data yet. Returns the
+     * length of the data returned. When the data ends, GetMoreData should
+     * return 0. Caller takes ownership of the data.
+     *
+     * When streaming UTF-8 data, V8 handles multi-byte characters split between
+     * two data chunks, but doesn't handle multi-byte characters split between
+     * more than two data chunks. The embedder can avoid this problem by always
+     * returning at least 2 bytes of data.
+     *
+     * If the embedder wants to cancel the streaming, they should make the next
+     * GetMoreData call return 0. V8 will interpret it as end of data (and most
+     * probably, parsing will fail). The streaming task will return as soon as
+     * V8 has parsed the data it received so far.
+     */
+    virtual size_t GetMoreData(const uint8_t** src) = 0;
+  };
+
+
+  /**
+   * Source code which can be streamed into V8 in pieces. It will be parsed
+   * while streaming. It can be compiled after the streaming is complete.
+   * StreamedSource must be kept alive while the streaming task is ran (see
+   * ScriptStreamingTask below).
+   */
+  class V8_EXPORT StreamedSource {
+   public:
+    enum Encoding { ONE_BYTE, TWO_BYTE, UTF8 };
+
+    StreamedSource(ExternalSourceStream* source_stream, Encoding encoding);
+    ~StreamedSource();
+
+    // Ownership of the CachedData or its buffers is *not* transferred to the
+    // caller. The CachedData object is alive as long as the StreamedSource
+    // object is alive.
+    const CachedData* GetCachedData() const;
+
+    internal::StreamedSource* impl() const { return impl_; }
+
+   private:
+    // Prevent copying. Not implemented.
+    StreamedSource(const StreamedSource&);
+    StreamedSource& operator=(const StreamedSource&);
+
+    internal::StreamedSource* impl_;
+  };
+
+  /**
+   * A streaming task which the embedder must run on a background thread to
+   * stream scripts into V8. Returned by ScriptCompiler::StartStreamingScript.
+   */
+  class ScriptStreamingTask {
+   public:
+    virtual ~ScriptStreamingTask() {}
+    virtual void Run() = 0;
+  };
+
   enum CompileOptions {
     kNoCompileOptions = 0,
     kProduceParserCache,
@@ -1130,6 +1198,32 @@ class V8_EXPORT ScriptCompiler {
   static Local<Script> Compile(
       Isolate* isolate, Source* source,
       CompileOptions options = kNoCompileOptions);
+
+  /**
+   * Returns a task which streams script data into V8, or NULL if the script
+   * cannot be streamed. The user is responsible for running the task on a
+   * background thread and deleting it. When ran, the task starts parsing the
+   * script, and it will request data from the StreamedSource as needed. When
+   * ScriptStreamingTask::Run exits, all data has been streamed and the script
+   * can be compiled (see Compile below).
+   *
+   * This API allows to start the streaming with as little data as possible, and
+   * the remaining data (for example, the ScriptOrigin) is passed to Compile.
+   */
+  static ScriptStreamingTask* StartStreamingScript(
+      Isolate* isolate, StreamedSource* source,
+      CompileOptions options = kNoCompileOptions);
+
+  /**
+   * Compiles a streamed script (bound to current context).
+   *
+   * This can only be called after the streaming has finished
+   * (ScriptStreamingTask has been run). V8 doesn't construct the source string
+   * during streaming, so the embedder needs to pass the full source here.
+   */
+  static Local<Script> Compile(Isolate* isolate, StreamedSource* source,
+                               Handle<String> full_source_string,
+                               const ScriptOrigin& origin);
 };
 
 

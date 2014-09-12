@@ -13,6 +13,7 @@
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
 #include "src/assert-scope.h"
+#include "src/background-parsing-task.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1600,6 +1601,20 @@ ScriptCompiler::CachedData::~CachedData() {
 }
 
 
+ScriptCompiler::StreamedSource::StreamedSource(ExternalSourceStream* stream,
+                                               Encoding encoding)
+    : impl_(new i::StreamedSource(stream, encoding)) {}
+
+
+ScriptCompiler::StreamedSource::~StreamedSource() { delete impl_; }
+
+
+const ScriptCompiler::CachedData*
+ScriptCompiler::StreamedSource::GetCachedData() const {
+  return impl_->cached_data.get();
+}
+
+
 Local<Script> UnboundScript::BindToCurrentContext() {
   i::Handle<i::HeapObject> obj =
       i::Handle<i::HeapObject>::cast(Utils::OpenHandle(this));
@@ -1810,6 +1825,89 @@ Local<Script> ScriptCompiler::Compile(
   ENTER_V8(isolate);
   Local<UnboundScript> generic = CompileUnbound(v8_isolate, source, options);
   if (generic.IsEmpty()) return Local<Script>();
+  return generic->BindToCurrentContext();
+}
+
+
+ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
+    Isolate* v8_isolate, StreamedSource* source, CompileOptions options) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  if (!isolate->global_context().is_null() &&
+      !isolate->global_context()->IsNativeContext()) {
+    // The context chain is non-trivial, and constructing the corresponding
+    // non-trivial Scope chain outside the V8 heap is not implemented. Don't
+    // stream the script. This will only occur if Harmony scoping is enabled and
+    // a previous script has introduced "let" or "const" variables. TODO(marja):
+    // Implement externalizing ScopeInfos and constructing non-trivial Scope
+    // chains independent of the V8 heap so that we can stream also in this
+    // case.
+    return NULL;
+  }
+  return new i::BackgroundParsingTask(source->impl(), options,
+                                      i::FLAG_stack_size, isolate);
+}
+
+
+Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate,
+                                      StreamedSource* v8_source,
+                                      Handle<String> full_source_string,
+                                      const ScriptOrigin& origin) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  i::StreamedSource* source = v8_source->impl();
+  ON_BAILOUT(isolate, "v8::ScriptCompiler::Compile()", return Local<Script>());
+  LOG_API(isolate, "ScriptCompiler::Compile()");
+  ENTER_V8(isolate);
+  i::SharedFunctionInfo* raw_result = NULL;
+
+  {
+    i::HandleScope scope(isolate);
+    i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
+    i::Handle<i::Script> script = isolate->factory()->NewScript(str);
+    if (!origin.ResourceName().IsEmpty()) {
+      script->set_name(*Utils::OpenHandle(*(origin.ResourceName())));
+    }
+    if (!origin.ResourceLineOffset().IsEmpty()) {
+      script->set_line_offset(i::Smi::FromInt(
+          static_cast<int>(origin.ResourceLineOffset()->Value())));
+    }
+    if (!origin.ResourceColumnOffset().IsEmpty()) {
+      script->set_column_offset(i::Smi::FromInt(
+          static_cast<int>(origin.ResourceColumnOffset()->Value())));
+    }
+    if (!origin.ResourceIsSharedCrossOrigin().IsEmpty()) {
+      script->set_is_shared_cross_origin(origin.ResourceIsSharedCrossOrigin() ==
+                                         v8::True(v8_isolate));
+    }
+    source->info->set_script(script);
+    source->info->SetContext(isolate->global_context());
+
+    EXCEPTION_PREAMBLE(isolate);
+
+    // Do the parsing tasks which need to be done on the main thread. This will
+    // also handle parse errors.
+    source->parser->Internalize();
+
+    i::Handle<i::SharedFunctionInfo> result =
+        i::Handle<i::SharedFunctionInfo>::null();
+    if (source->info->function() != NULL) {
+      // Parsing has succeeded.
+      result =
+          i::Compiler::CompileStreamedScript(source->info.get(), str->length());
+    }
+    has_pending_exception = result.is_null();
+    if (has_pending_exception) isolate->ReportPendingMessages();
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
+
+    raw_result = *result;
+    // The Handle<Script> will go out of scope soon; make sure CompilationInfo
+    // doesn't point to it.
+    source->info->set_script(i::Handle<i::Script>());
+  }  // HandleScope goes out of scope.
+  i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
+  Local<UnboundScript> generic = ToApiHandle<UnboundScript>(result);
+  if (generic.IsEmpty()) {
+    return Local<Script>();
+  }
   return generic->BindToCurrentContext();
 }
 
