@@ -15,7 +15,10 @@ enum ImmediateMode {
   kShift64Imm,     // 0 - 63
   kLogical32Imm,
   kLogical64Imm,
-  kLoadStoreImm,  // unsigned 9 bit or signed 7 bit
+  kLoadStoreImm8,   // signed 8 bit or 12 bit unsigned scaled by access size
+  kLoadStoreImm16,
+  kLoadStoreImm32,
+  kLoadStoreImm64,
   kNoImmediate
 };
 
@@ -54,13 +57,24 @@ class Arm64OperandGenerator FINAL : public OperandGenerator {
         return 0 <= value && value < 32;
       case kShift64Imm:
         return 0 <= value && value < 64;
-      case kLoadStoreImm:
-        return (0 <= value && value < (1 << 9)) ||
-               (-(1 << 6) <= value && value < (1 << 6));
+      case kLoadStoreImm8:
+        return IsLoadStoreImmediate(value, LSByte);
+      case kLoadStoreImm16:
+        return IsLoadStoreImmediate(value, LSHalfword);
+      case kLoadStoreImm32:
+        return IsLoadStoreImmediate(value, LSWord);
+      case kLoadStoreImm64:
+        return IsLoadStoreImmediate(value, LSDoubleWord);
       case kNoImmediate:
         return false;
     }
     return false;
+  }
+
+ private:
+  bool IsLoadStoreImmediate(int64_t value, LSDataSize size) {
+    return Assembler::IsImmLSScaled(value, size) ||
+           Assembler::IsImmLSUnscaled(value);
   }
 };
 
@@ -142,32 +156,39 @@ void InstructionSelector::VisitLoad(Node* node) {
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   ArchOpcode opcode;
+  ImmediateMode immediate_mode = kNoImmediate;
   switch (rep) {
     case kRepFloat32:
       opcode = kArm64LdrS;
+      immediate_mode = kLoadStoreImm32;
       break;
     case kRepFloat64:
       opcode = kArm64LdrD;
+      immediate_mode = kLoadStoreImm64;
       break;
     case kRepBit:  // Fall through.
     case kRepWord8:
       opcode = typ == kTypeInt32 ? kArm64Ldrsb : kArm64Ldrb;
+      immediate_mode = kLoadStoreImm8;
       break;
     case kRepWord16:
       opcode = typ == kTypeInt32 ? kArm64Ldrsh : kArm64Ldrh;
+      immediate_mode = kLoadStoreImm16;
       break;
     case kRepWord32:
       opcode = kArm64LdrW;
+      immediate_mode = kLoadStoreImm32;
       break;
     case kRepTagged:  // Fall through.
     case kRepWord64:
       opcode = kArm64Ldr;
+      immediate_mode = kLoadStoreImm64;
       break;
     default:
       UNREACHABLE();
       return;
   }
-  if (g.CanBeImmediate(index, kLoadStoreImm)) {
+  if (g.CanBeImmediate(index, immediate_mode)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI),
          g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
   } else {
@@ -198,32 +219,39 @@ void InstructionSelector::VisitStore(Node* node) {
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
   ArchOpcode opcode;
+  ImmediateMode immediate_mode = kNoImmediate;
   switch (rep) {
     case kRepFloat32:
       opcode = kArm64StrS;
+      immediate_mode = kLoadStoreImm32;
       break;
     case kRepFloat64:
       opcode = kArm64StrD;
+      immediate_mode = kLoadStoreImm64;
       break;
     case kRepBit:  // Fall through.
     case kRepWord8:
       opcode = kArm64Strb;
+      immediate_mode = kLoadStoreImm8;
       break;
     case kRepWord16:
       opcode = kArm64Strh;
+      immediate_mode = kLoadStoreImm16;
       break;
     case kRepWord32:
       opcode = kArm64StrW;
+      immediate_mode = kLoadStoreImm32;
       break;
     case kRepTagged:  // Fall through.
     case kRepWord64:
       opcode = kArm64Str;
+      immediate_mode = kLoadStoreImm64;
       break;
     default:
       UNREACHABLE();
       return;
   }
-  if (g.CanBeImmediate(index, kLoadStoreImm)) {
+  if (g.CanBeImmediate(index, immediate_mode)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI), NULL,
          g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
   } else {
