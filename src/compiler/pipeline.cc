@@ -171,7 +171,8 @@ Handle<Code> Pipeline::GenerateCode() {
   Typer typer(zone());
   MachineOperatorBuilder machine;
   CommonOperatorBuilder common(zone());
-  JSGraph jsgraph(&graph, &common, &typer);
+  JSOperatorBuilder javascript(zone());
+  JSGraph jsgraph(&graph, &common, &javascript, &typer, &machine);
   Node* context_node;
   {
     PhaseStats graph_builder_stats(info(), PhaseStats::CREATE_GRAPH,

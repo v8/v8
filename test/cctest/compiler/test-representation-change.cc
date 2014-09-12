@@ -25,13 +25,16 @@ class RepresentationChangerTester : public HandleAndZoneScope,
   explicit RepresentationChangerTester(int num_parameters = 0)
       : GraphAndBuilders(main_zone()),
         typer_(main_zone()),
-        jsgraph_(main_graph_, &main_common_, &typer_),
+        javascript_(main_zone()),
+        jsgraph_(main_graph_, &main_common_, &javascript_, &typer_,
+                 &main_machine_),
         changer_(&jsgraph_, &main_simplified_, &main_machine_, main_isolate()) {
     Node* s = graph()->NewNode(common()->Start(num_parameters));
     graph()->SetStart(s);
   }
 
   Typer typer_;
+  JSOperatorBuilder javascript_;
   JSGraph jsgraph_;
   RepresentationChanger changer_;
 

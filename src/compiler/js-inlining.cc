@@ -68,14 +68,9 @@ static void Parse(Handle<JSFunction> function, CompilationInfoWithZone* info) {
 // A facade on a JSFunction's graph to facilitate inlining. It assumes the
 // that the function graph has only one return statement, and provides
 // {UnifyReturn} to convert a function graph to that end.
-// InlineAtCall will create some new nodes using {graph}'s builders (and hence
-// those nodes will live in {graph}'s zone.
 class Inlinee {
  public:
-  explicit Inlinee(JSGraph* graph) : jsgraph_(graph) {}
-
-  Graph* graph() { return jsgraph_->graph(); }
-  JSGraph* jsgraph() { return jsgraph_; }
+  Inlinee(Node* start, Node* end) : start_(start), end_(end) {}
 
   // Returns the last regular control node, that is
   // the last control node before the end node.
@@ -93,24 +88,25 @@ class Inlinee {
   }
   // Return the unique return statement of the graph.
   Node* unique_return() {
-    Node* unique_return =
-        NodeProperties::GetControlInput(jsgraph_->graph()->end());
+    Node* unique_return = NodeProperties::GetControlInput(end_);
     DCHECK_EQ(IrOpcode::kReturn, unique_return->opcode());
     return unique_return;
   }
   // Inline this graph at {call}, use {jsgraph} and its zone to create
   // any new nodes.
   void InlineAtCall(JSGraph* jsgraph, Node* call);
+
   // Ensure that only a single return reaches the end node.
-  void UnifyReturn();
+  static void UnifyReturn(JSGraph* jsgraph);
 
  private:
-  JSGraph* jsgraph_;
+  Node* start_;
+  Node* end_;
 };
 
 
-void Inlinee::UnifyReturn() {
-  Graph* graph = jsgraph_->graph();
+void Inlinee::UnifyReturn(JSGraph* jsgraph) {
+  Graph* graph = jsgraph->graph();
 
   Node* final_merge = NodeProperties::GetControlInput(graph->end(), 0);
   if (final_merge->opcode() == IrOpcode::kReturn) {
@@ -121,12 +117,12 @@ void Inlinee::UnifyReturn() {
 
   int predecessors =
       OperatorProperties::GetControlInputCount(final_merge->op());
-  const Operator* op_phi =
-      jsgraph_->common()->Phi(kMachAnyTagged, predecessors);
-  const Operator* op_ephi = jsgraph_->common()->EffectPhi(predecessors);
 
-  NodeVector values(jsgraph_->zone());
-  NodeVector effects(jsgraph_->zone());
+  const Operator* op_phi = jsgraph->common()->Phi(kMachAnyTagged, predecessors);
+  const Operator* op_ephi = jsgraph->common()->EffectPhi(predecessors);
+
+  NodeVector values(jsgraph->zone());
+  NodeVector effects(jsgraph->zone());
   // Iterate over all control flow predecessors,
   // which must be return statements.
   InputIter iter = final_merge->inputs().begin();
@@ -152,9 +148,80 @@ void Inlinee::UnifyReturn() {
   Node* ephi = graph->NewNode(op_ephi, static_cast<int>(effects.size()),
                               &effects.front());
   Node* new_return =
-      graph->NewNode(jsgraph_->common()->Return(), phi, ephi, final_merge);
+      graph->NewNode(jsgraph->common()->Return(), phi, ephi, final_merge);
   graph->end()->ReplaceInput(0, new_return);
 }
+
+
+class CopyVisitor : public NullNodeVisitor {
+ public:
+  CopyVisitor(Graph* source_graph, Graph* target_graph, Zone* temp_zone)
+      : copies_(source_graph->NodeCount(), NULL, temp_zone),
+        sentinels_(source_graph->NodeCount(), NULL, temp_zone),
+        source_graph_(source_graph),
+        target_graph_(target_graph),
+        temp_zone_(temp_zone),
+        sentinel_op_(IrOpcode::kDead, Operator::kNoProperties, 0, 0,
+                     "sentinel") {}
+
+  GenericGraphVisit::Control Post(Node* original) {
+    NodeVector inputs(temp_zone_);
+    for (InputIter it = original->inputs().begin();
+         it != original->inputs().end(); ++it) {
+      inputs.push_back(GetCopy(*it));
+    }
+
+    // Reuse the operator in the copy. This assumes that op lives in a zone
+    // that lives longer than graph()'s zone.
+    Node* copy =
+        target_graph_->NewNode(original->op(), static_cast<int>(inputs.size()),
+                               (inputs.empty() ? NULL : &inputs.front()));
+    copies_[original->id()] = copy;
+    return GenericGraphVisit::CONTINUE;
+  }
+
+  Node* GetCopy(Node* original) {
+    Node* copy = copies_[original->id()];
+    if (copy == NULL) {
+      copy = GetSentinel(original);
+    }
+    DCHECK_NE(NULL, copy);
+    return copy;
+  }
+
+  void CopyGraph() {
+    source_graph_->VisitNodeInputsFromEnd(this);
+    ReplaceSentinels();
+  }
+
+  const NodeVector& copies() { return copies_; }
+
+ private:
+  void ReplaceSentinels() {
+    for (int id = 0; id < source_graph_->NodeCount(); ++id) {
+      Node* sentinel = sentinels_[id];
+      if (sentinel == NULL) continue;
+      Node* copy = copies_[id];
+      DCHECK_NE(NULL, copy);
+      sentinel->ReplaceUses(copy);
+    }
+  }
+
+  Node* GetSentinel(Node* original) {
+    Node* sentinel = sentinels_[original->id()];
+    if (sentinel == NULL) {
+      sentinel = target_graph_->NewNode(&sentinel_op_);
+    }
+    return sentinel;
+  }
+
+  NodeVector copies_;
+  NodeVector sentinels_;
+  Graph* source_graph_;
+  Graph* target_graph_;
+  Zone* temp_zone_;
+  SimpleOperator sentinel_op_;
+};
 
 
 void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
@@ -172,15 +239,15 @@ void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
 
   // {inlinee_inputs} counts JSFunction, Receiver, arguments, context,
   // but not effect, control.
-  int inlinee_inputs = graph()->start()->op()->OutputCount();
+  int inlinee_inputs = start_->op()->OutputCount();
   // Context is last argument.
   int inlinee_context_index = inlinee_inputs - 1;
   // {inliner_inputs} counts JSFunction, Receiver, arguments, but not
   // context, effect, control.
   int inliner_inputs = OperatorProperties::GetValueInputCount(call->op());
   // Iterate over all uses of the start node.
-  UseIter iter = graph()->start()->uses().begin();
-  while (iter != graph()->start()->uses().end()) {
+  UseIter iter = start_->uses().begin();
+  while (iter != start_->uses().end()) {
     Node* use = *iter;
     switch (use->opcode()) {
       case IrOpcode::kParameter: {
@@ -234,10 +301,10 @@ void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
 }
 
 
-void JSInliner::TryInlineCall(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+void JSInliner::TryInlineCall(Node* call) {
+  DCHECK_EQ(IrOpcode::kJSCallFunction, call->opcode());
 
-  HeapObjectMatcher<JSFunction> match(node->InputAt(0));
+  HeapObjectMatcher<JSFunction> match(call->InputAt(0));
   if (!match.HasValue()) {
     return;
   }
@@ -275,21 +342,20 @@ void JSInliner::TryInlineCall(Node* node) {
            info_->shared_info()->DebugName()->ToCString().get());
   }
 
-  Graph graph(info_->zone());
-  graph.SetNextNodeId(jsgraph_->graph()->NextNodeID());
-
-  Typer typer(info_->zone());
-  CommonOperatorBuilder common(info_->zone());
-  JSGraph jsgraph(&graph, &common, &typer);
+  Graph graph(info.zone());
+  Typer typer(info.zone());
+  JSGraph jsgraph(&graph, jsgraph_->common(), jsgraph_->javascript(), &typer,
+                  jsgraph_->machine());
 
   AstGraphBuilder graph_builder(&info, &jsgraph);
   graph_builder.CreateGraph();
+  Inlinee::UnifyReturn(&jsgraph);
 
-  Inlinee inlinee(&jsgraph);
-  inlinee.UnifyReturn();
-  inlinee.InlineAtCall(jsgraph_, node);
+  CopyVisitor visitor(&graph, jsgraph_->graph(), info.zone());
+  visitor.CopyGraph();
 
-  jsgraph_->graph()->SetNextNodeId(inlinee.graph()->NextNodeID());
+  Inlinee inlinee(visitor.GetCopy(graph.start()), visitor.GetCopy(graph.end()));
+  inlinee.InlineAtCall(jsgraph_, call);
 }
 }
 }

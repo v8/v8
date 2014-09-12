@@ -22,9 +22,10 @@ class ContextSpecializationTester : public HandleAndZoneScope,
       : DirectGraphBuilder(new (main_zone()) Graph(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
+        machine_(),
         simplified_(main_zone()),
         typer_(main_zone()),
-        jsgraph_(graph(), common(), &typer_),
+        jsgraph_(graph(), common(), &javascript_, &typer_, &machine_),
         info_(main_isolate(), main_zone()) {}
 
   Factory* factory() { return main_isolate()->factory(); }
@@ -37,6 +38,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
  private:
   CommonOperatorBuilder common_;
   JSOperatorBuilder javascript_;
+  MachineOperatorBuilder machine_;
   SimplifiedOperatorBuilder simplified_;
   Typer typer_;
   JSGraph jsgraph_;
