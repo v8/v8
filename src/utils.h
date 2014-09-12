@@ -680,9 +680,20 @@ inline int CompareCharsUnsigned(const lchar* lhs,
                                 const rchar* rhs,
                                 int chars) {
   const lchar* limit = lhs + chars;
+#ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*lhs) == sizeof(*rhs)) {
-    return memcmp(lhs, rhs, sizeof(*lhs) * chars);
+    // Number of characters in a uintptr_t.
+    static const int kStepSize = sizeof(uintptr_t) / sizeof(*lhs);  // NOLINT
+    while (lhs <= limit - kStepSize) {
+      if (*reinterpret_cast<const uintptr_t*>(lhs) !=
+          *reinterpret_cast<const uintptr_t*>(rhs)) {
+        break;
+      }
+      lhs += kStepSize;
+      rhs += kStepSize;
+    }
   }
+#endif
   while (lhs < limit) {
     int r = static_cast<int>(*lhs) - static_cast<int>(*rhs);
     if (r != 0) return r;
@@ -1275,11 +1286,15 @@ void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
 template <typename sourcechar, typename sinkchar>
 void CopyCharsUnsigned(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
+#ifdef V8_HOST_CAN_READ_UNALIGNED
   if ((sizeof(*dest) == sizeof(*src)) &&
       (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest)))) {
     MemCopy(dest, src, chars * sizeof(*dest));
-  } else {
-    while (dest < limit) *dest++ = static_cast<sinkchar>(*src++);
+    return;
+  }
+#endif
+  while (dest < limit) {
+    *dest++ = static_cast<sinkchar>(*src++);
   }
 }
 
