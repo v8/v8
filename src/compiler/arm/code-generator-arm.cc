@@ -819,7 +819,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       DwVfpRegister dst = g.ToDoubleRegister(destination);
       __ Move(temp, src);
       __ Move(src, dst);
-      __ Move(src, temp);
+      __ Move(dst, temp);
     } else {
       DCHECK(destination->IsDoubleStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
