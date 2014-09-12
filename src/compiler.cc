@@ -140,10 +140,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
   if (isolate_->debug()->is_active()) MarkAsDebug();
   if (FLAG_context_specialization) MarkAsContextSpecializing();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && V8_TURBOFAN_BACKEND
-  // TODO(mstarzinger): Bugs in ARM back-end block enabling typed pipeline.
   if (FLAG_turbo_types) MarkAsTypingEnabled();
-#endif
 
   if (!shared_info_.is_null()) {
     DCHECK(strict_mode() == SLOPPY);

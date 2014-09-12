@@ -333,7 +333,11 @@ DEFINE_BOOL(trace_turbo_types, true, "trace generated TurboFan types")
 DEFINE_BOOL(trace_turbo_scheduler, false, "trace generated TurboFan scheduler")
 DEFINE_BOOL(turbo_verify, false, "verify TurboFan graphs at each phase")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && V8_TURBOFAN_BACKEND
 DEFINE_BOOL(turbo_types, true, "use typed lowering in TurboFan")
+#else
+DEFINE_BOOL(turbo_types, false, "use typed lowering in TurboFan")
+#endif
 DEFINE_BOOL(turbo_source_positions, false,
             "track source code positions when building TurboFan IR")
 DEFINE_BOOL(context_specialization, false,
