@@ -1237,10 +1237,6 @@ void Factory::InitializeFunction(Handle<JSFunction> function,
   function->set_prototype_or_initial_map(*the_hole_value());
   function->set_literals_or_bindings(*empty_fixed_array());
   function->set_next_function_link(*undefined_value());
-
-  // TODO(arv): This does not look correct. We need to make sure we use
-  // a Map that has no prototype property.
-  if (info->is_arrow()) function->RemovePrototype();
 }
 
 
