@@ -9,11 +9,12 @@
 // -------------------------------------------------------------------
 
 function StringConstructor(x) {
-  var value = %_ArgumentsLength() == 0 ? '' : TO_STRING_INLINE(x);
+  if (%_ArgumentsLength() == 0) x = '';
   if (%_IsConstructCall()) {
-    %_SetValueOf(this, value);
+    %_SetValueOf(this, TO_STRING_INLINE(x));
   } else {
-    return value;
+    return IS_SYMBOL(x) ?
+        %_CallFunction(x, SymbolToString) : TO_STRING_INLINE(x);
   }
 }
 
