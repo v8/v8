@@ -67,13 +67,6 @@
   'debug-references': [PASS, NO_VARIANTS],
   'regress/regress-263': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Some runtime functions expect Smi but get HeapNumber.
-  # TODO(mstarzinger): Note that there is a second entry further down below for
-  # "array-functions-prototype-misc", make sure to reenable it again!
-  'array-functions-prototype-misc': [PASS, NO_VARIANTS, ['mode == debug', SKIP]],
-  'array-join': [PASS, NO_VARIANTS],
-  'sparse-array-reverse': [PASS, NO_VARIANTS],
-
   # TODO(mstarzinger): Causes crash in generated code, needs investigation.
   'array-sort': [PASS, NO_VARIANTS],
   'dehoisted-array-index': [PASS, NO_VARIANTS],
@@ -182,7 +175,7 @@
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
   'migrations': [SKIP],
-  #'array-functions-prototype-misc': [PASS, ['mode == debug', SKIP]],
+  'array-functions-prototype-misc': [PASS, ['mode == debug', SKIP]],
 
   ##############################################################################
   # This test sets the umask on a per-process basis and hence cannot be
