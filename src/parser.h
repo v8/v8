@@ -655,8 +655,12 @@ class Parser : public ParserBase<ParserTraits> {
   FunctionLiteral* ParseLazy();
   FunctionLiteral* ParseLazy(Utf16CharacterStream* source);
 
-  Isolate* isolate() { return isolate_; }
+  Isolate* isolate() { return info_->isolate(); }
   CompilationInfo* info() const { return info_; }
+  Handle<Script> script() const { return info_->script(); }
+  AstValueFactory* ast_value_factory() const {
+    return info_->ast_value_factory();
+  }
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(CompilationInfo* info,
@@ -805,15 +809,11 @@ class Parser : public ParserBase<ParserTraits> {
   // internalize strings (move them to the heap).
   void Internalize();
 
-  Isolate* isolate_;
-
-  Handle<Script> script_;
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
   Target* target_stack_;  // for break, continue statements
   ParseData* cached_parse_data_;
-  AstValueFactory* ast_value_factory_;
 
   CompilationInfo* info_;
 
@@ -846,7 +846,7 @@ Scope* ParserTraits::NewScope(Scope* parent_scope, ScopeType scope_type) {
 
 
 const AstRawString* ParserTraits::EmptyIdentifierString() {
-  return parser_->ast_value_factory_->empty_string();
+  return parser_->ast_value_factory()->empty_string();
 }
 
 
@@ -873,7 +873,7 @@ void ParserTraits::CheckConflictingVarDeclarations(v8::internal::Scope* scope,
 
 
 AstValueFactory* ParserTraits::ast_value_factory() {
-  return parser_->ast_value_factory_;
+  return parser_->ast_value_factory();
 }
 
 

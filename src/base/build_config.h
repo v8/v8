@@ -24,7 +24,7 @@
 #define V8_HOST_CAN_READ_UNALIGNED 1
 #else
 #define V8_HOST_ARCH_X64 1
-#if defined(__x86_64__) && !defined(__LP64__)
+#if defined(__x86_64__) && __SIZEOF_POINTER__ == 4  // Check for x32.
 #define V8_HOST_ARCH_32_BIT 1
 #else
 #define V8_HOST_ARCH_64_BIT 1
@@ -90,7 +90,7 @@
 #define V8_TARGET_ARCH_32_BIT 1
 #elif V8_TARGET_ARCH_X64
 #if !V8_TARGET_ARCH_32_BIT && !V8_TARGET_ARCH_64_BIT
-#if defined(__x86_64__) && !defined(__LP64__)
+#if defined(__x86_64__) && __SIZEOF_POINTER__ == 4  // Check for x32.
 #define V8_TARGET_ARCH_32_BIT 1
 #else
 #define V8_TARGET_ARCH_64_BIT 1

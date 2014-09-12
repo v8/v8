@@ -110,21 +110,21 @@ OStream& operator<<(OStream& os, const Operator& op);
 // An implementation of Operator that has no static parameters. Such operators
 // have just a name, an opcode, and a fixed number of inputs and outputs.
 // They can represented by singletons and shared globally.
-class SimpleOperator FINAL : public Operator {
+class SimpleOperator : public Operator {
  public:
   SimpleOperator(Opcode opcode, Properties properties, int input_count,
                  int output_count, const char* mnemonic);
   ~SimpleOperator();
 
-  virtual bool Equals(const Operator* that) const OVERRIDE {
+  virtual bool Equals(const Operator* that) const FINAL {
     return opcode() == that->opcode();
   }
-  virtual int HashCode() const OVERRIDE { return opcode(); }
-  virtual int InputCount() const OVERRIDE { return input_count_; }
-  virtual int OutputCount() const OVERRIDE { return output_count_; }
+  virtual int HashCode() const FINAL { return opcode(); }
+  virtual int InputCount() const FINAL { return input_count_; }
+  virtual int OutputCount() const FINAL { return output_count_; }
 
  private:
-  virtual OStream& PrintTo(OStream& os) const OVERRIDE {  // NOLINT
+  virtual OStream& PrintTo(OStream& os) const FINAL {  // NOLINT
     return os << mnemonic();
   }
 
@@ -259,9 +259,6 @@ class Operator1 : public Operator {
   int output_count_;
   T parameter_;
 };
-
-// Type definitions for operators with specific types of parameters.
-typedef Operator1<Unique<Name> > NameOperator;
 
 
 // Helper to extract parameters from Operator1<*> operator.

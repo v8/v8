@@ -5,8 +5,8 @@
 #ifndef V8_HYDROGEN_UNIQUE_H_
 #define V8_HYDROGEN_UNIQUE_H_
 
-#include "src/handles.h"
-#include "src/objects.h"
+#include "src/handles-inl.h"  // TODO(everyone): Fix our inl.h crap
+#include "src/objects-inl.h"  // TODO(everyone): Fix our inl.h crap
 #include "src/string-stream.h"
 #include "src/utils.h"
 #include "src/zone.h"

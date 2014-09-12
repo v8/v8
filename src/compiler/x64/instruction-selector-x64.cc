@@ -56,8 +56,8 @@ class X64OperandGenerator FINAL : public OperandGenerator {
 
 
 void InstructionSelector::VisitLoad(Node* node) {
-  MachineType rep = RepresentationOf(OpParameter<MachineType>(node));
-  MachineType typ = TypeOf(OpParameter<MachineType>(node));
+  MachineType rep = RepresentationOf(OpParameter<LoadRepresentation>(node));
+  MachineType typ = TypeOf(OpParameter<LoadRepresentation>(node));
   X64OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -111,8 +111,8 @@ void InstructionSelector::VisitStore(Node* node) {
   Node* value = node->InputAt(2);
 
   StoreRepresentation store_rep = OpParameter<StoreRepresentation>(node);
-  MachineType rep = RepresentationOf(store_rep.machine_type);
-  if (store_rep.write_barrier_kind == kFullWriteBarrier) {
+  MachineType rep = RepresentationOf(store_rep.machine_type());
+  if (store_rep.write_barrier_kind() == kFullWriteBarrier) {
     DCHECK(rep == kRepTagged);
     // TODO(dcarney): refactor RecordWrite function to take temp registers
     //                and pass them here instead of using fixed regs
@@ -123,7 +123,7 @@ void InstructionSelector::VisitStore(Node* node) {
          temps);
     return;
   }
-  DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind);
+  DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
   InstructionOperand* val;
   if (g.CanBeImmediate(value)) {
     val = g.UseImmediate(value);

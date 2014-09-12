@@ -378,6 +378,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractSharedFunctionInfoReferences(int entry,
                                            SharedFunctionInfo* shared);
   void ExtractScriptReferences(int entry, Script* script);
+  void ExtractAccessorInfoReferences(int entry, AccessorInfo* accessor_info);
   void ExtractAccessorPairReferences(int entry, AccessorPair* accessors);
   void ExtractCodeCacheReferences(int entry, CodeCache* code_cache);
   void ExtractCodeReferences(int entry, Code* code);

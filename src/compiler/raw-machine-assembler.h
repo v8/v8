@@ -108,7 +108,8 @@ class RawMachineAssembler : public GraphBuilder {
     Store(rep, base, Int32Constant(0), value);
   }
   void Store(MachineType rep, Node* base, Node* index, Node* value) {
-    NewNode(machine()->Store(rep, kNoWriteBarrier), base, index, value);
+    NewNode(machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)), base,
+            index, value);
   }
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
@@ -137,14 +138,14 @@ class RawMachineAssembler : public GraphBuilder {
     return WordBinaryNot(WordEqual(a, b));
   }
   Node* WordNot(Node* a) {
-    if (machine()->is32()) {
+    if (machine()->Is32()) {
       return Word32Not(a);
     } else {
       return Word64Not(a);
     }
   }
   Node* WordBinaryNot(Node* a) {
-    if (machine()->is32()) {
+    if (machine()->Is32()) {
       return Word32BinaryNot(a);
     } else {
       return Word64BinaryNot(a);

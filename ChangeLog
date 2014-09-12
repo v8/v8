@@ -1,3 +1,14 @@
+2014-09-12: Version 3.29.59
+
+        Do not use wide reads in CopyCharsUnsigned (Chromium issue 412967).
+
+        Fix inaccurate type condition in Hydrogen (Chromium issue 412210).
+
+        Fix crash in ScriptDebugServer::wrapCallFrames (Chromium issue 411196).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-11: Version 3.29.57
 
         ES6: Add support for method shorthand in object literals (issue 3516).

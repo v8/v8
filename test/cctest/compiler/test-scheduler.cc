@@ -1509,7 +1509,7 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common_builder(scope.main_zone());
   JSOperatorBuilder js_builder(scope.main_zone());
-  MachineOperatorBuilder machine_builder(scope.main_zone());
+  MachineOperatorBuilder machine_builder;
   const Operator* op;
 
   Handle<Object> object =
@@ -1668,7 +1668,7 @@ TEST(FloatingDiamond2) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  MachineOperatorBuilder machine(scope.main_zone());
+  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);
@@ -1691,7 +1691,7 @@ TEST(FloatingDiamond3) {
   HandleAndZoneScope scope;
   Graph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
-  MachineOperatorBuilder machine(scope.main_zone());
+  MachineOperatorBuilder machine;
 
   Node* start = graph.NewNode(common.Start(2));
   graph.SetStart(start);

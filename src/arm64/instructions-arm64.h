@@ -338,7 +338,7 @@ class Instruction {
   // Find the PC offset encoded in this instruction. 'this' may be a branch or
   // a PC-relative addressing instruction.
   // The offset returned is unscaled.
-  ptrdiff_t ImmPCOffset();
+  int64_t ImmPCOffset();
 
   // Find the target of this instruction. 'this' may be a branch or a
   // PC-relative addressing instruction.

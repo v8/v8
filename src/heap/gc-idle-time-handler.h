@@ -98,6 +98,10 @@ class GCIdleTimeHandler {
   // Number of scavenges that will trigger start of new idle round.
   static const int kIdleScavengeThreshold;
 
+  // Heap size threshold below which we prefer mark-compact over incremental
+  // step.
+  static const size_t kSmallHeapSize = 2 * kPointerSize * MB;
+
   struct HeapState {
     int contexts_disposed;
     size_t size_of_objects;

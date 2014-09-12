@@ -259,7 +259,8 @@ void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  const Register exponent = rdx;
+  const Register exponent = MathPowTaggedDescriptor::exponent();
+  DCHECK(exponent.is(rdx));
   const Register base = rax;
   const Register scratch = rcx;
   const XMMRegister double_result = xmm3;
@@ -531,6 +532,8 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in rdx and the parameter count is in rax.
+  DCHECK(rdx.is(ArgumentsAccessReadDescriptor::index()));
+  DCHECK(rax.is(ArgumentsAccessReadDescriptor::parameter_count()));
 
   // Check that the key is a smi.
   Label slow;
@@ -2022,7 +2025,6 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
 
 void CallICStub::Generate(MacroAssembler* masm) {
   // rdi - function
-  // rbx - vector
   // rdx - slot id
   Isolate* isolate = masm->isolate();
   Label extra_checks_or_miss, slow_start;
@@ -4590,7 +4592,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   Register accessor_info_arg = rsi;
   Register name_arg = rdi;
 #endif
-  Register api_function_address = r8;
+  Register api_function_address = ApiGetterDescriptor::function_address();
+  DCHECK(api_function_address.is(r8));
   Register scratch = rax;
 
   // v8::Arguments::values_ and handler for name.

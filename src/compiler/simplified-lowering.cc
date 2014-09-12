@@ -5,6 +5,7 @@
 #include "src/compiler/simplified-lowering.h"
 
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/node-properties-inl.h"
@@ -590,11 +591,11 @@ class RepresentationSelector {
       case IrOpcode::kLoad: {
         // TODO(titzer): machine loads/stores need to know BaseTaggedness!?
         MachineType tBase = kRepTagged;
-        MachineType machine_type = OpParameter<MachineType>(node);
+        LoadRepresentation rep = OpParameter<LoadRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
         ProcessRemainingInputs(node, 2);
-        SetOutput(node, machine_type);
+        SetOutput(node, rep);
         break;
       }
       case IrOpcode::kStore: {
@@ -603,7 +604,7 @@ class RepresentationSelector {
         StoreRepresentation rep = OpParameter<StoreRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
-        ProcessInput(node, 2, rep.machine_type);
+        ProcessInput(node, 2, rep.machine_type());
         ProcessRemainingInputs(node, 3);
         SetOutput(node, 0);
         break;
@@ -814,7 +815,7 @@ void SimplifiedLowering::DoStoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   WriteBarrierKind kind = ComputeWriteBarrierKind(
       access.base_is_tagged, access.machine_type, access.type);
-  node->set_op(machine_.Store(access.machine_type, kind));
+  node->set_op(machine_.Store(StoreRepresentation(access.machine_type, kind)));
   Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
   node->InsertInput(zone(), 1, offset);
 }
@@ -845,18 +846,19 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
   WriteBarrierKind kind = ComputeWriteBarrierKind(
       access.base_is_tagged, access.machine_type, access.type);
-  node->set_op(machine_.Store(access.machine_type, kind));
+  node->set_op(machine_.Store(StoreRepresentation(access.machine_type, kind)));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
 }
 
 
 void SimplifiedLowering::DoStringAdd(Node* node) {
-  StringAddStub stub(zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-  CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
+  Callable callable = CodeFactory::StringAdd(
+      zone()->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(d, 0, flags, zone());
+  CallDescriptor* desc =
+      Linkage::GetStubCallDescriptor(callable.descriptor(), 0, flags, zone());
   node->set_op(common()->Call(desc));
-  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(stub.GetCode()));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(callable.code()));
   node->AppendInput(zone(), jsgraph()->UndefinedConstant());
   node->AppendInput(zone(), graph()->start());
   node->AppendInput(zone(), graph()->start());

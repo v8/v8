@@ -1265,9 +1265,9 @@ TEST(LowerStoreField_to_store) {
 
     StoreRepresentation rep = OpParameter<StoreRepresentation>(store);
     if (machine_reps[i] & kRepTagged) {
-      CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind);
+      CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind());
     }
-    CHECK_EQ(machine_reps[i], rep.machine_type);
+    CHECK_EQ(machine_reps[i], rep.machine_type());
   }
 }
 
@@ -1312,9 +1312,9 @@ TEST(LowerStoreElement_to_store) {
 
     StoreRepresentation rep = OpParameter<StoreRepresentation>(store);
     if (machine_reps[i] & kRepTagged) {
-      CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind);
+      CHECK_EQ(kFullWriteBarrier, rep.write_barrier_kind());
     }
-    CHECK_EQ(machine_reps[i], rep.machine_type);
+    CHECK_EQ(machine_reps[i], rep.machine_type());
   }
 }
 

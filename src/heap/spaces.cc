@@ -664,7 +664,6 @@ MemoryChunk* MemoryAllocator::AllocateChunk(intptr_t reserve_area_size,
   MemoryChunk* result = MemoryChunk::Initialize(
       heap, base, chunk_size, area_start, area_end, executable, owner);
   result->set_reserved_memory(&reservation);
-  MSAN_MEMORY_IS_INITIALIZED_IN_JIT(base, chunk_size);
   return result;
 }
 

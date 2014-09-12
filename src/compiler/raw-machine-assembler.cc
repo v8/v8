@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/code-factory.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
 #include "src/compiler/scheduler.h"
@@ -15,7 +16,7 @@ RawMachineAssembler::RawMachineAssembler(Graph* graph,
                                          MachineType word)
     : GraphBuilder(graph),
       schedule_(new (zone()) Schedule(zone())),
-      machine_(zone(), word),
+      machine_(word),
       common_(zone()),
       machine_sig_(machine_sig),
       call_descriptor_(
@@ -83,11 +84,10 @@ void RawMachineAssembler::Return(Node* value) {
 Node* RawMachineAssembler::CallFunctionStub0(Node* function, Node* receiver,
                                              Node* context, Node* frame_state,
                                              CallFunctionFlags flags) {
-  CallFunctionStub stub(isolate(), 0, flags);
-  CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
+  Callable callable = CodeFactory::CallFunction(isolate(), 0, flags);
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      d, 1, CallDescriptor::kNeedsFrameState, zone());
-  Node* stub_code = HeapConstant(stub.GetCode());
+      callable.descriptor(), 1, CallDescriptor::kNeedsFrameState, zone());
+  Node* stub_code = HeapConstant(callable.code());
   Node* call = graph()->NewNode(common()->Call(desc), stub_code, function,
                                 receiver, context, frame_state);
   schedule()->AddNode(CurrentBlock(), call);

@@ -1118,6 +1118,8 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractSharedFunctionInfoReferences(entry, SharedFunctionInfo::cast(obj));
   } else if (obj->IsScript()) {
     ExtractScriptReferences(entry, Script::cast(obj));
+  } else if (obj->IsAccessorInfo()) {
+    ExtractAccessorInfoReferences(entry, AccessorInfo::cast(obj));
   } else if (obj->IsAccessorPair()) {
     ExtractAccessorPairReferences(entry, AccessorPair::cast(obj));
   } else if (obj->IsCodeCache()) {
@@ -1466,6 +1468,35 @@ void V8HeapExplorer::ExtractScriptReferences(int entry, Script* script) {
   SetInternalReference(obj, entry,
                        "line_ends", script->line_ends(),
                        Script::kLineEndsOffset);
+}
+
+
+void V8HeapExplorer::ExtractAccessorInfoReferences(
+    int entry, AccessorInfo* accessor_info) {
+  SetInternalReference(accessor_info, entry, "name", accessor_info->name(),
+                       AccessorInfo::kNameOffset);
+  SetInternalReference(accessor_info, entry, "expected_receiver_type",
+                       accessor_info->expected_receiver_type(),
+                       AccessorInfo::kExpectedReceiverTypeOffset);
+  if (accessor_info->IsDeclaredAccessorInfo()) {
+    DeclaredAccessorInfo* declared_accessor_info =
+        DeclaredAccessorInfo::cast(accessor_info);
+    SetInternalReference(declared_accessor_info, entry, "descriptor",
+                         declared_accessor_info->descriptor(),
+                         DeclaredAccessorInfo::kDescriptorOffset);
+  } else if (accessor_info->IsExecutableAccessorInfo()) {
+    ExecutableAccessorInfo* executable_accessor_info =
+        ExecutableAccessorInfo::cast(accessor_info);
+    SetInternalReference(executable_accessor_info, entry, "getter",
+                         executable_accessor_info->getter(),
+                         ExecutableAccessorInfo::kGetterOffset);
+    SetInternalReference(executable_accessor_info, entry, "setter",
+                         executable_accessor_info->setter(),
+                         ExecutableAccessorInfo::kSetterOffset);
+    SetInternalReference(executable_accessor_info, entry, "data",
+                         executable_accessor_info->data(),
+                         ExecutableAccessorInfo::kDataOffset);
+  }
 }
 
 

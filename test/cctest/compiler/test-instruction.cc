@@ -32,7 +32,6 @@ class InstructionTester : public HandleAndZoneScope {
         info(static_cast<HydrogenCodeStub*>(NULL), main_isolate()),
         linkage(&info),
         common(zone()),
-        machine(zone()),
         code(NULL) {}
 
   ~InstructionTester() { delete code; }

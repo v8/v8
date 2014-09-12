@@ -669,6 +669,8 @@ static void DebugEventBreakPointHitCount(
 int exception_hit_count = 0;
 int uncaught_exception_hit_count = 0;
 int last_js_stack_height = -1;
+v8::Handle<v8::Function> debug_event_listener_callback;
+int debug_event_listener_callback_result;
 
 static void DebugEventCounterClear() {
   break_point_hit_count = 0;
@@ -709,8 +711,16 @@ static void DebugEventCounter(
     static const int kArgc = 1;
     v8::Handle<v8::Value> argv[kArgc] = { exec_state };
     // Using exec_state as receiver is just to have a receiver.
-    v8::Handle<v8::Value> result =  frame_count->Call(exec_state, kArgc, argv);
+    v8::Handle<v8::Value> result = frame_count->Call(exec_state, kArgc, argv);
     last_js_stack_height = result->Int32Value();
+  }
+
+  // Run callback from DebugEventListener and check the result.
+  if (!debug_event_listener_callback.IsEmpty()) {
+    v8::Handle<v8::Value> result =
+        debug_event_listener_callback->Call(event_data, 0, NULL);
+    CHECK(!result.IsEmpty());
+    CHECK_EQ(debug_event_listener_callback_result, result->Int32Value());
   }
 }
 
@@ -3964,6 +3974,43 @@ TEST(BreakOnException) {
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded();
   v8::V8::RemoveMessageListeners(MessageCallbackCount);
+}
+
+
+TEST(EvalJSInDebugEventListenerOnNativeReThrownException) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  env.ExposeDebug();
+
+  // Create functions for testing break on exception.
+  v8::Local<v8::Function> noThrowJS = CompileFunction(
+      &env, "function noThrowJS(){var a=[1]; a.push(2); return a.length;}",
+      "noThrowJS");
+
+  debug_event_listener_callback = noThrowJS;
+  debug_event_listener_callback_result = 2;
+
+  v8::V8::AddMessageListener(MessageCallbackCount);
+  v8::Debug::SetDebugEventListener(DebugEventCounter);
+  // Break on uncaught exception
+  ChangeBreakOnException(false, true);
+  DebugEventCounterClear();
+  MessageCallbackCountClear();
+
+  // ReThrow native error
+  {
+    v8::TryCatch tryCatch;
+    env->GetIsolate()->ThrowException(v8::Exception::TypeError(
+        v8::String::NewFromUtf8(env->GetIsolate(), "Type error")));
+    CHECK(tryCatch.HasCaught());
+    tryCatch.ReThrow();
+  }
+  CHECK_EQ(1, exception_hit_count);
+  CHECK_EQ(1, uncaught_exception_hit_count);
+  CHECK_EQ(0, message_callback_count);  // FIXME: Should it be 1 ?
+  CHECK(!debug_event_listener_callback.IsEmpty());
+
+  debug_event_listener_callback.Clear();
 }
 
 

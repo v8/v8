@@ -21,7 +21,6 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
         binop(NULL),
         unop(NULL),
         javascript(main_zone()),
-        machine(main_zone()),
         simplified(main_zone()),
         common(main_zone()),
         graph(main_zone()),
@@ -473,12 +472,12 @@ TEST(JSToBoolean) {
     CHECK_EQ(IrOpcode::kParameter, r->opcode());
   }
 
-  {  // ToBoolean(number)
-    Node* r = R.ReduceUnop(op, Type::Number());
+  {  // ToBoolean(ordered-number)
+    Node* r = R.ReduceUnop(op, Type::OrderedNumber());
     CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
     Node* i = r->InputAt(0);
     CHECK_EQ(IrOpcode::kNumberEqual, i->opcode());
-    // ToBoolean(number) => BooleanNot(NumberEqual(x, #0))
+    // ToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x, #0))
   }
 
   {  // ToBoolean(string)
@@ -508,7 +507,7 @@ TEST(JSToBoolean_replacement) {
   JSTypedLoweringTester R;
 
   Type* types[] = {Type::Null(),             Type::Undefined(),
-                   Type::Boolean(),          Type::Number(),
+                   Type::Boolean(),          Type::OrderedNumber(),
                    Type::DetectableObject(), Type::Undetectable()};
 
   for (size_t i = 0; i < arraysize(types); i++) {
@@ -523,7 +522,7 @@ TEST(JSToBoolean_replacement) {
 
     if (types[i]->Is(Type::Boolean())) {
       CHECK_EQ(n, r);
-    } else if (types[i]->Is(Type::Number())) {
+    } else if (types[i]->Is(Type::OrderedNumber())) {
       CHECK_EQ(IrOpcode::kBooleanNot, r->opcode());
     } else {
       CHECK_EQ(IrOpcode::kHeapConstant, r->opcode());
@@ -1025,7 +1024,7 @@ TEST(OrderNumberBinopEffects2) {
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Number(), Type::Object());
+    BinopEffectsTester B(ops[j], Type::Number(), Type::Boolean());
 
     Node* i0 = B.CheckNoOp(0);
     Node* i1 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 1, true);
@@ -1038,7 +1037,7 @@ TEST(OrderNumberBinopEffects2) {
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Object(), Type::Number());
+    BinopEffectsTester B(ops[j], Type::Boolean(), Type::Number());
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
     Node* i1 = B.CheckNoOp(1);

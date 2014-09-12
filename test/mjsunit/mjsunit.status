@@ -92,7 +92,6 @@
   'compiler/osr-warm': [PASS, NO_VARIANTS],
   'compiler/regress-3136962': [PASS, NO_VARIANTS],
   'harmony/proxies-json': [PASS, NO_VARIANTS],
-  'regress/regress-3476': [PASS, NO_VARIANTS],
   'regress/regress-760-1': [PASS, NO_VARIANTS],
   'regress/regress-760-2': [PASS, NO_VARIANTS],
   'regress/regress-crbug-357052': [PASS, NO_VARIANTS],
@@ -534,6 +533,18 @@
 
   # Skip long running test that times out in debug mode and goes OOM on NaCl.
   'regress/regress-crbug-160010': [SKIP],
+
+  # Skip tests that timout with turbofan.
+  'regress/regress-1257': [PASS, NO_VARIANTS],
+  'regress/regress-2618': [PASS, NO_VARIANTS],
+  'regress/regress-298269': [PASS, NO_VARIANTS],
+  'regress/regress-634': [PASS, NO_VARIANTS],
+  'regress/regress-91008': [PASS, NO_VARIANTS],
+  'compiler/osr-alignment': [PASS, NO_VARIANTS],
+  'compiler/osr-one': [PASS, NO_VARIANTS],
+  'compiler/osr-two': [PASS, NO_VARIANTS],
+  'stack-traces-overflow': [PASS, NO_VARIANTS],
+  'mirror-object': [PASS, NO_VARIANTS],
 
   # Bug(v8:2978).
   'lithium/MathExp': [PASS, FAIL],

@@ -10253,7 +10253,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
                            right_type->Maybe(Type::String()) ||
                            right_type->Maybe(Type::Receiver()));
 
-  if (left_type->Is(Type::None())) {
+  if (!left_type->IsInhabited()) {
     Add<HDeoptimize>("Insufficient type feedback for LHS of binary operation",
                      Deoptimizer::SOFT);
     // TODO(rossberg): we should be able to get rid of non-continuous
@@ -10264,7 +10264,7 @@ HValue* HGraphBuilder::BuildBinaryOperation(
     left_rep = Representation::FromType(left_type);
   }
 
-  if (right_type->Is(Type::None())) {
+  if (!right_type->IsInhabited()) {
     Add<HDeoptimize>("Insufficient type feedback for RHS of binary operation",
                      Deoptimizer::SOFT);
     right_type = Type::Any(zone());
@@ -10761,7 +10761,7 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
     BailoutId bailout_id) {
   // Cases handled below depend on collected type feedback. They should
   // soft deoptimize when there is no type feedback.
-  if (combined_type->Is(Type::None())) {
+  if (!combined_type->IsInhabited()) {
     Add<HDeoptimize>("Insufficient type feedback for combined type "
                      "of binary operation",
                      Deoptimizer::SOFT);

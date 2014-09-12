@@ -45,6 +45,7 @@ class StoreRegistersStateStub: public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(StoreRegistersState, PlatformCodeStub);
 };
 
@@ -57,6 +58,7 @@ class RestoreRegistersStateStub: public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(RestoreRegistersState, PlatformCodeStub);
 };
 
@@ -159,6 +161,8 @@ class RecordWriteStub: public PlatformCodeStub {
     }
     DCHECK(GetMode(stub) == mode);
   }
+
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
 
  private:
   // This is a helper class to manage the registers associated with the stub.
@@ -326,6 +330,7 @@ class DirectCEntryStub: public PlatformCodeStub {
  private:
   bool NeedsImmovableCode() { return true; }
 
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);
 };
 
@@ -373,6 +378,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 

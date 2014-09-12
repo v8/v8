@@ -665,7 +665,7 @@ void NamedLoadHandlerCompiler::GenerateLoadCallback(
   __ push(scratch3());  // Restore return address.
 
   // Abi for CallApiGetter
-  Register getter_address = edx;
+  Register getter_address = ApiGetterDescriptor::function_address();
   Address function_address = v8::ToCData<Address>(callback->getter());
   __ mov(getter_address, Immediate(function_address));
 

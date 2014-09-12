@@ -222,13 +222,22 @@ class JSBinopReduction {
 
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
-  if (r.OneInputIs(Type::String())) {
-    r.ConvertInputsToString();
-    return r.ChangeToPureOperator(simplified()->StringAdd());
+  if (r.BothInputsAre(Type::Number())) {
+    // JSAdd(x:number, y:number) => NumberAdd(x, y)
+    return r.ChangeToPureOperator(simplified()->NumberAdd());
   }
-  if (r.NeitherInputCanBe(Type::String())) {
+  Type* maybe_string = Type::Union(Type::String(), Type::Receiver(), zone());
+  if (r.NeitherInputCanBe(maybe_string)) {
+    // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd());
+  }
+  if (r.OneInputIs(Type::String())) {
+    // JSAdd(x:string, y:string) => StringAdd(x, y)
+    // JSAdd(x:string, y) => StringAdd(x, ToString(y))
+    // JSAdd(x, y:string) => StringAdd(ToString(x), y)
+    r.ConvertInputsToString();
+    return r.ChangeToPureOperator(simplified()->StringAdd());
   }
   return NoChange();
 }
@@ -416,7 +425,7 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   }
   Type* input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::Number())) {
-    // JSToNumber(number) => x
+    // JSToNumber(x:number) => x
     return Changed(input);
   }
   if (input_type->Is(Type::Undefined())) {
@@ -427,8 +436,8 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     // JSToNumber(null) => #0
     return ReplaceWith(jsgraph()->ZeroConstant());
   }
-  // TODO(turbofan): js-typed-lowering of ToNumber(boolean)
-  // TODO(turbofan): js-typed-lowering of ToNumber(string)
+  // TODO(turbofan): js-typed-lowering of ToNumber(x:boolean)
+  // TODO(turbofan): js-typed-lowering of ToNumber(x:string)
   return NoChange();
 }
 
@@ -445,7 +454,7 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
   }
   Type* input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::String())) {
-    return Changed(input);  // JSToString(string) => x
+    return Changed(input);  // JSToString(x:string) => x
   }
   if (input_type->Is(Type::Undefined())) {
     return ReplaceWith(jsgraph()->HeapConstant(
@@ -455,8 +464,8 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
     return ReplaceWith(jsgraph()->HeapConstant(
         graph()->zone()->isolate()->factory()->null_string()));
   }
-  // TODO(turbofan): js-typed-lowering of ToString(boolean)
-  // TODO(turbofan): js-typed-lowering of ToString(number)
+  // TODO(turbofan): js-typed-lowering of ToString(x:boolean)
+  // TODO(turbofan): js-typed-lowering of ToString(x:number)
   return NoChange();
 }
 
@@ -473,7 +482,7 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
   }
   Type* input_type = NodeProperties::GetBounds(input).upper;
   if (input_type->Is(Type::Boolean())) {
-    return Changed(input);  // JSToBoolean(boolean) => x
+    return Changed(input);  // JSToBoolean(x:boolean) => x
   }
   if (input_type->Is(Type::Undefined())) {
     // JSToBoolean(undefined) => #false
@@ -484,15 +493,15 @@ Reduction JSTypedLowering::ReduceJSToBooleanInput(Node* input) {
     return ReplaceWith(jsgraph()->FalseConstant());
   }
   if (input_type->Is(Type::DetectableReceiver())) {
-    // JSToBoolean(detectable) => #true
+    // JSToBoolean(x:detectable) => #true
     return ReplaceWith(jsgraph()->TrueConstant());
   }
   if (input_type->Is(Type::Undetectable())) {
-    // JSToBoolean(undetectable) => #false
+    // JSToBoolean(x:undetectable) => #false
     return ReplaceWith(jsgraph()->FalseConstant());
   }
-  if (input_type->Is(Type::Number())) {
-    // JSToBoolean(number) => BooleanNot(NumberEqual(x, #0))
+  if (input_type->Is(Type::OrderedNumber())) {
+    // JSToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x, #0))
     Node* cmp = graph()->NewNode(simplified()->NumberEqual(), input,
                                  jsgraph()->ZeroConstant());
     Node* inv = graph()->NewNode(simplified()->BooleanNot(), cmp);
@@ -629,7 +638,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       Reduction result = ReduceJSToBooleanInput(node->InputAt(0));
       Node* value;
       if (result.Changed()) {
-        // JSUnaryNot(x) => BooleanNot(x)
+        // JSUnaryNot(x:boolean) => BooleanNot(x)
         value =
             graph()->NewNode(simplified()->BooleanNot(), result.replacement());
         NodeProperties::ReplaceWithValue(node, value);

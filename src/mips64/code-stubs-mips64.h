@@ -56,6 +56,7 @@ class StoreRegistersStateStub: public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(StoreRegistersState, PlatformCodeStub);
 };
 
@@ -68,6 +69,7 @@ class RestoreRegistersStateStub: public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
 
  private:
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(RestoreRegistersState, PlatformCodeStub);
 };
 
@@ -117,6 +119,7 @@ class WriteInt32ToHeapNumberStub : public PlatformCodeStub {
   class ScratchRegisterBits: public BitField<int, 8, 4> {};
   class SignRegisterBits: public BitField<int, 12, 4> {};
 
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_CODE_STUB(WriteInt32ToHeapNumber, PlatformCodeStub);
 };
 
@@ -209,6 +212,8 @@ class RecordWriteStub: public PlatformCodeStub {
     CpuFeatures::FlushICache(stub->instruction_start(),
                              4 * Assembler::kInstrSize);
   }
+
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
 
  private:
   // This is a helper class for freeing up 3 scratch registers.  The input is
@@ -334,6 +339,7 @@ class DirectCEntryStub: public PlatformCodeStub {
  private:
   bool NeedsImmovableCode() { return true; }
 
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);
 };
 
@@ -381,6 +387,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
   class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 
+  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-inl.h"
@@ -14,103 +15,6 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
-
-
-// TODO(mstarzinger): This is a temporary shim to be able to call an IC stub
-// which doesn't have an interface descriptor yet. It mimics a hydrogen code
-// stub for the underlying IC stub code.
-class LoadICStubShim : public HydrogenCodeStub {
- public:
-  LoadICStubShim(Isolate* isolate, ContextualMode contextual_mode)
-      : HydrogenCodeStub(isolate), contextual_mode_(contextual_mode) {}
-
-  virtual Handle<Code> GenerateCode() OVERRIDE {
-    ExtraICState extra_state = LoadIC::ComputeExtraICState(contextual_mode_);
-    return LoadIC::initialize_stub(isolate(), extra_state);
-  }
-
-  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
-    return LoadDescriptor(isolate());
-  }
-
- private:
-  virtual Major MajorKey() const OVERRIDE { return NoCache; }
-  virtual bool UseSpecialCache() OVERRIDE { return true; }
-
-  ContextualMode contextual_mode_;
-};
-
-
-// TODO(mstarzinger): This is a temporary shim to be able to call an IC stub
-// which doesn't have an interface descriptor yet. It mimics a hydrogen code
-// stub for the underlying IC stub code.
-class KeyedLoadICStubShim : public HydrogenCodeStub {
- public:
-  explicit KeyedLoadICStubShim(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
-  virtual Handle<Code> GenerateCode() OVERRIDE {
-    return isolate()->builtins()->KeyedLoadIC_Initialize();
-  }
-
-  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
-    return LoadDescriptor(isolate());
-  }
-
- private:
-  virtual Major MajorKey() const OVERRIDE { return NoCache; }
-  virtual bool UseSpecialCache() OVERRIDE { return true; }
-};
-
-
-// TODO(mstarzinger): This is a temporary shim to be able to call an IC stub
-// which doesn't have an interface descriptor yet. It mimics a hydrogen code
-// stub for the underlying IC stub code.
-class StoreICStubShim : public HydrogenCodeStub {
- public:
-  StoreICStubShim(Isolate* isolate, StrictMode strict_mode)
-      : HydrogenCodeStub(isolate), strict_mode_(strict_mode) {}
-
-  virtual Handle<Code> GenerateCode() OVERRIDE {
-    return StoreIC::initialize_stub(isolate(), strict_mode_);
-  }
-
-  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
-    return StoreDescriptor(isolate());
-  }
-
- private:
-  virtual Major MajorKey() const OVERRIDE { return NoCache; }
-  virtual bool UseSpecialCache() OVERRIDE { return true; }
-
-  StrictMode strict_mode_;
-};
-
-
-// TODO(mstarzinger): This is a temporary shim to be able to call an IC stub
-// which doesn't have an interface descriptor yet. It mimics a hydrogen code
-// stub for the underlying IC stub code.
-class KeyedStoreICStubShim : public HydrogenCodeStub {
- public:
-  KeyedStoreICStubShim(Isolate* isolate, StrictMode strict_mode)
-      : HydrogenCodeStub(isolate), strict_mode_(strict_mode) {}
-
-  virtual Handle<Code> GenerateCode() OVERRIDE {
-    return strict_mode_ == SLOPPY
-               ? isolate()->builtins()->KeyedStoreIC_Initialize()
-               : isolate()->builtins()->KeyedStoreIC_Initialize_Strict();
-  }
-
-  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
-    return StoreDescriptor(isolate());
-  }
-
- private:
-  virtual Major MajorKey() const OVERRIDE { return NoCache; }
-  virtual bool UseSpecialCache() OVERRIDE { return true; }
-
-  StrictMode strict_mode_;
-};
-
 
 JSGenericLowering::JSGenericLowering(CompilationInfo* info, JSGraph* jsgraph,
                                      MachineOperatorBuilder* machine)
@@ -175,12 +79,11 @@ Reduction JSGenericLowering::Reduce(Node* node) {
 }
 
 
-#define REPLACE_BINARY_OP_IC_CALL(op, token)                        \
-  Node* JSGenericLowering::Lower##op(Node* node) {                  \
-    BinaryOpICStub stub(isolate(), token);                          \
-    ReplaceWithStubCall(node, &stub,                                \
-                        CallDescriptor::kPatchableCallSiteWithNop); \
-    return node;                                                    \
+#define REPLACE_BINARY_OP_IC_CALL(op, token)                             \
+  Node* JSGenericLowering::Lower##op(Node* node) {                       \
+    ReplaceWithStubCall(node, CodeFactory::BinaryOpIC(isolate(), token), \
+                        CallDescriptor::kPatchableCallSiteWithNop);      \
+    return node;                                                         \
   }
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseOr, Token::BIT_OR)
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseXor, Token::BIT_XOR)
@@ -196,14 +99,14 @@ REPLACE_BINARY_OP_IC_CALL(JSModulus, Token::MOD)
 #undef REPLACE_BINARY_OP_IC_CALL
 
 
-#define REPLACE_STUB_CALL(op, StubDeclaration)                  \
-  Node* JSGenericLowering::Lower##op(Node* node) {              \
-    StubDeclaration;                                            \
-    ReplaceWithStubCall(node, &stub, CallDescriptor::kNoFlags); \
-    return node;                                                \
+#define REPLACE_FACTORY_CALL(op, FactoryDeclaration)               \
+  Node* JSGenericLowering::Lower##op(Node* node) {                 \
+    Callable callable = FactoryDeclaration;                        \
+    ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags); \
+    return node;                                                   \
   }
-REPLACE_STUB_CALL(JSToNumber, ToNumberStub stub(isolate()))
-#undef REPLACE_STUB_CALL
+REPLACE_FACTORY_CALL(JSToNumber, CodeFactory::ToNumber(isolate()))
+#undef REPLACE_FACTORY_CALL
 
 
 #define REPLACE_COMPARE_IC_CALL(op, token, pure)   \
@@ -260,15 +163,14 @@ static CallDescriptor::Flags FlagsForNode(Node* node) {
 
 void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
                                              bool pure) {
-  BinaryOpICStub stub(isolate(), Token::ADD);  // TODO(mstarzinger): Hack.
-  CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
+  Callable callable = CodeFactory::CompareIC(isolate(), token);
   bool has_frame_state = OperatorProperties::HasFrameStateInput(node->op());
   CallDescriptor* desc_compare = linkage()->GetStubCallDescriptor(
-      d, 0, CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node));
-  Handle<Code> ic = CompareIC::GetUninitialized(isolate(), token);
+      callable.descriptor(), 0,
+      CallDescriptor::kPatchableCallSiteWithNop | FlagsForNode(node));
   NodeVector inputs(zone());
   inputs.reserve(node->InputCount() + 1);
-  inputs.push_back(CodeConstant(ic));
+  inputs.push_back(CodeConstant(callable.code()));
   inputs.push_back(NodeProperties::GetValueInput(node, 0));
   inputs.push_back(NodeProperties::GetValueInput(node, 1));
   inputs.push_back(NodeProperties::GetContextInput(node));
@@ -309,12 +211,11 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
 }
 
 
-void JSGenericLowering::ReplaceWithStubCall(Node* node, HydrogenCodeStub* stub,
+void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
                                             CallDescriptor::Flags flags) {
-  CallInterfaceDescriptor d = stub->GetCallInterfaceDescriptor();
-  CallDescriptor* desc =
-      linkage()->GetStubCallDescriptor(d, 0, flags | FlagsForNode(node));
-  Node* stub_code = CodeConstant(stub->GetCode());
+  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
+      callable.descriptor(), 0, flags | FlagsForNode(node));
+  Node* stub_code = CodeConstant(callable.code());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
 }
@@ -323,14 +224,15 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, HydrogenCodeStub* stub,
 void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
                                                Builtins::JavaScript id,
                                                int nargs) {
-  CallFunctionStub stub(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
-  CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(d, nargs);
+  Callable callable =
+      CodeFactory::CallFunction(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
+  CallDescriptor* desc =
+      linkage()->GetStubCallDescriptor(callable.descriptor(), nargs);
   // TODO(mstarzinger): Accessing the builtins object this way prevents sharing
   // of code across native contexts. Fix this by loading from given context.
   Handle<JSFunction> function(
       JSFunction::cast(info()->context()->builtins()->javascript_builtin(id)));
-  Node* stub_code = CodeConstant(stub.GetCode());
+  Node* stub_code = CodeConstant(callable.code());
   Node* function_node = FunctionConstant(function);
   PatchInsertInput(node, 0, stub_code);
   PatchInsertInput(node, 1, function_node);
@@ -372,15 +274,17 @@ Node* JSGenericLowering::LowerBranch(Node* node) {
 
 
 Node* JSGenericLowering::LowerJSUnaryNot(Node* node) {
-  ToBooleanStub stub(isolate(), ToBooleanStub::RESULT_AS_INVERSE_ODDBALL);
-  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
+  Callable callable = CodeFactory::ToBoolean(
+      isolate(), ToBooleanStub::RESULT_AS_INVERSE_ODDBALL);
+  ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
 
 Node* JSGenericLowering::LowerJSToBoolean(Node* node) {
-  ToBooleanStub stub(isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
-  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
+  Callable callable =
+      CodeFactory::ToBoolean(isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
+  ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
@@ -398,34 +302,34 @@ Node* JSGenericLowering::LowerJSToObject(Node* node) {
 
 
 Node* JSGenericLowering::LowerJSLoadProperty(Node* node) {
-  KeyedLoadICStubShim stub(isolate());
-  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
+  Callable callable = CodeFactory::KeyedLoadIC(isolate());
+  ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
 
 Node* JSGenericLowering::LowerJSLoadNamed(Node* node) {
   LoadNamedParameters p = OpParameter<LoadNamedParameters>(node);
-  LoadICStubShim stub(isolate(), p.contextual_mode);
   PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name));
-  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
+  Callable callable = CodeFactory::LoadIC(isolate(), p.contextual_mode);
+  ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
 
 Node* JSGenericLowering::LowerJSStoreProperty(Node* node) {
   StrictMode strict_mode = OpParameter<StrictMode>(node);
-  KeyedStoreICStubShim stub(isolate(), strict_mode);
-  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
+  Callable callable = CodeFactory::KeyedStoreIC(isolate(), strict_mode);
+  ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
 
 Node* JSGenericLowering::LowerJSStoreNamed(Node* node) {
   StoreNamedParameters params = OpParameter<StoreNamedParameters>(node);
-  StoreICStubShim stub(isolate(), params.strict_mode);
+  Callable callable = CodeFactory::StoreIC(isolate(), params.strict_mode);
   PatchInsertInput(node, 1, jsgraph()->HeapConstant(params.name));
-  ReplaceWithStubCall(node, &stub, CallDescriptor::kPatchableCallSite);
+  ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
   return node;
 }
 
@@ -490,7 +394,8 @@ Node* JSGenericLowering::LowerJSStoreContext(Node* node) {
   }
   node->ReplaceInput(2, NodeProperties::GetValueInput(node, 1));
   node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
-  PatchOperator(node, machine()->Store(kMachAnyTagged, kFullWriteBarrier));
+  PatchOperator(node, machine()->Store(StoreRepresentation(kMachAnyTagged,
+                                                           kFullWriteBarrier)));
   return node;
 }
 

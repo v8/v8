@@ -44,13 +44,13 @@ Reduction ChangeLowering::Reduce(Node* node) {
 Node* ChangeLowering::HeapNumberValueIndexConstant() {
   STATIC_ASSERT(HeapNumber::kValueOffset % kPointerSize == 0);
   const int heap_number_value_offset =
-      ((HeapNumber::kValueOffset / kPointerSize) * (machine()->is64() ? 8 : 4));
+      ((HeapNumber::kValueOffset / kPointerSize) * (machine()->Is64() ? 8 : 4));
   return jsgraph()->Int32Constant(heap_number_value_offset - kHeapObjectTag);
 }
 
 
 Node* ChangeLowering::SmiMaxValueConstant() {
-  const int smi_value_size = machine()->is32() ? SmiTagging<4>::SmiValueSize()
+  const int smi_value_size = machine()->Is32() ? SmiTagging<4>::SmiValueSize()
                                                : SmiTagging<8>::SmiValueSize();
   return jsgraph()->Int32Constant(
       -(static_cast<int>(0xffffffffu << (smi_value_size - 1)) + 1));
@@ -58,7 +58,7 @@ Node* ChangeLowering::SmiMaxValueConstant() {
 
 
 Node* ChangeLowering::SmiShiftBitsConstant() {
-  const int smi_shift_size = machine()->is32() ? SmiTagging<4>::SmiShiftSize()
+  const int smi_shift_size = machine()->Is32() ? SmiTagging<4>::SmiShiftSize()
                                                : SmiTagging<8>::SmiShiftSize();
   return jsgraph()->Int32Constant(smi_shift_size + kSmiTagSize);
 }
@@ -79,15 +79,15 @@ Node* ChangeLowering::AllocateHeapNumberWithValue(Node* value, Node* control) {
       jsgraph()->ExternalConstant(ExternalReference(function, isolate())),
       jsgraph()->Int32Constant(function->nargs), context, effect, control);
   Node* store = graph()->NewNode(
-      machine()->Store(kMachFloat64, kNoWriteBarrier), heap_number,
-      HeapNumberValueIndexConstant(), value, heap_number, control);
+      machine()->Store(StoreRepresentation(kMachFloat64, kNoWriteBarrier)),
+      heap_number, HeapNumberValueIndexConstant(), value, heap_number, control);
   return graph()->NewNode(common()->Finish(1), heap_number, store);
 }
 
 
 Node* ChangeLowering::ChangeSmiToInt32(Node* value) {
   value = graph()->NewNode(machine()->WordSar(), value, SmiShiftBitsConstant());
-  if (machine()->is64()) {
+  if (machine()->Is64()) {
     value = graph()->NewNode(machine()->TruncateInt64ToInt32(), value);
   }
   return value;
@@ -131,7 +131,7 @@ Reduction ChangeLowering::ChangeFloat64ToTagged(Node* val, Node* control) {
 
 
 Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* control) {
-  if (machine()->is64()) {
+  if (machine()->Is64()) {
     return Replace(
         graph()->NewNode(machine()->Word64Shl(),
                          graph()->NewNode(machine()->ChangeInt32ToInt64(), val),
@@ -219,7 +219,7 @@ Reduction ChangeLowering::ChangeUint32ToTagged(Node* val, Node* control) {
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* smi = graph()->NewNode(
       machine()->WordShl(),
-      machine()->is64()
+      machine()->Is64()
           ? graph()->NewNode(machine()->ChangeUint32ToUint64(), val)
           : val,
       SmiShiftBitsConstant());

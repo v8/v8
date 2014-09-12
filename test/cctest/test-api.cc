@@ -23016,3 +23016,40 @@ TEST(Regress411877) {
   context->Global()->Set(v8_str("o"), object_template->NewInstance());
   CompileRun("Object.getOwnPropertyNames(o)");
 }
+
+
+TEST(GetHiddenPropertyTableAfterAccessCheck) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedAccessCounter,
+                                           IndexedAccessCounter);
+
+  v8::Handle<Context> context = Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  v8::Handle<v8::Object> obj = object_template->NewInstance();
+  obj->Set(v8_str("key"), v8_str("value"));
+  obj->Delete(v8_str("key"));
+
+  obj->SetHiddenValue(v8_str("hidden key 2"), v8_str("hidden value 2"));
+}
+
+
+TEST(Regress411793) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  object_template->SetAccessCheckCallbacks(NamedAccessCounter,
+                                           IndexedAccessCounter);
+
+  v8::Handle<Context> context = Context::New(isolate);
+  v8::Context::Scope context_scope(context);
+
+  context->Global()->Set(v8_str("o"), object_template->NewInstance());
+  CompileRun(
+      "Object.defineProperty(o, 'key', "
+      "    { get: function() {}, set: function() {} });");
+}

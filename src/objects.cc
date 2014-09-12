@@ -4714,12 +4714,8 @@ Object* JSObject::GetHiddenPropertiesHashTable() {
     Isolate* isolate = GetIsolate();
     LookupIterator it(handle(this), isolate->factory()->hidden_string(),
                       LookupIterator::OWN_SKIP_INTERCEPTOR);
-    CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
-    if (it.state() == LookupIterator::DATA) {
-      return *it.GetDataValue();
-    }
-    DCHECK(!it.IsFound());
-    return GetHeap()->undefined_value();
+    // Access check is always skipped for the hidden string anyways.
+    return *GetDataProperty(&it);
   }
 }
 
@@ -6151,7 +6147,10 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
     // At least one of the accessors needs to be a new value.
     DCHECK(!getter->IsNull() || !setter->IsNull());
     LookupIterator it(object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
-    CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
+    if (it.state() == LookupIterator::ACCESS_CHECK) {
+      // We already did an access check before. We do have access.
+      it.Next();
+    }
     if (!getter->IsNull()) {
       it.TransitionToAccessorProperty(ACCESSOR_GETTER, getter, attributes);
     }

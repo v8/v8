@@ -10280,8 +10280,19 @@ static void CollectElementIndices(Handle<JSObject> object,
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
-      // TODO(1810): Decide if it's worthwhile to implement this.
-      UNREACHABLE();
+      if (object->elements()->IsFixedArray()) {
+        DCHECK(object->elements()->length() == 0);
+        break;
+      }
+      Handle<FixedDoubleArray> elements(
+          FixedDoubleArray::cast(object->elements()));
+      uint32_t length = static_cast<uint32_t>(elements->length());
+      if (range < length) length = range;
+      for (uint32_t i = 0; i < length; i++) {
+        if (!elements->is_the_hole(i)) {
+          indices->Add(i);
+        }
+      }
       break;
     }
     case DICTIONARY_ELEMENTS: {
@@ -10301,25 +10312,15 @@ static void CollectElementIndices(Handle<JSObject> object,
       }
       break;
     }
-    default: {
-      int dense_elements_length;
-      switch (kind) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                        \
-        case EXTERNAL_##TYPE##_ELEMENTS: {                                     \
-          dense_elements_length =                                              \
-              External##Type##Array::cast(object->elements())->length();       \
-          break;                                                               \
-        }
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+    case TYPE##_ELEMENTS:                               \
+    case EXTERNAL_##TYPE##_ELEMENTS:
 
-        TYPED_ARRAYS(TYPED_ARRAY_CASE)
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-        default:
-          UNREACHABLE();
-          dense_elements_length = 0;
-          break;
-      }
-      uint32_t length = static_cast<uint32_t>(dense_elements_length);
+    {
+      uint32_t length = static_cast<uint32_t>(
+          FixedArrayBase::cast(object->elements())->length());
       if (range <= length) {
         length = range;
         // We will add all indices, so we might as well clear it first
@@ -10330,6 +10331,19 @@ static void CollectElementIndices(Handle<JSObject> object,
         indices->Add(i);
       }
       if (length == range) return;  // All indices accounted for already.
+      break;
+    }
+    case SLOPPY_ARGUMENTS_ELEMENTS: {
+      MaybeHandle<Object> length_obj =
+          Object::GetProperty(object, isolate->factory()->length_string());
+      double length_num = length_obj.ToHandleChecked()->Number();
+      uint32_t length = static_cast<uint32_t>(DoubleToInt32(length_num));
+      ElementsAccessor* accessor = object->GetElementsAccessor();
+      for (uint32_t i = 0; i < length; i++) {
+        if (accessor->HasElement(object, object, i)) {
+          indices->Add(i);
+        }
+      }
       break;
     }
   }

@@ -8,6 +8,7 @@
 #include "src/v8.h"
 
 #include "src/allocation.h"
+#include "src/code-factory.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
@@ -16,10 +17,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class HydrogenCodeStub;
-
 namespace compiler {
 
 // Forward declarations.
@@ -55,7 +52,7 @@ class JSGenericLowering : public Reducer {
 
   // Helpers to replace existing nodes with a generic call.
   void ReplaceWithCompareIC(Node* node, Token::Value token, bool pure);
-  void ReplaceWithStubCall(Node* node, HydrogenCodeStub* stub,
+  void ReplaceWithStubCall(Node* node, Callable callable,
                            CallDescriptor::Flags flags);
   void ReplaceWithBuiltinCall(Node* node, Builtins::JavaScript id, int args);
   void ReplaceWithRuntimeCall(Node* node, Runtime::FunctionId f, int args = -1);

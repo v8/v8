@@ -80,7 +80,9 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
   if (heap_state.incremental_marking_stopped) {
     if (idle_time_in_ms >= EstimateMarkCompactTime(
                                heap_state.size_of_objects,
-                               heap_state.mark_compact_speed_in_bytes_per_ms)) {
+                               heap_state.mark_compact_speed_in_bytes_per_ms) ||
+        (heap_state.size_of_objects < kSmallHeapSize &&
+         heap_state.contexts_disposed > 0)) {
       // If there are no more than two GCs left in this idle round and we are
       // allowed to do a full GC, then make those GCs full in order to compact
       // the code space.

@@ -19,15 +19,14 @@ namespace compiler {
 class JSTypedLowering FINAL : public Reducer {
  public:
   explicit JSTypedLowering(JSGraph* jsgraph)
-      : jsgraph_(jsgraph),
-        simplified_(jsgraph->zone()),
-        machine_(jsgraph->zone()) {}
+      : jsgraph_(jsgraph), simplified_(jsgraph->zone()) {}
   virtual ~JSTypedLowering();
 
   virtual Reduction Reduce(Node* node) OVERRIDE;
 
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph_->graph(); }
+  Zone* zone() { return jsgraph_->zone(); }
 
  private:
   friend class JSBinopReduction;

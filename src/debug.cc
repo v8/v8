@@ -2503,8 +2503,18 @@ MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
 
 void Debug::OnThrow(Handle<Object> exception, bool uncaught) {
   if (in_debug_scope() || ignore_events()) return;
+  // Temporarily clear any scheduled_exception to allow evaluating
+  // JavaScript from the debug event handler.
   HandleScope scope(isolate_);
+  Handle<Object> scheduled_exception;
+  if (isolate_->has_scheduled_exception()) {
+    scheduled_exception = handle(isolate_->scheduled_exception(), isolate_);
+    isolate_->clear_scheduled_exception();
+  }
   OnException(exception, uncaught, isolate_->GetPromiseOnStackOnThrow());
+  if (!scheduled_exception.is_null()) {
+    isolate_->thread_local_top()->scheduled_exception_ = *scheduled_exception;
+  }
 }
 
 
