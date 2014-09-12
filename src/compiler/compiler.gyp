@@ -29,6 +29,7 @@
         'machine-operator-reducer-unittest.cc',
         'machine-operator-unittest.cc',
         'simplified-operator-reducer-unittest.cc',
+        'simplified-operator-unittest.cc',
         'value-numbering-reducer-unittest.cc',
       ],
       'conditions': [

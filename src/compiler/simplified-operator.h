@@ -5,11 +5,8 @@
 #ifndef V8_COMPILER_SIMPLIFIED_OPERATOR_H_
 #define V8_COMPILER_SIMPLIFIED_OPERATOR_H_
 
-#include "src/compiler/machine-operator.h"
-#include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
+#include "src/compiler/machine-type.h"
 #include "src/handles.h"
-#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -19,9 +16,15 @@ template <class>
 class TypeImpl;
 struct ZoneTypeConfig;
 typedef TypeImpl<ZoneTypeConfig> Type;
+class Zone;
 
 
 namespace compiler {
+
+// Forward declarations.
+class Operator;
+struct SimplifiedOperatorBuilderImpl;
+
 
 enum BaseTaggedness { kUntaggedBase, kTaggedBase };
 
@@ -57,44 +60,8 @@ struct ElementAccess {
 static const int kNonHeapObjectHeaderSize = kHeapObjectTag;
 
 
-// Specialization for static parameters of type {FieldAccess}.
-template <>
-struct StaticParameterTraits<FieldAccess> {
-  static OStream& PrintTo(OStream& os, const FieldAccess& val) {  // NOLINT
-    return os << val.offset;
-  }
-  static int HashCode(const FieldAccess& val) {
-    return (val.offset < 16) | (val.machine_type & 0xffff);
-  }
-  static bool Equals(const FieldAccess& lhs, const FieldAccess& rhs);
-};
-
-
-// Specialization for static parameters of type {ElementAccess}.
-template <>
-struct StaticParameterTraits<ElementAccess> {
-  static OStream& PrintTo(OStream& os, const ElementAccess& val) {  // NOLINT
-    return os << val.header_size;
-  }
-  static int HashCode(const ElementAccess& val) {
-    return (val.header_size < 16) | (val.machine_type & 0xffff);
-  }
-  static bool Equals(const ElementAccess& lhs, const ElementAccess& rhs);
-};
-
-
-inline const FieldAccess FieldAccessOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kLoadField ||
-         op->opcode() == IrOpcode::kStoreField);
-  return OpParameter<FieldAccess>(op);
-}
-
-
-inline const ElementAccess ElementAccessOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kLoadElement ||
-         op->opcode() == IrOpcode::kStoreElement);
-  return OpParameter<ElementAccess>(op);
-}
+const FieldAccess& FieldAccessOf(const Operator* op) WARN_UNUSED_RESULT;
+const ElementAccess& ElementAccessOf(const Operator* op) WARN_UNUSED_RESULT;
 
 
 // Interface for building simplified operators, which represent the
@@ -119,78 +86,55 @@ inline const ElementAccess ElementAccessOf(const Operator* op) {
 //   - Bool: a tagged pointer to either the canonical JS #false or
 //           the canonical JS #true object
 //   - Bit: an untagged integer 0 or 1, but word-sized
-class SimplifiedOperatorBuilder {
+class SimplifiedOperatorBuilder FINAL {
  public:
-  explicit inline SimplifiedOperatorBuilder(Zone* zone) : zone_(zone) {}
+  explicit SimplifiedOperatorBuilder(Zone* zone);
 
-#define SIMPLE(name, properties, inputs, outputs) \
-  return new (zone_)                              \
-      SimpleOperator(IrOpcode::k##name, properties, inputs, outputs, #name);
+  const Operator* BooleanNot() const WARN_UNUSED_RESULT;
 
-#define OP1(name, ptype, pname, properties, inputs, outputs)               \
-  return new (zone_)                                                       \
-      Operator1<ptype>(IrOpcode::k##name, properties | Operator::kNoThrow, \
-                       inputs, outputs, #name, pname)
+  const Operator* NumberEqual() const WARN_UNUSED_RESULT;
+  const Operator* NumberLessThan() const WARN_UNUSED_RESULT;
+  const Operator* NumberLessThanOrEqual() const WARN_UNUSED_RESULT;
+  const Operator* NumberAdd() const WARN_UNUSED_RESULT;
+  const Operator* NumberSubtract() const WARN_UNUSED_RESULT;
+  const Operator* NumberMultiply() const WARN_UNUSED_RESULT;
+  const Operator* NumberDivide() const WARN_UNUSED_RESULT;
+  const Operator* NumberModulus() const WARN_UNUSED_RESULT;
+  const Operator* NumberToInt32() const WARN_UNUSED_RESULT;
+  const Operator* NumberToUint32() const WARN_UNUSED_RESULT;
 
-#define UNOP(name) SIMPLE(name, Operator::kPure, 1, 1)
-#define BINOP(name) SIMPLE(name, Operator::kPure, 2, 1)
+  const Operator* ReferenceEqual(Type* type) const WARN_UNUSED_RESULT;
 
-  const Operator* BooleanNot() const { UNOP(BooleanNot); }
+  const Operator* StringEqual() const WARN_UNUSED_RESULT;
+  const Operator* StringLessThan() const WARN_UNUSED_RESULT;
+  const Operator* StringLessThanOrEqual() const WARN_UNUSED_RESULT;
+  const Operator* StringAdd() const WARN_UNUSED_RESULT;
 
-  const Operator* NumberEqual() const { BINOP(NumberEqual); }
-  const Operator* NumberLessThan() const { BINOP(NumberLessThan); }
-  const Operator* NumberLessThanOrEqual() const {
-    BINOP(NumberLessThanOrEqual);
-  }
-  const Operator* NumberAdd() const { BINOP(NumberAdd); }
-  const Operator* NumberSubtract() const { BINOP(NumberSubtract); }
-  const Operator* NumberMultiply() const { BINOP(NumberMultiply); }
-  const Operator* NumberDivide() const { BINOP(NumberDivide); }
-  const Operator* NumberModulus() const { BINOP(NumberModulus); }
-  const Operator* NumberToInt32() const { UNOP(NumberToInt32); }
-  const Operator* NumberToUint32() const { UNOP(NumberToUint32); }
+  const Operator* ChangeTaggedToInt32() const WARN_UNUSED_RESULT;
+  const Operator* ChangeTaggedToUint32() const WARN_UNUSED_RESULT;
+  const Operator* ChangeTaggedToFloat64() const WARN_UNUSED_RESULT;
+  const Operator* ChangeInt32ToTagged() const WARN_UNUSED_RESULT;
+  const Operator* ChangeUint32ToTagged() const WARN_UNUSED_RESULT;
+  const Operator* ChangeFloat64ToTagged() const WARN_UNUSED_RESULT;
+  const Operator* ChangeBoolToBit() const WARN_UNUSED_RESULT;
+  const Operator* ChangeBitToBool() const WARN_UNUSED_RESULT;
 
-  const Operator* ReferenceEqual(Type* type) const { BINOP(ReferenceEqual); }
-
-  const Operator* StringEqual() const { BINOP(StringEqual); }
-  const Operator* StringLessThan() const { BINOP(StringLessThan); }
-  const Operator* StringLessThanOrEqual() const {
-    BINOP(StringLessThanOrEqual);
-  }
-  const Operator* StringAdd() const { BINOP(StringAdd); }
-
-  const Operator* ChangeTaggedToInt32() const { UNOP(ChangeTaggedToInt32); }
-  const Operator* ChangeTaggedToUint32() const { UNOP(ChangeTaggedToUint32); }
-  const Operator* ChangeTaggedToFloat64() const { UNOP(ChangeTaggedToFloat64); }
-  const Operator* ChangeInt32ToTagged() const { UNOP(ChangeInt32ToTagged); }
-  const Operator* ChangeUint32ToTagged() const { UNOP(ChangeUint32ToTagged); }
-  const Operator* ChangeFloat64ToTagged() const { UNOP(ChangeFloat64ToTagged); }
-  const Operator* ChangeBoolToBit() const { UNOP(ChangeBoolToBit); }
-  const Operator* ChangeBitToBool() const { UNOP(ChangeBitToBool); }
-
-  const Operator* LoadField(const FieldAccess& access) const {
-    OP1(LoadField, FieldAccess, access, Operator::kNoWrite, 1, 1);
-  }
-  const Operator* StoreField(const FieldAccess& access) const {
-    OP1(StoreField, FieldAccess, access, Operator::kNoRead, 2, 0);
-  }
-  const Operator* LoadElement(const ElementAccess& access) const {
-    OP1(LoadElement, ElementAccess, access, Operator::kNoWrite, 2, 1);
-  }
-  const Operator* StoreElement(const ElementAccess& access) const {
-    OP1(StoreElement, ElementAccess, access, Operator::kNoRead, 3, 0);
-  }
-
-#undef BINOP
-#undef UNOP
-#undef OP1
-#undef SIMPLE
+  const Operator* LoadField(const FieldAccess&) const WARN_UNUSED_RESULT;
+  const Operator* StoreField(const FieldAccess&) const WARN_UNUSED_RESULT;
+  const Operator* LoadElement(const ElementAccess&) const WARN_UNUSED_RESULT;
+  const Operator* StoreElement(const ElementAccess&) const WARN_UNUSED_RESULT;
 
  private:
-  Zone* zone_;
+  Zone* zone() const { return zone_; }
+
+  const SimplifiedOperatorBuilderImpl& impl_;
+  Zone* const zone_;
+
+  DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorBuilder);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_SIMPLIFIED_OPERATOR_H_

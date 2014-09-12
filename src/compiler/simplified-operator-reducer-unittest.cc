@@ -166,7 +166,8 @@ TEST_P(SimplifiedUnaryOperatorTest, Parameter) {
 }
 
 
-INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest, SimplifiedUnaryOperatorTest,
+INSTANTIATE_TEST_CASE_P(SimplifiedOperatorReducerTest,
+                        SimplifiedUnaryOperatorTest,
                         ::testing::ValuesIn(kUnaryOperators));
 
 
