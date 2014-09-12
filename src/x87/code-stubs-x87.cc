@@ -332,6 +332,8 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in edx and the parameter count is in eax.
+  DCHECK(edx.is(ArgumentsAccessReadDescriptor::index()));
+  DCHECK(eax.is(ArgumentsAccessReadDescriptor::parameter_count()));
 
   // The displacement is used for skipping the frame pointer on the
   // stack. It is the offset of the last parameter (if any) relative
@@ -4283,6 +4285,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   //  -- ...
   //  -- edx                    : api_function_address
   // -----------------------------------
+  DCHECK(edx.is(ApiGetterDescriptor::function_address()));
 
   // array for v8::Arguments::values_, handler for name and pointer
   // to the values (it considered as smi in GC).
