@@ -9,14 +9,14 @@
 #include <map>
 #include <set>
 
-// TODO(titzer): don't include the assembler?
-#include "src/assembler.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction-codes.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
+// TODO(titzer): don't include the macro-assembler?
+#include "src/macro-assembler.h"
 #include "src/zone-allocator.h"
 
 namespace v8 {

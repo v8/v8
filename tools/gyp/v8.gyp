@@ -386,6 +386,7 @@
         '../../src/compiler/code-generator.cc',
         '../../src/compiler/code-generator.h',
         '../../src/compiler/common-node-cache.h',
+        '../../src/compiler/common-operator.cc',
         '../../src/compiler/common-operator.h',
         '../../src/compiler/control-builders.cc',
         '../../src/compiler/control-builders.h',

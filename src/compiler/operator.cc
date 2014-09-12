@@ -4,8 +4,6 @@
 
 #include "src/compiler/operator.h"
 
-#include "src/assembler.h"
-
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -22,34 +20,6 @@ SimpleOperator::SimpleOperator(Opcode opcode, Properties properties,
 
 
 SimpleOperator::~SimpleOperator() {}
-
-
-// static
-OStream& StaticParameterTraits<ExternalReference>::PrintTo(
-    OStream& os, ExternalReference reference) {
-  os << reference.address();
-  // TODO(bmeurer): Move to operator<<(os, ExternalReference)
-  const Runtime::Function* function =
-      Runtime::FunctionForEntry(reference.address());
-  if (function) {
-    os << " <" << function->name << ".entry>";
-  }
-  return os;
-}
-
-
-// static
-int StaticParameterTraits<ExternalReference>::HashCode(
-    ExternalReference reference) {
-  return reinterpret_cast<intptr_t>(reference.address()) & 0xFFFFFFFF;
-}
-
-
-// static
-bool StaticParameterTraits<ExternalReference>::Equals(ExternalReference lhs,
-                                                      ExternalReference rhs) {
-  return lhs == rhs;
-}
 
 }  // namespace compiler
 }  // namespace internal

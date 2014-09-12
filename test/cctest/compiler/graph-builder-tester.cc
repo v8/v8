@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "test/cctest/compiler/graph-builder-tester.h"
+
+#include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
 
 namespace v8 {
