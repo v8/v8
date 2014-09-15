@@ -241,6 +241,8 @@
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
+  'compiler/osr-warm': [PASS, NO_VARIANTS],
+  'regress/regress-91008': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
 
 ##############################################################################
