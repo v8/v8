@@ -353,7 +353,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
       int deopt_index = safepoint.deoptimization_index();
       // Turbofan deopt is checked when we are patching addresses on stack.
-      bool turbofanned = code->is_turbofanned();
+      bool turbofanned = code->is_turbofanned() && !FLAG_turbo_deoptimization;
       bool safe_to_deopt =
           deopt_index != Safepoint::kNoDeoptimizationIndex || turbofanned;
       CHECK(topmost_optimized_code == NULL || safe_to_deopt || turbofanned);
@@ -401,10 +401,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     element = next;
   }
 
-  if (FLAG_turbo_deoptimization) {
-    PatchStackForMarkedCode(isolate);
-  }
-
   // TODO(titzer): we need a handle scope only because of the macro assembler,
   // which is only used in EnsureCodeForDeoptimizationEntry.
   HandleScope scope(isolate);
@@ -426,51 +422,13 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     shared->EvictFromOptimizedCodeMap(codes[i], "deoptimized code");
 
     // Do platform-specific patching to force any activations to lazy deopt.
-    //
-    // We skip patching Turbofan code - we patch return addresses on stack.
-    // TODO(jarin) We should still zap the code object (but we have to
-    // be careful not to zap the deoptimization block).
-    if (!codes[i]->is_turbofanned()) {
+    if (!codes[i]->is_turbofanned() || FLAG_turbo_deoptimization) {
       PatchCodeForDeoptimization(isolate, codes[i]);
 
       // We might be in the middle of incremental marking with compaction.
       // Tell collector to treat this code object in a special way and
       // ignore all slots that might have been recorded on it.
       isolate->heap()->mark_compact_collector()->InvalidateCode(codes[i]);
-    }
-  }
-}
-
-
-// For all marked Turbofanned code on stack, change the return address to go
-// to the deoptimization block.
-void Deoptimizer::PatchStackForMarkedCode(Isolate* isolate) {
-  // TODO(jarin) We should tolerate missing patch entry for the topmost frame.
-  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
-       it.Advance()) {
-    StackFrame::Type type = it.frame()->type();
-    if (type == StackFrame::OPTIMIZED) {
-      Code* code = it.frame()->LookupCode();
-      if (code->is_turbofanned() && code->marked_for_deoptimization()) {
-        JSFunction* function =
-            static_cast<OptimizedFrame*>(it.frame())->function();
-        Address* pc_address = it.frame()->pc_address();
-        int pc_offset =
-            static_cast<int>(*pc_address - code->instruction_start());
-        SafepointEntry safepoint_entry = code->GetSafepointEntry(*pc_address);
-        unsigned new_pc_offset = safepoint_entry.deoptimization_pc();
-
-        if (FLAG_trace_deopt) {
-          CodeTracer::Scope scope(isolate->GetCodeTracer());
-          PrintF(scope.file(), "[patching stack address for function: ");
-          function->PrintName(scope.file());
-          PrintF(scope.file(), " (Pc offset %i -> %i)]\n", pc_offset,
-                 new_pc_offset);
-        }
-
-        CHECK(new_pc_offset != Safepoint::kNoDeoptimizationPc);
-        *pc_address += static_cast<int>(new_pc_offset) - pc_offset;
-      }
     }
   }
 }

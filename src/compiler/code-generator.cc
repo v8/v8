@@ -19,7 +19,6 @@ CodeGenerator::CodeGenerator(InstructionSequence* code)
       masm_(code->zone()->isolate(), NULL, 0),
       resolver_(this),
       safepoints_(code->zone()),
-      deoptimization_points_(code->zone()),
       deoptimization_states_(code->zone()),
       deoptimization_literals_(code->zone()),
       translations_(code->zone()) {}
@@ -47,9 +46,15 @@ Handle<Code> CodeGenerator::GenerateCode() {
     AssembleInstruction(*i);
   }
 
-  EmitLazyDeoptimizationCallTable();
-
   FinishCode(masm());
+
+  // Ensure there is space for lazy deopt.
+  if (!info->IsStub()) {
+    int target_offset = masm()->pc_offset() + Deoptimizer::patch_size();
+    while (masm()->pc_offset() < target_offset) {
+      masm()->nop();
+    }
+  }
 
   safepoints()->Emit(masm(), frame()->GetSpillSlotCount());
 
@@ -74,10 +79,9 @@ Handle<Code> CodeGenerator::GenerateCode() {
 }
 
 
-Safepoint::Id CodeGenerator::RecordSafepoint(PointerMap* pointers,
-                                             Safepoint::Kind kind,
-                                             int arguments,
-                                             Safepoint::DeoptMode deopt_mode) {
+void CodeGenerator::RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
+                                    int arguments,
+                                    Safepoint::DeoptMode deopt_mode) {
   const ZoneList<InstructionOperand*>* operands =
       pointers->GetNormalizedOperands();
   Safepoint safepoint =
@@ -91,7 +95,6 @@ Safepoint::Id CodeGenerator::RecordSafepoint(PointerMap* pointers,
       safepoint.DefinePointerRegister(reg, zone());
     }
   }
-  return safepoint.id();
 }
 
 
@@ -172,19 +175,6 @@ void CodeGenerator::AssembleGap(GapInstruction* instr) {
 }
 
 
-void CodeGenerator::EmitLazyDeoptimizationCallTable() {
-  // ZoneDeque<DeoptimizationPoint*>::iterator iter;
-  int i = 0;
-  for (ZoneDeque<DeoptimizationPoint*>::iterator
-           iter = deoptimization_points_.begin();
-       iter != deoptimization_points_.end(); iter++, i++) {
-    int pc_offset = masm()->pc_offset();
-    AssembleDeoptimizerCall((*iter)->lazy_state_id());
-    safepoints()->SetDeoptimizationPc((*iter)->safepoint(), pc_offset);
-  }
-}
-
-
 void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   CompilationInfo* info = linkage()->info();
   int deopt_count = static_cast<int>(deoptimization_states_.size());
@@ -231,7 +221,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
     data->SetTranslationIndex(
         i, Smi::FromInt(deoptimization_states_[i]->translation_id()));
     data->SetArgumentsStackHeight(i, Smi::FromInt(0));
-    data->SetPc(i, Smi::FromInt(-1));
+    data->SetPc(i, Smi::FromInt(deoptimization_state->pc_offset()));
   }
 
   code_object->set_deoptimization_data(*data);
@@ -243,9 +233,13 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
 
   bool needs_frame_state = (flags & CallDescriptor::kNeedsFrameState);
 
-  Safepoint::Id safepoint_id = RecordSafepoint(
+  RecordSafepoint(
       instr->pointer_map(), Safepoint::kSimple, 0,
       needs_frame_state ? Safepoint::kLazyDeopt : Safepoint::kNoLazyDeopt);
+
+  if (flags & CallDescriptor::kNeedsNopAfterCall) {
+    AddNopForSmiCodeInlining();
+  }
 
   if (needs_frame_state) {
     // If the frame state is present, it starts at argument 1
@@ -255,15 +249,19 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
     int frame_state_offset = 1;
     FrameStateDescriptor* descriptor =
         GetFrameStateDescriptor(instr, frame_state_offset);
-    int deopt_state_id =
-        BuildTranslation(instr, frame_state_offset, kIgnoreOutput);
-    int lazy_deopt_state_id = deopt_state_id;
+    int pc_offset = masm()->pc_offset();
+    int deopt_state_id = BuildTranslation(instr, pc_offset, frame_state_offset,
+                                          descriptor->state_combine());
+    // If the pre-call frame state differs from the post-call one, produce the
+    // pre-call frame state, too.
+    // TODO(jarin) We might want to avoid building the pre-call frame state
+    // because it is only used to get locals and arguments (by the debugger and
+    // f.arguments), and those are the same in the pre-call and post-call
+    // states.
     if (descriptor->state_combine() != kIgnoreOutput) {
-      lazy_deopt_state_id = BuildTranslation(instr, frame_state_offset,
-                                             descriptor->state_combine());
+      deopt_state_id =
+          BuildTranslation(instr, -1, frame_state_offset, kIgnoreOutput);
     }
-    deoptimization_points_.push_back(new (zone()) DeoptimizationPoint(
-        deopt_state_id, lazy_deopt_state_id, descriptor, safepoint_id));
 #if DEBUG
     // Make sure all the values live in stack slots or they are immediates.
     // (The values should not live in register because registers are clobbered
@@ -273,11 +271,7 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
       CHECK(op->IsStackSlot() || op->IsImmediate());
     }
 #endif
-    safepoints()->RecordLazyDeoptimizationIndex(lazy_deopt_state_id);
-  }
-
-  if (flags & CallDescriptor::kNeedsNopAfterCall) {
-    AddNopForSmiCodeInlining();
+    safepoints()->RecordLazyDeoptimizationIndex(deopt_state_id);
   }
 }
 
@@ -340,7 +334,8 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
 }
 
 
-int CodeGenerator::BuildTranslation(Instruction* instr, int frame_state_offset,
+int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
+                                    int frame_state_offset,
                                     OutputFrameStateCombine state_combine) {
   FrameStateDescriptor* descriptor =
       GetFrameStateDescriptor(instr, frame_state_offset);
@@ -354,7 +349,7 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int frame_state_offset,
   int deoptimization_id = static_cast<int>(deoptimization_states_.size());
 
   deoptimization_states_.push_back(new (zone()) DeoptimizationState(
-      descriptor->bailout_id(), translation.index()));
+      descriptor->bailout_id(), translation.index(), pc_offset));
 
   return deoptimization_id;
 }

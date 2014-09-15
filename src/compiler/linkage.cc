@@ -117,9 +117,11 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
   // few chosen runtime functions.
   switch (function) {
     case Runtime::kDebugBreak:
-    case Runtime::kDeoptimizeFunction:
-    case Runtime::kSetScriptBreakPoint:
     case Runtime::kDebugGetLoadedScripts:
+    case Runtime::kDeoptimizeFunction:
+    case Runtime::kInlineCallFunction:
+    case Runtime::kPrepareStep:
+    case Runtime::kSetScriptBreakPoint:
     case Runtime::kStackGuard:
       return true;
     default:

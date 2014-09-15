@@ -956,7 +956,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     Node* attr = jsgraph()->Constant(NONE);
     const Operator* op =
         javascript()->Runtime(Runtime::kDefineAccessorPropertyUnchecked, 5);
-    NewNode(op, literal, name, getter, setter, attr);
+    Node* call = NewNode(op, literal, name, getter, setter, attr);
+    PrepareFrameState(call, it->first->id());
   }
 
   // Transform literals that contain functions to fast properties.
@@ -1421,8 +1422,10 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   switch (assign_type) {
     case VARIABLE: {
       Variable* variable = expr->expression()->AsVariableProxy()->var();
+      environment()->Push(value);
       BuildVariableAssignment(variable, value, expr->op(),
                               expr->AssignmentId());
+      environment()->Pop();
       break;
     }
     case NAMED_PROPERTY: {
@@ -1431,7 +1434,9 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       Node* store =
           NewNode(javascript()->StoreNamed(strict_mode(), name), object, value);
+      environment()->Push(value);
       PrepareFrameState(store, expr->AssignmentId());
+      environment()->Pop();
       break;
     }
     case KEYED_PROPERTY: {
@@ -1439,7 +1444,9 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* object = environment()->Pop();
       Node* store = NewNode(javascript()->StoreProperty(strict_mode()), object,
                             key, value);
+      environment()->Push(value);
       PrepareFrameState(store, expr->AssignmentId());
+      environment()->Pop();
       break;
     }
   }

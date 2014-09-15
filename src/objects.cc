@@ -10937,13 +10937,6 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
       } else {
         os << "<none>";
       }
-      if (entry.deoptimization_pc() != Safepoint::kNoDeoptimizationPc) {
-        Vector<char> buf2 = Vector<char>::New(30);
-        SNPrintF(buf2, "%6d", entry.deoptimization_pc());
-        os << buf2.start();
-      } else {
-        os << "<none>";
-      }
       if (entry.argument_count() > 0) {
         os << " argc: " << entry.argument_count();
       }

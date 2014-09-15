@@ -17,10 +17,9 @@ struct Register;
 
 class SafepointEntry BASE_EMBEDDED {
  public:
-  SafepointEntry() : info_(0), deoptimization_pc_(0), bits_(NULL) {}
+  SafepointEntry() : info_(0), bits_(NULL) {}
 
-  SafepointEntry(unsigned info, unsigned deoptimization_pc, uint8_t* bits)
-      : info_(info), deoptimization_pc_(deoptimization_pc), bits_(bits) {
+  SafepointEntry(unsigned info, uint8_t* bits) : info_(info), bits_(bits) {
     DCHECK(is_valid());
   }
 
@@ -38,11 +37,6 @@ class SafepointEntry BASE_EMBEDDED {
   int deoptimization_index() const {
     DCHECK(is_valid());
     return DeoptimizationIndexField::decode(info_);
-  }
-
-  unsigned deoptimization_pc() const {
-    DCHECK(is_valid());
-    return deoptimization_pc_;
   }
 
   static const int kArgumentsFieldBits = 3;
@@ -80,7 +74,6 @@ class SafepointEntry BASE_EMBEDDED {
 
  private:
   unsigned info_;
-  unsigned deoptimization_pc_;
   uint8_t* bits_;
 };
 
@@ -91,7 +84,7 @@ class SafepointTable BASE_EMBEDDED {
 
   int size() const {
     return kHeaderSize +
-           (length_ * (kPcAndDeoptimizationInfoSize + entry_size_));
+           (length_ * (kPcAndDeoptimizationIndexSize + entry_size_));
   }
   unsigned length() const { return length_; }
   unsigned entry_size() const { return entry_size_; }
@@ -101,17 +94,11 @@ class SafepointTable BASE_EMBEDDED {
     return Memory::uint32_at(GetPcOffsetLocation(index));
   }
 
-  unsigned GetDeoptimizationPcOffset(unsigned index) const {
-    DCHECK(index < length_);
-    return Memory::uint32_at(GetDeoptimizationPcLocation(index));
-  }
-
   SafepointEntry GetEntry(unsigned index) const {
     DCHECK(index < length_);
     unsigned info = Memory::uint32_at(GetInfoLocation(index));
-    unsigned deopt_pc = Memory::uint32_at(GetDeoptimizationPcLocation(index));
     uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
-    return SafepointEntry(info, deopt_pc, bits);
+    return SafepointEntry(info, bits);
   }
 
   // Returns the entry for the given pc.
@@ -128,21 +115,16 @@ class SafepointTable BASE_EMBEDDED {
 
   static const int kPcSize = kIntSize;
   static const int kDeoptimizationIndexSize = kIntSize;
-  static const int kDeoptimizationPcSize = kIntSize;
-  static const int kPcAndDeoptimizationInfoSize =
-      kPcSize + kDeoptimizationIndexSize + kDeoptimizationPcSize;
+  static const int kPcAndDeoptimizationIndexSize =
+      kPcSize + kDeoptimizationIndexSize;
 
   Address GetPcOffsetLocation(unsigned index) const {
     return pc_and_deoptimization_indexes_ +
-           (index * kPcAndDeoptimizationInfoSize);
+           (index * kPcAndDeoptimizationIndexSize);
   }
 
   Address GetInfoLocation(unsigned index) const {
     return GetPcOffsetLocation(index) + kPcSize;
-  }
-
-  Address GetDeoptimizationPcLocation(unsigned index) const {
-    return GetInfoLocation(index) + kDeoptimizationIndexSize;
   }
 
   static void PrintBits(OStream& os,  // NOLINT
@@ -177,30 +159,15 @@ class Safepoint BASE_EMBEDDED {
     kLazyDeopt
   };
 
-  class Id {
-   private:
-    explicit Id(int id) : id_(id) {}
-
-    int id_;
-
-    friend class SafepointTableBuilder;
-    friend class Safepoint;
-  };
-
   static const int kNoDeoptimizationIndex =
       (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
-
-  static const unsigned kNoDeoptimizationPc = ~0U;
 
   void DefinePointerSlot(int index, Zone* zone) { indexes_->Add(index, zone); }
   void DefinePointerRegister(Register reg, Zone* zone);
 
-  Id id() const { return Id(id_); }
-
  private:
-  Safepoint(int id, ZoneList<int>* indexes, ZoneList<int>* registers)
-      : id_(id), indexes_(indexes), registers_(registers) {}
-  int id_;
+  Safepoint(ZoneList<int>* indexes, ZoneList<int>* registers)
+      : indexes_(indexes), registers_(registers) {}
   ZoneList<int>* indexes_;
   ZoneList<int>* registers_;
 
@@ -234,11 +201,6 @@ class SafepointTableBuilder BASE_EMBEDDED {
   void BumpLastLazySafepointIndex() {
     last_lazy_safepoint_ = deopt_index_list_.length();
   }
-  void SetDeoptimizationPc(Safepoint::Id safepoint_id,
-                           unsigned deoptimization_pc) {
-    deoptimization_info_[safepoint_id.id_].deoptimization_pc =
-        deoptimization_pc;
-  }
 
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.
@@ -250,7 +212,6 @@ class SafepointTableBuilder BASE_EMBEDDED {
     unsigned pc;
     unsigned arguments;
     bool has_doubles;
-    unsigned deoptimization_pc;
   };
 
   uint32_t EncodeExceptPC(const DeoptimizationInfo& info, unsigned index);
