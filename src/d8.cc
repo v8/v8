@@ -1612,7 +1612,16 @@ int Shell::Main(int argc, char* argv[]) {
     v8::V8::SetArrayBufferAllocator(&array_buffer_allocator);
   }
   int result = 0;
-  Isolate* isolate = Isolate::New();
+  Isolate::CreateParams create_params;
+#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
+  if (i::FLAG_gdbjit) {
+    create_params.code_event_handler = i::GDBJITInterface::EventHandler;
+  }
+#endif
+#ifdef ENABLE_VTUNE_JIT_INTERFACE
+  vTune::InitializeVtuneForV8(create_params);
+#endif
+  Isolate* isolate = Isolate::New(create_params);
 #ifndef V8_SHARED
   v8::ResourceConstraints constraints;
   constraints.ConfigureDefaults(base::SysInfo::AmountOfPhysicalMemory(),
@@ -1624,15 +1633,6 @@ int Shell::Main(int argc, char* argv[]) {
   {
     Isolate::Scope scope(isolate);
     Initialize(isolate);
-#if !defined(V8_SHARED) && defined(ENABLE_GDB_JIT_INTERFACE)
-    if (i::FLAG_gdbjit) {
-      v8::V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault,
-                                     i::GDBJITInterface::EventHandler);
-    }
-#endif
-#ifdef ENABLE_VTUNE_JIT_INTERFACE
-    vTune::InitializeVtuneForV8();
-#endif
     PerIsolateData data(isolate);
     InitializeDebugger(isolate);
 
