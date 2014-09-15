@@ -180,6 +180,6 @@ def GetPreferredTryMasters(project, change):
       'v8_linux_layout_dbg': set(['defaulttests']),
       'v8_mac_rel': set(['defaulttests']),
       'v8_win_rel': set(['defaulttests']),
-      'v8_win64_rel': set(['defaulttests']),
+      'v8_win64_compile_rel': set(['defaulttests']),
     },
   }
