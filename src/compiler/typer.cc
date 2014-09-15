@@ -129,7 +129,7 @@ class Typer::RunVisitor : public Typer::Visitor {
       int arity = OperatorProperties::GetValueInputCount(node->op());
       for (int i = 0; i < arity; ++i) {
         // TODO(rossberg): change once IsTyped is available.
-        // if (!NodeProperties::IsTyped(NodeProperties::GetValueInput(node, i))) {
+        // if (!NodeProperties::IsTyped(NodeProperties::GetValueInput(node, i)))
         if (OperandType(node, i).upper->Is(Type::None())) {
           redo.insert(node);
           break;
