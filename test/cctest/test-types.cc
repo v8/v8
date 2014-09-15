@@ -409,9 +409,11 @@ struct Tests : Rep {
     CHECK(this->IsBitset(T.Any));
 
     CHECK(bitset(0) == this->AsBitset(T.None));
-    printf("[BitSet] %p == %p\n",
+    printf("[BitSet] %p (%p) == %p (%p)\n",
            reinterpret_cast<void*>(bitset(0xfffffffeu)),
-           reinterpret_cast<void*>(this->AsBitset(T.Any)));
+           reinterpret_cast<void*>(HeapType::Any()),
+           reinterpret_cast<void*>(this->AsBitset(T.Any)),
+           reinterpret_cast<void*>(*T.Any));
     CHECK(bitset(0xfffffffeu) == this->AsBitset(T.Any));
 
     // Union(T1, T2) is bitset for bitsets T1,T2
@@ -1826,7 +1828,7 @@ typedef Tests<HeapType, Handle<HeapType>, Isolate, HeapRep> HeapTests;
 
 TEST(BitsetType) {
   CcTest::InitializeVM();
-  ZoneTests().Bitset();
+//  ZoneTests().Bitset();
   HeapTests().Bitset();
 }
 
