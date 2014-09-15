@@ -117,15 +117,13 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
     : impl_(kImpl.Get()), zone_(zone) {}
 
 
-#define PURE(Name, properties, input_count)                 \
-  const Operator* SimplifiedOperatorBuilder::Name() const { \
-    return &impl_.k##Name;                                  \
-  }
+#define PURE(Name, properties, input_count) \
+  const Operator* SimplifiedOperatorBuilder::Name() { return &impl_.k##Name; }
 PURE_OP_LIST(PURE)
 #undef PURE
 
 
-const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) const {
+const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) {
   // TODO(titzer): What about the type parameter?
   return new (zone()) SimpleOperator(IrOpcode::kReferenceEqual,
                                      Operator::kCommutative | Operator::kPure,
@@ -133,11 +131,11 @@ const Operator* SimplifiedOperatorBuilder::ReferenceEqual(Type* type) const {
 }
 
 
-#define ACCESS(Name, Type, properties, input_count, output_count)             \
-  const Operator* SimplifiedOperatorBuilder::Name(const Type& access) const { \
-    return new (zone())                                                       \
-        Operator1<Type>(IrOpcode::k##Name, Operator::kNoThrow | properties,   \
-                        input_count, output_count, #Name, access);            \
+#define ACCESS(Name, Type, properties, input_count, output_count)           \
+  const Operator* SimplifiedOperatorBuilder::Name(const Type& access) {     \
+    return new (zone())                                                     \
+        Operator1<Type>(IrOpcode::k##Name, Operator::kNoThrow | properties, \
+                        input_count, output_count, #Name, access);          \
   }
 ACCESS_OP_LIST(ACCESS)
 #undef ACCESS
