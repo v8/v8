@@ -275,10 +275,13 @@ class TypeImpl : public Config::Base {
 
   // Constructors.
 
+  // Explicitly mask, since VS on Win64 (wrongly?) sign extends the enum value.
   #define DEFINE_TYPE_CONSTRUCTOR(type, value)                                \
-    static TypeImpl* type() { return BitsetType::New(BitsetType::k##type); }  \
+    static TypeImpl* type() {                                                 \
+      return BitsetType::New(BitsetType::k##type & 0xffffffffu);              \
+    }                                                                         \
     static TypeHandle type(Region* region) {                                  \
-      return BitsetType::New(BitsetType::k##type, region);                    \
+      return BitsetType::New(BitsetType::k##type & 0xffffffffu, region);      \
     }
   BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
   #undef DEFINE_TYPE_CONSTRUCTOR
