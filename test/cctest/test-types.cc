@@ -409,8 +409,11 @@ struct Tests : Rep {
     CHECK(this->IsBitset(T.Any));
 
     CHECK(bitset(0) == this->AsBitset(T.None));
-    printf("[BitSet] %p (%p) == %p (%p)\n",
+    printf("[BitSet] value=%p enum=%p bitset=%p any=%p this=%p any=%p\n",
            reinterpret_cast<void*>(bitset(0xfffffffeu)),
+           reinterpret_cast<void*>(bitset(HeapType::BitsetType::kAny)),
+           reinterpret_cast<void*>(
+               HeapTypeConfig::from_bitset(HeapType::BitsetType::kAny)),
            reinterpret_cast<void*>(HeapType::Any()),
            reinterpret_cast<void*>(this->AsBitset(T.Any)),
            reinterpret_cast<void*>(*T.Any));

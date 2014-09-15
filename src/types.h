@@ -485,7 +485,7 @@ class TypeImpl : public Config::Base {
 
 template<class Config>
 class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
- protected:
+ public:  // protected:
   friend class TypeImpl<Config>;
 
   enum {
@@ -497,9 +497,7 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
 
   bitset Bitset() { return Config::as_bitset(this); }
 
-  static TypeImpl* New(bitset bits) {
-    return static_cast<BitsetType*>(Config::from_bitset(bits));
-  }
+  static TypeImpl* New(bitset bits) { return Config::from_bitset(bits); }
   static TypeHandle New(bitset bits, Region* region) {
     return Config::from_bitset(bits, region);
   }
