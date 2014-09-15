@@ -70,7 +70,7 @@ T* ZoneTypeConfig::cast(Type* type) {
 
 // static
 bool ZoneTypeConfig::is_bitset(Type* type) {
-  return reinterpret_cast<uintptr_t>(type) & 1;
+  return reinterpret_cast<intptr_t>(type) & 1;
 }
 
 
@@ -87,9 +87,9 @@ bool ZoneTypeConfig::is_class(Type* type) {
 
 
 // static
-ZoneTypeConfig::Type::bitset ZoneTypeConfig::as_bitset(Type* type) {
+int ZoneTypeConfig::as_bitset(Type* type) {
   DCHECK(is_bitset(type));
-  return reinterpret_cast<Type::bitset>(type) ^ 1u;
+  return static_cast<int>(reinterpret_cast<intptr_t>(type) >> 1);
 }
 
 
@@ -108,14 +108,13 @@ i::Handle<i::Map> ZoneTypeConfig::as_class(Type* type) {
 
 
 // static
-ZoneTypeConfig::Type* ZoneTypeConfig::from_bitset(Type::bitset bitset) {
-  return reinterpret_cast<Type*>(bitset | 1u);
+ZoneTypeConfig::Type* ZoneTypeConfig::from_bitset(int bitset) {
+  return reinterpret_cast<Type*>((bitset << 1) | 1);
 }
 
 
 // static
-ZoneTypeConfig::Type* ZoneTypeConfig::from_bitset(
-    Type::bitset bitset, Zone* Zone) {
+ZoneTypeConfig::Type* ZoneTypeConfig::from_bitset(int bitset, Zone* Zone) {
   return from_bitset(bitset);
 }
 
@@ -230,9 +229,8 @@ bool HeapTypeConfig::is_struct(Type* type, int tag) {
 
 
 // static
-HeapTypeConfig::Type::bitset HeapTypeConfig::as_bitset(Type* type) {
-  // TODO(rossberg): Breaks the Smi abstraction. Fix once there is a better way.
-  return reinterpret_cast<Type::bitset>(type);
+int HeapTypeConfig::as_bitset(Type* type) {
+  return i::Smi::cast(type)->value();
 }
 
 
@@ -249,15 +247,14 @@ i::Handle<HeapTypeConfig::Struct> HeapTypeConfig::as_struct(Type* type) {
 
 
 // static
-HeapTypeConfig::Type* HeapTypeConfig::from_bitset(Type::bitset bitset) {
-  // TODO(rossberg): Breaks the Smi abstraction. Fix once there is a better way.
-  return reinterpret_cast<Type*>(bitset);
+HeapTypeConfig::Type* HeapTypeConfig::from_bitset(int bitset) {
+  return Type::cast(i::Smi::FromInt(bitset));
 }
 
 
 // static
 i::Handle<HeapTypeConfig::Type> HeapTypeConfig::from_bitset(
-    Type::bitset bitset, Isolate* isolate) {
+    int bitset, Isolate* isolate) {
   return i::handle(from_bitset(bitset), isolate);
 }
 
