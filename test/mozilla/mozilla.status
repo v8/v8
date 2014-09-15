@@ -56,7 +56,6 @@
   # TODO(turbofan): These are all covered by mjsunit as well. Enable them once
   # we pass 'mjsunit' and 'webkit' with TurboFan.
   'js1_4/Functions/function-001': [PASS, NO_VARIANTS],
-  'js1_5/Regress/regress-104077': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-396684': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-80981': [PASS, NO_VARIANTS],
 

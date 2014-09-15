@@ -63,10 +63,6 @@
   # from the deoptimizer to do that.
   'arguments-indirect': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
-  'debug-references': [PASS, NO_VARIANTS],
-  'regress/regress-263': [PASS, NO_VARIANTS],
-
   # TODO(rossberg): Typer doesn't like contexts very much.
   'harmony/block-conflicts': [PASS, NO_VARIANTS],
   'harmony/block-for': [PASS, NO_VARIANTS],
