@@ -67,10 +67,6 @@
   'debug-references': [PASS, NO_VARIANTS],
   'regress/regress-263': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Causes crash in generated code, needs investigation.
-  'array-sort': [PASS, NO_VARIANTS],
-  'dehoisted-array-index': [PASS, NO_VARIANTS],
-
   # TODO(mstarzinger/rossberg): Typer doesn't like contexts very much.
   'harmony/block-conflicts': [PASS, NO_VARIANTS],
   'harmony/block-for': [PASS, NO_VARIANTS],
@@ -83,7 +79,6 @@
   'string-oom-concat': [PASS, NO_VARIANTS],
   'unbox-double-arrays': [PASS, NO_VARIANTS],
   'compiler/osr-warm': [PASS, NO_VARIANTS],
-  'compiler/regress-3136962': [PASS, NO_VARIANTS],
   'harmony/proxies-json': [PASS, NO_VARIANTS],
   'regress/regress-760-1': [PASS, NO_VARIANTS],
   'regress/regress-760-2': [PASS, NO_VARIANTS],
