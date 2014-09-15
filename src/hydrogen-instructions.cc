@@ -2815,6 +2815,13 @@ void HConstant::Initialize(Representation r) {
       r = Representation::Tagged();
     }
   }
+  if (r.IsSmi()) {
+    // If we have an existing handle, zap it, because it might be a heap
+    // number which we must not re-use when copying this HConstant to
+    // Tagged representation later, because having Smi representation now
+    // could cause heap object checks not to get emitted.
+    object_ = Unique<Object>(Handle<Object>::null());
+  }
   set_representation(r);
   SetFlag(kUseGVN);
 }

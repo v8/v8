@@ -7,10 +7,12 @@
 #if V8_TARGET_ARCH_X87
 
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/hydrogen-osr.h"
+#include "src/ic/stub-cache.h"
 #include "src/x87/lithium-codegen-x87.h"
 
 namespace v8 {
@@ -2170,8 +2172,9 @@ void LCodeGen::DoArithmeticT(LArithmeticT* instr) {
   DCHECK(ToRegister(instr->right()).is(eax));
   DCHECK(ToRegister(instr->result()).is(eax));
 
-  BinaryOpICStub stub(isolate(), instr->op(), NO_OVERWRITE);
-  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+  Handle<Code> code =
+      CodeFactory::BinaryOpIC(isolate(), instr->op(), NO_OVERWRITE).code();
+  CallCode(code, RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2593,7 +2596,7 @@ static Condition ComputeCompareCondition(Token::Value op) {
 void LCodeGen::DoStringCompareAndBranch(LStringCompareAndBranch* instr) {
   Token::Value op = instr->op();
 
-  Handle<Code> ic = CompareIC::GetUninitialized(isolate(), op);
+  Handle<Code> ic = CodeFactory::CompareIC(isolate(), op).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   Condition condition = ComputeCompareCondition(op);
@@ -2865,7 +2868,7 @@ void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
 void LCodeGen::DoCmpT(LCmpT* instr) {
   Token::Value op = instr->op();
 
-  Handle<Code> ic = CompareIC::GetUninitialized(isolate(), op);
+  Handle<Code> ic = CodeFactory::CompareIC(isolate(), op).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 
   Condition condition = ComputeCompareCondition(op);
@@ -2988,7 +2991,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
   }
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
-  Handle<Code> ic = LoadIC::initialize_stub(isolate(), mode);
+  Handle<Code> ic = CodeFactory::LoadIC(isolate(), mode).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3122,7 +3125,7 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   if (FLAG_vector_ics) {
     EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
   }
-  Handle<Code> ic = LoadIC::initialize_stub(isolate(), NOT_CONTEXTUAL);
+  Handle<Code> ic = CodeFactory::LoadIC(isolate(), NOT_CONTEXTUAL).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3277,11 +3280,9 @@ void LCodeGen::DoLoadKeyedFixedArray(LLoadKeyed* instr) {
 
   // Load the result.
   __ mov(result,
-         BuildFastArrayOperand(instr->elements(),
-                               instr->key(),
+         BuildFastArrayOperand(instr->elements(), instr->key(),
                                instr->hydrogen()->key()->representation(),
-                               FAST_ELEMENTS,
-                               instr->base_offset()));
+                               FAST_ELEMENTS, instr->base_offset()));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3347,7 +3348,7 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
   }
 
-  Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
+  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3574,6 +3575,32 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     ParameterCount expected(formal_parameter_count);
     __ InvokeFunction(function, expected, count, CALL_FUNCTION, generator);
   }
+}
+
+
+void LCodeGen::DoTailCallThroughMegamorphicCache(
+    LTailCallThroughMegamorphicCache* instr) {
+  Register receiver = ToRegister(instr->receiver());
+  Register name = ToRegister(instr->name());
+  DCHECK(receiver.is(LoadDescriptor::ReceiverRegister()));
+  DCHECK(name.is(LoadDescriptor::NameRegister()));
+
+  Register scratch = ebx;
+  Register extra = eax;
+  DCHECK(!scratch.is(receiver) && !scratch.is(name));
+  DCHECK(!extra.is(receiver) && !extra.is(name));
+
+  // Important for the tail-call.
+  bool must_teardown_frame = NeedsEagerFrame();
+
+  // The probe will tail call to a handler if found.
+  isolate()->stub_cache()->GenerateProbe(masm(), instr->hydrogen()->flags(),
+                                         must_teardown_frame, receiver, name,
+                                         scratch, extra);
+
+  // Tail call to miss if we ended up here.
+  if (must_teardown_frame) __ leave();
+  LoadIC::GenerateMiss(masm());
 }
 
 
@@ -4191,9 +4218,8 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   DCHECK(ToRegister(instr->key()).is(StoreDescriptor::NameRegister()));
   DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
 
-  Handle<Code> ic = instr->strict_mode() == STRICT
-      ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
-      : isolate()->builtins()->KeyedStoreIC_Initialize();
+  Handle<Code> ic =
+      CodeFactory::KeyedStoreIC(isolate(), instr->strict_mode()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 

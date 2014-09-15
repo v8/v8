@@ -23053,3 +23053,308 @@ TEST(Regress411793) {
       "Object.defineProperty(o, 'key', "
       "    { get: function() {}, set: function() {} });");
 }
+
+class TestSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  explicit TestSourceStream(const char** chunks) : chunks_(chunks), index_(0) {}
+
+  virtual size_t GetMoreData(const uint8_t** src) {
+    // Unlike in real use cases, this function will never block.
+    if (chunks_[index_] == NULL) {
+      return 0;
+    }
+    // Copy the data, since the caller takes ownership of it.
+    size_t len = strlen(chunks_[index_]);
+    // We don't need to zero-terminate since we return the length.
+    uint8_t* copy = new uint8_t[len];
+    memcpy(copy, chunks_[index_], len);
+    *src = copy;
+    ++index_;
+    return len;
+  }
+
+  // Helper for constructing a string from chunks (the compilation needs it
+  // too).
+  static char* FullSourceString(const char** chunks) {
+    size_t total_len = 0;
+    for (size_t i = 0; chunks[i] != NULL; ++i) {
+      total_len += strlen(chunks[i]);
+    }
+    char* full_string = new char[total_len + 1];
+    size_t offset = 0;
+    for (size_t i = 0; chunks[i] != NULL; ++i) {
+      size_t len = strlen(chunks[i]);
+      memcpy(full_string + offset, chunks[i], len);
+      offset += len;
+    }
+    full_string[total_len] = 0;
+    return full_string;
+  }
+
+ private:
+  const char** chunks_;
+  unsigned index_;
+};
+
+
+// Helper function for running streaming tests.
+void RunStreamingTest(const char** chunks,
+                      v8::ScriptCompiler::StreamedSource::Encoding encoding =
+                          v8::ScriptCompiler::StreamedSource::ONE_BYTE,
+                      bool expected_success = true) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::TryCatch try_catch;
+
+  v8::ScriptCompiler::StreamedSource source(new TestSourceStream(chunks),
+                                            encoding);
+  v8::ScriptCompiler::ScriptStreamingTask* task =
+      v8::ScriptCompiler::StartStreamingScript(isolate, &source);
+
+  // TestSourceStream::GetMoreData won't block, so it's OK to just run the
+  // task here in the main thread.
+  task->Run();
+  delete task;
+
+  v8::ScriptOrigin origin(v8_str("http://foo.com"));
+  char* full_source = TestSourceStream::FullSourceString(chunks);
+
+  // The possible errors are only produced while compiling.
+  CHECK_EQ(false, try_catch.HasCaught());
+
+  v8::Handle<Script> script = v8::ScriptCompiler::Compile(
+      isolate, &source, v8_str(full_source), origin);
+  if (expected_success) {
+    CHECK(!script.IsEmpty());
+    v8::Handle<Value> result(script->Run());
+    // All scripts are supposed to return the fixed value 13 when ran.
+    CHECK_EQ(13, result->Int32Value());
+  } else {
+    CHECK(script.IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  delete[] full_source;
+}
+
+
+TEST(StreamingSimpleScript) {
+  // This script is unrealistically small, since no one chunk is enough to fill
+  // the backing buffer of Scanner, let alone overflow it.
+  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
+                          NULL};
+  RunStreamingTest(chunks);
+}
+
+
+TEST(StreamingBiggerScript) {
+  const char* chunk1 =
+      "function foo() {\n"
+      "  // Make this chunk sufficiently long so that it will overflow the\n"
+      "  // backing buffer of the Scanner.\n"
+      "  var i = 0;\n"
+      "  var result = 0;\n"
+      "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
+      "  result = 0;\n"
+      "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
+      "  result = 0;\n"
+      "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
+      "  result = 0;\n"
+      "  for (i = 0; i < 13; ++i) { result = result + 1; }\n"
+      "  return result;\n"
+      "}\n";
+  const char* chunks[] = {chunk1, "foo(); ", NULL};
+  RunStreamingTest(chunks);
+}
+
+
+TEST(StreamingScriptWithParseError) {
+  // Test that parse errors from streamed scripts are propagated correctly.
+  {
+    char chunk1[] =
+        "  // This will result in a parse error.\n"
+        "  var if else then foo";
+    char chunk2[] = "  13\n";
+    const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+
+    RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::ONE_BYTE,
+                     false);
+  }
+  // Test that the next script succeeds normally.
+  {
+    char chunk1[] =
+        "  // This will be parsed successfully.\n"
+        "  function foo() { return ";
+    char chunk2[] = "  13; }\n";
+    const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+
+    RunStreamingTest(chunks);
+  }
+}
+
+
+TEST(StreamingUtf8Script) {
+  // We'd want to write \uc481 instead of \xeb\x91\x80, but Windows compilers
+  // don't like it.
+  const char* chunk1 =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foob\xeb\x91\x80r = 13;\n"
+      "  return foob\xeb\x91\x80r;\n"
+      "}\n";
+  const char* chunks[] = {chunk1, "foo(); ", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}
+
+
+TEST(StreamingUtf8ScriptWithSplitCharactersSanityCheck) {
+  // A sanity check to prove that the approach of splitting UTF-8
+  // characters is correct. Here is an UTF-8 character which will take three
+  // bytes.
+  const char* reference = "\xeb\x91\x80";
+  CHECK(3u == strlen(reference));  // NOLINT - no CHECK_EQ for unsigned.
+
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foob";
+  char chunk2[] =
+      "XXXr = 13;\n"
+      "  return foob\xeb\x91\x80r;\n"
+      "}\n";
+  for (int i = 0; i < 3; ++i) {
+    chunk2[i] = reference[i];
+  }
+  const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}
+
+
+TEST(StreamingUtf8ScriptWithSplitCharacters) {
+  // Stream data where a multi-byte UTF-8 character is split between two data
+  // chunks.
+  const char* reference = "\xeb\x91\x80";
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foobX";
+  char chunk2[] =
+      "XXr = 13;\n"
+      "  return foob\xeb\x91\x80r;\n"
+      "}\n";
+  chunk1[strlen(chunk1) - 1] = reference[0];
+  chunk2[0] = reference[1];
+  chunk2[1] = reference[2];
+  const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}
+
+
+TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
+  // Tests edge cases which should still be decoded correctly.
+
+  // Case 1: a chunk contains only bytes for a split character (and no other
+  // data). This kind of a chunk would be exceptionally small, but we should
+  // still decode it correctly.
+  const char* reference = "\xeb\x91\x80";
+  // The small chunk is at the beginning of the split character
+  {
+    char chunk1[] =
+        "function foo() {\n"
+        "  // This function will contain an UTF-8 character which is not in\n"
+        "  // ASCII.\n"
+        "  var foob";
+    char chunk2[] = "XX";
+    char chunk3[] =
+        "Xr = 13;\n"
+        "  return foob\xeb\x91\x80r;\n"
+        "}\n";
+    chunk2[0] = reference[0];
+    chunk2[1] = reference[1];
+    chunk3[0] = reference[2];
+    const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", NULL};
+    RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+  }
+  // The small chunk is at the end of a character
+  {
+    char chunk1[] =
+        "function foo() {\n"
+        "  // This function will contain an UTF-8 character which is not in\n"
+        "  // ASCII.\n"
+        "  var foobX";
+    char chunk2[] = "XX";
+    char chunk3[] =
+        "r = 13;\n"
+        "  return foob\xeb\x91\x80r;\n"
+        "}\n";
+    chunk1[strlen(chunk1) - 1] = reference[0];
+    chunk2[0] = reference[1];
+    chunk2[1] = reference[2];
+    const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", NULL};
+    RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+  }
+  // Case 2: the script ends with a multi-byte character. Make sure that it's
+  // decoded correctly and not just ignored.
+  {
+    char chunk1[] =
+        "var foob\xeb\x91\x80 = 13;\n"
+        "foob\xeb\x91\x80";
+    const char* chunks[] = {chunk1, NULL};
+    RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+  }
+}
+
+
+TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
+  // Test cases where a UTF-8 character is split over several chunks. Those
+  // cases are not supported (the embedder should give the data in big enough
+  // chunks), but we shouldn't crash, just produce a parse error.
+  const char* reference = "\xeb\x91\x80";
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foobX";
+  char chunk2[] = "X";
+  char chunk3[] =
+      "Xr = 13;\n"
+      "  return foob\xeb\x91\x80r;\n"
+      "}\n";
+  chunk1[strlen(chunk1) - 1] = reference[0];
+  chunk2[0] = reference[1];
+  chunk3[0] = reference[2];
+  const char* chunks[] = {chunk1, chunk2, chunk3, "foo();", NULL};
+
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, false);
+}
+
+
+TEST(StreamingProducesParserCache) {
+  i::FLAG_min_preparse_length = 0;
+  const char* chunks[] = {"function foo() { ret", "urn 13; } f", "oo(); ",
+                          NULL};
+
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::ScriptCompiler::StreamedSource source(
+      new TestSourceStream(chunks),
+      v8::ScriptCompiler::StreamedSource::ONE_BYTE);
+  v8::ScriptCompiler::ScriptStreamingTask* task =
+      v8::ScriptCompiler::StartStreamingScript(
+          isolate, &source, v8::ScriptCompiler::kProduceParserCache);
+
+  // TestSourceStream::GetMoreData won't block, so it's OK to just run the
+  // task here in the main thread.
+  task->Run();
+  delete task;
+
+  const v8::ScriptCompiler::CachedData* cached_data = source.GetCachedData();
+  CHECK(cached_data != NULL);
+  CHECK(cached_data->data != NULL);
+  CHECK_GT(cached_data->length, 0);
+}

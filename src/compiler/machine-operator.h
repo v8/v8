@@ -62,84 +62,84 @@ class MachineOperatorBuilder FINAL {
  public:
   explicit MachineOperatorBuilder(MachineType word = kMachPtr);
 
-  const Operator* Word32And() WARN_UNUSED_RESULT;
-  const Operator* Word32Or() WARN_UNUSED_RESULT;
-  const Operator* Word32Xor() WARN_UNUSED_RESULT;
-  const Operator* Word32Shl() WARN_UNUSED_RESULT;
-  const Operator* Word32Shr() WARN_UNUSED_RESULT;
-  const Operator* Word32Sar() WARN_UNUSED_RESULT;
-  const Operator* Word32Ror() WARN_UNUSED_RESULT;
-  const Operator* Word32Equal() WARN_UNUSED_RESULT;
+  const Operator* Word32And() const WARN_UNUSED_RESULT;
+  const Operator* Word32Or() const WARN_UNUSED_RESULT;
+  const Operator* Word32Xor() const WARN_UNUSED_RESULT;
+  const Operator* Word32Shl() const WARN_UNUSED_RESULT;
+  const Operator* Word32Shr() const WARN_UNUSED_RESULT;
+  const Operator* Word32Sar() const WARN_UNUSED_RESULT;
+  const Operator* Word32Ror() const WARN_UNUSED_RESULT;
+  const Operator* Word32Equal() const WARN_UNUSED_RESULT;
 
-  const Operator* Word64And() WARN_UNUSED_RESULT;
-  const Operator* Word64Or() WARN_UNUSED_RESULT;
-  const Operator* Word64Xor() WARN_UNUSED_RESULT;
-  const Operator* Word64Shl() WARN_UNUSED_RESULT;
-  const Operator* Word64Shr() WARN_UNUSED_RESULT;
-  const Operator* Word64Sar() WARN_UNUSED_RESULT;
-  const Operator* Word64Ror() WARN_UNUSED_RESULT;
-  const Operator* Word64Equal() WARN_UNUSED_RESULT;
+  const Operator* Word64And() const WARN_UNUSED_RESULT;
+  const Operator* Word64Or() const WARN_UNUSED_RESULT;
+  const Operator* Word64Xor() const WARN_UNUSED_RESULT;
+  const Operator* Word64Shl() const WARN_UNUSED_RESULT;
+  const Operator* Word64Shr() const WARN_UNUSED_RESULT;
+  const Operator* Word64Sar() const WARN_UNUSED_RESULT;
+  const Operator* Word64Ror() const WARN_UNUSED_RESULT;
+  const Operator* Word64Equal() const WARN_UNUSED_RESULT;
 
-  const Operator* Int32Add() WARN_UNUSED_RESULT;
-  const Operator* Int32AddWithOverflow() WARN_UNUSED_RESULT;
-  const Operator* Int32Sub() WARN_UNUSED_RESULT;
-  const Operator* Int32SubWithOverflow() WARN_UNUSED_RESULT;
-  const Operator* Int32Mul() WARN_UNUSED_RESULT;
-  const Operator* Int32Div() WARN_UNUSED_RESULT;
-  const Operator* Int32UDiv() WARN_UNUSED_RESULT;
-  const Operator* Int32Mod() WARN_UNUSED_RESULT;
-  const Operator* Int32UMod() WARN_UNUSED_RESULT;
-  const Operator* Int32LessThan() WARN_UNUSED_RESULT;
-  const Operator* Int32LessThanOrEqual() WARN_UNUSED_RESULT;
-  const Operator* Uint32LessThan() WARN_UNUSED_RESULT;
-  const Operator* Uint32LessThanOrEqual() WARN_UNUSED_RESULT;
+  const Operator* Int32Add() const WARN_UNUSED_RESULT;
+  const Operator* Int32AddWithOverflow() const WARN_UNUSED_RESULT;
+  const Operator* Int32Sub() const WARN_UNUSED_RESULT;
+  const Operator* Int32SubWithOverflow() const WARN_UNUSED_RESULT;
+  const Operator* Int32Mul() const WARN_UNUSED_RESULT;
+  const Operator* Int32Div() const WARN_UNUSED_RESULT;
+  const Operator* Int32UDiv() const WARN_UNUSED_RESULT;
+  const Operator* Int32Mod() const WARN_UNUSED_RESULT;
+  const Operator* Int32UMod() const WARN_UNUSED_RESULT;
+  const Operator* Int32LessThan() const WARN_UNUSED_RESULT;
+  const Operator* Int32LessThanOrEqual() const WARN_UNUSED_RESULT;
+  const Operator* Uint32LessThan() const WARN_UNUSED_RESULT;
+  const Operator* Uint32LessThanOrEqual() const WARN_UNUSED_RESULT;
 
-  const Operator* Int64Add() WARN_UNUSED_RESULT;
-  const Operator* Int64Sub() WARN_UNUSED_RESULT;
-  const Operator* Int64Mul() WARN_UNUSED_RESULT;
-  const Operator* Int64Div() WARN_UNUSED_RESULT;
-  const Operator* Int64UDiv() WARN_UNUSED_RESULT;
-  const Operator* Int64Mod() WARN_UNUSED_RESULT;
-  const Operator* Int64UMod() WARN_UNUSED_RESULT;
-  const Operator* Int64LessThan() WARN_UNUSED_RESULT;
-  const Operator* Int64LessThanOrEqual() WARN_UNUSED_RESULT;
+  const Operator* Int64Add() const WARN_UNUSED_RESULT;
+  const Operator* Int64Sub() const WARN_UNUSED_RESULT;
+  const Operator* Int64Mul() const WARN_UNUSED_RESULT;
+  const Operator* Int64Div() const WARN_UNUSED_RESULT;
+  const Operator* Int64UDiv() const WARN_UNUSED_RESULT;
+  const Operator* Int64Mod() const WARN_UNUSED_RESULT;
+  const Operator* Int64UMod() const WARN_UNUSED_RESULT;
+  const Operator* Int64LessThan() const WARN_UNUSED_RESULT;
+  const Operator* Int64LessThanOrEqual() const WARN_UNUSED_RESULT;
 
   // Convert representation of integers between float64 and int32/uint32.
   // The precise rounding mode and handling of out of range inputs are *not*
   // defined for these operators, since they are intended only for use with
   // integers.
-  const Operator* ChangeInt32ToFloat64() WARN_UNUSED_RESULT;
-  const Operator* ChangeUint32ToFloat64() WARN_UNUSED_RESULT;
-  const Operator* ChangeFloat64ToInt32() WARN_UNUSED_RESULT;
-  const Operator* ChangeFloat64ToUint32() WARN_UNUSED_RESULT;
+  const Operator* ChangeInt32ToFloat64() const WARN_UNUSED_RESULT;
+  const Operator* ChangeUint32ToFloat64() const WARN_UNUSED_RESULT;
+  const Operator* ChangeFloat64ToInt32() const WARN_UNUSED_RESULT;
+  const Operator* ChangeFloat64ToUint32() const WARN_UNUSED_RESULT;
 
   // Sign/zero extend int32/uint32 to int64/uint64.
-  const Operator* ChangeInt32ToInt64() WARN_UNUSED_RESULT;
-  const Operator* ChangeUint32ToUint64() WARN_UNUSED_RESULT;
+  const Operator* ChangeInt32ToInt64() const WARN_UNUSED_RESULT;
+  const Operator* ChangeUint32ToUint64() const WARN_UNUSED_RESULT;
 
   // Truncate double to int32 using JavaScript semantics.
-  const Operator* TruncateFloat64ToInt32() WARN_UNUSED_RESULT;
+  const Operator* TruncateFloat64ToInt32() const WARN_UNUSED_RESULT;
 
   // Truncate the high order bits and convert the remaining bits to int32.
-  const Operator* TruncateInt64ToInt32() WARN_UNUSED_RESULT;
+  const Operator* TruncateInt64ToInt32() const WARN_UNUSED_RESULT;
 
   // Floating point operators always operate with IEEE 754 round-to-nearest.
-  const Operator* Float64Add() WARN_UNUSED_RESULT;
-  const Operator* Float64Sub() WARN_UNUSED_RESULT;
-  const Operator* Float64Mul() WARN_UNUSED_RESULT;
-  const Operator* Float64Div() WARN_UNUSED_RESULT;
-  const Operator* Float64Mod() WARN_UNUSED_RESULT;
+  const Operator* Float64Add() const WARN_UNUSED_RESULT;
+  const Operator* Float64Sub() const WARN_UNUSED_RESULT;
+  const Operator* Float64Mul() const WARN_UNUSED_RESULT;
+  const Operator* Float64Div() const WARN_UNUSED_RESULT;
+  const Operator* Float64Mod() const WARN_UNUSED_RESULT;
 
   // Floating point comparisons complying to IEEE 754.
-  const Operator* Float64Equal() WARN_UNUSED_RESULT;
-  const Operator* Float64LessThan() WARN_UNUSED_RESULT;
-  const Operator* Float64LessThanOrEqual() WARN_UNUSED_RESULT;
+  const Operator* Float64Equal() const WARN_UNUSED_RESULT;
+  const Operator* Float64LessThan() const WARN_UNUSED_RESULT;
+  const Operator* Float64LessThanOrEqual() const WARN_UNUSED_RESULT;
 
   // load [base + index]
-  const Operator* Load(LoadRepresentation rep) WARN_UNUSED_RESULT;
+  const Operator* Load(LoadRepresentation rep) const WARN_UNUSED_RESULT;
 
   // store [base + index], value
-  const Operator* Store(StoreRepresentation rep) WARN_UNUSED_RESULT;
+  const Operator* Store(StoreRepresentation rep) const WARN_UNUSED_RESULT;
 
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == kRepWord32; }
@@ -167,7 +167,7 @@ class MachineOperatorBuilder FINAL {
   V(Int, LessThan)        \
   V(Int, LessThanOrEqual)
 #define PSEUDO_OP(Prefix, Suffix)                                \
-  const Operator* Prefix##Suffix() {                             \
+  const Operator* Prefix##Suffix() const {                       \
     return Is32() ? Prefix##32##Suffix() : Prefix##64##Suffix(); \
   }
   PSEUDO_OP_LIST(PSEUDO_OP)

@@ -1,3 +1,17 @@
+2014-09-15: Version 3.29.64
+
+        ES6: String(symbol) should work like symbol.toString (issue 3554).
+
+        Arrow functions: Cleanup handling of the prototype property (issue
+        2700).
+
+        Remove V8_HOST_CAN_READ_UNALIGNED and its uses (Chromium issue 412967).
+
+        Fix Smi vs. HeapObject confusion in HConstants (Chromium issue 412215).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-12: Version 3.29.59
 
         Do not use wide reads in CopyCharsUnsigned (Chromium issue 412967).

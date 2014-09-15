@@ -49,7 +49,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 
   Node* reduce(Node* node) {
-    JSGraph jsgraph(&graph, &common, &typer);
+    JSGraph jsgraph(&graph, &common, &javascript, &typer, &machine);
     JSTypedLowering reducer(&jsgraph);
     Reduction reduction = reducer.Reduce(node);
     if (reduction.Changed()) return reduction.replacement();

@@ -3362,9 +3362,9 @@ void FullCodeGenerator::EmitOneByteSeqStringSetChar(CallRuntime* expr) {
   Register index = ebx;
   Register value = ecx;
 
-  VisitForStackValue(args->at(1));  // index
-  VisitForStackValue(args->at(2));  // value
-  VisitForAccumulatorValue(args->at(0));  // string
+  VisitForStackValue(args->at(0));        // index
+  VisitForStackValue(args->at(1));        // value
+  VisitForAccumulatorValue(args->at(2));  // string
 
   __ pop(value);
   __ pop(index);
@@ -3398,9 +3398,9 @@ void FullCodeGenerator::EmitTwoByteSeqStringSetChar(CallRuntime* expr) {
   Register index = ebx;
   Register value = ecx;
 
-  VisitForStackValue(args->at(1));  // index
-  VisitForStackValue(args->at(2));  // value
-  VisitForAccumulatorValue(args->at(0));  // string
+  VisitForStackValue(args->at(0));        // index
+  VisitForStackValue(args->at(1));        // value
+  VisitForAccumulatorValue(args->at(2));  // string
   __ pop(value);
   __ pop(index);
 

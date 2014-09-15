@@ -47,6 +47,7 @@ ScriptData::ScriptData(const byte* data, int length)
 CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
     : flags_(kThisHasUses),
       script_(script),
+      source_stream_(NULL),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
       optimization_id_(-1),
@@ -59,6 +60,7 @@ CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
 CompilationInfo::CompilationInfo(Isolate* isolate, Zone* zone)
     : flags_(kThisHasUses),
       script_(Handle<Script>::null()),
+      source_stream_(NULL),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
       optimization_id_(-1),
@@ -73,6 +75,7 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
     : flags_(kLazy | kThisHasUses),
       shared_info_(shared_info),
       script_(Handle<Script>(Script::cast(shared_info->script()))),
+      source_stream_(NULL),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
       optimization_id_(-1),
@@ -87,6 +90,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
       closure_(closure),
       shared_info_(Handle<SharedFunctionInfo>(closure->shared())),
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
+      source_stream_(NULL),
       context_(closure->context()),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
@@ -100,6 +104,7 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
 CompilationInfo::CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate,
                                  Zone* zone)
     : flags_(kLazy | kThisHasUses),
+      source_stream_(NULL),
       osr_ast_id_(BailoutId::None()),
       parameter_count_(0),
       optimization_id_(-1),
@@ -107,6 +112,22 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate,
       ast_value_factory_owned_(false) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
+}
+
+
+CompilationInfo::CompilationInfo(
+    ScriptCompiler::ExternalSourceStream* stream,
+    ScriptCompiler::StreamedSource::Encoding encoding, Isolate* isolate,
+    Zone* zone)
+    : flags_(kThisHasUses),
+      source_stream_(stream),
+      source_stream_encoding_(encoding),
+      osr_ast_id_(BailoutId::None()),
+      parameter_count_(0),
+      optimization_id_(-1),
+      ast_value_factory_(NULL),
+      ast_value_factory_owned_(false) {
+  Initialize(isolate, BASE, zone);
 }
 
 
@@ -136,14 +157,13 @@ void CompilationInfo::Initialize(Isolate* isolate,
   }
   mode_ = mode;
   abort_due_to_dependency_ = false;
-  if (script_->type()->value() == Script::TYPE_NATIVE) MarkAsNative();
+  if (!script_.is_null() && script_->type()->value() == Script::TYPE_NATIVE) {
+    MarkAsNative();
+  }
   if (isolate_->debug()->is_active()) MarkAsDebug();
   if (FLAG_context_specialization) MarkAsContextSpecializing();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64
-  // TODO(mstarzinger): Bugs in ARM back-end block enabling typed pipeline.
   if (FLAG_turbo_types) MarkAsTypingEnabled();
-#endif
 
   if (!shared_info_.is_null()) {
     DCHECK(strict_mode() == SLOPPY);
@@ -810,13 +830,6 @@ void Compiler::CompileForLiveEdit(Handle<Script> script) {
 }
 
 
-static bool DebuggerWantsEagerCompilation(CompilationInfo* info,
-                                          bool allow_lazy_without_ctx = false) {
-  return LiveEditFunctionTracker::IsActive(info->isolate()) ||
-         (info->isolate()->DebuggerHasBreakPoints() && !allow_lazy_without_ctx);
-}
-
-
 static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   PostponeInterruptsScope postpone(isolate);
@@ -831,28 +844,30 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
   DCHECK(info->is_eval() || info->is_global());
 
-  bool parse_allow_lazy =
-      (info->compile_options() == ScriptCompiler::kConsumeParserCache ||
-       String::cast(script->source())->length() > FLAG_min_preparse_length) &&
-      !DebuggerWantsEagerCompilation(info);
-
-  if (!parse_allow_lazy &&
-      (info->compile_options() == ScriptCompiler::kProduceParserCache ||
-       info->compile_options() == ScriptCompiler::kConsumeParserCache)) {
-    // We are going to parse eagerly, but we either 1) have cached data produced
-    // by lazy parsing or 2) are asked to generate cached data. We cannot use
-    // the existing data, since it won't contain all the symbols we need for
-    // eager parsing. In addition, it doesn't make sense to produce the data
-    // when parsing eagerly. That data would contain all symbols, but no
-    // functions, so it cannot be used to aid lazy parsing later.
-    info->SetCachedData(NULL, ScriptCompiler::kNoCompileOptions);
-  }
-
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
-    if (!Parser::Parse(info, parse_allow_lazy)) {
-      return Handle<SharedFunctionInfo>::null();
+    if (info->function() == NULL) {
+      // Parse the script if needed (if it's already parsed, function() is
+      // non-NULL).
+      bool parse_allow_lazy =
+          (info->compile_options() == ScriptCompiler::kConsumeParserCache ||
+           String::cast(script->source())->length() >
+               FLAG_min_preparse_length) &&
+          !Compiler::DebuggerWantsEagerCompilation(info);
+
+      if (!parse_allow_lazy &&
+          (info->compile_options() == ScriptCompiler::kProduceParserCache ||
+           info->compile_options() == ScriptCompiler::kConsumeParserCache)) {
+        // We are going to parse eagerly, but we either 1) have cached data
+        // produced by lazy parsing or 2) are asked to generate cached data.
+        // Eager parsing cannot benefit from cached data, and producing cached
+        // data while parsing eagerly is not implemented.
+        info->SetCachedData(NULL, ScriptCompiler::kNoCompileOptions);
+      }
+      if (!Parser::Parse(info, parse_allow_lazy)) {
+        return Handle<SharedFunctionInfo>::null();
+      }
     }
 
     FunctionLiteral* lit = info->function();
@@ -898,7 +913,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     SetExpectedNofPropertiesFromEstimate(result,
                                          lit->expected_property_count());
 
-    script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
+    if (!script.is_null())
+      script->set_compilation_state(Script::COMPILATION_STATE_COMPILED);
 
     live_edit_tracker.RecordFunctionInfo(result, lit, info->zone());
   }
@@ -1052,6 +1068,19 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     result->ResetForNewContext(isolate->heap()->global_ic_age());
   }
   return result;
+}
+
+
+Handle<SharedFunctionInfo> Compiler::CompileStreamedScript(
+    CompilationInfo* info, int source_length) {
+  Isolate* isolate = info->isolate();
+  isolate->counters()->total_load_size()->Increment(source_length);
+  isolate->counters()->total_compile_size()->Increment(source_length);
+
+  if (FLAG_use_strict) info->SetStrictMode(STRICT);
+  // TODO(marja): FLAG_serialize_toplevel is not honoured and won't be; when the
+  // real code caching lands, streaming needs to be adapted to use it.
+  return CompileToplevel(info);
 }
 
 
@@ -1359,6 +1388,13 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
                  Handle<Script>(info->script()),
                  Handle<Code>(info->code()),
                  info));
+}
+
+
+bool Compiler::DebuggerWantsEagerCompilation(CompilationInfo* info,
+                                             bool allow_lazy_without_ctx) {
+  return LiveEditFunctionTracker::IsActive(info->isolate()) ||
+         (info->isolate()->DebuggerHasBreakPoints() && !allow_lazy_without_ctx);
 }
 
 

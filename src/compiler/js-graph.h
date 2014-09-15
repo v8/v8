@@ -9,6 +9,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 
 namespace v8 {
@@ -22,11 +23,14 @@ class Typer;
 // constants, and various helper methods.
 class JSGraph : public ZoneObject {
  public:
-  JSGraph(Graph* graph, CommonOperatorBuilder* common, Typer* typer)
+  JSGraph(Graph* graph, CommonOperatorBuilder* common,
+          JSOperatorBuilder* javascript, Typer* typer,
+          MachineOperatorBuilder* machine)
       : graph_(graph),
         common_(common),
-        javascript_(zone()),
+        javascript_(javascript),
         typer_(typer),
+        machine_(machine),
         cache_(zone()) {}
 
   // Canonicalized global constants.
@@ -73,8 +77,9 @@ class JSGraph : public ZoneObject {
     return Constant(immediate);
   }
 
-  JSOperatorBuilder* javascript() { return &javascript_; }
+  JSOperatorBuilder* javascript() { return javascript_; }
   CommonOperatorBuilder* common() { return common_; }
+  MachineOperatorBuilder* machine() { return machine_; }
   Graph* graph() { return graph_; }
   Zone* zone() { return graph()->zone(); }
   Isolate* isolate() { return zone()->isolate(); }
@@ -82,8 +87,9 @@ class JSGraph : public ZoneObject {
  private:
   Graph* graph_;
   CommonOperatorBuilder* common_;
-  JSOperatorBuilder javascript_;
+  JSOperatorBuilder* javascript_;
   Typer* typer_;
+  MachineOperatorBuilder* machine_;
 
   SetOncePointer<Node> c_entry_stub_constant_;
   SetOncePointer<Node> undefined_constant_;

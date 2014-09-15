@@ -6571,6 +6571,10 @@ TEST(ProcessDebugMessages) {
 }
 
 
+class SendCommandThread;
+static SendCommandThread* send_command_thread_ = NULL;
+
+
 class SendCommandThread : public v8::base::Thread {
  public:
   explicit SendCommandThread(v8::Isolate* isolate)
@@ -6578,24 +6582,11 @@ class SendCommandThread : public v8::base::Thread {
         semaphore_(0),
         isolate_(isolate) {}
 
-  class ClientDataImpl : public v8::Debug::ClientData {
-   public:
-    explicit ClientDataImpl(v8::base::Semaphore* semaphore)
-        : semaphore_(semaphore) {}
-    v8::base::Semaphore* semaphore() { return semaphore_; }
-
-   private:
-    v8::base::Semaphore* semaphore_;
-  };
-
   static void CountingAndSignallingMessageHandler(
       const v8::Debug::Message& message) {
     if (message.IsResponse()) {
       counting_message_handler_counter++;
-      ClientDataImpl* data =
-          reinterpret_cast<ClientDataImpl*>(message.GetClientData());
-      v8::base::Semaphore* semaphore = data->semaphore();
-      semaphore->Signal();
+      send_command_thread_->semaphore_.Signal();
     }
   }
 
@@ -6610,13 +6601,16 @@ class SendCommandThread : public v8::base::Thread {
     int length = AsciiToUtf16(scripts_command, buffer);
     // Send scripts command.
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 20; i++) {
+      v8::base::ElapsedTimer timer;
+      timer.Start();
       CHECK_EQ(i, counting_message_handler_counter);
       // Queue debug message.
-      v8::Debug::SendCommand(isolate_, buffer, length,
-                             new ClientDataImpl(&semaphore_));
+      v8::Debug::SendCommand(isolate_, buffer, length);
       // Wait for the message handler to pick up the response.
       semaphore_.Wait();
+      i::PrintF("iteration %d took %f ms\n", i,
+                timer.Elapsed().InMillisecondsF());
     }
 
     v8::V8::TerminateExecution(isolate_);
@@ -6629,8 +6623,6 @@ class SendCommandThread : public v8::base::Thread {
   v8::Isolate* isolate_;
 };
 
-
-static SendCommandThread* send_command_thread_ = NULL;
 
 static void StartSendingCommands(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -6656,7 +6648,7 @@ TEST(ProcessDebugMessagesThreaded) {
 
   CompileRun("start(); while (true) { }");
 
-  CHECK_EQ(100, counting_message_handler_counter);
+  CHECK_EQ(20, counting_message_handler_counter);
 
   v8::Debug::SetMessageHandler(NULL);
   CheckDebuggerUnloaded();

@@ -23,7 +23,8 @@ class SimplifiedOperatorReducerTest : public GraphTest {
   Reduction Reduce(Node* node) {
     Typer typer(zone());
     MachineOperatorBuilder machine;
-    JSGraph jsgraph(graph(), common(), &typer);
+    JSOperatorBuilder javascript(zone());
+    JSGraph jsgraph(graph(), common(), &javascript, &typer, &machine);
     SimplifiedOperatorReducer reducer(&jsgraph, &machine);
     return reducer.Reduce(node);
   }
@@ -166,7 +167,8 @@ TEST_P(SimplifiedUnaryOperatorTest, Parameter) {
 }
 
 
-INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest, SimplifiedUnaryOperatorTest,
+INSTANTIATE_TEST_CASE_P(SimplifiedOperatorReducerTest,
+                        SimplifiedUnaryOperatorTest,
                         ::testing::ValuesIn(kUnaryOperators));
 
 

@@ -619,17 +619,21 @@ void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
+    bool saved_pp;
     if (FLAG_enable_ool_constant_pool) {
       __ Push(lr, fp, pp);
       // Adjust FP to point to saved FP.
       __ sub(fp, sp, Operand(StandardFrameConstants::kConstantPoolOffset));
+      saved_pp = true;
     } else {
       __ Push(lr, fp);
       __ mov(fp, sp);
+      saved_pp = false;
     }
     const RegList saves = descriptor->CalleeSavedRegisters();
-    if (saves != 0) {  // Save callee-saved registers.
-      int register_save_area_size = 0;
+    if (saves != 0 || saved_pp) {
+      // Save callee-saved registers.
+      int register_save_area_size = saved_pp ? kPointerSize : 0;
       for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
         if (!((1 << i) & saves)) continue;
         register_save_area_size += kPointerSize;
@@ -819,7 +823,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       DwVfpRegister dst = g.ToDoubleRegister(destination);
       __ Move(temp, src);
       __ Move(src, dst);
-      __ Move(src, temp);
+      __ Move(dst, temp);
     } else {
       DCHECK(destination->IsDoubleStackSlot());
       MemOperand dst = g.ToMemOperand(destination);

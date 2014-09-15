@@ -333,7 +333,11 @@ DEFINE_BOOL(trace_turbo_types, true, "trace generated TurboFan types")
 DEFINE_BOOL(trace_turbo_scheduler, false, "trace generated TurboFan scheduler")
 DEFINE_BOOL(turbo_verify, false, "verify TurboFan graphs at each phase")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
+#if V8_TURBOFAN_BACKEND
 DEFINE_BOOL(turbo_types, true, "use typed lowering in TurboFan")
+#else
+DEFINE_BOOL(turbo_types, false, "use typed lowering in TurboFan")
+#endif
 DEFINE_BOOL(turbo_source_positions, false,
             "track source code positions when building TurboFan IR")
 DEFINE_BOOL(context_specialization, false,
@@ -341,6 +345,7 @@ DEFINE_BOOL(context_specialization, false,
 DEFINE_BOOL(turbo_deoptimization, false, "enable deoptimization in TurboFan")
 DEFINE_BOOL(turbo_inlining, false, "enable inlining in TurboFan")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
+DEFINE_IMPLICATION(turbo_inlining, turbo_types)
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")

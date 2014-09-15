@@ -11,11 +11,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class ExternalReference;
-
-
 namespace compiler {
 
 // An operator represents description of the "computation" of a node in the
@@ -145,13 +140,6 @@ struct StaticParameterTraits {
   static bool Equals(T a, T b) {
     return false;  // Not every T has a ==. By default, be conservative.
   }
-};
-
-template <>
-struct StaticParameterTraits<ExternalReference> {
-  static OStream& PrintTo(OStream& os, ExternalReference reference);  // NOLINT
-  static int HashCode(ExternalReference reference);
-  static bool Equals(ExternalReference lhs, ExternalReference rhs);
 };
 
 // Specialization for static parameters of type {int}.

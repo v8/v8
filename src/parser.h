@@ -623,6 +623,11 @@ class Parser : public ParserBase<ParserTraits> {
     return parser.Parse();
   }
   bool Parse();
+  void ParseOnBackground();
+
+  // Handle errors detected during parsing, move statistics to Isolate,
+  // internalize strings (move them to the heap).
+  void Internalize();
 
  private:
   friend class ParserTraits;
@@ -663,8 +668,8 @@ class Parser : public ParserBase<ParserTraits> {
   }
 
   // Called by ParseProgram after setting up the scanner.
-  FunctionLiteral* DoParseProgram(CompilationInfo* info,
-                                  Handle<String> source);
+  FunctionLiteral* DoParseProgram(CompilationInfo* info, Scope** scope,
+                                  Scope** ad_hoc_eval_scope);
 
   void SetCachedData();
 
@@ -682,7 +687,8 @@ class Parser : public ParserBase<ParserTraits> {
   // By making the 'exception handling' explicit, we are forced to check
   // for failure at the call sites.
   void* ParseSourceElements(ZoneList<Statement*>* processor, int end_token,
-                            bool is_eval, bool is_global, bool* ok);
+                            bool is_eval, bool is_global,
+                            Scope** ad_hoc_eval_scope, bool* ok);
   Statement* ParseModuleElement(ZoneList<const AstRawString*>* labels,
                                 bool* ok);
   Statement* ParseModuleDeclaration(ZoneList<const AstRawString*>* names,
@@ -804,10 +810,6 @@ class Parser : public ParserBase<ParserTraits> {
   void HandleSourceURLComments();
 
   void ThrowPendingError();
-
-  // Handle errors detected during parsing, move statistics to Isolate,
-  // internalize strings (move them to the heap).
-  void Internalize();
 
   Scanner scanner_;
   PreParser* reusable_preparser_;

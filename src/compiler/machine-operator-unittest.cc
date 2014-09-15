@@ -169,7 +169,7 @@ INSTANTIATE_TEST_CASE_P(
 namespace {
 
 struct PureOperator {
-  const Operator* (MachineOperatorBuilder::*constructor)();
+  const Operator* (MachineOperatorBuilder::*constructor)() const;
   IrOpcode::Value opcode;
   int value_input_count;
   int value_output_count;

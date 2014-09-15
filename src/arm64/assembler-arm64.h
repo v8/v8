@@ -1850,6 +1850,9 @@ class Assembler : public AssemblerBase {
   inline static Instr ImmBarrierType(int imm2);
   inline static LSDataSize CalcLSDataSize(LoadStoreOp op);
 
+  static bool IsImmLSUnscaled(int64_t offset);
+  static bool IsImmLSScaled(int64_t offset, LSDataSize size);
+
   // Move immediates encoding.
   inline static Instr ImmMoveWide(uint64_t imm);
   inline static Instr ShiftMoveWide(int64_t shift);
@@ -1933,8 +1936,6 @@ class Assembler : public AssemblerBase {
   void LoadStore(const CPURegister& rt,
                  const MemOperand& addr,
                  LoadStoreOp op);
-  static bool IsImmLSUnscaled(int64_t offset);
-  static bool IsImmLSScaled(int64_t offset, LSDataSize size);
 
   void LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
                      const MemOperand& addr, LoadStorePairOp op);

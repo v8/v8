@@ -837,7 +837,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       FPRegister dst = g.ToDoubleRegister(destination);
       __ Fmov(temp, src);
       __ Fmov(src, dst);
-      __ Fmov(src, temp);
+      __ Fmov(dst, temp);
     } else {
       DCHECK(destination->IsDoubleStackSlot());
       MemOperand dst = g.ToMemOperand(destination, masm());

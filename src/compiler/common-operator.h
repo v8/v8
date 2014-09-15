@@ -5,48 +5,26 @@
 #ifndef V8_COMPILER_COMMON_OPERATOR_H_
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
-#include "src/assembler.h"
-#include "src/compiler/linkage.h"
 #include "src/compiler/machine-type.h"
-#include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
-#include "src/unique.h"
 
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class ExternalReference;
 class OStream;
+template <typename>
+class Unique;
+class Zone;
+
 
 namespace compiler {
 
-class ControlOperator FINAL : public Operator1<int> {
- public:
-  ControlOperator(IrOpcode::Value opcode, Properties properties, int inputs,
-                  int outputs, int controls, const char* mnemonic)
-      : Operator1<int>(opcode, properties, inputs, outputs, mnemonic,
-                       controls) {}
+// Forward declarations.
+class CallDescriptor;
+struct CommonOperatorBuilderImpl;
+class Operator;
 
-  virtual OStream& PrintParameter(OStream& os) const OVERRIDE {  // NOLINT
-    return os;
-  }
-  int ControlInputCount() const { return parameter(); }
-};
-
-class CallOperator FINAL : public Operator1<CallDescriptor*> {
- public:
-  // TODO(titzer): Operator still uses int, whereas CallDescriptor uses size_t.
-  CallOperator(CallDescriptor* descriptor, const char* mnemonic)
-      : Operator1<CallDescriptor*>(
-            IrOpcode::kCall, descriptor->properties(),
-            static_cast<int>(descriptor->InputCount() +
-                             descriptor->FrameStateCount()),
-            static_cast<int>(descriptor->ReturnCount()), mnemonic, descriptor) {
-  }
-
-  virtual OStream& PrintParameter(OStream& os) const OVERRIDE {  // NOLINT
-    return os << "[" << *parameter() << "]";
-  }
-};
 
 // Flag that describes how to combine the current environment with
 // the output of a node to obtain a framestate for lazy bailout.
@@ -56,7 +34,7 @@ enum OutputFrameStateCombine {
 };
 
 
-class FrameStateCallInfo {
+class FrameStateCallInfo FINAL {
  public:
   FrameStateCallInfo(BailoutId bailout_id,
                      OutputFrameStateCombine state_combine)
@@ -70,122 +48,49 @@ class FrameStateCallInfo {
   OutputFrameStateCombine frame_state_combine_;
 };
 
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
-// TODO(titzer): Move the mnemonics into SimpleOperator and Operator1 classes.
-class CommonOperatorBuilder {
+class CommonOperatorBuilder FINAL {
  public:
-  explicit CommonOperatorBuilder(Zone* zone) : zone_(zone) {}
+  explicit CommonOperatorBuilder(Zone* zone);
 
-#define CONTROL_OP(name, inputs, controls)                                   \
-  return new (zone_) ControlOperator(IrOpcode::k##name, Operator::kFoldable, \
-                                     inputs, 0, controls, #name);
+  const Operator* Dead();
+  const Operator* End();
+  const Operator* Branch();
+  const Operator* IfTrue();
+  const Operator* IfFalse();
+  const Operator* Throw();
+  const Operator* Return();
 
-  const Operator* Start(int num_formal_parameters) {
-    // Outputs are formal parameters, plus context, receiver, and JSFunction.
-    int outputs = num_formal_parameters + 3;
-    return new (zone_) ControlOperator(IrOpcode::kStart, Operator::kFoldable, 0,
-                                       outputs, 0, "Start");
-  }
-  const Operator* Dead() { CONTROL_OP(Dead, 0, 0); }
-  const Operator* End() { CONTROL_OP(End, 0, 1); }
-  const Operator* Branch() { CONTROL_OP(Branch, 1, 1); }
-  const Operator* IfTrue() { CONTROL_OP(IfTrue, 0, 1); }
-  const Operator* IfFalse() { CONTROL_OP(IfFalse, 0, 1); }
-  const Operator* Throw() { CONTROL_OP(Throw, 1, 1); }
+  const Operator* Start(int num_formal_parameters);
+  const Operator* Merge(int controls);
+  const Operator* Loop(int controls);
+  const Operator* Parameter(int index);
 
-  const Operator* Return() {
-    return new (zone_) ControlOperator(
-        IrOpcode::kReturn, Operator::kNoProperties, 1, 0, 1, "Return");
-  }
+  const Operator* Int32Constant(int32_t);
+  const Operator* Int64Constant(int64_t);
+  const Operator* Float64Constant(volatile double);
+  const Operator* ExternalConstant(const ExternalReference&);
+  const Operator* NumberConstant(volatile double);
+  const Operator* HeapConstant(const Unique<Object>&);
 
-  const Operator* Merge(int controls) {
-    return new (zone_) ControlOperator(IrOpcode::kMerge, Operator::kFoldable, 0,
-                                       0, controls, "Merge");
-  }
-
-  const Operator* Loop(int controls) {
-    return new (zone_) ControlOperator(IrOpcode::kLoop, Operator::kFoldable, 0,
-                                       0, controls, "Loop");
-  }
-
-  const Operator* Parameter(int index) {
-    return new (zone_) Operator1<int>(IrOpcode::kParameter, Operator::kPure, 1,
-                                      1, "Parameter", index);
-  }
-  const Operator* Int32Constant(int32_t value) {
-    return new (zone_)
-        Operator1<int32_t>(IrOpcode::kInt32Constant, Operator::kPure, 0, 1,
-                           "Int32Constant", value);
-  }
-  const Operator* Int64Constant(int64_t value) {
-    return new (zone_)
-        Operator1<int64_t>(IrOpcode::kInt64Constant, Operator::kPure, 0, 1,
-                           "Int64Constant", value);
-  }
-  const Operator* Float64Constant(double value) {
-    return new (zone_)
-        Operator1<double>(IrOpcode::kFloat64Constant, Operator::kPure, 0, 1,
-                          "Float64Constant", value);
-  }
-  const Operator* ExternalConstant(ExternalReference value) {
-    return new (zone_) Operator1<ExternalReference>(IrOpcode::kExternalConstant,
-                                                    Operator::kPure, 0, 1,
-                                                    "ExternalConstant", value);
-  }
-  const Operator* NumberConstant(double value) {
-    return new (zone_)
-        Operator1<double>(IrOpcode::kNumberConstant, Operator::kPure, 0, 1,
-                          "NumberConstant", value);
-  }
-  const Operator* HeapConstant(Unique<Object> value) {
-    return new (zone_) Operator1<Unique<Object> >(
-        IrOpcode::kHeapConstant, Operator::kPure, 0, 1, "HeapConstant", value);
-  }
-  const Operator* Phi(MachineType type, int arguments) {
-    DCHECK(arguments > 0);  // Disallow empty phis.
-    return new (zone_) Operator1<MachineType>(IrOpcode::kPhi, Operator::kPure,
-                                              arguments, 1, "Phi", type);
-  }
-  const Operator* EffectPhi(int arguments) {
-    DCHECK(arguments > 0);  // Disallow empty phis.
-    return new (zone_) Operator1<int>(IrOpcode::kEffectPhi, Operator::kPure, 0,
-                                      0, "EffectPhi", arguments);
-  }
-  const Operator* ControlEffect() {
-    return new (zone_) SimpleOperator(IrOpcode::kControlEffect, Operator::kPure,
-                                      0, 0, "ControlEffect");
-  }
-  const Operator* ValueEffect(int arguments) {
-    DCHECK(arguments > 0);  // Disallow empty value effects.
-    return new (zone_) SimpleOperator(IrOpcode::kValueEffect, Operator::kPure,
-                                      arguments, 0, "ValueEffect");
-  }
-  const Operator* Finish(int arguments) {
-    DCHECK(arguments > 0);  // Disallow empty finishes.
-    return new (zone_) Operator1<int>(IrOpcode::kFinish, Operator::kPure, 1, 1,
-                                      "Finish", arguments);
-  }
-  const Operator* StateValues(int arguments) {
-    return new (zone_) Operator1<int>(IrOpcode::kStateValues, Operator::kPure,
-                                      arguments, 1, "StateValues", arguments);
-  }
+  const Operator* Phi(MachineType type, int arguments);
+  const Operator* EffectPhi(int arguments);
+  const Operator* ControlEffect();
+  const Operator* ValueEffect(int arguments);
+  const Operator* Finish(int arguments);
+  const Operator* StateValues(int arguments);
   const Operator* FrameState(BailoutId bailout_id,
-                             OutputFrameStateCombine combine) {
-    return new (zone_) Operator1<FrameStateCallInfo>(
-        IrOpcode::kFrameState, Operator::kPure, 4, 1, "FrameState",
-        FrameStateCallInfo(bailout_id, combine));
-  }
-  const Operator* Call(CallDescriptor* descriptor) {
-    return new (zone_) CallOperator(descriptor, "Call");
-  }
-  const Operator* Projection(size_t index) {
-    return new (zone_) Operator1<size_t>(IrOpcode::kProjection, Operator::kPure,
-                                         1, 1, "Projection", index);
-  }
+                             OutputFrameStateCombine combine);
+  const Operator* Call(const CallDescriptor* descriptor);
+  const Operator* Projection(size_t index);
 
  private:
-  Zone* zone_;
+  Zone* zone() const { return zone_; }
+
+  const CommonOperatorBuilderImpl& impl_;
+  Zone* const zone_;
 };
 
 }  // namespace compiler

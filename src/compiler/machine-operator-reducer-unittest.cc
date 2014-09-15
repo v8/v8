@@ -20,7 +20,8 @@ class MachineOperatorReducerTest : public GraphTest {
  protected:
   Reduction Reduce(Node* node) {
     Typer typer(zone());
-    JSGraph jsgraph(graph(), common(), &typer);
+    JSOperatorBuilder javascript(zone());
+    JSGraph jsgraph(graph(), common(), &javascript, &typer, &machine_);
     MachineOperatorReducer reducer(&jsgraph);
     return reducer.Reduce(node);
   }
@@ -164,7 +165,7 @@ static const uint32_t kUint32Values[] = {
 namespace {
 
 struct UnaryOperator {
-  const Operator* (MachineOperatorBuilder::*constructor)();
+  const Operator* (MachineOperatorBuilder::*constructor)() const;
   const char* constructor_name;
 };
 

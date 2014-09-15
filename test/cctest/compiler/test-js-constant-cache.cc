@@ -17,10 +17,16 @@ using namespace v8::internal::compiler;
 class JSCacheTesterHelper {
  protected:
   explicit JSCacheTesterHelper(Zone* zone)
-      : main_graph_(zone), main_common_(zone), main_typer_(zone) {}
+      : main_graph_(zone),
+        main_common_(zone),
+        main_javascript_(zone),
+        main_typer_(zone),
+        main_machine_() {}
   Graph main_graph_;
   CommonOperatorBuilder main_common_;
+  JSOperatorBuilder main_javascript_;
   Typer main_typer_;
+  MachineOperatorBuilder main_machine_;
 };
 
 
@@ -30,7 +36,8 @@ class JSConstantCacheTester : public HandleAndZoneScope,
  public:
   JSConstantCacheTester()
       : JSCacheTesterHelper(main_zone()),
-        JSGraph(&main_graph_, &main_common_, &main_typer_) {}
+        JSGraph(&main_graph_, &main_common_, &main_javascript_, &main_typer_,
+                &main_machine_) {}
 
   Type* upper(Node* node) { return NodeProperties::GetBounds(node).upper; }
 

@@ -637,17 +637,11 @@ class MacroAssembler: public Assembler {
                              Register scratch2,
                              Register scratch3,
                              Label* gc_required);
-  void AllocateAsciiString(Register result,
-                           Register length,
-                           Register scratch1,
-                           Register scratch2,
-                           Register scratch3,
-                           Label* gc_required);
-  void AllocateAsciiString(Register result,
-                           int length,
-                           Register scratch1,
-                           Register scratch2,
-                           Label* gc_required);
+  void AllocateOneByteString(Register result, Register length,
+                             Register scratch1, Register scratch2,
+                             Register scratch3, Label* gc_required);
+  void AllocateOneByteString(Register result, int length, Register scratch1,
+                             Register scratch2, Label* gc_required);
 
   // Allocate a raw cons string object. Only the map field of the result is
   // initialized.
@@ -655,10 +649,8 @@ class MacroAssembler: public Assembler {
                           Register scratch1,
                           Register scratch2,
                           Label* gc_required);
-  void AllocateAsciiConsString(Register result,
-                               Register scratch1,
-                               Register scratch2,
-                               Label* gc_required);
+  void AllocateOneByteConsString(Register result, Register scratch1,
+                                 Register scratch2, Label* gc_required);
 
   // Allocate a raw sliced string object. Only the map field of the result is
   // initialized.
@@ -666,10 +658,8 @@ class MacroAssembler: public Assembler {
                             Register scratch1,
                             Register scratch2,
                             Label* gc_required);
-  void AllocateAsciiSlicedString(Register result,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Label* gc_required);
+  void AllocateOneByteSlicedString(Register result, Register scratch1,
+                                   Register scratch2, Label* gc_required);
 
   // Copy memory, byte-by-byte, from source to destination.  Not optimized for
   // long or aligned copies.
@@ -888,20 +878,18 @@ class MacroAssembler: public Assembler {
                                Register scratch2,
                                Label* not_found);
 
-  // Check whether the instance type represents a flat ASCII string. Jump to the
-  // label if not. If the instance type can be scratched specify same register
-  // for both instance type and scratch.
-  void JumpIfInstanceTypeIsNotSequentialAscii(Register instance_type,
-                                              Register scratch,
-                                              Label* on_not_flat_ascii_string);
+  // Check whether the instance type represents a flat one-byte string. Jump to
+  // the label if not. If the instance type can be scratched specify same
+  // register for both instance type and scratch.
+  void JumpIfInstanceTypeIsNotSequentialOneByte(
+      Register instance_type, Register scratch,
+      Label* on_not_flat_one_byte_string);
 
-  // Checks if both objects are sequential ASCII strings, and jumps to label
+  // Checks if both objects are sequential one-byte strings, and jumps to label
   // if either is not.
-  void JumpIfNotBothSequentialAsciiStrings(Register object1,
-                                           Register object2,
-                                           Register scratch1,
-                                           Register scratch2,
-                                           Label* on_not_flat_ascii_strings);
+  void JumpIfNotBothSequentialOneByteStrings(
+      Register object1, Register object2, Register scratch1, Register scratch2,
+      Label* on_not_flat_one_byte_strings);
 
   // Checks if the given register or operand is a unique name
   void JumpIfNotUniqueName(Register reg, Label* not_unique_name,

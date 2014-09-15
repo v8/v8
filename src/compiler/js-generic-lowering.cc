@@ -16,12 +16,10 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-JSGenericLowering::JSGenericLowering(CompilationInfo* info, JSGraph* jsgraph,
-                                     MachineOperatorBuilder* machine)
+JSGenericLowering::JSGenericLowering(CompilationInfo* info, JSGraph* jsgraph)
     : info_(info),
       jsgraph_(jsgraph),
-      linkage_(new (jsgraph->zone()) Linkage(info)),
-      machine_(machine) {}
+      linkage_(new (jsgraph->zone()) Linkage(info)) {}
 
 
 void JSGenericLowering::PatchOperator(Node* node, const Operator* op) {
@@ -60,12 +58,10 @@ Node* JSGenericLowering::ExternalConstant(ExternalReference ref) {
 
 
 Reduction JSGenericLowering::Reduce(Node* node) {
-  Node* replacement = NULL;
-  // Dispatch according to the opcode.
   switch (node->opcode()) {
-#define DECLARE_CASE(x)           \
-  case IrOpcode::k##x:            \
-    replacement = Lower##x(node); \
+#define DECLARE_CASE(x) \
+  case IrOpcode::k##x:  \
+    Lower##x(node);     \
     break;
     DECLARE_CASE(Branch)
     JS_OP_LIST(DECLARE_CASE)
@@ -74,16 +70,14 @@ Reduction JSGenericLowering::Reduce(Node* node) {
       // Nothing to see.
       return NoChange();
   }
-  DCHECK_EQ(node, replacement);
-  return Changed(replacement);
+  return Changed(node);
 }
 
 
 #define REPLACE_BINARY_OP_IC_CALL(op, token)                             \
-  Node* JSGenericLowering::Lower##op(Node* node) {                       \
+  void JSGenericLowering::Lower##op(Node* node) {                        \
     ReplaceWithStubCall(node, CodeFactory::BinaryOpIC(isolate(), token), \
                         CallDescriptor::kPatchableCallSiteWithNop);      \
-    return node;                                                         \
   }
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseOr, Token::BIT_OR)
 REPLACE_BINARY_OP_IC_CALL(JSBitwiseXor, Token::BIT_XOR)
@@ -99,20 +93,9 @@ REPLACE_BINARY_OP_IC_CALL(JSModulus, Token::MOD)
 #undef REPLACE_BINARY_OP_IC_CALL
 
 
-#define REPLACE_FACTORY_CALL(op, FactoryDeclaration)               \
-  Node* JSGenericLowering::Lower##op(Node* node) {                 \
-    Callable callable = FactoryDeclaration;                        \
-    ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags); \
-    return node;                                                   \
-  }
-REPLACE_FACTORY_CALL(JSToNumber, CodeFactory::ToNumber(isolate()))
-#undef REPLACE_FACTORY_CALL
-
-
-#define REPLACE_COMPARE_IC_CALL(op, token, pure)   \
-  Node* JSGenericLowering::Lower##op(Node* node) { \
-    ReplaceWithCompareIC(node, token, pure);       \
-    return node;                                   \
+#define REPLACE_COMPARE_IC_CALL(op, token, pure)  \
+  void JSGenericLowering::Lower##op(Node* node) { \
+    ReplaceWithCompareIC(node, token, pure);      \
   }
 REPLACE_COMPARE_IC_CALL(JSEqual, Token::EQ, false)
 REPLACE_COMPARE_IC_CALL(JSNotEqual, Token::NE, false)
@@ -125,10 +108,9 @@ REPLACE_COMPARE_IC_CALL(JSGreaterThanOrEqual, Token::GTE, false)
 #undef REPLACE_COMPARE_IC_CALL
 
 
-#define REPLACE_RUNTIME_CALL(op, fun)              \
-  Node* JSGenericLowering::Lower##op(Node* node) { \
-    ReplaceWithRuntimeCall(node, fun);             \
-    return node;                                   \
+#define REPLACE_RUNTIME_CALL(op, fun)             \
+  void JSGenericLowering::Lower##op(Node* node) { \
+    ReplaceWithRuntimeCall(node, fun);            \
   }
 REPLACE_RUNTIME_CALL(JSTypeOf, Runtime::kTypeof)
 REPLACE_RUNTIME_CALL(JSCreate, Runtime::kAbort)
@@ -141,11 +123,8 @@ REPLACE_RUNTIME_CALL(JSCreateGlobalContext, Runtime::kAbort)
 #undef REPLACE_RUNTIME
 
 
-#define REPLACE_UNIMPLEMENTED(op)                  \
-  Node* JSGenericLowering::Lower##op(Node* node) { \
-    UNIMPLEMENTED();                               \
-    return node;                                   \
-  }
+#define REPLACE_UNIMPLEMENTED(op) \
+  void JSGenericLowering::Lower##op(Node* node) { UNIMPLEMENTED(); }
 REPLACE_UNIMPLEMENTED(JSToName)
 REPLACE_UNIMPLEMENTED(JSYield)
 REPLACE_UNIMPLEMENTED(JSDebugger)
@@ -260,7 +239,7 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 }
 
 
-Node* JSGenericLowering::LowerBranch(Node* node) {
+void JSGenericLowering::LowerBranch(Node* node) {
   if (!info()->is_typing_enabled()) {
     // TODO(mstarzinger): If typing is enabled then simplified lowering will
     // have inserted the correct ChangeBoolToBit, otherwise we need to perform
@@ -269,86 +248,81 @@ Node* JSGenericLowering::LowerBranch(Node* node) {
                                   jsgraph()->TrueConstant());
     node->ReplaceInput(0, test);
   }
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSUnaryNot(Node* node) {
+void JSGenericLowering::LowerJSUnaryNot(Node* node) {
   Callable callable = CodeFactory::ToBoolean(
       isolate(), ToBooleanStub::RESULT_AS_INVERSE_ODDBALL);
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSToBoolean(Node* node) {
+void JSGenericLowering::LowerJSToBoolean(Node* node) {
   Callable callable =
       CodeFactory::ToBoolean(isolate(), ToBooleanStub::RESULT_AS_ODDBALL);
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSToString(Node* node) {
+void JSGenericLowering::LowerJSToNumber(Node* node) {
+  Callable callable = CodeFactory::ToNumber(isolate());
+  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags);
+}
+
+
+void JSGenericLowering::LowerJSToString(Node* node) {
   ReplaceWithBuiltinCall(node, Builtins::TO_STRING, 1);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSToObject(Node* node) {
+void JSGenericLowering::LowerJSToObject(Node* node) {
   ReplaceWithBuiltinCall(node, Builtins::TO_OBJECT, 1);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSLoadProperty(Node* node) {
+void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   Callable callable = CodeFactory::KeyedLoadIC(isolate());
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSLoadNamed(Node* node) {
+void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   LoadNamedParameters p = OpParameter<LoadNamedParameters>(node);
-  PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name));
   Callable callable = CodeFactory::LoadIC(isolate(), p.contextual_mode);
+  PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name));
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSStoreProperty(Node* node) {
+void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   StrictMode strict_mode = OpParameter<StrictMode>(node);
   Callable callable = CodeFactory::KeyedStoreIC(isolate(), strict_mode);
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSStoreNamed(Node* node) {
+void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   StoreNamedParameters params = OpParameter<StoreNamedParameters>(node);
   Callable callable = CodeFactory::StoreIC(isolate(), params.strict_mode);
   PatchInsertInput(node, 1, jsgraph()->HeapConstant(params.name));
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSDeleteProperty(Node* node) {
+void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
   StrictMode strict_mode = OpParameter<StrictMode>(node);
   PatchInsertInput(node, 2, SmiConstant(strict_mode));
   ReplaceWithBuiltinCall(node, Builtins::DELETE, 3);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSHasProperty(Node* node) {
+void JSGenericLowering::LowerJSHasProperty(Node* node) {
   ReplaceWithBuiltinCall(node, Builtins::IN, 2);
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSInstanceOf(Node* node) {
+void JSGenericLowering::LowerJSInstanceOf(Node* node) {
   InstanceofStub::Flags flags = static_cast<InstanceofStub::Flags>(
       InstanceofStub::kReturnTrueFalseObject |
       InstanceofStub::kArgsInRegisters);
@@ -358,11 +332,10 @@ Node* JSGenericLowering::LowerJSInstanceOf(Node* node) {
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSLoadContext(Node* node) {
+void JSGenericLowering::LowerJSLoadContext(Node* node) {
   ContextAccess access = OpParameter<ContextAccess>(node);
   // TODO(mstarzinger): Use simplified operators instead of machine operators
   // here so that load/store optimization can be applied afterwards.
@@ -376,11 +349,10 @@ Node* JSGenericLowering::LowerJSLoadContext(Node* node) {
   }
   node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
   PatchOperator(node, machine()->Load(kMachAnyTagged));
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSStoreContext(Node* node) {
+void JSGenericLowering::LowerJSStoreContext(Node* node) {
   ContextAccess access = OpParameter<ContextAccess>(node);
   // TODO(mstarzinger): Use simplified operators instead of machine operators
   // here so that load/store optimization can be applied afterwards.
@@ -396,11 +368,10 @@ Node* JSGenericLowering::LowerJSStoreContext(Node* node) {
   node->ReplaceInput(1, Int32Constant(Context::SlotOffset(access.index())));
   PatchOperator(node, machine()->Store(StoreRepresentation(kMachAnyTagged,
                                                            kFullWriteBarrier)));
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSCallConstruct(Node* node) {
+void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   int arity = OpParameter<int>(node);
   CallConstructStub stub(isolate(), NO_CALL_CONSTRUCTOR_FLAGS);
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
@@ -413,11 +384,10 @@ Node* JSGenericLowering::LowerJSCallConstruct(Node* node) {
   PatchInsertInput(node, 2, construct);
   PatchInsertInput(node, 3, jsgraph()->UndefinedConstant());
   PatchOperator(node, common()->Call(desc));
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSCallFunction(Node* node) {
+void JSGenericLowering::LowerJSCallFunction(Node* node) {
   CallParameters p = OpParameter<CallParameters>(node);
   CallFunctionStub stub(isolate(), p.arity - 2, p.flags);
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
@@ -426,15 +396,13 @@ Node* JSGenericLowering::LowerJSCallFunction(Node* node) {
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));
-  return node;
 }
 
 
-Node* JSGenericLowering::LowerJSCallRuntime(Node* node) {
+void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   Runtime::FunctionId function = OpParameter<Runtime::FunctionId>(node);
   int arity = OperatorProperties::GetValueInputCount(node->op());
   ReplaceWithRuntimeCall(node, function, arity);
-  return node;
 }
 
 }  // namespace compiler

@@ -18,38 +18,15 @@ const Register LoadDescriptor::ReceiverRegister() { return edx; }
 const Register LoadDescriptor::NameRegister() { return ecx; }
 
 
-const Register VectorLoadICDescriptor::ReceiverRegister() {
-  return LoadDescriptor::ReceiverRegister();
-}
+const Register VectorLoadICTrampolineDescriptor::SlotRegister() { return eax; }
 
 
-const Register VectorLoadICDescriptor::NameRegister() {
-  return LoadDescriptor::NameRegister();
-}
-
-
-const Register VectorLoadICDescriptor::SlotRegister() { return eax; }
 const Register VectorLoadICDescriptor::VectorRegister() { return ebx; }
 
 
 const Register StoreDescriptor::ReceiverRegister() { return edx; }
 const Register StoreDescriptor::NameRegister() { return ecx; }
 const Register StoreDescriptor::ValueRegister() { return eax; }
-
-
-const Register ElementTransitionAndStoreDescriptor::ReceiverRegister() {
-  return StoreDescriptor::ReceiverRegister();
-}
-
-
-const Register ElementTransitionAndStoreDescriptor::NameRegister() {
-  return StoreDescriptor::NameRegister();
-}
-
-
-const Register ElementTransitionAndStoreDescriptor::ValueRegister() {
-  return StoreDescriptor::ValueRegister();
-}
 
 
 const Register ElementTransitionAndStoreDescriptor::MapRegister() {
@@ -59,6 +36,21 @@ const Register ElementTransitionAndStoreDescriptor::MapRegister() {
 
 const Register InstanceofDescriptor::left() { return eax; }
 const Register InstanceofDescriptor::right() { return edx; }
+
+
+const Register ArgumentsAccessReadDescriptor::index() { return edx; }
+const Register ArgumentsAccessReadDescriptor::parameter_count() { return eax; }
+
+
+const Register ApiGetterDescriptor::function_address() { return edx; }
+
+
+const Register MathPowTaggedDescriptor::exponent() { return eax; }
+
+
+const Register MathPowIntegerDescriptor::exponent() {
+  return MathPowTaggedDescriptor::exponent();
+}
 
 
 void FastNewClosureDescriptor::Initialize(CallInterfaceDescriptorData* data) {
@@ -110,9 +102,26 @@ void CreateAllocationSiteDescriptor::Initialize(
 }
 
 
+void StoreArrayLiteralElementDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {esi, ecx, eax};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
 void CallFunctionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
   Register registers[] = {esi, edi};
   data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
+void CallFunctionWithFeedbackDescriptor::Initialize(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {esi, edi, edx};
+  Representation representations[] = {Representation::Tagged(),
+                                      Representation::Tagged(),
+                                      Representation::Smi()};
+  data->Initialize(arraysize(registers), registers, representations);
 }
 
 
