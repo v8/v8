@@ -80,6 +80,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
       return GCIdleTimeAction::Done();
     }
   }
+
   if (heap_state.incremental_marking_stopped) {
     size_t estimated_time_in_ms =
         EstimateMarkCompactTime(heap_state.size_of_objects,
@@ -94,8 +95,10 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
       // can get rid of this special case and always start incremental marking.
       int remaining_mark_sweeps =
           kMaxMarkCompactsInIdleRound - mark_compacts_since_idle_round_started_;
-      if (heap_state.contexts_disposed > 0 || remaining_mark_sweeps <= 2 ||
-          !heap_state.can_start_incremental_marking) {
+      if (heap_state.contexts_disposed > 0 ||
+          (idle_time_in_ms > kMaxFrameRenderingIdleTime &&
+           (remaining_mark_sweeps <= 2 ||
+            !heap_state.can_start_incremental_marking))) {
         return GCIdleTimeAction::FullGC();
       }
     }
@@ -109,6 +112,10 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
     return GCIdleTimeAction::FinalizeSweeping();
   }
 
+  if (heap_state.incremental_marking_stopped &&
+      !heap_state.can_start_incremental_marking) {
+    return GCIdleTimeAction::Nothing();
+  }
   size_t step_size = EstimateMarkingStepSize(
       idle_time_in_ms, heap_state.incremental_marking_speed_in_bytes_per_ms);
   return GCIdleTimeAction::IncrementalMarking(step_size);

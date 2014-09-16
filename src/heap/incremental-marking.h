@@ -44,6 +44,8 @@ class IncrementalMarking {
 
   bool WorthActivating();
 
+  bool ShouldActivate();
+
   enum CompactionFlag { ALLOW_COMPACTION, PREVENT_COMPACTION };
 
   void Start(CompactionFlag flag = ALLOW_COMPACTION);

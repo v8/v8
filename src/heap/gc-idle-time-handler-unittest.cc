@@ -192,8 +192,11 @@ TEST_F(GCIdleTimeHandlerTest, StopEventually2) {
   for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    // In this case we emulate incremental marking steps that finish with a
+    // full gc.
     handler()->NotifyIdleMarkCompact();
   }
+  heap_state.can_start_incremental_marking = false;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DONE, action.type);
 }
@@ -228,14 +231,18 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop2) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
     if (action.type == DONE) break;
     EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    // In this case we try to emulate incremental marking steps the finish with
+    // a full gc.
     handler()->NotifyIdleMarkCompact();
   }
+  heap_state.can_start_incremental_marking = false;
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DONE, action.type);
   // Emulate mutator work.
   for (int i = 0; i < GCIdleTimeHandler::kIdleScavengeThreshold; i++) {
     handler()->NotifyScavenge();
   }
+  heap_state.can_start_incremental_marking = true;
   action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
 }

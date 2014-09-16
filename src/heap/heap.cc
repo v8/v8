@@ -1548,8 +1548,6 @@ void Heap::Scavenge() {
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
   gc_state_ = NOT_IN_GC;
-
-  gc_idle_time_handler_.NotifyScavenge();
 }
 
 
@@ -4305,7 +4303,8 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
   heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   // TODO(ulan): Start incremental marking only for large heaps.
-  heap_state.can_start_incremental_marking = true;
+  heap_state.can_start_incremental_marking =
+      incremental_marking()->ShouldActivate();
   heap_state.sweeping_in_progress =
       mark_compact_collector()->sweeping_in_progress();
   heap_state.mark_compact_speed_in_bytes_per_ms =

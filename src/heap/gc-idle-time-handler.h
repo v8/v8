@@ -110,6 +110,9 @@ class GCIdleTimeHandler {
   // step.
   static const size_t kSmallHeapSize = 2 * kPointerSize * MB;
 
+  // That is the maximum idle time we will have during frame rendering.
+  static const size_t kMaxFrameRenderingIdleTime = 16;
+
   struct HeapState {
     int contexts_disposed;
     size_t size_of_objects;
