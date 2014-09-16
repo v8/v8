@@ -67,6 +67,9 @@ class FunctionTester : public InitializedHandleScope {
 
     Pipeline pipeline(&info);
     Handle<Code> code = pipeline.GenerateCode();
+    if (FLAG_turbo_deoptimization) {
+      info.context()->native_context()->AddOptimizedCode(*code);
+    }
 
     CHECK(!code.is_null());
     function->ReplaceCode(*code);

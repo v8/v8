@@ -972,6 +972,133 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorMemoryAccessTest,
                         ::testing::ValuesIn(kMemoryAccesses));
 
+
+// -----------------------------------------------------------------------------
+// Comparison instructions.
+
+static const MachInst2 kComparisonInstructions[] = {
+    {&RawMachineAssembler::Word32Equal, "Word32Equal", kArm64Cmp32, kMachInt32},
+    {&RawMachineAssembler::Word64Equal, "Word64Equal", kArm64Cmp, kMachInt64},
+};
+
+
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorComparisonTest;
+
+
+TEST_P(InstructionSelectorComparisonTest, WithParameters) {
+  const MachInst2 cmp = GetParam();
+  const MachineType type = cmp.machine_type;
+  StreamBuilder m(this, type, type, type);
+  m.Return((m.*cmp.constructor)(m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+  EXPECT_EQ(kEqual, s[0]->flags_condition());
+}
+
+
+TEST_P(InstructionSelectorComparisonTest, WithImmediate) {
+  const MachInst2 cmp = GetParam();
+  const MachineType type = cmp.machine_type;
+  // TODO(all): Add support for testing 64-bit immediates.
+  if (type == kMachInt32) {
+    TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+      // Compare with 0 are turned into tst instruction.
+      if (imm == 0) continue;
+      StreamBuilder m(this, type, type);
+      m.Return((m.*cmp.constructor)(m.Parameter(0), m.Int32Constant(imm)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
+      ASSERT_EQ(2U, s[0]->InputCount());
+      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+      EXPECT_EQ(kEqual, s[0]->flags_condition());
+    }
+    TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+      // Compare with 0 are turned into tst instruction.
+      if (imm == 0) continue;
+      StreamBuilder m(this, type, type);
+      m.Return((m.*cmp.constructor)(m.Int32Constant(imm), m.Parameter(0)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
+      ASSERT_EQ(2U, s[0]->InputCount());
+      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(1U, s[0]->OutputCount());
+      EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+      EXPECT_EQ(kEqual, s[0]->flags_condition());
+    }
+  }
+}
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorComparisonTest,
+                        ::testing::ValuesIn(kComparisonInstructions));
+
+
+TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Word32Equal(m.Parameter(0), m.Int32Constant(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Word32Equal(m.Int32Constant(0), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word64EqualWithZero) {
+  {
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    m.Return(m.Word64Equal(m.Parameter(0), m.Int64Constant(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+  }
+  {
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    m.Return(m.Word64Equal(m.Int64Constant(0), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Tst, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

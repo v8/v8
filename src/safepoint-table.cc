@@ -43,8 +43,8 @@ SafepointTable::SafepointTable(Code* code) {
   length_ = Memory::uint32_at(header + kLengthOffset);
   entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
-  entries_ =
-      pc_and_deoptimization_indexes_ + (length_ * kPcAndDeoptimizationInfoSize);
+  entries_ = pc_and_deoptimization_indexes_ +
+             (length_ * kPcAndDeoptimizationIndexSize);
   DCHECK(entry_size_ > 0);
   STATIC_ASSERT(SafepointEntry::DeoptimizationIndexField::kMax ==
                 Safepoint::kNoDeoptimizationIndex);
@@ -56,7 +56,6 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   for (unsigned i = 0; i < length(); i++) {
     // TODO(kasperl): Replace the linear search with binary search.
     if (GetPcOffset(i) == pc_offset) return GetEntry(i);
-    if (GetDeoptimizationPcOffset(i) == pc_offset) return GetEntry(i);
   }
   return SafepointEntry();
 }
@@ -111,8 +110,6 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
   info.pc = assembler->pc_offset();
   info.arguments = arguments;
   info.has_doubles = (kind & Safepoint::kWithDoubles);
-  info.deoptimization_pc = Safepoint::kNoDeoptimizationPc;
-  int safepoint_id = deoptimization_info_.length();
   deoptimization_info_.Add(info, zone_);
   deopt_index_list_.Add(Safepoint::kNoDeoptimizationIndex, zone_);
   if (deopt_mode == Safepoint::kNoLazyDeopt) {
@@ -123,7 +120,7 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
       ? new(zone_) ZoneList<int>(4, zone_)
       : NULL,
       zone_);
-  return Safepoint(safepoint_id, indexes_.last(), registers_.last());
+  return Safepoint(indexes_.last(), registers_.last());
 }
 
 
@@ -162,7 +159,6 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
     assembler->dd(deoptimization_info_[i].pc);
     assembler->dd(EncodeExceptPC(deoptimization_info_[i],
                                  deopt_index_list_[i]));
-    assembler->dd(deoptimization_info_[i].deoptimization_pc);
   }
 
   // Emit table of bitmaps.

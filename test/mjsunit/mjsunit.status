@@ -63,30 +63,20 @@
   # from the deoptimizer to do that.
   'arguments-indirect': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Sometimes the try-catch blacklist fails.
-  'debug-references': [PASS, NO_VARIANTS],
-  'regress/regress-263': [PASS, NO_VARIANTS],
-
-  # TODO(mstarzinger): Causes crash in generated code, needs investigation.
-  'array-sort': [PASS, NO_VARIANTS],
-  'dehoisted-array-index': [PASS, NO_VARIANTS],
-
-  # TODO(mstarzinger/rossberg): Typer doesn't like contexts very much.
+  # TODO(rossberg): Typer doesn't like contexts very much.
   'harmony/block-conflicts': [PASS, NO_VARIANTS],
   'harmony/block-for': [PASS, NO_VARIANTS],
   'harmony/block-leave': [PASS, NO_VARIANTS],
   'harmony/block-let-crankshaft': [PASS, NO_VARIANTS],
   'harmony/empty-for': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Needs more investigation.
-  'polymorph-arrays': [PASS, NO_VARIANTS],
-  'string-oom-concat': [PASS, NO_VARIANTS],
-  'unbox-double-arrays': [PASS, NO_VARIANTS],
-  'compiler/osr-warm': [PASS, NO_VARIANTS],
-  'compiler/regress-3136962': [PASS, NO_VARIANTS],
-  'harmony/proxies-json': [PASS, NO_VARIANTS],
+  # TODO(mstarzinger): Typed lowering screws up valueOf vs. toString order.
   'regress/regress-760-1': [PASS, NO_VARIANTS],
   'regress/regress-760-2': [PASS, NO_VARIANTS],
+  'harmony/proxies-json': [PASS, NO_VARIANTS],
+
+  # Unused code is optimized away, think about fixing the test case.
+  'string-oom-concat': [PASS, NO_VARIANTS],
   'regress/regress-crbug-357052': [PASS, NO_VARIANTS],
 
   # Some tests are over-restrictive about object layout.
@@ -98,6 +88,7 @@
   'bit-not': [PASS, NO_VARIANTS],
   'json2': [PASS, NO_VARIANTS],
   'packed-elements': [PASS, NO_VARIANTS],
+  'unbox-double-arrays': [PASS, NO_VARIANTS],
   'whitespaces': [PASS, NO_VARIANTS],
   'compiler/osr-assert': [PASS, NO_VARIANTS],
   'regress/regress-2185-2': [PASS, NO_VARIANTS],
@@ -250,6 +241,8 @@
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
+  'compiler/osr-warm': [PASS, NO_VARIANTS],
+  'regress/regress-91008': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
 
 ##############################################################################

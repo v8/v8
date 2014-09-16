@@ -2973,10 +2973,17 @@ private:                                                            \
 
 class AstConstructionVisitor BASE_EMBEDDED {
  public:
-  AstConstructionVisitor() : dont_optimize_reason_(kNoReason) { }
+  AstConstructionVisitor()
+      : dont_crankshaft_reason_(kNoReason), dont_turbofan_reason_(kNoReason) {}
 
   AstProperties* ast_properties() { return &properties_; }
-  BailoutReason dont_optimize_reason() { return dont_optimize_reason_; }
+  BailoutReason dont_optimize_reason() {
+    if (dont_turbofan_reason_ != kNoReason) {
+      return dont_turbofan_reason_;
+    } else {
+      return dont_crankshaft_reason_;
+    }
+  }
 
  private:
   template<class> friend class AstNodeFactory;
@@ -2989,8 +2996,11 @@ class AstConstructionVisitor BASE_EMBEDDED {
 
   void increase_node_count() { properties_.add_node_count(1); }
   void add_flag(AstPropertiesFlag flag) { properties_.flags()->Add(flag); }
-  void set_dont_optimize_reason(BailoutReason reason) {
-      dont_optimize_reason_ = reason;
+  void set_dont_crankshaft_reason(BailoutReason reason) {
+    dont_crankshaft_reason_ = reason;
+  }
+  void set_dont_turbofan_reason(BailoutReason reason) {
+    dont_turbofan_reason_ = reason;
   }
 
   void add_slot_node(FeedbackSlotInterface* slot_node) {
@@ -3002,7 +3012,8 @@ class AstConstructionVisitor BASE_EMBEDDED {
   }
 
   AstProperties properties_;
-  BailoutReason dont_optimize_reason_;
+  BailoutReason dont_crankshaft_reason_;
+  BailoutReason dont_turbofan_reason_;
 };
 
 

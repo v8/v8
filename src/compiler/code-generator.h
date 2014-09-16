@@ -46,8 +46,8 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   }
 
   // Record a safepoint with the given pointer map.
-  Safepoint::Id RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
-                                int arguments, Safepoint::DeoptMode deopt_mode);
+  void RecordSafepoint(PointerMap* pointers, Safepoint::Kind kind,
+                       int arguments, Safepoint::DeoptMode deopt_mode);
 
   // Assemble code for the specified instruction.
   void AssembleInstruction(Instruction* instr);
@@ -84,12 +84,12 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   // ===========================================================================
   // Deoptimization table construction
   void AddSafepointAndDeopt(Instruction* instr);
-  void EmitLazyDeoptimizationCallTable();
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
   FrameStateDescriptor* GetFrameStateDescriptor(Instruction* instr,
                                                 int frame_state_offset);
-  int BuildTranslation(Instruction* instr, int frame_state_offset,
+  int BuildTranslation(Instruction* instr, int pc_offset,
+                       int frame_state_offset,
                        OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, Instruction* instr,
@@ -100,39 +100,21 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   void AddNopForSmiCodeInlining();
   // ===========================================================================
 
-  class DeoptimizationPoint : public ZoneObject {
-   public:
-    int state_id() const { return state_id_; }
-    int lazy_state_id() const { return lazy_state_id_; }
-    FrameStateDescriptor* descriptor() const { return descriptor_; }
-    Safepoint::Id safepoint() const { return safepoint_; }
-
-    DeoptimizationPoint(int state_id, int lazy_state_id,
-                        FrameStateDescriptor* descriptor,
-                        Safepoint::Id safepoint)
-        : state_id_(state_id),
-          lazy_state_id_(lazy_state_id),
-          descriptor_(descriptor),
-          safepoint_(safepoint) {}
-
-   private:
-    int state_id_;
-    int lazy_state_id_;
-    FrameStateDescriptor* descriptor_;
-    Safepoint::Id safepoint_;
-  };
-
   struct DeoptimizationState : ZoneObject {
    public:
     BailoutId bailout_id() const { return bailout_id_; }
     int translation_id() const { return translation_id_; }
+    int pc_offset() const { return pc_offset_; }
 
-    DeoptimizationState(BailoutId bailout_id, int translation_id)
-        : bailout_id_(bailout_id), translation_id_(translation_id) {}
+    DeoptimizationState(BailoutId bailout_id, int translation_id, int pc_offset)
+        : bailout_id_(bailout_id),
+          translation_id_(translation_id),
+          pc_offset_(pc_offset) {}
 
    private:
     BailoutId bailout_id_;
     int translation_id_;
+    int pc_offset_;
   };
 
   InstructionSequence* code_;
@@ -141,7 +123,6 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   MacroAssembler masm_;
   GapResolver resolver_;
   SafepointTableBuilder safepoints_;
-  ZoneDeque<DeoptimizationPoint*> deoptimization_points_;
   ZoneDeque<DeoptimizationState*> deoptimization_states_;
   ZoneDeque<Handle<Object> > deoptimization_literals_;
   TranslationBuffer translations_;

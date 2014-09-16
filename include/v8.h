@@ -4243,6 +4243,103 @@ class V8_EXPORT HeapStatistics {
 
 class RetainedObjectInfo;
 
+
+/**
+ * FunctionEntryHook is the type of the profile entry hook called at entry to
+ * any generated function when function-level profiling is enabled.
+ *
+ * \param function the address of the function that's being entered.
+ * \param return_addr_location points to a location on stack where the machine
+ *    return address resides. This can be used to identify the caller of
+ *    \p function, and/or modified to divert execution when \p function exits.
+ *
+ * \note the entry hook must not cause garbage collection.
+ */
+typedef void (*FunctionEntryHook)(uintptr_t function,
+                                  uintptr_t return_addr_location);
+
+/**
+ * A JIT code event is issued each time code is added, moved or removed.
+ *
+ * \note removal events are not currently issued.
+ */
+struct JitCodeEvent {
+  enum EventType {
+    CODE_ADDED,
+    CODE_MOVED,
+    CODE_REMOVED,
+    CODE_ADD_LINE_POS_INFO,
+    CODE_START_LINE_INFO_RECORDING,
+    CODE_END_LINE_INFO_RECORDING
+  };
+  // Definition of the code position type. The "POSITION" type means the place
+  // in the source code which are of interest when making stack traces to
+  // pin-point the source location of a stack frame as close as possible.
+  // The "STATEMENT_POSITION" means the place at the beginning of each
+  // statement, and is used to indicate possible break locations.
+  enum PositionType { POSITION, STATEMENT_POSITION };
+
+  // Type of event.
+  EventType type;
+  // Start of the instructions.
+  void* code_start;
+  // Size of the instructions.
+  size_t code_len;
+  // Script info for CODE_ADDED event.
+  Handle<UnboundScript> script;
+  // User-defined data for *_LINE_INFO_* event. It's used to hold the source
+  // code line information which is returned from the
+  // CODE_START_LINE_INFO_RECORDING event. And it's passed to subsequent
+  // CODE_ADD_LINE_POS_INFO and CODE_END_LINE_INFO_RECORDING events.
+  void* user_data;
+
+  struct name_t {
+    // Name of the object associated with the code, note that the string is not
+    // zero-terminated.
+    const char* str;
+    // Number of chars in str.
+    size_t len;
+  };
+
+  struct line_info_t {
+    // PC offset
+    size_t offset;
+    // Code postion
+    size_t pos;
+    // The position type.
+    PositionType position_type;
+  };
+
+  union {
+    // Only valid for CODE_ADDED.
+    struct name_t name;
+
+    // Only valid for CODE_ADD_LINE_POS_INFO
+    struct line_info_t line_info;
+
+    // New location of instructions. Only valid for CODE_MOVED.
+    void* new_code_start;
+  };
+};
+
+/**
+ * Option flags passed to the SetJitCodeEventHandler function.
+ */
+enum JitCodeEventOptions {
+  kJitCodeEventDefault = 0,
+  // Generate callbacks for already existent code.
+  kJitCodeEventEnumExisting = 1
+};
+
+
+/**
+ * Callback function passed to SetJitCodeEventHandler.
+ *
+ * \param event code add, move or removal event.
+ */
+typedef void (*JitCodeEventHandler)(const JitCodeEvent* event);
+
+
 /**
  * Isolate represents an isolated instance of the V8 engine.  V8
  * isolates have completely separate states.  Objects from one isolate
@@ -4254,6 +4351,29 @@ class RetainedObjectInfo;
  */
 class V8_EXPORT Isolate {
  public:
+  /**
+   * Initial configuration parameters for a new Isolate.
+   */
+  struct CreateParams {
+    CreateParams() : entry_hook(NULL), code_event_handler(NULL) {}
+
+    /**
+     * The optional entry_hook allows the host application to provide the
+     * address of a function that's invoked on entry to every V8-generated
+     * function.  Note that entry_hook is invoked at the very start of each
+     * generated function. Furthermore, if an  entry_hook is given, V8 will
+     * always run without a context snapshot.
+     */
+    FunctionEntryHook entry_hook;
+
+    /**
+     * Allows the host application to provide the address of a function that is
+     * notified each time code is added, moved or removed.
+     */
+    JitCodeEventHandler code_event_handler;
+  };
+
+
   /**
    * Stack-allocated class which sets the isolate for all operations
    * executed within a local scope.
@@ -4362,7 +4482,7 @@ class V8_EXPORT Isolate {
    * When an isolate is no longer used its resources should be freed
    * by calling Dispose().  Using the delete operator is not allowed.
    */
-  static Isolate* New();
+  static Isolate* New(const CreateParams& params = CreateParams());
 
   /**
    * Returns the entered isolate for the current thread or NULL in
@@ -4672,6 +4792,31 @@ class V8_EXPORT Isolate {
    */
   int ContextDisposedNotification();
 
+  /**
+   * Allows the host application to provide the address of a function that is
+   * notified each time code is added, moved or removed.
+   *
+   * \param options options for the JIT code event handler.
+   * \param event_handler the JIT code event handler, which will be invoked
+   *     each time code is added, moved or removed.
+   * \note \p event_handler won't get notified of existent code.
+   * \note since code removal notifications are not currently issued, the
+   *     \p event_handler may get notifications of code that overlaps earlier
+   *     code notifications. This happens when code areas are reused, and the
+   *     earlier overlapping code areas should therefore be discarded.
+   * \note the events passed to \p event_handler and the strings they point to
+   *     are not guaranteed to live past each call. The \p event_handler must
+   *     copy strings and other parameters it needs to keep around.
+   * \note the set of events declared in JitCodeEvent::EventType is expected to
+   *     grow over time, and the JitCodeEvent structure is expected to accrue
+   *     new members. The \p event_handler function must ignore event codes
+   *     it does not recognize to maintain future compatibility.
+   * \note Use Isolate::CreateParams to get events for code executed during
+   *     Isolate setup.
+   */
+  void SetJitCodeEventHandler(JitCodeEventOptions options,
+                              JitCodeEventHandler event_handler);
+
  private:
   template<class K, class V, class Traits> friend class PersistentValueMap;
 
@@ -4748,106 +4893,6 @@ typedef bool (*EntropySource)(unsigned char* buffer, size_t length);
  */
 typedef uintptr_t (*ReturnAddressLocationResolver)(
     uintptr_t return_addr_location);
-
-
-/**
- * FunctionEntryHook is the type of the profile entry hook called at entry to
- * any generated function when function-level profiling is enabled.
- *
- * \param function the address of the function that's being entered.
- * \param return_addr_location points to a location on stack where the machine
- *    return address resides. This can be used to identify the caller of
- *    \p function, and/or modified to divert execution when \p function exits.
- *
- * \note the entry hook must not cause garbage collection.
- */
-typedef void (*FunctionEntryHook)(uintptr_t function,
-                                  uintptr_t return_addr_location);
-
-
-/**
- * A JIT code event is issued each time code is added, moved or removed.
- *
- * \note removal events are not currently issued.
- */
-struct JitCodeEvent {
-  enum EventType {
-    CODE_ADDED,
-    CODE_MOVED,
-    CODE_REMOVED,
-    CODE_ADD_LINE_POS_INFO,
-    CODE_START_LINE_INFO_RECORDING,
-    CODE_END_LINE_INFO_RECORDING
-  };
-  // Definition of the code position type. The "POSITION" type means the place
-  // in the source code which are of interest when making stack traces to
-  // pin-point the source location of a stack frame as close as possible.
-  // The "STATEMENT_POSITION" means the place at the beginning of each
-  // statement, and is used to indicate possible break locations.
-  enum PositionType {
-    POSITION,
-    STATEMENT_POSITION
-  };
-
-  // Type of event.
-  EventType type;
-  // Start of the instructions.
-  void* code_start;
-  // Size of the instructions.
-  size_t code_len;
-  // Script info for CODE_ADDED event.
-  Handle<UnboundScript> script;
-  // User-defined data for *_LINE_INFO_* event. It's used to hold the source
-  // code line information which is returned from the
-  // CODE_START_LINE_INFO_RECORDING event. And it's passed to subsequent
-  // CODE_ADD_LINE_POS_INFO and CODE_END_LINE_INFO_RECORDING events.
-  void* user_data;
-
-  struct name_t {
-    // Name of the object associated with the code, note that the string is not
-    // zero-terminated.
-    const char* str;
-    // Number of chars in str.
-    size_t len;
-  };
-
-  struct line_info_t {
-    // PC offset
-    size_t offset;
-    // Code postion
-    size_t pos;
-    // The position type.
-    PositionType position_type;
-  };
-
-  union {
-    // Only valid for CODE_ADDED.
-    struct name_t name;
-
-    // Only valid for CODE_ADD_LINE_POS_INFO
-    struct line_info_t line_info;
-
-    // New location of instructions. Only valid for CODE_MOVED.
-    void* new_code_start;
-  };
-};
-
-/**
- * Option flags passed to the SetJitCodeEventHandler function.
- */
-enum JitCodeEventOptions {
-  kJitCodeEventDefault = 0,
-  // Generate callbacks for already existent code.
-  kJitCodeEventEnumExisting = 1
-};
-
-
-/**
- * Callback function passed to SetJitCodeEventHandler.
- *
- * \param event code add, move or removal event.
- */
-typedef void (*JitCodeEventHandler)(const JitCodeEvent* event);
 
 
 /**
@@ -5069,6 +5114,8 @@ class V8_EXPORT V8 {
    * \returns true on success on supported platforms, false on failure.
    * \note Setting an entry hook can only be done very early in an isolates
    *   lifetime, and once set, the entry hook cannot be revoked.
+   *
+   * Deprecated, will be removed. Use Isolate::New(entry_hook) instead.
    */
   static bool SetFunctionEntryHook(Isolate* isolate,
                                    FunctionEntryHook entry_hook);
@@ -5092,6 +5139,9 @@ class V8_EXPORT V8 {
    *     grow over time, and the JitCodeEvent structure is expected to accrue
    *     new members. The \p event_handler function must ignore event codes
    *     it does not recognize to maintain future compatibility.
+   *
+   * Deprecated, will be removed. Use Isolate::SetJitCodeEventHandler or
+   * Isolate::CreateParams instead.
    */
   static void SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler);

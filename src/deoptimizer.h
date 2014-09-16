@@ -17,19 +17,9 @@ namespace internal {
 
 
 static inline double read_double_value(Address p) {
-#ifdef V8_HOST_CAN_READ_UNALIGNED
-  return Memory::double_at(p);
-#else  // V8_HOST_CAN_READ_UNALIGNED
-  // Prevent gcc from using load-double (mips ldc1) on (possibly)
-  // non-64-bit aligned address.
-  union conversion {
-    double d;
-    uint32_t u[2];
-  } c;
-  c.u[0] = *reinterpret_cast<uint32_t*>(p);
-  c.u[1] = *reinterpret_cast<uint32_t*>(p + 4);
-  return c.d;
-#endif  // V8_HOST_CAN_READ_UNALIGNED
+  double d;
+  memcpy(&d, p, sizeof(d));
+  return d;
 }
 
 
@@ -176,8 +166,6 @@ class Deoptimizer : public Malloced {
   // (via code->set_marked_for_deoptimization) and unlinks all functions that
   // refer to that code.
   static void DeoptimizeMarkedCode(Isolate* isolate);
-
-  static void PatchStackForMarkedCode(Isolate* isolate);
 
   // Visit all the known optimized functions in a given isolate.
   static void VisitAllOptimizedFunctions(

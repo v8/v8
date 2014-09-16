@@ -18,7 +18,7 @@ namespace compiler {
 namespace {
 
 struct PureOperator {
-  const Operator* (SimplifiedOperatorBuilder::*constructor)() const;
+  const Operator* (SimplifiedOperatorBuilder::*constructor)();
   IrOpcode::Value opcode;
   Operator::Properties properties;
   int value_input_count;

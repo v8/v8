@@ -77,7 +77,7 @@ V8_GENERIC_JSON = {
   "units": "ms",
 }
 
-Output = namedtuple("Output", "stdout, stderr")
+Output = namedtuple("Output", "stdout, stderr, timed_out")
 
 class PerfTest(unittest.TestCase):
   @classmethod
@@ -113,9 +113,12 @@ class PerfTest(unittest.TestCase):
     with open(self._test_input, "w") as f:
       f.write(json.dumps(json_content))
 
-  def _MockCommand(self, *args):
+  def _MockCommand(self, *args, **kwargs):
     # Fake output for each test run.
-    test_outputs = [Output(stdout=arg, stderr=None) for arg in args[1]]
+    test_outputs = [Output(stdout=arg,
+                           stderr=None,
+                           timed_out=kwargs.get("timed_out", False))
+                    for arg in args[1]]
     def execute(*args, **kwargs):
       return test_outputs.pop()
     commands.Execute = MagicMock(side_effect=execute)
@@ -151,17 +154,18 @@ class PerfTest(unittest.TestCase):
   def _VerifyErrors(self, errors):
     self.assertEquals(errors, self._LoadResults()["errors"])
 
-  def _VerifyMock(self, binary, *args):
+  def _VerifyMock(self, binary, *args, **kwargs):
     arg = [path.join(path.dirname(self.base), binary)]
     arg += args
-    commands.Execute.assert_called_with(arg, timeout=60)
+    commands.Execute.assert_called_with(
+        arg, timeout=kwargs.get("timeout", 60))
 
-  def _VerifyMockMultiple(self, *args):
+  def _VerifyMockMultiple(self, *args, **kwargs):
     expected = []
     for arg in args:
       a = [path.join(path.dirname(self.base), arg[0])]
       a += arg[1:]
-      expected.append(((a,), {"timeout": 60}))
+      expected.append(((a,), {"timeout": kwargs.get("timeout", 60)}))
     self.assertEquals(expected, commands.Execute.call_args_list)
 
   def testOneRun(self):
@@ -347,3 +351,20 @@ class PerfTest(unittest.TestCase):
     ])
     self._VerifyErrors([])
     self._VerifyMock(path.join("out", "x64.release", "cc"), "--flag", "")
+
+  def testOneRunTimingOut(self):
+    test_input = dict(V8_JSON)
+    test_input["timeout"] = 70
+    self._WriteTestInput(test_input)
+    self._MockCommand(["."], [""], timed_out=True)
+    self.assertEquals(1, self._CallMain())
+    self._VerifyResults("test", "score", [
+      {"name": "Richards", "results": [], "stddev": ""},
+      {"name": "DeltaBlue", "results": [], "stddev": ""},
+    ])
+    self._VerifyErrors([
+      "Regexp \"^Richards: (.+)$\" didn't match for test Richards.",
+      "Regexp \"^DeltaBlue: (.+)$\" didn't match for test DeltaBlue.",
+    ])
+    self._VerifyMock(
+        path.join("out", "x64.release", "d7"), "--flag", "run.js", timeout=70)

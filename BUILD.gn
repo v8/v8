@@ -1129,6 +1129,11 @@ source_set("v8_base") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":internal_config", ":features", ":toolchain" ]
 
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:optimize" ]
+    configs += [ "//build/config/compiler:optimize_max" ]
+  }
+
   defines = []
   deps = [ ":v8_libbase" ]
 
@@ -1214,6 +1219,11 @@ source_set("v8_libbase") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":internal_config_base", ":features", ":toolchain" ]
 
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:optimize" ]
+    configs += [ "//build/config/compiler:optimize_max" ]
+  }
+
   defines = []
 
   if (is_posix) {
@@ -1276,6 +1286,11 @@ source_set("v8_libplatform") {
   configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
   configs += [ ":internal_config_base", ":features", ":toolchain" ]
+
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:optimize" ]
+    configs += [ "//build/config/compiler:optimize_max" ]
+  }
 
   deps = [
     ":v8_libbase",

@@ -29,5 +29,7 @@
 [ALWAYS, {
   # Too slow in Debug mode.
   'octane/mandreel': [PASS, ['mode == debug', SKIP]],
+  # TODO(turbofan): Too slow in debug mode for now.
+  'octane/pdfjs': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
 ]

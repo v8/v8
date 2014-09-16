@@ -638,13 +638,19 @@ bool Scheduler::ConnectFloatingControl() {
   int max = static_cast<int>(schedule_->rpo_order()->size());
   for (int i = max - 1; i >= 0; i--) {
     BasicBlock* block = schedule_->rpo_order()->at(i);
+    // TODO(titzer): we place at most one floating control structure per
+    // basic block because scheduling currently can interleave phis from
+    // one subgraph with the merges from another subgraph.
+    bool one_placed = false;
     for (int j = static_cast<int>(block->nodes_.size()) - 1; j >= 0; j--) {
       Node* node = block->nodes_[j];
       SchedulerData* data = GetData(node);
-      if (data->is_floating_control_ && !data->is_connected_control_) {
+      if (data->is_floating_control_ && !data->is_connected_control_ &&
+          !one_placed) {
         Trace("  Floating control #%d:%s was scheduled in B%d\n", node->id(),
               node->op()->mnemonic(), block->id());
         ConnectFloatingControlSubgraph(block, node);
+        one_placed = true;
       }
     }
   }

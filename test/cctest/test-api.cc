@@ -14171,18 +14171,13 @@ void SetFunctionEntryHookTest::RunLoopInNewEnv(v8::Isolate* isolate) {
 
 void SetFunctionEntryHookTest::RunTest() {
   // Work in a new isolate throughout.
-  v8::Isolate* isolate = v8::Isolate::New();
-
-  // Test setting the entry hook on the new isolate.
-  CHECK(v8::V8::SetFunctionEntryHook(isolate, EntryHook));
-
-  // Replacing the hook, once set should fail.
-  CHECK_EQ(false, v8::V8::SetFunctionEntryHook(isolate, EntryHook));
+  v8::Isolate::CreateParams create_params;
+  create_params.entry_hook = EntryHook;
+  create_params.code_event_handler = JitEvent;
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
 
   {
     v8::Isolate::Scope scope(isolate);
-
-    v8::V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, JitEvent);
 
     RunLoopInNewEnv(isolate);
 
@@ -14211,9 +14206,6 @@ void SetFunctionEntryHookTest::RunTest() {
     // We should record no invocations in this isolate.
     CHECK_EQ(0, static_cast<int>(invocations_.size()));
   }
-  // Since the isolate has been used, we shouldn't be able to set an entry
-  // hook anymore.
-  CHECK_EQ(false, v8::V8::SetFunctionEntryHook(isolate, EntryHook));
 
   isolate->Dispose();
 }
@@ -14407,7 +14399,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     saw_bar = 0;
     move_events = 0;
 
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, event_handler);
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, event_handler);
 
     // Generate new code objects sparsely distributed across several
     // different fragmented code-space pages.
@@ -14431,7 +14423,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     // Force code movement.
     heap->CollectAllAvailableGarbage("TestSetJitCodeEventHandler");
 
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
 
     CHECK_LE(kIterations, saw_bar);
     CHECK_LT(0, move_events);
@@ -14461,8 +14453,9 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
     i::HashMap lineinfo(MatchPointers);
     jitcode_line_info = &lineinfo;
 
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting, event_handler);
-    V8::SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventEnumExisting,
+                                    event_handler);
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, NULL);
 
     jitcode_line_info = NULL;
     // We expect that we got some events. Note that if we could get code removal

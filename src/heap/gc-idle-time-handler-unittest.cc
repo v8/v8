@@ -32,8 +32,8 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
   }
 
   static const size_t kSizeOfObjects = 100 * MB;
-  static const size_t kMarkCompactSpeed = 100 * KB;
-  static const size_t kMarkingSpeed = 100 * KB;
+  static const size_t kMarkCompactSpeed = 200 * KB;
+  static const size_t kMarkingSpeed = 200 * KB;
 
  private:
   GCIdleTimeHandler handler_;
@@ -87,7 +87,7 @@ TEST(GCIdleTimeHandler, EstimateMarkCompactTimeInitial) {
 
 TEST(GCIdleTimeHandler, EstimateMarkCompactTimeNonZero) {
   size_t size = 100 * MB;
-  size_t speed = 10 * KB;
+  size_t speed = 1 * MB;
   size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, speed);
   EXPECT_EQ(size / speed, time);
 }

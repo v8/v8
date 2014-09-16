@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 
 const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
-const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000000;
+const size_t GCIdleTimeHandler::kMaxMarkCompactTimeInMs = 1000;
 const size_t GCIdleTimeHandler::kMinTimeForFinalizeSweeping = 100;
 const int GCIdleTimeHandler::kMaxMarkCompactsInIdleRound = 7;
 const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
@@ -78,9 +78,10 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
     }
   }
   if (heap_state.incremental_marking_stopped) {
-    if (idle_time_in_ms >= EstimateMarkCompactTime(
-                               heap_state.size_of_objects,
-                               heap_state.mark_compact_speed_in_bytes_per_ms) ||
+    size_t estimated_time_in_ms =
+        EstimateMarkCompactTime(heap_state.size_of_objects,
+                                heap_state.mark_compact_speed_in_bytes_per_ms);
+    if (idle_time_in_ms >= estimated_time_in_ms ||
         (heap_state.size_of_objects < kSmallHeapSize &&
          heap_state.contexts_disposed > 0)) {
       // If there are no more than two GCs left in this idle round and we are

@@ -6662,8 +6662,16 @@ Isolate* Isolate::GetCurrent() {
 }
 
 
-Isolate* Isolate::New() {
+Isolate* Isolate::New(const Isolate::CreateParams& params) {
   i::Isolate* isolate = new i::Isolate();
+  if (params.entry_hook) {
+    isolate->set_function_entry_hook(params.entry_hook);
+  }
+  if (params.code_event_handler) {
+    isolate->InitializeLoggingAndCounters();
+    isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,
+                                           params.code_event_handler);
+  }
   return reinterpret_cast<Isolate*>(isolate);
 }
 
@@ -6869,6 +6877,15 @@ void v8::Isolate::LowMemoryNotification() {
 int v8::Isolate::ContextDisposedNotification() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   return isolate->heap()->NotifyContextDisposed();
+}
+
+
+void v8::Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
+                                         JitCodeEventHandler event_handler) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  // Ensure that logging is initialized for our isolate.
+  isolate->InitializeLoggingAndCounters();
+  isolate->logger()->SetCodeEventHandler(options, event_handler);
 }
 
 

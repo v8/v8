@@ -90,39 +90,39 @@ class SimplifiedOperatorBuilder FINAL {
  public:
   explicit SimplifiedOperatorBuilder(Zone* zone);
 
-  const Operator* BooleanNot() const WARN_UNUSED_RESULT;
+  const Operator* BooleanNot();
 
-  const Operator* NumberEqual() const WARN_UNUSED_RESULT;
-  const Operator* NumberLessThan() const WARN_UNUSED_RESULT;
-  const Operator* NumberLessThanOrEqual() const WARN_UNUSED_RESULT;
-  const Operator* NumberAdd() const WARN_UNUSED_RESULT;
-  const Operator* NumberSubtract() const WARN_UNUSED_RESULT;
-  const Operator* NumberMultiply() const WARN_UNUSED_RESULT;
-  const Operator* NumberDivide() const WARN_UNUSED_RESULT;
-  const Operator* NumberModulus() const WARN_UNUSED_RESULT;
-  const Operator* NumberToInt32() const WARN_UNUSED_RESULT;
-  const Operator* NumberToUint32() const WARN_UNUSED_RESULT;
+  const Operator* NumberEqual();
+  const Operator* NumberLessThan();
+  const Operator* NumberLessThanOrEqual();
+  const Operator* NumberAdd();
+  const Operator* NumberSubtract();
+  const Operator* NumberMultiply();
+  const Operator* NumberDivide();
+  const Operator* NumberModulus();
+  const Operator* NumberToInt32();
+  const Operator* NumberToUint32();
 
-  const Operator* ReferenceEqual(Type* type) const WARN_UNUSED_RESULT;
+  const Operator* ReferenceEqual(Type* type);
 
-  const Operator* StringEqual() const WARN_UNUSED_RESULT;
-  const Operator* StringLessThan() const WARN_UNUSED_RESULT;
-  const Operator* StringLessThanOrEqual() const WARN_UNUSED_RESULT;
-  const Operator* StringAdd() const WARN_UNUSED_RESULT;
+  const Operator* StringEqual();
+  const Operator* StringLessThan();
+  const Operator* StringLessThanOrEqual();
+  const Operator* StringAdd();
 
-  const Operator* ChangeTaggedToInt32() const WARN_UNUSED_RESULT;
-  const Operator* ChangeTaggedToUint32() const WARN_UNUSED_RESULT;
-  const Operator* ChangeTaggedToFloat64() const WARN_UNUSED_RESULT;
-  const Operator* ChangeInt32ToTagged() const WARN_UNUSED_RESULT;
-  const Operator* ChangeUint32ToTagged() const WARN_UNUSED_RESULT;
-  const Operator* ChangeFloat64ToTagged() const WARN_UNUSED_RESULT;
-  const Operator* ChangeBoolToBit() const WARN_UNUSED_RESULT;
-  const Operator* ChangeBitToBool() const WARN_UNUSED_RESULT;
+  const Operator* ChangeTaggedToInt32();
+  const Operator* ChangeTaggedToUint32();
+  const Operator* ChangeTaggedToFloat64();
+  const Operator* ChangeInt32ToTagged();
+  const Operator* ChangeUint32ToTagged();
+  const Operator* ChangeFloat64ToTagged();
+  const Operator* ChangeBoolToBit();
+  const Operator* ChangeBitToBool();
 
-  const Operator* LoadField(const FieldAccess&) const WARN_UNUSED_RESULT;
-  const Operator* StoreField(const FieldAccess&) const WARN_UNUSED_RESULT;
-  const Operator* LoadElement(const ElementAccess&) const WARN_UNUSED_RESULT;
-  const Operator* StoreElement(const ElementAccess&) const WARN_UNUSED_RESULT;
+  const Operator* LoadField(const FieldAccess&);
+  const Operator* StoreField(const FieldAccess&);
+  const Operator* LoadElement(const ElementAccess&);
+  const Operator* StoreElement(const ElementAccess&);
 
  private:
   Zone* zone() const { return zone_; }

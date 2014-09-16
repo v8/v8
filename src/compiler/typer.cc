@@ -119,19 +119,27 @@ class Typer::RunVisitor : public Typer::Visitor {
  public:
   RunVisitor(Typer* typer, MaybeHandle<Context> context)
       : Visitor(typer, context),
-        phis(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
+        redo(NodeSet::key_compare(), NodeSet::allocator_type(typer->zone())) {}
 
   GenericGraphVisit::Control Post(Node* node) {
     if (OperatorProperties::HasValueOutput(node->op())) {
       Bounds bounds = TypeNode(node);
       NodeProperties::SetBounds(node, bounds);
-      // Remember phis for least fixpoint iteration.
-      if (node->opcode() == IrOpcode::kPhi) phis.insert(node);
+      // Remember incompletely typed nodes for least fixpoint iteration.
+      int arity = OperatorProperties::GetValueInputCount(node->op());
+      for (int i = 0; i < arity; ++i) {
+        // TODO(rossberg): change once IsTyped is available.
+        // if (!NodeProperties::IsTyped(NodeProperties::GetValueInput(node, i)))
+        if (OperandType(node, i).upper->Is(Type::None())) {
+          redo.insert(node);
+          break;
+        }
+      }
     }
     return GenericGraphVisit::CONTINUE;
   }
 
-  NodeSet phis;
+  NodeSet redo;
 };
 
 
@@ -190,7 +198,7 @@ void Typer::Run(Graph* graph, MaybeHandle<Context> context) {
   RunVisitor typing(this, context);
   graph->VisitNodeInputsFromEnd(&typing);
   // Find least fixpoint.
-  for (NodeSetIter i = typing.phis.begin(); i != typing.phis.end(); ++i) {
+  for (NodeSetIter i = typing.redo.begin(); i != typing.redo.end(); ++i) {
     Widen(graph, *i, context);
   }
 }

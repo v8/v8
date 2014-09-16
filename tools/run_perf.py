@@ -164,6 +164,7 @@ class DefaultSentinel(Node):
     super(DefaultSentinel, self).__init__()
     self.binary = "d8"
     self.run_count = 10
+    self.timeout = 60
     self.path = []
     self.graphs = []
     self.flags = []
@@ -198,6 +199,7 @@ class Graph(Node):
     self.binary = suite.get("binary", parent.binary)
     self.run_count = suite.get("run_count", parent.run_count)
     self.run_count = suite.get("run_count_%s" % arch, self.run_count)
+    self.timeout = suite.get("timeout", parent.timeout)
     self.units = suite.get("units", parent.units)
     self.total = suite.get("total", parent.total)
 
@@ -463,15 +465,18 @@ def Main(args):
       def Runner():
         """Output generator that reruns several times."""
         for i in xrange(0, max(1, runnable.run_count)):
-          # TODO(machenbach): Make timeout configurable in the suite definition.
-          # Allow timeout per arch like with run_count per arch.
-          output = commands.Execute(runnable.GetCommand(shell_dir), timeout=60)
+          # TODO(machenbach): Allow timeout per arch like with run_count per
+          # arch.
+          output = commands.Execute(runnable.GetCommand(shell_dir),
+                                    timeout=runnable.timeout)
           print ">>> Stdout (#%d):" % (i + 1)
           print output.stdout
           if output.stderr:  # pragma: no cover
             # Print stderr for debugging.
             print ">>> Stderr (#%d):" % (i + 1)
             print output.stderr
+          if output.timed_out:
+            print ">>> Test timed out after %ss." % runnable.timeout
           yield output.stdout
 
       # Let runnable iterate over all runs and handle output.
