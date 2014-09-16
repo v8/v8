@@ -33,17 +33,21 @@ void BreakableStatementChecker::VisitVariableDeclaration(
     VariableDeclaration* decl) {
 }
 
+
 void BreakableStatementChecker::VisitFunctionDeclaration(
     FunctionDeclaration* decl) {
 }
+
 
 void BreakableStatementChecker::VisitModuleDeclaration(
     ModuleDeclaration* decl) {
 }
 
+
 void BreakableStatementChecker::VisitImportDeclaration(
     ImportDeclaration* decl) {
 }
+
 
 void BreakableStatementChecker::VisitExportDeclaration(
     ExportDeclaration* decl) {
@@ -175,6 +179,13 @@ void BreakableStatementChecker::VisitCaseClause(CaseClause* clause) {
 
 
 void BreakableStatementChecker::VisitFunctionLiteral(FunctionLiteral* expr) {
+}
+
+
+void BreakableStatementChecker::VisitClassLiteral(ClassLiteral* expr) {
+  if (expr->extends() != NULL) {
+    Visit(expr->extends());
+  }
 }
 
 
@@ -1528,6 +1539,16 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
     return;
   }
   EmitNewClosure(function_info, expr->pretenure());
+}
+
+
+void FullCodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
+  // TODO(arv): Implement
+  Comment cmnt(masm_, "[ ClassLiteral");
+  if (expr->extends() != NULL) {
+    VisitForEffect(expr->extends());
+  }
+  context()->Plug(isolate()->factory()->undefined_value());
 }
 
 

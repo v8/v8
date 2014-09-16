@@ -363,6 +363,7 @@ class ParserTraits {
     typedef v8::internal::Expression* Expression;
     typedef Yield* YieldExpression;
     typedef v8::internal::FunctionLiteral* FunctionLiteral;
+    typedef v8::internal::ClassLiteral* ClassLiteral;
     typedef v8::internal::Literal* Literal;
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
@@ -400,6 +401,10 @@ class ParserTraits {
   static bool IsThisProperty(Expression* expression);
 
   static bool IsIdentifier(Expression* expression);
+
+  bool IsPrototype(const AstRawString* identifier) const;
+
+  bool IsConstructor(const AstRawString* identifier) const;
 
   static const AstRawString* AsIdentifier(Expression* expression) {
     DCHECK(IsIdentifier(expression));
@@ -518,6 +523,8 @@ class ParserTraits {
     return NULL;
   }
   static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return NULL; }
+  static FunctionLiteral* EmptyFunctionLiteral() { return NULL; }
+  static ClassLiteral* EmptyClassLiteral() { return NULL; }
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
@@ -705,6 +712,8 @@ class Parser : public ParserBase<ParserTraits> {
   Statement* ParseStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,
                                       bool* ok);
+  Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
+                                   bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
   Block* ParseVariableStatement(VariableDeclarationContext var_context,

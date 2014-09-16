@@ -5248,6 +5248,14 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
+void HOptimizedGraphBuilder::VisitClassLiteral(ClassLiteral* lit) {
+  DCHECK(!HasStackOverflow());
+  DCHECK(current_block() != NULL);
+  DCHECK(current_block()->HasPredecessor());
+  return Bailout(kClassLiteral);
+}
+
+
 void HOptimizedGraphBuilder::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   DCHECK(!HasStackOverflow());

@@ -175,6 +175,8 @@ DEFINE_IMPLICATION(harmony, harmony_arrow_functions)
 DEFINE_IMPLICATION(harmony, harmony_classes)
 DEFINE_IMPLICATION(harmony, harmony_object_literals)
 DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
+DEFINE_IMPLICATION(harmony_classes, harmony_scoping)
+DEFINE_IMPLICATION(harmony_classes, harmony_object_literals)
 
 DEFINE_IMPLICATION(harmony, es_staging)
 

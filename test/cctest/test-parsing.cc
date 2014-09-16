@@ -1448,9 +1448,15 @@ TEST(ParserSync) {
       i::GetCurrentStackPosition() - 128 * 1024);
 
   static const ParserFlag flags1[] = {
-      kAllowLazy,                   kAllowHarmonyScoping,
-      kAllowModules,                kAllowArrowFunctions,
-      kAllowHarmonyNumericLiterals, kAllowHarmonyObjectLiterals};
+    kAllowArrowFunctions,
+    kAllowClasses,
+    kAllowHarmonyNumericLiterals,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonyScoping,
+    kAllowLazy,
+    kAllowModules,
+  };
+
   for (int i = 0; context_data[i][0] != NULL; ++i) {
     for (int j = 0; statement_data[j] != NULL; ++j) {
       for (int k = 0; termination_data[k] != NULL; ++k) {
@@ -1525,10 +1531,14 @@ void RunParserSyncTest(const char* context_data[][2],
       i::GetCurrentStackPosition() - 128 * 1024);
 
   static const ParserFlag default_flags[] = {
-      kAllowArrowFunctions,         kAllowClasses,
-      kAllowHarmonyNumericLiterals, kAllowHarmonyObjectLiterals,
-      kAllowHarmonyScoping,         kAllowLazy,
-      kAllowModules,                kAllowNativesSyntax,
+    kAllowArrowFunctions,
+    kAllowClasses,
+    kAllowHarmonyNumericLiterals,
+    kAllowHarmonyObjectLiterals,
+    kAllowHarmonyScoping,
+    kAllowLazy,
+    kAllowModules,
+    kAllowNativesSyntax,
   };
   ParserFlag* generated_flags = NULL;
   if (flags == NULL) {
@@ -3535,5 +3545,407 @@ TEST(MethodDefinitionDuplicateProperty) {
 
   static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
   RunParserSyncTest(context_data, params_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(NoErrorsClassExpression) {
+  const char* context_data[][2] = {{"(", ");"},
+                                   {"var C = ", ";"},
+                                   {"bar, ", ";"},
+                                   {NULL, NULL}};
+  const char* class_data[] = {
+    "class {}",
+    "class name {}",
+    "class extends F {}",
+    "class name extends F {}",
+    "class extends (F, G) {}",
+    "class name extends (F, G) {}",
+    "class extends class {} {}",
+    "class name extends class {} {}",
+    "class extends class base {} {}",
+    "class name extends class base {} {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {kAllowClasses};
+  RunParserSyncTest(context_data, class_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(NoErrorsClassDeclaration) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"{", "}"},
+                                   {"if (true) {", "}"},
+                                   {NULL, NULL}};
+  const char* statement_data[] = {
+    "class name {}",
+    "class name extends F {}",
+    "class name extends (F, G) {}",
+    "class name extends class {} {}",
+    "class name extends class base {} {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {kAllowClasses};
+  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(NoErrorsClassBody) {
+  // Tests that parser and preparser accept valid class syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {NULL, NULL}};
+  const char* class_body_data[] = {
+    ";",
+    ";;",
+    "m() {}",
+    "m() {};",
+    ";m() {}",
+    "m() {}; n(x) {}",
+    "get x() {}",
+    "set x(v) {}",
+    "get() {}",
+    "set() {}",
+    "static() {}",
+    "static m() {}",
+    "static get x() {}",
+    "static set x(v) {}",
+    "static get() {}",
+    "static set() {}",
+    "static static() {}",
+    "static get static() {}",
+    "static set static(v) {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_body_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(MethodDefinitionstrictFormalParamereters) {
+  const char* context_data[][2] = {{"({method(", "){}});"},
+                                   {NULL, NULL}};
+
+  const char* params_data[] = {
+    "x, x",
+    "x, y, x",
+    "eval",
+    "arguments",
+    "var",
+    "const",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+  RunParserSyncTest(context_data, params_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(NoErrorsClassPropertyName) {
+  const char* context_data[][2] = {{"(class {", "() {}});"},
+                                   {"(class { get ", "() {}});"},
+                                   {"(class { set ", "(v) {}});"},
+                                   {"(class { static ", "() {}});"},
+                                   {"(class { static get ", "() {}});"},
+                                   {"(class { static set ", "(v) {}});"},
+                                   {"class C {", "() {}}"},
+                                   {"class C { get ", "() {}}"},
+                                   {"class C { set ", "(v) {}}"},
+                                   {"class C { static ", "() {}}"},
+                                   {"class C { static get ", "() {}}"},
+                                   {"class C { static set ", "(v) {}}"},
+                                   {NULL, NULL}};
+  const char* name_data[] = {
+    "42",
+    "42.5",
+    "42e2",
+    "42e+2",
+    "42e-2",
+    "null",
+    "false",
+    "true",
+    "'str'",
+    "\"str\"",
+    "static",
+    "get",
+    "set",
+    "var",
+    "const",
+    "let",
+    "this",
+    "class",
+    "function",
+    "yield",
+    "if",
+    "else",
+    "for",
+    "while",
+    "do",
+    "try",
+    "catch",
+    "finally",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, name_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ErrorsClassExpression) {
+  const char* context_data[][2] = {{"(", ");"},
+                                   {"var C = ", ";"},
+                                   {"bar, ", ";"},
+                                   {NULL, NULL}};
+  const char* class_data[] = {
+    "class",
+    "class name",
+    "class name extends",
+    "class extends",
+    "class {",
+    "class { m }",
+    "class { m; n }",
+    "class { m: 1 }",
+    "class { m(); n() }",
+    "class { get m }",
+    "class { get m() }",
+    "class { get m() { }",
+    "class { set m() {} }",  // Missing required parameter.
+    "class { m() {}, n() {} }",  // No commas allowed.
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ErrorsClassDeclaration) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"{", "}"},
+                                   {"if (true) {", "}"},
+                                   {NULL, NULL}};
+  const char* class_data[] = {
+    "class",
+    "class name",
+    "class name extends",
+    "class extends",
+    "class name {",
+    "class name { m }",
+    "class name { m; n }",
+    "class name { m: 1 }",
+    "class name { m(); n() }",
+    "class name { get m }",
+    "class name { get m() }",
+    "class name { set m() {) }",  // missing required param
+    "class {}",  // Name is required for declaration
+    "class extends base {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyNumericLiterals
+  };
+  RunParserSyncTest(context_data, class_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ErrorsClassName) {
+  const char* context_data[][2] = {{"class ", "{}"},
+                                   {"(class ", "{});"},
+                                   {"'use strict'; class ", "{}"},
+                                   {"'use strict'; (class ", "{});"},
+                                   {NULL, NULL}};
+  const char* class_name[] = {
+    "arguments",
+    "eval",
+    "implements",
+    "interface",
+    "let",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "static",
+    "var",
+    "yield",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_name, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ErrorsClassGetterParamName) {
+  const char* context_data[][2] = {
+    {"class C { get name(", ") {} }"},
+    {"(class { get name(", ") {} });"},
+    {"'use strict'; class C { get name(", ") {} }"},
+    {"'use strict'; (class { get name(", ") {} })"},
+    {NULL, NULL}
+  };
+
+  const char* class_name[] = {
+    "arguments",
+    "eval",
+    "implements",
+    "interface",
+    "let",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "static",
+    "var",
+    "yield",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_name, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ErrorsClassStaticPrototype) {
+  const char* context_data[][2] = {{"class C {", "}"},
+                                   {"(class {", "});"},
+                                   {NULL, NULL}};
+
+  const char* class_body_data[] = {
+    "static prototype() {}",
+    "static get prototype() {}",
+    "static set prototype(_) {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_body_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ErrorsClassSpecialConstructor) {
+  const char* context_data[][2] = {{"class C {", "}"},
+                                   {"(class {", "});"},
+                                   {NULL, NULL}};
+
+  const char* class_body_data[] = {
+    "get constructor() {}",
+    "get constructor(_) {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_body_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(NoErrorsClassConstructor) {
+  const char* context_data[][2] = {{"class C {", "}"},
+                                   {"(class {", "});"},
+                                   {NULL, NULL}};
+
+  const char* class_body_data[] = {
+    "constructor() {}",
+    "static constructor() {}",
+    "static get constructor() {}",
+    "static set constructor(_) {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_body_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ErrorsClassMultipleConstructor) {
+  // We currently do not allow any duplicate properties in class bodies. This
+  // test ensures that when we change that we still throw on duplicate
+  // constructors.
+  const char* context_data[][2] = {{"class C {", "}"},
+                                   {"(class {", "});"},
+                                   {NULL, NULL}};
+
+  const char* class_body_data[] = {
+    "constructor() {}; constructor() {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_body_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+// TODO(arv): We should allow duplicate property names.
+// https://code.google.com/p/v8/issues/detail?id=3570
+DISABLED_TEST(NoErrorsClassMultiplePropertyNames) {
+  const char* context_data[][2] = {{"class C {", "}"},
+                                   {"(class {", "});"},
+                                   {NULL, NULL}};
+
+  const char* class_body_data[] = {
+    "constructor() {}; static constructor() {}",
+    "m() {}; static m() {}",
+    "m() {}; m() {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_body_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ErrorsClassesAreStrict) {
+  const char* context_data[][2] = {{"", ""},
+                                   {"(", ");"},
+                                   {NULL, NULL}};
+
+  const char* class_body_data[] = {
+    "class C { method() { with ({}) {} } }",
+    "class C extends function() { with ({}) {} } {}",
+    NULL};
+
+  static const ParserFlag always_flags[] = {
+    kAllowClasses,
+    kAllowHarmonyObjectLiterals
+  };
+  RunParserSyncTest(context_data, class_body_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
