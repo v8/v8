@@ -28,12 +28,17 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
     result.sweeping_in_progress = false;
     result.mark_compact_speed_in_bytes_per_ms = kMarkCompactSpeed;
     result.incremental_marking_speed_in_bytes_per_ms = kMarkingSpeed;
+    result.scavenge_speed_in_bytes_per_ms = kScavengeSpeed;
+    result.available_new_space_memory = kNewSpaceCapacity;
+    result.new_space_capacity = kNewSpaceCapacity;
     return result;
   }
 
   static const size_t kSizeOfObjects = 100 * MB;
   static const size_t kMarkCompactSpeed = 200 * KB;
   static const size_t kMarkingSpeed = 200 * KB;
+  static const size_t kScavengeSpeed = 100 * KB;
+  static const size_t kNewSpaceCapacity = 1 * MB;
 
  private:
   GCIdleTimeHandler handler_;
@@ -98,6 +103,21 @@ TEST(GCIdleTimeHandler, EstimateMarkCompactTimeMax) {
   size_t speed = 1;
   size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, speed);
   EXPECT_EQ(GCIdleTimeHandler::kMaxMarkCompactTimeInMs, time);
+}
+
+
+TEST(GCIdleTimeHandler, EstimateScavengeTimeInitial) {
+  size_t size = 1 * MB;
+  size_t time = GCIdleTimeHandler::EstimateScavengeTime(size, 0);
+  EXPECT_EQ(size / GCIdleTimeHandler::kInitialConservativeScavengeSpeed, time);
+}
+
+
+TEST(GCIdleTimeHandler, EstimateScavengeTimeNonZero) {
+  size_t size = 1 * MB;
+  size_t speed = 1 * MB;
+  size_t time = GCIdleTimeHandler::EstimateScavengeTime(size, speed);
+  EXPECT_EQ(size / speed, time);
 }
 
 

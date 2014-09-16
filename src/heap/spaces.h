@@ -2013,7 +2013,7 @@ class NewSpacePage : public MemoryChunk {
 
   Address address() { return reinterpret_cast<Address>(this); }
 
-  // Finds the NewSpacePage containg the given address.
+  // Finds the NewSpacePage containing the given address.
   static inline NewSpacePage* FromAddress(Address address_in_page) {
     Address page_start =
         reinterpret_cast<Address>(reinterpret_cast<uintptr_t>(address_in_page) &
