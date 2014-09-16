@@ -47,10 +47,9 @@ class MachineOperatorReducer FINAL : public Reducer {
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   CommonOperatorBuilder* common() const;
-  MachineOperatorBuilder* machine() { return &machine_; }
+  MachineOperatorBuilder* machine() const;
 
   JSGraph* jsgraph_;
-  MachineOperatorBuilder machine_;
 };
 
 }  // namespace compiler

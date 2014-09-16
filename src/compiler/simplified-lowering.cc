@@ -764,7 +764,7 @@ Node* SimplifiedLowering::IsTagged(Node* node) {
 
 void SimplifiedLowering::LowerAllNodes() {
   SimplifiedOperatorBuilder simplified(graph()->zone());
-  RepresentationChanger changer(jsgraph(), &simplified, machine(),
+  RepresentationChanger changer(jsgraph(), &simplified,
                                 graph()->zone()->isolate());
   RepresentationSelector selector(jsgraph(), zone(), &changer);
   selector.Run(this);
@@ -805,7 +805,7 @@ static WriteBarrierKind ComputeWriteBarrierKind(BaseTaggedness base_is_tagged,
 
 void SimplifiedLowering::DoLoadField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
-  node->set_op(machine_.Load(access.machine_type));
+  node->set_op(machine()->Load(access.machine_type));
   Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
   node->InsertInput(zone(), 1, offset);
 }
@@ -815,7 +815,8 @@ void SimplifiedLowering::DoStoreField(Node* node) {
   const FieldAccess& access = FieldAccessOf(node->op());
   WriteBarrierKind kind = ComputeWriteBarrierKind(
       access.base_is_tagged, access.machine_type, access.type);
-  node->set_op(machine_.Store(StoreRepresentation(access.machine_type, kind)));
+  node->set_op(
+      machine()->Store(StoreRepresentation(access.machine_type, kind)));
   Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
   node->InsertInput(zone(), 1, offset);
 }
@@ -837,7 +838,7 @@ Node* SimplifiedLowering::ComputeIndex(const ElementAccess& access,
 
 void SimplifiedLowering::DoLoadElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
-  node->set_op(machine_.Load(access.machine_type));
+  node->set_op(machine()->Load(access.machine_type));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
 }
 
@@ -846,7 +847,8 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
   WriteBarrierKind kind = ComputeWriteBarrierKind(
       access.base_is_tagged, access.machine_type, access.type);
-  node->set_op(machine_.Store(StoreRepresentation(access.machine_type, kind)));
+  node->set_op(
+      machine()->Store(StoreRepresentation(access.machine_type, kind)));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
 }
 

@@ -28,7 +28,7 @@ class RepresentationChangerTester : public HandleAndZoneScope,
         javascript_(main_zone()),
         jsgraph_(main_graph_, &main_common_, &javascript_, &typer_,
                  &main_machine_),
-        changer_(&jsgraph_, &main_simplified_, &main_machine_, main_isolate()) {
+        changer_(&jsgraph_, &main_simplified_, main_isolate()) {
     Node* s = graph()->NewNode(common()->Start(num_parameters));
     graph()->SetStart(s);
   }

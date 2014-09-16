@@ -477,6 +477,11 @@ CommonOperatorBuilder* MachineOperatorReducer::common() const {
 }
 
 
+MachineOperatorBuilder* MachineOperatorReducer::machine() const {
+  return jsgraph()->machine();
+}
+
+
 Graph* MachineOperatorReducer::graph() const { return jsgraph()->graph(); }
 
 }  // namespace compiler

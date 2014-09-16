@@ -1931,9 +1931,8 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
 
 Node* AstGraphBuilder::BuildLoadObjectField(Node* object, int offset) {
   // TODO(sigurds) Use simplified load here once it is ready.
-  MachineOperatorBuilder machine;
-  Node* field_load = NewNode(machine.Load(kMachAnyTagged), object,
-                             jsgraph_->Int32Constant(offset - kHeapObjectTag));
+  Node* field_load = NewNode(jsgraph()->machine()->Load(kMachAnyTagged), object,
+                             jsgraph()->Int32Constant(offset - kHeapObjectTag));
   return field_load;
 }
 

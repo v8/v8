@@ -21,8 +21,7 @@ class MachineOperatorBuilder;
 
 class SimplifiedOperatorReducer FINAL : public Reducer {
  public:
-  SimplifiedOperatorReducer(JSGraph* jsgraph, MachineOperatorBuilder* machine)
-      : jsgraph_(jsgraph), machine_(machine) {}
+  explicit SimplifiedOperatorReducer(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
   virtual ~SimplifiedOperatorReducer();
 
   virtual Reduction Reduce(Node* node) OVERRIDE;
@@ -40,10 +39,9 @@ class SimplifiedOperatorReducer FINAL : public Reducer {
   Graph* graph() const;
   Factory* factory() const;
   JSGraph* jsgraph() const { return jsgraph_; }
-  MachineOperatorBuilder* machine() const { return machine_; }
+  MachineOperatorBuilder* machine() const;
 
   JSGraph* jsgraph_;
-  MachineOperatorBuilder* machine_;
 
   DISALLOW_COPY_AND_ASSIGN(SimplifiedOperatorReducer);
 };

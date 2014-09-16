@@ -33,7 +33,6 @@ class SimplifiedLowering {
 
  private:
   JSGraph* jsgraph_;
-  MachineOperatorBuilder machine_;
 
   Node* SmiTag(Node* node);
   Node* IsTagged(Node* node);
@@ -48,7 +47,7 @@ class SimplifiedLowering {
   JSGraph* jsgraph() { return jsgraph_; }
   Graph* graph() { return jsgraph()->graph(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
-  MachineOperatorBuilder* machine() { return &machine_; }
+  MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
 };
 
 }  // namespace compiler
