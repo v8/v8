@@ -116,6 +116,7 @@ void CodeGenerator::MakeCodePrologue(CompilationInfo* info, const char* kind) {
           CodeStub::MajorName(info->code_stub()->MajorKey(), true);
       PrintF("%s", name == NULL ? "<unknown>" : name);
     } else {
+      AllowDeferredHandleDereference allow_deference_for_trace;
       PrintF("%s", info->function()->debug_name()->ToCString().get());
     }
     PrintF("]\n");
