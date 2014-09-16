@@ -590,6 +590,7 @@ class RegExpNode: public ZoneObject {
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
   bool EmitQuickCheck(RegExpCompiler* compiler,
+                      Trace* bounds_check_trace,
                       Trace* trace,
                       bool preload_has_checked_bounds,
                       Label* on_possible_success,
@@ -1118,7 +1119,6 @@ class ChoiceNode: public RegExpNode {
                    AlternativeGenerationList* alt_gens,
                    int first_choice,
                    Trace* trace,
-                   bool is_greedy_loop,
                    PreloadState* preloads);
   DispatchTable* table_;
   // If true, this node is never checked at the start of the input.
