@@ -309,8 +309,7 @@ class HistogramTimerScope BASE_EMBEDDED {
   HT(pre_parse, V8.PreParse)                                 \
   /* Total compilation times. */                             \
   HT(compile, V8.Compile)                                    \
-  HT(compile_eval, V8.CompileEval)                           \
-  HT(compile_lazy, V8.CompileLazy)
+  HT(compile_eval, V8.CompileEval)
 
 #define HISTOGRAM_PERCENTAGE_LIST(HP)                                 \
   /* Heap fragmentation. */                                           \
