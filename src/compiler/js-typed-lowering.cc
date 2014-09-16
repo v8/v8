@@ -309,7 +309,9 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
         return NoChange();
     }
     return r.ChangeToPureOperator(stringOp);
-  } else if (r.OneInputCannotBe(Type::String())) {
+  }
+  Type* maybe_string = Type::Union(Type::String(), Type::Receiver(), zone());
+  if (r.OneInputCannotBe(maybe_string)) {
     // If one input cannot be a string, then emit a number comparison.
     const Operator* less_than;
     const Operator* less_than_or_equal;
