@@ -186,6 +186,8 @@ static IrOpcode::Value NumberToI32(bool is_signed) {
 }
 
 
+// TODO(turbofan): Lowering of StringAdd is disabled for now.
+#if 0
 TEST(StringBinops) {
   JSTypedLoweringTester R;
 
@@ -204,6 +206,7 @@ TEST(StringBinops) {
     }
   }
 }
+#endif
 
 
 TEST(AddNumber1) {

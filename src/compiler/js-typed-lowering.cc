@@ -232,6 +232,11 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd());
   }
+#if 0
+  // TODO(turbofan): Lowering of StringAdd is disabled for now because:
+  //   a) The inserted ToString operation screws up valueOf vs. toString order.
+  //   b) Deoptimization at ToString doesn't have corresponding bailout id.
+  //   c) Our current StringAddStub is actually non-pure and requires context.
   if (r.OneInputIs(Type::String())) {
     // JSAdd(x:string, y:string) => StringAdd(x, y)
     // JSAdd(x:string, y) => StringAdd(x, ToString(y))
@@ -239,6 +244,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     r.ConvertInputsToString();
     return r.ChangeToPureOperator(simplified()->StringAdd());
   }
+#endif
   return NoChange();
 }
 

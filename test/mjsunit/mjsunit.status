@@ -70,15 +70,6 @@
   'harmony/block-let-crankshaft': [PASS, NO_VARIANTS],
   'harmony/empty-for': [PASS, NO_VARIANTS],
 
-  # TODO(mstarzinger): Typed lowering screws up valueOf vs. toString order.
-  'regress/regress-760-1': [PASS, NO_VARIANTS],
-  'regress/regress-760-2': [PASS, NO_VARIANTS],
-  'harmony/proxies-json': [PASS, NO_VARIANTS],
-
-  # Unused code is optimized away, think about fixing the test case.
-  'string-oom-concat': [PASS, NO_VARIANTS],
-  'regress/regress-crbug-357052': [PASS, NO_VARIANTS],
-
   # Some tests are over-restrictive about object layout.
   'array-constructor-feedback': [PASS, NO_VARIANTS],
   'array-feedback': [PASS, NO_VARIANTS],
