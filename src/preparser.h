@@ -83,7 +83,6 @@ class ParserBase : public Traits {
         stack_overflow_(false),
         allow_lazy_(false),
         allow_natives_syntax_(false),
-        allow_generators_(false),
         allow_arrow_functions_(false),
         allow_harmony_object_literals_(false),
         zone_(zone),
@@ -93,7 +92,6 @@ class ParserBase : public Traits {
   // allowed to be parsed by this instance of the parser.
   bool allow_lazy() const { return allow_lazy_; }
   bool allow_natives_syntax() const { return allow_natives_syntax_; }
-  bool allow_generators() const { return allow_generators_; }
   bool allow_arrow_functions() const { return allow_arrow_functions_; }
   bool allow_modules() const { return scanner()->HarmonyModules(); }
   bool allow_harmony_scoping() const { return scanner()->HarmonyScoping(); }
@@ -109,7 +107,6 @@ class ParserBase : public Traits {
   // allowed to be parsed by this instance of the parser.
   void set_allow_lazy(bool allow) { allow_lazy_ = allow; }
   void set_allow_natives_syntax(bool allow) { allow_natives_syntax_ = allow; }
-  void set_allow_generators(bool allow) { allow_generators_ = allow; }
   void set_allow_arrow_functions(bool allow) { allow_arrow_functions_ = allow; }
   void set_allow_modules(bool allow) { scanner()->SetHarmonyModules(allow); }
   void set_allow_harmony_scoping(bool allow) {
@@ -583,7 +580,6 @@ class ParserBase : public Traits {
 
   bool allow_lazy_;
   bool allow_natives_syntax_;
-  bool allow_generators_;
   bool allow_arrow_functions_;
   bool allow_harmony_object_literals_;
 
@@ -2416,7 +2412,7 @@ ParserBase<Traits>::ParseMemberExpression(bool* ok) {
   if (peek() == Token::FUNCTION) {
     Consume(Token::FUNCTION);
     int function_token_position = position();
-    bool is_generator = allow_generators() && Check(Token::MUL);
+    bool is_generator = Check(Token::MUL);
     IdentifierT name = this->EmptyIdentifier();
     bool is_strict_reserved_name = false;
     Scanner::Location function_name_location = Scanner::Location::invalid();

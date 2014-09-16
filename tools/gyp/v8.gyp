@@ -1521,6 +1521,7 @@
           '../../src/regexp.js',
           '../../src/arraybuffer.js',
           '../../src/typedarray.js',
+          '../../src/generator.js',
           '../../src/object-observe.js',
           '../../src/collection.js',
           '../../src/weak-collection.js',

@@ -332,7 +332,7 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
   //      '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
   int pos = position();
-  bool is_generator = allow_generators() && Check(Token::MUL);
+  bool is_generator = Check(Token::MUL);
   bool is_strict_reserved = false;
   Identifier name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);

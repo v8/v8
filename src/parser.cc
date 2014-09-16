@@ -755,7 +755,6 @@ Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
   set_allow_modules(!info->is_native() && FLAG_harmony_modules);
   set_allow_natives_syntax(FLAG_allow_natives_syntax || info->is_native());
   set_allow_lazy(false);  // Must be explicitly enabled.
-  set_allow_generators(FLAG_harmony_generators);
   set_allow_arrow_functions(FLAG_harmony_arrow_functions);
   set_allow_harmony_numeric_literals(FLAG_harmony_numeric_literals);
   set_allow_classes(FLAG_harmony_classes);
@@ -1893,7 +1892,7 @@ Statement* Parser::ParseFunctionDeclaration(
   //      '{' FunctionBody '}'
   Expect(Token::FUNCTION, CHECK_OK);
   int pos = position();
-  bool is_generator = allow_generators() && Check(Token::MUL);
+  bool is_generator = Check(Token::MUL);
   bool is_strict_reserved = false;
   const AstRawString* name = ParseIdentifierOrStrictReservedWord(
       &is_strict_reserved, CHECK_OK);
@@ -3767,7 +3766,6 @@ PreParser::PreParseResult Parser::ParseLazyFunctionBodyWithPreParser(
     reusable_preparser_->set_allow_modules(allow_modules());
     reusable_preparser_->set_allow_natives_syntax(allow_natives_syntax());
     reusable_preparser_->set_allow_lazy(true);
-    reusable_preparser_->set_allow_generators(allow_generators());
     reusable_preparser_->set_allow_arrow_functions(allow_arrow_functions());
     reusable_preparser_->set_allow_harmony_numeric_literals(
         allow_harmony_numeric_literals());
