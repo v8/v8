@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_X64
 
+#include "src/ic/ic.h"
 #include "src/ic/ic-compiler.h"
 
 namespace v8 {

@@ -10,6 +10,7 @@
 #include "src/factory.h"
 #include "src/gdb-jit.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/ic.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -258,7 +259,7 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
   }
 
   // Generate special versions of the stub.
-  BinaryOpIC::State::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
+  BinaryOpICState::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
 }
 
 
@@ -269,7 +270,7 @@ void BinaryOpICStub::PrintState(OStream& os) const {  // NOLINT
 
 // static
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
-                                         const BinaryOpIC::State& state) {
+                                         const BinaryOpICState& state) {
   BinaryOpICStub stub(isolate, state);
   stub.GetCode();
 }
@@ -278,7 +279,7 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate,
 // static
 void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   // Generate special versions of the stub.
-  BinaryOpIC::State::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
+  BinaryOpICState::GenerateAheadOfTime(isolate, &GenerateAheadOfTime);
 }
 
 
@@ -290,7 +291,7 @@ void BinaryOpICWithAllocationSiteStub::PrintState(
 
 // static
 void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
-    Isolate* isolate, const BinaryOpIC::State& state) {
+    Isolate* isolate, const BinaryOpICState& state) {
   if (state.CouldCreateAllocationMementos()) {
     BinaryOpICWithAllocationSiteStub stub(isolate, state);
     stub.GetCode();
@@ -314,23 +315,28 @@ void StringAddStub::PrintBaseName(OStream& os) const {  // NOLINT
 
 
 InlineCacheState CompareICStub::GetICState() const {
-  CompareIC::State state = Max(left(), right());
+  CompareICState::State state = Max(left(), right());
   switch (state) {
-    case CompareIC::UNINITIALIZED:
+    case CompareICState::UNINITIALIZED:
       return ::v8::internal::UNINITIALIZED;
-    case CompareIC::SMI:
-    case CompareIC::NUMBER:
-    case CompareIC::INTERNALIZED_STRING:
-    case CompareIC::STRING:
-    case CompareIC::UNIQUE_NAME:
-    case CompareIC::OBJECT:
-    case CompareIC::KNOWN_OBJECT:
+    case CompareICState::SMI:
+    case CompareICState::NUMBER:
+    case CompareICState::INTERNALIZED_STRING:
+    case CompareICState::STRING:
+    case CompareICState::UNIQUE_NAME:
+    case CompareICState::OBJECT:
+    case CompareICState::KNOWN_OBJECT:
       return MONOMORPHIC;
-    case CompareIC::GENERIC:
+    case CompareICState::GENERIC:
       return ::v8::internal::GENERIC;
   }
   UNREACHABLE();
   return ::v8::internal::UNINITIALIZED;
+}
+
+
+Condition CompareICStub::GetCondition() const {
+  return CompareIC::ComputeCondition(op());
 }
 
 
@@ -376,32 +382,32 @@ bool CompareICStub::FindCodeInSpecialCache(Code** code_out) {
 
 void CompareICStub::Generate(MacroAssembler* masm) {
   switch (state()) {
-    case CompareIC::UNINITIALIZED:
+    case CompareICState::UNINITIALIZED:
       GenerateMiss(masm);
       break;
-    case CompareIC::SMI:
+    case CompareICState::SMI:
       GenerateSmis(masm);
       break;
-    case CompareIC::NUMBER:
+    case CompareICState::NUMBER:
       GenerateNumbers(masm);
       break;
-    case CompareIC::STRING:
+    case CompareICState::STRING:
       GenerateStrings(masm);
       break;
-    case CompareIC::INTERNALIZED_STRING:
+    case CompareICState::INTERNALIZED_STRING:
       GenerateInternalizedStrings(masm);
       break;
-    case CompareIC::UNIQUE_NAME:
+    case CompareICState::UNIQUE_NAME:
       GenerateUniqueNames(masm);
       break;
-    case CompareIC::OBJECT:
+    case CompareICState::OBJECT:
       GenerateObjects(masm);
       break;
-    case CompareIC::KNOWN_OBJECT:
+    case CompareICState::KNOWN_OBJECT:
       DCHECK(*known_map_ != NULL);
       GenerateKnownObjects(masm);
       break;
-    case CompareIC::GENERIC:
+    case CompareICState::GENERIC:
       GenerateGeneric(masm);
       break;
   }

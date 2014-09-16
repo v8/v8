@@ -24,6 +24,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/hydrogen.h"
+#include "src/ic/ic.h"
 #include "src/isolate-inl.h"
 #include "src/log.h"
 #include "src/lookup.h"
@@ -10849,9 +10850,9 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
     if (is_compare_ic_stub()) {
       DCHECK(CodeStub::GetMajorKey(this) == CodeStub::CompareIC);
       CompareICStub stub(stub_key(), GetIsolate());
-      os << "compare_state = " << CompareIC::GetStateName(stub.left()) << "*"
-         << CompareIC::GetStateName(stub.right()) << " -> "
-         << CompareIC::GetStateName(stub.state()) << "\n";
+      os << "compare_state = " << CompareICState::GetStateName(stub.left())
+         << "*" << CompareICState::GetStateName(stub.right()) << " -> "
+         << CompareICState::GetStateName(stub.state()) << "\n";
       os << "compare_operation = " << Token::Name(stub.op()) << "\n";
     }
   }

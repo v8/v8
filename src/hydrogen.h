@@ -2319,7 +2319,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  Type* ToType(Handle<Map> map) { return IC::MapToType<Type>(map, zone()); }
+  Type* ToType(Handle<Map> map);
 
  private:
   // Helpers for flow graph construction.

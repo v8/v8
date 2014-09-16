@@ -129,8 +129,8 @@ void IC::set_target(Code* code) {
 
 void LoadIC::set_target(Code* code) {
   // The contextual mode must be preserved across IC patching.
-  DCHECK(GetContextualMode(code->extra_ic_state()) ==
-         GetContextualMode(target()->extra_ic_state()));
+  DCHECK(LoadICState::GetContextualMode(code->extra_ic_state()) ==
+         LoadICState::GetContextualMode(target()->extra_ic_state()));
 
   IC::set_target(code);
 }

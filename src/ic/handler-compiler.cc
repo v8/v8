@@ -6,6 +6,7 @@
 
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/ic.h"
 #include "src/ic/ic-inl.h"
 
 namespace v8 {
@@ -75,6 +76,11 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, *name));
   return code;
+}
+
+
+void PropertyHandlerCompiler::set_type_for_object(Handle<Object> object) {
+  type_ = IC::CurrentTypeOf(object, isolate());
 }
 
 

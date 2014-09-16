@@ -643,6 +643,8 @@
         '../../src/ic/handler-compiler.cc',
         '../../src/ic/handler-compiler.h',
         '../../src/ic/ic-inl.h',
+        '../../src/ic/ic-state.cc',
+        '../../src/ic/ic-state.h',
         '../../src/ic/ic.cc',
         '../../src/ic/ic.h',
         '../../src/ic/ic-compiler.cc',

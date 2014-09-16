@@ -5,13 +5,11 @@
 #ifndef V8_IC_H_
 #define V8_IC_H_
 
+#include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
-
-
-const int kMaxKeyedPolymorphism = 4;
 
 
 // IC_UTIL_LIST defines all utility functions called from generated
@@ -217,7 +215,7 @@ class IC {
   void TargetTypes(TypeHandleList* list) {
     FindTargetMaps();
     for (int i = 0; i < target_maps_.length(); i++) {
-      list->Add(IC::MapToType<HeapType>(target_maps_.at(i), isolate_));
+      list->Add(MapToType<HeapType>(target_maps_.at(i), isolate_));
     }
   }
 
@@ -295,32 +293,6 @@ class IC_Utility {
 
 class CallIC : public IC {
  public:
-  enum CallType { METHOD, FUNCTION };
-
-  class State FINAL BASE_EMBEDDED {
-   public:
-    explicit State(ExtraICState extra_ic_state);
-
-    State(int argc, CallType call_type) : argc_(argc), call_type_(call_type) {}
-
-    ExtraICState GetExtraICState() const;
-
-    static void GenerateAheadOfTime(Isolate*,
-                                    void (*Generate)(Isolate*, const State&));
-
-    int arg_count() const { return argc_; }
-    CallType call_type() const { return call_type_; }
-
-    bool CallAsMethod() const { return call_type_ == METHOD; }
-
-   private:
-    class ArgcBits : public BitField<int, 0, Code::kArgumentsBits> {};
-    class CallTypeBits : public BitField<CallType, Code::kArgumentsBits, 1> {};
-
-    const int argc_;
-    const CallType call_type_;
-  };
-
   explicit CallIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
   void PatchMegamorphic(Handle<Object> function, Handle<FixedArray> vector,
@@ -332,11 +304,11 @@ class CallIC : public IC {
   // Returns true if a custom handler was installed.
   bool DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
                        Handle<FixedArray> vector, Handle<Smi> slot,
-                       const State& state);
+                       const CallICState& state);
 
   // Code generator routines.
   static Handle<Code> initialize_stub(Isolate* isolate, int argc,
-                                      CallType call_type);
+                                      CallICState::CallType call_type);
 
   static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);
@@ -347,41 +319,14 @@ class CallIC : public IC {
 };
 
 
-OStream& operator<<(OStream& os, const CallIC::State& s);
-
-
 class LoadIC : public IC {
  public:
-  class State FINAL BASE_EMBEDDED {
-   public:
-    explicit State(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
-
-    explicit State(ContextualMode mode)
-        : state_(ContextualModeBits::encode(mode)) {}
-
-    ExtraICState GetExtraICState() const { return state_; }
-
-    ContextualMode contextual_mode() const {
-      return ContextualModeBits::decode(state_);
-    }
-
-   private:
-    class ContextualModeBits : public BitField<ContextualMode, 0, 1> {};
-    STATIC_ASSERT(static_cast<int>(NOT_CONTEXTUAL) == 0);
-
-    const ExtraICState state_;
-  };
-
   static ExtraICState ComputeExtraICState(ContextualMode contextual_mode) {
-    return State(contextual_mode).GetExtraICState();
-  }
-
-  static ContextualMode GetContextualMode(ExtraICState state) {
-    return State(state).contextual_mode();
+    return LoadICState(contextual_mode).GetExtraICState();
   }
 
   ContextualMode contextual_mode() const {
-    return GetContextualMode(extra_ic_state());
+    return LoadICState::GetContextualMode(extra_ic_state());
   }
 
   explicit LoadIC(FrameDepth depth, Isolate* isolate) : IC(depth, isolate) {
@@ -683,130 +628,9 @@ class KeyedStoreIC : public StoreIC {
 };
 
 
-// Mode to overwrite BinaryExpression values.
-enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
-
 // Type Recording BinaryOpIC, that records the types of the inputs and outputs.
 class BinaryOpIC : public IC {
  public:
-  class State FINAL BASE_EMBEDDED {
-   public:
-    State(Isolate* isolate, ExtraICState extra_ic_state);
-
-    State(Isolate* isolate, Token::Value op, OverwriteMode mode)
-        : op_(op),
-          mode_(mode),
-          left_kind_(NONE),
-          right_kind_(NONE),
-          result_kind_(NONE),
-          isolate_(isolate) {
-      DCHECK_LE(FIRST_TOKEN, op);
-      DCHECK_LE(op, LAST_TOKEN);
-    }
-
-    InlineCacheState GetICState() const {
-      if (Max(left_kind_, right_kind_) == NONE) {
-        return ::v8::internal::UNINITIALIZED;
-      }
-      if (Max(left_kind_, right_kind_) == GENERIC) {
-        return ::v8::internal::MEGAMORPHIC;
-      }
-      if (Min(left_kind_, right_kind_) == GENERIC) {
-        return ::v8::internal::GENERIC;
-      }
-      return ::v8::internal::MONOMORPHIC;
-    }
-
-    ExtraICState GetExtraICState() const;
-
-    static void GenerateAheadOfTime(Isolate*,
-                                    void (*Generate)(Isolate*, const State&));
-
-    bool CanReuseDoubleBox() const {
-      return (result_kind_ > SMI && result_kind_ <= NUMBER) &&
-             ((mode_ == OVERWRITE_LEFT && left_kind_ > SMI &&
-               left_kind_ <= NUMBER) ||
-              (mode_ == OVERWRITE_RIGHT && right_kind_ > SMI &&
-               right_kind_ <= NUMBER));
-    }
-
-    // Returns true if the IC _could_ create allocation mementos.
-    bool CouldCreateAllocationMementos() const {
-      if (left_kind_ == STRING || right_kind_ == STRING) {
-        DCHECK_EQ(Token::ADD, op_);
-        return true;
-      }
-      return false;
-    }
-
-    // Returns true if the IC _should_ create allocation mementos.
-    bool ShouldCreateAllocationMementos() const {
-      return FLAG_allocation_site_pretenuring &&
-             CouldCreateAllocationMementos();
-    }
-
-    bool HasSideEffects() const {
-      return Max(left_kind_, right_kind_) == GENERIC;
-    }
-
-    // Returns true if the IC should enable the inline smi code (i.e. if either
-    // parameter may be a smi).
-    bool UseInlinedSmiCode() const {
-      return KindMaybeSmi(left_kind_) || KindMaybeSmi(right_kind_);
-    }
-
-    static const int FIRST_TOKEN = Token::BIT_OR;
-    static const int LAST_TOKEN = Token::MOD;
-
-    Token::Value op() const { return op_; }
-    OverwriteMode mode() const { return mode_; }
-    Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
-
-    Type* GetLeftType(Zone* zone) const { return KindToType(left_kind_, zone); }
-    Type* GetRightType(Zone* zone) const {
-      return KindToType(right_kind_, zone);
-    }
-    Type* GetResultType(Zone* zone) const;
-
-    void Update(Handle<Object> left, Handle<Object> right,
-                Handle<Object> result);
-
-    Isolate* isolate() const { return isolate_; }
-
-   private:
-    friend OStream& operator<<(OStream& os, const BinaryOpIC::State& s);
-
-    enum Kind { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
-
-    Kind UpdateKind(Handle<Object> object, Kind kind) const;
-
-    static const char* KindToString(Kind kind);
-    static Type* KindToType(Kind kind, Zone* zone);
-    static bool KindMaybeSmi(Kind kind) {
-      return (kind >= SMI && kind <= NUMBER) || kind == GENERIC;
-    }
-
-    // We truncate the last bit of the token.
-    STATIC_ASSERT(LAST_TOKEN - FIRST_TOKEN < (1 << 4));
-    class OpField : public BitField<int, 0, 4> {};
-    class OverwriteModeField : public BitField<OverwriteMode, 4, 2> {};
-    class ResultKindField : public BitField<Kind, 6, 3> {};
-    class LeftKindField : public BitField<Kind, 9, 3> {};
-    // When fixed right arg is set, we don't need to store the right kind.
-    // Thus the two fields can overlap.
-    class HasFixedRightArgField : public BitField<bool, 12, 1> {};
-    class FixedRightArgValueField : public BitField<int, 13, 4> {};
-    class RightKindField : public BitField<Kind, 13, 3> {};
-
-    Token::Value op_;
-    OverwriteMode mode_;
-    Kind left_kind_;
-    Kind right_kind_;
-    Kind result_kind_;
-    Maybe<int> fixed_right_arg_;
-    Isolate* isolate_;
-  };
-
   explicit BinaryOpIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
   static Builtins::JavaScript TokenToJSBuiltin(Token::Value op);
@@ -817,55 +641,22 @@ class BinaryOpIC : public IC {
 };
 
 
-OStream& operator<<(OStream& os, const BinaryOpIC::State& s);
-
-
 class CompareIC : public IC {
  public:
-  // The type/state lattice is defined by the following inequations:
-  //   UNINITIALIZED < ...
-  //   ... < GENERIC
-  //   SMI < NUMBER
-  //   INTERNALIZED_STRING < STRING
-  //   KNOWN_OBJECT < OBJECT
-  enum State {
-    UNINITIALIZED,
-    SMI,
-    NUMBER,
-    STRING,
-    INTERNALIZED_STRING,
-    UNIQUE_NAME,   // Symbol or InternalizedString
-    OBJECT,        // JSObject
-    KNOWN_OBJECT,  // JSObject with specific map (faster check)
-    GENERIC
-  };
-
-  static State NewInputState(State old_state, Handle<Object> value);
-
-  static Type* StateToType(Zone* zone, State state,
-                           Handle<Map> map = Handle<Map>());
-
   CompareIC(Isolate* isolate, Token::Value op)
       : IC(EXTRA_CALL_FRAME, isolate), op_(op) {}
 
   // Update the inline cache for the given operands.
   Code* UpdateCaches(Handle<Object> x, Handle<Object> y);
 
+  // Helper function for computing the condition for a compare operation.
+  static Condition ComputeCondition(Token::Value op);
 
   // Factory method for getting an uninitialized compare stub.
   static Handle<Code> GetUninitialized(Isolate* isolate, Token::Value op);
 
-  // Helper function for computing the condition for a compare operation.
-  static Condition ComputeCondition(Token::Value op);
-
-  static const char* GetStateName(State state);
-
  private:
   static bool HasInlinedSmiCode(Address address);
-
-  State TargetState(State old_state, State old_left, State old_right,
-                    bool has_inlined_smi_code, Handle<Object> x,
-                    Handle<Object> y);
 
   bool strict() const { return op_ == Token::EQ_STRICT; }
   Condition GetCondition() const { return ComputeCondition(op_); }

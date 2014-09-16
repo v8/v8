@@ -31,6 +31,7 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/hydrogen-osr.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/mips/lithium-codegen-mips.h"
 #include "src/mips/lithium-gap-resolver-mips.h"
