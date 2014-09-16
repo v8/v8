@@ -17888,13 +17888,11 @@ static uint32_t* ComputeStackLimit(uint32_t size) {
 static const int stack_breathing_room = 256 * i::KB;
 
 
-TEST(SetResourceConstraints) {
+TEST(SetStackLimit) {
   uint32_t* set_limit = ComputeStackLimit(stack_breathing_room);
 
   // Set stack limit.
-  v8::ResourceConstraints constraints;
-  constraints.set_stack_limit(set_limit);
-  CHECK(v8::SetResourceConstraints(CcTest::isolate(), &constraints));
+  CcTest::isolate()->SetStackLimit(reinterpret_cast<uintptr_t>(set_limit));
 
   // Execute a script.
   LocalContext env;
@@ -17909,16 +17907,14 @@ TEST(SetResourceConstraints) {
 }
 
 
-TEST(SetResourceConstraintsInThread) {
+TEST(SetStackLimitInThread) {
   uint32_t* set_limit;
   {
     v8::Locker locker(CcTest::isolate());
     set_limit = ComputeStackLimit(stack_breathing_room);
 
     // Set stack limit.
-    v8::ResourceConstraints constraints;
-    constraints.set_stack_limit(set_limit);
-    CHECK(v8::SetResourceConstraints(CcTest::isolate(), &constraints));
+    CcTest::isolate()->SetStackLimit(reinterpret_cast<uintptr_t>(set_limit));
 
     // Execute a script.
     v8::HandleScope scope(CcTest::isolate());
@@ -19579,16 +19575,22 @@ class InitDefaultIsolateThread : public v8::base::Thread {
         result_(false) {}
 
   void Run() {
-    v8::Isolate* isolate = v8::Isolate::New();
-    isolate->Enter();
+    v8::Isolate::CreateParams create_params;
     switch (testCase_) {
       case SetResourceConstraints: {
-        v8::ResourceConstraints constraints;
-        constraints.set_max_semi_space_size(1);
-        constraints.set_max_old_space_size(4);
-        v8::SetResourceConstraints(CcTest::isolate(), &constraints);
+        create_params.constraints.set_max_semi_space_size(1);
+        create_params.constraints.set_max_old_space_size(4);
         break;
       }
+      default:
+        break;
+    }
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    isolate->Enter();
+    switch (testCase_) {
+      case SetResourceConstraints:
+        // Already handled in pre-Isolate-creation block.
+        break;
 
       case SetFatalHandler:
         v8::V8::SetFatalErrorHandler(NULL);

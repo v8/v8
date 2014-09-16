@@ -1621,14 +1621,13 @@ int Shell::Main(int argc, char* argv[]) {
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
   vTune::InitializeVtuneForV8(create_params);
 #endif
-  Isolate* isolate = Isolate::New(create_params);
 #ifndef V8_SHARED
-  v8::ResourceConstraints constraints;
-  constraints.ConfigureDefaults(base::SysInfo::AmountOfPhysicalMemory(),
-                                base::SysInfo::AmountOfVirtualMemory(),
-                                base::SysInfo::NumberOfProcessors());
-  v8::SetResourceConstraints(isolate, &constraints);
+  create_params.constraints.ConfigureDefaults(
+      base::SysInfo::AmountOfPhysicalMemory(),
+      base::SysInfo::AmountOfVirtualMemory(),
+      base::SysInfo::NumberOfProcessors());
 #endif
+  Isolate* isolate = Isolate::New(create_params);
   DumbLineEditor dumb_line_editor(isolate);
   {
     Isolate::Scope scope(isolate);

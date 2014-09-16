@@ -1209,28 +1209,34 @@ TEST(SliceFromSlice) {
 }
 
 
-TEST(OneByteArrayJoin) {
+UNINITIALIZED_TEST(OneByteArrayJoin) {
+  v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  v8::ResourceConstraints constraints;
-  constraints.set_max_semi_space_size(1);
-  constraints.set_max_old_space_size(4);
-  v8::SetResourceConstraints(CcTest::isolate(), &constraints);
+  create_params.constraints.set_max_semi_space_size(1);
+  create_params.constraints.set_max_old_space_size(4);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
 
-  // String s is made of 2^17 = 131072 'c' characters and a is an array
-  // starting with 'bad', followed by 2^14 times the string s. That means the
-  // total length of the concatenated strings is 2^31 + 3. So on 32bit systems
-  // summing the lengths of the strings (as Smis) overflows and wraps.
-  LocalContext context;
-  v8::HandleScope scope(CcTest::isolate());
-  v8::TryCatch try_catch;
-  CHECK(CompileRun(
-      "var two_14 = Math.pow(2, 14);"
-      "var two_17 = Math.pow(2, 17);"
-      "var s = Array(two_17 + 1).join('c');"
-      "var a = ['bad'];"
-      "for (var i = 1; i <= two_14; i++) a.push(s);"
-      "a.join("");").IsEmpty());
-  CHECK(try_catch.HasCaught());
+  {
+    // String s is made of 2^17 = 131072 'c' characters and a is an array
+    // starting with 'bad', followed by 2^14 times the string s. That means the
+    // total length of the concatenated strings is 2^31 + 3. So on 32bit systems
+    // summing the lengths of the strings (as Smis) overflows and wraps.
+    LocalContext context(isolate);
+    v8::HandleScope scope(isolate);
+    v8::TryCatch try_catch;
+    CHECK(CompileRun(
+              "var two_14 = Math.pow(2, 14);"
+              "var two_17 = Math.pow(2, 17);"
+              "var s = Array(two_17 + 1).join('c');"
+              "var a = ['bad'];"
+              "for (var i = 1; i <= two_14; i++) a.push(s);"
+              "a.join("
+              ");").IsEmpty());
+    CHECK(try_catch.HasCaught());
+  }
+  isolate->Exit();
+  isolate->Dispose();
 }
 
 

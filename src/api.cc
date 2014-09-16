@@ -6664,6 +6664,7 @@ Isolate* Isolate::GetCurrent() {
 
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
   i::Isolate* isolate = new i::Isolate();
+  Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
   if (params.entry_hook) {
     isolate->set_function_entry_hook(params.entry_hook);
   }
@@ -6672,7 +6673,9 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
     isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,
                                            params.code_event_handler);
   }
-  return reinterpret_cast<Isolate*>(isolate);
+  SetResourceConstraints(v8_isolate,
+                         const_cast<ResourceConstraints*>(&params.constraints));
+  return v8_isolate;
 }
 
 
@@ -6886,6 +6889,13 @@ void v8::Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
   // Ensure that logging is initialized for our isolate.
   isolate->InitializeLoggingAndCounters();
   isolate->logger()->SetCodeEventHandler(options, event_handler);
+}
+
+
+void v8::Isolate::SetStackLimit(uintptr_t stack_limit) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  CHECK(stack_limit);
+  isolate->stack_guard()->SetStackLimit(stack_limit);
 }
 
 
