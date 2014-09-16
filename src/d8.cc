@@ -54,8 +54,6 @@
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
-#else
-#include <windows.h>  // NOLINT
 #endif
 
 #ifndef DCHECK
@@ -1597,19 +1595,6 @@ class StartupDataHandler {
 
 
 int Shell::Main(int argc, char* argv[]) {
-#if (defined(_WIN32) || defined(_WIN64))
-  UINT new_flags =
-      SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
-  UINT existing_flags = SetErrorMode(new_flags);
-  SetErrorMode(existing_flags | new_flags);
-  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
-  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
-  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
-  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
-  _set_error_mode(_OUT_TO_STDERR);
-#endif
   if (!SetOptions(argc, argv)) return 1;
   v8::V8::InitializeICU(options.icu_data_file);
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
