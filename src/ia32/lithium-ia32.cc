@@ -2414,8 +2414,6 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
     val = UseTempRegister(instr->value());
   } else if (can_be_constant) {
     val = UseRegisterOrConstant(instr->value());
-  } else if (instr->field_representation().IsSmi()) {
-    val = UseTempRegister(instr->value());
   } else if (instr->field_representation().IsDouble()) {
     val = UseRegisterAtStart(instr->value());
   } else {
