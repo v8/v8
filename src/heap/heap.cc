@@ -4318,6 +4318,9 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
 
   bool result = false;
   switch (action.type) {
+    case DONE:
+      result = true;
+      break;
     case DO_INCREMENTAL_MARKING:
       if (incremental_marking()->IsStopped()) {
         incremental_marking()->Start();
@@ -4340,7 +4343,6 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       mark_compact_collector()->EnsureSweepingCompleted();
       break;
     case DO_NOTHING:
-      result = true;
       break;
   }
   if (FLAG_trace_idle_notification) {

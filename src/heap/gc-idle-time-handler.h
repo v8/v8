@@ -11,6 +11,7 @@ namespace v8 {
 namespace internal {
 
 enum GCIdleTimeActionType {
+  DONE,
   DO_NOTHING,
   DO_INCREMENTAL_MARKING,
   DO_SCAVENGE,
@@ -21,6 +22,13 @@ enum GCIdleTimeActionType {
 
 class GCIdleTimeAction {
  public:
+  static GCIdleTimeAction Done() {
+    GCIdleTimeAction result;
+    result.type = DONE;
+    result.parameter = 0;
+    return result;
+  }
+
   static GCIdleTimeAction Nothing() {
     GCIdleTimeAction result;
     result.type = DO_NOTHING;

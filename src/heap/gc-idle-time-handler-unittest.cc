@@ -182,7 +182,7 @@ TEST_F(GCIdleTimeHandlerTest, StopEventually1) {
     handler()->NotifyIdleMarkCompact();
   }
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_NOTHING, action.type);
+  EXPECT_EQ(DONE, action.type);
 }
 
 
@@ -195,7 +195,7 @@ TEST_F(GCIdleTimeHandlerTest, StopEventually2) {
     handler()->NotifyIdleMarkCompact();
   }
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_NOTHING, action.type);
+  EXPECT_EQ(DONE, action.type);
 }
 
 
@@ -211,7 +211,7 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop1) {
     handler()->NotifyIdleMarkCompact();
   }
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_NOTHING, action.type);
+  EXPECT_EQ(DONE, action.type);
   // Emulate mutator work.
   for (int i = 0; i < GCIdleTimeHandler::kIdleScavengeThreshold; i++) {
     handler()->NotifyScavenge();
@@ -226,12 +226,12 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop2) {
   int idle_time_ms = 10;
   for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
     GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-    if (action.type == DO_NOTHING) break;
+    if (action.type == DONE) break;
     EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
     handler()->NotifyIdleMarkCompact();
   }
   GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
-  EXPECT_EQ(DO_NOTHING, action.type);
+  EXPECT_EQ(DONE, action.type);
   // Emulate mutator work.
   for (int i = 0; i < GCIdleTimeHandler::kIdleScavengeThreshold; i++) {
     handler()->NotifyScavenge();

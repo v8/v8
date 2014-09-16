@@ -18,6 +18,9 @@ const int GCIdleTimeHandler::kIdleScavengeThreshold = 5;
 
 void GCIdleTimeAction::Print() {
   switch (type) {
+    case DONE:
+      PrintF("done");
+      break;
     case DO_NOTHING:
       PrintF("no action");
       break;
@@ -74,7 +77,7 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
     if (EnoughGarbageSinceLastIdleRound() || heap_state.contexts_disposed > 0) {
       StartIdleRound();
     } else {
-      return GCIdleTimeAction::Nothing();
+      return GCIdleTimeAction::Done();
     }
   }
   if (heap_state.incremental_marking_stopped) {
