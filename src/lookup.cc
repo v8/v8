@@ -19,8 +19,7 @@ void LookupIterator::Next() {
   DisallowHeapAllocation no_gc;
   has_property_ = false;
 
-  JSReceiver* holder =
-      maybe_holder_.is_null() ? NULL : *maybe_holder_.ToHandleChecked();
+  JSReceiver* holder = *holder_;
   Map* map = *holder_map_;
 
   // Perform lookup on current holder.
@@ -36,39 +35,35 @@ void LookupIterator::Next() {
     state_ = LookupInHolder(map, holder);
   } while (!IsFound());
 
-  if (holder == NULL) return;
-
-  maybe_holder_ = handle(holder, isolate_);
-  holder_map_ = handle(map, isolate_);
+  if (holder != *holder_) {
+    holder_ = handle(holder, isolate_);
+    holder_map_ = handle(map, isolate_);
+  }
 }
 
 
 Handle<JSReceiver> LookupIterator::GetRoot() const {
-  Handle<Object> receiver = GetReceiver();
-  if (receiver->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver);
+  if (receiver_->IsJSReceiver()) return Handle<JSReceiver>::cast(receiver_);
   Handle<Object> root =
-      handle(receiver->GetRootMap(isolate_)->prototype(), isolate_);
+      handle(receiver_->GetRootMap(isolate_)->prototype(), isolate_);
   CHECK(!root->IsNull());
   return Handle<JSReceiver>::cast(root);
 }
 
 
 Handle<Map> LookupIterator::GetReceiverMap() const {
-  Handle<Object> receiver = GetReceiver();
-  if (receiver->IsNumber()) return isolate_->factory()->heap_number_map();
-  return handle(Handle<HeapObject>::cast(receiver)->map(), isolate_);
+  if (receiver_->IsNumber()) return isolate_->factory()->heap_number_map();
+  return handle(Handle<HeapObject>::cast(receiver_)->map(), isolate_);
 }
 
 
 Handle<JSObject> LookupIterator::GetStoreTarget() const {
-  Handle<JSObject> receiver = Handle<JSObject>::cast(GetReceiver());
-
-  if (receiver->IsJSGlobalProxy()) {
-    PrototypeIterator iter(isolate(), receiver);
-    if (iter.IsAtEnd()) return receiver;
+  if (receiver_->IsJSGlobalProxy()) {
+    PrototypeIterator iter(isolate(), receiver_);
+    if (iter.IsAtEnd()) return Handle<JSGlobalProxy>::cast(receiver_);
     return Handle<JSGlobalObject>::cast(PrototypeIterator::GetCurrent(iter));
   }
-  return receiver;
+  return Handle<JSObject>::cast(receiver_);
 }
 
 
@@ -79,14 +74,13 @@ bool LookupIterator::IsBootstrapping() const {
 
 bool LookupIterator::HasAccess(v8::AccessType access_type) const {
   DCHECK_EQ(ACCESS_CHECK, state_);
-  DCHECK(is_guaranteed_to_have_holder());
   return isolate_->MayNamedAccess(GetHolder<JSObject>(), name_, access_type);
 }
 
 
 void LookupIterator::ReloadPropertyInformation() {
   state_ = BEFORE_PROPERTY;
-  state_ = LookupInHolder(*holder_map_, *maybe_holder_.ToHandleChecked());
+  state_ = LookupInHolder(*holder_map_, *holder_);
   DCHECK(IsFound() || holder_map_->is_dictionary_map());
 }
 
@@ -148,7 +142,7 @@ void LookupIterator::ApplyTransitionToDataProperty() {
   DCHECK_EQ(TRANSITION, state_);
 
   Handle<JSObject> receiver = GetStoreTarget();
-  maybe_holder_ = receiver;
+  holder_ = receiver;
   holder_map_ = transition_map_;
   JSObject::MigrateToMap(receiver, holder_map_);
   ReloadPropertyInformation();
@@ -163,7 +157,7 @@ void LookupIterator::TransitionToAccessorProperty(
   // handled via a trap. Adding properties to primitive values is not
   // observable.
   Handle<JSObject> receiver = GetStoreTarget();
-  maybe_holder_ = receiver;
+  holder_ = receiver;
   holder_map_ =
       Map::TransitionToAccessorProperty(handle(receiver->map(), isolate_),
                                         name_, component, accessor, attributes);
@@ -208,10 +202,9 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
   // Optimization that only works if configuration_ is not mutable.
   if (!check_prototype_chain()) return true;
   DisallowHeapAllocation no_gc;
-  Handle<Object> receiver = GetReceiver();
-  if (!receiver->IsJSReceiver()) return false;
-  Object* current = *receiver;
-  JSReceiver* holder = *maybe_holder_.ToHandleChecked();
+  if (!receiver_->IsJSReceiver()) return false;
+  Object* current = *receiver_;
+  JSReceiver* holder = *holder_;
   // JSProxy do not occur as hidden prototypes.
   if (current->IsJSProxy()) {
     return JSReceiver::cast(current) == holder;
@@ -297,7 +290,6 @@ Handle<Object> LookupIterator::GetDataValue() const {
 
 
 void LookupIterator::WriteDataValue(Handle<Object> value) {
-  DCHECK(is_guaranteed_to_have_holder());
   DCHECK_EQ(DATA, state_);
   Handle<JSObject> holder = GetHolder<JSObject>();
   if (holder_map_->is_dictionary_map()) {

@@ -215,7 +215,6 @@ static void LookupForRead(LookupIterator* it) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
-      case LookupIterator::UNKNOWN:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return;
@@ -1082,7 +1081,6 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::TRANSITION:
-    case LookupIterator::UNKNOWN:
       UNREACHABLE();
   }
 
@@ -1232,7 +1230,6 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
-      case LookupIterator::UNKNOWN:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return false;
@@ -1503,7 +1500,6 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
-    case LookupIterator::UNKNOWN:
       UNREACHABLE();
   }
   return slow_stub();

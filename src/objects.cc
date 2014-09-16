@@ -110,7 +110,6 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
-      case LookupIterator::UNKNOWN:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
         return JSProxy::GetPropertyWithHandler(it->GetHolder<JSProxy>(),
@@ -151,7 +150,6 @@ Handle<Object> JSObject::GetDataProperty(LookupIterator* it) {
       case LookupIterator::INTERCEPTOR:
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
-      case LookupIterator::UNKNOWN:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         if (it->HasAccess(v8::ACCESS_GET)) continue;
@@ -2806,7 +2804,6 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
-      case LookupIterator::UNKNOWN:
         UNREACHABLE();
 
       case LookupIterator::ACCESS_CHECK:
@@ -3801,7 +3798,6 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
       case LookupIterator::JSPROXY:
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
-      case LookupIterator::UNKNOWN:
         UNREACHABLE();
 
       case LookupIterator::ACCESS_CHECK:
@@ -3978,7 +3974,6 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
-      case LookupIterator::UNKNOWN:
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
@@ -4918,7 +4913,6 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
       case LookupIterator::JSPROXY:
       case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
-      case LookupIterator::UNKNOWN:
         UNREACHABLE();
       case LookupIterator::ACCESS_CHECK:
         if (it.HasAccess(v8::ACCESS_DELETE)) break;
@@ -6297,7 +6291,6 @@ MaybeHandle<Object> JSObject::GetAccessor(Handle<JSObject> object,
         case LookupIterator::INTERCEPTOR:
         case LookupIterator::NOT_FOUND:
         case LookupIterator::TRANSITION:
-        case LookupIterator::UNKNOWN:
           UNREACHABLE();
 
         case LookupIterator::ACCESS_CHECK:

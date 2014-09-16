@@ -228,7 +228,6 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
   bool inline_followup = false;
   switch (it->state()) {
     case LookupIterator::TRANSITION:
-    case LookupIterator::UNKNOWN:
       UNREACHABLE();
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::INTERCEPTOR:
@@ -276,7 +275,6 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::TRANSITION:
-    case LookupIterator::UNKNOWN:
       UNREACHABLE();
     case LookupIterator::DATA: {
       DCHECK_EQ(FIELD, it->property_details().type());

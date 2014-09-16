@@ -5307,7 +5307,6 @@ HOptimizedGraphBuilder::LookupGlobalProperty(Variable* var, LookupIterator* it,
       return kUseCell;
     case LookupIterator::JSPROXY:
     case LookupIterator::TRANSITION:
-    case LookupIterator::UNKNOWN:
       UNREACHABLE();
   }
   UNREACHABLE();
