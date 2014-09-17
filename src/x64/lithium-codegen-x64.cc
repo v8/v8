@@ -4963,16 +4963,29 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
     __ RecordComment("Deferred TaggedToI: cannot truncate");
     DeoptimizeIf(not_equal, instr->environment());
     __ Set(input_reg, 0);
-    __ jmp(done);
   } else {
-    Label bailout;
-    XMMRegister xmm_temp = ToDoubleRegister(instr->temp());
-    __ TaggedToI(input_reg, input_reg, xmm_temp,
-        instr->hydrogen()->GetMinusZeroMode(), &bailout, Label::kNear);
-
-    __ jmp(done);
-    __ bind(&bailout);
-    DeoptimizeIf(no_condition, instr->environment());
+    XMMRegister scratch = ToDoubleRegister(instr->temp());
+    DCHECK(!scratch.is(xmm0));
+    __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
+    __ RecordComment("Deferred TaggedToI: not a heap number");
+    DeoptimizeIf(not_equal, instr->environment());
+    __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
+    __ cvttsd2si(input_reg, xmm0);
+    __ Cvtlsi2sd(scratch, input_reg);
+    __ ucomisd(xmm0, scratch);
+    __ RecordComment("Deferred TaggedToI: lost precision");
+    DeoptimizeIf(not_equal, instr->environment());
+    __ RecordComment("Deferred TaggedToI: NaN");
+    DeoptimizeIf(parity_even, instr->environment());
+    if (instr->hydrogen()->GetMinusZeroMode() == FAIL_ON_MINUS_ZERO) {
+      __ testl(input_reg, input_reg);
+      __ j(not_zero, done);
+      __ movmskpd(input_reg, xmm0);
+      __ andl(input_reg, Immediate(1));
+      __ RecordComment("Deferred TaggedToI: minus zero");
+      DeoptimizeIf(not_zero, instr->environment());
+    }
   }
 }
 
