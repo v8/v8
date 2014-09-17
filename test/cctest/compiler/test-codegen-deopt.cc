@@ -148,9 +148,9 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
     Node* locals = m.NewNode(common.StateValues(0));
     Node* stack = m.NewNode(common.StateValues(0));
 
-    Node* state_node =
-        m.NewNode(common.FrameState(bailout_id, kIgnoreOutput), parameters,
-                  locals, stack, caller_context_node, m.UndefinedConstant());
+    Node* state_node = m.NewNode(
+        common.FrameState(JS_FRAME, bailout_id, kIgnoreOutput), parameters,
+        locals, stack, caller_context_node, m.UndefinedConstant());
 
     Handle<Context> context(deopt_function->context(), CcTest::i_isolate());
     Unique<Object> context_constant =
@@ -262,9 +262,9 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     Node* locals = m.NewNode(common.StateValues(0));
     Node* stack = m.NewNode(common.StateValues(0));
 
-    Node* state_node =
-        m.NewNode(common.FrameState(bailout_id, kIgnoreOutput), parameters,
-                  locals, stack, context_node, m.UndefinedConstant());
+    Node* state_node = m.NewNode(
+        common.FrameState(JS_FRAME, bailout_id, kIgnoreOutput), parameters,
+        locals, stack, context_node, m.UndefinedConstant());
 
     m.CallRuntime1(Runtime::kDeoptimizeFunction, this_fun_node, context_node,
                    state_node);

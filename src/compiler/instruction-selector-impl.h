@@ -348,7 +348,7 @@ struct CallBuffer {
   size_t frame_state_value_count() const {
     return (frame_state_descriptor == NULL)
                ? 0
-               : (frame_state_descriptor->total_size() +
+               : (frame_state_descriptor->GetTotalSize() +
                   1);  // Include deopt id.
   }
 };

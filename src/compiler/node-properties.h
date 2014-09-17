@@ -35,6 +35,7 @@ class NodeProperties {
   static inline void ReplaceControlInput(Node* node, Node* control);
   static inline void ReplaceEffectInput(Node* node, Node* effect,
                                         int index = 0);
+  static inline void ReplaceFrameStateInput(Node* node, Node* frame_state);
   static inline void RemoveNonValueInputs(Node* node);
   static inline void ReplaceWithValue(Node* node, Node* value,
                                       Node* effect = NULL);

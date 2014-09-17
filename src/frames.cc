@@ -932,9 +932,9 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
   DCHECK(frames->length() == 0);
   DCHECK(is_optimized());
 
-  // Delegate to JS frame in absence of inlining.
-  // TODO(turbofan): Revisit once we support inlining.
-  if (LookupCode()->is_turbofanned()) {
+  // Delegate to JS frame in absence of turbofan deoptimization.
+  // TODO(turbofan): Revisit once we support deoptimization across the board.
+  if (LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
     return JavaScriptFrame::Summarize(frames);
   }
 
@@ -1059,9 +1059,9 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
 int OptimizedFrame::GetInlineCount() {
   DCHECK(is_optimized());
 
-  // Delegate to JS frame in absence of inlining.
-  // TODO(turbofan): Revisit once we support inlining.
-  if (LookupCode()->is_turbofanned()) {
+  // Delegate to JS frame in absence of turbofan deoptimization.
+  // TODO(turbofan): Revisit once we support deoptimization across the board.
+  if (LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
     return JavaScriptFrame::GetInlineCount();
   }
 
@@ -1083,9 +1083,9 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
   DCHECK(functions->length() == 0);
   DCHECK(is_optimized());
 
-  // Delegate to JS frame in absence of inlining.
-  // TODO(turbofan): Revisit once we support inlining.
-  if (LookupCode()->is_turbofanned()) {
+  // Delegate to JS frame in absence of turbofan deoptimization.
+  // TODO(turbofan): Revisit once we support deoptimization across the board.
+  if (LookupCode()->is_turbofanned() && !FLAG_turbo_deoptimization) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 

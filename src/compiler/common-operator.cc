@@ -206,10 +206,11 @@ const Operator* CommonOperatorBuilder::StateValues(int arguments) {
 
 
 const Operator* CommonOperatorBuilder::FrameState(
-    BailoutId bailout_id, OutputFrameStateCombine combine) {
+    FrameStateType type, BailoutId bailout_id,
+    OutputFrameStateCombine state_combine, MaybeHandle<JSFunction> jsfunction) {
   return new (zone()) Operator1<FrameStateCallInfo>(
       IrOpcode::kFrameState, Operator::kPure, 4, 1, "FrameState",
-      FrameStateCallInfo(bailout_id, combine));
+      FrameStateCallInfo(type, bailout_id, state_combine, jsfunction));
 }
 
 
