@@ -627,7 +627,11 @@ class Parser : public ParserBase<ParserTraits> {
                             info->isolate()->unicode_cache()};
     Parser parser(info, &parse_info);
     parser.set_allow_lazy(allow_lazy);
-    return parser.Parse();
+    if (parser.Parse()) {
+      info->SetStrictMode(info->function()->strict_mode());
+      return true;
+    }
+    return false;
   }
   bool Parse();
   void ParseOnBackground();

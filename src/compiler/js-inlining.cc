@@ -54,8 +54,6 @@ void JSInliner::Inline() {
 // test cases, where similar code is currently duplicated).
 static void Parse(Handle<JSFunction> function, CompilationInfoWithZone* info) {
   CHECK(Parser::Parse(info));
-  StrictMode strict_mode = info->function()->strict_mode();
-  info->SetStrictMode(strict_mode);
   info->SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
   CHECK(Rewriter::Rewrite(info));
   CHECK(Scope::Analyze(info));

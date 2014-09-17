@@ -45,8 +45,6 @@ class FunctionTester : public InitializedHandleScope {
     CompilationInfoWithZone info(function);
 
     CHECK(Parser::Parse(&info));
-    StrictMode strict_mode = info.function()->strict_mode();
-    info.SetStrictMode(strict_mode);
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     if (flags_ & CompilationInfo::kContextSpecializing) {
       info.MarkAsContextSpecializing();
