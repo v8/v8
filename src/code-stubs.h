@@ -187,6 +187,8 @@ class CodeStub BASE_EMBEDDED {
   static void InitializeDescriptor(Isolate* isolate, uint32_t key,
                                    CodeStubDescriptor* desc);
 
+  static MaybeHandle<Code> GetCode(Isolate* isolate, uint32_t key);
+
   // Returns information for computing the number key.
   virtual Major MajorKey() const = 0;
   uint32_t MinorKey() const { return minor_key_; }
@@ -260,6 +262,8 @@ class CodeStub BASE_EMBEDDED {
   typedef void (*DispatchedCall)(CodeStub* stub, void** value_out);
   static void Dispatch(Isolate* isolate, uint32_t key, void** value_out,
                        DispatchedCall call);
+
+  static void GetCodeDispatchCall(CodeStub* stub, void** value_out);
 
   STATIC_ASSERT(NUMBER_OF_IDS < (1 << kStubMajorKeyBits));
   class MajorKeyBits: public BitField<uint32_t, 0, kStubMajorKeyBits> {};
