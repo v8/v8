@@ -8405,7 +8405,7 @@ RUNTIME_FUNCTION(Runtime_FinalizeInstanceSize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CompileUnoptimized) {
+RUNTIME_FUNCTION(Runtime_CompileLazy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -8422,7 +8422,7 @@ RUNTIME_FUNCTION(Runtime_CompileUnoptimized) {
 
   Handle<Code> code;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
-                                     Compiler::GetUnoptimizedCode(function));
+                                     Compiler::GetLazyCode(function));
   function->ReplaceCode(*code);
 
   // All done. Return the compiled code.

@@ -714,6 +714,21 @@ MaybeHandle<Code> Compiler::GetUnoptimizedCode(Handle<JSFunction> function) {
   ASSIGN_RETURN_ON_EXCEPTION(info.isolate(), result,
                              GetUnoptimizedCodeCommon(&info),
                              Code);
+  return result;
+}
+
+
+MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
+  DCHECK(!function->GetIsolate()->has_pending_exception());
+  DCHECK(!function->is_compiled());
+  if (function->shared()->is_compiled()) {
+    return Handle<Code>(function->shared()->code());
+  }
+
+  CompilationInfoWithZone info(function);
+  Handle<Code> result;
+  ASSIGN_RETURN_ON_EXCEPTION(info.isolate(), result,
+                             GetUnoptimizedCodeCommon(&info), Code);
 
   if (FLAG_always_opt &&
       info.isolate()->use_crankshaft() &&
@@ -744,7 +759,7 @@ MaybeHandle<Code> Compiler::GetUnoptimizedCode(
 bool Compiler::EnsureCompiled(Handle<JSFunction> function,
                               ClearExceptionFlag flag) {
   if (function->is_compiled()) return true;
-  MaybeHandle<Code> maybe_code = Compiler::GetUnoptimizedCode(function);
+  MaybeHandle<Code> maybe_code = Compiler::GetLazyCode(function);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     if (flag == CLEAR_EXCEPTION) {
@@ -767,7 +782,7 @@ bool Compiler::EnsureCompiled(Handle<JSFunction> function,
 // full code without debug break slots to full code with debug break slots
 // depends on the generated code is otherwise exactly the same.
 // If compilation fails, just keep the existing code.
-MaybeHandle<Code> Compiler::GetCodeForDebugging(Handle<JSFunction> function) {
+MaybeHandle<Code> Compiler::GetDebugCode(Handle<JSFunction> function) {
   CompilationInfoWithZone info(function);
   Isolate* isolate = info.isolate();
   VMState<COMPILER> state(isolate);
@@ -1100,7 +1115,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   // Generate code
   Handle<ScopeInfo> scope_info;
   if (FLAG_lazy && allow_lazy && !literal->is_parenthesized()) {
-    Handle<Code> code = isolate->builtins()->CompileUnoptimized();
+    Handle<Code> code = isolate->builtins()->CompileLazy();
     info.SetCode(code);
     scope_info = Handle<ScopeInfo>(ScopeInfo::Empty(isolate));
   } else if (FullCodeGenerator::MakeCode(&info)) {
@@ -1354,8 +1369,7 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
       info->isolate()->cpu_profiler()->is_profiling()) {
     Handle<Script> script = info->script();
     Handle<Code> code = info->code();
-    if (code.is_identical_to(
-            info->isolate()->builtins()->CompileUnoptimized())) {
+    if (code.is_identical_to(info->isolate()->builtins()->CompileLazy())) {
       return;
     }
     int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;

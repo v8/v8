@@ -5667,8 +5667,7 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
 
 
 bool SharedFunctionInfo::is_compiled() {
-  return code() !=
-      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
+  return code() != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy);
 }
 
 
@@ -5942,8 +5941,7 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() !=
-      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
+  return code() != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy);
 }
 
 
