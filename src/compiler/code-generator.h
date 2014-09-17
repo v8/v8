@@ -87,13 +87,13 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   void PopulateDeoptimizationData(Handle<Code> code);
   int DefineDeoptimizationLiteral(Handle<Object> literal);
   FrameStateDescriptor* GetFrameStateDescriptor(Instruction* instr,
-                                                size_t frame_state_offset);
+                                                int frame_state_offset);
   int BuildTranslation(Instruction* instr, int pc_offset,
-                       size_t frame_state_offset,
+                       int frame_state_offset,
                        OutputFrameStateCombine state_combine);
   void BuildTranslationForFrameStateDescriptor(
       FrameStateDescriptor* descriptor, Instruction* instr,
-      Translation* translation, size_t frame_state_offset,
+      Translation* translation, int frame_state_offset,
       OutputFrameStateCombine state_combine);
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op);

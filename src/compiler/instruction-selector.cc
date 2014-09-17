@@ -1037,16 +1037,14 @@ void InstructionSelector::AddFrameStateInputs(
   DCHECK_EQ(descriptor->stack_count(), stack->InputCount());
 
   OperandGenerator g(this);
-  for (int i = 0; i < static_cast<int>(descriptor->parameters_count()); i++) {
+  for (int i = 0; i < descriptor->parameters_count(); i++) {
     inputs->push_back(UseOrImmediate(&g, parameters->InputAt(i)));
   }
-  if (descriptor->HasContext()) {
-    inputs->push_back(UseOrImmediate(&g, context));
-  }
-  for (int i = 0; i < static_cast<int>(descriptor->locals_count()); i++) {
+  inputs->push_back(UseOrImmediate(&g, context));
+  for (int i = 0; i < descriptor->locals_count(); i++) {
     inputs->push_back(UseOrImmediate(&g, locals->InputAt(i)));
   }
-  for (int i = 0; i < static_cast<int>(descriptor->stack_count()); i++) {
+  for (int i = 0; i < descriptor->stack_count(); i++) {
     inputs->push_back(UseOrImmediate(&g, stack->InputAt(i)));
   }
 }
