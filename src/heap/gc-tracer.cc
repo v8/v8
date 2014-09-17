@@ -317,7 +317,7 @@ void GCTracer::PrintNVP() const {
   PrintF("nodes_promoted=%d ", heap_->nodes_promoted_);
   PrintF("promotion_rate=%.1f%% ", heap_->promotion_rate_);
   PrintF("semi_space_copy_rate=%.1f%% ", heap_->semi_space_copied_rate_);
-  PrintF("new_space_allocation_throughput=%d ",
+  PrintF("new_space_allocation_throughput=%" V8_PTR_PREFIX "d ",
          NewSpaceAllocationThroughputInBytesPerMillisecond());
 
   if (current_.type == Event::SCAVENGER) {
