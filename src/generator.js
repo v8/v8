@@ -20,6 +20,7 @@ function GeneratorObjectNext(value) {
                         ['[Generator].prototype.next', this]);
   }
 
+  if (DEBUG_IS_ACTIVE) %DebugPrepareStepInIfStepping(this);
   return %_GeneratorNext(this, value);
 }
 

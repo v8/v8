@@ -5524,13 +5524,22 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   DCHECK(args.length() == 1);
   Debug* debug = isolate->debug();
   if (!debug->IsStepping()) return isolate->heap()->undefined_value();
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 0);
+
   HandleScope scope(isolate);
-  // When leaving the callback, step out has been activated, but not performed
-  // if we do not leave the builtin.  To be able to step into the callback
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  RUNTIME_ASSERT(object->IsJSFunction() || object->IsJSGeneratorObject());
+  Handle<JSFunction> fun;
+  if (object->IsJSFunction()) {
+    fun = Handle<JSFunction>::cast(object);
+  } else {
+    fun = Handle<JSFunction>(
+        Handle<JSGeneratorObject>::cast(object)->function(), isolate);
+  }
+  // When leaving the function, step out has been activated, but not performed
+  // if we do not leave the builtin.  To be able to step into the function
   // again, we need to clear the step out at this point.
   debug->ClearStepOut();
-  debug->FloodWithOneShot(callback);
+  debug->FloodWithOneShot(fun);
   return isolate->heap()->undefined_value();
 }
 
