@@ -7,6 +7,7 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/hydrogen-osr.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/mips64/lithium-codegen-mips64.h"
 #include "src/mips64/lithium-gap-resolver-mips64.h"

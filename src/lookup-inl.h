@@ -47,7 +47,6 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
     // Fall through.
     case INTERCEPTOR:
       if (map->is_dictionary_map()) {
-        if (holder == NULL) return UNKNOWN;
         NameDictionary* dict = JSObject::cast(holder)->property_dictionary();
         number_ = dict->FindEntry(name_);
         if (number_ == NameDictionary::kNotFound) return NOT_FOUND;
@@ -74,7 +73,6 @@ LookupIterator::State LookupIterator::LookupInHolder(Map* map,
       }
     case ACCESSOR:
     case DATA:
-    case UNKNOWN:
       return NOT_FOUND;
     case JSPROXY:
     case TRANSITION:

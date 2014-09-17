@@ -34,7 +34,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
     INTERCEPTOR,
     JSPROXY,
     NOT_FOUND,
-    UNKNOWN,  // Dictionary-mode holder map without a holder.
     ACCESSOR,
     DATA,
     TRANSITION,
@@ -50,11 +49,10 @@ class LookupIterator FINAL BASE_EMBEDDED {
         property_details_(NONE, NORMAL, Representation::None()),
         isolate_(name->GetIsolate()),
         name_(name),
-        maybe_receiver_(receiver),
+        receiver_(receiver),
         number_(DescriptorArray::kNotFound) {
-    Handle<JSReceiver> root = GetRoot();
-    holder_map_ = handle(root->map(), isolate_);
-    maybe_holder_ = root;
+    holder_ = GetRoot();
+    holder_map_ = handle(holder_->map(), isolate_);
     Next();
   }
 
@@ -67,8 +65,8 @@ class LookupIterator FINAL BASE_EMBEDDED {
         isolate_(name->GetIsolate()),
         name_(name),
         holder_map_(holder->map(), isolate_),
-        maybe_receiver_(receiver),
-        maybe_holder_(holder),
+        receiver_(receiver),
+        holder_(holder),
         number_(DescriptorArray::kNotFound) {
     Next();
   }
@@ -85,9 +83,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
   }
 
   Factory* factory() const { return isolate_->factory(); }
-  Handle<Object> GetReceiver() const {
-    return maybe_receiver_.ToHandleChecked();
-  }
+  Handle<Object> GetReceiver() const { return receiver_; }
   Handle<JSObject> GetStoreTarget() const;
   bool is_dictionary_holder() const { return holder_map_->is_dictionary_map(); }
   Handle<Map> transition_map() const {
@@ -97,7 +93,7 @@ class LookupIterator FINAL BASE_EMBEDDED {
   template <class T>
   Handle<T> GetHolder() const {
     DCHECK(IsFound());
-    return Handle<T>::cast(maybe_holder_.ToHandleChecked());
+    return Handle<T>::cast(holder_);
   }
   Handle<JSReceiver> GetRoot() const;
   bool HolderIsReceiverOrHiddenPrototype() const;
@@ -154,13 +150,6 @@ class LookupIterator FINAL BASE_EMBEDDED {
 
   bool IsBootstrapping() const;
 
-  // Methods that fetch data from the holder ensure they always have a holder.
-  // This means the receiver needs to be present as opposed to just the receiver
-  // map. Other objects in the prototype chain are transitively guaranteed to be
-  // present via the receiver map.
-  bool is_guaranteed_to_have_holder() const {
-    return !maybe_receiver_.is_null();
-  }
   bool check_hidden() const { return (configuration_ & kHidden) != 0; }
   bool check_interceptor() const {
     return !IsBootstrapping() && (configuration_ & kInterceptor) != 0;
@@ -198,8 +187,8 @@ class LookupIterator FINAL BASE_EMBEDDED {
   Handle<Name> name_;
   Handle<Map> holder_map_;
   Handle<Map> transition_map_;
-  MaybeHandle<Object> maybe_receiver_;
-  MaybeHandle<JSReceiver> maybe_holder_;
+  Handle<Object> receiver_;
+  Handle<JSReceiver> holder_;
 
   int number_;
 };

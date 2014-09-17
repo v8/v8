@@ -246,6 +246,11 @@ CommonOperatorBuilder* ChangeLowering::common() const {
   return jsgraph()->common();
 }
 
+
+MachineOperatorBuilder* ChangeLowering::machine() const {
+  return jsgraph()->machine();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

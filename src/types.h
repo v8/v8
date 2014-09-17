@@ -122,8 +122,8 @@ namespace internal {
 // IMPLEMENTATION
 //
 // Internally, all 'primitive' types, and their unions, are represented as
-// bitsets. Class is a heap pointer to the respective map. Only Constant's, or
-// unions containing Class'es or Constant's, currently require allocation.
+// bitsets. Bit 0 is reserved for tagging. Class is a heap pointer to the
+// respective map. Only structured types require allocation.
 // Note that the bitset representation is closed under both Union and Intersect.
 //
 // There are two type representations, using different allocation:
@@ -139,24 +139,23 @@ namespace internal {
 // Values for bitset types
 
 #define MASK_BITSET_TYPE_LIST(V) \
-  V(Representation, static_cast<int>(0xffc00000)) \
-  V(Semantic,       static_cast<int>(0x003fffff))
+  V(Representation, 0xff800000u) \
+  V(Semantic,       0x007ffffeu)
 
 #define REPRESENTATION(k) ((k) & BitsetType::kRepresentation)
 #define SEMANTIC(k)       ((k) & BitsetType::kSemantic)
 
 #define REPRESENTATION_BITSET_TYPE_LIST(V) \
   V(None,             0)                   \
-  V(UntaggedInt1,     1 << 22 | kSemantic) \
-  V(UntaggedInt8,     1 << 23 | kSemantic) \
-  V(UntaggedInt16,    1 << 24 | kSemantic) \
-  V(UntaggedInt32,    1 << 25 | kSemantic) \
-  V(UntaggedFloat32,  1 << 26 | kSemantic) \
-  V(UntaggedFloat64,  1 << 27 | kSemantic) \
-  V(UntaggedPtr,      1 << 28 | kSemantic) \
-  V(TaggedInt,        1 << 29 | kSemantic) \
-  /* MSB has to be sign-extended */        \
-  V(TaggedPtr,        static_cast<int>(~0u << 30) | kSemantic) \
+  V(UntaggedInt1,     1u << 23 | kSemantic) \
+  V(UntaggedInt8,     1u << 24 | kSemantic) \
+  V(UntaggedInt16,    1u << 25 | kSemantic) \
+  V(UntaggedInt32,    1u << 26 | kSemantic) \
+  V(UntaggedFloat32,  1u << 27 | kSemantic) \
+  V(UntaggedFloat64,  1u << 28 | kSemantic) \
+  V(UntaggedPtr,      1u << 29 | kSemantic) \
+  V(TaggedInt,        1u << 30 | kSemantic) \
+  V(TaggedPtr,        1u << 31 | kSemantic) \
   \
   V(UntaggedInt,      kUntaggedInt1 | kUntaggedInt8 |      \
                       kUntaggedInt16 | kUntaggedInt32)     \
@@ -166,28 +165,28 @@ namespace internal {
   V(Tagged,           kTaggedInt | kTaggedPtr)
 
 #define SEMANTIC_BITSET_TYPE_LIST(V) \
-  V(Null,                1 << 0  | REPRESENTATION(kTaggedPtr)) \
-  V(Undefined,           1 << 1  | REPRESENTATION(kTaggedPtr)) \
-  V(Boolean,             1 << 2  | REPRESENTATION(kTaggedPtr)) \
-  V(UnsignedSmall,       1 << 3  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherSignedSmall,    1 << 4  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherUnsigned31,     1 << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherUnsigned32,     1 << 6  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherSigned32,       1 << 7  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(MinusZero,           1 << 8  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(NaN,                 1 << 9  | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(OtherNumber,         1 << 10 | REPRESENTATION(kTagged | kUntaggedNumber)) \
-  V(Symbol,              1 << 11 | REPRESENTATION(kTaggedPtr)) \
-  V(InternalizedString,  1 << 12 | REPRESENTATION(kTaggedPtr)) \
-  V(OtherString,         1 << 13 | REPRESENTATION(kTaggedPtr)) \
-  V(Undetectable,        1 << 14 | REPRESENTATION(kTaggedPtr)) \
-  V(Array,               1 << 15 | REPRESENTATION(kTaggedPtr)) \
-  V(Buffer,              1 << 16 | REPRESENTATION(kTaggedPtr)) \
-  V(Function,            1 << 17 | REPRESENTATION(kTaggedPtr)) \
-  V(RegExp,              1 << 18 | REPRESENTATION(kTaggedPtr)) \
-  V(OtherObject,         1 << 19 | REPRESENTATION(kTaggedPtr)) \
-  V(Proxy,               1 << 20 | REPRESENTATION(kTaggedPtr)) \
-  V(Internal,            1 << 21 | REPRESENTATION(kTagged | kUntagged)) \
+  V(Null,                1u << 1  | REPRESENTATION(kTaggedPtr)) \
+  V(Undefined,           1u << 2  | REPRESENTATION(kTaggedPtr)) \
+  V(Boolean,             1u << 3  | REPRESENTATION(kTaggedPtr)) \
+  V(UnsignedSmall,       1u << 4  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherSignedSmall,    1u << 5  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherUnsigned31,     1u << 6  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherUnsigned32,     1u << 7  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherSigned32,       1u << 8  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(MinusZero,           1u << 9  | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(NaN,                 1u << 10 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(OtherNumber,         1u << 11 | REPRESENTATION(kTagged | kUntaggedNumber)) \
+  V(Symbol,              1u << 12 | REPRESENTATION(kTaggedPtr)) \
+  V(InternalizedString,  1u << 13 | REPRESENTATION(kTaggedPtr)) \
+  V(OtherString,         1u << 14 | REPRESENTATION(kTaggedPtr)) \
+  V(Undetectable,        1u << 15 | REPRESENTATION(kTaggedPtr)) \
+  V(Array,               1u << 16 | REPRESENTATION(kTaggedPtr)) \
+  V(Buffer,              1u << 17 | REPRESENTATION(kTaggedPtr)) \
+  V(Function,            1u << 18 | REPRESENTATION(kTaggedPtr)) \
+  V(RegExp,              1u << 19 | REPRESENTATION(kTaggedPtr)) \
+  V(OtherObject,         1u << 20 | REPRESENTATION(kTaggedPtr)) \
+  V(Proxy,               1u << 21 | REPRESENTATION(kTaggedPtr)) \
+  V(Internal,            1u << 22 | REPRESENTATION(kTagged | kUntagged)) \
   \
   V(SignedSmall,         kUnsignedSmall | kOtherSignedSmall) \
   V(Signed32,            kSignedSmall | kOtherUnsigned31 | kOtherSigned32) \
@@ -207,7 +206,7 @@ namespace internal {
   V(Receiver,            kObject | kProxy) \
   V(NonNumber,           kBoolean | kName | kNull | kReceiver | \
                          kUndefined | kInternal) \
-  V(Any,                 -1)
+  V(Any,                 0xfffffffeu)
 
 #define BITSET_TYPE_LIST(V) \
   MASK_BITSET_TYPE_LIST(V) \
@@ -229,11 +228,11 @@ namespace internal {
 //   static bool is_bitset(Type*);
 //   static bool is_class(Type*);
 //   static bool is_struct(Type*, int tag);
-//   static int as_bitset(Type*);
+//   static bitset as_bitset(Type*);
 //   static i::Handle<i::Map> as_class(Type*);
 //   static Handle<Struct>::type as_struct(Type*);
-//   static Type* from_bitset(int bitset);
-//   static Handle<Type>::type from_bitset(int bitset, Region*);
+//   static Type* from_bitset(bitset);
+//   static Handle<Type>::type from_bitset(bitset, Region*);
 //   static Handle<Type>::type from_class(i::Handle<Map>, Region*);
 //   static Handle<Type>::type from_struct(Handle<Struct>::type, int tag);
 //   static Handle<Struct>::type struct_create(int tag, int length, Region*);
@@ -252,9 +251,10 @@ class TypeImpl : public Config::Base {
  public:
   // Auxiliary types.
 
-  class BitsetType;      // Internal
-  class StructuralType;  // Internal
-  class UnionType;       // Internal
+  typedef uint32_t bitset;  // Internal
+  class BitsetType;         // Internal
+  class StructuralType;     // Internal
+  class UnionType;          // Internal
 
   class ClassType;
   class ConstantType;
@@ -276,7 +276,9 @@ class TypeImpl : public Config::Base {
   // Constructors.
 
   #define DEFINE_TYPE_CONSTRUCTOR(type, value)                                \
-    static TypeImpl* type() { return BitsetType::New(BitsetType::k##type); }  \
+    static TypeImpl* type() {                                                 \
+      return BitsetType::New(BitsetType::k##type);                            \
+    }                                                                         \
     static TypeHandle type(Region* region) {                                  \
       return BitsetType::New(BitsetType::k##type, region);                    \
     }
@@ -457,7 +459,7 @@ class TypeImpl : public Config::Base {
   bool IsBitset() { return Config::is_bitset(this); }
   bool IsUnion() { return Config::is_struct(this, StructuralType::kUnionTag); }
 
-  int AsBitset() {
+  bitset AsBitset() {
     DCHECK(this->IsBitset());
     return static_cast<BitsetType*>(this)->Bitset();
   }
@@ -465,15 +467,15 @@ class TypeImpl : public Config::Base {
 
   // Auxiliary functions.
 
-  int BitsetGlb() { return BitsetType::Glb(this); }
-  int BitsetLub() { return BitsetType::Lub(this); }
-  int InherentBitsetLub() { return BitsetType::InherentLub(this); }
+  bitset BitsetGlb() { return BitsetType::Glb(this); }
+  bitset BitsetLub() { return BitsetType::Lub(this); }
+  bitset InherentBitsetLub() { return BitsetType::InherentLub(this); }
 
   bool SlowIs(TypeImpl* that);
 
-  TypeHandle Rebound(int bitset, Region* region);
-  int BoundBy(TypeImpl* that);
-  int IndexInUnion(int bound, UnionHandle unioned, int current_size);
+  TypeHandle Rebound(bitset bound, Region* region);
+  bitset BoundBy(TypeImpl* that);
+  int IndexInUnion(bitset bound, UnionHandle unioned, int current_size);
   static int ExtendUnion(
       UnionHandle unioned, int current_size, TypeHandle t,
       TypeHandle other, bool is_intersect, Region* region);
@@ -495,35 +497,33 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
     kUnusedEOL = 0
   };
 
-  int Bitset() { return Config::as_bitset(this); }
+  bitset Bitset() { return Config::as_bitset(this); }
 
-  static TypeImpl* New(int bitset) {
-    return static_cast<BitsetType*>(Config::from_bitset(bitset));
-  }
-  static TypeHandle New(int bitset, Region* region) {
-    return Config::from_bitset(bitset, region);
+  static TypeImpl* New(bitset bits) { return Config::from_bitset(bits); }
+  static TypeHandle New(bitset bits, Region* region) {
+    return Config::from_bitset(bits, region);
   }
 
-  static bool IsInhabited(int bitset) {
-    return (bitset & kRepresentation) && (bitset & kSemantic);
+  static bool IsInhabited(bitset bits) {
+    return (bits & kRepresentation) && (bits & kSemantic);
   }
 
-  static bool Is(int bitset1, int bitset2) {
-    return (bitset1 | bitset2) == bitset2;
+  static bool Is(bitset bits1, bitset bits2) {
+    return (bits1 | bits2) == bits2;
   }
 
-  static int Glb(TypeImpl* type);  // greatest lower bound that's a bitset
-  static int Lub(TypeImpl* type);  // least upper bound that's a bitset
-  static int Lub(i::Object* value);
-  static int Lub(double value);
-  static int Lub(int32_t value);
-  static int Lub(uint32_t value);
-  static int Lub(i::Map* map);
-  static int Lub(double min, double max);
-  static int InherentLub(TypeImpl* type);
+  static bitset Glb(TypeImpl* type);  // greatest lower bound that's a bitset
+  static bitset Lub(TypeImpl* type);  // least upper bound that's a bitset
+  static bitset Lub(i::Object* value);
+  static bitset Lub(double value);
+  static bitset Lub(int32_t value);
+  static bitset Lub(uint32_t value);
+  static bitset Lub(i::Map* map);
+  static bitset Lub(double min, double max);
+  static bitset InherentLub(TypeImpl* type);
 
-  static const char* Name(int bitset);
-  static void Print(OStream& os, int bitset);  // NOLINT
+  static const char* Name(bitset);
+  static void Print(OStream& os, bitset);  // NOLINT
   using TypeImpl::PrintTo;
 };
 
@@ -866,12 +866,12 @@ struct ZoneTypeConfig {
   static inline bool is_class(Type* type);
   static inline bool is_struct(Type* type, int tag);
 
-  static inline int as_bitset(Type* type);
+  static inline Type::bitset as_bitset(Type* type);
   static inline i::Handle<i::Map> as_class(Type* type);
   static inline Struct* as_struct(Type* type);
 
-  static inline Type* from_bitset(int bitset);
-  static inline Type* from_bitset(int bitset, Zone* zone);
+  static inline Type* from_bitset(Type::bitset);
+  static inline Type* from_bitset(Type::bitset, Zone* zone);
   static inline Type* from_class(i::Handle<i::Map> map, Zone* zone);
   static inline Type* from_struct(Struct* structured);
 
@@ -913,12 +913,12 @@ struct HeapTypeConfig {
   static inline bool is_class(Type* type);
   static inline bool is_struct(Type* type, int tag);
 
-  static inline int as_bitset(Type* type);
+  static inline Type::bitset as_bitset(Type* type);
   static inline i::Handle<i::Map> as_class(Type* type);
   static inline i::Handle<Struct> as_struct(Type* type);
 
-  static inline Type* from_bitset(int bitset);
-  static inline i::Handle<Type> from_bitset(int bitset, Isolate* isolate);
+  static inline Type* from_bitset(Type::bitset);
+  static inline i::Handle<Type> from_bitset(Type::bitset, Isolate* isolate);
   static inline i::Handle<Type> from_class(
       i::Handle<i::Map> map, Isolate* isolate);
   static inline i::Handle<Type> from_struct(i::Handle<Struct> structure);

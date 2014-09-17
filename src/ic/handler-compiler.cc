@@ -6,6 +6,7 @@
 
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/ic.h"
 #include "src/ic/ic-inl.h"
 
 namespace v8 {
@@ -75,6 +76,11 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
   Handle<Code> code = GetCodeWithFlags(flags, name);
   PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, *name));
   return code;
+}
+
+
+void PropertyHandlerCompiler::set_type_for_object(Handle<Object> object) {
+  type_ = IC::CurrentTypeOf(object, isolate());
 }
 
 
@@ -228,7 +234,6 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
   bool inline_followup = false;
   switch (it->state()) {
     case LookupIterator::TRANSITION:
-    case LookupIterator::UNKNOWN:
       UNREACHABLE();
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::INTERCEPTOR:
@@ -276,7 +281,6 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::TRANSITION:
-    case LookupIterator::UNKNOWN:
       UNREACHABLE();
     case LookupIterator::DATA: {
       DCHECK_EQ(FIELD, it->property_details().type());

@@ -10,6 +10,7 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/hydrogen-osr.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/x64/lithium-codegen-x64.h"
 

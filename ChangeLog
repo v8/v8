@@ -1,3 +1,15 @@
+2014-09-17: Version 3.29.70
+
+        Enable ES6 generators (issue 2355).
+
+        Fixed int vs. uintptr_t confusion (plus some cleanup on the way) (issue
+        3556).
+
+        Move configuration of ResourceConstraints to Isolate construction.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-16: Version 3.29.66
 
         Currently, a new isolate is created in an uninitialized state, and

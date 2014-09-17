@@ -4101,6 +4101,9 @@ class V8_EXPORT ResourceConstraints {
 
 /**
  * Sets the given ResourceConstraints on the given Isolate.
+ *
+ * Deprecated, will be removed. Pass constraints via Isolate::New or modify
+ * the stack limit via Isolate::SetStackLimit.
  */
 bool V8_EXPORT SetResourceConstraints(Isolate* isolate,
                                       ResourceConstraints* constraints);
@@ -4371,6 +4374,11 @@ class V8_EXPORT Isolate {
      * notified each time code is added, moved or removed.
      */
     JitCodeEventHandler code_event_handler;
+
+    /**
+     * ResourceConstraints to use for the new Isolate.
+     */
+    ResourceConstraints constraints;
   };
 
 
@@ -4816,6 +4824,17 @@ class V8_EXPORT Isolate {
    */
   void SetJitCodeEventHandler(JitCodeEventOptions options,
                               JitCodeEventHandler event_handler);
+
+  /**
+   * Modifies the stack limit for this Isolate.
+   *
+   * \param stack_limit An address beyond which the Vm's stack may not grow.
+   *
+   * \note  If you are using threads then you should hold the V8::Locker lock
+   *     while setting the stack limit and you must set a non-default stack
+   *     limit separately for each thread.
+   */
+  void SetStackLimit(uintptr_t stack_limit);
 
  private:
   template<class K, class V, class Traits> friend class PersistentValueMap;

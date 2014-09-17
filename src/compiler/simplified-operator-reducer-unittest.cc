@@ -25,7 +25,7 @@ class SimplifiedOperatorReducerTest : public GraphTest {
     MachineOperatorBuilder machine;
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(graph(), common(), &javascript, &typer, &machine);
-    SimplifiedOperatorReducer reducer(&jsgraph, &machine);
+    SimplifiedOperatorReducer reducer(&jsgraph);
     return reducer.Reduce(node);
   }
 

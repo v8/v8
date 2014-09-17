@@ -1658,12 +1658,6 @@ void MacroAssembler::ThrowUncatchable(Register value,
 }
 
 
-void MacroAssembler::SmiAbs(const Register& smi, Label* slow) {
-  DCHECK(smi.Is64Bits());
-  Abs(smi, smi, slow);
-}
-
-
 void MacroAssembler::AssertSmi(Register object, BailoutReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);

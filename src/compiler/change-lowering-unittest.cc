@@ -79,7 +79,7 @@ class ChangeLoweringTest : public GraphTest {
     JSGraph jsgraph(graph(), common(), &javascript, &typer, &machine);
     CompilationInfo info(isolate(), zone());
     Linkage linkage(&info);
-    ChangeLowering reducer(&jsgraph, &linkage, &machine);
+    ChangeLowering reducer(&jsgraph, &linkage);
     return reducer.Reduce(node);
   }
 

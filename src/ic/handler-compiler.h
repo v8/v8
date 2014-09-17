@@ -6,6 +6,7 @@
 #define V8_IC_HANDLER_COMPILER_H_
 
 #include "src/ic/access-compiler.h"
+#include "src/ic/ic-state.h"
 
 namespace v8 {
 namespace internal {
@@ -85,9 +86,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                            PrototypeCheckType check = CHECK_ALL_MAPS);
 
   Handle<Code> GetCode(Code::Kind kind, Code::StubType type, Handle<Name> name);
-  void set_type_for_object(Handle<Object> object) {
-    type_ = IC::CurrentTypeOf(object, isolate());
-  }
+  void set_type_for_object(Handle<Object> object);
   void set_holder(Handle<JSObject> holder) { holder_ = holder; }
   Handle<HeapType> type() const { return type_; }
   Handle<JSObject> holder() const { return holder_; }

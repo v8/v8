@@ -421,6 +421,11 @@ void IncrementalMarking::ActivateIncrementalWriteBarrier() {
 }
 
 
+bool IncrementalMarking::ShouldActivate() {
+  return WorthActivating() && heap_->NextGCIsLikelyToBeFull();
+}
+
+
 bool IncrementalMarking::WorthActivating() {
 #ifndef DEBUG
   static const intptr_t kActivationThreshold = 8 * MB;
@@ -811,7 +816,7 @@ void IncrementalMarking::MarkingComplete(CompletionAction action) {
 
 
 void IncrementalMarking::OldSpaceStep(intptr_t allocated) {
-  if (IsStopped() && WorthActivating() && heap_->NextGCIsLikelyToBeFull()) {
+  if (IsStopped() && ShouldActivate()) {
     // TODO(hpayer): Let's play safe for now, but compaction should be
     // in principle possible.
     Start(PREVENT_COMPACTION);

@@ -7,6 +7,7 @@
 #include "src/ast.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
 #include "src/type-info.h"
@@ -196,9 +197,9 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
 
   if (code->is_compare_ic_stub()) {
     CompareICStub stub(code->stub_key(), isolate());
-    *left_type = CompareIC::StateToType(zone(), stub.left());
-    *right_type = CompareIC::StateToType(zone(), stub.right());
-    *combined_type = CompareIC::StateToType(zone(), stub.state(), map);
+    *left_type = CompareICState::StateToType(zone(), stub.left());
+    *right_type = CompareICState::StateToType(zone(), stub.right());
+    *combined_type = CompareICState::StateToType(zone(), stub.state(), map);
   } else if (code->is_compare_nil_ic_stub()) {
     CompareNilICStub stub(isolate(), code->extra_ic_state());
     *combined_type = stub.GetType(zone(), map);
@@ -218,8 +219,8 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   if (!object->IsCode()) {
     // For some binary ops we don't have ICs, e.g. Token::COMMA, but for the
     // operations covered by the BinaryOpIC we should always have them.
-    DCHECK(op < BinaryOpIC::State::FIRST_TOKEN ||
-           op > BinaryOpIC::State::LAST_TOKEN);
+    DCHECK(op < BinaryOpICState::FIRST_TOKEN ||
+           op > BinaryOpICState::LAST_TOKEN);
     *left = *right = *result = Type::None(zone());
     *fixed_right_arg = Maybe<int>();
     *allocation_site = Handle<AllocationSite>::null();
@@ -227,7 +228,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   }
   Handle<Code> code = Handle<Code>::cast(object);
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(isolate(), code->extra_ic_state());
+  BinaryOpICState state(isolate(), code->extra_ic_state());
   DCHECK_EQ(op, state.op());
 
   *left = state.GetLeftType(zone());
@@ -249,7 +250,7 @@ Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   if (!object->IsCode()) return Type::None(zone());
   Handle<Code> code = Handle<Code>::cast(object);
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
-  BinaryOpIC::State state(isolate(), code->extra_ic_state());
+  BinaryOpICState state(isolate(), code->extra_ic_state());
   return state.GetLeftType(zone());
 }
 

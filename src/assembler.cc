@@ -46,6 +46,7 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate-inl.h"
 #include "src/jsregexp.h"

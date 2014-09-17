@@ -8,6 +8,7 @@
 
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/ic.h"
 
 namespace v8 {
 namespace internal {

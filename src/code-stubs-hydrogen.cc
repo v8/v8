@@ -905,7 +905,7 @@ Handle<Code> CompareNilICStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
-  BinaryOpIC::State state = casted_stub()->state();
+  BinaryOpICState state = casted_stub()->state();
 
   HValue* left = GetParameter(BinaryOpICStub::kLeft);
   HValue* right = GetParameter(BinaryOpICStub::kRight);
@@ -1004,7 +1004,7 @@ Handle<Code> BinaryOpICStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
-  BinaryOpIC::State state = casted_stub()->state();
+  BinaryOpICState state = casted_stub()->state();
 
   HValue* allocation_site = GetParameter(
       BinaryOpWithAllocationSiteStub::kAllocationSite);

@@ -214,7 +214,8 @@ static int DecodeIt(Isolate* isolate,
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
           if (kind == Code::LOAD_IC &&
-              LoadIC::GetContextualMode(code->extra_ic_state()) == CONTEXTUAL) {
+              LoadICState::GetContextualMode(code->extra_ic_state()) ==
+                  CONTEXTUAL) {
             out.AddFormatted(" contextual,");
           }
           InlineCacheState ic_state = code->ic_state();

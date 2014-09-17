@@ -11,6 +11,7 @@
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/ic/handler-compiler.h"
+#include "src/ic/ic.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
@@ -566,12 +567,12 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
 
 static void CompareICStub_CheckInputType(MacroAssembler* masm, Register input,
                                          Register scratch,
-                                         CompareIC::State expected,
+                                         CompareICState::State expected,
                                          Label* fail) {
   Label ok;
-  if (expected == CompareIC::SMI) {
+  if (expected == CompareICState::SMI) {
     __ JumpIfNotSmi(input, fail);
-  } else if (expected == CompareIC::NUMBER) {
+  } else if (expected == CompareICState::NUMBER) {
     __ JumpIfSmi(input, &ok);
     __ CheckMap(input, scratch, Heap::kHeapNumberMapRootIndex, fail,
                 DONT_DO_SMI_CHECK);
@@ -2615,7 +2616,7 @@ void CallIC_ArrayStub::Generate(MacroAssembler* masm) {
   __ TailCallStub(&stub);
 
   __ bind(&miss);
-  GenerateMiss(masm, IC::kCallIC_Customization_Miss);
+  GenerateMiss(masm);
 
   // The slow case, we need this no matter what to complete a call after a miss.
   CallFunctionNoFeedback(masm,
@@ -2690,7 +2691,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   // We are here because tracing is on or we are going monomorphic.
   __ bind(&miss);
-  GenerateMiss(masm, IC::kCallIC_Miss);
+  GenerateMiss(masm);
 
   // the slow case
   __ bind(&slow_start);
@@ -2705,7 +2706,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
 }
 
 
-void CallICStub::GenerateMiss(MacroAssembler* masm, IC::UtilityId id) {
+void CallICStub::GenerateMiss(MacroAssembler* masm) {
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ ldr(r4, MemOperand(sp, (arg_count() + 1) * kPointerSize));
 
@@ -2716,6 +2717,9 @@ void CallICStub::GenerateMiss(MacroAssembler* masm, IC::UtilityId id) {
     __ Push(r4, r1, r2, r3);
 
     // Call the entry.
+    IC::UtilityId id = GetICState() == DEFAULT ? IC::kCallIC_Miss
+                                               : IC::kCallIC_Customization_Miss;
+
     ExternalReference miss = ExternalReference(IC_Utility(id),
                                                masm->isolate());
     __ CallExternalReference(miss, 4);
@@ -3279,7 +3283,7 @@ void BinaryOpICWithAllocationSiteStub::Generate(MacroAssembler* masm) {
 
 
 void CompareICStub::GenerateSmis(MacroAssembler* masm) {
-  DCHECK(state() == CompareIC::SMI);
+  DCHECK(state() == CompareICState::SMI);
   Label miss;
   __ orr(r2, r1, r0);
   __ JumpIfNotSmi(r2, &miss);
@@ -3300,16 +3304,16 @@ void CompareICStub::GenerateSmis(MacroAssembler* masm) {
 
 
 void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
-  DCHECK(state() == CompareIC::NUMBER);
+  DCHECK(state() == CompareICState::NUMBER);
 
   Label generic_stub;
   Label unordered, maybe_undefined1, maybe_undefined2;
   Label miss;
 
-  if (left() == CompareIC::SMI) {
+  if (left() == CompareICState::SMI) {
     __ JumpIfNotSmi(r1, &miss);
   }
-  if (right() == CompareIC::SMI) {
+  if (right() == CompareICState::SMI) {
     __ JumpIfNotSmi(r0, &miss);
   }
 
@@ -3351,8 +3355,8 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
 
   __ bind(&unordered);
   __ bind(&generic_stub);
-  CompareICStub stub(isolate(), op(), CompareIC::GENERIC, CompareIC::GENERIC,
-                     CompareIC::GENERIC);
+  CompareICStub stub(isolate(), op(), CompareICState::GENERIC,
+                     CompareICState::GENERIC, CompareICState::GENERIC);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 
   __ bind(&maybe_undefined1);
@@ -3377,7 +3381,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
 
 
 void CompareICStub::GenerateInternalizedStrings(MacroAssembler* masm) {
-  DCHECK(state() == CompareIC::INTERNALIZED_STRING);
+  DCHECK(state() == CompareICState::INTERNALIZED_STRING);
   Label miss;
 
   // Registers containing left and right operands respectively.
@@ -3415,7 +3419,7 @@ void CompareICStub::GenerateInternalizedStrings(MacroAssembler* masm) {
 
 
 void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
-  DCHECK(state() == CompareIC::UNIQUE_NAME);
+  DCHECK(state() == CompareICState::UNIQUE_NAME);
   DCHECK(GetCondition() == eq);
   Label miss;
 
@@ -3454,7 +3458,7 @@ void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
 
 
 void CompareICStub::GenerateStrings(MacroAssembler* masm) {
-  DCHECK(state() == CompareIC::STRING);
+  DCHECK(state() == CompareICState::STRING);
   Label miss;
 
   bool equality = Token::IsEqualityOp(op());
@@ -3533,7 +3537,7 @@ void CompareICStub::GenerateStrings(MacroAssembler* masm) {
 
 
 void CompareICStub::GenerateObjects(MacroAssembler* masm) {
-  DCHECK(state() == CompareIC::OBJECT);
+  DCHECK(state() == CompareICState::OBJECT);
   Label miss;
   __ and_(r2, r1, Operand(r0));
   __ JumpIfSmi(r2, &miss);

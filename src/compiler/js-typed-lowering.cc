@@ -232,6 +232,11 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd());
   }
+#if 0
+  // TODO(turbofan): Lowering of StringAdd is disabled for now because:
+  //   a) The inserted ToString operation screws up valueOf vs. toString order.
+  //   b) Deoptimization at ToString doesn't have corresponding bailout id.
+  //   c) Our current StringAddStub is actually non-pure and requires context.
   if (r.OneInputIs(Type::String())) {
     // JSAdd(x:string, y:string) => StringAdd(x, y)
     // JSAdd(x:string, y) => StringAdd(x, ToString(y))
@@ -239,6 +244,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     r.ConvertInputsToString();
     return r.ChangeToPureOperator(simplified()->StringAdd());
   }
+#endif
   return NoChange();
 }
 
@@ -303,7 +309,9 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
         return NoChange();
     }
     return r.ChangeToPureOperator(stringOp);
-  } else if (r.OneInputCannotBe(Type::String())) {
+  }
+  Type* maybe_string = Type::Union(Type::String(), Type::Receiver(), zone());
+  if (r.OneInputCannotBe(maybe_string)) {
     // If one input cannot be a string, then emit a number comparison.
     const Operator* less_than;
     const Operator* less_than_or_equal;

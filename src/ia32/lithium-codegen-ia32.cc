@@ -13,6 +13,7 @@
 #include "src/deoptimizer.h"
 #include "src/hydrogen-osr.h"
 #include "src/ia32/lithium-codegen-ia32.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 
 namespace v8 {

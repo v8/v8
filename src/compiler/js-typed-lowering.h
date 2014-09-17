@@ -51,11 +51,10 @@ class JSTypedLowering FINAL : public Reducer {
   JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
-  MachineOperatorBuilder* machine() { return &machine_; }
+  MachineOperatorBuilder* machine() { return jsgraph_->machine(); }
 
   JSGraph* jsgraph_;
   SimplifiedOperatorBuilder simplified_;
-  MachineOperatorBuilder machine_;
 };
 
 }  // namespace compiler

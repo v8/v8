@@ -259,8 +259,8 @@ Handle<Code> Pipeline::GenerateCode() {
                                      SourcePosition::Unknown());
       Linkage linkage(info());
       ValueNumberingReducer vn_reducer(zone());
-      SimplifiedOperatorReducer simple_reducer(&jsgraph, &machine);
-      ChangeLowering lowering(&jsgraph, &linkage, &machine);
+      SimplifiedOperatorReducer simple_reducer(&jsgraph);
+      ChangeLowering lowering(&jsgraph, &linkage);
       MachineOperatorReducer mach_reducer(&jsgraph);
       GraphReducer graph_reducer(&graph);
       // TODO(titzer): Figure out if we should run all reducers at once here.

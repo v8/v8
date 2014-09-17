@@ -1548,8 +1548,6 @@ void Heap::Scavenge() {
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
   gc_state_ = NOT_IN_GC;
-
-  gc_idle_time_handler_.NotifyScavenge();
 }
 
 
@@ -4292,9 +4290,7 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
   // If incremental marking is off, we do not perform idle notification.
   if (!FLAG_incremental_marking) return true;
   base::ElapsedTimer timer;
-  if (FLAG_trace_idle_notification) {
-    timer.Start();
-  }
+  timer.Start();
   isolate()->counters()->gc_idle_time_allotted_in_ms()->AddSample(
       idle_time_in_ms);
   HistogramTimerScope idle_notification_scope(
@@ -4305,19 +4301,27 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
   heap_state.size_of_objects = static_cast<size_t>(SizeOfObjects());
   heap_state.incremental_marking_stopped = incremental_marking()->IsStopped();
   // TODO(ulan): Start incremental marking only for large heaps.
-  heap_state.can_start_incremental_marking = true;
+  heap_state.can_start_incremental_marking =
+      incremental_marking()->ShouldActivate();
   heap_state.sweeping_in_progress =
       mark_compact_collector()->sweeping_in_progress();
   heap_state.mark_compact_speed_in_bytes_per_ms =
       static_cast<size_t>(tracer()->MarkCompactSpeedInBytesPerMillisecond());
   heap_state.incremental_marking_speed_in_bytes_per_ms = static_cast<size_t>(
       tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
+  heap_state.scavenge_speed_in_bytes_per_ms =
+      static_cast<size_t>(tracer()->ScavengeSpeedInBytesPerMillisecond());
+  heap_state.available_new_space_memory = new_space_.Available();
+  heap_state.new_space_capacity = new_space_.Capacity();
 
   GCIdleTimeAction action =
       gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
 
   bool result = false;
   switch (action.type) {
+    case DONE:
+      result = true;
+      break;
     case DO_INCREMENTAL_MARKING:
       if (incremental_marking()->IsStopped()) {
         incremental_marking()->Start();
@@ -4340,11 +4344,19 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       mark_compact_collector()->EnsureSweepingCompleted();
       break;
     case DO_NOTHING:
-      result = true;
       break;
   }
+
+  int actual_time_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
+  if (actual_time_ms <= idle_time_in_ms) {
+    isolate()->counters()->gc_idle_time_limit_undershot()->AddSample(
+        idle_time_in_ms - actual_time_ms);
+  } else {
+    isolate()->counters()->gc_idle_time_limit_overshot()->AddSample(
+        actual_time_ms - idle_time_in_ms);
+  }
+
   if (FLAG_trace_idle_notification) {
-    int actual_time_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
     PrintF("Idle notification: requested idle time %d ms, actual time %d ms [",
            idle_time_in_ms, actual_time_ms);
     action.Print();

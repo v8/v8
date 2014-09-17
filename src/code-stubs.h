@@ -9,7 +9,7 @@
 #include "src/assembler.h"
 #include "src/codegen.h"
 #include "src/globals.h"
-#include "src/ic/ic.h"
+#include "src/ic/ic-state.h"
 #include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
@@ -781,13 +781,13 @@ class MathPowStub: public PlatformCodeStub {
 
 class CallICStub: public PlatformCodeStub {
  public:
-  CallICStub(Isolate* isolate, const CallIC::State& state)
+  CallICStub(Isolate* isolate, const CallICState& state)
       : PlatformCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
 
   static int ExtractArgcFromMinorKey(int minor_key) {
-    CallIC::State state(static_cast<ExtraICState>(minor_key));
+    CallICState state(static_cast<ExtraICState>(minor_key));
     return state.arg_count();
   }
 
@@ -800,16 +800,18 @@ class CallICStub: public PlatformCodeStub {
   }
 
  protected:
-  bool CallAsMethod() const { return state().call_type() == CallIC::METHOD; }
+  bool CallAsMethod() const {
+    return state().call_type() == CallICState::METHOD;
+  }
 
   int arg_count() const { return state().arg_count(); }
 
-  CallIC::State state() const {
-    return CallIC::State(static_cast<ExtraICState>(minor_key_));
+  CallICState state() const {
+    return CallICState(static_cast<ExtraICState>(minor_key_));
   }
 
   // Code generation helpers.
-  void GenerateMiss(MacroAssembler* masm, IC::UtilityId id);
+  void GenerateMiss(MacroAssembler* masm);
 
  private:
   virtual void PrintState(OStream& os) const OVERRIDE;  // NOLINT
@@ -821,7 +823,7 @@ class CallICStub: public PlatformCodeStub {
 
 class CallIC_ArrayStub: public CallICStub {
  public:
-  CallIC_ArrayStub(Isolate* isolate, const CallIC::State& state_in)
+  CallIC_ArrayStub(Isolate* isolate, const CallICState& state_in)
       : CallICStub(isolate, state_in) {}
 
   virtual InlineCacheState GetICState() const FINAL OVERRIDE {
@@ -1058,11 +1060,11 @@ class BinaryOpICStub : public HydrogenCodeStub {
   BinaryOpICStub(Isolate* isolate, Token::Value op,
                  OverwriteMode mode = NO_OVERWRITE)
       : HydrogenCodeStub(isolate, UNINITIALIZED) {
-    BinaryOpIC::State state(isolate, op, mode);
+    BinaryOpICState state(isolate, op, mode);
     set_sub_minor_key(state.GetExtraICState());
   }
 
-  BinaryOpICStub(Isolate* isolate, const BinaryOpIC::State& state)
+  BinaryOpICStub(Isolate* isolate, const BinaryOpICState& state)
       : HydrogenCodeStub(isolate) {
     set_sub_minor_key(state.GetExtraICState());
   }
@@ -1081,8 +1083,8 @@ class BinaryOpICStub : public HydrogenCodeStub {
     return static_cast<ExtraICState>(sub_minor_key());
   }
 
-  BinaryOpIC::State state() const {
-    return BinaryOpIC::State(isolate(), GetExtraICState());
+  BinaryOpICState state() const {
+    return BinaryOpICState(isolate(), GetExtraICState());
   }
 
   virtual void PrintState(OStream& os) const FINAL OVERRIDE;  // NOLINT
@@ -1093,7 +1095,7 @@ class BinaryOpICStub : public HydrogenCodeStub {
 
  private:
   static void GenerateAheadOfTime(Isolate* isolate,
-                                  const BinaryOpIC::State& state);
+                                  const BinaryOpICState& state);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOp);
   DEFINE_HYDROGEN_CODE_STUB(BinaryOpIC, HydrogenCodeStub);
@@ -1105,7 +1107,7 @@ class BinaryOpICStub : public HydrogenCodeStub {
 class BinaryOpICWithAllocationSiteStub FINAL : public PlatformCodeStub {
  public:
   BinaryOpICWithAllocationSiteStub(Isolate* isolate,
-                                   const BinaryOpIC::State& state)
+                                   const BinaryOpICState& state)
       : PlatformCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -1133,12 +1135,12 @@ class BinaryOpICWithAllocationSiteStub FINAL : public PlatformCodeStub {
   virtual void PrintState(OStream& os) const OVERRIDE;  // NOLINT
 
  private:
-  BinaryOpIC::State state() const {
-    return BinaryOpIC::State(isolate(), static_cast<ExtraICState>(minor_key_));
+  BinaryOpICState state() const {
+    return BinaryOpICState(isolate(), static_cast<ExtraICState>(minor_key_));
   }
 
   static void GenerateAheadOfTime(Isolate* isolate,
-                                  const BinaryOpIC::State& state);
+                                  const BinaryOpICState& state);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithAllocationSite);
   DEFINE_PLATFORM_CODE_STUB(BinaryOpICWithAllocationSite, PlatformCodeStub);
@@ -1152,8 +1154,7 @@ class BinaryOpWithAllocationSiteStub FINAL : public BinaryOpICStub {
                                  OverwriteMode mode)
       : BinaryOpICStub(isolate, op, mode) {}
 
-  BinaryOpWithAllocationSiteStub(Isolate* isolate,
-                                 const BinaryOpIC::State& state)
+  BinaryOpWithAllocationSiteStub(Isolate* isolate, const BinaryOpICState& state)
       : BinaryOpICStub(isolate, state) {}
 
   virtual Code::Kind GetCodeKind() const FINAL OVERRIDE {
@@ -1216,8 +1217,8 @@ class StringAddStub FINAL : public HydrogenCodeStub {
 
 class CompareICStub : public PlatformCodeStub {
  public:
-  CompareICStub(Isolate* isolate, Token::Value op, CompareIC::State left,
-                CompareIC::State right, CompareIC::State state)
+  CompareICStub(Isolate* isolate, Token::Value op, CompareICState::State left,
+                CompareICState::State right, CompareICState::State state)
       : PlatformCodeStub(isolate) {
     DCHECK(Token::IsCompareOp(op));
     minor_key_ = OpBits::encode(op - Token::EQ) | LeftStateBits::encode(left) |
@@ -1232,9 +1233,13 @@ class CompareICStub : public PlatformCodeStub {
     return static_cast<Token::Value>(Token::EQ + OpBits::decode(minor_key_));
   }
 
-  CompareIC::State left() const { return LeftStateBits::decode(minor_key_); }
-  CompareIC::State right() const { return RightStateBits::decode(minor_key_); }
-  CompareIC::State state() const { return StateBits::decode(minor_key_); }
+  CompareICState::State left() const {
+    return LeftStateBits::decode(minor_key_);
+  }
+  CompareICState::State right() const {
+    return RightStateBits::decode(minor_key_);
+  }
+  CompareICState::State state() const { return StateBits::decode(minor_key_); }
 
  private:
   virtual Code::Kind GetCodeKind() const { return Code::COMPARE_IC; }
@@ -1250,16 +1255,18 @@ class CompareICStub : public PlatformCodeStub {
   void GenerateGeneric(MacroAssembler* masm);
 
   bool strict() const { return op() == Token::EQ_STRICT; }
-  Condition GetCondition() const { return CompareIC::ComputeCondition(op()); }
+  Condition GetCondition() const;
 
   virtual void AddToSpecialCache(Handle<Code> new_object);
   virtual bool FindCodeInSpecialCache(Code** code_out);
-  virtual bool UseSpecialCache() { return state() == CompareIC::KNOWN_OBJECT; }
+  virtual bool UseSpecialCache() {
+    return state() == CompareICState::KNOWN_OBJECT;
+  }
 
   class OpBits : public BitField<int, 0, 3> {};
-  class LeftStateBits : public BitField<CompareIC::State, 3, 4> {};
-  class RightStateBits : public BitField<CompareIC::State, 7, 4> {};
-  class StateBits : public BitField<CompareIC::State, 11, 4> {};
+  class LeftStateBits : public BitField<CompareICState::State, 3, 4> {};
+  class RightStateBits : public BitField<CompareICState::State, 7, 4> {};
+  class StateBits : public BitField<CompareICState::State, 11, 4> {};
 
   Handle<Map> known_map_;
 
@@ -1740,7 +1747,7 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
 
 class LoadICTrampolineStub : public PlatformCodeStub {
  public:
-  LoadICTrampolineStub(Isolate* isolate, const LoadIC::State& state)
+  LoadICTrampolineStub(Isolate* isolate, const LoadICState& state)
       : PlatformCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
@@ -1756,8 +1763,8 @@ class LoadICTrampolineStub : public PlatformCodeStub {
   }
 
  private:
-  LoadIC::State state() const {
-    return LoadIC::State(static_cast<ExtraICState>(minor_key_));
+  LoadICState state() const {
+    return LoadICState(static_cast<ExtraICState>(minor_key_));
   }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadICTrampoline);
@@ -1768,7 +1775,7 @@ class LoadICTrampolineStub : public PlatformCodeStub {
 class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
  public:
   explicit KeyedLoadICTrampolineStub(Isolate* isolate)
-      : LoadICTrampolineStub(isolate, LoadIC::State(0)) {}
+      : LoadICTrampolineStub(isolate, LoadICState(0)) {}
 
   virtual Code::Kind GetCodeKind() const OVERRIDE {
     return Code::KEYED_LOAD_IC;
@@ -1780,7 +1787,7 @@ class KeyedLoadICTrampolineStub : public LoadICTrampolineStub {
 
 class MegamorphicLoadStub : public HydrogenCodeStub {
  public:
-  MegamorphicLoadStub(Isolate* isolate, const LoadIC::State& state)
+  MegamorphicLoadStub(Isolate* isolate, const LoadICState& state)
       : HydrogenCodeStub(isolate) {
     set_sub_minor_key(state.GetExtraICState());
   }
@@ -1802,7 +1809,7 @@ class MegamorphicLoadStub : public HydrogenCodeStub {
 
 class VectorLoadStub : public HydrogenCodeStub {
  public:
-  explicit VectorLoadStub(Isolate* isolate, const LoadIC::State& state)
+  explicit VectorLoadStub(Isolate* isolate, const LoadICState& state)
       : HydrogenCodeStub(isolate) {
     set_sub_minor_key(state.GetExtraICState());
   }
@@ -1818,7 +1825,7 @@ class VectorLoadStub : public HydrogenCodeStub {
   }
 
  private:
-  LoadIC::State state() const { return LoadIC::State(GetExtraICState()); }
+  LoadICState state() const { return LoadICState(GetExtraICState()); }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(VectorLoadIC);
   DEFINE_HYDROGEN_CODE_STUB(VectorLoad, HydrogenCodeStub);
@@ -1828,7 +1835,7 @@ class VectorLoadStub : public HydrogenCodeStub {
 class VectorKeyedLoadStub : public VectorLoadStub {
  public:
   explicit VectorKeyedLoadStub(Isolate* isolate)
-      : VectorLoadStub(isolate, LoadIC::State(0)) {}
+      : VectorLoadStub(isolate, LoadICState(0)) {}
 
   virtual Code::Kind GetCodeKind() const OVERRIDE {
     return Code::KEYED_LOAD_IC;

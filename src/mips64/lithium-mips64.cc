@@ -2311,7 +2311,7 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   }
 
   LOperand* val;
-  if (needs_write_barrier || instr->field_representation().IsSmi()) {
+  if (needs_write_barrier) {
     val = UseTempRegister(instr->value());
   } else if (instr->field_representation().IsDouble()) {
     val = UseRegisterAtStart(instr->value());

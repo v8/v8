@@ -149,7 +149,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     // Run the graph reducer with changes lowering on a single node.
     CompilationInfo info(this->isolate(), this->zone());
     Linkage linkage(&info);
-    ChangeLowering lowering(&jsgraph, &linkage, this->machine());
+    ChangeLowering lowering(&jsgraph, &linkage);
     GraphReducer reducer(this->graph());
     reducer.AddReducer(&lowering);
     reducer.ReduceNode(change);

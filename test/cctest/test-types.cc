@@ -12,20 +12,22 @@
 using namespace v8::internal;
 
 // Testing auxiliaries (breaking the Type abstraction).
+typedef uint32_t bitset;
+
 struct ZoneRep {
   typedef void* Struct;
 
   static bool IsStruct(Type* t, int tag) {
     return !IsBitset(t) && reinterpret_cast<intptr_t>(AsStruct(t)[0]) == tag;
   }
-  static bool IsBitset(Type* t) { return reinterpret_cast<intptr_t>(t) & 1; }
+  static bool IsBitset(Type* t) { return reinterpret_cast<uintptr_t>(t) & 1; }
   static bool IsUnion(Type* t) { return IsStruct(t, 6); }
 
   static Struct* AsStruct(Type* t) {
     return reinterpret_cast<Struct*>(t);
   }
-  static int AsBitset(Type* t) {
-    return static_cast<int>(reinterpret_cast<intptr_t>(t) >> 1);
+  static bitset AsBitset(Type* t) {
+    return static_cast<bitset>(reinterpret_cast<uintptr_t>(t) ^ 1u);
   }
   static Struct* AsUnion(Type* t) {
     return AsStruct(t);
@@ -55,7 +57,9 @@ struct HeapRep {
   static bool IsUnion(Handle<HeapType> t) { return IsStruct(t, 6); }
 
   static Struct* AsStruct(Handle<HeapType> t) { return FixedArray::cast(*t); }
-  static int AsBitset(Handle<HeapType> t) { return Smi::cast(*t)->value(); }
+  static bitset AsBitset(Handle<HeapType> t) {
+    return static_cast<bitset>(reinterpret_cast<uintptr_t>(*t));
+  }
   static Struct* AsUnion(Handle<HeapType> t) { return AsStruct(t); }
   static int Length(Struct* structured) { return structured->length() - 1; }
 
@@ -66,9 +70,11 @@ struct HeapRep {
     using HeapType::BitsetType::Glb;
     using HeapType::BitsetType::Lub;
     using HeapType::BitsetType::InherentLub;
-    static int Glb(Handle<HeapType> type) { return Glb(*type); }
-    static int Lub(Handle<HeapType> type) { return Lub(*type); }
-    static int InherentLub(Handle<HeapType> type) { return InherentLub(*type); }
+    static bitset Glb(Handle<HeapType> type) { return Glb(*type); }
+    static bitset Lub(Handle<HeapType> type) { return Lub(*type); }
+    static bitset InherentLub(Handle<HeapType> type) {
+      return InherentLub(*type);
+    }
   };
 };
 
@@ -365,7 +371,7 @@ struct Tests : Rep {
     CHECK(type1->Is(type2));
     CHECK(!type2->Is(type1));
     if (Rep::IsBitset(type1) && Rep::IsBitset(type2)) {
-      CHECK_NE(Rep::AsBitset(type1), Rep::AsBitset(type2));
+      CHECK(Rep::AsBitset(type1) != Rep::AsBitset(type2));
     }
   }
 
@@ -373,7 +379,7 @@ struct Tests : Rep {
     CHECK(!type1->Is(type2));
     CHECK(!type2->Is(type1));
     if (Rep::IsBitset(type1) && Rep::IsBitset(type2)) {
-      CHECK_NE(Rep::AsBitset(type1), Rep::AsBitset(type2));
+      CHECK(Rep::AsBitset(type1) != Rep::AsBitset(type2));
     }
   }
 
@@ -381,8 +387,8 @@ struct Tests : Rep {
     CHECK(type1->Maybe(type2));
     CHECK(type2->Maybe(type1));
     if (Rep::IsBitset(type1) && Rep::IsBitset(type2)) {
-      CHECK_NE(0,
-          Rep::AsBitset(type1) & Rep::AsBitset(type2) & Rep::AsBitset(mask));
+      CHECK(0 !=
+          (Rep::AsBitset(type1) & Rep::AsBitset(type2) & Rep::AsBitset(mask)));
     }
   }
 
@@ -392,8 +398,8 @@ struct Tests : Rep {
     CHECK(!type1->Maybe(type2));
     CHECK(!type2->Maybe(type1));
     if (Rep::IsBitset(type1) && Rep::IsBitset(type2)) {
-      CHECK_EQ(0,
-          Rep::AsBitset(type1) & Rep::AsBitset(type2) & Rep::AsBitset(mask));
+      CHECK(0 ==
+          (Rep::AsBitset(type1) & Rep::AsBitset(type2) & Rep::AsBitset(mask)));
     }
   }
 
@@ -402,8 +408,8 @@ struct Tests : Rep {
     CHECK(this->IsBitset(T.None));
     CHECK(this->IsBitset(T.Any));
 
-    CHECK_EQ(0, this->AsBitset(T.None));
-    CHECK_EQ(-1, this->AsBitset(T.Any));
+    CHECK(bitset(0) == this->AsBitset(T.None));
+    CHECK(bitset(0xfffffffeu) == this->AsBitset(T.Any));
 
     // Union(T1, T2) is bitset for bitsets T1,T2
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
@@ -445,8 +451,8 @@ struct Tests : Rep {
         TypeHandle type2 = *it2;
         TypeHandle union12 = T.Union(type1, type2);
         if (this->IsBitset(type1) && this->IsBitset(type2)) {
-          CHECK_EQ(
-              this->AsBitset(type1) | this->AsBitset(type2),
+          CHECK(
+              (this->AsBitset(type1) | this->AsBitset(type2)) ==
               this->AsBitset(union12));
         }
       }
@@ -459,8 +465,8 @@ struct Tests : Rep {
         TypeHandle type2 = *it2;
         TypeHandle intersect12 = T.Intersect(type1, type2);
         if (this->IsBitset(type1) && this->IsBitset(type2)) {
-          CHECK_EQ(
-              this->AsBitset(type1) & this->AsBitset(type2),
+          CHECK(
+              (this->AsBitset(type1) & this->AsBitset(type2)) ==
               this->AsBitset(intersect12));
         }
       }
@@ -576,10 +582,7 @@ struct Tests : Rep {
       for (DoubleIterator j = T.doubles.begin(); j != T.doubles.end(); ++j) {
         double min = T.dmin(*i, *j);
         double max = T.dmax(*i, *j);
-        printf("RangeType: min, max = %f, %f\n", min, max);
         TypeHandle type = T.Range(min, max);
-        printf("RangeType: Min, Max = %f, %f\n",
-               type->AsRange()->Min(), type->AsRange()->Max());
         CHECK(min == type->AsRange()->Min());
         CHECK(max == type->AsRange()->Max());
       }

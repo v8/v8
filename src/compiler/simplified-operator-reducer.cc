@@ -137,6 +137,11 @@ Factory* SimplifiedOperatorReducer::factory() const {
   return jsgraph()->isolate()->factory();
 }
 
+
+MachineOperatorBuilder* SimplifiedOperatorReducer::machine() const {
+  return jsgraph()->machine();
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

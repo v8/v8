@@ -910,11 +910,6 @@ class MacroAssembler : public Assembler {
   inline void SmiTagAndPush(Register src);
   inline void SmiTagAndPush(Register src1, Register src2);
 
-  // Compute the absolute value of 'smi' and leave the result in 'smi'
-  // register. If 'smi' is the most negative SMI, the absolute value cannot
-  // be represented as a SMI and a jump to 'slow' is done.
-  void SmiAbs(const Register& smi, Label* slow);
-
   inline void JumpIfSmi(Register value,
                         Label* smi_label,
                         Label* not_smi_label = NULL);

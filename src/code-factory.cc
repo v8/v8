@@ -14,7 +14,7 @@ namespace internal {
 // static
 Callable CodeFactory::LoadIC(Isolate* isolate, ContextualMode mode) {
   return Callable(
-      LoadIC::initialize_stub(isolate, LoadIC::State(mode).GetExtraICState()),
+      LoadIC::initialize_stub(isolate, LoadICState(mode).GetExtraICState()),
       LoadDescriptor(isolate));
 }
 

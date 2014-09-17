@@ -266,7 +266,8 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
        heap->isolate()->serializer_enabled() ||
        target->ic_age() != heap->global_ic_age() ||
        target->is_invalidated_weak_stub())) {
-    IC::Clear(heap->isolate(), rinfo->pc(), rinfo->host()->constant_pool());
+    ICUtility::Clear(heap->isolate(), rinfo->pc(),
+                     rinfo->host()->constant_pool());
     target = Code::GetCodeFromTargetAddress(rinfo->target_address());
   }
   heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
