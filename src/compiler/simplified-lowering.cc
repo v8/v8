@@ -432,6 +432,24 @@ class RepresentationSelector {
         }
         break;
       }
+      case IrOpcode::kBooleanToNumber: {
+        if (lower()) {
+          MachineTypeUnion input = GetInfo(node->InputAt(0))->output;
+          if (input & kRepBit) {
+            // BooleanToNumber(x: kRepBit) => x
+            DeferReplacement(node, node->InputAt(0));
+          } else {
+            // BooleanToNumber(x: kRepTagged) => WordEqual(x, #true)
+            node->set_op(lowering->machine()->WordEqual());
+            node->AppendInput(jsgraph_->zone(), jsgraph_->TrueConstant());
+          }
+        } else {
+          // No input representation requirement; adapt during lowering.
+          ProcessInput(node, 0, kTypeBool);
+          SetOutput(node, kMachInt32);
+        }
+        break;
+      }
       case IrOpcode::kNumberEqual:
       case IrOpcode::kNumberLessThan:
       case IrOpcode::kNumberLessThanOrEqual: {

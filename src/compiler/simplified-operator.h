@@ -91,6 +91,7 @@ class SimplifiedOperatorBuilder FINAL {
   explicit SimplifiedOperatorBuilder(Zone* zone);
 
   const Operator* BooleanNot();
+  const Operator* BooleanToNumber();
 
   const Operator* NumberEqual();
   const Operator* NumberLessThan();
