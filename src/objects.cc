@@ -13346,23 +13346,24 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
 // Fill in the names of own properties into the supplied storage. The main
 // purpose of this function is to provide reflection information for the object
 // mirrors.
-void JSObject::GetOwnPropertyNames(
-    FixedArray* storage, int index, PropertyAttributes filter) {
+int JSObject::GetOwnPropertyNames(FixedArray* storage, int index,
+                                  PropertyAttributes filter) {
   DCHECK(storage->length() >= (NumberOfOwnProperties(filter) - index));
   if (HasFastProperties()) {
+    int offset = 0;
     int real_size = map()->NumberOfOwnDescriptors();
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < real_size; i++) {
       if ((descs->GetDetails(i).attributes() & filter) == 0 &&
           !FilterKey(descs->GetKey(i), filter)) {
-        storage->set(index++, descs->GetKey(i));
+        storage->set(index + offset, descs->GetKey(i));
+        offset++;
       }
     }
+    return offset;
   } else {
-    property_dictionary()->CopyKeysTo(storage,
-                                      index,
-                                      filter,
-                                      NameDictionary::UNSORTED);
+    return property_dictionary()->CopyKeysTo(storage, index, filter,
+                                             NameDictionary::UNSORTED);
   }
 }
 
@@ -14055,13 +14056,11 @@ template Handle<SeededNumberDictionary>
 HashTable<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
     Shrink(Handle<SeededNumberDictionary>, uint32_t);
 
-template void Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
-    CopyKeysTo(
-        FixedArray*,
-        int,
-        PropertyAttributes,
-        Dictionary<
-            NameDictionary, NameDictionaryShape, Handle<Name> >::SortMode);
+template int
+    Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::CopyKeysTo(
+        FixedArray*, int, PropertyAttributes,
+        Dictionary<NameDictionary, NameDictionaryShape,
+                   Handle<Name> >::SortMode);
 
 template int
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
@@ -15208,27 +15207,28 @@ void NameDictionary::CopyEnumKeysTo(FixedArray* storage) {
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::CopyKeysTo(
-    FixedArray* storage,
-    int index,
-    PropertyAttributes filter,
+template <typename Derived, typename Shape, typename Key>
+int Dictionary<Derived, Shape, Key>::CopyKeysTo(
+    FixedArray* storage, int index, PropertyAttributes filter,
     typename Dictionary<Derived, Shape, Key>::SortMode sort_mode) {
   DCHECK(storage->length() >= NumberOfElementsFilterAttributes(filter));
   int capacity = DerivedHashTable::Capacity();
+  int offset = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = DerivedHashTable::KeyAt(i);
     if (DerivedHashTable::IsKey(k) && !FilterKey(k, filter)) {
       PropertyDetails details = DetailsAt(i);
       if (details.IsDeleted()) continue;
       PropertyAttributes attr = details.attributes();
-      if ((attr & filter) == 0) storage->set(index++, k);
+      if ((attr & filter) == 0) storage->set(index + offset, k);
+      offset++;
     }
   }
   if (sort_mode == Dictionary::SORTED) {
-    storage->SortPairs(storage, index);
+    storage->SortPairs(storage, index + offset);
   }
-  DCHECK(storage->length() >= index);
+  DCHECK(storage->length() >= index + offset);
+  return offset;
 }
 
 
