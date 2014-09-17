@@ -1920,7 +1920,7 @@ void CodeSerializer::SerializeCodeStub(Code* code, HowToCode how_to_code,
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
   uint32_t stub_key = code->stub_key();
 
-  if (CodeStub::MajorKeyFromKey(stub_key) == CodeStub::NoCacheKey()) {
+  if (stub_key == CodeStub::NoCacheKey()) {
     if (FLAG_trace_code_serializer) {
       PrintF("Encoding uncacheable code stub as heap object\n");
     }
