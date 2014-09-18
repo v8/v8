@@ -126,6 +126,10 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
     }
   }
 
+  if (idle_time_in_ms == 0) {
+    return GCIdleTimeAction::Nothing();
+  }
+
   if (heap_state.incremental_marking_stopped) {
     size_t estimated_time_in_ms =
         EstimateMarkCompactTime(heap_state.size_of_objects,

@@ -315,5 +315,34 @@ TEST_F(GCIdleTimeHandlerTest, ScavengeAndDone) {
   EXPECT_EQ(DO_NOTHING, action.type);
 }
 
+
+TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeNothingToDo) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  int idle_time_ms = 0;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeDoNothingButStartIdleRound) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  int idle_time_ms = 10;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    if (action.type == DONE) break;
+    EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    // In this case we try to emulate incremental marking steps the finish with
+    // a full gc.
+    handler()->NotifyIdleMarkCompact();
+  }
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  // Emulate mutator work.
+  for (int i = 0; i < GCIdleTimeHandler::kIdleScavengeThreshold; i++) {
+    handler()->NotifyScavenge();
+  }
+  action = handler()->Compute(0, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
+
 }  // namespace internal
 }  // namespace v8
