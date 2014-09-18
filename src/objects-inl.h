@@ -2920,9 +2920,6 @@ FixedArrayBase* Map::GetInitialElements() {
       GetHeap()->EmptyFixedTypedArrayForMap(this);
     DCHECK(!GetHeap()->InNewSpace(empty_array));
     return empty_array;
-  } else if (has_dictionary_elements()) {
-    DCHECK(!GetHeap()->InNewSpace(GetHeap()->empty_slow_element_dictionary()));
-    return GetHeap()->empty_slow_element_dictionary();
   } else {
     UNREACHABLE();
   }
