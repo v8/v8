@@ -12,9 +12,9 @@ namespace internal {
 
 class Snapshot {
  public:
-  // Initialize the VM from the internal snapshot. Returns false if no snapshot
-  // could be found.
-  static bool Initialize();
+  // Initialize the Isolate from the internal snapshot. Returns false if no
+  // snapshot could be found.
+  static bool Initialize(Isolate* isolate);
 
   static bool HaveASnapshotToStartFrom();
 

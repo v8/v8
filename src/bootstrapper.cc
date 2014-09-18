@@ -2594,9 +2594,6 @@ Genesis::Genesis(Isolate* isolate,
       active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
-  // If V8 cannot be initialized, just return.
-  if (!V8::Initialize(NULL)) return;
-
   // Before creating the roots we must save the context and restore it
   // on all function exits.
   SaveContext saved_context(isolate);
