@@ -5524,13 +5524,22 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   DCHECK(args.length() == 1);
   Debug* debug = isolate->debug();
   if (!debug->IsStepping()) return isolate->heap()->undefined_value();
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 0);
+
   HandleScope scope(isolate);
-  // When leaving the callback, step out has been activated, but not performed
-  // if we do not leave the builtin.  To be able to step into the callback
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  RUNTIME_ASSERT(object->IsJSFunction() || object->IsJSGeneratorObject());
+  Handle<JSFunction> fun;
+  if (object->IsJSFunction()) {
+    fun = Handle<JSFunction>::cast(object);
+  } else {
+    fun = Handle<JSFunction>(
+        Handle<JSGeneratorObject>::cast(object)->function(), isolate);
+  }
+  // When leaving the function, step out has been activated, but not performed
+  // if we do not leave the builtin.  To be able to step into the function
   // again, we need to clear the step out at this point.
   debug->ClearStepOut();
-  debug->FloodWithOneShot(callback);
+  debug->FloodWithOneShot(fun);
   return isolate->heap()->undefined_value();
 }
 
@@ -5744,19 +5753,6 @@ RUNTIME_FUNCTION(Runtime_GetPropertyNamesFast) {
 }
 
 
-// Find the length of the prototype chain that is to be handled as one. If a
-// prototype object is hidden it is to be viewed as part of the the object it
-// is prototype for.
-static int OwnPrototypeChainLength(JSObject* obj) {
-  int count = 1;
-  for (PrototypeIterator iter(obj->GetIsolate(), obj);
-       !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN); iter.Advance()) {
-    count++;
-  }
-  return count;
-}
-
-
 // Return the names of the own named properties.
 // args[0]: object
 // args[1]: PropertyAttributes as int
@@ -5770,30 +5766,12 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
   CONVERT_SMI_ARG_CHECKED(filter_value, 1);
   PropertyAttributes filter = static_cast<PropertyAttributes>(filter_value);
 
-  // Skip the global proxy as it has no properties and always delegates to the
-  // real global object.
-  if (obj->IsJSGlobalProxy()) {
-    // Only collect names if access is permitted.
-    if (obj->IsAccessCheckNeeded() &&
-        !isolate->MayNamedAccess(
-            obj, isolate->factory()->undefined_value(), v8::ACCESS_KEYS)) {
-      isolate->ReportFailedAccessCheck(obj, v8::ACCESS_KEYS);
-      RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-      return *isolate->factory()->NewJSArray(0);
-    }
-    PrototypeIterator iter(isolate, obj);
-    obj = Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-  }
-
-  // Find the number of objects making up this.
-  int length = OwnPrototypeChainLength(*obj);
-
   // Find the number of own properties for each of the objects.
-  ScopedVector<int> own_property_count(length);
   int total_property_count = 0;
   {
     PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
-    for (int i = 0; i < length; i++) {
+    for (; !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN);
+         iter.Advance()) {
       DCHECK(!iter.IsAtEnd());
       Handle<JSObject> jsproto =
           Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
@@ -5808,9 +5786,7 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
       }
       int n;
       n = jsproto->NumberOfOwnProperties(filter);
-      own_property_count[i] = n;
       total_property_count += n;
-      iter.Advance();
     }
   }
 
@@ -5823,17 +5799,18 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
   int hidden_strings = 0;
   {
     PrototypeIterator iter(isolate, obj, PrototypeIterator::START_AT_RECEIVER);
-    for (int i = 0; i < length; i++) {
-      DCHECK(!iter.IsAtEnd());
+    for (; !iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN);
+         iter.Advance()) {
       Handle<JSObject> jsproto =
           Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
-      jsproto->GetOwnPropertyNames(*names, next_copy_index, filter);
-      if (i > 0) {
+      int own_property_count =
+          jsproto->GetOwnPropertyNames(*names, next_copy_index, filter);
+      if (!jsproto.is_identical_to(obj)) {
         // Names from hidden prototypes may already have been added
         // for inherited function template instances. Count the duplicates
         // and stub them out; the final copy pass at the end ignores holes.
-        for (int j = next_copy_index;
-             j < next_copy_index + own_property_count[i]; j++) {
+        for (int j = next_copy_index; j < next_copy_index + own_property_count;
+             j++) {
           Object* name_from_hidden_proto = names->get(j);
           for (int k = 0; k < next_copy_index; k++) {
             if (names->get(k) != isolate->heap()->hidden_string()) {
@@ -5847,13 +5824,12 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyNames) {
           }
         }
       }
-      next_copy_index += own_property_count[i];
+      next_copy_index += own_property_count;
 
       // Hidden properties only show up if the filter does not skip strings.
       if ((filter & STRING) == 0 && JSObject::HasHiddenProperties(jsproto)) {
         hidden_strings++;
       }
-      iter.Advance();
     }
   }
 
@@ -8429,7 +8405,7 @@ RUNTIME_FUNCTION(Runtime_FinalizeInstanceSize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CompileUnoptimized) {
+RUNTIME_FUNCTION(Runtime_CompileLazy) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -8446,7 +8422,7 @@ RUNTIME_FUNCTION(Runtime_CompileUnoptimized) {
 
   Handle<Code> code;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
-                                     Compiler::GetUnoptimizedCode(function));
+                                     Compiler::GetLazyCode(function));
   function->ReplaceCode(*code);
 
   // All done. Return the compiled code.

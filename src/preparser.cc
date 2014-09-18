@@ -78,6 +78,12 @@ PreParserIdentifier PreParserTraits::GetSymbol(Scanner* scanner) {
   if (scanner->UnescapedLiteralMatches("arguments", 9)) {
     return PreParserIdentifier::Arguments();
   }
+  if (scanner->UnescapedLiteralMatches("prototype", 9)) {
+    return PreParserIdentifier::Prototype();
+  }
+  if (scanner->UnescapedLiteralMatches("constructor", 11)) {
+    return PreParserIdentifier::Constructor();
+  }
   return PreParserIdentifier::Default();
 }
 
@@ -178,6 +184,8 @@ PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(ok);
+    case Token::CLASS:
+      return ParseClassDeclaration(ok);
     case Token::CONST:
       return ParseVariableStatement(kSourceElement, ok);
     case Token::LET:
@@ -305,6 +313,9 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       }
     }
 
+    case Token::CLASS:
+      return ParseClassDeclaration(CHECK_OK);
+
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
 
@@ -342,6 +353,18 @@ PreParser::Statement PreParser::ParseFunctionDeclaration(bool* ok) {
                        pos, FunctionLiteral::DECLARATION,
                        FunctionLiteral::NORMAL_ARITY, CHECK_OK);
   return Statement::FunctionDeclaration();
+}
+
+
+PreParser::Statement PreParser::ParseClassDeclaration(bool* ok) {
+  Expect(Token::CLASS, CHECK_OK);
+  int pos = position();
+  bool is_strict_reserved = false;
+  Identifier name =
+      ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
+  ParseClassLiteral(name, scanner()->location(), is_strict_reserved, pos,
+                    CHECK_OK);
+  return Statement::Default();
 }
 
 

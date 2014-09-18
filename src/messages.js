@@ -8,6 +8,7 @@ var kMessages = {
   // Error
   cyclic_proto:                  ["Cyclic __proto__ value"],
   code_gen_from_strings:         ["%0"],
+  constructor_special_method:    ["Class constructor may not be an accessor"],
   generator_running:             ["Generator is already running"],
   generator_finished:            ["Generator has already finished"],
   // TypeError
@@ -139,6 +140,7 @@ var kMessages = {
   array_indexof_not_defined:     ["Array.getIndexOf: Argument undefined"],
   object_not_extensible:         ["Can't add property ", "%0", ", object is not extensible"],
   illegal_access:                ["Illegal access"],
+  static_prototype:              ["Classes may not have static property named prototype"],
   strict_mode_with:              ["Strict mode code may not include a with statement"],
   strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
   too_many_arguments:            ["Too many arguments in function call (only 65535 allowed)"],

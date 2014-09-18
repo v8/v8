@@ -444,7 +444,11 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     // JSToNumber(null) => #0
     return ReplaceWith(jsgraph()->ZeroConstant());
   }
-  // TODO(turbofan): js-typed-lowering of ToNumber(x:boolean)
+  if (input_type->Is(Type::Boolean())) {
+    // JSToNumber(x:boolean) => BooleanToNumber(x)
+    return ReplaceWith(
+        graph()->NewNode(simplified()->BooleanToNumber(), input));
+  }
   // TODO(turbofan): js-typed-lowering of ToNumber(x:string)
   return NoChange();
 }

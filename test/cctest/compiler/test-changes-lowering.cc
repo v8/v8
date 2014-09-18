@@ -55,8 +55,6 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
               "(function() { 'use strict'; return 2.7123; })")));
       CompilationInfoWithZone info(function);
       CHECK(Parser::Parse(&info));
-      StrictMode strict_mode = info.function()->strict_mode();
-      info.SetStrictMode(strict_mode);
       info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
       CHECK(Rewriter::Rewrite(&info));
       CHECK(Scope::Analyze(&info));

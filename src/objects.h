@@ -1016,6 +1016,7 @@ template <class C> inline bool Is(Object* obj);
     "Call to a JavaScript runtime function")                                   \
   V(kCannotTranslatePositionInChangedArea,                                     \
     "Cannot translate position in changed area")                               \
+  V(kClassLiteral, "Class literal")                                            \
   V(kCodeGenerationFailed, "Code generation failed")                           \
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")         \
   V(kCompoundAssignmentToLookupSlot, "Compound assignment to lookup slot")     \
@@ -2327,9 +2328,9 @@ class JSObject: public JSReceiver {
   // with the specified attributes (ignoring interceptors).
   int NumberOfOwnProperties(PropertyAttributes filter = NONE);
   // Fill in details for properties into storage starting at the specified
-  // index.
-  void GetOwnPropertyNames(
-      FixedArray* storage, int index, PropertyAttributes filter = NONE);
+  // index. Returns the number of properties that were added.
+  int GetOwnPropertyNames(FixedArray* storage, int index,
+                          PropertyAttributes filter = NONE);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -3862,10 +3863,8 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
                   PropertyAttributes filter,
                   SortMode sort_mode);
   // Fill in details for properties into storage.
-  void CopyKeysTo(FixedArray* storage,
-                  int index,
-                  PropertyAttributes filter,
-                  SortMode sort_mode);
+  int CopyKeysTo(FixedArray* storage, int index, PropertyAttributes filter,
+                 SortMode sort_mode);
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {

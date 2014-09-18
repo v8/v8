@@ -2362,15 +2362,12 @@ TEST(CheckCodeNames) {
   node = GetNodeByPath(snapshot, builtin_path1, arraysize(builtin_path1));
   CHECK_NE(NULL, node);
 
-  const char* builtin_path2[] = {
-    "::(GC roots)",
-    "::(Builtins)",
-    "::(CompileUnoptimized builtin)"
-  };
+  const char* builtin_path2[] = {"::(GC roots)", "::(Builtins)",
+                                 "::(CompileLazy builtin)"};
   node = GetNodeByPath(snapshot, builtin_path2, arraysize(builtin_path2));
   CHECK_NE(NULL, node);
   v8::String::Utf8Value node_name(node->GetName());
-  CHECK_EQ("(CompileUnoptimized builtin)", *node_name);
+  CHECK_EQ("(CompileLazy builtin)", *node_name);
 }
 
 

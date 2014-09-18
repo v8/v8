@@ -4975,16 +4975,17 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
     __ bind(&check_false);
     __ LoadRoot(ip, Heap::kFalseValueRootIndex);
     __ cmp(scratch2, Operand(ip));
+    __ RecordComment("Deferred TaggedToI: cannot truncate");
     DeoptimizeIf(ne, instr->environment());
     __ mov(input_reg, Operand::Zero());
-    __ b(&done);
   } else {
-    // Deoptimize if we don't have a heap number.
+    __ RecordComment("Deferred TaggedToI: not a heap number");
     DeoptimizeIf(ne, instr->environment());
 
     __ sub(ip, scratch2, Operand(kHeapObjectTag));
     __ vldr(double_scratch2, ip, HeapNumber::kValueOffset);
     __ TryDoubleToInt32Exact(input_reg, double_scratch2, double_scratch);
+    __ RecordComment("Deferred TaggedToI: lost precision or NaN");
     DeoptimizeIf(ne, instr->environment());
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
@@ -4992,6 +4993,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
       __ b(ne, &done);
       __ VmovHigh(scratch1, double_scratch2);
       __ tst(scratch1, Operand(HeapNumber::kSignMask));
+      __ RecordComment("Deferred TaggedToI: minus zero");
       DeoptimizeIf(ne, instr->environment());
     }
   }

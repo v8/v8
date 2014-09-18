@@ -5645,10 +5645,9 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
                         instr->environment());
   } else {
     Register output = ToRegister32(instr->result());
-
     DoubleRegister dbl_scratch2 = ToDoubleRegister(temp2);
 
-    // Deoptimized if it's not a heap number.
+    __ RecordComment("Deferred TaggedToI: not a heap number");
     DeoptimizeIfNotRoot(scratch1, Heap::kHeapNumberMapRootIndex,
                         instr->environment());
 
@@ -5656,12 +5655,14 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
     // function. If the result is out of range, branch to deoptimize.
     __ Ldr(dbl_scratch1, FieldMemOperand(input, HeapNumber::kValueOffset));
     __ TryRepresentDoubleAsInt32(output, dbl_scratch1, dbl_scratch2);
+    __ RecordComment("Deferred TaggedToI: lost precision or NaN");
     DeoptimizeIf(ne, instr->environment());
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ Cmp(output, 0);
       __ B(ne, &done);
       __ Fmov(scratch1, dbl_scratch1);
+      __ RecordComment("Deferred TaggedToI: minus zero");
       DeoptimizeIfNegative(scratch1, instr->environment());
     }
   }

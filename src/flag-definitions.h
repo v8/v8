@@ -175,6 +175,8 @@ DEFINE_IMPLICATION(harmony, harmony_arrow_functions)
 DEFINE_IMPLICATION(harmony, harmony_classes)
 DEFINE_IMPLICATION(harmony, harmony_object_literals)
 DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
+DEFINE_IMPLICATION(harmony_classes, harmony_scoping)
+DEFINE_IMPLICATION(harmony_classes, harmony_object_literals)
 
 DEFINE_IMPLICATION(harmony, es_staging)
 
@@ -436,6 +438,7 @@ DEFINE_BOOL(trace_stub_failures, false,
             "trace deoptimization of generated code stubs")
 
 DEFINE_BOOL(serialize_toplevel, false, "enable caching of toplevel scripts")
+DEFINE_BOOL(trace_code_serializer, false, "trace code serializer")
 
 // compiler.cc
 DEFINE_INT(min_preparse_length, 1024,

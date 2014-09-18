@@ -665,6 +665,9 @@ TEST(StringComparison) {
 static void CheckIsConvertedToNumber(Node* val, Node* converted) {
   if (NodeProperties::GetBounds(val).upper->Is(Type::Number())) {
     CHECK_EQ(val, converted);
+  } else if (NodeProperties::GetBounds(val).upper->Is(Type::Boolean())) {
+    CHECK_EQ(IrOpcode::kBooleanToNumber, converted->opcode());
+    CHECK_EQ(val, converted->InputAt(0));
   } else {
     if (converted->opcode() == IrOpcode::kNumberConstant) return;
     CHECK_EQ(IrOpcode::kJSToNumber, converted->opcode());
@@ -1049,7 +1052,7 @@ TEST(OrderNumberBinopEffects2) {
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Number(), Type::Boolean());
+    BinopEffectsTester B(ops[j], Type::Number(), Type::Symbol());
 
     Node* i0 = B.CheckNoOp(0);
     Node* i1 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 1, true);
@@ -1062,7 +1065,7 @@ TEST(OrderNumberBinopEffects2) {
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Boolean(), Type::Number());
+    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Number());
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
     Node* i1 = B.CheckNoOp(1);
@@ -1085,7 +1088,7 @@ TEST(OrderCompareEffects) {
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Boolean(), Type::String());
+    BinopEffectsTester B(ops[j], Type::Symbol(), Type::String());
     CHECK_EQ(ops[j + 1]->opcode(), B.result->op()->opcode());
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
@@ -1100,7 +1103,7 @@ TEST(OrderCompareEffects) {
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Number(), Type::Boolean());
+    BinopEffectsTester B(ops[j], Type::Number(), Type::Symbol());
 
     Node* i0 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 0, true);
     Node* i1 = B.result->InputAt(1);
@@ -1113,7 +1116,7 @@ TEST(OrderCompareEffects) {
   }
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
-    BinopEffectsTester B(ops[j], Type::Boolean(), Type::Number());
+    BinopEffectsTester B(ops[j], Type::Symbol(), Type::Number());
 
     Node* i0 = B.result->InputAt(0);
     Node* i1 = B.CheckConvertedInput(IrOpcode::kJSToNumber, 1, true);

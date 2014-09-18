@@ -129,6 +129,22 @@ class GCTracer {
   };
 
 
+  class AllocationEvent {
+   public:
+    // Default constructor leaves the event uninitialized.
+    AllocationEvent() {}
+
+    AllocationEvent(double duration, intptr_t allocation_in_bytes);
+
+    // Time spent in the mutator during the end of the last garbage collection
+    // to the beginning of the next garbage collection.
+    double duration_;
+
+    // Memory allocated in the new space during the end of the last garbage
+    // collection to the beginning of the next garbage collection.
+    intptr_t allocation_in_bytes_;
+  };
+
   class Event {
    public:
     enum Type { SCAVENGER = 0, MARK_COMPACTOR = 1, START = 2 };
@@ -223,6 +239,8 @@ class GCTracer {
 
   typedef RingBuffer<Event, kRingBufferMaxSize> EventBuffer;
 
+  typedef RingBuffer<AllocationEvent, kRingBufferMaxSize> AllocationEventBuffer;
+
   explicit GCTracer(Heap* heap);
 
   // Start collecting data.
@@ -231,6 +249,9 @@ class GCTracer {
 
   // Stop collecting data and print results.
   void Stop();
+
+  // Log an allocation throughput event.
+  void AddNewSpaceAllocationTime(double duration, intptr_t allocation_in_bytes);
 
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
@@ -297,6 +318,10 @@ class GCTracer {
   // Returns 0 if no events have been recorded.
   intptr_t MarkCompactSpeedInBytesPerMillisecond() const;
 
+  // Allocation throughput in the new space in bytes/millisecond.
+  // Returns 0 if no events have been recorded.
+  intptr_t NewSpaceAllocationThroughputInBytesPerMillisecond() const;
+
  private:
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -331,6 +356,9 @@ class GCTracer {
   // RingBuffers for MARK_COMPACTOR events.
   EventBuffer mark_compactor_events_;
 
+  // RingBuffer for allocation events.
+  AllocationEventBuffer allocation_events_;
+
   // Cumulative number of incremental marking steps since creation of tracer.
   int cumulative_incremental_marking_steps_;
 
@@ -360,6 +388,10 @@ class GCTracer {
   // of the initial atomic sweeping pause. Make sure that it accumulates
   // all sweeping operations performed on the main thread.
   double cumulative_sweeping_duration_;
+
+  // Holds the new space top pointer recorded at the end of the last garbage
+  // collection.
+  intptr_t new_space_top_after_gc_;
 
   DISALLOW_COPY_AND_ASSIGN(GCTracer);
 };

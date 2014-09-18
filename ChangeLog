@@ -1,3 +1,12 @@
+2014-09-18: Version 3.29.74
+
+        Support stepping into generator function (issue 3572).
+
+        Class syntax parsing (issue 3330).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-17: Version 3.29.70
 
         Enable ES6 generators (issue 2355).

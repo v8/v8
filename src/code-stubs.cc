@@ -246,6 +246,22 @@ void CodeStub::InitializeDescriptor(Isolate* isolate, uint32_t key,
 }
 
 
+void CodeStub::GetCodeDispatchCall(CodeStub* stub, void** value_out) {
+  Handle<Code>* code_out = reinterpret_cast<Handle<Code>*>(value_out);
+  // Code stubs with special cache cannot be recreated from stub key.
+  *code_out = stub->UseSpecialCache() ? Handle<Code>() : stub->GetCode();
+}
+
+
+MaybeHandle<Code> CodeStub::GetCode(Isolate* isolate, uint32_t key) {
+  HandleScope scope(isolate);
+  Handle<Code> code;
+  void** value_out = reinterpret_cast<void**>(&code);
+  Dispatch(isolate, key, value_out, &GetCodeDispatchCall);
+  return scope.CloseAndEscape(code);
+}
+
+
 // static
 void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
   // Generate the uninitialized versions of the stub.

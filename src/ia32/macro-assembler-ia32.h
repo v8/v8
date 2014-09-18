@@ -466,9 +466,6 @@ class MacroAssembler: public Assembler {
       XMMRegister scratch, MinusZeroMode minus_zero_mode,
       Label* conversion_failed, Label::Distance dst = Label::kFar);
 
-  void TaggedToI(Register result_reg, Register input_reg, XMMRegister temp,
-      MinusZeroMode minus_zero_mode, Label* lost_precision);
-
   // Smi tagging support.
   void SmiTag(Register reg) {
     STATIC_ASSERT(kSmiTag == 0);

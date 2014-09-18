@@ -3593,7 +3593,8 @@ class HConstant FINAL : public HTemplateInstruction<0> {
     if (HasDoubleValue() && FixedDoubleArray::is_the_hole_nan(double_value_)) {
       return true;
     }
-    return object_.IsKnownGlobal(isolate()->heap()->the_hole_value());
+    return object_.IsInitialized() &&
+           object_.IsKnownGlobal(isolate()->heap()->the_hole_value());
   }
   bool HasNumberValue() const { return has_double_value_; }
   int32_t NumberValueAsInteger32() const {

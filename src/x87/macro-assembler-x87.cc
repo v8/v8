@@ -254,53 +254,6 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
 }
 
 
-void MacroAssembler::TaggedToI(Register result_reg,
-                               Register input_reg,
-                               MinusZeroMode minus_zero_mode,
-                               Label* lost_precision) {
-  Label done;
-
-  cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
-      isolate()->factory()->heap_number_map());
-  j(not_equal, lost_precision, Label::kNear);
-
-  // TODO(olivf) Converting a number on the fpu is actually quite slow. We
-  // should first try a fast conversion and then bailout to this slow case.
-  Label lost_precision_pop, zero_check;
-  Label* lost_precision_int = (minus_zero_mode == FAIL_ON_MINUS_ZERO)
-      ? &lost_precision_pop : lost_precision;
-  sub(esp, Immediate(kPointerSize));
-  fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
-  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) fld(0);
-  fist_s(MemOperand(esp, 0));
-  fild_s(MemOperand(esp, 0));
-  FCmp();
-  pop(result_reg);
-  j(not_equal, lost_precision_int, Label::kNear);
-  j(parity_even, lost_precision_int, Label::kNear);  // NaN.
-  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
-    test(result_reg, Operand(result_reg));
-    j(zero, &zero_check, Label::kNear);
-    fstp(0);
-    jmp(&done, Label::kNear);
-    bind(&zero_check);
-    // To check for minus zero, we load the value again as float, and check
-    // if that is still 0.
-    sub(esp, Immediate(kPointerSize));
-    fstp_s(Operand(esp, 0));
-    pop(result_reg);
-    test(result_reg, Operand(result_reg));
-    j(zero, &done, Label::kNear);
-    jmp(lost_precision, Label::kNear);
-
-    bind(&lost_precision_pop);
-    fstp(0);
-    jmp(lost_precision, Label::kNear);
-  }
-  bind(&done);
-}
-
-
 void MacroAssembler::LoadUint32NoSSE2(Register src) {
   Label done;
   push(src);

@@ -3545,39 +3545,6 @@ void MacroAssembler::DoubleToI(Register result_reg,
 }
 
 
-void MacroAssembler::TaggedToI(Register result_reg,
-                               Register input_reg,
-                               XMMRegister temp,
-                               MinusZeroMode minus_zero_mode,
-                               Label* lost_precision,
-                               Label::Distance dst) {
-  Label done;
-  DCHECK(!temp.is(xmm0));
-
-  // Heap number map check.
-  CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
-              Heap::kHeapNumberMapRootIndex);
-  j(not_equal, lost_precision, dst);
-
-  movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  cvttsd2si(result_reg, xmm0);
-  Cvtlsi2sd(temp, result_reg);
-  ucomisd(xmm0, temp);
-  RecordComment("Deferred TaggedToI: lost precision");
-  j(not_equal, lost_precision, dst);
-  RecordComment("Deferred TaggedToI: NaN");
-  j(parity_even, lost_precision, dst);  // NaN.
-  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
-    testl(result_reg, result_reg);
-    j(not_zero, &done, Label::kNear);
-    movmskpd(result_reg, xmm0);
-    andl(result_reg, Immediate(1));
-    j(not_zero, lost_precision, dst);
-  }
-  bind(&done);
-}
-
-
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
   movp(descriptors, FieldOperand(map, Map::kDescriptorsOffset));

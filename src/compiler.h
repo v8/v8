@@ -659,11 +659,13 @@ class Compiler : public AllStatic {
  public:
   MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
       Handle<JSFunction> function);
+  MUST_USE_RESULT static MaybeHandle<Code> GetLazyCode(
+      Handle<JSFunction> function);
   MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
       Handle<SharedFunctionInfo> shared);
   static bool EnsureCompiled(Handle<JSFunction> function,
                              ClearExceptionFlag flag);
-  MUST_USE_RESULT static MaybeHandle<Code> GetCodeForDebugging(
+  MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
       Handle<JSFunction> function);
 
   static void CompileForLiveEdit(Handle<Script> script);

@@ -12,6 +12,7 @@
 #include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/hydrogen-osr.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/x87/lithium-codegen-x87.h"
 
@@ -4729,12 +4730,61 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
     DeoptimizeIf(not_equal, instr->environment());
     __ Move(input_reg, Immediate(0));
   } else {
-    Label bailout;
-    __ TaggedToI(input_reg, input_reg,
-                 instr->hydrogen()->GetMinusZeroMode(), &bailout);
-    __ jmp(done);
-    __ bind(&bailout);
-    DeoptimizeIf(no_condition, instr->environment());
+    // TODO(olivf) Converting a number on the fpu is actually quite slow. We
+    // should first try a fast conversion and then bailout to this slow case.
+    __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
+           isolate()->factory()->heap_number_map());
+    __ RecordComment("Deferred TaggedToI: not a heap number");
+    DeoptimizeIf(not_equal, instr->environment());
+
+    __ sub(esp, Immediate(kPointerSize));
+    __ fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
+
+    if (instr->hydrogen()->GetMinusZeroMode() == FAIL_ON_MINUS_ZERO) {
+      Label no_precision_lost, not_nan, zero_check;
+      __ fld(0);
+
+      __ fist_s(MemOperand(esp, 0));
+      __ fild_s(MemOperand(esp, 0));
+      __ FCmp();
+      __ pop(input_reg);
+
+      __ j(equal, &no_precision_lost, Label::kNear);
+      __ fstp(0);
+      __ RecordComment("Deferred TaggedToI: lost precision");
+      DeoptimizeIf(no_condition, instr->environment());
+      __ bind(&no_precision_lost);
+
+      __ j(parity_odd, &not_nan);
+      __ fstp(0);
+      __ RecordComment("Deferred TaggedToI: NaN");
+      DeoptimizeIf(no_condition, instr->environment());
+      __ bind(&not_nan);
+
+      __ test(input_reg, Operand(input_reg));
+      __ j(zero, &zero_check, Label::kNear);
+      __ fstp(0);
+      __ jmp(done);
+
+      __ bind(&zero_check);
+      // To check for minus zero, we load the value again as float, and check
+      // if that is still 0.
+      __ sub(esp, Immediate(kPointerSize));
+      __ fstp_s(Operand(esp, 0));
+      __ pop(input_reg);
+      __ test(input_reg, Operand(input_reg));
+      __ RecordComment("Deferred TaggedToI: minus zero");
+      DeoptimizeIf(not_zero, instr->environment());
+    } else {
+      __ fist_s(MemOperand(esp, 0));
+      __ fild_s(MemOperand(esp, 0));
+      __ FCmp();
+      __ pop(input_reg);
+      __ RecordComment("Deferred TaggedToI: lost precision");
+      DeoptimizeIf(not_equal, instr->environment());
+      __ RecordComment("Deferred TaggedToI: NaN");
+      DeoptimizeIf(parity_even, instr->environment());
+    }
   }
 }
 

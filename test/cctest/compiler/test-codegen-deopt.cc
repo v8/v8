@@ -45,8 +45,6 @@ class DeoptCodegenTester {
         info(function, scope->main_zone()),
         bailout_id(-1) {
     CHECK(Parser::Parse(&info));
-    StrictMode strict_mode = info.function()->strict_mode();
-    info.SetStrictMode(strict_mode);
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));

@@ -327,19 +327,6 @@
 ##############################################################################
 ['arch == x87', {
 
-  # TODO (weiliang): Enable below tests after fixing the double register
-  # allocation limit in X87 port.
-  'test-serialize/Serialize': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/Deserialize': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/SerializeTwice': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/ContextSerialization': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/ContextDeserialization': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/PartialDeserialization': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/PartialSerialization': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/DeserializeAndRunScript2': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, ['mode == debug', SKIP]],
-  'test-serialize/DeserializeFromSecondSerialization': [PASS, ['mode == debug', SKIP]],
-
   # Test requires turbofan:
   'codegen-tester/CompareWrapper': [SKIP],
   'codegen-tester/ParametersEqual': [SKIP],
