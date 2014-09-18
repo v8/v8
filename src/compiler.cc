@@ -397,21 +397,8 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     if (FLAG_hydrogen_stats) {
       timer.Start();
     }
-    CompilationInfoWithZone unoptimized(info()->shared_info());
-    // Note that we use the same AST that we will use for generating the
-    // optimized code.
-    unoptimized.SetFunction(info()->function());
-    unoptimized.PrepareForCompilation(info()->scope());
-    unoptimized.SetContext(info()->context());
-    if (should_recompile) unoptimized.EnableDeoptimizationSupport();
-    bool succeeded = FullCodeGenerator::MakeCode(&unoptimized);
-    if (should_recompile) {
-      if (!succeeded) return SetLastStatus(FAILED);
-      Handle<SharedFunctionInfo> shared = info()->shared_info();
-      shared->EnableDeoptimizationSupport(*unoptimized.code());
-      // The existing unoptimized code was replaced with the new one.
-      Compiler::RecordFunctionCompilation(
-          Logger::LAZY_COMPILE_TAG, &unoptimized, shared);
+    if (!Compiler::EnsureDeoptimizationSupport(info())) {
+      return SetLastStatus(FAILED);
     }
     if (FLAG_hydrogen_stats) {
       isolate()->GetHStatistics()->IncrementFullCodeGen(timer.Elapsed());
@@ -769,6 +756,38 @@ bool Compiler::EnsureCompiled(Handle<JSFunction> function,
   }
   function->ReplaceCode(*code);
   DCHECK(function->is_compiled());
+  return true;
+}
+
+
+// TODO(turbofan): In the future, unoptimized code with deopt support could
+// be generated lazily once deopt is triggered.
+bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
+  if (!info->shared_info()->has_deoptimization_support()) {
+    CompilationInfoWithZone unoptimized(info->shared_info());
+    // Note that we use the same AST that we will use for generating the
+    // optimized code.
+    unoptimized.SetFunction(info->function());
+    unoptimized.PrepareForCompilation(info->scope());
+    unoptimized.SetContext(info->context());
+    unoptimized.EnableDeoptimizationSupport();
+    if (!FullCodeGenerator::MakeCode(&unoptimized)) return false;
+
+    Handle<SharedFunctionInfo> shared = info->shared_info();
+    shared->EnableDeoptimizationSupport(*unoptimized.code());
+    shared->set_feedback_vector(*unoptimized.feedback_vector());
+
+    // The scope info might not have been set if a lazily compiled
+    // function is inlined before being called for the first time.
+    if (shared->scope_info() == ScopeInfo::Empty(info->isolate())) {
+      Handle<ScopeInfo> target_scope_info =
+          ScopeInfo::Create(info->scope(), info->zone());
+      shared->set_scope_info(*target_scope_info);
+    }
+
+    // The existing unoptimized code was replaced with the new one.
+    RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, &unoptimized, shared);
+  }
   return true;
 }
 

@@ -57,9 +57,7 @@ static void Parse(Handle<JSFunction> function, CompilationInfoWithZone* info) {
   CHECK(Parser::Parse(info));
   CHECK(Rewriter::Rewrite(info));
   CHECK(Scope::Analyze(info));
-  CHECK_NE(NULL, info->scope());
-  Handle<ScopeInfo> scope_info = ScopeInfo::Create(info->scope(), info->zone());
-  info->shared_info()->set_scope_info(*scope_info);
+  CHECK(Compiler::EnsureDeoptimizationSupport(info));
 }
 
 
@@ -392,18 +390,6 @@ void JSInliner::TryInlineCall(Node* call_node) {
 
   CompilationInfoWithZone info(function);
   Parse(function, &info);
-
-  if (!function->shared()->has_deoptimization_support()) {
-    // TODO(turbofan) In the future, unoptimized code with deopt support could
-    // be generated lazily once deopt is triggered.
-    info.EnableDeoptimizationSupport();
-    if (!FullCodeGenerator::MakeCode(&info)) {
-      DCHECK(false);
-      return;
-    }
-    function->shared()->EnableDeoptimizationSupport(*info.code());
-    function->shared()->set_feedback_vector(*info.feedback_vector());
-  }
 
   if (info.scope()->arguments() != NULL) {
     // For now do not inline functions that use their arguments array.

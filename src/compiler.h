@@ -663,10 +663,13 @@ class Compiler : public AllStatic {
       Handle<JSFunction> function);
   MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
       Handle<SharedFunctionInfo> shared);
-  static bool EnsureCompiled(Handle<JSFunction> function,
-                             ClearExceptionFlag flag);
   MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
       Handle<JSFunction> function);
+
+  static bool EnsureCompiled(Handle<JSFunction> function,
+                             ClearExceptionFlag flag);
+
+  static bool EnsureDeoptimizationSupport(CompilationInfo* info);
 
   static void CompileForLiveEdit(Handle<Script> script);
 

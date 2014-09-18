@@ -7835,26 +7835,9 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   // Generate the deoptimization data for the unoptimized version of
   // the target function if we don't already have it.
-  if (!target_shared->has_deoptimization_support()) {
-    // Note that we compile here using the same AST that we will use for
-    // generating the optimized inline code.
-    target_info.EnableDeoptimizationSupport();
-    if (!FullCodeGenerator::MakeCode(&target_info)) {
-      TraceInline(target, caller, "could not generate deoptimization info");
-      return false;
-    }
-    if (target_shared->scope_info() == ScopeInfo::Empty(isolate())) {
-      // The scope info might not have been set if a lazily compiled
-      // function is inlined before being called for the first time.
-      Handle<ScopeInfo> target_scope_info =
-          ScopeInfo::Create(target_info.scope(), zone());
-      target_shared->set_scope_info(*target_scope_info);
-    }
-    target_shared->EnableDeoptimizationSupport(*target_info.code());
-    target_shared->set_feedback_vector(*target_info.feedback_vector());
-    Compiler::RecordFunctionCompilation(Logger::FUNCTION_TAG,
-                                        &target_info,
-                                        target_shared);
+  if (!Compiler::EnsureDeoptimizationSupport(&target_info)) {
+    TraceInline(target, caller, "could not generate deoptimization info");
+    return false;
   }
 
   // ----------------------------------------------------------------
