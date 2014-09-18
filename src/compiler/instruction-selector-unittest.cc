@@ -303,9 +303,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   Node* stack = m.NewNode(m.common()->StateValues(0));
   Node* context_dummy = m.Int32Constant(0);
 
-  Node* state_node =
-      m.NewNode(m.common()->FrameState(bailout_id, kPushOutput), parameters,
-                locals, stack, context_dummy, m.UndefinedConstant());
+  Node* state_node = m.NewNode(
+      m.common()->FrameState(JS_FRAME, bailout_id, kPushOutput), parameters,
+      locals, stack, context_dummy, m.UndefinedConstant());
   Node* call = m.CallJS0(function_node, receiver, context, state_node);
   m.Return(call);
 
@@ -344,8 +344,8 @@ TARGET_TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
 
   Node* context_sentinel = m.Int32Constant(0);
   Node* frame_state_before = m.NewNode(
-      m.common()->FrameState(bailout_id_before, kPushOutput), parameters,
-      locals, stack, context_sentinel, m.UndefinedConstant());
+      m.common()->FrameState(JS_FRAME, bailout_id_before, kPushOutput),
+      parameters, locals, stack, context_sentinel, m.UndefinedConstant());
 
   // Build the call.
   Node* call = m.CallFunctionStub0(function_node, receiver, context,
@@ -383,9 +383,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
       s.GetFrameStateDescriptor(deopt_id_before);
   EXPECT_EQ(bailout_id_before, desc_before->bailout_id());
   EXPECT_EQ(kPushOutput, desc_before->state_combine());
-  EXPECT_EQ(1, desc_before->parameters_count());
-  EXPECT_EQ(1, desc_before->locals_count());
-  EXPECT_EQ(1, desc_before->stack_count());
+  EXPECT_EQ(1u, desc_before->parameters_count());
+  EXPECT_EQ(1u, desc_before->locals_count());
+  EXPECT_EQ(1u, desc_before->stack_count());
   EXPECT_EQ(43, s.ToInt32(call_instr->InputAt(2)));
   EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(3)));
   EXPECT_EQ(44, s.ToInt32(call_instr->InputAt(4)));
@@ -419,18 +419,18 @@ TARGET_TEST_F(InstructionSelectorTest,
   Node* parameters = m.NewNode(m.common()->StateValues(1), m.Int32Constant(63));
   Node* locals = m.NewNode(m.common()->StateValues(1), m.Int32Constant(64));
   Node* stack = m.NewNode(m.common()->StateValues(1), m.Int32Constant(65));
-  Node* frame_state_parent =
-      m.NewNode(m.common()->FrameState(bailout_id_parent, kIgnoreOutput),
-                parameters, locals, stack, context, m.UndefinedConstant());
+  Node* frame_state_parent = m.NewNode(
+      m.common()->FrameState(JS_FRAME, bailout_id_parent, kIgnoreOutput),
+      parameters, locals, stack, context, m.UndefinedConstant());
 
   Node* context2 = m.Int32Constant(46);
   Node* parameters2 =
       m.NewNode(m.common()->StateValues(1), m.Int32Constant(43));
   Node* locals2 = m.NewNode(m.common()->StateValues(1), m.Int32Constant(44));
   Node* stack2 = m.NewNode(m.common()->StateValues(1), m.Int32Constant(45));
-  Node* frame_state_before =
-      m.NewNode(m.common()->FrameState(bailout_id_before, kPushOutput),
-                parameters2, locals2, stack2, context2, frame_state_parent);
+  Node* frame_state_before = m.NewNode(
+      m.common()->FrameState(JS_FRAME, bailout_id_before, kPushOutput),
+      parameters2, locals2, stack2, context2, frame_state_parent);
 
   // Build the call.
   Node* call = m.CallFunctionStub0(function_node, receiver, context2,
@@ -467,9 +467,9 @@ TARGET_TEST_F(InstructionSelectorTest,
   FrameStateDescriptor* desc_before =
       s.GetFrameStateDescriptor(deopt_id_before);
   EXPECT_EQ(bailout_id_before, desc_before->bailout_id());
-  EXPECT_EQ(1, desc_before->parameters_count());
-  EXPECT_EQ(1, desc_before->locals_count());
-  EXPECT_EQ(1, desc_before->stack_count());
+  EXPECT_EQ(1u, desc_before->parameters_count());
+  EXPECT_EQ(1u, desc_before->locals_count());
+  EXPECT_EQ(1u, desc_before->stack_count());
   EXPECT_EQ(63, s.ToInt32(call_instr->InputAt(2)));
   // Context:
   EXPECT_EQ(66, s.ToInt32(call_instr->InputAt(3)));
