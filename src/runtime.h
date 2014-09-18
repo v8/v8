@@ -210,6 +210,11 @@ namespace internal {
   F(GetScript, 1, 1)                                                  \
   F(CollectStackTrace, 2, 1)                                          \
   F(GetV8Version, 0, 1)                                               \
+  F(GeneratorGetFunction, 1, 1)                                       \
+  F(GeneratorGetContext, 1, 1)                                        \
+  F(GeneratorGetReceiver, 1, 1)                                       \
+  F(GeneratorGetContinuation, 1, 1)                                   \
+  F(GeneratorGetSourcePosition, 1, 1)                                 \
                                                                       \
   F(SetCode, 2, 1)                                                    \
                                                                       \

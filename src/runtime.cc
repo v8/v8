@@ -14627,6 +14627,65 @@ RUNTIME_FUNCTION(Runtime_GetV8Version) {
 }
 
 
+// Returns function of generator activation.
+RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return generator->function();
+}
+
+
+// Returns context of generator activation.
+RUNTIME_FUNCTION(Runtime_GeneratorGetContext) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return generator->context();
+}
+
+
+// Returns receiver of generator activation.
+RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return generator->receiver();
+}
+
+
+// Returns generator continuation as a PC offset, or the magic -1 or 0 values.
+RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return Smi::FromInt(generator->continuation());
+}
+
+
+RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  if (generator->is_suspended()) {
+    Handle<Code> code(generator->function()->code(), isolate);
+    int offset = generator->continuation();
+
+    RUNTIME_ASSERT(0 <= offset && offset < code->Size());
+    Address pc = code->address() + offset;
+
+    return Smi::FromInt(code->SourcePosition(pc));
+  }
+
+  return isolate->heap()->undefined_value();
+}
+
+
 RUNTIME_FUNCTION(Runtime_Abort) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
