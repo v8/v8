@@ -466,17 +466,17 @@ class Isolate {
     kIsolateAddressCount
   };
 
-  static void InitializeOncePerProcess();
-
   // Returns the PerIsolateThreadData for the current thread (or NULL if one is
   // not currently set).
   static PerIsolateThreadData* CurrentPerIsolateThreadData() {
+    EnsureInitialized();
     return reinterpret_cast<PerIsolateThreadData*>(
         base::Thread::GetThreadLocal(per_isolate_thread_data_key_));
   }
 
   // Returns the isolate inside which the current thread is running.
   INLINE(static Isolate* Current()) {
+    EnsureInitialized();
     Isolate* isolate = reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
     DCHECK(isolate != NULL);
@@ -484,6 +484,7 @@ class Isolate {
   }
 
   INLINE(static Isolate* UncheckedCurrent()) {
+    EnsureInitialized();
     return reinterpret_cast<Isolate*>(
         base::Thread::GetThreadLocal(isolate_key_));
   }
@@ -528,11 +529,13 @@ class Isolate {
   // Used internally for V8 threads that do not execute JavaScript but still
   // are part of the domain of an isolate (like the context switcher).
   static base::Thread::LocalStorageKey isolate_key() {
+    EnsureInitialized();
     return isolate_key_;
   }
 
   // Returns the key used to store process-wide thread IDs.
   static base::Thread::LocalStorageKey thread_id_key() {
+    EnsureInitialized();
     return thread_id_key_;
   }
 
@@ -1107,9 +1110,9 @@ class Isolate {
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
 
-  static Isolate* NewForTesting() { return new Isolate(); }
-
  private:
+  static void EnsureInitialized();
+
   Isolate();
 
   friend struct GlobalState;
@@ -1168,7 +1171,8 @@ class Isolate {
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
-  static base::LazyMutex thread_data_table_mutex_;
+  // This mutex protects highest_thread_id_ and thread_data_table_.
+  static base::LazyMutex process_wide_mutex_;
 
   static base::Thread::LocalStorageKey per_isolate_thread_data_key_;
   static base::Thread::LocalStorageKey isolate_key_;

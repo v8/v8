@@ -73,23 +73,16 @@ using ::v8::internal::StrLength;
 class DebugLocalContext {
  public:
   inline DebugLocalContext(
-      v8::Isolate* isolate, v8::ExtensionConfiguration* extensions = 0,
-      v8::Handle<v8::ObjectTemplate> global_template =
-          v8::Handle<v8::ObjectTemplate>(),
-      v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>())
-      : scope_(isolate),
-        context_(v8::Context::New(isolate, extensions, global_template,
-                                  global_object)) {
-    context_->Enter();
-  }
-  inline DebugLocalContext(
       v8::ExtensionConfiguration* extensions = 0,
       v8::Handle<v8::ObjectTemplate> global_template =
           v8::Handle<v8::ObjectTemplate>(),
       v8::Handle<v8::Value> global_object = v8::Handle<v8::Value>())
       : scope_(CcTest::isolate()),
-        context_(v8::Context::New(CcTest::isolate(), extensions,
-                                  global_template, global_object)) {
+        context_(
+          v8::Context::New(CcTest::isolate(),
+                           extensions,
+                           global_template,
+                           global_object)) {
     context_->Enter();
   }
   inline ~DebugLocalContext() {
@@ -144,7 +137,8 @@ static v8::Local<v8::Function> CompileFunction(v8::Isolate* isolate,
                                                const char* source,
                                                const char* function_name) {
   v8::Script::Compile(v8::String::NewFromUtf8(isolate, source))->Run();
-  v8::Local<v8::Object> global = isolate->GetCurrentContext()->Global();
+  v8::Local<v8::Object> global =
+      CcTest::isolate()->GetCurrentContext()->Global();
   return v8::Local<v8::Function>::Cast(
       global->Get(v8::String::NewFromUtf8(isolate, function_name)));
 }
@@ -5161,20 +5155,12 @@ class V8Thread : public v8::base::Thread {
  public:
   V8Thread() : Thread(Options("V8Thread")) {}
   void Run();
-  v8::Isolate* isolate() { return isolate_; }
-
- private:
-  v8::Isolate* isolate_;
 };
 
 class DebuggerThread : public v8::base::Thread {
  public:
-  explicit DebuggerThread(v8::Isolate* isolate)
-      : Thread(Options("DebuggerThread")), isolate_(isolate) {}
+  DebuggerThread() : Thread(Options("DebuggerThread")) {}
   void Run();
-
- private:
-  v8::Isolate* isolate_;
 };
 
 
@@ -5217,25 +5203,22 @@ void V8Thread::Run() {
       "\n"
       "foo();\n";
 
-  isolate_ = v8::Isolate::New();
-  threaded_debugging_barriers.barrier_3.Wait();
-  {
-    v8::Isolate::Scope isolate_scope(isolate_);
-    DebugLocalContext env(isolate_);
-    v8::HandleScope scope(isolate_);
-    v8::Debug::SetMessageHandler(&ThreadedMessageHandler);
-    v8::Handle<v8::ObjectTemplate> global_template =
-        v8::ObjectTemplate::New(env->GetIsolate());
-    global_template->Set(
-        v8::String::NewFromUtf8(env->GetIsolate(), "ThreadedAtBarrier1"),
-        v8::FunctionTemplate::New(isolate_, ThreadedAtBarrier1));
-    v8::Handle<v8::Context> context =
-        v8::Context::New(isolate_, NULL, global_template);
-    v8::Context::Scope context_scope(context);
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate::Scope isolate_scope(isolate);
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Debug::SetMessageHandler(&ThreadedMessageHandler);
+  v8::Handle<v8::ObjectTemplate> global_template =
+      v8::ObjectTemplate::New(env->GetIsolate());
+  global_template->Set(
+      v8::String::NewFromUtf8(env->GetIsolate(), "ThreadedAtBarrier1"),
+      v8::FunctionTemplate::New(isolate, ThreadedAtBarrier1));
+  v8::Handle<v8::Context> context = v8::Context::New(isolate,
+                                                     NULL,
+                                                     global_template);
+  v8::Context::Scope context_scope(context);
 
-    CompileRun(source);
-  }
-  isolate_->Dispose();
+  CompileRun(source);
 }
 
 
@@ -5251,21 +5234,21 @@ void DebuggerThread::Run() {
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
 
+  v8::Isolate* isolate = CcTest::isolate();
   threaded_debugging_barriers.barrier_1.Wait();
-  v8::Debug::DebugBreak(isolate_);
+  v8::Debug::DebugBreak(isolate);
   threaded_debugging_barriers.barrier_2.Wait();
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_1, buffer));
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_2, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_1, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_2, buffer));
 }
 
 
 TEST(ThreadedDebugging) {
+  DebuggerThread debugger_thread;
   V8Thread v8_thread;
 
   // Create a V8 environment
   v8_thread.Start();
-  threaded_debugging_barriers.barrier_3.Wait();
-  DebuggerThread debugger_thread(v8_thread.isolate());
   debugger_thread.Start();
 
   v8_thread.Join();
@@ -5284,24 +5267,17 @@ class BreakpointsV8Thread : public v8::base::Thread {
  public:
   BreakpointsV8Thread() : Thread(Options("BreakpointsV8Thread")) {}
   void Run();
-
-  v8::Isolate* isolate() { return isolate_; }
-
- private:
-  v8::Isolate* isolate_;
 };
 
 class BreakpointsDebuggerThread : public v8::base::Thread {
  public:
-  BreakpointsDebuggerThread(bool global_evaluate, v8::Isolate* isolate)
+  explicit BreakpointsDebuggerThread(bool global_evaluate)
       : Thread(Options("BreakpointsDebuggerThread")),
-        global_evaluate_(global_evaluate),
-        isolate_(isolate) {}
+        global_evaluate_(global_evaluate) {}
   void Run();
 
  private:
   bool global_evaluate_;
-  v8::Isolate* isolate_;
 };
 
 
@@ -5346,20 +5322,16 @@ void BreakpointsV8Thread::Run() {
   const char* source_2 = "cat(17);\n"
     "cat(19);\n";
 
-  isolate_ = v8::Isolate::New();
-  breakpoints_barriers->barrier_3.Wait();
-  {
-    v8::Isolate::Scope isolate_scope(isolate_);
-    DebugLocalContext env(isolate_);
-    v8::HandleScope scope(isolate_);
-    v8::Debug::SetMessageHandler(&BreakpointsMessageHandler);
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate::Scope isolate_scope(isolate);
+  DebugLocalContext env;
+  v8::HandleScope scope(isolate);
+  v8::Debug::SetMessageHandler(&BreakpointsMessageHandler);
 
-    CompileRun(source_1);
-    breakpoints_barriers->barrier_1.Wait();
-    breakpoints_barriers->barrier_2.Wait();
-    CompileRun(source_2);
-  }
-  isolate_->Dispose();
+  CompileRun(source_1);
+  breakpoints_barriers->barrier_1.Wait();
+  breakpoints_barriers->barrier_2.Wait();
+  CompileRun(source_2);
 }
 
 
@@ -5425,12 +5397,14 @@ void BreakpointsDebuggerThread::Run() {
       "\"command\":\"continue\"}";
 
 
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::Isolate::Scope isolate_scope(isolate);
   // v8 thread initializes, runs source_1
   breakpoints_barriers->barrier_1.Wait();
   // 1:Set breakpoint in cat() (will get id 1).
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_1, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_1, buffer));
   // 2:Set breakpoint in dog() (will get id 2).
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_2, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_2, buffer));
   breakpoints_barriers->barrier_2.Wait();
   // V8 thread starts compiling source_2.
   // Automatic break happens, to run queued commands
@@ -5442,42 +5416,43 @@ void BreakpointsDebuggerThread::Run() {
   // Must have hit breakpoint #1.
   CHECK_EQ(1, break_event_breakpoint_id);
   // 4:Evaluate dog() (which has a breakpoint).
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_3, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_3, buffer));
   // V8 thread hits breakpoint in dog().
   breakpoints_barriers->semaphore_1.Wait();  // wait for break event
   // Must have hit breakpoint #2.
   CHECK_EQ(2, break_event_breakpoint_id);
   // 5:Evaluate (x + 1).
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_4, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_4, buffer));
   // Evaluate (x + 1) finishes.
   breakpoints_barriers->semaphore_1.Wait();
   // Must have result 108.
   CHECK_EQ(108, evaluate_int_result);
   // 6:Continue evaluation of dog().
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_5, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_5, buffer));
   // Evaluate dog() finishes.
   breakpoints_barriers->semaphore_1.Wait();
   // Must have result 107.
   CHECK_EQ(107, evaluate_int_result);
   // 7:Continue evaluation of source_2, finish cat(17), hit breakpoint
   // in cat(19).
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_6, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_6, buffer));
   // Message callback gets break event.
   breakpoints_barriers->semaphore_1.Wait();  // wait for break event
   // Must have hit breakpoint #1.
   CHECK_EQ(1, break_event_breakpoint_id);
   // 8: Evaluate dog() with breaks disabled.
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_7, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_7, buffer));
   // Evaluate dog() finishes.
   breakpoints_barriers->semaphore_1.Wait();
   // Must have result 116.
   CHECK_EQ(116, evaluate_int_result);
   // 9: Continue evaluation of source2, reach end.
-  v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_8, buffer));
+  v8::Debug::SendCommand(isolate, buffer, AsciiToUtf16(command_8, buffer));
 }
 
 
 void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
+  BreakpointsDebuggerThread breakpoints_debugger_thread(global_evaluate);
   BreakpointsV8Thread breakpoints_v8_thread;
 
   // Create a V8 environment
@@ -5485,9 +5460,6 @@ void TestRecursiveBreakpointsGeneric(bool global_evaluate) {
   breakpoints_barriers = &stack_allocated_breakpoints_barriers;
 
   breakpoints_v8_thread.Start();
-  breakpoints_barriers->barrier_3.Wait();
-  BreakpointsDebuggerThread breakpoints_debugger_thread(
-      global_evaluate, breakpoints_v8_thread.isolate());
   breakpoints_debugger_thread.Start();
 
   breakpoints_v8_thread.Join();

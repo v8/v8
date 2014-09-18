@@ -180,11 +180,10 @@ v8::base::TimeDelta ProcessFile(
 
 
 int main(int argc, char* argv[]) {
-  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeICU();
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
-  v8::V8::Initialize();
+  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   Encoding encoding = LATIN1;
   bool print_tokens = false;
   std::vector<std::string> fnames;

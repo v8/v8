@@ -46,7 +46,7 @@ bool Snapshot::HaveASnapshotToStartFrom() {
 }
 
 
-bool Snapshot::Initialize(Isolate* isolate) {
+bool Snapshot::Initialize() {
   if (!HaveASnapshotToStartFrom())
     return false;
 
@@ -66,7 +66,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
   deserializer.set_reservation(CELL_SPACE, snapshot_impl_->cell_space_used);
   deserializer.set_reservation(PROPERTY_CELL_SPACE,
                                snapshot_impl_->property_cell_space_used);
-  bool success = isolate->Init(&deserializer);
+  bool success = V8::Initialize(&deserializer);
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Snapshot loading and deserialization took %0.3f ms]\n", ms);
