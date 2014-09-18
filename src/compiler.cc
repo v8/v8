@@ -1276,6 +1276,7 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
   if (shared->code()->kind() != Code::FUNCTION ||
       ScopeInfo::Empty(isolate) == shared->scope_info()) {
     // The function was never compiled. Compile it unoptimized first.
+    // TODO(titzer): reuse the AST and scope info from this compile.
     CompilationInfoWithZone nested(function);
     nested.EnableDeoptimizationSupport();
     if (!GetUnoptimizedCodeCommon(&nested).ToHandle(&current_code)) {
@@ -1283,8 +1284,6 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
     }
     shared->ReplaceCode(*current_code);
   }
-  int compiled_size = shared->end_position() - shared->start_position();
-  isolate->counters()->total_compile_size()->Increment(compiled_size);
   current_code->set_profiler_ticks(0);
 
   info->SetOptimizing(osr_ast_id, current_code);
