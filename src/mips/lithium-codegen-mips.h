@@ -228,13 +228,11 @@ class LCodeGen: public LCodeGenBase {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition condition,
-                    LEnvironment* environment,
+  void DeoptimizeIf(Condition condition, LInstruction* instr,
                     Deoptimizer::BailoutType bailout_type,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void DeoptimizeIf(Condition condition,
-                    LEnvironment* environment,
+  void DeoptimizeIf(Condition condition, LInstruction* instr,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
 
@@ -297,12 +295,8 @@ class LCodeGen: public LCodeGenBase {
                         FPURegister src1,
                         FPURegister src2);
   void EmitCmpI(LOperand* left, LOperand* right);
-  void EmitNumberUntagD(Register input,
-                        DoubleRegister result,
-                        bool allow_undefined_as_nan,
-                        bool deoptimize_on_minus_zero,
-                        LEnvironment* env,
-                        NumberUntagDMode mode);
+  void EmitNumberUntagD(LNumberUntagD* instr, Register input,
+                        DoubleRegister result, NumberUntagDMode mode);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to

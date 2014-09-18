@@ -213,27 +213,24 @@ class LCodeGen: public LCodeGenBase {
                                    Register temp,
                                    LOperand* index,
                                    String::Encoding encoding);
-  void DeoptimizeBranch(
-      LEnvironment* environment,
-      BranchType branch_type, Register reg = NoReg, int bit = -1,
-      Deoptimizer::BailoutType* override_bailout_type = NULL);
-  void Deoptimize(LEnvironment* environment,
+  void DeoptimizeBranch(LInstruction* instr, BranchType branch_type,
+                        Register reg = NoReg, int bit = -1,
+                        Deoptimizer::BailoutType* override_bailout_type = NULL);
+  void Deoptimize(LInstruction* instr,
                   Deoptimizer::BailoutType* override_bailout_type = NULL);
-  void DeoptimizeIf(Condition cond, LEnvironment* environment);
-  void DeoptimizeIfZero(Register rt, LEnvironment* environment);
-  void DeoptimizeIfNotZero(Register rt, LEnvironment* environment);
-  void DeoptimizeIfNegative(Register rt, LEnvironment* environment);
-  void DeoptimizeIfSmi(Register rt, LEnvironment* environment);
-  void DeoptimizeIfNotSmi(Register rt, LEnvironment* environment);
-  void DeoptimizeIfRoot(Register rt,
-                        Heap::RootListIndex index,
-                        LEnvironment* environment);
-  void DeoptimizeIfNotRoot(Register rt,
-                           Heap::RootListIndex index,
-                           LEnvironment* environment);
-  void DeoptimizeIfMinusZero(DoubleRegister input, LEnvironment* environment);
-  void DeoptimizeIfBitSet(Register rt, int bit, LEnvironment* environment);
-  void DeoptimizeIfBitClear(Register rt, int bit, LEnvironment* environment);
+  void DeoptimizeIf(Condition cond, LInstruction* instr);
+  void DeoptimizeIfZero(Register rt, LInstruction* instr);
+  void DeoptimizeIfNotZero(Register rt, LInstruction* instr);
+  void DeoptimizeIfNegative(Register rt, LInstruction* instr);
+  void DeoptimizeIfSmi(Register rt, LInstruction* instr);
+  void DeoptimizeIfNotSmi(Register rt, LInstruction* instr);
+  void DeoptimizeIfRoot(Register rt, Heap::RootListIndex index,
+                        LInstruction* instr);
+  void DeoptimizeIfNotRoot(Register rt, Heap::RootListIndex index,
+                           LInstruction* instr);
+  void DeoptimizeIfMinusZero(DoubleRegister input, LInstruction* instr);
+  void DeoptimizeIfBitSet(Register rt, int bit, LInstruction* instr);
+  void DeoptimizeIfBitClear(Register rt, int bit, LInstruction* instr);
 
   MemOperand PrepareKeyedExternalArrayOperand(Register key,
                                               Register base,

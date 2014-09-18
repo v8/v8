@@ -234,10 +234,9 @@ class LCodeGen: public LCodeGenBase {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc,
-                    LEnvironment* environment,
+  void DeoptimizeIf(Condition cc, LInstruction* instr,
                     Deoptimizer::BailoutType bailout_type);
-  void DeoptimizeIf(Condition cc, LEnvironment* environment);
+  void DeoptimizeIf(Condition cc, LInstruction* instr);
 
   bool DeoptEveryNTimes() {
     return FLAG_deopt_every_n_times != 0 && !info()->IsStub();
@@ -294,14 +293,9 @@ class LCodeGen: public LCodeGenBase {
   void EmitBranch(InstrType instr, Condition cc);
   template<class InstrType>
   void EmitFalseBranch(InstrType instr, Condition cc);
-  void EmitNumberUntagDNoSSE2(
-      Register input,
-      Register temp,
-      X87Register res_reg,
-      bool allow_undefined_as_nan,
-      bool deoptimize_on_minus_zero,
-      LEnvironment* env,
-      NumberUntagDMode mode = NUMBER_CANDIDATE_IS_ANY_TAGGED);
+  void EmitNumberUntagDNoSSE2(LNumberUntagD* instr, Register input,
+                              Register temp, X87Register res_reg,
+                              NumberUntagDMode mode);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
