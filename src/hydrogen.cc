@@ -6270,7 +6270,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
 
   bool handle_smi = false;
   STATIC_ASSERT(kMaxLoadPolymorphism == kMaxStorePolymorphism);
-  for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
+  int i;
+  for (i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
     PropertyAccessInfo info(this, access_type, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
@@ -6285,7 +6286,12 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
     }
   }
 
-  count = 0;
+  if (i < types->length()) {
+    count = -1;
+    types->Clear();
+  } else {
+    count = 0;
+  }
   HControlInstruction* smi_check = NULL;
   handled_string = false;
 
@@ -7496,8 +7502,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   bool handled_string = false;
   int ordered_functions = 0;
 
-  for (int i = 0;
-       i < types->length() && ordered_functions < kMaxCallPolymorphism;
+  int i;
+  for (i = 0; i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
     PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
     if (info.CanAccessMonomorphic() && info.IsConstant() &&
@@ -7517,6 +7523,11 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   }
 
   std::sort(order, order + ordered_functions);
+
+  if (i < types->length()) {
+    types->Clear();
+    ordered_functions = -1;
+  }
 
   HBasicBlock* number_block = NULL;
   HBasicBlock* join = NULL;
