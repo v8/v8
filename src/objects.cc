@@ -10378,7 +10378,7 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 
 
 void SharedFunctionInfo::ClearTypeFeedbackInfo() {
-  FixedArray* vector = feedback_vector();
+  TypeFeedbackVector* vector = feedback_vector();
   Heap* heap = GetHeap();
   int length = vector->length();
 
@@ -10394,7 +10394,7 @@ void SharedFunctionInfo::ClearTypeFeedbackInfo() {
           break;
           // Fall through...
         default:
-          vector->set(i, TypeFeedbackInfo::RawUninitializedSentinel(heap),
+          vector->set(i, TypeFeedbackVector::RawUninitializedSentinel(heap),
                       SKIP_WRITE_BARRIER);
       }
     }

@@ -109,8 +109,9 @@ bool TypeFeedbackOracle::CallNewIsMonomorphic(int slot) {
 byte TypeFeedbackOracle::ForInType(int feedback_vector_slot) {
   Handle<Object> value = GetInfo(feedback_vector_slot);
   return value.is_identical_to(
-      TypeFeedbackInfo::UninitializedSentinel(isolate()))
-      ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
+             TypeFeedbackVector::UninitializedSentinel(isolate()))
+             ? ForInStatement::FAST_FOR_IN
+             : ForInStatement::SLOW_FOR_IN;
 }
 
 

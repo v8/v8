@@ -1889,7 +1889,7 @@ void Factory::BecomeJSFunction(Handle<JSProxy> proxy) {
 Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(int slot_count) {
   // Ensure we can skip the write barrier
   DCHECK_EQ(isolate()->heap()->uninitialized_symbol(),
-            *TypeFeedbackInfo::UninitializedSentinel(isolate()));
+            *TypeFeedbackVector::UninitializedSentinel(isolate()));
 
   if (slot_count == 0) {
     return Handle<TypeFeedbackVector>::cast(empty_fixed_array());
@@ -1898,7 +1898,7 @@ Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(int slot_count) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateFixedArrayWithFiller(
                          slot_count, TENURED,
-                         *TypeFeedbackInfo::UninitializedSentinel(isolate())),
+                         *TypeFeedbackVector::UninitializedSentinel(isolate())),
                      TypeFeedbackVector);
 }
 

@@ -761,6 +761,7 @@
         '../../src/transitions-inl.h',
         '../../src/transitions.cc',
         '../../src/transitions.h',
+        '../../src/type-feedback-vector-inl.h',
         '../../src/type-feedback-vector.cc',
         '../../src/type-feedback-vector.h',
         '../../src/type-info.cc',

@@ -3139,7 +3139,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("f"))));
 
-  Handle<FixedArray> feedback_vector(f->shared()->feedback_vector());
+  Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
 
   int expected_length = FLAG_vector_ics ? 4 : 2;
   CHECK_EQ(expected_length, feedback_vector->length());
@@ -3155,7 +3155,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
   CHECK_EQ(expected_length, feedback_vector->length());
   for (int i = 0; i < expected_length; i++) {
     CHECK_EQ(feedback_vector->get(i),
-             *TypeFeedbackInfo::UninitializedSentinel(CcTest::i_isolate()));
+             *TypeFeedbackVector::UninitializedSentinel(CcTest::i_isolate()));
   }
 }
 

@@ -1193,7 +1193,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&fixed_array);
 
   __ Move(r1, FeedbackVector());
-  __ mov(r2, Operand(TypeFeedbackInfo::MegamorphicSentinel(isolate())));
+  __ mov(r2, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
   __ str(r2, FieldMemOperand(r1, FixedArray::OffsetOfElementAt(slot)));
 
   __ mov(r1, Operand(Smi::FromInt(1)));  // Smi indicates slow check

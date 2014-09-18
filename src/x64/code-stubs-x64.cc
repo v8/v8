@@ -1694,7 +1694,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // function without changing the state.
   __ cmpp(rcx, rdi);
   __ j(equal, &done);
-  __ Cmp(rcx, TypeFeedbackInfo::MegamorphicSentinel(isolate));
+  __ Cmp(rcx, TypeFeedbackVector::MegamorphicSentinel(isolate));
   __ j(equal, &done);
 
   if (!FLAG_pretenuring_call_new) {
@@ -1718,13 +1718,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ Cmp(rcx, TypeFeedbackInfo::UninitializedSentinel(isolate));
+  __ Cmp(rcx, TypeFeedbackVector::UninitializedSentinel(isolate));
   __ j(equal, &initialize);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
   __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
-          TypeFeedbackInfo::MegamorphicSentinel(isolate));
+          TypeFeedbackVector::MegamorphicSentinel(isolate));
   __ jmp(&done);
 
   // An uninitialized cache is patched with the function or sentinel to
@@ -2071,9 +2071,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   __ movp(rcx, FieldOperand(rbx, rdx, times_pointer_size,
                             FixedArray::kHeaderSize));
-  __ Cmp(rcx, TypeFeedbackInfo::MegamorphicSentinel(isolate));
+  __ Cmp(rcx, TypeFeedbackVector::MegamorphicSentinel(isolate));
   __ j(equal, &slow_start);
-  __ Cmp(rcx, TypeFeedbackInfo::UninitializedSentinel(isolate));
+  __ Cmp(rcx, TypeFeedbackVector::UninitializedSentinel(isolate));
   __ j(equal, &miss);
 
   if (!FLAG_trace_ic) {
@@ -2082,9 +2082,8 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ AssertNotSmi(rcx);
     __ CmpObjectType(rcx, JS_FUNCTION_TYPE, rcx);
     __ j(not_equal, &miss);
-    __ Move(FieldOperand(rbx, rdx, times_pointer_size,
-                         FixedArray::kHeaderSize),
-            TypeFeedbackInfo::MegamorphicSentinel(isolate));
+    __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
+            TypeFeedbackVector::MegamorphicSentinel(isolate));
     __ jmp(&slow_start);
   }
 

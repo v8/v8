@@ -5,7 +5,7 @@
 #include "src/v8.h"
 
 #include "src/objects.h"
-#include "src/type-feedback-vector.h"
+#include "src/type-feedback-vector-inl.h"
 
 namespace v8 {
 namespace internal {

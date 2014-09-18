@@ -2316,9 +2316,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // r3 : slot in feedback vector (Smi)
   Label initialize, done, miss, megamorphic, not_array_function;
 
-  DCHECK_EQ(*TypeFeedbackInfo::MegamorphicSentinel(masm->isolate()),
+  DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->megamorphic_symbol());
-  DCHECK_EQ(*TypeFeedbackInfo::UninitializedSentinel(masm->isolate()),
+  DCHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->uninitialized_symbol());
 
   // Load the cache state into r4.

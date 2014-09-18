@@ -8379,28 +8379,6 @@ class TypeFeedbackInfo: public Struct {
   static const int kStorage3Offset = kStorage2Offset + kPointerSize;
   static const int kSize = kStorage3Offset + kPointerSize;
 
-  // TODO(mvstanton): move these sentinel declarations to shared function info.
-  // The object that indicates an uninitialized cache.
-  static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
-
-  // The object that indicates a megamorphic state.
-  static inline Handle<Object> MegamorphicSentinel(Isolate* isolate);
-
-  // The object that indicates a premonomorphic state.
-  static inline Handle<Object> PremonomorphicSentinel(Isolate* isolate);
-
-  // The object that indicates a generic state.
-  static inline Handle<Object> GenericSentinel(Isolate* isolate);
-
-  // The object that indicates a monomorphic state of Array with
-  // ElementsKind
-  static inline Handle<Object> MonomorphicArraySentinel(Isolate* isolate,
-      ElementsKind elements_kind);
-
-  // A raw version of the uninitialized sentinel that's safe to read during
-  // garbage collection (e.g., for patching the cache).
-  static inline Object* RawUninitializedSentinel(Heap* heap);
-
  private:
   static const int kTypeChangeChecksumBits = 7;
 

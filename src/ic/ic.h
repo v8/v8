@@ -295,15 +295,15 @@ class CallIC : public IC {
  public:
   explicit CallIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
-  void PatchMegamorphic(Handle<Object> function, Handle<FixedArray> vector,
-                        Handle<Smi> slot);
+  void PatchMegamorphic(Handle<Object> function,
+                        Handle<TypeFeedbackVector> vector, Handle<Smi> slot);
 
   void HandleMiss(Handle<Object> receiver, Handle<Object> function,
-                  Handle<FixedArray> vector, Handle<Smi> slot);
+                  Handle<TypeFeedbackVector> vector, Handle<Smi> slot);
 
   // Returns true if a custom handler was installed.
   bool DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
-                       Handle<FixedArray> vector, Handle<Smi> slot,
+                       Handle<TypeFeedbackVector> vector, Handle<Smi> slot,
                        const CallICState& state);
 
   // Code generator routines.
@@ -314,7 +314,7 @@ class CallIC : public IC {
                     ConstantPoolArray* constant_pool);
 
  private:
-  inline IC::State FeedbackToState(Handle<FixedArray> vector,
+  inline IC::State FeedbackToState(Handle<TypeFeedbackVector> vector,
                                    Handle<Smi> slot) const;
 };
 
