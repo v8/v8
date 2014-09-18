@@ -664,6 +664,13 @@ Expression* ParserTraits::SuperReference(
       pos);
 }
 
+Expression* ParserTraits::ClassLiteral(
+    const AstRawString* name, Expression* extends, Expression* constructor,
+    ZoneList<ObjectLiteral::Property*>* properties, int pos,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  return factory->NewClassLiteral(name, extends, constructor, properties, pos);
+}
+
 Literal* ParserTraits::ExpressionFromLiteral(
     Token::Value token, int pos,
     Scanner* scanner,
@@ -1962,8 +1969,8 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   bool is_strict_reserved = false;
   const AstRawString* name =
       ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
-  ClassLiteral* value = ParseClassLiteral(name, scanner()->location(),
-                                          is_strict_reserved, pos, CHECK_OK);
+  Expression* value = ParseClassLiteral(name, scanner()->location(),
+                                        is_strict_reserved, pos, CHECK_OK);
 
   Block* block = factory()->NewBlock(NULL, 1, true, pos);
   VariableMode mode = LET;

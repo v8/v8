@@ -524,7 +524,6 @@ class ParserTraits {
   }
   static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return NULL; }
   static FunctionLiteral* EmptyFunctionLiteral() { return NULL; }
-  static ClassLiteral* EmptyClassLiteral() { return NULL; }
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
@@ -549,6 +548,12 @@ class ParserTraits {
   Expression* SuperReference(Scope* scope,
                              AstNodeFactory<AstConstructionVisitor>* factory,
                              int pos = RelocInfo::kNoPosition);
+  Expression* ClassLiteral(const AstRawString* name, Expression* extends,
+                           Expression* constructor,
+                           ZoneList<ObjectLiteral::Property*>* properties,
+                           int pos,
+                           AstNodeFactory<AstConstructionVisitor>* factory);
+
   Literal* ExpressionFromLiteral(
       Token::Value token, int pos, Scanner* scanner,
       AstNodeFactory<AstConstructionVisitor>* factory);
