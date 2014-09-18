@@ -132,6 +132,7 @@ class GCIdleTimeHandler {
     size_t scavenge_speed_in_bytes_per_ms;
     size_t available_new_space_memory;
     size_t new_space_capacity;
+    size_t new_space_allocation_throughput_in_bytes_per_ms;
   };
 
   GCIdleTimeHandler()
@@ -160,6 +161,10 @@ class GCIdleTimeHandler {
 
   static size_t EstimateScavengeTime(size_t new_space_size,
                                      size_t scavenger_speed_in_bytes_per_ms);
+
+  static bool ScavangeMayHappenSoon(
+      size_t available_new_space_memory,
+      size_t new_space_allocation_throughput_in_bytes_per_ms);
 
  private:
   void StartIdleRound() { mark_compacts_since_idle_round_started_ = 0; }

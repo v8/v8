@@ -4313,6 +4313,9 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       static_cast<size_t>(tracer()->ScavengeSpeedInBytesPerMillisecond());
   heap_state.available_new_space_memory = new_space_.Available();
   heap_state.new_space_capacity = new_space_.Capacity();
+  heap_state.new_space_allocation_throughput_in_bytes_per_ms =
+      static_cast<size_t>(
+          tracer()->NewSpaceAllocationThroughputInBytesPerMillisecond());
 
   GCIdleTimeAction action =
       gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
