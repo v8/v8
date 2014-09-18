@@ -5,13 +5,23 @@
 // Flags: --harmony-object-literals --allow-natives-syntax
 
 
-(function TestDescriptor() {
+(function TestBasics() {
   var object = {
     method() {
       return 42;
     }
   };
   assertEquals(42, object.method());
+})();
+
+
+(function TestThis() {
+  var object = {
+    method() {
+      assertEquals(object, this);
+    }
+  };
+  object.method();
 })();
 
 
@@ -34,9 +44,7 @@
 
 (function TestProto() {
   var object = {
-    method() {
-      return 42;
-    }
+    method() {}
   };
 
   assertEquals(Function.prototype, Object.getPrototypeOf(object.method));
@@ -45,9 +53,7 @@
 
 (function TestNotConstructable() {
   var object = {
-    method() {
-      return 42;
-    }
+    method() {}
   };
 
   assertThrows(function() {
@@ -58,9 +64,7 @@
 
 (function TestFunctionName() {
   var object = {
-    method() {
-      return 42;
-    },
+    method() {},
     1() {},
     2.0() {}
   };
@@ -68,7 +72,6 @@
   assertEquals('method', f.name);
   var g = object[1];
   assertEquals('1', g.name);
-
   var h = object[2];
   assertEquals('2', h.name);
 })();
@@ -90,9 +93,7 @@
 
 (function TestNoPrototype() {
   var object = {
-    method() {
-      return 42;
-    }
+    method() {}
   };
   var f = object.method;
   assertFalse(f.hasOwnProperty('prototype'));
@@ -120,4 +121,128 @@
   %OptimizeFunctionOnNextCall(object.method);
   assertEquals(42, object.method());
   assertFalse(object.method.hasOwnProperty('prototype'));
+})();
+
+
+///////////////////////////////////////////////////////////////////////////////
+
+
+var GeneratorFunction = function*() {}.__proto__.constructor;
+
+
+function assertIteratorResult(value, done, result) {
+  assertEquals({value: value, done: done}, result);
+}
+
+
+(function TestGeneratorBasics() {
+  var object = {
+    *method() {
+      yield 1;
+    }
+  };
+  var g = object.method();
+  assertIteratorResult(1, false, g.next());
+  assertIteratorResult(undefined, true, g.next());
+})();
+
+
+(function TestGeneratorThis() {
+  var object = {
+    *method() {
+      yield this;
+    }
+  };
+  var g = object.method();
+  assertIteratorResult(object, false, g.next());
+  assertIteratorResult(undefined, true, g.next());
+})();
+
+
+(function TestGeneratorSymbolIterator() {
+  var object = {
+    *method() {}
+  };
+  var g = object.method();
+  assertEquals(g, g[Symbol.iterator]());
+})();
+
+
+(function TestGeneratorDescriptor() {
+  var object = {
+    *method() {
+      yield 1;
+    }
+  };
+
+  var desc = Object.getOwnPropertyDescriptor(object, 'method');
+  assertTrue(desc.enumerable);
+  assertTrue(desc.configurable);
+  assertTrue(desc.writable);
+  assertEquals('function', typeof desc.value);
+
+  var g = desc.value();
+  assertIteratorResult(1, false, g.next());
+  assertIteratorResult(undefined, true, g.next());
+})();
+
+
+(function TestGeneratorProto() {
+  var object = {
+    *method() {}
+  };
+
+  assertEquals(GeneratorFunction.prototype,
+               Object.getPrototypeOf(object.method));
+})();
+
+
+(function TestGeneratorConstructable() {
+  var object = {
+    *method() {
+      yield 1;
+    }
+  };
+
+  var g = new object.method();
+  assertIteratorResult(1, false, g.next());
+  assertIteratorResult(undefined, true, g.next());
+})();
+
+
+(function TestGeneratorName() {
+  var object = {
+    *method() {},
+    *1() {},
+    *2.0() {}
+  };
+  var f = object.method;
+  assertEquals('method', f.name);
+  var g = object[1];
+  assertEquals('1', g.name);
+  var h = object[2];
+  assertEquals('2', h.name);
+})();
+
+
+(function TestGeneratorNoBinding() {
+  var method = 'local';
+  var calls = 0;
+  var object = {
+    *method() {
+      calls++;
+      assertEquals('local', method);
+    }
+  };
+  var g = object.method();
+  assertIteratorResult(undefined, true, g.next());
+  assertEquals(1, calls);
+})();
+
+
+(function TestGeneratorToString() {
+  var object = {
+    *method() { yield 1; }
+  };
+  assertEquals('*method() { yield 1; }', object.method.toString());
 })();

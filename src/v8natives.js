@@ -1758,11 +1758,10 @@ function FunctionSourceString(func) {
       ? 'anonymous'
       : %FunctionGetName(func);
 
-  // TODO(arv): Handle concise generator methods.
-
+  var isGenerator = %FunctionIsGenerator(func);
   var head = %FunctionIsConciseMethod(func)
-      ? ''
-      : %FunctionIsGenerator(func) ? 'function* ' : 'function ';
+      ? (isGenerator ? '*' : '')
+      : (isGenerator ? 'function* ' : 'function ');
   return head + name + source;
 }
 

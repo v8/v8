@@ -761,17 +761,17 @@ enum FunctionKind {
   kNormalFunction = 0,
   kArrowFunction = 1,
   kGeneratorFunction = 2,
-  kConciseMethod = 4
+  kConciseMethod = 4,
+  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod
 };
 
 
 inline bool IsValidFunctionKind(FunctionKind kind) {
-  // At the moment these are mutually exclusive but in the future that wont be
-  // the case since ES6 allows concise generator methods.
   return kind == FunctionKind::kNormalFunction ||
          kind == FunctionKind::kArrowFunction ||
          kind == FunctionKind::kGeneratorFunction ||
-         kind == FunctionKind::kConciseMethod;
+         kind == FunctionKind::kConciseMethod ||
+         kind == FunctionKind::kConciseGeneratorMethod;
 }
 
 

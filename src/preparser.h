@@ -1936,11 +1936,12 @@ template <class Traits>
 typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
     Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
                                      bool in_class, bool is_static, bool* ok) {
-  // TODO(arv): Add support for concise generator methods.
   ExpressionT value = this->EmptyExpression();
   bool is_get = false;
   bool is_set = false;
   bool name_is_static = false;
+  bool is_generator = allow_harmony_object_literals_ && Check(Token::MUL);
+
   Token::Value name_token = peek();
   int next_pos = peek_position();
   IdentifierT name =
@@ -1949,7 +1950,7 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
 
   if (fni_ != NULL) this->PushLiteralName(fni_, name);
 
-  if (!in_class && peek() == Token::COLON) {
+  if (!in_class && !is_generator && peek() == Token::COLON) {
     // PropertyDefinition : PropertyName ':' AssignmentExpression
     checker->CheckProperty(name_token, kValueProperty,
                            CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -1957,7 +1958,8 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
     value = this->ParseAssignmentExpression(
         true, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
-  } else if (allow_harmony_object_literals_ && peek() == Token::LPAREN) {
+  } else if (is_generator ||
+             (allow_harmony_object_literals_ && peek() == Token::LPAREN)) {
     // Concise Method
 
     if (is_static && this->IsPrototype(name)) {
@@ -1965,14 +1967,22 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
       *ok = false;
       return this->EmptyObjectLiteralProperty();
     }
+    if (is_generator && in_class && !is_static && this->IsConstructor(name)) {
+      ReportMessageAt(scanner()->location(), "constructor_special_method");
+      *ok = false;
+      return this->EmptyObjectLiteralProperty();
+    }
 
     checker->CheckProperty(name_token, kValueProperty,
                            CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
+                                     : FunctionKind::kConciseMethod;
+
     value = this->ParseFunctionLiteral(
         name, scanner()->location(),
         false,  // reserved words are allowed here
-        FunctionKind::kConciseMethod, RelocInfo::kNoPosition,
-        FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::NORMAL_ARITY,
+        kind, RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
+        FunctionLiteral::NORMAL_ARITY,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   } else if (in_class && name_is_static && !is_static) {
