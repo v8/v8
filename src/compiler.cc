@@ -638,6 +638,40 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
 }
 
 
+static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
+                                      CompilationInfo* info,
+                                      Handle<SharedFunctionInfo> shared) {
+  // SharedFunctionInfo is passed separately, because if CompilationInfo
+  // was created using Script object, it will not have it.
+
+  // Log the code generation. If source information is available include
+  // script name and line number. Check explicitly whether logging is
+  // enabled as finding the line number is not free.
+  if (info->isolate()->logger()->is_logging_code_events() ||
+      info->isolate()->cpu_profiler()->is_profiling()) {
+    Handle<Script> script = info->script();
+    Handle<Code> code = info->code();
+    if (code.is_identical_to(info->isolate()->builtins()->CompileLazy())) {
+      return;
+    }
+    int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
+    int column_num =
+        Script::GetColumnNumber(script, shared->start_position()) + 1;
+    String* script_name = script->name()->IsString()
+                              ? String::cast(script->name())
+                              : info->isolate()->heap()->empty_string();
+    Logger::LogEventsAndTags log_tag = Logger::ToNativeByScript(tag, *script);
+    PROFILE(info->isolate(),
+            CodeCreateEvent(log_tag, *code, *shared, info, script_name,
+                            line_num, column_num));
+  }
+
+  GDBJIT(AddCode(Handle<String>(shared->DebugName()),
+                 Handle<Script>(info->script()), Handle<Code>(info->code()),
+                 info));
+}
+
+
 static bool CompileUnoptimizedCode(CompilationInfo* info) {
   DCHECK(AllowCompilation::IsAllowed(info->isolate()));
   DCHECK(info->function() != NULL);
@@ -672,8 +706,7 @@ MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCodeCommon(
   if (!CompileUnoptimizedCode(info)) return MaybeHandle<Code>();
 
   CHECK_EQ(Code::FUNCTION, info->code()->kind());
-  Compiler::RecordFunctionCompilation(
-      Logger::LAZY_COMPILE_TAG, info, info->shared_info());
+  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
   // Update the shared function info with the scope info. Allocating the
   // ScopeInfo object may cause a GC.
@@ -1233,8 +1266,8 @@ static bool GetOptimizedCodeNow(CompilationInfo* info) {
   // Success!
   DCHECK(!info->isolate()->has_pending_exception());
   InsertCodeIntoOptimizedCodeMap(info);
-  Compiler::RecordFunctionCompilation(
-      Logger::LAZY_COMPILE_TAG, info, info->shared_info());
+  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info,
+                            info->shared_info());
   return true;
 }
 
@@ -1357,8 +1390,7 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
     return Handle<Code>::null();
   }
 
-  Compiler::RecordFunctionCompilation(
-      Logger::LAZY_COMPILE_TAG, info.get(), shared);
+  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get(), shared);
   if (info->shared_info()->SearchOptimizedCodeMap(
           info->context()->native_context(), info->osr_ast_id()) == -1) {
     InsertCodeIntoOptimizedCodeMap(info.get());
@@ -1371,40 +1403,6 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
   }
 
   return Handle<Code>(*info->code());
-}
-
-
-void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
-                                         CompilationInfo* info,
-                                         Handle<SharedFunctionInfo> shared) {
-  // SharedFunctionInfo is passed separately, because if CompilationInfo
-  // was created using Script object, it will not have it.
-
-  // Log the code generation. If source information is available include
-  // script name and line number. Check explicitly whether logging is
-  // enabled as finding the line number is not free.
-  if (info->isolate()->logger()->is_logging_code_events() ||
-      info->isolate()->cpu_profiler()->is_profiling()) {
-    Handle<Script> script = info->script();
-    Handle<Code> code = info->code();
-    if (code.is_identical_to(info->isolate()->builtins()->CompileLazy())) {
-      return;
-    }
-    int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
-    int column_num =
-        Script::GetColumnNumber(script, shared->start_position()) + 1;
-    String* script_name = script->name()->IsString()
-        ? String::cast(script->name())
-        : info->isolate()->heap()->empty_string();
-    Logger::LogEventsAndTags log_tag = Logger::ToNativeByScript(tag, *script);
-    PROFILE(info->isolate(), CodeCreateEvent(
-        log_tag, *code, *shared, info, script_name, line_num, column_num));
-  }
-
-  GDBJIT(AddCode(Handle<String>(shared->DebugName()),
-                 Handle<Script>(info->script()),
-                 Handle<Code>(info->code()),
-                 info));
 }
 
 

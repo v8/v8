@@ -712,10 +712,6 @@ class Compiler : public AllStatic {
   // On failure, return the empty handle.
   static Handle<Code> GetConcurrentlyOptimizedCode(OptimizedCompileJob* job);
 
-  static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
-                                        CompilationInfo* info,
-                                        Handle<SharedFunctionInfo> shared);
-
   static bool DebuggerWantsEagerCompilation(
       CompilationInfo* info, bool allow_lazy_without_ctx = false);
 };
