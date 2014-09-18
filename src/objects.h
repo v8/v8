@@ -8034,13 +8034,7 @@ class JSRegExp: public JSObject {
   // IRREGEXP: Compiled with Irregexp.
   // IRREGEXP_NATIVE: Compiled to native code with Irregexp.
   enum Type { NOT_COMPILED, ATOM, IRREGEXP };
-  enum Flag {
-    NONE = 0,
-    GLOBAL = 1,
-    IGNORE_CASE = 2,
-    MULTILINE = 4,
-    STICKY = 8
-  };
+  enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
 
   class Flags {
    public:
@@ -8048,7 +8042,6 @@ class JSRegExp: public JSObject {
     bool is_global() { return (value_ & GLOBAL) != 0; }
     bool is_ignore_case() { return (value_ & IGNORE_CASE) != 0; }
     bool is_multiline() { return (value_ & MULTILINE) != 0; }
-    bool is_sticky() { return (value_ & STICKY) != 0; }
     uint32_t value() { return value_; }
    private:
     uint32_t value_;

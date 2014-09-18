@@ -2548,7 +2548,7 @@ RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
 
 RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 6);
+  DCHECK(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
   // If source is the empty string we set it to "(?:)" instead as
@@ -2564,13 +2564,9 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
   CONVERT_ARG_HANDLE_CHECKED(Object, multiline, 4);
   if (!multiline->IsTrue()) multiline = isolate->factory()->false_value();
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, sticky, 5);
-  if (!sticky->IsTrue()) sticky = isolate->factory()->false_value();
-
   Map* map = regexp->map();
   Object* constructor = map->constructor();
-  if (!FLAG_harmony_regexps &&
-      constructor->IsJSFunction() &&
+  if (constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, *source);
@@ -2587,11 +2583,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
     return *regexp;
   }
 
-  // Map has changed, so use generic, but slower, method.  We also end here if
-  // the --harmony-regexp flag is set, because the initial map does not have
-  // space for the 'sticky' flag, since it is from the snapshot, but must work
-  // both with and without --harmony-regexp.  When sticky comes out from under
-  // the flag, we will be able to use the fast initial map.
+  // Map has changed, so use generic, but slower, method.
   PropertyAttributes final =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_ENUM | DONT_DELETE);
   PropertyAttributes writable =
@@ -2606,10 +2598,6 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
       regexp, factory->ignore_case_string(), ignoreCase, final).Check();
   JSObject::SetOwnPropertyIgnoreAttributes(
       regexp, factory->multiline_string(), multiline, final).Check();
-  if (FLAG_harmony_regexps) {
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->sticky_string(), sticky, final).Check();
-  }
   JSObject::SetOwnPropertyIgnoreAttributes(
       regexp, factory->last_index_string(), zero, writable).Check();
   return *regexp;

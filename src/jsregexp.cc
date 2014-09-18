@@ -70,9 +70,6 @@ static JSRegExp::Flags RegExpFlagsFromString(Handle<String> str) {
       case 'm':
         flags |= JSRegExp::MULTILINE;
         break;
-      case 'y':
-        if (FLAG_harmony_regexps) flags |= JSRegExp::STICKY;
-        break;
     }
   }
   return JSRegExp::Flags(flags);
@@ -188,14 +185,12 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
 
   if (parse_result.simple &&
       !flags.is_ignore_case() &&
-      !flags.is_sticky() &&
       !HasFewDifferentCharacters(pattern)) {
     // Parse-tree is a single atom that is equal to the pattern.
     AtomCompile(re, pattern, flags, pattern);
     has_been_compiled = true;
   } else if (parse_result.tree->IsAtom() &&
       !flags.is_ignore_case() &&
-      !flags.is_sticky() &&
       parse_result.capture_count == 0) {
     RegExpAtom* atom = parse_result.tree->AsAtom();
     Vector<const uc16> atom_pattern = atom->data();
@@ -435,8 +430,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
   }
   RegExpEngine::CompilationResult result = RegExpEngine::Compile(
       &compile_data, flags.is_ignore_case(), flags.is_global(),
-      flags.is_multiline(), flags.is_sticky(), pattern, sample_subject,
-      is_one_byte, &zone);
+      flags.is_multiline(), pattern, sample_subject, is_one_byte, &zone);
   if (result.error_message != NULL) {
     // Unable to compile regexp.
     Handle<String> error_message = isolate->factory()->NewStringFromUtf8(
@@ -6033,8 +6027,8 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 
 RegExpEngine::CompilationResult RegExpEngine::Compile(
     RegExpCompileData* data, bool ignore_case, bool is_global,
-    bool is_multiline, bool is_sticky, Handle<String> pattern,
-    Handle<String> sample_subject, bool is_one_byte, Zone* zone) {
+    bool is_multiline, Handle<String> pattern, Handle<String> sample_subject,
+    bool is_one_byte, Zone* zone) {
   if ((data->capture_count + 1) * 2 - 1 > RegExpMacroAssembler::kMaxRegister) {
     return IrregexpRegExpTooBig(zone->isolate());
   }
@@ -6061,9 +6055,9 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(
   bool is_end_anchored = data->tree->IsAnchoredAtEnd();
   bool is_start_anchored = data->tree->IsAnchoredAtStart();
   int max_length = data->tree->max_match();
-  if (!is_start_anchored && !is_sticky) {
+  if (!is_start_anchored) {
     // Add a .*? at the beginning, outside the body capture, unless
-    // this expression is anchored at the beginning or sticky.
+    // this expression is anchored at the beginning.
     RegExpNode* loop_node =
         RegExpQuantifier::ToNode(0,
                                  RegExpTree::kInfinity,

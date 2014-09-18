@@ -518,7 +518,7 @@ static RegExpNode* Compile(const char* input, bool multiline, bool is_one_byte,
       NewStringFromUtf8(CStrVector(input)).ToHandleChecked();
   Handle<String> sample_subject =
       isolate->factory()->NewStringFromUtf8(CStrVector("")).ToHandleChecked();
-  RegExpEngine::Compile(&compile_data, false, false, multiline, false, pattern,
+  RegExpEngine::Compile(&compile_data, false, false, multiline, pattern,
                         sample_subject, is_one_byte, zone);
   return compile_data.node;
 }

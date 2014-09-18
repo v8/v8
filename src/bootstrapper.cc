@@ -203,7 +203,6 @@ class Genesis BASE_EMBEDDED {
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<GlobalObject> global_object,
                         Handle<JSFunction> empty_function);
-  void InitializeExperimentalGlobal();
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
@@ -1349,20 +1348,6 @@ void Genesis::InstallTypedArray(
 
   ElementsKind external_kind = GetNextTransitionElementsKind(elements_kind);
   *external_map = Map::AsElementsKind(initial_map, external_kind);
-}
-
-
-void Genesis::InitializeExperimentalGlobal() {
-  // TODO(erikcorry): Move this into Genesis::InitializeGlobal once we no
-  // longer need to live behind a flag.
-  Handle<JSObject> builtins(native_context()->builtins());
-
-  Handle<HeapObject> flag(
-      FLAG_harmony_regexps ? heap()->true_value() : heap()->false_value());
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
-  Runtime::DefineObjectProperty(builtins, factory()->harmony_regexps_string(),
-                                flag, attributes).Assert();
 }
 
 
@@ -2666,7 +2651,6 @@ Genesis::Genesis(Isolate* isolate,
 
   // Install experimental natives.
   if (!InstallExperimentalNatives()) return;
-  InitializeExperimentalGlobal();
 
   // We can't (de-)serialize typed arrays currently, but we are lucky: The state
   // of the random number generator needs no initialization during snapshot
