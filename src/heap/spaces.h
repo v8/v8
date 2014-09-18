@@ -2161,14 +2161,14 @@ class SemiSpace : public Space {
   inline static void AssertValidRange(Address from, Address to) {}
 #endif
 
-  // Returns the current capacity of the semi space.
-  int Capacity() { return capacity_; }
+  // Returns the current total capacity of the semispace.
+  int TotalCapacity() { return total_capacity_; }
 
-  // Returns the maximum capacity of the semi space.
-  int MaximumCapacity() { return maximum_capacity_; }
+  // Returns the maximum total capacity of the semispace.
+  int MaximumTotalCapacity() { return maximum_total_capacity_; }
 
-  // Returns the initial capacity of the semi space.
-  int InitialCapacity() { return initial_capacity_; }
+  // Returns the initial capacity of the semispace.
+  int InitialTotalCapacity() { return initial_total_capacity_; }
 
   SemiSpaceId id() { return id_; }
 
@@ -2190,10 +2190,10 @@ class SemiSpace : public Space {
 
   NewSpacePage* anchor() { return &anchor_; }
 
-  // The current and maximum capacity of the space.
-  int capacity_;
-  int maximum_capacity_;
-  int initial_capacity_;
+  // The current and maximum total capacity of the space.
+  int total_capacity_;
+  int maximum_total_capacity_;
+  int initial_total_capacity_;
 
   intptr_t maximum_committed_;
 
@@ -2363,22 +2363,24 @@ class NewSpace : public Space {
   // new space, which can't get as big as the other spaces then this is useful:
   int SizeAsInt() { return static_cast<int>(Size()); }
 
-  // Return the current capacity of a semispace.
-  intptr_t EffectiveCapacity() {
-    SLOW_DCHECK(to_space_.Capacity() == from_space_.Capacity());
-    return (to_space_.Capacity() / Page::kPageSize) * NewSpacePage::kAreaSize;
+  // Return the allocatable capacity of a semispace.
+  intptr_t Capacity() {
+    SLOW_DCHECK(to_space_.TotalCapacity() == from_space_.TotalCapacity());
+    return (to_space_.TotalCapacity() / Page::kPageSize) *
+           NewSpacePage::kAreaSize;
   }
 
-  // Return the current capacity of a semispace.
-  intptr_t Capacity() {
-    DCHECK(to_space_.Capacity() == from_space_.Capacity());
-    return to_space_.Capacity();
+  // Return the current size of a semispace, allocatable and non-allocatable
+  // memory.
+  intptr_t TotalCapacity() {
+    DCHECK(to_space_.TotalCapacity() == from_space_.TotalCapacity());
+    return to_space_.TotalCapacity();
   }
 
   // Return the total amount of memory committed for new space.
   intptr_t CommittedMemory() {
     if (from_space_.is_committed()) return 2 * Capacity();
-    return Capacity();
+    return TotalCapacity();
   }
 
   // Return the total amount of memory committed for new space.
@@ -2395,16 +2397,18 @@ class NewSpace : public Space {
 
   // Return the maximum capacity of a semispace.
   int MaximumCapacity() {
-    DCHECK(to_space_.MaximumCapacity() == from_space_.MaximumCapacity());
-    return to_space_.MaximumCapacity();
+    DCHECK(to_space_.MaximumTotalCapacity() ==
+           from_space_.MaximumTotalCapacity());
+    return to_space_.MaximumTotalCapacity();
   }
 
-  bool IsAtMaximumCapacity() { return Capacity() == MaximumCapacity(); }
+  bool IsAtMaximumCapacity() { return TotalCapacity() == MaximumCapacity(); }
 
   // Returns the initial capacity of a semispace.
-  int InitialCapacity() {
-    DCHECK(to_space_.InitialCapacity() == from_space_.InitialCapacity());
-    return to_space_.InitialCapacity();
+  int InitialTotalCapacity() {
+    DCHECK(to_space_.InitialTotalCapacity() ==
+           from_space_.InitialTotalCapacity());
+    return to_space_.InitialTotalCapacity();
   }
 
   // Return the address of the allocation pointer in the active semispace.

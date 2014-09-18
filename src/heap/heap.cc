@@ -1282,8 +1282,8 @@ static void VerifyNonPointerSpacePointers(Heap* heap) {
 
 
 void Heap::CheckNewSpaceExpansionCriteria() {
-  if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
-      survived_since_last_expansion_ > new_space_.Capacity()) {
+  if (new_space_.TotalCapacity() < new_space_.MaximumCapacity() &&
+      survived_since_last_expansion_ > new_space_.TotalCapacity()) {
     // Grow the size of new space if there is room to grow, enough data
     // has survived scavenge since the last expansion and we are not in
     // high promotion mode.
