@@ -2328,9 +2328,9 @@ class JSObject: public JSReceiver {
   // with the specified attributes (ignoring interceptors).
   int NumberOfOwnProperties(PropertyAttributes filter = NONE);
   // Fill in details for properties into storage starting at the specified
-  // index. Returns the number of properties that were added.
-  int GetOwnPropertyNames(FixedArray* storage, int index,
-                          PropertyAttributes filter = NONE);
+  // index.
+  void GetOwnPropertyNames(
+      FixedArray* storage, int index, PropertyAttributes filter = NONE);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -3863,8 +3863,10 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
                   PropertyAttributes filter,
                   SortMode sort_mode);
   // Fill in details for properties into storage.
-  int CopyKeysTo(FixedArray* storage, int index, PropertyAttributes filter,
-                 SortMode sort_mode);
+  void CopyKeysTo(FixedArray* storage,
+                  int index,
+                  PropertyAttributes filter,
+                  SortMode sort_mode);
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
