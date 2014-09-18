@@ -279,7 +279,6 @@ class CompilationInfo {
     unoptimized_code_ = unoptimized;
     optimization_id_ = isolate()->NextOptimizationId();
   }
-  void DisableOptimization();
 
   // Deoptimization support.
   bool HasDeoptimizationSupport() const {

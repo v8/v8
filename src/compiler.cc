@@ -259,18 +259,6 @@ Code::Flags CompilationInfo::flags() const {
 }
 
 
-// Disable optimization for the rest of the compilation pipeline.
-void CompilationInfo::DisableOptimization() {
-  bool is_optimizable_closure =
-    FLAG_optimize_closures &&
-    closure_.is_null() &&
-    !scope_->HasTrivialOuterContext() &&
-    !scope_->outer_scope_calls_sloppy_eval() &&
-    !scope_->inside_with();
-  SetMode(is_optimizable_closure ? BASE : NONOPT);
-}
-
-
 // Primitive functions are unlikely to be picked up by the stack-walking
 // profiler, so they trigger their own optimization when they're called
 // for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.

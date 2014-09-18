@@ -291,7 +291,6 @@ DEFINE_BOOL(trace_dead_code_elimination, false, "trace dead code elimination")
 DEFINE_BOOL(unreachable_code_elimination, true, "eliminate unreachable code")
 DEFINE_BOOL(trace_osr, false, "trace on-stack replacement")
 DEFINE_INT(stress_runs, 0, "number of stress runs")
-DEFINE_BOOL(optimize_closures, true, "optimize closures")
 DEFINE_BOOL(lookup_sample_by_shared, true,
             "when picking a function to optimize, watch for shared function "
             "info, not JSFunction itself")
