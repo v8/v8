@@ -226,7 +226,7 @@ class CompilationInfo {
     DCHECK(global_scope_ == NULL);
     global_scope_ = global_scope;
   }
-  Handle<FixedArray> feedback_vector() const {
+  Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
   void SetCode(Handle<Code> code) { code_ = code; }
@@ -451,7 +451,7 @@ class CompilationInfo {
   Handle<Context> context_;
 
   // Used by codegen, ultimately kept rooted by the SharedFunctionInfo.
-  Handle<FixedArray> feedback_vector_;
+  Handle<TypeFeedbackVector> feedback_vector_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;

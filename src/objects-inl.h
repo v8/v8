@@ -31,6 +31,7 @@
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
+#include "src/type-feedback-vector.h"
 #include "src/v8memory.h"
 
 namespace v8 {
@@ -706,6 +707,9 @@ bool Object::IsDescriptorArray() const {
 bool Object::IsTransitionArray() const {
   return IsFixedArray();
 }
+
+
+bool Object::IsTypeFeedbackVector() const { return IsFixedArray(); }
 
 
 bool Object::IsDeoptimizationInputData() const {
@@ -5400,7 +5404,7 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
                  kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS(SharedFunctionInfo, feedback_vector, FixedArray,
+ACCESSORS(SharedFunctionInfo, feedback_vector, TypeFeedbackVector,
           kFeedbackVectorOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)

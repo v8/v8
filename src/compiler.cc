@@ -174,8 +174,8 @@ void CompilationInfo::Initialize(Isolate* isolate,
   if (!shared_info().is_null() && shared_info()->is_compiled()) {
     // We should initialize the CompilationInfo feedback vector from the
     // passed in shared info, rather than creating a new one.
-    feedback_vector_ = Handle<FixedArray>(shared_info()->feedback_vector(),
-                                          isolate);
+    feedback_vector_ =
+        Handle<TypeFeedbackVector>(shared_info()->feedback_vector(), isolate);
   }
 }
 

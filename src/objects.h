@@ -79,6 +79,7 @@
 //           - OrderedHashSet
 //           - OrderedHashMap
 //         - Context
+//         - TypeFeedbackVector
 //         - JSFunctionResultCache
 //         - ScopeInfo
 //         - TransitionArray
@@ -850,6 +851,7 @@ class GlobalObject;
 class ObjectVisitor;
 class LookupIterator;
 class StringStream;
+class TypeFeedbackVector;
 // We cannot just say "class HeapType;" if it is created from a template... =8-?
 template<class> class TypeImpl;
 struct HeapTypeConfig;
@@ -924,6 +926,7 @@ template <class C> inline bool Is(Object* obj);
   V(Map)                           \
   V(DescriptorArray)               \
   V(TransitionArray)               \
+  V(TypeFeedbackVector)            \
   V(DeoptimizationInputData)       \
   V(DeoptimizationOutputData)      \
   V(DependentCode)                 \
@@ -6975,9 +6978,8 @@ class SharedFunctionInfo: public HeapObject {
 
   // [feedback_vector] - accumulates ast node feedback from full-codegen and
   // (increasingly) from crankshafted code where sufficient feedback isn't
-  // available. Currently the field is duplicated in
-  // TypeFeedbackInfo::feedback_vector, but the allocation is done here.
-  DECL_ACCESSORS(feedback_vector, FixedArray)
+  // available.
+  DECL_ACCESSORS(feedback_vector, TypeFeedbackVector)
 
   // [instance class name]: class name for instances.
   DECL_ACCESSORS(instance_class_name, Object)
