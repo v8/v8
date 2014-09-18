@@ -6436,8 +6436,8 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
     HValue* key = environment()->ExpressionStackAt(1);
     HValue* object = environment()->ExpressionStackAt(2);
     bool has_side_effects = false;
-    HandleKeyedElementAccess(object, key, value, expr,
-                             STORE, &has_side_effects);
+    HandleKeyedElementAccess(object, key, value, expr, return_id, STORE,
+                             &has_side_effects);
     Drop(3);
     Push(value);
     Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
@@ -7129,12 +7129,28 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
 
 HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
-    HValue* obj,
-    HValue* key,
-    HValue* val,
-    Expression* expr,
-    PropertyAccessType access_type,
+    HValue* obj, HValue* key, HValue* val, Expression* expr,
+    BailoutId return_id, PropertyAccessType access_type,
     bool* has_side_effects) {
+  if (key->ActualValue()->IsConstant()) {
+    Handle<Object> constant =
+        HConstant::cast(key->ActualValue())->handle(isolate());
+    uint32_t array_index;
+    if (constant->IsString() &&
+        !Handle<String>::cast(constant)->AsArrayIndex(&array_index)) {
+      HInstruction* instr =
+          BuildNamedAccess(access_type, expr->id(), return_id, expr, obj,
+                           Handle<String>::cast(constant), val, false);
+      if (instr == NULL || instr->IsLinked()) {
+        *has_side_effects = false;
+      } else {
+        AddInstruction(instr);
+        *has_side_effects = instr->HasObservableSideEffects();
+      }
+      return instr;
+    }
+  }
+
   DCHECK(!expr->IsPropertyName());
   HInstruction* instr = NULL;
 
@@ -7345,7 +7361,7 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
 
     bool has_side_effects = false;
     HValue* load = HandleKeyedElementAccess(
-        obj, key, NULL, expr, LOAD, &has_side_effects);
+        obj, key, NULL, expr, expr->LoadId(), LOAD, &has_side_effects);
     if (has_side_effects) {
       if (ast_context()->IsEffect()) {
         Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
@@ -7355,6 +7371,7 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
         Drop(1);
       }
     }
+    if (load == NULL) return;
     return ast_context()->ReturnValue(load);
   }
   return ast_context()->ReturnInstruction(instr, ast_id);
