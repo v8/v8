@@ -1,3 +1,8 @@
+2014-09-18: Version 3.29.75
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-18: Version 3.29.74
 
         Support stepping into generator function (issue 3572).
