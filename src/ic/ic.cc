@@ -1109,14 +1109,6 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
 
 
 Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
-  // Don't handle megamorphic property accesses for INTERCEPTORS or CALLBACKS
-  // via megamorphic stubs, since they don't have a map in their relocation info
-  // and so the stubs can't be harvested for the object needed for a map check.
-  if (target()->type() != Code::NORMAL) {
-    TRACE_GENERIC_IC(isolate(), "KeyedIC", "non-NORMAL target type");
-    return generic_stub();
-  }
-
   Handle<Map> receiver_map(receiver->map(), isolate());
   MapHandleList target_receiver_maps;
   if (target().is_identical_to(string_stub())) {
@@ -1192,8 +1184,6 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
       if (receiver->elements()->map() ==
           isolate()->heap()->sloppy_arguments_elements_map()) {
         stub = sloppy_arguments_stub();
-      } else if (receiver->HasIndexedInterceptor()) {
-        stub = indexed_interceptor_stub();
       } else if (!Object::ToSmi(isolate(), key).is_null() &&
                  (!target().is_identical_to(sloppy_arguments_stub()))) {
         stub = LoadElementStub(receiver);

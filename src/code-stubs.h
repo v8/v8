@@ -38,6 +38,7 @@ namespace internal {
   V(JSEntry)                                \
   V(KeyedLoadICTrampoline)                  \
   V(LoadICTrampoline)                       \
+  V(LoadIndexedInterceptor)                 \
   V(MathPow)                                \
   V(ProfileEntryHook)                       \
   V(RecordWrite)                            \
@@ -854,6 +855,20 @@ class FunctionPrototypeStub : public PlatformCodeStub {
   // should be created that just uses that register for more efficient code.
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_PLATFORM_CODE_STUB(FunctionPrototype, PlatformCodeStub);
+};
+
+
+// TODO(mvstanton): Translate to hydrogen code stub.
+class LoadIndexedInterceptorStub : public PlatformCodeStub {
+ public:
+  explicit LoadIndexedInterceptorStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
+
+  virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
+  virtual Code::StubType GetStubType() { return Code::FAST; }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+  DEFINE_PLATFORM_CODE_STUB(LoadIndexedInterceptor, PlatformCodeStub);
 };
 
 

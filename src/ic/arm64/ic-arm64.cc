@@ -682,46 +682,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
-  // Return address is in lr.
-  Label slow;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-  Register scratch1 = x3;
-  Register scratch2 = x4;
-  DCHECK(!AreAliased(scratch1, scratch2, receiver, key));
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, &slow);
-
-  // Check that the key is an array index, that is Uint32.
-  __ TestAndBranchIfAnySet(key, kSmiTagMask | kSmiSignMask, &slow);
-
-  // Get the map of the receiver.
-  Register map = scratch1;
-  __ Ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-
-  // Check that it has indexed interceptor and access checks
-  // are not enabled for this object.
-  __ Ldrb(scratch2, FieldMemOperand(map, Map::kBitFieldOffset));
-  DCHECK(kSlowCaseBitFieldMask == ((1 << Map::kIsAccessCheckNeeded) |
-                                   (1 << Map::kHasIndexedInterceptor)));
-  __ Tbnz(scratch2, Map::kIsAccessCheckNeeded, &slow);
-  __ Tbz(scratch2, Map::kHasIndexedInterceptor, &slow);
-
-  // Everything is fine, call runtime.
-  __ Push(receiver, key);
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(kLoadElementWithInterceptor),
-                        masm->isolate()),
-      2, 1);
-
-  __ Bind(&slow);
-  GenerateMiss(masm);
-}
-
-
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   ASM_LOCATION("KeyedStoreIC::GenerateMiss");
 
