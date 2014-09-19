@@ -1512,7 +1512,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // function without changing the state.
   __ cmp(ecx, edi);
   __ j(equal, &done, Label::kFar);
-  __ cmp(ecx, Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
+  __ cmp(ecx, Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
   __ j(equal, &done, Label::kFar);
 
   if (!FLAG_pretenuring_call_new) {
@@ -1535,14 +1535,14 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ cmp(ecx, Immediate(TypeFeedbackInfo::UninitializedSentinel(isolate)));
+  __ cmp(ecx, Immediate(TypeFeedbackVector::UninitializedSentinel(isolate)));
   __ j(equal, &initialize);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
-  __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
-                      FixedArray::kHeaderSize),
-         Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
+  __ mov(
+      FieldOperand(ebx, edx, times_half_pointer_size, FixedArray::kHeaderSize),
+      Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
   __ jmp(&done, Label::kFar);
 
   // An uninitialized cache is patched with the function or sentinel to
@@ -1877,9 +1877,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   __ mov(ecx, FieldOperand(ebx, edx, times_half_pointer_size,
                            FixedArray::kHeaderSize));
-  __ cmp(ecx, Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
+  __ cmp(ecx, Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
   __ j(equal, &slow_start);
-  __ cmp(ecx, Immediate(TypeFeedbackInfo::UninitializedSentinel(isolate)));
+  __ cmp(ecx, Immediate(TypeFeedbackVector::UninitializedSentinel(isolate)));
   __ j(equal, &miss);
 
   if (!FLAG_trace_ic) {
@@ -1890,7 +1890,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ j(not_equal, &miss);
     __ mov(FieldOperand(ebx, edx, times_half_pointer_size,
                         FixedArray::kHeaderSize),
-           Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate)));
+           Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
     __ jmp(&slow_start);
   }
 
