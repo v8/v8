@@ -11215,7 +11215,10 @@ void HOptimizedGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void HOptimizedGraphBuilder::VisitSuperReference(SuperReference* expr) {
-  UNREACHABLE();
+  DCHECK(!HasStackOverflow());
+  DCHECK(current_block() != NULL);
+  DCHECK(current_block()->HasPredecessor());
+  return Bailout(kSuperReference);
 }
 
 

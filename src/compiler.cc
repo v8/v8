@@ -402,6 +402,8 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
       info()->function()->dont_optimize_reason() != kTryFinallyStatement &&
       // TODO(turbofan): Make ES6 for-of work and remove this bailout.
       info()->function()->dont_optimize_reason() != kForOfStatement &&
+      // TODO(turbofan): Make super work and remove this bailout.
+      info()->function()->dont_optimize_reason() != kSuperReference &&
       // TODO(turbofan): Make OSR work and remove this bailout.
       !info()->is_osr()) {
     compiler::Pipeline pipeline(info());

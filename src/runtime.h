@@ -183,7 +183,10 @@ namespace internal {
                                                            \
   /* Classes support */                                    \
   F(ToMethod, 2, 1)                                        \
-  F(HomeObjectSymbol, 0, 1)
+  F(HomeObjectSymbol, 0, 1)                                \
+  F(ThrowNonMethodError, 0, 1)                             \
+  F(ThrowUnsupportedSuperError, 0, 1)                      \
+  F(LoadFromSuper, 3, 1)
 
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F)                             \

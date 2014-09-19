@@ -2080,6 +2080,30 @@ RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
+
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(home_object, name, v8::ACCESS_GET)) {
+    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_GET);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  }
+
+  PrototypeIterator iter(isolate, home_object);
+  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
+
+  LookupIterator it(receiver, name, Handle<JSReceiver>::cast(proto));
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_IsExtensible) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -9541,6 +9565,23 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError("not_defined", HandleVector(&name, 1)));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError("non_method", HandleVector<Object>(NULL, 0)));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewReferenceError("unsupported_super", HandleVector<Object>(NULL, 0)));
 }
 
 
