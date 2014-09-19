@@ -992,11 +992,8 @@ TEST(Regression39128) {
   // that region dirty marks are updated correctly.
 
   // Step 1: prepare a map for the object.  We add 1 inobject property to it.
-  Handle<JSFunction> object_ctor(
-      CcTest::i_isolate()->native_context()->object_function());
-  CHECK(object_ctor->has_initial_map());
   // Create a map with single inobject property.
-  Handle<Map> my_map = Map::Create(object_ctor, 1);
+  Handle<Map> my_map = Map::Create(CcTest::i_isolate(), 1);
   int n_properties = my_map->inobject_properties();
   CHECK_GT(n_properties, 0);
 
@@ -4461,7 +4458,7 @@ TEST(Regress388880) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
 
-  Handle<Map> map1 = Map::Create(isolate->object_function(), 1);
+  Handle<Map> map1 = Map::Create(isolate, 1);
   Handle<Map> map2 =
       Map::CopyWithField(map1, factory->NewStringFromStaticChars("foo"),
                          HeapType::Any(isolate), NONE, Representation::Tagged(),

@@ -6660,30 +6660,26 @@ Handle<Map> Map::Copy(Handle<Map> map) {
 }
 
 
-Handle<Map> Map::Create(Handle<JSFunction> constructor,
-                        int extra_inobject_properties) {
-  Handle<Map> copy = Copy(handle(constructor->initial_map()));
+Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
+  Handle<Map> copy = Copy(handle(isolate->object_function()->initial_map()));
 
-  // Check that we do not overflow the instance size when adding the
-  // extra inobject properties.
-  int instance_size_delta = extra_inobject_properties * kPointerSize;
-  int max_instance_size_delta =
-      JSObject::kMaxInstanceSize - copy->instance_size();
-  int max_extra_properties = max_instance_size_delta >> kPointerSizeLog2;
+  // Check that we do not overflow the instance size when adding the extra
+  // inobject properties. If the instance size overflows, we allocate as many
+  // properties as we can as inobject properties.
+  int max_extra_properties =
+      (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
 
-  // If the instance size overflows, we allocate as many properties as we can as
-  // inobject properties.
-  if (extra_inobject_properties > max_extra_properties) {
-    instance_size_delta = max_instance_size_delta;
-    extra_inobject_properties = max_extra_properties;
+  if (inobject_properties > max_extra_properties) {
+    inobject_properties = max_extra_properties;
   }
 
+  int new_instance_size =
+      JSObject::kHeaderSize + kPointerSize * inobject_properties;
+
   // Adjust the map with the extra inobject properties.
-  int inobject_properties =
-      copy->inobject_properties() + extra_inobject_properties;
   copy->set_inobject_properties(inobject_properties);
   copy->set_unused_property_fields(inobject_properties);
-  copy->set_instance_size(copy->instance_size() + instance_size_delta);
+  copy->set_instance_size(new_instance_size);
   copy->set_visitor_id(StaticVisitorBase::GetVisitorId(*copy));
   return copy;
 }

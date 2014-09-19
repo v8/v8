@@ -207,7 +207,7 @@ static Handle<Map> ComputeObjectLiteralMap(
     return isolate->factory()->ObjectLiteralMapFromCache(context, keys);
   }
   *is_result_from_cache = false;
-  return Map::Create(handle(context->object_function()), number_of_properties);
+  return Map::Create(isolate, number_of_properties);
 }
 
 

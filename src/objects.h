@@ -6379,8 +6379,7 @@ class Map: public HeapObject {
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   static Handle<Map> Copy(Handle<Map> map);
-  static Handle<Map> Create(Handle<JSFunction> constructor,
-                            int extra_inobject_properties);
+  static Handle<Map> Create(Isolate* isolate, int inobject_properties);
 
   // Returns the next free property index (only valid for FAST MODE).
   int NextFreePropertyIndex();

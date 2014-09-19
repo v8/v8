@@ -1156,7 +1156,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
     Handle<JSFunction> object_function(native_context()->object_function());
     Handle<Map> iterator_result_map =
-        Map::Create(object_function, JSGeneratorObject::kResultPropertyCount);
+        Map::Create(isolate, JSGeneratorObject::kResultPropertyCount);
+    DCHECK_EQ(JSGeneratorObject::kResultSize,
+              iterator_result_map->instance_size());
+    DCHECK_EQ(JSGeneratorObject::kResultPropertyCount,
+              iterator_result_map->inobject_properties());
     Map::EnsureDescriptorSlack(iterator_result_map,
                                JSGeneratorObject::kResultPropertyCount);
 
@@ -1170,14 +1174,9 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
                                NONE, Representation::Tagged());
     iterator_result_map->AppendDescriptor(&done_descr);
 
-    iterator_result_map->set_instance_size(JSGeneratorObject::kResultSize);
     iterator_result_map->set_unused_property_fields(0);
-    iterator_result_map->set_inobject_properties(
-        JSGeneratorObject::kResultPropertyCount);
     iterator_result_map->set_pre_allocated_property_fields(
         JSGeneratorObject::kResultPropertyCount);
-    iterator_result_map->set_visitor_id(
-        StaticVisitorBase::GetVisitorId(*iterator_result_map));
     DCHECK_EQ(JSGeneratorObject::kResultSize,
               iterator_result_map->instance_size());
     native_context()->set_iterator_result_map(*iterator_result_map);
@@ -1929,8 +1928,7 @@ bool Genesis::InstallNatives() {
         *strict_generator_function_map);
 
     Handle<JSFunction> object_function(native_context()->object_function());
-    Handle<Map> generator_object_prototype_map =
-        Map::Create(object_function, 0);
+    Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
     generator_object_prototype_map->set_prototype(*generator_object_prototype);
     native_context()->set_generator_object_prototype_map(
         *generator_object_prototype_map);
