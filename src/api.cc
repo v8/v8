@@ -471,30 +471,23 @@ void ResourceConstraints::ConfigureDefaults(uint64_t physical_memory,
 }
 
 
-bool SetResourceConstraints(Isolate* v8_isolate,
-                            ResourceConstraints* constraints) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  int semi_space_size = constraints->max_semi_space_size();
-  int old_space_size = constraints->max_old_space_size();
-  int max_executable_size = constraints->max_executable_size();
-  size_t code_range_size = constraints->code_range_size();
+void SetResourceConstraints(i::Isolate* isolate,
+                            const ResourceConstraints& constraints) {
+  int semi_space_size = constraints.max_semi_space_size();
+  int old_space_size = constraints.max_old_space_size();
+  int max_executable_size = constraints.max_executable_size();
+  size_t code_range_size = constraints.code_range_size();
   if (semi_space_size != 0 || old_space_size != 0 ||
       max_executable_size != 0 || code_range_size != 0) {
-    // After initialization it's too late to change Heap constraints.
-    DCHECK(!isolate->IsInitialized());
-    bool result = isolate->heap()->ConfigureHeap(semi_space_size,
-                                                 old_space_size,
-                                                 max_executable_size,
-                                                 code_range_size);
-    if (!result) return false;
+    isolate->heap()->ConfigureHeap(semi_space_size, old_space_size,
+                                   max_executable_size, code_range_size);
   }
-  if (constraints->stack_limit() != NULL) {
-    uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
+  if (constraints.stack_limit() != NULL) {
+    uintptr_t limit = reinterpret_cast<uintptr_t>(constraints.stack_limit());
     isolate->stack_guard()->SetStackLimit(limit);
   }
 
-  isolate->set_max_available_threads(constraints->max_available_threads());
-  return true;
+  isolate->set_max_available_threads(constraints.max_available_threads());
 }
 
 
@@ -5065,38 +5058,6 @@ void v8::V8::SetReturnAddressLocationResolver(
   i::V8::SetReturnAddressLocationResolver(return_address_resolver);
 }
 
-
-bool v8::V8::SetFunctionEntryHook(Isolate* ext_isolate,
-                                  FunctionEntryHook entry_hook) {
-  DCHECK(ext_isolate != NULL);
-  DCHECK(entry_hook != NULL);
-
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(ext_isolate);
-
-  // The entry hook can only be set before the Isolate is initialized, as
-  // otherwise the Isolate's code stubs generated at initialization won't
-  // contain entry hooks.
-  if (isolate->IsInitialized())
-    return false;
-
-  // Setting an entry hook is a one-way operation, once set, it cannot be
-  // changed or unset.
-  if (isolate->function_entry_hook() != NULL)
-    return false;
-
-  isolate->set_function_entry_hook(entry_hook);
-  return true;
-}
-
-
-void v8::V8::SetJitCodeEventHandler(
-    JitCodeEventOptions options, JitCodeEventHandler event_handler) {
-  i::Isolate* isolate = i::Isolate::Current();
-  // Ensure that logging is initialized for our isolate.
-  isolate->InitializeLoggingAndCounters();
-  isolate->logger()->SetCodeEventHandler(options, event_handler);
-}
-
 void v8::V8::SetArrayBufferAllocator(
     ArrayBuffer::Allocator* allocator) {
   if (!Utils::ApiCheck(i::V8::ArrayBufferAllocator() == NULL,
@@ -6616,8 +6577,7 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
     isolate->logger()->SetCodeEventHandler(kJitCodeEventDefault,
                                            params.code_event_handler);
   }
-  SetResourceConstraints(v8_isolate,
-                         const_cast<ResourceConstraints*>(&params.constraints));
+  SetResourceConstraints(isolate, params.constraints);
   if (params.enable_serializer) {
     isolate->enable_serializer();
   }

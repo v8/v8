@@ -4099,16 +4099,6 @@ class V8_EXPORT ResourceConstraints {
 };
 
 
-/**
- * Sets the given ResourceConstraints on the given Isolate.
- *
- * Deprecated, will be removed. Pass constraints via Isolate::New or modify
- * the stack limit via Isolate::SetStackLimit.
- */
-bool V8_EXPORT SetResourceConstraints(Isolate* isolate,
-                                      ResourceConstraints* constraints);
-
-
 // --- Exceptions ---
 
 
@@ -5128,50 +5118,6 @@ class V8_EXPORT V8 {
    */
   static void SetReturnAddressLocationResolver(
       ReturnAddressLocationResolver return_address_resolver);
-
-  /**
-   * Allows the host application to provide the address of a function that's
-   * invoked on entry to every V8-generated function.
-   * Note that \p entry_hook is invoked at the very start of each
-   * generated function.
-   *
-   * \param isolate the isolate to operate on.
-   * \param entry_hook a function that will be invoked on entry to every
-   *   V8-generated function.
-   * \returns true on success on supported platforms, false on failure.
-   * \note Setting an entry hook can only be done very early in an isolates
-   *   lifetime, and once set, the entry hook cannot be revoked.
-   *
-   * Deprecated, will be removed. Use Isolate::New(entry_hook) instead.
-   */
-  static bool SetFunctionEntryHook(Isolate* isolate,
-                                   FunctionEntryHook entry_hook);
-
-  /**
-   * Allows the host application to provide the address of a function that is
-   * notified each time code is added, moved or removed.
-   *
-   * \param options options for the JIT code event handler.
-   * \param event_handler the JIT code event handler, which will be invoked
-   *     each time code is added, moved or removed.
-   * \note \p event_handler won't get notified of existent code.
-   * \note since code removal notifications are not currently issued, the
-   *     \p event_handler may get notifications of code that overlaps earlier
-   *     code notifications. This happens when code areas are reused, and the
-   *     earlier overlapping code areas should therefore be discarded.
-   * \note the events passed to \p event_handler and the strings they point to
-   *     are not guaranteed to live past each call. The \p event_handler must
-   *     copy strings and other parameters it needs to keep around.
-   * \note the set of events declared in JitCodeEvent::EventType is expected to
-   *     grow over time, and the JitCodeEvent structure is expected to accrue
-   *     new members. The \p event_handler function must ignore event codes
-   *     it does not recognize to maintain future compatibility.
-   *
-   * Deprecated, will be removed. Use Isolate::SetJitCodeEventHandler or
-   * Isolate::CreateParams instead.
-   */
-  static void SetJitCodeEventHandler(JitCodeEventOptions options,
-                                     JitCodeEventHandler event_handler);
 
   /**
    * Forcefully terminate the current thread of JavaScript execution
