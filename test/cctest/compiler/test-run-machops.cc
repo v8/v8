@@ -3254,7 +3254,7 @@ TEST(RunChangeFloat64ToUint32_spilled) {
 
   for (int i = 0; i < kNumInputs; i++) {
     if (i % 2) {
-      input[i] = 100 + i + 2147483648;
+      input[i] = 100 + i + 2147483648u;
     } else {
       input[i] = 100 + i;
     }
@@ -3264,9 +3264,9 @@ TEST(RunChangeFloat64ToUint32_spilled) {
 
   for (int i = 0; i < kNumInputs; i++) {
     if (i % 2) {
-      CHECK_EQ(result[i], 100 + i + 2147483648);
+      CHECK_UINT32_EQ(result[i], static_cast<uint32_t>(100 + i + 2147483648u));
     } else {
-      CHECK_EQ(result[i], 100 + i);
+      CHECK_UINT32_EQ(result[i], static_cast<uint32_t>(100 + i));
     }
   }
 }
