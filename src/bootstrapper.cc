@@ -483,12 +483,14 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
   {  // --- O b j e c t ---
     Handle<JSFunction> object_fun = factory->NewFunction(object_name);
+    int unused = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
+    int instance_size = JSObject::kHeaderSize + kPointerSize * unused;
     Handle<Map> object_function_map =
-        factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+        factory->NewMap(JS_OBJECT_TYPE, instance_size);
+    object_function_map->set_inobject_properties(unused);
     JSFunction::SetInitialMap(object_fun, object_function_map,
                               isolate->factory()->null_value());
-    object_function_map->set_unused_property_fields(
-        JSObject::kInitialGlobalObjectUnusedPropertiesCount);
+    object_function_map->set_unused_property_fields(unused);
 
     native_context()->set_object_function(*object_fun);
 
@@ -1153,11 +1155,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   {  // Set up the iterator result object
     STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
     Handle<JSFunction> object_function(native_context()->object_function());
-    DCHECK(object_function->initial_map()->inobject_properties() == 0);
     Handle<Map> iterator_result_map =
         Map::Create(object_function, JSGeneratorObject::kResultPropertyCount);
-    DCHECK(iterator_result_map->inobject_properties() ==
-           JSGeneratorObject::kResultPropertyCount);
     Map::EnsureDescriptorSlack(iterator_result_map,
                                JSGeneratorObject::kResultPropertyCount);
 
@@ -1171,7 +1170,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
                                NONE, Representation::Tagged());
     iterator_result_map->AppendDescriptor(&done_descr);
 
+    iterator_result_map->set_instance_size(JSGeneratorObject::kResultSize);
     iterator_result_map->set_unused_property_fields(0);
+    iterator_result_map->set_inobject_properties(
+        JSGeneratorObject::kResultPropertyCount);
+    iterator_result_map->set_pre_allocated_property_fields(
+        JSGeneratorObject::kResultPropertyCount);
     DCHECK_EQ(JSGeneratorObject::kResultSize,
               iterator_result_map->instance_size());
     native_context()->set_iterator_result_map(*iterator_result_map);
