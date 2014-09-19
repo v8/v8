@@ -3387,6 +3387,7 @@ UNINITIALIZED_TEST(ReleaseStackTraceData) {
     ReleaseStackTraceDataTest(isolate, source3, getter);
     ReleaseStackTraceDataTest(isolate, source4, getter);
   }
+  isolate->Dispose();
 }
 
 
