@@ -2861,6 +2861,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
 
   root = GetByName("root");
   AddPropertyTo(0, root, "prop9");
+  CcTest::i_isolate()->heap()->CollectGarbage(OLD_POINTER_SPACE);
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
