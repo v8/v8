@@ -1728,27 +1728,6 @@ class HGraphBuilder {
     bool finished_;
   };
 
-  template <class A, class P1>
-  void DeoptimizeIf(P1 p1, char* const reason) {
-    IfBuilder builder(this);
-    builder.If<A>(p1);
-    builder.ThenDeopt(reason);
-  }
-
-  template <class A, class P1, class P2>
-  void DeoptimizeIf(P1 p1, P2 p2, const char* reason) {
-    IfBuilder builder(this);
-    builder.If<A>(p1, p2);
-    builder.ThenDeopt(reason);
-  }
-
-  template <class A, class P1, class P2, class P3>
-  void DeoptimizeIf(P1 p1, P2 p2, P3 p3, const char* reason) {
-    IfBuilder builder(this);
-    builder.If<A>(p1, p2, p3);
-    builder.ThenDeopt(reason);
-  }
-
   HValue* BuildNewElementsCapacity(HValue* old_capacity);
 
   class JSArrayBuilder FINAL {
