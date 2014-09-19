@@ -80,6 +80,18 @@ size_t GCIdleTimeHandler::EstimateScavengeTime(
 }
 
 
+bool GCIdleTimeHandler::ScavangeMayHappenSoon(
+    size_t available_new_space_memory,
+    size_t new_space_allocation_throughput_in_bytes_per_ms) {
+  if (available_new_space_memory <=
+      new_space_allocation_throughput_in_bytes_per_ms *
+          kMaxFrameRenderingIdleTime) {
+    return true;
+  }
+  return false;
+}
+
+
 // The following logic is implemented by the controller:
 // (1) If the new space is almost full and we can effort a Scavenge, then a
 // Scavenge is performed.
@@ -98,7 +110,9 @@ size_t GCIdleTimeHandler::EstimateScavengeTime(
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
                                             HeapState heap_state) {
-  if (heap_state.available_new_space_memory < kNewSpaceAlmostFullTreshold &&
+  if (ScavangeMayHappenSoon(
+          heap_state.available_new_space_memory,
+          heap_state.new_space_allocation_throughput_in_bytes_per_ms) &&
       idle_time_in_ms >=
           EstimateScavengeTime(heap_state.new_space_capacity,
                                heap_state.scavenge_speed_in_bytes_per_ms)) {
@@ -110,6 +124,10 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
     } else {
       return GCIdleTimeAction::Done();
     }
+  }
+
+  if (idle_time_in_ms == 0) {
+    return GCIdleTimeAction::Nothing();
   }
 
   if (heap_state.incremental_marking_stopped) {

@@ -1886,25 +1886,27 @@ void Factory::BecomeJSFunction(Handle<JSProxy> proxy) {
 }
 
 
-Handle<FixedArray> Factory::NewTypeFeedbackVector(int slot_count) {
+Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(int slot_count) {
   // Ensure we can skip the write barrier
   DCHECK_EQ(isolate()->heap()->uninitialized_symbol(),
-            *TypeFeedbackInfo::UninitializedSentinel(isolate()));
+            *TypeFeedbackVector::UninitializedSentinel(isolate()));
 
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateFixedArrayWithFiller(
-          slot_count,
-          TENURED,
-          *TypeFeedbackInfo::UninitializedSentinel(isolate())),
-      FixedArray);
+  if (slot_count == 0) {
+    return Handle<TypeFeedbackVector>::cast(empty_fixed_array());
+  }
+
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateFixedArrayWithFiller(
+                         slot_count, TENURED,
+                         *TypeFeedbackVector::UninitializedSentinel(isolate())),
+                     TypeFeedbackVector);
 }
 
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name, int number_of_literals, FunctionKind kind,
     Handle<Code> code, Handle<ScopeInfo> scope_info,
-    Handle<FixedArray> feedback_vector) {
+    Handle<TypeFeedbackVector> feedback_vector) {
   DCHECK(IsValidFunctionKind(kind));
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name, code);
   shared->set_scope_info(*scope_info);
@@ -1972,7 +1974,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
-  share->set_feedback_vector(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  Handle<TypeFeedbackVector> feedback_vector = NewTypeFeedbackVector(0);
+  share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);
   share->set_profiler_ticks(0);
   share->set_ast_node_count(0);
   share->set_counters(0);

@@ -9821,59 +9821,6 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 }
 
 
-// Walk up the stack expecting:
-//  - Runtime_CompileString
-//  - JSFunction callee (eval, Function constructor, etc)
-//  - call() (maybe)
-//  - apply() (maybe)
-//  - bind() (maybe)
-// - JSFunction caller (maybe)
-//
-// return true if the caller has the same security token as the callee
-// or if an exit frame was hit, in which case allow it through, as it could
-// have come through the api.
-static bool TokensMatchForCompileString(Isolate* isolate) {
-  MaybeHandle<JSFunction> callee;
-  bool exit_handled = true;
-  bool tokens_match = true;
-  bool done = false;
-  for (StackFrameIterator it(isolate); !it.done() && !done; it.Advance()) {
-    StackFrame* raw_frame = it.frame();
-    if (!raw_frame->is_java_script()) {
-      if (raw_frame->is_exit()) exit_handled = false;
-      continue;
-    }
-    JavaScriptFrame* outer_frame = JavaScriptFrame::cast(raw_frame);
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    outer_frame->Summarize(&frames);
-    for (int i = frames.length() - 1; i >= 0 && !done; --i) {
-      FrameSummary& frame = frames[i];
-      Handle<JSFunction> fun = frame.function();
-      // Capture the callee function.
-      if (callee.is_null()) {
-        callee = fun;
-        exit_handled = true;
-        continue;
-      }
-      // Exit condition.
-      Handle<Context> context(callee.ToHandleChecked()->context());
-      if (!fun->context()->HasSameSecurityTokenAs(*context)) {
-        tokens_match = false;
-        done = true;
-        continue;
-      }
-      // Skip bound functions in correct origin.
-      if (fun->shared()->bound()) {
-        exit_handled = true;
-        continue;
-      }
-      done = true;
-    }
-  }
-  return !exit_handled || tokens_match;
-}
-
-
 RUNTIME_FUNCTION(Runtime_CompileString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -9882,11 +9829,6 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
 
   // Extract native context.
   Handle<Context> context(isolate->native_context());
-
-  // Filter cross security context calls.
-  if (!TokensMatchForCompileString(isolate)) {
-    return isolate->heap()->undefined_value();
-  }
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
@@ -14612,6 +14554,65 @@ RUNTIME_FUNCTION(Runtime_GetV8Version) {
   const char* version_string = v8::V8::GetVersion();
 
   return *isolate->factory()->NewStringFromAsciiChecked(version_string);
+}
+
+
+// Returns function of generator activation.
+RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return generator->function();
+}
+
+
+// Returns context of generator activation.
+RUNTIME_FUNCTION(Runtime_GeneratorGetContext) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return generator->context();
+}
+
+
+// Returns receiver of generator activation.
+RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return generator->receiver();
+}
+
+
+// Returns generator continuation as a PC offset, or the magic -1 or 0 values.
+RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  return Smi::FromInt(generator->continuation());
+}
+
+
+RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
+
+  if (generator->is_suspended()) {
+    Handle<Code> code(generator->function()->code(), isolate);
+    int offset = generator->continuation();
+
+    RUNTIME_ASSERT(0 <= offset && offset < code->Size());
+    Address pc = code->address() + offset;
+
+    return Smi::FromInt(code->SourcePosition(pc));
+  }
+
+  return isolate->heap()->undefined_value();
 }
 
 

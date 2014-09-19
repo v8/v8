@@ -3411,6 +3411,8 @@ TEST(ErrorsSuper) {
 TEST(NoErrorsMethodDefinition) {
   const char* context_data[][2] = {{"({", "});"},
                                    {"'use strict'; ({", "});"},
+                                   {"({*", "});"},
+                                   {"'use strict'; ({*", "});"},
                                    {NULL, NULL}};
 
   const char* object_literal_body_data[] = {
@@ -3431,6 +3433,8 @@ TEST(NoErrorsMethodDefinition) {
 TEST(MethodDefinitionNames) {
   const char* context_data[][2] = {{"({", "(x, y) {}});"},
                                    {"'use strict'; ({", "(x, y) {}});"},
+                                   {"({*", "(x, y) {}});"},
+                                   {"'use strict'; ({*", "(x, y) {}});"},
                                    {NULL, NULL}};
 
   const char* name_data[] = {
@@ -3505,6 +3509,8 @@ TEST(MethodDefinitionNames) {
 TEST(MethodDefinitionStrictFormalParamereters) {
   const char* context_data[][2] = {{"({method(", "){}});"},
                                    {"'use strict'; ({method(", "){}});"},
+                                   {"({*method(", "){}});"},
+                                   {"'use strict'; ({*method(", "){}});"},
                                    {NULL, NULL}};
 
   const char* params_data[] = {
@@ -3540,6 +3546,18 @@ TEST(MethodDefinitionDuplicateProperty) {
     "x() {}, 'x'() {}",
     "0() {}, '0'() {}",
     "1.0() {}, 1: 1",
+
+    "x: 1, *x() {}",
+    "*x() {}, x: 1",
+    "*x() {}, get x() {}",
+    "*x() {}, set x(_) {}",
+    "*x() {}, *x() {}",
+    "*x() {}, y() {}, *x() {}",
+    "*x() {}, *\"x\"() {}",
+    "*x() {}, *'x'() {}",
+    "*0() {}, *'0'() {}",
+    "*1.0() {}, 1: 1",
+
     NULL
   };
 
@@ -3549,7 +3567,7 @@ TEST(MethodDefinitionDuplicateProperty) {
 }
 
 
-TEST(NoErrorsClassExpression) {
+TEST(ClassExpressionNoErrors) {
   const char* context_data[][2] = {{"(", ");"},
                                    {"var C = ", ";"},
                                    {"bar, ", ";"},
@@ -3573,7 +3591,7 @@ TEST(NoErrorsClassExpression) {
 }
 
 
-TEST(NoErrorsClassDeclaration) {
+TEST(ClassDeclarationNoErrors) {
   const char* context_data[][2] = {{"", ""},
                                    {"{", "}"},
                                    {"if (true) {", "}"},
@@ -3592,7 +3610,7 @@ TEST(NoErrorsClassDeclaration) {
 }
 
 
-TEST(NoErrorsClassBody) {
+TEST(ClassBodyNoErrors) {
   // Tests that parser and preparser accept valid class syntax.
   const char* context_data[][2] = {{"(class {", "});"},
                                    {"(class extends Base {", "});"},
@@ -3604,12 +3622,16 @@ TEST(NoErrorsClassBody) {
     ";;",
     "m() {}",
     "m() {};",
-    ";m() {}",
+    "; m() {}",
     "m() {}; n(x) {}",
     "get x() {}",
     "set x(v) {}",
     "get() {}",
     "set() {}",
+    "*g() {}",
+    "*g() {};",
+    "; *g() {}",
+    "*g() {}; *h(x) {}",
     "static() {}",
     "static m() {}",
     "static get x() {}",
@@ -3619,6 +3641,10 @@ TEST(NoErrorsClassBody) {
     "static static() {}",
     "static get static() {}",
     "static set static(v) {}",
+    "*static() {}",
+    "*get() {}",
+    "*set() {}",
+    "static *g() {}",
     NULL};
 
   static const ParserFlag always_flags[] = {
@@ -3630,39 +3656,23 @@ TEST(NoErrorsClassBody) {
 }
 
 
-TEST(MethodDefinitionstrictFormalParamereters) {
-  const char* context_data[][2] = {{"({method(", "){}});"},
-                                   {NULL, NULL}};
-
-  const char* params_data[] = {
-    "x, x",
-    "x, y, x",
-    "eval",
-    "arguments",
-    "var",
-    "const",
-    NULL
-  };
-
-  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
-  RunParserSyncTest(context_data, params_data, kError, NULL, 0,
-                    always_flags, arraysize(always_flags));
-}
-
-
-TEST(NoErrorsClassPropertyName) {
+TEST(ClassPropertyNameNoErrors) {
   const char* context_data[][2] = {{"(class {", "() {}});"},
                                    {"(class { get ", "() {}});"},
                                    {"(class { set ", "(v) {}});"},
                                    {"(class { static ", "() {}});"},
                                    {"(class { static get ", "() {}});"},
                                    {"(class { static set ", "(v) {}});"},
+                                   {"(class { *", "() {}});"},
+                                   {"(class { static *", "() {}});"},
                                    {"class C {", "() {}}"},
                                    {"class C { get ", "() {}}"},
                                    {"class C { set ", "(v) {}}"},
                                    {"class C { static ", "() {}}"},
                                    {"class C { static get ", "() {}}"},
                                    {"class C { static set ", "(v) {}}"},
+                                   {"class C { *", "() {}}"},
+                                   {"class C { static *", "() {}}"},
                                    {NULL, NULL}};
   const char* name_data[] = {
     "42",
@@ -3704,7 +3714,7 @@ TEST(NoErrorsClassPropertyName) {
 }
 
 
-TEST(ErrorsClassExpression) {
+TEST(ClassExpressionErrors) {
   const char* context_data[][2] = {{"(", ");"},
                                    {"var C = ", ";"},
                                    {"bar, ", ";"},
@@ -3735,7 +3745,7 @@ TEST(ErrorsClassExpression) {
 }
 
 
-TEST(ErrorsClassDeclaration) {
+TEST(ClassDeclarationErrors) {
   const char* context_data[][2] = {{"", ""},
                                    {"{", "}"},
                                    {"if (true) {", "}"},
@@ -3750,11 +3760,17 @@ TEST(ErrorsClassDeclaration) {
     "class name { m; n }",
     "class name { m: 1 }",
     "class name { m(); n() }",
-    "class name { get m }",
-    "class name { get m() }",
-    "class name { set m() {) }",  // missing required param
+    "class name { get x }",
+    "class name { get x() }",
+    "class name { set x() {) }",  // missing required param
     "class {}",  // Name is required for declaration
     "class extends base {}",
+    "class name { *",
+    "class name { * }",
+    "class name { *; }",
+    "class name { *get x() {} }",
+    "class name { *set x(_) {} }",
+    "class name { *static m() {} }",
     NULL};
 
   static const ParserFlag always_flags[] = {
@@ -3766,7 +3782,7 @@ TEST(ErrorsClassDeclaration) {
 }
 
 
-TEST(ErrorsClassName) {
+TEST(ClassNameErrors) {
   const char* context_data[][2] = {{"class ", "{}"},
                                    {"(class ", "{});"},
                                    {"'use strict'; class ", "{}"},
@@ -3796,7 +3812,7 @@ TEST(ErrorsClassName) {
 }
 
 
-TEST(ErrorsClassGetterParamName) {
+TEST(ClassGetterParamNameErrors) {
   const char* context_data[][2] = {
     {"class C { get name(", ") {} }"},
     {"(class { get name(", ") {} });"},
@@ -3829,7 +3845,7 @@ TEST(ErrorsClassGetterParamName) {
 }
 
 
-TEST(ErrorsClassStaticPrototype) {
+TEST(ClassStaticPrototypeErrors) {
   const char* context_data[][2] = {{"class C {", "}"},
                                    {"(class {", "});"},
                                    {NULL, NULL}};
@@ -3838,6 +3854,7 @@ TEST(ErrorsClassStaticPrototype) {
     "static prototype() {}",
     "static get prototype() {}",
     "static set prototype(_) {}",
+    "static *prototype() {}",
     NULL};
 
   static const ParserFlag always_flags[] = {
@@ -3849,7 +3866,7 @@ TEST(ErrorsClassStaticPrototype) {
 }
 
 
-TEST(ErrorsClassSpecialConstructor) {
+TEST(ClassSpecialConstructorErrors) {
   const char* context_data[][2] = {{"class C {", "}"},
                                    {"(class {", "});"},
                                    {NULL, NULL}};
@@ -3857,6 +3874,7 @@ TEST(ErrorsClassSpecialConstructor) {
   const char* class_body_data[] = {
     "get constructor() {}",
     "get constructor(_) {}",
+    "*constructor() {}",
     NULL};
 
   static const ParserFlag always_flags[] = {
@@ -3868,7 +3886,7 @@ TEST(ErrorsClassSpecialConstructor) {
 }
 
 
-TEST(NoErrorsClassConstructor) {
+TEST(ClassConstructorNoErrors) {
   const char* context_data[][2] = {{"class C {", "}"},
                                    {"(class {", "});"},
                                    {NULL, NULL}};
@@ -3878,6 +3896,7 @@ TEST(NoErrorsClassConstructor) {
     "static constructor() {}",
     "static get constructor() {}",
     "static set constructor(_) {}",
+    "static *constructor() {}",
     NULL};
 
   static const ParserFlag always_flags[] = {
@@ -3889,7 +3908,7 @@ TEST(NoErrorsClassConstructor) {
 }
 
 
-TEST(ErrorsClassMultipleConstructor) {
+TEST(ClassMultipleConstructorErrors) {
   // We currently do not allow any duplicate properties in class bodies. This
   // test ensures that when we change that we still throw on duplicate
   // constructors.
@@ -3912,7 +3931,7 @@ TEST(ErrorsClassMultipleConstructor) {
 
 // TODO(arv): We should allow duplicate property names.
 // https://code.google.com/p/v8/issues/detail?id=3570
-DISABLED_TEST(NoErrorsClassMultiplePropertyNames) {
+DISABLED_TEST(ClassMultiplePropertyNamesNoErrors) {
   const char* context_data[][2] = {{"class C {", "}"},
                                    {"(class {", "});"},
                                    {NULL, NULL}};
@@ -3932,7 +3951,7 @@ DISABLED_TEST(NoErrorsClassMultiplePropertyNames) {
 }
 
 
-TEST(ErrorsClassesAreStrict) {
+TEST(ClassesAreStrictErrors) {
   const char* context_data[][2] = {{"", ""},
                                    {"(", ");"},
                                    {NULL, NULL}};
@@ -3940,6 +3959,7 @@ TEST(ErrorsClassesAreStrict) {
   const char* class_body_data[] = {
     "class C { method() { with ({}) {} } }",
     "class C extends function() { with ({}) {} } {}",
+    "class C { *method() { with ({}) {} } }",
     NULL};
 
   static const ParserFlag always_flags[] = {

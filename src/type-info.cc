@@ -18,19 +18,17 @@ namespace v8 {
 namespace internal {
 
 
-TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
-                                       Handle<FixedArray> feedback_vector,
-                                       Handle<Context> native_context,
-                                       Zone* zone)
-    : native_context_(native_context),
-      zone_(zone) {
+TypeFeedbackOracle::TypeFeedbackOracle(
+    Handle<Code> code, Handle<TypeFeedbackVector> feedback_vector,
+    Handle<Context> native_context, Zone* zone)
+    : native_context_(native_context), zone_(zone) {
   BuildDictionary(code);
   DCHECK(dictionary_->IsDictionary());
   // We make a copy of the feedback vector because a GC could clear
   // the type feedback info contained therein.
   // TODO(mvstanton): revisit the decision to copy when we weakly
   // traverse the feedback vector at GC time.
-  feedback_vector_ = isolate()->factory()->CopyFixedArray(feedback_vector);
+  feedback_vector_ = TypeFeedbackVector::Copy(isolate(), feedback_vector);
 }
 
 
@@ -111,8 +109,9 @@ bool TypeFeedbackOracle::CallNewIsMonomorphic(int slot) {
 byte TypeFeedbackOracle::ForInType(int feedback_vector_slot) {
   Handle<Object> value = GetInfo(feedback_vector_slot);
   return value.is_identical_to(
-      TypeFeedbackInfo::UninitializedSentinel(isolate()))
-      ? ForInStatement::FAST_FOR_IN : ForInStatement::SLOW_FOR_IN;
+             TypeFeedbackVector::UninitializedSentinel(isolate()))
+             ? ForInStatement::FAST_FOR_IN
+             : ForInStatement::SLOW_FOR_IN;
 }
 
 

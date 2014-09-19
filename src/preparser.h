@@ -64,7 +64,6 @@ class ParserBase : public Traits {
   typedef typename Traits::Type::Expression ExpressionT;
   typedef typename Traits::Type::Identifier IdentifierT;
   typedef typename Traits::Type::FunctionLiteral FunctionLiteralT;
-  typedef typename Traits::Type::ClassLiteral ClassLiteralT;
   typedef typename Traits::Type::Literal LiteralT;
   typedef typename Traits::Type::ObjectLiteralProperty ObjectLiteralPropertyT;
 
@@ -502,10 +501,10 @@ class ParserBase : public Traits {
                                                 bool* ok);
   ExpressionT ParseArrowFunctionLiteral(int start_pos, ExpressionT params_ast,
                                         bool* ok);
-  ClassLiteralT ParseClassLiteral(IdentifierT name,
-                                  Scanner::Location function_name_location,
-                                  bool name_is_strict_reserved, int pos,
-                                  bool* ok);
+  ExpressionT ParseClassLiteral(IdentifierT name,
+                                Scanner::Location function_name_location,
+                                bool name_is_strict_reserved, int pos,
+                                bool* ok);
 
   // Checks if the expression is a valid reference expression (e.g., on the
   // left-hand side of assignments). Although ruled out by ECMA as early errors,
@@ -1087,7 +1086,6 @@ class PreParserFactory {
                                       PreParserExpression extends,
                                       PreParserExpression constructor,
                                       PreParserExpressionList properties,
-                                      AstValueFactory* ast_value_factory,
                                       int position) {
     return PreParserExpression::Default();
   }
@@ -1287,9 +1285,6 @@ class PreParserTraits {
   static PreParserExpression EmptyFunctionLiteral() {
     return PreParserExpression::Default();
   }
-  static PreParserExpression EmptyClassLiteral() {
-    return PreParserExpression::Default();
-  }
   static PreParserExpressionList NullExpressionList() {
     return PreParserExpressionList();
   }
@@ -1316,6 +1311,15 @@ class PreParserTraits {
   static PreParserExpression SuperReference(PreParserScope* scope,
                                             PreParserFactory* factory) {
     return PreParserExpression::Super();
+  }
+
+  static PreParserExpression ClassLiteral(PreParserIdentifier name,
+                                          PreParserExpression extends,
+                                          PreParserExpression constructor,
+                                          PreParserExpressionList properties,
+                                          int position,
+                                          PreParserFactory* factory) {
+    return PreParserExpression::Default();
   }
 
   static PreParserExpression ExpressionFromLiteral(
@@ -1936,11 +1940,12 @@ template <class Traits>
 typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
     Traits>::ParsePropertyDefinition(ObjectLiteralChecker* checker,
                                      bool in_class, bool is_static, bool* ok) {
-  // TODO(arv): Add support for concise generator methods.
   ExpressionT value = this->EmptyExpression();
   bool is_get = false;
   bool is_set = false;
   bool name_is_static = false;
+  bool is_generator = allow_harmony_object_literals_ && Check(Token::MUL);
+
   Token::Value name_token = peek();
   int next_pos = peek_position();
   IdentifierT name =
@@ -1949,7 +1954,7 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
 
   if (fni_ != NULL) this->PushLiteralName(fni_, name);
 
-  if (!in_class && peek() == Token::COLON) {
+  if (!in_class && !is_generator && peek() == Token::COLON) {
     // PropertyDefinition : PropertyName ':' AssignmentExpression
     checker->CheckProperty(name_token, kValueProperty,
                            CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
@@ -1957,7 +1962,8 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
     value = this->ParseAssignmentExpression(
         true, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
-  } else if (allow_harmony_object_literals_ && peek() == Token::LPAREN) {
+  } else if (is_generator ||
+             (allow_harmony_object_literals_ && peek() == Token::LPAREN)) {
     // Concise Method
 
     if (is_static && this->IsPrototype(name)) {
@@ -1965,14 +1971,22 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
       *ok = false;
       return this->EmptyObjectLiteralProperty();
     }
+    if (is_generator && in_class && !is_static && this->IsConstructor(name)) {
+      ReportMessageAt(scanner()->location(), "constructor_special_method");
+      *ok = false;
+      return this->EmptyObjectLiteralProperty();
+    }
 
     checker->CheckProperty(name_token, kValueProperty,
                            CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+    FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
+                                     : FunctionKind::kConciseMethod;
+
     value = this->ParseFunctionLiteral(
         name, scanner()->location(),
         false,  // reserved words are allowed here
-        FunctionKind::kConciseMethod, RelocInfo::kNoPosition,
-        FunctionLiteral::ANONYMOUS_EXPRESSION, FunctionLiteral::NORMAL_ARITY,
+        kind, RelocInfo::kNoPosition, FunctionLiteral::ANONYMOUS_EXPRESSION,
+        FunctionLiteral::NORMAL_ARITY,
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   } else if (in_class && name_is_static && !is_static) {
@@ -2703,21 +2717,19 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
 
 
 template <class Traits>
-typename ParserBase<Traits>::ClassLiteralT
-ParserBase<Traits>::ParseClassLiteral(IdentifierT name,
-                                      Scanner::Location class_name_location,
-                                      bool name_is_strict_reserved, int pos,
-                                      bool* ok) {
+typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
+    IdentifierT name, Scanner::Location class_name_location,
+    bool name_is_strict_reserved, int pos, bool* ok) {
   // All parts of a ClassDeclaration or a ClassExpression are strict code.
   if (name_is_strict_reserved) {
     ReportMessageAt(class_name_location, "unexpected_strict_reserved");
     *ok = false;
-    return this->EmptyClassLiteral();
+    return this->EmptyExpression();
   }
   if (this->IsEvalOrArguments(name)) {
     ReportMessageAt(class_name_location, "strict_eval_arguments");
     *ok = false;
-    return this->EmptyClassLiteral();
+    return this->EmptyExpression();
   }
 
   // TODO(arv): Implement scopes and name binding in class body only.
@@ -2732,8 +2744,7 @@ ParserBase<Traits>::ParseClassLiteral(IdentifierT name,
 
   ExpressionT extends = this->EmptyExpression();
   if (Check(Token::EXTENDS)) {
-    extends =
-        this->ParseLeftHandSideExpression(CHECK_OK_CUSTOM(EmptyClassLiteral));
+    extends = this->ParseLeftHandSideExpression(CHECK_OK);
   }
 
   ObjectLiteralChecker checker(this, STRICT);
@@ -2741,15 +2752,15 @@ ParserBase<Traits>::ParseClassLiteral(IdentifierT name,
       this->NewPropertyList(4, zone_);
   FunctionLiteralT constructor = this->EmptyFunctionLiteral();
 
-  Expect(Token::LBRACE, CHECK_OK_CUSTOM(EmptyClassLiteral));
+  Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
     if (fni_ != NULL) fni_->Enter();
 
     const bool in_class = true;
     const bool is_static = false;
-    ObjectLiteralPropertyT property = this->ParsePropertyDefinition(
-        &checker, in_class, is_static, CHECK_OK_CUSTOM(EmptyClassLiteral));
+    ObjectLiteralPropertyT property =
+        this->ParsePropertyDefinition(&checker, in_class, is_static, CHECK_OK);
 
     properties->Add(property, zone());
 
@@ -2758,10 +2769,10 @@ ParserBase<Traits>::ParseClassLiteral(IdentifierT name,
       fni_->Leave();
     }
   }
-  Expect(Token::RBRACE, CHECK_OK_CUSTOM(EmptyClassLiteral));
+  Expect(Token::RBRACE, CHECK_OK);
 
-  return factory()->NewClassLiteral(name, extends, constructor, properties,
-                                    this->ast_value_factory(), pos);
+  return this->ClassLiteral(name, extends, constructor, properties, pos,
+                            factory());
 }
 
 

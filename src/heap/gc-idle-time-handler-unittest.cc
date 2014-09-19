@@ -31,6 +31,8 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
     result.scavenge_speed_in_bytes_per_ms = kScavengeSpeed;
     result.available_new_space_memory = kNewSpaceCapacity;
     result.new_space_capacity = kNewSpaceCapacity;
+    result.new_space_allocation_throughput_in_bytes_per_ms =
+        kNewSpaceAllocationThroughput;
     return result;
   }
 
@@ -39,6 +41,7 @@ class GCIdleTimeHandlerTest : public ::testing::Test {
   static const size_t kMarkingSpeed = 200 * KB;
   static const size_t kScavengeSpeed = 100 * KB;
   static const size_t kNewSpaceCapacity = 1 * MB;
+  static const size_t kNewSpaceAllocationThroughput = 10 * KB;
 
  private:
   GCIdleTimeHandler handler_;
@@ -118,6 +121,26 @@ TEST(GCIdleTimeHandler, EstimateScavengeTimeNonZero) {
   size_t speed = 1 * MB;
   size_t time = GCIdleTimeHandler::EstimateScavengeTime(size, speed);
   EXPECT_EQ(size / speed, time);
+}
+
+
+TEST(GCIdleTimeHandler, ScavangeMayHappenSoonInitial) {
+  size_t available = 100 * KB;
+  EXPECT_FALSE(GCIdleTimeHandler::ScavangeMayHappenSoon(available, 0));
+}
+
+
+TEST(GCIdleTimeHandler, ScavangeMayHappenSoonNonZeroFalse) {
+  size_t available = (GCIdleTimeHandler::kMaxFrameRenderingIdleTime + 1) * KB;
+  size_t speed = 1 * KB;
+  EXPECT_FALSE(GCIdleTimeHandler::ScavangeMayHappenSoon(available, speed));
+}
+
+
+TEST(GCIdleTimeHandler, ScavangeMayHappenSoonNonZeroTrue) {
+  size_t available = GCIdleTimeHandler::kMaxFrameRenderingIdleTime * KB;
+  size_t speed = 1 * KB;
+  EXPECT_TRUE(GCIdleTimeHandler::ScavangeMayHappenSoon(available, speed));
 }
 
 
@@ -265,6 +288,60 @@ TEST_F(GCIdleTimeHandlerTest, ContinueAfterStop2) {
   heap_state.can_start_incremental_marking = true;
   action = handler()->Compute(idle_time_ms, heap_state);
   EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, Scavenge) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  int idle_time_ms = 10;
+  heap_state.available_new_space_memory =
+      kNewSpaceAllocationThroughput * idle_time_ms;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_SCAVENGE, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, ScavengeAndDone) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  int idle_time_ms = 10;
+  heap_state.can_start_incremental_marking = false;
+  heap_state.incremental_marking_stopped = true;
+  heap_state.available_new_space_memory =
+      kNewSpaceAllocationThroughput * idle_time_ms;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_SCAVENGE, action.type);
+  heap_state.available_new_space_memory = kNewSpaceCapacity;
+  action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeNothingToDo) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  int idle_time_ms = 0;
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
+}
+
+
+TEST_F(GCIdleTimeHandlerTest, ZeroIdleTimeDoNothingButStartIdleRound) {
+  GCIdleTimeHandler::HeapState heap_state = DefaultHeapState();
+  int idle_time_ms = 10;
+  for (int i = 0; i < GCIdleTimeHandler::kMaxMarkCompactsInIdleRound; i++) {
+    GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+    if (action.type == DONE) break;
+    EXPECT_EQ(DO_INCREMENTAL_MARKING, action.type);
+    // In this case we try to emulate incremental marking steps the finish with
+    // a full gc.
+    handler()->NotifyIdleMarkCompact();
+  }
+  GCIdleTimeAction action = handler()->Compute(idle_time_ms, heap_state);
+  // Emulate mutator work.
+  for (int i = 0; i < GCIdleTimeHandler::kIdleScavengeThreshold; i++) {
+    handler()->NotifyScavenge();
+  }
+  action = handler()->Compute(0, heap_state);
+  EXPECT_EQ(DO_NOTHING, action.type);
 }
 
 }  // namespace internal

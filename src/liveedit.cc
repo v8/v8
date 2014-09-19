@@ -649,15 +649,15 @@ Handle<Code> FunctionInfoWrapper::GetFunctionCode() {
 }
 
 
-Handle<FixedArray> FunctionInfoWrapper::GetFeedbackVector() {
+Handle<TypeFeedbackVector> FunctionInfoWrapper::GetFeedbackVector() {
   Handle<Object> element = this->GetField(kSharedFunctionInfoOffset_);
-  Handle<FixedArray> result;
+  Handle<TypeFeedbackVector> result;
   if (element->IsJSValue()) {
     Handle<JSValue> value_wrapper = Handle<JSValue>::cast(element);
     Handle<Object> raw_result = UnwrapJSValue(value_wrapper);
     Handle<SharedFunctionInfo> shared =
         Handle<SharedFunctionInfo>::cast(raw_result);
-    result = Handle<FixedArray>(shared->feedback_vector(), isolate());
+    result = Handle<TypeFeedbackVector>(shared->feedback_vector(), isolate());
     CHECK_EQ(result->length(), GetSlotCount());
   } else {
     // Scripts may never have a SharedFunctionInfo created, so
@@ -1203,7 +1203,7 @@ void LiveEdit::ReplaceFunctionCode(
     }
     shared_info->DisableOptimization(kLiveEdit);
     // Update the type feedback vector
-    Handle<FixedArray> feedback_vector =
+    Handle<TypeFeedbackVector> feedback_vector =
         compile_info_wrapper.GetFeedbackVector();
     shared_info->set_feedback_vector(*feedback_vector);
   }

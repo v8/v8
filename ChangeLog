@@ -1,3 +1,12 @@
+2014-09-19: Version 3.29.78
+
+        Cleanup class parsing a bit (issue 3330).
+
+        ES6: Implement generator method shorthand (issue 3516).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-18: Version 3.29.75
 
         Performance and stability improvements on all platforms.

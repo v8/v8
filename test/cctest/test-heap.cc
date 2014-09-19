@@ -1684,7 +1684,7 @@ static void FillUpNewSpace(NewSpace* new_space) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   AlwaysAllocateScope always_allocate(isolate);
-  intptr_t available = new_space->EffectiveCapacity() - new_space->Size();
+  intptr_t available = new_space->Capacity() - new_space->Size();
   intptr_t number_of_fillers = (available / FixedArray::SizeFor(32)) - 1;
   for (intptr_t i = 0; i < number_of_fillers; i++) {
     CHECK(heap->InNewSpace(*factory->NewFixedArray(32, NOT_TENURED)));
@@ -1707,20 +1707,20 @@ TEST(GrowAndShrinkNewSpace) {
 
   // Explicitly growing should double the space capacity.
   intptr_t old_capacity, new_capacity;
-  old_capacity = new_space->Capacity();
+  old_capacity = new_space->TotalCapacity();
   new_space->Grow();
-  new_capacity = new_space->Capacity();
+  new_capacity = new_space->TotalCapacity();
   CHECK(2 * old_capacity == new_capacity);
 
-  old_capacity = new_space->Capacity();
+  old_capacity = new_space->TotalCapacity();
   FillUpNewSpace(new_space);
-  new_capacity = new_space->Capacity();
+  new_capacity = new_space->TotalCapacity();
   CHECK(old_capacity == new_capacity);
 
   // Explicitly shrinking should not affect space capacity.
-  old_capacity = new_space->Capacity();
+  old_capacity = new_space->TotalCapacity();
   new_space->Shrink();
-  new_capacity = new_space->Capacity();
+  new_capacity = new_space->TotalCapacity();
   CHECK(old_capacity == new_capacity);
 
   // Let the scavenger empty the new space.
@@ -1728,17 +1728,17 @@ TEST(GrowAndShrinkNewSpace) {
   CHECK_LE(new_space->Size(), old_capacity);
 
   // Explicitly shrinking should halve the space capacity.
-  old_capacity = new_space->Capacity();
+  old_capacity = new_space->TotalCapacity();
   new_space->Shrink();
-  new_capacity = new_space->Capacity();
+  new_capacity = new_space->TotalCapacity();
   CHECK(old_capacity == 2 * new_capacity);
 
   // Consecutive shrinking should not affect space capacity.
-  old_capacity = new_space->Capacity();
+  old_capacity = new_space->TotalCapacity();
   new_space->Shrink();
   new_space->Shrink();
   new_space->Shrink();
-  new_capacity = new_space->Capacity();
+  new_capacity = new_space->TotalCapacity();
   CHECK(old_capacity == new_capacity);
 }
 
@@ -1757,13 +1757,13 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   v8::HandleScope scope(CcTest::isolate());
   NewSpace* new_space = heap->new_space();
   intptr_t old_capacity, new_capacity;
-  old_capacity = new_space->Capacity();
+  old_capacity = new_space->TotalCapacity();
   new_space->Grow();
-  new_capacity = new_space->Capacity();
+  new_capacity = new_space->TotalCapacity();
   CHECK(2 * old_capacity == new_capacity);
   FillUpNewSpace(new_space);
   heap->CollectAllAvailableGarbage();
-  new_capacity = new_space->Capacity();
+  new_capacity = new_space->TotalCapacity();
   CHECK(old_capacity == new_capacity);
 }
 
@@ -3139,7 +3139,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
           *v8::Handle<v8::Function>::Cast(
               CcTest::global()->Get(v8_str("f"))));
 
-  Handle<FixedArray> feedback_vector(f->shared()->feedback_vector());
+  Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
 
   int expected_length = FLAG_vector_ics ? 4 : 2;
   CHECK_EQ(expected_length, feedback_vector->length());
@@ -3155,7 +3155,7 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
   CHECK_EQ(expected_length, feedback_vector->length());
   for (int i = 0; i < expected_length; i++) {
     CHECK_EQ(feedback_vector->get(i),
-             *TypeFeedbackInfo::UninitializedSentinel(CcTest::i_isolate()));
+             *TypeFeedbackVector::UninitializedSentinel(CcTest::i_isolate()));
   }
 }
 
@@ -4379,10 +4379,10 @@ TEST(PromotionQueue) {
 
   // Grow the semi-space to two pages to make semi-space copy overwrite the
   // promotion queue, which will be at the end of the second page.
-  intptr_t old_capacity = new_space->Capacity();
+  intptr_t old_capacity = new_space->TotalCapacity();
   new_space->Grow();
   CHECK(new_space->IsAtMaximumCapacity());
-  CHECK(2 * old_capacity == new_space->Capacity());
+  CHECK(2 * old_capacity == new_space->TotalCapacity());
 
   // Call the scavenger two times to get an empty new space
   heap->CollectGarbage(NEW_SPACE);

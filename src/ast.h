@@ -2510,27 +2510,23 @@ class ClassLiteral FINAL : public Expression {
   Handle<String> name() const { return raw_name_->string(); }
   const AstRawString* raw_name() const { return raw_name_; }
   Expression* extends() const { return extends_; }
-  FunctionLiteral* constructor() const { return constructor_; }
+  Expression* constructor() const { return constructor_; }
   ZoneList<Property*>* properties() const { return properties_; }
 
  protected:
   ClassLiteral(Zone* zone, const AstRawString* name, Expression* extends,
-               FunctionLiteral* constructor, ZoneList<Property*>* properties,
-               AstValueFactory* ast_value_factory, int position, IdGen* id_gen)
+               Expression* constructor, ZoneList<Property*>* properties,
+               int position, IdGen* id_gen)
       : Expression(zone, position, id_gen),
         raw_name_(name),
-        raw_inferred_name_(ast_value_factory->empty_string()),
         extends_(extends),
         constructor_(constructor),
         properties_(properties) {}
 
  private:
   const AstRawString* raw_name_;
-  Handle<String> name_;
-  const AstString* raw_inferred_name_;
-  Handle<String> inferred_name_;
   Expression* extends_;
-  FunctionLiteral* constructor_;
+  Expression* constructor_;
   ZoneList<Property*>* properties_;
 };
 
@@ -3504,13 +3500,11 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
   }
 
   ClassLiteral* NewClassLiteral(const AstRawString* name, Expression* extends,
-                                FunctionLiteral* constructor,
+                                Expression* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
-                                AstValueFactory* ast_value_factory,
                                 int position) {
-    ClassLiteral* lit =
-        new (zone_) ClassLiteral(zone_, name, extends, constructor, properties,
-                                 ast_value_factory, position, id_gen_);
+    ClassLiteral* lit = new (zone_) ClassLiteral(
+        zone_, name, extends, constructor, properties, position, id_gen_);
     VISIT_AND_RETURN(ClassLiteral, lit)
   }
 

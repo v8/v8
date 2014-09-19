@@ -295,15 +295,15 @@ class CallIC : public IC {
  public:
   explicit CallIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
-  void PatchMegamorphic(Handle<Object> function, Handle<FixedArray> vector,
-                        Handle<Smi> slot);
+  void PatchMegamorphic(Handle<Object> function,
+                        Handle<TypeFeedbackVector> vector, Handle<Smi> slot);
 
   void HandleMiss(Handle<Object> receiver, Handle<Object> function,
-                  Handle<FixedArray> vector, Handle<Smi> slot);
+                  Handle<TypeFeedbackVector> vector, Handle<Smi> slot);
 
   // Returns true if a custom handler was installed.
   bool DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
-                       Handle<FixedArray> vector, Handle<Smi> slot,
+                       Handle<TypeFeedbackVector> vector, Handle<Smi> slot,
                        const CallICState& state);
 
   // Code generator routines.
@@ -314,7 +314,7 @@ class CallIC : public IC {
                     ConstantPoolArray* constant_pool);
 
  private:
-  inline IC::State FeedbackToState(Handle<FixedArray> vector,
+  inline IC::State FeedbackToState(Handle<TypeFeedbackVector> vector,
                                    Handle<Smi> slot) const;
 };
 
@@ -414,7 +414,6 @@ class KeyedLoadIC : public LoadIC {
   }
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
-  static void GenerateIndexedInterceptor(MacroAssembler* masm);
   static void GenerateSloppyArguments(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
@@ -435,9 +434,6 @@ class KeyedLoadIC : public LoadIC {
 
  private:
   Handle<Code> generic_stub() const { return generic_stub(isolate()); }
-  Handle<Code> indexed_interceptor_stub() {
-    return isolate()->builtins()->KeyedLoadIC_IndexedInterceptor();
-  }
   Handle<Code> sloppy_arguments_stub() {
     return isolate()->builtins()->KeyedLoadIC_SloppyArguments();
   }

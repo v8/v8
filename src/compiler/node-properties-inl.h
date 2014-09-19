@@ -162,6 +162,12 @@ inline void NodeProperties::ReplaceEffectInput(Node* node, Node* effect,
   return node->ReplaceInput(FirstEffectIndex(node) + index, effect);
 }
 
+inline void NodeProperties::ReplaceFrameStateInput(Node* node,
+                                                   Node* frame_state) {
+  DCHECK(OperatorProperties::HasFrameStateInput(node->op()));
+  node->ReplaceInput(FirstFrameStateIndex(node), frame_state);
+}
+
 inline void NodeProperties::RemoveNonValueInputs(Node* node) {
   node->TrimInputCount(OperatorProperties::GetValueInputCount(node->op()));
 }
