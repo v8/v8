@@ -1176,6 +1176,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
         JSGeneratorObject::kResultPropertyCount);
     iterator_result_map->set_pre_allocated_property_fields(
         JSGeneratorObject::kResultPropertyCount);
+    iterator_result_map->set_visitor_id(
+        StaticVisitorBase::GetVisitorId(*iterator_result_map));
     DCHECK_EQ(JSGeneratorObject::kResultSize,
               iterator_result_map->instance_size());
     native_context()->set_iterator_result_map(*iterator_result_map);
