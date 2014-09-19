@@ -4,6 +4,7 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/node-aux-data-inl.h"
 #include "src/compiler/node-properties-inl.h"
@@ -678,6 +679,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
+    case IrOpcode::kJSCallFunction:
+      return JSBuiltinReducer(jsgraph()).Reduce(node);
     default:
       break;
   }
