@@ -7138,6 +7138,10 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     uint32_t array_index;
     if (constant->IsString() &&
         !Handle<String>::cast(constant)->AsArrayIndex(&array_index)) {
+      if (!constant->IsUniqueName()) {
+        constant = isolate()->factory()->InternalizeString(
+            Handle<String>::cast(constant));
+      }
       HInstruction* instr =
           BuildNamedAccess(access_type, expr->id(), return_id, expr, obj,
                            Handle<String>::cast(constant), val, false);
