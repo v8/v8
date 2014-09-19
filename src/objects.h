@@ -4471,6 +4471,12 @@ class ScopeInfo : public FixedArray {
   // Return if contexts are allocated for this scope.
   bool HasContext();
 
+  // Return if this is a function scope with "use asm".
+  bool IsAsmModule() { return AsmModuleField::decode(Flags()); }
+
+  // Return if this is a nested function within an asm module scope.
+  bool IsAsmFunction() { return AsmFunctionField::decode(Flags()); }
+
   // Return the function_name if present.
   String* FunctionName();
 
@@ -4625,6 +4631,8 @@ class ScopeInfo : public FixedArray {
   class StrictModeField:       public BitField<StrictMode,           4, 1> {};
   class FunctionVariableField: public BitField<FunctionVariableInfo, 5, 2> {};
   class FunctionVariableMode:  public BitField<VariableMode,         7, 3> {};
+  class AsmModuleField : public BitField<bool, 10, 1> {};
+  class AsmFunctionField : public BitField<bool, 11, 1> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -6371,8 +6379,7 @@ class Map: public HeapObject {
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   static Handle<Map> Copy(Handle<Map> map);
-  static Handle<Map> Create(Handle<JSFunction> constructor,
-                            int extra_inobject_properties);
+  static Handle<Map> Create(Isolate* isolate, int inobject_properties);
 
   // Returns the next free property index (only valid for FAST MODE).
   int NextFreePropertyIndex();
@@ -7127,6 +7134,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that this function is a concise method.
   DECL_BOOLEAN_ACCESSORS(is_concise_method)
 
+  // Indicates that this function is an asm function.
+  DECL_BOOLEAN_ACCESSORS(asm_function)
+
   inline FunctionKind kind();
   inline void set_kind(FunctionKind kind);
 
@@ -7327,6 +7337,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsArrow,
     kIsGenerator,
     kIsConciseMethod,
+    kIsAsmFunction,
     kCompilerHintsCount  // Pseudo entry
   };
 
@@ -8034,7 +8045,13 @@ class JSRegExp: public JSObject {
   // IRREGEXP: Compiled with Irregexp.
   // IRREGEXP_NATIVE: Compiled to native code with Irregexp.
   enum Type { NOT_COMPILED, ATOM, IRREGEXP };
-  enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
+  enum Flag {
+    NONE = 0,
+    GLOBAL = 1,
+    IGNORE_CASE = 2,
+    MULTILINE = 4,
+    STICKY = 8
+  };
 
   class Flags {
    public:
@@ -8042,6 +8059,7 @@ class JSRegExp: public JSObject {
     bool is_global() { return (value_ & GLOBAL) != 0; }
     bool is_ignore_case() { return (value_ & IGNORE_CASE) != 0; }
     bool is_multiline() { return (value_ & MULTILINE) != 0; }
+    bool is_sticky() { return (value_ & STICKY) != 0; }
     uint32_t value() { return value_; }
    private:
     uint32_t value_;

@@ -303,16 +303,15 @@ bool LCodeGen::GenerateJumpTable() {
     Comment(";;; -------------------- Jump table --------------------");
   }
   for (int i = 0; i < jump_table_.length(); i++) {
-    __ bind(&jump_table_[i].label);
-    Address entry = jump_table_[i].address;
-    Deoptimizer::BailoutType type = jump_table_[i].bailout_type;
+    Deoptimizer::JumpTableEntry* table_entry = &jump_table_[i];
+    __ bind(&table_entry->label);
+    Address entry = table_entry->address;
+    Deoptimizer::BailoutType type = table_entry->bailout_type;
     int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-    if (id == Deoptimizer::kNotDeoptimizationEntry) {
-      Comment(";;; jump table entry %d.", i);
-    } else {
-      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
-    }
-    if (jump_table_[i].needs_frame) {
+    DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
+    Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
+    DeoptComment(table_entry->mnemonic, table_entry->reason);
+    if (table_entry->needs_frame) {
       DCHECK(!info()->saves_caller_doubles());
       __ Move(kScratchRegister, ExternalReference::ForDeoptEntry(entry));
       if (needs_frame.is_bound()) {
@@ -730,6 +729,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
 
 
 void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
+                            const char* reason,
                             Deoptimizer::BailoutType bailout_type) {
   LEnvironment* environment = instr->environment();
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
@@ -779,6 +779,7 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
   // restore caller doubles.
   if (cc == no_condition && frame_is_built_ &&
       !info()->saves_caller_doubles()) {
+    DeoptComment(instr->Mnemonic(), reason);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     // We often have several deopts to the same entry, reuse the last
@@ -787,9 +788,8 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
         jump_table_.last().address != entry ||
         jump_table_.last().needs_frame != !frame_is_built_ ||
         jump_table_.last().bailout_type != bailout_type) {
-      Deoptimizer::JumpTableEntry table_entry(entry,
-                                              bailout_type,
-                                              !frame_is_built_);
+      Deoptimizer::JumpTableEntry table_entry(entry, instr->Mnemonic(), reason,
+                                              bailout_type, !frame_is_built_);
       jump_table_.Add(table_entry, zone());
     }
     if (cc == no_condition) {
@@ -801,11 +801,12 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
 }
 
 
-void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr) {
+void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
+                            const char* reason) {
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
-  DeoptimizeIf(cc, instr, bailout_type);
+  DeoptimizeIf(cc, instr, reason, bailout_type);
 }
 
 
@@ -5647,9 +5648,7 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
   if (info()->IsStub() && type == Deoptimizer::EAGER) {
     type = Deoptimizer::LAZY;
   }
-
-  Comment(";;; deoptimize: %s", instr->hydrogen()->reason());
-  DeoptimizeIf(no_condition, instr, type);
+  DeoptimizeIf(no_condition, instr, instr->hydrogen()->reason(), type);
 }
 
 

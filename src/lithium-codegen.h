@@ -33,6 +33,7 @@ class LCodeGenBase BASE_EMBEDDED {
   HGraph* graph() const;
 
   void FPRINTF_CHECKING Comment(const char* format, ...);
+  void DeoptComment(const char* mnemonic, const char* reason);
 
   bool GenerateBody();
   virtual void GenerateBodyInstructionPre(LInstruction* instr) {}

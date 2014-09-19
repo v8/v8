@@ -1,3 +1,18 @@
+2014-09-19: Version 3.29.81
+
+        Remove a couple of deprecated APIs that moved to Isolate.
+
+        ARM: Make stack limit stricter to account for large buffers in
+        MacroAssembler (Chromium issue 405338).
+
+        Reland 24052 - Require V8 to be explicitly initialized before an Isolate
+        is created.
+
+        Require V8 to be explicitly initialized before an Isolate is created.
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-19: Version 3.29.78
 
         Cleanup class parsing a bit (issue 3330).

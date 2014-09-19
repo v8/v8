@@ -203,6 +203,7 @@ class Genesis BASE_EMBEDDED {
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<GlobalObject> global_object,
                         Handle<JSFunction> empty_function);
+  void InitializeExperimentalGlobal();
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
@@ -482,12 +483,14 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
 
   {  // --- O b j e c t ---
     Handle<JSFunction> object_fun = factory->NewFunction(object_name);
+    int unused = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
+    int instance_size = JSObject::kHeaderSize + kPointerSize * unused;
     Handle<Map> object_function_map =
-        factory->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+        factory->NewMap(JS_OBJECT_TYPE, instance_size);
+    object_function_map->set_inobject_properties(unused);
     JSFunction::SetInitialMap(object_fun, object_function_map,
                               isolate->factory()->null_value());
-    object_function_map->set_unused_property_fields(
-        JSObject::kInitialGlobalObjectUnusedPropertiesCount);
+    object_function_map->set_unused_property_fields(unused);
 
     native_context()->set_object_function(*object_fun);
 
@@ -1152,11 +1155,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
   {  // Set up the iterator result object
     STATIC_ASSERT(JSGeneratorObject::kResultPropertyCount == 2);
     Handle<JSFunction> object_function(native_context()->object_function());
-    DCHECK(object_function->initial_map()->inobject_properties() == 0);
     Handle<Map> iterator_result_map =
-        Map::Create(object_function, JSGeneratorObject::kResultPropertyCount);
-    DCHECK(iterator_result_map->inobject_properties() ==
-           JSGeneratorObject::kResultPropertyCount);
+        Map::Create(isolate, JSGeneratorObject::kResultPropertyCount);
+    DCHECK_EQ(JSGeneratorObject::kResultSize,
+              iterator_result_map->instance_size());
+    DCHECK_EQ(JSGeneratorObject::kResultPropertyCount,
+              iterator_result_map->inobject_properties());
     Map::EnsureDescriptorSlack(iterator_result_map,
                                JSGeneratorObject::kResultPropertyCount);
 
@@ -1171,6 +1175,8 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     iterator_result_map->AppendDescriptor(&done_descr);
 
     iterator_result_map->set_unused_property_fields(0);
+    iterator_result_map->set_pre_allocated_property_fields(
+        JSGeneratorObject::kResultPropertyCount);
     DCHECK_EQ(JSGeneratorObject::kResultSize,
               iterator_result_map->instance_size());
     native_context()->set_iterator_result_map(*iterator_result_map);
@@ -1348,6 +1354,20 @@ void Genesis::InstallTypedArray(
 
   ElementsKind external_kind = GetNextTransitionElementsKind(elements_kind);
   *external_map = Map::AsElementsKind(initial_map, external_kind);
+}
+
+
+void Genesis::InitializeExperimentalGlobal() {
+  // TODO(erikcorry): Move this into Genesis::InitializeGlobal once we no
+  // longer need to live behind a flag.
+  Handle<JSObject> builtins(native_context()->builtins());
+
+  Handle<HeapObject> flag(
+      FLAG_harmony_regexps ? heap()->true_value() : heap()->false_value());
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+  Runtime::DefineObjectProperty(builtins, factory()->harmony_regexps_string(),
+                                flag, attributes).Assert();
 }
 
 
@@ -1908,8 +1928,7 @@ bool Genesis::InstallNatives() {
         *strict_generator_function_map);
 
     Handle<JSFunction> object_function(native_context()->object_function());
-    Handle<Map> generator_object_prototype_map =
-        Map::Create(object_function, 0);
+    Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
     generator_object_prototype_map->set_prototype(*generator_object_prototype);
     native_context()->set_generator_object_prototype_map(
         *generator_object_prototype_map);
@@ -2594,9 +2613,6 @@ Genesis::Genesis(Isolate* isolate,
       active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
-  // If V8 cannot be initialized, just return.
-  if (!V8::Initialize(NULL)) return;
-
   // Before creating the roots we must save the context and restore it
   // on all function exits.
   SaveContext saved_context(isolate);
@@ -2651,6 +2667,7 @@ Genesis::Genesis(Isolate* isolate,
 
   // Install experimental natives.
   if (!InstallExperimentalNatives()) return;
+  InitializeExperimentalGlobal();
 
   // We can't (de-)serialize typed arrays currently, but we are lucky: The state
   // of the random number generator needs no initialization during snapshot

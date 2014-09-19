@@ -172,7 +172,7 @@ class LCodeGen: public LCodeGenBase {
   void GenerateBodyInstructionPre(LInstruction* instr) OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
-  bool GenerateDeoptJumpTable();
+  bool GenerateJumpTable();
   bool GenerateSafepointTable();
 
   // Generates the custom OSR entrypoint and sets the osr_pc_offset.
@@ -231,10 +231,12 @@ class LCodeGen: public LCodeGenBase {
   void DeoptimizeIf(Condition condition, LInstruction* instr,
                     Deoptimizer::BailoutType bailout_type,
                     Register src1 = zero_reg,
-                    const Operand& src2 = Operand(zero_reg));
+                    const Operand& src2 = Operand(zero_reg),
+                    const char* reason = NULL);
   void DeoptimizeIf(Condition condition, LInstruction* instr,
                     Register src1 = zero_reg,
-                    const Operand& src2 = Operand(zero_reg));
+                    const Operand& src2 = Operand(zero_reg),
+                    const char* reason = NULL);
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,

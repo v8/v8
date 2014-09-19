@@ -205,9 +205,7 @@ static void VerifyMemoryChunk(Isolate* isolate,
 
 TEST(Regress3540) {
   Isolate* isolate = CcTest::i_isolate();
-  isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
-  CHECK(heap->ConfigureHeapDefault());
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(
       memory_allocator->SetUp(heap->MaxReserved(), heap->MaxExecutableSize()));
@@ -241,9 +239,7 @@ static unsigned int Pseudorandom() {
 
 TEST(MemoryChunk) {
   Isolate* isolate = CcTest::i_isolate();
-  isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
-  CHECK(heap->ConfigureHeapDefault());
 
   size_t reserve_area_size = 1 * MB;
   size_t initial_commit_area_size, second_commit_area_size;
@@ -297,9 +293,7 @@ TEST(MemoryChunk) {
 
 TEST(MemoryAllocator) {
   Isolate* isolate = CcTest::i_isolate();
-  isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
-  CHECK(isolate->heap()->ConfigureHeapDefault());
 
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(),
@@ -346,9 +340,7 @@ TEST(MemoryAllocator) {
 
 TEST(NewSpace) {
   Isolate* isolate = CcTest::i_isolate();
-  isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
-  CHECK(heap->ConfigureHeapDefault());
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(),
                                 heap->MaxExecutableSize()));
@@ -374,9 +366,7 @@ TEST(NewSpace) {
 
 TEST(OldSpace) {
   Isolate* isolate = CcTest::i_isolate();
-  isolate->InitializeLoggingAndCounters();
   Heap* heap = isolate->heap();
-  CHECK(heap->ConfigureHeapDefault());
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(),
                                 heap->MaxExecutableSize()));

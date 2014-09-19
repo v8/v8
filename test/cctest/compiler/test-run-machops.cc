@@ -3232,6 +3232,46 @@ TEST(RunChangeFloat64ToInt32_spilled) {
 }
 
 
+TEST(RunChangeFloat64ToUint32_spilled) {
+  RawMachineAssemblerTester<uint32_t> m;
+  const int kNumInputs = 32;
+  int32_t magic = 0x786234;
+  double input[kNumInputs];
+  uint32_t result[kNumInputs];
+  Node* input_node[kNumInputs];
+
+  for (int i = 0; i < kNumInputs; i++) {
+    input_node[i] =
+        m.Load(kMachFloat64, m.PointerConstant(&input), m.Int32Constant(i * 8));
+  }
+
+  for (int i = 0; i < kNumInputs; i++) {
+    m.Store(kMachUint32, m.PointerConstant(&result), m.Int32Constant(i * 4),
+            m.ChangeFloat64ToUint32(input_node[i]));
+  }
+
+  m.Return(m.Int32Constant(magic));
+
+  for (int i = 0; i < kNumInputs; i++) {
+    if (i % 2) {
+      input[i] = 100 + i + 2147483648u;
+    } else {
+      input[i] = 100 + i;
+    }
+  }
+
+  CHECK_EQ(magic, m.Call());
+
+  for (int i = 0; i < kNumInputs; i++) {
+    if (i % 2) {
+      CHECK_UINT32_EQ(result[i], static_cast<uint32_t>(100 + i + 2147483648u));
+    } else {
+      CHECK_UINT32_EQ(result[i], static_cast<uint32_t>(100 + i));
+    }
+  }
+}
+
+
 TEST(RunDeadChangeFloat64ToInt32) {
   RawMachineAssemblerTester<int32_t> m;
   const int magic = 0x88abcda4;

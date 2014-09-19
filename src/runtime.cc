@@ -207,7 +207,7 @@ static Handle<Map> ComputeObjectLiteralMap(
     return isolate->factory()->ObjectLiteralMapFromCache(context, keys);
   }
   *is_result_from_cache = false;
-  return Map::Create(handle(context->object_function()), number_of_properties);
+  return Map::Create(isolate, number_of_properties);
 }
 
 
@@ -2080,6 +2080,30 @@ RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
+
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(home_object, name, v8::ACCESS_GET)) {
+    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_GET);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  }
+
+  PrototypeIterator iter(isolate, home_object);
+  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
+
+  LookupIterator it(receiver, name, Handle<JSReceiver>::cast(proto));
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_IsExtensible) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -2548,7 +2572,7 @@ RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
 
 RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
+  DCHECK(args.length() == 6);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
   // If source is the empty string we set it to "(?:)" instead as
@@ -2564,9 +2588,13 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
   CONVERT_ARG_HANDLE_CHECKED(Object, multiline, 4);
   if (!multiline->IsTrue()) multiline = isolate->factory()->false_value();
 
+  CONVERT_ARG_HANDLE_CHECKED(Object, sticky, 5);
+  if (!sticky->IsTrue()) sticky = isolate->factory()->false_value();
+
   Map* map = regexp->map();
   Object* constructor = map->constructor();
-  if (constructor->IsJSFunction() &&
+  if (!FLAG_harmony_regexps &&
+      constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, *source);
@@ -2583,7 +2611,11 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
     return *regexp;
   }
 
-  // Map has changed, so use generic, but slower, method.
+  // Map has changed, so use generic, but slower, method.  We also end here if
+  // the --harmony-regexp flag is set, because the initial map does not have
+  // space for the 'sticky' flag, since it is from the snapshot, but must work
+  // both with and without --harmony-regexp.  When sticky comes out from under
+  // the flag, we will be able to use the fast initial map.
   PropertyAttributes final =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_ENUM | DONT_DELETE);
   PropertyAttributes writable =
@@ -2598,6 +2630,10 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
       regexp, factory->ignore_case_string(), ignoreCase, final).Check();
   JSObject::SetOwnPropertyIgnoreAttributes(
       regexp, factory->multiline_string(), multiline, final).Check();
+  if (FLAG_harmony_regexps) {
+    JSObject::SetOwnPropertyIgnoreAttributes(
+        regexp, factory->sticky_string(), sticky, final).Check();
+  }
   JSObject::SetOwnPropertyIgnoreAttributes(
       regexp, factory->last_index_string(), zero, writable).Check();
   return *regexp;
@@ -8456,13 +8492,9 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   Handle<Code> code;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
                                      Compiler::GetLazyCode(function));
+  DCHECK(code->kind() == Code::FUNCTION ||
+         code->kind() == Code::OPTIMIZED_FUNCTION);
   function->ReplaceCode(*code);
-
-  // All done. Return the compiled code.
-  DCHECK(function->is_compiled());
-  DCHECK(function->code()->kind() == Code::FUNCTION ||
-         (FLAG_always_opt &&
-          function->code()->kind() == Code::OPTIMIZED_FUNCTION));
   return *code;
 }
 
@@ -9529,6 +9561,23 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError("not_defined", HandleVector(&name, 1)));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError("non_method", HandleVector<Object>(NULL, 0)));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewReferenceError("unsupported_super", HandleVector<Object>(NULL, 0)));
 }
 
 

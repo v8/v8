@@ -833,8 +833,7 @@ void FullCodeGenerator::SetStatementPosition(Statement* stmt) {
 
 
 void FullCodeGenerator::VisitSuperReference(SuperReference* super) {
-  DCHECK(FLAG_harmony_classes);
-  UNIMPLEMENTED();
+  __ CallRuntime(Runtime::kThrowUnsupportedSuperError, 0);
 }
 
 

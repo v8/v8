@@ -125,6 +125,7 @@ int RandomNumberGenerator::Next(int bits) {
 
 
 void RandomNumberGenerator::SetSeed(int64_t seed) {
+  initial_seed_ = seed;
   seed_ = (seed ^ kMultiplier) & kMask;
 }
 

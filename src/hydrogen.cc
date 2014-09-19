@@ -7138,6 +7138,10 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
     uint32_t array_index;
     if (constant->IsString() &&
         !Handle<String>::cast(constant)->AsArrayIndex(&array_index)) {
+      if (!constant->IsUniqueName()) {
+        constant = isolate()->factory()->InternalizeString(
+            Handle<String>::cast(constant));
+      }
       HInstruction* instr =
           BuildNamedAccess(access_type, expr->id(), return_id, expr, obj,
                            Handle<String>::cast(constant), val, false);
@@ -11001,7 +11005,8 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   }
 
   // Copy in-object properties.
-  if (boilerplate_object->map()->NumberOfFields() != 0) {
+  if (boilerplate_object->map()->NumberOfFields() != 0 ||
+      boilerplate_object->map()->unused_property_fields() > 0) {
     BuildEmitInObjectProperties(boilerplate_object, object, site_context,
                                 pretenure_flag);
   }
@@ -11215,7 +11220,10 @@ void HOptimizedGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void HOptimizedGraphBuilder::VisitSuperReference(SuperReference* expr) {
-  UNREACHABLE();
+  DCHECK(!HasStackOverflow());
+  DCHECK(current_block() != NULL);
+  DCHECK(current_block()->HasPredecessor());
+  return Bailout(kSuperReference);
 }
 
 

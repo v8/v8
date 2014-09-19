@@ -396,14 +396,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   DCHECK(info()->shared_info()->has_deoptimization_support());
 
   // Check the whitelist for TurboFan.
-  if (info()->closure()->PassesFilter(FLAG_turbo_filter) &&
-      // TODO(turbofan): Make try-catch work and remove this bailout.
-      info()->function()->dont_optimize_reason() != kTryCatchStatement &&
-      info()->function()->dont_optimize_reason() != kTryFinallyStatement &&
-      // TODO(turbofan): Make ES6 for-of work and remove this bailout.
-      info()->function()->dont_optimize_reason() != kForOfStatement &&
-      // TODO(turbofan): Make OSR work and remove this bailout.
-      !info()->is_osr()) {
+  if (info()->closure()->PassesFilter(FLAG_turbo_filter)) {
     compiler::Pipeline pipeline(info());
     pipeline.GenerateCode();
     if (!info()->code().is_null()) {
@@ -623,6 +616,7 @@ static void SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_bailout_reason(lit->dont_optimize_reason());
   function_info->set_dont_cache(lit->flags()->Contains(kDontCache));
   function_info->set_kind(lit->kind());
+  function_info->set_asm_function(lit->scope()->asm_function());
 }
 
 
@@ -729,6 +723,38 @@ MaybeHandle<Code> Compiler::GetUnoptimizedCode(Handle<JSFunction> function) {
 MaybeHandle<Code> Compiler::GetLazyCode(Handle<JSFunction> function) {
   DCHECK(!function->GetIsolate()->has_pending_exception());
   DCHECK(!function->is_compiled());
+
+  if (FLAG_turbo_asm && function->shared()->asm_function()) {
+    CompilationInfoWithZone info(function);
+
+    VMState<COMPILER> state(info.isolate());
+    PostponeInterruptsScope postpone(info.isolate());
+
+    if (FLAG_trace_opt) {
+      // TODO(titzer): record and report full stats here.
+      PrintF("[optimizing asm ");
+      function->ShortPrint();
+      PrintF("]\n");
+    }
+
+    if (!Parser::Parse(&info)) return MaybeHandle<Code>();
+    if (!Rewriter::Rewrite(&info)) return MaybeHandle<Code>();
+    if (!Scope::Analyze(&info)) return MaybeHandle<Code>();
+    if (FLAG_turbo_deoptimization && !EnsureDeoptimizationSupport(&info)) {
+      return MaybeHandle<Code>();
+    }
+
+    info.SetOptimizing(BailoutId::None(),
+                       Handle<Code>(function->shared()->code()));
+
+    info.MarkAsContextSpecializing();
+    info.MarkAsTypingEnabled();
+    info.MarkAsInliningDisabled();
+    compiler::Pipeline pipeline(&info);
+    pipeline.GenerateCode();
+    if (!info.code().is_null()) return info.code();
+  }
+
   if (function->shared()->is_compiled()) {
     return Handle<Code>(function->shared()->code());
   }

@@ -593,11 +593,8 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::NONE);
 
-  return GeneratePrologue() &&
-      GenerateBody() &&
-      GenerateDeferredCode() &&
-      GenerateDeoptJumpTable() &&
-      GenerateSafepointTable();
+  return GeneratePrologue() && GenerateBody() && GenerateDeferredCode() &&
+         GenerateJumpTable() && GenerateSafepointTable();
 }
 
 
@@ -827,28 +824,27 @@ bool LCodeGen::GenerateDeferredCode() {
 }
 
 
-bool LCodeGen::GenerateDeoptJumpTable() {
+bool LCodeGen::GenerateJumpTable() {
   Label needs_frame, restore_caller_doubles, call_deopt_entry;
 
-  if (deopt_jump_table_.length() > 0) {
+  if (jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
-    Address base = deopt_jump_table_[0]->address;
+    Address base = jump_table_[0]->address;
 
     UseScratchRegisterScope temps(masm());
     Register entry_offset = temps.AcquireX();
 
-    int length = deopt_jump_table_.length();
+    int length = jump_table_.length();
     for (int i = 0; i < length; i++) {
-      __ Bind(&deopt_jump_table_[i]->label);
+      Deoptimizer::JumpTableEntry* table_entry = jump_table_[i];
+      __ Bind(&table_entry->label);
 
-      Deoptimizer::BailoutType type = deopt_jump_table_[i]->bailout_type;
-      Address entry = deopt_jump_table_[i]->address;
+      Deoptimizer::BailoutType type = table_entry->bailout_type;
+      Address entry = table_entry->address;
       int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-      if (id == Deoptimizer::kNotDeoptimizationEntry) {
-        Comment(";;; jump table entry %d.", i);
-      } else {
-        Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
-      }
+      DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
+      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
+      DeoptComment(table_entry->mnemonic, table_entry->reason);
 
       // Second-level deopt table entries are contiguous and small, so instead
       // of loading the full, absolute address of each one, load the base
@@ -859,7 +855,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
       // branch.
       bool last_entry = (i + 1) == length;
 
-      if (deopt_jump_table_[i]->needs_frame) {
+      if (table_entry->needs_frame) {
         DCHECK(!info()->saves_caller_doubles());
         if (!needs_frame.is_bound()) {
           // This variant of deopt can only be used with stubs. Since we don't
@@ -997,8 +993,8 @@ void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 
 
 void LCodeGen::DeoptimizeBranch(
-    LInstruction* instr, BranchType branch_type, Register reg, int bit,
-    Deoptimizer::BailoutType* override_bailout_type) {
+    LInstruction* instr, const char* reason, BranchType branch_type,
+    Register reg, int bit, Deoptimizer::BailoutType* override_bailout_type) {
   LEnvironment* environment = instr->environment();
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   Deoptimizer::BailoutType bailout_type =
@@ -1052,91 +1048,98 @@ void LCodeGen::DeoptimizeBranch(
   // Go through jump table if we need to build frame, or restore caller doubles.
   if (branch_type == always &&
       frame_is_built_ && !info()->saves_caller_doubles()) {
+    DeoptComment(instr->Mnemonic(), reason);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
-    if (deopt_jump_table_.is_empty() ||
-        (deopt_jump_table_.last()->address != entry) ||
-        (deopt_jump_table_.last()->bailout_type != bailout_type) ||
-        (deopt_jump_table_.last()->needs_frame != !frame_is_built_)) {
+    if (jump_table_.is_empty() || (jump_table_.last()->address != entry) ||
+        (jump_table_.last()->bailout_type != bailout_type) ||
+        (jump_table_.last()->needs_frame != !frame_is_built_)) {
       Deoptimizer::JumpTableEntry* table_entry =
-        new(zone()) Deoptimizer::JumpTableEntry(entry,
-                                                bailout_type,
-                                                !frame_is_built_);
-      deopt_jump_table_.Add(table_entry, zone());
+          new (zone()) Deoptimizer::JumpTableEntry(
+              entry, instr->Mnemonic(), reason, bailout_type, !frame_is_built_);
+      jump_table_.Add(table_entry, zone());
     }
-    __ B(&deopt_jump_table_.last()->label,
-         branch_type, reg, bit);
+    __ B(&jump_table_.last()->label, branch_type, reg, bit);
   }
 }
 
 
 void LCodeGen::Deoptimize(LInstruction* instr,
-                          Deoptimizer::BailoutType* override_bailout_type) {
-  DeoptimizeBranch(instr, always, NoReg, -1, override_bailout_type);
+                          Deoptimizer::BailoutType* override_bailout_type,
+                          const char* reason) {
+  DeoptimizeBranch(instr, reason, always, NoReg, -1, override_bailout_type);
 }
 
 
-void LCodeGen::DeoptimizeIf(Condition cond, LInstruction* instr) {
-  DeoptimizeBranch(instr, static_cast<BranchType>(cond));
+void LCodeGen::DeoptimizeIf(Condition cond, LInstruction* instr,
+                            const char* reason) {
+  DeoptimizeBranch(instr, reason, static_cast<BranchType>(cond));
 }
 
 
-void LCodeGen::DeoptimizeIfZero(Register rt, LInstruction* instr) {
-  DeoptimizeBranch(instr, reg_zero, rt);
+void LCodeGen::DeoptimizeIfZero(Register rt, LInstruction* instr,
+                                const char* reason) {
+  DeoptimizeBranch(instr, reason, reg_zero, rt);
 }
 
 
-void LCodeGen::DeoptimizeIfNotZero(Register rt, LInstruction* instr) {
-  DeoptimizeBranch(instr, reg_not_zero, rt);
+void LCodeGen::DeoptimizeIfNotZero(Register rt, LInstruction* instr,
+                                   const char* reason) {
+  DeoptimizeBranch(instr, reason, reg_not_zero, rt);
 }
 
 
-void LCodeGen::DeoptimizeIfNegative(Register rt, LInstruction* instr) {
+void LCodeGen::DeoptimizeIfNegative(Register rt, LInstruction* instr,
+                                    const char* reason) {
   int sign_bit = rt.Is64Bits() ? kXSignBit : kWSignBit;
-  DeoptimizeIfBitSet(rt, sign_bit, instr);
+  DeoptimizeIfBitSet(rt, sign_bit, instr, reason);
 }
 
 
-void LCodeGen::DeoptimizeIfSmi(Register rt, LInstruction* instr) {
-  DeoptimizeIfBitClear(rt, MaskToBit(kSmiTagMask), instr);
+void LCodeGen::DeoptimizeIfSmi(Register rt, LInstruction* instr,
+                               const char* reason) {
+  DeoptimizeIfBitClear(rt, MaskToBit(kSmiTagMask), instr, reason);
 }
 
 
-void LCodeGen::DeoptimizeIfNotSmi(Register rt, LInstruction* instr) {
-  DeoptimizeIfBitSet(rt, MaskToBit(kSmiTagMask), instr);
+void LCodeGen::DeoptimizeIfNotSmi(Register rt, LInstruction* instr,
+                                  const char* reason) {
+  DeoptimizeIfBitSet(rt, MaskToBit(kSmiTagMask), instr, reason);
 }
 
 
 void LCodeGen::DeoptimizeIfRoot(Register rt, Heap::RootListIndex index,
-                                LInstruction* instr) {
+                                LInstruction* instr, const char* reason) {
   __ CompareRoot(rt, index);
-  DeoptimizeIf(eq, instr);
+  DeoptimizeIf(eq, instr, reason);
 }
 
 
 void LCodeGen::DeoptimizeIfNotRoot(Register rt, Heap::RootListIndex index,
-                                   LInstruction* instr) {
+                                   LInstruction* instr, const char* reason) {
   __ CompareRoot(rt, index);
-  DeoptimizeIf(ne, instr);
+  DeoptimizeIf(ne, instr, reason);
 }
 
 
-void LCodeGen::DeoptimizeIfMinusZero(DoubleRegister input,
-                                     LInstruction* instr) {
+void LCodeGen::DeoptimizeIfMinusZero(DoubleRegister input, LInstruction* instr,
+                                     const char* reason) {
   __ TestForMinusZero(input);
-  DeoptimizeIf(vs, instr);
+  DeoptimizeIf(vs, instr, reason);
 }
 
 
-void LCodeGen::DeoptimizeIfBitSet(Register rt, int bit, LInstruction* instr) {
-  DeoptimizeBranch(instr, reg_bit_set, rt, bit);
+void LCodeGen::DeoptimizeIfBitSet(Register rt, int bit, LInstruction* instr,
+                                  const char* reason) {
+  DeoptimizeBranch(instr, reason, reg_bit_set, rt, bit);
 }
 
 
-void LCodeGen::DeoptimizeIfBitClear(Register rt, int bit, LInstruction* instr) {
-  DeoptimizeBranch(instr, reg_bit_clear, rt, bit);
+void LCodeGen::DeoptimizeIfBitClear(Register rt, int bit, LInstruction* instr,
+                                    const char* reason) {
+  DeoptimizeBranch(instr, reason, reg_bit_clear, rt, bit);
 }
 
 
@@ -2685,8 +2688,7 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
     type = Deoptimizer::LAZY;
   }
 
-  Comment(";;; deoptimize: %s", instr->hydrogen()->reason());
-  Deoptimize(instr, &type);
+  Deoptimize(instr, &type, instr->hydrogen()->reason());
 }
 
 

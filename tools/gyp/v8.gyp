@@ -415,6 +415,8 @@
         '../../src/compiler/instruction-selector.h',
         '../../src/compiler/instruction.cc',
         '../../src/compiler/instruction.h',
+        '../../src/compiler/js-builtin-reducer.cc',
+        '../../src/compiler/js-builtin-reducer.h',
         '../../src/compiler/js-context-specialization.cc',
         '../../src/compiler/js-context-specialization.h',
         '../../src/compiler/js-generic-lowering.cc',

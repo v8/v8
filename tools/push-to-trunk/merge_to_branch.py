@@ -41,7 +41,6 @@ CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-merge-to-branch-tempfile",
   ALREADY_MERGING_SENTINEL_FILE:
       "/tmp/v8-merge-to-branch-tempfile-already-merging",
-  DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
   TEMPORARY_PATCH_FILE: "/tmp/v8-prepare-merge-tempfile-temporary-patch",
   COMMITMSG_FILE: "/tmp/v8-prepare-merge-tempfile-commitmsg",
@@ -60,7 +59,7 @@ class Preparation(Step):
         self.Die("A merge is already in progress")
     open(self.Config(ALREADY_MERGING_SENTINEL_FILE), "a").close()
 
-    self.InitialEnvironmentChecks()
+    self.InitialEnvironmentChecks(self.default_cwd)
     if self._options.revert_bleeding_edge:
       self["merge_to_branch"] = "bleeding_edge"
     elif self._options.branch:

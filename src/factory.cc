@@ -2328,9 +2328,12 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
       Handle<MapCache>(MapCache::cast(context->map_cache()));
   Handle<Object> result = Handle<Object>(cache->Lookup(*keys), isolate());
   if (result->IsMap()) return Handle<Map>::cast(result);
-  // Create a new map and add it to the cache.
-  Handle<Map> map = Map::Create(
-      handle(context->object_function()), keys->length());
+  int length = keys->length();
+  // Create a new map and add it to the cache. Reuse the initial map of the
+  // Object function if the literal has no predeclared properties.
+  Handle<Map> map = length == 0
+                        ? handle(context->object_function()->initial_map())
+                        : Map::Create(isolate(), length);
   AddToMapCache(context, keys, map);
   return map;
 }

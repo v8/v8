@@ -76,11 +76,8 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::NONE);
 
-  return GeneratePrologue() &&
-      GenerateBody() &&
-      GenerateDeferredCode() &&
-      GenerateDeoptJumpTable() &&
-      GenerateSafepointTable();
+  return GeneratePrologue() && GenerateBody() && GenerateDeferredCode() &&
+         GenerateJumpTable() && GenerateSafepointTable();
 }
 
 
@@ -326,7 +323,7 @@ bool LCodeGen::GenerateDeferredCode() {
 }
 
 
-bool LCodeGen::GenerateDeoptJumpTable() {
+bool LCodeGen::GenerateJumpTable() {
   if (deopt_jump_table_.length() > 0) {
     Label needs_frame, call_deopt_entry;
 
@@ -343,7 +340,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
       DCHECK(type == deopt_jump_table_[0].bailout_type);
       Address entry = deopt_jump_table_[i].address;
       int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-      DCHECK(id != Deoptimizer::kNotDeoptimizationEntry);
+      DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
 
       // Second-level deopt table entries are contiguous and small, so instead
@@ -821,7 +818,8 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
 
 void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
                             Deoptimizer::BailoutType bailout_type,
-                            Register src1, const Operand& src2) {
+                            Register src1, const Operand& src2,
+                            const char* reason) {
   LEnvironment* environment = instr->environment();
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   DCHECK(environment->HasBeenRegistered());
@@ -867,6 +865,7 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
   // restore caller doubles.
   if (condition == al && frame_is_built_ &&
       !info()->saves_caller_doubles()) {
+    DeoptComment(instr->Mnemonic(), reason);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY, condition, src1, src2);
   } else {
     // We often have several deopts to the same entry, reuse the last
@@ -875,9 +874,8 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
         (deopt_jump_table_.last().address != entry) ||
         (deopt_jump_table_.last().bailout_type != bailout_type) ||
         (deopt_jump_table_.last().needs_frame != !frame_is_built_)) {
-      Deoptimizer::JumpTableEntry table_entry(entry,
-                                              bailout_type,
-                                              !frame_is_built_);
+      Deoptimizer::JumpTableEntry table_entry(entry, instr->Mnemonic(), reason,
+                                              bailout_type, !frame_is_built_);
       deopt_jump_table_.Add(table_entry, zone());
     }
     __ Branch(&deopt_jump_table_.last().label, condition, src1, src2);
@@ -886,11 +884,12 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
 
 
 void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
-                            Register src1, const Operand& src2) {
+                            Register src1, const Operand& src2,
+                            const char* reason) {
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
-  DeoptimizeIf(condition, instr, bailout_type, src1, src2);
+  DeoptimizeIf(condition, instr, bailout_type, src1, src2, reason);
 }
 
 
@@ -5676,8 +5675,8 @@ void LCodeGen::DoDeoptimize(LDeoptimize* instr) {
     type = Deoptimizer::LAZY;
   }
 
-  Comment(";;; deoptimize: %s", instr->hydrogen()->reason());
-  DeoptimizeIf(al, instr, type, zero_reg, Operand(zero_reg));
+  DeoptimizeIf(al, instr, type, zero_reg, Operand(zero_reg),
+               instr->hydrogen()->reason());
 }
 
 

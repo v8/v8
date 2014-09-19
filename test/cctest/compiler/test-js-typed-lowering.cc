@@ -54,6 +54,11 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     return graph.NewNode(common.HeapConstant(unique));
   }
 
+  Node* HeapConstant(Handle<Object> constant) {
+    Unique<Object> unique = Unique<Object>::CreateUninitialized(constant);
+    return graph.NewNode(common.HeapConstant(unique));
+  }
+
   Node* EmptyFrameState(Node* context) {
     Node* parameters = graph.NewNode(common.StateValues(0));
     Node* locals = graph.NewNode(common.StateValues(0));
@@ -1374,6 +1379,33 @@ TEST(Int32Comparisons) {
           CHECK_EQ(p0, r->InputAt(0));
           CHECK_EQ(p1, r->InputAt(1));
         }
+      }
+    }
+  }
+}
+
+
+TEST(BuiltinMathImul) {
+  JSTypedLoweringTester R;
+
+  for (size_t i = 0; i < arraysize(kNumberTypes); i++) {
+    for (size_t j = 0; j < arraysize(kNumberTypes); j++) {
+      Type* t0 = kNumberTypes[i];
+      Node* p0 = R.Parameter(t0, 0);
+      Type* t1 = kNumberTypes[j];
+      Node* p1 = R.Parameter(t1, 1);
+      Node* fun = R.HeapConstant(handle(R.isolate->context()->math_imul_fun()));
+      Node* call = R.graph.NewNode(R.javascript.Call(4, NO_CALL_FUNCTION_FLAGS),
+                                   fun, R.UndefinedConstant(), p0, p1);
+      Node* r = R.reduce(call);
+
+      if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
+        R.CheckPureBinop(R.machine.Int32Mul(), r);
+        CHECK_EQ(p0, r->InputAt(0));
+        CHECK_EQ(p1, r->InputAt(1));
+      } else {
+        CHECK_EQ(IrOpcode::kJSCallFunction, r->opcode());
+        CHECK_EQ(call, r);
       }
     }
   }

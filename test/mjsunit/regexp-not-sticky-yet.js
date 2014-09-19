@@ -1,4 +1,4 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,25 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "src/v8.h"
-#include "test/cctest/cctest.h"
+// Test that sticky regexp support is not affecting V8 when the
+// --harmony-regexps flag is not on.
 
-#include "src/base/utils/random-number-generator.h"
-#include "src/isolate-inl.h"
+assertThrows(function() { eval("/foo.bar/y"); }, SyntaxError);
+assertThrows(function() { eval("/foobar/y"); }, SyntaxError);
+assertThrows(function() { eval("/foo.bar/gy"); }, SyntaxError);
+assertThrows(function() { eval("/foobar/gy"); }, SyntaxError);
+assertThrows(function() { new RegExp("foo.bar", "y"); }, SyntaxError);
+assertThrows(function() { new RegExp("foobar", "y"); }, SyntaxError);
+assertThrows(function() { new RegExp("foo.bar", "gy"); }, SyntaxError);
+assertThrows(function() { new RegExp("foobar", "gy"); }, SyntaxError);
 
-using namespace v8::internal;
+var re = /foo.bar/;
+assertEquals("/foo.bar/", "" + re);
+var plain = /foobar/;
+assertEquals("/foobar/", "" + plain);
 
+re.compile("foo.bar");
+assertEquals(void 0, re.sticky);
 
-static const int64_t kRandomSeeds[] = {-1, 1, 42, 100, 1234567890, 987654321};
+var global = /foo.bar/g;
+assertEquals("/foo.bar/g", "" + global);
+var plainglobal = /foobar/g;
+assertEquals("/foobar/g", "" + plainglobal);
 
+assertEquals(void 0, re.sticky);
+re.sticky = true; // Has no effect on the regexp, just sets a property.
+assertTrue(re.sticky);
 
-TEST(RandomSeedFlagIsUsed) {
-  for (unsigned n = 0; n < arraysize(kRandomSeeds); ++n) {
-    FLAG_random_seed = static_cast<int>(kRandomSeeds[n]);
-    v8::Isolate* i = v8::Isolate::New();
-    v8::base::RandomNumberGenerator& rng =
-        *reinterpret_cast<Isolate*>(i)->random_number_generator();
-    CHECK_EQ(kRandomSeeds[n], rng.initial_seed());
-    i->Dispose();
-  }
-}
+assertTrue(re.test("..foo.bar"));
+
+re.lastIndex = -1; // Ignored for non-global, non-sticky.
+assertTrue(re.test("..foo.bar"));
+assertEquals(-1, re.lastIndex);
+
+re.lastIndex = -1; // Ignored for non-global, non-sticky.
+assertTrue(!!re.exec("..foo.bar"));
+assertEquals(-1, re.lastIndex);

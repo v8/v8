@@ -2471,6 +2471,9 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
 
 
 void MacroAssembler::VerifyX87StackDepth(uint32_t depth) {
+  // Turn off the stack depth check when serializer is enabled to reduce the
+  // code size.
+  if (serializer_enabled()) return;
   // Make sure the floating point stack is either empty or has depth items.
   DCHECK(depth <= 7);
   // This is very expensive.

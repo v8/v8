@@ -147,6 +147,12 @@ void LCodeGenBase::Comment(const char* format, ...) {
 }
 
 
+void LCodeGenBase::DeoptComment(const char* mnemonic, const char* reason) {
+  Comment(";;; deoptimize %s: %s", mnemonic,
+          reason == NULL ? "unknown reason" : reason);
+}
+
+
 int LCodeGenBase::GetNextEmittedBlock() const {
   for (int i = current_block_ + 1; i < graph()->blocks()->length(); ++i) {
     if (!graph()->blocks()->at(i)->IsReachable()) continue;
