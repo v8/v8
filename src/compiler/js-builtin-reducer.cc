@@ -34,15 +34,18 @@ class JSCallReduction {
   // constant callee being a well-known builtin with a BuiltinFunctionId.
   bool HasBuiltinFunctionId() {
     if (node_->opcode() != IrOpcode::kJSCallFunction) return false;
-    HeapObjectMatcher<JSFunction> m(NodeProperties::GetValueInput(node_, 0));
-    return m.HasValue() && m.Value().handle()->shared()->HasBuiltinFunctionId();
+    HeapObjectMatcher<Object> m(NodeProperties::GetValueInput(node_, 0));
+    if (!m.HasValue() || !m.Value().handle()->IsJSFunction()) return false;
+    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value().handle());
+    return function->shared()->HasBuiltinFunctionId();
   }
 
   // Retrieves the BuiltinFunctionId as described above.
   BuiltinFunctionId GetBuiltinFunctionId() {
     DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
-    HeapObjectMatcher<JSFunction> m(NodeProperties::GetValueInput(node_, 0));
-    return m.Value().handle()->shared()->builtin_function_id();
+    HeapObjectMatcher<Object> m(NodeProperties::GetValueInput(node_, 0));
+    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value().handle());
+    return function->shared()->builtin_function_id();
   }
 
   // Determines whether the call takes one input of the given type.
