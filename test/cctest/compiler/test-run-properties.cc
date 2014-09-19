@@ -47,8 +47,8 @@ static void TypedArrayLoadHelper(const char* array_type) {
       CompilationInfo::kContextSpecializing | CompilationInfo::kTypingEnabled);
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     for (size_t j = 0; j < arraysize(kValues); ++j) {
-      volatile U value_a = static_cast<volatile U>(kValues[i]);
-      volatile U value_b = static_cast<volatile U>(kValues[j]);
+      volatile U value_a = static_cast<U>(kValues[i]);
+      volatile U value_b = static_cast<U>(kValues[j]);
       double expected =
           static_cast<double>(value_a) + static_cast<double>(value_b);
       T.CheckCall(T.Val(expected), T.Val(static_cast<double>(i)),
@@ -116,8 +116,8 @@ static void TypedArrayStoreHelper(const char* array_type) {
       CompilationInfo::kContextSpecializing | CompilationInfo::kTypingEnabled);
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     for (size_t j = 0; j < arraysize(kValues); ++j) {
-      volatile U value_a = static_cast<volatile U>(kValues[i]);
-      volatile U value_b = static_cast<volatile U>(kValues[j]);
+      volatile U value_a = static_cast<U>(kValues[i]);
+      volatile U value_b = static_cast<U>(kValues[j]);
       double expected =
           static_cast<double>(value_a) + static_cast<double>(value_b);
       T.CheckCall(T.Val(expected), T.Val(static_cast<double>(i)),
