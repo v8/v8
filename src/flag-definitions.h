@@ -10,6 +10,12 @@
 // which can be included multiple times in different modes.  It expects to have
 // a mode defined before it's included.  The modes are FLAG_MODE_... below:
 
+#define DEFINE_IMPLICATION(whenflag, thenflag)              \
+  DEFINE_VALUE_IMPLICATION(whenflag, thenflag, true)
+
+#define DEFINE_NEG_IMPLICATION(whenflag, thenflag)          \
+  DEFINE_VALUE_IMPLICATION(whenflag, thenflag, false)
+
 // We want to declare the names of the variables for the header file.  Normally
 // this will just be an extern declaration, but for a readonly flag we let the
 // compiler make better optimizations by giving it the value.
@@ -45,11 +51,8 @@
 
 // We produce the code to set flags when it is implied by another flag.
 #elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
-#define DEFINE_IMPLICATION(whenflag, thenflag) \
-  if (FLAG_##whenflag) FLAG_##thenflag = true;
-
-#define DEFINE_NEG_IMPLICATION(whenflag, thenflag) \
-  if (FLAG_##whenflag) FLAG_##thenflag = false;
+#define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value) \
+  if (FLAG_##whenflag) FLAG_##thenflag = value;
 
 #else
 #error No mode supplied when including flags.defs
@@ -68,12 +71,8 @@
 #define FLAG_ALIAS(ftype, ctype, alias, nam)
 #endif
 
-#ifndef DEFINE_IMPLICATION
-#define DEFINE_IMPLICATION(whenflag, thenflag)
-#endif
-
-#ifndef DEFINE_NEG_IMPLICATION
-#define DEFINE_NEG_IMPLICATION(whenflag, thenflag)
+#ifndef DEFINE_VALUE_IMPLICATION
+#define DEFINE_VALUE_IMPLICATION(whenflag, thenflag, value)
 #endif
 
 #define COMMA ,
@@ -213,6 +212,8 @@ DEFINE_BOOL(vector_ics, false, "support vector-based ics")
 DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "
             "speed.")
+
+DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
@@ -929,6 +930,7 @@ DEFINE_BOOL(enable_ool_constant_pool, V8_OOL_CONSTANT_POOL,
 #undef DEFINE_ARGS
 #undef DEFINE_IMPLICATION
 #undef DEFINE_NEG_IMPLICATION
+#undef DEFINE_VALUE_IMPLICATION
 #undef DEFINE_ALIAS_BOOL
 #undef DEFINE_ALIAS_INT
 #undef DEFINE_ALIAS_STRING

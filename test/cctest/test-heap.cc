@@ -4379,7 +4379,7 @@ UNINITIALIZED_TEST(PromotionQueue) {
 
     // In this test we will try to overwrite the promotion queue which is at the
     // end of to-space. To actually make that possible, we need at least two
-    // semi-space pages and take advantage of fragementation.
+    // semi-space pages and take advantage of fragmentation.
     // (1) Grow semi-space to two pages.
     // (2) Create a few small long living objects and call the scavenger to
     // move them to the other semi-space.
@@ -4399,6 +4399,12 @@ UNINITIALIZED_TEST(PromotionQueue) {
     // Grow the semi-space to two pages to make semi-space copy overwrite the
     // promotion queue, which will be at the end of the second page.
     intptr_t old_capacity = new_space->TotalCapacity();
+
+    // If we are in a low memory config, we can't grow to two pages and we can't
+    // run this test. This also means the issue we are testing cannot arise, as
+    // there is no fragmentation.
+    if (new_space->IsAtMaximumCapacity()) return;
+
     new_space->Grow();
     CHECK(new_space->IsAtMaximumCapacity());
     CHECK(2 * old_capacity == new_space->TotalCapacity());
