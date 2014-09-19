@@ -11,7 +11,6 @@ from common_includes import *
 CONFIG = {
   BRANCHNAME: "auto-tag-v8",
   PERSISTFILE_BASENAME: "/tmp/v8-auto-tag-tempfile",
-  DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
 }
 
