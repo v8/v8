@@ -172,7 +172,7 @@ class LCodeGen: public LCodeGenBase {
   void GenerateBodyInstructionPre(LInstruction* instr) OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
-  bool GenerateDeoptJumpTable();
+  bool GenerateJumpTable();
   bool GenerateSafepointTable();
 
   // Generates the custom OSR entrypoint and sets the osr_pc_offset.

@@ -52,11 +52,8 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::NONE);
 
-  return GeneratePrologue() &&
-      GenerateBody() &&
-      GenerateDeferredCode() &&
-      GenerateDeoptJumpTable() &&
-      GenerateSafepointTable();
+  return GeneratePrologue() && GenerateBody() && GenerateDeferredCode() &&
+         GenerateJumpTable() && GenerateSafepointTable();
 }
 
 
@@ -313,7 +310,7 @@ bool LCodeGen::GenerateDeferredCode() {
 }
 
 
-bool LCodeGen::GenerateDeoptJumpTable() {
+bool LCodeGen::GenerateJumpTable() {
   // Check that the jump table is accessible from everywhere in the function
   // code, i.e. that offsets to the table can be encoded in the 24bit signed
   // immediate of a branch instruction.
@@ -343,7 +340,7 @@ bool LCodeGen::GenerateDeoptJumpTable() {
       DCHECK(type == deopt_jump_table_[0].bailout_type);
       Address entry = table_entry->address;
       int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-      DCHECK(id != Deoptimizer::kNotDeoptimizationEntry);
+      DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
       DeoptComment(table_entry->mnemonic, table_entry->reason);
 

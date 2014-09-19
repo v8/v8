@@ -842,11 +842,8 @@ bool LCodeGen::GenerateJumpTable() {
       Deoptimizer::BailoutType type = table_entry->bailout_type;
       Address entry = table_entry->address;
       int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-      if (id == Deoptimizer::kNotDeoptimizationEntry) {
-        Comment(";;; jump table entry %d.", i);
-      } else {
-        Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
-      }
+      DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
+      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
       DeoptComment(table_entry->mnemonic, table_entry->reason);
 
       // Second-level deopt table entries are contiguous and small, so instead

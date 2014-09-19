@@ -51,11 +51,8 @@ bool LCodeGen::GenerateCode() {
   // the frame (that is done in GeneratePrologue).
   FrameScope frame_scope(masm_, StackFrame::NONE);
 
-  return GeneratePrologue() &&
-      GenerateBody() &&
-      GenerateDeferredCode() &&
-      GenerateDeoptJumpTable() &&
-      GenerateSafepointTable();
+  return GeneratePrologue() && GenerateBody() && GenerateDeferredCode() &&
+         GenerateJumpTable() && GenerateSafepointTable();
 }
 
 
@@ -302,7 +299,7 @@ bool LCodeGen::GenerateDeferredCode() {
 }
 
 
-bool LCodeGen::GenerateDeoptJumpTable() {
+bool LCodeGen::GenerateJumpTable() {
   if (deopt_jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
   }
@@ -315,11 +312,8 @@ bool LCodeGen::GenerateDeoptJumpTable() {
     Address entry = deopt_jump_table_[i].address;
     Deoptimizer::BailoutType type = deopt_jump_table_[i].bailout_type;
     int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-    if (id == Deoptimizer::kNotDeoptimizationEntry) {
-      Comment(";;; jump table entry %d.", i);
-    } else {
-      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
-    }
+    DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
+    Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     __ li(t9, Operand(ExternalReference::ForDeoptEntry(entry)));
     if (deopt_jump_table_[i].needs_frame) {
       DCHECK(!info()->saves_caller_doubles());
