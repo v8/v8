@@ -110,7 +110,8 @@ bool GCIdleTimeHandler::ScavangeMayHappenSoon(
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
                                             HeapState heap_state) {
-  if (ScavangeMayHappenSoon(
+  if (idle_time_in_ms <= kMaxFrameRenderingIdleTime &&
+      ScavangeMayHappenSoon(
           heap_state.available_new_space_memory,
           heap_state.new_space_allocation_throughput_in_bytes_per_ms) &&
       idle_time_in_ms >=
