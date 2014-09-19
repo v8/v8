@@ -2629,6 +2629,16 @@ void Assembler::cvttsd2siq(Register dst, XMMRegister src) {
 }
 
 
+void Assembler::cvttsd2siq(Register dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x2C);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cvtlsi2sd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   emit(0xF2);
@@ -2896,6 +2906,12 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };
+  emit_operand(ireg, adr);
+}
+
+
+void Assembler::emit_sse_operand(Register reg, const Operand& adr) {
+  Register ireg = {reg.code()};
   emit_operand(ireg, adr);
 }
 
