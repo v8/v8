@@ -1946,9 +1946,21 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   int total_size = number_of_fields + unused;
   int external = total_size - inobject;
 
-  if ((old_map->unused_property_fields() == 0) &&
-      (number_of_fields != old_number_of_fields) &&
-      (new_map->GetBackPointer() == *old_map)) {
+  if (number_of_fields != old_number_of_fields &&
+      new_map->GetBackPointer() == *old_map) {
+    PropertyDetails details = new_map->GetLastDescriptorDetails();
+
+    if (old_map->unused_property_fields() > 0) {
+      if (details.representation().IsDouble()) {
+        Handle<Object> value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+        FieldIndex index =
+            FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
+        object->FastPropertyAtPut(index, *value);
+      }
+      object->synchronized_set_map(*new_map);
+      return;
+    }
+
     DCHECK(number_of_fields == old_number_of_fields + 1);
     // This migration is a transition from a map that has run out out property
     // space. Therefore it could be done by extending the backing store.
@@ -1957,7 +1969,6 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
         FixedArray::CopySize(old_storage, external);
 
     // Properly initialize newly added property.
-    PropertyDetails details = new_map->GetLastDescriptorDetails();
     Handle<Object> value;
     if (details.representation().IsDouble()) {
       value = isolate->factory()->NewHeapNumber(0, MUTABLE);
