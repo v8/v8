@@ -1120,6 +1120,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
           // Store the usage count; The actual use counter on the isolate is
           // incremented after parsing is done.
           ++use_counts_[v8::Isolate::kUseAsm];
+          scope_->SetAsmModule();
         }
       } else {
         // End of the directive prologue.

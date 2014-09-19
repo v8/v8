@@ -4471,6 +4471,12 @@ class ScopeInfo : public FixedArray {
   // Return if contexts are allocated for this scope.
   bool HasContext();
 
+  // Return if this is a function scope with "use asm".
+  bool IsAsmModule() { return AsmModuleField::decode(Flags()); }
+
+  // Return if this is a nested function within an asm module scope.
+  bool IsAsmFunction() { return AsmFunctionField::decode(Flags()); }
+
   // Return the function_name if present.
   String* FunctionName();
 
@@ -4625,6 +4631,8 @@ class ScopeInfo : public FixedArray {
   class StrictModeField:       public BitField<StrictMode,           4, 1> {};
   class FunctionVariableField: public BitField<FunctionVariableInfo, 5, 2> {};
   class FunctionVariableMode:  public BitField<VariableMode,         7, 3> {};
+  class AsmModuleField : public BitField<bool, 10, 1> {};
+  class AsmFunctionField : public BitField<bool, 11, 1> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -7127,6 +7135,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that this function is a concise method.
   DECL_BOOLEAN_ACCESSORS(is_concise_method)
 
+  // Indicates that this function is an asm function.
+  DECL_BOOLEAN_ACCESSORS(asm_function)
+
   inline FunctionKind kind();
   inline void set_kind(FunctionKind kind);
 
@@ -7327,6 +7338,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsArrow,
     kIsGenerator,
     kIsConciseMethod,
+    kIsAsmFunction,
     kCompilerHintsCount  // Pseudo entry
   };
 

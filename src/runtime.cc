@@ -8492,13 +8492,9 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
   Handle<Code> code;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
                                      Compiler::GetLazyCode(function));
+  DCHECK(code->kind() == Code::FUNCTION ||
+         code->kind() == Code::OPTIMIZED_FUNCTION);
   function->ReplaceCode(*code);
-
-  // All done. Return the compiled code.
-  DCHECK(function->is_compiled());
-  DCHECK(function->code()->kind() == Code::FUNCTION ||
-         (FLAG_always_opt &&
-          function->code()->kind() == Code::OPTIMIZED_FUNCTION));
   return *code;
 }
 
