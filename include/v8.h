@@ -4344,13 +4344,12 @@ typedef void (*JitCodeEventHandler)(const JitCodeEvent* event);
 
 
 /**
- * Isolate represents an isolated instance of the V8 engine.  V8
- * isolates have completely separate states.  Objects from one isolate
- * must not be used in other isolates.  When V8 is initialized a
- * default isolate is implicitly created and entered.  The embedder
- * can create additional isolates and use them in parallel in multiple
- * threads.  An isolate can be entered by at most one thread at any
- * given time.  The Locker/Unlocker API must be used to synchronize.
+ * Isolate represents an isolated instance of the V8 engine.  V8 isolates have
+ * completely separate states.  Objects from one isolate must not be used in
+ * other isolates.  The embedder can create multiple isolates and use them in
+ * parallel in multiple threads.  An isolate can be entered by at most one
+ * thread at any given time.  The Locker/Unlocker API must be used to
+ * synchronize.
  */
 class V8_EXPORT Isolate {
  public:
@@ -4358,7 +4357,10 @@ class V8_EXPORT Isolate {
    * Initial configuration parameters for a new Isolate.
    */
   struct CreateParams {
-    CreateParams() : entry_hook(NULL), code_event_handler(NULL) {}
+    CreateParams()
+        : entry_hook(NULL),
+          code_event_handler(NULL),
+          enable_serializer(false) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -4379,6 +4381,11 @@ class V8_EXPORT Isolate {
      * ResourceConstraints to use for the new Isolate.
      */
     ResourceConstraints constraints;
+
+    /**
+     * This flag currently renders the Isolate unusable.
+     */
+    bool enable_serializer;
   };
 
 
@@ -4489,6 +4496,8 @@ class V8_EXPORT Isolate {
    *
    * When an isolate is no longer used its resources should be freed
    * by calling Dispose().  Using the delete operator is not allowed.
+   *
+   * V8::Initialize() must have run prior to this.
    */
   static Isolate* New(const CreateParams& params = CreateParams());
 
@@ -5102,9 +5111,8 @@ class V8_EXPORT V8 {
   static void RemoveMemoryAllocationCallback(MemoryAllocationCallback callback);
 
   /**
-   * Initializes from snapshot if possible. Otherwise, attempts to
-   * initialize from scratch.  This function is called implicitly if
-   * you use the API without calling it first.
+   * Initializes V8. This function needs to be called before the first Isolate
+   * is created. It always returns true.
    */
   static bool Initialize();
 
