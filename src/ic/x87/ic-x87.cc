@@ -133,7 +133,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm, Label* miss_label,
 
   // Update write barrier. Make sure not to clobber the value.
   __ mov(r1, value);
-  __ RecordWrite(elements, r0, r1);
+  __ RecordWrite(elements, r0, r1, kDontSaveFPRegs);
 }
 
 
@@ -546,7 +546,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   __ mov(mapped_location, value);
   __ lea(ecx, mapped_location);
   __ mov(edx, value);
-  __ RecordWrite(ebx, ecx, edx);
+  __ RecordWrite(ebx, ecx, edx, kDontSaveFPRegs);
   __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in ebx.
@@ -555,7 +555,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   __ mov(unmapped_location, value);
   __ lea(edi, unmapped_location);
   __ mov(edx, value);
-  __ RecordWrite(ebx, edi, edx);
+  __ RecordWrite(ebx, edi, edx, kDontSaveFPRegs);
   __ Ret();
   __ bind(&slow);
   GenerateMiss(masm);
@@ -624,7 +624,8 @@ static void KeyedStoreGenerateGenericHelper(
   __ mov(FixedArrayElementOperand(ebx, key), value);
   // Update write barrier for the elements array address.
   __ mov(edx, value);  // Preserve the value which is returned.
-  __ RecordWriteArray(ebx, edx, key, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ RecordWriteArray(ebx, edx, key, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
   __ ret(0);
 
   __ bind(fast_double);

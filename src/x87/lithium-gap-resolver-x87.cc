@@ -317,10 +317,15 @@ void LGapResolver::EmitMove(int index) {
   } else if (source->IsDoubleRegister()) {
     // load from the register onto the stack, store in destination, which must
     // be a double stack slot in the non-SSE2 case.
-    DCHECK(destination->IsDoubleStackSlot());
-    Operand dst = cgen_->ToOperand(destination);
-    X87Register src = cgen_->ToX87Register(source);
-    cgen_->X87Mov(dst, src);
+    if (destination->IsDoubleStackSlot()) {
+      Operand dst = cgen_->ToOperand(destination);
+      X87Register src = cgen_->ToX87Register(source);
+      cgen_->X87Mov(dst, src);
+    } else {
+      X87Register dst = cgen_->ToX87Register(destination);
+      X87Register src = cgen_->ToX87Register(source);
+      cgen_->X87Mov(dst, src);
+    }
   } else if (source->IsDoubleStackSlot()) {
     // load from the stack slot on top of the floating point stack, and then
     // store in destination. If destination is a double register, then it
