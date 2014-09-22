@@ -319,29 +319,25 @@ bool LCodeGen::GenerateJumpTable() {
   // Each entry in the jump table generates one instruction and inlines one
   // 32bit data after it.
   if (!is_int24((masm()->pc_offset() / Assembler::kInstrSize) +
-      deopt_jump_table_.length() * 7)) {
+                jump_table_.length() * 7)) {
     Abort(kGeneratedCodeIsTooLarge);
   }
 
-  if (deopt_jump_table_.length() > 0) {
+  if (jump_table_.length() > 0) {
     Label needs_frame, call_deopt_entry;
 
     Comment(";;; -------------------- Jump table --------------------");
-    Address base = deopt_jump_table_[0].address;
+    Address base = jump_table_[0].address;
 
     Register entry_offset = scratch0();
 
-    int length = deopt_jump_table_.length();
+    int length = jump_table_.length();
     for (int i = 0; i < length; i++) {
-      Deoptimizer::JumpTableEntry* table_entry = &deopt_jump_table_[i];
+      Deoptimizer::JumpTableEntry* table_entry = &jump_table_[i];
       __ bind(&table_entry->label);
 
-      Deoptimizer::BailoutType type = table_entry->bailout_type;
-      DCHECK(type == deopt_jump_table_[0].bailout_type);
+      DCHECK_EQ(jump_table_[0].bailout_type, table_entry->bailout_type);
       Address entry = table_entry->address;
-      int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-      DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
-      Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
       DeoptComment(table_entry->reason);
 
       // Second-level deopt table entries are contiguous and small, so instead
@@ -909,17 +905,15 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
     DeoptComment(reason);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
+    Deoptimizer::JumpTableEntry table_entry(entry, reason, bailout_type,
+                                            !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
-    if (deopt_jump_table_.is_empty() ||
-        (deopt_jump_table_.last().address != entry) ||
-        (deopt_jump_table_.last().bailout_type != bailout_type) ||
-        (deopt_jump_table_.last().needs_frame != !frame_is_built_)) {
-      Deoptimizer::JumpTableEntry table_entry(entry, reason, bailout_type,
-                                              !frame_is_built_);
-      deopt_jump_table_.Add(table_entry, zone());
+    if (jump_table_.is_empty() ||
+        !table_entry.IsEquivalentTo(jump_table_.last())) {
+      jump_table_.Add(table_entry, zone());
     }
-    __ b(condition, &deopt_jump_table_.last().label);
+    __ b(condition, &jump_table_.last().label);
   }
 }
 

@@ -386,10 +386,6 @@ bool LCodeGen::GenerateJumpTable() {
     Deoptimizer::JumpTableEntry* table_entry = &jump_table_[i];
     __ bind(&table_entry->label);
     Address entry = table_entry->address;
-    Deoptimizer::BailoutType type = table_entry->bailout_type;
-    int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-    DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
-    Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     DeoptComment(table_entry->reason);
     if (table_entry->needs_frame) {
       DCHECK(!info()->saves_caller_doubles());
@@ -874,14 +870,12 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
     DeoptComment(reason);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
+    Deoptimizer::JumpTableEntry table_entry(entry, reason, bailout_type,
+                                            !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
     if (jump_table_.is_empty() ||
-        jump_table_.last().address != entry ||
-        jump_table_.last().needs_frame != !frame_is_built_ ||
-        jump_table_.last().bailout_type != bailout_type) {
-      Deoptimizer::JumpTableEntry table_entry(entry, reason, bailout_type,
-                                              !frame_is_built_);
+        !table_entry.IsEquivalentTo(jump_table_.last())) {
       jump_table_.Add(table_entry, zone());
     }
     if (cc == no_condition) {

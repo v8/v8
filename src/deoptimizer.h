@@ -104,6 +104,15 @@ class Deoptimizer : public Malloced {
   struct Reason {
     Reason(int r, const char* m, const char* d)
         : raw_position(r), mnemonic(m), detail(d) {}
+
+    bool operator==(const Reason& other) const {
+      return raw_position == other.raw_position &&
+             CStringEquals(mnemonic, other.mnemonic) &&
+             CStringEquals(detail, other.detail);
+    }
+
+    bool operator!=(const Reason& other) const { return !(*this == other); }
+
     int raw_position;
     const char* mnemonic;
     const char* detail;
@@ -117,6 +126,13 @@ class Deoptimizer : public Malloced {
           reason(the_reason),
           bailout_type(type),
           needs_frame(frame) {}
+
+    bool IsEquivalentTo(const JumpTableEntry& other) const {
+      return address == other.address && bailout_type == other.bailout_type &&
+             needs_frame == other.needs_frame &&
+             (!FLAG_trace_deopt || reason == other.reason);
+    }
+
     Label label;
     Address address;
     Reason reason;

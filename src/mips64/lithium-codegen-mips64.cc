@@ -300,21 +300,17 @@ bool LCodeGen::GenerateDeferredCode() {
 
 
 bool LCodeGen::GenerateJumpTable() {
-  if (deopt_jump_table_.length() > 0) {
+  if (jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
   }
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
   Label table_start;
   __ bind(&table_start);
   Label needs_frame;
-  for (int i = 0; i < deopt_jump_table_.length(); i++) {
-    Deoptimizer::JumpTableEntry* table_entry = &deopt_jump_table_[i];
+  for (int i = 0; i < jump_table_.length(); i++) {
+    Deoptimizer::JumpTableEntry* table_entry = &jump_table_[i];
     __ bind(&table_entry->label);
     Address entry = table_entry->address;
-    Deoptimizer::BailoutType type = table_entry->bailout_type;
-    int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-    DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
-    Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     DeoptComment(table_entry->reason);
     __ li(t9, Operand(ExternalReference::ForDeoptEntry(entry)));
     if (table_entry->needs_frame) {
@@ -822,17 +818,15 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
     DeoptComment(reason);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY, condition, src1, src2);
   } else {
+    Deoptimizer::JumpTableEntry table_entry(entry, reason, bailout_type,
+                                            !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
-    if (deopt_jump_table_.is_empty() ||
-        (deopt_jump_table_.last().address != entry) ||
-        (deopt_jump_table_.last().bailout_type != bailout_type) ||
-        (deopt_jump_table_.last().needs_frame != !frame_is_built_)) {
-      Deoptimizer::JumpTableEntry table_entry(entry, reason, bailout_type,
-                                              !frame_is_built_);
-      deopt_jump_table_.Add(table_entry, zone());
+    if (jump_table_.is_empty() ||
+        !table_entry.IsEquivalentTo(jump_table_.last())) {
+      jump_table_.Add(table_entry, zone());
     }
-    __ Branch(&deopt_jump_table_.last().label, condition, src1, src2);
+    __ Branch(&jump_table_.last().label, condition, src1, src2);
   }
 }
 
