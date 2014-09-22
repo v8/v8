@@ -295,7 +295,7 @@ class HistogramTimerScope BASE_EMBEDDED {
   /* Generic range histograms */                                              \
   HR(gc_idle_time_allotted_in_ms, V8.GCIdleTimeAllottedInMS, 0, 10000, 101)   \
   HR(gc_idle_time_limit_overshot, V8.GCIdleTimeLimit.Overshot, 0, 10000, 101) \
-  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimi.Undershot, 0, 10000, 101)
+  HR(gc_idle_time_limit_undershot, V8.GCIdleTimeLimit.Undershot, 0, 10000, 101)
 
 #define HISTOGRAM_TIMER_LIST(HT)                             \
   /* Garbage collection timers. */                           \
