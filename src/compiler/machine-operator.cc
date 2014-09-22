@@ -194,14 +194,12 @@ MachineOperatorBuilder::MachineOperatorBuilder(MachineType word)
 
 
 #define PURE(Name, properties, input_count, output_count) \
-  const Operator* MachineOperatorBuilder::Name() const {  \
-    return &impl_.k##Name;                                \
-  }
+  const Operator* MachineOperatorBuilder::Name() { return &impl_.k##Name; }
 PURE_OP_LIST(PURE)
 #undef PURE
 
 
-const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) const {
+const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
   switch (rep) {
 #define LOAD(Type) \
   case k##Type:    \
@@ -217,7 +215,7 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) const {
 }
 
 
-const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) const {
+const Operator* MachineOperatorBuilder::Store(StoreRepresentation rep) {
   switch (rep.machine_type()) {
 #define STORE(Type)                                     \
   case k##Type:                                         \
