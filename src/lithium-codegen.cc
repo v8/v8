@@ -148,8 +148,11 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 
 void LCodeGenBase::DeoptComment(const Deoptimizer::Reason& reason) {
-  Comment(";;; deoptimize %s: %s", reason.mnemonic,
-          reason.detail == NULL ? "unknown reason" : reason.detail);
+  OStringStream os;
+  os << ";;; deoptimize at " << HSourcePosition(reason.raw_position) << " "
+     << reason.mnemonic;
+  if (reason.detail != NULL) os << ": " << reason.detail;
+  Comment("%s", os.c_str());
 }
 
 

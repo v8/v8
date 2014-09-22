@@ -1148,7 +1148,8 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
     __ bind(&done);
   }
 
-  Deoptimizer::Reason reason(instr->Mnemonic(), detail);
+  Deoptimizer::Reason reason(instr->hydrogen_value()->position().raw(),
+                             instr->Mnemonic(), detail);
   DCHECK(info()->IsStub() || frame_is_built_);
   if (cc == no_condition && frame_is_built_) {
     DeoptComment(reason);

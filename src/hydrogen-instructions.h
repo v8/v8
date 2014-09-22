@@ -455,10 +455,10 @@ class HSourcePosition {
   // Offset from the start of the inlined function.
   typedef BitField<int, 9, 23> PositionField;
 
-  // On HPositionInfo can use this constructor.
   explicit HSourcePosition(int value) : value_(value) { }
 
   friend class HPositionInfo;
+  friend class LCodeGenBase;
 
   // If FLAG_hydrogen_track_positions is set contains bitfields InliningIdField
   // and PositionField.

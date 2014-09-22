@@ -1044,7 +1044,8 @@ void LCodeGen::DeoptimizeBranch(
     __ Bind(&dont_trap);
   }
 
-  Deoptimizer::Reason reason(instr->Mnemonic(), detail);
+  Deoptimizer::Reason reason(instr->hydrogen_value()->position().raw(),
+                             instr->Mnemonic(), detail);
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to build frame, or restore caller doubles.
   if (branch_type == always &&

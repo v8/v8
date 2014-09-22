@@ -102,7 +102,9 @@ class Deoptimizer : public Malloced {
   static const int kBailoutTypesWithCodeEntry = SOFT + 1;
 
   struct Reason {
-    Reason(const char* m, const char* d) : mnemonic(m), detail(d) {}
+    Reason(int r, const char* m, const char* d)
+        : raw_position(r), mnemonic(m), detail(d) {}
+    int raw_position;
     const char* mnemonic;
     const char* detail;
   };
