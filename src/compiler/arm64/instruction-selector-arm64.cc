@@ -630,12 +630,8 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   InitializeCallBuffer(call, &buffer, true, false);
 
   // Push the arguments to the stack.
-  bool is_c_frame = descriptor->kind() == CallDescriptor::kCallAddress;
   bool pushed_count_uneven = buffer.pushed_nodes.size() & 1;
   int aligned_push_count = buffer.pushed_nodes.size();
-  if (is_c_frame && pushed_count_uneven) {
-    aligned_push_count++;
-  }
   // TODO(dcarney): claim and poke probably take small immediates,
   //                loop here or whatever.
   // Bump the stack pointer(s).
@@ -650,8 +646,7 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
     // Emit the uneven pushes.
     if (pushed_count_uneven) {
       Node* input = buffer.pushed_nodes[slot];
-      ArchOpcode opcode = is_c_frame ? kArm64PokePairZero : kArm64Poke;
-      Emit(opcode | MiscField::encode(slot), NULL, g.UseRegister(input));
+      Emit(kArm64Poke | MiscField::encode(slot), NULL, g.UseRegister(input));
       slot--;
     }
     // Now all pushes can be done in pairs.
@@ -669,9 +664,6 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
       opcode = kArchCallCodeObject;
       break;
     }
-    case CallDescriptor::kCallAddress:
-      opcode = kArchCallAddress;
-      break;
     case CallDescriptor::kCallJSFunction:
       opcode = kArchCallJSFunction;
       break;
@@ -690,12 +682,6 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   if (deoptimization != NULL) {
     DCHECK(continuation != NULL);
     call_instr->MarkAsControl();
-  }
-
-  // Caller clean up of stack for C-style calls.
-  if (is_c_frame && aligned_push_count > 0) {
-    DCHECK(deoptimization == NULL && continuation == NULL);
-    Emit(kArchDrop | MiscField::encode(aligned_push_count), NULL);
   }
 }
 

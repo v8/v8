@@ -111,15 +111,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   IA32OperandConverter i(this, instr);
 
   switch (ArchOpcodeField::decode(instr->opcode())) {
-    case kArchCallAddress:
-      if (HasImmediateInput(instr, 0)) {
-        // TODO(dcarney): wire up EXTERNAL_REFERENCE instead of RUNTIME_ENTRY.
-        __ call(reinterpret_cast<byte*>(i.InputInt32(0)),
-                RelocInfo::RUNTIME_ENTRY);
-      } else {
-        __ call(i.InputRegister(0));
-      }
-      break;
     case kArchCallCodeObject: {
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
@@ -140,11 +131,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
       AddSafepointAndDeopt(instr);
-      break;
-    }
-    case kArchDrop: {
-      int words = MiscField::decode(instr->opcode());
-      __ add(esp, Immediate(kPointerSize * words));
       break;
     }
     case kArchJmp:

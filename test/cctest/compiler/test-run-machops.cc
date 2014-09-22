@@ -3567,82 +3567,6 @@ TEST(RunAddTree) {
 }
 
 
-#if MACHINE_ASSEMBLER_SUPPORTS_CALL_C
-
-static int Seven() { return 7; }
-static int UnaryMinus(int a) { return -a; }
-static int APlusTwoB(int a, int b) { return a + 2 * b; }
-
-
-TEST(RunCallSeven) {
-  for (int i = 0; i < 2; i++) {
-    bool call_direct = i == 0;
-    void* function_address =
-        reinterpret_cast<void*>(reinterpret_cast<intptr_t>(&Seven));
-
-    RawMachineAssemblerTester<int32_t> m;
-    Node** args = NULL;
-    MachineType* arg_types = NULL;
-    Node* function = call_direct
-                         ? m.PointerConstant(function_address)
-                         : m.LoadFromPointer(&function_address, kMachPtr);
-    m.Return(m.CallC(function, kMachInt32, arg_types, args, 0));
-
-    CHECK_EQ(7, m.Call());
-  }
-}
-
-
-TEST(RunCallUnaryMinus) {
-  for (int i = 0; i < 2; i++) {
-    bool call_direct = i == 0;
-    void* function_address =
-        reinterpret_cast<void*>(reinterpret_cast<intptr_t>(&UnaryMinus));
-
-    RawMachineAssemblerTester<int32_t> m(kMachInt32);
-    Node* args[] = {m.Parameter(0)};
-    MachineType arg_types[] = {kMachInt32};
-    Node* function = call_direct
-                         ? m.PointerConstant(function_address)
-                         : m.LoadFromPointer(&function_address, kMachPtr);
-    m.Return(m.CallC(function, kMachInt32, arg_types, args, 1));
-
-    FOR_INT32_INPUTS(i) {
-      int a = *i;
-      CHECK_EQ(-a, m.Call(a));
-    }
-  }
-}
-
-
-TEST(RunCallAPlusTwoB) {
-  for (int i = 0; i < 2; i++) {
-    bool call_direct = i == 0;
-    void* function_address =
-        reinterpret_cast<void*>(reinterpret_cast<intptr_t>(&APlusTwoB));
-
-    RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
-    Node* args[] = {m.Parameter(0), m.Parameter(1)};
-    MachineType arg_types[] = {kMachInt32, kMachInt32};
-    Node* function = call_direct
-                         ? m.PointerConstant(function_address)
-                         : m.LoadFromPointer(&function_address, kMachPtr);
-    m.Return(m.CallC(function, kMachInt32, arg_types, args, 2));
-
-    FOR_INT32_INPUTS(i) {
-      FOR_INT32_INPUTS(j) {
-        int a = *i;
-        int b = *j;
-        int result = m.Call(a, b);
-        CHECK_EQ(a + 2 * b, result);
-      }
-    }
-  }
-}
-
-#endif  // MACHINE_ASSEMBLER_SUPPORTS_CALL_C
-
-
 static const int kFloat64CompareHelperTestCases = 15;
 static const int kFloat64CompareHelperNodeType = 4;
 
@@ -4028,39 +3952,6 @@ TEST(RunNewSpaceConstantsInPhi) {
   CHECK_EQ(*false_val, m.Call(0));
   CHECK_EQ(*true_val, m.Call(1));
 }
-
-
-#if MACHINE_ASSEMBLER_SUPPORTS_CALL_C
-
-TEST(RunSpillLotsOfThingsWithCall) {
-  static const int kInputSize = 1000;
-  RawMachineAssemblerTester<void> m;
-  Node* accs[kInputSize];
-  int32_t outputs[kInputSize];
-  Node* one = m.Int32Constant(1);
-  Node* acc = one;
-  for (int i = 0; i < kInputSize; i++) {
-    acc = m.Int32Add(acc, one);
-    accs[i] = acc;
-  }
-  // If the spill slot computation is wrong, it might load from the c frame
-  {
-    void* func = reinterpret_cast<void*>(reinterpret_cast<intptr_t>(&Seven));
-    Node** args = NULL;
-    MachineType* arg_types = NULL;
-    m.CallC(m.PointerConstant(func), kMachInt32, arg_types, args, 0);
-  }
-  for (int i = 0; i < kInputSize; i++) {
-    m.StoreToPointer(&outputs[i], kMachInt32, accs[i]);
-  }
-  m.Return(one);
-  m.Call();
-  for (int i = 0; i < kInputSize; i++) {
-    CHECK_EQ(outputs[i], i + 2);
-  }
-}
-
-#endif  // MACHINE_ASSEMBLER_SUPPORTS_CALL_C
 
 
 TEST(RunInt32AddWithOverflowP) {
