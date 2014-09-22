@@ -287,8 +287,6 @@ namespace internal {
   V(global_string, "global")                                       \
   V(ignore_case_string, "ignoreCase")                              \
   V(multiline_string, "multiline")                                 \
-  V(sticky_string, "sticky")                                       \
-  V(harmony_regexps_string, "harmony_regexps")                     \
   V(input_string, "input")                                         \
   V(index_string, "index")                                         \
   V(last_index_string, "lastIndex")                                \

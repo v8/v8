@@ -47,10 +47,9 @@ static void TypedArrayLoadHelper(const char* array_type) {
       CompilationInfo::kContextSpecializing | CompilationInfo::kTypingEnabled);
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     for (size_t j = 0; j < arraysize(kValues); ++j) {
-      volatile U value_a = static_cast<U>(kValues[i]);
-      volatile U value_b = static_cast<U>(kValues[j]);
-      double expected =
-          static_cast<double>(value_a) + static_cast<double>(value_b);
+      double value_a = static_cast<U>(kValues[i]);
+      double value_b = static_cast<U>(kValues[j]);
+      double expected = value_a + value_b;
       T.CheckCall(T.Val(expected), T.Val(static_cast<double>(i)),
                   T.Val(static_cast<double>(j)));
     }
@@ -66,8 +65,8 @@ TEST(TypedArrayLoad) {
   TypedArrayLoadHelper<uint16_t>("Uint16");
   TypedArrayLoadHelper<int32_t>("Int32");
   TypedArrayLoadHelper<uint32_t>("Uint32");
-  TypedArrayLoadHelper<float>("Float32");
   TypedArrayLoadHelper<double>("Float64");
+  // TODO(mstarzinger): Add tests for Float32.
   // TODO(mstarzinger): Add tests for ClampedUint8.
 }
 
@@ -116,10 +115,9 @@ static void TypedArrayStoreHelper(const char* array_type) {
       CompilationInfo::kContextSpecializing | CompilationInfo::kTypingEnabled);
   for (size_t i = 0; i < arraysize(kValues); ++i) {
     for (size_t j = 0; j < arraysize(kValues); ++j) {
-      volatile U value_a = static_cast<U>(kValues[i]);
-      volatile U value_b = static_cast<U>(kValues[j]);
-      double expected =
-          static_cast<double>(value_a) + static_cast<double>(value_b);
+      double value_a = static_cast<U>(kValues[i]);
+      double value_b = static_cast<U>(kValues[j]);
+      double expected = value_b + value_a;
       T.CheckCall(T.Val(expected), T.Val(static_cast<double>(i)),
                   T.Val(static_cast<double>(j)));
     }
@@ -135,7 +133,7 @@ TEST(TypedArrayStore) {
   TypedArrayStoreHelper<uint16_t>("Uint16");
   TypedArrayStoreHelper<int32_t>("Int32");
   TypedArrayStoreHelper<uint32_t>("Uint32");
-  TypedArrayStoreHelper<float>("Float32");
   TypedArrayStoreHelper<double>("Float64");
+  // TODO(mstarzinger): Add tests for Float32.
   // TODO(mstarzinger): Add tests for ClampedUint8.
 }

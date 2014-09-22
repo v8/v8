@@ -123,9 +123,6 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kPrepareStep:
     case Runtime::kSetScriptBreakPoint:
     case Runtime::kStackGuard:
-    case Runtime::kCheckExecutionState:
-    case Runtime::kDebugEvaluate:
-    case Runtime::kCollectStackTrace:
       return true;
     default:
       return false;

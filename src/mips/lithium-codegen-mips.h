@@ -172,7 +172,7 @@ class LCodeGen: public LCodeGenBase {
   void GenerateBodyInstructionPre(LInstruction* instr) OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
-  bool GenerateJumpTable();
+  bool GenerateDeoptJumpTable();
   bool GenerateSafepointTable();
 
   // Generates the custom OSR entrypoint and sets the osr_pc_offset.
@@ -228,15 +228,15 @@ class LCodeGen: public LCodeGenBase {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition condition, LInstruction* instr,
+  void DeoptimizeIf(Condition condition,
+                    LEnvironment* environment,
                     Deoptimizer::BailoutType bailout_type,
                     Register src1 = zero_reg,
-                    const Operand& src2 = Operand(zero_reg),
-                    const char* reason = NULL);
-  void DeoptimizeIf(Condition condition, LInstruction* instr,
+                    const Operand& src2 = Operand(zero_reg));
+  void DeoptimizeIf(Condition condition,
+                    LEnvironment* environment,
                     Register src1 = zero_reg,
-                    const Operand& src2 = Operand(zero_reg),
-                    const char* reason = NULL);
+                    const Operand& src2 = Operand(zero_reg));
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
@@ -297,8 +297,12 @@ class LCodeGen: public LCodeGenBase {
                         FPURegister src1,
                         FPURegister src2);
   void EmitCmpI(LOperand* left, LOperand* right);
-  void EmitNumberUntagD(LNumberUntagD* instr, Register input,
-                        DoubleRegister result, NumberUntagDMode mode);
+  void EmitNumberUntagD(Register input,
+                        DoubleRegister result,
+                        bool allow_undefined_as_nan,
+                        bool deoptimize_on_minus_zero,
+                        LEnvironment* env,
+                        NumberUntagDMode mode);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to

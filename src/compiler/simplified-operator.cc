@@ -65,7 +65,6 @@ struct StaticParameterTraits<ElementAccess> {
 
 #define PURE_OP_LIST(V)                                \
   V(BooleanNot, Operator::kNoProperties, 1)            \
-  V(BooleanToNumber, Operator::kNoProperties, 1)       \
   V(NumberEqual, Operator::kCommutative, 2)            \
   V(NumberLessThan, Operator::kNoProperties, 2)        \
   V(NumberLessThanOrEqual, Operator::kNoProperties, 2) \

@@ -1033,6 +1033,10 @@ class MacroAssembler: public Assembler {
       XMMRegister scratch, MinusZeroMode minus_zero_mode,
       Label* conversion_failed, Label::Distance dst = Label::kFar);
 
+  void TaggedToI(Register result_reg, Register input_reg, XMMRegister temp,
+      MinusZeroMode minus_zero_mode, Label* lost_precision,
+      Label::Distance dst = Label::kFar);
+
   void LoadUint32(XMMRegister dst, Register src);
 
   void LoadInstanceDescriptors(Register map, Register descriptors);

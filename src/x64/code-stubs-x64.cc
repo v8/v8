@@ -834,37 +834,6 @@ void ArgumentsAccessStub::GenerateNewSloppySlow(MacroAssembler* masm) {
 }
 
 
-void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
-  // Return address is on the stack.
-  Label slow;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-  Register scratch = rax;
-  DCHECK(!scratch.is(receiver) && !scratch.is(key));
-
-  // Check that the key is an array index, that is Uint32.
-  STATIC_ASSERT(kSmiValueSize <= 32);
-  __ JumpUnlessNonNegativeSmi(key, &slow);
-
-  // Everything is fine, call runtime.
-  __ PopReturnAddressTo(scratch);
-  __ Push(receiver);  // receiver
-  __ Push(key);       // key
-  __ PushReturnAddressFrom(scratch);
-
-  // Perform tail call to the entry.
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kLoadElementWithInterceptor),
-                        masm->isolate()),
-      2, 1);
-
-  __ bind(&slow);
-  PropertyAccessCompiler::TailCallBuiltin(
-      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
 void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // rsp[0]  : return address
   // rsp[8]  : number of parameters
@@ -1725,7 +1694,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // function without changing the state.
   __ cmpp(rcx, rdi);
   __ j(equal, &done);
-  __ Cmp(rcx, TypeFeedbackVector::MegamorphicSentinel(isolate));
+  __ Cmp(rcx, TypeFeedbackInfo::MegamorphicSentinel(isolate));
   __ j(equal, &done);
 
   if (!FLAG_pretenuring_call_new) {
@@ -1749,13 +1718,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ Cmp(rcx, TypeFeedbackVector::UninitializedSentinel(isolate));
+  __ Cmp(rcx, TypeFeedbackInfo::UninitializedSentinel(isolate));
   __ j(equal, &initialize);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
   __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
-          TypeFeedbackVector::MegamorphicSentinel(isolate));
+          TypeFeedbackInfo::MegamorphicSentinel(isolate));
   __ jmp(&done);
 
   // An uninitialized cache is patched with the function or sentinel to
@@ -2102,9 +2071,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
 
   __ movp(rcx, FieldOperand(rbx, rdx, times_pointer_size,
                             FixedArray::kHeaderSize));
-  __ Cmp(rcx, TypeFeedbackVector::MegamorphicSentinel(isolate));
+  __ Cmp(rcx, TypeFeedbackInfo::MegamorphicSentinel(isolate));
   __ j(equal, &slow_start);
-  __ Cmp(rcx, TypeFeedbackVector::UninitializedSentinel(isolate));
+  __ Cmp(rcx, TypeFeedbackInfo::UninitializedSentinel(isolate));
   __ j(equal, &miss);
 
   if (!FLAG_trace_ic) {
@@ -2113,8 +2082,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ AssertNotSmi(rcx);
     __ CmpObjectType(rcx, JS_FUNCTION_TYPE, rcx);
     __ j(not_equal, &miss);
-    __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
-            TypeFeedbackVector::MegamorphicSentinel(isolate));
+    __ Move(FieldOperand(rbx, rdx, times_pointer_size,
+                         FixedArray::kHeaderSize),
+            TypeFeedbackInfo::MegamorphicSentinel(isolate));
     __ jmp(&slow_start);
   }
 

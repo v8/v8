@@ -45,6 +45,8 @@ class FunctionTester : public InitializedHandleScope {
     CompilationInfoWithZone info(function);
 
     CHECK(Parser::Parse(&info));
+    StrictMode strict_mode = info.function()->strict_mode();
+    info.SetStrictMode(strict_mode);
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     if (flags_ & CompilationInfo::kContextSpecializing) {
       info.MarkAsContextSpecializing();
@@ -57,7 +59,11 @@ class FunctionTester : public InitializedHandleScope {
     }
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
-    CHECK(Compiler::EnsureDeoptimizationSupport(&info));
+    CHECK_NE(NULL, info.scope());
+    Handle<ScopeInfo> scope_info = ScopeInfo::Create(info.scope(), info.zone());
+    info.shared_info()->set_scope_info(*scope_info);
+
+    EnsureDeoptimizationSupport(&info);
 
     Pipeline pipeline(&info);
     Handle<Code> code = pipeline.GenerateCode();
@@ -81,6 +87,23 @@ class FunctionTester : public InitializedHandleScope {
     function->ReplaceCode(*code);
 #endif
     return function;
+  }
+
+  static void EnsureDeoptimizationSupport(CompilationInfo* info) {
+    bool should_recompile = !info->shared_info()->has_deoptimization_support();
+    if (should_recompile) {
+      CompilationInfoWithZone unoptimized(info->shared_info());
+      // Note that we use the same AST that we will use for generating the
+      // optimized code.
+      unoptimized.SetFunction(info->function());
+      unoptimized.PrepareForCompilation(info->scope());
+      unoptimized.SetContext(info->context());
+      if (should_recompile) unoptimized.EnableDeoptimizationSupport();
+      bool succeeded = FullCodeGenerator::MakeCode(&unoptimized);
+      CHECK(succeeded);
+      Handle<SharedFunctionInfo> shared = info->shared_info();
+      shared->EnableDeoptimizationSupport(*unoptimized.code());
+    }
   }
 
   MaybeHandle<Object> Call(Handle<Object> a, Handle<Object> b) {

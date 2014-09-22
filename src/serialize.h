@@ -257,7 +257,7 @@ class Deserializer: public SerializerDeserializer {
 
   // Serialized user code reference certain objects that are provided in a list
   // By calling this method, we assume that we are deserializing user code.
-  void SetAttachedObjects(Vector<Handle<Object> >* attached_objects) {
+  void SetAttachedObjects(Vector<Object*>* attached_objects) {
     attached_objects_ = attached_objects;
   }
 
@@ -308,7 +308,7 @@ class Deserializer: public SerializerDeserializer {
   Isolate* isolate_;
 
   // Objects from the attached object descriptions in the serialized user code.
-  Vector<Handle<Object> >* attached_objects_;
+  Vector<Object*>* attached_objects_;
 
   SnapshotByteSource* source_;
   // This is the address of the next object that will be allocated in each
@@ -459,10 +459,12 @@ class Serializer : public SerializerDeserializer {
                                HowToCode how_to_code,
                                WhereToPoint where_to_point,
                                int skip) = 0;
-  void SerializeReferenceToPreviousObject(HeapObject* heap_object,
-                                          HowToCode how_to_code,
-                                          WhereToPoint where_to_point,
-                                          int skip);
+  void SerializeReferenceToPreviousObject(
+      int space,
+      int address,
+      HowToCode how_to_code,
+      WhereToPoint where_to_point,
+      int skip);
   void InitializeAllocators();
   // This will return the space for an object.
   static int SpaceOfObject(HeapObject* object);
@@ -592,29 +594,20 @@ class CodeSerializer : public Serializer {
                                                 Handle<String> source);
 
   static const int kSourceObjectIndex = 0;
-  static const int kCodeStubsBaseIndex = 1;
 
   String* source() {
     DCHECK(!AllowHeapAllocation::IsAllowed());
     return source_;
   }
 
-  List<uint32_t>* stub_keys() { return &stub_keys_; }
-
  private:
   void SerializeBuiltin(Code* builtin, HowToCode how_to_code,
                         WhereToPoint where_to_point, int skip);
-  void SerializeCodeStub(Code* code, HowToCode how_to_code,
-                         WhereToPoint where_to_point, int skip);
   void SerializeSourceObject(HowToCode how_to_code, WhereToPoint where_to_point,
                              int skip);
-  void SerializeHeapObject(HeapObject* heap_object, HowToCode how_to_code,
-                           WhereToPoint where_to_point, int skip);
-  int AddCodeStubKey(uint32_t stub_key);
 
   DisallowHeapAllocation no_gc_;
   String* source_;
-  List<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
 
@@ -645,22 +638,12 @@ class SerializedCodeData {
     return result;
   }
 
-  Vector<const uint32_t> CodeStubKeys() const {
-    return Vector<const uint32_t>(
-        reinterpret_cast<const uint32_t*>(script_data_->data() + kHeaderSize),
-        GetHeaderValue(kNumCodeStubKeysOffset));
-  }
-
   const byte* Payload() const {
-    int code_stubs_size = GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size;
-    return script_data_->data() + kHeaderSize + code_stubs_size;
+    return script_data_->data() + kHeaderEntries * kIntSize;
   }
 
   int PayloadLength() const {
-    int payload_length = GetHeaderValue(kPayloadLengthOffset);
-    DCHECK_EQ(script_data_->data() + script_data_->length(),
-              Payload() + payload_length);
-    return payload_length;
+    return script_data_->length() - kHeaderEntries * kIntSize;
   }
 
   int GetReservation(int space) const {
@@ -683,21 +666,10 @@ class SerializedCodeData {
 
   // The data header consists of int-sized entries:
   // [0] version hash
-  // [1] number of code stub keys
-  // [2] payload length
-  // [3..9] reservation sizes for spaces from NEW_SPACE to PROPERTY_CELL_SPACE.
+  // [1..7] reservation sizes for spaces from NEW_SPACE to PROPERTY_CELL_SPACE.
   static const int kCheckSumOffset = 0;
-  static const int kNumCodeStubKeysOffset = 1;
-  static const int kPayloadLengthOffset = 2;
-  static const int kReservationsOffset = 3;
-
-  static const int kNumSpaces = PROPERTY_CELL_SPACE - NEW_SPACE + 1;
-  static const int kHeaderEntries = kReservationsOffset + kNumSpaces;
-  static const int kHeaderSize = kHeaderEntries * kIntSize;
-
-  // Following the header, we store, in sequential order
-  // - code stub keys
-  // - serialization payload
+  static const int kReservationsOffset = 1;
+  static const int kHeaderEntries = 8;
 
   ScriptData* script_data_;
   bool owns_script_data_;

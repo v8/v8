@@ -26,7 +26,7 @@ void Snapshot::ReserveSpaceForLinkedInSnapshot(Deserializer* deserializer) {
 }
 
 
-bool Snapshot::Initialize(Isolate* isolate) {
+bool Snapshot::Initialize() {
   if (size_ > 0) {
     base::ElapsedTimer timer;
     if (FLAG_profile_deserialization) {
@@ -35,7 +35,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
     SnapshotByteSource source(raw_data_, raw_size_);
     Deserializer deserializer(&source);
     ReserveSpaceForLinkedInSnapshot(&deserializer);
-    bool success = isolate->Init(&deserializer);
+    bool success = V8::Initialize(&deserializer);
     if (FLAG_profile_deserialization) {
       double ms = timer.Elapsed().InMillisecondsF();
       PrintF("[Snapshot loading and deserialization took %0.3f ms]\n", ms);

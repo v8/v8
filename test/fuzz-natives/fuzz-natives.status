@@ -33,7 +33,7 @@
 
   # TODO(danno): Fix these internal function that are only callable form stubs
   # and un-blacklist them!
-  "CompileLazy": [SKIP],
+  "CompileUnoptimized": [SKIP],
   "NotifyDeoptimized": [SKIP],
   "NotifyStubFailure": [SKIP],
   "NewSloppyArguments": [SKIP],

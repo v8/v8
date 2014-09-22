@@ -34,16 +34,28 @@
 using namespace v8::internal;
 
 
-static const int64_t kRandomSeeds[] = {-1, 1, 42, 100, 1234567890, 987654321};
+static const int kMaxRuns = 12345;
+static const int kRandomSeeds[] = {
+  -1, 1, 42, 100, 1234567890, 987654321
+};
 
 
 TEST(RandomSeedFlagIsUsed) {
   for (unsigned n = 0; n < arraysize(kRandomSeeds); ++n) {
-    FLAG_random_seed = static_cast<int>(kRandomSeeds[n]);
+    FLAG_random_seed = kRandomSeeds[n];
     v8::Isolate* i = v8::Isolate::New();
-    v8::base::RandomNumberGenerator& rng =
+    v8::base::RandomNumberGenerator& rng1 =
         *reinterpret_cast<Isolate*>(i)->random_number_generator();
-    CHECK_EQ(kRandomSeeds[n], rng.initial_seed());
+    v8::base::RandomNumberGenerator rng2(kRandomSeeds[n]);
+    for (int k = 1; k <= kMaxRuns; ++k) {
+      int64_t i1, i2;
+      rng1.NextBytes(&i1, sizeof(i1));
+      rng2.NextBytes(&i2, sizeof(i2));
+      CHECK_EQ(i2, i1);
+      CHECK_EQ(rng2.NextInt(), rng1.NextInt());
+      CHECK_EQ(rng2.NextInt(k), rng1.NextInt(k));
+      CHECK_EQ(rng2.NextDouble(), rng1.NextDouble());
+    }
     i->Dispose();
   }
 }

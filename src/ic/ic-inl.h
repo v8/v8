@@ -208,17 +208,17 @@ Handle<Map> IC::GetICCacheHolder(HeapType* type, Isolate* isolate,
 }
 
 
-IC::State CallIC::FeedbackToState(Handle<TypeFeedbackVector> vector,
+IC::State CallIC::FeedbackToState(Handle<FixedArray> vector,
                                   Handle<Smi> slot) const {
   IC::State state = UNINITIALIZED;
   Object* feedback = vector->get(slot->value());
 
-  if (feedback == *TypeFeedbackVector::MegamorphicSentinel(isolate())) {
+  if (feedback == *TypeFeedbackInfo::MegamorphicSentinel(isolate())) {
     state = GENERIC;
   } else if (feedback->IsAllocationSite() || feedback->IsJSFunction()) {
     state = MONOMORPHIC;
   } else {
-    CHECK(feedback == *TypeFeedbackVector::UninitializedSentinel(isolate()));
+    CHECK(feedback == *TypeFeedbackInfo::UninitializedSentinel(isolate()));
   }
 
   return state;

@@ -503,6 +503,48 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
+  // Return address is on the stack.
+  Label slow;
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+  Register scratch = eax;
+  DCHECK(!scratch.is(receiver) && !scratch.is(key));
+
+  // Check that the receiver isn't a smi.
+  __ JumpIfSmi(receiver, &slow);
+
+  // Check that the key is an array index, that is Uint32.
+  __ test(key, Immediate(kSmiTagMask | kSmiSignMask));
+  __ j(not_zero, &slow);
+
+  // Get the map of the receiver.
+  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
+
+  // Check that it has indexed interceptor and access checks
+  // are not enabled for this object.
+  __ movzx_b(scratch, FieldOperand(scratch, Map::kBitFieldOffset));
+  __ and_(scratch, Immediate(kSlowCaseBitFieldMask));
+  __ cmp(scratch, Immediate(1 << Map::kHasIndexedInterceptor));
+  __ j(not_zero, &slow);
+
+  // Everything is fine, call runtime.
+  __ pop(scratch);
+  __ push(receiver);  // receiver
+  __ push(key);       // key
+  __ push(scratch);   // return address
+
+  // Perform tail call to the entry.
+  ExternalReference ref = ExternalReference(
+      IC_Utility(kLoadElementWithInterceptor), masm->isolate());
+  __ TailCallExternalReference(ref, 2, 1);
+
+  __ bind(&slow);
+  GenerateMiss(masm);
+}
+
+
 void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // The return address is on the stack.
   Register receiver = LoadDescriptor::ReceiverRegister();

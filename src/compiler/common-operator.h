@@ -6,7 +6,6 @@
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
 #include "src/compiler/machine-type.h"
-#include "src/unique.h"
 
 namespace v8 {
 namespace internal {
@@ -14,6 +13,9 @@ namespace internal {
 // Forward declarations.
 class ExternalReference;
 class OStream;
+template <typename>
+class Unique;
+class Zone;
 
 
 namespace compiler {
@@ -32,34 +34,18 @@ enum OutputFrameStateCombine {
 };
 
 
-// The type of stack frame that a FrameState node represents.
-enum FrameStateType {
-  JS_FRAME,          // Represents an unoptimized JavaScriptFrame.
-  ARGUMENTS_ADAPTOR  // Represents an ArgumentsAdaptorFrame.
-};
-
-
 class FrameStateCallInfo FINAL {
  public:
-  FrameStateCallInfo(
-      FrameStateType type, BailoutId bailout_id,
-      OutputFrameStateCombine state_combine,
-      MaybeHandle<JSFunction> jsfunction = MaybeHandle<JSFunction>())
-      : type_(type),
-        bailout_id_(bailout_id),
-        frame_state_combine_(state_combine),
-        jsfunction_(jsfunction) {}
+  FrameStateCallInfo(BailoutId bailout_id,
+                     OutputFrameStateCombine state_combine)
+      : bailout_id_(bailout_id), frame_state_combine_(state_combine) {}
 
-  FrameStateType type() const { return type_; }
   BailoutId bailout_id() const { return bailout_id_; }
   OutputFrameStateCombine state_combine() const { return frame_state_combine_; }
-  MaybeHandle<JSFunction> jsfunction() const { return jsfunction_; }
 
  private:
-  FrameStateType type_;
   BailoutId bailout_id_;
   OutputFrameStateCombine frame_state_combine_;
-  MaybeHandle<JSFunction> jsfunction_;
 };
 
 
@@ -95,10 +81,8 @@ class CommonOperatorBuilder FINAL {
   const Operator* ValueEffect(int arguments);
   const Operator* Finish(int arguments);
   const Operator* StateValues(int arguments);
-  const Operator* FrameState(
-      FrameStateType type, BailoutId bailout_id,
-      OutputFrameStateCombine state_combine,
-      MaybeHandle<JSFunction> jsfunction = MaybeHandle<JSFunction>());
+  const Operator* FrameState(BailoutId bailout_id,
+                             OutputFrameStateCombine combine);
   const Operator* Call(const CallDescriptor* descriptor);
   const Operator* Projection(size_t index);
 

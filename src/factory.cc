@@ -1886,27 +1886,25 @@ void Factory::BecomeJSFunction(Handle<JSProxy> proxy) {
 }
 
 
-Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(int slot_count) {
+Handle<FixedArray> Factory::NewTypeFeedbackVector(int slot_count) {
   // Ensure we can skip the write barrier
   DCHECK_EQ(isolate()->heap()->uninitialized_symbol(),
-            *TypeFeedbackVector::UninitializedSentinel(isolate()));
+            *TypeFeedbackInfo::UninitializedSentinel(isolate()));
 
-  if (slot_count == 0) {
-    return Handle<TypeFeedbackVector>::cast(empty_fixed_array());
-  }
-
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateFixedArrayWithFiller(
-                         slot_count, TENURED,
-                         *TypeFeedbackVector::UninitializedSentinel(isolate())),
-                     TypeFeedbackVector);
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateFixedArrayWithFiller(
+          slot_count,
+          TENURED,
+          *TypeFeedbackInfo::UninitializedSentinel(isolate())),
+      FixedArray);
 }
 
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name, int number_of_literals, FunctionKind kind,
     Handle<Code> code, Handle<ScopeInfo> scope_info,
-    Handle<TypeFeedbackVector> feedback_vector) {
+    Handle<FixedArray> feedback_vector) {
   DCHECK(IsValidFunctionKind(kind));
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name, code);
   shared->set_scope_info(*scope_info);
@@ -1974,8 +1972,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
-  Handle<TypeFeedbackVector> feedback_vector = NewTypeFeedbackVector(0);
-  share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);
+  share->set_feedback_vector(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   share->set_profiler_ticks(0);
   share->set_ast_node_count(0);
   share->set_counters(0);
@@ -2328,12 +2325,9 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
       Handle<MapCache>(MapCache::cast(context->map_cache()));
   Handle<Object> result = Handle<Object>(cache->Lookup(*keys), isolate());
   if (result->IsMap()) return Handle<Map>::cast(result);
-  int length = keys->length();
-  // Create a new map and add it to the cache. Reuse the initial map of the
-  // Object function if the literal has no predeclared properties.
-  Handle<Map> map = length == 0
-                        ? handle(context->object_function()->initial_map())
-                        : Map::Create(isolate(), length);
+  // Create a new map and add it to the cache.
+  Handle<Map> map = Map::Create(
+      handle(context->object_function()), keys->length());
   AddToMapCache(context, keys, map);
   return map;
 }

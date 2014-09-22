@@ -160,8 +160,6 @@ void Scope::SetDefaults(ScopeType scope_type,
   scope_inside_with_ = false;
   scope_contains_with_ = false;
   scope_calls_eval_ = false;
-  asm_module_ = false;
-  asm_function_ = outer_scope != NULL && outer_scope->asm_module_;
   // Inherit the strict mode from the parent scope.
   strict_mode_ = outer_scope != NULL ? outer_scope->strict_mode_ : SLOPPY;
   outer_scope_calls_sloppy_eval_ = false;
@@ -224,8 +222,6 @@ Scope* Scope::DeserializeScopeChain(Context* context, Scope* global_scope,
                                       Handle<ScopeInfo>(scope_info),
                                       global_scope->ast_value_factory_,
                                       zone);
-      if (scope_info->IsAsmFunction()) current_scope->asm_function_ = true;
-      if (scope_info->IsAsmModule()) current_scope->asm_module_ = true;
     } else if (context->IsBlockContext()) {
       ScopeInfo* scope_info = ScopeInfo::cast(context->extension());
       current_scope = new(zone) Scope(current_scope,
@@ -1168,9 +1164,6 @@ void Scope::PropagateScopeInfo(bool outer_scope_calls_sloppy_eval ) {
     }
     if (inner->force_eager_compilation_) {
       force_eager_compilation_ = true;
-    }
-    if (asm_module_ && inner->scope_type() == FUNCTION_SCOPE) {
-      inner->asm_function_ = true;
     }
   }
 }

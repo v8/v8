@@ -1880,7 +1880,7 @@ static void EnsureFunctionHasDebugBreakSlots(Handle<JSFunction> function) {
   // Make sure that the shared full code is compiled with debug
   // break slots.
   if (!function->shared()->code()->has_debug_break_slots()) {
-    MaybeHandle<Code> code = Compiler::GetDebugCode(function);
+    MaybeHandle<Code> code = Compiler::GetCodeForDebugging(function);
     // Recompilation can fail.  In that case leave the code as it was.
     if (!code.is_null()) function->ReplaceCode(*code.ToHandleChecked());
   } else {
@@ -1914,7 +1914,7 @@ void Debug::PrepareForBreakPoints() {
 
     Deoptimizer::DeoptimizeAll(isolate_);
 
-    Handle<Code> lazy_compile = isolate_->builtins()->CompileLazy();
+    Handle<Code> lazy_compile = isolate_->builtins()->CompileUnoptimized();
 
     // There will be at least one break point when we are done.
     has_break_points_ = true;

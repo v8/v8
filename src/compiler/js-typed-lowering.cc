@@ -4,7 +4,6 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/graph-inl.h"
-#include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/node-aux-data-inl.h"
 #include "src/compiler/node-properties-inl.h"
@@ -445,11 +444,7 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     // JSToNumber(null) => #0
     return ReplaceWith(jsgraph()->ZeroConstant());
   }
-  if (input_type->Is(Type::Boolean())) {
-    // JSToNumber(x:boolean) => BooleanToNumber(x)
-    return ReplaceWith(
-        graph()->NewNode(simplified()->BooleanToNumber(), input));
-  }
+  // TODO(turbofan): js-typed-lowering of ToNumber(x:boolean)
   // TODO(turbofan): js-typed-lowering of ToNumber(x:string)
   return NoChange();
 }
@@ -679,8 +674,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
-    case IrOpcode::kJSCallFunction:
-      return JSBuiltinReducer(jsgraph()).Reduce(node);
     default:
       break;
   }

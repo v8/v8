@@ -1661,7 +1661,7 @@ class RegExpEngine: public AllStatic {
   };
 
   static CompilationResult Compile(RegExpCompileData* input, bool ignore_case,
-                                   bool global, bool multiline, bool sticky,
+                                   bool global, bool multiline,
                                    Handle<String> pattern,
                                    Handle<String> sample_subject,
                                    bool is_one_byte, Zone* zone);

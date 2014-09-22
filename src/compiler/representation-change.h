@@ -53,8 +53,6 @@ class RepresentationChanger {
       return GetTaggedRepresentationFor(node, output_type);
     } else if (use_type & kRepFloat64) {
       return GetFloat64RepresentationFor(node, output_type);
-    } else if (use_type & kRepFloat32) {
-      return TypeError(node, output_type, use_type);  // TODO(titzer): handle
     } else if (use_type & kRepBit) {
       return GetBitRepresentationFor(node, output_type);
     } else if (use_type & rWord) {

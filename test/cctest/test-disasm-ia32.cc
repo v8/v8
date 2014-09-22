@@ -416,7 +416,6 @@ TEST(DisasmIa320) {
     __ addsd(xmm1, xmm0);
     __ mulsd(xmm1, xmm0);
     __ subsd(xmm1, xmm0);
-    __ subsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ divsd(xmm1, xmm0);
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);

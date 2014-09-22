@@ -80,16 +80,17 @@
   ##############################################################################
   # TurboFan compiler failures.
 
+  # Scheduler cannot handle free-floating loops yet
+  'test-run-inlining/InlineLoop': [SKIP],
+
   # TODO(dcarney): C calls are broken all over the place.
   'test-run-machops/RunCall*': [SKIP],
   'test-run-machops/RunLoadImmIndex': [SKIP],
   'test-run-machops/RunSpillLotsOfThingsWithCall': [SKIP],
 
-  # TODO(sigurds): The schedule is borked with multiple inlinees,
-  # and cannot handle free-floating loops yet
+  # TODO(sigurds): The schedule is borked with multiple inlinees.
   'test-run-inlining/InlineTwiceDependentDiamond': [SKIP],
   'test-run-inlining/InlineTwiceDependentDiamondDifferent': [SKIP],
-  'test-run-inlining/InlineLoop': [SKIP],
 
   # Some tests are just too slow to run for now.
   'test-api/Threading*': [PASS, NO_VARIANTS],
@@ -325,6 +326,19 @@
 
 ##############################################################################
 ['arch == x87', {
+
+  # TODO (weiliang): Enable below tests after fixing the double register
+  # allocation limit in X87 port.
+  'test-serialize/Serialize': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/Deserialize': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/SerializeTwice': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/ContextSerialization': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/ContextDeserialization': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/PartialDeserialization': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/PartialSerialization': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/DeserializeAndRunScript2': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/DeserializeFromSecondSerializationAndRunScript2': [PASS, ['mode == debug', SKIP]],
+  'test-serialize/DeserializeFromSecondSerialization': [PASS, ['mode == debug', SKIP]],
 
   # Test requires turbofan:
   'codegen-tester/CompareWrapper': [SKIP],

@@ -35,6 +35,7 @@
 using namespace v8::internal;
 
 TEST(List) {
+  v8::internal::V8::Initialize(NULL);
   List<AstNode*>* list = new List<AstNode*>(0);
   CHECK_EQ(0, list->length());
 

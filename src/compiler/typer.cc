@@ -644,11 +644,6 @@ Bounds Typer::Visitor::TypeBooleanNot(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeBooleanToNumber(Node* node) {
-  return Bounds(Type::Number(zone()));
-}
-
-
 Bounds Typer::Visitor::TypeNumberEqual(Node* node) {
   return Bounds(Type::Boolean(zone()));
 }

@@ -303,7 +303,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64ToUint32: {
       XMMRegister scratch = xmm0;
       __ Move(scratch, -2147483648.0);
-      __ addsd(scratch, i.InputOperand(0));
+      // TODO(turbofan): IA32 SSE subsd() should take an operand.
+      __ addsd(scratch, i.InputDoubleRegister(0));
       __ cvttsd2si(i.OutputRegister(), scratch);
       __ add(i.OutputRegister(), Immediate(0x80000000));
       break;

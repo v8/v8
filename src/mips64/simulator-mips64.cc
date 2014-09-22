@@ -1109,9 +1109,9 @@ int32_t Simulator::get_fpu_register_signed_word(int fpureg) const {
 }
 
 
-int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
+uint32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>((FPUregisters_[fpureg] >> 32) & 0xffffffff);
+  return static_cast<uint32_t>((FPUregisters_[fpureg] >> 32) & 0xffffffff);
 }
 
 

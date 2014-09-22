@@ -303,6 +303,11 @@ void DumpException(Handle<Message> message) {
 
 
 int main(int argc, char** argv) {
+  V8::InitializeICU();
+  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
+  v8::V8::InitializePlatform(platform);
+  i::CpuFeatures::Probe(true);
+
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
 
@@ -314,13 +319,6 @@ int main(int argc, char** argv) {
     i::FlagList::PrintHelp();
     return !i::FLAG_help;
   }
-
-  i::CpuFeatures::Probe(true);
-  V8::InitializeICU();
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
-  v8::V8::Initialize();
-
 #ifdef COMPRESS_STARTUP_DATA_BZ2
   BZip2Decompressor natives_decompressor;
   int bz2_result = natives_decompressor.Decompress();
@@ -331,11 +329,10 @@ int main(int argc, char** argv) {
 #endif
   i::FLAG_logfile_per_isolate = false;
 
-  Isolate::CreateParams params;
-  params.enable_serializer = true;
-  Isolate* isolate = v8::Isolate::New(params);
+  Isolate* isolate = v8::Isolate::New();
   { Isolate::Scope isolate_scope(isolate);
     i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    internal_isolate->enable_serializer();
 
     Persistent<Context> context;
     {

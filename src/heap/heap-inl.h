@@ -15,7 +15,6 @@
 #include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
-#include "src/msan.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -496,7 +495,7 @@ void Heap::ScavengePointer(HeapObject** p) { ScavengeObject(p, *p); }
 
 AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   // Check if there is potentially a memento behind the object. If
-  // the last word of the memento is on another page we return
+  // the last word of the momento is on another page we return
   // immediately.
   Address object_address = object->address();
   Address memento_address = object_address + object->Size();
@@ -506,12 +505,7 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
   }
 
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
-  Map* candidate_map = candidate->map();
-  // This fast check may peek at an uninitialized word. However, the slow check
-  // below (memento_address == top) ensures that this is safe. Mark the word as
-  // initialized to silence MemorySanitizer warnings.
-  MSAN_MEMORY_IS_INITIALIZED(&candidate_map, sizeof(candidate_map));
-  if (candidate_map != allocation_memento_map()) return NULL;
+  if (candidate->map() != allocation_memento_map()) return NULL;
 
   // Either the object is the last object in the new space, or there is another
   // object of at least word size (the header map word) following it, so

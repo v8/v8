@@ -23,11 +23,8 @@
 // Marks a memory range as uninitialized, as if it was allocated here.
 # define MSAN_ALLOCATED_UNINITIALIZED_MEMORY(p, s) \
     __msan_allocated_memory((p), (s))
-// Marks a memory range as initialized.
-#define MSAN_MEMORY_IS_INITIALIZED(p, s) __msan_unpoison((p), (s))
 #else
 # define MSAN_ALLOCATED_UNINITIALIZED_MEMORY(p, s)
-#define MSAN_MEMORY_IS_INITIALIZED(p, s)
 #endif
 
 #endif  // V8_MSAN_H_

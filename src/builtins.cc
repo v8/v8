@@ -1289,6 +1289,11 @@ static void Generate_KeyedLoadIC_PreMonomorphic(MacroAssembler* masm) {
 }
 
 
+static void Generate_KeyedLoadIC_IndexedInterceptor(MacroAssembler* masm) {
+  KeyedLoadIC::GenerateIndexedInterceptor(masm);
+}
+
+
 static void Generate_KeyedLoadIC_SloppyArguments(MacroAssembler* masm) {
   KeyedLoadIC::GenerateSloppyArguments(masm);
 }

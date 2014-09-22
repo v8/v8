@@ -1946,21 +1946,9 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   int total_size = number_of_fields + unused;
   int external = total_size - inobject;
 
-  if (number_of_fields != old_number_of_fields &&
-      new_map->GetBackPointer() == *old_map) {
-    PropertyDetails details = new_map->GetLastDescriptorDetails();
-
-    if (old_map->unused_property_fields() > 0) {
-      if (details.representation().IsDouble()) {
-        Handle<Object> value = isolate->factory()->NewHeapNumber(0, MUTABLE);
-        FieldIndex index =
-            FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
-        object->FastPropertyAtPut(index, *value);
-      }
-      object->synchronized_set_map(*new_map);
-      return;
-    }
-
+  if ((old_map->unused_property_fields() == 0) &&
+      (number_of_fields != old_number_of_fields) &&
+      (new_map->GetBackPointer() == *old_map)) {
     DCHECK(number_of_fields == old_number_of_fields + 1);
     // This migration is a transition from a map that has run out out property
     // space. Therefore it could be done by extending the backing store.
@@ -1969,6 +1957,7 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
         FixedArray::CopySize(old_storage, external);
 
     // Properly initialize newly added property.
+    PropertyDetails details = new_map->GetLastDescriptorDetails();
     Handle<Object> value;
     if (details.representation().IsDouble()) {
       value = isolate->factory()->NewHeapNumber(0, MUTABLE);
@@ -6660,26 +6649,30 @@ Handle<Map> Map::Copy(Handle<Map> map) {
 }
 
 
-Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
-  Handle<Map> copy = Copy(handle(isolate->object_function()->initial_map()));
+Handle<Map> Map::Create(Handle<JSFunction> constructor,
+                        int extra_inobject_properties) {
+  Handle<Map> copy = Copy(handle(constructor->initial_map()));
 
-  // Check that we do not overflow the instance size when adding the extra
-  // inobject properties. If the instance size overflows, we allocate as many
-  // properties as we can as inobject properties.
-  int max_extra_properties =
-      (JSObject::kMaxInstanceSize - JSObject::kHeaderSize) >> kPointerSizeLog2;
+  // Check that we do not overflow the instance size when adding the
+  // extra inobject properties.
+  int instance_size_delta = extra_inobject_properties * kPointerSize;
+  int max_instance_size_delta =
+      JSObject::kMaxInstanceSize - copy->instance_size();
+  int max_extra_properties = max_instance_size_delta >> kPointerSizeLog2;
 
-  if (inobject_properties > max_extra_properties) {
-    inobject_properties = max_extra_properties;
+  // If the instance size overflows, we allocate as many properties as we can as
+  // inobject properties.
+  if (extra_inobject_properties > max_extra_properties) {
+    instance_size_delta = max_instance_size_delta;
+    extra_inobject_properties = max_extra_properties;
   }
 
-  int new_instance_size =
-      JSObject::kHeaderSize + kPointerSize * inobject_properties;
-
   // Adjust the map with the extra inobject properties.
+  int inobject_properties =
+      copy->inobject_properties() + extra_inobject_properties;
   copy->set_inobject_properties(inobject_properties);
   copy->set_unused_property_fields(inobject_properties);
-  copy->set_instance_size(new_instance_size);
+  copy->set_instance_size(copy->instance_size() + instance_size_delta);
   copy->set_visitor_id(StaticVisitorBase::GetVisitorId(*copy));
   return copy;
 }
@@ -10385,7 +10378,7 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 
 
 void SharedFunctionInfo::ClearTypeFeedbackInfo() {
-  TypeFeedbackVector* vector = feedback_vector();
+  FixedArray* vector = feedback_vector();
   Heap* heap = GetHeap();
   int length = vector->length();
 
@@ -10401,7 +10394,7 @@ void SharedFunctionInfo::ClearTypeFeedbackInfo() {
           break;
           // Fall through...
         default:
-          vector->set(i, TypeFeedbackVector::RawUninitializedSentinel(heap),
+          vector->set(i, TypeFeedbackInfo::RawUninitializedSentinel(heap),
                       SKIP_WRITE_BARRIER);
       }
     }

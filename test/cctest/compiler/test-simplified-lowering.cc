@@ -810,63 +810,6 @@ TEST(LowerBooleanNot_tagged_tagged) {
 }
 
 
-TEST(LowerBooleanToNumber_bit_int32) {
-  // BooleanToNumber(x: kRepBit) used as kMachInt32
-  TestingGraph t(Type::Boolean());
-  Node* b = t.ExampleWithOutput(kRepBit);
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, kMachInt32);
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(b, use->InputAt(0));
-}
-
-
-TEST(LowerBooleanToNumber_tagged_int32) {
-  // BooleanToNumber(x: kRepTagged) used as kMachInt32
-  TestingGraph t(Type::Boolean());
-  Node* b = t.p0;
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, kMachInt32);
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(t.machine()->WordEqual()->opcode(), cnv->opcode());
-  CHECK(b == cnv->InputAt(0) || b == cnv->InputAt(1));
-  Node* c = t.jsgraph.TrueConstant();
-  CHECK(c == cnv->InputAt(0) || c == cnv->InputAt(1));
-}
-
-
-TEST(LowerBooleanToNumber_bit_tagged) {
-  // BooleanToNumber(x: kRepBit) used as kMachAnyTagged
-  TestingGraph t(Type::Boolean());
-  Node* b = t.ExampleWithOutput(kRepBit);
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, kMachAnyTagged);
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(b, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeInt32ToTagged, use->InputAt(0)->opcode());
-}
-
-
-TEST(LowerBooleanToNumber_tagged_tagged) {
-  // BooleanToNumber(x: kRepTagged) used as kMachAnyTagged
-  TestingGraph t(Type::Boolean());
-  Node* b = t.p0;
-  Node* cnv = t.graph()->NewNode(t.simplified()->BooleanToNumber(), b);
-  Node* use = t.Use(cnv, kMachAnyTagged);
-  t.Return(use);
-  t.Lower();
-  CHECK_EQ(cnv, use->InputAt(0)->InputAt(0));
-  CHECK_EQ(IrOpcode::kChangeInt32ToTagged, use->InputAt(0)->opcode());
-  CHECK_EQ(t.machine()->WordEqual()->opcode(), cnv->opcode());
-  CHECK(b == cnv->InputAt(0) || b == cnv->InputAt(1));
-  Node* c = t.jsgraph.TrueConstant();
-  CHECK(c == cnv->InputAt(0) || c == cnv->InputAt(1));
-}
-
-
 static Type* test_types[] = {Type::Signed32(), Type::Unsigned32(),
                              Type::Number(), Type::Any()};
 
@@ -1509,39 +1452,4 @@ TEST(UpdatePhi) {
     CHECK_EQ(RepresentationOf(kMachineTypes[i]),
              RepresentationOf(OpParameter<MachineType>(phi)));
   }
-}
-
-
-// TODO(titzer): this tests current behavior of assuming an implicit
-// representation change in loading float32s. Fix when float32 is fully
-// supported.
-TEST(ImplicitFloat32ToFloat64InLoads) {
-  TestingGraph t(Type::Any());
-
-  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                        Handle<Name>::null(), Type::Any(), kMachFloat32};
-
-  Node* load =
-      t.graph()->NewNode(t.simplified()->LoadField(access), t.p0, t.start);
-  t.Return(load);
-  t.Lower();
-  CHECK_EQ(IrOpcode::kLoad, load->opcode());
-  CHECK_EQ(t.p0, load->InputAt(0));
-  CheckChangeOf(IrOpcode::kChangeFloat64ToTagged, load, t.ret->InputAt(0));
-}
-
-
-TEST(ImplicitFloat64ToFloat32InStores) {
-  TestingGraph t(Type::Any(), Type::Signed32());
-  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                        Handle<Name>::null(), Type::Any(), kMachFloat32};
-
-  Node* store = t.graph()->NewNode(t.simplified()->StoreField(access), t.p0,
-                                   t.p1, t.start, t.start);
-  t.Effect(store);
-  t.Lower();
-
-  CHECK_EQ(IrOpcode::kStore, store->opcode());
-  CHECK_EQ(t.p0, store->InputAt(0));
-  CheckChangeOf(IrOpcode::kChangeTaggedToFloat64, t.p1, store->InputAt(2));
 }

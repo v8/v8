@@ -352,9 +352,6 @@ void AstTyper::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void AstTyper::VisitClassLiteral(ClassLiteral* expr) {}
-
-
 void AstTyper::VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
 }
 

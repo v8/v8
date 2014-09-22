@@ -45,10 +45,16 @@ class DeoptCodegenTester {
         info(function, scope->main_zone()),
         bailout_id(-1) {
     CHECK(Parser::Parse(&info));
+    StrictMode strict_mode = info.function()->strict_mode();
+    info.SetStrictMode(strict_mode);
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
-    CHECK(Compiler::EnsureDeoptimizationSupport(&info));
+    CHECK_NE(NULL, info.scope());
+    Handle<ScopeInfo> scope_info = ScopeInfo::Create(info.scope(), info.zone());
+    info.shared_info()->set_scope_info(*scope_info);
+
+    FunctionTester::EnsureDeoptimizationSupport(&info);
 
     DCHECK(info.shared_info()->has_deoptimization_support());
 
@@ -144,9 +150,9 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
     Node* locals = m.NewNode(common.StateValues(0));
     Node* stack = m.NewNode(common.StateValues(0));
 
-    Node* state_node = m.NewNode(
-        common.FrameState(JS_FRAME, bailout_id, kIgnoreOutput), parameters,
-        locals, stack, caller_context_node, m.UndefinedConstant());
+    Node* state_node =
+        m.NewNode(common.FrameState(bailout_id, kIgnoreOutput), parameters,
+                  locals, stack, caller_context_node, m.UndefinedConstant());
 
     Handle<Context> context(deopt_function->context(), CcTest::i_isolate());
     Unique<Object> context_constant =
@@ -258,9 +264,9 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     Node* locals = m.NewNode(common.StateValues(0));
     Node* stack = m.NewNode(common.StateValues(0));
 
-    Node* state_node = m.NewNode(
-        common.FrameState(JS_FRAME, bailout_id, kIgnoreOutput), parameters,
-        locals, stack, context_node, m.UndefinedConstant());
+    Node* state_node =
+        m.NewNode(common.FrameState(bailout_id, kIgnoreOutput), parameters,
+                  locals, stack, context_node, m.UndefinedConstant());
 
     m.CallRuntime1(Runtime::kDeoptimizeFunction, this_fun_node, context_node,
                    state_node);

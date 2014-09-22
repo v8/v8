@@ -20,8 +20,9 @@ class SmallMapList;
 class TypeFeedbackOracle: public ZoneObject {
  public:
   TypeFeedbackOracle(Handle<Code> code,
-                     Handle<TypeFeedbackVector> feedback_vector,
-                     Handle<Context> native_context, Zone* zone);
+                     Handle<FixedArray> feedback_vector,
+                     Handle<Context> native_context,
+                     Zone* zone);
 
   bool LoadIsUninitialized(TypeFeedbackId id);
   bool StoreIsUninitialized(TypeFeedbackId id);
@@ -119,7 +120,7 @@ class TypeFeedbackOracle: public ZoneObject {
   Handle<Context> native_context_;
   Zone* zone_;
   Handle<UnseededNumberDictionary> dictionary_;
-  Handle<TypeFeedbackVector> feedback_vector_;
+  Handle<FixedArray> feedback_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

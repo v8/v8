@@ -31,7 +31,6 @@
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
-#include "src/type-feedback-vector-inl.h"
 #include "src/v8memory.h"
 
 namespace v8 {
@@ -707,9 +706,6 @@ bool Object::IsDescriptorArray() const {
 bool Object::IsTransitionArray() const {
   return IsFixedArray();
 }
-
-
-bool Object::IsTypeFeedbackVector() const { return IsFixedArray(); }
 
 
 bool Object::IsDeoptimizationInputData() const {
@@ -5404,7 +5400,7 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, Object,
                  kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS(SharedFunctionInfo, feedback_vector, TypeFeedbackVector,
+ACCESSORS(SharedFunctionInfo, feedback_vector, FixedArray,
           kFeedbackVectorOffset)
 ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
           kInstanceClassNameOffset)
@@ -5447,7 +5443,6 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                compiler_hints,
                has_duplicate_parameters,
                kHasDuplicateParameters)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function, kIsAsmFunction)
 
 
 #if V8_HOST_ARCH_32_BIT
@@ -5672,7 +5667,8 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
 
 
 bool SharedFunctionInfo::is_compiled() {
-  return code() != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy);
+  return code() !=
+      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
 }
 
 
@@ -5946,7 +5942,8 @@ bool JSFunction::should_have_prototype() {
 
 
 bool JSFunction::is_compiled() {
-  return code() != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy);
+  return code() !=
+      GetIsolate()->builtins()->builtin(Builtins::kCompileUnoptimized);
 }
 
 
@@ -6996,6 +6993,37 @@ void JSArray::SetContent(Handle<JSArray> array,
             Handle<FixedArray>::cast(storage)->ContainsOnlySmisOrHoles()))));
   array->set_elements(*storage);
   array->set_length(Smi::FromInt(storage->length()));
+}
+
+
+Handle<Object> TypeFeedbackInfo::UninitializedSentinel(Isolate* isolate) {
+  return isolate->factory()->uninitialized_symbol();
+}
+
+
+Handle<Object> TypeFeedbackInfo::MegamorphicSentinel(Isolate* isolate) {
+  return isolate->factory()->megamorphic_symbol();
+}
+
+
+Handle<Object> TypeFeedbackInfo::PremonomorphicSentinel(Isolate* isolate) {
+  return isolate->factory()->megamorphic_symbol();
+}
+
+
+Handle<Object> TypeFeedbackInfo::GenericSentinel(Isolate* isolate) {
+  return isolate->factory()->generic_symbol();
+}
+
+
+Handle<Object> TypeFeedbackInfo::MonomorphicArraySentinel(Isolate* isolate,
+    ElementsKind elements_kind) {
+  return Handle<Object>(Smi::FromInt(static_cast<int>(elements_kind)), isolate);
+}
+
+
+Object* TypeFeedbackInfo::RawUninitializedSentinel(Heap* heap) {
+  return heap->uninitialized_symbol();
 }
 
 

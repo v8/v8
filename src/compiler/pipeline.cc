@@ -151,17 +151,6 @@ static void TraceSchedule(Schedule* schedule) {
 
 
 Handle<Code> Pipeline::GenerateCode() {
-  if (info()->function()->dont_optimize_reason() == kTryCatchStatement ||
-      info()->function()->dont_optimize_reason() == kTryFinallyStatement ||
-      // TODO(turbofan): Make ES6 for-of work and remove this bailout.
-      info()->function()->dont_optimize_reason() == kForOfStatement ||
-      // TODO(turbofan): Make super work and remove this bailout.
-      info()->function()->dont_optimize_reason() == kSuperReference ||
-      // TODO(turbofan): Make OSR work and remove this bailout.
-      info()->is_osr()) {
-    return Handle<Code>::null();
-  }
-
   if (FLAG_turbo_stats) isolate()->GetTStatistics()->Initialize(info_);
 
   if (FLAG_trace_turbo) {

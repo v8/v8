@@ -2014,15 +2014,6 @@ void Assembler::subsd(XMMRegister dst, XMMRegister src) {
 }
 
 
-void Assembler::subsd(XMMRegister dst, const Operand& src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xF2);
-  EMIT(0x0F);
-  EMIT(0x5C);
-  emit_sse_operand(dst, src);
-}
-
-
 void Assembler::divsd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF2);

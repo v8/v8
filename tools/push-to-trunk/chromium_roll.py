@@ -13,6 +13,7 @@ CHROMIUM = "CHROMIUM"
 
 CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-chromium-roll-tempfile",
+  DOT_GIT_LOCATION: ".git",
 }
 
 
@@ -42,7 +43,7 @@ class SwitchChromium(Step):
     self["v8_path"] = os.getcwd()
     cwd = self._options.chromium
     os.chdir(cwd)
-    self.InitialEnvironmentChecks(cwd)
+    self.InitialEnvironmentChecks()
     # Check for a clean workdir.
     if not self.GitIsWorkdirClean(cwd=cwd):  # pragma: no cover
       self.Die("Workspace is not clean. Please commit or undo your changes.")

@@ -207,7 +207,7 @@ static Handle<Map> ComputeObjectLiteralMap(
     return isolate->factory()->ObjectLiteralMapFromCache(context, keys);
   }
   *is_result_from_cache = false;
-  return Map::Create(isolate, number_of_properties);
+  return Map::Create(handle(context->object_function()), number_of_properties);
 }
 
 
@@ -2080,30 +2080,6 @@ RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
-
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(home_object, name, v8::ACCESS_GET)) {
-    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_GET);
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  }
-
-  PrototypeIterator iter(isolate, home_object);
-  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
-  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
-
-  LookupIterator it(receiver, name, Handle<JSReceiver>::cast(proto));
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsExtensible) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
@@ -2572,7 +2548,7 @@ RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
 
 RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 6);
+  DCHECK(args.length() == 5);
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
   // If source is the empty string we set it to "(?:)" instead as
@@ -2588,13 +2564,9 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
   CONVERT_ARG_HANDLE_CHECKED(Object, multiline, 4);
   if (!multiline->IsTrue()) multiline = isolate->factory()->false_value();
 
-  CONVERT_ARG_HANDLE_CHECKED(Object, sticky, 5);
-  if (!sticky->IsTrue()) sticky = isolate->factory()->false_value();
-
   Map* map = regexp->map();
   Object* constructor = map->constructor();
-  if (!FLAG_harmony_regexps &&
-      constructor->IsJSFunction() &&
+  if (constructor->IsJSFunction() &&
       JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     regexp->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex, *source);
@@ -2611,11 +2583,7 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
     return *regexp;
   }
 
-  // Map has changed, so use generic, but slower, method.  We also end here if
-  // the --harmony-regexp flag is set, because the initial map does not have
-  // space for the 'sticky' flag, since it is from the snapshot, but must work
-  // both with and without --harmony-regexp.  When sticky comes out from under
-  // the flag, we will be able to use the fast initial map.
+  // Map has changed, so use generic, but slower, method.
   PropertyAttributes final =
       static_cast<PropertyAttributes>(READ_ONLY | DONT_ENUM | DONT_DELETE);
   PropertyAttributes writable =
@@ -2630,10 +2598,6 @@ RUNTIME_FUNCTION(Runtime_RegExpInitializeObject) {
       regexp, factory->ignore_case_string(), ignoreCase, final).Check();
   JSObject::SetOwnPropertyIgnoreAttributes(
       regexp, factory->multiline_string(), multiline, final).Check();
-  if (FLAG_harmony_regexps) {
-    JSObject::SetOwnPropertyIgnoreAttributes(
-        regexp, factory->sticky_string(), sticky, final).Check();
-  }
   JSObject::SetOwnPropertyIgnoreAttributes(
       regexp, factory->last_index_string(), zero, writable).Check();
   return *regexp;
@@ -5560,22 +5524,13 @@ RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
   DCHECK(args.length() == 1);
   Debug* debug = isolate->debug();
   if (!debug->IsStepping()) return isolate->heap()->undefined_value();
-
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, callback, 0);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  RUNTIME_ASSERT(object->IsJSFunction() || object->IsJSGeneratorObject());
-  Handle<JSFunction> fun;
-  if (object->IsJSFunction()) {
-    fun = Handle<JSFunction>::cast(object);
-  } else {
-    fun = Handle<JSFunction>(
-        Handle<JSGeneratorObject>::cast(object)->function(), isolate);
-  }
-  // When leaving the function, step out has been activated, but not performed
-  // if we do not leave the builtin.  To be able to step into the function
+  // When leaving the callback, step out has been activated, but not performed
+  // if we do not leave the builtin.  To be able to step into the callback
   // again, we need to clear the step out at this point.
   debug->ClearStepOut();
-  debug->FloodWithOneShot(fun);
+  debug->FloodWithOneShot(callback);
   return isolate->heap()->undefined_value();
 }
 
@@ -8474,7 +8429,7 @@ RUNTIME_FUNCTION(Runtime_FinalizeInstanceSize) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_CompileLazy) {
+RUNTIME_FUNCTION(Runtime_CompileUnoptimized) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -8491,10 +8446,14 @@ RUNTIME_FUNCTION(Runtime_CompileLazy) {
 
   Handle<Code> code;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, code,
-                                     Compiler::GetLazyCode(function));
-  DCHECK(code->kind() == Code::FUNCTION ||
-         code->kind() == Code::OPTIMIZED_FUNCTION);
+                                     Compiler::GetUnoptimizedCode(function));
   function->ReplaceCode(*code);
+
+  // All done. Return the compiled code.
+  DCHECK(function->is_compiled());
+  DCHECK(function->code()->kind() == Code::FUNCTION ||
+         (FLAG_always_opt &&
+          function->code()->kind() == Code::OPTIMIZED_FUNCTION));
   return *code;
 }
 
@@ -9564,23 +9523,6 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError("non_method", HandleVector<Object>(NULL, 0)));
-}
-
-
-RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewReferenceError("unsupported_super", HandleVector<Object>(NULL, 0)));
-}
-
-
 RUNTIME_FUNCTION(Runtime_ThrowNotDateError) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 0);
@@ -9870,6 +9812,59 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
 }
 
 
+// Walk up the stack expecting:
+//  - Runtime_CompileString
+//  - JSFunction callee (eval, Function constructor, etc)
+//  - call() (maybe)
+//  - apply() (maybe)
+//  - bind() (maybe)
+// - JSFunction caller (maybe)
+//
+// return true if the caller has the same security token as the callee
+// or if an exit frame was hit, in which case allow it through, as it could
+// have come through the api.
+static bool TokensMatchForCompileString(Isolate* isolate) {
+  MaybeHandle<JSFunction> callee;
+  bool exit_handled = true;
+  bool tokens_match = true;
+  bool done = false;
+  for (StackFrameIterator it(isolate); !it.done() && !done; it.Advance()) {
+    StackFrame* raw_frame = it.frame();
+    if (!raw_frame->is_java_script()) {
+      if (raw_frame->is_exit()) exit_handled = false;
+      continue;
+    }
+    JavaScriptFrame* outer_frame = JavaScriptFrame::cast(raw_frame);
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    outer_frame->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0 && !done; --i) {
+      FrameSummary& frame = frames[i];
+      Handle<JSFunction> fun = frame.function();
+      // Capture the callee function.
+      if (callee.is_null()) {
+        callee = fun;
+        exit_handled = true;
+        continue;
+      }
+      // Exit condition.
+      Handle<Context> context(callee.ToHandleChecked()->context());
+      if (!fun->context()->HasSameSecurityTokenAs(*context)) {
+        tokens_match = false;
+        done = true;
+        continue;
+      }
+      // Skip bound functions in correct origin.
+      if (fun->shared()->bound()) {
+        exit_handled = true;
+        continue;
+      }
+      done = true;
+    }
+  }
+  return !exit_handled || tokens_match;
+}
+
+
 RUNTIME_FUNCTION(Runtime_CompileString) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -9878,6 +9873,11 @@ RUNTIME_FUNCTION(Runtime_CompileString) {
 
   // Extract native context.
   Handle<Context> context(isolate->native_context());
+
+  // Filter cross security context calls.
+  if (!TokensMatchForCompileString(isolate)) {
+    return isolate->heap()->undefined_value();
+  }
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
@@ -14603,65 +14603,6 @@ RUNTIME_FUNCTION(Runtime_GetV8Version) {
   const char* version_string = v8::V8::GetVersion();
 
   return *isolate->factory()->NewStringFromAsciiChecked(version_string);
-}
-
-
-// Returns function of generator activation.
-RUNTIME_FUNCTION(Runtime_GeneratorGetFunction) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return generator->function();
-}
-
-
-// Returns context of generator activation.
-RUNTIME_FUNCTION(Runtime_GeneratorGetContext) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return generator->context();
-}
-
-
-// Returns receiver of generator activation.
-RUNTIME_FUNCTION(Runtime_GeneratorGetReceiver) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return generator->receiver();
-}
-
-
-// Returns generator continuation as a PC offset, or the magic -1 or 0 values.
-RUNTIME_FUNCTION(Runtime_GeneratorGetContinuation) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  return Smi::FromInt(generator->continuation());
-}
-
-
-RUNTIME_FUNCTION(Runtime_GeneratorGetSourcePosition) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSGeneratorObject, generator, 0);
-
-  if (generator->is_suspended()) {
-    Handle<Code> code(generator->function()->code(), isolate);
-    int offset = generator->continuation();
-
-    RUNTIME_ASSERT(0 <= offset && offset < code->Size());
-    Address pc = code->address() + offset;
-
-    return Smi::FromInt(code->SourcePosition(pc));
-  }
-
-  return isolate->heap()->undefined_value();
 }
 
 

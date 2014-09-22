@@ -863,12 +863,11 @@ function ArraySort(comparefn) {
     var t_array = [];
     // Use both 'from' and 'to' to determine the pivot candidates.
     var increment = 200 + ((to - from) & 15);
-    for (var i = from + 1, j = 0; i < to - 1; i += increment, j++) {
-      t_array[j] = [i, a[i]];
+    for (var i = from + 1; i < to - 1; i += increment) {
+      t_array.push([i, a[i]]);
     }
-    %_CallFunction(t_array, function(a, b) {
-      return %_CallFunction(receiver, a[1], b[1], comparefn);
-    }, ArraySort);
+    t_array.sort(function(a, b) {
+        return %_CallFunction(receiver, a[1], b[1], comparefn) } );
     var third_index = t_array[t_array.length >> 1][0];
     return third_index;
   }
@@ -970,7 +969,7 @@ function ArraySort(comparefn) {
         // It's an interval.
         var proto_length = indices;
         for (var i = 0; i < proto_length; i++) {
-          if (!HAS_OWN_PROPERTY(obj, i) && HAS_OWN_PROPERTY(proto, i)) {
+          if (!obj.hasOwnProperty(i) && proto.hasOwnProperty(i)) {
             obj[i] = proto[i];
             if (i >= max) { max = i + 1; }
           }
@@ -978,8 +977,8 @@ function ArraySort(comparefn) {
       } else {
         for (var i = 0; i < indices.length; i++) {
           var index = indices[i];
-          if (!IS_UNDEFINED(index) && !HAS_OWN_PROPERTY(obj, index)
-              && HAS_OWN_PROPERTY(proto, index)) {
+          if (!IS_UNDEFINED(index) &&
+              !obj.hasOwnProperty(index) && proto.hasOwnProperty(index)) {
             obj[index] = proto[index];
             if (index >= max) { max = index + 1; }
           }
@@ -999,7 +998,7 @@ function ArraySort(comparefn) {
         // It's an interval.
         var proto_length = indices;
         for (var i = from; i < proto_length; i++) {
-          if (HAS_OWN_PROPERTY(proto, i)) {
+          if (proto.hasOwnProperty(i)) {
             obj[i] = UNDEFINED;
           }
         }
@@ -1007,7 +1006,7 @@ function ArraySort(comparefn) {
         for (var i = 0; i < indices.length; i++) {
           var index = indices[i];
           if (!IS_UNDEFINED(index) && from <= index &&
-              HAS_OWN_PROPERTY(proto, index)) {
+              proto.hasOwnProperty(index)) {
             obj[index] = UNDEFINED;
           }
         }
@@ -1030,14 +1029,14 @@ function ArraySort(comparefn) {
       }
       // Maintain the invariant num_holes = the number of holes in the original
       // array with indices <= first_undefined or > last_defined.
-      if (!HAS_OWN_PROPERTY(obj, first_undefined)) {
+      if (!obj.hasOwnProperty(first_undefined)) {
         num_holes++;
       }
 
       // Find last defined element.
       while (first_undefined < last_defined &&
              IS_UNDEFINED(obj[last_defined])) {
-        if (!HAS_OWN_PROPERTY(obj, last_defined)) {
+        if (!obj.hasOwnProperty(last_defined)) {
           num_holes++;
         }
         last_defined--;

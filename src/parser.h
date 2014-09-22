@@ -363,7 +363,6 @@ class ParserTraits {
     typedef v8::internal::Expression* Expression;
     typedef Yield* YieldExpression;
     typedef v8::internal::FunctionLiteral* FunctionLiteral;
-    typedef v8::internal::ClassLiteral* ClassLiteral;
     typedef v8::internal::Literal* Literal;
     typedef ObjectLiteral::Property* ObjectLiteralProperty;
     typedef ZoneList<v8::internal::Expression*>* ExpressionList;
@@ -401,10 +400,6 @@ class ParserTraits {
   static bool IsThisProperty(Expression* expression);
 
   static bool IsIdentifier(Expression* expression);
-
-  bool IsPrototype(const AstRawString* identifier) const;
-
-  bool IsConstructor(const AstRawString* identifier) const;
 
   static const AstRawString* AsIdentifier(Expression* expression) {
     DCHECK(IsIdentifier(expression));
@@ -523,7 +518,6 @@ class ParserTraits {
     return NULL;
   }
   static ObjectLiteralProperty* EmptyObjectLiteralProperty() { return NULL; }
-  static FunctionLiteral* EmptyFunctionLiteral() { return NULL; }
 
   // Used in error return values.
   static ZoneList<Expression*>* NullExpressionList() {
@@ -548,12 +542,6 @@ class ParserTraits {
   Expression* SuperReference(Scope* scope,
                              AstNodeFactory<AstConstructionVisitor>* factory,
                              int pos = RelocInfo::kNoPosition);
-  Expression* ClassLiteral(const AstRawString* name, Expression* extends,
-                           Expression* constructor,
-                           ZoneList<ObjectLiteral::Property*>* properties,
-                           int pos,
-                           AstNodeFactory<AstConstructionVisitor>* factory);
-
   Literal* ExpressionFromLiteral(
       Token::Value token, int pos, Scanner* scanner,
       AstNodeFactory<AstConstructionVisitor>* factory);
@@ -632,11 +620,7 @@ class Parser : public ParserBase<ParserTraits> {
                             info->isolate()->unicode_cache()};
     Parser parser(info, &parse_info);
     parser.set_allow_lazy(allow_lazy);
-    if (parser.Parse()) {
-      info->SetStrictMode(info->function()->strict_mode());
-      return true;
-    }
-    return false;
+    return parser.Parse();
   }
   bool Parse();
   void ParseOnBackground();
@@ -721,8 +705,6 @@ class Parser : public ParserBase<ParserTraits> {
   Statement* ParseStatement(ZoneList<const AstRawString*>* labels, bool* ok);
   Statement* ParseFunctionDeclaration(ZoneList<const AstRawString*>* names,
                                       bool* ok);
-  Statement* ParseClassDeclaration(ZoneList<const AstRawString*>* names,
-                                   bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneList<const AstRawString*>* labels, bool* ok);
   Block* ParseVariableStatement(VariableDeclarationContext var_context,

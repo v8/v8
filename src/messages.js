@@ -8,7 +8,6 @@ var kMessages = {
   // Error
   cyclic_proto:                  ["Cyclic __proto__ value"],
   code_gen_from_strings:         ["%0"],
-  constructor_special_method:    ["Class constructor may not be an accessor"],
   generator_running:             ["Generator is already running"],
   generator_finished:            ["Generator has already finished"],
   // TypeError
@@ -38,8 +37,6 @@ var kMessages = {
   cannot_convert_to_primitive:   ["Cannot convert object to primitive value"],
   not_constructor:               ["%0", " is not a constructor"],
   not_defined:                   ["%0", " is not defined"],
-  non_method:                    ["'super' is referenced from non-method"],
-  unsupported_super:             ["Unsupported reference to 'super'"],
   non_object_property_load:      ["Cannot read property '", "%0", "' of ", "%1"],
   non_object_property_store:     ["Cannot set property '", "%0", "' of ", "%1"],
   with_expression:               ["%0", " has no properties"],
@@ -142,7 +139,6 @@ var kMessages = {
   array_indexof_not_defined:     ["Array.getIndexOf: Argument undefined"],
   object_not_extensible:         ["Can't add property ", "%0", ", object is not extensible"],
   illegal_access:                ["Illegal access"],
-  static_prototype:              ["Classes may not have static property named prototype"],
   strict_mode_with:              ["Strict mode code may not include a with statement"],
   strict_eval_arguments:         ["Unexpected eval or arguments in strict mode"],
   too_many_arguments:            ["Too many arguments in function call (only 65535 allowed)"],

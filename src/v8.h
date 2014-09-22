@@ -49,11 +49,17 @@
 namespace v8 {
 namespace internal {
 
+class Deserializer;
+
 class V8 : public AllStatic {
  public:
   // Global actions.
 
-  static bool Initialize();
+  // If Initialize is called with des == NULL, the initial state is
+  // created from scratch. If a non-null Deserializer is given, the
+  // initial state is created by reading the deserialized data into an
+  // empty heap.
+  static bool Initialize(Deserializer* des);
   static void TearDown();
 
   // Report process out of memory. Implementation found in api.cc.

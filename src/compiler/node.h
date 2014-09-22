@@ -71,7 +71,6 @@ typedef NodeSet::reverse_iterator NodeSetRIter;
 
 typedef ZoneVector<Node*> NodeVector;
 typedef NodeVector::iterator NodeVectorIter;
-typedef NodeVector::const_iterator NodeVectorConstIter;
 typedef NodeVector::reverse_iterator NodeVectorRIter;
 
 typedef ZoneVector<NodeVector> NodeVectorVector;

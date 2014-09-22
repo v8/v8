@@ -33,9 +33,14 @@ v8::ArrayBuffer::Allocator* V8::array_buffer_allocator_ = NULL;
 v8::Platform* V8::platform_ = NULL;
 
 
-bool V8::Initialize() {
+bool V8::Initialize(Deserializer* des) {
   InitializeOncePerProcess();
-  return true;
+  Isolate* isolate = Isolate::UncheckedCurrent();
+  if (isolate == NULL) return true;
+  if (isolate->IsDead()) return false;
+  if (isolate->IsInitialized()) return true;
+
+  return isolate->Init(des);
 }
 
 
@@ -73,8 +78,6 @@ void V8::InitializeOncePerProcessImpl() {
   }
 
   base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
-
-  Isolate::InitializeOncePerProcess();
 
   Sampler::SetUp();
   CpuFeatures::Probe(false);

@@ -173,12 +173,10 @@ void FunctionLiteral::InitializeSharedInfo(
 
 ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
                                              AstValueFactory* ast_value_factory,
-                                             Literal* key, Expression* value,
-                                             bool is_static) {
+                                             Literal* key, Expression* value) {
   emit_store_ = true;
   key_ = key;
   value_ = value;
-  is_static_ = is_static;
   if (key->raw_value()->EqualsString(ast_value_factory->proto_string())) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != NULL) {
@@ -191,13 +189,11 @@ ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone,
 }
 
 
-ObjectLiteralProperty::ObjectLiteralProperty(Zone* zone, bool is_getter,
-                                             FunctionLiteral* value,
-                                             bool is_static) {
+ObjectLiteralProperty::ObjectLiteralProperty(
+    Zone* zone, bool is_getter, FunctionLiteral* value) {
   emit_store_ = true;
   value_ = value;
   kind_ = is_getter ? GETTER : SETTER;
-  is_static_ = is_static;
 }
 
 
@@ -1094,7 +1090,6 @@ DONT_OPTIMIZE_NODE(ModuleUrl)
 DONT_OPTIMIZE_NODE(ModuleStatement)
 DONT_OPTIMIZE_NODE(WithStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
-DONT_OPTIMIZE_NODE(ClassLiteral)
 DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
 DONT_OPTIMIZE_NODE(SuperReference)
 

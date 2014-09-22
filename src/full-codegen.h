@@ -477,7 +477,6 @@ class FullCodeGenerator: public AstVisitor {
   // Platform-specific code sequences for calls
   void EmitCall(Call* expr, CallICState::CallType = CallICState::FUNCTION);
   void EmitCallWithLoadIC(Call* expr);
-  void EmitSuperCallWithLoadIC(Call* expr);
   void EmitKeyedCallWithLoadIC(Call* expr, Expression* key);
 
   // Platform-specific code for inline runtime calls.
@@ -521,8 +520,6 @@ class FullCodeGenerator: public AstVisitor {
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr);
 
-  void EmitNamedSuperPropertyLoad(Property* expr);
-
   // Load a value from a keyed property.
   // The receiver and the key is left on the stack by the IC.
   void EmitKeyedPropertyLoad(Property* expr);
@@ -562,8 +559,6 @@ class FullCodeGenerator: public AstVisitor {
   // expected on top of the stack and the right-hand-side value in the
   // accumulator.
   void EmitKeyedPropertyAssignment(Assignment* expr);
-
-  void EmitLoadHomeObject(SuperReference* expr);
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());

@@ -600,12 +600,12 @@ class Factory FINAL {
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       Handle<String> name, int number_of_literals, FunctionKind kind,
       Handle<Code> code, Handle<ScopeInfo> scope_info,
-      Handle<TypeFeedbackVector> feedback_vector);
+      Handle<FixedArray> feedback_vector);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name,
                                                    MaybeHandle<Code> code);
 
   // Allocate a new type feedback vector
-  Handle<TypeFeedbackVector> NewTypeFeedbackVector(int slot_count);
+  Handle<FixedArray> NewTypeFeedbackVector(int slot_count);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(

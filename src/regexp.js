@@ -22,8 +22,6 @@ function DoConstructRegExp(object, pattern, flags) {
     flags = (pattern.global ? 'g' : '')
         + (pattern.ignoreCase ? 'i' : '')
         + (pattern.multiline ? 'm' : '');
-    if (harmony_regexps)
-        flags += (pattern.sticky ? 'y' : '');
     pattern = pattern.source;
   }
 
@@ -33,7 +31,6 @@ function DoConstructRegExp(object, pattern, flags) {
   var global = false;
   var ignoreCase = false;
   var multiline = false;
-  var sticky = false;
   for (var i = 0; i < flags.length; i++) {
     var c = %_CallFunction(flags, i, StringCharAt);
     switch (c) {
@@ -55,18 +52,12 @@ function DoConstructRegExp(object, pattern, flags) {
         }
         multiline = true;
         break;
-      case 'y':
-        if (!harmony_regexps || sticky) {
-          throw MakeSyntaxError("invalid_regexp_flags", [flags]);
-        }
-        sticky = true;
-        break;
       default:
         throw MakeSyntaxError("invalid_regexp_flags", [flags]);
     }
   }
 
-  %RegExpInitializeObject(object, pattern, global, ignoreCase, multiline, sticky);
+  %RegExpInitializeObject(object, pattern, global, ignoreCase, multiline);
 
   // Call internal function to compile the pattern.
   %RegExpCompile(object, pattern, flags);
@@ -168,8 +159,8 @@ function RegExpExec(string) {
   // algorithm, step 5) even if the value is discarded for non-global RegExps.
   var i = TO_INTEGER(lastIndex);
 
-  var updateLastIndex = this.global || (harmony_regexps && this.sticky);
-  if (updateLastIndex) {
+  var global = this.global;
+  if (global) {
     if (i < 0 || i > string.length) {
       this.lastIndex = 0;
       return null;
@@ -188,7 +179,7 @@ function RegExpExec(string) {
 
   // Successful match.
   lastMatchInfoOverride = null;
-  if (updateLastIndex) {
+  if (global) {
     this.lastIndex = lastMatchInfo[CAPTURE1];
   }
   RETURN_NEW_RESULT_FROM_MATCH_INFO(matchIndices, string);
@@ -216,7 +207,7 @@ function RegExpTest(string) {
   // algorithm, step 5) even if the value is discarded for non-global RegExps.
   var i = TO_INTEGER(lastIndex);
 
-  if (this.global || (harmony_regexps && this.sticky)) {
+  if (this.global) {
     if (i < 0 || i > string.length) {
       this.lastIndex = 0;
       return false;
@@ -231,13 +222,12 @@ function RegExpTest(string) {
     this.lastIndex = lastMatchInfo[CAPTURE1];
     return true;
   } else {
-    // Non-global, non-sticky regexp.
-    // Remove irrelevant preceeding '.*' in a test regexp.  The expression
-    // checks whether this.source starts with '.*' and that the third char is
-    // not a '?'.  But see https://code.google.com/p/v8/issues/detail?id=3560
+    // Non-global regexp.
+    // Remove irrelevant preceeding '.*' in a non-global test regexp.
+    // The expression checks whether this.source starts with '.*' and
+    // that the third char is not a '?'.
     var regexp = this;
-    if (regexp.source.length >= 3 &&
-        %_StringCharCodeAt(regexp.source, 0) == 46 &&  // '.'
+    if (%_StringCharCodeAt(regexp.source, 0) == 46 &&  // '.'
         %_StringCharCodeAt(regexp.source, 1) == 42 &&  // '*'
         %_StringCharCodeAt(regexp.source, 2) != 63) {  // '?'
       regexp = TrimRegExp(regexp);
@@ -274,7 +264,6 @@ function RegExpToString() {
   if (this.global) result += 'g';
   if (this.ignoreCase) result += 'i';
   if (this.multiline) result += 'm';
-  if (harmony_regexps && this.sticky) result += 'y';
   return result;
 }
 

@@ -1150,7 +1150,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // No need for a write barrier, we are storing a Smi in the feedback vector.
   __ Move(rbx, FeedbackVector());
   __ Move(FieldOperand(rbx, FixedArray::OffsetOfElementAt(slot)),
-          TypeFeedbackVector::MegamorphicSentinel(isolate()));
+          TypeFeedbackInfo::MegamorphicSentinel(isolate()));
   __ Move(rbx, Smi::FromInt(1));  // Smi indicates slow check
   __ movp(rcx, Operand(rsp, 0 * kPointerSize));  // Get enumerated object
   STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
@@ -1309,25 +1309,6 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
 void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   EmitVariableLoad(expr);
-}
-
-
-void FullCodeGenerator::EmitLoadHomeObject(SuperReference* expr) {
-  Comment cnmt(masm_, "[ SuperReference ");
-
-  __ movp(LoadDescriptor::ReceiverRegister(),
-          Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-
-  Handle<Symbol> home_object_symbol(isolate()->heap()->home_object_symbol());
-  __ Move(LoadDescriptor::NameRegister(), home_object_symbol);
-
-  CallLoadIC(NOT_CONTEXTUAL, expr->HomeObjectFeedbackId());
-
-  __ Cmp(rax, isolate()->factory()->undefined_value());
-  Label done;
-  __ j(not_equal, &done);
-  __ CallRuntime(Runtime::kThrowNonMethodError, 0);
-  __ bind(&done);
 }
 
 
@@ -2282,21 +2263,6 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
 }
 
 
-void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
-  SetSourcePosition(prop->position());
-  Literal* key = prop->key()->AsLiteral();
-  DCHECK(!key->value()->IsSmi());
-  DCHECK(prop->IsSuperAccess());
-
-  SuperReference* super_ref = prop->obj()->AsSuperReference();
-  EmitLoadHomeObject(super_ref);
-  __ Push(rax);
-  VisitForStackValue(super_ref->this_var());
-  __ Push(key->value());
-  __ CallRuntime(Runtime::kLoadFromSuper, 3);
-}
-
-
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetSourcePosition(prop->position());
   Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
@@ -2547,14 +2513,10 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   Expression* key = expr->key();
 
   if (key->IsPropertyName()) {
-    if (!expr->IsSuperAccess()) {
-      VisitForAccumulatorValue(expr->obj());
-      DCHECK(!rax.is(LoadDescriptor::ReceiverRegister()));
-      __ movp(LoadDescriptor::ReceiverRegister(), rax);
-      EmitNamedPropertyLoad(expr);
-    } else {
-      EmitNamedSuperPropertyLoad(expr);
-    }
+    VisitForAccumulatorValue(expr->obj());
+    DCHECK(!rax.is(LoadDescriptor::ReceiverRegister()));
+    __ movp(LoadDescriptor::ReceiverRegister(), rax);
+    EmitNamedPropertyLoad(expr);
     PrepareForBailoutForId(expr->LoadId(), TOS_REG);
     context()->Plug(rax);
   } else {
@@ -2593,7 +2555,6 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   } else {
     // Load the function from the receiver.
     DCHECK(callee->IsProperty());
-    DCHECK(!callee->AsProperty()->IsSuperAccess());
     __ movp(LoadDescriptor::ReceiverRegister(), Operand(rsp, 0));
     EmitNamedPropertyLoad(callee->AsProperty());
     PrepareForBailoutForId(callee->AsProperty()->LoadId(), TOS_REG);
@@ -2603,43 +2564,6 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   }
 
   EmitCall(expr, call_type);
-}
-
-
-void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
-  Expression* callee = expr->expression();
-  DCHECK(callee->IsProperty());
-  Property* prop = callee->AsProperty();
-  DCHECK(prop->IsSuperAccess());
-
-  SetSourcePosition(prop->position());
-  Literal* key = prop->key()->AsLiteral();
-  DCHECK(!key->value()->IsSmi());
-  // Load the function from the receiver.
-  SuperReference* super_ref = prop->obj()->AsSuperReference();
-  EmitLoadHomeObject(super_ref);
-  __ Push(rax);
-  VisitForAccumulatorValue(super_ref->this_var());
-  __ Push(rax);
-  __ Push(Operand(rsp, kPointerSize));
-  __ Push(rax);
-  __ Push(key->value());
-
-  // Stack here:
-  //  - home_object
-  //  - this (receiver)
-  //  - home_object <-- LoadFromSuper will pop here and below.
-  //  - this (receiver)
-  //  - key
-  __ CallRuntime(Runtime::kLoadFromSuper, 3);
-
-  // Replace home_object with target function.
-  __ movp(Operand(rsp, kPointerSize), rax);
-
-  // Stack here:
-  // - target function
-  // - this (receiver)
-  EmitCall(expr, CallICState::METHOD);
 }
 
 
@@ -2804,20 +2728,13 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     EmitCall(expr);
   } else if (call_type == Call::PROPERTY_CALL) {
     Property* property = callee->AsProperty();
-    bool is_named_call = property->key()->IsPropertyName();
-    // super.x() is handled in EmitCallWithLoadIC.
-    if (property->IsSuperAccess() && is_named_call) {
-      EmitSuperCallWithLoadIC(expr);
+    { PreservePositionScope scope(masm()->positions_recorder());
+      VisitForStackValue(property->obj());
+    }
+    if (property->key()->IsPropertyName()) {
+      EmitCallWithLoadIC(expr);
     } else {
-      {
-        PreservePositionScope scope(masm()->positions_recorder());
-        VisitForStackValue(property->obj());
-      }
-      if (is_named_call) {
-        EmitCallWithLoadIC(expr);
-      } else {
-        EmitKeyedCallWithLoadIC(expr, property->key());
-      }
+      EmitKeyedCallWithLoadIC(expr, property->key());
     }
   } else {
     DCHECK(call_type == Call::OTHER_CALL);

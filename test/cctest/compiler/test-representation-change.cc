@@ -88,7 +88,6 @@ class RepresentationChangerTester : public HandleAndZoneScope,
 }  // namespace v8::internal::compiler
 
 
-// TODO(titzer): add kRepFloat32 when fully supported.
 static const MachineType all_reps[] = {kRepBit, kRepWord32, kRepWord64,
                                        kRepFloat64, kRepTagged};
 
@@ -226,11 +225,6 @@ TEST(Nops) {
     r.CheckNop(all_reps[i], all_reps[i]);
   }
 
-  // 32-bit floats.
-  r.CheckNop(kRepFloat32, kRepFloat32);
-  r.CheckNop(kRepFloat32 | kTypeNumber, kRepFloat32);
-  r.CheckNop(kRepFloat32, kRepFloat32 | kTypeNumber);
-
   // 32-bit or 64-bit words can be used as branch conditions (kRepBit).
   r.CheckNop(kRepWord32, kRepBit);
   r.CheckNop(kRepWord32, kRepBit | kTypeBool);
@@ -267,12 +261,6 @@ TEST(TypeErrors) {
   r.CheckTypeError(kRepBit, kRepFloat64);
   r.CheckTypeError(kRepBit | kTypeBool, kRepFloat64);
 
-  // Floats cannot be implicitly converted to/from comparison conditions.
-  r.CheckTypeError(kRepFloat32, kRepBit);
-  r.CheckTypeError(kRepFloat32, kRepBit | kTypeBool);
-  r.CheckTypeError(kRepBit, kRepFloat32);
-  r.CheckTypeError(kRepBit | kTypeBool, kRepFloat32);
-
   // Word64 is internal and shouldn't be implicitly converted.
   r.CheckTypeError(kRepWord64, kRepTagged | kTypeBool);
   r.CheckTypeError(kRepWord64, kRepTagged);
@@ -295,11 +283,24 @@ TEST(TypeErrors) {
       r.CheckTypeError(all_reps[i] | all_reps[j], kRepTagged);
     }
   }
+}
 
-  // TODO(titzer): Float32 representation changes trigger type errors now.
-  // Enforce current behavior to test all paths through representation changer.
-  for (size_t i = 0; i < arraysize(all_reps); i++) {
-    r.CheckTypeError(all_reps[i], kRepFloat32);
-    r.CheckTypeError(kRepFloat32, all_reps[i]);
-  }
+
+TEST(CompleteMatrix) {
+  // TODO(titzer): test all variants in the matrix.
+  // rB
+  // tBrB
+  // tBrT
+  // rW32
+  // tIrW32
+  // tUrW32
+  // rW64
+  // tIrW64
+  // tUrW64
+  // rF64
+  // tIrF64
+  // tUrF64
+  // tArF64
+  // rT
+  // tArT
 }
