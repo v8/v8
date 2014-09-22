@@ -1170,6 +1170,7 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
     if (FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kConsumeCodeCache &&
         !isolate->debug()->is_loaded()) {
+      HistogramTimerScope timer(isolate->counters()->compile_deserialize());
       return CodeSerializer::Deserialize(isolate, *cached_data, source);
     } else {
       maybe_result = compilation_cache->LookupScript(
@@ -1216,6 +1217,8 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
       compilation_cache->PutScript(source, context, result);
       if (FLAG_serialize_toplevel &&
           compile_options == ScriptCompiler::kProduceCodeCache) {
+        HistogramTimerScope histogram_timer(
+            isolate->counters()->compile_serialize());
         *cached_data = CodeSerializer::Serialize(isolate, result, source);
         if (FLAG_profile_deserialization) {
           PrintF("[Compiling and serializing %d bytes took %0.3f ms]\n",
