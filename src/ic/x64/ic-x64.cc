@@ -722,31 +722,6 @@ static Operand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
 }
 
 
-void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
-  // The return address is on the stack.
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-  DCHECK(receiver.is(rdx));
-  DCHECK(key.is(rcx));
-
-  Label slow, notin;
-  Operand mapped_location = GenerateMappedArgumentsLookup(
-      masm, receiver, key, rbx, rax, rdi, &notin, &slow);
-  __ movp(rax, mapped_location);
-  __ Ret();
-  __ bind(&notin);
-  // The unmapped lookup expects that the parameter map is in rbx.
-  Operand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, key, rbx, rax, &slow);
-  __ CompareRoot(unmapped_location, Heap::kTheHoleValueRootIndex);
-  __ j(equal, &slow);
-  __ movp(rax, unmapped_location);
-  __ Ret();
-  __ bind(&slow);
-  GenerateMiss(masm);
-}
-
-
 void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // The return address is on the stack.
   Label slow, notin;

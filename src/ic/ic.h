@@ -414,7 +414,6 @@ class KeyedLoadIC : public LoadIC {
   }
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
-  static void GenerateSloppyArguments(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -434,9 +433,6 @@ class KeyedLoadIC : public LoadIC {
 
  private:
   Handle<Code> generic_stub() const { return generic_stub(isolate()); }
-  Handle<Code> sloppy_arguments_stub() {
-    return isolate()->builtins()->KeyedLoadIC_SloppyArguments();
-  }
   Handle<Code> string_stub() {
     return isolate()->builtins()->KeyedLoadIC_String();
   }

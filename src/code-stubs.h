@@ -82,6 +82,7 @@ namespace internal {
   /* IC Handler stubs */                    \
   V(LoadConstant)                           \
   V(LoadField)                              \
+  V(KeyedLoadSloppyArguments)               \
   V(StoreField)                             \
   V(StoreGlobal)                            \
   V(StringLength)
@@ -911,6 +912,20 @@ class LoadFieldStub: public HandlerStub {
   class LoadFieldByIndexBits : public BitField<int, 0, 13> {};
 
   DEFINE_HANDLER_CODE_STUB(LoadField, HandlerStub);
+};
+
+
+class KeyedLoadSloppyArgumentsStub : public HandlerStub {
+ public:
+  explicit KeyedLoadSloppyArgumentsStub(Isolate* isolate)
+      : HandlerStub(isolate) {}
+
+ protected:
+  virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
+  virtual Code::StubType GetStubType() { return Code::FAST; }
+
+ private:
+  DEFINE_HANDLER_CODE_STUB(KeyedLoadSloppyArguments, HandlerStub);
 };
 
 

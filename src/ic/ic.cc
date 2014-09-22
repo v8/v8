@@ -1187,11 +1187,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
       if (state() == UNINITIALIZED) stub = string_stub();
     } else if (object->IsJSObject()) {
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-      if (receiver->elements()->map() ==
-          isolate()->heap()->sloppy_arguments_elements_map()) {
-        stub = sloppy_arguments_stub();
-      } else if (!Object::ToSmi(isolate(), key).is_null() &&
-                 (!target().is_identical_to(sloppy_arguments_stub()))) {
+      if (!Object::ToSmi(isolate(), key).is_null()) {
         stub = LoadElementStub(receiver);
       }
     }
