@@ -765,6 +765,7 @@ static void DebugEventEvaluate(
   CHECK_NE(debug->break_id(), 0);
 
   if (event == v8::Break) {
+    break_point_hit_count++;
     for (int i = 0; checks[i].expr != NULL; i++) {
       const int argc = 3;
       v8::Handle<v8::Value> argv[argc] = {
@@ -2406,7 +2407,7 @@ TEST(DebugEvaluate) {
   };
 
   // Simple test function. The "y=0" is in the function foo to provide a break
-  // location. For "y=0" the "y" is at position 15 in the barbar function
+  // location. For "y=0" the "y" is at position 15 in the foo function
   // therefore setting breakpoint at position 15 will break at "y=0" and
   // setting it higher will break after.
   v8::Local<v8::Function> foo = CompileFunction(&env,
@@ -2438,6 +2439,34 @@ TEST(DebugEvaluate) {
   SetBreakPoint(foo, foo_break_position_2);
   checks = checks_hh;
   foo->Call(env->Global(), 1, argv_foo);
+
+  // Test that overriding Object.prototype will not interfere into evaluation
+  // on call frame.
+  v8::Local<v8::Function> zoo =
+      CompileFunction(&env,
+                      "x = undefined;"
+                      "function zoo(t) {"
+                      "  var a=x;"
+                      "  Object.prototype.x = 42;"
+                      "  x=t;"
+                      "  y=0;"  // To ensure break location.
+                      "  delete Object.prototype.x;"
+                      "  x=a;"
+                      "}",
+                      "zoo");
+  const int zoo_break_position = 50;
+
+  // Arguments with one parameter "Hello, world!"
+  v8::Handle<v8::Value> argv_zoo[1] = {
+      v8::String::NewFromUtf8(env->GetIsolate(), "Hello, world!")};
+
+  // Call zoo with breakpoint set at y=0.
+  DebugEventCounterClear();
+  bp = SetBreakPoint(zoo, zoo_break_position);
+  checks = checks_hu;
+  zoo->Call(env->Global(), 1, argv_zoo);
+  CHECK_EQ(1, break_point_hit_count);
+  ClearBreakPoint(bp);
 
   // Test function with an inner function. The "y=0" is in function barbar
   // to provide a break location. For "y=0" the "y" is at position 8 in the
