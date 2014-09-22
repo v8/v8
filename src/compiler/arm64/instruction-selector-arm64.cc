@@ -37,9 +37,13 @@ class Arm64OperandGenerator FINAL : public OperandGenerator {
   }
 
   bool CanBeImmediate(Node* node, ImmediateMode mode) {
-    Int32Matcher m(node);
-    if (!m.HasValue()) return false;
-    int64_t value = m.Value();
+    int64_t value;
+    if (node->opcode() == IrOpcode::kInt32Constant)
+      value = OpParameter<int32_t>(node);
+    else if (node->opcode() == IrOpcode::kInt64Constant)
+      value = OpParameter<int64_t>(node);
+    else
+      return false;
     unsigned ignored;
     switch (mode) {
       case kLogical32Imm:
@@ -107,11 +111,12 @@ static void VisitRRO(InstructionSelector* selector, ArchOpcode opcode,
 
 
 // Shared routine for multiple binary operations.
+template <typename Matcher>
 static void VisitBinop(InstructionSelector* selector, Node* node,
                        InstructionCode opcode, ImmediateMode operand_mode,
                        FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
-  Int32BinopMatcher m(node);
+  Matcher m(node);
   InstructionOperand* inputs[4];
   size_t input_count = 0;
   InstructionOperand* outputs[2];
@@ -142,10 +147,11 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
 
 // Shared routine for multiple binary operations.
+template <typename Matcher>
 static void VisitBinop(InstructionSelector* selector, Node* node,
                        ArchOpcode opcode, ImmediateMode operand_mode) {
   FlagsContinuation cont;
-  VisitBinop(selector, node, opcode, operand_mode, &cont);
+  VisitBinop<Matcher>(selector, node, opcode, operand_mode, &cont);
 }
 
 
@@ -262,22 +268,22 @@ void InstructionSelector::VisitStore(Node* node) {
 
 
 void InstructionSelector::VisitWord32And(Node* node) {
-  VisitBinop(this, node, kArm64And32, kLogical32Imm);
+  VisitBinop<Int32BinopMatcher>(this, node, kArm64And32, kLogical32Imm);
 }
 
 
 void InstructionSelector::VisitWord64And(Node* node) {
-  VisitBinop(this, node, kArm64And, kLogical64Imm);
+  VisitBinop<Int64BinopMatcher>(this, node, kArm64And, kLogical64Imm);
 }
 
 
 void InstructionSelector::VisitWord32Or(Node* node) {
-  VisitBinop(this, node, kArm64Or32, kLogical32Imm);
+  VisitBinop<Int32BinopMatcher>(this, node, kArm64Or32, kLogical32Imm);
 }
 
 
 void InstructionSelector::VisitWord64Or(Node* node) {
-  VisitBinop(this, node, kArm64Or, kLogical64Imm);
+  VisitBinop<Int64BinopMatcher>(this, node, kArm64Or, kLogical64Imm);
 }
 
 
@@ -287,7 +293,7 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   if (m.right().Is(-1)) {
     Emit(kArm64Not32, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
   } else {
-    VisitBinop(this, node, kArm64Xor32, kLogical32Imm);
+    VisitBinop<Int32BinopMatcher>(this, node, kArm64Xor32, kLogical32Imm);
   }
 }
 
@@ -298,7 +304,7 @@ void InstructionSelector::VisitWord64Xor(Node* node) {
   if (m.right().Is(-1)) {
     Emit(kArm64Not, g.DefineAsRegister(node), g.UseRegister(m.left().node()));
   } else {
-    VisitBinop(this, node, kArm64Xor, kLogical32Imm);
+    VisitBinop<Int64BinopMatcher>(this, node, kArm64Xor, kLogical32Imm);
   }
 }
 
@@ -344,12 +350,12 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
 
 
 void InstructionSelector::VisitInt32Add(Node* node) {
-  VisitBinop(this, node, kArm64Add32, kArithmeticImm);
+  VisitBinop<Int32BinopMatcher>(this, node, kArm64Add32, kArithmeticImm);
 }
 
 
 void InstructionSelector::VisitInt64Add(Node* node) {
-  VisitBinop(this, node, kArm64Add, kArithmeticImm);
+  VisitBinop<Int64BinopMatcher>(this, node, kArm64Add, kArithmeticImm);
 }
 
 
@@ -360,7 +366,7 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
     Emit(kArm64Neg32, g.DefineAsRegister(node),
          g.UseRegister(m.right().node()));
   } else {
-    VisitBinop(this, node, kArm64Sub32, kArithmeticImm);
+    VisitBinop<Int32BinopMatcher>(this, node, kArm64Sub32, kArithmeticImm);
   }
 }
 
@@ -371,7 +377,7 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
   if (m.left().Is(0)) {
     Emit(kArm64Neg, g.DefineAsRegister(node), g.UseRegister(m.right().node()));
   } else {
-    VisitBinop(this, node, kArm64Sub, kArithmeticImm);
+    VisitBinop<Int64BinopMatcher>(this, node, kArm64Sub, kArithmeticImm);
   }
 }
 
@@ -502,13 +508,13 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node,
                                                     FlagsContinuation* cont) {
-  VisitBinop(this, node, kArm64Add32, kArithmeticImm, cont);
+  VisitBinop<Int32BinopMatcher>(this, node, kArm64Add32, kArithmeticImm, cont);
 }
 
 
 void InstructionSelector::VisitInt32SubWithOverflow(Node* node,
                                                     FlagsContinuation* cont) {
-  VisitBinop(this, node, kArm64Sub32, kArithmeticImm, cont);
+  VisitBinop<Int32BinopMatcher>(this, node, kArm64Sub32, kArithmeticImm, cont);
 }
 
 
