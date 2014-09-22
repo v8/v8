@@ -3798,8 +3798,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ cvttsd2si(output_reg, xmm_scratch);
   // Overflow is signalled with minint.
   __ cmpl(output_reg, Immediate(0x1));
-  __ RecordComment("D2I conversion overflow");
-  DeoptimizeIf(overflow, instr);
+  DeoptimizeIf(overflow, instr, "conversion overflow");
   __ jmp(&done, dist);
 
   __ bind(&below_one_half);
@@ -3815,8 +3814,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ cvttsd2si(output_reg, input_temp);
   // Catch minint due to overflow, and to prevent overflow when compensating.
   __ cmpl(output_reg, Immediate(0x1));
-  __ RecordComment("D2I conversion overflow");
-  DeoptimizeIf(overflow, instr);
+  DeoptimizeIf(overflow, instr, "conversion overflow");
 
   __ Cvtlsi2sd(xmm_scratch, output_reg);
   __ ucomisd(xmm_scratch, input_temp);
@@ -3831,8 +3829,7 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     __ movq(output_reg, input_reg);
     __ testq(output_reg, output_reg);
-    __ RecordComment("Minus zero");
-    DeoptimizeIf(negative, instr);
+    DeoptimizeIf(negative, instr, "minus zero");
   }
   __ Set(output_reg, 0);
   __ bind(&done);
@@ -4962,31 +4959,26 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
 
     __ bind(&check_false);
     __ CompareRoot(input_reg, Heap::kFalseValueRootIndex);
-    __ RecordComment("Deferred TaggedToI: cannot truncate");
-    DeoptimizeIf(not_equal, instr);
+    DeoptimizeIf(not_equal, instr, "cannot truncate");
     __ Set(input_reg, 0);
   } else {
     XMMRegister scratch = ToDoubleRegister(instr->temp());
     DCHECK(!scratch.is(xmm0));
     __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
                    Heap::kHeapNumberMapRootIndex);
-    __ RecordComment("Deferred TaggedToI: not a heap number");
-    DeoptimizeIf(not_equal, instr);
+    DeoptimizeIf(not_equal, instr, "not a heap number");
     __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
     __ cvttsd2si(input_reg, xmm0);
     __ Cvtlsi2sd(scratch, input_reg);
     __ ucomisd(xmm0, scratch);
-    __ RecordComment("Deferred TaggedToI: lost precision");
-    DeoptimizeIf(not_equal, instr);
-    __ RecordComment("Deferred TaggedToI: NaN");
-    DeoptimizeIf(parity_even, instr);
+    DeoptimizeIf(not_equal, instr, "lost precision");
+    DeoptimizeIf(parity_even, instr, "NaN");
     if (instr->hydrogen()->GetMinusZeroMode() == FAIL_ON_MINUS_ZERO) {
       __ testl(input_reg, input_reg);
       __ j(not_zero, done);
       __ movmskpd(input_reg, xmm0);
       __ andl(input_reg, Immediate(1));
-      __ RecordComment("Deferred TaggedToI: minus zero");
-      DeoptimizeIf(not_zero, instr);
+      DeoptimizeIf(not_zero, instr, "minus zero");
     }
   }
 }

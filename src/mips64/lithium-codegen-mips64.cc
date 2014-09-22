@@ -308,14 +308,16 @@ bool LCodeGen::GenerateJumpTable() {
   __ bind(&table_start);
   Label needs_frame;
   for (int i = 0; i < deopt_jump_table_.length(); i++) {
-    __ bind(&deopt_jump_table_[i].label);
-    Address entry = deopt_jump_table_[i].address;
-    Deoptimizer::BailoutType type = deopt_jump_table_[i].bailout_type;
+    Deoptimizer::JumpTableEntry* table_entry = &deopt_jump_table_[i];
+    __ bind(&table_entry->label);
+    Address entry = table_entry->address;
+    Deoptimizer::BailoutType type = table_entry->bailout_type;
     int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
     DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
     Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
+    DeoptComment(table_entry->reason);
     __ li(t9, Operand(ExternalReference::ForDeoptEntry(entry)));
-    if (deopt_jump_table_[i].needs_frame) {
+    if (table_entry->needs_frame) {
       DCHECK(!info()->saves_caller_doubles());
       if (needs_frame.is_bound()) {
         __ Branch(&needs_frame);
@@ -4958,13 +4960,11 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
     __ bind(&check_false);
     __ LoadRoot(at, Heap::kFalseValueRootIndex);
-    __ RecordComment("Deferred TaggedToI: cannot truncate");
-    DeoptimizeIf(ne, instr, scratch2, Operand(at));
+    DeoptimizeIf(ne, instr, scratch2, Operand(at), "cannot truncate");
     __ Branch(USE_DELAY_SLOT, &done);
     __ mov(input_reg, zero_reg);  // In delay slot.
   } else {
-    __ RecordComment("Deferred TaggedToI: not a heap number");
-    DeoptimizeIf(ne, instr, scratch1, Operand(at));
+    DeoptimizeIf(ne, instr, scratch1, Operand(at), "not a heap number");
 
     // Load the double value.
     __ ldc1(double_scratch,
@@ -4979,16 +4979,15 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
                        except_flag,
                        kCheckForInexactConversion);
 
-    __ RecordComment("Deferred TaggedToI: lost precision or NaN");
-    DeoptimizeIf(ne, instr, except_flag, Operand(zero_reg));
+    DeoptimizeIf(ne, instr, except_flag, Operand(zero_reg),
+                 "lost precision or NaN");
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ Branch(&done, ne, input_reg, Operand(zero_reg));
 
       __ mfhc1(scratch1, double_scratch);  // Get exponent/sign bits.
       __ And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
-      __ RecordComment("Deferred TaggedToI: minus zero");
-      DeoptimizeIf(ne, instr, scratch1, Operand(zero_reg));
+      DeoptimizeIf(ne, instr, scratch1, Operand(zero_reg), "minus zero");
     }
   }
   __ bind(&done);
