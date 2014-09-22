@@ -27,11 +27,15 @@ class MachineOperatorReducer FINAL : public Reducer {
   virtual Reduction Reduce(Node* node) OVERRIDE;
 
  private:
+  Node* Float32Constant(volatile float value);
   Node* Float64Constant(volatile double value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
 
   Reduction ReplaceBool(bool value) { return ReplaceInt32(value ? 1 : 0); }
+  Reduction ReplaceFloat32(volatile float value) {
+    return Replace(Float32Constant(value));
+  }
   Reduction ReplaceFloat64(volatile double value) {
     return Replace(Float64Constant(value));
   }

@@ -7971,7 +7971,7 @@ RUNTIME_FUNCTION(Runtime_MathFround) {
   DCHECK(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  float xf = static_cast<float>(x);
+  float xf = DoubleToFloat32(x);
   return *isolate->factory()->NewNumber(xf);
 }
 

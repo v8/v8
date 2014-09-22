@@ -97,12 +97,14 @@ struct StaticParameterTraits<LoadRepresentation> {
   V(Int64UMod, Operator::kNoProperties, 2, 1)                                 \
   V(Int64LessThan, Operator::kNoProperties, 2, 1)                             \
   V(Int64LessThanOrEqual, Operator::kNoProperties, 2, 1)                      \
+  V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 1)                    \
   V(ChangeFloat64ToInt32, Operator::kNoProperties, 1, 1)                      \
   V(ChangeFloat64ToUint32, Operator::kNoProperties, 1, 1)                     \
   V(ChangeInt32ToFloat64, Operator::kNoProperties, 1, 1)                      \
   V(ChangeInt32ToInt64, Operator::kNoProperties, 1, 1)                        \
   V(ChangeUint32ToFloat64, Operator::kNoProperties, 1, 1)                     \
   V(ChangeUint32ToUint64, Operator::kNoProperties, 1, 1)                      \
+  V(TruncateFloat64ToFloat32, Operator::kNoProperties, 1, 1)                  \
   V(TruncateFloat64ToInt32, Operator::kNoProperties, 1, 1)                    \
   V(TruncateInt64ToInt32, Operator::kNoProperties, 1, 1)                      \
   V(Float64Add, Operator::kCommutative, 2, 1)                                 \

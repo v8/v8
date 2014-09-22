@@ -104,23 +104,23 @@ class MachineOperatorBuilder FINAL {
   const Operator* Int64LessThan();
   const Operator* Int64LessThanOrEqual();
 
-  // Convert representation of integers between float64 and int32/uint32.
-  // The precise rounding mode and handling of out of range inputs are *not*
-  // defined for these operators, since they are intended only for use with
-  // integers.
+  // These operators change the representation of numbers while preserving the
+  // value of the number. Narrowing operators assume the input is representable
+  // in the target type and are *not* defined for other inputs.
+  // Use narrowing change operators only when there is a static guarantee that
+  // the input value is representable in the target value.
+  const Operator* ChangeFloat32ToFloat64();
+  const Operator* ChangeFloat64ToInt32();   // narrowing
+  const Operator* ChangeFloat64ToUint32();  // narrowing
   const Operator* ChangeInt32ToFloat64();
-  const Operator* ChangeUint32ToFloat64();
-  const Operator* ChangeFloat64ToInt32();
-  const Operator* ChangeFloat64ToUint32();
-
-  // Sign/zero extend int32/uint32 to int64/uint64.
   const Operator* ChangeInt32ToInt64();
+  const Operator* ChangeUint32ToFloat64();
   const Operator* ChangeUint32ToUint64();
 
-  // Truncate double to int32 using JavaScript semantics.
-  const Operator* TruncateFloat64ToInt32();
-
-  // Truncate the high order bits and convert the remaining bits to int32.
+  // These operators truncate numbers, both changing the representation of
+  // the number and mapping multiple input values onto the same output value.
+  const Operator* TruncateFloat64ToFloat32();
+  const Operator* TruncateFloat64ToInt32();  // JavaScript semantics.
   const Operator* TruncateInt64ToInt32();
 
   // Floating point operators always operate with IEEE 754 round-to-nearest.
