@@ -844,7 +844,7 @@ bool LCodeGen::GenerateJumpTable() {
       int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
       DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
       Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
-      DeoptComment(table_entry->mnemonic, table_entry->reason);
+      DeoptComment(table_entry->reason);
 
       // Second-level deopt table entries are contiguous and small, so instead
       // of loading the full, absolute address of each one, load the base
@@ -993,7 +993,7 @@ void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 
 
 void LCodeGen::DeoptimizeBranch(
-    LInstruction* instr, const char* reason, BranchType branch_type,
+    LInstruction* instr, const char* detail, BranchType branch_type,
     Register reg, int bit, Deoptimizer::BailoutType* override_bailout_type) {
   LEnvironment* environment = instr->environment();
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
@@ -1044,11 +1044,12 @@ void LCodeGen::DeoptimizeBranch(
     __ Bind(&dont_trap);
   }
 
+  Deoptimizer::Reason reason(instr->Mnemonic(), detail);
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to build frame, or restore caller doubles.
   if (branch_type == always &&
       frame_is_built_ && !info()->saves_caller_doubles()) {
-    DeoptComment(instr->Mnemonic(), reason);
+    DeoptComment(reason);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
     // We often have several deopts to the same entry, reuse the last
@@ -1057,8 +1058,8 @@ void LCodeGen::DeoptimizeBranch(
         (jump_table_.last()->bailout_type != bailout_type) ||
         (jump_table_.last()->needs_frame != !frame_is_built_)) {
       Deoptimizer::JumpTableEntry* table_entry =
-          new (zone()) Deoptimizer::JumpTableEntry(
-              entry, instr->Mnemonic(), reason, bailout_type, !frame_is_built_);
+          new (zone()) Deoptimizer::JumpTableEntry(entry, reason, bailout_type,
+                                                   !frame_is_built_);
       jump_table_.Add(table_entry, zone());
     }
     __ B(&jump_table_.last()->label, branch_type, reg, bit);
@@ -1068,78 +1069,78 @@ void LCodeGen::DeoptimizeBranch(
 
 void LCodeGen::Deoptimize(LInstruction* instr,
                           Deoptimizer::BailoutType* override_bailout_type,
-                          const char* reason) {
-  DeoptimizeBranch(instr, reason, always, NoReg, -1, override_bailout_type);
+                          const char* detail) {
+  DeoptimizeBranch(instr, detail, always, NoReg, -1, override_bailout_type);
 }
 
 
 void LCodeGen::DeoptimizeIf(Condition cond, LInstruction* instr,
-                            const char* reason) {
-  DeoptimizeBranch(instr, reason, static_cast<BranchType>(cond));
+                            const char* detail) {
+  DeoptimizeBranch(instr, detail, static_cast<BranchType>(cond));
 }
 
 
 void LCodeGen::DeoptimizeIfZero(Register rt, LInstruction* instr,
-                                const char* reason) {
-  DeoptimizeBranch(instr, reason, reg_zero, rt);
+                                const char* detail) {
+  DeoptimizeBranch(instr, detail, reg_zero, rt);
 }
 
 
 void LCodeGen::DeoptimizeIfNotZero(Register rt, LInstruction* instr,
-                                   const char* reason) {
-  DeoptimizeBranch(instr, reason, reg_not_zero, rt);
+                                   const char* detail) {
+  DeoptimizeBranch(instr, detail, reg_not_zero, rt);
 }
 
 
 void LCodeGen::DeoptimizeIfNegative(Register rt, LInstruction* instr,
-                                    const char* reason) {
+                                    const char* detail) {
   int sign_bit = rt.Is64Bits() ? kXSignBit : kWSignBit;
-  DeoptimizeIfBitSet(rt, sign_bit, instr, reason);
+  DeoptimizeIfBitSet(rt, sign_bit, instr, detail);
 }
 
 
 void LCodeGen::DeoptimizeIfSmi(Register rt, LInstruction* instr,
-                               const char* reason) {
-  DeoptimizeIfBitClear(rt, MaskToBit(kSmiTagMask), instr, reason);
+                               const char* detail) {
+  DeoptimizeIfBitClear(rt, MaskToBit(kSmiTagMask), instr, detail);
 }
 
 
 void LCodeGen::DeoptimizeIfNotSmi(Register rt, LInstruction* instr,
-                                  const char* reason) {
-  DeoptimizeIfBitSet(rt, MaskToBit(kSmiTagMask), instr, reason);
+                                  const char* detail) {
+  DeoptimizeIfBitSet(rt, MaskToBit(kSmiTagMask), instr, detail);
 }
 
 
 void LCodeGen::DeoptimizeIfRoot(Register rt, Heap::RootListIndex index,
-                                LInstruction* instr, const char* reason) {
+                                LInstruction* instr, const char* detail) {
   __ CompareRoot(rt, index);
-  DeoptimizeIf(eq, instr, reason);
+  DeoptimizeIf(eq, instr, detail);
 }
 
 
 void LCodeGen::DeoptimizeIfNotRoot(Register rt, Heap::RootListIndex index,
-                                   LInstruction* instr, const char* reason) {
+                                   LInstruction* instr, const char* detail) {
   __ CompareRoot(rt, index);
-  DeoptimizeIf(ne, instr, reason);
+  DeoptimizeIf(ne, instr, detail);
 }
 
 
 void LCodeGen::DeoptimizeIfMinusZero(DoubleRegister input, LInstruction* instr,
-                                     const char* reason) {
+                                     const char* detail) {
   __ TestForMinusZero(input);
-  DeoptimizeIf(vs, instr, reason);
+  DeoptimizeIf(vs, instr, detail);
 }
 
 
 void LCodeGen::DeoptimizeIfBitSet(Register rt, int bit, LInstruction* instr,
-                                  const char* reason) {
-  DeoptimizeBranch(instr, reason, reg_bit_set, rt, bit);
+                                  const char* detail) {
+  DeoptimizeBranch(instr, detail, reg_bit_set, rt, bit);
 }
 
 
 void LCodeGen::DeoptimizeIfBitClear(Register rt, int bit, LInstruction* instr,
-                                    const char* reason) {
-  DeoptimizeBranch(instr, reason, reg_bit_clear, rt, bit);
+                                    const char* detail) {
+  DeoptimizeBranch(instr, detail, reg_bit_clear, rt, bit);
 }
 
 

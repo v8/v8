@@ -101,20 +101,23 @@ class Deoptimizer : public Malloced {
 
   static const int kBailoutTypesWithCodeEntry = SOFT + 1;
 
+  struct Reason {
+    Reason(const char* m, const char* d) : mnemonic(m), detail(d) {}
+    const char* mnemonic;
+    const char* detail;
+  };
+
   struct JumpTableEntry : public ZoneObject {
-    inline JumpTableEntry(Address entry, const char* the_mnemonic,
-                          const char* the_reason, Deoptimizer::BailoutType type,
-                          bool frame)
+    inline JumpTableEntry(Address entry, const Reason& the_reason,
+                          Deoptimizer::BailoutType type, bool frame)
         : label(),
           address(entry),
-          mnemonic(the_mnemonic),
           reason(the_reason),
           bailout_type(type),
           needs_frame(frame) {}
     Label label;
     Address address;
-    const char* mnemonic;
-    const char* reason;
+    Reason reason;
     Deoptimizer::BailoutType bailout_type;
     bool needs_frame;
   };

@@ -147,9 +147,9 @@ void LCodeGenBase::Comment(const char* format, ...) {
 }
 
 
-void LCodeGenBase::DeoptComment(const char* mnemonic, const char* reason) {
-  Comment(";;; deoptimize %s: %s", mnemonic,
-          reason == NULL ? "unknown reason" : reason);
+void LCodeGenBase::DeoptComment(const Deoptimizer::Reason& reason) {
+  Comment(";;; deoptimize %s: %s", reason.mnemonic,
+          reason.detail == NULL ? "unknown reason" : reason.detail);
 }
 
 

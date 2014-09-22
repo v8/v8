@@ -233,11 +233,11 @@ class LCodeGen: public LCodeGenBase {
                     Deoptimizer::BailoutType bailout_type,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg),
-                    const char* reason = NULL);
+                    const char* detail = NULL);
   void DeoptimizeIf(Condition condition, LInstruction* instr,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg),
-                    const char* reason = NULL);
+                    const char* detail = NULL);
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,

@@ -769,7 +769,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
 void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
                             Deoptimizer::BailoutType bailout_type,
                             Register src1, const Operand& src2,
-                            const char* reason) {
+                            const char* detail) {
   LEnvironment* environment = instr->environment();
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   DCHECK(environment->HasBeenRegistered());
@@ -810,12 +810,13 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
     __ bind(&skip);
   }
 
+  Deoptimizer::Reason reason(instr->Mnemonic(), detail);
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to handle condition, build frame, or
   // restore caller doubles.
   if (condition == al && frame_is_built_ &&
       !info()->saves_caller_doubles()) {
-    DeoptComment(instr->Mnemonic(), reason);
+    DeoptComment(reason);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY, condition, src1, src2);
   } else {
     // We often have several deopts to the same entry, reuse the last
@@ -824,8 +825,8 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
         (deopt_jump_table_.last().address != entry) ||
         (deopt_jump_table_.last().bailout_type != bailout_type) ||
         (deopt_jump_table_.last().needs_frame != !frame_is_built_)) {
-      Deoptimizer::JumpTableEntry table_entry(entry, instr->Mnemonic(), reason,
-                                              bailout_type, !frame_is_built_);
+      Deoptimizer::JumpTableEntry table_entry(entry, reason, bailout_type,
+                                              !frame_is_built_);
       deopt_jump_table_.Add(table_entry, zone());
     }
     __ Branch(&deopt_jump_table_.last().label, condition, src1, src2);
@@ -835,11 +836,11 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
 
 void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
                             Register src1, const Operand& src2,
-                            const char* reason) {
+                            const char* detail) {
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
-  DeoptimizeIf(condition, instr, bailout_type, src1, src2, reason);
+  DeoptimizeIf(condition, instr, bailout_type, src1, src2, detail);
 }
 
 
