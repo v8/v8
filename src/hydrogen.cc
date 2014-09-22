@@ -4834,14 +4834,9 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
 
-  // We only optimize switch statements with a bounded number of clauses.
-  const int kCaseClauseLimit = 128;
   ZoneList<CaseClause*>* clauses = stmt->cases();
   int clause_count = clauses->length();
   ZoneList<HBasicBlock*> body_blocks(clause_count, zone());
-  if (clause_count > kCaseClauseLimit) {
-    return Bailout(kSwitchStatementTooManyClauses);
-  }
 
   CHECK_ALIVE(VisitForValue(stmt->tag()));
   Add<HSimulate>(stmt->EntryId());
