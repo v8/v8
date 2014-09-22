@@ -34,3 +34,39 @@ f(o3);
 f(o3);
 %OptimizeFunctionOnNextCall(f);
 assertEquals(1200, f(o3));
+
+(function CountOperationDeoptimizationGetter() {
+  var global = {};
+  global.__defineGetter__("A", function () { return "x"; });
+
+  function h() {
+    return "A";
+  }
+
+  function g(a, b, c) {
+    try {
+      return a + b.toString() + c;
+    } catch (e) { }
+  }
+
+  function test(o)  {
+   return g(1, o[h()]--, 10);
+  }
+
+  test(global);
+  test(global);
+  %OptimizeFunctionOnNextCall(test);
+  print(test(global));
+})();
+
+
+(function CountOperationDeoptimizationPoint() {
+  function test()  {
+   this[0, ""]--;
+  }
+
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
+  test();
+})();
