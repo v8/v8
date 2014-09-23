@@ -133,7 +133,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm, Label* miss_label,
 
   // Update write barrier. Make sure not to clobber the value.
   __ mov(r1, value);
-  __ RecordWrite(elements, r0, r1);
+  __ RecordWrite(elements, r0, r1, kDontSaveFPRegs);
 }
 
 
@@ -505,74 +505,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
-  // Return address is on the stack.
-  Label slow;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-  Register scratch = eax;
-  DCHECK(!scratch.is(receiver) && !scratch.is(key));
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, &slow);
-
-  // Check that the key is an array index, that is Uint32.
-  __ test(key, Immediate(kSmiTagMask | kSmiSignMask));
-  __ j(not_zero, &slow);
-
-  // Get the map of the receiver.
-  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-
-  // Check that it has indexed interceptor and access checks
-  // are not enabled for this object.
-  __ movzx_b(scratch, FieldOperand(scratch, Map::kBitFieldOffset));
-  __ and_(scratch, Immediate(kSlowCaseBitFieldMask));
-  __ cmp(scratch, Immediate(1 << Map::kHasIndexedInterceptor));
-  __ j(not_zero, &slow);
-
-  // Everything is fine, call runtime.
-  __ pop(scratch);
-  __ push(receiver);  // receiver
-  __ push(key);       // key
-  __ push(scratch);   // return address
-
-  // Perform tail call to the entry.
-  ExternalReference ref = ExternalReference(
-      IC_Utility(kLoadElementWithInterceptor), masm->isolate());
-  __ TailCallExternalReference(ref, 2, 1);
-
-  __ bind(&slow);
-  GenerateMiss(masm);
-}
-
-
-void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
-  // The return address is on the stack.
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-  DCHECK(receiver.is(edx));
-  DCHECK(key.is(ecx));
-
-  Label slow, notin;
-  Factory* factory = masm->isolate()->factory();
-  Operand mapped_location = GenerateMappedArgumentsLookup(
-      masm, receiver, key, ebx, eax, &notin, &slow);
-  __ mov(eax, mapped_location);
-  __ Ret();
-  __ bind(&notin);
-  // The unmapped lookup expects that the parameter map is in ebx.
-  Operand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, key, ebx, eax, &slow);
-  __ cmp(unmapped_location, factory->the_hole_value());
-  __ j(equal, &slow);
-  __ mov(eax, unmapped_location);
-  __ Ret();
-  __ bind(&slow);
-  GenerateMiss(masm);
-}
-
-
 void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // Return address is on the stack.
   Label slow, notin;
@@ -588,7 +520,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   __ mov(mapped_location, value);
   __ lea(ecx, mapped_location);
   __ mov(edx, value);
-  __ RecordWrite(ebx, ecx, edx);
+  __ RecordWrite(ebx, ecx, edx, kDontSaveFPRegs);
   __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in ebx.
@@ -597,7 +529,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   __ mov(unmapped_location, value);
   __ lea(edi, unmapped_location);
   __ mov(edx, value);
-  __ RecordWrite(ebx, edi, edx);
+  __ RecordWrite(ebx, edi, edx, kDontSaveFPRegs);
   __ Ret();
   __ bind(&slow);
   GenerateMiss(masm);
@@ -666,7 +598,8 @@ static void KeyedStoreGenerateGenericHelper(
   __ mov(FixedArrayElementOperand(ebx, key), value);
   // Update write barrier for the elements array address.
   __ mov(edx, value);  // Preserve the value which is returned.
-  __ RecordWriteArray(ebx, edx, key, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ RecordWriteArray(ebx, edx, key, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
   __ ret(0);
 
   __ bind(fast_double);

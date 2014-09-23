@@ -40,7 +40,6 @@ CONFIG = {
   BRANCHNAME: "prepare-push",
   TRUNKBRANCH: "trunk-push",
   PERSISTFILE_BASENAME: "/tmp/v8-push-to-trunk-tempfile",
-  DOT_GIT_LOCATION: ".git",
   VERSION_FILE: "src/version.cc",
   CHANGELOG_FILE: "ChangeLog",
   CHANGELOG_ENTRY_FILE: "/tmp/v8-push-to-trunk-tempfile-changelog-entry",
@@ -56,7 +55,7 @@ class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    self.InitialEnvironmentChecks()
+    self.InitialEnvironmentChecks(self.default_cwd)
     self.CommonPrepare()
 
     if(self["current_branch"] == self.Config(TRUNKBRANCH)

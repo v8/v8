@@ -9543,18 +9543,14 @@ TEST(AccessControlES5) {
 }
 
 
-static bool GetOwnPropertyNamesNamedBlocker(Local<v8::Object> global,
-                                            Local<Value> name,
-                                            v8::AccessType type,
-                                            Local<Value> data) {
+static bool BlockEverythingNamed(Local<v8::Object> object, Local<Value> name,
+                                 v8::AccessType type, Local<Value> data) {
   return false;
 }
 
 
-static bool GetOwnPropertyNamesIndexedBlocker(Local<v8::Object> global,
-                                              uint32_t key,
-                                              v8::AccessType type,
-                                              Local<Value> data) {
+static bool BlockEverythingIndexed(Local<v8::Object> object, uint32_t key,
+                                   v8::AccessType type, Local<Value> data) {
   return false;
 }
 
@@ -9566,8 +9562,8 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
       v8::ObjectTemplate::New(isolate);
 
   obj_template->Set(v8_str("x"), v8::Integer::New(isolate, 42));
-  obj_template->SetAccessCheckCallbacks(GetOwnPropertyNamesNamedBlocker,
-                                        GetOwnPropertyNamesIndexedBlocker);
+  obj_template->SetAccessCheckCallbacks(BlockEverythingNamed,
+                                        BlockEverythingIndexed);
 
   // Create an environment
   v8::Local<Context> context0 = Context::New(isolate, NULL, obj_template);
@@ -9599,6 +9595,26 @@ THREADED_TEST(AccessControlGetOwnPropertyNames) {
 
   context1->Exit();
   context0->Exit();
+}
+
+
+TEST(SuperAccessControl) {
+  i::FLAG_harmony_classes = true;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Handle<v8::ObjectTemplate> obj_template =
+      v8::ObjectTemplate::New(isolate);
+  obj_template->SetAccessCheckCallbacks(BlockEverythingNamed,
+                                        BlockEverythingIndexed);
+  LocalContext env;
+  env->Global()->Set(v8_str("prohibited"), obj_template->NewInstance());
+
+  v8::TryCatch try_catch;
+  CompileRun(
+      "function f() { return super.hasOwnProperty; };"
+      "var m = f.toMethod(prohibited);"
+      "m();");
+  CHECK(try_catch.HasCaught());
 }
 
 
@@ -19486,31 +19502,26 @@ static int CalcFibonacci(v8::Isolate* isolate, int limit) {
 
 class IsolateThread : public v8::base::Thread {
  public:
-  IsolateThread(v8::Isolate* isolate, int fib_limit)
-      : Thread(Options("IsolateThread")),
-        isolate_(isolate),
-        fib_limit_(fib_limit),
-        result_(0) {}
+  explicit IsolateThread(int fib_limit)
+      : Thread(Options("IsolateThread")), fib_limit_(fib_limit), result_(0) {}
 
   void Run() {
-    result_ = CalcFibonacci(isolate_, fib_limit_);
+    v8::Isolate* isolate = v8::Isolate::New();
+    result_ = CalcFibonacci(isolate, fib_limit_);
+    isolate->Dispose();
   }
 
   int result() { return result_; }
 
  private:
-  v8::Isolate* isolate_;
   int fib_limit_;
   int result_;
 };
 
 
 TEST(MultipleIsolatesOnIndividualThreads) {
-  v8::Isolate* isolate1 = v8::Isolate::New();
-  v8::Isolate* isolate2 = v8::Isolate::New();
-
-  IsolateThread thread1(isolate1, 21);
-  IsolateThread thread2(isolate2, 12);
+  IsolateThread thread1(21);
+  IsolateThread thread2(12);
 
   // Compute some fibonacci numbers on 3 threads in 3 isolates.
   thread1.Start();
@@ -19528,9 +19539,6 @@ TEST(MultipleIsolatesOnIndividualThreads) {
   CHECK_EQ(result2, 144);
   CHECK_EQ(result1, thread1.result());
   CHECK_EQ(result2, thread2.result());
-
-  isolate1->Dispose();
-  isolate2->Dispose();
 }
 
 
@@ -22857,32 +22865,6 @@ TEST(ScriptNameAndLineNumber) {
   CHECK_EQ(url, *utf8_name);
   int line_number = script->GetUnboundScript()->GetLineNumber(0);
   CHECK_EQ(13, line_number);
-}
-
-
-Local<v8::Context> call_eval_context;
-Local<v8::Function> call_eval_bound_function;
-static void CallEval(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Context::Scope scope(call_eval_context);
-  args.GetReturnValue().Set(
-      call_eval_bound_function->Call(call_eval_context->Global(), 0, NULL));
-}
-
-
-TEST(CrossActivationEval) {
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(isolate);
-  {
-    call_eval_context = v8::Context::New(isolate);
-    v8::Context::Scope scope(call_eval_context);
-    call_eval_bound_function =
-        Local<Function>::Cast(CompileRun("eval.bind(this, '1')"));
-  }
-  env->Global()->Set(v8_str("CallEval"),
-      v8::FunctionTemplate::New(isolate, CallEval)->GetFunction());
-  Local<Value> result = CompileRun("CallEval();");
-  CHECK_EQ(result, v8::Integer::New(isolate, 1));
 }
 
 

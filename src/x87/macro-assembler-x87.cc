@@ -148,8 +148,7 @@ void MacroAssembler::InNewSpace(
 
 void MacroAssembler::RememberedSetHelper(
     Register object,  // Only used for debug checks.
-    Register addr,
-    Register scratch,
+    Register addr, Register scratch, SaveFPRegsMode save_fp,
     MacroAssembler::RememberedSetFinalAction and_then) {
   Label done;
   if (emit_debug_code()) {
@@ -180,7 +179,7 @@ void MacroAssembler::RememberedSetHelper(
     DCHECK(and_then == kFallThroughAtEnd);
     j(equal, &done, Label::kNear);
   }
-  StoreBufferOverflowStub store_buffer_overflow(isolate(), kDontSaveFPRegs);
+  StoreBufferOverflowStub store_buffer_overflow(isolate(), save_fp);
   CallStub(&store_buffer_overflow);
   if (and_then == kReturnAtEnd) {
     ret(0);
@@ -188,6 +187,31 @@ void MacroAssembler::RememberedSetHelper(
     DCHECK(and_then == kFallThroughAtEnd);
     bind(&done);
   }
+}
+
+
+void MacroAssembler::ClampTOSToUint8(Register result_reg) {
+  Label done, conv_failure;
+  sub(esp, Immediate(kPointerSize));
+  fnclex();
+  fist_s(Operand(esp, 0));
+  pop(result_reg);
+  X87CheckIA();
+  j(equal, &conv_failure, Label::kNear);
+  test(result_reg, Immediate(0xFFFFFF00));
+  j(zero, &done, Label::kNear);
+  setcc(sign, result_reg);
+  sub(result_reg, Immediate(1));
+  and_(result_reg, Immediate(255));
+  jmp(&done, Label::kNear);
+  bind(&conv_failure);
+  fnclex();
+  fldz();
+  fld(1);
+  FCmp();
+  setcc(below, result_reg);  // 1 if negative, 0 if positive.
+  dec_b(result_reg);         // 0 if negative, 255 if positive.
+  bind(&done);
 }
 
 
@@ -254,53 +278,6 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
 }
 
 
-void MacroAssembler::TaggedToI(Register result_reg,
-                               Register input_reg,
-                               MinusZeroMode minus_zero_mode,
-                               Label* lost_precision) {
-  Label done;
-
-  cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
-      isolate()->factory()->heap_number_map());
-  j(not_equal, lost_precision, Label::kNear);
-
-  // TODO(olivf) Converting a number on the fpu is actually quite slow. We
-  // should first try a fast conversion and then bailout to this slow case.
-  Label lost_precision_pop, zero_check;
-  Label* lost_precision_int = (minus_zero_mode == FAIL_ON_MINUS_ZERO)
-      ? &lost_precision_pop : lost_precision;
-  sub(esp, Immediate(kPointerSize));
-  fld_d(FieldOperand(input_reg, HeapNumber::kValueOffset));
-  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) fld(0);
-  fist_s(MemOperand(esp, 0));
-  fild_s(MemOperand(esp, 0));
-  FCmp();
-  pop(result_reg);
-  j(not_equal, lost_precision_int, Label::kNear);
-  j(parity_even, lost_precision_int, Label::kNear);  // NaN.
-  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
-    test(result_reg, Operand(result_reg));
-    j(zero, &zero_check, Label::kNear);
-    fstp(0);
-    jmp(&done, Label::kNear);
-    bind(&zero_check);
-    // To check for minus zero, we load the value again as float, and check
-    // if that is still 0.
-    sub(esp, Immediate(kPointerSize));
-    fstp_s(Operand(esp, 0));
-    pop(result_reg);
-    test(result_reg, Operand(result_reg));
-    j(zero, &done, Label::kNear);
-    jmp(lost_precision, Label::kNear);
-
-    bind(&lost_precision_pop);
-    fstp(0);
-    jmp(lost_precision, Label::kNear);
-  }
-  bind(&done);
-}
-
-
 void MacroAssembler::LoadUint32NoSSE2(Register src) {
   Label done;
   push(src);
@@ -317,11 +294,8 @@ void MacroAssembler::LoadUint32NoSSE2(Register src) {
 
 
 void MacroAssembler::RecordWriteArray(
-    Register object,
-    Register value,
-    Register index,
-    RememberedSetAction remembered_set_action,
-    SmiCheck smi_check,
+    Register object, Register value, Register index, SaveFPRegsMode save_fp,
+    RememberedSetAction remembered_set_action, SmiCheck smi_check,
     PointersToHereCheck pointers_to_here_check_for_value) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
@@ -341,8 +315,8 @@ void MacroAssembler::RecordWriteArray(
   lea(dst, Operand(object, index, times_half_pointer_size,
                    FixedArray::kHeaderSize - kHeapObjectTag));
 
-  RecordWrite(object, dst, value, remembered_set_action, OMIT_SMI_CHECK,
-              pointers_to_here_check_for_value);
+  RecordWrite(object, dst, value, save_fp, remembered_set_action,
+              OMIT_SMI_CHECK, pointers_to_here_check_for_value);
 
   bind(&done);
 
@@ -356,13 +330,9 @@ void MacroAssembler::RecordWriteArray(
 
 
 void MacroAssembler::RecordWriteField(
-    Register object,
-    int offset,
-    Register value,
-    Register dst,
-    RememberedSetAction remembered_set_action,
-    SmiCheck smi_check,
-    PointersToHereCheck pointers_to_here_check_for_value) {
+    Register object, int offset, Register value, Register dst,
+    SaveFPRegsMode save_fp, RememberedSetAction remembered_set_action,
+    SmiCheck smi_check, PointersToHereCheck pointers_to_here_check_for_value) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -385,8 +355,8 @@ void MacroAssembler::RecordWriteField(
     bind(&ok);
   }
 
-  RecordWrite(object, dst, value, remembered_set_action, OMIT_SMI_CHECK,
-              pointers_to_here_check_for_value);
+  RecordWrite(object, dst, value, save_fp, remembered_set_action,
+              OMIT_SMI_CHECK, pointers_to_here_check_for_value);
 
   bind(&done);
 
@@ -399,11 +369,9 @@ void MacroAssembler::RecordWriteField(
 }
 
 
-void MacroAssembler::RecordWriteForMap(
-    Register object,
-    Handle<Map> map,
-    Register scratch1,
-    Register scratch2) {
+void MacroAssembler::RecordWriteForMap(Register object, Handle<Map> map,
+                                       Register scratch1, Register scratch2,
+                                       SaveFPRegsMode save_fp) {
   Label done;
 
   Register address = scratch1;
@@ -440,7 +408,8 @@ void MacroAssembler::RecordWriteForMap(
                       &done,
                       Label::kNear);
 
-  RecordWriteStub stub(isolate(), object, value, address, OMIT_REMEMBERED_SET);
+  RecordWriteStub stub(isolate(), object, value, address, OMIT_REMEMBERED_SET,
+                       save_fp);
   CallStub(&stub);
 
   bind(&done);
@@ -460,11 +429,8 @@ void MacroAssembler::RecordWriteForMap(
 
 
 void MacroAssembler::RecordWrite(
-    Register object,
-    Register address,
-    Register value,
-    RememberedSetAction remembered_set_action,
-    SmiCheck smi_check,
+    Register object, Register address, Register value, SaveFPRegsMode fp_mode,
+    RememberedSetAction remembered_set_action, SmiCheck smi_check,
     PointersToHereCheck pointers_to_here_check_for_value) {
   DCHECK(!object.is(value));
   DCHECK(!object.is(address));
@@ -508,8 +474,8 @@ void MacroAssembler::RecordWrite(
                 &done,
                 Label::kNear);
 
-  RecordWriteStub stub(isolate(), object, value, address,
-                       remembered_set_action);
+  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
+                       fp_mode);
   CallStub(&stub);
 
   bind(&done);
@@ -754,6 +720,53 @@ void MacroAssembler::FCmp() {
 }
 
 
+void MacroAssembler::FXamMinusZero() {
+  fxam();
+  push(eax);
+  fnstsw_ax();
+  and_(eax, Immediate(0x4700));
+  // For minus zero, C3 == 1 && C1 == 1.
+  cmp(eax, Immediate(0x4200));
+  pop(eax);
+  fstp(0);
+}
+
+
+void MacroAssembler::FXamSign() {
+  fxam();
+  push(eax);
+  fnstsw_ax();
+  // For negative value (including -0.0), C1 == 1.
+  and_(eax, Immediate(0x0200));
+  pop(eax);
+  fstp(0);
+}
+
+
+void MacroAssembler::X87CheckIA() {
+  push(eax);
+  fnstsw_ax();
+  // For #IA, IE == 1 && SF == 0.
+  and_(eax, Immediate(0x0041));
+  cmp(eax, Immediate(0x0001));
+  pop(eax);
+}
+
+
+// rc=00B, round to nearest.
+// rc=01B, round down.
+// rc=10B, round up.
+// rc=11B, round toward zero.
+void MacroAssembler::X87SetRC(int rc) {
+  sub(esp, Immediate(kPointerSize));
+  fnstcw(MemOperand(esp, 0));
+  and_(MemOperand(esp, 0), Immediate(0xF3FF));
+  or_(MemOperand(esp, 0), Immediate(rc));
+  fldcw(MemOperand(esp, 0));
+  add(esp, Immediate(kPointerSize));
+}
+
+
 void MacroAssembler::AssertNumber(Register object) {
   if (emit_debug_code()) {
     Label ok;
@@ -891,8 +904,17 @@ void MacroAssembler::EnterExitFramePrologue() {
 }
 
 
-void MacroAssembler::EnterExitFrameEpilogue(int argc) {
-  sub(esp, Immediate(argc * kPointerSize));
+void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
+  // Optionally save FPU state.
+  if (save_doubles) {
+    // Store FPU state to m108byte.
+    int space = 108 + argc * kPointerSize;
+    sub(esp, Immediate(space));
+    const int offset = -2 * kPointerSize;  // entry fp + code object.
+    fnsave(MemOperand(ebp, offset - 108));
+  } else {
+    sub(esp, Immediate(argc * kPointerSize));
+  }
 
   // Get the required frame alignment for the OS.
   const int kFrameAlignment = base::OS::ActivationFrameAlignment();
@@ -906,7 +928,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc) {
 }
 
 
-void MacroAssembler::EnterExitFrame() {
+void MacroAssembler::EnterExitFrame(bool save_doubles) {
   EnterExitFramePrologue();
 
   // Set up argc and argv in callee-saved registers.
@@ -915,17 +937,23 @@ void MacroAssembler::EnterExitFrame() {
   lea(esi, Operand(ebp, eax, times_4, offset));
 
   // Reserve space for argc, argv and isolate.
-  EnterExitFrameEpilogue(3);
+  EnterExitFrameEpilogue(3, save_doubles);
 }
 
 
 void MacroAssembler::EnterApiExitFrame(int argc) {
   EnterExitFramePrologue();
-  EnterExitFrameEpilogue(argc);
+  EnterExitFrameEpilogue(argc, false);
 }
 
 
-void MacroAssembler::LeaveExitFrame() {
+void MacroAssembler::LeaveExitFrame(bool save_doubles) {
+  // Optionally restore FPU state.
+  if (save_doubles) {
+    const int offset = -2 * kPointerSize;
+    frstor(MemOperand(ebp, offset - 108));
+  }
+
   // Get the return address from the stack and restore the frame pointer.
   mov(ecx, Operand(ebp, 1 * kPointerSize));
   mov(ebp, Operand(ebp, 0 * kPointerSize));
@@ -1955,8 +1983,8 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 }
 
 
-void MacroAssembler::CallRuntime(const Runtime::Function* f,
-                                 int num_arguments) {
+void MacroAssembler::CallRuntime(const Runtime::Function* f, int num_arguments,
+                                 SaveFPRegsMode save_doubles) {
   // If the expected number of arguments of the runtime function is
   // constant, we check that the actual number of arguments match the
   // expectation.
@@ -1968,7 +1996,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Move(eax, Immediate(num_arguments));
   mov(ebx, Immediate(ExternalReference(f, isolate())));
-  CEntryStub ces(isolate(), 1);
+  CEntryStub ces(isolate(), 1, save_doubles);
   CallStub(&ces);
 }
 
@@ -2518,6 +2546,9 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
 
 
 void MacroAssembler::VerifyX87StackDepth(uint32_t depth) {
+  // Turn off the stack depth check when serializer is enabled to reduce the
+  // code size.
+  if (serializer_enabled()) return;
   // Make sure the floating point stack is either empty or has depth items.
   DCHECK(depth <= 7);
   // This is very expensive.

@@ -56,11 +56,10 @@ from auto_tag import AutoTag
 
 
 TEST_CONFIG = {
-  "DEFAULT_CWD": "[DEFAULT_CWD]",
+  "DEFAULT_CWD": None,
   BRANCHNAME: "test-prepare-push",
   TRUNKBRANCH: "test-trunk-push",
   PERSISTFILE_BASENAME: "/tmp/test-v8-push-to-trunk-tempfile",
-  DOT_GIT_LOCATION: None,
   VERSION_FILE: None,
   CHANGELOG_FILE: None,
   CHANGELOG_ENTRY_FILE: "/tmp/test-v8-push-to-trunk-tempfile-changelog-entry",
@@ -259,7 +258,7 @@ def Cmd(*args, **kwargs):
     "args": args,
     "ret": args[-1],
     "cb": kwargs.get("cb"),
-    "cwd": kwargs.get("cwd", "[DEFAULT_CWD]"),
+    "cwd": kwargs.get("cwd", TEST_CONFIG["DEFAULT_CWD"]),
   }
 
 
@@ -424,6 +423,7 @@ class ScriptTest(unittest.TestCase):
     self._mock = SimpleMock()
     self._tmp_files = []
     self._state = {}
+    TEST_CONFIG["DEFAULT_CWD"] = self.MakeEmptyTempDirectory()
 
   def tearDown(self):
     if os.path.exists(TEST_CONFIG[PERSISTFILE_BASENAME]):
@@ -483,12 +483,12 @@ class ScriptTest(unittest.TestCase):
     self.assertEquals("some_branch", self._state["current_branch"])
 
   def testInitialEnvironmentChecks(self):
-    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
     os.environ["EDITOR"] = "vi"
     self.Expect([
       Cmd("which vi", "/usr/bin/vi"),
     ])
-    self.MakeStep().InitialEnvironmentChecks()
+    self.MakeStep().InitialEnvironmentChecks(TEST_CONFIG["DEFAULT_CWD"])
 
   def testReadAndPersistVersion(self):
     TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
@@ -681,7 +681,7 @@ Performance and stability improvements on all platforms."""
     self._TestSquashCommits(change_log, commit_msg)
 
   def _PushToTrunk(self, force=False, manual=False):
-    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
 
     # The version file on bleeding edge has build level 5, while the version
     # file from trunk has build level 4.
@@ -857,8 +857,8 @@ def get_list():
   pass""")
 
     # Setup fake directory structures.
-    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[CHROMIUM] = self.MakeEmptyTempDirectory()
+    TextToFile("", os.path.join(TEST_CONFIG[CHROMIUM], ".git"))
     chrome_dir = TEST_CONFIG[CHROMIUM]
     os.makedirs(os.path.join(chrome_dir, "v8"))
 
@@ -921,7 +921,7 @@ def get_list():
                                                       AUTO_PUSH_ARGS))
 
   def testAutoPush(self):
-    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
     TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
     self.Expect([
@@ -947,7 +947,7 @@ def get_list():
     self.assertEquals("100", state["lkgr"])
 
   def testAutoPushStoppedBySettings(self):
-    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
     TEST_CONFIG[SETTINGS_LOCATION] = self.MakeEmptyTempFile()
     TextToFile("{\"enable_auto_push\": false}", TEST_CONFIG[SETTINGS_LOCATION])
 
@@ -962,7 +962,7 @@ def get_list():
     self.assertRaises(Exception, RunAutoPush)
 
   def testAutoPushStoppedByTreeStatus(self):
-    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
     TEST_CONFIG[SETTINGS_LOCATION] = "~/.doesnotexist"
 
     self.Expect([
@@ -1042,7 +1042,7 @@ deps = {
 
   def testMergeToBranch(self):
     TEST_CONFIG[ALREADY_MERGING_SENTINEL_FILE] = self.MakeEmptyTempFile()
-    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
+    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
     TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile(build=5)
     os.environ["EDITOR"] = "vi"
@@ -1226,7 +1226,6 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
     TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile()
 
-    TEST_CONFIG[DOT_GIT_LOCATION] = self.MakeEmptyTempFile()
     TEST_CONFIG[CHROMIUM] = self.MakeEmptyTempDirectory()
     chrome_dir = TEST_CONFIG[CHROMIUM]
     chrome_v8_dir = os.path.join(chrome_dir, "v8")

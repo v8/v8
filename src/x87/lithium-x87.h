@@ -413,6 +413,7 @@ class LGoto FINAL : public LTemplateInstruction<0, 0, 0> {
   }
 
   bool jumps_to_join() const { return block_->predecessors()->length() > 1; }
+  HBasicBlock* block() const { return block_; }
 
  private:
   HBasicBlock* block_;
@@ -984,15 +985,11 @@ class LMathSqrt FINAL : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LMathPowHalf FINAL : public LTemplateInstruction<1, 1, 1> {
+class LMathPowHalf FINAL : public LTemplateInstruction<1, 1, 0> {
  public:
-  LMathPowHalf(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
+  explicit LMathPowHalf(LOperand* value) { inputs_[0] = value; }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathPowHalf, "math-pow-half")
 };
@@ -1025,15 +1022,11 @@ class LCmpHoleAndBranch FINAL : public LControlInstruction<1, 0> {
 };
 
 
-class LCompareMinusZeroAndBranch FINAL : public LControlInstruction<1, 1> {
+class LCompareMinusZeroAndBranch FINAL : public LControlInstruction<1, 0> {
  public:
-  LCompareMinusZeroAndBranch(LOperand* value, LOperand* temp) {
-    inputs_[0] = value;
-    temps_[0] = temp;
-  }
+  explicit LCompareMinusZeroAndBranch(LOperand* value) { inputs_[0] = value; }
 
   LOperand* value() { return inputs_[0]; }
-  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(CompareMinusZeroAndBranch,
                                "cmp-minus-zero-and-branch")
@@ -1508,15 +1501,17 @@ class LAddI FINAL : public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LMathMinMax FINAL : public LTemplateInstruction<1, 2, 0> {
+class LMathMinMax FINAL : public LTemplateInstruction<1, 2, 1> {
  public:
-  LMathMinMax(LOperand* left, LOperand* right) {
+  LMathMinMax(LOperand* left, LOperand* right, LOperand* temp) {
     inputs_[0] = left;
     inputs_[1] = right;
+    temps_[0] = temp;
   }
 
   LOperand* left() { return inputs_[0]; }
   LOperand* right() { return inputs_[1]; }
+  LOperand* temp() { return temps_[0]; }
 
   DECLARE_CONCRETE_INSTRUCTION(MathMinMax, "math-min-max")
   DECLARE_HYDROGEN_ACCESSOR(MathMinMax)
@@ -2037,11 +2032,12 @@ class LCallRuntime FINAL : public LTemplateInstruction<1, 1, 0> {
   DECLARE_HYDROGEN_ACCESSOR(CallRuntime)
 
   virtual bool ClobbersDoubleRegisters(Isolate* isolate) const OVERRIDE {
-    return true;
+    return save_doubles() == kDontSaveFPRegs;
   }
 
   const Runtime::Function* function() const { return hydrogen()->function(); }
   int arity() const { return hydrogen()->argument_count(); }
+  SaveFPRegsMode save_doubles() const { return hydrogen()->save_doubles(); }
 };
 
 
@@ -2881,6 +2877,8 @@ class LChunkBuilder FINAL : public LChunkBuilderBase {
   LInstruction* DefineSameAsFirst(LTemplateResultInstruction<1>* instr);
   LInstruction* DefineFixed(LTemplateResultInstruction<1>* instr,
                             Register reg);
+  LInstruction* DefineFixed(LTemplateResultInstruction<1>* instr,
+                            X87Register reg);
   LInstruction* DefineX87TOS(LTemplateResultInstruction<1>* instr);
   // Assigns an environment to an instruction.  An instruction which can
   // deoptimize must have an environment.

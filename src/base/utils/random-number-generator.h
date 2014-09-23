@@ -74,6 +74,8 @@ class RandomNumberGenerator FINAL {
   // Override the current ssed.
   void SetSeed(int64_t seed);
 
+  int64_t initial_seed() const { return initial_seed_; }
+
  private:
   static const int64_t kMultiplier = V8_2PART_UINT64_C(0x5, deece66d);
   static const int64_t kAddend = 0xb;
@@ -81,6 +83,7 @@ class RandomNumberGenerator FINAL {
 
   int Next(int bits) WARN_UNUSED_RESULT;
 
+  int64_t initial_seed_;
   int64_t seed_;
 };
 

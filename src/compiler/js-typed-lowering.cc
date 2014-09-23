@@ -4,6 +4,7 @@
 
 #include "src/compiler/access-builder.h"
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/js-builtin-reducer.h"
 #include "src/compiler/js-typed-lowering.h"
 #include "src/compiler/node-aux-data-inl.h"
 #include "src/compiler/node-properties-inl.h"
@@ -444,7 +445,11 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
     // JSToNumber(null) => #0
     return ReplaceWith(jsgraph()->ZeroConstant());
   }
-  // TODO(turbofan): js-typed-lowering of ToNumber(x:boolean)
+  if (input_type->Is(Type::Boolean())) {
+    // JSToNumber(x:boolean) => BooleanToNumber(x)
+    return ReplaceWith(
+        graph()->NewNode(simplified()->BooleanToNumber(), input));
+  }
   // TODO(turbofan): js-typed-lowering of ToNumber(x:string)
   return NoChange();
 }
@@ -566,13 +571,14 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   // TODO(mstarzinger): This lowering is not correct if:
   //   a) The typed array turns external (i.e. MaterializeArrayBuffer)
   //   b) The typed array or it's buffer is neutered.
-  //   c) The index is out of bounds
   if (key_type->Is(Type::Integral32()) && base_type->IsConstant() &&
       base_type->AsConstant()->Value()->IsJSTypedArray()) {
     // JSStoreProperty(typed-array, int32, value)
     JSTypedArray* array = JSTypedArray::cast(*base_type->AsConstant()->Value());
     ElementsKind elements_kind = array->map()->elements_kind();
     ExternalArrayType type = array->type();
+    uint32_t length;
+    CHECK(array->length()->ToUint32(&length));
     ElementAccess element_access;
     Node* elements = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
@@ -586,11 +592,24 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
       DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
       element_access = AccessBuilder::ForTypedArrayElement(type, false);
     }
-    Node* store =
-        graph()->NewNode(simplified()->StoreElement(element_access), elements,
-                         key, value, NodeProperties::GetEffectInput(node),
-                         NodeProperties::GetControlInput(node));
-    return ReplaceEagerly(node, store);
+
+    Node* check = graph()->NewNode(machine()->Uint32LessThan(), key,
+                                   jsgraph()->Uint32Constant(length));
+    Node* branch = graph()->NewNode(common()->Branch(), check,
+                                    NodeProperties::GetControlInput(node));
+
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* store = graph()->NewNode(
+        simplified()->StoreElement(element_access), elements, key, value,
+        NodeProperties::GetEffectInput(node), if_true);
+
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    Node* phi = graph()->NewNode(common()->EffectPhi(2), store,
+                                 NodeProperties::GetEffectInput(node), merge);
+
+    return ReplaceWith(phi);
   }
   return NoChange();
 }
@@ -674,6 +693,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
+    case IrOpcode::kJSCallFunction:
+      return JSBuiltinReducer(jsgraph()).Reduce(node);
     default:
       break;
   }

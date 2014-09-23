@@ -289,6 +289,21 @@ void PrettyPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
+void PrettyPrinter::VisitClassLiteral(ClassLiteral* node) {
+  Print("(class ");
+  PrintLiteral(node->name(), false);
+  if (node->extends()) {
+    Print(" extends ");
+    Visit(node->extends());
+  }
+  Print(" { ");
+  for (int i = 0; i < node->properties()->length(); i++) {
+    PrintObjectLiteralProperty(node->properties()->at(i));
+  }
+  Print(" })");
+}
+
+
 void PrettyPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {
   Print("(");
   PrintLiteral(node->name(), false);
@@ -323,13 +338,19 @@ void PrettyPrinter::VisitObjectLiteral(ObjectLiteral* node) {
   Print("{ ");
   for (int i = 0; i < node->properties()->length(); i++) {
     if (i != 0) Print(",");
-    ObjectLiteral::Property* property = node->properties()->at(i);
-    Print(" ");
-    Visit(property->key());
-    Print(": ");
-    Visit(property->value());
+    PrintObjectLiteralProperty(node->properties()->at(i));
   }
   Print(" }");
+}
+
+
+void PrettyPrinter::PrintObjectLiteralProperty(
+    ObjectLiteralProperty* property) {
+  // TODO(arv): Better printing of methods etc.
+  Print(" ");
+  Visit(property->key());
+  Print(": ");
+  Visit(property->value());
 }
 
 
@@ -966,6 +987,12 @@ void AstPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
   // will be printed via PrintProgram when the code for it is
   // generated.
   // PrintStatements(node->body());
+}
+
+
+void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
+  IndentedScope indent(this, "CLASS LITERAL");
+  PrintLiteralIndented("NAME", node->name(), false);
 }
 
 

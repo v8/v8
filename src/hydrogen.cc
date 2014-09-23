@@ -4834,14 +4834,9 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
 
-  // We only optimize switch statements with a bounded number of clauses.
-  const int kCaseClauseLimit = 128;
   ZoneList<CaseClause*>* clauses = stmt->cases();
   int clause_count = clauses->length();
   ZoneList<HBasicBlock*> body_blocks(clause_count, zone());
-  if (clause_count > kCaseClauseLimit) {
-    return Bailout(kSwitchStatementTooManyClauses);
-  }
 
   CHECK_ALIVE(VisitForValue(stmt->tag()));
   Add<HSimulate>(stmt->EntryId());
@@ -5245,6 +5240,14 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   HFunctionLiteral* instr =
       New<HFunctionLiteral>(shared_info, expr->pretenure());
   return ast_context()->ReturnInstruction(instr, expr->id());
+}
+
+
+void HOptimizedGraphBuilder::VisitClassLiteral(ClassLiteral* lit) {
+  DCHECK(!HasStackOverflow());
+  DCHECK(current_block() != NULL);
+  DCHECK(current_block()->HasPredecessor());
+  return Bailout(kClassLiteral);
 }
 
 
@@ -6262,7 +6265,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
 
   bool handle_smi = false;
   STATIC_ASSERT(kMaxLoadPolymorphism == kMaxStorePolymorphism);
-  for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
+  int i;
+  for (i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
     PropertyAccessInfo info(this, access_type, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
@@ -6277,7 +6281,12 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
     }
   }
 
-  count = 0;
+  if (i < types->length()) {
+    count = -1;
+    types->Clear();
+  } else {
+    count = 0;
+  }
   HControlInstruction* smi_check = NULL;
   handled_string = false;
 
@@ -6422,8 +6431,8 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
     HValue* key = environment()->ExpressionStackAt(1);
     HValue* object = environment()->ExpressionStackAt(2);
     bool has_side_effects = false;
-    HandleKeyedElementAccess(object, key, value, expr,
-                             STORE, &has_side_effects);
+    HandleKeyedElementAccess(object, key, value, expr, ast_id, return_id, STORE,
+                             &has_side_effects);
     Drop(3);
     Push(value);
     Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
@@ -7115,12 +7124,32 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
 
 HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
-    HValue* obj,
-    HValue* key,
-    HValue* val,
-    Expression* expr,
-    PropertyAccessType access_type,
+    HValue* obj, HValue* key, HValue* val, Expression* expr, BailoutId ast_id,
+    BailoutId return_id, PropertyAccessType access_type,
     bool* has_side_effects) {
+  if (key->ActualValue()->IsConstant()) {
+    Handle<Object> constant =
+        HConstant::cast(key->ActualValue())->handle(isolate());
+    uint32_t array_index;
+    if (constant->IsString() &&
+        !Handle<String>::cast(constant)->AsArrayIndex(&array_index)) {
+      if (!constant->IsUniqueName()) {
+        constant = isolate()->factory()->InternalizeString(
+            Handle<String>::cast(constant));
+      }
+      HInstruction* instr =
+          BuildNamedAccess(access_type, ast_id, return_id, expr, obj,
+                           Handle<String>::cast(constant), val, false);
+      if (instr == NULL || instr->IsLinked()) {
+        *has_side_effects = false;
+      } else {
+        AddInstruction(instr);
+        *has_side_effects = instr->HasObservableSideEffects();
+      }
+      return instr;
+    }
+  }
+
   DCHECK(!expr->IsPropertyName());
   HInstruction* instr = NULL;
 
@@ -7331,7 +7360,7 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
 
     bool has_side_effects = false;
     HValue* load = HandleKeyedElementAccess(
-        obj, key, NULL, expr, LOAD, &has_side_effects);
+        obj, key, NULL, expr, ast_id, expr->LoadId(), LOAD, &has_side_effects);
     if (has_side_effects) {
       if (ast_context()->IsEffect()) {
         Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
@@ -7341,6 +7370,7 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
         Drop(1);
       }
     }
+    if (load == NULL) return;
     return ast_context()->ReturnValue(load);
   }
   return ast_context()->ReturnInstruction(instr, ast_id);
@@ -7488,8 +7518,8 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   bool handled_string = false;
   int ordered_functions = 0;
 
-  for (int i = 0;
-       i < types->length() && ordered_functions < kMaxCallPolymorphism;
+  int i;
+  for (i = 0; i < types->length() && ordered_functions < kMaxCallPolymorphism;
        ++i) {
     PropertyAccessInfo info(this, LOAD, ToType(types->at(i)), name);
     if (info.CanAccessMonomorphic() && info.IsConstant() &&
@@ -7509,6 +7539,11 @@ void HOptimizedGraphBuilder::HandlePolymorphicCallNamed(
   }
 
   std::sort(order, order + ordered_functions);
+
+  if (i < types->length()) {
+    types->Clear();
+    ordered_functions = -1;
+  }
 
   HBasicBlock* number_block = NULL;
   HBasicBlock* join = NULL;
@@ -7827,26 +7862,9 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
 
   // Generate the deoptimization data for the unoptimized version of
   // the target function if we don't already have it.
-  if (!target_shared->has_deoptimization_support()) {
-    // Note that we compile here using the same AST that we will use for
-    // generating the optimized inline code.
-    target_info.EnableDeoptimizationSupport();
-    if (!FullCodeGenerator::MakeCode(&target_info)) {
-      TraceInline(target, caller, "could not generate deoptimization info");
-      return false;
-    }
-    if (target_shared->scope_info() == ScopeInfo::Empty(isolate())) {
-      // The scope info might not have been set if a lazily compiled
-      // function is inlined before being called for the first time.
-      Handle<ScopeInfo> target_scope_info =
-          ScopeInfo::Create(target_info.scope(), zone());
-      target_shared->set_scope_info(*target_scope_info);
-    }
-    target_shared->EnableDeoptimizationSupport(*target_info.code());
-    target_shared->set_feedback_vector(*target_info.feedback_vector());
-    Compiler::RecordFunctionCompilation(Logger::FUNCTION_TAG,
-                                        &target_info,
-                                        target_shared);
+  if (!Compiler::EnsureDeoptimizationSupport(&target_info)) {
+    TraceInline(target, caller, "could not generate deoptimization info");
+    return false;
   }
 
   // ----------------------------------------------------------------
@@ -10982,7 +11000,8 @@ HInstruction* HOptimizedGraphBuilder::BuildFastLiteral(
   }
 
   // Copy in-object properties.
-  if (boilerplate_object->map()->NumberOfFields() != 0) {
+  if (boilerplate_object->map()->NumberOfFields() != 0 ||
+      boilerplate_object->map()->unused_property_fields() > 0) {
     BuildEmitInObjectProperties(boilerplate_object, object, site_context,
                                 pretenure_flag);
   }
@@ -11196,7 +11215,10 @@ void HOptimizedGraphBuilder::VisitThisFunction(ThisFunction* expr) {
 
 
 void HOptimizedGraphBuilder::VisitSuperReference(SuperReference* expr) {
-  UNREACHABLE();
+  DCHECK(!HasStackOverflow());
+  DCHECK(current_block() != NULL);
+  DCHECK(current_block()->HasPredecessor());
+  return Bailout(kSuperReference);
 }
 
 

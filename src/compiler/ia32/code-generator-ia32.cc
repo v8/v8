@@ -111,15 +111,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   IA32OperandConverter i(this, instr);
 
   switch (ArchOpcodeField::decode(instr->opcode())) {
-    case kArchCallAddress:
-      if (HasImmediateInput(instr, 0)) {
-        // TODO(dcarney): wire up EXTERNAL_REFERENCE instead of RUNTIME_ENTRY.
-        __ call(reinterpret_cast<byte*>(i.InputInt32(0)),
-                RelocInfo::RUNTIME_ENTRY);
-      } else {
-        __ call(i.InputRegister(0));
-      }
-      break;
     case kArchCallCodeObject: {
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
@@ -140,11 +131,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
       AddSafepointAndDeopt(instr);
-      break;
-    }
-    case kArchDrop: {
-      int words = MiscField::decode(instr->opcode());
-      __ add(esp, Immediate(kPointerSize * words));
       break;
     }
     case kArchJmp:
@@ -303,8 +289,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64ToUint32: {
       XMMRegister scratch = xmm0;
       __ Move(scratch, -2147483648.0);
-      // TODO(turbofan): IA32 SSE subsd() should take an operand.
-      __ addsd(scratch, i.InputDoubleRegister(0));
+      __ addsd(scratch, i.InputOperand(0));
       __ cvttsd2si(i.OutputRegister(), scratch);
       __ add(i.OutputRegister(), Immediate(0x80000000));
       break;

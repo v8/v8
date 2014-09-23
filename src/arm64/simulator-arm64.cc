@@ -1855,9 +1855,12 @@ void Simulator::LoadStoreWriteBack(unsigned addr_reg,
 void Simulator::CheckMemoryAccess(uintptr_t address, uintptr_t stack) {
   if ((address >= stack_limit_) && (address < stack)) {
     fprintf(stream_, "ACCESS BELOW STACK POINTER:\n");
-    fprintf(stream_, "  sp is here:          0x%016" PRIx64 "\n", stack);
-    fprintf(stream_, "  access was here:     0x%016" PRIx64 "\n", address);
-    fprintf(stream_, "  stack limit is here: 0x%016" PRIx64 "\n", stack_limit_);
+    fprintf(stream_, "  sp is here:          0x%016" PRIx64 "\n",
+            static_cast<uint64_t>(stack));
+    fprintf(stream_, "  access was here:     0x%016" PRIx64 "\n",
+            static_cast<uint64_t>(address));
+    fprintf(stream_, "  stack limit is here: 0x%016" PRIx64 "\n",
+            static_cast<uint64_t>(stack_limit_));
     fprintf(stream_, "\n");
     FATAL("ACCESS BELOW STACK POINTER");
   }

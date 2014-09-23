@@ -369,32 +369,6 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
 }
 
 
-void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
-  // The return address is in lr.
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-  DCHECK(receiver.is(r1));
-  DCHECK(key.is(r2));
-
-  Label slow, notin;
-  MemOperand mapped_location = GenerateMappedArgumentsLookup(
-      masm, receiver, key, r0, r3, r4, &notin, &slow);
-  __ ldr(r0, mapped_location);
-  __ Ret();
-  __ bind(&notin);
-  // The unmapped lookup expects that the parameter map is in r0.
-  MemOperand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, key, r0, r3, &slow);
-  __ ldr(r0, unmapped_location);
-  __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
-  __ cmp(r0, r3);
-  __ b(eq, &slow);
-  __ Ret();
-  __ bind(&slow);
-  GenerateMiss(masm);
-}
-
-
 void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register key = StoreDescriptor::NameRegister();
@@ -635,48 +609,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
-  // Return address is in lr.
-  Label slow;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-  Register scratch1 = r3;
-  Register scratch2 = r4;
-  DCHECK(!scratch1.is(receiver) && !scratch1.is(key));
-  DCHECK(!scratch2.is(receiver) && !scratch2.is(key));
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, &slow);
-
-  // Check that the key is an array index, that is Uint32.
-  __ NonNegativeSmiTst(key);
-  __ b(ne, &slow);
-
-  // Get the map of the receiver.
-  __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
-
-  // Check that it has indexed interceptor and access checks
-  // are not enabled for this object.
-  __ ldrb(scratch2, FieldMemOperand(scratch1, Map::kBitFieldOffset));
-  __ and_(scratch2, scratch2, Operand(kSlowCaseBitFieldMask));
-  __ cmp(scratch2, Operand(1 << Map::kHasIndexedInterceptor));
-  __ b(ne, &slow);
-
-  // Everything is fine, call runtime.
-  __ Push(receiver, key);  // Receiver, key.
-
-  // Perform tail call to the entry.
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(kLoadElementWithInterceptor),
-                        masm->isolate()),
-      2, 1);
-
-  __ bind(&slow);
   GenerateMiss(masm);
 }
 

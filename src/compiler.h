@@ -197,6 +197,8 @@ class CompilationInfo {
 
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
 
+  void MarkAsInliningDisabled() { SetFlag(kInliningEnabled, false); }
+
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
 
   void MarkAsTypingEnabled() { SetFlag(kTypingEnabled); }
@@ -226,7 +228,7 @@ class CompilationInfo {
     DCHECK(global_scope_ == NULL);
     global_scope_ = global_scope;
   }
-  Handle<FixedArray> feedback_vector() const {
+  Handle<TypeFeedbackVector> feedback_vector() const {
     return feedback_vector_;
   }
   void SetCode(Handle<Code> code) { code_ = code; }
@@ -279,7 +281,6 @@ class CompilationInfo {
     unoptimized_code_ = unoptimized;
     optimization_id_ = isolate()->NextOptimizationId();
   }
-  void DisableOptimization();
 
   // Deoptimization support.
   bool HasDeoptimizationSupport() const {
@@ -451,7 +452,7 @@ class CompilationInfo {
   Handle<Context> context_;
 
   // Used by codegen, ultimately kept rooted by the SharedFunctionInfo.
-  Handle<FixedArray> feedback_vector_;
+  Handle<TypeFeedbackVector> feedback_vector_;
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
@@ -659,12 +660,17 @@ class Compiler : public AllStatic {
  public:
   MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
       Handle<JSFunction> function);
+  MUST_USE_RESULT static MaybeHandle<Code> GetLazyCode(
+      Handle<JSFunction> function);
   MUST_USE_RESULT static MaybeHandle<Code> GetUnoptimizedCode(
       Handle<SharedFunctionInfo> shared);
+  MUST_USE_RESULT static MaybeHandle<Code> GetDebugCode(
+      Handle<JSFunction> function);
+
   static bool EnsureCompiled(Handle<JSFunction> function,
                              ClearExceptionFlag flag);
-  MUST_USE_RESULT static MaybeHandle<Code> GetCodeForDebugging(
-      Handle<JSFunction> function);
+
+  static bool EnsureDeoptimizationSupport(CompilationInfo* info);
 
   static void CompileForLiveEdit(Handle<Script> script);
 
@@ -706,10 +712,6 @@ class Compiler : public AllStatic {
   // Generate and return code from previously queued optimization job.
   // On failure, return the empty handle.
   static Handle<Code> GetConcurrentlyOptimizedCode(OptimizedCompileJob* job);
-
-  static void RecordFunctionCompilation(Logger::LogEventsAndTags tag,
-                                        CompilationInfo* info,
-                                        Handle<SharedFunctionInfo> shared);
 
   static bool DebuggerWantsEagerCompilation(
       CompilationInfo* info, bool allow_lazy_without_ctx = false);

@@ -27,7 +27,7 @@ class LCodeGen: public LCodeGenBase {
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : LCodeGenBase(chunk, assembler, info),
         deoptimizations_(4, info->zone()),
-        deopt_jump_table_(4, info->zone()),
+        jump_table_(4, info->zone()),
         deoptimization_literals_(8, info->zone()),
         inlined_function_count_(0),
         scope_(info->scope()),
@@ -213,27 +213,35 @@ class LCodeGen: public LCodeGenBase {
                                    Register temp,
                                    LOperand* index,
                                    String::Encoding encoding);
-  void DeoptimizeBranch(
-      LEnvironment* environment,
-      BranchType branch_type, Register reg = NoReg, int bit = -1,
-      Deoptimizer::BailoutType* override_bailout_type = NULL);
-  void Deoptimize(LEnvironment* environment,
-                  Deoptimizer::BailoutType* override_bailout_type = NULL);
-  void DeoptimizeIf(Condition cond, LEnvironment* environment);
-  void DeoptimizeIfZero(Register rt, LEnvironment* environment);
-  void DeoptimizeIfNotZero(Register rt, LEnvironment* environment);
-  void DeoptimizeIfNegative(Register rt, LEnvironment* environment);
-  void DeoptimizeIfSmi(Register rt, LEnvironment* environment);
-  void DeoptimizeIfNotSmi(Register rt, LEnvironment* environment);
-  void DeoptimizeIfRoot(Register rt,
-                        Heap::RootListIndex index,
-                        LEnvironment* environment);
-  void DeoptimizeIfNotRoot(Register rt,
-                           Heap::RootListIndex index,
-                           LEnvironment* environment);
-  void DeoptimizeIfMinusZero(DoubleRegister input, LEnvironment* environment);
-  void DeoptimizeIfBitSet(Register rt, int bit, LEnvironment* environment);
-  void DeoptimizeIfBitClear(Register rt, int bit, LEnvironment* environment);
+  void DeoptimizeBranch(LInstruction* instr, const char* detail,
+                        BranchType branch_type, Register reg = NoReg,
+                        int bit = -1,
+                        Deoptimizer::BailoutType* override_bailout_type = NULL);
+  void Deoptimize(LInstruction* instr,
+                  Deoptimizer::BailoutType* override_bailout_type = NULL,
+                  const char* detail = NULL);
+  void DeoptimizeIf(Condition cond, LInstruction* instr,
+                    const char* detail = NULL);
+  void DeoptimizeIfZero(Register rt, LInstruction* instr,
+                        const char* detail = NULL);
+  void DeoptimizeIfNotZero(Register rt, LInstruction* instr,
+                           const char* detail = NULL);
+  void DeoptimizeIfNegative(Register rt, LInstruction* instr,
+                            const char* detail = NULL);
+  void DeoptimizeIfSmi(Register rt, LInstruction* instr,
+                       const char* detail = NULL);
+  void DeoptimizeIfNotSmi(Register rt, LInstruction* instr,
+                          const char* detail = NULL);
+  void DeoptimizeIfRoot(Register rt, Heap::RootListIndex index,
+                        LInstruction* instr, const char* detail = NULL);
+  void DeoptimizeIfNotRoot(Register rt, Heap::RootListIndex index,
+                           LInstruction* instr, const char* detail = NULL);
+  void DeoptimizeIfMinusZero(DoubleRegister input, LInstruction* instr,
+                             const char* detail = NULL);
+  void DeoptimizeIfBitSet(Register rt, int bit, LInstruction* instr,
+                          const char* detail = NULL);
+  void DeoptimizeIfBitClear(Register rt, int bit, LInstruction* instr,
+                            const char* detail = NULL);
 
   MemOperand PrepareKeyedExternalArrayOperand(Register key,
                                               Register base,
@@ -276,7 +284,7 @@ class LCodeGen: public LCodeGenBase {
   void GenerateBodyInstructionPre(LInstruction* instr) OVERRIDE;
   bool GeneratePrologue();
   bool GenerateDeferredCode();
-  bool GenerateDeoptJumpTable();
+  bool GenerateJumpTable();
   bool GenerateSafepointTable();
 
   // Generates the custom OSR entrypoint and sets the osr_pc_offset.
@@ -341,7 +349,7 @@ class LCodeGen: public LCodeGenBase {
   void EnsureSpaceForLazyDeopt(int space_needed) OVERRIDE;
 
   ZoneList<LEnvironment*> deoptimizations_;
-  ZoneList<Deoptimizer::JumpTableEntry*> deopt_jump_table_;
+  ZoneList<Deoptimizer::JumpTableEntry*> jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;

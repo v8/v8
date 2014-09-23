@@ -216,15 +216,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AddSafepointAndDeopt(instr);
       break;
     }
-    case kArchCallAddress:
-      if (HasImmediateInput(instr, 0)) {
-        Immediate64 imm = i.InputImmediate64(0);
-        DCHECK_EQ(kImm64Value, imm.type);
-        __ Call(reinterpret_cast<byte*>(imm.value), RelocInfo::NONE64);
-      } else {
-        __ call(i.InputRegister(0));
-      }
-      break;
     case kArchCallJSFunction: {
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
@@ -234,11 +225,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ Call(FieldOperand(func, JSFunction::kCodeEntryOffset));
       AddSafepointAndDeopt(instr);
-      break;
-    }
-    case kArchDrop: {
-      int words = MiscField::decode(instr->opcode());
-      __ addq(rsp, Immediate(kPointerSize * words));
       break;
     }
     case kArchJmp:
@@ -469,8 +455,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kSSEFloat64ToUint32: {
-      // TODO(turbofan): X64 SSE cvttsd2siq should support operands.
-      __ cvttsd2siq(i.OutputRegister(), i.InputDoubleRegister(0));
+      RegisterOrOperand input = i.InputRegisterOrOperand(0);
+      if (input.type == kDoubleRegister) {
+        __ cvttsd2siq(i.OutputRegister(), input.double_reg);
+      } else {
+        __ cvttsd2siq(i.OutputRegister(), input.operand);
+      }
       __ andl(i.OutputRegister(), i.OutputRegister());  // clear upper bits.
       // TODO(turbofan): generated code should not look at the upper 32 bits
       // of the result, but those bits could escape to the outside world.

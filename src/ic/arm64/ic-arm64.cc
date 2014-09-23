@@ -370,35 +370,6 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
-  // The return address is in lr.
-  Register result = x0;
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-  DCHECK(receiver.is(x1));
-  DCHECK(key.is(x2));
-
-  Label miss, unmapped;
-
-  Register map_scratch = x0;
-  MemOperand mapped_location = GenerateMappedArgumentsLookup(
-      masm, receiver, key, map_scratch, x3, x4, &unmapped, &miss);
-  __ Ldr(result, mapped_location);
-  __ Ret();
-
-  __ Bind(&unmapped);
-  // Parameter map is left in map_scratch when a jump on unmapped is done.
-  MemOperand unmapped_location =
-      GenerateUnmappedArgumentsLookup(masm, key, map_scratch, x3, &miss);
-  __ Ldr(result, unmapped_location);
-  __ JumpIfRoot(result, Heap::kTheHoleValueRootIndex, &miss);
-  __ Ret();
-
-  __ Bind(&miss);
-  GenerateMiss(masm);
-}
-
-
 void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   ASM_LOCATION("KeyedStoreIC::GenerateSloppyArguments");
   Label slow, notin;
@@ -678,46 +649,6 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
   char_at_generator.GenerateSlow(masm, call_helper);
 
   __ Bind(&miss);
-  GenerateMiss(masm);
-}
-
-
-void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
-  // Return address is in lr.
-  Label slow;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register key = LoadDescriptor::NameRegister();
-  Register scratch1 = x3;
-  Register scratch2 = x4;
-  DCHECK(!AreAliased(scratch1, scratch2, receiver, key));
-
-  // Check that the receiver isn't a smi.
-  __ JumpIfSmi(receiver, &slow);
-
-  // Check that the key is an array index, that is Uint32.
-  __ TestAndBranchIfAnySet(key, kSmiTagMask | kSmiSignMask, &slow);
-
-  // Get the map of the receiver.
-  Register map = scratch1;
-  __ Ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-
-  // Check that it has indexed interceptor and access checks
-  // are not enabled for this object.
-  __ Ldrb(scratch2, FieldMemOperand(map, Map::kBitFieldOffset));
-  DCHECK(kSlowCaseBitFieldMask == ((1 << Map::kIsAccessCheckNeeded) |
-                                   (1 << Map::kHasIndexedInterceptor)));
-  __ Tbnz(scratch2, Map::kIsAccessCheckNeeded, &slow);
-  __ Tbz(scratch2, Map::kHasIndexedInterceptor, &slow);
-
-  // Everything is fine, call runtime.
-  __ Push(receiver, key);
-  __ TailCallExternalReference(
-      ExternalReference(IC_Utility(kLoadElementWithInterceptor),
-                        masm->isolate()),
-      2, 1);
-
-  __ Bind(&slow);
   GenerateMiss(masm);
 }
 

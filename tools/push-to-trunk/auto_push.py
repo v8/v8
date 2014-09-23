@@ -40,7 +40,6 @@ SETTINGS_LOCATION = "SETTINGS_LOCATION"
 
 CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-auto-push-tempfile",
-  DOT_GIT_LOCATION: ".git",
   SETTINGS_LOCATION: "~/.auto-roll",
 }
 
@@ -51,7 +50,7 @@ class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    self.InitialEnvironmentChecks()
+    self.InitialEnvironmentChecks(self.default_cwd)
     self.CommonPrepare()
 
 

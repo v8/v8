@@ -79,6 +79,7 @@
 //           - OrderedHashSet
 //           - OrderedHashMap
 //         - Context
+//         - TypeFeedbackVector
 //         - JSFunctionResultCache
 //         - ScopeInfo
 //         - TransitionArray
@@ -850,6 +851,7 @@ class GlobalObject;
 class ObjectVisitor;
 class LookupIterator;
 class StringStream;
+class TypeFeedbackVector;
 // We cannot just say "class HeapType;" if it is created from a template... =8-?
 template<class> class TypeImpl;
 struct HeapTypeConfig;
@@ -924,6 +926,7 @@ template <class C> inline bool Is(Object* obj);
   V(Map)                           \
   V(DescriptorArray)               \
   V(TransitionArray)               \
+  V(TypeFeedbackVector)            \
   V(DeoptimizationInputData)       \
   V(DeoptimizationOutputData)      \
   V(DependentCode)                 \
@@ -1016,6 +1019,7 @@ template <class C> inline bool Is(Object* obj);
     "Call to a JavaScript runtime function")                                   \
   V(kCannotTranslatePositionInChangedArea,                                     \
     "Cannot translate position in changed area")                               \
+  V(kClassLiteral, "Class literal")                                            \
   V(kCodeGenerationFailed, "Code generation failed")                           \
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")         \
   V(kCompoundAssignmentToLookupSlot, "Compound assignment to lookup slot")     \
@@ -1196,9 +1200,6 @@ template <class C> inline bool Is(Object* obj);
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
-  V(kSwitchStatementMixedOrNonLiteralSwitchLabels,                             \
-    "SwitchStatement: mixed or non-literal switch labels")                     \
-  V(kSwitchStatementTooManyClauses, "SwitchStatement: too many clauses")       \
   V(kTheCurrentStackPointerIsBelowCsp,                                         \
     "The current stack pointer is below csp")                                  \
   V(kTheInstructionShouldBeALui, "The instruction should be a lui")            \
@@ -4467,6 +4468,12 @@ class ScopeInfo : public FixedArray {
   // Return if contexts are allocated for this scope.
   bool HasContext();
 
+  // Return if this is a function scope with "use asm".
+  bool IsAsmModule() { return AsmModuleField::decode(Flags()); }
+
+  // Return if this is a nested function within an asm module scope.
+  bool IsAsmFunction() { return AsmFunctionField::decode(Flags()); }
+
   // Return the function_name if present.
   String* FunctionName();
 
@@ -4621,6 +4628,8 @@ class ScopeInfo : public FixedArray {
   class StrictModeField:       public BitField<StrictMode,           4, 1> {};
   class FunctionVariableField: public BitField<FunctionVariableInfo, 5, 2> {};
   class FunctionVariableMode:  public BitField<VariableMode,         7, 3> {};
+  class AsmModuleField : public BitField<bool, 10, 1> {};
+  class AsmFunctionField : public BitField<bool, 11, 1> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -6367,8 +6376,7 @@ class Map: public HeapObject {
   // Returns a copy of the map, with all transitions dropped from the
   // instance descriptors.
   static Handle<Map> Copy(Handle<Map> map);
-  static Handle<Map> Create(Handle<JSFunction> constructor,
-                            int extra_inobject_properties);
+  static Handle<Map> Create(Isolate* isolate, int inobject_properties);
 
   // Returns the next free property index (only valid for FAST MODE).
   int NextFreePropertyIndex();
@@ -6974,9 +6982,8 @@ class SharedFunctionInfo: public HeapObject {
 
   // [feedback_vector] - accumulates ast node feedback from full-codegen and
   // (increasingly) from crankshafted code where sufficient feedback isn't
-  // available. Currently the field is duplicated in
-  // TypeFeedbackInfo::feedback_vector, but the allocation is done here.
-  DECL_ACCESSORS(feedback_vector, FixedArray)
+  // available.
+  DECL_ACCESSORS(feedback_vector, TypeFeedbackVector)
 
   // [instance class name]: class name for instances.
   DECL_ACCESSORS(instance_class_name, Object)
@@ -7123,6 +7130,9 @@ class SharedFunctionInfo: public HeapObject {
 
   // Indicates that this function is a concise method.
   DECL_BOOLEAN_ACCESSORS(is_concise_method)
+
+  // Indicates that this function is an asm function.
+  DECL_BOOLEAN_ACCESSORS(asm_function)
 
   inline FunctionKind kind();
   inline void set_kind(FunctionKind kind);
@@ -7324,6 +7334,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsArrow,
     kIsGenerator,
     kIsConciseMethod,
+    kIsAsmFunction,
     kCompilerHintsCount  // Pseudo entry
   };
 
@@ -8031,7 +8042,13 @@ class JSRegExp: public JSObject {
   // IRREGEXP: Compiled with Irregexp.
   // IRREGEXP_NATIVE: Compiled to native code with Irregexp.
   enum Type { NOT_COMPILED, ATOM, IRREGEXP };
-  enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
+  enum Flag {
+    NONE = 0,
+    GLOBAL = 1,
+    IGNORE_CASE = 2,
+    MULTILINE = 4,
+    STICKY = 8
+  };
 
   class Flags {
    public:
@@ -8039,6 +8056,7 @@ class JSRegExp: public JSObject {
     bool is_global() { return (value_ & GLOBAL) != 0; }
     bool is_ignore_case() { return (value_ & IGNORE_CASE) != 0; }
     bool is_multiline() { return (value_ & MULTILINE) != 0; }
+    bool is_sticky() { return (value_ & STICKY) != 0; }
     uint32_t value() { return value_; }
    private:
     uint32_t value_;
@@ -8368,28 +8386,6 @@ class TypeFeedbackInfo: public Struct {
   static const int kStorage2Offset = kStorage1Offset + kPointerSize;
   static const int kStorage3Offset = kStorage2Offset + kPointerSize;
   static const int kSize = kStorage3Offset + kPointerSize;
-
-  // TODO(mvstanton): move these sentinel declarations to shared function info.
-  // The object that indicates an uninitialized cache.
-  static inline Handle<Object> UninitializedSentinel(Isolate* isolate);
-
-  // The object that indicates a megamorphic state.
-  static inline Handle<Object> MegamorphicSentinel(Isolate* isolate);
-
-  // The object that indicates a premonomorphic state.
-  static inline Handle<Object> PremonomorphicSentinel(Isolate* isolate);
-
-  // The object that indicates a generic state.
-  static inline Handle<Object> GenericSentinel(Isolate* isolate);
-
-  // The object that indicates a monomorphic state of Array with
-  // ElementsKind
-  static inline Handle<Object> MonomorphicArraySentinel(Isolate* isolate,
-      ElementsKind elements_kind);
-
-  // A raw version of the uninitialized sentinel that's safe to read during
-  // garbage collection (e.g., for patching the cache).
-  static inline Object* RawUninitializedSentinel(Heap* heap);
 
  private:
   static const int kTypeChangeChecksumBits = 7;

@@ -147,6 +147,15 @@ void LCodeGenBase::Comment(const char* format, ...) {
 }
 
 
+void LCodeGenBase::DeoptComment(const Deoptimizer::Reason& reason) {
+  OStringStream os;
+  os << ";;; deoptimize at " << HSourcePosition(reason.raw_position) << " "
+     << reason.mnemonic;
+  if (reason.detail != NULL) os << ": " << reason.detail;
+  Comment("%s", os.c_str());
+}
+
+
 int LCodeGenBase::GetNextEmittedBlock() const {
   for (int i = current_block_ + 1; i < graph()->blocks()->length(); ++i) {
     if (!graph()->blocks()->at(i)->IsReachable()) continue;

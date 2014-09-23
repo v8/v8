@@ -653,7 +653,7 @@ class Scanner {
   bool harmony_modules_;
   // Whether we scan 0o777 and 0b111 as numbers.
   bool harmony_numeric_literals_;
-  // Whether we scan 'super' as keyword.
+  // Whether we scan 'class', 'extends', 'static' and 'super' as keywords.
   bool harmony_classes_;
 };
 

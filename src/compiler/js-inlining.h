@@ -12,6 +12,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+class JSCallFunctionAccessor;
+
 class JSInliner {
  public:
   JSInliner(CompilationInfo* info, JSGraph* jsgraph)
@@ -25,6 +27,10 @@ class JSInliner {
   CompilationInfo* info_;
   JSGraph* jsgraph_;
 
+  Node* CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
+                                         Handle<JSFunction> jsfunction,
+                                         Zone* temp_zone);
+  void AddClosureToFrameState(Node* frame_state, Handle<JSFunction> jsfunction);
   static void UnifyReturn(Graph* graph);
 };
 }

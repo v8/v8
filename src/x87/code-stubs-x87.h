@@ -116,11 +116,9 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
 
 class RecordWriteStub: public PlatformCodeStub {
  public:
-  RecordWriteStub(Isolate* isolate,
-                  Register object,
-                  Register value,
-                  Register address,
-                  RememberedSetAction remembered_set_action)
+  RecordWriteStub(Isolate* isolate, Register object, Register value,
+                  Register address, RememberedSetAction remembered_set_action,
+                  SaveFPRegsMode fp_mode)
       : PlatformCodeStub(isolate),
         regs_(object,   // An input reg.
               address,  // An input reg.
@@ -128,7 +126,8 @@ class RecordWriteStub: public PlatformCodeStub {
     minor_key_ = ObjectBits::encode(object.code()) |
                  ValueBits::encode(value.code()) |
                  AddressBits::encode(address.code()) |
-                 RememberedSetActionBits::encode(remembered_set_action);
+                 RememberedSetActionBits::encode(remembered_set_action) |
+                 SaveFPRegsModeBits::encode(fp_mode);
   }
 
   RecordWriteStub(uint32_t key, Isolate* isolate)
@@ -271,12 +270,23 @@ class RecordWriteStub: public PlatformCodeStub {
     // saved registers that were not already preserved.  The caller saved
     // registers are eax, ecx and edx.  The three scratch registers (incl. ecx)
     // will be restored by other means so we don't bother pushing them here.
-    void SaveCallerSaveRegisters(MacroAssembler* masm) {
+    void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
       if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->push(eax);
       if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->push(edx);
+      if (mode == kSaveFPRegs) {
+        // Save FPU state in m108byte.
+        masm->sub(esp, Immediate(108));
+        masm->fnsave(Operand(esp, 0));
+      }
     }
 
-    inline void RestoreCallerSaveRegisters(MacroAssembler*masm) {
+    inline void RestoreCallerSaveRegisters(MacroAssembler* masm,
+                                           SaveFPRegsMode mode) {
+      if (mode == kSaveFPRegs) {
+        // Restore FPU state in m108byte.
+        masm->frstor(Operand(esp, 0));
+        masm->add(esp, Immediate(108));
+      }
       if (!scratch0_.is(edx) && !scratch1_.is(edx)) masm->pop(edx);
       if (!scratch0_.is(eax) && !scratch1_.is(eax)) masm->pop(eax);
     }
@@ -348,10 +358,15 @@ class RecordWriteStub: public PlatformCodeStub {
     return RememberedSetActionBits::decode(minor_key_);
   }
 
+  SaveFPRegsMode save_fp_regs_mode() const {
+    return SaveFPRegsModeBits::decode(minor_key_);
+  }
+
   class ObjectBits: public BitField<int, 0, 3> {};
   class ValueBits: public BitField<int, 3, 3> {};
   class AddressBits: public BitField<int, 6, 3> {};
   class RememberedSetActionBits: public BitField<RememberedSetAction, 9, 1> {};
+  class SaveFPRegsModeBits : public BitField<SaveFPRegsMode, 10, 1> {};
 
   RegisterAllocation regs_;
 

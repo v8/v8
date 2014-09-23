@@ -94,9 +94,13 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
 
   ElementsKind elements_kind = receiver_map->elements_kind();
   Handle<Code> stub;
-  if (receiver_map->has_fast_elements() ||
-      receiver_map->has_external_array_elements() ||
-      receiver_map->has_fixed_typed_array_elements()) {
+  if (receiver_map->has_indexed_interceptor()) {
+    stub = LoadIndexedInterceptorStub(isolate).GetCode();
+  } else if (receiver_map->has_sloppy_arguments_elements()) {
+    stub = KeyedLoadSloppyArgumentsStub(isolate).GetCode();
+  } else if (receiver_map->has_fast_elements() ||
+             receiver_map->has_external_array_elements() ||
+             receiver_map->has_fixed_typed_array_elements()) {
     stub = LoadFastElementStub(isolate,
                                receiver_map->instance_type() == JS_ARRAY_TYPE,
                                elements_kind).GetCode();

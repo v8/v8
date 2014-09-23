@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_OPERATOR_REDUCERS_H_
-#define V8_COMPILER_OPERATOR_REDUCERS_H_
+#ifndef V8_COMPILER_JS_TYPED_LOWERING_H_
+#define V8_COMPILER_JS_TYPED_LOWERING_H_
 
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-graph.h"
@@ -61,4 +61,4 @@ class JSTypedLowering FINAL : public Reducer {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_OPERATOR_REDUCERS_H_
+#endif  // V8_COMPILER_JS_TYPED_LOWERING_H_

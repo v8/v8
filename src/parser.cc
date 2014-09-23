@@ -366,6 +366,16 @@ bool ParserTraits::IsEvalOrArguments(const AstRawString* identifier) const {
 }
 
 
+bool ParserTraits::IsPrototype(const AstRawString* identifier) const {
+  return identifier == parser_->ast_value_factory()->prototype_string();
+}
+
+
+bool ParserTraits::IsConstructor(const AstRawString* identifier) const {
+  return identifier == parser_->ast_value_factory()->constructor_string();
+}
+
+
 bool ParserTraits::IsThisProperty(Expression* expression) {
   DCHECK(expression != NULL);
   Property* property = expression->AsProperty();
@@ -652,6 +662,13 @@ Expression* ParserTraits::SuperReference(
   return factory->NewSuperReference(
       ThisExpression(scope, factory, pos)->AsVariableProxy(),
       pos);
+}
+
+Expression* ParserTraits::ClassLiteral(
+    const AstRawString* name, Expression* extends, Expression* constructor,
+    ZoneList<ObjectLiteral::Property*>* properties, int pos,
+    AstNodeFactory<AstConstructionVisitor>* factory) {
+  return factory->NewClassLiteral(name, extends, constructor, properties, pos);
 }
 
 Literal* ParserTraits::ExpressionFromLiteral(
@@ -1103,6 +1120,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
           // Store the usage count; The actual use counter on the isolate is
           // incremented after parsing is done.
           ++use_counts_[v8::Isolate::kUseAsm];
+          scope_->SetAsmModule();
         }
       } else {
         // End of the directive prologue.
@@ -1136,6 +1154,8 @@ Statement* Parser::ParseModuleElement(ZoneList<const AstRawString*>* labels,
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(NULL, ok);
+    case Token::CLASS:
+      return ParseClassDeclaration(NULL, ok);
     case Token::IMPORT:
       return ParseImportDeclaration(ok);
     case Token::EXPORT:
@@ -1475,6 +1495,10 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       result = ParseFunctionDeclaration(&names, CHECK_OK);
       break;
 
+    case Token::CLASS:
+      result = ParseClassDeclaration(&names, CHECK_OK);
+      break;
+
     case Token::VAR:
     case Token::LET:
     case Token::CONST:
@@ -1537,10 +1561,13 @@ Statement* Parser::ParseBlockElement(ZoneList<const AstRawString*>* labels,
   //    LetDeclaration
   //    ConstDeclaration
   //    GeneratorDeclaration
+  //    ClassDeclaration
 
   switch (peek()) {
     case Token::FUNCTION:
       return ParseFunctionDeclaration(NULL, ok);
+    case Token::CLASS:
+      return ParseClassDeclaration(NULL, ok);
     case Token::CONST:
       return ParseVariableStatement(kModuleElement, NULL, ok);
     case Token::LET:
@@ -1651,6 +1678,9 @@ Statement* Parser::ParseStatement(ZoneList<const AstRawString*>* labels,
       }
       return ParseFunctionDeclaration(NULL, ok);
     }
+
+    case Token::CLASS:
+      return ParseClassDeclaration(NULL, ok);
 
     case Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
@@ -1917,6 +1947,47 @@ Statement* Parser::ParseFunctionDeclaration(
   Declare(declaration, true, CHECK_OK);
   if (names) names->Add(name, zone());
   return factory()->NewEmptyStatement(RelocInfo::kNoPosition);
+}
+
+
+Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
+                                         bool* ok) {
+  // ClassDeclaration ::
+  //   'class' Identifier ('extends' LeftHandExpression)? '{' ClassBody '}'
+  //
+  // A ClassDeclaration
+  //
+  //   class C { ... }
+  //
+  // has the same semantics as:
+  //
+  //   let C = class C { ... };
+  //
+  // so rewrite it as such.
+
+  Expect(Token::CLASS, CHECK_OK);
+  int pos = position();
+  bool is_strict_reserved = false;
+  const AstRawString* name =
+      ParseIdentifierOrStrictReservedWord(&is_strict_reserved, CHECK_OK);
+  Expression* value = ParseClassLiteral(name, scanner()->location(),
+                                        is_strict_reserved, pos, CHECK_OK);
+
+  Block* block = factory()->NewBlock(NULL, 1, true, pos);
+  VariableMode mode = LET;
+  VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
+  Declaration* declaration =
+      factory()->NewVariableDeclaration(proxy, mode, scope_, pos);
+  Declare(declaration, true, CHECK_OK);
+
+  Token::Value init_op = Token::INIT_LET;
+  Assignment* assignment = factory()->NewAssignment(init_op, proxy, value, pos);
+  block->AddStatement(
+      factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
+      zone());
+
+  if (names) names->Add(name, zone());
+  return block;
 }
 
 

@@ -47,7 +47,6 @@ from git_recipes import GitFailedException
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
 BRANCHNAME = "BRANCHNAME"
-DOT_GIT_LOCATION = "DOT_GIT_LOCATION"
 VERSION_FILE = "VERSION_FILE"
 CHANGELOG_FILE = "CHANGELOG_FILE"
 CHANGELOG_ENTRY_FILE = "CHANGELOG_ENTRY_FILE"
@@ -414,9 +413,9 @@ class Step(GitRecipesMixin):
           msg = "Can't continue. Please delete branch %s and try again." % name
           self.Die(msg)
 
-  def InitialEnvironmentChecks(self):
+  def InitialEnvironmentChecks(self, cwd):
     # Cancel if this is not a git checkout.
-    if not os.path.exists(self._config[DOT_GIT_LOCATION]):  # pragma: no cover
+    if not os.path.exists(os.path.join(cwd, ".git")):  # pragma: no cover
       self.Die("This is not a git checkout, this script won't work for you.")
 
     # Cancel if EDITOR is unset or not executable.

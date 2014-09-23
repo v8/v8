@@ -12,6 +12,7 @@
 #include "src/compiler.h"
 #include "src/debug.h"
 #include "src/full-codegen.h"
+#include "src/ic/ic.h"
 #include "src/isolate-inl.h"
 #include "src/parser.h"
 #include "src/scopes.h"
@@ -220,10 +221,8 @@ void FullCodeGenerator::Generate() {
         __ mov(Operand(esi, context_offset), eax);
         // Update the write barrier. This clobbers eax and ebx.
         if (need_write_barrier) {
-          __ RecordWriteContextSlot(esi,
-                                    context_offset,
-                                    eax,
-                                    ebx);
+          __ RecordWriteContextSlot(esi, context_offset, eax, ebx,
+                                    kDontSaveFPRegs);
         } else if (FLAG_debug_code) {
           Label done;
           __ JumpIfInNewSpace(esi, eax, &done, Label::kNear);
@@ -707,7 +706,7 @@ void FullCodeGenerator::SetVar(Variable* var,
   if (var->IsContextSlot()) {
     int offset = Context::SlotOffset(var->index());
     DCHECK(!scratch0.is(esi) && !src.is(esi) && !scratch1.is(esi));
-    __ RecordWriteContextSlot(scratch0, offset, src, scratch1);
+    __ RecordWriteContextSlot(scratch0, offset, src, scratch1, kDontSaveFPRegs);
   }
 }
 
@@ -837,12 +836,9 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       VisitForAccumulatorValue(declaration->fun());
       __ mov(ContextOperand(esi, variable->index()), result_register());
       // We know that we have written a function, which is not a smi.
-      __ RecordWriteContextSlot(esi,
-                                Context::SlotOffset(variable->index()),
-                                result_register(),
-                                ecx,
-                                EMIT_REMEMBERED_SET,
-                                OMIT_SMI_CHECK);
+      __ RecordWriteContextSlot(esi, Context::SlotOffset(variable->index()),
+                                result_register(), ecx, kDontSaveFPRegs,
+                                EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
       PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       break;
     }
@@ -876,11 +872,8 @@ void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   // Assign it.
   __ mov(ContextOperand(esi, variable->index()), eax);
   // We know that we have written a module, which is not a smi.
-  __ RecordWriteContextSlot(esi,
-                            Context::SlotOffset(variable->index()),
-                            eax,
-                            ecx,
-                            EMIT_REMEMBERED_SET,
+  __ RecordWriteContextSlot(esi, Context::SlotOffset(variable->index()), eax,
+                            ecx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                             OMIT_SMI_CHECK);
   PrepareForBailoutForId(declaration->proxy()->id(), NO_REGISTERS);
 
@@ -1114,7 +1107,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // No need for a write barrier, we are storing a Smi in the feedback vector.
   __ LoadHeapObject(ebx, FeedbackVector());
   __ mov(FieldOperand(ebx, FixedArray::OffsetOfElementAt(slot)),
-         Immediate(TypeFeedbackInfo::MegamorphicSentinel(isolate())));
+         Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate())));
 
   __ mov(ebx, Immediate(Smi::FromInt(1)));  // Smi indicates slow check
   __ mov(ecx, Operand(esp, 0 * kPointerSize));  // Get enumerated object
@@ -1271,6 +1264,25 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
 void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   Comment cmnt(masm_, "[ VariableProxy");
   EmitVariableLoad(expr);
+}
+
+
+void FullCodeGenerator::EmitLoadHomeObject(SuperReference* expr) {
+  Comment cnmt(masm_, "[ SuperReference ");
+
+  __ mov(LoadDescriptor::ReceiverRegister(),
+         Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+
+  Handle<Symbol> home_object_symbol(isolate()->heap()->home_object_symbol());
+  __ mov(LoadDescriptor::NameRegister(), home_object_symbol);
+
+  CallLoadIC(NOT_CONTEXTUAL, expr->HomeObjectFeedbackId());
+
+  __ cmp(eax, isolate()->factory()->undefined_value());
+  Label done;
+  __ j(not_equal, &done);
+  __ CallRuntime(Runtime::kThrowNonMethodError, 0);
+  __ bind(&done);
 }
 
 
@@ -1763,9 +1775,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       // Store the subexpression value in the array's elements.
       __ mov(FieldOperand(ebx, offset), result_register());
       // Update the write barrier for the array store.
-      __ RecordWriteField(ebx, offset, result_register(), ecx,
-                          EMIT_REMEMBERED_SET,
-                          INLINE_SMI_CHECK);
+      __ RecordWriteField(ebx, offset, result_register(), ecx, kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET, INLINE_SMI_CHECK);
     } else {
       // Store the subexpression value in the array's elements.
       __ mov(ecx, Immediate(Smi::FromInt(i)));
@@ -1922,7 +1933,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
              Immediate(Smi::FromInt(continuation.pos())));
       __ mov(FieldOperand(eax, JSGeneratorObject::kContextOffset), esi);
       __ mov(ecx, esi);
-      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx);
+      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx,
+                          kDontSaveFPRegs);
       __ lea(ebx, Operand(ebp, StandardFrameConstants::kExpressionsOffset));
       __ cmp(esp, ebx);
       __ j(equal, &post_runtime);
@@ -1996,7 +2008,8 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
              Immediate(Smi::FromInt(l_continuation.pos())));
       __ mov(FieldOperand(eax, JSGeneratorObject::kContextOffset), esi);
       __ mov(ecx, esi);
-      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx);
+      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx,
+                          kDontSaveFPRegs);
       __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
       __ mov(context_register(),
              Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -2204,8 +2217,8 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   // Only the value field needs a write barrier, as the other values are in the
   // root set.
-  __ RecordWriteField(eax, JSGeneratorObject::kResultValuePropertyOffset,
-                      ecx, edx);
+  __ RecordWriteField(eax, JSGeneratorObject::kResultValuePropertyOffset, ecx,
+                      edx, kDontSaveFPRegs);
 }
 
 
@@ -2221,6 +2234,21 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   } else {
     CallLoadIC(NOT_CONTEXTUAL, prop->PropertyFeedbackId());
   }
+}
+
+
+void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
+  SetSourcePosition(prop->position());
+  Literal* key = prop->key()->AsLiteral();
+  DCHECK(!key->value()->IsSmi());
+  DCHECK(prop->IsSuperAccess());
+
+  SuperReference* super_ref = prop->obj()->AsSuperReference();
+  EmitLoadHomeObject(super_ref);
+  __ push(eax);
+  VisitForStackValue(super_ref->this_var());
+  __ push(Immediate(key->value()));
+  __ CallRuntime(Runtime::kLoadFromSuper, 3);
 }
 
 
@@ -2398,7 +2426,7 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
   if (var->IsContextSlot()) {
     __ mov(edx, eax);
     int offset = Context::SlotOffset(var->index());
-    __ RecordWriteContextSlot(ecx, offset, edx, ebx);
+    __ RecordWriteContextSlot(ecx, offset, edx, ebx, kDontSaveFPRegs);
   }
 }
 
@@ -2513,9 +2541,13 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
   Expression* key = expr->key();
 
   if (key->IsPropertyName()) {
-    VisitForAccumulatorValue(expr->obj());
-    __ Move(LoadDescriptor::ReceiverRegister(), result_register());
-    EmitNamedPropertyLoad(expr);
+    if (!expr->IsSuperAccess()) {
+      VisitForAccumulatorValue(expr->obj());
+      __ Move(LoadDescriptor::ReceiverRegister(), result_register());
+      EmitNamedPropertyLoad(expr);
+    } else {
+      EmitNamedSuperPropertyLoad(expr);
+    }
     PrepareForBailoutForId(expr->LoadId(), TOS_REG);
     context()->Plug(eax);
   } else {
@@ -2540,11 +2572,10 @@ void FullCodeGenerator::CallIC(Handle<Code> code,
 void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   Expression* callee = expr->expression();
 
-  CallIC::CallType call_type = callee->IsVariableProxy()
-      ? CallIC::FUNCTION
-      : CallIC::METHOD;
+  CallICState::CallType call_type =
+      callee->IsVariableProxy() ? CallICState::FUNCTION : CallICState::METHOD;
   // Get the target function.
-  if (call_type == CallIC::FUNCTION) {
+  if (call_type == CallICState::FUNCTION) {
     { StackValueContext context(this);
       EmitVariableLoad(callee->AsVariableProxy());
       PrepareForBailout(callee, NO_REGISTERS);
@@ -2555,6 +2586,7 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   } else {
     // Load the function from the receiver.
     DCHECK(callee->IsProperty());
+    DCHECK(!callee->AsProperty()->IsSuperAccess());
     __ mov(LoadDescriptor::ReceiverRegister(), Operand(esp, 0));
     EmitNamedPropertyLoad(callee->AsProperty());
     PrepareForBailoutForId(callee->AsProperty()->LoadId(), TOS_REG);
@@ -2564,6 +2596,42 @@ void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
   }
 
   EmitCall(expr, call_type);
+}
+
+
+void FullCodeGenerator::EmitSuperCallWithLoadIC(Call* expr) {
+  Expression* callee = expr->expression();
+  DCHECK(callee->IsProperty());
+  Property* prop = callee->AsProperty();
+  DCHECK(prop->IsSuperAccess());
+
+  SetSourcePosition(prop->position());
+  Literal* key = prop->key()->AsLiteral();
+  DCHECK(!key->value()->IsSmi());
+  // Load the function from the receiver.
+  SuperReference* super_ref = callee->AsProperty()->obj()->AsSuperReference();
+  EmitLoadHomeObject(super_ref);
+  __ push(eax);
+  VisitForAccumulatorValue(super_ref->this_var());
+  __ push(eax);
+  __ push(Operand(esp, kPointerSize));
+  __ push(eax);
+  __ push(Immediate(key->value()));
+  // Stack here:
+  //  - home_object
+  //  - this (receiver)
+  //  - home_object <-- LoadFromSuper will pop here and below.
+  //  - this (receiver)
+  //  - key
+  __ CallRuntime(Runtime::kLoadFromSuper, 3);
+
+  // Replace home_object with target function.
+  __ mov(Operand(esp, kPointerSize), eax);
+
+  // Stack here:
+  // - target function
+  // - this (receiver)
+  EmitCall(expr, CallICState::METHOD);
 }
 
 
@@ -2586,11 +2654,11 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
   __ push(Operand(esp, 0));
   __ mov(Operand(esp, kPointerSize), eax);
 
-  EmitCall(expr, CallIC::METHOD);
+  EmitCall(expr, CallICState::METHOD);
 }
 
 
-void FullCodeGenerator::EmitCall(Call* expr, CallIC::CallType call_type) {
+void FullCodeGenerator::EmitCall(Call* expr, CallICState::CallType call_type) {
   // Load the arguments.
   ZoneList<Expression*>* args = expr->arguments();
   int arg_count = args->length();
@@ -2727,15 +2795,21 @@ void FullCodeGenerator::VisitCall(Call* expr) {
 
   } else if (call_type == Call::PROPERTY_CALL) {
     Property* property = callee->AsProperty();
-    { PreservePositionScope scope(masm()->positions_recorder());
-      VisitForStackValue(property->obj());
-    }
-    if (property->key()->IsPropertyName()) {
-      EmitCallWithLoadIC(expr);
+    bool is_named_call = property->key()->IsPropertyName();
+    // super.x() is handled in EmitCallWithLoadIC.
+    if (property->IsSuperAccess() && is_named_call) {
+      EmitSuperCallWithLoadIC(expr);
     } else {
-      EmitKeyedCallWithLoadIC(expr, property->key());
+      {
+        PreservePositionScope scope(masm()->positions_recorder());
+        VisitForStackValue(property->obj());
+      }
+      if (is_named_call) {
+        EmitCallWithLoadIC(expr);
+      } else {
+        EmitKeyedCallWithLoadIC(expr, property->key());
+      }
     }
-
   } else {
     DCHECK(call_type == Call::OTHER_CALL);
     // Call to an arbitrary expression not handled specially above.
@@ -3451,7 +3525,7 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
   // Update the write barrier.  Save the value as it will be
   // overwritten by the write barrier code and is needed afterward.
   __ mov(edx, eax);
-  __ RecordWriteField(ebx, JSValue::kValueOffset, edx, ecx);
+  __ RecordWriteField(ebx, JSValue::kValueOffset, edx, ecx, kDontSaveFPRegs);
 
   __ bind(&done);
   context()->Plug(eax);

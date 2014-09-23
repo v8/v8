@@ -137,6 +137,13 @@ const Operator* CommonOperatorBuilder::Int64Constant(int64_t value) {
 }
 
 
+const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
+  return new (zone())
+      Operator1<float>(IrOpcode::kFloat32Constant, Operator::kPure, 0, 1,
+                       "Float32Constant", value);
+}
+
+
 const Operator* CommonOperatorBuilder::Float64Constant(volatile double value) {
   return new (zone())
       Operator1<double>(IrOpcode::kFloat64Constant, Operator::kPure, 0, 1,
@@ -206,10 +213,11 @@ const Operator* CommonOperatorBuilder::StateValues(int arguments) {
 
 
 const Operator* CommonOperatorBuilder::FrameState(
-    BailoutId bailout_id, OutputFrameStateCombine combine) {
+    FrameStateType type, BailoutId bailout_id,
+    OutputFrameStateCombine state_combine, MaybeHandle<JSFunction> jsfunction) {
   return new (zone()) Operator1<FrameStateCallInfo>(
       IrOpcode::kFrameState, Operator::kPure, 4, 1, "FrameState",
-      FrameStateCallInfo(bailout_id, combine));
+      FrameStateCallInfo(type, bailout_id, state_combine, jsfunction));
 }
 
 

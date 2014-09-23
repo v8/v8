@@ -1,3 +1,10 @@
+2014-09-23: Version 3.29.82
+
+        Fix escaped index JSON parsing (Chromium issue 416449).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-17: Version 3.29.70
 
         Enable ES6 generators (issue 2355).

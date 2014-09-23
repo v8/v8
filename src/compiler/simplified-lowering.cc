@@ -349,6 +349,15 @@ class RepresentationSelector {
     return changer_->Float64OperatorFor(node->opcode());
   }
 
+  static MachineType AssumeImplicitFloat32Change(MachineType type) {
+    // TODO(titzer): Assume loads of float32 change representation to float64.
+    // Fix this with full support for float32 representations.
+    if (type & kRepFloat32) {
+      return static_cast<MachineType>((type & ~kRepFloat32) | kRepFloat64);
+    }
+    return type;
+  }
+
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, MachineTypeUnion use,
@@ -429,6 +438,24 @@ class RepresentationSelector {
           // No input representation requirement; adapt during lowering.
           ProcessInput(node, 0, kTypeBool);
           SetOutput(node, kRepBit);
+        }
+        break;
+      }
+      case IrOpcode::kBooleanToNumber: {
+        if (lower()) {
+          MachineTypeUnion input = GetInfo(node->InputAt(0))->output;
+          if (input & kRepBit) {
+            // BooleanToNumber(x: kRepBit) => x
+            DeferReplacement(node, node->InputAt(0));
+          } else {
+            // BooleanToNumber(x: kRepTagged) => WordEqual(x, #true)
+            node->set_op(lowering->machine()->WordEqual());
+            node->AppendInput(jsgraph_->zone(), jsgraph_->TrueConstant());
+          }
+        } else {
+          // No input representation requirement; adapt during lowering.
+          ProcessInput(node, 0, kTypeBool);
+          SetOutput(node, kMachInt32);
         }
         break;
       }
@@ -552,14 +579,14 @@ class RepresentationSelector {
         FieldAccess access = FieldAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessRemainingInputs(node, 1);
-        SetOutput(node, access.machine_type);
+        SetOutput(node, AssumeImplicitFloat32Change(access.machine_type));
         if (lower()) lowering->DoLoadField(node);
         break;
       }
       case IrOpcode::kStoreField: {
         FieldAccess access = FieldAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
-        ProcessInput(node, 1, access.machine_type);
+        ProcessInput(node, 1, AssumeImplicitFloat32Change(access.machine_type));
         ProcessRemainingInputs(node, 2);
         SetOutput(node, 0);
         if (lower()) lowering->DoStoreField(node);
@@ -570,7 +597,7 @@ class RepresentationSelector {
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessInput(node, 1, kMachInt32);  // element index
         ProcessRemainingInputs(node, 2);
-        SetOutput(node, access.machine_type);
+        SetOutput(node, AssumeImplicitFloat32Change(access.machine_type));
         if (lower()) lowering->DoLoadElement(node);
         break;
       }
@@ -578,7 +605,7 @@ class RepresentationSelector {
         ElementAccess access = ElementAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessInput(node, 1, kMachInt32);  // element index
-        ProcessInput(node, 2, access.machine_type);
+        ProcessInput(node, 2, AssumeImplicitFloat32Change(access.machine_type));
         ProcessRemainingInputs(node, 3);
         SetOutput(node, 0);
         if (lower()) lowering->DoStoreElement(node);

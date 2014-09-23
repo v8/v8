@@ -346,40 +346,6 @@ void MacroAssembler::TruncateHeapNumberToI(Register result_reg,
 }
 
 
-void MacroAssembler::TaggedToI(Register result_reg,
-                               Register input_reg,
-                               XMMRegister temp,
-                               MinusZeroMode minus_zero_mode,
-                               Label* lost_precision) {
-  Label done;
-  DCHECK(!temp.is(xmm0));
-
-  cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
-      isolate()->factory()->heap_number_map());
-  j(not_equal, lost_precision, Label::kNear);
-
-  DCHECK(!temp.is(no_xmm_reg));
-
-  movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
-  cvttsd2si(result_reg, Operand(xmm0));
-  Cvtsi2sd(temp, Operand(result_reg));
-  ucomisd(xmm0, temp);
-  RecordComment("Deferred TaggedToI: lost precision");
-  j(not_equal, lost_precision, Label::kNear);
-  RecordComment("Deferred TaggedToI: NaN");
-  j(parity_even, lost_precision, Label::kNear);
-  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
-    test(result_reg, Operand(result_reg));
-    j(not_zero, &done, Label::kNear);
-    movmskpd(result_reg, xmm0);
-    and_(result_reg, 1);
-    RecordComment("Deferred TaggedToI: minus zero");
-    j(not_zero, lost_precision, Label::kNear);
-  }
-  bind(&done);
-}
-
-
 void MacroAssembler::LoadUint32(XMMRegister dst,
                                 Register src) {
   Label done;
