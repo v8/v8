@@ -1019,9 +1019,9 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
   bool report_exception = catchable_by_javascript && should_report_exception;
   bool try_catch_needs_message =
-      can_be_caught_externally && try_catch_handler()->capture_message_ &&
-      !thread_local_top()->rethrowing_message_;
+      can_be_caught_externally && try_catch_handler()->capture_message_;
   bool bootstrapping = bootstrapper()->IsActive();
+  bool rethrowing_message = thread_local_top()->rethrowing_message_;
 
   thread_local_top()->rethrowing_message_ = false;
 
@@ -1031,7 +1031,7 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
   }
 
   // Generate the message if required.
-  if (report_exception || try_catch_needs_message) {
+  if (!rethrowing_message && (report_exception || try_catch_needs_message)) {
     MessageLocation potential_computed_location;
     if (location == NULL) {
       // If no location was specified we use a computed one instead.
