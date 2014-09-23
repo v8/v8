@@ -743,6 +743,7 @@ Matcher<Node*> IsStore(const Matcher<MachineType>& type_matcher,
     return MakeMatcher(                                                   \
         new IsBinopMatcher(IrOpcode::k##Name, lhs_matcher, rhs_matcher)); \
   }
+IS_BINOP_MATCHER(NumberLessThan)
 IS_BINOP_MATCHER(Word32And)
 IS_BINOP_MATCHER(Word32Sar)
 IS_BINOP_MATCHER(Word32Shl)

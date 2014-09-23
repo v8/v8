@@ -7,6 +7,9 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/typer.h"
+#include "testing/gmock-support.h"
+
+using testing::Capture;
 
 namespace v8 {
 namespace internal {
@@ -54,6 +57,71 @@ Type* const kNumberTypes[] = {
     Type::OrderedNumber(),   Type::Number()};
 
 }  // namespace
+
+
+// -----------------------------------------------------------------------------
+// Math.max
+
+
+TEST_F(JSBuiltinReducerTest, MathMax0) {
+  Handle<JSFunction> f(isolate()->context()->math_max_fun());
+
+  Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+  Node* call = graph()->NewNode(javascript()->Call(2, NO_CALL_FUNCTION_FLAGS),
+                                fun, UndefinedConstant());
+  Reduction r = Reduce(call);
+
+  EXPECT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberConstant(-V8_INFINITY));
+}
+
+
+TEST_F(JSBuiltinReducerTest, MathMax1) {
+  Handle<JSFunction> f(isolate()->context()->math_max_fun());
+
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+    Node* call = graph()->NewNode(javascript()->Call(3, NO_CALL_FUNCTION_FLAGS),
+                                  fun, UndefinedConstant(), p0);
+    Reduction r = Reduce(call);
+
+    EXPECT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), p0);
+  }
+}
+
+
+TEST_F(JSBuiltinReducerTest, MathMax2) {
+  Handle<JSFunction> f(isolate()->context()->math_max_fun());
+
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    TRACED_FOREACH(Type*, t1, kNumberTypes) {
+      Node* p0 = Parameter(t0, 0);
+      Node* p1 = Parameter(t1, 1);
+      Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+      Node* call =
+          graph()->NewNode(javascript()->Call(4, NO_CALL_FUNCTION_FLAGS), fun,
+                           UndefinedConstant(), p0, p1);
+      Reduction r = Reduce(call);
+
+      if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
+        Capture<Node*> branch;
+        EXPECT_TRUE(r.Changed());
+        EXPECT_THAT(
+            r.replacement(),
+            IsPhi(kMachNone, p1, p0,
+                  IsMerge(IsIfTrue(CaptureEq(&branch)),
+                          IsIfFalse(AllOf(CaptureEq(&branch),
+                                          IsBranch(IsNumberLessThan(p0, p1),
+                                                   graph()->start()))))));
+      } else {
+        EXPECT_FALSE(r.Changed());
+        EXPECT_EQ(IrOpcode::kJSCallFunction, call->opcode());
+      }
+    }
+  }
+}
 
 
 // -----------------------------------------------------------------------------
