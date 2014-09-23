@@ -116,6 +116,8 @@ Matcher<Node*> IsWord64Equal(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32AddWithOverflow(const Matcher<Node*>& lhs_matcher,
                                       const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt32Mul(const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsUint32LessThanOrEqual(const Matcher<Node*>& lhs_matcher,
                                        const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsChangeFloat64ToInt32(const Matcher<Node*>& input_matcher);
