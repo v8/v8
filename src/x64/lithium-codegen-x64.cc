@@ -5038,11 +5038,11 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   } else {
     Label lost_precision, is_nan, minus_zero, done;
     XMMRegister xmm_scratch = double_scratch0();
+    Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
     __ DoubleToI(result_reg, input_reg, xmm_scratch,
                  instr->hydrogen()->GetMinusZeroMode(), &lost_precision,
-                 &is_nan, &minus_zero,
-                 DeoptEveryNTimes() ? Label::kFar : Label::kNear);
-    __ jmp(&done, Label::kNear);
+                 &is_nan, &minus_zero, dist);
+    __ jmp(&done, dist);
     __ bind(&lost_precision);
     DeoptimizeIf(no_condition, instr, "lost precision");
     __ bind(&is_nan);
@@ -5065,10 +5065,11 @@ void LCodeGen::DoDoubleToSmi(LDoubleToSmi* instr) {
 
   Label lost_precision, is_nan, minus_zero, done;
   XMMRegister xmm_scratch = double_scratch0();
+  Label::Distance dist = DeoptEveryNTimes() ? Label::kFar : Label::kNear;
   __ DoubleToI(result_reg, input_reg, xmm_scratch,
                instr->hydrogen()->GetMinusZeroMode(), &lost_precision, &is_nan,
-               &minus_zero, DeoptEveryNTimes() ? Label::kFar : Label::kNear);
-  __ jmp(&done, Label::kNear);
+               &minus_zero, dist);
+  __ jmp(&done, dist);
   __ bind(&lost_precision);
   DeoptimizeIf(no_condition, instr, "lost precision");
   __ bind(&is_nan);
