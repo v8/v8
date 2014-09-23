@@ -371,7 +371,7 @@ class LoadIC : public IC {
     }
   }
 
-  virtual Handle<Code> megamorphic_stub() OVERRIDE;
+  virtual Handle<Code> megamorphic_stub();
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -414,6 +414,7 @@ class KeyedLoadIC : public LoadIC {
   }
   static void GenerateGeneric(MacroAssembler* masm);
   static void GenerateString(MacroAssembler* masm);
+  static void GenerateSloppyArguments(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -433,6 +434,9 @@ class KeyedLoadIC : public LoadIC {
 
  private:
   Handle<Code> generic_stub() const { return generic_stub(isolate()); }
+  Handle<Code> sloppy_arguments_stub() {
+    return isolate()->builtins()->KeyedLoadIC_SloppyArguments();
+  }
   Handle<Code> string_stub() {
     return isolate()->builtins()->KeyedLoadIC_String();
   }
@@ -489,12 +493,14 @@ class StoreIC : public IC {
                       JSReceiver::StoreFromKeyed store_mode);
 
  protected:
-  virtual Handle<Code> megamorphic_stub() OVERRIDE;
+  virtual Handle<Code> megamorphic_stub();
 
   // Stub accessors.
-  Handle<Code> generic_stub() const;
+  virtual Handle<Code> generic_stub() const;
 
-  Handle<Code> slow_stub() const;
+  virtual Handle<Code> slow_stub() const {
+    return isolate()->builtins()->StoreIC_Slow();
+  }
 
   virtual Handle<Code> pre_monomorphic_stub() const {
     return pre_monomorphic_stub(isolate(), strict_mode());
@@ -575,6 +581,16 @@ class KeyedStoreIC : public StoreIC {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic();
     }
   }
+  virtual Handle<Code> slow_stub() const {
+    return isolate()->builtins()->KeyedStoreIC_Slow();
+  }
+  virtual Handle<Code> megamorphic_stub() {
+    if (strict_mode() == STRICT) {
+      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
+    } else {
+      return isolate()->builtins()->KeyedStoreIC_Generic();
+    }
+  }
 
   Handle<Code> StoreElementStub(Handle<JSObject> receiver,
                                 KeyedAccessStoreMode store_mode);
@@ -583,6 +599,14 @@ class KeyedStoreIC : public StoreIC {
   inline void set_target(Code* code);
 
   // Stub accessors.
+  virtual Handle<Code> generic_stub() const {
+    if (strict_mode() == STRICT) {
+      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
+    } else {
+      return isolate()->builtins()->KeyedStoreIC_Generic();
+    }
+  }
+
   Handle<Code> sloppy_arguments_stub() {
     return isolate()->builtins()->KeyedStoreIC_SloppyArguments();
   }

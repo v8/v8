@@ -84,7 +84,6 @@ class CommonOperatorBuilder FINAL {
 
   const Operator* Int32Constant(int32_t);
   const Operator* Int64Constant(int64_t);
-  const Operator* Float32Constant(volatile float);
   const Operator* Float64Constant(volatile double);
   const Operator* ExternalConstant(const ExternalReference&);
   const Operator* NumberConstant(volatile double);

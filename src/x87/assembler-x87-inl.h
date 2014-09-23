@@ -45,7 +45,7 @@
 namespace v8 {
 namespace internal {
 
-bool CpuFeatures::SupportsCrankshaft() { return true; }
+bool CpuFeatures::SupportsCrankshaft() { return false; }
 
 
 static const byte kCallOpcode = 0xE8;

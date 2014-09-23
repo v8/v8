@@ -426,7 +426,8 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         if (value.is_null()) return ReportUnexpectedCharacter();
       }
 
-      Runtime::DefineObjectProperty(json_object, key, value, NONE).Check();
+      JSObject::SetOwnPropertyIgnoreAttributes(
+          json_object, key, value, NONE).Assert();
     } while (MatchSkipWhiteSpace(','));
     if (c0_ != '}') {
       return ReportUnexpectedCharacter();

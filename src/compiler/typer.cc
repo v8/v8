@@ -255,12 +255,6 @@ Bounds Typer::Visitor::TypeInt64Constant(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeFloat32Constant(Node* node) {
-  // TODO(titzer): only call Type::Of() if the type is not already known.
-  return Bounds(Type::Of(OpParameter<float>(node), zone()));
-}
-
-
 Bounds Typer::Visitor::TypeFloat64Constant(Node* node) {
   // TODO(titzer): only call Type::Of() if the type is not already known.
   return Bounds(Type::Of(OpParameter<double>(node), zone()));

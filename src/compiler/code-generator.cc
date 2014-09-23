@@ -21,8 +21,7 @@ CodeGenerator::CodeGenerator(InstructionSequence* code)
       safepoints_(code->zone()),
       deoptimization_states_(code->zone()),
       deoptimization_literals_(code->zone()),
-      translations_(code->zone()),
-      last_lazy_deopt_pc_(0) {}
+      translations_(code->zone()) {}
 
 
 Handle<Code> CodeGenerator::GenerateCode() {
@@ -243,7 +242,6 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
   }
 
   if (needs_frame_state) {
-    MarkLazyDeoptSite();
     // If the frame state is present, it starts at argument 1
     // (just after the code address).
     InstructionOperandConverter converter(this, instr);
@@ -389,7 +387,8 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
             isolate()->factory()->NewNumberFromInt(constant.ToInt32());
         break;
       case Constant::kFloat64:
-        constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());
+        constant_object =
+            isolate()->factory()->NewHeapNumber(constant.ToFloat64());
         break;
       case Constant::kHeapObject:
         constant_object = constant.ToHeapObject();
@@ -402,11 +401,6 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
   } else {
     UNREACHABLE();
   }
-}
-
-
-void CodeGenerator::MarkLazyDeoptSite() {
-  last_lazy_deopt_pc_ = masm()->pc_offset();
 }
 
 #if !V8_TURBOFAN_BACKEND

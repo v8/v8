@@ -7971,7 +7971,7 @@ RUNTIME_FUNCTION(Runtime_MathFround) {
   DCHECK(args.length() == 1);
 
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
-  float xf = DoubleToFloat32(x);
+  float xf = static_cast<float>(x);
   return *isolate->factory()->NewNumber(xf);
 }
 
@@ -13007,16 +13007,6 @@ static MaybeHandle<Object> DebugEvaluate(Isolate* isolate,
 }
 
 
-static Handle<JSObject> NewJSObjectWithNullProto(Isolate* isolate) {
-  Handle<JSObject> result =
-      isolate->factory()->NewJSObject(isolate->object_function());
-  Handle<Map> new_map = Map::Copy(Handle<Map>(result->map()));
-  new_map->set_prototype(*isolate->factory()->null_value());
-  JSObject::MigrateToMap(result, new_map);
-  return result;
-}
-
-
 // Evaluate a piece of JavaScript in the context of a stack frame for
 // debugging.  Things that need special attention are:
 // - Parameters and stack-allocated locals need to be materialized.  Altered
@@ -13059,7 +13049,8 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   DCHECK(!context.is_null());
 
   // Materialize stack locals and the arguments object.
-  Handle<JSObject> materialized = NewJSObjectWithNullProto(isolate);
+  Handle<JSObject> materialized =
+      isolate->factory()->NewJSObject(isolate->object_function());
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, materialized,

@@ -5,6 +5,12 @@
 #ifndef V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 #define V8_COMPILER_RAW_MACHINE_ASSEMBLER_H_
 
+#ifdef USE_SIMULATOR
+#define MACHINE_ASSEMBLER_SUPPORTS_CALL_C 0
+#else
+#define MACHINE_ASSEMBLER_SUPPORTS_CALL_C 1
+#endif
+
 #include "src/v8.h"
 
 #include "src/compiler/common-operator.h"
@@ -368,6 +374,21 @@ class RawMachineAssembler : public GraphBuilder {
   Node* TruncateInt64ToInt32(Node* a) {
     return NewNode(machine()->TruncateInt64ToInt32(), a);
   }
+
+#ifdef MACHINE_ASSEMBLER_SUPPORTS_CALL_C
+  // Call to C.
+  Node* CallC(Node* function_address, MachineType return_type,
+              MachineType* arg_types, Node** args, int n_args) {
+    CallDescriptor* descriptor =
+        Linkage::GetSimplifiedCDescriptor(zone(), machine_sig());
+    Node** passed_args = zone()->NewArray<Node*>(n_args + 1);
+    passed_args[0] = function_address;
+    for (int i = 0; i < n_args; ++i) {
+      passed_args[i + 1] = args[i];
+    }
+    return NewNode(common()->Call(descriptor), n_args + 1, passed_args);
+  }
+#endif
 
   // Parameters.
   Node* Parameter(size_t index);

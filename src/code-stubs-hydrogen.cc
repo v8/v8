@@ -71,8 +71,6 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
     MULTIPLE
   };
 
-  HValue* UnmappedCase(HValue* elements, HValue* key);
-
   HValue* BuildArrayConstructor(ElementsKind kind,
                                 AllocationSiteOverrideMode override_mode,
                                 ArgumentClass argument_class);
@@ -602,122 +600,6 @@ HValue* CodeStubGraphBuilder<LoadConstantStub>::BuildCodeStub() {
 Handle<Code> LoadConstantStub::GenerateCode() { return DoGenerateCode(this); }
 
 
-HValue* CodeStubGraphBuilderBase::UnmappedCase(HValue* elements, HValue* key) {
-  HValue* result;
-  HInstruction* backing_store = Add<HLoadKeyed>(
-      elements, graph()->GetConstant1(), static_cast<HValue*>(NULL),
-      FAST_ELEMENTS, ALLOW_RETURN_HOLE);
-  Add<HCheckMaps>(backing_store, isolate()->factory()->fixed_array_map());
-  HValue* backing_store_length =
-      Add<HLoadNamedField>(backing_store, static_cast<HValue*>(NULL),
-                           HObjectAccess::ForFixedArrayLength());
-  IfBuilder in_unmapped_range(this);
-  in_unmapped_range.If<HCompareNumericAndBranch>(key, backing_store_length,
-                                                 Token::LT);
-  in_unmapped_range.Then();
-  {
-    result = Add<HLoadKeyed>(backing_store, key, static_cast<HValue*>(NULL),
-                             FAST_HOLEY_ELEMENTS, NEVER_RETURN_HOLE);
-  }
-  in_unmapped_range.ElseDeopt("Outside of range");
-  in_unmapped_range.End();
-  return result;
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
-  HValue* key = GetParameter(LoadDescriptor::kNameIndex);
-
-  // Mapped arguments are actual arguments. Unmapped arguments are values added
-  // to the arguments object after it was created for the call. Mapped arguments
-  // are stored in the context at indexes given by elements[key + 2]. Unmapped
-  // arguments are stored as regular indexed properties in the arguments array,
-  // held at elements[1]. See NewSloppyArguments() in runtime.cc for a detailed
-  // look at argument object construction.
-  //
-  // The sloppy arguments elements array has a special format:
-  //
-  // 0: context
-  // 1: unmapped arguments array
-  // 2: mapped_index0,
-  // 3: mapped_index1,
-  // ...
-  //
-  // length is 2 + min(number_of_actual_arguments, number_of_formal_arguments).
-  // If key + 2 >= elements.length then attempt to look in the unmapped
-  // arguments array (given by elements[1]) and return the value at key, missing
-  // to the runtime if the unmapped arguments array is not a fixed array or if
-  // key >= unmapped_arguments_array.length.
-  //
-  // Otherwise, t = elements[key + 2]. If t is the hole, then look up the value
-  // in the unmapped arguments array, as described above. Otherwise, t is a Smi
-  // index into the context array given at elements[0]. Return the value at
-  // context[t].
-
-  key = AddUncasted<HForceRepresentation>(key, Representation::Smi());
-  IfBuilder positive_smi(this);
-  positive_smi.If<HCompareNumericAndBranch>(key, graph()->GetConstant0(),
-                                            Token::LT);
-  positive_smi.ThenDeopt("key is negative");
-  positive_smi.End();
-
-  HValue* constant_two = Add<HConstant>(2);
-  HValue* elements = AddLoadElements(receiver, static_cast<HValue*>(NULL));
-  HValue* elements_length =
-      Add<HLoadNamedField>(elements, static_cast<HValue*>(NULL),
-                           HObjectAccess::ForFixedArrayLength());
-  HValue* adjusted_length = AddUncasted<HSub>(elements_length, constant_two);
-  IfBuilder in_range(this);
-  in_range.If<HCompareNumericAndBranch>(key, adjusted_length, Token::LT);
-  in_range.Then();
-  {
-    HValue* index = AddUncasted<HAdd>(key, constant_two);
-    HInstruction* mapped_index =
-        Add<HLoadKeyed>(elements, index, static_cast<HValue*>(NULL),
-                        FAST_HOLEY_ELEMENTS, ALLOW_RETURN_HOLE);
-
-    IfBuilder is_valid(this);
-    is_valid.IfNot<HCompareObjectEqAndBranch>(mapped_index,
-                                              graph()->GetConstantHole());
-    is_valid.Then();
-    {
-      // TODO(mvstanton): I'd like to assert from this point, that if the
-      // mapped_index is not the hole that it is indeed, a smi. An unnecessary
-      // smi check is being emitted.
-      HValue* the_context =
-          Add<HLoadKeyed>(elements, graph()->GetConstant0(),
-                          static_cast<HValue*>(NULL), FAST_ELEMENTS);
-      DCHECK(Context::kHeaderSize == FixedArray::kHeaderSize);
-      HValue* result =
-          Add<HLoadKeyed>(the_context, mapped_index, static_cast<HValue*>(NULL),
-                          FAST_ELEMENTS, ALLOW_RETURN_HOLE);
-      environment()->Push(result);
-    }
-    is_valid.Else();
-    {
-      HValue* result = UnmappedCase(elements, key);
-      environment()->Push(result);
-    }
-    is_valid.End();
-  }
-  in_range.Else();
-  {
-    HValue* result = UnmappedCase(elements, key);
-    environment()->Push(result);
-  }
-  in_range.End();
-
-  return environment()->Pop();
-}
-
-
-Handle<Code> KeyedLoadSloppyArgumentsStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
 void CodeStubGraphBuilderBase::BuildStoreNamedField(
     HValue* object, HValue* value, FieldIndex index,
     Representation representation) {
@@ -1210,6 +1092,7 @@ Handle<Code> ToBooleanStub::GenerateCode() {
 template <>
 HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   StoreGlobalStub* stub = casted_stub();
+  Handle<Object> hole(isolate()->heap()->the_hole_value(), isolate());
   Handle<Object> placeholer_value(Smi::FromInt(0), isolate());
   Handle<PropertyCell> placeholder_cell =
       isolate()->factory()->NewPropertyCell(placeholer_value);
@@ -1241,7 +1124,7 @@ HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
     // property has been deleted and that the store must be handled by the
     // runtime.
     IfBuilder builder(this);
-    HValue* hole_value = graph()->GetConstantHole();
+    HValue* hole_value = Add<HConstant>(hole);
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
     builder.Then();
     builder.Deopt("Unexpected cell contents in global store");

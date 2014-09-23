@@ -1340,7 +1340,7 @@ class MacroAssembler: public Assembler {
   void JumpIfInstanceTypeIsNotSequentialOneByte(Register type, Register scratch,
                                                 Label* failure);
 
-  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
+  void JumpIfNotUniqueName(Register reg, Label* not_unique_name);
 
   void EmitSeqStringSetCharCheck(Register string,
                                  Register index,

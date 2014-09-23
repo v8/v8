@@ -136,8 +136,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   ArmOperandConverter i(this, instr);
 
   switch (ArchOpcodeField::decode(instr->opcode())) {
+    case kArchCallAddress: {
+      DirectCEntryStub stub(isolate());
+      stub.GenerateCall(masm(), i.InputRegister(0));
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
     case kArchCallCodeObject: {
-      EnsureSpaceForLazyDeopt();
       if (instr->InputAt(0)->IsImmediate()) {
         __ Call(Handle<Code>::cast(i.InputHeapObject(0)),
                 RelocInfo::CODE_TARGET);
@@ -151,7 +156,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchCallJSFunction: {
-      EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
@@ -162,6 +166,13 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Call(ip);
       AddSafepointAndDeopt(instr);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
+    }
+    case kArchDrop: {
+      int words = MiscField::decode(instr->opcode());
+      __ Drop(words);
+      DCHECK_LT(0, words);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -843,27 +854,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 
 void CodeGenerator::AddNopForSmiCodeInlining() {
   // On 32-bit ARM we do not insert nops for inlined Smi code.
-}
-
-
-void CodeGenerator::EnsureSpaceForLazyDeopt() {
-  int space_needed = Deoptimizer::patch_size();
-  if (!linkage()->info()->IsStub()) {
-    // Ensure that we have enough space after the previous lazy-bailout
-    // instruction for patching the code here.
-    int current_pc = masm()->pc_offset();
-    if (current_pc < last_lazy_deopt_pc_ + space_needed) {
-      // Block literal pool emission for duration of padding.
-      v8::internal::Assembler::BlockConstPoolScope block_const_pool(masm());
-      int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-      DCHECK_EQ(0, padding_size % v8::internal::Assembler::kInstrSize);
-      while (padding_size > 0) {
-        __ nop();
-        padding_size -= v8::internal::Assembler::kInstrSize;
-      }
-    }
-  }
-  MarkLazyDeoptSite();
 }
 
 #undef __

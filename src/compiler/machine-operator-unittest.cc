@@ -169,7 +169,7 @@ INSTANTIATE_TEST_CASE_P(
 namespace {
 
 struct PureOperator {
-  const Operator* (MachineOperatorBuilder::*constructor)();
+  const Operator* (MachineOperatorBuilder::*constructor)() const;
   IrOpcode::Value opcode;
   int value_input_count;
   int value_output_count;
@@ -187,33 +187,32 @@ const PureOperator kPureOperators[] = {
     &MachineOperatorBuilder::Name, IrOpcode::k##Name, input_count, \
         output_count                                               \
   }
-    PURE(Word32And, 2, 1),                PURE(Word32Or, 2, 1),
-    PURE(Word32Xor, 2, 1),                PURE(Word32Shl, 2, 1),
-    PURE(Word32Shr, 2, 1),                PURE(Word32Sar, 2, 1),
-    PURE(Word32Ror, 2, 1),                PURE(Word32Equal, 2, 1),
-    PURE(Word64And, 2, 1),                PURE(Word64Or, 2, 1),
-    PURE(Word64Xor, 2, 1),                PURE(Word64Shl, 2, 1),
-    PURE(Word64Shr, 2, 1),                PURE(Word64Sar, 2, 1),
-    PURE(Word64Ror, 2, 1),                PURE(Word64Equal, 2, 1),
-    PURE(Int32Add, 2, 1),                 PURE(Int32AddWithOverflow, 2, 2),
-    PURE(Int32Sub, 2, 1),                 PURE(Int32SubWithOverflow, 2, 2),
-    PURE(Int32Mul, 2, 1),                 PURE(Int32Div, 2, 1),
-    PURE(Int32UDiv, 2, 1),                PURE(Int32Mod, 2, 1),
-    PURE(Int32UMod, 2, 1),                PURE(Int32LessThan, 2, 1),
-    PURE(Int32LessThanOrEqual, 2, 1),     PURE(Uint32LessThan, 2, 1),
-    PURE(Uint32LessThanOrEqual, 2, 1),    PURE(Int64Add, 2, 1),
-    PURE(Int64Sub, 2, 1),                 PURE(Int64Mul, 2, 1),
-    PURE(Int64Div, 2, 1),                 PURE(Int64UDiv, 2, 1),
-    PURE(Int64Mod, 2, 1),                 PURE(Int64UMod, 2, 1),
-    PURE(Int64LessThan, 2, 1),            PURE(Int64LessThanOrEqual, 2, 1),
-    PURE(ChangeFloat32ToFloat64, 1, 1),   PURE(ChangeFloat64ToInt32, 1, 1),
-    PURE(ChangeFloat64ToUint32, 1, 1),    PURE(ChangeInt32ToInt64, 1, 1),
-    PURE(ChangeUint32ToFloat64, 1, 1),    PURE(ChangeUint32ToUint64, 1, 1),
-    PURE(TruncateFloat64ToFloat32, 1, 1), PURE(TruncateFloat64ToInt32, 1, 1),
-    PURE(TruncateInt64ToInt32, 1, 1),     PURE(Float64Add, 2, 1),
-    PURE(Float64Sub, 2, 1),               PURE(Float64Mul, 2, 1),
-    PURE(Float64Div, 2, 1),               PURE(Float64Mod, 2, 1),
-    PURE(Float64Equal, 2, 1),             PURE(Float64LessThan, 2, 1),
+    PURE(Word32And, 2, 1),             PURE(Word32Or, 2, 1),
+    PURE(Word32Xor, 2, 1),             PURE(Word32Shl, 2, 1),
+    PURE(Word32Shr, 2, 1),             PURE(Word32Sar, 2, 1),
+    PURE(Word32Ror, 2, 1),             PURE(Word32Equal, 2, 1),
+    PURE(Word64And, 2, 1),             PURE(Word64Or, 2, 1),
+    PURE(Word64Xor, 2, 1),             PURE(Word64Shl, 2, 1),
+    PURE(Word64Shr, 2, 1),             PURE(Word64Sar, 2, 1),
+    PURE(Word64Ror, 2, 1),             PURE(Word64Equal, 2, 1),
+    PURE(Int32Add, 2, 1),              PURE(Int32AddWithOverflow, 2, 2),
+    PURE(Int32Sub, 2, 1),              PURE(Int32SubWithOverflow, 2, 2),
+    PURE(Int32Mul, 2, 1),              PURE(Int32Div, 2, 1),
+    PURE(Int32UDiv, 2, 1),             PURE(Int32Mod, 2, 1),
+    PURE(Int32UMod, 2, 1),             PURE(Int32LessThan, 2, 1),
+    PURE(Int32LessThanOrEqual, 2, 1),  PURE(Uint32LessThan, 2, 1),
+    PURE(Uint32LessThanOrEqual, 2, 1), PURE(Int64Add, 2, 1),
+    PURE(Int64Sub, 2, 1),              PURE(Int64Mul, 2, 1),
+    PURE(Int64Div, 2, 1),              PURE(Int64UDiv, 2, 1),
+    PURE(Int64Mod, 2, 1),              PURE(Int64UMod, 2, 1),
+    PURE(Int64LessThan, 2, 1),         PURE(Int64LessThanOrEqual, 2, 1),
+    PURE(ChangeFloat64ToInt32, 1, 1),  PURE(ChangeFloat64ToUint32, 1, 1),
+    PURE(ChangeInt32ToInt64, 1, 1),    PURE(ChangeUint32ToFloat64, 1, 1),
+    PURE(ChangeUint32ToUint64, 1, 1),  PURE(TruncateFloat64ToInt32, 1, 1),
+    PURE(TruncateInt64ToInt32, 1, 1),  PURE(Float64Add, 2, 1),
+    PURE(Float64Sub, 2, 1),            PURE(Float64Mul, 2, 1),
+    PURE(Float64Div, 2, 1),            PURE(Float64Mod, 2, 1),
+    PURE(Float64Equal, 2, 1),          PURE(Float64LessThan, 2, 1),
     PURE(Float64LessThanOrEqual, 2, 1)
 #undef PURE
 };

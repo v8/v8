@@ -411,7 +411,7 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
 
   // Update the write barrier for the map field.
   __ RecordWriteField(receiver_reg, HeapObject::kMapOffset, scratch1, scratch2,
-                      kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   if (details.type() == CONSTANT) {
     DCHECK(value_reg.is(eax));
@@ -445,7 +445,7 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
         __ mov(storage_reg, value_reg);
       }
       __ RecordWriteField(receiver_reg, offset, storage_reg, scratch1,
-                          kDontSaveFPRegs, EMIT_REMEMBERED_SET, smi_check);
+                          EMIT_REMEMBERED_SET, smi_check);
     }
   } else {
     // Write to the properties array.
@@ -464,7 +464,7 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
         __ mov(storage_reg, value_reg);
       }
       __ RecordWriteField(scratch1, offset, storage_reg, receiver_reg,
-                          kDontSaveFPRegs, EMIT_REMEMBERED_SET, smi_check);
+                          EMIT_REMEMBERED_SET, smi_check);
     }
   }
 

@@ -3681,8 +3681,8 @@ void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
   __ lbu(tmp1, FieldMemOperand(tmp1, Map::kInstanceTypeOffset));
   __ lbu(tmp2, FieldMemOperand(tmp2, Map::kInstanceTypeOffset));
 
-  __ JumpIfNotUniqueNameInstanceType(tmp1, &miss);
-  __ JumpIfNotUniqueNameInstanceType(tmp2, &miss);
+  __ JumpIfNotUniqueName(tmp1, &miss);
+  __ JumpIfNotUniqueName(tmp2, &miss);
 
   // Use a0 as result
   __ mov(v0, a0);
@@ -3937,7 +3937,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ ld(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
     __ lbu(entity_name,
            FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-    __ JumpIfNotUniqueNameInstanceType(entity_name, miss);
+    __ JumpIfNotUniqueName(entity_name, miss);
     __ bind(&good);
 
     // Restore the properties.
@@ -4114,7 +4114,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
       __ ld(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
       __ lbu(entry_key,
              FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ JumpIfNotUniqueNameInstanceType(entry_key, &maybe_in_dictionary);
+      __ JumpIfNotUniqueName(entry_key, &maybe_in_dictionary);
     }
   }
 

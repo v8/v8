@@ -660,8 +660,7 @@ void Builtins::Generate_MarkCodeAsExecutedTwice(MacroAssembler* masm) {
 }
 
 
-static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
-                                             SaveFPRegsMode save_doubles) {
+static void Generate_NotifyStubFailureHelper(MacroAssembler* masm) {
   // Enter an internal frame.
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
@@ -670,7 +669,7 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
     // stubs that tail call the runtime on deopts passing their parameters in
     // registers.
     __ pushad();
-    __ CallRuntime(Runtime::kNotifyStubFailure, 0, save_doubles);
+    __ CallRuntime(Runtime::kNotifyStubFailure, 0);
     __ popad();
     // Tear down internal frame.
   }
@@ -681,12 +680,13 @@ static void Generate_NotifyStubFailureHelper(MacroAssembler* masm,
 
 
 void Builtins::Generate_NotifyStubFailure(MacroAssembler* masm) {
-  Generate_NotifyStubFailureHelper(masm, kDontSaveFPRegs);
+  Generate_NotifyStubFailureHelper(masm);
 }
 
 
 void Builtins::Generate_NotifyStubFailureSaveDoubles(MacroAssembler* masm) {
-  Generate_NotifyStubFailureHelper(masm, kSaveFPRegs);
+  // SaveDoubles is meanless for X87, just used by deoptimizer.cc
+  Generate_NotifyStubFailureHelper(masm);
 }
 
 

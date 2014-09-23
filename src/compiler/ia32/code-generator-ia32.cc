@@ -111,8 +111,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
   IA32OperandConverter i(this, instr);
 
   switch (ArchOpcodeField::decode(instr->opcode())) {
+    case kArchCallAddress:
+      if (HasImmediateInput(instr, 0)) {
+        // TODO(dcarney): wire up EXTERNAL_REFERENCE instead of RUNTIME_ENTRY.
+        __ call(reinterpret_cast<byte*>(i.InputInt32(0)),
+                RelocInfo::RUNTIME_ENTRY);
+      } else {
+        __ call(i.InputRegister(0));
+      }
+      break;
     case kArchCallCodeObject: {
-      EnsureSpaceForLazyDeopt();
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
         __ call(code, RelocInfo::CODE_TARGET);
@@ -124,7 +132,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchCallJSFunction: {
-      EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
@@ -133,6 +140,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ call(FieldOperand(func, JSFunction::kCodeEntryOffset));
       AddSafepointAndDeopt(instr);
+      break;
+    }
+    case kArchDrop: {
+      int words = MiscField::decode(instr->opcode());
+      __ add(esp, Immediate(kPointerSize * words));
       break;
     }
     case kArchJmp:
@@ -933,21 +945,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 
 
 void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
-
-
-void CodeGenerator::EnsureSpaceForLazyDeopt() {
-  int space_needed = Deoptimizer::patch_size();
-  if (!linkage()->info()->IsStub()) {
-    // Ensure that we have enough space after the previous lazy-bailout
-    // instruction for patching the code here.
-    int current_pc = masm()->pc_offset();
-    if (current_pc < last_lazy_deopt_pc_ + space_needed) {
-      int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-      __ Nop(padding_size);
-    }
-  }
-  MarkLazyDeoptSite();
-}
 
 #undef __
 

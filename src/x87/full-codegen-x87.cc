@@ -221,8 +221,10 @@ void FullCodeGenerator::Generate() {
         __ mov(Operand(esi, context_offset), eax);
         // Update the write barrier. This clobbers eax and ebx.
         if (need_write_barrier) {
-          __ RecordWriteContextSlot(esi, context_offset, eax, ebx,
-                                    kDontSaveFPRegs);
+          __ RecordWriteContextSlot(esi,
+                                    context_offset,
+                                    eax,
+                                    ebx);
         } else if (FLAG_debug_code) {
           Label done;
           __ JumpIfInNewSpace(esi, eax, &done, Label::kNear);
@@ -706,7 +708,7 @@ void FullCodeGenerator::SetVar(Variable* var,
   if (var->IsContextSlot()) {
     int offset = Context::SlotOffset(var->index());
     DCHECK(!scratch0.is(esi) && !src.is(esi) && !scratch1.is(esi));
-    __ RecordWriteContextSlot(scratch0, offset, src, scratch1, kDontSaveFPRegs);
+    __ RecordWriteContextSlot(scratch0, offset, src, scratch1);
   }
 }
 
@@ -836,9 +838,12 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       VisitForAccumulatorValue(declaration->fun());
       __ mov(ContextOperand(esi, variable->index()), result_register());
       // We know that we have written a function, which is not a smi.
-      __ RecordWriteContextSlot(esi, Context::SlotOffset(variable->index()),
-                                result_register(), ecx, kDontSaveFPRegs,
-                                EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+      __ RecordWriteContextSlot(esi,
+                                Context::SlotOffset(variable->index()),
+                                result_register(),
+                                ecx,
+                                EMIT_REMEMBERED_SET,
+                                OMIT_SMI_CHECK);
       PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       break;
     }
@@ -872,8 +877,11 @@ void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* declaration) {
   // Assign it.
   __ mov(ContextOperand(esi, variable->index()), eax);
   // We know that we have written a module, which is not a smi.
-  __ RecordWriteContextSlot(esi, Context::SlotOffset(variable->index()), eax,
-                            ecx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+  __ RecordWriteContextSlot(esi,
+                            Context::SlotOffset(variable->index()),
+                            eax,
+                            ecx,
+                            EMIT_REMEMBERED_SET,
                             OMIT_SMI_CHECK);
   PrepareForBailoutForId(declaration->proxy()->id(), NO_REGISTERS);
 
@@ -1775,8 +1783,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       // Store the subexpression value in the array's elements.
       __ mov(FieldOperand(ebx, offset), result_register());
       // Update the write barrier for the array store.
-      __ RecordWriteField(ebx, offset, result_register(), ecx, kDontSaveFPRegs,
-                          EMIT_REMEMBERED_SET, INLINE_SMI_CHECK);
+      __ RecordWriteField(ebx, offset, result_register(), ecx,
+                          EMIT_REMEMBERED_SET,
+                          INLINE_SMI_CHECK);
     } else {
       // Store the subexpression value in the array's elements.
       __ mov(ecx, Immediate(Smi::FromInt(i)));
@@ -1933,8 +1942,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
              Immediate(Smi::FromInt(continuation.pos())));
       __ mov(FieldOperand(eax, JSGeneratorObject::kContextOffset), esi);
       __ mov(ecx, esi);
-      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx,
-                          kDontSaveFPRegs);
+      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx);
       __ lea(ebx, Operand(ebp, StandardFrameConstants::kExpressionsOffset));
       __ cmp(esp, ebx);
       __ j(equal, &post_runtime);
@@ -2008,8 +2016,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
              Immediate(Smi::FromInt(l_continuation.pos())));
       __ mov(FieldOperand(eax, JSGeneratorObject::kContextOffset), esi);
       __ mov(ecx, esi);
-      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx,
-                          kDontSaveFPRegs);
+      __ RecordWriteField(eax, JSGeneratorObject::kContextOffset, ecx, edx);
       __ CallRuntime(Runtime::kSuspendJSGeneratorObject, 1);
       __ mov(context_register(),
              Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -2217,8 +2224,8 @@ void FullCodeGenerator::EmitCreateIteratorResult(bool done) {
 
   // Only the value field needs a write barrier, as the other values are in the
   // root set.
-  __ RecordWriteField(eax, JSGeneratorObject::kResultValuePropertyOffset, ecx,
-                      edx, kDontSaveFPRegs);
+  __ RecordWriteField(eax, JSGeneratorObject::kResultValuePropertyOffset,
+                      ecx, edx);
 }
 
 
@@ -2426,7 +2433,7 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
   if (var->IsContextSlot()) {
     __ mov(edx, eax);
     int offset = Context::SlotOffset(var->index());
-    __ RecordWriteContextSlot(ecx, offset, edx, ebx, kDontSaveFPRegs);
+    __ RecordWriteContextSlot(ecx, offset, edx, ebx);
   }
 }
 
@@ -3525,7 +3532,7 @@ void FullCodeGenerator::EmitSetValueOf(CallRuntime* expr) {
   // Update the write barrier.  Save the value as it will be
   // overwritten by the write barrier code and is needed afterward.
   __ mov(edx, eax);
-  __ RecordWriteField(ebx, JSValue::kValueOffset, edx, ecx, kDontSaveFPRegs);
+  __ RecordWriteField(ebx, JSValue::kValueOffset, edx, ecx);
 
   __ bind(&done);
   context()->Plug(eax);

@@ -77,10 +77,6 @@ inline double FastUI2D(unsigned x) {
 }
 
 
-// This function should match the exact semantics of ECMA-262 20.2.2.17.
-inline float DoubleToFloat32(double x);
-
-
 // This function should match the exact semantics of ECMA-262 9.4.
 inline double DoubleToInteger(double x);
 

@@ -586,14 +586,12 @@ void KeyedLoadGenericStub::InitializeDescriptor(
 void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   if (kind() == Code::STORE_IC) {
     descriptor->Initialize(FUNCTION_ADDR(StoreIC_MissFromStubFailure));
-  } else if (kind() == Code::KEYED_LOAD_IC) {
-    descriptor->Initialize(FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
   }
 }
 
 
 CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() {
-  if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
+  if (kind() == Code::LOAD_IC) {
     return LoadDescriptor(isolate());
   } else {
     DCHECK_EQ(Code::STORE_IC, kind());

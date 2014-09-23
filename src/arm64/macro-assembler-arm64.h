@@ -1074,7 +1074,7 @@ class MacroAssembler : public Assembler {
       Register first_object_instance_type, Register second_object_instance_type,
       Register scratch1, Register scratch2, Label* failure);
 
-  void JumpIfNotUniqueNameInstanceType(Register type, Label* not_unique_name);
+  void JumpIfNotUniqueName(Register type, Label* not_unique_name);
 
   // ---- Calling / Jumping helpers ----
 

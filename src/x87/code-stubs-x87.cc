@@ -127,11 +127,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // store the registers in any particular way, but we do have to store and
   // restore them.
   __ pushad();
-  if (save_doubles()) {
-    // Save FPU stat in m108byte.
-    __ sub(esp, Immediate(108));
-    __ fnsave(Operand(esp, 0));
-  }
   const int argument_count = 1;
 
   AllowExternalCallThatCantCauseGC scope(masm);
@@ -141,11 +136,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   __ CallCFunction(
       ExternalReference::store_buffer_overflow_function(isolate()),
       argument_count);
-  if (save_doubles()) {
-    // Restore FPU stat in m108byte.
-    __ frstor(Operand(esp, 0));
-    __ add(esp, Immediate(108));
-  }
   __ popad();
   __ ret(0);
 }
@@ -1125,12 +1115,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(eax, Operand(esp, kSubjectOffset));
   __ mov(ecx, eax);
   __ mov(FieldOperand(ebx, RegExpImpl::kLastSubjectOffset), eax);
-  __ RecordWriteField(ebx, RegExpImpl::kLastSubjectOffset, eax, edi,
-                      kDontSaveFPRegs);
+  __ RecordWriteField(ebx,
+                      RegExpImpl::kLastSubjectOffset,
+                      eax,
+                      edi);
   __ mov(eax, ecx);
   __ mov(FieldOperand(ebx, RegExpImpl::kLastInputOffset), eax);
-  __ RecordWriteField(ebx, RegExpImpl::kLastInputOffset, eax, edi,
-                      kDontSaveFPRegs);
+  __ RecordWriteField(ebx,
+                      RegExpImpl::kLastInputOffset,
+                      eax,
+                      edi);
 
   // Get the static offsets vector filled by the native regexp code.
   ExternalReference address_of_static_offsets_vector =
@@ -1624,8 +1618,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ push(edi);
   __ push(ebx);
   __ push(edx);
-  __ RecordWriteArray(ebx, edi, edx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteArray(ebx, edi, edx, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ pop(edx);
   __ pop(ebx);
   __ pop(edi);
@@ -1996,19 +1989,12 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 
 
 void CodeStub::GenerateFPStubs(Isolate* isolate) {
-  CEntryStub save_doubles(isolate, 1, kSaveFPRegs);
-  // Stubs might already be in the snapshot, detect that and don't regenerate,
-  // which would lead to code stub initialization state being messed up.
-  Code* save_doubles_code;
-  if (!save_doubles.FindCodeInCache(&save_doubles_code)) {
-    save_doubles_code = *(save_doubles.GetCode());
-  }
-  isolate->set_fp_stubs_generated(true);
+  // Do nothing.
 }
 
 
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
-  CEntryStub stub(isolate, 1, kDontSaveFPRegs);
+  CEntryStub stub(isolate, 1);
   stub.GetCode();
 }
 
@@ -2024,7 +2010,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
   // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(save_doubles());
+  __ EnterExitFrame();
 
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
@@ -2080,7 +2066,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   }
 
   // Exit the JavaScript to C++ exit frame.
-  __ LeaveExitFrame(save_doubles());
+  __ LeaveExitFrame();
   __ ret(0);
 
   // Handling of exception.
@@ -3167,8 +3153,8 @@ void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
   __ movzx_b(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
   __ movzx_b(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
 
-  __ JumpIfNotUniqueNameInstanceType(tmp1, &miss, Label::kNear);
-  __ JumpIfNotUniqueNameInstanceType(tmp2, &miss, Label::kNear);
+  __ JumpIfNotUniqueName(tmp1, &miss, Label::kNear);
+  __ JumpIfNotUniqueName(tmp2, &miss, Label::kNear);
 
   // Unique names are compared by identity.
   Label done;
@@ -3393,8 +3379,8 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
     // Check if the entry name is not a unique name.
     __ mov(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
-    __ JumpIfNotUniqueNameInstanceType(
-        FieldOperand(entity_name, Map::kInstanceTypeOffset), miss);
+    __ JumpIfNotUniqueName(FieldOperand(entity_name, Map::kInstanceTypeOffset),
+                           miss);
     __ bind(&good);
   }
 
@@ -3528,9 +3514,8 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
       // Check if the entry name is not a unique name.
       __ mov(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
-      __ JumpIfNotUniqueNameInstanceType(
-          FieldOperand(scratch, Map::kInstanceTypeOffset),
-          &maybe_in_dictionary);
+      __ JumpIfNotUniqueName(FieldOperand(scratch, Map::kInstanceTypeOffset),
+                             &maybe_in_dictionary);
     }
   }
 
@@ -3560,8 +3545,6 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
     Isolate* isolate) {
   StoreBufferOverflowStub stub(isolate, kDontSaveFPRegs);
   stub.GetCode();
-  StoreBufferOverflowStub stub2(isolate, kSaveFPRegs);
-  stub2.GetCode();
 }
 
 
@@ -3581,7 +3564,7 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   __ jmp(&skip_to_incremental_compacting, Label::kFar);
 
   if (remembered_set_action() == EMIT_REMEMBERED_SET) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
+    __ RememberedSetHelper(object(), address(), value(),
                            MacroAssembler::kReturnAtEnd);
   } else {
     __ ret(0);
@@ -3625,7 +3608,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
         mode);
     InformIncrementalMarker(masm);
     regs_.Restore(masm);
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
+    __ RememberedSetHelper(object(), address(), value(),
                            MacroAssembler::kReturnAtEnd);
 
     __ bind(&dont_need_remembered_set);
@@ -3642,7 +3625,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
 
 
 void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
-  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode());
+  regs_.SaveCallerSaveRegisters(masm);
   int argument_count = 3;
   __ PrepareCallCFunction(argument_count, regs_.scratch0());
   __ mov(Operand(esp, 0 * kPointerSize), regs_.object());
@@ -3655,7 +3638,7 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
       ExternalReference::incremental_marking_record_write_function(isolate()),
       argument_count);
 
-  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
+  regs_.RestoreCallerSaveRegisters(masm);
 }
 
 
@@ -3686,7 +3669,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
+    __ RememberedSetHelper(object(), address(), value(),
                            MacroAssembler::kReturnAtEnd);
   } else {
     __ ret(0);
@@ -3731,7 +3714,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
+    __ RememberedSetHelper(object(), address(), value(),
                            MacroAssembler::kReturnAtEnd);
   } else {
     __ ret(0);
@@ -3801,7 +3784,8 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
                            FixedArrayBase::kHeaderSize));
   __ mov(Operand(ecx, 0), eax);
   // Update the write barrier for the array store.
-  __ RecordWrite(ebx, ecx, eax, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+  __ RecordWrite(ebx, ecx, eax,
+                 EMIT_REMEMBERED_SET,
                  OMIT_SMI_CHECK);
   __ ret(0);
 
@@ -3830,7 +3814,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
 
 
 void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
-  CEntryStub ces(isolate(), 1, kSaveFPRegs);
+  CEntryStub ces(isolate(), 1);
   __ call(ces.GetCode(), RelocInfo::CODE_TARGET);
   int parameter_count_offset =
       StubFailureTrampolineFrame::kCallerStackParameterCountFrameOffset;

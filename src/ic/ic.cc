@@ -76,13 +76,7 @@ const char* GetTransitionMarkModifier(KeyedAccessStoreMode mode) {
 
 #else
 
-#define TRACE_GENERIC_IC(isolate, type, reason)      \
-  do {                                               \
-    if (FLAG_trace_ic) {                             \
-      PrintF("[%s patching generic stub in ", type); \
-      PrintF("(see below) (%s)]\n", reason);         \
-    }                                                \
-  } while (false)
+#define TRACE_GENERIC_IC(isolate, type, reason)
 
 #endif  // DEBUG
 
@@ -1146,14 +1140,14 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
   if (!AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map)) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
-    TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "same map added twice");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "same map added twice");
     return generic_stub();
   }
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
-    TRACE_GENERIC_IC(isolate(), "KeyedLoadIC", "max polymorph exceeded");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "max polymorph exceeded");
     return generic_stub();
   }
 
@@ -1187,7 +1181,11 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
       if (state() == UNINITIALIZED) stub = string_stub();
     } else if (object->IsJSObject()) {
       Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-      if (!Object::ToSmi(isolate(), key).is_null()) {
+      if (receiver->elements()->map() ==
+          isolate()->heap()->sloppy_arguments_elements_map()) {
+        stub = sloppy_arguments_stub();
+      } else if (!Object::ToSmi(isolate(), key).is_null() &&
+                 (!target().is_identical_to(sloppy_arguments_stub()))) {
         stub = LoadElementStub(receiver);
       }
     }
@@ -1346,42 +1344,13 @@ Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
 
 
 Handle<Code> StoreIC::megamorphic_stub() {
-  if (kind() == Code::STORE_IC) {
-    return PropertyICCompiler::ComputeStore(isolate(), MEGAMORPHIC,
-                                            extra_ic_state());
-  } else {
-    DCHECK(kind() == Code::KEYED_STORE_IC);
-    if (strict_mode() == STRICT) {
-      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
-    } else {
-      return isolate()->builtins()->KeyedStoreIC_Generic();
-    }
-  }
+  return PropertyICCompiler::ComputeStore(isolate(), MEGAMORPHIC,
+                                          extra_ic_state());
 }
 
 
 Handle<Code> StoreIC::generic_stub() const {
-  if (kind() == Code::STORE_IC) {
-    return PropertyICCompiler::ComputeStore(isolate(), GENERIC,
-                                            extra_ic_state());
-  } else {
-    DCHECK(kind() == Code::KEYED_STORE_IC);
-    if (strict_mode() == STRICT) {
-      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
-    } else {
-      return isolate()->builtins()->KeyedStoreIC_Generic();
-    }
-  }
-}
-
-
-Handle<Code> StoreIC::slow_stub() const {
-  if (kind() == Code::STORE_IC) {
-    return isolate()->builtins()->StoreIC_Slow();
-  } else {
-    DCHECK(kind() == Code::KEYED_STORE_IC);
-    return isolate()->builtins()->KeyedStoreIC_Slow();
-  }
+  return PropertyICCompiler::ComputeStore(isolate(), GENERIC, extra_ic_state());
 }
 
 
@@ -1402,11 +1371,9 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
     return;
   }
 
-  bool use_ic = LookupForWrite(lookup, value, store_mode);
-  if (!use_ic) {
-    TRACE_GENERIC_IC(isolate(), "StoreIC", "LookupForWrite said 'false'");
-  }
-  Handle<Code> code = use_ic ? ComputeHandler(lookup, value) : slow_stub();
+  Handle<Code> code = LookupForWrite(lookup, value, store_mode)
+                          ? ComputeHandler(lookup, value)
+                          : slow_stub();
 
   PatchCache(lookup->name(), code);
   TRACE_IC("StoreIC", lookup->name());
@@ -1427,10 +1394,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
     case LookupIterator::TRANSITION: {
       Handle<Map> transition = lookup->transition_map();
       // Currently not handled by CompileStoreTransition.
-      if (!holder->HasFastProperties()) {
-        TRACE_GENERIC_IC(isolate(), "StoreIC", "transition from slow");
-        break;
-      }
+      if (!holder->HasFastProperties()) break;
 
       DCHECK(lookup->IsCacheableTransition());
       NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
@@ -1444,21 +1408,14 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
     }
 
     case LookupIterator::ACCESSOR: {
-      if (!holder->HasFastProperties()) {
-        TRACE_GENERIC_IC(isolate(), "StoreIC", "accessor on slow map");
-        break;
-      }
+      if (!holder->HasFastProperties()) break;
       Handle<Object> accessors = lookup->GetAccessors();
       if (accessors->IsExecutableAccessorInfo()) {
         Handle<ExecutableAccessorInfo> info =
             Handle<ExecutableAccessorInfo>::cast(accessors);
-        if (v8::ToCData<Address>(info->setter()) == 0) {
-          TRACE_GENERIC_IC(isolate(), "StoreIC", "setter == 0");
-          break;
-        }
+        if (v8::ToCData<Address>(info->setter()) == 0) break;
         if (!ExecutableAccessorInfo::IsCompatibleReceiverType(
                 isolate(), info, receiver_type())) {
-          TRACE_GENERIC_IC(isolate(), "StoreIC", "incompatible receiver type");
           break;
         }
         NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
@@ -1466,10 +1423,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
       } else if (accessors->IsAccessorPair()) {
         Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
                               isolate());
-        if (!setter->IsJSFunction()) {
-          TRACE_GENERIC_IC(isolate(), "StoreIC", "setter not a function");
-          break;
-        }
+        if (!setter->IsJSFunction()) break;
         Handle<JSFunction> function = Handle<JSFunction>::cast(setter);
         CallOptimization call_optimization(function);
         NamedStoreHandlerCompiler compiler(isolate(), receiver_type(), holder);
@@ -1483,7 +1437,6 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
       }
       // TODO(dcarney): Handle correctly.
       DCHECK(accessors->IsDeclaredAccessorInfo());
-      TRACE_GENERIC_IC(isolate(), "StoreIC", "declared accessor info");
       break;
     }
 
@@ -1524,7 +1477,6 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup,
 
       // -------------- Constant properties --------------
       DCHECK(lookup->property_details().type() == CONSTANT);
-      TRACE_GENERIC_IC(isolate(), "StoreIC", "constant property");
       break;
     }
 
@@ -1543,7 +1495,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   // via megamorphic stubs, since they don't have a map in their relocation info
   // and so the stubs can't be harvested for the object needed for a map check.
   if (target()->type() != Code::NORMAL) {
-    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "non-NORMAL target type");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "non-NORMAL target type");
     return generic_stub();
   }
 
@@ -1609,14 +1561,14 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
   if (!map_added) {
     // If the miss wasn't due to an unseen map, a polymorphic stub
     // won't help, use the generic stub.
-    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "same map added twice");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "same map added twice");
     return generic_stub();
   }
 
   // If the maximum number of receiver maps has been exceeded, use the generic
   // version of the IC.
   if (target_receiver_maps.length() > kMaxKeyedPolymorphism) {
-    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "max polymorph exceeded");
+    TRACE_GENERIC_IC(isolate(), "KeyedIC", "max polymorph exceeded");
     return generic_stub();
   }
 
@@ -1627,7 +1579,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     if (store_mode == STANDARD_STORE) {
       store_mode = old_store_mode;
     } else if (store_mode != old_store_mode) {
-      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "store mode mismatch");
+      TRACE_GENERIC_IC(isolate(), "KeyedIC", "store mode mismatch");
       return generic_stub();
     }
   }
@@ -1645,7 +1597,7 @@ Handle<Code> KeyedStoreIC::StoreElementStub(Handle<JSObject> receiver,
     }
     if (external_arrays != 0 &&
         external_arrays != target_receiver_maps.length()) {
-      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
+      TRACE_GENERIC_IC(isolate(), "KeyedIC",
                        "unsupported combination of external and normal arrays");
       return generic_stub();
     }
@@ -1800,12 +1752,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         StoreIC::Store(object, Handle<String>::cast(key), value,
                        JSReceiver::MAY_BE_STORE_FROM_KEYED),
         Object);
-    if (!is_target_set()) {
-      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
-                       "unhandled internalized string key");
-      TRACE_IC("StoreIC", key);
-      set_target(*stub);
-    }
+    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
+    set_target(*stub);
     return store_handle;
   }
 
@@ -1818,10 +1766,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     // expect to be able to trap element sets to objects with those maps in
     // the runtime to enable optimization of element hole access.
     Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
-    if (heap_object->map()->IsMapInArrayPrototypeChain()) {
-      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "map in array prototype");
-      use_ic = false;
-    }
+    if (heap_object->map()->IsMapInArrayPrototypeChain()) use_ic = false;
   }
 
   if (use_ic) {
@@ -1834,8 +1779,6 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
           isolate()->heap()->sloppy_arguments_elements_map()) {
         if (strict_mode() == SLOPPY) {
           stub = sloppy_arguments_stub();
-        } else {
-          TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "arguments receiver");
         }
       } else if (key_is_smi_like &&
                  !(target().is_identical_to(sloppy_arguments_stub()))) {
@@ -1846,14 +1789,8 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         if (!(receiver->map()->DictionaryElementsInPrototypeChainOnly())) {
           KeyedAccessStoreMode store_mode = GetStoreMode(receiver, key, value);
           stub = StoreElementStub(receiver, store_mode);
-        } else {
-          TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "dictionary prototype");
         }
-      } else {
-        TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "non-smi-like key");
       }
-    } else {
-      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "non-JSObject receiver");
     }
   }
 
@@ -1869,9 +1806,6 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   Code* generic = *generic_stub();
   if (*stub == generic) {
     TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "set generic");
-  }
-  if (*stub == *slow_stub()) {
-    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "slow stub");
   }
   DCHECK(!stub.is_null());
   set_target(*stub);

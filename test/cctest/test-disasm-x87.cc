@@ -349,7 +349,6 @@ TEST(DisasmIa320) {
   __ fprem1();
   __ fincstp();
   __ ftst();
-  __ fxam();
   __ fxch(3);
   __ fld_s(Operand(ebx, ecx, times_4, 10000));
   __ fstp_s(Operand(ebx, ecx, times_4, 10000));
@@ -378,12 +377,6 @@ TEST(DisasmIa320) {
   __ frndint();
   __ fninit();
   __ nop();
-
-  __ fldcw(Operand(ebx, ecx, times_4, 10000));
-  __ fnstcw(Operand(ebx, ecx, times_4, 10000));
-  __ fadd_d(Operand(ebx, ecx, times_4, 10000));
-  __ fnsave(Operand(ebx, ecx, times_4, 10000));
-  __ frstor(Operand(ebx, ecx, times_4, 10000));
 
   // xchg.
   {

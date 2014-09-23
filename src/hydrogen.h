@@ -2627,8 +2627,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                                          bool* has_side_effects);
 
   HValue* HandleKeyedElementAccess(HValue* obj, HValue* key, HValue* val,
-                                   Expression* expr, BailoutId ast_id,
-                                   BailoutId return_id,
+                                   Expression* expr, BailoutId return_id,
                                    PropertyAccessType access_type,
                                    bool* has_side_effects);
 

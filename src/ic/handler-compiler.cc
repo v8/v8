@@ -390,13 +390,13 @@ void ElementHandlerCompiler::CompileElementHandlers(
       ElementsKind elements_kind = receiver_map->elements_kind();
       if (receiver_map->has_indexed_interceptor()) {
         cached_stub = LoadIndexedInterceptorStub(isolate()).GetCode();
-      } else if (IsSloppyArgumentsElements(elements_kind)) {
-        cached_stub = KeyedLoadSloppyArgumentsStub(isolate()).GetCode();
       } else if (IsFastElementsKind(elements_kind) ||
                  IsExternalArrayElementsKind(elements_kind) ||
                  IsFixedTypedArrayElementsKind(elements_kind)) {
         cached_stub = LoadFastElementStub(isolate(), is_js_array, elements_kind)
                           .GetCode();
+      } else if (elements_kind == SLOPPY_ARGUMENTS_ELEMENTS) {
+        cached_stub = isolate()->builtins()->KeyedLoadIC_SloppyArguments();
       } else {
         DCHECK(elements_kind == DICTIONARY_ELEMENTS);
         cached_stub = LoadDictionaryElementStub(isolate()).GetCode();

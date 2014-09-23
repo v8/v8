@@ -65,9 +65,6 @@ class JSGraph : public ZoneObject {
 
   // Creates a Int32Constant node, usually canonicalized.
   Node* Int32Constant(int32_t value);
-  Node* Uint32Constant(uint32_t value) {
-    return Int32Constant(bit_cast<int32_t>(value));
-  }
 
   // Creates a Float64Constant node, usually canonicalized.
   Node* Float64Constant(double value);
@@ -112,7 +109,6 @@ class JSGraph : public ZoneObject {
 
   Factory* factory() { return isolate()->factory(); }
 };
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -503,6 +503,32 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
+  // The return address is on the stack.
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+  DCHECK(receiver.is(edx));
+  DCHECK(key.is(ecx));
+
+  Label slow, notin;
+  Factory* factory = masm->isolate()->factory();
+  Operand mapped_location = GenerateMappedArgumentsLookup(
+      masm, receiver, key, ebx, eax, &notin, &slow);
+  __ mov(eax, mapped_location);
+  __ Ret();
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in ebx.
+  Operand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, key, ebx, eax, &slow);
+  __ cmp(unmapped_location, factory->the_hole_value());
+  __ j(equal, &slow);
+  __ mov(eax, unmapped_location);
+  __ Ret();
+  __ bind(&slow);
+  GenerateMiss(masm);
+}
+
+
 void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // Return address is on the stack.
   Label slow, notin;

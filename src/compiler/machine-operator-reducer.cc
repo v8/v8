@@ -21,11 +21,6 @@ MachineOperatorReducer::MachineOperatorReducer(JSGraph* jsgraph)
 MachineOperatorReducer::~MachineOperatorReducer() {}
 
 
-Node* MachineOperatorReducer::Float32Constant(volatile float value) {
-  return graph()->NewNode(common()->Float32Constant(value));
-}
-
-
 Node* MachineOperatorReducer::Float64Constant(volatile double value) {
   return jsgraph()->Float64Constant(value);
 }
@@ -388,11 +383,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kChangeFloat32ToFloat64: {
-      Float32Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat64(m.Value());
-      break;
-    }
     case IrOpcode::kChangeFloat64ToInt32: {
       Float64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(FastD2I(m.Value()));
@@ -435,12 +425,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       Int64Matcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(static_cast<int32_t>(m.Value()));
       if (m.IsChangeInt32ToInt64()) return Replace(m.node()->InputAt(0));
-      break;
-    }
-    case IrOpcode::kTruncateFloat64ToFloat32: {
-      Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat32(DoubleToFloat32(m.Value()));
-      if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
     // TODO(turbofan): strength-reduce and fold floating point operations.

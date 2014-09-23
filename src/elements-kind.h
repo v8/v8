@@ -87,11 +87,6 @@ inline bool IsDictionaryElementsKind(ElementsKind kind) {
 }
 
 
-inline bool IsSloppyArgumentsElements(ElementsKind kind) {
-  return kind == SLOPPY_ARGUMENTS_ELEMENTS;
-}
-
-
 inline bool IsExternalArrayElementsKind(ElementsKind kind) {
   return kind >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
       kind <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND;

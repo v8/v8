@@ -44,12 +44,7 @@ Node* GraphTest::Parameter(int32_t index) {
 }
 
 
-Node* GraphTest::Float32Constant(volatile float value) {
-  return graph()->NewNode(common()->Float32Constant(value));
-}
-
-
-Node* GraphTest::Float64Constant(volatile double value) {
+Node* GraphTest::Float64Constant(double value) {
   return graph()->NewNode(common()->Float64Constant(value));
 }
 
@@ -64,7 +59,7 @@ Node* GraphTest::Int64Constant(int64_t value) {
 }
 
 
-Node* GraphTest::NumberConstant(volatile double value) {
+Node* GraphTest::NumberConstant(double value) {
   return graph()->NewNode(common()->NumberConstant(value));
 }
 
@@ -666,12 +661,6 @@ Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher) {
 Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher) {
   return MakeMatcher(
       new IsConstantMatcher<int64_t>(IrOpcode::kInt64Constant, value_matcher));
-}
-
-
-Matcher<Node*> IsFloat32Constant(const Matcher<float>& value_matcher) {
-  return MakeMatcher(
-      new IsConstantMatcher<float>(IrOpcode::kFloat32Constant, value_matcher));
 }
 
 

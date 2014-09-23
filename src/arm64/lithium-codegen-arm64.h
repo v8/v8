@@ -213,35 +213,35 @@ class LCodeGen: public LCodeGenBase {
                                    Register temp,
                                    LOperand* index,
                                    String::Encoding encoding);
-  void DeoptimizeBranch(LInstruction* instr, const char* detail,
+  void DeoptimizeBranch(LInstruction* instr, const char* reason,
                         BranchType branch_type, Register reg = NoReg,
                         int bit = -1,
                         Deoptimizer::BailoutType* override_bailout_type = NULL);
   void Deoptimize(LInstruction* instr,
                   Deoptimizer::BailoutType* override_bailout_type = NULL,
-                  const char* detail = NULL);
+                  const char* reason = NULL);
   void DeoptimizeIf(Condition cond, LInstruction* instr,
-                    const char* detail = NULL);
+                    const char* reason = NULL);
   void DeoptimizeIfZero(Register rt, LInstruction* instr,
-                        const char* detail = NULL);
+                        const char* reason = NULL);
   void DeoptimizeIfNotZero(Register rt, LInstruction* instr,
-                           const char* detail = NULL);
+                           const char* reason = NULL);
   void DeoptimizeIfNegative(Register rt, LInstruction* instr,
-                            const char* detail = NULL);
+                            const char* reason = NULL);
   void DeoptimizeIfSmi(Register rt, LInstruction* instr,
-                       const char* detail = NULL);
+                       const char* reason = NULL);
   void DeoptimizeIfNotSmi(Register rt, LInstruction* instr,
-                          const char* detail = NULL);
+                          const char* reason = NULL);
   void DeoptimizeIfRoot(Register rt, Heap::RootListIndex index,
-                        LInstruction* instr, const char* detail = NULL);
+                        LInstruction* instr, const char* reason = NULL);
   void DeoptimizeIfNotRoot(Register rt, Heap::RootListIndex index,
-                           LInstruction* instr, const char* detail = NULL);
+                           LInstruction* instr, const char* reason = NULL);
   void DeoptimizeIfMinusZero(DoubleRegister input, LInstruction* instr,
-                             const char* detail = NULL);
+                             const char* reason = NULL);
   void DeoptimizeIfBitSet(Register rt, int bit, LInstruction* instr,
-                          const char* detail = NULL);
+                          const char* reason = NULL);
   void DeoptimizeIfBitClear(Register rt, int bit, LInstruction* instr,
-                            const char* detail = NULL);
+                            const char* reason = NULL);
 
   MemOperand PrepareKeyedExternalArrayOperand(Register key,
                                               Register base,

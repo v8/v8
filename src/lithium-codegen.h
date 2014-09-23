@@ -8,7 +8,6 @@
 #include "src/v8.h"
 
 #include "src/compiler.h"
-#include "src/deoptimizer.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +33,7 @@ class LCodeGenBase BASE_EMBEDDED {
   HGraph* graph() const;
 
   void FPRINTF_CHECKING Comment(const char* format, ...);
-  void DeoptComment(const Deoptimizer::Reason& reason);
+  void DeoptComment(const char* mnemonic, const char* reason);
 
   bool GenerateBody();
   virtual void GenerateBodyInstructionPre(LInstruction* instr) {}

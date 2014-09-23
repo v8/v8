@@ -67,14 +67,6 @@ inline unsigned int FastD2UI(double x) {
 }
 
 
-inline float DoubleToFloat32(double x) {
-  // TODO(yanggou): This static_cast is implementation-defined behaviour in C++,
-  // so we may need to do the conversion manually instead to match the spec.
-  volatile float f = static_cast<float>(x);
-  return f;
-}
-
-
 inline double DoubleToInteger(double x) {
   if (std::isnan(x)) return 0;
   if (!std::isfinite(x) || x == 0) return x;

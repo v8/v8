@@ -1519,20 +1519,6 @@ void Assembler::fst_s(const Operand& adr) {
 }
 
 
-void Assembler::fldcw(const Operand& adr) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xD9);
-  emit_operand(ebp, adr);
-}
-
-
-void Assembler::fnstcw(const Operand& adr) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xD9);
-  emit_operand(edi, adr);
-}
-
-
 void Assembler::fstp_d(const Operand& adr) {
   EnsureSpace ensure_space(this);
   EMIT(0xDD);
@@ -1612,13 +1598,6 @@ void Assembler::fchs() {
 }
 
 
-void Assembler::fsqrt() {
-  EnsureSpace ensure_space(this);
-  EMIT(0xD9);
-  EMIT(0xFA);
-}
-
-
 void Assembler::fcos() {
   EnsureSpace ensure_space(this);
   EMIT(0xD9);
@@ -1677,13 +1656,6 @@ void Assembler::fadd(int i) {
 void Assembler::fadd_i(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xD8, 0xC0, i);
-}
-
-
-void Assembler::fadd_d(const Operand& adr) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xDC);
-  emit_operand(eax, adr);
 }
 
 
@@ -1800,13 +1772,6 @@ void Assembler::ftst() {
 }
 
 
-void Assembler::fxam() {
-  EnsureSpace ensure_space(this);
-  EMIT(0xD9);
-  EMIT(0xE5);
-}
-
-
 void Assembler::fucomp(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDD, 0xE8, i);
@@ -1865,20 +1830,6 @@ void Assembler::fnclex() {
   EnsureSpace ensure_space(this);
   EMIT(0xDB);
   EMIT(0xE2);
-}
-
-
-void Assembler::fnsave(const Operand& adr) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xDD);
-  emit_operand(esi, adr);
-}
-
-
-void Assembler::frstor(const Operand& adr) {
-  EnsureSpace ensure_space(this);
-  EMIT(0xDD);
-  emit_operand(esp, adr);
 }
 
 

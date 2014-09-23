@@ -5,7 +5,6 @@
 #ifndef V8_X87_LITHIUM_CODEGEN_X87_H_
 #define V8_X87_LITHIUM_CODEGEN_X87_H_
 
-#include <map>
 #include "src/x87/lithium-x87.h"
 
 #include "src/base/logging.h"
@@ -85,8 +84,6 @@ class LCodeGen: public LCodeGenBase {
       X87OperandType operand = kX87DoubleOperand);
   void X87Mov(Operand src, X87Register reg,
       X87OperandType operand = kX87DoubleOperand);
-  void X87Mov(X87Register reg, X87Register src,
-              X87OperandType operand = kX87DoubleOperand);
 
   void X87PrepareBinaryOp(
       X87Register left, X87Register right, X87Register result);
@@ -201,8 +198,9 @@ class LCodeGen: public LCodeGenBase {
                        LInstruction* instr,
                        SafepointMode safepoint_mode);
 
-  void CallRuntime(const Runtime::Function* fun, int argc, LInstruction* instr,
-                   SaveFPRegsMode save_doubles = kDontSaveFPRegs);
+  void CallRuntime(const Runtime::Function* fun,
+                   int argc,
+                   LInstruction* instr);
 
   void CallRuntime(Runtime::FunctionId id,
                    int argc,
@@ -236,10 +234,10 @@ class LCodeGen: public LCodeGenBase {
 
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* detail,
+  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* reason,
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition cc, LInstruction* instr,
-                    const char* detail = NULL);
+                    const char* reason = NULL);
 
   bool DeoptEveryNTimes() {
     return FLAG_deopt_every_n_times != 0 && !info()->IsStub();
@@ -378,7 +376,7 @@ class LCodeGen: public LCodeGenBase {
   int osr_pc_offset_;
   bool frame_is_built_;
 
-  class X87Stack : public ZoneObject {
+  class X87Stack {
    public:
     explicit X87Stack(MacroAssembler* masm)
         : stack_depth_(0), is_mutable_(true), masm_(masm) { }
@@ -395,23 +393,14 @@ class LCodeGen: public LCodeGenBase {
       }
       return true;
     }
-    X87Stack& operator=(const X87Stack& other) {
-      stack_depth_ = other.stack_depth_;
-      for (int i = 0; i < stack_depth_; i++) {
-        stack_[i] = other.stack_[i];
-      }
-      return *this;
-    }
     bool Contains(X87Register reg);
     void Fxch(X87Register reg, int other_slot = 0);
     void Free(X87Register reg);
     void PrepareToWrite(X87Register reg);
     void CommitWrite(X87Register reg);
     void FlushIfNecessary(LInstruction* instr, LCodeGen* cgen);
-    void LeavingBlock(int current_block_id, LGoto* goto_instr, LCodeGen* cgen);
+    void LeavingBlock(int current_block_id, LGoto* goto_instr);
     int depth() const { return stack_depth_; }
-    int GetLayout();
-    int st(X87Register reg) { return st2idx(ArrayIndex(reg)); }
     void pop() {
       DCHECK(is_mutable_);
       stack_depth_--;
@@ -436,9 +425,6 @@ class LCodeGen: public LCodeGenBase {
     MacroAssembler* masm_;
   };
   X87Stack x87_stack_;
-  // block_id -> X87Stack*;
-  typedef std::map<int, X87Stack*> X87StackMap;
-  X87StackMap x87_stack_map_;
 
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.
@@ -472,7 +458,6 @@ class LCodeGen: public LCodeGenBase {
   friend class LDeferredCode;
   friend class LEnvironment;
   friend class SafepointGenerator;
-  friend class X87Stack;
   DISALLOW_COPY_AND_ASSIGN(LCodeGen);
 };
 

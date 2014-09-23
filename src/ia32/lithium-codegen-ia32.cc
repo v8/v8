@@ -386,7 +386,11 @@ bool LCodeGen::GenerateJumpTable() {
     Deoptimizer::JumpTableEntry* table_entry = &jump_table_[i];
     __ bind(&table_entry->label);
     Address entry = table_entry->address;
-    DeoptComment(table_entry->reason);
+    Deoptimizer::BailoutType type = table_entry->bailout_type;
+    int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
+    DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
+    Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
+    DeoptComment(table_entry->mnemonic, table_entry->reason);
     if (table_entry->needs_frame) {
       DCHECK(!info()->saves_caller_doubles());
       __ push(Immediate(ExternalReference::ForDeoptEntry(entry)));
@@ -821,7 +825,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(
 
 
 void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
-                            const char* detail,
+                            const char* reason,
                             Deoptimizer::BailoutType bailout_type) {
   LEnvironment* environment = instr->environment();
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
@@ -863,19 +867,19 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
     __ bind(&done);
   }
 
-  Deoptimizer::Reason reason(instr->hydrogen_value()->position().raw(),
-                             instr->Mnemonic(), detail);
   DCHECK(info()->IsStub() || frame_is_built_);
   if (cc == no_condition && frame_is_built_) {
-    DeoptComment(reason);
+    DeoptComment(instr->Mnemonic(), reason);
     __ call(entry, RelocInfo::RUNTIME_ENTRY);
   } else {
-    Deoptimizer::JumpTableEntry table_entry(entry, reason, bailout_type,
-                                            !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
     if (jump_table_.is_empty() ||
-        !table_entry.IsEquivalentTo(jump_table_.last())) {
+        jump_table_.last().address != entry ||
+        jump_table_.last().needs_frame != !frame_is_built_ ||
+        jump_table_.last().bailout_type != bailout_type) {
+      Deoptimizer::JumpTableEntry table_entry(entry, instr->Mnemonic(), reason,
+                                              bailout_type, !frame_is_built_);
       jump_table_.Add(table_entry, zone());
     }
     if (cc == no_condition) {
@@ -888,11 +892,11 @@ void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
 
 
 void LCodeGen::DeoptimizeIf(Condition cc, LInstruction* instr,
-                            const char* detail) {
+                            const char* reason) {
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
-  DeoptimizeIf(cc, instr, detail, bailout_type);
+  DeoptimizeIf(cc, instr, reason, bailout_type);
 }
 
 
@@ -1616,6 +1620,10 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     switch (instr->op()) {
       case Token::ROR:
         __ ror_cl(ToRegister(left));
+        if (instr->can_deopt()) {
+          __ test(ToRegister(left), ToRegister(left));
+          DeoptimizeIf(sign, instr);
+        }
         break;
       case Token::SAR:
         __ sar_cl(ToRegister(left));
@@ -3698,7 +3706,8 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ cvttsd2si(output_reg, Operand(xmm_scratch));
   // Overflow is signalled with minint.
   __ cmp(output_reg, 0x1);
-  DeoptimizeIf(overflow, instr, "conversion overflow");
+  __ RecordComment("D2I conversion overflow");
+  DeoptimizeIf(overflow, instr);
   __ jmp(&done, dist);
 
   __ bind(&below_one_half);
@@ -3713,7 +3722,8 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
   __ cvttsd2si(output_reg, Operand(input_temp));
   // Catch minint due to overflow, and to prevent overflow when compensating.
   __ cmp(output_reg, 0x1);
-  DeoptimizeIf(overflow, instr, "conversion overflow");
+  __ RecordComment("D2I conversion overflow");
+  DeoptimizeIf(overflow, instr);
 
   __ Cvtsi2sd(xmm_scratch, output_reg);
   __ ucomisd(xmm_scratch, input_temp);
@@ -3729,7 +3739,8 @@ void LCodeGen::DoMathRound(LMathRound* instr) {
     // If the sign is positive, we return +0.
     __ movmskpd(output_reg, input_reg);
     __ test(output_reg, Immediate(1));
-    DeoptimizeIf(not_zero, instr, "minus zero");
+    __ RecordComment("Minus zero");
+    DeoptimizeIf(not_zero, instr);
   }
   __ Move(output_reg, Immediate(0));
   __ bind(&done);
@@ -4749,26 +4760,31 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr, Label* done) {
 
     __ bind(&check_false);
     __ cmp(input_reg, factory()->false_value());
-    DeoptimizeIf(not_equal, instr, "cannot truncate");
+    __ RecordComment("Deferred TaggedToI: cannot truncate");
+    DeoptimizeIf(not_equal, instr);
     __ Move(input_reg, Immediate(0));
   } else {
     XMMRegister scratch = ToDoubleRegister(instr->temp());
     DCHECK(!scratch.is(xmm0));
     __ cmp(FieldOperand(input_reg, HeapObject::kMapOffset),
            isolate()->factory()->heap_number_map());
-    DeoptimizeIf(not_equal, instr, "not a heap number");
+    __ RecordComment("Deferred TaggedToI: not a heap number");
+    DeoptimizeIf(not_equal, instr);
     __ movsd(xmm0, FieldOperand(input_reg, HeapNumber::kValueOffset));
     __ cvttsd2si(input_reg, Operand(xmm0));
     __ Cvtsi2sd(scratch, Operand(input_reg));
     __ ucomisd(xmm0, scratch);
-    DeoptimizeIf(not_equal, instr, "lost precision");
-    DeoptimizeIf(parity_even, instr, "NaN");
+    __ RecordComment("Deferred TaggedToI: lost precision");
+    DeoptimizeIf(not_equal, instr);
+    __ RecordComment("Deferred TaggedToI: NaN");
+    DeoptimizeIf(parity_even, instr);
     if (instr->hydrogen()->GetMinusZeroMode() == FAIL_ON_MINUS_ZERO) {
       __ test(input_reg, Operand(input_reg));
       __ j(not_zero, done);
       __ movmskpd(input_reg, xmm0);
       __ and_(input_reg, 1);
-      DeoptimizeIf(not_zero, instr, "minus zero");
+      __ RecordComment("Deferred TaggedToI: minus zero");
+      DeoptimizeIf(not_zero, instr);
     }
   }
 }

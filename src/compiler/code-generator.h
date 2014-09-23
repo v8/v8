@@ -98,10 +98,8 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
                                 InstructionOperand* op);
   void AddNopForSmiCodeInlining();
-  void EnsureSpaceForLazyDeopt();
-  void MarkLazyDeoptSite();
-
   // ===========================================================================
+
   struct DeoptimizationState : ZoneObject {
    public:
     BailoutId bailout_id() const { return bailout_id_; }
@@ -128,7 +126,6 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   ZoneDeque<DeoptimizationState*> deoptimization_states_;
   ZoneDeque<Handle<Object> > deoptimization_literals_;
   TranslationBuffer translations_;
-  int last_lazy_deopt_pc_;
 };
 
 }  // namespace compiler

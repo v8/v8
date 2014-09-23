@@ -188,6 +188,7 @@ HeapSnapshot::HeapSnapshot(HeapProfiler* profiler,
       uid_(uid),
       root_index_(HeapEntry::kNoEntry),
       gc_roots_index_(HeapEntry::kNoEntry),
+      natives_root_index_(HeapEntry::kNoEntry),
       max_snapshot_js_object_id_(0) {
   STATIC_ASSERT(
       sizeof(HeapGraphEdge) ==
@@ -213,18 +214,6 @@ void HeapSnapshot::Delete() {
 
 void HeapSnapshot::RememberLastJSObjectId() {
   max_snapshot_js_object_id_ = profiler_->heap_object_map()->last_assigned_id();
-}
-
-
-void HeapSnapshot::AddSyntheticRootEntries() {
-  AddRootEntry();
-  AddGcRootsEntry();
-  SnapshotObjectId id = HeapObjectsMap::kGcRootsFirstSubrootId;
-  for (int tag = 0; tag < VisitorSynchronization::kNumberOfSyncTags; tag++) {
-    AddGcSubrootEntry(tag, id);
-    id += HeapObjectsMap::kObjectIdStep;
-  }
-  DCHECK(HeapObjectsMap::kFirstAvailableObjectId == id);
 }
 
 
@@ -254,11 +243,15 @@ HeapEntry* HeapSnapshot::AddGcRootsEntry() {
 }
 
 
-HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag, SnapshotObjectId id) {
+HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag) {
   DCHECK(gc_subroot_indexes_[tag] == HeapEntry::kNoEntry);
   DCHECK(0 <= tag && tag < VisitorSynchronization::kNumberOfSyncTags);
-  HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
-                              VisitorSynchronization::kTagNames[tag], id, 0, 0);
+  HeapEntry* entry = AddEntry(
+      HeapEntry::kSynthetic,
+      VisitorSynchronization::kTagNames[tag],
+      HeapObjectsMap::GetNthGcSubrootId(tag),
+      0,
+      0);
   gc_subroot_indexes_[tag] = entry->index();
   return entry;
 }
@@ -778,6 +771,20 @@ void HeapObjectsSet::SetTag(Object* obj, const char* tag) {
 }
 
 
+HeapObject* const V8HeapExplorer::kInternalRootObject =
+    reinterpret_cast<HeapObject*>(
+        static_cast<intptr_t>(HeapObjectsMap::kInternalRootObjectId));
+HeapObject* const V8HeapExplorer::kGcRootsObject =
+    reinterpret_cast<HeapObject*>(
+        static_cast<intptr_t>(HeapObjectsMap::kGcRootsObjectId));
+HeapObject* const V8HeapExplorer::kFirstGcSubrootObject =
+    reinterpret_cast<HeapObject*>(
+        static_cast<intptr_t>(HeapObjectsMap::kGcRootsFirstSubrootId));
+HeapObject* const V8HeapExplorer::kLastGcSubrootObject =
+    reinterpret_cast<HeapObject*>(
+        static_cast<intptr_t>(HeapObjectsMap::kFirstAvailableObjectId));
+
+
 V8HeapExplorer::V8HeapExplorer(
     HeapSnapshot* snapshot,
     SnapshottingProgressReportingInterface* progress,
@@ -802,7 +809,16 @@ HeapEntry* V8HeapExplorer::AllocateEntry(HeapThing ptr) {
 
 
 HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
-  if (object->IsJSFunction()) {
+  if (object == kInternalRootObject) {
+    snapshot_->AddRootEntry();
+    return snapshot_->root();
+  } else if (object == kGcRootsObject) {
+    HeapEntry* entry = snapshot_->AddGcRootsEntry();
+    return entry;
+  } else if (object >= kFirstGcSubrootObject && object < kLastGcSubrootObject) {
+    HeapEntry* entry = snapshot_->AddGcSubrootEntry(GetGcSubrootOrder(object));
+    return entry;
+  } else if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
     const char* name = shared->bound() ? "native_bind" :
@@ -947,6 +963,41 @@ class SnapshotFiller {
   StringsStorage* names_;
   HeapEntriesMap* entries_;
 };
+
+
+class GcSubrootsEnumerator : public ObjectVisitor {
+ public:
+  GcSubrootsEnumerator(
+      SnapshotFiller* filler, V8HeapExplorer* explorer)
+      : filler_(filler),
+        explorer_(explorer),
+        previous_object_count_(0),
+        object_count_(0) {
+  }
+  void VisitPointers(Object** start, Object** end) {
+    object_count_ += end - start;
+  }
+  void Synchronize(VisitorSynchronization::SyncTag tag) {
+    // Skip empty subroots.
+    if (previous_object_count_ != object_count_) {
+      previous_object_count_ = object_count_;
+      filler_->AddEntry(V8HeapExplorer::GetNthGcSubrootObject(tag), explorer_);
+    }
+  }
+ private:
+  SnapshotFiller* filler_;
+  V8HeapExplorer* explorer_;
+  intptr_t previous_object_count_;
+  intptr_t object_count_;
+};
+
+
+void V8HeapExplorer::AddRootEntries(SnapshotFiller* filler) {
+  filler->AddEntry(kInternalRootObject, this);
+  filler->AddEntry(kGcRootsObject, this);
+  GcSubrootsEnumerator enumerator(filler, this);
+  heap_->IterateRoots(&enumerator, VISIT_ALL);
+}
 
 
 const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
@@ -1804,6 +1855,9 @@ class RootsReferencesExtractor : public ObjectVisitor {
   void FillReferences(V8HeapExplorer* explorer) {
     DCHECK(strong_references_.length() <= all_references_.length());
     Builtins* builtins = heap_->isolate()->builtins();
+    for (int i = 0; i < reference_tags_.length(); ++i) {
+      explorer->SetGcRootsReference(reference_tags_[i].tag);
+    }
     int strong_index = 0, all_index = 0, tags_index = 0, builtin_index = 0;
     while (all_index < all_references_.length()) {
       bool is_strong = strong_index < strong_references_.length()
@@ -1846,15 +1900,10 @@ bool V8HeapExplorer::IterateAndExtractReferences(
     SnapshotFiller* filler) {
   filler_ = filler;
 
-  // Create references to the synthetic roots.
-  SetRootGcRootsReference();
-  for (int tag = 0; tag < VisitorSynchronization::kNumberOfSyncTags; tag++) {
-    SetGcRootsReference(static_cast<VisitorSynchronization::SyncTag>(tag));
-  }
-
   // Make sure builtin code objects get their builtin tags
   // first. Otherwise a particular JSFunction object could set
   // its custom name to a generic builtin.
+  SetRootGcRootsReference();
   RootsReferencesExtractor extractor(heap_);
   heap_->IterateRoots(&extractor, VISIT_ONLY_STRONG);
   extractor.SetCollectingAllReferences();
@@ -2570,8 +2619,6 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   debug_heap->Verify();
 #endif
 
-  snapshot_->AddSyntheticRootEntries();
-
   if (!FillReferences()) return false;
 
   snapshot_->FillChildren();
@@ -2612,6 +2659,7 @@ void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
 
 bool HeapSnapshotGenerator::FillReferences() {
   SnapshotFiller filler(snapshot_, &entries_);
+  v8_heap_explorer_.AddRootEntries(&filler);
   return v8_heap_explorer_.IterateAndExtractReferences(&filler)
       && dom_explorer_.IterateAndExtractReferences(&filler);
 }

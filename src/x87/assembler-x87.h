@@ -142,7 +142,7 @@ inline Register Register::FromAllocationIndex(int index)  {
 
 
 struct X87Register {
-  static const int kMaxNumAllocatableRegisters = 6;
+  static const int kMaxNumAllocatableRegisters = 8;
   static const int kMaxNumRegisters = 8;
   static int NumAllocatableRegisters() {
     return kMaxNumAllocatableRegisters;
@@ -852,7 +852,6 @@ class Assembler : public AssemblerBase {
 
   void fabs();
   void fchs();
-  void fsqrt();
   void fcos();
   void fsin();
   void fptan();
@@ -863,7 +862,6 @@ class Assembler : public AssemblerBase {
 
   void fadd(int i);
   void fadd_i(int i);
-  void fadd_d(const Operand& adr);
   void fsub(int i);
   void fsub_i(int i);
   void fmul(int i);
@@ -886,19 +884,14 @@ class Assembler : public AssemblerBase {
   void ffree(int i = 0);
 
   void ftst();
-  void fxam();
   void fucomp(int i);
   void fucompp();
   void fucomi(int i);
   void fucomip();
   void fcompp();
   void fnstsw_ax();
-  void fldcw(const Operand& adr);
-  void fnstcw(const Operand& adr);
   void fwait();
   void fnclex();
-  void fnsave(const Operand& adr);
-  void frstor(const Operand& adr);
 
   void frndint();
 

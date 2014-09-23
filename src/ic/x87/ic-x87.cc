@@ -133,7 +133,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm, Label* miss_label,
 
   // Update write barrier. Make sure not to clobber the value.
   __ mov(r1, value);
-  __ RecordWrite(elements, r0, r1, kDontSaveFPRegs);
+  __ RecordWrite(elements, r0, r1);
 }
 
 
@@ -505,6 +505,32 @@ void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
+  // The return address is on the stack.
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+  DCHECK(receiver.is(edx));
+  DCHECK(key.is(ecx));
+
+  Label slow, notin;
+  Factory* factory = masm->isolate()->factory();
+  Operand mapped_location = GenerateMappedArgumentsLookup(
+      masm, receiver, key, ebx, eax, &notin, &slow);
+  __ mov(eax, mapped_location);
+  __ Ret();
+  __ bind(&notin);
+  // The unmapped lookup expects that the parameter map is in ebx.
+  Operand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, key, ebx, eax, &slow);
+  __ cmp(unmapped_location, factory->the_hole_value());
+  __ j(equal, &slow);
+  __ mov(eax, unmapped_location);
+  __ Ret();
+  __ bind(&slow);
+  GenerateMiss(masm);
+}
+
+
 void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   // Return address is on the stack.
   Label slow, notin;
@@ -520,7 +546,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   __ mov(mapped_location, value);
   __ lea(ecx, mapped_location);
   __ mov(edx, value);
-  __ RecordWrite(ebx, ecx, edx, kDontSaveFPRegs);
+  __ RecordWrite(ebx, ecx, edx);
   __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in ebx.
@@ -529,7 +555,7 @@ void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   __ mov(unmapped_location, value);
   __ lea(edi, unmapped_location);
   __ mov(edx, value);
-  __ RecordWrite(ebx, edi, edx, kDontSaveFPRegs);
+  __ RecordWrite(ebx, edi, edx);
   __ Ret();
   __ bind(&slow);
   GenerateMiss(masm);
@@ -598,8 +624,7 @@ static void KeyedStoreGenerateGenericHelper(
   __ mov(FixedArrayElementOperand(ebx, key), value);
   // Update write barrier for the elements array address.
   __ mov(edx, value);  // Preserve the value which is returned.
-  __ RecordWriteArray(ebx, edx, key, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteArray(ebx, edx, key, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ ret(0);
 
   __ bind(fast_double);

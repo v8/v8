@@ -4,8 +4,6 @@
 
 #include "src/compiler/common-operator.h"
 
-#include <limits>
-
 #include "src/compiler/operator-properties-inl.h"
 #include "src/test/test-utils.h"
 
@@ -134,24 +132,7 @@ class CommonOperatorTest : public TestWithZone {
 
 const int kArguments[] = {1, 5, 6, 42, 100, 10000, kMaxInt};
 
-const float kFloat32Values[] = {
-    std::numeric_limits<float>::min(), -1.0f, -0.0f, 0.0f, 1.0f,
-    std::numeric_limits<float>::max()};
-
 }  // namespace
-
-
-TEST_F(CommonOperatorTest, Float32Constant) {
-  TRACED_FOREACH(float, value, kFloat32Values) {
-    const Operator* op = common()->Float32Constant(value);
-    EXPECT_FLOAT_EQ(value, OpParameter<float>(op));
-    EXPECT_EQ(0, OperatorProperties::GetValueInputCount(op));
-    EXPECT_EQ(0, OperatorProperties::GetTotalInputCount(op));
-    EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
-    EXPECT_EQ(0, OperatorProperties::GetEffectOutputCount(op));
-    EXPECT_EQ(1, OperatorProperties::GetValueOutputCount(op));
-  }
-}
 
 
 TEST_F(CommonOperatorTest, ValueEffect) {

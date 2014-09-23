@@ -205,7 +205,6 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
 
   switch (ArchOpcodeField::decode(instr->opcode())) {
     case kArchCallCodeObject: {
-      EnsureSpaceForLazyDeopt();
       if (HasImmediateInput(instr, 0)) {
         Handle<Code> code = Handle<Code>::cast(i.InputHeapObject(0));
         __ Call(code, RelocInfo::CODE_TARGET);
@@ -217,8 +216,16 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AddSafepointAndDeopt(instr);
       break;
     }
+    case kArchCallAddress:
+      if (HasImmediateInput(instr, 0)) {
+        Immediate64 imm = i.InputImmediate64(0);
+        DCHECK_EQ(kImm64Value, imm.type);
+        __ Call(reinterpret_cast<byte*>(imm.value), RelocInfo::NONE64);
+      } else {
+        __ call(i.InputRegister(0));
+      }
+      break;
     case kArchCallJSFunction: {
-      EnsureSpaceForLazyDeopt();
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
@@ -227,6 +234,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       __ Call(FieldOperand(func, JSFunction::kCodeEntryOffset));
       AddSafepointAndDeopt(instr);
+      break;
+    }
+    case kArchDrop: {
+      int words = MiscField::decode(instr->opcode());
+      __ addq(rsp, Immediate(kPointerSize * words));
       break;
     }
     case kArchJmp:
@@ -992,21 +1004,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
 
 
 void CodeGenerator::AddNopForSmiCodeInlining() { __ nop(); }
-
-
-void CodeGenerator::EnsureSpaceForLazyDeopt() {
-  int space_needed = Deoptimizer::patch_size();
-  if (!linkage()->info()->IsStub()) {
-    // Ensure that we have enough space after the previous lazy-bailout
-    // instruction for patching the code here.
-    int current_pc = masm()->pc_offset();
-    if (current_pc < last_lazy_deopt_pc_ + space_needed) {
-      int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
-      __ Nop(padding_size);
-    }
-  }
-  MarkLazyDeoptSite();
-}
 
 #undef __
 

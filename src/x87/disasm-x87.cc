@@ -702,12 +702,7 @@ int DisassemblerX87::MemoryFPUInstruction(int escape_opcode,
         case 0: mnem = "fld_s"; break;
         case 2: mnem = "fst_s"; break;
         case 3: mnem = "fstp_s"; break;
-        case 5:
-          mnem = "fldcw";
-          break;
-        case 7:
-          mnem = "fnstcw";
-          break;
+        case 7: mnem = "fstcw"; break;
         default: UnimplementedInstruction();
       }
       break;
@@ -721,27 +716,11 @@ int DisassemblerX87::MemoryFPUInstruction(int escape_opcode,
       }
       break;
 
-    case 0xDC:
-      switch (regop) {
-        case 0:
-          mnem = "fadd_d";
-          break;
-        default:
-          UnimplementedInstruction();
-      }
-      break;
-
     case 0xDD: switch (regop) {
         case 0: mnem = "fld_d"; break;
         case 1: mnem = "fisttp_d"; break;
         case 2: mnem = "fst_d"; break;
         case 3: mnem = "fstp_d"; break;
-        case 4:
-          mnem = "frstor";
-          break;
-        case 6:
-          mnem = "fnsave";
-          break;
         default: UnimplementedInstruction();
       }
       break;

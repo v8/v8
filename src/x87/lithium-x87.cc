@@ -484,12 +484,6 @@ LUnallocated* LChunkBuilder::ToUnallocated(Register reg) {
 }
 
 
-LUnallocated* LChunkBuilder::ToUnallocated(X87Register reg) {
-  return new (zone()) LUnallocated(LUnallocated::FIXED_DOUBLE_REGISTER,
-                                   X87Register::ToAllocationIndex(reg));
-}
-
-
 LOperand* LChunkBuilder::UseFixed(HValue* value, Register fixed_register) {
   return Use(value, ToUnallocated(fixed_register));
 }
@@ -618,12 +612,6 @@ LInstruction* LChunkBuilder::DefineSameAsFirst(
 
 LInstruction* LChunkBuilder::DefineFixed(LTemplateResultInstruction<1>* instr,
                                          Register reg) {
-  return Define(instr, ToUnallocated(reg));
-}
-
-
-LInstruction* LChunkBuilder::DefineFixed(LTemplateResultInstruction<1>* instr,
-                                         X87Register reg) {
   return Define(instr, ToUnallocated(reg));
 }
 
@@ -884,14 +872,6 @@ void LChunkBuilder::VisitInstruction(HInstruction* current) {
     if (current->IsControlInstruction() &&
         HControlInstruction::cast(current)->KnownSuccessorBlock(&successor) &&
         successor != NULL) {
-      // Always insert a fpu register barrier here when branch is optimized to
-      // be a direct goto.
-      // TODO(weiliang): require a better solution.
-      if (!current->IsGoto()) {
-        LClobberDoubles* clobber = new (zone()) LClobberDoubles(isolate());
-        clobber->set_hydrogen_value(current);
-        chunk_->AddInstruction(clobber, current_block_);
-      }
       instr = new(zone()) LGoto(successor);
     } else {
       instr = current->CompileToLithium(this);
@@ -951,8 +931,7 @@ void LChunkBuilder::AddInstruction(LInstruction* instr,
   if (FLAG_stress_environments && !instr->HasEnvironment()) {
     instr = AssignEnvironment(instr);
   }
-  if (instr->IsGoto() &&
-      (LGoto::cast(instr)->jumps_to_join() || next_block_->is_osr_entry())) {
+  if (instr->IsGoto() && LGoto::cast(instr)->jumps_to_join()) {
     // TODO(olivf) Since phis of spilled values are joined as registers
     // (not in the stack slot), we need to allow the goto gaps to keep one
     // x87 register alive. To ensure all other values are still spilled, we
@@ -1000,9 +979,7 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
   bool easy_case = !r.IsTagged() || type.IsBoolean() || type.IsSmi() ||
       type.IsJSArray() || type.IsHeapNumber() || type.IsString();
   LOperand* temp = !easy_case && expected.NeedsMap() ? TempRegister() : NULL;
-  LInstruction* branch =
-      temp != NULL ? new (zone()) LBranch(UseRegister(value), temp)
-                   : new (zone()) LBranch(UseRegisterAtStart(value), temp);
+  LInstruction* branch = new(zone()) LBranch(UseRegister(value), temp);
   if (!easy_case &&
       ((!expected.Contains(ToBooleanStub::SMI) && expected.NeedsMap()) ||
        !expected.IsGeneric())) {
@@ -1205,16 +1182,16 @@ LInstruction* LChunkBuilder::DoMathFloor(HUnaryMathOperation* instr) {
 
 
 LInstruction* LChunkBuilder::DoMathRound(HUnaryMathOperation* instr) {
-  LOperand* input = UseRegisterAtStart(instr->value());
-  LInstruction* result = DefineAsRegister(new (zone()) LMathRound(input));
-  return AssignEnvironment(result);
+  // Crankshaft is turned off for nosse2.
+  UNREACHABLE();
+  return NULL;
 }
 
 
 LInstruction* LChunkBuilder::DoMathFround(HUnaryMathOperation* instr) {
-  LOperand* input = UseRegister(instr->value());
+  LOperand* input = UseRegisterAtStart(instr->value());
   LMathFround* result = new (zone()) LMathFround(input);
-  return DefineSameAsFirst(result);
+  return AssignEnvironment(DefineAsRegister(result));
 }
 
 
@@ -1248,11 +1225,11 @@ LInstruction* LChunkBuilder::DoMathClz32(HUnaryMathOperation* instr) {
 LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
   DCHECK(instr->representation().IsDouble());
   DCHECK(instr->value()->representation().IsDouble());
-  LOperand* value = UseRegisterAtStart(instr->value());
-  LOperand* temp1 = FixedTemp(ecx);
-  LOperand* temp2 = FixedTemp(edx);
+  LOperand* value = UseTempRegister(instr->value());
+  LOperand* temp1 = TempRegister();
+  LOperand* temp2 = TempRegister();
   LMathExp* result = new(zone()) LMathExp(value, temp1, temp2);
-  return MarkAsCall(DefineSameAsFirst(result), instr);
+  return DefineAsRegister(result);
 }
 
 
@@ -1265,7 +1242,8 @@ LInstruction* LChunkBuilder::DoMathSqrt(HUnaryMathOperation* instr) {
 
 LInstruction* LChunkBuilder::DoMathPowHalf(HUnaryMathOperation* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  LMathPowHalf* result = new (zone()) LMathPowHalf(input);
+  LOperand* temp = TempRegister();
+  LMathPowHalf* result = new(zone()) LMathPowHalf(input, temp);
   return DefineSameAsFirst(result);
 }
 
@@ -1637,8 +1615,6 @@ LInstruction* LChunkBuilder::DoAdd(HAdd* instr) {
 LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
   LOperand* left = NULL;
   LOperand* right = NULL;
-  LOperand* scratch = TempRegister();
-
   if (instr->representation().IsSmiOrInteger32()) {
     DCHECK(instr->left()->representation().Equals(instr->representation()));
     DCHECK(instr->right()->representation().Equals(instr->representation()));
@@ -1651,19 +1627,15 @@ LInstruction* LChunkBuilder::DoMathMinMax(HMathMinMax* instr) {
     left = UseRegisterAtStart(instr->left());
     right = UseRegisterAtStart(instr->right());
   }
-  LMathMinMax* minmax = new (zone()) LMathMinMax(left, right, scratch);
+  LMathMinMax* minmax = new(zone()) LMathMinMax(left, right);
   return DefineSameAsFirst(minmax);
 }
 
 
 LInstruction* LChunkBuilder::DoPower(HPower* instr) {
-  // Unlike ia32, we don't have a MathPowStub and directly call c function.
-  DCHECK(instr->representation().IsDouble());
-  DCHECK(instr->left()->representation().IsDouble());
-  LOperand* left = UseRegisterAtStart(instr->left());
-  LOperand* right = UseRegisterAtStart(instr->right());
-  LPower* result = new (zone()) LPower(left, right);
-  return MarkAsCall(DefineSameAsFirst(result), instr);
+  // Crankshaft is turned off for nosse2.
+  UNREACHABLE();
+  return NULL;
 }
 
 
@@ -1725,8 +1697,9 @@ LInstruction* LChunkBuilder::DoCompareHoleAndBranch(
 
 LInstruction* LChunkBuilder::DoCompareMinusZeroAndBranch(
     HCompareMinusZeroAndBranch* instr) {
-  LOperand* value = UseRegisterAtStart(instr->value());
-  return new (zone()) LCompareMinusZeroAndBranch(value);
+  LOperand* value = UseRegister(instr->value());
+  LOperand* scratch = TempRegister();
+  return new(zone()) LCompareMinusZeroAndBranch(value, scratch);
 }
 
 
@@ -2049,8 +2022,8 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
   HValue* value = instr->value();
   Representation input_rep = value->representation();
   if (input_rep.IsDouble()) {
-    LOperand* reg = UseRegister(value);
-    return DefineFixed(new (zone()) LClampDToUint8(reg), eax);
+    UNREACHABLE();
+    return NULL;
   } else if (input_rep.IsInteger32()) {
     LOperand* reg = UseFixed(value, eax);
     return DefineFixed(new(zone()) LClampIToUint8(reg), eax);

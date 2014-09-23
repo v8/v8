@@ -2917,9 +2917,9 @@ void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register object1,
 }
 
 
-void MacroAssembler::JumpIfNotUniqueNameInstanceType(Operand operand,
-                                                     Label* not_unique_name,
-                                                     Label::Distance distance) {
+void MacroAssembler::JumpIfNotUniqueName(Operand operand,
+                                         Label* not_unique_name,
+                                         Label::Distance distance) {
   STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
   Label succeed;
   test(operand, Immediate(kIsNotStringMask | kIsNotInternalizedMask));

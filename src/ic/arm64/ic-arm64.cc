@@ -370,6 +370,35 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadIC::GenerateSloppyArguments(MacroAssembler* masm) {
+  // The return address is in lr.
+  Register result = x0;
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register key = LoadDescriptor::NameRegister();
+  DCHECK(receiver.is(x1));
+  DCHECK(key.is(x2));
+
+  Label miss, unmapped;
+
+  Register map_scratch = x0;
+  MemOperand mapped_location = GenerateMappedArgumentsLookup(
+      masm, receiver, key, map_scratch, x3, x4, &unmapped, &miss);
+  __ Ldr(result, mapped_location);
+  __ Ret();
+
+  __ Bind(&unmapped);
+  // Parameter map is left in map_scratch when a jump on unmapped is done.
+  MemOperand unmapped_location =
+      GenerateUnmappedArgumentsLookup(masm, key, map_scratch, x3, &miss);
+  __ Ldr(result, unmapped_location);
+  __ JumpIfRoot(result, Heap::kTheHoleValueRootIndex, &miss);
+  __ Ret();
+
+  __ Bind(&miss);
+  GenerateMiss(masm);
+}
+
+
 void KeyedStoreIC::GenerateSloppyArguments(MacroAssembler* masm) {
   ASM_LOCATION("KeyedStoreIC::GenerateSloppyArguments");
   Label slow, notin;

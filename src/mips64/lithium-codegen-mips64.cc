@@ -300,20 +300,22 @@ bool LCodeGen::GenerateDeferredCode() {
 
 
 bool LCodeGen::GenerateJumpTable() {
-  if (jump_table_.length() > 0) {
+  if (deopt_jump_table_.length() > 0) {
     Comment(";;; -------------------- Jump table --------------------");
   }
   Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
   Label table_start;
   __ bind(&table_start);
   Label needs_frame;
-  for (int i = 0; i < jump_table_.length(); i++) {
-    Deoptimizer::JumpTableEntry* table_entry = &jump_table_[i];
-    __ bind(&table_entry->label);
-    Address entry = table_entry->address;
-    DeoptComment(table_entry->reason);
+  for (int i = 0; i < deopt_jump_table_.length(); i++) {
+    __ bind(&deopt_jump_table_[i].label);
+    Address entry = deopt_jump_table_[i].address;
+    Deoptimizer::BailoutType type = deopt_jump_table_[i].bailout_type;
+    int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
+    DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
+    Comment(";;; jump table entry %d: deoptimization bailout %d.", i, id);
     __ li(t9, Operand(ExternalReference::ForDeoptEntry(entry)));
-    if (table_entry->needs_frame) {
+    if (deopt_jump_table_[i].needs_frame) {
       DCHECK(!info()->saves_caller_doubles());
       if (needs_frame.is_bound()) {
         __ Branch(&needs_frame);
@@ -767,7 +769,7 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
 void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
                             Deoptimizer::BailoutType bailout_type,
                             Register src1, const Operand& src2,
-                            const char* detail) {
+                            const char* reason) {
   LEnvironment* environment = instr->environment();
   RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   DCHECK(environment->HasBeenRegistered());
@@ -808,36 +810,36 @@ void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
     __ bind(&skip);
   }
 
-  Deoptimizer::Reason reason(instr->hydrogen_value()->position().raw(),
-                             instr->Mnemonic(), detail);
   DCHECK(info()->IsStub() || frame_is_built_);
   // Go through jump table if we need to handle condition, build frame, or
   // restore caller doubles.
   if (condition == al && frame_is_built_ &&
       !info()->saves_caller_doubles()) {
-    DeoptComment(reason);
+    DeoptComment(instr->Mnemonic(), reason);
     __ Call(entry, RelocInfo::RUNTIME_ENTRY, condition, src1, src2);
   } else {
-    Deoptimizer::JumpTableEntry table_entry(entry, reason, bailout_type,
-                                            !frame_is_built_);
     // We often have several deopts to the same entry, reuse the last
     // jump entry if this is the case.
-    if (jump_table_.is_empty() ||
-        !table_entry.IsEquivalentTo(jump_table_.last())) {
-      jump_table_.Add(table_entry, zone());
+    if (deopt_jump_table_.is_empty() ||
+        (deopt_jump_table_.last().address != entry) ||
+        (deopt_jump_table_.last().bailout_type != bailout_type) ||
+        (deopt_jump_table_.last().needs_frame != !frame_is_built_)) {
+      Deoptimizer::JumpTableEntry table_entry(entry, instr->Mnemonic(), reason,
+                                              bailout_type, !frame_is_built_);
+      deopt_jump_table_.Add(table_entry, zone());
     }
-    __ Branch(&jump_table_.last().label, condition, src1, src2);
+    __ Branch(&deopt_jump_table_.last().label, condition, src1, src2);
   }
 }
 
 
 void LCodeGen::DeoptimizeIf(Condition condition, LInstruction* instr,
                             Register src1, const Operand& src2,
-                            const char* detail) {
+                            const char* reason) {
   Deoptimizer::BailoutType bailout_type = info()->IsStub()
       ? Deoptimizer::LAZY
       : Deoptimizer::EAGER;
-  DeoptimizeIf(condition, instr, bailout_type, src1, src2, detail);
+  DeoptimizeIf(condition, instr, bailout_type, src1, src2, reason);
 }
 
 
@@ -4954,11 +4956,13 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
 
     __ bind(&check_false);
     __ LoadRoot(at, Heap::kFalseValueRootIndex);
-    DeoptimizeIf(ne, instr, scratch2, Operand(at), "cannot truncate");
+    __ RecordComment("Deferred TaggedToI: cannot truncate");
+    DeoptimizeIf(ne, instr, scratch2, Operand(at));
     __ Branch(USE_DELAY_SLOT, &done);
     __ mov(input_reg, zero_reg);  // In delay slot.
   } else {
-    DeoptimizeIf(ne, instr, scratch1, Operand(at), "not a heap number");
+    __ RecordComment("Deferred TaggedToI: not a heap number");
+    DeoptimizeIf(ne, instr, scratch1, Operand(at));
 
     // Load the double value.
     __ ldc1(double_scratch,
@@ -4973,15 +4977,16 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
                        except_flag,
                        kCheckForInexactConversion);
 
-    DeoptimizeIf(ne, instr, except_flag, Operand(zero_reg),
-                 "lost precision or NaN");
+    __ RecordComment("Deferred TaggedToI: lost precision or NaN");
+    DeoptimizeIf(ne, instr, except_flag, Operand(zero_reg));
 
     if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
       __ Branch(&done, ne, input_reg, Operand(zero_reg));
 
       __ mfhc1(scratch1, double_scratch);  // Get exponent/sign bits.
       __ And(scratch1, scratch1, Operand(HeapNumber::kSignMask));
-      DeoptimizeIf(ne, instr, scratch1, Operand(zero_reg), "minus zero");
+      __ RecordComment("Deferred TaggedToI: minus zero");
+      DeoptimizeIf(ne, instr, scratch1, Operand(zero_reg));
     }
   }
   __ bind(&done);

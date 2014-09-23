@@ -90,7 +90,6 @@ struct FloatMatcher FINAL : public ValueMatcher<T, kOpcode> {
   bool IsNaN() const { return this->HasValue() && std::isnan(this->Value()); }
 };
 
-typedef FloatMatcher<float, IrOpcode::kFloat32Constant> Float32Matcher;
 typedef FloatMatcher<double, IrOpcode::kFloat64Constant> Float64Matcher;
 typedef FloatMatcher<double, IrOpcode::kNumberConstant> NumberMatcher;
 
