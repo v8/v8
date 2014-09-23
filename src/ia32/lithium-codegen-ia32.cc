@@ -1616,10 +1616,6 @@ void LCodeGen::DoShiftI(LShiftI* instr) {
     switch (instr->op()) {
       case Token::ROR:
         __ ror_cl(ToRegister(left));
-        if (instr->can_deopt()) {
-          __ test(ToRegister(left), ToRegister(left));
-          DeoptimizeIf(sign, instr);
-        }
         break;
       case Token::SAR:
         __ sar_cl(ToRegister(left));

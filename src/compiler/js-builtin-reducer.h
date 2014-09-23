@@ -24,11 +24,13 @@ class JSBuiltinReducer FINAL : public Reducer {
   virtual Reduction Reduce(Node* node) OVERRIDE;
 
  private:
-  Graph* graph() { return jsgraph_->graph(); }
-  CommonOperatorBuilder* common() { return jsgraph_->common(); }
-  MachineOperatorBuilder* machine() { return jsgraph_->machine(); }
+  JSGraph* jsgraph() const { return jsgraph_; }
+  Graph* graph() const { return jsgraph_->graph(); }
+  CommonOperatorBuilder* common() const { return jsgraph_->common(); }
+  MachineOperatorBuilder* machine() const { return jsgraph_->machine(); }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
+  Reduction ReduceMathMax(Node* node);
   Reduction ReduceMathImul(Node* node);
 
   JSGraph* jsgraph_;

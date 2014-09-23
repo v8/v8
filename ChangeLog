@@ -1,3 +1,8 @@
+2014-09-23: Version 3.29.83
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-23: Version 3.29.82
 
         Fix escaped index JSON parsing (Chromium issue 416449).
