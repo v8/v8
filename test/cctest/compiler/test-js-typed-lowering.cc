@@ -1385,6 +1385,48 @@ TEST(Int32Comparisons) {
 }
 
 
+TEST(BuiltinMathMax) {
+  JSTypedLoweringTester R;
+
+  Node* fun = R.HeapConstant(handle(R.isolate->context()->math_max_fun()));
+  Node* call = R.graph.NewNode(R.javascript.Call(2, NO_CALL_FUNCTION_FLAGS),
+                               fun, R.UndefinedConstant());
+  Node* r = R.reduce(call);
+  R.CheckNumberConstant(-V8_INFINITY, r);
+
+  for (size_t i = 0; i < arraysize(kNumberTypes); i++) {
+    Type* t0 = kNumberTypes[i];
+    Node* p0 = R.Parameter(t0, 0);
+    Node* call = R.graph.NewNode(R.javascript.Call(3, NO_CALL_FUNCTION_FLAGS),
+                                 fun, R.UndefinedConstant(), p0);
+    Node* r = R.reduce(call);
+    CHECK_EQ(IrOpcode::kParameter, r->opcode());
+    CHECK_EQ(p0, r);
+  }
+
+  for (size_t i = 0; i < arraysize(kNumberTypes); i++) {
+    for (size_t j = 0; j < arraysize(kNumberTypes); j++) {
+      Type* t0 = kNumberTypes[i];
+      Node* p0 = R.Parameter(t0, 0);
+      Type* t1 = kNumberTypes[j];
+      Node* p1 = R.Parameter(t1, 1);
+      Node* call = R.graph.NewNode(R.javascript.Call(4, NO_CALL_FUNCTION_FLAGS),
+                                   fun, R.UndefinedConstant(), p0, p1);
+      Node* r = R.reduce(call);
+
+      if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
+        CHECK_EQ(IrOpcode::kPhi, r->opcode());
+        CHECK(p0 == r->InputAt(0) || p1 == r->InputAt(0));
+        CHECK(p1 == r->InputAt(1) || p0 == r->InputAt(1));
+      } else {
+        CHECK_EQ(IrOpcode::kJSCallFunction, r->opcode());
+        CHECK_EQ(call, r);
+      }
+    }
+  }
+}
+
+
 TEST(BuiltinMathImul) {
   JSTypedLoweringTester R;
 

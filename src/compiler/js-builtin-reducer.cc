@@ -48,23 +48,35 @@ class JSCallReduction {
     return function->shared()->builtin_function_id();
   }
 
+  // Determines whether the call takes zero inputs.
+  bool InputsMatchZero() { return GetJSCallArity() == 0; }
+
   // Determines whether the call takes one input of the given type.
-  bool InputsMatch(Type* t1) {
+  bool InputsMatchOne(Type* t1) {
     return GetJSCallArity() == 1 &&
            NodeProperties::GetBounds(GetJSCallInput(0)).upper->Is(t1);
   }
 
   // Determines whether the call takes two inputs of the given types.
-  bool InputsMatch(Type* t1, Type* t2) {
+  bool InputsMatchTwo(Type* t1, Type* t2) {
     return GetJSCallArity() == 2 &&
            NodeProperties::GetBounds(GetJSCallInput(0)).upper->Is(t1) &&
            NodeProperties::GetBounds(GetJSCallInput(1)).upper->Is(t2);
   }
 
+  // Determines whether the call takes inputs all of the given type.
+  bool InputsMatchAll(Type* t) {
+    for (int i = 0; i < GetJSCallArity(); i++) {
+      if (!NodeProperties::GetBounds(GetJSCallInput(i)).upper->Is(t)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   Node* left() { return GetJSCallInput(0); }
   Node* right() { return GetJSCallInput(1); }
 
- protected:
   int GetJSCallArity() {
     DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
     // Skip first (i.e. callee) and second (i.e. receiver) operand.
@@ -83,10 +95,42 @@ class JSCallReduction {
 };
 
 
+// ECMA-262, section 15.8.2.11.
+Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchZero()) {
+    // Math.max() -> -Infinity
+    return Replace(jsgraph()->Constant(-V8_INFINITY));
+  }
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.max(a:number) -> a
+    return Replace(r.left());
+  }
+  if (r.InputsMatchAll(Type::Integral32())) {
+    // Math.max(a:int32, b:int32, ...)
+    Node* value = r.GetJSCallInput(0);
+    for (int i = 1; i < r.GetJSCallArity(); i++) {
+      Node* p = r.GetJSCallInput(i);
+      Node* control = graph()->start();
+      Node* tag = graph()->NewNode(simplified()->NumberLessThan(), value, p);
+
+      Node* branch = graph()->NewNode(common()->Branch(), tag, control);
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+
+      value = graph()->NewNode(common()->Phi(kMachNone, 2), p, value, merge);
+    }
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+
 // ES6 draft 08-24-14, section 20.2.2.19.
 Reduction JSBuiltinReducer::ReduceMathImul(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatch(Type::Integral32(), Type::Integral32())) {
+  if (r.InputsMatchTwo(Type::Integral32(), Type::Integral32())) {
     // Math.imul(a:int32, b:int32) -> Int32Mul(a, b)
     Node* value = graph()->NewNode(machine()->Int32Mul(), r.left(), r.right());
     return Replace(value);
@@ -101,6 +145,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
   // Dispatch according to the BuiltinFunctionId if present.
   if (!r.HasBuiltinFunctionId()) return NoChange();
   switch (r.GetBuiltinFunctionId()) {
+    case kMathMax:
+      return ReplaceWithPureReduction(node, ReduceMathMax(node));
     case kMathImul:
       return ReplaceWithPureReduction(node, ReduceMathImul(node));
     default:
