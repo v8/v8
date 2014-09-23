@@ -383,9 +383,6 @@ bool LCodeGen::GenerateJumpTable() {
     Deoptimizer::JumpTableEntry* table_entry = &jump_table_[i];
     __ bind(&table_entry->label);
     Address entry = table_entry->address;
-    Deoptimizer::BailoutType type = table_entry->bailout_type;
-    int id = Deoptimizer::GetDeoptimizationId(isolate(), entry, type);
-    DCHECK_NE(Deoptimizer::kNotDeoptimizationEntry, id);
     DeoptComment(table_entry->reason);
     if (table_entry->needs_frame) {
       DCHECK(!info()->saves_caller_doubles());
