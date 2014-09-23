@@ -12,13 +12,6 @@ import urllib
 from common_includes import *
 import chromium_roll
 
-CLUSTERFUZZ_API_KEY_FILE = "CLUSTERFUZZ_API_KEY_FILE"
-
-CONFIG = {
-  PERSISTFILE_BASENAME: "/tmp/v8-auto-roll-tempfile",
-  CLUSTERFUZZ_API_KEY_FILE: ".cf_api_key",
-}
-
 
 class CheckActiveRoll(Step):
   MESSAGE = "Check active roll."
@@ -76,10 +69,10 @@ class CheckClusterFuzz(Step):
   MESSAGE = "Check ClusterFuzz api for new problems."
 
   def RunStep(self):
-    if not os.path.exists(self.Config(CLUSTERFUZZ_API_KEY_FILE)):
+    if not os.path.exists(self.Config("CLUSTERFUZZ_API_KEY_FILE")):
       print "Skipping ClusterFuzz check. No api key file found."
       return False
-    api_key = FileToText(self.Config(CLUSTERFUZZ_API_KEY_FILE))
+    api_key = FileToText(self.Config("CLUSTERFUZZ_API_KEY_FILE"))
     # Check for open, reproducible issues that have no associated bug.
     result = self._side_effect_handler.ReadClusterFuzzAPI(
         api_key, job_type="linux_asan_d8_dbg", reproducible="True",
@@ -106,10 +99,7 @@ class RollChromium(Step):
             "--sheriff", "--googlers-mapping", self._options.googlers_mapping])
       if self._options.dry_run:
         args.extend(["--dry-run"])
-      R = chromium_roll.ChromiumRoll
-      self._side_effect_handler.Call(
-          R(chromium_roll.CONFIG, self._side_effect_handler).Run,
-          args)
+      self._side_effect_handler.Call(chromium_roll.ChromiumRoll().Run, args)
 
 
 class AutoRoll(ScriptsBase):
@@ -129,6 +119,12 @@ class AutoRoll(ScriptsBase):
       return False
     return True
 
+  def _Config(self):
+    return {
+      "PERSISTFILE_BASENAME": "/tmp/v8-auto-roll-tempfile",
+      "CLUSTERFUZZ_API_KEY_FILE": ".cf_api_key",
+    }
+
   def _Steps(self):
     return [
       CheckActiveRoll,
@@ -140,4 +136,4 @@ class AutoRoll(ScriptsBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(AutoRoll(CONFIG).Run())
+  sys.exit(AutoRoll().Run())

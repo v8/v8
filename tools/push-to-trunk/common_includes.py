@@ -45,13 +45,6 @@ import urllib2
 from git_recipes import GitRecipesMixin
 from git_recipes import GitFailedException
 
-PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
-BRANCHNAME = "BRANCHNAME"
-CHANGELOG_FILE = "CHANGELOG_FILE"
-CHANGELOG_ENTRY_FILE = "CHANGELOG_ENTRY_FILE"
-COMMITMSG_FILE = "COMMITMSG_FILE"
-PATCH_FILE = "PATCH_FILE"
-
 VERSION_FILE = os.path.join("src", "version.cc")
 
 # V8 base directory.
@@ -294,7 +287,7 @@ class Step(GitRecipesMixin):
 
   def Run(self):
     # Restore state.
-    state_file = "%s-state.json" % self._config[PERSISTFILE_BASENAME]
+    state_file = "%s-state.json" % self._config["PERSISTFILE_BASENAME"]
     if not self._state and os.path.exists(state_file):
       self._state.update(json.loads(FileToText(state_file)))
 
@@ -433,15 +426,15 @@ class Step(GitRecipesMixin):
 
   def PrepareBranch(self):
     # Delete the branch that will be created later if it exists already.
-    self.DeleteBranch(self._config[BRANCHNAME])
+    self.DeleteBranch(self._config["BRANCHNAME"])
 
   def CommonCleanup(self):
     self.GitCheckout(self["current_branch"])
-    if self._config[BRANCHNAME] != self["current_branch"]:
-      self.GitDeleteBranch(self._config[BRANCHNAME])
+    if self._config["BRANCHNAME"] != self["current_branch"]:
+      self.GitDeleteBranch(self._config["BRANCHNAME"])
 
     # Clean up all temporary files.
-    for f in glob.iglob("%s*" % self._config[PERSISTFILE_BASENAME]):
+    for f in glob.iglob("%s*" % self._config["PERSISTFILE_BASENAME"]):
       if os.path.isfile(f):
         os.remove(f)
       if os.path.isdir(f):
@@ -526,12 +519,12 @@ class Step(GitRecipesMixin):
 
   def SVNCommit(self, root, commit_message):
     patch = self.GitDiff("HEAD^", "HEAD")
-    TextToFile(patch, self._config[PATCH_FILE])
+    TextToFile(patch, self._config["PATCH_FILE"])
     self.Command("svn", "update", cwd=self._options.svn)
     if self.Command("svn", "status", cwd=self._options.svn) != "":
       self.Die("SVN checkout not clean.")
     if not self.Command("patch", "-d %s -p1 -i %s" %
-                        (root, self._config[PATCH_FILE]),
+                        (root, self._config["PATCH_FILE"]),
                         cwd=self._options.svn):
       self.Die("Could not apply patch.")
     self.Command(
@@ -608,9 +601,11 @@ def MakeStep(step_class=Step, number=0, state=None, config=None,
 
 class ScriptsBase(object):
   # TODO(machenbach): Move static config here.
-  def __init__(self, config, side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER,
+  def __init__(self,
+               config=None,
+               side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER,
                state=None):
-    self._config = config
+    self._config = config or self._Config()
     self._side_effect_handler = side_effect_handler
     self._state = state if state is not None else {}
 
@@ -625,6 +620,9 @@ class ScriptsBase(object):
 
   def _Steps(self):  # pragma: no cover
     raise Exception("Not implemented.")
+
+  def _Config(self):
+    return {}
 
   def MakeOptions(self, args=None):
     parser = argparse.ArgumentParser(description=self._Description())
@@ -691,7 +689,7 @@ class ScriptsBase(object):
     if not options:
       return 1
 
-    state_file = "%s-state.json" % self._config[PERSISTFILE_BASENAME]
+    state_file = "%s-state.json" % self._config["PERSISTFILE_BASENAME"]
     if options.step == 0 and os.path.exists(state_file):
       os.remove(state_file)
 

@@ -25,11 +25,6 @@ import sys
 
 from common_includes import *
 
-CONFIG = {
-  PERSISTFILE_BASENAME: "/tmp/v8-bump-up-version-tempfile",
-  PATCH_FILE: "/tmp/v8-bump-up-version-tempfile-patch-file",
-}
-
 VERSION_BRANCH = "auto-bump-up-version"
 
 
@@ -227,6 +222,11 @@ class BumpUpVersion(ScriptsBase):
     options.force_upload = True
     return True
 
+  def _Config(self):
+    return {
+      "PERSISTFILE_BASENAME": "/tmp/v8-bump-up-version-tempfile",
+    }
+
   def _Steps(self):
     return [
       Preparation,
@@ -242,4 +242,4 @@ class BumpUpVersion(ScriptsBase):
     ]
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(BumpUpVersion(CONFIG).Run())
+  sys.exit(BumpUpVersion().Run())
