@@ -1346,13 +1346,42 @@ Handle<Code> StoreIC::initialize_stub(Isolate* isolate,
 
 
 Handle<Code> StoreIC::megamorphic_stub() {
-  return PropertyICCompiler::ComputeStore(isolate(), MEGAMORPHIC,
-                                          extra_ic_state());
+  if (kind() == Code::STORE_IC) {
+    return PropertyICCompiler::ComputeStore(isolate(), MEGAMORPHIC,
+                                            extra_ic_state());
+  } else {
+    DCHECK(kind() == Code::KEYED_STORE_IC);
+    if (strict_mode() == STRICT) {
+      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
+    } else {
+      return isolate()->builtins()->KeyedStoreIC_Generic();
+    }
+  }
 }
 
 
 Handle<Code> StoreIC::generic_stub() const {
-  return PropertyICCompiler::ComputeStore(isolate(), GENERIC, extra_ic_state());
+  if (kind() == Code::STORE_IC) {
+    return PropertyICCompiler::ComputeStore(isolate(), GENERIC,
+                                            extra_ic_state());
+  } else {
+    DCHECK(kind() == Code::KEYED_STORE_IC);
+    if (strict_mode() == STRICT) {
+      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
+    } else {
+      return isolate()->builtins()->KeyedStoreIC_Generic();
+    }
+  }
+}
+
+
+Handle<Code> StoreIC::slow_stub() const {
+  if (kind() == Code::STORE_IC) {
+    return isolate()->builtins()->StoreIC_Slow();
+  } else {
+    DCHECK(kind() == Code::KEYED_STORE_IC);
+    return isolate()->builtins()->KeyedStoreIC_Slow();
+  }
 }
 
 

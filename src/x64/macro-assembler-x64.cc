@@ -2701,16 +2701,16 @@ static void JumpIfNotUniqueNameHelper(MacroAssembler* masm,
 }
 
 
-void MacroAssembler::JumpIfNotUniqueName(Operand operand,
-                                         Label* not_unique_name,
-                                         Label::Distance distance) {
+void MacroAssembler::JumpIfNotUniqueNameInstanceType(Operand operand,
+                                                     Label* not_unique_name,
+                                                     Label::Distance distance) {
   JumpIfNotUniqueNameHelper<Operand>(this, operand, not_unique_name, distance);
 }
 
 
-void MacroAssembler::JumpIfNotUniqueName(Register reg,
-                                         Label* not_unique_name,
-                                         Label::Distance distance) {
+void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
+                                                     Label* not_unique_name,
+                                                     Label::Distance distance) {
   JumpIfNotUniqueNameHelper<Register>(this, reg, not_unique_name, distance);
 }
 

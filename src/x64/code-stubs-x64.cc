@@ -3454,8 +3454,8 @@ void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
   __ movzxbp(tmp1, FieldOperand(tmp1, Map::kInstanceTypeOffset));
   __ movzxbp(tmp2, FieldOperand(tmp2, Map::kInstanceTypeOffset));
 
-  __ JumpIfNotUniqueName(tmp1, &miss, Label::kNear);
-  __ JumpIfNotUniqueName(tmp2, &miss, Label::kNear);
+  __ JumpIfNotUniqueNameInstanceType(tmp1, &miss, Label::kNear);
+  __ JumpIfNotUniqueNameInstanceType(tmp2, &miss, Label::kNear);
 
   // Unique names are compared by identity.
   Label done;
@@ -3674,8 +3674,8 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
     // Check if the entry name is not a unique name.
     __ movp(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
-    __ JumpIfNotUniqueName(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-                           miss);
+    __ JumpIfNotUniqueNameInstanceType(
+        FieldOperand(entity_name, Map::kInstanceTypeOffset), miss);
     __ bind(&good);
   }
 
@@ -3804,8 +3804,9 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
       // Check if the entry name is not a unique name.
       __ movp(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
-      __ JumpIfNotUniqueName(FieldOperand(scratch, Map::kInstanceTypeOffset),
-                             &maybe_in_dictionary);
+      __ JumpIfNotUniqueNameInstanceType(
+          FieldOperand(scratch, Map::kInstanceTypeOffset),
+          &maybe_in_dictionary);
     }
   }
 

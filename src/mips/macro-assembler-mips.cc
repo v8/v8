@@ -3582,8 +3582,8 @@ void MacroAssembler::AllocateOneByteSlicedString(Register result,
 }
 
 
-void MacroAssembler::JumpIfNotUniqueName(Register reg,
-                                         Label* not_unique_name) {
+void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
+                                                     Label* not_unique_name) {
   STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
   Label succeed;
   And(at, reg, Operand(kIsNotStringMask | kIsNotInternalizedMask));

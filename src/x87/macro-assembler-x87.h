@@ -882,13 +882,13 @@ class MacroAssembler: public Assembler {
       Label* on_not_flat_one_byte_strings);
 
   // Checks if the given register or operand is a unique name
-  void JumpIfNotUniqueName(Register reg, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar) {
-    JumpIfNotUniqueName(Operand(reg), not_unique_name, distance);
+  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar) {
+    JumpIfNotUniqueNameInstanceType(Operand(reg), not_unique_name, distance);
   }
 
-  void JumpIfNotUniqueName(Operand operand, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar);
+  void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar);
 
   void EmitSeqStringSetCharCheck(Register string,
                                  Register index,

@@ -3370,8 +3370,8 @@ void CompareICStub::GenerateUniqueNames(MacroAssembler* masm) {
 
   // To avoid a miss, each instance type should be either SYMBOL_TYPE or it
   // should have kInternalizedTag set.
-  __ JumpIfNotUniqueName(lhs_instance_type, &miss);
-  __ JumpIfNotUniqueName(rhs_instance_type, &miss);
+  __ JumpIfNotUniqueNameInstanceType(lhs_instance_type, &miss);
+  __ JumpIfNotUniqueNameInstanceType(rhs_instance_type, &miss);
 
   // Unique names are compared by identity.
   STATIC_ASSERT(EQUAL == 0);
@@ -4488,7 +4488,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     __ Ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
     __ Ldrb(entity_name,
             FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-    __ JumpIfNotUniqueName(entity_name, miss);
+    __ JumpIfNotUniqueNameInstanceType(entity_name, miss);
     __ Bind(&good);
   }
 
@@ -4575,7 +4575,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
       // Check if the entry name is not a unique name.
       __ Ldr(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
       __ Ldrb(entry_key, FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ JumpIfNotUniqueName(entry_key, &maybe_in_dictionary);
+      __ JumpIfNotUniqueNameInstanceType(entry_key, &maybe_in_dictionary);
     }
   }
 

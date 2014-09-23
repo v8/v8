@@ -371,7 +371,7 @@ class LoadIC : public IC {
     }
   }
 
-  virtual Handle<Code> megamorphic_stub();
+  virtual Handle<Code> megamorphic_stub() OVERRIDE;
 
   // Update the inline cache and the global stub cache based on the
   // lookup result.
@@ -489,14 +489,12 @@ class StoreIC : public IC {
                       JSReceiver::StoreFromKeyed store_mode);
 
  protected:
-  virtual Handle<Code> megamorphic_stub();
+  virtual Handle<Code> megamorphic_stub() OVERRIDE;
 
   // Stub accessors.
-  virtual Handle<Code> generic_stub() const;
+  Handle<Code> generic_stub() const;
 
-  virtual Handle<Code> slow_stub() const {
-    return isolate()->builtins()->StoreIC_Slow();
-  }
+  Handle<Code> slow_stub() const;
 
   virtual Handle<Code> pre_monomorphic_stub() const {
     return pre_monomorphic_stub(isolate(), strict_mode());
@@ -577,16 +575,6 @@ class KeyedStoreIC : public StoreIC {
       return isolate->builtins()->KeyedStoreIC_PreMonomorphic();
     }
   }
-  virtual Handle<Code> slow_stub() const {
-    return isolate()->builtins()->KeyedStoreIC_Slow();
-  }
-  virtual Handle<Code> megamorphic_stub() {
-    if (strict_mode() == STRICT) {
-      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
-    } else {
-      return isolate()->builtins()->KeyedStoreIC_Generic();
-    }
-  }
 
   Handle<Code> StoreElementStub(Handle<JSObject> receiver,
                                 KeyedAccessStoreMode store_mode);
@@ -595,14 +583,6 @@ class KeyedStoreIC : public StoreIC {
   inline void set_target(Code* code);
 
   // Stub accessors.
-  virtual Handle<Code> generic_stub() const {
-    if (strict_mode() == STRICT) {
-      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
-    } else {
-      return isolate()->builtins()->KeyedStoreIC_Generic();
-    }
-  }
-
   Handle<Code> sloppy_arguments_stub() {
     return isolate()->builtins()->KeyedStoreIC_SloppyArguments();
   }
