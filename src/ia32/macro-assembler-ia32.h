@@ -463,8 +463,9 @@ class MacroAssembler: public Assembler {
   void TruncateDoubleToI(Register result_reg, XMMRegister input_reg);
 
   void DoubleToI(Register result_reg, XMMRegister input_reg,
-      XMMRegister scratch, MinusZeroMode minus_zero_mode,
-      Label* conversion_failed, Label::Distance dst = Label::kFar);
+                 XMMRegister scratch, MinusZeroMode minus_zero_mode,
+                 Label* lost_precision, Label* is_nan, Label* minus_zero,
+                 Label::Distance dst = Label::kFar);
 
   // Smi tagging support.
   void SmiTag(Register reg) {
