@@ -25,7 +25,6 @@ CHROMIUM = "CHROMIUM"
 CONFIG = {
   BRANCHNAME: "retrieve-v8-releases",
   PERSISTFILE_BASENAME: "/tmp/v8-releases-tempfile",
-  VERSION_FILE: "src/version.cc",
 }
 
 # Expression for retrieving the bleeding edge revision from a commit message.
@@ -206,11 +205,11 @@ class RetrieveV8Releases(Step):
     releases = []
     try:
       for git_hash in self.GitLog(format="%H").splitlines():
-        if self._config[VERSION_FILE] not in self.GitChangedFiles(git_hash):
+        if VERSION_FILE not in self.GitChangedFiles(git_hash):
           continue
         if self.ExceedsMax(releases):
           break  # pragma: no cover
-        if not self.GitCheckoutFileSafe(self._config[VERSION_FILE], git_hash):
+        if not self.GitCheckoutFileSafe(VERSION_FILE, git_hash):
           break  # pragma: no cover
 
         release, patch_level = self.GetRelease(git_hash, branch)
@@ -228,7 +227,7 @@ class RetrieveV8Releases(Step):
       pass
 
     # Clean up checked-out version file.
-    self.GitCheckoutFileSafe(self._config[VERSION_FILE], "HEAD")
+    self.GitCheckoutFileSafe(VERSION_FILE, "HEAD")
     return releases
 
   def RunStep(self):

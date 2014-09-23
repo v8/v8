@@ -28,7 +28,6 @@ from common_includes import *
 CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-bump-up-version-tempfile",
   PATCH_FILE: "/tmp/v8-bump-up-version-tempfile-patch-file",
-  VERSION_FILE: "src/version.cc",
 }
 
 VERSION_BRANCH = "auto-bump-up-version"
@@ -73,7 +72,7 @@ class LastChangeBailout(Step):
   MESSAGE = "Stop script if the last change modified the version."
 
   def RunStep(self):
-    if self._config[VERSION_FILE] in self.GitChangedFiles(self["latest"]):
+    if VERSION_FILE in self.GitChangedFiles(self["latest"]):
       print "Stop due to recent version change."
       return True
 
@@ -122,7 +121,7 @@ class LKGRVersionUpToDateBailout(Step):
   def RunStep(self):
     # If a version-change commit becomes the lkgr, don't bump up the version
     # again.
-    if self._config[VERSION_FILE] in self.GitChangedFiles(self["lkgr"]):
+    if VERSION_FILE in self.GitChangedFiles(self["lkgr"]):
       print "Stop because the lkgr is a version change itself."
       return True
 
@@ -194,7 +193,7 @@ class ChangeVersion(Step):
   def RunStep(self):
     self.GitCreateBranch(VERSION_BRANCH, "bleeding_edge")
 
-    self.SetVersion(self.Config(VERSION_FILE), "new_")
+    self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
     try:
       msg = "[Auto-roll] Bump up version to %s" % self["new_version"]

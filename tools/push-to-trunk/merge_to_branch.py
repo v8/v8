@@ -41,7 +41,6 @@ CONFIG = {
   PERSISTFILE_BASENAME: "/tmp/v8-merge-to-branch-tempfile",
   ALREADY_MERGING_SENTINEL_FILE:
       "/tmp/v8-merge-to-branch-tempfile-already-merging",
-  VERSION_FILE: "src/version.cc",
   TEMPORARY_PATCH_FILE: "/tmp/v8-prepare-merge-tempfile-temporary-patch",
   COMMITMSG_FILE: "/tmp/v8-prepare-merge-tempfile-commitmsg",
   COMMIT_HASHES_FILE: "/tmp/v8-merge-to-branch-tempfile-PATCH_COMMIT_HASHES",
@@ -184,14 +183,14 @@ class IncrementVersion(Step):
     if self.Confirm("Automatically increment PATCH_LEVEL? (Saying 'n' will "
                     "fire up your EDITOR on %s so you can make arbitrary "
                     "changes. When you're done, save the file and exit your "
-                    "EDITOR.)" % self.Config(VERSION_FILE)):
-      text = FileToText(self.Config(VERSION_FILE))
+                    "EDITOR.)" % VERSION_FILE):
+      text = FileToText(os.path.join(self.default_cwd, VERSION_FILE))
       text = MSub(r"(?<=#define PATCH_LEVEL)(?P<space>\s+)\d*$",
                   r"\g<space>%s" % new_patch,
                   text)
-      TextToFile(text, self.Config(VERSION_FILE))
+      TextToFile(text, os.path.join(self.default_cwd, VERSION_FILE))
     else:
-      self.Editor(self.Config(VERSION_FILE))
+      self.Editor(os.path.join(self.default_cwd, VERSION_FILE))
     self.ReadAndPersistVersion("new_")
     self["version"] = "%s.%s.%s.%s" % (self["new_major"],
                                        self["new_minor"],

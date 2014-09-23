@@ -47,11 +47,12 @@ from git_recipes import GitFailedException
 
 PERSISTFILE_BASENAME = "PERSISTFILE_BASENAME"
 BRANCHNAME = "BRANCHNAME"
-VERSION_FILE = "VERSION_FILE"
 CHANGELOG_FILE = "CHANGELOG_FILE"
 CHANGELOG_ENTRY_FILE = "CHANGELOG_ENTRY_FILE"
 COMMITMSG_FILE = "COMMITMSG_FILE"
 PATCH_FILE = "PATCH_FILE"
+
+VERSION_FILE = os.path.join("src", "version.cc")
 
 # V8 base directory.
 DEFAULT_CWD = os.path.dirname(
@@ -262,9 +263,8 @@ class NoRetryException(Exception):
 
 
 class Step(GitRecipesMixin):
-  def __init__(self, text, requires, number, config, state, options, handler):
+  def __init__(self, text, number, config, state, options, handler):
     self._text = text
-    self._requires = requires
     self._number = number
     self._config = config
     self._state = state
@@ -297,10 +297,6 @@ class Step(GitRecipesMixin):
     state_file = "%s-state.json" % self._config[PERSISTFILE_BASENAME]
     if not self._state and os.path.exists(state_file):
       self._state.update(json.loads(FileToText(state_file)))
-
-    # Skip step if requirement is not met.
-    if self._requires and not self._state.get(self._requires):
-      return
 
     print ">>> Step %d: %s" % (self._number, self._text)
     try:
@@ -457,7 +453,7 @@ class Step(GitRecipesMixin):
       if match:
         value = match.group(1)
         self["%s%s" % (prefix, var_name)] = value
-    for line in LinesInFile(self._config[VERSION_FILE]):
+    for line in LinesInFile(os.path.join(self.default_cwd, VERSION_FILE)):
       for (var_name, def_name) in [("major", "MAJOR_VERSION"),
                                    ("minor", "MINOR_VERSION"),
                                    ("build", "BUILD_NUMBER"),
@@ -604,12 +600,8 @@ def MakeStep(step_class=Step, number=0, state=None, config=None,
       message = step_class.MESSAGE
     except AttributeError:
       message = step_class.__name__
-    try:
-      requires = step_class.REQUIRES
-    except AttributeError:
-      requires = None
 
-    return step_class(message, requires, number=number, config=config,
+    return step_class(message, number=number, config=config,
                       state=state, options=options,
                       handler=side_effect_handler)
 

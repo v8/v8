@@ -60,7 +60,6 @@ TEST_CONFIG = {
   BRANCHNAME: "test-prepare-push",
   TRUNKBRANCH: "test-trunk-push",
   PERSISTFILE_BASENAME: "/tmp/test-v8-push-to-trunk-tempfile",
-  VERSION_FILE: None,
   CHANGELOG_FILE: None,
   CHANGELOG_ENTRY_FILE: "/tmp/test-v8-push-to-trunk-tempfile-changelog-entry",
   PATCH_FILE: "/tmp/test-v8-push-to-trunk-tempfile-patch",
@@ -362,7 +361,10 @@ class ScriptTest(unittest.TestCase):
 
 
   def WriteFakeVersionFile(self, minor=22, build=4, patch=0):
-    with open(TEST_CONFIG[VERSION_FILE], "w") as f:
+    version_file = os.path.join(TEST_CONFIG["DEFAULT_CWD"], VERSION_FILE)
+    if not os.path.exists(os.path.dirname(version_file)):
+      os.makedirs(os.path.dirname(version_file))
+    with open(version_file, "w") as f:
       f.write("  // Some line...\n")
       f.write("\n")
       f.write("#define MAJOR_VERSION    3\n")
@@ -491,7 +493,6 @@ class ScriptTest(unittest.TestCase):
     self.MakeStep().InitialEnvironmentChecks(TEST_CONFIG["DEFAULT_CWD"])
 
   def testReadAndPersistVersion(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile(build=5)
     step = self.MakeStep()
     step.ReadAndPersistVersion()
@@ -531,7 +532,6 @@ class ScriptTest(unittest.TestCase):
     self.assertEquals("push_hash", self._state["push_hash"])
 
   def testPrepareChangeLog(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile()
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
 
@@ -607,16 +607,14 @@ class ScriptTest(unittest.TestCase):
   # Version on trunk: 3.22.4.0. Version on master (bleeding_edge): 3.22.6.
   # Make sure that the increment is 3.22.7.0.
   def testIncrementVersion(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile()
     self._state["last_push_trunk"] = "hash1"
     self._state["latest_build"] = "6"
     self._state["latest_version"] = "3.22.6.0"
 
     self.Expect([
-      Cmd("git checkout -f hash1 -- %s" % TEST_CONFIG[VERSION_FILE], ""),
-      Cmd(("git checkout -f svn/bleeding_edge -- %s" %
-           TEST_CONFIG[VERSION_FILE]),
+      Cmd("git checkout -f hash1 -- src/version.cc", ""),
+      Cmd("git checkout -f svn/bleeding_edge -- src/version.cc",
           "", cb=lambda: self.WriteFakeVersionFile(22, 6)),
       RL("Y"),  # Increment build number.
     ])
@@ -685,7 +683,6 @@ Performance and stability improvements on all platforms."""
 
     # The version file on bleeding edge has build level 5, while the version
     # file from trunk has build level 4.
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile(build=5)
 
     TEST_CONFIG[CHANGELOG_ENTRY_FILE] = self.MakeEmptyTempFile()
@@ -714,7 +711,8 @@ Performance and stability improvements on all platforms."""
 Log text 1 (issue 321).
 
 Performance and stability improvements on all platforms.""", commit)
-      version = FileToText(TEST_CONFIG[VERSION_FILE])
+      version = FileToText(
+          os.path.join(TEST_CONFIG["DEFAULT_CWD"], VERSION_FILE))
       self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
       self.assertFalse(re.search(r"#define BUILD_NUMBER\s+6", version))
@@ -760,10 +758,9 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git log -1 --format=%s hash2",
        "Version 3.4.5 (based on bleeding_edge revision r1234)\n"),
       Cmd("git svn find-rev r1234", "hash3\n"),
-      Cmd(("git checkout -f svn/bleeding_edge -- %s" %
-           TEST_CONFIG[VERSION_FILE]),
+      Cmd("git checkout -f svn/bleeding_edge -- src/version.cc",
           "", cb=self.WriteFakeVersionFile),
-      Cmd("git checkout -f hash2 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f hash2 -- src/version.cc", "",
           cb=self.WriteFakeVersionFile),
     ]
     if manual:
@@ -788,7 +785,7 @@ Performance and stability improvements on all platforms.""", commit)
       Cmd("git apply --index --reject \"%s\"" % TEST_CONFIG[PATCH_FILE], ""),
       Cmd("git checkout -f svn/trunk -- %s" % TEST_CONFIG[CHANGELOG_FILE], "",
           cb=ResetChangeLog),
-      Cmd("git checkout -f svn/trunk -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f svn/trunk -- src/version.cc", "",
           cb=self.WriteFakeVersionFile),
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG[COMMITMSG_FILE], "",
           cb=CheckSVNCommit),
@@ -1043,7 +1040,6 @@ deps = {
   def testMergeToBranch(self):
     TEST_CONFIG[ALREADY_MERGING_SENTINEL_FILE] = self.MakeEmptyTempFile()
     TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile(build=5)
     os.environ["EDITOR"] = "vi"
     extra_patch = self.MakeEmptyTempFile()
@@ -1071,7 +1067,8 @@ LOG=N
     def VerifySVNCommit():
       commit = FileToText(TEST_CONFIG[COMMITMSG_FILE])
       self.assertEquals(msg, commit)
-      version = FileToText(TEST_CONFIG[VERSION_FILE])
+      version = FileToText(
+          os.path.join(TEST_CONFIG["DEFAULT_CWD"], VERSION_FILE))
       self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
       self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
       self.assertTrue(re.search(r"#define PATCH_LEVEL\s+1", version))
@@ -1223,7 +1220,6 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
 """
     json_output = self.MakeEmptyTempFile()
     csv_output = self.MakeEmptyTempFile()
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile()
 
     TEST_CONFIG[CHROMIUM] = self.MakeEmptyTempDirectory()
@@ -1253,37 +1249,37 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("git reset --hard svn/3.3", ""),
       Cmd("git log --format=%H", "hash1\nhash2"),
       Cmd("git diff --name-only hash1 hash1^", ""),
-      Cmd("git diff --name-only hash2 hash2^", TEST_CONFIG[VERSION_FILE]),
-      Cmd("git checkout -f hash2 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git diff --name-only hash2 hash2^", VERSION_FILE),
+      Cmd("git checkout -f hash2 -- %s" % VERSION_FILE, "",
           cb=ResetVersion(3, 1, 1)),
       Cmd("git log -1 --format=%B hash2",
           "Version 3.3.1.1 (merged 12)\n\nReview URL: fake.com\n"),
       Cmd("git log -1 --format=%s hash2", ""),
       Cmd("git svn find-rev hash2", "234"),
       Cmd("git log -1 --format=%ci hash2", "18:15"),
-      Cmd("git checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(22, 5)),
       Cmd("git reset --hard svn/3.21", ""),
       Cmd("git log --format=%H", "hash3\nhash4\nhash5\n"),
-      Cmd("git diff --name-only hash3 hash3^", TEST_CONFIG[VERSION_FILE]),
-      Cmd("git checkout -f hash3 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git diff --name-only hash3 hash3^", VERSION_FILE),
+      Cmd("git checkout -f hash3 -- %s" % VERSION_FILE, "",
           cb=ResetVersion(21, 2)),
       Cmd("git log -1 --format=%B hash3", ""),
       Cmd("git log -1 --format=%s hash3", ""),
       Cmd("git svn find-rev hash3", "123"),
       Cmd("git log -1 --format=%ci hash3", "03:15"),
-      Cmd("git checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(22, 5)),
       Cmd("git reset --hard svn/trunk", ""),
       Cmd("git log --format=%H", "hash6\n"),
-      Cmd("git diff --name-only hash6 hash6^", TEST_CONFIG[VERSION_FILE]),
-      Cmd("git checkout -f hash6 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git diff --name-only hash6 hash6^", VERSION_FILE),
+      Cmd("git checkout -f hash6 -- %s" % VERSION_FILE, "",
           cb=ResetVersion(22, 3)),
       Cmd("git log -1 --format=%B hash6", ""),
       Cmd("git log -1 --format=%s hash6", ""),
       Cmd("git svn find-rev hash6", "345"),
       Cmd("git log -1 --format=%ci hash6", ""),
-      Cmd("git checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(22, 5)),
       Cmd("git reset --hard svn/bleeding_edge", ""),
       Cmd("svn log https://v8.googlecode.com/svn/tags -v --limit 20",
@@ -1371,7 +1367,6 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
 
 
   def _bumpUpVersion(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile()
 
     def ResetVersion(minor, build, patch=0):
@@ -1445,7 +1440,6 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
          "--svn-config", "[CONFIG_DIR]"])
 
   def testAutoTag(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self.WriteFakeVersionFile()
 
     def ResetVersion(minor, build, patch=0):
@@ -1467,17 +1461,17 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd(("git log --format=%H --grep="
            "\"\\[Auto\\-roll\\] Bump up version to\""),
           "hash125\nhash118\nhash111\nhash101"),
-      Cmd("git checkout -f hash125 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f hash125 -- %s" % VERSION_FILE, "",
           cb=ResetVersion(4, 4)),
-      Cmd("git checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(4, 5)),
-      Cmd("git checkout -f hash118 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f hash118 -- %s" % VERSION_FILE, "",
           cb=ResetVersion(4, 3)),
-      Cmd("git checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(4, 5)),
-      Cmd("git checkout -f hash111 -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f hash111 -- %s" % VERSION_FILE, "",
           cb=ResetVersion(4, 2)),
-      Cmd("git checkout -f HEAD -- %s" % TEST_CONFIG[VERSION_FILE], "",
+      Cmd("git checkout -f HEAD -- %s" % VERSION_FILE, "",
           cb=ResetVersion(4, 5)),
       URL("https://v8-status.appspot.com/revisions?format=json",
           "[{\"revision\": \"126\", \"status\": true},"
@@ -1497,12 +1491,10 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
 
   # Test that we bail out if the last change was a version change.
   def testBumpUpVersionBailout1(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self._state["latest"] = "latest_hash"
 
     self.Expect([
-      Cmd("git diff --name-only latest_hash latest_hash^",
-          TEST_CONFIG[VERSION_FILE]),
+      Cmd("git diff --name-only latest_hash latest_hash^", VERSION_FILE),
     ])
 
     self.assertEquals(0,
@@ -1510,12 +1502,10 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
 
   # Test that we bail out if the lkgr was a version change.
   def testBumpUpVersionBailout2(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self._state["lkgr"] = "lkgr_hash"
 
     self.Expect([
-      Cmd("git diff --name-only lkgr_hash lkgr_hash^",
-          TEST_CONFIG[VERSION_FILE]),
+      Cmd("git diff --name-only lkgr_hash lkgr_hash^", VERSION_FILE),
     ])
 
     self.assertEquals(0,
@@ -1524,7 +1514,6 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
   # Test that we bail out if the last version is already newer than the lkgr's
   # version.
   def testBumpUpVersionBailout3(self):
-    TEST_CONFIG[VERSION_FILE] = self.MakeEmptyTempFile()
     self._state["lkgr"] = "lkgr_hash"
     self._state["lkgr_version"] = "3.22.4.0"
     self._state["latest_version"] = "3.22.5.0"

@@ -11,7 +11,6 @@ from common_includes import *
 CONFIG = {
   BRANCHNAME: "auto-tag-v8",
   PERSISTFILE_BASENAME: "/tmp/v8-auto-tag-tempfile",
-  VERSION_FILE: "src/version.cc",
 }
 
 
@@ -54,7 +53,7 @@ class GetOldestUntaggedVersion(Step):
         format="%H", grep="\\[Auto\\-roll\\] Bump up version to").splitlines():
 
       # Get the version.
-      if not self.GitCheckoutFileSafe(self._config[VERSION_FILE], git_hash):
+      if not self.GitCheckoutFileSafe(VERSION_FILE, git_hash):
         continue
 
       self.ReadAndPersistVersion()
@@ -65,7 +64,7 @@ class GetOldestUntaggedVersion(Step):
         version = version[:-2]
 
       # Clean up checked-out version file.
-      self.GitCheckoutFileSafe(self._config[VERSION_FILE], "HEAD")
+      self.GitCheckoutFileSafe(VERSION_FILE, "HEAD")
 
       if version in tags:
         if self["candidate"]:

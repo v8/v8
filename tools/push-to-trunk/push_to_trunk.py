@@ -40,7 +40,6 @@ CONFIG = {
   BRANCHNAME: "prepare-push",
   TRUNKBRANCH: "trunk-push",
   PERSISTFILE_BASENAME: "/tmp/v8-push-to-trunk-tempfile",
-  VERSION_FILE: "src/version.cc",
   CHANGELOG_FILE: "ChangeLog",
   CHANGELOG_ENTRY_FILE: "/tmp/v8-push-to-trunk-tempfile-changelog-entry",
   PATCH_FILE: "/tmp/v8-push-to-trunk-tempfile-patch-file",
@@ -49,7 +48,6 @@ CONFIG = {
 
 PUSH_MESSAGE_SUFFIX = " (based on bleeding_edge revision r%d)"
 PUSH_MESSAGE_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
-
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -130,7 +128,7 @@ class GetCurrentBleedingEdgeVersion(Step):
   MESSAGE = "Get latest bleeding edge version."
 
   def RunStep(self):
-    self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/bleeding_edge")
+    self.GitCheckoutFile(VERSION_FILE, "svn/bleeding_edge")
 
     # Store latest version.
     self.ReadAndPersistVersion("latest_")
@@ -143,7 +141,7 @@ class IncrementVersion(Step):
 
   def RunStep(self):
     # Retrieve current version from last trunk push.
-    self.GitCheckoutFile(self.Config(VERSION_FILE), self["last_push_trunk"])
+    self.GitCheckoutFile(VERSION_FILE, self["last_push_trunk"])
     self.ReadAndPersistVersion()
     self["trunk_version"] = self.ArrayToVersion("")
 
@@ -154,21 +152,21 @@ class IncrementVersion(Step):
 
     if SortingKey(self["trunk_version"]) < SortingKey(self["latest_version"]):
       # If the version on bleeding_edge is newer than on trunk, use it.
-      self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/bleeding_edge")
+      self.GitCheckoutFile(VERSION_FILE, "svn/bleeding_edge")
       self.ReadAndPersistVersion()
 
     if self.Confirm(("Automatically increment BUILD_NUMBER? (Saying 'n' will "
                      "fire up your EDITOR on %s so you can make arbitrary "
                      "changes. When you're done, save the file and exit your "
-                     "EDITOR.)" % self.Config(VERSION_FILE))):
+                     "EDITOR.)" % VERSION_FILE)):
 
-      text = FileToText(self.Config(VERSION_FILE))
+      text = FileToText(os.path.join(self.default_cwd, VERSION_FILE))
       text = MSub(r"(?<=#define BUILD_NUMBER)(?P<space>\s+)\d*$",
                   r"\g<space>%s" % str(int(self["build"]) + 1),
                   text)
-      TextToFile(text, self.Config(VERSION_FILE))
+      TextToFile(text, os.path.join(self.default_cwd, VERSION_FILE))
     else:
-      self.Editor(self.Config(VERSION_FILE))
+      self.Editor(os.path.join(self.default_cwd, VERSION_FILE))
 
     # Variables prefixed with 'new_' contain the new version numbers for the
     # ongoing trunk push.
@@ -336,8 +334,8 @@ class SetVersion(Step):
   def RunStep(self):
     # The version file has been modified by the patch. Reset it to the version
     # on trunk and apply the correct version.
-    self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/trunk")
-    self.SetVersion(self.Config(VERSION_FILE), "new_")
+    self.GitCheckoutFile(VERSION_FILE, "svn/trunk")
+    self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
 
 class CommitTrunk(Step):
@@ -356,7 +354,7 @@ class SanityCheck(Step):
     # prepare push process.
     if not self.Confirm("Please check if your local checkout is sane: Inspect "
         "%s, compile, run tests. Do you want to commit this new trunk "
-        "revision to the repository?" % self.Config(VERSION_FILE)):
+        "revision to the repository?" % VERSION_FILE):
       self.Die("Execution canceled.")  # pragma: no cover
 
 
