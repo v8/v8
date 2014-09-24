@@ -424,8 +424,7 @@ Handle<Object> JsonParser<seq_ascii>::ParseJsonObject() {
         if (value.is_null()) return ReportUnexpectedCharacter();
       }
 
-      JSObject::SetOwnPropertyIgnoreAttributes(
-          json_object, key, value, NONE).Assert();
+      Runtime::DefineObjectProperty(json_object, key, value, NONE).Check();
     } while (MatchSkipWhiteSpace(','));
     if (c0_ != '}') {
       return ReportUnexpectedCharacter();
