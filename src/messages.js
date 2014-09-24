@@ -1123,23 +1123,25 @@ var formatted_stack_trace_symbol = NEW_PRIVATE_OWN("formatted stack trace");
 var StackTraceGetter = function() {
   var formatted_stack_trace = UNDEFINED;
   var holder = this;
-  while (holder && IS_UNDEFINED(formatted_stack_trace)) {
-    formatted_stack_trace = GET_PRIVATE(holder, formatted_stack_trace_symbol);
-    holder = %GetPrototype(holder);
-  }
-  if (IS_UNDEFINED(formatted_stack_trace)) {
-    holder = this;
-    while (!HAS_DEFINED_PRIVATE(holder, stack_trace_symbol)) {
-      holder = %GetPrototype(holder);
-      if (!holder) return UNDEFINED;
+  while (holder) {
+    var formatted_stack_trace =
+      GET_PRIVATE(holder, formatted_stack_trace_symbol);
+    if (IS_UNDEFINED(formatted_stack_trace)) {
+      // No formatted stack trace available.
+      var stack_trace = GET_PRIVATE(holder, stack_trace_symbol);
+      if (IS_UNDEFINED(stack_trace)) {
+        // Neither formatted nor structured stack trace available.
+        // Look further up the prototype chain.
+        holder = %GetPrototype(holder);
+        continue;
+      }
+      formatted_stack_trace = FormatStackTrace(holder, stack_trace);
+      SET_PRIVATE(holder, stack_trace_symbol, UNDEFINED);
+      SET_PRIVATE(holder, formatted_stack_trace_symbol, formatted_stack_trace);
     }
-    var stack_trace = GET_PRIVATE(holder, stack_trace_symbol);
-    if (IS_UNDEFINED(stack_trace)) return UNDEFINED;
-    formatted_stack_trace = FormatStackTrace(holder, stack_trace);
-    SET_PRIVATE(holder, stack_trace_symbol, UNDEFINED);
-    SET_PRIVATE(holder, formatted_stack_trace_symbol, formatted_stack_trace);
+    return formatted_stack_trace;
   }
-  return formatted_stack_trace;
+  return UNDEFINED;
 };
 
 
