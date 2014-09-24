@@ -126,10 +126,10 @@ class RepresentationChanger {
       case IrOpcode::kInt32Constant:
         if (output_type & kTypeUint32) {
           uint32_t value = OpParameter<uint32_t>(node);
-          return jsgraph()->Float32Constant(value);
+          return jsgraph()->Float32Constant(static_cast<float>(value));
         } else {
           int32_t value = OpParameter<int32_t>(node);
-          return jsgraph()->Float32Constant(value);
+          return jsgraph()->Float32Constant(static_cast<float>(value));
         }
       case IrOpcode::kFloat32Constant:
         return node;  // No change necessary.
