@@ -69,6 +69,9 @@ class JSGraph : public ZoneObject {
     return Int32Constant(bit_cast<int32_t>(value));
   }
 
+  // Creates a Float32Constant node, usually canonicalized.
+  Node* Float32Constant(float value);
+
   // Creates a Float64Constant node, usually canonicalized.
   Node* Float64Constant(double value);
 

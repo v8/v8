@@ -88,7 +88,6 @@ class RepresentationChangerTester : public HandleAndZoneScope,
 }  // namespace v8::internal::compiler
 
 
-// TODO(titzer): add kRepFloat32 when fully supported.
 static const MachineType all_reps[] = {kRepBit,     kRepWord32,  kRepWord64,
                                        kRepFloat32, kRepFloat64, kRepTagged};
 
@@ -148,6 +147,13 @@ TEST(ToTagged_constant) {
     r.CheckNumberConstant(c, double_inputs[i]);
   }
 
+  for (size_t i = 0; i < arraysize(double_inputs); i++) {
+    volatile float fval = static_cast<float>(double_inputs[i]);
+    Node* n = r.jsgraph()->Float32Constant(fval);
+    Node* c = r.changer()->GetRepresentationFor(n, kRepFloat32, kRepTagged);
+    r.CheckNumberConstant(c, fval);
+  }
+
   for (size_t i = 0; i < arraysize(int32_inputs); i++) {
     Node* n = r.jsgraph()->Int32Constant(int32_inputs[i]);
     Node* c = r.changer()->GetRepresentationFor(n, kRepWord32 | kTypeInt32,
@@ -177,6 +183,23 @@ static void CheckChange(IrOpcode::Value expected, MachineTypeUnion from,
 }
 
 
+static void CheckTwoChanges(IrOpcode::Value expected2,
+                            IrOpcode::Value expected1, MachineTypeUnion from,
+                            MachineTypeUnion to) {
+  RepresentationChangerTester r;
+
+  Node* n = r.Parameter();
+  Node* c1 = r.changer()->GetRepresentationFor(n, from, to);
+
+  CHECK_NE(c1, n);
+  CHECK_EQ(expected1, c1->opcode());
+  Node* c2 = c1->InputAt(0);
+  CHECK_NE(c2, n);
+  CHECK_EQ(expected2, c2->opcode());
+  CHECK_EQ(n, c2->InputAt(0));
+}
+
+
 TEST(SingleChanges) {
   CheckChange(IrOpcode::kChangeBoolToBit, kRepTagged, kRepBit);
   CheckChange(IrOpcode::kChangeBitToBool, kRepBit, kRepTagged);
@@ -202,7 +225,30 @@ TEST(SingleChanges) {
               kRepWord32);
   CheckChange(IrOpcode::kChangeFloat64ToUint32, kRepFloat64 | kTypeUint32,
               kRepWord32);
+
+  // Int32,Uint32 <-> Float32 require two changes.
+  CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
+                  IrOpcode::kTruncateFloat64ToFloat32, kRepWord32 | kTypeInt32,
+                  kRepFloat32);
+  CheckTwoChanges(IrOpcode::kChangeUint32ToFloat64,
+                  IrOpcode::kTruncateFloat64ToFloat32, kRepWord32 | kTypeUint32,
+                  kRepFloat32);
+  CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
+                  IrOpcode::kChangeFloat64ToInt32, kRepFloat32 | kTypeInt32,
+                  kRepWord32);
+  CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
+                  IrOpcode::kChangeFloat64ToUint32, kRepFloat32 | kTypeUint32,
+                  kRepWord32);
+
+  // Float32 <-> Tagged require two changes.
+  CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
+                  IrOpcode::kChangeFloat64ToTagged, kRepFloat32, kRepTagged);
+  CheckTwoChanges(IrOpcode::kChangeTaggedToFloat64,
+                  IrOpcode::kTruncateFloat64ToFloat32, kRepTagged, kRepFloat32);
 }
+
+
+// TODO(titzer): test constant folding of changes between int/float
 
 
 TEST(SignednessInWord32) {
@@ -215,6 +261,11 @@ TEST(SignednessInWord32) {
               kRepWord32 | kTypeUint32);
   CheckChange(IrOpcode::kChangeInt32ToFloat64, kRepWord32, kRepFloat64);
   CheckChange(IrOpcode::kChangeFloat64ToInt32, kRepFloat64, kRepWord32);
+
+  CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
+                  IrOpcode::kTruncateFloat64ToFloat32, kRepWord32, kRepFloat32);
+  CheckTwoChanges(IrOpcode::kChangeFloat32ToFloat64,
+                  IrOpcode::kChangeFloat64ToInt32, kRepFloat32, kRepWord32);
 }
 
 

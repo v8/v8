@@ -559,14 +559,6 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
         graph()->NewNode(simplified()->LoadElement(element_access), elements,
                          key, jsgraph()->Uint32Constant(length),
                          NodeProperties::GetEffectInput(node));
-    // TODO(titzer): Remove this hack once float32 is properly supported in
-    // simplified lowering.
-    if (element_access.machine_type == kRepFloat32) {
-      Node* change =
-          graph()->NewNode(machine()->ChangeFloat32ToFloat64(), value);
-      NodeProperties::ReplaceWithValue(node, change, value);
-      return Changed(value);
-    }
     return ReplaceEagerly(node, value);
   }
   return NoChange();
@@ -610,11 +602,7 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
                                     NodeProperties::GetControlInput(node));
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    // TODO(titzer): Remove this hack once float32 is properly supported in
-    // simplified lowering.
-    if (element_access.machine_type == kRepFloat32) {
-      value = graph()->NewNode(machine()->TruncateFloat64ToFloat32(), value);
-    }
+
     Node* store =
         graph()->NewNode(simplified()->StoreElement(element_access), elements,
                          key, jsgraph()->Uint32Constant(length), value,

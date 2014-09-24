@@ -88,6 +88,8 @@ class RepresentationChanger {
         }
       case IrOpcode::kFloat64Constant:
         return jsgraph()->Constant(OpParameter<double>(node));
+      case IrOpcode::kFloat32Constant:
+        return jsgraph()->Constant(OpParameter<float>(node));
       default:
         break;
     }
@@ -103,9 +105,8 @@ class RepresentationChanger {
       } else {
         return TypeError(node, output_type, kRepTagged);
       }
-    } else if (output_type & kRepFloat32) {
-      node = jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(),
-                                         node);
+    } else if (output_type & kRepFloat32) {  // float32 -> float64 -> tagged
+      node = InsertChangeFloat32ToFloat64(node);
       op = simplified()->ChangeFloat64ToTagged();
     } else if (output_type & kRepFloat64) {
       op = simplified()->ChangeFloat64ToTagged();
@@ -118,14 +119,47 @@ class RepresentationChanger {
   Node* GetFloat32RepresentationFor(Node* node, MachineTypeUnion output_type) {
     // Eagerly fold representation changes for constants.
     switch (node->opcode()) {
-      // TODO(turbofan): NumberConstant, Int32Constant, and Float64Constant?
+      case IrOpcode::kFloat64Constant:
+      case IrOpcode::kNumberConstant:
+        return jsgraph()->Float32Constant(
+            DoubleToFloat32(OpParameter<double>(node)));
+      case IrOpcode::kInt32Constant:
+        if (output_type & kTypeUint32) {
+          uint32_t value = OpParameter<uint32_t>(node);
+          return jsgraph()->Float32Constant(value);
+        } else {
+          int32_t value = OpParameter<int32_t>(node);
+          return jsgraph()->Float32Constant(value);
+        }
       case IrOpcode::kFloat32Constant:
         return node;  // No change necessary.
       default:
         break;
     }
-    // TODO(turbofan): Select the correct X -> Float32 operator.
-    return TypeError(node, output_type, kRepFloat32);
+    // Select the correct X -> Float32 operator.
+    const Operator* op;
+    if (output_type & kRepBit) {
+      return TypeError(node, output_type, kRepFloat32);
+    } else if (output_type & rWord) {
+      if (output_type & kTypeUint32) {
+        op = machine()->ChangeUint32ToFloat64();
+      } else {
+        op = machine()->ChangeInt32ToFloat64();
+      }
+      // int32 -> float64 -> float32
+      node = jsgraph()->graph()->NewNode(op, node);
+      op = machine()->TruncateFloat64ToFloat32();
+    } else if (output_type & kRepTagged) {
+      op = simplified()
+               ->ChangeTaggedToFloat64();  // tagged -> float64 -> float32
+      node = jsgraph()->graph()->NewNode(op, node);
+      op = machine()->TruncateFloat64ToFloat32();
+    } else if (output_type & kRepFloat64) {
+      op = machine()->ChangeFloat32ToFloat64();
+    } else {
+      return TypeError(node, output_type, kRepFloat32);
+    }
+    return jsgraph()->graph()->NewNode(op, node);
   }
 
   Node* GetFloat64RepresentationFor(Node* node, MachineTypeUnion output_type) {
@@ -143,6 +177,8 @@ class RepresentationChanger {
         }
       case IrOpcode::kFloat64Constant:
         return node;  // No change necessary.
+      case IrOpcode::kFloat32Constant:
+        return jsgraph()->Float64Constant(OpParameter<float>(node));
       default:
         break;
     }
@@ -166,6 +202,18 @@ class RepresentationChanger {
     return jsgraph()->graph()->NewNode(op, node);
   }
 
+  Node* MakeInt32Constant(double value) {
+    if (value < 0) {
+      DCHECK(IsInt32Double(value));
+      int32_t iv = static_cast<int32_t>(value);
+      return jsgraph()->Int32Constant(iv);
+    } else {
+      DCHECK(IsUint32Double(value));
+      int32_t iv = static_cast<int32_t>(static_cast<uint32_t>(value));
+      return jsgraph()->Int32Constant(iv);
+    }
+  }
+
   Node* GetWord32RepresentationFor(Node* node, MachineTypeUnion output_type,
                                    bool use_unsigned) {
     // Eagerly fold representation changes for constants.
@@ -173,24 +221,23 @@ class RepresentationChanger {
       case IrOpcode::kInt32Constant:
         return node;  // No change necessary.
       case IrOpcode::kNumberConstant:
-      case IrOpcode::kFloat64Constant: {
-        double value = OpParameter<double>(node);
-        if (value < 0) {
-          DCHECK(IsInt32Double(value));
-          int32_t iv = static_cast<int32_t>(value);
-          return jsgraph()->Int32Constant(iv);
-        } else {
-          DCHECK(IsUint32Double(value));
-          int32_t iv = static_cast<int32_t>(static_cast<uint32_t>(value));
-          return jsgraph()->Int32Constant(iv);
-        }
-      }
+      case IrOpcode::kFloat32Constant:
+        return MakeInt32Constant(OpParameter<float>(node));
+      case IrOpcode::kFloat64Constant:
+        return MakeInt32Constant(OpParameter<double>(node));
       default:
         break;
     }
     // Select the correct X -> Word32 operator.
     const Operator* op = NULL;
     if (output_type & kRepFloat64) {
+      if (output_type & kTypeUint32 || use_unsigned) {
+        op = machine()->ChangeFloat64ToUint32();
+      } else {
+        op = machine()->ChangeFloat64ToInt32();
+      }
+    } else if (output_type & kRepFloat32) {
+      node = InsertChangeFloat32ToFloat64(node);  // float32 -> float64 -> int32
       if (output_type & kTypeUint32 || use_unsigned) {
         op = machine()->ChangeFloat64ToUint32();
       } else {
@@ -365,6 +412,11 @@ class RepresentationChanger {
                use_str.c_str());
     }
     return node;
+  }
+
+  Node* InsertChangeFloat32ToFloat64(Node* node) {
+    return jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(),
+                                       node);
   }
 
   JSGraph* jsgraph() { return jsgraph_; }
