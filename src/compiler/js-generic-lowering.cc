@@ -176,14 +176,7 @@ void JSGenericLowering::ReplaceWithCompareIC(Node* node, Token::Value token,
 
   if (has_frame_state) {
     // Remove the frame state from inputs.
-    // TODO(jarin) This should use Node::RemoveInput (which does not exist yet).
-    int dest = NodeProperties::FirstFrameStateIndex(node);
-    for (int i = NodeProperties::PastFrameStateIndex(node);
-         i < node->InputCount(); i++) {
-      node->ReplaceInput(dest, node->InputAt(i));
-      dest++;
-    }
-    node->TrimInputCount(dest);
+    node->RemoveInput(NodeProperties::FirstFrameStateIndex(node));
   }
 
   ReplaceWithRuntimeCall(node, Runtime::kBooleanize);

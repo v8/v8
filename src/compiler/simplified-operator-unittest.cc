@@ -11,6 +11,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// TODO(bmeurer): Drop once we use std::ostream instead of our OStream.
+inline std::ostream& operator<<(std::ostream& os, const ElementAccess& access) {
+  OStringStream ost;
+  ost << access;
+  return os << ost.c_str();
+}
+
+
 // -----------------------------------------------------------------------------
 // Pure operators.
 
@@ -111,6 +119,103 @@ TEST_P(SimplifiedPureOperatorTest, Properties) {
 
 INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest, SimplifiedPureOperatorTest,
                         ::testing::ValuesIn(kPureOperators));
+
+
+// -----------------------------------------------------------------------------
+// Element access operators.
+
+namespace {
+
+const ElementAccess kElementAccesses[] = {
+    {kTaggedBase, FixedArray::kHeaderSize, Type::Any(), kMachAnyTagged},
+    {kUntaggedBase, kNonHeapObjectHeaderSize - kHeapObjectTag, Type::Any(),
+     kMachInt8},
+    {kUntaggedBase, kNonHeapObjectHeaderSize - kHeapObjectTag, Type::Any(),
+     kMachInt16},
+    {kUntaggedBase, kNonHeapObjectHeaderSize - kHeapObjectTag, Type::Any(),
+     kMachInt32},
+    {kUntaggedBase, kNonHeapObjectHeaderSize - kHeapObjectTag, Type::Any(),
+     kMachUint8},
+    {kUntaggedBase, kNonHeapObjectHeaderSize - kHeapObjectTag, Type::Any(),
+     kMachUint16},
+    {kUntaggedBase, kNonHeapObjectHeaderSize - kHeapObjectTag, Type::Any(),
+     kMachUint32},
+    {kUntaggedBase, 0, Type::Signed32(), kMachInt8},
+    {kUntaggedBase, 0, Type::Unsigned32(), kMachUint8},
+    {kUntaggedBase, 0, Type::Signed32(), kMachInt16},
+    {kUntaggedBase, 0, Type::Unsigned32(), kMachUint16},
+    {kUntaggedBase, 0, Type::Signed32(), kMachInt32},
+    {kUntaggedBase, 0, Type::Unsigned32(), kMachUint32},
+    {kUntaggedBase, 0, Type::Number(), kRepFloat32},
+    {kUntaggedBase, 0, Type::Number(), kRepFloat64},
+    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
+     kMachInt8},
+    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
+     kMachUint8},
+    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
+     kMachInt16},
+    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
+     kMachUint16},
+    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Signed32(),
+     kMachInt32},
+    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Unsigned32(),
+     kMachUint32},
+    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
+     kRepFloat32},
+    {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
+     kRepFloat64}};
+
+}  // namespace
+
+
+class SimplifiedElementAccessOperatorTest
+    : public TestWithZone,
+      public ::testing::WithParamInterface<ElementAccess> {};
+
+
+TEST_P(SimplifiedElementAccessOperatorTest, LoadElement) {
+  SimplifiedOperatorBuilder simplified(zone());
+  const ElementAccess& access = GetParam();
+  const Operator* op = simplified.LoadElement(access);
+
+  EXPECT_EQ(IrOpcode::kLoadElement, op->opcode());
+  EXPECT_EQ(Operator::kNoThrow | Operator::kNoWrite, op->properties());
+  EXPECT_EQ(access, ElementAccessOf(op));
+
+  EXPECT_EQ(3, OperatorProperties::GetValueInputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetEffectInputCount(op));
+  EXPECT_EQ(0, OperatorProperties::GetControlInputCount(op));
+  EXPECT_EQ(4, OperatorProperties::GetTotalInputCount(op));
+
+  EXPECT_EQ(1, OperatorProperties::GetValueOutputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetEffectOutputCount(op));
+  EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+}
+
+
+TEST_P(SimplifiedElementAccessOperatorTest, StoreElement) {
+  SimplifiedOperatorBuilder simplified(zone());
+  const ElementAccess& access = GetParam();
+  const Operator* op = simplified.StoreElement(access);
+
+  EXPECT_EQ(IrOpcode::kStoreElement, op->opcode());
+  EXPECT_EQ(Operator::kNoRead | Operator::kNoThrow, op->properties());
+  EXPECT_EQ(access, ElementAccessOf(op));
+
+  EXPECT_EQ(4, OperatorProperties::GetValueInputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetEffectInputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetControlInputCount(op));
+  EXPECT_EQ(6, OperatorProperties::GetTotalInputCount(op));
+
+  EXPECT_EQ(0, OperatorProperties::GetValueOutputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetEffectOutputCount(op));
+  EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+}
+
+
+INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest,
+                        SimplifiedElementAccessOperatorTest,
+                        ::testing::ValuesIn(kElementAccesses));
 
 }  // namespace compiler
 }  // namespace internal

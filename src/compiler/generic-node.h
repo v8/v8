@@ -41,6 +41,7 @@ class GenericNode : public B {
   inline void ReplaceInput(int index, GenericNode* new_input);
   inline void AppendInput(Zone* zone, GenericNode* new_input);
   inline void InsertInput(Zone* zone, int index, GenericNode* new_input);
+  inline void RemoveInput(int index);
 
   int UseCount() { return use_count_; }
   S* UseAt(int index) {
@@ -56,7 +57,7 @@ class GenericNode : public B {
   inline void ReplaceUsesIf(UnaryPredicate pred, GenericNode* replace_to);
   inline void RemoveAllInputs();
 
-  void TrimInputCount(int input_count);
+  inline void TrimInputCount(int input_count);
 
   class Inputs {
    public:

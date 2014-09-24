@@ -540,6 +540,8 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
     JSTypedArray* array = JSTypedArray::cast(*base_type->AsConstant()->Value());
     ElementsKind elements_kind = array->map()->elements_kind();
     ExternalArrayType type = array->type();
+    uint32_t length;
+    CHECK(array->length()->ToUint32(&length));
     ElementAccess element_access;
     Node* elements = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
@@ -555,7 +557,8 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
     }
     Node* value =
         graph()->NewNode(simplified()->LoadElement(element_access), elements,
-                         key, NodeProperties::GetEffectInput(node));
+                         key, jsgraph()->Uint32Constant(length),
+                         NodeProperties::GetEffectInput(node));
     return ReplaceEagerly(node, value);
   }
   return NoChange();
@@ -599,9 +602,10 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
                                     NodeProperties::GetControlInput(node));
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* store = graph()->NewNode(
-        simplified()->StoreElement(element_access), elements, key, value,
-        NodeProperties::GetEffectInput(node), if_true);
+    Node* store =
+        graph()->NewNode(simplified()->StoreElement(element_access), elements,
+                         key, jsgraph()->Uint32Constant(length), value,
+                         NodeProperties::GetEffectInput(node), if_true);
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
 
