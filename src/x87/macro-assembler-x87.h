@@ -6,6 +6,7 @@
 #define V8_X87_MACRO_ASSEMBLER_X87_H_
 
 #include "src/assembler.h"
+#include "src/bailout-reason.h"
 #include "src/frames.h"
 #include "src/globals.h"
 
