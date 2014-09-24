@@ -26,8 +26,6 @@ class ChangeLowering FINAL : public Reducer {
   virtual Reduction Reduce(Node* node) OVERRIDE;
 
  private:
-  enum Signedness { kSigned, kUnsigned };
-
   Node* HeapNumberValueIndexConstant();
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();

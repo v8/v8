@@ -235,6 +235,12 @@ class RepresentationChanger {
         return machine()->Int32Add();
       case IrOpcode::kNumberSubtract:
         return machine()->Int32Sub();
+      case IrOpcode::kNumberMultiply:
+        return machine()->Int32Mul();
+      case IrOpcode::kNumberDivide:
+        return machine()->Int32Div();
+      case IrOpcode::kNumberModulus:
+        return machine()->Int32Mod();
       case IrOpcode::kNumberEqual:
         return machine()->Word32Equal();
       case IrOpcode::kNumberLessThan:
@@ -253,6 +259,12 @@ class RepresentationChanger {
         return machine()->Int32Add();
       case IrOpcode::kNumberSubtract:
         return machine()->Int32Sub();
+      case IrOpcode::kNumberMultiply:
+        return machine()->Int32Mul();
+      case IrOpcode::kNumberDivide:
+        return machine()->Int32UDiv();
+      case IrOpcode::kNumberModulus:
+        return machine()->Int32UMod();
       case IrOpcode::kNumberEqual:
         return machine()->Word32Equal();
       case IrOpcode::kNumberLessThan:
