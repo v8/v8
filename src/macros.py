@@ -172,7 +172,7 @@ macro HAS_OWN_PROPERTY(obj, index) = (%_CallFunction(obj, index, ObjectHasOwnPro
 # GET_PRIVATE should only be used if the property is known to exists on obj
 # itself (it should really use %GetOwnProperty, but that would be way slower).
 macro GLOBAL_PRIVATE(name) = (%CreateGlobalPrivateOwnSymbol(name));
-macro NEW_PRIVATE(name) = (%CreatePrivateSymbol(name));
+macro NEW_PRIVATE_OWN(name) = (%CreatePrivateOwnSymbol(name));
 macro IS_PRIVATE(sym) = (%SymbolIsPrivate(sym));
 macro HAS_PRIVATE(obj, sym) = (%HasOwnProperty(obj, sym));
 macro HAS_DEFINED_PRIVATE(obj, sym) = (!IS_UNDEFINED(obj[sym]));

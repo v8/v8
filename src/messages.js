@@ -757,10 +757,10 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-var CallSiteReceiverKey = NEW_PRIVATE("CallSite#receiver");
-var CallSiteFunctionKey = NEW_PRIVATE("CallSite#function");
-var CallSitePositionKey = NEW_PRIVATE("CallSite#position");
-var CallSiteStrictModeKey = NEW_PRIVATE("CallSite#strict_mode");
+var CallSiteReceiverKey = NEW_PRIVATE_OWN("CallSite#receiver");
+var CallSiteFunctionKey = NEW_PRIVATE_OWN("CallSite#function");
+var CallSitePositionKey = NEW_PRIVATE_OWN("CallSite#position");
+var CallSiteStrictModeKey = NEW_PRIVATE_OWN("CallSite#strict_mode");
 
 function CallSite(receiver, fun, pos, strict_mode) {
   SET_PRIVATE(this, CallSiteReceiverKey, receiver);
@@ -1115,16 +1115,21 @@ function GetTypeName(receiver, requireConstructor) {
 
 
 var stack_trace_symbol;  // Set during bootstrapping.
-var formatted_stack_trace_symbol = NEW_PRIVATE("formatted stack trace");
+var formatted_stack_trace_symbol = NEW_PRIVATE_OWN("formatted stack trace");
 
 
 // Format the stack trace if not yet done, and return it.
 // Cache the formatted stack trace on the holder.
 var StackTraceGetter = function() {
-  var formatted_stack_trace = GET_PRIVATE(this, formatted_stack_trace_symbol);
+  var formatted_stack_trace = UNDEFINED;
+  var holder = this;
+  while (holder && IS_UNDEFINED(formatted_stack_trace)) {
+    formatted_stack_trace = GET_PRIVATE(holder, formatted_stack_trace_symbol);
+    holder = %GetPrototype(holder);
+  }
   if (IS_UNDEFINED(formatted_stack_trace)) {
-    var holder = this;
-    while (!HAS_PRIVATE(holder, stack_trace_symbol)) {
+    holder = this;
+    while (!HAS_DEFINED_PRIVATE(holder, stack_trace_symbol)) {
       holder = %GetPrototype(holder);
       if (!holder) return UNDEFINED;
     }
