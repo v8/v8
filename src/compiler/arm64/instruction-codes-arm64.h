@@ -63,6 +63,8 @@ namespace compiler {
   V(Arm64Float64Div)               \
   V(Arm64Float64Mod)               \
   V(Arm64Float64Sqrt)              \
+  V(Arm64Float32ToFloat64)         \
+  V(Arm64Float64ToFloat32)         \
   V(Arm64Float64ToInt32)           \
   V(Arm64Float64ToUint32)          \
   V(Arm64Int32ToFloat64)           \

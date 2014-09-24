@@ -344,6 +344,9 @@ class RawMachineAssembler : public GraphBuilder {
   }
 
   // Conversions.
+  Node* ChangeFloat32ToFloat64(Node* a) {
+    return NewNode(machine()->ChangeFloat32ToFloat64(), a);
+  }
   Node* ChangeInt32ToFloat64(Node* a) {
     return NewNode(machine()->ChangeInt32ToFloat64(), a);
   }
@@ -361,6 +364,9 @@ class RawMachineAssembler : public GraphBuilder {
   }
   Node* ChangeUint32ToUint64(Node* a) {
     return NewNode(machine()->ChangeUint32ToUint64(), a);
+  }
+  Node* TruncateFloat64ToFloat32(Node* a) {
+    return NewNode(machine()->TruncateFloat64ToFloat32(), a);
   }
   Node* TruncateFloat64ToInt32(Node* a) {
     return NewNode(machine()->TruncateFloat64ToInt32(), a);

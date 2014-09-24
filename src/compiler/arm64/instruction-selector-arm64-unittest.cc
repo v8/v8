@@ -197,6 +197,12 @@ std::ostream& operator<<(std::ostream& os, const Conversion& conv) {
 
 // ARM64 type conversion instructions.
 static const Conversion kConversionInstructions[] = {
+    {{&RawMachineAssembler::ChangeFloat32ToFloat64, "ChangeFloat32ToFloat64",
+      kArm64Float32ToFloat64, kMachFloat64},
+     kMachFloat32},
+    {{&RawMachineAssembler::TruncateFloat64ToFloat32,
+      "TruncateFloat64ToFloat32", kArm64Float64ToFloat32, kMachFloat32},
+     kMachFloat64},
     {{&RawMachineAssembler::ChangeInt32ToInt64, "ChangeInt32ToInt64",
       kArm64Sxtw, kMachInt64},
      kMachInt32},

@@ -354,6 +354,13 @@ void InstructionSelector::VisitInt32UMod(Node* node) {
 }
 
 
+void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
+  IA32OperandGenerator g(this);
+  // TODO(turbofan): IA32 SSE conversions should take an operand.
+  Emit(kSSECvtss2sd, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEInt32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
@@ -377,6 +384,13 @@ void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
 void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kSSEFloat64ToUint32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
+  IA32OperandGenerator g(this);
+  // TODO(turbofan): IA32 SSE conversions should take an operand.
+  Emit(kSSECvtsd2ss, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 

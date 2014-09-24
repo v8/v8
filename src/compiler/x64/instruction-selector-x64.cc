@@ -478,6 +478,13 @@ void InstructionSelector::VisitInt64UMod(Node* node) {
 }
 
 
+void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
+  X64OperandGenerator g(this);
+  // TODO(turbofan): X64 SSE conversions should take an operand.
+  Emit(kSSECvtss2sd, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEInt32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
@@ -513,6 +520,13 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64Movl, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
+  X64OperandGenerator g(this);
+  // TODO(turbofan): X64 SSE conversions should take an operand.
+  Emit(kSSECvtsd2ss, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 

@@ -51,10 +51,10 @@ class RepresentationChanger {
     }
     if (use_type & kRepTagged) {
       return GetTaggedRepresentationFor(node, output_type);
+    } else if (use_type & kRepFloat32) {
+      return GetFloat32RepresentationFor(node, output_type);
     } else if (use_type & kRepFloat64) {
       return GetFloat64RepresentationFor(node, output_type);
-    } else if (use_type & kRepFloat32) {
-      return TypeError(node, output_type, use_type);  // TODO(titzer): handle
     } else if (use_type & kRepBit) {
       return GetBitRepresentationFor(node, output_type);
     } else if (use_type & rWord) {
@@ -103,12 +103,29 @@ class RepresentationChanger {
       } else {
         return TypeError(node, output_type, kRepTagged);
       }
+    } else if (output_type & kRepFloat32) {
+      node = jsgraph()->graph()->NewNode(machine()->ChangeFloat32ToFloat64(),
+                                         node);
+      op = simplified()->ChangeFloat64ToTagged();
     } else if (output_type & kRepFloat64) {
       op = simplified()->ChangeFloat64ToTagged();
     } else {
       return TypeError(node, output_type, kRepTagged);
     }
     return jsgraph()->graph()->NewNode(op, node);
+  }
+
+  Node* GetFloat32RepresentationFor(Node* node, MachineTypeUnion output_type) {
+    // Eagerly fold representation changes for constants.
+    switch (node->opcode()) {
+      // TODO(turbofan): NumberConstant, Int32Constant, and Float64Constant?
+      case IrOpcode::kFloat32Constant:
+        return node;  // No change necessary.
+      default:
+        break;
+    }
+    // TODO(turbofan): Select the correct X -> Float32 operator.
+    return TypeError(node, output_type, kRepFloat32);
   }
 
   Node* GetFloat64RepresentationFor(Node* node, MachineTypeUnion output_type) {
@@ -141,6 +158,8 @@ class RepresentationChanger {
       }
     } else if (output_type & kRepTagged) {
       op = simplified()->ChangeTaggedToFloat64();
+    } else if (output_type & kRepFloat32) {
+      op = machine()->ChangeFloat32ToFloat64();
     } else {
       return TypeError(node, output_type, kRepFloat64);
     }
@@ -353,8 +372,9 @@ class RepresentationChanger {
   SimplifiedOperatorBuilder* simplified() { return simplified_; }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_REPRESENTATION_CHANGE_H_

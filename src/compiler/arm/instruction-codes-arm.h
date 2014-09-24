@@ -42,14 +42,16 @@ namespace compiler {
   V(ArmVmodF64)                    \
   V(ArmVnegF64)                    \
   V(ArmVsqrtF64)                   \
+  V(ArmVcvtF32F64)                 \
+  V(ArmVcvtF64F32)                 \
   V(ArmVcvtF64S32)                 \
   V(ArmVcvtF64U32)                 \
   V(ArmVcvtS32F64)                 \
   V(ArmVcvtU32F64)                 \
-  V(ArmVldr32)                     \
-  V(ArmVstr32)                     \
-  V(ArmVldr64)                     \
-  V(ArmVstr64)                     \
+  V(ArmVldrF32)                    \
+  V(ArmVstrF32)                    \
+  V(ArmVldrF64)                    \
+  V(ArmVstrF64)                    \
   V(ArmLdrb)                       \
   V(ArmLdrsb)                      \
   V(ArmStrb)                       \

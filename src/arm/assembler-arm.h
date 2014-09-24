@@ -218,6 +218,11 @@ struct DwVfpRegister {
   inline static int NumReservedRegisters();
   inline static int NumAllocatableRegisters();
 
+  // TODO(turbofan): This is a temporary work-around required because our
+  // register allocator does not yet support the aliasing of single/double
+  // registers on ARM.
+  inline static int NumAllocatableAliasedRegisters();
+
   inline static int ToAllocationIndex(DwVfpRegister reg);
   static const char* AllocationIndexToString(int index);
   inline static DwVfpRegister FromAllocationIndex(int index);

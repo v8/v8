@@ -89,8 +89,8 @@ class RepresentationChangerTester : public HandleAndZoneScope,
 
 
 // TODO(titzer): add kRepFloat32 when fully supported.
-static const MachineType all_reps[] = {kRepBit, kRepWord32, kRepWord64,
-                                       kRepFloat64, kRepTagged};
+static const MachineType all_reps[] = {kRepBit,     kRepWord32,  kRepWord64,
+                                       kRepFloat32, kRepFloat64, kRepTagged};
 
 
 // TODO(titzer): lift this to ValueHelper
@@ -294,12 +294,5 @@ TEST(TypeErrors) {
       // Only a single from representation is allowed.
       r.CheckTypeError(all_reps[i] | all_reps[j], kRepTagged);
     }
-  }
-
-  // TODO(titzer): Float32 representation changes trigger type errors now.
-  // Enforce current behavior to test all paths through representation changer.
-  for (size_t i = 0; i < arraysize(all_reps); i++) {
-    r.CheckTypeError(all_reps[i], kRepFloat32);
-    r.CheckTypeError(kRepFloat32, all_reps[i]);
   }
 }

@@ -70,6 +70,12 @@ int DwVfpRegister::NumAllocatableRegisters() {
 }
 
 
+// static
+int DwVfpRegister::NumAllocatableAliasedRegisters() {
+  return LowDwVfpRegister::kMaxNumLowRegisters - kNumReservedRegisters;
+}
+
+
 int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
   DCHECK(!reg.is(kDoubleRegZero));
   DCHECK(!reg.is(kScratchDoubleReg));

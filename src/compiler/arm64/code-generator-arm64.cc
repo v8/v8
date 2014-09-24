@@ -376,6 +376,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Float64Sqrt:
       __ Fsqrt(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
+    case kArm64Float32ToFloat64:
+      __ Fcvt(i.OutputDoubleRegister(), i.InputDoubleRegister(0).S());
+      break;
+    case kArm64Float64ToFloat32:
+      __ Fcvt(i.OutputDoubleRegister().S(), i.InputDoubleRegister(0));
+      break;
     case kArm64Float64ToInt32:
       __ Fcvtzs(i.OutputRegister32(), i.InputDoubleRegister(0));
       break;
@@ -418,20 +424,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Str:
       __ Str(i.InputRegister(2), i.MemoryOperand());
       break;
-    case kArm64LdrS: {
-      UseScratchRegisterScope scope(masm());
-      FPRegister scratch = scope.AcquireS();
-      __ Ldr(scratch, i.MemoryOperand());
-      __ Fcvt(i.OutputDoubleRegister(), scratch);
+    case kArm64LdrS:
+      __ Ldr(i.OutputDoubleRegister().S(), i.MemoryOperand());
       break;
-    }
-    case kArm64StrS: {
-      UseScratchRegisterScope scope(masm());
-      FPRegister scratch = scope.AcquireS();
-      __ Fcvt(scratch, i.InputDoubleRegister(2));
-      __ Str(scratch, i.MemoryOperand());
+    case kArm64StrS:
+      __ Str(i.InputDoubleRegister(2).S(), i.MemoryOperand());
       break;
-    }
     case kArm64LdrD:
       __ Ldr(i.OutputDoubleRegister(), i.MemoryOperand());
       break;

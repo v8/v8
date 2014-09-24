@@ -288,6 +288,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64Sqrt:
       __ sqrtsd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
+    case kSSECvtss2sd:
+      __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    case kSSECvtsd2ss:
+      __ cvtsd2ss(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kSSEFloat64ToInt32:
       __ cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       break;
@@ -363,12 +369,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kIA32Movss:
       if (instr->HasOutput()) {
         __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
-        __ cvtss2sd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       } else {
         int index = 0;
         Operand operand = i.MemoryOperand(&index);
-        __ cvtsd2ss(xmm0, i.InputDoubleRegister(index));
-        __ movss(operand, xmm0);
+        __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
     case kIA32Push:

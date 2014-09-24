@@ -456,6 +456,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kSSECvtss2sd:
+      __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    case kSSECvtsd2ss:
+      __ cvtsd2ss(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kSSEFloat64ToInt32: {
       RegisterOrOperand input = i.InputRegisterOrOperand(0);
       if (input.type == kDoubleRegister) {
@@ -570,12 +576,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64Movss:
       if (instr->HasOutput()) {
         __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
-        __ cvtss2sd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       } else {
         int index = 0;
         Operand operand = i.MemoryOperand(&index);
-        __ cvtsd2ss(xmm0, i.InputDoubleRegister(index));
-        __ movss(operand, xmm0);
+        __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
     case kX64Movsd:

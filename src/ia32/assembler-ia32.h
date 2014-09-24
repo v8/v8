@@ -148,6 +148,11 @@ struct XMMRegister {
     return kMaxNumAllocatableRegisters;
   }
 
+  // TODO(turbofan): Proper support for float32.
+  static int NumAllocatableAliasedRegisters() {
+    return NumAllocatableRegisters();
+  }
+
   static int ToAllocationIndex(XMMRegister reg) {
     DCHECK(reg.code() != 0);
     return reg.code() - 1;

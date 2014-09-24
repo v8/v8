@@ -288,6 +288,8 @@ class RepresentationSelector {
     MachineTypeUnion rep = 0;
     if (use_rep & kRepTagged) {
       rep = kRepTagged;  // Tagged overrides everything.
+    } else if (use_rep & kRepFloat32) {
+      rep = kRepFloat32;
     } else if (use_rep & kRepFloat64) {
       rep = kRepFloat64;
     } else if (use_rep & kRepWord64) {
@@ -347,15 +349,6 @@ class RepresentationSelector {
 
   const Operator* Float64Op(Node* node) {
     return changer_->Float64OperatorFor(node->opcode());
-  }
-
-  static MachineType AssumeImplicitFloat32Change(MachineType type) {
-    // TODO(titzer): Assume loads of float32 change representation to float64.
-    // Fix this with full support for float32 representations.
-    if (type & kRepFloat32) {
-      return static_cast<MachineType>((type & ~kRepFloat32) | kRepFloat64);
-    }
-    return type;
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -579,14 +572,14 @@ class RepresentationSelector {
         FieldAccess access = FieldAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessRemainingInputs(node, 1);
-        SetOutput(node, AssumeImplicitFloat32Change(access.machine_type));
+        SetOutput(node, access.machine_type);
         if (lower()) lowering->DoLoadField(node);
         break;
       }
       case IrOpcode::kStoreField: {
         FieldAccess access = FieldAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
-        ProcessInput(node, 1, AssumeImplicitFloat32Change(access.machine_type));
+        ProcessInput(node, 1, access.machine_type);
         ProcessRemainingInputs(node, 2);
         SetOutput(node, 0);
         if (lower()) lowering->DoStoreField(node);
@@ -598,7 +591,7 @@ class RepresentationSelector {
         ProcessInput(node, 1, kMachInt32);  // element index
         ProcessInput(node, 2, kMachInt32);  // length
         ProcessRemainingInputs(node, 3);
-        SetOutput(node, AssumeImplicitFloat32Change(access.machine_type));
+        SetOutput(node, access.machine_type);
         if (lower()) lowering->DoLoadElement(node);
         break;
       }
@@ -607,7 +600,7 @@ class RepresentationSelector {
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessInput(node, 1, kMachInt32);  // element index
         ProcessInput(node, 2, kMachInt32);  // length
-        ProcessInput(node, 3, AssumeImplicitFloat32Change(access.machine_type));
+        ProcessInput(node, 3, access.machine_type);
         ProcessRemainingInputs(node, 4);
         SetOutput(node, 0);
         if (lower()) lowering->DoStoreElement(node);
@@ -700,11 +693,17 @@ class RepresentationSelector {
       case IrOpcode::kChangeUint32ToUint64:
         return VisitUnop(node, kTypeUint32 | kRepWord32,
                          kTypeUint32 | kRepWord64);
+      case IrOpcode::kTruncateFloat64ToFloat32:
+        return VisitUnop(node, kTypeNumber | kRepFloat64,
+                         kTypeNumber | kRepFloat32);
       case IrOpcode::kTruncateInt64ToInt32:
         // TODO(titzer): Is kTypeInt32 correct here?
         return VisitUnop(node, kTypeInt32 | kRepWord64,
                          kTypeInt32 | kRepWord32);
 
+      case IrOpcode::kChangeFloat32ToFloat64:
+        return VisitUnop(node, kTypeNumber | kRepFloat32,
+                         kTypeNumber | kRepFloat64);
       case IrOpcode::kChangeInt32ToFloat64:
         return VisitUnop(node, kTypeInt32 | kRepWord32,
                          kTypeInt32 | kRepFloat64);
