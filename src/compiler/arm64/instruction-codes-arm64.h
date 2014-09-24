@@ -16,6 +16,8 @@ namespace compiler {
   V(Arm64Add32)                    \
   V(Arm64And)                      \
   V(Arm64And32)                    \
+  V(Arm64Bic)                      \
+  V(Arm64Bic32)                    \
   V(Arm64Cmp)                      \
   V(Arm64Cmp32)                    \
   V(Arm64Cmn)                      \
@@ -24,8 +26,12 @@ namespace compiler {
   V(Arm64Tst32)                    \
   V(Arm64Or)                       \
   V(Arm64Or32)                     \
-  V(Arm64Xor)                      \
-  V(Arm64Xor32)                    \
+  V(Arm64Orn)                      \
+  V(Arm64Orn32)                    \
+  V(Arm64Eor)                      \
+  V(Arm64Eor32)                    \
+  V(Arm64Eon)                      \
+  V(Arm64Eon32)                    \
   V(Arm64Sub)                      \
   V(Arm64Sub32)                    \
   V(Arm64Mul)                      \

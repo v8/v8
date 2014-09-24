@@ -189,6 +189,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64And32:
       __ And(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
       break;
+    case kArm64Bic:
+      __ Bic(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
+    case kArm64Bic32:
+      __ Bic(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      break;
     case kArm64Mul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
@@ -256,11 +262,23 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Or32:
       __ Orr(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
       break;
-    case kArm64Xor:
+    case kArm64Orn:
+      __ Orn(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
+    case kArm64Orn32:
+      __ Orn(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      break;
+    case kArm64Eor:
       __ Eor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-    case kArm64Xor32:
+    case kArm64Eor32:
       __ Eor(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      break;
+    case kArm64Eon:
+      __ Eon(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
+    case kArm64Eon32:
+      __ Eon(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
       break;
     case kArm64Sub:
       __ Sub(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
