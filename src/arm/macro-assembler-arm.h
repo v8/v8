@@ -6,6 +6,7 @@
 #define V8_ARM_MACRO_ASSEMBLER_ARM_H_
 
 #include "src/assembler.h"
+#include "src/bailout-reason.h"
 #include "src/frames.h"
 #include "src/globals.h"
 

@@ -9,6 +9,7 @@
 
 #include "src/assembler.h"
 #include "src/ast-value-factory.h"
+#include "src/bailout-reason.h"
 #include "src/factory.h"
 #include "src/feedback-slots.h"
 #include "src/interface.h"

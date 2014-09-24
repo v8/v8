@@ -156,7 +156,6 @@ void CompilationInfo::Initialize(Isolate* isolate,
     return;
   }
   mode_ = mode;
-  abort_due_to_dependency_ = false;
   if (!script_.is_null() && script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();
   }
@@ -169,7 +168,7 @@ void CompilationInfo::Initialize(Isolate* isolate,
     DCHECK(strict_mode() == SLOPPY);
     SetStrictMode(shared_info_->strict_mode());
   }
-  set_bailout_reason(kUnknown);
+  bailout_reason_ = kUnknown;
 
   if (!shared_info().is_null() && shared_info()->is_compiled()) {
     // We should initialize the CompilationInfo feedback vector from the
@@ -181,6 +180,9 @@ void CompilationInfo::Initialize(Isolate* isolate,
 
 
 CompilationInfo::~CompilationInfo() {
+  if (GetFlag(kDisableFutureOptimization)) {
+    shared_info()->DisableOptimization(bailout_reason());
+  }
   delete deferred_handles_;
   delete no_frame_ranges_;
   if (ast_value_factory_owned_) delete ast_value_factory_;
@@ -331,7 +333,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
 
   // Do not use crankshaft if we need to be able to set break points.
   if (isolate()->DebuggerHasBreakPoints()) {
-    return AbortOptimization(kDebuggerHasBreakPoints);
+    return RetryOptimization(kDebuggerHasBreakPoints);
   }
 
   // Limit the number of times we re-compile a functions with
@@ -339,7 +341,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   const int kMaxOptCount =
       FLAG_deopt_every_n_times == 0 ? FLAG_max_opt_count : 1000;
   if (info()->opt_count() > kMaxOptCount) {
-    return AbortAndDisableOptimization(kOptimizedTooManyTimes);
+    return AbortOptimization(kOptimizedTooManyTimes);
   }
 
   // Due to an encoding limit on LUnallocated operands in the Lithium
@@ -352,17 +354,17 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
   const int parameter_limit = -LUnallocated::kMinFixedSlotIndex;
   Scope* scope = info()->scope();
   if ((scope->num_parameters() + 1) > parameter_limit) {
-    return AbortAndDisableOptimization(kTooManyParameters);
+    return AbortOptimization(kTooManyParameters);
   }
 
   const int locals_limit = LUnallocated::kMaxFixedSlotIndex;
   if (info()->is_osr() &&
       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit) {
-    return AbortAndDisableOptimization(kTooManyParametersLocals);
+    return AbortOptimization(kTooManyParametersLocals);
   }
 
   if (scope->HasIllegalRedeclaration()) {
-    return AbortAndDisableOptimization(kFunctionWithIllegalRedeclaration);
+    return AbortOptimization(kFunctionWithIllegalRedeclaration);
   }
 
   // Check the whitelist for Crankshaft.
@@ -426,20 +428,11 @@ OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
     return SetLastStatus(FAILED);
   }
 
-  // The function being compiled may have bailed out due to an inline
-  // candidate bailing out.  In such a case, we don't disable
-  // optimization on the shared_info.
-  DCHECK(!graph_builder_->inline_bailout() || graph_ == NULL);
-  if (graph_ == NULL) {
-    if (graph_builder_->inline_bailout()) {
-      return AbortOptimization();
-    } else {
-      return AbortAndDisableOptimization();
-    }
-  }
+  if (graph_ == NULL) return SetLastStatus(BAILED_OUT);
 
   if (info()->HasAbortedDueToDependencyChange()) {
-    return AbortOptimization(kBailedOutDueToDependencyChange);
+    // Dependency has changed during graph creation. Let's try again later.
+    return RetryOptimization(kBailedOutDueToDependencyChange);
   }
 
   return SetLastStatus(SUCCEEDED);
@@ -469,7 +462,7 @@ OptimizedCompileJob::Status OptimizedCompileJob::OptimizeGraph() {
     graph_builder_->Bailout(bailout_reason);
   }
 
-  return AbortOptimization();
+  return SetLastStatus(BAILED_OUT);
 }
 
 
@@ -496,23 +489,9 @@ OptimizedCompileJob::Status OptimizedCompileJob::GenerateCode() {
     Handle<Code> optimized_code = chunk_->Codegen();
     if (optimized_code.is_null()) {
       if (info()->bailout_reason() == kNoReason) {
-        info_->set_bailout_reason(kCodeGenerationFailed);
-      } else if (info()->bailout_reason() == kMapBecameDeprecated) {
-        if (FLAG_trace_opt) {
-          PrintF("[aborted optimizing ");
-          info()->closure()->ShortPrint();
-          PrintF(" because a map became deprecated]\n");
-        }
-        return AbortOptimization();
-      } else if (info()->bailout_reason() == kMapBecameUnstable) {
-        if (FLAG_trace_opt) {
-          PrintF("[aborted optimizing ");
-          info()->closure()->ShortPrint();
-          PrintF(" because a map became unstable]\n");
-        }
-        return AbortOptimization();
+        return AbortOptimization(kCodeGenerationFailed);
       }
-      return AbortAndDisableOptimization();
+      return SetLastStatus(BAILED_OUT);
     }
     info()->SetCode(optimized_code);
   }
@@ -764,15 +743,27 @@ static bool GetOptimizedCodeNow(CompilationInfo* info) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
 
   OptimizedCompileJob job(info);
-  if (job.CreateGraph() != OptimizedCompileJob::SUCCEEDED) return false;
-  if (job.OptimizeGraph() != OptimizedCompileJob::SUCCEEDED) return false;
-  if (job.GenerateCode() != OptimizedCompileJob::SUCCEEDED) return false;
+  if (job.CreateGraph() != OptimizedCompileJob::SUCCEEDED ||
+      job.OptimizeGraph() != OptimizedCompileJob::SUCCEEDED ||
+      job.GenerateCode() != OptimizedCompileJob::SUCCEEDED) {
+    if (FLAG_trace_opt) {
+      PrintF("[aborted optimizing ");
+      info->closure()->ShortPrint();
+      PrintF(" because: %s]\n", GetBailoutReason(info->bailout_reason()));
+    }
+    return false;
+  }
 
   // Success!
   DCHECK(!info->isolate()->has_pending_exception());
   InsertCodeIntoOptimizedCodeMap(info);
   RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info,
                             info->shared_info());
+  if (FLAG_trace_opt) {
+    PrintF("[completed optimizing ");
+    info->closure()->ShortPrint();
+    PrintF("]\n");
+  }
   return true;
 }
 
@@ -782,7 +773,7 @@ static bool GetOptimizedCodeLater(CompilationInfo* info) {
   if (!isolate->optimizing_compiler_thread()->IsQueueAvailable()) {
     if (FLAG_trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
-      info->closure()->PrintName();
+      info->closure()->ShortPrint();
       PrintF(" later.\n");
     }
     return false;
@@ -801,7 +792,7 @@ static bool GetOptimizedCodeLater(CompilationInfo* info) {
 
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queued ");
-    info->closure()->PrintName();
+    info->closure()->ShortPrint();
     if (info->is_osr()) {
       PrintF(" for concurrent OSR at %d.\n", info->osr_ast_id().ToInt());
     } else {
@@ -1347,13 +1338,6 @@ MaybeHandle<Code> Compiler::GetOptimizedCode(Handle<JSFunction> function,
     if (GetOptimizedCodeNow(info.get())) return info->code();
   }
 
-  // Failed.
-  if (FLAG_trace_opt) {
-    PrintF("[failed to optimize ");
-    function->PrintName();
-    PrintF(": %s]\n", GetBailoutReason(info->bailout_reason()));
-  }
-
   if (isolate->has_pending_exception()) isolate->clear_pending_exception();
   return MaybeHandle<Code>();
 }
@@ -1371,36 +1355,41 @@ Handle<Code> Compiler::GetConcurrentlyOptimizedCode(OptimizedCompileJob* job) {
   Handle<SharedFunctionInfo> shared = info->shared_info();
   shared->code()->set_profiler_ticks(0);
 
-  // 1) Optimization may have failed.
+  // 1) Optimization on the concurrent thread may have failed.
   // 2) The function may have already been optimized by OSR.  Simply continue.
   //    Except when OSR already disabled optimization for some reason.
   // 3) The code may have already been invalidated due to dependency change.
   // 4) Debugger may have been activated.
-
-  if (job->last_status() != OptimizedCompileJob::SUCCEEDED ||
-      shared->optimization_disabled() ||
-      info->HasAbortedDueToDependencyChange() ||
-      isolate->DebuggerHasBreakPoints()) {
-    return Handle<Code>::null();
+  // 5) Code generation may have failed.
+  if (job->last_status() == OptimizedCompileJob::SUCCEEDED) {
+    if (shared->optimization_disabled()) {
+      job->RetryOptimization(kOptimizationDisabled);
+    } else if (info->HasAbortedDueToDependencyChange()) {
+      job->RetryOptimization(kBailedOutDueToDependencyChange);
+    } else if (isolate->DebuggerHasBreakPoints()) {
+      job->RetryOptimization(kDebuggerHasBreakPoints);
+    } else if (job->GenerateCode() == OptimizedCompileJob::SUCCEEDED) {
+      RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get(), shared);
+      if (info->shared_info()->SearchOptimizedCodeMap(
+              info->context()->native_context(), info->osr_ast_id()) == -1) {
+        InsertCodeIntoOptimizedCodeMap(info.get());
+      }
+      if (FLAG_trace_opt) {
+        PrintF("[completed optimizing ");
+        info->closure()->ShortPrint();
+        PrintF("]\n");
+      }
+      return Handle<Code>(*info->code());
+    }
   }
 
-  if (job->GenerateCode() != OptimizedCompileJob::SUCCEEDED) {
-    return Handle<Code>::null();
+  DCHECK(job->last_status() != OptimizedCompileJob::SUCCEEDED);
+  if (FLAG_trace_opt) {
+    PrintF("[aborted optimizing ");
+    info->closure()->ShortPrint();
+    PrintF(" because: %s]\n", GetBailoutReason(info->bailout_reason()));
   }
-
-  RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info.get(), shared);
-  if (info->shared_info()->SearchOptimizedCodeMap(
-          info->context()->native_context(), info->osr_ast_id()) == -1) {
-    InsertCodeIntoOptimizedCodeMap(info.get());
-  }
-
-  if (FLAG_trace_concurrent_recompilation) {
-    PrintF("  ** Optimized code for ");
-    info->closure()->PrintName();
-    PrintF(" generated.\n");
-  }
-
-  return Handle<Code>(*info->code());
+  return Handle<Code>::null();
 }
 
 

@@ -3097,14 +3097,10 @@ class LPlatformChunk FINAL : public LChunk {
 class LChunkBuilder FINAL : public LChunkBuilderBase {
  public:
   LChunkBuilder(CompilationInfo* info, HGraph* graph, LAllocator* allocator)
-      : LChunkBuilderBase(graph->zone()),
-        chunk_(NULL),
-        info_(info),
-        graph_(graph),
-        status_(UNUSED),
+      : LChunkBuilderBase(info, graph),
         current_instruction_(NULL),
         current_block_(NULL),
-        allocator_(allocator) { }
+        allocator_(allocator) {}
 
   // Build the sequence for the graph.
   LPlatformChunk* Build();
@@ -3127,27 +3123,6 @@ class LChunkBuilder FINAL : public LChunkBuilderBase {
   static bool HasMagicNumberForDivision(int32_t divisor);
 
  private:
-  enum Status {
-    UNUSED,
-    BUILDING,
-    DONE,
-    ABORTED
-  };
-
-  HGraph* graph() const { return graph_; }
-  Isolate* isolate() const { return info_->isolate(); }
-
-  bool is_unused() const { return status_ == UNUSED; }
-  bool is_building() const { return status_ == BUILDING; }
-  bool is_done() const { return status_ == DONE; }
-  bool is_aborted() const { return status_ == ABORTED; }
-
-  int argument_count() const { return argument_count_; }
-  CompilationInfo* info() const { return info_; }
-  Heap* heap() const { return isolate()->heap(); }
-
-  void Abort(BailoutReason reason);
-
   // Methods for getting operands for Use / Define / Temp.
   LUnallocated* ToUnallocated(Register reg);
   LUnallocated* ToUnallocated(DoubleRegister reg);
@@ -3271,10 +3246,6 @@ class LChunkBuilder FINAL : public LChunkBuilderBase {
   LInstruction* DoArithmeticT(Token::Value op,
                               HBinaryOperation* instr);
 
-  LPlatformChunk* chunk_;
-  CompilationInfo* info_;
-  HGraph* const graph_;
-  Status status_;
   HInstruction* current_instruction_;
   HBasicBlock* current_block_;
   LAllocator* allocator_;

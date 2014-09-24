@@ -7,6 +7,7 @@
 
 #include "src/v8.h"
 
+#include "src/bailout-reason.h"
 #include "src/compiler.h"
 #include "src/deoptimizer.h"
 
@@ -76,6 +77,7 @@ class LCodeGenBase BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   void Abort(BailoutReason reason);
+  void Retry(BailoutReason reason);
 
   // Methods for code dependencies.
   void AddDeprecationDependency(Handle<Map> map);

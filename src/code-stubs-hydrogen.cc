@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/bailout-reason.h"
 #include "src/code-stubs.h"
 #include "src/field-index.h"
 #include "src/hydrogen.h"

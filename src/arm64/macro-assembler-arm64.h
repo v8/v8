@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/bailout-reason.h"
 #include "src/globals.h"
 
 #include "src/arm64/assembler-arm64-inl.h"

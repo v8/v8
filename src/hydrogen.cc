@@ -3326,7 +3326,6 @@ HOptimizedGraphBuilder::HOptimizedGraphBuilder(CompilationInfo* info)
       break_scope_(NULL),
       inlined_count_(0),
       globals_(10, info->zone()),
-      inline_bailout_(false),
       osr_(new(info->zone()) HOsrBuilder(this)) {
   // This is not initialized in the initializer list because the
   // constructor for the initial state relies on function_state_ == NULL
@@ -4211,7 +4210,7 @@ void TestContext::BuildBranch(HValue* value) {
 
 
 void HOptimizedGraphBuilder::Bailout(BailoutReason reason) {
-  current_info()->set_bailout_reason(reason);
+  current_info()->AbortOptimization(reason);
   SetStackOverflow();
 }
 
@@ -7931,10 +7930,10 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   set_scope(saved_scope);
   if (HasStackOverflow()) {
     // Bail out if the inline function did, as we cannot residualize a call
-    // instead.
+    // instead, but do not disable optimization for the outer function.
     TraceInline(target, caller, "inline graph construction failed");
     target_shared->DisableOptimization(kInliningBailedOut);
-    inline_bailout_ = true;
+    current_info()->RetryOptimization(kInliningBailedOut);
     delete target_state;
     return true;
   }

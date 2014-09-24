@@ -10,6 +10,7 @@
 #include "src/accessors.h"
 #include "src/allocation.h"
 #include "src/ast.h"
+#include "src/bailout-reason.h"
 #include "src/compiler.h"
 #include "src/hydrogen-instructions.h"
 #include "src/scopes.h"
@@ -2108,8 +2109,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   // Simple accessors.
   BreakAndContinueScope* break_scope() const { return break_scope_; }
   void set_break_scope(BreakAndContinueScope* head) { break_scope_ = head; }
-
-  bool inline_bailout() { return inline_bailout_; }
 
   HValue* context() { return environment()->context(); }
 
