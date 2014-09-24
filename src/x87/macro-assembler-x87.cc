@@ -243,8 +243,8 @@ void MacroAssembler::TruncateX87TOSToI(Register result_reg) {
 
 void MacroAssembler::X87TOSToI(Register result_reg,
                                MinusZeroMode minus_zero_mode,
-                               Label* conversion_failed,
-                               Label::Distance dst) {
+                               Label* lost_precision, Label* is_nan,
+                               Label* minus_zero, Label::Distance dst) {
   Label done;
   sub(esp, Immediate(kPointerSize));
   fld(0);
@@ -252,8 +252,8 @@ void MacroAssembler::X87TOSToI(Register result_reg,
   fild_s(MemOperand(esp, 0));
   pop(result_reg);
   FCmp();
-  j(not_equal, conversion_failed, dst);
-  j(parity_even, conversion_failed, dst);
+  j(not_equal, lost_precision, dst);
+  j(parity_even, is_nan, dst);
   if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
     test(result_reg, Operand(result_reg));
     j(not_zero, &done, Label::kNear);
@@ -263,7 +263,7 @@ void MacroAssembler::X87TOSToI(Register result_reg,
     fst_s(MemOperand(esp, 0));
     pop(result_reg);
     test(result_reg, Operand(result_reg));
-    j(not_zero, conversion_failed, dst);
+    j(not_zero, minus_zero, dst);
   }
   bind(&done);
 }
