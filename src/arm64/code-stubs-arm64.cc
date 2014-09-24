@@ -223,30 +223,30 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm,
   if ((cond == lt) || (cond == gt)) {
     __ JumpIfObjectType(right, scratch, scratch, FIRST_SPEC_OBJECT_TYPE, slow,
                         ge);
+  } else if (cond == eq) {
+    __ JumpIfHeapNumber(right, &heap_number);
   } else {
     Register right_type = scratch;
     __ JumpIfObjectType(right, right_type, right_type, HEAP_NUMBER_TYPE,
                         &heap_number);
     // Comparing JS objects with <=, >= is complicated.
-    if (cond != eq) {
-      __ Cmp(right_type, FIRST_SPEC_OBJECT_TYPE);
-      __ B(ge, slow);
-      // Normally here we fall through to return_equal, but undefined is
-      // special: (undefined == undefined) == true, but
-      // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
-      if ((cond == le) || (cond == ge)) {
-        __ Cmp(right_type, ODDBALL_TYPE);
-        __ B(ne, &return_equal);
-        __ JumpIfNotRoot(right, Heap::kUndefinedValueRootIndex, &return_equal);
-        if (cond == le) {
-          // undefined <= undefined should fail.
-          __ Mov(result, GREATER);
-        } else  {
-          // undefined >= undefined should fail.
-          __ Mov(result, LESS);
-        }
-        __ Ret();
+    __ Cmp(right_type, FIRST_SPEC_OBJECT_TYPE);
+    __ B(ge, slow);
+    // Normally here we fall through to return_equal, but undefined is
+    // special: (undefined == undefined) == true, but
+    // (undefined <= undefined) == false!  See ECMAScript 11.8.5.
+    if ((cond == le) || (cond == ge)) {
+      __ Cmp(right_type, ODDBALL_TYPE);
+      __ B(ne, &return_equal);
+      __ JumpIfNotRoot(right, Heap::kUndefinedValueRootIndex, &return_equal);
+      if (cond == le) {
+        // undefined <= undefined should fail.
+        __ Mov(result, GREATER);
+      } else {
+        // undefined >= undefined should fail.
+        __ Mov(result, LESS);
       }
+      __ Ret();
     }
   }
 
@@ -350,10 +350,8 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
                                     Register right,
                                     FPRegister left_d,
                                     FPRegister right_d,
-                                    Register scratch,
                                     Label* slow,
                                     bool strict) {
-  DCHECK(!AreAliased(left, right, scratch));
   DCHECK(!AreAliased(left_d, right_d));
   DCHECK((left.is(x0) && right.is(x1)) ||
          (right.is(x0) && left.is(x1)));
@@ -367,8 +365,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     // If right is not a number and left is a smi, then strict equality cannot
     // succeed. Return non-equal.
     Label is_heap_number;
-    __ JumpIfObjectType(right, scratch, scratch, HEAP_NUMBER_TYPE,
-                        &is_heap_number);
+    __ JumpIfHeapNumber(right, &is_heap_number);
     // Register right is a non-zero pointer, which is a valid NOT_EQUAL result.
     if (!right.is(result)) {
       __ Mov(result, NOT_EQUAL);
@@ -378,7 +375,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   } else {
     // Smi compared non-strictly with a non-smi, non-heap-number. Call the
     // runtime.
-    __ JumpIfNotObjectType(right, scratch, scratch, HEAP_NUMBER_TYPE, slow);
+    __ JumpIfNotHeapNumber(right, slow);
   }
 
   // Left is the smi. Right is a heap number. Load right value into right_d, and
@@ -393,8 +390,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     // If left is not a number and right is a smi then strict equality cannot
     // succeed. Return non-equal.
     Label is_heap_number;
-    __ JumpIfObjectType(left, scratch, scratch, HEAP_NUMBER_TYPE,
-                        &is_heap_number);
+    __ JumpIfHeapNumber(left, &is_heap_number);
     // Register left is a non-zero pointer, which is a valid NOT_EQUAL result.
     if (!left.is(result)) {
       __ Mov(result, NOT_EQUAL);
@@ -404,7 +400,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
   } else {
     // Smi compared non-strictly with a non-smi, non-heap-number. Call the
     // runtime.
-    __ JumpIfNotObjectType(left, scratch, scratch, HEAP_NUMBER_TYPE, slow);
+    __ JumpIfNotHeapNumber(left, slow);
   }
 
   // Right is the smi. Left is a heap number. Load left value into left_d, and
@@ -472,7 +468,6 @@ static void EmitCheckForInternalizedStringsOrObjects(MacroAssembler* masm,
 
 
 static void CompareICStub_CheckInputType(MacroAssembler* masm, Register input,
-                                         Register scratch,
                                          CompareICState::State expected,
                                          Label* fail) {
   Label ok;
@@ -480,8 +475,7 @@ static void CompareICStub_CheckInputType(MacroAssembler* masm, Register input,
     __ JumpIfNotSmi(input, fail);
   } else if (expected == CompareICState::NUMBER) {
     __ JumpIfSmi(input, &ok);
-    __ CheckMap(input, scratch, Heap::kHeapNumberMapRootIndex, fail,
-                DONT_DO_SMI_CHECK);
+    __ JumpIfNotHeapNumber(input, fail);
   }
   // We could be strict about internalized/non-internalized here, but as long as
   // hydrogen doesn't care, the stub doesn't have to care either.
@@ -496,8 +490,8 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   Condition cond = GetCondition();
 
   Label miss;
-  CompareICStub_CheckInputType(masm, lhs, x2, left(), &miss);
-  CompareICStub_CheckInputType(masm, rhs, x3, right(), &miss);
+  CompareICStub_CheckInputType(masm, lhs, left(), &miss);
+  CompareICStub_CheckInputType(masm, rhs, right(), &miss);
 
   Label slow;  // Call builtin.
   Label not_smis, both_loaded_as_doubles;
@@ -530,7 +524,7 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   // rhs_d, left into lhs_d.
   FPRegister rhs_d = d0;
   FPRegister lhs_d = d1;
-  EmitSmiNonsmiComparison(masm, lhs, rhs, lhs_d, rhs_d, x10, &slow, strict());
+  EmitSmiNonsmiComparison(masm, lhs, rhs, lhs_d, rhs_d, &slow, strict());
 
   __ Bind(&both_loaded_as_doubles);
   // The arguments have been converted to doubles and stored in rhs_d and
@@ -3140,11 +3134,7 @@ void StringCharCodeAtGenerator::GenerateSlow(
 
   __ Bind(&index_not_smi_);
   // If index is a heap number, try converting it to an integer.
-  __ CheckMap(index_,
-              result_,
-              Heap::kHeapNumberMapRootIndex,
-              index_not_number_,
-              DONT_DO_SMI_CHECK);
+  __ JumpIfNotHeapNumber(index_, index_not_number_);
   call_helper.BeforeCall(masm);
   // Save object_ on the stack and pass index_ as argument for runtime call.
   __ Push(object_, index_);
@@ -3265,15 +3255,13 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
 
   // Load rhs if it's a heap number.
   __ JumpIfSmi(rhs, &handle_lhs);
-  __ CheckMap(rhs, x10, Heap::kHeapNumberMapRootIndex, &maybe_undefined1,
-              DONT_DO_SMI_CHECK);
+  __ JumpIfNotHeapNumber(rhs, &maybe_undefined1);
   __ Ldr(rhs_d, FieldMemOperand(rhs, HeapNumber::kValueOffset));
 
   // Load lhs if it's a heap number.
   __ Bind(&handle_lhs);
   __ JumpIfSmi(lhs, &values_in_d_regs);
-  __ CheckMap(lhs, x10, Heap::kHeapNumberMapRootIndex, &maybe_undefined2,
-              DONT_DO_SMI_CHECK);
+  __ JumpIfNotHeapNumber(lhs, &maybe_undefined2);
   __ Ldr(lhs_d, FieldMemOperand(lhs, HeapNumber::kValueOffset));
 
   __ Bind(&values_in_d_regs);
@@ -3293,7 +3281,7 @@ void CompareICStub::GenerateNumbers(MacroAssembler* masm) {
   if (Token::IsOrderedRelationalCompareOp(op())) {
     __ JumpIfNotRoot(rhs, Heap::kUndefinedValueRootIndex, &miss);
     __ JumpIfSmi(lhs, &unordered);
-    __ JumpIfNotObjectType(lhs, x10, x10, HEAP_NUMBER_TYPE, &maybe_undefined2);
+    __ JumpIfNotHeapNumber(lhs, &maybe_undefined2);
     __ B(&unordered);
   }
 

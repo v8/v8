@@ -1246,7 +1246,6 @@ LInstruction* LChunkBuilder::DoClampToUint8(HClampToUint8* instr) {
     DCHECK(input_rep.IsSmiOrTagged());
     return AssignEnvironment(
         DefineAsRegister(new(zone()) LClampTToUint8(reg,
-                                                    TempRegister(),
                                                     TempDoubleRegister())));
   }
 }

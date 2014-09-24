@@ -2247,58 +2247,38 @@ int MacroAssembler::CallSize(Handle<Code> code,
 }
 
 
+void MacroAssembler::JumpIfHeapNumber(Register object, Label* on_heap_number,
+                                      SmiCheckType smi_check_type) {
+  Label on_not_heap_number;
 
+  if (smi_check_type == DO_SMI_CHECK) {
+    JumpIfSmi(object, &on_not_heap_number);
+  }
 
-
-void MacroAssembler::JumpForHeapNumber(Register object,
-                                       Register heap_number_map,
-                                       Label* on_heap_number,
-                                       Label* on_not_heap_number) {
-  DCHECK(on_heap_number || on_not_heap_number);
   AssertNotSmi(object);
 
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
-
-  // Load the HeapNumber map if it is not passed.
-  if (heap_number_map.Is(NoReg)) {
-    heap_number_map = temps.AcquireX();
-    LoadRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  } else {
-    AssertRegisterIsRoot(heap_number_map, Heap::kHeapNumberMapRootIndex);
-  }
-
-  DCHECK(!AreAliased(temp, heap_number_map));
-
   Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
-  Cmp(temp, heap_number_map);
+  JumpIfRoot(temp, Heap::kHeapNumberMapRootIndex, on_heap_number);
 
-  if (on_heap_number) {
-    B(eq, on_heap_number);
-  }
-  if (on_not_heap_number) {
-    B(ne, on_not_heap_number);
-  }
-}
-
-
-void MacroAssembler::JumpIfHeapNumber(Register object,
-                                      Label* on_heap_number,
-                                      Register heap_number_map) {
-  JumpForHeapNumber(object,
-                    heap_number_map,
-                    on_heap_number,
-                    NULL);
+  Bind(&on_not_heap_number);
 }
 
 
 void MacroAssembler::JumpIfNotHeapNumber(Register object,
                                          Label* on_not_heap_number,
-                                         Register heap_number_map) {
-  JumpForHeapNumber(object,
-                    heap_number_map,
-                    NULL,
-                    on_not_heap_number);
+                                         SmiCheckType smi_check_type) {
+  if (smi_check_type == DO_SMI_CHECK) {
+    JumpIfSmi(object, on_not_heap_number);
+  }
+
+  AssertNotSmi(object);
+
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
+  JumpIfNotRoot(temp, Heap::kHeapNumberMapRootIndex, on_not_heap_number);
 }
 
 
@@ -2332,8 +2312,7 @@ void MacroAssembler::LookupNumberStringCache(Register object,
   Label load_result_from_cache;
 
   JumpIfSmi(object, &is_smi);
-  CheckMap(object, scratch1, Heap::kHeapNumberMapRootIndex, not_found,
-           DONT_DO_SMI_CHECK);
+  JumpIfNotHeapNumber(object, not_found);
 
   STATIC_ASSERT(kDoubleSize == (kWRegSize * 2));
   Add(scratch1, object, HeapNumber::kValueOffset - kHeapObjectTag);
@@ -3741,9 +3720,16 @@ void MacroAssembler::CompareInstanceType(Register map,
 }
 
 
-void MacroAssembler::CompareMap(Register obj,
-                                Register scratch,
-                                Handle<Map> map) {
+void MacroAssembler::CompareObjectMap(Register obj, Heap::RootListIndex index) {
+  UseScratchRegisterScope temps(this);
+  Register obj_map = temps.AcquireX();
+  Ldr(obj_map, FieldMemOperand(obj, HeapObject::kMapOffset));
+  CompareRoot(obj_map, index);
+}
+
+
+void MacroAssembler::CompareObjectMap(Register obj, Register scratch,
+                                      Handle<Map> map) {
   Ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
   CompareMap(scratch, map);
 }
@@ -3764,7 +3750,7 @@ void MacroAssembler::CheckMap(Register obj,
     JumpIfSmi(obj, fail);
   }
 
-  CompareMap(obj, scratch, map);
+  CompareObjectMap(obj, scratch, map);
   B(ne, fail);
 }
 
@@ -4004,8 +3990,7 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
   JumpIfSmi(value_reg, &store_num);
 
   // Ensure that the object is a heap number.
-  CheckMap(value_reg, scratch1, isolate()->factory()->heap_number_map(),
-           fail, DONT_DO_SMI_CHECK);
+  JumpIfNotHeapNumber(value_reg, fail);
 
   Ldr(fpscratch1, FieldMemOperand(value_reg, HeapNumber::kValueOffset));
 
@@ -4430,7 +4415,7 @@ void MacroAssembler::RecordWriteForMap(Register object,
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
-    CompareMap(map, temp, isolate()->factory()->meta_map());
+    CompareObjectMap(map, temp, isolate()->factory()->meta_map());
     Check(eq, kWrongAddressOrValuePassedToRecordWrite);
   }
 
