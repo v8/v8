@@ -699,7 +699,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
                                      Handle<Name> name,
                                      Handle<Object> value,
                                      PropertyDetails details) {
-  ASSERT(!object->HasFastProperties());
+  CHECK(!object->HasFastProperties());
   Handle<NameDictionary> property_dictionary(object->property_dictionary());
 
   if (!name->IsUniqueName()) {
