@@ -2768,8 +2768,8 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialOneByte(
 }
 
 
-void MacroAssembler::JumpIfNotUniqueName(Register type,
-                                         Label* not_unique_name) {
+void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register type,
+                                                     Label* not_unique_name) {
   STATIC_ASSERT((kInternalizedTag == 0) && (kStringTag == 0));
   // if ((type is string && type is internalized) || type == SYMBOL_TYPE) {
   //   continue

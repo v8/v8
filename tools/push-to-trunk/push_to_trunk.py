@@ -34,22 +34,8 @@ import urllib2
 
 from common_includes import *
 
-TRUNKBRANCH = "TRUNKBRANCH"
-
-CONFIG = {
-  BRANCHNAME: "prepare-push",
-  TRUNKBRANCH: "trunk-push",
-  PERSISTFILE_BASENAME: "/tmp/v8-push-to-trunk-tempfile",
-  VERSION_FILE: "src/version.cc",
-  CHANGELOG_FILE: "ChangeLog",
-  CHANGELOG_ENTRY_FILE: "/tmp/v8-push-to-trunk-tempfile-changelog-entry",
-  PATCH_FILE: "/tmp/v8-push-to-trunk-tempfile-patch-file",
-  COMMITMSG_FILE: "/tmp/v8-push-to-trunk-tempfile-commitmsg",
-}
-
 PUSH_MESSAGE_SUFFIX = " (based on bleeding_edge revision r%d)"
 PUSH_MESSAGE_RE = re.compile(r".* \(based on bleeding_edge revision r(\d+)\)$")
-
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -58,19 +44,19 @@ class Preparation(Step):
     self.InitialEnvironmentChecks(self.default_cwd)
     self.CommonPrepare()
 
-    if(self["current_branch"] == self.Config(TRUNKBRANCH)
-       or self["current_branch"] == self.Config(BRANCHNAME)):
+    if(self["current_branch"] == self.Config("TRUNKBRANCH")
+       or self["current_branch"] == self.Config("BRANCHNAME")):
       print "Warning: Script started on branch %s" % self["current_branch"]
 
     self.PrepareBranch()
-    self.DeleteBranch(self.Config(TRUNKBRANCH))
+    self.DeleteBranch(self.Config("TRUNKBRANCH"))
 
 
 class FreshBranch(Step):
   MESSAGE = "Create a fresh branch."
 
   def RunStep(self):
-    self.GitCreateBranch(self.Config(BRANCHNAME), "svn/bleeding_edge")
+    self.GitCreateBranch(self.Config("BRANCHNAME"), "svn/bleeding_edge")
 
 
 class PreparePushRevision(Step):
@@ -130,7 +116,7 @@ class GetCurrentBleedingEdgeVersion(Step):
   MESSAGE = "Get latest bleeding edge version."
 
   def RunStep(self):
-    self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/bleeding_edge")
+    self.GitCheckoutFile(VERSION_FILE, "svn/bleeding_edge")
 
     # Store latest version.
     self.ReadAndPersistVersion("latest_")
@@ -143,7 +129,7 @@ class IncrementVersion(Step):
 
   def RunStep(self):
     # Retrieve current version from last trunk push.
-    self.GitCheckoutFile(self.Config(VERSION_FILE), self["last_push_trunk"])
+    self.GitCheckoutFile(VERSION_FILE, self["last_push_trunk"])
     self.ReadAndPersistVersion()
     self["trunk_version"] = self.ArrayToVersion("")
 
@@ -154,21 +140,21 @@ class IncrementVersion(Step):
 
     if SortingKey(self["trunk_version"]) < SortingKey(self["latest_version"]):
       # If the version on bleeding_edge is newer than on trunk, use it.
-      self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/bleeding_edge")
+      self.GitCheckoutFile(VERSION_FILE, "svn/bleeding_edge")
       self.ReadAndPersistVersion()
 
     if self.Confirm(("Automatically increment BUILD_NUMBER? (Saying 'n' will "
                      "fire up your EDITOR on %s so you can make arbitrary "
                      "changes. When you're done, save the file and exit your "
-                     "EDITOR.)" % self.Config(VERSION_FILE))):
+                     "EDITOR.)" % VERSION_FILE)):
 
-      text = FileToText(self.Config(VERSION_FILE))
+      text = FileToText(os.path.join(self.default_cwd, VERSION_FILE))
       text = MSub(r"(?<=#define BUILD_NUMBER)(?P<space>\s+)\d*$",
                   r"\g<space>%s" % str(int(self["build"]) + 1),
                   text)
-      TextToFile(text, self.Config(VERSION_FILE))
+      TextToFile(text, os.path.join(self.default_cwd, VERSION_FILE))
     else:
-      self.Editor(self.Config(VERSION_FILE))
+      self.Editor(os.path.join(self.default_cwd, VERSION_FILE))
 
     # Variables prefixed with 'new_' contain the new version numbers for the
     # ongoing trunk push.
@@ -206,7 +192,7 @@ class PrepareChangeLog(Step):
   def RunStep(self):
     self["date"] = self.GetDate()
     output = "%s: Version %s\n\n" % (self["date"], self["version"])
-    TextToFile(output, self.Config(CHANGELOG_ENTRY_FILE))
+    TextToFile(output, self.Config("CHANGELOG_ENTRY_FILE"))
     commits = self.GitLog(format="%H",
         git_hash="%s..%s" % (self["last_push_bleeding_edge"],
                              self["push_hash"]))
@@ -222,17 +208,17 @@ class PrepareChangeLog(Step):
 
     # Auto-format commit messages.
     body = MakeChangeLogBody(commit_messages, auto_format=True)
-    AppendToFile(body, self.Config(CHANGELOG_ENTRY_FILE))
+    AppendToFile(body, self.Config("CHANGELOG_ENTRY_FILE"))
 
     msg = ("        Performance and stability improvements on all platforms."
            "\n#\n# The change log above is auto-generated. Please review if "
            "all relevant\n# commit messages from the list below are included."
            "\n# All lines starting with # will be stripped.\n#\n")
-    AppendToFile(msg, self.Config(CHANGELOG_ENTRY_FILE))
+    AppendToFile(msg, self.Config("CHANGELOG_ENTRY_FILE"))
 
     # Include unformatted commit messages as a reference in a comment.
     comment_body = MakeComment(MakeChangeLogBody(commit_messages))
-    AppendToFile(comment_body, self.Config(CHANGELOG_ENTRY_FILE))
+    AppendToFile(comment_body, self.Config("CHANGELOG_ENTRY_FILE"))
 
 
 class EditChangeLog(Step):
@@ -243,10 +229,10 @@ class EditChangeLog(Step):
            "entry, then edit its contents to your liking. When you're done, "
            "save the file and exit your EDITOR. ")
     self.ReadLine(default="")
-    self.Editor(self.Config(CHANGELOG_ENTRY_FILE))
+    self.Editor(self.Config("CHANGELOG_ENTRY_FILE"))
 
     # Strip comments and reformat with correct indentation.
-    changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE)).rstrip()
+    changelog_entry = FileToText(self.Config("CHANGELOG_ENTRY_FILE")).rstrip()
     changelog_entry = StripComments(changelog_entry)
     changelog_entry = "\n".join(map(Fill80, changelog_entry.splitlines()))
     changelog_entry = changelog_entry.lstrip()
@@ -255,7 +241,7 @@ class EditChangeLog(Step):
       self.Die("Empty ChangeLog entry.")
 
     # Safe new change log for adding it later to the trunk patch.
-    TextToFile(changelog_entry, self.Config(CHANGELOG_ENTRY_FILE))
+    TextToFile(changelog_entry, self.Config("CHANGELOG_ENTRY_FILE"))
 
 
 class StragglerCommits(Step):
@@ -274,10 +260,10 @@ class SquashCommits(Step):
     # Instead of relying on "git rebase -i", we'll just create a diff, because
     # that's easier to automate.
     TextToFile(self.GitDiff("svn/trunk", self["push_hash"]),
-               self.Config(PATCH_FILE))
+               self.Config("PATCH_FILE"))
 
     # Convert the ChangeLog entry to commit message format.
-    text = FileToText(self.Config(CHANGELOG_ENTRY_FILE))
+    text = FileToText(self.Config("CHANGELOG_ENTRY_FILE"))
 
     # Remove date and trailing white space.
     text = re.sub(r"^%s: " % self["date"], "", text.rstrip())
@@ -297,22 +283,22 @@ class SquashCommits(Step):
 
     if not text:  # pragma: no cover
       self.Die("Commit message editing failed.")
-    TextToFile(text, self.Config(COMMITMSG_FILE))
+    TextToFile(text, self.Config("COMMITMSG_FILE"))
 
 
 class NewBranch(Step):
   MESSAGE = "Create a new branch from trunk."
 
   def RunStep(self):
-    self.GitCreateBranch(self.Config(TRUNKBRANCH), "svn/trunk")
+    self.GitCreateBranch(self.Config("TRUNKBRANCH"), "svn/trunk")
 
 
 class ApplyChanges(Step):
   MESSAGE = "Apply squashed changes."
 
   def RunStep(self):
-    self.ApplyPatch(self.Config(PATCH_FILE))
-    os.remove(self.Config(PATCH_FILE))
+    self.ApplyPatch(self.Config("PATCH_FILE"))
+    os.remove(self.Config("PATCH_FILE"))
 
 
 class AddChangeLog(Step):
@@ -322,12 +308,12 @@ class AddChangeLog(Step):
     # The change log has been modified by the patch. Reset it to the version
     # on trunk and apply the exact changes determined by this PrepareChangeLog
     # step above.
-    self.GitCheckoutFile(self.Config(CHANGELOG_FILE), "svn/trunk")
-    changelog_entry = FileToText(self.Config(CHANGELOG_ENTRY_FILE))
-    old_change_log = FileToText(self.Config(CHANGELOG_FILE))
+    self.GitCheckoutFile(self.Config("CHANGELOG_FILE"), "svn/trunk")
+    changelog_entry = FileToText(self.Config("CHANGELOG_ENTRY_FILE"))
+    old_change_log = FileToText(self.Config("CHANGELOG_FILE"))
     new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
-    TextToFile(new_change_log, self.Config(CHANGELOG_FILE))
-    os.remove(self.Config(CHANGELOG_ENTRY_FILE))
+    TextToFile(new_change_log, self.Config("CHANGELOG_FILE"))
+    os.remove(self.Config("CHANGELOG_ENTRY_FILE"))
 
 
 class SetVersion(Step):
@@ -336,16 +322,16 @@ class SetVersion(Step):
   def RunStep(self):
     # The version file has been modified by the patch. Reset it to the version
     # on trunk and apply the correct version.
-    self.GitCheckoutFile(self.Config(VERSION_FILE), "svn/trunk")
-    self.SetVersion(self.Config(VERSION_FILE), "new_")
+    self.GitCheckoutFile(VERSION_FILE, "svn/trunk")
+    self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
 
 class CommitTrunk(Step):
   MESSAGE = "Commit to local trunk branch."
 
   def RunStep(self):
-    self.GitCommit(file_name = self.Config(COMMITMSG_FILE))
-    os.remove(self.Config(COMMITMSG_FILE))
+    self.GitCommit(file_name = self.Config("COMMITMSG_FILE"))
+    os.remove(self.Config("COMMITMSG_FILE"))
 
 
 class SanityCheck(Step):
@@ -356,7 +342,7 @@ class SanityCheck(Step):
     # prepare push process.
     if not self.Confirm("Please check if your local checkout is sane: Inspect "
         "%s, compile, run tests. Do you want to commit this new trunk "
-        "revision to the repository?" % self.Config(VERSION_FILE)):
+        "revision to the repository?" % VERSION_FILE):
       self.Die("Execution canceled.")  # pragma: no cover
 
 
@@ -402,8 +388,8 @@ class CleanUp(Step):
     print "%s\ttrunk\t%s" % (self["version"], self["trunk_revision"])
 
     self.CommonCleanup()
-    if self.Config(TRUNKBRANCH) != self["current_branch"]:
-      self.GitDeleteBranch(self.Config(TRUNKBRANCH))
+    if self.Config("TRUNKBRANCH") != self["current_branch"]:
+      self.GitDeleteBranch(self.Config("TRUNKBRANCH"))
 
 
 class PushToTrunk(ScriptsBase):
@@ -439,6 +425,17 @@ class PushToTrunk(ScriptsBase):
     options.tbr_commit = not options.manual
     return True
 
+  def _Config(self):
+    return {
+      "BRANCHNAME": "prepare-push",
+      "TRUNKBRANCH": "trunk-push",
+      "PERSISTFILE_BASENAME": "/tmp/v8-push-to-trunk-tempfile",
+      "CHANGELOG_FILE": "ChangeLog",
+      "CHANGELOG_ENTRY_FILE": "/tmp/v8-push-to-trunk-tempfile-changelog-entry",
+      "PATCH_FILE": "/tmp/v8-push-to-trunk-tempfile-patch-file",
+      "COMMITMSG_FILE": "/tmp/v8-push-to-trunk-tempfile-commitmsg",
+    }
+
   def _Steps(self):
     return [
       Preparation,
@@ -464,4 +461,4 @@ class PushToTrunk(ScriptsBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(PushToTrunk(CONFIG).Run())
+  sys.exit(PushToTrunk().Run())

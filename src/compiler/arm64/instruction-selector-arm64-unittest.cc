@@ -32,6 +32,26 @@ std::ostream& operator<<(std::ostream& os, const MachInst<T>& mi) {
 }
 
 
+// Helper to build Int32Constant or Int64Constant depending on the given
+// machine type.
+Node* BuildConstant(InstructionSelectorTest::StreamBuilder& m, MachineType type,
+                    int64_t value) {
+  switch (type) {
+    case kMachInt32:
+      return m.Int32Constant(value);
+      break;
+
+    case kMachInt64:
+      return m.Int64Constant(value);
+      break;
+
+    default:
+      UNIMPLEMENTED();
+  }
+  return NULL;
+}
+
+
 // ARM64 logical instructions.
 static const MachInst2 kLogicalInstructions[] = {
     {&RawMachineAssembler::Word32And, "Word32And", kArm64And32, kMachInt32},
@@ -286,13 +306,13 @@ TEST_P(InstructionSelectorAddSubTest, ImmediateOnRight) {
   const MachineType type = dpi.machine_type;
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
     StreamBuilder m(this, type, type);
-    m.Return((m.*dpi.constructor)(m.Parameter(0), m.Int32Constant(imm)));
+    m.Return((m.*dpi.constructor)(m.Parameter(0), BuildConstant(m, type, imm)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
     EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
-    EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+    EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
@@ -304,7 +324,7 @@ TEST_P(InstructionSelectorAddSubTest, ImmediateOnLeft) {
 
   TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
     StreamBuilder m(this, type, type);
-    m.Return((m.*dpi.constructor)(m.Int32Constant(imm), m.Parameter(0)));
+    m.Return((m.*dpi.constructor)(BuildConstant(m, type, imm), m.Parameter(0)));
     Stream s = m.Build();
 
     // Add can support an immediate on the left by commuting, but Sub can't
@@ -314,7 +334,7 @@ TEST_P(InstructionSelectorAddSubTest, ImmediateOnLeft) {
       EXPECT_EQ(dpi.arch_opcode, s[0]->arch_opcode());
       ASSERT_EQ(2U, s[0]->InputCount());
       EXPECT_TRUE(s[0]->InputAt(1)->IsImmediate());
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(1)));
       EXPECT_EQ(1U, s[0]->OutputCount());
     }
   }
@@ -1004,38 +1024,35 @@ TEST_P(InstructionSelectorComparisonTest, WithParameters) {
 TEST_P(InstructionSelectorComparisonTest, WithImmediate) {
   const MachInst2 cmp = GetParam();
   const MachineType type = cmp.machine_type;
-  // TODO(all): Add support for testing 64-bit immediates.
-  if (type == kMachInt32) {
-    TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
-      // Compare with 0 are turned into tst instruction.
-      if (imm == 0) continue;
-      StreamBuilder m(this, type, type);
-      m.Return((m.*cmp.constructor)(m.Parameter(0), m.Int32Constant(imm)));
-      Stream s = m.Build();
-      ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
-      ASSERT_EQ(2U, s[0]->InputCount());
-      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
-      EXPECT_EQ(1U, s[0]->OutputCount());
-      EXPECT_EQ(kFlags_set, s[0]->flags_mode());
-      EXPECT_EQ(kEqual, s[0]->flags_condition());
-    }
-    TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
-      // Compare with 0 are turned into tst instruction.
-      if (imm == 0) continue;
-      StreamBuilder m(this, type, type);
-      m.Return((m.*cmp.constructor)(m.Int32Constant(imm), m.Parameter(0)));
-      Stream s = m.Build();
-      ASSERT_EQ(1U, s.size());
-      EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
-      ASSERT_EQ(2U, s[0]->InputCount());
-      ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
-      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(1)));
-      EXPECT_EQ(1U, s[0]->OutputCount());
-      EXPECT_EQ(kFlags_set, s[0]->flags_mode());
-      EXPECT_EQ(kEqual, s[0]->flags_condition());
-    }
+  TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+    // Compare with 0 are turned into tst instruction.
+    if (imm == 0) continue;
+    StreamBuilder m(this, type, type);
+    m.Return((m.*cmp.constructor)(m.Parameter(0), BuildConstant(m, type, imm)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
+  }
+  TRACED_FOREACH(int32_t, imm, kAddSubImmediates) {
+    // Compare with 0 are turned into tst instruction.
+    if (imm == 0) continue;
+    StreamBuilder m(this, type, type);
+    m.Return((m.*cmp.constructor)(m.Parameter(0), BuildConstant(m, type, imm)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    ASSERT_EQ(InstructionOperand::IMMEDIATE, s[0]->InputAt(1)->kind());
+    EXPECT_EQ(imm, s.ToInt64(s[0]->InputAt(1)));
+    EXPECT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(kFlags_set, s[0]->flags_mode());
+    EXPECT_EQ(kEqual, s[0]->flags_condition());
   }
 }
 

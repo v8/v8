@@ -6567,9 +6567,6 @@ Isolate* Isolate::GetCurrent() {
 
 
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
-  // TODO(jochen): Remove again soon.
-  V8::Initialize();
-
   i::Isolate* isolate = new i::Isolate();
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
   if (params.entry_hook) {

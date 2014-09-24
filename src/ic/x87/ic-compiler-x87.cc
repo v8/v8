@@ -48,7 +48,11 @@ Handle<Code> PropertyICCompiler::CompilePolymorphic(TypeHandleList* types,
     // In case we are compiling an IC for dictionary loads and stores, just
     // check whether the name is unique.
     if (name.is_identical_to(isolate()->factory()->normal_ic_symbol())) {
-      __ JumpIfNotUniqueName(this->name(), &miss);
+      Register tmp = scratch1();
+      __ JumpIfSmi(this->name(), &miss);
+      __ mov(tmp, FieldOperand(this->name(), HeapObject::kMapOffset));
+      __ movzx_b(tmp, FieldOperand(tmp, Map::kInstanceTypeOffset));
+      __ JumpIfNotUniqueNameInstanceType(tmp, &miss);
     } else {
       __ cmp(this->name(), Immediate(name));
       __ j(not_equal, &miss);

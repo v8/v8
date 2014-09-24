@@ -44,7 +44,12 @@ Node* GraphTest::Parameter(int32_t index) {
 }
 
 
-Node* GraphTest::Float64Constant(double value) {
+Node* GraphTest::Float32Constant(volatile float value) {
+  return graph()->NewNode(common()->Float32Constant(value));
+}
+
+
+Node* GraphTest::Float64Constant(volatile double value) {
   return graph()->NewNode(common()->Float64Constant(value));
 }
 
@@ -59,7 +64,7 @@ Node* GraphTest::Int64Constant(int64_t value) {
 }
 
 
-Node* GraphTest::NumberConstant(double value) {
+Node* GraphTest::NumberConstant(volatile double value) {
   return graph()->NewNode(common()->NumberConstant(value));
 }
 
@@ -664,6 +669,12 @@ Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher) {
 }
 
 
+Matcher<Node*> IsFloat32Constant(const Matcher<float>& value_matcher) {
+  return MakeMatcher(
+      new IsConstantMatcher<float>(IrOpcode::kFloat32Constant, value_matcher));
+}
+
+
 Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher) {
   return MakeMatcher(
       new IsConstantMatcher<double>(IrOpcode::kFloat64Constant, value_matcher));
@@ -732,6 +743,7 @@ Matcher<Node*> IsStore(const Matcher<MachineType>& type_matcher,
     return MakeMatcher(                                                   \
         new IsBinopMatcher(IrOpcode::k##Name, lhs_matcher, rhs_matcher)); \
   }
+IS_BINOP_MATCHER(NumberLessThan)
 IS_BINOP_MATCHER(Word32And)
 IS_BINOP_MATCHER(Word32Sar)
 IS_BINOP_MATCHER(Word32Shl)
@@ -742,6 +754,7 @@ IS_BINOP_MATCHER(Word64Sar)
 IS_BINOP_MATCHER(Word64Shl)
 IS_BINOP_MATCHER(Word64Equal)
 IS_BINOP_MATCHER(Int32AddWithOverflow)
+IS_BINOP_MATCHER(Int32Mul)
 IS_BINOP_MATCHER(Uint32LessThanOrEqual)
 #undef IS_BINOP_MATCHER
 

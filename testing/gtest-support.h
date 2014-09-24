@@ -36,7 +36,7 @@ GET_TYPE_NAME(double)
 #define TRACED_FOREACH(_type, _var, _array)                                \
   for (size_t _i = 0; _i < arraysize(_array); ++_i)                        \
     for (bool _done = false; !_done;)                                      \
-      for (const _type _var = _array[_i]; !_done;)                         \
+      for (_type const _var = _array[_i]; !_done;)                         \
         for (SCOPED_TRACE(::testing::Message() << #_var << " = " << _var); \
              !_done; _done = true)
 
@@ -48,7 +48,7 @@ GET_TYPE_NAME(double)
 #define TRACED_FORRANGE(_type, _var, _low, _high)                          \
   for (_type _i = _low; _i <= _high; ++_i)                                 \
     for (bool _done = false; !_done;)                                      \
-      for (const _type _var = _i; !_done;)                                 \
+      for (_type const _var = _i; !_done;)                                 \
         for (SCOPED_TRACE(::testing::Message() << #_var << " = " << _var); \
              !_done; _done = true)
 

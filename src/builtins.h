@@ -89,7 +89,6 @@ enum BuiltinExtraArguments {
     kNoExtraICState)                                                           \
   V(KeyedLoadIC_Generic, KEYED_LOAD_IC, GENERIC, kNoExtraICState)              \
   V(KeyedLoadIC_String, KEYED_LOAD_IC, MEGAMORPHIC, kNoExtraICState)           \
-  V(KeyedLoadIC_SloppyArguments, KEYED_LOAD_IC, MONOMORPHIC, kNoExtraICState)  \
                                                                                \
   V(StoreIC_Setter_ForDeopt, STORE_IC, MONOMORPHIC, StoreIC::kStrictModeState) \
                                                                                \

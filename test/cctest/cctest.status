@@ -80,11 +80,6 @@
   ##############################################################################
   # TurboFan compiler failures.
 
-  # TODO(dcarney): C calls are broken all over the place.
-  'test-run-machops/RunCall*': [SKIP],
-  'test-run-machops/RunLoadImmIndex': [SKIP],
-  'test-run-machops/RunSpillLotsOfThingsWithCall': [SKIP],
-
   # TODO(sigurds): The schedule is borked with multiple inlinees,
   # and cannot handle free-floating loops yet
   'test-run-inlining/InlineTwiceDependentDiamond': [SKIP],

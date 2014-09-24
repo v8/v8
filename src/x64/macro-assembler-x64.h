@@ -797,10 +797,10 @@ class MacroAssembler: public Assembler {
                                  uint32_t encoding_mask);
 
   // Checks if the given register or operand is a unique name
-  void JumpIfNotUniqueName(Register reg, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar);
-  void JumpIfNotUniqueName(Operand operand, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar);
+  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar);
+  void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar);
 
   // ---------------------------------------------------------------------------
   // Macro instructions.
@@ -1030,8 +1030,9 @@ class MacroAssembler: public Assembler {
   void TruncateDoubleToI(Register result_reg, XMMRegister input_reg);
 
   void DoubleToI(Register result_reg, XMMRegister input_reg,
-      XMMRegister scratch, MinusZeroMode minus_zero_mode,
-      Label* conversion_failed, Label::Distance dst = Label::kFar);
+                 XMMRegister scratch, MinusZeroMode minus_zero_mode,
+                 Label* lost_precision, Label* is_nan, Label* minus_zero,
+                 Label::Distance dst = Label::kFar);
 
   void LoadUint32(XMMRegister dst, Register src);
 

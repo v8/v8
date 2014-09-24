@@ -4834,14 +4834,9 @@ void HOptimizedGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
 
-  // We only optimize switch statements with a bounded number of clauses.
-  const int kCaseClauseLimit = 128;
   ZoneList<CaseClause*>* clauses = stmt->cases();
   int clause_count = clauses->length();
   ZoneList<HBasicBlock*> body_blocks(clause_count, zone());
-  if (clause_count > kCaseClauseLimit) {
-    return Bailout(kSwitchStatementTooManyClauses);
-  }
 
   CHECK_ALIVE(VisitForValue(stmt->tag()));
   Add<HSimulate>(stmt->EntryId());
@@ -6436,7 +6431,7 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
     HValue* key = environment()->ExpressionStackAt(1);
     HValue* object = environment()->ExpressionStackAt(2);
     bool has_side_effects = false;
-    HandleKeyedElementAccess(object, key, value, expr, return_id, STORE,
+    HandleKeyedElementAccess(object, key, value, expr, ast_id, return_id, STORE,
                              &has_side_effects);
     Drop(3);
     Push(value);
@@ -7129,7 +7124,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 
 
 HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
-    HValue* obj, HValue* key, HValue* val, Expression* expr,
+    HValue* obj, HValue* key, HValue* val, Expression* expr, BailoutId ast_id,
     BailoutId return_id, PropertyAccessType access_type,
     bool* has_side_effects) {
   if (key->ActualValue()->IsConstant()) {
@@ -7143,7 +7138,7 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
             Handle<String>::cast(constant));
       }
       HInstruction* instr =
-          BuildNamedAccess(access_type, expr->id(), return_id, expr, obj,
+          BuildNamedAccess(access_type, ast_id, return_id, expr, obj,
                            Handle<String>::cast(constant), val, false);
       if (instr == NULL || instr->IsLinked()) {
         *has_side_effects = false;
@@ -7365,7 +7360,7 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
 
     bool has_side_effects = false;
     HValue* load = HandleKeyedElementAccess(
-        obj, key, NULL, expr, expr->LoadId(), LOAD, &has_side_effects);
+        obj, key, NULL, expr, ast_id, expr->LoadId(), LOAD, &has_side_effects);
     if (has_side_effects) {
       if (ast_context()->IsEffect()) {
         Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);

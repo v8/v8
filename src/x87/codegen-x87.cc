@@ -217,12 +217,8 @@ void ElementsTransitionGenerator::GenerateMapChangeElementsTransition(
 
   // Set transitioned map.
   __ mov(FieldOperand(receiver, HeapObject::kMapOffset), target_map);
-  __ RecordWriteField(receiver,
-                      HeapObject::kMapOffset,
-                      target_map,
-                      scratch,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, scratch,
+                      kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 }
 
 
@@ -275,12 +271,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Replace receiver's backing store with newly created FixedDoubleArray.
   __ mov(FieldOperand(edx, JSObject::kElementsOffset), eax);
   __ mov(ebx, eax);
-  __ RecordWriteField(edx,
-                      JSObject::kElementsOffset,
-                      ebx,
-                      edi,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, JSObject::kElementsOffset, ebx, edi, kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   __ mov(edi, FieldOperand(esi, FixedArray::kLengthOffset));
 
@@ -339,12 +331,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // ebx: target map
   // Set transitioned map.
   __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
-  __ RecordWriteField(edx,
-                      HeapObject::kMapOffset,
-                      ebx,
-                      edi,
-                      OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, HeapObject::kMapOffset, ebx, edi, kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 }
 
 
@@ -399,12 +387,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Set transitioned map.
   __ bind(&only_change_map);
   __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
-  __ RecordWriteField(edx,
-                      HeapObject::kMapOffset,
-                      ebx,
-                      edi,
-                      OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, HeapObject::kMapOffset, ebx, edi, kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ jmp(&success);
 
   // Call into runtime if GC is required.
@@ -433,10 +417,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ mov(FieldOperand(edx, HeapNumber::kValueOffset + kPointerSize), esi);
   __ mov(FieldOperand(eax, ebx, times_2, FixedArray::kHeaderSize), edx);
   __ mov(esi, ebx);
-  __ RecordWriteArray(eax,
-                      edx,
-                      esi,
-                      EMIT_REMEMBERED_SET,
+  __ RecordWriteArray(eax, edx, esi, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   __ jmp(&entry, Label::kNear);
 
@@ -455,20 +436,12 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // edx: receiver
   // Set transitioned map.
   __ mov(FieldOperand(edx, HeapObject::kMapOffset), ebx);
-  __ RecordWriteField(edx,
-                      HeapObject::kMapOffset,
-                      ebx,
-                      edi,
-                      OMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, HeapObject::kMapOffset, ebx, edi, kDontSaveFPRegs,
+                      OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   // Replace receiver's backing store with newly created and filled FixedArray.
   __ mov(FieldOperand(edx, JSObject::kElementsOffset), eax);
-  __ RecordWriteField(edx,
-                      JSObject::kElementsOffset,
-                      eax,
-                      edi,
-                      EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
+  __ RecordWriteField(edx, JSObject::kElementsOffset, eax, edi, kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   // Restore registers.
   __ pop(eax);

@@ -230,7 +230,7 @@ struct CompileAssert {};
 // WARNING: if Dest or Source is a non-POD type, the result of the memcpy
 // is likely to surprise you.
 template <class Dest, class Source>
-inline Dest bit_cast(const Source& source) {
+V8_INLINE Dest bit_cast(Source const& source) {
   COMPILE_ASSERT(sizeof(Dest) == sizeof(Source), VerifySizesAreEqual);
 
   Dest dest;

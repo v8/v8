@@ -1289,11 +1289,6 @@ static void Generate_KeyedLoadIC_PreMonomorphic(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedLoadIC_SloppyArguments(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateSloppyArguments(masm);
-}
-
-
 static void Generate_StoreIC_Miss(MacroAssembler* masm) {
   StoreIC::GenerateMiss(masm);
 }

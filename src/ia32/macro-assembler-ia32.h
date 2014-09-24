@@ -463,8 +463,9 @@ class MacroAssembler: public Assembler {
   void TruncateDoubleToI(Register result_reg, XMMRegister input_reg);
 
   void DoubleToI(Register result_reg, XMMRegister input_reg,
-      XMMRegister scratch, MinusZeroMode minus_zero_mode,
-      Label* conversion_failed, Label::Distance dst = Label::kFar);
+                 XMMRegister scratch, MinusZeroMode minus_zero_mode,
+                 Label* lost_precision, Label* is_nan, Label* minus_zero,
+                 Label::Distance dst = Label::kFar);
 
   // Smi tagging support.
   void SmiTag(Register reg) {
@@ -915,13 +916,13 @@ class MacroAssembler: public Assembler {
       Label* on_not_flat_one_byte_strings);
 
   // Checks if the given register or operand is a unique name
-  void JumpIfNotUniqueName(Register reg, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar) {
-    JumpIfNotUniqueName(Operand(reg), not_unique_name, distance);
+  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar) {
+    JumpIfNotUniqueNameInstanceType(Operand(reg), not_unique_name, distance);
   }
 
-  void JumpIfNotUniqueName(Operand operand, Label* not_unique_name,
-                           Label::Distance distance = Label::kFar);
+  void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
+                                       Label::Distance distance = Label::kFar);
 
   void EmitSeqStringSetCharCheck(Register string,
                                  Register index,

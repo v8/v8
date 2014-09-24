@@ -26,6 +26,13 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // General helper functions
 
+
+// Same as strcmp, but can handle NULL arguments.
+inline bool CStringEquals(const char* s1, const char* s2) {
+  return (s1 == s2) || (s1 != NULL && s2 != NULL && strcmp(s1, s2) == 0);
+}
+
+
 // X must be a power of 2.  Returns the number of trailing zeros.
 inline int WhichPowerOf2(uint32_t x) {
   DCHECK(base::bits::IsPowerOfTwo32(x));

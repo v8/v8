@@ -32,32 +32,16 @@ import sys
 
 from common_includes import *
 
-ALREADY_MERGING_SENTINEL_FILE = "ALREADY_MERGING_SENTINEL_FILE"
-COMMIT_HASHES_FILE = "COMMIT_HASHES_FILE"
-TEMPORARY_PATCH_FILE = "TEMPORARY_PATCH_FILE"
-
-CONFIG = {
-  BRANCHNAME: "prepare-merge",
-  PERSISTFILE_BASENAME: "/tmp/v8-merge-to-branch-tempfile",
-  ALREADY_MERGING_SENTINEL_FILE:
-      "/tmp/v8-merge-to-branch-tempfile-already-merging",
-  VERSION_FILE: "src/version.cc",
-  TEMPORARY_PATCH_FILE: "/tmp/v8-prepare-merge-tempfile-temporary-patch",
-  COMMITMSG_FILE: "/tmp/v8-prepare-merge-tempfile-commitmsg",
-  COMMIT_HASHES_FILE: "/tmp/v8-merge-to-branch-tempfile-PATCH_COMMIT_HASHES",
-}
-
-
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
-    if os.path.exists(self.Config(ALREADY_MERGING_SENTINEL_FILE)):
+    if os.path.exists(self.Config("ALREADY_MERGING_SENTINEL_FILE")):
       if self._options.force:
-        os.remove(self.Config(ALREADY_MERGING_SENTINEL_FILE))
+        os.remove(self.Config("ALREADY_MERGING_SENTINEL_FILE"))
       elif self._options.step == 0:  # pragma: no cover
         self.Die("A merge is already in progress")
-    open(self.Config(ALREADY_MERGING_SENTINEL_FILE), "a").close()
+    open(self.Config("ALREADY_MERGING_SENTINEL_FILE"), "a").close()
 
     self.InitialEnvironmentChecks(self.default_cwd)
     if self._options.revert_bleeding_edge:
@@ -75,7 +59,7 @@ class CreateBranch(Step):
   MESSAGE = "Create a fresh branch for the patch."
 
   def RunStep(self):
-    self.GitCreateBranch(self.Config(BRANCHNAME),
+    self.GitCreateBranch(self.Config("BRANCHNAME"),
                          "svn/%s" % self["merge_to_branch"])
 
 
@@ -158,8 +142,8 @@ class ApplyPatches(Step):
       print("Applying patch for %s to %s..."
             % (commit_hash, self["merge_to_branch"]))
       patch = self.GitGetPatch(commit_hash)
-      TextToFile(patch, self.Config(TEMPORARY_PATCH_FILE))
-      self.ApplyPatch(self.Config(TEMPORARY_PATCH_FILE), self._options.revert)
+      TextToFile(patch, self.Config("TEMPORARY_PATCH_FILE"))
+      self.ApplyPatch(self.Config("TEMPORARY_PATCH_FILE"), self._options.revert)
     if self._options.patch:
       self.ApplyPatch(self._options.patch, self._options.revert)
 
@@ -184,14 +168,14 @@ class IncrementVersion(Step):
     if self.Confirm("Automatically increment PATCH_LEVEL? (Saying 'n' will "
                     "fire up your EDITOR on %s so you can make arbitrary "
                     "changes. When you're done, save the file and exit your "
-                    "EDITOR.)" % self.Config(VERSION_FILE)):
-      text = FileToText(self.Config(VERSION_FILE))
+                    "EDITOR.)" % VERSION_FILE):
+      text = FileToText(os.path.join(self.default_cwd, VERSION_FILE))
       text = MSub(r"(?<=#define PATCH_LEVEL)(?P<space>\s+)\d*$",
                   r"\g<space>%s" % new_patch,
                   text)
-      TextToFile(text, self.Config(VERSION_FILE))
+      TextToFile(text, os.path.join(self.default_cwd, VERSION_FILE))
     else:
-      self.Editor(self.Config(VERSION_FILE))
+      self.Editor(os.path.join(self.default_cwd, VERSION_FILE))
     self.ReadAndPersistVersion("new_")
     self["version"] = "%s.%s.%s.%s" % (self["new_major"],
                                        self["new_minor"],
@@ -214,15 +198,15 @@ class CommitLocal(Step):
       title = ("Version %s (merged %s)"
                % (self["version"], self["revision_list"]))
     self["new_commit_msg"] = "%s\n\n%s" % (title, self["new_commit_msg"])
-    TextToFile(self["new_commit_msg"], self.Config(COMMITMSG_FILE))
-    self.GitCommit(file_name=self.Config(COMMITMSG_FILE))
+    TextToFile(self["new_commit_msg"], self.Config("COMMITMSG_FILE"))
+    self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
 
 
 class CommitRepository(Step):
   MESSAGE = "Commit to the repository."
 
   def RunStep(self):
-    self.GitCheckout(self.Config(BRANCHNAME))
+    self.GitCheckout(self.Config("BRANCHNAME"))
     self.WaitForLGTM()
     self.GitPresubmit()
     self.GitDCommit()
@@ -311,6 +295,16 @@ class MergeToBranch(ScriptsBase):
     options.bypass_upload_hooks = True
     return True
 
+  def _Config(self):
+    return {
+      "BRANCHNAME": "prepare-merge",
+      "PERSISTFILE_BASENAME": "/tmp/v8-merge-to-branch-tempfile",
+      "ALREADY_MERGING_SENTINEL_FILE":
+          "/tmp/v8-merge-to-branch-tempfile-already-merging",
+      "TEMPORARY_PATCH_FILE": "/tmp/v8-prepare-merge-tempfile-temporary-patch",
+      "COMMITMSG_FILE": "/tmp/v8-prepare-merge-tempfile-commitmsg",
+    }
+
   def _Steps(self):
     return [
       Preparation,
@@ -330,4 +324,4 @@ class MergeToBranch(ScriptsBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(MergeToBranch(CONFIG).Run())
+  sys.exit(MergeToBranch().Run())

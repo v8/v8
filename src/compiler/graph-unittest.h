@@ -31,10 +31,11 @@ class GraphTest : public TestWithContext, public TestWithZone {
 
  protected:
   Node* Parameter(int32_t index);
-  Node* Float64Constant(double value);
+  Node* Float32Constant(volatile float value);
+  Node* Float64Constant(volatile double value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
-  Node* NumberConstant(double value);
+  Node* NumberConstant(volatile double value);
   Node* HeapConstant(const Unique<HeapObject>& value);
   Node* FalseConstant();
   Node* TrueConstant();
@@ -65,6 +66,7 @@ Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher);
 Matcher<Node*> IsHeapConstant(
     const Matcher<Unique<HeapObject> >& value_matcher);
+Matcher<Node*> IsFloat32Constant(const Matcher<float>& value_matcher);
 Matcher<Node*> IsFloat64Constant(const Matcher<double>& value_matcher);
 Matcher<Node*> IsInt32Constant(const Matcher<int32_t>& value_matcher);
 Matcher<Node*> IsInt64Constant(const Matcher<int64_t>& value_matcher);
@@ -82,6 +84,9 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
                       const Matcher<Node*>& value3_matcher,
                       const Matcher<Node*>& effect_matcher,
                       const Matcher<Node*>& control_matcher);
+
+Matcher<Node*> IsNumberLessThan(const Matcher<Node*>& lhs_matcher,
+                                const Matcher<Node*>& rhs_matcher);
 
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& base_matcher,
@@ -114,6 +119,8 @@ Matcher<Node*> IsWord64Equal(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32AddWithOverflow(const Matcher<Node*>& lhs_matcher,
                                       const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt32Mul(const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsUint32LessThanOrEqual(const Matcher<Node*>& lhs_matcher,
                                        const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsChangeFloat64ToInt32(const Matcher<Node*>& input_matcher);

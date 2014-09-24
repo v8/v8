@@ -137,6 +137,13 @@ const Operator* CommonOperatorBuilder::Int64Constant(int64_t value) {
 }
 
 
+const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
+  return new (zone())
+      Operator1<float>(IrOpcode::kFloat32Constant, Operator::kPure, 0, 1,
+                       "Float32Constant", value);
+}
+
+
 const Operator* CommonOperatorBuilder::Float64Constant(volatile double value) {
   return new (zone())
       Operator1<double>(IrOpcode::kFloat64Constant, Operator::kPure, 0, 1,

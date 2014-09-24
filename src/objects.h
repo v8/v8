@@ -1200,9 +1200,6 @@ template <class C> inline bool Is(Object* obj);
   V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
-  V(kSwitchStatementMixedOrNonLiteralSwitchLabels,                             \
-    "SwitchStatement: mixed or non-literal switch labels")                     \
-  V(kSwitchStatementTooManyClauses, "SwitchStatement: too many clauses")       \
   V(kTheCurrentStackPointerIsBelowCsp,                                         \
     "The current stack pointer is below csp")                                  \
   V(kTheInstructionShouldBeALui, "The instruction should be a lui")            \

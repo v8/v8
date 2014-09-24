@@ -147,6 +147,10 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
       return ToConstant(operand).ToInt32();
     }
 
+    int64_t ToInt64(const InstructionOperand* operand) const {
+      return ToConstant(operand).ToInt64();
+    }
+
     int ToVreg(const InstructionOperand* operand) const {
       if (operand->IsConstant()) return operand->index();
       EXPECT_EQ(InstructionOperand::UNALLOCATED, operand->kind());

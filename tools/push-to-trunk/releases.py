@@ -20,12 +20,9 @@ import sys
 
 from common_includes import *
 
-CHROMIUM = "CHROMIUM"
-
 CONFIG = {
-  BRANCHNAME: "retrieve-v8-releases",
-  PERSISTFILE_BASENAME: "/tmp/v8-releases-tempfile",
-  VERSION_FILE: "src/version.cc",
+  "BRANCHNAME": "retrieve-v8-releases",
+  "PERSISTFILE_BASENAME": "/tmp/v8-releases-tempfile",
 }
 
 # Expression for retrieving the bleeding edge revision from a commit message.
@@ -206,11 +203,11 @@ class RetrieveV8Releases(Step):
     releases = []
     try:
       for git_hash in self.GitLog(format="%H").splitlines():
-        if self._config[VERSION_FILE] not in self.GitChangedFiles(git_hash):
+        if VERSION_FILE not in self.GitChangedFiles(git_hash):
           continue
         if self.ExceedsMax(releases):
           break  # pragma: no cover
-        if not self.GitCheckoutFileSafe(self._config[VERSION_FILE], git_hash):
+        if not self.GitCheckoutFileSafe(VERSION_FILE, git_hash):
           break  # pragma: no cover
 
         release, patch_level = self.GetRelease(git_hash, branch)
@@ -228,11 +225,11 @@ class RetrieveV8Releases(Step):
       pass
 
     # Clean up checked-out version file.
-    self.GitCheckoutFileSafe(self._config[VERSION_FILE], "HEAD")
+    self.GitCheckoutFileSafe(VERSION_FILE, "HEAD")
     return releases
 
   def RunStep(self):
-    self.GitCreateBranch(self._config[BRANCHNAME])
+    self.GitCreateBranch(self._config["BRANCHNAME"])
     # Get relevant remote branches, e.g. "svn/3.25".
     branches = filter(lambda s: re.match(r"^svn/\d+\.\d+$", s),
                       self.GitRemotes())
@@ -285,7 +282,7 @@ class UpdateChromiumCheckout(Step):
     cwd = self._options.chromium
     self.GitCheckout("master", cwd=cwd)
     self.GitPull(cwd=cwd)
-    self.GitCreateBranch(self.Config(BRANCHNAME), cwd=cwd)
+    self.GitCreateBranch(self.Config("BRANCHNAME"), cwd=cwd)
 
 
 def ConvertToCommitNumber(step, revision):
@@ -409,7 +406,7 @@ class CleanUp(Step):
 
   def RunStep(self):
     self.GitCheckout("master", cwd=self._options.chromium)
-    self.GitDeleteBranch(self.Config(BRANCHNAME), cwd=self._options.chromium)
+    self.GitDeleteBranch(self.Config("BRANCHNAME"), cwd=self._options.chromium)
     self.CommonCleanup()
 
 
@@ -450,6 +447,12 @@ class Releases(ScriptsBase):
   def _ProcessOptions(self, options):  # pragma: no cover
     return True
 
+  def _Config(self):
+    return {
+      "BRANCHNAME": "retrieve-v8-releases",
+      "PERSISTFILE_BASENAME": "/tmp/v8-releases-tempfile",
+    }
+
   def _Steps(self):
     return [
       Preparation,
@@ -464,4 +467,4 @@ class Releases(ScriptsBase):
 
 
 if __name__ == "__main__":  # pragma: no cover
-  sys.exit(Releases(CONFIG).Run())
+  sys.exit(Releases().Run())

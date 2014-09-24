@@ -206,10 +206,9 @@ class LCodeGen: public LCodeGenBase {
                                     int argc);
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
-  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* reason,
+  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* detail,
                     Deoptimizer::BailoutType bailout_type);
-  void DeoptimizeIf(Condition cc, LInstruction* instr,
-                    const char* reason = NULL);
+  void DeoptimizeIf(Condition cc, LInstruction* instr, const char* detail);
 
   bool DeoptEveryNTimes() {
     return FLAG_deopt_every_n_times != 0 && !info()->IsStub();

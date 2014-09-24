@@ -26,7 +26,7 @@ class LCodeGen: public LCodeGenBase {
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : LCodeGenBase(chunk, assembler, info),
         deoptimizations_(4, info->zone()),
-        deopt_jump_table_(4, info->zone()),
+        jump_table_(4, info->zone()),
         deoptimization_literals_(8, info->zone()),
         inlined_function_count_(0),
         scope_(info->scope()),
@@ -235,9 +235,9 @@ class LCodeGen: public LCodeGenBase {
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
   void DeoptimizeIf(Condition condition, LInstruction* instr,
-                    const char* reason, Deoptimizer::BailoutType bailout_type);
+                    const char* detail, Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition condition, LInstruction* instr,
-                    const char* reason = NULL);
+                    const char* detail = NULL);
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
@@ -332,7 +332,7 @@ class LCodeGen: public LCodeGenBase {
   void EmitVectorLoadICRegisters(T* instr);
 
   ZoneList<LEnvironment*> deoptimizations_;
-  ZoneList<Deoptimizer::JumpTableEntry> deopt_jump_table_;
+  ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;

@@ -269,13 +269,14 @@ Handle<Code> Pipeline::GenerateCode() {
       SourcePositionTable::Scope pos(&source_positions,
                                      SourcePosition::Unknown());
       Linkage linkage(info());
-      ValueNumberingReducer vn_reducer(zone());
+      // TODO(turbofan): Value numbering disabled for now.
+      // ValueNumberingReducer vn_reducer(zone());
       SimplifiedOperatorReducer simple_reducer(&jsgraph);
       ChangeLowering lowering(&jsgraph, &linkage);
       MachineOperatorReducer mach_reducer(&jsgraph);
       GraphReducer graph_reducer(&graph);
       // TODO(titzer): Figure out if we should run all reducers at once here.
-      graph_reducer.AddReducer(&vn_reducer);
+      // graph_reducer.AddReducer(&vn_reducer);
       graph_reducer.AddReducer(&simple_reducer);
       graph_reducer.AddReducer(&lowering);
       graph_reducer.AddReducer(&mach_reducer);
