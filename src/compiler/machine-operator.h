@@ -129,6 +129,7 @@ class MachineOperatorBuilder FINAL {
   const Operator* Float64Mul();
   const Operator* Float64Div();
   const Operator* Float64Mod();
+  const Operator* Float64Sqrt();
 
   // Floating point comparisons complying to IEEE 754.
   const Operator* Float64Equal();

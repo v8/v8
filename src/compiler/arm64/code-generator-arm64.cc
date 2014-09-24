@@ -373,6 +373,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
                        0, 2);
       break;
     }
+    case kArm64Float64Sqrt:
+      __ Fsqrt(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kArm64Float64ToInt32:
       __ Fcvtzs(i.OutputRegister32(), i.InputDoubleRegister(0));
       break;

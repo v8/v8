@@ -60,6 +60,26 @@ Type* const kNumberTypes[] = {
 
 
 // -----------------------------------------------------------------------------
+// Math.sqrt
+
+
+TEST_F(JSBuiltinReducerTest, MathSqrt) {
+  Handle<JSFunction> f(isolate()->context()->math_sqrt_fun());
+
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+    Node* call = graph()->NewNode(javascript()->Call(3, NO_CALL_FUNCTION_FLAGS),
+                                  fun, UndefinedConstant(), p0);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Sqrt(p0));
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Math.max
 
 
@@ -71,7 +91,7 @@ TEST_F(JSBuiltinReducerTest, MathMax0) {
                                 fun, UndefinedConstant());
   Reduction r = Reduce(call);
 
-  EXPECT_TRUE(r.Changed());
+  ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberConstant(-V8_INFINITY));
 }
 
@@ -86,7 +106,7 @@ TEST_F(JSBuiltinReducerTest, MathMax1) {
                                   fun, UndefinedConstant(), p0);
     Reduction r = Reduce(call);
 
-    EXPECT_TRUE(r.Changed());
+    ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), p0);
   }
 }
@@ -107,7 +127,7 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
 
       if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
         Capture<Node*> branch;
-        EXPECT_TRUE(r.Changed());
+        ASSERT_TRUE(r.Changed());
         EXPECT_THAT(
             r.replacement(),
             IsPhi(kMachNone, p1, p0,
@@ -116,7 +136,7 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
                                           IsBranch(IsNumberLessThan(p0, p1),
                                                    graph()->start()))))));
       } else {
-        EXPECT_FALSE(r.Changed());
+        ASSERT_FALSE(r.Changed());
         EXPECT_EQ(IrOpcode::kJSCallFunction, call->opcode());
       }
     }
@@ -142,10 +162,10 @@ TEST_F(JSBuiltinReducerTest, MathImul) {
       Reduction r = Reduce(call);
 
       if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
-        EXPECT_TRUE(r.Changed());
+        ASSERT_TRUE(r.Changed());
         EXPECT_THAT(r.replacement(), IsInt32Mul(p0, p1));
       } else {
-        EXPECT_FALSE(r.Changed());
+        ASSERT_FALSE(r.Changed());
         EXPECT_EQ(IrOpcode::kJSCallFunction, call->opcode());
       }
     }

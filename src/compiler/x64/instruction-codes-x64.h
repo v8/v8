@@ -50,6 +50,7 @@ namespace compiler {
   V(SSEFloat64Mul)                 \
   V(SSEFloat64Div)                 \
   V(SSEFloat64Mod)                 \
+  V(SSEFloat64Sqrt)                \
   V(SSEFloat64ToInt32)             \
   V(SSEFloat64ToUint32)            \
   V(SSEInt32ToFloat64)             \

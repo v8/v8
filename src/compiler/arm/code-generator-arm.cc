@@ -323,6 +323,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArmVnegF64:
       __ vneg(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
+    case kArmVsqrtF64:
+      __ vsqrt(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kArmVcvtF64S32: {
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vmov(scratch, i.InputRegister(0));

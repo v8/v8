@@ -724,6 +724,8 @@ class RepresentationSelector {
       case IrOpcode::kFloat64Div:
       case IrOpcode::kFloat64Mod:
         return VisitFloat64Binop(node);
+      case IrOpcode::kFloat64Sqrt:
+        return VisitUnop(node, kMachFloat64, kMachFloat64);
       case IrOpcode::kFloat64Equal:
       case IrOpcode::kFloat64LessThan:
       case IrOpcode::kFloat64LessThanOrEqual:

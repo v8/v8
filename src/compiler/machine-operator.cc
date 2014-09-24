@@ -112,6 +112,7 @@ struct StaticParameterTraits<LoadRepresentation> {
   V(Float64Mul, Operator::kCommutative, 2, 1)                                 \
   V(Float64Div, Operator::kNoProperties, 2, 1)                                \
   V(Float64Mod, Operator::kNoProperties, 2, 1)                                \
+  V(Float64Sqrt, Operator::kNoProperties, 1, 1)                               \
   V(Float64Equal, Operator::kCommutative, 2, 1)                               \
   V(Float64LessThan, Operator::kNoProperties, 2, 1)                           \
   V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 1)

@@ -90,6 +90,7 @@ class ArmOperandGenerator FINAL : public OperandGenerator {
       case kArmVdivF64:
       case kArmVmodF64:
       case kArmVnegF64:
+      case kArmVsqrtF64:
       case kArmVcvtF64S32:
       case kArmVcvtF64U32:
       case kArmVcvtS32F64:
@@ -765,6 +766,12 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmVmodF64, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0),
        g.UseFixed(node->InputAt(1), d1))->MarkAsCall();
+}
+
+
+void InstructionSelector::VisitFloat64Sqrt(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmVsqrtF64, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 

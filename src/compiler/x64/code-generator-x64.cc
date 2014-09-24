@@ -447,6 +447,15 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ addq(rsp, Immediate(kDoubleSize));
       break;
     }
+    case kSSEFloat64Sqrt: {
+      RegisterOrOperand input = i.InputRegisterOrOperand(0);
+      if (input.type == kDoubleRegister) {
+        __ sqrtsd(i.OutputDoubleRegister(), input.double_reg);
+      } else {
+        __ sqrtsd(i.OutputDoubleRegister(), input.operand);
+      }
+      break;
+    }
     case kSSEFloat64ToInt32: {
       RegisterOrOperand input = i.InputRegisterOrOperand(0);
       if (input.type == kDoubleRegister) {

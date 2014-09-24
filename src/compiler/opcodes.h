@@ -218,6 +218,7 @@
   V(Float64Mul)               \
   V(Float64Div)               \
   V(Float64Mod)               \
+  V(Float64Sqrt)              \
   V(Float64Equal)             \
   V(Float64LessThan)          \
   V(Float64LessThanOrEqual)
