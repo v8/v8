@@ -172,6 +172,32 @@ TEST_F(JSBuiltinReducerTest, MathImul) {
   }
 }
 
+
+// -----------------------------------------------------------------------------
+// Math.fround
+
+
+TEST_F(JSBuiltinReducerTest, MathFround) {
+  Handle<Object> m =
+      JSObject::GetProperty(isolate()->global_object(),
+                            isolate()->factory()->NewStringFromAsciiChecked(
+                                "Math")).ToHandleChecked();
+  Handle<JSFunction> f = Handle<JSFunction>::cast(
+      JSObject::GetProperty(m, isolate()->factory()->NewStringFromAsciiChecked(
+                                   "fround")).ToHandleChecked());
+
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+    Node* call = graph()->NewNode(javascript()->Call(3, NO_CALL_FUNCTION_FLAGS),
+                                  fun, UndefinedConstant(), p0);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsTruncateFloat64ToFloat32(p0));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
