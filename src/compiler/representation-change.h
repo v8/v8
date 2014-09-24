@@ -220,9 +220,9 @@ class RepresentationChanger {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
         return node;  // No change necessary.
-      case IrOpcode::kNumberConstant:
       case IrOpcode::kFloat32Constant:
         return MakeInt32Constant(OpParameter<float>(node));
+      case IrOpcode::kNumberConstant:
       case IrOpcode::kFloat64Constant:
         return MakeInt32Constant(OpParameter<double>(node));
       default:
