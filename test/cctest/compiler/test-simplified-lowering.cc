@@ -428,9 +428,9 @@ class AccessTester : public HandleAndZoneScope {
     SimplifiedLoweringTester<Object*> t;
     Node* ptr = GetBaseNode(&t);
     Node* load = t.LoadElement(access, ptr, t.Int32Constant(from_index),
-                               t.Int32Constant(num_elements));
+                               t.Int32Constant(static_cast<int>(num_elements)));
     t.StoreElement(access, ptr, t.Int32Constant(to_index),
-                   t.Int32Constant(num_elements), load);
+                   t.Int32Constant(static_cast<int>(num_elements)), load);
     t.Return(t.jsgraph.TrueConstant());
     t.LowerAllNodes();
     t.GenerateCode();
