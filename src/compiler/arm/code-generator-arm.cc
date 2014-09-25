@@ -68,6 +68,9 @@ class ArmOperandConverter FINAL : public InstructionOperandConverter {
     switch (constant.type()) {
       case Constant::kInt32:
         return Operand(constant.ToInt32());
+      case Constant::kFloat32:
+        return Operand(
+            isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED));
       case Constant::kFloat64:
         return Operand(
             isolate()->factory()->NewNumber(constant.ToFloat64(), TENURED));
@@ -750,16 +753,20 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ str(temp, g.ToMemOperand(destination));
     }
   } else if (source->IsConstant()) {
+    Constant src = g.ToConstant(source);
     if (destination->IsRegister() || destination->IsStackSlot()) {
       Register dst =
           destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
-      Constant src = g.ToConstant(source);
       switch (src.type()) {
         case Constant::kInt32:
           __ mov(dst, Operand(src.ToInt32()));
           break;
         case Constant::kInt64:
           UNREACHABLE();
+          break;
+        case Constant::kFloat32:
+          __ Move(dst,
+                  isolate()->factory()->NewNumber(src.ToFloat32(), TENURED));
           break;
         case Constant::kFloat64:
           __ Move(dst,
@@ -773,14 +780,25 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
       }
       if (destination->IsStackSlot()) __ str(dst, g.ToMemOperand(destination));
-    } else if (destination->IsDoubleRegister()) {
-      DwVfpRegister result = g.ToDoubleRegister(destination);
-      __ vmov(result, g.ToDouble(source));
+    } else if (src.type() == Constant::kFloat32) {
+      SwVfpRegister dst = destination->IsDoubleRegister()
+                              ? g.ToFloat32Register(destination)
+                              : kScratchDoubleReg.low();
+      // TODO(turbofan): Can we do better here?
+      __ mov(ip, Operand(bit_cast<int32_t>(src.ToFloat32())));
+      __ vmov(dst, ip);
+      if (destination->IsDoubleStackSlot()) {
+        __ vstr(dst, g.ToMemOperand(destination));
+      }
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
-      DwVfpRegister temp = kScratchDoubleReg;
-      __ vmov(temp, g.ToDouble(source));
-      __ vstr(temp, g.ToMemOperand(destination));
+      DCHECK_EQ(Constant::kFloat64, src.type());
+      DwVfpRegister dst = destination->IsDoubleRegister()
+                              ? g.ToFloat64Register(destination)
+                              : kScratchDoubleReg;
+      __ vmov(dst, src.ToFloat64());
+      if (destination->IsDoubleStackSlot()) {
+        __ vstr(dst, g.ToMemOperand(destination));
+      }
     }
   } else if (source->IsDoubleRegister()) {
     DwVfpRegister src = g.ToDoubleRegister(source);

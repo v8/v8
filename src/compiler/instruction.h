@@ -654,10 +654,18 @@ class SourcePositionInstruction FINAL : public Instruction {
 
 class Constant FINAL {
  public:
-  enum Type { kInt32, kInt64, kFloat64, kExternalReference, kHeapObject };
+  enum Type {
+    kInt32,
+    kInt64,
+    kFloat32,
+    kFloat64,
+    kExternalReference,
+    kHeapObject
+  };
 
   explicit Constant(int32_t v) : type_(kInt32), value_(v) {}
   explicit Constant(int64_t v) : type_(kInt64), value_(v) {}
+  explicit Constant(float v) : type_(kFloat32), value_(bit_cast<int32_t>(v)) {}
   explicit Constant(double v) : type_(kFloat64), value_(bit_cast<int64_t>(v)) {}
   explicit Constant(ExternalReference ref)
       : type_(kExternalReference), value_(bit_cast<intptr_t>(ref)) {}
@@ -675,6 +683,11 @@ class Constant FINAL {
     if (type() == kInt32) return ToInt32();
     DCHECK_EQ(kInt64, type());
     return value_;
+  }
+
+  float ToFloat32() const {
+    DCHECK_EQ(kFloat32, type());
+    return bit_cast<float>(static_cast<int32_t>(value_));
   }
 
   double ToFloat64() const {

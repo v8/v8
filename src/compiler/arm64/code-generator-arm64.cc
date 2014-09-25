@@ -89,6 +89,9 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
         return Operand(constant.ToInt32());
       case Constant::kInt64:
         return Operand(constant.ToInt64());
+      case Constant::kFloat32:
+        return Operand(
+            isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED));
       case Constant::kFloat64:
         return Operand(
             isolate()->factory()->NewNumber(constant.ToFloat64(), TENURED));
@@ -758,12 +761,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ Str(temp, g.ToMemOperand(destination, masm()));
     }
   } else if (source->IsConstant()) {
-    ConstantOperand* constant_source = ConstantOperand::cast(source);
+    Constant src = g.ToConstant(ConstantOperand::cast(source));
     if (destination->IsRegister() || destination->IsStackSlot()) {
       UseScratchRegisterScope scope(masm());
       Register dst = destination->IsRegister() ? g.ToRegister(destination)
                                                : scope.AcquireX();
-      Constant src = g.ToConstant(source);
       if (src.type() == Constant::kHeapObject) {
         __ LoadObject(dst, src.ToHeapObject());
       } else {
@@ -772,15 +774,29 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (destination->IsStackSlot()) {
         __ Str(dst, g.ToMemOperand(destination, masm()));
       }
-    } else if (destination->IsDoubleRegister()) {
-      FPRegister result = g.ToDoubleRegister(destination);
-      __ Fmov(result, g.ToDouble(constant_source));
+    } else if (src.type() == Constant::kFloat32) {
+      if (destination->IsDoubleRegister()) {
+        FPRegister dst = g.ToDoubleRegister(destination).S();
+        __ Fmov(dst, src.ToFloat32());
+      } else {
+        DCHECK(destination->IsDoubleStackSlot());
+        UseScratchRegisterScope scope(masm());
+        FPRegister temp = scope.AcquireS();
+        __ Fmov(temp, src.ToFloat32());
+        __ Str(temp, g.ToMemOperand(destination, masm()));
+      }
     } else {
-      DCHECK(destination->IsDoubleStackSlot());
-      UseScratchRegisterScope scope(masm());
-      FPRegister temp = scope.AcquireD();
-      __ Fmov(temp, g.ToDouble(constant_source));
-      __ Str(temp, g.ToMemOperand(destination, masm()));
+      DCHECK_EQ(Constant::kFloat64, src.type());
+      if (destination->IsDoubleRegister()) {
+        FPRegister dst = g.ToDoubleRegister(destination);
+        __ Fmov(dst, src.ToFloat64());
+      } else {
+        DCHECK(destination->IsDoubleStackSlot());
+        UseScratchRegisterScope scope(masm());
+        FPRegister temp = scope.AcquireD();
+        __ Fmov(temp, src.ToFloat64());
+        __ Str(temp, g.ToMemOperand(destination, masm()));
+      }
     }
   } else if (source->IsDoubleRegister()) {
     FPRegister src = g.ToDoubleRegister(source);

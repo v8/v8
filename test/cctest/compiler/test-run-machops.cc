@@ -4275,4 +4275,17 @@ TEST(RunTruncateFloat64ToFloat32) {
   }
 }
 
+
+TEST(RunFloat32Constant) {
+  FOR_FLOAT32_INPUTS(i) {
+    float expected = *i;
+    float actual = *i;
+    RawMachineAssemblerTester<int32_t> m;
+    m.StoreToPointer(&actual, kMachFloat32, m.Float32Constant(expected));
+    m.Return(m.Int32Constant(0));
+    CHECK_EQ(0, m.Call());
+    CHECK_EQ(expected, actual);
+  }
+}
+
 #endif  // V8_TURBOFAN_TARGET

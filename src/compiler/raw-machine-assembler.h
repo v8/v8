@@ -80,6 +80,9 @@ class RawMachineAssembler : public GraphBuilder {
   Node* NumberConstant(double value) {
     return NewNode(common()->NumberConstant(value));
   }
+  Node* Float32Constant(float value) {
+    return NewNode(common()->Float32Constant(value));
+  }
   Node* Float64Constant(double value) {
     return NewNode(common()->Float64Constant(value));
   }

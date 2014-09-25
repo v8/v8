@@ -113,6 +113,20 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
 // Return.
 
 
+TARGET_TEST_F(InstructionSelectorTest, ReturnFloat32Constant) {
+  const float kValue = 4.2f;
+  StreamBuilder m(this, kMachFloat32);
+  m.Return(m.Float32Constant(kValue));
+  Stream s = m.Build(kAllInstructions);
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArchNop, s[0]->arch_opcode());
+  ASSERT_EQ(InstructionOperand::CONSTANT, s[0]->OutputAt(0)->kind());
+  EXPECT_FLOAT_EQ(kValue, s.ToFloat32(s[0]->OutputAt(0)));
+  EXPECT_EQ(kArchRet, s[1]->arch_opcode());
+  EXPECT_EQ(1U, s[1]->InputCount());
+}
+
+
 TARGET_TEST_F(InstructionSelectorTest, ReturnParameter) {
   StreamBuilder m(this, kMachInt32, kMachInt32);
   m.Return(m.Parameter(0));
@@ -288,6 +302,8 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
 
 // -----------------------------------------------------------------------------
 // Calls with deoptimization.
+
+
 TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   StreamBuilder m(this, kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
                   kMachAnyTagged);

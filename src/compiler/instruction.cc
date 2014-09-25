@@ -300,6 +300,8 @@ OStream& operator<<(OStream& os, const Constant& constant) {
       return os << constant.ToInt32();
     case Constant::kInt64:
       return os << constant.ToInt64() << "l";
+    case Constant::kFloat32:
+      return os << constant.ToFloat32() << "f";
     case Constant::kFloat64:
       return os << constant.ToFloat64();
     case Constant::kExternalReference:

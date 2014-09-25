@@ -476,6 +476,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kInt64Constant:
     case IrOpcode::kExternalConstant:
       return VisitConstant(node);
+    case IrOpcode::kFloat32Constant:
+      return MarkAsDouble(node), VisitConstant(node);
     case IrOpcode::kFloat64Constant:
       return MarkAsDouble(node), VisitConstant(node);
     case IrOpcode::kHeapConstant:
