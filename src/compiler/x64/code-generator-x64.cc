@@ -277,8 +277,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         if (input.type == kRegister) {
           __ imull(i.OutputRegister(), input.reg, i.InputImmediate(1));
         } else {
-          __ movq(kScratchRegister, input.operand);
-          __ imull(i.OutputRegister(), kScratchRegister, i.InputImmediate(1));
+          __ imull(i.OutputRegister(), input.operand, i.InputImmediate(1));
         }
       } else {
         RegisterOrOperand input = i.InputRegisterOrOperand(1);
@@ -295,8 +294,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         if (input.type == kRegister) {
           __ imulq(i.OutputRegister(), input.reg, i.InputImmediate(1));
         } else {
-          __ movq(kScratchRegister, input.operand);
-          __ imulq(i.OutputRegister(), kScratchRegister, i.InputImmediate(1));
+          __ imulq(i.OutputRegister(), input.operand, i.InputImmediate(1));
         }
       } else {
         RegisterOrOperand input = i.InputRegisterOrOperand(1);

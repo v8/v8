@@ -942,6 +942,20 @@ void Assembler::emit_imul(Register dst, Register src, Immediate imm, int size) {
 }
 
 
+void Assembler::emit_imul(Register dst, const Operand& src, Immediate imm,
+                          int size) {
+  EnsureSpace ensure_space(this);
+  emit_rex(dst, src, size);
+  if (is_int8(imm.value_)) {
+    emit(0x6B);
+  } else {
+    emit(0x69);
+  }
+  emit_operand(dst, src);
+  emit(imm.value_);
+}
+
+
 void Assembler::emit_inc(Register dst, int size) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, size);

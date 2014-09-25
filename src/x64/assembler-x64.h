@@ -1454,6 +1454,7 @@ class Assembler : public AssemblerBase {
   void emit_imul(Register dst, Register src, int size);
   void emit_imul(Register dst, const Operand& src, int size);
   void emit_imul(Register dst, Register src, Immediate imm, int size);
+  void emit_imul(Register dst, const Operand& src, Immediate imm, int size);
 
   void emit_inc(Register dst, int size);
   void emit_inc(const Operand& dst, int size);
