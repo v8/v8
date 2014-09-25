@@ -4352,8 +4352,10 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
 
   int actual_time_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
   if (actual_time_ms <= idle_time_in_ms) {
-    isolate()->counters()->gc_idle_time_limit_undershot()->AddSample(
-        idle_time_in_ms - actual_time_ms);
+    if (action.type != DONE && action.type != DO_NOTHING) {
+      isolate()->counters()->gc_idle_time_limit_undershot()->AddSample(
+          idle_time_in_ms - actual_time_ms);
+    }
   } else {
     isolate()->counters()->gc_idle_time_limit_overshot()->AddSample(
         actual_time_ms - idle_time_in_ms);
