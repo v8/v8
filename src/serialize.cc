@@ -16,7 +16,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/natives.h"
 #include "src/objects.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"
 #include "src/snapshot-source-sink.h"

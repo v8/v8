@@ -15,7 +15,7 @@
 #include "src/messages.h"
 #include "src/parser.h"
 #include "src/preparser.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/scanner-character-streams.h"
 #include "src/scopeinfo.h"
 #include "src/string-stream.h"

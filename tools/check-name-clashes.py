@@ -8,7 +8,7 @@ import os
 import re
 import sys
 
-FILENAME = "src/runtime.h"
+FILENAME = "src/runtime/runtime.h"
 LISTHEAD = re.compile(r"#define\s+(\w+LIST\w*)\((\w+)\)")
 LISTBODY = re.compile(r".*\\$")
 BLACKLIST = ['INLINE_FUNCTION_LIST']

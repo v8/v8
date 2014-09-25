@@ -40,7 +40,7 @@
 #include "src/ic/ic-inl.h"
 #include "src/lithium-allocator.h"
 #include "src/parser.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"
 #include "src/typing.h"

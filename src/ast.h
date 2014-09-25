@@ -16,7 +16,7 @@
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/list-inl.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/small-pointer-list.h"
 #include "src/smart-pointers.h"
 #include "src/token.h"

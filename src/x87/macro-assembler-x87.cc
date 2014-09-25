@@ -13,7 +13,7 @@
 #include "src/cpu-profiler.h"
 #include "src/debug.h"
 #include "src/isolate-inl.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/serialize.h"
 
 namespace v8 {

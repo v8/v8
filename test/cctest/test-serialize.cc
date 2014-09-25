@@ -37,7 +37,7 @@
 #include "src/heap/spaces.h"
 #include "src/natives.h"
 #include "src/objects.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/scopeinfo.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"

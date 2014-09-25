@@ -18,7 +18,7 @@
 #include "src/regexp-macro-assembler-irregexp.h"
 #include "src/regexp-macro-assembler-tracer.h"
 #include "src/regexp-stack.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/string-search.h"
 
 #ifndef V8_INTERPRETED_REGEXP

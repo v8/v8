@@ -20,7 +20,7 @@
 #include "src/heap/heap.h"
 #include "src/optimizing-compiler-thread.h"
 #include "src/regexp-stack.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/runtime-profiler.h"
 #include "src/zone.h"
 
