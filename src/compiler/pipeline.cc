@@ -241,6 +241,9 @@ Handle<Code> Pipeline::GenerateCode() {
     GraphReplayPrinter::PrintReplay(&graph);
   }
 
+  // Bailout here in case target architecture is not supported.
+  if (!SupportedTarget()) return Handle<Code>::null();
+
   if (info()->is_typing_enabled()) {
     {
       // Type the graph.
@@ -298,35 +301,33 @@ Handle<Code> Pipeline::GenerateCode() {
     }
   }
 
-  Handle<Code> code = Handle<Code>::null();
-  if (SupportedTarget()) {
-    {
-      // Lower any remaining generic JSOperators.
-      PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
-                                "generic lowering");
-      SourcePositionTable::Scope pos(&source_positions,
-                                     SourcePosition::Unknown());
-      JSGenericLowering lowering(info(), &jsgraph);
-      GraphReducer graph_reducer(&graph);
-      graph_reducer.AddReducer(&lowering);
-      graph_reducer.ReduceGraph();
+  {
+    // Lower any remaining generic JSOperators.
+    PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
+                              "generic lowering");
+    SourcePositionTable::Scope pos(&source_positions,
+                                   SourcePosition::Unknown());
+    JSGenericLowering lowering(info(), &jsgraph);
+    GraphReducer graph_reducer(&graph);
+    graph_reducer.AddReducer(&lowering);
+    graph_reducer.ReduceGraph();
 
-      VerifyAndPrintGraph(&graph, "Lowered generic");
-    }
-
-    {
-      // Compute a schedule.
-      Schedule* schedule = ComputeSchedule(&graph);
-      // Generate optimized code.
-      PhaseStats codegen_stats(info(), PhaseStats::CODEGEN, "codegen");
-      Linkage linkage(info());
-      code = GenerateCode(&linkage, &graph, schedule, &source_positions);
-      info()->SetCode(code);
-    }
-
-    // Print optimized code.
-    v8::internal::CodeGenerator::PrintCode(code, info());
+    VerifyAndPrintGraph(&graph, "Lowered generic");
   }
+
+  Handle<Code> code = Handle<Code>::null();
+  {
+    // Compute a schedule.
+    Schedule* schedule = ComputeSchedule(&graph);
+    // Generate optimized code.
+    PhaseStats codegen_stats(info(), PhaseStats::CODEGEN, "codegen");
+    Linkage linkage(info());
+    code = GenerateCode(&linkage, &graph, schedule, &source_positions);
+    info()->SetCode(code);
+  }
+
+  // Print optimized code.
+  v8::internal::CodeGenerator::PrintCode(code, info());
 
   if (FLAG_trace_turbo) {
     OFStream os(stdout);
