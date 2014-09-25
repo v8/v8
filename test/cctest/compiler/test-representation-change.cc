@@ -273,7 +273,7 @@ TEST(ToFloat32_constant) {
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(n, kRepWord32 | kTypeInt32,
                                                   kRepFloat32);
-      r.CheckFloat32Constant(c, *i);
+      r.CheckFloat32Constant(c, static_cast<float>(*i));
     }
   }
 
@@ -283,7 +283,7 @@ TEST(ToFloat32_constant) {
       Node* n = r.jsgraph()->Int32Constant(*i);
       Node* c = r.changer()->GetRepresentationFor(n, kRepWord32 | kTypeUint32,
                                                   kRepFloat32);
-      r.CheckFloat32Constant(c, *i);
+      r.CheckFloat32Constant(c, static_cast<float>(*i));
     }
   }
 }
@@ -304,7 +304,7 @@ TEST(ToInt32_constant) {
   {
     FOR_INT32_INPUTS(i) {
       if (!IsFloat32Int32(*i)) continue;
-      Node* n = r.jsgraph()->Float32Constant(*i);
+      Node* n = r.jsgraph()->Float32Constant(static_cast<float>(*i));
       Node* c = r.changer()->GetRepresentationFor(n, kRepFloat32 | kTypeInt32,
                                                   kRepWord32);
       r.CheckInt32Constant(c, *i);
@@ -346,7 +346,7 @@ TEST(ToUint32_constant) {
   {
     FOR_UINT32_INPUTS(i) {
       if (!IsFloat32Uint32(*i)) continue;
-      Node* n = r.jsgraph()->Float32Constant(*i);
+      Node* n = r.jsgraph()->Float32Constant(static_cast<float>(*i));
       Node* c = r.changer()->GetRepresentationFor(n, kRepFloat32 | kTypeUint32,
                                                   kRepWord32);
       r.CheckUint32Constant(c, *i);
