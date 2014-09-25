@@ -615,9 +615,6 @@ void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackSlot());
   if (is_monomorphic_) {
     target_ = oracle->GetCallNewTarget(CallNewFeedbackSlot());
-    if (!allocation_site_.is_null()) {
-      elements_kind_ = allocation_site_->GetElementsKind();
-    }
   }
 }
 
