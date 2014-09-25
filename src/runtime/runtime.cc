@@ -12596,10 +12596,6 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
   SaveContext savex(isolate);
   isolate->set_context(*(save->context()));
 
-  // Evaluate on the context of the frame.
-  Handle<Context> context(Context::cast(frame_inspector.GetContext()));
-  DCHECK(!context.is_null());
-
   // Materialize stack locals and the arguments object.
   Handle<JSObject> materialized = NewJSObjectWithNullProto(isolate);
 
@@ -12612,14 +12608,53 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
       isolate, materialized,
       MaterializeArgumentsObject(isolate, materialized, function));
 
-  // Add the materialized object in a with-scope to shadow the stack locals.
-  context = isolate->factory()->NewWithContext(function, context, materialized);
+  // At this point, the lookup chain may look like this:
+  // [inner context] -> [function stack]+[function context] -> [outer context]
+  // The function stack is not an actual context, it complements the function
+  // context. In order to have the same lookup chain when debug-evaluating,
+  // we materialize the stack and insert it into the context chain as a
+  // with-context before the function context.
+  // [inner context] -> [with context] -> [function context] -> [outer context]
+  // Ordering the with-context before the function context forces a dynamic
+  // lookup instead of a static lookup that could fail as the scope info is
+  // outdated and may expect variables to still be stack-allocated.
+  // Afterwards, we write changes to the with-context back to the stack
+  // and remove it from the context chain.
+  // This could cause lookup failures if debug-evaluate creates a closure that
+  // uses this temporary context chain.
+
+  Handle<Context> eval_context(Context::cast(frame_inspector.GetContext()));
+  DCHECK(!eval_context.is_null());
+  Handle<Context> function_context = eval_context;
+  Handle<Context> outer_context(function->context(), isolate);
+  Handle<Context> inner_context;
+  // We iterate to find the function's context. If the function has no
+  // context-allocated variables, we iterate until we hit the outer context.
+  while (!function_context->IsFunctionContext() &&
+         !function_context.is_identical_to(outer_context)) {
+    inner_context = function_context;
+    function_context = Handle<Context>(function_context->previous(), isolate);
+  }
+
+  Handle<Context> materialized_context = isolate->factory()->NewWithContext(
+      function, function_context, materialized);
+
+  if (inner_context.is_null()) {
+    // No inner context. The with-context is now inner-most.
+    eval_context = materialized_context;
+  } else {
+    inner_context->set_previous(*materialized_context);
+  }
 
   Handle<Object> receiver(frame->receiver(), isolate);
+  MaybeHandle<Object> maybe_result =
+      DebugEvaluate(isolate, eval_context, context_extension, receiver, source);
+
+  // Remove with-context if it was inserted in between.
+  if (!inner_context.is_null()) inner_context->set_previous(*function_context);
+
   Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      DebugEvaluate(isolate, context, context_extension, receiver, source));
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, maybe_result);
 
   // Write back potential changes to materialized stack locals to the stack.
   UpdateStackLocalsFromMaterializedObject(isolate, materialized, function,
