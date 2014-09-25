@@ -148,6 +148,13 @@ struct X87Register {
     return kMaxNumAllocatableRegisters;
   }
 
+
+  // TODO(turbofan): Proper support for float32.
+  static int NumAllocatableAliasedRegisters() {
+    return NumAllocatableRegisters();
+  }
+
+
   static int ToAllocationIndex(X87Register reg) {
     return reg.code_;
   }
