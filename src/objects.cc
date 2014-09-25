@@ -10871,10 +10871,19 @@ void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
   }
 
   os << "Instructions (size = " << instruction_size() << ")\n";
-  // TODO(svenpanne) The Disassembler should use streams, too!
   {
-    CodeTracer::Scope trace_scope(GetIsolate()->GetCodeTracer());
-    Disassembler::Decode(trace_scope.file(), this);
+    Isolate* isolate = GetIsolate();
+    int decode_size = is_crankshafted()
+                          ? static_cast<int>(safepoint_table_offset())
+                          : instruction_size();
+    // If there might be a back edge table, stop before reaching it.
+    if (kind() == Code::FUNCTION) {
+      decode_size =
+          Min(decode_size, static_cast<int>(back_edge_table_offset()));
+    }
+    byte* begin = instruction_start();
+    byte* end = begin + decode_size;
+    Disassembler::Decode(isolate, &os, begin, end, this);
   }
   os << "\n";
 

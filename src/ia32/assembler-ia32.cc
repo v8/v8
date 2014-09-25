@@ -2474,11 +2474,6 @@ void Assembler::emit_sse_operand(XMMRegister dst, Register src) {
 }
 
 
-void Assembler::Print() {
-  Disassembler::Decode(isolate(), stdout, buffer_, pc_);
-}
-
-
 void Assembler::RecordJSReturn() {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
