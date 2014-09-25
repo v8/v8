@@ -222,6 +222,7 @@ class BumpUpVersion(ScriptsBase):
   def _Config(self):
     return {
       "PERSISTFILE_BASENAME": "/tmp/v8-bump-up-version-tempfile",
+      "PATCH_FILE": "/tmp/v8-bump-up-version-tempfile-patch-file",
     }
 
   def _Steps(self):

@@ -600,7 +600,6 @@ def MakeStep(step_class=Step, number=0, state=None, config=None,
 
 
 class ScriptsBase(object):
-  # TODO(machenbach): Move static config here.
   def __init__(self,
                config=None,
                side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER,
