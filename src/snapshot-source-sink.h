@@ -39,7 +39,7 @@ class SnapshotByteSource FINAL {
     // This way of variable-length encoding integers does not suffer from branch
     // mispredictions.
     uint32_t answer = GetUnalignedInt();
-    int bytes = answer & 3;
+    int bytes = (answer & 3) + 1;
     Advance(bytes);
     uint32_t mask = 0xffffffffu;
     mask >>= 32 - (bytes << 3);

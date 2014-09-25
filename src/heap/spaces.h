@@ -2728,6 +2728,8 @@ class LargeObjectSpace : public Space {
   MUST_USE_RESULT AllocationResult
       AllocateRaw(int object_size, Executability executable);
 
+  bool CanAllocateSize(int size) { return Size() + size <= max_capacity_; }
+
   // Available bytes for objects in this space.
   inline intptr_t Available();
 

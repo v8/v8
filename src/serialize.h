@@ -148,11 +148,15 @@ class SerializerDeserializer: public ObjectVisitor {
 
   static int nop() { return kNop; }
 
+  // No reservation for large object space necessary.
+  static const int kNumberOfPreallocatedSpaces = LO_SPACE;
+  static const int kNumberOfSpaces = INVALID_SPACE;
+
  protected:
   // Where the pointed-to object can be found:
   enum Where {
     kNewObject = 0,  // Object is next in snapshot.
-    // 1-6                             One per space.
+    // 1-7                             One per space.
     kRootArray = 0x9,             // Object is found in root array.
     kPartialSnapshotCache = 0xa,  // Object is in the cache.
     kExternalReference = 0xb,     // Pointer to an external reference.
@@ -161,9 +165,9 @@ class SerializerDeserializer: public ObjectVisitor {
     kAttachedReference = 0xe,     // Object is described in an attached list.
     kNop = 0xf,                   // Does nothing, used to pad.
     kBackref = 0x10,              // Object is described relative to end.
-    // 0x11-0x16                       One per space.
+    // 0x11-0x17                       One per space.
     kBackrefWithSkip = 0x18,  // Object is described relative to end.
-    // 0x19-0x1e                       One per space.
+    // 0x19-0x1f                       One per space.
     // 0x20-0x3f                       Used by misc. tags below.
     kPointedToMask = 0x3f
   };
@@ -225,11 +229,11 @@ class SerializerDeserializer: public ObjectVisitor {
     return byte_code & 0x1f;
   }
 
-  static const int kNumberOfSpaces = LO_SPACE;
   static const int kAnyOldSpace = -1;
 
   // A bitmask for getting the space out of an instruction.
   static const int kSpaceMask = 7;
+  STATIC_ASSERT(kNumberOfSpaces <= kSpaceMask + 1);
 };
 
 
@@ -249,7 +253,7 @@ class Deserializer: public SerializerDeserializer {
 
   void set_reservation(int space_number, int reservation) {
     DCHECK(space_number >= 0);
-    DCHECK(space_number <= LAST_SPACE);
+    DCHECK(space_number < kNumberOfSpaces);
     reservations_[space_number] = reservation;
   }
 
@@ -282,24 +286,18 @@ class Deserializer: public SerializerDeserializer {
   void ReadChunk(
       Object** start, Object** end, int space, Address object_address);
   void ReadObject(int space_number, Object** write_back);
+  Address Allocate(int space_index, int size);
 
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* ProcessNewObjectFromSerializedCode(HeapObject* obj);
   Object* ProcessBackRefInSerializedCode(Object* obj);
 
-  // This routine both allocates a new object, and also keeps
-  // track of where objects have been allocated so that we can
-  // fix back references when deserializing.
-  Address Allocate(int space_index, int size) {
-    Address address = high_water_[space_index];
-    high_water_[space_index] = address + size;
-    return address;
-  }
-
   // This returns the address of an object that has been described in the
   // snapshot as being offset bytes back in a particular space.
   HeapObject* GetAddressFromEnd(int space) {
     int offset = source_->GetInt();
+    if (space == LO_SPACE) return deserialized_large_objects_[offset];
+    DCHECK(space < kNumberOfPreallocatedSpaces);
     offset <<= kObjectAlignmentBits;
     return HeapObject::FromAddress(high_water_[space] - offset);
   }
@@ -313,12 +311,14 @@ class Deserializer: public SerializerDeserializer {
   SnapshotByteSource* source_;
   // This is the address of the next object that will be allocated in each
   // space.  It is used to calculate the addresses of back-references.
-  Address high_water_[LAST_SPACE + 1];
+  Address high_water_[kNumberOfPreallocatedSpaces];
 
-  int reservations_[LAST_SPACE + 1];
+  int reservations_[kNumberOfSpaces];
   static const intptr_t kUninitializedReservation = -1;
 
   ExternalReferenceDecoder* external_reference_decoder_;
+
+  List<HeapObject*> deserialized_large_objects_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };
@@ -466,6 +466,7 @@ class Serializer : public SerializerDeserializer {
   void InitializeAllocators();
   // This will return the space for an object.
   static int SpaceOfObject(HeapObject* object);
+  int AllocateLargeObject(int size);
   int Allocate(int space, int size);
   int EncodeExternalReference(Address addr) {
     return external_reference_encoder_->Encode(addr);
@@ -480,7 +481,7 @@ class Serializer : public SerializerDeserializer {
   Isolate* isolate_;
   // Keep track of the fullness of each space in order to generate
   // relative addresses for back references.
-  int fullness_[LAST_SPACE + 1];
+  int fullness_[kNumberOfSpaces];
   SnapshotByteSink* sink_;
   ExternalReferenceEncoder* external_reference_encoder_;
 
@@ -497,6 +498,8 @@ class Serializer : public SerializerDeserializer {
 
  private:
   CodeAddressMap* code_address_map_;
+  // We map serialized large objects to indexes for back-referencing.
+  int seen_large_objects_index_;
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
@@ -691,8 +694,8 @@ class SerializedCodeData {
   static const int kPayloadLengthOffset = 2;
   static const int kReservationsOffset = 3;
 
-  static const int kNumSpaces = PROPERTY_CELL_SPACE - NEW_SPACE + 1;
-  static const int kHeaderEntries = kReservationsOffset + kNumSpaces;
+  static const int kHeaderEntries =
+      kReservationsOffset + SerializerDeserializer::kNumberOfSpaces;
   static const int kHeaderSize = kHeaderEntries * kIntSize;
 
   // Following the header, we store, in sequential order

@@ -2021,6 +2021,7 @@ class Heap {
   int gc_callbacks_depth_;
 
   friend class AlwaysAllocateScope;
+  friend class Deserializer;
   friend class Factory;
   friend class GCCallbacksScope;
   friend class GCTracer;
