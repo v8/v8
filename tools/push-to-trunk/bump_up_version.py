@@ -28,6 +28,7 @@ from common_includes import *
 VERSION_BRANCH = "auto-bump-up-version"
 
 
+#TODO(machenbach): Add vc interface that works on git mirror.
 class Preparation(Step):
   MESSAGE = "Preparation."
 

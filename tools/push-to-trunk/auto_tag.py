@@ -16,7 +16,7 @@ class Preparation(Step):
     self.CommonPrepare()
     self.PrepareBranch()
     self.GitCheckout("master")
-    self.GitSVNRebase()
+    self.vc.Pull()
 
 
 class GetTags(Step):
@@ -24,13 +24,7 @@ class GetTags(Step):
 
   def RunStep(self):
     self.GitCreateBranch(self._config["BRANCHNAME"])
-
-    # Get remote tags.
-    tags = filter(lambda s: re.match(r"^svn/tags/[\d+\.]+$", s),
-                  self.GitRemotes())
-
-    # Remove 'svn/tags/' prefix.
-    self["tags"] = map(lambda s: s[9:], tags)
+    self["tags"] = self.vc.GetTags()
 
 
 class GetOldestUntaggedVersion(Step):
@@ -114,9 +108,9 @@ class CalculateTagRevision(Step):
 
   def RunStep(self):
     # Get the lkgr after the tag candidate and before the next tag candidate.
-    candidate_svn = self.GitSVNFindSVNRev(self["candidate"])
+    candidate_svn = self.vc.GitSvn(self["candidate"])
     if self["next"]:
-      next_svn = self.GitSVNFindSVNRev(self["next"])
+      next_svn = self.vc.GitSvn(self["next"])
     else:
       # Don't include the version change commit itself if there is no upper
       # limit yet.
@@ -130,7 +124,7 @@ class CalculateTagRevision(Step):
       return True
 
     # Let's check if the lkgr is at least three hours old.
-    self["lkgr"] = self.GitSVNFindGitHash(lkgr_svn)
+    self["lkgr"] = self.vc.SvnGit(lkgr_svn)
     if not self["lkgr"]:
       print "Couldn't find git hash for lkgr %s" % lkgr_svn
       self.CommonCleanup()
@@ -153,7 +147,7 @@ class MakeTag(Step):
   def RunStep(self):
     if not self._options.dry_run:
       self.GitReset(self["lkgr"])
-      self.GitSVNTag(self["candidate_version"])
+      self.vc.Tag(self["candidate_version"])
 
 
 class CleanUp(Step):

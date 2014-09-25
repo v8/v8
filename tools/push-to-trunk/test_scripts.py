@@ -1144,13 +1144,7 @@ LOG=N
       Cmd("git cl presubmit", "Presubmit successfull\n"),
       Cmd("git cl dcommit -f --bypass-hooks", "Closing issue\n",
           cb=VerifySVNCommit),
-      Cmd("git svn fetch", ""),
-      Cmd(("git log -1 --format=%%H --grep=\"%s\" svn/trunk"
-           % msg.replace("\"", "\\\"")), "hash6"),
-      Cmd("git svn find-rev hash6", "1324"),
-      Cmd(("svn copy -r 1324 https://v8.googlecode.com/svn/trunk "
-           "https://v8.googlecode.com/svn/tags/3.22.5.1 -m "
-           "\"Tagging version 3.22.5.1\""), ""),
+      Cmd("git svn tag 3.22.5.1 -m \"Tagging version 3.22.5.1\"", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])
