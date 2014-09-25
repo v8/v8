@@ -355,24 +355,6 @@ class CommitSVN(Step):
 
   def RunStep(self):
     result = self.vc.Land()
-    # TODO(machenbach): Remove/improve this logic before the git switch.
-    if not result:  # pragma: no cover
-      self.Die("'git svn dcommit' failed.")
-    result = filter(lambda x: re.search(r"^Committed r[0-9]+", x),
-                    result.splitlines())
-    if len(result) > 0:
-      self["trunk_revision"] = re.sub(r"^Committed r([0-9]+)", r"\1",result[0])
-
-    # Sometimes grepping for the revision fails. No idea why. If you figure
-    # out why it is flaky, please do fix it properly.
-    if not self["trunk_revision"]:
-      print("Sorry, grepping for the SVN revision failed. Please look for it "
-            "in the last command's output above and provide it manually (just "
-            "the number, without the leading \"r\").")
-      self.DieNoManualMode("Can't prompt in forced mode.")
-      while not self["trunk_revision"]:
-        print "> ",
-        self["trunk_revision"] = self.ReadLine()
 
 
 class TagRevision(Step):
@@ -387,10 +369,8 @@ class CleanUp(Step):
 
   def RunStep(self):
     print("Congratulations, you have successfully created the trunk "
-          "revision %s. Please don't forget to roll this new version into "
-          "Chromium, and to update the v8rel spreadsheet:"
+          "revision %s."
           % self["version"])
-    print "%s\ttrunk\t%s" % (self["version"], self["trunk_revision"])
 
     self.CommonCleanup()
     if self.Config("TRUNKBRANCH") != self["current_branch"]:

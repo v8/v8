@@ -790,8 +790,7 @@ Performance and stability improvements on all platforms.""", commit)
     if manual:
       expectations.append(RL("Y"))  # Sanity check.
     expectations += [
-      Cmd("git svn dcommit 2>&1",
-          "Some output\nCommitted r123456\nSome output\n"),
+      Cmd("git svn dcommit 2>&1", ""),
       Cmd("git svn tag 3.22.5 -m \"Tagging version 3.22.5\"", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),

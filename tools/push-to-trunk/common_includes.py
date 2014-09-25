@@ -337,10 +337,10 @@ class GitSvnInterface(VCInterface):
     return "svn/%s" % name
 
   def Land(self):
-    return self.step.GitSVNDCommit()
+    self.step.GitSVNDCommit()
 
   def CLLand(self):
-    return self.step.GitDCommit()
+    self.step.GitDCommit()
 
   def Tag(self, tag):
     self.step.GitSVNTag(tag)
