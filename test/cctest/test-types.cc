@@ -261,17 +261,28 @@ class Types {
   TypeHandle Fuzz(int depth = 4) {
     switch (rng_->NextInt(depth == 0 ? 3 : 20)) {
       case 0: {  // bitset
-        int n = 0
         #define COUNT_BITSET_TYPES(type, value) + 1
-        PROPER_BITSET_TYPE_LIST(COUNT_BITSET_TYPES)
+        int n = 0 PROPER_BITSET_TYPE_LIST(COUNT_BITSET_TYPES);
         #undef COUNT_BITSET_TYPES
-        ;
-        int i = rng_->NextInt(n);
-        #define PICK_BITSET_TYPE(type, value) \
-          if (i-- == 0) return Type::type(region_);
-        PROPER_BITSET_TYPE_LIST(PICK_BITSET_TYPE)
-        #undef PICK_BITSET_TYPE
-        UNREACHABLE();
+        // Pick a bunch of named bitsets and return their intersection.
+        TypeHandle result = Type::Any(region_);
+        for (int i = 0, m = 1 + rng_->NextInt(3); i < m; ++i) {
+          int j = rng_->NextInt(n);
+          #define PICK_BITSET_TYPE(type, value) \
+            if (j-- == 0) { \
+              TypeHandle tmp = Type::Intersect( \
+                  result, Type::type(region_), region_); \
+              if (tmp->Is(Type::None()) && i != 0) { \
+                break; \
+              } { \
+                result = tmp; \
+                continue; \
+              } \
+            }
+          PROPER_BITSET_TYPE_LIST(PICK_BITSET_TYPE)
+          #undef PICK_BITSET_TYPE
+        }
+        return result;
       }
       case 1: {  // class
         int i = rng_->NextInt(static_cast<int>(maps.size()));
@@ -598,11 +609,11 @@ struct Tests : Rep {
     // Range(min1, max1) = Range(min2, max2) <=> min1 = min2 /\ max1 = max2
     for (ValueIterator i1 = T.integers.begin();
         i1 != T.integers.end(); ++i1) {
-      for (ValueIterator j1 = T.integers.begin();
+      for (ValueIterator j1 = i1;
           j1 != T.integers.end(); ++j1) {
         for (ValueIterator i2 = T.integers.begin();
             i2 != T.integers.end(); ++i2) {
-          for (ValueIterator j2 = T.integers.begin();
+          for (ValueIterator j2 = i2;
               j2 != T.integers.end(); ++j2) {
             i::Handle<i::Object> min1 = *i1;
             i::Handle<i::Object> max1 = *j1;
@@ -949,11 +960,11 @@ struct Tests : Rep {
     // min1 >= min2 /\ max1 <= max2
     for (ValueIterator i1 = T.integers.begin();
         i1 != T.integers.end(); ++i1) {
-      for (ValueIterator j1 = T.integers.begin();
+      for (ValueIterator j1 = i1;
           j1 != T.integers.end(); ++j1) {
         for (ValueIterator i2 = T.integers.begin();
              i2 != T.integers.end(); ++i2) {
-          for (ValueIterator j2 = T.integers.begin();
+          for (ValueIterator j2 = i2;
                j2 != T.integers.end(); ++j2) {
             i::Handle<i::Object> min1 = *i1;
             i::Handle<i::Object> max1 = *j1;
@@ -1523,7 +1534,7 @@ struct Tests : Rep {
     // Monotonicity: T1->Is(T2) or T1->Is(T3) implies T1->Is(Union(T2, T3))
     for (TypeIterator it1 = T.types.begin(); it1 != T.types.end(); ++it1) {
       for (TypeIterator it2 = T.types.begin(); it2 != T.types.end(); ++it2) {
-        for (TypeIterator it3 = T.types.begin(); it3 != T.types.end(); ++it3) {
+        for (TypeIterator it3 = it2; it3 != T.types.end(); ++it3) {
           TypeHandle type1 = *it1;
           TypeHandle type2 = *it2;
           TypeHandle type3 = *it3;
