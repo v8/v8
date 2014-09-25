@@ -95,19 +95,31 @@ void Pipeline::VerifyAndPrintGraph(Graph* graph, const char* phase) {
       SmartArrayPointer<char> functionname =
           info_->shared_info()->DebugName()->ToCString();
       if (strlen(functionname.get()) > 0) {
-        SNPrintF(filename, "turbo-%s-%s.dot", functionname.get(), phase);
+        SNPrintF(filename, "turbo-%s-%s", functionname.get(), phase);
       } else {
-        SNPrintF(filename, "turbo-%p-%s.dot", static_cast<void*>(info_), phase);
+        SNPrintF(filename, "turbo-%p-%s", static_cast<void*>(info_), phase);
       }
     } else {
-      SNPrintF(filename, "turbo-none-%s.dot", phase);
+      SNPrintF(filename, "turbo-none-%s", phase);
     }
     std::replace(filename.start(), filename.start() + filename.length(), ' ',
                  '_');
-    FILE* file = base::OS::FOpen(filename.start(), "w+");
-    OFStream of(file);
-    of << AsDOT(*graph);
-    fclose(file);
+
+    char dot_buffer[256];
+    Vector<char> dot_filename(dot_buffer, sizeof(dot_buffer));
+    SNPrintF(dot_filename, "%s.dot", filename.start());
+    FILE* dot_file = base::OS::FOpen(dot_filename.start(), "w+");
+    OFStream dot_of(dot_file);
+    dot_of << AsDOT(*graph);
+    fclose(dot_file);
+
+    char json_buffer[256];
+    Vector<char> json_filename(json_buffer, sizeof(json_buffer));
+    SNPrintF(json_filename, "%s.json", filename.start());
+    FILE* json_file = base::OS::FOpen(json_filename.start(), "w+");
+    OFStream json_of(json_file);
+    json_of << AsJSON(*graph);
+    fclose(json_file);
 
     OFStream os(stdout);
     os << "-- " << phase << " graph printed to file " << filename.start()
