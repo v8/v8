@@ -1041,8 +1041,7 @@ void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
       BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
       os << ")";
     } else if (this->IsConstant()) {
-      os << "Constant(" << static_cast<void*>(*this->AsConstant()->Value())
-         << ")";
+      os << "Constant(" << Brief(*this->AsConstant()->Value()) << ")";
     } else if (this->IsRange()) {
       os << "Range(" << this->AsRange()->Min()->Number()
          << ", " << this->AsRange()->Max()->Number() << ")";
