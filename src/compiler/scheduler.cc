@@ -239,7 +239,8 @@ Schedule* Scheduler::ComputeSchedule(Graph* graph) {
   bool had_floating_control = false;
   do {
     Zone tmp_zone(graph->zone()->isolate());
-    schedule = new (graph->zone()) Schedule(graph->zone());
+    schedule = new (graph->zone())
+        Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
     Scheduler scheduler(&tmp_zone, graph, schedule);
 
     scheduler.BuildCFG();
