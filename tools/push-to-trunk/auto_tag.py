@@ -13,6 +13,11 @@ class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
+    # TODO(machenbach): Remove after the git switch.
+    if self.Config("PERSISTFILE_BASENAME") == "/tmp/v8-auto-tag-tempfile":
+      print "This script is disabled until after the v8 git migration."
+      return True
+
     self.CommonPrepare()
     self.PrepareBranch()
     self.GitCheckout("master")

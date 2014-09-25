@@ -28,11 +28,17 @@ from common_includes import *
 VERSION_BRANCH = "auto-bump-up-version"
 
 
-#TODO(machenbach): Add vc interface that works on git mirror.
+# TODO(machenbach): Add vc interface that works on git mirror.
 class Preparation(Step):
   MESSAGE = "Preparation."
 
   def RunStep(self):
+    # TODO(machenbach): Remove after the git switch.
+    if(self.Config("PERSISTFILE_BASENAME") ==
+       "/tmp/v8-bump-up-version-tempfile"):
+      print "This script is disabled until after the v8 git migration."
+      return True
+
     # Check for a clean workdir.
     if not self.GitIsWorkdirClean():  # pragma: no cover
       # This is in case a developer runs this script on a dirty tree.
