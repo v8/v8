@@ -37,8 +37,7 @@ class Preparation(Step):
       # This is in case a developer runs this script on a dirty tree.
       self.GitStash()
 
-    # TODO(machenbach): This should be called master after the git switch.
-    self.GitCheckout("bleeding_edge")
+    self.GitCheckout("master")
 
     self.GitPull()
 
@@ -50,8 +49,7 @@ class GetCurrentBleedingEdgeVersion(Step):
   MESSAGE = "Get latest bleeding edge version."
 
   def RunStep(self):
-    # TODO(machenbach): This should be called master after the git switch.
-    self.GitCheckout("bleeding_edge")
+    self.GitCheckout("master")
 
     # Store latest version and revision.
     self.ReadAndPersistVersion()
@@ -88,7 +86,7 @@ class GetLKGRVersion(Step):
   MESSAGE = "Get bleeding edge lkgr version."
 
   def RunStep(self):
-    self.GitCheckout("bleeding_edge")
+    self.GitCheckout("master")
     # If the commit was made from svn, there is a mapping entry in the commit
     # message.
     self["lkgr"] = self.GitLog(
@@ -106,7 +104,7 @@ class GetLKGRVersion(Step):
     print "LKGR version: %s" % self["lkgr_version"]
 
     # Ensure a clean version branch.
-    self.GitCheckout("bleeding_edge")
+    self.GitCheckout("master")
     self.DeleteBranch(VERSION_BRANCH)
 
 
@@ -131,8 +129,7 @@ class GetTrunkVersion(Step):
   MESSAGE = "Get latest trunk version."
 
   def RunStep(self):
-    # TODO(machenbach): This should be called trunk after the git switch.
-    self.GitCheckout("master")
+    self.GitCheckout("candidates")
     self.GitPull()
     self.ReadAndPersistVersion("trunk_")
     self["trunk_version"] = self.ArrayToVersion("trunk_")
@@ -186,7 +183,7 @@ class ChangeVersion(Step):
   MESSAGE = "Bump up the version."
 
   def RunStep(self):
-    self.GitCreateBranch(VERSION_BRANCH, "bleeding_edge")
+    self.GitCreateBranch(VERSION_BRANCH, "master")
 
     self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
@@ -204,7 +201,7 @@ class ChangeVersion(Step):
       print "Successfully changed the version."
     finally:
       # Clean up.
-      self.GitCheckout("bleeding_edge")
+      self.GitCheckout("master")
       self.DeleteBranch(VERSION_BRANCH)
 
 

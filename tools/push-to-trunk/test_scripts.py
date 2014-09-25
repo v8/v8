@@ -1374,26 +1374,27 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
 
     return [
       Cmd("git status -s -uno", ""),
-      Cmd("git checkout -f bleeding_edge", "", cb=ResetVersion(11, 4)),
+      Cmd("git checkout -f master", "", cb=ResetVersion(11, 4)),
       Cmd("git pull", ""),
       Cmd("git branch", ""),
-      Cmd("git checkout -f bleeding_edge", ""),
+      Cmd("git checkout -f master", ""),
       Cmd("git log -1 --format=%H", "latest_hash"),
       Cmd("git diff --name-only latest_hash latest_hash^", ""),
       URL("https://v8-status.appspot.com/lkgr", "12345"),
-      Cmd("git checkout -f bleeding_edge", ""),
+      Cmd("git checkout -f master", ""),
       Cmd(("git log --format=%H --grep="
            "\"^git-svn-id: [^@]*@12345 [A-Za-z0-9-]*$\""),
           "lkgr_hash"),
       Cmd("git checkout -b auto-bump-up-version lkgr_hash", ""),
-      Cmd("git checkout -f bleeding_edge", ""),
-      Cmd("git branch", ""),
+      Cmd("git checkout -f master", ""),
+      Cmd("git branch", "auto-bump-up-version\n* master"),
+      Cmd("git branch -D auto-bump-up-version", ""),
       Cmd("git diff --name-only lkgr_hash lkgr_hash^", ""),
-      Cmd("git checkout -f master", "", cb=ResetVersion(11, 5)),
+      Cmd("git checkout -f candidates", "", cb=ResetVersion(11, 5)),
       Cmd("git pull", ""),
       URL("https://v8-status.appspot.com/current?format=json",
           "{\"message\": \"Tree is open\"}"),
-      Cmd("git checkout -b auto-bump-up-version bleeding_edge", "",
+      Cmd("git checkout -b auto-bump-up-version master", "",
           cb=ResetVersion(11, 4)),
       Cmd("git commit -am \"[Auto-roll] Bump up version to 3.11.6.0\n\n"
           "TBR=author@chromium.org\" "
@@ -1406,8 +1407,8 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
           "--bypass-hooks", ""),
       Cmd("git cl dcommit -f --bypass-hooks", ""),
-      Cmd("git checkout -f bleeding_edge", ""),
-      Cmd("git branch", "auto-bump-up-version\n* bleeding_edge"),
+      Cmd("git checkout -f master", ""),
+      Cmd("git branch", "auto-bump-up-version\n* master"),
       Cmd("git branch -D auto-bump-up-version", ""),
     ]
     self.Expect(expectations)
@@ -1427,8 +1428,8 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
           "--config-dir=[CONFIG_DIR] "
           "-m \"[Auto-roll] Bump up version to 3.11.6.0\"",
           "", cwd=svn_root),
-      Cmd("git checkout -f bleeding_edge", ""),
-      Cmd("git branch", "auto-bump-up-version\n* bleeding_edge"),
+      Cmd("git checkout -f master", ""),
+      Cmd("git branch", "auto-bump-up-version\n* master"),
       Cmd("git branch -D auto-bump-up-version", ""),
     ]
     self.Expect(expectations)
