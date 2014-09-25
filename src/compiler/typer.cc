@@ -15,16 +15,26 @@ namespace internal {
 namespace compiler {
 
 Typer::Typer(Zone* zone) : zone_(zone) {
-  Type* number = Type::Number(zone);
-  Type* signed32 = Type::Signed32(zone);
-  Type* unsigned32 = Type::Unsigned32(zone);
-  Type* integral32 = Type::Integral32(zone);
-  Type* object = Type::Object(zone);
-  Type* undefined = Type::Undefined(zone);
+  Factory* f = zone->isolate()->factory();
+
+  Type* number = Type::Number();
+  Type* signed32 = Type::Signed32();
+  Type* unsigned32 = Type::Unsigned32();
+  Type* integral32 = Type::Integral32();
+  Type* object = Type::Object();
+  Type* undefined = Type::Undefined();
+  Type* weakint = Type::Union(
+      Type::Range(f->NewNumber(-V8_INFINITY), f->NewNumber(+V8_INFINITY), zone),
+      Type::Union(Type::NaN(), Type::MinusZero(), zone), zone);
+
   number_fun0_ = Type::Function(number, zone);
   number_fun1_ = Type::Function(number, number, zone);
   number_fun2_ = Type::Function(number, number, number, zone);
+  weakint_fun1_ = Type::Function(weakint, number, zone);
   imul_fun_ = Type::Function(signed32, integral32, integral32, zone);
+  random_fun_ = Type::Function(Type::Union(
+      Type::UnsignedSmall(), Type::OtherNumber(), zone), zone);
+
 
 #define NATIVE_TYPE(sem, rep) \
   Type::Intersect(Type::sem(zone), Type::rep(zone), zone)
@@ -834,13 +844,13 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
     } else if (*value == native->math_atan2_fun()) {
       return typer_->number_fun2_;
     } else if (*value == native->math_ceil_fun()) {
-      return typer_->number_fun1_;
+      return typer_->weakint_fun1_;
     } else if (*value == native->math_cos_fun()) {
       return typer_->number_fun1_;
     } else if (*value == native->math_exp_fun()) {
       return typer_->number_fun1_;
     } else if (*value == native->math_floor_fun()) {
-      return typer_->number_fun1_;
+      return typer_->weakint_fun1_;
     } else if (*value == native->math_imul_fun()) {
       return typer_->imul_fun_;
     } else if (*value == native->math_log_fun()) {
@@ -848,9 +858,9 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
     } else if (*value == native->math_pow_fun()) {
       return typer_->number_fun2_;
     } else if (*value == native->math_random_fun()) {
-      return typer_->number_fun0_;
+      return typer_->random_fun_;
     } else if (*value == native->math_round_fun()) {
-      return typer_->number_fun1_;
+      return typer_->weakint_fun1_;
     } else if (*value == native->math_sin_fun()) {
       return typer_->number_fun1_;
     } else if (*value == native->math_sqrt_fun()) {
