@@ -1,3 +1,8 @@
+2014-09-25: Version 3.29.88
+
+        Performance and stability improvements on all platforms.
+
+
 2014-09-24: Version 3.29.87
 
         Preserve message when rethrowing exception (issue 3583).

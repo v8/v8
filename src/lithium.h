@@ -8,6 +8,7 @@
 #include <set>
 
 #include "src/allocation.h"
+#include "src/bailout-reason.h"
 #include "src/hydrogen.h"
 #include "src/safepoint-table.h"
 #include "src/zone-allocator.h"
@@ -697,13 +698,34 @@ class LChunk : public ZoneObject {
 
 class LChunkBuilderBase BASE_EMBEDDED {
  public:
-  explicit LChunkBuilderBase(Zone* zone)
+  explicit LChunkBuilderBase(CompilationInfo* info, HGraph* graph)
       : argument_count_(0),
-        zone_(zone) { }
+        chunk_(NULL),
+        info_(info),
+        graph_(graph),
+        status_(UNUSED),
+        zone_(graph->zone()) {}
 
   virtual ~LChunkBuilderBase() { }
 
+  void Abort(BailoutReason reason);
+  void Retry(BailoutReason reason);
+
  protected:
+  enum Status { UNUSED, BUILDING, DONE, ABORTED };
+
+  LPlatformChunk* chunk() const { return chunk_; }
+  CompilationInfo* info() const { return info_; }
+  HGraph* graph() const { return graph_; }
+  int argument_count() const { return argument_count_; }
+  Isolate* isolate() const { return graph_->isolate(); }
+  Heap* heap() const { return isolate()->heap(); }
+
+  bool is_unused() const { return status_ == UNUSED; }
+  bool is_building() const { return status_ == BUILDING; }
+  bool is_done() const { return status_ == DONE; }
+  bool is_aborted() const { return status_ == ABORTED; }
+
   // An input operand in register, stack slot or a constant operand.
   // Will not be moved to a register even if one is freely available.
   virtual MUST_USE_RESULT LOperand* UseAny(HValue* value) = 0;
@@ -718,6 +740,10 @@ class LChunkBuilderBase BASE_EMBEDDED {
   Zone* zone() const { return zone_; }
 
   int argument_count_;
+  LPlatformChunk* chunk_;
+  CompilationInfo* info_;
+  HGraph* const graph_;
+  Status status_;
 
  private:
   Zone* zone_;

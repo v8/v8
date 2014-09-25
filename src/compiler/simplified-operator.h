@@ -28,6 +28,8 @@ struct SimplifiedOperatorBuilderImpl;
 
 enum BaseTaggedness { kUntaggedBase, kTaggedBase };
 
+OStream& operator<<(OStream&, BaseTaggedness);
+
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
 // pointers are supported; untagging is done automatically during lowering.
@@ -54,6 +56,11 @@ struct ElementAccess {
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
+
+bool operator==(ElementAccess const& lhs, ElementAccess const& rhs);
+bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs);
+
+OStream& operator<<(OStream&, ElementAccess const&);
 
 
 // If the accessed object is not a heap object, add this to the header_size.
@@ -122,8 +129,12 @@ class SimplifiedOperatorBuilder FINAL {
 
   const Operator* LoadField(const FieldAccess&);
   const Operator* StoreField(const FieldAccess&);
-  const Operator* LoadElement(const ElementAccess&);
-  const Operator* StoreElement(const ElementAccess&);
+
+  // load-element [base + index], length
+  const Operator* LoadElement(ElementAccess const&);
+
+  // store-element [base + index], length, value
+  const Operator* StoreElement(ElementAccess const&);
 
  private:
   Zone* zone() const { return zone_; }

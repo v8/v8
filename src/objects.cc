@@ -9113,7 +9113,7 @@ void JSFunction::MarkForConcurrentOptimization() {
   DCHECK(GetIsolate()->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Marking ");
-    PrintName();
+    ShortPrint();
     PrintF(" for concurrent recompilation.\n");
   }
   set_code_no_write_barrier(
@@ -9131,7 +9131,7 @@ void JSFunction::MarkInOptimizationQueue() {
   DCHECK(GetIsolate()->concurrent_recompilation_enabled());
   if (FLAG_trace_concurrent_recompilation) {
     PrintF("  ** Queueing ");
-    PrintName();
+    ShortPrint();
     PrintF(" for concurrent recompilation.\n");
   }
   set_code_no_write_barrier(
@@ -16359,17 +16359,5 @@ void PropertyCell::AddDependentCompilationInfo(Handle<PropertyCell> cell,
   info->dependencies(DependentCode::kPropertyCellChangedGroup)->Add(
       cell, info->zone());
 }
-
-
-const char* GetBailoutReason(BailoutReason reason) {
-  DCHECK(reason < kLastErrorMessage);
-#define ERROR_MESSAGES_TEXTS(C, T) T,
-  static const char* error_messages_[] = {
-      ERROR_MESSAGES_LIST(ERROR_MESSAGES_TEXTS)
-  };
-#undef ERROR_MESSAGES_TEXTS
-  return error_messages_[reason];
-}
-
 
 } }  // namespace v8::internal

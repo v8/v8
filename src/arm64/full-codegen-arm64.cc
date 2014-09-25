@@ -2906,7 +2906,7 @@ void FullCodeGenerator::EmitIsMinusZero(CallRuntime* expr) {
                          &if_true, &if_false, &fall_through);
 
   // Only a HeapNumber can be -0.0, so return false if we have something else.
-  __ CheckMap(x0, x1, Heap::kHeapNumberMapRootIndex, if_false, DO_SMI_CHECK);
+  __ JumpIfNotHeapNumber(x0, if_false, DO_SMI_CHECK);
 
   // Test the bit pattern.
   __ Ldr(x10, FieldMemOperand(x0, HeapNumber::kValueOffset));

@@ -596,6 +596,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsDouble(node), VisitFloat64Div(node);
     case IrOpcode::kFloat64Mod:
       return MarkAsDouble(node), VisitFloat64Mod(node);
+    case IrOpcode::kFloat64Sqrt:
+      return MarkAsDouble(node), VisitFloat64Sqrt(node);
     case IrOpcode::kFloat64Equal:
       return VisitFloat64Equal(node);
     case IrOpcode::kFloat64LessThan:

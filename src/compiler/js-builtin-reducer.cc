@@ -95,6 +95,18 @@ class JSCallReduction {
 };
 
 
+// ECMA-262, section 15.8.2.17.
+Reduction JSBuiltinReducer::ReduceMathSqrt(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Math.sqrt(a:number) -> Float64Sqrt(a)
+    Node* value = graph()->NewNode(machine()->Float64Sqrt(), r.left());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+
 // ECMA-262, section 15.8.2.11.
 Reduction JSBuiltinReducer::ReduceMathMax(Node* node) {
   JSCallReduction r(node);
@@ -145,6 +157,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
   // Dispatch according to the BuiltinFunctionId if present.
   if (!r.HasBuiltinFunctionId()) return NoChange();
   switch (r.GetBuiltinFunctionId()) {
+    case kMathSqrt:
+      return ReplaceWithPureReduction(node, ReduceMathSqrt(node));
     case kMathMax:
       return ReplaceWithPureReduction(node, ReduceMathMax(node));
     case kMathImul:

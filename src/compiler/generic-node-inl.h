@@ -178,6 +178,16 @@ void GenericNode<B, S>::InsertInput(Zone* zone, int index,
 }
 
 template <class B, class S>
+void GenericNode<B, S>::RemoveInput(int index) {
+  DCHECK(index >= 0 && index < InputCount());
+  // TODO(turbofan): Optimize this implementation!
+  for (; index < InputCount() - 1; ++index) {
+    ReplaceInput(index, InputAt(index + 1));
+  }
+  TrimInputCount(InputCount() - 1);
+}
+
+template <class B, class S>
 void GenericNode<B, S>::AppendUse(Use* use) {
   use->next = NULL;
   use->prev = last_use_;

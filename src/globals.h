@@ -769,6 +769,9 @@ enum MinusZeroMode {
 };
 
 
+enum Signedness { kSigned, kUnsigned };
+
+
 enum FunctionKind {
   kNormalFunction = 0,
   kArrowFunction = 1,

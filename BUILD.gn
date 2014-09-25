@@ -438,6 +438,8 @@ source_set("v8_base") {
     "src/ast.h",
     "src/background-parsing-task.cc",
     "src/background-parsing-task.h",
+    "src/bailout-reason.cc",
+    "src/bailout-reason.h",
     "src/bignum-dtoa.cc",
     "src/bignum-dtoa.h",
     "src/bignum.cc",

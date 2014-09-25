@@ -596,7 +596,8 @@ class RepresentationSelector {
         ElementAccess access = ElementAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessInput(node, 1, kMachInt32);  // element index
-        ProcessRemainingInputs(node, 2);
+        ProcessInput(node, 2, kMachInt32);  // length
+        ProcessRemainingInputs(node, 3);
         SetOutput(node, AssumeImplicitFloat32Change(access.machine_type));
         if (lower()) lowering->DoLoadElement(node);
         break;
@@ -605,8 +606,9 @@ class RepresentationSelector {
         ElementAccess access = ElementAccessOf(node->op());
         ProcessInput(node, 0, changer_->TypeForBasePointer(access));
         ProcessInput(node, 1, kMachInt32);  // element index
-        ProcessInput(node, 2, AssumeImplicitFloat32Change(access.machine_type));
-        ProcessRemainingInputs(node, 3);
+        ProcessInput(node, 2, kMachInt32);  // length
+        ProcessInput(node, 3, AssumeImplicitFloat32Change(access.machine_type));
+        ProcessRemainingInputs(node, 4);
         SetOutput(node, 0);
         if (lower()) lowering->DoStoreElement(node);
         break;
@@ -722,6 +724,8 @@ class RepresentationSelector {
       case IrOpcode::kFloat64Div:
       case IrOpcode::kFloat64Mod:
         return VisitFloat64Binop(node);
+      case IrOpcode::kFloat64Sqrt:
+        return VisitUnop(node, kMachFloat64, kMachFloat64);
       case IrOpcode::kFloat64Equal:
       case IrOpcode::kFloat64LessThan:
       case IrOpcode::kFloat64LessThanOrEqual:
@@ -867,6 +871,7 @@ void SimplifiedLowering::DoLoadElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
   node->set_op(machine()->Load(access.machine_type));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
+  node->RemoveInput(2);
 }
 
 
@@ -877,6 +882,7 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
   node->set_op(
       machine()->Store(StoreRepresentation(access.machine_type, kind)));
   node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
+  node->RemoveInput(2);
 }
 
 

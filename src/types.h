@@ -5,6 +5,7 @@
 #ifndef V8_TYPES_H_
 #define V8_TYPES_H_
 
+#include "src/conversions.h"
 #include "src/factory.h"
 #include "src/handles.h"
 #include "src/ostreams.h"
@@ -22,6 +23,7 @@ namespace internal {
 //
 // Types consist of two dimensions: semantic (value range) and representation.
 // Both are related through subtyping.
+//
 //
 // SEMANTIC DIMENSION
 //
@@ -61,6 +63,7 @@ namespace internal {
 // However, we also define a 'temporal' variant of the subtyping relation that
 // considers the _current_ state only, i.e., Constant(x) <_now Class(map(x)).
 //
+//
 // REPRESENTATIONAL DIMENSION
 //
 // For the representation axis, the following holds:
@@ -88,6 +91,16 @@ namespace internal {
 //   SignedSmall /\ TaggedInt       (a 'smi')
 //   Number /\ TaggedPtr            (a heap number)
 //
+//
+// RANGE TYPES
+//
+// A range type represents a continuous integer interval by its minimum and
+// maximum value.  Either value might be an infinity.
+//
+// Constant(v) is considered a subtype of Range(x..y) if v happens to be an
+// integer between x and y.
+//
+//
 // PREDICATES
 //
 // There are two main functions for testing types:
@@ -109,15 +122,17 @@ namespace internal {
 // Any compilation decision based on such temporary properties requires runtime
 // guarding!
 //
+//
 // PROPERTIES
 //
 // Various formal properties hold for constructors, operators, and predicates
-// over types. For example, constructors are injective, subtyping is a complete
-// partial order, union and intersection satisfy the usual algebraic properties.
+// over types. For example, constructors are injective and subtyping is a
+// complete partial order.
 //
 // See test/cctest/test-types.cc for a comprehensive executable specification,
 // especially with respect to the properties of the more exotic 'temporal'
 // constructors and predicates (those prefixed 'Now').
+//
 //
 // IMPLEMENTATION
 //
@@ -208,10 +223,34 @@ namespace internal {
                          kUndefined | kInternal) \
   V(Any,                 0xfffffffeu)
 
-#define BITSET_TYPE_LIST(V) \
-  MASK_BITSET_TYPE_LIST(V) \
+/*
+ * The following diagrams show how integers (in the mathematical sense) are
+ * divided among the different atomic numerical types.
+ *
+ * If SmiValuesAre31Bits():
+ *
+ *   ON    OS32     OSS     US     OU31    OU32     ON
+ * ______[_______[_______[_______[_______[_______[_______
+ *     -2^31   -2^30     0      2^30    2^31    2^32
+ *
+ * Otherwise:
+ *
+ *   ON         OSS             US         OU32     ON
+ * ______[_______________[_______________[_______[_______
+ *     -2^31             0              2^31    2^32
+ *
+ *
+ * E.g., OtherUnsigned32 (OU32) covers all integers from 2^31 to 2^32-1.
+ *
+ */
+
+#define PROPER_BITSET_TYPE_LIST(V) \
   REPRESENTATION_BITSET_TYPE_LIST(V) \
   SEMANTIC_BITSET_TYPE_LIST(V)
+
+#define BITSET_TYPE_LIST(V) \
+  MASK_BITSET_TYPE_LIST(V) \
+  PROPER_BITSET_TYPE_LIST(V)
 
 
 // -----------------------------------------------------------------------------
@@ -282,17 +321,17 @@ class TypeImpl : public Config::Base {
     static TypeHandle type(Region* region) {                                  \
       return BitsetType::New(BitsetType::k##type, region);                    \
     }
-  BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
+  PROPER_BITSET_TYPE_LIST(DEFINE_TYPE_CONSTRUCTOR)
   #undef DEFINE_TYPE_CONSTRUCTOR
 
   static TypeHandle Class(i::Handle<i::Map> map, Region* region) {
     return ClassType::New(map, region);
   }
   static TypeHandle Constant(i::Handle<i::Object> value, Region* region) {
-    // TODO(neis): Return RangeType for numerical values.
     return ConstantType::New(value, region);
   }
-  static TypeHandle Range(double min, double max, Region* region) {
+  static TypeHandle Range(
+      i::Handle<i::Object> min, i::Handle<i::Object> max, Region* region) {
     return RangeType::New(min, max, region);
   }
   static TypeHandle Context(TypeHandle outer, Region* region) {
@@ -360,7 +399,7 @@ class TypeImpl : public Config::Base {
   template<class TypeHandle>
   bool Equals(TypeHandle that) { return this->Equals(*that); }
 
-  // Equivalent to Constant(value)->Is(this), but avoiding allocation.
+  // Equivalent to Constant(val)->Is(this), but avoiding allocation.
   bool Contains(i::Object* val);
   bool Contains(i::Handle<i::Object> val) { return this->Contains(*val); }
 
@@ -406,6 +445,13 @@ class TypeImpl : public Config::Base {
   ContextType* AsContext() { return ContextType::cast(this); }
   ArrayType* AsArray() { return ArrayType::cast(this); }
   FunctionType* AsFunction() { return FunctionType::cast(this); }
+
+  // Minimum and maximum of a numeric type.
+  // These functions do not distinguish between -0 and +0.  If the type equals
+  // kNaN, they return NaN; otherwise kNaN is ignored.  Only call these
+  // functions on subtypes of Number.
+  double Min();
+  double Max();
 
   int NumClasses();
   int NumConstants();
@@ -469,16 +515,45 @@ class TypeImpl : public Config::Base {
 
   bitset BitsetGlb() { return BitsetType::Glb(this); }
   bitset BitsetLub() { return BitsetType::Lub(this); }
-  bitset InherentBitsetLub() { return BitsetType::InherentLub(this); }
 
   bool SlowIs(TypeImpl* that);
 
-  TypeHandle Rebound(bitset bound, Region* region);
-  bitset BoundBy(TypeImpl* that);
-  int IndexInUnion(bitset bound, UnionHandle unioned, int current_size);
-  static int ExtendUnion(
-      UnionHandle unioned, int current_size, TypeHandle t,
-      TypeHandle other, bool is_intersect, Region* region);
+  static bool IsInteger(double x) {
+    return nearbyint(x) == x && !i::IsMinusZero(x);  // Allows for infinities.
+  }
+  static bool IsInteger(i::Object* x) {
+    return x->IsNumber() && IsInteger(x->Number());
+  }
+
+  struct Limits {
+    i::Handle<i::Object> min;
+    i::Handle<i::Object> max;
+    Limits(i::Handle<i::Object> min, i::Handle<i::Object> max) :
+      min(min), max(max) {}
+    explicit Limits(RangeType* range) :
+      min(range->Min()), max(range->Max()) {}
+  };
+
+  static Limits Intersect(Limits lhs, Limits rhs);
+  static Limits Union(Limits lhs, Limits rhs);
+  static bool Overlap(RangeType* lhs, RangeType* rhs);
+  static bool Contains(RangeType* lhs, RangeType* rhs);
+  static bool Contains(RangeType* range, i::Object* val);
+
+  RangeType* GetRange();
+  static int UpdateRange(
+      RangeHandle type, UnionHandle result, int size, Region* region);
+
+  bool SimplyEquals(TypeImpl* that);
+  template<class TypeHandle>
+  bool SimplyEquals(TypeHandle that) { return this->SimplyEquals(*that); }
+
+  static int AddToUnion(
+      TypeHandle type, UnionHandle result, int size, Region* region);
+  static int IntersectAux(
+      TypeHandle type, TypeHandle other,
+      UnionHandle result, int size, Region* region);
+  static TypeHandle NormalizeUnion(UnionHandle unioned, int size);
 };
 
 
@@ -499,18 +574,27 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
 
   bitset Bitset() { return Config::as_bitset(this); }
 
-  static TypeImpl* New(bitset bits) { return Config::from_bitset(bits); }
+  static TypeImpl* New(bitset bits) {
+    DCHECK(bits == kNone || IsInhabited(bits));
+    return Config::from_bitset(bits);
+  }
   static TypeHandle New(bitset bits, Region* region) {
+    DCHECK(bits == kNone || IsInhabited(bits));
     return Config::from_bitset(bits, region);
   }
+  // TODO(neis): Eventually allow again for types with empty semantics
+  // part and modify intersection and possibly subtyping accordingly.
 
   static bool IsInhabited(bitset bits) {
-    return (bits & kRepresentation) && (bits & kSemantic);
+    return bits & kSemantic;
   }
 
   static bool Is(bitset bits1, bitset bits2) {
     return (bits1 | bits2) == bits2;
   }
+
+  static double Min(bitset);
+  static double Max(bitset);
 
   static bitset Glb(TypeImpl* type);  // greatest lower bound that's a bitset
   static bitset Lub(TypeImpl* type);  // least upper bound that's a bitset
@@ -519,12 +603,29 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
   static bitset Lub(int32_t value);
   static bitset Lub(uint32_t value);
   static bitset Lub(i::Map* map);
-  static bitset Lub(double min, double max);
-  static bitset InherentLub(TypeImpl* type);
+  static bitset Lub(Limits lim);
 
   static const char* Name(bitset);
   static void Print(OStream& os, bitset);  // NOLINT
-  using TypeImpl::PrintTo;
+#ifdef DEBUG
+  static void Print(bitset);
+#endif
+
+ private:
+  struct BitsetMin{
+    bitset bits;
+    double min;
+  };
+  static const BitsetMin BitsetMins31[];
+  static const BitsetMin BitsetMins32[];
+  static const BitsetMin* BitsetMins() {
+    return i::SmiValuesAre31Bits() ? BitsetMins31 : BitsetMins32;
+  }
+  static size_t BitsetMinsSize() {
+    return i::SmiValuesAre31Bits() ? 7 : 5;
+    /* arraysize(BitsetMins31) : arraysize(BitsetMins32); */
+    // Using arraysize here doesn't compile on Windows.
+  }
 };
 
 
@@ -611,35 +712,25 @@ template<class Config>
 class TypeImpl<Config>::ClassType : public StructuralType {
  public:
   TypeHandle Bound(Region* region) {
-    return Config::is_class(this)
-        ? BitsetType::New(BitsetType::Lub(*Config::as_class(this)), region)
-        : this->Get(0);
+    return Config::is_class(this) ?
+        BitsetType::New(BitsetType::Lub(*Config::as_class(this)), region) :
+        this->Get(0);
   }
   i::Handle<i::Map> Map() {
-    return Config::is_class(this)
-        ? Config::as_class(this)
-        : this->template GetValue<i::Map>(1);
-  }
-
-  static ClassHandle New(
-      i::Handle<i::Map> map, TypeHandle bound, Region* region) {
-    DCHECK(BitsetType::Is(bound->AsBitset(), BitsetType::Lub(*map)));
-    ClassHandle type = Config::template cast<ClassType>(
-        StructuralType::New(StructuralType::kClassTag, 2, region));
-    type->Set(0, bound);
-    type->SetValue(1, map);
-    return type;
+    return Config::is_class(this) ? Config::as_class(this) :
+        this->template GetValue<i::Map>(1);
   }
 
   static ClassHandle New(i::Handle<i::Map> map, Region* region) {
     ClassHandle type =
         Config::template cast<ClassType>(Config::from_class(map, region));
-    if (type->IsClass()) {
-      return type;
-    } else {
-      TypeHandle bound = BitsetType::New(BitsetType::Lub(*map), region);
-      return New(map, bound, region);
+    if (!type->IsClass()) {
+      type = Config::template cast<ClassType>(
+          StructuralType::New(StructuralType::kClassTag, 2, region));
+      type->Set(0, BitsetType::New(BitsetType::Lub(*map), region));
+      type->SetValue(1, map);
     }
+    return type;
   }
 
   static ClassType* cast(TypeImpl* type) {
@@ -658,19 +749,12 @@ class TypeImpl<Config>::ConstantType : public StructuralType {
   TypeHandle Bound() { return this->Get(0); }
   i::Handle<i::Object> Value() { return this->template GetValue<i::Object>(1); }
 
-  static ConstantHandle New(
-      i::Handle<i::Object> value, TypeHandle bound, Region* region) {
-    DCHECK(BitsetType::Is(bound->AsBitset(), BitsetType::Lub(*value)));
+  static ConstantHandle New(i::Handle<i::Object> value, Region* region) {
     ConstantHandle type = Config::template cast<ConstantType>(
         StructuralType::New(StructuralType::kConstantTag, 2, region));
-    type->Set(0, bound);
+    type->Set(0, BitsetType::New(BitsetType::Lub(*value), region));
     type->SetValue(1, value);
     return type;
-  }
-
-  static ConstantHandle New(i::Handle<i::Object> value, Region* region) {
-    TypeHandle bound = BitsetType::New(BitsetType::Lub(*value), region);
-    return New(value, bound, region);
   }
 
   static ConstantType* cast(TypeImpl* type) {
@@ -678,6 +762,8 @@ class TypeImpl<Config>::ConstantType : public StructuralType {
     return static_cast<ConstantType*>(type);
   }
 };
+// TODO(neis): Also cache value if numerical.
+// TODO(neis): Allow restricting the representation.
 
 
 // -----------------------------------------------------------------------------
@@ -686,27 +772,23 @@ class TypeImpl<Config>::ConstantType : public StructuralType {
 template<class Config>
 class TypeImpl<Config>::RangeType : public StructuralType {
  public:
-  TypeHandle Bound() { return this->Get(0); }
-  double Min() { return this->template GetValue<i::HeapNumber>(1)->value(); }
-  double Max() { return this->template GetValue<i::HeapNumber>(2)->value(); }
+  int BitsetLub() { return this->Get(0)->AsBitset(); }
+  i::Handle<i::Object> Min() { return this->template GetValue<i::Object>(1); }
+  i::Handle<i::Object> Max() { return this->template GetValue<i::Object>(2); }
 
   static RangeHandle New(
-      double min, double max, TypeHandle bound, Region* region) {
-    DCHECK(BitsetType::Is(bound->AsBitset(), BitsetType::Lub(min, max)));
+      i::Handle<i::Object> min, i::Handle<i::Object> max, Region* region) {
+    DCHECK(min->Number() <= max->Number());
     RangeHandle type = Config::template cast<RangeType>(
         StructuralType::New(StructuralType::kRangeTag, 3, region));
-    type->Set(0, bound);
-    Factory* factory = Config::isolate(region)->factory();
-    Handle<HeapNumber> minV = factory->NewHeapNumber(min);
-    Handle<HeapNumber> maxV = factory->NewHeapNumber(max);
-    type->SetValue(1, minV);
-    type->SetValue(2, maxV);
+    type->Set(0, BitsetType::New(BitsetType::Lub(Limits(min, max)), region));
+    type->SetValue(1, min);
+    type->SetValue(2, max);
     return type;
   }
 
-  static RangeHandle New(double min, double max, Region* region) {
-    TypeHandle bound = BitsetType::New(BitsetType::Lub(min, max), region);
-    return New(min, max, bound, region);
+  static RangeHandle New(Limits lim, Region* region) {
+    return New(lim.min, lim.max, region);
   }
 
   static RangeType* cast(TypeImpl* type) {
@@ -714,6 +796,8 @@ class TypeImpl<Config>::RangeType : public StructuralType {
     return static_cast<RangeType*>(type);
   }
 };
+// TODO(neis): Also cache min and max values.
+// TODO(neis): Allow restricting the representation.
 
 
 // -----------------------------------------------------------------------------
@@ -722,23 +806,13 @@ class TypeImpl<Config>::RangeType : public StructuralType {
 template<class Config>
 class TypeImpl<Config>::ContextType : public StructuralType {
  public:
-  TypeHandle Bound() { return this->Get(0); }
-  TypeHandle Outer() { return this->Get(1); }
-
-  static ContextHandle New(TypeHandle outer, TypeHandle bound, Region* region) {
-    DCHECK(BitsetType::Is(
-        bound->AsBitset(), BitsetType::kInternal & BitsetType::kTaggedPtr));
-    ContextHandle type = Config::template cast<ContextType>(
-        StructuralType::New(StructuralType::kContextTag, 2, region));
-    type->Set(0, bound);
-    type->Set(1, outer);
-    return type;
-  }
+  TypeHandle Outer() { return this->Get(0); }
 
   static ContextHandle New(TypeHandle outer, Region* region) {
-    TypeHandle bound = BitsetType::New(
-        BitsetType::kInternal & BitsetType::kTaggedPtr, region);
-    return New(outer, bound, region);
+    ContextHandle type = Config::template cast<ContextType>(
+        StructuralType::New(StructuralType::kContextTag, 1, region));
+    type->Set(0, outer);
+    return type;
   }
 
   static ContextType* cast(TypeImpl* type) {
@@ -754,21 +828,13 @@ class TypeImpl<Config>::ContextType : public StructuralType {
 template<class Config>
 class TypeImpl<Config>::ArrayType : public StructuralType {
  public:
-  TypeHandle Bound() { return this->Get(0); }
-  TypeHandle Element() { return this->Get(1); }
-
-  static ArrayHandle New(TypeHandle element, TypeHandle bound, Region* region) {
-    DCHECK(BitsetType::Is(bound->AsBitset(), BitsetType::kArray));
-    ArrayHandle type = Config::template cast<ArrayType>(
-        StructuralType::New(StructuralType::kArrayTag, 2, region));
-    type->Set(0, bound);
-    type->Set(1, element);
-    return type;
-  }
+  TypeHandle Element() { return this->Get(0); }
 
   static ArrayHandle New(TypeHandle element, Region* region) {
-    TypeHandle bound = BitsetType::New(BitsetType::kArray, region);
-    return New(element, bound, region);
+    ArrayHandle type = Config::template cast<ArrayType>(
+        StructuralType::New(StructuralType::kArrayTag, 1, region));
+    type->Set(0, element);
+    return type;
   }
 
   static ArrayType* cast(TypeImpl* type) {
@@ -784,30 +850,20 @@ class TypeImpl<Config>::ArrayType : public StructuralType {
 template<class Config>
 class TypeImpl<Config>::FunctionType : public StructuralType {
  public:
-  int Arity() { return this->Length() - 3; }
-  TypeHandle Bound() { return this->Get(0); }
-  TypeHandle Result() { return this->Get(1); }
-  TypeHandle Receiver() { return this->Get(2); }
-  TypeHandle Parameter(int i) { return this->Get(3 + i); }
+  int Arity() { return this->Length() - 2; }
+  TypeHandle Result() { return this->Get(0); }
+  TypeHandle Receiver() { return this->Get(1); }
+  TypeHandle Parameter(int i) { return this->Get(2 + i); }
 
-  void InitParameter(int i, TypeHandle type) { this->Set(3 + i, type); }
-
-  static FunctionHandle New(
-      TypeHandle result, TypeHandle receiver, TypeHandle bound,
-      int arity, Region* region) {
-    DCHECK(BitsetType::Is(bound->AsBitset(), BitsetType::kFunction));
-    FunctionHandle type = Config::template cast<FunctionType>(
-        StructuralType::New(StructuralType::kFunctionTag, 3 + arity, region));
-    type->Set(0, bound);
-    type->Set(1, result);
-    type->Set(2, receiver);
-    return type;
-  }
+  void InitParameter(int i, TypeHandle type) { this->Set(2 + i, type); }
 
   static FunctionHandle New(
       TypeHandle result, TypeHandle receiver, int arity, Region* region) {
-    TypeHandle bound = BitsetType::New(BitsetType::kFunction, region);
-    return New(result, receiver, bound, arity, region);
+    FunctionHandle type = Config::template cast<FunctionType>(
+        StructuralType::New(StructuralType::kFunctionTag, 2 + arity, region));
+    type->Set(0, result);
+    type->Set(1, receiver);
+    return type;
   }
 
   static FunctionType* cast(TypeImpl* type) {
@@ -854,11 +910,6 @@ struct ZoneTypeConfig {
   typedef i::Zone Region;
   template<class T> struct Handle { typedef T* type; };
 
-  // TODO(neis): This will be removed again once we have struct_get_double().
-  static inline i::Isolate* isolate(Region* region) {
-    return region->isolate();
-  }
-
   template<class T> static inline T* handle(T* type);
   template<class T> static inline T* cast(Type* type);
 
@@ -900,11 +951,6 @@ struct HeapTypeConfig {
   typedef i::FixedArray Struct;
   typedef i::Isolate Region;
   template<class T> struct Handle { typedef i::Handle<T> type; };
-
-  // TODO(neis): This will be removed again once we have struct_get_double().
-  static inline i::Isolate* isolate(Region* region) {
-    return region;
-  }
 
   template<class T> static inline i::Handle<T> handle(T* type);
   template<class T> static inline i::Handle<T> cast(i::Handle<Type> type);

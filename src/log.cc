@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"

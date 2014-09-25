@@ -771,6 +771,7 @@ IS_UNOP_MATCHER(ChangeUint32ToFloat64)
 IS_UNOP_MATCHER(ChangeUint32ToUint64)
 IS_UNOP_MATCHER(TruncateFloat64ToInt32)
 IS_UNOP_MATCHER(TruncateInt64ToInt32)
+IS_UNOP_MATCHER(Float64Sqrt)
 #undef IS_UNOP_MATCHER
 
 }  // namespace compiler

@@ -506,6 +506,13 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
 }
 
 
+void InstructionSelector::VisitFloat64Sqrt(Node* node) {
+  Arm64OperandGenerator g(this);
+  Emit(kArm64Float64Sqrt, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node,
                                                     FlagsContinuation* cont) {
   VisitBinop<Int32BinopMatcher>(this, node, kArm64Add32, kArithmeticImm, cont);

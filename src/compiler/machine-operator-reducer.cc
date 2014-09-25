@@ -443,7 +443,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
-    // TODO(turbofan): strength-reduce and fold floating point operations.
     default:
       break;
   }

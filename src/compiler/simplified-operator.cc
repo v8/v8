@@ -13,6 +13,38 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+OStream& operator<<(OStream& os, BaseTaggedness base_taggedness) {
+  switch (base_taggedness) {
+    case kUntaggedBase:
+      return os << "untagged base";
+    case kTaggedBase:
+      return os << "tagged base";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
+bool operator==(ElementAccess const& lhs, ElementAccess const& rhs) {
+  return lhs.base_is_tagged == rhs.base_is_tagged &&
+         lhs.header_size == rhs.header_size && lhs.type == rhs.type &&
+         lhs.machine_type == rhs.machine_type;
+}
+
+
+bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+OStream& operator<<(OStream& os, ElementAccess const& access) {
+  os << "[" << access.base_is_tagged << ", " << access.header_size << ", ";
+  access.type->PrintTo(os);
+  os << ", " << access.machine_type << "]";
+  return os;
+}
+
+
 const FieldAccess& FieldAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadField ||
@@ -49,11 +81,11 @@ struct StaticParameterTraits<FieldAccess> {
 // Specialization for static parameters of type {ElementAccess}.
 template <>
 struct StaticParameterTraits<ElementAccess> {
-  static OStream& PrintTo(OStream& os, const ElementAccess& val) {
-    return os << val.header_size;
+  static OStream& PrintTo(OStream& os, const ElementAccess& access) {
+    return os << access;
   }
-  static int HashCode(const ElementAccess& val) {
-    return (val.header_size < 16) | (val.machine_type & 0xffff);
+  static int HashCode(const ElementAccess& access) {
+    return (access.header_size < 16) | (access.machine_type & 0xffff);
   }
   static bool Equals(const ElementAccess& lhs, const ElementAccess& rhs) {
     return lhs.base_is_tagged == rhs.base_is_tagged &&
@@ -93,8 +125,8 @@ struct StaticParameterTraits<ElementAccess> {
 #define ACCESS_OP_LIST(V)                                 \
   V(LoadField, FieldAccess, Operator::kNoWrite, 1, 1)     \
   V(StoreField, FieldAccess, Operator::kNoRead, 2, 0)     \
-  V(LoadElement, ElementAccess, Operator::kNoWrite, 2, 1) \
-  V(StoreElement, ElementAccess, Operator::kNoRead, 3, 0)
+  V(LoadElement, ElementAccess, Operator::kNoWrite, 3, 1) \
+  V(StoreElement, ElementAccess, Operator::kNoRead, 4, 0)
 
 
 struct SimplifiedOperatorBuilderImpl FINAL {

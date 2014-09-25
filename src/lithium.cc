@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/lithium.h"
+
 #include "src/v8.h"
 
-#include "src/lithium.h"
 #include "src/scopes.h"
 #include "src/serialize.h"
 
@@ -437,7 +438,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
   int values = graph->GetMaximumValueID();
   CompilationInfo* info = graph->info();
   if (values > LUnallocated::kMaxVirtualRegisters) {
-    info->set_bailout_reason(kNotEnoughVirtualRegistersForValues);
+    info->AbortOptimization(kNotEnoughVirtualRegistersForValues);
     return NULL;
   }
   LAllocator allocator(values, graph);
@@ -446,7 +447,7 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
   if (chunk == NULL) return NULL;
 
   if (!allocator.Allocate(chunk)) {
-    info->set_bailout_reason(kNotEnoughVirtualRegistersRegalloc);
+    info->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
     return NULL;
   }
 
@@ -507,6 +508,18 @@ void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
     }
     iterator.Advance();
   }
+}
+
+
+void LChunkBuilderBase::Abort(BailoutReason reason) {
+  info()->AbortOptimization(reason);
+  status_ = ABORTED;
+}
+
+
+void LChunkBuilderBase::Retry(BailoutReason reason) {
+  info()->RetryOptimization(reason);
+  status_ = ABORTED;
 }
 
 

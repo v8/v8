@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/bailout-reason.h"
 #include "src/globals.h"
 
 #include "src/arm64/assembler-arm64-inl.h"
@@ -946,16 +947,10 @@ class MacroAssembler : public Assembler {
   // Abort execution if argument is not a string, enabled via --debug-code.
   void AssertString(Register object);
 
-  void JumpForHeapNumber(Register object,
-                         Register heap_number_map,
-                         Label* on_heap_number,
-                         Label* on_not_heap_number = NULL);
-  void JumpIfHeapNumber(Register object,
-                        Label* on_heap_number,
-                        Register heap_number_map = NoReg);
-  void JumpIfNotHeapNumber(Register object,
-                           Label* on_not_heap_number,
-                           Register heap_number_map = NoReg);
+  void JumpIfHeapNumber(Register object, Label* on_heap_number,
+                        SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
+  void JumpIfNotHeapNumber(Register object, Label* on_not_heap_number,
+                           SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
 
   // Sets the vs flag if the input is -0.0.
   void TestForMinusZero(DoubleRegister input);
@@ -1448,9 +1443,11 @@ class MacroAssembler : public Assembler {
 
   // Compare an object's map with the specified map. Condition flags are set
   // with result of map compare.
-  void CompareMap(Register obj,
-                  Register scratch,
-                  Handle<Map> map);
+  void CompareObjectMap(Register obj, Heap::RootListIndex index);
+
+  // Compare an object's map with the specified map. Condition flags are set
+  // with result of map compare.
+  void CompareObjectMap(Register obj, Register scratch, Handle<Map> map);
 
   // As above, but the map of the object is already loaded into the register
   // which is preserved by the code generated.

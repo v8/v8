@@ -236,6 +236,7 @@ class LCodeGen: public LCodeGenBase {
                         LInstruction* instr, const char* detail = NULL);
   void DeoptimizeIfNotRoot(Register rt, Heap::RootListIndex index,
                            LInstruction* instr, const char* detail = NULL);
+  void DeoptimizeIfNotHeapNumber(Register object, LInstruction* instr);
   void DeoptimizeIfMinusZero(DoubleRegister input, LInstruction* instr,
                              const char* detail = NULL);
   void DeoptimizeIfBitSet(Register rt, int bit, LInstruction* instr,

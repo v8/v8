@@ -386,12 +386,12 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
   {
     int node_count = graph->NodeCount();
     if (node_count > UnallocatedOperand::kMaxVirtualRegisters) {
-      linkage->info()->set_bailout_reason(kNotEnoughVirtualRegistersForValues);
+      linkage->info()->AbortOptimization(kNotEnoughVirtualRegistersForValues);
       return Handle<Code>::null();
     }
     RegisterAllocator allocator(&sequence);
     if (!allocator.Allocate()) {
-      linkage->info()->set_bailout_reason(kNotEnoughVirtualRegistersRegalloc);
+      linkage->info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
       return Handle<Code>::null();
     }
   }

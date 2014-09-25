@@ -7,6 +7,7 @@
 
 #include "src/v8.h"
 
+#include "src/bailout-reason.h"
 #include "src/func-name-inferrer.h"
 #include "src/hashmap.h"
 #include "src/scanner.h"

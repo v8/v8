@@ -226,19 +226,25 @@ void LCodeGenBase::RegisterWeakObjectsInOptimizedCode(Handle<Code> code) {
 
 
 void LCodeGenBase::Abort(BailoutReason reason) {
-  info()->set_bailout_reason(reason);
+  info()->AbortOptimization(reason);
+  status_ = ABORTED;
+}
+
+
+void LCodeGenBase::Retry(BailoutReason reason) {
+  info()->RetryOptimization(reason);
   status_ = ABORTED;
 }
 
 
 void LCodeGenBase::AddDeprecationDependency(Handle<Map> map) {
-  if (map->is_deprecated()) return Abort(kMapBecameDeprecated);
+  if (map->is_deprecated()) return Retry(kMapBecameDeprecated);
   chunk_->AddDeprecationDependency(map);
 }
 
 
 void LCodeGenBase::AddStabilityDependency(Handle<Map> map) {
-  if (!map->is_stable()) return Abort(kMapBecameUnstable);
+  if (!map->is_stable()) return Retry(kMapBecameUnstable);
   chunk_->AddStabilityDependency(map);
 }
 

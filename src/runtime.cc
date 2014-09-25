@@ -11,6 +11,7 @@
 #include "src/allocation-site-scopes.h"
 #include "src/api.h"
 #include "src/arguments.h"
+#include "src/bailout-reason.h"
 #include "src/base/cpu.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"

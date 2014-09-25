@@ -757,10 +757,10 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
-var CallSiteReceiverKey = NEW_PRIVATE("CallSite#receiver");
-var CallSiteFunctionKey = NEW_PRIVATE("CallSite#function");
-var CallSitePositionKey = NEW_PRIVATE("CallSite#position");
-var CallSiteStrictModeKey = NEW_PRIVATE("CallSite#strict_mode");
+var CallSiteReceiverKey = NEW_PRIVATE_OWN("CallSite#receiver");
+var CallSiteFunctionKey = NEW_PRIVATE_OWN("CallSite#function");
+var CallSitePositionKey = NEW_PRIVATE_OWN("CallSite#position");
+var CallSiteStrictModeKey = NEW_PRIVATE_OWN("CallSite#strict_mode");
 
 function CallSite(receiver, fun, pos, strict_mode) {
   SET_PRIVATE(this, CallSiteReceiverKey, receiver);
@@ -1115,26 +1115,33 @@ function GetTypeName(receiver, requireConstructor) {
 
 
 var stack_trace_symbol;  // Set during bootstrapping.
-var formatted_stack_trace_symbol = NEW_PRIVATE("formatted stack trace");
+var formatted_stack_trace_symbol = NEW_PRIVATE_OWN("formatted stack trace");
 
 
 // Format the stack trace if not yet done, and return it.
 // Cache the formatted stack trace on the holder.
 var StackTraceGetter = function() {
-  var formatted_stack_trace = GET_PRIVATE(this, formatted_stack_trace_symbol);
-  if (IS_UNDEFINED(formatted_stack_trace)) {
-    var holder = this;
-    while (!HAS_PRIVATE(holder, stack_trace_symbol)) {
-      holder = %GetPrototype(holder);
-      if (!holder) return UNDEFINED;
+  var formatted_stack_trace = UNDEFINED;
+  var holder = this;
+  while (holder) {
+    var formatted_stack_trace =
+      GET_PRIVATE(holder, formatted_stack_trace_symbol);
+    if (IS_UNDEFINED(formatted_stack_trace)) {
+      // No formatted stack trace available.
+      var stack_trace = GET_PRIVATE(holder, stack_trace_symbol);
+      if (IS_UNDEFINED(stack_trace)) {
+        // Neither formatted nor structured stack trace available.
+        // Look further up the prototype chain.
+        holder = %GetPrototype(holder);
+        continue;
+      }
+      formatted_stack_trace = FormatStackTrace(holder, stack_trace);
+      SET_PRIVATE(holder, stack_trace_symbol, UNDEFINED);
+      SET_PRIVATE(holder, formatted_stack_trace_symbol, formatted_stack_trace);
     }
-    var stack_trace = GET_PRIVATE(holder, stack_trace_symbol);
-    if (IS_UNDEFINED(stack_trace)) return UNDEFINED;
-    formatted_stack_trace = FormatStackTrace(holder, stack_trace);
-    SET_PRIVATE(holder, stack_trace_symbol, UNDEFINED);
-    SET_PRIVATE(holder, formatted_stack_trace_symbol, formatted_stack_trace);
+    return formatted_stack_trace;
   }
-  return formatted_stack_trace;
+  return UNDEFINED;
 };
 
 

@@ -1128,6 +1128,12 @@ void LCodeGen::DeoptimizeIfMinusZero(DoubleRegister input, LInstruction* instr,
 }
 
 
+void LCodeGen::DeoptimizeIfNotHeapNumber(Register object, LInstruction* instr) {
+  __ CompareObjectMap(object, Heap::kHeapNumberMapRootIndex);
+  DeoptimizeIf(ne, instr, "not heap number");
+}
+
+
 void LCodeGen::DeoptimizeIfBitSet(Register rt, int bit, LInstruction* instr,
                                   const char* detail) {
   DeoptimizeBranch(instr, detail, reg_bit_set, rt, bit);
@@ -1377,11 +1383,11 @@ void LCodeGen::EmitBranchGeneric(InstrType instr,
     EmitGoto(left_block);
   } else if (left_block == next_block) {
     branch.EmitInverted(chunk_->GetAssemblyLabel(right_block));
-  } else if (right_block == next_block) {
-    branch.Emit(chunk_->GetAssemblyLabel(left_block));
   } else {
     branch.Emit(chunk_->GetAssemblyLabel(left_block));
-    __ B(chunk_->GetAssemblyLabel(right_block));
+    if (right_block != next_block) {
+      __ B(chunk_->GetAssemblyLabel(right_block));
+    }
   }
 }
 
@@ -2299,7 +2305,6 @@ void LCodeGen::DoClampIToUint8(LClampIToUint8* instr) {
 void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   Register input = ToRegister(instr->unclamped());
   Register result = ToRegister32(instr->result());
-  Register scratch = ToRegister(instr->temp1());
   Label done;
 
   // Both smi and heap number cases are handled.
@@ -2313,8 +2318,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // Check for heap number.
   Label is_heap_number;
-  __ Ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
-  __ JumpIfRoot(scratch, Heap::kHeapNumberMapRootIndex, &is_heap_number);
+  __ JumpIfHeapNumber(input, &is_heap_number);
 
   // Check for undefined. Undefined is coverted to zero for clamping conversion.
   DeoptimizeIfNotRoot(input, Heap::kUndefinedValueRootIndex, instr);
@@ -2324,7 +2328,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   // Heap number case.
   __ Bind(&is_heap_number);
   DoubleRegister dbl_scratch = double_scratch();
-  DoubleRegister dbl_scratch2 = ToDoubleRegister(instr->temp2());
+  DoubleRegister dbl_scratch2 = ToDoubleRegister(instr->temp1());
   __ Ldr(dbl_scratch, FieldMemOperand(input, HeapNumber::kValueOffset));
   __ ClampDoubleToUint8(result, dbl_scratch, dbl_scratch2);
 
@@ -2460,8 +2464,7 @@ void LCodeGen::DoCompareMinusZeroAndBranch(LCompareMinusZeroAndBranch* instr) {
                        instr->TrueLabel(chunk()));
   } else {
     Register value = ToRegister(instr->value());
-    __ CheckMap(value, scratch, Heap::kHeapNumberMapRootIndex,
-                instr->FalseLabel(chunk()), DO_SMI_CHECK);
+    __ JumpIfNotHeapNumber(value, instr->FalseLabel(chunk()), DO_SMI_CHECK);
     __ Ldr(scratch, FieldMemOperand(value, HeapNumber::kValueOffset));
     __ JumpIfMinusZero(scratch, instr->TrueLabel(chunk()));
   }
@@ -3756,8 +3759,7 @@ void LCodeGen::DoDeferredMathAbsTagged(LMathAbsTagged* instr,
   Label runtime_allocation;
 
   // Deoptimize if the input is not a HeapNumber.
-  __ Ldr(temp1, FieldMemOperand(input, HeapObject::kMapOffset));
-  DeoptimizeIfNotRoot(temp1, Heap::kHeapNumberMapRootIndex, instr);
+  DeoptimizeIfNotHeapNumber(input, instr);
 
   // If the argument is positive, we can return it as-is, without any need to
   // allocate a new HeapNumber for the result. We have to do this in integer
@@ -4091,9 +4093,7 @@ void LCodeGen::DoPower(LPower* instr) {
   } else if (exponent_type.IsTagged()) {
     Label no_deopt;
     __ JumpIfSmi(tagged_exponent, &no_deopt);
-    DCHECK(!x0.is(tagged_exponent));
-    __ Ldr(x0, FieldMemOperand(tagged_exponent, HeapObject::kMapOffset));
-    DeoptimizeIfNotRoot(x0, Heap::kHeapNumberMapRootIndex, instr);
+    DeoptimizeIfNotHeapNumber(tagged_exponent, instr);
     __ Bind(&no_deopt);
     MathPowStub stub(isolate(), MathPowStub::TAGGED);
     __ CallStub(&stub);
@@ -4660,12 +4660,10 @@ void LCodeGen::DoNumberUntagD(LNumberUntagD* instr) {
     Label convert_undefined;
 
     // Heap number map check.
-    __ Ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset));
     if (can_convert_undefined_to_nan) {
-      __ JumpIfNotRoot(scratch, Heap::kHeapNumberMapRootIndex,
-                       &convert_undefined);
+      __ JumpIfNotHeapNumber(input, &convert_undefined);
     } else {
-      DeoptimizeIfNotRoot(scratch, Heap::kHeapNumberMapRootIndex, instr);
+      DeoptimizeIfNotHeapNumber(input, instr);
     }
 
     // Load heap number.
@@ -5595,15 +5593,12 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
 
   Label done;
 
-  // Load heap object map.
-  __ Ldr(scratch1, FieldMemOperand(input, HeapObject::kMapOffset));
-
   if (instr->truncating()) {
     Register output = ToRegister(instr->result());
     Label check_bools;
 
     // If it's not a heap number, jump to undefined check.
-    __ JumpIfNotRoot(scratch1, Heap::kHeapNumberMapRootIndex, &check_bools);
+    __ JumpIfNotHeapNumber(input, &check_bools);
 
     // A heap number: load value and convert to int32 using truncating function.
     __ TruncateHeapNumberToI(output, input);
@@ -5626,8 +5621,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr,
     Register output = ToRegister32(instr->result());
     DoubleRegister dbl_scratch2 = ToDoubleRegister(temp2);
 
-    DeoptimizeIfNotRoot(scratch1, Heap::kHeapNumberMapRootIndex, instr,
-                        "not a heap number");
+    DeoptimizeIfNotHeapNumber(input, instr);
 
     // A heap number: load value and convert to int32 using non-truncating
     // function. If the result is out of range, branch to deoptimize.
@@ -5810,13 +5804,22 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
 
   Factory* factory = isolate()->factory();
   if (String::Equals(type_name, factory->number_string())) {
-    DCHECK(instr->temp1() != NULL);
-    Register map = ToRegister(instr->temp1());
-
     __ JumpIfSmi(value, true_label);
-    __ Ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));
-    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-    EmitBranch(instr, eq);
+
+    int true_block = instr->TrueDestination(chunk_);
+    int false_block = instr->FalseDestination(chunk_);
+    int next_block = GetNextEmittedBlock();
+
+    if (true_block == false_block) {
+      EmitGoto(true_block);
+    } else if (true_block == next_block) {
+      __ JumpIfNotHeapNumber(value, chunk_->GetAssemblyLabel(false_block));
+    } else {
+      __ JumpIfHeapNumber(value, chunk_->GetAssemblyLabel(true_block));
+      if (false_block != next_block) {
+        __ B(chunk_->GetAssemblyLabel(false_block));
+      }
+    }
 
   } else if (String::Equals(type_name, factory->string_string())) {
     DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));
