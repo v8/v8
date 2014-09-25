@@ -1807,12 +1807,12 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         StoreIC::Store(object, Handle<String>::cast(key), value,
                        JSReceiver::MAY_BE_STORE_FROM_KEYED),
         Object);
-    if (!is_target_set()) {
-      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
-                       "unhandled internalized string key");
-      TRACE_IC("StoreIC", key);
-      set_target(*stub);
-    }
+    // TODO(jkummerow): Ideally we'd wrap this in "if (!is_target_set())",
+    // but doing so causes Hydrogen crashes. Needs investigation.
+    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
+                     "unhandled internalized string key");
+    TRACE_IC("StoreIC", key);
+    set_target(*stub);
     return store_handle;
   }
 
