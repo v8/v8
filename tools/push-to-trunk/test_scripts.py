@@ -867,7 +867,7 @@ def get_list():
       Cmd("git fetch origin", ""),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "origin/master"), "push_hash\n"),
+           "origin/candidates"), "push_hash\n"),
       Cmd("git log -1 --format=%B push_hash", self.C_V8_22624_LOG),
       Cmd("git log -1 --format=%s push_hash",
           "Version 3.22.5 (based on bleeding_edge revision r22622)\n"),
@@ -1005,7 +1005,7 @@ deps = {
           ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "origin/master"), "push_hash\n"),
+           "origin/candidates"), "push_hash\n"),
       Cmd("git log -1 --format=%B push_hash", self.C_V8_22624_LOG),
       Cmd("git log -1 --format=%B abcd123455", self.C_V8_123455_LOG),
     ])
@@ -1026,7 +1026,7 @@ deps = {
           ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "origin/master"), "push_hash\n"),
+           "origin/candidates"), "push_hash\n"),
       Cmd("git log -1 --format=%B push_hash", self.C_V8_123456_LOG),
       Cmd("git log -1 --format=%B abcd123455", self.C_V8_123455_LOG),
     ])

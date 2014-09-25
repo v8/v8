@@ -43,7 +43,7 @@ class DetectLastPush(Step):
 
   def RunStep(self):
     push_hash = self.FindLastTrunkPush(
-        branch="origin/master", include_patches=True)
+        branch="origin/candidates", include_patches=True)
     self["last_push"] = self.GetCommitPositionNumber(push_hash)
 
 
