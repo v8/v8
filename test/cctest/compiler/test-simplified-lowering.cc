@@ -1523,38 +1523,3 @@ TEST(UpdatePhi) {
              RepresentationOf(OpParameter<MachineType>(phi)));
   }
 }
-
-
-// TODO(titzer): this tests current behavior of assuming an implicit
-// representation change in loading float32s. Fix when float32 is fully
-// supported.
-TEST(ImplicitFloat32ToFloat64InLoads) {
-  TestingGraph t(Type::Any());
-
-  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                        Handle<Name>::null(), Type::Any(), kMachFloat32};
-
-  Node* load =
-      t.graph()->NewNode(t.simplified()->LoadField(access), t.p0, t.start);
-  t.Return(load);
-  t.Lower();
-  CHECK_EQ(IrOpcode::kLoad, load->opcode());
-  CHECK_EQ(t.p0, load->InputAt(0));
-  CheckChangeOf(IrOpcode::kChangeFloat64ToTagged, load, t.ret->InputAt(0));
-}
-
-
-TEST(ImplicitFloat64ToFloat32InStores) {
-  TestingGraph t(Type::Any(), Type::Signed32());
-  FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                        Handle<Name>::null(), Type::Any(), kMachFloat32};
-
-  Node* store = t.graph()->NewNode(t.simplified()->StoreField(access), t.p0,
-                                   t.p1, t.start, t.start);
-  t.Effect(store);
-  t.Lower();
-
-  CHECK_EQ(IrOpcode::kStore, store->opcode());
-  CHECK_EQ(t.p0, store->InputAt(0));
-  CheckChangeOf(IrOpcode::kChangeTaggedToFloat64, t.p1, store->InputAt(2));
-}

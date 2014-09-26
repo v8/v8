@@ -38,7 +38,7 @@
 #include "src/property.h"
 #include "src/property-details.h"
 #include "src/prototype.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/runtime-profiler.h"
 #include "src/scanner-character-streams.h"
 #include "src/simulator.h"

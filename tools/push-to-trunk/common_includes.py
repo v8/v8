@@ -255,6 +255,98 @@ class NoRetryException(Exception):
   pass
 
 
+class VCInterface(object):
+  def InjectStep(self, step):
+    self.step=step
+
+  def Pull(self):
+    raise NotImplementedError()
+
+  def Fetch(self):
+    raise NotImplementedError()
+
+  def GetTags(self):
+    raise NotImplementedError()
+
+  def GetBranches(self):
+    raise NotImplementedError()
+
+  def GitSvn(self, hsh, branch=""):
+    raise NotImplementedError()
+
+  def SvnGit(self, rev, branch=""):
+    raise NotImplementedError()
+
+  def RemoteMasterBranch(self):
+    raise NotImplementedError()
+
+  def RemoteCandidateBranch(self):
+    raise NotImplementedError()
+
+  def RemoteBranch(self, name):
+    raise NotImplementedError()
+
+  def Land(self):
+    raise NotImplementedError()
+
+  def CLLand(self):
+    raise NotImplementedError()
+
+  # TODO(machenbach): There is some svn knowledge in this interface. In svn,
+  # tag and commit are different remote commands, while in git we would commit
+  # and tag locally and then push/land in one unique step.
+  def Tag(self, tag):
+    raise NotImplementedError()
+
+
+class GitSvnInterface(VCInterface):
+  def Pull(self):
+    self.step.GitSVNRebase()
+
+  def Fetch(self):
+    self.step.GitSVNFetch()
+
+  def GetTags(self):
+    # Get remote tags.
+    tags = filter(lambda s: re.match(r"^svn/tags/[\d+\.]+$", s),
+                  self.step.GitRemotes())
+
+    # Remove 'svn/tags/' prefix.
+    return map(lambda s: s[9:], tags)
+
+  def GetBranches(self):
+    # Get relevant remote branches, e.g. "svn/3.25".
+    branches = filter(lambda s: re.match(r"^svn/\d+\.\d+$", s),
+                      self.step.GitRemotes())
+    # Remove 'svn/' prefix.
+    return map(lambda s: s[4:], branches)
+
+  def GitSvn(self, hsh, branch=""):
+    return self.step.GitSVNFindSVNRev(hsh, branch)
+
+  def SvnGit(self, rev, branch=""):
+    return self.step.GitSVNFindGitHash(rev, branch)
+
+  def RemoteMasterBranch(self):
+    return "svn/bleeding_edge"
+
+  def RemoteCandidateBranch(self):
+    return "svn/trunk"
+
+  def RemoteBranch(self, name):
+    return "svn/%s" % name
+
+  def Land(self):
+    self.step.GitSVNDCommit()
+
+  def CLLand(self):
+    self.step.GitDCommit()
+
+  def Tag(self, tag):
+    self.step.GitSVNTag(tag)
+
+
+
 class Step(GitRecipesMixin):
   def __init__(self, text, number, config, state, options, handler):
     self._text = text
@@ -263,6 +355,8 @@ class Step(GitRecipesMixin):
     self._state = state
     self._options = options
     self._side_effect_handler = handler
+    self.vc = GitSvnInterface()
+    self.vc.InjectStep(self)
 
     # The testing configuration might set a different default cwd.
     self.default_cwd = self._config.get("DEFAULT_CWD") or DEFAULT_CWD
@@ -422,7 +516,7 @@ class Step(GitRecipesMixin):
     self["current_branch"] = self.GitCurrentBranch()
 
     # Fetch unfetched revisions.
-    self.GitSVNFetch()
+    self.vc.Fetch()
 
   def PrepareBranch(self):
     # Delete the branch that will be created later if it exists already.
@@ -493,7 +587,7 @@ class Step(GitRecipesMixin):
       # Non-patched versions only have three numbers followed by the "(based
       # on...) comment."
       push_pattern += " (based"
-    branch = "" if parent_hash else branch or "svn/trunk"
+    branch = "" if parent_hash else branch or self.vc.RemoteCandidateBranch()
     return self.GitLog(n=1, format="%H", grep=push_pattern,
                        parent_hash=parent_hash, branch=branch)
 
@@ -546,7 +640,8 @@ class UploadStep(Step):
       self.DieNoManualMode("A reviewer must be specified in forced mode.")
       reviewer = self.ReadLine()
     self.GitUpload(reviewer, self._options.author, self._options.force_upload,
-                   bypass_hooks=self._options.bypass_upload_hooks)
+                   bypass_hooks=self._options.bypass_upload_hooks,
+                   cc=self._options.cc)
 
 
 class DetermineV8Sheriff(Step):
@@ -600,7 +695,6 @@ def MakeStep(step_class=Step, number=0, state=None, config=None,
 
 
 class ScriptsBase(object):
-  # TODO(machenbach): Move static config here.
   def __init__(self,
                config=None,
                side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER,

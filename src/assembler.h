@@ -41,7 +41,7 @@
 #include "src/builtins.h"
 #include "src/gdb-jit.h"
 #include "src/isolate.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/token.h"
 
 namespace v8 {

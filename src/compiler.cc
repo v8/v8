@@ -323,7 +323,6 @@ class HOptimizedGraphBuilderWithPositions: public HOptimizedGraphBuilder {
 
 
 OptimizedCompileJob::Status OptimizedCompileJob::CreateGraph() {
-  DCHECK(isolate()->use_crankshaft());
   DCHECK(info()->IsOptimizing());
   DCHECK(!info()->IsCompilingForDebugging());
 

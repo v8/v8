@@ -84,6 +84,9 @@ class InstructionSelector FINAL {
     return Features(CpuFeatures::SupportedFeatures());
   }
 
+  // Checks if {node} is currently live.
+  bool IsLive(Node* node) const { return !IsDefined(node) && IsUsed(node); }
+
  private:
   friend class OperandGenerator;
 

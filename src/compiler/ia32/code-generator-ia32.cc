@@ -59,6 +59,9 @@ class IA32OperandConverter : public InstructionOperandConverter {
     switch (constant.type()) {
       case Constant::kInt32:
         return Immediate(constant.ToInt32());
+      case Constant::kFloat32:
+        return Immediate(
+            isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED));
       case Constant::kFloat64:
         return Immediate(
             isolate()->factory()->NewNumber(constant.ToFloat64(), TENURED));
@@ -288,6 +291,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kSSEFloat64Sqrt:
       __ sqrtsd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
+    case kSSECvtss2sd:
+      __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    case kSSECvtsd2ss:
+      __ cvtsd2ss(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kSSEFloat64ToInt32:
       __ cvttsd2si(i.OutputRegister(), i.InputOperand(0));
       break;
@@ -363,12 +372,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kIA32Movss:
       if (instr->HasOutput()) {
         __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
-        __ cvtss2sd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       } else {
         int index = 0;
         Operand operand = i.MemoryOperand(&index);
-        __ cvtsd2ss(xmm0, i.InputDoubleRegister(index));
-        __ movss(operand, xmm0);
+        __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
     case kIA32Push:
@@ -835,8 +842,22 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (destination->IsStackSlot()) {
       Operand dst = g.ToOperand(destination);
       __ mov(dst, g.ToImmediate(source));
+    } else if (src_constant.type() == Constant::kFloat32) {
+      // TODO(turbofan): Can we do better here?
+      Immediate src(bit_cast<int32_t>(src_constant.ToFloat32()));
+      if (destination->IsDoubleRegister()) {
+        XMMRegister dst = g.ToDoubleRegister(destination);
+        __ push(Immediate(src));
+        __ movss(dst, Operand(esp, 0));
+        __ add(esp, Immediate(kDoubleSize / 2));
+      } else {
+        DCHECK(destination->IsDoubleStackSlot());
+        Operand dst = g.ToOperand(destination);
+        __ mov(dst, src);
+      }
     } else {
-      double v = g.ToDouble(source);
+      DCHECK_EQ(Constant::kFloat64, src_constant.type());
+      double v = src_constant.ToFloat64();
       uint64_t int_val = bit_cast<uint64_t, double>(v);
       int32_t lower = static_cast<int32_t>(int_val);
       int32_t upper = static_cast<int32_t>(int_val >> kBitsPerInt);

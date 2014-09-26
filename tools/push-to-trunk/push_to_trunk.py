@@ -56,7 +56,8 @@ class FreshBranch(Step):
   MESSAGE = "Create a fresh branch."
 
   def RunStep(self):
-    self.GitCreateBranch(self.Config("BRANCHNAME"), "svn/bleeding_edge")
+    self.GitCreateBranch(self.Config("BRANCHNAME"),
+                         self.vc.RemoteMasterBranch())
 
 
 class PreparePushRevision(Step):
@@ -64,7 +65,7 @@ class PreparePushRevision(Step):
 
   def RunStep(self):
     if self._options.revision:
-      self["push_hash"] = self.GitSVNFindGitHash(self._options.revision)
+      self["push_hash"] = self.vc.SvnGit(self._options.revision)
     else:
       self["push_hash"] = self.GitLog(n=1, format="%H", git_hash="HEAD")
     if not self["push_hash"]:  # pragma: no cover
@@ -95,7 +96,7 @@ class DetectLastPush(Step):
       if not last_push_be_svn:  # pragma: no cover
         self.Die("Could not retrieve bleeding edge revision for trunk push %s"
                  % last_push)
-      last_push_bleeding_edge = self.GitSVNFindGitHash(last_push_be_svn)
+      last_push_bleeding_edge = self.vc.SvnGit(last_push_be_svn)
       if not last_push_bleeding_edge:  # pragma: no cover
         self.Die("Could not retrieve bleeding edge git hash for trunk push %s"
                  % last_push)
@@ -116,7 +117,7 @@ class GetCurrentBleedingEdgeVersion(Step):
   MESSAGE = "Get latest bleeding edge version."
 
   def RunStep(self):
-    self.GitCheckoutFile(VERSION_FILE, "svn/bleeding_edge")
+    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteMasterBranch())
 
     # Store latest version.
     self.ReadAndPersistVersion("latest_")
@@ -140,7 +141,7 @@ class IncrementVersion(Step):
 
     if SortingKey(self["trunk_version"]) < SortingKey(self["latest_version"]):
       # If the version on bleeding_edge is newer than on trunk, use it.
-      self.GitCheckoutFile(VERSION_FILE, "svn/bleeding_edge")
+      self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteMasterBranch())
       self.ReadAndPersistVersion()
 
     if self.Confirm(("Automatically increment BUILD_NUMBER? (Saying 'n' will "
@@ -249,8 +250,8 @@ class StragglerCommits(Step):
              "started.")
 
   def RunStep(self):
-    self.GitSVNFetch()
-    self.GitCheckout("svn/bleeding_edge")
+    self.vc.Fetch()
+    self.GitCheckout(self.vc.RemoteMasterBranch())
 
 
 class SquashCommits(Step):
@@ -259,7 +260,8 @@ class SquashCommits(Step):
   def RunStep(self):
     # Instead of relying on "git rebase -i", we'll just create a diff, because
     # that's easier to automate.
-    TextToFile(self.GitDiff("svn/trunk", self["push_hash"]),
+    TextToFile(self.GitDiff(self.vc.RemoteCandidateBranch(),
+                            self["push_hash"]),
                self.Config("PATCH_FILE"))
 
     # Convert the ChangeLog entry to commit message format.
@@ -270,7 +272,7 @@ class SquashCommits(Step):
 
     # Retrieve svn revision for showing the used bleeding edge revision in the
     # commit message.
-    self["svn_revision"] = self.GitSVNFindSVNRev(self["push_hash"])
+    self["svn_revision"] = self.vc.GitSvn(self["push_hash"])
     suffix = PUSH_MESSAGE_SUFFIX % int(self["svn_revision"])
     text = MSub(r"^(Version \d+\.\d+\.\d+)$", "\\1%s" % suffix, text)
 
@@ -290,7 +292,8 @@ class NewBranch(Step):
   MESSAGE = "Create a new branch from trunk."
 
   def RunStep(self):
-    self.GitCreateBranch(self.Config("TRUNKBRANCH"), "svn/trunk")
+    self.GitCreateBranch(self.Config("TRUNKBRANCH"),
+                         self.vc.RemoteCandidateBranch())
 
 
 class ApplyChanges(Step):
@@ -308,7 +311,8 @@ class AddChangeLog(Step):
     # The change log has been modified by the patch. Reset it to the version
     # on trunk and apply the exact changes determined by this PrepareChangeLog
     # step above.
-    self.GitCheckoutFile(self.Config("CHANGELOG_FILE"), "svn/trunk")
+    self.GitCheckoutFile(self.Config("CHANGELOG_FILE"),
+                         self.vc.RemoteCandidateBranch())
     changelog_entry = FileToText(self.Config("CHANGELOG_ENTRY_FILE"))
     old_change_log = FileToText(self.Config("CHANGELOG_FILE"))
     new_change_log = "%s\n\n\n%s" % (changelog_entry, old_change_log)
@@ -322,7 +326,7 @@ class SetVersion(Step):
   def RunStep(self):
     # The version file has been modified by the patch. Reset it to the version
     # on trunk and apply the correct version.
-    self.GitCheckoutFile(VERSION_FILE, "svn/trunk")
+    self.GitCheckoutFile(VERSION_FILE, self.vc.RemoteCandidateBranch())
     self.SetVersion(os.path.join(self.default_cwd, VERSION_FILE), "new_")
 
 
@@ -350,31 +354,14 @@ class CommitSVN(Step):
   MESSAGE = "Commit to SVN."
 
   def RunStep(self):
-    result = self.GitSVNDCommit()
-    if not result:  # pragma: no cover
-      self.Die("'git svn dcommit' failed.")
-    result = filter(lambda x: re.search(r"^Committed r[0-9]+", x),
-                    result.splitlines())
-    if len(result) > 0:
-      self["trunk_revision"] = re.sub(r"^Committed r([0-9]+)", r"\1",result[0])
-
-    # Sometimes grepping for the revision fails. No idea why. If you figure
-    # out why it is flaky, please do fix it properly.
-    if not self["trunk_revision"]:
-      print("Sorry, grepping for the SVN revision failed. Please look for it "
-            "in the last command's output above and provide it manually (just "
-            "the number, without the leading \"r\").")
-      self.DieNoManualMode("Can't prompt in forced mode.")
-      while not self["trunk_revision"]:
-        print "> ",
-        self["trunk_revision"] = self.ReadLine()
+    result = self.vc.Land()
 
 
 class TagRevision(Step):
   MESSAGE = "Tag the new revision."
 
   def RunStep(self):
-    self.GitSVNTag(self["version"])
+    self.vc.Tag(self["version"])
 
 
 class CleanUp(Step):
@@ -382,10 +369,8 @@ class CleanUp(Step):
 
   def RunStep(self):
     print("Congratulations, you have successfully created the trunk "
-          "revision %s. Please don't forget to roll this new version into "
-          "Chromium, and to update the v8rel spreadsheet:"
+          "revision %s."
           % self["version"])
-    print "%s\ttrunk\t%s" % (self["version"], self["trunk_revision"])
 
     self.CommonCleanup()
     if self.Config("TRUNKBRANCH") != self["current_branch"]:

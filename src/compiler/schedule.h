@@ -155,7 +155,7 @@ typedef BasicBlockVector::reverse_iterator BasicBlockVectorRIter;
 // by the graph's dependencies. A schedule is required to generate code.
 class Schedule : public GenericGraph<BasicBlock> {
  public:
-  explicit Schedule(Zone* zone)
+  explicit Schedule(Zone* zone, size_t node_count_hint = 0)
       : GenericGraph<BasicBlock>(zone),
         zone_(zone),
         all_blocks_(zone),
@@ -163,6 +163,7 @@ class Schedule : public GenericGraph<BasicBlock> {
         rpo_order_(zone) {
     SetStart(NewBasicBlock());  // entry.
     SetEnd(NewBasicBlock());    // exit.
+    nodeid_to_block_.reserve(node_count_hint);
   }
 
   // Return the block which contains {node}, if any.

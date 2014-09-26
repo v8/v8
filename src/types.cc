@@ -80,7 +80,7 @@ double TypeImpl<Config>::Min() {
   if (this->IsBitset()) return BitsetType::Min(this->AsBitset());
   if (this->IsUnion()) {
     double min = +V8_INFINITY;
-    for (int i = 0; i < this->AsUnion()->Length(); ++i) {
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
       min = std::min(min, this->AsUnion()->Get(i)->Min());
     }
     return min;
@@ -98,7 +98,7 @@ double TypeImpl<Config>::Max() {
   if (this->IsBitset()) return BitsetType::Max(this->AsBitset());
   if (this->IsUnion()) {
     double max = -V8_INFINITY;
-    for (int i = 0; i < this->AsUnion()->Length(); ++i) {
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
       max = std::max(max, this->AsUnion()->Get(i)->Max());
     }
     return max;
@@ -139,7 +139,7 @@ TypeImpl<Config>::BitsetType::Lub(TypeImpl* type) {
   if (type->IsBitset()) return type->AsBitset();
   if (type->IsUnion()) {
     int bitset = kNone;
-    for (int i = 0; i < type->AsUnion()->Length(); ++i) {
+    for (int i = 0, n = type->AsUnion()->Length(); i < n; ++i) {
       bitset |= type->AsUnion()->Get(i)->BitsetLub();
     }
     return bitset;
@@ -419,7 +419,7 @@ bool TypeImpl<Config>::SimplyEquals(TypeImpl* that) {
         !this_fun->Receiver()->Equals(that_fun->Receiver())) {
       return false;
     }
-    for (int i = 0; i < this_fun->Arity(); ++i) {
+    for (int i = 0, n = this_fun->Arity(); i < n; ++i) {
       if (!this_fun->Parameter(i)->Equals(that_fun->Parameter(i))) return false;
     }
     return true;
@@ -443,16 +443,15 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
 
   // (T1 \/ ... \/ Tn) <= T  if  (T1 <= T) /\ ... /\ (Tn <= T)
   if (this->IsUnion()) {
-    UnionHandle unioned = handle(this->AsUnion());
-    for (int i = 0; i < unioned->Length(); ++i) {
-      if (!unioned->Get(i)->Is(that)) return false;
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      if (!this->AsUnion()->Get(i)->Is(that)) return false;
     }
     return true;
   }
 
   // T <= (T1 \/ ... \/ Tn)  if  (T <= T1) \/ ... \/ (T <= Tn)
   if (that->IsUnion()) {
-    for (int i = 0; i < that->AsUnion()->Length(); ++i) {
+    for (int i = 0, n = that->AsUnion()->Length(); i < n; ++i) {
       if (this->Is(that->AsUnion()->Get(i))) return true;
       if (i > 1 && this->IsRange()) return false;  // Shortcut.
     }
@@ -507,16 +506,15 @@ bool TypeImpl<Config>::Maybe(TypeImpl* that) {
 
   // (T1 \/ ... \/ Tn) overlaps T  if  (T1 overlaps T) \/ ... \/ (Tn overlaps T)
   if (this->IsUnion()) {
-    UnionHandle unioned = handle(this->AsUnion());
-    for (int i = 0; i < unioned->Length(); ++i) {
-      if (unioned->Get(i)->Maybe(that)) return true;
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      if (this->AsUnion()->Get(i)->Maybe(that)) return true;
     }
     return false;
   }
 
   // T overlaps (T1 \/ ... \/ Tn)  if  (T overlaps T1) \/ ... \/ (T overlaps Tn)
   if (that->IsUnion()) {
-    for (int i = 0; i < that->AsUnion()->Length(); ++i) {
+    for (int i = 0, n = that->AsUnion()->Length(); i < n; ++i) {
       if (this->Maybe(that->AsUnion()->Get(i))) return true;
     }
     return false;
@@ -683,13 +681,13 @@ int TypeImpl<Config>::IntersectAux(
     TypeHandle lhs, TypeHandle rhs,
     UnionHandle result, int size, Region* region) {
   if (lhs->IsUnion()) {
-    for (int i = 0; i < lhs->AsUnion()->Length(); ++i) {
+    for (int i = 0, n = lhs->AsUnion()->Length(); i < n; ++i) {
       size = IntersectAux(lhs->AsUnion()->Get(i), rhs, result, size, region);
     }
     return size;
   }
   if (rhs->IsUnion()) {
-    for (int i = 0; i < rhs->AsUnion()->Length(); ++i) {
+    for (int i = 0, n = rhs->AsUnion()->Length(); i < n; ++i) {
       size = IntersectAux(lhs, rhs->AsUnion()->Get(i), result, size, region);
     }
     return size;
@@ -793,7 +791,7 @@ int TypeImpl<Config>::AddToUnion(
     TypeHandle type, UnionHandle result, int size, Region* region) {
   if (type->IsBitset() || type->IsRange()) return size;
   if (type->IsUnion()) {
-    for (int i = 0; i < type->AsUnion()->Length(); ++i) {
+    for (int i = 0, n = type->AsUnion()->Length(); i < n; ++i) {
       size = AddToUnion(type->AsUnion()->Get(i), result, size, region);
     }
     return size;
@@ -834,10 +832,9 @@ int TypeImpl<Config>::NumClasses() {
   if (this->IsClass()) {
     return 1;
   } else if (this->IsUnion()) {
-    UnionHandle unioned = handle(this->AsUnion());
     int result = 0;
-    for (int i = 0; i < unioned->Length(); ++i) {
-      if (unioned->Get(i)->IsClass()) ++result;
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      if (this->AsUnion()->Get(i)->IsClass()) ++result;
     }
     return result;
   } else {
@@ -852,10 +849,9 @@ int TypeImpl<Config>::NumConstants() {
   if (this->IsConstant()) {
     return 1;
   } else if (this->IsUnion()) {
-    UnionHandle unioned = handle(this->AsUnion());
     int result = 0;
-    for (int i = 0; i < unioned->Length(); ++i) {
-      if (unioned->Get(i)->IsConstant()) ++result;
+    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+      if (this->AsUnion()->Get(i)->IsConstant()) ++result;
     }
     return result;
   } else {
@@ -917,9 +913,8 @@ void TypeImpl<Config>::Iterator<T>::Advance() {
   DisallowHeapAllocation no_allocation;
   ++index_;
   if (type_->IsUnion()) {
-    UnionHandle unioned = Config::template cast<UnionType>(type_);
-    for (; index_ < unioned->Length(); ++index_) {
-      if (matches(unioned->Get(index_))) return;
+    for (int n = type_->AsUnion()->Length(); index_ < n; ++index_) {
+      if (matches(type_->AsUnion()->Get(index_))) return;
     }
   } else if (index_ == 0 && matches(type_)) {
     return;
@@ -1046,8 +1041,7 @@ void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
       BitsetType::New(BitsetType::Lub(this))->PrintTo(os, dim);
       os << ")";
     } else if (this->IsConstant()) {
-      os << "Constant(" << static_cast<void*>(*this->AsConstant()->Value())
-         << ")";
+      os << "Constant(" << Brief(*this->AsConstant()->Value()) << ")";
     } else if (this->IsRange()) {
       os << "Range(" << this->AsRange()->Min()->Number()
          << ", " << this->AsRange()->Max()->Number() << ")";
@@ -1057,9 +1051,8 @@ void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
       os << ")";
     } else if (this->IsUnion()) {
       os << "(";
-      UnionHandle unioned = handle(this->AsUnion());
-      for (int i = 0; i < unioned->Length(); ++i) {
-        TypeHandle type_i = unioned->Get(i);
+      for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+        TypeHandle type_i = this->AsUnion()->Get(i);
         if (i > 0) os << " | ";
         type_i->PrintTo(os, dim);
       }

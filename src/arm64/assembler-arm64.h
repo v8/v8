@@ -276,6 +276,11 @@ struct FPRegister : public CPURegister {
       (kAllocatableHighRangeEnd - kAllocatableHighRangeBegin + 1);
   static int NumAllocatableRegisters() { return kMaxNumAllocatableRegisters; }
 
+  // TODO(turbofan): Proper float32 support.
+  static int NumAllocatableAliasedRegisters() {
+    return NumAllocatableRegisters();
+  }
+
   // Return true if the register is one that crankshaft can allocate.
   bool IsAllocatable() const {
     return (Bit() & kAllocatableFPRegisters) != 0;

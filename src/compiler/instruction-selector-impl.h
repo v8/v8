@@ -146,8 +146,10 @@ class OperandGenerator {
         return Constant(OpParameter<int32_t>(node));
       case IrOpcode::kInt64Constant:
         return Constant(OpParameter<int64_t>(node));
-      case IrOpcode::kNumberConstant:
+      case IrOpcode::kFloat32Constant:
+        return Constant(OpParameter<float>(node));
       case IrOpcode::kFloat64Constant:
+      case IrOpcode::kNumberConstant:
         return Constant(OpParameter<double>(node));
       case IrOpcode::kExternalConstant:
         return Constant(OpParameter<ExternalReference>(node));

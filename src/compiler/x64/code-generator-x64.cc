@@ -75,6 +75,11 @@ class X64OperandConverter : public InstructionOperandConverter {
       case Constant::kInt64:
         immediate.value = constant.ToInt64();
         return immediate;
+      case Constant::kFloat32:
+        immediate.type = kImm64Handle;
+        immediate.handle =
+            isolate()->factory()->NewNumber(constant.ToFloat32(), TENURED);
+        return immediate;
       case Constant::kFloat64:
         immediate.type = kImm64Handle;
         immediate.handle =
@@ -99,6 +104,7 @@ class X64OperandConverter : public InstructionOperandConverter {
       case Constant::kInt32:
         return Immediate(constant.ToInt32());
       case Constant::kInt64:
+      case Constant::kFloat32:
       case Constant::kFloat64:
       case Constant::kExternalReference:
       case Constant::kHeapObject:
@@ -277,8 +283,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         if (input.type == kRegister) {
           __ imull(i.OutputRegister(), input.reg, i.InputImmediate(1));
         } else {
-          __ movq(kScratchRegister, input.operand);
-          __ imull(i.OutputRegister(), kScratchRegister, i.InputImmediate(1));
+          __ imull(i.OutputRegister(), input.operand, i.InputImmediate(1));
         }
       } else {
         RegisterOrOperand input = i.InputRegisterOrOperand(1);
@@ -295,8 +300,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         if (input.type == kRegister) {
           __ imulq(i.OutputRegister(), input.reg, i.InputImmediate(1));
         } else {
-          __ movq(kScratchRegister, input.operand);
-          __ imulq(i.OutputRegister(), kScratchRegister, i.InputImmediate(1));
+          __ imulq(i.OutputRegister(), input.operand, i.InputImmediate(1));
         }
       } else {
         RegisterOrOperand input = i.InputRegisterOrOperand(1);
@@ -456,6 +460,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     }
+    case kSSECvtss2sd:
+      __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
+    case kSSECvtsd2ss:
+      __ cvtsd2ss(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      break;
     case kSSEFloat64ToInt32: {
       RegisterOrOperand input = i.InputRegisterOrOperand(0);
       if (input.type == kDoubleRegister) {
@@ -570,12 +580,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64Movss:
       if (instr->HasOutput()) {
         __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
-        __ cvtss2sd(i.OutputDoubleRegister(), i.OutputDoubleRegister());
       } else {
         int index = 0;
         Operand operand = i.MemoryOperand(&index);
-        __ cvtsd2ss(xmm0, i.InputDoubleRegister(index));
-        __ movss(operand, xmm0);
+        __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
     case kX64Movsd:
@@ -899,6 +907,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     }
   } else if (source->IsConstant()) {
     ConstantOperand* constant_source = ConstantOperand::cast(source);
+    Constant src = g.ToConstant(constant_source);
     if (destination->IsRegister() || destination->IsStackSlot()) {
       Register dst = destination->IsRegister() ? g.ToRegister(destination)
                                                : kScratchRegister;
@@ -917,9 +926,20 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       if (destination->IsStackSlot()) {
         __ movq(g.ToOperand(destination), kScratchRegister);
       }
+    } else if (src.type() == Constant::kFloat32) {
+      // TODO(turbofan): Can we do better here?
+      __ movl(kScratchRegister, Immediate(bit_cast<int32_t>(src.ToFloat32())));
+      if (destination->IsDoubleRegister()) {
+        XMMRegister dst = g.ToDoubleRegister(destination);
+        __ movq(dst, kScratchRegister);
+      } else {
+        DCHECK(destination->IsDoubleStackSlot());
+        Operand dst = g.ToOperand(destination);
+        __ movl(dst, kScratchRegister);
+      }
     } else {
-      __ movq(kScratchRegister,
-              bit_cast<uint64_t, double>(g.ToDouble(constant_source)));
+      DCHECK_EQ(Constant::kFloat64, src.type());
+      __ movq(kScratchRegister, bit_cast<int64_t>(src.ToFloat64()));
       if (destination->IsDoubleRegister()) {
         __ movq(g.ToDoubleRegister(destination), kScratchRegister);
       } else {

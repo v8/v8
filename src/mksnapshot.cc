@@ -84,10 +84,10 @@ class SnapshotWriter {
     i::List<i::byte> startup_blob;
     i::ListSnapshotSink sink(&startup_blob);
 
-    int spaces[] = {
-        i::NEW_SPACE, i::OLD_POINTER_SPACE, i::OLD_DATA_SPACE, i::CODE_SPACE,
-        i::MAP_SPACE, i::CELL_SPACE,  i::PROPERTY_CELL_SPACE
-    };
+    int spaces[] = {i::NEW_SPACE,           i::OLD_POINTER_SPACE,
+                    i::OLD_DATA_SPACE,      i::CODE_SPACE,
+                    i::MAP_SPACE,           i::CELL_SPACE,
+                    i::PROPERTY_CELL_SPACE, i::LO_SPACE};
 
     i::byte* snapshot_bytes = snapshot_data.begin();
     sink.PutBlob(snapshot_bytes, snapshot_data.length(), "snapshot");
@@ -197,6 +197,7 @@ class SnapshotWriter {
     WriteSizeVar(ser, prefix, "map", i::MAP_SPACE);
     WriteSizeVar(ser, prefix, "cell", i::CELL_SPACE);
     WriteSizeVar(ser, prefix, "property_cell", i::PROPERTY_CELL_SPACE);
+    WriteSizeVar(ser, prefix, "lo", i::LO_SPACE);
     fprintf(fp_, "\n");
   }
 

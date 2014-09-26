@@ -58,8 +58,8 @@ static const MachInst2 kLogicalInstructions[] = {
     {&RawMachineAssembler::Word64And, "Word64And", kArm64And, kMachInt64},
     {&RawMachineAssembler::Word32Or, "Word32Or", kArm64Or32, kMachInt32},
     {&RawMachineAssembler::Word64Or, "Word64Or", kArm64Or, kMachInt64},
-    {&RawMachineAssembler::Word32Xor, "Word32Xor", kArm64Xor32, kMachInt32},
-    {&RawMachineAssembler::Word64Xor, "Word64Xor", kArm64Xor, kMachInt64}};
+    {&RawMachineAssembler::Word32Xor, "Word32Xor", kArm64Eor32, kMachInt32},
+    {&RawMachineAssembler::Word64Xor, "Word64Xor", kArm64Eor, kMachInt64}};
 
 
 // ARM64 logical immediates: contiguous set bits, rotated about a power of two
@@ -197,6 +197,12 @@ std::ostream& operator<<(std::ostream& os, const Conversion& conv) {
 
 // ARM64 type conversion instructions.
 static const Conversion kConversionInstructions[] = {
+    {{&RawMachineAssembler::ChangeFloat32ToFloat64, "ChangeFloat32ToFloat64",
+      kArm64Float32ToFloat64, kMachFloat64},
+     kMachFloat32},
+    {{&RawMachineAssembler::TruncateFloat64ToFloat32,
+      "TruncateFloat64ToFloat32", kArm64Float64ToFloat32, kMachFloat32},
+     kMachFloat64},
     {{&RawMachineAssembler::ChangeInt32ToInt64, "ChangeInt32ToInt64",
       kArm64Sxtw, kMachInt64},
      kMachInt32},
@@ -1043,7 +1049,7 @@ TEST_P(InstructionSelectorComparisonTest, WithImmediate) {
     // Compare with 0 are turned into tst instruction.
     if (imm == 0) continue;
     StreamBuilder m(this, type, type);
-    m.Return((m.*cmp.constructor)(m.Parameter(0), BuildConstant(m, type, imm)));
+    m.Return((m.*cmp.constructor)(BuildConstant(m, type, imm), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
     EXPECT_EQ(cmp.arch_opcode, s[0]->arch_opcode());
@@ -1113,6 +1119,166 @@ TEST_F(InstructionSelectorTest, Word64EqualWithZero) {
     EXPECT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(kEqual, s[0]->flags_condition());
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Miscellaneous
+
+
+static const MachInst2 kLogicalWithNotRHSs[] = {
+    {&RawMachineAssembler::Word32And, "Word32And", kArm64Bic32, kMachInt32},
+    {&RawMachineAssembler::Word64And, "Word64And", kArm64Bic, kMachInt64},
+    {&RawMachineAssembler::Word32Or, "Word32Or", kArm64Orn32, kMachInt32},
+    {&RawMachineAssembler::Word64Or, "Word64Or", kArm64Orn, kMachInt64},
+    {&RawMachineAssembler::Word32Xor, "Word32Xor", kArm64Eon32, kMachInt32},
+    {&RawMachineAssembler::Word64Xor, "Word64Xor", kArm64Eon, kMachInt64}};
+
+
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorLogicalWithNotRHSTest;
+
+
+TEST_P(InstructionSelectorLogicalWithNotRHSTest, Parameter) {
+  const MachInst2 inst = GetParam();
+  const MachineType type = inst.machine_type;
+  // Test cases where RHS is Xor(x, -1).
+  {
+    StreamBuilder m(this, type, type, type);
+    if (type == kMachInt32) {
+      m.Return((m.*inst.constructor)(
+          m.Parameter(0), m.Word32Xor(m.Parameter(1), m.Int32Constant(-1))));
+    } else {
+      ASSERT_EQ(kMachInt64, type);
+      m.Return((m.*inst.constructor)(
+          m.Parameter(0), m.Word64Xor(m.Parameter(1), m.Int64Constant(-1))));
+    }
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(inst.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, type, type, type);
+    if (type == kMachInt32) {
+      m.Return((m.*inst.constructor)(
+          m.Word32Xor(m.Parameter(0), m.Int32Constant(-1)), m.Parameter(1)));
+    } else {
+      ASSERT_EQ(kMachInt64, type);
+      m.Return((m.*inst.constructor)(
+          m.Word64Xor(m.Parameter(0), m.Int64Constant(-1)), m.Parameter(1)));
+    }
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(inst.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // Test cases where RHS is Not(x).
+  {
+    StreamBuilder m(this, type, type, type);
+    if (type == kMachInt32) {
+      m.Return(
+          (m.*inst.constructor)(m.Parameter(0), m.Word32Not(m.Parameter(1))));
+    } else {
+      ASSERT_EQ(kMachInt64, type);
+      m.Return(
+          (m.*inst.constructor)(m.Parameter(0), m.Word64Not(m.Parameter(1))));
+    }
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(inst.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, type, type, type);
+    if (type == kMachInt32) {
+      m.Return(
+          (m.*inst.constructor)(m.Word32Not(m.Parameter(0)), m.Parameter(1)));
+    } else {
+      ASSERT_EQ(kMachInt64, type);
+      m.Return(
+          (m.*inst.constructor)(m.Word64Not(m.Parameter(0)), m.Parameter(1)));
+    }
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(inst.arch_opcode, s[0]->arch_opcode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorLogicalWithNotRHSTest,
+                        ::testing::ValuesIn(kLogicalWithNotRHSs));
+
+
+TEST_F(InstructionSelectorTest, Word32NotWithParameter) {
+  StreamBuilder m(this, kMachInt32, kMachInt32);
+  m.Return(m.Word32Not(m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Not32, s[0]->arch_opcode());
+  EXPECT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+
+TEST_F(InstructionSelectorTest, Word64NotWithParameter) {
+  StreamBuilder m(this, kMachInt64, kMachInt64);
+  m.Return(m.Word64Not(m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kArm64Not, s[0]->arch_opcode());
+  EXPECT_EQ(1U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+
+TEST_F(InstructionSelectorTest, Word32XorMinusOneWithParameter) {
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Word32Xor(m.Parameter(0), m.Int32Constant(-1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Not32, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    m.Return(m.Word32Xor(m.Int32Constant(-1), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Not32, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word64XorMinusOneWithParameter) {
+  {
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    m.Return(m.Word64Xor(m.Parameter(0), m.Int64Constant(-1)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Not, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  {
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    m.Return(m.Word64Xor(m.Int64Constant(-1), m.Parameter(0)));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kArm64Not, s[0]->arch_opcode());
+    EXPECT_EQ(1U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
   }
 }
 

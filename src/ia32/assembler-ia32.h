@@ -148,6 +148,11 @@ struct XMMRegister {
     return kMaxNumAllocatableRegisters;
   }
 
+  // TODO(turbofan): Proper support for float32.
+  static int NumAllocatableAliasedRegisters() {
+    return NumAllocatableRegisters();
+  }
+
   static int ToAllocationIndex(XMMRegister reg) {
     DCHECK(reg.code() != 0);
     return reg.code() - 1;
@@ -1038,9 +1043,6 @@ class Assembler : public AssemblerBase {
   // non-temporal
   void prefetch(const Operand& src, int level);
   // TODO(lrn): Need SFENCE for movnt?
-
-  // Debugging
-  void Print();
 
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {

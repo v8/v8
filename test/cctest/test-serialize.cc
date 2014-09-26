@@ -37,7 +37,7 @@
 #include "src/heap/spaces.h"
 #include "src/natives.h"
 #include "src/objects.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/scopeinfo.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"
@@ -137,14 +137,10 @@ class FileByteSink : public SnapshotByteSink {
   virtual int Position() {
     return ftell(fp_);
   }
-  void WriteSpaceUsed(
-      int new_space_used,
-      int pointer_space_used,
-      int data_space_used,
-      int code_space_used,
-      int map_space_used,
-      int cell_space_used,
-      int property_cell_space_used);
+  void WriteSpaceUsed(int new_space_used, int pointer_space_used,
+                      int data_space_used, int code_space_used,
+                      int map_space_used, int cell_space_used,
+                      int property_cell_space_used, int lo_space_used);
 
  private:
   FILE* fp_;
@@ -152,14 +148,11 @@ class FileByteSink : public SnapshotByteSink {
 };
 
 
-void FileByteSink::WriteSpaceUsed(
-      int new_space_used,
-      int pointer_space_used,
-      int data_space_used,
-      int code_space_used,
-      int map_space_used,
-      int cell_space_used,
-      int property_cell_space_used) {
+void FileByteSink::WriteSpaceUsed(int new_space_used, int pointer_space_used,
+                                  int data_space_used, int code_space_used,
+                                  int map_space_used, int cell_space_used,
+                                  int property_cell_space_used,
+                                  int lo_space_used) {
   int file_name_length = StrLength(file_name_) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   SNPrintF(name, "%s.size", file_name_);
@@ -172,6 +165,7 @@ void FileByteSink::WriteSpaceUsed(
   fprintf(fp, "map %d\n", map_space_used);
   fprintf(fp, "cell %d\n", cell_space_used);
   fprintf(fp, "property cell %d\n", property_cell_space_used);
+  fprintf(fp, "lo %d\n", lo_space_used);
   fclose(fp);
 }
 
@@ -181,14 +175,14 @@ static bool WriteToFile(Isolate* isolate, const char* snapshot_file) {
   StartupSerializer ser(isolate, &file);
   ser.Serialize();
 
-  file.WriteSpaceUsed(
-      ser.CurrentAllocationAddress(NEW_SPACE),
-      ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
-      ser.CurrentAllocationAddress(OLD_DATA_SPACE),
-      ser.CurrentAllocationAddress(CODE_SPACE),
-      ser.CurrentAllocationAddress(MAP_SPACE),
-      ser.CurrentAllocationAddress(CELL_SPACE),
-      ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
+  file.WriteSpaceUsed(ser.CurrentAllocationAddress(NEW_SPACE),
+                      ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
+                      ser.CurrentAllocationAddress(OLD_DATA_SPACE),
+                      ser.CurrentAllocationAddress(CODE_SPACE),
+                      ser.CurrentAllocationAddress(MAP_SPACE),
+                      ser.CurrentAllocationAddress(CELL_SPACE),
+                      ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
+                      ser.CurrentAllocationAddress(LO_SPACE));
 
   return true;
 }
@@ -246,7 +240,7 @@ static void ReserveSpaceForSnapshot(Deserializer* deserializer,
   FILE* fp = v8::base::OS::FOpen(name.start(), "r");
   name.Dispose();
   int new_size, pointer_size, data_size, code_size, map_size, cell_size,
-      property_cell_size;
+      property_cell_size, lo_size;
 #ifdef _MSC_VER
   // Avoid warning about unsafe fscanf from MSVC.
   // Please note that this is only fine if %c and %s are not being used.
@@ -259,6 +253,7 @@ static void ReserveSpaceForSnapshot(Deserializer* deserializer,
   CHECK_EQ(1, fscanf(fp, "map %d\n", &map_size));
   CHECK_EQ(1, fscanf(fp, "cell %d\n", &cell_size));
   CHECK_EQ(1, fscanf(fp, "property cell %d\n", &property_cell_size));
+  CHECK_EQ(1, fscanf(fp, "lo %d\n", &lo_size));
 #ifdef _MSC_VER
 #undef fscanf
 #endif
@@ -270,6 +265,7 @@ static void ReserveSpaceForSnapshot(Deserializer* deserializer,
   deserializer->set_reservation(MAP_SPACE, map_size);
   deserializer->set_reservation(CELL_SPACE, cell_size);
   deserializer->set_reservation(PROPERTY_CELL_SPACE, property_cell_size);
+  deserializer->set_reservation(LO_SPACE, lo_size);
 }
 
 
@@ -456,7 +452,8 @@ UNINITIALIZED_TEST(PartialSerialization) {
           p_ser.CurrentAllocationAddress(CODE_SPACE),
           p_ser.CurrentAllocationAddress(MAP_SPACE),
           p_ser.CurrentAllocationAddress(CELL_SPACE),
-          p_ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
+          p_ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
+          p_ser.CurrentAllocationAddress(LO_SPACE));
 
       startup_sink.WriteSpaceUsed(
           startup_serializer.CurrentAllocationAddress(NEW_SPACE),
@@ -465,7 +462,8 @@ UNINITIALIZED_TEST(PartialSerialization) {
           startup_serializer.CurrentAllocationAddress(CODE_SPACE),
           startup_serializer.CurrentAllocationAddress(MAP_SPACE),
           startup_serializer.CurrentAllocationAddress(CELL_SPACE),
-          startup_serializer.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
+          startup_serializer.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
+          startup_serializer.CurrentAllocationAddress(LO_SPACE));
       startup_name.Dispose();
     }
     v8_isolate->Exit();
@@ -579,7 +577,8 @@ UNINITIALIZED_TEST(ContextSerialization) {
           p_ser.CurrentAllocationAddress(CODE_SPACE),
           p_ser.CurrentAllocationAddress(MAP_SPACE),
           p_ser.CurrentAllocationAddress(CELL_SPACE),
-          p_ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
+          p_ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
+          p_ser.CurrentAllocationAddress(LO_SPACE));
 
       startup_sink.WriteSpaceUsed(
           startup_serializer.CurrentAllocationAddress(NEW_SPACE),
@@ -588,7 +587,8 @@ UNINITIALIZED_TEST(ContextSerialization) {
           startup_serializer.CurrentAllocationAddress(CODE_SPACE),
           startup_serializer.CurrentAllocationAddress(MAP_SPACE),
           startup_serializer.CurrentAllocationAddress(CELL_SPACE),
-          startup_serializer.CurrentAllocationAddress(PROPERTY_CELL_SPACE));
+          startup_serializer.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
+          startup_serializer.CurrentAllocationAddress(LO_SPACE));
       startup_name.Dispose();
     }
     v8_isolate->Dispose();
@@ -783,6 +783,121 @@ TEST(SerializeToplevelInternalizedString) {
   CHECK_EQ(builtins_count, CountBuiltins());
 
   delete cache;
+}
+
+
+Vector<const uint8_t> ConstructSource(Vector<const uint8_t> head,
+                                      Vector<const uint8_t> body,
+                                      Vector<const uint8_t> tail, int repeats) {
+  int source_length = head.length() + body.length() * repeats + tail.length();
+  uint8_t* source = NewArray<uint8_t>(static_cast<size_t>(source_length));
+  CopyChars(source, head.start(), head.length());
+  for (int i = 0; i < repeats; i++) {
+    CopyChars(source + head.length() + i * body.length(), body.start(),
+              body.length());
+  }
+  CopyChars(source + head.length() + repeats * body.length(), tail.start(),
+            tail.length());
+  return Vector<const uint8_t>(const_cast<const uint8_t*>(source),
+                               source_length);
+}
+
+
+TEST(SerializeToplevelLargeCodeObject) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  Vector<const uint8_t> source =
+      ConstructSource(STATIC_CHAR_VECTOR("var j=1; try { if (j) throw 1;"),
+                      STATIC_CHAR_VECTOR("for(var i=0;i<1;i++)j++;"),
+                      STATIC_CHAR_VECTOR("} catch (e) { j=7; } j"), 10000);
+  Handle<String> source_str =
+      isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
+
+  Handle<JSObject> global(isolate->context()->global_object());
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      source_str, Handle<String>(), 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+
+  CHECK(isolate->heap()->InSpace(orig->code(), LO_SPACE));
+
+  Handle<SharedFunctionInfo> copy;
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    copy = Compiler::CompileScript(
+        source_str, Handle<String>(), 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+  }
+  CHECK_NE(*orig, *copy);
+
+  Handle<JSFunction> copy_fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
+
+  Handle<Object> copy_result =
+      Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
+
+  int result_int;
+  CHECK(copy_result->ToInt32(&result_int));
+  CHECK_EQ(7, result_int);
+
+  delete cache;
+  source.Dispose();
+}
+
+
+TEST(SerializeToplevelLargeString) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  Vector<const uint8_t> source = ConstructSource(
+      STATIC_CHAR_VECTOR("var s = \""), STATIC_CHAR_VECTOR("abcdef"),
+      STATIC_CHAR_VECTOR("\"; s"), 1000000);
+  Handle<String> source_str =
+      isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
+
+  Handle<JSObject> global(isolate->context()->global_object());
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      source_str, Handle<String>(), 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+
+  Handle<SharedFunctionInfo> copy;
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    copy = Compiler::CompileScript(
+        source_str, Handle<String>(), 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+  }
+  CHECK_NE(*orig, *copy);
+
+  Handle<JSFunction> copy_fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
+
+  Handle<Object> copy_result =
+      Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
+
+  CHECK_EQ(6 * 1000000, Handle<String>::cast(copy_result)->length());
+  CHECK(isolate->heap()->InSpace(HeapObject::cast(*copy_result), LO_SPACE));
+
+  delete cache;
+  source.Dispose();
 }
 
 

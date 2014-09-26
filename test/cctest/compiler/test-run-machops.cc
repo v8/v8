@@ -4242,4 +4242,50 @@ TEST(RunTruncateFloat64ToInt32P) {
   }
 }
 
+
+TEST(RunChangeFloat32ToFloat64) {
+  double actual = 0.0f;
+  float expected = 0.0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.StoreToPointer(
+      &actual, kMachFloat64,
+      m.ChangeFloat32ToFloat64(m.LoadFromPointer(&expected, kMachFloat32)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT32_INPUTS(i) {
+    expected = *i;
+    CHECK_EQ(0, m.Call());
+    CHECK_EQ(expected, actual);
+  }
+}
+
+
+TEST(RunTruncateFloat64ToFloat32) {
+  float actual = 0.0f;
+  double input = 0.0;
+  RawMachineAssemblerTester<int32_t> m;
+  m.StoreToPointer(
+      &actual, kMachFloat32,
+      m.TruncateFloat64ToFloat32(m.LoadFromPointer(&input, kMachFloat64)));
+  m.Return(m.Int32Constant(0));
+  FOR_FLOAT64_INPUTS(i) {
+    input = *i;
+    volatile double expected = DoubleToFloat32(input);
+    CHECK_EQ(0, m.Call());
+    CHECK_EQ(expected, actual);
+  }
+}
+
+
+TEST(RunFloat32Constant) {
+  FOR_FLOAT32_INPUTS(i) {
+    float expected = *i;
+    float actual = *i;
+    RawMachineAssemblerTester<int32_t> m;
+    m.StoreToPointer(&actual, kMachFloat32, m.Float32Constant(expected));
+    m.Return(m.Int32Constant(0));
+    CHECK_EQ(0, m.Call());
+    CHECK_EQ(expected, actual);
+  }
+}
+
 #endif  // V8_TURBOFAN_TARGET

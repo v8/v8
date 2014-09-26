@@ -52,6 +52,10 @@ class X64OperandGenerator FINAL : public OperandGenerator {
         return false;
     }
   }
+
+  bool CanBeBetterLeftOperand(Node* node) const {
+    return !selector()->IsLive(node);
+  }
 };
 
 
@@ -178,20 +182,24 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
                        InstructionCode opcode, FlagsContinuation* cont) {
   X64OperandGenerator g(selector);
   Int32BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
   InstructionOperand* inputs[4];
   size_t input_count = 0;
   InstructionOperand* outputs[2];
   size_t output_count = 0;
 
   // TODO(turbofan): match complex addressing modes.
-  // TODO(turbofan): if commutative, pick the non-live-in operand as the left as
-  // this might be the last use and therefore its register can be reused.
-  if (g.CanBeImmediate(m.right().node())) {
-    inputs[input_count++] = g.Use(m.left().node());
-    inputs[input_count++] = g.UseImmediate(m.right().node());
+  if (g.CanBeImmediate(right)) {
+    inputs[input_count++] = g.Use(left);
+    inputs[input_count++] = g.UseImmediate(right);
   } else {
-    inputs[input_count++] = g.UseRegister(m.left().node());
-    inputs[input_count++] = g.Use(m.right().node());
+    if (node->op()->HasProperty(Operator::kCommutative) &&
+        g.CanBeBetterLeftOperand(right)) {
+      std::swap(left, right);
+    }
+    inputs[input_count++] = g.UseRegister(left);
+    inputs[input_count++] = g.Use(right);
   }
 
   if (cont->IsBranch()) {
@@ -392,16 +400,16 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
 static void VisitMul(InstructionSelector* selector, Node* node,
                      ArchOpcode opcode) {
   X64OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
+  Int32BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
   if (g.CanBeImmediate(right)) {
     selector->Emit(opcode, g.DefineAsRegister(node), g.Use(left),
                    g.UseImmediate(right));
-  } else if (g.CanBeImmediate(left)) {
-    selector->Emit(opcode, g.DefineAsRegister(node), g.Use(right),
-                   g.UseImmediate(left));
   } else {
-    // TODO(turbofan): select better left operand.
+    if (g.CanBeBetterLeftOperand(right)) {
+      std::swap(left, right);
+    }
     selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.Use(right));
   }
@@ -478,6 +486,13 @@ void InstructionSelector::VisitInt64UMod(Node* node) {
 }
 
 
+void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
+  X64OperandGenerator g(this);
+  // TODO(turbofan): X64 SSE conversions should take an operand.
+  Emit(kSSECvtss2sd, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
   X64OperandGenerator g(this);
   Emit(kSSEInt32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
@@ -513,6 +528,13 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64Movl, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
+  X64OperandGenerator g(this);
+  // TODO(turbofan): X64 SSE conversions should take an operand.
+  Emit(kSSECvtsd2ss, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 

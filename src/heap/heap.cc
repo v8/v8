@@ -923,9 +923,12 @@ void Heap::ReserveSpace(int* sizes, Address* locations_out) {
   static const int kThreshold = 20;
   while (gc_performed && counter++ < kThreshold) {
     gc_performed = false;
-    DCHECK(NEW_SPACE == FIRST_PAGED_SPACE - 1);
-    for (int space = NEW_SPACE; space <= LAST_PAGED_SPACE; space++) {
-      if (sizes[space] != 0) {
+    for (int space = NEW_SPACE; space < Serializer::kNumberOfSpaces; space++) {
+      if (sizes[space] == 0) continue;
+      bool perform_gc = false;
+      if (space == LO_SPACE) {
+        perform_gc = !lo_space()->CanAllocateSize(sizes[space]);
+      } else {
         AllocationResult allocation;
         if (space == NEW_SPACE) {
           allocation = new_space()->AllocateRaw(sizes[space]);
@@ -933,23 +936,27 @@ void Heap::ReserveSpace(int* sizes, Address* locations_out) {
           allocation = paged_space(space)->AllocateRaw(sizes[space]);
         }
         FreeListNode* node;
-        if (!allocation.To(&node)) {
-          if (space == NEW_SPACE) {
-            Heap::CollectGarbage(NEW_SPACE,
-                                 "failed to reserve space in the new space");
-          } else {
-            AbortIncrementalMarkingAndCollectGarbage(
-                this, static_cast<AllocationSpace>(space),
-                "failed to reserve space in paged space");
-          }
-          gc_performed = true;
-          break;
-        } else {
+        if (allocation.To(&node)) {
           // Mark with a free list node, in case we have a GC before
           // deserializing.
           node->set_size(this, sizes[space]);
+          DCHECK(space < Serializer::kNumberOfPreallocatedSpaces);
           locations_out[space] = node->address();
+        } else {
+          perform_gc = true;
         }
+      }
+      if (perform_gc) {
+        if (space == NEW_SPACE) {
+          Heap::CollectGarbage(NEW_SPACE,
+                               "failed to reserve space in the new space");
+        } else {
+          AbortIncrementalMarkingAndCollectGarbage(
+              this, static_cast<AllocationSpace>(space),
+              "failed to reserve space in paged or large object space");
+        }
+        gc_performed = true;
+        break;  // Abort for-loop over spaces and retry.
       }
     }
   }
@@ -4352,8 +4359,10 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
 
   int actual_time_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
   if (actual_time_ms <= idle_time_in_ms) {
-    isolate()->counters()->gc_idle_time_limit_undershot()->AddSample(
-        idle_time_in_ms - actual_time_ms);
+    if (action.type != DONE && action.type != DO_NOTHING) {
+      isolate()->counters()->gc_idle_time_limit_undershot()->AddSample(
+          idle_time_in_ms - actual_time_ms);
+    }
   } else {
     isolate()->counters()->gc_idle_time_limit_overshot()->AddSample(
         actual_time_ms - idle_time_in_ms);

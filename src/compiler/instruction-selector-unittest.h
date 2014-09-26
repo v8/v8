@@ -143,6 +143,10 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
       return references_.find(virtual_register) != references_.end();
     }
 
+    float ToFloat32(const InstructionOperand* operand) const {
+      return ToConstant(operand).ToFloat32();
+    }
+
     int32_t ToInt32(const InstructionOperand* operand) const {
       return ToConstant(operand).ToInt32();
     }

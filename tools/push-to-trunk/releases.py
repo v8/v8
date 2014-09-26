@@ -141,7 +141,7 @@ class RetrieveV8Releases(Step):
 
   def GetReleaseDict(
       self, git_hash, bleeding_edge_rev, branch, version, patches, cl_body):
-    revision = self.GitSVNFindSVNRev(git_hash)
+    revision = self.vc.GitSvn(git_hash)
     return {
       # The SVN revision on the branch.
       "revision": revision,
@@ -187,7 +187,7 @@ class RetrieveV8Releases(Step):
     tag_text = self.SVN("log https://v8.googlecode.com/svn/tags -v --limit 20")
     releases = []
     for (tag, revision) in re.findall(BLEEDING_EDGE_TAGS_RE, tag_text):
-      git_hash = self.GitSVNFindGitHash(revision)
+      git_hash = self.vc.SvnGit(revision)
 
       # Add bleeding edge release. It does not contain patches or a code
       # review link, as tags are not uploaded.
@@ -196,7 +196,8 @@ class RetrieveV8Releases(Step):
     return releases
 
   def GetReleasesFromBranch(self, branch):
-    self.GitReset("svn/%s" % branch)
+    self.GitReset(self.vc.RemoteBranch(branch))
+    # TODO(machenbach): Rename this when switching to the git mirror.
     if branch == 'bleeding_edge':
       return self.GetReleasesFromBleedingEdge()
 
@@ -230,12 +231,7 @@ class RetrieveV8Releases(Step):
 
   def RunStep(self):
     self.GitCreateBranch(self._config["BRANCHNAME"])
-    # Get relevant remote branches, e.g. "svn/3.25".
-    branches = filter(lambda s: re.match(r"^svn/\d+\.\d+$", s),
-                      self.GitRemotes())
-    # Remove 'svn/' prefix.
-    branches = map(lambda s: s[4:], branches)
-
+    branches = self.vc.GetBranches()
     releases = []
     if self._options.branch == 'recent':
       # Get only recent development on trunk, beta and stable.

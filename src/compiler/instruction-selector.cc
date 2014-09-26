@@ -476,6 +476,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kInt64Constant:
     case IrOpcode::kExternalConstant:
       return VisitConstant(node);
+    case IrOpcode::kFloat32Constant:
+      return MarkAsDouble(node), VisitConstant(node);
     case IrOpcode::kFloat64Constant:
       return MarkAsDouble(node), VisitConstant(node);
     case IrOpcode::kHeapConstant:
@@ -570,6 +572,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt64LessThan(node);
     case IrOpcode::kInt64LessThanOrEqual:
       return VisitInt64LessThanOrEqual(node);
+    case IrOpcode::kChangeFloat32ToFloat64:
+      return MarkAsDouble(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
       return MarkAsDouble(node), VisitChangeInt32ToFloat64(node);
     case IrOpcode::kChangeUint32ToFloat64:
@@ -582,6 +586,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitChangeInt32ToInt64(node);
     case IrOpcode::kChangeUint32ToUint64:
       return VisitChangeUint32ToUint64(node);
+    case IrOpcode::kTruncateFloat64ToFloat32:
+      return MarkAsDouble(node), VisitTruncateFloat64ToFloat32(node);
     case IrOpcode::kTruncateFloat64ToInt32:
       return VisitTruncateFloat64ToInt32(node);
     case IrOpcode::kTruncateInt64ToInt32:

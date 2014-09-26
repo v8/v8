@@ -790,8 +790,7 @@ Performance and stability improvements on all platforms.""", commit)
     if manual:
       expectations.append(RL("Y"))  # Sanity check.
     expectations += [
-      Cmd("git svn dcommit 2>&1",
-          "Some output\nCommitted r123456\nSome output\n"),
+      Cmd("git svn dcommit 2>&1", ""),
       Cmd("git svn tag 3.22.5 -m \"Tagging version 3.22.5\"", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
@@ -867,7 +866,7 @@ def get_list():
       Cmd("git fetch origin", ""),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "origin/master"), "push_hash\n"),
+           "origin/candidates"), "push_hash\n"),
       Cmd("git log -1 --format=%B push_hash", self.C_V8_22624_LOG),
       Cmd("git log -1 --format=%s push_hash",
           "Version 3.22.5 (based on bleeding_edge revision r22622)\n"),
@@ -1005,7 +1004,7 @@ deps = {
           ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "origin/master"), "push_hash\n"),
+           "origin/candidates"), "push_hash\n"),
       Cmd("git log -1 --format=%B push_hash", self.C_V8_22624_LOG),
       Cmd("git log -1 --format=%B abcd123455", self.C_V8_123455_LOG),
     ])
@@ -1026,7 +1025,7 @@ deps = {
           ("{\"results\": [{\"subject\": \"different\"}]}")),
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
-           "origin/master"), "push_hash\n"),
+           "origin/candidates"), "push_hash\n"),
       Cmd("git log -1 --format=%B push_hash", self.C_V8_123456_LOG),
       Cmd("git log -1 --format=%B abcd123455", self.C_V8_123455_LOG),
     ])
@@ -1138,19 +1137,13 @@ LOG=N
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
       Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks", ""),
+          "--bypass-hooks -cc \"ulan@chromium.org\"", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
       Cmd("git cl dcommit -f --bypass-hooks", "Closing issue\n",
           cb=VerifySVNCommit),
-      Cmd("git svn fetch", ""),
-      Cmd(("git log -1 --format=%%H --grep=\"%s\" svn/trunk"
-           % msg.replace("\"", "\\\"")), "hash6"),
-      Cmd("git svn find-rev hash6", "1324"),
-      Cmd(("svn copy -r 1324 https://v8.googlecode.com/svn/trunk "
-           "https://v8.googlecode.com/svn/tags/3.22.5.1 -m "
-           "\"Tagging version 3.22.5.1\""), ""),
+      Cmd("git svn tag 3.22.5.1 -m \"Tagging version 3.22.5.1\"", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])
@@ -1374,26 +1367,27 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
 
     return [
       Cmd("git status -s -uno", ""),
-      Cmd("git checkout -f bleeding_edge", "", cb=ResetVersion(11, 4)),
+      Cmd("git checkout -f master", "", cb=ResetVersion(11, 4)),
       Cmd("git pull", ""),
       Cmd("git branch", ""),
-      Cmd("git checkout -f bleeding_edge", ""),
+      Cmd("git checkout -f master", ""),
       Cmd("git log -1 --format=%H", "latest_hash"),
       Cmd("git diff --name-only latest_hash latest_hash^", ""),
       URL("https://v8-status.appspot.com/lkgr", "12345"),
-      Cmd("git checkout -f bleeding_edge", ""),
+      Cmd("git checkout -f master", ""),
       Cmd(("git log --format=%H --grep="
            "\"^git-svn-id: [^@]*@12345 [A-Za-z0-9-]*$\""),
           "lkgr_hash"),
       Cmd("git checkout -b auto-bump-up-version lkgr_hash", ""),
-      Cmd("git checkout -f bleeding_edge", ""),
-      Cmd("git branch", ""),
+      Cmd("git checkout -f master", ""),
+      Cmd("git branch", "auto-bump-up-version\n* master"),
+      Cmd("git branch -D auto-bump-up-version", ""),
       Cmd("git diff --name-only lkgr_hash lkgr_hash^", ""),
-      Cmd("git checkout -f master", "", cb=ResetVersion(11, 5)),
+      Cmd("git checkout -f candidates", "", cb=ResetVersion(11, 5)),
       Cmd("git pull", ""),
       URL("https://v8-status.appspot.com/current?format=json",
           "{\"message\": \"Tree is open\"}"),
-      Cmd("git checkout -b auto-bump-up-version bleeding_edge", "",
+      Cmd("git checkout -b auto-bump-up-version master", "",
           cb=ResetVersion(11, 4)),
       Cmd("git commit -am \"[Auto-roll] Bump up version to 3.11.6.0\n\n"
           "TBR=author@chromium.org\" "
@@ -1406,8 +1400,8 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("git cl upload --send-mail --email \"author@chromium.org\" -f "
           "--bypass-hooks", ""),
       Cmd("git cl dcommit -f --bypass-hooks", ""),
-      Cmd("git checkout -f bleeding_edge", ""),
-      Cmd("git branch", "auto-bump-up-version\n* bleeding_edge"),
+      Cmd("git checkout -f master", ""),
+      Cmd("git branch", "auto-bump-up-version\n* master"),
       Cmd("git branch -D auto-bump-up-version", ""),
     ]
     self.Expect(expectations)
@@ -1427,8 +1421,8 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
           "--config-dir=[CONFIG_DIR] "
           "-m \"[Auto-roll] Bump up version to 3.11.6.0\"",
           "", cwd=svn_root),
-      Cmd("git checkout -f bleeding_edge", ""),
-      Cmd("git branch", "auto-bump-up-version\n* bleeding_edge"),
+      Cmd("git checkout -f master", ""),
+      Cmd("git branch", "auto-bump-up-version\n* master"),
       Cmd("git branch -D auto-bump-up-version", ""),
     ]
     self.Expect(expectations)

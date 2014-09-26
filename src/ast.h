@@ -16,7 +16,7 @@
 #include "src/isolate.h"
 #include "src/jsregexp.h"
 #include "src/list-inl.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/small-pointer-list.h"
 #include "src/smart-pointers.h"
 #include "src/token.h"
@@ -1868,7 +1868,6 @@ class CallNew FINAL : public Expression, public FeedbackSlotInterface {
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
   virtual bool IsMonomorphic() OVERRIDE { return is_monomorphic_; }
   Handle<JSFunction> target() const { return target_; }
-  ElementsKind elements_kind() const { return elements_kind_; }
   Handle<AllocationSite> allocation_site() const {
     return allocation_site_;
   }
@@ -1884,7 +1883,6 @@ class CallNew FINAL : public Expression, public FeedbackSlotInterface {
         expression_(expression),
         arguments_(arguments),
         is_monomorphic_(false),
-        elements_kind_(GetInitialFastElementsKind()),
         callnew_feedback_slot_(kInvalidFeedbackSlot),
         return_id_(id_gen->GetNextId()) {}
 
@@ -1894,7 +1892,6 @@ class CallNew FINAL : public Expression, public FeedbackSlotInterface {
 
   bool is_monomorphic_;
   Handle<JSFunction> target_;
-  ElementsKind elements_kind_;
   Handle<AllocationSite> allocation_site_;
   int callnew_feedback_slot_;
 

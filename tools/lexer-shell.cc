@@ -37,7 +37,7 @@
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/messages.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/scanner-character-streams.h"
 #include "src/scopeinfo.h"
 #include "tools/shell-utils.h"

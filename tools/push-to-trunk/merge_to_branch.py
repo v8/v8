@@ -45,6 +45,7 @@ class Preparation(Step):
 
     self.InitialEnvironmentChecks(self.default_cwd)
     if self._options.revert_bleeding_edge:
+      # FIXME(machenbach): Make revert bleeding_edge obsolete?
       self["merge_to_branch"] = "bleeding_edge"
     elif self._options.branch:
       self["merge_to_branch"] = self._options.branch
@@ -60,7 +61,7 @@ class CreateBranch(Step):
 
   def RunStep(self):
     self.GitCreateBranch(self.Config("BRANCHNAME"),
-                         "svn/%s" % self["merge_to_branch"])
+                         self.vc.RemoteBranch(self["merge_to_branch"]))
 
 
 class SearchArchitecturePorts(Step):
@@ -74,9 +75,9 @@ class SearchArchitecturePorts(Step):
       # Search for commits which matches the "Port rXXX" pattern.
       git_hashes = self.GitLog(reverse=True, format="%H",
                                grep="Port r%d" % int(revision),
-                               branch="svn/bleeding_edge")
+                               branch=self.vc.RemoteMasterBranch())
       for git_hash in git_hashes.splitlines():
-        svn_revision = self.GitSVNFindSVNRev(git_hash, "svn/bleeding_edge")
+        svn_revision = self.vc.GitSvn(git_hash, self.vc.RemoteMasterBranch())
         if not svn_revision:  # pragma: no cover
           self.Die("Cannot determine svn revision for %s" % git_hash)
         revision_title = self.GitLog(n=1, format="%s", git_hash=git_hash)
@@ -104,7 +105,7 @@ class FindGitRevisions(Step):
   def RunStep(self):
     self["patch_commit_hashes"] = []
     for revision in self["full_revision_list"]:
-      next_hash = self.GitSVNFindGitHash(revision, "svn/bleeding_edge")
+      next_hash = self.vc.SvnGit(revision, self.vc.RemoteMasterBranch())
       if not next_hash:  # pragma: no cover
         self.Die("Cannot determine git hash for r%s" % revision)
       self["patch_commit_hashes"].append(next_hash)
@@ -209,22 +210,7 @@ class CommitRepository(Step):
     self.GitCheckout(self.Config("BRANCHNAME"))
     self.WaitForLGTM()
     self.GitPresubmit()
-    self.GitDCommit()
-
-
-class PrepareSVN(Step):
-  MESSAGE = "Determine svn commit revision."
-
-  def RunStep(self):
-    if self._options.revert_bleeding_edge:
-      return
-    self.GitSVNFetch()
-    commit_hash = self.GitLog(n=1, format="%H", grep=self["new_commit_msg"],
-                              branch="svn/%s" % self["merge_to_branch"])
-    if not commit_hash:  # pragma: no cover
-      self.Die("Unable to map git commit to svn revision.")
-    self["svn_revision"] = self.GitSVNFindSVNRev(commit_hash)
-    print "subversion revision number is r%s" % self["svn_revision"]
+    self.vc.CLLand()
 
 
 class TagRevision(Step):
@@ -234,15 +220,7 @@ class TagRevision(Step):
     if self._options.revert_bleeding_edge:
       return
     print "Creating tag svn/tags/%s" % self["version"]
-    if self["merge_to_branch"] == "trunk":
-      self["to_url"] = "trunk"
-    else:
-      self["to_url"] = "branches/%s" % self["merge_to_branch"]
-    self.SVN("copy -r %s https://v8.googlecode.com/svn/%s "
-             "https://v8.googlecode.com/svn/tags/%s -m "
-             "\"Tagging version %s\""
-             % (self["svn_revision"], self["to_url"],
-                self["version"], self["version"]))
+    self.vc.Tag(self["version"])
 
 
 class CleanUp(Step):
@@ -253,8 +231,7 @@ class CleanUp(Step):
     if not self._options.revert_bleeding_edge:
       print "*** SUMMARY ***"
       print "version: %s" % self["version"]
-      print "branch: %s" % self["to_url"]
-      print "svn revision: %s" % self["svn_revision"]
+      print "branch: %s" % self["merge_to_branch"]
       if self["revision_list"]:
         print "patches: %s" % self["revision_list"]
 
@@ -293,6 +270,8 @@ class MergeToBranch(ScriptsBase):
         print "You must specify a merge comment if no patches are specified"
         return False
     options.bypass_upload_hooks = True
+    # CC ulan to make sure that fixes are merged to Google3.
+    options.cc = "ulan@chromium.org"
     return True
 
   def _Config(self):
@@ -317,7 +296,6 @@ class MergeToBranch(ScriptsBase):
       CommitLocal,
       UploadStep,
       CommitRepository,
-      PrepareSVN,
       TagRevision,
       CleanUp,
     ]

@@ -17,7 +17,7 @@
 #include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
 #include "src/prototype.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {

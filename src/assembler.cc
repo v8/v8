@@ -52,7 +52,7 @@
 #include "src/jsregexp.h"
 #include "src/regexp-macro-assembler.h"
 #include "src/regexp-stack.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/serialize.h"
 #include "src/token.h"
 

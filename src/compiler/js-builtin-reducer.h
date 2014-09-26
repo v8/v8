@@ -33,6 +33,7 @@ class JSBuiltinReducer FINAL : public Reducer {
   Reduction ReduceMathSqrt(Node* node);
   Reduction ReduceMathMax(Node* node);
   Reduction ReduceMathImul(Node* node);
+  Reduction ReduceMathFround(Node* node);
 
   JSGraph* jsgraph_;
   SimplifiedOperatorBuilder simplified_;

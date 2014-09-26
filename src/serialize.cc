@@ -16,7 +16,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/natives.h"
 #include "src/objects.h"
-#include "src/runtime.h"
+#include "src/runtime/runtime.h"
 #include "src/serialize.h"
 #include "src/snapshot.h"
 #include "src/snapshot-source-sink.h"
@@ -596,8 +596,9 @@ Deserializer::Deserializer(SnapshotByteSource* source)
     : isolate_(NULL),
       attached_objects_(NULL),
       source_(source),
-      external_reference_decoder_(NULL) {
-  for (int i = 0; i < LAST_SPACE + 1; i++) {
+      external_reference_decoder_(NULL),
+      deserialized_large_objects_(0) {
+  for (int i = 0; i < kNumberOfSpaces; i++) {
     reservations_[i] = kUninitializedReservation;
   }
 }
@@ -615,7 +616,7 @@ void Deserializer::FlushICacheForNewCodeObjects() {
 void Deserializer::Deserialize(Isolate* isolate) {
   isolate_ = isolate;
   DCHECK(isolate_ != NULL);
-  isolate_->heap()->ReserveSpace(reservations_, &high_water_[0]);
+  isolate_->heap()->ReserveSpace(reservations_, high_water_);
   // No active threads.
   DCHECK_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
@@ -662,7 +663,8 @@ void Deserializer::DeserializePartial(Isolate* isolate, Object** root) {
   for (int i = NEW_SPACE; i < kNumberOfSpaces; i++) {
     DCHECK(reservations_[i] != kUninitializedReservation);
   }
-  isolate_->heap()->ReserveSpace(reservations_, &high_water_[0]);
+  Heap* heap = isolate->heap();
+  heap->ReserveSpace(reservations_, high_water_);
   if (external_reference_decoder_ == NULL) {
     external_reference_decoder_ = new ExternalReferenceDecoder(isolate);
   }
@@ -798,9 +800,38 @@ void Deserializer::ReadObject(int space_number,
 
   *write_back = obj;
 #ifdef DEBUG
-  bool is_codespace = (space_number == CODE_SPACE);
-  DCHECK(obj->IsCode() == is_codespace);
+  if (obj->IsCode()) {
+    DCHECK(space_number == CODE_SPACE || space_number == LO_SPACE);
+  } else {
+    DCHECK(space_number != CODE_SPACE);
+  }
 #endif
+}
+
+
+// We know the space requirements before deserialization and can
+// pre-allocate that reserved space. During deserialization, all we need
+// to do is to bump up the pointer for each space in the reserved
+// space. This is also used for fixing back references.
+// Since multiple large objects cannot be folded into one large object
+// space allocation, we have to do an actual allocation when deserializing
+// each large object. Instead of tracking offset for back references, we
+// reference large objects by index.
+Address Deserializer::Allocate(int space_index, int size) {
+  if (space_index == LO_SPACE) {
+    AlwaysAllocateScope scope(isolate_);
+    LargeObjectSpace* lo_space = isolate_->heap()->lo_space();
+    Executability exec = static_cast<Executability>(source_->GetInt());
+    AllocationResult result = lo_space->AllocateRaw(size, exec);
+    HeapObject* obj = HeapObject::cast(result.ToObjectChecked());
+    deserialized_large_objects_.Add(obj);
+    return obj->address();
+  } else {
+    DCHECK(space_index < kNumberOfPreallocatedSpaces);
+    Address address = high_water_[space_index];
+    high_water_[space_index] = address + size;
+    return address;
+  }
 }
 
 void Deserializer::ReadChunk(Object** current,
@@ -925,15 +956,16 @@ void Deserializer::ReadChunk(Object** current,
 // This generates a case and a body for the new space (which has to do extra
 // write barrier handling) and handles the other spaces with 8 fall-through
 // cases and one body.
-#define ALL_SPACES(where, how, within)                                         \
-  CASE_STATEMENT(where, how, within, NEW_SPACE)                                \
-  CASE_BODY(where, how, within, NEW_SPACE)                                     \
-  CASE_STATEMENT(where, how, within, OLD_DATA_SPACE)                           \
-  CASE_STATEMENT(where, how, within, OLD_POINTER_SPACE)                        \
-  CASE_STATEMENT(where, how, within, CODE_SPACE)                               \
-  CASE_STATEMENT(where, how, within, CELL_SPACE)                               \
-  CASE_STATEMENT(where, how, within, PROPERTY_CELL_SPACE)                      \
-  CASE_STATEMENT(where, how, within, MAP_SPACE)                                \
+#define ALL_SPACES(where, how, within)                    \
+  CASE_STATEMENT(where, how, within, NEW_SPACE)           \
+  CASE_BODY(where, how, within, NEW_SPACE)                \
+  CASE_STATEMENT(where, how, within, OLD_DATA_SPACE)      \
+  CASE_STATEMENT(where, how, within, OLD_POINTER_SPACE)   \
+  CASE_STATEMENT(where, how, within, CODE_SPACE)          \
+  CASE_STATEMENT(where, how, within, MAP_SPACE)           \
+  CASE_STATEMENT(where, how, within, CELL_SPACE)          \
+  CASE_STATEMENT(where, how, within, PROPERTY_CELL_SPACE) \
+  CASE_STATEMENT(where, how, within, LO_SPACE)            \
   CASE_BODY(where, how, within, kAnyOldSpace)
 
 #define FOUR_CASES(byte_code)             \
@@ -1184,12 +1216,11 @@ Serializer::Serializer(Isolate* isolate, SnapshotByteSink* sink)
       sink_(sink),
       external_reference_encoder_(new ExternalReferenceEncoder(isolate)),
       root_index_wave_front_(0),
-      code_address_map_(NULL) {
+      code_address_map_(NULL),
+      seen_large_objects_index_(0) {
   // The serializer is meant to be used only to generate initial heap images
   // from a context in which there is only one isolate.
-  for (int i = 0; i <= LAST_SPACE; i++) {
-    fullness_[i] = 0;
-  }
+  for (int i = 0; i < kNumberOfSpaces; i++) fullness_[i] = 0;
 }
 
 
@@ -1324,10 +1355,7 @@ void Serializer::SerializeReferenceToPreviousObject(HeapObject* heap_object,
                                                     WhereToPoint where_to_point,
                                                     int skip) {
   int space = SpaceOfObject(heap_object);
-  int address = address_mapper_.MappedTo(heap_object);
-  int offset = CurrentAllocationAddress(space) - address;
-  // Shift out the bits that are always 0.
-  offset >>= kObjectAlignmentBits;
+
   if (skip == 0) {
     sink_->Put(kBackref + how_to_code + where_to_point + space, "BackRefSer");
   } else {
@@ -1335,7 +1363,17 @@ void Serializer::SerializeReferenceToPreviousObject(HeapObject* heap_object,
                "BackRefSerWithSkip");
     sink_->PutInt(skip, "BackRefSkipDistance");
   }
-  sink_->PutInt(offset, "offset");
+
+  if (space == LO_SPACE) {
+    int index = address_mapper_.MappedTo(heap_object);
+    sink_->PutInt(index, "large object index");
+  } else {
+    int address = address_mapper_.MappedTo(heap_object);
+    int offset = CurrentAllocationAddress(space) - address;
+    // Shift out the bits that are always 0.
+    offset >>= kObjectAlignmentBits;
+    sink_->PutInt(offset, "offset");
+  }
 }
 
 
@@ -1494,8 +1532,18 @@ void Serializer::ObjectSerializer::Serialize() {
   }
 
   // Mark this object as already serialized.
-  int offset = serializer_->Allocate(space, size);
-  serializer_->address_mapper()->AddMapping(object_, offset);
+  if (space == LO_SPACE) {
+    if (object_->IsCode()) {
+      sink_->PutInt(EXECUTABLE, "executable large object");
+    } else {
+      sink_->PutInt(NOT_EXECUTABLE, "not executable large object");
+    }
+    int index = serializer_->AllocateLargeObject(size);
+    serializer_->address_mapper()->AddMapping(object_, index);
+  } else {
+    int offset = serializer_->Allocate(space, size);
+    serializer_->address_mapper()->AddMapping(object_, offset);
+  }
 
   // Serialize the map (first word of the object).
   serializer_->SerializeObject(object_->map(), kPlain, kStartOfObject, 0);
@@ -1747,8 +1795,14 @@ int Serializer::SpaceOfObject(HeapObject* object) {
 }
 
 
+int Serializer::AllocateLargeObject(int size) {
+  fullness_[LO_SPACE] += size;
+  return seen_large_objects_index_++;
+}
+
+
 int Serializer::Allocate(int space, int size) {
-  CHECK(space >= 0 && space < kNumberOfSpaces);
+  CHECK(space >= 0 && space < kNumberOfPreallocatedSpaces);
   int allocation_address = fullness_[space];
   fullness_[space] = allocation_address + size;
   return allocation_address;
@@ -1840,11 +1894,11 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
 
   if (heap_object->IsCode()) {
     Code* code_object = Code::cast(heap_object);
+    DCHECK(!code_object->is_optimized_code());
     if (code_object->kind() == Code::BUILTIN) {
       SerializeBuiltin(code_object, how_to_code, where_to_point, skip);
       return;
-    }
-    if (code_object->IsCodeStubOrIC()) {
+    } else if (code_object->IsCodeStubOrIC()) {
       SerializeCodeStub(code_object, how_to_code, where_to_point, skip);
       return;
     }
@@ -1991,7 +2045,7 @@ Handle<SharedFunctionInfo> CodeSerializer::Deserialize(Isolate* isolate,
     SnapshotByteSource payload(scd.Payload(), scd.PayloadLength());
     Deserializer deserializer(&payload);
     STATIC_ASSERT(NEW_SPACE == 0);
-    for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
+    for (int i = NEW_SPACE; i < kNumberOfSpaces; i++) {
       deserializer.set_reservation(i, scd.GetReservation(i));
     }
 
@@ -2041,7 +2095,7 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
   SetHeaderValue(kNumCodeStubKeysOffset, num_stub_keys);
   SetHeaderValue(kPayloadLengthOffset, payload->length());
   STATIC_ASSERT(NEW_SPACE == 0);
-  for (int i = NEW_SPACE; i <= PROPERTY_CELL_SPACE; i++) {
+  for (int i = 0; i < SerializerDeserializer::kNumberOfSpaces; i++) {
     SetHeaderValue(kReservationsOffset + i, cs->CurrentAllocationAddress(i));
   }
 
