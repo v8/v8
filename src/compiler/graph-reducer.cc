@@ -22,7 +22,6 @@ static bool NodeIdIsLessThan(const Node* node, NodeId id) {
 
 
 void GraphReducer::ReduceNode(Node* node) {
-  ZoneVector<Reducer*>::iterator skip = reducers_.end();
   static const unsigned kMaxAttempts = 16;
   bool reduce = true;
   for (unsigned attempts = 0; attempts <= kMaxAttempts; ++attempts) {
@@ -31,17 +30,15 @@ void GraphReducer::ReduceNode(Node* node) {
     int before = graph_->NodeCount();
     for (ZoneVector<Reducer*>::iterator i = reducers_.begin();
          i != reducers_.end(); ++i) {
-      if (i == skip) continue;  // Skip this reducer.
       Reduction reduction = (*i)->Reduce(node);
       Node* replacement = reduction.replacement();
       if (replacement == NULL) {
         // No change from this reducer.
       } else if (replacement == node) {
         // {replacement == node} represents an in-place reduction.
-        // Rerun all the reducers except the current one for this node,
-        // as now there may be more opportunities for reduction.
+        // Rerun all the reducers for this node, as now there may be more
+        // opportunities for reduction.
         reduce = true;
-        skip = i;
         break;
       } else {
         if (node == graph_->start()) graph_->SetStart(replacement);
@@ -63,7 +60,6 @@ void GraphReducer::ReduceNode(Node* node) {
           node->Kill();
         }
         // Rerun all the reductions on the {replacement}.
-        skip = reducers_.end();
         node = replacement;
         reduce = true;
         break;
