@@ -60,6 +60,39 @@ Type* const kNumberTypes[] = {
 
 
 // -----------------------------------------------------------------------------
+// Math.abs
+
+
+TEST_F(JSBuiltinReducerTest, MathAbs) {
+  Handle<JSFunction> f(isolate()->context()->math_abs_fun());
+
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
+    Node* call = graph()->NewNode(javascript()->Call(3, NO_CALL_FUNCTION_FLAGS),
+                                  fun, UndefinedConstant(), p0);
+    Reduction r = Reduce(call);
+
+    if (t0->Is(Type::Unsigned32())) {
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(r.replacement(), p0);
+    } else {
+      Capture<Node*> branch;
+      ASSERT_TRUE(r.Changed());
+      EXPECT_THAT(
+          r.replacement(),
+          IsPhi(kMachNone, p0, IsNumberSubtract(IsNumberConstant(0), p0),
+                IsMerge(IsIfTrue(CaptureEq(&branch)),
+                        IsIfFalse(AllOf(
+                            CaptureEq(&branch),
+                            IsBranch(IsNumberLessThan(IsNumberConstant(0), p0),
+                                     graph()->start()))))));
+    }
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Math.sqrt
 
 

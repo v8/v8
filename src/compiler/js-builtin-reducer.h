@@ -30,6 +30,7 @@ class JSBuiltinReducer FINAL : public Reducer {
   MachineOperatorBuilder* machine() const { return jsgraph_->machine(); }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
+  Reduction ReduceMathAbs(Node* node);
   Reduction ReduceMathSqrt(Node* node);
   Reduction ReduceMathMax(Node* node);
   Reduction ReduceMathImul(Node* node);
