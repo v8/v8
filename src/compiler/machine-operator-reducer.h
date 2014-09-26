@@ -31,6 +31,9 @@ class MachineOperatorReducer FINAL : public Reducer {
   Node* Float64Constant(volatile double value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
+  Node* Uint32Constant(uint32_t value) {
+    return Int32Constant(bit_cast<uint32_t>(value));
+  }
 
   Reduction ReplaceBool(bool value) { return ReplaceInt32(value ? 1 : 0); }
   Reduction ReplaceFloat32(volatile float value) {
