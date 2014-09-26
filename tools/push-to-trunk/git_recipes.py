@@ -295,8 +295,11 @@ class GitRecipesMixin(object):
   @Strip
   def GitSVNFindGitHash(self, revision, branch="", **kwargs):
     assert revision
-    return self.Git(
-        MakeArgs(["svn find-rev", "r%s" % revision, branch]), **kwargs)
+    args = MakeArgs(["svn find-rev", "r%s" % revision, branch])
+
+    # Pick the last line if multiple lines are available. The first lines might
+    # print information about rebuilding the svn-git mapping.
+    return self.Git(args, **kwargs).splitlines()[-1]
 
   @Strip
   def GitSVNFindSVNRev(self, git_hash, branch="", **kwargs):

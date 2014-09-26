@@ -1221,7 +1221,8 @@ LOG=N
       Cmd("git svn find-rev hash3 origin/master", "56789"),
       Cmd("git log -1 --format=%s hash3", "Title3"),
       RL("Y"),  # Automatically add corresponding ports (34567, 56789)?
-      Cmd("git svn find-rev r12345 origin/master", "hash4"),
+      Cmd("git svn find-rev r12345 origin/master",
+          "Partial-rebuilding bla\nDone rebuilding blub\nhash4"),
       # Simulate svn being down which stops the script.
       Cmd("git svn find-rev r23456 origin/master", None),
       # Restart script in the failing step.
