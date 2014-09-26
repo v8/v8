@@ -1203,7 +1203,7 @@ LOG=N
       Cmd("git status -s -b -uno", "## some_branch\n"),
       Cmd("git fetch", ""),
       Cmd("git branch", "  branch1\n* branch2\n"),
-      Cmd("git checkout -b %s origin/branch-heads/candidates" %
+      Cmd("git checkout -b %s origin/candidates" %
           TEST_CONFIG["BRANCHNAME"], ""),
       Cmd(("git log --format=%H --grep=\"Port r12345\" "
            "--reverse origin/master"),

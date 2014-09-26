@@ -371,6 +371,8 @@ class GitReadOnlyMixin(VCInterface):
     return "origin/candidates"
 
   def RemoteBranch(self, name):
+    if name in ["candidates", "master"]:
+      return "origin/%s" % name
     return "origin/branch-heads/%s" % name
 
 
