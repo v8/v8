@@ -1897,11 +1897,6 @@ void Assembler::setcc(Condition cc, Register reg) {
 }
 
 
-void Assembler::Print() {
-  Disassembler::Decode(isolate(), stdout, buffer_, pc_);
-}
-
-
 void Assembler::RecordJSReturn() {
   positions_recorder()->WriteRecordedPositions();
   EnsureSpace ensure_space(this);
