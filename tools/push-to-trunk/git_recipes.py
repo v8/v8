@@ -207,7 +207,7 @@ class GitRecipesMixin(object):
     if bypass_hooks:
       args.append("--bypass-hooks")
     if cc:
-      args += ["-cc", Quoted(cc)]
+      args += ["--cc", Quoted(cc)]
     # TODO(machenbach): Check output in forced mode. Verify that all required
     # base files were uploaded, if not retry.
     self.Git(MakeArgs(args), pipe=False, **kwargs)
