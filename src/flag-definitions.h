@@ -665,6 +665,7 @@ DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_osr)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sweeping)
 DEFINE_NEG_IMPLICATION(predictable, parallel_sweeping)
+DEFINE_NEG_IMPLICATION(predictable, job_based_sweeping)
 
 
 //
