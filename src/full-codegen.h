@@ -562,7 +562,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Complete a super named property assignment. The right-hand-side value
   // is expected in accumulator.
-  void EmitNamedSuperPropertyAssignment(Assignment* expr);
+  void EmitNamedSuperPropertyStore(Property* prop);
 
   // Complete a keyed property assignment.  The receiver and key are
   // expected on top of the stack and the right-hand-side value in the

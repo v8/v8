@@ -225,10 +225,58 @@
 }());
 
 
+(function TestCountOperations() {
+  function Base() {}
+  Base.prototype = {
+    constructor: Base,
+    get x() {
+      return this._x;
+    },
+    set x(v) {
+      this._x = v;
+    },
+    _x: 1
+  };
+
+  function Derived() {}
+  Derived.__proto__ = Base;
+  Derived.prototype = {
+    __proto__: Base.prototype,
+    constructor: Derived,
+    _x: 2
+  };
+
+  Derived.prototype.testCounts = function() {
+    assertEquals(2, this._x);
+    assertEquals(2, super.x);
+    super.x++;
+    assertEquals(3, super.x);
+    ++super.x;
+    assertEquals(4, super.x);
+    assertEquals(4, super.x++);
+    assertEquals(5, super.x);
+    assertEquals(6, ++super.x);
+    assertEquals(6, super.x);
+    assertEquals(6, this._x);
+
+    super.x--;
+    assertEquals(5, super.x);
+    --super.x;
+    assertEquals(4, super.x);
+    assertEquals(4, super.x--);
+    assertEquals(3, super.x);
+    assertEquals(2, --super.x);
+    assertEquals(2, super.x);
+    assertEquals(2, this._x);
+  }.toMethod(Derived.prototype);
+  new Derived().testCounts();
+}());
+
+
 (function TestUnsupportedCases() {
   function f1(x) { return super[x]; }
+  function f2(x) { super[x] = 5; }
   var o = {}
   assertThrows(function(){f1.toMethod(o)(x);}, ReferenceError);
-  function f2() { super.x++; }
-  assertThrows(function(){f2.toMethod(o)();}, ReferenceError);
+  assertThrows(function(){f2.toMethod(o)(x);}, ReferenceError);
 }());
