@@ -257,7 +257,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   InstructionCode code = opcode | AddressingModeField::encode(matcher.mode_);
   InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
   InstructionOperand* inputs[AddressingModeMatcher::kMaxInputCount];
-  int input_count = matcher.SetInputs(inputs);
+  size_t input_count = matcher.SetInputs(inputs);
   Emit(code, 1, outputs, input_count, inputs);
 }
 
@@ -319,7 +319,7 @@ void InstructionSelector::VisitStore(Node* node) {
   AddressingModeMatcher matcher(&g, base, index);
   InstructionCode code = opcode | AddressingModeField::encode(matcher.mode_);
   InstructionOperand* inputs[AddressingModeMatcher::kMaxInputCount + 1];
-  int input_count = matcher.SetInputs(inputs);
+  size_t input_count = matcher.SetInputs(inputs);
   inputs[input_count++] = val;
   Emit(code, 0, static_cast<InstructionOperand**>(NULL), input_count, inputs);
 }
