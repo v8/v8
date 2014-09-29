@@ -146,9 +146,10 @@ class ElementsAccessor {
       uint32_t destination_start,
       int copy_size) = 0;
 
-  // TODO(ishell): Keeping |source_holder| parameter in a non-handlified form
-  // helps avoiding ArrayConcat() builtin performance degradation.
-  // Revisit this later.
+  // NOTE: this method violates the handlified function signature convention:
+  // raw pointer parameter |source_holder| in the function that allocates.
+  // This is done intentionally to avoid ArrayConcat() builtin performance
+  // degradation.
   virtual void CopyElements(
       JSObject* source_holder,
       uint32_t source_start,
