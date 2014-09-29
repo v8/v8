@@ -139,6 +139,96 @@ typedef BinopMatcher<Int64Matcher, Int64Matcher> Int64BinopMatcher;
 typedef BinopMatcher<Uint64Matcher, Uint64Matcher> Uint64BinopMatcher;
 typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
 
+
+// Fairly intel-specify node matcher used for matching scale factors in
+// addressing modes.
+// Matches nodes of form [x * N] for N in {1,2,4,8}
+class ScaleFactorMatcher : public NodeMatcher {
+ public:
+  explicit ScaleFactorMatcher(Node* node)
+      : NodeMatcher(node), left_(NULL), power_(0) {
+    Match();
+  }
+
+  bool Matches() { return left_ != NULL; }
+  int Power() {
+    DCHECK(Matches());
+    return power_;
+  }
+  Node* Left() {
+    DCHECK(Matches());
+    return left_;
+  }
+
+ private:
+  void Match() {
+    if (opcode() != IrOpcode::kInt32Mul) return;
+    Int32BinopMatcher m(node());
+    if (!m.right().HasValue()) return;
+    int32_t value = m.right().Value();
+    switch (value) {
+      case 8:
+        power_++;  // Fall through.
+      case 4:
+        power_++;  // Fall through.
+      case 2:
+        power_++;  // Fall through.
+      case 1:
+        break;
+      default:
+        return;
+    }
+    left_ = m.left().node();
+  }
+
+  Node* left_;
+  int power_;
+};
+
+
+// Fairly intel-specify node matcher used for matching index and displacement
+// operands in addressing modes.
+// Matches nodes of form:
+//  [x * N]
+//  [x * N + K]
+//  [x + K]
+//  [x] -- fallback case
+// for N in {1,2,4,8} and K int32_t
+class IndexAndDisplacementMatcher : public NodeMatcher {
+ public:
+  explicit IndexAndDisplacementMatcher(Node* node)
+      : NodeMatcher(node), index_node_(node), displacement_(0), power_(0) {
+    Match();
+  }
+
+  Node* index_node() { return index_node_; }
+  int displacement() { return displacement_; }
+  int power() { return power_; }
+
+ private:
+  void Match() {
+    if (opcode() == IrOpcode::kInt32Add) {
+      // Assume reduction has put constant on the right.
+      Int32BinopMatcher m(node());
+      if (m.right().HasValue()) {
+        displacement_ = m.right().Value();
+        index_node_ = m.left().node();
+      }
+    }
+    // Test scale factor.
+    ScaleFactorMatcher scale_matcher(index_node_);
+    if (scale_matcher.Matches()) {
+      index_node_ = scale_matcher.Left();
+      power_ = scale_matcher.Power();
+    }
+  }
+
+  Node* index_node_;
+  int displacement_;
+  int power_;
+};
+
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
