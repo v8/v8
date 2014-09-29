@@ -21,7 +21,6 @@ namespace internal {
   ICU(CallIC_Customization_Miss)       \
   ICU(StoreIC_Miss)                    \
   ICU(StoreIC_Slow)                    \
-  ICU(SharedStoreIC_ExtendStorage)     \
   ICU(KeyedStoreIC_Miss)               \
   ICU(KeyedStoreIC_Slow)               \
   /* Utilities for IC stubs. */        \

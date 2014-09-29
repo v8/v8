@@ -614,6 +614,11 @@ void ElementsTransitionAndStoreStub::InitializeDescriptor(
 }
 
 
+CallInterfaceDescriptor ExtendStorageStub::GetCallInterfaceDescriptor() {
+  return ExtendStorageDescriptor(isolate());
+}
+
+
 static void InitializeVectorLoadStub(Isolate* isolate,
                                      CodeStubDescriptor* descriptor,
                                      Address deoptimization_handler) {

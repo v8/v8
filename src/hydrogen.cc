@@ -2626,16 +2626,15 @@ void HGraphBuilder::BuildInitializeElementsHeader(HValue* elements,
 }
 
 
-HValue* HGraphBuilder::BuildAllocateElementsAndInitializeElementsHeader(
-    ElementsKind kind,
-    HValue* capacity) {
+HValue* HGraphBuilder::BuildAllocateAndInitializeArray(ElementsKind kind,
+                                                       HValue* capacity) {
   // The HForceRepresentation is to prevent possible deopt on int-smi
   // conversion after allocation but before the new object fields are set.
   capacity = AddUncasted<HForceRepresentation>(capacity, Representation::Smi());
   HValue* size_in_bytes = BuildCalculateElementsSize(kind, capacity);
-  HValue* new_elements = BuildAllocateElements(kind, size_in_bytes);
-  BuildInitializeElementsHeader(new_elements, kind, capacity);
-  return new_elements;
+  HValue* new_array = BuildAllocateElements(kind, size_in_bytes);
+  BuildInitializeElementsHeader(new_array, kind, capacity);
+  return new_array;
 }
 
 
@@ -2754,8 +2753,8 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
           (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
           ElementsKindToShiftSize(new_kind)));
 
-  HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
-      new_kind, new_capacity);
+  HValue* new_elements =
+      BuildAllocateAndInitializeArray(new_kind, new_capacity);
 
   BuildCopyElements(elements, kind, new_elements,
                     new_kind, length, new_capacity);
@@ -2787,12 +2786,6 @@ void HGraphBuilder::BuildFillElementsWithValue(HValue* elements,
     if (constant_from == 0 && constant_to <= kElementLoopUnrollThreshold) {
       initial_capacity = constant_to;
     }
-  }
-
-  // Since we're about to store a hole value, the store instruction below must
-  // assume an elements kind that supports heap object values.
-  if (IsFastSmiOrObjectElementsKind(elements_kind)) {
-    elements_kind = FAST_HOLEY_ELEMENTS;
   }
 
   if (initial_capacity >= 0) {
@@ -2832,7 +2825,37 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
       ? Add<HConstant>(factory->the_hole_value())
       : Add<HConstant>(nan_double);
 
+  // Since we're about to store a hole value, the store instruction below must
+  // assume an elements kind that supports heap object values.
+  if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+    elements_kind = FAST_HOLEY_ELEMENTS;
+  }
+
   BuildFillElementsWithValue(elements, elements_kind, from, to, hole);
+}
+
+
+void HGraphBuilder::BuildCopyProperties(HValue* from_properties,
+                                        HValue* to_properties, HValue* length,
+                                        HValue* capacity) {
+  ElementsKind kind = FAST_ELEMENTS;
+
+  BuildFillElementsWithValue(to_properties, kind, length, capacity,
+                             graph()->GetConstantUndefined());
+
+  LoopBuilder builder(this, context(), LoopBuilder::kPostDecrement);
+
+  HValue* key = builder.BeginBody(length, graph()->GetConstant0(), Token::GT);
+
+  key = AddUncasted<HSub>(key, graph()->GetConstant1());
+  key->ClearFlag(HValue::kCanOverflow);
+
+  HValue* element =
+      Add<HLoadKeyed>(from_properties, key, static_cast<HValue*>(NULL), kind);
+
+  Add<HStoreKeyed>(to_properties, key, element, kind);
+
+  builder.EndBody();
 }
 
 

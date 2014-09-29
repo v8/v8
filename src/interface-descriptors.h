@@ -16,6 +16,7 @@ class PlatformInterfaceDescriptor;
 #define INTERFACE_DESCRIPTOR_LIST(V)          \
   V(Load)                                     \
   V(Store)                                    \
+  V(ExtendStorage)                            \
   V(ElementTransitionAndStore)                \
   V(Instanceof)                               \
   V(VectorLoadICTrampoline)                   \
@@ -210,6 +211,22 @@ class StoreDescriptor : public CallInterfaceDescriptor {
   static const Register ReceiverRegister();
   static const Register NameRegister();
   static const Register ValueRegister();
+};
+
+
+class ExtendStorageDescriptor : public StoreDescriptor {
+ public:
+  DECLARE_DESCRIPTOR(ExtendStorageDescriptor, StoreDescriptor)
+
+  // Extends StoreDescriptor with Map parameter.
+  enum ParameterIndices {
+    kReceiverIndex,
+    kNameIndex,
+    kValueIndex,
+    kMapIndex,
+    kParameterCount
+  };
+  static const Register MapRegister();
 };
 
 

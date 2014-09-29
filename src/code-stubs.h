@@ -80,6 +80,7 @@ namespace internal {
   V(VectorKeyedLoad)                        \
   V(VectorLoad)                             \
   /* IC Handler stubs */                    \
+  V(ExtendStorage)                          \
   V(LoadConstant)                           \
   V(LoadField)                              \
   V(KeyedLoadSloppyArguments)               \
@@ -995,6 +996,44 @@ class StoreFieldStub : public HandlerStub {
   class RepresentationBits : public BitField<uint8_t, 13, 4> {};
 
   DEFINE_HANDLER_CODE_STUB(StoreField, HandlerStub);
+};
+
+
+// Extend storage is called in a store inline cache when
+// it is necessary to extend the properties array of a
+// JSObject.
+class ExtendStorageStub : public HandlerStub {
+ public:
+  ExtendStorageStub(Isolate* isolate, FieldIndex index,
+                    Representation representation)
+      : HandlerStub(isolate) {
+    int property_index_key = index.GetFieldAccessStubKey();
+    uint8_t repr = PropertyDetails::EncodeRepresentation(representation);
+    set_sub_minor_key(StoreFieldByIndexBits::encode(property_index_key) |
+                      RepresentationBits::encode(repr));
+  }
+
+  FieldIndex index() const {
+    int property_index_key = StoreFieldByIndexBits::decode(sub_minor_key());
+    return FieldIndex::FromFieldAccessStubKey(property_index_key);
+  }
+
+  Representation representation() {
+    uint8_t repr = RepresentationBits::decode(sub_minor_key());
+    return PropertyDetails::DecodeRepresentation(repr);
+  }
+
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE;
+
+ protected:
+  virtual Code::Kind kind() const { return Code::STORE_IC; }
+  virtual Code::StubType GetStubType() { return Code::FAST; }
+
+ private:
+  class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
+  class RepresentationBits : public BitField<uint8_t, 13, 4> {};
+
+  DEFINE_HANDLER_CODE_STUB(ExtendStorage, HandlerStub);
 };
 
 

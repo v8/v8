@@ -384,16 +384,13 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
   if (details.type() == FIELD &&
       Map::cast(transition->GetBackPointer())->unused_property_fields() == 0) {
     // The properties must be extended before we can store the value.
-    // We jump to a runtime call that extends the properties array.
-    __ PopReturnAddressTo(scratch1);
-    __ Push(receiver_reg);
-    __ Push(transition);
-    __ Push(value_reg);
-    __ PushReturnAddressFrom(scratch1);
-    __ TailCallExternalReference(
-        ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
-                          isolate()),
-        3, 1);
+    __ Move(ExtendStorageDescriptor::NameRegister(), name);
+    __ Move(ExtendStorageDescriptor::MapRegister(), transition);
+
+    ExtendStorageStub stub(isolate(),
+                           FieldIndex::ForDescriptor(*transition, descriptor),
+                           representation);
+    GenerateTailCall(masm(), stub.GetCode());
     return;
   }
 

@@ -29,6 +29,9 @@ const Register StoreDescriptor::NameRegister() { return a2; }
 const Register StoreDescriptor::ValueRegister() { return a0; }
 
 
+const Register ExtendStorageDescriptor::MapRegister() { return a3; }
+
+
 const Register ElementTransitionAndStoreDescriptor::MapRegister() { return a3; }
 
 

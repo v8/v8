@@ -1962,7 +1962,7 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     }
 
     DCHECK(number_of_fields == old_number_of_fields + 1);
-    // This migration is a transition from a map that has run out out property
+    // This migration is a transition from a map that has run out of property
     // space. Therefore it could be done by extending the backing store.
     Handle<FixedArray> old_storage = handle(object->properties(), isolate);
     Handle<FixedArray> new_storage =
@@ -3750,15 +3750,6 @@ bool JSObject::TryMigrateInstance(Handle<JSObject> object) {
     object->PrintInstanceMigration(stdout, *original_map, object->map());
   }
   return true;
-}
-
-
-void JSObject::MigrateToNewProperty(Handle<JSObject> object,
-                                    Handle<Map> map,
-                                    Handle<Object> value) {
-  JSObject::MigrateToMap(object, map);
-  if (map->GetLastDescriptorDetails().type() != FIELD) return;
-  object->WriteToField(map->LastAdded(), *value);
 }
 
 

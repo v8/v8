@@ -2209,10 +2209,6 @@ class JSObject: public JSReceiver {
                                   Handle<Name> name,
                                   Handle<Object> old_value);
 
-  static void MigrateToNewProperty(Handle<JSObject> object,
-                                   Handle<Map> transition,
-                                   Handle<Object> value);
-
  private:
   friend class DictionaryElementsAccessor;
   friend class JSReceiver;
