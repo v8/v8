@@ -32,6 +32,7 @@ class RandomNumberGenerator;
 
 namespace internal {
 
+class BasicBlockProfiler;
 class Bootstrapper;
 class CallInterfaceDescriptorData;
 class CodeGenerator;
@@ -1107,6 +1108,9 @@ class Isolate {
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
 
+  BasicBlockProfiler* GetOrCreateBasicBlockProfiler();
+  BasicBlockProfiler* basic_block_profiler() { return basic_block_profiler_; }
+
   static Isolate* NewForTesting() { return new Isolate(); }
 
  private:
@@ -1327,6 +1331,7 @@ class Isolate {
   List<CallCompletedCallback> call_completed_callbacks_;
 
   v8::Isolate::UseCounterCallback use_counter_callback_;
+  BasicBlockProfiler* basic_block_profiler_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

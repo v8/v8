@@ -22,6 +22,7 @@ namespace internal {
 namespace compiler {
 
 class BasicBlock;
+class BasicBlockInstrumentor;
 class Graph;
 class ConstructScheduleData;
 class CodeGenerator;  // Because of a namespace bug in clang.
@@ -279,6 +280,7 @@ class Schedule : public GenericGraph<BasicBlock> {
 
  private:
   friend class ScheduleVisualizer;
+  friend class BasicBlockInstrumentor;
 
   void SetControlInput(BasicBlock* block, Node* node) {
     block->control_input_ = node;
