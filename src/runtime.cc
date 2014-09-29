@@ -10472,10 +10472,10 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
     Handle<FixedArrayBase> storage =
         isolate->factory()->NewFixedDoubleArray(estimate_result_length);
     int j = 0;
+    bool failure = false;
     if (estimate_result_length > 0) {
       Handle<FixedDoubleArray> double_storage =
           Handle<FixedDoubleArray>::cast(storage);
-      bool failure = false;
       for (int i = 0; i < argument_count; i++) {
         Handle<Object> obj(elements->get(i), isolate);
         if (obj->IsSmi()) {
@@ -10496,6 +10496,11 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
                   FixedDoubleArray::cast(array->elements());
               for (uint32_t i = 0; i < length; i++) {
                 if (elements->is_the_hole(i)) {
+                  // TODO(jkummerow/verwaest): We could be a bit more clever
+                  // here: Check if there are no elements/getters on the
+                  // prototype chain, and if so, allow creation of a holey
+                  // result array.
+                  // Same thing below (holey smi case).
                   failure = true;
                   break;
                 }
@@ -10522,6 +10527,7 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
               break;
             }
             case FAST_HOLEY_ELEMENTS:
+            case FAST_ELEMENTS:
               DCHECK_EQ(0, length);
               break;
             default:
@@ -10531,14 +10537,17 @@ RUNTIME_FUNCTION(Runtime_ArrayConcat) {
         if (failure) break;
       }
     }
-    Handle<JSArray> array = isolate->factory()->NewJSArray(0);
-    Smi* length = Smi::FromInt(j);
-    Handle<Map> map;
-    map = JSObject::GetElementsTransitionMap(array, kind);
-    array->set_map(*map);
-    array->set_length(length);
-    array->set_elements(*storage);
-    return *array;
+    if (!failure) {
+      Handle<JSArray> array = isolate->factory()->NewJSArray(0);
+      Smi* length = Smi::FromInt(j);
+      Handle<Map> map;
+      map = JSObject::GetElementsTransitionMap(array, kind);
+      array->set_map(*map);
+      array->set_length(length);
+      array->set_elements(*storage);
+      return *array;
+    }
+    // In case of failure, fall through.
   }
 
   Handle<FixedArray> storage;
