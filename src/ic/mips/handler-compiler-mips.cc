@@ -391,8 +391,8 @@ void NamedStoreHandlerCompiler::GenerateStoreTransition(
   if (details.type() == FIELD &&
       Map::cast(transition->GetBackPointer())->unused_property_fields() == 0) {
     // The properties must be extended before we can store the value.
-    __ mov(ExtendStorageDescriptor::NameRegister(), Operand(name));
-    __ mov(ExtendStorageDescriptor::MapRegister(), Operand(transition));
+    __ li(ExtendStorageDescriptor::NameRegister(), Operand(name));
+    __ li(ExtendStorageDescriptor::MapRegister(), Operand(transition));
 
 
     ExtendStorageStub stub(isolate(),
