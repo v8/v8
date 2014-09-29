@@ -2027,6 +2027,12 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
         CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
     return factory()->NewObjectLiteralProperty(is_get, value, next_pos,
                                                is_static);
+
+  } else if (!in_class && allow_harmony_object_literals_ &&
+             Token::IsIdentifier(name_token, strict_mode(),
+                                 this->is_generator())) {
+    value = this->ExpressionFromIdentifier(name, next_pos, scope_, factory());
+
   } else {
     Token::Value next = Next();
     ReportUnexpectedToken(next);
