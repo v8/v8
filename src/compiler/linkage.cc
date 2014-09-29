@@ -116,16 +116,67 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
   // TODO(jarin) At the moment, we only add frame state for
   // few chosen runtime functions.
   switch (function) {
+    case Runtime::kApply:
+    case Runtime::kArrayBufferNeuter:
+    case Runtime::kArrayConcat:
+    case Runtime::kBasicJSONStringify:
+    case Runtime::kCheckExecutionState:
+    case Runtime::kCollectStackTrace:
+    case Runtime::kCompileLazy:
+    case Runtime::kCompileOptimized:
+    case Runtime::kCompileString:
     case Runtime::kDebugBreak:
+    case Runtime::kDataViewSetInt8:
+    case Runtime::kDataViewSetUint8:
+    case Runtime::kDataViewSetInt16:
+    case Runtime::kDataViewSetUint16:
+    case Runtime::kDataViewSetInt32:
+    case Runtime::kDataViewSetUint32:
+    case Runtime::kDataViewSetFloat32:
+    case Runtime::kDataViewSetFloat64:
+    case Runtime::kDataViewGetInt8:
+    case Runtime::kDataViewGetUint8:
+    case Runtime::kDataViewGetInt16:
+    case Runtime::kDataViewGetUint16:
+    case Runtime::kDataViewGetInt32:
+    case Runtime::kDataViewGetUint32:
+    case Runtime::kDataViewGetFloat32:
+    case Runtime::kDataViewGetFloat64:
+    case Runtime::kDebugEvaluate:
     case Runtime::kDebugGetLoadedScripts:
+    case Runtime::kDebugGetPropertyDetails:
+    case Runtime::kDebugPromiseRejectEvent:
+    case Runtime::kDebugPromiseEvent:
+    case Runtime::kDeleteProperty:
     case Runtime::kDeoptimizeFunction:
+    case Runtime::kFunctionBindArguments:
+    case Runtime::kGetFrameCount:
+    case Runtime::kGetOwnProperty:
     case Runtime::kInlineCallFunction:
+    case Runtime::kInlineDateField:
+    case Runtime::kInlineRegExpExec:
+    case Runtime::kLiveEditGatherCompileInfo:
+    case Runtime::kLoadLookupSlot:
+    case Runtime::kLoadLookupSlotNoReferenceError:
+    case Runtime::kMaterializeRegExpLiteral:
+    case Runtime::kNewObjectFromBound:
+    case Runtime::kObjectFreeze:
+    case Runtime::kParseJson:
     case Runtime::kPrepareStep:
+    case Runtime::kPreventExtensions:
+    case Runtime::kRegExpCompile:
+    case Runtime::kRegExpExecMultiple:
+    case Runtime::kResolvePossiblyDirectEval:
+    // case Runtime::kSetPrototype:
     case Runtime::kSetScriptBreakPoint:
     case Runtime::kStackGuard:
-    case Runtime::kCheckExecutionState:
-    case Runtime::kDebugEvaluate:
-    case Runtime::kCollectStackTrace:
+    case Runtime::kStoreLookupSlot:
+    case Runtime::kStringBuilderConcat:
+    case Runtime::kStringReplaceGlobalRegExpWithString:
+    case Runtime::kThrowReferenceError:
+    case Runtime::kThrow:
+    case Runtime::kTypedArraySetFastCases:
+    case Runtime::kTypedArrayInitializeFromArrayLike:
       return true;
     default:
       return false;

@@ -65,7 +65,8 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
     Node* stack = graph.NewNode(common.StateValues(0));
 
     Node* state_node =
-        graph.NewNode(common.FrameState(JS_FRAME, BailoutId(0), kIgnoreOutput),
+        graph.NewNode(common.FrameState(JS_FRAME, BailoutId(0),
+                                        OutputFrameStateCombine::Ignore()),
                       parameters, locals, stack, context, UndefinedConstant());
 
     return state_node;

@@ -247,6 +247,50 @@ const Operator* CommonOperatorBuilder::Projection(size_t index) {
                                         1, 1, "Projection", index);
 }
 
+
+OutputFrameStateCombine::OutputFrameStateCombine(CombineKind kind,
+                                                 size_t parameter)
+    : kind_(kind), parameter_(parameter) {}
+
+// static
+OutputFrameStateCombine OutputFrameStateCombine::Ignore() {
+  return OutputFrameStateCombine(kPushOutput, 0);
+}
+
+
+// static
+OutputFrameStateCombine OutputFrameStateCombine::Push(size_t count) {
+  return OutputFrameStateCombine(kPushOutput, count);
+}
+
+
+// static
+OutputFrameStateCombine OutputFrameStateCombine::PokeAt(size_t index) {
+  return OutputFrameStateCombine(kPokeAt, index);
+}
+
+
+OutputFrameStateCombine::CombineKind OutputFrameStateCombine::kind() {
+  return kind_;
+}
+
+
+size_t OutputFrameStateCombine::GetPushCount() {
+  DCHECK(kind() == kPushOutput);
+  return parameter_;
+}
+
+
+size_t OutputFrameStateCombine::GetOffsetToPokeAt() {
+  DCHECK(kind() == kPokeAt);
+  return parameter_;
+}
+
+
+bool OutputFrameStateCombine::IsOutputIgnored() {
+  return kind() == kPushOutput && GetPushCount() == 0;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

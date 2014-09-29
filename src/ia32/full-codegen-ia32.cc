@@ -2798,6 +2798,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // edx (receiver). Touch up the stack with the right values.
       __ mov(Operand(esp, (arg_count + 0) * kPointerSize), edx);
       __ mov(Operand(esp, (arg_count + 1) * kPointerSize), eax);
+
+      PrepareForBailoutForId(expr->EvalOrLookupId(), NO_REGISTERS);
     }
     // Record source position for debugger.
     SetSourcePosition(expr->position());
@@ -2829,6 +2831,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ CallRuntime(Runtime::kLoadLookupSlot, 2);
     __ push(eax);  // Function.
     __ push(edx);  // Receiver.
+    PrepareForBailoutForId(expr->EvalOrLookupId(), NO_REGISTERS);
 
     // If fast case code has been generated, emit code to push the function
     // and receiver and have the slow path jump around this code.

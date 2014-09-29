@@ -1796,6 +1796,7 @@ class Call FINAL : public Expression, public FeedbackSlotInterface {
   bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupIterator* it);
 
   BailoutId ReturnId() const { return return_id_; }
+  BailoutId EvalOrLookupId() const { return eval_or_lookup_id_; }
 
   enum CallType {
     POSSIBLY_EVAL_CALL,
@@ -1821,7 +1822,8 @@ class Call FINAL : public Expression, public FeedbackSlotInterface {
         expression_(expression),
         arguments_(arguments),
         call_feedback_slot_(kInvalidFeedbackSlot),
-        return_id_(id_gen->GetNextId()) {
+        return_id_(id_gen->GetNextId()),
+        eval_or_lookup_id_(id_gen->GetNextId()) {
     if (expression->IsProperty()) {
       expression->AsProperty()->mark_for_call();
     }
@@ -1837,6 +1839,9 @@ class Call FINAL : public Expression, public FeedbackSlotInterface {
   int call_feedback_slot_;
 
   const BailoutId return_id_;
+  // TODO(jarin) Only allocate the bailout id for the POSSIBLY_EVAL_CALL and
+  // LOOKUP_SLOT_CALL types.
+  const BailoutId eval_or_lookup_id_;
 };
 
 

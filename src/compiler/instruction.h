@@ -736,30 +736,27 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   MaybeHandle<JSFunction> jsfunction() const { return jsfunction_; }
 
-  size_t size() const {
-    return parameters_count_ + locals_count_ + stack_count_ +
-           (HasContext() ? 1 : 0);
+  size_t GetSize(OutputFrameStateCombine combine =
+                     OutputFrameStateCombine::Ignore()) const {
+    size_t size = parameters_count_ + locals_count_ + stack_count_ +
+                  (HasContext() ? 1 : 0);
+    switch (combine.kind()) {
+      case OutputFrameStateCombine::kPushOutput:
+        size += combine.GetPushCount();
+        break;
+      case OutputFrameStateCombine::kPokeAt:
+        break;
+    }
+    return size;
   }
 
   size_t GetTotalSize() const {
     size_t total_size = 0;
     for (const FrameStateDescriptor* iter = this; iter != NULL;
          iter = iter->outer_state_) {
-      total_size += iter->size();
+      total_size += iter->GetSize();
     }
     return total_size;
-  }
-
-  size_t GetHeight(OutputFrameStateCombine override) const {
-    size_t height = size() - parameters_count();
-    switch (override) {
-      case kPushOutput:
-        ++height;
-        break;
-      case kIgnoreOutput:
-        break;
-    }
-    return height;
   }
 
   size_t GetFrameCount() const {

@@ -55,28 +55,33 @@ inline bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Compare operations
     case IrOpcode::kJSEqual:
-    case IrOpcode::kJSNotEqual:
-    case IrOpcode::kJSLessThan:
     case IrOpcode::kJSGreaterThan:
-    case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSHasProperty:
+    case IrOpcode::kJSInstanceOf:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kJSNotEqual:
 
     // Binary operations
+    case IrOpcode::kJSAdd:
+    case IrOpcode::kJSBitwiseAnd:
     case IrOpcode::kJSBitwiseOr:
     case IrOpcode::kJSBitwiseXor:
-    case IrOpcode::kJSBitwiseAnd:
+    case IrOpcode::kJSDivide:
+    case IrOpcode::kJSLoadNamed:
+    case IrOpcode::kJSLoadProperty:
+    case IrOpcode::kJSModulus:
+    case IrOpcode::kJSMultiply:
     case IrOpcode::kJSShiftLeft:
     case IrOpcode::kJSShiftRight:
     case IrOpcode::kJSShiftRightLogical:
-    case IrOpcode::kJSAdd:
-    case IrOpcode::kJSSubtract:
-    case IrOpcode::kJSMultiply:
-    case IrOpcode::kJSDivide:
-    case IrOpcode::kJSModulus:
-    case IrOpcode::kJSLoadProperty:
-    case IrOpcode::kJSStoreProperty:
-    case IrOpcode::kJSLoadNamed:
     case IrOpcode::kJSStoreNamed:
+    case IrOpcode::kJSStoreProperty:
+    case IrOpcode::kJSSubtract:
+
+    // Other
+    case IrOpcode::kJSDeleteProperty:
       return true;
 
     default:

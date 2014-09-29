@@ -198,8 +198,8 @@ void JSGenericLowering::ReplaceWithBuiltinCall(Node* node,
                                                int nargs) {
   Callable callable =
       CodeFactory::CallFunction(isolate(), nargs - 1, NO_CALL_FUNCTION_FLAGS);
-  CallDescriptor* desc =
-      linkage()->GetStubCallDescriptor(callable.descriptor(), nargs);
+  CallDescriptor* desc = linkage()->GetStubCallDescriptor(
+      callable.descriptor(), nargs, FlagsForNode(node));
   // TODO(mstarzinger): Accessing the builtins object this way prevents sharing
   // of code across native contexts. Fix this by loading from given context.
   Handle<JSFunction> function(
@@ -260,7 +260,7 @@ void JSGenericLowering::LowerJSToBoolean(Node* node) {
 
 void JSGenericLowering::LowerJSToNumber(Node* node) {
   Callable callable = CodeFactory::ToNumber(isolate());
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags);
+  ReplaceWithStubCall(node, callable, FlagsForNode(node));
 }
 
 
@@ -321,7 +321,8 @@ void JSGenericLowering::LowerJSInstanceOf(Node* node) {
       InstanceofStub::kArgsInRegisters);
   InstanceofStub stub(isolate(), flags);
   CallInterfaceDescriptor d = stub.GetCallInterfaceDescriptor();
-  CallDescriptor* desc = linkage()->GetStubCallDescriptor(d, 0);
+  CallDescriptor* desc =
+      linkage()->GetStubCallDescriptor(d, 0, FlagsForNode(node));
   Node* stub_code = CodeConstant(stub.GetCode());
   PatchInsertInput(node, 0, stub_code);
   PatchOperator(node, common()->Call(desc));

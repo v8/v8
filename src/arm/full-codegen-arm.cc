@@ -2892,6 +2892,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // r1 (receiver). Touch up the stack with the right values.
       __ str(r0, MemOperand(sp, (arg_count + 1) * kPointerSize));
       __ str(r1, MemOperand(sp, arg_count * kPointerSize));
+
+      PrepareForBailoutForId(expr->EvalOrLookupId(), NO_REGISTERS);
     }
 
     // Record source position for debugger.
@@ -2925,6 +2927,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ Push(context_register(), r2);
     __ CallRuntime(Runtime::kLoadLookupSlot, 2);
     __ Push(r0, r1);  // Function, receiver.
+    PrepareForBailoutForId(expr->EvalOrLookupId(), NO_REGISTERS);
 
     // If fast case code has been generated, emit code to push the
     // function and receiver and have the slow path jump around this
