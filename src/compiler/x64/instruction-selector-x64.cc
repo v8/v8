@@ -20,11 +20,6 @@ class X64OperandGenerator FINAL : public OperandGenerator {
                                            Register::ToAllocationIndex(reg));
   }
 
-  InstructionOperand* UseByteRegister(Node* node) {
-    // TODO(dcarney): relax constraint.
-    return UseFixed(node, rdx);
-  }
-
   InstructionOperand* UseImmediate64(Node* node) { return UseImmediate(node); }
 
   bool CanBeImmediate(Node* node) {
@@ -59,10 +54,173 @@ class X64OperandGenerator FINAL : public OperandGenerator {
 };
 
 
+// Matches nodes of form [x * N] for N in {1,2,4,8}
+class ScaleFactorMatcher : public NodeMatcher {
+ public:
+  explicit ScaleFactorMatcher(Node* node)
+      : NodeMatcher(node), left_(NULL), power_(0) {
+    Match();
+  }
+
+  bool Matches() { return left_ != NULL; }
+  int Power() {
+    DCHECK(Matches());
+    return power_;
+  }
+  Node* Left() {
+    DCHECK(Matches());
+    return left_;
+  }
+
+ private:
+  void Match() {
+    if (opcode() != IrOpcode::kInt32Mul) return;
+    Int32BinopMatcher m(node());
+    if (!m.right().HasValue()) return;
+    int32_t value = m.right().Value();
+    switch (value) {
+      case 8:
+        power_++;  // Fall through.
+      case 4:
+        power_++;  // Fall through.
+      case 2:
+        power_++;  // Fall through.
+      case 1:
+        break;
+      default:
+        return;
+    }
+    left_ = m.left().node();
+  }
+
+  Node* left_;
+  int power_;
+};
+
+
+// Matches nodes of form:
+//  [x * N]
+//  [x * N + K]
+//  [x + K]
+//  [x] -- fallback case
+// for N in {1,2,4,8} and K int32_t
+class IndexAndDisplacementMatcher : public NodeMatcher {
+ public:
+  explicit IndexAndDisplacementMatcher(Node* node)
+      : NodeMatcher(node), index_node_(node), displacement_(0), power_(0) {
+    Match();
+  }
+
+  Node* index_node() { return index_node_; }
+  int displacement() { return displacement_; }
+  int power() { return power_; }
+
+ private:
+  void Match() {
+    if (opcode() == IrOpcode::kInt32Add) {
+      // Assume reduction has put constant on the right.
+      Int32BinopMatcher m(node());
+      if (m.right().HasValue()) {
+        displacement_ = m.right().Value();
+        index_node_ = m.left().node();
+      }
+    }
+    // Test scale factor.
+    ScaleFactorMatcher scale_matcher(index_node_);
+    if (scale_matcher.Matches()) {
+      index_node_ = scale_matcher.Left();
+      power_ = scale_matcher.Power();
+    }
+  }
+
+  Node* index_node_;
+  int displacement_;
+  int power_;
+};
+
+
+class AddressingModeMatcher {
+ public:
+  AddressingModeMatcher(X64OperandGenerator* g, Node* base, Node* index)
+      : base_operand_(NULL),
+        index_operand_(NULL),
+        displacement_operand_(NULL),
+        mode_(kMode_None) {
+    Int32Matcher index_imm(index);
+    if (index_imm.HasValue()) {
+      int32_t value = index_imm.Value();
+      if (value == 0) {
+        mode_ = kMode_MR;
+      } else {
+        mode_ = kMode_MRI;
+        index_operand_ = g->UseImmediate(index);
+      }
+      base_operand_ = g->UseRegister(base);
+    } else {
+      // Compute base operand.
+      Int64Matcher base_imm(base);
+      if (!base_imm.HasValue() || base_imm.Value() != 0) {
+        base_operand_ = g->UseRegister(base);
+      }
+      // Compute index and displacement.
+      IndexAndDisplacementMatcher matcher(index);
+      index_operand_ = g->UseRegister(matcher.index_node());
+      if (matcher.displacement() != 0) {
+        displacement_operand_ = g->TempImmediate(matcher.displacement());
+      }
+      // Compute mode with scale factor one.
+      if (base_operand_ == NULL) {
+        if (displacement_operand_ == NULL) {
+          mode_ = kMode_M1;
+        } else {
+          mode_ = kMode_M1I;
+        }
+      } else {
+        if (displacement_operand_ == NULL) {
+          mode_ = kMode_MR1;
+        } else {
+          mode_ = kMode_MR1I;
+        }
+      }
+      // Adjust mode to actual scale factor.
+      mode_ = GetMode(mode_, matcher.power());
+    }
+    DCHECK_NE(kMode_None, mode_);
+  }
+
+  AddressingMode GetMode(AddressingMode one, int power) {
+    return static_cast<AddressingMode>(static_cast<int>(one) + power);
+  }
+
+  size_t SetInputs(InstructionOperand** inputs) {
+    size_t input_count = 0;
+    // Compute inputs_ and input_count.
+    if (base_operand_ != NULL) {
+      inputs[input_count++] = base_operand_;
+    }
+    if (index_operand_ != NULL) {
+      inputs[input_count++] = index_operand_;
+    }
+    if (displacement_operand_ != NULL) {
+      // Pure displacement mode not supported by x64.
+      DCHECK_NE(input_count, 0);
+      inputs[input_count++] = displacement_operand_;
+    }
+    DCHECK_NE(input_count, 0);
+    return input_count;
+  }
+
+  static const int kMaxInputCount = 3;
+  InstructionOperand* base_operand_;
+  InstructionOperand* index_operand_;
+  InstructionOperand* displacement_operand_;
+  AddressingMode mode_;
+};
+
+
 void InstructionSelector::VisitLoad(Node* node) {
   MachineType rep = RepresentationOf(OpParameter<LoadRepresentation>(node));
   MachineType typ = TypeOf(OpParameter<LoadRepresentation>(node));
-  X64OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
@@ -93,18 +251,14 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (g.CanBeImmediate(base)) {
-    // load [#base + %index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(index), g.UseImmediate(base));
-  } else if (g.CanBeImmediate(index)) {  // load [%base + #index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
-  } else {  // load [%base + %index + K]
-    Emit(opcode | AddressingModeField::encode(kMode_MR1I),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
-  }
-  // TODO(turbofan): addressing modes [r+r*{2,4,8}+K]
+
+  X64OperandGenerator g(this);
+  AddressingModeMatcher matcher(&g, base, index);
+  InstructionCode code = opcode | AddressingModeField::encode(matcher.mode_);
+  InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand* inputs[AddressingModeMatcher::kMaxInputCount];
+  int input_count = matcher.SetInputs(inputs);
+  Emit(code, 1, outputs, input_count, inputs);
 }
 
 
@@ -128,14 +282,6 @@ void InstructionSelector::VisitStore(Node* node) {
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
-  InstructionOperand* val;
-  if (g.CanBeImmediate(value)) {
-    val = g.UseImmediate(value);
-  } else if (rep == kRepWord8 || rep == kRepBit) {
-    val = g.UseByteRegister(value);
-  } else {
-    val = g.UseRegister(value);
-  }
   ArchOpcode opcode;
   switch (rep) {
     case kRepFloat32:
@@ -162,18 +308,20 @@ void InstructionSelector::VisitStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (g.CanBeImmediate(base)) {
-    // store [#base + %index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), NULL,
-         g.UseRegister(index), g.UseImmediate(base), val);
-  } else if (g.CanBeImmediate(index)) {  // store [%base + #index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), NULL,
-         g.UseRegister(base), g.UseImmediate(index), val);
-  } else {  // store [%base + %index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MR1I), NULL,
-         g.UseRegister(base), g.UseRegister(index), val);
+
+  InstructionOperand* val;
+  if (g.CanBeImmediate(value)) {
+    val = g.UseImmediate(value);
+  } else {
+    val = g.UseRegister(value);
   }
-  // TODO(turbofan): addressing modes [r+r*{2,4,8}+K]
+
+  AddressingModeMatcher matcher(&g, base, index);
+  InstructionCode code = opcode | AddressingModeField::encode(matcher.mode_);
+  InstructionOperand* inputs[AddressingModeMatcher::kMaxInputCount + 1];
+  int input_count = matcher.SetInputs(inputs);
+  inputs[input_count++] = val;
+  Emit(code, 0, static_cast<InstructionOperand**>(NULL), input_count, inputs);
 }
 
 
@@ -702,8 +850,6 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   // Compute InstructionOperands for inputs and outputs.
   InitializeCallBuffer(call, &buffer, true, true);
 
-  // TODO(dcarney): stack alignment for c calls.
-  // TODO(dcarney): shadow space on window for c calls.
   // Push any stack arguments.
   for (NodeVectorRIter input = buffer.pushed_nodes.rbegin();
        input != buffer.pushed_nodes.rend(); input++) {
