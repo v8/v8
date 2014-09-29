@@ -822,8 +822,6 @@ class Runtime : public AllStatic {
   static int StringMatch(Isolate* isolate, Handle<String> sub,
                          Handle<String> pat, int index);
 
-  static bool IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch);
-
   // TODO(1240886): Some of the following methods are *not* handle safe, but
   // accept handle arguments. This seems fragile.
 

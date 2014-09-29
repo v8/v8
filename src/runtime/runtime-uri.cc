@@ -1,19 +1,19 @@
-// Copyright 2013 the V8 project authors. All rights reserved.
+// Copyright 2014 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_URI_H_
-#define V8_URI_H_
-
 #include "src/v8.h"
 
+#include "src/arguments.h"
 #include "src/conversions.h"
+#include "src/runtime/runtime.h"
+#include "src/runtime/runtime-utils.h"
 #include "src/string-search.h"
 #include "src/utils.h"
 
+
 namespace v8 {
 namespace internal {
-
 
 template <typename Char>
 static INLINE(Vector<const Char> GetCharVector(Handle<String> string));
@@ -37,42 +37,41 @@ Vector<const uc16> GetCharVector(Handle<String> string) {
 
 class URIUnescape : public AllStatic {
  public:
-  template<typename Char>
+  template <typename Char>
   MUST_USE_RESULT static MaybeHandle<String> Unescape(Isolate* isolate,
                                                       Handle<String> source);
 
  private:
   static const signed char kHexValue['g'];
 
-  template<typename Char>
-  MUST_USE_RESULT static MaybeHandle<String> UnescapeSlow(
-      Isolate* isolate, Handle<String> string, int start_index);
+  template <typename Char>
+  MUST_USE_RESULT static MaybeHandle<String> UnescapeSlow(Isolate* isolate,
+                                                          Handle<String> string,
+                                                          int start_index);
 
   static INLINE(int TwoDigitHex(uint16_t character1, uint16_t character2));
 
   template <typename Char>
-  static INLINE(int UnescapeChar(Vector<const Char> vector,
-                                 int i,
-                                 int length,
+  static INLINE(int UnescapeChar(Vector<const Char> vector, int i, int length,
                                  int* step));
 };
 
 
 const signed char URIUnescape::kHexValue[] = {
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -0,  1,  2,  3,  4,  5,  6,  7,  8,  9, -1, -1, -1, -1, -1, -1,
-    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, 10, 11, 12, 13, 14, 15 };
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -0, 1,  2,  3,  4,  5,
+    6,  7,  8,  9,  -1, -1, -1, -1, -1, -1, -1, 10, 11, 12, 13, 14, 15, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, 10, 11, 12, 13, 14, 15};
 
 
-template<typename Char>
+template <typename Char>
 MaybeHandle<String> URIUnescape::Unescape(Isolate* isolate,
                                           Handle<String> source) {
   int index;
-  { DisallowHeapAllocation no_allocation;
+  {
+    DisallowHeapAllocation no_allocation;
     StringSearch<uint8_t, Char> search(isolate, STATIC_CHAR_VECTOR("%"));
     index = search.Search(GetCharVector<Char>(source), 0);
     if (index < 0) return source;
@@ -82,18 +81,20 @@ MaybeHandle<String> URIUnescape::Unescape(Isolate* isolate,
 
 
 template <typename Char>
-MaybeHandle<String> URIUnescape::UnescapeSlow(
-    Isolate* isolate, Handle<String> string, int start_index) {
+MaybeHandle<String> URIUnescape::UnescapeSlow(Isolate* isolate,
+                                              Handle<String> string,
+                                              int start_index) {
   bool one_byte = true;
   int length = string->length();
 
   int unescaped_length = 0;
-  { DisallowHeapAllocation no_allocation;
+  {
+    DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; unescaped_length++) {
       int step;
       if (UnescapeChar(vector, i, length, &step) >
-              String::kMaxOneByteCharCode) {
+          String::kMaxOneByteCharCode) {
         one_byte = false;
       }
       i += step;
@@ -108,8 +109,9 @@ MaybeHandle<String> URIUnescape::UnescapeSlow(
   Handle<String> second_part;
   DCHECK(unescaped_length <= String::kMaxLength);
   if (one_byte) {
-    Handle<SeqOneByteString> dest = isolate->factory()->NewRawOneByteString(
-        unescaped_length).ToHandleChecked();
+    Handle<SeqOneByteString> dest = isolate->factory()
+                                        ->NewRawOneByteString(unescaped_length)
+                                        .ToHandleChecked();
     DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; dest_position++) {
@@ -120,8 +122,9 @@ MaybeHandle<String> URIUnescape::UnescapeSlow(
     }
     second_part = dest;
   } else {
-    Handle<SeqTwoByteString> dest = isolate->factory()->NewRawTwoByteString(
-        unescaped_length).ToHandleChecked();
+    Handle<SeqTwoByteString> dest = isolate->factory()
+                                        ->NewRawTwoByteString(unescaped_length)
+                                        .ToHandleChecked();
     DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = start_index; i < length; dest_position++) {
@@ -148,26 +151,18 @@ int URIUnescape::TwoDigitHex(uint16_t character1, uint16_t character2) {
 
 
 template <typename Char>
-int URIUnescape::UnescapeChar(Vector<const Char> vector,
-                              int i,
-                              int length,
+int URIUnescape::UnescapeChar(Vector<const Char> vector, int i, int length,
                               int* step) {
   uint16_t character = vector[i];
   int32_t hi = 0;
   int32_t lo = 0;
-  if (character == '%' &&
-      i <= length - 6 &&
-      vector[i + 1] == 'u' &&
-      (hi = TwoDigitHex(vector[i + 2],
-                        vector[i + 3])) != -1 &&
-      (lo = TwoDigitHex(vector[i + 4],
-                        vector[i + 5])) != -1) {
+  if (character == '%' && i <= length - 6 && vector[i + 1] == 'u' &&
+      (hi = TwoDigitHex(vector[i + 2], vector[i + 3])) != -1 &&
+      (lo = TwoDigitHex(vector[i + 4], vector[i + 5])) != -1) {
     *step = 6;
     return (hi << 8) + lo;
-  } else if (character == '%' &&
-      i <= length - 3 &&
-      (lo = TwoDigitHex(vector[i + 1],
-                        vector[i + 2])) != -1) {
+  } else if (character == '%' && i <= length - 3 &&
+             (lo = TwoDigitHex(vector[i + 1], vector[i + 2])) != -1) {
     *step = 3;
     return lo;
   } else {
@@ -179,7 +174,7 @@ int URIUnescape::UnescapeChar(Vector<const Char> vector,
 
 class URIEscape : public AllStatic {
  public:
-  template<typename Char>
+  template <typename Char>
   MUST_USE_RESULT static MaybeHandle<String> Escape(Isolate* isolate,
                                                     Handle<String> string);
 
@@ -206,31 +201,27 @@ const char URIEscape::kHexChars[] = "0123456789ABCDEF";
 // }
 
 const char URIEscape::kNotEscaped[] = {
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1,
-    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1,
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 
-template<typename Char>
+template <typename Char>
 MaybeHandle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
   DCHECK(string->IsFlat());
   int escaped_length = 0;
   int length = string->length();
 
-  { DisallowHeapAllocation no_allocation;
+  {
+    DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = 0; i < length; i++) {
       uint16_t c = vector[i];
@@ -243,7 +234,7 @@ MaybeHandle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
       }
 
       // We don't allow strings that are longer than a maximal length.
-      DCHECK(String::kMaxLength < 0x7fffffff - 6);  // Cannot overflow.
+      DCHECK(String::kMaxLength < 0x7fffffff - 6);     // Cannot overflow.
       if (escaped_length > String::kMaxLength) break;  // Provoke exception.
     }
   }
@@ -253,30 +244,30 @@ MaybeHandle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
 
   Handle<SeqOneByteString> dest;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, dest,
-      isolate->factory()->NewRawOneByteString(escaped_length),
+      isolate, dest, isolate->factory()->NewRawOneByteString(escaped_length),
       String);
   int dest_position = 0;
 
-  { DisallowHeapAllocation no_allocation;
+  {
+    DisallowHeapAllocation no_allocation;
     Vector<const Char> vector = GetCharVector<Char>(string);
     for (int i = 0; i < length; i++) {
       uint16_t c = vector[i];
       if (c >= 256) {
         dest->SeqOneByteStringSet(dest_position, '%');
-        dest->SeqOneByteStringSet(dest_position+1, 'u');
-        dest->SeqOneByteStringSet(dest_position+2, kHexChars[c >> 12]);
-        dest->SeqOneByteStringSet(dest_position+3, kHexChars[(c >> 8) & 0xf]);
-        dest->SeqOneByteStringSet(dest_position+4, kHexChars[(c >> 4) & 0xf]);
-        dest->SeqOneByteStringSet(dest_position+5, kHexChars[c & 0xf]);
+        dest->SeqOneByteStringSet(dest_position + 1, 'u');
+        dest->SeqOneByteStringSet(dest_position + 2, kHexChars[c >> 12]);
+        dest->SeqOneByteStringSet(dest_position + 3, kHexChars[(c >> 8) & 0xf]);
+        dest->SeqOneByteStringSet(dest_position + 4, kHexChars[(c >> 4) & 0xf]);
+        dest->SeqOneByteStringSet(dest_position + 5, kHexChars[c & 0xf]);
         dest_position += 6;
       } else if (IsNotEscaped(c)) {
         dest->SeqOneByteStringSet(dest_position, c);
         dest_position++;
       } else {
         dest->SeqOneByteStringSet(dest_position, '%');
-        dest->SeqOneByteStringSet(dest_position+1, kHexChars[c >> 4]);
-        dest->SeqOneByteStringSet(dest_position+2, kHexChars[c & 0xf]);
+        dest->SeqOneByteStringSet(dest_position + 1, kHexChars[c >> 4]);
+        dest->SeqOneByteStringSet(dest_position + 2, kHexChars[c & 0xf]);
         dest_position += 3;
       }
     }
@@ -285,6 +276,34 @@ MaybeHandle<String> URIEscape::Escape(Isolate* isolate, Handle<String> string) {
   return dest;
 }
 
-} }  // namespace v8::internal
 
-#endif  // V8_URI_H_
+RUNTIME_FUNCTION(Runtime_URIEscape) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
+  Handle<String> string = String::Flatten(source);
+  DCHECK(string->IsFlat());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, string->IsOneByteRepresentationUnderneath()
+                           ? URIEscape::Escape<uint8_t>(isolate, source)
+                           : URIEscape::Escape<uc16>(isolate, source));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_URIUnescape) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, source, 0);
+  Handle<String> string = String::Flatten(source);
+  DCHECK(string->IsFlat());
+  Handle<String> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result, string->IsOneByteRepresentationUnderneath()
+                           ? URIUnescape::Unescape<uint8_t>(isolate, source)
+                           : URIUnescape::Unescape<uc16>(isolate, source));
+  return *result;
+}
+}
+}  // namespace v8::internal
