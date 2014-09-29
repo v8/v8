@@ -346,6 +346,45 @@ class GitSvnInterface(VCInterface):
     self.step.GitSVNTag(tag)
 
 
+class GitReadOnlyMixin(VCInterface):
+  def Pull(self):
+    self.step.GitPull()
+
+  def Fetch(self):
+    self.step.Git("fetch")
+
+  def GetTags(self):
+     return self.step.Git("tag").strip().splitlines()
+
+  def GetBranches(self):
+    # Get relevant remote branches, e.g. "origin/branch-heads/3.25".
+    branches = filter(
+        lambda s: re.match(r"^origin/branch\-heads/\d+\.\d+$", s),
+        self.step.GitRemotes())
+    # Remove 'origin/branch-heads/' prefix.
+    return map(lambda s: s[20:], branches)
+
+  def RemoteMasterBranch(self):
+    return "origin/master"
+
+  def RemoteCandidateBranch(self):
+    return "origin/candidates"
+
+  def RemoteBranch(self, name):
+    if name in ["candidates", "master"]:
+      return "origin/%s" % name
+    return "origin/branch-heads/%s" % name
+
+
+class GitReadSvnWriteInterface(GitReadOnlyMixin, GitSvnInterface):
+  pass
+
+
+VC_INTERFACES = {
+  "git_svn": GitSvnInterface,
+  "git_read_svn_write": GitReadSvnWriteInterface,
+}
+
 
 class Step(GitRecipesMixin):
   def __init__(self, text, number, config, state, options, handler):
@@ -355,7 +394,7 @@ class Step(GitRecipesMixin):
     self._state = state
     self._options = options
     self._side_effect_handler = handler
-    self.vc = GitSvnInterface()
+    self.vc = VC_INTERFACES[options.vc_interface]()
     self.vc.InjectStep(self)
 
     # The testing configuration might set a different default cwd.
@@ -740,6 +779,9 @@ class ScriptsBase(object):
     parser.add_argument("-s", "--step",
         help="Specify the step where to start work. Default: 0.",
         default=0, type=int)
+    parser.add_argument("--vc-interface",
+                        help=("Choose VC interface out of git_svn|"
+                              "git_read_svn_write."))
     self._PrepareOptions(parser)
 
     if args is None:  # pragma: no cover
@@ -776,6 +818,9 @@ class ScriptsBase(object):
     if not self._ProcessOptions(options):
       parser.print_help()
       return None
+
+    if not options.vc_interface:
+      options.vc_interface = "git_svn"
     return options
 
   def RunSteps(self, step_classes, args=None):

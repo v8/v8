@@ -131,6 +131,20 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {                                  // K << K => K
         return ReplaceInt32(m.left().Value() << m.right().Value());
       }
+      if (m.right().IsInRange(1, 31)) {
+        // (x >>> K) << K => x & ~(2^K - 1)
+        // (x >> K) << K => x & ~(2^K - 1)
+        if (m.left().IsWord32Sar() || m.left().IsWord32Shr()) {
+          Int32BinopMatcher mleft(m.left().node());
+          if (mleft.right().Is(m.right().Value())) {
+            node->set_op(machine()->Word32And());
+            node->ReplaceInput(0, mleft.left().node());
+            node->ReplaceInput(
+                1, Uint32Constant(~((1U << m.right().Value()) - 1U)));
+            return Changed(node);
+          }
+        }
+      }
       break;
     }
     case IrOpcode::kWord32Shr: {

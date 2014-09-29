@@ -87,6 +87,8 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
 
 Matcher<Node*> IsNumberLessThan(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,
+                                const Matcher<Node*>& rhs_matcher);
 
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& base_matcher,

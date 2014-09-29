@@ -742,6 +742,53 @@ THREADED_TEST(UsingExternalOneByteString) {
 }
 
 
+class DummyResource : public v8::String::ExternalStringResource {
+ public:
+  virtual const uint16_t* data() const { return string_; }
+  virtual size_t length() const { return 1 << 30; }
+
+ private:
+  uint16_t string_[10];
+};
+
+
+class DummyOneByteResource : public v8::String::ExternalOneByteStringResource {
+ public:
+  virtual const char* data() const { return string_; }
+  virtual size_t length() const { return 1 << 30; }
+
+ private:
+  char string_[10];
+};
+
+
+THREADED_TEST(NewExternalForVeryLongString) {
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    v8::TryCatch try_catch;
+    DummyOneByteResource r;
+    v8::Local<v8::String> str = v8::String::NewExternal(CcTest::isolate(), &r);
+    CHECK(str.IsEmpty());
+    CHECK(try_catch.HasCaught());
+    String::Utf8Value exception_value(try_catch.Exception());
+    CHECK_EQ("RangeError: Invalid string length", *exception_value);
+  }
+
+  {
+    LocalContext env;
+    v8::HandleScope scope(env->GetIsolate());
+    v8::TryCatch try_catch;
+    DummyResource r;
+    v8::Local<v8::String> str = v8::String::NewExternal(CcTest::isolate(), &r);
+    CHECK(str.IsEmpty());
+    CHECK(try_catch.HasCaught());
+    String::Utf8Value exception_value(try_catch.Exception());
+    CHECK_EQ("RangeError: Invalid string length", *exception_value);
+  }
+}
+
+
 THREADED_TEST(ScavengeExternalString) {
   i::FLAG_stress_compaction = false;
   i::FLAG_gc_global = false;
@@ -23333,4 +23380,24 @@ TEST(StreamingProducesParserCache) {
   CHECK(cached_data != NULL);
   CHECK(cached_data->data != NULL);
   CHECK_GT(cached_data->length, 0);
+}
+
+
+TEST(StreamingScriptWithInvalidUtf8) {
+  // Regression test for a crash: test that invalid UTF-8 bytes in the end of a
+  // chunk don't produce a crash.
+  const char* reference = "\xeb\x91\x80\x80\x80";
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foobXXXXX";  // Too many bytes which look like incomplete chars!
+  char chunk2[] =
+      "r = 13;\n"
+      "  return foob\xeb\x91\x80\x80\x80r;\n"
+      "}\n";
+  for (int i = 0; i < 5; ++i) chunk1[strlen(chunk1) - 5 + i] = reference[i];
+
+  const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, false);
 }

@@ -1137,7 +1137,7 @@ LOG=N
       Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
       RL("reviewer@chromium.org"),  # V8 reviewer.
       Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
-          "--bypass-hooks -cc \"ulan@chromium.org\"", ""),
+          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
       Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
       RL("LGTM"),  # Enter LGTM for V8 CL.
       Cmd("git cl presubmit", "Presubmit successfull\n"),
@@ -1150,8 +1150,137 @@ LOG=N
 
     # r12345 and r34567 are patches. r23456 (included) and r45678 are the MIPS
     # ports of r12345. r56789 is the MIPS port of r34567.
-    args = ["-f", "-p", extra_patch, "--branch", "trunk", "12345", "23456",
-            "34567"]
+    args = ["-f", "-p", extra_patch, "--branch", "trunk",
+            "--vc-interface", "git_svn", "12345", "23456", "34567"]
+
+    # The first run of the script stops because of the svn being down.
+    self.assertRaises(GitFailedException,
+        lambda: MergeToBranch(TEST_CONFIG, self).Run(args))
+
+    # Test that state recovery after restarting the script works.
+    args += ["-s", "3"]
+    MergeToBranch(TEST_CONFIG, self).Run(args)
+
+  def testMergeToBranchNewGit(self):
+    TEST_CONFIG["ALREADY_MERGING_SENTINEL_FILE"] = self.MakeEmptyTempFile()
+    TextToFile("", os.path.join(TEST_CONFIG["DEFAULT_CWD"], ".git"))
+    self.WriteFakeVersionFile(build=5)
+    os.environ["EDITOR"] = "vi"
+    extra_patch = self.MakeEmptyTempFile()
+
+    def VerifyPatch(patch):
+      return lambda: self.assertEquals(patch,
+          FileToText(TEST_CONFIG["TEMPORARY_PATCH_FILE"]))
+
+    msg = """Version 3.22.5.1 (merged r12345, r23456, r34567, r45678, r56789)
+
+Title4
+
+Title2
+
+Title3
+
+Title1
+
+Revert "Something"
+
+BUG=123,234,345,456,567,v8:123
+LOG=N
+"""
+
+    def VerifySVNCommit():
+      commit = FileToText(TEST_CONFIG["COMMITMSG_FILE"])
+      self.assertEquals(msg, commit)
+      version = FileToText(
+          os.path.join(TEST_CONFIG["DEFAULT_CWD"], VERSION_FILE))
+      self.assertTrue(re.search(r"#define MINOR_VERSION\s+22", version))
+      self.assertTrue(re.search(r"#define BUILD_NUMBER\s+5", version))
+      self.assertTrue(re.search(r"#define PATCH_LEVEL\s+1", version))
+      self.assertTrue(re.search(r"#define IS_CANDIDATE_VERSION\s+0", version))
+
+    self.Expect([
+      Cmd("git status -s -uno", ""),
+      Cmd("git status -s -b -uno", "## some_branch\n"),
+      Cmd("git fetch", ""),
+      Cmd("git branch", "  branch1\n* branch2\n"),
+      Cmd("git checkout -b %s origin/candidates" %
+          TEST_CONFIG["BRANCHNAME"], ""),
+      Cmd(("git log --format=%H --grep=\"Port r12345\" "
+           "--reverse origin/master"),
+          "hash1\nhash2"),
+      Cmd("git svn find-rev hash1 origin/master", "45678"),
+      Cmd("git log -1 --format=%s hash1", "Title1"),
+      Cmd("git svn find-rev hash2 origin/master", "23456"),
+      Cmd("git log -1 --format=%s hash2", "Title2"),
+      Cmd(("git log --format=%H --grep=\"Port r23456\" "
+           "--reverse origin/master"),
+          ""),
+      Cmd(("git log --format=%H --grep=\"Port r34567\" "
+           "--reverse origin/master"),
+          "hash3"),
+      Cmd("git svn find-rev hash3 origin/master", "56789"),
+      Cmd("git log -1 --format=%s hash3", "Title3"),
+      RL("Y"),  # Automatically add corresponding ports (34567, 56789)?
+      Cmd("git svn find-rev r12345 origin/master",
+          "Partial-rebuilding bla\nDone rebuilding blub\nhash4"),
+      # Simulate svn being down which stops the script.
+      Cmd("git svn find-rev r23456 origin/master", None),
+      # Restart script in the failing step.
+      Cmd("git svn find-rev r12345 origin/master", "hash4"),
+      Cmd("git svn find-rev r23456 origin/master", "hash2"),
+      Cmd("git svn find-rev r34567 origin/master", "hash3"),
+      Cmd("git svn find-rev r45678 origin/master", "hash1"),
+      Cmd("git svn find-rev r56789 origin/master", "hash5"),
+      Cmd("git log -1 --format=%s hash4", "Title4"),
+      Cmd("git log -1 --format=%s hash2", "Title2"),
+      Cmd("git log -1 --format=%s hash3", "Title3"),
+      Cmd("git log -1 --format=%s hash1", "Title1"),
+      Cmd("git log -1 --format=%s hash5", "Revert \"Something\""),
+      Cmd("git log -1 hash4", "Title4\nBUG=123\nBUG=234"),
+      Cmd("git log -1 hash2", "Title2\n BUG = v8:123,345"),
+      Cmd("git log -1 hash3", "Title3\nLOG=n\nBUG=567, 456"),
+      Cmd("git log -1 hash1", "Title1\nBUG="),
+      Cmd("git log -1 hash5", "Revert \"Something\"\nBUG=none"),
+      Cmd("git log -1 -p hash4", "patch4"),
+      Cmd(("git apply --index --reject \"%s\"" %
+           TEST_CONFIG["TEMPORARY_PATCH_FILE"]),
+          "", cb=VerifyPatch("patch4")),
+      Cmd("git log -1 -p hash2", "patch2"),
+      Cmd(("git apply --index --reject \"%s\"" %
+           TEST_CONFIG["TEMPORARY_PATCH_FILE"]),
+          "", cb=VerifyPatch("patch2")),
+      Cmd("git log -1 -p hash3", "patch3"),
+      Cmd(("git apply --index --reject \"%s\"" %
+           TEST_CONFIG["TEMPORARY_PATCH_FILE"]),
+          "", cb=VerifyPatch("patch3")),
+      Cmd("git log -1 -p hash1", "patch1"),
+      Cmd(("git apply --index --reject \"%s\"" %
+           TEST_CONFIG["TEMPORARY_PATCH_FILE"]),
+          "", cb=VerifyPatch("patch1")),
+      Cmd("git log -1 -p hash5", "patch5\n"),
+      Cmd(("git apply --index --reject \"%s\"" %
+           TEST_CONFIG["TEMPORARY_PATCH_FILE"]),
+          "", cb=VerifyPatch("patch5\n")),
+      Cmd("git apply --index --reject \"%s\"" % extra_patch, ""),
+      RL("Y"),  # Automatically increment patch level?
+      Cmd("git commit -aF \"%s\"" % TEST_CONFIG["COMMITMSG_FILE"], ""),
+      RL("reviewer@chromium.org"),  # V8 reviewer.
+      Cmd("git cl upload --send-mail -r \"reviewer@chromium.org\" "
+          "--bypass-hooks --cc \"ulan@chromium.org\"", ""),
+      Cmd("git checkout -f %s" % TEST_CONFIG["BRANCHNAME"], ""),
+      RL("LGTM"),  # Enter LGTM for V8 CL.
+      Cmd("git cl presubmit", "Presubmit successfull\n"),
+      Cmd("git cl dcommit -f --bypass-hooks", "Closing issue\n",
+          cb=VerifySVNCommit),
+      Cmd("git svn tag 3.22.5.1 -m \"Tagging version 3.22.5.1\"", ""),
+      Cmd("git checkout -f some_branch", ""),
+      Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
+    ])
+
+    # r12345 and r34567 are patches. r23456 (included) and r45678 are the MIPS
+    # ports of r12345. r56789 is the MIPS port of r34567.
+    args = ["-f", "-p", extra_patch, "--branch", "candidates",
+            "--vc-interface", "git_read_svn_write", "12345", "23456", "34567"]
 
     # The first run of the script stops because of the svn being down.
     self.assertRaises(GitFailedException,
@@ -1521,7 +1650,10 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
 
 class SystemTest(unittest.TestCase):
   def testReload(self):
+    options = ScriptsBase(
+        TEST_CONFIG, DEFAULT_SIDE_EFFECT_HANDLER, {}).MakeOptions([])
     step = MakeStep(step_class=PrepareChangeLog, number=0, state={}, config={},
+                    options=options,
                     side_effect_handler=DEFAULT_SIDE_EFFECT_HANDLER)
     body = step.Reload(
 """------------------------------------------------------------------------

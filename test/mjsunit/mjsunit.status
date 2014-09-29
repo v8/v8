@@ -70,9 +70,10 @@
   'harmony/block-let-crankshaft': [PASS, NO_VARIANTS],
   'harmony/empty-for': [PASS, NO_VARIANTS],
 
-  # Some tests are over-restrictive about object layout.
+  # TODO(verwaest): Some tests are over-restrictive about object layout.
   'array-constructor-feedback': [PASS, NO_VARIANTS],
   'array-feedback': [PASS, NO_VARIANTS],
+  'compare-known-objects-slow': [PASS, NO_VARIANTS],
   'elements-kind': [PASS, NO_VARIANTS],
 
   # Some tests are just too slow to run for now.

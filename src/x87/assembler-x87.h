@@ -916,9 +916,6 @@ class Assembler : public AssemblerBase {
 
   // TODO(lrn): Need SFENCE for movnt?
 
-  // Debugging
-  void Print();
-
   // Check the code size generated from label to here.
   int SizeOfCodeGeneratedSince(Label* label) {
     return pc_offset() - label->pos();

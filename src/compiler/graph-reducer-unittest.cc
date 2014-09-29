@@ -97,15 +97,16 @@ TEST_F(GraphReducerTest, ReduceOnceForEveryReducer) {
 
 
 TEST_F(GraphReducerTest, ReduceAgainAfterChanged) {
-  Sequence s1, s2;
+  Sequence s1, s2, s3;
   StrictMock<MockReducer> r1, r2, r3;
   Node* node0 = graph()->NewNode(&OP0);
   EXPECT_CALL(r1, Reduce(node0));
   EXPECT_CALL(r2, Reduce(node0));
-  EXPECT_CALL(r3, Reduce(node0)).InSequence(s1, s2).WillOnce(
+  EXPECT_CALL(r3, Reduce(node0)).InSequence(s1, s2, s3).WillOnce(
       Return(Reducer::Changed(node0)));
   EXPECT_CALL(r1, Reduce(node0)).InSequence(s1);
   EXPECT_CALL(r2, Reduce(node0)).InSequence(s2);
+  EXPECT_CALL(r3, Reduce(node0)).InSequence(s3);
   ReduceNode(node0, &r1, &r2, &r3);
 }
 

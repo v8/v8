@@ -5,6 +5,7 @@
 #include "include/libplatform/libplatform.h"
 #include "include/v8.h"
 #include "src/base/compiler-specific.h"
+#include "src/v8.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
 namespace {
@@ -38,6 +39,9 @@ class DefaultPlatformEnvironment FINAL : public ::testing::Environment {
 
 
 int main(int argc, char** argv) {
+  // This forces some thread local key initialization that may be needed to
+  // print out the names of the unit tests.
+  i::V8::Initialize();
   testing::InitGoogleMock(&argc, argv);
   testing::AddGlobalTestEnvironment(new DefaultPlatformEnvironment);
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);

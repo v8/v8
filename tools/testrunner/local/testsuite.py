@@ -234,7 +234,7 @@ class GoogleTestSuite(TestSuite):
     if output.exit_code != 0:
       print output.stdout
       print output.stderr
-      return []
+      raise Exception("Test executable failed to list the tests.")
     tests = []
     test_case = ''
     for line in output.stdout.splitlines():

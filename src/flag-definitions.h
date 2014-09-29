@@ -336,11 +336,7 @@ DEFINE_BOOL(trace_turbo_scheduler, false, "trace generated TurboFan scheduler")
 DEFINE_BOOL(turbo_asm, false, "enable TurboFan for asm.js code")
 DEFINE_BOOL(turbo_verify, false, "verify TurboFan graphs at each phase")
 DEFINE_BOOL(turbo_stats, false, "print TurboFan statistics")
-#if V8_TURBOFAN_BACKEND
 DEFINE_BOOL(turbo_types, true, "use typed lowering in TurboFan")
-#else
-DEFINE_BOOL(turbo_types, false, "use typed lowering in TurboFan")
-#endif
 DEFINE_BOOL(turbo_source_positions, false,
             "track source code positions when building TurboFan IR")
 DEFINE_BOOL(context_specialization, false,
@@ -669,6 +665,7 @@ DEFINE_NEG_IMPLICATION(predictable, concurrent_recompilation)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_osr)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sweeping)
 DEFINE_NEG_IMPLICATION(predictable, parallel_sweeping)
+DEFINE_NEG_IMPLICATION(predictable, job_based_sweeping)
 
 
 //
