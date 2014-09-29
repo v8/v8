@@ -1252,8 +1252,10 @@ LInstruction* LChunkBuilder::DoMathExp(HUnaryMathOperation* instr) {
 
 LInstruction* LChunkBuilder::DoMathSqrt(HUnaryMathOperation* instr) {
   LOperand* input = UseRegisterAtStart(instr->value());
-  LMathSqrt* result = new(zone()) LMathSqrt(input);
-  return DefineSameAsFirst(result);
+  LOperand* temp1 = FixedTemp(ecx);
+  LOperand* temp2 = FixedTemp(edx);
+  LMathSqrt* result = new(zone()) LMathSqrt(input, temp1, temp2);
+  return MarkAsCall(DefineSameAsFirst(result), instr);
 }
 
 
