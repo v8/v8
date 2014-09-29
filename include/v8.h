@@ -1415,6 +1415,27 @@ class V8_EXPORT StackFrame {
 };
 
 
+// A StateTag represents a possible state of the VM.
+enum StateTag { JS, GC, COMPILER, OTHER, EXTERNAL, IDLE };
+
+
+// A RegisterState represents the current state of registers used
+// by the sampling profiler API.
+struct RegisterState {
+  RegisterState() : pc(NULL), sp(NULL), fp(NULL) {}
+  void* pc;  // Instruction pointer.
+  void* sp;  // Stack pointer.
+  void* fp;  // Frame pointer.
+};
+
+
+// The output structure filled up by GetStackSample API function.
+struct SampleInfo {
+  size_t frames_count;
+  StateTag vm_state;
+};
+
+
 /**
  * A JSON Parser.
  */
@@ -4558,6 +4579,21 @@ class V8_EXPORT Isolate {
    * Get statistics about the heap memory usage.
    */
   void GetHeapStatistics(HeapStatistics* heap_statistics);
+
+  /**
+   * Get a call stack sample from the isolate.
+   * \param state Execution state.
+   * \param frames Caller allocated buffer to store stack frames.
+   * \param frames_limit Maximum number of frames to capture. The buffer must
+   *                     be large enough to hold the number of frames.
+   * \param sample_info The sample info is filled up by the function
+   *                    provides number of actual captured stack frames and
+   *                    the current VM state.
+   * \note GetStackSample should only be called when the JS thread is paused or
+   *       interrupted. Otherwise the behavior is undefined.
+   */
+  void GetStackSample(const RegisterState& state, void** frames,
+                      size_t frames_limit, SampleInfo* sample_info);
 
   /**
    * Adjusts the amount of registered external memory. Used to give V8 an

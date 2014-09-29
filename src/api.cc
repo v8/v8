@@ -40,6 +40,7 @@
 #include "src/prototype.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime-profiler.h"
+#include "src/sampler.h"
 #include "src/scanner-character-streams.h"
 #include "src/simulator.h"
 #include "src/snapshot.h"
@@ -51,9 +52,9 @@
 
 #define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
-#define ENTER_V8(isolate)                                          \
-  DCHECK((isolate)->IsInitialized());                              \
-  i::VMState<i::OTHER> __state__((isolate))
+#define ENTER_V8(isolate)             \
+  DCHECK((isolate)->IsInitialized()); \
+  i::VMState<v8::OTHER> __state__((isolate))
 
 namespace v8 {
 
@@ -6702,6 +6703,14 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
 }
 
 
+void Isolate::GetStackSample(const RegisterState& state, void** frames,
+                             size_t frames_limit, SampleInfo* sample_info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::TickSample::GetStackSample(isolate, state, frames, frames_limit,
+                                sample_info);
+}
+
+
 void Isolate::SetEventLogger(LogEventCallback that) {
   // Do not overwrite the event logger if we want to log explicitly.
   if (i::FLAG_log_timer_events) return;
@@ -7199,13 +7208,13 @@ const CpuProfile* CpuProfiler::StopCpuProfiling(Handle<String> title) {
 
 void CpuProfiler::SetIdle(bool is_idle) {
   i::Isolate* isolate = reinterpret_cast<i::CpuProfiler*>(this)->isolate();
-  i::StateTag state = isolate->current_vm_state();
-  DCHECK(state == i::EXTERNAL || state == i::IDLE);
+  v8::StateTag state = isolate->current_vm_state();
+  DCHECK(state == v8::EXTERNAL || state == v8::IDLE);
   if (isolate->js_entry_sp() != NULL) return;
   if (is_idle) {
-    isolate->set_current_vm_state(i::IDLE);
-  } else if (state == i::IDLE) {
-    isolate->set_current_vm_state(i::EXTERNAL);
+    isolate->set_current_vm_state(v8::IDLE);
+  } else if (state == v8::IDLE) {
+    isolate->set_current_vm_state(v8::EXTERNAL);
   }
 }
 

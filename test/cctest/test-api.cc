@@ -981,7 +981,7 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
   if (isolate->cpu_profiler()->is_profiling()) {
-    CHECK_EQ(i::EXTERNAL, isolate->current_vm_state());
+    CHECK_EQ(v8::EXTERNAL, isolate->current_vm_state());
     CHECK(isolate->external_callback_scope());
     CHECK_EQ(callback, isolate->external_callback_scope()->callback());
   }

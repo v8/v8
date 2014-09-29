@@ -143,6 +143,7 @@
         'test-regexp.cc',
         'test-reloc-info.cc',
         'test-representation.cc',
+        'test-sampler-api.cc',
         'test-serialize.cc',
         'test-spaces.cc',
         'test-strings.cc',
