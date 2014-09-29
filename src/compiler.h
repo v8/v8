@@ -85,7 +85,8 @@ class CompilationInfo {
     kInliningEnabled = 1 << 17,
     kTypingEnabled = 1 << 18,
     kDisableFutureOptimization = 1 << 19,
-    kAbortedDueToDependency = 1 << 20
+    kAbortedDueToDependency = 1 << 20,
+    kToplevel = 1 << 21
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
@@ -207,6 +208,10 @@ class CompilationInfo {
   void MarkAsTypingEnabled() { SetFlag(kTypingEnabled); }
 
   bool is_typing_enabled() const { return GetFlag(kTypingEnabled); }
+
+  void MarkAsToplevel() { SetFlag(kToplevel); }
+
+  bool is_toplevel() const { return GetFlag(kToplevel); }
 
   bool IsCodePreAgingActive() const {
     return FLAG_optimize_for_size && FLAG_age_code && !will_serialize() &&
