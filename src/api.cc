@@ -6826,6 +6826,18 @@ void v8::Isolate::SetStackLimit(uintptr_t stack_limit) {
 }
 
 
+void v8::Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  if (isolate->code_range()->valid()) {
+    *start = isolate->code_range()->start();
+    *length_in_bytes = isolate->code_range()->size();
+  } else {
+    *start = NULL;
+    *length_in_bytes = 0;
+  }
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
     : str_(NULL), length_(0) {
   i::Isolate* isolate = i::Isolate::Current();

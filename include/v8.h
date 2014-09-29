@@ -4847,6 +4847,18 @@ class V8_EXPORT Isolate {
    */
   void SetStackLimit(uintptr_t stack_limit);
 
+  /**
+   * Returns a memory range that can potentially contain jitted code.
+   *
+   * On Win64, embedders are advised to install function table callbacks for
+   * these ranges, as default SEH won't be able to unwind through jitted code.
+   *
+   * Might be empty on other platforms.
+   *
+   * https://code.google.com/p/v8/issues/detail?id=3598
+   */
+  void GetCodeRange(void** start, size_t* length_in_bytes);
+
  private:
   template<class K, class V, class Traits> friend class PersistentValueMap;
 
