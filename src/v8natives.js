@@ -325,9 +325,7 @@ function ObjectLookupSetter(name) {
 
 
 function ObjectKeys(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.keys"]);
-  }
+  obj = ToObject(obj);
   if (%IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "keys", DerivedKeysTrap);
