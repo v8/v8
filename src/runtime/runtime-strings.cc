@@ -1182,6 +1182,14 @@ RUNTIME_FUNCTION(Runtime_StringEquals) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_FlattenString) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
+  return *String::Flatten(str);
+}
+
+
 RUNTIME_FUNCTION(RuntimeReference_StringCharFromCode) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_CharFromCode(args, isolate);
