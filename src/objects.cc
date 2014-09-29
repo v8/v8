@@ -2807,7 +2807,8 @@ MaybeHandle<Object> Object::SetProperty(Handle<Object> object,
 MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
                                         Handle<Object> value,
                                         StrictMode strict_mode,
-                                        StoreFromKeyed store_mode) {
+                                        StoreFromKeyed store_mode,
+                                        StorePropertyMode data_store_mode) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc(it->isolate());
@@ -2900,6 +2901,16 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
     THROW_NEW_ERROR(it->isolate(),
                     NewReferenceError("not_defined", HandleVector(args, 1)),
                     Object);
+  }
+
+  if (data_store_mode == SUPER_PROPERTY) {
+    if (strict_mode == STRICT) {
+      Handle<Object> args[1] = {it->name()};
+      THROW_NEW_ERROR(it->isolate(),
+                      NewReferenceError("not_defined", HandleVector(args, 1)),
+                      Object);
+    }
+    return value;
   }
 
   return AddDataProperty(it, value, NONE, strict_mode, store_mode);

@@ -1948,8 +1948,8 @@ RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
 RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
 
   if (home_object->IsAccessCheckNeeded() &&
@@ -1966,6 +1966,54 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
   return *result;
+}
+
+
+static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
+                            Handle<Object> receiver, Handle<Name> name,
+                            Handle<Object> value, StrictMode strict_mode) {
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(home_object, name, v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_SET);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  }
+
+  PrototypeIterator iter(isolate, home_object);
+  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
+
+  LookupIterator it(receiver, name, Handle<JSReceiver>::cast(proto));
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Object::SetProperty(&it, value, strict_mode,
+                          Object::CERTAINLY_NOT_STORE_FROM_KEYED,
+                          Object::SUPER_PROPERTY));
+  return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 4);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 3);
+
+  return StoreToSuper(isolate, home_object, receiver, name, value, STRICT);
+}
+
+
+RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 4);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 3);
+
+  return StoreToSuper(isolate, home_object, receiver, name, value, SLOPPY);
 }
 
 
