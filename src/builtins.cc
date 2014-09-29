@@ -1562,7 +1562,7 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       // Move the code into the object heap.
       CodeDesc desc;
       masm.GetCode(&desc);
-      Code::Flags flags =  functions[i].flags;
+      Code::Flags flags = functions[i].flags;
       Handle<Code> code =
           isolate->factory()->NewCode(desc, flags, masm.CodeObject());
       // Log the event and add the code to the builtins array.

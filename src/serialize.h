@@ -607,7 +607,7 @@ class CodeSerializer : public Serializer {
  private:
   void SerializeBuiltin(Code* builtin, HowToCode how_to_code,
                         WhereToPoint where_to_point, int skip);
-  void SerializeCodeStub(Code* code, HowToCode how_to_code,
+  void SerializeCodeStub(Code* stub, HowToCode how_to_code,
                          WhereToPoint where_to_point, int skip);
   void SerializeSourceObject(HowToCode how_to_code, WhereToPoint where_to_point,
                              int skip);

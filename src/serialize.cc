@@ -1894,15 +1894,26 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
 
   if (heap_object->IsCode()) {
     Code* code_object = Code::cast(heap_object);
-    DCHECK(!code_object->is_optimized_code());
-    if (code_object->kind() == Code::BUILTIN) {
-      SerializeBuiltin(code_object, how_to_code, where_to_point, skip);
-      return;
-    } else if (code_object->IsCodeStubOrIC()) {
-      SerializeCodeStub(code_object, how_to_code, where_to_point, skip);
-      return;
+    switch (code_object->kind()) {
+      case Code::OPTIMIZED_FUNCTION:  // No optimized code compiled yet.
+      case Code::HANDLER:             // No handlers patched in yet.
+      case Code::REGEXP:              // No regexp literals initialized yet.
+      case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
+        CHECK(false);
+      case Code::BUILTIN:
+        SerializeBuiltin(code_object, how_to_code, where_to_point, skip);
+        return;
+      case Code::STUB:
+        SerializeCodeStub(code_object, how_to_code, where_to_point, skip);
+        return;
+#define IC_KIND_CASE(KIND) case Code::KIND:
+        IC_KIND_LIST(IC_KIND_CASE)
+#undef IC_KIND_CASE
+      // TODO(yangguo): add special handling to canonicalize ICs.
+      case Code::FUNCTION:
+        SerializeHeapObject(code_object, how_to_code, where_to_point, skip);
+        return;
     }
-    code_object->ClearInlineCaches();
   }
 
   if (heap_object == source_) {
@@ -1967,20 +1978,13 @@ void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
 }
 
 
-void CodeSerializer::SerializeCodeStub(Code* code, HowToCode how_to_code,
+void CodeSerializer::SerializeCodeStub(Code* stub, HowToCode how_to_code,
                                        WhereToPoint where_to_point, int skip) {
   DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
          (how_to_code == kPlain && where_to_point == kInnerPointer) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  uint32_t stub_key = code->stub_key();
-
-  if (stub_key == CodeStub::NoCacheKey()) {
-    if (FLAG_trace_code_serializer) {
-      PrintF("Encoding uncacheable code stub as heap object\n");
-    }
-    SerializeHeapObject(code, how_to_code, where_to_point, skip);
-    return;
-  }
+  uint32_t stub_key = stub->stub_key();
+  DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
 
   if (skip != 0) {
     sink_->Put(kSkip, "SkipFromSerializeCodeStub");

@@ -136,10 +136,12 @@ namespace internal {
 class CodeStub BASE_EMBEDDED {
  public:
   enum Major {
+    // TODO(mvstanton): eliminate the NoCache key by getting rid
+    //                  of the non-monomorphic-cache.
+    NoCache = 0,  // marker for stubs that do custom caching]
 #define DEF_ENUM(name) name,
     CODE_STUB_LIST(DEF_ENUM)
 #undef DEF_ENUM
-    NoCache,  // marker for stubs that do custom caching
     NUMBER_OF_IDS
   };
 
