@@ -1561,6 +1561,18 @@ class V8_EXPORT Value : public Data {
   bool IsRegExp() const;
 
   /**
+   * Returns true if this value is a Generator function.
+   * This is an experimental feature.
+   */
+  bool IsGeneratorFunction() const;
+
+  /**
+   * Returns true if this value is a Generator object (iterator).
+   * This is an experimental feature.
+   */
+  bool IsGeneratorObject() const;
+
+  /**
    * Returns true if this value is a Promise.
    * This is an experimental feature.
    */
