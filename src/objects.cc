@@ -9010,19 +9010,25 @@ void String::PrintOn(FILE* file) {
 }
 
 
+inline static uint32_t ObjectAddressForHashing(Object* object) {
+  uint32_t value = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(object));
+  return value & MemoryChunk::kAlignmentMask;
+}
+
+
 int Map::Hash() {
   // For performance reasons we only hash the 3 most variable fields of a map:
-  // constructor, prototype and bit_field2.
+  // constructor, prototype and bit_field2. For predictability reasons we
+  // use objects' offsets in respective pages for hashing instead of raw
+  // addresses.
 
   // Shift away the tag.
-  int hash = (static_cast<uint32_t>(
-        reinterpret_cast<uintptr_t>(constructor())) >> 2);
+  int hash = ObjectAddressForHashing(constructor()) >> 2;
 
   // XOR-ing the prototype and constructor directly yields too many zero bits
   // when the two pointers are close (which is fairly common).
-  // To avoid this we shift the prototype 4 bits relatively to the constructor.
-  hash ^= (static_cast<uint32_t>(
-        reinterpret_cast<uintptr_t>(prototype())) << 2);
+  // To avoid this we shift the prototype bits relatively to the constructor.
+  hash ^= ObjectAddressForHashing(prototype()) << (32 - kPageSizeBits);
 
   return hash ^ (hash >> 16) ^ bit_field2();
 }
