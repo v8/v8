@@ -120,17 +120,17 @@
 
 
 (function TestAccessorsOnPrimitives() {
-  var getCalled = false;
-  var setCalled = false;
+  var getCalled = 0;
+  var setCalled = 0;
   function Base() {}
   Base.prototype = {
     constructor: Base,
     get x() {
-      getCalled = true;
+      getCalled++;
       return 1;
     },
     set x(v) {
-      setCalled = true;
+      setCalled++;
       return v;
     },
   };
@@ -141,46 +141,41 @@
     constructor: Derived,
   };
   Derived.prototype.testSetter = function() {
-    assertTrue(42 == this);
-    getCalled = false;
-    setCalled = false;
+    setCalled = 0;
+    getCalled = 0;
+    assertEquals('object', typeof this);
+    assertTrue(this instanceof Number)
+    assertEquals(42, this.valueOf());
     assertEquals(1, super.x);
-    assertTrue(getCalled);
-    assertFalse(setCalled);
+    assertEquals(1, getCalled);
+    assertEquals(0, setCalled);
 
-    setCalled = false;
-    getCalled = false;
     assertEquals(5, super.x = 5);
-    assertFalse(getCalled);
-    assertTrue(setCalled);
+    assertEquals(1, getCalled);
+    assertEquals(1, setCalled);
 
-    getCalled = false;
-    setCalled = false;
     assertEquals(6, super.x += 5);
-    assertTrue(getCalled);
-    assertTrue(setCalled);
+    assertEquals(2, getCalled);
+    assertEquals(2, setCalled);
   }.toMethod(Derived.prototype);
 
   Derived.prototype.testSetterStrict = function() {
     'use strict';
-    assertTrue(42 == this);
-    getCalled = false;
-    setCalled = false;
+    getCalled = 0;
+    setCalled = 0;
+    assertTrue(42 === this);
+
     assertEquals(1, super.x);
-    assertTrue(getCalled);
-    assertFalse(setCalled);
+    assertEquals(1, getCalled);
+    assertEquals(0, setCalled);
 
-    setCalled = false;
-    getCalled = false;
     assertEquals(5, super.x = 5);
-    assertFalse(getCalled);
-    assertTrue(setCalled);
+    assertEquals(1, getCalled);
+    assertEquals(1, setCalled);
 
-    getCalled = false;
-    setCalled = false;
     assertEquals(6, super.x += 5);
-    assertTrue(getCalled);
-    assertTrue(setCalled);
+    assertEquals(2, getCalled);
+    assertEquals(2, setCalled);
   }.toMethod(Derived.prototype);
 
   Derived.prototype.testSetter.call(42);
@@ -191,13 +186,14 @@
 
   function f() {
     'use strict';
-    assertTrue(42 == this);
+    assertTrue(42 === this);
     assertEquals(String.prototype.toString, super.toString);
-    var except = false;
+    var ex;
     try {
       super.toString();
-    } catch(e) { except = true; }
-    assertTrue(except);
+    } catch(e) { ex = e; }
+
+    assertTrue(ex instanceof TypeError);
   }
   f.toMethod(DerivedFromString.prototype).call(42);
 }());
@@ -213,7 +209,7 @@
   }.toMethod(Derived.prototype);
 
   Derived.prototype.mStrict = function () {
-    "use strict";
+    'use strict';
     super.x = 10;
   }.toMethod(Derived.prototype);
   var d = new Derived();
@@ -276,7 +272,7 @@
 (function TestUnsupportedCases() {
   function f1(x) { return super[x]; }
   function f2(x) { super[x] = 5; }
-  var o = {}
+  var o = {};
   assertThrows(function(){f1.toMethod(o)(x);}, ReferenceError);
   assertThrows(function(){f2.toMethod(o)(x);}, ReferenceError);
 }());

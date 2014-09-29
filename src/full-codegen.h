@@ -521,7 +521,7 @@ class FullCodeGenerator: public AstVisitor {
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr);
 
-  // Load a value from super.named prroperty.
+  // Load a value from super.named property.
   // Expect receiver ('this' value) and home_object on the stack.
   void EmitNamedSuperPropertyLoad(Property* expr);
 
