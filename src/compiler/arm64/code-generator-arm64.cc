@@ -204,6 +204,28 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Mul32:
       __ Mul(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1));
       break;
+    case kArm64Madd:
+      __ Madd(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+              i.InputRegister(2));
+      break;
+    case kArm64Madd32:
+      __ Madd(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1),
+              i.InputRegister32(2));
+      break;
+    case kArm64Msub:
+      __ Msub(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
+              i.InputRegister(2));
+      break;
+    case kArm64Msub32:
+      __ Msub(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1),
+              i.InputRegister32(2));
+      break;
+    case kArm64Mneg:
+      __ Mneg(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      break;
+    case kArm64Mneg32:
+      __ Mneg(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1));
+      break;
     case kArm64Idiv:
       __ Sdiv(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
       break;
