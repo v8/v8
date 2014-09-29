@@ -9656,12 +9656,36 @@ TEST(SuperAccessControl) {
   LocalContext env;
   env->Global()->Set(v8_str("prohibited"), obj_template->NewInstance());
 
-  v8::TryCatch try_catch;
-  CompileRun(
-      "function f() { return super.hasOwnProperty; };"
-      "var m = f.toMethod(prohibited);"
-      "m();");
-  CHECK(try_catch.HasCaught());
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "function f() { return super.hasOwnProperty; };"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "function f() { super.hasOwnProperty = function () {}; };"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "Object.defineProperty(Object.prototype, 'x', { set : function(){}});"
+        "function f() { "
+        "     'use strict';"
+        "     super.x = function () {}; "
+        "};"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
 }
 
 
