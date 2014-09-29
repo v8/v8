@@ -111,9 +111,6 @@ void ThreadLocalTop::Free() {
 base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::thread_id_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-#ifdef DEBUG
-base::Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
-#endif  // DEBUG
 base::LazyMutex Isolate::thread_data_table_mutex_ = LAZY_MUTEX_INITIALIZER;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 base::Atomic32 Isolate::isolate_counter_ = 0;
@@ -158,10 +155,6 @@ void Isolate::InitializeOncePerProcess() {
   isolate_key_ = base::Thread::CreateThreadLocalKey();
   thread_id_key_ = base::Thread::CreateThreadLocalKey();
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
-#ifdef DEBUG
-  PerThreadAssertScopeBase::thread_local_key =
-      base::Thread::CreateThreadLocalKey();
-#endif  // DEBUG
   thread_data_table_ = new Isolate::ThreadDataTable();
 }
 
