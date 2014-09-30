@@ -303,6 +303,53 @@ RUNTIME_FUNCTION(Runtime_GetV8Version) {
 }
 
 
+static int StackSize(Isolate* isolate) {
+  int n = 0;
+  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) n++;
+  return n;
+}
+
+
+static void PrintTransition(Isolate* isolate, Object* result) {
+  // indentation
+  {
+    const int nmax = 80;
+    int n = StackSize(isolate);
+    if (n <= nmax)
+      PrintF("%4d:%*s", n, n, "");
+    else
+      PrintF("%4d:%*s", n, nmax, "...");
+  }
+
+  if (result == NULL) {
+    JavaScriptFrame::PrintTop(isolate, stdout, true, false);
+    PrintF(" {\n");
+  } else {
+    // function result
+    PrintF("} -> ");
+    result->ShortPrint();
+    PrintF("\n");
+  }
+}
+
+
+RUNTIME_FUNCTION(Runtime_TraceEnter) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  PrintTransition(isolate, NULL);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_TraceExit) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  PrintTransition(isolate, obj);
+  return obj;  // return TOS
+}
+
+
 #ifdef DEBUG
 // ListNatives is ONLY used by the fuzz-natives.js in debug mode
 // Exclude the code in release mode.

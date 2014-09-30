@@ -561,5 +561,22 @@ RUNTIME_FUNCTION(RuntimeReference_NumberToString) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_NumberToStringRT(args, isolate);
 }
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsSmi) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsSmi());
+}
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsNonNegativeSmi) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsSmi() &&
+                                    Smi::cast(obj)->value() >= 0);
+}
 }
 }  // namespace v8::internal

@@ -1088,6 +1088,14 @@ RUNTIME_FUNCTION(RuntimeReference_RegExpExec) {
 }
 
 
+RUNTIME_FUNCTION(RuntimeReference_IsRegExp) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  return isolate->heap()->ToBoolean(obj->IsJSRegExp());
+}
+
+
 // Perform string match of pattern on subject, starting at start index.
 // Caller must ensure that 0 <= start_index <= sub->length(),
 // and should check that pat->length() + start_index <= sub->length().
