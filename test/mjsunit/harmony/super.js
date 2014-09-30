@@ -123,7 +123,7 @@
   function Base() {}
   Base.prototype = {
     constructor: Base,
-    x : "x from Base"
+    x: 'x from Base'
   };
 
   function Derived() {}
@@ -133,10 +133,10 @@
   };
 
   Derived.prototype.testSetter = function() {
-    assertEquals("x from Base", super.x);
-    super.x = "data property";
-    assertEquals("x from Base", super.x);
-    assertEquals("data property", this.x);
+    assertEquals('x from Base', super.x);
+    super.x = 'data property';
+    assertEquals('x from Base', super.x);
+    assertEquals('data property', this.x);
   }.toMethod(Derived.prototype);
 
   new Derived().testSetter();
@@ -208,7 +208,7 @@
     var ex;
     try {
       super.newProperty = 15;
-    } catch(e) { ex = e; }
+    } catch (e) { ex = e; }
     assertTrue(ex instanceof TypeError);
   }.toMethod(Derived.prototype);
 
