@@ -12,8 +12,6 @@
 using namespace v8::internal;
 using namespace v8::internal::compiler;
 
-#define NaN (v8::base::OS::nan_value())
-
 TEST(TestOperatorMnemonic) {
   SimpleOperator op1(10, Operator::kNoProperties, 0, 0, "ThisOne");
   CHECK_EQ(0, strcmp(op1.mnemonic(), "ThisOne"));
@@ -224,19 +222,4 @@ TEST(TestOperator1doubleEquals) {
   CHECK(!op3.Equals(&op4b));
   CHECK(!op3.Equals(&op4a));
   CHECK(!op3.Equals(&op4b));
-}
-
-
-TEST(TestOperator1doublePrint) {
-  Operator1<double> op1(12, Operator::kNoProperties, 0, 1, "Op1Test", 0);
-  CHECK_EQ("Op1Test[0]", OperatorToString(&op1).get());
-
-  Operator1<double> op2(12, Operator::kNoProperties, 0, 1, "Op1Test", 7.3);
-  CHECK_EQ("Op1Test[7.3]", OperatorToString(&op2).get());
-
-  Operator1<double> op3(12, Operator::kNoProperties, 0, 1, "FooBar", 2e+123);
-  CHECK_EQ("FooBar[2e+123]", OperatorToString(&op3).get());
-
-  Operator1<double> op5(12, Operator::kNoProperties, 0, 1, "BarFoo", NaN);
-  CHECK_EQ("BarFoo[nan]", OperatorToString(&op5).get());
 }
