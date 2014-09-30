@@ -134,6 +134,18 @@ TEST_F(InstructionSelectorTest, BetterLeftOperandTestMulBinop) {
 
 
 // -----------------------------------------------------------------------------
+// Conversions.
+
+TEST_F(InstructionSelectorTest, ChangeUint32ToFloat64WithParameter) {
+  StreamBuilder m(this, kMachFloat64, kMachUint32);
+  m.Return(m.ChangeUint32ToFloat64(m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kSSEUint32ToFloat64, s[0]->arch_opcode());
+}
+
+
+// -----------------------------------------------------------------------------
 // Loads and stores
 
 namespace {

@@ -424,8 +424,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     case kSSEUint32ToFloat64:
-      // TODO(turbofan): X64 SSE cvtqsi2sd should support operands.
-      __ cvtqsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
+      if (instr->InputAt(0)->IsRegister()) {
+        __ cvtqsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
+      } else {
+        __ cvtqsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
+      }
       break;
     case kX64Movsxbl:
       __ movsxbl(i.OutputRegister(), i.MemoryOperand());

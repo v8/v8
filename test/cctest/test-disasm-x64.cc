@@ -380,6 +380,8 @@ TEST(DisasmX64) {
     __ cvttsd2si(rdx, xmm1);
     __ cvttsd2siq(rdx, xmm1);
     __ cvttsd2siq(rdx, Operand(rbx, rcx, times_4, 10000));
+    __ cvtqsi2sd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ cvtqsi2sd(xmm1, rdx);
     __ movsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ movsd(Operand(rbx, rcx, times_4, 10000), xmm1);
     // 128 bit move instructions.
