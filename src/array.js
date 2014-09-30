@@ -378,6 +378,14 @@ function ArrayJoin(separator) {
   var result = %_FastOneByteArrayJoin(array, separator);
   if (!IS_UNDEFINED(result)) return result;
 
+  // Fast case for one-element arrays.
+  if (length === 1) {
+    var e = array[0];
+    if (IS_STRING(e)) return e;
+    if (IS_NULL_OR_UNDEFINED(e)) return '';
+    return NonStringToString(e);
+  }
+
   return Join(array, length, separator, ConvertToString);
 }
 
