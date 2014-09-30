@@ -36,7 +36,7 @@ class ControlOperator : public Operator1<int> {
 template <>
 struct StaticParameterTraits<ExternalReference> {
   static std::ostream& PrintTo(std::ostream& os, ExternalReference reference) {
-    os << reference.address();
+    os << static_cast<const void*>(reference.address());
     // TODO(bmeurer): Move to operator<<(os, ExternalReference)
     const Runtime::Function* function =
         Runtime::FunctionForEntry(reference.address());
