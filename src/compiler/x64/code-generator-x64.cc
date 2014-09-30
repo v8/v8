@@ -519,6 +519,12 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ movsd(operand, i.InputDoubleRegister(index));
       }
       break;
+    case kX64Lea32:
+      __ leal(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kX64Lea:
+      __ leaq(i.OutputRegister(), i.MemoryOperand());
+      break;
     case kX64Push:
       if (HasImmediateInput(instr, 0)) {
         __ pushq(i.InputImmediate(0));

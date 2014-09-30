@@ -145,42 +145,21 @@ typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
 // Matches nodes of form [x * N] for N in {1,2,4,8}
 class ScaleFactorMatcher : public NodeMatcher {
  public:
-  explicit ScaleFactorMatcher(Node* node)
-      : NodeMatcher(node), left_(NULL), power_(0) {
-    Match();
-  }
+  static const int kMatchedFactors[4];
 
-  bool Matches() { return left_ != NULL; }
-  int Power() {
+  explicit ScaleFactorMatcher(Node* node);
+
+  bool Matches() const { return left_ != NULL; }
+  int Power() const {
     DCHECK(Matches());
     return power_;
   }
-  Node* Left() {
+  Node* Left() const {
     DCHECK(Matches());
     return left_;
   }
 
  private:
-  void Match() {
-    if (opcode() != IrOpcode::kInt32Mul) return;
-    Int32BinopMatcher m(node());
-    if (!m.right().HasValue()) return;
-    int32_t value = m.right().Value();
-    switch (value) {
-      case 8:
-        power_++;  // Fall through.
-      case 4:
-        power_++;  // Fall through.
-      case 2:
-        power_++;  // Fall through.
-      case 1:
-        break;
-      default:
-        return;
-    }
-    left_ = m.left().node();
-  }
-
   Node* left_;
   int power_;
 };
@@ -196,36 +175,49 @@ class ScaleFactorMatcher : public NodeMatcher {
 // for N in {1,2,4,8} and K int32_t
 class IndexAndDisplacementMatcher : public NodeMatcher {
  public:
-  explicit IndexAndDisplacementMatcher(Node* node)
-      : NodeMatcher(node), index_node_(node), displacement_(0), power_(0) {
-    Match();
-  }
+  explicit IndexAndDisplacementMatcher(Node* node);
 
-  Node* index_node() { return index_node_; }
-  int displacement() { return displacement_; }
-  int power() { return power_; }
+  Node* index_node() const { return index_node_; }
+  int displacement() const { return displacement_; }
+  int power() const { return power_; }
 
  private:
-  void Match() {
-    if (opcode() == IrOpcode::kInt32Add) {
-      // Assume reduction has put constant on the right.
-      Int32BinopMatcher m(node());
-      if (m.right().HasValue()) {
-        displacement_ = m.right().Value();
-        index_node_ = m.left().node();
-      }
-    }
-    // Test scale factor.
-    ScaleFactorMatcher scale_matcher(index_node_);
-    if (scale_matcher.Matches()) {
-      index_node_ = scale_matcher.Left();
-      power_ = scale_matcher.Power();
-    }
-  }
-
   Node* index_node_;
   int displacement_;
   int power_;
+};
+
+
+// Fairly intel-specify node matcher used for matching multiplies that can be
+// transformed to lea instructions.
+// Matches nodes of form:
+//  [x * N]
+// for N in {1,2,3,4,5,8,9}
+class LeaMultiplyMatcher : public NodeMatcher {
+ public:
+  static const int kMatchedFactors[7];
+
+  explicit LeaMultiplyMatcher(Node* node);
+
+  bool Matches() const { return left_ != NULL; }
+  int Power() const {
+    DCHECK(Matches());
+    return power_;
+  }
+  Node* Left() const {
+    DCHECK(Matches());
+    return left_;
+  }
+  // Displacement will be either 0 or 1.
+  int32_t Displacement() const {
+    DCHECK(Matches());
+    return displacement_;
+  }
+
+ private:
+  Node* left_;
+  int power_;
+  int displacement_;
 };
 
 
