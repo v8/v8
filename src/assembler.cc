@@ -803,11 +803,11 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
   } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder(isolate);
     os << " (" << ref_encoder.NameOfAddress(target_reference()) << ")  ("
-       << target_reference() << ")";
+       << static_cast<const void*>(target_reference()) << ")";
   } else if (IsCodeTarget(rmode_)) {
     Code* code = Code::GetCodeFromTargetAddress(target_address());
-    os << " (" << Code::Kind2String(code->kind()) << ")  (" << target_address()
-       << ")";
+    os << " (" << Code::Kind2String(code->kind()) << ")  ("
+       << static_cast<const void*>(target_address()) << ")";
     if (rmode_ == CODE_TARGET_WITH_ID) {
       os << " (id=" << static_cast<int>(data_) << ")";
     }

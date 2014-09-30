@@ -10913,7 +10913,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     os << "Safepoints (size = " << table.size() << ")\n";
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
-      os << (instruction_start() + pc_offset) << "  ";
+      os << static_cast<const void*>(instruction_start() + pc_offset) << "  ";
       // TODO(svenpanne) Add some basic formatting to our streams.
       Vector<char> buf1 = Vector<char>::New(30);
       SNPrintF(buf1, "%4d", pc_offset);
