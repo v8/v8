@@ -210,8 +210,8 @@ TEST(TestOperator1doubleEquals) {
   CHECK(!op3.Equals(&op2a));
   CHECK(!op3.Equals(&op2b));
 
-  Operator1<double> op4a(24, Operator::kNoProperties, 0, 0, "Bashful", NaN);
-  Operator1<double> op4b(24, Operator::kNoProperties, 0, 0, "Bashful", NaN);
+  Operator1<double> op4a(24, Operator::kNoProperties, 0, 0, "Bashful", 1.0);
+  Operator1<double> op4b(24, Operator::kNoProperties, 0, 0, "Bashful", 1.0);
 
   CHECK(op4a.Equals(&op4a));
   CHECK(op4a.Equals(&op4b));
