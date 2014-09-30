@@ -7,6 +7,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 
@@ -40,8 +41,8 @@ inline bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kFrameState:
       return true;
     case IrOpcode::kJSCallRuntime: {
-      Runtime::FunctionId function = OpParameter<Runtime::FunctionId>(op);
-      return Linkage::NeedsFrameState(function);
+      const CallRuntimeParameters& p = CallRuntimeParametersOf(op);
+      return Linkage::NeedsFrameState(p.id());
     }
 
     // Strict equality cannot lazily deoptimize.

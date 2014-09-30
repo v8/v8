@@ -431,6 +431,7 @@
         '../../src/compiler/js-graph.h',
         '../../src/compiler/js-inlining.cc',
         '../../src/compiler/js-inlining.h',
+        '../../src/compiler/js-operator.cc',
         '../../src/compiler/js-operator.h',
         '../../src/compiler/js-typed-lowering.cc',
         '../../src/compiler/js-typed-lowering.h',

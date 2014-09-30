@@ -557,7 +557,7 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
   // bound.
   // TODO(rossberg): Could use scope info to fix upper bounds for constant
   // bindings if we know that this code is never shared.
-  for (int i = access.depth(); i > 0; --i) {
+  for (size_t i = access.depth(); i > 0; --i) {
     if (context_type->IsContext()) {
       context_type = context_type->AsContext()->Outer();
       if (context_type->IsConstant()) {
@@ -571,7 +571,8 @@ Bounds Typer::Visitor::TypeJSLoadContext(Node* node) {
     return Bounds::Unbounded(zone());
   } else {
     Handle<Object> value =
-        handle(context.ToHandleChecked()->get(access.index()), isolate());
+        handle(context.ToHandleChecked()->get(static_cast<int>(access.index())),
+               isolate());
     Type* lower = TypeConstant(value);
     return Bounds(lower, Type::Any(zone()));
   }

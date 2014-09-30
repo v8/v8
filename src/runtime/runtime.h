@@ -6,6 +6,7 @@
 #define V8_RUNTIME_H_
 
 #include "src/allocation.h"
+#include "src/objects.h"
 #include "src/zone.h"
 
 namespace v8 {

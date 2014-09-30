@@ -131,8 +131,8 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   SetOncePointer<Node> function_closure_;
   SetOncePointer<Node> function_context_;
 
-  CompilationInfo* info() { return info_; }
-  StrictMode strict_mode() { return info()->strict_mode(); }
+  CompilationInfo* info() const { return info_; }
+  inline StrictMode strict_mode() const;
   JSGraph* jsgraph() { return jsgraph_; }
   JSOperatorBuilder* javascript() { return jsgraph_->javascript(); }
   ZoneList<Handle<Object> >* globals() { return &globals_; }

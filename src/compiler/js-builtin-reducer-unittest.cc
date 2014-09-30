@@ -69,8 +69,9 @@ TEST_F(JSBuiltinReducerTest, MathAbs) {
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);
     Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call = graph()->NewNode(javascript()->Call(3, NO_CALL_FUNCTION_FLAGS),
-                                  fun, UndefinedConstant(), p0);
+    Node* call =
+        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
+                         fun, UndefinedConstant(), p0);
     Reduction r = Reduce(call);
 
     if (t0->Is(Type::Unsigned32())) {
@@ -102,8 +103,9 @@ TEST_F(JSBuiltinReducerTest, MathSqrt) {
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);
     Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call = graph()->NewNode(javascript()->Call(3, NO_CALL_FUNCTION_FLAGS),
-                                  fun, UndefinedConstant(), p0);
+    Node* call =
+        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
+                         fun, UndefinedConstant(), p0);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
@@ -120,8 +122,9 @@ TEST_F(JSBuiltinReducerTest, MathMax0) {
   Handle<JSFunction> f(isolate()->context()->math_max_fun());
 
   Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-  Node* call = graph()->NewNode(javascript()->Call(2, NO_CALL_FUNCTION_FLAGS),
-                                fun, UndefinedConstant());
+  Node* call =
+      graph()->NewNode(javascript()->CallFunction(2, NO_CALL_FUNCTION_FLAGS),
+                       fun, UndefinedConstant());
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
@@ -135,8 +138,9 @@ TEST_F(JSBuiltinReducerTest, MathMax1) {
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);
     Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call = graph()->NewNode(javascript()->Call(3, NO_CALL_FUNCTION_FLAGS),
-                                  fun, UndefinedConstant(), p0);
+    Node* call =
+        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
+                         fun, UndefinedConstant(), p0);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
@@ -153,9 +157,9 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
       Node* p0 = Parameter(t0, 0);
       Node* p1 = Parameter(t1, 1);
       Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-      Node* call =
-          graph()->NewNode(javascript()->Call(4, NO_CALL_FUNCTION_FLAGS), fun,
-                           UndefinedConstant(), p0, p1);
+      Node* call = graph()->NewNode(
+          javascript()->CallFunction(4, NO_CALL_FUNCTION_FLAGS), fun,
+          UndefinedConstant(), p0, p1);
       Reduction r = Reduce(call);
 
       if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
@@ -189,9 +193,9 @@ TEST_F(JSBuiltinReducerTest, MathImul) {
       Node* p0 = Parameter(t0, 0);
       Node* p1 = Parameter(t1, 1);
       Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-      Node* call =
-          graph()->NewNode(javascript()->Call(4, NO_CALL_FUNCTION_FLAGS), fun,
-                           UndefinedConstant(), p0, p1);
+      Node* call = graph()->NewNode(
+          javascript()->CallFunction(4, NO_CALL_FUNCTION_FLAGS), fun,
+          UndefinedConstant(), p0, p1);
       Reduction r = Reduce(call);
 
       if (t0->Is(Type::Integral32()) && t1->Is(Type::Integral32())) {
@@ -222,8 +226,9 @@ TEST_F(JSBuiltinReducerTest, MathFround) {
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);
     Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
-    Node* call = graph()->NewNode(javascript()->Call(3, NO_CALL_FUNCTION_FLAGS),
-                                  fun, UndefinedConstant(), p0);
+    Node* call =
+        graph()->NewNode(javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS),
+                         fun, UndefinedConstant(), p0);
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
