@@ -19,7 +19,8 @@ class Operator;
 // Supported write barrier modes.
 enum WriteBarrierKind { kNoWriteBarrier, kFullWriteBarrier };
 
-OStream& operator<<(OStream& os, const WriteBarrierKind& write_barrier_kind);
+std::ostream& operator<<(std::ostream& os,
+                         const WriteBarrierKind& write_barrier_kind);
 
 
 typedef MachineType LoadRepresentation;
@@ -52,7 +53,7 @@ inline bool operator!=(const StoreRepresentation& rep1,
   return !(rep1 == rep2);
 }
 
-OStream& operator<<(OStream& os, const StoreRepresentation& rep);
+std::ostream& operator<<(std::ostream& os, const StoreRepresentation& rep);
 
 
 // Interface for building machine-level operators. These operators are

@@ -140,7 +140,7 @@ class TransitionArray: public FixedArray {
 
 #ifdef OBJECT_PRINT
   // Print all the transitions.
-  void PrintTransitions(OStream& os);  // NOLINT
+  void PrintTransitions(std::ostream& os);  // NOLINT
 #endif
 
 #ifdef DEBUG

@@ -28,7 +28,7 @@ ExtraICState CallICState::GetExtraICState() const {
 }
 
 
-OStream& operator<<(OStream& os, const CallICState& s) {
+std::ostream& operator<<(std::ostream& os, const CallICState& s) {
   return os << "(args(" << s.arg_count() << "), "
             << (s.call_type() == CallICState::METHOD ? "METHOD" : "FUNCTION")
             << ", ";
@@ -308,7 +308,7 @@ Type* BinaryOpICState::GetResultType(Zone* zone) const {
 }
 
 
-OStream& operator<<(OStream& os, const BinaryOpICState& s) {
+std::ostream& operator<<(std::ostream& os, const BinaryOpICState& s) {
   os << "(" << Token::Name(s.op_);
   if (s.mode_ == OVERWRITE_LEFT)
     os << "_ReuseLeft";

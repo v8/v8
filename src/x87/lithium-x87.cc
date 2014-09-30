@@ -376,7 +376,7 @@ LOperand* LPlatformChunk::GetNextSpillSlot(RegisterKind kind) {
 
 void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
-  OStringStream os;
+  std::ostringstream os;
   os << hydrogen()->access() << " <- ";
   stream->Add(os.c_str());
   value()->PrintTo(stream);

@@ -4,6 +4,8 @@
 
 #include "src/compiler/pipeline.h"
 
+#include <sstream>
+
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/basic-block-instrumentor.h"
@@ -182,7 +184,7 @@ Handle<Code> Pipeline::GenerateCode() {
     os << "---------------------------------------------------\n"
        << "Begin compiling method "
        << info()->function()->debug_name()->ToCString().get()
-       << " using Turbofan" << endl;
+       << " using Turbofan" << std::endl;
   }
 
   // Build the graph.
@@ -337,7 +339,7 @@ Handle<Code> Pipeline::GenerateCode() {
     os << "--------------------------------------------------\n"
        << "Finished compiling method "
        << info()->function()->debug_name()->ToCString().get()
-       << " using Turbofan" << endl;
+       << " using Turbofan" << std::endl;
   }
 
   return code;
@@ -428,7 +430,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
   Handle<Code> code = generator.GenerateCode();
   if (profiler_data != NULL) {
 #if ENABLE_DISASSEMBLER
-    OStringStream os;
+    std::ostringstream os;
     code->Disassemble(NULL, os);
     profiler_data->SetCode(&os);
 #endif

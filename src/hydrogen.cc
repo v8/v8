@@ -5,6 +5,7 @@
 #include "src/hydrogen.h"
 
 #include <algorithm>
+#include <sstream>
 
 #include "src/v8.h"
 
@@ -3431,7 +3432,7 @@ void HBasicBlock::FinishExit(HControlInstruction* instruction,
 }
 
 
-OStream& operator<<(OStream& os, const HBasicBlock& b) {
+std::ostream& operator<<(std::ostream& os, const HBasicBlock& b) {
   return os << "B" << b.block_id();
 }
 
@@ -3542,7 +3543,7 @@ int HGraph::TraceInlinedFunction(
     OFStream os(tracing_scope.file());
     os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
        << info()->optimization_id() << "," << id << "} AS " << inline_id
-       << " AT " << position << endl;
+       << " AT " << position << std::endl;
   }
 
   return inline_id;
@@ -12190,7 +12191,7 @@ HEnvironment* HEnvironment::CopyForInlining(
 }
 
 
-OStream& operator<<(OStream& os, const HEnvironment& env) {
+std::ostream& operator<<(std::ostream& os, const HEnvironment& env) {
   for (int i = 0; i < env.length(); i++) {
     if (i == 0) os << "parameters\n";
     if (i == env.parameter_count()) os << "specials\n";
@@ -12322,9 +12323,9 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       for (int j = 0; j < total; ++j) {
         HPhi* phi = current->phis()->at(j);
         PrintIndent();
-        OStringStream os;
+        std::ostringstream os;
         os << phi->merged_index() << " " << NameOf(phi) << " " << *phi << "\n";
-        trace_.Add(os.c_str());
+        trace_.Add(os.str().c_str());
       }
     }
 
@@ -12334,7 +12335,7 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
         HInstruction* instruction = it.Current();
         int uses = instruction->UseCount();
         PrintIndent();
-        OStringStream os;
+        std::ostringstream os;
         os << "0 " << uses << " " << NameOf(instruction) << " " << *instruction;
         if (FLAG_hydrogen_track_positions &&
             instruction->has_position() &&
@@ -12345,7 +12346,7 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
           os << pos.position();
         }
         os << " <|@\n";
-        trace_.Add(os.c_str());
+        trace_.Add(os.str().c_str());
       }
     }
 
@@ -12363,9 +12364,9 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
             trace_.Add("%d ",
                        LifetimePosition::FromInstructionIndex(i).Value());
             linstr->PrintTo(&trace_);
-            OStringStream os;
+            std::ostringstream os;
             os << " [hir:" << NameOf(linstr->hydrogen_value()) << "] <|@\n";
-            trace_.Add(os.c_str());
+            trace_.Add(os.str().c_str());
           }
         }
       }

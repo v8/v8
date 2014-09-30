@@ -1204,9 +1204,7 @@ struct MemoryAccess {
 
 
 std::ostream& operator<<(std::ostream& os, const MemoryAccess& memacc) {
-  OStringStream ost;
-  ost << memacc.type;
-  return os << ost.c_str();
+  return os << memacc.type;
 }
 
 

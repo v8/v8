@@ -12,7 +12,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-OStream& operator<<(OStream& os, const WriteBarrierKind& write_barrier_kind) {
+std::ostream& operator<<(std::ostream& os,
+                         const WriteBarrierKind& write_barrier_kind) {
   switch (write_barrier_kind) {
     case kNoWriteBarrier:
       return os << "NoWriteBarrier";
@@ -24,7 +25,7 @@ OStream& operator<<(OStream& os, const WriteBarrierKind& write_barrier_kind) {
 }
 
 
-OStream& operator<<(OStream& os, const StoreRepresentation& rep) {
+std::ostream& operator<<(std::ostream& os, const StoreRepresentation& rep) {
   return os << "(" << rep.machine_type() << " : " << rep.write_barrier_kind()
             << ")";
 }
@@ -32,7 +33,8 @@ OStream& operator<<(OStream& os, const StoreRepresentation& rep) {
 
 template <>
 struct StaticParameterTraits<StoreRepresentation> {
-  static OStream& PrintTo(OStream& os, const StoreRepresentation& rep) {
+  static std::ostream& PrintTo(std::ostream& os,
+                               const StoreRepresentation& rep) {
     return os << rep;
   }
   static int HashCode(const StoreRepresentation& rep) {
@@ -47,7 +49,8 @@ struct StaticParameterTraits<StoreRepresentation> {
 
 template <>
 struct StaticParameterTraits<LoadRepresentation> {
-  static OStream& PrintTo(OStream& os, LoadRepresentation type) {  // NOLINT
+  static std::ostream& PrintTo(std::ostream& os,
+                               LoadRepresentation type) {  // NOLINT
     return os << type;
   }
   static int HashCode(LoadRepresentation type) { return type; }

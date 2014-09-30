@@ -995,7 +995,7 @@ const char* TypeImpl<Config>::BitsetType::Name(bitset bits) {
 
 
 template <class Config>
-void TypeImpl<Config>::BitsetType::Print(OStream& os,  // NOLINT
+void TypeImpl<Config>::BitsetType::Print(std::ostream& os,  // NOLINT
                                          bitset bits) {
   DisallowHeapAllocation no_allocation;
   const char* name = Name(bits);
@@ -1031,7 +1031,7 @@ void TypeImpl<Config>::BitsetType::Print(OStream& os,  // NOLINT
 
 
 template <class Config>
-void TypeImpl<Config>::PrintTo(OStream& os, PrintDimension dim) {  // NOLINT
+void TypeImpl<Config>::PrintTo(std::ostream& os, PrintDimension dim) {
   DisallowHeapAllocation no_allocation;
   if (dim != REPRESENTATION_DIM) {
     if (this->IsBitset()) {
@@ -1089,13 +1089,13 @@ template <class Config>
 void TypeImpl<Config>::Print() {
   OFStream os(stdout);
   PrintTo(os);
-  os << endl;
+  os << std::endl;
 }
 template <class Config>
 void TypeImpl<Config>::BitsetType::Print(bitset bits) {
   OFStream os(stdout);
   Print(os, bits);
-  os << endl;
+  os << std::endl;
 }
 #endif
 

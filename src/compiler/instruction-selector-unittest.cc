@@ -30,7 +30,8 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   Schedule* schedule = Export();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
-    out << "=== Schedule before instruction selection ===" << endl << *schedule;
+    out << "=== Schedule before instruction selection ===" << std::endl
+        << *schedule;
   }
   EXPECT_NE(0, graph()->NodeCount());
   CompilationInfo info(test_->isolate(), test_->zone());
@@ -41,7 +42,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
-    out << "=== Code sequence after instruction selection ===" << endl
+    out << "=== Code sequence after instruction selection ===" << std::endl
         << sequence;
   }
   Stream s;

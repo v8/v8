@@ -478,7 +478,7 @@ class TypeImpl : public Config::Base {
 
   enum PrintDimension { BOTH_DIMS, SEMANTIC_DIM, REPRESENTATION_DIM };
 
-  void PrintTo(OStream& os, PrintDimension dim = BOTH_DIMS);  // NOLINT
+  void PrintTo(std::ostream& os, PrintDimension dim = BOTH_DIMS);  // NOLINT
 
 #ifdef DEBUG
   void Print();
@@ -606,7 +606,7 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
   static bitset Lub(Limits lim);
 
   static const char* Name(bitset);
-  static void Print(OStream& os, bitset);  // NOLINT
+  static void Print(std::ostream& os, bitset);  // NOLINT
 #ifdef DEBUG
   static void Print(bitset);
 #endif

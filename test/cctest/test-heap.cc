@@ -3076,7 +3076,7 @@ TEST(PrintSharedFunctionInfo) {
 
   OFStream os(stdout);
   g->shared()->Print(os);
-  os << endl;
+  os << std::endl;
 }
 #endif  // OBJECT_PRINT
 

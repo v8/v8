@@ -95,7 +95,7 @@ static Schedule* ComputeAndVerifySchedule(int expected, Graph* graph) {
 
   if (FLAG_trace_turbo_scheduler) {
     OFStream os(stdout);
-    os << *schedule << endl;
+    os << *schedule << std::endl;
   }
   ScheduleVerifier::Run(schedule);
   CHECK_EQ(expected, GetScheduledNodeCount(schedule));

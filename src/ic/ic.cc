@@ -2244,7 +2244,7 @@ MaybeHandle<Object> BinaryOpIC::Transition(
     if (!allocation_site.is_null()) {
       os << " using allocation site " << static_cast<void*>(*allocation_site);
     }
-    os << "]" << endl;
+    os << "]" << std::endl;
   }
 
   // Patch the inlined smi code as necessary.

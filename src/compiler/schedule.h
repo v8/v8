@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_SCHEDULE_H_
 #define V8_COMPILER_SCHEDULE_H_
 
+#include <iosfwd>
 #include <vector>
 
 #include "src/v8.h"
@@ -164,8 +165,8 @@ class BasicBlock FINAL : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(BasicBlock);
 };
 
-OStream& operator<<(OStream& os, const BasicBlock::Control& c);
-OStream& operator<<(OStream& os, const BasicBlock::Id& id);
+std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c);
+std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id);
 
 typedef ZoneVector<BasicBlock*> BasicBlockVector;
 typedef BasicBlockVector::iterator BasicBlockVectorIter;
@@ -240,9 +241,10 @@ class Schedule FINAL : public ZoneObject {
   BasicBlock* end_;
 };
 
-OStream& operator<<(OStream& os, const Schedule& s);
-}
-}
-}  // namespace v8::internal::compiler
+std::ostream& operator<<(std::ostream& os, const Schedule& s);
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_SCHEDULE_H_

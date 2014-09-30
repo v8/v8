@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/compiler/basic-block-instrumentor.h"
+
+#include <sstream>
+
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
@@ -52,13 +55,13 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   // Set the function name.
   if (!info->shared_info().is_null() &&
       info->shared_info()->name()->IsString()) {
-    OStringStream os;
+    std::ostringstream os;
     String::cast(info->shared_info()->name())->PrintUC16(os);
     data->SetFunctionName(&os);
   }
   // Capture the schedule string before instrumentation.
   {
-    OStringStream os;
+    std::ostringstream os;
     os << *schedule;
     data->SetSchedule(&os);
   }

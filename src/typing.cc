@@ -56,7 +56,7 @@ void AstTyper::Run(CompilationInfo* info) {
     var->name()->Print(os);
     os << " : " << Brief(value) << " -> ";
     type->PrintTo(os);
-    os << endl;
+    os << std::endl;
   }
 #endif  // OBJECT_PRINT
 

@@ -2487,7 +2487,7 @@ RUNTIME_FUNCTION(Runtime_DebugDisassembleFunction) {
   }
   OFStream os(stdout);
   func->code()->Print(os);
-  os << endl;
+  os << std::endl;
 #endif  // DEBUG
   return isolate->heap()->undefined_value();
 }
@@ -2504,7 +2504,7 @@ RUNTIME_FUNCTION(Runtime_DebugDisassembleConstructor) {
   }
   OFStream os(stdout);
   func->shared()->construct_stub()->Print(os);
-  os << endl;
+  os << std::endl;
 #endif  // DEBUG
   return isolate->heap()->undefined_value();
 }

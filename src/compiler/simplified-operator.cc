@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-OStream& operator<<(OStream& os, BaseTaggedness base_taggedness) {
+std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
   switch (base_taggedness) {
     case kUntaggedBase:
       return os << "untagged base";
@@ -37,7 +37,7 @@ bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs) {
 }
 
 
-OStream& operator<<(OStream& os, ElementAccess const& access) {
+std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   os << "[" << access.base_is_tagged << ", " << access.header_size << ", ";
   access.type->PrintTo(os);
   os << ", " << access.machine_type << "]";
@@ -64,7 +64,7 @@ const ElementAccess& ElementAccessOf(const Operator* op) {
 // Specialization for static parameters of type {FieldAccess}.
 template <>
 struct StaticParameterTraits<FieldAccess> {
-  static OStream& PrintTo(OStream& os, const FieldAccess& val) {
+  static std::ostream& PrintTo(std::ostream& os, const FieldAccess& val) {
     return os << val.offset;
   }
   static int HashCode(const FieldAccess& val) {
@@ -81,7 +81,7 @@ struct StaticParameterTraits<FieldAccess> {
 // Specialization for static parameters of type {ElementAccess}.
 template <>
 struct StaticParameterTraits<ElementAccess> {
-  static OStream& PrintTo(OStream& os, const ElementAccess& access) {
+  static std::ostream& PrintTo(std::ostream& os, const ElementAccess& access) {
     return os << access;
   }
   static int HashCode(const ElementAccess& access) {

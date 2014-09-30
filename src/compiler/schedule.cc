@@ -12,7 +12,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
 BasicBlock::BasicBlock(Zone* zone, Id id)
     : rpo_number_(-1),
       dominator_(NULL),
@@ -110,7 +109,7 @@ size_t BasicBlock::PredecessorIndexOf(BasicBlock* predecessor) {
 }
 
 
-OStream& operator<<(OStream& os, const BasicBlock::Control& c) {
+std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
   switch (c) {
     case BasicBlock::kNone:
       return os << "none";
@@ -128,7 +127,7 @@ OStream& operator<<(OStream& os, const BasicBlock::Control& c) {
 }
 
 
-OStream& operator<<(OStream& os, const BasicBlock::Id& id) {
+std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id) {
   return os << id.ToSize();
 }
 
@@ -267,7 +266,7 @@ void Schedule::SetBlockForNode(BasicBlock* block, Node* node) {
 }
 
 
-OStream& operator<<(OStream& os, const Schedule& s) {
+std::ostream& operator<<(std::ostream& os, const Schedule& s) {
   // TODO(svenpanne) Const-correct the RPO stuff/iterators.
   BasicBlockVector* rpo = const_cast<Schedule*>(&s)->rpo_order();
   for (BasicBlockVectorIter i = rpo->begin(); i != rpo->end(); ++i) {
@@ -318,6 +317,7 @@ OStream& operator<<(OStream& os, const Schedule& s) {
   }
   return os;
 }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

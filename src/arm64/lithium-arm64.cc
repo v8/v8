@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+
 #include "src/v8.h"
 
 #include "src/arm64/lithium-codegen-arm64.h"
@@ -282,9 +284,9 @@ void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 
 void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
-  OStringStream os;
+  std::ostringstream os;
   os << hydrogen()->access();
-  stream->Add(os.c_str());
+  stream->Add(os.str().c_str());
   stream->Add(" <- ");
   value()->PrintTo(stream);
 }

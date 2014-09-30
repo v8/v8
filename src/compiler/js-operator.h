@@ -200,7 +200,7 @@ class JSOperatorBuilder {
 // Specialization for static parameters of type {ContextAccess}.
 template <>
 struct StaticParameterTraits<ContextAccess> {
-  static OStream& PrintTo(OStream& os, ContextAccess val) {  // NOLINT
+  static std::ostream& PrintTo(std::ostream& os, ContextAccess val) {  // NOLINT
     return os << val.depth() << "," << val.index()
               << (val.immutable() ? ",imm" : "");
   }
@@ -216,7 +216,8 @@ struct StaticParameterTraits<ContextAccess> {
 // Specialization for static parameters of type {Runtime::FunctionId}.
 template <>
 struct StaticParameterTraits<Runtime::FunctionId> {
-  static OStream& PrintTo(OStream& os, Runtime::FunctionId val) {  // NOLINT
+  static std::ostream& PrintTo(std::ostream& os,
+                               Runtime::FunctionId val) {  // NOLINT
     const Runtime::Function* f = Runtime::FunctionForId(val);
     return os << (f->name ? f->name : "?Runtime?");
   }

@@ -215,7 +215,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   // ShortPrint is available in release mode. Print is not.
   os << Brief(args[0]);
 #endif
-  os << endl;
+  os << std::endl;
 
   return args[0];  // return TOS
 }

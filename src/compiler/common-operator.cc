@@ -24,7 +24,9 @@ class ControlOperator : public Operator1<int> {
       : Operator1<int>(opcode, properties, inputs, outputs, mnemonic,
                        controls) {}
 
-  virtual OStream& PrintParameter(OStream& os) const FINAL { return os; }
+  virtual std::ostream& PrintParameter(std::ostream& os) const FINAL {
+    return os;
+  }
 };
 
 }  // namespace
@@ -33,7 +35,7 @@ class ControlOperator : public Operator1<int> {
 // Specialization for static parameters of type {ExternalReference}.
 template <>
 struct StaticParameterTraits<ExternalReference> {
-  static OStream& PrintTo(OStream& os, ExternalReference reference) {
+  static std::ostream& PrintTo(std::ostream& os, ExternalReference reference) {
     os << reference.address();
     // TODO(bmeurer): Move to operator<<(os, ExternalReference)
     const Runtime::Function* function =
@@ -234,7 +236,7 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
               static_cast<int>(descriptor->ReturnCount()), mnemonic,
               descriptor) {}
 
-    virtual OStream& PrintParameter(OStream& os) const OVERRIDE {
+    virtual std::ostream& PrintParameter(std::ostream& os) const OVERRIDE {
       return os << "[" << *parameter() << "]";
     }
   };

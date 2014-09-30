@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-OStream& operator<<(OStream& os, const InstructionOperand& op) {
+std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
   switch (op.kind()) {
     case InstructionOperand::INVALID:
       return os << "(0)";
@@ -96,7 +96,7 @@ void InstructionOperand::TearDownCaches() {
 }
 
 
-OStream& operator<<(OStream& os, const MoveOperands& mo) {
+std::ostream& operator<<(std::ostream& os, const MoveOperands& mo) {
   os << *mo.destination();
   if (!mo.source()->Equals(mo.destination())) os << " = " << *mo.source();
   return os << ";";
@@ -111,7 +111,7 @@ bool ParallelMove::IsRedundant() const {
 }
 
 
-OStream& operator<<(OStream& os, const ParallelMove& pm) {
+std::ostream& operator<<(std::ostream& os, const ParallelMove& pm) {
   bool first = true;
   for (ZoneList<MoveOperands>::iterator move = pm.move_operands()->begin();
        move != pm.move_operands()->end(); ++move) {
@@ -153,7 +153,7 @@ void PointerMap::RecordUntagged(InstructionOperand* op, Zone* zone) {
 }
 
 
-OStream& operator<<(OStream& os, const PointerMap& pm) {
+std::ostream& operator<<(std::ostream& os, const PointerMap& pm) {
   os << "{";
   for (ZoneList<InstructionOperand*>::iterator op =
            pm.pointer_operands_.begin();
@@ -165,7 +165,7 @@ OStream& operator<<(OStream& os, const PointerMap& pm) {
 }
 
 
-OStream& operator<<(OStream& os, const ArchOpcode& ao) {
+std::ostream& operator<<(std::ostream& os, const ArchOpcode& ao) {
   switch (ao) {
 #define CASE(Name) \
   case k##Name:    \
@@ -178,7 +178,7 @@ OStream& operator<<(OStream& os, const ArchOpcode& ao) {
 }
 
 
-OStream& operator<<(OStream& os, const AddressingMode& am) {
+std::ostream& operator<<(std::ostream& os, const AddressingMode& am) {
   switch (am) {
     case kMode_None:
       return os;
@@ -193,7 +193,7 @@ OStream& operator<<(OStream& os, const AddressingMode& am) {
 }
 
 
-OStream& operator<<(OStream& os, const FlagsMode& fm) {
+std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
   switch (fm) {
     case kFlags_none:
       return os;
@@ -207,7 +207,7 @@ OStream& operator<<(OStream& os, const FlagsMode& fm) {
 }
 
 
-OStream& operator<<(OStream& os, const FlagsCondition& fc) {
+std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
   switch (fc) {
     case kEqual:
       return os << "equal";
@@ -251,7 +251,7 @@ OStream& operator<<(OStream& os, const FlagsCondition& fc) {
 }
 
 
-OStream& operator<<(OStream& os, const Instruction& instr) {
+std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
   if (instr.OutputCount() > 1) os << "(";
   for (size_t i = 0; i < instr.OutputCount(); i++) {
     if (i > 0) os << ", ";
@@ -295,7 +295,7 @@ OStream& operator<<(OStream& os, const Instruction& instr) {
 }
 
 
-OStream& operator<<(OStream& os, const Constant& constant) {
+std::ostream& operator<<(std::ostream& os, const Constant& constant) {
   switch (constant.type()) {
     case Constant::kInt32:
       return os << constant.ToInt32();
@@ -415,7 +415,7 @@ int InstructionSequence::GetFrameStateDescriptorCount() {
 }
 
 
-OStream& operator<<(OStream& os, const InstructionSequence& code) {
+std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
   for (size_t i = 0; i < code.immediates_.size(); ++i) {
     Constant constant = code.immediates_[i];
     os << "IMM#" << i << ": " << constant << "\n";

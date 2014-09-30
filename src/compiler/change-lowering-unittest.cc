@@ -20,14 +20,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// TODO(bmeurer): Find a new home for these functions.
-inline std::ostream& operator<<(std::ostream& os, const MachineType& type) {
-  OStringStream ost;
-  ost << type;
-  return os << ost.c_str();
-}
-
-
 class ChangeLoweringTest : public GraphTest {
  public:
   ChangeLoweringTest() : simplified_(zone()) {}

@@ -4,6 +4,9 @@
 
 #include "src/compiler/graph-visualizer.h"
 
+#include <sstream>
+#include <string>
+
 #include "src/compiler/generic-algorithm.h"
 #include "src/compiler/generic-node.h"
 #include "src/compiler/generic-node-inl.h"
@@ -24,13 +27,15 @@ namespace compiler {
 
 class Escaped {
  public:
-  explicit Escaped(const OStringStream& os, const char* escaped_chars = "<>|{}")
-      : str_(os.c_str()), escaped_chars_(escaped_chars) {}
+  explicit Escaped(const std::ostringstream& os,
+                   const char* escaped_chars = "<>|{}")
+      : str_(os.str()), escaped_chars_(escaped_chars) {}
 
-  friend OStream& operator<<(OStream& os, const Escaped& e) {
-    for (const char* s = e.str_; *s != '\0'; ++s) {
-      if (e.needs_escape(*s)) os << "\\";
-      os << *s;
+  friend std::ostream& operator<<(std::ostream& os, const Escaped& e) {
+    for (std::string::const_iterator i = e.str_.begin(); i != e.str_.end();
+         ++i) {
+      if (e.needs_escape(*i)) os << "\\";
+      os << *i;
     }
     return os;
   }
@@ -43,13 +48,14 @@ class Escaped {
     return false;
   }
 
-  const char* const str_;
+  const std::string str_;
   const char* const escaped_chars_;
 };
 
 class JSONGraphNodeWriter : public NullNodeVisitor {
  public:
-  JSONGraphNodeWriter(OStream& os, Zone* zone, const Graph* graph)  // NOLINT
+  JSONGraphNodeWriter(std::ostream& os, Zone* zone,
+                      const Graph* graph)  // NOLINT
       : os_(os),
         graph_(graph),
         first_node_(true) {}
@@ -59,7 +65,7 @@ class JSONGraphNodeWriter : public NullNodeVisitor {
   GenericGraphVisit::Control Pre(Node* node);
 
  private:
-  OStream& os_;
+  std::ostream& os_;
   const Graph* const graph_;
   bool first_node_;
 
@@ -73,7 +79,7 @@ GenericGraphVisit::Control JSONGraphNodeWriter::Pre(Node* node) {
   } else {
     os_ << ",";
   }
-  OStringStream label;
+  std::ostringstream label;
   label << *node->op();
   os_ << "{\"id\":" << node->id() << ",\"label\":\"" << Escaped(label, "\"")
       << "\"";
@@ -101,7 +107,8 @@ GenericGraphVisit::Control JSONGraphNodeWriter::Pre(Node* node) {
 
 class JSONGraphEdgeWriter : public NullNodeVisitor {
  public:
-  JSONGraphEdgeWriter(OStream& os, Zone* zone, const Graph* graph)  // NOLINT
+  JSONGraphEdgeWriter(std::ostream& os, Zone* zone,
+                      const Graph* graph)  // NOLINT
       : os_(os),
         graph_(graph),
         first_edge_(true) {}
@@ -111,7 +118,7 @@ class JSONGraphEdgeWriter : public NullNodeVisitor {
   GenericGraphVisit::Control PreEdge(Node* from, int index, Node* to);
 
  private:
-  OStream& os_;
+  std::ostream& os_;
   const Graph* const graph_;
   bool first_edge_;
 
@@ -146,7 +153,7 @@ GenericGraphVisit::Control JSONGraphEdgeWriter::PreEdge(Node* from, int index,
 }
 
 
-OStream& operator<<(OStream& os, const AsJSON& ad) {
+std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
   Zone tmp_zone(ad.graph.zone()->isolate());
   os << "{\"nodes\":[";
   JSONGraphNodeWriter(os, &tmp_zone, &ad.graph).Print();
@@ -159,7 +166,7 @@ OStream& operator<<(OStream& os, const AsJSON& ad) {
 
 class GraphVisualizer : public NullNodeVisitor {
  public:
-  GraphVisualizer(OStream& os, Zone* zone, const Graph* graph);  // NOLINT
+  GraphVisualizer(std::ostream& os, Zone* zone, const Graph* graph);  // NOLINT
 
   void Print();
 
@@ -174,7 +181,7 @@ class GraphVisualizer : public NullNodeVisitor {
   NodeSet all_nodes_;
   NodeSet white_nodes_;
   bool use_to_def_;
-  OStream& os_;
+  std::ostream& os_;
   const Graph* const graph_;
 
   DISALLOW_COPY_AND_ASSIGN(GraphVisualizer);
@@ -258,7 +265,7 @@ void GraphVisualizer::AnnotateNode(Node* node) {
       break;
   }
 
-  OStringStream label;
+  std::ostringstream label;
   label << *node->op();
   os_ << "    label=\"{{#" << node->id() << ":" << Escaped(label);
 
@@ -291,9 +298,9 @@ void GraphVisualizer::AnnotateNode(Node* node) {
 
   if (FLAG_trace_turbo_types && !NodeProperties::IsControl(node)) {
     Bounds bounds = NodeProperties::GetBounds(node);
-    OStringStream upper;
+    std::ostringstream upper;
     bounds.upper->PrintTo(upper);
-    OStringStream lower;
+    std::ostringstream lower;
     bounds.lower->PrintTo(lower);
     os_ << "|" << Escaped(upper) << "|" << Escaped(lower);
   }
@@ -367,7 +374,7 @@ void GraphVisualizer::Print() {
 }
 
 
-GraphVisualizer::GraphVisualizer(OStream& os, Zone* zone,
+GraphVisualizer::GraphVisualizer(std::ostream& os, Zone* zone,
                                  const Graph* graph)  // NOLINT
     : zone_(zone),
       all_nodes_(NodeSet::key_compare(), NodeSet::allocator_type(zone)),
@@ -377,7 +384,7 @@ GraphVisualizer::GraphVisualizer(OStream& os, Zone* zone,
       graph_(graph) {}
 
 
-OStream& operator<<(OStream& os, const AsDOT& ad) {
+std::ostream& operator<<(std::ostream& os, const AsDOT& ad) {
   Zone tmp_zone(ad.graph.zone()->isolate());
   GraphVisualizer(os, &tmp_zone, &ad.graph).Print();
   return os;

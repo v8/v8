@@ -13,7 +13,6 @@ namespace internal {
 
 // Forward declarations.
 class ExternalReference;
-class OStream;
 
 
 namespace compiler {

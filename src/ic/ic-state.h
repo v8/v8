@@ -51,7 +51,7 @@ class CallICState FINAL BASE_EMBEDDED {
 };
 
 
-OStream& operator<<(OStream& os, const CallICState& s);
+std::ostream& operator<<(std::ostream& os, const CallICState& s);
 
 
 // Mode to overwrite BinaryExpression values.
@@ -139,7 +139,7 @@ class BinaryOpICState FINAL BASE_EMBEDDED {
   Isolate* isolate() const { return isolate_; }
 
  private:
-  friend OStream& operator<<(OStream& os, const BinaryOpICState& s);
+  friend std::ostream& operator<<(std::ostream& os, const BinaryOpICState& s);
 
   enum Kind { NONE, SMI, INT32, NUMBER, STRING, GENERIC };
 
@@ -173,7 +173,7 @@ class BinaryOpICState FINAL BASE_EMBEDDED {
 };
 
 
-OStream& operator<<(OStream& os, const BinaryOpICState& s);
+std::ostream& operator<<(std::ostream& os, const BinaryOpICState& s);
 
 
 class CompareICState {

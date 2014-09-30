@@ -15,7 +15,7 @@ namespace internal {
 namespace compiler {
 
 
-OStream& operator<<(OStream& os, const CallDescriptor::Kind& k) {
+std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
   switch (k) {
     case CallDescriptor::kCallCodeObject:
       os << "Code";
@@ -31,7 +31,7 @@ OStream& operator<<(OStream& os, const CallDescriptor::Kind& k) {
 }
 
 
-OStream& operator<<(OStream& os, const CallDescriptor& d) {
+std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
   // TODO(svenpanne) Output properties etc. and be less cryptic.
   return os << d.kind() << ":" << d.debug_name() << ":r" << d.ReturnCount()
             << "j" << d.JSParameterCount() << "i" << d.InputCount() << "f"

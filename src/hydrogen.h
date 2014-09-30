@@ -215,7 +215,7 @@ class HBasicBlock FINAL : public ZoneObject {
 };
 
 
-OStream& operator<<(OStream& os, const HBasicBlock& b);
+std::ostream& operator<<(std::ostream& os, const HBasicBlock& b);
 
 
 class HPredecessorIterator FINAL BASE_EMBEDDED {
@@ -743,7 +743,7 @@ class HEnvironment FINAL : public ZoneObject {
 };
 
 
-OStream& operator<<(OStream& os, const HEnvironment& env);
+std::ostream& operator<<(std::ostream& os, const HEnvironment& env);
 
 
 class HOptimizedGraphBuilder;

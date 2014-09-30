@@ -2,7 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdarg.h>
+#include "src/log.h"
+
+#include <cstdarg>
+#include <sstream>
 
 #include "src/v8.h"
 
@@ -13,7 +16,6 @@
 #include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
-#include "src/log.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
@@ -1785,13 +1787,13 @@ void Logger::LogAccessorCallbacks() {
 }
 
 
-static void AddIsolateIdIfNeeded(OStream& os,  // NOLINT
+static void AddIsolateIdIfNeeded(std::ostream& os,  // NOLINT
                                  Isolate* isolate) {
   if (FLAG_logfile_per_isolate) os << "isolate-" << isolate << "-";
 }
 
 
-static void PrepareLogFileName(OStream& os,  // NOLINT
+static void PrepareLogFileName(std::ostream& os,  // NOLINT
                                Isolate* isolate, const char* file_name) {
   AddIsolateIdIfNeeded(os, isolate);
   for (const char* p = file_name; *p; p++) {
@@ -1836,9 +1838,9 @@ bool Logger::SetUp(Isolate* isolate) {
     FLAG_log_snapshot_positions = true;
   }
 
-  OStringStream log_file_name;
+  std::ostringstream log_file_name;
   PrepareLogFileName(log_file_name, isolate, FLAG_logfile);
-  log_->Initialize(log_file_name.c_str());
+  log_->Initialize(log_file_name.str().c_str());
 
 
   if (FLAG_perf_basic_prof) {
@@ -1852,7 +1854,7 @@ bool Logger::SetUp(Isolate* isolate) {
   }
 
   if (FLAG_ll_prof) {
-    ll_logger_ = new LowLevelLogger(log_file_name.c_str());
+    ll_logger_ = new LowLevelLogger(log_file_name.str().c_str());
     addCodeEventListener(ll_logger_);
   }
 

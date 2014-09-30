@@ -135,7 +135,6 @@
         'test-mementos.cc',
         'test-object-observe.cc',
         'test-ordered-hash-table.cc',
-        'test-ostreams.cc',
         'test-parsing.cc',
         'test-platform.cc',
         'test-profile-generator.cc',

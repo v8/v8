@@ -115,7 +115,6 @@ class BreakableStatement;
 class Expression;
 class IterationStatement;
 class MaterializedLiteral;
-class OStream;
 class Statement;
 class TargetCollector;
 class TypeFeedbackOracle;
@@ -2613,7 +2612,7 @@ class RegExpTree : public ZoneObject {
   // expression.
   virtual Interval CaptureRegisters() { return Interval::Empty(); }
   virtual void AppendToText(RegExpText* text, Zone* zone);
-  OStream& Print(OStream& os, Zone* zone);  // NOLINT
+  std::ostream& Print(std::ostream& os, Zone* zone);  // NOLINT
 #define MAKE_ASTYPE(Name)                                                  \
   virtual RegExp##Name* As##Name();                                        \
   virtual bool Is##Name();

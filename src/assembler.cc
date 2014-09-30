@@ -794,8 +794,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
 }
 
 
-void RelocInfo::Print(Isolate* isolate, OStream& os) {  // NOLINT
-  os << pc_ << "  " << RelocModeName(rmode_);
+void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
+  os << static_cast<const void*>(pc_) << "  " << RelocModeName(rmode_);
   if (IsComment(rmode_)) {
     os << "  (" << reinterpret_cast<char*>(data_) << ")";
   } else if (rmode_ == EMBEDDED_OBJECT) {

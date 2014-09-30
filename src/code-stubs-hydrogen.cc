@@ -277,7 +277,7 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     OFStream os(stdout);
     os << "[Lazy compilation of " << stub << " took "
-       << timer.Elapsed().InMillisecondsF() << " ms]" << endl;
+       << timer.Elapsed().InMillisecondsF() << " ms]" << std::endl;
   }
   return code;
 }

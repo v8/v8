@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+
 #include "src/v8.h"
 
 #include "src/accessors.h"
@@ -909,13 +911,13 @@ void Object::ShortPrint(FILE* out) {
 
 
 void Object::ShortPrint(StringStream* accumulator) {
-  OStringStream os;
+  std::ostringstream os;
   os << Brief(this);
-  accumulator->Add(os.c_str());
+  accumulator->Add(os.str().c_str());
 }
 
 
-OStream& operator<<(OStream& os, const Brief& v) {
+std::ostream& operator<<(std::ostream& os, const Brief& v) {
   if (v.value->IsSmi()) {
     Smi::cast(v.value)->SmiPrint(os);
   } else {
@@ -927,7 +929,7 @@ OStream& operator<<(OStream& os, const Brief& v) {
 }
 
 
-void Smi::SmiPrint(OStream& os) const {  // NOLINT
+void Smi::SmiPrint(std::ostream& os) const {  // NOLINT
   os << value();
 }
 
@@ -1172,7 +1174,7 @@ void String::StringShortPrint(StringStream* accumulator) {
 }
 
 
-void String::PrintUC16(OStream& os, int start, int end) {  // NOLINT
+void String::PrintUC16(std::ostream& os, int start, int end) {  // NOLINT
   if (end < 0) end = length();
   ConsStringIteratorOp op;
   StringCharacterStream stream(this, &op, start);
@@ -1371,7 +1373,7 @@ void JSObject::PrintInstanceMigration(FILE* file,
 }
 
 
-void HeapObject::HeapObjectShortPrint(OStream& os) {  // NOLINT
+void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
   Heap* heap = GetHeap();
   if (!heap->Contains(this)) {
     os << "!!!INVALID POINTER!!!";
@@ -1668,7 +1670,7 @@ bool HeapNumber::HeapNumberBooleanValue() {
 }
 
 
-void HeapNumber::HeapNumberPrint(OStream& os) {  // NOLINT
+void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
   os << value();
 }
 
@@ -9810,7 +9812,7 @@ int SharedFunctionInfo::CalculateInObjectProperties() {
 
 
 // Output the source code without any allocation in the heap.
-OStream& operator<<(OStream& os, const SourceCodeOf& v) {
+std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   const SharedFunctionInfo* s = v.value;
   // For some native functions there is no source.
   if (!s->HasSourceCode()) return os << "<No Source>";
@@ -10630,7 +10632,7 @@ const char* Code::Kind2String(Kind kind) {
 #ifdef ENABLE_DISASSEMBLER
 
 void DeoptimizationInputData::DeoptimizationInputDataPrint(
-    OStream& os) {  // NOLINT
+    std::ostream& os) {  // NOLINT
   disasm::NameConverter converter;
   int deopt_count = DeoptCount();
   os << "Deoptimization Input Data (deopt points = " << deopt_count << ")\n";
@@ -10791,7 +10793,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
 
 
 void DeoptimizationOutputData::DeoptimizationOutputDataPrint(
-    OStream& os) {  // NOLINT
+    std::ostream& os) {  // NOLINT
   os << "Deoptimization Output Data (deopt points = " << this->DeoptPoints()
      << ")\n";
   if (this->DeoptPoints() == 0) return;
@@ -10839,7 +10841,7 @@ const char* Code::StubType2String(StubType type) {
 }
 
 
-void Code::PrintExtraICState(OStream& os,  // NOLINT
+void Code::PrintExtraICState(std::ostream& os,  // NOLINT
                              Kind kind, ExtraICState extra) {
   os << "extra_ic_state = ";
   if ((kind == STORE_IC || kind == KEYED_STORE_IC) && (extra == STRICT)) {
@@ -10850,7 +10852,7 @@ void Code::PrintExtraICState(OStream& os,  // NOLINT
 }
 
 
-void Code::Disassemble(const char* name, OStream& os) {  // NOLINT
+void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   os << "kind = " << Kind2String(kind()) << "\n";
   if (IsCodeStubOrIC()) {
     const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(this), true);
@@ -13056,7 +13058,7 @@ bool JSObject::ShouldConvertToFastDoubleElements(
 // we keep it here instead to satisfy certain compilers.
 #ifdef OBJECT_PRINT
 template <typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::Print(OStream& os) {  // NOLINT
+void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
   int capacity = DerivedHashTable::Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = DerivedHashTable::KeyAt(i);

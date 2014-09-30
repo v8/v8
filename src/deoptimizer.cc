@@ -719,7 +719,7 @@ int Deoptimizer::GetOutputInfo(DeoptimizationOutputData* data,
   OFStream os(stderr);
   os << "[couldn't find pc offset for node=" << id.ToInt() << "]\n"
      << "[method: " << shared->DebugName()->ToCString().get() << "]\n"
-     << "[source:\n" << SourceCodeOf(shared) << "\n]" << endl;
+     << "[source:\n" << SourceCodeOf(shared) << "\n]" << std::endl;
 
   FATAL("unable to find pc offset during deoptimization");
   return -1;
