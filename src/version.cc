@@ -94,7 +94,6 @@ void Version::GetString(Vector<char> str) {
   }
 }
 
-
 // Calculate the SONAME for the V8 shared library.
 void Version::GetSONAME(Vector<char> str) {
   if (soname_ == NULL || *soname_ == '\0') {
