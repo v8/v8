@@ -65,11 +65,8 @@ class InstructionOperandConverter {
   }
 
   BasicBlock* InputBlock(int index) {
-    NodeId block_id = static_cast<NodeId>(InputInt32(index));
-    // operand should be a block id.
-    DCHECK(block_id >= 0);
-    DCHECK(block_id < gen_->schedule()->BasicBlockCount());
-    return gen_->schedule()->GetBlockById(block_id);
+    int block_id = InputInt32(index);
+    return gen_->schedule()->GetBlockById(BasicBlock::Id::FromInt(block_id));
   }
 
   Register OutputRegister(int index = 0) {

@@ -5,6 +5,7 @@
 #include "src/compiler/instruction.h"
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/generic-node-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -320,12 +321,12 @@ Label* InstructionSequence::GetLabel(BasicBlock* block) {
 
 
 BlockStartInstruction* InstructionSequence::GetBlockStart(BasicBlock* block) {
-  return BlockStartInstruction::cast(InstructionAt(block->code_start_));
+  return BlockStartInstruction::cast(InstructionAt(block->code_start()));
 }
 
 
 void InstructionSequence::StartBlock(BasicBlock* block) {
-  block->code_start_ = static_cast<int>(instructions_.size());
+  block->set_code_start(static_cast<int>(instructions_.size()));
   BlockStartInstruction* block_start =
       BlockStartInstruction::New(zone(), block);
   AddInstruction(block_start, block);
@@ -334,8 +335,8 @@ void InstructionSequence::StartBlock(BasicBlock* block) {
 
 void InstructionSequence::EndBlock(BasicBlock* block) {
   int end = static_cast<int>(instructions_.size());
-  DCHECK(block->code_start_ >= 0 && block->code_start_ < end);
-  block->code_end_ = end;
+  DCHECK(block->code_start() >= 0 && block->code_start() < end);
+  block->set_code_end(end);
 }
 
 
@@ -427,19 +428,17 @@ OStream& operator<<(OStream& os, const InstructionSequence& code) {
   for (int i = 0; i < code.BasicBlockCount(); i++) {
     BasicBlock* block = code.BlockAt(i);
 
-    int bid = block->id();
-    os << "RPO#" << block->rpo_number_ << ": B" << bid;
-    CHECK(block->rpo_number_ == i);
+    os << "RPO#" << block->rpo_number() << ": B" << block->id();
+    CHECK(block->rpo_number() == i);
     if (block->IsLoopHeader()) {
-      os << " loop blocks: [" << block->rpo_number_ << ", " << block->loop_end_
-         << ")";
+      os << " loop blocks: [" << block->rpo_number() << ", "
+         << block->loop_end() << ")";
     }
-    os << "  instructions: [" << block->code_start_ << ", " << block->code_end_
-       << ")\n  predecessors:";
+    os << "  instructions: [" << block->code_start() << ", "
+       << block->code_end() << ")\n  predecessors:";
 
-    BasicBlock::Predecessors predecessors = block->predecessors();
-    for (BasicBlock::Predecessors::iterator iter = predecessors.begin();
-         iter != predecessors.end(); ++iter) {
+    for (BasicBlock::Predecessors::iterator iter = block->predecessors_begin();
+         iter != block->predecessors_end(); ++iter) {
       os << " B" << (*iter)->id();
     }
     os << "\n";
@@ -465,15 +464,14 @@ OStream& operator<<(OStream& os, const InstructionSequence& code) {
       os << "   " << buf.start() << ": " << *code.InstructionAt(j);
     }
 
-    os << "  " << block->control_;
+    os << "  " << block->control();
 
-    if (block->control_input_ != NULL) {
-      os << " v" << block->control_input_->id();
+    if (block->control_input() != NULL) {
+      os << " v" << block->control_input()->id();
     }
 
-    BasicBlock::Successors successors = block->successors();
-    for (BasicBlock::Successors::iterator iter = successors.begin();
-         iter != successors.end(); ++iter) {
+    for (BasicBlock::Successors::iterator iter = block->successors_begin();
+         iter != block->successors_end(); ++iter) {
       os << " B" << (*iter)->id();
     }
     os << "\n";

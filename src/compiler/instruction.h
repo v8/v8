@@ -836,10 +836,10 @@ class InstructionSequence FINAL {
   }
 
   BasicBlock* GetContainingLoop(BasicBlock* block) {
-    return block->loop_header_;
+    return block->loop_header();
   }
 
-  int GetLoopEnd(BasicBlock* block) const { return block->loop_end_; }
+  int GetLoopEnd(BasicBlock* block) const { return block->loop_end(); }
 
   BasicBlock* GetBasicBlock(int instruction_index);
 

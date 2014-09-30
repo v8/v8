@@ -15,9 +15,9 @@ namespace compiler {
 
 // Find the first place to insert new nodes in a block that's already been
 // scheduled that won't upset the register allocator.
-static NodeVector::iterator FindInsertionPoint(NodeVector* nodes) {
-  NodeVector::iterator i = nodes->begin();
-  for (; i != nodes->end(); ++i) {
+static NodeVector::iterator FindInsertionPoint(BasicBlock* block) {
+  NodeVector::iterator i = block->begin();
+  for (; i != block->end(); ++i) {
     const Operator* op = (*i)->op();
     if (OperatorProperties::IsBasicBlockBegin(op)) continue;
     switch (op->opcode()) {
@@ -72,7 +72,7 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
        ++it, ++block_number) {
     BasicBlock* block = (*it);
-    data->SetBlockId(block_number, block->id());
+    data->SetBlockId(block_number, block->id().ToSize());
     // TODO(dcarney): wire effect and control deps for load and store.
     // Construct increment operation.
     Node* base = graph->NewNode(
@@ -86,10 +86,9 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
     static const int kArraySize = 6;
     Node* to_insert[kArraySize] = {zero, one, base, load, inc, store};
     int insertion_start = block_number == 0 ? 0 : 2;
-    NodeVector* nodes = &block->nodes_;
-    NodeVector::iterator insertion_point = FindInsertionPoint(nodes);
-    nodes->insert(insertion_point, &to_insert[insertion_start],
-                  &to_insert[kArraySize]);
+    NodeVector::iterator insertion_point = FindInsertionPoint(block);
+    block->InsertNodes(insertion_point, &to_insert[insertion_start],
+                       &to_insert[kArraySize]);
     // Tell the scheduler about the new nodes.
     for (int i = insertion_start; i < kArraySize; ++i) {
       schedule->SetBlockForNode(block, to_insert[i]);

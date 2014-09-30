@@ -5,6 +5,7 @@
 #ifndef V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 #define V8_COMPILER_INSTRUCTION_SELECTOR_IMPL_H_
 
+#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/instruction.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
@@ -129,7 +130,7 @@ class OperandGenerator {
 
   InstructionOperand* Label(BasicBlock* block) {
     // TODO(bmeurer): We misuse ImmediateOperand here.
-    return TempImmediate(block->id());
+    return TempImmediate(block->id().ToInt());
   }
 
  protected:

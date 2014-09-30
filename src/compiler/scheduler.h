@@ -66,10 +66,11 @@ class Scheduler {
   Placement GetPlacement(Node* node);
 
   int GetRPONumber(BasicBlock* block) {
-    DCHECK(block->rpo_number_ >= 0 &&
-           block->rpo_number_ < static_cast<int>(schedule_->rpo_order_.size()));
-    DCHECK(schedule_->rpo_order_[block->rpo_number_] == block);
-    return block->rpo_number_;
+    DCHECK(block->rpo_number() >= 0 &&
+           block->rpo_number() <
+               static_cast<int>(schedule_->rpo_order_.size()));
+    DCHECK(schedule_->rpo_order_[block->rpo_number()] == block);
+    return block->rpo_number();
   }
 
   void GenerateImmediateDominatorTree();

@@ -8,7 +8,7 @@ namespace v8 {
 namespace internal {
 
 BasicBlockProfiler::Data::Data(size_t n_blocks)
-    : n_blocks_(n_blocks), block_ids_(n_blocks_, -1), counts_(n_blocks_, 0) {}
+    : n_blocks_(n_blocks), block_ids_(n_blocks_), counts_(n_blocks_, 0) {}
 
 
 BasicBlockProfiler::Data::~Data() {}
@@ -34,7 +34,7 @@ void BasicBlockProfiler::Data::SetSchedule(OStringStream* os) {
 }
 
 
-void BasicBlockProfiler::Data::SetBlockId(size_t offset, int block_id) {
+void BasicBlockProfiler::Data::SetBlockId(size_t offset, size_t block_id) {
   DCHECK(offset < n_blocks_);
   block_ids_[offset] = block_id;
 }

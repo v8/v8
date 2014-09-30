@@ -24,7 +24,7 @@ TEST(TestScheduleAllocation) {
   Schedule schedule(scope.main_zone());
 
   CHECK_NE(NULL, schedule.start());
-  CHECK_EQ(schedule.start(), *(schedule.all_blocks().begin()));
+  CHECK_EQ(schedule.start(), schedule.GetBlockById(BasicBlock::Id::FromInt(0)));
 }
 
 
@@ -58,13 +58,13 @@ TEST(TestScheduleAddGoto) {
 
   schedule.AddGoto(entry, next);
 
-  CHECK_EQ(0, entry->PredecessorCount());
-  CHECK_EQ(1, entry->SuccessorCount());
+  CHECK_EQ(0, static_cast<int>(entry->PredecessorCount()));
+  CHECK_EQ(1, static_cast<int>(entry->SuccessorCount()));
   CHECK_EQ(next, entry->SuccessorAt(0));
 
-  CHECK_EQ(1, next->PredecessorCount());
+  CHECK_EQ(1, static_cast<int>(next->PredecessorCount()));
   CHECK_EQ(entry, next->PredecessorAt(0));
-  CHECK_EQ(0, next->SuccessorCount());
+  CHECK_EQ(0, static_cast<int>(next->SuccessorCount()));
 }
 
 
@@ -83,18 +83,18 @@ TEST(TestScheduleAddBranch) {
 
   schedule.AddBranch(entry, b, tblock, fblock);
 
-  CHECK_EQ(0, entry->PredecessorCount());
-  CHECK_EQ(2, entry->SuccessorCount());
+  CHECK_EQ(0, static_cast<int>(entry->PredecessorCount()));
+  CHECK_EQ(2, static_cast<int>(entry->SuccessorCount()));
   CHECK_EQ(tblock, entry->SuccessorAt(0));
   CHECK_EQ(fblock, entry->SuccessorAt(1));
 
-  CHECK_EQ(1, tblock->PredecessorCount());
+  CHECK_EQ(1, static_cast<int>(tblock->PredecessorCount()));
   CHECK_EQ(entry, tblock->PredecessorAt(0));
-  CHECK_EQ(0, tblock->SuccessorCount());
+  CHECK_EQ(0, static_cast<int>(tblock->SuccessorCount()));
 
-  CHECK_EQ(1, fblock->PredecessorCount());
+  CHECK_EQ(1, static_cast<int>(fblock->PredecessorCount()));
   CHECK_EQ(entry, fblock->PredecessorAt(0));
-  CHECK_EQ(0, fblock->SuccessorCount());
+  CHECK_EQ(0, static_cast<int>(fblock->SuccessorCount()));
 }
 
 
@@ -106,8 +106,8 @@ TEST(TestScheduleAddReturn) {
   BasicBlock* entry = schedule.start();
   schedule.AddReturn(entry, n0);
 
-  CHECK_EQ(0, entry->PredecessorCount());
-  CHECK_EQ(1, entry->SuccessorCount());
+  CHECK_EQ(0, static_cast<int>(entry->PredecessorCount()));
+  CHECK_EQ(1, static_cast<int>(entry->SuccessorCount()));
   CHECK_EQ(schedule.end(), entry->SuccessorAt(0));
 }
 
@@ -120,8 +120,8 @@ TEST(TestScheduleAddThrow) {
   BasicBlock* entry = schedule.start();
   schedule.AddThrow(entry, n0);
 
-  CHECK_EQ(0, entry->PredecessorCount());
-  CHECK_EQ(1, entry->SuccessorCount());
+  CHECK_EQ(0, static_cast<int>(entry->PredecessorCount()));
+  CHECK_EQ(1, static_cast<int>(entry->SuccessorCount()));
   CHECK_EQ(schedule.end(), entry->SuccessorAt(0));
 }
 

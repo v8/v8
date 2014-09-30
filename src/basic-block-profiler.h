@@ -25,7 +25,7 @@ class BasicBlockProfiler {
     void SetCode(OStringStream* os);
     void SetFunctionName(OStringStream* os);
     void SetSchedule(OStringStream* os);
-    void SetBlockId(size_t offset, int block_id);
+    void SetBlockId(size_t offset, size_t block_id);
     uint32_t* GetCounterAddress(size_t offset);
 
    private:
@@ -38,7 +38,7 @@ class BasicBlockProfiler {
     void ResetCounts();
 
     const size_t n_blocks_;
-    std::vector<int> block_ids_;
+    std::vector<size_t> block_ids_;
     std::vector<uint32_t> counts_;
     std::string function_name_;
     std::string schedule_;
