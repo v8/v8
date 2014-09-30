@@ -140,6 +140,10 @@ static inline ObjectPair MakePair(Object* x, Object* y) {
 #endif
 }
 #endif
+
+class JavaScriptFrameIterator;
+
+int FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index);
 }
 }  // namespace v8::internal
 
