@@ -504,11 +504,15 @@ TEST_P(InstructionSelectorMultTest, Mult32) {
     EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
     ASSERT_EQ(InputCountForLea(s[0]->addressing_mode()), s[0]->InputCount());
   } else {
-    EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
+    EXPECT_EQ(kIA32Imul, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
   }
   EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(0)));
 }
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorMultTest,
+                        ::testing::ValuesIn(kMultParams));
 
 }  // namespace compiler
 }  // namespace internal
