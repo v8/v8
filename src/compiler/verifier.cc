@@ -285,8 +285,8 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
                           use_pos)) {
       V8_Fatal(__FILE__, __LINE__,
                "Node #%d:%s in B%d is not dominated by input@%d #%d:%s",
-               node->id(), node->op()->mnemonic(), block->id(), j, input->id(),
-               input->op()->mnemonic());
+               node->id(), node->op()->mnemonic(), block->id().ToInt(), j,
+               input->id(), input->op()->mnemonic());
     }
   }
 }

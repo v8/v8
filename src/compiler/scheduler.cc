@@ -345,7 +345,7 @@ void Scheduler::GenerateImmediateDominatorTree() {
         ++current_pred;
       }
       current_rpo->set_dominator(dominator);
-      Trace("Block %d's idom is %d\n", current_rpo->id(),
+      Trace("Block %d's idom is %d\n", current_rpo->id().ToInt(),
             dominator->id().ToInt());
     }
   }
