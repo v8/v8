@@ -295,7 +295,7 @@ class VCInterface(object):
   # TODO(machenbach): There is some svn knowledge in this interface. In svn,
   # tag and commit are different remote commands, while in git we would commit
   # and tag locally and then push/land in one unique step.
-  def Tag(self, tag):
+  def Tag(self, tag, remote):
     raise NotImplementedError()
 
 
@@ -342,7 +342,9 @@ class GitSvnInterface(VCInterface):
   def CLLand(self):
     self.step.GitDCommit()
 
-  def Tag(self, tag):
+  def Tag(self, tag, remote):
+    self.step.GitSVNFetch()
+    self.step.Git("rebase %s" % remote)
     self.step.GitSVNTag(tag)
 
 

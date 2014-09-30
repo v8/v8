@@ -220,7 +220,7 @@ class TagRevision(Step):
     if self._options.revert_bleeding_edge:
       return
     print "Creating tag svn/tags/%s" % self["version"]
-    self.vc.Tag(self["version"])
+    self.vc.Tag(self["version"], self.vc.RemoteBranch(self["merge_to_branch"]))
 
 
 class CleanUp(Step):
