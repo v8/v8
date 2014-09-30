@@ -598,12 +598,10 @@ class TypeImpl<Config>::BitsetType : public TypeImpl<Config> {
 
   static bitset Glb(TypeImpl* type);  // greatest lower bound that's a bitset
   static bitset Lub(TypeImpl* type);  // least upper bound that's a bitset
+  static bitset Lub(i::Map* map);
   static bitset Lub(i::Object* value);
   static bitset Lub(double value);
-  static bitset Lub(int32_t value);
-  static bitset Lub(uint32_t value);
-  static bitset Lub(i::Map* map);
-  static bitset Lub(Limits lim);
+  static bitset Lub(double min, double max);
 
   static const char* Name(bitset);
   static void Print(std::ostream& os, bitset);  // NOLINT
@@ -781,7 +779,8 @@ class TypeImpl<Config>::RangeType : public StructuralType {
     DCHECK(min->Number() <= max->Number());
     RangeHandle type = Config::template cast<RangeType>(
         StructuralType::New(StructuralType::kRangeTag, 3, region));
-    type->Set(0, BitsetType::New(BitsetType::Lub(Limits(min, max)), region));
+    type->Set(0, BitsetType::New(
+        BitsetType::Lub(min->Number(), max->Number()), region));
     type->SetValue(1, min);
     type->SetValue(2, max);
     return type;
