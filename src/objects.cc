@@ -2906,13 +2906,11 @@ MaybeHandle<Object> Object::SetProperty(LookupIterator* it,
   }
 
   if (data_store_mode == SUPER_PROPERTY) {
-    if (strict_mode == STRICT) {
-      Handle<Object> args[1] = {it->name()};
-      THROW_NEW_ERROR(it->isolate(),
-                      NewReferenceError("not_defined", HandleVector(args, 1)),
-                      Object);
-    }
-    return value;
+    LookupIterator own_lookup(it->GetReceiver(), it->name(),
+                              LookupIterator::OWN);
+
+    return JSObject::SetProperty(&own_lookup, value, strict_mode, store_mode,
+                                 NORMAL_PROPERTY);
   }
 
   return AddDataProperty(it, value, NONE, strict_mode, store_mode);
