@@ -80,12 +80,12 @@ namespace internal {
   V(VectorKeyedLoad)                        \
   V(VectorLoad)                             \
   /* IC Handler stubs */                    \
-  V(ExtendStorage)                          \
   V(LoadConstant)                           \
   V(LoadField)                              \
   V(KeyedLoadSloppyArguments)               \
   V(StoreField)                             \
   V(StoreGlobal)                            \
+  V(StoreTransition)                        \
   V(StringLength)
 
 // List of code stubs only used on ARM 32 bits platforms.
@@ -999,28 +999,43 @@ class StoreFieldStub : public HandlerStub {
 };
 
 
-// Extend storage is called in a store inline cache when
-// it is necessary to extend the properties array of a
-// JSObject.
-class ExtendStorageStub : public HandlerStub {
+class StoreTransitionStub : public HandlerStub {
  public:
-  ExtendStorageStub(Isolate* isolate, FieldIndex index,
-                    Representation representation)
+  enum StoreMode {
+    StoreMapOnly,
+    StoreMapAndValue,
+    ExtendStorageAndStoreMapAndValue
+  };
+
+  explicit StoreTransitionStub(Isolate* isolate) : HandlerStub(isolate) {
+    set_sub_minor_key(StoreModeBits::encode(StoreMapOnly));
+  }
+
+  StoreTransitionStub(Isolate* isolate, FieldIndex index,
+                      Representation representation, StoreMode store_mode)
       : HandlerStub(isolate) {
+    DCHECK(store_mode != StoreMapOnly);
     int property_index_key = index.GetFieldAccessStubKey();
     uint8_t repr = PropertyDetails::EncodeRepresentation(representation);
     set_sub_minor_key(StoreFieldByIndexBits::encode(property_index_key) |
-                      RepresentationBits::encode(repr));
+                      RepresentationBits::encode(repr) |
+                      StoreModeBits::encode(store_mode));
   }
 
   FieldIndex index() const {
+    DCHECK(store_mode() != StoreMapOnly);
     int property_index_key = StoreFieldByIndexBits::decode(sub_minor_key());
     return FieldIndex::FromFieldAccessStubKey(property_index_key);
   }
 
   Representation representation() {
+    DCHECK(store_mode() != StoreMapOnly);
     uint8_t repr = RepresentationBits::decode(sub_minor_key());
     return PropertyDetails::DecodeRepresentation(repr);
+  }
+
+  StoreMode store_mode() const {
+    return StoreModeBits::decode(sub_minor_key());
   }
 
   virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE;
@@ -1032,8 +1047,9 @@ class ExtendStorageStub : public HandlerStub {
  private:
   class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
   class RepresentationBits : public BitField<uint8_t, 13, 4> {};
+  class StoreModeBits : public BitField<StoreMode, 17, 2> {};
 
-  DEFINE_HANDLER_CODE_STUB(ExtendStorage, HandlerStub);
+  DEFINE_HANDLER_CODE_STUB(StoreTransition, HandlerStub);
 };
 
 

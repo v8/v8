@@ -616,8 +616,8 @@ void ElementsTransitionAndStoreStub::InitializeDescriptor(
 }
 
 
-CallInterfaceDescriptor ExtendStorageStub::GetCallInterfaceDescriptor() {
-  return ExtendStorageDescriptor(isolate());
+CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor() {
+  return StoreTransitionDescriptor(isolate());
 }
 
 

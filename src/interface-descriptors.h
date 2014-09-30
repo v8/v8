@@ -16,7 +16,7 @@ class PlatformInterfaceDescriptor;
 #define INTERFACE_DESCRIPTOR_LIST(V)          \
   V(Load)                                     \
   V(Store)                                    \
-  V(ExtendStorage)                            \
+  V(StoreTransition)                          \
   V(ElementTransitionAndStore)                \
   V(Instanceof)                               \
   V(VectorLoadICTrampoline)                   \
@@ -214,9 +214,9 @@ class StoreDescriptor : public CallInterfaceDescriptor {
 };
 
 
-class ExtendStorageDescriptor : public StoreDescriptor {
+class StoreTransitionDescriptor : public StoreDescriptor {
  public:
-  DECLARE_DESCRIPTOR(ExtendStorageDescriptor, StoreDescriptor)
+  DECLARE_DESCRIPTOR(StoreTransitionDescriptor, StoreDescriptor)
 
   // Extends StoreDescriptor with Map parameter.
   enum ParameterIndices {
