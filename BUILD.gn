@@ -939,6 +939,8 @@ source_set("v8_base") {
       "src/compiler/ia32/instruction-codes-ia32.h",
       "src/compiler/ia32/instruction-selector-ia32.cc",
       "src/compiler/ia32/linkage-ia32.cc",
+      "src/ic/ia32/access-compiler-ia32.cc",
+      "src/ic/ia32/handler-compiler-ia32.cc",
       "src/ic/ia32/ic-ia32.cc",
       "src/ic/ia32/ic-compiler-ia32.cc",
       "src/ic/ia32/stub-cache-ia32.cc",
