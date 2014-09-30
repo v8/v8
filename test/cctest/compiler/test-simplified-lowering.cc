@@ -235,7 +235,7 @@ TEST(RunLoadStoreArrayBuffer) {
   const int index = 12;
   const int array_length = 2 * index;
   ElementAccess buffer_access =
-      AccessBuilder::ForBackingStoreElement(kMachInt8);
+      AccessBuilder::ForTypedArrayElement(v8::kExternalInt8Array, true);
   Node* backing_store = t.LoadField(
       AccessBuilder::ForJSArrayBufferBackingStore(), t.Parameter(0));
   Node* load =

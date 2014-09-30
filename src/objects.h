@@ -1007,6 +1007,8 @@ class Object {
     CERTAINLY_NOT_STORE_FROM_KEYED
   };
 
+  enum StorePropertyMode { NORMAL_PROPERTY, SUPER_PROPERTY };
+
   INLINE(bool IsFixedArrayBase() const);
   INLINE(bool IsExternal() const);
   INLINE(bool IsAccessorInfo() const);
@@ -1116,7 +1118,8 @@ class Object {
 
   MUST_USE_RESULT static MaybeHandle<Object> SetProperty(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode,
-      StoreFromKeyed store_mode);
+      StoreFromKeyed store_mode,
+      StorePropertyMode data_store_mode = NORMAL_PROPERTY);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
   static Handle<Object> SetDataProperty(LookupIterator* it,

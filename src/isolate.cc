@@ -10,6 +10,7 @@
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/basic-block-profiler.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
@@ -110,9 +111,6 @@ void ThreadLocalTop::Free() {
 base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::thread_id_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
-#ifdef DEBUG
-base::Thread::LocalStorageKey PerThreadAssertScopeBase::thread_local_key;
-#endif  // DEBUG
 base::LazyMutex Isolate::thread_data_table_mutex_ = LAZY_MUTEX_INITIALIZER;
 Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
 base::Atomic32 Isolate::isolate_counter_ = 0;
@@ -157,10 +155,6 @@ void Isolate::InitializeOncePerProcess() {
   isolate_key_ = base::Thread::CreateThreadLocalKey();
   thread_id_key_ = base::Thread::CreateThreadLocalKey();
   per_isolate_thread_data_key_ = base::Thread::CreateThreadLocalKey();
-#ifdef DEBUG
-  PerThreadAssertScopeBase::thread_local_key =
-      base::Thread::CreateThreadLocalKey();
-#endif  // DEBUG
   thread_data_table_ = new Isolate::ThreadDataTable();
 }
 
@@ -1516,7 +1510,8 @@ Isolate::Isolate()
       num_sweeper_threads_(0),
       stress_deopt_count_(0),
       next_optimization_id_(0),
-      use_counter_callback_(NULL) {
+      use_counter_callback_(NULL),
+      basic_block_profiler_(NULL) {
   {
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     CHECK(thread_data_table_);
@@ -1640,6 +1635,10 @@ void Isolate::Deinit() {
       delete runtime_profiler_;
       runtime_profiler_ = NULL;
     }
+
+    delete basic_block_profiler_;
+    basic_block_profiler_ = NULL;
+
     heap_.TearDown();
     logger_->TearDown();
 
@@ -2360,6 +2359,14 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
   if (use_counter_callback_) {
     use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
   }
+}
+
+
+BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
+  if (basic_block_profiler_ == NULL) {
+    basic_block_profiler_ = new BasicBlockProfiler();
+  }
+  return basic_block_profiler_;
 }
 
 

@@ -577,18 +577,9 @@ class StartupSerializer : public Serializer {
 
 class CodeSerializer : public Serializer {
  public:
-  CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source)
-      : Serializer(isolate, sink), source_(source) {
-    set_root_index_wave_front(Heap::kStrongRootListLength);
-    InitializeCodeAddressMap();
-  }
-
   static ScriptData* Serialize(Isolate* isolate,
                                Handle<SharedFunctionInfo> info,
                                Handle<String> source);
-
-  virtual void SerializeObject(Object* o, HowToCode how_to_code,
-                               WhereToPoint where_to_point, int skip);
 
   static Handle<SharedFunctionInfo> Deserialize(Isolate* isolate,
                                                 ScriptData* data,
@@ -605,18 +596,29 @@ class CodeSerializer : public Serializer {
   List<uint32_t>* stub_keys() { return &stub_keys_; }
 
  private:
+  CodeSerializer(Isolate* isolate, SnapshotByteSink* sink, String* source,
+                 Code* main_code)
+      : Serializer(isolate, sink), source_(source), main_code_(main_code) {
+    set_root_index_wave_front(Heap::kStrongRootListLength);
+    InitializeCodeAddressMap();
+  }
+
+  virtual void SerializeObject(Object* o, HowToCode how_to_code,
+                               WhereToPoint where_to_point, int skip);
+
   void SerializeBuiltin(Code* builtin, HowToCode how_to_code,
-                        WhereToPoint where_to_point, int skip);
-  void SerializeCodeStub(Code* code, HowToCode how_to_code,
-                         WhereToPoint where_to_point, int skip);
-  void SerializeSourceObject(HowToCode how_to_code, WhereToPoint where_to_point,
-                             int skip);
+                        WhereToPoint where_to_point);
+  void SerializeCodeStub(Code* stub, HowToCode how_to_code,
+                         WhereToPoint where_to_point);
+  void SerializeSourceObject(HowToCode how_to_code,
+                             WhereToPoint where_to_point);
   void SerializeHeapObject(HeapObject* heap_object, HowToCode how_to_code,
-                           WhereToPoint where_to_point, int skip);
+                           WhereToPoint where_to_point);
   int AddCodeStubKey(uint32_t stub_key);
 
   DisallowHeapAllocation no_gc_;
   String* source_;
+  Code* main_code_;
   List<uint32_t> stub_keys_;
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };

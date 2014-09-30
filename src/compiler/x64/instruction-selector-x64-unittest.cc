@@ -161,6 +161,134 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorMemoryAccessTest,
                         ::testing::ValuesIn(kMemoryAccesses));
 
+// -----------------------------------------------------------------------------
+// AddressingMode for loads and stores.
+
+class AddressingModeUnitTest : public InstructionSelectorTest {
+ public:
+  AddressingModeUnitTest() : m(NULL) { Reset(); }
+  ~AddressingModeUnitTest() { delete m; }
+
+  void Run(Node* base, Node* index, AddressingMode mode) {
+    Node* load = m->Load(kMachInt32, base, index);
+    m->Store(kMachInt32, base, index, load);
+    m->Return(m->Int32Constant(0));
+    Stream s = m->Build();
+    ASSERT_EQ(2U, s.size());
+    EXPECT_EQ(mode, s[0]->addressing_mode());
+    EXPECT_EQ(mode, s[1]->addressing_mode());
+  }
+
+  Node* zero;
+  Node* null_ptr;
+  Node* non_zero;
+  Node* base_reg;   // opaque value to generate base as register
+  Node* index_reg;  // opaque value to generate index as register
+  Node* scales[4];
+  StreamBuilder* m;
+
+  void Reset() {
+    delete m;
+    m = new StreamBuilder(this, kMachInt32, kMachInt32, kMachInt32);
+    zero = m->Int32Constant(0);
+    null_ptr = m->Int64Constant(0);
+    non_zero = m->Int32Constant(127);
+    base_reg = m->Parameter(0);
+    index_reg = m->Parameter(0);
+
+    scales[0] = m->Int32Constant(1);
+    scales[1] = m->Int32Constant(2);
+    scales[2] = m->Int32Constant(4);
+    scales[3] = m->Int32Constant(8);
+  }
+};
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_MR) {
+  Node* base = base_reg;
+  Node* index = zero;
+  Run(base, index, kMode_MR);
+}
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_MRI) {
+  Node* base = base_reg;
+  Node* index = non_zero;
+  Run(base, index, kMode_MRI);
+}
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_MR1) {
+  Node* base = base_reg;
+  Node* index = index_reg;
+  Run(base, index, kMode_MR1);
+}
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_MRN) {
+  AddressingMode expected[] = {kMode_MR1, kMode_MR2, kMode_MR4, kMode_MR8};
+  for (size_t i = 0; i < arraysize(scales); ++i) {
+    Reset();
+    Node* base = base_reg;
+    Node* index = m->Int32Mul(index_reg, scales[i]);
+    Run(base, index, expected[i]);
+  }
+}
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_MR1I) {
+  Node* base = base_reg;
+  Node* index = m->Int32Add(index_reg, non_zero);
+  Run(base, index, kMode_MR1I);
+}
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_MRNI) {
+  AddressingMode expected[] = {kMode_MR1I, kMode_MR2I, kMode_MR4I, kMode_MR8I};
+  for (size_t i = 0; i < arraysize(scales); ++i) {
+    Reset();
+    Node* base = base_reg;
+    Node* index = m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
+    Run(base, index, expected[i]);
+  }
+}
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_M1) {
+  Node* base = null_ptr;
+  Node* index = index_reg;
+  Run(base, index, kMode_M1);
+}
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_MN) {
+  AddressingMode expected[] = {kMode_M1, kMode_M2, kMode_M4, kMode_M8};
+  for (size_t i = 0; i < arraysize(scales); ++i) {
+    Reset();
+    Node* base = null_ptr;
+    Node* index = m->Int32Mul(index_reg, scales[i]);
+    Run(base, index, expected[i]);
+  }
+}
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_M1I) {
+  Node* base = null_ptr;
+  Node* index = m->Int32Add(index_reg, non_zero);
+  Run(base, index, kMode_M1I);
+}
+
+
+TEST_F(AddressingModeUnitTest, AddressingMode_MNI) {
+  AddressingMode expected[] = {kMode_M1I, kMode_M2I, kMode_M4I, kMode_M8I};
+  for (size_t i = 0; i < arraysize(scales); ++i) {
+    Reset();
+    Node* base = null_ptr;
+    Node* index = m->Int32Add(m->Int32Mul(index_reg, scales[i]), non_zero);
+    Run(base, index, expected[i]);
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

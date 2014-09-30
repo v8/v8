@@ -46,6 +46,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
+#include "src/basic-block-profiler.h"
 #include "src/d8-debug.h"
 #include "src/debug.h"
 #include "src/natives.h"
@@ -1700,6 +1701,14 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
   }
+#ifndef V8_SHARED
+  // Dump basic block profiling data.
+  if (i::BasicBlockProfiler* profiler =
+          reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
+    i::OFStream os(stdout);
+    os << *profiler;
+  }
+#endif  // !V8_SHARED
   isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();

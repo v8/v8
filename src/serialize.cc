@@ -1846,7 +1846,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
   SnapshotByteSink* sink = FLAG_trace_code_serializer
                                ? static_cast<SnapshotByteSink*>(&debug_sink)
                                : static_cast<SnapshotByteSink*>(&list_sink);
-  CodeSerializer cs(isolate, sink, *source);
+  CodeSerializer cs(isolate, sink, *source, info->code());
   DisallowHeapAllocation no_gc;
   Object** location = Handle<Object>::cast(info).location();
   cs.VisitPointer(location);
@@ -1867,14 +1867,7 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
 
 void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
                                      WhereToPoint where_to_point, int skip) {
-  CHECK(o->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(o);
-
-  // The code-caches link to context-specific code objects, which
-  // the startup and context serializes cannot currently handle.
-  DCHECK(!heap_object->IsMap() ||
-         Map::cast(heap_object)->code_cache() ==
-             heap_object->GetHeap()->empty_fixed_array());
 
   int root_index;
   if ((root_index = RootIndex(heap_object, how_to_code)) != kInvalidRootIndex) {
@@ -1882,52 +1875,75 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
     return;
   }
 
-  // TODO(yangguo) wire up global object.
-  // TODO(yangguo) We cannot deal with different hash seeds yet.
-  DCHECK(!heap_object->IsHashTable());
-
   if (address_mapper_.IsMapped(heap_object)) {
     SerializeReferenceToPreviousObject(heap_object, how_to_code, where_to_point,
                                        skip);
     return;
   }
 
+  if (skip != 0) {
+    sink_->Put(kSkip, "SkipFromSerializeObject");
+    sink_->PutInt(skip, "SkipDistanceFromSerializeObject");
+  }
+
   if (heap_object->IsCode()) {
     Code* code_object = Code::cast(heap_object);
-    DCHECK(!code_object->is_optimized_code());
-    if (code_object->kind() == Code::BUILTIN) {
-      SerializeBuiltin(code_object, how_to_code, where_to_point, skip);
-      return;
-    } else if (code_object->IsCodeStubOrIC()) {
-      SerializeCodeStub(code_object, how_to_code, where_to_point, skip);
-      return;
+    switch (code_object->kind()) {
+      case Code::OPTIMIZED_FUNCTION:  // No optimized code compiled yet.
+      case Code::HANDLER:             // No handlers patched in yet.
+      case Code::REGEXP:              // No regexp literals initialized yet.
+      case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
+        CHECK(false);
+      case Code::BUILTIN:
+        SerializeBuiltin(code_object, how_to_code, where_to_point);
+        return;
+      case Code::STUB:
+        SerializeCodeStub(code_object, how_to_code, where_to_point);
+        return;
+#define IC_KIND_CASE(KIND) case Code::KIND:
+        IC_KIND_LIST(IC_KIND_CASE)
+#undef IC_KIND_CASE
+        SerializeHeapObject(code_object, how_to_code, where_to_point);
+        return;
+      // TODO(yangguo): add special handling to canonicalize ICs.
+      case Code::FUNCTION:
+        // Only serialize the code for the toplevel function. Replace code
+        // of included function literals by the lazy compile builtin.
+        // This is safe, as checked in Compiler::BuildFunctionInfo.
+        if (code_object != main_code_) {
+          Code* lazy = *isolate()->builtins()->CompileLazy();
+          SerializeBuiltin(lazy, how_to_code, where_to_point);
+        } else {
+          SerializeHeapObject(code_object, how_to_code, where_to_point);
+        }
+        return;
     }
-    code_object->ClearInlineCaches();
   }
 
   if (heap_object == source_) {
-    SerializeSourceObject(how_to_code, where_to_point, skip);
+    SerializeSourceObject(how_to_code, where_to_point);
     return;
   }
 
-  SerializeHeapObject(heap_object, how_to_code, where_to_point, skip);
+  // Past this point we should not see any (context-specific) maps anymore.
+  CHECK(!heap_object->IsMap());
+  // There should be no references to the global object embedded.
+  CHECK(!heap_object->IsJSGlobalProxy() && !heap_object->IsGlobalObject());
+  // There should be no hash table embedded. They would require rehashing.
+  CHECK(!heap_object->IsHashTable());
+
+  SerializeHeapObject(heap_object, how_to_code, where_to_point);
 }
 
 
 void CodeSerializer::SerializeHeapObject(HeapObject* heap_object,
                                          HowToCode how_to_code,
-                                         WhereToPoint where_to_point,
-                                         int skip) {
+                                         WhereToPoint where_to_point) {
   if (heap_object->IsScript()) {
     // The wrapper cache uses a Foreign object to point to a global handle.
     // However, the object visitor expects foreign objects to point to external
     // references.  Clear the cache to avoid this issue.
     Script::cast(heap_object)->ClearWrapperCache();
-  }
-
-  if (skip != 0) {
-    sink_->Put(kSkip, "SkipFromSerializeObject");
-    sink_->PutInt(skip, "SkipDistanceFromSerializeObject");
   }
 
   if (FLAG_trace_code_serializer) {
@@ -1944,12 +1960,7 @@ void CodeSerializer::SerializeHeapObject(HeapObject* heap_object,
 
 
 void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
-                                      WhereToPoint where_to_point, int skip) {
-  if (skip != 0) {
-    sink_->Put(kSkip, "SkipFromSerializeBuiltin");
-    sink_->PutInt(skip, "SkipDistanceFromSerializeBuiltin");
-  }
-
+                                      WhereToPoint where_to_point) {
   DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
          (how_to_code == kPlain && where_to_point == kInnerPointer) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
@@ -1967,25 +1978,13 @@ void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
 }
 
 
-void CodeSerializer::SerializeCodeStub(Code* code, HowToCode how_to_code,
-                                       WhereToPoint where_to_point, int skip) {
+void CodeSerializer::SerializeCodeStub(Code* stub, HowToCode how_to_code,
+                                       WhereToPoint where_to_point) {
   DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
          (how_to_code == kPlain && where_to_point == kInnerPointer) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  uint32_t stub_key = code->stub_key();
-
-  if (stub_key == CodeStub::NoCacheKey()) {
-    if (FLAG_trace_code_serializer) {
-      PrintF("Encoding uncacheable code stub as heap object\n");
-    }
-    SerializeHeapObject(code, how_to_code, where_to_point, skip);
-    return;
-  }
-
-  if (skip != 0) {
-    sink_->Put(kSkip, "SkipFromSerializeCodeStub");
-    sink_->PutInt(skip, "SkipDistanceFromSerializeCodeStub");
-  }
+  uint32_t stub_key = stub->stub_key();
+  DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
 
   int index = AddCodeStubKey(stub_key) + kCodeStubsBaseIndex;
 
@@ -2013,16 +2012,8 @@ int CodeSerializer::AddCodeStubKey(uint32_t stub_key) {
 
 
 void CodeSerializer::SerializeSourceObject(HowToCode how_to_code,
-                                           WhereToPoint where_to_point,
-                                           int skip) {
-  if (skip != 0) {
-    sink_->Put(kSkip, "SkipFromSerializeSourceObject");
-    sink_->PutInt(skip, "SkipDistanceFromSerializeSourceObject");
-  }
-
-  if (FLAG_trace_code_serializer) {
-    PrintF("Encoding source object\n");
-  }
+                                           WhereToPoint where_to_point) {
+  if (FLAG_trace_code_serializer) PrintF("Encoding source object\n");
 
   DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
   sink_->Put(kAttachedReference + how_to_code + where_to_point, "Source");

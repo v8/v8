@@ -1589,6 +1589,34 @@ THREADED_TEST(IsNativeError) {
 }
 
 
+THREADED_TEST(IsGeneratorFunctionOrObject) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  CompileRun("function *gen() { yield 1; }\nfunction func() {}");
+  v8::Handle<Value> gen = CompileRun("gen");
+  v8::Handle<Value> genObj = CompileRun("gen()");
+  v8::Handle<Value> object = CompileRun("{a:42}");
+  v8::Handle<Value> func = CompileRun("func");
+
+  CHECK(gen->IsGeneratorFunction());
+  CHECK(gen->IsFunction());
+  CHECK(!gen->IsGeneratorObject());
+
+  CHECK(!genObj->IsGeneratorFunction());
+  CHECK(!genObj->IsFunction());
+  CHECK(genObj->IsGeneratorObject());
+
+  CHECK(!object->IsGeneratorFunction());
+  CHECK(!object->IsFunction());
+  CHECK(!object->IsGeneratorObject());
+
+  CHECK(!func->IsGeneratorFunction());
+  CHECK(func->IsFunction());
+  CHECK(!func->IsGeneratorObject());
+}
+
+
 THREADED_TEST(ArgumentsObject) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -9656,12 +9684,36 @@ TEST(SuperAccessControl) {
   LocalContext env;
   env->Global()->Set(v8_str("prohibited"), obj_template->NewInstance());
 
-  v8::TryCatch try_catch;
-  CompileRun(
-      "function f() { return super.hasOwnProperty; };"
-      "var m = f.toMethod(prohibited);"
-      "m();");
-  CHECK(try_catch.HasCaught());
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "function f() { return super.hasOwnProperty; };"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "function f() { super.hasOwnProperty = function () {}; };"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
+        "Object.defineProperty(Object.prototype, 'x', { set : function(){}});"
+        "function f() { "
+        "     'use strict';"
+        "     super.x = function () {}; "
+        "};"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
 }
 
 

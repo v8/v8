@@ -345,6 +345,7 @@ DEFINE_BOOL(turbo_deoptimization, false, "enable deoptimization in TurboFan")
 DEFINE_BOOL(turbo_inlining, false, "enable inlining in TurboFan")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_IMPLICATION(turbo_inlining, turbo_types)
+DEFINE_BOOL(turbo_profiling, false, "enable profiling in TurboFan")
 
 DEFINE_INT(typed_array_max_size_in_heap, 64,
            "threshold for in-heap typed array")

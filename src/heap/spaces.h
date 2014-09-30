@@ -880,6 +880,10 @@ class CodeRange {
     DCHECK(valid());
     return static_cast<Address>(code_range_->address());
   }
+  size_t size() {
+    DCHECK(valid());
+    return code_range_->size();
+  }
   bool contains(Address address) {
     if (!valid()) return false;
     Address start = static_cast<Address>(code_range_->address());

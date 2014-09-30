@@ -995,6 +995,8 @@ static Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
   DCHECK(info->is_eval() || info->is_global());
 
+  info->MarkAsToplevel();
+
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
@@ -1263,6 +1265,13 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(
   bool allow_lazy_without_ctx = literal->AllowsLazyCompilationWithoutContext();
   bool allow_lazy = literal->AllowsLazyCompilation() &&
       !DebuggerWantsEagerCompilation(&info, allow_lazy_without_ctx);
+
+
+  if (outer_info->is_toplevel() && outer_info->will_serialize()) {
+    // Make sure that if the toplevel code (possibly to be serialized),
+    // the inner unction must be allowed to be compiled lazily.
+    DCHECK(allow_lazy);
+  }
 
   // Generate code
   Handle<ScopeInfo> scope_info;

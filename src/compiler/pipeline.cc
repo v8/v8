@@ -6,6 +6,7 @@
 
 #include "src/base/platform/elapsed-timer.h"
 #include "src/compiler/ast-graph-builder.h"
+#include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/code-generator.h"
 #include "src/compiler/graph-replay.h"
@@ -315,6 +316,8 @@ Handle<Code> Pipeline::GenerateCode() {
     VerifyAndPrintGraph(&graph, "Lowered generic");
   }
 
+  source_positions.RemoveDecorator();
+
   Handle<Code> code = Handle<Code>::null();
   {
     // Compute a schedule.
@@ -381,6 +384,11 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
   DCHECK_NOT_NULL(schedule);
   CHECK(SupportedBackend());
 
+  BasicBlockProfiler::Data* profiler_data = NULL;
+  if (FLAG_turbo_profiling) {
+    profiler_data = BasicBlockInstrumentor::Instrument(info_, graph, schedule);
+  }
+
   InstructionSequence sequence(linkage, graph, schedule);
 
   // Select and schedule instructions covering the scheduled graph.
@@ -417,7 +425,15 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
 
   // Generate native sequence.
   CodeGenerator generator(&sequence);
-  return generator.GenerateCode();
+  Handle<Code> code = generator.GenerateCode();
+  if (profiler_data != NULL) {
+#if ENABLE_DISASSEMBLER
+    OStringStream os;
+    code->Disassemble(NULL, os);
+    profiler_data->SetCode(&os);
+#endif
+  }
+  return code;
 }
 
 

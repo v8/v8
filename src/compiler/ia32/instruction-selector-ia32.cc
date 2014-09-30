@@ -44,10 +44,108 @@ class IA32OperandGenerator FINAL : public OperandGenerator {
 };
 
 
+class AddressingModeMatcher {
+ public:
+  AddressingModeMatcher(IA32OperandGenerator* g, Node* base, Node* index)
+      : base_operand_(NULL),
+        index_operand_(NULL),
+        displacement_operand_(NULL),
+        mode_(kMode_None) {
+    Int32Matcher index_imm(index);
+    if (index_imm.HasValue()) {
+      int32_t displacement = index_imm.Value();
+      // Compute base operand and fold base immediate into displacement.
+      Int32Matcher base_imm(base);
+      if (!base_imm.HasValue()) {
+        base_operand_ = g->UseRegister(base);
+      } else {
+        displacement += base_imm.Value();
+      }
+      if (displacement != 0 || base_operand_ == NULL) {
+        displacement_operand_ = g->TempImmediate(displacement);
+      }
+      if (base_operand_ == NULL) {
+        mode_ = kMode_MI;
+      } else {
+        if (displacement == 0) {
+          mode_ = kMode_MR;
+        } else {
+          mode_ = kMode_MRI;
+        }
+      }
+    } else {
+      // Compute index and displacement.
+      IndexAndDisplacementMatcher matcher(index);
+      index_operand_ = g->UseRegister(matcher.index_node());
+      int32_t displacement = matcher.displacement();
+      // Compute base operand and fold base immediate into displacement.
+      Int32Matcher base_imm(base);
+      if (!base_imm.HasValue()) {
+        base_operand_ = g->UseRegister(base);
+      } else {
+        displacement += base_imm.Value();
+      }
+      // Compute displacement operand.
+      if (displacement != 0) {
+        displacement_operand_ = g->TempImmediate(displacement);
+      }
+      // Compute mode with scale factor one.
+      if (base_operand_ == NULL) {
+        if (displacement_operand_ == NULL) {
+          mode_ = kMode_M1;
+        } else {
+          mode_ = kMode_M1I;
+        }
+      } else {
+        if (displacement_operand_ == NULL) {
+          mode_ = kMode_MR1;
+        } else {
+          mode_ = kMode_MR1I;
+        }
+      }
+      // Adjust mode to actual scale factor.
+      mode_ = GetMode(mode_, matcher.power());
+      // Don't emit instructions with scale factor 1 if there's no base.
+      if (mode_ == kMode_M1) {
+        mode_ = kMode_MR;
+      } else if (mode_ == kMode_M1I) {
+        mode_ = kMode_MRI;
+      }
+    }
+    DCHECK_NE(kMode_None, mode_);
+  }
+
+  AddressingMode GetMode(AddressingMode one, int power) {
+    return static_cast<AddressingMode>(static_cast<int>(one) + power);
+  }
+
+  size_t SetInputs(InstructionOperand** inputs) {
+    size_t input_count = 0;
+    // Compute inputs_ and input_count.
+    if (base_operand_ != NULL) {
+      inputs[input_count++] = base_operand_;
+    }
+    if (index_operand_ != NULL) {
+      inputs[input_count++] = index_operand_;
+    }
+    if (displacement_operand_ != NULL) {
+      inputs[input_count++] = displacement_operand_;
+    }
+    DCHECK_NE(input_count, 0);
+    return input_count;
+  }
+
+  static const int kMaxInputCount = 3;
+  InstructionOperand* base_operand_;
+  InstructionOperand* index_operand_;
+  InstructionOperand* displacement_operand_;
+  AddressingMode mode_;
+};
+
+
 void InstructionSelector::VisitLoad(Node* node) {
   MachineType rep = RepresentationOf(OpParameter<LoadRepresentation>(node));
   MachineType typ = TypeOf(OpParameter<LoadRepresentation>(node));
-  IA32OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
 
@@ -75,23 +173,14 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (g.CanBeImmediate(base)) {
-    if (Int32Matcher(index).Is(0)) {  // load [#base + #0]
-      Emit(opcode | AddressingModeField::encode(kMode_MI),
-           g.DefineAsRegister(node), g.UseImmediate(base));
-    } else {  // load [#base + %index]
-      Emit(opcode | AddressingModeField::encode(kMode_MRI),
-           g.DefineAsRegister(node), g.UseRegister(index),
-           g.UseImmediate(base));
-    }
-  } else if (g.CanBeImmediate(index)) {  // load [%base + #index]
-    Emit(opcode | AddressingModeField::encode(kMode_MRI),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
-  } else {  // load [%base + %index + K]
-    Emit(opcode | AddressingModeField::encode(kMode_MR1I),
-         g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(index));
-  }
-  // TODO(turbofan): addressing modes [r+r*{2,4,8}+K]
+
+  IA32OperandGenerator g(this);
+  AddressingModeMatcher matcher(&g, base, index);
+  InstructionCode code = opcode | AddressingModeField::encode(matcher.mode_);
+  InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
+  InstructionOperand* inputs[AddressingModeMatcher::kMaxInputCount];
+  size_t input_count = matcher.SetInputs(inputs);
+  Emit(code, 1, outputs, input_count, inputs);
 }
 
 
@@ -115,14 +204,7 @@ void InstructionSelector::VisitStore(Node* node) {
     return;
   }
   DCHECK_EQ(kNoWriteBarrier, store_rep.write_barrier_kind());
-  InstructionOperand* val;
-  if (g.CanBeImmediate(value)) {
-    val = g.UseImmediate(value);
-  } else if (rep == kRepWord8 || rep == kRepBit) {
-    val = g.UseByteRegister(value);
-  } else {
-    val = g.UseRegister(value);
-  }
+
   ArchOpcode opcode;
   switch (rep) {
     case kRepFloat32:
@@ -146,22 +228,22 @@ void InstructionSelector::VisitStore(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (g.CanBeImmediate(base)) {
-    if (Int32Matcher(index).Is(0)) {  // store [#base], %|#value
-      Emit(opcode | AddressingModeField::encode(kMode_MI), NULL,
-           g.UseImmediate(base), val);
-    } else {  // store [#base + %index], %|#value
-      Emit(opcode | AddressingModeField::encode(kMode_MRI), NULL,
-           g.UseRegister(index), g.UseImmediate(base), val);
-    }
-  } else if (g.CanBeImmediate(index)) {  // store [%base + #index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MRI), NULL,
-         g.UseRegister(base), g.UseImmediate(index), val);
-  } else {  // store [%base + %index], %|#value
-    Emit(opcode | AddressingModeField::encode(kMode_MR1I), NULL,
-         g.UseRegister(base), g.UseRegister(index), val);
+
+  InstructionOperand* val;
+  if (g.CanBeImmediate(value)) {
+    val = g.UseImmediate(value);
+  } else if (rep == kRepWord8 || rep == kRepBit) {
+    val = g.UseByteRegister(value);
+  } else {
+    val = g.UseRegister(value);
   }
-  // TODO(turbofan): addressing modes [r+r*{2,4,8}+K]
+
+  AddressingModeMatcher matcher(&g, base, index);
+  InstructionCode code = opcode | AddressingModeField::encode(matcher.mode_);
+  InstructionOperand* inputs[AddressingModeMatcher::kMaxInputCount + 1];
+  size_t input_count = matcher.SetInputs(inputs);
+  inputs[input_count++] = val;
+  Emit(code, 0, static_cast<InstructionOperand**>(NULL), input_count, inputs);
 }
 
 

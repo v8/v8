@@ -36,6 +36,12 @@ namespace compiler {
   V(Arm64Sub32)                    \
   V(Arm64Mul)                      \
   V(Arm64Mul32)                    \
+  V(Arm64Madd)                     \
+  V(Arm64Madd32)                   \
+  V(Arm64Msub)                     \
+  V(Arm64Msub32)                   \
+  V(Arm64Mneg)                     \
+  V(Arm64Mneg32)                   \
   V(Arm64Idiv)                     \
   V(Arm64Idiv32)                   \
   V(Arm64Udiv)                     \

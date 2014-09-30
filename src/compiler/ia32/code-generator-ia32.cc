@@ -76,25 +76,83 @@ class IA32OperandConverter : public InstructionOperandConverter {
     return Immediate(-1);
   }
 
-  Operand MemoryOperand(int* first_input) {
-    const int offset = *first_input;
-    switch (AddressingModeField::decode(instr_->opcode())) {
+  static int NextOffset(int* offset) {
+    int i = *offset;
+    (*offset)++;
+    return i;
+  }
+
+  static ScaleFactor ScaleFor(AddressingMode one, AddressingMode mode) {
+    STATIC_ASSERT(0 == static_cast<int>(times_1));
+    STATIC_ASSERT(1 == static_cast<int>(times_2));
+    STATIC_ASSERT(2 == static_cast<int>(times_4));
+    STATIC_ASSERT(3 == static_cast<int>(times_8));
+    int scale = static_cast<int>(mode - one);
+    DCHECK(scale >= 0 && scale < 4);
+    return static_cast<ScaleFactor>(scale);
+  }
+
+  Operand MemoryOperand(int* offset) {
+    AddressingMode mode = AddressingModeField::decode(instr_->opcode());
+    switch (mode) {
+      case kMode_MR: {
+        Register base = InputRegister(NextOffset(offset));
+        int32_t disp = 0;
+        return Operand(base, disp);
+      }
+      case kMode_MRI: {
+        Register base = InputRegister(NextOffset(offset));
+        int32_t disp = InputInt32(NextOffset(offset));
+        return Operand(base, disp);
+      }
+      case kMode_MR1:
+      case kMode_MR2:
+      case kMode_MR4:
+      case kMode_MR8: {
+        Register base = InputRegister(NextOffset(offset));
+        Register index = InputRegister(NextOffset(offset));
+        ScaleFactor scale = ScaleFor(kMode_MR1, mode);
+        int32_t disp = 0;
+        return Operand(base, index, scale, disp);
+      }
       case kMode_MR1I:
-        *first_input += 2;
-        return Operand(InputRegister(offset + 0), InputRegister(offset + 1),
-                       times_1,
-                       0);  // TODO(dcarney): K != 0
-      case kMode_MRI:
-        *first_input += 2;
-        return Operand::ForRegisterPlusImmediate(InputRegister(offset + 0),
-                                                 InputImmediate(offset + 1));
-      case kMode_MI:
-        *first_input += 1;
-        return Operand(InputImmediate(offset + 0));
-      default:
+      case kMode_MR2I:
+      case kMode_MR4I:
+      case kMode_MR8I: {
+        Register base = InputRegister(NextOffset(offset));
+        Register index = InputRegister(NextOffset(offset));
+        ScaleFactor scale = ScaleFor(kMode_MR1I, mode);
+        int32_t disp = InputInt32(NextOffset(offset));
+        return Operand(base, index, scale, disp);
+      }
+      case kMode_M1:
+      case kMode_M2:
+      case kMode_M4:
+      case kMode_M8: {
+        Register index = InputRegister(NextOffset(offset));
+        ScaleFactor scale = ScaleFor(kMode_M1, mode);
+        int32_t disp = 0;
+        return Operand(index, scale, disp);
+      }
+      case kMode_M1I:
+      case kMode_M2I:
+      case kMode_M4I:
+      case kMode_M8I: {
+        Register index = InputRegister(NextOffset(offset));
+        ScaleFactor scale = ScaleFor(kMode_M1I, mode);
+        int32_t disp = InputInt32(NextOffset(offset));
+        return Operand(index, scale, disp);
+      }
+      case kMode_MI: {
+        int32_t disp = InputInt32(NextOffset(offset));
+        return Operand(Immediate(disp));
+      }
+      case kMode_None:
         UNREACHABLE();
-        return Operand(no_reg);
+        return Operand(no_reg, 0);
     }
+    UNREACHABLE();
+    return Operand(no_reg, 0);
   }
 
   Operand MemoryOperand() {

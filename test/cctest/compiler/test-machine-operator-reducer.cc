@@ -687,9 +687,9 @@ static void CheckNans(ReducerTester* R) {
          pr != nans.end(); ++pr) {
       Node* nan1 = R->Constant<double>(*pl);
       Node* nan2 = R->Constant<double>(*pr);
-      R->CheckBinop(nan1, x, nan1);     // x % NaN => NaN
-      R->CheckBinop(nan1, nan1, x);     // NaN % x => NaN
-      R->CheckBinop(nan1, nan2, nan1);  // NaN % NaN => NaN
+      R->CheckBinop(nan1, x, nan1);     // x op NaN => NaN
+      R->CheckBinop(nan1, nan1, x);     // NaN op x => NaN
+      R->CheckBinop(nan1, nan2, nan1);  // NaN op NaN => NaN
     }
   }
 }
@@ -706,8 +706,15 @@ TEST(ReduceFloat64Add) {
     }
   }
 
-  FOR_FLOAT64_INPUTS(i) { R.CheckPutConstantOnRight(*i); }
-  // TODO(titzer): CheckNans(&R);
+  FOR_FLOAT64_INPUTS(i) {
+    Double tmp(*i);
+    if (!tmp.IsSpecial() || tmp.IsInfinite()) {
+      // Don't check NaNs as they are reduced more.
+      R.CheckPutConstantOnRight(*i);
+    }
+  }
+
+  CheckNans(&R);
 }
 
 
@@ -721,7 +728,13 @@ TEST(ReduceFloat64Sub) {
       R.CheckFoldBinop<double>(x - y, x, y);
     }
   }
-  // TODO(titzer): CheckNans(&R);
+
+  Node* zero = R.Constant<double>(0.0);
+  Node* x = R.Parameter();
+
+  R.CheckBinop(x, x, zero);  // x - 0.0 => x
+
+  CheckNans(&R);
 }
 
 
@@ -782,6 +795,11 @@ TEST(ReduceFloat64Mod) {
       R.CheckFoldBinop<double>(modulo(x, y), x, y);
     }
   }
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<double>(0.0);
+
+  R.CheckFoldBinop<double>(v8::base::OS::nan_value(), x, zero);
 
   CheckNans(&R);
 }

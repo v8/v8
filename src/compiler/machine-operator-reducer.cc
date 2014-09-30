@@ -352,6 +352,9 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Add: {
       Float64BinopMatcher m(node);
+      if (m.right().IsNaN()) {  // x + NaN => NaN
+        return Replace(m.right().node());
+      }
       if (m.IsFoldable()) {  // K + K => K
         return ReplaceFloat64(m.left().Value() + m.right().Value());
       }
@@ -359,6 +362,15 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Sub: {
       Float64BinopMatcher m(node);
+      if (m.right().Is(0) && (Double(m.right().Value()).Sign() > 0)) {
+        return Replace(m.left().node());  // x - 0 => x
+      }
+      if (m.right().IsNaN()) {  // x - NaN => NaN
+        return Replace(m.right().node());
+      }
+      if (m.left().IsNaN()) {  // NaN - x => NaN
+        return Replace(m.left().node());
+      }
       if (m.IsFoldable()) {  // K - K => K
         return ReplaceFloat64(m.left().Value() - m.right().Value());
       }
@@ -391,6 +403,9 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Mod: {
       Float64BinopMatcher m(node);
+      if (m.right().Is(0)) {  // x % 0 => NaN
+        return ReplaceFloat64(base::OS::nan_value());
+      }
       if (m.right().IsNaN()) {  // x % NaN => NaN
         return Replace(m.right().node());
       }

@@ -987,12 +987,12 @@ BUILTIN(ArrayConcat) {
   Handle<FixedArrayBase> storage(result_array->elements(), isolate);
   ElementsAccessor* accessor = ElementsAccessor::ForKind(elements_kind);
   for (int i = 0; i < n_arguments; i++) {
-    // TODO(ishell): It is crucial to keep |array| as a raw pointer to avoid
-    // performance degradation. Revisit this later.
+    // It is crucial to keep |array| in a raw pointer form to avoid performance
+    // degradation.
     JSArray* array = JSArray::cast(args[i]);
     int len = Smi::cast(array->length())->value();
-    ElementsKind from_kind = array->GetElementsKind();
     if (len > 0) {
+      ElementsKind from_kind = array->GetElementsKind();
       accessor->CopyElements(array, 0, from_kind, storage, j, len);
       j += len;
     }
@@ -1562,7 +1562,7 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       // Move the code into the object heap.
       CodeDesc desc;
       masm.GetCode(&desc);
-      Code::Flags flags =  functions[i].flags;
+      Code::Flags flags = functions[i].flags;
       Handle<Code> code =
           isolate->factory()->NewCode(desc, flags, masm.CodeObject());
       // Log the event and add the code to the builtins array.

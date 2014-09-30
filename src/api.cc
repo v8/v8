@@ -2568,6 +2568,19 @@ bool Value::IsRegExp() const {
 }
 
 
+bool Value::IsGeneratorFunction() const {
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (!obj->IsJSFunction()) return false;
+  i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(obj);
+  return func->shared()->is_generator();
+}
+
+
+bool Value::IsGeneratorObject() const {
+  return Utils::OpenHandle(this)->IsJSGeneratorObject();
+}
+
+
 Local<String> Value::ToString() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> str;
@@ -6810,6 +6823,18 @@ void v8::Isolate::SetStackLimit(uintptr_t stack_limit) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   CHECK(stack_limit);
   isolate->stack_guard()->SetStackLimit(stack_limit);
+}
+
+
+void v8::Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  if (isolate->code_range()->valid()) {
+    *start = isolate->code_range()->start();
+    *length_in_bytes = isolate->code_range()->size();
+  } else {
+    *start = NULL;
+    *length_in_bytes = 0;
+  }
 }
 
 

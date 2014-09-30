@@ -53,6 +53,7 @@
         'compiler/graph-tester.h',
         'compiler/simplified-graph-builder.cc',
         'compiler/simplified-graph-builder.h',
+        'compiler/test-basic-block-profiler.cc',
         'compiler/test-branch-combine.cc',
         'compiler/test-changes-lowering.cc',
         'compiler/test-codegen-deopt.cc',

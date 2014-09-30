@@ -186,7 +186,9 @@ namespace internal {
   F(HomeObjectSymbol, 0, 1)                                \
   F(ThrowNonMethodError, 0, 1)                             \
   F(ThrowUnsupportedSuperError, 0, 1)                      \
-  F(LoadFromSuper, 3, 1)
+  F(LoadFromSuper, 3, 1)                                   \
+  F(StoreToSuper_Strict, 4, 1)                             \
+  F(StoreToSuper_Sloppy, 4, 1)
 
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F)              \
@@ -821,8 +823,6 @@ class Runtime : public AllStatic {
   // General-purpose helper functions for runtime system.
   static int StringMatch(Isolate* isolate, Handle<String> sub,
                          Handle<String> pat, int index);
-
-  static bool IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch);
 
   // TODO(1240886): Some of the following methods are *not* handle safe, but
   // accept handle arguments. This seems fragile.

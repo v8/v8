@@ -37,9 +37,6 @@ class AccessBuilder FINAL : public AllStatic {
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();
 
-  // TODO(mstarzinger): Raw access only for testing, drop me.
-  static ElementAccess ForBackingStoreElement(MachineType rep);
-
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);

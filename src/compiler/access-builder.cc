@@ -58,13 +58,6 @@ ElementAccess AccessBuilder::ForFixedArrayElement() {
 
 
 // static
-ElementAccess AccessBuilder::ForBackingStoreElement(MachineType rep) {
-  return {kUntaggedBase, kNonHeapObjectHeaderSize - kHeapObjectTag, Type::Any(),
-          rep};
-}
-
-
-// static
 ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
                                                   bool is_external) {
   BaseTaggedness taggedness = is_external ? kUntaggedBase : kTaggedBase;

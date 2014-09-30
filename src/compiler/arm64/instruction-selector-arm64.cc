@@ -424,11 +424,47 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
 
 
 void InstructionSelector::VisitInt32Add(Node* node) {
+  Arm64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  // Select Madd(x, y, z) for Add(Mul(x, y), z).
+  if (m.left().IsInt32Mul() && CanCover(node, m.left().node())) {
+    Int32BinopMatcher mleft(m.left().node());
+    Emit(kArm64Madd32, g.DefineAsRegister(node),
+         g.UseRegister(mleft.left().node()),
+         g.UseRegister(mleft.right().node()), g.UseRegister(m.right().node()));
+    return;
+  }
+  // Select Madd(x, y, z) for Add(x, Mul(x, y)).
+  if (m.right().IsInt32Mul() && CanCover(node, m.right().node())) {
+    Int32BinopMatcher mright(m.right().node());
+    Emit(kArm64Madd32, g.DefineAsRegister(node),
+         g.UseRegister(mright.left().node()),
+         g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
+    return;
+  }
   VisitBinop<Int32BinopMatcher>(this, node, kArm64Add32, kArithmeticImm);
 }
 
 
 void InstructionSelector::VisitInt64Add(Node* node) {
+  Arm64OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  // Select Madd(x, y, z) for Add(Mul(x, y), z).
+  if (m.left().IsInt64Mul() && CanCover(node, m.left().node())) {
+    Int64BinopMatcher mleft(m.left().node());
+    Emit(kArm64Madd, g.DefineAsRegister(node),
+         g.UseRegister(mleft.left().node()),
+         g.UseRegister(mleft.right().node()), g.UseRegister(m.right().node()));
+    return;
+  }
+  // Select Madd(x, y, z) for Add(x, Mul(x, y)).
+  if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
+    Int64BinopMatcher mright(m.right().node());
+    Emit(kArm64Madd, g.DefineAsRegister(node),
+         g.UseRegister(mright.left().node()),
+         g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
+    return;
+  }
   VisitBinop<Int64BinopMatcher>(this, node, kArm64Add, kArithmeticImm);
 }
 
@@ -436,6 +472,16 @@ void InstructionSelector::VisitInt64Add(Node* node) {
 void InstructionSelector::VisitInt32Sub(Node* node) {
   Arm64OperandGenerator g(this);
   Int32BinopMatcher m(node);
+
+  // Select Msub(a, x, y) for Sub(a, Mul(x, y)).
+  if (m.right().IsInt32Mul() && CanCover(node, m.right().node())) {
+    Int32BinopMatcher mright(m.right().node());
+    Emit(kArm64Msub32, g.DefineAsRegister(node),
+         g.UseRegister(mright.left().node()),
+         g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
+    return;
+  }
+
   if (m.left().Is(0)) {
     Emit(kArm64Neg32, g.DefineAsRegister(node),
          g.UseRegister(m.right().node()));
@@ -448,6 +494,16 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
 void InstructionSelector::VisitInt64Sub(Node* node) {
   Arm64OperandGenerator g(this);
   Int64BinopMatcher m(node);
+
+  // Select Msub(a, x, y) for Sub(a, Mul(x, y)).
+  if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
+    Int64BinopMatcher mright(m.right().node());
+    Emit(kArm64Msub, g.DefineAsRegister(node),
+         g.UseRegister(mright.left().node()),
+         g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
+    return;
+  }
+
   if (m.left().Is(0)) {
     Emit(kArm64Neg, g.DefineAsRegister(node), g.UseRegister(m.right().node()));
   } else {
@@ -457,11 +513,64 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
 
 
 void InstructionSelector::VisitInt32Mul(Node* node) {
+  Arm64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+
+  if (m.left().IsInt32Sub() && CanCover(node, m.left().node())) {
+    Int32BinopMatcher mleft(m.left().node());
+
+    // Select Mneg(x, y) for Mul(Sub(0, x), y).
+    if (mleft.left().Is(0)) {
+      Emit(kArm64Mneg32, g.DefineAsRegister(node),
+           g.UseRegister(mleft.right().node()),
+           g.UseRegister(m.right().node()));
+      return;
+    }
+  }
+
+  if (m.right().IsInt32Sub() && CanCover(node, m.right().node())) {
+    Int32BinopMatcher mright(m.right().node());
+
+    // Select Mneg(x, y) for Mul(x, Sub(0, y)).
+    if (mright.left().Is(0)) {
+      Emit(kArm64Mneg32, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()),
+           g.UseRegister(mright.right().node()));
+      return;
+    }
+  }
+
   VisitRRR(this, kArm64Mul32, node);
 }
 
 
 void InstructionSelector::VisitInt64Mul(Node* node) {
+  Arm64OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+
+  if (m.left().IsInt64Sub() && CanCover(node, m.left().node())) {
+    Int64BinopMatcher mleft(m.left().node());
+
+    // Select Mneg(x, y) for Mul(Sub(0, x), y).
+    if (mleft.left().Is(0)) {
+      Emit(kArm64Mneg, g.DefineAsRegister(node),
+           g.UseRegister(mleft.right().node()),
+           g.UseRegister(m.right().node()));
+      return;
+    }
+  }
+
+  if (m.right().IsInt64Sub() && CanCover(node, m.right().node())) {
+    Int64BinopMatcher mright(m.right().node());
+
+    // Select Mneg(x, y) for Mul(x, Sub(0, y)).
+    if (mright.left().Is(0)) {
+      Emit(kArm64Mneg, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.UseRegister(mright.right().node()));
+      return;
+    }
+  }
+
   VisitRRR(this, kArm64Mul, node);
 }
 
