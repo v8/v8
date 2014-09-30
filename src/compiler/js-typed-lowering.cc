@@ -383,6 +383,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
                                          : jsgraph()->TrueConstant());
     }
   }
+  /* TODO(neis): This is currently unsound.
   if (!r.left_type()->Maybe(r.right_type())) {
     // Type intersection is empty; === is always false unless both
     // inputs could be strings (one internalized and one not).
@@ -391,6 +392,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
                                          : jsgraph()->FalseConstant());
     }
   }
+  */
   if (r.OneInputIs(Type::Undefined())) {
     return r.ChangeToPureOperator(
         simplified()->ReferenceEqual(Type::Undefined()), invert);
