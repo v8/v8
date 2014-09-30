@@ -533,8 +533,8 @@ class Debug {
   // Mirror cache handling.
   void ClearMirrorCache();
 
-  // Returns a promise if the pushed try-catch handler matches the current one.
-  bool PromiseHasRejectHandler(Handle<JSObject> promise);
+  MaybeHandle<Object> PromiseHasUserDefinedRejectHandler(
+      Handle<JSObject> promise);
 
   void CallEventCallback(v8::DebugEvent event,
                          Handle<Object> exec_state,

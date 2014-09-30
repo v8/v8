@@ -85,6 +85,7 @@ class ObjectOperationDescriptor;
 class ObjectTemplate;
 class Platform;
 class Primitive;
+class Promise;
 class RawOperationDescriptor;
 class Script;
 class Signature;
@@ -2851,6 +2852,12 @@ class V8_EXPORT Promise : public Object {
   Local<Promise> Catch(Handle<Function> handler);
   Local<Promise> Then(Handle<Function> handler);
 
+  /**
+   * Returns true if the promise has at least one derived promise, and
+   * therefore resolve/reject handlers (including default handler).
+   */
+  bool HasHandler();
+
   V8_INLINE static Promise* Cast(Value* obj);
 
  private:
@@ -4196,6 +4203,16 @@ typedef void (*MemoryAllocationCallback)(ObjectSpace space,
 // --- Leave Script Callback ---
 typedef void (*CallCompletedCallback)();
 
+// --- Promise Reject Callback ---
+enum PromiseRejectEvent {
+  kPromiseRejectWithNoHandler = 0,
+  kPromiseHandlerAddedAfterReject = 1
+};
+
+typedef void (*PromiseRejectCallback)(Handle<Promise> promise,
+                                      Handle<Value> value,
+                                      PromiseRejectEvent event);
+
 // --- Microtask Callback ---
 typedef void (*MicrotaskCallback)(void* data);
 
@@ -4770,6 +4787,13 @@ class V8_EXPORT Isolate {
    * Removes callback that was installed by AddCallCompletedCallback.
    */
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
+
+
+  /**
+   * Set callback to notify about promise reject with no handler, or
+   * revocation of such a previous notification once the handler is added.
+   */
+  void SetPromiseRejectCallback(PromiseRejectCallback callback);
 
   /**
    * Experimental: Runs the Microtask Work Queue until empty
@@ -5880,7 +5904,7 @@ class Internals {
   static const int kNullValueRootIndex = 7;
   static const int kTrueValueRootIndex = 8;
   static const int kFalseValueRootIndex = 9;
-  static const int kEmptyStringRootIndex = 164;
+  static const int kEmptyStringRootIndex = 166;
 
   // The external allocation limit should be below 256 MB on all architectures
   // to avoid that resource-constrained embedders run low on memory.

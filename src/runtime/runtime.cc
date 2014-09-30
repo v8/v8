@@ -1183,16 +1183,6 @@ RUNTIME_FUNCTION(Runtime_TransitionElementsKind) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_DebugPromiseRejectEvent) {
-  DCHECK(args.length() == 2);
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  isolate->debug()->OnPromiseReject(promise, value);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_DeleteProperty) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
@@ -1869,6 +1859,42 @@ RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
       NewReferenceError("unsupported_super", HandleVector<Object>(NULL, 0)));
+}
+
+
+RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
+  DCHECK(args.length() == 3);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  CONVERT_BOOLEAN_ARG_CHECKED(debug_event, 2);
+  if (debug_event) isolate->debug()->OnPromiseReject(promise, value);
+  Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
+  // Do not report if we actually have a handler.
+  if (JSObject::GetDataProperty(promise, key)->IsUndefined()) {
+    isolate->ReportPromiseReject(promise, value,
+                                 v8::kPromiseRejectWithNoHandler);
+  }
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
+  DCHECK(args.length() == 1);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
+  // At this point, no revocation has been issued before
+  RUNTIME_ASSERT(JSObject::GetDataProperty(promise, key)->IsUndefined());
+  isolate->ReportPromiseReject(promise, Handle<Object>(),
+                               v8::kPromiseHandlerAddedAfterReject);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_PromiseHasHandlerSymbol) {
+  DCHECK(args.length() == 0);
+  return isolate->heap()->promise_has_handler_symbol();
 }
 
 

@@ -145,7 +145,6 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kDebugEvaluate:
     case Runtime::kDebugGetLoadedScripts:
     case Runtime::kDebugGetPropertyDetails:
-    case Runtime::kDebugPromiseRejectEvent:
     case Runtime::kDebugPromiseEvent:
     case Runtime::kDeleteProperty:
     case Runtime::kDeoptimizeFunction:
@@ -164,6 +163,8 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kParseJson:
     case Runtime::kPrepareStep:
     case Runtime::kPreventExtensions:
+    case Runtime::kPromiseRejectEvent:
+    case Runtime::kPromiseRevokeReject:
     case Runtime::kRegExpCompile:
     case Runtime::kRegExpExecMultiple:
     case Runtime::kResolvePossiblyDirectEval:

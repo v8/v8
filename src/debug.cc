@@ -1262,17 +1262,6 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 }
 
 
-bool Debug::PromiseHasRejectHandler(Handle<JSObject> promise) {
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(
-      JSObject::GetDataProperty(isolate_->js_builtins_object(),
-                                isolate_->factory()->NewStringFromStaticChars(
-                                    "PromiseHasRejectHandler")));
-  Handle<Object> result =
-      Execution::Call(isolate_, fun, promise, 0, NULL).ToHandleChecked();
-  return result->IsTrue();
-}
-
-
 void Debug::PrepareStep(StepAction step_action,
                         int step_count,
                         StackFrame::Id frame_id) {
@@ -2521,14 +2510,37 @@ void Debug::OnThrow(Handle<Object> exception, bool uncaught) {
 void Debug::OnPromiseReject(Handle<JSObject> promise, Handle<Object> value) {
   if (in_debug_scope() || ignore_events()) return;
   HandleScope scope(isolate_);
-  OnException(value, false, promise);
+  // Check whether the promise has been marked as having triggered a message.
+  Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
+  if (JSObject::GetDataProperty(promise, key)->IsUndefined()) {
+    OnException(value, false, promise);
+  }
+}
+
+
+MaybeHandle<Object> Debug::PromiseHasUserDefinedRejectHandler(
+    Handle<JSObject> promise) {
+  Handle<JSFunction> fun = Handle<JSFunction>::cast(
+      JSObject::GetDataProperty(isolate_->js_builtins_object(),
+                                isolate_->factory()->NewStringFromStaticChars(
+                                    "PromiseHasUserDefinedRejectHandler")));
+  return Execution::Call(isolate_, fun, promise, 0, NULL);
 }
 
 
 void Debug::OnException(Handle<Object> exception, bool uncaught,
                         Handle<Object> promise) {
-  if (promise->IsJSObject()) {
-    uncaught |= !PromiseHasRejectHandler(Handle<JSObject>::cast(promise));
+  if (!uncaught && promise->IsJSObject()) {
+    Handle<JSObject> jspromise = Handle<JSObject>::cast(promise);
+    // Mark the promise as already having triggered a message.
+    Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
+    JSObject::SetProperty(jspromise, key, key, STRICT).Assert();
+    // Check whether the promise reject is considered an uncaught exception.
+    Handle<Object> has_reject_handler;
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate_, has_reject_handler,
+        PromiseHasUserDefinedRejectHandler(jspromise), /* void */);
+    uncaught = has_reject_handler->IsFalse();
   }
   // Bail out if exception breaks are not active
   if (uncaught) {
