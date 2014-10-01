@@ -735,6 +735,7 @@
         '../../src/rewriter.h',
         '../../src/runtime-profiler.cc',
         '../../src/runtime-profiler.h',
+        '../../src/runtime/runtime-classes.cc',
         '../../src/runtime/runtime-collections.cc',
         '../../src/runtime/runtime-compiler.cc',
         '../../src/runtime/runtime-date.cc',
