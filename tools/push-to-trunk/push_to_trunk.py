@@ -361,7 +361,7 @@ class TagRevision(Step):
   MESSAGE = "Tag the new revision."
 
   def RunStep(self):
-    self.vc.Tag(self["version"])
+    self.vc.Tag(self["version"], self.vc.RemoteCandidateBranch())
 
 
 class CleanUp(Step):

@@ -2094,7 +2094,7 @@ RUNTIME_FUNCTION(StoreIC_Miss) {
 RUNTIME_FUNCTION(StoreIC_MissFromStubFailure) {
   TimerEventScope<TimerEventIcMiss> timer(isolate);
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 3 || args.length() == 4);
   StoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   Handle<Object> receiver = args.at<Object>(0);
   Handle<String> key = args.at<String>(1);
@@ -2103,30 +2103,6 @@ RUNTIME_FUNCTION(StoreIC_MissFromStubFailure) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, ic.Store(receiver, key, args.at<Object>(2)));
   return *result;
-}
-
-
-// Extend storage is called in a store inline cache when
-// it is necessary to extend the properties array of a
-// JSObject.
-RUNTIME_FUNCTION(SharedStoreIC_ExtendStorage) {
-  TimerEventScope<TimerEventIcMiss> timer(isolate);
-  HandleScope shs(isolate);
-  DCHECK(args.length() == 3);
-
-  // Convert the parameters
-  Handle<JSObject> object = args.at<JSObject>(0);
-  Handle<Map> transition = args.at<Map>(1);
-  Handle<Object> value = args.at<Object>(2);
-
-  // Check the object has run out out property space.
-  DCHECK(object->HasFastProperties());
-  DCHECK(object->map()->unused_property_fields() == 0);
-
-  JSObject::MigrateToNewProperty(object, transition, value);
-
-  // Return the stored value.
-  return *value;
 }
 
 
@@ -2268,7 +2244,7 @@ MaybeHandle<Object> BinaryOpIC::Transition(
     if (!allocation_site.is_null()) {
       os << " using allocation site " << static_cast<void*>(*allocation_site);
     }
-    os << "]" << endl;
+    os << "]" << std::endl;
   }
 
   // Patch the inlined smi code as necessary.

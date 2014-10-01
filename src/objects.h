@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_H_
 #define V8_OBJECTS_H_
 
+#include <iosfwd>
+
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/bailout-reason.h"
@@ -147,8 +149,6 @@
 
 namespace v8 {
 namespace internal {
-
-class OStream;
 
 enum KeyedAccessStoreMode {
   STANDARD_STORE,
@@ -869,7 +869,7 @@ template <class C> inline bool Is(Object* obj);
 #endif
 
 #ifdef OBJECT_PRINT
-#define DECLARE_PRINTER(Name) void Name##Print(OStream& os);  // NOLINT
+#define DECLARE_PRINTER(Name) void Name##Print(std::ostream& os);  // NOLINT
 #else
 #define DECLARE_PRINTER(Name)
 #endif
@@ -1167,6 +1167,9 @@ class Object {
       Handle<Object> receiver,
       uint32_t index);
 
+  static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
+      Isolate* isolate, Handle<Object> receiver);
+
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
   Object* GetHash();
@@ -1219,7 +1222,7 @@ class Object {
   void Print();
 
   // Prints this object with details.
-  void Print(OStream& os);  // NOLINT
+  void Print(std::ostream& os);  // NOLINT
 #endif
 
  private:
@@ -1239,7 +1242,7 @@ struct Brief {
 };
 
 
-OStream& operator<<(OStream& os, const Brief& v);
+std::ostream& operator<<(std::ostream& os, const Brief& v);
 
 
 // Smi represents integer Numbers that can be stored in 31 bits.
@@ -1264,7 +1267,7 @@ class Smi: public Object {
   DECLARE_CAST(Smi)
 
   // Dispatched behavior.
-  void SmiPrint(OStream& os) const;  // NOLINT
+  void SmiPrint(std::ostream& os) const;  // NOLINT
   DECLARE_VERIFIER(Smi)
 
   static const int kMinValue =
@@ -1407,9 +1410,9 @@ class HeapObject: public Object {
       const DisallowHeapAllocation& promise);
 
   // Dispatched behavior.
-  void HeapObjectShortPrint(OStream& os);  // NOLINT
+  void HeapObjectShortPrint(std::ostream& os);  // NOLINT
 #ifdef OBJECT_PRINT
-  void PrintHeader(OStream& os, const char* id);  // NOLINT
+  void PrintHeader(std::ostream& os, const char* id);  // NOLINT
 #endif
   DECLARE_PRINTER(HeapObject)
   DECLARE_VERIFIER(HeapObject)
@@ -1496,7 +1499,7 @@ class HeapNumber: public HeapObject {
   // Dispatched behavior.
   bool HeapNumberBooleanValue();
 
-  void HeapNumberPrint(OStream& os);  // NOLINT
+  void HeapNumberPrint(std::ostream& os);  // NOLINT
   DECLARE_VERIFIER(HeapNumber)
 
   inline int get_exponent();
@@ -2113,9 +2116,9 @@ class JSObject: public JSReceiver {
   DECLARE_PRINTER(JSObject)
   DECLARE_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
-  void PrintProperties(OStream& os);   // NOLINT
-  void PrintElements(OStream& os);     // NOLINT
-  void PrintTransitions(OStream& os);  // NOLINT
+  void PrintProperties(std::ostream& os);   // NOLINT
+  void PrintElements(std::ostream& os);     // NOLINT
+  void PrintTransitions(std::ostream& os);  // NOLINT
 #endif
 
   static void PrintElementsTransition(
@@ -2208,10 +2211,6 @@ class JSObject: public JSReceiver {
                                   const char* type,
                                   Handle<Name> name,
                                   Handle<Object> old_value);
-
-  static void MigrateToNewProperty(Handle<JSObject> object,
-                                   Handle<Map> transition,
-                                   Handle<Object> value);
 
  private:
   friend class DictionaryElementsAccessor;
@@ -3039,7 +3038,7 @@ class DescriptorArray: public FixedArray {
 
 #ifdef OBJECT_PRINT
   // Print all the descriptors.
-  void PrintDescriptors(OStream& os);  // NOLINT
+  void PrintDescriptors(std::ostream& os);  // NOLINT
 #endif
 
 #ifdef DEBUG
@@ -3563,7 +3562,7 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
   static Handle<Derived> EnsureCapacity(Handle<Derived> obj, int n, Key key);
 
 #ifdef OBJECT_PRINT
-  void Print(OStream& os);  // NOLINT
+  void Print(std::ostream& os);  // NOLINT
 #endif
   // Returns the key (slow).
   Object* SlowReverseLookup(Object* value);
@@ -4865,7 +4864,7 @@ class DeoptimizationInputData: public FixedArray {
   DECLARE_CAST(DeoptimizationInputData)
 
 #ifdef ENABLE_DISASSEMBLER
-  void DeoptimizationInputDataPrint(OStream& os);  // NOLINT
+  void DeoptimizationInputDataPrint(std::ostream& os);  // NOLINT
 #endif
 
  private:
@@ -4910,7 +4909,7 @@ class DeoptimizationOutputData: public FixedArray {
   DECLARE_CAST(DeoptimizationOutputData)
 
 #if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
-  void DeoptimizationOutputDataPrint(OStream& os);  // NOLINT
+  void DeoptimizationOutputDataPrint(std::ostream& os);  // NOLINT
 #endif
 };
 
@@ -4976,9 +4975,9 @@ class Code: public HeapObject {
   // Printing
   static const char* ICState2String(InlineCacheState state);
   static const char* StubType2String(StubType type);
-  static void PrintExtraICState(OStream& os,  // NOLINT
+  static void PrintExtraICState(std::ostream& os,  // NOLINT
                                 Kind kind, ExtraICState extra);
-  void Disassemble(const char* name, OStream& os);  // NOLINT
+  void Disassemble(const char* name, std::ostream& os);  // NOLINT
 #endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions
@@ -7076,7 +7075,7 @@ struct SourceCodeOf {
 };
 
 
-OStream& operator<<(OStream& os, const SourceCodeOf& v);
+std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v);
 
 
 class JSGeneratorObject: public JSObject {
@@ -8789,7 +8788,7 @@ class String: public Name {
 
   // Dispatched behavior.
   void StringShortPrint(StringStream* accumulator);
-  void PrintUC16(OStream& os, int start = 0, int end = -1);  // NOLINT
+  void PrintUC16(std::ostream& os, int start = 0, int end = -1);  // NOLINT
 #ifdef OBJECT_PRINT
   char* ToAsciiArray();
 #endif
@@ -9714,7 +9713,7 @@ class OrderedHashTableIterator: public JSObject {
   DECL_ACCESSORS(kind, Object)
 
 #ifdef OBJECT_PRINT
-  void OrderedHashTableIteratorPrint(OStream& os);  // NOLINT
+  void OrderedHashTableIteratorPrint(std::ostream& os);  // NOLINT
 #endif
 
   static const int kTableOffset = JSObject::kHeaderSize;

@@ -24,9 +24,8 @@ inline std::ostream& operator<<(std::ostream& os, const Unique<T>& value) {
 }
 inline std::ostream& operator<<(std::ostream& os,
                                 const ExternalReference& value) {
-  OStringStream ost;
-  compiler::StaticParameterTraits<ExternalReference>::PrintTo(ost, value);
-  return os << ost.c_str();
+  compiler::StaticParameterTraits<ExternalReference>::PrintTo(os, value);
+  return os;
 }
 
 namespace compiler {

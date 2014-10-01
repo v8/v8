@@ -1964,7 +1964,8 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
       EmitNamedPropertyAssignment(expr);
       break;
     case NAMED_SUPER_PROPERTY:
-      EmitNamedSuperPropertyAssignment(expr);
+      EmitNamedSuperPropertyStore(property);
+      context()->Plug(rax);
       break;
     case KEYED_PROPERTY:
       EmitKeyedPropertyAssignment(expr);
@@ -2547,11 +2548,10 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
 }
 
 
-void FullCodeGenerator::EmitNamedSuperPropertyAssignment(Assignment* expr) {
+void FullCodeGenerator::EmitNamedSuperPropertyStore(Property* prop) {
   // Assignment to named property of super.
   // rax : value
   // stack : receiver ('this'), home_object
-  Property* prop = expr->target()->AsProperty();
   DCHECK(prop != NULL);
   Literal* key = prop->key()->AsLiteral();
   DCHECK(key != NULL);
@@ -2561,7 +2561,6 @@ void FullCodeGenerator::EmitNamedSuperPropertyAssignment(Assignment* expr) {
   __ CallRuntime((strict_mode() == STRICT ? Runtime::kStoreToSuper_Strict
                                           : Runtime::kStoreToSuper_Sloppy),
                  4);
-  context()->Plug(rax);
 }
 
 
@@ -2795,6 +2794,8 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       // rdx (receiver). Touch up the stack with the right values.
       __ movp(Operand(rsp, (arg_count + 0) * kPointerSize), rdx);
       __ movp(Operand(rsp, (arg_count + 1) * kPointerSize), rax);
+
+      PrepareForBailoutForId(expr->EvalOrLookupId(), NO_REGISTERS);
     }
     // Record source position for debugger.
     SetSourcePosition(expr->position());
@@ -2826,6 +2827,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     __ CallRuntime(Runtime::kLoadLookupSlot, 2);
     __ Push(rax);  // Function.
     __ Push(rdx);  // Receiver.
+    PrepareForBailoutForId(expr->EvalOrLookupId(), NO_REGISTERS);
 
     // If fast case code has been generated, emit code to push the function
     // and receiver and have the slow path jump around this code.
@@ -4345,19 +4347,21 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Expression can only be a property, a global or a (parameter or local)
   // slot.
-  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
+  enum LhsKind {
+    VARIABLE,
+    NAMED_PROPERTY,
+    KEYED_PROPERTY,
+    NAMED_SUPER_PROPERTY
+  };
   LhsKind assign_type = VARIABLE;
   Property* prop = expr->expression()->AsProperty();
   // In case of a property we use the uninitialized expression context
   // of the key to detect a named property.
   if (prop != NULL) {
     assign_type =
-        (prop->key()->IsPropertyName()) ? NAMED_PROPERTY : KEYED_PROPERTY;
-    if (prop->IsSuperAccess()) {
-      // throw exception.
-      VisitSuperReference(prop->obj()->AsSuperReference());
-      return;
-    }
+        (prop->key()->IsPropertyName())
+            ? (prop->IsSuperAccess() ? NAMED_SUPER_PROPERTY : NAMED_PROPERTY)
+            : KEYED_PROPERTY;
   }
 
   // Evaluate expression and get value.
@@ -4374,6 +4378,13 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       VisitForStackValue(prop->obj());
       __ movp(LoadDescriptor::ReceiverRegister(), Operand(rsp, 0));
       EmitNamedPropertyLoad(prop);
+    } else if (assign_type == NAMED_SUPER_PROPERTY) {
+      VisitForStackValue(prop->obj()->AsSuperReference()->this_var());
+      EmitLoadHomeObject(prop->obj()->AsSuperReference());
+      __ Push(result_register());
+      __ Push(MemOperand(rsp, kPointerSize));
+      __ Push(result_register());
+      EmitNamedSuperPropertyLoad(prop);
     } else {
       VisitForStackValue(prop->obj());
       VisitForStackValue(prop->key());
@@ -4413,6 +4424,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
           case NAMED_PROPERTY:
             __ movp(Operand(rsp, kPointerSize), rax);
             break;
+          case NAMED_SUPER_PROPERTY:
+            __ movp(Operand(rsp, 2 * kPointerSize), rax);
+            break;
           case KEYED_PROPERTY:
             __ movp(Operand(rsp, 2 * kPointerSize), rax);
             break;
@@ -4447,6 +4461,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
           break;
         case NAMED_PROPERTY:
           __ movp(Operand(rsp, kPointerSize), rax);
+          break;
+        case NAMED_SUPER_PROPERTY:
+          __ movp(Operand(rsp, 2 * kPointerSize), rax);
           break;
         case KEYED_PROPERTY:
           __ movp(Operand(rsp, 2 * kPointerSize), rax);
@@ -4498,6 +4515,17 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       __ Pop(StoreDescriptor::ReceiverRegister());
       CallStoreIC(expr->CountStoreFeedbackId());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
+      if (expr->is_postfix()) {
+        if (!context()->IsEffect()) {
+          context()->PlugTOS();
+        }
+      } else {
+        context()->Plug(rax);
+      }
+      break;
+    }
+    case NAMED_SUPER_PROPERTY: {
+      EmitNamedSuperPropertyStore(prop);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
           context()->PlugTOS();

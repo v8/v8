@@ -5,12 +5,13 @@
 #include "src/compiler/instruction.h"
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/generic-node-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-OStream& operator<<(OStream& os, const InstructionOperand& op) {
+std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
   switch (op.kind()) {
     case InstructionOperand::INVALID:
       return os << "(0)";
@@ -95,7 +96,7 @@ void InstructionOperand::TearDownCaches() {
 }
 
 
-OStream& operator<<(OStream& os, const MoveOperands& mo) {
+std::ostream& operator<<(std::ostream& os, const MoveOperands& mo) {
   os << *mo.destination();
   if (!mo.source()->Equals(mo.destination())) os << " = " << *mo.source();
   return os << ";";
@@ -110,7 +111,7 @@ bool ParallelMove::IsRedundant() const {
 }
 
 
-OStream& operator<<(OStream& os, const ParallelMove& pm) {
+std::ostream& operator<<(std::ostream& os, const ParallelMove& pm) {
   bool first = true;
   for (ZoneList<MoveOperands>::iterator move = pm.move_operands()->begin();
        move != pm.move_operands()->end(); ++move) {
@@ -152,7 +153,7 @@ void PointerMap::RecordUntagged(InstructionOperand* op, Zone* zone) {
 }
 
 
-OStream& operator<<(OStream& os, const PointerMap& pm) {
+std::ostream& operator<<(std::ostream& os, const PointerMap& pm) {
   os << "{";
   for (ZoneList<InstructionOperand*>::iterator op =
            pm.pointer_operands_.begin();
@@ -164,7 +165,7 @@ OStream& operator<<(OStream& os, const PointerMap& pm) {
 }
 
 
-OStream& operator<<(OStream& os, const ArchOpcode& ao) {
+std::ostream& operator<<(std::ostream& os, const ArchOpcode& ao) {
   switch (ao) {
 #define CASE(Name) \
   case k##Name:    \
@@ -177,7 +178,7 @@ OStream& operator<<(OStream& os, const ArchOpcode& ao) {
 }
 
 
-OStream& operator<<(OStream& os, const AddressingMode& am) {
+std::ostream& operator<<(std::ostream& os, const AddressingMode& am) {
   switch (am) {
     case kMode_None:
       return os;
@@ -192,7 +193,7 @@ OStream& operator<<(OStream& os, const AddressingMode& am) {
 }
 
 
-OStream& operator<<(OStream& os, const FlagsMode& fm) {
+std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
   switch (fm) {
     case kFlags_none:
       return os;
@@ -206,7 +207,7 @@ OStream& operator<<(OStream& os, const FlagsMode& fm) {
 }
 
 
-OStream& operator<<(OStream& os, const FlagsCondition& fc) {
+std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
   switch (fc) {
     case kEqual:
       return os << "equal";
@@ -250,7 +251,7 @@ OStream& operator<<(OStream& os, const FlagsCondition& fc) {
 }
 
 
-OStream& operator<<(OStream& os, const Instruction& instr) {
+std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
   if (instr.OutputCount() > 1) os << "(";
   for (size_t i = 0; i < instr.OutputCount(); i++) {
     if (i > 0) os << ", ";
@@ -294,7 +295,7 @@ OStream& operator<<(OStream& os, const Instruction& instr) {
 }
 
 
-OStream& operator<<(OStream& os, const Constant& constant) {
+std::ostream& operator<<(std::ostream& os, const Constant& constant) {
   switch (constant.type()) {
     case Constant::kInt32:
       return os << constant.ToInt32();
@@ -305,7 +306,8 @@ OStream& operator<<(OStream& os, const Constant& constant) {
     case Constant::kFloat64:
       return os << constant.ToFloat64();
     case Constant::kExternalReference:
-      return os << constant.ToExternalReference().address();
+      return os << static_cast<const void*>(
+                       constant.ToExternalReference().address());
     case Constant::kHeapObject:
       return os << Brief(*constant.ToHeapObject());
   }
@@ -320,12 +322,12 @@ Label* InstructionSequence::GetLabel(BasicBlock* block) {
 
 
 BlockStartInstruction* InstructionSequence::GetBlockStart(BasicBlock* block) {
-  return BlockStartInstruction::cast(InstructionAt(block->code_start_));
+  return BlockStartInstruction::cast(InstructionAt(block->code_start()));
 }
 
 
 void InstructionSequence::StartBlock(BasicBlock* block) {
-  block->code_start_ = static_cast<int>(instructions_.size());
+  block->set_code_start(static_cast<int>(instructions_.size()));
   BlockStartInstruction* block_start =
       BlockStartInstruction::New(zone(), block);
   AddInstruction(block_start, block);
@@ -334,8 +336,8 @@ void InstructionSequence::StartBlock(BasicBlock* block) {
 
 void InstructionSequence::EndBlock(BasicBlock* block) {
   int end = static_cast<int>(instructions_.size());
-  DCHECK(block->code_start_ >= 0 && block->code_start_ < end);
-  block->code_end_ = end;
+  DCHECK(block->code_start() >= 0 && block->code_start() < end);
+  block->set_code_end(end);
 }
 
 
@@ -414,7 +416,7 @@ int InstructionSequence::GetFrameStateDescriptorCount() {
 }
 
 
-OStream& operator<<(OStream& os, const InstructionSequence& code) {
+std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
   for (size_t i = 0; i < code.immediates_.size(); ++i) {
     Constant constant = code.immediates_[i];
     os << "IMM#" << i << ": " << constant << "\n";
@@ -427,19 +429,17 @@ OStream& operator<<(OStream& os, const InstructionSequence& code) {
   for (int i = 0; i < code.BasicBlockCount(); i++) {
     BasicBlock* block = code.BlockAt(i);
 
-    int bid = block->id();
-    os << "RPO#" << block->rpo_number_ << ": B" << bid;
-    CHECK(block->rpo_number_ == i);
+    os << "RPO#" << block->rpo_number() << ": B" << block->id();
+    CHECK(block->rpo_number() == i);
     if (block->IsLoopHeader()) {
-      os << " loop blocks: [" << block->rpo_number_ << ", " << block->loop_end_
-         << ")";
+      os << " loop blocks: [" << block->rpo_number() << ", "
+         << block->loop_end() << ")";
     }
-    os << "  instructions: [" << block->code_start_ << ", " << block->code_end_
-       << ")\n  predecessors:";
+    os << "  instructions: [" << block->code_start() << ", "
+       << block->code_end() << ")\n  predecessors:";
 
-    BasicBlock::Predecessors predecessors = block->predecessors();
-    for (BasicBlock::Predecessors::iterator iter = predecessors.begin();
-         iter != predecessors.end(); ++iter) {
+    for (BasicBlock::Predecessors::iterator iter = block->predecessors_begin();
+         iter != block->predecessors_end(); ++iter) {
       os << " B" << (*iter)->id();
     }
     os << "\n";
@@ -465,15 +465,14 @@ OStream& operator<<(OStream& os, const InstructionSequence& code) {
       os << "   " << buf.start() << ": " << *code.InstructionAt(j);
     }
 
-    os << "  " << block->control_;
+    os << "  " << block->control();
 
-    if (block->control_input_ != NULL) {
-      os << " v" << block->control_input_->id();
+    if (block->control_input() != NULL) {
+      os << " v" << block->control_input()->id();
     }
 
-    BasicBlock::Successors successors = block->successors();
-    for (BasicBlock::Successors::iterator iter = successors.begin();
-         iter != successors.end(); ++iter) {
+    for (BasicBlock::Successors::iterator iter = block->successors_begin();
+         iter != block->successors_end(); ++iter) {
       os << " B" << (*iter)->id();
     }
     os << "\n";

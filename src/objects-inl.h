@@ -1121,6 +1121,19 @@ MaybeHandle<Object> Object::GetElement(Isolate* isolate,
 }
 
 
+Handle<Object> Object::GetPrototypeSkipHiddenPrototypes(
+    Isolate* isolate, Handle<Object> receiver) {
+  PrototypeIterator iter(isolate, receiver);
+  while (!iter.IsAtEnd(PrototypeIterator::END_AT_NON_HIDDEN)) {
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+      return PrototypeIterator::GetCurrent(iter);
+    }
+    iter.Advance();
+  }
+  return PrototypeIterator::GetCurrent(iter);
+}
+
+
 MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> object,
                                                  Handle<Name> name) {
   uint32_t index;

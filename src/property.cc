@@ -20,7 +20,7 @@ void LookupResult::Iterate(ObjectVisitor* visitor) {
 }
 
 
-OStream& operator<<(OStream& os, const LookupResult& r) {
+std::ostream& operator<<(std::ostream& os, const LookupResult& r) {
   if (!r.IsFound()) return os << "Not Found\n";
 
   os << "LookupResult:\n";
@@ -31,7 +31,7 @@ OStream& operator<<(OStream& os, const LookupResult& r) {
 }
 
 
-OStream& operator<<(OStream& os, const Descriptor& d) {
+std::ostream& operator<<(std::ostream& os, const Descriptor& d) {
   return os << "Descriptor " << Brief(*d.GetKey()) << " @ "
             << Brief(*d.GetValue());
 }

@@ -87,8 +87,8 @@ class Operator : public ZoneObject {
  protected:
   // Print the full operator into the given stream, including any
   // static parameters. Useful for debugging and visualizing the IR.
-  virtual OStream& PrintTo(OStream& os) const = 0;  // NOLINT
-  friend OStream& operator<<(OStream& os, const Operator& op);
+  virtual std::ostream& PrintTo(std::ostream& os) const = 0;  // NOLINT
+  friend std::ostream& operator<<(std::ostream& os, const Operator& op);
 
  private:
   Opcode opcode_;
@@ -100,7 +100,7 @@ class Operator : public ZoneObject {
 
 DEFINE_OPERATORS_FOR_FLAGS(Operator::Properties)
 
-OStream& operator<<(OStream& os, const Operator& op);
+std::ostream& operator<<(std::ostream& os, const Operator& op);
 
 // An implementation of Operator that has no static parameters. Such operators
 // have just a name, an opcode, and a fixed number of inputs and outputs.
@@ -119,7 +119,7 @@ class SimpleOperator : public Operator {
   virtual int OutputCount() const FINAL { return output_count_; }
 
  private:
-  virtual OStream& PrintTo(OStream& os) const FINAL {  // NOLINT
+  virtual std::ostream& PrintTo(std::ostream& os) const FINAL {  // NOLINT
     return os << mnemonic();
   }
 
@@ -133,7 +133,7 @@ class SimpleOperator : public Operator {
 // static parameters of Operator1 automatically.
 template <typename T>
 struct StaticParameterTraits {
-  static OStream& PrintTo(OStream& os, T val) {  // NOLINT
+  static std::ostream& PrintTo(std::ostream& os, T val) {  // NOLINT
     return os << "??";
   }
   static int HashCode(T a) { return 0; }
@@ -145,7 +145,7 @@ struct StaticParameterTraits {
 // Specialization for static parameters of type {int}.
 template <>
 struct StaticParameterTraits<int> {
-  static OStream& PrintTo(OStream& os, int val) {  // NOLINT
+  static std::ostream& PrintTo(std::ostream& os, int val) {  // NOLINT
     return os << val;
   }
   static int HashCode(int a) { return a; }
@@ -155,7 +155,7 @@ struct StaticParameterTraits<int> {
 // Specialization for static parameters of type {double}.
 template <>
 struct StaticParameterTraits<double> {
-  static OStream& PrintTo(OStream& os, double val) {  // NOLINT
+  static std::ostream& PrintTo(std::ostream& os, double val) {  // NOLINT
     return os << val;
   }
   static int HashCode(double a) {
@@ -169,7 +169,8 @@ struct StaticParameterTraits<double> {
 // Specialization for static parameters of type {Unique<Object>}.
 template <>
 struct StaticParameterTraits<Unique<Object> > {
-  static OStream& PrintTo(OStream& os, Unique<Object> val) {  // NOLINT
+  static std::ostream& PrintTo(std::ostream& os,
+                               Unique<Object> val) {  // NOLINT
     return os << Brief(*val.handle());
   }
   static int HashCode(Unique<Object> a) {
@@ -181,7 +182,7 @@ struct StaticParameterTraits<Unique<Object> > {
 // Specialization for static parameters of type {Unique<Name>}.
 template <>
 struct StaticParameterTraits<Unique<Name> > {
-  static OStream& PrintTo(OStream& os, Unique<Name> val) {  // NOLINT
+  static std::ostream& PrintTo(std::ostream& os, Unique<Name> val) {  // NOLINT
     return os << Brief(*val.handle());
   }
   static int HashCode(Unique<Name> a) { return static_cast<int>(a.Hashcode()); }
@@ -193,7 +194,8 @@ struct StaticParameterTraits<Unique<Name> > {
 // direct usage of Handles in constants.
 template <>
 struct StaticParameterTraits<Handle<Object> > {
-  static OStream& PrintTo(OStream& os, Handle<Object> val) {  // NOLINT
+  static std::ostream& PrintTo(std::ostream& os,
+                               Handle<Object> val) {  // NOLINT
     UNREACHABLE();  // Should use Unique<Object> instead
     return os;
   }
@@ -233,12 +235,12 @@ class Operator1 : public Operator {
   }
   virtual int InputCount() const OVERRIDE { return input_count_; }
   virtual int OutputCount() const OVERRIDE { return output_count_; }
-  virtual OStream& PrintParameter(OStream& os) const {  // NOLINT
+  virtual std::ostream& PrintParameter(std::ostream& os) const {  // NOLINT
     return StaticParameterTraits<T>::PrintTo(os << "[", parameter_) << "]";
   }
 
  protected:
-  virtual OStream& PrintTo(OStream& os) const FINAL {  // NOLINT
+  virtual std::ostream& PrintTo(std::ostream& os) const FINAL {  // NOLINT
     return PrintParameter(os << mnemonic());
   }
 

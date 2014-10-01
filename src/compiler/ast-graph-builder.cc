@@ -75,7 +75,7 @@ bool AstGraphBuilder::CreateGraph() {
 
   // Emit tracing call if requested to do so.
   if (FLAG_trace) {
-    NewNode(javascript()->Runtime(Runtime::kTraceEnter, 0));
+    NewNode(javascript()->CallRuntime(Runtime::kTraceEnter, 0));
   }
 
   // Visit implicit declaration of the function name.
@@ -87,7 +87,7 @@ bool AstGraphBuilder::CreateGraph() {
   VisitDeclarations(scope->declarations());
 
   // TODO(mstarzinger): This should do an inlined stack check.
-  Node* node = NewNode(javascript()->Runtime(Runtime::kStackGuard, 0));
+  Node* node = NewNode(javascript()->CallRuntime(Runtime::kStackGuard, 0));
   PrepareFrameState(node, BailoutId::FunctionEntry());
 
   // Visit statements in the function body.
@@ -98,7 +98,7 @@ bool AstGraphBuilder::CreateGraph() {
   if (FLAG_trace) {
     // TODO(mstarzinger): Only traces implicit return.
     Node* return_value = jsgraph()->UndefinedConstant();
-    NewNode(javascript()->Runtime(Runtime::kTraceExit, 1), return_value);
+    NewNode(javascript()->CallRuntime(Runtime::kTraceExit, 1), return_value);
   }
 
   // Return 'undefined' in case we can fall off the end.
@@ -643,20 +643,20 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
     // TODO(dcarney): should do a fast enum cache check here to skip runtime.
     environment()->Push(obj);
     Node* cache_type = ProcessArguments(
-        javascript()->Runtime(Runtime::kGetPropertyNamesFast, 1), 1);
+        javascript()->CallRuntime(Runtime::kGetPropertyNamesFast, 1), 1);
     // TODO(dcarney): these next runtime calls should be removed in favour of
     //                a few simplified instructions.
     environment()->Push(obj);
     environment()->Push(cache_type);
     Node* cache_pair =
-        ProcessArguments(javascript()->Runtime(Runtime::kForInInit, 2), 2);
+        ProcessArguments(javascript()->CallRuntime(Runtime::kForInInit, 2), 2);
     // cache_type may have been replaced.
     Node* cache_array = NewNode(common()->Projection(0), cache_pair);
     cache_type = NewNode(common()->Projection(1), cache_pair);
     environment()->Push(cache_type);
     environment()->Push(cache_array);
     Node* cache_length = ProcessArguments(
-        javascript()->Runtime(Runtime::kForInCacheArrayLength, 2), 2);
+        javascript()->CallRuntime(Runtime::kForInCacheArrayLength, 2), 2);
     {
       // TODO(dcarney): this check is actually supposed to be for the
       //                empty enum case only.
@@ -692,8 +692,8 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
         environment()->Push(cache_array);
         environment()->Push(cache_type);
         environment()->Push(index);
-        Node* pair =
-            ProcessArguments(javascript()->Runtime(Runtime::kForInNext, 4), 4);
+        Node* pair = ProcessArguments(
+            javascript()->CallRuntime(Runtime::kForInNext, 4), 4);
         Node* value = NewNode(common()->Projection(0), pair);
         Node* should_filter = NewNode(common()->Projection(1), pair);
         environment()->Push(value);
@@ -719,7 +719,7 @@ void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
           // result is either the string key or Smi(0) indicating the property
           // is gone.
           Node* res = ProcessArguments(
-              javascript()->Call(3, NO_CALL_FUNCTION_FLAGS), 3);
+              javascript()->CallFunction(3, NO_CALL_FUNCTION_FLAGS), 3);
           // TODO(jarin): provide real bailout id.
           PrepareFrameState(res, BailoutId::None());
           Node* property_missing = NewNode(javascript()->StrictEqual(), res,
@@ -785,7 +785,7 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
   // TODO(turbofan): Do we really need a separate reloc-info for this?
-  Node* node = NewNode(javascript()->Runtime(Runtime::kDebugBreak, 0));
+  Node* node = NewNode(javascript()->CallRuntime(Runtime::kDebugBreak, 0));
   PrepareFrameState(node, stmt->DebugBreakId());
 }
 
@@ -806,7 +806,7 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   Node* info = jsgraph()->Constant(shared_info);
   Node* pretenure = expr->pretenure() ? jsgraph()->TrueConstant()
                                       : jsgraph()->FalseConstant();
-  const Operator* op = javascript()->Runtime(Runtime::kNewClosure, 3);
+  const Operator* op = javascript()->CallRuntime(Runtime::kNewClosure, 3);
   Node* value = NewNode(op, context, info, pretenure);
   ast_context()->ProduceValue(value);
 }
@@ -859,8 +859,9 @@ void AstGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   Node* pattern = jsgraph()->Constant(expr->pattern());
   Node* flags = jsgraph()->Constant(expr->flags());
   const Operator* op =
-      javascript()->Runtime(Runtime::kMaterializeRegExpLiteral, 4);
+      javascript()->CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
   Node* literal = NewNode(op, literals_array, literal_index, pattern, flags);
+  PrepareFrameState(literal, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(literal);
 }
 
@@ -875,7 +876,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_properties());
   Node* flags = jsgraph()->Constant(expr->ComputeFlags());
-  const Operator* op = javascript()->Runtime(Runtime::kCreateObjectLiteral, 4);
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kCreateObjectLiteral, 4);
   Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
 
   // The object is expected on the operand stack during computation of the
@@ -924,7 +926,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         Node* receiver = environment()->Pop();
         if (property->emit_store()) {
           Node* strict = jsgraph()->Constant(SLOPPY);
-          const Operator* op = javascript()->Runtime(Runtime::kSetProperty, 4);
+          const Operator* op =
+              javascript()->CallRuntime(Runtime::kSetProperty, 4);
           NewNode(op, receiver, key, value, strict);
         }
         break;
@@ -935,7 +938,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
         Node* value = environment()->Pop();
         Node* receiver = environment()->Pop();
         if (property->emit_store()) {
-          const Operator* op = javascript()->Runtime(Runtime::kSetPrototype, 2);
+          const Operator* op =
+              javascript()->CallRuntime(Runtime::kSetPrototype, 2);
           NewNode(op, receiver, value);
         }
         break;
@@ -961,14 +965,15 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     Node* name = environment()->Pop();
     Node* attr = jsgraph()->Constant(NONE);
     const Operator* op =
-        javascript()->Runtime(Runtime::kDefineAccessorPropertyUnchecked, 5);
+        javascript()->CallRuntime(Runtime::kDefineAccessorPropertyUnchecked, 5);
     Node* call = NewNode(op, literal, name, getter, setter, attr);
     PrepareFrameState(call, it->first->id());
   }
 
   // Transform literals that contain functions to fast properties.
   if (expr->has_function()) {
-    const Operator* op = javascript()->Runtime(Runtime::kToFastProperties, 1);
+    const Operator* op =
+        javascript()->CallRuntime(Runtime::kToFastProperties, 1);
     NewNode(op, literal);
   }
 
@@ -986,7 +991,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Node* literal_index = jsgraph()->Constant(expr->literal_index());
   Node* constants = jsgraph()->Constant(expr->constant_elements());
   Node* flags = jsgraph()->Constant(expr->ComputeFlags());
-  const Operator* op = javascript()->Runtime(Runtime::kCreateArrayLiteral, 4);
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kCreateArrayLiteral, 4);
   Node* literal = NewNode(op, literals_array, literal_index, constants, flags);
 
   // The array and the literal index are both expected on the operand stack
@@ -1095,14 +1101,16 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
         Unique<Name> name =
             MakeUnique(property->key()->AsLiteral()->AsPropertyName());
         old_value = NewNode(javascript()->LoadNamed(name), object);
-        PrepareFrameState(old_value, property->LoadId(), kPushOutput);
+        PrepareFrameState(old_value, property->LoadId(),
+                          OutputFrameStateCombine::Push());
         break;
       }
       case KEYED_PROPERTY: {
         Node* key = environment()->Top();
         Node* object = environment()->Peek(1);
         old_value = NewNode(javascript()->LoadProperty(), object, key);
-        PrepareFrameState(old_value, property->LoadId(), kPushOutput);
+        PrepareFrameState(old_value, property->LoadId(),
+                          OutputFrameStateCombine::Push());
         break;
       }
     }
@@ -1111,7 +1119,8 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     Node* right = environment()->Pop();
     Node* left = environment()->Pop();
     Node* value = BuildBinaryOp(left, right, expr->binary_op());
-    PrepareFrameState(value, expr->binary_operation()->id(), kPushOutput);
+    PrepareFrameState(value, expr->binary_operation()->id(),
+                      OutputFrameStateCombine::Push());
     environment()->Push(value);
   } else {
     VisitForValue(expr->value());
@@ -1162,8 +1171,9 @@ void AstGraphBuilder::VisitYield(Yield* expr) {
 void AstGraphBuilder::VisitThrow(Throw* expr) {
   VisitForValue(expr->exception());
   Node* exception = environment()->Pop();
-  const Operator* op = javascript()->Runtime(Runtime::kThrow, 1);
+  const Operator* op = javascript()->CallRuntime(Runtime::kThrow, 1);
   Node* value = NewNode(op, exception);
+  PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
 }
 
@@ -1208,10 +1218,14 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       Variable* variable = callee->AsVariableProxy()->var();
       DCHECK(variable->location() == Variable::LOOKUP);
       Node* name = jsgraph()->Constant(variable->name());
-      const Operator* op = javascript()->Runtime(Runtime::kLoadLookupSlot, 2);
+      const Operator* op =
+          javascript()->CallRuntime(Runtime::kLoadLookupSlot, 2);
       Node* pair = NewNode(op, current_context(), name);
       callee_value = NewNode(common()->Projection(0), pair);
       receiver_value = NewNode(common()->Projection(1), pair);
+
+      PrepareFrameState(pair, expr->EvalOrLookupId(),
+                        OutputFrameStateCombine::Push());
       break;
     }
     case Call::PROPERTY_CALL: {
@@ -1227,7 +1241,8 @@ void AstGraphBuilder::VisitCall(Call* expr) {
         Node* key = environment()->Pop();
         callee_value = NewNode(javascript()->LoadProperty(), object, key);
       }
-      PrepareFrameState(callee_value, property->LoadId(), kPushOutput);
+      PrepareFrameState(callee_value, property->LoadId(),
+                        OutputFrameStateCombine::Push());
       receiver_value = environment()->Pop();
       // Note that a PROPERTY_CALL requires the receiver to be wrapped into an
       // object for sloppy callees. This could also be modeled explicitly here,
@@ -1269,8 +1284,10 @@ void AstGraphBuilder::VisitCall(Call* expr) {
     Node* strict = jsgraph()->Constant(strict_mode());
     Node* position = jsgraph()->Constant(info()->scope()->start_position());
     const Operator* op =
-        javascript()->Runtime(Runtime::kResolvePossiblyDirectEval, 5);
+        javascript()->CallRuntime(Runtime::kResolvePossiblyDirectEval, 5);
     Node* pair = NewNode(op, callee, source, receiver, strict, position);
+    PrepareFrameState(pair, expr->EvalOrLookupId(),
+                      OutputFrameStateCombine::PokeAt(arg_count + 1));
     Node* new_callee = NewNode(common()->Projection(0), pair);
     Node* new_receiver = NewNode(common()->Projection(1), pair);
 
@@ -1280,7 +1297,7 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   }
 
   // Create node to perform the function call.
-  const Operator* call = javascript()->Call(args->length() + 2, flags);
+  const Operator* call = javascript()->CallFunction(args->length() + 2, flags);
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -1295,7 +1312,7 @@ void AstGraphBuilder::VisitCallNew(CallNew* expr) {
   VisitForValues(args);
 
   // Create node to perform the construct call.
-  const Operator* call = javascript()->CallNew(args->length() + 1);
+  const Operator* call = javascript()->CallConstruct(args->length() + 1);
   Node* value = ProcessArguments(call, args->length() + 1);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -1313,7 +1330,8 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   Node* callee_value = NewNode(javascript()->LoadNamed(unique), receiver_value);
   // TODO(jarin): Find/create a bailout id to deoptimize to (crankshaft
   // refuses to optimize functions with jsruntime calls).
-  PrepareFrameState(callee_value, BailoutId::None(), kPushOutput);
+  PrepareFrameState(callee_value, BailoutId::None(),
+                    OutputFrameStateCombine::Push());
   environment()->Push(callee_value);
   environment()->Push(receiver_value);
 
@@ -1322,7 +1340,7 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   VisitForValues(args);
 
   // Create node to perform the JS runtime call.
-  const Operator* call = javascript()->Call(args->length() + 2, flags);
+  const Operator* call = javascript()->CallFunction(args->length() + 2, flags);
   Node* value = ProcessArguments(call, args->length() + 2);
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -1345,7 +1363,7 @@ void AstGraphBuilder::VisitCallRuntime(CallRuntime* expr) {
 
   // Create node to perform the runtime call.
   Runtime::FunctionId functionId = function->function_id;
-  const Operator* call = javascript()->Runtime(functionId, args->length());
+  const Operator* call = javascript()->CallRuntime(functionId, args->length());
   Node* value = ProcessArguments(call, args->length());
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -1395,7 +1413,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Unique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
       old_value = NewNode(javascript()->LoadNamed(name), object);
-      PrepareFrameState(old_value, property->LoadId(), kPushOutput);
+      PrepareFrameState(old_value, property->LoadId(),
+                        OutputFrameStateCombine::Push());
       stack_depth = 1;
       break;
     }
@@ -1405,7 +1424,8 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* key = environment()->Top();
       Node* object = environment()->Peek(1);
       old_value = NewNode(javascript()->LoadProperty(), object, key);
-      PrepareFrameState(old_value, property->LoadId(), kPushOutput);
+      PrepareFrameState(old_value, property->LoadId(),
+                        OutputFrameStateCombine::Push());
       stack_depth = 2;
       break;
     }
@@ -1557,7 +1577,7 @@ void AstGraphBuilder::VisitDeclarations(ZoneList<Declaration*>* declarations) {
                       DeclareGlobalsStrictMode::encode(strict_mode());
   Node* flags = jsgraph()->Constant(encoded_flags);
   Node* pairs = jsgraph()->Constant(data);
-  const Operator* op = javascript()->Runtime(Runtime::kDeclareGlobals, 3);
+  const Operator* op = javascript()->CallRuntime(Runtime::kDeclareGlobals, 3);
   NewNode(op, current_context(), pairs, flags);
   globals()->Rewind(0);
 }
@@ -1583,7 +1603,8 @@ void AstGraphBuilder::VisitDelete(UnaryOperation* expr) {
     // deleting "this" is allowed in all language modes.
     Variable* variable = expr->expression()->AsVariableProxy()->var();
     DCHECK(strict_mode() == SLOPPY || variable->is_this());
-    value = BuildVariableDelete(variable);
+    value = BuildVariableDelete(variable, expr->id(),
+                                ast_context()->GetStateCombine());
   } else if (expr->expression()->IsProperty()) {
     Property* property = expr->expression()->AsProperty();
     VisitForValue(property->obj());
@@ -1591,6 +1612,7 @@ void AstGraphBuilder::VisitDelete(UnaryOperation* expr) {
     Node* key = environment()->Pop();
     Node* object = environment()->Pop();
     value = NewNode(javascript()->DeleteProperty(strict_mode()), object, key);
+    PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   } else {
     VisitForEffect(expr->expression());
     value = jsgraph()->TrueConstant();
@@ -1664,6 +1686,11 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 }
 
 
+StrictMode AstGraphBuilder::strict_mode() const {
+  return info()->strict_mode();
+}
+
+
 Node* AstGraphBuilder::ProcessArguments(const Operator* op, int arity) {
   DCHECK(environment()->stack_height() >= arity);
   Node** all = info()->zone()->NewArray<Node*>(arity);
@@ -1708,7 +1735,7 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
 
   // Allocate and initialize a new arguments object.
   Node* callee = GetFunctionClosure();
-  const Operator* op = javascript()->Runtime(Runtime::kNewArguments, 1);
+  const Operator* op = javascript()->CallRuntime(Runtime::kNewArguments, 1);
   Node* object = NewNode(op, callee);
 
   // Assign the object to the arguments variable.
@@ -1736,13 +1763,14 @@ Node* AstGraphBuilder::BuildHoleCheckSilent(Node* value, Node* for_hole,
 
 
 Node* AstGraphBuilder::BuildHoleCheckThrow(Node* value, Variable* variable,
-                                           Node* not_hole) {
+                                           Node* not_hole,
+                                           BailoutId bailout_id) {
   IfBuilder hole_check(this);
   Node* the_hole = jsgraph()->TheHoleConstant();
   Node* check = NewNode(javascript()->StrictEqual(), value, the_hole);
   hole_check.If(check);
   hole_check.Then();
-  environment()->Push(BuildThrowReferenceError(variable));
+  environment()->Push(BuildThrowReferenceError(variable, bailout_id));
   hole_check.Else();
   environment()->Push(not_hole);
   hole_check.End();
@@ -1762,7 +1790,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       Unique<Name> name = MakeUnique(variable->name());
       const Operator* op = javascript()->LoadNamed(name, contextual_mode);
       Node* node = NewNode(op, global);
-      PrepareFrameState(node, bailout_id, kPushOutput);
+      PrepareFrameState(node, bailout_id, OutputFrameStateCombine::Push());
       return node;
     }
     case Variable::PARAMETER:
@@ -1780,9 +1808,9 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       } else if (mode == LET || mode == CONST) {
         // Perform check for uninitialized let/const variables.
         if (value->op() == the_hole->op()) {
-          value = BuildThrowReferenceError(variable);
+          value = BuildThrowReferenceError(variable, bailout_id);
         } else if (value->opcode() == IrOpcode::kPhi) {
-          value = BuildHoleCheckThrow(value, variable, value);
+          value = BuildHoleCheckThrow(value, variable, value, bailout_id);
         }
       }
       return value;
@@ -1803,7 +1831,7 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
         value = BuildHoleCheckSilent(value, undefined, value);
       } else if (mode == LET || mode == CONST) {
         // Perform check for uninitialized let/const variables.
-        value = BuildHoleCheckThrow(value, variable, value);
+        value = BuildHoleCheckThrow(value, variable, value, bailout_id);
       }
       return value;
     }
@@ -1814,8 +1842,9 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
           (contextual_mode == CONTEXTUAL)
               ? Runtime::kLoadLookupSlot
               : Runtime::kLoadLookupSlotNoReferenceError;
-      const Operator* op = javascript()->Runtime(function_id, 2);
+      const Operator* op = javascript()->CallRuntime(function_id, 2);
       Node* pair = NewNode(op, current_context(), name);
+      PrepareFrameState(pair, bailout_id, OutputFrameStateCombine::Push(1));
       return NewNode(common()->Projection(0), pair);
     }
   }
@@ -1824,14 +1853,18 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
 }
 
 
-Node* AstGraphBuilder::BuildVariableDelete(Variable* variable) {
+Node* AstGraphBuilder::BuildVariableDelete(
+    Variable* variable, BailoutId bailout_id,
+    OutputFrameStateCombine state_combine) {
   switch (variable->location()) {
     case Variable::UNALLOCATED: {
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Node* name = jsgraph()->Constant(variable->name());
       const Operator* op = javascript()->DeleteProperty(strict_mode());
-      return NewNode(op, global, name);
+      Node* result = NewNode(op, global, name);
+      PrepareFrameState(result, bailout_id, state_combine);
+      return result;
     }
     case Variable::PARAMETER:
     case Variable::LOCAL:
@@ -1842,8 +1875,11 @@ Node* AstGraphBuilder::BuildVariableDelete(Variable* variable) {
     case Variable::LOOKUP: {
       // Dynamic lookup of context variable (anywhere in the chain).
       Node* name = jsgraph()->Constant(variable->name());
-      const Operator* op = javascript()->Runtime(Runtime::kDeleteLookupSlot, 2);
-      return NewNode(op, current_context(), name);
+      const Operator* op =
+          javascript()->CallRuntime(Runtime::kDeleteLookupSlot, 2);
+      Node* result = NewNode(op, current_context(), name);
+      PrepareFrameState(result, bailout_id, state_combine);
+      return result;
     }
   }
   UNREACHABLE();
@@ -1885,9 +1921,9 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
         // temporal dead zone of a let declared variable.
         Node* current = environment()->Lookup(variable);
         if (current->op() == the_hole->op()) {
-          value = BuildThrowReferenceError(variable);
+          value = BuildThrowReferenceError(variable, bailout_id);
         } else if (value->opcode() == IrOpcode::kPhi) {
-          value = BuildHoleCheckThrow(current, variable, value);
+          value = BuildHoleCheckThrow(current, variable, value, bailout_id);
         }
       } else if (mode == CONST && op != Token::INIT_CONST) {
         // All assignments to const variables are early errors.
@@ -1912,7 +1948,7 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
         const Operator* op =
             javascript()->LoadContext(depth, variable->index(), false);
         Node* current = NewNode(op, current_context());
-        value = BuildHoleCheckThrow(current, variable, value);
+        value = BuildHoleCheckThrow(current, variable, value, bailout_id);
       } else if (mode == CONST && op != Token::INIT_CONST) {
         // All assignments to const variables are early errors.
         UNREACHABLE();
@@ -1926,8 +1962,11 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
       Node* strict = jsgraph()->Constant(strict_mode());
       // TODO(mstarzinger): Use Runtime::kInitializeLegacyConstLookupSlot for
       // initializations of const declarations.
-      const Operator* op = javascript()->Runtime(Runtime::kStoreLookupSlot, 4);
-      return NewNode(op, value, current_context(), name, strict);
+      const Operator* op =
+          javascript()->CallRuntime(Runtime::kStoreLookupSlot, 4);
+      Node* store = NewNode(op, value, current_context(), name, strict);
+      PrepareFrameState(store, bailout_id);
+      return store;
     }
   }
   UNREACHABLE();
@@ -1965,11 +2004,15 @@ Node* AstGraphBuilder::BuildToBoolean(Node* value) {
 }
 
 
-Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable) {
+Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
+                                                BailoutId bailout_id) {
   // TODO(mstarzinger): Should be unified with the VisitThrow implementation.
   Node* variable_name = jsgraph()->Constant(variable->name());
-  const Operator* op = javascript()->Runtime(Runtime::kThrowReferenceError, 1);
-  return NewNode(op, variable_name);
+  const Operator* op =
+      javascript()->CallRuntime(Runtime::kThrowReferenceError, 1);
+  Node* call = NewNode(op, variable_name);
+  PrepareFrameState(call, bailout_id);
+  return call;
 }
 
 

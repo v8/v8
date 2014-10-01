@@ -58,7 +58,8 @@ class InterpreterState {
     return Value(op->kind(), op->index());
   }
 
-  friend OStream& operator<<(OStream& os, const InterpreterState& is) {
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const InterpreterState& is) {
     for (OperandMap::const_iterator it = is.values_.begin();
          it != is.values_.end(); ++it) {
       if (it != is.values_.begin()) os << " ";

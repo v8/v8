@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_REPRESENTATION_CHANGE_H_
 #define V8_COMPILER_REPRESENTATION_CHANGE_H_
 
+#include <sstream>
+
 #include "src/base/bits.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator.h"
@@ -399,17 +401,17 @@ class RepresentationChanger {
                   MachineTypeUnion use) {
     type_error_ = true;
     if (!testing_type_errors_) {
-      OStringStream out_str;
+      std::ostringstream out_str;
       out_str << static_cast<MachineType>(output_type);
 
-      OStringStream use_str;
+      std::ostringstream use_str;
       use_str << static_cast<MachineType>(use);
 
       V8_Fatal(__FILE__, __LINE__,
                "RepresentationChangerError: node #%d:%s of "
                "%s cannot be changed to %s",
-               node->id(), node->op()->mnemonic(), out_str.c_str(),
-               use_str.c_str());
+               node->id(), node->op()->mnemonic(), out_str.str().c_str(),
+               use_str.str().c_str());
     }
     return node;
   }

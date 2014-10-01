@@ -2683,6 +2683,16 @@ void Assembler::cvtlsi2ss(XMMRegister dst, Register src) {
 }
 
 
+void Assembler::cvtqsi2sd(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_rex_64(dst, src);
+  emit(0x0F);
+  emit(0x2A);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::cvtqsi2sd(XMMRegister dst, Register src) {
   EnsureSpace ensure_space(this);
   emit(0xF2);

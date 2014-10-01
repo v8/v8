@@ -66,7 +66,11 @@ namespace internal {
 #endif
 
 // Determine whether the architecture uses an out-of-line constant pool.
+#if V8_TARGET_ARCH_ARM
+#define V8_OOL_CONSTANT_POOL 1
+#else
 #define V8_OOL_CONSTANT_POOL 0
+#endif
 
 #ifdef V8_TARGET_ARCH_ARM
 // Set stack limit lower for ARM than for other architectures because
@@ -544,22 +548,6 @@ struct AccessorDescriptor {
   Object* (*setter)(
       Isolate* isolate, JSObject* object, Object* value, void* data);
   void* data;
-};
-
-
-// Logging and profiling.  A StateTag represents a possible state of
-// the VM. The logger maintains a stack of these. Creating a VMState
-// object enters a state by pushing on the stack, and destroying a
-// VMState object leaves a state by popping the current state from the
-// stack.
-
-enum StateTag {
-  JS,
-  GC,
-  COMPILER,
-  OTHER,
-  EXTERNAL,
-  IDLE
 };
 
 

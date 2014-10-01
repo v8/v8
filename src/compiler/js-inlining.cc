@@ -348,9 +348,9 @@ void JSInliner::AddClosureToFrameState(Node* frame_state,
 Node* JSInliner::CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
                                                   Handle<JSFunction> jsfunction,
                                                   Zone* temp_zone) {
-  const Operator* op =
-      jsgraph_->common()->FrameState(FrameStateType::ARGUMENTS_ADAPTOR,
-                                     BailoutId(-1), kIgnoreOutput, jsfunction);
+  const Operator* op = jsgraph_->common()->FrameState(
+      FrameStateType::ARGUMENTS_ADAPTOR, BailoutId(-1),
+      OutputFrameStateCombine::Ignore(), jsfunction);
   const Operator* op0 = jsgraph_->common()->StateValues(0);
   Node* node0 = jsgraph_->graph()->NewNode(op0);
   NodeVector params(temp_zone);

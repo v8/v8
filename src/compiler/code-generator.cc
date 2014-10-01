@@ -107,7 +107,7 @@ void CodeGenerator::AssembleInstruction(Instruction* instr) {
     if (FLAG_code_comments) {
       // TODO(titzer): these code comments are a giant memory leak.
       Vector<char> buffer = Vector<char>::New(32);
-      SNPrintF(buffer, "-- B%d start --", block_start->block()->id());
+      SNPrintF(buffer, "-- B%d start --", block_start->block()->id().ToInt());
       masm()->RecordComment(buffer.start());
     }
     masm()->bind(block_start->label());
@@ -260,15 +260,15 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
     // because it is only used to get locals and arguments (by the debugger and
     // f.arguments), and those are the same in the pre-call and post-call
     // states.
-    if (descriptor->state_combine() != kIgnoreOutput) {
-      deopt_state_id =
-          BuildTranslation(instr, -1, frame_state_offset, kIgnoreOutput);
+    if (!descriptor->state_combine().IsOutputIgnored()) {
+      deopt_state_id = BuildTranslation(instr, -1, frame_state_offset,
+                                        OutputFrameStateCombine::Ignore());
     }
 #if DEBUG
     // Make sure all the values live in stack slots or they are immediates.
     // (The values should not live in register because registers are clobbered
     // by calls.)
-    for (size_t i = 0; i < descriptor->size(); i++) {
+    for (size_t i = 0; i < descriptor->GetSize(); i++) {
       InstructionOperand* op = instr->InputAt(frame_state_offset + 1 + i);
       CHECK(op->IsStackSlot() || op->IsImmediate());
     }
@@ -296,6 +296,33 @@ FrameStateDescriptor* CodeGenerator::GetFrameStateDescriptor(
   return code()->GetFrameStateDescriptor(state_id);
 }
 
+static InstructionOperand* OperandForFrameState(
+    FrameStateDescriptor* descriptor, Instruction* instr,
+    size_t frame_state_offset, size_t index, OutputFrameStateCombine combine) {
+  DCHECK(index < descriptor->GetSize(combine));
+  switch (combine.kind()) {
+    case OutputFrameStateCombine::kPushOutput: {
+      DCHECK(combine.GetPushCount() <= instr->OutputCount());
+      size_t size_without_output =
+          descriptor->GetSize(OutputFrameStateCombine::Ignore());
+      // If the index is past the existing stack items, return the output.
+      if (index >= size_without_output) {
+        return instr->OutputAt(index - size_without_output);
+      }
+      break;
+    }
+    case OutputFrameStateCombine::kPokeAt:
+      size_t index_from_top =
+          descriptor->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
+      if (index >= index_from_top &&
+          index < index_from_top + instr->OutputCount()) {
+        return instr->OutputAt(index - index_from_top);
+      }
+      break;
+  }
+  return instr->InputAt(frame_state_offset + index);
+}
+
 
 void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     FrameStateDescriptor* descriptor, Instruction* instr,
@@ -305,7 +332,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
   if (descriptor->outer_state() != NULL) {
     BuildTranslationForFrameStateDescriptor(descriptor->outer_state(), instr,
                                             translation, frame_state_offset,
-                                            kIgnoreOutput);
+                                            OutputFrameStateCombine::Ignore());
   }
 
   int id = Translation::kSelfLiteralId;
@@ -318,7 +345,8 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     case JS_FRAME:
       translation->BeginJSFrame(
           descriptor->bailout_id(), id,
-          static_cast<unsigned int>(descriptor->GetHeight(state_combine)));
+          static_cast<unsigned int>(descriptor->GetSize(state_combine) -
+                                    descriptor->parameters_count()));
       break;
     case ARGUMENTS_ADAPTOR:
       translation->BeginArgumentsAdaptorFrame(
@@ -327,19 +355,10 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
   }
 
   frame_state_offset += descriptor->outer_state()->GetTotalSize();
-  for (size_t i = 0; i < descriptor->size(); i++) {
-    AddTranslationForOperand(
-        translation, instr,
-        instr->InputAt(static_cast<int>(frame_state_offset + i)));
-  }
-
-  switch (state_combine) {
-    case kPushOutput:
-      DCHECK(instr->OutputCount() == 1);
-      AddTranslationForOperand(translation, instr, instr->OutputAt(0));
-      break;
-    case kIgnoreOutput:
-      break;
+  for (size_t i = 0; i < descriptor->GetSize(state_combine); i++) {
+    InstructionOperand* op = OperandForFrameState(
+        descriptor, instr, frame_state_offset, i, state_combine);
+    AddTranslationForOperand(translation, instr, op);
   }
 }
 

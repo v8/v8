@@ -791,6 +791,8 @@ Performance and stability improvements on all platforms.""", commit)
       expectations.append(RL("Y"))  # Sanity check.
     expectations += [
       Cmd("git svn dcommit 2>&1", ""),
+      Cmd("git svn fetch", ""),
+      Cmd("git rebase svn/trunk", ""),
       Cmd("git svn tag 3.22.5 -m \"Tagging version 3.22.5\"", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
@@ -1143,6 +1145,8 @@ LOG=N
       Cmd("git cl presubmit", "Presubmit successfull\n"),
       Cmd("git cl dcommit -f --bypass-hooks", "Closing issue\n",
           cb=VerifySVNCommit),
+      Cmd("git svn fetch", ""),
+      Cmd("git rebase svn/trunk", ""),
       Cmd("git svn tag 3.22.5.1 -m \"Tagging version 3.22.5.1\"", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
@@ -1272,6 +1276,9 @@ LOG=N
       Cmd("git cl presubmit", "Presubmit successfull\n"),
       Cmd("git cl dcommit -f --bypass-hooks", "Closing issue\n",
           cb=VerifySVNCommit),
+      # FIXME(machenbach): This won't work when setting tags on the git repo.
+      Cmd("git svn fetch", ""),
+      Cmd("git rebase origin/candidates", ""),
       Cmd("git svn tag 3.22.5.1 -m \"Tagging version 3.22.5.1\"", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
@@ -1604,6 +1611,8 @@ git-svn-id: svn://svn.chromium.org/chrome/trunk/src@3456 0039-1c4b
       Cmd("git svn find-rev r123", "hash123"),
       Cmd("git log -1 --format=%at hash123", "1"),
       Cmd("git reset --hard hash123", ""),
+      Cmd("git svn fetch", ""),
+      Cmd("git rebase svn/bleeding_edge", ""),
       Cmd("git svn tag 3.4.3 -m \"Tagging version 3.4.3\"", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),

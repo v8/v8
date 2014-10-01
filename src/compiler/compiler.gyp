@@ -27,6 +27,7 @@
         'instruction-selector-unittest.cc',
         'instruction-selector-unittest.h',
         'js-builtin-reducer-unittest.cc',
+        'js-operator-unittest.cc',
         'machine-operator-reducer-unittest.cc',
         'machine-operator-unittest.cc',
         'simplified-operator-reducer-unittest.cc',

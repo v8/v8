@@ -55,8 +55,8 @@ void InstructionSelector::SelectInstructions() {
   // Schedule the selected instructions.
   for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end(); ++i) {
     BasicBlock* block = *i;
-    size_t end = block->code_end_;
-    size_t start = block->code_start_;
+    size_t end = block->code_end();
+    size_t start = block->code_start();
     sequence()->StartBlock(block);
     while (start-- > end) {
       sequence()->AddInstruction(instructions_[start], block);
@@ -141,8 +141,8 @@ Instruction* InstructionSelector::Emit(Instruction* instr) {
 
 
 bool InstructionSelector::IsNextInAssemblyOrder(const BasicBlock* block) const {
-  return block->rpo_number_ == (current_block_->rpo_number_ + 1) &&
-         block->deferred_ == current_block_->deferred_;
+  return block->rpo_number() == (current_block_->rpo_number() + 1) &&
+         block->deferred() == current_block_->deferred();
 }
 
 
@@ -383,8 +383,8 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
 
   // We're done with the block.
   // TODO(bmeurer): We should not mutate the schedule.
-  block->code_end_ = current_block_end;
-  block->code_start_ = static_cast<int>(instructions_.size());
+  block->set_code_start(static_cast<int>(instructions_.size()));
+  block->set_code_end(current_block_end);
 
   current_block_ = NULL;
 }
@@ -402,11 +402,11 @@ static inline void CheckNoPhis(const BasicBlock* block) {
 
 
 void InstructionSelector::VisitControl(BasicBlock* block) {
-  Node* input = block->control_input_;
-  switch (block->control_) {
-    case BasicBlockData::kGoto:
+  Node* input = block->control_input();
+  switch (block->control()) {
+    case BasicBlock::kGoto:
       return VisitGoto(block->SuccessorAt(0));
-    case BasicBlockData::kBranch: {
+    case BasicBlock::kBranch: {
       DCHECK_EQ(IrOpcode::kBranch, input->opcode());
       BasicBlock* tbranch = block->SuccessorAt(0);
       BasicBlock* fbranch = block->SuccessorAt(1);
@@ -417,16 +417,16 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       if (tbranch == fbranch) return VisitGoto(tbranch);
       return VisitBranch(input, tbranch, fbranch);
     }
-    case BasicBlockData::kReturn: {
+    case BasicBlock::kReturn: {
       // If the result itself is a return, return its input.
       Node* value = (input != NULL && input->opcode() == IrOpcode::kReturn)
                         ? input->InputAt(0)
                         : input;
       return VisitReturn(value);
     }
-    case BasicBlockData::kThrow:
+    case BasicBlock::kThrow:
       return VisitThrow(input);
-    case BasicBlockData::kNone: {
+    case BasicBlock::kNone: {
       // TODO(titzer): exit block doesn't have control.
       DCHECK(input == NULL);
       break;

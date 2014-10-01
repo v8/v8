@@ -6,6 +6,7 @@
 #define V8_RUNTIME_H_
 
 #include "src/allocation.h"
+#include "src/objects.h"
 #include "src/zone.h"
 
 namespace v8 {
@@ -79,8 +80,10 @@ namespace internal {
   F(DebugPushPromise, 1, 1)                                \
   F(DebugPopPromise, 0, 1)                                 \
   F(DebugPromiseEvent, 1, 1)                               \
-  F(DebugPromiseRejectEvent, 2, 1)                         \
   F(DebugAsyncTaskEvent, 1, 1)                             \
+  F(PromiseRejectEvent, 3, 1)                              \
+  F(PromiseRevokeReject, 1, 1)                             \
+  F(PromiseHasHandlerSymbol, 0, 1)                         \
   F(FlattenString, 1, 1)                                   \
   F(LoadMutableDouble, 2, 1)                               \
   F(TryMigrateInstance, 1, 1)                              \

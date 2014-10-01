@@ -215,7 +215,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   // ShortPrint is available in release mode. Print is not.
   os << Brief(args[0]);
 #endif
-  os << endl;
+  os << std::endl;
 
   return args[0];  // return TOS
 }
@@ -292,6 +292,108 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
 }
 
 
+// Returns V8 version as a string.
+RUNTIME_FUNCTION(Runtime_GetV8Version) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+
+  const char* version_string = v8::V8::GetVersion();
+
+  return *isolate->factory()->NewStringFromAsciiChecked(version_string);
+}
+
+
+static int StackSize(Isolate* isolate) {
+  int n = 0;
+  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) n++;
+  return n;
+}
+
+
+static void PrintTransition(Isolate* isolate, Object* result) {
+  // indentation
+  {
+    const int nmax = 80;
+    int n = StackSize(isolate);
+    if (n <= nmax)
+      PrintF("%4d:%*s", n, n, "");
+    else
+      PrintF("%4d:%*s", n, nmax, "...");
+  }
+
+  if (result == NULL) {
+    JavaScriptFrame::PrintTop(isolate, stdout, true, false);
+    PrintF(" {\n");
+  } else {
+    // function result
+    PrintF("} -> ");
+    result->ShortPrint();
+    PrintF("\n");
+  }
+}
+
+
+RUNTIME_FUNCTION(Runtime_TraceEnter) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  PrintTransition(isolate, NULL);
+  return isolate->heap()->undefined_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_TraceExit) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
+  PrintTransition(isolate, obj);
+  return obj;  // return TOS
+}
+
+
+#ifdef DEBUG
+// ListNatives is ONLY used by the fuzz-natives.js in debug mode
+// Exclude the code in release mode.
+RUNTIME_FUNCTION(Runtime_ListNatives) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+#define COUNT_ENTRY(Name, argc, ressize) +1
+  int entry_count =
+      0 RUNTIME_FUNCTION_LIST(COUNT_ENTRY) INLINE_FUNCTION_LIST(COUNT_ENTRY)
+      INLINE_OPTIMIZED_FUNCTION_LIST(COUNT_ENTRY);
+#undef COUNT_ENTRY
+  Factory* factory = isolate->factory();
+  Handle<FixedArray> elements = factory->NewFixedArray(entry_count);
+  int index = 0;
+  bool inline_runtime_functions = false;
+#define ADD_ENTRY(Name, argc, ressize)                                      \
+  {                                                                         \
+    HandleScope inner(isolate);                                             \
+    Handle<String> name;                                                    \
+    /* Inline runtime functions have an underscore in front of the name. */ \
+    if (inline_runtime_functions) {                                         \
+      name = factory->NewStringFromStaticChars("_" #Name);                  \
+    } else {                                                                \
+      name = factory->NewStringFromStaticChars(#Name);                      \
+    }                                                                       \
+    Handle<FixedArray> pair_elements = factory->NewFixedArray(2);           \
+    pair_elements->set(0, *name);                                           \
+    pair_elements->set(1, Smi::FromInt(argc));                              \
+    Handle<JSArray> pair = factory->NewJSArrayWithElements(pair_elements);  \
+    elements->set(index++, *pair);                                          \
+  }
+  inline_runtime_functions = false;
+  RUNTIME_FUNCTION_LIST(ADD_ENTRY)
+  INLINE_OPTIMIZED_FUNCTION_LIST(ADD_ENTRY)
+  inline_runtime_functions = true;
+  INLINE_FUNCTION_LIST(ADD_ENTRY)
+#undef ADD_ENTRY
+  DCHECK_EQ(index, entry_count);
+  Handle<JSArray> result = factory->NewJSArrayWithElements(elements);
+  return *result;
+}
+#endif
+
+
 RUNTIME_FUNCTION(Runtime_HaveSameMap) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
@@ -319,5 +421,27 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalArrayElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastProperties)
 
 #undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
+
+
+#define TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype, size) \
+  RUNTIME_FUNCTION(Runtime_HasExternal##Type##Elements) {                  \
+    CONVERT_ARG_CHECKED(JSObject, obj, 0);                                 \
+    return isolate->heap()->ToBoolean(obj->HasExternal##Type##Elements()); \
+  }
+
+TYPED_ARRAYS(TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
+
+#undef TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
+
+
+#define FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype, s) \
+  RUNTIME_FUNCTION(Runtime_HasFixed##Type##Elements) {                        \
+    CONVERT_ARG_CHECKED(JSObject, obj, 0);                                    \
+    return isolate->heap()->ToBoolean(obj->HasFixed##Type##Elements());       \
+  }
+
+TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
+
+#undef FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION
 }
 }  // namespace v8::internal

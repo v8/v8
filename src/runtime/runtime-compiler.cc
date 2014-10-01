@@ -9,12 +9,10 @@
 #include "src/deoptimizer.h"
 #include "src/frames.h"
 #include "src/full-codegen.h"
-#include "src/isolate.h"
 #include "src/isolate-inl.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/v8threads.h"
-#include "src/vm-state.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {

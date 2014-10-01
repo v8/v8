@@ -189,6 +189,8 @@ namespace internal {
   V(Symbol, detailed_stack_trace_symbol, DetailedStackTraceSymbol)             \
   V(Symbol, normal_ic_symbol, NormalICSymbol)                                  \
   V(Symbol, home_object_symbol, HomeObjectSymbol)                              \
+  V(Symbol, promise_debug_marker_symbol, PromiseDebugMarkerSymbol)             \
+  V(Symbol, promise_has_handler_symbol, PromiseHasHandlerSymbol)               \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, allocation_sites_scratchpad, AllocationSitesScratchpad)        \
   V(FixedArray, microtask_queue, MicrotaskQueue)

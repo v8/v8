@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/generic-node-inl.h"
 #include "src/compiler/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 
@@ -54,6 +55,15 @@ class X64OperandGenerator FINAL : public OperandGenerator {
 };
 
 
+// Get the AddressingMode of scale factor N from the AddressingMode of scale
+// factor 1.
+static AddressingMode AdjustAddressingMode(AddressingMode base_mode,
+                                           int power) {
+  DCHECK(0 <= power && power < 4);
+  return static_cast<AddressingMode>(static_cast<int>(base_mode) + power);
+}
+
+
 class AddressingModeMatcher {
  public:
   AddressingModeMatcher(X64OperandGenerator* g, Node* base, Node* index)
@@ -98,13 +108,9 @@ class AddressingModeMatcher {
         }
       }
       // Adjust mode to actual scale factor.
-      mode_ = GetMode(mode_, matcher.power());
+      mode_ = AdjustAddressingMode(mode_, matcher.power());
     }
     DCHECK_NE(kMode_None, mode_);
-  }
-
-  AddressingMode GetMode(AddressingMode one, int power) {
-    return static_cast<AddressingMode>(static_cast<int>(one) + power);
   }
 
   size_t SetInputs(InstructionOperand** inputs) {
@@ -463,18 +469,48 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
 static void VisitMul(InstructionSelector* selector, Node* node,
                      ArchOpcode opcode) {
   X64OperandGenerator g(selector);
-  Int32BinopMatcher m(node);
-  Node* left = m.left().node();
-  Node* right = m.right().node();
-  if (g.CanBeImmediate(right)) {
-    selector->Emit(opcode, g.DefineAsRegister(node), g.Use(left),
-                   g.UseImmediate(right));
-  } else {
-    if (g.CanBeBetterLeftOperand(right)) {
-      std::swap(left, right);
+  LeaMultiplyMatcher lea(node);
+  // Try to match lea.
+  if (lea.Matches()) {
+    switch (opcode) {
+      case kX64Imul32:
+        opcode = kX64Lea32;
+        break;
+      case kX64Imul:
+        opcode = kX64Lea;
+        break;
+      default:
+        UNREACHABLE();
     }
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
-                   g.Use(right));
+    AddressingMode mode;
+    size_t input_count;
+    InstructionOperand* left = g.UseRegister(lea.Left());
+    InstructionOperand* inputs[] = {left, left};
+    if (lea.Displacement() != 0) {
+      input_count = 2;
+      mode = kMode_MR1;
+    } else {
+      input_count = 1;
+      mode = kMode_M1;
+    }
+    mode = AdjustAddressingMode(mode, lea.Power());
+    InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
+    selector->Emit(opcode | AddressingModeField::encode(mode), 1, outputs,
+                   input_count, inputs);
+  } else {
+    Int32BinopMatcher m(node);
+    Node* left = m.left().node();
+    Node* right = m.right().node();
+    if (g.CanBeImmediate(right)) {
+      selector->Emit(opcode, g.DefineAsRegister(node), g.Use(left),
+                     g.UseImmediate(right));
+    } else {
+      if (g.CanBeBetterLeftOperand(right)) {
+        std::swap(left, right);
+      }
+      selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
+                     g.Use(right));
+    }
   }
 }
 
@@ -564,9 +600,7 @@ void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   X64OperandGenerator g(this);
-  // TODO(turbofan): X64 SSE cvtqsi2sd should support operands.
-  Emit(kSSEUint32ToFloat64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  Emit(kSSEUint32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 

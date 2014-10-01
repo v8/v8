@@ -454,6 +454,10 @@ class Debug {
   // Record function from which eval was called.
   static void RecordEvalCaller(Handle<Script> script);
 
+  bool CheckExecutionState(int id) {
+    return !debug_context().is_null() && break_id() != 0 && break_id() == id;
+  }
+
   // Flags and states.
   DebugScope* debugger_entry() { return thread_local_.current_debug_scope_; }
   inline Handle<Context> debug_context() { return debug_context_; }
@@ -529,8 +533,8 @@ class Debug {
   // Mirror cache handling.
   void ClearMirrorCache();
 
-  // Returns a promise if the pushed try-catch handler matches the current one.
-  bool PromiseHasRejectHandler(Handle<JSObject> promise);
+  MaybeHandle<Object> PromiseHasUserDefinedRejectHandler(
+      Handle<JSObject> promise);
 
   void CallEventCallback(v8::DebugEvent event,
                          Handle<Object> exec_state,

@@ -978,6 +978,8 @@ bool Isolate::ShouldReportException(bool* can_be_caught_externally,
 }
 
 
+// Traverse prototype chain to find out whether the object is derived from
+// the Error object.
 bool Isolate::IsErrorObject(Handle<Object> obj) {
   if (!obj->IsJSObject()) return false;
 
@@ -1000,6 +1002,96 @@ bool Isolate::IsErrorObject(Handle<Object> obj) {
 
 static int fatal_exception_depth = 0;
 
+
+Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
+                                               MessageLocation* location) {
+  Handle<JSArray> stack_trace_object;
+  if (capture_stack_trace_for_uncaught_exceptions_) {
+    if (IsErrorObject(exception)) {
+      // We fetch the stack trace that corresponds to this error object.
+      Handle<Name> key = factory()->detailed_stack_trace_symbol();
+      // Look up as own property.  If the lookup fails, the exception is
+      // probably not a valid Error object.  In that case, we fall through
+      // and capture the stack trace at this throw site.
+      LookupIterator lookup(exception, key,
+                            LookupIterator::OWN_SKIP_INTERCEPTOR);
+      Handle<Object> stack_trace_property;
+      if (Object::GetProperty(&lookup).ToHandle(&stack_trace_property) &&
+          stack_trace_property->IsJSArray()) {
+        stack_trace_object = Handle<JSArray>::cast(stack_trace_property);
+      }
+    }
+    if (stack_trace_object.is_null()) {
+      // Not an error object, we capture at throw site.
+      stack_trace_object = CaptureCurrentStackTrace(
+          stack_trace_for_uncaught_exceptions_frame_limit_,
+          stack_trace_for_uncaught_exceptions_options_);
+    }
+  }
+
+  // If the exception argument is a custom object, turn it into a string
+  // before throwing as uncaught exception.  Note that the pending
+  // exception object to be set later must not be turned into a string.
+  if (exception->IsJSObject() && !IsErrorObject(exception)) {
+    MaybeHandle<Object> maybe_exception =
+        Execution::ToDetailString(this, exception);
+    if (!maybe_exception.ToHandle(&exception)) {
+      exception =
+          factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("exception"));
+    }
+  }
+  return MessageHandler::MakeMessageObject(this, "uncaught_exception", location,
+                                           HandleVector<Object>(&exception, 1),
+                                           stack_trace_object);
+}
+
+
+void ReportBootstrappingException(Handle<Object> exception,
+                                  MessageLocation* location) {
+  base::OS::PrintError("Exception thrown during bootstrapping\n");
+  if (location == NULL || location->script().is_null()) return;
+  // We are bootstrapping and caught an error where the location is set
+  // and we have a script for the location.
+  // In this case we could have an extension (or an internal error
+  // somewhere) and we print out the line number at which the error occured
+  // to the console for easier debugging.
+  int line_number =
+      location->script()->GetLineNumber(location->start_pos()) + 1;
+  if (exception->IsString() && location->script()->name()->IsString()) {
+    base::OS::PrintError(
+        "Extension or internal compilation error: %s in %s at line %d.\n",
+        String::cast(*exception)->ToCString().get(),
+        String::cast(location->script()->name())->ToCString().get(),
+        line_number);
+  } else if (location->script()->name()->IsString()) {
+    base::OS::PrintError(
+        "Extension or internal compilation error in %s at line %d.\n",
+        String::cast(location->script()->name())->ToCString().get(),
+        line_number);
+  } else {
+    base::OS::PrintError("Extension or internal compilation error.\n");
+  }
+#ifdef OBJECT_PRINT
+  // Since comments and empty lines have been stripped from the source of
+  // builtins, print the actual source here so that line numbers match.
+  if (location->script()->source()->IsString()) {
+    Handle<String> src(String::cast(location->script()->source()));
+    PrintF("Failing script:\n");
+    int len = src->length();
+    int line_number = 1;
+    PrintF("%5d: ", line_number);
+    for (int i = 0; i < len; i++) {
+      uint16_t character = src->Get(i);
+      PrintF("%c", character);
+      if (character == '\n' && i < len - 2) {
+        PrintF("%5d: ", ++line_number);
+      }
+    }
+  }
+#endif
+}
+
+
 void Isolate::DoThrow(Object* exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
 
@@ -1014,7 +1106,6 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
   bool report_exception = catchable_by_javascript && should_report_exception;
   bool try_catch_needs_message =
       can_be_caught_externally && try_catch_handler()->capture_message_;
-  bool bootstrapping = bootstrapper()->IsActive();
   bool rethrowing_message = thread_local_top()->rethrowing_message_;
 
   thread_local_top()->rethrowing_message_ = false;
@@ -1032,52 +1123,15 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       ComputeLocation(&potential_computed_location);
       location = &potential_computed_location;
     }
-    // It's not safe to try to make message objects or collect stack traces
-    // while the bootstrapper is active since the infrastructure may not have
-    // been properly initialized.
-    if (!bootstrapping) {
-      Handle<JSArray> stack_trace_object;
-      if (capture_stack_trace_for_uncaught_exceptions_) {
-        if (IsErrorObject(exception_handle)) {
-          // We fetch the stack trace that corresponds to this error object.
-          Handle<Name> key = factory()->detailed_stack_trace_symbol();
-          // Look up as own property.  If the lookup fails, the exception is
-          // probably not a valid Error object.  In that case, we fall through
-          // and capture the stack trace at this throw site.
-          LookupIterator lookup(exception_handle, key,
-                                LookupIterator::OWN_SKIP_INTERCEPTOR);
-          Handle<Object> stack_trace_property;
-          if (Object::GetProperty(&lookup).ToHandle(&stack_trace_property) &&
-              stack_trace_property->IsJSArray()) {
-            stack_trace_object = Handle<JSArray>::cast(stack_trace_property);
-          }
-        }
-        if (stack_trace_object.is_null()) {
-          // Not an error object, we capture at throw site.
-          stack_trace_object = CaptureCurrentStackTrace(
-              stack_trace_for_uncaught_exceptions_frame_limit_,
-              stack_trace_for_uncaught_exceptions_options_);
-        }
-      }
 
-      Handle<Object> exception_arg = exception_handle;
-      // If the exception argument is a custom object, turn it into a string
-      // before throwing as uncaught exception.  Note that the pending
-      // exception object to be set later must not be turned into a string.
-      if (exception_arg->IsJSObject() && !IsErrorObject(exception_arg)) {
-        MaybeHandle<Object> maybe_exception =
-            Execution::ToDetailString(this, exception_arg);
-        if (!maybe_exception.ToHandle(&exception_arg)) {
-          exception_arg = factory()->InternalizeOneByteString(
-              STATIC_CHAR_VECTOR("exception"));
-        }
-      }
-      Handle<Object> message_obj = MessageHandler::MakeMessageObject(
-          this,
-          "uncaught_exception",
-          location,
-          HandleVector<Object>(&exception_arg, 1),
-          stack_trace_object);
+    if (bootstrapper()->IsActive()) {
+      // It's not safe to try to make message objects or collect stack traces
+      // while the bootstrapper is active since the infrastructure may not have
+      // been properly initialized.
+      ReportBootstrappingException(exception_handle, location);
+    } else {
+      Handle<Object> message_obj = CreateMessage(exception_handle, location);
+
       thread_local_top()->pending_message_obj_ = *message_obj;
       if (location != NULL) {
         thread_local_top()->pending_message_script_ = *location->script();
@@ -1089,56 +1143,14 @@ void Isolate::DoThrow(Object* exception, MessageLocation* location) {
       // exception not caught by JavaScript, even when an external handler is
       // present.  This flag is intended for use by JavaScript developers, so
       // print a user-friendly stack trace (not an internal one).
-      if (fatal_exception_depth == 0 &&
-          FLAG_abort_on_uncaught_exception &&
+      if (fatal_exception_depth == 0 && FLAG_abort_on_uncaught_exception &&
           (report_exception || can_be_caught_externally)) {
         fatal_exception_depth++;
-        PrintF(stderr,
-               "%s\n\nFROM\n",
+        PrintF(stderr, "%s\n\nFROM\n",
                MessageHandler::GetLocalizedMessage(this, message_obj).get());
         PrintCurrentStackTrace(stderr);
         base::OS::Abort();
       }
-    } else if (location != NULL && !location->script().is_null()) {
-      // We are bootstrapping and caught an error where the location is set
-      // and we have a script for the location.
-      // In this case we could have an extension (or an internal error
-      // somewhere) and we print out the line number at which the error occured
-      // to the console for easier debugging.
-      int line_number =
-          location->script()->GetLineNumber(location->start_pos()) + 1;
-      if (exception->IsString() && location->script()->name()->IsString()) {
-        base::OS::PrintError(
-            "Extension or internal compilation error: %s in %s at line %d.\n",
-            String::cast(exception)->ToCString().get(),
-            String::cast(location->script()->name())->ToCString().get(),
-            line_number);
-      } else if (location->script()->name()->IsString()) {
-        base::OS::PrintError(
-            "Extension or internal compilation error in %s at line %d.\n",
-            String::cast(location->script()->name())->ToCString().get(),
-            line_number);
-      } else {
-        base::OS::PrintError("Extension or internal compilation error.\n");
-      }
-#ifdef OBJECT_PRINT
-      // Since comments and empty lines have been stripped from the source of
-      // builtins, print the actual source here so that line numbers match.
-      if (location->script()->source()->IsString()) {
-        Handle<String> src(String::cast(location->script()->source()));
-        PrintF("Failing script:\n");
-        int len = src->length();
-        int line_number = 1;
-        PrintF("%5d: ", line_number);
-        for (int i = 0; i < len; i++) {
-          uint16_t character = src->Get(i);
-          PrintF("%c", character);
-          if (character == '\n' && i < len - 2) {
-            PrintF("%5d: ", ++line_number);
-          }
-        }
-      }
-#endif
     }
   }
 
@@ -1314,8 +1326,6 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   StackHandler* handler = StackHandler::FromAddress(Isolate::handler(tltop));
   do {
     if (handler == promise_try) {
-      // Mark the pushed try-catch handler to prevent a later duplicate event
-      // triggered with the following reject.
       return tltop->promise_on_stack_->promise();
     }
     handler = handler->next();
@@ -2275,6 +2285,20 @@ void Isolate::FireCallCompletedCallback() {
   for (int i = 0; i < call_completed_callbacks_.length(); i++) {
     call_completed_callbacks_.at(i)();
   }
+}
+
+
+void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
+  promise_reject_callback_ = callback;
+}
+
+
+void Isolate::ReportPromiseReject(Handle<JSObject> promise,
+                                  Handle<Object> value,
+                                  v8::PromiseRejectEvent event) {
+  if (promise_reject_callback_ == NULL) return;
+  promise_reject_callback_(v8::Utils::PromiseToLocal(promise),
+                           v8::Utils::ToLocal(value), event);
 }
 
 

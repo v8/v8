@@ -3969,3 +3969,121 @@ TEST(ClassesAreStrictErrors) {
   RunParserSyncTest(context_data, class_body_data, kError, NULL, 0,
                     always_flags, arraysize(always_flags));
 }
+
+
+TEST(ObjectLiteralPropertyShorthandKeywordsError) {
+  const char* context_data[][2] = {{"({", "});"},
+                                   {"'use strict'; ({", "});"},
+                                   {NULL, NULL}};
+
+  const char* name_data[] = {
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "export",
+    "extends",
+    "false",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "import",
+    "in",
+    "instanceof",
+    "new",
+    "null",
+    "return",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "true",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+  RunParserSyncTest(context_data, name_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ObjectLiteralPropertyShorthandStrictKeywords) {
+  const char* context_data[][2] = {{"({", "});"},
+                                   {NULL, NULL}};
+
+  const char* name_data[] = {
+    "implements",
+    "interface",
+    "let",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "static",
+    "yield",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+  RunParserSyncTest(context_data, name_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
+
+  const char* context_strict_data[][2] = {{"'use strict'; ({", "});"},
+                                          {NULL, NULL}};
+  RunParserSyncTest(context_strict_data, name_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ObjectLiteralPropertyShorthandError) {
+  const char* context_data[][2] = {{"({", "});"},
+                                   {"'use strict'; ({", "});"},
+                                   {NULL, NULL}};
+
+  const char* name_data[] = {
+    "1",
+    "1.2",
+    "0",
+    "0.1",
+    "1.0",
+    "1e1",
+    "0x1",
+    "\"s\"",
+    "'s'",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+  RunParserSyncTest(context_data, name_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}
+
+
+TEST(ObjectLiteralPropertyShorthandYieldInGeneratorError) {
+  const char* context_data[][2] = {{"", ""},
+                                   {NULL, NULL}};
+
+  const char* name_data[] = {
+    "function* g() { ({yield}); }",
+    NULL
+  };
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyObjectLiterals};
+  RunParserSyncTest(context_data, name_data, kError, NULL, 0,
+                    always_flags, arraysize(always_flags));
+}

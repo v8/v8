@@ -13,7 +13,6 @@ namespace internal {
 
 // Forward declarations.
 class ExternalReference;
-class OStream;
 
 
 namespace compiler {
@@ -26,9 +25,29 @@ class Operator;
 
 // Flag that describes how to combine the current environment with
 // the output of a node to obtain a framestate for lazy bailout.
-enum OutputFrameStateCombine {
-  kPushOutput,   // Push the output on the expression stack.
-  kIgnoreOutput  // Use the frame state as-is.
+class OutputFrameStateCombine {
+ public:
+  enum CombineKind {
+    kPushOutput,  // Push the output on the expression stack.
+    kPokeAt       // Poke at the given environment location,
+                  // counting from the top of the stack.
+  };
+
+  static OutputFrameStateCombine Ignore();
+  static OutputFrameStateCombine Push(size_t count = 1);
+  static OutputFrameStateCombine PokeAt(size_t index);
+
+  CombineKind kind();
+  size_t GetPushCount();
+  size_t GetOffsetToPokeAt();
+
+  bool IsOutputIgnored();
+
+ private:
+  OutputFrameStateCombine(CombineKind kind, size_t parameter);
+
+  CombineKind kind_;
+  size_t parameter_;
 };
 
 

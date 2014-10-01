@@ -11,14 +11,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// TODO(bmeurer): Drop once we use std::ostream instead of our OStream.
-inline std::ostream& operator<<(std::ostream& os, const ElementAccess& access) {
-  OStringStream ost;
-  ost << access;
-  return os << ost.c_str();
-}
-
-
 // -----------------------------------------------------------------------------
 // Pure operators.
 

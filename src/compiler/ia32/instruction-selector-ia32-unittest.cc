@@ -134,6 +134,18 @@ TEST_F(InstructionSelectorTest, BetterLeftOperandTestMulBinop) {
 
 
 // -----------------------------------------------------------------------------
+// Conversions.
+
+TEST_F(InstructionSelectorTest, ChangeUint32ToFloat64WithParameter) {
+  StreamBuilder m(this, kMachFloat64, kMachUint32);
+  m.Return(m.ChangeUint32ToFloat64(m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kSSEUint32ToFloat64, s[0]->arch_opcode());
+}
+
+
+// -----------------------------------------------------------------------------
 // Loads and stores
 
 namespace {
@@ -146,9 +158,7 @@ struct MemoryAccess {
 
 
 std::ostream& operator<<(std::ostream& os, const MemoryAccess& memacc) {
-  OStringStream ost;
-  ost << memacc.type;
-  return os << ost.c_str();
+  return os << memacc.type;
 }
 
 
@@ -378,12 +388,12 @@ TEST_F(AddressingModeUnitTest, AddressingMode_MRNI) {
 TEST_F(AddressingModeUnitTest, AddressingMode_M1) {
   Node* base = null_ptr;
   Node* index = index_reg;
-  Run(base, index, kMode_MR);
+  Run(base, index, kMode_M1);
 }
 
 
 TEST_F(AddressingModeUnitTest, AddressingMode_MN) {
-  AddressingMode expected[] = {kMode_MR, kMode_M2, kMode_M4, kMode_M8};
+  AddressingMode expected[] = {kMode_M1, kMode_M2, kMode_M4, kMode_M8};
   for (size_t i = 0; i < arraysize(scales); ++i) {
     Reset();
     Node* base = null_ptr;
@@ -396,12 +406,12 @@ TEST_F(AddressingModeUnitTest, AddressingMode_MN) {
 TEST_F(AddressingModeUnitTest, AddressingMode_M1I) {
   Node* base = null_ptr;
   Node* index = m->Int32Add(index_reg, non_zero);
-  Run(base, index, kMode_MRI);
+  Run(base, index, kMode_M1I);
 }
 
 
 TEST_F(AddressingModeUnitTest, AddressingMode_MNI) {
-  AddressingMode expected[] = {kMode_MRI, kMode_M2I, kMode_M4I, kMode_M8I};
+  AddressingMode expected[] = {kMode_M1I, kMode_M2I, kMode_M4I, kMode_M8I};
   for (size_t i = 0; i < arraysize(scales); ++i) {
     Reset();
     Node* base = null_ptr;
@@ -423,6 +433,86 @@ TEST_F(AddressingModeUnitTest, AddressingMode_MI) {
     }
   }
 }
+
+
+// -----------------------------------------------------------------------------
+// Multiplication.
+
+namespace {
+
+struct MultParam {
+  int value;
+  bool lea_expected;
+  AddressingMode addressing_mode;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const MultParam& m) {
+  return os << m.value << "." << m.lea_expected << "." << m.addressing_mode;
+}
+
+
+const MultParam kMultParams[] = {{-1, false, kMode_None},
+                                 {0, false, kMode_None},
+                                 {1, true, kMode_M1},
+                                 {2, true, kMode_M2},
+                                 {3, true, kMode_MR2},
+                                 {4, true, kMode_M4},
+                                 {5, true, kMode_MR4},
+                                 {6, false, kMode_None},
+                                 {7, false, kMode_None},
+                                 {8, true, kMode_M8},
+                                 {9, true, kMode_MR8},
+                                 {10, false, kMode_None},
+                                 {11, false, kMode_None}};
+
+}  // namespace
+
+
+typedef InstructionSelectorTestWithParam<MultParam> InstructionSelectorMultTest;
+
+
+static unsigned InputCountForLea(AddressingMode mode) {
+  switch (mode) {
+    case kMode_MR1:
+    case kMode_MR2:
+    case kMode_MR4:
+    case kMode_MR8:
+      return 2U;
+    case kMode_M1:
+    case kMode_M2:
+    case kMode_M4:
+    case kMode_M8:
+      return 1U;
+    default:
+      UNREACHABLE();
+      return 0U;
+  }
+}
+
+
+TEST_P(InstructionSelectorMultTest, Mult32) {
+  const MultParam m_param = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachInt32);
+  Node* param = m.Parameter(0);
+  Node* mult = m.Int32Mul(param, m.Int32Constant(m_param.value));
+  m.Return(mult);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(m_param.addressing_mode, s[0]->addressing_mode());
+  if (m_param.lea_expected) {
+    EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
+    ASSERT_EQ(InputCountForLea(s[0]->addressing_mode()), s[0]->InputCount());
+  } else {
+    EXPECT_EQ(kIA32Imul, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+  }
+  EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(0)));
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorMultTest,
+                        ::testing::ValuesIn(kMultParams));
 
 }  // namespace compiler
 }  // namespace internal

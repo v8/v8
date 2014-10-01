@@ -385,6 +385,7 @@ typedef List<HeapObject*> DebugObjectCache;
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                            \
   V(InterruptCallback, api_interrupt_callback, NULL)                           \
   V(void*, api_interrupt_callback_data, NULL)                                  \
+  V(PromiseRejectCallback, promise_reject_callback, NULL)                      \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
@@ -1102,6 +1103,10 @@ class Isolate {
   void RemoveCallCompletedCallback(CallCompletedCallback callback);
   void FireCallCompletedCallback();
 
+  void SetPromiseRejectCallback(PromiseRejectCallback callback);
+  void ReportPromiseReject(Handle<JSObject> promise, Handle<Object> value,
+                           v8::PromiseRejectEvent event);
+
   void EnqueueMicrotask(Handle<Object> microtask);
   void RunMicrotasks();
 
@@ -1215,6 +1220,9 @@ class Isolate {
   // If there is no external try-catch or message was successfully propagated,
   // then return true.
   bool PropagatePendingExceptionToExternalTryCatch();
+
+  Handle<JSMessageObject> CreateMessage(Handle<Object> exception,
+                                        MessageLocation* location);
 
   // Traverse prototype chain to find out whether the object is derived from
   // the Error object.

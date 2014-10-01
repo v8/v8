@@ -24,7 +24,9 @@ class ControlOperator : public Operator1<int> {
       : Operator1<int>(opcode, properties, inputs, outputs, mnemonic,
                        controls) {}
 
-  virtual OStream& PrintParameter(OStream& os) const FINAL { return os; }
+  virtual std::ostream& PrintParameter(std::ostream& os) const FINAL {
+    return os;
+  }
 };
 
 }  // namespace
@@ -33,8 +35,8 @@ class ControlOperator : public Operator1<int> {
 // Specialization for static parameters of type {ExternalReference}.
 template <>
 struct StaticParameterTraits<ExternalReference> {
-  static OStream& PrintTo(OStream& os, ExternalReference reference) {
-    os << reference.address();
+  static std::ostream& PrintTo(std::ostream& os, ExternalReference reference) {
+    os << static_cast<const void*>(reference.address());
     // TODO(bmeurer): Move to operator<<(os, ExternalReference)
     const Runtime::Function* function =
         Runtime::FunctionForEntry(reference.address());
@@ -234,7 +236,7 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
               static_cast<int>(descriptor->ReturnCount()), mnemonic,
               descriptor) {}
 
-    virtual OStream& PrintParameter(OStream& os) const OVERRIDE {
+    virtual std::ostream& PrintParameter(std::ostream& os) const OVERRIDE {
       return os << "[" << *parameter() << "]";
     }
   };
@@ -245,6 +247,50 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
 const Operator* CommonOperatorBuilder::Projection(size_t index) {
   return new (zone()) Operator1<size_t>(IrOpcode::kProjection, Operator::kPure,
                                         1, 1, "Projection", index);
+}
+
+
+OutputFrameStateCombine::OutputFrameStateCombine(CombineKind kind,
+                                                 size_t parameter)
+    : kind_(kind), parameter_(parameter) {}
+
+// static
+OutputFrameStateCombine OutputFrameStateCombine::Ignore() {
+  return OutputFrameStateCombine(kPushOutput, 0);
+}
+
+
+// static
+OutputFrameStateCombine OutputFrameStateCombine::Push(size_t count) {
+  return OutputFrameStateCombine(kPushOutput, count);
+}
+
+
+// static
+OutputFrameStateCombine OutputFrameStateCombine::PokeAt(size_t index) {
+  return OutputFrameStateCombine(kPokeAt, index);
+}
+
+
+OutputFrameStateCombine::CombineKind OutputFrameStateCombine::kind() {
+  return kind_;
+}
+
+
+size_t OutputFrameStateCombine::GetPushCount() {
+  DCHECK(kind() == kPushOutput);
+  return parameter_;
+}
+
+
+size_t OutputFrameStateCombine::GetOffsetToPokeAt() {
+  DCHECK(kind() == kPokeAt);
+  return parameter_;
+}
+
+
+bool OutputFrameStateCombine::IsOutputIgnored() {
+  return kind() == kPushOutput && GetPushCount() == 0;
 }
 
 }  // namespace compiler

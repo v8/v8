@@ -383,6 +383,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
                                          : jsgraph()->TrueConstant());
     }
   }
+  /* TODO(neis): This is currently unsound.
   if (!r.left_type()->Maybe(r.right_type())) {
     // Type intersection is empty; === is always false unless both
     // inputs could be strings (one internalized and one not).
@@ -391,6 +392,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
                                          : jsgraph()->FalseConstant());
     }
   }
+  */
   if (r.OneInputIs(Type::Undefined())) {
     return r.ChangeToPureOperator(
         simplified()->ReferenceEqual(Type::Undefined()), invert);
@@ -630,6 +632,15 @@ static Reduction ReplaceWithReduction(Node* node, Reduction reduction) {
 
 
 Reduction JSTypedLowering::Reduce(Node* node) {
+  // Check if the output type is a singleton.  In that case we already know the
+  // result value and can simply replace the node unless there are effects.
+  if (node->bounds().upper->IsConstant() &&
+      !IrOpcode::IsLeafOpcode(node->opcode()) &&
+      !OperatorProperties::HasEffectOutput(node->op())) {
+    return ReplaceEagerly(node, jsgraph()->Constant(
+        node->bounds().upper->AsConstant()->Value()));
+    // TODO(neis): Extend this to Range(x,x), NaN, MinusZero, ...?
+  }
   switch (node->opcode()) {
     case IrOpcode::kJSEqual:
       return ReduceJSEqual(node, false);

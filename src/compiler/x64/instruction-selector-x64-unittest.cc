@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/instruction-selector-unittest.h"
+#include "src/compiler/node-matchers.h"
 
 namespace v8 {
 namespace internal {
@@ -29,6 +30,15 @@ TEST_F(InstructionSelectorTest, ChangeInt32ToInt64WithParameter) {
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kX64Movsxlq, s[0]->arch_opcode());
+}
+
+
+TEST_F(InstructionSelectorTest, ChangeUint32ToFloat64WithParameter) {
+  StreamBuilder m(this, kMachFloat64, kMachUint32);
+  m.Return(m.ChangeUint32ToFloat64(m.Parameter(0)));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kSSEUint32ToFloat64, s[0]->arch_opcode());
 }
 
 
@@ -107,9 +117,7 @@ struct MemoryAccess {
 
 
 std::ostream& operator<<(std::ostream& os, const MemoryAccess& memacc) {
-  OStringStream ost;
-  ost << memacc.type;
-  return os << ost.c_str();
+  return os << memacc.type;
 }
 
 
@@ -184,7 +192,7 @@ class AddressingModeUnitTest : public InstructionSelectorTest {
   Node* non_zero;
   Node* base_reg;   // opaque value to generate base as register
   Node* index_reg;  // opaque value to generate index as register
-  Node* scales[4];
+  Node* scales[arraysize(ScaleFactorMatcher::kMatchedFactors)];
   StreamBuilder* m;
 
   void Reset() {
@@ -195,11 +203,10 @@ class AddressingModeUnitTest : public InstructionSelectorTest {
     non_zero = m->Int32Constant(127);
     base_reg = m->Parameter(0);
     index_reg = m->Parameter(0);
-
-    scales[0] = m->Int32Constant(1);
-    scales[1] = m->Int32Constant(2);
-    scales[2] = m->Int32Constant(4);
-    scales[3] = m->Int32Constant(8);
+    for (size_t i = 0; i < arraysize(ScaleFactorMatcher::kMatchedFactors);
+         ++i) {
+      scales[i] = m->Int32Constant(ScaleFactorMatcher::kMatchedFactors[i]);
+    }
   }
 };
 
@@ -288,6 +295,108 @@ TEST_F(AddressingModeUnitTest, AddressingMode_MNI) {
     Run(base, index, expected[i]);
   }
 }
+
+
+// -----------------------------------------------------------------------------
+// Multiplication.
+
+namespace {
+
+struct MultParam {
+  int value;
+  bool lea_expected;
+  AddressingMode addressing_mode;
+};
+
+
+std::ostream& operator<<(std::ostream& os, const MultParam& m) {
+  return os << m.value << "." << m.lea_expected << "." << m.addressing_mode;
+}
+
+
+const MultParam kMultParams[] = {{-1, false, kMode_None},
+                                 {0, false, kMode_None},
+                                 {1, true, kMode_M1},
+                                 {2, true, kMode_M2},
+                                 {3, true, kMode_MR2},
+                                 {4, true, kMode_M4},
+                                 {5, true, kMode_MR4},
+                                 {6, false, kMode_None},
+                                 {7, false, kMode_None},
+                                 {8, true, kMode_M8},
+                                 {9, true, kMode_MR8},
+                                 {10, false, kMode_None},
+                                 {11, false, kMode_None}};
+
+}  // namespace
+
+
+typedef InstructionSelectorTestWithParam<MultParam> InstructionSelectorMultTest;
+
+
+static unsigned InputCountForLea(AddressingMode mode) {
+  switch (mode) {
+    case kMode_MR1:
+    case kMode_MR2:
+    case kMode_MR4:
+    case kMode_MR8:
+      return 2U;
+    case kMode_M1:
+    case kMode_M2:
+    case kMode_M4:
+    case kMode_M8:
+      return 1U;
+    default:
+      UNREACHABLE();
+      return 0U;
+  }
+}
+
+
+TEST_P(InstructionSelectorMultTest, Mult32) {
+  const MultParam m_param = GetParam();
+  StreamBuilder m(this, kMachInt32, kMachInt32);
+  Node* param = m.Parameter(0);
+  Node* mult = m.Int32Mul(param, m.Int32Constant(m_param.value));
+  m.Return(mult);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(m_param.addressing_mode, s[0]->addressing_mode());
+  if (m_param.lea_expected) {
+    EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+    ASSERT_EQ(InputCountForLea(s[0]->addressing_mode()), s[0]->InputCount());
+  } else {
+    EXPECT_EQ(kX64Imul32, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+  }
+  EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(0)));
+}
+
+
+TEST_P(InstructionSelectorMultTest, Mult64) {
+  const MultParam m_param = GetParam();
+  StreamBuilder m(this, kMachInt64, kMachInt64);
+  Node* param = m.Parameter(0);
+  Node* mult = m.Int64Mul(param, m.Int64Constant(m_param.value));
+  m.Return(mult);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(m_param.addressing_mode, s[0]->addressing_mode());
+  if (m_param.lea_expected) {
+    EXPECT_EQ(kX64Lea, s[0]->arch_opcode());
+    ASSERT_EQ(InputCountForLea(s[0]->addressing_mode()), s[0]->InputCount());
+    EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(0)));
+  } else {
+    EXPECT_EQ(kX64Imul, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    // TODO(dcarney): why is this happening?
+    EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(1)));
+  }
+}
+
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorMultTest,
+                        ::testing::ValuesIn(kMultParams));
 
 }  // namespace compiler
 }  // namespace internal

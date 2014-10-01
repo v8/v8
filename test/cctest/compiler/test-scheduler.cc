@@ -44,25 +44,25 @@ static TestLoop* CreateLoop(Schedule* schedule, int count) {
 }
 
 
-static void CheckRPONumbers(BasicBlockVector* order, int expected,
+static void CheckRPONumbers(BasicBlockVector* order, size_t expected,
                             bool loops_allowed) {
-  CHECK_EQ(expected, static_cast<int>(order->size()));
+  CHECK(expected == order->size());
   for (int i = 0; i < static_cast<int>(order->size()); i++) {
-    CHECK(order->at(i)->rpo_number_ == i);
-    if (!loops_allowed) CHECK_LT(order->at(i)->loop_end_, 0);
+    CHECK(order->at(i)->rpo_number() == i);
+    if (!loops_allowed) CHECK_LT(order->at(i)->loop_end(), 0);
   }
 }
 
 
 static void CheckLoopContains(BasicBlock** blocks, int body_size) {
   BasicBlock* header = blocks[0];
-  CHECK_GT(header->loop_end_, 0);
-  CHECK_EQ(body_size, (header->loop_end_ - header->rpo_number_));
+  CHECK_GT(header->loop_end(), 0);
+  CHECK_EQ(body_size, (header->loop_end() - header->rpo_number()));
   for (int i = 0; i < body_size; i++) {
-    int num = blocks[i]->rpo_number_;
-    CHECK(num >= header->rpo_number_ && num < header->loop_end_);
+    int num = blocks[i]->rpo_number();
+    CHECK(num >= header->rpo_number() && num < header->loop_end());
     CHECK(header->LoopContains(blocks[i]));
-    CHECK(header->IsLoopHeader() || blocks[i]->loop_header_ == header);
+    CHECK(header->IsLoopHeader() || blocks[i]->loop_header() == header);
   }
 }
 
@@ -76,7 +76,7 @@ static int GetScheduledNodeCount(Schedule* schedule) {
          ++j) {
       ++node_count;
     }
-    BasicBlock::Control control = block->control_;
+    BasicBlock::Control control = block->control();
     if (control != BasicBlock::kNone) {
       ++node_count;
     }
@@ -95,7 +95,7 @@ static Schedule* ComputeAndVerifySchedule(int expected, Graph* graph) {
 
   if (FLAG_trace_turbo_scheduler) {
     OFStream os(stdout);
-    os << *schedule << endl;
+    os << *schedule << std::endl;
   }
   ScheduleVerifier::Run(schedule);
   CHECK_EQ(expected, GetScheduledNodeCount(schedule));
@@ -140,12 +140,10 @@ TEST(RPOLine) {
     BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
     CheckRPONumbers(order, 1 + i, false);
 
-    Schedule::BasicBlocks blocks(schedule.all_blocks());
-    for (Schedule::BasicBlocks::iterator iter = blocks.begin();
-         iter != blocks.end(); ++iter) {
-      BasicBlock* block = *iter;
-      if (block->rpo_number_ >= 0 && block->SuccessorCount() == 1) {
-        CHECK(block->rpo_number_ + 1 == block->SuccessorAt(0)->rpo_number_);
+    for (size_t i = 0; i < schedule.BasicBlockCount(); i++) {
+      BasicBlock* block = schedule.GetBlockById(BasicBlock::Id::FromSize(i));
+      if (block->rpo_number() >= 0 && block->SuccessorCount() == 1) {
+        CHECK(block->rpo_number() + 1 == block->SuccessorAt(0)->rpo_number());
       }
     }
   }
@@ -215,10 +213,10 @@ TEST(RPODiamond) {
   BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
   CheckRPONumbers(order, 4, false);
 
-  CHECK_EQ(0, A->rpo_number_);
-  CHECK((B->rpo_number_ == 1 && C->rpo_number_ == 2) ||
-        (B->rpo_number_ == 2 && C->rpo_number_ == 1));
-  CHECK_EQ(3, D->rpo_number_);
+  CHECK_EQ(0, A->rpo_number());
+  CHECK((B->rpo_number() == 1 && C->rpo_number() == 2) ||
+        (B->rpo_number() == 2 && C->rpo_number() == 1));
+  CHECK_EQ(3, D->rpo_number());
 }
 
 
@@ -392,7 +390,8 @@ TEST(RPOLoopFollow1) {
 
   CheckLoopContains(loop1->nodes, loop1->count);
 
-  CHECK_EQ(schedule.BasicBlockCount(), static_cast<int>(order->size()));
+  CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
+           static_cast<int>(order->size()));
   CheckLoopContains(loop1->nodes, loop1->count);
   CheckLoopContains(loop2->nodes, loop2->count);
 }
@@ -418,7 +417,8 @@ TEST(RPOLoopFollow2) {
 
   CheckLoopContains(loop1->nodes, loop1->count);
 
-  CHECK_EQ(schedule.BasicBlockCount(), static_cast<int>(order->size()));
+  CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
+           static_cast<int>(order->size()));
   CheckLoopContains(loop1->nodes, loop1->count);
   CheckLoopContains(loop2->nodes, loop2->count);
 }
@@ -441,7 +441,8 @@ TEST(RPOLoopFollowN) {
       BasicBlockVector* order = Scheduler::ComputeSpecialRPO(&schedule);
       CheckLoopContains(loop1->nodes, loop1->count);
 
-      CHECK_EQ(schedule.BasicBlockCount(), static_cast<int>(order->size()));
+      CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
+               static_cast<int>(order->size()));
       CheckLoopContains(loop1->nodes, loop1->count);
       CheckLoopContains(loop2->nodes, loop2->count);
     }
@@ -472,7 +473,8 @@ TEST(RPONestedLoopFollow1) {
 
   CheckLoopContains(loop1->nodes, loop1->count);
 
-  CHECK_EQ(schedule.BasicBlockCount(), static_cast<int>(order->size()));
+  CHECK_EQ(static_cast<int>(schedule.BasicBlockCount()),
+           static_cast<int>(order->size()));
   CheckLoopContains(loop1->nodes, loop1->count);
   CheckLoopContains(loop2->nodes, loop2->count);
 

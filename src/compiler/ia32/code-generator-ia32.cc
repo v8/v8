@@ -370,8 +370,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cvtsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kSSEUint32ToFloat64:
-      // TODO(turbofan): IA32 SSE LoadUint32() should take an operand.
-      __ LoadUint32(i.OutputDoubleRegister(), i.InputRegister(0));
+      __ LoadUint32(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kIA32Movsxbl:
       __ movsx_b(i.OutputRegister(), i.MemoryOperand());
@@ -435,6 +434,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         Operand operand = i.MemoryOperand(&index);
         __ movss(operand, i.InputDoubleRegister(index));
       }
+      break;
+    case kIA32Lea:
+      __ lea(i.OutputRegister(), i.MemoryOperand());
       break;
     case kIA32Push:
       if (HasImmediateInput(instr, 0)) {

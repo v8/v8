@@ -85,6 +85,7 @@ namespace internal {
   V(KeyedLoadSloppyArguments)               \
   V(StoreField)                             \
   V(StoreGlobal)                            \
+  V(StoreTransition)                        \
   V(StringLength)
 
 // List of code stubs only used on ARM 32 bits platforms.
@@ -203,7 +204,7 @@ class CodeStub BASE_EMBEDDED {
     return Code::NORMAL;
   }
 
-  friend OStream& operator<<(OStream& os, const CodeStub& s) {
+  friend std::ostream& operator<<(std::ostream& os, const CodeStub& s) {
     s.PrintName(os);
     return os;
   }
@@ -221,9 +222,9 @@ class CodeStub BASE_EMBEDDED {
   // a fixed (non-moveable) code object.
   virtual bool NeedsImmovableCode() { return false; }
 
-  virtual void PrintName(OStream& os) const;        // NOLINT
-  virtual void PrintBaseName(OStream& os) const;    // NOLINT
-  virtual void PrintState(OStream& os) const { ; }  // NOLINT
+  virtual void PrintName(std::ostream& os) const;        // NOLINT
+  virtual void PrintBaseName(std::ostream& os) const;    // NOLINT
+  virtual void PrintState(std::ostream& os) const { ; }  // NOLINT
 
   // Computes the key based on major and minor.
   uint32_t GetKey() {
@@ -705,7 +706,7 @@ class InstanceofStub: public PlatformCodeStub {
     return (flags() & kReturnTrueFalseObject) != 0;
   }
 
-  virtual void PrintName(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
 
   class FlagBits : public BitField<Flags, 0, 3> {};
 
@@ -736,7 +737,7 @@ class ArrayConstructorStub: public PlatformCodeStub {
   void GenerateDispatchToArrayStub(MacroAssembler* masm,
                                    AllocationSiteOverrideMode mode);
 
-  virtual void PrintName(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
 
   class ArgumentCountBits : public BitField<ArgumentCountKey, 0, 2> {};
 
@@ -822,7 +823,7 @@ class CallICStub: public PlatformCodeStub {
   void GenerateMiss(MacroAssembler* masm);
 
  private:
-  virtual void PrintState(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintState(std::ostream& os) const OVERRIDE;  // NOLINT
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
   DEFINE_PLATFORM_CODE_STUB(CallIC, PlatformCodeStub);
@@ -839,7 +840,7 @@ class CallIC_ArrayStub: public CallICStub {
   }
 
  private:
-  virtual void PrintState(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintState(std::ostream& os) const OVERRIDE;  // NOLINT
 
   DEFINE_PLATFORM_CODE_STUB(CallIC_Array, CallICStub);
 };
@@ -998,6 +999,60 @@ class StoreFieldStub : public HandlerStub {
 };
 
 
+class StoreTransitionStub : public HandlerStub {
+ public:
+  enum StoreMode {
+    StoreMapOnly,
+    StoreMapAndValue,
+    ExtendStorageAndStoreMapAndValue
+  };
+
+  explicit StoreTransitionStub(Isolate* isolate) : HandlerStub(isolate) {
+    set_sub_minor_key(StoreModeBits::encode(StoreMapOnly));
+  }
+
+  StoreTransitionStub(Isolate* isolate, FieldIndex index,
+                      Representation representation, StoreMode store_mode)
+      : HandlerStub(isolate) {
+    DCHECK(store_mode != StoreMapOnly);
+    int property_index_key = index.GetFieldAccessStubKey();
+    uint8_t repr = PropertyDetails::EncodeRepresentation(representation);
+    set_sub_minor_key(StoreFieldByIndexBits::encode(property_index_key) |
+                      RepresentationBits::encode(repr) |
+                      StoreModeBits::encode(store_mode));
+  }
+
+  FieldIndex index() const {
+    DCHECK(store_mode() != StoreMapOnly);
+    int property_index_key = StoreFieldByIndexBits::decode(sub_minor_key());
+    return FieldIndex::FromFieldAccessStubKey(property_index_key);
+  }
+
+  Representation representation() {
+    DCHECK(store_mode() != StoreMapOnly);
+    uint8_t repr = RepresentationBits::decode(sub_minor_key());
+    return PropertyDetails::DecodeRepresentation(repr);
+  }
+
+  StoreMode store_mode() const {
+    return StoreModeBits::decode(sub_minor_key());
+  }
+
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE;
+
+ protected:
+  virtual Code::Kind kind() const { return Code::STORE_IC; }
+  virtual Code::StubType GetStubType() { return Code::FAST; }
+
+ private:
+  class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
+  class RepresentationBits : public BitField<uint8_t, 13, 4> {};
+  class StoreModeBits : public BitField<StoreMode, 17, 2> {};
+
+  DEFINE_HANDLER_CODE_STUB(StoreTransition, HandlerStub);
+};
+
+
 class StoreGlobalStub : public HandlerStub {
  public:
   StoreGlobalStub(Isolate* isolate, bool is_constant, bool check_global)
@@ -1123,7 +1178,7 @@ class BinaryOpICStub : public HydrogenCodeStub {
     return BinaryOpICState(isolate(), GetExtraICState());
   }
 
-  virtual void PrintState(OStream& os) const FINAL OVERRIDE;  // NOLINT
+  virtual void PrintState(std::ostream& os) const FINAL OVERRIDE;  // NOLINT
 
   // Parameters accessed via CodeStubGraphBuilder::GetParameter()
   static const int kLeft = 0;
@@ -1168,7 +1223,7 @@ class BinaryOpICWithAllocationSiteStub FINAL : public PlatformCodeStub {
     return static_cast<ExtraICState>(minor_key_);
   }
 
-  virtual void PrintState(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintState(std::ostream& os) const OVERRIDE;  // NOLINT
 
  private:
   BinaryOpICState state() const {
@@ -1244,7 +1299,7 @@ class StringAddStub FINAL : public HydrogenCodeStub {
   class StringAddFlagsBits: public BitField<StringAddFlags, 0, 2> {};
   class PretenureFlagBits: public BitField<PretenureFlag, 2, 1> {};
 
-  virtual void PrintBaseName(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintBaseName(std::ostream& os) const OVERRIDE;  // NOLINT
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StringAdd);
   DEFINE_HYDROGEN_CODE_STUB(StringAdd, HydrogenCodeStub);
@@ -1356,8 +1411,8 @@ class CompareNilICStub : public HydrogenCodeStub  {
     set_sub_minor_key(TypesBits::update(sub_minor_key(), 0));
   }
 
-  virtual void PrintState(OStream& os) const OVERRIDE;     // NOLINT
-  virtual void PrintBaseName(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintState(std::ostream& os) const OVERRIDE;     // NOLINT
+  virtual void PrintBaseName(std::ostream& os) const OVERRIDE;  // NOLINT
 
  private:
   CompareNilICStub(Isolate* isolate, NilValue nil,
@@ -1384,7 +1439,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
     State() : EnumSet<CompareNilType, byte>(0) { }
     explicit State(byte bits) : EnumSet<CompareNilType, byte>(bits) { }
   };
-  friend OStream& operator<<(OStream& os, const State& s);
+  friend std::ostream& operator<<(std::ostream& os, const State& s);
 
   State state() const { return State(TypesBits::decode(sub_minor_key())); }
 
@@ -1398,7 +1453,7 @@ class CompareNilICStub : public HydrogenCodeStub  {
 };
 
 
-OStream& operator<<(OStream& os, const CompareNilICStub::State& s);
+std::ostream& operator<<(std::ostream& os, const CompareNilICStub::State& s);
 
 
 class CEntryStub : public PlatformCodeStub {
@@ -1446,7 +1501,7 @@ class JSEntryStub : public PlatformCodeStub {
  private:
   virtual void FinishCode(Handle<Code> code);
 
-  virtual void PrintName(OStream& os) const OVERRIDE {  // NOLINT
+  virtual void PrintName(std::ostream& os) const OVERRIDE {  // NOLINT
     os << (type() == StackFrame::ENTRY ? "JSEntryStub"
                                        : "JSConstructEntryStub");
   }
@@ -1492,7 +1547,7 @@ class ArgumentsAccessStub: public PlatformCodeStub {
   void GenerateNewSloppyFast(MacroAssembler* masm);
   void GenerateNewSloppySlow(MacroAssembler* masm);
 
-  virtual void PrintName(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
 
   class TypeBits : public BitField<Type, 0, 2> {};
 
@@ -1546,7 +1601,7 @@ class CallFunctionStub: public PlatformCodeStub {
 
   bool NeedsChecks() const { return flags() != WRAP_AND_CALL; }
 
-  virtual void PrintName(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
 
   // Minor key encoding in 32 bits with Bitfield <Type, shift, size>.
   class FlagBits : public BitField<CallFunctionFlags, 0, 2> {};
@@ -1576,7 +1631,7 @@ class CallConstructStub: public PlatformCodeStub {
     return (flags() & RECORD_CONSTRUCTOR_TARGET) != 0;
   }
 
-  virtual void PrintName(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintName(std::ostream& os) const OVERRIDE;  // NOLINT
 
   class FlagBits : public BitField<CallConstructorFlags, 0, 1> {};
 
@@ -2042,7 +2097,8 @@ class ArrayConstructorStubBase : public HydrogenCodeStub {
   static const int kAllocationSite = 1;
 
  protected:
-  OStream& BasePrintName(OStream& os, const char* name) const;  // NOLINT
+  std::ostream& BasePrintName(std::ostream& os,
+                              const char* name) const;  // NOLINT
 
  private:
   // Ensure data fits within available bits.
@@ -2066,7 +2122,7 @@ class ArrayNoArgumentConstructorStub : public ArrayConstructorStubBase {
   }
 
  private:
-  virtual void PrintName(OStream& os) const OVERRIDE {  // NOLINT
+  virtual void PrintName(std::ostream& os) const OVERRIDE {  // NOLINT
     BasePrintName(os, "ArrayNoArgumentConstructorStub");
   }
 
@@ -2086,7 +2142,7 @@ class ArraySingleArgumentConstructorStub : public ArrayConstructorStubBase {
   }
 
  private:
-  virtual void PrintName(OStream& os) const {  // NOLINT
+  virtual void PrintName(std::ostream& os) const {  // NOLINT
     BasePrintName(os, "ArraySingleArgumentConstructorStub");
   }
 
@@ -2106,7 +2162,7 @@ class ArrayNArgumentsConstructorStub : public ArrayConstructorStubBase {
   }
 
  private:
-  virtual void PrintName(OStream& os) const {  // NOLINT
+  virtual void PrintName(std::ostream& os) const {  // NOLINT
     BasePrintName(os, "ArrayNArgumentsConstructorStub");
   }
 
@@ -2251,7 +2307,7 @@ class ToBooleanStub: public HydrogenCodeStub {
   ResultMode mode() const { return ResultModeBits::decode(sub_minor_key()); }
 
   virtual Code::Kind GetCodeKind() const { return Code::TO_BOOLEAN_IC; }
-  virtual void PrintState(OStream& os) const OVERRIDE;  // NOLINT
+  virtual void PrintState(std::ostream& os) const OVERRIDE;  // NOLINT
 
   virtual bool SometimesSetsUpAFrame() { return false; }
 
@@ -2283,7 +2339,7 @@ class ToBooleanStub: public HydrogenCodeStub {
 };
 
 
-OStream& operator<<(OStream& os, const ToBooleanStub::Types& t);
+std::ostream& operator<<(std::ostream& os, const ToBooleanStub::Types& t);
 
 
 class ElementsTransitionAndStoreStub : public HydrogenCodeStub {

@@ -215,7 +215,7 @@ class HBasicBlock FINAL : public ZoneObject {
 };
 
 
-OStream& operator<<(OStream& os, const HBasicBlock& b);
+std::ostream& operator<<(std::ostream& os, const HBasicBlock& b);
 
 
 class HPredecessorIterator FINAL BASE_EMBEDDED {
@@ -743,7 +743,7 @@ class HEnvironment FINAL : public ZoneObject {
 };
 
 
-OStream& operator<<(OStream& os, const HEnvironment& env);
+std::ostream& operator<<(std::ostream& os, const HEnvironment& env);
 
 
 class HOptimizedGraphBuilder;
@@ -1805,8 +1805,9 @@ class HGraphBuilder {
                                      ElementsKind kind,
                                      HValue* capacity);
 
-  HValue* BuildAllocateElementsAndInitializeElementsHeader(ElementsKind kind,
-                                                           HValue* capacity);
+  // Build allocation and header initialization code for respective successor
+  // of FixedArrayBase.
+  HValue* BuildAllocateAndInitializeArray(ElementsKind kind, HValue* capacity);
 
   // |array| must have been allocated with enough room for
   // 1) the JSArray and 2) an AllocationMemento if mode requires it.
@@ -1837,6 +1838,9 @@ class HGraphBuilder {
                                  ElementsKind elements_kind,
                                  HValue* from,
                                  HValue* to);
+
+  void BuildCopyProperties(HValue* from_properties, HValue* to_properties,
+                           HValue* length, HValue* capacity);
 
   void BuildCopyElements(HValue* from_elements,
                          ElementsKind from_elements_kind,

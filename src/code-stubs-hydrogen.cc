@@ -64,7 +64,8 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
   HLoadNamedField* BuildLoadNamedField(HValue* object,
                                        FieldIndex index);
   void BuildStoreNamedField(HValue* object, HValue* value, FieldIndex index,
-                            Representation representation);
+                            Representation representation,
+                            bool transition_to_field);
 
   enum ArgumentClass {
     NONE,
@@ -276,7 +277,7 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     OFStream os(stdout);
     os << "[Lazy compilation of " << stub << " took "
-       << timer.Elapsed().InMillisecondsF() << " ms]" << endl;
+       << timer.Elapsed().InMillisecondsF() << " ms]" << std::endl;
   }
   return code;
 }
@@ -721,7 +722,7 @@ Handle<Code> KeyedLoadSloppyArgumentsStub::GenerateCode() {
 
 void CodeStubGraphBuilderBase::BuildStoreNamedField(
     HValue* object, HValue* value, FieldIndex index,
-    Representation representation) {
+    Representation representation, bool transition_to_field) {
   DCHECK(!index.is_double() || representation.IsDouble());
   int offset = index.offset();
   HObjectAccess access =
@@ -730,12 +731,31 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
           : HObjectAccess::ForBackingStoreOffset(offset, representation);
 
   if (representation.IsDouble()) {
-    // Load the heap number.
-    object = Add<HLoadNamedField>(
-        object, static_cast<HValue*>(NULL),
-        access.WithRepresentation(Representation::Tagged()));
-    // Store the double value into it.
-    access = HObjectAccess::ForHeapNumberValue();
+    HObjectAccess heap_number_access =
+        access.WithRepresentation(Representation::Tagged());
+    if (transition_to_field) {
+      // The store requires a mutable HeapNumber to be allocated.
+      NoObservableSideEffectsScope no_side_effects(this);
+      HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
+
+      // TODO(hpayer): Allocation site pretenuring support.
+      HInstruction* heap_number =
+          Add<HAllocate>(heap_number_size, HType::HeapObject(), NOT_TENURED,
+                         MUTABLE_HEAP_NUMBER_TYPE);
+      AddStoreMapConstant(heap_number,
+                          isolate()->factory()->mutable_heap_number_map());
+      Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
+                            value);
+      // Store the new mutable heap number into the object.
+      access = heap_number_access;
+      value = heap_number;
+    } else {
+      // Load the heap number.
+      object = Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                                    heap_number_access);
+      // Store the double value into it.
+      access = HObjectAccess::ForHeapNumberValue();
+    }
   } else if (representation.IsHeapObject()) {
     BuildCheckHeapObject(value);
   }
@@ -747,12 +767,65 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
 template <>
 HValue* CodeStubGraphBuilder<StoreFieldStub>::BuildCodeStub() {
   BuildStoreNamedField(GetParameter(0), GetParameter(2), casted_stub()->index(),
-                       casted_stub()->representation());
+                       casted_stub()->representation(), false);
   return GetParameter(2);
 }
 
 
 Handle<Code> StoreFieldStub::GenerateCode() { return DoGenerateCode(this); }
+
+
+template <>
+HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
+  HValue* object = GetParameter(StoreTransitionDescriptor::kReceiverIndex);
+
+  switch (casted_stub()->store_mode()) {
+    case StoreTransitionStub::ExtendStorageAndStoreMapAndValue: {
+      HValue* properties =
+          Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
+                               HObjectAccess::ForPropertiesPointer());
+      HValue* length = AddLoadFixedArrayLength(properties);
+      HValue* delta =
+          Add<HConstant>(static_cast<int32_t>(JSObject::kFieldsAdded));
+      HValue* new_capacity = AddUncasted<HAdd>(length, delta);
+
+      // Grow properties array.
+      ElementsKind kind = FAST_ELEMENTS;
+      Add<HBoundsCheck>(new_capacity,
+                        Add<HConstant>((Page::kMaxRegularHeapObjectSize -
+                                        FixedArray::kHeaderSize) >>
+                                       ElementsKindToShiftSize(kind)));
+
+      // Reuse this code for properties backing store allocation.
+      HValue* new_properties =
+          BuildAllocateAndInitializeArray(kind, new_capacity);
+
+      BuildCopyProperties(properties, new_properties, length, new_capacity);
+
+      // Store the new value into the "extended" object.
+      Add<HStoreNamedField>(object, HObjectAccess::ForPropertiesPointer(),
+                            new_properties);
+    }
+    // Fall through.
+    case StoreTransitionStub::StoreMapAndValue:
+      BuildStoreNamedField(
+          object, GetParameter(StoreTransitionDescriptor::kValueIndex),
+          casted_stub()->index(), casted_stub()->representation(), true);
+    // Fall through.
+
+    case StoreTransitionStub::StoreMapOnly:
+      // And finally update the map.
+      Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
+                            GetParameter(StoreTransitionDescriptor::kMapIndex));
+      break;
+  }
+  return GetParameter(StoreTransitionDescriptor::kValueIndex);
+}
+
+
+Handle<Code> StoreTransitionStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
 
 
 template <>

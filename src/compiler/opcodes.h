@@ -289,6 +289,18 @@ class IrOpcode {
     }
   }
 
+  static bool IsLeafOpcode(Value val) {
+    switch (val) {
+#define RETURN_NAME(x) \
+  case k##x:           \
+    return true;
+      LEAF_OP_LIST(RETURN_NAME)
+#undef RETURN_NAME
+      default:
+        return false;
+    }
+  }
+
   static bool IsCommonOpcode(Value val) {
     switch (val) {
 #define RETURN_NAME(x) \

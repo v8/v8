@@ -12,20 +12,6 @@ namespace compiler {
 
 #if GTEST_HAS_COMBINE
 
-// TODO(bmeurer): Find a new home for these.
-inline std::ostream& operator<<(std::ostream& os, const MachineType& type) {
-  OStringStream ost;
-  ost << type;
-  return os << ost.c_str();
-}
-inline std::ostream& operator<<(std::ostream& os,
-                         const WriteBarrierKind& write_barrier_kind) {
-  OStringStream ost;
-  ost << write_barrier_kind;
-  return os << ost.c_str();
-}
-
-
 template <typename T>
 class MachineOperatorTestWithParam
     : public ::testing::TestWithParam< ::testing::tuple<MachineType, T> > {

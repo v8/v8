@@ -28,7 +28,7 @@ struct SimplifiedOperatorBuilderImpl;
 
 enum BaseTaggedness { kUntaggedBase, kTaggedBase };
 
-OStream& operator<<(OStream&, BaseTaggedness);
+std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
@@ -60,7 +60,7 @@ struct ElementAccess {
 bool operator==(ElementAccess const& lhs, ElementAccess const& rhs);
 bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs);
 
-OStream& operator<<(OStream&, ElementAccess const&);
+std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
 
 // If the accessed object is not a heap object, add this to the header_size.

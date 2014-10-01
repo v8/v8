@@ -5,6 +5,7 @@
 #include "src/hydrogen.h"
 
 #include <algorithm>
+#include <sstream>
 
 #include "src/v8.h"
 
@@ -2626,16 +2627,15 @@ void HGraphBuilder::BuildInitializeElementsHeader(HValue* elements,
 }
 
 
-HValue* HGraphBuilder::BuildAllocateElementsAndInitializeElementsHeader(
-    ElementsKind kind,
-    HValue* capacity) {
+HValue* HGraphBuilder::BuildAllocateAndInitializeArray(ElementsKind kind,
+                                                       HValue* capacity) {
   // The HForceRepresentation is to prevent possible deopt on int-smi
   // conversion after allocation but before the new object fields are set.
   capacity = AddUncasted<HForceRepresentation>(capacity, Representation::Smi());
   HValue* size_in_bytes = BuildCalculateElementsSize(kind, capacity);
-  HValue* new_elements = BuildAllocateElements(kind, size_in_bytes);
-  BuildInitializeElementsHeader(new_elements, kind, capacity);
-  return new_elements;
+  HValue* new_array = BuildAllocateElements(kind, size_in_bytes);
+  BuildInitializeElementsHeader(new_array, kind, capacity);
+  return new_array;
 }
 
 
@@ -2754,8 +2754,8 @@ HValue* HGraphBuilder::BuildGrowElementsCapacity(HValue* object,
           (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize) >>
           ElementsKindToShiftSize(new_kind)));
 
-  HValue* new_elements = BuildAllocateElementsAndInitializeElementsHeader(
-      new_kind, new_capacity);
+  HValue* new_elements =
+      BuildAllocateAndInitializeArray(new_kind, new_capacity);
 
   BuildCopyElements(elements, kind, new_elements,
                     new_kind, length, new_capacity);
@@ -2787,12 +2787,6 @@ void HGraphBuilder::BuildFillElementsWithValue(HValue* elements,
     if (constant_from == 0 && constant_to <= kElementLoopUnrollThreshold) {
       initial_capacity = constant_to;
     }
-  }
-
-  // Since we're about to store a hole value, the store instruction below must
-  // assume an elements kind that supports heap object values.
-  if (IsFastSmiOrObjectElementsKind(elements_kind)) {
-    elements_kind = FAST_HOLEY_ELEMENTS;
   }
 
   if (initial_capacity >= 0) {
@@ -2832,7 +2826,37 @@ void HGraphBuilder::BuildFillElementsWithHole(HValue* elements,
       ? Add<HConstant>(factory->the_hole_value())
       : Add<HConstant>(nan_double);
 
+  // Since we're about to store a hole value, the store instruction below must
+  // assume an elements kind that supports heap object values.
+  if (IsFastSmiOrObjectElementsKind(elements_kind)) {
+    elements_kind = FAST_HOLEY_ELEMENTS;
+  }
+
   BuildFillElementsWithValue(elements, elements_kind, from, to, hole);
+}
+
+
+void HGraphBuilder::BuildCopyProperties(HValue* from_properties,
+                                        HValue* to_properties, HValue* length,
+                                        HValue* capacity) {
+  ElementsKind kind = FAST_ELEMENTS;
+
+  BuildFillElementsWithValue(to_properties, kind, length, capacity,
+                             graph()->GetConstantUndefined());
+
+  LoopBuilder builder(this, context(), LoopBuilder::kPostDecrement);
+
+  HValue* key = builder.BeginBody(length, graph()->GetConstant0(), Token::GT);
+
+  key = AddUncasted<HSub>(key, graph()->GetConstant1());
+  key->ClearFlag(HValue::kCanOverflow);
+
+  HValue* element =
+      Add<HLoadKeyed>(from_properties, key, static_cast<HValue*>(NULL), kind);
+
+  Add<HStoreKeyed>(to_properties, key, element, kind);
+
+  builder.EndBody();
 }
 
 
@@ -3408,7 +3432,7 @@ void HBasicBlock::FinishExit(HControlInstruction* instruction,
 }
 
 
-OStream& operator<<(OStream& os, const HBasicBlock& b) {
+std::ostream& operator<<(std::ostream& os, const HBasicBlock& b) {
   return os << "B" << b.block_id();
 }
 
@@ -3519,7 +3543,7 @@ int HGraph::TraceInlinedFunction(
     OFStream os(tracing_scope.file());
     os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
        << info()->optimization_id() << "," << id << "} AS " << inline_id
-       << " AT " << position << endl;
+       << " AT " << position << std::endl;
   }
 
   return inline_id;
@@ -12167,7 +12191,7 @@ HEnvironment* HEnvironment::CopyForInlining(
 }
 
 
-OStream& operator<<(OStream& os, const HEnvironment& env) {
+std::ostream& operator<<(std::ostream& os, const HEnvironment& env) {
   for (int i = 0; i < env.length(); i++) {
     if (i == 0) os << "parameters\n";
     if (i == env.parameter_count()) os << "specials\n";
@@ -12299,9 +12323,9 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
       for (int j = 0; j < total; ++j) {
         HPhi* phi = current->phis()->at(j);
         PrintIndent();
-        OStringStream os;
+        std::ostringstream os;
         os << phi->merged_index() << " " << NameOf(phi) << " " << *phi << "\n";
-        trace_.Add(os.c_str());
+        trace_.Add(os.str().c_str());
       }
     }
 
@@ -12311,7 +12335,7 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
         HInstruction* instruction = it.Current();
         int uses = instruction->UseCount();
         PrintIndent();
-        OStringStream os;
+        std::ostringstream os;
         os << "0 " << uses << " " << NameOf(instruction) << " " << *instruction;
         if (FLAG_hydrogen_track_positions &&
             instruction->has_position() &&
@@ -12322,7 +12346,7 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
           os << pos.position();
         }
         os << " <|@\n";
-        trace_.Add(os.c_str());
+        trace_.Add(os.str().c_str());
       }
     }
 
@@ -12340,9 +12364,9 @@ void HTracer::Trace(const char* name, HGraph* graph, LChunk* chunk) {
             trace_.Add("%d ",
                        LifetimePosition::FromInstructionIndex(i).Value());
             linstr->PrintTo(&trace_);
-            OStringStream os;
+            std::ostringstream os;
             os << " [hir:" << NameOf(linstr->hydrogen_value()) << "] <|@\n";
-            trace_.Add(os.c_str());
+            trace_.Add(os.str().c_str());
           }
         }
       }

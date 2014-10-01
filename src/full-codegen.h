@@ -521,7 +521,7 @@ class FullCodeGenerator: public AstVisitor {
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr);
 
-  // Load a value from super.named prroperty.
+  // Load a value from super.named property.
   // Expect receiver ('this' value) and home_object on the stack.
   void EmitNamedSuperPropertyLoad(Property* expr);
 
@@ -562,7 +562,7 @@ class FullCodeGenerator: public AstVisitor {
 
   // Complete a super named property assignment. The right-hand-side value
   // is expected in accumulator.
-  void EmitNamedSuperPropertyAssignment(Assignment* expr);
+  void EmitNamedSuperPropertyStore(Property* prop);
 
   // Complete a keyed property assignment.  The receiver and key are
   // expected on top of the stack and the right-hand-side value in the

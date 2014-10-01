@@ -794,14 +794,14 @@ bool RegExpCapture::IsAnchoredAtEnd() {
 // output formats are alike.
 class RegExpUnparser FINAL : public RegExpVisitor {
  public:
-  RegExpUnparser(OStream& os, Zone* zone) : os_(os), zone_(zone) {}
+  RegExpUnparser(std::ostream& os, Zone* zone) : os_(os), zone_(zone) {}
   void VisitCharacterRange(CharacterRange that);
 #define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*,          \
                                                   void* data) OVERRIDE;
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:
-  OStream& os_;
+  std::ostream& os_;
   Zone* zone_;
 };
 
@@ -944,7 +944,7 @@ void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
 }
 
 
-OStream& RegExpTree::Print(OStream& os, Zone* zone) {  // NOLINT
+std::ostream& RegExpTree::Print(std::ostream& os, Zone* zone) {  // NOLINT
   RegExpUnparser unparser(os, zone);
   Accept(&unparser, NULL);
   return os;

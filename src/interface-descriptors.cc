@@ -74,6 +74,13 @@ void StoreDescriptor::Initialize(CallInterfaceDescriptorData* data) {
 }
 
 
+void StoreTransitionDescriptor::Initialize(CallInterfaceDescriptorData* data) {
+  Register registers[] = {ContextRegister(), ReceiverRegister(), NameRegister(),
+                          ValueRegister(), MapRegister()};
+  data->Initialize(arraysize(registers), registers, NULL);
+}
+
+
 void ElementTransitionAndStoreDescriptor::Initialize(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {ContextRegister(), ValueRegister(), MapRegister(),

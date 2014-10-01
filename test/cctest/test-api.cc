@@ -981,7 +981,7 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
   if (isolate->cpu_profiler()->is_profiling()) {
-    CHECK_EQ(i::EXTERNAL, isolate->current_vm_state());
+    CHECK_EQ(v8::EXTERNAL, isolate->current_vm_state());
     CHECK(isolate->external_callback_scope());
     CHECK_EQ(callback, isolate->external_callback_scope()->callback());
   }
@@ -17615,6 +17615,249 @@ TEST(RethrowBogusErrorStackTrace) {
   CompileRun(source);
   v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
   v8::V8::RemoveMessageListeners(RethrowBogusErrorStackTraceHandler);
+}
+
+
+v8::PromiseRejectEvent reject_event = v8::kPromiseRejectWithNoHandler;
+int promise_reject_counter = 0;
+int promise_revoke_counter = 0;
+
+void PromiseRejectCallback(v8::Handle<v8::Promise> promise,
+                           v8::Handle<v8::Value> value,
+                           v8::PromiseRejectEvent event) {
+  if (event == v8::kPromiseRejectWithNoHandler) {
+    promise_reject_counter++;
+    CcTest::global()->Set(v8_str("rejected"), promise);
+    CcTest::global()->Set(v8_str("value"), value);
+  } else {
+    promise_revoke_counter++;
+    CcTest::global()->Set(v8_str("revoked"), promise);
+    CHECK(value.IsEmpty());
+  }
+}
+
+
+v8::Handle<v8::Promise> GetPromise(const char* name) {
+  return v8::Handle<v8::Promise>::Cast(CcTest::global()->Get(v8_str(name)));
+}
+
+
+v8::Handle<v8::Value> RejectValue() {
+  return CcTest::global()->Get(v8_str("value"));
+}
+
+
+void ResetPromiseStates() {
+  promise_reject_counter = 0;
+  promise_revoke_counter = 0;
+  CcTest::global()->Set(v8_str("rejected"), v8_str(""));
+  CcTest::global()->Set(v8_str("value"), v8_str(""));
+  CcTest::global()->Set(v8_str("revoked"), v8_str(""));
+}
+
+
+TEST(PromiseRejectCallback) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  isolate->SetPromiseRejectCallback(PromiseRejectCallback);
+
+  ResetPromiseStates();
+
+  // Create promise p0.
+  CompileRun(
+      "var reject;            \n"
+      "var p0 = new Promise(   \n"
+      "  function(res, rej) { \n"
+      "    reject = rej;      \n"
+      "  }                    \n"
+      ");                     \n");
+  CHECK(!GetPromise("p0")->HasHandler());
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+
+  // Add resolve handler (and default reject handler) to p0.
+  CompileRun("var p1 = p0.then(function(){});");
+  CHECK(GetPromise("p0")->HasHandler());
+  CHECK(!GetPromise("p1")->HasHandler());
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+
+  // Reject p0.
+  CompileRun("reject('ppp');");
+  CHECK(GetPromise("p0")->HasHandler());
+  CHECK(!GetPromise("p1")->HasHandler());
+  CHECK_EQ(1, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+  CHECK_EQ(v8::kPromiseRejectWithNoHandler, reject_event);
+  CHECK(GetPromise("rejected")->Equals(GetPromise("p1")));
+  CHECK(RejectValue()->Equals(v8_str("ppp")));
+
+  // Reject p0 again. Callback is not triggered again.
+  CompileRun("reject();");
+  CHECK(GetPromise("p0")->HasHandler());
+  CHECK(!GetPromise("p1")->HasHandler());
+  CHECK_EQ(1, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+
+  // Add resolve handler to p1.
+  CompileRun("var p2 = p1.then(function(){});");
+  CHECK(GetPromise("p0")->HasHandler());
+  CHECK(GetPromise("p1")->HasHandler());
+  CHECK(!GetPromise("p2")->HasHandler());
+  CHECK_EQ(2, promise_reject_counter);
+  CHECK_EQ(1, promise_revoke_counter);
+  CHECK(GetPromise("rejected")->Equals(GetPromise("p2")));
+  CHECK(RejectValue()->Equals(v8_str("ppp")));
+  CHECK(GetPromise("revoked")->Equals(GetPromise("p1")));
+
+  ResetPromiseStates();
+
+  // Create promise q0.
+  CompileRun(
+      "var q0 = new Promise(   \n"
+      "  function(res, rej) { \n"
+      "    reject = rej;      \n"
+      "  }                    \n"
+      ");                     \n");
+  CHECK(!GetPromise("q0")->HasHandler());
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+
+  // Add reject handler to q0.
+  CompileRun("var q1 = q0.catch(function() {});");
+  CHECK(GetPromise("q0")->HasHandler());
+  CHECK(!GetPromise("q1")->HasHandler());
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+
+  // Reject q0.
+  CompileRun("reject('qq')");
+  CHECK(GetPromise("q0")->HasHandler());
+  CHECK(!GetPromise("q1")->HasHandler());
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+
+  // Add a new reject handler, which rejects by returning Promise.reject().
+  // The returned promise q_ triggers a reject callback at first, only to
+  // revoke it when returning it causes q2 to be rejected.
+  CompileRun(
+      "var q_;"
+      "var q2 = q0.catch(               \n"
+      "   function() {                  \n"
+      "     q_ = Promise.reject('qqq'); \n"
+      "     return q_;                  \n"
+      "   }                             \n"
+      ");                               \n");
+  CHECK(GetPromise("q0")->HasHandler());
+  CHECK(!GetPromise("q1")->HasHandler());
+  CHECK(!GetPromise("q2")->HasHandler());
+  CHECK(GetPromise("q_")->HasHandler());
+  CHECK_EQ(2, promise_reject_counter);
+  CHECK_EQ(1, promise_revoke_counter);
+  CHECK(GetPromise("rejected")->Equals(GetPromise("q2")));
+  CHECK(GetPromise("revoked")->Equals(GetPromise("q_")));
+  CHECK(RejectValue()->Equals(v8_str("qqq")));
+
+  // Add a reject handler to the resolved q1, which rejects by throwing.
+  CompileRun(
+      "var q3 = q1.then( \n"
+      "   function() {    \n"
+      "     throw 'qqqq'; \n"
+      "   }               \n"
+      ");                 \n");
+  CHECK(GetPromise("q0")->HasHandler());
+  CHECK(GetPromise("q1")->HasHandler());
+  CHECK(!GetPromise("q2")->HasHandler());
+  CHECK(!GetPromise("q3")->HasHandler());
+  CHECK_EQ(3, promise_reject_counter);
+  CHECK_EQ(1, promise_revoke_counter);
+  CHECK(GetPromise("rejected")->Equals(GetPromise("q3")));
+  CHECK(RejectValue()->Equals(v8_str("qqqq")));
+
+  ResetPromiseStates();
+
+  // Create promise r0, which has three handlers, two of which handle rejects.
+  CompileRun(
+      "var r0 = new Promise(             \n"
+      "  function(res, rej) {            \n"
+      "    reject = rej;                 \n"
+      "  }                               \n"
+      ");                                \n"
+      "var r1 = r0.catch(function() {}); \n"
+      "var r2 = r0.then(function() {});  \n"
+      "var r3 = r0.then(function() {},   \n"
+      "                 function() {});  \n");
+  CHECK(GetPromise("r0")->HasHandler());
+  CHECK(!GetPromise("r1")->HasHandler());
+  CHECK(!GetPromise("r2")->HasHandler());
+  CHECK(!GetPromise("r3")->HasHandler());
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+
+  // Reject r0.
+  CompileRun("reject('rrr')");
+  CHECK(GetPromise("r0")->HasHandler());
+  CHECK(!GetPromise("r1")->HasHandler());
+  CHECK(!GetPromise("r2")->HasHandler());
+  CHECK(!GetPromise("r3")->HasHandler());
+  CHECK_EQ(1, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+  CHECK(GetPromise("rejected")->Equals(GetPromise("r2")));
+  CHECK(RejectValue()->Equals(v8_str("rrr")));
+
+  // Add reject handler to r2.
+  CompileRun("var r4 = r2.catch(function() {});");
+  CHECK(GetPromise("r0")->HasHandler());
+  CHECK(!GetPromise("r1")->HasHandler());
+  CHECK(GetPromise("r2")->HasHandler());
+  CHECK(!GetPromise("r3")->HasHandler());
+  CHECK(!GetPromise("r4")->HasHandler());
+  CHECK_EQ(1, promise_reject_counter);
+  CHECK_EQ(1, promise_revoke_counter);
+  CHECK(GetPromise("revoked")->Equals(GetPromise("r2")));
+  CHECK(RejectValue()->Equals(v8_str("rrr")));
+
+  // Add reject handlers to r4.
+  CompileRun("var r5 = r4.then(function() {}, function() {});");
+  CHECK(GetPromise("r0")->HasHandler());
+  CHECK(!GetPromise("r1")->HasHandler());
+  CHECK(GetPromise("r2")->HasHandler());
+  CHECK(!GetPromise("r3")->HasHandler());
+  CHECK(GetPromise("r4")->HasHandler());
+  CHECK(!GetPromise("r5")->HasHandler());
+  CHECK_EQ(1, promise_reject_counter);
+  CHECK_EQ(1, promise_revoke_counter);
+
+  ResetPromiseStates();
+
+  // Create promise s0, which has three handlers, none of which handle rejects.
+  CompileRun(
+      "var s0 = new Promise(            \n"
+      "  function(res, rej) {           \n"
+      "    reject = rej;                \n"
+      "  }                              \n"
+      ");                               \n"
+      "var s1 = s0.then(function() {}); \n"
+      "var s2 = s0.then(function() {}); \n"
+      "var s3 = s0.then(function() {}); \n");
+  CHECK(GetPromise("s0")->HasHandler());
+  CHECK(!GetPromise("s1")->HasHandler());
+  CHECK(!GetPromise("s2")->HasHandler());
+  CHECK(!GetPromise("s3")->HasHandler());
+  CHECK_EQ(0, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+
+  // Reject s0.
+  CompileRun("reject('sss')");
+  CHECK(GetPromise("s0")->HasHandler());
+  CHECK(!GetPromise("s1")->HasHandler());
+  CHECK(!GetPromise("s2")->HasHandler());
+  CHECK(!GetPromise("s3")->HasHandler());
+  CHECK_EQ(3, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+  CHECK(RejectValue()->Equals(v8_str("sss")));
 }
 
 

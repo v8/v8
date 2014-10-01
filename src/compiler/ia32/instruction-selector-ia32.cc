@@ -44,6 +44,15 @@ class IA32OperandGenerator FINAL : public OperandGenerator {
 };
 
 
+// Get the AddressingMode of scale factor N from the AddressingMode of scale
+// factor 1.
+static AddressingMode AdjustAddressingMode(AddressingMode base_mode,
+                                           int power) {
+  DCHECK(0 <= power && power < 4);
+  return static_cast<AddressingMode>(static_cast<int>(base_mode) + power);
+}
+
+
 class AddressingModeMatcher {
  public:
   AddressingModeMatcher(IA32OperandGenerator* g, Node* base, Node* index)
@@ -104,19 +113,9 @@ class AddressingModeMatcher {
         }
       }
       // Adjust mode to actual scale factor.
-      mode_ = GetMode(mode_, matcher.power());
-      // Don't emit instructions with scale factor 1 if there's no base.
-      if (mode_ == kMode_M1) {
-        mode_ = kMode_MR;
-      } else if (mode_ == kMode_M1I) {
-        mode_ = kMode_MRI;
-      }
+      mode_ = AdjustAddressingMode(mode_, matcher.power());
     }
     DCHECK_NE(kMode_None, mode_);
-  }
-
-  AddressingMode GetMode(AddressingMode one, int power) {
-    return static_cast<AddressingMode>(static_cast<int>(one) + power);
   }
 
   size_t SetInputs(InstructionOperand** inputs) {
@@ -386,18 +385,39 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
 
 void InstructionSelector::VisitInt32Mul(Node* node) {
   IA32OperandGenerator g(this);
-  Int32BinopMatcher m(node);
-  Node* left = m.left().node();
-  Node* right = m.right().node();
-  if (g.CanBeImmediate(right)) {
-    Emit(kIA32Imul, g.DefineAsRegister(node), g.Use(left),
-         g.UseImmediate(right));
-  } else {
-    if (g.CanBeBetterLeftOperand(right)) {
-      std::swap(left, right);
+  LeaMultiplyMatcher lea(node);
+  // Try to match lea.
+  if (lea.Matches()) {
+    ArchOpcode opcode = kIA32Lea;
+    AddressingMode mode;
+    size_t input_count;
+    InstructionOperand* left = g.UseRegister(lea.Left());
+    InstructionOperand* inputs[] = {left, left};
+    if (lea.Displacement() != 0) {
+      input_count = 2;
+      mode = kMode_MR1;
+    } else {
+      input_count = 1;
+      mode = kMode_M1;
     }
-    Emit(kIA32Imul, g.DefineSameAsFirst(node), g.UseRegister(left),
-         g.Use(right));
+    mode = AdjustAddressingMode(mode, lea.Power());
+    InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
+    Emit(opcode | AddressingModeField::encode(mode), 1, outputs, input_count,
+         inputs);
+  } else {
+    Int32BinopMatcher m(node);
+    Node* left = m.left().node();
+    Node* right = m.right().node();
+    if (g.CanBeImmediate(right)) {
+      Emit(kIA32Imul, g.DefineAsRegister(node), g.Use(left),
+           g.UseImmediate(right));
+    } else {
+      if (g.CanBeBetterLeftOperand(right)) {
+        std::swap(left, right);
+      }
+      Emit(kIA32Imul, g.DefineSameAsFirst(node), g.UseRegister(left),
+           g.Use(right));
+    }
   }
 }
 
@@ -459,9 +479,7 @@ void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
 
 void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
   IA32OperandGenerator g(this);
-  // TODO(turbofan): IA32 SSE LoadUint32() should take an operand.
-  Emit(kSSEUint32ToFloat64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  Emit(kSSEUint32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 

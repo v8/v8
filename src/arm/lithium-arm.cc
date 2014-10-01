@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <sstream>
+
 #include "src/v8.h"
 
 #include "src/arm/lithium-codegen-arm.h"
@@ -316,9 +318,9 @@ void LAccessArgumentsAt::PrintDataTo(StringStream* stream) {
 
 void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
-  OStringStream os;
+  std::ostringstream os;
   os << hydrogen()->access() << " <- ";
-  stream->Add(os.c_str());
+  stream->Add(os.str().c_str());
   value()->PrintTo(stream);
 }
 

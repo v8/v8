@@ -41,8 +41,8 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   // Checks if {block} will appear directly after {current_block_} when
   // assembling code, in which case, a fall-through can be used.
   bool IsNextInAssemblyOrder(const BasicBlock* block) const {
-    return block->rpo_number_ == (current_block_->rpo_number_ + 1) &&
-           block->deferred_ == current_block_->deferred_;
+    return block->rpo_number() == (current_block_->rpo_number() + 1) &&
+           block->deferred() == current_block_->deferred();
   }
 
   // Record a safepoint with the given pointer map.

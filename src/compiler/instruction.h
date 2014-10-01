@@ -6,6 +6,7 @@
 #define V8_COMPILER_INSTRUCTION_H_
 
 #include <deque>
+#include <iosfwd>
 #include <map>
 #include <set>
 
@@ -21,10 +22,6 @@
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class OStream;
-
 namespace compiler {
 
 // Forward declarations.
@@ -91,7 +88,7 @@ class InstructionOperand : public ZoneObject {
 
 typedef ZoneVector<InstructionOperand*> InstructionOperandVector;
 
-OStream& operator<<(OStream& os, const InstructionOperand& op);
+std::ostream& operator<<(std::ostream& os, const InstructionOperand& op);
 
 class UnallocatedOperand : public InstructionOperand {
  public:
@@ -310,7 +307,7 @@ class MoveOperands FINAL {
   InstructionOperand* destination_;
 };
 
-OStream& operator<<(OStream& os, const MoveOperands& mo);
+std::ostream& operator<<(std::ostream& os, const MoveOperands& mo);
 
 template <InstructionOperand::Kind kOperandKind, int kNumCachedOperands>
 class SubKindOperand FINAL : public InstructionOperand {
@@ -363,7 +360,7 @@ class ParallelMove FINAL : public ZoneObject {
   ZoneList<MoveOperands> move_operands_;
 };
 
-OStream& operator<<(OStream& os, const ParallelMove& pm);
+std::ostream& operator<<(std::ostream& os, const ParallelMove& pm);
 
 class PointerMap FINAL : public ZoneObject {
  public:
@@ -391,14 +388,14 @@ class PointerMap FINAL : public ZoneObject {
   void RecordUntagged(InstructionOperand* op, Zone* zone);
 
  private:
-  friend OStream& operator<<(OStream& os, const PointerMap& pm);
+  friend std::ostream& operator<<(std::ostream& os, const PointerMap& pm);
 
   ZoneList<InstructionOperand*> pointer_operands_;
   ZoneList<InstructionOperand*> untagged_operands_;
   int instruction_position_;
 };
 
-OStream& operator<<(OStream& os, const PointerMap& pm);
+std::ostream& operator<<(std::ostream& os, const PointerMap& pm);
 
 // TODO(titzer): s/PointerMap/ReferenceMap/
 class Instruction : public ZoneObject {
@@ -538,7 +535,7 @@ class Instruction : public ZoneObject {
   InstructionOperand* operands_[1];
 };
 
-OStream& operator<<(OStream& os, const Instruction& instr);
+std::ostream& operator<<(std::ostream& os, const Instruction& instr);
 
 // Represents moves inserted before an instruction due to register allocation.
 // TODO(titzer): squash GapInstruction back into Instruction, since essentially
@@ -589,7 +586,7 @@ class GapInstruction : public Instruction {
   }
 
  private:
-  friend OStream& operator<<(OStream& os, const Instruction& instr);
+  friend std::ostream& operator<<(std::ostream& os, const Instruction& instr);
   ParallelMove* parallel_moves_[LAST_INNER_POSITION + 1];
 };
 
@@ -736,30 +733,27 @@ class FrameStateDescriptor : public ZoneObject {
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   MaybeHandle<JSFunction> jsfunction() const { return jsfunction_; }
 
-  size_t size() const {
-    return parameters_count_ + locals_count_ + stack_count_ +
-           (HasContext() ? 1 : 0);
+  size_t GetSize(OutputFrameStateCombine combine =
+                     OutputFrameStateCombine::Ignore()) const {
+    size_t size = parameters_count_ + locals_count_ + stack_count_ +
+                  (HasContext() ? 1 : 0);
+    switch (combine.kind()) {
+      case OutputFrameStateCombine::kPushOutput:
+        size += combine.GetPushCount();
+        break;
+      case OutputFrameStateCombine::kPokeAt:
+        break;
+    }
+    return size;
   }
 
   size_t GetTotalSize() const {
     size_t total_size = 0;
     for (const FrameStateDescriptor* iter = this; iter != NULL;
          iter = iter->outer_state_) {
-      total_size += iter->size();
+      total_size += iter->GetSize();
     }
     return total_size;
-  }
-
-  size_t GetHeight(OutputFrameStateCombine override) const {
-    size_t height = size() - parameters_count();
-    switch (override) {
-      case kPushOutput:
-        ++height;
-        break;
-      case kIgnoreOutput:
-        break;
-    }
-    return height;
   }
 
   size_t GetFrameCount() const {
@@ -795,7 +789,7 @@ class FrameStateDescriptor : public ZoneObject {
   MaybeHandle<JSFunction> jsfunction_;
 };
 
-OStream& operator<<(OStream& os, const Constant& constant);
+std::ostream& operator<<(std::ostream& os, const Constant& constant);
 
 typedef ZoneDeque<Constant> ConstantDeque;
 typedef std::map<int, Constant, std::less<int>,
@@ -839,10 +833,10 @@ class InstructionSequence FINAL {
   }
 
   BasicBlock* GetContainingLoop(BasicBlock* block) {
-    return block->loop_header_;
+    return block->loop_header();
   }
 
-  int GetLoopEnd(BasicBlock* block) const { return block->loop_end_; }
+  int GetLoopEnd(BasicBlock* block) const { return block->loop_end(); }
 
   BasicBlock* GetBasicBlock(int instruction_index);
 
@@ -926,7 +920,8 @@ class InstructionSequence FINAL {
   int GetFrameStateDescriptorCount();
 
  private:
-  friend OStream& operator<<(OStream& os, const InstructionSequence& code);
+  friend std::ostream& operator<<(std::ostream& os,
+                                  const InstructionSequence& code);
 
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
 
@@ -944,7 +939,7 @@ class InstructionSequence FINAL {
   DeoptimizationVector deoptimization_entries_;
 };
 
-OStream& operator<<(OStream& os, const InstructionSequence& code);
+std::ostream& operator<<(std::ostream& os, const InstructionSequence& code);
 
 }  // namespace compiler
 }  // namespace internal

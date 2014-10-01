@@ -5,6 +5,7 @@
 #include "src/compiler/machine-operator-reducer.h"
 
 #include "src/base/bits.h"
+#include "src/codegen.h"
 #include "src/compiler/generic-node-inl.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"

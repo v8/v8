@@ -2,10 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/code-stubs.h"
+
+#include <sstream>
 
 #include "src/bootstrapper.h"
-#include "src/code-stubs.h"
 #include "src/cpu-profiler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
@@ -75,9 +76,10 @@ bool CodeStub::FindCodeInCache(Code** code_out) {
 
 void CodeStub::RecordCodeGeneration(Handle<Code> code) {
   IC::RegisterWeakMapDependency(code);
-  OStringStream os;
+  std::ostringstream os;
   os << *this;
-  PROFILE(isolate(), CodeCreateEvent(Logger::STUB_TAG, *code, os.c_str()));
+  PROFILE(isolate(),
+          CodeCreateEvent(Logger::STUB_TAG, *code, os.str().c_str()));
   Counters* counters = isolate()->counters();
   counters->total_stubs_code_size()->Increment(code->instruction_size());
 }
@@ -153,9 +155,9 @@ Handle<Code> CodeStub::GetCode() {
     if (FLAG_print_code_stubs) {
       CodeTracer::Scope trace_scope(isolate()->GetCodeTracer());
       OFStream os(trace_scope.file());
-      OStringStream name;
+      std::ostringstream name;
       name << *this;
-      new_object->Disassemble(name.c_str(), os);
+      new_object->Disassemble(name.str().c_str(), os);
       os << "\n";
     }
 #endif
@@ -198,12 +200,12 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 }
 
 
-void CodeStub::PrintBaseName(OStream& os) const {  // NOLINT
+void CodeStub::PrintBaseName(std::ostream& os) const {  // NOLINT
   os << MajorName(MajorKey(), false);
 }
 
 
-void CodeStub::PrintName(OStream& os) const {  // NOLINT
+void CodeStub::PrintName(std::ostream& os) const {  // NOLINT
   PrintBaseName(os);
   PrintState(os);
 }
@@ -279,7 +281,7 @@ void BinaryOpICStub::GenerateAheadOfTime(Isolate* isolate) {
 }
 
 
-void BinaryOpICStub::PrintState(OStream& os) const {  // NOLINT
+void BinaryOpICStub::PrintState(std::ostream& os) const {  // NOLINT
   os << state();
 }
 
@@ -300,7 +302,7 @@ void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
 
 
 void BinaryOpICWithAllocationSiteStub::PrintState(
-    OStream& os) const {  // NOLINT
+    std::ostream& os) const {  // NOLINT
   os << state();
 }
 
@@ -315,7 +317,7 @@ void BinaryOpICWithAllocationSiteStub::GenerateAheadOfTime(
 }
 
 
-void StringAddStub::PrintBaseName(OStream& os) const {  // NOLINT
+void StringAddStub::PrintBaseName(std::ostream& os) const {  // NOLINT
   os << "StringAddStub";
   if ((flags() & STRING_ADD_CHECK_BOTH) == STRING_ADD_CHECK_BOTH) {
     os << "_CheckBoth";
@@ -463,17 +465,17 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
   OFStream os(stdout);
   os << "[";
   PrintBaseName(os);
-  os << ": " << from << "=>" << to << "]" << endl;
+  os << ": " << from << "=>" << to << "]" << std::endl;
 }
 
 
-void CompareNilICStub::PrintBaseName(OStream& os) const {  // NOLINT
+void CompareNilICStub::PrintBaseName(std::ostream& os) const {  // NOLINT
   CodeStub::PrintBaseName(os);
   os << ((nil_value() == kNullValue) ? "(NullValue)" : "(UndefinedValue)");
 }
 
 
-void CompareNilICStub::PrintState(OStream& os) const {  // NOLINT
+void CompareNilICStub::PrintState(std::ostream& os) const {  // NOLINT
   os << state();
 }
 
@@ -481,7 +483,7 @@ void CompareNilICStub::PrintState(OStream& os) const {  // NOLINT
 // TODO(svenpanne) Make this a real infix_ostream_iterator.
 class SimpleListPrinter {
  public:
-  explicit SimpleListPrinter(OStream& os) : os_(os), first_(true) {}
+  explicit SimpleListPrinter(std::ostream& os) : os_(os), first_(true) {}
 
   void Add(const char* s) {
     if (first_) {
@@ -493,12 +495,12 @@ class SimpleListPrinter {
   }
 
  private:
-  OStream& os_;
+  std::ostream& os_;
   bool first_;
 };
 
 
-OStream& operator<<(OStream& os, const CompareNilICStub::State& s) {
+std::ostream& operator<<(std::ostream& os, const CompareNilICStub::State& s) {
   os << "(";
   SimpleListPrinter p(os);
   if (s.IsEmpty()) p.Add("None");
@@ -539,17 +541,17 @@ Type* CompareNilICStub::GetInputType(Zone* zone, Handle<Map> map) {
 }
 
 
-void CallIC_ArrayStub::PrintState(OStream& os) const {  // NOLINT
+void CallIC_ArrayStub::PrintState(std::ostream& os) const {  // NOLINT
   os << state() << " (Array)";
 }
 
 
-void CallICStub::PrintState(OStream& os) const {  // NOLINT
+void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
   os << state();
 }
 
 
-void InstanceofStub::PrintName(OStream& os) const {  // NOLINT
+void InstanceofStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "InstanceofStub";
   if (HasArgsInRegisters()) os << "_REGS";
   if (HasCallSiteInlineCheck()) os << "_INLINE";
@@ -611,6 +613,11 @@ void StoreFastElementStub::InitializeDescriptor(
 void ElementsTransitionAndStoreStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(ElementsTransitionAndStoreIC_Miss));
+}
+
+
+CallInterfaceDescriptor StoreTransitionStub::GetCallInterfaceDescriptor() {
+  return StoreTransitionDescriptor(isolate());
 }
 
 
@@ -772,7 +779,7 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::PrintName(OStream& os) const {  // NOLINT
+void ArgumentsAccessStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "ArgumentsAccessStub_";
   switch (type()) {
     case READ_ELEMENT:
@@ -792,18 +799,18 @@ void ArgumentsAccessStub::PrintName(OStream& os) const {  // NOLINT
 }
 
 
-void CallFunctionStub::PrintName(OStream& os) const {  // NOLINT
+void CallFunctionStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "CallFunctionStub_Args" << argc();
 }
 
 
-void CallConstructStub::PrintName(OStream& os) const {  // NOLINT
+void CallConstructStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "CallConstructStub";
   if (RecordCallTarget()) os << "_Recording";
 }
 
 
-void ArrayConstructorStub::PrintName(OStream& os) const {  // NOLINT
+void ArrayConstructorStub::PrintName(std::ostream& os) const {  // NOLINT
   os << "ArrayConstructorStub";
   switch (argument_count()) {
     case ANY:
@@ -823,8 +830,9 @@ void ArrayConstructorStub::PrintName(OStream& os) const {  // NOLINT
 }
 
 
-OStream& ArrayConstructorStubBase::BasePrintName(OStream& os,  // NOLINT
-                                                 const char* name) const {
+std::ostream& ArrayConstructorStubBase::BasePrintName(
+    std::ostream& os,  // NOLINT
+    const char* name) const {
   os << name << "_" << ElementsKindToString(elements_kind());
   if (override_mode() == DISABLE_ALLOCATION_SITES) {
     os << "_DISABLE_ALLOCATION_SITES";
@@ -843,12 +851,12 @@ bool ToBooleanStub::UpdateStatus(Handle<Object> object) {
 }
 
 
-void ToBooleanStub::PrintState(OStream& os) const {  // NOLINT
+void ToBooleanStub::PrintState(std::ostream& os) const {  // NOLINT
   os << types();
 }
 
 
-OStream& operator<<(OStream& os, const ToBooleanStub::Types& s) {
+std::ostream& operator<<(std::ostream& os, const ToBooleanStub::Types& s) {
   os << "(";
   SimpleListPrinter p(os);
   if (s.IsEmpty()) p.Add("None");

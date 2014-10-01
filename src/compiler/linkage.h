@@ -143,8 +143,8 @@ class CallDescriptor FINAL : public ZoneObject {
 
 DEFINE_OPERATORS_FOR_FLAGS(CallDescriptor::Flags)
 
-OStream& operator<<(OStream& os, const CallDescriptor& d);
-OStream& operator<<(OStream& os, const CallDescriptor::Kind& k);
+std::ostream& operator<<(std::ostream& os, const CallDescriptor& d);
+std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k);
 
 // Defines the linkage for a compilation, including the calling conventions
 // for incoming parameters and return value(s) as well as the outgoing calling

@@ -61,7 +61,7 @@ class Node FINAL : public GenericNode<NodeData, Node> {
   Node* FindProjection(size_t projection_index);
 };
 
-OStream& operator<<(OStream& os, const Node& n);
+std::ostream& operator<<(std::ostream& os, const Node& n);
 
 typedef GenericGraphVisit::NullNodeVisitor<NodeData, Node> NullNodeVisitor;
 
