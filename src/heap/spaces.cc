@@ -110,7 +110,7 @@ bool CodeRange::SetUp(size_t requested) {
     }
   }
 
-  if (requested < kMinimumCodeRangeSize) {
+  if (requested <= kMinimumCodeRangeSize) {
     requested = kMinimumCodeRangeSize;
   }
 
