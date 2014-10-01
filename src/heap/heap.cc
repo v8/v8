@@ -2868,20 +2868,10 @@ void Heap::CreateInitialObjects() {
   // Number of queued microtasks stored in Isolate::pending_microtask_count().
   set_microtask_queue(empty_fixed_array());
 
-  set_detailed_stack_trace_symbol(*factory->NewPrivateOwnSymbol());
-  set_elements_transition_symbol(*factory->NewPrivateOwnSymbol());
-  set_frozen_symbol(*factory->NewPrivateOwnSymbol());
-  set_megamorphic_symbol(*factory->NewPrivateOwnSymbol());
-  set_premonomorphic_symbol(*factory->NewPrivateOwnSymbol());
-  set_generic_symbol(*factory->NewPrivateOwnSymbol());
-  set_nonexistent_symbol(*factory->NewPrivateOwnSymbol());
-  set_normal_ic_symbol(*factory->NewPrivateOwnSymbol());
-  set_observed_symbol(*factory->NewPrivateOwnSymbol());
-  set_stack_trace_symbol(*factory->NewPrivateOwnSymbol());
-  set_uninitialized_symbol(*factory->NewPrivateOwnSymbol());
-  set_home_object_symbol(*factory->NewPrivateOwnSymbol());
-  set_promise_debug_marker_symbol(*factory->NewPrivateOwnSymbol());
-  set_promise_has_handler_symbol(*factory->NewPrivateOwnSymbol());
+#define SYMBOL_INIT(name) \
+  roots_[k##name##RootIndex] = *factory->NewPrivateOwnSymbol();
+  PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
+#undef SYMBOL_INIT
 
   Handle<SeededNumberDictionary> slow_element_dictionary =
       SeededNumberDictionary::New(isolate(), 0, TENURED);

@@ -2873,6 +2873,9 @@ bool HConstant::ImmortalImmovable() const {
       object_.IsKnownGlobal(heap->name##_map()) ||
       STRING_TYPE_LIST(STRING_TYPE)
 #undef STRING_TYPE
+#define SYMBOL(name) object_.IsKnownGlobal(heap->name()) ||
+      PRIVATE_SYMBOL_LIST(SYMBOL)
+#undef SYMBOL
       false;
 }
 
