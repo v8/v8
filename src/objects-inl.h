@@ -2635,14 +2635,14 @@ void ConstantPoolArray::InitExtended(const NumberOfEntries& small,
 
   // Initialize the extended layout fields.
   int extended_header_offset = get_extended_section_header_offset();
-  WRITE_INT_FIELD(this, extended_header_offset + kExtendedInt64CountOffset,
-      extended.count_of(INT64));
-  WRITE_INT_FIELD(this, extended_header_offset + kExtendedCodePtrCountOffset,
-      extended.count_of(CODE_PTR));
-  WRITE_INT_FIELD(this, extended_header_offset + kExtendedHeapPtrCountOffset,
-      extended.count_of(HEAP_PTR));
-  WRITE_INT_FIELD(this, extended_header_offset + kExtendedInt32CountOffset,
-      extended.count_of(INT32));
+  WRITE_INT32_FIELD(this, extended_header_offset + kExtendedInt64CountOffset,
+                    extended.count_of(INT64));
+  WRITE_INT32_FIELD(this, extended_header_offset + kExtendedCodePtrCountOffset,
+                    extended.count_of(CODE_PTR));
+  WRITE_INT32_FIELD(this, extended_header_offset + kExtendedHeapPtrCountOffset,
+                    extended.count_of(HEAP_PTR));
+  WRITE_INT32_FIELD(this, extended_header_offset + kExtendedInt32CountOffset,
+                    extended.count_of(INT32));
 }
 
 
@@ -3314,7 +3314,11 @@ uint32_t Name::hash_field() {
 void Name::set_hash_field(uint32_t value) {
   WRITE_UINT32_FIELD(this, kHashFieldOffset, value);
 #if V8_HOST_ARCH_64_BIT
-  WRITE_UINT32_FIELD(this, kHashFieldOffset + kIntSize, 0);
+#if V8_TARGET_LITTLE_ENDIAN
+  WRITE_UINT32_FIELD(this, kHashFieldSlot + kIntSize, 0);
+#else
+  WRITE_UINT32_FIELD(this, kHashFieldSlot, 0);
+#endif
 #endif
 }
 
@@ -5485,25 +5489,30 @@ SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
 
 #else
 
-#define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
-  STATIC_ASSERT(holder::offset % kPointerSize == 0);              \
-  int holder::name() const {                                      \
-    int value = READ_INT_FIELD(this, offset);                     \
-    DCHECK(kHeapObjectTag == 1);                                  \
-    DCHECK((value & kHeapObjectTag) == 0);                        \
-    return value >> 1;                                            \
-  }                                                               \
-  void holder::set_##name(int value) {                            \
-    DCHECK(kHeapObjectTag == 1);                                  \
-    DCHECK((value & 0xC0000000) == 0xC0000000 ||                  \
-           (value & 0xC0000000) == 0x0);                          \
-    WRITE_INT_FIELD(this,                                         \
-                    offset,                                       \
-                    (value << 1) & ~kHeapObjectTag);              \
+#if V8_TARGET_LITTLE_ENDIAN
+#define PSEUDO_SMI_LO_ALIGN 0
+#define PSEUDO_SMI_HI_ALIGN kIntSize
+#else
+#define PSEUDO_SMI_LO_ALIGN kIntSize
+#define PSEUDO_SMI_HI_ALIGN 0
+#endif
+
+#define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)                          \
+  STATIC_ASSERT(holder::offset % kPointerSize == PSEUDO_SMI_LO_ALIGN);         \
+  int holder::name() const {                                                   \
+    int value = READ_INT_FIELD(this, offset);                                  \
+    DCHECK(kHeapObjectTag == 1);                                               \
+    DCHECK((value & kHeapObjectTag) == 0);                                     \
+    return value >> 1;                                                         \
+  }                                                                            \
+  void holder::set_##name(int value) {                                         \
+    DCHECK(kHeapObjectTag == 1);                                               \
+    DCHECK((value & 0xC0000000) == 0xC0000000 || (value & 0xC0000000) == 0x0); \
+    WRITE_INT_FIELD(this, offset, (value << 1) & ~kHeapObjectTag);             \
   }
 
-#define PSEUDO_SMI_ACCESSORS_HI(holder, name, offset)             \
-  STATIC_ASSERT(holder::offset % kPointerSize == kIntSize);       \
+#define PSEUDO_SMI_ACCESSORS_HI(holder, name, offset)                  \
+  STATIC_ASSERT(holder::offset % kPointerSize == PSEUDO_SMI_HI_ALIGN); \
   INT_ACCESSORS(holder, name, offset)
 
 
@@ -6632,7 +6641,7 @@ void String::SetForwardedInternalizedString(String* canonical) {
   DCHECK(SlowEquals(canonical));
   DCHECK(canonical->IsInternalizedString());
   DCHECK(canonical->HasHashCode());
-  WRITE_FIELD(this, kHashFieldOffset, canonical);
+  WRITE_FIELD(this, kHashFieldSlot, canonical);
   // Setting the hash field to a tagged value sets the LSB, causing the hash
   // code to be interpreted as uninitialized.  We use this fact to recognize
   // that we have a forwarded string.
@@ -6643,7 +6652,7 @@ void String::SetForwardedInternalizedString(String* canonical) {
 String* String::GetForwardedInternalizedString() {
   DCHECK(IsInternalizedString());
   if (HasHashCode()) return this;
-  String* canonical = String::cast(READ_FIELD(this, kHashFieldOffset));
+  String* canonical = String::cast(READ_FIELD(this, kHashFieldSlot));
   DCHECK(canonical->IsInternalizedString());
   DCHECK(SlowEquals(canonical));
   DCHECK(canonical->HasHashCode());

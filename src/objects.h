@@ -2843,13 +2843,13 @@ class ConstantPoolArray: public HeapObject {
   // get_extended_section_header_offset().
   static const int kExtendedInt64CountOffset = 0;
   static const int kExtendedCodePtrCountOffset =
-      kExtendedInt64CountOffset + kPointerSize;
+      kExtendedInt64CountOffset + kInt32Size;
   static const int kExtendedHeapPtrCountOffset =
-      kExtendedCodePtrCountOffset + kPointerSize;
+      kExtendedCodePtrCountOffset + kInt32Size;
   static const int kExtendedInt32CountOffset =
-      kExtendedHeapPtrCountOffset + kPointerSize;
+      kExtendedHeapPtrCountOffset + kInt32Size;
   static const int kExtendedFirstOffset =
-      kExtendedInt32CountOffset + kPointerSize;
+      kExtendedInt32CountOffset + kInt32Size;
 
   // Dispatched behavior.
   void ConstantPoolIterateBody(ObjectVisitor* v);
@@ -5365,7 +5365,7 @@ class Code: public HeapObject {
   static const int kPrologueOffset = kKindSpecificFlags2Offset + kIntSize;
   static const int kConstantPoolOffset = kPrologueOffset + kPointerSize;
 
-  static const int kHeaderPaddingStart = kConstantPoolOffset + kIntSize;
+  static const int kHeaderPaddingStart = kConstantPoolOffset + kPointerSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.
@@ -6936,10 +6936,11 @@ class SharedFunctionInfo: public HeapObject {
   // garbage collections.
   // To avoid wasting space on 64-bit architectures we use
   // the following trick: we group integer fields into pairs
-  // First integer in each pair is shifted left by 1.
-  // By doing this we guarantee that LSB of each kPointerSize aligned
-  // word is not set and thus this word cannot be treated as pointer
-  // to HeapObject during old space traversal.
+// The least significant integer in each pair is shifted left by 1.
+// By doing this we guarantee that LSB of each kPointerSize aligned
+// word is not set and thus this word cannot be treated as pointer
+// to HeapObject during old space traversal.
+#if V8_TARGET_LITTLE_ENDIAN
   static const int kLengthOffset =
       kFeedbackVectorOffset + kPointerSize;
   static const int kFormalParameterCountOffset =
@@ -6973,7 +6974,37 @@ class SharedFunctionInfo: public HeapObject {
   // Total size.
   static const int kSize = kProfilerTicksOffset + kIntSize;
 
-#endif
+#elif V8_TARGET_BIG_ENDIAN
+  static const int kFormalParameterCountOffset =
+      kFeedbackVectorOffset + kPointerSize;
+  static const int kLengthOffset = kFormalParameterCountOffset + kIntSize;
+
+  static const int kNumLiteralsOffset = kLengthOffset + kIntSize;
+  static const int kExpectedNofPropertiesOffset = kNumLiteralsOffset + kIntSize;
+
+  static const int kStartPositionAndTypeOffset =
+      kExpectedNofPropertiesOffset + kIntSize;
+  static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
+
+  static const int kCompilerHintsOffset = kEndPositionOffset + kIntSize;
+  static const int kFunctionTokenPositionOffset =
+      kCompilerHintsOffset + kIntSize;
+
+  static const int kCountersOffset = kFunctionTokenPositionOffset + kIntSize;
+  static const int kOptCountAndBailoutReasonOffset = kCountersOffset + kIntSize;
+
+  static const int kProfilerTicksOffset =
+      kOptCountAndBailoutReasonOffset + kIntSize;
+  static const int kAstNodeCountOffset = kProfilerTicksOffset + kIntSize;
+
+  // Total size.
+  static const int kSize = kAstNodeCountOffset + kIntSize;
+
+#else
+#error Unknown byte ordering
+#endif  // Big endian
+#endif  // 64-bit
+
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
@@ -8482,8 +8513,13 @@ class Name: public HeapObject {
   DECLARE_PRINTER(Name)
 
   // Layout description.
-  static const int kHashFieldOffset = HeapObject::kHeaderSize;
-  static const int kSize = kHashFieldOffset + kPointerSize;
+  static const int kHashFieldSlot = HeapObject::kHeaderSize;
+#if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
+  static const int kHashFieldOffset = kHashFieldSlot;
+#else
+  static const int kHashFieldOffset = kHashFieldSlot + kIntSize;
+#endif
+  static const int kSize = kHashFieldSlot + kPointerSize;
 
   // Mask constant for checking if a name has a computed hash code
   // and if it is a string that is an array index.  The least significant bit

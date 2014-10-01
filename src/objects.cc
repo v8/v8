@@ -10966,6 +10966,17 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     it.rinfo()->Print(GetIsolate(), os);
   }
   os << "\n";
+
+#ifdef OBJECT_PRINT
+  if (FLAG_enable_ool_constant_pool) {
+    ConstantPoolArray* pool = constant_pool();
+    if (pool->length()) {
+      os << "Constant Pool\n";
+      pool->Print(os);
+      os << "\n";
+    }
+  }
+#endif
 }
 #endif  // ENABLE_DISASSEMBLER
 
