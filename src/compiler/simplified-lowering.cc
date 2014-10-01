@@ -876,12 +876,41 @@ void SimplifiedLowering::DoLoadElement(Node* node) {
 
 void SimplifiedLowering::DoStoreElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
-  WriteBarrierKind kind = ComputeWriteBarrierKind(
-      access.base_is_tagged, access.machine_type, access.type);
-  node->set_op(
-      machine()->Store(StoreRepresentation(access.machine_type, kind)));
-  node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
-  node->RemoveInput(2);
+  const Operator* op = machine()->Store(StoreRepresentation(
+      access.machine_type,
+      ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type,
+                              access.type)));
+  Node* key = node->InputAt(1);
+  Node* index = ComputeIndex(access, key);
+  if (access.bounds_check == kNoBoundsCheck) {
+    node->set_op(op);
+    node->ReplaceInput(1, index);
+    node->RemoveInput(2);
+  } else {
+    DCHECK_EQ(kTypedArrayBoundsCheck, access.bounds_check);
+
+    Node* base = node->InputAt(0);
+    Node* length = node->InputAt(2);
+    Node* value = node->InputAt(3);
+    Node* effect = node->InputAt(4);
+    Node* control = node->InputAt(5);
+
+    Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
+    Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* store = graph()->NewNode(op, base, index, value, effect, if_true);
+
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+
+    node->set_op(common()->EffectPhi(2));
+    node->ReplaceInput(0, store);
+    node->ReplaceInput(1, effect);
+    node->ReplaceInput(2, merge);
+    node->TrimInputCount(3);
+  }
 }
 
 

@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_SIMPLIFIED_OPERATOR_H_
 #define V8_COMPILER_SIMPLIFIED_OPERATOR_H_
 
+#include <iosfwd>
+
 #include "src/compiler/machine-type.h"
 #include "src/handles.h"
 
@@ -44,11 +46,17 @@ struct FieldAccess {
 };
 
 
+enum BoundsCheckMode { kNoBoundsCheck, kTypedArrayBoundsCheck };
+
+std::ostream& operator<<(std::ostream&, BoundsCheckMode);
+
+
 // An access descriptor for loads/stores of indexed structures like characters
 // in strings or off-heap backing stores. Accesses from either tagged or
 // untagged base pointers are supported; untagging is done automatically during
 // lowering.
 struct ElementAccess {
+  BoundsCheckMode bounds_check;   // specifies the bounds checking mode.
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int header_size;                // size of the header, without tag.
   Type* type;                     // type of the element.

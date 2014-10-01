@@ -4,6 +4,8 @@
 
 #include "src/compiler/simplified-operator.h"
 
+#include <ostream>  // NOLINT(readability/streams)
+
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
@@ -25,6 +27,18 @@ std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
 }
 
 
+std::ostream& operator<<(std::ostream& os, BoundsCheckMode bounds_check_mode) {
+  switch (bounds_check_mode) {
+    case kNoBoundsCheck:
+      return os << "no bounds check";
+    case kTypedArrayBoundsCheck:
+      return os << "ignore out of bounds";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+
 bool operator==(ElementAccess const& lhs, ElementAccess const& rhs) {
   return lhs.base_is_tagged == rhs.base_is_tagged &&
          lhs.header_size == rhs.header_size && lhs.type == rhs.type &&
@@ -40,7 +54,7 @@ bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs) {
 std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   os << "[" << access.base_is_tagged << ", " << access.header_size << ", ";
   access.type->PrintTo(os);
-  os << ", " << access.machine_type << "]";
+  os << ", " << access.machine_type << ", " << access.bounds_check << "]";
   return os;
 }
 
