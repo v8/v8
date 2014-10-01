@@ -56,8 +56,6 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
 };
 
 
-#ifndef V8_TARGET_ARCH_ARM64
-// TODO(titzer): these result in a stub call that doesn't work on ARM64.
 // TODO(titzer): factor these tests out to test-run-simplifiedops.cc.
 // TODO(titzer): test tagged representation for input to NumberToInt32.
 TEST(RunNumberToInt32_float64) {
@@ -113,7 +111,6 @@ TEST(RunNumberToUint32_float64) {
     }
   }
 }
-#endif
 
 
 // Create a simple JSObject with a unique map.
