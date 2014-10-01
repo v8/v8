@@ -673,6 +673,9 @@ class RepresentationSelector {
       case IrOpcode::kInt64LessThanOrEqual:
         return VisitInt64Cmp(node);
 
+      case IrOpcode::kUint64LessThan:
+        return VisitUint64Cmp(node);
+
       case IrOpcode::kInt64UDiv:
       case IrOpcode::kInt64UMod:
         return VisitUint64Binop(node);

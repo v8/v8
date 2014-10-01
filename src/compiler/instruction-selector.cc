@@ -572,6 +572,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt64LessThan(node);
     case IrOpcode::kInt64LessThanOrEqual:
       return VisitInt64LessThanOrEqual(node);
+    case IrOpcode::kUint64LessThan:
+      return VisitUint64LessThan(node);
     case IrOpcode::kChangeFloat32ToFloat64:
       return MarkAsDouble(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
@@ -691,6 +693,12 @@ void InstructionSelector::VisitInt64LessThan(Node* node) {
 
 void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
   FlagsContinuation cont(kSignedLessThanOrEqual, node);
+  VisitWord64Compare(node, &cont);
+}
+
+
+void InstructionSelector::VisitUint64LessThan(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThan, node);
   VisitWord64Compare(node, &cont);
 }
 
@@ -928,6 +936,9 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
         return VisitWord64Compare(value, &cont);
       case IrOpcode::kInt64LessThanOrEqual:
         cont.OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
+        return VisitWord64Compare(value, &cont);
+      case IrOpcode::kUint64LessThan:
+        cont.OverwriteAndNegateIfEqual(kUnsignedLessThan);
         return VisitWord64Compare(value, &cont);
       case IrOpcode::kFloat64Equal:
         cont.OverwriteAndNegateIfEqual(kUnorderedEqual);

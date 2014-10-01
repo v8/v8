@@ -203,6 +203,7 @@
   V(Int64UMod)                \
   V(Int64LessThan)            \
   V(Int64LessThanOrEqual)     \
+  V(Uint64LessThan)           \
   V(ChangeFloat32ToFloat64)   \
   V(ChangeFloat64ToInt32)     \
   V(ChangeFloat64ToUint32)    \

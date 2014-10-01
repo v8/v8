@@ -104,6 +104,7 @@ class MachineOperatorBuilder FINAL {
   const Operator* Int64UMod();
   const Operator* Int64LessThan();
   const Operator* Int64LessThanOrEqual();
+  const Operator* Uint64LessThan();
 
   // These operators change the representation of numbers while preserving the
   // value of the number. Narrowing operators assume the input is representable
@@ -167,7 +168,8 @@ class MachineOperatorBuilder FINAL {
   V(Int, Mod)             \
   V(Int, UMod)            \
   V(Int, LessThan)        \
-  V(Int, LessThanOrEqual)
+  V(Int, LessThanOrEqual) \
+  V(Uint, LessThan)
 #define PSEUDO_OP(Prefix, Suffix)                                \
   const Operator* Prefix##Suffix() {                             \
     return Is32() ? Prefix##32##Suffix() : Prefix##64##Suffix(); \
