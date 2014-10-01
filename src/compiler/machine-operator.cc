@@ -119,7 +119,8 @@ struct StaticParameterTraits<LoadRepresentation> {
   V(Float64Sqrt, Operator::kNoProperties, 1, 1)                               \
   V(Float64Equal, Operator::kCommutative, 2, 1)                               \
   V(Float64LessThan, Operator::kNoProperties, 2, 1)                           \
-  V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 1)
+  V(Float64LessThanOrEqual, Operator::kNoProperties, 2, 1)                    \
+  V(LoadStackPointer, Operator::kNoProperties, 0, 1)
 
 
 #define MACHINE_TYPE_LIST(V) \

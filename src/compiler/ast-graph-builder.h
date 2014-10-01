@@ -105,6 +105,9 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   // Builders for binary operations.
   Node* BuildBinaryOp(Node* left, Node* right, Token::Value op);
 
+  // Builder for stack-check guards.
+  Node* BuildStackCheck();
+
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   // Visiting functions for AST nodes make this an AstVisitor.
   AST_NODE_LIST(DECLARE_VISIT)

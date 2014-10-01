@@ -81,6 +81,7 @@
         'compiler/test-run-jsops.cc',
         'compiler/test-run-machops.cc',
         'compiler/test-run-properties.cc',
+        'compiler/test-run-stackcheck.cc',
         'compiler/test-run-variables.cc',
         'compiler/test-schedule.cc',
         'compiler/test-scheduler.cc',

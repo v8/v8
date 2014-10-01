@@ -204,6 +204,10 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       AssembleReturn();
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    case kArchStackPointer:
+      __ mov(i.OutputRegister(), sp);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(i.OutputRegister(), i.InputFloat64Register(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());

@@ -221,7 +221,8 @@
   V(Float64Sqrt)              \
   V(Float64Equal)             \
   V(Float64LessThan)          \
-  V(Float64LessThanOrEqual)
+  V(Float64LessThanOrEqual)   \
+  V(LoadStackPointer)
 
 #define VALUE_OP_LIST(V) \
   COMMON_OP_LIST(V)      \

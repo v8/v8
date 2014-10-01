@@ -612,7 +612,7 @@ class RepresentationSelector {
       //------------------------------------------------------------------
       case IrOpcode::kLoad: {
         // TODO(titzer): machine loads/stores need to know BaseTaggedness!?
-        MachineType tBase = kRepTagged;
+        MachineTypeUnion tBase = kRepTagged | kMachPtr;
         LoadRepresentation rep = OpParameter<LoadRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
@@ -622,7 +622,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kStore: {
         // TODO(titzer): machine loads/stores need to know BaseTaggedness!?
-        MachineType tBase = kRepTagged;
+        MachineTypeUnion tBase = kRepTagged | kMachPtr;
         StoreRepresentation rep = OpParameter<StoreRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
@@ -732,6 +732,8 @@ class RepresentationSelector {
       case IrOpcode::kFloat64LessThan:
       case IrOpcode::kFloat64LessThanOrEqual:
         return VisitFloat64Cmp(node);
+      case IrOpcode::kLoadStackPointer:
+        return VisitLeaf(node, kMachPtr);
       default:
         VisitInputs(node);
         break;

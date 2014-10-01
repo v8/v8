@@ -612,6 +612,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitFloat64LessThan(node);
     case IrOpcode::kFloat64LessThanOrEqual:
       return VisitFloat64LessThanOrEqual(node);
+    case IrOpcode::kLoadStackPointer:
+      return VisitLoadStackPointer(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -725,6 +727,12 @@ void InstructionSelector::VisitFloat64LessThan(Node* node) {
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
   FlagsContinuation cont(kUnorderedLessThanOrEqual, node);
   VisitFloat64Compare(node, &cont);
+}
+
+
+void InstructionSelector::VisitLoadStackPointer(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchStackPointer, g.DefineAsRegister(node));
 }
 
 #endif  // V8_TURBOFAN_BACKEND

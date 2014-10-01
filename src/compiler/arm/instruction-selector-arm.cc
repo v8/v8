@@ -73,6 +73,7 @@ class ArmOperandGenerator : public OperandGenerator {
       case kArchJmp:
       case kArchNop:
       case kArchRet:
+      case kArchStackPointer:
       case kArchTruncateDoubleToI:
       case kArmMul:
       case kArmMla:

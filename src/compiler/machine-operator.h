@@ -144,6 +144,9 @@ class MachineOperatorBuilder FINAL {
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
 
+  // Access to the machine stack.
+  const Operator* LoadStackPointer();
+
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == kRepWord32; }
   bool Is64() const { return word() == kRepWord64; }
