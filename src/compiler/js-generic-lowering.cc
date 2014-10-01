@@ -328,33 +328,30 @@ void JSGenericLowering::LowerJSInstanceOf(Node* node) {
 
 void JSGenericLowering::LowerJSLoadContext(Node* node) {
   const ContextAccess& access = ContextAccessOf(node->op());
-  // TODO(mstarzinger): Use simplified operators instead of machine operators
-  // here so that load/store optimization can be applied afterwards.
   for (size_t i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
         0, graph()->NewNode(
                machine()->Load(kMachAnyTagged),
                NodeProperties::GetValueInput(node, 0),
                Int32Constant(Context::SlotOffset(Context::PREVIOUS_INDEX)),
-               NodeProperties::GetEffectInput(node)));
+               NodeProperties::GetEffectInput(node), graph()->start()));
   }
   node->ReplaceInput(
       1, Int32Constant(Context::SlotOffset(static_cast<int>(access.index()))));
+  node->AppendInput(zone(), graph()->start());
   PatchOperator(node, machine()->Load(kMachAnyTagged));
 }
 
 
 void JSGenericLowering::LowerJSStoreContext(Node* node) {
   const ContextAccess& access = ContextAccessOf(node->op());
-  // TODO(mstarzinger): Use simplified operators instead of machine operators
-  // here so that load/store optimization can be applied afterwards.
   for (size_t i = 0; i < access.depth(); ++i) {
     node->ReplaceInput(
         0, graph()->NewNode(
                machine()->Load(kMachAnyTagged),
                NodeProperties::GetValueInput(node, 0),
                Int32Constant(Context::SlotOffset(Context::PREVIOUS_INDEX)),
-               NodeProperties::GetEffectInput(node)));
+               NodeProperties::GetEffectInput(node), graph()->start()));
   }
   node->ReplaceInput(2, NodeProperties::GetValueInput(node, 1));
   node->ReplaceInput(

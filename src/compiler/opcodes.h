@@ -34,7 +34,6 @@
 #define INNER_OP_LIST(V) \
   V(Phi)                 \
   V(EffectPhi)           \
-  V(ControlEffect)       \
   V(ValueEffect)         \
   V(Finish)              \
   V(FrameState)          \

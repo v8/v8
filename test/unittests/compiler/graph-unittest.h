@@ -58,7 +58,6 @@ Matcher<Node*> IsMerge(const Matcher<Node*>& control0_matcher,
                        const Matcher<Node*>& control1_matcher);
 Matcher<Node*> IsIfTrue(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsControlEffect(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsValueEffect(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsFinish(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& effect_matcher);
@@ -93,7 +92,8 @@ Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& base_matcher,
                       const Matcher<Node*>& index_matcher,
-                      const Matcher<Node*>& effect_matcher);
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsStore(const Matcher<MachineType>& type_matcher,
                        const Matcher<WriteBarrierKind>& write_barrier_matcher,
                        const Matcher<Node*>& base_matcher,

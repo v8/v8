@@ -557,10 +557,10 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
       DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
       element_access = AccessBuilder::ForTypedArrayElement(type, false);
     }
-    Node* value =
-        graph()->NewNode(simplified()->LoadElement(element_access), elements,
-                         key, jsgraph()->Uint32Constant(length),
-                         NodeProperties::GetEffectInput(node));
+    Node* value = graph()->NewNode(
+        simplified()->LoadElement(element_access), elements, key,
+        jsgraph()->Uint32Constant(length), NodeProperties::GetEffectInput(node),
+        NodeProperties::GetControlInput(node));
     return ReplaceEagerly(node, value);
   }
   return NoChange();

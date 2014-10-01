@@ -435,12 +435,14 @@ class IsLoadMatcher FINAL : public NodeMatcher {
   IsLoadMatcher(const Matcher<LoadRepresentation>& rep_matcher,
                 const Matcher<Node*>& base_matcher,
                 const Matcher<Node*>& index_matcher,
-                const Matcher<Node*>& effect_matcher)
+                const Matcher<Node*>& effect_matcher,
+                const Matcher<Node*>& control_matcher)
       : NodeMatcher(IrOpcode::kLoad),
         rep_matcher_(rep_matcher),
         base_matcher_(base_matcher),
         index_matcher_(index_matcher),
-        effect_matcher_(effect_matcher) {}
+        effect_matcher_(effect_matcher),
+        control_matcher_(control_matcher) {}
 
   virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
@@ -450,8 +452,10 @@ class IsLoadMatcher FINAL : public NodeMatcher {
     base_matcher_.DescribeTo(os);
     *os << "), index (";
     index_matcher_.DescribeTo(os);
-    *os << ") and effect (";
+    *os << "), effect (";
     effect_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
     *os << ")";
   }
 
@@ -465,7 +469,9 @@ class IsLoadMatcher FINAL : public NodeMatcher {
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
                                  "index", index_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetEffectInput(node), "effect",
-                                 effect_matcher_, listener));
+                                 effect_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
   }
 
  private:
@@ -473,6 +479,7 @@ class IsLoadMatcher FINAL : public NodeMatcher {
   const Matcher<Node*> base_matcher_;
   const Matcher<Node*> index_matcher_;
   const Matcher<Node*> effect_matcher_;
+  const Matcher<Node*> control_matcher_;
 };
 
 
@@ -625,12 +632,6 @@ Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher) {
 }
 
 
-Matcher<Node*> IsControlEffect(const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(
-      new IsControl1Matcher(IrOpcode::kControlEffect, control_matcher));
-}
-
-
 Matcher<Node*> IsValueEffect(const Matcher<Node*>& value_matcher) {
   return MakeMatcher(new IsUnopMatcher(IrOpcode::kValueEffect, value_matcher));
 }
@@ -717,9 +718,10 @@ Matcher<Node*> IsCall(const Matcher<CallDescriptor*>& descriptor_matcher,
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& base_matcher,
                       const Matcher<Node*>& index_matcher,
-                      const Matcher<Node*>& effect_matcher) {
+                      const Matcher<Node*>& effect_matcher,
+                      const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsLoadMatcher(rep_matcher, base_matcher, index_matcher,
-                                       effect_matcher));
+                                       effect_matcher, control_matcher));
 }
 
 

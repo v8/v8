@@ -51,8 +51,7 @@ const SharedOperator kSharedOperators[] = {
     SHARED(IfTrue, Operator::kFoldable, 0, 0, 1, 0, 1),
     SHARED(IfFalse, Operator::kFoldable, 0, 0, 1, 0, 1),
     SHARED(Throw, Operator::kFoldable, 1, 0, 1, 0, 1),
-    SHARED(Return, Operator::kNoProperties, 1, 1, 1, 1, 1),
-    SHARED(ControlEffect, Operator::kPure, 0, 0, 1, 1, 0)
+    SHARED(Return, Operator::kNoProperties, 1, 1, 1, 1, 1)
 #undef SHARED
 };
 

@@ -1355,7 +1355,7 @@ TEST(LowerLoadElement_to_load) {
 
     Node* load =
         t.graph()->NewNode(t.simplified()->LoadElement(access), t.p0, t.p1,
-                           t.jsgraph.Int32Constant(1024), t.start);
+                           t.jsgraph.Int32Constant(1024), t.start, t.start);
     Node* use = t.Use(load, machine_reps[i]);
     t.Return(use);
     t.Lower();
@@ -1405,7 +1405,7 @@ TEST(InsertChangeForLoadElementIndex) {
                           kMachAnyTagged};
 
   Node* load = t.graph()->NewNode(t.simplified()->LoadElement(access), t.p0,
-                                  t.p1, t.p2, t.start);
+                                  t.p1, t.p2, t.start, t.start);
   t.Return(load);
   t.Lower();
   CHECK_EQ(IrOpcode::kLoad, load->opcode());
@@ -1445,7 +1445,7 @@ TEST(InsertChangeForLoadElement) {
                           kMachFloat64};
 
   Node* load = t.graph()->NewNode(t.simplified()->LoadElement(access), t.p0,
-                                  t.p1, t.p1, t.start);
+                                  t.p1, t.p1, t.start, t.start);
   t.Return(load);
   t.Lower();
   CHECK_EQ(IrOpcode::kLoad, load->opcode());

@@ -59,8 +59,8 @@ TEST_P(MachineLoadOperatorTest, NumberOfInputsAndOutputs) {
 
   EXPECT_EQ(2, OperatorProperties::GetValueInputCount(op));
   EXPECT_EQ(1, OperatorProperties::GetEffectInputCount(op));
-  EXPECT_EQ(0, OperatorProperties::GetControlInputCount(op));
-  EXPECT_EQ(3, OperatorProperties::GetTotalInputCount(op));
+  EXPECT_EQ(1, OperatorProperties::GetControlInputCount(op));
+  EXPECT_EQ(4, OperatorProperties::GetTotalInputCount(op));
 
   EXPECT_EQ(1, OperatorProperties::GetValueOutputCount(op));
   EXPECT_EQ(1, OperatorProperties::GetEffectOutputCount(op));

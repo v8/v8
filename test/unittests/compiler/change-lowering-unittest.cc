@@ -87,6 +87,12 @@ class ChangeLoweringTest : public GraphTest {
         IsInt32Constant(0), IsNumberConstant(0.0), effect_matcher,
         control_matcher);
   }
+  Matcher<Node*> IsLoadHeapNumber(const Matcher<Node*>& value_matcher,
+                                  const Matcher<Node*>& control_matcher) {
+    return IsLoad(kMachFloat64, value_matcher,
+                  IsInt32Constant(HeapNumberValueOffset()), graph()->start(),
+                  control_matcher);
+  }
   Matcher<Node*> IsWordEqual(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher) {
     return Is32() ? IsWord32Equal(lhs_matcher, rhs_matcher)
@@ -226,9 +232,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToFloat64) {
   EXPECT_THAT(
       phi,
       IsPhi(
-          kMachFloat64,
-          IsLoad(kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
-                 IsControlEffect(CaptureEq(&if_true))),
+          kMachFloat64, IsLoadHeapNumber(val, CaptureEq(&if_true)),
           IsChangeInt32ToFloat64(
               IsWord32Sar(val, IsInt32Constant(SmiShiftAmount()))),
           IsMerge(
@@ -255,9 +259,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToInt32) {
   EXPECT_THAT(
       phi,
       IsPhi(kMachInt32,
-            IsChangeFloat64ToInt32(IsLoad(
-                kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
-                IsControlEffect(CaptureEq(&if_true)))),
+            IsChangeFloat64ToInt32(IsLoadHeapNumber(val, CaptureEq(&if_true))),
             IsWord32Sar(val, IsInt32Constant(SmiShiftAmount())),
             IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
                     IsIfFalse(AllOf(
@@ -281,9 +283,7 @@ TARGET_TEST_F(ChangeLowering32Test, ChangeTaggedToUint32) {
   EXPECT_THAT(
       phi,
       IsPhi(kMachUint32,
-            IsChangeFloat64ToUint32(IsLoad(
-                kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
-                IsControlEffect(CaptureEq(&if_true)))),
+            IsChangeFloat64ToUint32(IsLoadHeapNumber(val, CaptureEq(&if_true))),
             IsWord32Sar(val, IsInt32Constant(SmiShiftAmount())),
             IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
                     IsIfFalse(AllOf(
@@ -363,9 +363,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToFloat64) {
   EXPECT_THAT(
       phi,
       IsPhi(
-          kMachFloat64,
-          IsLoad(kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
-                 IsControlEffect(CaptureEq(&if_true))),
+          kMachFloat64, IsLoadHeapNumber(val, CaptureEq(&if_true)),
           IsChangeInt32ToFloat64(IsTruncateInt64ToInt32(
               IsWord64Sar(val, IsInt32Constant(SmiShiftAmount())))),
           IsMerge(
@@ -392,9 +390,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToInt32) {
   EXPECT_THAT(
       phi,
       IsPhi(kMachInt32,
-            IsChangeFloat64ToInt32(IsLoad(
-                kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
-                IsControlEffect(CaptureEq(&if_true)))),
+            IsChangeFloat64ToInt32(IsLoadHeapNumber(val, CaptureEq(&if_true))),
             IsTruncateInt64ToInt32(
                 IsWord64Sar(val, IsInt32Constant(SmiShiftAmount()))),
             IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
@@ -419,9 +415,7 @@ TARGET_TEST_F(ChangeLowering64Test, ChangeTaggedToUint32) {
   EXPECT_THAT(
       phi,
       IsPhi(kMachUint32,
-            IsChangeFloat64ToUint32(IsLoad(
-                kMachFloat64, val, IsInt32Constant(HeapNumberValueOffset()),
-                IsControlEffect(CaptureEq(&if_true)))),
+            IsChangeFloat64ToUint32(IsLoadHeapNumber(val, CaptureEq(&if_true))),
             IsTruncateInt64ToInt32(
                 IsWord64Sar(val, IsInt32Constant(SmiShiftAmount()))),
             IsMerge(AllOf(CaptureEq(&if_true), IsIfTrue(CaptureEq(&branch))),
