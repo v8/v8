@@ -106,11 +106,6 @@
             ],
           },
         }],
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-        }, {
-          'toolsets': ['target'],
-        }],
       ],
     },
   ],
