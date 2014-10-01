@@ -2830,10 +2830,14 @@ void Heap::CreateInitialObjects() {
   set_instanceof_cache_map(Smi::FromInt(0));
   set_instanceof_cache_answer(Smi::FromInt(0));
 
-#define SYMBOL_INIT(name) \
-  roots_[k##name##RootIndex] = *factory->NewPrivateOwnSymbol();
-  PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
+  {
+    HandleScope scope(isolate());
+#define SYMBOL_INIT(name)                               \
+  Handle<Symbol> name = factory->NewPrivateOwnSymbol(); \
+  roots_[k##name##RootIndex] = *name;
+    PRIVATE_SYMBOL_LIST(SYMBOL_INIT)
 #undef SYMBOL_INIT
+  }
 
   CreateFixedStubs();
 
