@@ -2683,13 +2683,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm,
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ JumpIfRoot(scratch1, Heap::kUninitializedSymbolRootIndex, &initialize);
+  __ JumpIfRoot(scratch1, Heap::kuninitialized_symbolRootIndex, &initialize);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ Bind(&megamorphic);
   __ Add(scratch1, feedback_vector,
          Operand::UntagSmiAndScale(index, kPointerSizeLog2));
-  __ LoadRoot(scratch2, Heap::kMegamorphicSymbolRootIndex);
+  __ LoadRoot(scratch2, Heap::kmegamorphic_symbolRootIndex);
   __ Str(scratch2, FieldMemOperand(scratch1, FixedArray::kHeaderSize));
   __ B(&done);
 
@@ -3038,8 +3038,8 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&extra_checks_or_miss);
   Label miss;
 
-  __ JumpIfRoot(x4, Heap::kMegamorphicSymbolRootIndex, &slow_start);
-  __ JumpIfRoot(x4, Heap::kUninitializedSymbolRootIndex, &miss);
+  __ JumpIfRoot(x4, Heap::kmegamorphic_symbolRootIndex, &slow_start);
+  __ JumpIfRoot(x4, Heap::kuninitialized_symbolRootIndex, &miss);
 
   if (!FLAG_trace_ic) {
     // We are going megamorphic. If the feedback is a JSFunction, it is fine
@@ -3048,7 +3048,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ JumpIfNotObjectType(x4, x5, x5, JS_FUNCTION_TYPE, &miss);
     __ Add(x4, feedback_vector,
            Operand::UntagSmiAndScale(index, kPointerSizeLog2));
-    __ LoadRoot(x5, Heap::kMegamorphicSymbolRootIndex);
+    __ LoadRoot(x5, Heap::kmegamorphic_symbolRootIndex);
     __ Str(x5, FieldMemOperand(x4, FixedArray::kHeaderSize));
     __ B(&slow_start);
   }
