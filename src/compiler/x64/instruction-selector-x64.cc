@@ -545,12 +545,12 @@ void InstructionSelector::VisitInt64Div(Node* node) {
 }
 
 
-void InstructionSelector::VisitInt32UDiv(Node* node) {
+void InstructionSelector::VisitUint32Div(Node* node) {
   VisitDiv(this, node, kX64Udiv32);
 }
 
 
-void InstructionSelector::VisitInt64UDiv(Node* node) {
+void InstructionSelector::VisitUint64Div(Node* node) {
   VisitDiv(this, node, kX64Udiv);
 }
 
@@ -575,12 +575,12 @@ void InstructionSelector::VisitInt64Mod(Node* node) {
 }
 
 
-void InstructionSelector::VisitInt32UMod(Node* node) {
+void InstructionSelector::VisitUint32Mod(Node* node) {
   VisitMod(this, node, kX64Udiv32);
 }
 
 
-void InstructionSelector::VisitInt64UMod(Node* node) {
+void InstructionSelector::VisitUint64Mod(Node* node) {
   VisitMod(this, node, kX64Udiv);
 }
 

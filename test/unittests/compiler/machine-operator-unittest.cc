@@ -184,13 +184,13 @@ const PureOperator kPureOperators[] = {
     PURE(Int32Add, 2, 1),               PURE(Int32AddWithOverflow, 2, 2),
     PURE(Int32Sub, 2, 1),               PURE(Int32SubWithOverflow, 2, 2),
     PURE(Int32Mul, 2, 1),               PURE(Int32Div, 2, 1),
-    PURE(Int32UDiv, 2, 1),              PURE(Int32Mod, 2, 1),
-    PURE(Int32UMod, 2, 1),              PURE(Int32LessThan, 2, 1),
+    PURE(Uint32Div, 2, 1),              PURE(Int32Mod, 2, 1),
+    PURE(Uint32Mod, 2, 1),              PURE(Int32LessThan, 2, 1),
     PURE(Int32LessThanOrEqual, 2, 1),   PURE(Uint32LessThan, 2, 1),
     PURE(Uint32LessThanOrEqual, 2, 1),  PURE(Int64Add, 2, 1),
     PURE(Int64Sub, 2, 1),               PURE(Int64Mul, 2, 1),
-    PURE(Int64Div, 2, 1),               PURE(Int64UDiv, 2, 1),
-    PURE(Int64Mod, 2, 1),               PURE(Int64UMod, 2, 1),
+    PURE(Int64Div, 2, 1),               PURE(Uint64Div, 2, 1),
+    PURE(Int64Mod, 2, 1),               PURE(Uint64Mod, 2, 1),
     PURE(Int64LessThan, 2, 1),          PURE(Int64LessThanOrEqual, 2, 1),
     PURE(Uint64LessThan, 2, 1),         PURE(ChangeFloat32ToFloat64, 1, 1),
     PURE(ChangeFloat64ToInt32, 1, 1),   PURE(ChangeFloat64ToUint32, 1, 1),
@@ -278,9 +278,9 @@ TEST(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs32Bit) {
   EXPECT_EQ(machine.Int32Sub(), machine.IntSub());
   EXPECT_EQ(machine.Int32Mul(), machine.IntMul());
   EXPECT_EQ(machine.Int32Div(), machine.IntDiv());
-  EXPECT_EQ(machine.Int32UDiv(), machine.IntUDiv());
+  EXPECT_EQ(machine.Uint32Div(), machine.UintDiv());
   EXPECT_EQ(machine.Int32Mod(), machine.IntMod());
-  EXPECT_EQ(machine.Int32UMod(), machine.IntUMod());
+  EXPECT_EQ(machine.Uint32Mod(), machine.UintMod());
   EXPECT_EQ(machine.Int32LessThan(), machine.IntLessThan());
   EXPECT_EQ(machine.Int32LessThanOrEqual(), machine.IntLessThanOrEqual());
 }
@@ -300,9 +300,9 @@ TEST(MachineOperatorTest, PseudoOperatorsWhenWordSizeIs64Bit) {
   EXPECT_EQ(machine.Int64Sub(), machine.IntSub());
   EXPECT_EQ(machine.Int64Mul(), machine.IntMul());
   EXPECT_EQ(machine.Int64Div(), machine.IntDiv());
-  EXPECT_EQ(machine.Int64UDiv(), machine.IntUDiv());
+  EXPECT_EQ(machine.Uint64Div(), machine.UintDiv());
   EXPECT_EQ(machine.Int64Mod(), machine.IntMod());
-  EXPECT_EQ(machine.Int64UMod(), machine.IntUMod());
+  EXPECT_EQ(machine.Uint64Mod(), machine.UintMod());
   EXPECT_EQ(machine.Int64LessThan(), machine.IntLessThan());
   EXPECT_EQ(machine.Int64LessThanOrEqual(), machine.IntLessThanOrEqual());
 }

@@ -652,8 +652,8 @@ class RepresentationSelector {
       case IrOpcode::kInt32Div:
       case IrOpcode::kInt32Mod:
         return VisitInt32Binop(node);
-      case IrOpcode::kInt32UDiv:
-      case IrOpcode::kInt32UMod:
+      case IrOpcode::kUint32Div:
+      case IrOpcode::kUint32Mod:
         return VisitUint32Binop(node);
       case IrOpcode::kInt32LessThan:
       case IrOpcode::kInt32LessThanOrEqual:
@@ -676,8 +676,8 @@ class RepresentationSelector {
       case IrOpcode::kUint64LessThan:
         return VisitUint64Cmp(node);
 
-      case IrOpcode::kInt64UDiv:
-      case IrOpcode::kInt64UMod:
+      case IrOpcode::kUint64Div:
+      case IrOpcode::kUint64Mod:
         return VisitUint64Binop(node);
 
       case IrOpcode::kWord64And:

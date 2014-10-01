@@ -64,8 +64,8 @@ TEST(CodeGenInt32Binop) {
       m.machine()->Word32Shr(),      m.machine()->Word32Sar(),
       m.machine()->Word32Equal(),    m.machine()->Int32Add(),
       m.machine()->Int32Sub(),       m.machine()->Int32Mul(),
-      m.machine()->Int32Div(),       m.machine()->Int32UDiv(),
-      m.machine()->Int32Mod(),       m.machine()->Int32UMod(),
+      m.machine()->Int32Div(),       m.machine()->Uint32Div(),
+      m.machine()->Int32Mod(),       m.machine()->Uint32Mod(),
       m.machine()->Int32LessThan(),  m.machine()->Int32LessThanOrEqual(),
       m.machine()->Uint32LessThan(), m.machine()->Uint32LessThanOrEqual(),
       NULL};
@@ -1381,11 +1381,11 @@ TEST(RunInt32DivP) {
 }
 
 
-TEST(RunInt32UDivP) {
+TEST(RunUint32DivP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Int32BinopTester bt(&m);
-    bt.AddReturn(m.Int32UDiv(bt.param0, bt.param1));
+    bt.AddReturn(m.Uint32Div(bt.param0, bt.param1));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
         uint32_t p0 = *i;
@@ -1400,7 +1400,7 @@ TEST(RunInt32UDivP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Int32BinopTester bt(&m);
-    bt.AddReturn(m.Int32Add(bt.param0, m.Int32UDiv(bt.param0, bt.param1)));
+    bt.AddReturn(m.Int32Add(bt.param0, m.Uint32Div(bt.param0, bt.param1)));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
         uint32_t p0 = *i;
@@ -1449,11 +1449,11 @@ TEST(RunInt32ModP) {
 }
 
 
-TEST(RunInt32UModP) {
+TEST(RunUint32ModP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Int32BinopTester bt(&m);
-    bt.AddReturn(m.Int32UMod(bt.param0, bt.param1));
+    bt.AddReturn(m.Uint32Mod(bt.param0, bt.param1));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
         uint32_t p0 = *i;
@@ -1468,7 +1468,7 @@ TEST(RunInt32UModP) {
   {
     RawMachineAssemblerTester<int32_t> m;
     Int32BinopTester bt(&m);
-    bt.AddReturn(m.Int32Add(bt.param0, m.Int32UMod(bt.param0, bt.param1)));
+    bt.AddReturn(m.Int32Add(bt.param0, m.Uint32Mod(bt.param0, bt.param1)));
     FOR_UINT32_INPUTS(i) {
       FOR_UINT32_INPUTS(j) {
         uint32_t p0 = *i;
@@ -2665,8 +2665,8 @@ TEST(RunDeadInt32Binops) {
       m.machine()->Word32Ror(),             m.machine()->Word32Equal(),
       m.machine()->Int32Add(),              m.machine()->Int32Sub(),
       m.machine()->Int32Mul(),              m.machine()->Int32Div(),
-      m.machine()->Int32UDiv(),             m.machine()->Int32Mod(),
-      m.machine()->Int32UMod(),             m.machine()->Int32LessThan(),
+      m.machine()->Uint32Div(),             m.machine()->Int32Mod(),
+      m.machine()->Uint32Mod(),             m.machine()->Int32LessThan(),
       m.machine()->Int32LessThanOrEqual(),  m.machine()->Uint32LessThan(),
       m.machine()->Uint32LessThanOrEqual(), NULL};
 

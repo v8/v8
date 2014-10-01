@@ -540,20 +540,20 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt32Mul(node);
     case IrOpcode::kInt32Div:
       return VisitInt32Div(node);
-    case IrOpcode::kInt32UDiv:
-      return VisitInt32UDiv(node);
     case IrOpcode::kInt32Mod:
       return VisitInt32Mod(node);
-    case IrOpcode::kInt32UMod:
-      return VisitInt32UMod(node);
     case IrOpcode::kInt32LessThan:
       return VisitInt32LessThan(node);
     case IrOpcode::kInt32LessThanOrEqual:
       return VisitInt32LessThanOrEqual(node);
+    case IrOpcode::kUint32Div:
+      return VisitUint32Div(node);
     case IrOpcode::kUint32LessThan:
       return VisitUint32LessThan(node);
     case IrOpcode::kUint32LessThanOrEqual:
       return VisitUint32LessThanOrEqual(node);
+    case IrOpcode::kUint32Mod:
+      return VisitUint32Mod(node);
     case IrOpcode::kInt64Add:
       return VisitInt64Add(node);
     case IrOpcode::kInt64Sub:
@@ -562,18 +562,18 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt64Mul(node);
     case IrOpcode::kInt64Div:
       return VisitInt64Div(node);
-    case IrOpcode::kInt64UDiv:
-      return VisitInt64UDiv(node);
     case IrOpcode::kInt64Mod:
       return VisitInt64Mod(node);
-    case IrOpcode::kInt64UMod:
-      return VisitInt64UMod(node);
     case IrOpcode::kInt64LessThan:
       return VisitInt64LessThan(node);
     case IrOpcode::kInt64LessThanOrEqual:
       return VisitInt64LessThanOrEqual(node);
+    case IrOpcode::kUint64Div:
+      return VisitUint64Div(node);
     case IrOpcode::kUint64LessThan:
       return VisitUint64LessThan(node);
+    case IrOpcode::kUint64Mod:
+      return VisitUint64Mod(node);
     case IrOpcode::kChangeFloat32ToFloat64:
       return MarkAsDouble(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
@@ -765,13 +765,13 @@ void InstructionSelector::VisitInt64Mul(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitInt64Div(Node* node) { UNIMPLEMENTED(); }
 
 
-void InstructionSelector::VisitInt64UDiv(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitUint64Div(Node* node) { UNIMPLEMENTED(); }
 
 
 void InstructionSelector::VisitInt64Mod(Node* node) { UNIMPLEMENTED(); }
 
 
-void InstructionSelector::VisitInt64UMod(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitUint64Mod(Node* node) { UNIMPLEMENTED(); }
 
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {

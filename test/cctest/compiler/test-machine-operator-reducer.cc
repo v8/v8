@@ -477,9 +477,9 @@ TEST(ReduceInt32Div) {
 }
 
 
-TEST(ReduceInt32UDiv) {
+TEST(ReduceUint32Div) {
   ReducerTester R;
-  R.binop = R.machine.Int32UDiv();
+  R.binop = R.machine.Uint32Div();
 
   FOR_UINT32_INPUTS(pl) {
     FOR_UINT32_INPUTS(pr) {
@@ -530,9 +530,9 @@ TEST(ReduceInt32Mod) {
 }
 
 
-TEST(ReduceInt32UMod) {
+TEST(ReduceUint32Mod) {
   ReducerTester R;
-  R.binop = R.machine.Int32UMod();
+  R.binop = R.machine.Uint32Mod();
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
@@ -819,9 +819,9 @@ TEST(ReduceFloat64Mod) {
 // TODO(titzer): test MachineOperatorReducer for Int64Mul
 // TODO(titzer): test MachineOperatorReducer for Int64UMul
 // TODO(titzer): test MachineOperatorReducer for Int64Div
-// TODO(titzer): test MachineOperatorReducer for Int64UDiv
+// TODO(titzer): test MachineOperatorReducer for Uint64Div
 // TODO(titzer): test MachineOperatorReducer for Int64Mod
-// TODO(titzer): test MachineOperatorReducer for Int64UMod
+// TODO(titzer): test MachineOperatorReducer for Uint64Mod
 // TODO(titzer): test MachineOperatorReducer for Int64Neg
 // TODO(titzer): test MachineOperatorReducer for ChangeInt32ToFloat64
 // TODO(titzer): test MachineOperatorReducer for ChangeFloat64ToInt32

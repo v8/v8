@@ -1580,9 +1580,9 @@ TEST_F(InstructionSelectorTest, Int32SubWithInt32MulForMLS) {
 }
 
 
-TEST_F(InstructionSelectorTest, Int32UDivWithParameters) {
+TEST_F(InstructionSelectorTest, Uint32DivWithParameters) {
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  m.Return(m.Int32UDiv(m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Uint32Div(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(4U, s.size());
   EXPECT_EQ(kArmVcvtF64U32, s[0]->arch_opcode());
@@ -1600,18 +1600,18 @@ TEST_F(InstructionSelectorTest, Int32UDivWithParameters) {
 }
 
 
-TEST_F(InstructionSelectorTest, Int32UDivWithParametersForSUDIV) {
+TEST_F(InstructionSelectorTest, Uint32DivWithParametersForSUDIV) {
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  m.Return(m.Int32UDiv(m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Uint32Div(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build(SUDIV);
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kArmUdiv, s[0]->arch_opcode());
 }
 
 
-TEST_F(InstructionSelectorTest, Int32UModWithParameters) {
+TEST_F(InstructionSelectorTest, Uint32ModWithParameters) {
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Uint32Mod(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(6U, s.size());
   EXPECT_EQ(kArmVcvtF64U32, s[0]->arch_opcode());
@@ -1639,9 +1639,9 @@ TEST_F(InstructionSelectorTest, Int32UModWithParameters) {
 }
 
 
-TEST_F(InstructionSelectorTest, Int32UModWithParametersForSUDIV) {
+TEST_F(InstructionSelectorTest, Uint32ModWithParametersForSUDIV) {
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Uint32Mod(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build(SUDIV);
   ASSERT_EQ(3U, s.size());
   EXPECT_EQ(kArmUdiv, s[0]->arch_opcode());
@@ -1660,9 +1660,9 @@ TEST_F(InstructionSelectorTest, Int32UModWithParametersForSUDIV) {
 }
 
 
-TEST_F(InstructionSelectorTest, Int32UModWithParametersForSUDIVAndMLS) {
+TEST_F(InstructionSelectorTest, Uint32ModWithParametersForSUDIVAndMLS) {
   StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
-  m.Return(m.Int32UMod(m.Parameter(0), m.Parameter(1)));
+  m.Return(m.Uint32Mod(m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build(MLS, SUDIV);
   ASSERT_EQ(2U, s.size());
   EXPECT_EQ(kArmUdiv, s[0]->arch_opcode());

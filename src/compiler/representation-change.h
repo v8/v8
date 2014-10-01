@@ -330,9 +330,9 @@ class RepresentationChanger {
       case IrOpcode::kNumberMultiply:
         return machine()->Int32Mul();
       case IrOpcode::kNumberDivide:
-        return machine()->Int32UDiv();
+        return machine()->Uint32Div();
       case IrOpcode::kNumberModulus:
-        return machine()->Int32UMod();
+        return machine()->Uint32Mod();
       case IrOpcode::kNumberEqual:
         return machine()->Word32Equal();
       case IrOpcode::kNumberLessThan:

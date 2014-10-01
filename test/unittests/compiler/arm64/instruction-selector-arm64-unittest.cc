@@ -141,8 +141,8 @@ static const MachInst2 kMulDivInstructions[] = {
     {&RawMachineAssembler::Int64Mul, "Int64Mul", kArm64Mul, kMachInt64},
     {&RawMachineAssembler::Int32Div, "Int32Div", kArm64Idiv32, kMachInt32},
     {&RawMachineAssembler::Int64Div, "Int64Div", kArm64Idiv, kMachInt64},
-    {&RawMachineAssembler::Int32UDiv, "Int32UDiv", kArm64Udiv32, kMachInt32},
-    {&RawMachineAssembler::Int64UDiv, "Int64UDiv", kArm64Udiv, kMachInt64}};
+    {&RawMachineAssembler::Uint32Div, "Uint32Div", kArm64Udiv32, kMachInt32},
+    {&RawMachineAssembler::Uint64Div, "Uint64Div", kArm64Udiv, kMachInt64}};
 
 
 // ARM64 FP arithmetic instructions.
