@@ -233,9 +233,9 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
   if (!input->IsJSObject()) return isolate->heap()->false_value();
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
-  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  Handle<Object> tag = JSObject::GetDataProperty(obj, marker);
-  return isolate->heap()->ToBoolean(!tag->IsUndefined());
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  Handle<Object> tag(obj->GetHiddenProperty(marker), isolate);
+  return isolate->heap()->ToBoolean(!tag->IsTheHole());
 }
 
 
@@ -250,8 +250,8 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
   if (!input->IsJSObject()) return isolate->heap()->false_value();
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
-  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  Handle<Object> tag = JSObject::GetDataProperty(obj, marker);
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  Handle<Object> tag(obj->GetHiddenProperty(marker), isolate);
   return isolate->heap()->ToBoolean(tag->IsString() &&
                                     String::cast(*tag)->Equals(*expected_type));
 }
@@ -266,11 +266,11 @@ RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
   CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, impl, 2);
 
-  Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  JSObject::SetProperty(input, marker, type, STRICT).Assert();
+  Handle<String> marker = isolate->factory()->intl_initialized_marker_string();
+  JSObject::SetHiddenProperty(input, marker, type);
 
-  marker = isolate->factory()->intl_impl_object_symbol();
-  JSObject::SetProperty(input, marker, impl, STRICT).Assert();
+  marker = isolate->factory()->intl_impl_object_string();
+  JSObject::SetHiddenProperty(input, marker, impl);
 
   return isolate->heap()->undefined_value();
 }
@@ -291,9 +291,8 @@ RUNTIME_FUNCTION(Runtime_GetImplFromInitializedIntlObject) {
 
   Handle<JSObject> obj = Handle<JSObject>::cast(input);
 
-  Handle<Symbol> marker = isolate->factory()->intl_impl_object_symbol();
-
-  Handle<Object> impl = JSObject::GetDataProperty(obj, marker);
+  Handle<String> marker = isolate->factory()->intl_impl_object_string();
+  Handle<Object> impl(obj->GetHiddenProperty(marker), isolate);
   if (impl->IsTheHole()) {
     Vector<Handle<Object> > arguments = HandleVector(&obj, 1);
     THROW_NEW_ERROR_RETURN_FAILURE(isolate,

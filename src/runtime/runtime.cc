@@ -1040,6 +1040,18 @@ MaybeHandle<Object> Runtime::DeleteObjectProperty(Isolate* isolate,
 }
 
 
+RUNTIME_FUNCTION(Runtime_SetHiddenProperty) {
+  HandleScope scope(isolate);
+  RUNTIME_ASSERT(args.length() == 3);
+
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  RUNTIME_ASSERT(key->IsUniqueName());
+  return *JSObject::SetHiddenProperty(object, key, value);
+}
+
+
 RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   HandleScope scope(isolate);
   RUNTIME_ASSERT(args.length() == 4);
