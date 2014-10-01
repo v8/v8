@@ -588,8 +588,6 @@
         '../../src/heap/store-buffer-inl.h',
         '../../src/heap/store-buffer.cc',
         '../../src/heap/store-buffer.h',
-        '../../src/heap/sweeper-thread.h',
-        '../../src/heap/sweeper-thread.cc',
         '../../src/hydrogen-alias-analysis.h',
         '../../src/hydrogen-bce.cc',
         '../../src/hydrogen-bce.h',
