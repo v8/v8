@@ -1259,6 +1259,22 @@ TEST(RunInt32MulImm) {
 
 TEST(RunInt32MulAndInt32AddP) {
   {
+    FOR_INT32_INPUTS(i) {
+      FOR_INT32_INPUTS(j) {
+        RawMachineAssemblerTester<int32_t> m(kMachInt32);
+        int32_t p0 = *i;
+        int32_t p1 = *j;
+        m.Return(m.Int32Add(m.Int32Constant(p0),
+                            m.Int32Mul(m.Parameter(0), m.Int32Constant(p1))));
+        FOR_INT32_INPUTS(k) {
+          int32_t p2 = *k;
+          int expected = p0 + static_cast<int32_t>(p1 * p2);
+          CHECK_EQ(expected, m.Call(p2));
+        }
+      }
+    }
+  }
+  {
     RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32, kMachInt32);
     m.Return(
         m.Int32Add(m.Parameter(0), m.Int32Mul(m.Parameter(1), m.Parameter(2))));

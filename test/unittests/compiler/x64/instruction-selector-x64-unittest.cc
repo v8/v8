@@ -10,6 +10,16 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+namespace {
+
+// Immediates (random subset).
+static const int32_t kImmediates[] = {
+    kMinInt, -42, -1, 0,  1,  2,    3,      4,          5,
+    6,       7,   8,  16, 42, 0xff, 0xffff, 0x0f0f0f0f, kMaxInt};
+
+}  // namespace
+
+
 // -----------------------------------------------------------------------------
 // Conversions.
 
@@ -337,6 +347,16 @@ typedef InstructionSelectorTestWithParam<MultParam> InstructionSelectorMultTest;
 
 static unsigned InputCountForLea(AddressingMode mode) {
   switch (mode) {
+    case kMode_MR1I:
+    case kMode_MR2I:
+    case kMode_MR4I:
+    case kMode_MR8I:
+      return 3U;
+    case kMode_M1I:
+    case kMode_M2I:
+    case kMode_M4I:
+    case kMode_M8I:
+      return 2U;
     case kMode_MR1:
     case kMode_MR2:
     case kMode_MR4:
@@ -350,6 +370,31 @@ static unsigned InputCountForLea(AddressingMode mode) {
     default:
       UNREACHABLE();
       return 0U;
+  }
+}
+
+
+static AddressingMode AddressingModeForAddMult(const MultParam& m) {
+  switch (m.addressing_mode) {
+    case kMode_MR1:
+      return kMode_MR1I;
+    case kMode_MR2:
+      return kMode_MR2I;
+    case kMode_MR4:
+      return kMode_MR4I;
+    case kMode_MR8:
+      return kMode_MR8I;
+    case kMode_M1:
+      return kMode_M1I;
+    case kMode_M2:
+      return kMode_M2I;
+    case kMode_M4:
+      return kMode_M4I;
+    case kMode_M8:
+      return kMode_M8I;
+    default:
+      UNREACHABLE();
+      return kMode_None;
   }
 }
 
@@ -392,6 +437,60 @@ TEST_P(InstructionSelectorMultTest, Mult64) {
     ASSERT_EQ(2U, s[0]->InputCount());
     // TODO(dcarney): why is this happening?
     EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(1)));
+  }
+}
+
+
+TEST_P(InstructionSelectorMultTest, MultAdd32) {
+  TRACED_FOREACH(int32_t, imm, kImmediates) {
+    const MultParam m_param = GetParam();
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* param = m.Parameter(0);
+    Node* mult = m.Int32Add(m.Int32Mul(param, m.Int32Constant(m_param.value)),
+                            m.Int32Constant(imm));
+    m.Return(mult);
+    Stream s = m.Build();
+    if (m_param.lea_expected) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kX64Lea32, s[0]->arch_opcode());
+      EXPECT_EQ(AddressingModeForAddMult(m_param), s[0]->addressing_mode());
+      unsigned input_count = InputCountForLea(s[0]->addressing_mode());
+      ASSERT_EQ(input_count, s[0]->InputCount());
+      ASSERT_EQ(InstructionOperand::IMMEDIATE,
+                s[0]->InputAt(input_count - 1)->kind());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(input_count - 1)));
+    } else {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kX64Imul32, s[0]->arch_opcode());
+      EXPECT_EQ(kX64Add32, s[1]->arch_opcode());
+    }
+  }
+}
+
+
+TEST_P(InstructionSelectorMultTest, MultAdd64) {
+  TRACED_FOREACH(int32_t, imm, kImmediates) {
+    const MultParam m_param = GetParam();
+    StreamBuilder m(this, kMachInt64, kMachInt64);
+    Node* param = m.Parameter(0);
+    Node* mult = m.Int64Add(m.Int64Mul(param, m.Int64Constant(m_param.value)),
+                            m.Int64Constant(imm));
+    m.Return(mult);
+    Stream s = m.Build();
+    if (m_param.lea_expected) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kX64Lea, s[0]->arch_opcode());
+      EXPECT_EQ(AddressingModeForAddMult(m_param), s[0]->addressing_mode());
+      unsigned input_count = InputCountForLea(s[0]->addressing_mode());
+      ASSERT_EQ(input_count, s[0]->InputCount());
+      ASSERT_EQ(InstructionOperand::IMMEDIATE,
+                s[0]->InputAt(input_count - 1)->kind());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(input_count - 1)));
+    } else {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kX64Imul, s[0]->arch_opcode());
+      EXPECT_EQ(kX64Add, s[1]->arch_opcode());
+    }
   }
 }
 

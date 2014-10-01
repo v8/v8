@@ -474,6 +474,16 @@ typedef InstructionSelectorTestWithParam<MultParam> InstructionSelectorMultTest;
 
 static unsigned InputCountForLea(AddressingMode mode) {
   switch (mode) {
+    case kMode_MR1I:
+    case kMode_MR2I:
+    case kMode_MR4I:
+    case kMode_MR8I:
+      return 3U;
+    case kMode_M1I:
+    case kMode_M2I:
+    case kMode_M4I:
+    case kMode_M8I:
+      return 2U;
     case kMode_MR1:
     case kMode_MR2:
     case kMode_MR4:
@@ -487,6 +497,31 @@ static unsigned InputCountForLea(AddressingMode mode) {
     default:
       UNREACHABLE();
       return 0U;
+  }
+}
+
+
+static AddressingMode AddressingModeForAddMult(const MultParam& m) {
+  switch (m.addressing_mode) {
+    case kMode_MR1:
+      return kMode_MR1I;
+    case kMode_MR2:
+      return kMode_MR2I;
+    case kMode_MR4:
+      return kMode_MR4I;
+    case kMode_MR8:
+      return kMode_MR8I;
+    case kMode_M1:
+      return kMode_M1I;
+    case kMode_M2:
+      return kMode_M2I;
+    case kMode_M4:
+      return kMode_M4I;
+    case kMode_M8:
+      return kMode_M8I;
+    default:
+      UNREACHABLE();
+      return kMode_None;
   }
 }
 
@@ -508,6 +543,33 @@ TEST_P(InstructionSelectorMultTest, Mult32) {
     ASSERT_EQ(2U, s[0]->InputCount());
   }
   EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(0)));
+}
+
+
+TEST_P(InstructionSelectorMultTest, MultAdd32) {
+  TRACED_FOREACH(int32_t, imm, kImmediates) {
+    const MultParam m_param = GetParam();
+    StreamBuilder m(this, kMachInt32, kMachInt32);
+    Node* param = m.Parameter(0);
+    Node* mult = m.Int32Add(m.Int32Mul(param, m.Int32Constant(m_param.value)),
+                            m.Int32Constant(imm));
+    m.Return(mult);
+    Stream s = m.Build();
+    if (m_param.lea_expected) {
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kIA32Lea, s[0]->arch_opcode());
+      EXPECT_EQ(AddressingModeForAddMult(m_param), s[0]->addressing_mode());
+      unsigned input_count = InputCountForLea(s[0]->addressing_mode());
+      ASSERT_EQ(input_count, s[0]->InputCount());
+      ASSERT_EQ(InstructionOperand::IMMEDIATE,
+                s[0]->InputAt(input_count - 1)->kind());
+      EXPECT_EQ(imm, s.ToInt32(s[0]->InputAt(input_count - 1)));
+    } else {
+      ASSERT_EQ(2U, s.size());
+      EXPECT_EQ(kIA32Imul, s[0]->arch_opcode());
+      EXPECT_EQ(kIA32Add, s[1]->arch_opcode());
+    }
+  }
 }
 
 
