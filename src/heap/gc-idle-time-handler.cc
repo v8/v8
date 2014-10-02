@@ -87,7 +87,8 @@ bool GCIdleTimeHandler::DoScavenge(
   // We do not know the allocation throughput before the first Scavenge.
   // TODO(hpayer): Estimate allocation throughput before the first Scavenge.
   if (new_space_allocation_throughput_in_bytes_per_ms == 0) {
-    new_space_allocation_limit = new_space_size * kConservativeTimeRatio;
+    new_space_allocation_limit =
+        static_cast<size_t>(new_space_size * kConservativeTimeRatio);
   } else {
     // We have to trigger scavenge before we reach the end of new space.
     new_space_allocation_limit -=
