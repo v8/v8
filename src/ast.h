@@ -1385,28 +1385,17 @@ class Literal FINAL : public Expression {
 
   // Support for using Literal as a HashMap key. NOTE: Currently, this works
   // only for string and number literals!
-  uint32_t Hash() { return ToString()->Hash(); }
-
-  static bool Match(void* literal1, void* literal2) {
-    Handle<String> s1 = static_cast<Literal*>(literal1)->ToString();
-    Handle<String> s2 = static_cast<Literal*>(literal2)->ToString();
-    return String::Equals(s1, s2);
-  }
+  uint32_t Hash();
+  static bool Match(void* literal1, void* literal2);
 
   TypeFeedbackId LiteralFeedbackId() const { return reuse(id()); }
 
  protected:
   Literal(Zone* zone, const AstValue* value, int position, IdGen* id_gen)
-      : Expression(zone, position, id_gen),
-        value_(value),
-        isolate_(zone->isolate()) {}
+      : Expression(zone, position, id_gen), value_(value) {}
 
  private:
-  Handle<String> ToString();
-
   const AstValue* value_;
-  // TODO(dcarney): remove.  this is only needed for Match and Hash.
-  Isolate* isolate_;
 };
 
 

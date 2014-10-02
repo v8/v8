@@ -117,14 +117,15 @@ bool AstRawString::IsOneByteEqualTo(const char* data) const {
 
 
 bool AstRawString::Compare(void* a, void* b) {
-  AstRawString* string1 = reinterpret_cast<AstRawString*>(a);
-  AstRawString* string2 = reinterpret_cast<AstRawString*>(b);
-  if (string1->is_one_byte_ != string2->is_one_byte_) return false;
-  if (string1->hash_ != string2->hash_) return false;
-  int length = string1->literal_bytes_.length();
-  if (string2->literal_bytes_.length() != length) return false;
-  return memcmp(string1->literal_bytes_.start(),
-                string2->literal_bytes_.start(), length) == 0;
+  return *static_cast<AstRawString*>(a) == *static_cast<AstRawString*>(b);
+}
+
+bool AstRawString::operator==(const AstRawString& rhs) const {
+  if (is_one_byte_ != rhs.is_one_byte_) return false;
+  if (hash_ != rhs.hash_) return false;
+  int len = literal_bytes_.length();
+  if (rhs.literal_bytes_.length() != len) return false;
+  return memcmp(literal_bytes_.start(), rhs.literal_bytes_.start(), len) == 0;
 }
 
 
