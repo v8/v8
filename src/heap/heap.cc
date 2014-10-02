@@ -4314,7 +4314,7 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
   heap_state.scavenge_speed_in_bytes_per_ms =
       static_cast<size_t>(tracer()->ScavengeSpeedInBytesPerMillisecond());
-  heap_state.available_new_space_memory = new_space_.Available();
+  heap_state.used_new_space_size = new_space_.Size();
   heap_state.new_space_capacity = new_space_.Capacity();
   heap_state.new_space_allocation_throughput_in_bytes_per_ms =
       static_cast<size_t>(
