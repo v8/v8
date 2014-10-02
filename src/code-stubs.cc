@@ -105,9 +105,6 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   // Generate the new code.
   MacroAssembler masm(isolate(), NULL, 256);
 
-  // TODO(yangguo) remove this once the code serializer handles code stubs.
-  if (FLAG_serialize_toplevel) masm.enable_serializer();
-
   {
     // Update the static counter each time a new code stub is generated.
     isolate()->counters()->code_stubs()->Increment();
@@ -224,9 +221,8 @@ void CodeStub::Dispatch(Isolate* isolate, uint32_t key, void** value_out,
     CODE_STUB_LIST(DEF_CASE)
 #undef DEF_CASE
     case NUMBER_OF_IDS:
-      UNREACHABLE();
     case NoCache:
-      *value_out = NULL;
+      UNREACHABLE();
       break;
   }
 }

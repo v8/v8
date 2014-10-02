@@ -1985,6 +1985,7 @@ void CodeSerializer::SerializeCodeStub(Code* stub, HowToCode how_to_code,
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
   uint32_t stub_key = stub->stub_key();
   DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
+  DCHECK(!CodeStub::GetCode(isolate(), stub_key).is_null());
 
   int index = AddCodeStubKey(stub_key) + kCodeStubsBaseIndex;
 
