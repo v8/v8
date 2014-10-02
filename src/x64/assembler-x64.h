@@ -813,30 +813,42 @@ class Assembler : public AssemblerBase {
   // Multiply rax by src, put the result in rdx:rax.
   void mul(Register src);
 
-#define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)     \
-  void instruction##p(Register dst, Immediate imm8) {       \
-    shift(dst, imm8, subcode, kPointerSize);                \
-  }                                                         \
-                                                            \
-  void instruction##l(Register dst, Immediate imm8) {       \
-    shift(dst, imm8, subcode, kInt32Size);                  \
-  }                                                         \
-                                                            \
-  void instruction##q(Register dst, Immediate imm8) {       \
-    shift(dst, imm8, subcode, kInt64Size);                  \
-  }                                                         \
-                                                            \
-  void instruction##p_cl(Register dst) {                    \
-    shift(dst, subcode, kPointerSize);                      \
-  }                                                         \
-                                                            \
-  void instruction##l_cl(Register dst) {                    \
-    shift(dst, subcode, kInt32Size);                        \
-  }                                                         \
-                                                            \
-  void instruction##q_cl(Register dst) {                    \
-    shift(dst, subcode, kInt64Size);                        \
-  }
+#define DECLARE_SHIFT_INSTRUCTION(instruction, subcode)                       \
+  void instruction##p(Register dst, Immediate imm8) {                         \
+    shift(dst, imm8, subcode, kPointerSize);                                  \
+  }                                                                           \
+                                                                              \
+  void instruction##l(Register dst, Immediate imm8) {                         \
+    shift(dst, imm8, subcode, kInt32Size);                                    \
+  }                                                                           \
+                                                                              \
+  void instruction##q(Register dst, Immediate imm8) {                         \
+    shift(dst, imm8, subcode, kInt64Size);                                    \
+  }                                                                           \
+                                                                              \
+  void instruction##p(Operand dst, Immediate imm8) {                          \
+    shift(dst, imm8, subcode, kPointerSize);                                  \
+  }                                                                           \
+                                                                              \
+  void instruction##l(Operand dst, Immediate imm8) {                          \
+    shift(dst, imm8, subcode, kInt32Size);                                    \
+  }                                                                           \
+                                                                              \
+  void instruction##q(Operand dst, Immediate imm8) {                          \
+    shift(dst, imm8, subcode, kInt64Size);                                    \
+  }                                                                           \
+                                                                              \
+  void instruction##p_cl(Register dst) { shift(dst, subcode, kPointerSize); } \
+                                                                              \
+  void instruction##l_cl(Register dst) { shift(dst, subcode, kInt32Size); }   \
+                                                                              \
+  void instruction##q_cl(Register dst) { shift(dst, subcode, kInt64Size); }   \
+                                                                              \
+  void instruction##p_cl(Operand dst) { shift(dst, subcode, kPointerSize); }  \
+                                                                              \
+  void instruction##l_cl(Operand dst) { shift(dst, subcode, kInt32Size); }    \
+                                                                              \
+  void instruction##q_cl(Operand dst) { shift(dst, subcode, kInt64Size); }
   SHIFT_INSTRUCTION_LIST(DECLARE_SHIFT_INSTRUCTION)
 #undef DECLARE_SHIFT_INSTRUCTION
 
@@ -1365,9 +1377,11 @@ class Assembler : public AssemblerBase {
                                int size);
 
   // Emit machine code for a shift operation.
+  void shift(Operand dst, Immediate shift_amount, int subcode, int size);
   void shift(Register dst, Immediate shift_amount, int subcode, int size);
   // Shift dst by cl % 64 bits.
   void shift(Register dst, int subcode, int size);
+  void shift(Operand dst, int subcode, int size);
 
   void emit_farith(int b1, int b2, int i);
 
