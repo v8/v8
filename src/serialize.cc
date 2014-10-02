@@ -834,6 +834,7 @@ Address Deserializer::Allocate(int space_index, int size) {
   }
 }
 
+
 void Deserializer::ReadChunk(Object** current,
                              Object** limit,
                              int source_space,
@@ -1514,10 +1515,8 @@ void PartialSerializer::SerializeObject(
 }
 
 
-void Serializer::ObjectSerializer::Serialize() {
-  int space = Serializer::SpaceOfObject(object_);
-  int size = object_->Size();
-
+void Serializer::ObjectSerializer::SerializePrologue(int space, int size,
+                                                     Map* map) {
   sink_->Put(kNewObject + reference_representation_ + space,
              "ObjectSerialization");
   sink_->PutInt(size >> kObjectAlignmentBits, "Size in words");
@@ -1546,13 +1545,79 @@ void Serializer::ObjectSerializer::Serialize() {
   }
 
   // Serialize the map (first word of the object).
-  serializer_->SerializeObject(object_->map(), kPlain, kStartOfObject, 0);
+  serializer_->SerializeObject(map, kPlain, kStartOfObject, 0);
+}
 
-  // Serialize the rest of the object.
-  CHECK_EQ(0, bytes_processed_so_far_);
-  bytes_processed_so_far_ = kPointerSize;
-  object_->IterateBody(object_->map()->instance_type(), size, this);
-  OutputRawData(object_->address() + size);
+
+void Serializer::ObjectSerializer::SerializeExternalString() {
+  // Instead of serializing this as an external string, we serialize
+  // an imaginary sequential string with the same content.
+  DCHECK(object_->IsExternalString() && object_->IsInternalizedString());
+  Isolate* isolate = serializer_->isolate();
+  ExternalString* string = ExternalString::cast(object_);
+  int length = string->length();
+  Map* map;
+  int size;
+  const char* resource;
+  // Find the map and size for the imaginary sequential string.
+  if (object_->IsExternalOneByteString()) {
+    map = isolate->heap()->one_byte_internalized_string_map();
+    size = SeqOneByteString::SizeFor(length);
+    resource = ExternalOneByteString::cast(string)->resource()->data();
+  } else {
+    map = isolate->heap()->internalized_string_map();
+    size = SeqTwoByteString::SizeFor(length);
+    resource = reinterpret_cast<const char*>(
+        ExternalTwoByteString::cast(string)->resource()->data());
+  }
+
+  int space =
+      (size > Page::kMaxRegularHeapObjectSize) ? LO_SPACE : OLD_DATA_SPACE;
+  SerializePrologue(space, size, map);
+
+  // Output the rest of the imaginary string.
+  int bytes_to_output = size - HeapObject::kHeaderSize;
+
+  // Output raw data header. Do not bother with common raw length cases here.
+  sink_->Put(kRawData, "RawDataForString");
+  sink_->PutInt(bytes_to_output, "length");
+
+  // Serialize string header (except for map).
+  Address string_start = string->address();
+  for (int i = HeapObject::kHeaderSize; i < SeqString::kHeaderSize; i++) {
+    sink_->PutSection(string_start[i], "StringHeader");
+  }
+
+  // Serialize string content.
+  int content_length = size - SeqString::kHeaderSize;
+  for (int i = 0; i < content_length; i++) {
+    sink_->PutSection(resource[i], "StringContent");
+  }
+
+  sink_->Put(kSkip, "SkipAfterString");
+  sink_->PutInt(bytes_to_output, "SkipDistance");
+}
+
+
+void Serializer::ObjectSerializer::Serialize() {
+  if (object_->IsExternalString() && object_->IsInternalizedString()) {
+    // Native source code strings are not internalized and are handled in
+    // VisitExternalOneByteString.  We deal with embedded external strings
+    // by serializing them as sequential strings on the heap.
+    // This can only happen with CodeSerializer.
+    SerializeExternalString();
+  } else {
+    int size = object_->Size();
+    Map* map = object_->map();
+    SerializePrologue(Serializer::SpaceOfObject(object_), size, map);
+
+    // Serialize the rest of the object.
+    CHECK_EQ(0, bytes_processed_so_far_);
+    bytes_processed_so_far_ = kPointerSize;
+
+    object_->IterateBody(map->instance_type(), size, this);
+    OutputRawData(object_->address() + size);
+  }
 }
 
 
@@ -1697,7 +1762,7 @@ void Serializer::ObjectSerializer::VisitExternalOneByteString(
     }
   }
   // One of the strings in the natives cache should match the resource.  We
-  // can't serialize any other kinds of external strings.
+  // don't expect any other kinds of external strings here.
   UNREACHABLE();
 }
 
@@ -1876,6 +1941,11 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
   }
 
   if (address_mapper_.IsMapped(heap_object)) {
+    if (FLAG_trace_code_serializer) {
+      PrintF("Encoding back reference to: ");
+      heap_object->ShortPrint();
+      PrintF("\n");
+    }
     SerializeReferenceToPreviousObject(heap_object, how_to_code, where_to_point,
                                        skip);
     return;
