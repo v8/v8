@@ -560,7 +560,7 @@ bool FunctionDeclaration::IsInlineable() const {
 // once we use the common type field in the AST consistently.
 
 void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
-  to_boolean_types_ = oracle->ToBooleanTypes(test_id());
+  set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
 }
 
 
