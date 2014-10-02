@@ -2522,6 +2522,13 @@ bool Heap::CreateInitialMaps() {
       roots_[entry.index] = map;
     }
 
+    {  // Create a separate external one byte string map for native sources.
+      AllocationResult allocation = AllocateMap(EXTERNAL_ONE_BYTE_STRING_TYPE,
+                                                ExternalOneByteString::kSize);
+      if (!allocation.To(&obj)) return false;
+      set_native_source_string_map(Map::cast(obj));
+    }
+
     ALLOCATE_VARSIZE_MAP(STRING_TYPE, undetectable_string)
     undetectable_string_map()->set_is_undetectable();
 

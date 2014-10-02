@@ -83,6 +83,7 @@ namespace internal {
   V(Map, external_string_with_one_byte_data_map,                               \
     ExternalStringWithOneByteDataMap)                                          \
   V(Map, external_one_byte_string_map, ExternalOneByteStringMap)               \
+  V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, short_external_string_map, ShortExternalStringMap)                    \
   V(Map, short_external_string_with_one_byte_data_map,                         \
     ShortExternalStringWithOneByteDataMap)                                     \

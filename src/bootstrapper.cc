@@ -57,6 +57,8 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
     Handle<String> source_code = isolate_->factory()
                                      ->NewExternalStringFromOneByte(resource)
                                      .ToHandleChecked();
+    // Mark this external string with a special map.
+    source_code->set_map(isolate_->heap()->native_source_string_map());
     heap->natives_source_cache()->set(index, *source_code);
   }
   Handle<Object> cached_source(heap->natives_source_cache()->get(index),

@@ -1552,8 +1552,9 @@ void Serializer::ObjectSerializer::SerializePrologue(int space, int size,
 void Serializer::ObjectSerializer::SerializeExternalString() {
   // Instead of serializing this as an external string, we serialize
   // an imaginary sequential string with the same content.
-  DCHECK(object_->IsExternalString() && object_->IsInternalizedString());
   Isolate* isolate = serializer_->isolate();
+  DCHECK(object_->IsExternalString());
+  DCHECK(object_->map() != isolate->heap()->native_source_string_map());
   ExternalString* string = ExternalString::cast(object_);
   int length = string->length();
   Map* map;
@@ -1600,24 +1601,30 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
 
 
 void Serializer::ObjectSerializer::Serialize() {
-  if (object_->IsExternalString() && object_->IsInternalizedString()) {
-    // Native source code strings are not internalized and are handled in
-    // VisitExternalOneByteString.  We deal with embedded external strings
-    // by serializing them as sequential strings on the heap.
-    // This can only happen with CodeSerializer.
-    SerializeExternalString();
-  } else {
-    int size = object_->Size();
-    Map* map = object_->map();
-    SerializePrologue(Serializer::SpaceOfObject(object_), size, map);
-
-    // Serialize the rest of the object.
-    CHECK_EQ(0, bytes_processed_so_far_);
-    bytes_processed_so_far_ = kPointerSize;
-
-    object_->IterateBody(map->instance_type(), size, this);
-    OutputRawData(object_->address() + size);
+  if (object_->IsExternalString()) {
+    Heap* heap = serializer_->isolate()->heap();
+    if (object_->map() != heap->native_source_string_map()) {
+      // Usually we cannot recreate resources for external strings. To work
+      // around this, external strings are serialized to look like ordinary
+      // sequential strings.
+      // The exception are native source code strings, since we can recreate
+      // their resources. In that case we fall through and leave it to
+      // VisitExternalOneByteString further down.
+      SerializeExternalString();
+      return;
+    }
   }
+
+  int size = object_->Size();
+  Map* map = object_->map();
+  SerializePrologue(Serializer::SpaceOfObject(object_), size, map);
+
+  // Serialize the rest of the object.
+  CHECK_EQ(0, bytes_processed_so_far_);
+  bytes_processed_so_far_ = kPointerSize;
+
+  object_->IterateBody(map->instance_type(), size, this);
+  OutputRawData(object_->address() + size);
 }
 
 

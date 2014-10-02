@@ -1046,8 +1046,7 @@ TEST(SerializeToplevelLargeExternalString) {
   CHECK_NE(*orig, *copy);
 
   Handle<JSFunction> copy_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          copy, isolate->native_context());
+      f->NewFunctionFromSharedFunctionInfo(copy, isolate->native_context());
 
   Handle<Object> copy_result =
       Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
@@ -1056,6 +1055,59 @@ TEST(SerializeToplevelLargeExternalString) {
 
   delete cache;
   string.Dispose();
+}
+
+
+TEST(SerializeToplevelExternalScriptName) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  Factory* f = isolate->factory();
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* source =
+      "var a = [1, 2, 3, 4];"
+      "a.reduce(function(x, y) { return x + y }, 0)";
+
+  Handle<String> source_string =
+      f->NewStringFromUtf8(CStrVector(source)).ToHandleChecked();
+
+  const SerializerOneByteResource one_byte_resource("one_byte", 8);
+  Handle<String> name =
+      f->NewExternalStringFromOneByte(&one_byte_resource).ToHandleChecked();
+  CHECK(name->IsExternalOneByteString());
+  CHECK(!name->IsInternalizedString());
+
+  Handle<JSObject> global(isolate->context()->global_object());
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      source_string, name, 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+
+  Handle<SharedFunctionInfo> copy;
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    copy = Compiler::CompileScript(
+        source_string, name, 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+  }
+  CHECK_NE(*orig, *copy);
+
+  Handle<JSFunction> copy_fun =
+      f->NewFunctionFromSharedFunctionInfo(copy, isolate->native_context());
+
+  Handle<Object> copy_result =
+      Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
+
+  CHECK_EQ(10.0f, copy_result->Number());
+
+  delete cache;
 }
 
 
