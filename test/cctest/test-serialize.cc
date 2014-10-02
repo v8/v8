@@ -901,9 +901,10 @@ TEST(SerializeToplevelLargeString) {
 }
 
 
-class OneByteResource : public v8::String::ExternalOneByteStringResource {
+class SerializerOneByteResource
+    : public v8::String::ExternalOneByteStringResource {
  public:
-  OneByteResource(const char* data, size_t length)
+  SerializerOneByteResource(const char* data, size_t length)
       : data_(data), length_(length) {}
   virtual const char* data() const { return data_; }
   virtual size_t length() const { return length_; }
@@ -914,11 +915,11 @@ class OneByteResource : public v8::String::ExternalOneByteStringResource {
 };
 
 
-class TwoByteResource : public v8::String::ExternalStringResource {
+class SerializerTwoByteResource : public v8::String::ExternalStringResource {
  public:
-  TwoByteResource(const char* data, size_t length)
+  SerializerTwoByteResource(const char* data, size_t length)
       : data_(AsciiToTwoByteString(data)), length_(length) {}
-  ~TwoByteResource() { DeleteArray<const uint16_t>(data_); }
+  ~SerializerTwoByteResource() { DeleteArray<const uint16_t>(data_); }
 
   virtual const uint16_t* data() const { return data_; }
   virtual size_t length() const { return length_; }
@@ -938,7 +939,7 @@ TEST(SerializeToplevelExternalString) {
   v8::HandleScope scope(CcTest::isolate());
 
   // Obtain external internalized one-byte string.
-  OneByteResource one_byte_resource("one_byte", 8);
+  SerializerOneByteResource one_byte_resource("one_byte", 8);
   Handle<String> one_byte_string =
       isolate->factory()->NewStringFromAsciiChecked("one_byte");
   one_byte_string = isolate->factory()->InternalizeString(one_byte_string);
@@ -947,7 +948,7 @@ TEST(SerializeToplevelExternalString) {
   CHECK(one_byte_string->IsInternalizedString());
 
   // Obtain external internalized two-byte string.
-  TwoByteResource two_byte_resource("two_byte", 8);
+  SerializerTwoByteResource two_byte_resource("two_byte", 8);
   Handle<String> two_byte_string =
       isolate->factory()->NewStringFromAsciiChecked("two_byte");
   two_byte_string = isolate->factory()->InternalizeString(two_byte_string);
@@ -1010,7 +1011,7 @@ TEST(SerializeToplevelLargeExternalString) {
       ConstructSource(STATIC_CHAR_VECTOR(""), STATIC_CHAR_VECTOR("abcdef"),
                       STATIC_CHAR_VECTOR(""), 1000000);
   Handle<String> name = f->NewStringFromOneByte(string).ToHandleChecked();
-  OneByteResource one_byte_resource(
+  SerializerOneByteResource one_byte_resource(
       reinterpret_cast<const char*>(string.start()), string.length());
   name = f->InternalizeString(name);
   name->MakeExternal(&one_byte_resource);
