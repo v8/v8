@@ -547,7 +547,6 @@ class MarkCompactCollector {
   void EnableCodeFlushing(bool enable);
 
   enum SweeperType {
-    PARALLEL_SWEEPING,
     CONCURRENT_SWEEPING,
     SEQUENTIAL_SWEEPING
   };
