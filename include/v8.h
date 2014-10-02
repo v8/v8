@@ -4918,6 +4918,9 @@ class V8_EXPORT Isolate {
    * On Win64, embedders are advised to install function table callbacks for
    * these ranges, as default SEH won't be able to unwind through jitted code.
    *
+   * The first page of the code range is reserved for the embedder and is
+   * committed, writable, and executable.
+   *
    * Might be empty on other platforms.
    *
    * https://code.google.com/p/v8/issues/detail?id=3598
