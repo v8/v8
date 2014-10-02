@@ -866,7 +866,6 @@ void FullCodeGenerator::SetExpressionPosition(Expression* expr) {
 void FullCodeGenerator::SetSourcePosition(int pos) {
   if (pos != RelocInfo::kNoPosition) {
     masm_->positions_recorder()->RecordPosition(pos);
-    masm_->positions_recorder()->WriteRecordedPositions();
   }
 }
 
