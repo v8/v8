@@ -5608,6 +5608,12 @@ bool v8::String::CanMakeExternal() {
 }
 
 
+Isolate* v8::Object::GetIsolate() {
+  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  return reinterpret_cast<Isolate*>(i_isolate);
+}
+
+
 Local<v8::Object> v8::Object::New(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   LOG_API(i_isolate, "Object::New");

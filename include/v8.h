@@ -2586,6 +2586,11 @@ class V8_EXPORT Object : public Value {
    */
   Local<Value> CallAsConstructor(int argc, Handle<Value> argv[]);
 
+  /**
+   * Return the isolate to which the Object belongs to.
+   */
+  Isolate* GetIsolate();
+
   static Local<Object> New(Isolate* isolate);
 
   V8_INLINE static Object* Cast(Value* obj);

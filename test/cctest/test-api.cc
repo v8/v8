@@ -2824,6 +2824,16 @@ THREADED_TEST(EmbedderData) {
 }
 
 
+THREADED_TEST(GetIsolate) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  Local<v8::Object> obj = v8::Object::New(isolate);
+  CHECK_EQ(isolate, obj->GetIsolate());
+  CHECK_EQ(isolate, CcTest::global()->GetIsolate());
+}
+
+
 THREADED_TEST(IdentityHash) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
@@ -22948,6 +22958,7 @@ TEST(Promises) {
   Handle<v8::Promise::Resolver> rr = v8::Promise::Resolver::New(isolate);
   Handle<v8::Promise> p = pr->GetPromise();
   Handle<v8::Promise> r = rr->GetPromise();
+  CHECK_EQ(isolate, p->GetIsolate());
 
   // IsPromise predicate.
   CHECK(p->IsPromise());
