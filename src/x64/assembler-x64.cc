@@ -974,11 +974,13 @@ void Assembler::emit_imul(Register dst, const Operand& src, Immediate imm,
   emit_rex(dst, src, size);
   if (is_int8(imm.value_)) {
     emit(0x6B);
+    emit_operand(dst, src);
+    emit(imm.value_);
   } else {
     emit(0x69);
+    emit_operand(dst, src);
+    emitl(imm.value_);
   }
-  emit_operand(dst, src);
-  emit(imm.value_);
 }
 
 

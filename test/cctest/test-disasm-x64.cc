@@ -184,10 +184,16 @@ TEST(DisasmX64) {
   __ notq(rdx);
   __ testq(Operand(rbx, rcx, times_4, 10000), rdx);
 
-  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
   __ imulq(rdx, rcx, Immediate(12));
   __ imulq(rdx, rcx, Immediate(1000));
+  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
+  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(12));
   __ imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(1000));
+  __ imull(r15, rcx, Immediate(12));
+  __ imull(r15, rcx, Immediate(1000));
+  __ imull(r15, Operand(rbx, rcx, times_4, 10000));
+  __ imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(12));
+  __ imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(1000));
 
   __ incq(rdx);
   __ incq(Operand(rbx, rcx, times_4, 10000));
