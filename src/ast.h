@@ -11,7 +11,6 @@
 #include "src/ast-value-factory.h"
 #include "src/bailout-reason.h"
 #include "src/factory.h"
-#include "src/feedback-slots.h"
 #include "src/interface.h"
 #include "src/isolate.h"
 #include "src/jsregexp.h"
@@ -232,6 +231,17 @@ class AstNode: public ZoneObject {
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
+
+  // The interface for feedback slots, with default no-op implementations for
+  // node types which don't actually have this. Note that this is conceptually
+  // not really nice, but multiple inheritance would introduce yet another
+  // vtable entry per node, something we don't want for space reasons.
+  static const int kInvalidFeedbackSlot = -1;
+  virtual int ComputeFeedbackSlotCount() {
+    UNREACHABLE();
+    return 0;
+  }
+  virtual void SetFirstFeedbackSlot(int slot) { UNREACHABLE(); }
 
  protected:
   // Some nodes re-use bailout IDs for type feedback.
@@ -914,8 +924,7 @@ class ForEachStatement : public IterationStatement {
 };
 
 
-class ForInStatement FINAL : public ForEachStatement,
-    public FeedbackSlotInterface {
+class ForInStatement FINAL : public ForEachStatement {
  public:
   DECLARE_NODE_TYPE(ForInStatement)
 
@@ -1628,7 +1637,7 @@ class ArrayLiteral FINAL : public MaterializedLiteral {
 };
 
 
-class VariableProxy FINAL : public Expression, public FeedbackSlotInterface {
+class VariableProxy FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(VariableProxy)
 
@@ -1672,7 +1681,7 @@ class VariableProxy FINAL : public Expression, public FeedbackSlotInterface {
 };
 
 
-class Property FINAL : public Expression, public FeedbackSlotInterface {
+class Property FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(Property)
 
@@ -1741,7 +1750,7 @@ class Property FINAL : public Expression, public FeedbackSlotInterface {
 };
 
 
-class Call FINAL : public Expression, public FeedbackSlotInterface {
+class Call FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(Call)
 
@@ -1844,7 +1853,7 @@ class Call FINAL : public Expression, public FeedbackSlotInterface {
 };
 
 
-class CallNew FINAL : public Expression, public FeedbackSlotInterface {
+class CallNew FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(CallNew)
 
@@ -1907,7 +1916,7 @@ class CallNew FINAL : public Expression, public FeedbackSlotInterface {
 // language construct. Instead it is used to call a C or JS function
 // with a set of arguments. This is used from the builtins that are
 // implemented in JavaScript (see "v8natives.js").
-class CallRuntime FINAL : public Expression, public FeedbackSlotInterface {
+class CallRuntime FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(CallRuntime)
 
@@ -2223,7 +2232,7 @@ class Assignment FINAL : public Expression {
 };
 
 
-class Yield FINAL : public Expression, public FeedbackSlotInterface {
+class Yield FINAL : public Expression {
  public:
   DECLARE_NODE_TYPE(Yield)
 
@@ -3038,7 +3047,7 @@ class AstConstructionVisitor BASE_EMBEDDED {
     dont_turbofan_reason_ = reason;
   }
 
-  void add_slot_node(FeedbackSlotInterface* slot_node) {
+  void add_slot_node(AstNode* slot_node) {
     int count = slot_node->ComputeFeedbackSlotCount();
     if (count > 0) {
       slot_node->SetFirstFeedbackSlot(properties_.feedback_slots());
