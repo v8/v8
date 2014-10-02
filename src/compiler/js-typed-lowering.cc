@@ -533,35 +533,34 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Type* key_type = NodeProperties::GetBounds(key).upper;
   Type* base_type = NodeProperties::GetBounds(base).upper;
   // TODO(mstarzinger): This lowering is not correct if:
-  //   a) The typed array turns external (i.e. MaterializeArrayBuffer)
-  //   b) The typed array or it's buffer is neutered.
-  //   c) The index is out of bounds.
+  //   a) The typed array or it's buffer is neutered.
+  //   b) The index is out of bounds.
   if (base_type->IsConstant() && key_type->Is(Type::Integral32()) &&
       base_type->AsConstant()->Value()->IsJSTypedArray()) {
     // JSLoadProperty(typed-array, int32)
-    JSTypedArray* array = JSTypedArray::cast(*base_type->AsConstant()->Value());
-    ElementsKind elements_kind = array->map()->elements_kind();
-    ExternalArrayType type = array->type();
-    uint32_t length;
-    CHECK(array->length()->ToUint32(&length));
-    ElementAccess element_access;
-    Node* elements = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
-        NodeProperties::GetEffectInput(node));
-    if (IsExternalArrayElementsKind(elements_kind)) {
-      elements = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
-          elements, NodeProperties::GetEffectInput(node));
-      element_access = AccessBuilder::ForTypedArrayElement(type, true);
-    } else {
-      DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
-      element_access = AccessBuilder::ForTypedArrayElement(type, false);
+    Handle<JSTypedArray> array =
+        Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
+    if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
+      Handle<JSArrayBuffer> buffer =
+          handle(JSArrayBuffer::cast(array->buffer()));
+      ExternalArrayType type = array->type();
+      uint32_t length;
+      CHECK(array->length()->ToUint32(&length));
+      Node* elements =
+          graph()->NewNode(simplified()->LoadField(
+                               AccessBuilder::ForJSArrayBufferBackingStore()),
+                           jsgraph()->HeapConstant(buffer), graph()->start());
+      Node* effect = NodeProperties::GetEffectInput(node);
+      Node* control = NodeProperties::GetControlInput(node);
+      node->set_op(simplified()->LoadElement(
+          AccessBuilder::ForTypedArrayElement(type, true)));
+      node->ReplaceInput(0, elements);
+      node->ReplaceInput(2, jsgraph()->Uint32Constant(length));
+      node->ReplaceInput(3, effect);
+      node->ReplaceInput(4, control);
+      node->TrimInputCount(5);
+      return Changed(node);
     }
-    Node* value = graph()->NewNode(
-        simplified()->LoadElement(element_access), elements, key,
-        jsgraph()->Uint32Constant(length), NodeProperties::GetEffectInput(node),
-        NodeProperties::GetControlInput(node));
-    return ReplaceEagerly(node, value);
   }
   return NoChange();
 }
@@ -574,35 +573,34 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
   Type* key_type = NodeProperties::GetBounds(key).upper;
   Type* base_type = NodeProperties::GetBounds(base).upper;
   // TODO(mstarzinger): This lowering is not correct if:
-  //   a) The typed array turns external (i.e. MaterializeArrayBuffer)
-  //   b) The typed array or its buffer is neutered.
+  //   a) The typed array or its buffer is neutered.
   if (key_type->Is(Type::Integral32()) && base_type->IsConstant() &&
       base_type->AsConstant()->Value()->IsJSTypedArray()) {
     // JSStoreProperty(typed-array, int32, value)
-    JSTypedArray* array = JSTypedArray::cast(*base_type->AsConstant()->Value());
-    ElementsKind elements_kind = array->map()->elements_kind();
-    ExternalArrayType type = array->type();
-    uint32_t length;
-    CHECK(array->length()->ToUint32(&length));
-    ElementAccess element_access;
-    Node* elements = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
-        NodeProperties::GetEffectInput(node));
-    if (IsExternalArrayElementsKind(elements_kind)) {
-      elements = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
-          elements, NodeProperties::GetEffectInput(node));
-      element_access = AccessBuilder::ForTypedArrayElement(type, true);
-    } else {
-      DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
-      element_access = AccessBuilder::ForTypedArrayElement(type, false);
+    Handle<JSTypedArray> array =
+        Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
+    if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
+      Handle<JSArrayBuffer> buffer =
+          handle(JSArrayBuffer::cast(array->buffer()));
+      ExternalArrayType type = array->type();
+      uint32_t length;
+      CHECK(array->length()->ToUint32(&length));
+      Node* elements =
+          graph()->NewNode(simplified()->LoadField(
+                               AccessBuilder::ForJSArrayBufferBackingStore()),
+                           jsgraph()->HeapConstant(buffer), graph()->start());
+      Node* effect = NodeProperties::GetEffectInput(node);
+      Node* control = NodeProperties::GetControlInput(node);
+      node->set_op(simplified()->StoreElement(
+          AccessBuilder::ForTypedArrayElement(type, true)));
+      node->ReplaceInput(0, elements);
+      node->ReplaceInput(2, jsgraph()->Uint32Constant(length));
+      node->ReplaceInput(3, value);
+      node->ReplaceInput(4, effect);
+      node->ReplaceInput(5, control);
+      node->TrimInputCount(6);
+      return Changed(node);
     }
-    Node* store =
-        graph()->NewNode(simplified()->StoreElement(element_access), elements,
-                         key, jsgraph()->Uint32Constant(length), value,
-                         NodeProperties::GetEffectInput(node),
-                         NodeProperties::GetControlInput(node));
-    return ReplaceEagerly(node, store);
   }
   return NoChange();
 }

@@ -12,6 +12,9 @@
 
 namespace v8 {
 
+std::ostream& operator<<(std::ostream&, ExternalArrayType);
+
+
 class TestWithIsolate : public ::testing::Test {
  public:
   TestWithIsolate();

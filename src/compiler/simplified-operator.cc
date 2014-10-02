@@ -27,6 +27,32 @@ std::ostream& operator<<(std::ostream& os, BaseTaggedness base_taggedness) {
 }
 
 
+bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
+  return lhs.base_is_tagged == rhs.base_is_tagged && lhs.offset == rhs.offset &&
+         lhs.type == rhs.type && lhs.machine_type == rhs.machine_type;
+}
+
+
+bool operator!=(FieldAccess const& lhs, FieldAccess const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
+  os << "[" << access.base_is_tagged << ", " << access.offset << ", ";
+#ifdef OBJECT_PRINT
+  Handle<Name> name;
+  if (access.name.ToHandle(&name)) {
+    name->Print(os);
+    os << ", ";
+  }
+#endif
+  access.type->PrintTo(os);
+  os << ", " << access.machine_type << "]";
+  return os;
+}
+
+
 std::ostream& operator<<(std::ostream& os, BoundsCheckMode bounds_check_mode) {
   switch (bounds_check_mode) {
     case kNoBoundsCheck:
