@@ -25,7 +25,6 @@ class TypeFeedbackOracle: public ZoneObject {
 
   bool LoadIsUninitialized(TypeFeedbackId id);
   bool StoreIsUninitialized(TypeFeedbackId id);
-  bool StoreIsKeyedPolymorphic(TypeFeedbackId id);
   bool CallIsMonomorphic(int slot);
   bool CallIsMonomorphic(TypeFeedbackId aid);
   bool KeyedArrayCallIsHoley(TypeFeedbackId id);

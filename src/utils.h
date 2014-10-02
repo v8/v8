@@ -61,7 +61,6 @@ inline int WhichPowerOf2(uint32_t x) {
   }
   DCHECK_EQ(1 << bits, original_x);
   return bits;
-  return 0;
 }
 
 
