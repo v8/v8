@@ -612,7 +612,7 @@ class RepresentationSelector {
       //------------------------------------------------------------------
       case IrOpcode::kLoad: {
         // TODO(titzer): machine loads/stores need to know BaseTaggedness!?
-        MachineType tBase = kRepTagged;
+        MachineTypeUnion tBase = kRepTagged | kMachPtr;
         LoadRepresentation rep = OpParameter<LoadRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
@@ -622,7 +622,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kStore: {
         // TODO(titzer): machine loads/stores need to know BaseTaggedness!?
-        MachineType tBase = kRepTagged;
+        MachineTypeUnion tBase = kRepTagged | kMachPtr;
         StoreRepresentation rep = OpParameter<StoreRepresentation>(node);
         ProcessInput(node, 0, tBase);   // pointer or object
         ProcessInput(node, 1, kMachInt32);  // index
@@ -652,8 +652,8 @@ class RepresentationSelector {
       case IrOpcode::kInt32Div:
       case IrOpcode::kInt32Mod:
         return VisitInt32Binop(node);
-      case IrOpcode::kInt32UDiv:
-      case IrOpcode::kInt32UMod:
+      case IrOpcode::kUint32Div:
+      case IrOpcode::kUint32Mod:
         return VisitUint32Binop(node);
       case IrOpcode::kInt32LessThan:
       case IrOpcode::kInt32LessThanOrEqual:
@@ -673,8 +673,11 @@ class RepresentationSelector {
       case IrOpcode::kInt64LessThanOrEqual:
         return VisitInt64Cmp(node);
 
-      case IrOpcode::kInt64UDiv:
-      case IrOpcode::kInt64UMod:
+      case IrOpcode::kUint64LessThan:
+        return VisitUint64Cmp(node);
+
+      case IrOpcode::kUint64Div:
+      case IrOpcode::kUint64Mod:
         return VisitUint64Binop(node);
 
       case IrOpcode::kWord64And:
@@ -729,6 +732,8 @@ class RepresentationSelector {
       case IrOpcode::kFloat64LessThan:
       case IrOpcode::kFloat64LessThanOrEqual:
         return VisitFloat64Cmp(node);
+      case IrOpcode::kLoadStackPointer:
+        return VisitLeaf(node, kMachPtr);
       default:
         VisitInputs(node);
         break;
@@ -838,6 +843,7 @@ void SimplifiedLowering::DoLoadField(Node* node) {
   node->set_op(machine()->Load(access.machine_type));
   Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
   node->InsertInput(zone(), 1, offset);
+  node->AppendInput(zone(), graph()->start());
 }
 
 
@@ -876,12 +882,41 @@ void SimplifiedLowering::DoLoadElement(Node* node) {
 
 void SimplifiedLowering::DoStoreElement(Node* node) {
   const ElementAccess& access = ElementAccessOf(node->op());
-  WriteBarrierKind kind = ComputeWriteBarrierKind(
-      access.base_is_tagged, access.machine_type, access.type);
-  node->set_op(
-      machine()->Store(StoreRepresentation(access.machine_type, kind)));
-  node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
-  node->RemoveInput(2);
+  const Operator* op = machine()->Store(StoreRepresentation(
+      access.machine_type,
+      ComputeWriteBarrierKind(access.base_is_tagged, access.machine_type,
+                              access.type)));
+  Node* key = node->InputAt(1);
+  Node* index = ComputeIndex(access, key);
+  if (access.bounds_check == kNoBoundsCheck) {
+    node->set_op(op);
+    node->ReplaceInput(1, index);
+    node->RemoveInput(2);
+  } else {
+    DCHECK_EQ(kTypedArrayBoundsCheck, access.bounds_check);
+
+    Node* base = node->InputAt(0);
+    Node* length = node->InputAt(2);
+    Node* value = node->InputAt(3);
+    Node* effect = node->InputAt(4);
+    Node* control = node->InputAt(5);
+
+    Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
+    Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* store = graph()->NewNode(op, base, index, value, effect, if_true);
+
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+
+    node->set_op(common()->EffectPhi(2));
+    node->ReplaceInput(0, store);
+    node->ReplaceInput(1, effect);
+    node->ReplaceInput(2, merge);
+    node->TrimInputCount(3);
+  }
 }
 
 

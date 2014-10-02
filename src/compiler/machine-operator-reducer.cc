@@ -246,7 +246,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kInt32UDiv: {
+    case IrOpcode::kUint32Div: {
       Uint32BinopMatcher m(node);
       if (m.right().Is(1)) return Replace(m.left().node());  // x / 1 => x
       // TODO(turbofan): if (m.left().Is(0))
@@ -275,7 +275,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kInt32UMod: {
+    case IrOpcode::kUint32Mod: {
       Uint32BinopMatcher m(node);
       if (m.right().Is(1)) return ReplaceInt32(0);  // x % 1 => 0
       // TODO(turbofan): if (m.left().Is(0))

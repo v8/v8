@@ -1,3 +1,20 @@
+2014-10-02: Version 3.30.2
+
+        Fix Hydrogen's BuildStore() (Chromium issue 417508).
+
+        Move unit tests to test/unittests (issue 3489).
+
+        Changes to ALLOW_UNUSED to match upcoming changes to the Chromium trunk:
+        * Eliminate usage of ALLOW_UNUSED to define COMPILE_ASSERT and just use
+        static_assert() in all cases now that all platforms build with C++11. *
+        Convert remaining uses of ALLOW_UNUSED to ALLOW_UNUSED_TYPE to match how
+        Chromium will be splitting this functionality.  (In Chromium we'll have
+        both   ALLOW_UNUSED_TYPE and ALLOW_UNUSED_LOCAL, which have different
+        syntax to   enable us to use these with MSVC.) (Chromium issue 81439).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-01: Version 3.30.1
 
         Introduce PromiseRejectCallback (issue 3093).

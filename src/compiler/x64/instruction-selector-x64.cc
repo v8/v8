@@ -434,12 +434,57 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
 }
 
 
+static bool TryEmitLeaMultAdd(InstructionSelector* selector, Node* node,
+                              ArchOpcode opcode) {
+  int32_t displacement_value;
+  Node* left;
+  {
+    Int32BinopMatcher m32(node);
+    left = m32.left().node();
+    if (m32.right().HasValue()) {
+      displacement_value = m32.right().Value();
+    } else {
+      Int64BinopMatcher m64(node);
+      if (!m64.right().HasValue()) {
+        return false;
+      }
+      int64_t value_64 = m64.right().Value();
+      displacement_value = static_cast<int32_t>(value_64);
+      if (displacement_value != value_64) return false;
+    }
+  }
+  LeaMultiplyMatcher lmm(left);
+  if (!lmm.Matches()) return false;
+  AddressingMode mode;
+  size_t input_count;
+  X64OperandGenerator g(selector);
+  InstructionOperand* index = g.UseRegister(lmm.Left());
+  InstructionOperand* displacement = g.TempImmediate(displacement_value);
+  InstructionOperand* inputs[] = {index, displacement, displacement};
+  if (lmm.Displacement() != 0) {
+    input_count = 3;
+    inputs[1] = index;
+    mode = kMode_MR1I;
+  } else {
+    input_count = 2;
+    mode = kMode_M1I;
+  }
+  mode = AdjustAddressingMode(mode, lmm.Power());
+  InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
+  selector->Emit(opcode | AddressingModeField::encode(mode), 1, outputs,
+                 input_count, inputs);
+  return true;
+}
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
+  if (TryEmitLeaMultAdd(this, node, kX64Lea32)) return;
   VisitBinop(this, node, kX64Add32);
 }
 
 
 void InstructionSelector::VisitInt64Add(Node* node) {
+  if (TryEmitLeaMultAdd(this, node, kX64Lea)) return;
   VisitBinop(this, node, kX64Add);
 }
 
@@ -466,61 +511,58 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
 }
 
 
+static bool TryEmitLeaMult(InstructionSelector* selector, Node* node,
+                           ArchOpcode opcode) {
+  LeaMultiplyMatcher lea(node);
+  // Try to match lea.
+  if (!lea.Matches()) return false;
+  AddressingMode mode;
+  size_t input_count;
+  X64OperandGenerator g(selector);
+  InstructionOperand* left = g.UseRegister(lea.Left());
+  InstructionOperand* inputs[] = {left, left};
+  if (lea.Displacement() != 0) {
+    input_count = 2;
+    mode = kMode_MR1;
+  } else {
+    input_count = 1;
+    mode = kMode_M1;
+  }
+  mode = AdjustAddressingMode(mode, lea.Power());
+  InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
+  selector->Emit(opcode | AddressingModeField::encode(mode), 1, outputs,
+                 input_count, inputs);
+  return true;
+}
+
+
 static void VisitMul(InstructionSelector* selector, Node* node,
                      ArchOpcode opcode) {
   X64OperandGenerator g(selector);
-  LeaMultiplyMatcher lea(node);
-  // Try to match lea.
-  if (lea.Matches()) {
-    switch (opcode) {
-      case kX64Imul32:
-        opcode = kX64Lea32;
-        break;
-      case kX64Imul:
-        opcode = kX64Lea;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    AddressingMode mode;
-    size_t input_count;
-    InstructionOperand* left = g.UseRegister(lea.Left());
-    InstructionOperand* inputs[] = {left, left};
-    if (lea.Displacement() != 0) {
-      input_count = 2;
-      mode = kMode_MR1;
-    } else {
-      input_count = 1;
-      mode = kMode_M1;
-    }
-    mode = AdjustAddressingMode(mode, lea.Power());
-    InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
-    selector->Emit(opcode | AddressingModeField::encode(mode), 1, outputs,
-                   input_count, inputs);
+  Int32BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
+  if (g.CanBeImmediate(right)) {
+    selector->Emit(opcode, g.DefineAsRegister(node), g.Use(left),
+                   g.UseImmediate(right));
   } else {
-    Int32BinopMatcher m(node);
-    Node* left = m.left().node();
-    Node* right = m.right().node();
-    if (g.CanBeImmediate(right)) {
-      selector->Emit(opcode, g.DefineAsRegister(node), g.Use(left),
-                     g.UseImmediate(right));
-    } else {
-      if (g.CanBeBetterLeftOperand(right)) {
-        std::swap(left, right);
-      }
-      selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
-                     g.Use(right));
+    if (g.CanBeBetterLeftOperand(right)) {
+      std::swap(left, right);
     }
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
+                   g.Use(right));
   }
 }
 
 
 void InstructionSelector::VisitInt32Mul(Node* node) {
+  if (TryEmitLeaMult(this, node, kX64Lea32)) return;
   VisitMul(this, node, kX64Imul32);
 }
 
 
 void InstructionSelector::VisitInt64Mul(Node* node) {
+  if (TryEmitLeaMult(this, node, kX64Lea)) return;
   VisitMul(this, node, kX64Imul);
 }
 
@@ -545,12 +587,12 @@ void InstructionSelector::VisitInt64Div(Node* node) {
 }
 
 
-void InstructionSelector::VisitInt32UDiv(Node* node) {
+void InstructionSelector::VisitUint32Div(Node* node) {
   VisitDiv(this, node, kX64Udiv32);
 }
 
 
-void InstructionSelector::VisitInt64UDiv(Node* node) {
+void InstructionSelector::VisitUint64Div(Node* node) {
   VisitDiv(this, node, kX64Udiv);
 }
 
@@ -575,12 +617,12 @@ void InstructionSelector::VisitInt64Mod(Node* node) {
 }
 
 
-void InstructionSelector::VisitInt32UMod(Node* node) {
+void InstructionSelector::VisitUint32Mod(Node* node) {
   VisitMod(this, node, kX64Udiv32);
 }
 
 
-void InstructionSelector::VisitInt64UMod(Node* node) {
+void InstructionSelector::VisitUint64Mod(Node* node) {
   VisitMod(this, node, kX64Udiv);
 }
 

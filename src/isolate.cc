@@ -18,7 +18,6 @@
 #include "src/debug.h"
 #include "src/deoptimizer.h"
 #include "src/heap/spaces.h"
-#include "src/heap/sweeper-thread.h"
 #include "src/heap-profiler.h"
 #include "src/hydrogen.h"
 #include "src/ic/stub-cache.h"
@@ -1516,8 +1515,6 @@ Isolate::Isolate()
       function_entry_hook_(NULL),
       deferred_handles_head_(NULL),
       optimizing_compiler_thread_(NULL),
-      sweeper_thread_(NULL),
-      num_sweeper_threads_(0),
       stress_deopt_count_(0),
       next_optimization_id_(0),
       use_counter_callback_(NULL),
@@ -1612,16 +1609,7 @@ void Isolate::Deinit() {
       optimizing_compiler_thread_ = NULL;
     }
 
-    for (int i = 0; i < num_sweeper_threads_; i++) {
-      sweeper_thread_[i]->Stop();
-      delete sweeper_thread_[i];
-      sweeper_thread_[i] = NULL;
-    }
-    delete[] sweeper_thread_;
-    sweeper_thread_ = NULL;
-
-    if (FLAG_job_based_sweeping &&
-        heap_.mark_compact_collector()->sweeping_in_progress()) {
+    if (heap_.mark_compact_collector()->sweeping_in_progress()) {
       heap_.mark_compact_collector()->EnsureSweepingCompleted();
     }
 
@@ -1950,24 +1938,11 @@ bool Isolate::Init(Deserializer* des) {
         Max(Min(base::SysInfo::NumberOfProcessors(), 4), 1);
   }
 
-  if (!FLAG_job_based_sweeping) {
-    num_sweeper_threads_ =
-        SweeperThread::NumberOfThreads(max_available_threads_);
-  }
-
   if (FLAG_trace_hydrogen || FLAG_trace_hydrogen_stubs) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
   } else if (OptimizingCompilerThread::Enabled(max_available_threads_)) {
     optimizing_compiler_thread_ = new OptimizingCompilerThread(this);
     optimizing_compiler_thread_->Start();
-  }
-
-  if (num_sweeper_threads_ > 0) {
-    sweeper_thread_ = new SweeperThread*[num_sweeper_threads_];
-    for (int i = 0; i < num_sweeper_threads_; i++) {
-      sweeper_thread_[i] = new SweeperThread(this);
-      sweeper_thread_[i]->Start();
-    }
   }
 
   // If we are deserializing, read the state into the now-empty heap.

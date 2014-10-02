@@ -474,6 +474,64 @@
 }());
 
 
+(function TestSuperCall() {
+  function Subclass(base, constructor) {
+    var homeObject = { __proto__ : base.prototype };
+    var result = constructor.toMethod(homeObject);
+    homeObject.constructor = result;
+    result.prototype = homeObject;
+    return result;
+  }
+
+  var baseCalled = 0;
+  var derivedCalled = 0;
+  var derivedDerivedCalled = 0;
+
+  function Base() {
+    baseCalled++;
+  }
+
+  var Derived = Subclass(Base, function () {
+    super();
+    derivedCalled++;
+  });
+
+  assertEquals(Base, Base.prototype.constructor);
+  assertEquals(Base.prototype, Derived.prototype.__proto__);
+
+  baseCalled = 0;
+  derivedCalled = 0;
+  new Derived();
+  assertEquals(1, baseCalled);
+  assertEquals(1, derivedCalled);
+
+  var DerivedDerived = Subclass(Derived, function () {
+    super();
+    derivedDerivedCalled++;
+  });
+
+  baseCalled = 0;
+  derivedCalled = 0;
+  derivedDerivedCalled = 0;
+  new DerivedDerived();
+  assertEquals(1, baseCalled);
+  assertEquals(1, derivedCalled);
+  assertEquals(1, derivedDerivedCalled);
+
+  function Base2(v) {
+    this.fromBase = v;
+  }
+  var Derived2 = Subclass(Base2, function (v1, v2) {
+    super(v1);
+    this.fromDerived = v2;
+  });
+
+  var d = new Derived2("base", "derived");
+  assertEquals("base", d.fromBase);
+  assertEquals("derived", d.fromDerived);
+}());
+
+
 (function TestUnsupportedCases() {
   function f1(x) { return super[x]; }
   function f2(x) { super[x] = 5; }

@@ -75,13 +75,6 @@ struct CommonOperatorBuilderImpl FINAL {
   Name##Operator k##Name##Operator;
   SHARED_OP_LIST(SHARED)
 #undef SHARED
-
-  struct ControlEffectOperator FINAL : public SimpleOperator {
-    ControlEffectOperator()
-        : SimpleOperator(IrOpcode::kControlEffect, Operator::kPure, 0, 0,
-                         "ControlEffect") {}
-  };
-  ControlEffectOperator kControlEffectOperator;
 };
 
 
@@ -186,11 +179,6 @@ const Operator* CommonOperatorBuilder::EffectPhi(int arguments) {
   DCHECK(arguments > 0);  // Disallow empty phis.
   return new (zone()) Operator1<int>(IrOpcode::kEffectPhi, Operator::kPure, 0,
                                      0, "EffectPhi", arguments);
-}
-
-
-const Operator* CommonOperatorBuilder::ControlEffect() {
-  return &impl_.kControlEffectOperator;
 }
 
 

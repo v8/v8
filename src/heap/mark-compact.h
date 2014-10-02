@@ -641,8 +641,6 @@ class MarkCompactCollector {
 
   void RefillFreeList(PagedSpace* space);
 
-  bool AreSweeperThreadsActivated();
-
   // Checks if sweeping is in progress right now on any space.
   bool sweeping_in_progress() { return sweeping_in_progress_; }
 

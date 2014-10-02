@@ -807,6 +807,7 @@ FunctionLiteral* Parser::ParseProgram() {
   // Initialize parser state.
   CompleteParserRecorder recorder;
 
+  debug_saved_compile_options_ = compile_options();
   if (compile_options() == ScriptCompiler::kProduceParserCache) {
     log_ = &recorder;
   } else if (compile_options() == ScriptCompiler::kConsumeParserCache) {
@@ -3702,6 +3703,17 @@ void Parser::SkipLazyFunctionBody(const AstRawString* function_name,
                                   int* materialized_literal_count,
                                   int* expected_property_count,
                                   bool* ok) {
+  // Temporary debugging code for tracking down a mystery crash which should
+  // never happen. The crash happens on the line where we log the function in
+  // the preparse data: log_->LogFunction(...). TODO(marja): remove this once
+  // done.
+  CHECK(materialized_literal_count);
+  CHECK(expected_property_count);
+  CHECK(debug_saved_compile_options_ == compile_options());
+  if (compile_options() == ScriptCompiler::kProduceParserCache) {
+    CHECK(log_);
+  }
+
   int function_block_pos = position();
   if (compile_options() == ScriptCompiler::kConsumeParserCache) {
     // If we have cached data, we use it to skip parsing the function body. The
@@ -4926,6 +4938,7 @@ void Parser::ParseOnBackground() {
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 
   CompleteParserRecorder recorder;
+  debug_saved_compile_options_ = compile_options();
   if (compile_options() == ScriptCompiler::kProduceParserCache) {
     log_ = &recorder;
   }

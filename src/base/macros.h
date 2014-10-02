@@ -130,7 +130,7 @@ struct CompileAssert {};
 
 #define COMPILE_ASSERT(expr, msg)                \
   typedef CompileAssert<static_cast<bool>(expr)> \
-      msg[static_cast<bool>(expr) ? 1 : -1] ALLOW_UNUSED
+      msg[static_cast<bool>(expr) ? 1 : -1] ALLOW_UNUSED_TYPE
 
 // Implementation details of COMPILE_ASSERT:
 //
@@ -150,23 +150,11 @@ struct CompileAssert {};
 //     COMPILE_ASSERT(foo, msg); // not supposed to compile as foo is
 //                               // not a compile-time constant.
 //
-// - By using the type CompileAssert<(bool(expr))>, we ensures that
+// - By using the type CompileAssert<static_cast<bool>(expr)>, we ensure that
 //   expr is a compile-time constant.  (Template arguments must be
 //   determined at compile-time.)
 //
-// - The outer parentheses in CompileAssert<(bool(expr))> are necessary
-//   to work around a bug in gcc 3.4.4 and 4.0.1.  If we had written
-//
-//     CompileAssert<bool(expr)>
-//
-//   instead, these compilers will refuse to compile
-//
-//     COMPILE_ASSERT(5 > 0, some_message);
-//
-//   (They seem to think the ">" in "5 > 0" marks the end of the
-//   template argument list.)
-//
-// - The array size is (bool(expr) ? 1 : -1), instead of simply
+// - The array size is (static_cast<bool>(expr) ? 1 : -1), instead of simply
 //
 //     ((expr) ? 1 : -1).
 //
@@ -308,10 +296,10 @@ template <> class StaticAssertion<true> { };
 // actually causes each use to introduce a new defined type with a
 // name depending on the source line.
 template <int> class StaticAssertionHelper { };
-#define STATIC_ASSERT(test)                                                    \
-  typedef                                                                     \
-    StaticAssertionHelper<sizeof(StaticAssertion<static_cast<bool>((test))>)> \
-    SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) ALLOW_UNUSED
+#define STATIC_ASSERT(test)                               \
+  typedef StaticAssertionHelper<                          \
+      sizeof(StaticAssertion<static_cast<bool>((test))>)> \
+      SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__) ALLOW_UNUSED_TYPE
 
 #endif
 

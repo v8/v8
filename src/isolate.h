@@ -1061,14 +1061,6 @@ class Isolate {
     return optimizing_compiler_thread_;
   }
 
-  int num_sweeper_threads() const {
-    return num_sweeper_threads_;
-  }
-
-  SweeperThread** sweeper_threads() {
-    return sweeper_thread_;
-  }
-
   int id() const { return static_cast<int>(id_); }
 
   HStatistics* GetHStatistics();
@@ -1327,8 +1319,6 @@ class Isolate {
 
   DeferredHandles* deferred_handles_head_;
   OptimizingCompilerThread* optimizing_compiler_thread_;
-  SweeperThread** sweeper_thread_;
-  int num_sweeper_threads_;
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;

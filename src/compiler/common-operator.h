@@ -111,7 +111,6 @@ class CommonOperatorBuilder FINAL {
 
   const Operator* Phi(MachineType type, int arguments);
   const Operator* EffectPhi(int arguments);
-  const Operator* ControlEffect();
   const Operator* ValueEffect(int arguments);
   const Operator* Finish(int arguments);
   const Operator* StateValues(int arguments);

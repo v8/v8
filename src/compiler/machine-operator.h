@@ -87,23 +87,24 @@ class MachineOperatorBuilder FINAL {
   const Operator* Int32SubWithOverflow();
   const Operator* Int32Mul();
   const Operator* Int32Div();
-  const Operator* Int32UDiv();
   const Operator* Int32Mod();
-  const Operator* Int32UMod();
   const Operator* Int32LessThan();
   const Operator* Int32LessThanOrEqual();
+  const Operator* Uint32Div();
   const Operator* Uint32LessThan();
   const Operator* Uint32LessThanOrEqual();
+  const Operator* Uint32Mod();
 
   const Operator* Int64Add();
   const Operator* Int64Sub();
   const Operator* Int64Mul();
   const Operator* Int64Div();
-  const Operator* Int64UDiv();
   const Operator* Int64Mod();
-  const Operator* Int64UMod();
   const Operator* Int64LessThan();
   const Operator* Int64LessThanOrEqual();
+  const Operator* Uint64Div();
+  const Operator* Uint64LessThan();
+  const Operator* Uint64Mod();
 
   // These operators change the representation of numbers while preserving the
   // value of the number. Narrowing operators assume the input is representable
@@ -143,6 +144,9 @@ class MachineOperatorBuilder FINAL {
   // store [base + index], value
   const Operator* Store(StoreRepresentation rep);
 
+  // Access to the machine stack.
+  const Operator* LoadStackPointer();
+
   // Target machine word-size assumed by this builder.
   bool Is32() const { return word() == kRepWord32; }
   bool Is64() const { return word() == kRepWord64; }
@@ -163,11 +167,12 @@ class MachineOperatorBuilder FINAL {
   V(Int, Sub)             \
   V(Int, Mul)             \
   V(Int, Div)             \
-  V(Int, UDiv)            \
   V(Int, Mod)             \
-  V(Int, UMod)            \
   V(Int, LessThan)        \
-  V(Int, LessThanOrEqual)
+  V(Int, LessThanOrEqual) \
+  V(Uint, Div)            \
+  V(Uint, LessThan)       \
+  V(Uint, Mod)
 #define PSEUDO_OP(Prefix, Suffix)                                \
   const Operator* Prefix##Suffix() {                             \
     return Is32() ? Prefix##32##Suffix() : Prefix##64##Suffix(); \

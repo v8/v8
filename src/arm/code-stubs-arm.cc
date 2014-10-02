@@ -2376,13 +2376,13 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
 
   // A monomorphic miss (i.e, here the cache is not uninitialized) goes
   // megamorphic.
-  __ CompareRoot(r4, Heap::kUninitializedSymbolRootIndex);
+  __ CompareRoot(r4, Heap::kuninitialized_symbolRootIndex);
   __ b(eq, &initialize);
   // MegamorphicSentinel is an immortal immovable object (undefined) so no
   // write-barrier is needed.
   __ bind(&megamorphic);
   __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
-  __ LoadRoot(ip, Heap::kMegamorphicSymbolRootIndex);
+  __ LoadRoot(ip, Heap::kmegamorphic_symbolRootIndex);
   __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
   __ jmp(&done);
 
@@ -2698,9 +2698,9 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&extra_checks_or_miss);
   Label miss;
 
-  __ CompareRoot(r4, Heap::kMegamorphicSymbolRootIndex);
+  __ CompareRoot(r4, Heap::kmegamorphic_symbolRootIndex);
   __ b(eq, &slow_start);
-  __ CompareRoot(r4, Heap::kUninitializedSymbolRootIndex);
+  __ CompareRoot(r4, Heap::kuninitialized_symbolRootIndex);
   __ b(eq, &miss);
 
   if (!FLAG_trace_ic) {
@@ -2710,7 +2710,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ CompareObjectType(r4, r5, r5, JS_FUNCTION_TYPE);
     __ b(ne, &miss);
     __ add(r4, r2, Operand::PointerOffsetFromSmiKey(r3));
-    __ LoadRoot(ip, Heap::kMegamorphicSymbolRootIndex);
+    __ LoadRoot(ip, Heap::kmegamorphic_symbolRootIndex);
     __ str(ip, FieldMemOperand(r4, FixedArray::kHeaderSize));
     __ jmp(&slow_start);
   }

@@ -850,6 +850,10 @@ class Parser : public ParserBase<ParserTraits> {
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
   int total_preparse_skipped_;
   HistogramTimer* pre_parse_timer_;
+
+  // Temporary; for debugging. See Parser::SkipLazyFunctionBody. TODO(marja):
+  // remove this once done.
+  ScriptCompiler::CompileOptions debug_saved_compile_options_;
 };
 
 

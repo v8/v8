@@ -116,7 +116,8 @@ inline int OperatorProperties::GetControlInputCount(const Operator* op) {
   switch (op->opcode()) {
     case IrOpcode::kPhi:
     case IrOpcode::kEffectPhi:
-    case IrOpcode::kControlEffect:
+    case IrOpcode::kLoad:
+    case IrOpcode::kLoadElement:
       return 1;
 #define OPCODE_CASE(x) case IrOpcode::k##x:
       CONTROL_OP_LIST(OPCODE_CASE)
@@ -149,7 +150,6 @@ inline bool OperatorProperties::HasValueOutput(const Operator* op) {
 
 inline bool OperatorProperties::HasEffectOutput(const Operator* op) {
   return op->opcode() == IrOpcode::kStart ||
-         op->opcode() == IrOpcode::kControlEffect ||
          op->opcode() == IrOpcode::kValueEffect ||
          (op->opcode() != IrOpcode::kFinish && GetEffectInputCount(op) > 0);
 }

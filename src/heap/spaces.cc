@@ -110,6 +110,10 @@ bool CodeRange::SetUp(size_t requested) {
     }
   }
 
+  if (requested <= kMinimumCodeRangeSize) {
+    requested = kMinimumCodeRangeSize;
+  }
+
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
   code_range_ = new base::VirtualMemory(requested);
   CHECK(code_range_ != NULL);
@@ -121,14 +125,25 @@ bool CodeRange::SetUp(size_t requested) {
 
   // We are sure that we have mapped a block of requested addresses.
   DCHECK(code_range_->size() == requested);
-  LOG(isolate_, NewEvent("CodeRange", code_range_->address(), requested));
   Address base = reinterpret_cast<Address>(code_range_->address());
-  Address aligned_base =
-      RoundUp(reinterpret_cast<Address>(code_range_->address()),
-              MemoryChunk::kAlignment);
+
+  // On some platforms, specifically Win64, we need to reserve some pages at
+  // the beginning of an executable space.
+  if (kReservedCodeRangePages) {
+    if (!code_range_->Commit(
+            base, kReservedCodeRangePages * base::OS::CommitPageSize(), true)) {
+      delete code_range_;
+      code_range_ = NULL;
+      return false;
+    }
+    base += kReservedCodeRangePages * base::OS::CommitPageSize();
+  }
+  Address aligned_base = RoundUp(base, MemoryChunk::kAlignment);
   size_t size = code_range_->size() - (aligned_base - base);
   allocation_list_.Add(FreeBlock(aligned_base, size));
   current_allocation_block_index_ = 0;
+
+  LOG(isolate_, NewEvent("CodeRange", code_range_->address(), requested));
   return true;
 }
 

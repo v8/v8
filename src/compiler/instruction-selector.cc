@@ -540,20 +540,20 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt32Mul(node);
     case IrOpcode::kInt32Div:
       return VisitInt32Div(node);
-    case IrOpcode::kInt32UDiv:
-      return VisitInt32UDiv(node);
     case IrOpcode::kInt32Mod:
       return VisitInt32Mod(node);
-    case IrOpcode::kInt32UMod:
-      return VisitInt32UMod(node);
     case IrOpcode::kInt32LessThan:
       return VisitInt32LessThan(node);
     case IrOpcode::kInt32LessThanOrEqual:
       return VisitInt32LessThanOrEqual(node);
+    case IrOpcode::kUint32Div:
+      return VisitUint32Div(node);
     case IrOpcode::kUint32LessThan:
       return VisitUint32LessThan(node);
     case IrOpcode::kUint32LessThanOrEqual:
       return VisitUint32LessThanOrEqual(node);
+    case IrOpcode::kUint32Mod:
+      return VisitUint32Mod(node);
     case IrOpcode::kInt64Add:
       return VisitInt64Add(node);
     case IrOpcode::kInt64Sub:
@@ -562,16 +562,18 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitInt64Mul(node);
     case IrOpcode::kInt64Div:
       return VisitInt64Div(node);
-    case IrOpcode::kInt64UDiv:
-      return VisitInt64UDiv(node);
     case IrOpcode::kInt64Mod:
       return VisitInt64Mod(node);
-    case IrOpcode::kInt64UMod:
-      return VisitInt64UMod(node);
     case IrOpcode::kInt64LessThan:
       return VisitInt64LessThan(node);
     case IrOpcode::kInt64LessThanOrEqual:
       return VisitInt64LessThanOrEqual(node);
+    case IrOpcode::kUint64Div:
+      return VisitUint64Div(node);
+    case IrOpcode::kUint64LessThan:
+      return VisitUint64LessThan(node);
+    case IrOpcode::kUint64Mod:
+      return VisitUint64Mod(node);
     case IrOpcode::kChangeFloat32ToFloat64:
       return MarkAsDouble(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
@@ -610,6 +612,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitFloat64LessThan(node);
     case IrOpcode::kFloat64LessThanOrEqual:
       return VisitFloat64LessThanOrEqual(node);
+    case IrOpcode::kLoadStackPointer:
+      return VisitLoadStackPointer(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -695,6 +699,12 @@ void InstructionSelector::VisitInt64LessThanOrEqual(Node* node) {
 }
 
 
+void InstructionSelector::VisitUint64LessThan(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThan, node);
+  VisitWord64Compare(node, &cont);
+}
+
+
 void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
   OperandGenerator g(this);
   Emit(kArchTruncateDoubleToI, g.DefineAsRegister(node),
@@ -717,6 +727,12 @@ void InstructionSelector::VisitFloat64LessThan(Node* node) {
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
   FlagsContinuation cont(kUnorderedLessThanOrEqual, node);
   VisitFloat64Compare(node, &cont);
+}
+
+
+void InstructionSelector::VisitLoadStackPointer(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchStackPointer, g.DefineAsRegister(node));
 }
 
 #endif  // V8_TURBOFAN_BACKEND
@@ -757,13 +773,13 @@ void InstructionSelector::VisitInt64Mul(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitInt64Div(Node* node) { UNIMPLEMENTED(); }
 
 
-void InstructionSelector::VisitInt64UDiv(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitUint64Div(Node* node) { UNIMPLEMENTED(); }
 
 
 void InstructionSelector::VisitInt64Mod(Node* node) { UNIMPLEMENTED(); }
 
 
-void InstructionSelector::VisitInt64UMod(Node* node) { UNIMPLEMENTED(); }
+void InstructionSelector::VisitUint64Mod(Node* node) { UNIMPLEMENTED(); }
 
 
 void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
@@ -928,6 +944,9 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
         return VisitWord64Compare(value, &cont);
       case IrOpcode::kInt64LessThanOrEqual:
         cont.OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
+        return VisitWord64Compare(value, &cont);
+      case IrOpcode::kUint64LessThan:
+        cont.OverwriteAndNegateIfEqual(kUnsignedLessThan);
         return VisitWord64Compare(value, &cont);
       case IrOpcode::kFloat64Equal:
         cont.OverwriteAndNegateIfEqual(kUnorderedEqual);

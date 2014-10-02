@@ -557,10 +557,10 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
       DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
       element_access = AccessBuilder::ForTypedArrayElement(type, false);
     }
-    Node* value =
-        graph()->NewNode(simplified()->LoadElement(element_access), elements,
-                         key, jsgraph()->Uint32Constant(length),
-                         NodeProperties::GetEffectInput(node));
+    Node* value = graph()->NewNode(
+        simplified()->LoadElement(element_access), elements, key,
+        jsgraph()->Uint32Constant(length), NodeProperties::GetEffectInput(node),
+        NodeProperties::GetControlInput(node));
     return ReplaceEagerly(node, value);
   }
   return NoChange();
@@ -597,26 +597,12 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
       DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
       element_access = AccessBuilder::ForTypedArrayElement(type, false);
     }
-
-    Node* check = graph()->NewNode(machine()->Uint32LessThan(), key,
-                                   jsgraph()->Uint32Constant(length));
-    Node* branch = graph()->NewNode(common()->Branch(), check,
-                                    NodeProperties::GetControlInput(node));
-
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-
     Node* store =
         graph()->NewNode(simplified()->StoreElement(element_access), elements,
                          key, jsgraph()->Uint32Constant(length), value,
-                         NodeProperties::GetEffectInput(node), if_true);
-
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-
-    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    Node* phi = graph()->NewNode(common()->EffectPhi(2), store,
-                                 NodeProperties::GetEffectInput(node), merge);
-
-    return ReplaceWith(phi);
+                         NodeProperties::GetEffectInput(node),
+                         NodeProperties::GetControlInput(node));
+    return ReplaceEagerly(node, store);
   }
   return NoChange();
 }

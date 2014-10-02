@@ -33,6 +33,7 @@ namespace compiler {
   V(ArchJmp)                \
   V(ArchNop)                \
   V(ArchRet)                \
+  V(ArchStackPointer)       \
   V(ArchTruncateDoubleToI)  \
   TARGET_ARCH_OPCODE_LIST(V)
 

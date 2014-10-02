@@ -18,7 +18,6 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/spaces-inl.h"
-#include "src/heap/sweeper-thread.h"
 #include "src/heap-profiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
@@ -557,39 +556,27 @@ void MarkCompactCollector::StartSweeperThreads() {
   DCHECK(free_list_old_pointer_space_.get()->IsEmpty());
   DCHECK(free_list_old_data_space_.get()->IsEmpty());
   sweeping_in_progress_ = true;
-  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
-    isolate()->sweeper_threads()[i]->StartSweeping();
-  }
-  if (FLAG_job_based_sweeping) {
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new SweeperTask(heap(), heap()->old_data_space()),
-        v8::Platform::kShortRunningTask);
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new SweeperTask(heap(), heap()->old_pointer_space()),
-        v8::Platform::kShortRunningTask);
-  }
+  V8::GetCurrentPlatform()->CallOnBackgroundThread(
+      new SweeperTask(heap(), heap()->old_data_space()),
+      v8::Platform::kShortRunningTask);
+  V8::GetCurrentPlatform()->CallOnBackgroundThread(
+      new SweeperTask(heap(), heap()->old_pointer_space()),
+      v8::Platform::kShortRunningTask);
 }
 
 
 void MarkCompactCollector::EnsureSweepingCompleted() {
   DCHECK(sweeping_in_progress_ == true);
 
-  // If sweeping is not completed, we try to complete it here. If we do not
-  // have sweeper threads we have to complete since we do not have a good
-  // indicator for a swept space in that case.
-  if (!AreSweeperThreadsActivated() || !IsSweepingCompleted()) {
+  // If sweeping is not completed or not running at all, we try to complete it
+  // here.
+  if (!IsSweepingCompleted()) {
     SweepInParallel(heap()->paged_space(OLD_DATA_SPACE), 0);
     SweepInParallel(heap()->paged_space(OLD_POINTER_SPACE), 0);
   }
-
-  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
-    isolate()->sweeper_threads()[i]->WaitForSweeperThread();
-  }
-  if (FLAG_job_based_sweeping) {
-    // Wait twice for both jobs.
-    pending_sweeper_jobs_semaphore_.Wait();
-    pending_sweeper_jobs_semaphore_.Wait();
-  }
+  // Wait twice for both jobs.
+  pending_sweeper_jobs_semaphore_.Wait();
+  pending_sweeper_jobs_semaphore_.Wait();
   ParallelSweepSpacesComplete();
   sweeping_in_progress_ = false;
   RefillFreeList(heap()->paged_space(OLD_DATA_SPACE));
@@ -606,20 +593,11 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 
 
 bool MarkCompactCollector::IsSweepingCompleted() {
-  for (int i = 0; i < isolate()->num_sweeper_threads(); i++) {
-    if (!isolate()->sweeper_threads()[i]->SweepingCompleted()) {
-      return false;
-    }
+  if (!pending_sweeper_jobs_semaphore_.WaitFor(
+          base::TimeDelta::FromSeconds(0))) {
+    return false;
   }
-
-  if (FLAG_job_based_sweeping) {
-    if (!pending_sweeper_jobs_semaphore_.WaitFor(
-            base::TimeDelta::FromSeconds(0))) {
-      return false;
-    }
-    pending_sweeper_jobs_semaphore_.Signal();
-  }
-
+  pending_sweeper_jobs_semaphore_.Signal();
   return true;
 }
 
@@ -640,11 +618,6 @@ void MarkCompactCollector::RefillFreeList(PagedSpace* space) {
   intptr_t freed_bytes = space->free_list()->Concatenate(free_list);
   space->AddToAccountingStats(freed_bytes);
   space->DecrementUnsweptFreeBytes(freed_bytes);
-}
-
-
-bool MarkCompactCollector::AreSweeperThreadsActivated() {
-  return isolate()->sweeper_threads() != NULL || FLAG_job_based_sweeping;
 }
 
 
@@ -4246,8 +4219,9 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
 
 
 static bool ShouldStartSweeperThreads(MarkCompactCollector::SweeperType type) {
-  return type == MarkCompactCollector::PARALLEL_SWEEPING ||
-         type == MarkCompactCollector::CONCURRENT_SWEEPING;
+  return (type == MarkCompactCollector::PARALLEL_SWEEPING ||
+          type == MarkCompactCollector::CONCURRENT_SWEEPING) &&
+         !FLAG_predictable;
 }
 
 

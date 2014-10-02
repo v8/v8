@@ -17,7 +17,10 @@ OFStreamBase::OFStreamBase(FILE* f) : f_(f) {}
 OFStreamBase::~OFStreamBase() {}
 
 
-OFStreamBase::int_type OFStreamBase::sync() { return 0; }
+OFStreamBase::int_type OFStreamBase::sync() {
+  std::fflush(f_);
+  return 0;
+}
 
 
 OFStreamBase::int_type OFStreamBase::overflow(int_type c) {

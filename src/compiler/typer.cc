@@ -309,12 +309,6 @@ Bounds Typer::Visitor::TypeEffectPhi(Node* node) {
 }
 
 
-Bounds Typer::Visitor::TypeControlEffect(Node* node) {
-  UNREACHABLE();
-  return Bounds();
-}
-
-
 Bounds Typer::Visitor::TypeValueEffect(Node* node) {
   UNREACHABLE();
   return Bounds();

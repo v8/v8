@@ -86,8 +86,8 @@ bool AstGraphBuilder::CreateGraph() {
   // Visit declarations within the function scope.
   VisitDeclarations(scope->declarations());
 
-  // TODO(mstarzinger): This should do an inlined stack check.
-  Node* node = NewNode(javascript()->CallRuntime(Runtime::kStackGuard, 0));
+  // Build a stack-check before the body.
+  Node* node = BuildStackCheck();
   PrepareFrameState(node, BailoutId::FunctionEntry());
 
   // Visit statements in the function body.
@@ -1975,7 +1975,6 @@ Node* AstGraphBuilder::BuildVariableAssignment(Variable* variable, Node* value,
 
 
 Node* AstGraphBuilder::BuildLoadObjectField(Node* object, int offset) {
-  // TODO(sigurds) Use simplified load here once it is ready.
   Node* field_load = NewNode(jsgraph()->machine()->Load(kMachAnyTagged), object,
                              jsgraph()->Int32Constant(offset - kHeapObjectTag));
   return field_load;
@@ -2057,6 +2056,24 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op) {
       js_op = NULL;
   }
   return NewNode(js_op, left, right);
+}
+
+
+Node* AstGraphBuilder::BuildStackCheck() {
+  IfBuilder stack_check(this);
+  Node* limit =
+      NewNode(jsgraph()->machine()->Load(kMachPtr),
+              jsgraph()->ExternalConstant(
+                  ExternalReference::address_of_stack_limit(isolate())),
+              jsgraph()->ZeroConstant());
+  Node* stack = NewNode(jsgraph()->machine()->LoadStackPointer());
+  Node* tag = NewNode(jsgraph()->machine()->UintLessThan(), limit, stack);
+  stack_check.If(tag);
+  stack_check.Then();
+  stack_check.Else();
+  Node* guard = NewNode(javascript()->CallRuntime(Runtime::kStackGuard, 0));
+  stack_check.End();
+  return guard;
 }
 
 

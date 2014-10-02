@@ -97,8 +97,8 @@ Node* ChangeLowering::ChangeSmiToInt32(Node* value) {
 
 Node* ChangeLowering::LoadHeapNumberValue(Node* value, Node* control) {
   return graph()->NewNode(machine()->Load(kMachFloat64), value,
-                          HeapNumberValueIndexConstant(),
-                          graph()->NewNode(common()->ControlEffect(), control));
+                          HeapNumberValueIndexConstant(), graph()->start(),
+                          control);
 }
 
 

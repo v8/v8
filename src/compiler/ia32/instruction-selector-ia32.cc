@@ -367,7 +367,37 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
 }
 
 
+static bool TryEmitLeaMultAdd(InstructionSelector* selector, Node* node) {
+  Int32BinopMatcher m(node);
+  if (!m.right().HasValue()) return false;
+  int32_t displacement_value = m.right().Value();
+  Node* left = m.left().node();
+  LeaMultiplyMatcher lmm(left);
+  if (!lmm.Matches()) return false;
+  AddressingMode mode;
+  size_t input_count;
+  IA32OperandGenerator g(selector);
+  InstructionOperand* index = g.UseRegister(lmm.Left());
+  InstructionOperand* displacement = g.TempImmediate(displacement_value);
+  InstructionOperand* inputs[] = {index, displacement, displacement};
+  if (lmm.Displacement() != 0) {
+    input_count = 3;
+    inputs[1] = index;
+    mode = kMode_MR1I;
+  } else {
+    input_count = 2;
+    mode = kMode_M1I;
+  }
+  mode = AdjustAddressingMode(mode, lmm.Power());
+  InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
+  selector->Emit(kIA32Lea | AddressingModeField::encode(mode), 1, outputs,
+                 input_count, inputs);
+  return true;
+}
+
+
 void InstructionSelector::VisitInt32Add(Node* node) {
+  if (TryEmitLeaMultAdd(this, node)) return;
   VisitBinop(this, node, kIA32Add);
 }
 
@@ -383,41 +413,45 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
 }
 
 
-void InstructionSelector::VisitInt32Mul(Node* node) {
-  IA32OperandGenerator g(this);
+static bool TryEmitLeaMult(InstructionSelector* selector, Node* node) {
   LeaMultiplyMatcher lea(node);
   // Try to match lea.
-  if (lea.Matches()) {
-    ArchOpcode opcode = kIA32Lea;
-    AddressingMode mode;
-    size_t input_count;
-    InstructionOperand* left = g.UseRegister(lea.Left());
-    InstructionOperand* inputs[] = {left, left};
-    if (lea.Displacement() != 0) {
-      input_count = 2;
-      mode = kMode_MR1;
-    } else {
-      input_count = 1;
-      mode = kMode_M1;
-    }
-    mode = AdjustAddressingMode(mode, lea.Power());
-    InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
-    Emit(opcode | AddressingModeField::encode(mode), 1, outputs, input_count,
-         inputs);
+  if (!lea.Matches()) return false;
+  AddressingMode mode;
+  size_t input_count;
+  IA32OperandGenerator g(selector);
+  InstructionOperand* left = g.UseRegister(lea.Left());
+  InstructionOperand* inputs[] = {left, left};
+  if (lea.Displacement() != 0) {
+    input_count = 2;
+    mode = kMode_MR1;
   } else {
-    Int32BinopMatcher m(node);
-    Node* left = m.left().node();
-    Node* right = m.right().node();
-    if (g.CanBeImmediate(right)) {
-      Emit(kIA32Imul, g.DefineAsRegister(node), g.Use(left),
-           g.UseImmediate(right));
-    } else {
-      if (g.CanBeBetterLeftOperand(right)) {
-        std::swap(left, right);
-      }
-      Emit(kIA32Imul, g.DefineSameAsFirst(node), g.UseRegister(left),
-           g.Use(right));
+    input_count = 1;
+    mode = kMode_M1;
+  }
+  mode = AdjustAddressingMode(mode, lea.Power());
+  InstructionOperand* outputs[] = {g.DefineAsRegister(node)};
+  selector->Emit(kIA32Lea | AddressingModeField::encode(mode), 1, outputs,
+                 input_count, inputs);
+  return true;
+}
+
+
+void InstructionSelector::VisitInt32Mul(Node* node) {
+  if (TryEmitLeaMult(this, node)) return;
+  IA32OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  Node* left = m.left().node();
+  Node* right = m.right().node();
+  if (g.CanBeImmediate(right)) {
+    Emit(kIA32Imul, g.DefineAsRegister(node), g.Use(left),
+         g.UseImmediate(right));
+  } else {
+    if (g.CanBeBetterLeftOperand(right)) {
+      std::swap(left, right);
     }
+    Emit(kIA32Imul, g.DefineSameAsFirst(node), g.UseRegister(left),
+         g.Use(right));
   }
 }
 
@@ -438,7 +472,7 @@ void InstructionSelector::VisitInt32Div(Node* node) {
 }
 
 
-void InstructionSelector::VisitInt32UDiv(Node* node) {
+void InstructionSelector::VisitUint32Div(Node* node) {
   VisitDiv(this, node, kIA32Udiv);
 }
 
@@ -459,7 +493,7 @@ void InstructionSelector::VisitInt32Mod(Node* node) {
 }
 
 
-void InstructionSelector::VisitInt32UMod(Node* node) {
+void InstructionSelector::VisitUint32Mod(Node* node) {
   VisitMod(this, node, kIA32Udiv);
 }
 

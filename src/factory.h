@@ -588,6 +588,14 @@ class Factory FINAL {
   INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
 #undef STRING_ACCESSOR
 
+#define SYMBOL_ACCESSOR(name)                                   \
+  inline Handle<Symbol> name() {                                \
+    return Handle<Symbol>(bit_cast<Symbol**>(                   \
+        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
+  }
+  PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
   inline void set_string_table(Handle<StringTable> table) {
     isolate()->heap()->set_string_table(*table);
   }

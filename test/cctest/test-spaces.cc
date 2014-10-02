@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "src/base/platform/platform.h"
 #include "src/snapshot.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
@@ -212,7 +213,12 @@ TEST(Regress3540) {
   TestMemoryAllocatorScope test_allocator_scope(isolate, memory_allocator);
   CodeRange* code_range = new CodeRange(isolate);
   const size_t code_range_size = 4 * MB;
-  if (!code_range->SetUp(code_range_size)) return;
+  if (!code_range->SetUp(
+          code_range_size +
+          RoundUp(v8::base::OS::CommitPageSize() * kReservedCodeRangePages,
+                  MemoryChunk::kAlignment))) {
+    return;
+  }
   Address address;
   size_t size;
   address = code_range->AllocateRawMemory(code_range_size - MB,

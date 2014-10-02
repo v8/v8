@@ -511,10 +511,16 @@ void IC::Clear(Isolate* isolate, Address address,
 void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target,
                         ConstantPoolArray* constant_pool) {
   if (IsCleared(target)) return;
-  // Make sure to also clear the map used in inline fast cases.  If we
-  // do not clear these maps, cached code can keep objects alive
-  // through the embedded maps.
-  SetTargetAtAddress(address, *pre_monomorphic_stub(isolate), constant_pool);
+
+  // If the target is the string_stub, then don't clear it. It is the
+  // perfect stub if we continue to see strings. Holding this
+  // state is not preventing learning new information.
+  if (target != *isolate->builtins()->KeyedLoadIC_String()) {
+    // Make sure to also clear the map used in inline fast cases.  If we
+    // do not clear these maps, cached code can keep objects alive
+    // through the embedded maps.
+    SetTargetAtAddress(address, *pre_monomorphic_stub(isolate), constant_pool);
+  }
 }
 
 

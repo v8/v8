@@ -34,7 +34,6 @@
 #define INNER_OP_LIST(V) \
   V(Phi)                 \
   V(EffectPhi)           \
-  V(ControlEffect)       \
   V(ValueEffect)         \
   V(Finish)              \
   V(FrameState)          \
@@ -187,22 +186,23 @@
   V(Int32SubWithOverflow)     \
   V(Int32Mul)                 \
   V(Int32Div)                 \
-  V(Int32UDiv)                \
   V(Int32Mod)                 \
-  V(Int32UMod)                \
   V(Int32LessThan)            \
   V(Int32LessThanOrEqual)     \
+  V(Uint32Div)                \
   V(Uint32LessThan)           \
   V(Uint32LessThanOrEqual)    \
+  V(Uint32Mod)                \
   V(Int64Add)                 \
   V(Int64Sub)                 \
   V(Int64Mul)                 \
   V(Int64Div)                 \
-  V(Int64UDiv)                \
   V(Int64Mod)                 \
-  V(Int64UMod)                \
   V(Int64LessThan)            \
   V(Int64LessThanOrEqual)     \
+  V(Uint64Div)                \
+  V(Uint64LessThan)           \
+  V(Uint64Mod)                \
   V(ChangeFloat32ToFloat64)   \
   V(ChangeFloat64ToInt32)     \
   V(ChangeFloat64ToUint32)    \
@@ -221,7 +221,8 @@
   V(Float64Sqrt)              \
   V(Float64Equal)             \
   V(Float64LessThan)          \
-  V(Float64LessThanOrEqual)
+  V(Float64LessThanOrEqual)   \
+  V(LoadStackPointer)
 
 #define VALUE_OP_LIST(V) \
   COMMON_OP_LIST(V)      \
