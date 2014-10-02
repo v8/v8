@@ -74,6 +74,11 @@
             'compiler/ia32/instruction-selector-ia32-unittest.cc',
           ],
         }],
+        ['v8_target_arch=="mipsel"', {
+          'sources': [  ### gcmole(arch:mipsel) ###
+            'compiler/mips/instruction-selector-mips-unittest.cc',
+          ],
+        }],
         ['v8_target_arch=="x64"', {
           'sources': [  ### gcmole(arch:x64) ###
             'compiler/x64/instruction-selector-x64-unittest.cc',
