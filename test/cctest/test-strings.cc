@@ -1292,6 +1292,35 @@ TEST(RobustSubStringStub) {
 }
 
 
+namespace {
+
+int* global_use_counts = NULL;
+
+void MockUseCounterCallback(v8::Isolate* isolate,
+                            v8::Isolate::UseCounterFeature feature) {
+  ++global_use_counts[feature];
+}
+}
+
+
+TEST(CountBreakIterator) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext context;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CHECK_EQ(0, use_counts[v8::Isolate::kBreakIterator]);
+  v8::Local<v8::Value> result = CompileRun(
+      "var iterator = Intl.v8BreakIterator(['en']);"
+      "iterator.adoptText('Now is the time');"
+      "iterator.next();"
+      "iterator.next();");
+  CHECK(result->IsNumber());
+  CHECK_EQ(1, use_counts[v8::Isolate::kBreakIterator]);
+}
+
+
 TEST(StringReplaceAtomTwoByteResult) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
