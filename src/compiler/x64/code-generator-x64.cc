@@ -184,13 +184,21 @@ static bool HasImmediateInput(Instruction* instr, int index) {
   } while (0)
 
 
-#define ASSEMBLE_SHIFT(asm_instr, width)                                 \
-  do {                                                                   \
-    if (HasImmediateInput(instr, 1)) {                                   \
-      __ asm_instr(i.OutputRegister(), Immediate(i.InputInt##width(1))); \
-    } else {                                                             \
-      __ asm_instr##_cl(i.OutputRegister());                             \
-    }                                                                    \
+#define ASSEMBLE_SHIFT(asm_instr, width)                                   \
+  do {                                                                     \
+    if (HasImmediateInput(instr, 1)) {                                     \
+      if (instr->Output()->IsRegister()) {                                 \
+        __ asm_instr(i.OutputRegister(), Immediate(i.InputInt##width(1))); \
+      } else {                                                             \
+        __ asm_instr(i.OutputOperand(), Immediate(i.InputInt##width(1)));  \
+      }                                                                    \
+    } else {                                                               \
+      if (instr->Output()->IsRegister()) {                                 \
+        __ asm_instr##_cl(i.OutputRegister());                             \
+      } else {                                                             \
+        __ asm_instr##_cl(i.OutputOperand());                              \
+      }                                                                    \
+    }                                                                      \
   } while (0)
 
 

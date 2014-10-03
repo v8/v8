@@ -439,12 +439,16 @@ class Serializer : public SerializerDeserializer {
     }
 
    private:
+    void SerializePrologue(int space, int size, Map* map);
+
     enum ReturnSkip { kCanReturnSkipInsteadOfSkipping, kIgnoringReturn };
     // This function outputs or skips the raw data between the last pointer and
     // up to the current position.  It optionally can just return the number of
     // bytes to skip instead of performing a skip instruction, in case the skip
     // can be merged into the next instruction.
     int OutputRawData(Address up_to, ReturnSkip return_skip = kIgnoringReturn);
+    // External strings are serialized in a way to resemble sequential strings.
+    void SerializeExternalString();
 
     Serializer* serializer_;
     HeapObject* object_;

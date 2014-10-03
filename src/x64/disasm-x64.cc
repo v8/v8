@@ -709,65 +709,62 @@ int DisassemblerX64::F6F7Instruction(byte* data) {
 
 int DisassemblerX64::ShiftInstruction(byte* data) {
   byte op = *data & (~1);
+  int count = 1;
   if (op != 0xD0 && op != 0xD2 && op != 0xC0) {
     UnimplementedInstruction();
-    return 1;
+    return count;
   }
-  byte modrm = *(data + 1);
-  int mod, regop, rm;
-  get_modrm(modrm, &mod, &regop, &rm);
-  regop &= 0x7;  // The REX.R bit does not affect the operation.
-  int imm8 = -1;
-  int num_bytes = 2;
-  if (mod != 3) {
-    UnimplementedInstruction();
-    return num_bytes;
+  // Print mneumonic.
+  {
+    byte modrm = *(data + count);
+    int mod, regop, rm;
+    get_modrm(modrm, &mod, &regop, &rm);
+    regop &= 0x7;  // The REX.R bit does not affect the operation.
+    const char* mnem = NULL;
+    switch (regop) {
+      case 0:
+        mnem = "rol";
+        break;
+      case 1:
+        mnem = "ror";
+        break;
+      case 2:
+        mnem = "rcl";
+        break;
+      case 3:
+        mnem = "rcr";
+        break;
+      case 4:
+        mnem = "shl";
+        break;
+      case 5:
+        mnem = "shr";
+        break;
+      case 7:
+        mnem = "sar";
+        break;
+      default:
+        UnimplementedInstruction();
+        return count + 1;
+    }
+    DCHECK_NE(NULL, mnem);
+    AppendToBuffer("%s%c ", mnem, operand_size_code());
   }
-  const char* mnem = NULL;
-  switch (regop) {
-    case 0:
-      mnem = "rol";
-      break;
-    case 1:
-      mnem = "ror";
-      break;
-    case 2:
-      mnem = "rcl";
-      break;
-    case 3:
-      mnem = "rcr";
-      break;
-    case 4:
-      mnem = "shl";
-      break;
-    case 5:
-      mnem = "shr";
-      break;
-    case 7:
-      mnem = "sar";
-      break;
-    default:
-      UnimplementedInstruction();
-      return num_bytes;
-  }
-  DCHECK_NE(NULL, mnem);
-  if (op == 0xD0) {
-    imm8 = 1;
-  } else if (op == 0xC0) {
-    imm8 = *(data + 2);
-    num_bytes = 3;
-  }
-  AppendToBuffer("%s%c %s,",
-                 mnem,
-                 operand_size_code(),
-                 byte_size_operand_ ? NameOfByteCPURegister(rm)
-                                    : NameOfCPURegister(rm));
+  count += PrintRightOperand(data + count);
   if (op == 0xD2) {
-    AppendToBuffer("cl");
+    AppendToBuffer(", cl");
   } else {
-    AppendToBuffer("%d", imm8);
+    int imm8 = -1;
+    if (op == 0xD0) {
+      imm8 = 1;
+    } else {
+      DCHECK_EQ(0xC0, op);
+      imm8 = *(data + count);
+      count++;
+    }
+    AppendToBuffer(", %d", imm8);
   }
-  return num_bytes;
+  return count;
 }
 
 
@@ -1489,15 +1486,15 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
       case 0x69:  // fall through
       case 0x6B: {
-        int mod, regop, rm;
-        get_modrm(*(data + 1), &mod, &regop, &rm);
-        int32_t imm = *data == 0x6B ? *(data + 2)
-            : *reinterpret_cast<int32_t*>(data + 2);
-        AppendToBuffer("imul%c %s,%s,0x%x",
-                       operand_size_code(),
-                       NameOfCPURegister(regop),
-                       NameOfCPURegister(rm), imm);
-        data += 2 + (*data == 0x6B ? 1 : 4);
+        int count = 1;
+        count += PrintOperands("imul", REG_OPER_OP_ORDER, data + count);
+        AppendToBuffer(",0x");
+        if (*data == 0x69) {
+          count += PrintImmediate(data + count, operand_size());
+        } else {
+          count += PrintImmediate(data + count, OPERAND_BYTE_SIZE);
+        }
+        data += count;
         break;
       }
 

@@ -68,7 +68,6 @@ class Accessors : public AllStatic {
   // Accessor functions called directly from the runtime system.
   static Handle<Object> FunctionSetPrototype(Handle<JSFunction> object,
                                              Handle<Object> value);
-  static Handle<Object> FunctionGetPrototype(Handle<JSFunction> object);
   static Handle<Object> FunctionGetArguments(Handle<JSFunction> object);
 
   // Accessor infos.

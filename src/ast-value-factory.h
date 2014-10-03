@@ -94,6 +94,8 @@ class AstRawString : public AstString {
   }
   static bool Compare(void* a, void* b);
 
+  bool operator==(const AstRawString& rhs) const;
+
  private:
   friend class AstValueFactory;
   friend class AstRawStringInternalizationKey;

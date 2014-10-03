@@ -560,7 +560,7 @@ bool FunctionDeclaration::IsInlineable() const {
 // once we use the common type field in the AST consistently.
 
 void Expression::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
-  to_boolean_types_ = oracle->ToBooleanTypes(test_id());
+  set_to_boolean_types(oracle->ToBooleanTypes(test_id()));
 }
 
 
@@ -1126,20 +1126,19 @@ void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
 #undef DONT_CACHE_NODE
 
 
-Handle<String> Literal::ToString() {
-  if (value_->IsString()) return value_->AsString()->string();
-  DCHECK(value_->IsNumber());
-  char arr[100];
-  Vector<char> buffer(arr, arraysize(arr));
-  const char* str;
-  if (value()->IsSmi()) {
-    // Optimization only, the heap number case would subsume this.
-    SNPrintF(buffer, "%d", Smi::cast(*value())->value());
-    str = arr;
-  } else {
-    str = DoubleToCString(value()->Number(), buffer);
-  }
-  return isolate_->factory()->NewStringFromAsciiChecked(str);
+uint32_t Literal::Hash() {
+  return raw_value()->IsString()
+             ? raw_value()->AsString()->hash()
+             : ComputeLongHash(double_to_uint64(raw_value()->AsNumber()));
+}
+
+
+// static
+bool Literal::Match(void* literal1, void* literal2) {
+  const AstValue* x = static_cast<Literal*>(literal1)->raw_value();
+  const AstValue* y = static_cast<Literal*>(literal2)->raw_value();
+  return (x->IsString() && y->IsString() && *x->AsString() == *y->AsString()) ||
+         (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
 }
 
 

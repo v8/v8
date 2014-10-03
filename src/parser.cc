@@ -3381,7 +3381,7 @@ bool CheckAndDeclareArrowParameter(ParserTraits* traits, Expression* expression,
 
   // Too many parentheses around expression:
   //   (( ... )) => ...
-  if (expression->parenthesization_level() > 1) return false;
+  if (expression->is_multi_parenthesized()) return false;
 
   // Case for a single parameter:
   //   (foo) => ...

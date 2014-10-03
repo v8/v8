@@ -15,11 +15,18 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+template <class T>
+class Handle;
 class HeapObject;
 template <class T>
 class Unique;
 
 namespace compiler {
+
+// Forward declarations.
+struct ElementAccess;
+struct FieldAccess;
+
 
 using ::testing::Matcher;
 
@@ -36,9 +43,11 @@ class GraphTest : public TestWithContext, public TestWithZone {
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
   Node* NumberConstant(volatile double value);
+  Node* HeapConstant(const Handle<HeapObject>& value);
   Node* HeapConstant(const Unique<HeapObject>& value);
   Node* FalseConstant();
   Node* TrueConstant();
+  Node* UndefinedConstant();
 
   Matcher<Node*> IsFalseConstant();
   Matcher<Node*> IsTrueConstant();
@@ -88,6 +97,22 @@ Matcher<Node*> IsNumberLessThan(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsNumberSubtract(const Matcher<Node*>& lhs_matcher,
                                 const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsLoadField(const Matcher<FieldAccess>& access_matcher,
+                           const Matcher<Node*>& base_matcher,
+                           const Matcher<Node*>& effect_matcher);
+Matcher<Node*> IsLoadElement(const Matcher<ElementAccess>& access_matcher,
+                             const Matcher<Node*>& base_matcher,
+                             const Matcher<Node*>& index_matcher,
+                             const Matcher<Node*>& length_matcher,
+                             const Matcher<Node*>& effect_matcher,
+                             const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
+                              const Matcher<Node*>& base_matcher,
+                              const Matcher<Node*>& index_matcher,
+                              const Matcher<Node*>& length_matcher,
+                              const Matcher<Node*>& value_matcher,
+                              const Matcher<Node*>& effect_matcher,
+                              const Matcher<Node*>& control_matcher);
 
 Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& base_matcher,

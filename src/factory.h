@@ -434,6 +434,11 @@ class Factory FINAL {
 
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type);
 
+  // Creates a new JSTypedArray with the specified buffer.
+  Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type,
+                                       Handle<JSArrayBuffer> buffer,
+                                       size_t length);
+
   Handle<JSDataView> NewJSDataView();
 
   // Allocates a Harmony proxy.

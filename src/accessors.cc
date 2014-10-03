@@ -56,17 +56,6 @@ Handle<ExecutableAccessorInfo> Accessors::CloneAccessor(
 }
 
 
-template <class C>
-static C* FindInstanceOf(Isolate* isolate, Object* obj) {
-  for (PrototypeIterator iter(isolate, obj,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(); iter.Advance()) {
-    if (Is<C>(iter.GetCurrent())) return C::cast(iter.GetCurrent());
-  }
-  return NULL;
-}
-
-
 static V8_INLINE bool CheckForName(Handle<Name> name,
                                    Handle<String> property_name,
                                    int offset,
@@ -913,11 +902,6 @@ static Handle<Object> SetFunctionPrototype(Isolate* isolate,
   }
 
   return function;
-}
-
-
-Handle<Object> Accessors::FunctionGetPrototype(Handle<JSFunction> function) {
-  return GetFunctionPrototype(function->GetIsolate(), function);
 }
 
 

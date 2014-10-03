@@ -35,11 +35,6 @@ class JSBuiltinReducerTest : public GraphTest {
     return n;
   }
 
-  Node* UndefinedConstant() {
-    return HeapConstant(
-        Unique<HeapObject>::CreateImmovable(factory()->undefined_value()));
-  }
-
   JSOperatorBuilder* javascript() { return &javascript_; }
 
  private:

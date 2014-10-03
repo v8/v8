@@ -2522,6 +2522,13 @@ bool Heap::CreateInitialMaps() {
       roots_[entry.index] = map;
     }
 
+    {  // Create a separate external one byte string map for native sources.
+      AllocationResult allocation = AllocateMap(EXTERNAL_ONE_BYTE_STRING_TYPE,
+                                                ExternalOneByteString::kSize);
+      if (!allocation.To(&obj)) return false;
+      set_native_source_string_map(Map::cast(obj));
+    }
+
     ALLOCATE_VARSIZE_MAP(STRING_TYPE, undetectable_string)
     undetectable_string_map()->set_is_undetectable();
 
@@ -4314,7 +4321,7 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
   heap_state.scavenge_speed_in_bytes_per_ms =
       static_cast<size_t>(tracer()->ScavengeSpeedInBytesPerMillisecond());
-  heap_state.available_new_space_memory = new_space_.Available();
+  heap_state.used_new_space_size = new_space_.Size();
   heap_state.new_space_capacity = new_space_.Capacity();
   heap_state.new_space_allocation_throughput_in_bytes_per_ms =
       static_cast<size_t>(

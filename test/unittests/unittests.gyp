@@ -44,6 +44,7 @@
         'compiler/instruction-selector-unittest.h',
         'compiler/js-builtin-reducer-unittest.cc',
         'compiler/js-operator-unittest.cc',
+        'compiler/js-typed-lowering-unittest.cc',
         'compiler/machine-operator-reducer-unittest.cc',
         'compiler/machine-operator-unittest.cc',
         'compiler/simplified-operator-reducer-unittest.cc',
@@ -71,6 +72,11 @@
         ['v8_target_arch=="ia32"', {
           'sources': [  ### gcmole(arch:ia32) ###
             'compiler/ia32/instruction-selector-ia32-unittest.cc',
+          ],
+        }],
+        ['v8_target_arch=="mipsel"', {
+          'sources': [  ### gcmole(arch:mipsel) ###
+            'compiler/mips/instruction-selector-mips-unittest.cc',
           ],
         }],
         ['v8_target_arch=="x64"', {

@@ -38,12 +38,17 @@ std::ostream& operator<<(std::ostream&, BaseTaggedness);
 struct FieldAccess {
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int offset;                     // offset of the field, without tag.
-  Handle<Name> name;              // debugging only.
+  MaybeHandle<Name> name;         // debugging only.
   Type* type;                     // type of the field.
   MachineType machine_type;       // machine type of the field.
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
+
+bool operator==(FieldAccess const& lhs, FieldAccess const& rhs);
+bool operator!=(FieldAccess const& lhs, FieldAccess const& rhs);
+
+std::ostream& operator<<(std::ostream&, FieldAccess const&);
 
 
 enum BoundsCheckMode { kNoBoundsCheck, kTypedArrayBoundsCheck };

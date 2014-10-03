@@ -1716,8 +1716,22 @@ Handle<JSDataView> Factory::NewJSDataView() {
 }
 
 
-static JSFunction* GetTypedArrayFun(ExternalArrayType type,
-                                    Isolate* isolate) {
+namespace {
+
+ElementsKind GetExternalArrayElementsKind(ExternalArrayType type) {
+  switch (type) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case kExternal##Type##Array:                          \
+    return EXTERNAL_##TYPE##_ELEMENTS;
+    TYPED_ARRAYS(TYPED_ARRAY_CASE)
+  }
+  UNREACHABLE();
+  return FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND;
+#undef TYPED_ARRAY_CASE
+}
+
+
+JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
   Context* native_context = isolate->context()->native_context();
   switch (type) {
 #define TYPED_ARRAY_FUN(Type, type, TYPE, ctype, size)                        \
@@ -1733,6 +1747,8 @@ static JSFunction* GetTypedArrayFun(ExternalArrayType type,
   }
 }
 
+}  // namespace
+
 
 Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
   Handle<JSFunction> typed_array_fun_handle(GetTypedArrayFun(type, isolate()));
@@ -1741,6 +1757,28 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
       isolate(),
       isolate()->heap()->AllocateJSObject(*typed_array_fun_handle),
       JSTypedArray);
+}
+
+
+Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
+                                              Handle<JSArrayBuffer> buffer,
+                                              size_t length) {
+  DCHECK(length <= static_cast<size_t>(kMaxInt));
+  Handle<JSTypedArray> array = NewJSTypedArray(type);
+  array->set_buffer(*buffer);
+  array->set_weak_next(buffer->weak_first_view());
+  buffer->set_weak_first_view(*array);
+  array->set_byte_offset(Smi::FromInt(0));
+  array->set_byte_length(buffer->byte_length());
+  Handle<Object> length_handle = NewNumberFromSize(length);
+  array->set_length(*length_handle);
+  Handle<ExternalArray> elements =
+      NewExternalArray(static_cast<int>(length), type, buffer->backing_store());
+  JSObject::SetMapAndElements(array,
+                              JSObject::GetElementsTransitionMap(
+                                  array, GetExternalArrayElementsKind(type)),
+                              elements);
+  return array;
 }
 
 

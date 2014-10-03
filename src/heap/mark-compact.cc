@@ -4167,7 +4167,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
 
     switch (sweeper) {
       case CONCURRENT_SWEEPING:
-      case PARALLEL_SWEEPING:
         if (!parallel_sweeping_active) {
           if (FLAG_gc_verbose) {
             PrintF("Sweeping 0x%" V8PRIxPTR ".\n",
@@ -4218,19 +4217,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
 }
 
 
-static bool ShouldStartSweeperThreads(MarkCompactCollector::SweeperType type) {
-  return (type == MarkCompactCollector::PARALLEL_SWEEPING ||
-          type == MarkCompactCollector::CONCURRENT_SWEEPING) &&
-         !FLAG_predictable;
-}
-
-
-static bool ShouldWaitForSweeperThreads(
-    MarkCompactCollector::SweeperType type) {
-  return type == MarkCompactCollector::PARALLEL_SWEEPING;
-}
-
-
 void MarkCompactCollector::SweepSpaces() {
   GCTracer::Scope gc_scope(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
   double start_time = 0.0;
@@ -4241,10 +4227,6 @@ void MarkCompactCollector::SweepSpaces() {
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
-  SweeperType how_to_sweep = CONCURRENT_SWEEPING;
-  if (FLAG_parallel_sweeping) how_to_sweep = PARALLEL_SWEEPING;
-  if (FLAG_concurrent_sweeping) how_to_sweep = CONCURRENT_SWEEPING;
-
   MoveEvacuationCandidatesToEndOfPagesList();
 
   // Noncompacting collections simply sweep the spaces to clear the mark
@@ -4257,16 +4239,12 @@ void MarkCompactCollector::SweepSpaces() {
                                 GCTracer::Scope::MC_SWEEP_OLDSPACE);
     {
       SequentialSweepingScope scope(this);
-      SweepSpace(heap()->old_pointer_space(), how_to_sweep);
-      SweepSpace(heap()->old_data_space(), how_to_sweep);
+      SweepSpace(heap()->old_pointer_space(), CONCURRENT_SWEEPING);
+      SweepSpace(heap()->old_data_space(), CONCURRENT_SWEEPING);
     }
 
-    if (ShouldStartSweeperThreads(how_to_sweep)) {
+    if (!FLAG_predictable) {
       StartSweeperThreads();
-    }
-
-    if (ShouldWaitForSweeperThreads(how_to_sweep)) {
-      EnsureSweepingCompleted();
     }
   }
   RemoveDeadInvalidatedCode();

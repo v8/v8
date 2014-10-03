@@ -4,15 +4,12 @@
 
 #include "src/hydrogen.h"
 
-#include <algorithm>
 #include <sstream>
 
 #include "src/v8.h"
 
 #include "src/allocation-site-scopes.h"
-#include "src/codegen.h"
 #include "src/full-codegen.h"
-#include "src/hashmap.h"
 #include "src/hydrogen-bce.h"
 #include "src/hydrogen-bch.h"
 #include "src/hydrogen-canonicalize.h"
@@ -43,7 +40,6 @@
 #include "src/parser.h"
 #include "src/runtime/runtime.h"
 #include "src/scopeinfo.h"
-#include "src/scopes.h"
 #include "src/typing.h"
 
 #if V8_TARGET_ARCH_IA32
@@ -2901,10 +2897,6 @@ void HGraphBuilder::BuildCopyElements(HValue* from_elements,
         (capacity == NULL || !length->Equals(capacity))) {
       BuildFillElementsWithHole(to_elements, to_elements_kind,
                                 length, NULL);
-    }
-
-    if (capacity == NULL) {
-      capacity = AddLoadFixedArrayLength(to_elements);
     }
 
     LoopBuilder builder(this, context(), LoopBuilder::kPostDecrement);
@@ -6313,7 +6305,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
   HControlInstruction* smi_check = NULL;
   handled_string = false;
 
-  for (int i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
+  for (i = 0; i < types->length() && count < kMaxLoadPolymorphism; ++i) {
     PropertyAccessInfo info(this, access_type, ToType(types->at(i)), name);
     if (info.type()->Is(Type::String())) {
       if (handled_string) continue;
@@ -6391,7 +6383,7 @@ void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
   // know about and do not want to handle ones we've never seen.  Otherwise
   // use a generic IC.
   if (count == types->length() && FLAG_deoptimize_uncommon_cases) {
-    FinishExitWithHardDeoptimization("Uknown map in polymorphic access");
+    FinishExitWithHardDeoptimization("Unknown map in polymorphic access");
   } else {
     HInstruction* instr = BuildNamedGeneric(access_type, expr, object, name,
                                             value);
@@ -9111,7 +9103,6 @@ void HOptimizedGraphBuilder::VisitCall(Call* expr) {
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
       GlobalPropertyAccess type = LookupGlobalProperty(var, &it, LOAD);
       if (type == kUseCell) {
-        Handle<GlobalObject> global(current_info()->global_object());
         known_global_function = expr->ComputeGlobalTarget(global, &it);
       }
       if (known_global_function) {

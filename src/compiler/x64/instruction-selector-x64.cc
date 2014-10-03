@@ -21,29 +21,10 @@ class X64OperandGenerator FINAL : public OperandGenerator {
                                            Register::ToAllocationIndex(reg));
   }
 
-  InstructionOperand* UseImmediate64(Node* node) { return UseImmediate(node); }
-
   bool CanBeImmediate(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
         return true;
-      default:
-        return false;
-    }
-  }
-
-  bool CanBeImmediate64(Node* node) {
-    switch (node->opcode()) {
-      case IrOpcode::kInt32Constant:
-        return true;
-      case IrOpcode::kNumberConstant:
-        return true;
-      case IrOpcode::kHeapConstant: {
-        // Constants in new space cannot be used as immediates in V8 because
-        // the GC does not scan code objects when collecting the new generation.
-        Unique<HeapObject> value = OpParameter<Unique<HeapObject> >(node);
-        return !isolate()->heap()->InNewSpace(*value.handle());
-      }
       default:
         return false;
     }
@@ -350,9 +331,8 @@ static void VisitWord32Shift(InstructionSelector* selector, Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
-  // TODO(turbofan): assembler only supports some addressing modes for shifts.
   if (g.CanBeImmediate(right)) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
                    g.UseImmediate(right));
   } else {
     Int32BinopMatcher m(node);
@@ -362,7 +342,7 @@ static void VisitWord32Shift(InstructionSelector* selector, Node* node,
         right = mright.left().node();
       }
     }
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
                    g.UseFixed(right, rcx));
   }
 }
@@ -376,9 +356,8 @@ static void VisitWord64Shift(InstructionSelector* selector, Node* node,
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
-  // TODO(turbofan): assembler only supports some addressing modes for shifts.
   if (g.CanBeImmediate(right)) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
                    g.UseImmediate(right));
   } else {
     Int64BinopMatcher m(node);
@@ -388,7 +367,7 @@ static void VisitWord64Shift(InstructionSelector* selector, Node* node,
         right = mright.left().node();
       }
     }
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
                    g.UseFixed(right, rcx));
   }
 }

@@ -117,6 +117,26 @@ TEST(DisasmX64) {
   __ imulq(rdx, rcx);
   __ shld(rdx, rcx);
   __ shrd(rdx, rcx);
+  __ shlq(Operand(rdi, rax, times_4, 100), Immediate(1));
+  __ shlq(Operand(rdi, rax, times_4, 100), Immediate(6));
+  __ shlq(Operand(r15, 0), Immediate(1));
+  __ shlq(Operand(r15, 0), Immediate(6));
+  __ shlq_cl(Operand(r15, 0));
+  __ shlq_cl(Operand(r15, 0));
+  __ shlq_cl(Operand(rdi, rax, times_4, 100));
+  __ shlq_cl(Operand(rdi, rax, times_4, 100));
+  __ shlq(rdx, Immediate(1));
+  __ shlq(rdx, Immediate(6));
+  __ shll(Operand(rdi, rax, times_4, 100), Immediate(1));
+  __ shll(Operand(rdi, rax, times_4, 100), Immediate(6));
+  __ shll(Operand(r15, 0), Immediate(1));
+  __ shll(Operand(r15, 0), Immediate(6));
+  __ shll_cl(Operand(r15, 0));
+  __ shll_cl(Operand(r15, 0));
+  __ shll_cl(Operand(rdi, rax, times_4, 100));
+  __ shll_cl(Operand(rdi, rax, times_4, 100));
+  __ shll(rdx, Immediate(1));
+  __ shll(rdx, Immediate(6));
   __ bts(Operand(rdx, 0), rcx);
   __ bts(Operand(rbx, rcx, times_4, 0), rcx);
   __ nop();
@@ -164,10 +184,16 @@ TEST(DisasmX64) {
   __ notq(rdx);
   __ testq(Operand(rbx, rcx, times_4, 10000), rdx);
 
-  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
   __ imulq(rdx, rcx, Immediate(12));
   __ imulq(rdx, rcx, Immediate(1000));
+  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000));
+  __ imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(12));
   __ imulq(rdx, Operand(rbx, rcx, times_4, 10000), Immediate(1000));
+  __ imull(r15, rcx, Immediate(12));
+  __ imull(r15, rcx, Immediate(1000));
+  __ imull(r15, Operand(rbx, rcx, times_4, 10000));
+  __ imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(12));
+  __ imull(r15, Operand(rbx, rcx, times_4, 10000), Immediate(1000));
 
   __ incq(rdx);
   __ incq(Operand(rbx, rcx, times_4, 10000));

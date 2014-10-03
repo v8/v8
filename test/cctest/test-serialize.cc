@@ -901,6 +901,216 @@ TEST(SerializeToplevelLargeString) {
 }
 
 
+class SerializerOneByteResource
+    : public v8::String::ExternalOneByteStringResource {
+ public:
+  SerializerOneByteResource(const char* data, size_t length)
+      : data_(data), length_(length) {}
+  virtual const char* data() const { return data_; }
+  virtual size_t length() const { return length_; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+
+class SerializerTwoByteResource : public v8::String::ExternalStringResource {
+ public:
+  SerializerTwoByteResource(const char* data, size_t length)
+      : data_(AsciiToTwoByteString(data)), length_(length) {}
+  ~SerializerTwoByteResource() { DeleteArray<const uint16_t>(data_); }
+
+  virtual const uint16_t* data() const { return data_; }
+  virtual size_t length() const { return length_; }
+
+ private:
+  const uint16_t* data_;
+  size_t length_;
+};
+
+
+TEST(SerializeToplevelExternalString) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Obtain external internalized one-byte string.
+  SerializerOneByteResource one_byte_resource("one_byte", 8);
+  Handle<String> one_byte_string =
+      isolate->factory()->NewStringFromAsciiChecked("one_byte");
+  one_byte_string = isolate->factory()->InternalizeString(one_byte_string);
+  one_byte_string->MakeExternal(&one_byte_resource);
+  CHECK(one_byte_string->IsExternalOneByteString());
+  CHECK(one_byte_string->IsInternalizedString());
+
+  // Obtain external internalized two-byte string.
+  SerializerTwoByteResource two_byte_resource("two_byte", 8);
+  Handle<String> two_byte_string =
+      isolate->factory()->NewStringFromAsciiChecked("two_byte");
+  two_byte_string = isolate->factory()->InternalizeString(two_byte_string);
+  two_byte_string->MakeExternal(&two_byte_resource);
+  CHECK(two_byte_string->IsExternalTwoByteString());
+  CHECK(two_byte_string->IsInternalizedString());
+
+  const char* source =
+      "var o = {}               \n"
+      "o.one_byte = 7;          \n"
+      "o.two_byte = 8;          \n"
+      "o.one_byte + o.two_byte; \n";
+  Handle<String> source_string = isolate->factory()
+                                     ->NewStringFromUtf8(CStrVector(source))
+                                     .ToHandleChecked();
+
+  Handle<JSObject> global(isolate->context()->global_object());
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      source_string, Handle<String>(), 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+
+  Handle<SharedFunctionInfo> copy;
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    copy = Compiler::CompileScript(
+        source_string, Handle<String>(), 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+  }
+  CHECK_NE(*orig, *copy);
+
+  Handle<JSFunction> copy_fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
+
+  Handle<Object> copy_result =
+      Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
+
+  CHECK_EQ(15.0f, copy_result->Number());
+
+  delete cache;
+}
+
+
+TEST(SerializeToplevelLargeExternalString) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  Factory* f = isolate->factory();
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  // Create a huge external internalized string to use as variable name.
+  Vector<const uint8_t> string =
+      ConstructSource(STATIC_CHAR_VECTOR(""), STATIC_CHAR_VECTOR("abcdef"),
+                      STATIC_CHAR_VECTOR(""), 1000000);
+  Handle<String> name = f->NewStringFromOneByte(string).ToHandleChecked();
+  SerializerOneByteResource one_byte_resource(
+      reinterpret_cast<const char*>(string.start()), string.length());
+  name = f->InternalizeString(name);
+  name->MakeExternal(&one_byte_resource);
+  CHECK(name->IsExternalOneByteString());
+  CHECK(name->IsInternalizedString());
+  CHECK(isolate->heap()->InSpace(*name, LO_SPACE));
+
+  // Create the source, which is "var <literal> = 42; <literal>".
+  Handle<String> source_str =
+      f->NewConsString(
+             f->NewConsString(f->NewStringFromAsciiChecked("var "), name)
+                 .ToHandleChecked(),
+             f->NewConsString(f->NewStringFromAsciiChecked(" = 42; "), name)
+                 .ToHandleChecked()).ToHandleChecked();
+
+  Handle<JSObject> global(isolate->context()->global_object());
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      source_str, Handle<String>(), 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+
+  Handle<SharedFunctionInfo> copy;
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    copy = Compiler::CompileScript(
+        source_str, Handle<String>(), 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+  }
+  CHECK_NE(*orig, *copy);
+
+  Handle<JSFunction> copy_fun =
+      f->NewFunctionFromSharedFunctionInfo(copy, isolate->native_context());
+
+  Handle<Object> copy_result =
+      Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
+
+  CHECK_EQ(42.0f, copy_result->Number());
+
+  delete cache;
+  string.Dispose();
+}
+
+
+TEST(SerializeToplevelExternalScriptName) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  Factory* f = isolate->factory();
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* source =
+      "var a = [1, 2, 3, 4];"
+      "a.reduce(function(x, y) { return x + y }, 0)";
+
+  Handle<String> source_string =
+      f->NewStringFromUtf8(CStrVector(source)).ToHandleChecked();
+
+  const SerializerOneByteResource one_byte_resource("one_byte", 8);
+  Handle<String> name =
+      f->NewExternalStringFromOneByte(&one_byte_resource).ToHandleChecked();
+  CHECK(name->IsExternalOneByteString());
+  CHECK(!name->IsInternalizedString());
+
+  Handle<JSObject> global(isolate->context()->global_object());
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      source_string, name, 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+
+  Handle<SharedFunctionInfo> copy;
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    copy = Compiler::CompileScript(
+        source_string, name, 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+  }
+  CHECK_NE(*orig, *copy);
+
+  Handle<JSFunction> copy_fun =
+      f->NewFunctionFromSharedFunctionInfo(copy, isolate->native_context());
+
+  Handle<Object> copy_result =
+      Execution::Call(isolate, copy_fun, global, 0, NULL).ToHandleChecked();
+
+  CHECK_EQ(10.0f, copy_result->Number());
+
+  delete cache;
+}
+
+
 TEST(SerializeToplevelIsolates) {
   FLAG_serialize_toplevel = true;
 

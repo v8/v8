@@ -2211,7 +2211,7 @@ void InductionVariableData::ChecksRelatedToLength::AddCheck(
  */
 int32_t InductionVariableData::ComputeIncrement(HPhi* phi,
                                                 HValue* phi_operand) {
-  if (!phi_operand->representation().IsInteger32()) return 0;
+  if (!phi_operand->representation().IsSmiOrInteger32()) return 0;
 
   if (phi_operand->IsAdd()) {
     HAdd* operation = HAdd::cast(phi_operand);

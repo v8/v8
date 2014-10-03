@@ -196,8 +196,10 @@
 
   # Skip endain dependent test for mips due to different typed views of the same
   # array buffer.
-  'nans': [PASS, ['arch == mips', SKIP]],
+  'nans': [PASS, ],
 
+  # This test variant makes only sense on arm.
+  'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################

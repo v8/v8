@@ -9,10 +9,7 @@
 #include "src/compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
-#include "src/macro-assembler.h"
 #include "src/type-info.h"
-
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -78,17 +75,6 @@ bool TypeFeedbackOracle::StoreIsUninitialized(TypeFeedbackId ast_id) {
   if (!maybe_code->IsCode()) return false;
   Handle<Code> code = Handle<Code>::cast(maybe_code);
   return code->ic_state() == UNINITIALIZED;
-}
-
-
-bool TypeFeedbackOracle::StoreIsKeyedPolymorphic(TypeFeedbackId ast_id) {
-  Handle<Object> maybe_code = GetInfo(ast_id);
-  if (maybe_code->IsCode()) {
-    Handle<Code> code = Handle<Code>::cast(maybe_code);
-    return code->is_keyed_store_stub() &&
-        code->ic_state() == POLYMORPHIC;
-  }
-  return false;
 }
 
 
