@@ -15,7 +15,6 @@ using namespace v8::internal::compiler;
 TEST(CompareWrapper) {
   // Who tests the testers?
   // If CompareWrapper is broken, then test expectations will be broken.
-  RawMachineAssemblerTester<int32_t> m;
   CompareWrapper wWord32Equal(IrOpcode::kWord32Equal);
   CompareWrapper wInt32LessThan(IrOpcode::kInt32LessThan);
   CompareWrapper wInt32LessThanOrEqual(IrOpcode::kInt32LessThanOrEqual);
