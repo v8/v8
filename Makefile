@@ -140,10 +140,15 @@ endif
 # asan=/path/to/clang++
 ifneq ($(strip $(asan)),)
   GYPFLAGS += -Dasan=1
+  export CC=$(dir $(asan))clang
   export CXX=$(asan)
   export CXX_host=$(asan)
   export LINK=$(asan)
-  export ASAN_SYMBOLIZER_PATH="$(dir $(asan))llvm-symbolizer"
+  export ASAN_SYMBOLIZER_PATH=$(dir $(asan))llvm-symbolizer
+  TESTFLAGS += --asan
+  ifeq ($(lsan), on)
+    GYPFLAGS += -Dlsan=1
+  endif
 endif
 
 # arm specific flags.
