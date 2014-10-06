@@ -222,8 +222,6 @@ TEST(SequenceCollectorRegression) {
 }
 
 
-// TODO(svenpanne) Unconditionally test this when our infrastructure is fixed.
-#if !V8_OS_NACL
 TEST(CPlusPlus11Features) {
   struct S {
     bool x;
@@ -256,4 +254,3 @@ TEST(CPlusPlus11Features) {
     j += 11;
   }
 }
-#endif
