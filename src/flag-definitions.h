@@ -168,7 +168,6 @@ DEFINE_IMPLICATION(harmony, harmony_scoping)
 DEFINE_IMPLICATION(harmony, harmony_modules)
 // TODO(rossberg): Reenable when problems are sorted out.
 // DEFINE_IMPLICATION(harmony, harmony_proxies)
-DEFINE_IMPLICATION(harmony, harmony_numeric_literals)
 DEFINE_IMPLICATION(harmony, harmony_strings)
 DEFINE_IMPLICATION(harmony, harmony_arrays)
 DEFINE_IMPLICATION(harmony, harmony_arrow_functions)
@@ -180,6 +179,7 @@ DEFINE_IMPLICATION(harmony_classes, harmony_scoping)
 DEFINE_IMPLICATION(harmony_classes, harmony_object_literals)
 
 DEFINE_IMPLICATION(harmony, es_staging)
+DEFINE_IMPLICATION(es_staging, harmony_numeric_literals)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_generic_loads, false,
