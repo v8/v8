@@ -2361,6 +2361,14 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 }
 
 
+void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
+  // Stack: receiver, home_object, key.
+  SetSourcePosition(prop->position());
+
+  __ CallRuntime(Runtime::kLoadKeyedFromSuper, 3);
+}
+
+
 void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
                                               Token::Value op,
                                               OverwriteMode mode,
@@ -2670,11 +2678,19 @@ void FullCodeGenerator::VisitProperty(Property* expr) {
     PrepareForBailoutForId(expr->LoadId(), TOS_REG);
     context()->Plug(v0);
   } else {
-    VisitForStackValue(expr->obj());
-    VisitForAccumulatorValue(expr->key());
-    __ Move(LoadDescriptor::NameRegister(), v0);
-    __ pop(LoadDescriptor::ReceiverRegister());
-    EmitKeyedPropertyLoad(expr);
+    if (!expr->IsSuperAccess()) {
+      VisitForStackValue(expr->obj());
+      VisitForAccumulatorValue(expr->key());
+      __ Move(LoadDescriptor::NameRegister(), v0);
+      __ pop(LoadDescriptor::ReceiverRegister());
+      EmitKeyedPropertyLoad(expr);
+    } else {
+      VisitForStackValue(expr->obj()->AsSuperReference()->this_var());
+      EmitLoadHomeObject(expr->obj()->AsSuperReference());
+      __ Push(result_register());
+      VisitForStackValue(expr->key());
+      EmitKeyedSuperPropertyLoad(expr);
+    }
     context()->Plug(v0);
   }
 }
@@ -2776,6 +2792,40 @@ void FullCodeGenerator::EmitKeyedCallWithLoadIC(Call* expr,
   __ push(at);
   __ sw(v0, MemOperand(sp, kPointerSize));
 
+  EmitCall(expr, CallICState::METHOD);
+}
+
+
+void FullCodeGenerator::EmitKeyedSuperCallWithLoadIC(Call* expr) {
+  Expression* callee = expr->expression();
+  DCHECK(callee->IsProperty());
+  Property* prop = callee->AsProperty();
+  DCHECK(prop->IsSuperAccess());
+
+  SetSourcePosition(prop->position());
+  // Load the function from the receiver.
+  const Register scratch = a1;
+  SuperReference* super_ref = prop->obj()->AsSuperReference();
+  EmitLoadHomeObject(super_ref);
+  __ Move(scratch, v0);
+  VisitForAccumulatorValue(super_ref->this_var());
+  __ Push(scratch, v0, v0, scratch);
+  VisitForStackValue(prop->key());
+
+  // Stack here:
+  //  - home_object
+  //  - this (receiver)
+  //  - this (receiver) <-- LoadKeyedFromSuper will pop here and below.
+  //  - home_object
+  //  - key
+  __ CallRuntime(Runtime::kLoadKeyedFromSuper, 3);
+
+  // Replace home_object with target function.
+  __ sw(v0, MemOperand(sp, kPointerSize));
+
+  // Stack here:
+  // - target function
+  // - this (receiver)
   EmitCall(expr, CallICState::METHOD);
 }
 
@@ -2927,9 +2977,12 @@ void FullCodeGenerator::VisitCall(Call* expr) {
   } else if (call_type == Call::PROPERTY_CALL) {
     Property* property = callee->AsProperty();
     bool is_named_call = property->key()->IsPropertyName();
-    // super.x() is handled in EmitCallWithLoadIC.
-    if (property->IsSuperAccess() && is_named_call) {
-      EmitSuperCallWithLoadIC(expr);
+    if (property->IsSuperAccess()) {
+      if (is_named_call) {
+        EmitSuperCallWithLoadIC(expr);
+      } else {
+        EmitKeyedSuperCallWithLoadIC(expr);
+      }
     } else {
       {
         PreservePositionScope scope(masm()->positions_recorder());
