@@ -37,6 +37,41 @@
 }());
 
 
+(function TestSuperKeyedLoads() {
+  var x = 'x';
+  var derivedDataProperty = 'derivedDataProperty';
+  var f = 'f';
+  function Base() { }
+  function Derived() {
+    this[derivedDataProperty] = 'xxx';
+  }
+  Derived.prototype = Object.create(Base.prototype);
+
+  function fBase() { return "Base " + this.toString(); }
+
+  Base.prototype[f] = fBase.toMethod(Base.prototype);
+
+  function fDerived() {
+     assertEquals("Base this is Derived", super[f]());
+     var a = super[x];
+     assertEquals(15, a);
+     assertEquals(15, super[x]);
+     assertEquals(27, this[x]);
+
+     return "Derived"
+  }
+
+  Base.prototype[x] = 15;
+  Base.prototype.toString = function() { return "this is Base"; };
+  Derived.prototype.toString = function() { return "this is Derived"; };
+  Derived.prototype[x] = 27;
+  Derived.prototype[f] = fDerived.toMethod(Derived.prototype);
+
+  assertEquals("Base this is Base", new Base().f());
+  assertEquals("Derived", new Derived().f());
+}());
+
+
 (function TestSuperKeywordNonMethod() {
   function f() {
     super.unknown();
@@ -76,6 +111,80 @@
   assertEquals('derived', derived.testGetter());
   derived = new Derived();
   assertEquals('derived', derived.testGetterStrict());
+}());
+
+
+(function TestGetterKeyed() {
+  var x = 'x';
+  function Base() {}
+  var derived;
+  Base.prototype = {
+    constructor: Base,
+    get x() {
+      assertSame(this, derived);
+      return this._x;
+    },
+    _x: 'base'
+  };
+
+  function Derived() {}
+  Derived.__proto__ = Base;
+  Derived.prototype = {
+    __proto__: Base.prototype,
+    constructor: Derived,
+    _x: 'derived'
+  };
+  Derived.prototype.testGetter = function() {
+    return super[x];
+  }.toMethod(Derived.prototype);
+  Derived.prototype.testGetterStrict = function() {
+    'use strict';
+    return super[x];
+  }.toMethod(Derived.prototype);
+  Derived.prototype.testGetterWithToString = function() {
+    var toStringCalled;
+    var o = { toString: function() {
+      toStringCalled++;
+      return 'x';
+    } };
+
+    toStringCalled = 0;
+    assertEquals('derived', super[o]);
+    assertEquals(1, toStringCalled);
+
+    var eToThrow = new Error();
+    var oThrowsInToString = { toString: function() {
+      throw eToThrow;
+    } };
+
+    var ex = null;
+    try {
+      super[oThrowsInToString];
+    } catch(e) { ex = e }
+    assertEquals(eToThrow, ex);
+
+    var oReturnsNumericString = { toString: function() {
+      return "1";
+    } };
+
+    ex = null;
+    try {
+      super[oReturnsNumericString];
+    } catch(e) { ex = e }
+    assertTrue(ex instanceof ReferenceError);
+
+    ex = null;
+    try {
+      super[1];  // Indexed properties unsupported yet.
+    } catch (e) { ex = e; }
+    assertTrue(ex instanceof ReferenceError);
+  }.toMethod(Derived.prototype);
+  derived = new Derived();
+  assertEquals('derived', derived.testGetter());
+  derived = new Derived();
+  assertEquals('derived', derived.testGetterStrict());
+  derived = new Derived();
+  derived.testGetterWithToString();
 }());
 
 
@@ -536,6 +645,6 @@
   function f1(x) { return super[x]; }
   function f2(x) { super[x] = 5; }
   var o = {};
-  assertThrows(function(){f1.toMethod(o)(x);}, ReferenceError);
-  assertThrows(function(){f2.toMethod(o)(x);}, ReferenceError);
+  assertThrows(function(){f1.toMethod(o)(15);}, ReferenceError);
+  assertThrows(function(){f2.toMethod(o)(15);}, ReferenceError);
 }());

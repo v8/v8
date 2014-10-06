@@ -16,6 +16,28 @@ namespace v8 {
 namespace internal {
 
 
+RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError("non_method", HandleVector<Object>(NULL, 0)));
+}
+
+
+static Object* ThrowUnsupportedSuper(Isolate* isolate) {
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate,
+      NewReferenceError("unsupported_super", HandleVector<Object>(NULL, 0)));
+}
+
+
+RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 0);
+  return ThrowUnsupportedSuper(isolate);
+}
+
+
 RUNTIME_FUNCTION(Runtime_ToMethod) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
@@ -35,13 +57,8 @@ RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
-
+static Object* LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
+                             Handle<JSObject> home_object, Handle<Name> name) {
   if (home_object->IsAccessCheckNeeded() &&
       !isolate->MayNamedAccess(home_object, name, v8::ACCESS_GET)) {
     isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_GET);
@@ -56,6 +73,35 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
   return *result;
+}
+
+
+RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
+
+  return LoadFromSuper(isolate, receiver, home_object, name);
+}
+
+
+RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 3);
+  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
+
+  Handle<Name> name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
+                                     Runtime::ToName(isolate, key));
+  uint32_t index;
+  if (name->AsArrayIndex(&index)) {
+    return ThrowUnsupportedSuper(isolate);
+  }
+  return LoadFromSuper(isolate, receiver, home_object, name);
 }
 
 

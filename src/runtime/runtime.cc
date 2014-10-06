@@ -463,8 +463,7 @@ MaybeHandle<Object> Runtime::GetElementOrCharAt(Isolate* isolate,
 }
 
 
-MUST_USE_RESULT
-static MaybeHandle<Name> ToName(Isolate* isolate, Handle<Object> key) {
+MaybeHandle<Name> Runtime::ToName(Isolate* isolate, Handle<Object> key) {
   if (key->IsName()) {
     return Handle<Name>::cast(key);
   } else {
@@ -1739,23 +1738,6 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError("not_defined", HandleVector(&name, 1)));
-}
-
-
-RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError("non_method", HandleVector<Object>(NULL, 0)));
-}
-
-
-RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewReferenceError("unsupported_super", HandleVector<Object>(NULL, 0)));
 }
 
 
