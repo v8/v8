@@ -1292,6 +1292,42 @@ TEST(RobustSubStringStub) {
 }
 
 
+namespace {
+
+int* global_use_counts = NULL;
+
+void MockUseCounterCallback(v8::Isolate* isolate,
+                            v8::Isolate::UseCounterFeature feature) {
+  ++global_use_counts[feature];
+}
+}
+
+
+TEST(CountBreakIterator) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext context;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+  CHECK_EQ(0, use_counts[v8::Isolate::kBreakIterator]);
+  v8::Local<v8::Value> result = CompileRun(
+      "(function() {"
+      "  if (!this.Intl) return 0;"
+      "  var iterator = Intl.v8BreakIterator(['en']);"
+      "  iterator.adoptText('Now is the time');"
+      "  iterator.next();"
+      "  return iterator.next();"
+      "})();");
+  CHECK(result->IsNumber());
+  int uses = result->ToInt32()->Value() == 0 ? 0 : 1;
+  CHECK_EQ(uses, use_counts[v8::Isolate::kBreakIterator]);
+  // Make sure GC cleans up the break iterator, so we don't get a memory leak
+  // reported by ASAN.
+  CcTest::isolate()->LowMemoryNotification();
+}
+
+
 TEST(StringReplaceAtomTwoByteResult) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
