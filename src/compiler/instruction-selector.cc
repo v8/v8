@@ -190,27 +190,27 @@ void InstructionSelector::MarkAsUsed(Node* node) {
 
 bool InstructionSelector::IsDouble(const Node* node) const {
   DCHECK_NOT_NULL(node);
-  return sequence()->IsDouble(node->id());
+  return sequence()->IsDouble(sequence()->GetVirtualRegister(node));
 }
 
 
 void InstructionSelector::MarkAsDouble(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsReference(node));
-  sequence()->MarkAsDouble(node->id());
+  sequence()->MarkAsDouble(sequence()->GetVirtualRegister(node));
 }
 
 
 bool InstructionSelector::IsReference(const Node* node) const {
   DCHECK_NOT_NULL(node);
-  return sequence()->IsReference(node->id());
+  return sequence()->IsReference(sequence()->GetVirtualRegister(node));
 }
 
 
 void InstructionSelector::MarkAsReference(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsDouble(node));
-  sequence()->MarkAsReference(node->id());
+  sequence()->MarkAsReference(sequence()->GetVirtualRegister(node));
 }
 
 
