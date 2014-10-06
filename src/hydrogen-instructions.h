@@ -2716,6 +2716,7 @@ class HLoadRoot FINAL : public HTemplateInstruction<0> {
     // TODO(bmeurer): We'll need kDependsOnRoots once we add the
     // corresponding HStoreRoot instruction.
     SetDependsOnFlag(kCalls);
+    set_representation(Representation::Tagged());
   }
 
   virtual bool IsDeletable() const OVERRIDE { return true; }
@@ -6373,11 +6374,13 @@ class HLoadNamedField FINAL : public HTemplateInstruction<2> {
     return !access().IsInobject() || access().offset() >= size;
   }
   virtual Representation RequiredInputRepresentation(int index) OVERRIDE {
-    if (index == 0 && access().IsExternalMemory()) {
+    if (index == 0) {
       // object must be external in case of external memory access
-      return Representation::External();
+      return access().IsExternalMemory() ? Representation::External()
+                                         : Representation::Tagged();
     }
-    return Representation::Tagged();
+    DCHECK(index == 1);
+    return Representation::None();
   }
   virtual Range* InferRange(Zone* zone) OVERRIDE;
   virtual std::ostream& PrintDataTo(std::ostream& os) const OVERRIDE;  // NOLINT
