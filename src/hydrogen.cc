@@ -6426,16 +6426,19 @@ void HOptimizedGraphBuilder::BuildStore(Expression* expr,
                                         bool is_uninitialized) {
   if (!prop->key()->IsPropertyName()) {
     // Keyed store.
-    HValue* value = environment()->ExpressionStackAt(0);
-    HValue* key = environment()->ExpressionStackAt(1);
-    HValue* object = environment()->ExpressionStackAt(2);
+    HValue* value = Pop();
+    HValue* key = Pop();
+    HValue* object = Pop();
     bool has_side_effects = false;
-    HandleKeyedElementAccess(object, key, value, expr, ast_id, return_id, STORE,
-                             &has_side_effects);
-    Drop(3);
-    Push(value);
-    Add<HSimulate>(return_id, REMOVABLE_SIMULATE);
-    return ast_context()->ReturnValue(Pop());
+    HValue* result = HandleKeyedElementAccess(
+        object, key, value, expr, ast_id, return_id, STORE, &has_side_effects);
+    if (has_side_effects) {
+      if (!ast_context()->IsEffect()) Push(value);
+      Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
+      if (!ast_context()->IsEffect()) Drop(1);
+    }
+    if (result == NULL) return;
+    return ast_context()->ReturnValue(value);
   }
 
   // Named store.
@@ -7065,7 +7068,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
           store_mode);
     }
     *has_side_effects |= instr->HasObservableSideEffects();
-    return access_type == STORE ? NULL : instr;
+    return access_type == STORE ? val : instr;
   }
 
   HBasicBlock* join = graph()->CreateBasicBlock();
@@ -7118,7 +7121,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   NoObservableSideEffectsScope scope(this);
   FinishExitWithHardDeoptimization("Unknown map in polymorphic element access");
   set_current_block(join);
-  return access_type == STORE ? NULL : Pop();
+  return access_type == STORE ? val : Pop();
 }
 
 
