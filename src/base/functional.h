@@ -76,11 +76,11 @@ inline size_t hash_combine(T const& v, Ts const&... vs) {
 V8_BASE_HASH_VALUE_TRIVIAL(bool)
 V8_BASE_HASH_VALUE_TRIVIAL(unsigned char)
 V8_BASE_HASH_VALUE_TRIVIAL(unsigned short)  // NOLINT(runtime/int)
-V8_BASE_HASH_VALUE_TRIVIAL(unsigned int)
 #undef V8_BASE_HASH_VALUE_TRIVIAL
 
-size_t hash_value(unsigned long v);       // NOLINT(runtime/int)
-size_t hash_value(unsigned long long v);  // NOLINT(runtime/int)
+size_t hash_value(unsigned int);
+size_t hash_value(unsigned long);       // NOLINT(runtime/int)
+size_t hash_value(unsigned long long);  // NOLINT(runtime/int)
 
 #define V8_BASE_HASH_VALUE_SIGNED(type)            \
   inline size_t hash_value(signed type v) {        \

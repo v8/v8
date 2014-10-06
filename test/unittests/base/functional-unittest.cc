@@ -83,7 +83,7 @@ TYPED_TEST(FunctionalTest, HashIsStateless) {
 
 TYPED_TEST(FunctionalTest, HashIsOkish) {
   const size_t kValues = 128;
-  const size_t kMinHashes = kValues / (sizeof(uint64_t) / sizeof(size_t));
+  const size_t kMinHashes = kValues / 4;
   std::set<TypeParam> vs;
   while (vs.size() != kValues) {
     TypeParam v;

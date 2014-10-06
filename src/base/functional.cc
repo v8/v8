@@ -64,6 +64,19 @@ size_t hash_combine(size_t seed, size_t value) {
 }
 
 
+// Thomas Wang, Integer Hash Functions.
+// http://www.concentric.net/~Ttwang/tech/inthash.htm
+size_t hash_value(unsigned int v) {
+  v = ~v + (v << 15);  // v = (v << 15) - v - 1;
+  v = v ^ (v >> 12);
+  v = v + (v << 2);
+  v = v ^ (v >> 4);
+  v = v * 2057;  // v = (v + (v << 3)) + (v << 11);
+  v = v ^ (v >> 16);
+  return v;
+}
+
+
 size_t hash_value(unsigned long v) {  // NOLINT(runtime/int)
   return hash_value_unsigned(v);
 }
@@ -76,13 +89,13 @@ size_t hash_value(unsigned long long v) {  // NOLINT(runtime/int)
 
 size_t hash_value(float v) {
   // 0 and -0 both hash to zero.
-  return v != 0.0f ? hash_value(bit_cast<uint32_t>(v)) : 0;
+  return v != 0.0f ? hash_value_unsigned(bit_cast<uint32_t>(v)) : 0;
 }
 
 
 size_t hash_value(double v) {
   // 0 and -0 both hash to zero.
-  return v != 0.0 ? hash_value(bit_cast<uint64_t>(v)) : 0;
+  return v != 0.0 ? hash_value_unsigned(bit_cast<uint64_t>(v)) : 0;
 }
 
 }  // namespace base
