@@ -4,6 +4,7 @@
 
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
+#include "src/compiler/graph-inl.h"
 #include "src/flags.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 
@@ -34,6 +35,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
         << *schedule;
   }
   EXPECT_NE(0, graph()->NodeCount());
+  int initial_node_count = graph()->NodeCount();
   CompilationInfo info(test_->isolate(), test_->zone());
   Linkage linkage(&info, call_descriptor());
   InstructionSequence sequence(&linkage, graph(), schedule);
@@ -46,6 +48,15 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
         << sequence;
   }
   Stream s;
+  // Map virtual registers.
+  {
+    const int* node_map = sequence.GetNodeMapForTesting();
+    for (int i = 0; i < initial_node_count; ++i) {
+      if (node_map[i] >= 0) {
+        s.virtual_registers_.insert(std::make_pair(i, node_map[i]));
+      }
+    }
+  }
   std::set<int> virtual_registers;
   for (InstructionSequence::const_iterator i = sequence.begin();
        i != sequence.end(); ++i) {
@@ -107,6 +118,13 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
         InstructionSequence::StateId::FromInt(i)));
   }
   return s;
+}
+
+
+int InstructionSelectorTest::Stream::ToVreg(const Node* node) const {
+  VirtualRegisters::const_iterator i = virtual_registers_.find(node->id());
+  CHECK(i != virtual_registers_.end());
+  return i->second;
 }
 
 
@@ -180,7 +198,7 @@ TARGET_TEST_F(InstructionSelectorTest, DoubleParameter) {
   Node* param = m.Parameter(0);
   m.Return(param);
   Stream s = m.Build(kAllInstructions);
-  EXPECT_TRUE(s.IsDouble(param->id()));
+  EXPECT_TRUE(s.IsDouble(param));
 }
 
 
@@ -189,7 +207,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReferenceParameter) {
   Node* param = m.Parameter(0);
   m.Return(param);
   Stream s = m.Build(kAllInstructions);
-  EXPECT_TRUE(s.IsReference(param->id()));
+  EXPECT_TRUE(s.IsReference(param));
 }
 
 
@@ -207,16 +225,16 @@ TARGET_TEST_F(InstructionSelectorTest, Finish) {
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   ASSERT_TRUE(s[0]->Output()->IsUnallocated());
-  EXPECT_EQ(param->id(), s.ToVreg(s[0]->Output()));
+  EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->Output()));
   EXPECT_EQ(kArchNop, s[1]->arch_opcode());
   ASSERT_EQ(1U, s[1]->InputCount());
   ASSERT_TRUE(s[1]->InputAt(0)->IsUnallocated());
-  EXPECT_EQ(param->id(), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[1]->InputAt(0)));
   ASSERT_EQ(1U, s[1]->OutputCount());
   ASSERT_TRUE(s[1]->Output()->IsUnallocated());
   EXPECT_TRUE(UnallocatedOperand::cast(s[1]->Output())->HasSameAsInputPolicy());
-  EXPECT_EQ(finish->id(), s.ToVreg(s[1]->Output()));
-  EXPECT_TRUE(s.IsReference(finish->id()));
+  EXPECT_EQ(s.ToVreg(finish), s.ToVreg(s[1]->Output()));
+  EXPECT_TRUE(s.IsReference(finish));
 }
 
 
@@ -243,8 +261,8 @@ TARGET_TEST_P(InstructionSelectorPhiTest, Doubleness) {
   Node* phi = m.Phi(type, param0, param1);
   m.Return(phi);
   Stream s = m.Build(kAllInstructions);
-  EXPECT_EQ(s.IsDouble(phi->id()), s.IsDouble(param0->id()));
-  EXPECT_EQ(s.IsDouble(phi->id()), s.IsDouble(param1->id()));
+  EXPECT_EQ(s.IsDouble(phi), s.IsDouble(param0));
+  EXPECT_EQ(s.IsDouble(phi), s.IsDouble(param1));
 }
 
 
@@ -263,8 +281,8 @@ TARGET_TEST_P(InstructionSelectorPhiTest, Referenceness) {
   Node* phi = m.Phi(type, param0, param1);
   m.Return(phi);
   Stream s = m.Build(kAllInstructions);
-  EXPECT_EQ(s.IsReference(phi->id()), s.IsReference(param0->id()));
-  EXPECT_EQ(s.IsReference(phi->id()), s.IsReference(param1->id()));
+  EXPECT_EQ(s.IsReference(phi), s.IsReference(param0));
+  EXPECT_EQ(s.IsReference(phi), s.IsReference(param1));
 }
 
 
@@ -412,9 +430,9 @@ TARGET_TEST_F(InstructionSelectorTest, CallFunctionStubWithDeopt) {
   EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(5)));
 
   // Function.
-  EXPECT_EQ(function_node->id(), s.ToVreg(call_instr->InputAt(6)));
+  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(6)));
   // Context.
-  EXPECT_EQ(context->id(), s.ToVreg(call_instr->InputAt(7)));
+  EXPECT_EQ(s.ToVreg(context), s.ToVreg(call_instr->InputAt(7)));
 
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
 
@@ -504,9 +522,9 @@ TARGET_TEST_F(InstructionSelectorTest,
   EXPECT_EQ(45, s.ToInt32(call_instr->InputAt(9)));
 
   // Function.
-  EXPECT_EQ(function_node->id(), s.ToVreg(call_instr->InputAt(10)));
+  EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(10)));
   // Context.
-  EXPECT_EQ(context2->id(), s.ToVreg(call_instr->InputAt(11)));
+  EXPECT_EQ(s.ToVreg(context2), s.ToVreg(call_instr->InputAt(11)));
   // Continuation.
 
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());

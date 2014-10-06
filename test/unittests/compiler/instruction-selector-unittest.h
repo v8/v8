@@ -125,22 +125,21 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
     bool IsDouble(const InstructionOperand* operand) const {
       return IsDouble(ToVreg(operand));
     }
-    bool IsDouble(int virtual_register) const {
-      return doubles_.find(virtual_register) != doubles_.end();
-    }
+
+    bool IsDouble(const Node* node) const { return IsDouble(ToVreg(node)); }
 
     bool IsInteger(const InstructionOperand* operand) const {
       return IsInteger(ToVreg(operand));
     }
-    bool IsInteger(int virtual_register) const {
-      return !IsDouble(virtual_register) && !IsReference(virtual_register);
-    }
+
+    bool IsInteger(const Node* node) const { return IsInteger(ToVreg(node)); }
 
     bool IsReference(const InstructionOperand* operand) const {
       return IsReference(ToVreg(operand));
     }
-    bool IsReference(int virtual_register) const {
-      return references_.find(virtual_register) != references_.end();
+
+    bool IsReference(const Node* node) const {
+      return IsReference(ToVreg(node));
     }
 
     float ToFloat32(const InstructionOperand* operand) const {
@@ -161,6 +160,8 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
       return UnallocatedOperand::cast(operand)->virtual_register();
     }
 
+    int ToVreg(const Node* node) const;
+
     FrameStateDescriptor* GetFrameStateDescriptor(int deoptimization_id) {
       EXPECT_LT(deoptimization_id, GetFrameStateDescriptorCount());
       return deoptimization_entries_[deoptimization_id];
@@ -171,6 +172,18 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
     }
 
    private:
+    bool IsDouble(int virtual_register) const {
+      return doubles_.find(virtual_register) != doubles_.end();
+    }
+
+    bool IsInteger(int virtual_register) const {
+      return !IsDouble(virtual_register) && !IsReference(virtual_register);
+    }
+
+    bool IsReference(int virtual_register) const {
+      return references_.find(virtual_register) != references_.end();
+    }
+
     Constant ToConstant(const InstructionOperand* operand) const {
       ConstantMap::const_iterator i;
       if (operand->IsConstant()) {
@@ -188,12 +201,14 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
     friend class StreamBuilder;
 
     typedef std::map<int, Constant> ConstantMap;
+    typedef std::map<NodeId, int> VirtualRegisters;
 
     ConstantMap constants_;
     ConstantMap immediates_;
     std::deque<Instruction*> instructions_;
     std::set<int> doubles_;
     std::set<int> references_;
+    VirtualRegisters virtual_registers_;
     std::deque<FrameStateDescriptor*> deoptimization_entries_;
   };
 

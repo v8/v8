@@ -114,7 +114,7 @@ TEST_F(InstructionSelectorTest, BetterLeftOperandTestAddBinop) {
   EXPECT_EQ(kIA32Add, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_TRUE(s[0]->InputAt(0)->IsUnallocated());
-  EXPECT_EQ(param2->id(), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param2), s.ToVreg(s[0]->InputAt(0)));
 }
 
 
@@ -129,7 +129,7 @@ TEST_F(InstructionSelectorTest, BetterLeftOperandTestMulBinop) {
   EXPECT_EQ(kIA32Imul, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_TRUE(s[0]->InputAt(0)->IsUnallocated());
-  EXPECT_EQ(param2->id(), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param2), s.ToVreg(s[0]->InputAt(0)));
 }
 
 
@@ -542,7 +542,7 @@ TEST_P(InstructionSelectorMultTest, Mult32) {
     EXPECT_EQ(kIA32Imul, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
   }
-  EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(0)));
 }
 
 

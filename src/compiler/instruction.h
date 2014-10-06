@@ -828,6 +828,8 @@ class InstructionSequence FINAL {
   BasicBlock* GetBasicBlock(int instruction_index);
 
   int GetVirtualRegister(const Node* node);
+  // TODO(dcarney): find a way to remove this.
+  const int* GetNodeMapForTesting() const { return node_map_; }
 
   bool IsReference(int virtual_register) const;
   bool IsDouble(int virtual_register) const;

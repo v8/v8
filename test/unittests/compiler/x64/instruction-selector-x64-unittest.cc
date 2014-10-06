@@ -96,7 +96,7 @@ TEST_F(InstructionSelectorTest, BetterLeftOperandTestAddBinop) {
   EXPECT_EQ(kX64Add32, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_TRUE(s[0]->InputAt(0)->IsUnallocated());
-  EXPECT_EQ(param2->id(), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param2), s.ToVreg(s[0]->InputAt(0)));
 }
 
 
@@ -111,7 +111,7 @@ TEST_F(InstructionSelectorTest, BetterLeftOperandTestMulBinop) {
   EXPECT_EQ(kX64Imul32, s[0]->arch_opcode());
   ASSERT_EQ(2U, s[0]->InputCount());
   ASSERT_TRUE(s[0]->InputAt(0)->IsUnallocated());
-  EXPECT_EQ(param2->id(), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param2), s.ToVreg(s[0]->InputAt(0)));
 }
 
 
@@ -415,7 +415,7 @@ TEST_P(InstructionSelectorMultTest, Mult32) {
     EXPECT_EQ(kX64Imul32, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
   }
-  EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(0)));
 }
 
 
@@ -431,12 +431,12 @@ TEST_P(InstructionSelectorMultTest, Mult64) {
   if (m_param.lea_expected) {
     EXPECT_EQ(kX64Lea, s[0]->arch_opcode());
     ASSERT_EQ(InputCountForLea(s[0]->addressing_mode()), s[0]->InputCount());
-    EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(0)));
   } else {
     EXPECT_EQ(kX64Imul, s[0]->arch_opcode());
     ASSERT_EQ(2U, s[0]->InputCount());
     // TODO(dcarney): why is this happening?
-    EXPECT_EQ(param->id(), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->InputAt(1)));
   }
 }
 
