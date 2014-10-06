@@ -4528,7 +4528,6 @@ class V8_EXPORT Isolate {
    */
   enum UseCounterFeature {
     kUseAsm = 0,
-    kBreakIterator = 1,
     kUseCounterFeatureCount  // This enum value must be last.
   };
 
