@@ -2259,7 +2259,7 @@ Block* Parser::ParseVariableDeclarations(
     }
 
     // Record the end position of the initializer.
-    if (proxy->var() != NULL) {
+    if (proxy->is_resolved()) {
       proxy->var()->set_initializer_position(position());
     }
 

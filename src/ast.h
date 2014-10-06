@@ -1636,19 +1636,35 @@ class VariableProxy FINAL : public Expression {
   DECLARE_NODE_TYPE(VariableProxy)
 
   virtual bool IsValidReferenceExpression() const OVERRIDE {
-    return var_ == NULL ? true : var_->IsValidReference();
+    return !is_resolved() || var()->IsValidReference();
   }
 
-  bool IsArguments() const { return var_ != NULL && var_->is_arguments(); }
+  bool IsArguments() const { return is_resolved() && var()->is_arguments(); }
 
-  Handle<String> name() const { return name_->string(); }
-  const AstRawString* raw_name() const { return name_; }
-  Variable* var() const { return var_; }
+  Handle<String> name() const { return raw_name()->string(); }
+  const AstRawString* raw_name() const {
+    return is_resolved() ? var_->raw_name() : raw_name_;
+  }
+
+  Variable* var() const {
+    DCHECK(is_resolved());
+    return var_;
+  }
+  void set_var(Variable* v) {
+    DCHECK(!is_resolved());
+    DCHECK_NOT_NULL(v);
+    var_ = v;
+  }
+
   bool is_this() const { return is_this_; }
-  Interface* interface() const { return interface_; }
 
   bool is_assigned() const { return is_assigned_; }
   void set_is_assigned() { is_assigned_ = true; }
+
+  bool is_resolved() const { return is_resolved_; }
+  void set_is_resolved() { is_resolved_ = true; }
+
+  Interface* interface() const { return interface_; }
 
   // Bind this proxy to the variable var. Interfaces must match.
   void BindTo(Variable* var);
@@ -1666,12 +1682,15 @@ class VariableProxy FINAL : public Expression {
   VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
                 Interface* interface, int position, IdGen* id_gen);
 
-  const AstRawString* name_;
-  Variable* var_;  // resolved variable, or NULL
-  bool is_this_;
-  bool is_assigned_;
+  union {
+    const AstRawString* raw_name_;  // if !is_resolved_
+    Variable* var_;                 // if is_resolved_
+  };
   Interface* interface_;
   int variable_feedback_slot_;
+  bool is_this_ : 1;
+  bool is_assigned_ : 1;
+  bool is_resolved_ : 1;
 };
 
 

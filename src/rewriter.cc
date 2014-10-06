@@ -253,9 +253,8 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
       // the end position of the function generated for executing the eval code
       // coincides with the end of the with scope which is the position of '1'.
       int pos = function->end_position();
-      VariableProxy* result_proxy = processor.factory()->NewVariableProxy(
-          result->raw_name(), false, result->interface(), pos);
-      result_proxy->BindTo(result);
+      VariableProxy* result_proxy =
+          processor.factory()->NewVariableProxy(result, pos);
       Statement* result_statement =
           processor.factory()->NewReturnStatement(result_proxy, pos);
       body->Add(result_statement, info->zone());

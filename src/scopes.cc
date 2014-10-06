@@ -1031,7 +1031,7 @@ bool Scope::ResolveVariable(CompilationInfo* info,
 
   // If the proxy is already resolved there's nothing to do
   // (functions and consts may be resolved by the parser).
-  if (proxy->var() != NULL) return true;
+  if (proxy->is_resolved()) return true;
 
   // Otherwise, try to resolve the variable.
   BindingKind binding_kind;
