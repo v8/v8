@@ -29,7 +29,9 @@
 namespace v8 {
 namespace base {
 
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#if defined(__pnacl__)
+// Portable host shouldn't do feature detection.
+#elif V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
 
 // Define __cpuid() for non-MSVC libraries.
 #if !V8_LIBC_MSVCRT
@@ -290,7 +292,11 @@ CPU::CPU() : stepping_(0),
              has_vfp3_d32_(false),
              is_fp64_mode_(false) {
   memcpy(vendor_, "Unknown", 8);
-#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#if defined(__pnacl__)
+// Portable host shouldn't do feature detection.
+// TODO(jfb): Remove the hardcoded ARM simulator flags in the build, and
+// hardcode them here instead.
+#elif V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
   int cpu_info[4];
 
   // __cpuid with an InfoType argument of 0 returns the number of

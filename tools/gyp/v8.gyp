@@ -1249,11 +1249,19 @@
           'toolsets': ['target'],
         }],
         ['OS=="linux"', {
-            'link_settings': {
-              'libraries': [
-                '-lrt'
-              ]
-            },
+            'conditions': [
+              ['nacl_target_arch=="none"', {
+                'link_settings': {
+                  'libraries': [
+                    '-lrt'
+                  ],
+                },
+              }, {
+                'defines': [
+                  'V8_LIBRT_NOT_AVAILABLE=1',
+                ],
+              }],
+            ],
             'sources': [
               '../../src/base/platform/platform-linux.cc',
               '../../src/base/platform/platform-posix.cc'
