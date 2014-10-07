@@ -256,9 +256,17 @@ void JSObject::JSObjectVerify() {
   }
 
   if (HasFastProperties()) {
-    CHECK_EQ(map()->unused_property_fields(),
-             (map()->inobject_properties() + properties()->length() -
-              map()->NextFreePropertyIndex()));
+    int actual_unused_property_fields = map()->inobject_properties() +
+                                        properties()->length() -
+                                        map()->NextFreePropertyIndex();
+    if (map()->unused_property_fields() != actual_unused_property_fields) {
+      // This could actually happen in the middle of StoreTransitionStub
+      // when the new extended backing store is already set into the object and
+      // the allocation of the MutableHeapNumber triggers GC (in this case map
+      // is not updated yet).
+      CHECK_EQ(map()->unused_property_fields(),
+               actual_unused_property_fields - JSObject::kFieldsAdded);
+    }
     DescriptorArray* descriptors = map()->instance_descriptors();
     for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
       if (descriptors->GetDetails(i).type() == FIELD) {
