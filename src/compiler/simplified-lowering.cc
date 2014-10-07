@@ -502,44 +502,38 @@ class RepresentationSelector {
       }
       case IrOpcode::kNumberToInt32: {
         MachineTypeUnion use_rep = use & kRepMask;
-        if (lower()) {
-          MachineTypeUnion in = GetInfo(node->InputAt(0))->output;
-          if ((in & kTypeMask) == kTypeInt32 || (in & kRepMask) == kRepWord32) {
-            // If the input has type int32, or is already a word32, just change
-            // representation if necessary.
-            VisitUnop(node, kTypeInt32 | use_rep, kTypeInt32 | use_rep);
-            DeferReplacement(node, node->InputAt(0));
-          } else {
-            // Require the input in float64 format and perform truncation.
-            // TODO(turbofan): avoid a truncation with a smi check.
-            VisitUnop(node, kTypeInt32 | kRepFloat64, kTypeInt32 | kRepWord32);
-            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
-          }
+        Node* input = node->InputAt(0);
+        MachineTypeUnion in = GetInfo(input)->output;
+        if (NodeProperties::GetBounds(input).upper->Is(Type::Signed32()) ||
+            (in & kTypeMask) == kTypeInt32 || (in & kRepMask) == kRepWord32) {
+          // If the input has type int32, or is already a word32, just change
+          // representation if necessary.
+          VisitUnop(node, kTypeInt32 | use_rep, kTypeInt32 | use_rep);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
-          // Propagate a type to the input, but pass through representation.
-          VisitUnop(node, kTypeInt32, kTypeInt32 | use_rep);
+          // Require the input in float64 format and perform truncation.
+          // TODO(turbofan): avoid a truncation with a smi check.
+          VisitUnop(node, kTypeInt32 | kRepFloat64, kTypeInt32 | kRepWord32);
+          if (lower())
+            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
         }
         break;
       }
       case IrOpcode::kNumberToUint32: {
         MachineTypeUnion use_rep = use & kRepMask;
-        if (lower()) {
-          MachineTypeUnion in = GetInfo(node->InputAt(0))->output;
-          if ((in & kTypeMask) == kTypeUint32 ||
-              (in & kRepMask) == kRepWord32) {
-            // The input has type int32, just change representation.
-            VisitUnop(node, kTypeUint32 | use_rep, kTypeUint32 | use_rep);
-            DeferReplacement(node, node->InputAt(0));
-          } else {
-            // Require the input in float64 format to perform truncation.
-            // TODO(turbofan): avoid the truncation with a smi check.
-            VisitUnop(node, kTypeUint32 | kRepFloat64,
-                      kTypeUint32 | kRepWord32);
-            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
-          }
+        Node* input = node->InputAt(0);
+        MachineTypeUnion in = GetInfo(input)->output;
+        if (NodeProperties::GetBounds(input).upper->Is(Type::Unsigned32()) ||
+            (in & kTypeMask) == kTypeUint32) {
+          // If the input has type uint32, just change representation.
+          VisitUnop(node, kTypeUint32 | use_rep, kTypeUint32 | use_rep);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
-          // Propagate a type to the input, but pass through representation.
-          VisitUnop(node, kTypeUint32, kTypeUint32 | use_rep);
+          // Require the input in float64 format and perform truncation.
+          // TODO(turbofan): avoid a truncation with a smi check.
+          VisitUnop(node, kTypeUint32 | kRepFloat64, kTypeUint32 | kRepWord32);
+          if (lower())
+            node->set_op(lowering->machine()->TruncateFloat64ToInt32());
         }
         break;
       }

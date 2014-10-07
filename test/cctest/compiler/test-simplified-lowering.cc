@@ -5,8 +5,10 @@
 #include <limits>
 
 #include "src/compiler/access-builder.h"
+#include "src/compiler/change-lowering.h"
 #include "src/compiler/control-builders.h"
 #include "src/compiler/generic-node-inl.h"
+#include "src/compiler/graph-reducer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/pipeline.h"
@@ -51,6 +53,22 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
     lowering.LowerAllNodes();
   }
 
+  void LowerAllNodesAndLowerChanges() {
+    this->End();
+    typer.Run(jsgraph.graph(), MaybeHandle<Context>());
+    lowering.LowerAllNodes();
+
+    Zone* zone = this->zone();
+    CompilationInfo info(zone->isolate(), zone);
+    Linkage linkage(
+        &info, Linkage::GetSimplifiedCDescriptor(zone, this->machine_sig_));
+    ChangeLowering lowering(&jsgraph, &linkage);
+    GraphReducer reducer(this->graph());
+    reducer.AddReducer(&lowering);
+    reducer.ReduceGraph();
+    Verifier::Run(this->graph());
+  }
+
   Factory* factory() { return this->isolate()->factory(); }
   Heap* heap() { return this->isolate()->heap(); }
 };
@@ -66,6 +84,7 @@ TEST(RunNumberToInt32_float64) {
   FieldAccess load = {kUntaggedBase, 0, Handle<Name>(), Type::Number(),
                       kMachFloat64};
   Node* loaded = t.LoadField(load, t.PointerConstant(&input));
+  NodeProperties::SetBounds(loaded, Bounds(Type::Number()));
   Node* convert = t.NumberToInt32(loaded);
   FieldAccess store = {kUntaggedBase, 0, Handle<Name>(), Type::Signed32(),
                        kMachInt32};
@@ -94,6 +113,7 @@ TEST(RunNumberToUint32_float64) {
   FieldAccess load = {kUntaggedBase, 0, Handle<Name>(), Type::Number(),
                       kMachFloat64};
   Node* loaded = t.LoadField(load, t.PointerConstant(&input));
+  NodeProperties::SetBounds(loaded, Bounds(Type::Number()));
   Node* convert = t.NumberToUint32(loaded);
   FieldAccess store = {kUntaggedBase, 0, Handle<Name>(), Type::Unsigned32(),
                        kMachUint32};
@@ -1004,6 +1024,8 @@ TEST(LowerNumberToInt32_to_TruncateFloat64ToInt32) {
   // NumberToInt32(x: kRepFloat64) used as kMachInt32
   TestingGraph t(Type::Number());
   Node* p0 = t.ExampleWithOutput(kMachFloat64);
+  // TODO(titzer): run the typer here, or attach machine type to param.
+  NodeProperties::SetBounds(p0, Bounds(Type::Number()));
   Node* trunc = t.graph()->NewNode(t.simplified()->NumberToInt32(), p0);
   Node* use = t.Use(trunc, kMachInt32);
   t.Return(use);
@@ -1075,6 +1097,8 @@ TEST(LowerNumberToUint32_to_TruncateFloat64ToInt32) {
   // NumberToUint32(x: kRepFloat64) used as kMachUint32
   TestingGraph t(Type::Number());
   Node* p0 = t.ExampleWithOutput(kMachFloat64);
+  // TODO(titzer): run the typer here, or attach machine type to param.
+  NodeProperties::SetBounds(p0, Bounds(Type::Number()));
   Node* trunc = t.graph()->NewNode(t.simplified()->NumberToUint32(), p0);
   Node* use = t.Use(trunc, kMachUint32);
   t.Return(use);
@@ -1524,5 +1548,62 @@ TEST(UpdatePhi) {
     CHECK_EQ(IrOpcode::kPhi, phi->opcode());
     CHECK_EQ(RepresentationOf(kMachineTypes[i]),
              RepresentationOf(OpParameter<MachineType>(phi)));
+  }
+}
+
+
+TEST(RunNumberDivide_minus_1_TruncatingToInt32) {
+  SimplifiedLoweringTester<Object*> t(kMachAnyTagged);
+  Node* num = t.NumberToInt32(t.Parameter(0));
+  Node* div = t.NumberDivide(num, t.jsgraph.Constant(-1));
+  Node* trunc = t.NumberToInt32(div);
+  t.Return(trunc);
+
+  if (Pipeline::SupportedTarget()) {
+    t.LowerAllNodesAndLowerChanges();
+    t.GenerateCode();
+
+    FOR_INT32_INPUTS(i) {
+      Handle<HeapNumber> num = t.factory()->NewHeapNumber(*i);
+      int32_t x = 0 - *i;
+      // TODO(titzer): make calls to NewHeapNumber work in cctests.
+      if (x <= Smi::kMinValue) continue;
+      if (x >= Smi::kMaxValue) continue;
+      Handle<HeapNumber> expected = t.factory()->NewHeapNumber(x);
+      Object* result = t.Call(*num);
+      CHECK(expected->SameValue(result));
+    }
+  }
+}
+
+
+TEST(RunNumberDivide_2_TruncatingToUint32) {
+  SimplifiedLoweringTester<Object*> t(kMachAnyTagged);
+  Node* num = t.NumberToUint32(t.Parameter(0));
+  Node* div = t.NumberDivide(num, t.jsgraph.Constant(2));
+  Node* trunc = t.NumberToUint32(div);
+  t.Return(trunc);
+
+  if (Pipeline::SupportedTarget()) {
+    t.LowerAllNodesAndLowerChanges();
+    {
+      FILE* dot_file = fopen("/tmp/test.dot", "w+");
+      OFStream dot_of(dot_file);
+      dot_of << AsDOT(*t.jsgraph.graph());
+      fclose(dot_file);
+    }
+    t.GenerateCode();
+
+    FOR_UINT32_INPUTS(i) {
+      Handle<HeapNumber> num =
+          t.factory()->NewHeapNumber(static_cast<double>(*i));
+      uint32_t x = *i / 2;
+      // TODO(titzer): make calls to NewHeapNumber work in cctests.
+      if (x >= static_cast<uint32_t>(Smi::kMaxValue)) continue;
+      Handle<HeapNumber> expected =
+          t.factory()->NewHeapNumber(static_cast<double>(x));
+      Object* result = t.Call(*num);
+      CHECK(expected->SameValue(result));
+    }
   }
 }
