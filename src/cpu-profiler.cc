@@ -20,17 +20,16 @@ namespace internal {
 static const int kProfilerStackSize = 64 * KB;
 
 
-ProfilerEventsProcessor::ProfilerEventsProcessor(
-    ProfileGenerator* generator,
-    Sampler* sampler,
-    base::TimeDelta period)
+ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator,
+                                                 Sampler* sampler,
+                                                 base::TimeDelta period)
     : Thread(Thread::Options("v8:ProfEvntProc", kProfilerStackSize)),
       generator_(generator),
       sampler_(sampler),
-      running_(true),
+      running_(1),
       period_(period),
-      last_code_event_id_(0), last_processed_code_event_id_(0) {
-}
+      last_code_event_id_(0),
+      last_processed_code_event_id_(0) {}
 
 
 void ProfilerEventsProcessor::Enqueue(const CodeEventsContainer& event) {
@@ -55,8 +54,7 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
 
 
 void ProfilerEventsProcessor::StopSynchronously() {
-  if (!running_) return;
-  running_ = false;
+  if (!base::NoBarrier_AtomicExchange(&running_, 0)) return;
   Join();
 }
 
@@ -107,7 +105,7 @@ ProfilerEventsProcessor::SampleProcessingResult
 
 
 void ProfilerEventsProcessor::Run() {
-  while (running_) {
+  while (!!base::NoBarrier_Load(&running_)) {
     base::ElapsedTimer timer;
     timer.Start();
     // Keep processing existing events until we need to do next sample.
