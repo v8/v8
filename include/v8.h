@@ -4214,9 +4214,28 @@ enum PromiseRejectEvent {
   kPromiseHandlerAddedAfterReject = 1
 };
 
-typedef void (*PromiseRejectCallback)(Handle<Promise> promise,
-                                      Handle<Value> value,
-                                      PromiseRejectEvent event);
+class PromiseRejectMessage {
+ public:
+  PromiseRejectMessage(Handle<Promise> promise, PromiseRejectEvent event,
+                       Handle<Value> value, Handle<StackTrace> stack_trace)
+      : promise_(promise),
+        event_(event),
+        value_(value),
+        stack_trace_(stack_trace) {}
+
+  V8_INLINE Handle<Promise> GetPromise() const { return promise_; }
+  V8_INLINE PromiseRejectEvent GetEvent() const { return event_; }
+  V8_INLINE Handle<Value> GetValue() const { return value_; }
+  V8_INLINE Handle<StackTrace> GetStackTrace() const { return stack_trace_; }
+
+ private:
+  Handle<Promise> promise_;
+  PromiseRejectEvent event_;
+  Handle<Value> value_;
+  Handle<StackTrace> stack_trace_;
+};
+
+typedef void (*PromiseRejectCallback)(PromiseRejectMessage message);
 
 // --- Microtask Callback ---
 typedef void (*MicrotaskCallback)(void* data);

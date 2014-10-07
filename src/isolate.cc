@@ -2272,8 +2272,16 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
                                   Handle<Object> value,
                                   v8::PromiseRejectEvent event) {
   if (promise_reject_callback_ == NULL) return;
-  promise_reject_callback_(v8::Utils::PromiseToLocal(promise),
-                           v8::Utils::ToLocal(value), event);
+  Handle<JSArray> stack_trace;
+  if (event == v8::kPromiseRejectWithNoHandler && value->IsJSObject()) {
+    Handle<JSObject> error_obj = Handle<JSObject>::cast(value);
+    Handle<Name> key = factory()->detailed_stack_trace_symbol();
+    Handle<Object> property = JSObject::GetDataProperty(error_obj, key);
+    if (property->IsJSArray()) stack_trace = Handle<JSArray>::cast(property);
+  }
+  promise_reject_callback_(v8::PromiseRejectMessage(
+      v8::Utils::PromiseToLocal(promise), event, v8::Utils::ToLocal(value),
+      v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
 

@@ -17631,18 +17631,29 @@ TEST(RethrowBogusErrorStackTrace) {
 v8::PromiseRejectEvent reject_event = v8::kPromiseRejectWithNoHandler;
 int promise_reject_counter = 0;
 int promise_revoke_counter = 0;
+int promise_reject_line_number = -1;
+int promise_reject_frame_count = -1;
 
-void PromiseRejectCallback(v8::Handle<v8::Promise> promise,
-                           v8::Handle<v8::Value> value,
-                           v8::PromiseRejectEvent event) {
-  if (event == v8::kPromiseRejectWithNoHandler) {
+void PromiseRejectCallback(v8::PromiseRejectMessage message) {
+  if (message.GetEvent() == v8::kPromiseRejectWithNoHandler) {
     promise_reject_counter++;
-    CcTest::global()->Set(v8_str("rejected"), promise);
-    CcTest::global()->Set(v8_str("value"), value);
+    CcTest::global()->Set(v8_str("rejected"), message.GetPromise());
+    CcTest::global()->Set(v8_str("value"), message.GetValue());
+    v8::Handle<v8::StackTrace> stack_trace = message.GetStackTrace();
+    if (!stack_trace.IsEmpty()) {
+      promise_reject_frame_count = stack_trace->GetFrameCount();
+      if (promise_reject_frame_count > 0) {
+        CHECK(stack_trace->GetFrame(0)->GetScriptName()->Equals(v8_str("pro")));
+        promise_reject_line_number = stack_trace->GetFrame(0)->GetLineNumber();
+      } else {
+        promise_reject_line_number = -1;
+      }
+    }
   } else {
     promise_revoke_counter++;
-    CcTest::global()->Set(v8_str("revoked"), promise);
-    CHECK(value.IsEmpty());
+    CcTest::global()->Set(v8_str("revoked"), message.GetPromise());
+    CHECK(message.GetValue().IsEmpty());
+    CHECK(message.GetStackTrace().IsEmpty());
   }
 }
 
@@ -17660,6 +17671,8 @@ v8::Handle<v8::Value> RejectValue() {
 void ResetPromiseStates() {
   promise_reject_counter = 0;
   promise_revoke_counter = 0;
+  promise_reject_line_number = -1;
+  promise_reject_frame_count = -1;
   CcTest::global()->Set(v8_str("rejected"), v8_str(""));
   CcTest::global()->Set(v8_str("value"), v8_str(""));
   CcTest::global()->Set(v8_str("revoked"), v8_str(""));
@@ -17678,7 +17691,7 @@ TEST(PromiseRejectCallback) {
   // Create promise p0.
   CompileRun(
       "var reject;            \n"
-      "var p0 = new Promise(   \n"
+      "var p0 = new Promise(  \n"
       "  function(res, rej) { \n"
       "    reject = rej;      \n"
       "  }                    \n"
@@ -17726,7 +17739,7 @@ TEST(PromiseRejectCallback) {
 
   // Create promise q0.
   CompileRun(
-      "var q0 = new Promise(   \n"
+      "var q0 = new Promise(  \n"
       "  function(res, rej) { \n"
       "    reject = rej;      \n"
       "  }                    \n"
@@ -17772,7 +17785,7 @@ TEST(PromiseRejectCallback) {
 
   // Add a reject handler to the resolved q1, which rejects by throwing.
   CompileRun(
-      "var q3 = q1.then( \n"
+      "var q3 = q1.then(  \n"
       "   function() {    \n"
       "     throw 'qqqq'; \n"
       "   }               \n"
@@ -17868,6 +17881,87 @@ TEST(PromiseRejectCallback) {
   CHECK_EQ(3, promise_reject_counter);
   CHECK_EQ(0, promise_revoke_counter);
   CHECK(RejectValue()->Equals(v8_str("sss")));
+
+  // Test stack frames.
+  V8::SetCaptureStackTraceForUncaughtExceptions(true);
+
+  ResetPromiseStates();
+
+  // Create promise t0, which is rejected in the constructor with an error.
+  CompileRunWithOrigin(
+      "var t0 = new Promise(  \n"
+      "  function(res, rej) { \n"
+      "    reference_error;   \n"
+      "  }                    \n"
+      ");                     \n",
+      "pro", 0, 0);
+  CHECK(!GetPromise("t0")->HasHandler());
+  CHECK_EQ(1, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+  CHECK_EQ(2, promise_reject_frame_count);
+  CHECK_EQ(3, promise_reject_line_number);
+
+  ResetPromiseStates();
+
+  // Create promise u0 and chain u1 to it, which is rejected via throw.
+  CompileRunWithOrigin(
+      "var u0 = Promise.resolve();        \n"
+      "var u1 = u0.then(                  \n"
+      "           function() {            \n"
+      "             (function() {         \n"
+      "                throw new Error(); \n"
+      "              })();                \n"
+      "           }                       \n"
+      "         );                        \n",
+      "pro", 0, 0);
+  CHECK(GetPromise("u0")->HasHandler());
+  CHECK(!GetPromise("u1")->HasHandler());
+  CHECK_EQ(1, promise_reject_counter);
+  CHECK_EQ(0, promise_revoke_counter);
+  CHECK_EQ(2, promise_reject_frame_count);
+  CHECK_EQ(5, promise_reject_line_number);
+
+  // Throw in u3, which handles u1's rejection.
+  CompileRunWithOrigin(
+      "function f() {                \n"
+      "  return (function() {        \n"
+      "    return new Error();       \n"
+      "  })();                       \n"
+      "}                             \n"
+      "var u2 = Promise.reject(f()); \n"
+      "var u3 = u1.catch(            \n"
+      "           function() {       \n"
+      "             return u2;       \n"
+      "           }                  \n"
+      "         );                   \n",
+      "pro", 0, 0);
+  CHECK(GetPromise("u0")->HasHandler());
+  CHECK(GetPromise("u1")->HasHandler());
+  CHECK(GetPromise("u2")->HasHandler());
+  CHECK(!GetPromise("u3")->HasHandler());
+  CHECK_EQ(3, promise_reject_counter);
+  CHECK_EQ(2, promise_revoke_counter);
+  CHECK_EQ(3, promise_reject_frame_count);
+  CHECK_EQ(3, promise_reject_line_number);
+
+  ResetPromiseStates();
+
+  // Create promise rejected promise v0, which is incorrectly handled by v1
+  // via chaining cycle.
+  CompileRunWithOrigin(
+      "var v0 = Promise.reject(); \n"
+      "var v1 = v0.catch(         \n"
+      "           function() {    \n"
+      "             return v1;    \n"
+      "           }               \n"
+      "         );                \n",
+      "pro", 0, 0);
+  CHECK(GetPromise("v0")->HasHandler());
+  CHECK(!GetPromise("v1")->HasHandler());
+  CHECK_EQ(2, promise_reject_counter);
+  CHECK_EQ(1, promise_revoke_counter);
+  CHECK_EQ(0, promise_reject_frame_count);
+  CHECK_EQ(-1, promise_reject_line_number);
 }
 
 
