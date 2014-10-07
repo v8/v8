@@ -342,25 +342,6 @@ class TargetScope BASE_EMBEDDED {
 // ----------------------------------------------------------------------------
 // Implementation of Parser
 
-class ParserTraits::Checkpoint
-    : public ParserBase<ParserTraits>::CheckpointBase {
- public:
-  explicit Checkpoint(ParserBase<ParserTraits>* parser)
-      : CheckpointBase(parser), parser_(parser) {
-    saved_ast_node_id_gen_ = *parser_->ast_node_id_gen_;
-  }
-
-  void Restore() {
-    CheckpointBase::Restore();
-    *parser_->ast_node_id_gen_ = saved_ast_node_id_gen_;
-  }
-
- private:
-  ParserBase<ParserTraits>* parser_;
-  AstNode::IdGen saved_ast_node_id_gen_;
-};
-
-
 bool ParserTraits::IsEvalOrArguments(const AstRawString* identifier) const {
   return identifier == parser_->ast_value_factory()->eval_string() ||
          identifier == parser_->ast_value_factory()->arguments_string();

@@ -374,8 +374,6 @@ class ParserTraits {
     typedef AstNodeFactory<AstConstructionVisitor> Factory;
   };
 
-  class Checkpoint;
-
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
 
   // Custom operations executed when FunctionStates are created and destructed.

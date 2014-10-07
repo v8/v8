@@ -123,8 +123,6 @@ class ParserBase : public Traits {
   }
 
  protected:
-  friend class Traits::Checkpoint;
-
   enum AllowEvalOrArgumentsAsIdentifier {
     kAllowEvalOrArguments,
     kDontAllowEvalOrArguments
@@ -135,7 +133,7 @@ class ParserBase : public Traits {
     PARSE_EAGERLY
   };
 
-  class CheckpointBase;
+  class Checkpoint;
   class ObjectLiteralChecker;
 
   // ---------------------------------------------------------------------------
@@ -235,16 +233,16 @@ class ParserBase : public Traits {
     typename Traits::Type::Factory factory_;
 
     friend class ParserTraits;
-    friend class CheckpointBase;
+    friend class Checkpoint;
   };
 
   // Annoyingly, arrow functions first parse as comma expressions, then when we
   // see the => we have to go back and reinterpret the arguments as being formal
   // parameters.  To do so we need to reset some of the parser state back to
   // what it was before the arguments were first seen.
-  class CheckpointBase BASE_EMBEDDED {
+  class Checkpoint BASE_EMBEDDED {
    public:
-    explicit CheckpointBase(ParserBase* parser) {
+    explicit Checkpoint(ParserBase* parser) {
       function_state_ = parser->function_state_;
       next_materialized_literal_index_ =
           function_state_->next_materialized_literal_index_;
@@ -1148,8 +1146,6 @@ class PreParserTraits {
     // For constructing objects returned by the traversing functions.
     typedef PreParserFactory Factory;
   };
-
-  class Checkpoint;
 
   explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
 
@@ -2164,7 +2160,7 @@ ParserBase<Traits>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   }
 
   if (fni_ != NULL) fni_->Enter();
-  typename Traits::Checkpoint checkpoint(this);
+  ParserBase<Traits>::Checkpoint checkpoint(this);
   ExpressionT expression =
       this->ParseConditionalExpression(accept_IN, CHECK_OK);
 
