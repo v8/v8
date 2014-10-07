@@ -646,7 +646,7 @@ Expression* ParserTraits::SuperReference(
       pos);
 }
 
-Expression* ParserTraits::ClassLiteral(
+Expression* ParserTraits::ClassExpression(
     const AstRawString* name, Expression* extends, Expression* constructor,
     ZoneList<ObjectLiteral::Property*>* properties, int pos,
     AstNodeFactory<AstConstructionVisitor>* factory) {
@@ -1956,21 +1956,18 @@ Statement* Parser::ParseClassDeclaration(ZoneList<const AstRawString*>* names,
   Expression* value = ParseClassLiteral(name, scanner()->location(),
                                         is_strict_reserved, pos, CHECK_OK);
 
-  Block* block = factory()->NewBlock(NULL, 1, true, pos);
-  VariableMode mode = LET;
-  VariableProxy* proxy = NewUnresolved(name, mode, Interface::NewValue());
+  VariableProxy* proxy = NewUnresolved(name, LET, Interface::NewValue());
   Declaration* declaration =
-      factory()->NewVariableDeclaration(proxy, mode, scope_, pos);
+      factory()->NewVariableDeclaration(proxy, LET, scope_, pos);
   Declare(declaration, true, CHECK_OK);
+  proxy->var()->set_initializer_position(pos);
 
   Token::Value init_op = Token::INIT_LET;
   Assignment* assignment = factory()->NewAssignment(init_op, proxy, value, pos);
-  block->AddStatement(
-      factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition),
-      zone());
-
+  Statement* assignment_statement =
+      factory()->NewExpressionStatement(assignment, RelocInfo::kNoPosition);
   if (names) names->Add(name, zone());
-  return block;
+  return assignment_statement;
 }
 
 

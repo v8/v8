@@ -813,7 +813,6 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 
 void AstGraphBuilder::VisitClassLiteral(ClassLiteral* expr) {
-  // TODO(arv): Implement.
   UNREACHABLE();
 }
 

@@ -192,7 +192,8 @@ namespace internal {
   F(LoadFromSuper, 3, 1)                                   \
   F(LoadKeyedFromSuper, 3, 1)                              \
   F(StoreToSuper_Strict, 4, 1)                             \
-  F(StoreToSuper_Sloppy, 4, 1)
+  F(StoreToSuper_Sloppy, 4, 1)                             \
+  F(DefineClass, 3, 1)
 
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F)              \

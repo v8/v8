@@ -1542,12 +1542,30 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
 
 void FullCodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
-  // TODO(arv): Implement
   Comment cmnt(masm_, "[ ClassLiteral");
-  if (expr->extends() != NULL) {
-    VisitForEffect(expr->extends());
+
+  if (expr->raw_name() != NULL) {
+    __ Push(expr->name());
+  } else {
+    __ Push(isolate()->factory()->undefined_value());
   }
-  context()->Plug(isolate()->factory()->undefined_value());
+
+  if (expr->extends() != NULL) {
+    VisitForStackValue(expr->extends());
+  } else {
+    __ Push(isolate()->factory()->the_hole_value());
+  }
+
+  if (expr->constructor() != NULL) {
+    VisitForStackValue(expr->constructor());
+  } else {
+    __ Push(isolate()->factory()->undefined_value());
+  }
+
+  // TODO(arv): Process methods
+
+  __ CallRuntime(Runtime::kDefineClass, 3);
+  context()->Plug(result_register());
 }
 
 

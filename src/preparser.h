@@ -150,6 +150,13 @@ class ParserBase : public Traits {
           scope_(scope) {
       *scope_stack_ = scope_;
     }
+    BlockState(typename Traits::Type::Scope** scope_stack,
+               typename Traits::Type::Scope** scope)
+        : scope_stack_(scope_stack),
+          outer_scope_(*scope_stack),
+          scope_(*scope) {
+      *scope_stack_ = scope_;
+    }
     ~BlockState() { *scope_stack_ = outer_scope_; }
 
    private:
@@ -1195,6 +1202,13 @@ class PreParserTraits {
     return false;
   }
 
+  bool IsConstructorProperty(PreParserExpression property) { return false; }
+
+  static PreParserExpression GetPropertyValue(PreParserExpression property) {
+    UNREACHABLE();
+    return PreParserExpression::Default();
+  }
+
   // Functions for encapsulating the differences between parsing and preparsing;
   // operations interleaved with the recursive descent.
   static void PushLiteralName(FuncNameInferrer* fni, PreParserIdentifier id) {
@@ -1320,12 +1334,12 @@ class PreParserTraits {
     return PreParserExpression::Super();
   }
 
-  static PreParserExpression ClassLiteral(PreParserIdentifier name,
-                                          PreParserExpression extends,
-                                          PreParserExpression constructor,
-                                          PreParserExpressionList properties,
-                                          int position,
-                                          PreParserFactory* factory) {
+  static PreParserExpression ClassExpression(PreParserIdentifier name,
+                                             PreParserExpression extends,
+                                             PreParserExpression constructor,
+                                             PreParserExpressionList properties,
+                                             int position,
+                                             PreParserFactory* factory) {
     return PreParserExpression::Default();
   }
 
@@ -1978,16 +1992,22 @@ typename ParserBase<Traits>::ObjectLiteralPropertyT ParserBase<
       *ok = false;
       return this->EmptyObjectLiteralProperty();
     }
-    if (is_generator && in_class && !is_static && this->IsConstructor(name)) {
-      ReportMessageAt(scanner()->location(), "constructor_special_method");
-      *ok = false;
-      return this->EmptyObjectLiteralProperty();
+
+    FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
+                                     : FunctionKind::kConciseMethod;
+
+    if (in_class && !is_static && this->IsConstructor(name)) {
+      if (is_generator) {
+        ReportMessageAt(scanner()->location(), "constructor_special_method");
+        *ok = false;
+        return this->EmptyObjectLiteralProperty();
+      }
+
+      kind = FunctionKind::kNormalFunction;
     }
 
     checker->CheckProperty(name_token, kValueProperty,
                            CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
-    FunctionKind kind = is_generator ? FunctionKind::kConciseGeneratorMethod
-                                     : FunctionKind::kConciseMethod;
 
     value = this->ParseFunctionLiteral(
         name, scanner()->location(),
@@ -2745,25 +2765,24 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
     return this->EmptyExpression();
   }
 
-  // TODO(arv): Implement scopes and name binding in class body only.
-  // TODO(arv): Maybe add CLASS_SCOPE?
-  typename Traits::Type::ScopePtr extends_scope =
-      this->NewScope(scope_, BLOCK_SCOPE);
-  FunctionState extends_function_state(
-      &function_state_, &scope_, &extends_scope, zone(),
-      this->ast_value_factory(), ast_node_id_gen_);
-  scope_->SetStrictMode(STRICT);
-  scope_->SetScopeName(name);
-
   ExpressionT extends = this->EmptyExpression();
   if (Check(Token::EXTENDS)) {
+    typename Traits::Type::ScopePtr scope = this->NewScope(scope_, BLOCK_SCOPE);
+    BlockState block_state(&scope_, &scope);
+    scope_->SetStrictMode(STRICT);
     extends = this->ParseLeftHandSideExpression(CHECK_OK);
   }
+
+  // TODO(arv): Implement scopes and name binding in class body only.
+  typename Traits::Type::ScopePtr scope = this->NewScope(scope_, BLOCK_SCOPE);
+  BlockState block_state(&scope_, &scope);
+  scope_->SetStrictMode(STRICT);
+  scope_->SetScopeName(name);
 
   ObjectLiteralChecker checker(this, STRICT);
   typename Traits::Type::PropertyList properties =
       this->NewPropertyList(4, zone_);
-  FunctionLiteralT constructor = this->EmptyFunctionLiteral();
+  ExpressionT constructor = this->EmptyExpression();
 
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
@@ -2775,7 +2794,11 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
     ObjectLiteralPropertyT property =
         this->ParsePropertyDefinition(&checker, in_class, is_static, CHECK_OK);
 
-    properties->Add(property, zone());
+    if (this->IsConstructorProperty(property)) {
+      constructor = this->GetPropertyValue(property);
+    } else {
+      properties->Add(property, zone());
+    }
 
     if (fni_ != NULL) {
       fni_->Infer();
@@ -2784,8 +2807,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
   }
   Expect(Token::RBRACE, CHECK_OK);
 
-  return this->ClassLiteral(name, extends, constructor, properties, pos,
-                            factory());
+  return this->ClassExpression(name, extends, constructor, properties, pos,
+                               factory());
 }
 
 

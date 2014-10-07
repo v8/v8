@@ -174,7 +174,9 @@ var kMessages = {
   invalid_module_path:           ["Module does not export '", "%0", "', or export is not itself a module"],
   module_type_error:             ["Module '", "%0", "' used improperly"],
   module_export_undefined:       ["Export '", "%0", "' is not defined in module"],
-  unexpected_super:              ["'super' keyword unexpected here"]
+  unexpected_super:              ["'super' keyword unexpected here"],
+  extends_value_not_a_function:  ["Class extends value ", "%0", " is not a function or null"],
+  prototype_parent_not_an_object: ["Class extends value does not have valid prototype property ", "%0"]
 };
 
 

@@ -145,7 +145,7 @@ class AstGraphBuilderWithPositions : public AstGraphBuilder {
   }
 
 #define DEF_VISIT(type)                                               \
-  virtual void Visit##type(type* node) OVERRIDE {                  \
+  virtual void Visit##type(type* node) OVERRIDE {                     \
     SourcePositionTable::Scope pos(source_positions_,                 \
                                    SourcePosition(node->position())); \
     AstGraphBuilder::Visit##type(node);                               \
@@ -173,7 +173,7 @@ Handle<Code> Pipeline::GenerateCode() {
       info()->function()->dont_optimize_reason() == kForOfStatement ||
       // TODO(turbofan): Make super work and remove this bailout.
       info()->function()->dont_optimize_reason() == kSuperReference ||
-      // TODO(turbofan): Make classliterals work and remove this bailout.
+      // TODO(turbofan): Make class literals work and remove this bailout.
       info()->function()->dont_optimize_reason() == kClassLiteral ||
       // TODO(turbofan): Make OSR work and remove this bailout.
       info()->is_osr()) {
