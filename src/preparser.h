@@ -639,6 +639,12 @@ class PreParserIdentifier {
     return type_ == kFutureStrictReservedIdentifier;
   }
   bool IsValidStrictVariable() const { return type_ == kUnknownIdentifier; }
+  V8_INLINE bool IsValidArrowParam() const {
+    // A valid identifier can be an arrow function parameter
+    // except for eval, arguments, yield, and reserved keywords.
+    return !(IsEval() || IsArguments() || IsYield() ||
+             IsFutureStrictReserved());
+  }
 
   // Allow identifier->name()[->length()] to work. The preparser
   // does not need the actual positions/lengths of the identifiers.
@@ -668,30 +674,27 @@ class PreParserIdentifier {
 };
 
 
-// Bits 0 and 1 are used to identify the type of expression:
-// If bit 0 is set, it's an identifier.
-// if bit 1 is set, it's a string literal.
-// If neither is set, it's no particular type, and both set isn't
-// use yet.
 class PreParserExpression {
  public:
   static PreParserExpression Default() {
-    return PreParserExpression(kUnknownExpression);
+    return PreParserExpression(TypeField::encode(kExpression));
   }
 
   static PreParserExpression FromIdentifier(PreParserIdentifier id) {
-    return PreParserExpression(kTypeIdentifier |
-                               (id.type_ << kIdentifierShift));
+    return PreParserExpression(TypeField::encode(kIdentifierExpression) |
+                               IdentifierTypeField::encode(id.type_));
   }
 
   static PreParserExpression BinaryOperation(PreParserExpression left,
                                              Token::Value op,
                                              PreParserExpression right) {
-    int code = ((op == Token::COMMA) && !left.is_parenthesized() &&
-                !right.is_parenthesized())
-                   ? left.ArrowParamListBit() & right.ArrowParamListBit()
-                   : 0;
-    return PreParserExpression(kTypeBinaryOperation | code);
+    bool valid_arrow_param_list =
+        op == Token::COMMA && !left.is_parenthesized() &&
+        !right.is_parenthesized() && left.IsValidArrowParams() &&
+        right.IsValidArrowParams();
+    return PreParserExpression(
+        TypeField::encode(kBinaryOperationExpression) |
+        IsValidArrowParamListField::encode(valid_arrow_param_list));
   }
 
   static PreParserExpression EmptyArrowParamList() {
@@ -701,69 +704,89 @@ class PreParserExpression {
   }
 
   static PreParserExpression StringLiteral() {
-    return PreParserExpression(kUnknownStringLiteral);
+    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
+                               IsUseStrictField::encode(false));
   }
 
   static PreParserExpression UseStrictStringLiteral() {
-    return PreParserExpression(kUseStrictString);
+    return PreParserExpression(TypeField::encode(kStringLiteralExpression) |
+                               IsUseStrictField::encode(true));
   }
 
   static PreParserExpression This() {
-    return PreParserExpression(kThisExpression);
+    return PreParserExpression(TypeField::encode(kExpression) |
+                               ExpressionTypeField::encode(kThisExpression));
   }
 
   static PreParserExpression Super() {
-    return PreParserExpression(kSuperExpression);
+    return PreParserExpression(TypeField::encode(kExpression) |
+                               ExpressionTypeField::encode(kSuperExpression));
   }
 
   static PreParserExpression ThisProperty() {
-    return PreParserExpression(kThisPropertyExpression);
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kThisPropertyExpression));
   }
 
   static PreParserExpression Property() {
-    return PreParserExpression(kPropertyExpression);
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kPropertyExpression));
   }
 
   static PreParserExpression Call() {
-    return PreParserExpression(kCallExpression);
+    return PreParserExpression(TypeField::encode(kExpression) |
+                               ExpressionTypeField::encode(kCallExpression));
   }
 
-  bool IsIdentifier() const { return (code_ & kTypeMask) == kTypeIdentifier; }
+  bool IsIdentifier() const {
+    return TypeField::decode(code_) == kIdentifierExpression;
+  }
 
   PreParserIdentifier AsIdentifier() const {
     DCHECK(IsIdentifier());
-    return PreParserIdentifier(
-        static_cast<PreParserIdentifier::Type>(code_ >> kIdentifierShift));
+    return PreParserIdentifier(IdentifierTypeField::decode(code_));
   }
 
   bool IsStringLiteral() const {
-    return (code_ & kTypeMask) == kTypeStringLiteral;
+    return TypeField::decode(code_) == kStringLiteralExpression;
   }
 
   bool IsUseStrictLiteral() const {
-    return (code_ & kUseStrictString) == kUseStrictString;
+    return TypeField::decode(code_) == kStringLiteralExpression &&
+           IsUseStrictField::decode(code_);
   }
 
-  bool IsThis() const { return (code_ & kThisExpression) == kThisExpression; }
+  bool IsThis() const {
+    return TypeField::decode(code_) == kExpression &&
+           ExpressionTypeField::decode(code_) == kThisExpression;
+  }
 
   bool IsThisProperty() const {
-    return (code_ & kThisPropertyExpression) == kThisPropertyExpression;
+    return TypeField::decode(code_) == kExpression &&
+           ExpressionTypeField::decode(code_) == kThisPropertyExpression;
   }
 
   bool IsProperty() const {
-    return (code_ & kPropertyExpression) == kPropertyExpression ||
-           (code_ & kThisPropertyExpression) == kThisPropertyExpression;
+    return TypeField::decode(code_) == kExpression &&
+           (ExpressionTypeField::decode(code_) == kPropertyExpression ||
+            ExpressionTypeField::decode(code_) == kThisPropertyExpression);
   }
 
-  bool IsCall() const { return (code_ & kCallExpression) == kCallExpression; }
+  bool IsCall() const {
+    return TypeField::decode(code_) == kExpression &&
+           ExpressionTypeField::decode(code_) == kCallExpression;
+  }
 
   bool IsValidReferenceExpression() const {
     return IsIdentifier() || IsProperty();
   }
 
   bool IsValidArrowParamList() const {
-    return (ArrowParamListBit() & kBinaryOperationArrowParamList) != 0 &&
-           (code_ & kMultiParenthesizedExpression) == 0;
+    return IsValidArrowParams() &&
+           ParenthesizationField::decode(code_) !=
+               kMultiParenthesizedExpression;
   }
 
   // At the moment PreParser doesn't track these expression types.
@@ -773,16 +796,17 @@ class PreParserExpression {
   PreParserExpression AsFunctionLiteral() { return *this; }
 
   bool IsBinaryOperation() const {
-    return (code_ & kTypeMask) == kTypeBinaryOperation;
+    return TypeField::decode(code_) == kBinaryOperationExpression;
   }
 
   bool is_parenthesized() const {
-    return (code_ & kParenthesizedExpression) != 0;
+    return ParenthesizationField::decode(code_) != kNotParenthesized;
   }
 
   void increase_parenthesization_level() {
-    code_ |= is_parenthesized() ? kMultiParenthesizedExpression
-                                : kParenthesizedExpression;
+    code_ = ParenthesizationField::update(
+        code_, is_parenthesized() ? kMultiParenthesizedExpression
+                                  : kParanthesizedExpression);
   }
 
   // Dummy implementation for making expression->somefunc() work in both Parser
@@ -798,66 +822,52 @@ class PreParserExpression {
   void set_ast_properties(int* ast_properties) {}
   void set_dont_optimize_reason(BailoutReason dont_optimize_reason) {}
 
-  bool operator==(const PreParserExpression& other) const {
-    return code_ == other.code_;
-  }
-  bool operator!=(const PreParserExpression& other) const {
-    return code_ != other.code_;
-  }
-
  private:
-  // Least significant 2 bits are used as expression type. The third least
-  // significant bit tracks whether an expression is parenthesized. If the
-  // expression is an identifier or a string literal, the other bits
-  // describe the type/ (see PreParserIdentifier::Type and string literal
-  // constants below). For binary operations, the other bits are flags
-  // which further describe the contents of the expression.
-  enum {
-    kUnknownExpression = 0,
-    kTypeMask = 1 | 2,
-    kParenthesizedExpression = (1 << 2),
-    kMultiParenthesizedExpression = (1 << 3),
-
-    // Identifiers
-    kTypeIdentifier = 1,  // Used to detect labels.
-    kIdentifierShift = 5,
-    kTypeStringLiteral = 2,  // Used to detect directive prologue.
-    kUnknownStringLiteral = kTypeStringLiteral,
-    kUseStrictString = kTypeStringLiteral | 32,
-    kStringLiteralMask = kUseStrictString,
-
-    // Binary operations. Those are needed to detect certain keywords and
-    // duplicated identifier in parameter lists for arrow functions, because
-    // they are initially parsed as comma-separated expressions.
-    kTypeBinaryOperation = 3,
-    kBinaryOperationArrowParamList = (1 << 4),
-
-    // Below here applies if neither identifier nor string literal. Reserve the
-    // 2 least significant bits for flags.
-    kThisExpression = (1 << 4),
-    kThisPropertyExpression = (2 << 4),
-    kPropertyExpression = (3 << 4),
-    kCallExpression = (4 << 4),
-    kSuperExpression = (5 << 4)
+  enum Type {
+    kExpression,
+    kIdentifierExpression,
+    kStringLiteralExpression,
+    kBinaryOperationExpression
   };
 
-  explicit PreParserExpression(int expression_code) : code_(expression_code) {}
+  enum Parenthesization {
+    kNotParenthesized,
+    kParanthesizedExpression,
+    kMultiParenthesizedExpression
+  };
 
-  V8_INLINE int ArrowParamListBit() const {
-    if (IsBinaryOperation()) return code_ & kBinaryOperationArrowParamList;
-    if (IsIdentifier()) {
-      const PreParserIdentifier ident = AsIdentifier();
-      // A valid identifier can be an arrow function parameter list
-      // except for eval, arguments, yield, and reserved keywords.
-      if (ident.IsEval() || ident.IsArguments() || ident.IsYield() ||
-          ident.IsFutureStrictReserved())
-        return 0;
-      return kBinaryOperationArrowParamList;
-    }
-    return 0;
+  enum ExpressionType {
+    kThisExpression,
+    kThisPropertyExpression,
+    kPropertyExpression,
+    kCallExpression,
+    kSuperExpression
+  };
+
+  explicit PreParserExpression(uint32_t expression_code)
+      : code_(expression_code) {}
+
+  V8_INLINE bool IsValidArrowParams() const {
+    return IsBinaryOperation()
+               ? IsValidArrowParamListField::decode(code_)
+               : (IsIdentifier() && AsIdentifier().IsValidArrowParam());
   }
 
-  int code_;
+  // The first four bits are for the Type and Parenthesization.
+  typedef BitField<Type, 0, 2> TypeField;
+  typedef BitField<Parenthesization, TypeField::kNext, 2> ParenthesizationField;
+
+  // The rest of the bits are interpreted depending on the value
+  // of the Type field, so they can share the storage.
+  typedef BitField<ExpressionType, ParenthesizationField::kNext, 3>
+      ExpressionTypeField;
+  typedef BitField<bool, ParenthesizationField::kNext, 1> IsUseStrictField;
+  typedef BitField<bool, ParenthesizationField::kNext, 1>
+      IsValidArrowParamListField;
+  typedef BitField<PreParserIdentifier::Type, ParenthesizationField::kNext, 10>
+      IdentifierTypeField;
+
+  uint32_t code_;
 };
 
 
