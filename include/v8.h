@@ -697,9 +697,6 @@ template <class T, class M> class Persistent : public PersistentBase<T> {
     return Persistent<S>::Cast(*this);
   }
 
-  // This will be removed.
-  V8_INLINE T* ClearAndLeak();
-
  private:
   friend class Isolate;
   friend class Utils;
@@ -6242,15 +6239,6 @@ void PersistentBase<T>::MarkPartiallyDependent() {
   I::UpdateNodeFlag(reinterpret_cast<internal::Object**>(this->val_),
                     true,
                     I::kNodeIsPartiallyDependentShift);
-}
-
-
-template <class T, class M>
-T* Persistent<T, M>::ClearAndLeak() {
-  T* old;
-  old = this->val_;
-  this->val_ = NULL;
-  return old;
 }
 
 
