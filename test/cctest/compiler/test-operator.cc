@@ -29,10 +29,10 @@ TEST(TestOperatorMnemonic) {
 
 TEST(TestSimpleOperatorHash) {
   SimpleOperator op1(17, Operator::kNoProperties, 0, 0, "Another");
-  CHECK_EQ(17, op1.HashCode());
+  CHECK_EQ(17, static_cast<int>(op1.HashCode()));
 
   SimpleOperator op2(18, Operator::kNoProperties, 0, 0, "Falsch");
-  CHECK_EQ(18, op2.HashCode());
+  CHECK_EQ(18, static_cast<int>(op2.HashCode()));
 }
 
 
