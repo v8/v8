@@ -11,43 +11,43 @@ namespace compiler {
 
 // static
 FieldAccess AccessBuilder::ForMap() {
-  return {kTaggedBase, HeapObject::kMapOffset, Handle<Name>(), Type::Any(),
+  return {kTaggedBase, HeapObject::kMapOffset, MaybeHandle<Name>(), Type::Any(),
           kMachAnyTagged};
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSObjectProperties() {
-  return {kTaggedBase, JSObject::kPropertiesOffset, Handle<Name>(), Type::Any(),
-          kMachAnyTagged};
+  return {kTaggedBase, JSObject::kPropertiesOffset, MaybeHandle<Name>(),
+          Type::Any(), kMachAnyTagged};
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSObjectElements() {
-  return {kTaggedBase, JSObject::kElementsOffset, Handle<Name>(),
+  return {kTaggedBase, JSObject::kElementsOffset, MaybeHandle<Name>(),
           Type::Internal(), kMachAnyTagged};
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSFunctionContext() {
-  return {kTaggedBase, JSFunction::kContextOffset, Handle<Name>(),
+  return {kTaggedBase, JSFunction::kContextOffset, MaybeHandle<Name>(),
           Type::Internal(), kMachAnyTagged};
 }
 
 
 // static
 FieldAccess AccessBuilder::ForJSArrayBufferBackingStore() {
-  return {kTaggedBase, JSArrayBuffer::kBackingStoreOffset, Handle<Name>(),
+  return {kTaggedBase, JSArrayBuffer::kBackingStoreOffset, MaybeHandle<Name>(),
           Type::UntaggedPtr(), kMachPtr};
 }
 
 
 // static
 FieldAccess AccessBuilder::ForExternalArrayPointer() {
-  return {kTaggedBase, ExternalArray::kExternalPointerOffset, Handle<Name>(),
-          Type::UntaggedPtr(), kMachPtr};
+  return {kTaggedBase, ExternalArray::kExternalPointerOffset,
+          MaybeHandle<Name>(), Type::UntaggedPtr(), kMachPtr};
 }
 
 

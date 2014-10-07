@@ -45,6 +45,7 @@
         'compiler/instruction-selector-unittest.h',
         'compiler/js-builtin-reducer-unittest.cc',
         'compiler/js-operator-unittest.cc',
+        'compiler/js-typed-lowering-unittest.cc',
         'compiler/machine-operator-reducer-unittest.cc',
         'compiler/machine-operator-unittest.cc',
         'compiler/simplified-operator-reducer-unittest.cc',
