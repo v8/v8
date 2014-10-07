@@ -563,7 +563,8 @@ void Debug::ThreadInit() {
   thread_local_.step_into_fp_ = 0;
   thread_local_.step_out_fp_ = 0;
   // TODO(isolates): frames_are_dropped_?
-  thread_local_.current_debug_scope_ = NULL;
+  base::NoBarrier_Store(&thread_local_.current_debug_scope_,
+                        static_cast<base::AtomicWord>(NULL));
   thread_local_.restarter_frame_function_pointer_ = NULL;
 }
 
@@ -3089,7 +3090,8 @@ DebugScope::DebugScope(Debug* debug)
       no_termination_exceptons_(debug_->isolate_,
                                 StackGuard::TERMINATE_EXECUTION) {
   // Link recursive debugger entry.
-  debug_->thread_local_.current_debug_scope_ = this;
+  base::NoBarrier_Store(&debug_->thread_local_.current_debug_scope_,
+                        reinterpret_cast<base::AtomicWord>(this));
 
   // Store the previous break id and frame id.
   break_id_ = debug_->break_id();
@@ -3126,7 +3128,8 @@ DebugScope::~DebugScope() {
   }
 
   // Leaving this debugger entry.
-  debug_->thread_local_.current_debug_scope_ = prev_;
+  base::NoBarrier_Store(&debug_->thread_local_.current_debug_scope_,
+                        reinterpret_cast<base::AtomicWord>(prev_));
 
   // Restore to the previous break state.
   debug_->thread_local_.break_frame_id_ = break_frame_id_;
