@@ -84,6 +84,8 @@ class OptimizingCompilerThread : public base::Thread {
 #endif
 
  private:
+  class CompileTask;
+
   enum StopFlag { CONTINUE, STOP, FLUSH };
 
   void FlushInputQueue(bool restore_function_code);
@@ -121,6 +123,9 @@ class OptimizingCompilerThread : public base::Thread {
 
   // Queue of recompilation tasks ready to be installed (excluding OSR).
   UnboundQueue<OptimizedCompileJob*> output_queue_;
+  // Used for job based recompilation which has multiple producers on
+  // different threads.
+  base::Mutex output_queue_mutex_;
 
   // Cyclic buffer of recompilation tasks for OSR.
   OptimizedCompileJob** osr_buffer_;
