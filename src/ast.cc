@@ -1090,16 +1090,17 @@ DONT_OPTIMIZE_NODE(ModuleUrl)
 DONT_OPTIMIZE_NODE(ModuleStatement)
 DONT_OPTIMIZE_NODE(WithStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
-DONT_OPTIMIZE_NODE(ClassLiteral)
 DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
-DONT_OPTIMIZE_NODE(SuperReference)
 
 DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(Yield)
 
 // TODO(turbofan): Remove the dont_turbofan_reason once this list is empty.
+// This list must be kept in sync with Pipeline::GenerateCode.
 DONT_TURBOFAN_NODE(ForOfStatement)
 DONT_TURBOFAN_NODE(TryCatchStatement)
 DONT_TURBOFAN_NODE(TryFinallyStatement)
+DONT_TURBOFAN_NODE(ClassLiteral)
+DONT_TURBOFAN_NODE(SuperReference)
 
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)

@@ -166,12 +166,15 @@ static void TraceSchedule(Schedule* schedule) {
 
 
 Handle<Code> Pipeline::GenerateCode() {
+  // This list must be kept in sync with DONT_TURBOFAN_NODE in ast.cc.
   if (info()->function()->dont_optimize_reason() == kTryCatchStatement ||
       info()->function()->dont_optimize_reason() == kTryFinallyStatement ||
       // TODO(turbofan): Make ES6 for-of work and remove this bailout.
       info()->function()->dont_optimize_reason() == kForOfStatement ||
       // TODO(turbofan): Make super work and remove this bailout.
       info()->function()->dont_optimize_reason() == kSuperReference ||
+      // TODO(turbofan): Make classliterals work and remove this bailout.
+      info()->function()->dont_optimize_reason() == kClassLiteral ||
       // TODO(turbofan): Make OSR work and remove this bailout.
       info()->is_osr()) {
     return Handle<Code>::null();
