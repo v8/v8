@@ -7,6 +7,7 @@
 
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
+#include "src/unique.h"
 
 namespace v8 {
 namespace internal {

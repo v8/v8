@@ -12,9 +12,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-std::ostream& operator<<(std::ostream& os,
-                         const WriteBarrierKind& write_barrier_kind) {
-  switch (write_barrier_kind) {
+std::ostream& operator<<(std::ostream& os, WriteBarrierKind kind) {
+  switch (kind) {
     case kNoWriteBarrier:
       return os << "NoWriteBarrier";
     case kFullWriteBarrier:
@@ -25,39 +24,26 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 
-std::ostream& operator<<(std::ostream& os, const StoreRepresentation& rep) {
-  return os << "(" << rep.machine_type() << " : " << rep.write_barrier_kind()
-            << ")";
+bool operator==(StoreRepresentation lhs, StoreRepresentation rhs) {
+  return lhs.machine_type() == rhs.machine_type() &&
+         lhs.write_barrier_kind() == rhs.write_barrier_kind();
 }
 
 
-template <>
-struct StaticParameterTraits<StoreRepresentation> {
-  static std::ostream& PrintTo(std::ostream& os,
-                               const StoreRepresentation& rep) {
-    return os << rep;
-  }
-  static int HashCode(const StoreRepresentation& rep) {
-    return rep.machine_type() + rep.write_barrier_kind();
-  }
-  static bool Equals(const StoreRepresentation& rep1,
-                     const StoreRepresentation& rep2) {
-    return rep1 == rep2;
-  }
-};
+bool operator!=(StoreRepresentation lhs, StoreRepresentation rhs) {
+  return !(lhs == rhs);
+}
 
 
-template <>
-struct StaticParameterTraits<LoadRepresentation> {
-  static std::ostream& PrintTo(std::ostream& os,
-                               LoadRepresentation type) {  // NOLINT
-    return os << type;
-  }
-  static int HashCode(LoadRepresentation type) { return type; }
-  static bool Equals(LoadRepresentation lhs, LoadRepresentation rhs) {
-    return lhs == rhs;
-  }
-};
+size_t hash_value(StoreRepresentation rep) {
+  return base::hash_combine(rep.machine_type(), rep.write_barrier_kind());
+}
+
+
+std::ostream& operator<<(std::ostream& os, StoreRepresentation rep) {
+  return os << "(" << rep.machine_type() << " : " << rep.write_barrier_kind()
+            << ")";
+}
 
 
 #define PURE_OP_LIST(V)                                                       \

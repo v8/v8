@@ -129,13 +129,13 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
 
     Handle<JSFunction> deopt_function =
         NewFunction("function deopt() { %DeoptimizeFunction(foo); }; deopt");
-    Unique<Object> deopt_fun_constant =
-        Unique<Object>::CreateUninitialized(deopt_function);
+    Unique<JSFunction> deopt_fun_constant =
+        Unique<JSFunction>::CreateUninitialized(deopt_function);
     Node* deopt_fun_node = m.NewNode(common.HeapConstant(deopt_fun_constant));
 
     Handle<Context> caller_context(function->context(), CcTest::i_isolate());
-    Unique<Object> caller_context_constant =
-        Unique<Object>::CreateUninitialized(caller_context);
+    Unique<Context> caller_context_constant =
+        Unique<Context>::CreateUninitialized(caller_context);
     Node* caller_context_node =
         m.NewNode(common.HeapConstant(caller_context_constant));
 
@@ -150,8 +150,8 @@ class TrivialDeoptCodegenTester : public DeoptCodegenTester {
         parameters, locals, stack, caller_context_node, m.UndefinedConstant());
 
     Handle<Context> context(deopt_function->context(), CcTest::i_isolate());
-    Unique<Object> context_constant =
-        Unique<Object>::CreateUninitialized(context);
+    Unique<Context> context_constant =
+        Unique<Context>::CreateUninitialized(context);
     Node* context_node = m.NewNode(common.HeapConstant(context_constant));
 
     m.CallJS0(deopt_fun_node, m.UndefinedConstant(), context_node, state_node);
@@ -245,13 +245,13 @@ class TrivialRuntimeDeoptCodegenTester : public DeoptCodegenTester {
     CSignature1<Object*, Object*> sig;
     RawMachineAssembler m(graph, &sig);
 
-    Unique<Object> this_fun_constant =
-        Unique<Object>::CreateUninitialized(function);
+    Unique<HeapObject> this_fun_constant =
+        Unique<HeapObject>::CreateUninitialized(function);
     Node* this_fun_node = m.NewNode(common.HeapConstant(this_fun_constant));
 
     Handle<Context> context(function->context(), CcTest::i_isolate());
-    Unique<Object> context_constant =
-        Unique<Object>::CreateUninitialized(context);
+    Unique<HeapObject> context_constant =
+        Unique<HeapObject>::CreateUninitialized(context);
     Node* context_node = m.NewNode(common.HeapConstant(context_constant));
 
     bailout_id = GetCallBailoutId();

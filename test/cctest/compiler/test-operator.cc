@@ -91,13 +91,13 @@ TEST(TestOperator1intHash) {
   Operator1<int> op1a(23, Operator::kNoProperties, 0, 0, "Wolfie", 11);
   Operator1<int> op1b(23, Operator::kFoldable, 2, 2, "Doggie", 11);
 
-  CHECK_EQ(op1a.HashCode(), op1b.HashCode());
+  CHECK(op1a.HashCode() == op1b.HashCode());
 
   Operator1<int> op2a(24, Operator::kNoProperties, 0, 0, "Arfie", 3);
   Operator1<int> op2b(24, Operator::kNoProperties, 0, 0, "Arfie", 4);
 
-  CHECK_NE(op1a.HashCode(), op2a.HashCode());
-  CHECK_NE(op2a.HashCode(), op2b.HashCode());
+  CHECK(op1a.HashCode() != op2a.HashCode());
+  CHECK(op2a.HashCode() != op2b.HashCode());
 }
 
 
@@ -161,13 +161,13 @@ TEST(TestOperator1doubleHash) {
   Operator1<double> op1a(23, Operator::kNoProperties, 0, 0, "Wolfie", 11.77);
   Operator1<double> op1b(23, Operator::kFoldable, 2, 2, "Doggie", 11.77);
 
-  CHECK_EQ(op1a.HashCode(), op1b.HashCode());
+  CHECK(op1a.HashCode() == op1b.HashCode());
 
   Operator1<double> op2a(24, Operator::kNoProperties, 0, 0, "Arfie", -6.7);
   Operator1<double> op2b(24, Operator::kNoProperties, 0, 0, "Arfie", -6.8);
 
-  CHECK_NE(op1a.HashCode(), op2a.HashCode());
-  CHECK_NE(op2a.HashCode(), op2b.HashCode());
+  CHECK(op1a.HashCode() != op2a.HashCode());
+  CHECK(op2a.HashCode() != op2b.HashCode());
 }
 
 

@@ -680,9 +680,10 @@ TEST(BuildScheduleIfSplitWithEffects) {
   JSOperatorBuilder js_builder(scope.main_zone());
   const Operator* op;
 
-  Handle<Object> object =
-      Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
+  Handle<HeapObject> object =
+      Handle<HeapObject>(isolate->heap()->undefined_value(), isolate);
+  Unique<HeapObject> unique_constant =
+      Unique<HeapObject>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c, y) {
@@ -825,9 +826,10 @@ TEST(BuildScheduleSimpleLoop) {
   JSOperatorBuilder js_builder(scope.main_zone());
   const Operator* op;
 
-  Handle<Object> object =
-      Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
+  Handle<HeapObject> object =
+      Handle<HeapObject>(isolate->heap()->undefined_value(), isolate);
+  Unique<HeapObject> unique_constant =
+      Unique<HeapObject>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b) {
@@ -937,9 +939,10 @@ TEST(BuildScheduleComplexLoops) {
   JSOperatorBuilder js_builder(scope.main_zone());
   const Operator* op;
 
-  Handle<Object> object =
-      Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
+  Handle<HeapObject> object =
+      Handle<HeapObject>(isolate->heap()->undefined_value(), isolate);
+  Unique<HeapObject> unique_constant =
+      Unique<HeapObject>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c) {
@@ -1184,9 +1187,10 @@ TEST(BuildScheduleBreakAndContinue) {
   JSOperatorBuilder js_builder(scope.main_zone());
   const Operator* op;
 
-  Handle<Object> object =
-      Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
+  Handle<HeapObject> object =
+      Handle<HeapObject>(isolate->heap()->undefined_value(), isolate);
+  Unique<HeapObject> unique_constant =
+      Unique<HeapObject>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c) {
@@ -1514,9 +1518,10 @@ TEST(BuildScheduleSimpleLoopWithCodeMotion) {
   MachineOperatorBuilder machine_builder;
   const Operator* op;
 
-  Handle<Object> object =
-      Handle<Object>(isolate->heap()->undefined_value(), isolate);
-  Unique<Object> unique_constant = Unique<Object>::CreateUninitialized(object);
+  Handle<HeapObject> object =
+      Handle<HeapObject>(isolate->heap()->undefined_value(), isolate);
+  Unique<HeapObject> unique_constant =
+      Unique<HeapObject>::CreateUninitialized(object);
 
   // Manually transcripted code for:
   // function turbo_fan_test(a, b, c) {

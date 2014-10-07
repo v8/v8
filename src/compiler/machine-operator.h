@@ -19,15 +19,15 @@ class Operator;
 // Supported write barrier modes.
 enum WriteBarrierKind { kNoWriteBarrier, kFullWriteBarrier };
 
-std::ostream& operator<<(std::ostream& os,
-                         const WriteBarrierKind& write_barrier_kind);
+std::ostream& operator<<(std::ostream& os, WriteBarrierKind);
 
 
+// A Load needs a MachineType.
 typedef MachineType LoadRepresentation;
 
 
-// A Store needs a MachineType and a WriteBarrierKind
-// in order to emit the correct write barrier.
+// A Store needs a MachineType and a WriteBarrierKind in order to emit the
+// correct write barrier.
 class StoreRepresentation FINAL {
  public:
   StoreRepresentation(MachineType machine_type,
@@ -42,18 +42,12 @@ class StoreRepresentation FINAL {
   WriteBarrierKind write_barrier_kind_;
 };
 
-inline bool operator==(const StoreRepresentation& rep1,
-                       const StoreRepresentation& rep2) {
-  return rep1.machine_type() == rep2.machine_type() &&
-         rep1.write_barrier_kind() == rep2.write_barrier_kind();
-}
+bool operator==(StoreRepresentation, StoreRepresentation);
+bool operator!=(StoreRepresentation, StoreRepresentation);
 
-inline bool operator!=(const StoreRepresentation& rep1,
-                       const StoreRepresentation& rep2) {
-  return !(rep1 == rep2);
-}
+size_t hash_value(StoreRepresentation);
 
-std::ostream& operator<<(std::ostream& os, const StoreRepresentation& rep);
+std::ostream& operator<<(std::ostream&, StoreRepresentation);
 
 
 // Interface for building machine-level operators. These operators are

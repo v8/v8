@@ -3318,5 +3318,11 @@ const Runtime::Function* Runtime::FunctionForEntry(Address entry) {
 const Runtime::Function* Runtime::FunctionForId(Runtime::FunctionId id) {
   return &(kIntrinsicFunctions[static_cast<int>(id)]);
 }
+
+
+std::ostream& operator<<(std::ostream& os, Runtime::FunctionId id) {
+  return os << Runtime::FunctionForId(id)->name;
 }
-}  // namespace v8::internal
+
+}  // namespace internal
+}  // namespace v8

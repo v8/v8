@@ -32,6 +32,7 @@ enum BaseTaggedness { kUntaggedBase, kTaggedBase };
 
 std::ostream& operator<<(std::ostream&, BaseTaggedness);
 
+
 // An access descriptor for loads/stores of fixed structures like field
 // accesses of heap objects. Accesses from either tagged or untagged base
 // pointers are supported; untagging is done automatically during lowering.
@@ -45,12 +46,15 @@ struct FieldAccess {
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
 
-bool operator==(FieldAccess const& lhs, FieldAccess const& rhs);
-bool operator!=(FieldAccess const& lhs, FieldAccess const& rhs);
+bool operator==(FieldAccess const&, FieldAccess const&);
+bool operator!=(FieldAccess const&, FieldAccess const&);
+
+size_t hash_value(FieldAccess const&);
 
 std::ostream& operator<<(std::ostream&, FieldAccess const&);
 
 
+// The bound checking mode for ElementAccess below.
 enum BoundsCheckMode { kNoBoundsCheck, kTypedArrayBoundsCheck };
 
 std::ostream& operator<<(std::ostream&, BoundsCheckMode);
@@ -70,8 +74,10 @@ struct ElementAccess {
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
 
-bool operator==(ElementAccess const& lhs, ElementAccess const& rhs);
-bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs);
+bool operator==(ElementAccess const&, ElementAccess const&);
+bool operator!=(ElementAccess const&, ElementAccess const&);
+
+size_t hash_value(ElementAccess const&);
 
 std::ostream& operator<<(std::ostream&, ElementAccess const&);
 
