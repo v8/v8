@@ -25,7 +25,6 @@ class OptimizingCompilerThread::CompileTask : public v8::Task {
  private:
   // v8::Task overrides.
   virtual void Run() OVERRIDE {
-    Isolate::SetIsolateThreadLocals(isolate_, NULL);
     DisallowHeapAllocation no_allocation;
     DisallowHandleAllocation no_handles;
     DisallowHandleDereference no_deref;
@@ -79,7 +78,6 @@ void OptimizingCompilerThread::Run() {
     thread_id_ = ThreadId::Current().ToInteger();
   }
 #endif
-  Isolate::SetIsolateThreadLocals(isolate_, NULL);
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
