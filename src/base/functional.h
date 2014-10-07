@@ -62,17 +62,17 @@ template <typename>
 struct hash;
 
 
-inline size_t hash_combine() { return 0u; }
-inline size_t hash_combine(size_t seed) { return seed; }
+V8_INLINE size_t hash_combine() { return 0u; }
+V8_INLINE size_t hash_combine(size_t seed) { return seed; }
 size_t hash_combine(size_t seed, size_t value);
 template <typename T, typename... Ts>
-inline size_t hash_combine(T const& v, Ts const&... vs) {
+V8_INLINE size_t hash_combine(T const& v, Ts const&... vs) {
   return hash_combine(hash<T>()(v), hash_combine(vs...));
 }
 
 
 #define V8_BASE_HASH_VALUE_TRIVIAL(type) \
-  inline size_t hash_value(type v) { return static_cast<size_t>(v); }
+  V8_INLINE size_t hash_value(type v) { return static_cast<size_t>(v); }
 V8_BASE_HASH_VALUE_TRIVIAL(bool)
 V8_BASE_HASH_VALUE_TRIVIAL(unsigned char)
 V8_BASE_HASH_VALUE_TRIVIAL(unsigned short)  // NOLINT(runtime/int)
@@ -83,7 +83,7 @@ size_t hash_value(unsigned long);       // NOLINT(runtime/int)
 size_t hash_value(unsigned long long);  // NOLINT(runtime/int)
 
 #define V8_BASE_HASH_VALUE_SIGNED(type)            \
-  inline size_t hash_value(signed type v) {        \
+  V8_INLINE size_t hash_value(signed type v) {     \
     return hash_value(bit_cast<unsigned type>(v)); \
   }
 V8_BASE_HASH_VALUE_SIGNED(char)
@@ -93,30 +93,36 @@ V8_BASE_HASH_VALUE_SIGNED(long)       // NOLINT(runtime/int)
 V8_BASE_HASH_VALUE_SIGNED(long long)  // NOLINT(runtime/int)
 #undef V8_BASE_HASH_VALUE_SIGNED
 
-size_t hash_value(float v);
-size_t hash_value(double v);
+V8_INLINE size_t hash_value(float v) {
+  // 0 and -0 both hash to zero.
+  return v != 0.0f ? hash_value(bit_cast<uint32_t>(v)) : 0;
+}
+
+V8_INLINE size_t hash_value(double v) {
+  // 0 and -0 both hash to zero.
+  return v != 0.0 ? hash_value(bit_cast<uint64_t>(v)) : 0;
+}
 
 template <typename T>
-inline size_t hash_value(T* const& v) {
-  size_t const x = bit_cast<size_t>(v);
-  return (x >> 3) + x;
+V8_INLINE size_t hash_value(T* const& v) {
+  return hash_value(bit_cast<uintptr_t>(v));
 }
 
 template <typename T1, typename T2>
-inline size_t hash_value(std::pair<T1, T2> const& v) {
+V8_INLINE size_t hash_value(std::pair<T1, T2> const& v) {
   return hash_combine(v.first, v.second);
 }
 
 
 template <typename T>
 struct hash : public std::unary_function<T, size_t> {
-  size_t operator()(T const& v) const { return hash_value(v); }
+  V8_INLINE size_t operator()(T const& v) const { return hash_value(v); }
 };
 
 #define V8_BASE_HASH_SPECIALIZE(type)                            \
   template <>                                                    \
   struct hash<type> : public std::unary_function<type, size_t> { \
-    size_t operator()(type const v) const {                      \
+    V8_INLINE size_t operator()(type const v) const {            \
       return ::v8::base::hash_value(v);                          \
     }                                                            \
   };
@@ -137,13 +143,15 @@ V8_BASE_HASH_SPECIALIZE(double)
 
 template <typename T>
 struct hash<T*> : public std::unary_function<T*, size_t> {
-  size_t operator()(T* const v) const { return ::v8::base::hash_value(v); }
+  V8_INLINE size_t operator()(T* const v) const {
+    return ::v8::base::hash_value(v);
+  }
 };
 
 template <typename T1, typename T2>
 struct hash<std::pair<T1, T2> >
     : public std::unary_function<std::pair<T1, T2>, size_t> {
-  size_t operator()(std::pair<T1, T2> const& v) const {
+  V8_INLINE size_t operator()(std::pair<T1, T2> const& v) const {
     return ::v8::base::hash_value(v);
   }
 };

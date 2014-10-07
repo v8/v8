@@ -19,18 +19,49 @@ namespace base {
 
 namespace {
 
+// Thomas Wang, Integer Hash Functions.
+// https://gist.github.com/badboy/6267743
 template <typename T>
-inline size_t hash_value_unsigned(T value) {
-  const unsigned size_t_bits = std::numeric_limits<size_t>::digits;
-  // ceiling(std::numeric_limits<T>::digits / size_t_bits) - 1
-  const unsigned length = (std::numeric_limits<T>::digits - 1) / size_t_bits;
-  size_t seed = 0;
-  // Hopefully, this loop can be unrolled.
-  for (unsigned i = length * size_t_bits; i > 0; i -= size_t_bits) {
-    seed ^= static_cast<size_t>(value >> i) + (seed << 6) + (seed >> 2);
+V8_INLINE size_t hash_value_unsigned(T v) {
+  switch (sizeof(T)) {
+    case 4: {
+      // "32 bit Mix Functions"
+      v = ~v + (v << 15);  // v = (v << 15) - v - 1;
+      v = v ^ (v >> 12);
+      v = v + (v << 2);
+      v = v ^ (v >> 4);
+      v = v * 2057;  // v = (v + (v << 3)) + (v << 11);
+      v = v ^ (v >> 16);
+      return static_cast<size_t>(v);
+    }
+    case 8: {
+      switch (sizeof(size_t)) {
+        case 4: {
+          // "64 bit to 32 bit Hash Functions"
+          v = ~v + (v << 18);  // v = (v << 18) - v - 1;
+          v = v ^ (v >> 31);
+          v = v * 21;  // v = (v + (v << 2)) + (v << 4);
+          v = v ^ (v >> 11);
+          v = v + (v << 6);
+          v = v ^ (v >> 22);
+          return static_cast<size_t>(v);
+        }
+        case 8: {
+          // "64 bit Mix Functions"
+          v = ~v + (v << 21);  // v = (v << 21) - v - 1;
+          v = v ^ (v >> 24);
+          v = (v + (v << 3)) + (v << 8);  // v * 265
+          v = v ^ (v >> 14);
+          v = (v + (v << 2)) + (v << 4);  // v * 21
+          v = v ^ (v >> 28);
+          v = v + (v << 31);
+          return static_cast<size_t>(v);
+        }
+      }
+    }
   }
-  seed ^= static_cast<size_t>(value) + (seed << 6) + (seed >> 2);
-  return seed;
+  UNREACHABLE();
+  return static_cast<size_t>(v);
 }
 
 }  // namespace
@@ -64,17 +95,7 @@ size_t hash_combine(size_t seed, size_t value) {
 }
 
 
-// Thomas Wang, Integer Hash Functions.
-// http://www.concentric.net/~Ttwang/tech/inthash.htm
-size_t hash_value(unsigned int v) {
-  v = ~v + (v << 15);  // v = (v << 15) - v - 1;
-  v = v ^ (v >> 12);
-  v = v + (v << 2);
-  v = v ^ (v >> 4);
-  v = v * 2057;  // v = (v + (v << 3)) + (v << 11);
-  v = v ^ (v >> 16);
-  return v;
-}
+size_t hash_value(unsigned int v) { return hash_value_unsigned(v); }
 
 
 size_t hash_value(unsigned long v) {  // NOLINT(runtime/int)
@@ -84,18 +105,6 @@ size_t hash_value(unsigned long v) {  // NOLINT(runtime/int)
 
 size_t hash_value(unsigned long long v) {  // NOLINT(runtime/int)
   return hash_value_unsigned(v);
-}
-
-
-size_t hash_value(float v) {
-  // 0 and -0 both hash to zero.
-  return v != 0.0f ? hash_value_unsigned(bit_cast<uint32_t>(v)) : 0;
-}
-
-
-size_t hash_value(double v) {
-  // 0 and -0 both hash to zero.
-  return v != 0.0 ? hash_value_unsigned(bit_cast<uint64_t>(v)) : 0;
 }
 
 }  // namespace base

@@ -82,10 +82,8 @@ TYPED_TEST(FunctionalTest, HashIsStateless) {
 
 
 TYPED_TEST(FunctionalTest, HashIsOkish) {
-  const size_t kValues = 128;
-  const size_t kMinHashes = kValues / 4;
   std::set<TypeParam> vs;
-  while (vs.size() != kValues) {
+  for (size_t i = 0; i < 128; ++i) {
     TypeParam v;
     this->rng()->NextBytes(&v, sizeof(v));
     vs.insert(v);
@@ -95,7 +93,7 @@ TYPED_TEST(FunctionalTest, HashIsOkish) {
     hash<TypeParam> h;
     hs.insert(h(v));
   }
-  EXPECT_LE(kMinHashes, hs.size());
+  EXPECT_LE(vs.size() / 4u, hs.size());
 }
 
 
