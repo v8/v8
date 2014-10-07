@@ -198,6 +198,7 @@ class CommitLocal(Step):
     else:
       title = ("Version %s (merged %s)"
                % (self["version"], self["revision_list"]))
+    self["commit_title"] = title
     self["new_commit_msg"] = "%s\n\n%s" % (title, self["new_commit_msg"])
     TextToFile(self["new_commit_msg"], self.Config("COMMITMSG_FILE"))
     self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
@@ -219,8 +220,10 @@ class TagRevision(Step):
   def RunStep(self):
     if self._options.revert_bleeding_edge:
       return
-    print "Creating tag svn/tags/%s" % self["version"]
-    self.vc.Tag(self["version"], self.vc.RemoteBranch(self["merge_to_branch"]))
+    print "Creating tag %s" % self["version"]
+    self.vc.Tag(self["version"],
+                self.vc.RemoteBranch(self["merge_to_branch"]),
+                self["commit_title"])
 
 
 class CleanUp(Step):

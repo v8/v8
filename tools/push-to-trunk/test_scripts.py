@@ -488,6 +488,24 @@ class ScriptTest(unittest.TestCase):
     ])
     self.MakeStep().InitialEnvironmentChecks(TEST_CONFIG["DEFAULT_CWD"])
 
+  def testTagTimeout(self):
+    self.Expect([
+      Cmd("git fetch", ""),
+      Cmd("git log -1 --format=%H --grep=\"Title\" origin/candidates", ""),
+      Cmd("git fetch", ""),
+      Cmd("git log -1 --format=%H --grep=\"Title\" origin/candidates", ""),
+      Cmd("git fetch", ""),
+      Cmd("git log -1 --format=%H --grep=\"Title\" origin/candidates", ""),
+      Cmd("git fetch", ""),
+      Cmd("git log -1 --format=%H --grep=\"Title\" origin/candidates", ""),
+    ])
+    args = ["--branch", "candidates", "--vc-interface", "git_read_svn_write",
+            "12345"]
+    self._state["version"] = "tag_name"
+    self._state["commit_title"] = "Title"
+    self.assertRaises(Exception,
+        lambda: self.RunStep(MergeToBranch, TagRevision, args))
+
   def testReadAndPersistVersion(self):
     self.WriteFakeVersionFile(build=5)
     step = self.MakeStep()
@@ -1276,10 +1294,18 @@ LOG=N
       Cmd("git cl presubmit", "Presubmit successfull\n"),
       Cmd("git cl dcommit -f --bypass-hooks", "Closing issue\n",
           cb=VerifySVNCommit),
-      # FIXME(machenbach): This won't work when setting tags on the git repo.
-      Cmd("git svn fetch", ""),
-      Cmd("git rebase origin/candidates", ""),
-      Cmd("git svn tag 3.22.5.1 -m \"Tagging version 3.22.5.1\"", ""),
+      Cmd("git fetch", ""),
+      Cmd("git log -1 --format=%H --grep=\""
+          "Version 3.22.5.1 (merged r12345, r23456, r34567, r45678, r56789)"
+          "\" origin/candidates",
+          ""),
+      Cmd("git fetch", ""),
+      Cmd("git log -1 --format=%H --grep=\""
+          "Version 3.22.5.1 (merged r12345, r23456, r34567, r45678, r56789)"
+          "\" origin/candidates",
+          "hsh_to_tag"),
+      Cmd("git tag 3.22.5.1 hsh_to_tag", ""),
+      Cmd("git push origin 3.22.5.1", ""),
       Cmd("git checkout -f some_branch", ""),
       Cmd("git branch -D %s" % TEST_CONFIG["BRANCHNAME"], ""),
     ])

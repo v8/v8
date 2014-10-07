@@ -80,7 +80,11 @@ class GitFailedException(Exception):
 
 def Strip(f):
   def new_f(*args, **kwargs):
-    return f(*args, **kwargs).strip()
+    result = f(*args, **kwargs)
+    if result is None:
+      return result
+    else:
+      return result.strip()
   return new_f
 
 

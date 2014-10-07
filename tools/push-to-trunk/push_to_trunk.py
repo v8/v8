@@ -285,6 +285,7 @@ class SquashCommits(Step):
 
     if not text:  # pragma: no cover
       self.Die("Commit message editing failed.")
+    self["commit_title"] = text.splitlines()[0]
     TextToFile(text, self.Config("COMMITMSG_FILE"))
 
 
@@ -361,7 +362,8 @@ class TagRevision(Step):
   MESSAGE = "Tag the new revision."
 
   def RunStep(self):
-    self.vc.Tag(self["version"], self.vc.RemoteCandidateBranch())
+    self.vc.Tag(
+        self["version"], self.vc.RemoteCandidateBranch(), self["commit_title"])
 
 
 class CleanUp(Step):

@@ -295,7 +295,11 @@ class VCInterface(object):
   # TODO(machenbach): There is some svn knowledge in this interface. In svn,
   # tag and commit are different remote commands, while in git we would commit
   # and tag locally and then push/land in one unique step.
-  def Tag(self, tag, remote):
+  def Tag(self, tag, remote, message):
+    """Sets a tag for the current commit.
+
+    Assumptions: The commit already landed and the commit message is unique.
+    """
     raise NotImplementedError()
 
 
@@ -342,13 +346,13 @@ class GitSvnInterface(VCInterface):
   def CLLand(self):
     self.step.GitDCommit()
 
-  def Tag(self, tag, remote):
+  def Tag(self, tag, remote, _):
     self.step.GitSVNFetch()
     self.step.Git("rebase %s" % remote)
     self.step.GitSVNTag(tag)
 
 
-class GitReadOnlyMixin(VCInterface):
+class GitTagsOnlyMixin(VCInterface):
   def Pull(self):
     self.step.GitPull()
 
@@ -377,8 +381,28 @@ class GitReadOnlyMixin(VCInterface):
       return "origin/%s" % name
     return "origin/branch-heads/%s" % name
 
+  def Tag(self, tag, remote, message):
+    # Wait for the commit to appear. Assumes unique commit message titles (this
+    # is the case for all automated merge and push commits - also no title is
+    # the prefix of another title).
+    commit = None
+    for wait_interval in [3, 7, 15, 35]:
+      self.step.Git("fetch")
+      commit = self.step.GitLog(n=1, format="%H", grep=message, branch=remote)
+      if commit:
+        break
+      print("The commit has not replicated to git. Waiting for %s seconds." %
+            wait_interval)
+      self.step._side_effect_handler.Sleep(wait_interval)
+    else:
+      self.step.Die("Couldn't determine commit for setting the tag. Maybe the "
+                    "git updater is lagging behind?")
 
-class GitReadSvnWriteInterface(GitReadOnlyMixin, GitSvnInterface):
+    self.step.Git("tag %s %s" % (tag, commit))
+    self.step.Git("push origin %s" % tag)
+
+
+class GitReadSvnWriteInterface(GitTagsOnlyMixin, GitSvnInterface):
   pass
 
 
