@@ -2591,13 +2591,28 @@ class SuperReference FINAL : public Expression {
 
   TypeFeedbackId HomeObjectFeedbackId() { return reuse(id()); }
 
+  // Type feedback information.
+  virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
+  virtual void SetFirstFeedbackSlot(int slot) {
+    homeobject_feedback_slot_ = slot;
+  }
+
+  int HomeObjectFeedbackSlot() {
+    DCHECK(!FLAG_vector_ics ||
+           homeobject_feedback_slot_ != kInvalidFeedbackSlot);
+    return homeobject_feedback_slot_;
+  }
+
  protected:
   SuperReference(Zone* zone, VariableProxy* this_var, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen), this_var_(this_var) {
+      : Expression(zone, pos, id_gen),
+        this_var_(this_var),
+        homeobject_feedback_slot_(kInvalidFeedbackSlot) {
     DCHECK(this_var->is_this());
   }
 
   VariableProxy* this_var_;
+  int homeobject_feedback_slot_;
 };
 
 

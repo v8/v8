@@ -2647,15 +2647,17 @@ RUNTIME_FUNCTION(LoadElementWithInterceptor) {
 }
 
 
-RUNTIME_FUNCTION(VectorLoadIC_MissFromStubFailure) {
-  // TODO(mvstanton): To be enabled when ICs can accept a vector and slot
-  return NULL;
-}
-
-
-RUNTIME_FUNCTION(VectorKeyedLoadIC_MissFromStubFailure) {
-  // TODO(mvstanton): To be enabled when ICs can accept a vector and slot
-  return NULL;
+RUNTIME_FUNCTION(LoadIC_MissFromStubFailure) {
+  TimerEventScope<TimerEventIcMiss> timer(isolate);
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  LoadIC ic(IC::EXTRA_CALL_FRAME, isolate);
+  Handle<Object> receiver = args.at<Object>(0);
+  Handle<Name> key = args.at<Name>(1);
+  ic.UpdateState(receiver, key);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, ic.Load(receiver, key));
+  return *result;
 }
 
 

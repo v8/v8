@@ -592,6 +592,9 @@ void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
 
 CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() {
   if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
+    if (FLAG_vector_ics) {
+      return VectorLoadICDescriptor(isolate());
+    }
     return LoadDescriptor(isolate());
   } else {
     DCHECK_EQ(Code::STORE_IC, kind());
@@ -627,14 +630,13 @@ static void InitializeVectorLoadStub(Isolate* isolate,
 
 void VectorLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   InitializeVectorLoadStub(isolate(), descriptor,
-                           FUNCTION_ADDR(VectorLoadIC_MissFromStubFailure));
+                           FUNCTION_ADDR(LoadIC_MissFromStubFailure));
 }
 
 
 void VectorKeyedLoadStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  InitializeVectorLoadStub(
-      isolate(), descriptor,
-      FUNCTION_ADDR(VectorKeyedLoadIC_MissFromStubFailure));
+  InitializeVectorLoadStub(isolate(), descriptor,
+                           FUNCTION_ADDR(KeyedLoadIC_MissFromStubFailure));
 }
 
 
