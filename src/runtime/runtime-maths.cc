@@ -9,7 +9,7 @@
 #include "src/codegen.h"
 #include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
-#include "third_party/fdlibm/fdlibm.h"
+#include "src/third_party/fdlibm/fdlibm.h"
 
 
 namespace v8 {

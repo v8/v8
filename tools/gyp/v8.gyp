@@ -828,8 +828,8 @@
         '../../src/zone-inl.h',
         '../../src/zone.cc',
         '../../src/zone.h',
-        '../../third_party/fdlibm/fdlibm.cc',
-        '../../third_party/fdlibm/fdlibm.h',
+        '../../src/third_party/fdlibm/fdlibm.cc',
+        '../../src/third_party/fdlibm/fdlibm.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -1565,7 +1565,7 @@
           '../../src/array.js',
           '../../src/string.js',
           '../../src/uri.js',
-          '../../third_party/fdlibm/fdlibm.js',
+          '../../src/third_party/fdlibm/fdlibm.js',
           '../../src/math.js',
           '../../src/apinatives.js',
           '../../src/date.js',

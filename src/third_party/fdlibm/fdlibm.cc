@@ -16,7 +16,7 @@
 #include "src/v8.h"
 
 #include "src/double.h"
-#include "third_party/fdlibm/fdlibm.h"
+#include "src/third_party/fdlibm/fdlibm.h"
 
 
 namespace v8 {
