@@ -117,7 +117,7 @@ class CcTest {
 
   static v8::Isolate* isolate() {
     CHECK(isolate_ != NULL);
-    isolate_used_ = true;
+    v8::base::NoBarrier_Store(&isolate_used_, 1);
     return isolate_;
   }
 
@@ -149,7 +149,7 @@ class CcTest {
   // TODO(dcarney): Remove.
   // This must be called first in a test.
   static void InitializeVM() {
-    CHECK(!isolate_used_);
+    CHECK(!v8::base::NoBarrier_Load(&isolate_used_));
     CHECK(!initialize_called_);
     initialize_called_ = true;
     v8::HandleScope handle_scope(CcTest::isolate());
@@ -181,7 +181,7 @@ class CcTest {
   static CcTest* last_;
   static v8::Isolate* isolate_;
   static bool initialize_called_;
-  static bool isolate_used_;
+  static v8::base::Atomic32 isolate_used_;
 };
 
 // Switches between all the Api tests using the threading support.

@@ -47,7 +47,7 @@ static bool disable_automatic_dispose_ = false;
 
 CcTest* CcTest::last_ = NULL;
 bool CcTest::initialize_called_ = false;
-bool CcTest::isolate_used_ = false;
+v8::base::Atomic32 CcTest::isolate_used_ = 0;
 v8::Isolate* CcTest::isolate_ = NULL;
 
 
