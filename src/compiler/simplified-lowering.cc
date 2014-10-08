@@ -273,62 +273,62 @@ class RepresentationSelector {
   // Helper for handling phis.
   void VisitPhi(Node* node, MachineTypeUnion use,
                 SimplifiedLowering* lowering) {
-    // First, propagate the usage information to inputs of the phi.
-    if (!lower()) {
-      int values = OperatorProperties::GetValueInputCount(node->op());
-      // Propagate {use} of the phi to value inputs, and 0 to control.
-      Node::Inputs inputs = node->inputs();
-      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-           ++iter, --values) {
-        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
-        ProcessInput(node, iter.index(), values > 0 ? use : 0);
-      }
-    }
-    // Phis adapt to whatever output representation their uses demand,
-    // pushing representation changes to their inputs.
-    MachineTypeUnion use_rep = GetUseInfo(node) & kRepMask;
+    // Phis adapt to the output representation their uses demand, pushing
+    // representation changes to their inputs.
     Type* upper = NodeProperties::GetBounds(node).upper;
-    MachineTypeUnion phi_type = changer_->TypeFromUpperBound(upper);
-    MachineTypeUnion rep = 0;
-    if (use_rep & kRepTagged) {
-      rep = kRepTagged;  // Tagged overrides everything.
-    } else if (use_rep & kRepFloat32) {
-      rep = kRepFloat32;
-    } else if (use_rep & kRepFloat64) {
-      rep = kRepFloat64;
-    } else if (use_rep & kRepWord64) {
-      rep = kRepWord64;
-    } else if (use_rep & kRepWord32) {
-      if (phi_type & kTypeNumber) {
-        rep = kRepFloat64;
+    MachineType output = kMachNone;
+    MachineType propagate = kMachNone;
+
+    if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
+      // legal = kRepTagged | kRepFloat64 | kRepWord32;
+      if ((use & kRepMask) == kRepTagged) {
+        // only tagged uses.
+        output = kRepTagged;
+        propagate = kRepTagged;
+      } else if ((use & kRepMask) == kRepFloat64) {
+        // only float64 uses.
+        output = kRepFloat64;
+        propagate = kRepFloat64;
       } else {
-        rep = kRepWord32;
+        // multiple uses.
+        output = kRepWord32;
+        propagate = kRepWord32;
       }
-    } else if (use_rep & kRepBit) {
-      rep = kRepBit;
+    } else if (upper->Is(Type::Boolean())) {
+      // legal = kRepTagged | kRepBit;
+      if ((use & kRepMask) == kRepTagged) {
+        // only tagged uses.
+        output = kRepTagged;
+        propagate = kRepTagged;
+      } else {
+        // multiple uses.
+        output = kRepBit;
+        propagate = kRepBit;
+      }
+    } else if (upper->Is(Type::Number())) {
+      // legal = kRepTagged | kRepFloat64;
+      if ((use & kRepMask) == kRepTagged) {
+        // only tagged uses.
+        output = kRepTagged;
+        propagate = kRepTagged;
+      } else {
+        // multiple uses.
+        output = kRepFloat64;
+        propagate = kRepFloat64;
+      }
     } else {
-      // There was no representation associated with any of the uses.
-      if (phi_type & kTypeAny) {
-        rep = kRepTagged;
-      } else if (phi_type & kTypeNumber) {
-        rep = kRepFloat64;
-      } else if (phi_type & kTypeInt64 || phi_type & kTypeUint64) {
-        rep = kRepWord64;
-      } else if (phi_type & kTypeInt32 || phi_type & kTypeUint32) {
-        rep = kRepWord32;
-      } else if (phi_type & kTypeBool) {
-        rep = kRepBit;
-      } else {
-        UNREACHABLE();  // should have at least a usage type!
-      }
+      // legal = kRepTagged;
+      output = kRepTagged;
+      propagate = kRepTagged;
     }
-    // Preserve the usage type, but set the representation.
-    MachineTypeUnion output_type = rep | phi_type;
+
+    MachineType output_type =
+        static_cast<MachineType>(changer_->TypeFromUpperBound(upper) | output);
     SetOutput(node, output_type);
 
-    if (lower()) {
-      int values = OperatorProperties::GetValueInputCount(node->op());
+    int values = OperatorProperties::GetValueInputCount(node->op());
 
+    if (lower()) {
       // Update the phi operator.
       MachineType type = static_cast<MachineType>(output_type);
       if (type != OpParameter<MachineType>(node)) {
@@ -341,6 +341,16 @@ class RepresentationSelector {
            ++iter, --values) {
         // TODO(titzer): it'd be nice to have distinguished edge kinds here.
         ProcessInput(node, iter.index(), values > 0 ? output_type : 0);
+      }
+    } else {
+      // Propagate {use} of the phi to value inputs, and 0 to control.
+      Node::Inputs inputs = node->inputs();
+      MachineType use_type =
+          static_cast<MachineType>((use & kTypeMask) | propagate);
+      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
+           ++iter, --values) {
+        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
+        ProcessInput(node, iter.index(), values > 0 ? use_type : 0);
       }
     }
   }
