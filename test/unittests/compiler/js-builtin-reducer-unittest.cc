@@ -35,6 +35,18 @@ class JSBuiltinReducerTest : public GraphTest {
     return n;
   }
 
+  Handle<JSFunction> MathFunction(const char* name) {
+    Handle<Object> m =
+        JSObject::GetProperty(isolate()->global_object(),
+                              isolate()->factory()->NewStringFromAsciiChecked(
+                                  "Math")).ToHandleChecked();
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        JSObject::GetProperty(
+            m, isolate()->factory()->NewStringFromAsciiChecked(name))
+            .ToHandleChecked());
+    return f;
+  }
+
   JSOperatorBuilder* javascript() { return &javascript_; }
 
  private:
@@ -60,7 +72,7 @@ Type* const kNumberTypes[] = {
 
 
 TEST_F(JSBuiltinReducerTest, MathAbs) {
-  Handle<JSFunction> f(isolate()->context()->math_abs_fun());
+  Handle<JSFunction> f = MathFunction("abs");
 
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);
@@ -94,7 +106,7 @@ TEST_F(JSBuiltinReducerTest, MathAbs) {
 
 
 TEST_F(JSBuiltinReducerTest, MathSqrt) {
-  Handle<JSFunction> f(isolate()->context()->math_sqrt_fun());
+  Handle<JSFunction> f = MathFunction("sqrt");
 
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);
@@ -115,7 +127,7 @@ TEST_F(JSBuiltinReducerTest, MathSqrt) {
 
 
 TEST_F(JSBuiltinReducerTest, MathMax0) {
-  Handle<JSFunction> f(isolate()->context()->math_max_fun());
+  Handle<JSFunction> f = MathFunction("max");
 
   Node* fun = HeapConstant(Unique<HeapObject>::CreateUninitialized(f));
   Node* call =
@@ -129,7 +141,7 @@ TEST_F(JSBuiltinReducerTest, MathMax0) {
 
 
 TEST_F(JSBuiltinReducerTest, MathMax1) {
-  Handle<JSFunction> f(isolate()->context()->math_max_fun());
+  Handle<JSFunction> f = MathFunction("max");
 
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);
@@ -146,7 +158,7 @@ TEST_F(JSBuiltinReducerTest, MathMax1) {
 
 
 TEST_F(JSBuiltinReducerTest, MathMax2) {
-  Handle<JSFunction> f(isolate()->context()->math_max_fun());
+  Handle<JSFunction> f = MathFunction("max");
 
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     TRACED_FOREACH(Type*, t1, kNumberTypes) {
@@ -182,7 +194,7 @@ TEST_F(JSBuiltinReducerTest, MathMax2) {
 
 
 TEST_F(JSBuiltinReducerTest, MathImul) {
-  Handle<JSFunction> f(isolate()->context()->math_imul_fun());
+  Handle<JSFunction> f = MathFunction("imul");
 
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     TRACED_FOREACH(Type*, t1, kNumberTypes) {
@@ -211,13 +223,7 @@ TEST_F(JSBuiltinReducerTest, MathImul) {
 
 
 TEST_F(JSBuiltinReducerTest, MathFround) {
-  Handle<Object> m =
-      JSObject::GetProperty(isolate()->global_object(),
-                            isolate()->factory()->NewStringFromAsciiChecked(
-                                "Math")).ToHandleChecked();
-  Handle<JSFunction> f = Handle<JSFunction>::cast(
-      JSObject::GetProperty(m, isolate()->factory()->NewStringFromAsciiChecked(
-                                   "fround")).ToHandleChecked());
+  Handle<JSFunction> f = MathFunction("fround");
 
   TRACED_FOREACH(Type*, t0, kNumberTypes) {
     Node* p0 = Parameter(t0, 0);

@@ -824,62 +824,69 @@ MACHINE_OP_LIST(DEFINE_METHOD)
 // Heap constants.
 
 Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
-  if (value->IsJSFunction() && JSFunction::cast(*value)->IsBuiltin() &&
-      !context().is_null()) {
-    Handle<Context> native =
-        handle(context().ToHandleChecked()->native_context(), isolate());
-    if (*value == native->math_abs_fun()) {
-      return typer_->number_fun1_;  // TODO(rossberg): can't express overloading
-    } else if (*value == native->math_acos_fun()) {
-      return typer_->number_fun1_;
-    } else if (*value == native->math_asin_fun()) {
-      return typer_->number_fun1_;
-    } else if (*value == native->math_atan_fun()) {
-      return typer_->number_fun1_;
-    } else if (*value == native->math_atan2_fun()) {
-      return typer_->number_fun2_;
-    } else if (*value == native->math_ceil_fun()) {
-      return typer_->weakint_fun1_;
-    } else if (*value == native->math_cos_fun()) {
-      return typer_->number_fun1_;
-    } else if (*value == native->math_exp_fun()) {
-      return typer_->number_fun1_;
-    } else if (*value == native->math_floor_fun()) {
-      return typer_->weakint_fun1_;
-    } else if (*value == native->math_imul_fun()) {
-      return typer_->imul_fun_;
-    } else if (*value == native->math_log_fun()) {
-      return typer_->number_fun1_;
-    } else if (*value == native->math_pow_fun()) {
-      return typer_->number_fun2_;
-    } else if (*value == native->math_random_fun()) {
-      return typer_->random_fun_;
-    } else if (*value == native->math_round_fun()) {
-      return typer_->weakint_fun1_;
-    } else if (*value == native->math_sin_fun()) {
-      return typer_->number_fun1_;
-    } else if (*value == native->math_sqrt_fun()) {
-      return typer_->number_fun1_;
-    } else if (*value == native->math_tan_fun()) {
-      return typer_->number_fun1_;
-    } else if (*value == native->array_buffer_fun()) {
-      return typer_->array_buffer_fun_;
-    } else if (*value == native->int8_array_fun()) {
-      return typer_->int8_array_fun_;
-    } else if (*value == native->int16_array_fun()) {
-      return typer_->int16_array_fun_;
-    } else if (*value == native->int32_array_fun()) {
-      return typer_->int32_array_fun_;
-    } else if (*value == native->uint8_array_fun()) {
-      return typer_->uint8_array_fun_;
-    } else if (*value == native->uint16_array_fun()) {
-      return typer_->uint16_array_fun_;
-    } else if (*value == native->uint32_array_fun()) {
-      return typer_->uint32_array_fun_;
-    } else if (*value == native->float32_array_fun()) {
-      return typer_->float32_array_fun_;
-    } else if (*value == native->float64_array_fun()) {
-      return typer_->float64_array_fun_;
+  if (value->IsJSFunction()) {
+    if (JSFunction::cast(*value)->shared()->HasBuiltinFunctionId()) {
+      switch (JSFunction::cast(*value)->shared()->builtin_function_id()) {
+        // TODO(rossberg): can't express overloading
+        case kMathAbs:
+          return typer_->number_fun1_;
+        case kMathAcos:
+          return typer_->number_fun1_;
+        case kMathAsin:
+          return typer_->number_fun1_;
+        case kMathAtan:
+          return typer_->number_fun1_;
+        case kMathAtan2:
+          return typer_->number_fun2_;
+        case kMathCeil:
+          return typer_->weakint_fun1_;
+        case kMathCos:
+          return typer_->number_fun1_;
+        case kMathExp:
+          return typer_->number_fun1_;
+        case kMathFloor:
+          return typer_->weakint_fun1_;
+        case kMathImul:
+          return typer_->imul_fun_;
+        case kMathLog:
+          return typer_->number_fun1_;
+        case kMathPow:
+          return typer_->number_fun2_;
+        case kMathRandom:
+          return typer_->random_fun_;
+        case kMathRound:
+          return typer_->weakint_fun1_;
+        case kMathSin:
+          return typer_->number_fun1_;
+        case kMathSqrt:
+          return typer_->number_fun1_;
+        case kMathTan:
+          return typer_->number_fun1_;
+        default:
+          break;
+      }
+    } else if (JSFunction::cast(*value)->IsBuiltin() && !context().is_null()) {
+      Handle<Context> native =
+          handle(context().ToHandleChecked()->native_context(), isolate());
+      if (*value == native->array_buffer_fun()) {
+        return typer_->array_buffer_fun_;
+      } else if (*value == native->int8_array_fun()) {
+        return typer_->int8_array_fun_;
+      } else if (*value == native->int16_array_fun()) {
+        return typer_->int16_array_fun_;
+      } else if (*value == native->int32_array_fun()) {
+        return typer_->int32_array_fun_;
+      } else if (*value == native->uint8_array_fun()) {
+        return typer_->uint8_array_fun_;
+      } else if (*value == native->uint16_array_fun()) {
+        return typer_->uint16_array_fun_;
+      } else if (*value == native->uint32_array_fun()) {
+        return typer_->uint32_array_fun_;
+      } else if (*value == native->float32_array_fun()) {
+        return typer_->float32_array_fun_;
+      } else if (*value == native->float64_array_fun()) {
+        return typer_->float64_array_fun_;
+      }
     }
   }
   return Type::Constant(value, zone());

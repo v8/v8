@@ -6548,6 +6548,7 @@ class Script: public Struct {
   V(String.prototype, charCodeAt, StringCharCodeAt) \
   V(String.prototype, charAt, StringCharAt)         \
   V(String, fromCharCode, StringFromCharCode)       \
+  V(Math, random, MathRandom)                       \
   V(Math, floor, MathFloor)                         \
   V(Math, round, MathRound)                         \
   V(Math, ceil, MathCeil)                           \
@@ -6558,6 +6559,13 @@ class Script: public Struct {
   V(Math, pow, MathPow)                             \
   V(Math, max, MathMax)                             \
   V(Math, min, MathMin)                             \
+  V(Math, cos, MathCos)                             \
+  V(Math, sin, MathSin)                             \
+  V(Math, tan, MathTan)                             \
+  V(Math, acos, MathAcos)                           \
+  V(Math, asin, MathAsin)                           \
+  V(Math, atan, MathAtan)                           \
+  V(Math, atan2, MathAtan2)                         \
   V(Math, imul, MathImul)                           \
   V(Math, clz32, MathClz32)                         \
   V(Math, fround, MathFround)
