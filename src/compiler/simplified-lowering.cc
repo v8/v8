@@ -284,7 +284,8 @@ class RepresentationSelector {
     // Phis adapt to whatever output representation their uses demand,
     // pushing representation changes to their inputs.
     MachineTypeUnion use_rep = GetUseInfo(node) & kRepMask;
-    MachineTypeUnion use_type = GetUseInfo(node) & kTypeMask;
+    Type* upper = NodeProperties::GetBounds(node).upper;
+    MachineTypeUnion phi_type = changer_->TypeFromUpperBound(upper);
     MachineTypeUnion rep = 0;
     if (use_rep & kRepTagged) {
       rep = kRepTagged;  // Tagged overrides everything.
@@ -295,29 +296,31 @@ class RepresentationSelector {
     } else if (use_rep & kRepWord64) {
       rep = kRepWord64;
     } else if (use_rep & kRepWord32) {
-      rep = kRepWord32;
+      if (phi_type & kTypeNumber) {
+        rep = kRepFloat64;
+      } else {
+        rep = kRepWord32;
+      }
     } else if (use_rep & kRepBit) {
       rep = kRepBit;
     } else {
       // There was no representation associated with any of the uses.
-      // TODO(titzer): Select the best rep using phi's type, not the usage type?
-      if (use_type & kTypeAny) {
+      if (phi_type & kTypeAny) {
         rep = kRepTagged;
-      } else if (use_type & kTypeNumber) {
+      } else if (phi_type & kTypeNumber) {
         rep = kRepFloat64;
-      } else if (use_type & kTypeInt64 || use_type & kTypeUint64) {
+      } else if (phi_type & kTypeInt64 || phi_type & kTypeUint64) {
         rep = kRepWord64;
-      } else if (use_type & kTypeInt32 || use_type & kTypeUint32) {
+      } else if (phi_type & kTypeInt32 || phi_type & kTypeUint32) {
         rep = kRepWord32;
-      } else if (use_type & kTypeBool) {
+      } else if (phi_type & kTypeBool) {
         rep = kRepBit;
       } else {
         UNREACHABLE();  // should have at least a usage type!
       }
     }
     // Preserve the usage type, but set the representation.
-    Type* upper = NodeProperties::GetBounds(node).upper;
-    MachineTypeUnion output_type = rep | changer_->TypeFromUpperBound(upper);
+    MachineTypeUnion output_type = rep | phi_type;
     SetOutput(node, output_type);
 
     if (lower()) {
@@ -728,6 +731,12 @@ class RepresentationSelector {
         return VisitFloat64Cmp(node);
       case IrOpcode::kLoadStackPointer:
         return VisitLeaf(node, kMachPtr);
+      case IrOpcode::kStateValues:
+        for (int i = 0; i < node->InputCount(); i++) {
+          ProcessInput(node, i, kTypeAny);
+        }
+        SetOutput(node, kMachAnyTagged);
+        break;
       default:
         VisitInputs(node);
         break;

@@ -145,8 +145,11 @@ class InstructionSelector FINAL {
                             bool call_address_immediate);
 
   FrameStateDescriptor* GetFrameStateDescriptor(Node* node);
+  void FillTypeVectorFromStateValues(ZoneVector<MachineType>* parameters,
+                                     Node* state_values);
   void AddFrameStateInputs(Node* state, InstructionOperandVector* inputs,
                            FrameStateDescriptor* descriptor);
+  MachineType GetMachineType(Node* node);
 
   // ===========================================================================
   // ============= Architecture-specific graph covering methods. ===============

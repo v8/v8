@@ -146,12 +146,20 @@ class InstructionSelectorTest : public TestWithContext, public TestWithZone {
       return ToConstant(operand).ToFloat32();
     }
 
+    double ToFloat64(const InstructionOperand* operand) const {
+      return ToConstant(operand).ToFloat64();
+    }
+
     int32_t ToInt32(const InstructionOperand* operand) const {
       return ToConstant(operand).ToInt32();
     }
 
     int64_t ToInt64(const InstructionOperand* operand) const {
       return ToConstant(operand).ToInt64();
+    }
+
+    Handle<HeapObject> ToHeapObject(const InstructionOperand* operand) const {
+      return ToConstant(operand).ToHeapObject();
     }
 
     int ToVreg(const InstructionOperand* operand) const {

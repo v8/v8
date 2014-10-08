@@ -96,7 +96,7 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
       Translation* translation, size_t frame_state_offset,
       OutputFrameStateCombine state_combine);
   void AddTranslationForOperand(Translation* translation, Instruction* instr,
-                                InstructionOperand* op);
+                                InstructionOperand* op, MachineType type);
   void AddNopForSmiCodeInlining();
   void EnsureSpaceForLazyDeopt();
   void MarkLazyDeoptSite();

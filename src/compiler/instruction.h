@@ -711,18 +711,10 @@ class Constant FINAL {
 
 class FrameStateDescriptor : public ZoneObject {
  public:
-  FrameStateDescriptor(const FrameStateCallInfo& state_info,
+  FrameStateDescriptor(Zone* zone, const FrameStateCallInfo& state_info,
                        size_t parameters_count, size_t locals_count,
                        size_t stack_count,
-                       FrameStateDescriptor* outer_state = NULL)
-      : type_(state_info.type()),
-        bailout_id_(state_info.bailout_id()),
-        frame_state_combine_(state_info.state_combine()),
-        parameters_count_(parameters_count),
-        locals_count_(locals_count),
-        stack_count_(stack_count),
-        outer_state_(outer_state),
-        jsfunction_(state_info.jsfunction()) {}
+                       FrameStateDescriptor* outer_state = NULL);
 
   FrameStateType type() const { return type_; }
   BailoutId bailout_id() const { return bailout_id_; }
@@ -732,51 +724,16 @@ class FrameStateDescriptor : public ZoneObject {
   size_t stack_count() const { return stack_count_; }
   FrameStateDescriptor* outer_state() const { return outer_state_; }
   MaybeHandle<JSFunction> jsfunction() const { return jsfunction_; }
+  bool HasContext() const { return type_ == JS_FRAME; }
 
   size_t GetSize(OutputFrameStateCombine combine =
-                     OutputFrameStateCombine::Ignore()) const {
-    size_t size = parameters_count_ + locals_count_ + stack_count_ +
-                  (HasContext() ? 1 : 0);
-    switch (combine.kind()) {
-      case OutputFrameStateCombine::kPushOutput:
-        size += combine.GetPushCount();
-        break;
-      case OutputFrameStateCombine::kPokeAt:
-        break;
-    }
-    return size;
-  }
+                     OutputFrameStateCombine::Ignore()) const;
+  size_t GetTotalSize() const;
+  size_t GetFrameCount() const;
+  size_t GetJSFrameCount() const;
 
-  size_t GetTotalSize() const {
-    size_t total_size = 0;
-    for (const FrameStateDescriptor* iter = this; iter != NULL;
-         iter = iter->outer_state_) {
-      total_size += iter->GetSize();
-    }
-    return total_size;
-  }
-
-  size_t GetFrameCount() const {
-    size_t count = 0;
-    for (const FrameStateDescriptor* iter = this; iter != NULL;
-         iter = iter->outer_state_) {
-      ++count;
-    }
-    return count;
-  }
-
-  size_t GetJSFrameCount() const {
-    size_t count = 0;
-    for (const FrameStateDescriptor* iter = this; iter != NULL;
-         iter = iter->outer_state_) {
-      if (iter->type_ == JS_FRAME) {
-        ++count;
-      }
-    }
-    return count;
-  }
-
-  bool HasContext() const { return type_ == JS_FRAME; }
+  MachineType GetType(size_t index) const;
+  void SetType(size_t index, MachineType type);
 
  private:
   FrameStateType type_;
@@ -785,6 +742,7 @@ class FrameStateDescriptor : public ZoneObject {
   size_t parameters_count_;
   size_t locals_count_;
   size_t stack_count_;
+  ZoneVector<MachineType> types_;
   FrameStateDescriptor* outer_state_;
   MaybeHandle<JSFunction> jsfunction_;
 };

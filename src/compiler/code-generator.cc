@@ -270,7 +270,7 @@ void CodeGenerator::AddSafepointAndDeopt(Instruction* instr) {
     // by calls.)
     for (size_t i = 0; i < descriptor->GetSize(); i++) {
       InstructionOperand* op = instr->InputAt(frame_state_offset + 1 + i);
-      CHECK(op->IsStackSlot() || op->IsImmediate());
+      CHECK(op->IsStackSlot() || op->IsDoubleStackSlot() || op->IsImmediate());
     }
 #endif
     safepoints()->RecordLazyDeoptimizationIndex(deopt_state_id);
@@ -296,7 +296,15 @@ FrameStateDescriptor* CodeGenerator::GetFrameStateDescriptor(
   return code()->GetFrameStateDescriptor(state_id);
 }
 
-static InstructionOperand* OperandForFrameState(
+struct OperandAndType {
+  OperandAndType(InstructionOperand* operand, MachineType type)
+      : operand_(operand), type_(type) {}
+
+  InstructionOperand* operand_;
+  MachineType type_;
+};
+
+static OperandAndType TypedOperandForFrameState(
     FrameStateDescriptor* descriptor, Instruction* instr,
     size_t frame_state_offset, size_t index, OutputFrameStateCombine combine) {
   DCHECK(index < descriptor->GetSize(combine));
@@ -307,7 +315,8 @@ static InstructionOperand* OperandForFrameState(
           descriptor->GetSize(OutputFrameStateCombine::Ignore());
       // If the index is past the existing stack items, return the output.
       if (index >= size_without_output) {
-        return instr->OutputAt(index - size_without_output);
+        return OperandAndType(instr->OutputAt(index - size_without_output),
+                              kMachAnyTagged);
       }
       break;
     }
@@ -316,11 +325,13 @@ static InstructionOperand* OperandForFrameState(
           descriptor->GetSize(combine) - 1 - combine.GetOffsetToPokeAt();
       if (index >= index_from_top &&
           index < index_from_top + instr->OutputCount()) {
-        return instr->OutputAt(index - index_from_top);
+        return OperandAndType(instr->OutputAt(index - index_from_top),
+                              kMachAnyTagged);
       }
       break;
   }
-  return instr->InputAt(frame_state_offset + index);
+  return OperandAndType(instr->InputAt(frame_state_offset + index),
+                        descriptor->GetType(index));
 }
 
 
@@ -356,9 +367,9 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
 
   frame_state_offset += descriptor->outer_state()->GetTotalSize();
   for (size_t i = 0; i < descriptor->GetSize(state_combine); i++) {
-    InstructionOperand* op = OperandForFrameState(
+    OperandAndType op = TypedOperandForFrameState(
         descriptor, instr, frame_state_offset, i, state_combine);
-    AddTranslationForOperand(translation, instr, op);
+    AddTranslationForOperand(translation, instr, op.operand_, op.type_);
   }
 }
 
@@ -387,15 +398,36 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
 
 void CodeGenerator::AddTranslationForOperand(Translation* translation,
                                              Instruction* instr,
-                                             InstructionOperand* op) {
+                                             InstructionOperand* op,
+                                             MachineType type) {
   if (op->IsStackSlot()) {
-    translation->StoreStackSlot(op->index());
+    if (type == kMachBool || type == kMachInt32 || type == kMachInt8 ||
+        type == kMachInt16) {
+      translation->StoreInt32StackSlot(op->index());
+    } else if (type == kMachUint32) {
+      translation->StoreUint32StackSlot(op->index());
+    } else if ((type & kRepMask) == kRepTagged) {
+      translation->StoreStackSlot(op->index());
+    } else {
+      CHECK(false);
+    }
   } else if (op->IsDoubleStackSlot()) {
+    DCHECK((type & (kRepFloat32 | kRepFloat64)) != 0);
     translation->StoreDoubleStackSlot(op->index());
   } else if (op->IsRegister()) {
     InstructionOperandConverter converter(this, instr);
-    translation->StoreRegister(converter.ToRegister(op));
+    if (type == kMachBool || type == kMachInt32 || type == kMachInt8 ||
+        type == kMachInt16) {
+      translation->StoreInt32Register(converter.ToRegister(op));
+    } else if (type == kMachUint32) {
+      translation->StoreUint32Register(converter.ToRegister(op));
+    } else if ((type & kRepMask) == kRepTagged) {
+      translation->StoreRegister(converter.ToRegister(op));
+    } else {
+      CHECK(false);
+    }
   } else if (op->IsDoubleRegister()) {
+    DCHECK((type & (kRepFloat32 | kRepFloat64)) != 0);
     InstructionOperandConverter converter(this, instr);
     translation->StoreDoubleRegister(converter.ToDoubleRegister(op));
   } else if (op->IsImmediate()) {
@@ -404,22 +436,25 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     Handle<Object> constant_object;
     switch (constant.type()) {
       case Constant::kInt32:
+        DCHECK(type == kMachInt32 || type == kMachUint32);
         constant_object =
             isolate()->factory()->NewNumberFromInt(constant.ToInt32());
         break;
       case Constant::kFloat64:
+        DCHECK(type == kMachFloat64 || type == kMachAnyTagged);
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());
         break;
       case Constant::kHeapObject:
+        DCHECK((type & kRepMask) == kRepTagged);
         constant_object = constant.ToHeapObject();
         break;
       default:
-        UNREACHABLE();
+        CHECK(false);
     }
     int literal_id = DefineDeoptimizationLiteral(constant_object);
     translation->StoreLiteral(literal_id);
   } else {
-    UNREACHABLE();
+    CHECK(false);
   }
 }
 
