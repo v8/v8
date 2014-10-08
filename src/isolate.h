@@ -511,8 +511,6 @@ class Isolate {
 
   bool Init(Deserializer* des);
 
-  bool IsInitialized() { return state_ == INITIALIZED; }
-
   // True if at least one thread Enter'ed this isolate.
   bool IsInUse() { return entry_stack_ != NULL; }
 
@@ -1004,12 +1002,6 @@ class Isolate {
 
   THREAD_LOCAL_TOP_ACCESSOR(LookupResult*, top_lookup_result)
 
-  void enable_serializer() {
-    // The serializer can only be enabled before the isolate init.
-    DCHECK(state_ != INITIALIZED);
-    serializer_enabled_ = true;
-  }
-
   bool serializer_enabled() const { return serializer_enabled_; }
 
   bool IsDead() { return has_fatal_error_; }
@@ -1113,25 +1105,19 @@ class Isolate {
   BasicBlockProfiler* GetOrCreateBasicBlockProfiler();
   BasicBlockProfiler* basic_block_profiler() { return basic_block_profiler_; }
 
-  static Isolate* NewForTesting() { return new Isolate(); }
+  static Isolate* NewForTesting() { return new Isolate(false); }
 
  private:
-  Isolate();
+  explicit Isolate(bool enable_serializer);
 
   friend struct GlobalState;
   friend struct InitializeGlobalState;
-
-  enum State {
-    UNINITIALIZED,    // Some components may not have been allocated.
-    INITIALIZED       // All components are fully initialized.
-  };
 
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8.h) constants. This is also
   // verified in Isolate::Init() using runtime checks.
   void* embedder_data_[Internals::kNumIsolateDataSlots];
   Heap heap_;
-  State state_;  // Will be padded to kApiPointerSize.
 
   // The per-process lock should be acquired before the ThreadDataTable is
   // modified.

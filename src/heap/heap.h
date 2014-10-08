@@ -543,6 +543,10 @@ class Heap {
   // jslimit_/real_jslimit_ variable in the StackGuard.
   void SetStackLimits();
 
+  // Notifies the heap that is ok to start marking or other activities that
+  // should not happen during deserialization.
+  void NotifyDeserializationComplete();
+
   // Returns whether SetUp has been called.
   bool HasBeenSetUp();
 
@@ -1378,6 +1382,8 @@ class Heap {
   inline void OnMoveEvent(HeapObject* target, HeapObject* source,
                           int size_in_bytes);
 
+  bool deserialization_complete() const { return deserialization_complete_; }
+
  protected:
   // Methods made available to tests.
 
@@ -2033,6 +2039,8 @@ class Heap {
   base::Mutex relocation_mutex_;
 
   int gc_callbacks_depth_;
+
+  bool deserialization_complete_;
 
   friend class AlwaysAllocateScope;
   friend class Deserializer;

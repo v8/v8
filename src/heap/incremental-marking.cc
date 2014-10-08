@@ -439,8 +439,8 @@ bool IncrementalMarking::WorthActivating() {
   // 3) when we are currently not serializing or deserializing the heap.
   return FLAG_incremental_marking && FLAG_incremental_marking_steps &&
          heap_->gc_state() == Heap::NOT_IN_GC &&
+         heap_->deserialization_complete() &&
          !heap_->isolate()->serializer_enabled() &&
-         heap_->isolate()->IsInitialized() &&
          heap_->PromotedSpaceSizeOfObjects() > kActivationThreshold;
 }
 
@@ -516,7 +516,6 @@ void IncrementalMarking::Start(CompactionFlag flag) {
   DCHECK(state_ == STOPPED);
   DCHECK(heap_->gc_state() == Heap::NOT_IN_GC);
   DCHECK(!heap_->isolate()->serializer_enabled());
-  DCHECK(heap_->isolate()->IsInitialized());
 
   ResetStepCounters();
 
