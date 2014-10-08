@@ -2590,20 +2590,24 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 class NoTrackDoubleFieldsForSerializerScope {
  public:
   explicit NoTrackDoubleFieldsForSerializerScope(Isolate* isolate)
-      : flag_(FLAG_track_double_fields) {
+      : flag_(FLAG_track_double_fields), enabled_(false) {
     if (isolate->serializer_enabled()) {
       // Disable tracking double fields because heap numbers treated as
       // immutable by the serializer.
       FLAG_track_double_fields = false;
+      enabled_ = true;
     }
   }
 
   ~NoTrackDoubleFieldsForSerializerScope() {
-    FLAG_track_double_fields = flag_;
+    if (enabled_) {
+      FLAG_track_double_fields = flag_;
+    }
   }
 
  private:
   bool flag_;
+  bool enabled_;
 };
 
 
