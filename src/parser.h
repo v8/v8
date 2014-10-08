@@ -374,8 +374,6 @@ class ParserTraits {
     typedef AstNodeFactory<AstConstructionVisitor> Factory;
   };
 
-  class Checkpoint;
-
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
 
   // Custom operations executed when FunctionStates are created and destructed.
@@ -417,6 +415,15 @@ class ParserTraits {
 
   static bool IsArrayIndex(const AstRawString* string, uint32_t* index) {
     return string->AsArrayIndex(index);
+  }
+
+  bool IsConstructorProperty(ObjectLiteral::Property* property) {
+    return property->key()->raw_value()->EqualsString(
+        ast_value_factory()->constructor_string());
+  }
+
+  static Expression* GetPropertyValue(ObjectLiteral::Property* property) {
+    return property->value();
   }
 
   // Functions for encapsulating the differences between parsing and preparsing;
@@ -548,11 +555,11 @@ class ParserTraits {
   Expression* SuperReference(Scope* scope,
                              AstNodeFactory<AstConstructionVisitor>* factory,
                              int pos = RelocInfo::kNoPosition);
-  Expression* ClassLiteral(const AstRawString* name, Expression* extends,
-                           Expression* constructor,
-                           ZoneList<ObjectLiteral::Property*>* properties,
-                           int pos,
-                           AstNodeFactory<AstConstructionVisitor>* factory);
+  Expression* ClassExpression(const AstRawString* name, Expression* extends,
+                              Expression* constructor,
+                              ZoneList<ObjectLiteral::Property*>* properties,
+                              int pos,
+                              AstNodeFactory<AstConstructionVisitor>* factory);
 
   Literal* ExpressionFromLiteral(
       Token::Value token, int pos, Scanner* scanner,

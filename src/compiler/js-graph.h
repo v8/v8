@@ -46,11 +46,11 @@ class JSGraph : public ZoneObject {
 
   // Creates a HeapConstant node, possibly canonicalized, without inspecting the
   // object.
-  Node* HeapConstant(Unique<Object> value);
+  Node* HeapConstant(Unique<HeapObject> value);
 
   // Creates a HeapConstant node, possibly canonicalized, and may access the
   // heap to inspect the object.
-  Node* HeapConstant(Handle<Object> value);
+  Node* HeapConstant(Handle<HeapObject> value);
 
   // Creates a Constant node of the appropriate type for the given object.
   // Accesses the heap to inspect the object and determine whether one of the
@@ -109,7 +109,7 @@ class JSGraph : public ZoneObject {
 
   CommonNodeCache cache_;
 
-  Node* ImmovableHeapConstant(Handle<Object> value);
+  Node* ImmovableHeapConstant(Handle<HeapObject> value);
   Node* NumberConstant(double value);
   Node* NewNode(const Operator* op);
 

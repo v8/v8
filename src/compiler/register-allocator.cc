@@ -548,10 +548,9 @@ BitVector* RegisterAllocator::ComputeLiveOut(BasicBlock* block) {
       Node* phi = *j;
       if (phi->opcode() != IrOpcode::kPhi) continue;
       Node* input = phi->InputAt(static_cast<int>(index));
-      live_out->Add(input->id());
+      live_out->Add(code()->GetVirtualRegister(input));
     }
   }
-
   return live_out;
 }
 
@@ -1066,7 +1065,8 @@ void RegisterAllocator::ResolvePhis(BasicBlock* block) {
 
     UnallocatedOperand* phi_operand =
         new (code_zone()) UnallocatedOperand(UnallocatedOperand::NONE);
-    phi_operand->set_virtual_register(phi->id());
+    int phi_vreg = code()->GetVirtualRegister(phi);
+    phi_operand->set_virtual_register(phi_vreg);
 
     size_t j = 0;
     Node::Inputs inputs = phi->inputs();
@@ -1077,7 +1077,7 @@ void RegisterAllocator::ResolvePhis(BasicBlock* block) {
       if (j >= block->PredecessorCount()) continue;
       UnallocatedOperand* operand =
           new (code_zone()) UnallocatedOperand(UnallocatedOperand::ANY);
-      operand->set_virtual_register(op->id());
+      operand->set_virtual_register(code()->GetVirtualRegister(op));
       BasicBlock* cur_block = block->PredecessorAt(j);
       // The gap move must be added without any special processing as in
       // the AddConstraintsGapMove.
@@ -1089,7 +1089,7 @@ void RegisterAllocator::ResolvePhis(BasicBlock* block) {
       USE(branch);
     }
 
-    LiveRange* live_range = LiveRangeFor(phi->id());
+    LiveRange* live_range = LiveRangeFor(phi_vreg);
     BlockStartInstruction* block_start = code()->GetBlockStart(block);
     block_start->GetOrCreateParallelMove(GapInstruction::START, code_zone())
         ->AddMove(phi_operand, live_range->GetSpillOperand(), code_zone());
@@ -1298,7 +1298,8 @@ void RegisterAllocator::BuildLiveRanges() {
 
       // The live range interval already ends at the first instruction of the
       // block.
-      live->Remove(phi->id());
+      int phi_vreg = code()->GetVirtualRegister(phi);
+      live->Remove(phi_vreg);
 
       InstructionOperand* hint = NULL;
       InstructionOperand* phi_operand = NULL;
@@ -1310,7 +1311,7 @@ void RegisterAllocator::BuildLiveRanges() {
       for (int j = 0; j < move->move_operands()->length(); ++j) {
         InstructionOperand* to = move->move_operands()->at(j).destination();
         if (to->IsUnallocated() &&
-            UnallocatedOperand::cast(to)->virtual_register() == phi->id()) {
+            UnallocatedOperand::cast(to)->virtual_register() == phi_vreg) {
           hint = move->move_operands()->at(j).source();
           phi_operand = to;
           break;

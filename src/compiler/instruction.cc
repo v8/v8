@@ -316,6 +316,35 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
 }
 
 
+InstructionSequence::InstructionSequence(Linkage* linkage, Graph* graph,
+                                         Schedule* schedule)
+    : graph_(graph),
+      node_map_(zone()->NewArray<int>(graph->NodeCount())),
+      linkage_(linkage),
+      schedule_(schedule),
+      constants_(ConstantMap::key_compare(),
+                 ConstantMap::allocator_type(zone())),
+      immediates_(zone()),
+      instructions_(zone()),
+      next_virtual_register_(0),
+      pointer_maps_(zone()),
+      doubles_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
+      references_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
+      deoptimization_entries_(zone()) {
+  for (int i = 0; i < graph->NodeCount(); ++i) {
+    node_map_[i] = -1;
+  }
+}
+
+
+int InstructionSequence::GetVirtualRegister(const Node* node) {
+  if (node_map_[node->id()] == -1) {
+    node_map_[node->id()] = NextVirtualRegister();
+  }
+  return node_map_[node->id()];
+}
+
+
 Label* InstructionSequence::GetLabel(BasicBlock* block) {
   return GetBlockStart(block)->label();
 }

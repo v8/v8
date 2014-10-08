@@ -800,12 +800,12 @@ HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
 
       BuildCopyProperties(properties, new_properties, length, new_capacity);
 
-      // Store the new value into the "extended" object.
       Add<HStoreNamedField>(object, HObjectAccess::ForPropertiesPointer(),
                             new_properties);
     }
     // Fall through.
     case StoreTransitionStub::StoreMapAndValue:
+      // Store the new value into the "extended" object.
       BuildStoreNamedField(
           object, GetParameter(StoreTransitionDescriptor::kValueIndex),
           casted_stub()->index(), casted_stub()->representation(), true);

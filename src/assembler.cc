@@ -37,6 +37,7 @@
 #include <cmath>
 #include "src/api.h"
 #include "src/base/cpu.h"
+#include "src/base/functional.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/platform.h"
 #include "src/builtins.h"
@@ -1518,6 +1519,29 @@ ExternalReference ExternalReference::debug_break(Isolate* isolate) {
 ExternalReference ExternalReference::debug_step_in_fp_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->step_in_fp_addr());
+}
+
+
+bool operator==(ExternalReference lhs, ExternalReference rhs) {
+  return lhs.address() == rhs.address();
+}
+
+
+bool operator!=(ExternalReference lhs, ExternalReference rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(ExternalReference reference) {
+  return base::hash<Address>()(reference.address());
+}
+
+
+std::ostream& operator<<(std::ostream& os, ExternalReference reference) {
+  os << static_cast<const void*>(reference.address());
+  const Runtime::Function* fn = Runtime::FunctionForEntry(reference.address());
+  if (fn) os << "<" << fn->name << ".entry>";
+  return os;
 }
 
 

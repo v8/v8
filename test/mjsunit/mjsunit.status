@@ -51,10 +51,6 @@
   # Issue 3389: deopt_every_n_garbage_collections is unsafe
   'regress/regress-2653': [SKIP],
 
-  # This test relies on --noopt-safe-uint32-operations, which is broken. See
-  # issue 3487 for details.
-  'compiler/shift-shr': [SKIP],
-
   ##############################################################################
   # TurboFan compiler failures.
 

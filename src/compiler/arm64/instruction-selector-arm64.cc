@@ -44,6 +44,10 @@ class Arm64OperandGenerator FINAL : public OperandGenerator {
       value = OpParameter<int64_t>(node);
     else
       return false;
+    return CanBeImmediate(value, mode);
+  }
+
+  bool CanBeImmediate(int64_t value, ImmediateMode mode) {
     unsigned ignored;
     switch (mode) {
       case kLogical32Imm:
@@ -55,7 +59,6 @@ class Arm64OperandGenerator FINAL : public OperandGenerator {
         return Assembler::IsImmLogical(static_cast<uint64_t>(value), 64,
                                        &ignored, &ignored, &ignored);
       case kArithmeticImm:
-        // TODO(dcarney): -values can be handled by instruction swapping
         return Assembler::IsImmAddSub(value);
       case kShift32Imm:
         return 0 <= value && value < 32;
@@ -152,6 +155,22 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
                        ArchOpcode opcode, ImmediateMode operand_mode) {
   FlagsContinuation cont;
   VisitBinop<Matcher>(selector, node, opcode, operand_mode, &cont);
+}
+
+
+template <typename Matcher>
+static void VisitAddSub(InstructionSelector* selector, Node* node,
+                        ArchOpcode opcode, ArchOpcode negate_opcode) {
+  Arm64OperandGenerator g(selector);
+  Matcher m(node);
+  if (m.right().HasValue() && (m.right().Value() < 0) &&
+      g.CanBeImmediate(-m.right().Value(), kArithmeticImm)) {
+    selector->Emit(negate_opcode, g.DefineAsRegister(node),
+                   g.UseRegister(m.left().node()),
+                   g.TempImmediate(-m.right().Value()));
+  } else {
+    VisitBinop<Matcher>(selector, node, opcode, kArithmeticImm);
+  }
 }
 
 
@@ -442,7 +461,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
          g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
     return;
   }
-  VisitBinop<Int32BinopMatcher>(this, node, kArm64Add32, kArithmeticImm);
+  VisitAddSub<Int32BinopMatcher>(this, node, kArm64Add32, kArm64Sub32);
 }
 
 
@@ -465,7 +484,7 @@ void InstructionSelector::VisitInt64Add(Node* node) {
          g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
     return;
   }
-  VisitBinop<Int64BinopMatcher>(this, node, kArm64Add, kArithmeticImm);
+  VisitAddSub<Int64BinopMatcher>(this, node, kArm64Add, kArm64Sub);
 }
 
 
@@ -486,7 +505,7 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
     Emit(kArm64Neg32, g.DefineAsRegister(node),
          g.UseRegister(m.right().node()));
   } else {
-    VisitBinop<Int32BinopMatcher>(this, node, kArm64Sub32, kArithmeticImm);
+    VisitAddSub<Int32BinopMatcher>(this, node, kArm64Sub32, kArm64Add32);
   }
 }
 
@@ -507,7 +526,7 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
   if (m.left().Is(0)) {
     Emit(kArm64Neg, g.DefineAsRegister(node), g.UseRegister(m.right().node()));
   } else {
-    VisitBinop<Int64BinopMatcher>(this, node, kArm64Sub, kArithmeticImm);
+    VisitAddSub<Int64BinopMatcher>(this, node, kArm64Sub, kArm64Add);
   }
 }
 

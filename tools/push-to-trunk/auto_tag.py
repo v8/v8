@@ -153,7 +153,9 @@ class MakeTag(Step):
     if not self._options.dry_run:
       self.GitReset(self["lkgr"])
       # FIXME(machenbach): Make this work with the git repo.
-      self.vc.Tag(self["candidate_version"], "svn/bleeding_edge")
+      self.vc.Tag(self["candidate_version"],
+                  "svn/bleeding_edge",
+                  "This won't work!")
 
 
 class CleanUp(Step):

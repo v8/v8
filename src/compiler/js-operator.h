@@ -32,6 +32,13 @@ class CallFunctionParameters FINAL {
   const CallFunctionFlags flags_;
 };
 
+bool operator==(CallFunctionParameters const&, CallFunctionParameters const&);
+bool operator!=(CallFunctionParameters const&, CallFunctionParameters const&);
+
+size_t hash_value(CallFunctionParameters const&);
+
+std::ostream& operator<<(std::ostream&, CallFunctionParameters const&);
+
 const CallFunctionParameters& CallFunctionParametersOf(const Operator* op);
 
 
@@ -49,6 +56,13 @@ class CallRuntimeParameters FINAL {
   const Runtime::FunctionId id_;
   const size_t arity_;
 };
+
+bool operator==(CallRuntimeParameters const&, CallRuntimeParameters const&);
+bool operator!=(CallRuntimeParameters const&, CallRuntimeParameters const&);
+
+size_t hash_value(CallRuntimeParameters const&);
+
+std::ostream& operator<<(std::ostream&, CallRuntimeParameters const&);
 
 const CallRuntimeParameters& CallRuntimeParametersOf(const Operator* op);
 
@@ -72,10 +86,14 @@ class ContextAccess FINAL {
   const uint32_t index_;
 };
 
-bool operator==(const ContextAccess& lhs, const ContextAccess& rhs);
-bool operator!=(const ContextAccess& lhs, const ContextAccess& rhs);
+bool operator==(ContextAccess const&, ContextAccess const&);
+bool operator!=(ContextAccess const&, ContextAccess const&);
 
-const ContextAccess& ContextAccessOf(const Operator* op);
+size_t hash_value(ContextAccess const&);
+
+std::ostream& operator<<(std::ostream&, ContextAccess const&);
+
+ContextAccess const& ContextAccessOf(Operator const*);
 
 
 // Defines the property being loaded from an object by a named load. This is
@@ -92,6 +110,13 @@ class LoadNamedParameters FINAL {
   const Unique<Name> name_;
   const ContextualMode contextual_mode_;
 };
+
+bool operator==(LoadNamedParameters const&, LoadNamedParameters const&);
+bool operator!=(LoadNamedParameters const&, LoadNamedParameters const&);
+
+size_t hash_value(LoadNamedParameters const&);
+
+std::ostream& operator<<(std::ostream&, LoadNamedParameters const&);
 
 const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
 
@@ -110,6 +135,13 @@ class StoreNamedParameters FINAL {
   const StrictMode strict_mode_;
   const Unique<Name> name_;
 };
+
+bool operator==(StoreNamedParameters const&, StoreNamedParameters const&);
+bool operator!=(StoreNamedParameters const&, StoreNamedParameters const&);
+
+size_t hash_value(StoreNamedParameters const&);
+
+std::ostream& operator<<(std::ostream&, StoreNamedParameters const&);
 
 const StoreNamedParameters& StoreNamedParametersOf(const Operator* op);
 

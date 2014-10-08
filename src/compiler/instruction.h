@@ -34,8 +34,8 @@ const InstructionCode kSourcePositionInstruction = -3;
 
 
 #define INSTRUCTION_OPERAND_LIST(V)              \
-  V(Constant, CONSTANT, 128)                     \
-  V(Immediate, IMMEDIATE, 128)                   \
+  V(Constant, CONSTANT, 0)                       \
+  V(Immediate, IMMEDIATE, 0)                     \
   V(StackSlot, STACK_SLOT, 128)                  \
   V(DoubleStackSlot, DOUBLE_STACK_SLOT, 128)     \
   V(Register, REGISTER, Register::kNumRegisters) \
@@ -804,20 +804,7 @@ typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
 // TODO(titzer): s/IsDouble/IsFloat64/
 class InstructionSequence FINAL {
  public:
-  InstructionSequence(Linkage* linkage, Graph* graph, Schedule* schedule)
-      : graph_(graph),
-        linkage_(linkage),
-        schedule_(schedule),
-        constants_(ConstantMap::key_compare(),
-                   ConstantMap::allocator_type(zone())),
-        immediates_(zone()),
-        instructions_(zone()),
-        next_virtual_register_(graph->NodeCount()),
-        pointer_maps_(zone()),
-        doubles_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
-        references_(std::less<int>(),
-                    VirtualRegisterSet::allocator_type(zone())),
-        deoptimization_entries_(zone()) {}
+  InstructionSequence(Linkage* linkage, Graph* graph, Schedule* schedule);
 
   int NextVirtualRegister() { return next_virtual_register_++; }
   int VirtualRegisterCount() const { return next_virtual_register_; }
@@ -840,7 +827,9 @@ class InstructionSequence FINAL {
 
   BasicBlock* GetBasicBlock(int instruction_index);
 
-  int GetVirtualRegister(Node* node) const { return node->id(); }
+  int GetVirtualRegister(const Node* node);
+  // TODO(dcarney): find a way to remove this.
+  const int* GetNodeMapForTesting() const { return node_map_; }
 
   bool IsReference(int virtual_register) const;
   bool IsDouble(int virtual_register) const;
@@ -880,9 +869,11 @@ class InstructionSequence FINAL {
   void StartBlock(BasicBlock* block);
   void EndBlock(BasicBlock* block);
 
-  void AddConstant(int virtual_register, Constant constant) {
+  int AddConstant(Node* node, Constant constant) {
+    int virtual_register = GetVirtualRegister(node);
     DCHECK(constants_.find(virtual_register) == constants_.end());
     constants_.insert(std::make_pair(virtual_register, constant));
+    return virtual_register;
   }
   Constant GetConstant(int virtual_register) const {
     ConstantMap::const_iterator it = constants_.find(virtual_register);
@@ -926,6 +917,7 @@ class InstructionSequence FINAL {
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
 
   Graph* graph_;
+  int* node_map_;
   Linkage* linkage_;
   Schedule* schedule_;
   ConstantMap constants_;

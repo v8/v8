@@ -4,6 +4,8 @@
 
 #include "test/unittests/test-utils.h"
 
+#include "src/base/platform/time.h"
+#include "src/flags.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {
@@ -68,6 +70,24 @@ TestWithContext::TestWithContext()
 
 
 TestWithContext::~TestWithContext() {}
+
+
+namespace base {
+namespace {
+
+inline int64_t GetRandomSeedFromFlag(int random_seed) {
+  return random_seed ? random_seed : TimeTicks::Now().ToInternalValue();
+}
+
+}  // namespace
+
+TestWithRandomNumberGenerator::TestWithRandomNumberGenerator()
+    : rng_(GetRandomSeedFromFlag(internal::FLAG_random_seed)) {}
+
+
+TestWithRandomNumberGenerator::~TestWithRandomNumberGenerator() {}
+
+}  // namespace base
 
 
 namespace internal {

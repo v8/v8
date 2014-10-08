@@ -2236,11 +2236,7 @@ LInstruction* LChunkBuilder::DoShift(Token::Value op,
                            (JSShiftAmountFromHConstant(instr->right()) == 0);
   bool can_deopt = false;
   if ((op == Token::SHR) && right_can_be_zero) {
-    if (FLAG_opt_safe_uint32_operations) {
-      can_deopt = !instr->CheckFlag(HInstruction::kUint32);
-    } else {
-      can_deopt = !instr->CheckUsesForFlag(HValue::kTruncatingToInt32);
-    }
+    can_deopt = !instr->CheckFlag(HInstruction::kUint32);
   }
 
   LInstruction* result;

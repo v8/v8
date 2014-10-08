@@ -27,27 +27,53 @@ class Operator;
 // the output of a node to obtain a framestate for lazy bailout.
 class OutputFrameStateCombine {
  public:
-  enum CombineKind {
+  enum Kind {
     kPushOutput,  // Push the output on the expression stack.
     kPokeAt       // Poke at the given environment location,
                   // counting from the top of the stack.
   };
 
-  static OutputFrameStateCombine Ignore();
-  static OutputFrameStateCombine Push(size_t count = 1);
-  static OutputFrameStateCombine PokeAt(size_t index);
+  static OutputFrameStateCombine Ignore() {
+    return OutputFrameStateCombine(kPushOutput, 0);
+  }
+  static OutputFrameStateCombine Push(size_t count = 1) {
+    return OutputFrameStateCombine(kPushOutput, count);
+  }
+  static OutputFrameStateCombine PokeAt(size_t index) {
+    return OutputFrameStateCombine(kPokeAt, index);
+  }
 
-  CombineKind kind();
-  size_t GetPushCount();
-  size_t GetOffsetToPokeAt();
+  Kind kind() const { return kind_; }
+  size_t GetPushCount() const {
+    DCHECK_EQ(kPushOutput, kind());
+    return parameter_;
+  }
+  size_t GetOffsetToPokeAt() const {
+    DCHECK_EQ(kPokeAt, kind());
+    return parameter_;
+  }
 
-  bool IsOutputIgnored();
+  bool IsOutputIgnored() const {
+    return kind_ == kPushOutput && parameter_ == 0;
+  }
+
+  bool operator==(OutputFrameStateCombine const& other) const {
+    return kind_ == other.kind_ && parameter_ == other.parameter_;
+  }
+  bool operator!=(OutputFrameStateCombine const& other) const {
+    return !(*this == other);
+  }
+
+  friend size_t hash_value(OutputFrameStateCombine const&);
+  friend std::ostream& operator<<(std::ostream&,
+                                  OutputFrameStateCombine const&);
 
  private:
-  OutputFrameStateCombine(CombineKind kind, size_t parameter);
+  OutputFrameStateCombine(Kind kind, size_t parameter)
+      : kind_(kind), parameter_(parameter) {}
 
-  CombineKind kind_;
-  size_t parameter_;
+  Kind const kind_;
+  size_t const parameter_;
 };
 
 
@@ -81,6 +107,13 @@ class FrameStateCallInfo FINAL {
   MaybeHandle<JSFunction> jsfunction_;
 };
 
+bool operator==(FrameStateCallInfo const&, FrameStateCallInfo const&);
+bool operator!=(FrameStateCallInfo const&, FrameStateCallInfo const&);
+
+size_t hash_value(FrameStateCallInfo const&);
+
+std::ostream& operator<<(std::ostream&, FrameStateCallInfo const&);
+
 
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
@@ -107,7 +140,7 @@ class CommonOperatorBuilder FINAL {
   const Operator* Float64Constant(volatile double);
   const Operator* ExternalConstant(const ExternalReference&);
   const Operator* NumberConstant(volatile double);
-  const Operator* HeapConstant(const Unique<Object>&);
+  const Operator* HeapConstant(const Unique<HeapObject>&);
 
   const Operator* Phi(MachineType type, int arguments);
   const Operator* EffectPhi(int arguments);

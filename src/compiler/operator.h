@@ -5,9 +5,11 @@
 #ifndef V8_COMPILER_OPERATOR_H_
 #define V8_COMPILER_OPERATOR_H_
 
+#include <ostream>  // NOLINT(readability/streams)
+
 #include "src/base/flags.h"
-#include "src/ostreams.h"
-#include "src/unique.h"
+#include "src/base/functional.h"
+#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -63,12 +65,12 @@ class Operator : public ZoneObject {
   // Check if this operator equals another operator. Equivalent operators can
   // be merged, and nodes with equivalent operators and equivalent inputs
   // can be merged.
-  virtual bool Equals(const Operator* other) const = 0;
+  virtual bool Equals(const Operator*) const = 0;
 
   // Compute a hashcode to speed up equivalence-set checking.
   // Equal operators should always have equal hashcodes, and unequal operators
   // should have unequal hashcodes with high probability.
-  virtual int HashCode() const = 0;
+  virtual size_t HashCode() const = 0;
 
   // Check whether this operator has the given property.
   bool HasProperty(Property property) const {
@@ -87,7 +89,7 @@ class Operator : public ZoneObject {
  protected:
   // Print the full operator into the given stream, including any
   // static parameters. Useful for debugging and visualizing the IR.
-  virtual std::ostream& PrintTo(std::ostream& os) const = 0;  // NOLINT
+  virtual void PrintTo(std::ostream& os) const = 0;  // NOLINT
   friend std::ostream& operator<<(std::ostream& os, const Operator& op);
 
  private:
@@ -102,159 +104,82 @@ DEFINE_OPERATORS_FOR_FLAGS(Operator::Properties)
 
 std::ostream& operator<<(std::ostream& os, const Operator& op);
 
+
 // An implementation of Operator that has no static parameters. Such operators
 // have just a name, an opcode, and a fixed number of inputs and outputs.
 // They can represented by singletons and shared globally.
 class SimpleOperator : public Operator {
  public:
-  SimpleOperator(Opcode opcode, Properties properties, int input_count,
-                 int output_count, const char* mnemonic);
+  SimpleOperator(Opcode opcode, Properties properties, size_t input_count,
+                 size_t output_count, const char* mnemonic);
   ~SimpleOperator();
 
-  virtual bool Equals(const Operator* that) const FINAL {
-    return opcode() == that->opcode();
-  }
-  virtual int HashCode() const FINAL { return opcode(); }
-  virtual int InputCount() const FINAL { return input_count_; }
-  virtual int OutputCount() const FINAL { return output_count_; }
+  virtual bool Equals(const Operator* that) const FINAL;
+  virtual size_t HashCode() const FINAL;
+  virtual int InputCount() const FINAL;
+  virtual int OutputCount() const FINAL;
 
  private:
-  virtual std::ostream& PrintTo(std::ostream& os) const FINAL {  // NOLINT
-    return os << mnemonic();
-  }
+  virtual void PrintTo(std::ostream& os) const FINAL;
 
-  int input_count_;
-  int output_count_;
+  uint8_t input_count_;
+  uint8_t output_count_;
 
   DISALLOW_COPY_AND_ASSIGN(SimpleOperator);
 };
 
-// Template specialization implements a kind of type class for dealing with the
-// static parameters of Operator1 automatically.
-template <typename T>
-struct StaticParameterTraits {
-  static std::ostream& PrintTo(std::ostream& os, T val) {  // NOLINT
-    return os << "??";
-  }
-  static int HashCode(T a) { return 0; }
-  static bool Equals(T a, T b) {
-    return false;  // Not every T has a ==. By default, be conservative.
-  }
-};
-
-// Specialization for static parameters of type {int}.
-template <>
-struct StaticParameterTraits<int> {
-  static std::ostream& PrintTo(std::ostream& os, int val) {  // NOLINT
-    return os << val;
-  }
-  static int HashCode(int a) { return a; }
-  static bool Equals(int a, int b) { return a == b; }
-};
-
-// Specialization for static parameters of type {double}.
-template <>
-struct StaticParameterTraits<double> {
-  static std::ostream& PrintTo(std::ostream& os, double val) {  // NOLINT
-    return os << val;
-  }
-  static int HashCode(double a) {
-    return static_cast<int>(bit_cast<int64_t>(a));
-  }
-  static bool Equals(double a, double b) {
-    return bit_cast<int64_t>(a) == bit_cast<int64_t>(b);
-  }
-};
-
-// Specialization for static parameters of type {Unique<Object>}.
-template <>
-struct StaticParameterTraits<Unique<Object> > {
-  static std::ostream& PrintTo(std::ostream& os,
-                               Unique<Object> val) {  // NOLINT
-    return os << Brief(*val.handle());
-  }
-  static int HashCode(Unique<Object> a) {
-    return static_cast<int>(a.Hashcode());
-  }
-  static bool Equals(Unique<Object> a, Unique<Object> b) { return a == b; }
-};
-
-// Specialization for static parameters of type {Unique<Name>}.
-template <>
-struct StaticParameterTraits<Unique<Name> > {
-  static std::ostream& PrintTo(std::ostream& os, Unique<Name> val) {  // NOLINT
-    return os << Brief(*val.handle());
-  }
-  static int HashCode(Unique<Name> a) { return static_cast<int>(a.Hashcode()); }
-  static bool Equals(Unique<Name> a, Unique<Name> b) { return a == b; }
-};
-
-#if DEBUG
-// Specialization for static parameters of type {Handle<Object>} to prevent any
-// direct usage of Handles in constants.
-template <>
-struct StaticParameterTraits<Handle<Object> > {
-  static std::ostream& PrintTo(std::ostream& os,
-                               Handle<Object> val) {  // NOLINT
-    UNREACHABLE();  // Should use Unique<Object> instead
-    return os;
-  }
-  static int HashCode(Handle<Object> a) {
-    UNREACHABLE();  // Should use Unique<Object> instead
-    return 0;
-  }
-  static bool Equals(Handle<Object> a, Handle<Object> b) {
-    UNREACHABLE();  // Should use Unique<Object> instead
-    return false;
-  }
-};
-#endif
 
 // A templatized implementation of Operator that has one static parameter of
-// type {T}. If a specialization of StaticParameterTraits<{T}> exists, then
-// operators of this kind can automatically be hashed, compared, and printed.
-template <typename T>
+// type {T}.
+template <typename T, typename Pred = std::equal_to<T>,
+          typename Hash = base::hash<T>>
 class Operator1 : public Operator {
  public:
   Operator1(Opcode opcode, Properties properties, int input_count,
-            int output_count, const char* mnemonic, T parameter)
+            int output_count, const char* mnemonic, T parameter,
+            Pred const& pred = Pred(), Hash const& hash = Hash())
       : Operator(opcode, properties, mnemonic),
         input_count_(input_count),
         output_count_(output_count),
-        parameter_(parameter) {}
+        parameter_(parameter),
+        pred_(pred),
+        hash_(hash) {}
 
-  const T& parameter() const { return parameter_; }
+  T const& parameter() const { return parameter_; }
 
-  virtual bool Equals(const Operator* other) const OVERRIDE {
+  virtual bool Equals(const Operator* other) const FINAL {
     if (opcode() != other->opcode()) return false;
     const Operator1<T>* that = static_cast<const Operator1<T>*>(other);
-    return StaticParameterTraits<T>::Equals(this->parameter_, that->parameter_);
+    return this->pred_(this->parameter(), that->parameter());
   }
-  virtual int HashCode() const OVERRIDE {
-    return opcode() + 33 * StaticParameterTraits<T>::HashCode(this->parameter_);
+  virtual size_t HashCode() const FINAL {
+    return base::hash_combine(this->opcode(), this->hash_(this->parameter()));
   }
-  virtual int InputCount() const OVERRIDE { return input_count_; }
-  virtual int OutputCount() const OVERRIDE { return output_count_; }
-  virtual std::ostream& PrintParameter(std::ostream& os) const {  // NOLINT
-    return StaticParameterTraits<T>::PrintTo(os << "[", parameter_) << "]";
+  virtual int InputCount() const FINAL { return input_count_; }
+  virtual int OutputCount() const FINAL { return output_count_; }
+  virtual void PrintParameter(std::ostream& os) const {
+    os << "[" << this->parameter() << "]";
   }
 
  protected:
-  virtual std::ostream& PrintTo(std::ostream& os) const FINAL {  // NOLINT
-    return PrintParameter(os << mnemonic());
+  virtual void PrintTo(std::ostream& os) const FINAL {
+    os << mnemonic();
+    PrintParameter(os);
   }
 
  private:
-  int input_count_;
-  int output_count_;
-  T parameter_;
+  int const input_count_;
+  int const output_count_;
+  T const parameter_;
+  Pred const pred_;
+  Hash const hash_;
 };
 
 
 // Helper to extract parameters from Operator1<*> operator.
 template <typename T>
-static inline const T& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<T>*>(op)->parameter();
+inline T const& OpParameter(const Operator* op) {
+  return static_cast<const Operator1<T>*>(op)->parameter();
 }
 
 }  // namespace compiler

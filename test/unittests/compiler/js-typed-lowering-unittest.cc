@@ -11,6 +11,12 @@
 #include "src/compiler/typer.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
+#include "testing/gmock-support.h"
+
+using testing::_;
+using testing::AllOf;
+using testing::Capture;
+using testing::CaptureEq;
 
 namespace v8 {
 namespace internal {
@@ -77,11 +83,12 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
         factory()->NewJSTypedArray(type, buffer, kLength);
 
     Node* key = Parameter(Type::Integral32());
+    Node* base = HeapConstant(array);
     Node* context = UndefinedConstant();
     Node* effect = graph()->start();
     Node* control = graph()->start();
-    Node* node = graph()->NewNode(javascript()->LoadProperty(),
-                                  HeapConstant(array), key, context);
+    Node* node =
+        graph()->NewNode(javascript()->LoadProperty(), base, key, context);
     if (FLAG_turbo_deoptimization) {
       node->AppendInput(zone(), UndefinedConstant());
     }
@@ -89,15 +96,17 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     node->AppendInput(zone(), control);
     Reduction r = Reduce(node);
 
+    Capture<Node*> elements;
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
         r.replacement(),
         IsLoadElement(
             AccessBuilder::ForTypedArrayElement(type, true),
-            IsLoadField(
-                AccessBuilder::ForJSArrayBufferBackingStore(),
-                IsHeapConstant(Unique<HeapObject>::CreateImmovable(buffer)),
-                effect),
+            IsLoadField(AccessBuilder::ForExternalArrayPointer(),
+                        AllOf(CaptureEq(&elements),
+                              IsLoadField(AccessBuilder::ForJSObjectElements(),
+                                          base, _)),
+                        CaptureEq(&elements)),
             key, IsInt32Constant(static_cast<int>(kLength)), effect, control));
   }
 }
@@ -118,12 +127,13 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
           factory()->NewJSTypedArray(type, buffer, kLength);
 
       Node* key = Parameter(Type::Integral32());
+      Node* base = HeapConstant(array);
       Node* value = Parameter(Type::Any());
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
       Node* node = graph()->NewNode(javascript()->StoreProperty(strict_mode),
-                                    HeapConstant(array), key, value, context);
+                                    base, key, value, context);
       if (FLAG_turbo_deoptimization) {
         node->AppendInput(zone(), UndefinedConstant());
       }
@@ -131,15 +141,18 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       node->AppendInput(zone(), control);
       Reduction r = Reduce(node);
 
+      Capture<Node*> elements;
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(
           r.replacement(),
           IsStoreElement(
               AccessBuilder::ForTypedArrayElement(type, true),
               IsLoadField(
-                  AccessBuilder::ForJSArrayBufferBackingStore(),
-                  IsHeapConstant(Unique<HeapObject>::CreateImmovable(buffer)),
-                  effect),
+                  AccessBuilder::ForExternalArrayPointer(),
+                  AllOf(CaptureEq(&elements),
+                        IsLoadField(AccessBuilder::ForJSObjectElements(), base,
+                                    _)),
+                  CaptureEq(&elements)),
               key, IsInt32Constant(static_cast<int>(kLength)), value, effect,
               control));
     }

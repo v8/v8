@@ -7,6 +7,7 @@
 
 #include "include/v8.h"
 #include "src/base/macros.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/zone.h"
 #include "testing/gtest-support.h"
 
@@ -47,6 +48,24 @@ class TestWithContext : public virtual TestWithIsolate {
 
   DISALLOW_COPY_AND_ASSIGN(TestWithContext);
 };
+
+
+namespace base {
+
+class TestWithRandomNumberGenerator : public ::testing::Test {
+ public:
+  TestWithRandomNumberGenerator();
+  virtual ~TestWithRandomNumberGenerator();
+
+  RandomNumberGenerator* rng() { return &rng_; }
+
+ private:
+  RandomNumberGenerator rng_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestWithRandomNumberGenerator);
+};
+
+}  // namespace base
 
 
 namespace internal {

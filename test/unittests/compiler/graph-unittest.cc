@@ -17,18 +17,6 @@ using testing::StringMatchResultListener;
 
 namespace v8 {
 namespace internal {
-
-// TODO(bmeurer): Find a new home for these functions.
-template <typename T>
-inline std::ostream& operator<<(std::ostream& os, const Unique<T>& value) {
-  return os << *value.handle();
-}
-inline std::ostream& operator<<(std::ostream& os,
-                                const ExternalReference& value) {
-  compiler::StaticParameterTraits<ExternalReference>::PrintTo(os, value);
-  return os;
-}
-
 namespace compiler {
 
 GraphTest::GraphTest(int num_parameters) : common_(zone()), graph_(zone()) {

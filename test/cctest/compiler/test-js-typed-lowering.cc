@@ -49,13 +49,14 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 
   Node* UndefinedConstant() {
-    Unique<Object> unique =
-        Unique<Object>::CreateImmovable(isolate->factory()->undefined_value());
+    Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(
+        isolate->factory()->undefined_value());
     return graph.NewNode(common.HeapConstant(unique));
   }
 
-  Node* HeapConstant(Handle<Object> constant) {
-    Unique<Object> unique = Unique<Object>::CreateUninitialized(constant);
+  Node* HeapConstant(Handle<HeapObject> constant) {
+    Unique<HeapObject> unique =
+        Unique<HeapObject>::CreateUninitialized(constant);
     return graph.NewNode(common.HeapConstant(unique));
   }
 

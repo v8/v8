@@ -1217,6 +1217,8 @@
         '../../src/base/division-by-constant.cc',
         '../../src/base/division-by-constant.h',
         '../../src/base/flags.h',
+        '../../src/base/functional.cc',
+        '../../src/base/functional.h',
         '../../src/base/lazy-instance.h',
         '../../src/base/logging.cc',
         '../../src/base/logging.h',
@@ -1249,11 +1251,19 @@
           'toolsets': ['target'],
         }],
         ['OS=="linux"', {
-            'link_settings': {
-              'libraries': [
-                '-lrt'
-              ]
-            },
+            'conditions': [
+              ['nacl_target_arch=="none"', {
+                'link_settings': {
+                  'libraries': [
+                    '-lrt'
+                  ],
+                },
+              }, {
+                'defines': [
+                  'V8_LIBRT_NOT_AVAILABLE=1',
+                ],
+              }],
+            ],
             'sources': [
               '../../src/base/platform/platform-linux.cc',
               '../../src/base/platform/platform-posix.cc'

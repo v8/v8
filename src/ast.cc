@@ -62,12 +62,12 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
                              IdGen* id_gen)
     : Expression(zone, position, id_gen),
-      name_(var->raw_name()),
-      var_(NULL),  // Will be set by the call to BindTo.
+      raw_name_(var->raw_name()),
+      interface_(var->interface()),
+      variable_feedback_slot_(kInvalidFeedbackSlot),
       is_this_(var->is_this()),
       is_assigned_(false),
-      interface_(var->interface()),
-      variable_feedback_slot_(kInvalidFeedbackSlot) {
+      is_resolved_(false) {
   BindTo(var);
 }
 
@@ -75,25 +75,24 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
                              Interface* interface, int position, IdGen* id_gen)
     : Expression(zone, position, id_gen),
-      name_(name),
-      var_(NULL),
+      raw_name_(name),
+      interface_(interface),
+      variable_feedback_slot_(kInvalidFeedbackSlot),
       is_this_(is_this),
       is_assigned_(false),
-      interface_(interface),
-      variable_feedback_slot_(kInvalidFeedbackSlot) {}
+      is_resolved_(false) {}
 
 
 void VariableProxy::BindTo(Variable* var) {
-  DCHECK(var_ == NULL);  // must be bound only once
-  DCHECK(var != NULL);  // must bind
   DCHECK(!FLAG_harmony_modules || interface_->IsUnified(var->interface()));
-  DCHECK((is_this() && var->is_this()) || name_ == var->raw_name());
+  DCHECK((is_this() && var->is_this()) || raw_name() == var->raw_name());
   // Ideally CONST-ness should match. However, this is very hard to achieve
   // because we don't know the exact semantics of conflicting (const and
   // non-const) multiple variable declarations, const vars introduced via
   // eval() etc.  Const-ness and variable declarations are a complete mess
   // in JS. Sigh...
-  var_ = var;
+  set_var(var);
+  set_is_resolved();
   var->set_is_used();
 }
 
@@ -1091,16 +1090,17 @@ DONT_OPTIMIZE_NODE(ModuleUrl)
 DONT_OPTIMIZE_NODE(ModuleStatement)
 DONT_OPTIMIZE_NODE(WithStatement)
 DONT_OPTIMIZE_NODE(DebuggerStatement)
-DONT_OPTIMIZE_NODE(ClassLiteral)
 DONT_OPTIMIZE_NODE(NativeFunctionLiteral)
-DONT_OPTIMIZE_NODE(SuperReference)
 
 DONT_OPTIMIZE_NODE_WITH_FEEDBACK_SLOTS(Yield)
 
 // TODO(turbofan): Remove the dont_turbofan_reason once this list is empty.
+// This list must be kept in sync with Pipeline::GenerateCode.
 DONT_TURBOFAN_NODE(ForOfStatement)
 DONT_TURBOFAN_NODE(TryCatchStatement)
 DONT_TURBOFAN_NODE(TryFinallyStatement)
+DONT_TURBOFAN_NODE(ClassLiteral)
+DONT_TURBOFAN_NODE(SuperReference)
 
 DONT_SELFOPTIMIZE_NODE(DoWhileStatement)
 DONT_SELFOPTIMIZE_NODE(WhileStatement)

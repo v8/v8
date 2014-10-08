@@ -105,10 +105,10 @@ class AddressingModeMatcher {
     }
     if (displacement_operand_ != NULL) {
       // Pure displacement mode not supported by x64.
-      DCHECK_NE(input_count, 0);
+      DCHECK_NE(static_cast<int>(input_count), 0);
       inputs[input_count++] = displacement_operand_;
     }
-    DCHECK_NE(input_count, 0);
+    DCHECK_NE(static_cast<int>(input_count), 0);
     return input_count;
   }
 
@@ -262,8 +262,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
 
-  DCHECK_NE(0, input_count);
-  DCHECK_NE(0, output_count);
+  DCHECK_NE(0, static_cast<int>(input_count));
+  DCHECK_NE(0, static_cast<int>(output_count));
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 

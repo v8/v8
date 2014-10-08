@@ -24,35 +24,51 @@ class ControlOperator : public Operator1<int> {
       : Operator1<int>(opcode, properties, inputs, outputs, mnemonic,
                        controls) {}
 
-  virtual std::ostream& PrintParameter(std::ostream& os) const FINAL {
-    return os;
-  }
+  virtual void PrintParameter(std::ostream& os) const FINAL {}
 };
 
 }  // namespace
 
 
-// Specialization for static parameters of type {ExternalReference}.
-template <>
-struct StaticParameterTraits<ExternalReference> {
-  static std::ostream& PrintTo(std::ostream& os, ExternalReference reference) {
-    os << static_cast<const void*>(reference.address());
-    // TODO(bmeurer): Move to operator<<(os, ExternalReference)
-    const Runtime::Function* function =
-        Runtime::FunctionForEntry(reference.address());
-    if (function) {
-      os << " <" << function->name << ".entry>";
-    }
-    return os;
+size_t hash_value(OutputFrameStateCombine const& sc) {
+  return base::hash_combine(sc.kind_, sc.parameter_);
+}
+
+
+std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
+  switch (sc.kind_) {
+    case OutputFrameStateCombine::kPushOutput:
+      if (sc.parameter_ == 0) return os << "Ignore";
+      return os << "Push(" << sc.parameter_ << ")";
+    case OutputFrameStateCombine::kPokeAt:
+      return os << "PokeAt(" << sc.parameter_ << ")";
   }
-  static int HashCode(ExternalReference reference) {
-    return bit_cast<int>(static_cast<uint32_t>(
-        reinterpret_cast<uintptr_t>(reference.address())));
-  }
-  static bool Equals(ExternalReference lhs, ExternalReference rhs) {
-    return lhs == rhs;
-  }
-};
+  UNREACHABLE();
+  return os;
+}
+
+
+bool operator==(FrameStateCallInfo const& lhs, FrameStateCallInfo const& rhs) {
+  return lhs.type() == rhs.type() && lhs.bailout_id() == rhs.bailout_id() &&
+         lhs.state_combine() == rhs.state_combine();
+}
+
+
+bool operator!=(FrameStateCallInfo const& lhs, FrameStateCallInfo const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+size_t hash_value(FrameStateCallInfo const& info) {
+  return base::hash_combine(info.type(), info.bailout_id(),
+                            info.state_combine());
+}
+
+
+std::ostream& operator<<(std::ostream& os, FrameStateCallInfo const& info) {
+  return os << info.type() << ", " << info.bailout_id() << ", "
+            << info.state_combine();
+}
 
 
 #define SHARED_OP_LIST(V)               \
@@ -162,8 +178,8 @@ const Operator* CommonOperatorBuilder::NumberConstant(volatile double value) {
 
 
 const Operator* CommonOperatorBuilder::HeapConstant(
-    const Unique<Object>& value) {
-  return new (zone()) Operator1<Unique<Object> >(
+    const Unique<HeapObject>& value) {
+  return new (zone()) Operator1<Unique<HeapObject>>(
       IrOpcode::kHeapConstant, Operator::kPure, 0, 1, "HeapConstant", value);
 }
 
@@ -184,8 +200,8 @@ const Operator* CommonOperatorBuilder::EffectPhi(int arguments) {
 
 const Operator* CommonOperatorBuilder::ValueEffect(int arguments) {
   DCHECK(arguments > 0);  // Disallow empty value effects.
-  return new (zone()) SimpleOperator(IrOpcode::kValueEffect, Operator::kPure,
-                                     arguments, 0, "ValueEffect");
+  return new (zone()) Operator1<int>(IrOpcode::kValueEffect, Operator::kPure,
+                                     arguments, 0, "ValueEffect", arguments);
 }
 
 
@@ -224,8 +240,8 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
               static_cast<int>(descriptor->ReturnCount()), mnemonic,
               descriptor) {}
 
-    virtual std::ostream& PrintParameter(std::ostream& os) const OVERRIDE {
-      return os << "[" << *parameter() << "]";
+    virtual void PrintParameter(std::ostream& os) const OVERRIDE {
+      os << "[" << *parameter() << "]";
     }
   };
   return new (zone()) CallOperator(descriptor, "Call");
@@ -235,50 +251,6 @@ const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
 const Operator* CommonOperatorBuilder::Projection(size_t index) {
   return new (zone()) Operator1<size_t>(IrOpcode::kProjection, Operator::kPure,
                                         1, 1, "Projection", index);
-}
-
-
-OutputFrameStateCombine::OutputFrameStateCombine(CombineKind kind,
-                                                 size_t parameter)
-    : kind_(kind), parameter_(parameter) {}
-
-// static
-OutputFrameStateCombine OutputFrameStateCombine::Ignore() {
-  return OutputFrameStateCombine(kPushOutput, 0);
-}
-
-
-// static
-OutputFrameStateCombine OutputFrameStateCombine::Push(size_t count) {
-  return OutputFrameStateCombine(kPushOutput, count);
-}
-
-
-// static
-OutputFrameStateCombine OutputFrameStateCombine::PokeAt(size_t index) {
-  return OutputFrameStateCombine(kPokeAt, index);
-}
-
-
-OutputFrameStateCombine::CombineKind OutputFrameStateCombine::kind() {
-  return kind_;
-}
-
-
-size_t OutputFrameStateCombine::GetPushCount() {
-  DCHECK(kind() == kPushOutput);
-  return parameter_;
-}
-
-
-size_t OutputFrameStateCombine::GetOffsetToPokeAt() {
-  DCHECK(kind() == kPokeAt);
-  return parameter_;
-}
-
-
-bool OutputFrameStateCombine::IsOutputIgnored() {
-  return kind() == kPushOutput && GetPushCount() == 0;
 }
 
 }  // namespace compiler

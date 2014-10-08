@@ -32,8 +32,8 @@ void InstructionSelector::SelectInstructions() {
   for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end(); ++i) {
     BasicBlock* block = *i;
     if (!block->IsLoopHeader()) continue;
-    DCHECK_NE(0, block->PredecessorCount());
-    DCHECK_NE(1, block->PredecessorCount());
+    DCHECK_NE(0, static_cast<int>(block->PredecessorCount()));
+    DCHECK_NE(1, static_cast<int>(block->PredecessorCount()));
     for (BasicBlock::const_iterator j = block->begin(); j != block->end();
          ++j) {
       Node* phi = *j;
@@ -190,27 +190,27 @@ void InstructionSelector::MarkAsUsed(Node* node) {
 
 bool InstructionSelector::IsDouble(const Node* node) const {
   DCHECK_NOT_NULL(node);
-  return sequence()->IsDouble(node->id());
+  return sequence()->IsDouble(sequence()->GetVirtualRegister(node));
 }
 
 
 void InstructionSelector::MarkAsDouble(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsReference(node));
-  sequence()->MarkAsDouble(node->id());
+  sequence()->MarkAsDouble(sequence()->GetVirtualRegister(node));
 }
 
 
 bool InstructionSelector::IsReference(const Node* node) const {
   DCHECK_NOT_NULL(node);
-  return sequence()->IsReference(node->id());
+  return sequence()->IsReference(sequence()->GetVirtualRegister(node));
 }
 
 
 void InstructionSelector::MarkAsReference(Node* node) {
   DCHECK_NOT_NULL(node);
   DCHECK(!IsDouble(node));
-  sequence()->MarkAsReference(node->id());
+  sequence()->MarkAsReference(sequence()->GetVirtualRegister(node));
 }
 
 
@@ -253,9 +253,11 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                                                bool call_code_immediate,
                                                bool call_address_immediate) {
   OperandGenerator g(this);
-  DCHECK_EQ(call->op()->OutputCount(), buffer->descriptor->ReturnCount());
-  DCHECK_EQ(OperatorProperties::GetValueInputCount(call->op()),
-            buffer->input_count() + buffer->frame_state_count());
+  DCHECK_EQ(call->op()->OutputCount(),
+            static_cast<int>(buffer->descriptor->ReturnCount()));
+  DCHECK_EQ(
+      OperatorProperties::GetValueInputCount(call->op()),
+      static_cast<int>(buffer->input_count() + buffer->frame_state_count()));
 
   if (buffer->descriptor->ReturnCount() > 0) {
     // Collect the projections that represent multiple outputs from this call.
@@ -303,7 +305,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                         buffer->descriptor->GetInputType(0)));
       break;
   }
-  DCHECK_EQ(1, buffer->instruction_args.size());
+  DCHECK_EQ(1, static_cast<int>(buffer->instruction_args.size()));
 
   // If the call needs a frame state, we insert the state information as
   // follows (n is the number of value inputs to the frame state):
@@ -1059,9 +1061,10 @@ void InstructionSelector::AddFrameStateInputs(
   DCHECK_EQ(IrOpcode::kStateValues, locals->op()->opcode());
   DCHECK_EQ(IrOpcode::kStateValues, stack->op()->opcode());
 
-  DCHECK_EQ(descriptor->parameters_count(), parameters->InputCount());
-  DCHECK_EQ(descriptor->locals_count(), locals->InputCount());
-  DCHECK_EQ(descriptor->stack_count(), stack->InputCount());
+  DCHECK_EQ(static_cast<int>(descriptor->parameters_count()),
+            parameters->InputCount());
+  DCHECK_EQ(static_cast<int>(descriptor->locals_count()), locals->InputCount());
+  DCHECK_EQ(static_cast<int>(descriptor->stack_count()), stack->InputCount());
 
   OperandGenerator g(this);
   for (int i = 0; i < static_cast<int>(descriptor->parameters_count()); i++) {

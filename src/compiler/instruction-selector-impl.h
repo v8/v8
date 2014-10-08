@@ -45,8 +45,8 @@ class OperandGenerator {
 
   InstructionOperand* DefineAsConstant(Node* node) {
     selector()->MarkAsDefined(node);
-    sequence()->AddConstant(node->id(), ToConstant(node));
-    return ConstantOperand::Create(node->id(), zone());
+    int virtual_register = sequence()->AddConstant(node, ToConstant(node));
+    return ConstantOperand::Create(virtual_register, zone());
   }
 
   InstructionOperand* DefineAsLocation(Node* node, LinkageLocation location,
@@ -166,7 +166,8 @@ class OperandGenerator {
   UnallocatedOperand* Define(Node* node, UnallocatedOperand* operand) {
     DCHECK_NOT_NULL(node);
     DCHECK_NOT_NULL(operand);
-    operand->set_virtual_register(node->id());
+    operand->set_virtual_register(
+        selector_->sequence()->GetVirtualRegister(node));
     selector()->MarkAsDefined(node);
     return operand;
   }
@@ -174,7 +175,8 @@ class OperandGenerator {
   UnallocatedOperand* Use(Node* node, UnallocatedOperand* operand) {
     DCHECK_NOT_NULL(node);
     DCHECK_NOT_NULL(operand);
-    operand->set_virtual_register(node->id());
+    operand->set_virtual_register(
+        selector_->sequence()->GetVirtualRegister(node));
     selector()->MarkAsUsed(node);
     return operand;
   }

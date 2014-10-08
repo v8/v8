@@ -45,8 +45,8 @@ class SimplifiedGraphBuilder : public GraphBuilder {
   Node* Int32Constant(int32_t value) {
     return NewNode(common()->Int32Constant(value));
   }
-  Node* HeapConstant(Handle<Object> object) {
-    Unique<Object> val = Unique<Object>::CreateUninitialized(object);
+  Node* HeapConstant(Handle<HeapObject> object) {
+    Unique<HeapObject> val = Unique<HeapObject>::CreateUninitialized(object);
     return NewNode(common()->HeapConstant(val));
   }
 
