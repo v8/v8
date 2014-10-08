@@ -37,6 +37,7 @@
 #include "src/api.h"
 #include "src/factory.h"
 #include "src/objects.h"
+#include "src/unicode-decoder.h"
 #include "test/cctest/cctest.h"
 
 // Adapted from http://en.wikipedia.org/wiki/Multiply-with-carry

@@ -20,6 +20,7 @@
 #include "src/property-details.h"
 #include "src/smart-pointers.h"
 #include "src/unicode-inl.h"
+#include "src/unicode-decoder.h"
 #include "src/zone.h"
 
 #if V8_TARGET_ARCH_ARM

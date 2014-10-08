@@ -44,6 +44,7 @@ class Predicate {
   CacheEntry entries_[kSize];
 };
 
+
 // A cache used in case conversion.  It caches the value for characters
 // that either have no mapping or map to a single character independent
 // of context.  Characters that map to more than one character or that
@@ -70,12 +71,14 @@ class Mapping {
   CacheEntry entries_[kSize];
 };
 
+
 class UnicodeData {
  private:
   friend class Test;
   static int GetByteCount();
   static const uchar kMaxCodePoint;
 };
+
 
 class Utf16 {
  public:
@@ -113,14 +116,6 @@ class Utf16 {
   }
 };
 
-class Latin1 {
- public:
-  static const unsigned kMaxChar = 0xff;
-  // Returns 0 if character does not convert to single latin-1 character
-  // or if the character doesn't not convert back to latin-1 via inverse
-  // operation (upper to lower, etc).
-  static inline uint16_t ConvertNonLatin1ToLatin1(uint16_t);
-};
 
 class Utf8 {
  public:
@@ -155,45 +150,6 @@ class Utf8 {
                               unsigned* cursor);
 };
 
-
-class Utf8DecoderBase {
- public:
-  // Initialization done in subclass.
-  inline Utf8DecoderBase();
-  inline Utf8DecoderBase(uint16_t* buffer,
-                         unsigned buffer_length,
-                         const uint8_t* stream,
-                         unsigned stream_length);
-  inline unsigned Utf16Length() const { return utf16_length_; }
- protected:
-  // This reads all characters and sets the utf16_length_.
-  // The first buffer_length utf16 chars are cached in the buffer.
-  void Reset(uint16_t* buffer,
-             unsigned buffer_length,
-             const uint8_t* stream,
-             unsigned stream_length);
-  static void WriteUtf16Slow(const uint8_t* stream,
-                             uint16_t* data,
-                             unsigned length);
-  const uint8_t* unbuffered_start_;
-  unsigned utf16_length_;
-  bool last_byte_of_buffer_unused_;
- private:
-  DISALLOW_COPY_AND_ASSIGN(Utf8DecoderBase);
-};
-
-template <unsigned kBufferSize>
-class Utf8Decoder : public Utf8DecoderBase {
- public:
-  inline Utf8Decoder() {}
-  inline Utf8Decoder(const char* stream, unsigned length);
-  inline void Reset(const char* stream, unsigned length);
-  inline unsigned WriteUtf16(uint16_t* data, unsigned length) const;
- private:
-  uint16_t buffer_[kBufferSize];
-};
-
-
 struct Uppercase {
   static bool Is(uchar c);
 };
@@ -203,19 +159,16 @@ struct Lowercase {
 struct Letter {
   static bool Is(uchar c);
 };
-struct Number {
+struct ID_Start {
+  static bool Is(uchar c);
+};
+struct ID_Continue {
   static bool Is(uchar c);
 };
 struct WhiteSpace {
   static bool Is(uchar c);
 };
 struct LineTerminator {
-  static bool Is(uchar c);
-};
-struct CombiningMark {
-  static bool Is(uchar c);
-};
-struct ConnectorPunctuation {
   static bool Is(uchar c);
 };
 struct ToLowercase {

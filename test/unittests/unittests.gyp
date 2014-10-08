@@ -58,6 +58,7 @@
         'run-all-unittests.cc',
         'test-utils.h',
         'test-utils.cc',
+        'unicode/unicode-predicates-unittest.cc',
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {

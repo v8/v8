@@ -15,6 +15,7 @@
 #include "src/list.h"
 #include "src/token.h"
 #include "src/unicode-inl.h"
+#include "src/unicode-decoder.h"
 #include "src/utils.h"
 
 namespace v8 {

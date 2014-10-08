@@ -808,6 +808,8 @@
         '../../src/unicode-inl.h',
         '../../src/unicode.cc',
         '../../src/unicode.h',
+        '../../src/unicode-decoder.cc',
+        '../../src/unicode-decoder.h',
         '../../src/unique.h',
         '../../src/uri.h',
         '../../src/utils-inl.h',
@@ -1694,6 +1696,12 @@
         '../../src/mksnapshot.cc',
       ],
       'conditions': [
+        ['v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ]
+        }],
         ['want_separate_host_toolset==1', {
           'toolsets': ['host'],
         }, {
