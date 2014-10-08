@@ -14,9 +14,13 @@
 namespace v8 {
 
 
+namespace {
+
 // Track whether this V8 instance has ever called v8::Locker. This allows the
 // API code to verify that the lock is always held when V8 is being entered.
-bool Locker::active_ = false;
+base::Atomic32 g_locker_was_ever_used_ = 0;
+
+}  // namespace
 
 
 // Once the Locker is initialized, the current thread will be guaranteed to have
@@ -27,7 +31,7 @@ void Locker::Initialize(v8::Isolate* isolate) {
   top_level_ = true;
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   // Record that the Locker has been used at least once.
-  active_ = true;
+  base::NoBarrier_Store(&g_locker_was_ever_used_, 1);
   // Get the big lock if necessary.
   if (!isolate_->thread_manager()->IsLockedByCurrentThread()) {
     isolate_->thread_manager()->Lock();
@@ -64,7 +68,7 @@ bool Locker::IsLocked(v8::Isolate* isolate) {
 
 
 bool Locker::IsActive() {
-  return active_;
+  return !!base::NoBarrier_Load(&g_locker_was_ever_used_);
 }
 
 

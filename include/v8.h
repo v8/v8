@@ -5801,8 +5801,6 @@ class V8_EXPORT Locker {
   bool top_level_;
   internal::Isolate* isolate_;
 
-  static bool active_;
-
   // Disallow copying and assigning.
   Locker(const Locker&);
   void operator=(const Locker&);

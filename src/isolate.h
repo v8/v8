@@ -179,7 +179,12 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 class ThreadId {
  public:
   // Creates an invalid ThreadId.
-  ThreadId() : id_(kInvalidId) {}
+  ThreadId() { base::NoBarrier_Store(&id_, kInvalidId); }
+
+  ThreadId& operator=(const ThreadId& other) {
+    base::NoBarrier_Store(&id_, base::NoBarrier_Load(&other.id_));
+    return *this;
+  }
 
   // Returns ThreadId for current thread.
   static ThreadId Current() { return ThreadId(GetCurrentThreadId()); }
@@ -189,17 +194,17 @@ class ThreadId {
 
   // Compares ThreadIds for equality.
   INLINE(bool Equals(const ThreadId& other) const) {
-    return id_ == other.id_;
+    return base::NoBarrier_Load(&id_) == base::NoBarrier_Load(&other.id_);
   }
 
   // Checks whether this ThreadId refers to any thread.
   INLINE(bool IsValid() const) {
-    return id_ != kInvalidId;
+    return base::NoBarrier_Load(&id_) != kInvalidId;
   }
 
   // Converts ThreadId to an integer representation
   // (required for public API: V8::V8::GetCurrentThreadId).
-  int ToInteger() const { return id_; }
+  int ToInteger() const { return static_cast<int>(base::NoBarrier_Load(&id_)); }
 
   // Converts ThreadId to an integer representation
   // (required for public API: V8::V8::TerminateExecution).
@@ -208,13 +213,13 @@ class ThreadId {
  private:
   static const int kInvalidId = -1;
 
-  explicit ThreadId(int id) : id_(id) {}
+  explicit ThreadId(int id) { base::NoBarrier_Store(&id_, id); }
 
   static int AllocateThreadId();
 
   static int GetCurrentThreadId();
 
-  int id_;
+  base::Atomic32 id_;
 
   static base::Atomic32 highest_thread_id_;
 
