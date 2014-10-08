@@ -313,9 +313,15 @@
           },
           'VCLibrarianTool': {
             'AdditionalOptions': ['/ignore:4221'],
+            'conditions': [
+              ['v8_target_arch=="x64"', {
+                'TargetMachine': '17',  # x64
+              }, {
+                'TargetMachine': '1',  # ia32
+              }],
+            ],
           },
           'VCLinkerTool': {
-            'MinimumRequiredVersion': '5.01',  # XP.
             'AdditionalDependencies': [
               'ws2_32.lib',
             ],
@@ -339,6 +345,13 @@
                 'AdditionalDependencies': [
                   'advapi32.lib',
                 ],
+              }],
+              ['v8_target_arch=="x64"', {
+                'MinimumRequiredVersion': '5.02',  # Server 2003.
+                'TargetMachine': '17',  # x64
+              }, {
+                'MinimumRequiredVersion': '5.01',  # XP.
+                'TargetMachine': '1',  # ia32
               }],
             ],
           },

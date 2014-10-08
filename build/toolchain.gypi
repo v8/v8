@@ -790,10 +790,6 @@
               }, {
                 'RuntimeLibrary': '1',  #/MTd
               }],
-              ['v8_target_arch=="x64"', {
-                # TODO(2207): remove this option once the bug is fixed.
-                'WholeProgramOptimization': 'true',
-              }],
             ],
           },
           'VCLinkerTool': {
@@ -962,10 +958,6 @@
                     'RuntimeLibrary': '2',  #/MD
                   }, {
                     'RuntimeLibrary': '0',  #/MT
-                  }],
-                  ['v8_target_arch=="x64"', {
-                    # TODO(2207): remove this option once the bug is fixed.
-                    'WholeProgramOptimization': 'true',
                   }],
                 ],
               },
