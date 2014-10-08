@@ -8,6 +8,7 @@
 #include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-lowering.h"
@@ -354,6 +355,27 @@ class RepresentationSelector {
     return changer_->Float64OperatorFor(node->opcode());
   }
 
+  bool CanLowerToInt32Binop(Node* node, MachineTypeUnion use) {
+    return BothInputsAre(node, Type::Signed32()) && !CanObserveNonInt32(use);
+  }
+
+  bool CanLowerToUint32Binop(Node* node, MachineTypeUnion use) {
+    return BothInputsAre(node, Type::Unsigned32()) && !CanObserveNonUint32(use);
+  }
+
+  bool CanObserveNonInt32(MachineTypeUnion use) {
+    return (use & (kTypeUint32 | kTypeNumber | kTypeAny)) != 0;
+  }
+
+  bool CanObserveMinusZero(MachineTypeUnion use) {
+    // TODO(turbofan): technically Uint32 cannot observe minus zero either.
+    return (use & (kTypeUint32 | kTypeNumber | kTypeAny)) != 0;
+  }
+
+  bool CanObserveNonUint32(MachineTypeUnion use) {
+    return (use & (kTypeInt32 | kTypeNumber | kTypeAny)) != 0;
+  }
+
   // Dispatching routine for visiting the node {node} with the usage {use}.
   // Depending on the operator, propagate new usage info to the inputs.
   void VisitNode(Node* node, MachineTypeUnion use,
@@ -478,13 +500,11 @@ class RepresentationSelector {
       case IrOpcode::kNumberSubtract: {
         // Add and subtract reduce to Int32Add/Sub if the inputs
         // are already integers and all uses are truncating.
-        if (BothInputsAre(node, Type::Signed32()) &&
-            (use & (kTypeUint32 | kTypeNumber | kTypeAny)) == 0) {
+        if (CanLowerToInt32Binop(node, use)) {
           // => signed Int32Add/Sub
           VisitInt32Binop(node);
           if (lower()) node->set_op(Int32Op(node));
-        } else if (BothInputsAre(node, Type::Unsigned32()) &&
-                   (use & (kTypeInt32 | kTypeNumber | kTypeAny)) == 0) {
+        } else if (CanLowerToUint32Binop(node, use)) {
           // => unsigned Int32Add/Sub
           VisitUint32Binop(node);
           if (lower()) node->set_op(Uint32Op(node));
@@ -495,10 +515,58 @@ class RepresentationSelector {
         }
         break;
       }
-      case IrOpcode::kNumberMultiply:
-      case IrOpcode::kNumberDivide:
+      case IrOpcode::kNumberMultiply: {
+        NumberMatcher right(node->InputAt(1));
+        if (right.IsInRange(-1048576, 1048576)) {  // must fit double mantissa.
+          if (CanLowerToInt32Binop(node, use)) {
+            // => signed Int32Mul
+            VisitInt32Binop(node);
+            if (lower()) node->set_op(Int32Op(node));
+            break;
+          }
+        }
+        // => Float64Mul
+        VisitFloat64Binop(node);
+        if (lower()) node->set_op(Float64Op(node));
+        break;
+      }
+      case IrOpcode::kNumberDivide: {
+        NumberMatcher right(node->InputAt(1));
+        if (right.HasValue() && !right.Is(0) && !right.Is(-1)) {
+          if (CanLowerToInt32Binop(node, use)) {
+            // => signed Int32Div
+            VisitInt32Binop(node);
+            if (lower()) node->set_op(Int32Op(node));
+            break;
+          } else if (CanLowerToUint32Binop(node, use)) {
+            // => unsigned Uint32Div
+            VisitUint32Binop(node);
+            if (lower()) node->set_op(Uint32Op(node));
+            break;
+          }
+        }
+        // => Float64Div
+        VisitFloat64Binop(node);
+        if (lower()) node->set_op(Float64Op(node));
+        break;
+      }
       case IrOpcode::kNumberModulus: {
-        // Float64Mul/Div/Mod
+        NumberMatcher right(node->InputAt(1));
+        if (right.HasValue() && !right.Is(0) && !right.Is(-1)) {
+          if (BothInputsAre(node, Type::Signed32()) &&
+              !CanObserveMinusZero(use)) {
+            // => signed Int32Mod
+            VisitInt32Binop(node);
+            if (lower()) node->set_op(Int32Op(node));
+            break;
+          } else if (BothInputsAre(node, Type::Unsigned32())) {
+            // => unsigned Uint32Mod
+            VisitUint32Binop(node);
+            if (lower()) node->set_op(Uint32Op(node));
+            break;
+          }
+        }
+        // => Float64Mod
         VisitFloat64Binop(node);
         if (lower()) node->set_op(Float64Op(node));
         break;
@@ -507,11 +575,15 @@ class RepresentationSelector {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
         MachineTypeUnion in = GetInfo(input)->output;
-        if (NodeProperties::GetBounds(input).upper->Is(Type::Signed32()) ||
-            (in & kTypeMask) == kTypeInt32 || (in & kRepMask) == kRepWord32) {
-          // If the input has type int32, or is already a word32, just change
-          // representation if necessary.
+        if (NodeProperties::GetBounds(input).upper->Is(Type::Signed32())) {
+          // If the input has type int32, pass through representation.
           VisitUnop(node, kTypeInt32 | use_rep, kTypeInt32 | use_rep);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if ((in & kTypeMask) == kTypeUint32 ||
+                   (in & kTypeMask) == kTypeInt32 ||
+                   (in & kRepMask) == kRepWord32) {
+          // Just change representation if necessary.
+          VisitUnop(node, kTypeInt32 | kRepWord32, kTypeInt32 | kRepWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           // Require the input in float64 format and perform truncation.
@@ -526,10 +598,15 @@ class RepresentationSelector {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
         MachineTypeUnion in = GetInfo(input)->output;
-        if (NodeProperties::GetBounds(input).upper->Is(Type::Unsigned32()) ||
-            (in & kTypeMask) == kTypeUint32) {
-          // If the input has type uint32, just change representation.
+        if (NodeProperties::GetBounds(input).upper->Is(Type::Unsigned32())) {
+          // If the input has type uint32, pass through representation.
           VisitUnop(node, kTypeUint32 | use_rep, kTypeUint32 | use_rep);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if ((in & kTypeMask) == kTypeUint32 ||
+                   (in & kTypeMask) == kTypeInt32 ||
+                   (in & kRepMask) == kRepWord32) {
+          // Just change representation if necessary.
+          VisitUnop(node, kTypeUint32 | kRepWord32, kTypeUint32 | kRepWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           // Require the input in float64 format and perform truncation.
@@ -744,6 +821,11 @@ class RepresentationSelector {
   }
 
   void DeferReplacement(Node* node, Node* replacement) {
+    if (FLAG_trace_representation) {
+      TRACE(("defer replacement #%d:%s with #%d:%s\n", node->id(),
+             node->op()->mnemonic(), replacement->id(),
+             replacement->op()->mnemonic()));
+    }
     if (replacement->id() < count_) {
       // Replace with a previously existing node eagerly.
       node->ReplaceUses(replacement);
