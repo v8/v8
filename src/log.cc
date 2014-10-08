@@ -1866,13 +1866,13 @@ bool Logger::SetUp(Isolate* isolate) {
     is_logging_ = true;
   }
 
+  if (FLAG_log_internal_timer_events || FLAG_prof) timer_.Start();
+
   if (FLAG_prof) {
     profiler_ = new Profiler(isolate);
     is_logging_ = true;
     profiler_->Engage();
   }
-
-  if (FLAG_log_internal_timer_events || FLAG_prof) timer_.Start();
 
   return true;
 }
