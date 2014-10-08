@@ -4,6 +4,8 @@
 
 #include "src/compiler/simplified-lowering.h"
 
+#include <limits>
+
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
@@ -665,8 +667,15 @@ class RepresentationSelector {
         ProcessInput(node, 1, kMachInt32);  // element index
         ProcessInput(node, 2, kMachInt32);  // length
         ProcessRemainingInputs(node, 3);
-        SetOutput(node, access.machine_type);
-        if (lower()) lowering->DoLoadElement(node);
+        // Tagged overrides everything if we have to do a typed array bounds
+        // check, because we may need to return undefined then.
+        MachineType output_type =
+            (access.bounds_check == kTypedArrayBoundsCheck &&
+             (use & kRepTagged))
+                ? kMachAnyTagged
+                : access.machine_type;
+        SetOutput(node, output_type);
+        if (lower()) lowering->DoLoadElement(node, output_type);
         break;
       }
       case IrOpcode::kStoreElement: {
@@ -957,11 +966,71 @@ Node* SimplifiedLowering::ComputeIndex(const ElementAccess& access,
 }
 
 
-void SimplifiedLowering::DoLoadElement(Node* node) {
+void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
   const ElementAccess& access = ElementAccessOf(node->op());
-  node->set_op(machine()->Load(access.machine_type));
-  node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
-  node->RemoveInput(2);
+  const Operator* op = machine()->Load(access.machine_type);
+  Node* key = node->InputAt(1);
+  Node* index = ComputeIndex(access, key);
+  if (access.bounds_check == kNoBoundsCheck) {
+    DCHECK_EQ(access.machine_type, output_type);
+    node->set_op(op);
+    node->ReplaceInput(1, index);
+    node->RemoveInput(2);
+  } else {
+    DCHECK_EQ(kTypedArrayBoundsCheck, access.bounds_check);
+
+    Node* base = node->InputAt(0);
+    Node* length = node->InputAt(2);
+    Node* effect = node->InputAt(3);
+    Node* control = node->InputAt(4);
+
+    Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
+    Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* load = graph()->NewNode(op, base, index, effect, if_true);
+    Node* result = load;
+    if (output_type & kRepTagged) {
+      // TODO(turbofan): This is ugly as hell!
+      SimplifiedOperatorBuilder simplified(graph()->zone());
+      RepresentationChanger changer(jsgraph(), &simplified,
+                                    graph()->zone()->isolate());
+      result = changer.GetTaggedRepresentationFor(result, access.machine_type);
+    }
+
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* undefined;
+    if (output_type & kRepTagged) {
+      DCHECK(!(access.machine_type & kRepTagged));
+      undefined = jsgraph()->UndefinedConstant();
+    } else if (output_type & kRepFloat32) {
+      undefined =
+          jsgraph()->Float32Constant(std::numeric_limits<float>::quiet_NaN());
+    } else if (output_type & kRepFloat64) {
+      undefined =
+          jsgraph()->Float64Constant(std::numeric_limits<double>::quiet_NaN());
+    } else {
+      undefined = jsgraph()->Int32Constant(0);
+    }
+
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    Node* phi = graph()->NewNode(common()->EffectPhi(2), load, effect, merge);
+
+    // Replace effect uses of node with the effect phi.
+    for (UseIter i = node->uses().begin(); i != node->uses().end();) {
+      if (NodeProperties::IsEffectEdge(i.edge())) {
+        i = i.UpdateToAndIncrement(phi);
+      } else {
+        ++i;
+      }
+    }
+
+    node->set_op(common()->Phi(output_type, 2));
+    node->ReplaceInput(0, result);
+    node->ReplaceInput(1, undefined);
+    node->ReplaceInput(2, merge);
+    node->TrimInputCount(3);
+  }
 }
 
 

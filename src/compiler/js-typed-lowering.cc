@@ -534,7 +534,6 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
   Type* base_type = NodeProperties::GetBounds(base).upper;
   // TODO(mstarzinger): This lowering is not correct if:
   //   a) The typed array or it's buffer is neutered.
-  //   b) The index is out of bounds.
   if (base_type->IsConstant() && key_type->Is(Type::Integral32()) &&
       base_type->AsConstant()->Value()->IsJSTypedArray()) {
     // JSLoadProperty(typed-array, int32)
