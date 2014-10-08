@@ -19,6 +19,7 @@
 #include "src/scopes.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
+#include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
 #include "test/cctest/compiler/value-helper.h"
 
@@ -45,29 +46,10 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
 
   template <typename T>
   T* CallWithPotentialGC() {
-    // TODO(titzer): we need to wrap the code in a JSFunction and call it via
-    // Execution::Call() so that the GC knows about the frame, can walk it,
-    // relocate the code object if necessary, etc.
-    // This is pretty ugly and at the least should be moved up to helpers.
+    // TODO(titzer): we wrap the code in a JSFunction here to reuse the
+    // JSEntryStub; that could be done with a special prologue or other stub.
     if (function.is_null()) {
-      function =
-          v8::Utils::OpenHandle(*v8::Handle<v8::Function>::Cast(CompileRun(
-              "(function() { 'use strict'; return 2.7123; })")));
-      CompilationInfoWithZone info(function);
-      CHECK(Parser::Parse(&info));
-      info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
-      CHECK(Rewriter::Rewrite(&info));
-      CHECK(Scope::Analyze(&info));
-      CHECK_NE(NULL, info.scope());
-      Handle<ScopeInfo> scope_info =
-          ScopeInfo::Create(info.scope(), info.zone());
-      info.shared_info()->set_scope_info(*scope_info);
-      Pipeline pipeline(&info);
-      Linkage linkage(&info);
-      Handle<Code> code =
-          pipeline.GenerateCodeForMachineGraph(&linkage, this->graph());
-      CHECK(!code.is_null());
-      function->ReplaceCode(*code);
+      function = FunctionTester::ForMachineGraph(this->graph());
     }
     Handle<Object>* args = NULL;
     MaybeHandle<Object> result =
