@@ -97,6 +97,39 @@ TYPED_TEST(FunctionalTest, HashIsOkish) {
 }
 
 
+TYPED_TEST(FunctionalTest, HashValueArrayUsesHashRange) {
+  TypeParam values[128];
+  this->rng()->NextBytes(&values, sizeof(values));
+  EXPECT_EQ(hash_range(values, values + arraysize(values)), hash_value(values));
+}
+
+
+TYPED_TEST(FunctionalTest, BitEqualTo) {
+  bit_equal_to<TypeParam> pred;
+  for (size_t i = 0; i < 128; ++i) {
+    TypeParam v1, v2;
+    this->rng()->NextBytes(&v1, sizeof(v1));
+    this->rng()->NextBytes(&v2, sizeof(v2));
+    EXPECT_PRED2(pred, v1, v1);
+    EXPECT_PRED2(pred, v2, v2);
+    EXPECT_EQ(memcmp(&v1, &v2, sizeof(TypeParam)) == 0, pred(v1, v2));
+  }
+}
+
+
+TYPED_TEST(FunctionalTest, BitEqualToImpliesSameBitHash) {
+  bit_hash<TypeParam> h;
+  bit_equal_to<TypeParam> e;
+  TypeParam values[32];
+  this->rng()->NextBytes(&values, sizeof(values));
+  TRACED_FOREACH(TypeParam, v1, values) {
+    TRACED_FOREACH(TypeParam, v2, values) {
+      if (e(v1, v2)) EXPECT_EQ(h(v1), h(v2));
+    }
+  }
+}
+
+
 namespace {
 
 struct Foo {
@@ -123,6 +156,40 @@ TEST(FunctionalTest, HashUsesArgumentDependentLookup) {
       EXPECT_EQ(hash_combine(x, y), h(foo));
     }
   }
+}
+
+
+TEST(FunctionalTest, BitEqualToFloat) {
+  bit_equal_to<float> pred;
+  EXPECT_FALSE(pred(0.0f, -0.0f));
+  EXPECT_FALSE(pred(-0.0f, 0.0f));
+  float const qNaN = std::numeric_limits<float>::quiet_NaN();
+  float const sNaN = std::numeric_limits<float>::signaling_NaN();
+  EXPECT_PRED2(pred, qNaN, qNaN);
+  EXPECT_PRED2(pred, sNaN, sNaN);
+}
+
+
+TEST(FunctionalTest, BitHashFloatDifferentForZeroAndMinusZero) {
+  bit_hash<float> h;
+  EXPECT_NE(h(0.0f), h(-0.0f));
+}
+
+
+TEST(FunctionalTest, BitEqualToDouble) {
+  bit_equal_to<double> pred;
+  EXPECT_FALSE(pred(0.0, -0.0));
+  EXPECT_FALSE(pred(-0.0, 0.0));
+  double const qNaN = std::numeric_limits<double>::quiet_NaN();
+  double const sNaN = std::numeric_limits<double>::signaling_NaN();
+  EXPECT_PRED2(pred, qNaN, qNaN);
+  EXPECT_PRED2(pred, sNaN, sNaN);
+}
+
+
+TEST(FunctionalTest, BitHashDoubleDifferentForZeroAndMinusZero) {
+  bit_hash<double> h;
+  EXPECT_NE(h(0.0), h(-0.0));
 }
 
 }  // namespace base

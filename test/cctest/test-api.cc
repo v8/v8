@@ -15400,7 +15400,7 @@ TEST(CompileExternalTwoByteSource) {
 #ifndef V8_INTERPRETED_REGEXP
 
 struct RegExpInterruptionData {
-  int loop_count;
+  v8::base::Atomic32 loop_count;
   UC16VectorResource* string_resource;
   v8::Persistent<v8::String> string;
 } regexp_interruption_data;
@@ -15412,9 +15412,10 @@ class RegExpInterruptionThread : public v8::base::Thread {
       : Thread(Options("TimeoutThread")), isolate_(isolate) {}
 
   virtual void Run() {
-    for (regexp_interruption_data.loop_count = 0;
-         regexp_interruption_data.loop_count < 7;
-         regexp_interruption_data.loop_count++) {
+    for (v8::base::NoBarrier_Store(&regexp_interruption_data.loop_count, 0);
+         v8::base::NoBarrier_Load(&regexp_interruption_data.loop_count) < 7;
+         v8::base::NoBarrier_AtomicIncrement(
+             &regexp_interruption_data.loop_count, 1)) {
       v8::base::OS::Sleep(50);  // Wait a bit before requesting GC.
       reinterpret_cast<i::Isolate*>(isolate_)->stack_guard()->RequestGC();
     }
@@ -15428,7 +15429,9 @@ class RegExpInterruptionThread : public v8::base::Thread {
 
 
 void RunBeforeGC(v8::GCType type, v8::GCCallbackFlags flags) {
-  if (regexp_interruption_data.loop_count != 2) return;
+  if (v8::base::NoBarrier_Load(&regexp_interruption_data.loop_count) != 2) {
+    return;
+  }
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::String> string = v8::Local<v8::String>::New(
       CcTest::isolate(), regexp_interruption_data.string);
