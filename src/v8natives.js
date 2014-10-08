@@ -1739,6 +1739,11 @@ function FunctionSourceString(func) {
     throw new $TypeError('Function.prototype.toString is not generic');
   }
 
+  var classSource = %ClassGetSourceCode(func);
+  if (IS_STRING(classSource)) {
+    return classSource;
+  }
+
   var source = %FunctionGetSourceCode(func);
   if (!IS_STRING(source) || %FunctionIsBuiltin(func)) {
     var name = %FunctionGetName(func);

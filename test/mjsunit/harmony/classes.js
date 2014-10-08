@@ -165,3 +165,15 @@
   new C();
 })();
 */
+
+
+(function TestToString() {
+  class C {}
+  assertEquals('class C {}', C.toString());
+
+  class D { constructor() { 42; } }
+  assertEquals('class D { constructor() { 42; } }', D.toString());
+
+  class E { x() { 42; } }
+  assertEquals('class E { x() { 42; } }', E.toString());
+})();

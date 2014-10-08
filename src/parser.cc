@@ -648,9 +648,10 @@ Expression* ParserTraits::SuperReference(
 
 Expression* ParserTraits::ClassExpression(
     const AstRawString* name, Expression* extends, Expression* constructor,
-    ZoneList<ObjectLiteral::Property*>* properties, int pos,
-    AstNodeFactory<AstConstructionVisitor>* factory) {
-  return factory->NewClassLiteral(name, extends, constructor, properties, pos);
+    ZoneList<ObjectLiteral::Property*>* properties, int start_position,
+    int end_position, AstNodeFactory<AstConstructionVisitor>* factory) {
+  return factory->NewClassLiteral(name, extends, constructor, properties,
+                                  start_position, end_position);
 }
 
 Literal* ParserTraits::ExpressionFromLiteral(

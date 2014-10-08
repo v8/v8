@@ -2536,22 +2536,26 @@ class ClassLiteral FINAL : public Expression {
   Expression* extends() const { return extends_; }
   Expression* constructor() const { return constructor_; }
   ZoneList<Property*>* properties() const { return properties_; }
+  int start_position() const { return position(); }
+  int end_position() const { return end_position_; }
 
  protected:
   ClassLiteral(Zone* zone, const AstRawString* name, Expression* extends,
                Expression* constructor, ZoneList<Property*>* properties,
-               int position, IdGen* id_gen)
-      : Expression(zone, position, id_gen),
+               int start_position, int end_position, IdGen* id_gen)
+      : Expression(zone, start_position, id_gen),
         raw_name_(name),
         extends_(extends),
         constructor_(constructor),
-        properties_(properties) {}
+        properties_(properties),
+        end_position_(end_position) {}
 
  private:
   const AstRawString* raw_name_;
   Expression* extends_;
   Expression* constructor_;
   ZoneList<Property*>* properties_;
+  int end_position_;
 };
 
 
@@ -3550,9 +3554,10 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
   ClassLiteral* NewClassLiteral(const AstRawString* name, Expression* extends,
                                 Expression* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
-                                int position) {
-    ClassLiteral* lit = new (zone_) ClassLiteral(
-        zone_, name, extends, constructor, properties, position, id_gen_);
+                                int start_position, int end_position) {
+    ClassLiteral* lit =
+        new (zone_) ClassLiteral(zone_, name, extends, constructor, properties,
+                                 start_position, end_position, id_gen_);
     VISIT_AND_RETURN(ClassLiteral, lit)
   }
 

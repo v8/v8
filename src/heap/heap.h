@@ -340,7 +340,10 @@ namespace internal {
   V(intl_initialized_marker_symbol) \
   V(intl_impl_object_symbol)        \
   V(promise_debug_marker_symbol)    \
-  V(promise_has_handler_symbol)
+  V(promise_has_handler_symbol)     \
+  V(class_script_symbol)            \
+  V(class_start_position_symbol)    \
+  V(class_end_position_symbol)
 
 // Forward declarations.
 class HeapStats;

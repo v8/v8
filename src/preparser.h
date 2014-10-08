@@ -1102,7 +1102,7 @@ class PreParserFactory {
                                       PreParserExpression extends,
                                       PreParserExpression constructor,
                                       PreParserExpressionList properties,
-                                      int position) {
+                                      int start_position, int end_position) {
     return PreParserExpression::Default();
   }
 
@@ -1334,12 +1334,10 @@ class PreParserTraits {
     return PreParserExpression::Super();
   }
 
-  static PreParserExpression ClassExpression(PreParserIdentifier name,
-                                             PreParserExpression extends,
-                                             PreParserExpression constructor,
-                                             PreParserExpressionList properties,
-                                             int position,
-                                             PreParserFactory* factory) {
+  static PreParserExpression ClassExpression(
+      PreParserIdentifier name, PreParserExpression extends,
+      PreParserExpression constructor, PreParserExpressionList properties,
+      int start_position, int end_position, PreParserFactory* factory) {
     return PreParserExpression::Default();
   }
 
@@ -2805,10 +2803,12 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
       fni_->Leave();
     }
   }
+
+  int end_pos = peek_position();
   Expect(Token::RBRACE, CHECK_OK);
 
   return this->ClassExpression(name, extends, constructor, properties, pos,
-                               factory());
+                               end_pos + 1, factory());
 }
 
 

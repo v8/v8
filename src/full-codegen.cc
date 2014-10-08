@@ -1541,30 +1541,34 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 
-void FullCodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
+void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
   Comment cmnt(masm_, "[ ClassLiteral");
 
-  if (expr->raw_name() != NULL) {
-    __ Push(expr->name());
+  if (lit->raw_name() != NULL) {
+    __ Push(lit->name());
   } else {
     __ Push(isolate()->factory()->undefined_value());
   }
 
-  if (expr->extends() != NULL) {
-    VisitForStackValue(expr->extends());
+  if (lit->extends() != NULL) {
+    VisitForStackValue(lit->extends());
   } else {
     __ Push(isolate()->factory()->the_hole_value());
   }
 
-  if (expr->constructor() != NULL) {
-    VisitForStackValue(expr->constructor());
+  if (lit->constructor() != NULL) {
+    VisitForStackValue(lit->constructor());
   } else {
     __ Push(isolate()->factory()->undefined_value());
   }
 
+  __ Push(script());
+  __ Push(Smi::FromInt(lit->start_position()));
+  __ Push(Smi::FromInt(lit->end_position()));
+
   // TODO(arv): Process methods
 
-  __ CallRuntime(Runtime::kDefineClass, 3);
+  __ CallRuntime(Runtime::kDefineClass, 6);
   context()->Plug(result_register());
 }
 
