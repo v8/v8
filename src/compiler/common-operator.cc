@@ -150,15 +150,17 @@ const Operator* CommonOperatorBuilder::Int64Constant(int64_t value) {
 
 const Operator* CommonOperatorBuilder::Float32Constant(volatile float value) {
   return new (zone())
-      Operator1<float>(IrOpcode::kFloat32Constant, Operator::kPure, 0, 1,
-                       "Float32Constant", value);
+      Operator1<float, base::bit_equal_to<float>, base::bit_hash<float>>(
+          IrOpcode::kFloat32Constant, Operator::kPure, 0, 1, "Float32Constant",
+          value);
 }
 
 
 const Operator* CommonOperatorBuilder::Float64Constant(volatile double value) {
   return new (zone())
-      Operator1<double>(IrOpcode::kFloat64Constant, Operator::kPure, 0, 1,
-                        "Float64Constant", value);
+      Operator1<double, base::bit_equal_to<double>, base::bit_hash<double>>(
+          IrOpcode::kFloat64Constant, Operator::kPure, 0, 1, "Float64Constant",
+          value);
 }
 
 
@@ -172,8 +174,9 @@ const Operator* CommonOperatorBuilder::ExternalConstant(
 
 const Operator* CommonOperatorBuilder::NumberConstant(volatile double value) {
   return new (zone())
-      Operator1<double>(IrOpcode::kNumberConstant, Operator::kPure, 0, 1,
-                        "NumberConstant", value);
+      Operator1<double, base::bit_equal_to<double>, base::bit_hash<double>>(
+          IrOpcode::kNumberConstant, Operator::kPure, 0, 1, "NumberConstant",
+          value);
 }
 
 

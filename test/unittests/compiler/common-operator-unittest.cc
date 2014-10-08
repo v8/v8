@@ -133,22 +133,92 @@ class CommonOperatorTest : public TestWithZone {
 
 const int kArguments[] = {1, 5, 6, 42, 100, 10000, kMaxInt};
 
-const float kFloat32Values[] = {
-    std::numeric_limits<float>::min(), -1.0f, -0.0f, 0.0f, 1.0f,
-    std::numeric_limits<float>::max()};
+
+const float kFloatValues[] = {-std::numeric_limits<float>::infinity(),
+                              std::numeric_limits<float>::min(),
+                              -1.0f,
+                              -0.0f,
+                              0.0f,
+                              1.0f,
+                              std::numeric_limits<float>::max(),
+                              std::numeric_limits<float>::infinity(),
+                              std::numeric_limits<float>::quiet_NaN(),
+                              std::numeric_limits<float>::signaling_NaN()};
+
+
+const double kDoubleValues[] = {-std::numeric_limits<double>::infinity(),
+                                std::numeric_limits<double>::min(),
+                                -1.0,
+                                -0.0,
+                                0.0,
+                                1.0,
+                                std::numeric_limits<double>::max(),
+                                std::numeric_limits<double>::infinity(),
+                                std::numeric_limits<double>::quiet_NaN(),
+                                std::numeric_limits<double>::signaling_NaN()};
 
 }  // namespace
 
 
 TEST_F(CommonOperatorTest, Float32Constant) {
-  TRACED_FOREACH(float, value, kFloat32Values) {
+  TRACED_FOREACH(float, value, kFloatValues) {
     const Operator* op = common()->Float32Constant(value);
-    EXPECT_FLOAT_EQ(value, OpParameter<float>(op));
+    EXPECT_PRED2(base::bit_equal_to<float>(), value, OpParameter<float>(op));
     EXPECT_EQ(0, OperatorProperties::GetValueInputCount(op));
     EXPECT_EQ(0, OperatorProperties::GetTotalInputCount(op));
     EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
     EXPECT_EQ(0, OperatorProperties::GetEffectOutputCount(op));
     EXPECT_EQ(1, OperatorProperties::GetValueOutputCount(op));
+  }
+  TRACED_FOREACH(float, v1, kFloatValues) {
+    TRACED_FOREACH(float, v2, kFloatValues) {
+      const Operator* op1 = common()->Float32Constant(v1);
+      const Operator* op2 = common()->Float32Constant(v2);
+      EXPECT_EQ(bit_cast<uint32_t>(v1) == bit_cast<uint32_t>(v2),
+                op1->Equals(op2));
+    }
+  }
+}
+
+
+TEST_F(CommonOperatorTest, Float64Constant) {
+  TRACED_FOREACH(double, value, kFloatValues) {
+    const Operator* op = common()->Float64Constant(value);
+    EXPECT_PRED2(base::bit_equal_to<double>(), value, OpParameter<double>(op));
+    EXPECT_EQ(0, OperatorProperties::GetValueInputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetEffectOutputCount(op));
+    EXPECT_EQ(1, OperatorProperties::GetValueOutputCount(op));
+  }
+  TRACED_FOREACH(double, v1, kFloatValues) {
+    TRACED_FOREACH(double, v2, kFloatValues) {
+      const Operator* op1 = common()->Float64Constant(v1);
+      const Operator* op2 = common()->Float64Constant(v2);
+      EXPECT_EQ(bit_cast<uint64_t>(v1) == bit_cast<uint64_t>(v2),
+                op1->Equals(op2));
+    }
+  }
+}
+
+
+TEST_F(CommonOperatorTest, NumberConstant) {
+  TRACED_FOREACH(double, value, kFloatValues) {
+    const Operator* op = common()->NumberConstant(value);
+    EXPECT_PRED2(base::bit_equal_to<double>(), value, OpParameter<double>(op));
+    EXPECT_EQ(0, OperatorProperties::GetValueInputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetTotalInputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetControlOutputCount(op));
+    EXPECT_EQ(0, OperatorProperties::GetEffectOutputCount(op));
+    EXPECT_EQ(1, OperatorProperties::GetValueOutputCount(op));
+  }
+  TRACED_FOREACH(double, v1, kFloatValues) {
+    TRACED_FOREACH(double, v2, kFloatValues) {
+      const Operator* op1 = common()->NumberConstant(v1);
+      const Operator* op2 = common()->NumberConstant(v2);
+      EXPECT_EQ(bit_cast<uint64_t>(v1) == bit_cast<uint64_t>(v2),
+                op1->Equals(op2));
+    }
   }
 }
 

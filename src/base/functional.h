@@ -6,6 +6,7 @@
 #define V8_BASE_FUNCTIONAL_H_
 
 #include <cstddef>
+#include <cstring>
 #include <functional>
 #include <utility>
 
@@ -67,7 +68,17 @@ V8_INLINE size_t hash_combine(size_t seed) { return seed; }
 size_t hash_combine(size_t seed, size_t value);
 template <typename T, typename... Ts>
 V8_INLINE size_t hash_combine(T const& v, Ts const&... vs) {
-  return hash_combine(hash<T>()(v), hash_combine(vs...));
+  return hash_combine(hash_combine(vs...), hash<T>()(v));
+}
+
+
+template <typename Iterator>
+V8_INLINE size_t hash_range(Iterator first, Iterator last) {
+  size_t seed = 0;
+  for (; first != last; ++first) {
+    seed = hash_combine(seed, *first);
+  }
+  return seed;
 }
 
 
@@ -101,6 +112,16 @@ V8_INLINE size_t hash_value(float v) {
 V8_INLINE size_t hash_value(double v) {
   // 0 and -0 both hash to zero.
   return v != 0.0 ? hash_value(bit_cast<uint64_t>(v)) : 0;
+}
+
+template <typename T, size_t N>
+V8_INLINE size_t hash_value(const T (&v)[N]) {
+  return hash_range(v, v + N);
+}
+
+template <typename T, size_t N>
+V8_INLINE size_t hash_value(T (&v)[N]) {
+  return hash_range(v, v + N);
 }
 
 template <typename T>
@@ -148,13 +169,55 @@ struct hash<T*> : public std::unary_function<T*, size_t> {
   }
 };
 
-template <typename T1, typename T2>
-struct hash<std::pair<T1, T2> >
-    : public std::unary_function<std::pair<T1, T2>, size_t> {
-  V8_INLINE size_t operator()(std::pair<T1, T2> const& v) const {
-    return ::v8::base::hash_value(v);
-  }
-};
+
+// base::bit_equal_to is a function object class for bitwise equality
+// comparison, similar to std::equal_to, except that the comparison is performed
+// on the bit representation of the operands.
+//
+// base::bit_hash is a function object class for bitwise hashing, similar to
+// base::hash. It can be used together with base::bit_equal_to to implement a
+// hash data structure based on the bitwise representation of types.
+
+template <typename T>
+struct bit_equal_to : public std::binary_function<T, T, bool> {};
+
+template <typename T>
+struct bit_hash : public std::unary_function<T, size_t> {};
+
+#define V8_BASE_BIT_SPECIALIZE_TRIVIAL(type)                 \
+  template <>                                                \
+  struct bit_equal_to<type> : public std::equal_to<type> {}; \
+  template <>                                                \
+  struct bit_hash<type> : public hash<type> {};
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(signed char)
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(unsigned char)
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(short)           // NOLINT(runtime/int)
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(unsigned short)  // NOLINT(runtime/int)
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(int)
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(unsigned int)
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(long)                // NOLINT(runtime/int)
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(unsigned long)       // NOLINT(runtime/int)
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(long long)           // NOLINT(runtime/int)
+V8_BASE_BIT_SPECIALIZE_TRIVIAL(unsigned long long)  // NOLINT(runtime/int)
+#undef V8_BASE_BIT_SPECIALIZE_TRIVIAL
+
+#define V8_BASE_BIT_SPECIALIZE_BIT_CAST(type, btype)                          \
+  template <>                                                                 \
+  struct bit_equal_to<type> : public std::binary_function<type, type, bool> { \
+    V8_INLINE bool operator()(type lhs, type rhs) const {                     \
+      return bit_cast<btype>(lhs) == bit_cast<btype>(rhs);                    \
+    }                                                                         \
+  };                                                                          \
+  template <>                                                                 \
+  struct bit_hash<type> : public std::unary_function<type, size_t> {          \
+    V8_INLINE size_t operator()(type v) const {                               \
+      hash<btype> h;                                                          \
+      return h(bit_cast<btype>(v));                                           \
+    }                                                                         \
+  };
+V8_BASE_BIT_SPECIALIZE_BIT_CAST(float, uint32_t)
+V8_BASE_BIT_SPECIALIZE_BIT_CAST(double, uint64_t)
+#undef V8_BASE_BIT_SPECIALIZE_BIT_CAST
 
 }  // namespace base
 }  // namespace v8
