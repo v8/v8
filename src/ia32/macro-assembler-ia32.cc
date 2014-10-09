@@ -2661,20 +2661,19 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
     } else if (lower == 0) {
       Move(dst, upper);
       psllq(dst, 32);
-    } else {
+    } else if (CpuFeatures::IsSupported(SSE4_1)) {
+      CpuFeatureScope scope(this, SSE4_1);
       push(eax);
       Move(eax, Immediate(lower));
       movd(dst, Operand(eax));
       Move(eax, Immediate(upper));
-      if (CpuFeatures::IsSupported(SSE4_1)) {
-        CpuFeatureScope scope(this, SSE4_1);
-        pinsrd(dst, Operand(eax), 1);
-      } else {
-        psllq(dst, 32);
-        movd(xmm0, Operand(eax));
-        orpd(dst, xmm0);
-      }
+      pinsrd(dst, Operand(eax), 1);
       pop(eax);
+    } else {
+      push(Immediate(upper));
+      push(Immediate(lower));
+      movsd(dst, Operand(esp, 0));
+      add(esp, Immediate(kDoubleSize));
     }
   }
 }
