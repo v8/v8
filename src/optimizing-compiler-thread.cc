@@ -82,12 +82,12 @@ void OptimizingCompilerThread::Run() {
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  if (FLAG_job_based_recompilation) {
+  if (job_based_recompilation_) {
     return;
   }
 
   base::ElapsedTimer total_timer;
-  if (FLAG_trace_concurrent_recompilation) total_timer.Start();
+  if (tracing_enabled_) total_timer.Start();
 
   while (true) {
     input_queue_semaphore_.Wait();
@@ -101,7 +101,7 @@ void OptimizingCompilerThread::Run() {
       case CONTINUE:
         break;
       case STOP:
-        if (FLAG_trace_concurrent_recompilation) {
+        if (tracing_enabled_) {
           time_spent_total_ = total_timer.Elapsed();
         }
         stop_semaphore_.Signal();
@@ -119,11 +119,11 @@ void OptimizingCompilerThread::Run() {
     }
 
     base::ElapsedTimer compiling_timer;
-    if (FLAG_trace_concurrent_recompilation) compiling_timer.Start();
+    if (tracing_enabled_) compiling_timer.Start();
 
     CompileNext();
 
-    if (FLAG_trace_concurrent_recompilation) {
+    if (tracing_enabled_) {
       time_spent_compiling_ += compiling_timer.Elapsed();
     }
   }
@@ -132,7 +132,7 @@ void OptimizingCompilerThread::Run() {
 
 OptimizedCompileJob* OptimizingCompilerThread::NextInput() {
   base::LockGuard<base::Mutex> access_input_queue_(&input_queue_mutex_);
-  DCHECK(!FLAG_job_based_recompilation);
+  DCHECK(!job_based_recompilation_);
   if (input_queue_length_ == 0) return NULL;
   OptimizedCompileJob* job = input_queue_[InputQueueIndex(0)];
   DCHECK_NE(NULL, job);
@@ -181,7 +181,7 @@ static void DisposeOptimizedCompileJob(OptimizedCompileJob* job,
 
 
 void OptimizingCompilerThread::FlushInputQueue(bool restore_function_code) {
-  DCHECK(!FLAG_job_based_recompilation);
+  DCHECK(!job_based_recompilation_);
   OptimizedCompileJob* job;
   while ((job = NextInput())) {
     // This should not block, since we have one signal on the input queue
@@ -220,13 +220,13 @@ void OptimizingCompilerThread::Flush() {
   DCHECK(!IsOptimizerThread());
   base::Release_Store(&stop_thread_, static_cast<base::AtomicWord>(FLUSH));
   if (FLAG_block_concurrent_recompilation) Unblock();
-  if (!FLAG_job_based_recompilation) {
+  if (!job_based_recompilation_) {
     input_queue_semaphore_.Signal();
     stop_semaphore_.Wait();
   }
   FlushOutputQueue(true);
   if (FLAG_concurrent_osr) FlushOsrBuffer(true);
-  if (FLAG_trace_concurrent_recompilation) {
+  if (tracing_enabled_) {
     PrintF("  ** Flushed concurrent recompilation queues.\n");
   }
 }
@@ -236,12 +236,12 @@ void OptimizingCompilerThread::Stop() {
   DCHECK(!IsOptimizerThread());
   base::Release_Store(&stop_thread_, static_cast<base::AtomicWord>(STOP));
   if (FLAG_block_concurrent_recompilation) Unblock();
-  if (!FLAG_job_based_recompilation) {
+  if (!job_based_recompilation_) {
     input_queue_semaphore_.Signal();
     stop_semaphore_.Wait();
   }
 
-  if (FLAG_job_based_recompilation) {
+  if (job_based_recompilation_) {
     while (true) {
       {
         base::LockGuard<base::Mutex> access_input_queue(&input_queue_mutex_);
@@ -261,13 +261,12 @@ void OptimizingCompilerThread::Stop() {
 
   if (FLAG_concurrent_osr) FlushOsrBuffer(false);
 
-  if (FLAG_trace_concurrent_recompilation) {
+  if (tracing_enabled_) {
     double percentage = time_spent_compiling_.PercentOf(time_spent_total_);
     PrintF("  ** Compiler thread did %.2f%% useful work\n", percentage);
   }
 
-  if ((FLAG_trace_osr || FLAG_trace_concurrent_recompilation) &&
-      FLAG_concurrent_osr) {
+  if ((FLAG_trace_osr || tracing_enabled_) && FLAG_concurrent_osr) {
     PrintF("[COSR hit rate %d / %d]\n", osr_hits_, osr_attempts_);
   }
 
@@ -297,7 +296,7 @@ void OptimizingCompilerThread::InstallOptimizedFunctions() {
       BackEdgeTable::RemoveStackCheck(code, offset);
     } else {
       if (function->IsOptimized()) {
-        if (FLAG_trace_concurrent_recompilation) {
+        if (tracing_enabled_) {
           PrintF("  ** Aborting compilation for ");
           function->ShortPrint();
           PrintF(" as it has already been optimized.\n");
@@ -334,7 +333,7 @@ void OptimizingCompilerThread::QueueForOptimization(OptimizedCompileJob* job) {
     input_queue_[InputQueueIndex(input_queue_length_)] = job;
     input_queue_length_++;
   }
-  if (FLAG_job_based_recompilation) {
+  if (job_based_recompilation_) {
     V8::GetCurrentPlatform()->CallOnBackgroundThread(
         new CompileTask(isolate_, job), v8::Platform::kShortRunningTask);
   } else if (FLAG_block_concurrent_recompilation) {
@@ -347,7 +346,7 @@ void OptimizingCompilerThread::QueueForOptimization(OptimizedCompileJob* job) {
 
 void OptimizingCompilerThread::Unblock() {
   DCHECK(!IsOptimizerThread());
-  if (FLAG_job_based_recompilation) {
+  if (job_based_recompilation_) {
     return;
   }
   while (blocked_jobs_ > 0) {

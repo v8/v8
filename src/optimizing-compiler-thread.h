@@ -37,7 +37,9 @@ class OptimizingCompilerThread : public base::Thread {
         osr_buffer_cursor_(0),
         osr_hits_(0),
         osr_attempts_(0),
-        blocked_jobs_(0) {
+        blocked_jobs_(0),
+        tracing_enabled_(FLAG_trace_concurrent_recompilation),
+        job_based_recompilation_(FLAG_job_based_recompilation) {
     base::NoBarrier_Store(&stop_thread_,
                           static_cast<base::AtomicWord>(CONTINUE));
     input_queue_ = NewArray<OptimizedCompileJob*>(input_queue_capacity_);
@@ -140,6 +142,14 @@ class OptimizingCompilerThread : public base::Thread {
   int osr_attempts_;
 
   int blocked_jobs_;
+
+  // Copies of FLAG_trace_concurrent_recompilation and
+  // FLAG_job_based_recompilation that will be used from the background thread.
+  //
+  // Since flags might get modified while the background thread is running, it
+  // is not safe to access them directly.
+  bool tracing_enabled_;
+  bool job_based_recompilation_;
 };
 
 } }  // namespace v8::internal
