@@ -170,15 +170,11 @@ class ParserBase : public Traits {
     FunctionState(FunctionState** function_state_stack,
                   typename Traits::Type::Scope** scope_stack,
                   typename Traits::Type::Scope* scope,
-                  typename Traits::Type::Zone* zone = NULL,
-                  AstValueFactory* ast_value_factory = NULL,
-                  AstNode::IdGen* ast_node_id_gen = NULL);
+                  typename Traits::Type::Factory* factory);
     FunctionState(FunctionState** function_state_stack,
                   typename Traits::Type::Scope** scope_stack,
                   typename Traits::Type::Scope** scope,
-                  typename Traits::Type::Zone* zone = NULL,
-                  AstValueFactory* ast_value_factory = NULL,
-                  AstNode::IdGen* ast_node_id_gen = NULL);
+                  typename Traits::Type::Factory* factory);
     ~FunctionState();
 
     int NextMaterializedLiteralIndex() {
@@ -209,7 +205,7 @@ class ParserBase : public Traits {
       return generator_object_variable_;
     }
 
-    typename Traits::Type::Factory* factory() { return &factory_; }
+    typename Traits::Type::Factory* factory() { return factory_; }
 
    private:
     // Used to assign an index to each literal that needs materialization in
@@ -234,10 +230,8 @@ class ParserBase : public Traits {
     FunctionState* outer_function_state_;
     typename Traits::Type::Scope** scope_stack_;
     typename Traits::Type::Scope* outer_scope_;
-    AstNode::IdGen* ast_node_id_gen_;  // Only used by ParserTraits.
-    AstNode::IdGen saved_id_gen_;      // Ditto.
     typename Traits::Type::Zone* extra_param_;
-    typename Traits::Type::Factory factory_;
+    typename Traits::Type::Factory* factory_;
 
     friend class ParserTraits;
     friend class Checkpoint;
@@ -1156,13 +1150,6 @@ class PreParserTraits {
 
   explicit PreParserTraits(PreParser* pre_parser) : pre_parser_(pre_parser) {}
 
-  // Custom operations executed when FunctionStates are created and
-  // destructed. (The PreParser doesn't need to do anything.)
-  template <typename FunctionState>
-  static void SetUpFunctionState(FunctionState* function_state) {}
-  template <typename FunctionState>
-  static void TearDownFunctionState(FunctionState* function_state) {}
-
   // Helper functions for recursive descent.
   static bool IsEvalOrArguments(PreParserIdentifier identifier) {
     return identifier.IsEvalOrArguments();
@@ -1445,7 +1432,8 @@ class PreParser : public ParserBase<PreParserTraits> {
   // during parsing.
   PreParseResult PreParseProgram() {
     PreParserScope scope(scope_, GLOBAL_SCOPE);
-    FunctionState top_scope(&function_state_, &scope_, &scope);
+    PreParserFactory factory(NULL, NULL, NULL);
+    FunctionState top_scope(&function_state_, &scope_, &scope, &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     ParseSourceElements(Token::EOS, &ok);
@@ -1572,8 +1560,8 @@ template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack,
     typename Traits::Type::Scope** scope_stack,
-    typename Traits::Type::Scope* scope, typename Traits::Type::Zone* zone,
-    AstValueFactory* ast_value_factory, AstNode::IdGen* ast_node_id_gen)
+    typename Traits::Type::Scope* scope,
+    typename Traits::Type::Factory* factory)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
@@ -1583,11 +1571,9 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
-      ast_node_id_gen_(ast_node_id_gen),
-      factory_(zone, ast_value_factory, ast_node_id_gen) {
+      factory_(factory) {
   *scope_stack_ = scope;
   *function_state_stack = this;
-  Traits::SetUpFunctionState(this);
 }
 
 
@@ -1595,8 +1581,8 @@ template <class Traits>
 ParserBase<Traits>::FunctionState::FunctionState(
     FunctionState** function_state_stack,
     typename Traits::Type::Scope** scope_stack,
-    typename Traits::Type::Scope** scope, typename Traits::Type::Zone* zone,
-    AstValueFactory* ast_value_factory, AstNode::IdGen* ast_node_id_gen)
+    typename Traits::Type::Scope** scope,
+    typename Traits::Type::Factory* factory)
     : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
       next_handler_index_(0),
       expected_property_count_(0),
@@ -1606,11 +1592,9 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_stack_(scope_stack),
       outer_scope_(*scope_stack),
-      ast_node_id_gen_(ast_node_id_gen),
-      factory_(zone, ast_value_factory, ast_node_id_gen) {
+      factory_(factory) {
   *scope_stack_ = *scope;
   *function_state_stack = this;
-  Traits::SetUpFunctionState(this);
 }
 
 
@@ -1618,7 +1602,6 @@ template <class Traits>
 ParserBase<Traits>::FunctionState::~FunctionState() {
   *scope_stack_ = outer_scope_;
   *function_state_stack_ = outer_function_state_;
-  Traits::TearDownFunctionState(this);
 }
 
 
@@ -2651,8 +2634,10 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
   int handler_count = 0;
 
   {
-    FunctionState function_state(&function_state_, &scope_, &scope, zone(),
-                                 this->ast_value_factory(), ast_node_id_gen_);
+    typename Traits::Type::Factory function_factory(
+        zone(), this->ast_value_factory(), ast_node_id_gen_);
+    FunctionState function_state(&function_state_, &scope_, &scope,
+                                 &function_factory);
     Scanner::Location dupe_error_loc = Scanner::Location::invalid();
     num_parameters = Traits::DeclareArrowParametersFromExpression(
         params_ast, scope_, &dupe_error_loc, ok);

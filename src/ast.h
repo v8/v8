@@ -184,7 +184,7 @@ class AstNode: public ZoneObject {
   // For generating IDs for AstNodes.
   class IdGen {
    public:
-    explicit IdGen(int id = 0) : id_(id) {}
+    IdGen() : id_(BailoutId::FirstUsable().ToInt()) {}
 
     int GetNextId() { return ReserveIdRange(1); }
     int ReserveIdRange(int n) {
@@ -195,6 +195,8 @@ class AstNode: public ZoneObject {
 
    private:
     int id_;
+
+    DISALLOW_COPY_AND_ASSIGN(IdGen);
   };
 
 #define DECLARE_TYPE_ENUM(type) k##type,
