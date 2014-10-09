@@ -121,13 +121,18 @@ static uint32_t ReadELFHWCaps() {
 int __detect_fp64_mode(void) {
   double result = 0;
   // Bit representation of (double)1 is 0x3FF0000000000000.
-  asm(
-    "lui $t0, 0x3FF0\n\t"
-    "ldc1 $f0, %0\n\t"
-    "mtc1 $t0, $f1\n\t"
-    "sdc1 $f0, %0\n\t"
-    : "+m" (result)
-    : : "t0", "$f0", "$f1", "memory");
+  __asm__ volatile(
+      ".set push\n\t"
+      ".set noreorder\n\t"
+      ".set oddspreg\n\t"
+      "lui $t0, 0x3FF0\n\t"
+      "ldc1 $f0, %0\n\t"
+      "mtc1 $t0, $f1\n\t"
+      "sdc1 $f0, %0\n\t"
+      ".set pop\n\t"
+      : "+m"(result)
+      :
+      : "t0", "$f0", "$f1", "memory");
 
   return !(result == 1);
 }
@@ -135,9 +140,22 @@ int __detect_fp64_mode(void) {
 
 int __detect_mips_arch_revision(void) {
   // TODO(dusmil): Do the specific syscall as soon as it is implemented in mips
-  // kernel. Currently fail-back to the least common denominator which is
-  // mips32 revision 1.
-  return 1;
+  // kernel.
+  uint32_t result = 0;
+  __asm__ volatile(
+      "move $v0, $zero\n\t"
+      // Encoding for "addi $v0, $v0, 1" on non-r6,
+      // which is encoding for "bovc $v0, %v0, 1" on r6.
+      // Use machine code directly to avoid compilation errors with different
+      // toolchains and maintain compatibility.
+      ".word 0x20420001\n\t"
+      "sw $v0, %0\n\t"
+      : "=m"(result)
+      :
+      : "v0", "memory");
+  // Result is 0 on r6 architectures, 1 on other architecture revisions.
+  // Fall-back to the least common denominator which is mips32 revision 1.
+  return result ? 1 : 6;
 }
 #endif
 
