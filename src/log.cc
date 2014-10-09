@@ -652,7 +652,7 @@ class Profiler: public base::Thread {
   bool engaged_;
 
   // Tells whether worker thread should continue running.
-  bool running_;
+  base::Atomic32 running_;
 
   // Tells whether we are currently recording tick samples.
   bool paused_;
@@ -703,9 +703,9 @@ Profiler::Profiler(Isolate* isolate)
       overflow_(false),
       buffer_semaphore_(0),
       engaged_(false),
-      running_(false),
       paused_(false) {
   base::NoBarrier_Store(&tail_, 0);
+  base::NoBarrier_Store(&running_, 0);
 }
 
 
@@ -721,7 +721,7 @@ void Profiler::Engage() {
   }
 
   // Start thread processing the profiler buffer.
-  running_ = true;
+  base::NoBarrier_Store(&running_, 1);
   Start();
 
   // Register to get ticks.
@@ -741,7 +741,7 @@ void Profiler::Disengage() {
   // Terminate the worker thread by setting running_ to false,
   // inserting a fake element in the queue and then wait for
   // the thread to terminate.
-  running_ = false;
+  base::NoBarrier_Store(&running_, 0);
   TickSample sample;
   // Reset 'paused_' flag, otherwise semaphore may not be signalled.
   resume();
@@ -755,7 +755,7 @@ void Profiler::Disengage() {
 void Profiler::Run() {
   TickSample sample;
   bool overflow = Remove(&sample);
-  while (running_) {
+  while (base::NoBarrier_Load(&running_)) {
     LOG(isolate_, TickEvent(&sample, overflow));
     overflow = Remove(&sample);
   }
