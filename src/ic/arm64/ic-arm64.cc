@@ -798,8 +798,9 @@ static void KeyedStoreGenerateGenericHelper(
 }
 
 
-void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
-                                   StrictMode strict_mode) {
+void KeyedStoreIC::GenerateGeneric(
+    MacroAssembler* masm, StrictMode strict_mode,
+    KeyedStoreStubCacheRequirement handler_requirement) {
   ASM_LOCATION("KeyedStoreIC::GenerateGeneric");
   Label slow;
   Label array;
@@ -808,6 +809,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Label fast_object_grow;
   Label fast_double_grow;
   Label fast_double;
+  Label maybe_name_key;
+  Label miss;
 
   Register value = StoreDescriptor::ValueRegister();
   Register key = StoreDescriptor::NameRegister();
@@ -820,7 +823,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Register elements = x4;
   Register elements_map = x5;
 
-  __ JumpIfNotSmi(key, &slow);
+  __ JumpIfNotSmi(key, &maybe_name_key);
   __ JumpIfSmi(receiver, &slow);
   __ Ldr(receiver_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
 
@@ -853,7 +856,23 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   //  x1: key
   //  x2: receiver
   PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
+  // Never returns to here.
 
+  __ bind(&maybe_name_key);
+  __ Ldr(x10, FieldMemOperand(key, HeapObject::kMapOffset));
+  __ Ldrb(x10, FieldMemOperand(x10, Map::kInstanceTypeOffset));
+  __ JumpIfNotUniqueNameInstanceType(x10, &slow);
+  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::STORE_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
+                                               key, x3, x4, x5, x6);
+  // Cache miss.
+  if (handler_requirement == kCallRuntimeOnMissingHandler) {
+    __ B(&slow);
+  } else {
+    DCHECK(handler_requirement == kMissOnMissingHandler);
+    __ B(&miss);
+  }
 
   __ Bind(&extra);
   // Extra capacity case: Check if there is extra capacity to
@@ -895,6 +914,11 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
                                   &slow, kDontCheckMap, kIncrementLength, value,
                                   key, receiver, receiver_map, elements_map,
                                   elements);
+
+  if (handler_requirement == kMissOnMissingHandler) {
+    __ bind(&miss);
+    GenerateMiss(masm);
+  }
 }
 
 
