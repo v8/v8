@@ -2536,22 +2536,26 @@ class ClassLiteral FINAL : public Expression {
   Expression* extends() const { return extends_; }
   Expression* constructor() const { return constructor_; }
   ZoneList<Property*>* properties() const { return properties_; }
+  int start_position() const { return position(); }
+  int end_position() const { return end_position_; }
 
  protected:
   ClassLiteral(Zone* zone, const AstRawString* name, Expression* extends,
                Expression* constructor, ZoneList<Property*>* properties,
-               int position, IdGen* id_gen)
-      : Expression(zone, position, id_gen),
+               int start_position, int end_position, IdGen* id_gen)
+      : Expression(zone, start_position, id_gen),
         raw_name_(name),
         extends_(extends),
         constructor_(constructor),
-        properties_(properties) {}
+        properties_(properties),
+        end_position_(end_position) {}
 
  private:
   const AstRawString* raw_name_;
   Expression* extends_;
   Expression* constructor_;
   ZoneList<Property*>* properties_;
+  int end_position_;
 };
 
 
@@ -2591,13 +2595,28 @@ class SuperReference FINAL : public Expression {
 
   TypeFeedbackId HomeObjectFeedbackId() { return reuse(id()); }
 
+  // Type feedback information.
+  virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
+  virtual void SetFirstFeedbackSlot(int slot) {
+    homeobject_feedback_slot_ = slot;
+  }
+
+  int HomeObjectFeedbackSlot() {
+    DCHECK(!FLAG_vector_ics ||
+           homeobject_feedback_slot_ != kInvalidFeedbackSlot);
+    return homeobject_feedback_slot_;
+  }
+
  protected:
   SuperReference(Zone* zone, VariableProxy* this_var, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen), this_var_(this_var) {
+      : Expression(zone, pos, id_gen),
+        this_var_(this_var),
+        homeobject_feedback_slot_(kInvalidFeedbackSlot) {
     DCHECK(this_var->is_this());
   }
 
   VariableProxy* this_var_;
+  int homeobject_feedback_slot_;
 };
 
 
@@ -3535,9 +3554,10 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
   ClassLiteral* NewClassLiteral(const AstRawString* name, Expression* extends,
                                 Expression* constructor,
                                 ZoneList<ObjectLiteral::Property*>* properties,
-                                int position) {
-    ClassLiteral* lit = new (zone_) ClassLiteral(
-        zone_, name, extends, constructor, properties, position, id_gen_);
+                                int start_position, int end_position) {
+    ClassLiteral* lit =
+        new (zone_) ClassLiteral(zone_, name, extends, constructor, properties,
+                                 start_position, end_position, id_gen_);
     VISIT_AND_RETURN(ClassLiteral, lit)
   }
 

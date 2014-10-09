@@ -53,7 +53,6 @@
 #define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
 #define ENTER_V8(isolate)             \
-  DCHECK((isolate)->IsInitialized()); \
   i::VMState<v8::OTHER> __state__((isolate))
 
 namespace v8 {
@@ -194,7 +193,6 @@ bool V8::IsDead() {
 
 
 static inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
-  if (!isolate->IsInitialized()) return false;
   if (isolate->has_scheduled_exception()) {
     return isolate->scheduled_exception() ==
         isolate->heap()->termination_exception();
@@ -2690,7 +2688,6 @@ Local<Integer> Value::ToInteger() const {
 void i::Internals::CheckInitializedImpl(v8::Isolate* external_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   Utils::ApiCheck(isolate != NULL &&
-                  isolate->IsInitialized() &&
                   !isolate->IsDead(),
                   "v8::internal::Internals::CheckInitialized()",
                   "Isolate is not initialized or V8 has died");
@@ -5736,7 +5733,6 @@ double v8::Date::ValueOf() const {
 
 void v8::Date::DateTimeConfigurationChangeNotification(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  if (!i_isolate->IsInitialized()) return;
   ON_BAILOUT(i_isolate, "v8::Date::DateTimeConfigurationChangeNotification()",
              return);
   LOG_API(i_isolate, "Date::DateTimeConfigurationChangeNotification");
@@ -6284,7 +6280,6 @@ Local<Private> v8::Private::ForApi(Isolate* isolate, Local<String> name) {
 
 Local<Number> v8::Number::New(Isolate* isolate, double value) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  DCHECK(internal_isolate->IsInitialized());
   if (std::isnan(value)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     value = base::OS::nan_value();
@@ -6297,7 +6292,6 @@ Local<Number> v8::Number::New(Isolate* isolate, double value) {
 
 Local<Integer> v8::Integer::New(Isolate* isolate, int32_t value) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  DCHECK(internal_isolate->IsInitialized());
   if (i::Smi::IsValid(value)) {
     return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
                                                       internal_isolate));
@@ -6310,7 +6304,6 @@ Local<Integer> v8::Integer::New(Isolate* isolate, int32_t value) {
 
 Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  DCHECK(internal_isolate->IsInitialized());
   bool fits_into_int32_t = (value & (1 << 31)) == 0;
   if (fits_into_int32_t) {
     return Integer::New(isolate, static_cast<int32_t>(value));
@@ -6598,7 +6591,7 @@ Isolate* Isolate::GetCurrent() {
 
 
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
-  i::Isolate* isolate = new i::Isolate();
+  i::Isolate* isolate = new i::Isolate(params.enable_serializer);
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
   if (params.entry_hook) {
     isolate->set_function_entry_hook(params.entry_hook);
@@ -6609,9 +6602,6 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
                                            params.code_event_handler);
   }
   SetResourceConstraints(isolate, params.constraints);
-  if (params.enable_serializer) {
-    isolate->enable_serializer();
-  }
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);
   if (params.entry_hook || !i::Snapshot::Initialize(isolate)) {
@@ -6701,14 +6691,6 @@ Isolate::SuppressMicrotaskExecutionScope::~SuppressMicrotaskExecutionScope() {
 
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  if (!isolate->IsInitialized()) {
-    heap_statistics->total_heap_size_ = 0;
-    heap_statistics->total_heap_size_executable_ = 0;
-    heap_statistics->total_physical_size_ = 0;
-    heap_statistics->used_heap_size_ = 0;
-    heap_statistics->heap_size_limit_ = 0;
-    return;
-  }
   i::Heap* heap = isolate->heap();
   heap_statistics->total_heap_size_ = heap->CommittedMemory();
   heap_statistics->total_heap_size_executable_ =
@@ -7004,7 +6986,6 @@ void Debug::SendCommand(Isolate* isolate,
 Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
                          v8::Handle<v8::Value> data) {
   i::Isolate* isolate = i::Isolate::Current();
-  if (!isolate->IsInitialized()) return Local<Value>();
   ON_BAILOUT(isolate, "v8::Debug::Call()", return Local<Value>());
   ENTER_V8(isolate);
   i::MaybeHandle<i::Object> maybe_result;
@@ -7025,7 +7006,6 @@ Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
 
 Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
   i::Isolate* isolate = i::Isolate::Current();
-  if (!isolate->IsInitialized()) return Local<Value>();
   ON_BAILOUT(isolate, "v8::Debug::GetMirror()", return Local<Value>());
   ENTER_V8(isolate);
   v8::EscapableHandleScope scope(reinterpret_cast<Isolate*>(isolate));

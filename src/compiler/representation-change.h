@@ -157,7 +157,7 @@ class RepresentationChanger {
       node = jsgraph()->graph()->NewNode(op, node);
       op = machine()->TruncateFloat64ToFloat32();
     } else if (output_type & kRepFloat64) {
-      op = machine()->ChangeFloat32ToFloat64();
+      op = machine()->TruncateFloat64ToFloat32();
     } else {
       return TypeError(node, output_type, kRepFloat32);
     }

@@ -133,7 +133,8 @@ Heap::Heap()
       configured_(false),
       external_string_table_(this),
       chunks_queued_for_free_(NULL),
-      gc_callbacks_depth_(0) {
+      gc_callbacks_depth_(0),
+      deserialization_complete_(false) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
 // easier if you can define it as part of the build environment.
@@ -5186,6 +5187,9 @@ void Heap::SetStackLimits() {
   roots_[kRealStackLimitRootIndex] = reinterpret_cast<Object*>(
       (isolate_->stack_guard()->real_jslimit() & ~kSmiTagMask) | kSmiTag);
 }
+
+
+void Heap::NotifyDeserializationComplete() { deserialization_complete_ = true; }
 
 
 void Heap::TearDown() {

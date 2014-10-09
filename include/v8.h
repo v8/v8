@@ -5801,8 +5801,6 @@ class V8_EXPORT Locker {
   bool top_level_;
   internal::Isolate* isolate_;
 
-  static bool active_;
-
   // Disallow copying and assigning.
   Locker(const Locker&);
   void operator=(const Locker&);
@@ -5911,7 +5909,7 @@ class Internals {
   static const int kJSObjectHeaderSize = 3 * kApiPointerSize;
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
-  static const int kContextEmbedderDataIndex = 95;
+  static const int kContextEmbedderDataIndex = 76;
   static const int kFullStringRepresentationMask = 0x07;
   static const int kStringEncodingMask = 0x4;
   static const int kExternalTwoByteRepresentationTag = 0x02;

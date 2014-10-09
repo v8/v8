@@ -22,42 +22,40 @@ inline bool IsBinaryDigit(uc32 c);
 inline bool IsRegExpWord(uc32 c);
 inline bool IsRegExpNewline(uc32 c);
 
+// ES6 draft section 11.6
+// This includes '_', '$' and '\', and ID_Start according to
+// http://www.unicode.org/reports/tr31/, which consists of categories
+// 'Lu', 'Ll', 'Lt', 'Lm', 'Lo', 'Nl', but excluding properties
+// 'Pattern_Syntax' or 'Pattern_White_Space'.
 struct IdentifierStart {
-  static inline bool Is(uc32 c) {
-    switch (c) {
-      case '$': case '_': case '\\': return true;
-      default: return unibrow::Letter::Is(c);
-    }
-  }
+  static inline bool Is(uc32 c) { return unibrow::ID_Start::Is(c); }
 };
 
 
+// ES6 draft section 11.6
+// This includes \u200c and \u200d, and ID_Continue according to
+// http://www.unicode.org/reports/tr31/, which consists of ID_Start,
+// the categories 'Mn', 'Mc', 'Nd', 'Pc', but excluding properties
+// 'Pattern_Syntax' or 'Pattern_White_Space'.
 struct IdentifierPart {
   static inline bool Is(uc32 c) {
-    return IdentifierStart::Is(c)
-        || unibrow::Number::Is(c)
-        || c == 0x200C  // U+200C is Zero-Width Non-Joiner.
-        || c == 0x200D  // U+200D is Zero-Width Joiner.
-        || unibrow::CombiningMark::Is(c)
-        || unibrow::ConnectorPunctuation::Is(c);
+    return unibrow::ID_Start::Is(c) || unibrow::ID_Continue::Is(c);
   }
 };
 
 
-// WhiteSpace according to ECMA-262 5.1, 7.2.
+// ES6 draft section 11.2
+// This includes all code points of Unicode category 'Zs'.
+// \u180e stops being one as of Unicode 6.3.0, but ES6 adheres to Unicode 5.1,
+// so it is also included.
+// Further included are \u0009, \u000b, \u0020, \u00a0, \u000c, and \ufeff.
 struct WhiteSpace {
-  static inline bool Is(uc32 c) {
-    return c == 0x0009 ||  // <TAB>
-           c == 0x000B ||  // <VT>
-           c == 0x000C ||  // <FF>
-           c == 0xFEFF ||  // <BOM>
-           // \u0020 and \u00A0 are included in unibrow::WhiteSpace.
-           unibrow::WhiteSpace::Is(c);
-  }
+  static inline bool Is(uc32 c) { return unibrow::WhiteSpace::Is(c); }
 };
 
 
-// WhiteSpace and LineTerminator according to ECMA-262 5.1, 7.2 and 7.3.
+// WhiteSpace and LineTerminator according to ES6 draft section 11.2 and 11.3
+// This consists of \000a, \000d, \u2028, and \u2029.
 struct WhiteSpaceOrLineTerminator {
   static inline bool Is(uc32 c) {
     return WhiteSpace::Is(c) || unibrow::LineTerminator::Is(c);

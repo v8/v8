@@ -39,6 +39,7 @@ enum MachineType {
 
   // Machine types.
   kMachNone = 0,
+  kMachBool = kRepBit | kTypeBool,
   kMachFloat32 = kRepFloat32 | kTypeNumber,
   kMachFloat64 = kRepFloat64 | kTypeNumber,
   kMachInt8 = kRepWord8 | kTypeInt32,

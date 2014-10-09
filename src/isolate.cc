@@ -584,13 +584,6 @@ static void PrintFrames(Isolate* isolate,
 
 
 void Isolate::PrintStack(StringStream* accumulator) {
-  if (!IsInitialized()) {
-    accumulator->Add(
-        "\n==== JS stack trace is not available =======================\n\n");
-    accumulator->Add(
-        "\n==== Isolate for the thread is not initialized =============\n\n");
-    return;
-  }
   // The MentionedObjectCache is not GC-proof at the moment.
   DisallowHeapAllocation no_gc;
   DCHECK(StringStream::IsMentionedObjectCacheClear(this));
@@ -1467,9 +1460,8 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 #endif
 
 
-Isolate::Isolate()
+Isolate::Isolate(bool enable_serializer)
     : embedder_data_(),
-      state_(UNINITIALIZED),
       entry_stack_(NULL),
       stack_trace_nesting_level_(0),
       incomplete_message_(NULL),
@@ -1507,7 +1499,7 @@ Isolate::Isolate()
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
-      serializer_enabled_(false),
+      serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
       cpu_profiler_(NULL),
@@ -1596,58 +1588,53 @@ void Isolate::GlobalTearDown() {
 
 
 void Isolate::Deinit() {
-  if (state_ == INITIALIZED) {
-    TRACE_ISOLATE(deinit);
+  TRACE_ISOLATE(deinit);
 
-    debug()->Unload();
+  debug()->Unload();
 
-    FreeThreadResources();
+  FreeThreadResources();
 
-    if (concurrent_recompilation_enabled()) {
-      optimizing_compiler_thread_->Stop();
-      delete optimizing_compiler_thread_;
-      optimizing_compiler_thread_ = NULL;
-    }
-
-    if (heap_.mark_compact_collector()->sweeping_in_progress()) {
-      heap_.mark_compact_collector()->EnsureSweepingCompleted();
-    }
-
-    if (FLAG_turbo_stats) GetTStatistics()->Print("TurboFan");
-    if (FLAG_hydrogen_stats) GetHStatistics()->Print("Hydrogen");
-
-    if (FLAG_print_deopt_stress) {
-      PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
-    }
-
-    // We must stop the logger before we tear down other components.
-    Sampler* sampler = logger_->sampler();
-    if (sampler && sampler->IsActive()) sampler->Stop();
-
-    delete deoptimizer_data_;
-    deoptimizer_data_ = NULL;
-    builtins_.TearDown();
-    bootstrapper_->TearDown();
-
-    if (runtime_profiler_ != NULL) {
-      delete runtime_profiler_;
-      runtime_profiler_ = NULL;
-    }
-
-    delete basic_block_profiler_;
-    basic_block_profiler_ = NULL;
-
-    heap_.TearDown();
-    logger_->TearDown();
-
-    delete heap_profiler_;
-    heap_profiler_ = NULL;
-    delete cpu_profiler_;
-    cpu_profiler_ = NULL;
-
-    // The default isolate is re-initializable due to legacy API.
-    state_ = UNINITIALIZED;
+  if (concurrent_recompilation_enabled()) {
+    optimizing_compiler_thread_->Stop();
+    delete optimizing_compiler_thread_;
+    optimizing_compiler_thread_ = NULL;
   }
+
+  if (heap_.mark_compact_collector()->sweeping_in_progress()) {
+    heap_.mark_compact_collector()->EnsureSweepingCompleted();
+  }
+
+  if (FLAG_turbo_stats) GetTStatistics()->Print("TurboFan");
+  if (FLAG_hydrogen_stats) GetHStatistics()->Print("Hydrogen");
+
+  if (FLAG_print_deopt_stress) {
+    PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
+  }
+
+  // We must stop the logger before we tear down other components.
+  Sampler* sampler = logger_->sampler();
+  if (sampler && sampler->IsActive()) sampler->Stop();
+
+  delete deoptimizer_data_;
+  deoptimizer_data_ = NULL;
+  builtins_.TearDown();
+  bootstrapper_->TearDown();
+
+  if (runtime_profiler_ != NULL) {
+    delete runtime_profiler_;
+    runtime_profiler_ = NULL;
+  }
+
+  delete basic_block_profiler_;
+  basic_block_profiler_ = NULL;
+
+  heap_.TearDown();
+  logger_->TearDown();
+
+  delete heap_profiler_;
+  heap_profiler_ = NULL;
+  delete cpu_profiler_;
+  cpu_profiler_ = NULL;
 }
 
 
@@ -1824,7 +1811,6 @@ void Isolate::InitializeLoggingAndCounters() {
 
 
 bool Isolate::Init(Deserializer* des) {
-  DCHECK(state_ != INITIALIZED);
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
@@ -1990,8 +1976,9 @@ bool Isolate::Init(Deserializer* des) {
                heap_.amount_of_external_allocated_memory_at_last_global_gc_)),
            Internals::kAmountOfExternalAllocatedMemoryAtLastGlobalGCOffset);
 
-  state_ = INITIALIZED;
   time_millis_at_init_ = base::OS::TimeCurrentMillis();
+
+  heap_.NotifyDeserializationComplete();
 
   if (!create_heap_objects) {
     // Now that the heap is consistent, it's OK to generate the code for the

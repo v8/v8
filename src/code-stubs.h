@@ -857,7 +857,13 @@ class FunctionPrototypeStub : public PlatformCodeStub {
   // TODO(mvstanton): only the receiver register is accessed. When this is
   // translated to a hydrogen code stub, a new CallInterfaceDescriptor
   // should be created that just uses that register for more efficient code.
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
+    if (FLAG_vector_ics) {
+      return VectorLoadICDescriptor(isolate());
+    }
+    return LoadDescriptor(isolate());
+  }
+
   DEFINE_PLATFORM_CODE_STUB(FunctionPrototype, PlatformCodeStub);
 };
 
@@ -1819,7 +1825,13 @@ class LoadDictionaryElementStub : public HydrogenCodeStub {
   explicit LoadDictionaryElementStub(Isolate* isolate)
       : HydrogenCodeStub(isolate) {}
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
+    if (FLAG_vector_ics) {
+      return VectorLoadICDescriptor(isolate());
+    }
+    return LoadDescriptor(isolate());
+  }
+
   DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
 };
 
@@ -1831,7 +1843,11 @@ class KeyedLoadGenericStub : public HydrogenCodeStub {
   virtual Code::Kind GetCodeKind() const { return Code::KEYED_LOAD_IC; }
   virtual InlineCacheState GetICState() const { return GENERIC; }
 
+  // Since KeyedLoadGeneric stub doesn't miss (simply calls runtime), it
+  // doesn't need to use the VectorLoadICDescriptor for the case when
+  // flag --vector-ics is true.
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+
   DEFINE_HYDROGEN_CODE_STUB(KeyedLoadGeneric, HydrogenCodeStub);
 };
 
@@ -1845,9 +1861,7 @@ class LoadICTrampolineStub : public PlatformCodeStub {
 
   virtual Code::Kind GetCodeKind() const OVERRIDE { return Code::LOAD_IC; }
 
-  virtual InlineCacheState GetICState() const FINAL OVERRIDE {
-    return GENERIC;
-  }
+  virtual InlineCacheState GetICState() const FINAL OVERRIDE { return DEFAULT; }
 
   virtual ExtraICState GetExtraICState() const FINAL OVERRIDE {
     return static_cast<ExtraICState>(minor_key_);
@@ -1893,7 +1907,13 @@ class MegamorphicLoadStub : public HydrogenCodeStub {
     return static_cast<ExtraICState>(sub_minor_key());
   }
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
+    if (FLAG_vector_ics) {
+      return VectorLoadICDescriptor(isolate());
+    }
+    return LoadDescriptor(isolate());
+  }
+
   DEFINE_HYDROGEN_CODE_STUB(MegamorphicLoad, HydrogenCodeStub);
 };
 
@@ -1907,9 +1927,7 @@ class VectorLoadStub : public HydrogenCodeStub {
 
   virtual Code::Kind GetCodeKind() const OVERRIDE { return Code::LOAD_IC; }
 
-  virtual InlineCacheState GetICState() const FINAL OVERRIDE {
-    return GENERIC;
-  }
+  virtual InlineCacheState GetICState() const FINAL OVERRIDE { return DEFAULT; }
 
   virtual ExtraICState GetExtraICState() const FINAL OVERRIDE {
     return static_cast<ExtraICState>(sub_minor_key());
@@ -2003,7 +2021,13 @@ class LoadFastElementStub : public HydrogenCodeStub {
   class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
   class IsJSArrayBits: public BitField<bool, 8, 1> {};
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+  virtual CallInterfaceDescriptor GetCallInterfaceDescriptor() OVERRIDE {
+    if (FLAG_vector_ics) {
+      return VectorLoadICDescriptor(isolate());
+    }
+    return LoadDescriptor(isolate());
+  }
+
   DEFINE_HYDROGEN_CODE_STUB(LoadFastElement, HydrogenCodeStub);
 };
 

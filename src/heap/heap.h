@@ -340,7 +340,10 @@ namespace internal {
   V(intl_initialized_marker_symbol) \
   V(intl_impl_object_symbol)        \
   V(promise_debug_marker_symbol)    \
-  V(promise_has_handler_symbol)
+  V(promise_has_handler_symbol)     \
+  V(class_script_symbol)            \
+  V(class_start_position_symbol)    \
+  V(class_end_position_symbol)
 
 // Forward declarations.
 class HeapStats;
@@ -542,6 +545,10 @@ class Heap {
   // code that looks here, because it is faster than loading from the static
   // jslimit_/real_jslimit_ variable in the StackGuard.
   void SetStackLimits();
+
+  // Notifies the heap that is ok to start marking or other activities that
+  // should not happen during deserialization.
+  void NotifyDeserializationComplete();
 
   // Returns whether SetUp has been called.
   bool HasBeenSetUp();
@@ -1378,6 +1385,8 @@ class Heap {
   inline void OnMoveEvent(HeapObject* target, HeapObject* source,
                           int size_in_bytes);
 
+  bool deserialization_complete() const { return deserialization_complete_; }
+
  protected:
   // Methods made available to tests.
 
@@ -2033,6 +2042,8 @@ class Heap {
   base::Mutex relocation_mutex_;
 
   int gc_callbacks_depth_;
+
+  bool deserialization_complete_;
 
   friend class AlwaysAllocateScope;
   friend class Deserializer;

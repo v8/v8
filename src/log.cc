@@ -607,7 +607,7 @@ class Profiler: public base::Thread {
     if (paused_)
       return;
 
-    if (Succ(head_) == tail_) {
+    if (Succ(head_) == static_cast<int>(base::NoBarrier_Load(&tail_))) {
       overflow_ = true;
     } else {
       buffer_[head_] = *sample;
@@ -626,9 +626,10 @@ class Profiler: public base::Thread {
   // Waits for a signal and removes profiling data.
   bool Remove(TickSample* sample) {
     buffer_semaphore_.Wait();  // Wait for an element.
-    *sample = buffer_[tail_];
+    *sample = buffer_[base::NoBarrier_Load(&tail_)];
     bool result = overflow_;
-    tail_ = Succ(tail_);
+    base::NoBarrier_Store(&tail_, static_cast<base::Atomic32>(
+                                      Succ(base::NoBarrier_Load(&tail_))));
     overflow_ = false;
     return result;
   }
@@ -642,7 +643,7 @@ class Profiler: public base::Thread {
   static const int kBufferSize = 128;
   TickSample buffer_[kBufferSize];  // Buffer storage.
   int head_;  // Index to the buffer head.
-  int tail_;  // Index to the buffer tail.
+  base::Atomic32 tail_;             // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
   // Sempahore used for buffer synchronization.
   base::Semaphore buffer_semaphore_;
@@ -699,12 +700,13 @@ Profiler::Profiler(Isolate* isolate)
     : base::Thread(Options("v8:Profiler")),
       isolate_(isolate),
       head_(0),
-      tail_(0),
       overflow_(false),
       buffer_semaphore_(0),
       engaged_(false),
       running_(false),
-      paused_(false) {}
+      paused_(false) {
+  base::NoBarrier_Store(&tail_, 0);
+}
 
 
 void Profiler::Engage() {
@@ -1864,13 +1866,13 @@ bool Logger::SetUp(Isolate* isolate) {
     is_logging_ = true;
   }
 
+  if (FLAG_log_internal_timer_events || FLAG_prof) timer_.Start();
+
   if (FLAG_prof) {
     profiler_ = new Profiler(isolate);
     is_logging_ = true;
     profiler_->Engage();
   }
-
-  if (FLAG_log_internal_timer_events || FLAG_prof) timer_.Start();
 
   return true;
 }

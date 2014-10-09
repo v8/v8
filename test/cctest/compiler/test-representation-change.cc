@@ -429,6 +429,8 @@ TEST(SingleChanges) {
   CheckChange(IrOpcode::kChangeFloat64ToUint32, kRepFloat64 | kTypeUint32,
               kRepWord32);
 
+  CheckChange(IrOpcode::kTruncateFloat64ToFloat32, kRepFloat64, kRepFloat32);
+
   // Int32,Uint32 <-> Float32 require two changes.
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32, kRepWord32 | kTypeInt32,

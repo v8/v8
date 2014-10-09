@@ -4,10 +4,13 @@
 
 #include "src/compiler/simplified-lowering.h"
 
+#include <limits>
+
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-inl.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/representation-change.h"
 #include "src/compiler/simplified-lowering.h"
@@ -270,59 +273,62 @@ class RepresentationSelector {
   // Helper for handling phis.
   void VisitPhi(Node* node, MachineTypeUnion use,
                 SimplifiedLowering* lowering) {
-    // First, propagate the usage information to inputs of the phi.
-    if (!lower()) {
-      int values = OperatorProperties::GetValueInputCount(node->op());
-      // Propagate {use} of the phi to value inputs, and 0 to control.
-      Node::Inputs inputs = node->inputs();
-      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-           ++iter, --values) {
-        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
-        ProcessInput(node, iter.index(), values > 0 ? use : 0);
-      }
-    }
-    // Phis adapt to whatever output representation their uses demand,
-    // pushing representation changes to their inputs.
-    MachineTypeUnion use_rep = GetUseInfo(node) & kRepMask;
-    MachineTypeUnion use_type = GetUseInfo(node) & kTypeMask;
-    MachineTypeUnion rep = 0;
-    if (use_rep & kRepTagged) {
-      rep = kRepTagged;  // Tagged overrides everything.
-    } else if (use_rep & kRepFloat32) {
-      rep = kRepFloat32;
-    } else if (use_rep & kRepFloat64) {
-      rep = kRepFloat64;
-    } else if (use_rep & kRepWord64) {
-      rep = kRepWord64;
-    } else if (use_rep & kRepWord32) {
-      rep = kRepWord32;
-    } else if (use_rep & kRepBit) {
-      rep = kRepBit;
-    } else {
-      // There was no representation associated with any of the uses.
-      // TODO(titzer): Select the best rep using phi's type, not the usage type?
-      if (use_type & kTypeAny) {
-        rep = kRepTagged;
-      } else if (use_type & kTypeNumber) {
-        rep = kRepFloat64;
-      } else if (use_type & kTypeInt64 || use_type & kTypeUint64) {
-        rep = kRepWord64;
-      } else if (use_type & kTypeInt32 || use_type & kTypeUint32) {
-        rep = kRepWord32;
-      } else if (use_type & kTypeBool) {
-        rep = kRepBit;
-      } else {
-        UNREACHABLE();  // should have at least a usage type!
-      }
-    }
-    // Preserve the usage type, but set the representation.
+    // Phis adapt to the output representation their uses demand, pushing
+    // representation changes to their inputs.
     Type* upper = NodeProperties::GetBounds(node).upper;
-    MachineTypeUnion output_type = rep | changer_->TypeFromUpperBound(upper);
+    MachineType output = kMachNone;
+    MachineType propagate = kMachNone;
+
+    if (upper->Is(Type::Signed32()) || upper->Is(Type::Unsigned32())) {
+      // legal = kRepTagged | kRepFloat64 | kRepWord32;
+      if ((use & kRepMask) == kRepTagged) {
+        // only tagged uses.
+        output = kRepTagged;
+        propagate = kRepTagged;
+      } else if ((use & kRepMask) == kRepFloat64) {
+        // only float64 uses.
+        output = kRepFloat64;
+        propagate = kRepFloat64;
+      } else {
+        // multiple uses.
+        output = kRepWord32;
+        propagate = kRepWord32;
+      }
+    } else if (upper->Is(Type::Boolean())) {
+      // legal = kRepTagged | kRepBit;
+      if ((use & kRepMask) == kRepTagged) {
+        // only tagged uses.
+        output = kRepTagged;
+        propagate = kRepTagged;
+      } else {
+        // multiple uses.
+        output = kRepBit;
+        propagate = kRepBit;
+      }
+    } else if (upper->Is(Type::Number())) {
+      // legal = kRepTagged | kRepFloat64;
+      if ((use & kRepMask) == kRepTagged) {
+        // only tagged uses.
+        output = kRepTagged;
+        propagate = kRepTagged;
+      } else {
+        // multiple uses.
+        output = kRepFloat64;
+        propagate = kRepFloat64;
+      }
+    } else {
+      // legal = kRepTagged;
+      output = kRepTagged;
+      propagate = kRepTagged;
+    }
+
+    MachineType output_type =
+        static_cast<MachineType>(changer_->TypeFromUpperBound(upper) | output);
     SetOutput(node, output_type);
 
-    if (lower()) {
-      int values = OperatorProperties::GetValueInputCount(node->op());
+    int values = OperatorProperties::GetValueInputCount(node->op());
 
+    if (lower()) {
       // Update the phi operator.
       MachineType type = static_cast<MachineType>(output_type);
       if (type != OpParameter<MachineType>(node)) {
@@ -335,6 +341,16 @@ class RepresentationSelector {
            ++iter, --values) {
         // TODO(titzer): it'd be nice to have distinguished edge kinds here.
         ProcessInput(node, iter.index(), values > 0 ? output_type : 0);
+      }
+    } else {
+      // Propagate {use} of the phi to value inputs, and 0 to control.
+      Node::Inputs inputs = node->inputs();
+      MachineType use_type =
+          static_cast<MachineType>((use & kTypeMask) | propagate);
+      for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
+           ++iter, --values) {
+        // TODO(titzer): it'd be nice to have distinguished edge kinds here.
+        ProcessInput(node, iter.index(), values > 0 ? use_type : 0);
       }
     }
   }
@@ -349,6 +365,27 @@ class RepresentationSelector {
 
   const Operator* Float64Op(Node* node) {
     return changer_->Float64OperatorFor(node->opcode());
+  }
+
+  bool CanLowerToInt32Binop(Node* node, MachineTypeUnion use) {
+    return BothInputsAre(node, Type::Signed32()) && !CanObserveNonInt32(use);
+  }
+
+  bool CanLowerToUint32Binop(Node* node, MachineTypeUnion use) {
+    return BothInputsAre(node, Type::Unsigned32()) && !CanObserveNonUint32(use);
+  }
+
+  bool CanObserveNonInt32(MachineTypeUnion use) {
+    return (use & (kTypeUint32 | kTypeNumber | kTypeAny)) != 0;
+  }
+
+  bool CanObserveMinusZero(MachineTypeUnion use) {
+    // TODO(turbofan): technically Uint32 cannot observe minus zero either.
+    return (use & (kTypeUint32 | kTypeNumber | kTypeAny)) != 0;
+  }
+
+  bool CanObserveNonUint32(MachineTypeUnion use) {
+    return (use & (kTypeInt32 | kTypeNumber | kTypeAny)) != 0;
   }
 
   // Dispatching routine for visiting the node {node} with the usage {use}.
@@ -475,13 +512,11 @@ class RepresentationSelector {
       case IrOpcode::kNumberSubtract: {
         // Add and subtract reduce to Int32Add/Sub if the inputs
         // are already integers and all uses are truncating.
-        if (BothInputsAre(node, Type::Signed32()) &&
-            (use & (kTypeUint32 | kTypeNumber | kTypeAny)) == 0) {
+        if (CanLowerToInt32Binop(node, use)) {
           // => signed Int32Add/Sub
           VisitInt32Binop(node);
           if (lower()) node->set_op(Int32Op(node));
-        } else if (BothInputsAre(node, Type::Unsigned32()) &&
-                   (use & (kTypeInt32 | kTypeNumber | kTypeAny)) == 0) {
+        } else if (CanLowerToUint32Binop(node, use)) {
           // => unsigned Int32Add/Sub
           VisitUint32Binop(node);
           if (lower()) node->set_op(Uint32Op(node));
@@ -492,10 +527,58 @@ class RepresentationSelector {
         }
         break;
       }
-      case IrOpcode::kNumberMultiply:
-      case IrOpcode::kNumberDivide:
+      case IrOpcode::kNumberMultiply: {
+        NumberMatcher right(node->InputAt(1));
+        if (right.IsInRange(-1048576, 1048576)) {  // must fit double mantissa.
+          if (CanLowerToInt32Binop(node, use)) {
+            // => signed Int32Mul
+            VisitInt32Binop(node);
+            if (lower()) node->set_op(Int32Op(node));
+            break;
+          }
+        }
+        // => Float64Mul
+        VisitFloat64Binop(node);
+        if (lower()) node->set_op(Float64Op(node));
+        break;
+      }
+      case IrOpcode::kNumberDivide: {
+        NumberMatcher right(node->InputAt(1));
+        if (right.HasValue() && !right.Is(0) && !right.Is(-1)) {
+          if (CanLowerToInt32Binop(node, use)) {
+            // => signed Int32Div
+            VisitInt32Binop(node);
+            if (lower()) node->set_op(Int32Op(node));
+            break;
+          } else if (CanLowerToUint32Binop(node, use)) {
+            // => unsigned Uint32Div
+            VisitUint32Binop(node);
+            if (lower()) node->set_op(Uint32Op(node));
+            break;
+          }
+        }
+        // => Float64Div
+        VisitFloat64Binop(node);
+        if (lower()) node->set_op(Float64Op(node));
+        break;
+      }
       case IrOpcode::kNumberModulus: {
-        // Float64Mul/Div/Mod
+        NumberMatcher right(node->InputAt(1));
+        if (right.HasValue() && !right.Is(0) && !right.Is(-1)) {
+          if (BothInputsAre(node, Type::Signed32()) &&
+              !CanObserveMinusZero(use)) {
+            // => signed Int32Mod
+            VisitInt32Binop(node);
+            if (lower()) node->set_op(Int32Op(node));
+            break;
+          } else if (BothInputsAre(node, Type::Unsigned32())) {
+            // => unsigned Uint32Mod
+            VisitUint32Binop(node);
+            if (lower()) node->set_op(Uint32Op(node));
+            break;
+          }
+        }
+        // => Float64Mod
         VisitFloat64Binop(node);
         if (lower()) node->set_op(Float64Op(node));
         break;
@@ -504,11 +587,15 @@ class RepresentationSelector {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
         MachineTypeUnion in = GetInfo(input)->output;
-        if (NodeProperties::GetBounds(input).upper->Is(Type::Signed32()) ||
-            (in & kTypeMask) == kTypeInt32 || (in & kRepMask) == kRepWord32) {
-          // If the input has type int32, or is already a word32, just change
-          // representation if necessary.
+        if (NodeProperties::GetBounds(input).upper->Is(Type::Signed32())) {
+          // If the input has type int32, pass through representation.
           VisitUnop(node, kTypeInt32 | use_rep, kTypeInt32 | use_rep);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if ((in & kTypeMask) == kTypeUint32 ||
+                   (in & kTypeMask) == kTypeInt32 ||
+                   (in & kRepMask) == kRepWord32) {
+          // Just change representation if necessary.
+          VisitUnop(node, kTypeInt32 | kRepWord32, kTypeInt32 | kRepWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           // Require the input in float64 format and perform truncation.
@@ -523,10 +610,15 @@ class RepresentationSelector {
         MachineTypeUnion use_rep = use & kRepMask;
         Node* input = node->InputAt(0);
         MachineTypeUnion in = GetInfo(input)->output;
-        if (NodeProperties::GetBounds(input).upper->Is(Type::Unsigned32()) ||
-            (in & kTypeMask) == kTypeUint32) {
-          // If the input has type uint32, just change representation.
+        if (NodeProperties::GetBounds(input).upper->Is(Type::Unsigned32())) {
+          // If the input has type uint32, pass through representation.
           VisitUnop(node, kTypeUint32 | use_rep, kTypeUint32 | use_rep);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else if ((in & kTypeMask) == kTypeUint32 ||
+                   (in & kTypeMask) == kTypeInt32 ||
+                   (in & kRepMask) == kRepWord32) {
+          // Just change representation if necessary.
+          VisitUnop(node, kTypeUint32 | kRepWord32, kTypeUint32 | kRepWord32);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
           // Require the input in float64 format and perform truncation.
@@ -585,8 +677,15 @@ class RepresentationSelector {
         ProcessInput(node, 1, kMachInt32);  // element index
         ProcessInput(node, 2, kMachInt32);  // length
         ProcessRemainingInputs(node, 3);
-        SetOutput(node, access.machine_type);
-        if (lower()) lowering->DoLoadElement(node);
+        // Tagged overrides everything if we have to do a typed array bounds
+        // check, because we may need to return undefined then.
+        MachineType output_type =
+            (access.bounds_check == kTypedArrayBoundsCheck &&
+             (use & kRepTagged))
+                ? kMachAnyTagged
+                : access.machine_type;
+        SetOutput(node, output_type);
+        if (lower()) lowering->DoLoadElement(node, output_type);
         break;
       }
       case IrOpcode::kStoreElement: {
@@ -728,6 +827,12 @@ class RepresentationSelector {
         return VisitFloat64Cmp(node);
       case IrOpcode::kLoadStackPointer:
         return VisitLeaf(node, kMachPtr);
+      case IrOpcode::kStateValues:
+        for (int i = 0; i < node->InputCount(); i++) {
+          ProcessInput(node, i, kTypeAny);
+        }
+        SetOutput(node, kMachAnyTagged);
+        break;
       default:
         VisitInputs(node);
         break;
@@ -735,6 +840,11 @@ class RepresentationSelector {
   }
 
   void DeferReplacement(Node* node, Node* replacement) {
+    if (FLAG_trace_representation) {
+      TRACE(("defer replacement #%d:%s with #%d:%s\n", node->id(),
+             node->op()->mnemonic(), replacement->id(),
+             replacement->op()->mnemonic()));
+    }
     if (replacement->id() < count_) {
       // Replace with a previously existing node eagerly.
       node->ReplaceUses(replacement);
@@ -866,11 +976,71 @@ Node* SimplifiedLowering::ComputeIndex(const ElementAccess& access,
 }
 
 
-void SimplifiedLowering::DoLoadElement(Node* node) {
+void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
   const ElementAccess& access = ElementAccessOf(node->op());
-  node->set_op(machine()->Load(access.machine_type));
-  node->ReplaceInput(1, ComputeIndex(access, node->InputAt(1)));
-  node->RemoveInput(2);
+  const Operator* op = machine()->Load(access.machine_type);
+  Node* key = node->InputAt(1);
+  Node* index = ComputeIndex(access, key);
+  if (access.bounds_check == kNoBoundsCheck) {
+    DCHECK_EQ(access.machine_type, output_type);
+    node->set_op(op);
+    node->ReplaceInput(1, index);
+    node->RemoveInput(2);
+  } else {
+    DCHECK_EQ(kTypedArrayBoundsCheck, access.bounds_check);
+
+    Node* base = node->InputAt(0);
+    Node* length = node->InputAt(2);
+    Node* effect = node->InputAt(3);
+    Node* control = node->InputAt(4);
+
+    Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
+    Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* load = graph()->NewNode(op, base, index, effect, if_true);
+    Node* result = load;
+    if (output_type & kRepTagged) {
+      // TODO(turbofan): This is ugly as hell!
+      SimplifiedOperatorBuilder simplified(graph()->zone());
+      RepresentationChanger changer(jsgraph(), &simplified,
+                                    graph()->zone()->isolate());
+      result = changer.GetTaggedRepresentationFor(result, access.machine_type);
+    }
+
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* undefined;
+    if (output_type & kRepTagged) {
+      DCHECK(!(access.machine_type & kRepTagged));
+      undefined = jsgraph()->UndefinedConstant();
+    } else if (output_type & kRepFloat32) {
+      undefined =
+          jsgraph()->Float32Constant(std::numeric_limits<float>::quiet_NaN());
+    } else if (output_type & kRepFloat64) {
+      undefined =
+          jsgraph()->Float64Constant(std::numeric_limits<double>::quiet_NaN());
+    } else {
+      undefined = jsgraph()->Int32Constant(0);
+    }
+
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    Node* phi = graph()->NewNode(common()->EffectPhi(2), load, effect, merge);
+
+    // Replace effect uses of node with the effect phi.
+    for (UseIter i = node->uses().begin(); i != node->uses().end();) {
+      if (NodeProperties::IsEffectEdge(i.edge())) {
+        i = i.UpdateToAndIncrement(phi);
+      } else {
+        ++i;
+      }
+    }
+
+    node->set_op(common()->Phi(output_type, 2));
+    node->ReplaceInput(0, result);
+    node->ReplaceInput(1, undefined);
+    node->ReplaceInput(2, merge);
+    node->TrimInputCount(3);
+  }
 }
 
 

@@ -5264,6 +5264,7 @@ void V8Thread::Run() {
 
     CompileRun(source);
   }
+  threaded_debugging_barriers.barrier_4.Wait();
   isolate_->Dispose();
 }
 
@@ -5285,6 +5286,7 @@ void DebuggerThread::Run() {
   threaded_debugging_barriers.barrier_2.Wait();
   v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_1, buffer));
   v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_2, buffer));
+  threaded_debugging_barriers.barrier_4.Wait();
 }
 
 
@@ -5388,6 +5390,7 @@ void BreakpointsV8Thread::Run() {
     breakpoints_barriers->barrier_2.Wait();
     CompileRun(source_2);
   }
+  breakpoints_barriers->barrier_4.Wait();
   isolate_->Dispose();
 }
 
@@ -5503,6 +5506,7 @@ void BreakpointsDebuggerThread::Run() {
   CHECK_EQ(116, evaluate_int_result);
   // 9: Continue evaluation of source2, reach end.
   v8::Debug::SendCommand(isolate_, buffer, AsciiToUtf16(command_8, buffer));
+  breakpoints_barriers->barrier_4.Wait();
 }
 
 

@@ -445,6 +445,78 @@ int InstructionSequence::GetFrameStateDescriptorCount() {
 }
 
 
+FrameStateDescriptor::FrameStateDescriptor(
+    Zone* zone, const FrameStateCallInfo& state_info, size_t parameters_count,
+    size_t locals_count, size_t stack_count, FrameStateDescriptor* outer_state)
+    : type_(state_info.type()),
+      bailout_id_(state_info.bailout_id()),
+      frame_state_combine_(state_info.state_combine()),
+      parameters_count_(parameters_count),
+      locals_count_(locals_count),
+      stack_count_(stack_count),
+      types_(zone),
+      outer_state_(outer_state),
+      jsfunction_(state_info.jsfunction()) {
+  types_.resize(GetSize(), kMachNone);
+}
+
+size_t FrameStateDescriptor::GetSize(OutputFrameStateCombine combine) const {
+  size_t size = parameters_count() + locals_count() + stack_count() +
+                (HasContext() ? 1 : 0);
+  switch (combine.kind()) {
+    case OutputFrameStateCombine::kPushOutput:
+      size += combine.GetPushCount();
+      break;
+    case OutputFrameStateCombine::kPokeAt:
+      break;
+  }
+  return size;
+}
+
+
+size_t FrameStateDescriptor::GetTotalSize() const {
+  size_t total_size = 0;
+  for (const FrameStateDescriptor* iter = this; iter != NULL;
+       iter = iter->outer_state_) {
+    total_size += iter->GetSize();
+  }
+  return total_size;
+}
+
+
+size_t FrameStateDescriptor::GetFrameCount() const {
+  size_t count = 0;
+  for (const FrameStateDescriptor* iter = this; iter != NULL;
+       iter = iter->outer_state_) {
+    ++count;
+  }
+  return count;
+}
+
+
+size_t FrameStateDescriptor::GetJSFrameCount() const {
+  size_t count = 0;
+  for (const FrameStateDescriptor* iter = this; iter != NULL;
+       iter = iter->outer_state_) {
+    if (iter->type_ == JS_FRAME) {
+      ++count;
+    }
+  }
+  return count;
+}
+
+
+MachineType FrameStateDescriptor::GetType(size_t index) const {
+  return types_[index];
+}
+
+
+void FrameStateDescriptor::SetType(size_t index, MachineType type) {
+  DCHECK(index < GetSize());
+  types_[index] = type;
+}
+
+
 std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
   for (size_t i = 0; i < code.immediates_.size(); ++i) {
     Constant constant = code.immediates_[i];

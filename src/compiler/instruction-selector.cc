@@ -440,6 +440,126 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
 }
 
 
+MachineType InstructionSelector::GetMachineType(Node* node) {
+  DCHECK_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
+  switch (node->opcode()) {
+    case IrOpcode::kStart:
+    case IrOpcode::kLoop:
+    case IrOpcode::kEnd:
+    case IrOpcode::kBranch:
+    case IrOpcode::kIfTrue:
+    case IrOpcode::kIfFalse:
+    case IrOpcode::kEffectPhi:
+    case IrOpcode::kMerge:
+      // No code needed for these graph artifacts.
+      return kMachNone;
+    case IrOpcode::kFinish:
+      return kMachAnyTagged;
+    case IrOpcode::kParameter:
+      return linkage()->GetParameterType(OpParameter<int>(node));
+    case IrOpcode::kPhi:
+      return OpParameter<MachineType>(node);
+    case IrOpcode::kProjection:
+      // TODO(jarin) Really project from outputs.
+      return kMachAnyTagged;
+    case IrOpcode::kInt32Constant:
+      return kMachInt32;
+    case IrOpcode::kInt64Constant:
+      return kMachInt64;
+    case IrOpcode::kExternalConstant:
+      return kMachPtr;
+    case IrOpcode::kFloat64Constant:
+      return kMachFloat64;
+    case IrOpcode::kHeapConstant:
+    case IrOpcode::kNumberConstant:
+      return kMachAnyTagged;
+    case IrOpcode::kCall:
+      return kMachAnyTagged;
+    case IrOpcode::kFrameState:
+    case IrOpcode::kStateValues:
+      return kMachNone;
+    case IrOpcode::kLoad:
+      return OpParameter<LoadRepresentation>(node);
+    case IrOpcode::kStore:
+      return kMachNone;
+    case IrOpcode::kWord32And:
+    case IrOpcode::kWord32Or:
+    case IrOpcode::kWord32Xor:
+    case IrOpcode::kWord32Shl:
+    case IrOpcode::kWord32Shr:
+    case IrOpcode::kWord32Sar:
+    case IrOpcode::kWord32Ror:
+      return kMachInt32;
+    case IrOpcode::kWord32Equal:
+      return kMachBool;
+    case IrOpcode::kWord64And:
+    case IrOpcode::kWord64Or:
+    case IrOpcode::kWord64Xor:
+    case IrOpcode::kWord64Shl:
+    case IrOpcode::kWord64Shr:
+    case IrOpcode::kWord64Sar:
+    case IrOpcode::kWord64Ror:
+      return kMachInt64;
+    case IrOpcode::kWord64Equal:
+      return kMachBool;
+    case IrOpcode::kInt32Add:
+    case IrOpcode::kInt32AddWithOverflow:
+    case IrOpcode::kInt32Sub:
+    case IrOpcode::kInt32SubWithOverflow:
+    case IrOpcode::kInt32Mul:
+    case IrOpcode::kInt32Div:
+    case IrOpcode::kInt32Mod:
+      return kMachInt32;
+    case IrOpcode::kInt32LessThan:
+    case IrOpcode::kInt32LessThanOrEqual:
+    case IrOpcode::kUint32LessThan:
+    case IrOpcode::kUint32LessThanOrEqual:
+      return kMachBool;
+    case IrOpcode::kInt64Add:
+    case IrOpcode::kInt64Sub:
+    case IrOpcode::kInt64Mul:
+    case IrOpcode::kInt64Div:
+    case IrOpcode::kInt64Mod:
+      return kMachInt64;
+    case IrOpcode::kInt64LessThan:
+    case IrOpcode::kInt64LessThanOrEqual:
+      return kMachBool;
+    case IrOpcode::kChangeFloat32ToFloat64:
+    case IrOpcode::kChangeInt32ToFloat64:
+    case IrOpcode::kChangeUint32ToFloat64:
+      return kMachFloat64;
+    case IrOpcode::kChangeFloat64ToInt32:
+      return kMachInt32;
+    case IrOpcode::kChangeFloat64ToUint32:
+      return kMachUint32;
+    case IrOpcode::kChangeInt32ToInt64:
+      return kMachInt64;
+    case IrOpcode::kChangeUint32ToUint64:
+      return kMachUint64;
+    case IrOpcode::kTruncateFloat64ToFloat32:
+      return kMachFloat32;
+    case IrOpcode::kTruncateFloat64ToInt32:
+    case IrOpcode::kTruncateInt64ToInt32:
+      return kMachInt32;
+    case IrOpcode::kFloat64Add:
+    case IrOpcode::kFloat64Sub:
+    case IrOpcode::kFloat64Mul:
+    case IrOpcode::kFloat64Div:
+    case IrOpcode::kFloat64Mod:
+    case IrOpcode::kFloat64Sqrt:
+      return kMachFloat64;
+    case IrOpcode::kFloat64Equal:
+    case IrOpcode::kFloat64LessThan:
+    case IrOpcode::kFloat64LessThanOrEqual:
+      return kMachBool;
+    default:
+      V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
+               node->opcode(), node->op()->mnemonic(), node->id());
+  }
+  return kMachNone;
+}
+
+
 void InstructionSelector::VisitNode(Node* node) {
   DCHECK_NOT_NULL(schedule()->block(node));  // should only use scheduled nodes.
   SourcePosition source_position = source_positions_->GetSourcePosition(node);
@@ -1010,11 +1130,23 @@ void InstructionSelector::VisitThrow(Node* value) {
 }
 
 
+void InstructionSelector::FillTypeVectorFromStateValues(
+    ZoneVector<MachineType>* types, Node* state_values) {
+  DCHECK(state_values->opcode() == IrOpcode::kStateValues);
+  int count = OpParameter<int>(state_values);
+  types->reserve(static_cast<size_t>(count));
+  for (int i = 0; i < count; i++) {
+    types->push_back(GetMachineType(state_values->InputAt(i)));
+  }
+}
+
+
 FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
   DCHECK(state->opcode() == IrOpcode::kFrameState);
   DCHECK_EQ(5, state->InputCount());
   FrameStateCallInfo state_info = OpParameter<FrameStateCallInfo>(state);
+
   int parameters = OpParameter<int>(state->InputAt(0));
   int locals = OpParameter<int>(state->InputAt(1));
   int stack = OpParameter<int>(state->InputAt(2));
@@ -1025,8 +1157,8 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     outer_state = GetFrameStateDescriptor(outer_node);
   }
 
-  return new (instruction_zone())
-      FrameStateDescriptor(state_info, parameters, locals, stack, outer_state);
+  return new (instruction_zone()) FrameStateDescriptor(
+      instruction_zone(), state_info, parameters, locals, stack, outer_state);
 }
 
 
@@ -1066,19 +1198,31 @@ void InstructionSelector::AddFrameStateInputs(
   DCHECK_EQ(static_cast<int>(descriptor->locals_count()), locals->InputCount());
   DCHECK_EQ(static_cast<int>(descriptor->stack_count()), stack->InputCount());
 
+  ZoneVector<MachineType> types(instruction_zone());
+  types.reserve(descriptor->GetSize());
+
   OperandGenerator g(this);
+  size_t value_index = 0;
   for (int i = 0; i < static_cast<int>(descriptor->parameters_count()); i++) {
-    inputs->push_back(UseOrImmediate(&g, parameters->InputAt(i)));
+    Node* input_node = parameters->InputAt(i);
+    inputs->push_back(UseOrImmediate(&g, input_node));
+    descriptor->SetType(value_index++, GetMachineType(input_node));
   }
   if (descriptor->HasContext()) {
     inputs->push_back(UseOrImmediate(&g, context));
+    descriptor->SetType(value_index++, kMachAnyTagged);
   }
   for (int i = 0; i < static_cast<int>(descriptor->locals_count()); i++) {
-    inputs->push_back(UseOrImmediate(&g, locals->InputAt(i)));
+    Node* input_node = locals->InputAt(i);
+    inputs->push_back(UseOrImmediate(&g, input_node));
+    descriptor->SetType(value_index++, GetMachineType(input_node));
   }
   for (int i = 0; i < static_cast<int>(descriptor->stack_count()); i++) {
-    inputs->push_back(UseOrImmediate(&g, stack->InputAt(i)));
+    Node* input_node = stack->InputAt(i);
+    inputs->push_back(UseOrImmediate(&g, input_node));
+    descriptor->SetType(value_index++, GetMachineType(input_node));
   }
+  DCHECK(value_index == descriptor->GetSize());
 }
 
 

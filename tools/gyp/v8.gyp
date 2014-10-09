@@ -808,6 +808,8 @@
         '../../src/unicode-inl.h',
         '../../src/unicode.cc',
         '../../src/unicode.h',
+        '../../src/unicode-decoder.cc',
+        '../../src/unicode-decoder.h',
         '../../src/unique.h',
         '../../src/uri.h',
         '../../src/utils-inl.h',
@@ -828,8 +830,8 @@
         '../../src/zone-inl.h',
         '../../src/zone.cc',
         '../../src/zone.h',
-        '../../third_party/fdlibm/fdlibm.cc',
-        '../../third_party/fdlibm/fdlibm.h',
+        '../../src/third_party/fdlibm/fdlibm.cc',
+        '../../src/third_party/fdlibm/fdlibm.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {
@@ -1565,7 +1567,7 @@
           '../../src/array.js',
           '../../src/string.js',
           '../../src/uri.js',
-          '../../third_party/fdlibm/fdlibm.js',
+          '../../src/third_party/fdlibm/fdlibm.js',
           '../../src/math.js',
           '../../src/apinatives.js',
           '../../src/date.js',
@@ -1694,6 +1696,12 @@
         '../../src/mksnapshot.cc',
       ],
       'conditions': [
+        ['v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ]
+        }],
         ['want_separate_host_toolset==1', {
           'toolsets': ['host'],
         }, {

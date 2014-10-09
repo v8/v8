@@ -14,17 +14,19 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class SimplifiedLowering {
+class SimplifiedLowering FINAL {
  public:
   explicit SimplifiedLowering(JSGraph* jsgraph) : jsgraph_(jsgraph) {}
-  virtual ~SimplifiedLowering() {}
+  ~SimplifiedLowering() {}
 
   void LowerAllNodes();
 
   // TODO(titzer): These are exposed for direct testing. Use a friend class.
   void DoLoadField(Node* node);
   void DoStoreField(Node* node);
-  void DoLoadElement(Node* node);
+  // TODO(turbofan): The output_type can be removed once the result of the
+  // representation analysis is stored in the node bounds.
+  void DoLoadElement(Node* node, MachineType output_type);
   void DoStoreElement(Node* node);
   void DoStringAdd(Node* node);
   void DoStringEqual(Node* node);

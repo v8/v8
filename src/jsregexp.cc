@@ -20,6 +20,7 @@
 #include "src/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/string-search.h"
+#include "src/unicode-decoder.h"
 
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32

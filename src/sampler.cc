@@ -335,7 +335,7 @@ void SignalHandler::HandleProfilerSignal(int signal, siginfo_t* info,
   USE(info);
   if (signal != SIGPROF) return;
   Isolate* isolate = Isolate::UnsafeCurrent();
-  if (isolate == NULL || !isolate->IsInitialized() || !isolate->IsInUse()) {
+  if (isolate == NULL || !isolate->IsInUse()) {
     // We require a fully initialized and entered isolate.
     return;
   }
@@ -542,7 +542,6 @@ class SamplerThread : public base::Thread {
         // profiled. We must not suspend.
         for (int i = 0; i < active_samplers_.length(); ++i) {
           Sampler* sampler = active_samplers_.at(i);
-          if (!sampler->isolate()->IsInitialized()) continue;
           if (!sampler->IsProfiling()) continue;
           sampler->DoSample();
         }
@@ -572,7 +571,6 @@ SamplerThread* SamplerThread::instance_ = NULL;
 //
 DISABLE_ASAN void TickSample::Init(Isolate* isolate,
                                    const v8::RegisterState& regs) {
-  DCHECK(isolate->IsInitialized());
   timestamp = base::TimeTicks::HighResolutionNow();
   pc = reinterpret_cast<Address>(regs.pc);
   state = isolate->current_vm_state();
@@ -612,7 +610,6 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
 void TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
                                 void** frames, size_t frames_limit,
                                 v8::SampleInfo* sample_info) {
-  DCHECK(isolate->IsInitialized());
   sample_info->frames_count = 0;
   sample_info->vm_state = isolate->current_vm_state();
   if (sample_info->vm_state == GC) return;

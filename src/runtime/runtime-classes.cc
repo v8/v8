@@ -155,10 +155,13 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
 
 RUNTIME_FUNCTION(Runtime_DefineClass) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK(args.length() == 6);
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 2);
+  CONVERT_ARG_HANDLE_CHECKED(Script, script, 3);
+  CONVERT_SMI_ARG_CHECKED(start_position, 4);
+  CONVERT_SMI_ARG_CHECKED(end_position, 5);
 
   Handle<Object> prototype_parent;
   Handle<Object> constructor_parent;
@@ -228,7 +231,58 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   JSObject::AddProperty(prototype, isolate->factory()->constructor_string(),
                         ctor, DONT_ENUM);
 
+  // Install private properties that are used to construct the FunctionToString.
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate,
+      Object::SetProperty(ctor, isolate->factory()->class_script_symbol(),
+                          script, STRICT));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, Object::SetProperty(
+                   ctor, isolate->factory()->class_start_position_symbol(),
+                   handle(Smi::FromInt(start_position), isolate), STRICT));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate,
+      Object::SetProperty(ctor, isolate->factory()->class_end_position_symbol(),
+                          handle(Smi::FromInt(end_position), isolate), STRICT));
+
   return *ctor;
+}
+
+
+RUNTIME_FUNCTION(Runtime_ClassGetSourceCode) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
+
+  Handle<Object> script;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, script,
+      Object::GetProperty(fun, isolate->factory()->class_script_symbol()));
+  if (!script->IsScript()) {
+    return isolate->heap()->undefined_value();
+  }
+
+  Handle<Symbol> start_position_symbol(
+      isolate->heap()->class_start_position_symbol());
+  Handle<Object> start_position;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, start_position, Object::GetProperty(fun, start_position_symbol));
+
+  Handle<Symbol> end_position_symbol(
+      isolate->heap()->class_end_position_symbol());
+  Handle<Object> end_position;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, end_position, Object::GetProperty(fun, end_position_symbol));
+
+  if (!start_position->IsSmi() || !end_position->IsSmi() ||
+      !Handle<Script>::cast(script)->HasValidSource()) {
+    return isolate->ThrowIllegalOperation();
+  }
+
+  Handle<String> source(String::cast(Handle<Script>::cast(script)->source()));
+  return *isolate->factory()->NewSubString(
+      source, Handle<Smi>::cast(start_position)->value(),
+      Handle<Smi>::cast(end_position)->value());
 }
 }
 }  // namespace v8::internal

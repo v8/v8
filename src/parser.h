@@ -558,7 +558,7 @@ class ParserTraits {
   Expression* ClassExpression(const AstRawString* name, Expression* extends,
                               Expression* constructor,
                               ZoneList<ObjectLiteral::Property*>* properties,
-                              int pos,
+                              int start_position, int end_position,
                               AstNodeFactory<AstConstructionVisitor>* factory);
 
   Literal* ExpressionFromLiteral(

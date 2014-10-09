@@ -14,8 +14,8 @@ namespace compiler {
 
 namespace {
 
-const SimpleOperator kOp0(0, Operator::kNoProperties, 0, 1, "op0");
-const SimpleOperator kOp1(1, Operator::kNoProperties, 1, 1, "op1");
+const SimpleOperator kOp0(0, Operator::kEliminatable, 0, 1, "op0");
+const SimpleOperator kOp1(1, Operator::kEliminatable, 1, 1, "op1");
 
 }  // namespace
 
@@ -54,6 +54,15 @@ TEST_F(ValueNumberingReducerTest, DeadNodesAreNeverReturned) {
 }
 
 
+TEST_F(ValueNumberingReducerTest, OnlyEliminatableNodesAreReduced) {
+  SimpleOperator op(0, Operator::kNoProperties, 0, 1, "op");
+  Node* n0 = graph()->NewNode(&op);
+  Node* n1 = graph()->NewNode(&op);
+  EXPECT_FALSE(Reduce(n0).Changed());
+  EXPECT_FALSE(Reduce(n1).Changed());
+}
+
+
 TEST_F(ValueNumberingReducerTest, OperatorEqualityNotIdentity) {
   static const size_t kMaxInputCount = 16;
   Node* inputs[kMaxInputCount];
@@ -61,18 +70,18 @@ TEST_F(ValueNumberingReducerTest, OperatorEqualityNotIdentity) {
     Operator::Opcode opcode = static_cast<Operator::Opcode>(
         std::numeric_limits<Operator::Opcode>::max() - i);
     inputs[i] = graph()->NewNode(new (zone()) SimpleOperator(
-        opcode, Operator::kNoProperties, 0, 1, "Operator"));
+        opcode, Operator::kEliminatable, 0, 1, "Operator"));
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
     const SimpleOperator op1(static_cast<Operator::Opcode>(input_count),
-                             Operator::kNoProperties,
+                             Operator::kEliminatable,
                              static_cast<int>(input_count), 1, "op");
     Node* n1 = graph()->NewNode(&op1, static_cast<int>(input_count), inputs);
     Reduction r1 = Reduce(n1);
     EXPECT_FALSE(r1.Changed());
 
     const SimpleOperator op2(static_cast<Operator::Opcode>(input_count),
-                             Operator::kNoProperties,
+                             Operator::kEliminatable,
                              static_cast<int>(input_count), 1, "op");
     Node* n2 = graph()->NewNode(&op2, static_cast<int>(input_count), inputs);
     Reduction r2 = Reduce(n2);
@@ -89,10 +98,10 @@ TEST_F(ValueNumberingReducerTest, SubsequentReductionsYieldTheSameNode) {
     Operator::Opcode opcode = static_cast<Operator::Opcode>(
         std::numeric_limits<Operator::Opcode>::max() - i);
     inputs[i] = graph()->NewNode(new (zone()) SimpleOperator(
-        opcode, Operator::kNoProperties, 0, 1, "Operator"));
+        opcode, Operator::kEliminatable, 0, 1, "Operator"));
   }
   TRACED_FORRANGE(size_t, input_count, 0, arraysize(inputs)) {
-    const SimpleOperator op1(1, Operator::kNoProperties,
+    const SimpleOperator op1(1, Operator::kEliminatable,
                              static_cast<int>(input_count), 1, "op1");
     Node* n = graph()->NewNode(&op1, static_cast<int>(input_count), inputs);
     Reduction r = Reduce(n);
