@@ -1,0 +1,5 @@
+# Suppressions for TSan v2
+# https://code.google.com/p/thread-sanitizer/wiki/Suppressions
+
+# Deliberate lock cycles in test-lockers
+deadlock:LockAndUnlockDifferentIsolatesThread::Run
