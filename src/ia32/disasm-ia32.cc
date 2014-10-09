@@ -1386,6 +1386,15 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                            NameOfXMMRegister(regop),
                            NameOfXMMRegister(rm));
             data++;
+          } else if (*data == 0x72) {
+            data++;
+            int mod, regop, rm;
+            get_modrm(*data, &mod, &regop, &rm);
+            int8_t imm8 = static_cast<int8_t>(data[1]);
+            DCHECK(regop == esi || regop == edx);
+            AppendToBuffer("%s %s,%d", (regop == esi) ? "pslld" : "psrld",
+                           NameOfXMMRegister(rm), static_cast<int>(imm8));
+            data += 2;
           } else if (*data == 0x73) {
             data++;
             int mod, regop, rm;

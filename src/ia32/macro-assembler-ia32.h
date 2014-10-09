@@ -842,7 +842,9 @@ class MacroAssembler: public Assembler {
   void Move(const Operand& dst, const Immediate& x);
 
   // Move an immediate into an XMM register.
-  void Move(XMMRegister dst, double val);
+  void Move(XMMRegister dst, uint32_t src);
+  void Move(XMMRegister dst, uint64_t src);
+  void Move(XMMRegister dst, double src) { Move(dst, bit_cast<uint64_t>(src)); }
 
   // Push a handle value.
   void Push(Handle<Object> handle) { push(Immediate(handle)); }

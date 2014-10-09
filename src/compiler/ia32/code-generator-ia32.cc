@@ -905,26 +905,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ mov(dst, g.ToImmediate(source));
     } else if (src_constant.type() == Constant::kFloat32) {
       // TODO(turbofan): Can we do better here?
-      Immediate src(bit_cast<int32_t>(src_constant.ToFloat32()));
+      uint32_t src = bit_cast<uint32_t>(src_constant.ToFloat32());
       if (destination->IsDoubleRegister()) {
         XMMRegister dst = g.ToDoubleRegister(destination);
-        __ push(Immediate(src));
-        __ movss(dst, Operand(esp, 0));
-        __ add(esp, Immediate(kDoubleSize / 2));
+        __ Move(dst, src);
       } else {
         DCHECK(destination->IsDoubleStackSlot());
         Operand dst = g.ToOperand(destination);
-        __ mov(dst, src);
+        __ mov(dst, Immediate(src));
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src_constant.type());
-      double v = src_constant.ToFloat64();
-      uint64_t int_val = bit_cast<uint64_t, double>(v);
-      int32_t lower = static_cast<int32_t>(int_val);
-      int32_t upper = static_cast<int32_t>(int_val >> kBitsPerInt);
+      uint64_t src = bit_cast<uint64_t>(src_constant.ToFloat64());
+      uint32_t lower = static_cast<uint32_t>(src);
+      uint32_t upper = static_cast<uint32_t>(src >> 32);
       if (destination->IsDoubleRegister()) {
         XMMRegister dst = g.ToDoubleRegister(destination);
-        __ Move(dst, v);
+        __ Move(dst, src);
       } else {
         DCHECK(destination->IsDoubleStackSlot());
         Operand dst0 = g.ToOperand(destination);
