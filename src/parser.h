@@ -352,6 +352,8 @@ class ParserTraits {
     // Used by FunctionState and BlockState.
     typedef v8::internal::Scope Scope;
     typedef v8::internal::Scope* ScopePtr;
+    inline static Scope* ptr_to_scope(ScopePtr scope) { return scope; }
+
     typedef Variable GeneratorVariable;
     typedef v8::internal::Zone Zone;
 

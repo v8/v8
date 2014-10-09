@@ -150,13 +150,6 @@ class ParserBase : public Traits {
           scope_(scope) {
       *scope_stack_ = scope_;
     }
-    BlockState(typename Traits::Type::Scope** scope_stack,
-               typename Traits::Type::Scope** scope)
-        : scope_stack_(scope_stack),
-          outer_scope_(*scope_stack),
-          scope_(*scope) {
-      *scope_stack_ = scope_;
-    }
     ~BlockState() { *scope_stack_ = outer_scope_; }
 
    private:
@@ -170,10 +163,6 @@ class ParserBase : public Traits {
     FunctionState(FunctionState** function_state_stack,
                   typename Traits::Type::Scope** scope_stack,
                   typename Traits::Type::Scope* scope,
-                  typename Traits::Type::Factory* factory);
-    FunctionState(FunctionState** function_state_stack,
-                  typename Traits::Type::Scope** scope_stack,
-                  typename Traits::Type::Scope** scope,
                   typename Traits::Type::Factory* factory);
     ~FunctionState();
 
@@ -1123,6 +1112,7 @@ class PreParserTraits {
     // Used by FunctionState and BlockState.
     typedef PreParserScope Scope;
     typedef PreParserScope ScopePtr;
+    inline static Scope* ptr_to_scope(ScopePtr& scope) { return &scope; }
 
     // PreParser doesn't need to store generator variables.
     typedef void GeneratorVariable;
@@ -1573,27 +1563,6 @@ ParserBase<Traits>::FunctionState::FunctionState(
       outer_scope_(*scope_stack),
       factory_(factory) {
   *scope_stack_ = scope;
-  *function_state_stack = this;
-}
-
-
-template <class Traits>
-ParserBase<Traits>::FunctionState::FunctionState(
-    FunctionState** function_state_stack,
-    typename Traits::Type::Scope** scope_stack,
-    typename Traits::Type::Scope** scope,
-    typename Traits::Type::Factory* factory)
-    : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
-      next_handler_index_(0),
-      expected_property_count_(0),
-      is_generator_(false),
-      generator_object_variable_(NULL),
-      function_state_stack_(function_state_stack),
-      outer_function_state_(*function_state_stack),
-      scope_stack_(scope_stack),
-      outer_scope_(*scope_stack),
-      factory_(factory) {
-  *scope_stack_ = *scope;
   *function_state_stack = this;
 }
 
@@ -2636,7 +2605,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
   {
     typename Traits::Type::Factory function_factory(
         zone(), this->ast_value_factory(), ast_node_id_gen_);
-    FunctionState function_state(&function_state_, &scope_, &scope,
+    FunctionState function_state(&function_state_, &scope_,
+                                 Traits::Type::ptr_to_scope(scope),
                                  &function_factory);
     Scanner::Location dupe_error_loc = Scanner::Location::invalid();
     num_parameters = Traits::DeclareArrowParametersFromExpression(
@@ -2751,14 +2721,14 @@ typename ParserBase<Traits>::ExpressionT ParserBase<Traits>::ParseClassLiteral(
   ExpressionT extends = this->EmptyExpression();
   if (Check(Token::EXTENDS)) {
     typename Traits::Type::ScopePtr scope = this->NewScope(scope_, BLOCK_SCOPE);
-    BlockState block_state(&scope_, &scope);
+    BlockState block_state(&scope_, Traits::Type::ptr_to_scope(scope));
     scope_->SetStrictMode(STRICT);
     extends = this->ParseLeftHandSideExpression(CHECK_OK);
   }
 
   // TODO(arv): Implement scopes and name binding in class body only.
   typename Traits::Type::ScopePtr scope = this->NewScope(scope_, BLOCK_SCOPE);
-  BlockState block_state(&scope_, &scope);
+  BlockState block_state(&scope_, Traits::Type::ptr_to_scope(scope));
   scope_->SetStrictMode(STRICT);
   scope_->SetScopeName(name);
 
