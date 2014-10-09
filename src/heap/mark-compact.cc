@@ -227,103 +227,6 @@ static void VerifyEvacuation(Heap* heap) {
 #endif  // VERIFY_HEAP
 
 
-#ifdef DEBUG
-class VerifyNativeContextSeparationVisitor : public ObjectVisitor {
- public:
-  VerifyNativeContextSeparationVisitor() : current_native_context_(NULL) {}
-
-  void VisitPointers(Object** start, Object** end) {
-    for (Object** current = start; current < end; current++) {
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        if (object->IsString()) continue;
-        switch (object->map()->instance_type()) {
-          case JS_FUNCTION_TYPE:
-            CheckContext(JSFunction::cast(object)->context());
-            break;
-          case JS_GLOBAL_PROXY_TYPE:
-            CheckContext(JSGlobalProxy::cast(object)->native_context());
-            break;
-          case JS_GLOBAL_OBJECT_TYPE:
-          case JS_BUILTINS_OBJECT_TYPE:
-            CheckContext(GlobalObject::cast(object)->native_context());
-            break;
-          case JS_ARRAY_TYPE:
-          case JS_DATE_TYPE:
-          case JS_OBJECT_TYPE:
-          case JS_REGEXP_TYPE:
-            VisitPointer(HeapObject::RawField(object, JSObject::kMapOffset));
-            break;
-          case MAP_TYPE:
-            VisitPointer(HeapObject::RawField(object, Map::kPrototypeOffset));
-            VisitPointer(HeapObject::RawField(object, Map::kConstructorOffset));
-            break;
-          case FIXED_ARRAY_TYPE:
-            if (object->IsContext()) {
-              CheckContext(object);
-            } else {
-              FixedArray* array = FixedArray::cast(object);
-              int length = array->length();
-              // Set array length to zero to prevent cycles while iterating
-              // over array bodies, this is easier than intrusive marking.
-              array->set_length(0);
-              array->IterateBody(FIXED_ARRAY_TYPE, FixedArray::SizeFor(length),
-                                 this);
-              array->set_length(length);
-            }
-            break;
-          case CELL_TYPE:
-          case JS_PROXY_TYPE:
-          case JS_VALUE_TYPE:
-          case TYPE_FEEDBACK_INFO_TYPE:
-            object->Iterate(this);
-            break;
-          case DECLARED_ACCESSOR_INFO_TYPE:
-          case EXECUTABLE_ACCESSOR_INFO_TYPE:
-          case BYTE_ARRAY_TYPE:
-          case CALL_HANDLER_INFO_TYPE:
-          case CODE_TYPE:
-          case FIXED_DOUBLE_ARRAY_TYPE:
-          case HEAP_NUMBER_TYPE:
-          case MUTABLE_HEAP_NUMBER_TYPE:
-          case INTERCEPTOR_INFO_TYPE:
-          case ODDBALL_TYPE:
-          case SCRIPT_TYPE:
-          case SHARED_FUNCTION_INFO_TYPE:
-            break;
-          default:
-            UNREACHABLE();
-        }
-      }
-    }
-  }
-
- private:
-  void CheckContext(Object* context) {
-    if (!context->IsContext()) return;
-    Context* native_context = Context::cast(context)->native_context();
-    if (current_native_context_ == NULL) {
-      current_native_context_ = native_context;
-    } else {
-      CHECK_EQ(current_native_context_, native_context);
-    }
-  }
-
-  Context* current_native_context_;
-};
-
-
-static void VerifyNativeContextSeparation(Heap* heap) {
-  HeapObjectIterator it(heap->code_space());
-
-  for (Object* object = it.Next(); object != NULL; object = it.Next()) {
-    VerifyNativeContextSeparationVisitor visitor;
-    Code::cast(object)->CodeIterateBody(&visitor);
-  }
-}
-#endif
-
-
 void MarkCompactCollector::SetUp() {
   free_list_old_data_space_.Reset(new FreeList(heap_->old_data_space()));
   free_list_old_pointer_space_.Reset(new FreeList(heap_->old_pointer_space()));
@@ -404,12 +307,6 @@ void MarkCompactCollector::CollectGarbage() {
 #endif
 
   SweepSpaces();
-
-#ifdef DEBUG
-  if (FLAG_verify_native_context_separation) {
-    VerifyNativeContextSeparation(heap_);
-  }
-#endif
 
 #ifdef VERIFY_HEAP
   if (heap()->weak_embedded_objects_verification_enabled()) {
