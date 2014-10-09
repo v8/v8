@@ -518,6 +518,24 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific support for compiling assignments.
 
+  // Left-hand side can only be a property, a global or a (parameter or local)
+  // slot.
+  enum LhsKind {
+    VARIABLE,
+    NAMED_PROPERTY,
+    KEYED_PROPERTY,
+    NAMED_SUPER_PROPERTY,
+    KEYED_SUPER_PROPERTY
+  };
+
+  static LhsKind GetAssignType(Property* property) {
+    if (property == NULL) return VARIABLE;
+    bool super_access = property->IsSuperAccess();
+    return (property->key()->IsPropertyName())
+               ? (super_access ? NAMED_SUPER_PROPERTY : NAMED_PROPERTY)
+               : (super_access ? KEYED_SUPER_PROPERTY : KEYED_PROPERTY);
+  }
+
   // Load a value from a named property.
   // The receiver is left on the stack by the IC.
   void EmitNamedPropertyLoad(Property* expr);
@@ -568,6 +586,10 @@ class FullCodeGenerator: public AstVisitor {
   // Complete a super named property assignment. The right-hand-side value
   // is expected in accumulator.
   void EmitNamedSuperPropertyStore(Property* prop);
+
+  // Complete a super named property assignment. The right-hand-side value
+  // is expected in accumulator.
+  void EmitKeyedSuperPropertyStore(Property* prop);
 
   // Complete a keyed property assignment.  The receiver and key are
   // expected on top of the stack and the right-hand-side value in the
