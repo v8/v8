@@ -56,7 +56,6 @@ class Platform {
    */
   virtual void CallOnForegroundThread(Isolate* isolate, Task* task) = 0;
 
-
   /**
    * Monotonically increasing time in seconds from an arbitrary fixed point in
    * the past. This function is expected to return at least
@@ -64,11 +63,7 @@ class Platform {
    * it is recommended that the fixed point be no further in the past than
    * the epoch.
    **/
-  virtual double MonotonicallyIncreasingTime() {
-    // TODO(rmcilroy): Remove this default implementation when Chromium
-    // change has landed.
-    return 0;
-  }
+  virtual double MonotonicallyIncreasingTime() = 0;
 };
 
 }  // namespace v8
