@@ -473,6 +473,22 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
       break;
     }
+    case IrOpcode::kStore: {
+      Node* const value = node->InputAt(2);
+      // TODO(turbofan): Extend to 64-bit?
+      if (value->opcode() == IrOpcode::kWord32And) {
+        MachineType const rep = static_cast<MachineType>(
+            StoreRepresentationOf(node->op()).machine_type() & kRepMask);
+        Uint32BinopMatcher m(value);
+        if (m.right().HasValue() &&
+            ((rep == kRepWord8 && (m.right().Value() & 0xff) == 0xff) ||
+             (rep == kRepWord16 && (m.right().Value() & 0xffff) == 0xffff))) {
+          node->ReplaceInput(2, m.left().node());
+          return Changed(node);
+        }
+      }
+      break;
+    }
     default:
       break;
   }

@@ -46,6 +46,12 @@ std::ostream& operator<<(std::ostream& os, StoreRepresentation rep) {
 }
 
 
+StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kStore, op->opcode());
+  return OpParameter<StoreRepresentation>(op);
+}
+
+
 #define PURE_OP_LIST(V)                                                       \
   V(Word32And, Operator::kAssociative | Operator::kCommutative, 2, 1)         \
   V(Word32Or, Operator::kAssociative | Operator::kCommutative, 2, 1)          \

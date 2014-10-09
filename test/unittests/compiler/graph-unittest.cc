@@ -654,16 +654,14 @@ class IsLoadMatcher FINAL : public NodeMatcher {
 
 class IsStoreMatcher FINAL : public NodeMatcher {
  public:
-  IsStoreMatcher(const Matcher<MachineType>& type_matcher,
-                 const Matcher<WriteBarrierKind> write_barrier_matcher,
+  IsStoreMatcher(const Matcher<StoreRepresentation>& rep_matcher,
                  const Matcher<Node*>& base_matcher,
                  const Matcher<Node*>& index_matcher,
                  const Matcher<Node*>& value_matcher,
                  const Matcher<Node*>& effect_matcher,
                  const Matcher<Node*>& control_matcher)
       : NodeMatcher(IrOpcode::kStore),
-        type_matcher_(type_matcher),
-        write_barrier_matcher_(write_barrier_matcher),
+        rep_matcher_(rep_matcher),
         base_matcher_(base_matcher),
         index_matcher_(index_matcher),
         value_matcher_(value_matcher),
@@ -672,10 +670,8 @@ class IsStoreMatcher FINAL : public NodeMatcher {
 
   virtual void DescribeTo(std::ostream* os) const OVERRIDE {
     NodeMatcher::DescribeTo(os);
-    *os << " whose type (";
-    type_matcher_.DescribeTo(os);
-    *os << "), write barrier (";
-    write_barrier_matcher_.DescribeTo(os);
+    *os << " whose rep (";
+    rep_matcher_.DescribeTo(os);
     *os << "), base (";
     base_matcher_.DescribeTo(os);
     *os << "), index (";
@@ -692,12 +688,8 @@ class IsStoreMatcher FINAL : public NodeMatcher {
   virtual bool MatchAndExplain(Node* node,
                                MatchResultListener* listener) const OVERRIDE {
     return (NodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(
-                OpParameter<StoreRepresentation>(node).machine_type(), "type",
-                type_matcher_, listener) &&
-            PrintMatchAndExplain(
-                OpParameter<StoreRepresentation>(node).write_barrier_kind(),
-                "write barrier", write_barrier_matcher_, listener) &&
+            PrintMatchAndExplain(OpParameter<StoreRepresentation>(node), "rep",
+                                 rep_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
                                  base_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
@@ -711,8 +703,7 @@ class IsStoreMatcher FINAL : public NodeMatcher {
   }
 
  private:
-  const Matcher<MachineType> type_matcher_;
-  const Matcher<WriteBarrierKind> write_barrier_matcher_;
+  const Matcher<StoreRepresentation> rep_matcher_;
   const Matcher<Node*> base_matcher_;
   const Matcher<Node*> index_matcher_;
   const Matcher<Node*> value_matcher_;
@@ -927,16 +918,15 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
 }
 
 
-Matcher<Node*> IsStore(const Matcher<MachineType>& type_matcher,
-                       const Matcher<WriteBarrierKind>& write_barrier_matcher,
+Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
                        const Matcher<Node*>& base_matcher,
                        const Matcher<Node*>& index_matcher,
                        const Matcher<Node*>& value_matcher,
                        const Matcher<Node*>& effect_matcher,
                        const Matcher<Node*>& control_matcher) {
-  return MakeMatcher(new IsStoreMatcher(
-      type_matcher, write_barrier_matcher, base_matcher, index_matcher,
-      value_matcher, effect_matcher, control_matcher));
+  return MakeMatcher(new IsStoreMatcher(rep_matcher, base_matcher,
+                                        index_matcher, value_matcher,
+                                        effect_matcher, control_matcher));
 }
 
 
