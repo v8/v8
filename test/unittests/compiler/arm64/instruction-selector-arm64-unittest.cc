@@ -140,12 +140,12 @@ static const MachInst2 kOvfAddSubInstructions[] = {
 
 // ARM64 shift instructions.
 static const MachInst2 kShiftInstructions[] = {
-    {&RawMachineAssembler::Word32Shl, "Word32Shl", kArm64Shl32, kMachInt32},
-    {&RawMachineAssembler::Word64Shl, "Word64Shl", kArm64Shl, kMachInt64},
-    {&RawMachineAssembler::Word32Shr, "Word32Shr", kArm64Shr32, kMachInt32},
-    {&RawMachineAssembler::Word64Shr, "Word64Shr", kArm64Shr, kMachInt64},
-    {&RawMachineAssembler::Word32Sar, "Word32Sar", kArm64Sar32, kMachInt32},
-    {&RawMachineAssembler::Word64Sar, "Word64Sar", kArm64Sar, kMachInt64},
+    {&RawMachineAssembler::Word32Shl, "Word32Shl", kArm64Lsl32, kMachInt32},
+    {&RawMachineAssembler::Word64Shl, "Word64Shl", kArm64Lsl, kMachInt64},
+    {&RawMachineAssembler::Word32Shr, "Word32Shr", kArm64Lsr32, kMachInt32},
+    {&RawMachineAssembler::Word64Shr, "Word64Shr", kArm64Lsr, kMachInt64},
+    {&RawMachineAssembler::Word32Sar, "Word32Sar", kArm64Asr32, kMachInt32},
+    {&RawMachineAssembler::Word64Sar, "Word64Sar", kArm64Asr, kMachInt64},
     {&RawMachineAssembler::Word32Ror, "Word32Ror", kArm64Ror32, kMachInt32},
     {&RawMachineAssembler::Word64Ror, "Word64Ror", kArm64Ror, kMachInt64}};
 
@@ -1484,6 +1484,144 @@ TEST_F(InstructionSelectorTest, Word64XorMinusOneWithParameter) {
     EXPECT_EQ(kArm64Not, s[0]->arch_opcode());
     EXPECT_EQ(1U, s[0]->InputCount());
     EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32ShrWithWord32AndWithImmediate) {
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+    TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
+      uint32_t jnk = rng()->NextInt();
+      jnk >>= 32 - lsb;
+      uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
+      StreamBuilder m(this, kMachInt32, kMachInt32);
+      m.Return(m.Word32Shr(m.Word32And(m.Parameter(0), m.Int32Constant(msk)),
+                           m.Int32Constant(lsb)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
+    }
+  }
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+    TRACED_FORRANGE(int32_t, width, 1, 32 - lsb) {
+      uint32_t jnk = rng()->NextInt();
+      jnk >>= 32 - lsb;
+      uint32_t msk = ((0xffffffffu >> (32 - width)) << lsb) | jnk;
+      StreamBuilder m(this, kMachInt32, kMachInt32);
+      m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(msk), m.Parameter(0)),
+                           m.Int32Constant(lsb)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
+    }
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
+  TRACED_FORRANGE(int32_t, lsb, 1, 63) {
+    TRACED_FORRANGE(int32_t, width, 1, 64 - lsb) {
+      uint64_t jnk = rng()->NextInt64();
+      jnk >>= 64 - lsb;
+      uint64_t msk =
+          ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
+      StreamBuilder m(this, kMachInt64, kMachInt64);
+      m.Return(m.Word64Shr(m.Word64And(m.Parameter(0), m.Int64Constant(msk)),
+                           m.Int64Constant(lsb)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
+      EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
+    }
+  }
+  TRACED_FORRANGE(int32_t, lsb, 1, 63) {
+    TRACED_FORRANGE(int32_t, width, 1, 64 - lsb) {
+      uint64_t jnk = rng()->NextInt64();
+      jnk >>= 64 - lsb;
+      uint64_t msk =
+          ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
+      StreamBuilder m(this, kMachInt64, kMachInt64);
+      m.Return(m.Word64Shr(m.Word64And(m.Int64Constant(msk), m.Parameter(0)),
+                           m.Int64Constant(lsb)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
+      EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
+    }
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word32AndWithImmediateWithWord32Shr) {
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+    TRACED_FORRANGE(int32_t, width, 1, 31) {
+      uint32_t msk = (1 << width) - 1;
+      StreamBuilder m(this, kMachInt32, kMachInt32);
+      m.Return(m.Word32And(m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb)),
+                           m.Int32Constant(msk)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
+    }
+  }
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+    TRACED_FORRANGE(int32_t, width, 1, 31) {
+      uint32_t msk = (1 << width) - 1;
+      StreamBuilder m(this, kMachInt32, kMachInt32);
+      m.Return(m.Word32And(m.Int32Constant(msk),
+                           m.Word32Shr(m.Parameter(0), m.Int32Constant(lsb))));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Ubfx32, s[0]->arch_opcode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(lsb, s.ToInt32(s[0]->InputAt(1)));
+      EXPECT_EQ(width, s.ToInt32(s[0]->InputAt(2)));
+    }
+  }
+}
+
+
+TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+    TRACED_FORRANGE(int32_t, width, 1, 31) {
+      uint64_t msk = (V8_UINT64_C(1) << width) - 1;
+      StreamBuilder m(this, kMachInt64, kMachInt64);
+      m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(lsb)),
+                           m.Int64Constant(msk)));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
+      EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
+    }
+  }
+  TRACED_FORRANGE(int32_t, lsb, 1, 31) {
+    TRACED_FORRANGE(int32_t, width, 1, 31) {
+      uint64_t msk = (V8_UINT64_C(1) << width) - 1;
+      StreamBuilder m(this, kMachInt64, kMachInt64);
+      m.Return(m.Word64And(m.Int64Constant(msk),
+                           m.Word64Shr(m.Parameter(0), m.Int64Constant(lsb))));
+      Stream s = m.Build();
+      ASSERT_EQ(1U, s.size());
+      EXPECT_EQ(kArm64Ubfx, s[0]->arch_opcode());
+      ASSERT_EQ(3U, s[0]->InputCount());
+      EXPECT_EQ(lsb, s.ToInt64(s[0]->InputAt(1)));
+      EXPECT_EQ(width, s.ToInt64(s[0]->InputAt(2)));
+    }
   }
 }
 

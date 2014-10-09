@@ -54,16 +54,18 @@ namespace compiler {
   V(Arm64Not32)                    \
   V(Arm64Neg)                      \
   V(Arm64Neg32)                    \
-  V(Arm64Shl)                      \
-  V(Arm64Shl32)                    \
-  V(Arm64Shr)                      \
-  V(Arm64Shr32)                    \
-  V(Arm64Sar)                      \
-  V(Arm64Sar32)                    \
+  V(Arm64Lsl)                      \
+  V(Arm64Lsl32)                    \
+  V(Arm64Lsr)                      \
+  V(Arm64Lsr32)                    \
+  V(Arm64Asr)                      \
+  V(Arm64Asr32)                    \
   V(Arm64Ror)                      \
   V(Arm64Ror32)                    \
   V(Arm64Mov32)                    \
   V(Arm64Sxtw)                     \
+  V(Arm64Ubfx)                     \
+  V(Arm64Ubfx32)                   \
   V(Arm64Claim)                    \
   V(Arm64Poke)                     \
   V(Arm64PokePairZero)             \

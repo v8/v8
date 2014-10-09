@@ -319,22 +319,22 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
         __ Sub(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
       }
       break;
-    case kArm64Shl:
+    case kArm64Lsl:
       ASSEMBLE_SHIFT(Lsl, 64);
       break;
-    case kArm64Shl32:
+    case kArm64Lsl32:
       ASSEMBLE_SHIFT(Lsl, 32);
       break;
-    case kArm64Shr:
+    case kArm64Lsr:
       ASSEMBLE_SHIFT(Lsr, 64);
       break;
-    case kArm64Shr32:
+    case kArm64Lsr32:
       ASSEMBLE_SHIFT(Lsr, 32);
       break;
-    case kArm64Sar:
+    case kArm64Asr:
       ASSEMBLE_SHIFT(Asr, 64);
       break;
-    case kArm64Sar32:
+    case kArm64Asr32:
       ASSEMBLE_SHIFT(Asr, 32);
       break;
     case kArm64Ror:
@@ -348,6 +348,14 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kArm64Sxtw:
       __ Sxtw(i.OutputRegister(), i.InputRegister32(0));
+      break;
+    case kArm64Ubfx:
+      __ Ubfx(i.OutputRegister(), i.InputRegister(0), i.InputInt8(1),
+              i.InputInt8(2));
+      break;
+    case kArm64Ubfx32:
+      __ Ubfx(i.OutputRegister32(), i.InputRegister32(0), i.InputInt8(1),
+              i.InputInt8(2));
       break;
     case kArm64Claim: {
       int words = MiscField::decode(instr->opcode());
