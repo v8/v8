@@ -654,6 +654,54 @@ TEST_F(MachineOperatorReducerTest, Int32SubWithOverflowWithConstant) {
   }
 }
 
+
+// -----------------------------------------------------------------------------
+// Store
+
+
+TEST_F(MachineOperatorReducerTest, StoreRepWord8WithWord32And) {
+  const StoreRepresentation rep(kRepWord8, kNoWriteBarrier);
+  Node* const base = Parameter(0);
+  Node* const index = Parameter(1);
+  Node* const value = Parameter(2);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FOREACH(uint32_t, x, kUint32Values) {
+    Node* const node =
+        graph()->NewNode(machine()->Store(rep), base, index,
+                         graph()->NewNode(machine()->Word32And(), value,
+                                          Uint32Constant(x | 0xffu)),
+                         effect, control);
+
+    Reduction r = Reduce(node);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsStore(rep, base, index, value, effect, control));
+  }
+}
+
+
+TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32And) {
+  const StoreRepresentation rep(kRepWord16, kNoWriteBarrier);
+  Node* const base = Parameter(0);
+  Node* const index = Parameter(1);
+  Node* const value = Parameter(2);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FOREACH(uint32_t, x, kUint32Values) {
+    Node* const node =
+        graph()->NewNode(machine()->Store(rep), base, index,
+                         graph()->NewNode(machine()->Word32And(), value,
+                                          Uint32Constant(x | 0xffffu)),
+                         effect, control);
+
+    Reduction r = Reduce(node);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsStore(rep, base, index, value, effect, control));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

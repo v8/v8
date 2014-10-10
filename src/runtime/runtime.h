@@ -187,14 +187,16 @@ namespace internal {
   /* Classes support */                                    \
   F(ToMethod, 2, 1)                                        \
   F(HomeObjectSymbol, 0, 1)                                \
+  F(DefineClass, 6, 1)                                     \
+  F(ClassGetSourceCode, 1, 1)                              \
   F(ThrowNonMethodError, 0, 1)                             \
   F(ThrowUnsupportedSuperError, 0, 1)                      \
   F(LoadFromSuper, 3, 1)                                   \
   F(LoadKeyedFromSuper, 3, 1)                              \
   F(StoreToSuper_Strict, 4, 1)                             \
   F(StoreToSuper_Sloppy, 4, 1)                             \
-  F(DefineClass, 6, 1)                                     \
-  F(ClassGetSourceCode, 1, 1)
+  F(StoreKeyedToSuper_Strict, 4, 1)                        \
+  F(StoreKeyedToSuper_Sloppy, 4, 1)
 
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS_2(F)              \

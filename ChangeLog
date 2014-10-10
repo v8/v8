@@ -1,3 +1,13 @@
+2014-10-10: Version 3.30.7
+
+        Fix computation of UTC time from local time at DST change points (issue
+        3116, Chromium issues 415424, 417640).
+
+        Convert `obj` ToObject in Object.keys() (issue 3587).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-09: Version 3.30.6
 
         Update unicode to 7.0.0 (issue 2892).

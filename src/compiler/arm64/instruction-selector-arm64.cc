@@ -355,7 +355,29 @@ static void VisitLogical(InstructionSelector* selector, Node* node, Matcher* m,
 
 
 void InstructionSelector::VisitWord32And(Node* node) {
+  Arm64OperandGenerator g(this);
   Int32BinopMatcher m(node);
+  if (m.left().IsWord32Shr() && CanCover(node, m.left().node()) &&
+      m.right().HasValue()) {
+    uint32_t mask = m.right().Value();
+    uint32_t mask_width = base::bits::CountPopulation32(mask);
+    uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
+    if ((mask_width != 0) && (mask_msb + mask_width == 32)) {
+      // The mask must be contiguous, and occupy the least-significant bits.
+      DCHECK_EQ(0, base::bits::CountTrailingZeros32(mask));
+
+      // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
+      // significant bits.
+      Int32BinopMatcher mleft(m.left().node());
+      if (mleft.right().IsInRange(0, 31)) {
+        Emit(kArm64Ubfx32, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()),
+             g.UseImmediate(mleft.right().node()), g.TempImmediate(mask_width));
+        return;
+      }
+      // Other cases fall through to the normal And operation.
+    }
+  }
   VisitLogical<Int32BinopMatcher>(
       this, node, &m, kArm64And32, CanCover(node, m.left().node()),
       CanCover(node, m.right().node()), kLogical32Imm);
@@ -363,7 +385,29 @@ void InstructionSelector::VisitWord32And(Node* node) {
 
 
 void InstructionSelector::VisitWord64And(Node* node) {
+  Arm64OperandGenerator g(this);
   Int64BinopMatcher m(node);
+  if (m.left().IsWord64Shr() && CanCover(node, m.left().node()) &&
+      m.right().HasValue()) {
+    uint64_t mask = m.right().Value();
+    uint64_t mask_width = base::bits::CountPopulation64(mask);
+    uint64_t mask_msb = base::bits::CountLeadingZeros64(mask);
+    if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
+      // The mask must be contiguous, and occupy the least-significant bits.
+      DCHECK_EQ(0, base::bits::CountTrailingZeros64(mask));
+
+      // Select Ubfx for And(Shr(x, imm), mask) where the mask is in the least
+      // significant bits.
+      Int64BinopMatcher mleft(m.left().node());
+      if (mleft.right().IsInRange(0, 63)) {
+        Emit(kArm64Ubfx, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()),
+             g.UseImmediate(mleft.right().node()), g.TempImmediate(mask_width));
+        return;
+      }
+      // Other cases fall through to the normal And operation.
+    }
+  }
   VisitLogical<Int64BinopMatcher>(
       this, node, &m, kArm64And, CanCover(node, m.left().node()),
       CanCover(node, m.right().node()), kLogical64Imm);
@@ -403,32 +447,72 @@ void InstructionSelector::VisitWord64Xor(Node* node) {
 
 
 void InstructionSelector::VisitWord32Shl(Node* node) {
-  VisitRRO(this, kArm64Shl32, node, kShift32Imm);
+  VisitRRO(this, kArm64Lsl32, node, kShift32Imm);
 }
 
 
 void InstructionSelector::VisitWord64Shl(Node* node) {
-  VisitRRO(this, kArm64Shl, node, kShift64Imm);
+  VisitRRO(this, kArm64Lsl, node, kShift64Imm);
 }
 
 
 void InstructionSelector::VisitWord32Shr(Node* node) {
-  VisitRRO(this, kArm64Shr32, node, kShift32Imm);
+  Arm64OperandGenerator g(this);
+  Int32BinopMatcher m(node);
+  if (m.left().IsWord32And() && m.right().IsInRange(0, 31)) {
+    int32_t lsb = m.right().Value();
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
+      uint32_t mask_width = base::bits::CountPopulation32(mask);
+      uint32_t mask_msb = base::bits::CountLeadingZeros32(mask);
+      // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
+      // shifted into the least-significant bits.
+      if ((mask_msb + mask_width + lsb) == 32) {
+        DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(mask));
+        Emit(kArm64Ubfx32, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
+             g.TempImmediate(mask_width));
+        return;
+      }
+    }
+  }
+  VisitRRO(this, kArm64Lsr32, node, kShift32Imm);
 }
 
 
 void InstructionSelector::VisitWord64Shr(Node* node) {
-  VisitRRO(this, kArm64Shr, node, kShift64Imm);
+  Arm64OperandGenerator g(this);
+  Int64BinopMatcher m(node);
+  if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
+    int64_t lsb = m.right().Value();
+    Int64BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      // Select Ubfx for Shr(And(x, mask), imm) where the result of the mask is
+      // shifted into the least-significant bits.
+      uint64_t mask = (mleft.right().Value() >> lsb) << lsb;
+      uint64_t mask_width = base::bits::CountPopulation64(mask);
+      uint64_t mask_msb = base::bits::CountLeadingZeros64(mask);
+      if ((mask_msb + mask_width + lsb) == 64) {
+        DCHECK_EQ(lsb, base::bits::CountTrailingZeros64(mask));
+        Emit(kArm64Ubfx, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
+             g.TempImmediate(mask_width));
+        return;
+      }
+    }
+  }
+  VisitRRO(this, kArm64Lsr, node, kShift64Imm);
 }
 
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
-  VisitRRO(this, kArm64Sar32, node, kShift32Imm);
+  VisitRRO(this, kArm64Asr32, node, kShift32Imm);
 }
 
 
 void InstructionSelector::VisitWord64Sar(Node* node) {
-  VisitRRO(this, kArm64Sar, node, kShift64Imm);
+  VisitRRO(this, kArm64Asr, node, kShift64Imm);
 }
 
 

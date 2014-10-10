@@ -41,6 +41,9 @@ class GraphTest : public TestWithContext, public TestWithZone {
   Node* Float32Constant(volatile float value);
   Node* Float64Constant(volatile double value);
   Node* Int32Constant(int32_t value);
+  Node* Uint32Constant(uint32_t value) {
+    return Int32Constant(bit_cast<int32_t>(value));
+  }
   Node* Int64Constant(int64_t value);
   Node* NumberConstant(volatile double value);
   Node* HeapConstant(const Handle<HeapObject>& value);
@@ -119,8 +122,7 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                       const Matcher<Node*>& index_matcher,
                       const Matcher<Node*>& effect_matcher,
                       const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsStore(const Matcher<MachineType>& type_matcher,
-                       const Matcher<WriteBarrierKind>& write_barrier_matcher,
+Matcher<Node*> IsStore(const Matcher<StoreRepresentation>& rep_matcher,
                        const Matcher<Node*>& base_matcher,
                        const Matcher<Node*>& index_matcher,
                        const Matcher<Node*>& value_matcher,

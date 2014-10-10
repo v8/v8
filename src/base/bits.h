@@ -19,7 +19,7 @@ namespace base {
 namespace bits {
 
 // CountPopulation32(value) returns the number of bits set in |value|.
-inline uint32_t CountPopulation32(uint32_t value) {
+inline unsigned CountPopulation32(uint32_t value) {
 #if V8_HAS_BUILTIN_POPCOUNT
   return __builtin_popcount(value);
 #else
@@ -28,20 +28,31 @@ inline uint32_t CountPopulation32(uint32_t value) {
   value = ((value >> 4) & 0x0f0f0f0f) + (value & 0x0f0f0f0f);
   value = ((value >> 8) & 0x00ff00ff) + (value & 0x00ff00ff);
   value = ((value >> 16) & 0x0000ffff) + (value & 0x0000ffff);
-  return value;
+  return static_cast<unsigned>(value);
+#endif
+}
+
+
+// CountPopulation64(value) returns the number of bits set in |value|.
+inline unsigned CountPopulation64(uint64_t value) {
+#if V8_HAS_BUILTIN_POPCOUNT
+  return __builtin_popcountll(value);
+#else
+  return CountPopulation32(static_cast<uint32_t>(value)) +
+         CountPopulation32(static_cast<uint32_t>(value >> 32));
 #endif
 }
 
 
 // CountLeadingZeros32(value) returns the number of zero bits following the most
 // significant 1 bit in |value| if |value| is non-zero, otherwise it returns 32.
-inline uint32_t CountLeadingZeros32(uint32_t value) {
+inline unsigned CountLeadingZeros32(uint32_t value) {
 #if V8_HAS_BUILTIN_CLZ
   return value ? __builtin_clz(value) : 32;
 #elif V8_CC_MSVC
   unsigned long result;  // NOLINT(runtime/int)
   if (!_BitScanReverse(&result, value)) return 32;
-  return static_cast<uint32_t>(31 - result);
+  return static_cast<unsigned>(31 - result);
 #else
   value = value | (value >> 1);
   value = value | (value >> 2);
@@ -53,18 +64,51 @@ inline uint32_t CountLeadingZeros32(uint32_t value) {
 }
 
 
+// CountLeadingZeros64(value) returns the number of zero bits following the most
+// significant 1 bit in |value| if |value| is non-zero, otherwise it returns 64.
+inline unsigned CountLeadingZeros64(uint64_t value) {
+#if V8_HAS_BUILTIN_CLZ
+  return value ? __builtin_clzll(value) : 64;
+#else
+  value = value | (value >> 1);
+  value = value | (value >> 2);
+  value = value | (value >> 4);
+  value = value | (value >> 8);
+  value = value | (value >> 16);
+  value = value | (value >> 32);
+  return CountPopulation64(~value);
+#endif
+}
+
+
 // CountTrailingZeros32(value) returns the number of zero bits preceding the
 // least significant 1 bit in |value| if |value| is non-zero, otherwise it
 // returns 32.
-inline uint32_t CountTrailingZeros32(uint32_t value) {
+inline unsigned CountTrailingZeros32(uint32_t value) {
 #if V8_HAS_BUILTIN_CTZ
   return value ? __builtin_ctz(value) : 32;
 #elif V8_CC_MSVC
   unsigned long result;  // NOLINT(runtime/int)
   if (!_BitScanForward(&result, value)) return 32;
-  return static_cast<uint32_t>(result);
+  return static_cast<unsigned>(result);
 #else
   if (value == 0) return 32;
+  unsigned count = 0;
+  for (value ^= value - 1; value >>= 1; ++count)
+    ;
+  return count;
+#endif
+}
+
+
+// CountTrailingZeros64(value) returns the number of zero bits preceding the
+// least significant 1 bit in |value| if |value| is non-zero, otherwise it
+// returns 64.
+inline unsigned CountTrailingZeros64(uint64_t value) {
+#if V8_HAS_BUILTIN_CTZ
+  return value ? __builtin_ctzll(value) : 64;
+#else
+  if (value == 0) return 64;
   unsigned count = 0;
   for (value ^= value - 1; value >>= 1; ++count)
     ;

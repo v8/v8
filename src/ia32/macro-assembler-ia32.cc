@@ -2616,18 +2616,65 @@ void MacroAssembler::Move(const Operand& dst, const Immediate& x) {
 }
 
 
-void MacroAssembler::Move(XMMRegister dst, double val) {
-  // TODO(titzer): recognize double constants with ExternalReferences.
-  uint64_t int_val = bit_cast<uint64_t, double>(val);
-  if (int_val == 0) {
-    xorps(dst, dst);
+void MacroAssembler::Move(XMMRegister dst, uint32_t src) {
+  if (src == 0) {
+    pxor(dst, dst);
   } else {
-    int32_t lower = static_cast<int32_t>(int_val);
-    int32_t upper = static_cast<int32_t>(int_val >> kBitsPerInt);
-    push(Immediate(upper));
-    push(Immediate(lower));
-    movsd(dst, Operand(esp, 0));
-    add(esp, Immediate(kDoubleSize));
+    unsigned cnt = base::bits::CountPopulation32(src);
+    unsigned nlz = base::bits::CountLeadingZeros32(src);
+    unsigned ntz = base::bits::CountTrailingZeros32(src);
+    if (nlz + cnt + ntz == 32) {
+      pcmpeqd(dst, dst);
+      if (ntz == 0) {
+        psrld(dst, 32 - cnt);
+      } else {
+        pslld(dst, 32 - cnt);
+        if (nlz != 0) psrld(dst, nlz);
+      }
+    } else {
+      push(eax);
+      mov(eax, Immediate(src));
+      movd(dst, Operand(eax));
+      pop(eax);
+    }
+  }
+}
+
+
+void MacroAssembler::Move(XMMRegister dst, uint64_t src) {
+  uint32_t lower = static_cast<uint32_t>(src);
+  uint32_t upper = static_cast<uint32_t>(src >> 32);
+  if (upper == 0) {
+    Move(dst, lower);
+  } else {
+    unsigned cnt = base::bits::CountPopulation64(src);
+    unsigned nlz = base::bits::CountLeadingZeros64(src);
+    unsigned ntz = base::bits::CountTrailingZeros64(src);
+    if (nlz + cnt + ntz == 64) {
+      pcmpeqd(dst, dst);
+      if (ntz == 0) {
+        psrlq(dst, 64 - cnt);
+      } else {
+        psllq(dst, 64 - cnt);
+        if (nlz != 0) psrlq(dst, nlz);
+      }
+    } else if (lower == 0) {
+      Move(dst, upper);
+      psllq(dst, 32);
+    } else if (CpuFeatures::IsSupported(SSE4_1)) {
+      CpuFeatureScope scope(this, SSE4_1);
+      push(eax);
+      Move(eax, Immediate(lower));
+      movd(dst, Operand(eax));
+      Move(eax, Immediate(upper));
+      pinsrd(dst, Operand(eax), 1);
+      pop(eax);
+    } else {
+      push(Immediate(upper));
+      push(Immediate(lower));
+      movsd(dst, Operand(esp, 0));
+      add(esp, Immediate(kDoubleSize));
+    }
   }
 }
 

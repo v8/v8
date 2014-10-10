@@ -878,8 +878,10 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
     ParsingModeScope parsing_mode(this, mode);
 
     // Enters 'scope'.
-    FunctionState function_state(&function_state_, &scope_, *scope, zone(),
-                                 ast_value_factory(), info->ast_node_id_gen());
+    AstNodeFactory<AstConstructionVisitor> function_factory(
+        zone(), ast_value_factory(), info->ast_node_id_gen());
+    FunctionState function_state(&function_state_, &scope_, *scope,
+                                 &function_factory);
 
     scope_->SetStrictMode(info->strict_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
@@ -991,9 +993,10 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
                                            zone());
     }
     original_scope_ = scope;
-    FunctionState function_state(&function_state_, &scope_, scope, zone(),
-                                 ast_value_factory(),
-                                 info()->ast_node_id_gen());
+    AstNodeFactory<AstConstructionVisitor> function_factory(
+        zone(), ast_value_factory(), info()->ast_node_id_gen());
+    FunctionState function_state(&function_state_, &scope_, scope,
+                                 &function_factory);
     DCHECK(scope->strict_mode() == SLOPPY || info()->strict_mode() == STRICT);
     DCHECK(info()->strict_mode() == shared_info->strict_mode());
     scope->SetStrictMode(shared_info->strict_mode());
@@ -3492,9 +3495,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   BailoutReason dont_optimize_reason = kNoReason;
   // Parse function body.
   {
-    FunctionState function_state(&function_state_, &scope_, scope, zone(),
-                                 ast_value_factory(),
-                                 info()->ast_node_id_gen());
+    AstNodeFactory<AstConstructionVisitor> function_factory(
+        zone(), ast_value_factory(), info()->ast_node_id_gen());
+    FunctionState function_state(&function_state_, &scope_, scope,
+                                 &function_factory);
     scope_->SetScopeName(function_name);
 
     if (is_generator) {

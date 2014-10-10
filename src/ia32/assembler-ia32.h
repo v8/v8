@@ -1024,6 +1024,8 @@ class Assembler : public AssemblerBase {
   void por(XMMRegister dst, XMMRegister src);
   void ptest(XMMRegister dst, XMMRegister src);
 
+  void pslld(XMMRegister reg, int8_t shift);
+  void psrld(XMMRegister reg, int8_t shift);
   void psllq(XMMRegister reg, int8_t shift);
   void psllq(XMMRegister dst, XMMRegister src);
   void psrlq(XMMRegister reg, int8_t shift);

@@ -801,18 +801,26 @@ void IC::PatchCache(Handle<Name> name, Handle<Code> code) {
     case POLYMORPHIC:
       if (!target()->is_keyed_stub() || state() == PROTOTYPE_FAILURE) {
         if (UpdatePolymorphicIC(name, code)) break;
+        // For keyed stubs, we can't know whether old handlers were for the
+        // same key.
         CopyICToMegamorphicCache(name);
       }
       set_target(*megamorphic_stub());
     // Fall through.
     case MEGAMORPHIC:
       UpdateMegamorphicCache(*receiver_type(), *name, *code);
+      // Indicate that we've handled this case.
+      target_set_ = true;
       break;
     case DEBUG_STUB:
       break;
     case DEFAULT:
-    case GENERIC:
       UNREACHABLE();
+      break;
+    case GENERIC:
+      // The generic keyed store stub re-uses store handlers, which can miss.
+      // That's ok, no reason to do anything.
+      DCHECK(target()->kind() == Code::KEYED_STORE_IC);
       break;
   }
 }
@@ -894,7 +902,8 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
 
 
 void IC::UpdateMegamorphicCache(HeapType* type, Name* name, Code* code) {
-  if (kind() == Code::KEYED_LOAD_IC || kind() == Code::KEYED_STORE_IC) return;
+  // Megamorphic state isn't implemented for keyed loads currently.
+  if (kind() == Code::KEYED_LOAD_IC) return;
   Map* map = *TypeToMap(type, isolate());
   isolate()->stub_cache()->Set(name, map, code);
 }
@@ -1365,9 +1374,9 @@ Handle<Code> StoreIC::megamorphic_stub() {
   } else {
     DCHECK(kind() == Code::KEYED_STORE_IC);
     if (strict_mode() == STRICT) {
-      return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
+      return isolate()->builtins()->KeyedStoreIC_Megamorphic_Strict();
     } else {
-      return isolate()->builtins()->KeyedStoreIC_Generic();
+      return isolate()->builtins()->KeyedStoreIC_Megamorphic();
     }
   }
 }
@@ -1813,12 +1822,12 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         StoreIC::Store(object, Handle<String>::cast(key), value,
                        JSReceiver::MAY_BE_STORE_FROM_KEYED),
         Object);
-    // TODO(jkummerow): Ideally we'd wrap this in "if (!is_target_set())",
-    // but doing so causes Hydrogen crashes. Needs investigation.
-    TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
-                     "unhandled internalized string key");
-    TRACE_IC("StoreIC", key);
-    set_target(*stub);
+    if (!is_target_set()) {
+      TRACE_GENERIC_IC(isolate(), "KeyedStoreIC",
+                       "unhandled internalized string key");
+      TRACE_IC("StoreIC", key);
+      set_target(*stub);
+    }
     return store_handle;
   }
 
@@ -2088,7 +2097,7 @@ RUNTIME_FUNCTION(StoreIC_Miss) {
   DCHECK(args.length() == 3);
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate);
   Handle<Object> receiver = args.at<Object>(0);
-  Handle<String> key = args.at<String>(1);
+  Handle<Name> key = args.at<Name>(1);
   ic.UpdateState(receiver, key);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -2103,7 +2112,7 @@ RUNTIME_FUNCTION(StoreIC_MissFromStubFailure) {
   DCHECK(args.length() == 3 || args.length() == 4);
   StoreIC ic(IC::EXTRA_CALL_FRAME, isolate);
   Handle<Object> receiver = args.at<Object>(0);
-  Handle<String> key = args.at<String>(1);
+  Handle<Name> key = args.at<Name>(1);
   ic.UpdateState(receiver, key);
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

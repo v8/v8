@@ -49,6 +49,8 @@ size_t hash_value(StoreRepresentation);
 
 std::ostream& operator<<(std::ostream&, StoreRepresentation);
 
+StoreRepresentation const& StoreRepresentationOf(Operator const*);
+
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable

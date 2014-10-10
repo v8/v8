@@ -566,12 +566,13 @@ static void KeyedStoreGenerateGenericHelper(
 }
 
 
-void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
-                                   StrictMode strict_mode) {
+void KeyedStoreIC::GenerateGeneric(
+    MacroAssembler* masm, StrictMode strict_mode,
+    KeyedStoreStubCacheRequirement handler_requirement) {
   // Return address is on the stack.
   Label slow, slow_with_tagged_index, fast_object, fast_object_grow;
   Label fast_double, fast_double_grow;
-  Label array, extra, check_if_double_array;
+  Label array, extra, check_if_double_array, maybe_name_key, miss;
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register key = StoreDescriptor::NameRegister();
   DCHECK(receiver.is(rdx));
@@ -587,7 +588,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
            Immediate(1 << Map::kIsAccessCheckNeeded | 1 << Map::kIsObserved));
   __ j(not_zero, &slow_with_tagged_index);
   // Check that the key is a smi.
-  __ JumpIfNotSmi(key, &slow_with_tagged_index);
+  __ JumpIfNotSmi(key, &maybe_name_key);
   __ SmiToInteger32(key, key);
 
   __ CmpInstanceType(r9, JS_ARRAY_TYPE);
@@ -609,6 +610,22 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&slow_with_tagged_index);
   PropertyICCompiler::GenerateRuntimeSetProperty(masm, strict_mode);
   // Never returns to here.
+
+  __ bind(&maybe_name_key);
+  __ movp(r9, FieldOperand(key, HeapObject::kMapOffset));
+  __ movzxbp(r9, FieldOperand(r9, Map::kInstanceTypeOffset));
+  __ JumpIfNotUniqueNameInstanceType(r9, &slow_with_tagged_index);
+  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
+      Code::ComputeHandlerFlags(Code::STORE_IC));
+  masm->isolate()->stub_cache()->GenerateProbe(masm, flags, false, receiver,
+                                               key, rbx, no_reg);
+  // Cache miss.
+  if (handler_requirement == kCallRuntimeOnMissingHandler) {
+    __ jmp(&slow_with_tagged_index);
+  } else {
+    DCHECK(handler_requirement == kMissOnMissingHandler);
+    __ jmp(&miss);
+  }
 
   // Extra capacity case: Check if there is extra capacity to
   // perform the store and update the length. Used for adding one
@@ -648,6 +665,11 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
                                   kCheckMap, kDontIncrementLength);
   KeyedStoreGenerateGenericHelper(masm, &fast_object_grow, &fast_double_grow,
                                   &slow, kDontCheckMap, kIncrementLength);
+
+  if (handler_requirement == kMissOnMissingHandler) {
+    __ bind(&miss);
+    GenerateMiss(masm);
+  }
 }
 
 

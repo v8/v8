@@ -305,6 +305,11 @@ def ProcessOptions(options):
 
   if options.tsan:
     VARIANTS = ["default"]
+    suppressions_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                     'sanitizers', 'tsan_suppressions.txt')
+    tsan_options = '%s suppressions=%s' % (
+        os.environ.get('TSAN_OPTIONS', ''), suppressions_file)
+    os.environ['TSAN_OPTIONS'] = tsan_options
 
   if options.j == 0:
     options.j = multiprocessing.cpu_count()

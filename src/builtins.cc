@@ -1314,13 +1314,23 @@ static void Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
 }
 
 
+static void Generate_KeyedStoreIC_Megamorphic(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateGeneric(masm, SLOPPY, kMissOnMissingHandler);
+}
+
+
+static void Generate_KeyedStoreIC_Megamorphic_Strict(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateGeneric(masm, STRICT, kMissOnMissingHandler);
+}
+
+
 static void Generate_KeyedStoreIC_Generic(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm, SLOPPY);
+  KeyedStoreIC::GenerateGeneric(masm, SLOPPY, kCallRuntimeOnMissingHandler);
 }
 
 
 static void Generate_KeyedStoreIC_Generic_Strict(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateGeneric(masm, STRICT);
+  KeyedStoreIC::GenerateGeneric(masm, STRICT, kCallRuntimeOnMissingHandler);
 }
 
 

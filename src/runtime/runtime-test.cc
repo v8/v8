@@ -247,7 +247,9 @@ RUNTIME_FUNCTION(Runtime_GlobalPrint) {
 
 
 RUNTIME_FUNCTION(Runtime_SystemBreak) {
-  SealHandleScope shs(isolate);
+  // The code below doesn't create handles, but when breaking here in GDB
+  // having a handle scope might be useful.
+  HandleScope scope(isolate);
   DCHECK(args.length() == 0);
   base::OS::DebugBreak();
   return isolate->heap()->undefined_value();

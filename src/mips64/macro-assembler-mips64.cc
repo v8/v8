@@ -6069,7 +6069,7 @@ void MacroAssembler::TruncatingDiv(Register result,
   DCHECK(!result.is(at));
   base::MagicNumbersForDivision<uint32_t> mag =
   base::SignedDivisionByConstant(static_cast<uint32_t>(divisor));
-  li(at, Operand(mag.multiplier));
+  li(at, Operand(static_cast<int32_t>(mag.multiplier)));
   Mulh(result, dividend, Operand(at));
   bool neg = (mag.multiplier & (static_cast<uint32_t>(1) << 31)) != 0;
   if (divisor > 0 && neg) {

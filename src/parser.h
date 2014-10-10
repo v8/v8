@@ -352,6 +352,8 @@ class ParserTraits {
     // Used by FunctionState and BlockState.
     typedef v8::internal::Scope Scope;
     typedef v8::internal::Scope* ScopePtr;
+    inline static Scope* ptr_to_scope(ScopePtr scope) { return scope; }
+
     typedef Variable GeneratorVariable;
     typedef v8::internal::Zone Zone;
 
@@ -375,21 +377,6 @@ class ParserTraits {
   };
 
   explicit ParserTraits(Parser* parser) : parser_(parser) {}
-
-  // Custom operations executed when FunctionStates are created and destructed.
-  template <typename FunctionState>
-  static void SetUpFunctionState(FunctionState* function_state) {
-    function_state->saved_id_gen_ = *function_state->ast_node_id_gen_;
-    *function_state->ast_node_id_gen_ =
-        AstNode::IdGen(BailoutId::FirstUsable().ToInt());
-  }
-
-  template <typename FunctionState>
-  static void TearDownFunctionState(FunctionState* function_state) {
-    if (function_state->outer_function_state_ != NULL) {
-      *function_state->ast_node_id_gen_ = function_state->saved_id_gen_;
-    }
-  }
 
   // Helper functions for recursive descent.
   bool IsEvalOrArguments(const AstRawString* identifier) const;
