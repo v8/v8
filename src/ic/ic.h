@@ -542,6 +542,8 @@ class KeyedStoreIC : public StoreIC {
   class ExtraICStateKeyedAccessStoreMode
       : public BitField<KeyedAccessStoreMode, 2, 4> {};  // NOLINT
 
+  class IcCheckTypeField : public BitField<IcCheckType, 6, 1> {};
+
   static ExtraICState ComputeExtraICState(StrictMode flag,
                                           KeyedAccessStoreMode mode) {
     return StrictModeState::encode(flag) |
@@ -551,6 +553,10 @@ class KeyedStoreIC : public StoreIC {
   static KeyedAccessStoreMode GetKeyedAccessStoreMode(
       ExtraICState extra_state) {
     return ExtraICStateKeyedAccessStoreMode::decode(extra_state);
+  }
+
+  static IcCheckType GetKeyType(ExtraICState extra_state) {
+    return IcCheckTypeField::decode(extra_state);
   }
 
   KeyedStoreIC(FrameDepth depth, Isolate* isolate) : StoreIC(depth, isolate) {

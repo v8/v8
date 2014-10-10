@@ -7174,8 +7174,14 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
   bool monomorphic = ComputeReceiverTypes(expr, obj, &types, zone());
 
   bool force_generic = false;
-  if (access_type == STORE &&
-      (monomorphic || (types != NULL && !types->is_empty()))) {
+  if (access_type == STORE && expr->GetKeyType() == PROPERTY) {
+    // Non-Generic accesses assume that elements are being accessed, and will
+    // deopt for non-index keys, which the IC knows will occur.
+    // TODO(jkummerow): Consider adding proper support for property accesses.
+    force_generic = true;
+    monomorphic = false;
+  } else if (access_type == STORE &&
+             (monomorphic || (types != NULL && !types->is_empty()))) {
     // Stores can't be mono/polymorphic if their prototype chain has dictionary
     // elements. However a receiver map that has dictionary elements itself
     // should be left to normal mono/poly behavior (the other maps may benefit

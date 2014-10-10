@@ -57,6 +57,13 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
 
   CacheHolderFlag flag;
   Handle<Map> stub_holder = IC::GetICCacheHolder(*type, isolate, &flag);
+  if (kind == Code::KEYED_STORE_IC) {
+    // Always set the "property" bit.
+    extra_ic_state =
+        KeyedStoreIC::IcCheckTypeField::update(extra_ic_state, PROPERTY);
+    DCHECK(STANDARD_STORE ==
+           KeyedStoreIC::GetKeyedAccessStoreMode(extra_ic_state));
+  }
 
   Handle<Code> ic;
   // There are multiple string maps that all use the same prototype. That
@@ -67,13 +74,6 @@ Handle<Code> PropertyICCompiler::ComputeMonomorphic(
     ic = Find(name, stub_holder, kind, extra_ic_state, flag);
     if (!ic.is_null()) return ic;
   }
-
-#ifdef DEBUG
-  if (kind == Code::KEYED_STORE_IC) {
-    DCHECK(STANDARD_STORE ==
-           KeyedStoreIC::GetKeyedAccessStoreMode(extra_ic_state));
-  }
-#endif
 
   PropertyICCompiler ic_compiler(isolate, kind, extra_ic_state, flag);
   ic = ic_compiler.CompileMonomorphic(type, handler, name, PROPERTY);

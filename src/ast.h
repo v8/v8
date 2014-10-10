@@ -376,6 +376,10 @@ class Expression : public AstNode {
     UNREACHABLE();
     return STANDARD_STORE;
   }
+  virtual IcCheckType GetKeyType() {
+    UNREACHABLE();
+    return ELEMENT;
+  }
 
   // TODO(rossberg): this should move to its own AST node eventually.
   virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
@@ -2097,10 +2101,12 @@ class CountOperation FINAL : public Expression {
   virtual SmallMapList* GetReceiverTypes() OVERRIDE {
     return &receiver_types_;
   }
+  virtual IcCheckType GetKeyType() OVERRIDE { return key_type_; }
   virtual KeyedAccessStoreMode GetStoreMode() OVERRIDE {
     return store_mode_;
   }
   Type* type() const { return type_; }
+  void set_key_type(IcCheckType type) { key_type_ = type; }
   void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
   void set_type(Type* type) { type_ = type; }
 
@@ -2127,6 +2133,7 @@ class CountOperation FINAL : public Expression {
  private:
   Token::Value op_;
   bool is_prefix_ : 1;
+  IcCheckType key_type_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
   Type* type_;
@@ -2239,10 +2246,12 @@ class Assignment FINAL : public Expression {
   virtual SmallMapList* GetReceiverTypes() OVERRIDE {
     return &receiver_types_;
   }
+  virtual IcCheckType GetKeyType() OVERRIDE { return key_type_; }
   virtual KeyedAccessStoreMode GetStoreMode() OVERRIDE {
     return store_mode_;
   }
   void set_is_uninitialized(bool b) { is_uninitialized_ = b; }
+  void set_key_type(IcCheckType key_type) { key_type_ = key_type; }
   void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
 
  protected:
@@ -2267,6 +2276,7 @@ class Assignment FINAL : public Expression {
   Expression* value_;
   BinaryOperation* binary_operation_;
   bool is_uninitialized_ : 1;
+  IcCheckType key_type_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
   SmallMapList receiver_types_;

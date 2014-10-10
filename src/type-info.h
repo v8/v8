@@ -36,7 +36,9 @@ class TypeFeedbackOracle: public ZoneObject {
   // be possible.
   byte ForInType(FeedbackVectorSlot feedback_vector_slot);
 
-  KeyedAccessStoreMode GetStoreMode(TypeFeedbackId id);
+  void GetStoreModeAndKeyType(TypeFeedbackId id,
+                              KeyedAccessStoreMode* store_mode,
+                              IcCheckType* key_type);
 
   void PropertyReceiverTypes(TypeFeedbackId id, Handle<String> name,
                              SmallMapList* receiver_types);
@@ -48,7 +50,8 @@ class TypeFeedbackOracle: public ZoneObject {
                                SmallMapList* receiver_types);
   void KeyedAssignmentReceiverTypes(TypeFeedbackId id,
                                     SmallMapList* receiver_types,
-                                    KeyedAccessStoreMode* store_mode);
+                                    KeyedAccessStoreMode* store_mode,
+                                    IcCheckType* key_type);
   void CountReceiverTypes(TypeFeedbackId id,
                           SmallMapList* receiver_types);
 

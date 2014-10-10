@@ -101,16 +101,21 @@ byte TypeFeedbackOracle::ForInType(FeedbackVectorSlot feedback_vector_slot) {
 }
 
 
-KeyedAccessStoreMode TypeFeedbackOracle::GetStoreMode(
-    TypeFeedbackId ast_id) {
+void TypeFeedbackOracle::GetStoreModeAndKeyType(
+    TypeFeedbackId ast_id, KeyedAccessStoreMode* store_mode,
+    IcCheckType* key_type) {
   Handle<Object> maybe_code = GetInfo(ast_id);
   if (maybe_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(maybe_code);
     if (code->kind() == Code::KEYED_STORE_IC) {
-      return KeyedStoreIC::GetKeyedAccessStoreMode(code->extra_ic_state());
+      ExtraICState extra_ic_state = code->extra_ic_state();
+      *store_mode = KeyedStoreIC::GetKeyedAccessStoreMode(extra_ic_state);
+      *key_type = KeyedStoreIC::GetKeyType(extra_ic_state);
+      return;
     }
   }
-  return STANDARD_STORE;
+  *store_mode = STANDARD_STORE;
+  *key_type = ELEMENT;
 }
 
 
@@ -274,10 +279,10 @@ void TypeFeedbackOracle::AssignmentReceiverTypes(
 
 void TypeFeedbackOracle::KeyedAssignmentReceiverTypes(
     TypeFeedbackId id, SmallMapList* receiver_types,
-    KeyedAccessStoreMode* store_mode) {
+    KeyedAccessStoreMode* store_mode, IcCheckType* key_type) {
   receiver_types->Clear();
   CollectReceiverTypes(id, receiver_types);
-  *store_mode = GetStoreMode(id);
+  GetStoreModeAndKeyType(id, store_mode, key_type);
 }
 
 
