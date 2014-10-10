@@ -61,7 +61,7 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
                              IdGen* id_gen)
-    : Expression(zone, position, id_gen),
+    : Expression(zone, position, 0, id_gen),
       raw_name_(var->raw_name()),
       interface_(var->interface()),
       variable_feedback_slot_(kInvalidFeedbackSlot),
@@ -74,7 +74,7 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
 
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
                              Interface* interface, int position, IdGen* id_gen)
-    : Expression(zone, position, id_gen),
+    : Expression(zone, position, 0, id_gen),
       raw_name_(name),
       interface_(interface),
       variable_feedback_slot_(kInvalidFeedbackSlot),
@@ -99,12 +99,11 @@ void VariableProxy::BindTo(Variable* var) {
 
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos, IdGen* id_gen)
-    : Expression(zone, pos, id_gen),
+    : Expression(zone, pos, num_ids(), id_gen),
       op_(op),
       target_(target),
       value_(value),
       binary_operation_(NULL),
-      assignment_id_(id_gen->GetNextId()),
       is_uninitialized_(false),
       store_mode_(STANDARD_STORE) {}
 
@@ -989,12 +988,10 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 
 CaseClause::CaseClause(Zone* zone, Expression* label,
                        ZoneList<Statement*>* statements, int pos, IdGen* id_gen)
-    : Expression(zone, pos, id_gen),
+    : Expression(zone, pos, num_ids(), id_gen),
       label_(label),
       statements_(statements),
-      compare_type_(Type::None(zone)),
-      compare_id_(id_gen->GetNextId()),
-      entry_id_(id_gen->GetNextId()) {}
+      compare_type_(Type::None(zone)) {}
 
 
 #define REGULAR_NODE(NodeType)                                   \

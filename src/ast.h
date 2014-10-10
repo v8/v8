@@ -186,7 +186,6 @@ class AstNode: public ZoneObject {
    public:
     IdGen() : id_(BailoutId::FirstUsable().ToInt()) {}
 
-    int GetNextId() { return ReserveIdRange(1); }
     int ReserveIdRange(int n) {
       int tmp = id_;
       id_ += n;
@@ -244,13 +243,6 @@ class AstNode: public ZoneObject {
     return 0;
   }
   virtual void SetFirstFeedbackSlot(int slot) { UNREACHABLE(); }
-
- protected:
-  // Some nodes re-use bailout IDs for type feedback.
-  static TypeFeedbackId reuse(BailoutId id) {
-    return TypeFeedbackId(id.ToInt());
-  }
-
 
  private:
   // Hidden to prevent accidental usage. It would have to load the
@@ -390,27 +382,28 @@ class Expression : public AstNode {
   virtual void RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle);
   byte to_boolean_types() const { return to_boolean_types_; }
 
-  BailoutId id() const { return id_; }
-  TypeFeedbackId test_id() const { return test_id_; }
+  BailoutId id() const { return BailoutId(base_id() + 0); }
+  TypeFeedbackId test_id() const { return TypeFeedbackId(base_id() + 1); }
 
  protected:
-  Expression(Zone* zone, int pos, IdGen* id_gen)
+  Expression(Zone* zone, int pos, int num_ids_needed_by_subclass, IdGen* id_gen)
       : AstNode(pos),
         is_parenthesized_(false),
         is_multi_parenthesized_(false),
         bounds_(Bounds::Unbounded(zone)),
-        id_(id_gen->GetNextId()),
-        test_id_(id_gen->GetNextId()) {}
+        base_id_(
+            id_gen->ReserveIdRange(num_ids_needed_by_subclass + num_ids())) {}
   void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
+
+  static int num_ids() { return 2; }
+  int base_id() const { return base_id_; }
 
  private:
   byte to_boolean_types_;
   bool is_parenthesized_ : 1;
   bool is_multi_parenthesized_ : 1;
   Bounds bounds_;
-
-  const BailoutId id_;
-  const TypeFeedbackId test_id_;
+  const int base_id_;
 };
 
 
@@ -438,27 +431,29 @@ class BreakableStatement : public Statement {
     return breakable_type_ == TARGET_FOR_ANONYMOUS;
   }
 
-  BailoutId EntryId() const { return entry_id_; }
-  BailoutId ExitId() const { return exit_id_; }
+  BailoutId EntryId() const { return BailoutId(base_id() + 0); }
+  BailoutId ExitId() const { return BailoutId(base_id() + 1); }
 
  protected:
   BreakableStatement(Zone* zone, ZoneList<const AstRawString*>* labels,
-                     BreakableType breakable_type, int position, IdGen* id_gen)
+                     BreakableType breakable_type, int position,
+                     int num_ids_needed_by_subclass, IdGen* id_gen)
       : Statement(zone, position),
         labels_(labels),
         breakable_type_(breakable_type),
-        entry_id_(id_gen->GetNextId()),
-        exit_id_(id_gen->GetNextId()) {
+        base_id_(
+            id_gen->ReserveIdRange(num_ids_needed_by_subclass + num_ids())) {
     DCHECK(labels == NULL || labels->length() > 0);
   }
 
+  static int num_ids() { return 2; }
+  int base_id() const { return base_id_; }
 
  private:
   ZoneList<const AstRawString*>* labels_;
   BreakableType breakable_type_;
   Label break_target_;
-  const BailoutId entry_id_;
-  const BailoutId exit_id_;
+  const int base_id_;
 };
 
 
@@ -473,7 +468,7 @@ class Block FINAL : public BreakableStatement {
   ZoneList<Statement*>* statements() { return &statements_; }
   bool is_initializer_block() const { return is_initializer_block_; }
 
-  BailoutId DeclsId() const { return decls_id_; }
+  BailoutId DeclsId() const { return BailoutId(base_id() + 0); }
 
   virtual bool IsJump() const OVERRIDE {
     return !statements_.is_empty() && statements_.last()->IsJump()
@@ -486,16 +481,20 @@ class Block FINAL : public BreakableStatement {
  protected:
   Block(Zone* zone, ZoneList<const AstRawString*>* labels, int capacity,
         bool is_initializer_block, int pos, IdGen* id_gen)
-      : BreakableStatement(zone, labels, TARGET_FOR_NAMED_ONLY, pos, id_gen),
+      : BreakableStatement(zone, labels, TARGET_FOR_NAMED_ONLY, pos, num_ids(),
+                           id_gen),
         statements_(capacity, zone),
         is_initializer_block_(is_initializer_block),
-        decls_id_(id_gen->GetNextId()),
         scope_(NULL) {}
+
+  static int num_ids() { return 1; }
+  int base_id() const {
+    return BreakableStatement::base_id() + BreakableStatement::num_ids();
+  }
 
  private:
   ZoneList<Statement*> statements_;
   bool is_initializer_block_;
-  const BailoutId decls_id_;
   Scope* scope_;
 };
 
@@ -747,7 +746,7 @@ class IterationStatement : public BreakableStatement {
 
   Statement* body() const { return body_; }
 
-  BailoutId OsrEntryId() const { return osr_entry_id_; }
+  BailoutId OsrEntryId() const { return BailoutId(base_id() + 0); }
   virtual BailoutId ContinueId() const = 0;
   virtual BailoutId StackCheckId() const = 0;
 
@@ -756,20 +755,23 @@ class IterationStatement : public BreakableStatement {
 
  protected:
   IterationStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
-                     IdGen* id_gen)
-      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos, id_gen),
-        body_(NULL),
-        osr_entry_id_(id_gen->GetNextId()) {}
+                     int num_ids_needed_by_subclass, IdGen* id_gen)
+      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos,
+                           num_ids_needed_by_subclass + num_ids(), id_gen),
+        body_(NULL) {}
 
   void Initialize(Statement* body) {
     body_ = body;
   }
 
+  static int num_ids() { return 1; }
+  int base_id() const {
+    return BreakableStatement::base_id() + BreakableStatement::num_ids();
+  }
+
  private:
   Statement* body_;
   Label continue_target_;
-
-  const BailoutId osr_entry_id_;
 };
 
 
@@ -784,23 +786,24 @@ class DoWhileStatement FINAL : public IterationStatement {
 
   Expression* cond() const { return cond_; }
 
-  virtual BailoutId ContinueId() const OVERRIDE { return continue_id_; }
-  virtual BailoutId StackCheckId() const OVERRIDE { return back_edge_id_; }
-  BailoutId BackEdgeId() const { return back_edge_id_; }
+  virtual BailoutId ContinueId() const OVERRIDE {
+    return BailoutId(base_id() + 0);
+  }
+  virtual BailoutId StackCheckId() const OVERRIDE { return BackEdgeId(); }
+  BailoutId BackEdgeId() const { return BailoutId(base_id() + 1); }
 
  protected:
   DoWhileStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
                    IdGen* id_gen)
-      : IterationStatement(zone, labels, pos, id_gen),
-        cond_(NULL),
-        continue_id_(id_gen->GetNextId()),
-        back_edge_id_(id_gen->GetNextId()) {}
+      : IterationStatement(zone, labels, pos, num_ids(), id_gen), cond_(NULL) {}
+
+  static int num_ids() { return 2; }
+  int base_id() const {
+    return IterationStatement::base_id() + IterationStatement::num_ids();
+  }
 
  private:
   Expression* cond_;
-
-  const BailoutId continue_id_;
-  const BailoutId back_edge_id_;
 };
 
 
@@ -822,24 +825,26 @@ class WhileStatement FINAL : public IterationStatement {
   }
 
   virtual BailoutId ContinueId() const OVERRIDE { return EntryId(); }
-  virtual BailoutId StackCheckId() const OVERRIDE { return body_id_; }
-  BailoutId BodyId() const { return body_id_; }
+  virtual BailoutId StackCheckId() const OVERRIDE { return BodyId(); }
+  BailoutId BodyId() const { return BailoutId(base_id() + 0); }
 
  protected:
   WhileStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
                  IdGen* id_gen)
-      : IterationStatement(zone, labels, pos, id_gen),
+      : IterationStatement(zone, labels, pos, num_ids(), id_gen),
         cond_(NULL),
-        may_have_function_literal_(true),
-        body_id_(id_gen->GetNextId()) {}
+        may_have_function_literal_(true) {}
+
+  static int num_ids() { return 1; }
+  int base_id() const {
+    return IterationStatement::base_id() + IterationStatement::num_ids();
+  }
 
  private:
   Expression* cond_;
 
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
-
-  const BailoutId body_id_;
 };
 
 
@@ -868,9 +873,11 @@ class ForStatement FINAL : public IterationStatement {
     may_have_function_literal_ = value;
   }
 
-  virtual BailoutId ContinueId() const OVERRIDE { return continue_id_; }
-  virtual BailoutId StackCheckId() const OVERRIDE { return body_id_; }
-  BailoutId BodyId() const { return body_id_; }
+  virtual BailoutId ContinueId() const OVERRIDE {
+    return BailoutId(base_id() + 0);
+  }
+  virtual BailoutId StackCheckId() const OVERRIDE { return BodyId(); }
+  BailoutId BodyId() const { return BailoutId(base_id() + 1); }
 
   bool is_fast_smi_loop() { return loop_variable_ != NULL; }
   Variable* loop_variable() { return loop_variable_; }
@@ -879,14 +886,17 @@ class ForStatement FINAL : public IterationStatement {
  protected:
   ForStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
                IdGen* id_gen)
-      : IterationStatement(zone, labels, pos, id_gen),
+      : IterationStatement(zone, labels, pos, num_ids(), id_gen),
         init_(NULL),
         cond_(NULL),
         next_(NULL),
         may_have_function_literal_(true),
-        loop_variable_(NULL),
-        continue_id_(id_gen->GetNextId()),
-        body_id_(id_gen->GetNextId()) {}
+        loop_variable_(NULL) {}
+
+  static int num_ids() { return 2; }
+  int base_id() const {
+    return IterationStatement::base_id() + IterationStatement::num_ids();
+  }
 
  private:
   Statement* init_;
@@ -896,9 +906,6 @@ class ForStatement FINAL : public IterationStatement {
   // True if there is a function literal subexpression in the condition.
   bool may_have_function_literal_;
   Variable* loop_variable_;
-
-  const BailoutId continue_id_;
-  const BailoutId body_id_;
 };
 
 
@@ -920,8 +927,9 @@ class ForEachStatement : public IterationStatement {
 
  protected:
   ForEachStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
-                   IdGen* id_gen)
-      : IterationStatement(zone, labels, pos, id_gen),
+                   int num_ids_needed_by_subclass, IdGen* id_gen)
+      : IterationStatement(zone, labels, pos, num_ids_needed_by_subclass,
+                           id_gen),
         each_(NULL),
         subject_(NULL) {}
 
@@ -952,24 +960,26 @@ class ForInStatement FINAL : public ForEachStatement {
   ForInType for_in_type() const { return for_in_type_; }
   void set_for_in_type(ForInType type) { for_in_type_ = type; }
 
-  BailoutId BodyId() const { return body_id_; }
-  BailoutId PrepareId() const { return prepare_id_; }
+  BailoutId BodyId() const { return BailoutId(base_id() + 0); }
+  BailoutId PrepareId() const { return BailoutId(base_id() + 1); }
   virtual BailoutId ContinueId() const OVERRIDE { return EntryId(); }
-  virtual BailoutId StackCheckId() const OVERRIDE { return body_id_; }
+  virtual BailoutId StackCheckId() const OVERRIDE { return BodyId(); }
 
  protected:
   ForInStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
                  IdGen* id_gen)
-      : ForEachStatement(zone, labels, pos, id_gen),
+      : ForEachStatement(zone, labels, pos, num_ids(), id_gen),
         for_in_type_(SLOW_FOR_IN),
-        for_in_feedback_slot_(kInvalidFeedbackSlot),
-        body_id_(id_gen->GetNextId()),
-        prepare_id_(id_gen->GetNextId()) {}
+        for_in_feedback_slot_(kInvalidFeedbackSlot) {}
 
+  static int num_ids() { return 2; }
+  int base_id() const {
+    return ForEachStatement::base_id() + ForEachStatement::num_ids();
+  }
+
+ private:
   ForInType for_in_type_;
   int for_in_feedback_slot_;
-  const BailoutId body_id_;
-  const BailoutId prepare_id_;
 };
 
 
@@ -1018,23 +1028,27 @@ class ForOfStatement FINAL : public ForEachStatement {
   virtual BailoutId ContinueId() const OVERRIDE { return EntryId(); }
   virtual BailoutId StackCheckId() const OVERRIDE { return BackEdgeId(); }
 
-  BailoutId BackEdgeId() const { return back_edge_id_; }
+  BailoutId BackEdgeId() const { return BailoutId(base_id() + 0); }
 
  protected:
   ForOfStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
                  IdGen* id_gen)
-      : ForEachStatement(zone, labels, pos, id_gen),
+      : ForEachStatement(zone, labels, pos, num_ids(), id_gen),
         assign_iterator_(NULL),
         next_result_(NULL),
         result_done_(NULL),
-        assign_each_(NULL),
-        back_edge_id_(id_gen->GetNextId()) {}
+        assign_each_(NULL) {}
 
+  static int num_ids() { return 1; }
+  int base_id() const {
+    return ForEachStatement::base_id() + ForEachStatement::num_ids();
+  }
+
+ private:
   Expression* assign_iterator_;
   Expression* next_result_;
   Expression* result_done_;
   Expression* assign_each_;
-  const BailoutId back_edge_id_;
 };
 
 
@@ -1145,10 +1159,9 @@ class CaseClause FINAL : public Expression {
   Label* body_target() { return &body_target_; }
   ZoneList<Statement*>* statements() const { return statements_; }
 
-  BailoutId EntryId() const { return entry_id_; }
+  BailoutId EntryId() const { return BailoutId(base_id() + 0); }
+  TypeFeedbackId CompareId() { return TypeFeedbackId(base_id() + 1); }
 
-  // Type feedback information.
-  TypeFeedbackId CompareId() { return compare_id_; }
   Type* compare_type() { return compare_type_; }
   void set_compare_type(Type* type) { compare_type_ = type; }
 
@@ -1156,13 +1169,13 @@ class CaseClause FINAL : public Expression {
   CaseClause(Zone* zone, Expression* label, ZoneList<Statement*>* statements,
              int pos, IdGen* id_gen);
 
+  static int num_ids() { return 2; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
+
   Expression* label_;
   Label body_target_;
   ZoneList<Statement*>* statements_;
   Type* compare_type_;
-
-  const TypeFeedbackId compare_id_;
-  const BailoutId entry_id_;
 };
 
 
@@ -1181,7 +1194,7 @@ class SwitchStatement FINAL : public BreakableStatement {
  protected:
   SwitchStatement(Zone* zone, ZoneList<const AstRawString*>* labels, int pos,
                   IdGen* id_gen)
-      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos, id_gen),
+      : BreakableStatement(zone, labels, TARGET_FOR_ANONYMOUS, pos, 0, id_gen),
         tag_(NULL),
         cases_(NULL) {}
 
@@ -1212,9 +1225,9 @@ class IfStatement FINAL : public Statement {
         && HasElseStatement() && else_statement()->IsJump();
   }
 
-  BailoutId IfId() const { return if_id_; }
-  BailoutId ThenId() const { return then_id_; }
-  BailoutId ElseId() const { return else_id_; }
+  BailoutId IfId() const { return BailoutId(base_id() + 0); }
+  BailoutId ThenId() const { return BailoutId(base_id() + 1); }
+  BailoutId ElseId() const { return BailoutId(base_id() + 2); }
 
  protected:
   IfStatement(Zone* zone, Expression* condition, Statement* then_statement,
@@ -1223,17 +1236,16 @@ class IfStatement FINAL : public Statement {
         condition_(condition),
         then_statement_(then_statement),
         else_statement_(else_statement),
-        if_id_(id_gen->GetNextId()),
-        then_id_(id_gen->GetNextId()),
-        else_id_(id_gen->GetNextId()) {}
+        base_id_(id_gen->ReserveIdRange(num_ids())) {}
+
+  static int num_ids() { return 3; }
+  int base_id() const { return base_id_; }
 
  private:
   Expression* condition_;
   Statement* then_statement_;
   Statement* else_statement_;
-  const BailoutId if_id_;
-  const BailoutId then_id_;
-  const BailoutId else_id_;
+  const int base_id_;
 };
 
 
@@ -1337,14 +1349,17 @@ class DebuggerStatement FINAL : public Statement {
  public:
   DECLARE_NODE_TYPE(DebuggerStatement)
 
-  BailoutId DebugBreakId() const { return debugger_id_; }
+  BailoutId DebugBreakId() const { return BailoutId(base_id() + 0); }
 
  protected:
   explicit DebuggerStatement(Zone* zone, int pos, IdGen* id_gen)
-      : Statement(zone, pos), debugger_id_(id_gen->GetNextId()) {}
+      : Statement(zone, pos), base_id_(id_gen->ReserveIdRange(num_ids())) {}
+
+  static int num_ids() { return 1; }
+  int base_id() const { return base_id_; }
 
  private:
-  const BailoutId debugger_id_;
+  const int base_id_;
 };
 
 
@@ -1390,11 +1405,16 @@ class Literal FINAL : public Expression {
   uint32_t Hash();
   static bool Match(void* literal1, void* literal2);
 
-  TypeFeedbackId LiteralFeedbackId() const { return reuse(id()); }
+  TypeFeedbackId LiteralFeedbackId() const {
+    return TypeFeedbackId(base_id() + 0);
+  }
 
  protected:
   Literal(Zone* zone, const AstValue* value, int position, IdGen* id_gen)
-      : Expression(zone, position, id_gen), value_(value) {}
+      : Expression(zone, position, num_ids(), id_gen), value_(value) {}
+
+  static int num_ids() { return 1; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
   const AstValue* value_;
@@ -1415,8 +1435,9 @@ class MaterializedLiteral : public Expression {
   }
 
  protected:
-  MaterializedLiteral(Zone* zone, int literal_index, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+  MaterializedLiteral(Zone* zone, int literal_index, int pos,
+                      int num_ids_needed_by_subclass, IdGen* id_gen)
+      : Expression(zone, pos, num_ids_needed_by_subclass, id_gen),
         literal_index_(literal_index),
         is_simple_(false),
         depth_(0) {}
@@ -1548,7 +1569,7 @@ class ObjectLiteral FINAL : public MaterializedLiteral {
   ObjectLiteral(Zone* zone, ZoneList<Property*>* properties, int literal_index,
                 int boilerplate_properties, bool has_function, int pos,
                 IdGen* id_gen)
-      : MaterializedLiteral(zone, literal_index, pos, id_gen),
+      : MaterializedLiteral(zone, literal_index, pos, 0, id_gen),
         properties_(properties),
         boilerplate_properties_(boilerplate_properties),
         fast_elements_(false),
@@ -1577,7 +1598,7 @@ class RegExpLiteral FINAL : public MaterializedLiteral {
   RegExpLiteral(Zone* zone, const AstRawString* pattern,
                 const AstRawString* flags, int literal_index, int pos,
                 IdGen* id_gen)
-      : MaterializedLiteral(zone, literal_index, pos, id_gen),
+      : MaterializedLiteral(zone, literal_index, pos, 0, id_gen),
         pattern_(pattern),
         flags_(flags) {
     set_depth(1);
@@ -1599,9 +1620,7 @@ class ArrayLiteral FINAL : public MaterializedLiteral {
   ZoneList<Expression*>* values() const { return values_; }
 
   // Return an AST id for an element that is used in simulate instructions.
-  BailoutId GetIdForElement(int i) {
-    return BailoutId(first_element_id_.ToInt() + i);
-  }
+  BailoutId GetIdForElement(int i) { return BailoutId(base_id() + i); }
 
   // Populate the constant elements fixed array.
   void BuildConstantElements(Isolate* isolate);
@@ -1622,14 +1641,17 @@ class ArrayLiteral FINAL : public MaterializedLiteral {
  protected:
   ArrayLiteral(Zone* zone, ZoneList<Expression*>* values, int literal_index,
                int pos, IdGen* id_gen)
-      : MaterializedLiteral(zone, literal_index, pos, id_gen),
-        values_(values),
-        first_element_id_(id_gen->ReserveIdRange(values->length())) {}
+      : MaterializedLiteral(zone, literal_index, pos, num_ids(values), id_gen),
+        values_(values) {}
+
+  static int num_ids(ZoneList<Expression*>* values) { return values->length(); }
+  int base_id() const {
+    return MaterializedLiteral::base_id() + MaterializedLiteral::num_ids();
+  }
 
  private:
   Handle<FixedArray> constant_elements_;
   ZoneList<Expression*>* values_;
-  const BailoutId first_element_id_;
 };
 
 
@@ -1705,7 +1727,9 @@ class Property FINAL : public Expression {
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
 
-  BailoutId LoadId() const { return load_id_; }
+  BailoutId LoadId() const { return BailoutId(base_id() + 0); }
+  TypeFeedbackId PropertyFeedbackId() { return TypeFeedbackId(base_id() + 1); }
+
 
   bool IsStringAccess() const { return is_string_access_; }
 
@@ -1732,8 +1756,6 @@ class Property FINAL : public Expression {
     return obj()->IsSuperReference();
   }
 
-  TypeFeedbackId PropertyFeedbackId() { return reuse(id()); }
-
   virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
   virtual void SetFirstFeedbackSlot(int slot) {
     property_feedback_slot_ = slot;
@@ -1743,19 +1765,20 @@ class Property FINAL : public Expression {
 
  protected:
   Property(Zone* zone, Expression* obj, Expression* key, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, num_ids(), id_gen),
         obj_(obj),
         key_(key),
-        load_id_(id_gen->GetNextId()),
         property_feedback_slot_(kInvalidFeedbackSlot),
         is_for_call_(false),
         is_uninitialized_(false),
         is_string_access_(false) {}
 
+  static int num_ids() { return 2; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
+
  private:
   Expression* obj_;
   Expression* key_;
-  const BailoutId load_id_;
   int property_feedback_slot_;
 
   SmallMapList receiver_types_;
@@ -1818,8 +1841,8 @@ class Call FINAL : public Expression {
   }
   bool ComputeGlobalTarget(Handle<GlobalObject> global, LookupIterator* it);
 
-  BailoutId ReturnId() const { return return_id_; }
-  BailoutId EvalOrLookupId() const { return eval_or_lookup_id_; }
+  BailoutId ReturnId() const { return BailoutId(base_id() + 0); }
+  BailoutId EvalOrLookupId() const { return BailoutId(base_id() + 1); }
 
   enum CallType {
     POSSIBLY_EVAL_CALL,
@@ -1841,30 +1864,25 @@ class Call FINAL : public Expression {
  protected:
   Call(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
        int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, num_ids(), id_gen),
         expression_(expression),
         arguments_(arguments),
-        call_feedback_slot_(kInvalidFeedbackSlot),
-        return_id_(id_gen->GetNextId()),
-        eval_or_lookup_id_(id_gen->GetNextId()) {
+        call_feedback_slot_(kInvalidFeedbackSlot) {
     if (expression->IsProperty()) {
       expression->AsProperty()->mark_for_call();
     }
   }
 
+  static int num_ids() { return 2; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
+
  private:
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
-
   Handle<JSFunction> target_;
   Handle<Cell> cell_;
   Handle<AllocationSite> allocation_site_;
   int call_feedback_slot_;
-
-  const BailoutId return_id_;
-  // TODO(jarin) Only allocate the bailout id for the POSSIBLY_EVAL_CALL and
-  // LOOKUP_SLOT_CALL types.
-  const BailoutId eval_or_lookup_id_;
 };
 
 
@@ -1902,28 +1920,27 @@ class CallNew FINAL : public Expression {
 
   static int feedback_slots() { return 1; }
 
-  BailoutId ReturnId() const { return return_id_; }
+  BailoutId ReturnId() const { return BailoutId(base_id() + 0); }
 
  protected:
   CallNew(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
           int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, num_ids(), id_gen),
         expression_(expression),
         arguments_(arguments),
         is_monomorphic_(false),
-        callnew_feedback_slot_(kInvalidFeedbackSlot),
-        return_id_(id_gen->GetNextId()) {}
+        callnew_feedback_slot_(kInvalidFeedbackSlot) {}
+
+  static int num_ids() { return 1; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
-
   bool is_monomorphic_;
   Handle<JSFunction> target_;
   Handle<AllocationSite> allocation_site_;
   int callnew_feedback_slot_;
-
-  const BailoutId return_id_;
 };
 
 
@@ -1955,16 +1972,21 @@ class CallRuntime FINAL : public Expression {
     return callruntime_feedback_slot_;
   }
 
-  TypeFeedbackId CallRuntimeFeedbackId() const { return reuse(id()); }
+  TypeFeedbackId CallRuntimeFeedbackId() const {
+    return TypeFeedbackId(base_id() + 0);
+  }
 
  protected:
   CallRuntime(Zone* zone, const AstRawString* name,
               const Runtime::Function* function,
               ZoneList<Expression*>* arguments, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, num_ids(), id_gen),
         raw_name_(name),
         function_(function),
         arguments_(arguments) {}
+
+  static int num_ids() { return 1; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
   const AstRawString* raw_name_;
@@ -1981,8 +2003,10 @@ class UnaryOperation FINAL : public Expression {
   Token::Value op() const { return op_; }
   Expression* expression() const { return expression_; }
 
-  BailoutId MaterializeTrueId() { return materialize_true_id_; }
-  BailoutId MaterializeFalseId() { return materialize_false_id_; }
+  // For unary not (Token::NOT), the AST ids where true and false will
+  // actually be materialized, respectively.
+  BailoutId MaterializeTrueId() const { return BailoutId(base_id() + 0); }
+  BailoutId MaterializeFalseId() const { return BailoutId(base_id() + 1); }
 
   virtual void RecordToBooleanTypeFeedback(
       TypeFeedbackOracle* oracle) OVERRIDE;
@@ -1990,22 +2014,18 @@ class UnaryOperation FINAL : public Expression {
  protected:
   UnaryOperation(Zone* zone, Token::Value op, Expression* expression, int pos,
                  IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, num_ids(), id_gen),
         op_(op),
-        expression_(expression),
-        materialize_true_id_(id_gen->GetNextId()),
-        materialize_false_id_(id_gen->GetNextId()) {
+        expression_(expression) {
     DCHECK(Token::IsUnaryOp(op));
   }
+
+  static int num_ids() { return 2; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
   Token::Value op_;
   Expression* expression_;
-
-  // For unary not (Token::NOT), the AST ids where true and false will
-  // actually be materialized, respectively.
-  const BailoutId materialize_true_id_;
-  const BailoutId materialize_false_id_;
 };
 
 
@@ -2023,9 +2043,13 @@ class BinaryOperation FINAL : public Expression {
     allocation_site_ = allocation_site;
   }
 
-  BailoutId RightId() const { return right_id_; }
+  // The short-circuit logical operations need an AST ID for their
+  // right-hand subexpression.
+  BailoutId RightId() const { return BailoutId(base_id() + 0); }
 
-  TypeFeedbackId BinaryOperationFeedbackId() const { return reuse(id()); }
+  TypeFeedbackId BinaryOperationFeedbackId() const {
+    return TypeFeedbackId(base_id() + 1);
+  }
   Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
   void set_fixed_right_arg(Maybe<int> arg) { fixed_right_arg_ = arg; }
 
@@ -2035,13 +2059,15 @@ class BinaryOperation FINAL : public Expression {
  protected:
   BinaryOperation(Zone* zone, Token::Value op, Expression* left,
                   Expression* right, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, num_ids(), id_gen),
         op_(op),
         left_(left),
-        right_(right),
-        right_id_(id_gen->GetNextId()) {
+        right_(right) {
     DCHECK(Token::IsBinaryOp(op));
   }
+
+  static int num_ids() { return 2; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
   Token::Value op_;
@@ -2052,10 +2078,6 @@ class BinaryOperation FINAL : public Expression {
   // TODO(rossberg): the fixed arg should probably be represented as a Constant
   // type for the RHS.
   Maybe<int> fixed_right_arg_;
-
-  // The short-circuit logical operations need an AST ID for their
-  // right-hand subexpression.
-  const BailoutId right_id_;
 };
 
 
@@ -2086,21 +2108,25 @@ class CountOperation FINAL : public Expression {
   void set_store_mode(KeyedAccessStoreMode mode) { store_mode_ = mode; }
   void set_type(Type* type) { type_ = type; }
 
-  BailoutId AssignmentId() const { return assignment_id_; }
-
-  TypeFeedbackId CountBinOpFeedbackId() const { return count_id_; }
-  TypeFeedbackId CountStoreFeedbackId() const { return reuse(id()); }
+  BailoutId AssignmentId() const { return BailoutId(base_id() + 0); }
+  TypeFeedbackId CountBinOpFeedbackId() const {
+    return TypeFeedbackId(base_id() + 1);
+  }
+  TypeFeedbackId CountStoreFeedbackId() const {
+    return TypeFeedbackId(base_id() + 2);
+  }
 
  protected:
   CountOperation(Zone* zone, Token::Value op, bool is_prefix, Expression* expr,
                  int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, num_ids(), id_gen),
         op_(op),
         is_prefix_(is_prefix),
         store_mode_(STANDARD_STORE),
-        expression_(expr),
-        assignment_id_(id_gen->GetNextId()),
-        count_id_(id_gen->GetNextId()) {}
+        expression_(expr) {}
+
+  static int num_ids() { return 3; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
   Token::Value op_;
@@ -2108,10 +2134,7 @@ class CountOperation FINAL : public Expression {
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
   Type* type_;
-
   Expression* expression_;
-  const BailoutId assignment_id_;
-  const TypeFeedbackId count_id_;
   SmallMapList receiver_types_;
 };
 
@@ -2125,7 +2148,9 @@ class CompareOperation FINAL : public Expression {
   Expression* right() const { return right_; }
 
   // Type feedback information.
-  TypeFeedbackId CompareOperationFeedbackId() const { return reuse(id()); }
+  TypeFeedbackId CompareOperationFeedbackId() const {
+    return TypeFeedbackId(base_id() + 0);
+  }
   Type* combined_type() const { return combined_type_; }
   void set_combined_type(Type* type) { combined_type_ = type; }
 
@@ -2137,13 +2162,16 @@ class CompareOperation FINAL : public Expression {
  protected:
   CompareOperation(Zone* zone, Token::Value op, Expression* left,
                    Expression* right, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, num_ids(), id_gen),
         op_(op),
         left_(left),
         right_(right),
         combined_type_(Type::None(zone)) {
     DCHECK(Token::IsCompareOp(op));
   }
+
+  static int num_ids() { return 1; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
   Token::Value op_;
@@ -2162,25 +2190,24 @@ class Conditional FINAL : public Expression {
   Expression* then_expression() const { return then_expression_; }
   Expression* else_expression() const { return else_expression_; }
 
-  BailoutId ThenId() const { return then_id_; }
-  BailoutId ElseId() const { return else_id_; }
+  BailoutId ThenId() const { return BailoutId(base_id() + 0); }
+  BailoutId ElseId() const { return BailoutId(base_id() + 1); }
 
  protected:
   Conditional(Zone* zone, Expression* condition, Expression* then_expression,
               Expression* else_expression, int position, IdGen* id_gen)
-      : Expression(zone, position, id_gen),
+      : Expression(zone, position, num_ids(), id_gen),
         condition_(condition),
         then_expression_(then_expression),
-        else_expression_(else_expression),
-        then_id_(id_gen->GetNextId()),
-        else_id_(id_gen->GetNextId()) {}
+        else_expression_(else_expression) {}
+
+  static int num_ids() { return 2; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
   Expression* condition_;
   Expression* then_expression_;
   Expression* else_expression_;
-  const BailoutId then_id_;
-  const BailoutId else_id_;
 };
 
 
@@ -2200,10 +2227,12 @@ class Assignment FINAL : public Expression {
   // This check relies on the definition order of token in token.h.
   bool is_compound() const { return op() > Token::ASSIGN; }
 
-  BailoutId AssignmentId() const { return assignment_id_; }
+  BailoutId AssignmentId() const { return BailoutId(base_id() + 0); }
 
   // Type feedback information.
-  TypeFeedbackId AssignmentFeedbackId() { return reuse(id()); }
+  TypeFeedbackId AssignmentFeedbackId() {
+    return TypeFeedbackId(base_id() + 1);
+  }
   virtual bool IsMonomorphic() OVERRIDE {
     return receiver_types_.length() == 1;
   }
@@ -2224,6 +2253,9 @@ class Assignment FINAL : public Expression {
   Assignment(Zone* zone, Token::Value op, Expression* target, Expression* value,
              int pos, IdGen* id_gen);
 
+  static int num_ids() { return 2; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
+
   template<class Visitor>
   void Init(Zone* zone, AstNodeFactory<Visitor>* factory) {
     DCHECK(Token::IsAssignmentOp(op_));
@@ -2238,8 +2270,6 @@ class Assignment FINAL : public Expression {
   Expression* target_;
   Expression* value_;
   BinaryOperation* binary_operation_;
-  const BailoutId assignment_id_;
-
   bool is_uninitialized_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
@@ -2300,7 +2330,7 @@ class Yield FINAL : public Expression {
  protected:
   Yield(Zone* zone, Expression* generator_object, Expression* expression,
         Kind yield_kind, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, 0, id_gen),
         generator_object_(generator_object),
         expression_(expression),
         yield_kind_(yield_kind),
@@ -2324,7 +2354,7 @@ class Throw FINAL : public Expression {
 
  protected:
   Throw(Zone* zone, Expression* exception, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen), exception_(exception) {}
+      : Expression(zone, pos, 0, id_gen), exception_(exception) {}
 
  private:
   Expression* exception_;
@@ -2478,7 +2508,7 @@ class FunctionLiteral FINAL : public Expression {
                   IsFunctionFlag is_function,
                   IsParenthesizedFlag is_parenthesized, FunctionKind kind,
                   int position, IdGen* id_gen)
-      : Expression(zone, position, id_gen),
+      : Expression(zone, position, 0, id_gen),
         raw_name_(name),
         scope_(scope),
         body_(body),
@@ -2545,7 +2575,7 @@ class ClassLiteral FINAL : public Expression {
   ClassLiteral(Zone* zone, const AstRawString* name, Expression* extends,
                Expression* constructor, ZoneList<Property*>* properties,
                int start_position, int end_position, IdGen* id_gen)
-      : Expression(zone, start_position, id_gen),
+      : Expression(zone, start_position, 0, id_gen),
         raw_name_(name),
         extends_(extends),
         constructor_(constructor),
@@ -2571,7 +2601,7 @@ class NativeFunctionLiteral FINAL : public Expression {
  protected:
   NativeFunctionLiteral(Zone* zone, const AstRawString* name,
                         v8::Extension* extension, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen), name_(name), extension_(extension) {}
+      : Expression(zone, pos, 0, id_gen), name_(name), extension_(extension) {}
 
  private:
   const AstRawString* name_;
@@ -2585,7 +2615,7 @@ class ThisFunction FINAL : public Expression {
 
  protected:
   ThisFunction(Zone* zone, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen) {}
+      : Expression(zone, pos, 0, id_gen) {}
 };
 
 
@@ -2595,7 +2625,9 @@ class SuperReference FINAL : public Expression {
 
   VariableProxy* this_var() const { return this_var_; }
 
-  TypeFeedbackId HomeObjectFeedbackId() { return reuse(id()); }
+  TypeFeedbackId HomeObjectFeedbackId() {
+    return TypeFeedbackId(base_id() + 0);
+  }
 
   // Type feedback information.
   virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
@@ -2611,12 +2643,16 @@ class SuperReference FINAL : public Expression {
 
  protected:
   SuperReference(Zone* zone, VariableProxy* this_var, int pos, IdGen* id_gen)
-      : Expression(zone, pos, id_gen),
+      : Expression(zone, pos, num_ids(), id_gen),
         this_var_(this_var),
         homeobject_feedback_slot_(kInvalidFeedbackSlot) {
     DCHECK(this_var->is_this());
   }
 
+  static int num_ids() { return 1; }
+  int base_id() const { return Expression::base_id() + Expression::num_ids(); }
+
+ private:
   VariableProxy* this_var_;
   int homeobject_feedback_slot_;
 };
