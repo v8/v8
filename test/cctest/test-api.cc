@@ -9706,6 +9706,15 @@ TEST(SuperAccessControl) {
   {
     v8::TryCatch try_catch;
     CompileRun(
+        "function f() { return super[42]; };"
+        "var m = f.toMethod(prohibited);"
+        "m();");
+    CHECK(try_catch.HasCaught());
+  }
+
+  {
+    v8::TryCatch try_catch;
+    CompileRun(
         "function f() { super.hasOwnProperty = function () {}; };"
         "var m = f.toMethod(prohibited);"
         "m();");

@@ -57,25 +57,6 @@ RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
 }
 
 
-static Object* LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
-                             Handle<JSObject> home_object, Handle<Name> name) {
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayNamedAccess(home_object, name, v8::ACCESS_GET)) {
-    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_GET);
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  }
-
-  PrototypeIterator iter(isolate, home_object);
-  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
-  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
-
-  LookupIterator it(receiver, name, Handle<JSReceiver>::cast(proto));
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_DefineClass) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 6);
@@ -209,6 +190,46 @@ RUNTIME_FUNCTION(Runtime_ClassGetSourceCode) {
 }
 
 
+static Object* LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
+                             Handle<JSObject> home_object, Handle<Name> name) {
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayNamedAccess(home_object, name, v8::ACCESS_GET)) {
+    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_GET);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  }
+
+  PrototypeIterator iter(isolate, home_object);
+  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
+
+  LookupIterator it(receiver, name, Handle<JSReceiver>::cast(proto));
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result, Object::GetProperty(&it));
+  return *result;
+}
+
+
+static Object* LoadElementFromSuper(Isolate* isolate, Handle<Object> receiver,
+                                    Handle<JSObject> home_object,
+                                    uint32_t index) {
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayIndexedAccess(home_object, index, v8::ACCESS_GET)) {
+    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_GET);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  }
+
+  PrototypeIterator iter(isolate, home_object);
+  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Object::GetElementWithReceiver(isolate, proto, receiver, index));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
@@ -227,13 +248,16 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
 
+  uint32_t index;
+  if (key->ToArrayIndex(&index)) {
+    return LoadElementFromSuper(isolate, receiver, home_object, index);
+  }
+
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Runtime::ToName(isolate, key));
-  uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    // TODO(dslomov): Implement.
-    return ThrowUnsupportedSuper(isolate);
+    return LoadElementFromSuper(isolate, receiver, home_object, index);
   }
   return LoadFromSuper(isolate, receiver, home_object, name);
 }
