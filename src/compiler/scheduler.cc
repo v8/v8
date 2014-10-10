@@ -219,7 +219,7 @@ class CFGBuilder {
 
 
 Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
-  SchedulerData def = {0, 0, false, false, kUnknown};
+  SchedulerData def = {0, -1, false, false, kUnknown};
   return def;
 }
 
@@ -355,51 +355,63 @@ void Scheduler::GenerateImmediateDominatorTree() {
 class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
  public:
   explicit ScheduleEarlyNodeVisitor(Scheduler* scheduler)
-      : has_changed_rpo_constraints_(true),
-        scheduler_(scheduler),
-        schedule_(scheduler->schedule_) {}
+      : scheduler_(scheduler), schedule_(scheduler->schedule_) {}
 
   GenericGraphVisit::Control Pre(Node* node) {
-    int max_rpo = 0;
-    // Fixed nodes already know their schedule early position.
     if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
+      // Fixed nodes already know their schedule early position.
+      Scheduler::SchedulerData* data = scheduler_->GetData(node);
       BasicBlock* block = schedule_->block(node);
       DCHECK(block != NULL);
-      max_rpo = block->rpo_number();
-      if (scheduler_->GetData(node)->minimum_rpo_ != max_rpo) {
-        has_changed_rpo_constraints_ = true;
+      if (data->minimum_rpo_ < 0) {
+        data->minimum_rpo_ = block->rpo_number();
+        Trace("Preschedule #%d:%s minimum_rpo = %d (fixed)\n", node->id(),
+              node->op()->mnemonic(), data->minimum_rpo_);
       }
-      scheduler_->GetData(node)->minimum_rpo_ = max_rpo;
-      Trace("Preschedule #%d:%s minimum_rpo = %d\n", node->id(),
-            node->op()->mnemonic(), max_rpo);
+    } else {
+      // For unfixed nodes the minimum RPO is the max of all of the inputs.
+      Scheduler::SchedulerData* data = scheduler_->GetData(node);
+      if (data->minimum_rpo_ < 0) {
+        data->minimum_rpo_ = ComputeMaximumInputRPO(node);
+        if (data->minimum_rpo_ < 0) return GenericGraphVisit::REENTER;
+        Trace("Preschedule #%d:%s minimum_rpo = %d\n", node->id(),
+              node->op()->mnemonic(), data->minimum_rpo_);
+      }
+      DCHECK_GE(data->minimum_rpo_, 0);
     }
     return GenericGraphVisit::CONTINUE;
   }
 
   GenericGraphVisit::Control Post(Node* node) {
-    int max_rpo = 0;
-    // Otherwise, the minimum rpo for the node is the max of all of the inputs.
     if (scheduler_->GetPlacement(node) != Scheduler::kFixed) {
-      for (InputIter i = node->inputs().begin(); i != node->inputs().end();
-           ++i) {
-        int control_rpo = scheduler_->GetData(*i)->minimum_rpo_;
-        if (control_rpo > max_rpo) {
-          max_rpo = control_rpo;
-        }
+      Scheduler::SchedulerData* data = scheduler_->GetData(node);
+      // For unfixed nodes the minimum RPO is the max of all of the inputs.
+      if (data->minimum_rpo_ < 0) {
+        data->minimum_rpo_ = ComputeMaximumInputRPO(node);
+        Trace("Postschedule #%d:%s minimum_rpo = %d\n", node->id(),
+              node->op()->mnemonic(), data->minimum_rpo_);
       }
-      if (scheduler_->GetData(node)->minimum_rpo_ != max_rpo) {
-        has_changed_rpo_constraints_ = true;
-      }
-      scheduler_->GetData(node)->minimum_rpo_ = max_rpo;
-      Trace("Postschedule #%d:%s minimum_rpo = %d\n", node->id(),
-            node->op()->mnemonic(), max_rpo);
+      DCHECK_GE(data->minimum_rpo_, 0);
     }
     return GenericGraphVisit::CONTINUE;
   }
 
-  // TODO(mstarzinger): Dirty hack to unblock others, schedule early should be
-  // rewritten to use a pre-order traversal from the start instead.
-  bool has_changed_rpo_constraints_;
+  // Computes the maximum of the minimum RPOs for all inputs. If the maximum
+  // cannot be determined (i.e. minimum RPO for at least one input not known),
+  // then a negative number is returned.
+  int ComputeMaximumInputRPO(Node* node) {
+    int max_rpo = 0;
+    for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
+      DCHECK_NE(node, *i);  // Loops only exist for fixed nodes.
+      int control_rpo = scheduler_->GetData(*i)->minimum_rpo_;
+      if (control_rpo > max_rpo) {
+        max_rpo = control_rpo;
+      } else if (control_rpo < 0) {
+        return control_rpo;
+      }
+    }
+    return max_rpo;
+  }
 
  private:
   Scheduler* scheduler_;
@@ -410,15 +422,10 @@ class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
 void Scheduler::ScheduleEarly() {
   Trace("------------------- SCHEDULE EARLY ----------------\n");
 
-  int fixpoint_count = 0;
+  // Compute the minimum RPO for each node thereby determining the earliest
+  // position each node could be placed within a valid schedule.
   ScheduleEarlyNodeVisitor visitor(this);
-  while (visitor.has_changed_rpo_constraints_) {
-    visitor.has_changed_rpo_constraints_ = false;
-    graph_->VisitNodeInputsFromEnd(&visitor);
-    fixpoint_count++;
-  }
-
-  Trace("It took %d iterations to determine fixpoint\n", fixpoint_count);
+  graph_->VisitNodeInputsFromEnd(&visitor);
 }
 
 
@@ -469,6 +476,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
 
 void Scheduler::PrepareUses() {
   Trace("------------------- PREPARE USES ------------------\n");
+
   // Count the uses of every node, it will be used to ensure that all of a
   // node's uses are scheduled before the node itself.
   PrepareUsesVisitor prepare_uses(this);
