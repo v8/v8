@@ -2878,7 +2878,7 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadGlobalGeneric>(instr);
   }
   ContextualMode mode = instr->for_typeof() ? NOT_CONTEXTUAL : CONTEXTUAL;
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), mode).code();
+  Handle<Code> ic = CodeFactory::LoadICInOptimizedCode(isolate(), mode).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3019,7 +3019,8 @@ void LCodeGen::DoLoadNamedGeneric(LLoadNamedGeneric* instr) {
   if (FLAG_vector_ics) {
     EmitVectorLoadICRegisters<LLoadNamedGeneric>(instr);
   }
-  Handle<Code> ic = CodeFactory::LoadIC(isolate(), NOT_CONTEXTUAL).code();
+  Handle<Code> ic =
+      CodeFactory::LoadICInOptimizedCode(isolate(), NOT_CONTEXTUAL).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -3368,7 +3369,7 @@ void LCodeGen::DoLoadKeyedGeneric(LLoadKeyedGeneric* instr) {
     EmitVectorLoadICRegisters<LLoadKeyedGeneric>(instr);
   }
 
-  Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
+  Handle<Code> ic = CodeFactory::KeyedLoadICInOptimizedCode(isolate()).code();
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
