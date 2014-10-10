@@ -4517,6 +4517,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
               MemOperand(sp, 1 * kPointerSize));
         __ lw(LoadDescriptor::NameRegister(), MemOperand(sp, 0));
         EmitKeyedPropertyLoad(prop);
+        break;
       }
 
       case VARIABLE:
