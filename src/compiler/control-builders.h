@@ -32,7 +32,7 @@ class ControlBuilder {
   typedef StructuredGraphBuilder Builder;
   typedef StructuredGraphBuilder::Environment Environment;
 
-  Zone* zone() const { return builder_->zone(); }
+  Zone* zone() const { return builder_->local_zone(); }
   Environment* environment() { return builder_->environment(); }
   void set_environment(Environment* env) { builder_->set_environment(env); }
 
