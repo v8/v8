@@ -656,6 +656,29 @@ TEST_F(MachineOperatorReducerTest, Int32SubWithOverflowWithConstant) {
 
 
 // -----------------------------------------------------------------------------
+// Uint32LessThan
+
+
+TEST_F(MachineOperatorReducerTest, Uint32LessThanWithWord32Sar) {
+  Node* const p0 = Parameter(0);
+  TRACED_FORRANGE(uint32_t, shift, 1, 3) {
+    const uint32_t limit = (kMaxInt >> shift) - 1;
+    Node* const node = graph()->NewNode(
+        machine()->Uint32LessThan(),
+        graph()->NewNode(machine()->Word32Sar(), p0, Uint32Constant(shift)),
+        Uint32Constant(limit));
+
+    Reduction r = Reduce(node);
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(
+        r.replacement(),
+        IsUint32LessThan(p0, IsInt32Constant(bit_cast<int32_t>(
+                                 (limit << shift) | ((1u << shift) - 1)))));
+  }
+}
+
+
+// -----------------------------------------------------------------------------
 // Store
 
 
