@@ -2732,5 +2732,11 @@ RUNTIME_FUNCTION(RuntimeReference_DebugIsActive) {
   SealHandleScope shs(isolate);
   return Smi::FromInt(isolate->debug()->is_active());
 }
+
+
+RUNTIME_FUNCTION(RuntimeReference_DebugBreakInOptimizedCode) {
+  UNIMPLEMENTED();
+  return NULL;
+}
 }
 }  // namespace v8::internal

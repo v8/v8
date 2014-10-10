@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/arguments.h"
+#include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/misc-intrinsics.h"
 #include "src/runtime/runtime.h"
@@ -554,6 +555,21 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   if (x_scaled < y_scaled) return Smi::FromInt(LESS);
   if (x_scaled > y_scaled) return Smi::FromInt(GREATER);
   return Smi::FromInt(tie);
+}
+
+
+RUNTIME_FUNCTION(Runtime_GetRootNaN) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  RUNTIME_ASSERT(isolate->bootstrapper()->IsActive());
+  return isolate->heap()->nan_value();
+}
+
+
+RUNTIME_FUNCTION(Runtime_MaxSmi) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 0);
+  return Smi::FromInt(Smi::kMaxValue);
 }
 
 
