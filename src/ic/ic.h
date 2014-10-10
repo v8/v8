@@ -353,6 +353,8 @@ class LoadIC : public IC {
 
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       ExtraICState extra_state);
+  static Handle<Code> initialize_stub_in_optimized_code(
+      Isolate* isolate, ExtraICState extra_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
@@ -420,6 +422,8 @@ class KeyedLoadIC : public LoadIC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
+  static Handle<Code> initialize_stub(Isolate* isolate);
+  static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
   static Handle<Code> generic_stub(Isolate* isolate);
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate);
 

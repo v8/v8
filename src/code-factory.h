@@ -33,7 +33,9 @@ class CodeFactory FINAL {
  public:
   // Initial states for ICs.
   static Callable LoadIC(Isolate* isolate, ContextualMode mode);
+  static Callable LoadICInOptimizedCode(Isolate* isolate, ContextualMode mode);
   static Callable KeyedLoadIC(Isolate* isolate);
+  static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
   static Callable StoreIC(Isolate* isolate, StrictMode mode);
   static Callable KeyedStoreIC(Isolate* isolate, StrictMode mode);
 

@@ -832,6 +832,32 @@ Handle<Code> LoadIC::initialize_stub(Isolate* isolate,
 }
 
 
+Handle<Code> LoadIC::initialize_stub_in_optimized_code(
+    Isolate* isolate, ExtraICState extra_state) {
+  if (FLAG_vector_ics) {
+    return VectorLoadStub(isolate, LoadICState(extra_state)).GetCode();
+  }
+  return initialize_stub(isolate, extra_state);
+}
+
+
+Handle<Code> KeyedLoadIC::initialize_stub(Isolate* isolate) {
+  if (FLAG_vector_ics) {
+    return KeyedLoadICTrampolineStub(isolate).GetCode();
+  }
+
+  return isolate->builtins()->KeyedLoadIC_Initialize();
+}
+
+
+Handle<Code> KeyedLoadIC::initialize_stub_in_optimized_code(Isolate* isolate) {
+  if (FLAG_vector_ics) {
+    return VectorKeyedLoadStub(isolate).GetCode();
+  }
+  return initialize_stub(isolate);
+}
+
+
 Handle<Code> LoadIC::megamorphic_stub() {
   if (kind() == Code::LOAD_IC) {
     MegamorphicLoadStub stub(isolate(), LoadICState(extra_ic_state()));
