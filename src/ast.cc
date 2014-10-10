@@ -64,7 +64,7 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
     : Expression(zone, position, 0, id_gen),
       raw_name_(var->raw_name()),
       interface_(var->interface()),
-      variable_feedback_slot_(kInvalidFeedbackSlot),
+      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
       is_this_(var->is_this()),
       is_assigned_(false),
       is_resolved_(false) {
@@ -77,7 +77,7 @@ VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
     : Expression(zone, position, 0, id_gen),
       raw_name_(name),
       interface_(interface),
-      variable_feedback_slot_(kInvalidFeedbackSlot),
+      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
       is_this_(is_this),
       is_assigned_(false),
       is_resolved_(false) {}
@@ -605,9 +605,9 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 
 
 void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  int allocation_site_feedback_slot = FLAG_pretenuring_call_new
-      ? AllocationSiteFeedbackSlot()
-      : CallNewFeedbackSlot();
+  FeedbackVectorSlot allocation_site_feedback_slot =
+      FLAG_pretenuring_call_new ? AllocationSiteFeedbackSlot()
+                                : CallNewFeedbackSlot();
   allocation_site_ =
       oracle->GetCallNewAllocationSite(allocation_site_feedback_slot);
   is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackSlot());

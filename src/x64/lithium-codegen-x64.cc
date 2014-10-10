@@ -2856,7 +2856,7 @@ void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   // No need to allocate this register.
   DCHECK(VectorLoadICDescriptor::SlotRegister().is(rax));
   __ Move(VectorLoadICDescriptor::SlotRegister(),
-          Smi::FromInt(instr->hydrogen()->slot()));
+          Smi::FromInt(instr->hydrogen()->slot().ToInt()));
 }
 
 

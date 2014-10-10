@@ -82,7 +82,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
                                 BailoutId bailout_id);
   Node* BuildVariableDelete(Variable* var, BailoutId bailout_id,
                             OutputFrameStateCombine state_combine);
-  Node* BuildVariableLoad(Variable* proxy, BailoutId bailout_id,
+  Node* BuildVariableLoad(Variable* var, BailoutId bailout_id,
                           const VectorSlotPair& feedback,
                           ContextualMode mode = CONTEXTUAL);
 
@@ -145,7 +145,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   inline Scope* current_scope() const;
 
   // Named and keyed loads require a VectorSlotPair for successful lowering.
-  VectorSlotPair CreateVectorSlotPair(int slot) const;
+  VectorSlotPair CreateVectorSlotPair(FeedbackVectorSlot slot) const;
 
   // Process arguments to a call by popping {arity} elements off the operand
   // stack and build a call node using the given call operator.

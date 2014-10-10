@@ -78,7 +78,8 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
   uint8_t backing_store[kLength * 8];
   Handle<JSArrayBuffer> buffer =
       NewArrayBuffer(backing_store, arraysize(backing_store));
-  VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(), 0);
+  VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
+                          FeedbackVectorSlot::Invalid());
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     Handle<JSTypedArray> array =
         factory()->NewJSTypedArray(type, buffer, kLength);

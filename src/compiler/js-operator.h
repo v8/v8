@@ -98,15 +98,15 @@ ContextAccess const& ContextAccessOf(Operator const*);
 
 class VectorSlotPair {
  public:
-  VectorSlotPair(Handle<TypeFeedbackVector> vector, int slot)
+  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : vector_(vector), slot_(slot) {}
 
   Handle<TypeFeedbackVector> vector() const { return vector_; }
-  int slot() const { return slot_; }
+  FeedbackVectorSlot slot() const { return slot_; }
 
  private:
   const Handle<TypeFeedbackVector> vector_;
-  const int slot_;
+  const FeedbackVectorSlot slot_;
 };
 
 

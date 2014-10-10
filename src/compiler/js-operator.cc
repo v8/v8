@@ -109,14 +109,15 @@ ContextAccess const& ContextAccessOf(Operator const* op) {
 
 
 bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
-  return lhs.slot() == rhs.slot() && lhs.vector().is_identical_to(rhs.vector());
+  return lhs.slot().ToInt() == rhs.slot().ToInt() &&
+         lhs.vector().is_identical_to(rhs.vector());
 }
 
 
 size_t hash_value(VectorSlotPair const& p) {
   // TODO(mvstanton): include the vector in the hash.
   base::hash<int> h;
-  return h(p.slot());
+  return h(p.slot().ToInt());
 }
 
 

@@ -237,12 +237,11 @@ class AstNode: public ZoneObject {
   // node types which don't actually have this. Note that this is conceptually
   // not really nice, but multiple inheritance would introduce yet another
   // vtable entry per node, something we don't want for space reasons.
-  static const int kInvalidFeedbackSlot = -1;
   virtual int ComputeFeedbackSlotCount() {
     UNREACHABLE();
     return 0;
   }
-  virtual void SetFirstFeedbackSlot(int slot) { UNREACHABLE(); }
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) { UNREACHABLE(); }
 
  private:
   // Hidden to prevent accidental usage. It would have to load the
@@ -949,10 +948,12 @@ class ForInStatement FINAL : public ForEachStatement {
 
   // Type feedback information.
   virtual int ComputeFeedbackSlotCount() { return 1; }
-  virtual void SetFirstFeedbackSlot(int slot) { for_in_feedback_slot_ = slot; }
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
+    for_in_feedback_slot_ = slot;
+  }
 
-  int ForInFeedbackSlot() {
-    DCHECK(for_in_feedback_slot_ != kInvalidFeedbackSlot);
+  FeedbackVectorSlot ForInFeedbackSlot() {
+    DCHECK(!for_in_feedback_slot_.IsInvalid());
     return for_in_feedback_slot_;
   }
 
@@ -970,7 +971,7 @@ class ForInStatement FINAL : public ForEachStatement {
                  IdGen* id_gen)
       : ForEachStatement(zone, labels, pos, num_ids(), id_gen),
         for_in_type_(SLOW_FOR_IN),
-        for_in_feedback_slot_(kInvalidFeedbackSlot) {}
+        for_in_feedback_slot_(FeedbackVectorSlot::Invalid()) {}
 
   static int num_ids() { return 2; }
   int base_id() const {
@@ -979,7 +980,7 @@ class ForInStatement FINAL : public ForEachStatement {
 
  private:
   ForInType for_in_type_;
-  int for_in_feedback_slot_;
+  FeedbackVectorSlot for_in_feedback_slot_;
 };
 
 
@@ -1694,11 +1695,11 @@ class VariableProxy FINAL : public Expression {
   void BindTo(Variable* var);
 
   virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
-  virtual void SetFirstFeedbackSlot(int slot) {
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
     variable_feedback_slot_ = slot;
   }
 
-  int VariableFeedbackSlot() { return variable_feedback_slot_; }
+  FeedbackVectorSlot VariableFeedbackSlot() { return variable_feedback_slot_; }
 
  protected:
   VariableProxy(Zone* zone, Variable* var, int position, IdGen* id_gen);
@@ -1711,7 +1712,7 @@ class VariableProxy FINAL : public Expression {
     Variable* var_;                 // if is_resolved_
   };
   Interface* interface_;
-  int variable_feedback_slot_;
+  FeedbackVectorSlot variable_feedback_slot_;
   bool is_this_ : 1;
   bool is_assigned_ : 1;
   bool is_resolved_ : 1;
@@ -1757,18 +1758,20 @@ class Property FINAL : public Expression {
   }
 
   virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
-  virtual void SetFirstFeedbackSlot(int slot) {
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
     property_feedback_slot_ = slot;
   }
 
-  int PropertyFeedbackSlot() const { return property_feedback_slot_; }
+  FeedbackVectorSlot PropertyFeedbackSlot() const {
+    return property_feedback_slot_;
+  }
 
  protected:
   Property(Zone* zone, Expression* obj, Expression* key, int pos, IdGen* id_gen)
       : Expression(zone, pos, num_ids(), id_gen),
         obj_(obj),
         key_(key),
-        property_feedback_slot_(kInvalidFeedbackSlot),
+        property_feedback_slot_(FeedbackVectorSlot::Invalid()),
         is_for_call_(false),
         is_uninitialized_(false),
         is_string_access_(false) {}
@@ -1779,7 +1782,7 @@ class Property FINAL : public Expression {
  private:
   Expression* obj_;
   Expression* key_;
-  int property_feedback_slot_;
+  FeedbackVectorSlot property_feedback_slot_;
 
   SmallMapList receiver_types_;
   bool is_for_call_ : 1;
@@ -1797,14 +1800,12 @@ class Call FINAL : public Expression {
 
   // Type feedback information.
   virtual int ComputeFeedbackSlotCount() { return 1; }
-  virtual void SetFirstFeedbackSlot(int slot) {
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
     call_feedback_slot_ = slot;
   }
 
-  bool HasCallFeedbackSlot() const {
-    return call_feedback_slot_ != kInvalidFeedbackSlot;
-  }
-  int CallFeedbackSlot() const { return call_feedback_slot_; }
+  bool HasCallFeedbackSlot() const { return !call_feedback_slot_.IsInvalid(); }
+  FeedbackVectorSlot CallFeedbackSlot() const { return call_feedback_slot_; }
 
   virtual SmallMapList* GetReceiverTypes() OVERRIDE {
     if (expression()->IsProperty()) {
@@ -1867,7 +1868,7 @@ class Call FINAL : public Expression {
       : Expression(zone, pos, num_ids(), id_gen),
         expression_(expression),
         arguments_(arguments),
-        call_feedback_slot_(kInvalidFeedbackSlot) {
+        call_feedback_slot_(FeedbackVectorSlot::Invalid()) {
     if (expression->IsProperty()) {
       expression->AsProperty()->mark_for_call();
     }
@@ -1882,7 +1883,7 @@ class Call FINAL : public Expression {
   Handle<JSFunction> target_;
   Handle<Cell> cell_;
   Handle<AllocationSite> allocation_site_;
-  int call_feedback_slot_;
+  FeedbackVectorSlot call_feedback_slot_;
 };
 
 
@@ -1897,18 +1898,14 @@ class CallNew FINAL : public Expression {
   virtual int ComputeFeedbackSlotCount() {
     return FLAG_pretenuring_call_new ? 2 : 1;
   }
-  virtual void SetFirstFeedbackSlot(int slot) {
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
     callnew_feedback_slot_ = slot;
   }
 
-  int CallNewFeedbackSlot() {
-    DCHECK(callnew_feedback_slot_ != kInvalidFeedbackSlot);
-    return callnew_feedback_slot_;
-  }
-  int AllocationSiteFeedbackSlot() {
-    DCHECK(callnew_feedback_slot_ != kInvalidFeedbackSlot);
+  FeedbackVectorSlot CallNewFeedbackSlot() { return callnew_feedback_slot_; }
+  FeedbackVectorSlot AllocationSiteFeedbackSlot() {
     DCHECK(FLAG_pretenuring_call_new);
-    return callnew_feedback_slot_ + 1;
+    return CallNewFeedbackSlot().next();
   }
 
   void RecordTypeFeedback(TypeFeedbackOracle* oracle);
@@ -1929,7 +1926,7 @@ class CallNew FINAL : public Expression {
         expression_(expression),
         arguments_(arguments),
         is_monomorphic_(false),
-        callnew_feedback_slot_(kInvalidFeedbackSlot) {}
+        callnew_feedback_slot_(FeedbackVectorSlot::Invalid()) {}
 
   static int num_ids() { return 1; }
   int base_id() const { return Expression::base_id() + Expression::num_ids(); }
@@ -1940,7 +1937,7 @@ class CallNew FINAL : public Expression {
   bool is_monomorphic_;
   Handle<JSFunction> target_;
   Handle<AllocationSite> allocation_site_;
-  int callnew_feedback_slot_;
+  FeedbackVectorSlot callnew_feedback_slot_;
 };
 
 
@@ -1962,11 +1959,11 @@ class CallRuntime FINAL : public Expression {
   virtual int ComputeFeedbackSlotCount() {
     return (FLAG_vector_ics && is_jsruntime()) ? 1 : 0;
   }
-  virtual void SetFirstFeedbackSlot(int slot) {
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
     callruntime_feedback_slot_ = slot;
   }
 
-  int CallRuntimeFeedbackSlot() {
+  FeedbackVectorSlot CallRuntimeFeedbackSlot() {
     return callruntime_feedback_slot_;
   }
 
@@ -1981,7 +1978,8 @@ class CallRuntime FINAL : public Expression {
       : Expression(zone, pos, num_ids(), id_gen),
         raw_name_(name),
         function_(function),
-        arguments_(arguments) {}
+        arguments_(arguments),
+        callruntime_feedback_slot_(FeedbackVectorSlot::Invalid()) {}
 
   static int num_ids() { return 1; }
   int base_id() const { return Expression::base_id() + Expression::num_ids(); }
@@ -1990,7 +1988,7 @@ class CallRuntime FINAL : public Expression {
   const AstRawString* raw_name_;
   const Runtime::Function* function_;
   ZoneList<Expression*>* arguments_;
-  int callruntime_feedback_slot_;
+  FeedbackVectorSlot callruntime_feedback_slot_;
 };
 
 
@@ -2306,24 +2304,19 @@ class Yield FINAL : public Expression {
   virtual int ComputeFeedbackSlotCount() {
     return (FLAG_vector_ics && yield_kind() == kDelegating) ? 3 : 0;
   }
-  virtual void SetFirstFeedbackSlot(int slot) {
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
     yield_first_feedback_slot_ = slot;
   }
 
-  int KeyedLoadFeedbackSlot() {
-    DCHECK(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
+  FeedbackVectorSlot KeyedLoadFeedbackSlot() {
     return yield_first_feedback_slot_;
   }
 
-  int DoneFeedbackSlot() {
-    DCHECK(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
-    return yield_first_feedback_slot_ + 1;
+  FeedbackVectorSlot DoneFeedbackSlot() {
+    return KeyedLoadFeedbackSlot().next();
   }
 
-  int ValueFeedbackSlot() {
-    DCHECK(yield_first_feedback_slot_ != kInvalidFeedbackSlot);
-    return yield_first_feedback_slot_ + 2;
-  }
+  FeedbackVectorSlot ValueFeedbackSlot() { return DoneFeedbackSlot().next(); }
 
  protected:
   Yield(Zone* zone, Expression* generator_object, Expression* expression,
@@ -2333,14 +2326,14 @@ class Yield FINAL : public Expression {
         expression_(expression),
         yield_kind_(yield_kind),
         index_(-1),
-        yield_first_feedback_slot_(kInvalidFeedbackSlot) {}
+        yield_first_feedback_slot_(FeedbackVectorSlot::Invalid()) {}
 
  private:
   Expression* generator_object_;
   Expression* expression_;
   Kind yield_kind_;
   int index_;
-  int yield_first_feedback_slot_;
+  FeedbackVectorSlot yield_first_feedback_slot_;
 };
 
 
@@ -2629,13 +2622,12 @@ class SuperReference FINAL : public Expression {
 
   // Type feedback information.
   virtual int ComputeFeedbackSlotCount() { return FLAG_vector_ics ? 1 : 0; }
-  virtual void SetFirstFeedbackSlot(int slot) {
+  virtual void SetFirstFeedbackSlot(FeedbackVectorSlot slot) {
     homeobject_feedback_slot_ = slot;
   }
 
-  int HomeObjectFeedbackSlot() {
-    DCHECK(!FLAG_vector_ics ||
-           homeobject_feedback_slot_ != kInvalidFeedbackSlot);
+  FeedbackVectorSlot HomeObjectFeedbackSlot() {
+    DCHECK(!FLAG_vector_ics || !homeobject_feedback_slot_.IsInvalid());
     return homeobject_feedback_slot_;
   }
 
@@ -2643,7 +2635,7 @@ class SuperReference FINAL : public Expression {
   SuperReference(Zone* zone, VariableProxy* this_var, int pos, IdGen* id_gen)
       : Expression(zone, pos, num_ids(), id_gen),
         this_var_(this_var),
-        homeobject_feedback_slot_(kInvalidFeedbackSlot) {
+        homeobject_feedback_slot_(FeedbackVectorSlot::Invalid()) {
     DCHECK(this_var->is_this());
   }
 
@@ -2652,7 +2644,7 @@ class SuperReference FINAL : public Expression {
 
  private:
   VariableProxy* this_var_;
-  int homeobject_feedback_slot_;
+  FeedbackVectorSlot homeobject_feedback_slot_;
 };
 
 
@@ -3118,7 +3110,8 @@ class AstConstructionVisitor BASE_EMBEDDED {
   void add_slot_node(AstNode* slot_node) {
     int count = slot_node->ComputeFeedbackSlotCount();
     if (count > 0) {
-      slot_node->SetFirstFeedbackSlot(properties_.feedback_slots());
+      slot_node->SetFirstFeedbackSlot(
+          FeedbackVectorSlot(properties_.feedback_slots()));
       properties_.increase_feedback_slots(count);
     }
   }
