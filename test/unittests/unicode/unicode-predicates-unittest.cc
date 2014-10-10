@@ -86,5 +86,36 @@ TEST(UnicodePredicatesTest, IdentifierPart) {
   EXPECT_FALSE(IdentifierPart::Is(0x2E2F));
 }
 
+
+#ifdef V8_I18N_SUPPORT
+TEST(UnicodePredicatesTest, SupplementaryPlaneIdentifiers) {
+  // Both ID_Start and ID_Continue.
+  EXPECT_TRUE(IdentifierStart::Is(0x10403));  // Category Lu
+  EXPECT_TRUE(IdentifierPart::Is(0x10403));
+  EXPECT_TRUE(IdentifierStart::Is(0x1043C));  // Category Ll
+  EXPECT_TRUE(IdentifierPart::Is(0x1043C));
+  EXPECT_TRUE(IdentifierStart::Is(0x16F9C));  // Category Lm
+  EXPECT_TRUE(IdentifierPart::Is(0x16F9C));
+  EXPECT_TRUE(IdentifierStart::Is(0x10048));  // Category Lo
+  EXPECT_TRUE(IdentifierPart::Is(0x10048));
+  EXPECT_TRUE(IdentifierStart::Is(0x1014D));  // Category Nl
+  EXPECT_TRUE(IdentifierPart::Is(0x1014D));
+
+  // Only ID_Continue.
+  EXPECT_FALSE(IdentifierStart::Is(0x101FD));  // Category Mn
+  EXPECT_TRUE(IdentifierPart::Is(0x101FD));
+  EXPECT_FALSE(IdentifierStart::Is(0x11002));  // Category Mc
+  EXPECT_TRUE(IdentifierPart::Is(0x11002));
+  EXPECT_FALSE(IdentifierStart::Is(0x104A9));  // Category Nd
+  EXPECT_TRUE(IdentifierPart::Is(0x104A9));
+
+  // Neither.
+  EXPECT_FALSE(IdentifierStart::Is(0x10111));  // Category No
+  EXPECT_FALSE(IdentifierPart::Is(0x10111));
+  EXPECT_FALSE(IdentifierStart::Is(0x1F4A9));  // Category So
+  EXPECT_FALSE(IdentifierPart::Is(0x1F4A9));
+}
+#endif  // V8_I18N_SUPPORT
+
 }  // namespace internal
 }  // namespace v8

@@ -364,6 +364,7 @@
         '../../src/bytecodes-irregexp.h',
         '../../src/cached-powers.cc',
         '../../src/cached-powers.h',
+        '../../src/char-predicates.cc',
         '../../src/char-predicates-inl.h',
         '../../src/char-predicates.h',
         '../../src/checks.cc',

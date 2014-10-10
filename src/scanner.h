@@ -212,9 +212,17 @@ class LiteralBuffer {
       }
       ConvertToTwoByte();
     }
-    DCHECK(code_unit < 0x10000u);
-    *reinterpret_cast<uint16_t*>(&backing_store_[position_]) = code_unit;
-    position_ += kUC16Size;
+    if (code_unit <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+      *reinterpret_cast<uint16_t*>(&backing_store_[position_]) = code_unit;
+      position_ += kUC16Size;
+    } else {
+      *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
+          unibrow::Utf16::LeadSurrogate(code_unit);
+      position_ += kUC16Size;
+      *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
+          unibrow::Utf16::TrailSurrogate(code_unit);
+      position_ += kUC16Size;
+    }
   }
 
   bool is_one_byte() const { return is_one_byte_; }
@@ -519,9 +527,25 @@ class Scanner {
   }
 
   // Low-level scanning support.
-  void Advance() { c0_ = source_->Advance(); }
+  void Advance() {
+    c0_ = source_->Advance();
+    if (unibrow::Utf16::IsLeadSurrogate(c0_)) {
+      uc32 c1 = source_->Advance();
+      if (!unibrow::Utf16::IsTrailSurrogate(c1)) {
+        source_->PushBack(c1);
+      } else {
+        c0_ = unibrow::Utf16::CombineSurrogatePair(c0_, c1);
+      }
+    }
+  }
+
   void PushBack(uc32 ch) {
-    source_->PushBack(c0_);
+    if (ch > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+      source_->PushBack(unibrow::Utf16::TrailSurrogate(c0_));
+      source_->PushBack(unibrow::Utf16::LeadSurrogate(c0_));
+    } else {
+      source_->PushBack(c0_);
+    }
     c0_ = ch;
   }
 
