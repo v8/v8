@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-TEST(UnicodePredicatesTest, WhiteSpace) {
+TEST(CharPredicatesTest, WhiteSpace) {
   // As of Unicode 6.3.0, \u180E is no longer a white space. We still consider
   // it to be one though, since JS recognizes all white spaces in Unicode 5.1.
   EXPECT_TRUE(WhiteSpace::Is(0x0009));
@@ -22,7 +22,7 @@ TEST(UnicodePredicatesTest, WhiteSpace) {
 }
 
 
-TEST(UnicodePredicatesTest, WhiteSpaceOrLineTerminator) {
+TEST(CharPredicatesTest, WhiteSpaceOrLineTerminator) {
   // As of Unicode 6.3.0, \u180E is no longer a white space. We still consider
   // it to be one though, since JS recognizes all white spaces in Unicode 5.1.
   // White spaces
@@ -41,7 +41,7 @@ TEST(UnicodePredicatesTest, WhiteSpaceOrLineTerminator) {
 }
 
 
-TEST(UnicodePredicatesTest, IdentifierStart) {
+TEST(CharPredicatesTest, IdentifierStart) {
   EXPECT_TRUE(IdentifierStart::Is('$'));
   EXPECT_TRUE(IdentifierStart::Is('_'));
   EXPECT_TRUE(IdentifierStart::Is('\\'));
@@ -59,7 +59,7 @@ TEST(UnicodePredicatesTest, IdentifierStart) {
 }
 
 
-TEST(UnicodePredicatesTest, IdentifierPart) {
+TEST(CharPredicatesTest, IdentifierPart) {
   EXPECT_TRUE(IdentifierPart::Is('$'));
   EXPECT_TRUE(IdentifierPart::Is('_'));
   EXPECT_TRUE(IdentifierPart::Is('\\'));
@@ -88,7 +88,7 @@ TEST(UnicodePredicatesTest, IdentifierPart) {
 
 
 #ifdef V8_I18N_SUPPORT
-TEST(UnicodePredicatesTest, SupplementaryPlaneIdentifiers) {
+TEST(CharPredicatesTest, SupplementaryPlaneIdentifiers) {
   // Both ID_Start and ID_Continue.
   EXPECT_TRUE(IdentifierStart::Is(0x10403));  // Category Lu
   EXPECT_TRUE(IdentifierPart::Is(0x10403));
