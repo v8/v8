@@ -10463,6 +10463,12 @@ static Code::Age EffectiveAge(Code::Age age) {
 }
 
 
+void Code::MakeYoung() {
+  byte* sequence = FindCodeAgeSequence();
+  if (sequence != NULL) MakeCodeAgeSequenceYoung(sequence, GetIsolate());
+}
+
+
 void Code::MakeOlder(MarkingParity current_parity) {
   byte* sequence = FindCodeAgeSequence();
   if (sequence != NULL) {
