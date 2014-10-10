@@ -4477,11 +4477,12 @@ class HIsStringAndBranch FINAL : public HUnaryControlInstruction {
   virtual int RedefinedOperandIndex() { return 0; }
 
  private:
-  HIsStringAndBranch(HValue* value,
-                     HBasicBlock* true_target = NULL,
+  HIsStringAndBranch(HValue* value, HBasicBlock* true_target = NULL,
                      HBasicBlock* false_target = NULL)
-    : HUnaryControlInstruction(value, true_target, false_target),
-      known_successor_index_(kNoKnownSuccessorIndex) { }
+      : HUnaryControlInstruction(value, true_target, false_target),
+        known_successor_index_(kNoKnownSuccessorIndex) {
+    set_representation(Representation::Tagged());
+  }
 
   int known_successor_index_;
 };
