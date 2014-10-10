@@ -1967,8 +1967,6 @@ class CallRuntime FINAL : public Expression {
   }
 
   int CallRuntimeFeedbackSlot() {
-    DCHECK(!is_jsruntime() ||
-           callruntime_feedback_slot_ != kInvalidFeedbackSlot);
     return callruntime_feedback_slot_;
   }
 
