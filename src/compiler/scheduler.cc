@@ -28,6 +28,102 @@ static inline void Trace(const char* msg, ...) {
 }
 
 
+Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
+    : zone_(zone),
+      graph_(graph),
+      schedule_(schedule),
+      scheduled_nodes_(zone),
+      schedule_root_nodes_(zone),
+      node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone),
+      has_floating_control_(false) {}
+
+
+Schedule* Scheduler::ComputeSchedule(Graph* graph) {
+  Schedule* schedule;
+  bool had_floating_control = false;
+  do {
+    Zone tmp_zone(graph->zone()->isolate());
+    schedule = new (graph->zone())
+        Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
+    Scheduler scheduler(&tmp_zone, graph, schedule);
+
+    scheduler.BuildCFG();
+    Scheduler::ComputeSpecialRPO(schedule);
+    scheduler.GenerateImmediateDominatorTree();
+
+    scheduler.PrepareUses();
+    scheduler.ScheduleEarly();
+    scheduler.ScheduleLate();
+
+    had_floating_control = scheduler.ConnectFloatingControl();
+  } while (had_floating_control);
+
+  return schedule;
+}
+
+
+Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
+  SchedulerData def = {0, -1, false, false, kUnknown};
+  return def;
+}
+
+
+Scheduler::Placement Scheduler::GetPlacement(Node* node) {
+  SchedulerData* data = GetData(node);
+  if (data->placement_ == kUnknown) {  // Compute placement, once, on demand.
+    switch (node->opcode()) {
+      case IrOpcode::kParameter:
+        // Parameters are always fixed to the start node.
+        data->placement_ = kFixed;
+        break;
+      case IrOpcode::kPhi:
+      case IrOpcode::kEffectPhi: {
+        // Phis and effect phis are fixed if their control inputs are.
+        data->placement_ = GetPlacement(NodeProperties::GetControlInput(node));
+        break;
+      }
+#define DEFINE_FLOATING_CONTROL_CASE(V) case IrOpcode::k##V:
+        CONTROL_OP_LIST(DEFINE_FLOATING_CONTROL_CASE)
+#undef DEFINE_FLOATING_CONTROL_CASE
+        {
+          // Control nodes that were not control-reachable from end may float.
+          data->placement_ = kSchedulable;
+          if (!data->is_connected_control_) {
+            data->is_floating_control_ = true;
+            has_floating_control_ = true;
+            Trace("Floating control found: #%d:%s\n", node->id(),
+                  node->op()->mnemonic());
+          }
+          break;
+        }
+      default:
+        data->placement_ = kSchedulable;
+        break;
+    }
+  }
+  return data->placement_;
+}
+
+
+BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
+  while (b1 != b2) {
+    int b1_rpo = GetRPONumber(b1);
+    int b2_rpo = GetRPONumber(b2);
+    DCHECK(b1_rpo != b2_rpo);
+    if (b1_rpo < b2_rpo) {
+      b2 = b2->dominator();
+    } else {
+      b1 = b1->dominator();
+    }
+  }
+  return b1;
+}
+
+
+// -----------------------------------------------------------------------------
+// Phase 1: Build control-flow graph and dominator tree.
+
+
 // Internal class to build a control flow graph (i.e the basic blocks and edges
 // between them within a Schedule) from the node graph.
 // Visits the control edges of the graph backwards from end in order to find
@@ -218,105 +314,12 @@ class CFGBuilder {
 };
 
 
-Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
-  SchedulerData def = {0, -1, false, false, kUnknown};
-  return def;
-}
-
-
-Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule)
-    : zone_(zone),
-      graph_(graph),
-      schedule_(schedule),
-      scheduled_nodes_(zone),
-      schedule_root_nodes_(zone),
-      node_data_(graph_->NodeCount(), DefaultSchedulerData(), zone),
-      has_floating_control_(false) {}
-
-
-Schedule* Scheduler::ComputeSchedule(Graph* graph) {
-  Schedule* schedule;
-  bool had_floating_control = false;
-  do {
-    Zone tmp_zone(graph->zone()->isolate());
-    schedule = new (graph->zone())
-        Schedule(graph->zone(), static_cast<size_t>(graph->NodeCount()));
-    Scheduler scheduler(&tmp_zone, graph, schedule);
-
-    scheduler.BuildCFG();
-
-    Scheduler::ComputeSpecialRPO(schedule);
-    scheduler.GenerateImmediateDominatorTree();
-
-    scheduler.PrepareUses();
-    scheduler.ScheduleEarly();
-    scheduler.ScheduleLate();
-
-    had_floating_control = scheduler.ConnectFloatingControl();
-  } while (had_floating_control);
-
-  return schedule;
-}
-
-
-Scheduler::Placement Scheduler::GetPlacement(Node* node) {
-  SchedulerData* data = GetData(node);
-  if (data->placement_ == kUnknown) {  // Compute placement, once, on demand.
-    switch (node->opcode()) {
-      case IrOpcode::kParameter:
-        // Parameters are always fixed to the start node.
-        data->placement_ = kFixed;
-        break;
-      case IrOpcode::kPhi:
-      case IrOpcode::kEffectPhi: {
-        // Phis and effect phis are fixed if their control inputs are.
-        data->placement_ = GetPlacement(NodeProperties::GetControlInput(node));
-        break;
-      }
-#define DEFINE_FLOATING_CONTROL_CASE(V) case IrOpcode::k##V:
-        CONTROL_OP_LIST(DEFINE_FLOATING_CONTROL_CASE)
-#undef DEFINE_FLOATING_CONTROL_CASE
-        {
-          // Control nodes that were not control-reachable from end may float.
-          data->placement_ = kSchedulable;
-          if (!data->is_connected_control_) {
-            data->is_floating_control_ = true;
-            has_floating_control_ = true;
-            Trace("Floating control found: #%d:%s\n", node->id(),
-                  node->op()->mnemonic());
-          }
-          break;
-        }
-      default:
-        data->placement_ = kSchedulable;
-        break;
-    }
-  }
-  return data->placement_;
-}
-
-
 void Scheduler::BuildCFG() {
   Trace("---------------- CREATING CFG ------------------\n");
   CFGBuilder cfg_builder(zone_, this);
   cfg_builder.Run();
   // Initialize per-block data.
   scheduled_nodes_.resize(schedule_->BasicBlockCount(), NodeVector(zone_));
-}
-
-
-BasicBlock* Scheduler::GetCommonDominator(BasicBlock* b1, BasicBlock* b2) {
-  while (b1 != b2) {
-    int b1_rpo = GetRPONumber(b1);
-    int b2_rpo = GetRPONumber(b2);
-    DCHECK(b1_rpo != b2_rpo);
-    if (b1_rpo < b2_rpo) {
-      b2 = b2->dominator();
-    } else {
-      b1 = b1->dominator();
-    }
-  }
-  return b1;
 }
 
 
@@ -350,6 +353,69 @@ void Scheduler::GenerateImmediateDominatorTree() {
     }
   }
 }
+
+
+// -----------------------------------------------------------------------------
+// Phase 2: Prepare use counts for nodes.
+
+
+class PrepareUsesVisitor : public NullNodeVisitor {
+ public:
+  explicit PrepareUsesVisitor(Scheduler* scheduler)
+      : scheduler_(scheduler), schedule_(scheduler->schedule_) {}
+
+  GenericGraphVisit::Control Pre(Node* node) {
+    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
+      // Fixed nodes are always roots for schedule late.
+      scheduler_->schedule_root_nodes_.push_back(node);
+      if (!schedule_->IsScheduled(node)) {
+        // Make sure root nodes are scheduled in their respective blocks.
+        Trace("  Scheduling fixed position node #%d:%s\n", node->id(),
+              node->op()->mnemonic());
+        IrOpcode::Value opcode = node->opcode();
+        BasicBlock* block =
+            opcode == IrOpcode::kParameter
+                ? schedule_->start()
+                : schedule_->block(NodeProperties::GetControlInput(node));
+        DCHECK(block != NULL);
+        schedule_->AddNode(block, node);
+      }
+    }
+
+    return GenericGraphVisit::CONTINUE;
+  }
+
+  void PostEdge(Node* from, int index, Node* to) {
+    // If the edge is from an unscheduled node, then tally it in the use count
+    // for all of its inputs. The same criterion will be used in ScheduleLate
+    // for decrementing use counts.
+    if (!schedule_->IsScheduled(from)) {
+      DCHECK_NE(Scheduler::kFixed, scheduler_->GetPlacement(from));
+      ++(scheduler_->GetData(to)->unscheduled_count_);
+      Trace("  Use count of #%d:%s (used by #%d:%s)++ = %d\n", to->id(),
+            to->op()->mnemonic(), from->id(), from->op()->mnemonic(),
+            scheduler_->GetData(to)->unscheduled_count_);
+    }
+  }
+
+ private:
+  Scheduler* scheduler_;
+  Schedule* schedule_;
+};
+
+
+void Scheduler::PrepareUses() {
+  Trace("------------------- PREPARE USES ------------------\n");
+
+  // Count the uses of every node, it will be used to ensure that all of a
+  // node's uses are scheduled before the node itself.
+  PrepareUsesVisitor prepare_uses(this);
+  graph_->VisitNodeInputsFromEnd(&prepare_uses);
+}
+
+
+// -----------------------------------------------------------------------------
+// Phase 3: Schedule nodes early.
 
 
 class ScheduleEarlyNodeVisitor : public NullNodeVisitor {
@@ -429,59 +495,8 @@ void Scheduler::ScheduleEarly() {
 }
 
 
-class PrepareUsesVisitor : public NullNodeVisitor {
- public:
-  explicit PrepareUsesVisitor(Scheduler* scheduler)
-      : scheduler_(scheduler), schedule_(scheduler->schedule_) {}
-
-  GenericGraphVisit::Control Pre(Node* node) {
-    if (scheduler_->GetPlacement(node) == Scheduler::kFixed) {
-      // Fixed nodes are always roots for schedule late.
-      scheduler_->schedule_root_nodes_.push_back(node);
-      if (!schedule_->IsScheduled(node)) {
-        // Make sure root nodes are scheduled in their respective blocks.
-        Trace("  Scheduling fixed position node #%d:%s\n", node->id(),
-              node->op()->mnemonic());
-        IrOpcode::Value opcode = node->opcode();
-        BasicBlock* block =
-            opcode == IrOpcode::kParameter
-                ? schedule_->start()
-                : schedule_->block(NodeProperties::GetControlInput(node));
-        DCHECK(block != NULL);
-        schedule_->AddNode(block, node);
-      }
-    }
-
-    return GenericGraphVisit::CONTINUE;
-  }
-
-  void PostEdge(Node* from, int index, Node* to) {
-    // If the edge is from an unscheduled node, then tally it in the use count
-    // for all of its inputs. The same criterion will be used in ScheduleLate
-    // for decrementing use counts.
-    if (!schedule_->IsScheduled(from)) {
-      DCHECK_NE(Scheduler::kFixed, scheduler_->GetPlacement(from));
-      ++(scheduler_->GetData(to)->unscheduled_count_);
-      Trace("  Use count of #%d:%s (used by #%d:%s)++ = %d\n", to->id(),
-            to->op()->mnemonic(), from->id(), from->op()->mnemonic(),
-            scheduler_->GetData(to)->unscheduled_count_);
-    }
-  }
-
- private:
-  Scheduler* scheduler_;
-  Schedule* schedule_;
-};
-
-
-void Scheduler::PrepareUses() {
-  Trace("------------------- PREPARE USES ------------------\n");
-
-  // Count the uses of every node, it will be used to ensure that all of a
-  // node's uses are scheduled before the node itself.
-  PrepareUsesVisitor prepare_uses(this);
-  graph_->VisitNodeInputsFromEnd(&prepare_uses);
-}
+// -----------------------------------------------------------------------------
+// Phase 4: Schedule nodes late.
 
 
 class ScheduleLateNodeVisitor : public NullNodeVisitor {
@@ -635,6 +650,9 @@ void Scheduler::ScheduleLate() {
     block_num++;
   }
 }
+
+
+// -----------------------------------------------------------------------------
 
 
 bool Scheduler::ConnectFloatingControl() {
@@ -1137,6 +1155,7 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(Schedule* schedule) {
 #endif
   return final_order;
 }
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
