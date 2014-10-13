@@ -2219,8 +2219,8 @@ TEST(IdleNotificationFinishMarking) {
   }
 
   // The next idle notification has to finish incremental marking.
-  const int kShortIdleTimeInMs = 1;
-  CcTest::isolate()->IdleNotification(kShortIdleTimeInMs);
+  const int kLongIdleTime = 1000000;
+  CcTest::isolate()->IdleNotification(kLongIdleTime);
   CHECK_EQ(CcTest::heap()->gc_count(), 1);
 }
 
