@@ -361,14 +361,18 @@ var typedArrayConstructors = [
   Float64Array];
 
 function TestPropertyTypeChecks(constructor) {
-  var a = new constructor();
   function CheckProperty(name) {
     var d = Object.getOwnPropertyDescriptor(constructor.prototype, name);
-    var o = {}
+    var o = {};
     assertThrows(function() {d.get.call(o);}, TypeError);
-    d.get.call(a); // shouldn't throw
-    for (var i = 0 ; i < typedArrayConstructors.length; i++) {
-      d.get.call(new typedArrayConstructors[i](10));
+    for (var i = 0; i < typedArrayConstructors.length; i++) {
+      var ctor = typedArrayConstructors[i];
+      var a = new ctor(10);
+      if (ctor === constructor) {
+        d.get.call(a); // shouldn't throw
+      } else {
+        assertThrows(function() {d.get.call(a);}, TypeError);
+      }
     }
   }
 
@@ -378,7 +382,7 @@ function TestPropertyTypeChecks(constructor) {
   CheckProperty("length");
 }
 
-for(i = 0; i < typedArrayConstructors.lenght; i++) {
+for(i = 0; i < typedArrayConstructors.length; i++) {
   TestPropertyTypeChecks(typedArrayConstructors[i]);
 }
 
@@ -561,7 +565,7 @@ function TestEnumerable(func, obj) {
     assertArrayEquals([], props(obj));
 }
 TestEnumerable(ArrayBuffer, new ArrayBuffer());
-for(i = 0; i < typedArrayConstructors.lenght; i++) {
+for(i = 0; i < typedArrayConstructors.length; i++) {
   TestEnumerable(typedArrayConstructors[i]);
 }
 TestEnumerable(DataView, new DataView(new ArrayBuffer()));
@@ -573,13 +577,13 @@ function TestArbitrary(m) {
     assertEquals(value, map[property]);
   }
   for (var i = 0; i < 20; i++) {
-    TestProperty(m, i, 'val' + i);
+    TestProperty(m, 'key' + i, 'val' + i);
     TestProperty(m, 'foo' + i, 'bar' + i);
   }
 }
 TestArbitrary(new ArrayBuffer(256));
-for(i = 0; i < typedArrayConstructors.lenght; i++) {
-  TestArbitary(new typedArrayConstructors[i](10));
+for(i = 0; i < typedArrayConstructors.length; i++) {
+  TestArbitrary(new typedArrayConstructors[i](10));
 }
 TestArbitrary(new DataView(new ArrayBuffer(256)));
 
