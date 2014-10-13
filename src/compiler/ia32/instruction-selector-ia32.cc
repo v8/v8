@@ -530,8 +530,7 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   IA32OperandGenerator g(this);
-  // TODO(turbofan): IA32 SSE conversions should take an operand.
-  Emit(kSSECvtsd2ss, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  Emit(kSSECvtsd2ss, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 

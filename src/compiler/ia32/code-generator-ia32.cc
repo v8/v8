@@ -354,7 +354,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
     case kSSECvtsd2ss:
-      __ cvtsd2ss(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ cvtsd2ss(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kSSEFloat64ToInt32:
       __ cvttsd2si(i.OutputRegister(), i.InputOperand(0));
