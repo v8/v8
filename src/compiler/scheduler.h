@@ -36,9 +36,8 @@ class Scheduler {
     bool is_connected_control_;  // {true} if control-connected to the end node.
     bool is_floating_control_;   // {true} if control, but not control-connected
                                  // to the end node.
-    Placement placement_;        // Whether the node is fixed, schedulable,
+    Placement placement_ : 3;    // Whether the node is fixed, schedulable,
                                  // or not yet known.
-    NodeVector additional_dependencies;
   };
 
   Zone* zone_;
@@ -51,7 +50,7 @@ class Scheduler {
 
   Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
 
-  SchedulerData DefaultSchedulerData(Zone* zone);
+  SchedulerData DefaultSchedulerData();
 
   SchedulerData* GetData(Node* node) {
     DCHECK(node->id() < static_cast<int>(node_data_.size()));
