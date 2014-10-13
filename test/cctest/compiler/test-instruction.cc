@@ -112,7 +112,7 @@ TEST(InstructionBasic) {
 
   R.allocCode();
 
-  CHECK_EQ(R.graph.NodeCount(), R.code->ValueCount());
+  CHECK_EQ(R.graph.NodeCount(), R.code->node_count());
 
   BasicBlockVector* blocks = R.schedule.rpo_order();
   CHECK_EQ(static_cast<int>(blocks->size()), R.code->BasicBlockCount());

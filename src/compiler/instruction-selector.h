@@ -193,7 +193,6 @@ class InstructionSelector FINAL {
 
   // ===========================================================================
 
-  Graph* graph() const { return sequence()->graph(); }
   Linkage* linkage() const { return sequence()->linkage(); }
   Schedule* schedule() const { return sequence()->schedule(); }
   InstructionSequence* sequence() const { return sequence_; }

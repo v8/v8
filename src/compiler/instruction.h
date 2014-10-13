@@ -767,7 +767,7 @@ class InstructionSequence FINAL {
   int NextVirtualRegister() { return next_virtual_register_++; }
   int VirtualRegisterCount() const { return next_virtual_register_; }
 
-  int ValueCount() const { return graph_->NodeCount(); }
+  int node_count() const { return node_count_; }
 
   int BasicBlockCount() const {
     return static_cast<int>(schedule_->rpo_order()->size());
@@ -815,12 +815,11 @@ class InstructionSequence FINAL {
   }
 
   Frame* frame() { return &frame_; }
-  Graph* graph() const { return graph_; }
   Isolate* isolate() const { return zone()->isolate(); }
   Linkage* linkage() const { return linkage_; }
   Schedule* schedule() const { return schedule_; }
   const PointerMapDeque* pointer_maps() const { return &pointer_maps_; }
-  Zone* zone() const { return graph_->zone(); }
+  Zone* zone() const { return zone_; }
 
   // Used by the code generator while adding instructions.
   int AddInstruction(Instruction* instr, BasicBlock* block);
@@ -874,7 +873,8 @@ class InstructionSequence FINAL {
 
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
 
-  Graph* graph_;
+  Zone* zone_;
+  int node_count_;
   int* node_map_;
   Linkage* linkage_;
   Schedule* schedule_;

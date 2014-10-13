@@ -134,7 +134,6 @@ class OperandGenerator {
   }
 
  protected:
-  Graph* graph() const { return selector()->graph(); }
   InstructionSelector* selector() const { return selector_; }
   InstructionSequence* sequence() const { return selector()->sequence(); }
   Isolate* isolate() const { return zone()->isolate(); }

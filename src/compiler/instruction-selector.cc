@@ -22,8 +22,8 @@ InstructionSelector::InstructionSelector(InstructionSequence* sequence,
       features_(features),
       current_block_(NULL),
       instructions_(zone()),
-      defined_(graph()->NodeCount(), false, zone()),
-      used_(graph()->NodeCount(), false, zone()) {}
+      defined_(sequence->node_count(), false, zone()),
+      used_(sequence->node_count(), false, zone()) {}
 
 
 void InstructionSelector::SelectInstructions() {
