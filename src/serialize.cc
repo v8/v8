@@ -2140,7 +2140,9 @@ Handle<SharedFunctionInfo> CodeSerializer::Deserialize(Isolate* isolate,
     int length = data->length();
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
-  return Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(root), isolate);
+  Handle<SharedFunctionInfo> result(SharedFunctionInfo::cast(root), isolate);
+  result->set_deserialized(true);
+  return result;
 }
 
 

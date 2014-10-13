@@ -6821,6 +6821,9 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that this function is an asm function.
   DECL_BOOLEAN_ACCESSORS(asm_function)
 
+  // Indicates that the the shared function info is deserialized from cache.
+  DECL_BOOLEAN_ACCESSORS(deserialized)
+
   inline FunctionKind kind();
   inline void set_kind(FunctionKind kind);
 
@@ -7053,6 +7056,7 @@ class SharedFunctionInfo: public HeapObject {
     kIsGenerator,
     kIsConciseMethod,
     kIsAsmFunction,
+    kDeserialized,
     kCompilerHintsCount  // Pseudo entry
   };
 

@@ -5465,6 +5465,7 @@ BOOL_ACCESSORS(SharedFunctionInfo,
                has_duplicate_parameters,
                kHasDuplicateParameters)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function, kIsAsmFunction)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, deserialized, kDeserialized)
 
 
 #if V8_HOST_ARCH_32_BIT
