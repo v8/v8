@@ -169,22 +169,12 @@ class InstructionSelector FINAL {
   MACHINE_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR
 
-  void VisitInt32AddWithOverflow(Node* node, FlagsContinuation* cont);
-  void VisitInt32SubWithOverflow(Node* node, FlagsContinuation* cont);
-
-  void VisitWord32Test(Node* node, FlagsContinuation* cont);
-  void VisitWord64Test(Node* node, FlagsContinuation* cont);
-  void VisitWord32Compare(Node* node, FlagsContinuation* cont);
-  void VisitWord64Compare(Node* node, FlagsContinuation* cont);
-  void VisitFloat64Compare(Node* node, FlagsContinuation* cont);
-
   void VisitFinish(Node* node);
   void VisitParameter(Node* node);
   void VisitPhi(Node* node);
   void VisitProjection(Node* node);
   void VisitConstant(Node* node);
-  void VisitCall(Node* call, BasicBlock* continuation,
-                 BasicBlock* deoptimization);
+  void VisitCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitReturn(Node* value);
