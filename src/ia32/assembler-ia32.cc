@@ -1951,7 +1951,7 @@ void Assembler::cvtsi2sd(XMMRegister dst, const Operand& src) {
 }
 
 
-void Assembler::cvtss2sd(XMMRegister dst, XMMRegister src) {
+void Assembler::cvtss2sd(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xF3);
   EMIT(0x0F);

@@ -351,7 +351,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ sqrtsd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kSSECvtss2sd:
-      __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      __ cvtss2sd(i.OutputDoubleRegister(), i.InputOperand(0));
       break;
     case kSSECvtsd2ss:
       __ cvtsd2ss(i.OutputDoubleRegister(), i.InputOperand(0));

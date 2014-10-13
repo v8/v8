@@ -608,8 +608,7 @@ void InstructionSelector::VisitUint64Mod(Node* node) {
 
 void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
   X64OperandGenerator g(this);
-  // TODO(turbofan): X64 SSE conversions should take an operand.
-  Emit(kSSECvtss2sd, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+  Emit(kSSECvtss2sd, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 
