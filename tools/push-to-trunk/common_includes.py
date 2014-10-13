@@ -277,6 +277,12 @@ class VCInterface(object):
   def SvnGit(self, rev, branch=""):
     raise NotImplementedError()
 
+  def MasterBranch(self):
+    raise NotImplementedError()
+
+  def CandidateBranch(self):
+    raise NotImplementedError()
+
   def RemoteMasterBranch(self):
     raise NotImplementedError()
 
@@ -331,6 +337,12 @@ class GitSvnInterface(VCInterface):
   def SvnGit(self, rev, branch=""):
     return self.step.GitSVNFindGitHash(rev, branch)
 
+  def MasterBranch(self):
+    return "bleeding_edge"
+
+  def CandidateBranch(self):
+    return "trunk"
+
   def RemoteMasterBranch(self):
     return "svn/bleeding_edge"
 
@@ -369,6 +381,12 @@ class GitTagsOnlyMixin(VCInterface):
         self.step.GitRemotes())
     # Remove 'origin/branch-heads/' prefix.
     return map(lambda s: s[20:], branches)
+
+  def MasterBranch(self):
+    return "master"
+
+  def CandidateBranch(self):
+    return "candidates"
 
   def RemoteMasterBranch(self):
     return "origin/master"
