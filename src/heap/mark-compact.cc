@@ -862,6 +862,8 @@ void MarkCompactCollector::Finish() {
     Deoptimizer::DeoptimizeMarkedCode(isolate());
     have_code_to_deoptimize_ = false;
   }
+
+  heap_->incremental_marking()->ClearIdleMarkingDelayCounter();
 }
 
 
@@ -1934,6 +1936,11 @@ void MarkCompactCollector::MarkStringTable(RootMarkingVisitor* visitor) {
 void MarkCompactCollector::MarkAllocationSite(AllocationSite* site) {
   MarkBit mark_bit = Marking::MarkBitFrom(site);
   SetMark(site, mark_bit);
+}
+
+
+bool MarkCompactCollector::IsMarkingDequeEmpty() {
+  return marking_deque_.IsEmpty();
 }
 
 

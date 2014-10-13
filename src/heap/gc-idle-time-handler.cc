@@ -63,6 +63,9 @@ size_t GCIdleTimeHandler::EstimateMarkingStepSize(
 
 size_t GCIdleTimeHandler::EstimateMarkCompactTime(
     size_t size_of_objects, size_t mark_compact_speed_in_bytes_per_ms) {
+  // TODO(hpayer): Be more precise about the type of mark-compact event. It
+  // makes a huge difference if it is incremental or non-incremental and if
+  // compaction is happening.
   if (mark_compact_speed_in_bytes_per_ms == 0) {
     mark_compact_speed_in_bytes_per_ms = kInitialConservativeMarkCompactSpeed;
   }
@@ -71,7 +74,7 @@ size_t GCIdleTimeHandler::EstimateMarkCompactTime(
 }
 
 
-bool GCIdleTimeHandler::DoScavenge(
+bool GCIdleTimeHandler::ShouldDoScavenge(
     size_t idle_time_in_ms, size_t new_space_size, size_t used_new_space_size,
     size_t scavenge_speed_in_bytes_per_ms,
     size_t new_space_allocation_throughput_in_bytes_per_ms) {
@@ -110,6 +113,15 @@ bool GCIdleTimeHandler::DoScavenge(
 }
 
 
+bool GCIdleTimeHandler::ShouldDoMarkCompact(
+    size_t idle_time_in_ms, size_t size_of_objects,
+    size_t mark_compact_speed_in_bytes_per_ms) {
+  return idle_time_in_ms >=
+         EstimateMarkCompactTime(size_of_objects,
+                                 mark_compact_speed_in_bytes_per_ms);
+}
+
+
 // The following logic is implemented by the controller:
 // (1) If the new space is almost full and we can affort a Scavenge or if the
 // next Scavenge will very likely take long, then a Scavenge is performed.
@@ -128,10 +140,11 @@ bool GCIdleTimeHandler::DoScavenge(
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
                                             HeapState heap_state) {
-  if (DoScavenge(idle_time_in_ms, heap_state.new_space_capacity,
-                 heap_state.used_new_space_size,
-                 heap_state.scavenge_speed_in_bytes_per_ms,
-                 heap_state.new_space_allocation_throughput_in_bytes_per_ms)) {
+  if (ShouldDoScavenge(
+          idle_time_in_ms, heap_state.new_space_capacity,
+          heap_state.used_new_space_size,
+          heap_state.scavenge_speed_in_bytes_per_ms,
+          heap_state.new_space_allocation_throughput_in_bytes_per_ms)) {
     return GCIdleTimeAction::Scavenge();
   }
 
@@ -148,10 +161,8 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
   }
 
   if (heap_state.incremental_marking_stopped) {
-    size_t estimated_time_in_ms =
-        EstimateMarkCompactTime(heap_state.size_of_objects,
-                                heap_state.mark_compact_speed_in_bytes_per_ms);
-    if (idle_time_in_ms >= estimated_time_in_ms ||
+    if (ShouldDoMarkCompact(idle_time_in_ms, heap_state.size_of_objects,
+                            heap_state.mark_compact_speed_in_bytes_per_ms) ||
         (heap_state.size_of_objects < kSmallHeapSize &&
          heap_state.contexts_disposed > 0)) {
       // If there are no more than two GCs left in this idle round and we are
