@@ -420,6 +420,12 @@ void ExternalStreamingStream::HandleUtf8SplitCharacters(
          utf8_split_char_buffer_length_ < 4) {
     --current_data_length_;
     ++utf8_split_char_buffer_length_;
+    if (c >= (3 << 6)) {
+      // 3 << 6 = 0b11000000; this is the first byte of the multi-byte
+      // character. No need to copy the previous characters into the conversion
+      // buffer (even if they're multi-byte).
+      break;
+    }
   }
   CHECK(utf8_split_char_buffer_length_ <= 4);
   for (unsigned i = 0; i < utf8_split_char_buffer_length_; ++i) {
