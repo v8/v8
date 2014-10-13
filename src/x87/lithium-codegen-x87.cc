@@ -3132,7 +3132,7 @@ void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   // No need to allocate this register.
   DCHECK(VectorLoadICDescriptor::SlotRegister().is(eax));
   __ mov(VectorLoadICDescriptor::SlotRegister(),
-         Immediate(Smi::FromInt(instr->hydrogen()->slot())));
+         Immediate(Smi::FromInt(instr->hydrogen()->slot().ToInt())));
 }
 
 
