@@ -401,21 +401,21 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
   Emit(kMipsSqrtD, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
-void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
-                                    BasicBlock* deoptimization) {
+
+void InstructionSelector::VisitCall(Node* node) {
   MipsOperandGenerator g(this);
-  CallDescriptor* descriptor = OpParameter<CallDescriptor*>(call);
+  CallDescriptor* descriptor = OpParameter<CallDescriptor*>(node);
 
   FrameStateDescriptor* frame_state_descriptor = NULL;
   if (descriptor->NeedsFrameState()) {
     frame_state_descriptor =
-        GetFrameStateDescriptor(call->InputAt(descriptor->InputCount()));
+        GetFrameStateDescriptor(node->InputAt(descriptor->InputCount()));
   }
 
   CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
 
   // Compute InstructionOperands for inputs and outputs.
-  InitializeCallBuffer(call, &buffer, true, false);
+  InitializeCallBuffer(node, &buffer, true, false);
 
   // TODO(dcarney): might be possible to use claim/poke instead
   // Push any stack arguments.
@@ -447,26 +447,11 @@ void InstructionSelector::VisitCall(Node* call, BasicBlock* continuation,
   Instruction* call_instr =
       Emit(opcode, buffer.outputs.size(), &buffer.outputs.front(),
            buffer.instruction_args.size(), &buffer.instruction_args.front());
-
   call_instr->MarkAsCall();
-  if (deoptimization != NULL) {
-    DCHECK(continuation != NULL);
-    call_instr->MarkAsControl();
-  }
 }
 
 
-void InstructionSelector::VisitInt32AddWithOverflow(Node* node,
-                                                    FlagsContinuation* cont) {
-  VisitBinop(this, node, kMipsAddOvf, cont);
-}
-
-
-void InstructionSelector::VisitInt32SubWithOverflow(Node* node,
-                                                    FlagsContinuation* cont) {
-  VisitBinop(this, node, kMipsSubOvf, cont);
-}
-
+namespace {
 
 // Shared routine for multiple compare operations.
 static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
@@ -485,10 +470,21 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
 }
 
 
+// Shared routine for multiple float compare operations.
+void VisitFloat64Compare(InstructionSelector* selector, Node* node,
+                         FlagsContinuation* cont) {
+  MipsOperandGenerator g(selector);
+  Node* left = node->InputAt(0);
+  Node* right = node->InputAt(1);
+  VisitCompare(selector, kMipsCmpD, g.UseRegister(left), g.UseRegister(right),
+               cont);
+}
+
+
 // Shared routine for multiple word compare operations.
-static void VisitWordCompare(InstructionSelector* selector, Node* node,
-                             InstructionCode opcode, FlagsContinuation* cont,
-                             bool commutative) {
+void VisitWordCompare(InstructionSelector* selector, Node* node,
+                      InstructionCode opcode, FlagsContinuation* cont,
+                      bool commutative) {
   MipsOperandGenerator g(selector);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
@@ -508,35 +504,138 @@ static void VisitWordCompare(InstructionSelector* selector, Node* node,
 }
 
 
-void InstructionSelector::VisitWord32Test(Node* node, FlagsContinuation* cont) {
-  switch (node->opcode()) {
-    case IrOpcode::kWord32And:
-      // TODO(plind): understand the significance of 'IR and' special case.
-      return VisitWordCompare(this, node, kMipsTst, cont, true);
-    default:
-      break;
-  }
+void VisitWordCompare(InstructionSelector* selector, Node* node,
+                      FlagsContinuation* cont) {
+  VisitWordCompare(selector, node, kMipsCmp, cont, false);
+}
 
-  MipsOperandGenerator g(this);
+
+void VisitWordTest(InstructionSelector* selector, Node* node,
+                   FlagsContinuation* cont) {
+  MipsOperandGenerator g(selector);
   // kMipsTst is a pseudo-instruction to do logical 'and' and leave the result
   // in a dedicated tmp register.
-  VisitCompare(this, kMipsTst, g.UseRegister(node), g.UseRegister(node), cont);
-}
-
-
-void InstructionSelector::VisitWord32Compare(Node* node,
-                                             FlagsContinuation* cont) {
-  VisitWordCompare(this, node, kMipsCmp, cont, false);
-}
-
-
-void InstructionSelector::VisitFloat64Compare(Node* node,
-                                              FlagsContinuation* cont) {
-  MipsOperandGenerator g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  VisitCompare(this, kMipsCmpD, g.UseRegister(left), g.UseRegister(right),
+  VisitCompare(selector, kMipsTst, g.UseRegister(node), g.UseRegister(node),
                cont);
+}
+
+}  // namespace
+
+
+void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
+                                      BasicBlock* fbranch) {
+  MipsOperandGenerator g(this);
+  Node* user = branch;
+  Node* value = branch->InputAt(0);
+
+  FlagsContinuation cont(kNotEqual, tbranch, fbranch);
+
+  // If we can fall through to the true block, invert the branch.
+  if (IsNextInAssemblyOrder(tbranch)) {
+    cont.Negate();
+    cont.SwapBlocks();
+  }
+
+  // Try to combine with comparisons against 0 by simply inverting the branch.
+  while (CanCover(user, value) && value->opcode() == IrOpcode::kWord32Equal) {
+    Int32BinopMatcher m(value);
+    if (m.right().Is(0)) {
+      user = value;
+      value = m.left().node();
+      cont.Negate();
+    } else {
+      break;
+    }
+  }
+
+  // Try to combine the branch with a comparison.
+  if (CanCover(user, value)) {
+    switch (value->opcode()) {
+      case IrOpcode::kWord32And:
+        // TODO(plind): understand the significance of 'IR and' special case.
+        return VisitWordCompare(this, value, kMipsTst, &cont, true);
+      default:
+        break;
+    }
+  }
+
+  // Branch could not be combined with a compare, emit compare against 0.
+  return VisitWordTest(this, value, &cont);
+}
+
+
+void InstructionSelector::VisitWord32Equal(Node* const node) {
+  Node* const user = node;
+  FlagsContinuation cont(kEqual, node);
+  Int32BinopMatcher m(user);
+  if (m.right().Is(0)) {
+    Node* const value = m.left().node();
+    return VisitWordTest(this, value, &cont);
+  }
+
+  VisitWordCompare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitInt32LessThan(Node* node) {
+  FlagsContinuation cont(kSignedLessThan, node);
+  VisitWordCompare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitInt32LessThanOrEqual(Node* node) {
+  FlagsContinuation cont(kSignedLessThanOrEqual, node);
+  VisitWordCompare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitUint32LessThan(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThan, node);
+  VisitWordCompare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
+  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  VisitWordCompare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
+  if (Node* ovf = node->FindProjection(1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitBinop(this, node, kMipsAddOvf, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kMipsAddOvf, &cont);
+}
+
+
+void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
+  if (Node* ovf = node->FindProjection(1)) {
+    FlagsContinuation cont(kOverflow, ovf);
+    return VisitBinop(this, node, kMipsSubOvf, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kMipsSubOvf, &cont);
+}
+
+
+void InstructionSelector::VisitFloat64Equal(Node* node) {
+  FlagsContinuation cont(kUnorderedEqual, node);
+  VisitFloat64Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitFloat64LessThan(Node* node) {
+  FlagsContinuation cont(kUnorderedLessThan, node);
+  VisitFloat64Compare(this, node, &cont);
+}
+
+
+void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
+  FlagsContinuation cont(kUnorderedLessThanOrEqual, node);
+  VisitFloat64Compare(this, node, &cont);
 }
 
 }  // namespace compiler
