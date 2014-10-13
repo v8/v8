@@ -21,6 +21,10 @@ class CommonNodeCache FINAL : public ZoneObject {
     return int32_constants_.Find(zone_, value);
   }
 
+  Node** FindInt64Constant(int64_t value) {
+    return int64_constants_.Find(zone_, value);
+  }
+
   Node** FindFloat64Constant(double value) {
     // We canonicalize double constants at the bit representation level.
     return float64_constants_.Find(zone_, bit_cast<int64_t>(value));
@@ -39,13 +43,15 @@ class CommonNodeCache FINAL : public ZoneObject {
 
  private:
   Int32NodeCache int32_constants_;
+  Int64NodeCache int64_constants_;
   Int64NodeCache float64_constants_;
   PtrNodeCache external_constants_;
   Int64NodeCache number_constants_;
   Zone* zone_;
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_COMMON_NODE_CACHE_H_

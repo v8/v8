@@ -69,6 +69,21 @@ class JSGraph : public ZoneObject {
     return Int32Constant(bit_cast<int32_t>(value));
   }
 
+  // Creates a Int64Constant node, usually canonicalized.
+  Node* Int64Constant(int64_t value);
+  Node* Uint64Constant(uint64_t value) {
+    return Int64Constant(bit_cast<int64_t>(value));
+  }
+
+  // Creates a Int32Constant/Int64Constant node, depending on the word size of
+  // the target machine.
+  // TODO(turbofan): Code using Int32Constant/Int64Constant to store pointer
+  // constants is probably not serializable.
+  Node* IntPtrConstant(intptr_t value) {
+    return machine()->Is32() ? Int32Constant(static_cast<int32_t>(value))
+                             : Int64Constant(static_cast<int64_t>(value));
+  }
+
   // Creates a Float32Constant node, usually canonicalized.
   Node* Float32Constant(float value);
 

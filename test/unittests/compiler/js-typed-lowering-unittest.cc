@@ -11,12 +11,7 @@
 #include "src/compiler/typer.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
-#include "testing/gmock-support.h"
-
-using testing::_;
-using testing::AllOf;
-using testing::Capture;
-using testing::CaptureEq;
+#include "testing/gtest-support.h"
 
 namespace v8 {
 namespace internal {
@@ -62,6 +57,11 @@ class JSTypedLoweringTest : public GraphTest {
     return buffer;
   }
 
+  Matcher<Node*> IsIntPtrConstant(intptr_t value) {
+    return sizeof(value) == 4 ? IsInt32Constant(static_cast<int32_t>(value))
+                              : IsInt64Constant(static_cast<int64_t>(value));
+  }
+
   JSOperatorBuilder* javascript() { return &javascript_; }
 
  private:
@@ -98,18 +98,13 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     node->AppendInput(zone(), control);
     Reduction r = Reduce(node);
 
-    Capture<Node*> elements;
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(
         r.replacement(),
-        IsLoadElement(
-            AccessBuilder::ForTypedArrayElement(type, true),
-            IsLoadField(AccessBuilder::ForExternalArrayPointer(),
-                        AllOf(CaptureEq(&elements),
-                              IsLoadField(AccessBuilder::ForJSObjectElements(),
-                                          base, _)),
-                        CaptureEq(&elements)),
-            key, IsInt32Constant(static_cast<int>(kLength)), effect, control));
+        IsLoadElement(AccessBuilder::ForTypedArrayElement(type, true),
+                      IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                      key, IsInt32Constant(static_cast<int>(kLength)), effect,
+                      control));
   }
 }
 
@@ -143,20 +138,13 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       node->AppendInput(zone(), control);
       Reduction r = Reduce(node);
 
-      Capture<Node*> elements;
       ASSERT_TRUE(r.Changed());
-      EXPECT_THAT(
-          r.replacement(),
-          IsStoreElement(
-              AccessBuilder::ForTypedArrayElement(type, true),
-              IsLoadField(
-                  AccessBuilder::ForExternalArrayPointer(),
-                  AllOf(CaptureEq(&elements),
-                        IsLoadField(AccessBuilder::ForJSObjectElements(), base,
-                                    _)),
-                  CaptureEq(&elements)),
-              key, IsInt32Constant(static_cast<int>(kLength)), value, effect,
-              control));
+      EXPECT_THAT(r.replacement(),
+                  IsStoreElement(
+                      AccessBuilder::ForTypedArrayElement(type, true),
+                      IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                      key, IsInt32Constant(static_cast<int>(kLength)), value,
+                      effect, control));
     }
   }
 }
