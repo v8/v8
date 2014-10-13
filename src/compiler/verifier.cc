@@ -271,6 +271,19 @@ static bool HasDominatingDef(Schedule* schedule, Node* node,
 }
 
 
+static bool Dominates(Schedule* schedule, Node* dominator, Node* dominatee) {
+  BasicBlock* dom = schedule->block(dominator);
+  BasicBlock* sub = schedule->block(dominatee);
+  while (sub != NULL) {
+    if (sub == dom) {
+      return true;
+    }
+    sub = sub->dominator();
+  }
+  return false;
+}
+
+
 static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
                                 Node* node, int use_pos) {
   for (int j = OperatorProperties::GetValueInputCount(node->op()) - 1; j >= 0;
@@ -287,6 +300,19 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
                "Node #%d:%s in B%d is not dominated by input@%d #%d:%s",
                node->id(), node->op()->mnemonic(), block->id().ToInt(), j,
                input->id(), input->op()->mnemonic());
+    }
+  }
+  // Ensure that nodes are dominated by their control inputs;
+  // kEnd is an exception, as unreachable blocks resulting from kMerge
+  // are not in the RPO.
+  if (OperatorProperties::GetControlInputCount(node->op()) == 1 &&
+      node->opcode() != IrOpcode::kEnd) {
+    Node* ctl = NodeProperties::GetControlInput(node);
+    if (!Dominates(schedule, ctl, node)) {
+      V8_Fatal(__FILE__, __LINE__,
+               "Node #%d:%s in B%d is not dominated by control input #%d:%s",
+               node->id(), node->op()->mnemonic(), block->id(), ctl->id(),
+               ctl->op()->mnemonic());
     }
   }
 }
