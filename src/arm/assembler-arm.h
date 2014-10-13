@@ -1488,8 +1488,6 @@ class Assembler : public AssemblerBase {
   // Generate the constant pool for the generated code.
   void PopulateConstantPool(ConstantPoolArray* constant_pool);
 
-  bool is_constant_pool_available() const { return constant_pool_available_; }
-
   bool use_extended_constant_pool() const {
     return constant_pool_builder_.current_section() ==
            ConstantPoolArray::EXTENDED_SECTION;
@@ -1547,10 +1545,6 @@ class Assembler : public AssemblerBase {
   bool is_const_pool_blocked() const {
     return (const_pool_blocked_nesting_ > 0) ||
            (pc_offset() < no_const_pool_before_);
-  }
-
-  void set_constant_pool_available(bool available) {
-    constant_pool_available_ = available;
   }
 
  private:
@@ -1615,10 +1609,6 @@ class Assembler : public AssemblerBase {
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
-  // Indicates whether the constant pool can be accessed, which is only possible
-  // if the pp register points to the current code object's constant pool.
-  bool constant_pool_available_;
-
   // Code emission
   inline void CheckBuffer();
   void GrowBuffer();
@@ -1654,9 +1644,6 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockConstPoolScope;
-  friend class FrameAndConstantPoolScope;
-  friend class ConstantPoolUnavailableScope;
-
   PositionsRecorder positions_recorder_;
   friend class PositionsRecorder;
   friend class EnsureSpace;

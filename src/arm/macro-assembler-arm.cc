@@ -967,7 +967,7 @@ void MacroAssembler::StubPrologue() {
   add(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
   if (FLAG_enable_ool_constant_pool) {
     LoadConstantPoolPointerRegister();
-    set_constant_pool_available(true);
+    set_ool_constant_pool_available(true);
   }
 }
 
@@ -992,16 +992,16 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
   }
   if (FLAG_enable_ool_constant_pool) {
     LoadConstantPoolPointerRegister();
-    set_constant_pool_available(true);
+    set_ool_constant_pool_available(true);
   }
 }
 
 
 void MacroAssembler::EnterFrame(StackFrame::Type type,
-                                bool load_constant_pool) {
+                                bool load_constant_pool_pointer_reg) {
   // r0-r3: preserved
   PushFixedFrame();
-  if (FLAG_enable_ool_constant_pool && load_constant_pool) {
+  if (FLAG_enable_ool_constant_pool && load_constant_pool_pointer_reg) {
     LoadConstantPoolPointerRegister();
   }
   mov(ip, Operand(Smi::FromInt(type)));

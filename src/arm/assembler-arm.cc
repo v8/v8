@@ -472,7 +472,6 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
   first_const_pool_32_use_ = -1;
   first_const_pool_64_use_ = -1;
   last_bound_pos_ = 0;
-  constant_pool_available_ = !FLAG_enable_ool_constant_pool;
   ClearRecordedAstId();
 }
 
@@ -1056,7 +1055,8 @@ bool Operand::must_output_reloc_info(const Assembler* assembler) const {
 
 static bool use_mov_immediate_load(const Operand& x,
                                    const Assembler* assembler) {
-  if (assembler != NULL && !assembler->is_constant_pool_available()) {
+  if (FLAG_enable_ool_constant_pool && assembler != NULL &&
+      !assembler->is_ool_constant_pool_available()) {
     return true;
   } else if (CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
              (assembler == NULL || !assembler->predictable_code_size())) {
@@ -1137,7 +1137,7 @@ void Assembler::move_32_bit_immediate(Register rd,
       mov(rd, target, LeaveCC, cond);
     }
   } else {
-    DCHECK(is_constant_pool_available());
+    DCHECK(!FLAG_enable_ool_constant_pool || is_ool_constant_pool_available());
     ConstantPoolArray::LayoutSection section = ConstantPoolAddEntry(rinfo);
     if (section == ConstantPoolArray::EXTENDED_SECTION) {
       DCHECK(FLAG_enable_ool_constant_pool);
@@ -2492,7 +2492,7 @@ void Assembler::vmov(const DwVfpRegister dst,
     int vd, d;
     dst.split_code(&vd, &d);
     emit(al | 0x1D*B23 | d*B22 | 0x3*B20 | vd*B12 | 0x5*B9 | B8 | enc);
-  } else if (FLAG_enable_vldr_imm && is_constant_pool_available()) {
+  } else if (FLAG_enable_vldr_imm && is_ool_constant_pool_available()) {
     // TODO(jfb) Temporarily turned off until we have constant blinding or
     //           some equivalent mitigation: an attacker can otherwise control
     //           generated data which also happens to be executable, a Very Bad
