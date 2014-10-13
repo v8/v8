@@ -262,19 +262,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
-    case IrOpcode::kInt32Mod: {
-      Int32BinopMatcher m(node);
-      if (m.right().Is(1)) return ReplaceInt32(0);   // x % 1  => 0
-      if (m.right().Is(-1)) return ReplaceInt32(0);  // x % -1 => 0
-      // TODO(turbofan): if (m.left().Is(0))
-      // TODO(turbofan): if (m.right().IsPowerOf2())
-      // TODO(turbofan): if (m.right().Is(0))
-      // TODO(turbofan): if (m.LeftEqualsRight())
-      if (m.IsFoldable() && !m.right().Is(0)) {  // K % K => K
-        return ReplaceInt32(m.left().Value() % m.right().Value());
-      }
-      break;
-    }
+    case IrOpcode::kInt32Mod:
+      return ReduceInt32Mod(node);
     case IrOpcode::kUint32Mod: {
       Uint32BinopMatcher m(node);
       if (m.right().Is(1)) return ReplaceInt32(0);  // x % 1 => 0
@@ -505,6 +494,44 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     default:
       break;
+  }
+  return NoChange();
+}
+
+
+Reduction MachineOperatorReducer::ReduceInt32Mod(Node* const node) {
+  Int32BinopMatcher m(node);
+  if (m.right().Is(1)) return ReplaceInt32(0);   // x % 1  => 0
+  if (m.right().Is(-1)) return ReplaceInt32(0);  // x % -1 => 0
+  // TODO(turbofan): if (m.left().Is(0))
+  // TODO(turbofan): if (m.right().Is(0))
+  // TODO(turbofan): if (m.LeftEqualsRight())
+  if (m.IsFoldable() && !m.right().Is(0)) {  // K % K => K
+    return ReplaceInt32(m.left().Value() % m.right().Value());
+  }
+  if (m.right().IsPowerOf2()) {
+    int32_t const divisor = m.right().Value();
+    Node* zero = Int32Constant(0);
+    Node* mask = Int32Constant(divisor - 1);
+    Node* dividend = m.left().node();
+
+    Node* check = graph()->NewNode(machine()->Int32LessThan(), dividend, zero);
+    Node* branch =
+        graph()->NewNode(common()->Branch(), check, graph()->start());
+
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* neg = graph()->NewNode(
+        machine()->Int32Sub(), zero,
+        graph()->NewNode(
+            machine()->Word32And(),
+            graph()->NewNode(machine()->Int32Sub(), zero, dividend), mask));
+
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* pos = graph()->NewNode(machine()->Word32And(), dividend, mask);
+
+    Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    Node* phi = graph()->NewNode(common()->Phi(kMachInt32, 2), neg, pos, merge);
+    return Replace(phi);
   }
   return NoChange();
 }

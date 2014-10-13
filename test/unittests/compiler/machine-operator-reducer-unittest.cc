@@ -7,6 +7,11 @@
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/typer.h"
 #include "test/unittests/compiler/graph-unittest.h"
+#include "testing/gmock-support.h"
+
+using testing::AllOf;
+using testing::Capture;
+using testing::CaptureEq;
 
 namespace v8 {
 namespace internal {
@@ -559,6 +564,37 @@ TEST_F(MachineOperatorReducerTest, Word32ShlWithWord32Shr) {
     ASSERT_TRUE(r.Changed());
     int32_t m = bit_cast<int32_t>(~((1U << x) - 1U));
     EXPECT_THAT(r.replacement(), IsWord32And(p0, IsInt32Constant(m)));
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// Int32Mod
+
+
+TEST_F(MachineOperatorReducerTest, Int32ModWithPowerOfTwo) {
+  Node* p0 = Parameter(0);
+  TRACED_FORRANGE(int32_t, x, 1, 30) {
+    int32_t const divisor = 1 << x;
+    Node* node =
+        graph()->NewNode(machine()->Int32Mod(), p0, Int32Constant(divisor));
+    Reduction r = Reduce(node);
+    ASSERT_TRUE(r.Changed());
+
+    Capture<Node*> branch;
+    Node* phi = r.replacement();
+    int32_t const mask = divisor - 1;
+    EXPECT_THAT(
+        phi, IsPhi(kMachInt32,
+                   IsInt32Sub(IsInt32Constant(0),
+                              IsWord32And(IsInt32Sub(IsInt32Constant(0), p0),
+                                          IsInt32Constant(mask))),
+                   IsWord32And(p0, IsInt32Constant(mask)),
+                   IsMerge(IsIfTrue(CaptureEq(&branch)),
+                           IsIfFalse(AllOf(
+                               CaptureEq(&branch),
+                               IsBranch(IsInt32LessThan(p0, IsInt32Constant(0)),
+                                        graph()->start()))))));
   }
 }
 
