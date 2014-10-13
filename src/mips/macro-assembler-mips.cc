@@ -23,7 +23,8 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
-      has_frame_(false) {
+      has_frame_(false),
+      has_double_zero_reg_set_(false) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
@@ -1530,10 +1531,9 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
   static const DoubleRepresentation zero(0.0);
   DoubleRepresentation value_rep(imm);
   // Handle special values first.
-  bool force_load = dst.is(kDoubleRegZero);
-  if (value_rep == zero && !force_load) {
+  if (value_rep == zero && has_double_zero_reg_set_) {
     mov_d(dst, kDoubleRegZero);
-  } else if (value_rep == minus_zero && !force_load) {
+  } else if (value_rep == minus_zero && has_double_zero_reg_set_) {
     neg_d(dst, kDoubleRegZero);
   } else {
     uint32_t lo, hi;
@@ -1554,6 +1554,7 @@ void MacroAssembler::Move(FPURegister dst, double imm) {
     } else {
       Mthc1(zero_reg, dst);
     }
+    if (dst.is(kDoubleRegZero)) has_double_zero_reg_set_ = true;
   }
 }
 

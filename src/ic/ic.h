@@ -353,6 +353,8 @@ class LoadIC : public IC {
 
   static Handle<Code> initialize_stub(Isolate* isolate,
                                       ExtraICState extra_state);
+  static Handle<Code> initialize_stub_in_optimized_code(
+      Isolate* isolate, ExtraICState extra_state);
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
@@ -420,6 +422,8 @@ class KeyedLoadIC : public LoadIC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
+  static Handle<Code> initialize_stub(Isolate* isolate);
+  static Handle<Code> initialize_stub_in_optimized_code(Isolate* isolate);
   static Handle<Code> generic_stub(Isolate* isolate);
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate);
 
@@ -538,6 +542,8 @@ class KeyedStoreIC : public StoreIC {
   class ExtraICStateKeyedAccessStoreMode
       : public BitField<KeyedAccessStoreMode, 2, 4> {};  // NOLINT
 
+  class IcCheckTypeField : public BitField<IcCheckType, 6, 1> {};
+
   static ExtraICState ComputeExtraICState(StrictMode flag,
                                           KeyedAccessStoreMode mode) {
     return StrictModeState::encode(flag) |
@@ -547,6 +553,10 @@ class KeyedStoreIC : public StoreIC {
   static KeyedAccessStoreMode GetKeyedAccessStoreMode(
       ExtraICState extra_state) {
     return ExtraICStateKeyedAccessStoreMode::decode(extra_state);
+  }
+
+  static IcCheckType GetKeyType(ExtraICState extra_state) {
+    return IcCheckTypeField::decode(extra_state);
   }
 
   KeyedStoreIC(FrameDepth depth, Isolate* isolate) : StoreIC(depth, isolate) {

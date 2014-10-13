@@ -96,19 +96,40 @@ std::ostream& operator<<(std::ostream&, ContextAccess const&);
 ContextAccess const& ContextAccessOf(Operator const*);
 
 
+class VectorSlotPair {
+ public:
+  VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
+      : vector_(vector), slot_(slot) {}
+
+  Handle<TypeFeedbackVector> vector() const { return vector_; }
+  FeedbackVectorSlot slot() const { return slot_; }
+
+ private:
+  const Handle<TypeFeedbackVector> vector_;
+  const FeedbackVectorSlot slot_;
+};
+
+
+bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs);
+
+
 // Defines the property being loaded from an object by a named load. This is
 // used as a parameter by JSLoadNamed operators.
 class LoadNamedParameters FINAL {
  public:
-  LoadNamedParameters(const Unique<Name>& name, ContextualMode contextual_mode)
-      : name_(name), contextual_mode_(contextual_mode) {}
+  LoadNamedParameters(const Unique<Name>& name, const VectorSlotPair& feedback,
+                      ContextualMode contextual_mode)
+      : name_(name), contextual_mode_(contextual_mode), feedback_(feedback) {}
 
   const Unique<Name>& name() const { return name_; }
   ContextualMode contextual_mode() const { return contextual_mode_; }
 
+  const VectorSlotPair& feedback() const { return feedback_; }
+
  private:
   const Unique<Name> name_;
   const ContextualMode contextual_mode_;
+  const VectorSlotPair feedback_;
 };
 
 bool operator==(LoadNamedParameters const&, LoadNamedParameters const&);
@@ -119,6 +140,29 @@ size_t hash_value(LoadNamedParameters const&);
 std::ostream& operator<<(std::ostream&, LoadNamedParameters const&);
 
 const LoadNamedParameters& LoadNamedParametersOf(const Operator* op);
+
+
+// Defines the property being loaded from an object. This is
+// used as a parameter by JSLoadProperty operators.
+class LoadPropertyParameters FINAL {
+ public:
+  explicit LoadPropertyParameters(const VectorSlotPair& feedback)
+      : feedback_(feedback) {}
+
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+ private:
+  const VectorSlotPair feedback_;
+};
+
+bool operator==(LoadPropertyParameters const&, LoadPropertyParameters const&);
+bool operator!=(LoadPropertyParameters const&, LoadPropertyParameters const&);
+
+size_t hash_value(LoadPropertyParameters const&);
+
+std::ostream& operator<<(std::ostream&, LoadPropertyParameters const&);
+
+const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op);
 
 
 // Defines the property being stored to an object by a named store. This is
@@ -188,8 +232,9 @@ class JSOperatorBuilder FINAL {
 
   const Operator* CallConstruct(int arguments);
 
-  const Operator* LoadProperty();
+  const Operator* LoadProperty(const VectorSlotPair& feedback);
   const Operator* LoadNamed(const Unique<Name>& name,
+                            const VectorSlotPair& feedback,
                             ContextualMode contextual_mode = NOT_CONTEXTUAL);
 
   const Operator* StoreProperty(StrictMode strict_mode);

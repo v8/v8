@@ -1256,5 +1256,11 @@ RUNTIME_FUNCTION(RuntimeReference_StringAdd) {
   SealHandleScope shs(isolate);
   return __RT_impl_Runtime_StringAdd(args, isolate);
 }
+
+
+RUNTIME_FUNCTION(RuntimeReference_IsStringWrapperSafeForDefaultValueOf) {
+  UNIMPLEMENTED();
+  return NULL;
+}
 }
 }  // namespace v8::internal

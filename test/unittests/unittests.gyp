@@ -35,6 +35,7 @@
         'base/platform/time-unittest.cc',
         'base/sys-info-unittest.cc',
         'base/utils/random-number-generator-unittest.cc',
+        'char-predicates-unittest.cc',
         'compiler/change-lowering-unittest.cc',
         'compiler/common-operator-unittest.cc',
         'compiler/compiler-test-utils.h',
@@ -58,7 +59,6 @@
         'run-all-unittests.cc',
         'test-utils.h',
         'test-utils.cc',
-        'unicode/unicode-predicates-unittest.cc',
       ],
       'conditions': [
         ['v8_target_arch=="arm"', {

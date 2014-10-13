@@ -272,15 +272,27 @@ void JSGenericLowering::LowerJSToObject(Node* node) {
 
 
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
-  Callable callable = CodeFactory::KeyedLoadIC(isolate());
+  const LoadPropertyParameters& p = LoadPropertyParametersOf(node->op());
+  Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+  if (FLAG_vector_ics) {
+    PatchInsertInput(node, 2,
+                     jsgraph()->SmiConstant(p.feedback().slot().ToInt()));
+    PatchInsertInput(node, 3, jsgraph()->HeapConstant(p.feedback().vector()));
+  }
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
 
 
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   const LoadNamedParameters& p = LoadNamedParametersOf(node->op());
-  Callable callable = CodeFactory::LoadIC(isolate(), p.contextual_mode());
+  Callable callable =
+      CodeFactory::LoadICInOptimizedCode(isolate(), p.contextual_mode());
   PatchInsertInput(node, 1, jsgraph()->HeapConstant(p.name()));
+  if (FLAG_vector_ics) {
+    PatchInsertInput(node, 2,
+                     jsgraph()->SmiConstant(p.feedback().slot().ToInt()));
+    PatchInsertInput(node, 3, jsgraph()->HeapConstant(p.feedback().vector()));
+  }
   ReplaceWithStubCall(node, callable, CallDescriptor::kPatchableCallSite);
 }
 

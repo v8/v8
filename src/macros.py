@@ -254,7 +254,7 @@ macro OVERRIDE_SUBJECT(override) = ((override)[(override).length - 1]);
 macro OVERRIDE_CAPTURE(override, index) = ((override)[(index)]);
 
 # PropertyDescriptor return value indices - must match
-# PropertyDescriptorIndices in runtime.cc.
+# PropertyDescriptorIndices in runtime-object.cc.
 const IS_ACCESSOR_INDEX = 0;
 const VALUE_INDEX = 1;
 const GETTER_INDEX = 2;

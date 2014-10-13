@@ -59,5 +59,10 @@
   'fast/js/excessive-comma-usage': [SKIP]
 }],  # 'gc_stress == True'
 
+['gc_stress == True and mode == debug', {
+  # Skip tests that timout with turbofan.
+  'array-iterate-backwards': [PASS, NO_VARIANTS]
+}],  # 'gc_stress == True and mode == debug'
+
 ##############################################################################
 ]

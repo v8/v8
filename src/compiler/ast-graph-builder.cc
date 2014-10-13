@@ -837,7 +837,8 @@ void AstGraphBuilder::VisitConditional(Conditional* expr) {
 
 
 void AstGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
-  Node* value = BuildVariableLoad(expr->var(), expr->id());
+  VectorSlotPair pair = CreateVectorSlotPair(expr->VariableFeedbackSlot());
+  Node* value = BuildVariableLoad(expr->var(), expr->id(), pair);
   ast_context()->ProduceValue(value);
 }
 
@@ -1091,15 +1092,19 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
     Node* old_value = NULL;
     switch (assign_type) {
       case VARIABLE: {
-        Variable* variable = expr->target()->AsVariableProxy()->var();
-        old_value = BuildVariableLoad(variable, expr->target()->id());
+        VariableProxy* proxy = expr->target()->AsVariableProxy();
+        VectorSlotPair pair =
+            CreateVectorSlotPair(proxy->VariableFeedbackSlot());
+        old_value = BuildVariableLoad(proxy->var(), expr->target()->id(), pair);
         break;
       }
       case NAMED_PROPERTY: {
         Node* object = environment()->Top();
         Unique<Name> name =
             MakeUnique(property->key()->AsLiteral()->AsPropertyName());
-        old_value = NewNode(javascript()->LoadNamed(name), object);
+        VectorSlotPair pair =
+            CreateVectorSlotPair(property->PropertyFeedbackSlot());
+        old_value = NewNode(javascript()->LoadNamed(name, pair), object);
         PrepareFrameState(old_value, property->LoadId(),
                           OutputFrameStateCombine::Push());
         break;
@@ -1107,7 +1112,9 @@ void AstGraphBuilder::VisitAssignment(Assignment* expr) {
       case KEYED_PROPERTY: {
         Node* key = environment()->Top();
         Node* object = environment()->Peek(1);
-        old_value = NewNode(javascript()->LoadProperty(), object, key);
+        VectorSlotPair pair =
+            CreateVectorSlotPair(property->PropertyFeedbackSlot());
+        old_value = NewNode(javascript()->LoadProperty(pair), object, key);
         PrepareFrameState(old_value, property->LoadId(),
                           OutputFrameStateCombine::Push());
         break;
@@ -1179,17 +1186,18 @@ void AstGraphBuilder::VisitThrow(Throw* expr) {
 
 void AstGraphBuilder::VisitProperty(Property* expr) {
   Node* value;
+  VectorSlotPair pair = CreateVectorSlotPair(expr->PropertyFeedbackSlot());
   if (expr->key()->IsPropertyName()) {
     VisitForValue(expr->obj());
     Node* object = environment()->Pop();
     Unique<Name> name = MakeUnique(expr->key()->AsLiteral()->AsPropertyName());
-    value = NewNode(javascript()->LoadNamed(name), object);
+    value = NewNode(javascript()->LoadNamed(name, pair), object);
   } else {
     VisitForValue(expr->obj());
     VisitForValue(expr->key());
     Node* key = environment()->Pop();
     Node* object = environment()->Pop();
-    value = NewNode(javascript()->LoadProperty(), object, key);
+    value = NewNode(javascript()->LoadProperty(pair), object, key);
   }
   PrepareFrameState(value, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(value);
@@ -1208,8 +1216,10 @@ void AstGraphBuilder::VisitCall(Call* expr) {
   bool possibly_eval = false;
   switch (call_type) {
     case Call::GLOBAL_CALL: {
-      Variable* variable = callee->AsVariableProxy()->var();
-      callee_value = BuildVariableLoad(variable, expr->expression()->id());
+      VariableProxy* proxy = callee->AsVariableProxy();
+      VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
+      callee_value =
+          BuildVariableLoad(proxy->var(), expr->expression()->id(), pair);
       receiver_value = jsgraph()->UndefinedConstant();
       break;
     }
@@ -1231,14 +1241,16 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       Property* property = callee->AsProperty();
       VisitForValue(property->obj());
       Node* object = environment()->Top();
+      VectorSlotPair pair =
+          CreateVectorSlotPair(property->PropertyFeedbackSlot());
       if (property->key()->IsPropertyName()) {
         Unique<Name> name =
             MakeUnique(property->key()->AsLiteral()->AsPropertyName());
-        callee_value = NewNode(javascript()->LoadNamed(name), object);
+        callee_value = NewNode(javascript()->LoadNamed(name, pair), object);
       } else {
         VisitForValue(property->key());
         Node* key = environment()->Pop();
-        callee_value = NewNode(javascript()->LoadProperty(), object, key);
+        callee_value = NewNode(javascript()->LoadProperty(pair), object, key);
       }
       PrepareFrameState(callee_value, property->LoadId(),
                         OutputFrameStateCombine::Push());
@@ -1326,7 +1338,9 @@ void AstGraphBuilder::VisitCallJSRuntime(CallRuntime* expr) {
   CallFunctionFlags flags = NO_CALL_FUNCTION_FLAGS;
   Node* receiver_value = BuildLoadBuiltinsObject();
   Unique<String> unique = MakeUnique(name);
-  Node* callee_value = NewNode(javascript()->LoadNamed(unique), receiver_value);
+  VectorSlotPair pair = CreateVectorSlotPair(expr->CallRuntimeFeedbackSlot());
+  Node* callee_value =
+      NewNode(javascript()->LoadNamed(unique, pair), receiver_value);
   // TODO(jarin): Find/create a bailout id to deoptimize to (crankshaft
   // refuses to optimize functions with jsruntime calls).
   PrepareFrameState(callee_value, BailoutId::None(),
@@ -1401,8 +1415,10 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
   int stack_depth = -1;
   switch (assign_type) {
     case VARIABLE: {
-      Variable* variable = expr->expression()->AsVariableProxy()->var();
-      old_value = BuildVariableLoad(variable, expr->expression()->id());
+      VariableProxy* proxy = expr->expression()->AsVariableProxy();
+      VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
+      old_value =
+          BuildVariableLoad(proxy->var(), expr->expression()->id(), pair);
       stack_depth = 0;
       break;
     }
@@ -1411,7 +1427,9 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       Node* object = environment()->Top();
       Unique<Name> name =
           MakeUnique(property->key()->AsLiteral()->AsPropertyName());
-      old_value = NewNode(javascript()->LoadNamed(name), object);
+      VectorSlotPair pair =
+          CreateVectorSlotPair(property->PropertyFeedbackSlot());
+      old_value = NewNode(javascript()->LoadNamed(name, pair), object);
       PrepareFrameState(old_value, property->LoadId(),
                         OutputFrameStateCombine::Push());
       stack_depth = 1;
@@ -1422,7 +1440,9 @@ void AstGraphBuilder::VisitCountOperation(CountOperation* expr) {
       VisitForValue(property->key());
       Node* key = environment()->Top();
       Node* object = environment()->Peek(1);
-      old_value = NewNode(javascript()->LoadProperty(), object, key);
+      VectorSlotPair pair =
+          CreateVectorSlotPair(property->PropertyFeedbackSlot());
+      old_value = NewNode(javascript()->LoadProperty(pair), object, key);
       PrepareFrameState(old_value, property->LoadId(),
                         OutputFrameStateCombine::Push());
       stack_depth = 2;
@@ -1632,9 +1652,10 @@ void AstGraphBuilder::VisitTypeof(UnaryOperation* expr) {
   if (expr->expression()->IsVariableProxy()) {
     // Typeof does not throw a reference error on global variables, hence we
     // perform a non-contextual load in case the operand is a variable proxy.
-    Variable* variable = expr->expression()->AsVariableProxy()->var();
-    operand =
-        BuildVariableLoad(variable, expr->expression()->id(), NOT_CONTEXTUAL);
+    VariableProxy* proxy = expr->expression()->AsVariableProxy();
+    VectorSlotPair pair = CreateVectorSlotPair(proxy->VariableFeedbackSlot());
+    operand = BuildVariableLoad(proxy->var(), expr->expression()->id(), pair,
+                                NOT_CONTEXTUAL);
   } else {
     VisitForValue(expr->expression());
     operand = environment()->Pop();
@@ -1687,6 +1708,12 @@ void AstGraphBuilder::VisitLogicalExpression(BinaryOperation* expr) {
 
 StrictMode AstGraphBuilder::strict_mode() const {
   return info()->strict_mode();
+}
+
+
+VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
+    FeedbackVectorSlot slot) const {
+  return VectorSlotPair(handle(info()->shared_info()->feedback_vector()), slot);
 }
 
 
@@ -1779,6 +1806,7 @@ Node* AstGraphBuilder::BuildHoleCheckThrow(Node* value, Variable* variable,
 
 Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                                          BailoutId bailout_id,
+                                         const VectorSlotPair& feedback,
                                          ContextualMode contextual_mode) {
   Node* the_hole = jsgraph()->TheHoleConstant();
   VariableMode mode = variable->mode();
@@ -1787,7 +1815,8 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       // Global var, const, or let variable.
       Node* global = BuildLoadGlobalObject();
       Unique<Name> name = MakeUnique(variable->name());
-      const Operator* op = javascript()->LoadNamed(name, contextual_mode);
+      const Operator* op =
+          javascript()->LoadNamed(name, feedback, contextual_mode);
       Node* node = NewNode(op, global);
       PrepareFrameState(node, bailout_id, OutputFrameStateCombine::Push());
       return node;

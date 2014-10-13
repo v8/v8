@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-TEST(UnicodePredicatesTest, WhiteSpace) {
+TEST(CharPredicatesTest, WhiteSpace) {
   // As of Unicode 6.3.0, \u180E is no longer a white space. We still consider
   // it to be one though, since JS recognizes all white spaces in Unicode 5.1.
   EXPECT_TRUE(WhiteSpace::Is(0x0009));
@@ -22,7 +22,7 @@ TEST(UnicodePredicatesTest, WhiteSpace) {
 }
 
 
-TEST(UnicodePredicatesTest, WhiteSpaceOrLineTerminator) {
+TEST(CharPredicatesTest, WhiteSpaceOrLineTerminator) {
   // As of Unicode 6.3.0, \u180E is no longer a white space. We still consider
   // it to be one though, since JS recognizes all white spaces in Unicode 5.1.
   // White spaces
@@ -41,7 +41,7 @@ TEST(UnicodePredicatesTest, WhiteSpaceOrLineTerminator) {
 }
 
 
-TEST(UnicodePredicatesTest, IdentifierStart) {
+TEST(CharPredicatesTest, IdentifierStart) {
   EXPECT_TRUE(IdentifierStart::Is('$'));
   EXPECT_TRUE(IdentifierStart::Is('_'));
   EXPECT_TRUE(IdentifierStart::Is('\\'));
@@ -59,7 +59,7 @@ TEST(UnicodePredicatesTest, IdentifierStart) {
 }
 
 
-TEST(UnicodePredicatesTest, IdentifierPart) {
+TEST(CharPredicatesTest, IdentifierPart) {
   EXPECT_TRUE(IdentifierPart::Is('$'));
   EXPECT_TRUE(IdentifierPart::Is('_'));
   EXPECT_TRUE(IdentifierPart::Is('\\'));
@@ -85,6 +85,37 @@ TEST(UnicodePredicatesTest, IdentifierPart) {
   // \u2E2F has the Pattern_Syntax property, excluding it from ID_Start.
   EXPECT_FALSE(IdentifierPart::Is(0x2E2F));
 }
+
+
+#ifdef V8_I18N_SUPPORT
+TEST(CharPredicatesTest, SupplementaryPlaneIdentifiers) {
+  // Both ID_Start and ID_Continue.
+  EXPECT_TRUE(IdentifierStart::Is(0x10403));  // Category Lu
+  EXPECT_TRUE(IdentifierPart::Is(0x10403));
+  EXPECT_TRUE(IdentifierStart::Is(0x1043C));  // Category Ll
+  EXPECT_TRUE(IdentifierPart::Is(0x1043C));
+  EXPECT_TRUE(IdentifierStart::Is(0x16F9C));  // Category Lm
+  EXPECT_TRUE(IdentifierPart::Is(0x16F9C));
+  EXPECT_TRUE(IdentifierStart::Is(0x10048));  // Category Lo
+  EXPECT_TRUE(IdentifierPart::Is(0x10048));
+  EXPECT_TRUE(IdentifierStart::Is(0x1014D));  // Category Nl
+  EXPECT_TRUE(IdentifierPart::Is(0x1014D));
+
+  // Only ID_Continue.
+  EXPECT_FALSE(IdentifierStart::Is(0x101FD));  // Category Mn
+  EXPECT_TRUE(IdentifierPart::Is(0x101FD));
+  EXPECT_FALSE(IdentifierStart::Is(0x11002));  // Category Mc
+  EXPECT_TRUE(IdentifierPart::Is(0x11002));
+  EXPECT_FALSE(IdentifierStart::Is(0x104A9));  // Category Nd
+  EXPECT_TRUE(IdentifierPart::Is(0x104A9));
+
+  // Neither.
+  EXPECT_FALSE(IdentifierStart::Is(0x10111));  // Category No
+  EXPECT_FALSE(IdentifierPart::Is(0x10111));
+  EXPECT_FALSE(IdentifierStart::Is(0x1F4A9));  // Category So
+  EXPECT_FALSE(IdentifierPart::Is(0x1F4A9));
+}
+#endif  // V8_I18N_SUPPORT
 
 }  // namespace internal
 }  // namespace v8

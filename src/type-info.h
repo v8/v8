@@ -25,18 +25,20 @@ class TypeFeedbackOracle: public ZoneObject {
 
   bool LoadIsUninitialized(TypeFeedbackId id);
   bool StoreIsUninitialized(TypeFeedbackId id);
-  bool CallIsMonomorphic(int slot);
+  bool CallIsMonomorphic(FeedbackVectorSlot slot);
   bool CallIsMonomorphic(TypeFeedbackId aid);
   bool KeyedArrayCallIsHoley(TypeFeedbackId id);
-  bool CallNewIsMonomorphic(int slot);
+  bool CallNewIsMonomorphic(FeedbackVectorSlot slot);
 
   // TODO(1571) We can't use ForInStatement::ForInType as the return value due
   // to various cycles in our headers.
   // TODO(rossberg): once all oracle access is removed from ast.cc, it should
   // be possible.
-  byte ForInType(int feedback_vector_slot);
+  byte ForInType(FeedbackVectorSlot feedback_vector_slot);
 
-  KeyedAccessStoreMode GetStoreMode(TypeFeedbackId id);
+  void GetStoreModeAndKeyType(TypeFeedbackId id,
+                              KeyedAccessStoreMode* store_mode,
+                              IcCheckType* key_type);
 
   void PropertyReceiverTypes(TypeFeedbackId id, Handle<String> name,
                              SmallMapList* receiver_types);
@@ -48,7 +50,8 @@ class TypeFeedbackOracle: public ZoneObject {
                                SmallMapList* receiver_types);
   void KeyedAssignmentReceiverTypes(TypeFeedbackId id,
                                     SmallMapList* receiver_types,
-                                    KeyedAccessStoreMode* store_mode);
+                                    KeyedAccessStoreMode* store_mode,
+                                    IcCheckType* key_type);
   void CountReceiverTypes(TypeFeedbackId id,
                           SmallMapList* receiver_types);
 
@@ -59,10 +62,10 @@ class TypeFeedbackOracle: public ZoneObject {
   static bool CanRetainOtherContext(JSFunction* function,
                                     Context* native_context);
 
-  Handle<JSFunction> GetCallTarget(int slot);
-  Handle<AllocationSite> GetCallAllocationSite(int slot);
-  Handle<JSFunction> GetCallNewTarget(int slot);
-  Handle<AllocationSite> GetCallNewAllocationSite(int slot);
+  Handle<JSFunction> GetCallTarget(FeedbackVectorSlot slot);
+  Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorSlot slot);
+  Handle<JSFunction> GetCallNewTarget(FeedbackVectorSlot slot);
+  Handle<AllocationSite> GetCallNewAllocationSite(FeedbackVectorSlot slot);
 
   bool LoadIsBuiltin(TypeFeedbackId id, Builtins::Name builtin_id);
 
@@ -112,7 +115,7 @@ class TypeFeedbackOracle: public ZoneObject {
 
   // Returns an element from the type feedback vector. Returns undefined
   // if there is no information.
-  Handle<Object> GetInfo(int slot);
+  Handle<Object> GetInfo(FeedbackVectorSlot slot);
 
  private:
   Handle<Context> native_context_;

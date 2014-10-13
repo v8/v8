@@ -122,9 +122,9 @@ class StructuredGraphBuilder : public GraphBuilder {
 
   Node* dead_control();
 
-  // TODO(mstarzinger): Use phase-local zone instead!
-  Zone* zone() const { return graph()->zone(); }
-  Isolate* isolate() const { return zone()->isolate(); }
+  Zone* graph_zone() const { return graph()->zone(); }
+  Zone* local_zone() { return &local_zone_; }
+  Isolate* isolate() const { return graph_zone()->isolate(); }
   CommonOperatorBuilder* common() const { return common_; }
 
   // Helper to wrap a Handle<T> into a Unique<T>.
@@ -143,6 +143,9 @@ class StructuredGraphBuilder : public GraphBuilder {
  private:
   CommonOperatorBuilder* common_;
   Environment* environment_;
+
+  // Zone local to the builder for data not leaking into the graph.
+  Zone local_zone_;
 
   // Node representing the control dependency for dead code.
   SetOncePointer<Node> dead_control_;
@@ -207,8 +210,7 @@ class StructuredGraphBuilder::Environment : public ZoneObject {
   Node* GetContext() { return builder_->current_context(); }
 
  protected:
-  // TODO(mstarzinger): Use phase-local zone instead!
-  Zone* zone() const { return graph()->zone(); }
+  Zone* zone() const { return builder_->local_zone(); }
   Graph* graph() const { return builder_->graph(); }
   StructuredGraphBuilder* builder() const { return builder_; }
   CommonOperatorBuilder* common() { return builder_->common(); }

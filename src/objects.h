@@ -232,6 +232,9 @@ static inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
 }
 
 
+enum IcCheckType { ELEMENT, PROPERTY };
+
+
 // Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
 
@@ -5310,6 +5313,7 @@ class Code: public HeapObject {
   // compilation stub.
   static void MakeCodeAgeSequenceYoung(byte* sequence, Isolate* isolate);
   static void MarkCodeAsExecuted(byte* sequence, Isolate* isolate);
+  void MakeYoung();
   void MakeOlder(MarkingParity);
   static bool IsYoungSequence(Isolate* isolate, byte* sequence);
   bool IsOld();

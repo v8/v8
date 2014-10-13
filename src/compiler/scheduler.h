@@ -19,16 +19,12 @@ namespace compiler {
 // ordering the basic blocks in the special RPO order.
 class Scheduler {
  public:
-  // The complete scheduling algorithm.
-  // Create a new schedule and place all nodes from the graph into it.
+  // The complete scheduling algorithm. Creates a new schedule and places all
+  // nodes from the graph into it.
   static Schedule* ComputeSchedule(Graph* graph);
 
   // Compute the RPO of blocks in an existing schedule.
   static BasicBlockVector* ComputeSpecialRPO(Schedule* schedule);
-
-  // (Exposed for testing only)
-  // Build and connect the CFG for a node graph, but don't schedule nodes.
-  static void ComputeCFG(Graph* graph, Schedule* schedule);
 
  private:
   enum Placement { kUnknown, kSchedulable, kFixed };
@@ -61,8 +57,6 @@ class Scheduler {
     return &node_data_[node->id()];
   }
 
-  void BuildCFG();
-
   Placement GetPlacement(Node* node);
 
   int GetRPONumber(BasicBlock* block) {
@@ -73,26 +67,31 @@ class Scheduler {
     return block->rpo_number();
   }
 
-  void GenerateImmediateDominatorTree();
   BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);
 
+  // Phase 1: Build control-flow graph and dominator tree.
   friend class CFGBuilder;
+  void BuildCFG();
+  void GenerateImmediateDominatorTree();
 
-  friend class ScheduleEarlyNodeVisitor;
-  void ScheduleEarly();
-
+  // Phase 2: Prepare use counts for nodes.
   friend class PrepareUsesVisitor;
   void PrepareUses();
 
+  // Phase 3: Schedule nodes early.
+  friend class ScheduleEarlyNodeVisitor;
+  void ScheduleEarly();
+
+  // Phase 4: Schedule nodes late.
   friend class ScheduleLateNodeVisitor;
   void ScheduleLate();
 
   bool ConnectFloatingControl();
-
   void ConnectFloatingControlSubgraph(BasicBlock* block, Node* node);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_SCHEDULER_H_

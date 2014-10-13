@@ -365,12 +365,13 @@ unsigned FullCodeGenerator::EmitBackEdgeTable() {
 }
 
 
-void FullCodeGenerator::EnsureSlotContainsAllocationSite(int slot) {
+void FullCodeGenerator::EnsureSlotContainsAllocationSite(
+    FeedbackVectorSlot slot) {
   Handle<FixedArray> vector = FeedbackVector();
-  if (!vector->get(slot)->IsAllocationSite()) {
+  if (!vector->get(slot.ToInt())->IsAllocationSite()) {
     Handle<AllocationSite> allocation_site =
         isolate()->factory()->NewAllocationSite();
-    vector->set(slot, *allocation_site);
+    vector->set(slot.ToInt(), *allocation_site);
   }
 }
 

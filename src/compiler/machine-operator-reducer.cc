@@ -339,6 +339,20 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceBool(m.left().Value() < m.right().Value());
       }
       if (m.LeftEqualsRight()) return ReplaceBool(false);  // x < x => false
+      if (m.left().IsWord32Sar() && m.right().HasValue()) {
+        Int32BinopMatcher mleft(m.left().node());
+        if (mleft.right().HasValue()) {
+          // (x >> K) < C => x < (C << K) | (2^K - 1)
+          // when C < (M >> K)
+          const uint32_t c = m.right().Value();
+          const uint32_t k = mleft.right().Value() & 0x1f;
+          if (c < static_cast<uint32_t>(kMaxInt >> k)) {
+            node->ReplaceInput(0, mleft.left().node());
+            node->ReplaceInput(1, Uint32Constant((c << k) | ((1 << k) - 1)));
+            return Changed(node);
+          }
+        }
+      }
       break;
     }
     case IrOpcode::kUint32LessThanOrEqual: {

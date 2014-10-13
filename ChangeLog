@@ -1,3 +1,14 @@
+2014-10-13: Version 3.30.8
+
+        AST nodes have at most one bailout/typefeedback ID now, saving lots of
+        memory (Chromium issue 417697).
+
+        Allow identifier code points from supplementary multilingual planes
+        (issue 3617).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-10: Version 3.30.7
 
         Fix computation of UTC time from local time at DST change points (issue

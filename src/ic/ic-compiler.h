@@ -11,9 +11,6 @@ namespace v8 {
 namespace internal {
 
 
-enum IcCheckType { ELEMENT, PROPERTY };
-
-
 class PropertyICCompiler : public PropertyAccessCompiler {
  public:
   // Finds the Code object stored in the Heap::non_monomorphic_cache().

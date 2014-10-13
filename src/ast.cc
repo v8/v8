@@ -61,10 +61,10 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
                              IdGen* id_gen)
-    : Expression(zone, position, id_gen),
+    : Expression(zone, position, 0, id_gen),
       raw_name_(var->raw_name()),
       interface_(var->interface()),
-      variable_feedback_slot_(kInvalidFeedbackSlot),
+      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
       is_this_(var->is_this()),
       is_assigned_(false),
       is_resolved_(false) {
@@ -74,10 +74,10 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
 
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
                              Interface* interface, int position, IdGen* id_gen)
-    : Expression(zone, position, id_gen),
+    : Expression(zone, position, 0, id_gen),
       raw_name_(name),
       interface_(interface),
-      variable_feedback_slot_(kInvalidFeedbackSlot),
+      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
       is_this_(is_this),
       is_assigned_(false),
       is_resolved_(false) {}
@@ -99,12 +99,11 @@ void VariableProxy::BindTo(Variable* var) {
 
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos, IdGen* id_gen)
-    : Expression(zone, pos, id_gen),
+    : Expression(zone, pos, num_ids(), id_gen),
       op_(op),
       target_(target),
       value_(value),
       binary_operation_(NULL),
-      assignment_id_(id_gen->GetNextId()),
       is_uninitialized_(false),
       store_mode_(STANDARD_STORE) {}
 
@@ -606,9 +605,9 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 
 
 void CallNew::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
-  int allocation_site_feedback_slot = FLAG_pretenuring_call_new
-      ? AllocationSiteFeedbackSlot()
-      : CallNewFeedbackSlot();
+  FeedbackVectorSlot allocation_site_feedback_slot =
+      FLAG_pretenuring_call_new ? AllocationSiteFeedbackSlot()
+                                : CallNewFeedbackSlot();
   allocation_site_ =
       oracle->GetCallNewAllocationSite(allocation_site_feedback_slot);
   is_monomorphic_ = oracle->CallNewIsMonomorphic(CallNewFeedbackSlot());
@@ -989,12 +988,10 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 
 CaseClause::CaseClause(Zone* zone, Expression* label,
                        ZoneList<Statement*>* statements, int pos, IdGen* id_gen)
-    : Expression(zone, pos, id_gen),
+    : Expression(zone, pos, num_ids(), id_gen),
       label_(label),
       statements_(statements),
-      compare_type_(Type::None(zone)),
-      compare_id_(id_gen->GetNextId()),
-      entry_id_(id_gen->GetNextId()) {}
+      compare_type_(Type::None(zone)) {}
 
 
 #define REGULAR_NODE(NodeType)                                   \

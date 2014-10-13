@@ -432,7 +432,10 @@ class FullCodeGenerator: public AstVisitor {
   Handle<FixedArray> FeedbackVector() {
     return info_->feedback_vector();
   }
-  void EnsureSlotContainsAllocationSite(int slot);
+  void EnsureSlotContainsAllocationSite(FeedbackVectorSlot slot);
+  Smi* SmiFromSlot(FeedbackVectorSlot slot) const {
+    return Smi::FromInt(slot.ToInt());
+  }
 
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.

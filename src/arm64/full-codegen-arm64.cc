@@ -1097,7 +1097,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   ASM_LOCATION("FullCodeGenerator::VisitForInStatement");
   Comment cmnt(masm_, "[ ForInStatement");
-  int slot = stmt->ForInFeedbackSlot();
+  FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
   // TODO(all): This visitor probably needs better comments and a revisit.
   SetStatementPosition(stmt);
 
@@ -1181,7 +1181,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   __ LoadObject(x1, FeedbackVector());
   __ Mov(x10, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  __ Str(x10, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(slot)));
+  __ Str(x10, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(slot.ToInt())));
 
   __ Mov(x1, Smi::FromInt(1));  // Smi indicates slow check.
   __ Peek(x10, 0);  // Get enumerated object.
@@ -1352,7 +1352,7 @@ void FullCodeGenerator::EmitLoadHomeObject(SuperReference* expr) {
 
   if (FLAG_vector_ics) {
     __ Mov(VectorLoadICDescriptor::SlotRegister(),
-           Smi::FromInt(expr->HomeObjectFeedbackSlot()));
+           SmiFromSlot(expr->HomeObjectFeedbackSlot()));
     CallLoadIC(NOT_CONTEXTUAL);
   } else {
     CallLoadIC(NOT_CONTEXTUAL, expr->HomeObjectFeedbackId());
@@ -1414,7 +1414,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(VariableProxy* proxy,
   __ Mov(LoadDescriptor::NameRegister(), Operand(proxy->var()->name()));
   if (FLAG_vector_ics) {
     __ Mov(VectorLoadICDescriptor::SlotRegister(),
-           Smi::FromInt(proxy->VariableFeedbackSlot()));
+           SmiFromSlot(proxy->VariableFeedbackSlot()));
   }
 
   ContextualMode mode = (typeof_state == INSIDE_TYPEOF) ? NOT_CONTEXTUAL
@@ -1499,7 +1499,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       __ Mov(LoadDescriptor::NameRegister(), Operand(var->name()));
       if (FLAG_vector_ics) {
         __ Mov(VectorLoadICDescriptor::SlotRegister(),
-               Smi::FromInt(proxy->VariableFeedbackSlot()));
+               SmiFromSlot(proxy->VariableFeedbackSlot()));
       }
       CallLoadIC(CONTEXTUAL);
       context()->Plug(x0);
@@ -2012,7 +2012,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   __ Mov(LoadDescriptor::NameRegister(), Operand(key->value()));
   if (FLAG_vector_ics) {
     __ Mov(VectorLoadICDescriptor::SlotRegister(),
-           Smi::FromInt(prop->PropertyFeedbackSlot()));
+           SmiFromSlot(prop->PropertyFeedbackSlot()));
     CallLoadIC(NOT_CONTEXTUAL);
   } else {
     CallLoadIC(NOT_CONTEXTUAL, prop->PropertyFeedbackId());
@@ -2038,7 +2038,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
   if (FLAG_vector_ics) {
     __ Mov(VectorLoadICDescriptor::SlotRegister(),
-           Smi::FromInt(prop->PropertyFeedbackSlot()));
+           SmiFromSlot(prop->PropertyFeedbackSlot()));
     CallIC(ic);
   } else {
     CallIC(ic, prop->PropertyFeedbackId());
@@ -2557,7 +2557,7 @@ void FullCodeGenerator::EmitCall(Call* expr, CallICState::CallType call_type) {
 
   Handle<Code> ic = CallIC::initialize_stub(
       isolate(), arg_count, call_type);
-  __ Mov(x3, Smi::FromInt(expr->CallFeedbackSlot()));
+  __ Mov(x3, SmiFromSlot(expr->CallFeedbackSlot()));
   __ Peek(x1, (arg_count + 1) * kXRegSize);
   // Don't assign a type feedback id to the IC, since type feedback is provided
   // by the vector above.
@@ -2761,12 +2761,12 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   // Record call targets in unoptimized code.
   if (FLAG_pretenuring_call_new) {
     EnsureSlotContainsAllocationSite(expr->AllocationSiteFeedbackSlot());
-    DCHECK(expr->AllocationSiteFeedbackSlot() ==
-           expr->CallNewFeedbackSlot() + 1);
+    DCHECK(expr->AllocationSiteFeedbackSlot().ToInt() ==
+           expr->CallNewFeedbackSlot().ToInt() + 1);
   }
 
   __ LoadObject(x2, FeedbackVector());
-  __ Mov(x3, Smi::FromInt(expr->CallNewFeedbackSlot()));
+  __ Mov(x3, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate(), RECORD_CONSTRUCTOR_TARGET);
   __ Call(stub.GetCode(), RelocInfo::CONSTRUCT_CALL);
@@ -3968,7 +3968,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
     __ Mov(LoadDescriptor::NameRegister(), Operand(name));
     if (FLAG_vector_ics) {
       __ Mov(VectorLoadICDescriptor::SlotRegister(),
-             Smi::FromInt(expr->CallRuntimeFeedbackSlot()));
+             SmiFromSlot(expr->CallRuntimeFeedbackSlot()));
       CallLoadIC(NOT_CONTEXTUAL);
     } else {
       CallLoadIC(NOT_CONTEXTUAL, expr->CallRuntimeFeedbackId());
@@ -4368,7 +4368,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     __ Mov(LoadDescriptor::NameRegister(), Operand(proxy->name()));
     if (FLAG_vector_ics) {
       __ Mov(VectorLoadICDescriptor::SlotRegister(),
-             Smi::FromInt(proxy->VariableFeedbackSlot()));
+             SmiFromSlot(proxy->VariableFeedbackSlot()));
     }
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
@@ -4724,7 +4724,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ Peek(load_name, 2 * kPointerSize);
       if (FLAG_vector_ics) {
         __ Mov(VectorLoadICDescriptor::SlotRegister(),
-               Smi::FromInt(expr->KeyedLoadFeedbackSlot()));
+               SmiFromSlot(expr->KeyedLoadFeedbackSlot()));
       }
       Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
       CallIC(ic, TypeFeedbackId::None());
@@ -4744,7 +4744,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ LoadRoot(load_name, Heap::kdone_stringRootIndex);  // "done"
       if (FLAG_vector_ics) {
         __ Mov(VectorLoadICDescriptor::SlotRegister(),
-               Smi::FromInt(expr->DoneFeedbackSlot()));
+               SmiFromSlot(expr->DoneFeedbackSlot()));
       }
       CallLoadIC(NOT_CONTEXTUAL);                           // x0=result.done
       // The ToBooleanStub argument (result.done) is in x0.
@@ -4757,7 +4757,7 @@ void FullCodeGenerator::VisitYield(Yield* expr) {
       __ LoadRoot(load_name, Heap::kvalue_stringRootIndex);  // "value"
       if (FLAG_vector_ics) {
         __ Mov(VectorLoadICDescriptor::SlotRegister(),
-               Smi::FromInt(expr->ValueFeedbackSlot()));
+               SmiFromSlot(expr->ValueFeedbackSlot()));
       }
       CallLoadIC(NOT_CONTEXTUAL);                            // x0=result.value
       context()->DropAndPlug(2, x0);                         // drop iter and g

@@ -1991,6 +1991,7 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
           Code* lazy = *isolate()->builtins()->CompileLazy();
           SerializeBuiltin(lazy, how_to_code, where_to_point);
         } else {
+          code_object->MakeYoung();
           SerializeHeapObject(code_object, how_to_code, where_to_point);
         }
         return;

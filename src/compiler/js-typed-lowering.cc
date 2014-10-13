@@ -541,21 +541,24 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
     if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
       ExternalArrayType type = array->type();
-      uint32_t length;
-      CHECK(array->length()->ToUint32(&length));
-      Node* elements = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
-          graph()->start());
-      Node* pointer = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
-          elements, elements);
-      Node* effect = NodeProperties::GetEffectInput(node);
-      Node* control = NodeProperties::GetControlInput(node);
-      Node* load = graph()->NewNode(
-          simplified()->LoadElement(
-              AccessBuilder::ForTypedArrayElement(type, true)),
-          pointer, key, jsgraph()->Uint32Constant(length), effect, control);
-      return ReplaceEagerly(node, load);
+      uint32_t byte_length;
+      if (array->byte_length()->ToUint32(&byte_length)) {
+        Node* elements = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
+            graph()->start());
+        Node* pointer = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
+            elements, elements);
+        Node* length = jsgraph()->Uint32Constant(
+            static_cast<uint32_t>(byte_length / array->element_size()));
+        Node* effect = NodeProperties::GetEffectInput(node);
+        Node* control = NodeProperties::GetControlInput(node);
+        Node* load = graph()->NewNode(
+            simplified()->LoadElement(
+                AccessBuilder::ForTypedArrayElement(type, true)),
+            pointer, key, length, effect, control);
+        return ReplaceEagerly(node, load);
+      }
     }
   }
   return NoChange();
@@ -577,22 +580,24 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
         Handle<JSTypedArray>::cast(base_type->AsConstant()->Value());
     if (IsExternalArrayElementsKind(array->map()->elements_kind())) {
       ExternalArrayType type = array->type();
-      uint32_t length;
-      CHECK(array->length()->ToUint32(&length));
-      Node* elements = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
-          graph()->start());
-      Node* pointer = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
-          elements, elements);
-      Node* effect = NodeProperties::GetEffectInput(node);
-      Node* control = NodeProperties::GetControlInput(node);
-      Node* store =
-          graph()->NewNode(simplified()->StoreElement(
-                               AccessBuilder::ForTypedArrayElement(type, true)),
-                           pointer, key, jsgraph()->Uint32Constant(length),
-                           value, effect, control);
-      return ReplaceEagerly(node, store);
+      uint32_t byte_length;
+      if (array->byte_length()->ToUint32(&byte_length)) {
+        Node* elements = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
+            graph()->start());
+        Node* pointer = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
+            elements, elements);
+        Node* length = jsgraph()->Uint32Constant(
+            static_cast<uint32_t>(byte_length / array->element_size()));
+        Node* effect = NodeProperties::GetEffectInput(node);
+        Node* control = NodeProperties::GetControlInput(node);
+        Node* store = graph()->NewNode(
+            simplified()->StoreElement(
+                AccessBuilder::ForTypedArrayElement(type, true)),
+            pointer, key, length, value, effect, control);
+        return ReplaceEagerly(node, store);
+      }
     }
   }
   return NoChange();

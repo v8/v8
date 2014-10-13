@@ -108,10 +108,24 @@ ContextAccess const& ContextAccessOf(Operator const* op) {
 }
 
 
+bool operator==(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
+  return lhs.slot().ToInt() == rhs.slot().ToInt() &&
+         lhs.vector().is_identical_to(rhs.vector());
+}
+
+
+size_t hash_value(VectorSlotPair const& p) {
+  // TODO(mvstanton): include the vector in the hash.
+  base::hash<int> h;
+  return h(p.slot().ToInt());
+}
+
+
 bool operator==(LoadNamedParameters const& lhs,
                 LoadNamedParameters const& rhs) {
   return lhs.name() == rhs.name() &&
-         lhs.contextual_mode() == rhs.contextual_mode();
+         lhs.contextual_mode() == rhs.contextual_mode() &&
+         lhs.feedback() == rhs.feedback();
 }
 
 
@@ -122,12 +136,41 @@ bool operator!=(LoadNamedParameters const& lhs,
 
 
 size_t hash_value(LoadNamedParameters const& p) {
-  return base::hash_combine(p.name(), p.contextual_mode());
+  return base::hash_combine(p.name(), p.contextual_mode(), p.feedback());
 }
 
 
 std::ostream& operator<<(std::ostream& os, LoadNamedParameters const& p) {
   return os << Brief(*p.name().handle()) << ", " << p.contextual_mode();
+}
+
+
+std::ostream& operator<<(std::ostream& os, LoadPropertyParameters const& p) {
+  // Nothing special to print.
+  return os;
+}
+
+
+bool operator==(LoadPropertyParameters const& lhs,
+                LoadPropertyParameters const& rhs) {
+  return lhs.feedback() == rhs.feedback();
+}
+
+
+bool operator!=(LoadPropertyParameters const& lhs,
+                LoadPropertyParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+
+const LoadPropertyParameters& LoadPropertyParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSLoadProperty, op->opcode());
+  return OpParameter<LoadPropertyParameters>(op);
+}
+
+
+size_t hash_value(LoadPropertyParameters const& p) {
+  return hash_value(p.feedback());
 }
 
 
@@ -193,7 +236,6 @@ const StoreNamedParameters& StoreNamedParametersOf(const Operator* op) {
   V(ToObject, Operator::kNoProperties, 1, 1)              \
   V(Yield, Operator::kNoProperties, 1, 1)                 \
   V(Create, Operator::kEliminatable, 0, 1)                \
-  V(LoadProperty, Operator::kNoProperties, 2, 1)          \
   V(HasProperty, Operator::kNoProperties, 2, 1)           \
   V(TypeOf, Operator::kPure, 1, 1)                        \
   V(InstanceOf, Operator::kNoProperties, 2, 1)            \
@@ -261,11 +303,21 @@ const Operator* JSOperatorBuilder::CallConstruct(int arguments) {
 
 
 const Operator* JSOperatorBuilder::LoadNamed(const Unique<Name>& name,
+                                             const VectorSlotPair& feedback,
                                              ContextualMode contextual_mode) {
-  LoadNamedParameters parameters(name, contextual_mode);
+  LoadNamedParameters parameters(name, feedback, contextual_mode);
   return new (zone()) Operator1<LoadNamedParameters>(
       IrOpcode::kJSLoadNamed, Operator::kNoProperties, 1, 1, "JSLoadNamed",
       parameters);
+}
+
+
+const Operator* JSOperatorBuilder::LoadProperty(
+    const VectorSlotPair& feedback) {
+  LoadPropertyParameters parameters(feedback);
+  return new (zone()) Operator1<LoadPropertyParameters>(
+      IrOpcode::kJSLoadProperty, Operator::kNoProperties, 2, 1,
+      "JSLoadProperty", parameters);
 }
 
 
