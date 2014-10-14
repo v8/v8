@@ -3586,6 +3586,11 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       Handle<Object> value,
       PropertyDetails details);
 
+  // Returns iteration indices array for the |dictionary|.
+  // Values are direct indices in the |HashTable| array.
+  static Handle<FixedArray> BuildIterationIndicesArray(
+      Handle<Derived> dictionary);
+
  protected:
   // Generic at put operation.
   MUST_USE_RESULT static Handle<Derived> AtPut(
@@ -3602,7 +3607,9 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
       uint32_t hash);
 
   // Generate new enumeration indices to avoid enumeration index overflow.
-  static void GenerateNewEnumerationIndices(Handle<Derived> dictionary);
+  // Returns iteration indices array for the |dictionary|.
+  static Handle<FixedArray> GenerateNewEnumerationIndices(
+      Handle<Derived> dictionary);
   static const int kMaxNumberKeyIndex = DerivedHashTable::kPrefixStartIndex;
   static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
 };
@@ -3631,7 +3638,7 @@ class NameDictionary: public Dictionary<NameDictionary,
 
   // Copies enumerable keys to preallocated fixed array.
   void CopyEnumKeysTo(FixedArray* storage);
-  inline static void DoGenerateNewEnumerationIndices(
+  inline static Handle<FixedArray> DoGenerateNewEnumerationIndices(
       Handle<NameDictionary> dictionary);
 
   // Find entry for key, otherwise return kNotFound. Optimized version of

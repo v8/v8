@@ -6903,9 +6903,9 @@ Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
 }
 
 
-void NameDictionary::DoGenerateNewEnumerationIndices(
+Handle<FixedArray> NameDictionary::DoGenerateNewEnumerationIndices(
     Handle<NameDictionary> dictionary) {
-  DerivedDictionary::GenerateNewEnumerationIndices(dictionary);
+  return DerivedDictionary::GenerateNewEnumerationIndices(dictionary);
 }
 
 
