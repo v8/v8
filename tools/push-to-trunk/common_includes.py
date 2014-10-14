@@ -397,7 +397,7 @@ class GitTagsOnlyMixin(VCInterface):
   def RemoteBranch(self, name):
     if name in ["candidates", "master"]:
       return "origin/%s" % name
-    return "origin/branch-heads/%s" % name
+    return "branch-heads/%s" % name
 
   def Tag(self, tag, remote, message):
     # Wait for the commit to appear. Assumes unique commit message titles (this
