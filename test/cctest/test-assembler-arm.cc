@@ -1524,32 +1524,6 @@ TEST(smmla) {
 }
 
 
-TEST(smmls) {
-  CcTest::InitializeVM();
-  Isolate* const isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  RandomNumberGenerator* const rng = isolate->random_number_generator();
-  Assembler assm(isolate, nullptr, 0);
-  __ smmls(r1, r1, r2, r3);
-  __ str(r1, MemOperand(r0));
-  __ bx(lr);
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-#ifdef OBJECT_PRINT
-  code->Print(std::cout);
-#endif
-  F3 f = FUNCTION_CAST<F3>(code->entry());
-  for (size_t i = 0; i < 128; ++i) {
-    int32_t r, x = rng->NextInt(), y = rng->NextInt(), z = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, z, 0);
-    CHECK_EQ(bits::SignedMulHighAndSub32(x, y, z), r);
-    USE(dummy);
-  }
-}
-
-
 TEST(smmul) {
   CcTest::InitializeVM();
   Isolate* const isolate = CcTest::i_isolate();

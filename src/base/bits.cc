@@ -32,13 +32,6 @@ int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs, int32_t acc) {
                            bit_cast<uint32_t>(SignedMulHigh32(lhs, rhs)));
 }
 
-
-int32_t SignedMulHighAndSub32(int32_t lhs, int32_t rhs, int32_t acc) {
-  return bit_cast<int32_t>(bit_cast<uint32_t>(acc) -
-                           bit_cast<uint32_t>(SignedMulHigh32(lhs, rhs)));
-}
-
-
 }  // namespace bits
 }  // namespace base
 }  // namespace v8

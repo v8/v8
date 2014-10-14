@@ -420,9 +420,6 @@ TEST(Type3) {
             "e6cf3474       uxtb16 r3, r4, ror #8");
   }
 
-  COMPARE(smmls(r0, r1, r2, r3), "e75032d1       smmls r0, r1, r2, r3");
-  COMPARE(smmls(r10, r9, r8, r7), "e75a78d9       smmls r10, r9, r8, r7");
-
   COMPARE(smmla(r0, r1, r2, r3), "e7503211       smmla r0, r1, r2, r3");
   COMPARE(smmla(r10, r9, r8, r7), "e75a7819       smmla r10, r9, r8, r7");
 

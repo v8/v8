@@ -199,12 +199,6 @@ int32_t SignedMulHigh32(int32_t lhs, int32_t rhs);
 // adds the accumulate value |acc|.
 int32_t SignedMulHighAndAdd32(int32_t lhs, int32_t rhs, int32_t acc);
 
-
-// SignedMulHighAndAdd32(lhs, rhs, acc) multiplies two signed 32-bit values
-// |lhs| and |rhs|, extracts the most significant 32 bits of the result, and
-// subtracts it from the accumulate value |acc|.
-int32_t SignedMulHighAndSub32(int32_t lhs, int32_t rhs, int32_t acc);
-
 }  // namespace bits
 }  // namespace base
 }  // namespace v8

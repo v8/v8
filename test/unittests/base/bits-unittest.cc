@@ -224,17 +224,6 @@ TEST(Bits, SignedMulHighAndAdd32) {
   }
 }
 
-
-TEST(Bits, SignedMulHighAndSub32) {
-  TRACED_FORRANGE(int32_t, i, 1, 50) {
-    EXPECT_EQ(i, SignedMulHighAndSub32(0, 0, i));
-    TRACED_FORRANGE(int32_t, j, 1, i) {
-      EXPECT_EQ(i, SignedMulHighAndSub32(j, j, i));
-    }
-    EXPECT_EQ(i - 1, SignedMulHighAndSub32(1024 * 1024 * 1024, 4, i));
-  }
-}
-
 }  // namespace bits
 }  // namespace base
 }  // namespace v8

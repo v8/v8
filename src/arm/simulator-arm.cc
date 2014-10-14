@@ -2711,19 +2711,6 @@ void Simulator::DecodeType3(Instruction* instr) {
     }
     case db_x: {
       if (instr->Bits(22, 20) == 0x5) {
-        if (instr->Bits(7, 4) == 0xd) {
-          // SMMLS (in V8 notation matching ARM ISA format)
-          // Format(instr, "smmls'cond 'rn, 'rm, 'rs, 'rd");
-          int rm = instr->RmValue();
-          int32_t rm_val = get_register(rm);
-          int rs = instr->RsValue();
-          int32_t rs_val = get_register(rs);
-          int rd = instr->RdValue();
-          int32_t rd_val = get_register(rd);
-          rn_val = base::bits::SignedMulHighAndSub32(rm_val, rs_val, rd_val);
-          set_register(rn, rn_val);
-          return;
-        }
         if (instr->Bits(7, 4) == 0x1) {
           int rm = instr->RmValue();
           int32_t rm_val = get_register(rm);

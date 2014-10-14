@@ -1097,11 +1097,6 @@ void Decoder::DecodeType3(Instruction* instr) {
     }
     case db_x: {
       if (instr->Bits(22, 20) == 0x5) {
-        if (instr->Bits(7, 4) == 0xd) {
-          // SMMLS (in V8 notation matching ARM ISA format)
-          Format(instr, "smmls'cond 'rn, 'rm, 'rs, 'rd");
-          break;
-        }
         if (instr->Bits(7, 4) == 0x1) {
           if (instr->Bits(15, 12) == 0xF) {
             Format(instr, "smmul'cond 'rn, 'rm, 'rs");
