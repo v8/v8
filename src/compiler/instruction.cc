@@ -291,7 +291,7 @@ std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
       os << " " << *instr.InputAt(i);
     }
   }
-  return os << "\n";
+  return os;
 }
 
 
@@ -564,7 +564,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
          j <= block->last_instruction_index(); j++) {
       // TODO(svenpanne) Add some basic formatting to our streams.
       SNPrintF(buf, "%5d", j);
-      os << "   " << buf.start() << ": " << *code.InstructionAt(j);
+      os << "   " << buf.start() << ": " << *code.InstructionAt(j) << "\n";
     }
 
     os << "  " << block->control();

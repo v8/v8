@@ -1107,6 +1107,8 @@ class Isolate {
 
   static Isolate* NewForTesting() { return new Isolate(false); }
 
+  void GetTurboCfgFileName(Vector<char> buffer);
+
  private:
   explicit Isolate(bool enable_serializer);
 

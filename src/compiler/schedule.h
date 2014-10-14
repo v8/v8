@@ -218,11 +218,12 @@ class Schedule FINAL : public ZoneObject {
   void AddSuccessor(BasicBlock* block, BasicBlock* succ);
 
   BasicBlockVector* rpo_order() { return &rpo_order_; }
+  const BasicBlockVector* rpo_order() const { return &rpo_order_; }
 
   BasicBlock* start() { return start_; }
   BasicBlock* end() { return end_; }
 
-  Zone* zone() { return zone_; }
+  Zone* zone() const { return zone_; }
 
  private:
   friend class Scheduler;
