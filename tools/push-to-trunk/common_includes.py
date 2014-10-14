@@ -606,7 +606,10 @@ class Step(GitRecipesMixin):
     self.DeleteBranch(self._config["BRANCHNAME"])
 
   def CommonCleanup(self):
-    self.GitCheckout(self["current_branch"])
+    if ' ' in self["current_branch"]:
+      self.GitCheckout('master')
+    else:
+      self.GitCheckout(self["current_branch"])
     if self._config["BRANCHNAME"] != self["current_branch"]:
       self.GitDeleteBranch(self._config["BRANCHNAME"])
 
