@@ -1742,6 +1742,10 @@ class Property FINAL : public Expression {
   virtual KeyedAccessStoreMode GetStoreMode() OVERRIDE {
     return STANDARD_STORE;
   }
+  virtual IcCheckType GetKeyType() {
+    // PROPERTY key types currently aren't implemented for KeyedLoadICs.
+    return ELEMENT;
+  }
   bool IsUninitialized() { return !is_for_call_ && is_uninitialized_; }
   bool HasNoTypeInformation() {
     return is_uninitialized_;
@@ -2123,6 +2127,7 @@ class CountOperation FINAL : public Expression {
       : Expression(zone, pos, num_ids(), id_gen),
         op_(op),
         is_prefix_(is_prefix),
+        key_type_(ELEMENT),
         store_mode_(STANDARD_STORE),
         expression_(expr) {}
 

@@ -101,6 +101,7 @@ Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos, IdGen* id_gen)
     : Expression(zone, pos, num_ids(), id_gen),
       is_uninitialized_(false),
+      key_type_(ELEMENT),
       store_mode_(STANDARD_STORE),
       op_(op),
       target_(target),
