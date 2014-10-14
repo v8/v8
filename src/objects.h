@@ -1130,8 +1130,8 @@ class Object {
       StorePropertyMode data_store_mode = NORMAL_PROPERTY);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
-  static Handle<Object> SetDataProperty(LookupIterator* it,
-                                        Handle<Object> value);
+  MUST_USE_RESULT static MaybeHandle<Object> SetDataProperty(
+      LookupIterator* it, Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
       LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
       StrictMode strict_mode, StoreFromKeyed store_mode);
@@ -2215,10 +2215,9 @@ class JSObject: public JSReceiver {
   Context* GetCreationContext();
 
   // Enqueue change record for Object.observe. May cause GC.
-  static void EnqueueChangeRecord(Handle<JSObject> object,
-                                  const char* type,
-                                  Handle<Name> name,
-                                  Handle<Object> old_value);
+  MUST_USE_RESULT static MaybeHandle<Object> EnqueueChangeRecord(
+      Handle<JSObject> object, const char* type, Handle<Name> name,
+      Handle<Object> old_value);
 
  private:
   friend class DictionaryElementsAccessor;
