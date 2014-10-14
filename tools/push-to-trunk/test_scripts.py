@@ -1006,7 +1006,6 @@ def get_list():
       Cmd(("git log -1 --format=%H --grep="
            "\"^Version [[:digit:]]*\.[[:digit:]]*\.[[:digit:]]*\" "
            "origin/candidates"), "push_hash\n"),
-      Cmd("git log -1 --format=%B push_hash", self.C_V8_22624_LOG),
       Cmd("git log -1 --format=%s push_hash",
           "Version 3.22.5 (based on bleeding_edge revision r22622)\n"),
       URL("https://chromium-build.appspot.com/p/chromium/sheriff_v8.js",
@@ -1016,8 +1015,8 @@ def get_list():
       Cmd("gclient sync --nohooks", "syncing...", cwd=chrome_dir),
       Cmd("git pull", "", cwd=chrome_dir),
       Cmd("git fetch origin", ""),
-      Cmd("git checkout -b v8-roll-22624", "", cwd=chrome_dir),
-      Cmd("roll-dep v8 22624", "rolled", cb=WriteDeps, cwd=chrome_dir),
+      Cmd("git checkout -b v8-roll-push_hash", "", cwd=chrome_dir),
+      Cmd("roll-dep v8 push_hash", "rolled", cb=WriteDeps, cwd=chrome_dir),
       Cmd(("git commit -am \"Update V8 to version 3.22.5 "
            "(based on bleeding_edge revision r22622).\n\n"
            "Please reply to the V8 sheriff c_name@chromium.org in "
