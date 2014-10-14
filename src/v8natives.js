@@ -500,67 +500,68 @@ SetUpLockedPrototype(PropertyDescriptor, $Array(
     "set_",
     "hasSetter_"
   ), $Array(
-    "toString", function() {
+    "toString", function PropertyDescriptor_ToString() {
       return "[object PropertyDescriptor]";
     },
-    "setValue", function(value) {
+    "setValue", function PropertyDescriptor_SetValue(value) {
       this.value_ = value;
       this.hasValue_ = true;
     },
-    "getValue", function() {
+    "getValue", function PropertyDescriptor_GetValue() {
       return this.value_;
     },
-    "hasValue", function() {
+    "hasValue", function PropertyDescriptor_HasValue() {
       return this.hasValue_;
     },
-    "setEnumerable", function(enumerable) {
+    "setEnumerable", function PropertyDescriptor_SetEnumerable(enumerable) {
       this.enumerable_ = enumerable;
         this.hasEnumerable_ = true;
     },
-    "isEnumerable", function () {
+    "isEnumerable", function PropertyDescriptor_IsEnumerable() {
       return this.enumerable_;
     },
-    "hasEnumerable", function() {
+    "hasEnumerable", function PropertyDescriptor_HasEnumerable() {
       return this.hasEnumerable_;
     },
-    "setWritable", function(writable) {
+    "setWritable", function PropertyDescriptor_SetWritable(writable) {
       this.writable_ = writable;
       this.hasWritable_ = true;
     },
-    "isWritable", function() {
+    "isWritable", function PropertyDescriptor_IsWritable() {
       return this.writable_;
     },
-    "hasWritable", function() {
+    "hasWritable", function PropertyDescriptor_HasWritable() {
       return this.hasWritable_;
     },
-    "setConfigurable", function(configurable) {
+    "setConfigurable",
+    function PropertyDescriptor_SetConfigurable(configurable) {
       this.configurable_ = configurable;
       this.hasConfigurable_ = true;
     },
-    "hasConfigurable", function() {
+    "hasConfigurable", function PropertyDescriptor_HasConfigurable() {
       return this.hasConfigurable_;
     },
-    "isConfigurable", function() {
+    "isConfigurable", function PropertyDescriptor_IsConfigurable() {
       return this.configurable_;
     },
-    "setGet", function(get) {
+    "setGet", function PropertyDescriptor_SetGetter(get) {
       this.get_ = get;
-        this.hasGetter_ = true;
+      this.hasGetter_ = true;
     },
-    "getGet", function() {
+    "getGet", function PropertyDescriptor_GetGetter() {
       return this.get_;
     },
-    "hasGetter", function() {
+    "hasGetter", function PropertyDescriptor_HasGetter() {
       return this.hasGetter_;
     },
-    "setSet", function(set) {
+    "setSet", function PropertyDescriptor_SetSetter(set) {
       this.set_ = set;
       this.hasSetter_ = true;
     },
-    "getSet", function() {
+    "getSet", function PropertyDescriptor_GetSetter() {
       return this.set_;
     },
-    "hasSetter", function() {
+    "hasSetter", function PropertyDescriptor_HasSetter() {
       return this.hasSetter_;
   }));
 
