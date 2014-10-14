@@ -241,7 +241,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
   // TODO(turbofan): match complex addressing modes.
   if (g.CanBeImmediate(right)) {
-    inputs[input_count++] = g.Use(left);
+    inputs[input_count++] = g.UseRegister(left);
     inputs[input_count++] = g.UseImmediate(right);
   } else {
     if (node->op()->HasProperty(Operator::kCommutative) &&
@@ -305,7 +305,7 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   X64OperandGenerator g(this);
   Uint32BinopMatcher m(node);
   if (m.right().Is(-1)) {
-    Emit(kX64Not32, g.DefineSameAsFirst(node), g.Use(m.left().node()));
+    Emit(kX64Not32, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()));
   } else {
     VisitBinop(this, node, kX64Xor32);
   }
@@ -316,7 +316,7 @@ void InstructionSelector::VisitWord64Xor(Node* node) {
   X64OperandGenerator g(this);
   Uint64BinopMatcher m(node);
   if (m.right().Is(-1)) {
-    Emit(kX64Not, g.DefineSameAsFirst(node), g.Use(m.left().node()));
+    Emit(kX64Not, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()));
   } else {
     VisitBinop(this, node, kX64Xor);
   }
@@ -332,7 +332,7 @@ static void VisitWord32Shift(InstructionSelector* selector, Node* node,
   Node* right = node->InputAt(1);
 
   if (g.CanBeImmediate(right)) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseImmediate(right));
   } else {
     Int32BinopMatcher m(node);
@@ -342,7 +342,7 @@ static void VisitWord32Shift(InstructionSelector* selector, Node* node,
         right = mright.left().node();
       }
     }
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseFixed(right, rcx));
   }
 }
@@ -357,7 +357,7 @@ static void VisitWord64Shift(InstructionSelector* selector, Node* node,
   Node* right = node->InputAt(1);
 
   if (g.CanBeImmediate(right)) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseImmediate(right));
   } else {
     Int64BinopMatcher m(node);
@@ -367,7 +367,7 @@ static void VisitWord64Shift(InstructionSelector* selector, Node* node,
         right = mright.left().node();
       }
     }
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseFixed(right, rcx));
   }
 }
@@ -472,7 +472,7 @@ void InstructionSelector::VisitInt32Sub(Node* node) {
   X64OperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.left().Is(0)) {
-    Emit(kX64Neg32, g.DefineSameAsFirst(node), g.Use(m.right().node()));
+    Emit(kX64Neg32, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
   } else {
     VisitBinop(this, node, kX64Sub32);
   }
@@ -483,7 +483,7 @@ void InstructionSelector::VisitInt64Sub(Node* node) {
   X64OperandGenerator g(this);
   Int64BinopMatcher m(node);
   if (m.left().Is(0)) {
-    Emit(kX64Neg, g.DefineSameAsFirst(node), g.Use(m.right().node()));
+    Emit(kX64Neg, g.DefineSameAsFirst(node), g.UseRegister(m.right().node()));
   } else {
     VisitBinop(this, node, kX64Sub);
   }
