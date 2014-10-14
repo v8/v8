@@ -947,7 +947,6 @@ void SimplifiedLowering::DoLoadField(Node* node) {
   node->set_op(machine()->Load(access.machine_type));
   Node* offset = jsgraph()->Int32Constant(access.offset - access.tag());
   node->InsertInput(zone(), 1, offset);
-  node->AppendInput(zone(), graph()->start());
 }
 
 

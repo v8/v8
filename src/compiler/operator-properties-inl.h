@@ -118,6 +118,7 @@ inline int OperatorProperties::GetControlInputCount(const Operator* op) {
     case IrOpcode::kEffectPhi:
     case IrOpcode::kLoad:
     case IrOpcode::kLoadElement:
+    case IrOpcode::kLoadField:
       return 1;
 #define OPCODE_CASE(x) case IrOpcode::k##x:
       CONTROL_OP_LIST(OPCODE_CASE)
