@@ -283,6 +283,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64Imul:
       ASSEMBLE_MULT(imulq);
       break;
+    case kX64ImulHigh32:
+      __ imull(i.InputRegister(1));
+      break;
     case kX64Idiv32:
       __ cdq();
       __ idivl(i.InputRegister(1));

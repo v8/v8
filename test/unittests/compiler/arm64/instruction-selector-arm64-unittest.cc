@@ -1759,6 +1759,28 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
   }
 }
 
+
+TEST_F(InstructionSelectorTest, Int32MulHighWithParameters) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n = m.Int32MulHigh(p0, p1);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(2U, s.size());
+  EXPECT_EQ(kArm64Smull, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kArm64Asr, s[1]->arch_opcode());
+  ASSERT_EQ(2U, s[1]->InputCount());
+  EXPECT_EQ(s.ToVreg(s[0]->Output()), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(32, s.ToInt64(s[1]->InputAt(1)));
+  ASSERT_EQ(1U, s[1]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[1]->Output()));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

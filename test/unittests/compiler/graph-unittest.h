@@ -134,6 +134,8 @@ Matcher<Node*> IsWord32Sar(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord32Shl(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsWord32Shr(const Matcher<Node*>& lhs_matcher,
+                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord32Ror(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord32Equal(const Matcher<Node*>& lhs_matcher,
@@ -148,10 +150,14 @@ Matcher<Node*> IsWord64Equal(const Matcher<Node*>& lhs_matcher,
                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32AddWithOverflow(const Matcher<Node*>& lhs_matcher,
                                       const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt32Add(const Matcher<Node*>& lhs_matcher,
+                          const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32Sub(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32Mul(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsInt32MulHigh(const Matcher<Node*>& lhs_matcher,
+                              const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsInt32LessThan(const Matcher<Node*>& lhs_matcher,
                                const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsUint32LessThan(const Matcher<Node*>& lhs_matcher,

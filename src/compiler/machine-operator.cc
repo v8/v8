@@ -75,6 +75,7 @@ StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   V(Int32Sub, Operator::kNoProperties, 2, 1)                                  \
   V(Int32SubWithOverflow, Operator::kNoProperties, 2, 2)                      \
   V(Int32Mul, Operator::kAssociative | Operator::kCommutative, 2, 1)          \
+  V(Int32MulHigh, Operator::kAssociative | Operator::kCommutative, 2, 1)      \
   V(Int32Div, Operator::kNoProperties, 2, 1)                                  \
   V(Int32Mod, Operator::kNoProperties, 2, 1)                                  \
   V(Int32LessThan, Operator::kNoProperties, 2, 1)                             \

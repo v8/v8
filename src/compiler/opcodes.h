@@ -185,6 +185,7 @@
   V(Int32Sub)                 \
   V(Int32SubWithOverflow)     \
   V(Int32Mul)                 \
+  V(Int32MulHigh)             \
   V(Int32Div)                 \
   V(Int32Mod)                 \
   V(Int32LessThan)            \
