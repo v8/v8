@@ -715,7 +715,7 @@ bool Scheduler::ConnectFloatingControl() {
         Trace("  Floating control #%d:%s was scheduled in B%d\n", node->id(),
               node->op()->mnemonic(), block->id().ToInt());
         ConnectFloatingControlSubgraph(block, node);
-        return true;
+        break;
       }
     }
   }
