@@ -18295,7 +18295,7 @@ TEST(IdleNotificationWithLargeHint) {
 
 TEST(Regress2107) {
   const intptr_t MB = 1024 * 1024;
-  const int kIdlePauseInMs = 1000;
+  const int kIdlePauseInMs = 10000;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(env->GetIsolate());
