@@ -399,8 +399,7 @@ int main(int argc, char** argv) {
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of the context.
-    internal_isolate->heap()->CollectAllGarbage(
-        i::Heap::kNoGCFlags, "mksnapshot");
+    internal_isolate->heap()->CollectAllAvailableGarbage("mksnapshot");
     i::Object* raw_context = *v8::Utils::OpenPersistent(context);
     context.Reset();
 
