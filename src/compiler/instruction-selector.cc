@@ -1020,6 +1020,12 @@ MACHINE_OP_LIST(DECLARE_UNIMPLEMENTED_SELECTOR)
 
 void InstructionSelector::VisitCall(Node* node) { UNIMPLEMENTED(); }
 
+
+void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
+                                      BasicBlock* fbranch) {
+  UNIMPLEMENTED();
+}
+
 #endif  // !V8_TURBOFAN_BACKEND
 
 }  // namespace compiler
