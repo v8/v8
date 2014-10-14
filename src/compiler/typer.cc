@@ -931,6 +931,11 @@ Bounds Typer::Visitor::TypeInt32Mul(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeInt32MulHigh(Node* node) {
+  return Bounds(Type::Integral32());
+}
+
+
 Bounds Typer::Visitor::TypeInt32Div(Node* node) {
   return Bounds(Type::Integral32());
 }
