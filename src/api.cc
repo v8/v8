@@ -6711,7 +6711,7 @@ void Isolate::GetStackSample(const RegisterState& state, void** frames,
 
 void Isolate::SetEventLogger(LogEventCallback that) {
   // Do not overwrite the event logger if we want to log explicitly.
-  if (i::FLAG_log_timer_events) return;
+  if (i::FLAG_log_internal_timer_events) return;
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->set_event_logger(that);
 }

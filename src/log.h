@@ -300,8 +300,8 @@ class Logger {
   static void EnterExternal(Isolate* isolate);
   static void LeaveExternal(Isolate* isolate);
 
-  static void EmptyTimerEventsLogger(const char* name, int se) {}
-  static void DefaultTimerEventsLogger(const char* name, int se);
+  static inline void CallEventLogger(Isolate* isolate, const char* name,
+                                     StartEnd se, bool expose_to_api);
 
   // ==== Events logged by --log-regexp ====
   // Regexp compilation and execution events.
