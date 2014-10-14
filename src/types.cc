@@ -344,7 +344,7 @@ double TypeImpl<Config>::BitsetType::Max(bitset bits) {
   DisallowHeapAllocation no_allocation;
   DCHECK(Is(bits, kNumber));
   const BitsetMin* mins = BitsetMins();
-  bool mz = bits & kMinusZero;
+  bool mz = SEMANTIC(bits & kMinusZero);
   if (BitsetType::Is(mins[BitsetMinsSize()-1].bits, bits)) {
     return +V8_INFINITY;
   }

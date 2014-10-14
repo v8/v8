@@ -227,7 +227,7 @@ TEST(NumberTypes) {
   FOR_FLOAT64_INPUTS(i) {
     double value = *i;
     Node* node = T.Constant(value);
-    CHECK(T.upper(node)->Equals(Type::Of(value, T.main_zone())));
+    CHECK(T.upper(node)->Is(Type::Of(value, T.main_zone())));
   }
 }
 

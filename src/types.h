@@ -242,6 +242,9 @@ namespace internal {
  *
  * E.g., OtherUnsigned32 (OU32) covers all integers from 2^31 to 2^32-1.
  *
+ * NOTE: OtherSigned32 (OS32) and OU31 (OtherUnsigned31) are empty if Smis are
+ *       32-bit wide.  They should thus never be used directly, only indirectly
+ *       via e.g. Number.
  */
 
 #define PROPER_BITSET_TYPE_LIST(V) \
