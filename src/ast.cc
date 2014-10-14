@@ -62,12 +62,12 @@ bool Expression::IsUndefinedLiteral(Isolate* isolate) const {
 VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
                              IdGen* id_gen)
     : Expression(zone, position, 0, id_gen),
-      raw_name_(var->raw_name()),
-      interface_(var->interface()),
-      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
       is_this_(var->is_this()),
       is_assigned_(false),
-      is_resolved_(false) {
+      is_resolved_(false),
+      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
+      raw_name_(var->raw_name()),
+      interface_(var->interface()) {
   BindTo(var);
 }
 
@@ -75,12 +75,12 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
 VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
                              Interface* interface, int position, IdGen* id_gen)
     : Expression(zone, position, 0, id_gen),
-      raw_name_(name),
-      interface_(interface),
-      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
       is_this_(is_this),
       is_assigned_(false),
-      is_resolved_(false) {}
+      is_resolved_(false),
+      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
+      raw_name_(name),
+      interface_(interface) {}
 
 
 void VariableProxy::BindTo(Variable* var) {
@@ -100,12 +100,12 @@ void VariableProxy::BindTo(Variable* var) {
 Assignment::Assignment(Zone* zone, Token::Value op, Expression* target,
                        Expression* value, int pos, IdGen* id_gen)
     : Expression(zone, pos, num_ids(), id_gen),
+      is_uninitialized_(false),
+      store_mode_(STANDARD_STORE),
       op_(op),
       target_(target),
       value_(value),
-      binary_operation_(NULL),
-      is_uninitialized_(false),
-      store_mode_(STANDARD_STORE) {}
+      binary_operation_(NULL) {}
 
 
 Token::Value Assignment::binary_op() const {
@@ -434,7 +434,7 @@ void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 bool BinaryOperation::ResultOverwriteAllowed() const {
-  switch (op_) {
+  switch (op()) {
     case Token::COMMA:
     case Token::OR:
     case Token::AND:
