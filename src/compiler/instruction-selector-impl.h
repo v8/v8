@@ -130,7 +130,7 @@ class OperandGenerator {
 
   InstructionOperand* Label(BasicBlock* block) {
     // TODO(bmeurer): We misuse ImmediateOperand here.
-    return TempImmediate(block->id().ToInt());
+    return TempImmediate(block->rpo_number());
   }
 
  protected:

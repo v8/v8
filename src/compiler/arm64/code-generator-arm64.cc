@@ -164,7 +164,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchJmp:
-      __ B(code_->GetLabel(i.InputBlock(0)));
+      __ B(code_->GetLabel(i.InputRpo(0)));
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -526,8 +526,10 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
 
   // Emit a branch. The true and false targets are always the last two inputs
   // to the instruction.
-  BasicBlock* tblock = i.InputBlock(instr->InputCount() - 2);
-  BasicBlock* fblock = i.InputBlock(instr->InputCount() - 1);
+  BasicBlock::RpoNumber tblock =
+      i.InputRpo(static_cast<int>(instr->InputCount()) - 2);
+  BasicBlock::RpoNumber fblock =
+      i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
   bool fallthru = IsNextInAssemblyOrder(fblock);
   Label* tlabel = code()->GetLabel(tblock);
   Label* flabel = fallthru ? &done : code()->GetLabel(fblock);

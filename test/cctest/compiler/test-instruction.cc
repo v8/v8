@@ -81,10 +81,10 @@ class InstructionTester : public HandleAndZoneScope {
     return node;
   }
 
-  int NewInstr(BasicBlock* block) {
+  int NewInstr() {
     InstructionCode opcode = static_cast<InstructionCode>(110);
     TestInstr* instr = TestInstr::New(zone(), opcode);
-    return code->AddInstruction(instr, block);
+    return code->AddInstruction(instr);
   }
 
   UnallocatedOperand* NewUnallocated(int vreg) {
@@ -122,7 +122,7 @@ TEST(InstructionBasic) {
        i++, index++) {
     BasicBlock* block = *i;
     CHECK_EQ(block, R.code->BlockAt(index));
-    CHECK_EQ(-1, R.code->GetLoopEnd(block));
+    CHECK_EQ(-1, block->loop_end());
   }
 }
 
@@ -142,19 +142,19 @@ TEST(InstructionGetBasicBlock) {
   R.allocCode();
 
   R.code->StartBlock(b0);
-  int i0 = R.NewInstr(b0);
-  int i1 = R.NewInstr(b0);
+  int i0 = R.NewInstr();
+  int i1 = R.NewInstr();
   R.code->EndBlock(b0);
   R.code->StartBlock(b1);
-  int i2 = R.NewInstr(b1);
-  int i3 = R.NewInstr(b1);
-  int i4 = R.NewInstr(b1);
-  int i5 = R.NewInstr(b1);
+  int i2 = R.NewInstr();
+  int i3 = R.NewInstr();
+  int i4 = R.NewInstr();
+  int i5 = R.NewInstr();
   R.code->EndBlock(b1);
   R.code->StartBlock(b2);
-  int i6 = R.NewInstr(b2);
-  int i7 = R.NewInstr(b2);
-  int i8 = R.NewInstr(b2);
+  int i6 = R.NewInstr();
+  int i7 = R.NewInstr();
+  int i8 = R.NewInstr();
   R.code->EndBlock(b2);
   R.code->StartBlock(b3);
   R.code->EndBlock(b3);
@@ -171,17 +171,17 @@ TEST(InstructionGetBasicBlock) {
   CHECK_EQ(b2, R.code->GetBasicBlock(i7));
   CHECK_EQ(b2, R.code->GetBasicBlock(i8));
 
-  CHECK_EQ(b0, R.code->GetBasicBlock(b0->first_instruction_index()));
-  CHECK_EQ(b0, R.code->GetBasicBlock(b0->last_instruction_index()));
+  CHECK_EQ(b0, R.code->GetBasicBlock(R.code->first_instruction_index(b0)));
+  CHECK_EQ(b0, R.code->GetBasicBlock(R.code->last_instruction_index(b0)));
 
-  CHECK_EQ(b1, R.code->GetBasicBlock(b1->first_instruction_index()));
-  CHECK_EQ(b1, R.code->GetBasicBlock(b1->last_instruction_index()));
+  CHECK_EQ(b1, R.code->GetBasicBlock(R.code->first_instruction_index(b1)));
+  CHECK_EQ(b1, R.code->GetBasicBlock(R.code->last_instruction_index(b1)));
 
-  CHECK_EQ(b2, R.code->GetBasicBlock(b2->first_instruction_index()));
-  CHECK_EQ(b2, R.code->GetBasicBlock(b2->last_instruction_index()));
+  CHECK_EQ(b2, R.code->GetBasicBlock(R.code->first_instruction_index(b2)));
+  CHECK_EQ(b2, R.code->GetBasicBlock(R.code->last_instruction_index(b2)));
 
-  CHECK_EQ(b3, R.code->GetBasicBlock(b3->first_instruction_index()));
-  CHECK_EQ(b3, R.code->GetBasicBlock(b3->last_instruction_index()));
+  CHECK_EQ(b3, R.code->GetBasicBlock(R.code->first_instruction_index(b3)));
+  CHECK_EQ(b3, R.code->GetBasicBlock(R.code->last_instruction_index(b3)));
 }
 
 
@@ -195,8 +195,8 @@ TEST(InstructionIsGapAt) {
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
   TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
   R.code->StartBlock(b0);
-  R.code->AddInstruction(i0, b0);
-  R.code->AddInstruction(g, b0);
+  R.code->AddInstruction(i0);
+  R.code->AddInstruction(g);
   R.code->EndBlock(b0);
 
   CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
@@ -222,15 +222,15 @@ TEST(InstructionIsGapAt2) {
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
   TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
   R.code->StartBlock(b0);
-  R.code->AddInstruction(i0, b0);
-  R.code->AddInstruction(g, b0);
+  R.code->AddInstruction(i0);
+  R.code->AddInstruction(g);
   R.code->EndBlock(b0);
 
   TestInstr* i1 = TestInstr::New(R.zone(), 102);
   TestInstr* g1 = TestInstr::New(R.zone(), 104)->MarkAsControl();
   R.code->StartBlock(b1);
-  R.code->AddInstruction(i1, b1);
-  R.code->AddInstruction(g1, b1);
+  R.code->AddInstruction(i1);
+  R.code->AddInstruction(g1);
   R.code->EndBlock(b1);
 
   CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
@@ -263,8 +263,8 @@ TEST(InstructionAddGapMove) {
   TestInstr* i0 = TestInstr::New(R.zone(), 100);
   TestInstr* g = TestInstr::New(R.zone(), 103)->MarkAsControl();
   R.code->StartBlock(b0);
-  R.code->AddInstruction(i0, b0);
-  R.code->AddInstruction(g, b0);
+  R.code->AddInstruction(i0);
+  R.code->AddInstruction(g);
   R.code->EndBlock(b0);
 
   CHECK_EQ(true, R.code->InstructionAt(0)->IsBlockStart());
