@@ -52,6 +52,7 @@ namespace internal {
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, constant_pool_array_map, ConstantPoolArrayMap)                        \
+  V(Map, weak_cell_map, WeakCellMap)                                           \
   V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Map, hash_table_map, HashTableMap)                                         \
   V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
@@ -223,6 +224,7 @@ namespace internal {
   V(fixed_cow_array_map)                \
   V(fixed_double_array_map)             \
   V(constant_pool_array_map)            \
+  V(weak_cell_map)                      \
   V(no_interceptor_result_sentinel)     \
   V(hash_table_map)                     \
   V(ordered_hash_table_map)             \
@@ -828,6 +830,11 @@ class Heap {
   Object* encountered_weak_collections() const {
     return encountered_weak_collections_;
   }
+
+  void set_encountered_weak_cells(Object* weak_cell) {
+    encountered_weak_cells_ = weak_cell;
+  }
+  Object* encountered_weak_cells() const { return encountered_weak_cells_; }
 
   // Number of mark-sweeps.
   unsigned int ms_count() { return ms_count_; }
@@ -1559,6 +1566,8 @@ class Heap {
   // contains Smi(0) while marking is not active.
   Object* encountered_weak_collections_;
 
+  Object* encountered_weak_cells_;
+
   StoreBufferRebuilder store_buffer_rebuilder_;
 
   struct StringTypeTable {
@@ -1838,6 +1847,8 @@ class Heap {
 
   // Allocate a tenured JS global property cell initialized with the hole.
   MUST_USE_RESULT AllocationResult AllocatePropertyCell();
+
+  MUST_USE_RESULT AllocationResult AllocateWeakCell(HeapObject* value);
 
   // Allocates a new utility object in the old generation.
   MUST_USE_RESULT AllocationResult AllocateStruct(InstanceType type);

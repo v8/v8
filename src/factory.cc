@@ -931,6 +931,13 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Object> value) {
 }
 
 
+Handle<WeakCell> Factory::NewWeakCell(Handle<HeapObject> value) {
+  AllowDeferredHandleDereference convert_to_cell;
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateWeakCell(*value),
+                     WeakCell);
+}
+
+
 Handle<AllocationSite> Factory::NewAllocationSite() {
   Handle<Map> map = allocation_site_map();
   Handle<AllocationSite> site = New<AllocationSite>(map, OLD_POINTER_SPACE);

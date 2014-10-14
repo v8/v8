@@ -826,6 +826,10 @@ class MarkCompactCollector {
   // collections when incremental marking is aborted.
   void AbortWeakCollections();
 
+
+  void ProcessAndClearWeakCells();
+  void AbortWeakCells();
+
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for
   // a non-compacting collection.

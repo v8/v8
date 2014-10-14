@@ -143,6 +143,7 @@
 //       - DebugInfo
 //       - BreakPointInfo
 //       - CodeCache
+//     - WeakCell
 //
 // Formats of Object*:
 //  Smi:        [31 bit signed int] 0
@@ -425,6 +426,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
   V(CONSTANT_POOL_ARRAY_TYPE)                                   \
   V(SHARED_FUNCTION_INFO_TYPE)                                  \
+  V(WEAK_CELL_TYPE)                                             \
                                                                 \
   V(JS_MESSAGE_OBJECT_TYPE)                                     \
                                                                 \
@@ -721,6 +723,7 @@ enum InstanceType {
   FIXED_ARRAY_TYPE,
   CONSTANT_POOL_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
+  WEAK_CELL_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -984,6 +987,7 @@ template <class C> inline bool Is(Object* obj);
   V(AccessCheckNeeded)             \
   V(Cell)                          \
   V(PropertyCell)                  \
+  V(WeakCell)                      \
   V(ObjectHashTable)               \
   V(WeakHashTable)                 \
   V(OrderedHashTable)
@@ -9564,6 +9568,35 @@ class PropertyCell: public Cell {
  private:
   DECL_ACCESSORS(type_raw, Object)
   DISALLOW_IMPLICIT_CONSTRUCTORS(PropertyCell);
+};
+
+
+class WeakCell : public HeapObject {
+ public:
+  inline HeapObject* value() const;
+
+  // This should not be called by anyone except GC.
+  inline void clear(HeapObject* undefined);
+
+  // This should not be called by anyone except allocator.
+  inline void initialize(HeapObject* value);
+
+  DECL_ACCESSORS(next, Object)
+
+  DECLARE_CAST(WeakCell)
+
+  DECLARE_PRINTER(WeakCell)
+  DECLARE_VERIFIER(WeakCell)
+
+  // Layout description.
+  static const int kValueOffset = HeapObject::kHeaderSize;
+  static const int kNextOffset = kValueOffset + kPointerSize;
+  static const int kSize = kNextOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<kValueOffset, kSize, kSize> BodyDescriptor;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakCell);
 };
 
 

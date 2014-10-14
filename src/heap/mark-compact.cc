@@ -298,7 +298,11 @@ void MarkCompactCollector::CollectGarbage() {
 
   if (FLAG_collect_maps) ClearNonLiveReferences();
 
+  ProcessAndClearWeakCells();
+
   ClearWeakCollections();
+
+  heap_->set_encountered_weak_cells(Smi::FromInt(0));
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -822,6 +826,7 @@ void MarkCompactCollector::Prepare() {
     heap()->incremental_marking()->Abort();
     ClearMarkbits();
     AbortWeakCollections();
+    AbortWeakCells();
     AbortCompaction();
     was_marked_incrementally_ = false;
   }
@@ -2734,6 +2739,37 @@ void MarkCompactCollector::AbortWeakCollections() {
 }
 
 
+void MarkCompactCollector::ProcessAndClearWeakCells() {
+  HeapObject* undefined = heap()->undefined_value();
+  Object* weak_cell_obj = heap()->encountered_weak_cells();
+  while (weak_cell_obj != Smi::FromInt(0)) {
+    WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
+    HeapObject* value = weak_cell->value();
+    if (!MarkCompactCollector::IsMarked(value)) {
+      weak_cell->clear(undefined);
+    } else {
+      Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
+      heap()->mark_compact_collector()->RecordSlot(slot, slot, value);
+    }
+    weak_cell_obj = weak_cell->next();
+    weak_cell->set_next(undefined, SKIP_WRITE_BARRIER);
+  }
+  heap()->set_encountered_weak_cells(Smi::FromInt(0));
+}
+
+
+void MarkCompactCollector::AbortWeakCells() {
+  Object* undefined = heap()->undefined_value();
+  Object* weak_cell_obj = heap()->encountered_weak_cells();
+  while (weak_cell_obj != Smi::FromInt(0)) {
+    WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
+    weak_cell_obj = weak_cell->next();
+    weak_cell->set_next(undefined, SKIP_WRITE_BARRIER);
+  }
+  heap()->set_encountered_weak_cells(Smi::FromInt(0));
+}
+
+
 void MarkCompactCollector::RecordMigratedSlot(Object* value, Address slot) {
   if (heap_->InNewSpace(value)) {
     heap_->store_buffer()->Mark(slot);
@@ -2745,7 +2781,7 @@ void MarkCompactCollector::RecordMigratedSlot(Object* value, Address slot) {
 }
 
 
-// We scavange new space simultaneously with sweeping. This is done in two
+// We scavenge new space simultaneously with sweeping. This is done in two
 // passes.
 //
 // The first pass migrates all alive objects from one semispace to another or

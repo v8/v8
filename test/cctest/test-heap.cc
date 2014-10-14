@@ -4283,6 +4283,72 @@ TEST(WeakMapInMonomorphicCompareNilIC) {
 }
 
 
+TEST(WeakCell) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+  v8::internal::Factory* factory = isolate->factory();
+
+  HandleScope outer_scope(isolate);
+  Handle<WeakCell> weak_cell1;
+  {
+    HandleScope inner_scope(isolate);
+    Handle<HeapObject> value = factory->NewFixedArray(1, NOT_TENURED);
+    weak_cell1 = inner_scope.CloseAndEscape(factory->NewWeakCell(value));
+  }
+
+  Handle<FixedArray> survivor = factory->NewFixedArray(1, NOT_TENURED);
+  Handle<WeakCell> weak_cell2;
+  {
+    HandleScope inner_scope(isolate);
+    weak_cell2 = inner_scope.CloseAndEscape(factory->NewWeakCell(survivor));
+  }
+  CHECK(weak_cell1->value()->IsFixedArray());
+  CHECK_EQ(*survivor, weak_cell2->value());
+  heap->CollectGarbage(NEW_SPACE);
+  CHECK(weak_cell1->value()->IsFixedArray());
+  CHECK_EQ(*survivor, weak_cell2->value());
+  heap->CollectGarbage(NEW_SPACE);
+  CHECK(weak_cell1->value()->IsFixedArray());
+  CHECK_EQ(*survivor, weak_cell2->value());
+  heap->CollectAllAvailableGarbage();
+  CHECK_EQ(*survivor, weak_cell2->value());
+  CHECK(weak_cell2->value()->IsFixedArray());
+}
+
+
+TEST(WeakCellsWithIncrementalMarking) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+  v8::internal::Factory* factory = isolate->factory();
+
+  const int N = 16;
+  HandleScope outer_scope(isolate);
+  Handle<FixedArray> survivor = factory->NewFixedArray(1, NOT_TENURED);
+  Handle<WeakCell> weak_cells[N];
+
+  for (int i = 0; i < N; i++) {
+    HandleScope inner_scope(isolate);
+    Handle<HeapObject> value =
+        i == 0 ? survivor : factory->NewFixedArray(1, NOT_TENURED);
+    Handle<WeakCell> weak_cell = factory->NewWeakCell(value);
+    CHECK(weak_cell->value()->IsFixedArray());
+    IncrementalMarking* marking = heap->incremental_marking();
+    if (marking->IsStopped()) marking->Start();
+    marking->Step(128, IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    heap->CollectGarbage(NEW_SPACE);
+    CHECK(weak_cell->value()->IsFixedArray());
+    weak_cells[i] = inner_scope.CloseAndEscape(weak_cell);
+  }
+  heap->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK_EQ(*survivor, weak_cells[0]->value());
+  for (int i = 1; i < N; i++) {
+    CHECK(weak_cells[i]->value()->IsUndefined());
+  }
+}
+
+
 #ifdef DEBUG
 TEST(AddInstructionChangesNewSpacePromotion) {
   i::FLAG_allow_natives_syntax = true;

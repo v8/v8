@@ -1624,6 +1624,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case PROPERTY_CELL_TYPE:
       PropertyCell::BodyDescriptor::IterateBody(this, v);
       break;
+    case WEAK_CELL_TYPE:
+      WeakCell::BodyDescriptor::IterateBody(this, v);
+      break;
     case SYMBOL_TYPE:
       Symbol::BodyDescriptor::IterateBody(this, v);
       break;

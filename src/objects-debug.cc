@@ -125,6 +125,9 @@ void HeapObject::HeapObjectVerify() {
     case PROPERTY_CELL_TYPE:
       PropertyCell::cast(this)->PropertyCellVerify();
       break;
+    case WEAK_CELL_TYPE:
+      WeakCell::cast(this)->WeakCellVerify();
+      break;
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
       break;
@@ -632,6 +635,13 @@ void PropertyCell::PropertyCellVerify() {
   CHECK(IsPropertyCell());
   VerifyObjectField(kValueOffset);
   VerifyObjectField(kTypeOffset);
+}
+
+
+void WeakCell::WeakCellVerify() {
+  CHECK(IsWeakCell());
+  VerifyObjectField(kValueOffset);
+  VerifyObjectField(kNextOffset);
 }
 
 
