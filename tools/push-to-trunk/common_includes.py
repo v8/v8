@@ -375,12 +375,12 @@ class GitTagsOnlyMixin(VCInterface):
      return self.step.Git("tag").strip().splitlines()
 
   def GetBranches(self):
-    # Get relevant remote branches, e.g. "origin/branch-heads/3.25".
+    # Get relevant remote branches, e.g. "branch-heads/3.25".
     branches = filter(
-        lambda s: re.match(r"^origin/branch\-heads/\d+\.\d+$", s),
+        lambda s: re.match(r"^branch\-heads/\d+\.\d+$", s),
         self.step.GitRemotes())
-    # Remove 'origin/branch-heads/' prefix.
-    return map(lambda s: s[20:], branches)
+    # Remove 'branch-heads/' prefix.
+    return map(lambda s: s[13:], branches)
 
   def MasterBranch(self):
     return "master"
