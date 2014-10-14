@@ -155,7 +155,11 @@ class GCIdleTimeHandler {
   static size_t EstimateMarkCompactTime(
       size_t size_of_objects, size_t mark_compact_speed_in_bytes_per_ms);
 
-  static bool DoScavenge(
+  static bool ShouldDoMarkCompact(size_t idle_time_in_ms,
+                                  size_t size_of_objects,
+                                  size_t mark_compact_speed_in_bytes_per_ms);
+
+  static bool ShouldDoScavenge(
       size_t idle_time_in_ms, size_t new_space_size, size_t used_new_space_size,
       size_t scavenger_speed_in_bytes_per_ms,
       size_t new_space_allocation_throughput_in_bytes_per_ms);

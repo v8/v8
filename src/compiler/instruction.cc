@@ -318,8 +318,9 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
 
 InstructionSequence::InstructionSequence(Linkage* linkage, Graph* graph,
                                          Schedule* schedule)
-    : graph_(graph),
-      node_map_(zone()->NewArray<int>(graph->NodeCount())),
+    : zone_(schedule->zone()),
+      node_count_(graph->NodeCount()),
+      node_map_(zone()->NewArray<int>(node_count_)),
       linkage_(linkage),
       schedule_(schedule),
       constants_(ConstantMap::key_compare(),
@@ -331,7 +332,7 @@ InstructionSequence::InstructionSequence(Linkage* linkage, Graph* graph,
       doubles_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       references_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       deoptimization_entries_(zone()) {
-  for (int i = 0; i < graph->NodeCount(); ++i) {
+  for (int i = 0; i < node_count_; ++i) {
     node_map_[i] = -1;
   }
 }

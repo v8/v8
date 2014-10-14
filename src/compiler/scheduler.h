@@ -31,8 +31,8 @@ class Scheduler {
 
   // Per-node data tracked during scheduling.
   struct SchedulerData {
+    BasicBlock* minimum_block_;  // Minimum legal RPO placement.
     int unscheduled_count_;      // Number of unscheduled uses of this node.
-    int minimum_rpo_;            // Minimum legal RPO placement.
     bool is_connected_control_;  // {true} if control-connected to the end node.
     bool is_floating_control_;   // {true} if control, but not control-connected
                                  // to the end node.

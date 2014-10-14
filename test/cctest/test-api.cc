@@ -23813,3 +23813,24 @@ TEST(StreamingScriptWithInvalidUtf8) {
   const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8, false);
 }
+
+
+TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit) {
+  // Regression test: Stream data where there are several multi-byte UTF-8
+  // characters in a sequence and one of them is split between two data chunks.
+  const char* reference = "\xeb\x91\x80";
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foob\xeb\x91\x80X";
+  char chunk2[] =
+      "XXr = 13;\n"
+      "  return foob\xeb\x91\x80\xeb\x91\x80r;\n"
+      "}\n";
+  chunk1[strlen(chunk1) - 1] = reference[0];
+  chunk2[0] = reference[1];
+  chunk2[1] = reference[2];
+  const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}

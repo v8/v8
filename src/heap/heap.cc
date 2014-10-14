@@ -4268,11 +4268,14 @@ void Heap::MakeHeapIterable() {
 }
 
 
-void Heap::AdvanceIdleIncrementalMarking(intptr_t step_size) {
-  incremental_marking()->Step(step_size,
-                              IncrementalMarking::NO_GC_VIA_STACK_GUARD, true);
-
-  if (incremental_marking()->IsComplete()) {
+void Heap::TryFinalizeIdleIncrementalMarking(
+    size_t idle_time_in_ms, size_t size_of_objects,
+    size_t mark_compact_speed_in_bytes_per_ms) {
+  if (incremental_marking()->IsComplete() ||
+      (mark_compact_collector()->IsMarkingDequeEmpty() &&
+       gc_idle_time_handler_.ShouldDoMarkCompact(
+           idle_time_in_ms, size_of_objects,
+           mark_compact_speed_in_bytes_per_ms))) {
     bool uncommit = false;
     if (gc_count_at_last_idle_gc_ == gc_count_) {
       // No GC since the last full GC, the mutator is probably not active.
@@ -4332,16 +4335,28 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       gc_idle_time_handler_.Compute(idle_time_in_ms, heap_state);
 
   bool result = false;
+  int actual_time_in_ms = 0;
   switch (action.type) {
     case DONE:
       result = true;
       break;
-    case DO_INCREMENTAL_MARKING:
+    case DO_INCREMENTAL_MARKING: {
       if (incremental_marking()->IsStopped()) {
         incremental_marking()->Start();
       }
-      AdvanceIdleIncrementalMarking(action.parameter);
+      incremental_marking()->Step(action.parameter,
+                                  IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                                  IncrementalMarking::FORCE_MARKING,
+                                  IncrementalMarking::DO_NOT_FORCE_COMPLETION);
+      actual_time_in_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
+      int remaining_idle_time_in_ms = idle_time_in_ms - actual_time_in_ms;
+      if (remaining_idle_time_in_ms > 0) {
+        TryFinalizeIdleIncrementalMarking(
+            remaining_idle_time_in_ms, heap_state.size_of_objects,
+            heap_state.mark_compact_speed_in_bytes_per_ms);
+      }
       break;
+    }
     case DO_FULL_GC: {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
       const char* message = contexts_disposed_
@@ -4361,20 +4376,20 @@ bool Heap::IdleNotification(int idle_time_in_ms) {
       break;
   }
 
-  int actual_time_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
-  if (actual_time_ms <= idle_time_in_ms) {
+  actual_time_in_ms = static_cast<int>(timer.Elapsed().InMilliseconds());
+  if (actual_time_in_ms <= idle_time_in_ms) {
     if (action.type != DONE && action.type != DO_NOTHING) {
       isolate()->counters()->gc_idle_time_limit_undershot()->AddSample(
-          idle_time_in_ms - actual_time_ms);
+          idle_time_in_ms - actual_time_in_ms);
     }
   } else {
     isolate()->counters()->gc_idle_time_limit_overshot()->AddSample(
-        actual_time_ms - idle_time_in_ms);
+        actual_time_in_ms - idle_time_in_ms);
   }
 
   if (FLAG_trace_idle_notification) {
     PrintF("Idle notification: requested idle time %d ms, actual time %d ms [",
-           idle_time_in_ms, actual_time_ms);
+           idle_time_in_ms, actual_time_in_ms);
     action.Print();
     PrintF("]\n");
   }

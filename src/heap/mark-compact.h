@@ -657,6 +657,8 @@ class MarkCompactCollector {
   // to artificially keep AllocationSites alive for a time.
   void MarkAllocationSite(AllocationSite* site);
 
+  bool IsMarkingDequeEmpty();
+
  private:
   class SweeperTask;
 

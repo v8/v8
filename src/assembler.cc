@@ -131,7 +131,8 @@ AssemblerBase::AssemblerBase(Isolate* isolate, void* buffer, int buffer_size)
       emit_debug_code_(FLAG_debug_code),
       predictable_code_size_(false),
       // We may use the assembler without an isolate.
-      serializer_enabled_(isolate && isolate->serializer_enabled()) {
+      serializer_enabled_(isolate && isolate->serializer_enabled()),
+      ool_constant_pool_available_(false) {
   if (FLAG_mask_constants_with_cookie && isolate != NULL)  {
     jit_cookie_ = isolate->random_number_generator()->NextInt();
   }

@@ -901,7 +901,7 @@ DEFINE_INT(dump_allocations_digest_at_alloc, 0,
 #undef FLAG
 #define FLAG FLAG_READONLY
 
-// assembler-arm.h
+// assembler.h
 DEFINE_BOOL(enable_ool_constant_pool, V8_OOL_CONSTANT_POOL,
             "enable use of out-of-line constant pools (ARM only)")
 

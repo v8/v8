@@ -157,6 +157,15 @@ Node* JSGraph::Int32Constant(int32_t value) {
 }
 
 
+Node* JSGraph::Int64Constant(int64_t value) {
+  Node** loc = cache_.FindInt64Constant(value);
+  if (*loc == NULL) {
+    *loc = NewNode(common()->Int64Constant(value));
+  }
+  return *loc;
+}
+
+
 Node* JSGraph::NumberConstant(double value) {
   Node** loc = cache_.FindNumberConstant(value);
   if (*loc == NULL) {
@@ -188,6 +197,7 @@ Node* JSGraph::ExternalConstant(ExternalReference reference) {
   }
   return *loc;
 }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

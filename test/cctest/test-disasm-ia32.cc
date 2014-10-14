@@ -389,6 +389,8 @@ TEST(DisasmIa320) {
     // Move operation
     __ movaps(xmm0, xmm1);
     __ shufps(xmm0, xmm0, 0x0);
+    __ cvtsd2ss(xmm0, xmm1);
+    __ cvtsd2ss(xmm0, Operand(ebx, ecx, times_4, 10000));
 
     // logic operation
     __ andps(xmm0, xmm1);
@@ -411,6 +413,8 @@ TEST(DisasmIa320) {
   {
     __ cvttss2si(edx, Operand(ebx, ecx, times_4, 10000));
     __ cvtsi2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ cvtss2sd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ cvtss2sd(xmm1, xmm0);
     __ movsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ movsd(Operand(ebx, ecx, times_4, 10000), xmm1);
     // 128 bit move instructions.

@@ -27,7 +27,6 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
 
   InstructionSequence* code() const { return code_; }
   Frame* frame() const { return code()->frame(); }
-  Graph* graph() const { return code()->graph(); }
   Isolate* isolate() const { return zone()->isolate(); }
   Linkage* linkage() const { return code()->linkage(); }
   Schedule* schedule() const { return code()->schedule(); }

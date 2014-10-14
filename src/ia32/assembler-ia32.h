@@ -958,9 +958,14 @@ class Assembler : public AssemblerBase {
 
   void cvtsi2sd(XMMRegister dst, Register src) { cvtsi2sd(dst, Operand(src)); }
   void cvtsi2sd(XMMRegister dst, const Operand& src);
-  void cvtss2sd(XMMRegister dst, XMMRegister src);
-  void cvtsd2ss(XMMRegister dst, XMMRegister src);
-
+  void cvtss2sd(XMMRegister dst, const Operand& src);
+  void cvtss2sd(XMMRegister dst, XMMRegister src) {
+    cvtss2sd(dst, Operand(src));
+  }
+  void cvtsd2ss(XMMRegister dst, const Operand& src);
+  void cvtsd2ss(XMMRegister dst, XMMRegister src) {
+    cvtsd2ss(dst, Operand(src));
+  }
   void addsd(XMMRegister dst, XMMRegister src);
   void addsd(XMMRegister dst, const Operand& src);
   void subsd(XMMRegister dst, XMMRegister src);

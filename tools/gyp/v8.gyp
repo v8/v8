@@ -229,56 +229,65 @@
       'target_name': 'v8_external_snapshot',
       'type': 'static_library',
       'conditions': [
-        ['want_separate_host_toolset==1', {
-          'toolsets': ['host', 'target'],
-          'dependencies': [
-            'mksnapshot#host',
-            'js2c#host',
-            'natives_blob',
-        ]}, {
-          'toolsets': ['target'],
-          'dependencies': [
-            'mksnapshot',
-            'js2c',
-            'natives_blob',
-          ],
-        }],
-        ['component=="shared_library"', {
-          'defines': [
-            'V8_SHARED',
-            'BUILDING_V8_SHARED',
-          ],
-          'direct_dependent_settings': {
-            'defines': [
-              'V8_SHARED',
-              'USING_V8_SHARED',
-            ],
-          },
-        }],
-      ],
-      'dependencies': [
-        'v8_base',
-      ],
-      'include_dirs+': [
-        '../..',
-      ],
-      'sources': [
-        '../../src/natives-external.cc',
-        '../../src/snapshot-external.cc',
-      ],
-      'actions': [
-        {
-          'action_name': 'run_mksnapshot (external)',
-          'inputs': [
-            '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
-          ],
+        [ 'v8_use_external_startup_data==1', {
           'conditions': [
             ['want_separate_host_toolset==1', {
-              'target_conditions': [
-                ['_toolset=="host"', {
-                  'outputs': [
-                    '<(INTERMEDIATE_DIR)/snapshot.cc',
-                    '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+              'toolsets': ['host', 'target'],
+              'dependencies': [
+                'mksnapshot#host',
+                'js2c#host',
+                'natives_blob',
+            ]}, {
+              'toolsets': ['target'],
+              'dependencies': [
+                'mksnapshot',
+                'js2c',
+                'natives_blob',
+              ],
+            }],
+            ['component=="shared_library"', {
+              'defines': [
+                'V8_SHARED',
+                'BUILDING_V8_SHARED',
+              ],
+              'direct_dependent_settings': {
+                'defines': [
+                  'V8_SHARED',
+                  'USING_V8_SHARED',
+                ],
+              },
+            }],
+          ],
+          'dependencies': [
+            'v8_base',
+          ],
+          'include_dirs+': [
+            '../..',
+          ],
+          'sources': [
+            '../../src/natives-external.cc',
+            '../../src/snapshot-external.cc',
+          ],
+          'actions': [
+            {
+              'action_name': 'run_mksnapshot (external)',
+              'inputs': [
+                '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
+              ],
+              'conditions': [
+                ['want_separate_host_toolset==1', {
+                  'target_conditions': [
+                    ['_toolset=="host"', {
+                      'outputs': [
+                        '<(INTERMEDIATE_DIR)/snapshot.cc',
+                        '<(PRODUCT_DIR)/snapshot_blob_host.bin',
+                      ],
+                    }, {
+                      'outputs': [
+                        '<(INTERMEDIATE_DIR)/snapshot.cc',
+                        '<(PRODUCT_DIR)/snapshot_blob.bin',
+                      ],
+                    }],
                   ],
                 }, {
                   'outputs': [
@@ -287,31 +296,26 @@
                   ],
                 }],
               ],
-            }, {
-              'outputs': [
-                '<(INTERMEDIATE_DIR)/snapshot.cc',
-                '<(PRODUCT_DIR)/snapshot_blob.bin',
+              'variables': {
+                'mksnapshot_flags': [
+                  '--log-snapshot-positions',
+                  '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
+                ],
+                'conditions': [
+                  ['v8_random_seed!=0', {
+                    'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
+                  }],
+                ],
+              },
+              'action': [
+                '<@(_inputs)',
+                '<@(mksnapshot_flags)',
+                '<@(INTERMEDIATE_DIR)/snapshot.cc',
+                '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
               ],
-            }],
+            },
           ],
-          'variables': {
-            'mksnapshot_flags': [
-              '--log-snapshot-positions',
-              '--logfile', '<(INTERMEDIATE_DIR)/snapshot.log',
-            ],
-            'conditions': [
-              ['v8_random_seed!=0', {
-                'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
-              }],
-            ],
-          },
-          'action': [
-            '<@(_inputs)',
-            '<@(mksnapshot_flags)',
-            '<@(INTERMEDIATE_DIR)/snapshot.cc',
-            '--startup_blob', '<(PRODUCT_DIR)/snapshot_blob.bin',
-          ],
-        },
+        }],
       ],
     },
     {

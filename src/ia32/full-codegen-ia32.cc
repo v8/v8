@@ -2430,16 +2430,8 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
 void FullCodeGenerator::EmitAssignment(Expression* expr) {
   DCHECK(expr->IsValidReferenceExpression());
 
-  // Left-hand side can only be a property, a global or a (parameter or local)
-  // slot.
-  enum LhsKind { VARIABLE, NAMED_PROPERTY, KEYED_PROPERTY };
-  LhsKind assign_type = VARIABLE;
   Property* prop = expr->AsProperty();
-  if (prop != NULL) {
-    assign_type = (prop->key()->IsPropertyName())
-        ? NAMED_PROPERTY
-        : KEYED_PROPERTY;
-  }
+  LhsKind assign_type = GetAssignType(prop);
 
   switch (assign_type) {
     case VARIABLE: {
@@ -2456,6 +2448,42 @@ void FullCodeGenerator::EmitAssignment(Expression* expr) {
       __ mov(StoreDescriptor::NameRegister(),
              prop->key()->AsLiteral()->value());
       CallStoreIC();
+      break;
+    }
+    case NAMED_SUPER_PROPERTY: {
+      __ push(eax);
+      VisitForStackValue(prop->obj()->AsSuperReference()->this_var());
+      EmitLoadHomeObject(prop->obj()->AsSuperReference());
+      // stack: value, this; eax: home_object
+      Register scratch = ecx;
+      Register scratch2 = edx;
+      __ mov(scratch, result_register());               // home_object
+      __ mov(eax, MemOperand(esp, kPointerSize));       // value
+      __ mov(scratch2, MemOperand(esp, 0));             // this
+      __ mov(MemOperand(esp, kPointerSize), scratch2);  // this
+      __ mov(MemOperand(esp, 0), scratch);              // home_object
+      // stack: this, home_object. eax: value
+      EmitNamedSuperPropertyStore(prop);
+      break;
+    }
+    case KEYED_SUPER_PROPERTY: {
+      __ push(eax);
+      VisitForStackValue(prop->obj()->AsSuperReference()->this_var());
+      EmitLoadHomeObject(prop->obj()->AsSuperReference());
+      __ push(result_register());
+      VisitForAccumulatorValue(prop->key());
+      Register scratch = ecx;
+      Register scratch2 = edx;
+      __ mov(scratch2, MemOperand(esp, 2 * kPointerSize));  // value
+      // stack: value, this, home_object; eax: key, edx: value
+      __ mov(scratch, MemOperand(esp, kPointerSize));  // this
+      __ mov(MemOperand(esp, 2 * kPointerSize), scratch);
+      __ mov(scratch, MemOperand(esp, 0));  // home_object
+      __ mov(MemOperand(esp, kPointerSize), scratch);
+      __ mov(MemOperand(esp, 0), eax);
+      __ mov(eax, scratch2);
+      // stack: this, home_object, key; eax: value.
+      EmitKeyedSuperPropertyStore(prop);
       break;
     }
     case KEYED_PROPERTY: {

@@ -753,6 +753,66 @@
 }());
 
 
+(function TestSetterInForIn() {
+  var setCalled = 0;
+  var getCalled = 0;
+  function Base() {}
+  Base.prototype = {
+    constructor: Base,
+    get x() {
+      getCalled++;
+      return 1;
+    },
+    set x(v) {
+      setCalled++;
+      this.x_.push(v);
+    },
+  };
+
+  function Derived() {
+    this.x_ = [];
+  }
+  Derived.prototype = {
+    __proto__: Base.prototype,
+    constructor: Derived,
+  };
+
+  Derived.prototype.testIter = function() {
+    setCalled = 0;
+    getCalled = 0;
+    for (super.x in [1,2,3]) {}
+    assertEquals(0, getCalled);
+    assertEquals(3, setCalled);
+    assertEquals(["0","1","2"], this.x_);
+  }.toMethod(Derived.prototype);
+
+  new Derived().testIter();
+
+  var x = 'x';
+  Derived.prototype.testIterKeyed = function() {
+    setCalled = 0;
+    getCalled = 0;
+    for (super[x] in [1,2,3]) {}
+    assertEquals(0, getCalled);
+    assertEquals(3, setCalled);
+    assertEquals(["0","1","2"], this.x_);
+
+    this.x_ = [];
+    setCalled = 0;
+    getCalled = 0;
+    var toStringCalled = 0;
+    var o = {toString: function () { toStringCalled++; return x }};
+    for (super[o] in [1,2,3]) {}
+    assertEquals(0, getCalled);
+    assertEquals(3, setCalled);
+    assertEquals(3, toStringCalled);
+    assertEquals(["0","1","2"], this.x_);
+  }.toMethod(Derived.prototype);
+
+  new Derived().testIterKeyed();
+}());
+
+
 (function TestKeyedSetterCreatingOwnProperties() {
   var ownReadOnly = 'ownReadOnly';
   var ownReadonlyAccessor = 'ownReadonlyAccessor';

@@ -233,6 +233,8 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
 
     // Generate the code for the stub.
     masm.set_generating_stub(true);
+    // TODO(yangguo): remove this once we can serialize IC stubs.
+    masm.enable_serializer();
     NoCurrentFrameScope scope(&masm);
     GenerateLightweightMiss(&masm, miss);
   }

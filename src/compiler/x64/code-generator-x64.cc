@@ -405,10 +405,18 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       }
       break;
     case kSSECvtss2sd:
-      __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ cvtss2sd(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      } else {
+        __ cvtss2sd(i.OutputDoubleRegister(), i.InputOperand(0));
+      }
       break;
     case kSSECvtsd2ss:
-      __ cvtsd2ss(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      if (instr->InputAt(0)->IsDoubleRegister()) {
+        __ cvtsd2ss(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      } else {
+        __ cvtsd2ss(i.OutputDoubleRegister(), i.InputOperand(0));
+      }
       break;
     case kSSEFloat64ToInt32:
       if (instr->InputAt(0)->IsDoubleRegister()) {

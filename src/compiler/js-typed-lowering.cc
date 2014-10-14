@@ -543,12 +543,10 @@ Reduction JSTypedLowering::ReduceJSLoadProperty(Node* node) {
       ExternalArrayType type = array->type();
       uint32_t byte_length;
       if (array->byte_length()->ToUint32(&byte_length)) {
-        Node* elements = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
-            graph()->start());
-        Node* pointer = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
-            elements, elements);
+        Handle<ExternalArray> elements =
+            Handle<ExternalArray>::cast(handle(array->elements()));
+        Node* pointer = jsgraph()->IntPtrConstant(
+            bit_cast<intptr_t>(elements->external_pointer()));
         Node* length = jsgraph()->Uint32Constant(
             static_cast<uint32_t>(byte_length / array->element_size()));
         Node* effect = NodeProperties::GetEffectInput(node);
@@ -582,12 +580,10 @@ Reduction JSTypedLowering::ReduceJSStoreProperty(Node* node) {
       ExternalArrayType type = array->type();
       uint32_t byte_length;
       if (array->byte_length()->ToUint32(&byte_length)) {
-        Node* elements = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForJSObjectElements()), base,
-            graph()->start());
-        Node* pointer = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForExternalArrayPointer()),
-            elements, elements);
+        Handle<ExternalArray> elements =
+            Handle<ExternalArray>::cast(handle(array->elements()));
+        Node* pointer = jsgraph()->IntPtrConstant(
+            bit_cast<intptr_t>(elements->external_pointer()));
         Node* length = jsgraph()->Uint32Constant(
             static_cast<uint32_t>(byte_length / array->element_size()));
         Node* effect = NodeProperties::GetEffectInput(node);

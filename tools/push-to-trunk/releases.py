@@ -183,7 +183,7 @@ class RetrieveV8Releases(Step):
         git_hash, self.GetBleedingEdgeFromPush(title), branch, version,
         patches, body), self["patch"]
 
-  def GetReleasesFromBleedingEdge(self):
+  def GetReleasesFromMaster(self):
     tag_text = self.SVN("log https://v8.googlecode.com/svn/tags -v --limit 20")
     releases = []
     for (tag, revision) in re.findall(BLEEDING_EDGE_TAGS_RE, tag_text):
@@ -192,14 +192,13 @@ class RetrieveV8Releases(Step):
       # Add bleeding edge release. It does not contain patches or a code
       # review link, as tags are not uploaded.
       releases.append(self.GetReleaseDict(
-        git_hash, revision, "bleeding_edge", tag, "", ""))
+        git_hash, revision, self.vc.MasterBranch(), tag, "", ""))
     return releases
 
   def GetReleasesFromBranch(self, branch):
     self.GitReset(self.vc.RemoteBranch(branch))
-    # TODO(machenbach): Rename this when switching to the git mirror.
-    if branch == 'bleeding_edge':
-      return self.GetReleasesFromBleedingEdge()
+    if branch == self.vc.MasterBranch():
+      return self.GetReleasesFromMaster()
 
     releases = []
     try:
@@ -218,7 +217,7 @@ class RetrieveV8Releases(Step):
         # TODO(machenbach): This omits patches if the version file wasn't
         # manipulated correctly. Find a better way to detect the point where
         # the parent of the branch head leads to the trunk branch.
-        if branch != "trunk" and patch_level == "0":
+        if branch != self.vc.CandidateBranch() and patch_level == "0":
           break
 
     # Allow Ctrl-C interrupt.
@@ -240,17 +239,18 @@ class RetrieveV8Releases(Step):
       beta, stable = SortBranches(branches)[0:2]
       releases += self.GetReleasesFromBranch(stable)
       releases += self.GetReleasesFromBranch(beta)
-      releases += self.GetReleasesFromBranch("trunk")
-      releases += self.GetReleasesFromBranch("bleeding_edge")
+      releases += self.GetReleasesFromBranch(self.vc.CandidateBranch())
+      releases += self.GetReleasesFromBranch(self.vc.MasterBranch())
     elif self._options.branch == 'all':  # pragma: no cover
       # Retrieve the full release history.
       for branch in branches:
         releases += self.GetReleasesFromBranch(branch)
-      releases += self.GetReleasesFromBranch("trunk")
-      releases += self.GetReleasesFromBranch("bleeding_edge")
+      releases += self.GetReleasesFromBranch(self.vc.CandidateBranch())
+      releases += self.GetReleasesFromBranch(self.vc.MasterBranch())
     else:  # pragma: no cover
       # Retrieve history for a specified branch.
-      assert self._options.branch in branches + ["trunk", "bleeding_edge"]
+      assert self._options.branch in (branches +
+          [self.vc.CandidateBranch(), self.vc.MasterBranch()])
       releases += self.GetReleasesFromBranch(self._options.branch)
 
     self["releases"] = sorted(releases,
@@ -295,7 +295,9 @@ class RetrieveChromiumV8Releases(Step):
   def RunStep(self):
     cwd = self._options.chromium
     releases = filter(
-        lambda r: r["branch"] in ["trunk", "bleeding_edge"], self["releases"])
+        lambda r: r["branch"] in [self.vc.CandidateBranch(),
+                                  self.vc.MasterBranch()],
+        self["releases"])
     if not releases:  # pragma: no cover
       print "No releases detected. Skipping chromium history."
       return True
@@ -347,7 +349,8 @@ class RietrieveChromiumBranches(Step):
 
   def RunStep(self):
     cwd = self._options.chromium
-    trunk_releases = filter(lambda r: r["branch"] == "trunk", self["releases"])
+    trunk_releases = filter(lambda r: r["branch"] == self.vc.CandidateBranch(),
+                            self["releases"])
     if not trunk_releases:  # pragma: no cover
       print "No trunk releases detected. Skipping chromium history."
       return True
