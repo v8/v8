@@ -185,6 +185,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kMipsMul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
+    case kMipsMulHigh:
+      __ Mulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      break;
     case kMipsDiv:
       __ Div(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
