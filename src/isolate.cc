@@ -1911,6 +1911,10 @@ bool Isolate::Init(Deserializer* des) {
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
 
+  if (FLAG_log_internal_timer_events) {
+    set_event_logger(Logger::DefaultEventLoggerSentinel);
+  }
+
   // Set default value if not yet set.
   // TODO(yangguo): move this to ResourceConstraints::ConfigureDefaults
   // once ResourceConstraints becomes an argument to the Isolate constructor.

@@ -29,10 +29,12 @@ Logger::LogEventsAndTags Logger::ToNativeByScript(Logger::LogEventsAndTags tag,
 
 void Logger::CallEventLogger(Isolate* isolate, const char* name, StartEnd se,
                              bool expose_to_api) {
-  if (isolate->event_logger() == NULL) {
-    if (FLAG_log_internal_timer_events) LOG(isolate, TimerEvent(se, name));
-  } else if (expose_to_api) {
-    isolate->event_logger()(name, se);
+  if (isolate->event_logger() != NULL) {
+    if (isolate->event_logger() == DefaultEventLoggerSentinel) {
+      LOG(isolate, TimerEvent(se, name));
+    } else if (expose_to_api) {
+      isolate->event_logger()(name, se);
+    }
   }
 }
 } }  // namespace v8::internal
