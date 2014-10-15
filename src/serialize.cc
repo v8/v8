@@ -1918,7 +1918,7 @@ uint32_t Serializer::Allocate(int space, int size) {
   DCHECK(size > 0 && size < Page::kMaxRegularHeapObjectSize);
   uint32_t new_chunk_size = pending_chunk_[space] + size;
   uint32_t allocation;
-  if (new_chunk_size > Page::kMaxRegularHeapObjectSize) {
+  if (new_chunk_size > static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize)) {
     // The new chunk size would not fit onto a single page. Complete the
     // current chunk and start a new one.
     completed_chunks_[space].Add(pending_chunk_[space]);
