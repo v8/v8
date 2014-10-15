@@ -11538,6 +11538,29 @@ void HOptimizedGraphBuilder::GenerateIsObject(CallRuntime* call) {
 }
 
 
+void HOptimizedGraphBuilder::GenerateIsJSProxy(CallRuntime* call) {
+  DCHECK(call->arguments()->length() == 1);
+  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
+  HValue* value = Pop();
+  HIfContinuation continuation;
+  IfBuilder if_proxy(this);
+
+  HValue* smicheck = if_proxy.IfNot<HIsSmiAndBranch>(value);
+  if_proxy.And();
+  HValue* map = Add<HLoadNamedField>(value, smicheck, HObjectAccess::ForMap());
+  HValue* instance_type = Add<HLoadNamedField>(
+      map, static_cast<HValue*>(NULL), HObjectAccess::ForMapInstanceType());
+  if_proxy.If<HCompareNumericAndBranch>(
+      instance_type, Add<HConstant>(FIRST_JS_PROXY_TYPE), Token::GTE);
+  if_proxy.And();
+  if_proxy.If<HCompareNumericAndBranch>(
+      instance_type, Add<HConstant>(LAST_JS_PROXY_TYPE), Token::LTE);
+
+  if_proxy.CaptureContinuation(&continuation);
+  return ast_context()->ReturnContinuation(&continuation, call->id());
+}
+
+
 void HOptimizedGraphBuilder::GenerateIsNonNegativeSmi(CallRuntime* call) {
   return Bailout(kInlinedRuntimeFunctionIsNonNegativeSmi);
 }

@@ -194,9 +194,9 @@ function ObserverIsActive(observer, objectInfo) {
 function ObjectInfoGetOrCreate(object) {
   var objectInfo = ObjectInfoGet(object);
   if (IS_UNDEFINED(objectInfo)) {
-    if (!%IsJSProxy(object))
+    if (!%_IsJSProxy(object)) {
       %SetIsObserved(object);
-
+    }
     objectInfo = {
       object: object,
       changeObservers: null,
