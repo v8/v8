@@ -31,6 +31,8 @@
  * should work on other objects too, so we test that too.
  */
 
+/*
+
 var LARGE = 4000000;
 var VERYLARGE = 4000000000;
 
@@ -312,3 +314,5 @@ Array.prototype[1] = undefined;
 
 // Test http://code.google.com/p/chromium/issues/detail?id=21860
 Array.prototype.push.apply([], [1].splice(0, -(-1 % 5)));
+
+*/
