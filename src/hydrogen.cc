@@ -144,7 +144,7 @@ void HBasicBlock::AddInstruction(HInstruction* instr,
       entry->set_position(position);
     } else {
       DCHECK(!FLAG_hydrogen_track_positions ||
-             !graph()->info()->IsOptimizing());
+             !graph()->info()->IsOptimizing() || instr->IsAbnormalExit());
     }
     first_ = last_ = entry;
   }
@@ -3446,8 +3446,9 @@ HGraph::HGraph(CompilationInfo* info)
       maximum_environment_size_(0),
       no_side_effects_scope_count_(0),
       disallow_adding_new_values_(false),
-      next_inline_id_(0),
-      inlined_functions_(5, info->zone()) {
+      inlined_functions_(FLAG_hydrogen_track_positions ? 5 : 0, info->zone()),
+      inlining_id_to_function_id_(FLAG_hydrogen_track_positions ? 5 : 0,
+                                  info->zone()) {
   if (info->IsStub()) {
     CallInterfaceDescriptor descriptor =
         info->code_stub()->GetCallInterfaceDescriptor();
@@ -3527,7 +3528,8 @@ int HGraph::TraceInlinedFunction(
     }
   }
 
-  int inline_id = next_inline_id_++;
+  int inline_id = inlining_id_to_function_id_.length();
+  inlining_id_to_function_id_.Add(id, zone());
 
   if (inline_id != 0) {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
@@ -3546,8 +3548,8 @@ int HGraph::SourcePositionToScriptPosition(HSourcePosition pos) {
     return pos.raw();
   }
 
-  return inlined_functions_[pos.inlining_id()].start_position() +
-      pos.position();
+  const int id = inlining_id_to_function_id_[pos.inlining_id()];
+  return inlined_functions_[id].start_position() + pos.position();
 }
 
 

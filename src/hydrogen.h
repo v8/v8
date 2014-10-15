@@ -524,8 +524,8 @@ class HGraph FINAL : public ZoneObject {
     int start_position_;
   };
 
-  int next_inline_id_;
   ZoneList<InlinedFunctionInfo> inlined_functions_;
+  ZoneList<int> inlining_id_to_function_id_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
