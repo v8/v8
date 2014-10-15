@@ -7,7 +7,6 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/source-position.h"
-#include "src/compiler/typer.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
@@ -24,8 +23,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
         javascript_(main_zone()),
         machine_(),
         simplified_(main_zone()),
-        typer_(main_zone()),
-        jsgraph_(graph(), common(), &javascript_, &typer_, &machine_),
+        jsgraph_(graph(), common(), &javascript_, &machine_),
         info_(main_isolate(), main_zone()) {}
 
   Factory* factory() { return main_isolate()->factory(); }
@@ -40,7 +38,6 @@ class ContextSpecializationTester : public HandleAndZoneScope,
   JSOperatorBuilder javascript_;
   MachineOperatorBuilder machine_;
   SimplifiedOperatorBuilder simplified_;
-  Typer typer_;
   JSGraph jsgraph_;
   CompilationInfo info_;
 };

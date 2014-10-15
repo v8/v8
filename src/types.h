@@ -219,8 +219,9 @@ namespace internal {
   V(Detectable,          kDetectableReceiver | kNumber | kName) \
   V(Object,              kDetectableObject | kUndetectable) \
   V(Receiver,            kObject | kProxy) \
-  V(NonNumber,           kBoolean | kName | kNull | kReceiver | \
-                         kUndefined | kInternal) \
+  V(Unique,              kBoolean | kUniqueName | kNull | kUndefined | \
+                         kReceiver) \
+  V(NonNumber,           kUnique | kString | kInternal) \
   V(Any,                 0xfffffffeu)
 
 /*
@@ -265,6 +266,7 @@ namespace internal {
 //   typedef Struct;
 //   typedef Region;
 //   template<class> struct Handle { typedef type; }  // No template typedefs...
+//   template<class T> static Handle<T>::type null_handle();
 //   template<class T> static Handle<T>::type handle(T* t);  // !is_bitset(t)
 //   template<class T> static Handle<T>::type cast(Handle<Type>::type);
 //   static bool is_bitset(Type*);
@@ -375,6 +377,12 @@ class TypeImpl : public Config::Base {
 
   static TypeHandle Union(TypeHandle type1, TypeHandle type2, Region* reg);
   static TypeHandle Intersect(TypeHandle type1, TypeHandle type2, Region* reg);
+  static TypeImpl* Union(TypeImpl* type1, TypeImpl* type2) {
+    return BitsetType::New(type1->AsBitset() | type2->AsBitset());
+  }
+  static TypeImpl* Intersect(TypeImpl* type1, TypeImpl* type2) {
+    return BitsetType::New(type1->AsBitset() & type2->AsBitset());
+  }
 
   static TypeHandle Of(double value, Region* region) {
     return Config::from_bitset(BitsetType::Lub(value), region);
@@ -912,6 +920,7 @@ struct ZoneTypeConfig {
   typedef i::Zone Region;
   template<class T> struct Handle { typedef T* type; };
 
+  template<class T> static inline T* null_handle();
   template<class T> static inline T* handle(T* type);
   template<class T> static inline T* cast(Type* type);
 
@@ -954,6 +963,7 @@ struct HeapTypeConfig {
   typedef i::Isolate Region;
   template<class T> struct Handle { typedef i::Handle<T> type; };
 
+  template<class T> static inline i::Handle<T> null_handle();
   template<class T> static inline i::Handle<T> handle(T* type);
   template<class T> static inline i::Handle<T> cast(i::Handle<Type> type);
 
@@ -1002,7 +1012,9 @@ struct BoundsImpl {
   TypeHandle lower;
   TypeHandle upper;
 
-  BoundsImpl() {}
+  BoundsImpl() :  // Make sure accessing uninitialized bounds crashes big-time.
+    lower(Config::template null_handle<Type>()),
+    upper(Config::template null_handle<Type>()) {}
   explicit BoundsImpl(TypeHandle t) : lower(t), upper(t) {}
   BoundsImpl(TypeHandle l, TypeHandle u) : lower(l), upper(u) {
     DCHECK(lower->Is(upper));

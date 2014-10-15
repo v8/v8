@@ -5,7 +5,6 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/simplified-operator-reducer.h"
-#include "src/compiler/typer.h"
 #include "src/conversions.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
@@ -21,10 +20,9 @@ class SimplifiedOperatorReducerTest : public GraphTest {
 
  protected:
   Reduction Reduce(Node* node) {
-    Typer typer(zone());
     MachineOperatorBuilder machine;
     JSOperatorBuilder javascript(zone());
-    JSGraph jsgraph(graph(), common(), &javascript, &typer, &machine);
+    JSGraph jsgraph(graph(), common(), &javascript, &machine);
     SimplifiedOperatorReducer reducer(&jsgraph);
     return reducer.Reduce(node);
   }

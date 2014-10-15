@@ -24,12 +24,10 @@ class Typer;
 class JSGraph : public ZoneObject {
  public:
   JSGraph(Graph* graph, CommonOperatorBuilder* common,
-          JSOperatorBuilder* javascript, Typer* typer,
-          MachineOperatorBuilder* machine)
+          JSOperatorBuilder* javascript, MachineOperatorBuilder* machine)
       : graph_(graph),
         common_(common),
         javascript_(javascript),
-        typer_(typer),
         machine_(machine),
         cache_(zone()) {}
 
@@ -109,7 +107,6 @@ class JSGraph : public ZoneObject {
   Graph* graph_;
   CommonOperatorBuilder* common_;
   JSOperatorBuilder* javascript_;
-  Typer* typer_;
   MachineOperatorBuilder* machine_;
 
   SetOncePointer<Node> c_entry_stub_constant_;
@@ -126,7 +123,6 @@ class JSGraph : public ZoneObject {
 
   Node* ImmovableHeapConstant(Handle<HeapObject> value);
   Node* NumberConstant(double value);
-  Node* NewNode(const Operator* op);
 
   Factory* factory() { return isolate()->factory(); }
 };

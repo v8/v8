@@ -20,7 +20,7 @@ class JSCacheTesterHelper {
       : main_graph_(zone),
         main_common_(zone),
         main_javascript_(zone),
-        main_typer_(zone),
+        main_typer_(&main_graph_, MaybeHandle<Context>()),
         main_machine_() {}
   Graph main_graph_;
   CommonOperatorBuilder main_common_;
@@ -36,8 +36,12 @@ class JSConstantCacheTester : public HandleAndZoneScope,
  public:
   JSConstantCacheTester()
       : JSCacheTesterHelper(main_zone()),
-        JSGraph(&main_graph_, &main_common_, &main_javascript_, &main_typer_,
-                &main_machine_) {}
+        JSGraph(&main_graph_, &main_common_, &main_javascript_,
+                &main_machine_) {
+    main_graph_.SetStart(main_graph_.NewNode(common()->Start(0)));
+    main_graph_.SetEnd(main_graph_.NewNode(common()->End()));
+    main_typer_.Run();
+  }
 
   Type* upper(Node* node) { return NodeProperties::GetBounds(node).upper; }
 

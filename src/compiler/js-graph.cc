@@ -12,14 +12,7 @@ namespace compiler {
 
 Node* JSGraph::ImmovableHeapConstant(Handle<HeapObject> object) {
   Unique<HeapObject> unique = Unique<HeapObject>::CreateImmovable(object);
-  return NewNode(common()->HeapConstant(unique));
-}
-
-
-Node* JSGraph::NewNode(const Operator* op) {
-  Node* node = graph()->NewNode(op);
-  typer_->Init(node);
-  return node;
+  return graph()->NewNode(common()->HeapConstant(unique));
 }
 
 
@@ -95,7 +88,7 @@ Node* JSGraph::NaNConstant() {
 
 Node* JSGraph::HeapConstant(Unique<HeapObject> value) {
   // TODO(turbofan): canonicalize heap constants using Unique<T>
-  return NewNode(common()->HeapConstant(value));
+  return graph()->NewNode(common()->HeapConstant(value));
 }
 
 
@@ -151,7 +144,7 @@ Node* JSGraph::Constant(int32_t value) {
 Node* JSGraph::Int32Constant(int32_t value) {
   Node** loc = cache_.FindInt32Constant(value);
   if (*loc == NULL) {
-    *loc = NewNode(common()->Int32Constant(value));
+    *loc = graph()->NewNode(common()->Int32Constant(value));
   }
   return *loc;
 }
@@ -160,7 +153,7 @@ Node* JSGraph::Int32Constant(int32_t value) {
 Node* JSGraph::Int64Constant(int64_t value) {
   Node** loc = cache_.FindInt64Constant(value);
   if (*loc == NULL) {
-    *loc = NewNode(common()->Int64Constant(value));
+    *loc = graph()->NewNode(common()->Int64Constant(value));
   }
   return *loc;
 }
@@ -169,7 +162,7 @@ Node* JSGraph::Int64Constant(int64_t value) {
 Node* JSGraph::NumberConstant(double value) {
   Node** loc = cache_.FindNumberConstant(value);
   if (*loc == NULL) {
-    *loc = NewNode(common()->NumberConstant(value));
+    *loc = graph()->NewNode(common()->NumberConstant(value));
   }
   return *loc;
 }
@@ -177,14 +170,14 @@ Node* JSGraph::NumberConstant(double value) {
 
 Node* JSGraph::Float32Constant(float value) {
   // TODO(turbofan): cache float32 constants.
-  return NewNode(common()->Float32Constant(value));
+  return graph()->NewNode(common()->Float32Constant(value));
 }
 
 
 Node* JSGraph::Float64Constant(double value) {
   Node** loc = cache_.FindFloat64Constant(value);
   if (*loc == NULL) {
-    *loc = NewNode(common()->Float64Constant(value));
+    *loc = graph()->NewNode(common()->Float64Constant(value));
   }
   return *loc;
 }
@@ -193,7 +186,7 @@ Node* JSGraph::Float64Constant(double value) {
 Node* JSGraph::ExternalConstant(ExternalReference reference) {
   Node** loc = cache_.FindExternalConstant(reference);
   if (*loc == NULL) {
-    *loc = NewNode(common()->ExternalConstant(reference));
+    *loc = graph()->NewNode(common()->ExternalConstant(reference));
   }
   return *loc;
 }

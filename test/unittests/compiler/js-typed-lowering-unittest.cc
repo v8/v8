@@ -31,16 +31,15 @@ const StrictMode kStrictModes[] = {SLOPPY, STRICT};
 }  // namespace
 
 
-class JSTypedLoweringTest : public GraphTest {
+class JSTypedLoweringTest : public TypedGraphTest {
  public:
-  JSTypedLoweringTest() : GraphTest(3), javascript_(zone()) {}
+  JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
   virtual ~JSTypedLoweringTest() {}
 
  protected:
   Reduction Reduce(Node* node) {
-    Typer typer(zone());
     MachineOperatorBuilder machine;
-    JSGraph jsgraph(graph(), common(), javascript(), &typer, &machine);
+    JSGraph jsgraph(graph(), common(), javascript(), &machine);
     JSTypedLowering reducer(&jsgraph);
     return reducer.Reduce(node);
   }

@@ -274,7 +274,7 @@ std::ostream& operator<<(std::ostream& os, const Schedule& s) {
          ++j) {
       Node* node = *j;
       os << "  " << *node;
-      if (!NodeProperties::IsControl(node)) {
+      if (NodeProperties::IsTyped(node)) {
         Bounds bounds = NodeProperties::GetBounds(node);
         os << " : ";
         bounds.lower->PrintTo(os);

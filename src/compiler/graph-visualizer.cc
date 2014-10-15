@@ -299,7 +299,7 @@ void GraphVisualizer::AnnotateNode(Node* node) {
   }
   os_ << "}";
 
-  if (FLAG_trace_turbo_types && !NodeProperties::IsControl(node)) {
+  if (FLAG_trace_turbo_types && NodeProperties::IsTyped(node)) {
     Bounds bounds = NodeProperties::GetBounds(node);
     std::ostringstream upper;
     bounds.upper->PrintTo(upper);

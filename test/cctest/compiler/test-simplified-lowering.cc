@@ -37,10 +37,9 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
                            MachineType p3 = kMachNone,
                            MachineType p4 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0, p1, p2, p3, p4),
-        typer(this->zone()),
+        typer(this->graph(), MaybeHandle<Context>()),
         javascript(this->zone()),
-        jsgraph(this->graph(), this->common(), &javascript, &typer,
-                this->machine()),
+        jsgraph(this->graph(), this->common(), &javascript, this->machine()),
         lowering(&jsgraph) {}
 
   Typer typer;
@@ -50,12 +49,13 @@ class SimplifiedLoweringTester : public GraphBuilderTester<ReturnType> {
 
   void LowerAllNodes() {
     this->End();
+    typer.Run();
     lowering.LowerAllNodes();
   }
 
   void LowerAllNodesAndLowerChanges() {
     this->End();
-    typer.Run(jsgraph.graph(), MaybeHandle<Context>());
+    typer.Run();
     lowering.LowerAllNodes();
 
     Zone* zone = this->zone();
@@ -674,9 +674,9 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   explicit TestingGraph(Type* p0_type, Type* p1_type = Type::None(),
                         Type* p2_type = Type::None())
       : GraphAndBuilders(main_zone()),
-        typer(main_zone()),
+        typer(graph(), MaybeHandle<Context>()),
         javascript(main_zone()),
-        jsgraph(graph(), common(), &javascript, &typer, machine()) {
+        jsgraph(graph(), common(), &javascript, machine()) {
     start = graph()->NewNode(common()->Start(2));
     graph()->SetStart(start);
     ret =
@@ -686,6 +686,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
     p0 = graph()->NewNode(common()->Parameter(0), start);
     p1 = graph()->NewNode(common()->Parameter(1), start);
     p2 = graph()->NewNode(common()->Parameter(2), start);
+    typer.Run();
     NodeProperties::SetBounds(p0, Bounds(p0_type));
     NodeProperties::SetBounds(p1, Bounds(p1_type));
     NodeProperties::SetBounds(p2, Bounds(p2_type));
@@ -706,8 +707,7 @@ class TestingGraph : public HandleAndZoneScope, public GraphAndBuilders {
   }
 
   void Lower() {
-    SimplifiedLowering lowering(&jsgraph);
-    lowering.LowerAllNodes();
+    SimplifiedLowering(&jsgraph).LowerAllNodes();
   }
 
   // Inserts the node as the return value of the graph.
@@ -1540,10 +1540,11 @@ TEST(UpdatePhi) {
   TestingGraph t(Type::Any(), Type::Signed32());
   static const MachineType kMachineTypes[] = {kMachInt32, kMachUint32,
                                               kMachFloat64};
+  Type* kTypes[] = {Type::Signed32(), Type::Unsigned32(), Type::Number()};
 
   for (size_t i = 0; i < arraysize(kMachineTypes); i++) {
     FieldAccess access = {kTaggedBase, FixedArrayBase::kHeaderSize,
-                          Handle<Name>::null(), Type::Any(), kMachineTypes[i]};
+                          Handle<Name>::null(), kTypes[i], kMachineTypes[i]};
 
     Node* load0 =
         t.graph()->NewNode(t.simplified()->LoadField(access), t.p0, t.start);

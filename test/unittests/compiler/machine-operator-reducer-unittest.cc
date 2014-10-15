@@ -18,16 +18,15 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class MachineOperatorReducerTest : public GraphTest {
+class MachineOperatorReducerTest : public TypedGraphTest {
  public:
   explicit MachineOperatorReducerTest(int num_parameters = 2)
-      : GraphTest(num_parameters) {}
+      : TypedGraphTest(num_parameters) {}
 
  protected:
   Reduction Reduce(Node* node) {
-    Typer typer(zone());
     JSOperatorBuilder javascript(zone());
-    JSGraph jsgraph(graph(), common(), &javascript, &typer, &machine_);
+    JSGraph jsgraph(graph(), common(), &javascript, &machine_);
     MachineOperatorReducer reducer(&jsgraph);
     return reducer.Reduce(node);
   }

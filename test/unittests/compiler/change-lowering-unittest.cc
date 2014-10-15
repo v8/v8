@@ -6,7 +6,6 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/typer.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "testing/gmock-support.h"
@@ -65,10 +64,9 @@ class ChangeLoweringTest : public GraphTest {
   }
 
   Reduction Reduce(Node* node) {
-    Typer typer(zone());
     MachineOperatorBuilder machine(WordRepresentation());
     JSOperatorBuilder javascript(zone());
-    JSGraph jsgraph(graph(), common(), &javascript, &typer, &machine);
+    JSGraph jsgraph(graph(), common(), &javascript, &machine);
     CompilationInfo info(isolate(), zone());
     Linkage linkage(&info);
     ChangeLowering reducer(&jsgraph, &linkage);
