@@ -263,7 +263,8 @@ class Deserializer: public SerializerDeserializer {
   void AddReservation(int space, uint32_t chunk) {
     DCHECK(space >= 0);
     DCHECK(space < kNumberOfSpaces);
-    DCHECK(space == LO_SPACE || chunk < Page::kMaxRegularHeapObjectSize);
+    DCHECK(space == LO_SPACE ||
+           chunk < static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize));
     reservations_[space].Add({chunk, NULL, NULL});
   }
 

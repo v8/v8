@@ -933,7 +933,7 @@ TEST(SerializeToplevelThreeBigStrings) {
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           copy, isolate->native_context());
 
-  Execution::Call(isolate, copy_fun, global, 0, NULL);
+  USE(Execution::Call(isolate, copy_fun, global, 0, NULL));
 
   CHECK_EQ(600000 + 700000, CompileRun("(a + b).length")->Int32Value());
   CHECK_EQ(500000 + 600000, CompileRun("(b + c).length")->Int32Value());
