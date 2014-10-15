@@ -691,6 +691,33 @@ for (var i = 9; i >= 0; i--) {
   assertEquals(4950, accumulated);
 })();
 
+
+(function TestSetForEachReceiverAsObject() {
+  var set = new Set(["1", "2"]);
+
+  // Create a new object in each function call when receiver is a
+  // primitive value. See ECMA-262, Annex C.
+  var a = [];
+  set.forEach(function() { a.push(this) }, "");
+  assertTrue(a[0] !== a[1]);
+
+  // Do not create a new object otherwise.
+  a = [];
+  set.forEach(function() { a.push(this); }, {});
+  assertEquals(a[0], a[1]);
+})();
+
+
+(function TestSetForEachReceiverAsObjectInStrictMode() {
+  var set = new Set(["1", "2"]);
+
+  // In strict mode primitive values should not be coerced to an object.
+  var a = [];
+  set.forEach(function() { 'use strict'; a.push(this); }, "");
+  assertTrue(a[0] === "" && a[0] === a[1]);
+})();
+
+
 (function TestMapForEachInvalidTypes() {
   assertThrows(function() {
     Map.prototype.map.forEach.call({});
@@ -995,6 +1022,36 @@ for (var i = 9; i >= 0; i--) {
   });
 
   assertArrayEquals([0, 1, 2, 3, 4], buffer);
+})();
+
+
+(function TestMapForEachReceiverAsObject() {
+  var map = new Map();
+  map.set("key1", "value1");
+  map.set("key2", "value2");
+
+  // Create a new object in each function call when receiver is a
+  // primitive value. See ECMA-262, Annex C.
+  var a = [];
+  map.forEach(function() { a.push(this) }, "");
+  assertTrue(a[0] !== a[1]);
+
+  // Do not create a new object otherwise.
+  a = [];
+  map.forEach(function() { a.push(this); }, {});
+  assertEquals(a[0], a[1]);
+})();
+
+
+(function TestMapForEachReceiverAsObjectInStrictMode() {
+  var map = new Map();
+  map.set("key1", "value1");
+  map.set("key2", "value2");
+
+  // In strict mode primitive values should not be coerced to an object.
+  var a = [];
+  map.forEach(function() { 'use strict'; a.push(this); }, "");
+  assertTrue(a[0] === "" && a[0] === a[1]);
 })();
 
 
