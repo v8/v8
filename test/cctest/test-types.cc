@@ -97,12 +97,7 @@ class Types {
       : region_(region), rng_(isolate->random_number_generator()) {
     #define DECLARE_TYPE(name, value) \
       name = Type::name(region); \
-      if (SmiValuesAre31Bits() || \
-          (!Type::name(region)->Equals(Type::OtherSigned32()) && \
-           !Type::name(region)->Equals(Type::OtherUnsigned31()))) { \
-        /* Hack: Avoid generating those empty bitset types. */ \
-        types.push_back(name); \
-      }
+      types.push_back(name);
     PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
     #undef DECLARE_TYPE
 
@@ -289,17 +284,11 @@ class Types {
           int j = rng_->NextInt(n);
           #define PICK_BITSET_TYPE(type, value) \
             if (j-- == 0) { \
-              if (!SmiValuesAre31Bits() && \
-                  (Type::type(region_)->Equals(Type::OtherSigned32()) || \
-                   Type::type(region_)->Equals(Type::OtherUnsigned31()))) { \
-                /* Hack: Avoid generating those empty bitset types. */ \
-                continue; \
-              } \
               TypeHandle tmp = Type::Intersect( \
                   result, Type::type(region_), region_); \
               if (tmp->Is(Type::None()) && i != 0) { \
                 break; \
-              } else { \
+              } { \
                 result = tmp; \
                 continue; \
               } \
@@ -2187,13 +2176,6 @@ TEST(NowOf) {
   CcTest::InitializeVM();
   ZoneTests().NowOf();
   HeapTests().NowOf();
-}
-
-
-TEST(MinMax) {
-  CcTest::InitializeVM();
-  ZoneTests().MinMax();
-  HeapTests().MinMax();
 }
 
 
