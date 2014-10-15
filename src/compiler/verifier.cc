@@ -494,7 +494,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
         // Unsigned32 /\ Tagged -> Unsigned32 /\ UntaggedInt32
         // TODO(neis): Activate once ChangeRepresentation works in typer.
         // Type* from = Type::Intersect(Type::Unsigned32(), Type::Tagged());
-        // Type* to = Type::Intersect(Type::Unsigned32(), Type::UntaggedInt32());
+        // Type* to =Type::Intersect(Type::Unsigned32(), Type::UntaggedInt32());
         // CHECK(bounds(Operand(node)).upper->Is(from));
         // CHECK(bounds(node).upper->Is(to));
         break;
@@ -511,7 +511,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       case IrOpcode::kChangeInt32ToTagged: {
         // Signed32 /\ UntaggedInt32 -> Signed32 /\ Tagged
         // TODO(neis): Activate once ChangeRepresentation works in typer.
-        // Type* from = Type::Intersect(Type::Signed32(), Type::UntaggedInt32());
+        // Type* from =Type::Intersect(Type::Signed32(), Type::UntaggedInt32());
         // Type* to = Type::Intersect(Type::Signed32(), Type::Tagged());
         // CHECK(bounds(Operand(node)).upper->Is(from));
         // CHECK(bounds(node).upper->Is(to));
@@ -520,7 +520,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       case IrOpcode::kChangeUint32ToTagged: {
         // Unsigned32 /\ UntaggedInt32 -> Unsigned32 /\ Tagged
         // TODO(neis): Activate once ChangeRepresentation works in typer.
-        // Type* from = Type::Intersect(Type::Unsigned32(), Type::UntaggedInt32());
+        // Type* from=Type::Intersect(Type::Unsigned32(),Type::UntaggedInt32());
         // Type* to = Type::Intersect(Type::Unsigned32(), Type::Tagged());
         // CHECK(bounds(Operand(node)).upper->Is(from));
         // CHECK(bounds(node).upper->Is(to));
@@ -529,7 +529,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       case IrOpcode::kChangeFloat64ToTagged: {
         // Number /\ UntaggedFloat64 -> Number /\ Tagged
         // TODO(neis): Activate once ChangeRepresentation works in typer.
-        // Type* from = Type::Intersect(Type::Number(), Type::UntaggedFloat64());
+        // Type* from =Type::Intersect(Type::Number(), Type::UntaggedFloat64());
         // Type* to = Type::Intersect(Type::Number(), Type::Tagged());
         // CHECK(bounds(Operand(node)).upper->Is(from));
         // CHECK(bounds(node).upper->Is(to));
