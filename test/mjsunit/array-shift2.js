@@ -12,7 +12,7 @@ function test(array) {
   array.shift();
   return array;
 }
-assertEquals(["element 1","element 1"], test(["0",,2]));
-assertEquals(["element 1","element 1"], test([{},,{}]));
+assertEquals(["element 1",2], test(["0",,2]));
+assertEquals(["element 1",{}], test([{},,{}]));
 %OptimizeFunctionOnNextCall(test);
-assertEquals(["element 1","element 1"], test([{},,0]));
+assertEquals(["element 1",0], test([{},,0]));

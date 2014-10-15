@@ -231,6 +231,50 @@ function SmartSlice(array, start_i, del_count, len, deleted_elements) {
 }
 
 
+// This function implements the optimized splice implementation that can use
+// special array operations to handle sparse arrays in a sensible fashion.
+function SmartMove(array, start_i, del_count, len, num_additional_args) {
+  // Move data to new array.
+  var new_array = new InternalArray(len - del_count + num_additional_args);
+  var indices = %GetArrayKeys(array, len);
+  if (IS_NUMBER(indices)) {
+    var limit = indices;
+    for (var i = 0; i < start_i && i < limit; ++i) {
+      var current = array[i];
+      if (!IS_UNDEFINED(current) || i in array) {
+        new_array[i] = current;
+      }
+    }
+    for (var i = start_i + del_count; i < limit; ++i) {
+      var current = array[i];
+      if (!IS_UNDEFINED(current) || i in array) {
+        new_array[i - del_count + num_additional_args] = current;
+      }
+    }
+  } else {
+    var length = indices.length;
+    for (var k = 0; k < length; ++k) {
+      var key = indices[k];
+      if (!IS_UNDEFINED(key)) {
+        if (key < start_i) {
+          var current = array[key];
+          if (!IS_UNDEFINED(current) || key in array) {
+            new_array[key] = current;
+          }
+        } else if (key >= start_i + del_count) {
+          var current = array[key];
+          if (!IS_UNDEFINED(current) || key in array) {
+            new_array[key - del_count + num_additional_args] = current;
+          }
+        }
+      }
+    }
+  }
+  // Move contents of new_array into this array
+  %MoveArrayContents(new_array, array);
+}
+
+
 // This is part of the old simple-minded splice.  We are using it either
 // because the receiver is not an array (so we have no choice) or because we
 // know we are not deleting or moving a lot of elements.
@@ -248,9 +292,8 @@ function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
 }
 
 
-function SimpleMove(array, start_i, del_count, len, num_additional_args,
-    force) {
-  if (num_additional_args !== del_count || force) {
+function SimpleMove(array, start_i, del_count, len, num_additional_args) {
+  if (num_additional_args !== del_count) {
     // Move the existing elements after the elements to be deleted
     // to the right position in the resulting array.
     if (num_additional_args > del_count) {
@@ -561,7 +604,11 @@ function ArrayShift() {
 
   var first = array[0];
 
-  SimpleMove(array, 0, 1, len, 0);
+  if (IS_ARRAY(array)) {
+    SmartMove(array, 0, 1, len, 0);
+  } else {
+    SimpleMove(array, 0, 1, len, 0);
+  }
 
   array.length = len - 1;
 
@@ -597,7 +644,14 @@ function ArrayUnshift(arg1) {  // length == 1
   var array = TO_OBJECT_INLINE(this);
   var len = TO_UINT32(array.length);
   var num_arguments = %_ArgumentsLength();
-  SimpleMove(array, 0, 0, len, num_arguments, true);
+  var is_sealed = ObjectIsSealed(array);
+
+  if (IS_ARRAY(array) && !is_sealed && len > 0) {
+    SmartMove(array, 0, 0, len, num_arguments);
+  } else {
+    SimpleMove(array, 0, 0, len, num_arguments);
+  }
+
   for (var i = 0; i < num_arguments; i++) {
     array[i] = %_Arguments(i);
   }
@@ -752,8 +806,15 @@ function ArraySplice(start, delete_count) {
     // point, then include those in the estimate of changed elements.
     changed_elements += len - start_i - del_count;
   }
-  SimpleSlice(array, start_i, del_count, len, deleted_elements);
-  SimpleMove(array, start_i, del_count, len, num_elements_to_add);
+  if (UseSparseVariant(array, len, IS_ARRAY(array), changed_elements)) {
+    %NormalizeElements(array);
+    %NormalizeElements(deleted_elements);
+    SmartSlice(array, start_i, del_count, len, deleted_elements);
+    SmartMove(array, start_i, del_count, len, num_elements_to_add);
+  } else {
+    SimpleSlice(array, start_i, del_count, len, deleted_elements);
+    SimpleMove(array, start_i, del_count, len, num_elements_to_add);
+  }
 
   // Insert the arguments into the resulting array in
   // place of the deleted elements.

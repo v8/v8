@@ -190,7 +190,6 @@
   assertFalse(array.hasOwnProperty(7));
 })();
 
-/*
 // Check the behaviour when approaching maximal values for length.
 (function() {
   for (var i = 0; i < 7; i++) {
@@ -206,7 +205,6 @@
     assertEquals(bigNum + 7, new Array(bigNum).unshift(1, 2, 3, 4, 5, 6, 7));
   }
 })();
-*/
 
 (function() {
   for (var i = 0; i < 7; i++) {
