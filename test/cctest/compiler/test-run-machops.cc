@@ -142,21 +142,6 @@ TEST(RunRedundantBranch1) {
 
 TEST(RunRedundantBranch2) {
   RawMachineAssemblerTester<int32_t> m;
-  int constant = 955777;
-
-  MLabel blocka, blockb;
-  m.Branch(m.Int32Constant(0), &blocka, &blocka);
-  m.Bind(&blockb);
-  m.Goto(&blocka);
-  m.Bind(&blocka);
-  m.Return(m.Int32Constant(constant));
-
-  CHECK_EQ(constant, m.Call());
-}
-
-
-TEST(RunRedundantBranch3) {
-  RawMachineAssemblerTester<int32_t> m;
   int constant = 966777;
 
   MLabel blocka, blockb, blockc;

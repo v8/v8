@@ -741,6 +741,17 @@ void ScheduleVerifier::Run(Schedule* schedule) {
   for (BasicBlockVector::iterator b = rpo_order->begin(); b != rpo_order->end();
        ++b) {
     CHECK_EQ((*b), schedule->GetBlockById((*b)->id()));
+    // All predecessors and successors should be in rpo and in this schedule.
+    for (BasicBlock::Predecessors::iterator j = (*b)->predecessors_begin();
+         j != (*b)->predecessors_end(); ++j) {
+      CHECK_GE((*j)->rpo_number(), 0);
+      CHECK_EQ((*j), schedule->GetBlockById((*j)->id()));
+    }
+    for (BasicBlock::Successors::iterator j = (*b)->successors_begin();
+         j != (*b)->successors_end(); ++j) {
+      CHECK_GE((*j)->rpo_number(), 0);
+      CHECK_EQ((*j), schedule->GetBlockById((*j)->id()));
+    }
   }
 
   // Verify RPO numbers of blocks.
