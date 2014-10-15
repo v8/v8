@@ -107,8 +107,7 @@ void CodeGenerator::AssembleInstruction(Instruction* instr) {
     if (FLAG_code_comments) {
       // TODO(titzer): these code comments are a giant memory leak.
       Vector<char> buffer = Vector<char>::New(32);
-      // TODO(dcarney): should not be rpo number there
-      SNPrintF(buffer, "-- B%d (rpo) start --", current_block_.ToInt());
+      SNPrintF(buffer, "-- B%d start --", block_start->id().ToInt());
       masm()->RecordComment(buffer.start());
     }
     masm()->bind(block_start->label());
