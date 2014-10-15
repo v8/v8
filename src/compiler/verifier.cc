@@ -224,7 +224,13 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
         // Type is a 32 bit integer, signed or unsigned.
         CHECK(bounds(node).upper->Is(Type::Integral32()));
         break;
-      case IrOpcode::kInt64Constant:  // Close enough...
+      case IrOpcode::kInt64Constant:
+        // Constants have no inputs.
+        CHECK_EQ(0, input_count);
+        // Type is internal.
+        // TODO(rossberg): Introduce proper Int64 type.
+        CHECK(bounds(node).upper->Is(Type::Internal()));
+        break;
       case IrOpcode::kFloat32Constant:
       case IrOpcode::kFloat64Constant:
       case IrOpcode::kNumberConstant:
