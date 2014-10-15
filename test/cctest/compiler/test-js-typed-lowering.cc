@@ -262,16 +262,15 @@ TEST(NumberBinops) {
 
 static void CheckToI32(Node* old_input, Node* new_input, bool is_signed) {
   Type* old_type = NodeProperties::GetBounds(old_input).upper;
+  Type* new_type = NodeProperties::GetBounds(new_input).upper;
   Type* expected_type = I32Type(is_signed);
+  CHECK(new_type->Is(expected_type));
   if (old_type->Is(expected_type)) {
     CHECK_EQ(old_input, new_input);
   } else if (new_input->opcode() == IrOpcode::kNumberConstant) {
-    CHECK(NodeProperties::GetBounds(new_input).upper->Is(expected_type));
     double v = OpParameter<double>(new_input);
     double e = static_cast<double>(is_signed ? FastD2I(v) : FastD2UI(v));
     CHECK_EQ(e, v);
-  } else {
-    CHECK_EQ(NumberToI32(is_signed), new_input->opcode());
   }
 }
 
@@ -365,11 +364,11 @@ TEST(Int32BitwiseBinops) {
   JSBitwiseTypedLoweringTester R;
 
   Type* types[] = {
-      Type::SignedSmall(), Type::UnsignedSmall(), Type::OtherSigned32(),
-      Type::Unsigned32(),  Type::Signed32(),      Type::MinusZero(),
-      Type::NaN(),         Type::OtherNumber(),   Type::Undefined(),
-      Type::Null(),        Type::Boolean(),       Type::Number(),
-      Type::String(),      Type::Object()};
+      Type::SignedSmall(), Type::UnsignedSmall(), Type::Unsigned32(),
+      Type::Signed32(),    Type::MinusZero(),     Type::NaN(),
+      Type::OtherNumber(), Type::Undefined(),     Type::Null(),
+      Type::Boolean(),     Type::Number(),        Type::String(),
+      Type::Object()};
 
   for (size_t i = 0; i < arraysize(types); ++i) {
     Node* p0 = R.Parameter(types[i], 0);
