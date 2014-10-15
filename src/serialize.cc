@@ -2213,7 +2213,9 @@ SerializedCodeData::SerializedCodeData(List<byte>* payload, CodeSerializer* cs)
   for (int i = 0; i < SerializerDeserializer::kNumberOfSpaces; i++) {
     Vector<const uint32_t> chunks = cs->FinalAllocationChunks(i);
     for (int j = 0; j < chunks.length(); j++) {
-      DCHECK(i == LO_SPACE || chunks[j] < Page::kMaxRegularHeapObjectSize);
+      DCHECK(i == LO_SPACE ||
+             chunks[j] <
+                 static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize));
       uint32_t chunk = ChunkSizeBits::encode(chunks[j]) |
                        IsLastChunkBits::encode(j == chunks.length() - 1);
       reservations.Add(chunk);
