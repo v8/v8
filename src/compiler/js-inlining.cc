@@ -241,7 +241,7 @@ void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
   Node* context = jsgraph->graph()->NewNode(
       simplified.LoadField(AccessBuilder::ForJSFunctionContext()),
       NodeProperties::GetValueInput(call, 0),
-      NodeProperties::GetEffectInput(call));
+      NodeProperties::GetEffectInput(call), control);
 
   // Context is last argument.
   int inlinee_context_index = static_cast<int>(total_parameters()) - 1;

@@ -14,7 +14,7 @@ namespace compiler {
 
 CodeGenerator::CodeGenerator(InstructionSequence* code)
     : code_(code),
-      current_block_(NULL),
+      current_block_(BasicBlock::RpoNumber::Invalid()),
       current_source_position_(SourcePosition::Invalid()),
       masm_(code->zone()->isolate(), NULL, 0),
       resolver_(this),
@@ -103,11 +103,12 @@ void CodeGenerator::AssembleInstruction(Instruction* instr) {
   if (instr->IsBlockStart()) {
     // Bind a label for a block start and handle parallel moves.
     BlockStartInstruction* block_start = BlockStartInstruction::cast(instr);
-    current_block_ = block_start->block();
+    current_block_ = block_start->rpo_number();
     if (FLAG_code_comments) {
       // TODO(titzer): these code comments are a giant memory leak.
       Vector<char> buffer = Vector<char>::New(32);
-      SNPrintF(buffer, "-- B%d start --", block_start->block()->id().ToInt());
+      // TODO(dcarney): should not be rpo number there
+      SNPrintF(buffer, "-- B%d (rpo) start --", current_block_.ToInt());
       masm()->RecordComment(buffer.start());
     }
     masm()->bind(block_start->label());

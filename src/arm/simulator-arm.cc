@@ -2710,6 +2710,27 @@ void Simulator::DecodeType3(Instruction* instr) {
       break;
     }
     case db_x: {
+      if (instr->Bits(22, 20) == 0x5) {
+        if (instr->Bits(7, 4) == 0x1) {
+          int rm = instr->RmValue();
+          int32_t rm_val = get_register(rm);
+          int rs = instr->RsValue();
+          int32_t rs_val = get_register(rs);
+          if (instr->Bits(15, 12) == 0xF) {
+            // SMMUL (in V8 notation matching ARM ISA format)
+            // Format(instr, "smmul'cond 'rn, 'rm, 'rs");
+            rn_val = base::bits::SignedMulHigh32(rm_val, rs_val);
+          } else {
+            // SMMLA (in V8 notation matching ARM ISA format)
+            // Format(instr, "smmla'cond 'rn, 'rm, 'rs, 'rd");
+            int rd = instr->RdValue();
+            int32_t rd_val = get_register(rd);
+            rn_val = base::bits::SignedMulHighAndAdd32(rm_val, rs_val, rd_val);
+          }
+          set_register(rn, rn_val);
+          return;
+        }
+      }
       if (FLAG_enable_sudiv) {
         if (instr->Bits(5, 4) == 0x1) {
           if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {

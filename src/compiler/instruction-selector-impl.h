@@ -55,9 +55,9 @@ class OperandGenerator {
   }
 
   InstructionOperand* Use(Node* node) {
-    return Use(node,
-               new (zone()) UnallocatedOperand(
-                   UnallocatedOperand::ANY, UnallocatedOperand::USED_AT_START));
+    return Use(
+        node, new (zone()) UnallocatedOperand(
+                  UnallocatedOperand::NONE, UnallocatedOperand::USED_AT_START));
   }
 
   InstructionOperand* UseRegister(Node* node) {
@@ -69,7 +69,7 @@ class OperandGenerator {
   // Use register or operand for the node. If a register is chosen, it won't
   // alias any temporary or output registers.
   InstructionOperand* UseUnique(Node* node) {
-    return Use(node, new (zone()) UnallocatedOperand(UnallocatedOperand::ANY));
+    return Use(node, new (zone()) UnallocatedOperand(UnallocatedOperand::NONE));
   }
 
   // Use a unique register for the node that does not alias any temporary or
@@ -130,7 +130,7 @@ class OperandGenerator {
 
   InstructionOperand* Label(BasicBlock* block) {
     // TODO(bmeurer): We misuse ImmediateOperand here.
-    return TempImmediate(block->id().ToInt());
+    return TempImmediate(block->rpo_number());
   }
 
  protected:

@@ -199,6 +199,31 @@ TEST(Bits, SignedSubOverflow32) {
   }
 }
 
+
+TEST(Bits, SignedMulHigh32) {
+  EXPECT_EQ(0, SignedMulHigh32(0, 0));
+  TRACED_FORRANGE(int32_t, i, 1, 50) {
+    TRACED_FORRANGE(int32_t, j, 1, i) { EXPECT_EQ(0, SignedMulHigh32(i, j)); }
+  }
+  EXPECT_EQ(-1073741824, SignedMulHigh32(std::numeric_limits<int32_t>::max(),
+                                         std::numeric_limits<int32_t>::min()));
+  EXPECT_EQ(-1073741824, SignedMulHigh32(std::numeric_limits<int32_t>::min(),
+                                         std::numeric_limits<int32_t>::max()));
+  EXPECT_EQ(1, SignedMulHigh32(1024 * 1024 * 1024, 4));
+  EXPECT_EQ(2, SignedMulHigh32(8 * 1024, 1024 * 1024));
+}
+
+
+TEST(Bits, SignedMulHighAndAdd32) {
+  TRACED_FORRANGE(int32_t, i, 1, 50) {
+    EXPECT_EQ(i, SignedMulHighAndAdd32(0, 0, i));
+    TRACED_FORRANGE(int32_t, j, 1, i) {
+      EXPECT_EQ(i, SignedMulHighAndAdd32(j, j, i));
+    }
+    EXPECT_EQ(i + 1, SignedMulHighAndAdd32(1024 * 1024 * 1024, 4, i));
+  }
+}
+
 }  // namespace bits
 }  // namespace base
 }  // namespace v8

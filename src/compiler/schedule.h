@@ -50,23 +50,27 @@ class BasicBlock FINAL : public ZoneObject {
     size_t index_;
   };
 
+  class RpoNumber FINAL {
+   public:
+    int ToInt() const { return static_cast<int>(index_); }
+    size_t ToSize() const { return index_; }
+    static RpoNumber FromInt(int index) {
+      return RpoNumber(static_cast<size_t>(index));
+    }
+    static RpoNumber Invalid() { return RpoNumber(static_cast<size_t>(-1)); }
+
+    bool IsNext(const RpoNumber other) const {
+      return other.index_ == this->index_ + 1;
+    }
+
+   private:
+    explicit RpoNumber(size_t index) : index_(index) {}
+    size_t index_;
+  };
+
   BasicBlock(Zone* zone, Id id);
 
   Id id() const { return id_; }
-
-  // Instruction indexes (used by the register allocator).
-  int first_instruction_index() {
-    DCHECK(code_start_ >= 0);
-    DCHECK(code_end_ > 0);
-    DCHECK(code_end_ >= code_start_);
-    return code_start_;
-  }
-  int last_instruction_index() {
-    DCHECK(code_start_ >= 0);
-    DCHECK(code_end_ > 0);
-    DCHECK(code_end_ >= code_start_);
-    return code_end_ - 1;
-  }
 
   // Predecessors and successors.
   typedef ZoneVector<BasicBlock*> Predecessors;
@@ -126,16 +130,9 @@ class BasicBlock FINAL : public ZoneObject {
   int32_t loop_end() const { return loop_end_; }
   void set_loop_end(int32_t loop_end);
 
+  RpoNumber GetRpoNumber() const { return RpoNumber::FromInt(rpo_number_); }
   int32_t rpo_number() const { return rpo_number_; }
   void set_rpo_number(int32_t rpo_number);
-
-  int32_t code_start() const { return code_start_; }
-  void set_code_start(int32_t start);
-
-  int32_t code_end() const { return code_end_; }
-  void set_code_end(int32_t end);
-
-  bool deferred() const { return deferred_; }
 
   // Loop membership helpers.
   inline bool IsLoopHeader() const { return loop_end_ >= 0; }
@@ -150,10 +147,7 @@ class BasicBlock FINAL : public ZoneObject {
                              // enclosing loop header.
   int32_t loop_depth_;       // loop nesting, 0 is top-level
   int32_t loop_end_;         // end of the loop, if this block is a loop header.
-  int32_t code_start_;       // start index of arch-specific code.
-  int32_t code_end_;         // end index of arch-specific code.
-  bool deferred_;            // {true} if this block is considered the slow
-                             // path.
+
   Control control_;          // Control at the end of the block.
   Node* control_input_;      // Input value for control.
   NodeVector nodes_;         // nodes of this block in forward order.
@@ -218,11 +212,12 @@ class Schedule FINAL : public ZoneObject {
   void AddSuccessor(BasicBlock* block, BasicBlock* succ);
 
   BasicBlockVector* rpo_order() { return &rpo_order_; }
+  const BasicBlockVector* rpo_order() const { return &rpo_order_; }
 
   BasicBlock* start() { return start_; }
   BasicBlock* end() { return end_; }
 
-  Zone* zone() { return zone_; }
+  Zone* zone() const { return zone_; }
 
  private:
   friend class Scheduler;

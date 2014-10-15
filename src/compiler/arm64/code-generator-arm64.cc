@@ -46,10 +46,54 @@ class Arm64OperandConverter FINAL : public InstructionOperandConverter {
 
   Register OutputRegister32() { return ToRegister(instr_->Output()).W(); }
 
+  Operand InputOperand2_32(int index) {
+    switch (AddressingModeField::decode(instr_->opcode())) {
+      case kMode_None:
+        return InputOperand32(index);
+      case kMode_Operand2_R_LSL_I:
+        return Operand(InputRegister32(index), LSL, InputInt5(index + 1));
+      case kMode_Operand2_R_LSR_I:
+        return Operand(InputRegister32(index), LSR, InputInt5(index + 1));
+      case kMode_Operand2_R_ASR_I:
+        return Operand(InputRegister32(index), ASR, InputInt5(index + 1));
+      case kMode_Operand2_R_ROR_I:
+        return Operand(InputRegister32(index), ROR, InputInt5(index + 1));
+      case kMode_MRI:
+      case kMode_MRR:
+        break;
+    }
+    UNREACHABLE();
+    return Operand(-1);
+  }
+
+  Operand InputOperand2_64(int index) {
+    switch (AddressingModeField::decode(instr_->opcode())) {
+      case kMode_None:
+        return InputOperand64(index);
+      case kMode_Operand2_R_LSL_I:
+        return Operand(InputRegister64(index), LSL, InputInt6(index + 1));
+      case kMode_Operand2_R_LSR_I:
+        return Operand(InputRegister64(index), LSR, InputInt6(index + 1));
+      case kMode_Operand2_R_ASR_I:
+        return Operand(InputRegister64(index), ASR, InputInt6(index + 1));
+      case kMode_Operand2_R_ROR_I:
+        return Operand(InputRegister64(index), ROR, InputInt6(index + 1));
+      case kMode_MRI:
+      case kMode_MRR:
+        break;
+    }
+    UNREACHABLE();
+    return Operand(-1);
+  }
+
   MemOperand MemoryOperand(int* first_index) {
     const int index = *first_index;
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
+      case kMode_Operand2_R_LSL_I:
+      case kMode_Operand2_R_LSR_I:
+      case kMode_Operand2_R_ASR_I:
+      case kMode_Operand2_R_ROR_I:
         break;
       case kMode_MRI:
         *first_index += 2;
@@ -164,7 +208,7 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     }
     case kArchJmp:
-      __ B(code_->GetLabel(i.InputBlock(0)));
+      __ B(code_->GetLabel(i.InputRpo(0)));
       break;
     case kArchNop:
       // don't emit code for nops.
@@ -179,27 +223,28 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ TruncateDoubleToI(i.OutputRegister(), i.InputDoubleRegister(0));
       break;
     case kArm64Add:
-      __ Add(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Add(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
       break;
     case kArm64Add32:
       if (FlagsModeField::decode(opcode) != kFlags_none) {
         __ Adds(i.OutputRegister32(), i.InputRegister32(0),
-                i.InputOperand32(1));
+                i.InputOperand2_32(1));
       } else {
-        __ Add(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+        __ Add(i.OutputRegister32(), i.InputRegister32(0),
+               i.InputOperand2_32(1));
       }
       break;
     case kArm64And:
-      __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
       break;
     case kArm64And32:
-      __ And(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      __ And(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Bic:
-      __ Bic(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Bic(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
       break;
     case kArm64Bic32:
-      __ Bic(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      __ Bic(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Mul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
@@ -285,38 +330,39 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       __ Neg(i.OutputRegister32(), i.InputOperand32(0));
       break;
     case kArm64Or:
-      __ Orr(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Orr(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
       break;
     case kArm64Or32:
-      __ Orr(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      __ Orr(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Orn:
-      __ Orn(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Orn(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
       break;
     case kArm64Orn32:
-      __ Orn(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      __ Orn(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Eor:
-      __ Eor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Eor(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
       break;
     case kArm64Eor32:
-      __ Eor(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      __ Eor(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Eon:
-      __ Eon(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Eon(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
       break;
     case kArm64Eon32:
-      __ Eon(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+      __ Eon(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Sub:
-      __ Sub(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Sub(i.OutputRegister(), i.InputRegister(0), i.InputOperand2_64(1));
       break;
     case kArm64Sub32:
       if (FlagsModeField::decode(opcode) != kFlags_none) {
         __ Subs(i.OutputRegister32(), i.InputRegister32(0),
-                i.InputOperand32(1));
+                i.InputOperand2_32(1));
       } else {
-        __ Sub(i.OutputRegister32(), i.InputRegister32(0), i.InputOperand32(1));
+        __ Sub(i.OutputRegister32(), i.InputRegister32(0),
+               i.InputOperand2_32(1));
       }
       break;
     case kArm64Lsl:
@@ -526,8 +572,10 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr,
 
   // Emit a branch. The true and false targets are always the last two inputs
   // to the instruction.
-  BasicBlock* tblock = i.InputBlock(instr->InputCount() - 2);
-  BasicBlock* fblock = i.InputBlock(instr->InputCount() - 1);
+  BasicBlock::RpoNumber tblock =
+      i.InputRpo(static_cast<int>(instr->InputCount()) - 2);
+  BasicBlock::RpoNumber fblock =
+      i.InputRpo(static_cast<int>(instr->InputCount()) - 1);
   bool fallthru = IsNextInAssemblyOrder(fblock);
   Label* tlabel = code()->GetLabel(tblock);
   Label* flabel = fallthru ? &done : code()->GetLabel(fblock);

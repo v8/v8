@@ -113,6 +113,51 @@ static void VisitRRO(InstructionSelector* selector, ArchOpcode opcode,
 }
 
 
+template <typename Matcher>
+static bool TryMatchShift(InstructionSelector* selector, Node* node,
+                          InstructionCode* opcode, IrOpcode::Value shift_opcode,
+                          ImmediateMode imm_mode,
+                          AddressingMode addressing_mode) {
+  if (node->opcode() != shift_opcode) return false;
+  Arm64OperandGenerator g(selector);
+  Matcher m(node);
+  if (g.CanBeImmediate(m.right().node(), imm_mode)) {
+    *opcode |= AddressingModeField::encode(addressing_mode);
+    return true;
+  }
+  return false;
+}
+
+
+static bool TryMatchAnyShift(InstructionSelector* selector, Node* node,
+                             InstructionCode* opcode, bool try_ror) {
+  return TryMatchShift<Int32BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord32Shl, kShift32Imm,
+                                          kMode_Operand2_R_LSL_I) ||
+         TryMatchShift<Int32BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord32Shr, kShift32Imm,
+                                          kMode_Operand2_R_LSR_I) ||
+         TryMatchShift<Int32BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord32Sar, kShift32Imm,
+                                          kMode_Operand2_R_ASR_I) ||
+         (try_ror && TryMatchShift<Int32BinopMatcher>(
+                         selector, node, opcode, IrOpcode::kWord32Ror,
+                         kShift32Imm, kMode_Operand2_R_ROR_I)) ||
+         TryMatchShift<Int64BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord64Shl, kShift64Imm,
+                                          kMode_Operand2_R_LSL_I) ||
+         TryMatchShift<Int64BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord64Shr, kShift64Imm,
+                                          kMode_Operand2_R_LSR_I) ||
+         TryMatchShift<Int64BinopMatcher>(selector, node, opcode,
+                                          IrOpcode::kWord64Sar, kShift64Imm,
+                                          kMode_Operand2_R_ASR_I) ||
+         (try_ror && TryMatchShift<Int64BinopMatcher>(
+                         selector, node, opcode, IrOpcode::kWord64Ror,
+                         kShift64Imm, kMode_Operand2_R_ROR_I));
+}
+
+
 // Shared routine for multiple binary operations.
 template <typename Matcher>
 static void VisitBinop(InstructionSelector* selector, Node* node,
@@ -124,9 +169,32 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   size_t input_count = 0;
   InstructionOperand* outputs[2];
   size_t output_count = 0;
+  bool try_ror_operand = true;
 
-  inputs[input_count++] = g.UseRegister(m.left().node());
-  inputs[input_count++] = g.UseOperand(m.right().node(), operand_mode);
+  if (m.IsInt32Add() || m.IsInt64Add() || m.IsInt32Sub() || m.IsInt64Sub()) {
+    try_ror_operand = false;
+  }
+
+  if (g.CanBeImmediate(m.right().node(), operand_mode)) {
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseImmediate(m.right().node());
+  } else if (TryMatchAnyShift(selector, m.right().node(), &opcode,
+                              try_ror_operand)) {
+    Matcher m_shift(m.right().node());
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseRegister(m_shift.left().node());
+    inputs[input_count++] = g.UseImmediate(m_shift.right().node());
+  } else if (m.HasProperty(Operator::kCommutative) &&
+             TryMatchAnyShift(selector, m.left().node(), &opcode,
+                              try_ror_operand)) {
+    Matcher m_shift(m.left().node());
+    inputs[input_count++] = g.UseRegister(m.right().node());
+    inputs[input_count++] = g.UseRegister(m_shift.left().node());
+    inputs[input_count++] = g.UseImmediate(m_shift.right().node());
+  } else {
+    inputs[input_count++] = g.UseRegister(m.left().node());
+    inputs[input_count++] = g.UseRegister(m.right().node());
+  }
 
   if (cont->IsBranch()) {
     inputs[input_count++] = g.Label(cont->true_block());

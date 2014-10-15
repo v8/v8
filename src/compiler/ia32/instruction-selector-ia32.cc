@@ -260,7 +260,7 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
 
   // TODO(turbofan): match complex addressing modes.
   if (g.CanBeImmediate(right)) {
-    inputs[input_count++] = g.Use(left);
+    inputs[input_count++] = g.UseRegister(left);
     inputs[input_count++] = g.UseImmediate(right);
   } else {
     if (node->op()->HasProperty(Operator::kCommutative) &&
@@ -315,7 +315,7 @@ void InstructionSelector::VisitWord32Xor(Node* node) {
   IA32OperandGenerator g(this);
   Int32BinopMatcher m(node);
   if (m.right().Is(-1)) {
-    Emit(kIA32Not, g.DefineSameAsFirst(node), g.Use(m.left().node()));
+    Emit(kIA32Not, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()));
   } else {
     VisitBinop(this, node, kIA32Xor);
   }
@@ -330,7 +330,7 @@ static inline void VisitShift(InstructionSelector* selector, Node* node,
   Node* right = node->InputAt(1);
 
   if (g.CanBeImmediate(right)) {
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseImmediate(right));
   } else {
     Int32BinopMatcher m(node);
@@ -340,7 +340,7 @@ static inline void VisitShift(InstructionSelector* selector, Node* node,
         right = mright.left().node();
       }
     }
-    selector->Emit(opcode, g.DefineSameAsFirst(node), g.Use(left),
+    selector->Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(left),
                    g.UseFixed(right, ecx));
   }
 }

@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <iostream>  // NOLINT(readability/streams)
+
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -34,6 +36,7 @@
 #include "src/factory.h"
 #include "src/ostreams.h"
 
+using namespace v8::base;
 using namespace v8::internal;
 
 
@@ -1493,6 +1496,58 @@ TEST(18) {
 
 
 #undef TEST_SDIV
+
+
+TEST(smmla) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ smmla(r1, r1, r2, r3);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt(), y = rng->NextInt(), z = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, z, 0);
+    CHECK_EQ(bits::SignedMulHighAndAdd32(x, y, z), r);
+    USE(dummy);
+  }
+}
+
+
+TEST(smmul) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  RandomNumberGenerator* const rng = isolate->random_number_generator();
+  Assembler assm(isolate, nullptr, 0);
+  __ smmul(r1, r1, r2);
+  __ str(r1, MemOperand(r0));
+  __ bx(lr);
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (size_t i = 0; i < 128; ++i) {
+    int32_t r, x = rng->NextInt(), y = rng->NextInt();
+    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    CHECK_EQ(bits::SignedMulHigh32(x, y), r);
+    USE(dummy);
+  }
+}
 
 
 TEST(code_relative_offset) {

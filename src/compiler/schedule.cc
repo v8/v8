@@ -18,9 +18,6 @@ BasicBlock::BasicBlock(Zone* zone, Id id)
       loop_header_(NULL),
       loop_depth_(0),
       loop_end_(-1),
-      code_start_(-1),
-      code_end_(-1),
-      deferred_(false),
       control_(kNone),
       control_input_(NULL),
       nodes_(zone),
@@ -84,14 +81,6 @@ void BasicBlock::set_rpo_number(int32_t rpo_number) {
 
 
 void BasicBlock::set_loop_end(int32_t loop_end) { loop_end_ = loop_end; }
-
-
-void BasicBlock::set_code_start(int32_t code_start) {
-  code_start_ = code_start;
-}
-
-
-void BasicBlock::set_code_end(int32_t code_end) { code_end_ = code_end; }
 
 
 void BasicBlock::set_loop_header(BasicBlock* loop_header) {

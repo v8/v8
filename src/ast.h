@@ -391,22 +391,22 @@ class Expression : public AstNode {
  protected:
   Expression(Zone* zone, int pos, int num_ids_needed_by_subclass, IdGen* id_gen)
       : AstNode(pos),
-        is_parenthesized_(false),
-        is_multi_parenthesized_(false),
-        bounds_(Bounds::Unbounded(zone)),
         base_id_(
-            id_gen->ReserveIdRange(num_ids_needed_by_subclass + num_ids())) {}
+            id_gen->ReserveIdRange(num_ids_needed_by_subclass + num_ids())),
+        bounds_(Bounds::Unbounded(zone)),
+        is_parenthesized_(false),
+        is_multi_parenthesized_(false) {}
   void set_to_boolean_types(byte types) { to_boolean_types_ = types; }
 
   static int num_ids() { return 2; }
   int base_id() const { return base_id_; }
 
  private:
+  const int base_id_;
+  Bounds bounds_;
   byte to_boolean_types_;
   bool is_parenthesized_ : 1;
   bool is_multi_parenthesized_ : 1;
-  Bounds bounds_;
-  const int base_id_;
 };
 
 
@@ -511,21 +511,15 @@ class Declaration : public AstNode {
   virtual bool IsInlineable() const;
 
  protected:
-  Declaration(Zone* zone,
-              VariableProxy* proxy,
-              VariableMode mode,
-              Scope* scope,
+  Declaration(Zone* zone, VariableProxy* proxy, VariableMode mode, Scope* scope,
               int pos)
-      : AstNode(pos),
-        proxy_(proxy),
-        mode_(mode),
-        scope_(scope) {
+      : AstNode(pos), mode_(mode), proxy_(proxy), scope_(scope) {
     DCHECK(IsDeclaredVariableMode(mode));
   }
 
  private:
-  VariableProxy* proxy_;
   VariableMode mode_;
+  VariableProxy* proxy_;
 
   // Nested scope from which the declaration originated.
   Scope* scope_;
@@ -1711,15 +1705,15 @@ class VariableProxy FINAL : public Expression {
   VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
                 Interface* interface, int position, IdGen* id_gen);
 
+  bool is_this_ : 1;
+  bool is_assigned_ : 1;
+  bool is_resolved_ : 1;
+  FeedbackVectorSlot variable_feedback_slot_;
   union {
     const AstRawString* raw_name_;  // if !is_resolved_
     Variable* var_;                 // if is_resolved_
   };
   Interface* interface_;
-  FeedbackVectorSlot variable_feedback_slot_;
-  bool is_this_ : 1;
-  bool is_assigned_ : 1;
-  bool is_resolved_ : 1;
 };
 
 
@@ -1773,25 +1767,24 @@ class Property FINAL : public Expression {
  protected:
   Property(Zone* zone, Expression* obj, Expression* key, int pos, IdGen* id_gen)
       : Expression(zone, pos, num_ids(), id_gen),
-        obj_(obj),
-        key_(key),
-        property_feedback_slot_(FeedbackVectorSlot::Invalid()),
         is_for_call_(false),
         is_uninitialized_(false),
-        is_string_access_(false) {}
+        is_string_access_(false),
+        property_feedback_slot_(FeedbackVectorSlot::Invalid()),
+        obj_(obj),
+        key_(key) {}
 
   static int num_ids() { return 2; }
   int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
-  Expression* obj_;
-  Expression* key_;
-  FeedbackVectorSlot property_feedback_slot_;
-
-  SmallMapList receiver_types_;
   bool is_for_call_ : 1;
   bool is_uninitialized_ : 1;
   bool is_string_access_ : 1;
+  FeedbackVectorSlot property_feedback_slot_;
+  Expression* obj_;
+  Expression* key_;
+  SmallMapList receiver_types_;
 };
 
 
@@ -1870,9 +1863,9 @@ class Call FINAL : public Expression {
   Call(Zone* zone, Expression* expression, ZoneList<Expression*>* arguments,
        int pos, IdGen* id_gen)
       : Expression(zone, pos, num_ids(), id_gen),
+        call_feedback_slot_(FeedbackVectorSlot::Invalid()),
         expression_(expression),
-        arguments_(arguments),
-        call_feedback_slot_(FeedbackVectorSlot::Invalid()) {
+        arguments_(arguments) {
     if (expression->IsProperty()) {
       expression->AsProperty()->mark_for_call();
     }
@@ -1882,12 +1875,12 @@ class Call FINAL : public Expression {
   int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
+  FeedbackVectorSlot call_feedback_slot_;
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
   Handle<JSFunction> target_;
   Handle<Cell> cell_;
   Handle<AllocationSite> allocation_site_;
-  FeedbackVectorSlot call_feedback_slot_;
 };
 
 
@@ -2035,7 +2028,7 @@ class BinaryOperation FINAL : public Expression {
 
   virtual bool ResultOverwriteAllowed() const OVERRIDE;
 
-  Token::Value op() const { return op_; }
+  Token::Value op() const { return static_cast<Token::Value>(op_); }
   Expression* left() const { return left_; }
   Expression* right() const { return right_; }
   Handle<AllocationSite> allocation_site() const { return allocation_site_; }
@@ -2050,8 +2043,14 @@ class BinaryOperation FINAL : public Expression {
   TypeFeedbackId BinaryOperationFeedbackId() const {
     return TypeFeedbackId(base_id() + 1);
   }
-  Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
-  void set_fixed_right_arg(Maybe<int> arg) { fixed_right_arg_ = arg; }
+  Maybe<int> fixed_right_arg() const {
+    return has_fixed_right_arg_ ? Maybe<int>(fixed_right_arg_value_)
+                                : Maybe<int>();
+  }
+  void set_fixed_right_arg(Maybe<int> arg) {
+    has_fixed_right_arg_ = arg.has_value;
+    if (arg.has_value) fixed_right_arg_value_ = arg.value;
+  }
 
   virtual void RecordToBooleanTypeFeedback(
       TypeFeedbackOracle* oracle) OVERRIDE;
@@ -2060,7 +2059,7 @@ class BinaryOperation FINAL : public Expression {
   BinaryOperation(Zone* zone, Token::Value op, Expression* left,
                   Expression* right, int pos, IdGen* id_gen)
       : Expression(zone, pos, num_ids(), id_gen),
-        op_(op),
+        op_(static_cast<byte>(op)),
         left_(left),
         right_(right) {
     DCHECK(Token::IsBinaryOp(op));
@@ -2070,14 +2069,14 @@ class BinaryOperation FINAL : public Expression {
   int base_id() const { return Expression::base_id() + Expression::num_ids(); }
 
  private:
-  Token::Value op_;
+  const byte op_;  // actually Token::Value
+  // TODO(rossberg): the fixed arg should probably be represented as a Constant
+  // type for the RHS. Currenty it's actually a Maybe<int>
+  bool has_fixed_right_arg_;
+  int fixed_right_arg_value_;
   Expression* left_;
   Expression* right_;
   Handle<AllocationSite> allocation_site_;
-
-  // TODO(rossberg): the fixed arg should probably be represented as a Constant
-  // type for the RHS.
-  Maybe<int> fixed_right_arg_;
 };
 
 
@@ -2271,14 +2270,14 @@ class Assignment FINAL : public Expression {
   }
 
  private:
-  Token::Value op_;
-  Expression* target_;
-  Expression* value_;
-  BinaryOperation* binary_operation_;
   bool is_uninitialized_ : 1;
   IcCheckType key_type_ : 1;
   KeyedAccessStoreMode store_mode_ : 5;  // Windows treats as signed,
                                          // must have extra bit.
+  Token::Value op_;
+  Expression* target_;
+  Expression* value_;
+  BinaryOperation* binary_operation_;
   SmallMapList receiver_types_;
 };
 

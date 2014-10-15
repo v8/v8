@@ -55,11 +55,11 @@ void InstructionSelector::SelectInstructions() {
   // Schedule the selected instructions.
   for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end(); ++i) {
     BasicBlock* block = *i;
-    size_t end = block->code_end();
-    size_t start = block->code_start();
+    size_t end = sequence()->code_end(block);
+    size_t start = sequence()->code_start(block);
     sequence()->StartBlock(block);
     while (start-- > end) {
-      sequence()->AddInstruction(instructions_[start], block);
+      sequence()->AddInstruction(instructions_[start]);
     }
     sequence()->EndBlock(block);
   }
@@ -141,8 +141,7 @@ Instruction* InstructionSelector::Emit(Instruction* instr) {
 
 
 bool InstructionSelector::IsNextInAssemblyOrder(const BasicBlock* block) const {
-  return block->rpo_number() == (current_block_->rpo_number() + 1) &&
-         block->deferred() == current_block_->deferred();
+  return current_block_->GetRpoNumber().IsNext(block->GetRpoNumber());
 }
 
 
@@ -384,9 +383,8 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   }
 
   // We're done with the block.
-  // TODO(bmeurer): We should not mutate the schedule.
-  block->set_code_start(static_cast<int>(instructions_.size()));
-  block->set_code_end(current_block_end);
+  sequence()->set_code_start(block, static_cast<int>(instructions_.size()));
+  sequence()->set_code_end(block, current_block_end);
 
   current_block_ = NULL;
 }
@@ -1019,6 +1017,12 @@ MACHINE_OP_LIST(DECLARE_UNIMPLEMENTED_SELECTOR)
 
 
 void InstructionSelector::VisitCall(Node* node) { UNIMPLEMENTED(); }
+
+
+void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
+                                      BasicBlock* fbranch) {
+  UNIMPLEMENTED();
+}
 
 #endif  // !V8_TURBOFAN_BACKEND
 

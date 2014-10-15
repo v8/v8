@@ -165,6 +165,14 @@ void CompilationInfo::Initialize(Isolate* isolate,
   if (!script_.is_null() && script_->type()->value() == Script::TYPE_NATIVE) {
     MarkAsNative();
   }
+  // Compiling for the snapshot typically results in different code than
+  // compiling later on. This means that code recompiled with deoptimization
+  // support won't be "equivalent" (as defined by SharedFunctionInfo::
+  // EnableDeoptimizationSupport), so it will replace the old code and all
+  // its type feedback. To avoid this, always compile functions in the snapshot
+  // with deoptimization support.
+  if (isolate_->serializer_enabled()) EnableDeoptimizationSupport();
+
   if (isolate_->debug()->is_active()) MarkAsDebug();
   if (FLAG_context_specialization) MarkAsContextSpecializing();
   if (FLAG_turbo_inlining) MarkAsInliningEnabled();

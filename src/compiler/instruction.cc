@@ -6,6 +6,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/generic-node-inl.h"
+#include "src/compiler/graph.h"
 
 namespace v8 {
 namespace internal {
@@ -291,7 +292,7 @@ std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
       os << " " << *instr.InputAt(i);
     }
   }
-  return os << "\n";
+  return os;
 }
 
 
@@ -321,6 +322,7 @@ InstructionSequence::InstructionSequence(Linkage* linkage, Graph* graph,
     : zone_(schedule->zone()),
       node_count_(graph->NodeCount()),
       node_map_(zone()->NewArray<int>(node_count_)),
+      block_data_(static_cast<int>(schedule->BasicBlockCount()), zone()),
       linkage_(linkage),
       schedule_(schedule),
       constants_(ConstantMap::key_compare(),
@@ -346,32 +348,36 @@ int InstructionSequence::GetVirtualRegister(const Node* node) {
 }
 
 
-Label* InstructionSequence::GetLabel(BasicBlock* block) {
-  return GetBlockStart(block)->label();
+Label* InstructionSequence::GetLabel(BasicBlock::RpoNumber rpo) {
+  return GetBlockStart(rpo)->label();
 }
 
 
-BlockStartInstruction* InstructionSequence::GetBlockStart(BasicBlock* block) {
-  return BlockStartInstruction::cast(InstructionAt(block->code_start()));
+BlockStartInstruction* InstructionSequence::GetBlockStart(
+    BasicBlock::RpoNumber rpo) {
+  BlockStartInstruction* block_start =
+      BlockStartInstruction::cast(InstructionAt(code_start(rpo)));
+  DCHECK_EQ(rpo.ToInt(), block_start->rpo_number().ToInt());
+  return block_start;
 }
 
 
 void InstructionSequence::StartBlock(BasicBlock* block) {
-  block->set_code_start(static_cast<int>(instructions_.size()));
+  set_code_start(block, static_cast<int>(instructions_.size()));
   BlockStartInstruction* block_start =
       BlockStartInstruction::New(zone(), block);
-  AddInstruction(block_start, block);
+  AddInstruction(block_start);
 }
 
 
 void InstructionSequence::EndBlock(BasicBlock* block) {
   int end = static_cast<int>(instructions_.size());
-  DCHECK(block->code_start() >= 0 && block->code_start() < end);
-  block->set_code_end(end);
+  DCHECK(code_start(block) >= 0 && code_start(block) < end);
+  set_code_end(block, end);
 }
 
 
-int InstructionSequence::AddInstruction(Instruction* instr, BasicBlock* block) {
+int InstructionSequence::AddInstruction(Instruction* instr) {
   // TODO(titzer): the order of these gaps is a holdover from Lithium.
   GapInstruction* gap = GapInstruction::New(zone());
   if (instr->IsControl()) instructions_.push_back(gap);
@@ -395,7 +401,8 @@ BasicBlock* InstructionSequence::GetBasicBlock(int instruction_index) {
     DCHECK_LE(0, instruction_index);
     Instruction* instruction = InstructionAt(instruction_index--);
     if (instruction->IsBlockStart()) {
-      return BlockStartInstruction::cast(instruction)->block();
+      return schedule()->rpo_order()->at(
+          BlockStartInstruction::cast(instruction)->rpo_number().ToSize());
     }
   }
 }
@@ -537,8 +544,8 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
       os << " loop blocks: [" << block->rpo_number() << ", "
          << block->loop_end() << ")";
     }
-    os << "  instructions: [" << block->code_start() << ", "
-       << block->code_end() << ")\n  predecessors:";
+    os << "  instructions: [" << code.code_start(block) << ", "
+       << code.code_end(block) << ")\n  predecessors:";
 
     for (BasicBlock::Predecessors::iterator iter = block->predecessors_begin();
          iter != block->predecessors_end(); ++iter) {
@@ -560,11 +567,11 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
     }
 
     ScopedVector<char> buf(32);
-    for (int j = block->first_instruction_index();
-         j <= block->last_instruction_index(); j++) {
+    for (int j = code.first_instruction_index(block);
+         j <= code.last_instruction_index(block); j++) {
       // TODO(svenpanne) Add some basic formatting to our streams.
       SNPrintF(buf, "%5d", j);
-      os << "   " << buf.start() << ": " << *code.InstructionAt(j);
+      os << "   " << buf.start() << ": " << *code.InstructionAt(j) << "\n";
     }
 
     os << "  " << block->control();

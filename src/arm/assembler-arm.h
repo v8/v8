@@ -975,6 +975,11 @@ class Assembler : public AssemblerBase {
   void mul(Register dst, Register src1, Register src2,
            SBit s = LeaveCC, Condition cond = al);
 
+  void smmla(Register dst, Register src1, Register src2, Register srcA,
+             Condition cond = al);
+
+  void smmul(Register dst, Register src1, Register src2, Condition cond = al);
+
   void smlal(Register dstL, Register dstH, Register src1, Register src2,
              SBit s = LeaveCC, Condition cond = al);
 

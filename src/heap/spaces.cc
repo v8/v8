@@ -1005,7 +1005,7 @@ intptr_t PagedSpace::SizeOfFirstPage() {
   int size = 0;
   switch (identity()) {
     case OLD_POINTER_SPACE:
-      size = (112 + constant_pool_delta) * kPointerSize * KB;
+      size = (128 + constant_pool_delta) * kPointerSize * KB;
       break;
     case OLD_DATA_SPACE:
       size = 192 * KB;

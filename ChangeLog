@@ -1,3 +1,10 @@
+2014-10-15: Version 3.30.10
+
+        Squeeze the layout of various AST node types (Chromium issue 417697).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-14: Version 3.30.9
 
         Performance and stability improvements on all platforms.

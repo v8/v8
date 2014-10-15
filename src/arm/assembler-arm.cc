@@ -1571,11 +1571,27 @@ void Assembler::udiv(Register dst, Register src1, Register src2,
 }
 
 
-void Assembler::mul(Register dst, Register src1, Register src2,
-                    SBit s, Condition cond) {
+void Assembler::mul(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
   DCHECK(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
   // dst goes in bits 16-19 for this instruction!
-  emit(cond | s | dst.code()*B16 | src2.code()*B8 | B7 | B4 | src1.code());
+  emit(cond | s | dst.code() * B16 | src2.code() * B8 | B7 | B4 | src1.code());
+}
+
+
+void Assembler::smmla(Register dst, Register src1, Register src2, Register srcA,
+                      Condition cond) {
+  DCHECK(!dst.is(pc) && !src1.is(pc) && !src2.is(pc) && !srcA.is(pc));
+  emit(cond | B26 | B25 | B24 | B22 | B20 | dst.code() * B16 |
+       srcA.code() * B12 | src2.code() * B8 | B4 | src1.code());
+}
+
+
+void Assembler::smmul(Register dst, Register src1, Register src2,
+                      Condition cond) {
+  DCHECK(!dst.is(pc) && !src1.is(pc) && !src2.is(pc));
+  emit(cond | B26 | B25 | B24 | B22 | B20 | dst.code() * B16 | 0xf * B12 |
+       src2.code() * B8 | B4 | src1.code());
 }
 
 

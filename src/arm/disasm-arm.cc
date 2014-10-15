@@ -1096,6 +1096,17 @@ void Decoder::DecodeType3(Instruction* instr) {
       break;
     }
     case db_x: {
+      if (instr->Bits(22, 20) == 0x5) {
+        if (instr->Bits(7, 4) == 0x1) {
+          if (instr->Bits(15, 12) == 0xF) {
+            Format(instr, "smmul'cond 'rn, 'rm, 'rs");
+          } else {
+            // SMMLA (in V8 notation matching ARM ISA format)
+            Format(instr, "smmla'cond 'rn, 'rm, 'rs, 'rd");
+          }
+          break;
+        }
+      }
       if (FLAG_enable_sudiv) {
         if (instr->Bits(5, 4) == 0x1) {
           if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
