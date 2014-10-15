@@ -837,7 +837,6 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   heap->set_last_script_id(Smi::FromInt(id));
 
   // Create and initialize script object.
-  Handle<Foreign> wrapper = NewForeign(0, TENURED);
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
   script->set_name(heap->undefined_value());
@@ -846,7 +845,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_column_offset(Smi::FromInt(0));
   script->set_context_data(heap->undefined_value());
   script->set_type(Smi::FromInt(Script::TYPE_NORMAL));
-  script->set_wrapper(*wrapper);
+  script->set_wrapper(heap->undefined_value());
   script->set_line_ends(heap->undefined_value());
   script->set_eval_from_shared(heap->undefined_value());
   script->set_eval_from_instructions_offset(Smi::FromInt(0));

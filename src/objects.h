@@ -860,6 +860,7 @@ class ObjectVisitor;
 class LookupIterator;
 class StringStream;
 class TypeFeedbackVector;
+class WeakCell;
 // We cannot just say "class HeapType;" if it is created from a template... =8-?
 template<class> class TypeImpl;
 struct HeapTypeConfig;
@@ -6445,8 +6446,8 @@ class Script: public Struct {
   // [context_data]: context data for the context this script was compiled in.
   DECL_ACCESSORS(context_data, Object)
 
-  // [wrapper]: the wrapper cache.
-  DECL_ACCESSORS(wrapper, Foreign)
+  // [wrapper]: the wrapper cache.  This is either undefined or a WeakCell.
+  DECL_ACCESSORS(wrapper, HeapObject)
 
   // [type]: the script type.
   DECL_ACCESSORS(type, Smi)
@@ -6508,7 +6509,6 @@ class Script: public Struct {
 
   // Get the JS object wrapping the given script; create it if none exists.
   static Handle<JSObject> GetWrapper(Handle<Script> script);
-  void ClearWrapperCache();
 
   // Dispatched behavior.
   DECLARE_PRINTER(Script)

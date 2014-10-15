@@ -2017,13 +2017,6 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
 void CodeSerializer::SerializeHeapObject(HeapObject* heap_object,
                                          HowToCode how_to_code,
                                          WhereToPoint where_to_point) {
-  if (heap_object->IsScript()) {
-    // The wrapper cache uses a Foreign object to point to a global handle.
-    // However, the object visitor expects foreign objects to point to external
-    // references.  Clear the cache to avoid this issue.
-    Script::cast(heap_object)->ClearWrapperCache();
-  }
-
   if (FLAG_trace_code_serializer) {
     PrintF("Encoding heap object: ");
     heap_object->ShortPrint();

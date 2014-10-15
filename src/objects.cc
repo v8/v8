@@ -9727,54 +9727,27 @@ Handle<Object> Script::GetNameOrSourceURL(Handle<Script> script) {
 }
 
 
-// Wrappers for scripts are kept alive and cached in weak global
-// handles referred from foreign objects held by the scripts as long as
-// they are used. When they are not used anymore, the garbage
-// collector will call the weak callback on the global handle
-// associated with the wrapper and get rid of both the wrapper and the
-// handle.
-static void ClearWrapperCacheWeakCallback(
-    const v8::WeakCallbackData<v8::Value, void>& data) {
-  Object** location = reinterpret_cast<Object**>(data.GetParameter());
-  JSValue* wrapper = JSValue::cast(*location);
-  Script::cast(wrapper->value())->ClearWrapperCache();
-}
-
-
-void Script::ClearWrapperCache() {
-  Foreign* foreign = wrapper();
-  Object** location = reinterpret_cast<Object**>(foreign->foreign_address());
-  DCHECK_EQ(foreign->foreign_address(), reinterpret_cast<Address>(location));
-  foreign->set_foreign_address(0);
-  GlobalHandles::Destroy(location);
-  GetIsolate()->counters()->script_wrappers()->Decrement();
-}
-
-
 Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
-  if (script->wrapper()->foreign_address() != NULL) {
-    // Return a handle for the existing script wrapper from the cache.
-    return Handle<JSValue>(
-        *reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
-  }
   Isolate* isolate = script->GetIsolate();
+  if (!script->wrapper()->IsUndefined()) {
+    Handle<WeakCell> cell(WeakCell::cast(script->wrapper()));
+    if (!cell->value()->IsUndefined()) {
+      // Return a handle for the existing script wrapper from the cache.
+      return handle(JSObject::cast(cell->value()));
+    }
+    // If we found an empty WeakCell, that means the script wrapper was
+    // GCed.  We are not notified directly of that, so we decrement here
+    // so that we at least don't count double for any given script.
+    isolate->counters()->script_wrappers()->Decrement();
+  }
   // Construct a new script wrapper.
   isolate->counters()->script_wrappers()->Increment();
   Handle<JSFunction> constructor = isolate->script_function();
   Handle<JSValue> result =
       Handle<JSValue>::cast(isolate->factory()->NewJSObject(constructor));
-
   result->set_value(*script);
-
-  // Create a new weak global handle and use it to cache the wrapper
-  // for future use. The cache will automatically be cleared by the
-  // garbage collector when it is not used anymore.
-  Handle<Object> handle = isolate->global_handles()->Create(*result);
-  GlobalHandles::MakeWeak(handle.location(),
-                          reinterpret_cast<void*>(handle.location()),
-                          &ClearWrapperCacheWeakCallback);
-  script->wrapper()->set_foreign_address(
-      reinterpret_cast<Address>(handle.location()));
+  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(result);
+  script->set_wrapper(*cell);
   return result;
 }
 
