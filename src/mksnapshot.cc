@@ -91,14 +91,25 @@ class SnapshotWriter {
 
     i::byte* snapshot_bytes = snapshot_data.begin();
     sink.PutBlob(snapshot_bytes, snapshot_data.length(), "snapshot");
-    for (size_t i = 0; i < arraysize(spaces); ++i)
-      sink.PutInt(serializer.CurrentAllocationAddress(spaces[i]), "spaces");
+    for (size_t i = 0; i < arraysize(spaces); ++i) {
+      i::Vector<const uint32_t> chunks =
+          serializer.FinalAllocationChunks(spaces[i]);
+      // For the start-up snapshot, none of the reservations has more than
+      // one chunk (reservation for each space fits onto a single page).
+      CHECK_EQ(1, chunks.length());
+      sink.PutInt(chunks[0], "spaces");
+    }
 
     i::byte* context_bytes = context_snapshot_data.begin();
     sink.PutBlob(context_bytes, context_snapshot_data.length(), "context");
-    for (size_t i = 0; i < arraysize(spaces); ++i)
-      sink.PutInt(context_serializer.CurrentAllocationAddress(spaces[i]),
-                  "spaces");
+    for (size_t i = 0; i < arraysize(spaces); ++i) {
+      i::Vector<const uint32_t> chunks =
+          context_serializer.FinalAllocationChunks(spaces[i]);
+      // For the context snapshot, none of the reservations has more than
+      // one chunk (reservation for each space fits onto a single page).
+      CHECK_EQ(1, chunks.length());
+      sink.PutInt(chunks[0], "spaces");
+    }
 
     size_t written = fwrite(startup_blob.begin(), 1, startup_blob.length(),
                             startup_blob_file_);
@@ -203,8 +214,12 @@ class SnapshotWriter {
 
   void WriteSizeVar(const i::Serializer& ser, const char* prefix,
                     const char* name, int space) const {
-    fprintf(fp_, "const int Snapshot::%s%s_space_used_ = %d;\n",
-            prefix, name, ser.CurrentAllocationAddress(space));
+    i::Vector<const uint32_t> chunks = ser.FinalAllocationChunks(space);
+    // For the start-up snapshot, none of the reservations has more than
+    // one chunk (total reservation fits into a single page).
+    CHECK_EQ(1, chunks.length());
+    fprintf(fp_, "const int Snapshot::%s%s_space_used_ = %d;\n", prefix, name,
+            chunks[0]);
   }
 
   void WriteSnapshotData(const i::List<i::byte>* data) const {
@@ -415,6 +430,9 @@ int main(int argc, char** argv) {
     i::PartialSerializer context_ser(internal_isolate, &ser, &contex_sink);
     context_ser.Serialize(&raw_context);
     ser.SerializeWeakReferences();
+
+    context_ser.FinalizeAllocation();
+    ser.FinalizeAllocation();
 
     {
       SnapshotWriter writer(argv[1]);

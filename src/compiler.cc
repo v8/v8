@@ -1177,7 +1177,12 @@ Handle<SharedFunctionInfo> Compiler::CompileScript(
         compile_options == ScriptCompiler::kConsumeCodeCache &&
         !isolate->debug()->is_loaded()) {
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
-      return CodeSerializer::Deserialize(isolate, *cached_data, source);
+      Handle<SharedFunctionInfo> result;
+      if (CodeSerializer::Deserialize(isolate, *cached_data, source)
+              .ToHandle(&result)) {
+        return result;
+      }
+      // Deserializer failed. Fall through to compile.
     } else {
       maybe_result = compilation_cache->LookupScript(
           source, script_name, line_offset, column_offset,
