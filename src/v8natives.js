@@ -1107,9 +1107,7 @@ function ObjectGetOwnPropertyKeys(obj, symbolsOnly) {
 
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.getOwnPropertyNames"]);
-  }
+  obj = ToObject(obj);
   // Special handling for proxies.
   if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
