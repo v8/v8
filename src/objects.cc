@@ -11120,10 +11120,9 @@ static bool GetOldValue(Isolate* isolate,
   return true;
 }
 
-static void EnqueueSpliceRecord(Handle<JSArray> object,
-                                uint32_t index,
-                                Handle<JSArray> deleted,
-                                uint32_t add_count) {
+MUST_USE_RESULT static MaybeHandle<Object> EnqueueSpliceRecord(
+    Handle<JSArray> object, uint32_t index, Handle<JSArray> deleted,
+    uint32_t add_count) {
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
   Handle<Object> index_object = isolate->factory()->NewNumberFromUint(index);
@@ -11133,37 +11132,33 @@ static void EnqueueSpliceRecord(Handle<JSArray> object,
   Handle<Object> args[] =
       { object, index_object, deleted, add_count_object };
 
-  Execution::Call(isolate,
-                  Handle<JSFunction>(isolate->observers_enqueue_splice()),
-                  isolate->factory()->undefined_value(),
-                  arraysize(args),
-                  args).Assert();
+  return Execution::Call(
+      isolate, Handle<JSFunction>(isolate->observers_enqueue_splice()),
+      isolate->factory()->undefined_value(), arraysize(args), args);
 }
 
 
-static void BeginPerformSplice(Handle<JSArray> object) {
+MUST_USE_RESULT static MaybeHandle<Object> BeginPerformSplice(
+    Handle<JSArray> object) {
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
   Handle<Object> args[] = { object };
 
-  Execution::Call(isolate,
-                  Handle<JSFunction>(isolate->observers_begin_perform_splice()),
-                  isolate->factory()->undefined_value(),
-                  arraysize(args),
-                  args).Assert();
+  return Execution::Call(
+      isolate, Handle<JSFunction>(isolate->observers_begin_perform_splice()),
+      isolate->factory()->undefined_value(), arraysize(args), args);
 }
 
 
-static void EndPerformSplice(Handle<JSArray> object) {
+MUST_USE_RESULT static MaybeHandle<Object> EndPerformSplice(
+    Handle<JSArray> object) {
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
   Handle<Object> args[] = { object };
 
-  Execution::Call(isolate,
-                  Handle<JSFunction>(isolate->observers_end_perform_splice()),
-                  isolate->factory()->undefined_value(),
-                  arraysize(args),
-                  args).Assert();
+  return Execution::Call(
+      isolate, Handle<JSFunction>(isolate->observers_end_perform_splice()),
+      isolate->factory()->undefined_value(), arraysize(args), args);
 }
 
 
@@ -11227,7 +11222,7 @@ MaybeHandle<Object> JSArray::SetElementsLength(
   CHECK(array->length()->ToArrayIndex(&new_length));
   if (old_length == new_length) return hresult;
 
-  BeginPerformSplice(array);
+  RETURN_ON_EXCEPTION(isolate, BeginPerformSplice(array), Object);
 
   for (int i = 0; i < indices.length(); ++i) {
     // For deletions where the property was an accessor, old_values[i]
@@ -11246,7 +11241,7 @@ MaybeHandle<Object> JSArray::SetElementsLength(
                           old_length_handle),
                       Object);
 
-  EndPerformSplice(array);
+  RETURN_ON_EXCEPTION(isolate, EndPerformSplice(array), Object);
 
   uint32_t index = Min(old_length, new_length);
   uint32_t add_count = new_length > old_length ? new_length - old_length : 0;
@@ -11266,7 +11261,8 @@ MaybeHandle<Object> JSArray::SetElementsLength(
                 STRICT).Assert();
   }
 
-  EnqueueSpliceRecord(array, index, deleted, add_count);
+  RETURN_ON_EXCEPTION(
+      isolate, EnqueueSpliceRecord(array, index, deleted, add_count), Object);
 
   return hresult;
 }
@@ -12451,7 +12447,8 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
       CHECK(old_length_handle->ToArrayIndex(&old_length));
       CHECK(new_length_handle->ToArrayIndex(&new_length));
 
-      BeginPerformSplice(Handle<JSArray>::cast(object));
+      RETURN_ON_EXCEPTION(
+          isolate, BeginPerformSplice(Handle<JSArray>::cast(object)), Object);
       RETURN_ON_EXCEPTION(
           isolate, EnqueueChangeRecord(object, "add", name, old_value), Object);
       RETURN_ON_EXCEPTION(
@@ -12459,10 +12456,14 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
                                        isolate->factory()->length_string(),
                                        old_length_handle),
           Object);
-      EndPerformSplice(Handle<JSArray>::cast(object));
+      RETURN_ON_EXCEPTION(
+          isolate, EndPerformSplice(Handle<JSArray>::cast(object)), Object);
       Handle<JSArray> deleted = isolate->factory()->NewJSArray(0);
-      EnqueueSpliceRecord(Handle<JSArray>::cast(object), old_length, deleted,
-                          new_length - old_length);
+      RETURN_ON_EXCEPTION(
+          isolate,
+          EnqueueSpliceRecord(Handle<JSArray>::cast(object), old_length,
+                              deleted, new_length - old_length),
+          Object);
     } else {
       RETURN_ON_EXCEPTION(
           isolate, EnqueueChangeRecord(object, "add", name, old_value), Object);
