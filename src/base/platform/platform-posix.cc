@@ -260,7 +260,7 @@ int OS::GetCurrentThreadId() {
 #elif V8_OS_ANDROID
   return static_cast<int>(gettid());
 #else
-  return reinterpret_cast<int>(pthread_self());
+  return static_cast<int>(pthread_self());
 #endif
 }
 
