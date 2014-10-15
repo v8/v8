@@ -78,6 +78,8 @@ class ArmOperandGenerator : public OperandGenerator {
       case kArmMul:
       case kArmMla:
       case kArmMls:
+      case kArmSmmul:
+      case kArmSmmla:
       case kArmSdiv:
       case kArmUdiv:
       case kArmBfc:
@@ -569,6 +571,20 @@ void InstructionSelector::VisitInt32Add(Node* node) {
          g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
     return;
   }
+  if (m.left().IsInt32MulHigh() && CanCover(node, m.left().node())) {
+    Int32BinopMatcher mleft(m.left().node());
+    Emit(kArmSmmla, g.DefineAsRegister(node),
+         g.UseRegister(mleft.left().node()),
+         g.UseRegister(mleft.right().node()), g.UseRegister(m.right().node()));
+    return;
+  }
+  if (m.right().IsInt32MulHigh() && CanCover(node, m.right().node())) {
+    Int32BinopMatcher mright(m.right().node());
+    Emit(kArmSmmla, g.DefineAsRegister(node),
+         g.UseRegister(mright.left().node()),
+         g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
+    return;
+  }
   VisitBinop(this, node, kArmAdd, kArmAdd);
 }
 
@@ -609,6 +625,13 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   }
   Emit(kArmMul, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
+}
+
+
+void InstructionSelector::VisitInt32MulHigh(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmSmmul, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
 }
 
 

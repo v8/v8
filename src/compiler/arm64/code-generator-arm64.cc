@@ -252,6 +252,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kArm64Mul32:
       __ Mul(i.OutputRegister32(), i.InputRegister32(0), i.InputRegister32(1));
       break;
+    case kArm64Smull:
+      __ Smull(i.OutputRegister(), i.InputRegister32(0), i.InputRegister32(1));
+      break;
     case kArm64Madd:
       __ Madd(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
               i.InputRegister(2));

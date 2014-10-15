@@ -786,6 +786,7 @@ TYPE_CHECKER(Code, CODE_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
+TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
 TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSModule, JS_MODULE_TYPE)
@@ -1926,6 +1927,33 @@ Object* PropertyCell::type_raw() const {
 
 void PropertyCell::set_type_raw(Object* val, WriteBarrierMode ignored) {
   WRITE_FIELD(this, kTypeOffset, val);
+}
+
+
+HeapObject* WeakCell::value() const {
+  return HeapObject::cast(READ_FIELD(this, kValueOffset));
+}
+
+
+void WeakCell::clear(HeapObject* undefined) {
+  WRITE_FIELD(this, kValueOffset, undefined);
+}
+
+
+void WeakCell::initialize(HeapObject* val) {
+  WRITE_FIELD(this, kValueOffset, val);
+  WRITE_BARRIER(GetHeap(), this, kValueOffset, val);
+}
+
+
+Object* WeakCell::next() const { return READ_FIELD(this, kNextOffset); }
+
+
+void WeakCell::set_next(Object* val, WriteBarrierMode mode) {
+  WRITE_FIELD(this, kNextOffset, val);
+  if (mode == UPDATE_WRITE_BARRIER) {
+    WRITE_BARRIER(GetHeap(), this, kNextOffset, val);
+  }
 }
 
 
@@ -3253,6 +3281,7 @@ CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(Symbol)
 CAST_ACCESSOR(UnseededNumberDictionary)
+CAST_ACCESSOR(WeakCell)
 CAST_ACCESSOR(WeakHashTable)
 
 
@@ -6903,9 +6932,9 @@ Handle<Object> NameDictionaryShape::AsHandle(Isolate* isolate,
 }
 
 
-void NameDictionary::DoGenerateNewEnumerationIndices(
+Handle<FixedArray> NameDictionary::DoGenerateNewEnumerationIndices(
     Handle<NameDictionary> dictionary) {
-  DerivedDictionary::GenerateNewEnumerationIndices(dictionary);
+  return DerivedDictionary::GenerateNewEnumerationIndices(dictionary);
 }
 
 

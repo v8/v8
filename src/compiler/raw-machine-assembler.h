@@ -225,6 +225,9 @@ class RawMachineAssembler : public GraphBuilder {
   Node* Int32Mul(Node* a, Node* b) {
     return NewNode(machine()->Int32Mul(), a, b);
   }
+  Node* Int32MulHigh(Node* a, Node* b) {
+    return NewNode(machine()->Int32MulHigh(), a, b);
+  }
   Node* Int32Div(Node* a, Node* b) {
     return NewNode(machine()->Int32Div(), a, b);
   }

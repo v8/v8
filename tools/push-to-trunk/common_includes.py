@@ -375,12 +375,12 @@ class GitTagsOnlyMixin(VCInterface):
      return self.step.Git("tag").strip().splitlines()
 
   def GetBranches(self):
-    # Get relevant remote branches, e.g. "origin/branch-heads/3.25".
+    # Get relevant remote branches, e.g. "branch-heads/3.25".
     branches = filter(
-        lambda s: re.match(r"^origin/branch\-heads/\d+\.\d+$", s),
+        lambda s: re.match(r"^branch\-heads/\d+\.\d+$", s),
         self.step.GitRemotes())
-    # Remove 'origin/branch-heads/' prefix.
-    return map(lambda s: s[20:], branches)
+    # Remove 'branch-heads/' prefix.
+    return map(lambda s: s[13:], branches)
 
   def MasterBranch(self):
     return "master"
@@ -397,7 +397,7 @@ class GitTagsOnlyMixin(VCInterface):
   def RemoteBranch(self, name):
     if name in ["candidates", "master"]:
       return "origin/%s" % name
-    return "origin/branch-heads/%s" % name
+    return "branch-heads/%s" % name
 
   def Tag(self, tag, remote, message):
     # Wait for the commit to appear. Assumes unique commit message titles (this
@@ -606,7 +606,10 @@ class Step(GitRecipesMixin):
     self.DeleteBranch(self._config["BRANCHNAME"])
 
   def CommonCleanup(self):
-    self.GitCheckout(self["current_branch"])
+    if ' ' in self["current_branch"]:
+      self.GitCheckout('master')
+    else:
+      self.GitCheckout(self["current_branch"])
     if self._config["BRANCHNAME"] != self["current_branch"]:
       self.GitDeleteBranch(self._config["BRANCHNAME"])
 

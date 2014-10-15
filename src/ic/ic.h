@@ -547,7 +547,8 @@ class KeyedStoreIC : public StoreIC {
   static ExtraICState ComputeExtraICState(StrictMode flag,
                                           KeyedAccessStoreMode mode) {
     return StrictModeState::encode(flag) |
-           ExtraICStateKeyedAccessStoreMode::encode(mode);
+           ExtraICStateKeyedAccessStoreMode::encode(mode) |
+           IcCheckTypeField::encode(ELEMENT);
   }
 
   static KeyedAccessStoreMode GetKeyedAccessStoreMode(

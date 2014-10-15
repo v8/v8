@@ -746,6 +746,16 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
 }
 
 
+void InstructionSelector::VisitInt32MulHigh(Node* node) {
+  // TODO(arm64): Can we do better here?
+  Arm64OperandGenerator g(this);
+  InstructionOperand* const smull_operand = g.TempRegister();
+  Emit(kArm64Smull, smull_operand, g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+  Emit(kArm64Asr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
+}
+
+
 void InstructionSelector::VisitInt32Div(Node* node) {
   VisitRRR(this, kArm64Idiv32, node);
 }

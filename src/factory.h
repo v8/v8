@@ -296,6 +296,8 @@ class Factory FINAL {
 
   Handle<PropertyCell> NewPropertyCell(Handle<Object> value);
 
+  Handle<WeakCell> NewWeakCell(Handle<HeapObject> value);
+
   // Allocate a tenured AllocationSite. It's payload is null.
   Handle<AllocationSite> NewAllocationSite();
 

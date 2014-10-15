@@ -283,6 +283,9 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
     case kX64Imul:
       ASSEMBLE_MULT(imulq);
       break;
+    case kX64ImulHigh32:
+      __ imull(i.InputRegister(1));
+      break;
     case kX64Idiv32:
       __ cdq();
       __ idivl(i.InputRegister(1));
@@ -867,7 +870,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       switch (src.type()) {
         case Constant::kInt32:
           // TODO(dcarney): don't need scratch in this case.
-          __ movq(dst, Immediate(src.ToInt32()));
+          __ Set(dst, src.ToInt32());
           break;
         case Constant::kInt64:
           __ Set(dst, src.ToInt64());

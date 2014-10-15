@@ -16,6 +16,7 @@
 #include "src/cpu-profiler.h"
 #include "src/deoptimizer.h"
 #include "src/global-handles.h"
+#include "src/log-inl.h"
 #include "src/log-utils.h"
 #include "src/macro-assembler.h"
 #include "src/perf-jit.h"
@@ -954,18 +955,10 @@ void Logger::LeaveExternal(Isolate* isolate) {
 }
 
 
-void Logger::DefaultTimerEventsLogger(const char* name, int se) {
-  Isolate* isolate = Isolate::Current();
-  LOG(isolate, TimerEvent(static_cast<StartEnd>(se), name));
-}
-
-
 template <class TimerEvent>
 void TimerEventScope<TimerEvent>::LogTimerEvent(Logger::StartEnd se) {
-  if (TimerEvent::expose_to_api() ||
-      isolate_->event_logger() == Logger::DefaultTimerEventsLogger) {
-    isolate_->event_logger()(TimerEvent::name(), se);
-  }
+  Logger::CallEventLogger(isolate_, TimerEvent::name(), se,
+                          TimerEvent::expose_to_api());
 }
 
 

@@ -150,6 +150,7 @@ Heap::Heap()
   set_array_buffers_list(Smi::FromInt(0));
   set_allocation_sites_list(Smi::FromInt(0));
   set_encountered_weak_collections(Smi::FromInt(0));
+  set_encountered_weak_cells(Smi::FromInt(0));
   // Put a dummy entry in the remembered pages so we can find the list the
   // minidump even if there are no real unmapped pages.
   RememberUnmappedPage(NULL, false);
@@ -1509,6 +1510,8 @@ void Heap::Scavenge() {
 
   // Copy objects reachable from the encountered weak collections list.
   scavenge_visitor.VisitPointer(&encountered_weak_collections_);
+  // Copy objects reachable from the encountered weak cells.
+  scavenge_visitor.VisitPointer(&encountered_weak_cells_);
 
   // Copy objects reachable from the code flushing candidates list.
   MarkCompactCollector* collector = mark_compact_collector();
@@ -2559,6 +2562,7 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell)
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, PropertyCell::kSize, global_property_cell)
+    ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
     ALLOCATE_MAP(FILLER_TYPE, kPointerSize, one_pointer_filler)
     ALLOCATE_MAP(FILLER_TYPE, 2 * kPointerSize, two_pointer_filler)
 
@@ -2681,6 +2685,22 @@ AllocationResult Heap::AllocatePropertyCell() {
                            SKIP_WRITE_BARRIER);
   cell->set_value(the_hole_value());
   cell->set_type(HeapType::None());
+  return result;
+}
+
+
+AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
+  int size = WeakCell::kSize;
+  STATIC_ASSERT(WeakCell::kSize <= Page::kMaxRegularHeapObjectSize);
+  HeapObject* result;
+  {
+    AllocationResult allocation =
+        AllocateRaw(size, OLD_POINTER_SPACE, OLD_POINTER_SPACE);
+    if (!allocation.To(&result)) return allocation;
+  }
+  result->set_map_no_write_barrier(weak_cell_map());
+  WeakCell::cast(result)->initialize(value);
+  WeakCell::cast(result)->set_next(undefined_value(), SKIP_WRITE_BARRIER);
   return result;
 }
 

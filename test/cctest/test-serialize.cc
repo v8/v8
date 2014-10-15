@@ -200,7 +200,7 @@ static void Serialize(v8::Isolate* isolate) {
   }
 
   Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
-  internal_isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "serialize");
+  internal_isolate->heap()->CollectAllAvailableGarbage("serialize");
   WriteToFile(internal_isolate, FLAG_testing_serialization_file);
 }
 

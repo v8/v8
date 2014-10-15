@@ -86,6 +86,7 @@
         'compiler/test-schedule.cc',
         'compiler/test-scheduler.cc',
         'compiler/test-simplified-lowering.cc',
+        'compiler/test-typer.cc',
         'cctest.cc',
         'gay-fixed.cc',
         'gay-precision.cc',

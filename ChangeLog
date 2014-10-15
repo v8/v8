@@ -1,3 +1,14 @@
+2014-10-15: Version 3.30.11
+
+        Array.prototype.{every, filter, find, findIndex, forEach, map, some}:
+        Use fresh primitive wrapper for calls (issue 3536).
+
+        Correctly expand literal buffer for surrogate pairs (Chromium issue
+        423212).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-15: Version 3.30.10
 
         Squeeze the layout of various AST node types (Chromium issue 417697).

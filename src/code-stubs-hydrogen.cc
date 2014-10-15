@@ -416,7 +416,12 @@ HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
   HInstruction* boilerplate = Add<HLoadNamedField>(
       allocation_site, static_cast<HValue*>(NULL), access);
 
-  int size = JSObject::kHeaderSize + casted_stub()->length() * kPointerSize;
+  int length = casted_stub()->length();
+  if (length == 0) {
+    // Empty objects have some slack added to them.
+    length = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
+  }
+  int size = JSObject::kHeaderSize + length * kPointerSize;
   int object_size = size;
   if (FLAG_allocation_site_pretenuring) {
     size += AllocationMemento::kSize;

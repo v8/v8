@@ -598,6 +598,7 @@ class BlockStartInstruction FINAL : public GapInstruction {
  public:
   Label* label() { return &label_; }
   BasicBlock::RpoNumber rpo_number() const { return rpo_number_; }
+  BasicBlock::Id id() const { return id_; }
 
   static BlockStartInstruction* New(Zone* zone, BasicBlock* block) {
     void* buffer = zone->New(sizeof(BlockStartInstruction));
@@ -612,8 +613,10 @@ class BlockStartInstruction FINAL : public GapInstruction {
  private:
   explicit BlockStartInstruction(BasicBlock* block)
       : GapInstruction(kBlockStartInstruction),
+        id_(block->id()),
         rpo_number_(block->GetRpoNumber()) {}
 
+  BasicBlock::Id id_;
   BasicBlock::RpoNumber rpo_number_;
   Label label_;
 };

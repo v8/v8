@@ -1133,10 +1133,11 @@ function ArrayFilter(f, receiver) {
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
-    receiver = ToObject(receiver);
+  } else {
+    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
   var result = new $Array();
@@ -1148,7 +1149,8 @@ function ArrayFilter(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      if (%_CallFunction(receiver, element, i, array, f)) {
+      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      if (%_CallFunction(new_receiver, element, i, array, f)) {
         accumulator[accumulator_length++] = element;
       }
     }
@@ -1169,10 +1171,11 @@ function ArrayForEach(f, receiver) {
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
-    receiver = ToObject(receiver);
+  } else {
+    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
@@ -1181,7 +1184,8 @@ function ArrayForEach(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      %_CallFunction(receiver, element, i, array, f);
+      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      %_CallFunction(new_receiver, element, i, array, f);
     }
   }
 }
@@ -1200,10 +1204,11 @@ function ArraySome(f, receiver) {
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
-    receiver = ToObject(receiver);
+  } else {
+    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
@@ -1212,7 +1217,8 @@ function ArraySome(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      if (%_CallFunction(receiver, element, i, array, f)) return true;
+      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      if (%_CallFunction(new_receiver, element, i, array, f)) return true;
     }
   }
   return false;
@@ -1230,10 +1236,11 @@ function ArrayEvery(f, receiver) {
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
-    receiver = ToObject(receiver);
+  } else {
+    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
   var stepping = DEBUG_IS_ACTIVE && %DebugCallbackSupportsStepping(f);
@@ -1242,7 +1249,8 @@ function ArrayEvery(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      if (!%_CallFunction(receiver, element, i, array, f)) return false;
+      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      if (!%_CallFunction(new_receiver, element, i, array, f)) return false;
     }
   }
   return true;
@@ -1259,10 +1267,11 @@ function ArrayMap(f, receiver) {
   if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  var needs_wrapper = false;
   if (IS_NULL_OR_UNDEFINED(receiver)) {
     receiver = %GetDefaultReceiver(f) || receiver;
-  } else if (!IS_SPEC_OBJECT(receiver) && %IsSloppyModeFunction(f)) {
-    receiver = ToObject(receiver);
+  } else {
+    needs_wrapper = SHOULD_CREATE_WRAPPER(f, receiver);
   }
 
   var result = new $Array();
@@ -1273,7 +1282,8 @@ function ArrayMap(f, receiver) {
       var element = array[i];
       // Prepare break slots for debugger step in.
       if (stepping) %DebugPrepareStepInIfStepping(f);
-      accumulator[i] = %_CallFunction(receiver, element, i, array, f);
+      var new_receiver = needs_wrapper ? ToObject(receiver) : receiver;
+      accumulator[i] = %_CallFunction(new_receiver, element, i, array, f);
     }
   }
   %MoveArrayContents(accumulator, result);

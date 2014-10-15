@@ -219,6 +219,7 @@ class LiteralBuffer {
       *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
           unibrow::Utf16::LeadSurrogate(code_unit);
       position_ += kUC16Size;
+      if (position_ >= backing_store_.length()) ExpandBuffer();
       *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
           unibrow::Utf16::TrailSurrogate(code_unit);
       position_ += kUC16Size;

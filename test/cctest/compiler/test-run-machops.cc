@@ -58,25 +58,25 @@ static Node* Int32Input(RawMachineAssemblerTester<int32_t>* m, int index) {
 TEST(CodeGenInt32Binop) {
   RawMachineAssemblerTester<void> m;
 
-  const Operator* ops[] = {
-      m.machine()->Word32And(),      m.machine()->Word32Or(),
-      m.machine()->Word32Xor(),      m.machine()->Word32Shl(),
-      m.machine()->Word32Shr(),      m.machine()->Word32Sar(),
-      m.machine()->Word32Equal(),    m.machine()->Int32Add(),
-      m.machine()->Int32Sub(),       m.machine()->Int32Mul(),
-      m.machine()->Int32Div(),       m.machine()->Uint32Div(),
-      m.machine()->Int32Mod(),       m.machine()->Uint32Mod(),
-      m.machine()->Int32LessThan(),  m.machine()->Int32LessThanOrEqual(),
-      m.machine()->Uint32LessThan(), m.machine()->Uint32LessThanOrEqual(),
-      NULL};
+  const Operator* kOps[] = {
+      m.machine()->Word32And(),            m.machine()->Word32Or(),
+      m.machine()->Word32Xor(),            m.machine()->Word32Shl(),
+      m.machine()->Word32Shr(),            m.machine()->Word32Sar(),
+      m.machine()->Word32Equal(),          m.machine()->Int32Add(),
+      m.machine()->Int32Sub(),             m.machine()->Int32Mul(),
+      m.machine()->Int32MulHigh(),         m.machine()->Int32Div(),
+      m.machine()->Uint32Div(),            m.machine()->Int32Mod(),
+      m.machine()->Uint32Mod(),            m.machine()->Int32LessThan(),
+      m.machine()->Int32LessThanOrEqual(), m.machine()->Uint32LessThan(),
+      m.machine()->Uint32LessThanOrEqual()};
 
-  for (int i = 0; ops[i] != NULL; i++) {
+  for (size_t i = 0; i < arraysize(kOps); ++i) {
     for (int j = 0; j < 8; j++) {
       for (int k = 0; k < 8; k++) {
         RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
         Node* a = Int32Input(&m, j);
         Node* b = Int32Input(&m, k);
-        m.Return(m.NewNode(ops[i], a, b));
+        m.Return(m.NewNode(kOps[i], a, b));
         m.GenerateCode();
       }
     }
@@ -1228,6 +1228,20 @@ TEST(RunInt32MulP) {
         uint32_t expected = *i * *j;
         CHECK_UINT32_EQ(expected, bt.call(*i, *j));
       }
+    }
+  }
+}
+
+
+TEST(RunInt32MulHighP) {
+  RawMachineAssemblerTester<int32_t> m;
+  Int32BinopTester bt(&m);
+  bt.AddReturn(m.Int32MulHigh(bt.param0, bt.param1));
+  FOR_INT32_INPUTS(i) {
+    FOR_INT32_INPUTS(j) {
+      int32_t expected = static_cast<int32_t>(
+          (static_cast<int64_t>(*i) * static_cast<int64_t>(*j)) >> 32);
+      CHECK_EQ(expected, bt.call(*i, *j));
     }
   }
 }
@@ -2674,22 +2688,22 @@ TEST(RunDeadNodes) {
 TEST(RunDeadInt32Binops) {
   RawMachineAssemblerTester<int32_t> m;
 
-  const Operator* ops[] = {
-      m.machine()->Word32And(),             m.machine()->Word32Or(),
-      m.machine()->Word32Xor(),             m.machine()->Word32Shl(),
-      m.machine()->Word32Shr(),             m.machine()->Word32Sar(),
-      m.machine()->Word32Ror(),             m.machine()->Word32Equal(),
-      m.machine()->Int32Add(),              m.machine()->Int32Sub(),
-      m.machine()->Int32Mul(),              m.machine()->Int32Div(),
-      m.machine()->Uint32Div(),             m.machine()->Int32Mod(),
-      m.machine()->Uint32Mod(),             m.machine()->Int32LessThan(),
-      m.machine()->Int32LessThanOrEqual(),  m.machine()->Uint32LessThan(),
-      m.machine()->Uint32LessThanOrEqual(), NULL};
+  const Operator* kOps[] = {
+      m.machine()->Word32And(),      m.machine()->Word32Or(),
+      m.machine()->Word32Xor(),      m.machine()->Word32Shl(),
+      m.machine()->Word32Shr(),      m.machine()->Word32Sar(),
+      m.machine()->Word32Ror(),      m.machine()->Word32Equal(),
+      m.machine()->Int32Add(),       m.machine()->Int32Sub(),
+      m.machine()->Int32Mul(),       m.machine()->Int32MulHigh(),
+      m.machine()->Int32Div(),       m.machine()->Uint32Div(),
+      m.machine()->Int32Mod(),       m.machine()->Uint32Mod(),
+      m.machine()->Int32LessThan(),  m.machine()->Int32LessThanOrEqual(),
+      m.machine()->Uint32LessThan(), m.machine()->Uint32LessThanOrEqual()};
 
-  for (int i = 0; ops[i] != NULL; i++) {
+  for (size_t i = 0; i < arraysize(kOps); ++i) {
     RawMachineAssemblerTester<int32_t> m(kMachInt32, kMachInt32);
-    int constant = 0x55555 + i;
-    m.NewNode(ops[i], m.Parameter(0), m.Parameter(1));
+    int32_t constant = static_cast<int32_t>(0x55555 + i);
+    m.NewNode(kOps[i], m.Parameter(0), m.Parameter(1));
     m.Return(m.Int32Constant(constant));
 
     CHECK_EQ(constant, m.Call(1, 1));

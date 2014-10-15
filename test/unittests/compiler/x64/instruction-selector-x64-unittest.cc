@@ -498,6 +498,23 @@ TEST_P(InstructionSelectorMultTest, MultAdd64) {
 INSTANTIATE_TEST_CASE_P(InstructionSelectorTest, InstructionSelectorMultTest,
                         ::testing::ValuesIn(kMultParams));
 
+
+TEST_F(InstructionSelectorTest, Int32MulHigh) {
+  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  Node* const p0 = m.Parameter(0);
+  Node* const p1 = m.Parameter(1);
+  Node* const n = m.Int32MulHigh(p0, p1);
+  m.Return(n);
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(kX64ImulHigh32, s[0]->arch_opcode());
+  ASSERT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(p1), s.ToVreg(s[0]->InputAt(1)));
+  ASSERT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

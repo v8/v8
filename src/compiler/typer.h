@@ -36,6 +36,17 @@ class Typer {
   class WidenVisitor;
 
   Zone* zone_;
+  Type* negative_signed32;
+  Type* non_negative_signed32;
+  Type* undefined_or_null;
+  Type* singleton_false;
+  Type* singleton_true;
+  Type* singleton_zero;
+  Type* singleton_one;
+  Type* zero_or_one;
+  Type* zeroish;
+  Type* falsish;
+  Type* integer;
   Type* number_fun0_;
   Type* number_fun1_;
   Type* number_fun2_;

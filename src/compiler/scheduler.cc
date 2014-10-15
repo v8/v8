@@ -182,6 +182,7 @@ class CFGBuilder {
     }
   }
 
+
   void BuildBlocks(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kLoop:
@@ -395,6 +396,24 @@ class PrepareUsesVisitor : public NullNodeVisitor {
       Trace("  Use count of #%d:%s (used by #%d:%s)++ = %d\n", to->id(),
             to->op()->mnemonic(), from->id(), from->op()->mnemonic(),
             scheduler_->GetData(to)->unscheduled_count_);
+      if (OperatorProperties::IsBasicBlockBegin(to->op()) &&
+          (from->opcode() == IrOpcode::kEffectPhi ||
+           from->opcode() == IrOpcode::kPhi) &&
+          scheduler_->GetData(to)->is_floating_control_ &&
+          !scheduler_->GetData(to)->is_connected_control_) {
+        for (InputIter i = from->inputs().begin(); i != from->inputs().end();
+             ++i) {
+          if (!NodeProperties::IsControlEdge(i.edge())) {
+            ++(scheduler_->GetData(*i)->unscheduled_count_);
+            Trace(
+                "  Use count of #%d:%s (additional dependency of #%d:%s)++ = "
+                "%d\n",
+                (*i)->id(), (*i)->op()->mnemonic(), to->id(),
+                to->op()->mnemonic(),
+                scheduler_->GetData(*i)->unscheduled_count_);
+          }
+        }
+      }
     }
   }
 
@@ -505,6 +524,7 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
     if (schedule_->IsScheduled(node)) {
       return GenericGraphVisit::CONTINUE;
     }
+
     Scheduler::SchedulerData* data = scheduler_->GetData(node);
     DCHECK_EQ(Scheduler::kSchedulable, data->placement_);
 
@@ -607,6 +627,29 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
         }
       }
     }
+
+    for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
+      Node* use = *i;
+      if (use->opcode() == IrOpcode::kPhi ||
+          use->opcode() == IrOpcode::kEffectPhi) {
+        Node* control = NodeProperties::GetControlInput(use);
+        Scheduler::SchedulerData* data = scheduler_->GetData(control);
+        if (data->is_floating_control_ && !data->is_connected_control_) {
+          --data->unscheduled_count_;
+          if (FLAG_trace_turbo_scheduler) {
+            Trace(
+                "  Use count for #%d:%s (additional dependency of #%d:%s)-- = "
+                "%d\n",
+                (*i)->id(), (*i)->op()->mnemonic(), node->id(),
+                node->op()->mnemonic(), data->unscheduled_count_);
+            if (data->unscheduled_count_ == 0) {
+              Trace("  newly eligible #%d:%s\n", (*i)->id(),
+                    (*i)->op()->mnemonic());
+            }
+          }
+        }
+      }
+    }
   }
 
   Scheduler* scheduler_;
@@ -665,16 +708,14 @@ bool Scheduler::ConnectFloatingControl() {
     // TODO(titzer): we place at most one floating control structure per
     // basic block because scheduling currently can interleave phis from
     // one subgraph with the merges from another subgraph.
-    bool one_placed = false;
     for (size_t j = 0; j < block->NodeCount(); j++) {
       Node* node = block->NodeAt(block->NodeCount() - 1 - j);
       SchedulerData* data = GetData(node);
-      if (data->is_floating_control_ && !data->is_connected_control_ &&
-          !one_placed) {
+      if (data->is_floating_control_ && !data->is_connected_control_) {
         Trace("  Floating control #%d:%s was scheduled in B%d\n", node->id(),
               node->op()->mnemonic(), block->id().ToInt());
         ConnectFloatingControlSubgraph(block, node);
-        one_placed = true;
+        break;
       }
     }
   }

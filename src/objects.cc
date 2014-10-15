@@ -1624,6 +1624,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case PROPERTY_CELL_TYPE:
       PropertyCell::BodyDescriptor::IterateBody(this, v);
       break;
+    case WEAK_CELL_TYPE:
+      WeakCell::BodyDescriptor::IterateBody(this, v);
+      break;
     case SYMBOL_TYPE:
       Symbol::BodyDescriptor::IterateBody(this, v);
       break;
@@ -1808,10 +1811,10 @@ Context* JSObject::GetCreationContext() {
 }
 
 
-void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
-                                   const char* type_str,
-                                   Handle<Name> name,
-                                   Handle<Object> old_value) {
+MaybeHandle<Object> JSObject::EnqueueChangeRecord(Handle<JSObject> object,
+                                                  const char* type_str,
+                                                  Handle<Name> name,
+                                                  Handle<Object> old_value) {
   DCHECK(!object->IsJSGlobalProxy());
   DCHECK(!object->IsJSGlobalObject());
   Isolate* isolate = object->GetIsolate();
@@ -1820,10 +1823,9 @@ void JSObject::EnqueueChangeRecord(Handle<JSObject> object,
   Handle<Object> args[] = { type, object, name, old_value };
   int argc = name.is_null() ? 2 : old_value->IsTheHole() ? 3 : 4;
 
-  Execution::Call(isolate,
-                  Handle<JSFunction>(isolate->observers_notify_change()),
-                  isolate->factory()->undefined_value(),
-                  argc, args).Assert();
+  return Execution::Call(isolate,
+                         Handle<JSFunction>(isolate->observers_notify_change()),
+                         isolate->factory()->undefined_value(), argc, args);
 }
 
 
@@ -2930,8 +2932,8 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(LookupIterator* it,
 }
 
 
-Handle<Object> Object::SetDataProperty(LookupIterator* it,
-                                       Handle<Object> value) {
+MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
+                                            Handle<Object> value) {
   // Proxies are handled on the WithHandler path. Other non-JSObjects cannot
   // have own properties.
   Handle<JSObject> receiver = Handle<JSObject>::cast(it->GetReceiver());
@@ -2957,8 +2959,10 @@ Handle<Object> Object::SetDataProperty(LookupIterator* it,
 
   // Send the change record if there are observers.
   if (is_observed && !value->SameValue(*maybe_old.ToHandleChecked())) {
-    JSObject::EnqueueChangeRecord(receiver, "update", it->name(),
-                                  maybe_old.ToHandleChecked());
+    RETURN_ON_EXCEPTION(it->isolate(), JSObject::EnqueueChangeRecord(
+                                           receiver, "update", it->name(),
+                                           maybe_old.ToHandleChecked()),
+                        Object);
   }
 
   return value;
@@ -3009,8 +3013,10 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
   // Send the change record if there are observers.
   if (receiver->map()->is_observed() &&
       !it->name().is_identical_to(it->factory()->hidden_string())) {
-    JSObject::EnqueueChangeRecord(receiver, "add", it->name(),
-                                  it->factory()->the_hole_value());
+    RETURN_ON_EXCEPTION(it->isolate(), JSObject::EnqueueChangeRecord(
+                                           receiver, "add", it->name(),
+                                           it->factory()->the_hole_value()),
+                        Object);
   }
 
   return value;
@@ -3859,7 +3865,10 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
                   !Name::Equals(it.isolate()->factory()->prototype_string(),
                                 name) ||
                   !Handle<JSFunction>::cast(object)->should_have_prototype()) {
-                EnqueueChangeRecord(object, "update", name, old_value);
+                RETURN_ON_EXCEPTION(
+                    it.isolate(),
+                    EnqueueChangeRecord(object, "update", name, old_value),
+                    Object);
               }
             }
             return value;
@@ -3878,7 +3887,10 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
             if (old_value->SameValue(*value)) {
               old_value = it.isolate()->factory()->the_hole_value();
             }
-            EnqueueChangeRecord(object, "reconfigure", name, old_value);
+            RETURN_ON_EXCEPTION(
+                it.isolate(),
+                EnqueueChangeRecord(object, "reconfigure", name, old_value),
+                Object);
           }
           return value;
         }
@@ -3891,7 +3903,10 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
           if (old_value->SameValue(*value)) {
             old_value = it.isolate()->factory()->the_hole_value();
           }
-          EnqueueChangeRecord(object, "reconfigure", name, old_value);
+          RETURN_ON_EXCEPTION(
+              it.isolate(),
+              EnqueueChangeRecord(object, "reconfigure", name, old_value),
+              Object);
         }
 
         return value;
@@ -3915,7 +3930,10 @@ MaybeHandle<Object> JSObject::SetOwnPropertyIgnoreAttributes(
           if (old_value->SameValue(*value)) {
             old_value = it.isolate()->factory()->the_hole_value();
           }
-          EnqueueChangeRecord(object, "reconfigure", name, old_value);
+          RETURN_ON_EXCEPTION(
+              it.isolate(),
+              EnqueueChangeRecord(object, "reconfigure", name, old_value),
+              Object);
         }
 
         return value;
@@ -4280,25 +4298,27 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   int number_of_elements = dictionary->NumberOfElements();
   if (number_of_elements > kMaxNumberOfDescriptors) return;
 
+  Handle<FixedArray> iteration_order;
   if (number_of_elements != dictionary->NextEnumerationIndex()) {
-    NameDictionary::DoGenerateNewEnumerationIndices(dictionary);
+    iteration_order =
+        NameDictionary::DoGenerateNewEnumerationIndices(dictionary);
+  } else {
+    iteration_order = NameDictionary::BuildIterationIndicesArray(dictionary);
   }
 
-  int instance_descriptor_length = 0;
+  int instance_descriptor_length = iteration_order->length();
   int number_of_fields = 0;
 
   // Compute the length of the instance descriptor.
-  int capacity = dictionary->Capacity();
-  for (int i = 0; i < capacity; i++) {
-    Object* k = dictionary->KeyAt(i);
-    if (dictionary->IsKey(k)) {
-      Object* value = dictionary->ValueAt(i);
-      PropertyType type = dictionary->DetailsAt(i).type();
-      DCHECK(type != FIELD);
-      instance_descriptor_length++;
-      if (type == NORMAL && !value->IsJSFunction()) {
-        number_of_fields += 1;
-      }
+  for (int i = 0; i < instance_descriptor_length; i++) {
+    int index = Smi::cast(iteration_order->get(i))->value();
+    DCHECK(dictionary->IsKey(dictionary->KeyAt(index)));
+
+    Object* value = dictionary->ValueAt(index);
+    PropertyType type = dictionary->DetailsAt(index).type();
+    DCHECK(type != FIELD);
+    if (type == NORMAL && !value->IsJSFunction()) {
+      number_of_fields += 1;
     }
   }
 
@@ -4338,51 +4358,45 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   // Fill in the instance descriptor and the fields.
   int current_offset = 0;
-  for (int i = 0; i < capacity; i++) {
-    Object* k = dictionary->KeyAt(i);
-    if (dictionary->IsKey(k)) {
-      Object* value = dictionary->ValueAt(i);
-      Handle<Name> key;
-      if (k->IsSymbol()) {
-        key = handle(Symbol::cast(k));
-      } else {
-        // Ensure the key is a unique name before writing into the
-        // instance descriptor.
-        key = factory->InternalizeString(handle(String::cast(k)));
-      }
+  for (int i = 0; i < instance_descriptor_length; i++) {
+    int index = Smi::cast(iteration_order->get(i))->value();
+    Object* k = dictionary->KeyAt(index);
+    DCHECK(dictionary->IsKey(k));
 
-      PropertyDetails details = dictionary->DetailsAt(i);
-      int enumeration_index = details.dictionary_index();
-      PropertyType type = details.type();
+    Object* value = dictionary->ValueAt(index);
+    Handle<Name> key;
+    if (k->IsSymbol()) {
+      key = handle(Symbol::cast(k));
+    } else {
+      // Ensure the key is a unique name before writing into the
+      // instance descriptor.
+      key = factory->InternalizeString(handle(String::cast(k)));
+    }
 
-      if (value->IsJSFunction()) {
-        ConstantDescriptor d(key,
-                             handle(value, isolate),
-                             details.attributes());
-        descriptors->Set(enumeration_index - 1, &d);
-      } else if (type == NORMAL) {
-        if (current_offset < inobject_props) {
-          object->InObjectPropertyAtPut(current_offset,
-                                        value,
-                                        UPDATE_WRITE_BARRIER);
-        } else {
-          int offset = current_offset - inobject_props;
-          fields->set(offset, value);
-        }
-        FieldDescriptor d(key,
-                          current_offset++,
-                          details.attributes(),
-                          // TODO(verwaest): value->OptimalRepresentation();
-                          Representation::Tagged());
-        descriptors->Set(enumeration_index - 1, &d);
-      } else if (type == CALLBACKS) {
-        CallbacksDescriptor d(key,
-                              handle(value, isolate),
-                              details.attributes());
-        descriptors->Set(enumeration_index - 1, &d);
+    PropertyDetails details = dictionary->DetailsAt(index);
+    int enumeration_index = details.dictionary_index();
+    PropertyType type = details.type();
+
+    if (value->IsJSFunction()) {
+      ConstantDescriptor d(key, handle(value, isolate), details.attributes());
+      descriptors->Set(enumeration_index - 1, &d);
+    } else if (type == NORMAL) {
+      if (current_offset < inobject_props) {
+        object->InObjectPropertyAtPut(current_offset, value,
+                                      UPDATE_WRITE_BARRIER);
       } else {
-        UNREACHABLE();
+        int offset = current_offset - inobject_props;
+        fields->set(offset, value);
       }
+      FieldDescriptor d(key, current_offset++, details.attributes(),
+                        // TODO(verwaest): value->OptimalRepresentation();
+                        Representation::Tagged());
+      descriptors->Set(enumeration_index - 1, &d);
+    } else if (type == CALLBACKS) {
+      CallbacksDescriptor d(key, handle(value, isolate), details.attributes());
+      descriptors->Set(enumeration_index - 1, &d);
+    } else {
+      UNREACHABLE();
     }
   }
   DCHECK(current_offset == number_of_fields);
@@ -4892,7 +4906,9 @@ MaybeHandle<Object> JSObject::DeleteElement(Handle<JSObject> object,
     if (!maybe.has_value) return MaybeHandle<Object>();
     if (!maybe.value) {
       Handle<String> name = factory->Uint32ToString(index);
-      EnqueueChangeRecord(object, "delete", name, old_value);
+      RETURN_ON_EXCEPTION(
+          isolate, EnqueueChangeRecord(object, "delete", name, old_value),
+          Object);
     }
   }
 
@@ -4978,7 +4994,9 @@ MaybeHandle<Object> JSObject::DeleteProperty(Handle<JSObject> object,
         ReoptimizeIfPrototype(holder);
 
         if (is_observed) {
-          EnqueueChangeRecord(object, "delete", name, old_value);
+          RETURN_ON_EXCEPTION(
+              it.isolate(),
+              EnqueueChangeRecord(object, "delete", name, old_value), Object);
         }
 
         return result;
@@ -5195,8 +5213,11 @@ MaybeHandle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
   DCHECK(!object->map()->is_extensible());
 
   if (object->map()->is_observed()) {
-    EnqueueChangeRecord(object, "preventExtensions", Handle<Name>(),
-                        isolate->factory()->the_hole_value());
+    RETURN_ON_EXCEPTION(
+        isolate,
+        EnqueueChangeRecord(object, "preventExtensions", Handle<Name>(),
+                            isolate->factory()->the_hole_value()),
+        Object);
   }
   return object;
 }
@@ -6169,7 +6190,8 @@ MaybeHandle<Object> JSObject::DefineAccessor(Handle<JSObject> object,
 
   if (is_observed) {
     const char* type = preexists ? "reconfigure" : "add";
-    EnqueueChangeRecord(object, type, name, old_value);
+    RETURN_ON_EXCEPTION(
+        isolate, EnqueueChangeRecord(object, type, name, old_value), Object);
   }
 
   return isolate->factory()->undefined_value();
@@ -11238,13 +11260,18 @@ MaybeHandle<Object> JSArray::SetElementsLength(
     // For deletions where the property was an accessor, old_values[i]
     // will be the hole, which instructs EnqueueChangeRecord to elide
     // the "oldValue" property.
-    JSObject::EnqueueChangeRecord(
-        array, "delete", isolate->factory()->Uint32ToString(indices[i]),
-        old_values[i]);
+    RETURN_ON_EXCEPTION(
+        isolate,
+        JSObject::EnqueueChangeRecord(
+            array, "delete", isolate->factory()->Uint32ToString(indices[i]),
+            old_values[i]),
+        Object);
   }
-  JSObject::EnqueueChangeRecord(
-      array, "update", isolate->factory()->length_string(),
-      old_length_handle);
+  RETURN_ON_EXCEPTION(isolate,
+                      JSObject::EnqueueChangeRecord(
+                          array, "update", isolate->factory()->length_string(),
+                          old_length_handle),
+                      Object);
 
   EndPerformSplice(array);
 
@@ -12452,27 +12479,38 @@ MaybeHandle<Object> JSObject::SetElement(Handle<JSObject> object,
       CHECK(new_length_handle->ToArrayIndex(&new_length));
 
       BeginPerformSplice(Handle<JSArray>::cast(object));
-      EnqueueChangeRecord(object, "add", name, old_value);
-      EnqueueChangeRecord(object, "update", isolate->factory()->length_string(),
-                          old_length_handle);
+      RETURN_ON_EXCEPTION(
+          isolate, EnqueueChangeRecord(object, "add", name, old_value), Object);
+      RETURN_ON_EXCEPTION(
+          isolate, EnqueueChangeRecord(object, "update",
+                                       isolate->factory()->length_string(),
+                                       old_length_handle),
+          Object);
       EndPerformSplice(Handle<JSArray>::cast(object));
       Handle<JSArray> deleted = isolate->factory()->NewJSArray(0);
       EnqueueSpliceRecord(Handle<JSArray>::cast(object), old_length, deleted,
                           new_length - old_length);
     } else {
-      EnqueueChangeRecord(object, "add", name, old_value);
+      RETURN_ON_EXCEPTION(
+          isolate, EnqueueChangeRecord(object, "add", name, old_value), Object);
     }
   } else if (old_value->IsTheHole()) {
-    EnqueueChangeRecord(object, "reconfigure", name, old_value);
+    RETURN_ON_EXCEPTION(
+        isolate, EnqueueChangeRecord(object, "reconfigure", name, old_value),
+        Object);
   } else {
     Handle<Object> new_value =
         Object::GetElement(isolate, object, index).ToHandleChecked();
     bool value_changed = !old_value->SameValue(*new_value);
     if (old_attributes != new_attributes) {
       if (!value_changed) old_value = isolate->factory()->the_hole_value();
-      EnqueueChangeRecord(object, "reconfigure", name, old_value);
+      RETURN_ON_EXCEPTION(
+          isolate, EnqueueChangeRecord(object, "reconfigure", name, old_value),
+          Object);
     } else if (value_changed) {
-      EnqueueChangeRecord(object, "update", name, old_value);
+      RETURN_ON_EXCEPTION(
+          isolate, EnqueueChangeRecord(object, "update", name, old_value),
+          Object);
     }
   }
 
@@ -14112,9 +14150,13 @@ template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::Add(
     Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails);
 
-template void
-Dictionary<NameDictionary, NameDictionaryShape, Handle<Name> >::
-    GenerateNewEnumerationIndices(Handle<NameDictionary>);
+template Handle<FixedArray> Dictionary<
+    NameDictionary, NameDictionaryShape,
+    Handle<Name> >::BuildIterationIndicesArray(Handle<NameDictionary>);
+
+template Handle<FixedArray> Dictionary<
+    NameDictionary, NameDictionaryShape,
+    Handle<Name> >::GenerateNewEnumerationIndices(Handle<NameDictionary>);
 
 template int
 Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape, uint32_t>::
@@ -14920,56 +14962,61 @@ Handle<Derived> Dictionary<Derived, Shape, Key>::New(
 }
 
 
-template<typename Derived, typename Shape, typename Key>
-void Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices(
+template <typename Derived, typename Shape, typename Key>
+Handle<FixedArray> Dictionary<Derived, Shape, Key>::BuildIterationIndicesArray(
     Handle<Derived> dictionary) {
   Factory* factory = dictionary->GetIsolate()->factory();
   int length = dictionary->NumberOfElements();
 
-  // Allocate and initialize iteration order array.
   Handle<FixedArray> iteration_order = factory->NewFixedArray(length);
-  for (int i = 0; i < length; i++) {
-    iteration_order->set(i, Smi::FromInt(i));
-  }
-
-  // Allocate array with enumeration order.
   Handle<FixedArray> enumeration_order = factory->NewFixedArray(length);
 
-  // Fill the enumeration order array with property details.
+  // Fill both the iteration order array and the enumeration order array
+  // with property details.
   int capacity = dictionary->Capacity();
   int pos = 0;
   for (int i = 0; i < capacity; i++) {
     if (dictionary->IsKey(dictionary->KeyAt(i))) {
       int index = dictionary->DetailsAt(i).dictionary_index();
-      enumeration_order->set(pos++, Smi::FromInt(index));
+      iteration_order->set(pos, Smi::FromInt(i));
+      enumeration_order->set(pos, Smi::FromInt(index));
+      pos++;
     }
   }
+  DCHECK(pos == length);
 
   // Sort the arrays wrt. enumeration order.
   iteration_order->SortPairs(*enumeration_order, enumeration_order->length());
+  return iteration_order;
+}
 
-  // Overwrite the enumeration_order with the enumeration indices.
+
+template <typename Derived, typename Shape, typename Key>
+Handle<FixedArray>
+Dictionary<Derived, Shape, Key>::GenerateNewEnumerationIndices(
+    Handle<Derived> dictionary) {
+  int length = dictionary->NumberOfElements();
+
+  Handle<FixedArray> iteration_order = BuildIterationIndicesArray(dictionary);
+  DCHECK(iteration_order->length() == length);
+
+  // Iterate over the dictionary using the enumeration order and update
+  // the dictionary with new enumeration indices.
   for (int i = 0; i < length; i++) {
     int index = Smi::cast(iteration_order->get(i))->value();
-    int enum_index = PropertyDetails::kInitialIndex + i;
-    enumeration_order->set(index, Smi::FromInt(enum_index));
-  }
+    DCHECK(dictionary->IsKey(dictionary->KeyAt(index)));
 
-  // Update the dictionary with new indices.
-  capacity = dictionary->Capacity();
-  pos = 0;
-  for (int i = 0; i < capacity; i++) {
-    if (dictionary->IsKey(dictionary->KeyAt(i))) {
-      int enum_index = Smi::cast(enumeration_order->get(pos++))->value();
-      PropertyDetails details = dictionary->DetailsAt(i);
-      PropertyDetails new_details = PropertyDetails(
-          details.attributes(), details.type(), enum_index);
-      dictionary->DetailsAtPut(i, new_details);
-    }
+    int enum_index = PropertyDetails::kInitialIndex + i;
+
+    PropertyDetails details = dictionary->DetailsAt(index);
+    PropertyDetails new_details =
+        PropertyDetails(details.attributes(), details.type(), enum_index);
+    dictionary->DetailsAtPut(index, new_details);
   }
 
   // Set the next enumeration index.
   dictionary->SetNextEnumerationIndex(PropertyDetails::kInitialIndex+length);
+  return iteration_order;
 }
 
 

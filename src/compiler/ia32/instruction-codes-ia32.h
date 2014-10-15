@@ -20,6 +20,7 @@ namespace compiler {
   V(IA32Xor)                       \
   V(IA32Sub)                       \
   V(IA32Imul)                      \
+  V(IA32ImulHigh)                  \
   V(IA32Idiv)                      \
   V(IA32Udiv)                      \
   V(IA32Not)                       \

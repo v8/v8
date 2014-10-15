@@ -18293,40 +18293,6 @@ TEST(IdleNotificationWithLargeHint) {
 }
 
 
-TEST(Regress2107) {
-  const intptr_t MB = 1024 * 1024;
-  const int kIdlePauseInMs = 10000;
-  LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
-  v8::HandleScope scope(env->GetIsolate());
-  intptr_t initial_size = CcTest::heap()->SizeOfObjects();
-  // Send idle notification to start a round of incremental GCs.
-  env->GetIsolate()->IdleNotification(kIdlePauseInMs);
-  // Emulate 7 page reloads.
-  for (int i = 0; i < 7; i++) {
-    {
-      v8::HandleScope inner_scope(env->GetIsolate());
-      v8::Local<v8::Context> ctx = v8::Context::New(isolate);
-      ctx->Enter();
-      CreateGarbageInOldSpace();
-      ctx->Exit();
-    }
-    env->GetIsolate()->ContextDisposedNotification();
-    env->GetIsolate()->IdleNotification(kIdlePauseInMs);
-  }
-  // Create garbage and check that idle notification still collects it.
-  CreateGarbageInOldSpace();
-  intptr_t size_with_garbage = CcTest::heap()->SizeOfObjects();
-  CHECK_GT(size_with_garbage, initial_size + MB);
-  bool finished = false;
-  for (int i = 0; i < 200 && !finished; i++) {
-    finished = env->GetIsolate()->IdleNotification(kIdlePauseInMs);
-  }
-  intptr_t final_size = CcTest::heap()->SizeOfObjects();
-  CHECK_LT(final_size, initial_size + 1);
-}
-
-
 TEST(Regress2333) {
   LocalContext env;
   for (int i = 0; i < 3; i++) {
