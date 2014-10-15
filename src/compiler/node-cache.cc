@@ -94,7 +94,7 @@ Node** NodeCache<Key, Hash, Pred>::Find(Zone* zone, Key key) {
 template <typename Key, typename Hash, typename Pred>
 void NodeCache<Key, Hash, Pred>::GetCachedNodes(NodeVector* nodes) {
   if (entries_) {
-    for (size_t i = 0; i < size_; i++) {
+    for (size_t i = 0; i < size_ + kLinearProbe; i++) {
       if (entries_[i].value_ != NULL) nodes->push_back(entries_[i].value_);
     }
   }

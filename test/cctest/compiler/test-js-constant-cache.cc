@@ -329,8 +329,10 @@ TEST(JSGraph_GetCachedNodes1) {
 TEST(JSGraph_GetCachedNodes_int32) {
   JSConstantCacheTester T;
 
-  int32_t constants[] = {0, 11, 12, 13, 14, 55, -55, -44, -33, -22, -11,
-                         0, 11, 11, 12, 12, 11, 11,  -33, -33, -22, -11};
+  int32_t constants[] = {0,  1,  1,   1,   1,   2,   3,   4,  11, 12, 13,
+                         14, 55, -55, -44, -33, -22, -11, 16, 16, 17, 17,
+                         18, 18, 19,  19,  20,  20,  21,  21, 22, 23, 24,
+                         25, 15, 30,  31,  45,  46,  47,  48};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
     int count_before = T.graph()->NodeCount();
@@ -372,8 +374,9 @@ TEST(JSGraph_GetCachedNodes_float64) {
 TEST(JSGraph_GetCachedNodes_int64) {
   JSConstantCacheTester T;
 
-  int32_t constants[] = {0, 11, 12, 13, 14, 55, -55, -44, -33, -22, -11,
-                         0, 11, 11, 12, 12, 11, 11,  -33, -33, -22, -11};
+  int32_t constants[] = {0,   11,  12, 13, 14, 55, -55, -44, -33,
+                         -22, -11, 16, 16, 17, 17, 18,  18,  19,
+                         19,  20,  20, 21, 21, 22, 23,  24,  25};
 
   for (size_t i = 0; i < arraysize(constants); i++) {
     int count_before = T.graph()->NodeCount();
