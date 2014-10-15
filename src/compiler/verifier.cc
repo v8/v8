@@ -166,7 +166,7 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
       case IrOpcode::kBranch: {
         // Branch uses are IfTrue and IfFalse.
         Node::Uses uses = node->uses();
-        bool count_true = 0, count_false = 0;
+        int count_true = 0, count_false = 0;
         for (Node::Uses::iterator it = uses.begin(); it != uses.end(); ++it) {
           CHECK((*it)->opcode() == IrOpcode::kIfTrue ||
                 (*it)->opcode() == IrOpcode::kIfFalse);
