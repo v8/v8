@@ -65,6 +65,8 @@ Typer::Typer(Graph* graph, MaybeHandle<Context> context)
   number_fun2_ = Type::Function(number, number, number, zone);
   weakint_fun1_ = Type::Function(weakint, number, zone);
   imul_fun_ = Type::Function(signed32, integral32, integral32, zone);
+  clz32_fun_ = Type::Function(
+      Type::Range(zero, f->NewNumber(32), zone), number, zone);
   random_fun_ = Type::Function(Type::Union(
       Type::UnsignedSmall(), Type::OtherNumber(), zone), zone);
 
@@ -1554,8 +1556,34 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
   if (value->IsJSFunction()) {
     if (JSFunction::cast(*value)->shared()->HasBuiltinFunctionId()) {
       switch (JSFunction::cast(*value)->shared()->builtin_function_id()) {
-        // TODO(rossberg): can't express overloading
+        case kMathRandom:
+          return typer_->random_fun_;
+        case kMathFloor:
+          return typer_->weakint_fun1_;
+        case kMathRound:
+          return typer_->weakint_fun1_;
+        case kMathCeil:
+          return typer_->weakint_fun1_;
         case kMathAbs:
+          // TODO(rossberg): can't express overloading
+          return typer_->number_fun1_;
+        case kMathLog:
+          return typer_->number_fun1_;
+        case kMathExp:
+          return typer_->number_fun1_;
+        case kMathSqrt:
+          return typer_->number_fun1_;
+        case kMathPow:
+          return typer_->number_fun2_;
+        case kMathMax:
+          return typer_->number_fun2_;
+        case kMathMin:
+          return typer_->number_fun2_;
+        case kMathCos:
+          return typer_->number_fun1_;
+        case kMathSin:
+          return typer_->number_fun1_;
+        case kMathTan:
           return typer_->number_fun1_;
         case kMathAcos:
           return typer_->number_fun1_;
@@ -1565,29 +1593,11 @@ Type* Typer::Visitor::TypeConstant(Handle<Object> value) {
           return typer_->number_fun1_;
         case kMathAtan2:
           return typer_->number_fun2_;
-        case kMathCeil:
-          return typer_->weakint_fun1_;
-        case kMathCos:
-          return typer_->number_fun1_;
-        case kMathExp:
-          return typer_->number_fun1_;
-        case kMathFloor:
-          return typer_->weakint_fun1_;
         case kMathImul:
           return typer_->imul_fun_;
-        case kMathLog:
-          return typer_->number_fun1_;
-        case kMathPow:
-          return typer_->number_fun2_;
-        case kMathRandom:
-          return typer_->random_fun_;
-        case kMathRound:
-          return typer_->weakint_fun1_;
-        case kMathSin:
-          return typer_->number_fun1_;
-        case kMathSqrt:
-          return typer_->number_fun1_;
-        case kMathTan:
+        case kMathClz32:
+          return typer_->clz32_fun_;
+        case kMathFround:
           return typer_->number_fun1_;
         default:
           break;
