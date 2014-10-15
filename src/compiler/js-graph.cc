@@ -191,6 +191,18 @@ Node* JSGraph::ExternalConstant(ExternalReference reference) {
   return *loc;
 }
 
+
+void JSGraph::GetCachedNodes(NodeVector* nodes) {
+  cache_.GetCachedNodes(nodes);
+  SetOncePointer<Node>* ptrs[] = {
+      &c_entry_stub_constant_, &undefined_constant_, &the_hole_constant_,
+      &true_constant_,         &false_constant_,     &null_constant_,
+      &zero_constant_,         &one_constant_,       &nan_constant_};
+  for (size_t i = 0; i < arraysize(ptrs); i++) {
+    if (ptrs[i]->is_set()) nodes->push_back(ptrs[i]->get());
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

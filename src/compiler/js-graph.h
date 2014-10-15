@@ -103,12 +103,15 @@ class JSGraph : public ZoneObject {
   Zone* zone() { return graph()->zone(); }
   Isolate* isolate() { return zone()->isolate(); }
 
+  void GetCachedNodes(NodeVector* nodes);
+
  private:
   Graph* graph_;
   CommonOperatorBuilder* common_;
   JSOperatorBuilder* javascript_;
   MachineOperatorBuilder* machine_;
 
+  // TODO(titzer): make this into a simple array.
   SetOncePointer<Node> c_entry_stub_constant_;
   SetOncePointer<Node> undefined_constant_;
   SetOncePointer<Node> the_hole_constant_;

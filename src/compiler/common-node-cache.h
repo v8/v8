@@ -41,6 +41,14 @@ class CommonNodeCache FINAL : public ZoneObject {
 
   Zone* zone() const { return zone_; }
 
+  void GetCachedNodes(NodeVector* nodes) {
+    int32_constants_.GetCachedNodes(nodes);
+    int64_constants_.GetCachedNodes(nodes);
+    float64_constants_.GetCachedNodes(nodes);
+    external_constants_.GetCachedNodes(nodes);
+    number_constants_.GetCachedNodes(nodes);
+  }
+
  private:
   Int32NodeCache int32_constants_;
   Int64NodeCache int64_constants_;

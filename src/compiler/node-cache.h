@@ -7,19 +7,11 @@
 
 #include "src/base/functional.h"
 #include "src/base/macros.h"
+#include "src/compiler/node.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class Zone;
-
-
 namespace compiler {
-
-// Forward declarations.
-class Node;
-
 
 // A cache for nodes based on a key. Useful for implementing canonicalization of
 // nodes such as constants, parameters, etc.
@@ -38,6 +30,8 @@ class NodeCache FINAL {
   // Note that a previous cache entry may be overwritten if the cache becomes
   // too full or encounters too many hash collisions.
   Node** Find(Zone* zone, Key key);
+
+  void GetCachedNodes(NodeVector* nodes);
 
  private:
   enum { kInitialSize = 16u, kLinearProbe = 5u };

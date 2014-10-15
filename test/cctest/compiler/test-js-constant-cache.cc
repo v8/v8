@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/assembler.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/typer.h"
@@ -30,6 +31,7 @@ class JSCacheTesterHelper {
 };
 
 
+// TODO(dcarney): JSConstantCacheTester inherits from JSGraph???
 class JSConstantCacheTester : public HandleAndZoneScope,
                               public JSCacheTesterHelper,
                               public JSGraph {
@@ -292,4 +294,178 @@ TEST(OddballTypes) {
 
 TEST(ExternalReferences) {
   // TODO(titzer): test canonicalization of external references.
+}
+
+
+static bool Contains(NodeVector* nodes, Node* n) {
+  for (size_t i = 0; i < nodes->size(); i++) {
+    if (nodes->at(i) == n) return true;
+  }
+  return false;
+}
+
+
+static void CheckGetCachedNodesContains(JSConstantCacheTester* T, Node* n) {
+  NodeVector nodes(T->main_zone());
+  T->GetCachedNodes(&nodes);
+  CHECK(Contains(&nodes, n));
+}
+
+
+TEST(JSGraph_GetCachedNodes1) {
+  JSConstantCacheTester T;
+  CheckGetCachedNodesContains(&T, T.TrueConstant());
+  CheckGetCachedNodesContains(&T, T.UndefinedConstant());
+  CheckGetCachedNodesContains(&T, T.TheHoleConstant());
+  CheckGetCachedNodesContains(&T, T.TrueConstant());
+  CheckGetCachedNodesContains(&T, T.FalseConstant());
+  CheckGetCachedNodesContains(&T, T.NullConstant());
+  CheckGetCachedNodesContains(&T, T.ZeroConstant());
+  CheckGetCachedNodesContains(&T, T.OneConstant());
+  CheckGetCachedNodesContains(&T, T.NaNConstant());
+}
+
+
+TEST(JSGraph_GetCachedNodes_int32) {
+  JSConstantCacheTester T;
+
+  int32_t constants[] = {0, 11, 12, 13, 14, 55, -55, -44, -33, -22, -11,
+                         0, 11, 11, 12, 12, 11, 11,  -33, -33, -22, -11};
+
+  for (size_t i = 0; i < arraysize(constants); i++) {
+    int count_before = T.graph()->NodeCount();
+    NodeVector nodes_before(T.main_zone());
+    T.GetCachedNodes(&nodes_before);
+    Node* n = T.Int32Constant(constants[i]);
+    if (n->id() < count_before) {
+      // An old ID indicates a cached node. It should have been in the set.
+      CHECK(Contains(&nodes_before, n));
+    }
+    // Old or new, it should be in the cached set afterwards.
+    CheckGetCachedNodesContains(&T, n);
+  }
+}
+
+
+TEST(JSGraph_GetCachedNodes_float64) {
+  JSConstantCacheTester T;
+
+  double constants[] = {0,   11.1, 12.2,  13,    14,   55.5, -55.5, -44.4,
+                        -33, -22,  -11,   0,     11.1, 11.1, 12.3,  12.3,
+                        11,  11,   -33.3, -33.3, -22,  -11};
+
+  for (size_t i = 0; i < arraysize(constants); i++) {
+    int count_before = T.graph()->NodeCount();
+    NodeVector nodes_before(T.main_zone());
+    T.GetCachedNodes(&nodes_before);
+    Node* n = T.Float64Constant(constants[i]);
+    if (n->id() < count_before) {
+      // An old ID indicates a cached node. It should have been in the set.
+      CHECK(Contains(&nodes_before, n));
+    }
+    // Old or new, it should be in the cached set afterwards.
+    CheckGetCachedNodesContains(&T, n);
+  }
+}
+
+
+TEST(JSGraph_GetCachedNodes_int64) {
+  JSConstantCacheTester T;
+
+  int32_t constants[] = {0, 11, 12, 13, 14, 55, -55, -44, -33, -22, -11,
+                         0, 11, 11, 12, 12, 11, 11,  -33, -33, -22, -11};
+
+  for (size_t i = 0; i < arraysize(constants); i++) {
+    int count_before = T.graph()->NodeCount();
+    NodeVector nodes_before(T.main_zone());
+    T.GetCachedNodes(&nodes_before);
+    Node* n = T.Int64Constant(constants[i]);
+    if (n->id() < count_before) {
+      // An old ID indicates a cached node. It should have been in the set.
+      CHECK(Contains(&nodes_before, n));
+    }
+    // Old or new, it should be in the cached set afterwards.
+    CheckGetCachedNodesContains(&T, n);
+  }
+}
+
+
+TEST(JSGraph_GetCachedNodes_number) {
+  JSConstantCacheTester T;
+
+  double constants[] = {0,   11.1, 12.2,  13,    14,   55.5, -55.5, -44.4,
+                        -33, -22,  -11,   0,     11.1, 11.1, 12.3,  12.3,
+                        11,  11,   -33.3, -33.3, -22,  -11};
+
+  for (size_t i = 0; i < arraysize(constants); i++) {
+    int count_before = T.graph()->NodeCount();
+    NodeVector nodes_before(T.main_zone());
+    T.GetCachedNodes(&nodes_before);
+    Node* n = T.Constant(constants[i]);
+    if (n->id() < count_before) {
+      // An old ID indicates a cached node. It should have been in the set.
+      CHECK(Contains(&nodes_before, n));
+    }
+    // Old or new, it should be in the cached set afterwards.
+    CheckGetCachedNodesContains(&T, n);
+  }
+}
+
+
+TEST(JSGraph_GetCachedNodes_external) {
+  JSConstantCacheTester T;
+
+  ExternalReference constants[] = {ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_one_half(),
+                                   ExternalReference::address_of_one_half(),
+                                   ExternalReference::address_of_min_int(),
+                                   ExternalReference::address_of_the_hole_nan(),
+                                   ExternalReference::address_of_one_half()};
+
+  for (size_t i = 0; i < arraysize(constants); i++) {
+    int count_before = T.graph()->NodeCount();
+    NodeVector nodes_before(T.main_zone());
+    T.GetCachedNodes(&nodes_before);
+    Node* n = T.ExternalConstant(constants[i]);
+    if (n->id() < count_before) {
+      // An old ID indicates a cached node. It should have been in the set.
+      CHECK(Contains(&nodes_before, n));
+    }
+    // Old or new, it should be in the cached set afterwards.
+    CheckGetCachedNodesContains(&T, n);
+  }
+}
+
+
+TEST(JSGraph_GetCachedNodes_together) {
+  JSConstantCacheTester T;
+
+  Node* constants[] = {
+      T.TrueConstant(),
+      T.UndefinedConstant(),
+      T.TheHoleConstant(),
+      T.TrueConstant(),
+      T.FalseConstant(),
+      T.NullConstant(),
+      T.ZeroConstant(),
+      T.OneConstant(),
+      T.NaNConstant(),
+      T.Int32Constant(0),
+      T.Int32Constant(1),
+      T.Int64Constant(-2),
+      T.Int64Constant(-4),
+      T.Float64Constant(0.9),
+      T.Float64Constant(V8_INFINITY),
+      T.Constant(0.99),
+      T.Constant(1.11),
+      T.ExternalConstant(ExternalReference::address_of_one_half())};
+
+  NodeVector nodes(T.main_zone());
+  T.GetCachedNodes(&nodes);
+
+  for (size_t i = 0; i < arraysize(constants); i++) {
+    CHECK(Contains(&nodes, constants[i]));
+  }
 }
