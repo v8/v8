@@ -512,15 +512,10 @@ void KeyedLoadIC::Clear(Isolate* isolate, Address address, Code* target,
                         ConstantPoolArray* constant_pool) {
   if (IsCleared(target)) return;
 
-  // If the target is the string_stub, then don't clear it. It is the
-  // perfect stub if we continue to see strings. Holding this
-  // state is not preventing learning new information.
-  if (target != *isolate->builtins()->KeyedLoadIC_String()) {
-    // Make sure to also clear the map used in inline fast cases.  If we
-    // do not clear these maps, cached code can keep objects alive
-    // through the embedded maps.
-    SetTargetAtAddress(address, *pre_monomorphic_stub(isolate), constant_pool);
-  }
+  // Make sure to also clear the map used in inline fast cases.  If we
+  // do not clear these maps, cached code can keep objects alive
+  // through the embedded maps.
+  SetTargetAtAddress(address, *pre_monomorphic_stub(isolate), constant_pool);
 }
 
 
@@ -1162,14 +1157,11 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
 }
 
 
-Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
+Handle<Code> KeyedLoadIC::LoadElementStub(Handle<HeapObject> receiver) {
   Handle<Map> receiver_map(receiver->map(), isolate());
   MapHandleList target_receiver_maps;
-  if (target().is_identical_to(string_stub())) {
-    target_receiver_maps.Add(isolate()->factory()->string_map());
-  } else {
-    TargetMaps(&target_receiver_maps);
-  }
+  TargetMaps(&target_receiver_maps);
+
   if (target_receiver_maps.length() == 0) {
     return PropertyICCompiler::ComputeKeyedLoadMonomorphic(receiver_map);
   }
@@ -1181,9 +1173,10 @@ Handle<Code> KeyedLoadIC::LoadElementStub(Handle<JSObject> receiver) {
   // monomorphic. If this optimistic assumption is not true, the IC will
   // miss again and it will become polymorphic and support both the
   // untransitioned and transitioned maps.
-  if (state() == MONOMORPHIC && IsMoreGeneralElementsKindTransition(
-                                    target_receiver_maps.at(0)->elements_kind(),
-                                    receiver->GetElementsKind())) {
+  if (state() == MONOMORPHIC && !receiver->IsString() &&
+      IsMoreGeneralElementsKindTransition(
+          target_receiver_maps.at(0)->elements_kind(),
+          Handle<JSObject>::cast(receiver)->GetElementsKind())) {
     return PropertyICCompiler::ComputeKeyedLoadMonomorphic(receiver_map);
   }
 
@@ -1231,11 +1224,9 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                LoadIC::Load(object, Handle<Name>::cast(key)),
                                Object);
   } else if (FLAG_use_ic && !object->IsAccessCheckNeeded()) {
-    if (object->IsString() && key->IsNumber()) {
-      if (state() == UNINITIALIZED) stub = string_stub();
-    } else if (object->IsJSObject()) {
-      Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-      if (!Object::ToSmi(isolate(), key).is_null()) {
+    if (object->IsJSObject() || (object->IsString() && key->IsNumber())) {
+      Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
+      if (object->IsString() || !Object::ToSmi(isolate(), key).is_null()) {
         stub = LoadElementStub(receiver);
       }
     }

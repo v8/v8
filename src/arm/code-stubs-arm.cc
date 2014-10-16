@@ -1503,6 +1503,34 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
+  // Return address is in lr.
+  Label miss;
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register index = LoadDescriptor::NameRegister();
+  Register scratch = r3;
+  Register result = r0;
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
+
+  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &miss,  // When index out of range.
+                                          STRING_INDEX_IS_ARRAY_INDEX,
+                                          RECEIVER_IS_STRING);
+  char_at_generator.GenerateFast(masm);
+  __ Ret();
+
+  StubRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&miss);
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
+}
+
+
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The displacement is the offset of the last parameter (if any)
   // relative to the frame pointer.

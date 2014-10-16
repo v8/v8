@@ -1403,6 +1403,34 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
+  // Return address is in ra.
+  Label miss;
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register index = LoadDescriptor::NameRegister();
+  Register scratch = a3;
+  Register result = v0;
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
+
+  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &miss,  // When index out of range.
+                                          STRING_INDEX_IS_ARRAY_INDEX,
+                                          RECEIVER_IS_STRING);
+  char_at_generator.GenerateFast(masm);
+  __ Ret();
+
+  StubRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&miss);
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
+}
+
+
 // Uses registers a0 to t0.
 // Expected input (depending on whether args are in registers or on the stack):
 // * object: a0 or at sp + 1 * kPointerSize.

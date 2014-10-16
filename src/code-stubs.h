@@ -39,6 +39,7 @@ namespace internal {
   V(KeyedLoadICTrampoline)                  \
   V(LoadICTrampoline)                       \
   V(LoadIndexedInterceptor)                 \
+  V(LoadIndexedString)                      \
   V(MathPow)                                \
   V(ProfileEntryHook)                       \
   V(RecordWrite)                            \
@@ -882,6 +883,19 @@ class LoadIndexedInterceptorStub : public PlatformCodeStub {
 };
 
 
+class LoadIndexedStringStub : public PlatformCodeStub {
+ public:
+  explicit LoadIndexedStringStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
+
+  virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
+  virtual Code::StubType GetStubType() { return Code::FAST; }
+
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
+  DEFINE_PLATFORM_CODE_STUB(LoadIndexedString, PlatformCodeStub);
+};
+
+
 class HandlerStub : public HydrogenCodeStub {
  public:
   virtual Code::Kind GetCodeKind() const { return Code::HANDLER; }
@@ -1657,6 +1671,15 @@ enum StringIndexFlags {
 };
 
 
+enum ReceiverCheckMode {
+  // We don't know anything about the receiver.
+  RECEIVER_IS_UNKNOWN,
+
+  // We know the receiver is a string.
+  RECEIVER_IS_STRING
+};
+
+
 // Generates code implementing String.prototype.charCodeAt.
 //
 // Only supports the case when the receiver is a string and the index
@@ -1669,20 +1692,19 @@ enum StringIndexFlags {
 // preserved, |scratch| and |result| are clobbered.
 class StringCharCodeAtGenerator {
  public:
-  StringCharCodeAtGenerator(Register object,
-                            Register index,
-                            Register result,
-                            Label* receiver_not_string,
-                            Label* index_not_number,
+  StringCharCodeAtGenerator(Register object, Register index, Register result,
+                            Label* receiver_not_string, Label* index_not_number,
                             Label* index_out_of_range,
-                            StringIndexFlags index_flags)
+                            StringIndexFlags index_flags,
+                            ReceiverCheckMode check_mode = RECEIVER_IS_UNKNOWN)
       : object_(object),
         index_(index),
         result_(result),
         receiver_not_string_(receiver_not_string),
         index_not_number_(index_not_number),
         index_out_of_range_(index_out_of_range),
-        index_flags_(index_flags) {
+        index_flags_(index_flags),
+        check_mode_(check_mode) {
     DCHECK(!result_.is(object_));
     DCHECK(!result_.is(index_));
   }
@@ -1714,6 +1736,7 @@ class StringCharCodeAtGenerator {
   Label* index_out_of_range_;
 
   StringIndexFlags index_flags_;
+  ReceiverCheckMode check_mode_;
 
   Label call_runtime_;
   Label index_not_smi_;
@@ -1773,20 +1796,13 @@ class StringCharFromCodeGenerator {
 // preserved, |scratch1|, |scratch2|, and |result| are clobbered.
 class StringCharAtGenerator {
  public:
-  StringCharAtGenerator(Register object,
-                        Register index,
-                        Register scratch,
-                        Register result,
-                        Label* receiver_not_string,
-                        Label* index_not_number,
-                        Label* index_out_of_range,
-                        StringIndexFlags index_flags)
-      : char_code_at_generator_(object,
-                                index,
-                                scratch,
-                                receiver_not_string,
-                                index_not_number,
-                                index_out_of_range,
+  StringCharAtGenerator(Register object, Register index, Register scratch,
+                        Register result, Label* receiver_not_string,
+                        Label* index_not_number, Label* index_out_of_range,
+                        StringIndexFlags index_flags,
+                        ReceiverCheckMode check_mode = RECEIVER_IS_UNKNOWN)
+      : char_code_at_generator_(object, index, scratch, receiver_not_string,
+                                index_not_number, index_out_of_range,
                                 index_flags),
         char_from_code_generator_(scratch, result) {}
 

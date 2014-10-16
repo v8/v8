@@ -6140,6 +6140,7 @@ class Map: public HeapObject {
   bool IsJSObjectMap() {
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
   }
+  bool IsStringMap() { return instance_type() < FIRST_NONSTRING_TYPE; }
   bool IsJSProxyMap() {
     InstanceType type = instance_type();
     return FIRST_JS_PROXY_TYPE <= type && type <= LAST_JS_PROXY_TYPE;

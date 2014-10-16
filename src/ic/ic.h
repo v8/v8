@@ -413,7 +413,6 @@ class KeyedLoadIC : public LoadIC {
     GenerateMiss(masm);
   }
   static void GenerateGeneric(MacroAssembler* masm);
-  static void GenerateString(MacroAssembler* masm);
 
   // Bit mask to be tested against bit field for the cases when
   // generic stub should go into slow case.
@@ -428,16 +427,14 @@ class KeyedLoadIC : public LoadIC {
   static Handle<Code> pre_monomorphic_stub(Isolate* isolate);
 
  protected:
-  Handle<Code> LoadElementStub(Handle<JSObject> receiver);
+  // receiver is HeapObject because it could be a String or a JSObject
+  Handle<Code> LoadElementStub(Handle<HeapObject> receiver);
   virtual Handle<Code> pre_monomorphic_stub() const {
     return pre_monomorphic_stub(isolate());
   }
 
  private:
   Handle<Code> generic_stub() const { return generic_stub(isolate()); }
-  Handle<Code> string_stub() {
-    return isolate()->builtins()->KeyedLoadIC_String();
-  }
 
   static void Clear(Isolate* isolate, Address address, Code* target,
                     ConstantPoolArray* constant_pool);

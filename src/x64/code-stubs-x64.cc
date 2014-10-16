@@ -867,6 +867,34 @@ void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
+  // Return address is on the stack.
+  Label miss;
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register index = LoadDescriptor::NameRegister();
+  Register scratch = rbx;
+  Register result = rax;
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
+
+  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &miss,  // When index out of range.
+                                          STRING_INDEX_IS_ARRAY_INDEX,
+                                          RECEIVER_IS_STRING);
+  char_at_generator.GenerateFast(masm);
+  __ ret(0);
+
+  StubRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&miss);
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
+}
+
+
 void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // rsp[0]  : return address
   // rsp[8]  : number of parameters

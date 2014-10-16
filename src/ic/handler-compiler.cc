@@ -415,8 +415,8 @@ void ElementHandlerCompiler::CompileElementHandlers(
     Handle<Map> receiver_map = receiver_maps->at(i);
     Handle<Code> cached_stub;
 
-    if ((receiver_map->instance_type() & kNotStringTag) == 0) {
-      cached_stub = isolate()->builtins()->KeyedLoadIC_String();
+    if (receiver_map->IsStringMap()) {
+      cached_stub = LoadIndexedStringStub(isolate()).GetCode();
     } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
       cached_stub = isolate()->builtins()->KeyedLoadIC_Slow();
     } else {
