@@ -447,10 +447,11 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       break;
     case kSSEUint32ToFloat64:
       if (instr->InputAt(0)->IsRegister()) {
-        __ cvtqsi2sd(i.OutputDoubleRegister(), i.InputRegister(0));
+        __ movl(kScratchRegister, i.InputRegister(0));
       } else {
-        __ cvtqsi2sd(i.OutputDoubleRegister(), i.InputOperand(0));
+        __ movl(kScratchRegister, i.InputOperand(0));
       }
+      __ cvtqsi2sd(i.OutputDoubleRegister(), kScratchRegister);
       break;
     case kX64Movsxbl:
       __ movsxbl(i.OutputRegister(), i.MemoryOperand());
