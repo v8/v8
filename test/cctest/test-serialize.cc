@@ -948,6 +948,7 @@ TEST(SerializeToplevelThreeBigStrings) {
   delete cache;
   source_a.Dispose();
   source_b.Dispose();
+  source_c.Dispose();
 }
 
 
