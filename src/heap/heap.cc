@@ -3716,12 +3716,14 @@ AllocationResult Heap::AllocateJSObject(JSFunction* constructor,
 
 
 AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
-  // Never used to copy functions.  If functions need to be copied we
-  // have to be careful to clear the literals array.
-  SLOW_DCHECK(!source->IsJSFunction());
-
   // Make the clone.
   Map* map = source->map();
+
+  // We can only clone normal objects or arrays. Copying anything else
+  // will break invariants.
+  CHECK(map->instance_type() == JS_OBJECT_TYPE ||
+        map->instance_type() == JS_ARRAY_TYPE);
+
   int object_size = map->instance_size();
   HeapObject* clone;
 
