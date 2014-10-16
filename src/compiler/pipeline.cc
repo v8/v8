@@ -316,6 +316,12 @@ Handle<Code> Pipeline::GenerateCode() {
                                      SourcePosition::Unknown());
       SimplifiedLowering lowering(&jsgraph);
       lowering.LowerAllNodes();
+      ValueNumberingReducer vn_reducer(zone());
+      SimplifiedOperatorReducer simple_reducer(&jsgraph);
+      GraphReducer graph_reducer(&graph);
+      graph_reducer.AddReducer(&simple_reducer);
+      graph_reducer.AddReducer(&vn_reducer);
+      graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered simplified");
     }
@@ -327,13 +333,11 @@ Handle<Code> Pipeline::GenerateCode() {
                                      SourcePosition::Unknown());
       Linkage linkage(info());
       ValueNumberingReducer vn_reducer(zone());
-      SimplifiedOperatorReducer simple_reducer(&jsgraph);
       ChangeLowering lowering(&jsgraph, &linkage);
       MachineOperatorReducer mach_reducer(&jsgraph);
       GraphReducer graph_reducer(&graph);
       // TODO(titzer): Figure out if we should run all reducers at once here.
       graph_reducer.AddReducer(&vn_reducer);
-      graph_reducer.AddReducer(&simple_reducer);
       graph_reducer.AddReducer(&lowering);
       graph_reducer.AddReducer(&mach_reducer);
       graph_reducer.ReduceGraph();
