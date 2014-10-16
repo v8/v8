@@ -615,7 +615,9 @@ class PreParserIdentifier {
     return PreParserIdentifier(kConstructorIdentifier);
   }
   bool IsEval() const { return type_ == kEvalIdentifier; }
-  bool IsArguments() const { return type_ == kArgumentsIdentifier; }
+  bool IsArguments(const AstValueFactory* = NULL) const {
+    return type_ == kArgumentsIdentifier;
+  }
   bool IsYield() const { return type_ == kYieldIdentifier; }
   bool IsPrototype() const { return type_ == kPrototypeIdentifier; }
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
@@ -956,6 +958,8 @@ class PreParserScope {
 
   bool IsDeclared(const PreParserIdentifier& identifier) const { return false; }
   void DeclareParameter(const PreParserIdentifier& identifier, VariableMode) {}
+  void RecordArgumentsUsage() {}
+  void RecordThisUsage() {}
 
   // Allow scope->Foo() to work.
   PreParserScope* operator->() { return this; }
@@ -1615,6 +1619,8 @@ typename ParserBase<Traits>::IdentifierT ParserBase<Traits>::ParseIdentifier(
       ReportMessage("strict_eval_arguments");
       *ok = false;
     }
+    if (name->IsArguments(this->ast_value_factory()))
+      scope_->RecordArgumentsUsage();
     return name;
   } else if (strict_mode() == SLOPPY &&
              (next == Token::FUTURE_STRICT_RESERVED_WORD ||
@@ -1645,7 +1651,11 @@ typename ParserBase<Traits>::IdentifierT ParserBase<
     *ok = false;
     return Traits::EmptyIdentifier();
   }
-  return this->GetSymbol(scanner());
+
+  IdentifierT name = this->GetSymbol(scanner());
+  if (name->IsArguments(this->ast_value_factory()))
+    scope_->RecordArgumentsUsage();
+  return name;
 }
 
 
@@ -1660,7 +1670,11 @@ ParserBase<Traits>::ParseIdentifierName(bool* ok) {
     *ok = false;
     return Traits::EmptyIdentifier();
   }
-  return this->GetSymbol(scanner());
+
+  IdentifierT name = this->GetSymbol(scanner());
+  if (name->IsArguments(this->ast_value_factory()))
+    scope_->RecordArgumentsUsage();
+  return name;
 }
 
 
@@ -1738,6 +1752,7 @@ ParserBase<Traits>::ParsePrimaryExpression(bool* ok) {
   switch (token) {
     case Token::THIS: {
       Consume(Token::THIS);
+      scope_->RecordThisUsage();
       result = this->ThisExpression(scope_, factory());
       break;
     }
@@ -2591,9 +2606,7 @@ template <class Traits>
 typename ParserBase<Traits>::ExpressionT ParserBase<
     Traits>::ParseArrowFunctionLiteral(int start_pos, ExpressionT params_ast,
                                        bool* ok) {
-  // TODO(aperez): Change this to use ARROW_SCOPE
-  typename Traits::Type::ScopePtr scope =
-      this->NewScope(scope_, FUNCTION_SCOPE);
+  typename Traits::Type::ScopePtr scope = this->NewScope(scope_, ARROW_SCOPE);
   typename Traits::Type::StatementList body;
   typename Traits::Type::AstProperties ast_properties;
   BailoutReason dont_optimize_reason = kNoReason;

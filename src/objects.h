@@ -4312,13 +4312,13 @@ class ScopeInfo : public FixedArray {
   };
 
   // Properties of scopes.
-  class ScopeTypeField:        public BitField<ScopeType,            0, 3> {};
-  class CallsEvalField:        public BitField<bool,                 3, 1> {};
-  class StrictModeField:       public BitField<StrictMode,           4, 1> {};
-  class FunctionVariableField: public BitField<FunctionVariableInfo, 5, 2> {};
-  class FunctionVariableMode:  public BitField<VariableMode,         7, 3> {};
-  class AsmModuleField : public BitField<bool, 10, 1> {};
-  class AsmFunctionField : public BitField<bool, 11, 1> {};
+  class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
+  class CallsEvalField : public BitField<bool, 4, 1> {};
+  class StrictModeField : public BitField<StrictMode, 5, 1> {};
+  class FunctionVariableField : public BitField<FunctionVariableInfo, 6, 2> {};
+  class FunctionVariableMode : public BitField<VariableMode, 8, 3> {};
+  class AsmModuleField : public BitField<bool, 11, 1> {};
+  class AsmFunctionField : public BitField<bool, 12, 1> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
