@@ -351,6 +351,7 @@ namespace internal {
   F(ArrayBufferIsView, 1, 1)                           \
   F(ArrayBufferNeuter, 1, 1)                           \
                                                        \
+  F(IsTypedArray, 1, 1)                                \
   F(TypedArrayInitializeFromArrayLike, 4, 1)           \
   F(TypedArrayGetBuffer, 1, 1)                         \
   F(TypedArraySetFastCases, 3, 1)                      \

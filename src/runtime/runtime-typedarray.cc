@@ -500,6 +500,13 @@ RUNTIME_FUNCTION(Runtime_TypedArrayMaxSizeInHeap) {
 }
 
 
+RUNTIME_FUNCTION(Runtime_IsTypedArray) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  return isolate->heap()->ToBoolean(args[0]->IsJSTypedArray());
+}
+
+
 RUNTIME_FUNCTION(Runtime_DataViewInitialize) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
