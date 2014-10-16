@@ -2809,14 +2809,16 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   DCHECK(!a4.is(object_));
 
   // If the receiver is a smi trigger the non-string case.
-  __ JumpIfSmi(object_, receiver_not_string_);
+  if (check_mode_ == RECEIVER_IS_UNKNOWN) {
+    __ JumpIfSmi(object_, receiver_not_string_);
 
-  // Fetch the instance type of the receiver into result register.
-  __ ld(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ lbu(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
-  // If the receiver is not a string trigger the non-string case.
-  __ And(a4, result_, Operand(kIsNotStringMask));
-  __ Branch(receiver_not_string_, ne, a4, Operand(zero_reg));
+    // Fetch the instance type of the receiver into result register.
+    __ ld(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+    __ lbu(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
+    // If the receiver is not a string trigger the non-string case.
+    __ And(a4, result_, Operand(kIsNotStringMask));
+    __ Branch(receiver_not_string_, ne, a4, Operand(zero_reg));
+  }
 
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index_, &index_not_smi_);
