@@ -2787,14 +2787,16 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
 // StringCharCodeAtGenerator
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // If the receiver is a smi trigger the non-string case.
-  __ JumpIfSmi(object_, receiver_not_string_);
+  if (check_mode_ == RECEIVER_IS_UNKNOWN) {
+    __ JumpIfSmi(object_, receiver_not_string_);
 
-  // Fetch the instance type of the receiver into result register.
-  __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
-  // If the receiver is not a string trigger the non-string case.
-  __ tst(result_, Operand(kIsNotStringMask));
-  __ b(ne, receiver_not_string_);
+    // Fetch the instance type of the receiver into result register.
+    __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+    __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
+    // If the receiver is not a string trigger the non-string case.
+    __ tst(result_, Operand(kIsNotStringMask));
+    __ b(ne, receiver_not_string_);
+  }
 
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index_, &index_not_smi_);
