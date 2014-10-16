@@ -1363,13 +1363,9 @@ function ObjectIsExtensible(obj) {
 }
 
 
-// Harmony egal.
+// ECMA-262, Edition 6, section 19.1.2.10
 function ObjectIs(obj1, obj2) {
-  if (obj1 === obj2) {
-    return (obj1 !== 0) || (1 / obj1 === 1 / obj2);
-  } else {
-    return (obj1 !== obj1) && (obj2 !== obj2);
-  }
+  return SameValue(obj1, obj2);
 }
 
 
