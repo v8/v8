@@ -8504,6 +8504,47 @@ THREADED_TEST(ErrorConstruction) {
 }
 
 
+static void ThrowV8Exception(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  ApiTestFuzzer::Fuzz();
+  v8::Handle<String> foo = v8_str("foo");
+  v8::Handle<String> message = v8_str("message");
+  v8::Handle<Value> error = v8::Exception::Error(foo);
+  CHECK(error->IsObject());
+  CHECK(error.As<v8::Object>()->Get(message)->Equals(foo));
+  info.GetIsolate()->ThrowException(error);
+  info.GetReturnValue().SetUndefined();
+}
+
+
+THREADED_TEST(ExceptionGetStackTrace) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true);
+
+  Local<v8::FunctionTemplate> fun =
+      v8::FunctionTemplate::New(context->GetIsolate(), ThrowV8Exception);
+  v8::Local<v8::Object> global = context->Global();
+  global->Set(v8_str("throwV8Exception"), fun->GetFunction());
+
+  TryCatch try_catch;
+  CompileRun("function f1() { throwV8Exception(); }; f1();");
+  CHECK(try_catch.HasCaught());
+
+  v8::Handle<v8::Value> error = try_catch.Exception();
+  v8::Handle<String> foo = v8_str("foo");
+  v8::Handle<String> message = v8_str("message");
+  CHECK(error->IsObject());
+  CHECK(error.As<v8::Object>()->Get(message)->Equals(foo));
+
+  v8::Handle<v8::StackTrace> stackTrace = v8::Exception::GetStackTrace(error);
+  CHECK(!stackTrace.IsEmpty());
+  CHECK_EQ(2, stackTrace->GetFrameCount());
+
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+}
+
+
 static void YGetter(Local<String> name,
                     const v8::PropertyCallbackInfo<v8::Value>& info) {
   ApiTestFuzzer::Fuzz();

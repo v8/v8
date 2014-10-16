@@ -4164,6 +4164,8 @@ class V8_EXPORT Exception {
   static Local<Value> SyntaxError(Handle<String> message);
   static Local<Value> TypeError(Handle<String> message);
   static Local<Value> Error(Handle<String> message);
+
+  static Local<StackTrace> GetStackTrace(Handle<Value> exception);
 };
 
 
