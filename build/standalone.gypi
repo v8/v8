@@ -136,8 +136,13 @@
     'configurations': {
       'DebugBaseCommon': {
         'cflags': [ '-g', '-O0' ],
-        'defines': [
-          '_GLIBCXX_DEBUG'
+        'conditions': [
+          ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd" or \
+            OS=="qnx"', {
+            'defines': [
+              '_GLIBCXX_DEBUG'
+            ],
+          }],
         ],
       },
       'Optdebug': {
