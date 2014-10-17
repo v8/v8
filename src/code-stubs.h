@@ -1803,7 +1803,7 @@ class StringCharAtGenerator {
                         ReceiverCheckMode check_mode = RECEIVER_IS_UNKNOWN)
       : char_code_at_generator_(object, index, scratch, receiver_not_string,
                                 index_not_number, index_out_of_range,
-                                index_flags),
+                                index_flags, check_mode),
         char_from_code_generator_(scratch, result) {}
 
   // Generates the fast case code. On the fallthrough path |result|

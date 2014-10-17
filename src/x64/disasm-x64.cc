@@ -252,7 +252,7 @@ static v8::base::LazyInstance<InstructionTable>::type instruction_table =
     LAZY_INSTANCE_INITIALIZER;
 
 
-static InstructionDesc cmov_instructions[16] = {
+static const InstructionDesc cmov_instructions[16] = {
   {"cmovo", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
   {"cmovno", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
   {"cmovc", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
@@ -1066,10 +1066,15 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (opcode == 0x50) {
         AppendToBuffer("movmskpd %s,", NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
+      } else if (opcode == 0x72) {
+        current += 1;
+        AppendToBuffer("%s,%s,%d", (regop == 6) ? "pslld" : "psrld",
+                       NameOfXMMRegister(rm), *current & 0x7f);
+        current += 1;
       } else if (opcode == 0x73) {
         current += 1;
-        DCHECK(regop == 6);
-        AppendToBuffer("psllq,%s,%d", NameOfXMMRegister(rm), *current & 0x7f);
+        AppendToBuffer("%s,%s,%d", (regop == 6) ? "psllq" : "psrlq",
+                       NameOfXMMRegister(rm), *current & 0x7f);
         current += 1;
       } else {
         const char* mnemonic = "?";
@@ -1083,6 +1088,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "ucomisd";
         } else if (opcode == 0x2F) {
           mnemonic = "comisd";
+        } else if (opcode == 0x76) {
+          mnemonic = "pcmpeqd";
         } else {
           UnimplementedInstruction();
         }
@@ -1808,19 +1815,19 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
 //------------------------------------------------------------------------------
 
 
-static const char* cpu_regs[16] = {
+static const char* const cpu_regs[16] = {
   "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi",
   "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
 };
 
 
-static const char* byte_cpu_regs[16] = {
+static const char* const byte_cpu_regs[16] = {
   "al", "cl", "dl", "bl", "spl", "bpl", "sil", "dil",
   "r8l", "r9l", "r10l", "r11l", "r12l", "r13l", "r14l", "r15l"
 };
 
 
-static const char* xmm_regs[16] = {
+static const char* const xmm_regs[16] = {
   "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
   "xmm8", "xmm9", "xmm10", "xmm11", "xmm12", "xmm13", "xmm14", "xmm15"
 };

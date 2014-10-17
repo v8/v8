@@ -287,6 +287,30 @@ static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
 }
 
 
+static Object* StoreElementToSuper(Isolate* isolate,
+                                   Handle<JSObject> home_object,
+                                   Handle<Object> receiver, uint32_t index,
+                                   Handle<Object> value,
+                                   StrictMode strict_mode) {
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayIndexedAccess(home_object, index, v8::ACCESS_SET)) {
+    isolate->ReportFailedAccessCheck(home_object, v8::ACCESS_SET);
+    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  }
+
+  PrototypeIterator iter(isolate, home_object);
+  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
+
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      Object::SetElementWithReceiver(isolate, proto, receiver, index, value,
+                                     strict_mode));
+  return *result;
+}
+
+
 RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 4);
@@ -314,13 +338,18 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
 static Object* StoreKeyedToSuper(Isolate* isolate, Handle<JSObject> home_object,
                                  Handle<Object> receiver, Handle<Object> key,
                                  Handle<Object> value, StrictMode strict_mode) {
+  uint32_t index;
+
+  if (key->ToArrayIndex(&index)) {
+    return StoreElementToSuper(isolate, home_object, receiver, index, value,
+                               strict_mode);
+  }
   Handle<Name> name;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
                                      Runtime::ToName(isolate, key));
-  uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    // TODO(dslomov): Implement.
-    return ThrowUnsupportedSuper(isolate);
+    return StoreElementToSuper(isolate, home_object, receiver, index, value,
+                               strict_mode);
   }
   return StoreToSuper(isolate, home_object, receiver, name, value, strict_mode);
 }

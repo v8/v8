@@ -423,6 +423,13 @@ TEST(DisasmX64) {
     __ ucomisd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
+
+    __ pslld(xmm0, 6);
+    __ psrld(xmm0, 6);
+    __ psllq(xmm0, 6);
+    __ psrlq(xmm0, 6);
+
+    __ pcmpeqd(xmm1, xmm0);
   }
 
   // cmov.

@@ -1131,6 +1131,9 @@ class Object {
       StorePropertyMode data_store_mode = NORMAL_PROPERTY);
   MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyProperty(
       LookupIterator* it, Handle<Object> value, StrictMode strict_mode);
+  MUST_USE_RESULT static MaybeHandle<Object> WriteToReadOnlyElement(
+      Isolate* isolate, Handle<Object> receiver, uint32_t index,
+      Handle<Object> value, StrictMode strict_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetDataProperty(
       LookupIterator* it, Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<Object> AddDataProperty(
@@ -1175,6 +1178,10 @@ class Object {
       Handle<Object> object,
       Handle<Object> receiver,
       uint32_t index);
+
+  MUST_USE_RESULT static MaybeHandle<Object> SetElementWithReceiver(
+      Isolate* isolate, Handle<Object> object, Handle<Object> receiver,
+      uint32_t index, Handle<Object> value, StrictMode strict_mode);
 
   static inline Handle<Object> GetPrototypeSkipHiddenPrototypes(
       Isolate* isolate, Handle<Object> receiver);
@@ -1927,8 +1934,7 @@ class JSObject: public JSReceiver {
 
   // These methods do not perform access checks!
   MUST_USE_RESULT static MaybeHandle<AccessorPair> GetOwnElementAccessorPair(
-      Handle<JSObject> object,
-      uint32_t index);
+      Handle<JSObject> object, uint32_t index);
 
   MUST_USE_RESULT static MaybeHandle<Object> SetFastElement(
       Handle<JSObject> object,
@@ -2253,18 +2259,30 @@ class JSObject: public JSReceiver {
       GetElementAttributeWithInterceptor(Handle<JSObject> object,
                                          Handle<JSReceiver> receiver,
                                          uint32_t index, bool continue_search);
+
+  // Queries indexed interceptor on an object for property attributes.
+  //
+  // We determine property attributes as follows:
+  // - if interceptor has a query callback, then the  property attributes are
+  //   the result of query callback for index.
+  // - otherwise if interceptor has a getter callback and it returns
+  //   non-empty value on index, then the property attributes is NONE
+  //   (property is present, and it is enumerable, configurable, writable)
+  // - otherwise there are no property attributes that can be inferred for
+  //   interceptor, and this function returns ABSENT.
+  MUST_USE_RESULT static Maybe<PropertyAttributes>
+      GetElementAttributeFromInterceptor(Handle<JSObject> object,
+                                         Handle<Object> receiver,
+                                         uint32_t index);
+
   MUST_USE_RESULT static Maybe<PropertyAttributes>
       GetElementAttributeWithoutInterceptor(Handle<JSObject> object,
                                             Handle<JSReceiver> receiver,
                                             uint32_t index,
                                             bool continue_search);
   MUST_USE_RESULT static MaybeHandle<Object> SetElementWithCallback(
-      Handle<JSObject> object,
-      Handle<Object> structure,
-      uint32_t index,
-      Handle<Object> value,
-      Handle<JSObject> holder,
-      StrictMode strict_mode);
+      Handle<Object> object, Handle<Object> structure, uint32_t index,
+      Handle<Object> value, Handle<JSObject> holder, StrictMode strict_mode);
   MUST_USE_RESULT static MaybeHandle<Object> SetElementWithInterceptor(
       Handle<JSObject> object,
       uint32_t index,

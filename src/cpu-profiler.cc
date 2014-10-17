@@ -48,7 +48,7 @@ void ProfilerEventsProcessor::AddCurrentStack(Isolate* isolate) {
     regs.fp = frame->fp();
     regs.pc = frame->pc();
   }
-  record.sample.Init(isolate, regs);
+  record.sample.Init(isolate, regs, TickSample::kSkipCEntryFrame);
   ticks_from_vm_buffer_.Enqueue(record);
 }
 

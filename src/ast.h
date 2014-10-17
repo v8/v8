@@ -1851,6 +1851,7 @@ class Call FINAL : public Expression {
     GLOBAL_CALL,
     LOOKUP_SLOT_CALL,
     PROPERTY_CALL,
+    SUPER_CALL,
     OTHER_CALL
   };
 
@@ -3474,16 +3475,7 @@ class AstNodeFactory FINAL BASE_EMBEDDED {
   Call* NewCall(Expression* expression,
                 ZoneList<Expression*>* arguments,
                 int pos) {
-    SuperReference* super_ref = expression->AsSuperReference();
-    Call* call;
-    if (super_ref != NULL) {
-      Literal* constructor =
-          NewStringLiteral(ast_value_factory_->constructor_string(), pos);
-      Property* superConstructor = NewProperty(super_ref, constructor, pos);
-      call = new (zone_) Call(zone_, superConstructor, arguments, pos, id_gen_);
-    } else {
-      call = new (zone_) Call(zone_, expression, arguments, pos, id_gen_);
-    }
+    Call* call = new (zone_) Call(zone_, expression, arguments, pos, id_gen_);
     VISIT_AND_RETURN(Call, call)
   }
 

@@ -1766,6 +1766,29 @@ JSFunction* GetTypedArrayFun(ExternalArrayType type, Isolate* isolate) {
   }
 }
 
+
+void SetupArrayBufferView(i::Isolate* isolate,
+                          i::Handle<i::JSArrayBufferView> obj,
+                          i::Handle<i::JSArrayBuffer> buffer,
+                          size_t byte_offset, size_t byte_length) {
+  DCHECK(byte_offset + byte_length <=
+         static_cast<size_t>(buffer->byte_length()->Number()));
+
+  obj->set_buffer(*buffer);
+
+  obj->set_weak_next(buffer->weak_first_view());
+  buffer->set_weak_first_view(*obj);
+
+  i::Handle<i::Object> byte_offset_object =
+      isolate->factory()->NewNumberFromSize(byte_offset);
+  obj->set_byte_offset(*byte_offset_object);
+
+  i::Handle<i::Object> byte_length_object =
+      isolate->factory()->NewNumberFromSize(byte_length);
+  obj->set_byte_length(*byte_length_object);
+}
+
+
 }  // namespace
 
 
@@ -1781,25 +1804,38 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type) {
 
 Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
                                               Handle<JSArrayBuffer> buffer,
+                                              size_t byte_offset,
                                               size_t length) {
-  DCHECK(length <= static_cast<size_t>(kMaxInt));
-  Handle<JSTypedArray> array = NewJSTypedArray(type);
-  array->set_buffer(*buffer);
-  array->set_weak_next(buffer->weak_first_view());
-  buffer->set_weak_first_view(*array);
-  array->set_byte_offset(Smi::FromInt(0));
-  Handle<Object> byte_length_handle =
-      NewNumberFromSize(length * GetExternalArrayElementSize(type));
-  array->set_byte_length(*byte_length_handle);
-  Handle<Object> length_handle = NewNumberFromSize(length);
-  array->set_length(*length_handle);
-  Handle<ExternalArray> elements =
-      NewExternalArray(static_cast<int>(length), type, buffer->backing_store());
-  JSObject::SetMapAndElements(array,
-                              JSObject::GetElementsTransitionMap(
-                                  array, GetExternalArrayElementsKind(type)),
-                              elements);
-  return array;
+  Handle<JSTypedArray> obj = NewJSTypedArray(type);
+
+  size_t element_size = GetExternalArrayElementSize(type);
+  ElementsKind elements_kind = GetExternalArrayElementsKind(type);
+
+  CHECK(byte_offset % element_size == 0);
+
+  CHECK(length <= (std::numeric_limits<size_t>::max() / element_size));
+  CHECK(length <= static_cast<size_t>(Smi::kMaxValue));
+  size_t byte_length = length * element_size;
+  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
+
+  Handle<Object> length_object = NewNumberFromSize(length);
+  obj->set_length(*length_object);
+
+  Handle<ExternalArray> elements = NewExternalArray(
+      static_cast<int>(length), type,
+      static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
+  Handle<Map> map = JSObject::GetElementsTransitionMap(obj, elements_kind);
+  JSObject::SetMapAndElements(obj, map, elements);
+  return obj;
+}
+
+
+Handle<JSDataView> Factory::NewJSDataView(Handle<JSArrayBuffer> buffer,
+                                          size_t byte_offset,
+                                          size_t byte_length) {
+  Handle<JSDataView> obj = NewJSDataView();
+  SetupArrayBufferView(isolate(), obj, buffer, byte_offset, byte_length);
+  return obj;
 }
 
 

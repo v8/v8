@@ -120,6 +120,9 @@
   'regress/regress-crbug-259300': [PASS, NO_VARIANTS],
   'regress/regress-frame-details-null-receiver': [PASS, NO_VARIANTS],
 
+  # Infinite loops of the form "for(;;) ;" don't schedule or crash in verifier.
+  'asm/infinite-loops': [PASS, NO_VARIANTS],
+
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
   'compiler/regress-stacktrace-methods': [PASS, ['mode == debug', SKIP]],
@@ -232,6 +235,8 @@
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
+  'compiler/osr-regress-max-locals': [PASS, NO_VARIANTS],
+  'math-floor-of-div': [PASS, NO_VARIANTS],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -471,6 +476,10 @@
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
+  'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
+  'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
+  'osr-regress-max-locals': [PASS, ['mode == debug', SKIP]],
+  'unicodelctest': [PASS, ['mode == debug', SKIP]],
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],

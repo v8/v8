@@ -29,6 +29,7 @@
 [ALWAYS, {
   # All tests prefixed with 'Bug' are expected to fail.
   'test-api/Bug*': [FAIL],
+  'test-serialize/Bug*': [FAIL],
 
   ##############################################################################
 
@@ -148,6 +149,9 @@
   'test-debug/CallingContextIsNotDebugContext': [PASS, NO_VARIANTS],
   'test-debug/DebugEventContext': [PASS, NO_VARIANTS],
   'test-debug/DebugBreakInline': [PASS, NO_VARIANTS],
+
+  # Scheduling and verifying of empty for loops is broken.
+  'test-run-jsbranches/EmptyFor': [SKIP],
 
   ############################################################################
   # Slow tests.

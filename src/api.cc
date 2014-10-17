@@ -5115,6 +5115,16 @@ class VisitorAdapter : public i::ObjectVisitor {
 };
 
 
+void v8::V8::VisitHandlesWithClassIds(v8::Isolate* exported_isolate,
+    PersistentHandleVisitor* visitor) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
+  i::DisallowHeapAllocation no_allocation;
+
+  VisitorAdapter visitor_adapter(visitor);
+  isolate->global_handles()->IterateAllRootsWithClassIds(&visitor_adapter);
+}
+
+
 void v8::V8::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
   i::Isolate* isolate = i::Isolate::Current();
   i::DisallowHeapAllocation no_allocation;
@@ -6090,78 +6100,22 @@ size_t v8::TypedArray::Length() {
 }
 
 
-static inline void SetupArrayBufferView(
-    i::Isolate* isolate,
-    i::Handle<i::JSArrayBufferView> obj,
-    i::Handle<i::JSArrayBuffer> buffer,
-    size_t byte_offset,
-    size_t byte_length) {
-  DCHECK(byte_offset + byte_length <=
-         static_cast<size_t>(buffer->byte_length()->Number()));
-
-  obj->set_buffer(*buffer);
-
-  obj->set_weak_next(buffer->weak_first_view());
-  buffer->set_weak_first_view(*obj);
-
-  i::Handle<i::Object> byte_offset_object =
-      isolate->factory()->NewNumberFromSize(byte_offset);
-  obj->set_byte_offset(*byte_offset_object);
-
-  i::Handle<i::Object> byte_length_object =
-      isolate->factory()->NewNumberFromSize(byte_length);
-  obj->set_byte_length(*byte_length_object);
-}
-
-template<typename ElementType,
-         ExternalArrayType array_type,
-         i::ElementsKind elements_kind>
-i::Handle<i::JSTypedArray> NewTypedArray(
-    i::Isolate* isolate,
-    Handle<ArrayBuffer> array_buffer, size_t byte_offset, size_t length) {
-  i::Handle<i::JSTypedArray> obj =
-      isolate->factory()->NewJSTypedArray(array_type);
-  i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);
-
-  DCHECK(byte_offset % sizeof(ElementType) == 0);
-
-  CHECK(length <= (std::numeric_limits<size_t>::max() / sizeof(ElementType)));
-  CHECK(length <= static_cast<size_t>(i::Smi::kMaxValue));
-  size_t byte_length = length * sizeof(ElementType);
-  SetupArrayBufferView(
-      isolate, obj, buffer, byte_offset, byte_length);
-
-  i::Handle<i::Object> length_object =
-      isolate->factory()->NewNumberFromSize(length);
-  obj->set_length(*length_object);
-
-  i::Handle<i::ExternalArray> elements =
-      isolate->factory()->NewExternalArray(
-          static_cast<int>(length), array_type,
-          static_cast<uint8_t*>(buffer->backing_store()) + byte_offset);
-  i::Handle<i::Map> map =
-      i::JSObject::GetElementsTransitionMap(obj, elements_kind);
-  i::JSObject::SetMapAndElements(obj, map, elements);
-  return obj;
-}
-
-
 #define TYPED_ARRAY_NEW(Type, type, TYPE, ctype, size)                       \
   Local<Type##Array> Type##Array::New(Handle<ArrayBuffer> array_buffer,      \
-                                    size_t byte_offset, size_t length) {     \
+                                      size_t byte_offset, size_t length) {   \
     i::Isolate* isolate = Utils::OpenHandle(*array_buffer)->GetIsolate();    \
     LOG_API(isolate,                                                         \
-        "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)");     \
+            "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)"); \
     ENTER_V8(isolate);                                                       \
     if (!Utils::ApiCheck(length <= static_cast<size_t>(i::Smi::kMaxValue),   \
-            "v8::" #Type "Array::New(Handle<ArrayBuffer>, size_t, size_t)",  \
-            "length exceeds max allowed value")) {                           \
-      return Local<Type##Array>();                                          \
+                         "v8::" #Type                                        \
+                         "Array::New(Handle<ArrayBuffer>, size_t, size_t)",  \
+                         "length exceeds max allowed value")) {              \
+      return Local<Type##Array>();                                           \
     }                                                                        \
-    i::Handle<i::JSTypedArray> obj =                                         \
-        NewTypedArray<ctype, v8::kExternal##Type##Array,                     \
-                      i::EXTERNAL_##TYPE##_ELEMENTS>(                        \
-            isolate, array_buffer, byte_offset, length);                     \
+    i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*array_buffer);   \
+    i::Handle<i::JSTypedArray> obj = isolate->factory()->NewJSTypedArray(    \
+        v8::kExternal##Type##Array, buffer, byte_offset, length);            \
     return Utils::ToLocal##Type##Array(obj);                                 \
   }
 
@@ -6175,9 +6129,8 @@ Local<DataView> DataView::New(Handle<ArrayBuffer> array_buffer,
   i::Isolate* isolate = buffer->GetIsolate();
   LOG_API(isolate, "v8::DataView::New(void*, size_t, size_t)");
   ENTER_V8(isolate);
-  i::Handle<i::JSDataView> obj = isolate->factory()->NewJSDataView();
-  SetupArrayBufferView(
-      isolate, obj, buffer, byte_offset, byte_length);
+  i::Handle<i::JSDataView> obj =
+      isolate->factory()->NewJSDataView(buffer, byte_offset, byte_length);
   return Utils::ToLocal(obj);
 }
 
@@ -6704,8 +6657,8 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
 void Isolate::GetStackSample(const RegisterState& state, void** frames,
                              size_t frames_limit, SampleInfo* sample_info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::TickSample::GetStackSample(isolate, state, frames, frames_limit,
-                                sample_info);
+  i::TickSample::GetStackSample(isolate, state, i::TickSample::kSkipCEntryFrame,
+                                frames, frames_limit, sample_info);
 }
 
 

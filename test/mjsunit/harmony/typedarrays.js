@@ -481,6 +481,89 @@ function TestTypedArraySet() {
 
 TestTypedArraySet();
 
+function TestTypedArraysWithIllegalIndices() {
+  var a = new Int32Array(100);
+
+  a[-10] = 10;
+  assertEquals(undefined, a[-10]);
+  a["-10"] = 10;
+  assertEquals(undefined, a["-10"]);
+
+  var s = "    -10";
+  a[s] = 10;
+  assertEquals(10, a[s]);
+  var s1 = "    -10   ";
+  a[s] = 10;
+  assertEquals(10, a[s]);
+
+  a["-1e2"] = 10;
+  assertEquals(10, a["-1e2"]);
+  assertEquals(undefined, a[-1e2]);
+
+  /* Chromium bug: 424619
+   * a[-Infinity] = 50;
+   * assertEquals(undefined, a[-Infinity]);
+   */
+  a[1.5] = 10;
+  assertEquals(undefined, a[1.5]);
+  var nan = Math.sqrt(-1);
+  a[nan] = 5;
+  assertEquals(5, a[nan]);
+
+  var x = 0;
+  var y = -0;
+  assertEquals(Infinity, 1/x);
+  assertEquals(-Infinity, 1/y);
+  a[x] = 5;
+  a[y] = 27;
+  assertEquals(27, a[x]);
+  assertEquals(27, a[y]);
+}
+
+TestTypedArraysWithIllegalIndices();
+
+function TestTypedArraysWithIllegalIndicesStrict() {
+  'use strict';
+  var a = new Int32Array(100);
+
+  a[-10] = 10;
+  assertEquals(undefined, a[-10]);
+  a["-10"] = 10;
+  assertEquals(undefined, a["-10"]);
+
+  var s = "    -10";
+  a[s] = 10;
+  assertEquals(10, a[s]);
+  var s1 = "    -10   ";
+  a[s] = 10;
+  assertEquals(10, a[s]);
+
+  a["-1e2"] = 10;
+  assertEquals(10, a["-1e2"]);
+  assertEquals(undefined, a[-1e2]);
+
+  /* Chromium bug: 424619
+   * a[-Infinity] = 50;
+   * assertEquals(undefined, a[-Infinity]);
+   */
+  a[1.5] = 10;
+  assertEquals(undefined, a[1.5]);
+  var nan = Math.sqrt(-1);
+  a[nan] = 5;
+  assertEquals(5, a[nan]);
+
+  var x = 0;
+  var y = -0;
+  assertEquals(Infinity, 1/x);
+  assertEquals(-Infinity, 1/y);
+  a[x] = 5;
+  a[y] = 27;
+  assertEquals(27, a[x]);
+  assertEquals(27, a[y]);
+}
+
+TestTypedArraysWithIllegalIndicesStrict();
+
 // DataView
 function TestDataViewConstructor() {
   var ab = new ArrayBuffer(256);

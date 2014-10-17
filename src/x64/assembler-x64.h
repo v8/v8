@@ -1061,6 +1061,9 @@ class Assembler : public AssemblerBase {
   void movapd(XMMRegister dst, XMMRegister src);
 
   void psllq(XMMRegister reg, byte imm8);
+  void psrlq(XMMRegister reg, byte imm8);
+  void pslld(XMMRegister reg, byte imm8);
+  void psrld(XMMRegister reg, byte imm8);
 
   void cvttsd2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, XMMRegister src);
@@ -1097,6 +1100,7 @@ class Assembler : public AssemblerBase {
   void ucomisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, const Operand& src);
   void cmpltsd(XMMRegister dst, XMMRegister src);
+  void pcmpeqd(XMMRegister dst, XMMRegister src);
 
   void movmskpd(Register dst, XMMRegister src);
 
@@ -1271,6 +1275,7 @@ class Assembler : public AssemblerBase {
   // Optionally do as emit_rex_32(Register) if the register number has
   // the high bit set.
   inline void emit_optional_rex_32(Register rm_reg);
+  inline void emit_optional_rex_32(XMMRegister rm_reg);
 
   // Optionally do as emit_rex_32(const Operand&) if the operand register
   // numbers have a high bit set.

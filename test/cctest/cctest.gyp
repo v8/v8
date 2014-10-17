@@ -57,6 +57,7 @@
         'compiler/test-branch-combine.cc',
         'compiler/test-changes-lowering.cc',
         'compiler/test-codegen-deopt.cc',
+        'compiler/test-control-reducer.cc',
         'compiler/test-gap-resolver.cc',
         'compiler/test-graph-reducer.cc',
         'compiler/test-instruction.cc',

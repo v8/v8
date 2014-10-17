@@ -1181,6 +1181,7 @@ TEST(SerializeToplevelIsolates) {
     v8::Local<v8::UnboundScript> script = v8::ScriptCompiler::CompileUnbound(
         isolate1, &source, v8::ScriptCompiler::kProduceCodeCache);
     const v8::ScriptCompiler::CachedData* data = source.GetCachedData();
+    CHECK(data);
     // Persist cached data.
     uint8_t* buffer = NewArray<uint8_t>(data->length);
     MemCopy(buffer, data->data, data->length);
@@ -1210,6 +1211,71 @@ TEST(SerializeToplevelIsolates) {
     }
     v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
     CHECK(result->ToString()->Equals(v8_str("abcdef")));
+  }
+  isolate2->Dispose();
+}
+
+
+TEST(Bug3628) {
+  FLAG_serialize_toplevel = true;
+  FLAG_harmony_scoping = true;
+
+  const char* source1 = "'use strict'; let x = 'X'";
+  const char* source2 = "'use strict'; let y = 'Y'";
+  const char* source3 = "'use strict'; x + y";
+
+  v8::ScriptCompiler::CachedData* cache;
+
+  v8::Isolate* isolate1 = v8::Isolate::New();
+  {
+    v8::Isolate::Scope iscope(isolate1);
+    v8::HandleScope scope(isolate1);
+    v8::Local<v8::Context> context = v8::Context::New(isolate1);
+    v8::Context::Scope context_scope(context);
+
+    CompileRun(source1);
+    CompileRun(source2);
+
+    v8::Local<v8::String> source_str = v8_str(source3);
+    v8::ScriptOrigin origin(v8_str("test"));
+    v8::ScriptCompiler::Source source(source_str, origin);
+    v8::Local<v8::UnboundScript> script = v8::ScriptCompiler::CompileUnbound(
+        isolate1, &source, v8::ScriptCompiler::kProduceCodeCache);
+    const v8::ScriptCompiler::CachedData* data = source.GetCachedData();
+    CHECK(data);
+    // Persist cached data.
+    uint8_t* buffer = NewArray<uint8_t>(data->length);
+    MemCopy(buffer, data->data, data->length);
+    cache = new v8::ScriptCompiler::CachedData(
+        buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
+
+    v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
+    CHECK(result->ToString()->Equals(v8_str("XY")));
+  }
+  isolate1->Dispose();
+
+  v8::Isolate* isolate2 = v8::Isolate::New();
+  {
+    v8::Isolate::Scope iscope(isolate2);
+    v8::HandleScope scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    v8::Context::Scope context_scope(context);
+
+    // Reverse order of prior running scripts.
+    CompileRun(source2);
+    CompileRun(source1);
+
+    v8::Local<v8::String> source_str = v8_str(source3);
+    v8::ScriptOrigin origin(v8_str("test"));
+    v8::ScriptCompiler::Source source(source_str, origin, cache);
+    v8::Local<v8::UnboundScript> script;
+    {
+      DisallowCompilation no_compile(reinterpret_cast<Isolate*>(isolate2));
+      script = v8::ScriptCompiler::CompileUnbound(
+          isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache);
+    }
+    v8::Local<v8::Value> result = script->BindToCurrentContext()->Run();
+    CHECK(result->ToString()->Equals(v8_str("XY")));
   }
   isolate2->Dispose();
 }

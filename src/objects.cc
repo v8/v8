@@ -802,6 +802,82 @@ MaybeHandle<Object> Object::GetElementWithReceiver(Isolate* isolate,
 }
 
 
+MaybeHandle<Object> Object::SetElementWithReceiver(
+    Isolate* isolate, Handle<Object> object, Handle<Object> receiver,
+    uint32_t index, Handle<Object> value, StrictMode strict_mode) {
+  // Iterate up the prototype chain until an element is found or the null
+  // prototype is encountered.
+  bool done = false;
+  for (PrototypeIterator iter(isolate, object,
+                              object->IsJSProxy() || object->IsJSObject()
+                                  ? PrototypeIterator::START_AT_RECEIVER
+                                  : PrototypeIterator::START_AT_PROTOTYPE);
+       !iter.IsAtEnd() && !done; iter.Advance()) {
+    if (PrototypeIterator::GetCurrent(iter)->IsJSProxy()) {
+      // TODO(dslomov): implement.
+      isolate->ThrowIllegalOperation();
+      return MaybeHandle<Object>();
+    }
+
+    Handle<JSObject> js_object =
+        Handle<JSObject>::cast(PrototypeIterator::GetCurrent(iter));
+
+    // Check access rights if needed.
+    if (js_object->IsAccessCheckNeeded()) {
+      if (!isolate->MayIndexedAccess(js_object, index, v8::ACCESS_SET)) {
+        isolate->ReportFailedAccessCheck(js_object, v8::ACCESS_SET);
+        RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+        return isolate->factory()->undefined_value();
+      }
+    }
+
+    if (js_object->HasIndexedInterceptor()) {
+      Maybe<PropertyAttributes> from_interceptor =
+          JSObject::GetElementAttributeFromInterceptor(js_object, receiver,
+                                                       index);
+      if (!from_interceptor.has_value) return MaybeHandle<Object>();
+      if ((from_interceptor.value & READ_ONLY) != 0) {
+        return WriteToReadOnlyElement(isolate, receiver, index, value,
+                                      strict_mode);
+      }
+      done = from_interceptor.value != ABSENT;
+    }
+
+    if (!done &&
+        js_object->elements() != isolate->heap()->empty_fixed_array()) {
+      ElementsAccessor* accessor = js_object->GetElementsAccessor();
+      PropertyAttributes attrs =
+          accessor->GetAttributes(receiver, js_object, index);
+      if ((attrs & READ_ONLY) != 0) {
+        return WriteToReadOnlyElement(isolate, receiver, index, value,
+                                      strict_mode);
+      }
+      Handle<AccessorPair> accessor_pair;
+      if (accessor->GetAccessorPair(receiver, js_object, index)
+              .ToHandle(&accessor_pair)) {
+        return JSObject::SetElementWithCallback(receiver, accessor_pair, index,
+                                                value, js_object, strict_mode);
+      } else {
+        done = attrs != ABSENT;
+      }
+    }
+  }
+
+  if (!receiver->IsJSObject()) {
+    return WriteToReadOnlyElement(isolate, receiver, index, value, strict_mode);
+  }
+  Handle<JSObject> target = Handle<JSObject>::cast(receiver);
+  ElementsAccessor* accessor = target->GetElementsAccessor();
+  PropertyAttributes attrs = accessor->GetAttributes(receiver, target, index);
+  if ((attrs & READ_ONLY) != 0) {
+    return WriteToReadOnlyElement(isolate, receiver, index, value, strict_mode);
+  }
+  PropertyAttributes new_attrs = attrs != ABSENT ? attrs : NONE;
+  return JSObject::SetElement(target, index, value, new_attrs, strict_mode,
+                              false);
+}
+
+
 Map* Object::GetRootMap(Isolate* isolate) {
   DisallowHeapAllocation no_alloc;
   if (IsSmi()) {
@@ -2932,6 +3008,21 @@ MaybeHandle<Object> Object::WriteToReadOnlyProperty(LookupIterator* it,
 }
 
 
+MaybeHandle<Object> Object::WriteToReadOnlyElement(Isolate* isolate,
+                                                   Handle<Object> receiver,
+                                                   uint32_t index,
+                                                   Handle<Object> value,
+                                                   StrictMode strict_mode) {
+  if (strict_mode != STRICT) return value;
+
+  Handle<Object> args[] = {isolate->factory()->NewNumberFromUint(index),
+                           receiver};
+  THROW_NEW_ERROR(isolate, NewTypeError("strict_read_only_property",
+                                        HandleVector(args, arraysize(args))),
+                  Object);
+}
+
+
 MaybeHandle<Object> Object::SetDataProperty(LookupIterator* it,
                                             Handle<Object> value) {
   // Proxies are handled on the WithHandler path. Other non-JSObjects cannot
@@ -2985,6 +3076,10 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
   // If the receiver is a JSGlobalProxy, store on the prototype (JSGlobalObject)
   // instead. If the prototype is Null, the proxy is detached.
   if (receiver->IsJSGlobalProxy()) return value;
+
+  // If the receiver is Indexed Exotic object (currently only typed arrays),
+  // disallow adding properties with numeric names.
+  if (it->IsSpecialNumericIndex()) return value;
 
   // Possibly migrate to the most up-to-date map that will be able to store
   // |value| under it->name() with |attributes|.
@@ -4075,6 +4170,21 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributeWithInterceptor(
   // callbacks or interceptor calls.
   AssertNoContextChange ncc(isolate);
 
+  Maybe<PropertyAttributes> from_interceptor =
+      GetElementAttributeFromInterceptor(object, receiver, index);
+  if (!from_interceptor.has_value) return Maybe<PropertyAttributes>();
+  if (from_interceptor.value != ABSENT) return maybe(from_interceptor.value);
+
+  return GetElementAttributeWithoutInterceptor(object, receiver, index,
+                                               check_prototype);
+}
+
+
+Maybe<PropertyAttributes> JSObject::GetElementAttributeFromInterceptor(
+    Handle<JSObject> object, Handle<Object> receiver, uint32_t index) {
+  Isolate* isolate = object->GetIsolate();
+  AssertNoContextChange ncc(isolate);
+
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
   PropertyCallbackArguments args(
       isolate, interceptor->data(), *receiver, *object);
@@ -4095,9 +4205,8 @@ Maybe<PropertyAttributes> JSObject::GetElementAttributeWithInterceptor(
     v8::Handle<v8::Value> result = args.Call(getter, index);
     if (!result.IsEmpty()) return maybe(NONE);
   }
-
-  return GetElementAttributeWithoutInterceptor(
-       object, receiver, index, check_prototype);
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Maybe<PropertyAttributes>());
+  return maybe(ABSENT);
 }
 
 
@@ -11867,13 +11976,10 @@ MaybeHandle<Object> JSObject::GetElementWithCallback(
 }
 
 
-MaybeHandle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
-                                                     Handle<Object> structure,
-                                                     uint32_t index,
-                                                     Handle<Object> value,
-                                                     Handle<JSObject> holder,
-                                                     StrictMode strict_mode) {
-  Isolate* isolate = object->GetIsolate();
+MaybeHandle<Object> JSObject::SetElementWithCallback(
+    Handle<Object> object, Handle<Object> structure, uint32_t index,
+    Handle<Object> value, Handle<JSObject> holder, StrictMode strict_mode) {
+  Isolate* isolate = holder->GetIsolate();
 
   // We should never get here to initialize a const with the hole
   // value since a const declaration would conflict with the setter.
@@ -11889,7 +11995,7 @@ MaybeHandle<Object> JSObject::SetElementWithCallback(Handle<JSObject> object,
     if (call_fun == NULL) return value;
     Handle<Object> number = isolate->factory()->NewNumberFromUint(index);
     Handle<String> key(isolate->factory()->NumberToString(number));
-    LOG(isolate, ApiNamedPropertyAccess("store", *object, *key));
+    LOG(isolate, ApiNamedPropertyAccess("store", *holder, *key));
     PropertyCallbackArguments
         args(isolate, data->data(), *object, *holder);
     args.Call(call_fun,

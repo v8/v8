@@ -11,6 +11,7 @@
 #include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/code-generator.h"
+#include "src/compiler/control-reducer.h"
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/instruction.h"
@@ -301,9 +302,13 @@ Handle<Code> Pipeline::GenerateCode() {
                                 "typed lowering");
       SourcePositionTable::Scope pos(&source_positions,
                                      SourcePosition::Unknown());
+      ValueNumberingReducer vn_reducer(zone());
       JSTypedLowering lowering(&jsgraph);
+      SimplifiedOperatorReducer simple_reducer(&jsgraph);
       GraphReducer graph_reducer(&graph);
+      graph_reducer.AddReducer(&vn_reducer);
       graph_reducer.AddReducer(&lowering);
+      graph_reducer.AddReducer(&simple_reducer);
       graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered typed");
@@ -346,6 +351,16 @@ Handle<Code> Pipeline::GenerateCode() {
 
       // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
       VerifyAndPrintGraph(&graph, "Lowered changes", true);
+    }
+
+    {
+      SourcePositionTable::Scope pos(&source_positions,
+                                     SourcePosition::Unknown());
+      PhaseStats control_reducer_stats(info(), PhaseStats::CREATE_GRAPH,
+                                       "control reduction");
+      ControlReducer::ReduceGraph(&jsgraph, &common);
+
+      VerifyAndPrintGraph(&graph, "Control reduced");
     }
   }
 

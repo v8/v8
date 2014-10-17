@@ -1,3 +1,15 @@
+2014-10-17: Version 3.30.13
+
+        Don't expose Array.prototype.values as it breaks webcompat (Chromium
+        issue 409858).
+
+        Fix break location calculation (Chromium issue 419663).
+
+        Enable libstdc++ debug mode in debug builds (issue 3638).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-17: Version 3.30.12
 
         Implement .forEach() on typed arrays (issue 3578).

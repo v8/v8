@@ -2614,9 +2614,43 @@ void Assembler::movss(const Operand& src, XMMRegister dst) {
 void Assembler::psllq(XMMRegister reg, byte imm8) {
   EnsureSpace ensure_space(this);
   emit(0x66);
+  emit_optional_rex_32(reg);
   emit(0x0F);
   emit(0x73);
   emit_sse_operand(rsi, reg);  // rsi == 6
+  emit(imm8);
+}
+
+
+void Assembler::psrlq(XMMRegister reg, byte imm8) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(reg);
+  emit(0x0F);
+  emit(0x73);
+  emit_sse_operand(rdx, reg);  // rdx == 2
+  emit(imm8);
+}
+
+
+void Assembler::pslld(XMMRegister reg, byte imm8) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(reg);
+  emit(0x0F);
+  emit(0x72);
+  emit_sse_operand(rsi, reg);  // rsi == 6
+  emit(imm8);
+}
+
+
+void Assembler::psrld(XMMRegister reg, byte imm8) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(reg);
+  emit(0x0F);
+  emit(0x72);
+  emit_sse_operand(rdx, reg);  // rdx == 2
   emit(imm8);
 }
 
@@ -2962,6 +2996,16 @@ void Assembler::movmskps(Register dst, XMMRegister src) {
   emit_optional_rex_32(dst, src);
   emit(0x0f);
   emit(0x50);
+  emit_sse_operand(dst, src);
+}
+
+
+void Assembler::pcmpeqd(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0x66);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x76);
   emit_sse_operand(dst, src);
 }
 

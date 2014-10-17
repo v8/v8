@@ -581,6 +581,8 @@ Call::CallType Call::GetCallType(Isolate* isolate) const {
     }
   }
 
+  if (expression()->AsSuperReference() != NULL) return SUPER_CALL;
+
   Property* property = expression()->AsProperty();
   return property != NULL ? PROPERTY_CALL : OTHER_CALL;
 }

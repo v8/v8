@@ -23,6 +23,14 @@ class ArmOperandGenerator : public OperandGenerator {
     return UseRegister(node);
   }
 
+  bool CanBeImmediate(int32_t value) const {
+    return Assembler::ImmediateFitsAddrMode1Instruction(value);
+  }
+
+  bool CanBeImmediate(uint32_t value) const {
+    return CanBeImmediate(bit_cast<int32_t>(value));
+  }
+
   bool CanBeImmediate(Node* node, InstructionCode opcode) {
     Int32Matcher m(node);
     if (!m.HasValue()) return false;
@@ -32,22 +40,20 @@ class ArmOperandGenerator : public OperandGenerator {
       case kArmMov:
       case kArmMvn:
       case kArmBic:
-        return ImmediateFitsAddrMode1Instruction(value) ||
-               ImmediateFitsAddrMode1Instruction(~value);
+        return CanBeImmediate(value) || CanBeImmediate(~value);
 
       case kArmAdd:
       case kArmSub:
       case kArmCmp:
       case kArmCmn:
-        return ImmediateFitsAddrMode1Instruction(value) ||
-               ImmediateFitsAddrMode1Instruction(-value);
+        return CanBeImmediate(value) || CanBeImmediate(-value);
 
       case kArmTst:
       case kArmTeq:
       case kArmOrr:
       case kArmEor:
       case kArmRsb:
-        return ImmediateFitsAddrMode1Instruction(value);
+        return CanBeImmediate(value);
 
       case kArmVldrF32:
       case kArmVstrF32:
@@ -105,11 +111,6 @@ class ArmOperandGenerator : public OperandGenerator {
     }
     UNREACHABLE();
     return false;
-  }
-
- private:
-  bool ImmediateFitsAddrMode1Instruction(int32_t imm) const {
-    return Assembler::ImmediateFitsAddrMode1Instruction(imm);
   }
 };
 
@@ -417,7 +418,8 @@ void InstructionSelector::VisitWord32And(Node* node) {
     }
   }
   if (IsSupported(ARMv7) && m.right().HasValue()) {
-    uint32_t value = m.right().Value();
+    // Try to interpret this AND as UBFX.
+    uint32_t const value = m.right().Value();
     uint32_t width = base::bits::CountPopulation32(value);
     uint32_t msb = base::bits::CountLeadingZeros32(value);
     if (width != 0 && msb + width == 32) {
@@ -435,6 +437,15 @@ void InstructionSelector::VisitWord32And(Node* node) {
            g.TempImmediate(0), g.TempImmediate(width));
       return;
     }
+
+    // Try to interpret this AND as BIC.
+    if (g.CanBeImmediate(~value)) {
+      Emit(kArmBic | AddressingModeField::encode(kMode_Operand2_I),
+           g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.TempImmediate(~value));
+      return;
+    }
+
     // Try to interpret this AND as BFC.
     width = 32 - width;
     msb = base::bits::CountLeadingZeros32(~value);
@@ -857,8 +868,10 @@ void InstructionSelector::VisitCall(Node* node) {
   opcode |= MiscField::encode(descriptor->flags());
 
   // Emit the call instruction.
+  InstructionOperand** first_output =
+      buffer.outputs.size() > 0 ? &buffer.outputs.front() : NULL;
   Instruction* call_instr =
-      Emit(opcode, buffer.outputs.size(), &buffer.outputs.front(),
+      Emit(opcode, buffer.outputs.size(), first_output,
            buffer.instruction_args.size(), &buffer.instruction_args.front());
   call_instr->MarkAsCall();
 }

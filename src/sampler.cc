@@ -570,7 +570,8 @@ SamplerThread* SamplerThread::instance_ = NULL;
 // StackTracer implementation
 //
 DISABLE_ASAN void TickSample::Init(Isolate* isolate,
-                                   const v8::RegisterState& regs) {
+                                   const v8::RegisterState& regs,
+                                   RecordCEntryFrame record_c_entry_frame) {
   timestamp = base::TimeTicks::HighResolutionNow();
   pc = reinterpret_cast<Address>(regs.pc);
   state = isolate->current_vm_state();
@@ -601,13 +602,14 @@ DISABLE_ASAN void TickSample::Init(Isolate* isolate,
   top_frame_type = it.top_frame_type();
 
   SampleInfo info;
-  GetStackSample(isolate, regs, reinterpret_cast<void**>(&stack[0]),
-                 kMaxFramesCount, &info);
+  GetStackSample(isolate, regs, record_c_entry_frame,
+                 reinterpret_cast<void**>(&stack[0]), kMaxFramesCount, &info);
   frames_count = static_cast<unsigned>(info.frames_count);
 }
 
 
 void TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
+                                RecordCEntryFrame record_c_entry_frame,
                                 void** frames, size_t frames_limit,
                                 v8::SampleInfo* sample_info) {
   sample_info->frames_count = 0;
@@ -620,6 +622,10 @@ void TickSample::GetStackSample(Isolate* isolate, const v8::RegisterState& regs,
   SafeStackFrameIterator it(isolate, reinterpret_cast<Address>(regs.fp),
                             reinterpret_cast<Address>(regs.sp), js_entry_sp);
   size_t i = 0;
+  if (record_c_entry_frame == kIncludeCEntryFrame && !it.done() &&
+      it.top_frame_type() == StackFrame::EXIT) {
+    frames[i++] = isolate->c_function();
+  }
   while (!it.done() && i < frames_limit) {
     frames[i++] = it.frame()->pc();
     it.Advance();
@@ -696,7 +702,7 @@ void Sampler::SampleStack(const v8::RegisterState& state) {
   TickSample* sample = isolate_->cpu_profiler()->StartTickSample();
   TickSample sample_obj;
   if (sample == NULL) sample = &sample_obj;
-  sample->Init(isolate_, state);
+  sample->Init(isolate_, state, TickSample::kIncludeCEntryFrame);
   if (is_counting_samples_) {
     if (sample->state == JS || sample->state == EXTERNAL) {
       ++js_and_external_sample_count_;

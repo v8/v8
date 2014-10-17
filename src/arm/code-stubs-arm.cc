@@ -3167,8 +3167,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // r2: length
   // r3: from index (untagged)
   __ SmiTag(r3, r3);
-  StringCharAtGenerator generator(
-      r0, r3, r2, r0, &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  StringCharAtGenerator generator(r0, r3, r2, r0, &runtime, &runtime, &runtime,
+                                  STRING_INDEX_IS_NUMBER, RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ Drop(3);
   __ Ret();

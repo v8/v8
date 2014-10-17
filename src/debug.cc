@@ -1096,7 +1096,7 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
   it.FindBreakLocationFromPosition(*source_position, STATEMENT_ALIGNED);
   it.SetBreakPoint(break_point_object);
 
-  *source_position = it.position();
+  *source_position = it.statement_position();
 
   // At least one active break point now.
   return debug_info->GetBreakPointCount() > 0;
@@ -1140,7 +1140,10 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   it.FindBreakLocationFromPosition(position, alignment);
   it.SetBreakPoint(break_point_object);
 
-  *source_position = it.position() + shared->start_position();
+  position = (alignment == STATEMENT_ALIGNED) ? it.statement_position()
+                                              : it.position();
+
+  *source_position = position + shared->start_position();
 
   // At least one active break point now.
   DCHECK(debug_info->GetBreakPointCount() > 0);
@@ -1558,17 +1561,14 @@ Handle<Object> Debug::GetSourceBreakLocations(
       BreakPointInfo* break_point_info =
           BreakPointInfo::cast(debug_info->break_points()->get(i));
       if (break_point_info->GetBreakPointCount() > 0) {
-        Smi* position;
+        Smi* position = NULL;
         switch (position_alignment) {
-        case STATEMENT_ALIGNED:
-          position = break_point_info->statement_position();
-          break;
-        case BREAK_POSITION_ALIGNED:
-          position = break_point_info->source_position();
-          break;
-        default:
-          UNREACHABLE();
-          position = break_point_info->statement_position();
+          case STATEMENT_ALIGNED:
+            position = break_point_info->statement_position();
+            break;
+          case BREAK_POSITION_ALIGNED:
+            position = break_point_info->source_position();
+            break;
         }
 
         locations->set(count++, position);

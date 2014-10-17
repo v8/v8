@@ -321,6 +321,74 @@
 }());
 
 
+(function TestSetterNumericKeyed() {
+  var x = 42;
+  function Base() {}
+  Base.prototype = {
+    constructor: Base,
+    _x: 'base'
+  };
+
+  Object.defineProperty(Base.prototype, x,
+    { get: function() { return this._x; },
+      set: function(v) { this._x = v; }
+    });
+
+  function Derived() {}
+  Derived.__proto__ = Base;
+  Derived.prototype = {
+    __proto__: Base.prototype,
+    constructor: Derived,
+    _x: 'derived'
+  };
+  Derived.prototype.testSetter = function() {
+    assertEquals('foobar', super[x] = 'foobar');
+    assertEquals('foobarabc', super[x] += 'abc');
+  }.toMethod(Derived.prototype);
+  var d = new Derived();
+  d.testSetter();
+  assertEquals('base', Base.prototype._x);
+  assertEquals('foobarabc', d._x);
+  d._x = '';
+  Derived.prototype.testSetterStrict = function() {
+    'use strict';
+    assertEquals('foobar', super[x] = 'foobar');
+    assertEquals('foobarabc', super[x] += 'abc');
+  }.toMethod(Derived.prototype);
+  d.testSetterStrict();
+  assertEquals('base', Base.prototype._x);
+  assertEquals('foobarabc', d._x);
+
+
+  Derived.prototype.testSetterWithToString = function() {
+    var toStringCalled;
+    var o = { toString: function() {
+      toStringCalled++;
+      return x;
+    } };
+
+    toStringCalled = 0;
+    super[o] = 'set';
+    assertEquals(1, toStringCalled);
+    assertEquals('set', this._x);
+
+    var eToThrow = new Error();
+    var oThrowsInToString = { toString: function() {
+      throw eToThrow;
+    } };
+
+    var ex = null;
+    try {
+      super[oThrowsInToString] = 'xyz';
+    } catch(e) { ex = e }
+    assertEquals(eToThrow, ex);
+    assertEquals('set', this._x);
+  }.toMethod(Derived.prototype);
+  d = new Derived();
+  d.testSetterWithToString();
+}());
+
+
 (function TestSetterKeyed() {
   var x = 'x';
   function Base() {}
@@ -389,19 +457,11 @@
       return "1";
     } };
 
-    ex = null;
-    try {
-      super[oReturnsNumericString] = 'abc';
-    } catch(e) { ex = e }
-    assertTrue(ex instanceof ReferenceError);
+    assertEquals('abc', super[oReturnsNumericString] = 'abc');
 
     assertEquals('set', this._x);
 
-    ex = null;
-    try {
-      super[1] = 10;  // Indexed properties unsupported yet.
-    } catch (e) { ex = e; }
-    assertTrue(ex instanceof ReferenceError);
+    assertEquals(10,  super[1] = 10);
   }.toMethod(Derived.prototype);
   d = new Derived();
   d.testSetterWithToString();
@@ -438,6 +498,31 @@
   Base.prototype = {
     constructor: Base,
     x: 'x from Base'
+  };
+
+  function Derived() {}
+  Derived.prototype = {
+    __proto__: Base.prototype,
+    constructor: Derived,
+  };
+
+  Derived.prototype.testSetter = function() {
+    assertEquals('x from Base', super[x]);
+    super[x] = 'data property';
+    assertEquals('x from Base', super[x]);
+    assertEquals('data property', this[x]);
+  }.toMethod(Derived.prototype);
+
+  new Derived().testSetter();
+}());
+
+
+(function TestKeyedNumericSetterDataProperties() {
+  var x = 42;
+  function Base() {}
+  Base.prototype = {
+    constructor: Base,
+    42: 'x from Base'
   };
 
   function Derived() {}
@@ -640,6 +725,122 @@
 }());
 
 
+(function TestNumericKeyedAccessorsOnPrimitives() {
+  var x = 42;
+  var newProperty = 43;
+  var getCalled = 0;
+  var setCalled = 0;
+  function Base() {}
+  Base.prototype = {
+    constructor: Base,
+  };
+
+  Object.defineProperty(Base.prototype, x, {
+    get: function() {
+      getCalled++;
+      return 1;
+    },
+    set: function(v) {
+      setCalled++;
+      return v;
+    }
+  });
+
+  function Derived() {}
+  Derived.prototype = {
+    __proto__: Base.prototype,
+    constructor: Derived,
+  };
+  Derived.prototype.testSetter = function() {
+    setCalled = 0;
+    getCalled = 0;
+    assertEquals('object', typeof this);
+    assertTrue(this instanceof Number)
+    assertEquals(42, this.valueOf());
+    assertEquals(1, super[x]);
+    assertEquals(1, getCalled);
+    assertEquals(0, setCalled);
+
+    assertEquals(5, super[x] = 5);
+    assertEquals(1, getCalled);
+    assertEquals(1, setCalled);
+
+    assertEquals(6, super[x] += 5);
+    assertEquals(2, getCalled);
+    assertEquals(2, setCalled);
+
+    super[newProperty] = 15;
+    assertEquals(15, this[newProperty]);
+    assertEquals(undefined, super[newProperty]);
+  }.toMethod(Derived.prototype);
+
+  Derived.prototype.testSetterStrict = function() {
+    'use strict';
+    getCalled = 0;
+    setCalled = 0;
+    assertTrue(42 === this);
+
+    assertEquals(1, super[x]);
+    assertEquals(1, getCalled);
+    assertEquals(0, setCalled);
+
+    assertEquals(5, super[x] = 5);
+    assertEquals(1, getCalled);
+    assertEquals(1, setCalled);
+
+    assertEquals(6, super[x] += 5);
+    assertEquals(2, getCalled);
+    assertEquals(2, setCalled);
+
+    var ex;
+    try {
+      super[newProperty] = 15;
+    } catch (e) { ex = e; }
+    assertTrue(ex instanceof TypeError);
+  }.toMethod(Derived.prototype);
+
+  Derived.prototype.testSetter.call(42);
+  Derived.prototype.testSetterStrict.call(42);
+}());
+
+
+(function TestKeyedNumericSetterOnExotics() {
+  function Base() {}
+  function Derived() {}
+  Derived.prototype = { __proto__: Base.prototype };
+
+  Derived.prototype.callSetterOnArray = function() {
+    super[42] = 1;
+  }.toMethod(Derived.prototype);
+
+  Derived.prototype.callStrictSetterOnString = function() {
+    'use strict';
+    assertEquals('string', typeof this);
+    assertTrue('abcdef' === this);
+    var ex = null;
+    try {
+      super[5] = 'q';
+    } catch(e) { ex = e; }
+    assertTrue(ex instanceof TypeError);
+
+    ex = null;
+    try {
+      super[1024] = 'q';
+    } catch(e) { ex = e; }
+    assertTrue(ex instanceof TypeError);
+  }.toMethod(Derived.prototype);
+
+  var x = [];
+  assertEquals(0, x.length);
+  Derived.prototype.callSetterOnArray.call(x);
+  assertEquals(43, x.length);
+  assertEquals(1, x[42]);
+
+  var s = 'abcdef';
+  Derived.prototype.callStrictSetterOnString.call(s)
+}());
+
+
 (function TestSetterUndefinedProperties() {
   function Base() {}
   function Derived() {}
@@ -696,6 +897,36 @@
   var d1 = new Derived();
   d1.mStrict();
   assertEquals(10, d.x);
+}());
+
+
+(function TestKeyedNumericSetterUndefinedProperties() {
+  var x = 42;
+  function Base() {}
+  function Derived() {}
+  Derived.prototype = { __proto__ : Base.prototype };
+  Derived.prototype.mSloppy = function () {
+    assertEquals(undefined, super[x]);
+    assertEquals(undefined, this[x]);
+    super[x] = 10;
+    assertEquals(10, this[x]);
+    assertEquals(undefined, super[x]);
+  }.toMethod(Derived.prototype);
+
+  Derived.prototype.mStrict = function () {
+    'use strict';
+    assertEquals(undefined, super[x]);
+    assertEquals(undefined, this[x]);
+    super[x] = 10;
+    assertEquals(10, this[x]);
+    assertEquals(undefined, super[x]);
+  }.toMethod(Derived.prototype);
+  var d = new Derived();
+  d.mSloppy();
+  assertEquals(10, d[x]);
+  var d1 = new Derived();
+  d1.mStrict();
+  assertEquals(10, d[x]);
 }());
 
 
@@ -870,6 +1101,63 @@
 }());
 
 
+(function TestKeyedNumericSetterCreatingOwnProperties() {
+  var ownReadOnly = 42;
+  var ownReadonlyAccessor = 43;
+  var ownSetter = 44;
+  function Base() {}
+  function Derived() {}
+  Derived.prototype = { __proto__ : Base.prototype };
+  var setterCalled;
+
+  Derived.prototype.mSloppy = function() {
+    assertEquals(42, this[ownReadOnly]);
+    super[ownReadOnly] = 55;
+    assertEquals(42, this[ownReadOnly]);
+
+    assertEquals(15, this[ownReadonlyAccessor]);
+    super[ownReadonlyAccessor] = 55;
+    assertEquals(15, this[ownReadonlyAccessor]);
+
+    setterCalled = 0;
+    super[ownSetter] = 42;
+    assertEquals(1, setterCalled);
+  }.toMethod(Derived.prototype);
+
+  Derived.prototype.mStrict = function() {
+    'use strict';
+    assertEquals(42, this[ownReadOnly]);
+    var ex;
+    try {
+      super[ownReadOnly] = 55;
+    } catch(e) { ex = e; }
+    assertTrue(ex instanceof TypeError);
+    assertEquals(42, this[ownReadOnly]);
+
+    assertEquals(15, this[ownReadonlyAccessor]);
+    ex = null;
+    try {
+      super[ownReadonlyAccessor] = 55;
+    } catch(e) { ex = e; }
+    assertTrue(ex instanceof TypeError);
+    assertEquals(15, this[ownReadonlyAccessor]);
+
+    setterCalled = 0;
+    super[ownSetter] = 42;
+    assertEquals(1, setterCalled);
+  }.toMethod(Derived.prototype);
+
+  var d = new Derived();
+  Object.defineProperty(d, ownReadOnly, { value : 42, writable : false });
+  Object.defineProperty(d, ownSetter,
+      { set : function() { setterCalled++; } });
+  Object.defineProperty(d, ownReadonlyAccessor,
+      { get : function() { return 15; }});
+  d.mSloppy();
+  d.mStrict();
+}());
+
+
 (function TestSetterNoProtoWalk() {
   function Base() {}
   function Derived() {}
@@ -1005,6 +1293,77 @@
 }());
 
 
+(function TestKeyedNumericSetterNoProtoWalk() {
+  var x = 42;
+  function Base() {}
+  function Derived() {}
+  var getCalled;
+  var setCalled;
+  Derived.prototype = {
+    __proto__ : Base.prototype,
+  };
+
+  Object.defineProperty(Derived.prototype, x, {
+    get: function() { getCalled++; return 42; },
+    set: function(v) { setCalled++; }
+  });
+
+  Derived.prototype.mSloppy = function() {
+    setCalled = 0;
+    getCalled = 0;
+    assertEquals(42, this[x]);
+    assertEquals(1, getCalled);
+    assertEquals(0, setCalled);
+
+    getCalled = 0;
+    setCalled = 0;
+    this[x] = 43;
+    assertEquals(0, getCalled);
+    assertEquals(1, setCalled);
+
+    getCalled = 0;
+    setCalled = 0;
+    super[x] = 15;
+    assertEquals(0, setCalled);
+    assertEquals(0, getCalled);
+
+    assertEquals(15, this[x]);
+    assertEquals(0, getCalled);
+    assertEquals(0, setCalled);
+
+  }.toMethod(Derived.prototype);
+
+  Derived.prototype.mStrict = function() {
+    'use strict';
+    setCalled = 0;
+    getCalled = 0;
+    assertEquals(42, this[x]);
+    assertEquals(1, getCalled);
+    assertEquals(0, setCalled);
+
+    getCalled = 0;
+    setCalled = 0;
+    this[x] = 43;
+    assertEquals(0, getCalled);
+    assertEquals(1, setCalled);
+
+    getCalled = 0;
+    setCalled = 0;
+    super[x] = 15;
+    assertEquals(0, setCalled);
+    assertEquals(0, getCalled);
+
+    assertEquals(15, this[x]);
+    assertEquals(0, getCalled);
+    assertEquals(0, setCalled);
+
+  }.toMethod(Derived.prototype);
+
+  new Derived().mSloppy();
+  new Derived().mStrict();
+}());
+
+
 (function TestSetterDoesNotReconfigure() {
   function Base() {}
   function Derived() {}
@@ -1054,16 +1413,18 @@
   function Base() {}
   function Derived() {}
 
+  Derived.prototype = { __proto__: Base.prototype };
+
   Derived.prototype.mStrict = function (){
     'use strict';
     super[nonEnumConfig] = 5;
-    var d1 = Object.getOwnPropertyDescriptor(this, 'nonEnumConfig');
+    var d1 = Object.getOwnPropertyDescriptor(this, nonEnumConfig);
     assertEquals(5, d1.value);
     assertTrue(d1.configurable);
     assertFalse(d1.enumerable);
 
     super[nonEnumNonConfig] = 5;
-    var d1 = Object.getOwnPropertyDescriptor(this, 'nonEnumNonConfig');
+    var d1 = Object.getOwnPropertyDescriptor(this, nonEnumNonConfig);
     assertEquals(5, d1.value);
     assertFalse(d1.configurable);
     assertFalse(d1.enumerable);
@@ -1071,22 +1432,69 @@
 
   Derived.prototype.mSloppy = function (){
     super[nonEnumConfig] = 42;
-    var d1 = Object.getOwnPropertyDescriptor(this, 'nonEnumConfig');
+    var d1 = Object.getOwnPropertyDescriptor(this, nonEnumConfig);
     assertEquals(42, d1.value);
     assertTrue(d1.configurable);
     assertFalse(d1.enumerable);
 
     super[nonEnumNonConfig] = 42;
-    var d1 = Object.getOwnPropertyDescriptor(this, 'nonEnumNonConfig');
+    var d1 = Object.getOwnPropertyDescriptor(this, nonEnumNonConfig);
     assertEquals(42, d1.value);
     assertFalse(d1.configurable);
     assertFalse(d1.enumerable);
   }.toMethod(Derived.prototype);
 
   var d = new Derived();
-  Object.defineProperty(d, 'nonEnumConfig',
+  Object.defineProperty(d, nonEnumConfig,
       { value : 0, enumerable : false, configurable : true, writable : true });
-  Object.defineProperty(d, 'nonEnumNonConfig',
+  Object.defineProperty(d, nonEnumNonConfig,
+      { value : 0, enumerable : false, configurable : false, writable : true });
+  d.mStrict();
+  d.mSloppy();
+}());
+
+
+(function TestKeyedNumericSetterDoesNotReconfigure() {
+  var nonEnumConfig = 42;
+  var nonEnumNonConfig = 43;
+  function Base() {}
+  function Derived() {}
+
+  Derived.prototype = { __proto__: Base.prototype };
+
+  Derived.prototype.mStrict = function (){
+    'use strict';
+    super[nonEnumConfig] = 5;
+    var d1 = Object.getOwnPropertyDescriptor(this, nonEnumConfig);
+    assertEquals(5, d1.value);
+    assertTrue(d1.configurable);
+    assertFalse(d1.enumerable);
+
+    super[nonEnumNonConfig] = 5;
+    var d1 = Object.getOwnPropertyDescriptor(this, nonEnumNonConfig);
+    assertEquals(5, d1.value);
+    assertFalse(d1.configurable);
+    assertFalse(d1.enumerable);
+  }.toMethod(Derived.prototype);
+
+  Derived.prototype.mSloppy = function (){
+    super[nonEnumConfig] = 42;
+    var d1 = Object.getOwnPropertyDescriptor(this, nonEnumConfig);
+    assertEquals(42, d1.value);
+    assertTrue(d1.configurable);
+    assertFalse(d1.enumerable);
+
+    super[nonEnumNonConfig] = 42;
+    var d1 = Object.getOwnPropertyDescriptor(this, nonEnumNonConfig);
+    assertEquals(42, d1.value);
+    assertFalse(d1.configurable);
+    assertFalse(d1.enumerable);
+  }.toMethod(Derived.prototype);
+
+  var d = new Derived();
+  Object.defineProperty(d, nonEnumConfig,
+      { value : 0, enumerable : false, configurable : true, writable : true });
+  Object.defineProperty(d, nonEnumNonConfig,
       { value : 0, enumerable : false, configurable : false, writable : true });
   d.mStrict();
   d.mSloppy();
@@ -1190,13 +1598,154 @@
 }());
 
 
+(function TestKeyedNumericCountOperations() {
+  var x = 42;
+  function Base() {}
+  Base.prototype = {
+    constructor: Base,
+    _x: 1
+  };
+
+  Object.defineProperty(Base.prototype, x, {
+    get: function() { return this._x; },
+    set: function(v) { this._x = v;; }
+  });
+
+  function Derived() {}
+  Derived.__proto__ = Base;
+  Derived.prototype = {
+    __proto__: Base.prototype,
+    constructor: Derived,
+    _x: 2
+  };
+
+  Derived.prototype.testCounts = function() {
+    assertEquals(2, this._x);
+    assertEquals(2, super[x]);
+    super[x]++;
+    assertEquals(3, super[x]);
+    ++super[x];
+    assertEquals(4, super[x]);
+    assertEquals(4, super[x]++);
+    assertEquals(5, super[x]);
+    assertEquals(6, ++super[x]);
+    assertEquals(6, super[x]);
+    assertEquals(6, this._x);
+
+    super[x]--;
+    assertEquals(5, super[x]);
+    --super[x];
+    assertEquals(4, super[x]);
+    assertEquals(4, super[x]--);
+    assertEquals(3, super[x]);
+    assertEquals(2, --super[x]);
+    assertEquals(2, super[x]);
+    assertEquals(2, this._x);
+  }.toMethod(Derived.prototype);
+  new Derived().testCounts();
+}());
+
+
+(function TestSetterSuperNonWritable() {
+  function Base() {}
+  Object.defineProperty(Base.prototype, 'x', { value : 27, writable: false });
+  function Derived() {}
+
+  Derived.prototype = { __proto__: Base.prototype, constructor: Derived };
+
+  Derived.prototype.mSloppy = function() {
+    assertEquals(27, super.x);
+    assertEquals(27, this.x);
+    super.x = 10;
+    assertEquals(27, super.x);
+    assertEquals(27, this.x);
+  }.toMethod(Derived.prototype);
+  Derived.prototype.mStrict = function() {
+    'use strict';
+    assertEquals(27, super.x);
+    assertEquals(27, this.x);
+    var ex = null;
+    try { super.x = 10; } catch(e) { ex = e; }
+    assertTrue(ex instanceof TypeError);
+    assertEquals(27, super.x);
+    assertEquals(27, this.x);
+  }.toMethod(Derived.prototype);
+  new Derived().mSloppy();
+  new Derived().mStrict();
+}());
+
+
+(function TestSetterKeyedSuperNonWritable() {
+  var x = 'xyz';
+  function Base() {}
+  Object.defineProperty(Base.prototype, x, { value : 27, writable: false });
+  function Derived() {}
+
+  Derived.prototype = { __proto__: Base.prototype, constructor: Derived };
+
+  Derived.prototype.mSloppy = function() {
+    assertEquals(27, super[x]);
+    assertEquals(27, this[x]);
+    super[x] = 10;
+    assertEquals(27, super[x]);
+    assertEquals(27, this[x]);
+  }.toMethod(Derived.prototype);
+  Derived.prototype.mStrict = function() {
+    'use strict';
+    assertEquals(27, super[x]);
+    assertEquals(27, this[x]);
+    var ex = null;
+    try { super[x] = 10; } catch(e) { ex = e; }
+    assertTrue(ex instanceof TypeError);
+    assertEquals(27, super[x]);
+    assertEquals(27, this[x]);
+  }.toMethod(Derived.prototype);
+  new Derived().mSloppy();
+  new Derived().mStrict();
+}());
+
+
+(function TestSetterKeyedNumericSuperNonWritable() {
+  var x = 42;
+  function Base() {}
+  Object.defineProperty(Base.prototype, x, { value : 27, writable: false });
+  function Derived() {}
+
+  Derived.prototype = { __proto__: Base.prototype, constructor: Derived };
+
+  Derived.prototype.mSloppy = function() {
+    assertEquals(27, super[x]);
+    assertEquals(27, this[x]);
+    super[x] = 10;
+    assertEquals(27, super[x]);
+    assertEquals(27, this[x]);
+  }.toMethod(Derived.prototype);
+  Derived.prototype.mStrict = function() {
+    'use strict';
+    assertEquals(27, super[x]);
+    assertEquals(27, this[x]);
+    var ex = null;
+    try { super[x] = 10; } catch(e) { ex = e; }
+    assertTrue(ex instanceof TypeError);
+    assertEquals(27, super[x]);
+    assertEquals(27, this[x]);
+  }.toMethod(Derived.prototype);
+  new Derived().mSloppy();
+  new Derived().mStrict();
+}());
+
+
 (function TestSuperCall() {
   function Subclass(base, constructor) {
-    var homeObject = { __proto__ : base.prototype };
-    var result = constructor.toMethod(homeObject);
-    homeObject.constructor = result;
-    result.prototype = homeObject;
-    return result;
+    var homeObject = {
+      __proto__: base.prototype,
+      constructor: constructor
+    };
+    constructor.__proto__ = base;
+    constructor.prototype = homeObject;
+    // not doing toMethod: home object is not required for
+    // super constructor calls.
+    return constructor;
   }
 
   var baseCalled = 0;
@@ -1245,11 +1794,38 @@
   var d = new Derived2("base", "derived");
   assertEquals("base", d.fromBase);
   assertEquals("derived", d.fromDerived);
+
+  function ImplicitSubclassOfFunction() {
+    super();
+    this.x = 123;
+  }
+
+  var o = new ImplicitSubclassOfFunction();
+  assertEquals(123, o.x);
+
+  var calls = 0;
+  function G() {
+    calls++;
+  }
+  function F() {
+    super();
+  }
+  F.__proto__ = G;
+  new F();
+  assertEquals(1, calls);
+  F.__proto__ = function() {};
+  new F();
+  assertEquals(1, calls);
 }());
 
 
-(function TestUnsupportedCases() {
-  function f(x) { super[x] = 5; }
-  var o = {};
-  assertThrows(function(){f.toMethod(o)(15);}, ReferenceError);
+(function TestSuperCallErrorCases() {
+  function T() {
+    super();
+  }
+  T.__proto__ = null;
+  // Spec says ReferenceError here, but for other IsCallable failures
+  // we throw TypeError.
+  // Filed https://bugs.ecmascript.org/show_bug.cgi?id=3282
+  assertThrows(function() { new T(); }, TypeError);
 }());
