@@ -115,6 +115,7 @@ struct NumericValueMatcher : public NodeMatcher {
         break;
       default:
         has_value_ = false;
+        value_ = 0;  // Make the compiler happy.
         break;
     }
   }
