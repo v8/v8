@@ -81,7 +81,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
                           FeedbackVectorSlot::Invalid());
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     Handle<JSTypedArray> array =
-        factory()->NewJSTypedArray(type, buffer, kLength);
+        factory()->NewJSTypedArray(type, buffer, 0, kLength);
 
     Node* key = Parameter(Type::Integral32());
     Node* base = HeapConstant(array);
@@ -120,7 +120,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     TRACED_FOREACH(StrictMode, strict_mode, kStrictModes) {
       Handle<JSTypedArray> array =
-          factory()->NewJSTypedArray(type, buffer, kLength);
+          factory()->NewJSTypedArray(type, buffer, 0, kLength);
 
       Node* key = Parameter(Type::Integral32());
       Node* base = HeapConstant(array);
