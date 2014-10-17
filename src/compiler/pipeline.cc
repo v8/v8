@@ -11,6 +11,7 @@
 #include "src/compiler/basic-block-instrumentor.h"
 #include "src/compiler/change-lowering.h"
 #include "src/compiler/code-generator.h"
+#include "src/compiler/control-reducer.h"
 #include "src/compiler/graph-replay.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/instruction.h"
@@ -350,6 +351,16 @@ Handle<Code> Pipeline::GenerateCode() {
 
       // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
       VerifyAndPrintGraph(&graph, "Lowered changes", true);
+    }
+
+    {
+      SourcePositionTable::Scope pos(&source_positions,
+                                     SourcePosition::Unknown());
+      PhaseStats control_reducer_stats(info(), PhaseStats::CREATE_GRAPH,
+                                       "control reduction");
+      ControlReducer::ReduceGraph(&jsgraph, &common);
+
+      VerifyAndPrintGraph(&graph, "Control reduced");
     }
   }
 
