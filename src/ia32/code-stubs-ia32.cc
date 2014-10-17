@@ -702,8 +702,6 @@ void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
   Register result = eax;
   DCHECK(!result.is(scratch));
 
-  // TODO(mvstanton): the generator doesn't need to verify that
-  // receiver is a string map, that is done outside the handler.
   StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
                                           &miss,  // When not a string.
                                           &miss,  // When not a number.
@@ -3159,8 +3157,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // ebx: instance type
   // ecx: sub string length (smi)
   // edx: from index (smi)
-  StringCharAtGenerator generator(
-      eax, edx, ecx, eax, &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  StringCharAtGenerator generator(eax, edx, ecx, eax, &runtime, &runtime,
+                                  &runtime, STRING_INDEX_IS_NUMBER,
+                                  RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ ret(3 * kPointerSize);
   generator.SkipSlow(masm, &runtime);

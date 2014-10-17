@@ -3106,8 +3106,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // rbx: instance type
   // rcx: sub string length (smi)
   // rdx: from index (smi)
-  StringCharAtGenerator generator(
-      rax, rdx, rcx, rax, &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  StringCharAtGenerator generator(rax, rdx, rcx, rax, &runtime, &runtime,
+                                  &runtime, STRING_INDEX_IS_NUMBER,
+                                  RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ ret(SUB_STRING_ARGUMENT_COUNT * kPointerSize);
   generator.SkipSlow(masm, &runtime);

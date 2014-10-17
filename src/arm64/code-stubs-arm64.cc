@@ -3812,9 +3812,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // x12: input_type
   // x15: from (untagged)
   __ SmiTag(from);
-  StringCharAtGenerator generator(
-      input_string, from, result_length, x0,
-      &runtime, &runtime, &runtime, STRING_INDEX_IS_NUMBER);
+  StringCharAtGenerator generator(input_string, from, result_length, x0,
+                                  &runtime, &runtime, &runtime,
+                                  STRING_INDEX_IS_NUMBER, RECEIVER_IS_STRING);
   generator.GenerateFast(masm);
   __ Drop(3);
   __ Ret();
