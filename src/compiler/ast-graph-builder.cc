@@ -1261,6 +1261,11 @@ void AstGraphBuilder::VisitCall(Call* expr) {
       flags = CALL_AS_METHOD;
       break;
     }
+    case Call::SUPER_CALL: {
+      // todo(dslomov): implement super calls in turbofan.
+      UNIMPLEMENTED();
+      break;
+    }
     case Call::POSSIBLY_EVAL_CALL:
       possibly_eval = true;
     // Fall through.

@@ -1192,11 +1192,15 @@
 
 (function TestSuperCall() {
   function Subclass(base, constructor) {
-    var homeObject = { __proto__ : base.prototype };
-    var result = constructor.toMethod(homeObject);
-    homeObject.constructor = result;
-    result.prototype = homeObject;
-    return result;
+    var homeObject = {
+      __proto__: base.prototype,
+      constructor: constructor
+    };
+    constructor.__proto__ = base;
+    constructor.prototype = homeObject;
+    // not doing toMethod: home object is not required for
+    // super constructor calls.
+    return constructor;
   }
 
   var baseCalled = 0;
@@ -1245,6 +1249,40 @@
   var d = new Derived2("base", "derived");
   assertEquals("base", d.fromBase);
   assertEquals("derived", d.fromDerived);
+
+  function ImplicitSubclassOfFunction() {
+    super();
+    this.x = 123;
+  }
+
+  var o = new ImplicitSubclassOfFunction();
+  assertEquals(123, o.x);
+
+  var calls = 0;
+  function G() {
+    calls++;
+  }
+  function F() {
+    super();
+  }
+  F.__proto__ = G;
+  new F();
+  assertEquals(1, calls);
+  F.__proto__ = function() {};
+  new F();
+  assertEquals(1, calls);
+}());
+
+
+(function TestSuperCallErrorCases() {
+  function T() {
+    super();
+  }
+  T.__proto__ = null;
+  // Spec says ReferenceError here, but for other IsCallable failures
+  // we throw TypeError.
+  // Filed https://bugs.ecmascript.org/show_bug.cgi?id=3282
+  assertThrows(function() { new T(); }, TypeError);
 }());
 
 
