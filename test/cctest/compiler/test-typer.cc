@@ -2,20 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
-// This tests the correctness of the typer.
-//
-// For simplicity, it currently only tests it on expression operators that have
-// a direct equivalent in C++.  Also, testing is currently limited to ranges as
-// input types.
-
-
 #include <functional>
 
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/typer.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/graph-builder-tester.h"
+#include "test/cctest/types-fuzz.h"
 
 using namespace v8::internal;
 using namespace v8::internal::compiler;
@@ -26,6 +19,7 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
  public:
   TyperTester()
       : GraphAndBuilders(main_zone()),
+        types_(main_zone(), isolate()),
         typer_(graph(), MaybeHandle<Context>()),
         javascript_(main_zone()) {
     Node* s = graph()->NewNode(common()->Start(3));
@@ -57,6 +51,7 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
     }
   }
 
+  Types<Type, Type*, Zone> types_;
   Typer typer_;
   JSOperatorBuilder javascript_;
   Node* context_node_;
@@ -160,6 +155,26 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
       CHECK(result_type->Is(expected_type));
     }
   }
+
+  Type* RandomSubtype(Type* type) {
+    Type* subtype;
+    do {
+      subtype = types_.Fuzz();
+    } while (!subtype->Is(type));
+    return subtype;
+  }
+
+  void TestBinaryMonotonicity(const Operator* op) {
+    for (int i = 0; i < 50; ++i) {
+      Type* type1 = types_.Fuzz();
+      Type* type2 = types_.Fuzz();
+      Type* type = TypeBinaryOp(op, type1, type2);
+      Type* subtype1 = RandomSubtype(type1);;
+      Type* subtype2 = RandomSubtype(type2);;
+      Type* subtype = TypeBinaryOp(op, subtype1, subtype2);
+      CHECK(subtype->Is(type));
+    }
+  }
 };
 
 
@@ -168,6 +183,13 @@ static int32_t shift_right(int32_t x, int32_t y) { return x >> y; }
 static int32_t bit_or(int32_t x, int32_t y) { return x | y; }
 static int32_t bit_and(int32_t x, int32_t y) { return x & y; }
 static int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
+
+
+//------------------------------------------------------------------------------
+// Soundness
+//   For simplicity, we currently only test soundness on expression operators
+//   that have a direct equivalent in C++.  Also, testing is currently limited
+//   to ranges as input types.
 
 
 TEST(TypeJSAdd) {
@@ -273,4 +295,40 @@ TEST(TypeJSStrictNotEqual) {
   TyperTester t;
   t.TestBinaryCompareOp(
       t.javascript_.StrictNotEqual(), std::not_equal_to<double>());
+}
+
+
+//------------------------------------------------------------------------------
+// Monotonicity
+
+
+// List should be in sync with JS_SIMPLE_BINOP_LIST.
+#define JSBINOP_LIST(V) \
+  V(Equal) \
+  V(NotEqual) \
+  V(StrictEqual) \
+  V(StrictNotEqual) \
+  V(LessThan) \
+  V(GreaterThan) \
+  V(LessThanOrEqual) \
+  V(GreaterThanOrEqual) \
+  V(BitwiseOr) \
+  V(BitwiseXor) \
+  V(BitwiseAnd) \
+  V(ShiftLeft) \
+  V(ShiftRight) \
+  V(ShiftRightLogical) \
+  V(Add) \
+  V(Subtract) \
+  V(Multiply) \
+  V(Divide) \
+  V(Modulus)
+
+
+TEST(Monotonicity) {
+  TyperTester t;
+  #define TEST_OP(name) \
+      t.TestBinaryMonotonicity(t.javascript_.name());
+  JSBINOP_LIST(TEST_OP)
+  #undef TEST_OP
 }
