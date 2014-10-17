@@ -1242,6 +1242,7 @@ TEST(Bug3628) {
     v8::Local<v8::UnboundScript> script = v8::ScriptCompiler::CompileUnbound(
         isolate1, &source, v8::ScriptCompiler::kProduceCodeCache);
     const v8::ScriptCompiler::CachedData* data = source.GetCachedData();
+    CHECK(data);
     // Persist cached data.
     uint8_t* buffer = NewArray<uint8_t>(data->length);
     MemCopy(buffer, data->data, data->length);
