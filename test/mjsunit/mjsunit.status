@@ -471,6 +471,10 @@
 ['system == windows', {
   # TODO(mstarzinger): Too slow with turbo fan.
   'big-object-literal': [PASS, ['mode == debug', SKIP]],
+  'math-floor-of-div': [PASS, ['mode == debug', SKIP]],
+  'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
+  'osr-regress-max-locals': [PASS, ['mode == debug', SKIP]],
+  'unicodelctest': [PASS, ['mode == debug', SKIP]],
 
   # BUG(v8:3435)
   'debug-script-breakpoints': [PASS, FAIL],
