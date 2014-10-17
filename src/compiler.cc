@@ -52,7 +52,8 @@ CompilationInfo::CompilationInfo(Handle<Script> script, Zone* zone)
       parameter_count_(0),
       optimization_id_(-1),
       ast_value_factory_(NULL),
-      ast_value_factory_owned_(false) {
+      ast_value_factory_owned_(false),
+      aborted_due_to_dependency_change_(false) {
   Initialize(script->GetIsolate(), BASE, zone);
 }
 
@@ -65,7 +66,8 @@ CompilationInfo::CompilationInfo(Isolate* isolate, Zone* zone)
       parameter_count_(0),
       optimization_id_(-1),
       ast_value_factory_(NULL),
-      ast_value_factory_owned_(false) {
+      ast_value_factory_owned_(false),
+      aborted_due_to_dependency_change_(false) {
   Initialize(isolate, STUB, zone);
 }
 
@@ -80,7 +82,8 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info,
       parameter_count_(0),
       optimization_id_(-1),
       ast_value_factory_(NULL),
-      ast_value_factory_owned_(false) {
+      ast_value_factory_owned_(false),
+      aborted_due_to_dependency_change_(false) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -96,7 +99,8 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure, Zone* zone)
       parameter_count_(0),
       optimization_id_(-1),
       ast_value_factory_(NULL),
-      ast_value_factory_owned_(false) {
+      ast_value_factory_owned_(false),
+      aborted_due_to_dependency_change_(false) {
   Initialize(script_->GetIsolate(), BASE, zone);
 }
 
@@ -109,7 +113,8 @@ CompilationInfo::CompilationInfo(HydrogenCodeStub* stub, Isolate* isolate,
       parameter_count_(0),
       optimization_id_(-1),
       ast_value_factory_(NULL),
-      ast_value_factory_owned_(false) {
+      ast_value_factory_owned_(false),
+      aborted_due_to_dependency_change_(false) {
   Initialize(isolate, STUB, zone);
   code_stub_ = stub;
 }
@@ -126,7 +131,8 @@ CompilationInfo::CompilationInfo(
       parameter_count_(0),
       optimization_id_(-1),
       ast_value_factory_(NULL),
-      ast_value_factory_owned_(false) {
+      ast_value_factory_owned_(false),
+      aborted_due_to_dependency_change_(false) {
   Initialize(isolate, BASE, zone);
 }
 

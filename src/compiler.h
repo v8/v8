@@ -84,8 +84,7 @@ class CompilationInfo {
     kContextSpecializing = 1 << 16,
     kInliningEnabled = 1 << 17,
     kTypingEnabled = 1 << 18,
-    kDisableFutureOptimization = 1 << 19,
-    kAbortedDueToDependency = 1 << 20
+    kDisableFutureOptimization = 1 << 19
   };
 
   CompilationInfo(Handle<JSFunction> closure, Zone* zone);
@@ -366,12 +365,12 @@ class CompilationInfo {
 
   void AbortDueToDependencyChange() {
     DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
-    SetFlag(kAbortedDueToDependency);
+    aborted_due_to_dependency_change_ = true;
   }
 
   bool HasAbortedDueToDependencyChange() const {
     DCHECK(!OptimizingCompilerThread::IsOptimizerThread(isolate()));
-    return GetFlag(kAbortedDueToDependency);
+    return aborted_due_to_dependency_change_;
   }
 
   bool HasSameOsrEntry(Handle<JSFunction> function, BailoutId osr_ast_id) {
@@ -509,6 +508,10 @@ class CompilationInfo {
   AstValueFactory* ast_value_factory_;
   bool ast_value_factory_owned_;
   AstNode::IdGen ast_node_id_gen_;
+
+  // This flag is used by the main thread to track whether this compilation
+  // should be abandoned due to dependency change.
+  bool aborted_due_to_dependency_change_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
 };
