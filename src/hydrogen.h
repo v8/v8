@@ -524,8 +524,8 @@ class HGraph FINAL : public ZoneObject {
     int start_position_;
   };
 
-  int next_inline_id_;
   ZoneList<InlinedFunctionInfo> inlined_functions_;
+  ZoneList<int> inlining_id_to_function_id_;
 
   DISALLOW_COPY_AND_ASSIGN(HGraph);
 };
@@ -642,6 +642,7 @@ class HEnvironment FINAL : public ZoneObject {
   }
 
   void SetExpressionStackAt(int index_from_top, HValue* value);
+  HValue* RemoveExpressionStackAt(int index_from_top);
 
   HEnvironment* Copy() const;
   HEnvironment* CopyWithoutHistory() const;
@@ -2311,8 +2312,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
   void EnsureArgumentsArePushedForAccess();
   bool TryArgumentsAccess(Property* expr);
 
-  // Try to optimize fun.apply(receiver, arguments) pattern.
-  bool TryCallApply(Call* expr);
+  // Shared code for .call and .apply optimizations.
+  void HandleIndirectCall(Call* expr, HValue* function, int arguments_count);
+  // Try to optimize indirect calls such as fun.apply(receiver, arguments)
+  // or fun.call(...).
+  bool TryIndirectCall(Call* expr);
+  void BuildFunctionApply(Call* expr);
+  void BuildFunctionCall(Call* expr);
 
   bool TryHandleArrayCall(Call* expr, HValue* function);
   bool TryHandleArrayCallNew(CallNew* expr, HValue* function);
@@ -2348,12 +2354,11 @@ class HOptimizedGraphBuilder : public HGraphBuilder, public AstVisitor {
                        BailoutId id,
                        BailoutId assignment_id,
                        HValue* implicit_return_value);
-  bool TryInlineApply(Handle<JSFunction> function,
-                      Call* expr,
-                      int arguments_count);
-  bool TryInlineBuiltinMethodCall(Call* expr,
-                                  HValue* receiver,
-                                  Handle<Map> receiver_map);
+  bool TryInlineIndirectCall(Handle<JSFunction> function, Call* expr,
+                             int arguments_count);
+  bool TryInlineBuiltinMethodCall(Call* expr, Handle<JSFunction> function,
+                                  Handle<Map> receiver_map,
+                                  int args_count_no_receiver);
   bool TryInlineBuiltinFunctionCall(Call* expr);
   enum ApiCallType {
     kCallApiFunction,

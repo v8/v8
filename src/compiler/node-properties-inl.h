@@ -198,10 +198,28 @@ inline void NodeProperties::ReplaceWithValue(Node* node, Node* value,
 // -----------------------------------------------------------------------------
 // Type Bounds.
 
-inline Bounds NodeProperties::GetBounds(Node* node) { return node->bounds(); }
+inline bool NodeProperties::IsTyped(Node* node) {
+  Bounds bounds = node->bounds();
+  DCHECK((bounds.lower == NULL) == (bounds.upper == NULL));
+  return bounds.upper != NULL;
+}
+
+inline Bounds NodeProperties::GetBounds(Node* node) {
+  DCHECK(IsTyped(node));
+  return node->bounds();
+}
 
 inline void NodeProperties::SetBounds(Node* node, Bounds b) {
+  DCHECK(b.lower != NULL && b.upper != NULL);
   node->set_bounds(b);
+}
+
+inline bool NodeProperties::AllValueInputsAreTyped(Node* node) {
+  int input_count = OperatorProperties::GetValueInputCount(node->op());
+  for (int i = 0; i < input_count; ++i) {
+    if (!IsTyped(GetValueInput(node, i))) return false;
+  }
+  return true;
 }
 
 

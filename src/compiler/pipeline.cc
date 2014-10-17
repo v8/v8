@@ -105,7 +105,8 @@ void Pipeline::OpenTurboCfgFile(std::ofstream* stream) {
 }
 
 
-void Pipeline::VerifyAndPrintGraph(Graph* graph, const char* phase) {
+void Pipeline::VerifyAndPrintGraph(
+    Graph* graph, const char* phase, bool untyped) {
   if (FLAG_trace_turbo) {
     char buffer[256];
     Vector<char> filename(buffer, sizeof(buffer));
@@ -143,7 +144,10 @@ void Pipeline::VerifyAndPrintGraph(Graph* graph, const char* phase) {
     os << "-- " << phase << " graph printed to file " << filename.start()
        << "\n";
   }
-  if (VerifyGraphs()) Verifier::Run(graph);
+  if (VerifyGraphs()) {
+    Verifier::Run(graph,
+        FLAG_turbo_types && !untyped ? Verifier::TYPED : Verifier::UNTYPED);
+  }
 }
 
 
@@ -231,11 +235,11 @@ Handle<Code> Pipeline::GenerateCode() {
   // TODO(turbofan): there is no need to type anything during initial graph
   // construction.  This is currently only needed for the node cache, which the
   // typer could sweep over later.
-  Typer typer(zone());
+  Typer typer(&graph, info()->context());
   MachineOperatorBuilder machine;
   CommonOperatorBuilder common(zone());
   JSOperatorBuilder javascript(zone());
-  JSGraph jsgraph(&graph, &common, &javascript, &typer, &machine);
+  JSGraph jsgraph(&graph, &common, &javascript, &machine);
   Node* context_node;
   {
     PhaseStats graph_builder_stats(info(), PhaseStats::CREATE_GRAPH,
@@ -257,7 +261,7 @@ Handle<Code> Pipeline::GenerateCode() {
     graph_reducer.ReduceGraph();
   }
 
-  VerifyAndPrintGraph(&graph, "Initial untyped");
+  VerifyAndPrintGraph(&graph, "Initial untyped", true);
 
   if (info()->is_context_specializing()) {
     SourcePositionTable::Scope pos(&source_positions,
@@ -265,7 +269,7 @@ Handle<Code> Pipeline::GenerateCode() {
     // Specialize the code to the context as aggressively as possible.
     JSContextSpecializer spec(info(), &jsgraph, context_node);
     spec.SpecializeToContext();
-    VerifyAndPrintGraph(&graph, "Context specialized");
+    VerifyAndPrintGraph(&graph, "Context specialized", true);
   }
 
   if (info()->is_inlining_enabled()) {
@@ -273,7 +277,7 @@ Handle<Code> Pipeline::GenerateCode() {
                                    SourcePosition::Unknown());
     JSInliner inliner(info(), &jsgraph);
     inliner.Inline();
-    VerifyAndPrintGraph(&graph, "Inlined");
+    VerifyAndPrintGraph(&graph, "Inlined", true);
   }
 
   // Print a replay of the initial graph.
@@ -288,11 +292,9 @@ Handle<Code> Pipeline::GenerateCode() {
     {
       // Type the graph.
       PhaseStats typer_stats(info(), PhaseStats::CREATE_GRAPH, "typer");
-      typer.Run(&graph, info()->context());
+      typer.Run();
       VerifyAndPrintGraph(&graph, "Typed");
     }
-    // All new nodes must be typed.
-    typer.DecorateGraph(&graph);
     {
       // Lower JSOperators where we can determine types.
       PhaseStats lowering_stats(info(), PhaseStats::CREATE_GRAPH,
@@ -314,6 +316,12 @@ Handle<Code> Pipeline::GenerateCode() {
                                      SourcePosition::Unknown());
       SimplifiedLowering lowering(&jsgraph);
       lowering.LowerAllNodes();
+      ValueNumberingReducer vn_reducer(zone());
+      SimplifiedOperatorReducer simple_reducer(&jsgraph);
+      GraphReducer graph_reducer(&graph);
+      graph_reducer.AddReducer(&vn_reducer);
+      graph_reducer.AddReducer(&simple_reducer);
+      graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered simplified");
     }
@@ -336,7 +344,8 @@ Handle<Code> Pipeline::GenerateCode() {
       graph_reducer.AddReducer(&mach_reducer);
       graph_reducer.ReduceGraph();
 
-      VerifyAndPrintGraph(&graph, "Lowered changes");
+      // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
+      VerifyAndPrintGraph(&graph, "Lowered changes", true);
     }
   }
 
@@ -351,7 +360,8 @@ Handle<Code> Pipeline::GenerateCode() {
     graph_reducer.AddReducer(&lowering);
     graph_reducer.ReduceGraph();
 
-    VerifyAndPrintGraph(&graph, "Lowered generic");
+    // TODO(jarin, rossberg): Remove UNTYPED once machine typing works.
+    VerifyAndPrintGraph(&graph, "Lowered generic", true);
   }
 
   source_positions.RemoveDecorator();
@@ -396,7 +406,8 @@ Handle<Code> Pipeline::GenerateCodeForMachineGraph(Linkage* linkage,
                                                    Schedule* schedule) {
   CHECK(SupportedBackend());
   if (schedule == NULL) {
-    VerifyAndPrintGraph(graph, "Machine");
+    // TODO(rossberg): Should this really be untyped?
+    VerifyAndPrintGraph(graph, "Machine", true);
     schedule = ComputeSchedule(graph);
   }
   TraceSchedule(schedule);

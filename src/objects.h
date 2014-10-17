@@ -860,6 +860,7 @@ class ObjectVisitor;
 class LookupIterator;
 class StringStream;
 class TypeFeedbackVector;
+class WeakCell;
 // We cannot just say "class HeapType;" if it is created from a template... =8-?
 template<class> class TypeImpl;
 struct HeapTypeConfig;
@@ -4311,13 +4312,13 @@ class ScopeInfo : public FixedArray {
   };
 
   // Properties of scopes.
-  class ScopeTypeField:        public BitField<ScopeType,            0, 3> {};
-  class CallsEvalField:        public BitField<bool,                 3, 1> {};
-  class StrictModeField:       public BitField<StrictMode,           4, 1> {};
-  class FunctionVariableField: public BitField<FunctionVariableInfo, 5, 2> {};
-  class FunctionVariableMode:  public BitField<VariableMode,         7, 3> {};
-  class AsmModuleField : public BitField<bool, 10, 1> {};
-  class AsmFunctionField : public BitField<bool, 11, 1> {};
+  class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
+  class CallsEvalField : public BitField<bool, 4, 1> {};
+  class StrictModeField : public BitField<StrictMode, 5, 1> {};
+  class FunctionVariableField : public BitField<FunctionVariableInfo, 6, 2> {};
+  class FunctionVariableMode : public BitField<VariableMode, 8, 3> {};
+  class AsmModuleField : public BitField<bool, 11, 1> {};
+  class AsmFunctionField : public BitField<bool, 12, 1> {};
 
   // BitFields representing the encoded information for context locals in the
   // ContextLocalInfoEntries part.
@@ -6139,6 +6140,7 @@ class Map: public HeapObject {
   bool IsJSObjectMap() {
     return instance_type() >= FIRST_JS_OBJECT_TYPE;
   }
+  bool IsStringMap() { return instance_type() < FIRST_NONSTRING_TYPE; }
   bool IsJSProxyMap() {
     InstanceType type = instance_type();
     return FIRST_JS_PROXY_TYPE <= type && type <= LAST_JS_PROXY_TYPE;
@@ -6445,8 +6447,8 @@ class Script: public Struct {
   // [context_data]: context data for the context this script was compiled in.
   DECL_ACCESSORS(context_data, Object)
 
-  // [wrapper]: the wrapper cache.
-  DECL_ACCESSORS(wrapper, Foreign)
+  // [wrapper]: the wrapper cache.  This is either undefined or a WeakCell.
+  DECL_ACCESSORS(wrapper, HeapObject)
 
   // [type]: the script type.
   DECL_ACCESSORS(type, Smi)
@@ -6508,7 +6510,6 @@ class Script: public Struct {
 
   // Get the JS object wrapping the given script; create it if none exists.
   static Handle<JSObject> GetWrapper(Handle<Script> script);
-  void ClearWrapperCache();
 
   // Dispatched behavior.
   DECLARE_PRINTER(Script)
@@ -6560,6 +6561,7 @@ class Script: public Struct {
   V(Array.prototype, pop, ArrayPop)                 \
   V(Array.prototype, shift, ArrayShift)             \
   V(Function.prototype, apply, FunctionApply)       \
+  V(Function.prototype, call, FunctionCall)         \
   V(String.prototype, charCodeAt, StringCharCodeAt) \
   V(String.prototype, charAt, StringCharAt)         \
   V(String, fromCharCode, StringFromCharCode)       \

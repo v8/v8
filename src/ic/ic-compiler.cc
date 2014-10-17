@@ -96,6 +96,9 @@ Handle<Code> PropertyICCompiler::ComputeKeyedLoadMonomorphic(
   Handle<Code> stub;
   if (receiver_map->has_indexed_interceptor()) {
     stub = LoadIndexedInterceptorStub(isolate).GetCode();
+  } else if (receiver_map->IsStringMap()) {
+    // We have a string.
+    stub = LoadIndexedStringStub(isolate).GetCode();
   } else if (receiver_map->has_sloppy_arguments_elements()) {
     stub = KeyedLoadSloppyArgumentsStub(isolate).GetCode();
   } else if (receiver_map->has_fast_elements() ||

@@ -137,10 +137,7 @@ class FileByteSink : public SnapshotByteSink {
   virtual int Position() {
     return ftell(fp_);
   }
-  void WriteSpaceUsed(int new_space_used, int pointer_space_used,
-                      int data_space_used, int code_space_used,
-                      int map_space_used, int cell_space_used,
-                      int property_cell_space_used, int lo_space_used);
+  void WriteSpaceUsed(Serializer* serializer);
 
  private:
   FILE* fp_;
@@ -148,24 +145,37 @@ class FileByteSink : public SnapshotByteSink {
 };
 
 
-void FileByteSink::WriteSpaceUsed(int new_space_used, int pointer_space_used,
-                                  int data_space_used, int code_space_used,
-                                  int map_space_used, int cell_space_used,
-                                  int property_cell_space_used,
-                                  int lo_space_used) {
+void FileByteSink::WriteSpaceUsed(Serializer* ser) {
   int file_name_length = StrLength(file_name_) + 10;
   Vector<char> name = Vector<char>::New(file_name_length + 1);
   SNPrintF(name, "%s.size", file_name_);
   FILE* fp = v8::base::OS::FOpen(name.start(), "w");
   name.Dispose();
-  fprintf(fp, "new %d\n", new_space_used);
-  fprintf(fp, "pointer %d\n", pointer_space_used);
-  fprintf(fp, "data %d\n", data_space_used);
-  fprintf(fp, "code %d\n", code_space_used);
-  fprintf(fp, "map %d\n", map_space_used);
-  fprintf(fp, "cell %d\n", cell_space_used);
-  fprintf(fp, "property cell %d\n", property_cell_space_used);
-  fprintf(fp, "lo %d\n", lo_space_used);
+
+  Vector<const uint32_t> chunks = ser->FinalAllocationChunks(NEW_SPACE);
+  CHECK_EQ(1, chunks.length());
+  fprintf(fp, "new %d\n", chunks[0]);
+  chunks = ser->FinalAllocationChunks(OLD_POINTER_SPACE);
+  CHECK_EQ(1, chunks.length());
+  fprintf(fp, "pointer %d\n", chunks[0]);
+  chunks = ser->FinalAllocationChunks(OLD_DATA_SPACE);
+  CHECK_EQ(1, chunks.length());
+  fprintf(fp, "data %d\n", chunks[0]);
+  chunks = ser->FinalAllocationChunks(CODE_SPACE);
+  CHECK_EQ(1, chunks.length());
+  fprintf(fp, "code %d\n", chunks[0]);
+  chunks = ser->FinalAllocationChunks(MAP_SPACE);
+  CHECK_EQ(1, chunks.length());
+  fprintf(fp, "map %d\n", chunks[0]);
+  chunks = ser->FinalAllocationChunks(CELL_SPACE);
+  CHECK_EQ(1, chunks.length());
+  fprintf(fp, "cell %d\n", chunks[0]);
+  chunks = ser->FinalAllocationChunks(PROPERTY_CELL_SPACE);
+  CHECK_EQ(1, chunks.length());
+  fprintf(fp, "property cell %d\n", chunks[0]);
+  chunks = ser->FinalAllocationChunks(LO_SPACE);
+  CHECK_EQ(1, chunks.length());
+  fprintf(fp, "lo %d\n", chunks[0]);
   fclose(fp);
 }
 
@@ -174,15 +184,9 @@ static bool WriteToFile(Isolate* isolate, const char* snapshot_file) {
   FileByteSink file(snapshot_file);
   StartupSerializer ser(isolate, &file);
   ser.Serialize();
+  ser.FinalizeAllocation();
 
-  file.WriteSpaceUsed(ser.CurrentAllocationAddress(NEW_SPACE),
-                      ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
-                      ser.CurrentAllocationAddress(OLD_DATA_SPACE),
-                      ser.CurrentAllocationAddress(CODE_SPACE),
-                      ser.CurrentAllocationAddress(MAP_SPACE),
-                      ser.CurrentAllocationAddress(CELL_SPACE),
-                      ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
-                      ser.CurrentAllocationAddress(LO_SPACE));
+  file.WriteSpaceUsed(&ser);
 
   return true;
 }
@@ -258,14 +262,14 @@ static void ReserveSpaceForSnapshot(Deserializer* deserializer,
 #undef fscanf
 #endif
   fclose(fp);
-  deserializer->set_reservation(NEW_SPACE, new_size);
-  deserializer->set_reservation(OLD_POINTER_SPACE, pointer_size);
-  deserializer->set_reservation(OLD_DATA_SPACE, data_size);
-  deserializer->set_reservation(CODE_SPACE, code_size);
-  deserializer->set_reservation(MAP_SPACE, map_size);
-  deserializer->set_reservation(CELL_SPACE, cell_size);
-  deserializer->set_reservation(PROPERTY_CELL_SPACE, property_cell_size);
-  deserializer->set_reservation(LO_SPACE, lo_size);
+  deserializer->AddReservation(NEW_SPACE, new_size);
+  deserializer->AddReservation(OLD_POINTER_SPACE, pointer_size);
+  deserializer->AddReservation(OLD_DATA_SPACE, data_size);
+  deserializer->AddReservation(CODE_SPACE, code_size);
+  deserializer->AddReservation(MAP_SPACE, map_size);
+  deserializer->AddReservation(CELL_SPACE, cell_size);
+  deserializer->AddReservation(PROPERTY_CELL_SPACE, property_cell_size);
+  deserializer->AddReservation(LO_SPACE, lo_size);
 }
 
 
@@ -445,25 +449,12 @@ UNINITIALIZED_TEST(PartialSerialization) {
       p_ser.Serialize(&raw_foo);
       startup_serializer.SerializeWeakReferences();
 
-      partial_sink.WriteSpaceUsed(
-          p_ser.CurrentAllocationAddress(NEW_SPACE),
-          p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
-          p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
-          p_ser.CurrentAllocationAddress(CODE_SPACE),
-          p_ser.CurrentAllocationAddress(MAP_SPACE),
-          p_ser.CurrentAllocationAddress(CELL_SPACE),
-          p_ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
-          p_ser.CurrentAllocationAddress(LO_SPACE));
+      p_ser.FinalizeAllocation();
+      startup_serializer.FinalizeAllocation();
 
-      startup_sink.WriteSpaceUsed(
-          startup_serializer.CurrentAllocationAddress(NEW_SPACE),
-          startup_serializer.CurrentAllocationAddress(OLD_POINTER_SPACE),
-          startup_serializer.CurrentAllocationAddress(OLD_DATA_SPACE),
-          startup_serializer.CurrentAllocationAddress(CODE_SPACE),
-          startup_serializer.CurrentAllocationAddress(MAP_SPACE),
-          startup_serializer.CurrentAllocationAddress(CELL_SPACE),
-          startup_serializer.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
-          startup_serializer.CurrentAllocationAddress(LO_SPACE));
+      partial_sink.WriteSpaceUsed(&p_ser);
+
+      startup_sink.WriteSpaceUsed(&startup_serializer);
       startup_name.Dispose();
     }
     v8_isolate->Exit();
@@ -570,25 +561,12 @@ UNINITIALIZED_TEST(ContextSerialization) {
       p_ser.Serialize(&raw_context);
       startup_serializer.SerializeWeakReferences();
 
-      partial_sink.WriteSpaceUsed(
-          p_ser.CurrentAllocationAddress(NEW_SPACE),
-          p_ser.CurrentAllocationAddress(OLD_POINTER_SPACE),
-          p_ser.CurrentAllocationAddress(OLD_DATA_SPACE),
-          p_ser.CurrentAllocationAddress(CODE_SPACE),
-          p_ser.CurrentAllocationAddress(MAP_SPACE),
-          p_ser.CurrentAllocationAddress(CELL_SPACE),
-          p_ser.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
-          p_ser.CurrentAllocationAddress(LO_SPACE));
+      p_ser.FinalizeAllocation();
+      startup_serializer.FinalizeAllocation();
 
-      startup_sink.WriteSpaceUsed(
-          startup_serializer.CurrentAllocationAddress(NEW_SPACE),
-          startup_serializer.CurrentAllocationAddress(OLD_POINTER_SPACE),
-          startup_serializer.CurrentAllocationAddress(OLD_DATA_SPACE),
-          startup_serializer.CurrentAllocationAddress(CODE_SPACE),
-          startup_serializer.CurrentAllocationAddress(MAP_SPACE),
-          startup_serializer.CurrentAllocationAddress(CELL_SPACE),
-          startup_serializer.CurrentAllocationAddress(PROPERTY_CELL_SPACE),
-          startup_serializer.CurrentAllocationAddress(LO_SPACE));
+      partial_sink.WriteSpaceUsed(&p_ser);
+
+      startup_sink.WriteSpaceUsed(&startup_serializer);
       startup_name.Dispose();
     }
     v8_isolate->Dispose();
@@ -898,6 +876,79 @@ TEST(SerializeToplevelLargeString) {
 
   delete cache;
   source.Dispose();
+}
+
+
+TEST(SerializeToplevelThreeBigStrings) {
+  FLAG_serialize_toplevel = true;
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  Factory* f = isolate->factory();
+  isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  Vector<const uint8_t> source_a =
+      ConstructSource(STATIC_CHAR_VECTOR("var a = \""), STATIC_CHAR_VECTOR("a"),
+                      STATIC_CHAR_VECTOR("\";"), 700000);
+  Handle<String> source_a_str =
+      f->NewStringFromOneByte(source_a).ToHandleChecked();
+
+  Vector<const uint8_t> source_b =
+      ConstructSource(STATIC_CHAR_VECTOR("var b = \""), STATIC_CHAR_VECTOR("b"),
+                      STATIC_CHAR_VECTOR("\";"), 600000);
+  Handle<String> source_b_str =
+      f->NewStringFromOneByte(source_b).ToHandleChecked();
+
+  Vector<const uint8_t> source_c =
+      ConstructSource(STATIC_CHAR_VECTOR("var c = \""), STATIC_CHAR_VECTOR("c"),
+                      STATIC_CHAR_VECTOR("\";"), 500000);
+  Handle<String> source_c_str =
+      f->NewStringFromOneByte(source_c).ToHandleChecked();
+
+  Handle<String> source_str =
+      f->NewConsString(
+             f->NewConsString(source_a_str, source_b_str).ToHandleChecked(),
+             source_c_str).ToHandleChecked();
+
+  Handle<JSObject> global(isolate->context()->global_object());
+  ScriptData* cache = NULL;
+
+  Handle<SharedFunctionInfo> orig = Compiler::CompileScript(
+      source_str, Handle<String>(), 0, 0, false,
+      Handle<Context>(isolate->native_context()), NULL, &cache,
+      v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE);
+
+  Handle<SharedFunctionInfo> copy;
+  {
+    DisallowCompilation no_compile_expected(isolate);
+    copy = Compiler::CompileScript(
+        source_str, Handle<String>(), 0, 0, false,
+        Handle<Context>(isolate->native_context()), NULL, &cache,
+        v8::ScriptCompiler::kConsumeCodeCache, NOT_NATIVES_CODE);
+  }
+  CHECK_NE(*orig, *copy);
+
+  Handle<JSFunction> copy_fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          copy, isolate->native_context());
+
+  USE(Execution::Call(isolate, copy_fun, global, 0, NULL));
+
+  CHECK_EQ(600000 + 700000, CompileRun("(a + b).length")->Int32Value());
+  CHECK_EQ(500000 + 600000, CompileRun("(b + c).length")->Int32Value());
+  Heap* heap = isolate->heap();
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*CompileRun("a")->ToString()),
+                      OLD_DATA_SPACE));
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*CompileRun("b")->ToString()),
+                      OLD_DATA_SPACE));
+  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*CompileRun("c")->ToString()),
+                      OLD_DATA_SPACE));
+
+  delete cache;
+  source_a.Dispose();
+  source_b.Dispose();
+  source_c.Dispose();
 }
 
 

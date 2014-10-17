@@ -260,12 +260,14 @@ void TypeFeedbackOracle::PropertyReceiverTypes(TypeFeedbackId id,
 void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
     TypeFeedbackId id, SmallMapList* receiver_types, bool* is_string) {
   receiver_types->Clear();
-  *is_string = false;
-  if (LoadIsBuiltin(id, Builtins::kKeyedLoadIC_String)) {
-    *is_string = true;
-  } else {
-    CollectReceiverTypes(id, receiver_types);
+  CollectReceiverTypes(id, receiver_types);
+
+  // Are all the receiver maps string maps?
+  bool all_strings = receiver_types->length() > 0;
+  for (int i = 0; i < receiver_types->length(); i++) {
+    all_strings &= receiver_types->at(i)->IsStringMap();
   }
+  *is_string = all_strings;
 }
 
 

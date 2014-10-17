@@ -1009,7 +1009,16 @@ class Heap {
 
   // Support for partial snapshots.  After calling this we have a linear
   // space to write objects in each space.
-  void ReserveSpace(int* sizes, Address* addresses);
+  struct Chunk {
+    uint32_t size;
+    Address start;
+    Address end;
+  };
+
+  typedef List<Chunk> Reservation;
+
+  // Returns false if not able to reserve.
+  bool ReserveSpace(Reservation* reservations);
 
   //
   // Support for the API.

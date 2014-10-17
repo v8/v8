@@ -917,6 +917,122 @@ static int Utf8LengthHelper(const char* s) {
 }
 
 
+TEST(ScopeUsesThisAndArguments) {
+  static const struct {
+    const char* prefix;
+    const char* suffix;
+  } surroundings[] = {
+    { "function f() {", "}" },
+    { "var f = () => {", "}" },
+  };
+
+  static const struct {
+    const char* body;
+    bool uses_this;
+    bool uses_arguments;
+    bool inner_uses_this;
+    bool inner_uses_arguments;
+  } source_data[] = {
+    { "",
+      false, false, false, false },
+    { "return this",
+      true, false, false, false },
+    { "return arguments",
+      false, true, false, false },
+    { "return arguments[0]",
+      false, true, false, false },
+    { "return this + arguments[0]",
+      true, true, false, false },
+    { "return x => this + x",
+      false, false, true, false },
+    { "this.foo = 42;",
+      true, false, false, false },
+    { "this.foo();",
+      true, false, false, false },
+    { "if (foo()) { this.f() }",
+      true, false, false, false },
+    { "if (arguments.length) { this.f() }",
+      true, true, false, false },
+    { "while (true) { this.f() }",
+      true, false, false, false },
+    { "if (true) { while (true) this.foo(arguments) }",
+      true, true, false, false },
+    // Multiple nesting levels must work as well.
+    { "while (true) { while (true) { while (true) return this } }",
+      true, false, false, false },
+    { "if (1) { return () => { while (true) new this() } }",
+      false, false, true, false },
+    // Note that propagation of the inner_uses_this() value does not
+    // cross boundaries of normal functions onto parent scopes.
+    { "return function (x) { return this + x }",
+      false, false, false, false },
+    { "var x = function () { this.foo = 42 };",
+      false, false, false, false },
+    { "if (1) { return function () { while (true) new this() } }",
+      false, false, false, false },
+    { "return function (x) { return () => this }",
+      false, false, false, false },
+    // Flags must be correctly set when using block scoping.
+    { "\"use strict\"; while (true) { let x; this, arguments; }",
+      false, false, true, true },
+    { "\"use strict\"; if (foo()) { let x; this.f() }",
+      false, false, true, false },
+    { "\"use strict\"; if (1) {"
+      "  let x; return function () { return this + arguments }"
+      "}",
+      false, false, false, false },
+  };
+
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+
+  v8::HandleScope handles(CcTest::isolate());
+  v8::Handle<v8::Context> context = v8::Context::New(CcTest::isolate());
+  v8::Context::Scope context_scope(context);
+
+  isolate->stack_guard()->SetStackLimit(i::GetCurrentStackPosition() -
+                                        128 * 1024);
+
+  for (unsigned j = 0; j < arraysize(surroundings); ++j) {
+    for (unsigned i = 0; i < arraysize(source_data); ++i) {
+      int kProgramByteSize = i::StrLength(surroundings[j].prefix) +
+                             i::StrLength(surroundings[j].suffix) +
+                             i::StrLength(source_data[i].body);
+      i::ScopedVector<char> program(kProgramByteSize + 1);
+      i::SNPrintF(program, "%s%s%s", surroundings[j].prefix,
+                  source_data[i].body, surroundings[j].suffix);
+      i::Handle<i::String> source =
+          factory->NewStringFromUtf8(i::CStrVector(program.start()))
+              .ToHandleChecked();
+      i::Handle<i::Script> script = factory->NewScript(source);
+      i::CompilationInfoWithZone info(script);
+      i::Parser::ParseInfo parse_info = {isolate->stack_guard()->real_climit(),
+                                         isolate->heap()->HashSeed(),
+                                         isolate->unicode_cache()};
+      i::Parser parser(&info, &parse_info);
+      parser.set_allow_arrow_functions(true);
+      parser.set_allow_harmony_scoping(true);
+      info.MarkAsGlobal();
+      parser.Parse();
+      CHECK(i::Rewriter::Rewrite(&info));
+      CHECK(i::Scope::Analyze(&info));
+      CHECK(info.function() != NULL);
+
+      i::Scope* global_scope = info.function()->scope();
+      CHECK(global_scope->is_global_scope());
+      CHECK_EQ(1, global_scope->inner_scopes()->length());
+
+      i::Scope* scope = global_scope->inner_scopes()->at(0);
+      CHECK_EQ(source_data[i].uses_this, scope->uses_this());
+      CHECK_EQ(source_data[i].uses_arguments, scope->uses_arguments());
+      CHECK_EQ(source_data[i].inner_uses_this, scope->inner_uses_this());
+      CHECK_EQ(source_data[i].inner_uses_arguments,
+               scope->inner_uses_arguments());
+    }
+  }
+}
+
+
 TEST(ScopePositions) {
   v8::internal::FLAG_harmony_scoping = true;
 
@@ -974,11 +1090,10 @@ TEST(ScopePositions) {
       "    infunction;\n"
       "  }", "\n"
       "  more;", i::FUNCTION_SCOPE, i::SLOPPY },
-    // TODO(aperez): Change to use i::ARROW_SCOPE when implemented
     { "  start;\n", "(a,b) => a + b", "; more;",
-      i::FUNCTION_SCOPE, i::SLOPPY },
+      i::ARROW_SCOPE, i::SLOPPY },
     { "  start;\n", "(a,b) => { return a+b; }", "\nmore;",
-      i::FUNCTION_SCOPE, i::SLOPPY },
+      i::ARROW_SCOPE, i::SLOPPY },
     { "  start;\n"
       "  (function fun", "(a,b) { infunction; }", ")();",
       i::FUNCTION_SCOPE, i::SLOPPY },

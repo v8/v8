@@ -501,3 +501,11 @@ function TestRegistry() {
   assertSame("x3", Symbol.keyFor(symbol3))
 }
 TestRegistry()
+
+
+function TestGetOwnPropertySymbolsOnPrimitives() {
+  assertEquals(Object.getOwnPropertySymbols(true), []);
+  assertEquals(Object.getOwnPropertySymbols(5000), []);
+  assertEquals(Object.getOwnPropertySymbols("OK"), []);
+}
+TestGetOwnPropertySymbolsOnPrimitives();

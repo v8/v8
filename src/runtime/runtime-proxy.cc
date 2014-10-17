@@ -35,10 +35,10 @@ RUNTIME_FUNCTION(Runtime_CreateJSFunctionProxy) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_IsJSProxy) {
+RUNTIME_FUNCTION(RuntimeReference_IsJSProxy) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
+  CONVERT_ARG_CHECKED(Object, obj, 0);
   return isolate->heap()->ToBoolean(obj->IsJSProxy());
 }
 

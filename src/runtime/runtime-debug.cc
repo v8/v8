@@ -1132,7 +1132,8 @@ class ScopeIterator {
           context_ = Handle<Context>(context_->previous(), isolate_);
         }
       }
-      if (scope_info->scope_type() == FUNCTION_SCOPE) {
+      if (scope_info->scope_type() == FUNCTION_SCOPE ||
+          scope_info->scope_type() == ARROW_SCOPE) {
         nested_scope_chain_.Add(scope_info);
       }
     } else {
@@ -1142,7 +1143,8 @@ class ScopeIterator {
 
       // Check whether we are in global, eval or function code.
       Handle<ScopeInfo> scope_info(shared_info->scope_info());
-      if (scope_info->scope_type() != FUNCTION_SCOPE) {
+      if (scope_info->scope_type() != FUNCTION_SCOPE &&
+          scope_info->scope_type() != ARROW_SCOPE) {
         // Global or eval code.
         CompilationInfoWithZone info(script);
         if (scope_info->scope_type() == GLOBAL_SCOPE) {
@@ -1215,6 +1217,7 @@ class ScopeIterator {
       Handle<ScopeInfo> scope_info = nested_scope_chain_.last();
       switch (scope_info->scope_type()) {
         case FUNCTION_SCOPE:
+        case ARROW_SCOPE:
           DCHECK(context_->IsFunctionContext() || !scope_info->HasContext());
           return ScopeTypeLocal;
         case MODULE_SCOPE:

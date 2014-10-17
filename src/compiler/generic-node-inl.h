@@ -23,7 +23,8 @@ GenericNode<B, S>::GenericNode(GenericGraphBase* graph, int input_count)
       use_count_(0),
       first_use_(NULL),
       last_use_(NULL) {
-  inputs_.static_ = reinterpret_cast<Input*>(this + 1), AssignUniqueID(graph);
+  inputs_.static_ = reinterpret_cast<Input*>(this + 1);
+  AssignUniqueID(graph);
 }
 
 template <class B, class S>

@@ -6926,6 +6926,21 @@ DEFINE_ERROR(Error)
 #undef DEFINE_ERROR
 
 
+Local<StackTrace> Exception::GetStackTrace(Handle<Value> exception) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(*exception);
+  if (!obj->IsJSObject()) return Local<StackTrace>();
+  i::Handle<i::JSObject> js_obj = i::Handle<i::JSObject>::cast(obj);
+  i::Isolate* isolate = js_obj->GetIsolate();
+  ENTER_V8(isolate);
+  i::Handle<i::Name> key = isolate->factory()->detailed_stack_trace_symbol();
+  i::Handle<i::Object> property = i::JSObject::GetDataProperty(js_obj, key);
+  if (property->IsJSArray()) {
+    return Utils::StackTraceToLocal(i::Handle<i::JSArray>::cast(property));
+  }
+  return Local<StackTrace>();
+}
+
+
 // --- D e b u g   S u p p o r t ---
 
 bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {

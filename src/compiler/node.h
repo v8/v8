@@ -31,14 +31,13 @@ class NodeData {
     return static_cast<IrOpcode::Value>(op_->opcode());
   }
 
-  Bounds bounds() { return bounds_; }
-
  protected:
   const Operator* op_;
   Bounds bounds_;
-  explicit NodeData(Zone* zone) : bounds_(Bounds(Type::None(zone))) {}
+  explicit NodeData(Zone* zone) {}
 
   friend class NodeProperties;
+  Bounds bounds() { return bounds_; }
   void set_bounds(Bounds b) { bounds_ = b; }
 };
 

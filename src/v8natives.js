@@ -238,7 +238,7 @@ function ObjectValueOf() {
 
 // ECMA-262 - 15.2.4.5
 function ObjectHasOwnProperty(V) {
-  if (%IsJSProxy(this)) {
+  if (%_IsJSProxy(this)) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(V)) return false;
 
@@ -260,7 +260,7 @@ function ObjectIsPrototypeOf(V) {
 // ECMA-262 - 15.2.4.6
 function ObjectPropertyIsEnumerable(V) {
   var P = ToName(V);
-  if (%IsJSProxy(this)) {
+  if (%_IsJSProxy(this)) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(V)) return false;
 
@@ -326,7 +326,7 @@ function ObjectLookupSetter(name) {
 
 function ObjectKeys(obj) {
   obj = ToObject(obj);
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "keys", DerivedKeysTrap);
     return ToNameArray(names, "keys", false);
@@ -623,7 +623,7 @@ function CallTrap2(handler, name, defaultTrap, x, y) {
 // ES5 section 8.12.1.
 function GetOwnPropertyJS(obj, v) {
   var p = ToName(v);
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(v)) return UNDEFINED;
 
@@ -963,7 +963,7 @@ function DefineArrayProperty(obj, p, desc, should_throw) {
 
 // ES5 section 8.12.9, ES5 section 15.4.5.1 and Harmony proxies.
 function DefineOwnProperty(obj, p, desc, should_throw) {
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     // TODO(rossberg): adjust once there is a story for symbols vs proxies.
     if (IS_SYMBOL(p)) return false;
 
@@ -1107,11 +1107,9 @@ function ObjectGetOwnPropertyKeys(obj, symbolsOnly) {
 
 // ES5 section 15.2.3.4.
 function ObjectGetOwnPropertyNames(obj) {
-  if (!IS_SPEC_OBJECT(obj)) {
-    throw MakeTypeError("called_on_non_object", ["Object.getOwnPropertyNames"]);
-  }
+  obj = ToObject(obj);
   // Special handling for proxies.
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     var handler = %GetHandler(obj);
     var names = CallTrap0(handler, "getOwnPropertyNames", UNDEFINED);
     return ToNameArray(names, "getOwnPropertyNames", false);
@@ -1139,7 +1137,7 @@ function ObjectDefineProperty(obj, p, attributes) {
     throw MakeTypeError("called_on_non_object", ["Object.defineProperty"]);
   }
   var name = ToName(p);
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     // Clone the attributes object for protection.
     // TODO(rossberg): not spec'ed yet, so not sure if this should involve
     // non-own properties as it does (or non-enumerable ones, as it doesn't?).
@@ -1248,7 +1246,7 @@ function ObjectSeal(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.seal"]);
   }
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     ProxyFix(obj);
   }
   var names = ObjectGetOwnPropertyNames(obj);
@@ -1270,7 +1268,7 @@ function ObjectFreezeJS(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.freeze"]);
   }
-  var isProxy = %IsJSProxy(obj);
+  var isProxy = %_IsJSProxy(obj);
   if (isProxy || %HasSloppyArgumentsElements(obj) || %IsObserved(obj)) {
     if (isProxy) {
       ProxyFix(obj);
@@ -1300,7 +1298,7 @@ function ObjectPreventExtension(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.preventExtension"]);
   }
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     ProxyFix(obj);
   }
   %PreventExtensions(obj);
@@ -1313,7 +1311,7 @@ function ObjectIsSealed(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.isSealed"]);
   }
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     return false;
   }
   if (%IsExtensible(obj)) {
@@ -1336,7 +1334,7 @@ function ObjectIsFrozen(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.isFrozen"]);
   }
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     return false;
   }
   if (%IsExtensible(obj)) {
@@ -1358,20 +1356,16 @@ function ObjectIsExtensible(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("called_on_non_object", ["Object.isExtensible"]);
   }
-  if (%IsJSProxy(obj)) {
+  if (%_IsJSProxy(obj)) {
     return true;
   }
   return %IsExtensible(obj);
 }
 
 
-// Harmony egal.
+// ECMA-262, Edition 6, section 19.1.2.10
 function ObjectIs(obj1, obj2) {
-  if (obj1 === obj2) {
-    return (obj1 !== 0) || (1 / obj1 === 1 / obj2);
-  } else {
-    return (obj1 !== obj1) && (obj2 !== obj2);
-  }
+  return SameValue(obj1, obj2);
 }
 
 

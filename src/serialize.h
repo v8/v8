@@ -152,6 +152,11 @@ class SerializerDeserializer: public ObjectVisitor {
   static const int kNumberOfPreallocatedSpaces = LO_SPACE;
   static const int kNumberOfSpaces = INVALID_SPACE;
 
+  // To encode object for back-references.
+  class OffsetBits : public BitField<uint32_t, 0, kPageSizeBits> {};
+  class ChunkIndexBits
+      : public BitField<uint32_t, kPageSizeBits, 32 - kPageSizeBits> {};
+
  protected:
   // Where the pointed-to object can be found:
   enum Where {
@@ -248,13 +253,19 @@ class Deserializer: public SerializerDeserializer {
   // Deserialize the snapshot into an empty heap.
   void Deserialize(Isolate* isolate);
 
-  // Deserialize a single object and the objects reachable from it.
-  void DeserializePartial(Isolate* isolate, Object** root);
+  enum OnOOM { FATAL_ON_OOM, NULL_ON_OOM };
 
-  void set_reservation(int space_number, int reservation) {
-    DCHECK(space_number >= 0);
-    DCHECK(space_number < kNumberOfSpaces);
-    reservations_[space_number] = reservation;
+  // Deserialize a single object and the objects reachable from it.
+  // We may want to abort gracefully even if deserialization fails.
+  void DeserializePartial(Isolate* isolate, Object** root,
+                          OnOOM on_oom = FATAL_ON_OOM);
+
+  void AddReservation(int space, uint32_t chunk) {
+    DCHECK(space >= 0);
+    DCHECK(space < kNumberOfSpaces);
+    DCHECK(space == LO_SPACE ||
+           chunk < static_cast<uint32_t>(Page::kMaxRegularHeapObjectSize));
+    reservations_[space].Add({chunk, NULL, NULL});
   }
 
   void FlushICacheForNewCodeObjects();
@@ -274,6 +285,8 @@ class Deserializer: public SerializerDeserializer {
     UNREACHABLE();
   }
 
+  bool ReserveSpace();
+
   // Allocation sites are present in the snapshot, and must be linked into
   // a list at deserialization time.
   void RelinkAllocationSite(AllocationSite* site);
@@ -283,8 +296,8 @@ class Deserializer: public SerializerDeserializer {
   // of the object we are writing into, or NULL if we are not writing into an
   // object, i.e. if we are writing a series of tagged values that are not on
   // the heap.
-  void ReadChunk(
-      Object** start, Object** end, int space, Address object_address);
+  void ReadData(Object** start, Object** end, int space,
+                Address object_address);
   void ReadObject(int space_number, Object** write_back);
   Address Allocate(int space_index, int size);
 
@@ -293,13 +306,20 @@ class Deserializer: public SerializerDeserializer {
   Object* ProcessBackRefInSerializedCode(Object* obj);
 
   // This returns the address of an object that has been described in the
-  // snapshot as being offset bytes back in a particular space.
-  HeapObject* GetAddressFromEnd(int space) {
-    int offset = source_->GetInt();
-    if (space == LO_SPACE) return deserialized_large_objects_[offset];
-    DCHECK(space < kNumberOfPreallocatedSpaces);
-    offset <<= kObjectAlignmentBits;
-    return HeapObject::FromAddress(high_water_[space] - offset);
+  // snapshot by chunk index and offset.
+  HeapObject* GetBackReferencedObject(int space) {
+    if (space == LO_SPACE) {
+      uint32_t index = source_->GetInt();
+      return deserialized_large_objects_[index];
+    } else {
+      uint32_t allocation = source_->GetInt() << kObjectAlignmentBits;
+      DCHECK(space < kNumberOfPreallocatedSpaces);
+      uint32_t chunk_index = ChunkIndexBits::decode(allocation);
+      uint32_t offset = OffsetBits::decode(allocation);
+      DCHECK_LE(chunk_index, current_chunk_[space]);
+      return HeapObject::FromAddress(reservations_[space][chunk_index].start +
+                                     offset);
+    }
   }
 
   // Cached current isolate.
@@ -309,12 +329,13 @@ class Deserializer: public SerializerDeserializer {
   Vector<Handle<Object> >* attached_objects_;
 
   SnapshotByteSource* source_;
-  // This is the address of the next object that will be allocated in each
-  // space.  It is used to calculate the addresses of back-references.
+  // The address of the next object that will be allocated in each space.
+  // Each space has a number of chunks reserved by the GC, with each chunk
+  // fitting into a page. Deserialized objects are allocated into the
+  // current chunk of the target space by bumping up high water mark.
+  Heap::Reservation reservations_[kNumberOfSpaces];
+  uint32_t current_chunk_[kNumberOfPreallocatedSpaces];
   Address high_water_[kNumberOfPreallocatedSpaces];
-
-  int reservations_[kNumberOfSpaces];
-  static const intptr_t kUninitializedReservation = -1;
 
   ExternalReferenceDecoder* external_reference_decoder_;
 
@@ -380,11 +401,13 @@ class Serializer : public SerializerDeserializer {
   Serializer(Isolate* isolate, SnapshotByteSink* sink);
   ~Serializer();
   void VisitPointers(Object** start, Object** end);
-  // You can call this after serialization to find out how much space was used
-  // in each space.
-  int CurrentAllocationAddress(int space) const {
-    DCHECK(space < kNumberOfSpaces);
-    return fullness_[space];
+
+  void FinalizeAllocation();
+
+  Vector<const uint32_t> FinalAllocationChunks(int space) const {
+    DCHECK_EQ(1, completed_chunks_[LO_SPACE].length());  // Already finalized.
+    DCHECK_EQ(0, pending_chunk_[space]);                 // No pending chunks.
+    return completed_chunks_[space].ToConstVector();
   }
 
   Isolate* isolate() const { return isolate_; }
@@ -470,8 +493,8 @@ class Serializer : public SerializerDeserializer {
   void InitializeAllocators();
   // This will return the space for an object.
   static int SpaceOfObject(HeapObject* object);
-  int AllocateLargeObject(int size);
-  int Allocate(int space, int size);
+  uint32_t AllocateLargeObject(int size);
+  uint32_t Allocate(int space, int size);
   int EncodeExternalReference(Address addr) {
     return external_reference_encoder_->Encode(addr);
   }
@@ -483,9 +506,14 @@ class Serializer : public SerializerDeserializer {
   bool ShouldBeSkipped(Object** current);
 
   Isolate* isolate_;
-  // Keep track of the fullness of each space in order to generate
-  // relative addresses for back references.
-  int fullness_[kNumberOfSpaces];
+
+  // Objects from the same space are put into chunks for bulk-allocation
+  // when deserializing. We have to make sure that each chunk fits into a
+  // page. So we track the chunk size in pending_chunk_ of a space, but
+  // when it exceeds a page, we complete the current chunk and start a new one.
+  uint32_t pending_chunk_[kNumberOfSpaces];
+  List<uint32_t> completed_chunks_[kNumberOfSpaces];
+
   SnapshotByteSink* sink_;
   ExternalReferenceEncoder* external_reference_encoder_;
 
@@ -503,7 +531,7 @@ class Serializer : public SerializerDeserializer {
  private:
   CodeAddressMap* code_address_map_;
   // We map serialized large objects to indexes for back-referencing.
-  int seen_large_objects_index_;
+  uint32_t seen_large_objects_index_;
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
@@ -585,9 +613,8 @@ class CodeSerializer : public Serializer {
                                Handle<SharedFunctionInfo> info,
                                Handle<String> source);
 
-  static Handle<SharedFunctionInfo> Deserialize(Isolate* isolate,
-                                                ScriptData* data,
-                                                Handle<String> source);
+  MUST_USE_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
+      Isolate* isolate, ScriptData* data, Handle<String> source);
 
   static const int kSourceObjectIndex = 0;
   static const int kCodeStubsBaseIndex = 1;
@@ -654,15 +681,35 @@ class SerializedCodeData {
     return result;
   }
 
+  class Reservation {
+   public:
+    uint32_t chunk_size() const { return ChunkSizeBits::decode(reservation); }
+    bool is_last_chunk() const { return IsLastChunkBits::decode(reservation); }
+
+   private:
+    uint32_t reservation;
+
+    DISALLOW_COPY_AND_ASSIGN(Reservation);
+  };
+
+  Vector<const Reservation> Reservations() const {
+    return Vector<const Reservation>(reinterpret_cast<const Reservation*>(
+                                         script_data_->data() + kHeaderSize),
+                                     GetHeaderValue(kReservationsOffset));
+  }
+
   Vector<const uint32_t> CodeStubKeys() const {
-    return Vector<const uint32_t>(
-        reinterpret_cast<const uint32_t*>(script_data_->data() + kHeaderSize),
-        GetHeaderValue(kNumCodeStubKeysOffset));
+    int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
+    const byte* start = script_data_->data() + kHeaderSize + reservations_size;
+    return Vector<const uint32_t>(reinterpret_cast<const uint32_t*>(start),
+                                  GetHeaderValue(kNumCodeStubKeysOffset));
   }
 
   const byte* Payload() const {
+    int reservations_size = GetHeaderValue(kReservationsOffset) * kInt32Size;
     int code_stubs_size = GetHeaderValue(kNumCodeStubKeysOffset) * kInt32Size;
-    return script_data_->data() + kHeaderSize + code_stubs_size;
+    return script_data_->data() + kHeaderSize + reservations_size +
+           code_stubs_size;
   }
 
   int PayloadLength() const {
@@ -670,10 +717,6 @@ class SerializedCodeData {
     DCHECK_EQ(script_data_->data() + script_data_->length(),
               Payload() + payload_length);
     return payload_length;
-  }
-
-  int GetReservation(int space) const {
-    return GetHeaderValue(kReservationsOffset + space);
   }
 
  private:
@@ -696,13 +739,13 @@ class SerializedCodeData {
   // [2] payload length
   // [3..9] reservation sizes for spaces from NEW_SPACE to PROPERTY_CELL_SPACE.
   static const int kCheckSumOffset = 0;
-  static const int kNumCodeStubKeysOffset = 1;
-  static const int kPayloadLengthOffset = 2;
-  static const int kReservationsOffset = 3;
+  static const int kReservationsOffset = 1;
+  static const int kNumCodeStubKeysOffset = 2;
+  static const int kPayloadLengthOffset = 3;
+  static const int kHeaderSize = (kPayloadLengthOffset + 1) * kIntSize;
 
-  static const int kHeaderEntries =
-      kReservationsOffset + SerializerDeserializer::kNumberOfSpaces;
-  static const int kHeaderSize = kHeaderEntries * kIntSize;
+  class ChunkSizeBits : public BitField<uint32_t, 0, 31> {};
+  class IsLastChunkBits : public BitField<bool, 31, 1> {};
 
   // Following the header, we store, in sequential order
   // - code stub keys

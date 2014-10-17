@@ -26,7 +26,7 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
  public:
   TyperTester()
       : GraphAndBuilders(main_zone()),
-        typer_(main_zone()),
+        typer_(graph(), MaybeHandle<Context>()),
         javascript_(main_zone()) {
     Node* s = graph()->NewNode(common()->Start(3));
     graph()->SetStart(s);
@@ -79,7 +79,6 @@ class TyperTester : public HandleAndZoneScope, public GraphAndBuilders {
     NodeProperties::SetBounds(p1, Bounds(rhs));
     Node* n = graph()->NewNode(
         op, p0, p1, context_node_, graph()->start(), graph()->start());
-    typer_.Init(n);
     return NodeProperties::GetBounds(n).upper;
   }
 

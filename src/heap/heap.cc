@@ -28,6 +28,7 @@
 #include "src/natives.h"
 #include "src/runtime-profiler.h"
 #include "src/scopeinfo.h"
+#include "src/serialize.h"
 #include "src/snapshot.h"
 #include "src/utils.h"
 #include "src/v8threads.h"
@@ -919,33 +920,41 @@ static bool AbortIncrementalMarkingAndCollectGarbage(
 }
 
 
-void Heap::ReserveSpace(int* sizes, Address* locations_out) {
+bool Heap::ReserveSpace(Reservation* reservations) {
   bool gc_performed = true;
   int counter = 0;
   static const int kThreshold = 20;
   while (gc_performed && counter++ < kThreshold) {
     gc_performed = false;
     for (int space = NEW_SPACE; space < Serializer::kNumberOfSpaces; space++) {
-      if (sizes[space] == 0) continue;
+      Reservation* reservation = &reservations[space];
+      DCHECK_LE(1, reservation->length());
+      if (reservation->at(0).size == 0) continue;
       bool perform_gc = false;
       if (space == LO_SPACE) {
-        perform_gc = !lo_space()->CanAllocateSize(sizes[space]);
+        DCHECK_EQ(1, reservation->length());
+        perform_gc = !lo_space()->CanAllocateSize(reservation->at(0).size);
       } else {
-        AllocationResult allocation;
-        if (space == NEW_SPACE) {
-          allocation = new_space()->AllocateRaw(sizes[space]);
-        } else {
-          allocation = paged_space(space)->AllocateRaw(sizes[space]);
-        }
-        FreeListNode* node;
-        if (allocation.To(&node)) {
-          // Mark with a free list node, in case we have a GC before
-          // deserializing.
-          node->set_size(this, sizes[space]);
-          DCHECK(space < Serializer::kNumberOfPreallocatedSpaces);
-          locations_out[space] = node->address();
-        } else {
-          perform_gc = true;
+        for (auto& chunk : *reservation) {
+          AllocationResult allocation;
+          int size = chunk.size;
+          if (space == NEW_SPACE) {
+            allocation = new_space()->AllocateRaw(size);
+          } else {
+            allocation = paged_space(space)->AllocateRaw(size);
+          }
+          FreeListNode* node;
+          if (allocation.To(&node)) {
+            // Mark with a free list node, in case we have a GC before
+            // deserializing.
+            node->set_size(this, size);
+            DCHECK(space < Serializer::kNumberOfPreallocatedSpaces);
+            chunk.start = node->address();
+            chunk.end = node->address() + size;
+          } else {
+            perform_gc = true;
+            break;
+          }
         }
       }
       if (perform_gc) {
@@ -963,10 +972,7 @@ void Heap::ReserveSpace(int* sizes, Address* locations_out) {
     }
   }
 
-  if (gc_performed) {
-    // Failed to reserve the space after several attempts.
-    V8::FatalProcessOutOfMemory("Heap::ReserveSpace");
-  }
+  return !gc_performed;
 }
 
 
@@ -3710,12 +3716,14 @@ AllocationResult Heap::AllocateJSObject(JSFunction* constructor,
 
 
 AllocationResult Heap::CopyJSObject(JSObject* source, AllocationSite* site) {
-  // Never used to copy functions.  If functions need to be copied we
-  // have to be careful to clear the literals array.
-  SLOW_DCHECK(!source->IsJSFunction());
-
   // Make the clone.
   Map* map = source->map();
+
+  // We can only clone normal objects or arrays. Copying anything else
+  // will break invariants.
+  CHECK(map->instance_type() == JS_OBJECT_TYPE ||
+        map->instance_type() == JS_ARRAY_TYPE);
+
   int object_size = map->instance_size();
   HeapObject* clone;
 

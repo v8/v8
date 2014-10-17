@@ -21,14 +21,20 @@ namespace compiler {
 Graph::Graph(Zone* zone) : GenericGraph<Node>(zone), decorators_(zone) {}
 
 
-Node* Graph::NewNode(const Operator* op, int input_count, Node** inputs) {
+void Graph::Decorate(Node* node) {
+  for (ZoneVector<GraphDecorator*>::iterator i = decorators_.begin();
+       i != decorators_.end(); ++i) {
+    (*i)->Decorate(node);
+  }
+}
+
+
+Node* Graph::NewNode(
+    const Operator* op, int input_count, Node** inputs, bool incomplete) {
   DCHECK_LE(op->InputCount(), input_count);
   Node* result = Node::New(this, input_count, inputs);
   result->Initialize(op);
-  for (ZoneVector<GraphDecorator*>::iterator i = decorators_.begin();
-       i != decorators_.end(); ++i) {
-    (*i)->Decorate(result);
-  }
+  if (!incomplete) Decorate(result);
   return result;
 }
 

@@ -299,7 +299,7 @@ void GraphVisualizer::AnnotateNode(Node* node) {
   }
   os_ << "}";
 
-  if (FLAG_trace_turbo_types && !NodeProperties::IsControl(node)) {
+  if (FLAG_trace_turbo_types && NodeProperties::IsTyped(node)) {
     Bounds bounds = NodeProperties::GetBounds(node);
     std::ostringstream upper;
     bounds.upper->PrintTo(upper);
@@ -541,11 +541,13 @@ void GraphC1Visualizer::PrintInputs(Node* node) {
 
 
 void GraphC1Visualizer::PrintType(Node* node) {
-  Bounds bounds = NodeProperties::GetBounds(node);
-  os_ << " type:";
-  bounds.upper->PrintTo(os_);
-  os_ << "..";
-  bounds.lower->PrintTo(os_);
+  if (NodeProperties::IsTyped(node)) {
+    Bounds bounds = NodeProperties::GetBounds(node);
+    os_ << " type:";
+    bounds.upper->PrintTo(os_);
+    os_ << "..";
+    bounds.lower->PrintTo(os_);
+  }
 }
 
 

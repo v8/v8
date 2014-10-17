@@ -167,7 +167,7 @@ Node* StructuredGraphBuilder::NewPhi(int count, Node* input, Node* control) {
   Node** buffer = local_zone()->NewArray<Node*>(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
-  return graph()->NewNode(phi_op, count + 1, buffer);
+  return graph()->NewNode(phi_op, count + 1, buffer, true);
 }
 
 
@@ -178,7 +178,7 @@ Node* StructuredGraphBuilder::NewEffectPhi(int count, Node* input,
   Node** buffer = local_zone()->NewArray<Node*>(count + 1);
   MemsetPointer(buffer, input, count);
   buffer[count] = control;
-  return graph()->NewNode(phi_op, count + 1, buffer);
+  return graph()->NewNode(phi_op, count + 1, buffer, true);
 }
 
 

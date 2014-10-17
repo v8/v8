@@ -291,7 +291,6 @@ namespace internal {
   /* Harmony proxies */                                \
   F(CreateJSProxy, 2, 1)                               \
   F(CreateJSFunctionProxy, 4, 1)                       \
-  F(IsJSProxy, 1, 1)                                   \
   F(IsJSFunctionProxy, 1, 1)                           \
   F(GetHandler, 1, 1)                                  \
   F(GetCallTrap, 1, 1)                                 \
@@ -352,6 +351,7 @@ namespace internal {
   F(ArrayBufferIsView, 1, 1)                           \
   F(ArrayBufferNeuter, 1, 1)                           \
                                                        \
+  F(IsTypedArray, 1, 1)                                \
   F(TypedArrayInitializeFromArrayLike, 4, 1)           \
   F(TypedArrayGetBuffer, 1, 1)                         \
   F(TypedArraySetFastCases, 3, 1)                      \
@@ -668,6 +668,7 @@ namespace internal {
   F(IsNonNegativeSmi, 1, 1)                                 \
   F(IsArray, 1, 1)                                          \
   F(IsRegExp, 1, 1)                                         \
+  F(IsJSProxy, 1, 1)                                        \
   F(IsConstructCall, 0, 1)                                  \
   F(CallFunction, -1 /* receiver + n args + function */, 1) \
   F(ArgumentsLength, 0, 1)                                  \

@@ -2086,6 +2086,7 @@ bool Genesis::InstallExperimentalNatives() {
     INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
+    INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-typedarray.js")
     INSTALL_EXPERIMENTAL_NATIVE(i, classes, "harmony-classes.js")
   }
 

@@ -1,3 +1,18 @@
+2014-10-17: Version 3.30.12
+
+        Implement .forEach() on typed arrays (issue 3578).
+
+        Introduce v8::Exception::GetStackTrace API method.
+
+        Remove SmartMove, bringing Array methods further into spec compliance
+        (issue 2615).
+
+        Convert argument toObject() in Object.getOwnPropertyNames/Descriptors
+        (issue 3443).
+
+        Performance and stability improvements on all platforms.
+
+
 2014-10-15: Version 3.30.11
 
         Array.prototype.{every, filter, find, findIndex, forEach, map, some}:

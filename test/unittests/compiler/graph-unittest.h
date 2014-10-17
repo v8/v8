@@ -8,6 +8,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/typer.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -61,6 +62,20 @@ class GraphTest : public TestWithContext, public TestWithZone {
  private:
   CommonOperatorBuilder common_;
   Graph graph_;
+};
+
+
+class TypedGraphTest : public GraphTest {
+ public:
+  explicit TypedGraphTest(int parameters = 1)
+      : GraphTest(parameters),
+        typer_(graph(), MaybeHandle<Context>()) {}
+
+ protected:
+  Typer* typer() { return &typer_; }
+
+ private:
+  Typer typer_;
 };
 
 

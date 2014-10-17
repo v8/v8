@@ -58,7 +58,8 @@ class Pipeline {
                                     const SourcePositionTable* positions,
                                     const InstructionSequence* instructions);
   void PrintAllocator(const char* phase, const RegisterAllocator* allocator);
-  void VerifyAndPrintGraph(Graph* graph, const char* phase);
+  void VerifyAndPrintGraph(Graph* graph, const char* phase,
+                           bool untyped = false);
   Handle<Code> GenerateCode(Linkage* linkage, Graph* graph, Schedule* schedule,
                             SourcePositionTable* source_positions);
 };

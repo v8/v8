@@ -410,8 +410,7 @@ void JSInliner::TryInlineCall(Node* call_node) {
   }
 
   Graph graph(info.zone());
-  Typer typer(info.zone());
-  JSGraph jsgraph(&graph, jsgraph_->common(), jsgraph_->javascript(), &typer,
+  JSGraph jsgraph(&graph, jsgraph_->common(), jsgraph_->javascript(),
                   jsgraph_->machine());
 
   AstGraphBuilder graph_builder(&info, &jsgraph);

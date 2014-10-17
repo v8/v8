@@ -247,6 +247,7 @@ TypeImpl<Config>::BitsetType::Lub(i::Map* map) {
     case SHARED_FUNCTION_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
+    case BYTE_ARRAY_TYPE:
     case FOREIGN_TYPE:
     case CODE_TYPE:
       return kInternal & kTaggedPtr;
@@ -436,6 +437,7 @@ bool TypeImpl<Config>::SlowIs(TypeImpl* that) {
             Contains(that->AsRange(), *this->AsConstant()->Value()));
   }
   if (this->IsRange()) return false;
+
   return this->SimplyEquals(that);
 }
 

@@ -3117,6 +3117,32 @@ void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) {
 }
 
 
+void FullCodeGenerator::EmitIsJSProxy(CallRuntime* expr) {
+  ZoneList<Expression*>* args = expr->arguments();
+  DCHECK(args->length() == 1);
+
+  VisitForAccumulatorValue(args->at(0));
+
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false, &if_true,
+                         &if_false, &fall_through);
+
+  __ JumpIfSmi(x0, if_false);
+  Register map = x10;
+  Register type_reg = x11;
+  __ Ldr(map, FieldMemOperand(x0, HeapObject::kMapOffset));
+  __ Ldrb(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ Sub(type_reg, type_reg, Operand(FIRST_JS_PROXY_TYPE));
+  __ Cmp(type_reg, Operand(LAST_JS_PROXY_TYPE - FIRST_JS_PROXY_TYPE));
+  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
+  Split(ls, if_true, if_false, fall_through);
+
+  context()->Plug(if_true, if_false);
+}
+
 
 void FullCodeGenerator::EmitIsConstructCall(CallRuntime* expr) {
   DCHECK(expr->arguments()->length() == 0);

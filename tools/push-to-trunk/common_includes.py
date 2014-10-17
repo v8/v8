@@ -370,6 +370,7 @@ class GitTagsOnlyMixin(VCInterface):
 
   def Fetch(self):
     self.step.Git("fetch")
+    self.step.GitSVNFetch()
 
   def GetTags(self):
      return self.step.Git("tag").strip().splitlines()

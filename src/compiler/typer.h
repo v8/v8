@@ -17,23 +17,27 @@ namespace compiler {
 
 class Typer {
  public:
-  explicit Typer(Zone* zone);
+  explicit Typer(Graph* graph, MaybeHandle<Context> context);
+  ~Typer();
 
-  void Init(Node* node);
-  void Run(Graph* graph, MaybeHandle<Context> context);
-  void Narrow(Graph* graph, Node* node, MaybeHandle<Context> context);
-  void Widen(Graph* graph, Node* node, MaybeHandle<Context> context);
+  void Run();
+  void Narrow(Node* node);
 
-  void DecorateGraph(Graph* graph);
-
-  Zone* zone() { return zone_; }
-  Isolate* isolate() { return zone_->isolate(); }
+  Graph* graph() { return graph_; }
+  MaybeHandle<Context> context() { return context_; }
+  Zone* zone() { return graph_->zone(); }
+  Isolate* isolate() { return zone()->isolate(); }
 
  private:
   class Visitor;
   class RunVisitor;
   class NarrowVisitor;
   class WidenVisitor;
+  class Decorator;
+
+  Graph* graph_;
+  MaybeHandle<Context> context_;
+  Decorator* decorator_;
 
   Zone* zone_;
   Type* negative_signed32;
@@ -52,6 +56,7 @@ class Typer {
   Type* number_fun2_;
   Type* weakint_fun1_;
   Type* imul_fun_;
+  Type* clz32_fun_;
   Type* random_fun_;
   Type* array_buffer_fun_;
   Type* int8_array_fun_;

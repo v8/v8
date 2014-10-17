@@ -726,7 +726,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kWord32Shr:
         // We output unsigned int32 for shift right because JavaScript.
-        return VisitBinop(node, kRepWord32, kRepWord32 | kTypeUint32);
+        return VisitBinop(node, kMachUint32, kMachUint32);
       case IrOpcode::kWord32And:
       case IrOpcode::kWord32Or:
       case IrOpcode::kWord32Xor:

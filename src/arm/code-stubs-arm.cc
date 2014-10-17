@@ -1441,7 +1441,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ b(ne, &slow);
 
   // Null is not instance of anything.
-  __ cmp(scratch, Operand(isolate()->factory()->null_value()));
+  __ cmp(object, Operand(isolate()->factory()->null_value()));
   __ b(ne, &object_not_null);
   if (ReturnTrueFalseObject()) {
     __ Move(r0, factory->false_value());
@@ -1500,6 +1500,34 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
   __ bind(&miss);
   PropertyAccessCompiler::TailCallBuiltin(
       masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
+}
+
+
+void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
+  // Return address is in lr.
+  Label miss;
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register index = LoadDescriptor::NameRegister();
+  Register scratch = r3;
+  Register result = r0;
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
+
+  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &miss,  // When index out of range.
+                                          STRING_INDEX_IS_ARRAY_INDEX,
+                                          RECEIVER_IS_STRING);
+  char_at_generator.GenerateFast(masm);
+  __ Ret();
+
+  StubRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&miss);
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
 }
 
 
@@ -2759,14 +2787,16 @@ void CallICStub::GenerateMiss(MacroAssembler* masm) {
 // StringCharCodeAtGenerator
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // If the receiver is a smi trigger the non-string case.
-  __ JumpIfSmi(object_, receiver_not_string_);
+  if (check_mode_ == RECEIVER_IS_UNKNOWN) {
+    __ JumpIfSmi(object_, receiver_not_string_);
 
-  // Fetch the instance type of the receiver into result register.
-  __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
-  __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
-  // If the receiver is not a string trigger the non-string case.
-  __ tst(result_, Operand(kIsNotStringMask));
-  __ b(ne, receiver_not_string_);
+    // Fetch the instance type of the receiver into result register.
+    __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
+    __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
+    // If the receiver is not a string trigger the non-string case.
+    __ tst(result_, Operand(kIsNotStringMask));
+    __ b(ne, receiver_not_string_);
+  }
 
   // If the index is non-smi trigger the non-smi case.
   __ JumpIfNotSmi(index_, &index_not_smi_);

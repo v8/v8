@@ -10,7 +10,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties-inl.h"
 #include "src/compiler/pipeline.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/simplified-lowering.h"
 #include "src/compiler/verifier.h"
 #include "src/execution.h"
 #include "src/globals.h"
@@ -31,13 +31,10 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
  public:
   explicit ChangesLoweringTester(MachineType p0 = kMachNone)
       : GraphBuilderTester<ReturnType>(p0),
-        typer(this->zone()),
         javascript(this->zone()),
-        jsgraph(this->graph(), this->common(), &javascript, &typer,
-                this->machine()),
+        jsgraph(this->graph(), this->common(), &javascript, this->machine()),
         function(Handle<JSFunction>::null()) {}
 
-  Typer typer;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
   Handle<JSFunction> function;
@@ -133,7 +130,7 @@ class ChangesLoweringTester : public GraphBuilderTester<ReturnType> {
     GraphReducer reducer(this->graph());
     reducer.AddReducer(&lowering);
     reducer.ReduceNode(change);
-    Verifier::Run(this->graph());
+    Verifier::Run(this->graph(), Verifier::UNTYPED);
   }
 
   Factory* factory() { return this->isolate()->factory(); }

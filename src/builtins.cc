@@ -1279,11 +1279,6 @@ static void Generate_KeyedLoadIC_Generic(MacroAssembler* masm) {
 }
 
 
-static void Generate_KeyedLoadIC_String(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateString(masm);
-}
-
-
 static void Generate_KeyedLoadIC_PreMonomorphic(MacroAssembler* masm) {
   KeyedLoadIC::GeneratePreMonomorphic(masm);
 }

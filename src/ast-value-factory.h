@@ -88,6 +88,8 @@ class AstRawString : public AstString {
     return *c;
   }
 
+  V8_INLINE bool IsArguments(AstValueFactory* ast_value_factory) const;
+
   // For storing AstRawStrings in a hash map.
   uint32_t hash() const {
     return hash_;
@@ -340,6 +342,10 @@ class AstValueFactory {
 #undef F
 };
 
+
+bool AstRawString::IsArguments(AstValueFactory* ast_value_factory) const {
+  return ast_value_factory->arguments_string() == this;
+}
 } }  // namespace v8::internal
 
 #undef STRING_CONSTANTS

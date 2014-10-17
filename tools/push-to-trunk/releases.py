@@ -140,13 +140,18 @@ class RetrieveV8Releases(Step):
     return patches
 
   def GetReleaseDict(
-      self, git_hash, bleeding_edge_rev, branch, version, patches, cl_body):
+      self, git_hash, bleeding_edge_rev, bleeding_edge_git, branch, version,
+      patches, cl_body):
     revision = self.vc.GitSvn(git_hash)
     return {
       # The SVN revision on the branch.
       "revision": revision,
+      # The git revision on the branch.
+      "revision_git": git_hash,
       # The SVN revision on bleeding edge (only for newer trunk pushes).
       "bleeding_edge": bleeding_edge_rev,
+      # The same for git.
+      "bleeding_edge_git": bleeding_edge_git,
       # The branch name.
       "branch": branch,
       # The version for displaying in the form 3.26.3 or 3.26.3.12.
@@ -179,8 +184,13 @@ class RetrieveV8Releases(Step):
       patches = self.GetMergedPatches(body)
 
     title = self.GitLog(n=1, format="%s", git_hash=git_hash)
+    bleeding_edge_revision = self.GetBleedingEdgeFromPush(title)
+    bleeding_edge_git = ""
+    if bleeding_edge_revision:
+      bleeding_edge_git = self.vc.SvnGit(bleeding_edge_revision,
+                                         self.vc.RemoteMasterBranch())
     return self.GetReleaseDict(
-        git_hash, self.GetBleedingEdgeFromPush(title), branch, version,
+        git_hash, bleeding_edge_revision, bleeding_edge_git, branch, version,
         patches, body), self["patch"]
 
   def GetReleasesFromMaster(self):
@@ -192,7 +202,7 @@ class RetrieveV8Releases(Step):
       # Add bleeding edge release. It does not contain patches or a code
       # review link, as tags are not uploaded.
       releases.append(self.GetReleaseDict(
-        git_hash, revision, self.vc.MasterBranch(), tag, "", ""))
+        git_hash, revision, git_hash, self.vc.MasterBranch(), tag, "", ""))
     return releases
 
   def GetReleasesFromBranch(self, branch):

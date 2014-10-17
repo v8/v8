@@ -24,12 +24,10 @@ class Typer;
 class JSGraph : public ZoneObject {
  public:
   JSGraph(Graph* graph, CommonOperatorBuilder* common,
-          JSOperatorBuilder* javascript, Typer* typer,
-          MachineOperatorBuilder* machine)
+          JSOperatorBuilder* javascript, MachineOperatorBuilder* machine)
       : graph_(graph),
         common_(common),
         javascript_(javascript),
-        typer_(typer),
         machine_(machine),
         cache_(zone()) {}
 
@@ -105,13 +103,15 @@ class JSGraph : public ZoneObject {
   Zone* zone() { return graph()->zone(); }
   Isolate* isolate() { return zone()->isolate(); }
 
+  void GetCachedNodes(NodeVector* nodes);
+
  private:
   Graph* graph_;
   CommonOperatorBuilder* common_;
   JSOperatorBuilder* javascript_;
-  Typer* typer_;
   MachineOperatorBuilder* machine_;
 
+  // TODO(titzer): make this into a simple array.
   SetOncePointer<Node> c_entry_stub_constant_;
   SetOncePointer<Node> undefined_constant_;
   SetOncePointer<Node> the_hole_constant_;
@@ -126,7 +126,6 @@ class JSGraph : public ZoneObject {
 
   Node* ImmovableHeapConstant(Handle<HeapObject> value);
   Node* NumberConstant(double value);
-  Node* NewNode(const Operator* op);
 
   Factory* factory() { return isolate()->factory(); }
 };

@@ -587,32 +587,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-void KeyedLoadIC::GenerateString(MacroAssembler* masm) {
-  // Return address is in lr.
-  Label miss;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register index = LoadDescriptor::NameRegister();
-  Register scratch = r3;
-  Register result = r0;
-  DCHECK(!scratch.is(receiver) && !scratch.is(index));
-
-  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
-                                          &miss,  // When not a string.
-                                          &miss,  // When not a number.
-                                          &miss,  // When index out of range.
-                                          STRING_INDEX_IS_ARRAY_INDEX);
-  char_at_generator.GenerateFast(masm);
-  __ Ret();
-
-  StubRuntimeCallHelper call_helper;
-  char_at_generator.GenerateSlow(masm, call_helper);
-
-  __ bind(&miss);
-  GenerateMiss(masm);
-}
-
-
 void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   // Push receiver, key and value for runtime call.
   __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),

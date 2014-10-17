@@ -691,6 +691,37 @@ void LoadIndexedInterceptorStub::Generate(MacroAssembler* masm) {
 }
 
 
+void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
+  // Return address is on the stack.
+  Label miss;
+
+  Register receiver = LoadDescriptor::ReceiverRegister();
+  Register index = LoadDescriptor::NameRegister();
+  Register scratch = ebx;
+  DCHECK(!scratch.is(receiver) && !scratch.is(index));
+  Register result = eax;
+  DCHECK(!result.is(scratch));
+
+  // TODO(mvstanton): the generator doesn't need to verify that
+  // receiver is a string map, that is done outside the handler.
+  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
+                                          &miss,  // When not a string.
+                                          &miss,  // When not a number.
+                                          &miss,  // When index out of range.
+                                          STRING_INDEX_IS_ARRAY_INDEX,
+                                          RECEIVER_IS_STRING);
+  char_at_generator.GenerateFast(masm);
+  __ ret(0);
+
+  StubRuntimeCallHelper call_helper;
+  char_at_generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&miss);
+  PropertyAccessCompiler::TailCallBuiltin(
+      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
+}
+
+
 void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // The key is in edx and the parameter count is in eax.
   DCHECK(edx.is(ArgumentsAccessReadDescriptor::index()));
@@ -2747,14 +2778,16 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // If the receiver is a smi trigger the non-string case.
   STATIC_ASSERT(kSmiTag == 0);
-  __ JumpIfSmi(object_, receiver_not_string_);
+  if (check_mode_ == RECEIVER_IS_UNKNOWN) {
+    __ JumpIfSmi(object_, receiver_not_string_);
 
-  // Fetch the instance type of the receiver into result register.
-  __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
-  __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
-  // If the receiver is not a string trigger the non-string case.
-  __ test(result_, Immediate(kIsNotStringMask));
-  __ j(not_zero, receiver_not_string_);
+    // Fetch the instance type of the receiver into result register.
+    __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
+    __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
+    // If the receiver is not a string trigger the non-string case.
+    __ test(result_, Immediate(kIsNotStringMask));
+    __ j(not_zero, receiver_not_string_);
+  }
 
   // If the index is non-smi trigger the non-smi case.
   STATIC_ASSERT(kSmiTag == 0);
