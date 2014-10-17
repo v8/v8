@@ -3049,6 +3049,15 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         EmitKeyedCallWithLoadIC(expr, property->key());
       }
     }
+  } else if (call_type == Call::SUPER_CALL) {
+    SuperReference* super_ref = callee->AsSuperReference();
+    DCHECK(super_ref != NULL);
+    __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    __ Push(a0);
+    __ CallRuntime(Runtime::kGetPrototype, 1);
+    __ Push(result_register());
+    VisitForStackValue(super_ref->this_var());
+    EmitCall(expr, CallICState::METHOD);
   } else {
     DCHECK(call_type == Call::OTHER_CALL);
     // Call to an arbitrary expression not handled specially above.
