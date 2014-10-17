@@ -4093,6 +4093,7 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax) {
 
   Store(ExternalReference(Isolate::kCEntryFPAddress, isolate()), rbp);
   Store(ExternalReference(Isolate::kContextAddress, isolate()), rsi);
+  Store(ExternalReference(Isolate::kCFunctionAddress, isolate()), rbx);
 }
 
 

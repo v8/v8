@@ -169,6 +169,7 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                \
   C(Handler, handler)                                   \
   C(CEntryFP, c_entry_fp)                               \
+  C(CFunction, c_function)                              \
   C(Context, context)                                   \
   C(PendingException, pending_exception)                \
   C(ExternalCaughtException, external_caught_exception) \
@@ -288,6 +289,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Stack.
   Address c_entry_fp_;  // the frame pointer of the top c entry frame
   Address handler_;   // try-blocks are chained through the stack
+  Address c_function_;  // C function that was called at c entry.
 
   // Throwing an exception may cause a Promise rejection.  For this purpose
   // we keep track of a stack of nested promises and the corresponding
@@ -652,11 +654,15 @@ class Isolate {
     return thread->c_entry_fp_;
   }
   static Address handler(ThreadLocalTop* thread) { return thread->handler_; }
+  Address c_function() { return thread_local_top_.c_function_; }
 
   inline Address* c_entry_fp_address() {
     return &thread_local_top_.c_entry_fp_;
   }
   inline Address* handler_address() { return &thread_local_top_.handler_; }
+  inline Address* c_function_address() {
+    return &thread_local_top_.c_function_;
+  }
 
   // Bottom JS entry.
   Address js_entry_sp() {

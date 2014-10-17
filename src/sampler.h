@@ -25,6 +25,11 @@ class Isolate;
 
 // TickSample captures the information collected for each sample.
 struct TickSample {
+  // Internal profiling (with --prof + tools/$OS-tick-processor) wants to
+  // include the runtime function we're calling. Externally exposed tick
+  // samples don't care.
+  enum RecordCEntryFrame { kIncludeCEntryFrame, kSkipCEntryFrame };
+
   TickSample()
       : state(OTHER),
         pc(NULL),
@@ -32,8 +37,10 @@ struct TickSample {
         frames_count(0),
         has_external_callback(false),
         top_frame_type(StackFrame::NONE) {}
-  void Init(Isolate* isolate, const v8::RegisterState& state);
+  void Init(Isolate* isolate, const v8::RegisterState& state,
+            RecordCEntryFrame record_c_entry_frame);
   static void GetStackSample(Isolate* isolate, const v8::RegisterState& state,
+                             RecordCEntryFrame record_c_entry_frame,
                              void** frames, size_t frames_limit,
                              v8::SampleInfo* sample_info);
   StateTag state;  // The state of the VM.

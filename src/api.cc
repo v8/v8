@@ -6657,8 +6657,8 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
 void Isolate::GetStackSample(const RegisterState& state, void** frames,
                              size_t frames_limit, SampleInfo* sample_info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::TickSample::GetStackSample(isolate, state, frames, frames_limit,
-                                sample_info);
+  i::TickSample::GetStackSample(isolate, state, i::TickSample::kSkipCEntryFrame,
+                                frames, frames_limit, sample_info);
 }
 
 
