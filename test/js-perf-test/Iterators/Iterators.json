@@ -1,0 +1,11 @@
+{
+  "path": ["."],
+  "main": "run.js",
+  "run_count": 5,
+  "units": "score",
+  "results_regexp": "^%s\\-Iterators\\(Score\\): (.+)$",
+  "total": true,
+  "tests": [
+    {"name": "ForOf"}
+  ]
+}
