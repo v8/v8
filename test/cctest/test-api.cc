@@ -20325,7 +20325,7 @@ TEST(PersistentHandleVisitor) {
   CHECK_EQ(42, object.WrapperClassId());
 
   Visitor42 visitor(&object);
-  v8::V8::VisitHandlesWithClassIds(&visitor);
+  v8::V8::VisitHandlesWithClassIds(isolate, &visitor);
   CHECK_EQ(1, visitor.counter_);
 
   object.Reset();

@@ -5296,6 +5296,13 @@ class V8_EXPORT V8 {
   static void VisitHandlesWithClassIds(PersistentHandleVisitor* visitor);
 
   /**
+   * Iterates through all the persistent handles in isolate's heap that have
+   * class_ids.
+   */
+  static void VisitHandlesWithClassIds(
+      Isolate* isolate, PersistentHandleVisitor* visitor);
+
+  /**
    * Iterates through all the persistent handles in the current isolate's heap
    * that have class_ids and are candidates to be marked as partially dependent
    * handles. This will visit handles to young objects created since the last

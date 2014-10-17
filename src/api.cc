@@ -5115,6 +5115,16 @@ class VisitorAdapter : public i::ObjectVisitor {
 };
 
 
+void v8::V8::VisitHandlesWithClassIds(v8::Isolate* exported_isolate,
+    PersistentHandleVisitor* visitor) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(exported_isolate);
+  i::DisallowHeapAllocation no_allocation;
+
+  VisitorAdapter visitor_adapter(visitor);
+  isolate->global_handles()->IterateAllRootsWithClassIds(&visitor_adapter);
+}
+
+
 void v8::V8::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
   i::Isolate* isolate = i::Isolate::Current();
   i::DisallowHeapAllocation no_allocation;
