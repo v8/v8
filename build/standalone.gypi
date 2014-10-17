@@ -136,6 +136,9 @@
     'configurations': {
       'DebugBaseCommon': {
         'cflags': [ '-g', '-O0' ],
+        'defines': [
+          '_GLIBCXX_DEBUG'
+        ],
       },
       'Optdebug': {
         'inherit_from': [ 'DebugBaseCommon', 'DebugBase2' ],
