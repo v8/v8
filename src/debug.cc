@@ -1561,14 +1561,14 @@ Handle<Object> Debug::GetSourceBreakLocations(
       BreakPointInfo* break_point_info =
           BreakPointInfo::cast(debug_info->break_points()->get(i));
       if (break_point_info->GetBreakPointCount() > 0) {
-        Smi* position;
+        Smi* position = NULL;
         switch (position_alignment) {
-        case STATEMENT_ALIGNED:
-          position = break_point_info->statement_position();
-          break;
-        case BREAK_POSITION_ALIGNED:
-          position = break_point_info->source_position();
-          break;
+          case STATEMENT_ALIGNED:
+            position = break_point_info->statement_position();
+            break;
+          case BREAK_POSITION_ALIGNED:
+            position = break_point_info->source_position();
+            break;
         }
 
         locations->set(count++, position);
