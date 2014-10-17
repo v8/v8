@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 
-load('base.js');
+load('../base.js');
 load('forof.js');
 
 

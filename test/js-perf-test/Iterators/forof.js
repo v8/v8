@@ -3,12 +3,18 @@
 // found in the LICENSE file.
 
 new BenchmarkSuite('ForOf', [1000], [
-  new Benchmark('ArrayValues', false, false, 0, ForOf, ForOfArraySetup, ForOfTearDown),
-  new Benchmark('ArrayKeys', false, false, 0, ForOf, ForOfArrayKeysSetup, ForOfTearDown),
-  new Benchmark('ArrayEntries', false, false, 0, ForOf, ForOfArrayEntriesSetup, ForOfTearDown),
-  new Benchmark('Uint8Array', false, false, 0, ForOf, ForOfUint8ArraySetup, ForOfTearDown),
-  new Benchmark('Float64Array', false, false, 0, ForOf, ForOfFloat64ArraySetup, ForOfTearDown),
-  new Benchmark('String', false, false, 0, ForOf, ForOfStringSetup, ForOfTearDown),
+  new Benchmark('ArrayValues', false, false, 0,
+                ForOf, ForOfArraySetup, ForOfTearDown),
+  new Benchmark('ArrayKeys', false, false, 0,
+                ForOf, ForOfArrayKeysSetup, ForOfTearDown),
+  new Benchmark('ArrayEntries', false, false, 0,
+                ForOf, ForOfArrayEntriesSetup, ForOfTearDown),
+  new Benchmark('Uint8Array', false, false, 0,
+                ForOf, ForOfUint8ArraySetup, ForOfTearDown),
+  new Benchmark('Float64Array', false, false, 0,
+                ForOf, ForOfFloat64ArraySetup, ForOfTearDown),
+  new Benchmark('String', false, false, 0,
+                ForOf, ForOfStringSetup, ForOfTearDown),
 ]);
 
 
