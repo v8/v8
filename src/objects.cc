@@ -2986,10 +2986,6 @@ MaybeHandle<Object> Object::AddDataProperty(LookupIterator* it,
   // instead. If the prototype is Null, the proxy is detached.
   if (receiver->IsJSGlobalProxy()) return value;
 
-  // If the receiver is Indexed Exotic object (currently only typed arrays),
-  // disallow adding properties with numeric names.
-  if (it->IsSpecialNumericIndex()) return value;
-
   // Possibly migrate to the most up-to-date map that will be able to store
   // |value| under it->name() with |attributes|.
   it->PrepareTransitionToDataProperty(value, attributes, store_mode);
