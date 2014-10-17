@@ -301,9 +301,13 @@ Handle<Code> Pipeline::GenerateCode() {
                                 "typed lowering");
       SourcePositionTable::Scope pos(&source_positions,
                                      SourcePosition::Unknown());
+      ValueNumberingReducer vn_reducer(zone());
       JSTypedLowering lowering(&jsgraph);
+      SimplifiedOperatorReducer simple_reducer(&jsgraph);
       GraphReducer graph_reducer(&graph);
+      graph_reducer.AddReducer(&vn_reducer);
       graph_reducer.AddReducer(&lowering);
+      graph_reducer.AddReducer(&simple_reducer);
       graph_reducer.ReduceGraph();
 
       VerifyAndPrintGraph(&graph, "Lowered typed");

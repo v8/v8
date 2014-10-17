@@ -6,6 +6,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/simplified-operator-reducer.h"
 #include "src/conversions.h"
+#include "src/types.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
@@ -473,6 +474,64 @@ TEST_F(SimplifiedOperatorReducerTest, ChangeUint32ToTagged) {
                                 Int32Constant(bit_cast<int32_t>(n))));
     ASSERT_TRUE(reduction.Changed());
     EXPECT_THAT(reduction.replacement(), IsNumberConstant(FastUI2D(n)));
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// LoadElement
+
+
+TEST_F(SimplifiedOperatorReducerTest, LoadElementWithConstantKeyAndLength) {
+  ElementAccess const access = {kTypedArrayBoundsCheck, kUntaggedBase, 0,
+                                Type::Any(), kMachAnyTagged};
+  ElementAccess access_nocheck = access;
+  access_nocheck.bounds_check = kNoBoundsCheck;
+  Node* const base = Parameter(0);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FOREACH(double, key, kFloat64Values) {
+    TRACED_FOREACH(int32_t, length, kInt32Values) {
+      if (key < length) {
+        Reduction r = Reduce(graph()->NewNode(
+            simplified()->LoadElement(access), base, NumberConstant(key),
+            Int32Constant(length), effect, control));
+        ASSERT_TRUE(r.Changed());
+        EXPECT_THAT(r.replacement(),
+                    IsLoadElement(access_nocheck, base, IsNumberConstant(key),
+                                  IsInt32Constant(length), effect, control));
+      }
+    }
+  }
+}
+
+
+// -----------------------------------------------------------------------------
+// StoreElement
+
+
+TEST_F(SimplifiedOperatorReducerTest, StoreElementWithConstantKeyAndLength) {
+  ElementAccess const access = {kTypedArrayBoundsCheck, kUntaggedBase, 0,
+                                Type::Any(), kMachAnyTagged};
+  ElementAccess access_nocheck = access;
+  access_nocheck.bounds_check = kNoBoundsCheck;
+  Node* const base = Parameter(0);
+  Node* const value = Parameter(1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  TRACED_FOREACH(int32_t, key, kInt32Values) {
+    TRACED_FOREACH(double, length, kFloat64Values) {
+      if (key < length) {
+        Reduction r = Reduce(graph()->NewNode(
+            simplified()->StoreElement(access), base, Int32Constant(key),
+            NumberConstant(length), value, effect, control));
+        ASSERT_TRUE(r.Changed());
+        EXPECT_THAT(
+            r.replacement(),
+            IsStoreElement(access_nocheck, base, IsInt32Constant(key),
+                           IsNumberConstant(length), value, effect, control));
+      }
+    }
   }
 }
 
