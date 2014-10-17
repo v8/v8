@@ -1066,10 +1066,15 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (opcode == 0x50) {
         AppendToBuffer("movmskpd %s,", NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
+      } else if (opcode == 0x72) {
+        current += 1;
+        AppendToBuffer("%s,%s,%d", (regop == 6) ? "pslld" : "psrld",
+                       NameOfXMMRegister(rm), *current & 0x7f);
+        current += 1;
       } else if (opcode == 0x73) {
         current += 1;
-        DCHECK(regop == 6);
-        AppendToBuffer("psllq,%s,%d", NameOfXMMRegister(rm), *current & 0x7f);
+        AppendToBuffer("%s,%s,%d", (regop == 6) ? "psllq" : "psrlq",
+                       NameOfXMMRegister(rm), *current & 0x7f);
         current += 1;
       } else {
         const char* mnemonic = "?";

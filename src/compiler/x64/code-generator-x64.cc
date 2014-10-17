@@ -896,22 +896,22 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else if (src.type() == Constant::kFloat32) {
       // TODO(turbofan): Can we do better here?
-      __ movl(kScratchRegister, Immediate(bit_cast<int32_t>(src.ToFloat32())));
+      uint32_t src_const = bit_cast<uint32_t>(src.ToFloat32());
       if (destination->IsDoubleRegister()) {
-        XMMRegister dst = g.ToDoubleRegister(destination);
-        __ movq(dst, kScratchRegister);
+        __ Move(g.ToDoubleRegister(destination), src_const);
       } else {
         DCHECK(destination->IsDoubleStackSlot());
         Operand dst = g.ToOperand(destination);
-        __ movl(dst, kScratchRegister);
+        __ movl(dst, Immediate(src_const));
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
-      __ movq(kScratchRegister, bit_cast<int64_t>(src.ToFloat64()));
+      uint64_t src_const = bit_cast<uint64_t>(src.ToFloat64());
       if (destination->IsDoubleRegister()) {
-        __ movq(g.ToDoubleRegister(destination), kScratchRegister);
+        __ Move(g.ToDoubleRegister(destination), src_const);
       } else {
         DCHECK(destination->IsDoubleStackSlot());
+        __ movq(kScratchRegister, src_const);
         __ movq(g.ToOperand(destination), kScratchRegister);
       }
     }
