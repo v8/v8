@@ -445,7 +445,7 @@ DEFINE_BOOL(trace_stub_failures, false,
             "trace deoptimization of generated code stubs")
 
 DEFINE_BOOL(serialize_toplevel, false, "enable caching of toplevel scripts")
-DEFINE_BOOL(trace_code_serializer, false, "trace code serializer")
+DEFINE_INT(serializer_trace_level, 0, "trace code serializer (0 .. 2)")
 
 // compiler.cc
 DEFINE_INT(min_preparse_length, 1024,

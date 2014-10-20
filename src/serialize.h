@@ -637,9 +637,11 @@ class CodeSerializer : public Serializer {
   virtual void SerializeObject(Object* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip);
 
-  void SerializeBuiltin(Code* builtin, HowToCode how_to_code,
+  void SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                         WhereToPoint where_to_point);
-  void SerializeCodeStub(Code* stub, HowToCode how_to_code,
+  void SerializeIC(Code* ic, HowToCode how_to_code,
+                   WhereToPoint where_to_point);
+  void SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
                          WhereToPoint where_to_point);
   void SerializeSourceObject(HowToCode how_to_code,
                              WhereToPoint where_to_point);
