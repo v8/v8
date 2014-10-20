@@ -2236,11 +2236,6 @@ class JSObject: public JSReceiver {
                                 Handle<Map> new_map,
                                 int expected_additional_properties);
 
-  static void GeneralizeFieldRepresentation(Handle<JSObject> object,
-                                            int modify_index,
-                                            Representation new_representation,
-                                            Handle<HeapType> new_field_type);
-
   static void UpdateAllocationSite(Handle<JSObject> object,
                                    ElementsKind to_kind);
 

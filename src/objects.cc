@@ -2161,17 +2161,6 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 }
 
 
-void JSObject::GeneralizeFieldRepresentation(Handle<JSObject> object,
-                                             int modify_index,
-                                             Representation new_representation,
-                                             Handle<HeapType> new_field_type) {
-  Handle<Map> new_map = Map::GeneralizeRepresentation(
-      handle(object->map()), modify_index, new_representation, new_field_type,
-      FORCE_FIELD);
-  MigrateToMap(object, new_map);
-}
-
-
 int Map::NumberOfFields() {
   DescriptorArray* descriptors = instance_descriptors();
   int result = 0;
