@@ -317,11 +317,16 @@
 ['arch == arm64 and mode == debug and simulator_run == True', {
 
   # Pass but take too long with the simulator in debug mode.
+  'array-iterate-backwards': [PASS, TIMEOUT],
   'array-sort': [PASS, TIMEOUT],
   'packed-elements': [SKIP],
   'regexp-global': [SKIP],
   'compiler/alloc-numbers': [SKIP],
   'harmony/symbols': [SKIP],
+  'math-floor-of-div': [PASS, TIMEOUT],
+  'math-floor-of-div-nosudiv': [PASS, TIMEOUT],
+  'unicodelctest': [PASS, TIMEOUT],
+  'unicodelctest-no-optimization': [PASS, TIMEOUT],
   # Issue 3219:
   'getters-on-elements': [PASS, ['gc_stress == True', FAIL]],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
