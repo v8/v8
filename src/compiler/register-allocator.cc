@@ -533,7 +533,7 @@ BitVector* RegisterAllocator::ComputeLiveOut(const InstructionBlock* block) {
   for (auto succ : block->successors()) {
     // Add values live on entry to the successor. Note the successor's
     // live_in will not be computed yet for backwards edges.
-    BitVector* live_in = live_in_sets_[succ.ToSize()];
+    BitVector* live_in = live_in_sets_[static_cast<int>(succ.ToSize())];
     if (live_in != NULL) live_out->Union(*live_in);
 
     // All phi input operands corresponding to this successor edge are live
