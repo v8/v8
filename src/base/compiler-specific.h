@@ -37,8 +37,6 @@
 #define FINAL final
 #elif V8_HAS___FINAL
 #define FINAL __final
-#elif V8_HAS_SEALED
-#define FINAL sealed
 #else
 #define FINAL /* NOT SUPPORTED */
 #endif

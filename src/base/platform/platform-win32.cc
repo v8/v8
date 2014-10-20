@@ -15,9 +15,7 @@
 #endif  // MINGW_HAS_SECURE_API
 #endif  // __MINGW32__
 
-#ifdef _MSC_VER
 #include <limits>
-#endif
 
 #include "src/base/win32-headers.h"
 
@@ -27,16 +25,6 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/utils/random-number-generator.h"
-
-#ifdef _MSC_VER
-
-// Case-insensitive bounded string comparisons. Use stricmp() on Win32. Usually
-// defined in strings.h.
-int strncasecmp(const char* s1, const char* s2, int n) {
-  return _strnicmp(s1, s2, n);
-}
-
-#endif  // _MSC_VER
 
 
 // Extra functions for MinGW. Most of these are the _s functions which are in
@@ -832,7 +820,7 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
-#ifdef _MSC_VER
+#if V8_CC_MSVC
   // To avoid Visual Studio runtime support the following code can be used
   // instead
   // __asm { int 3 }
@@ -1175,11 +1163,7 @@ void OS::SignalCodeMovingGC() { }
 
 
 double OS::nan_value() {
-#ifdef _MSC_VER
   return std::numeric_limits<double>::quiet_NaN();
-#else  // _MSC_VER
-  return NAN;
-#endif  // _MSC_VER
 }
 
 

@@ -156,7 +156,7 @@ T Abs(T a) {
 
 // Floor(-0.0) == 0.0
 inline double Floor(double x) {
-#ifdef _MSC_VER
+#if V8_CC_MSVC
   if (x == 0) return x;  // Fix for issue 3477.
 #endif
   return std::floor(x);
