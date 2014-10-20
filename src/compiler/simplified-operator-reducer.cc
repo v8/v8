@@ -106,7 +106,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
         NumericValueMatcher mlength(node->InputAt(2));
         if (mkey.HasValue() && mlength.HasValue()) {
           // Skip the typed array bounds check if key and length are constant.
-          if (mkey.Value() < mlength.Value()) {
+          if (mkey.Value() >= 0 && mkey.Value() < mlength.Value()) {
             access.bounds_check = kNoBoundsCheck;
             node->set_op(simplified()->LoadElement(access));
             return Changed(node);
@@ -122,7 +122,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
         NumericValueMatcher mlength(node->InputAt(2));
         if (mkey.HasValue() && mlength.HasValue()) {
           // Skip the typed array bounds check if key and length are constant.
-          if (mkey.Value() < mlength.Value()) {
+          if (mkey.Value() >= 0 && mkey.Value() < mlength.Value()) {
             access.bounds_check = kNoBoundsCheck;
             node->set_op(simplified()->StoreElement(access));
             return Changed(node);
