@@ -330,10 +330,10 @@ static BasicBlock::RpoNumber GetLoopEndRpo(const BasicBlock* block) {
 
 
 InstructionBlock::InstructionBlock(Zone* zone, const BasicBlock* block)
-    : successors_(block->SuccessorCount(), BasicBlock::RpoNumber::Invalid(),
-                  zone),
-      predecessors_(block->PredecessorCount(), BasicBlock::RpoNumber::Invalid(),
-                    zone),
+    : successors_(static_cast<int>(block->SuccessorCount()),
+                  BasicBlock::RpoNumber::Invalid(), zone),
+      predecessors_(static_cast<int>(block->PredecessorCount()),
+                    BasicBlock::RpoNumber::Invalid(), zone),
       phis_(zone),
       rpo_number_(block->GetRpoNumber()),
       loop_header_(GetRpo(block->loop_header())),
