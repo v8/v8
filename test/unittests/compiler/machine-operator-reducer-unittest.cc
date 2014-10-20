@@ -8,6 +8,7 @@
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/typer.h"
 #include "test/unittests/compiler/graph-unittest.h"
+#include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
 
 using testing::AllOf;

@@ -11,7 +11,7 @@
 #include "src/compiler/typer.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
-#include "testing/gtest-support.h"
+#include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
 namespace internal {

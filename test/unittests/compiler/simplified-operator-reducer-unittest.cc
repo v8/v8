@@ -8,6 +8,7 @@
 #include "src/conversions.h"
 #include "src/types.h"
 #include "test/unittests/compiler/graph-unittest.h"
+#include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
 namespace internal {
