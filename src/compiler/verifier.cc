@@ -486,6 +486,14 @@ GenericGraphVisit::Control Verifier::Visitor::Pre(Node* node) {
         CHECK(bounds(node).upper->Is(Type::Boolean()));
         break;
       }
+      case IrOpcode::kObjectIsSmi:
+        CHECK(bounds(Operand(node)).upper->Is(Type::Any()));
+        CHECK(bounds(node).upper->Is(Type::Boolean()));
+        break;
+      case IrOpcode::kObjectIsNonNegativeSmi:
+        CHECK(bounds(Operand(node)).upper->Is(Type::Any()));
+        CHECK(bounds(node).upper->Is(Type::Boolean()));
+        break;
 
       case IrOpcode::kChangeTaggedToInt32: {
         // Signed32 /\ Tagged -> Signed32 /\ UntaggedInt32

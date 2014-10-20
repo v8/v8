@@ -699,6 +699,39 @@ class RepresentationSelector {
         if (lower()) lowering->DoStoreElement(node);
         break;
       }
+      case IrOpcode::kObjectIsSmi: {
+        ProcessInput(node, 0, kMachAnyTagged);
+        SetOutput(node, kRepBit | kTypeBool);
+        if (lower()) {
+          Node* is_tagged = jsgraph_->graph()->NewNode(
+              jsgraph_->machine()->WordAnd(), node->InputAt(0),
+              jsgraph_->Int32Constant(static_cast<int>(kSmiTagMask)));
+          Node* is_smi = jsgraph_->graph()->NewNode(
+              jsgraph_->machine()->WordEqual(), is_tagged,
+              jsgraph_->Int32Constant(kSmiTag));
+          DeferReplacement(node, is_smi);
+        }
+        break;
+      }
+      case IrOpcode::kObjectIsNonNegativeSmi: {
+        ProcessInput(node, 0, kMachAnyTagged);
+        SetOutput(node, kRepBit | kTypeBool);
+        if (lower()) {
+          Node* is_tagged = jsgraph_->graph()->NewNode(
+              jsgraph_->machine()->WordAnd(), node->InputAt(0),
+              jsgraph_->Int32Constant(static_cast<int>(kSmiTagMask)));
+          Node* is_smi = jsgraph_->graph()->NewNode(
+              jsgraph_->machine()->WordEqual(), is_tagged,
+              jsgraph_->Int32Constant(kSmiTag));
+          Node* is_non_neg = jsgraph_->graph()->NewNode(
+              jsgraph_->machine()->IntLessThanOrEqual(),
+              jsgraph_->Int32Constant(0), node->InputAt(0));
+          Node* is_non_neg_smi = jsgraph_->graph()->NewNode(
+              jsgraph_->machine()->Word32And(), is_smi, is_non_neg);
+          DeferReplacement(node, is_non_neg_smi);
+        }
+        break;
+      }
 
       //------------------------------------------------------------------
       // Machine-level operators.

@@ -52,6 +52,20 @@ FieldAccess AccessBuilder::ForExternalArrayPointer() {
 
 
 // static
+FieldAccess AccessBuilder::ForMapInstanceType() {
+  return {kTaggedBase, Map::kInstanceTypeOffset, Handle<Name>(),
+          Type::UntaggedInt8(), kMachUint8};
+}
+
+
+// static
+FieldAccess AccessBuilder::ForValue() {
+  return {kTaggedBase, JSValue::kValueOffset, Handle<Name>(), Type::Any(),
+          kMachAnyTagged};
+}
+
+
+// static
 ElementAccess AccessBuilder::ForFixedArrayElement() {
   return {kNoBoundsCheck, kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
           kMachAnyTagged};

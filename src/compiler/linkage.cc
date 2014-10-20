@@ -178,6 +178,12 @@ bool Linkage::NeedsFrameState(Runtime::FunctionId function) {
     case Runtime::kThrow:
     case Runtime::kTypedArraySetFastCases:
     case Runtime::kTypedArrayInitializeFromArrayLike:
+    case Runtime::kDebugEvaluateGlobal:
+    case Runtime::kOwnKeys:
+    case Runtime::kGetOwnPropertyNames:
+    case Runtime::kIsPropertyEnumerable:
+    case Runtime::kGetPrototype:
+    case Runtime::kSparseJoinWithSeparator:
       return true;
     default:
       return false;

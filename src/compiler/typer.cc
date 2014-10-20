@@ -1228,6 +1228,16 @@ Bounds Typer::Visitor::TypeStoreElement(Node* node) {
 }
 
 
+Bounds Typer::Visitor::TypeObjectIsSmi(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
+Bounds Typer::Visitor::TypeObjectIsNonNegativeSmi(Node* node) {
+  return Bounds(Type::Boolean());
+}
+
+
 // Machine operators.
 
 Bounds Typer::Visitor::TypeLoad(Node* node) {

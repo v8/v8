@@ -158,7 +158,9 @@
   V(LoadField)                \
   V(LoadElement)              \
   V(StoreField)               \
-  V(StoreElement)
+  V(StoreElement)             \
+  V(ObjectIsSmi)              \
+  V(ObjectIsNonNegativeSmi)
 
 // Opcodes for Machine-level operators.
 #define MACHINE_OP_LIST(V)    \
