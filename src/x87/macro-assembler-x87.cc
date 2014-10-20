@@ -906,8 +906,10 @@ void MacroAssembler::EnterExitFramePrologue() {
   // Save the frame pointer and the context in top.
   ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress, isolate());
   ExternalReference context_address(Isolate::kContextAddress, isolate());
+  ExternalReference c_function_address(Isolate::kCFunctionAddress, isolate());
   mov(Operand::StaticVariable(c_entry_fp_address), ebp);
   mov(Operand::StaticVariable(context_address), esi);
+  mov(Operand::StaticVariable(c_function_address), ebx);
 }
 
 
