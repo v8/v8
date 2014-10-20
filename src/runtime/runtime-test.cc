@@ -7,6 +7,7 @@
 #include "src/arguments.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen.h"
+#include "src/natives.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -290,6 +291,12 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   base::OS::Abort();
   UNREACHABLE();
   return NULL;
+}
+
+
+RUNTIME_FUNCTION(Runtime_NativeScriptsCount) {
+  DCHECK(args.length() == 0);
+  return Smi::FromInt(Natives::GetBuiltinsCount());
 }
 
 

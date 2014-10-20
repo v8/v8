@@ -390,6 +390,7 @@ namespace internal {
   F(TraceExit, 1, 1)                                   \
   F(Abort, 1, 1)                                       \
   F(AbortJS, 1, 1)                                     \
+  F(NativeScriptsCount, 0, 1)                          \
   /* ES5 */                                            \
   F(OwnKeys, 1, 1)                                     \
                                                        \
