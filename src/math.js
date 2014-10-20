@@ -144,7 +144,7 @@ function MathPow(x, y) {
 // ECMA 262 - 15.8.2.14
 var rngstate;  // Initialized to a Uint32Array during genesis.
 function MathRandom() {
-  var r0 = (MathImul(18273, rngstate[0] & 0xFFFF) + (rngstate[0] >>> 16)) | 0;
+  var r0 = (MathImul(18030, rngstate[0] & 0xFFFF) + (rngstate[0] >>> 16)) | 0;
   rngstate[0] = r0;
   var r1 = (MathImul(36969, rngstate[1] & 0xFFFF) + (rngstate[1] >>> 16)) | 0;
   rngstate[1] = r1;
