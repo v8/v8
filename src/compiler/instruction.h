@@ -905,10 +905,10 @@ class InstructionSequence FINAL {
   }
 
   Frame* frame() { return &frame_; }
-  Isolate* isolate() { return zone()->isolate(); }
+  Isolate* isolate() const { return zone()->isolate(); }
   Linkage* linkage() const { return linkage_; }
   const PointerMapDeque* pointer_maps() const { return &pointer_maps_; }
-  Zone* zone() { return &zone_; }
+  Zone* zone() const { return zone_; }
 
   // Used by the instruction selector while adding instructions.
   int AddInstruction(Instruction* instr);
@@ -962,7 +962,7 @@ class InstructionSequence FINAL {
 
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
 
-  Zone zone_;
+  Zone* zone_;
   int node_count_;
   int* node_map_;
   InstructionBlocks instruction_blocks_;
