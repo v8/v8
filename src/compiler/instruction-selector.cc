@@ -853,8 +853,17 @@ void InstructionSelector::VisitParameter(Node* node) {
 
 void InstructionSelector::VisitPhi(Node* node) {
   // TODO(bmeurer): Emit a PhiInstruction here.
-  for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-    MarkAsUsed(*i);
+  PhiInstruction* phi = new (instruction_zone())
+      PhiInstruction(instruction_zone(), sequence()->GetVirtualRegister(node));
+  sequence()->InstructionBlockAt(current_block_->GetRpoNumber())->AddPhi(phi);
+  Node::Inputs inputs = node->inputs();
+  size_t j = 0;
+  for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
+       ++iter, ++j) {
+    MarkAsUsed(*iter);
+    // TODO(mstarzinger): Use a ValueInputIterator instead.
+    if (j >= current_block_->PredecessorCount()) continue;
+    phi->operands().push_back(sequence()->GetVirtualRegister(*iter));
   }
 }
 
