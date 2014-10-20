@@ -29,11 +29,15 @@
 [ALWAYS, {
   ############################### BUGS ###################################
 
-  '15.5.4.9_CE': [['no_i18n', SKIP]],
-
   # BUG(v8:3455)
   '11.2.3_b': [FAIL],
   '12.2.3_b': [FAIL],
+
+  # BUG(v8:3642)
+  'S7.6.1.2_A1.26ns': [FAIL],
+
+  # Unicode canonicalization is not available with i18n turned off.
+  '15.5.4.9_CE': [['no_i18n', SKIP]],
 
   ###################### NEEDS INVESTIGATION #######################
 
@@ -69,6 +73,11 @@
   # '11.1.5_4-4-d-2': [FAIL],
   # '11.1.5_4-4-d-3': [FAIL],
   # '11.1.5_4-4-d-4': [FAIL],
+
+  # ES6 does ToObject for Object.prototype.getOwnPropertyNames
+  '15.2.3.4-1': [FAIL],
+  '15.2.3.4-1-4': [FAIL],
+  '15.2.3.4-1-5': [FAIL],
 
   # ES6 allows block-local functions.
   'Sbp_A1_T1': [FAIL],
@@ -136,6 +145,11 @@
   # Test makes unjustified assumptions about the number of calls to SortCompare.
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
   'bug_596_1': [PASS, FAIL_OK],
+
+  # Tests do not return boolean.
+  '15.2.3.14-1-1': [PASS, FAIL_OK],
+  '15.2.3.14-1-2': [PASS, FAIL_OK],
+  '15.2.3.14-1-3': [PASS, FAIL_OK],
 
   ############################ SKIPPED TESTS #############################
 
