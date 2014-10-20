@@ -262,6 +262,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
   // when they might be keeping a Context alive, or when the heap is about
   // to be serialized.
   if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub() &&
+      !target->is_call_stub() &&
       (target->ic_state() == MEGAMORPHIC || target->ic_state() == GENERIC ||
        target->ic_state() == POLYMORPHIC ||
        (heap->flush_monomorphic_ics() && !target->is_weak_stub()) ||

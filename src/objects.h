@@ -8131,7 +8131,6 @@ class TypeFeedbackInfo: public Struct {
   inline void set_inlined_type_change_checksum(int checksum);
   inline bool matches_inlined_type_change_checksum(int checksum);
 
-
   DECLARE_CAST(TypeFeedbackInfo)
 
   // Dispatched behavior.

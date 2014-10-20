@@ -65,7 +65,7 @@ VariableProxy::VariableProxy(Zone* zone, Variable* var, int position,
       is_this_(var->is_this()),
       is_assigned_(false),
       is_resolved_(false),
-      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
+      variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
       raw_name_(var->raw_name()),
       interface_(var->interface()) {
   BindTo(var);
@@ -78,7 +78,7 @@ VariableProxy::VariableProxy(Zone* zone, const AstRawString* name, bool is_this,
       is_this_(is_this),
       is_assigned_(false),
       is_resolved_(false),
-      variable_feedback_slot_(FeedbackVectorSlot::Invalid()),
+      variable_feedback_slot_(FeedbackVectorICSlot::Invalid()),
       raw_name_(name),
       interface_(interface) {}
 

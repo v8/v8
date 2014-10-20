@@ -951,26 +951,31 @@ class TypeFeedbackId {
 };
 
 
-class FeedbackVectorSlot {
+template <int dummy_parameter>
+class VectorSlot {
  public:
-  explicit FeedbackVectorSlot(int id) : id_(id) {}
+  explicit VectorSlot(int id) : id_(id) {}
   int ToInt() const { return id_; }
 
-  static FeedbackVectorSlot Invalid() {
-    return FeedbackVectorSlot(kInvalidSlot);
-  }
+  static VectorSlot Invalid() { return VectorSlot(kInvalidSlot); }
   bool IsInvalid() const { return id_ == kInvalidSlot; }
 
-  FeedbackVectorSlot next() const {
+  VectorSlot next() const {
     DCHECK(id_ != kInvalidSlot);
-    return FeedbackVectorSlot(id_ + 1);
+    return VectorSlot(id_ + 1);
   }
+
+  bool operator==(const VectorSlot& other) const { return id_ == other.id_; }
 
  private:
   static const int kInvalidSlot = -1;
 
   int id_;
 };
+
+
+typedef VectorSlot<0> FeedbackVectorSlot;
+typedef VectorSlot<1> FeedbackVectorICSlot;
 
 
 class BailoutId {

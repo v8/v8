@@ -1717,7 +1717,7 @@ StrictMode AstGraphBuilder::strict_mode() const {
 
 
 VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
-    FeedbackVectorSlot slot) const {
+    FeedbackVectorICSlot slot) const {
   return VectorSlotPair(handle(info()->shared_info()->feedback_vector()), slot);
 }
 

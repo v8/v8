@@ -2828,13 +2828,15 @@ void LCodeGen::DoLoadGlobalCell(LLoadGlobalCell* instr) {
 template <class T>
 void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   DCHECK(FLAG_vector_ics);
-  Register vector = ToRegister(instr->temp_vector());
-  DCHECK(vector.is(VectorLoadICDescriptor::VectorRegister()));
-  __ mov(vector, instr->hydrogen()->feedback_vector());
+  Register vector_register = ToRegister(instr->temp_vector());
+  DCHECK(vector_register.is(VectorLoadICDescriptor::VectorRegister()));
+  Handle<TypeFeedbackVector> vector = instr->hydrogen()->feedback_vector();
+  __ mov(vector_register, vector);
   // No need to allocate this register.
   DCHECK(VectorLoadICDescriptor::SlotRegister().is(eax));
+  int index = vector->GetIndex(instr->hydrogen()->slot());
   __ mov(VectorLoadICDescriptor::SlotRegister(),
-         Immediate(Smi::FromInt(instr->hydrogen()->slot().ToInt())));
+         Immediate(Smi::FromInt(index)));
 }
 
 

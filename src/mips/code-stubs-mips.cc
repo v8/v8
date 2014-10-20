@@ -2886,6 +2886,17 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ Addu(t0, a2, Operand(t0));
     __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
     __ sw(at, FieldMemOperand(t0, FixedArray::kHeaderSize));
+    // We have to update statistics for runtime profiling.
+    const int with_types_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+    __ lw(t0, FieldMemOperand(a2, with_types_offset));
+    __ Subu(t0, t0, Operand(Smi::FromInt(1)));
+    __ sw(t0, FieldMemOperand(a2, with_types_offset));
+    const int generic_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
+    __ lw(t0, FieldMemOperand(a2, generic_offset));
+    __ Addu(t0, t0, Operand(Smi::FromInt(1)));
+    __ sw(t0, FieldMemOperand(a2, generic_offset));
     __ Branch(&slow_start);
   }
 

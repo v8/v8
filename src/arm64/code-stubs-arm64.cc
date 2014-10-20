@@ -3078,6 +3078,17 @@ void CallICStub::Generate(MacroAssembler* masm) {
            Operand::UntagSmiAndScale(index, kPointerSizeLog2));
     __ LoadRoot(x5, Heap::kmegamorphic_symbolRootIndex);
     __ Str(x5, FieldMemOperand(x4, FixedArray::kHeaderSize));
+    // We have to update statistics for runtime profiling.
+    const int with_types_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+    __ Ldr(x4, FieldMemOperand(feedback_vector, with_types_offset));
+    __ Subs(x4, x4, Operand(Smi::FromInt(1)));
+    __ Str(x4, FieldMemOperand(feedback_vector, with_types_offset));
+    const int generic_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
+    __ Ldr(x4, FieldMemOperand(feedback_vector, generic_offset));
+    __ Adds(x4, x4, Operand(Smi::FromInt(1)));
+    __ Str(x4, FieldMemOperand(feedback_vector, generic_offset));
     __ B(&slow_start);
   }
 

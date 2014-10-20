@@ -622,7 +622,8 @@ class Factory FINAL {
                                                    MaybeHandle<Code> code);
 
   // Allocate a new type feedback vector
-  Handle<TypeFeedbackVector> NewTypeFeedbackVector(int slot_count);
+  Handle<TypeFeedbackVector> NewTypeFeedbackVector(int slot_count,
+                                                   int ic_slot_count);
 
   // Allocates a new JSMessageObject object.
   Handle<JSMessageObject> NewJSMessageObject(

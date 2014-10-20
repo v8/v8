@@ -3189,20 +3189,18 @@ TEST(IncrementalMarkingClearsTypeFeedbackInfo) {
 
   Handle<TypeFeedbackVector> feedback_vector(f->shared()->feedback_vector());
 
-  int expected_length = FLAG_vector_ics ? 4 : 2;
-  CHECK_EQ(expected_length, feedback_vector->length());
-  for (int i = 0; i < expected_length; i++) {
-    if ((i % 2) == 1) {
-      CHECK(feedback_vector->get(i)->IsJSFunction());
-    }
+  int expected_slots = 2;
+  CHECK_EQ(expected_slots, feedback_vector->ICSlots());
+  for (int i = 0; i < expected_slots; i++) {
+    CHECK(feedback_vector->Get(FeedbackVectorICSlot(i))->IsJSFunction());
   }
 
   SimulateIncrementalMarking(CcTest::heap());
   CcTest::heap()->CollectAllGarbage(Heap::kNoGCFlags);
 
-  CHECK_EQ(expected_length, feedback_vector->length());
-  for (int i = 0; i < expected_length; i++) {
-    CHECK_EQ(feedback_vector->get(i),
+  CHECK_EQ(expected_slots, feedback_vector->ICSlots());
+  for (int i = 0; i < expected_slots; i++) {
+    CHECK_EQ(feedback_vector->Get(FeedbackVectorICSlot(i)),
              *TypeFeedbackVector::UninitializedSentinel(CcTest::i_isolate()));
   }
 }

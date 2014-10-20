@@ -1982,20 +1982,9 @@ void Factory::BecomeJSFunction(Handle<JSProxy> proxy) {
 }
 
 
-Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(int slot_count) {
-  // Ensure we can skip the write barrier
-  DCHECK_EQ(isolate()->heap()->uninitialized_symbol(),
-            *TypeFeedbackVector::UninitializedSentinel(isolate()));
-
-  if (slot_count == 0) {
-    return Handle<TypeFeedbackVector>::cast(empty_fixed_array());
-  }
-
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateFixedArrayWithFiller(
-                         slot_count, TENURED,
-                         *TypeFeedbackVector::UninitializedSentinel(isolate())),
-                     TypeFeedbackVector);
+Handle<TypeFeedbackVector> Factory::NewTypeFeedbackVector(int slot_count,
+                                                          int ic_slot_count) {
+  return TypeFeedbackVector::Allocate(isolate(), slot_count, ic_slot_count);
 }
 
 
@@ -2070,7 +2059,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_inferred_name(*empty_string(), SKIP_WRITE_BARRIER);
-  Handle<TypeFeedbackVector> feedback_vector = NewTypeFeedbackVector(0);
+  Handle<TypeFeedbackVector> feedback_vector = NewTypeFeedbackVector(0, 0);
   share->set_feedback_vector(*feedback_vector, SKIP_WRITE_BARRIER);
   share->set_profiler_ticks(0);
   share->set_ast_node_count(0);

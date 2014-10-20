@@ -291,12 +291,13 @@ void CompilationInfo::PrepareForCompilation(Scope* scope) {
   DCHECK(scope_ == NULL);
   scope_ = scope;
 
-  int length = function()->slot_count();
   if (feedback_vector_.is_null()) {
     // Allocate the feedback vector too.
-    feedback_vector_ = isolate()->factory()->NewTypeFeedbackVector(length);
+    feedback_vector_ = isolate()->factory()->NewTypeFeedbackVector(
+        function()->slot_count(), function()->ic_slot_count());
   }
-  DCHECK(feedback_vector_->length() == length);
+  DCHECK(feedback_vector_->Slots() == function()->slot_count() &&
+         feedback_vector_->ICSlots() == function()->ic_slot_count());
 }
 
 

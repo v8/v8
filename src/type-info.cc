@@ -51,7 +51,18 @@ Handle<Object> TypeFeedbackOracle::GetInfo(TypeFeedbackId ast_id) {
 
 Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorSlot slot) {
   DCHECK(slot.ToInt() >= 0 && slot.ToInt() < feedback_vector_->length());
-  Object* obj = feedback_vector_->get(slot.ToInt());
+  Object* obj = feedback_vector_->Get(slot);
+  if (!obj->IsJSFunction() ||
+      !CanRetainOtherContext(JSFunction::cast(obj), *native_context_)) {
+    return Handle<Object>(obj, isolate());
+  }
+  return Handle<Object>::cast(isolate()->factory()->undefined_value());
+}
+
+
+Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorICSlot slot) {
+  DCHECK(slot.ToInt() >= 0 && slot.ToInt() < feedback_vector_->length());
+  Object* obj = feedback_vector_->Get(slot);
   if (!obj->IsJSFunction() ||
       !CanRetainOtherContext(JSFunction::cast(obj), *native_context_)) {
     return Handle<Object>(obj, isolate());
@@ -78,7 +89,7 @@ bool TypeFeedbackOracle::StoreIsUninitialized(TypeFeedbackId ast_id) {
 }
 
 
-bool TypeFeedbackOracle::CallIsMonomorphic(FeedbackVectorSlot slot) {
+bool TypeFeedbackOracle::CallIsMonomorphic(FeedbackVectorICSlot slot) {
   Handle<Object> value = GetInfo(slot);
   return value->IsAllocationSite() || value->IsJSFunction();
 }
@@ -119,7 +130,8 @@ void TypeFeedbackOracle::GetStoreModeAndKeyType(
 }
 
 
-Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(FeedbackVectorSlot slot) {
+Handle<JSFunction> TypeFeedbackOracle::GetCallTarget(
+    FeedbackVectorICSlot slot) {
   Handle<Object> info = GetInfo(slot);
   if (info->IsAllocationSite()) {
     return Handle<JSFunction>(isolate()->native_context()->array_function());
@@ -142,7 +154,7 @@ Handle<JSFunction> TypeFeedbackOracle::GetCallNewTarget(
 
 
 Handle<AllocationSite> TypeFeedbackOracle::GetCallAllocationSite(
-    FeedbackVectorSlot slot) {
+    FeedbackVectorICSlot slot) {
   Handle<Object> info = GetInfo(slot);
   if (info->IsAllocationSite()) {
     return Handle<AllocationSite>::cast(info);

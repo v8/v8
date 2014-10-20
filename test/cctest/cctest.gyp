@@ -118,6 +118,7 @@
         'test-double.cc',
         'test-dtoa.cc',
         'test-fast-dtoa.cc',
+        'test-feedback-vector.cc',
         'test-fixed-dtoa.cc',
         'test-flags.cc',
         'test-func-name-inference.cc',
