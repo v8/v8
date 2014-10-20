@@ -2947,7 +2947,18 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ Daddu(a4, a2, Operand(a4));
     __ LoadRoot(at, Heap::kmegamorphic_symbolRootIndex);
     __ sd(at, FieldMemOperand(a4, FixedArray::kHeaderSize));
-    __ Branch(&slow_start);
+    // We have to update statistics for runtime profiling.
+    const int with_types_offset =
+    FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+    __ ld(a4, FieldMemOperand(a2, with_types_offset));
+    __ Dsubu(a4, a4, Operand(Smi::FromInt(1)));
+    __ sd(a4, FieldMemOperand(a2, with_types_offset));
+    const int generic_offset =
+    FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
+    __ ld(a4, FieldMemOperand(a2, generic_offset));
+    __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
+    __ Branch(USE_DELAY_SLOT, &slow_start);
+    __ sd(a4, FieldMemOperand(a2, generic_offset));  // In delay slot.
   }
 
   // We are here because tracing is on or we are going monomorphic.
