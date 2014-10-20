@@ -23636,14 +23636,14 @@ TEST(StreamingScriptWithParseError) {
 
 
 TEST(StreamingUtf8Script) {
-  // We'd want to write \uc481 instead of \xeb\x91\x80, but Windows compilers
+  // We'd want to write \uc481 instead of \xec\x92\x81, but Windows compilers
   // don't like it.
   const char* chunk1 =
       "function foo() {\n"
       "  // This function will contain an UTF-8 character which is not in\n"
       "  // ASCII.\n"
-      "  var foob\xeb\x91\x80r = 13;\n"
-      "  return foob\xeb\x91\x80r;\n"
+      "  var foob\xec\x92\x81r = 13;\n"
+      "  return foob\xec\x92\x81r;\n"
       "}\n";
   const char* chunks[] = {chunk1, "foo(); ", NULL};
   RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
@@ -23654,7 +23654,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersSanityCheck) {
   // A sanity check to prove that the approach of splitting UTF-8
   // characters is correct. Here is an UTF-8 character which will take three
   // bytes.
-  const char* reference = "\xeb\x91\x80";
+  const char* reference = "\xec\x92\x81";
   CHECK(3u == strlen(reference));  // NOLINT - no CHECK_EQ for unsigned.
 
   char chunk1[] =
@@ -23664,7 +23664,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersSanityCheck) {
       "  var foob";
   char chunk2[] =
       "XXXr = 13;\n"
-      "  return foob\xeb\x91\x80r;\n"
+      "  return foob\xec\x92\x81r;\n"
       "}\n";
   for (int i = 0; i < 3; ++i) {
     chunk2[i] = reference[i];
@@ -23677,7 +23677,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersSanityCheck) {
 TEST(StreamingUtf8ScriptWithSplitCharacters) {
   // Stream data where a multi-byte UTF-8 character is split between two data
   // chunks.
-  const char* reference = "\xeb\x91\x80";
+  const char* reference = "\xec\x92\x81";
   char chunk1[] =
       "function foo() {\n"
       "  // This function will contain an UTF-8 character which is not in\n"
@@ -23685,7 +23685,7 @@ TEST(StreamingUtf8ScriptWithSplitCharacters) {
       "  var foobX";
   char chunk2[] =
       "XXr = 13;\n"
-      "  return foob\xeb\x91\x80r;\n"
+      "  return foob\xec\x92\x81r;\n"
       "}\n";
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
@@ -23701,7 +23701,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
   // Case 1: a chunk contains only bytes for a split character (and no other
   // data). This kind of a chunk would be exceptionally small, but we should
   // still decode it correctly.
-  const char* reference = "\xeb\x91\x80";
+  const char* reference = "\xec\x92\x81";
   // The small chunk is at the beginning of the split character
   {
     char chunk1[] =
@@ -23712,7 +23712,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
     char chunk2[] = "XX";
     char chunk3[] =
         "Xr = 13;\n"
-        "  return foob\xeb\x91\x80r;\n"
+        "  return foob\xec\x92\x81r;\n"
         "}\n";
     chunk2[0] = reference[0];
     chunk2[1] = reference[1];
@@ -23730,7 +23730,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
     char chunk2[] = "XX";
     char chunk3[] =
         "r = 13;\n"
-        "  return foob\xeb\x91\x80r;\n"
+        "  return foob\xec\x92\x81r;\n"
         "}\n";
     chunk1[strlen(chunk1) - 1] = reference[0];
     chunk2[0] = reference[1];
@@ -23742,8 +23742,8 @@ TEST(StreamingUtf8ScriptWithSplitCharactersValidEdgeCases) {
   // decoded correctly and not just ignored.
   {
     char chunk1[] =
-        "var foob\xeb\x91\x80 = 13;\n"
-        "foob\xeb\x91\x80";
+        "var foob\xec\x92\x81 = 13;\n"
+        "foob\xec\x92\x81";
     const char* chunks[] = {chunk1, NULL};
     RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
   }
@@ -23754,7 +23754,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
   // Test cases where a UTF-8 character is split over several chunks. Those
   // cases are not supported (the embedder should give the data in big enough
   // chunks), but we shouldn't crash, just produce a parse error.
-  const char* reference = "\xeb\x91\x80";
+  const char* reference = "\xec\x92\x81";
   char chunk1[] =
       "function foo() {\n"
       "  // This function will contain an UTF-8 character which is not in\n"
@@ -23763,7 +23763,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersInvalidEdgeCases) {
   char chunk2[] = "X";
   char chunk3[] =
       "Xr = 13;\n"
-      "  return foob\xeb\x91\x80r;\n"
+      "  return foob\xec\x92\x81r;\n"
       "}\n";
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
@@ -23805,7 +23805,7 @@ TEST(StreamingProducesParserCache) {
 TEST(StreamingScriptWithInvalidUtf8) {
   // Regression test for a crash: test that invalid UTF-8 bytes in the end of a
   // chunk don't produce a crash.
-  const char* reference = "\xeb\x91\x80\x80\x80";
+  const char* reference = "\xec\x92\x81\x80\x80";
   char chunk1[] =
       "function foo() {\n"
       "  // This function will contain an UTF-8 character which is not in\n"
@@ -23813,7 +23813,7 @@ TEST(StreamingScriptWithInvalidUtf8) {
       "  var foobXXXXX";  // Too many bytes which look like incomplete chars!
   char chunk2[] =
       "r = 13;\n"
-      "  return foob\xeb\x91\x80\x80\x80r;\n"
+      "  return foob\xec\x92\x81\x80\x80r;\n"
       "}\n";
   for (int i = 0; i < 5; ++i) chunk1[strlen(chunk1) - 5 + i] = reference[i];
 
@@ -23825,15 +23825,36 @@ TEST(StreamingScriptWithInvalidUtf8) {
 TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit) {
   // Regression test: Stream data where there are several multi-byte UTF-8
   // characters in a sequence and one of them is split between two data chunks.
-  const char* reference = "\xeb\x91\x80";
+  const char* reference = "\xec\x92\x81";
   char chunk1[] =
       "function foo() {\n"
       "  // This function will contain an UTF-8 character which is not in\n"
       "  // ASCII.\n"
-      "  var foob\xeb\x91\x80X";
+      "  var foob\xec\x92\x81X";
   char chunk2[] =
       "XXr = 13;\n"
-      "  return foob\xeb\x91\x80\xeb\x91\x80r;\n"
+      "  return foob\xec\x92\x81\xec\x92\x81r;\n"
+      "}\n";
+  chunk1[strlen(chunk1) - 1] = reference[0];
+  chunk2[0] = reference[1];
+  chunk2[1] = reference[2];
+  const char* chunks[] = {chunk1, chunk2, "foo();", NULL};
+  RunStreamingTest(chunks, v8::ScriptCompiler::StreamedSource::UTF8);
+}
+
+
+TEST(StreamingUtf8ScriptWithMultipleMultibyteCharactersSomeSplit2) {
+  // Another regression test, similar to the previous one. The difference is
+  // that the split character is not the last one in the sequence.
+  const char* reference = "\xec\x92\x81";
+  char chunk1[] =
+      "function foo() {\n"
+      "  // This function will contain an UTF-8 character which is not in\n"
+      "  // ASCII.\n"
+      "  var foobX";
+  char chunk2[] =
+      "XX\xec\x92\x81r = 13;\n"
+      "  return foob\xec\x92\x81\xec\x92\x81r;\n"
       "}\n";
   chunk1[strlen(chunk1) - 1] = reference[0];
   chunk2[0] = reference[1];
