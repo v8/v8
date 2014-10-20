@@ -71,7 +71,8 @@ TEST(VectorSlotClearing) {
   // Fill with information
   vector->Set(FeedbackVectorSlot(0), Smi::FromInt(1));
   vector->Set(FeedbackVectorSlot(1), *factory->fixed_array_map());
-  vector->Set(FeedbackVectorSlot(2), *factory->NewAllocationSite());
+  Handle<AllocationSite> site = factory->NewAllocationSite();
+  vector->Set(FeedbackVectorSlot(2), *site);
 
   vector->ClearSlots(NULL);
 
