@@ -593,9 +593,11 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
 
     PrintIntProperty("loop_depth", current->loop_depth());
 
-    if (instructions->code_start(current) >= 0) {
-      int first_index = instructions->first_instruction_index(current);
-      int last_index = instructions->last_instruction_index(current);
+    const InstructionBlock* instruction_block =
+        instructions->InstructionBlockAt(current->GetRpoNumber());
+    if (instruction_block->code_start() >= 0) {
+      int first_index = instruction_block->first_instruction_index();
+      int last_index = instruction_block->last_instruction_index();
       PrintIntProperty("first_lir_id", LifetimePosition::FromInstructionIndex(
                                            first_index).Value());
       PrintIntProperty("last_lir_id", LifetimePosition::FromInstructionIndex(
@@ -674,8 +676,8 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
 
     if (instructions != NULL) {
       Tag LIR_tag(this, "LIR");
-      for (int j = instructions->first_instruction_index(current);
-           j <= instructions->last_instruction_index(current); j++) {
+      for (int j = instruction_block->first_instruction_index();
+           j <= instruction_block->last_instruction_index(); j++) {
         PrintIndent();
         os_ << j << " " << *instructions->InstructionAt(j) << " <|@\n";
       }

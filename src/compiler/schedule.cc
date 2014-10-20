@@ -105,6 +105,11 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id) {
 }
 
 
+std::ostream& operator<<(std::ostream& os, const BasicBlock::RpoNumber& rpo) {
+  return os << rpo.ToSize();
+}
+
+
 Schedule::Schedule(Zone* zone, size_t node_count_hint)
     : zone_(zone),
       all_blocks_(zone),

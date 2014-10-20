@@ -14,12 +14,14 @@ namespace internal {
 namespace compiler {
 
 InstructionSelector::InstructionSelector(InstructionSequence* sequence,
+                                         Schedule* schedule,
                                          SourcePositionTable* source_positions,
                                          Features features)
     : zone_(sequence->isolate()),
       sequence_(sequence),
       source_positions_(source_positions),
       features_(features),
+      schedule_(schedule),
       current_block_(NULL),
       instructions_(zone()),
       defined_(sequence->node_count(), false, zone()),
@@ -55,8 +57,10 @@ void InstructionSelector::SelectInstructions() {
   // Schedule the selected instructions.
   for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end(); ++i) {
     BasicBlock* block = *i;
-    size_t end = sequence()->code_end(block);
-    size_t start = sequence()->code_start(block);
+    InstructionBlock* instruction_block =
+        sequence()->InstructionBlockAt(block->GetRpoNumber());
+    size_t end = instruction_block->code_end();
+    size_t start = instruction_block->code_start();
     sequence()->StartBlock(block);
     while (start-- > end) {
       sequence()->AddInstruction(instructions_[start]);
@@ -383,8 +387,10 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
   }
 
   // We're done with the block.
-  sequence()->set_code_start(block, static_cast<int>(instructions_.size()));
-  sequence()->set_code_end(block, current_block_end);
+  InstructionBlock* instruction_block =
+      sequence()->InstructionBlockAt(block->GetRpoNumber());
+  instruction_block->set_code_start(static_cast<int>(instructions_.size()));
+  instruction_block->set_code_end(current_block_end);
 
   current_block_ = NULL;
 }
@@ -856,14 +862,12 @@ void InstructionSelector::VisitPhi(Node* node) {
   PhiInstruction* phi = new (instruction_zone())
       PhiInstruction(instruction_zone(), sequence()->GetVirtualRegister(node));
   sequence()->InstructionBlockAt(current_block_->GetRpoNumber())->AddPhi(phi);
-  Node::Inputs inputs = node->inputs();
-  size_t j = 0;
-  for (Node::Inputs::iterator iter(inputs.begin()); iter != inputs.end();
-       ++iter, ++j) {
-    MarkAsUsed(*iter);
-    // TODO(mstarzinger): Use a ValueInputIterator instead.
-    if (j >= current_block_->PredecessorCount()) continue;
-    phi->operands().push_back(sequence()->GetVirtualRegister(*iter));
+  const int input_count = node->op()->InputCount();
+  phi->operands().reserve(static_cast<size_t>(input_count));
+  for (int i = 0; i < input_count; ++i) {
+    Node* const input = node->InputAt(i);
+    MarkAsUsed(input);
+    phi->operands().push_back(sequence()->GetVirtualRegister(input));
   }
 }
 

@@ -68,7 +68,7 @@ class DeoptCodegenTester {
     code = new v8::internal::compiler::InstructionSequence(linkage, graph,
                                                            schedule);
     SourcePositionTable source_positions(graph);
-    InstructionSelector selector(code, &source_positions);
+    InstructionSelector selector(code, schedule, &source_positions);
     selector.SelectInstructions();
 
     if (FLAG_trace_turbo) {

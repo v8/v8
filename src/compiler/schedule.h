@@ -182,6 +182,7 @@ class BasicBlock FINAL : public ZoneObject {
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c);
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id);
+std::ostream& operator<<(std::ostream& os, const BasicBlock::RpoNumber& rpo);
 
 typedef ZoneVector<BasicBlock*> BasicBlockVector;
 typedef BasicBlockVector::iterator BasicBlockVectorIter;

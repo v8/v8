@@ -457,7 +457,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
 
   // Select and schedule instructions covering the scheduled graph.
   {
-    InstructionSelector selector(&sequence, source_positions);
+    InstructionSelector selector(&sequence, schedule, source_positions);
     selector.SelectInstructions();
   }
 
