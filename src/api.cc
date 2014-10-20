@@ -3173,6 +3173,44 @@ bool v8::Object::SetPrivate(v8::Handle<Private> key, v8::Handle<Value> value) {
 }
 
 
+i::MaybeHandle<i::Object> DeleteObjectProperty(
+    i::Isolate* isolate, i::Handle<i::JSReceiver> receiver,
+    i::Handle<i::Object> key, i::JSReceiver::DeleteMode mode) {
+  // Check if the given key is an array index.
+  uint32_t index;
+  if (key->ToArrayIndex(&index)) {
+    // In Firefox/SpiderMonkey, Safari and Opera you can access the
+    // characters of a string using [] notation.  In the case of a
+    // String object we just need to redirect the deletion to the
+    // underlying string if the index is in range.  Since the
+    // underlying string does nothing with the deletion, we can ignore
+    // such deletions.
+    if (receiver->IsStringObjectWithCharacterAt(index)) {
+      return isolate->factory()->true_value();
+    }
+
+    return i::JSReceiver::DeleteElement(receiver, index, mode);
+  }
+
+  i::Handle<i::Name> name;
+  if (key->IsName()) {
+    name = i::Handle<i::Name>::cast(key);
+  } else {
+    // Call-back into JavaScript to convert the key to a string.
+    i::Handle<i::Object> converted;
+    if (!i::Execution::ToString(isolate, key).ToHandle(&converted)) {
+      return i::MaybeHandle<i::Object>();
+    }
+    name = i::Handle<i::String>::cast(converted);
+  }
+
+  if (name->IsString()) {
+    name = i::String::Flatten(i::Handle<i::String>::cast(name));
+  }
+  return i::JSReceiver::DeleteProperty(receiver, name, mode);
+}
+
+
 bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::ForceDelete()", return false);
@@ -3191,8 +3229,9 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
 
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj;
-  has_pending_exception = !i::Runtime::DeleteObjectProperty(
-      isolate, self, key_obj, i::JSReceiver::FORCE_DELETION).ToHandle(&obj);
+  has_pending_exception =
+      !DeleteObjectProperty(isolate, self, key_obj,
+                            i::JSReceiver::FORCE_DELETION).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
 }
@@ -3445,8 +3484,9 @@ bool v8::Object::Delete(v8::Handle<Value> key) {
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj;
-  has_pending_exception = !i::Runtime::DeleteObjectProperty(
-      isolate, self, key_obj, i::JSReceiver::NORMAL_DELETION).ToHandle(&obj);
+  has_pending_exception =
+      !DeleteObjectProperty(isolate, self, key_obj,
+                            i::JSReceiver::NORMAL_DELETION).ToHandle(&obj);
   EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
 }
@@ -3464,11 +3504,22 @@ bool v8::Object::Has(v8::Handle<Value> key) {
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> obj;
-  has_pending_exception = !i::Runtime::HasObjectProperty(
-      isolate, self, key_obj).ToHandle(&obj);
+  Maybe<bool> maybe;
+  // Check if the given key is an array index.
+  uint32_t index;
+  if (key_obj->ToArrayIndex(&index)) {
+    maybe = i::JSReceiver::HasElement(self, index);
+  } else {
+    // Convert the key to a name - possibly by calling back into JavaScript.
+    i::Handle<i::Name> name;
+    if (i::Runtime::ToName(isolate, key_obj).ToHandle(&name)) {
+      maybe = i::JSReceiver::HasProperty(self, name);
+    }
+  }
+  if (!maybe.has_value) has_pending_exception = true;
   EXCEPTION_BAILOUT_CHECK(isolate, false);
-  return obj->IsTrue();
+  DCHECK(maybe.has_value);
+  return maybe.value;
 }
 
 

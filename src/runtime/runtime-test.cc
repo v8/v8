@@ -7,7 +7,6 @@
 #include "src/arguments.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
 namespace v8 {
@@ -391,7 +390,7 @@ RUNTIME_FUNCTION(Runtime_ListNatives) {
 #undef ADD_ENTRY
   DCHECK_EQ(index, entry_count);
   Handle<JSArray> result = factory->NewJSArrayWithElements(elements);
-  return *result;
+  return (*result);
 }
 #endif
 

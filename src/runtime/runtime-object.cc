@@ -65,27 +65,6 @@ MaybeHandle<Name> Runtime::ToName(Isolate* isolate, Handle<Object> key) {
 }
 
 
-MaybeHandle<Object> Runtime::HasObjectProperty(Isolate* isolate,
-                                               Handle<JSReceiver> object,
-                                               Handle<Object> key) {
-  Maybe<bool> maybe;
-  // Check if the given key is an array index.
-  uint32_t index;
-  if (key->ToArrayIndex(&index)) {
-    maybe = JSReceiver::HasElement(object, index);
-  } else {
-    // Convert the key to a name - possibly by calling back into JavaScript.
-    Handle<Name> name;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, name, ToName(isolate, key), Object);
-
-    maybe = JSReceiver::HasProperty(object, name);
-  }
-
-  if (!maybe.has_value) return MaybeHandle<Object>();
-  return isolate->factory()->ToBoolean(maybe.value);
-}
-
-
 MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key) {
@@ -260,42 +239,6 @@ MaybeHandle<Object> Runtime::DefineObjectProperty(Handle<JSObject> js_object,
     return JSObject::SetOwnPropertyIgnoreAttributes(js_object, name, value,
                                                     attr);
   }
-}
-
-
-MaybeHandle<Object> Runtime::DeleteObjectProperty(Isolate* isolate,
-                                                  Handle<JSReceiver> receiver,
-                                                  Handle<Object> key,
-                                                  JSReceiver::DeleteMode mode) {
-  // Check if the given key is an array index.
-  uint32_t index;
-  if (key->ToArrayIndex(&index)) {
-    // In Firefox/SpiderMonkey, Safari and Opera you can access the
-    // characters of a string using [] notation.  In the case of a
-    // String object we just need to redirect the deletion to the
-    // underlying string if the index is in range.  Since the
-    // underlying string does nothing with the deletion, we can ignore
-    // such deletions.
-    if (receiver->IsStringObjectWithCharacterAt(index)) {
-      return isolate->factory()->true_value();
-    }
-
-    return JSReceiver::DeleteElement(receiver, index, mode);
-  }
-
-  Handle<Name> name;
-  if (key->IsName()) {
-    name = Handle<Name>::cast(key);
-  } else {
-    // Call-back into JavaScript to convert the key to a string.
-    Handle<Object> converted;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, converted,
-                               Execution::ToString(isolate, key), Object);
-    name = Handle<String>::cast(converted);
-  }
-
-  if (name->IsString()) name = String::Flatten(Handle<String>::cast(name));
-  return JSReceiver::DeleteProperty(receiver, name, mode);
 }
 
 

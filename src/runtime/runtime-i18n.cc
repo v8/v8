@@ -8,7 +8,6 @@
 
 #include "src/arguments.h"
 #include "src/i18n.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
 #include "unicode/brkiter.h"

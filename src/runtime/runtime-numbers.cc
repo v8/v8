@@ -8,7 +8,6 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/misc-intrinsics.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 
 

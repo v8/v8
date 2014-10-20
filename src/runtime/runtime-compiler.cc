@@ -10,7 +10,6 @@
 #include "src/frames.h"
 #include "src/full-codegen.h"
 #include "src/isolate-inl.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/v8threads.h"
 #include "src/vm-state-inl.h"
