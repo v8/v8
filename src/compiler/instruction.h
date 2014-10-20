@@ -844,7 +844,7 @@ typedef ZoneVector<InstructionBlock*> InstructionBlocks;
 // TODO(titzer): s/IsDouble/IsFloat64/
 class InstructionSequence FINAL {
  public:
-  InstructionSequence(Linkage* linkage, const Graph* graph,
+  InstructionSequence(Zone* zone, Linkage* linkage, const Graph* graph,
                       const Schedule* schedule);
 
   int NextVirtualRegister() { return next_virtual_register_++; }

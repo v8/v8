@@ -453,7 +453,8 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
     profiler_data = BasicBlockInstrumentor::Instrument(info_, graph, schedule);
   }
 
-  InstructionSequence sequence(linkage, graph, schedule);
+  Zone* instruction_zone = schedule->zone();
+  InstructionSequence sequence(instruction_zone, linkage, graph, schedule);
 
   // Select and schedule instructions covering the scheduled graph.
   {

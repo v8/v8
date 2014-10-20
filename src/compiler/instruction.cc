@@ -380,9 +380,10 @@ static void InitializeInstructionBlocks(Zone* zone, const Schedule* schedule,
 }
 
 
-InstructionSequence::InstructionSequence(Linkage* linkage, const Graph* graph,
+InstructionSequence::InstructionSequence(Zone* instruction_zone,
+                                         Linkage* linkage, const Graph* graph,
                                          const Schedule* schedule)
-    : zone_(schedule->zone()),
+    : zone_(instruction_zone),
       node_count_(graph->NodeCount()),
       node_map_(zone()->NewArray<int>(node_count_)),
       instruction_blocks_(static_cast<int>(schedule->rpo_order()->size()), NULL,
