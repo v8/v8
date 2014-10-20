@@ -51,8 +51,13 @@ from testrunner.objects import context
 
 
 ARCH_GUESS = utils.DefaultArch()
-DEFAULT_TESTS = ["mjsunit", "fuzz-natives", "unittests",
-                 "cctest", "message", "preparser"]
+DEFAULT_TESTS = [
+  "mjsunit",
+  "unittests",
+  "cctest",
+  "message",
+  "preparser",
+]
 
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
@@ -60,7 +65,6 @@ DEFAULT_TESTS = ["mjsunit", "fuzz-natives", "unittests",
 TEST_MAP = {
   "default": [
     "mjsunit",
-    "fuzz-natives",
     "cctest",
     "message",
     "preparser",

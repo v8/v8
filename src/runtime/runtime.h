@@ -632,14 +632,6 @@ namespace internal {
 #endif
 
 
-#ifdef DEBUG
-#define RUNTIME_FUNCTION_LIST_DEBUG(F) \
-  /* Testing */                        \
-  F(ListNatives, 0, 1)
-#else
-#define RUNTIME_FUNCTION_LIST_DEBUG(F)
-#endif
-
 // ----------------------------------------------------------------------------
 // RUNTIME_FUNCTION_LIST defines all runtime functions accessed
 // either directly by id (via the code generator), or indirectly
@@ -650,7 +642,6 @@ namespace internal {
   RUNTIME_FUNCTION_LIST_ALWAYS_1(F)            \
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F)            \
   RUNTIME_FUNCTION_LIST_ALWAYS_3(F)            \
-  RUNTIME_FUNCTION_LIST_DEBUG(F)               \
   RUNTIME_FUNCTION_LIST_DEBUGGER(F)            \
   RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
 

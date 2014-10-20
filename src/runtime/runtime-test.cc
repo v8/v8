@@ -351,50 +351,6 @@ RUNTIME_FUNCTION(Runtime_TraceExit) {
 }
 
 
-#ifdef DEBUG
-// ListNatives is ONLY used by the fuzz-natives.js in debug mode
-// Exclude the code in release mode.
-RUNTIME_FUNCTION(Runtime_ListNatives) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-#define COUNT_ENTRY(Name, argc, ressize) +1
-  int entry_count =
-      0 RUNTIME_FUNCTION_LIST(COUNT_ENTRY) INLINE_FUNCTION_LIST(COUNT_ENTRY)
-      INLINE_OPTIMIZED_FUNCTION_LIST(COUNT_ENTRY);
-#undef COUNT_ENTRY
-  Factory* factory = isolate->factory();
-  Handle<FixedArray> elements = factory->NewFixedArray(entry_count);
-  int index = 0;
-  bool inline_runtime_functions = false;
-#define ADD_ENTRY(Name, argc, ressize)                                      \
-  {                                                                         \
-    HandleScope inner(isolate);                                             \
-    Handle<String> name;                                                    \
-    /* Inline runtime functions have an underscore in front of the name. */ \
-    if (inline_runtime_functions) {                                         \
-      name = factory->NewStringFromStaticChars("_" #Name);                  \
-    } else {                                                                \
-      name = factory->NewStringFromStaticChars(#Name);                      \
-    }                                                                       \
-    Handle<FixedArray> pair_elements = factory->NewFixedArray(2);           \
-    pair_elements->set(0, *name);                                           \
-    pair_elements->set(1, Smi::FromInt(argc));                              \
-    Handle<JSArray> pair = factory->NewJSArrayWithElements(pair_elements);  \
-    elements->set(index++, *pair);                                          \
-  }
-  inline_runtime_functions = false;
-  RUNTIME_FUNCTION_LIST(ADD_ENTRY)
-  INLINE_OPTIMIZED_FUNCTION_LIST(ADD_ENTRY)
-  inline_runtime_functions = true;
-  INLINE_FUNCTION_LIST(ADD_ENTRY)
-#undef ADD_ENTRY
-  DCHECK_EQ(index, entry_count);
-  Handle<JSArray> result = factory->NewJSArrayWithElements(elements);
-  return (*result);
-}
-#endif
-
-
 RUNTIME_FUNCTION(Runtime_HaveSameMap) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2);
