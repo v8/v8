@@ -610,6 +610,8 @@ void AstGraphBuilder::VisitForStatement(ForStatement* stmt) {
     VisitForTest(stmt->cond());
     Node* condition = environment()->Pop();
     for_loop.BreakUnless(condition);
+  } else {
+    for_loop.BreakUnless(jsgraph()->TrueConstant());
   }
   VisitIterationBody(stmt, &for_loop, 0);
   for_loop.EndBody();

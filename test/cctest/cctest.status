@@ -150,9 +150,6 @@
   'test-debug/DebugEventContext': [PASS, NO_VARIANTS],
   'test-debug/DebugBreakInline': [PASS, NO_VARIANTS],
 
-  # Scheduling and verifying of empty for loops is broken.
-  'test-run-jsbranches/EmptyFor': [SKIP],
-
   ############################################################################
   # Slow tests.
   'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
