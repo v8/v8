@@ -736,8 +736,7 @@ FunctionLiteral* ParserTraits::ParseFunctionLiteral(
 
 Parser::Parser(CompilationInfo* info, ParseInfo* parse_info)
     : ParserBase<ParserTraits>(&scanner_, parse_info->stack_limit,
-                               info->extension(), NULL, info->zone(),
-                               info->ast_node_id_gen(), this),
+                               info->extension(), NULL, info->zone(), this),
       scanner_(parse_info->unicode_cache),
       reusable_preparser_(NULL),
       original_scope_(NULL),
@@ -879,7 +878,7 @@ FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info, Scope** scope,
 
     // Enters 'scope'.
     AstNodeFactory<AstConstructionVisitor> function_factory(
-        zone(), ast_value_factory(), info->ast_node_id_gen());
+        ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, *scope,
                                  &function_factory);
 
@@ -994,7 +993,7 @@ FunctionLiteral* Parser::ParseLazy(Utf16CharacterStream* source) {
     }
     original_scope_ = scope;
     AstNodeFactory<AstConstructionVisitor> function_factory(
-        zone(), ast_value_factory(), info()->ast_node_id_gen());
+        ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  &function_factory);
     DCHECK(scope->strict_mode() == SLOPPY || info()->strict_mode() == STRICT);
@@ -3496,7 +3495,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Parse function body.
   {
     AstNodeFactory<AstConstructionVisitor> function_factory(
-        zone(), ast_value_factory(), info()->ast_node_id_gen());
+        ast_value_factory());
     FunctionState function_state(&function_state_, &scope_, scope,
                                  &function_factory);
     scope_->SetScopeName(function_name);

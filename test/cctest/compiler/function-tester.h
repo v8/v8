@@ -8,6 +8,7 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
+#include "src/ast-numbering.h"
 #include "src/compiler.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
@@ -166,6 +167,7 @@ class FunctionTester : public InitializedHandleScope {
     }
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
+    CHECK(AstNumbering::Renumber(info.function(), info.zone()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Pipeline pipeline(&info);
@@ -215,6 +217,7 @@ class FunctionTester : public InitializedHandleScope {
                        Handle<Code>(function->shared()->code()));
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
+    CHECK(AstNumbering::Renumber(info.function(), info.zone()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     Pipeline pipeline(&info);

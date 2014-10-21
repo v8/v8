@@ -299,24 +299,24 @@ void FullCodeGenerator::Generate() {
       }
       VisitDeclarations(scope()->declarations());
     }
-  }
 
-  { Comment cmnt(masm_, "[ Stack check");
-    PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
-    Label ok;
-    DCHECK(jssp.Is(__ StackPointer()));
-    __ CompareRoot(jssp, Heap::kStackLimitRootIndex);
-    __ B(hs, &ok);
-    PredictableCodeSizeScope predictable(masm_,
-                                         Assembler::kCallSizeWithRelocation);
-    __ Call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
-    __ Bind(&ok);
-  }
+    { Comment cmnt(masm_, "[ Stack check");
+      PrepareForBailoutForId(BailoutId::Declarations(), NO_REGISTERS);
+      Label ok;
+      DCHECK(jssp.Is(__ StackPointer()));
+      __ CompareRoot(jssp, Heap::kStackLimitRootIndex);
+      __ B(hs, &ok);
+      PredictableCodeSizeScope predictable(masm_,
+                                           Assembler::kCallSizeWithRelocation);
+      __ Call(isolate()->builtins()->StackCheck(), RelocInfo::CODE_TARGET);
+      __ Bind(&ok);
+    }
 
-  { Comment cmnt(masm_, "[ Body");
-    DCHECK(loop_depth() == 0);
-    VisitStatements(function()->body());
-    DCHECK(loop_depth() == 0);
+    { Comment cmnt(masm_, "[ Body");
+      DCHECK(loop_depth() == 0);
+      VisitStatements(function()->body());
+      DCHECK(loop_depth() == 0);
+    }
   }
 
   // Always emit a 'return undefined' in case control fell off the end of

@@ -31,6 +31,8 @@
 
 #include "src/v8.h"
 
+#include "src/ast.h"
+#include "src/ast-numbering.h"
 #include "src/ast-value-factory.h"
 #include "src/compiler.h"
 #include "src/execution.h"
@@ -3273,6 +3275,7 @@ TEST(InnerAssignment) {
           CHECK(parser.Parse());
           CHECK(i::Rewriter::Rewrite(&info));
           CHECK(i::Scope::Analyze(&info));
+          CHECK(i::AstNumbering::Renumber(info.function(), info.zone()));
           CHECK(info.function() != NULL);
 
           i::Scope* scope = info.function()->scope();
