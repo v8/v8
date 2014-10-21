@@ -25,6 +25,7 @@ class Linkage;
 class RegisterAllocator;
 class Schedule;
 class SourcePositionTable;
+class ZonePool;
 
 class Pipeline {
  public:
@@ -51,7 +52,7 @@ class Pipeline {
   Isolate* isolate() { return info_->isolate(); }
   Zone* zone() { return info_->zone(); }
 
-  Schedule* ComputeSchedule(Graph* graph);
+  Schedule* ComputeSchedule(ZonePool* zone_pool, Graph* graph);
   void OpenTurboCfgFile(std::ofstream* stream);
   void PrintCompilationStart();
   void PrintScheduleAndInstructions(const char* phase, const Schedule* schedule,

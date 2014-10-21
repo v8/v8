@@ -9,6 +9,7 @@
 
 #include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/zone-pool.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
@@ -21,10 +22,11 @@ class Scheduler {
  public:
   // The complete scheduling algorithm. Creates a new schedule and places all
   // nodes from the graph into it.
-  static Schedule* ComputeSchedule(Graph* graph);
+  static Schedule* ComputeSchedule(ZonePool* zone_pool, Graph* graph);
 
   // Compute the RPO of blocks in an existing schedule.
-  static BasicBlockVector* ComputeSpecialRPO(Schedule* schedule);
+  static BasicBlockVector* ComputeSpecialRPO(ZonePool* zone_pool,
+                                             Schedule* schedule);
 
  private:
   enum Placement { kUnknown, kSchedulable, kFixed };
@@ -40,6 +42,7 @@ class Scheduler {
                                  // or not yet known.
   };
 
+  ZonePool* zone_pool_;
   Zone* zone_;
   Graph* graph_;
   Schedule* schedule_;
@@ -48,7 +51,7 @@ class Scheduler {
   ZoneVector<SchedulerData> node_data_;
   bool has_floating_control_;
 
-  Scheduler(Zone* zone, Graph* graph, Schedule* schedule);
+  Scheduler(ZonePool* zone_pool, Zone* zone, Graph* graph, Schedule* schedule);
 
   SchedulerData DefaultSchedulerData();
 

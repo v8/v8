@@ -54,6 +54,7 @@
         'compiler/simplified-operator-reducer-unittest.cc',
         'compiler/simplified-operator-unittest.cc',
         'compiler/value-numbering-reducer-unittest.cc',
+        'compiler/zone-pool-unittest.cc',
         'libplatform/default-platform-unittest.cc',
         'libplatform/task-queue-unittest.cc',
         'libplatform/worker-thread-unittest.cc',

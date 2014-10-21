@@ -496,6 +496,8 @@
         '../../src/compiler/value-numbering-reducer.h',
         '../../src/compiler/verifier.cc',
         '../../src/compiler/verifier.h',
+        '../../src/compiler/zone-pool.cc',
+        '../../src/compiler/zone-pool.h',
         '../../src/compiler.cc',
         '../../src/compiler.h',
         '../../src/contexts.cc',
