@@ -2744,9 +2744,11 @@ void MarkCompactCollector::ProcessAndClearWeakCells() {
   Object* weak_cell_obj = heap()->encountered_weak_cells();
   while (weak_cell_obj != Smi::FromInt(0)) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
-    HeapObject* value = weak_cell->value();
+    // We do not insert cleared weak cells into the list, so the value
+    // cannot be a Smi here.
+    HeapObject* value = HeapObject::cast(weak_cell->value());
     if (!MarkCompactCollector::IsMarked(value)) {
-      weak_cell->clear(undefined);
+      weak_cell->clear();
     } else {
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
       heap()->mark_compact_collector()->RecordSlot(slot, slot, value);

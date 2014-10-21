@@ -9829,7 +9829,7 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
   Isolate* isolate = script->GetIsolate();
   if (!script->wrapper()->IsUndefined()) {
     Handle<WeakCell> cell(WeakCell::cast(script->wrapper()));
-    if (!cell->value()->IsUndefined()) {
+    if (!cell->cleared()) {
       // Return a handle for the existing script wrapper from the cache.
       return handle(JSObject::cast(cell->value()));
     }

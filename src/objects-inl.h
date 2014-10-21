@@ -1930,13 +1930,14 @@ void PropertyCell::set_type_raw(Object* val, WriteBarrierMode ignored) {
 }
 
 
-HeapObject* WeakCell::value() const {
+Object* WeakCell::value() const {
   return HeapObject::cast(READ_FIELD(this, kValueOffset));
 }
 
 
-void WeakCell::clear(HeapObject* undefined) {
-  WRITE_FIELD(this, kValueOffset, undefined);
+void WeakCell::clear() {
+  DCHECK(GetHeap()->gc_state() == Heap::MARK_COMPACT);
+  WRITE_FIELD(this, kValueOffset, Smi::FromInt(0));
 }
 
 
@@ -1944,6 +1945,9 @@ void WeakCell::initialize(HeapObject* val) {
   WRITE_FIELD(this, kValueOffset, val);
   WRITE_BARRIER(GetHeap(), this, kValueOffset, val);
 }
+
+
+bool WeakCell::cleared() const { return value() == Smi::FromInt(0); }
 
 
 Object* WeakCell::next() const { return READ_FIELD(this, kNextOffset); }

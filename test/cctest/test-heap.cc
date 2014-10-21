@@ -4310,8 +4310,8 @@ TEST(WeakCell) {
   CHECK(weak_cell1->value()->IsFixedArray());
   CHECK_EQ(*survivor, weak_cell2->value());
   heap->CollectAllAvailableGarbage();
+  CHECK(weak_cell1->cleared());
   CHECK_EQ(*survivor, weak_cell2->value());
-  CHECK(weak_cell2->value()->IsFixedArray());
 }
 
 
@@ -4342,7 +4342,7 @@ TEST(WeakCellsWithIncrementalMarking) {
   heap->CollectAllGarbage(Heap::kNoGCFlags);
   CHECK_EQ(*survivor, weak_cells[0]->value());
   for (int i = 1; i < N; i++) {
-    CHECK(weak_cells[i]->value()->IsUndefined());
+    CHECK(weak_cells[i]->cleared());
   }
 }
 

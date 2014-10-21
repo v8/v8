@@ -9590,13 +9590,15 @@ class PropertyCell: public Cell {
 
 class WeakCell : public HeapObject {
  public:
-  inline HeapObject* value() const;
+  inline Object* value() const;
 
   // This should not be called by anyone except GC.
-  inline void clear(HeapObject* undefined);
+  inline void clear();
 
   // This should not be called by anyone except allocator.
   inline void initialize(HeapObject* value);
+
+  inline bool cleared() const;
 
   DECL_ACCESSORS(next, Object)
 
