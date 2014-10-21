@@ -286,7 +286,9 @@ function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
     // prototype.
     var current = array[index];
     if (!IS_UNDEFINED(current) || index in array) {
-      deleted_elements[i] = current;
+      // The spec requires [[DefineOwnProperty]] here, %AddElement is close
+      // enough (in that it ignores the prototype).
+      %AddElement(deleted_elements, i, current, NONE);
     }
   }
 }
