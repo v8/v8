@@ -283,6 +283,9 @@ class CFGBuilder {
   }
 
   void ConnectMerge(Node* merge) {
+    // Don't connect the special merge at the end to its predecessors.
+    if (IsFinalMerge(merge)) return;
+
     BasicBlock* block = schedule_->block(merge);
     DCHECK(block != NULL);
     // For all of the merge's control inputs, add a goto at the end to the
@@ -290,10 +293,8 @@ class CFGBuilder {
     for (InputIter j = merge->inputs().begin(); j != merge->inputs().end();
          ++j) {
       BasicBlock* predecessor_block = schedule_->block(*j);
-      if ((*j)->opcode() != IrOpcode::kReturn) {
-        TraceConnect(merge, predecessor_block, block);
-        schedule_->AddGoto(predecessor_block, block);
-      }
+      TraceConnect(merge, predecessor_block, block);
+      schedule_->AddGoto(predecessor_block, block);
     }
   }
 
@@ -313,6 +314,10 @@ class CFGBuilder {
       Trace("Connect #%d:%s, B%d -> B%d\n", node->id(), node->op()->mnemonic(),
             block->id().ToInt(), succ->id().ToInt());
     }
+  }
+
+  bool IsFinalMerge(Node* node) {
+    return (node == scheduler_->graph_->end()->InputAt(0));
   }
 };
 
