@@ -14,36 +14,33 @@ namespace internal {
 // ---------------------------------------------------------------------------
 // Initialization.
 
-struct Interface::ValueCreate {
-  static void Construct(Interface* ptr) {
-    ::new (ptr) Interface(VALUE + FROZEN);
-  }
+struct Interface::Cache {
+  template<int flags>
+  struct Create {
+    static void Construct(Interface* ptr) { ::new (ptr) Interface(flags); }
+  };
+  typedef Create<VALUE + FROZEN> ValueCreate;
+  typedef Create<VALUE + CONST + FROZEN> ConstCreate;
+
+  static base::LazyInstance<Interface, ValueCreate>::type value_interface;
+  static base::LazyInstance<Interface, ConstCreate>::type const_interface;
 };
 
 
-struct Interface::ConstCreate {
-  static void Construct(Interface* ptr) {
-    ::new (ptr) Interface(VALUE + CONST + FROZEN);
-  }
-};
+base::LazyInstance<Interface, Interface::Cache::ValueCreate>::type
+    Interface::Cache::value_interface = LAZY_INSTANCE_INITIALIZER;
 
-
-namespace {
-  base::LazyInstance<Interface, Interface::ValueCreate>::type value_interface =
-      LAZY_INSTANCE_INITIALIZER;
-
-  base::LazyInstance<Interface, Interface::ConstCreate>::type const_interface =
-      LAZY_INSTANCE_INITIALIZER;
-}
+base::LazyInstance<Interface, Interface::Cache::ConstCreate>::type
+    Interface::Cache::const_interface = LAZY_INSTANCE_INITIALIZER;
 
 
 Interface* Interface::NewValue() {
-  return value_interface.Pointer();  // Cached.
+  return Cache::value_interface.Pointer();  // Cached.
 }
 
 
 Interface* Interface::NewConst() {
-  return const_interface.Pointer();  // Cached.
+  return Cache::const_interface.Pointer();  // Cached.
 }
 
 

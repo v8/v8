@@ -172,8 +172,7 @@ class Interface : public ZoneObject {
   // ---------------------------------------------------------------------------
   // Implementation.
  private:
-  struct ValueCreate;
-  struct ConstCreate;
+  struct Cache;
 
   enum Flags {    // All flags are monotonic
     NONE = 0,
