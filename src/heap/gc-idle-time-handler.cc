@@ -123,23 +123,36 @@ bool GCIdleTimeHandler::ShouldDoMarkCompact(
 
 
 // The following logic is implemented by the controller:
-// (1) If the new space is almost full and we can affort a Scavenge or if the
+// (1) If we don't have any idle time, do nothing, unless a context was
+// disposed, incremental marking is stopped, and the heap is small. Then do
+// a full GC.
+// (2) If the new space is almost full and we can affort a Scavenge or if the
 // next Scavenge will very likely take long, then a Scavenge is performed.
-// (2) If there is currently no MarkCompact idle round going on, we start a
+// (3) If there is currently no MarkCompact idle round going on, we start a
 // new idle round if enough garbage was created or we received a context
 // disposal event. Otherwise we do not perform garbage collection to keep
 // system utilization low.
-// (3) If incremental marking is done, we perform a full garbage collection
+// (4) If incremental marking is done, we perform a full garbage collection
 // if context was disposed or if we are allowed to still do full garbage
 // collections during this idle round or if we are not allowed to start
 // incremental marking. Otherwise we do not perform garbage collection to
 // keep system utilization low.
-// (4) If sweeping is in progress and we received a large enough idle time
+// (5) If sweeping is in progress and we received a large enough idle time
 // request, we finalize sweeping here.
-// (5) If incremental marking is in progress, we perform a marking step. Note,
+// (6) If incremental marking is in progress, we perform a marking step. Note,
 // that this currently may trigger a full garbage collection.
 GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
                                             HeapState heap_state) {
+  if (idle_time_in_ms == 0) {
+    if (heap_state.incremental_marking_stopped) {
+      if (heap_state.size_of_objects < kSmallHeapSize &&
+          heap_state.contexts_disposed > 0) {
+        return GCIdleTimeAction::FullGC();
+      }
+    }
+    return GCIdleTimeAction::Nothing();
+  }
+
   if (ShouldDoScavenge(
           idle_time_in_ms, heap_state.new_space_capacity,
           heap_state.used_new_space_size,
@@ -156,11 +169,8 @@ GCIdleTimeAction GCIdleTimeHandler::Compute(size_t idle_time_in_ms,
     }
   }
 
-  if (idle_time_in_ms == 0) {
-    return GCIdleTimeAction::Nothing();
-  }
-
   if (heap_state.incremental_marking_stopped) {
+    // TODO(jochen): Remove context disposal dependant logic.
     if (ShouldDoMarkCompact(idle_time_in_ms, heap_state.size_of_objects,
                             heap_state.mark_compact_speed_in_bytes_per_ms) ||
         (heap_state.size_of_objects < kSmallHeapSize &&
