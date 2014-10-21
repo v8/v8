@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --harmony-tostring
+
 // ArrayBuffer
 
 function TestByteLength(param, expectedByteLength) {
@@ -52,6 +54,8 @@ function TestArrayBufferCreation() {
 
   var ab = new ArrayBuffer();
   assertSame(0, ab.byteLength);
+  assertEquals("[object ArrayBuffer]",
+      Object.prototype.toString.call(ab));
 }
 
 TestArrayBufferCreation();
@@ -123,6 +127,9 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   var ab = new ArrayBuffer(256*elementSize);
 
   var a0 = new constr(30);
+  assertEquals("[object " + constr.name + "]",
+      Object.prototype.toString.call(a0));
+
   assertTrue(ArrayBuffer.isView(a0));
   assertSame(elementSize, a0.BYTES_PER_ELEMENT);
   assertSame(30, a0.length);

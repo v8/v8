@@ -133,6 +133,8 @@ function SetUpSet() {
   %SetCode($Set, SetConstructor);
   %FunctionSetPrototype($Set, new $Object());
   %AddNamedProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
+  %AddNamedProperty(
+      $Set.prototype, symbolToStringTag, "Set", DONT_ENUM | READ_ONLY);
 
   %FunctionSetLength(SetForEach, 1);
 
@@ -282,6 +284,8 @@ function SetUpMap() {
   %SetCode($Map, MapConstructor);
   %FunctionSetPrototype($Map, new $Object());
   %AddNamedProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
+  %AddNamedProperty(
+      $Map.prototype, symbolToStringTag, "Map", DONT_ENUM | READ_ONLY);
 
   %FunctionSetLength(MapForEach, 1);
 

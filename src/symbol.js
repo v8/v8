@@ -101,6 +101,8 @@ function SetUpSymbol() {
     // "isConcatSpreadable", symbolIsConcatSpreadable,
     // "isRegExp", symbolIsRegExp,
     "iterator", symbolIterator,
+    // TODO(dslomov, caitp): Currently defined in harmony-tostring.js ---
+    // Move here when shipping
     // "toStringTag", symbolToStringTag,
     "unscopables", symbolUnscopables
   ));
@@ -110,6 +112,8 @@ function SetUpSymbol() {
   ));
 
   %AddNamedProperty($Symbol.prototype, "constructor", $Symbol, DONT_ENUM);
+  %AddNamedProperty(
+      $Symbol.prototype, symbolToStringTag, "Symbol", DONT_ENUM | READ_ONLY);
   InstallFunctions($Symbol.prototype, DONT_ENUM, $Array(
     "toString", SymbolToString,
     "valueOf", SymbolValueOf

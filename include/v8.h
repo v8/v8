@@ -2130,6 +2130,7 @@ class V8_EXPORT Symbol : public Name {
   // Well-known symbols
   static Local<Symbol> GetIterator(Isolate* isolate);
   static Local<Symbol> GetUnscopables(Isolate* isolate);
+  static Local<Symbol> GetToStringTag(Isolate* isolate);
 
   V8_INLINE static Symbol* Cast(v8::Value* obj);
 

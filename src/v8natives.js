@@ -215,8 +215,9 @@ SetUpGlobal();
 // ----------------------------------------------------------------------------
 // Object
 
+var DefaultObjectToString = NoSideEffectsObjectToString;
 // ECMA-262 - 15.2.4.2
-function ObjectToString() {
+function NoSideEffectsObjectToString() {
   if (IS_UNDEFINED(this) && !IS_UNDETECTABLE(this)) return "[object Undefined]";
   if (IS_NULL(this)) return "[object Null]";
   return "[object " + %_ClassOf(ToObject(this)) + "]";
@@ -1409,7 +1410,7 @@ function SetUpObject() {
 
   // Set up non-enumerable functions on the Object.prototype object.
   InstallFunctions($Object.prototype, DONT_ENUM, $Array(
-    "toString", ObjectToString,
+    "toString", NoSideEffectsObjectToString,
     "toLocaleString", ObjectToLocaleString,
     "valueOf", ObjectValueOf,
     "hasOwnProperty", ObjectHasOwnProperty,
