@@ -70,6 +70,12 @@ Scheduler::SchedulerData Scheduler::DefaultSchedulerData() {
 }
 
 
+Scheduler::SchedulerData* Scheduler::GetData(Node* node) {
+  DCHECK(node->id() < static_cast<int>(node_data_.size()));
+  return &node_data_[node->id()];
+}
+
+
 Scheduler::Placement Scheduler::GetPlacement(Node* node) {
   SchedulerData* data = GetData(node);
   if (data->placement_ == kUnknown) {  // Compute placement, once, on demand.
@@ -80,8 +86,10 @@ Scheduler::Placement Scheduler::GetPlacement(Node* node) {
         break;
       case IrOpcode::kPhi:
       case IrOpcode::kEffectPhi: {
-        // Phis and effect phis are fixed if their control inputs are.
-        data->placement_ = GetPlacement(NodeProperties::GetControlInput(node));
+        // Phis and effect phis are fixed if their control inputs are, whereas
+        // otherwise they are coupled to a floating control node.
+        Placement p = GetPlacement(NodeProperties::GetControlInput(node));
+        data->placement_ = (p == kFixed ? kFixed : kCoupled);
         break;
       }
 #define DEFINE_FLOATING_CONTROL_CASE(V) case IrOpcode::k##V:
@@ -93,6 +101,8 @@ Scheduler::Placement Scheduler::GetPlacement(Node* node) {
           if (!data->is_connected_control_) {
             data->is_floating_control_ = true;
             has_floating_control_ = true;
+            // TODO(mstarzinger): Workaround to fix visitation order.
+            schedule_root_nodes_.push_back(node);
             Trace("Floating control found: #%d:%s\n", node->id(),
                   node->op()->mnemonic());
           }
@@ -104,6 +114,48 @@ Scheduler::Placement Scheduler::GetPlacement(Node* node) {
     }
   }
   return data->placement_;
+}
+
+
+void Scheduler::IncrementUnscheduledUseCount(Node* node, Node* from) {
+  if (GetPlacement(node) == kCoupled) {
+    // Use count for coupled nodes is summed up on their control.
+    Node* control = NodeProperties::GetControlInput(node);
+    return IncrementUnscheduledUseCount(control, from);
+  }
+  ++(GetData(node)->unscheduled_count_);
+  if (FLAG_trace_turbo_scheduler) {
+    Trace("  Use count of #%d:%s (used by #%d:%s)++ = %d\n", node->id(),
+          node->op()->mnemonic(), from->id(), from->op()->mnemonic(),
+          GetData(node)->unscheduled_count_);
+  }
+}
+
+
+void Scheduler::DecrementUnscheduledUseCount(Node* node, Node* from) {
+  if (GetPlacement(node) == kCoupled) {
+    // Use count for coupled nodes is summed up on their control.
+    Node* control = NodeProperties::GetControlInput(node);
+    return DecrementUnscheduledUseCount(control, from);
+  }
+  DCHECK(GetData(node)->unscheduled_count_ > 0);
+  --(GetData(node)->unscheduled_count_);
+  if (FLAG_trace_turbo_scheduler) {
+    Trace("  Use count of #%d:%s (used by #%d:%s)-- = %d\n", node->id(),
+          node->op()->mnemonic(), from->id(), from->op()->mnemonic(),
+          GetData(node)->unscheduled_count_);
+    if (GetData(node)->unscheduled_count_ == 0) {
+      Trace("    newly eligible #%d:%s\n", node->id(), node->op()->mnemonic());
+    }
+  }
+}
+
+
+int Scheduler::GetRPONumber(BasicBlock* block) {
+  DCHECK(block->rpo_number() >= 0 &&
+         block->rpo_number() < static_cast<int>(schedule_->rpo_order_.size()));
+  DCHECK(schedule_->rpo_order_[block->rpo_number()] == block);
+  return block->rpo_number();
 }
 
 
@@ -399,28 +451,7 @@ class PrepareUsesVisitor : public NullNodeVisitor {
     // for decrementing use counts.
     if (!schedule_->IsScheduled(from)) {
       DCHECK_NE(Scheduler::kFixed, scheduler_->GetPlacement(from));
-      ++(scheduler_->GetData(to)->unscheduled_count_);
-      Trace("  Use count of #%d:%s (used by #%d:%s)++ = %d\n", to->id(),
-            to->op()->mnemonic(), from->id(), from->op()->mnemonic(),
-            scheduler_->GetData(to)->unscheduled_count_);
-      if (OperatorProperties::IsBasicBlockBegin(to->op()) &&
-          (from->opcode() == IrOpcode::kEffectPhi ||
-           from->opcode() == IrOpcode::kPhi) &&
-          scheduler_->GetData(to)->is_floating_control_ &&
-          !scheduler_->GetData(to)->is_connected_control_) {
-        for (InputIter i = from->inputs().begin(); i != from->inputs().end();
-             ++i) {
-          if (!NodeProperties::IsControlEdge(i.edge())) {
-            ++(scheduler_->GetData(*i)->unscheduled_count_);
-            Trace(
-                "  Use count of #%d:%s (additional dependency of #%d:%s)++ = "
-                "%d\n",
-                (*i)->id(), (*i)->op()->mnemonic(), to->id(),
-                to->op()->mnemonic(),
-                scheduler_->GetData(*i)->unscheduled_count_);
-          }
-        }
-      }
+      scheduler_->IncrementUnscheduledUseCount(to, from);
     }
   }
 
@@ -532,8 +563,15 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
       return GenericGraphVisit::CONTINUE;
     }
 
+    // Don't schedule coupled nodes on their own.
+    if (scheduler_->GetPlacement(node) == Scheduler::kCoupled) {
+      Node* control = NodeProperties::GetControlInput(node);
+      scheduler_->DecrementUnscheduledUseCount(control, node);
+      return GenericGraphVisit::CONTINUE;
+    }
+
     Scheduler::SchedulerData* data = scheduler_->GetData(node);
-    DCHECK_EQ(Scheduler::kSchedulable, data->placement_);
+    DCHECK_EQ(Scheduler::kSchedulable, scheduler_->GetPlacement(node));
 
     // If all the uses of a node have been scheduled, then the node itself can
     // be scheduled.
@@ -544,23 +582,14 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
 
     // Determine the dominating block for all of the uses of this node. It is
     // the latest block that this node can be scheduled in.
-    BasicBlock* block = NULL;
-    for (Node::Uses::iterator i = node->uses().begin(); i != node->uses().end();
-         ++i) {
-      BasicBlock* use_block = GetBlockForUse(i.edge());
-      block = block == NULL ? use_block : use_block == NULL
-                                              ? block
-                                              : scheduler_->GetCommonDominator(
-                                                    block, use_block);
-    }
-    DCHECK(block != NULL);
+    BasicBlock* block = GetCommonDominatorOfUses(node);
+    DCHECK_NE(NULL, block);
 
     int min_rpo = data->minimum_block_->rpo_number();
-    Trace(
-        "Schedule late conservative for #%d:%s is B%d at loop depth %d, "
-        "minimum_rpo = %d\n",
-        node->id(), node->op()->mnemonic(), block->id().ToInt(),
-        block->loop_depth(), min_rpo);
+    Trace("Schedule late of #%d:%s is B%d at loop depth %d, minimum_rpo = %d\n",
+          node->id(), node->op()->mnemonic(), block->id().ToInt(),
+          block->loop_depth(), min_rpo);
+
     // Hoist nodes out of loops if possible. Nodes can be hoisted iteratively
     // into enclosing loop pre-headers until they would preceed their
     // ScheduleEarly position.
@@ -591,20 +620,40 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
   }
 
  private:
+  BasicBlock* GetCommonDominatorOfUses(Node* node) {
+    BasicBlock* block = NULL;
+    Node::Uses uses = node->uses();
+    for (Node::Uses::iterator i = uses.begin(); i != uses.end(); ++i) {
+      BasicBlock* use_block = GetBlockForUse(i.edge());
+      block = block == NULL ? use_block : use_block == NULL
+                                              ? block
+                                              : scheduler_->GetCommonDominator(
+                                                    block, use_block);
+    }
+    return block;
+  }
+
   BasicBlock* GetBlockForUse(Node::Edge edge) {
     Node* use = edge.from();
     IrOpcode::Value opcode = use->opcode();
     if (opcode == IrOpcode::kPhi || opcode == IrOpcode::kEffectPhi) {
+      // If the use is from a coupled (i.e. floating) phi, compute the common
+      // dominator of its uses. This will not recurse more than one level.
+      if (scheduler_->GetPlacement(use) == Scheduler::kCoupled) {
+        Trace("  inspecting uses of coupled phi #%d:%s\n", use->id(),
+              use->op()->mnemonic());
+        DCHECK_EQ(edge.to(), NodeProperties::GetControlInput(use));
+        return GetCommonDominatorOfUses(use);
+      }
       // If the use is from a fixed (i.e. non-floating) phi, use the block
       // of the corresponding control input to the merge.
-      int index = edge.index();
       if (scheduler_->GetPlacement(use) == Scheduler::kFixed) {
-        Trace("  input@%d into a fixed phi #%d:%s\n", index, use->id(),
+        Trace("  input@%d into a fixed phi #%d:%s\n", edge.index(), use->id(),
               use->op()->mnemonic());
         Node* merge = NodeProperties::GetControlInput(use, 0);
         opcode = merge->opcode();
         DCHECK(opcode == IrOpcode::kMerge || opcode == IrOpcode::kLoop);
-        use = NodeProperties::GetControlInput(merge, index);
+        use = NodeProperties::GetControlInput(merge, edge.index());
       }
     }
     BasicBlock* result = schedule_->block(use);
@@ -621,41 +670,7 @@ class ScheduleLateNodeVisitor : public NullNodeVisitor {
     // Reduce the use count of the node's inputs to potentially make them
     // schedulable.
     for (InputIter i = node->inputs().begin(); i != node->inputs().end(); ++i) {
-      Scheduler::SchedulerData* data = scheduler_->GetData(*i);
-      DCHECK(data->unscheduled_count_ > 0);
-      --data->unscheduled_count_;
-      if (FLAG_trace_turbo_scheduler) {
-        Trace("  Use count for #%d:%s (used by #%d:%s)-- = %d\n", (*i)->id(),
-              (*i)->op()->mnemonic(), i.edge().from()->id(),
-              i.edge().from()->op()->mnemonic(), data->unscheduled_count_);
-        if (data->unscheduled_count_ == 0) {
-          Trace("  newly eligible #%d:%s\n", (*i)->id(),
-                (*i)->op()->mnemonic());
-        }
-      }
-    }
-
-    for (UseIter i = node->uses().begin(); i != node->uses().end(); ++i) {
-      Node* use = *i;
-      if (use->opcode() == IrOpcode::kPhi ||
-          use->opcode() == IrOpcode::kEffectPhi) {
-        Node* control = NodeProperties::GetControlInput(use);
-        Scheduler::SchedulerData* data = scheduler_->GetData(control);
-        if (data->is_floating_control_ && !data->is_connected_control_) {
-          --data->unscheduled_count_;
-          if (FLAG_trace_turbo_scheduler) {
-            Trace(
-                "  Use count for #%d:%s (additional dependency of #%d:%s)-- = "
-                "%d\n",
-                (*i)->id(), (*i)->op()->mnemonic(), node->id(),
-                node->op()->mnemonic(), data->unscheduled_count_);
-            if (data->unscheduled_count_ == 0) {
-              Trace("  newly eligible #%d:%s\n", (*i)->id(),
-                    (*i)->op()->mnemonic());
-            }
-          }
-        }
-      }
+      scheduler_->DecrementUnscheduledUseCount(*i, i.edge().from());
     }
   }
 
