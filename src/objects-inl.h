@@ -4173,7 +4173,8 @@ typename Traits::ElementType FixedTypedArray<Traits>::from_double(
 
 template<> inline
 uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from_double(double value) {
-  if (value < 0) return 0;
+  // Handle NaNs and less than zero values which clamp to zero.
+  if (!(value > 0)) return 0;
   if (value > 0xFF) return 0xFF;
   return static_cast<uint8_t>(lrint(value));
 }
