@@ -40,7 +40,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   Linkage linkage(&info, call_descriptor());
   InstructionSequence sequence(test_->zone(), graph(), schedule);
   SourcePositionTable source_position_table(graph());
-  InstructionSelector selector(&linkage, &sequence, schedule,
+  InstructionSelector selector(test_->zone(), &linkage, &sequence, schedule,
                                &source_position_table, features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {

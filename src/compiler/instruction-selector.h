@@ -25,8 +25,9 @@ class InstructionSelector FINAL {
   // Forward declarations.
   class Features;
 
-  InstructionSelector(Linkage* linkage, InstructionSequence* sequence,
-                      Schedule* schedule, SourcePositionTable* source_positions,
+  InstructionSelector(Zone* local_zone, Linkage* linkage,
+                      InstructionSequence* sequence, Schedule* schedule,
+                      SourcePositionTable* source_positions,
                       Features features = SupportedFeatures());
 
   // Visit code for the entire graph with the included schedule.
@@ -187,11 +188,11 @@ class InstructionSelector FINAL {
   Linkage* linkage() const { return linkage_; }
   InstructionSequence* sequence() const { return sequence_; }
   Zone* instruction_zone() const { return sequence()->zone(); }
-  Zone* zone() { return &zone_; }
+  Zone* zone() const { return zone_; }
 
   // ===========================================================================
 
-  Zone zone_;
+  Zone* const zone_;
   Linkage* const linkage_;
   InstructionSequence* const sequence_;
   SourcePositionTable* const source_positions_;

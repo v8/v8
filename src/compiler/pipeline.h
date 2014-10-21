@@ -61,7 +61,8 @@ class Pipeline {
   void PrintAllocator(const char* phase, const RegisterAllocator* allocator);
   void VerifyAndPrintGraph(Graph* graph, const char* phase,
                            bool untyped = false);
-  Handle<Code> GenerateCode(Linkage* linkage, Graph* graph, Schedule* schedule,
+  Handle<Code> GenerateCode(ZonePool* zone_pool, Linkage* linkage, Graph* graph,
+                            Schedule* schedule,
                             SourcePositionTable* source_positions);
 };
 }

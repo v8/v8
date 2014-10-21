@@ -499,9 +499,11 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 }
 
 
-RegisterAllocator::RegisterAllocator(Frame* frame, CompilationInfo* info,
+RegisterAllocator::RegisterAllocator(Zone* local_zone, Frame* frame,
+                                     CompilationInfo* info,
                                      InstructionSequence* code)
-    : zone_(code->isolate()),
+    : zone_(local_zone),
+      zone_pool_(NULL),
       frame_(frame),
       info_(info),
       code_(code),
@@ -1094,7 +1096,9 @@ void RegisterAllocator::ResolvePhis(const InstructionBlock* block) {
 }
 
 
-bool RegisterAllocator::Allocate() {
+bool RegisterAllocator::Allocate(ZonePool* zone_pool) {
+  DCHECK_EQ(NULL, zone_pool_);
+  zone_pool_ = zone_pool;
   assigned_registers_ = new (code_zone())
       BitVector(Register::NumAllocatableRegisters(), code_zone());
   assigned_double_registers_ = new (code_zone())
@@ -1114,6 +1118,46 @@ bool RegisterAllocator::Allocate() {
   frame()->SetAllocatedDoubleRegisters(assigned_double_registers_);
   return true;
 }
+
+
+class RegisterAllocatorPhase : public CompilationPhase {
+ public:
+  RegisterAllocatorPhase(const char* name, RegisterAllocator* allocator)
+      : CompilationPhase(name, allocator->info()),
+        allocator_(allocator),
+        allocator_zone_start_allocation_size_(0),
+        stats_(NULL) {
+    if (FLAG_turbo_stats) {
+      allocator_zone_start_allocation_size_ =
+          allocator->info()->zone()->allocation_size();
+      if (allocator->zone_pool() != NULL) {
+        stats_ = new ZonePool::StatsScope(allocator->zone_pool());
+      }
+    }
+  }
+
+  ~RegisterAllocatorPhase() {
+    if (FLAG_turbo_stats) {
+      unsigned size = allocator_->info()->zone()->allocation_size() -
+                      allocator_zone_start_allocation_size_;
+      if (stats_ != NULL) {
+        size += static_cast<unsigned>(stats_->GetMaxAllocatedBytes());
+      }
+      isolate()->GetTStatistics()->SaveTiming(name(), base::TimeDelta(), size);
+    }
+    delete stats_;
+#ifdef DEBUG
+    if (allocator_ != NULL) allocator_->Verify();
+#endif
+  }
+
+ private:
+  RegisterAllocator* allocator_;
+  unsigned allocator_zone_start_allocation_size_;
+  ZonePool::StatsScope* stats_;
+
+  DISALLOW_COPY_AND_ASSIGN(RegisterAllocatorPhase);
+};
 
 
 void RegisterAllocator::MeetRegisterConstraints() {
@@ -2205,27 +2249,6 @@ void RegisterAllocator::SetLiveRangeAssignedRegister(LiveRange* range,
   range->set_assigned_register(reg, code_zone());
 }
 
-
-RegisterAllocatorPhase::RegisterAllocatorPhase(const char* name,
-                                               RegisterAllocator* allocator)
-    : CompilationPhase(name, allocator->info()), allocator_(allocator) {
-  if (FLAG_turbo_stats) {
-    allocator_zone_start_allocation_size_ =
-        allocator->zone()->allocation_size();
-  }
-}
-
-
-RegisterAllocatorPhase::~RegisterAllocatorPhase() {
-  if (FLAG_turbo_stats) {
-    unsigned size = allocator_->zone()->allocation_size() -
-                    allocator_zone_start_allocation_size_;
-    isolate()->GetTStatistics()->SaveTiming(name(), base::TimeDelta(), size);
-  }
-#ifdef DEBUG
-  if (allocator_ != NULL) allocator_->Verify();
-#endif
-}
 }
 }
 }  // namespace v8::internal::compiler

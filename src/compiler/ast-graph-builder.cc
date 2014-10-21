@@ -17,8 +17,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-AstGraphBuilder::AstGraphBuilder(CompilationInfo* info, JSGraph* jsgraph)
-    : StructuredGraphBuilder(jsgraph->graph(), jsgraph->common()),
+AstGraphBuilder::AstGraphBuilder(Zone* local_zone, CompilationInfo* info,
+                                 JSGraph* jsgraph)
+    : StructuredGraphBuilder(local_zone, jsgraph->graph(), jsgraph->common()),
       info_(info),
       jsgraph_(jsgraph),
       globals_(0, info->zone()),

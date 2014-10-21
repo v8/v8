@@ -409,7 +409,7 @@ void JSInliner::TryInlineJSCall(Node* call_node) {
   JSGraph jsgraph(&graph, jsgraph_->common(), jsgraph_->javascript(),
                   jsgraph_->machine());
 
-  AstGraphBuilder graph_builder(&info, &jsgraph);
+  AstGraphBuilder graph_builder(local_zone_, &info, &jsgraph);
   graph_builder.CreateGraph();
   Inlinee::UnifyReturn(&jsgraph);
 

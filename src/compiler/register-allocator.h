@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/compiler/instruction.h"
+#include "src/compiler/zone-pool.h"
 #include "src/macro-assembler.h"
 #include "src/zone.h"
 
@@ -318,8 +319,8 @@ class LiveRange : public ZoneObject {
 class RegisterAllocator BASE_EMBEDDED {
  public:
   // TODO(dcarney): remove info
-  explicit RegisterAllocator(Frame* frame, CompilationInfo* info,
-                             InstructionSequence* code);
+  explicit RegisterAllocator(Zone* local_zone, Frame* frame,
+                             CompilationInfo* info, InstructionSequence* code);
 
   static void TraceAlloc(const char* msg, ...);
 
@@ -330,7 +331,8 @@ class RegisterAllocator BASE_EMBEDDED {
   // Returns the register kind required by the given virtual register.
   RegisterKind RequiredRegisterKind(int virtual_register) const;
 
-  bool Allocate();
+  // TODO(dcarney): fix compilation phase stats to not require this.
+  bool Allocate(ZonePool* zone_pool = NULL);
 
   const ZoneList<LiveRange*>* live_ranges() const { return &live_ranges_; }
   const Vector<LiveRange*>* fixed_live_ranges() const {
@@ -342,13 +344,14 @@ class RegisterAllocator BASE_EMBEDDED {
 
   CompilationInfo* info() const { return info_; }
   inline InstructionSequence* code() const { return code_; }
+  ZonePool* zone_pool() const { return zone_pool_; }
 
   // This zone is for datastructures only needed during register allocation.
-  inline Zone* zone() { return &zone_; }
+  inline Zone* zone() const { return zone_; }
 
   // This zone is for InstructionOperands and moves that live beyond register
   // allocation.
-  inline Zone* code_zone() { return code()->zone(); }
+  inline Zone* code_zone() const { return code()->zone(); }
 
   int GetVirtualRegister() {
     int vreg = code()->NextVirtualRegister();
@@ -497,7 +500,9 @@ class RegisterAllocator BASE_EMBEDDED {
 
   Frame* frame() const { return frame_; }
 
-  Zone zone_;
+  Zone* const zone_;
+  // TODO(dcarney): remove this.
+  ZonePool* zone_pool_;
   Frame* const frame_;
   CompilationInfo* const info_;
   InstructionSequence* const code_;
@@ -535,18 +540,6 @@ class RegisterAllocator BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(RegisterAllocator);
 };
 
-
-class RegisterAllocatorPhase : public CompilationPhase {
- public:
-  RegisterAllocatorPhase(const char* name, RegisterAllocator* allocator);
-  ~RegisterAllocatorPhase();
-
- private:
-  RegisterAllocator* allocator_;
-  unsigned allocator_zone_start_allocation_size_;
-
-  DISALLOW_COPY_AND_ASSIGN(RegisterAllocatorPhase);
-};
 }
 }
 }  // namespace v8::internal::compiler
