@@ -776,7 +776,7 @@ void CodeGenerator::AssembleDeoptimizerCall(int deoptimization_id) {
 
 void CodeGenerator::AssemblePrologue() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  Frame* frame = code_->frame();
+  Frame* frame = this->frame();
   int stack_slots = frame->GetSpillSlotCount();
   if (descriptor->kind() == CallDescriptor::kCallAddress) {
     // Assemble a prologue similar the to cdecl calling convention.
