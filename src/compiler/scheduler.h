@@ -29,7 +29,7 @@ class Scheduler {
                                              Schedule* schedule);
 
  private:
-  enum Placement { kUnknown, kSchedulable, kFixed, kCoupled };
+  enum Placement { kUnknown, kSchedulable, kFixed };
 
   // Per-node data tracked during scheduling.
   struct SchedulerData {
@@ -38,8 +38,8 @@ class Scheduler {
     bool is_connected_control_;  // {true} if control-connected to the end node.
     bool is_floating_control_;   // {true} if control, but not control-connected
                                  // to the end node.
-    Placement placement_ : 2;    // Whether the node is fixed, schedulable,
-                                 // coupled to another node, or not yet known.
+    Placement placement_ : 3;    // Whether the node is fixed, schedulable,
+                                 // or not yet known.
   };
 
   ZonePool* zone_pool_;
@@ -53,15 +53,23 @@ class Scheduler {
 
   Scheduler(ZonePool* zone_pool, Zone* zone, Graph* graph, Schedule* schedule);
 
-  inline SchedulerData DefaultSchedulerData();
-  inline SchedulerData* GetData(Node* node);
+  SchedulerData DefaultSchedulerData();
+
+  SchedulerData* GetData(Node* node) {
+    DCHECK(node->id() < static_cast<int>(node_data_.size()));
+    return &node_data_[node->id()];
+  }
 
   Placement GetPlacement(Node* node);
 
-  void IncrementUnscheduledUseCount(Node* node, Node* from);
-  void DecrementUnscheduledUseCount(Node* node, Node* from);
+  int GetRPONumber(BasicBlock* block) {
+    DCHECK(block->rpo_number() >= 0 &&
+           block->rpo_number() <
+               static_cast<int>(schedule_->rpo_order_.size()));
+    DCHECK(schedule_->rpo_order_[block->rpo_number()] == block);
+    return block->rpo_number();
+  }
 
-  inline int GetRPONumber(BasicBlock* block);
   BasicBlock* GetCommonDominator(BasicBlock* b1, BasicBlock* b2);
 
   // Phase 1: Build control-flow graph and dominator tree.
