@@ -9,6 +9,7 @@
 #include "src/v8.h"
 
 #include "src/allocation-site-scopes.h"
+#include "src/ast-numbering.h"
 #include "src/full-codegen.h"
 #include "src/hydrogen-bce.h"
 #include "src/hydrogen-bch.h"
@@ -7830,7 +7831,8 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
   // step, but don't transfer ownership to target_info.
   target_info.SetAstValueFactory(top_info()->ast_value_factory(), false);
   Handle<SharedFunctionInfo> target_shared(target->shared());
-  if (!Parser::Parse(&target_info) || !Scope::Analyze(&target_info)) {
+  if (!Parser::Parse(&target_info) || !Scope::Analyze(&target_info) ||
+      !AstNumbering::Renumber(target_info.function(), target_info.zone())) {
     if (target_info.isolate()->has_pending_exception()) {
       // Parse or scope error, never optimize this function.
       SetStackOverflow();

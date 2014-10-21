@@ -4,6 +4,8 @@
 
 #include "src/v8.h"
 
+#include "src/ast.h"
+#include "src/ast-numbering.h"
 #include "src/code-factory.h"
 #include "src/codegen.h"
 #include "src/compiler.h"
@@ -305,6 +307,11 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
 
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
+
+  if (!AstNumbering::Renumber(info->function(), info->zone())) {
+    DCHECK(!isolate->has_pending_exception());
+    return false;
+  }
 
   Handle<Script> script = info->script();
   if (!script->IsUndefined() && !script->source()->IsUndefined()) {
