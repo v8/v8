@@ -50,22 +50,33 @@ class BasicBlock FINAL : public ZoneObject {
     size_t index_;
   };
 
+  static const int kInvalidRpoNumber = -1;
   class RpoNumber FINAL {
    public:
-    int ToInt() const { return static_cast<int>(index_); }
-    size_t ToSize() const { return index_; }
-    static RpoNumber FromInt(int index) {
-      return RpoNumber(static_cast<size_t>(index));
+    int ToInt() const {
+      DCHECK(IsValid());
+      return index_;
     }
-    static RpoNumber Invalid() { return RpoNumber(static_cast<size_t>(-1)); }
+    size_t ToSize() const {
+      DCHECK(IsValid());
+      return static_cast<size_t>(index_);
+    }
+    bool IsValid() const { return index_ != kInvalidRpoNumber; }
+    static RpoNumber FromInt(int index) { return RpoNumber(index); }
+    static RpoNumber Invalid() { return RpoNumber(kInvalidRpoNumber); }
 
     bool IsNext(const RpoNumber other) const {
+      DCHECK(IsValid());
       return other.index_ == this->index_ + 1;
     }
 
+    bool operator==(RpoNumber other) const {
+      return this->index_ == other.index_;
+    }
+
    private:
-    explicit RpoNumber(size_t index) : index_(index) {}
-    size_t index_;
+    explicit RpoNumber(int32_t index) : index_(index) {}
+    int32_t index_;
   };
 
   BasicBlock(Zone* zone, Id id);
@@ -76,14 +87,25 @@ class BasicBlock FINAL : public ZoneObject {
   typedef ZoneVector<BasicBlock*> Predecessors;
   Predecessors::iterator predecessors_begin() { return predecessors_.begin(); }
   Predecessors::iterator predecessors_end() { return predecessors_.end(); }
+  Predecessors::const_iterator predecessors_begin() const {
+    return predecessors_.begin();
+  }
+  Predecessors::const_iterator predecessors_end() const {
+    return predecessors_.end();
+  }
   size_t PredecessorCount() const { return predecessors_.size(); }
   BasicBlock* PredecessorAt(size_t index) { return predecessors_[index]; }
-  size_t PredecessorIndexOf(BasicBlock* predecessor);
   void AddPredecessor(BasicBlock* predecessor);
 
   typedef ZoneVector<BasicBlock*> Successors;
   Successors::iterator successors_begin() { return successors_.begin(); }
   Successors::iterator successors_end() { return successors_.end(); }
+  Successors::const_iterator successors_begin() const {
+    return successors_.begin();
+  }
+  Successors::const_iterator successors_end() const {
+    return successors_.end();
+  }
   size_t SuccessorCount() const { return successors_.size(); }
   BasicBlock* SuccessorAt(size_t index) { return successors_[index]; }
   void AddSuccessor(BasicBlock* successor);
@@ -137,7 +159,6 @@ class BasicBlock FINAL : public ZoneObject {
   // Loop membership helpers.
   inline bool IsLoopHeader() const { return loop_end_ >= 0; }
   bool LoopContains(BasicBlock* block) const;
-  BasicBlock* ContainingLoop();
 
  private:
   int32_t rpo_number_;       // special RPO number of the block.
@@ -161,6 +182,7 @@ class BasicBlock FINAL : public ZoneObject {
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c);
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id);
+std::ostream& operator<<(std::ostream& os, const BasicBlock::RpoNumber& rpo);
 
 typedef ZoneVector<BasicBlock*> BasicBlockVector;
 typedef BasicBlockVector::iterator BasicBlockVectorIter;

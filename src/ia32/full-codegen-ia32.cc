@@ -1117,7 +1117,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // No need for a write barrier, we are storing a Smi in the feedback vector.
   __ LoadHeapObject(ebx, FeedbackVector());
-  __ mov(FieldOperand(ebx, FixedArray::OffsetOfElementAt(slot.ToInt())),
+  int vector_index = FeedbackVector()->GetIndex(slot);
+  __ mov(FieldOperand(ebx, FixedArray::OffsetOfElementAt(vector_index)),
          Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate())));
 
   __ mov(ebx, Immediate(Smi::FromInt(1)));  // Smi indicates slow check

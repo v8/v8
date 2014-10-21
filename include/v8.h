@@ -1773,7 +1773,6 @@ class V8_EXPORT String : public Name {
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
     TWO_BYTE_ENCODING = 0x0,
-    ASCII_ENCODING = 0x4,  // TODO(yangguo): deprecate this.
     ONE_BYTE_ENCODING = 0x4
   };
   /**
@@ -1829,7 +1828,6 @@ class V8_EXPORT String : public Name {
     NO_OPTIONS = 0,
     HINT_MANY_WRITES_EXPECTED = 1,
     NO_NULL_TERMINATION = 2,
-    PRESERVE_ASCII_NULL = 4,  // TODO(yangguo): deprecate this.
     PRESERVE_ONE_BYTE_NULL = 4,
     // Used by WriteUtf8 to replace orphan surrogate code units with the
     // unicode replacement character. Needs to be set to guarantee valid UTF-8
@@ -1867,9 +1865,6 @@ class V8_EXPORT String : public Name {
    * Returns true if the string is both external and one-byte.
    */
   bool IsExternalOneByte() const;
-
-  // TODO(yangguo): deprecate this.
-  bool IsExternalAscii() const { return IsExternalOneByte(); }
 
   class V8_EXPORT ExternalStringResourceBase {  // NOLINT
    public:
@@ -1949,8 +1944,6 @@ class V8_EXPORT String : public Name {
     ExternalOneByteStringResource() {}
   };
 
-  typedef ExternalOneByteStringResource ExternalAsciiStringResource;
-
   /**
    * If the string is an external string, return the ExternalStringResourceBase
    * regardless of the encoding, otherwise return NULL.  The encoding of the
@@ -1970,11 +1963,6 @@ class V8_EXPORT String : public Name {
    * Returns NULL if IsExternalOneByte() doesn't return true.
    */
   const ExternalOneByteStringResource* GetExternalOneByteStringResource() const;
-
-  // TODO(yangguo): deprecate this.
-  const ExternalAsciiStringResource* GetExternalAsciiStringResource() const {
-    return GetExternalOneByteStringResource();
-  }
 
   V8_INLINE static String* Cast(v8::Value* obj);
 

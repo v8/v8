@@ -29,7 +29,6 @@ class CodeGenerator FINAL : public GapResolver::Assembler {
   Frame* frame() const { return code()->frame(); }
   Isolate* isolate() const { return zone()->isolate(); }
   Linkage* linkage() const { return code()->linkage(); }
-  Schedule* schedule() const { return code()->schedule(); }
 
  private:
   MacroAssembler* masm() { return &masm_; }

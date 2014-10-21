@@ -19,16 +19,6 @@
 #include "src/unicode.h"
 #include "src/utils.h"
 
-#if V8_LIBC_MSVCRT && (_MSC_VER < 1800)
-namespace std {
-
-// Usually defined in math.h, but not in MSVC until VS2013+.
-// Abstracted to work
-int isfinite(double value);
-
-}  // namespace std
-#endif
-
 namespace v8 {
 namespace internal {
 

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_RUNTIME_H_
-#define V8_RUNTIME_H_
+#ifndef V8_RUNTIME_RUNTIME_H_
+#define V8_RUNTIME_RUNTIME_H_
 
 #include "src/allocation.h"
 #include "src/objects.h"
@@ -390,6 +390,7 @@ namespace internal {
   F(TraceExit, 1, 1)                                   \
   F(Abort, 1, 1)                                       \
   F(AbortJS, 1, 1)                                     \
+  F(NativeScriptsCount, 0, 1)                          \
   /* ES5 */                                            \
   F(OwnKeys, 1, 1)                                     \
                                                        \
@@ -632,14 +633,6 @@ namespace internal {
 #endif
 
 
-#ifdef DEBUG
-#define RUNTIME_FUNCTION_LIST_DEBUG(F) \
-  /* Testing */                        \
-  F(ListNatives, 0, 1)
-#else
-#define RUNTIME_FUNCTION_LIST_DEBUG(F)
-#endif
-
 // ----------------------------------------------------------------------------
 // RUNTIME_FUNCTION_LIST defines all runtime functions accessed
 // either directly by id (via the code generator), or indirectly
@@ -650,7 +643,6 @@ namespace internal {
   RUNTIME_FUNCTION_LIST_ALWAYS_1(F)            \
   RUNTIME_FUNCTION_LIST_ALWAYS_2(F)            \
   RUNTIME_FUNCTION_LIST_ALWAYS_3(F)            \
-  RUNTIME_FUNCTION_LIST_DEBUG(F)               \
   RUNTIME_FUNCTION_LIST_DEBUGGER(F)            \
   RUNTIME_FUNCTION_LIST_I18N_SUPPORT(F)
 
@@ -777,6 +769,9 @@ class RuntimeState {
 };
 
 
+class JavaScriptFrameIterator;  // Forward declaration.
+
+
 class Runtime : public AllStatic {
  public:
   enum FunctionId {
@@ -828,10 +823,6 @@ class Runtime : public AllStatic {
   // Get the intrinsic function with the given function entry address.
   static const Function* FunctionForEntry(Address ref);
 
-  // General-purpose helper functions for runtime system.
-  static int StringMatch(Isolate* isolate, Handle<String> sub,
-                         Handle<String> pat, int index);
-
   // TODO(1240886): Some of the following methods are *not* handle safe, but
   // accept handle arguments. This seems fragile.
 
@@ -847,13 +838,6 @@ class Runtime : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<Object> DefineObjectProperty(
       Handle<JSObject> object, Handle<Object> key, Handle<Object> value,
       PropertyAttributes attr);
-
-  MUST_USE_RESULT static MaybeHandle<Object> DeleteObjectProperty(
-      Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
-      JSReceiver::DeleteMode mode);
-
-  MUST_USE_RESULT static MaybeHandle<Object> HasObjectProperty(
-      Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key);
 
   MUST_USE_RESULT static MaybeHandle<Object> GetObjectProperty(
       Isolate* isolate, Handle<Object> object, Handle<Object> key);
@@ -875,6 +859,8 @@ class Runtime : public AllStatic {
 
   static void FreeArrayBuffer(Isolate* isolate,
                               JSArrayBuffer* phantom_array_buffer);
+
+  static int FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index);
 
   enum TypedArrayId {
     // arrayIds below should be synchromized with typedarray.js natives.
@@ -918,4 +904,4 @@ class DeclareGlobalsStrictMode : public BitField<StrictMode, 2, 1> {};
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_RUNTIME_H_
+#endif  // V8_RUNTIME_RUNTIME_H_

@@ -38,9 +38,10 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   int initial_node_count = graph()->NodeCount();
   CompilationInfo info(test_->isolate(), test_->zone());
   Linkage linkage(&info, call_descriptor());
-  InstructionSequence sequence(&linkage, graph(), schedule);
+  InstructionSequence sequence(test_->zone(), &linkage, graph(), schedule);
   SourcePositionTable source_position_table(graph());
-  InstructionSelector selector(&sequence, &source_position_table, features);
+  InstructionSelector selector(&sequence, schedule, &source_position_table,
+                               features);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);

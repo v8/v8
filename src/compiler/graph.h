@@ -55,6 +55,11 @@ class Graph : public GenericGraph<Node> {
     Node* nodes[] = {n1, n2, n3, n4, n5, n6};
     return NewNode(op, arraysize(nodes), nodes);
   }
+  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
+                Node* n5, Node* n6, Node* n7) {
+    Node* nodes[] = {n1, n2, n3, n4, n5, n6, n7};
+    return NewNode(op, arraysize(nodes), nodes);
+  }
 
   template <class Visitor>
   void VisitNodeUsesFrom(Node* node, Visitor* visitor);

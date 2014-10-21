@@ -2145,6 +2145,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ j(not_equal, &miss);
     __ Move(FieldOperand(rbx, rdx, times_pointer_size, FixedArray::kHeaderSize),
             TypeFeedbackVector::MegamorphicSentinel(isolate));
+    // We have to update statistics for runtime profiling.
+    const int with_types_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kWithTypesIndex);
+    __ SmiAddConstant(FieldOperand(rbx, with_types_offset), Smi::FromInt(-1));
+    const int generic_offset =
+        FixedArray::OffsetOfElementAt(TypeFeedbackVector::kGenericCountIndex);
+    __ SmiAddConstant(FieldOperand(rbx, generic_offset), Smi::FromInt(1));
     __ jmp(&slow_start);
   }
 

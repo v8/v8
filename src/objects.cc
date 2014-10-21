@@ -2161,17 +2161,6 @@ void JSObject::MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 }
 
 
-void JSObject::GeneralizeFieldRepresentation(Handle<JSObject> object,
-                                             int modify_index,
-                                             Representation new_representation,
-                                             Handle<HeapType> new_field_type) {
-  Handle<Map> new_map = Map::GeneralizeRepresentation(
-      handle(object->map()), modify_index, new_representation, new_field_type,
-      FORCE_FIELD);
-  MigrateToMap(object, new_map);
-}
-
-
 int Map::NumberOfFields() {
   DescriptorArray* descriptors = instance_descriptors();
   int result = 0;
@@ -10497,27 +10486,7 @@ void Code::ClearInlineCaches(Code::Kind* kind) {
 
 
 void SharedFunctionInfo::ClearTypeFeedbackInfo() {
-  TypeFeedbackVector* vector = feedback_vector();
-  Heap* heap = GetHeap();
-  int length = vector->length();
-
-  for (int i = 0; i < length; i++) {
-    Object* obj = vector->get(i);
-    if (obj->IsHeapObject()) {
-      InstanceType instance_type =
-          HeapObject::cast(obj)->map()->instance_type();
-      switch (instance_type) {
-        case ALLOCATION_SITE_TYPE:
-          // AllocationSites are not cleared because they do not store
-          // information that leaks.
-          break;
-          // Fall through...
-        default:
-          vector->set(i, TypeFeedbackVector::RawUninitializedSentinel(heap),
-                      SKIP_WRITE_BARRIER);
-      }
-    }
-  }
+  feedback_vector()->ClearSlots(this);
 }
 
 

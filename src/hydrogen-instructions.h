@@ -5475,12 +5475,15 @@ class HLoadGlobalGeneric FINAL : public HTemplateInstruction<2> {
   HValue* global_object() { return OperandAt(1); }
   Handle<String> name() const { return name_; }
   bool for_typeof() const { return for_typeof_; }
-  FeedbackVectorSlot slot() const {
+  FeedbackVectorICSlot slot() const {
     DCHECK(FLAG_vector_ics && !slot_.IsInvalid());
     return slot_;
   }
-  Handle<FixedArray> feedback_vector() const { return feedback_vector_; }
-  void SetVectorAndSlot(Handle<FixedArray> vector, FeedbackVectorSlot slot) {
+  Handle<TypeFeedbackVector> feedback_vector() const {
+    return feedback_vector_;
+  }
+  void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
+                        FeedbackVectorICSlot slot) {
     DCHECK(FLAG_vector_ics);
     feedback_vector_ = vector;
     slot_ = slot;
@@ -5499,7 +5502,7 @@ class HLoadGlobalGeneric FINAL : public HTemplateInstruction<2> {
                      Handle<String> name, bool for_typeof)
       : name_(name),
         for_typeof_(for_typeof),
-        slot_(FeedbackVectorSlot::Invalid()) {
+        slot_(FeedbackVectorICSlot::Invalid()) {
     SetOperandAt(0, context);
     SetOperandAt(1, global_object);
     set_representation(Representation::Tagged());
@@ -5508,8 +5511,8 @@ class HLoadGlobalGeneric FINAL : public HTemplateInstruction<2> {
 
   Handle<String> name_;
   bool for_typeof_;
-  Handle<FixedArray> feedback_vector_;
-  FeedbackVectorSlot slot_;
+  Handle<TypeFeedbackVector> feedback_vector_;
+  FeedbackVectorICSlot slot_;
 };
 
 
@@ -6480,12 +6483,15 @@ class HLoadNamedGeneric FINAL : public HTemplateInstruction<2> {
   HValue* object() const { return OperandAt(1); }
   Handle<Object> name() const { return name_; }
 
-  FeedbackVectorSlot slot() const {
+  FeedbackVectorICSlot slot() const {
     DCHECK(FLAG_vector_ics && !slot_.IsInvalid());
     return slot_;
   }
-  Handle<FixedArray> feedback_vector() const { return feedback_vector_; }
-  void SetVectorAndSlot(Handle<FixedArray> vector, FeedbackVectorSlot slot) {
+  Handle<TypeFeedbackVector> feedback_vector() const {
+    return feedback_vector_;
+  }
+  void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
+                        FeedbackVectorICSlot slot) {
     DCHECK(FLAG_vector_ics);
     feedback_vector_ = vector;
     slot_ = slot;
@@ -6501,7 +6507,7 @@ class HLoadNamedGeneric FINAL : public HTemplateInstruction<2> {
 
  private:
   HLoadNamedGeneric(HValue* context, HValue* object, Handle<Object> name)
-      : name_(name), slot_(FeedbackVectorSlot::Invalid()) {
+      : name_(name), slot_(FeedbackVectorICSlot::Invalid()) {
     SetOperandAt(0, context);
     SetOperandAt(1, object);
     set_representation(Representation::Tagged());
@@ -6509,8 +6515,8 @@ class HLoadNamedGeneric FINAL : public HTemplateInstruction<2> {
   }
 
   Handle<Object> name_;
-  Handle<FixedArray> feedback_vector_;
-  FeedbackVectorSlot slot_;
+  Handle<TypeFeedbackVector> feedback_vector_;
+  FeedbackVectorICSlot slot_;
 };
 
 
@@ -6756,12 +6762,15 @@ class HLoadKeyedGeneric FINAL : public HTemplateInstruction<3> {
   HValue* object() const { return OperandAt(0); }
   HValue* key() const { return OperandAt(1); }
   HValue* context() const { return OperandAt(2); }
-  FeedbackVectorSlot slot() const {
+  FeedbackVectorICSlot slot() const {
     DCHECK(FLAG_vector_ics && !slot_.IsInvalid());
     return slot_;
   }
-  Handle<FixedArray> feedback_vector() const { return feedback_vector_; }
-  void SetVectorAndSlot(Handle<FixedArray> vector, FeedbackVectorSlot slot) {
+  Handle<TypeFeedbackVector> feedback_vector() const {
+    return feedback_vector_;
+  }
+  void SetVectorAndSlot(Handle<TypeFeedbackVector> vector,
+                        FeedbackVectorICSlot slot) {
     DCHECK(FLAG_vector_ics);
     feedback_vector_ = vector;
     slot_ = slot;
@@ -6780,7 +6789,7 @@ class HLoadKeyedGeneric FINAL : public HTemplateInstruction<3> {
 
  private:
   HLoadKeyedGeneric(HValue* context, HValue* obj, HValue* key)
-      : slot_(FeedbackVectorSlot::Invalid()) {
+      : slot_(FeedbackVectorICSlot::Invalid()) {
     set_representation(Representation::Tagged());
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
@@ -6788,8 +6797,8 @@ class HLoadKeyedGeneric FINAL : public HTemplateInstruction<3> {
     SetAllSideEffects();
   }
 
-  Handle<FixedArray> feedback_vector_;
-  FeedbackVectorSlot slot_;
+  Handle<TypeFeedbackVector> feedback_vector_;
+  FeedbackVectorICSlot slot_;
 };
 
 

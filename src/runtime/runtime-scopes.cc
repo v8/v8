@@ -7,7 +7,6 @@
 #include "src/accessors.h"
 #include "src/arguments.h"
 #include "src/frames-inl.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/scopeinfo.h"
 #include "src/scopes.h"

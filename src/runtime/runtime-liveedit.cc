@@ -279,7 +279,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
   }
 
   JavaScriptFrameIterator it(isolate, id);
-  int inlined_jsframe_index = FindIndexedNonNativeFrame(&it, index);
+  int inlined_jsframe_index = Runtime::FindIndexedNonNativeFrame(&it, index);
   if (inlined_jsframe_index == -1) return heap->undefined_value();
   // We don't really care what the inlined frame index is, since we are
   // throwing away the entire frame anyways.

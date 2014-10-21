@@ -126,6 +126,8 @@ struct MaybeBoolFlag {
 #endif
 
 #define DEFINE_BOOL(nam, def, cmt) FLAG(BOOL, bool, nam, def, cmt)
+#define DEFINE_BOOL_READONLY(nam, def, cmt) \
+  FLAG_READONLY(BOOL, bool, nam, def, cmt)
 #define DEFINE_MAYBE_BOOL(nam, cmt) \
   FLAG(MAYBE_BOOL, MaybeBoolFlag, nam, {false COMMA false}, cmt)
 #define DEFINE_INT(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
@@ -147,39 +149,54 @@ struct MaybeBoolFlag {
 
 // Flags for language modes and experimental language features.
 DEFINE_BOOL(use_strict, false, "enforce strict mode")
+
 DEFINE_BOOL(es_staging, false, "enable upcoming ES6+ features")
-
-DEFINE_BOOL(harmony_scoping, false, "enable harmony block scoping")
-DEFINE_BOOL(harmony_modules, false,
-            "enable harmony modules (implies block scoping)")
-DEFINE_BOOL(harmony_proxies, false, "enable harmony proxies")
-DEFINE_BOOL(harmony_numeric_literals, false,
-            "enable harmony numeric literals (0o77, 0b11)")
-DEFINE_BOOL(harmony_strings, false, "enable harmony string")
-DEFINE_BOOL(harmony_arrays, false, "enable harmony arrays")
-DEFINE_BOOL(harmony_arrow_functions, false, "enable harmony arrow functions")
-DEFINE_BOOL(harmony_classes, false, "enable harmony classes")
-DEFINE_BOOL(harmony_object_literals, false,
-            "enable harmony object literal extensions")
-DEFINE_BOOL(harmony_regexps, false, "enable regexp-related harmony features")
 DEFINE_BOOL(harmony, false, "enable all harmony features (except proxies)")
+DEFINE_IMPLICATION(harmony, es_staging)
 
-DEFINE_IMPLICATION(harmony, harmony_scoping)
-DEFINE_IMPLICATION(harmony, harmony_modules)
-// TODO(rossberg): Reenable when problems are sorted out.
-// DEFINE_IMPLICATION(harmony, harmony_proxies)
-DEFINE_IMPLICATION(harmony, harmony_strings)
-DEFINE_IMPLICATION(harmony, harmony_arrays)
-DEFINE_IMPLICATION(harmony, harmony_arrow_functions)
-DEFINE_IMPLICATION(harmony, harmony_classes)
-DEFINE_IMPLICATION(harmony, harmony_object_literals)
-DEFINE_IMPLICATION(harmony, harmony_regexps)
+#define HARMONY_FEATURES(V)                                       \
+  V(harmony_scoping, "harmony block scoping")                     \
+  V(harmony_modules, "harmony modules (implies block scoping)")   \
+  V(harmony_strings, "harmony strings")                           \
+  V(harmony_arrays, "harmony arrays")                             \
+  V(harmony_classes, "harmony classes")                           \
+  V(harmony_object_literals, "harmony object literal extensions") \
+  V(harmony_regexps, "reg-exp related harmony features")          \
+  V(harmony_arrow_functions, "harmony arrow functions")
+
+#define STAGED_FEATURES(V) \
+  V(harmony_numeric_literals, "harmony numeric literals (0o77, 0b11)")
+
+#define SHIPPING_FEATURES(V)
+
+#define FLAG_FEATURES(id, description)           \
+  DEFINE_BOOL(id, false, "enable " #description) \
+  DEFINE_IMPLICATION(harmony, id)
+
+HARMONY_FEATURES(FLAG_FEATURES)
+STAGED_FEATURES(FLAG_FEATURES)
+#undef FLAG_FEATURES
+
+#define FLAG_STAGED_FEATURES(id, description) DEFINE_IMPLICATION(es_staging, id)
+
+STAGED_FEATURES(FLAG_STAGED_FEATURES)
+#undef FLAG_STAGED_FEATURES
+
+#define FLAG_SHIPPING_FEATURES(id, description) \
+  DEFINE_BOOL_READONLY(id, true, "enable " #description)
+
+SHIPPING_FEATURES(FLAG_SHIPPING_FEATURES)
+#undef FLAG_SHIPPING_FEATURES
+
+// Feature dependencies.
 DEFINE_IMPLICATION(harmony_modules, harmony_scoping)
 DEFINE_IMPLICATION(harmony_classes, harmony_scoping)
 DEFINE_IMPLICATION(harmony_classes, harmony_object_literals)
 
-DEFINE_IMPLICATION(harmony, es_staging)
-DEFINE_IMPLICATION(es_staging, harmony_numeric_literals)
+DEFINE_BOOL(harmony_proxies, false, "enable harmony proxies")
+// TODO(rossberg): Reenable when problems are sorted out.
+// DEFINE_IMPLICATION(harmony, harmony_proxies)
+
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(compiled_keyed_generic_loads, false,
@@ -347,7 +364,10 @@ DEFINE_BOOL(context_specialization, false,
             "enable context specialization in TurboFan")
 DEFINE_BOOL(turbo_deoptimization, false, "enable deoptimization in TurboFan")
 DEFINE_BOOL(turbo_inlining, false, "enable inlining in TurboFan")
+DEFINE_BOOL(turbo_inlining_intrinsics, false,
+            "enable inlining of intrinsics in TurboFan")
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
+DEFINE_IMPLICATION(turbo_inlining_intrinsics, turbo_inlining)
 DEFINE_IMPLICATION(turbo_inlining, turbo_types)
 DEFINE_BOOL(turbo_profiling, false, "enable profiling in TurboFan")
 
@@ -442,7 +462,7 @@ DEFINE_BOOL(trace_stub_failures, false,
             "trace deoptimization of generated code stubs")
 
 DEFINE_BOOL(serialize_toplevel, false, "enable caching of toplevel scripts")
-DEFINE_BOOL(trace_code_serializer, false, "trace code serializer")
+DEFINE_INT(serializer_trace_level, 0, "trace code serializer (0 .. 2)")
 
 // compiler.cc
 DEFINE_INT(min_preparse_length, 1024,

@@ -35,12 +35,6 @@ bool BasicBlock::LoopContains(BasicBlock* block) const {
 }
 
 
-BasicBlock* BasicBlock::ContainingLoop() {
-  if (IsLoopHeader()) return this;
-  return loop_header();
-}
-
-
 void BasicBlock::AddSuccessor(BasicBlock* successor) {
   successors_.push_back(successor);
 }
@@ -88,16 +82,6 @@ void BasicBlock::set_loop_header(BasicBlock* loop_header) {
 }
 
 
-size_t BasicBlock::PredecessorIndexOf(BasicBlock* predecessor) {
-  size_t j = 0;
-  for (BasicBlock::Predecessors::iterator i = predecessors_.begin();
-       i != predecessors_.end(); ++i, ++j) {
-    if (*i == predecessor) break;
-  }
-  return j;
-}
-
-
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
   switch (c) {
     case BasicBlock::kNone:
@@ -118,6 +102,11 @@ std::ostream& operator<<(std::ostream& os, const BasicBlock::Control& c) {
 
 std::ostream& operator<<(std::ostream& os, const BasicBlock::Id& id) {
   return os << id.ToSize();
+}
+
+
+std::ostream& operator<<(std::ostream& os, const BasicBlock::RpoNumber& rpo) {
+  return os << rpo.ToSize();
 }
 
 

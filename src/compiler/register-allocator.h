@@ -7,8 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/compiler/instruction.h"
-#include "src/compiler/node.h"
-#include "src/compiler/schedule.h"
 #include "src/macro-assembler.h"
 #include "src/zone.h"
 
@@ -378,21 +376,22 @@ class RegisterAllocator BASE_EMBEDDED {
   void ResolveControlFlow();
   void PopulatePointerMaps();  // TODO(titzer): rename to PopulateReferenceMaps.
   void AllocateRegisters();
-  bool CanEagerlyResolveControlFlow(BasicBlock* block) const;
+  bool CanEagerlyResolveControlFlow(const InstructionBlock* block) const;
   inline bool SafePointsAreInOrder() const;
 
   // Liveness analysis support.
   void InitializeLivenessAnalysis();
-  BitVector* ComputeLiveOut(BasicBlock* block);
-  void AddInitialIntervals(BasicBlock* block, BitVector* live_out);
+  BitVector* ComputeLiveOut(const InstructionBlock* block);
+  void AddInitialIntervals(const InstructionBlock* block, BitVector* live_out);
   bool IsOutputRegisterOf(Instruction* instr, int index);
   bool IsOutputDoubleRegisterOf(Instruction* instr, int index);
-  void ProcessInstructions(BasicBlock* block, BitVector* live);
-  void MeetRegisterConstraints(BasicBlock* block);
+  void ProcessInstructions(const InstructionBlock* block, BitVector* live);
+  void MeetRegisterConstraints(const InstructionBlock* block);
   void MeetConstraintsBetween(Instruction* first, Instruction* second,
                               int gap_index);
-  void MeetRegisterConstraintsForLastInstructionInBlock(BasicBlock* block);
-  void ResolvePhis(BasicBlock* block);
+  void MeetRegisterConstraintsForLastInstructionInBlock(
+      const InstructionBlock* block);
+  void ResolvePhis(const InstructionBlock* block);
 
   // Helper methods for building intervals.
   InstructionOperand* AllocateFixed(UnallocatedOperand* operand, int pos,
@@ -466,8 +465,8 @@ class RegisterAllocator BASE_EMBEDDED {
   bool IsBlockBoundary(LifetimePosition pos);
 
   // Helper methods for resolving control flow.
-  void ResolveControlFlow(LiveRange* range, BasicBlock* block,
-                          BasicBlock* pred);
+  void ResolveControlFlow(LiveRange* range, const InstructionBlock* block,
+                          const InstructionBlock* pred);
 
   inline void SetLiveRangeAssignedRegister(LiveRange* range, int reg);
 
@@ -476,7 +475,7 @@ class RegisterAllocator BASE_EMBEDDED {
   ParallelMove* GetConnectingParallelMove(LifetimePosition pos);
 
   // Return the block which contains give lifetime position.
-  BasicBlock* GetBlock(LifetimePosition pos);
+  const InstructionBlock* GetInstructionBlock(LifetimePosition pos);
 
   // Helper methods for the fixed registers.
   int RegisterCount() const;
@@ -485,7 +484,7 @@ class RegisterAllocator BASE_EMBEDDED {
   LiveRange* FixedLiveRangeFor(int index);
   LiveRange* FixedDoubleLiveRangeFor(int index);
   LiveRange* LiveRangeFor(int index);
-  GapInstruction* GetLastGap(BasicBlock* block);
+  GapInstruction* GetLastGap(const InstructionBlock* block);
 
   const char* RegisterName(int allocation_index);
 

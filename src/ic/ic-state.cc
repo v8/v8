@@ -10,9 +10,17 @@
 namespace v8 {
 namespace internal {
 
+// static
 void ICUtility::Clear(Isolate* isolate, Address address,
                       ConstantPoolArray* constant_pool) {
   IC::Clear(isolate, address, constant_pool);
+}
+
+
+// static
+void ICUtility::Clear(Isolate* isolate, Code::Kind kind, Code* host,
+                      TypeFeedbackVector* vector, FeedbackVectorICSlot slot) {
+  IC::Clear(isolate, kind, host, vector, slot);
 }
 
 

@@ -25,8 +25,7 @@ class TypeFeedbackOracle: public ZoneObject {
 
   bool LoadIsUninitialized(TypeFeedbackId id);
   bool StoreIsUninitialized(TypeFeedbackId id);
-  bool CallIsMonomorphic(FeedbackVectorSlot slot);
-  bool CallIsMonomorphic(TypeFeedbackId aid);
+  bool CallIsMonomorphic(FeedbackVectorICSlot slot);
   bool KeyedArrayCallIsHoley(TypeFeedbackId id);
   bool CallNewIsMonomorphic(FeedbackVectorSlot slot);
 
@@ -62,8 +61,8 @@ class TypeFeedbackOracle: public ZoneObject {
   static bool CanRetainOtherContext(JSFunction* function,
                                     Context* native_context);
 
-  Handle<JSFunction> GetCallTarget(FeedbackVectorSlot slot);
-  Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorSlot slot);
+  Handle<JSFunction> GetCallTarget(FeedbackVectorICSlot slot);
+  Handle<AllocationSite> GetCallAllocationSite(FeedbackVectorICSlot slot);
   Handle<JSFunction> GetCallNewTarget(FeedbackVectorSlot slot);
   Handle<AllocationSite> GetCallNewAllocationSite(FeedbackVectorSlot slot);
 
@@ -116,6 +115,7 @@ class TypeFeedbackOracle: public ZoneObject {
   // Returns an element from the type feedback vector. Returns undefined
   // if there is no information.
   Handle<Object> GetInfo(FeedbackVectorSlot slot);
+  Handle<Object> GetInfo(FeedbackVectorICSlot slot);
 
  private:
   Handle<Context> native_context_;

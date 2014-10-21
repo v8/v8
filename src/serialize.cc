@@ -1184,13 +1184,8 @@ void Deserializer::ReadData(Object** current, Object** limit, int source_space,
       // Find a builtin and write a pointer to it to the current object.
       CASE_STATEMENT(kBuiltin, kPlain, kStartOfObject, 0)
       CASE_BODY(kBuiltin, kPlain, kStartOfObject, 0)
-#if V8_OOL_CONSTANT_POOL
-      // Find a builtin code entry and write a pointer to it to the current
-      // object.
       CASE_STATEMENT(kBuiltin, kPlain, kInnerPointer, 0)
       CASE_BODY(kBuiltin, kPlain, kInnerPointer, 0)
-#endif
-      // Find a builtin and write a pointer to it in the current code object.
       CASE_STATEMENT(kBuiltin, kFromCode, kInnerPointer, 0)
       CASE_BODY(kBuiltin, kFromCode, kInnerPointer, 0)
       // Find an object in the attached references and write a pointer to it to
@@ -1963,12 +1958,18 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
                                       Handle<String> source) {
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
+  if (FLAG_serializer_trace_level > 0) {
+    PrintF("[Serializing from");
+    Object* script = info->script();
+    if (script->IsScript()) Script::cast(script)->name()->ShortPrint();
+    PrintF("]\n");
+  }
 
   // Serialize code object.
   List<byte> payload;
   ListSnapshotSink list_sink(&payload);
   DebugSnapshotSink debug_sink(&list_sink);
-  SnapshotByteSink* sink = FLAG_trace_code_serializer
+  SnapshotByteSink* sink = FLAG_serializer_trace_level > 1
                                ? static_cast<SnapshotByteSink*>(&debug_sink)
                                : static_cast<SnapshotByteSink*>(&list_sink);
   CodeSerializer cs(isolate, sink, *source, info->code());
@@ -1997,13 +1998,16 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
 
   int root_index;
   if ((root_index = RootIndex(heap_object, how_to_code)) != kInvalidRootIndex) {
+    if (FLAG_serializer_trace_level > 0) {
+      PrintF(" Encoding root: %d\n", root_index);
+    }
     PutRoot(root_index, heap_object, how_to_code, where_to_point, skip);
     return;
   }
 
   if (address_mapper_.IsMapped(heap_object)) {
-    if (FLAG_trace_code_serializer) {
-      PrintF("Encoding back reference to: ");
+    if (FLAG_serializer_trace_level > 0) {
+      PrintF(" Encoding back reference to: ");
       heap_object->ShortPrint();
       PrintF("\n");
     }
@@ -2026,30 +2030,30 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
       case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
         CHECK(false);
       case Code::BUILTIN:
-        SerializeBuiltin(code_object, how_to_code, where_to_point);
+        SerializeBuiltin(code_object->builtin_index(), how_to_code,
+                         where_to_point);
         return;
       case Code::STUB:
-        SerializeCodeStub(code_object, how_to_code, where_to_point);
+        SerializeCodeStub(code_object->stub_key(), how_to_code, where_to_point);
         return;
 #define IC_KIND_CASE(KIND) case Code::KIND:
         IC_KIND_LIST(IC_KIND_CASE)
 #undef IC_KIND_CASE
-        SerializeHeapObject(code_object, how_to_code, where_to_point);
+        SerializeIC(code_object, how_to_code, where_to_point);
         return;
-      // TODO(yangguo): add special handling to canonicalize ICs.
       case Code::FUNCTION:
         // Only serialize the code for the toplevel function. Replace code
         // of included function literals by the lazy compile builtin.
         // This is safe, as checked in Compiler::BuildFunctionInfo.
         if (code_object != main_code_) {
-          Code* lazy = *isolate()->builtins()->CompileLazy();
-          SerializeBuiltin(lazy, how_to_code, where_to_point);
+          SerializeBuiltin(Builtins::kCompileLazy, how_to_code, where_to_point);
         } else {
           code_object->MakeYoung();
           SerializeHeapObject(code_object, how_to_code, where_to_point);
         }
         return;
     }
+    UNREACHABLE();
   }
 
   if (heap_object == source_) {
@@ -2071,8 +2075,8 @@ void CodeSerializer::SerializeObject(Object* o, HowToCode how_to_code,
 void CodeSerializer::SerializeHeapObject(HeapObject* heap_object,
                                          HowToCode how_to_code,
                                          WhereToPoint where_to_point) {
-  if (FLAG_trace_code_serializer) {
-    PrintF("Encoding heap object: ");
+  if (FLAG_serializer_trace_level > 0) {
+    PrintF(" Encoding heap object: ");
     heap_object->ShortPrint();
     PrintF("\n");
   }
@@ -2084,17 +2088,16 @@ void CodeSerializer::SerializeHeapObject(HeapObject* heap_object,
 }
 
 
-void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
+void CodeSerializer::SerializeBuiltin(int builtin_index, HowToCode how_to_code,
                                       WhereToPoint where_to_point) {
   DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
          (how_to_code == kPlain && where_to_point == kInnerPointer) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  int builtin_index = builtin->builtin_index();
   DCHECK_LT(builtin_index, Builtins::builtin_count);
   DCHECK_LE(0, builtin_index);
 
-  if (FLAG_trace_code_serializer) {
-    PrintF("Encoding builtin: %s\n",
+  if (FLAG_serializer_trace_level > 0) {
+    PrintF(" Encoding builtin: %s\n",
            isolate()->builtins()->name(builtin_index));
   }
 
@@ -2103,25 +2106,62 @@ void CodeSerializer::SerializeBuiltin(Code* builtin, HowToCode how_to_code,
 }
 
 
-void CodeSerializer::SerializeCodeStub(Code* stub, HowToCode how_to_code,
+void CodeSerializer::SerializeCodeStub(uint32_t stub_key, HowToCode how_to_code,
                                        WhereToPoint where_to_point) {
   DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
          (how_to_code == kPlain && where_to_point == kInnerPointer) ||
          (how_to_code == kFromCode && where_to_point == kInnerPointer));
-  uint32_t stub_key = stub->stub_key();
   DCHECK(CodeStub::MajorKeyFromKey(stub_key) != CodeStub::NoCache);
   DCHECK(!CodeStub::GetCode(isolate(), stub_key).is_null());
 
   int index = AddCodeStubKey(stub_key) + kCodeStubsBaseIndex;
 
-  if (FLAG_trace_code_serializer) {
-    PrintF("Encoding code stub %s as %d\n",
+  if (FLAG_serializer_trace_level > 0) {
+    PrintF(" Encoding code stub %s as %d\n",
            CodeStub::MajorName(CodeStub::MajorKeyFromKey(stub_key), false),
            index);
   }
 
   sink_->Put(kAttachedReference + how_to_code + where_to_point, "CodeStub");
   sink_->PutInt(index, "CodeStub key");
+}
+
+
+void CodeSerializer::SerializeIC(Code* ic, HowToCode how_to_code,
+                                 WhereToPoint where_to_point) {
+  // The IC may be implemented as a stub.
+  uint32_t stub_key = ic->stub_key();
+  if (stub_key != CodeStub::NoCacheKey()) {
+    if (FLAG_serializer_trace_level > 0) {
+      PrintF(" %s is a code stub\n", Code::Kind2String(ic->kind()));
+    }
+    SerializeCodeStub(stub_key, how_to_code, where_to_point);
+    return;
+  }
+  // The IC may be implemented as builtin. Only real builtins have an
+  // actual builtin_index value attached (otherwise it's just garbage).
+  // Compare to make sure we are really dealing with a builtin.
+  int builtin_index = ic->builtin_index();
+  if (builtin_index < Builtins::builtin_count) {
+    Builtins::Name name = static_cast<Builtins::Name>(builtin_index);
+    Code* builtin = isolate()->builtins()->builtin(name);
+    if (builtin == ic) {
+      if (FLAG_serializer_trace_level > 0) {
+        PrintF(" %s is a builtin\n", Code::Kind2String(ic->kind()));
+      }
+      DCHECK(ic->kind() == Code::KEYED_LOAD_IC ||
+             ic->kind() == Code::KEYED_STORE_IC);
+      SerializeBuiltin(builtin_index, how_to_code, where_to_point);
+      return;
+    }
+  }
+  // The IC may also just be a piece of code kept in the non_monomorphic_cache.
+  // In that case, just serialize as a normal code object.
+  if (FLAG_serializer_trace_level > 0) {
+    PrintF(" %s has no special handling\n", Code::Kind2String(ic->kind()));
+  }
+  DCHECK(ic->kind() == Code::LOAD_IC || ic->kind() == Code::STORE_IC);
+  SerializeHeapObject(ic, how_to_code, where_to_point);
 }
 
 
@@ -2139,7 +2179,7 @@ int CodeSerializer::AddCodeStubKey(uint32_t stub_key) {
 
 void CodeSerializer::SerializeSourceObject(HowToCode how_to_code,
                                            WhereToPoint where_to_point) {
-  if (FLAG_trace_code_serializer) PrintF("Encoding source object\n");
+  if (FLAG_serializer_trace_level > 0) PrintF(" Encoding source object\n");
 
   DCHECK(how_to_code == kPlain && where_to_point == kStartOfObject);
   sink_->Put(kAttachedReference + how_to_code + where_to_point, "Source");

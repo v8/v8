@@ -8,6 +8,7 @@
 #include "src/conversions.h"
 #include "src/types.h"
 #include "test/unittests/compiler/graph-unittest.h"
+#include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -490,18 +491,46 @@ TEST_F(SimplifiedOperatorReducerTest, LoadElementWithConstantKeyAndLength) {
   Node* const base = Parameter(0);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FOREACH(double, key, kFloat64Values) {
-    TRACED_FOREACH(int32_t, length, kInt32Values) {
-      if (key < length) {
-        Reduction r = Reduce(graph()->NewNode(
-            simplified()->LoadElement(access), base, NumberConstant(key),
-            Int32Constant(length), effect, control));
-        ASSERT_TRUE(r.Changed());
-        EXPECT_THAT(r.replacement(),
-                    IsLoadElement(access_nocheck, base, IsNumberConstant(key),
-                                  IsInt32Constant(length), effect, control));
-      }
-    }
+  {
+    Node* const key = NumberConstant(-42.0);
+    Node* const length = NumberConstant(100.0);
+    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
+                                          base, key, length, effect, control));
+    ASSERT_FALSE(r.Changed());
+  }
+  {
+    Node* const key = NumberConstant(-0.0);
+    Node* const length = NumberConstant(1.0);
+    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
+                                          base, key, length, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsLoadElement(access_nocheck, base, key,
+                                               length, effect, control));
+  }
+  {
+    Node* const key = Int32Constant(0);
+    Node* const length = Int32Constant(1);
+    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
+                                          base, key, length, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsLoadElement(access_nocheck, base, key,
+                                               length, effect, control));
+  }
+  {
+    Node* const key = NumberConstant(42.2);
+    Node* const length = Int32Constant(128);
+    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
+                                          base, key, length, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsLoadElement(access_nocheck, base, key,
+                                               length, effect, control));
+  }
+  {
+    Node* const key = NumberConstant(39.2);
+    Node* const length = NumberConstant(32.0);
+    Reduction r = Reduce(graph()->NewNode(simplified()->LoadElement(access),
+                                          base, key, length, effect, control));
+    ASSERT_FALSE(r.Changed());
   }
 }
 
@@ -519,19 +548,54 @@ TEST_F(SimplifiedOperatorReducerTest, StoreElementWithConstantKeyAndLength) {
   Node* const value = Parameter(1);
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  TRACED_FOREACH(int32_t, key, kInt32Values) {
-    TRACED_FOREACH(double, length, kFloat64Values) {
-      if (key < length) {
-        Reduction r = Reduce(graph()->NewNode(
-            simplified()->StoreElement(access), base, Int32Constant(key),
-            NumberConstant(length), value, effect, control));
-        ASSERT_TRUE(r.Changed());
-        EXPECT_THAT(
-            r.replacement(),
-            IsStoreElement(access_nocheck, base, IsInt32Constant(key),
-                           IsNumberConstant(length), value, effect, control));
-      }
-    }
+  {
+    Node* const key = NumberConstant(-72.1);
+    Node* const length = NumberConstant(0.0);
+    Reduction r =
+        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
+                                length, value, effect, control));
+    ASSERT_FALSE(r.Changed());
+  }
+  {
+    Node* const key = NumberConstant(-0.0);
+    Node* const length = Int32Constant(999);
+    Reduction r =
+        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
+                                length, value, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsStoreElement(access_nocheck, base, key, length, value, effect,
+                               control));
+  }
+  {
+    Node* const key = Int32Constant(0);
+    Node* const length = Int32Constant(1);
+    Reduction r =
+        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
+                                length, value, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsStoreElement(access_nocheck, base, key, length, value, effect,
+                               control));
+  }
+  {
+    Node* const key = NumberConstant(42.2);
+    Node* const length = Int32Constant(128);
+    Reduction r =
+        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
+                                length, value, effect, control));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsStoreElement(access_nocheck, base, key, length, value, effect,
+                               control));
+  }
+  {
+    Node* const key = NumberConstant(39.2);
+    Node* const length = NumberConstant(32.0);
+    Reduction r =
+        Reduce(graph()->NewNode(simplified()->StoreElement(access), base, key,
+                                length, value, effect, control));
+    ASSERT_FALSE(r.Changed());
   }
 }
 

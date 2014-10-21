@@ -9,6 +9,7 @@
 #include "src/compiler/graph-inl.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-inlining.h"
+#include "src/compiler/js-intrinsic-builder.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-aux-data-inl.h"
 #include "src/compiler/node-matchers.h"
@@ -32,7 +33,12 @@ class InlinerVisitor : public NullNodeVisitor {
   GenericGraphVisit::Control Post(Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kJSCallFunction:
-        inliner_->TryInlineCall(node);
+        inliner_->TryInlineJSCall(node);
+        break;
+      case IrOpcode::kJSCallRuntime:
+        if (FLAG_turbo_inlining_intrinsics) {
+          inliner_->TryInlineRuntimeCall(node);
+        }
         break;
       default:
         break;
@@ -285,22 +291,9 @@ void Inlinee::InlineAtCall(JSGraph* jsgraph, Node* call) {
     }
   }
 
-  // Iterate over all uses of the call node.
-  iter = call->uses().begin();
-  while (iter != call->uses().end()) {
-    if (NodeProperties::IsEffectEdge(iter.edge())) {
-      iter.UpdateToAndIncrement(effect_output());
-    } else if (NodeProperties::IsControlEdge(iter.edge())) {
-      UNREACHABLE();
-    } else {
-      DCHECK(NodeProperties::IsValueEdge(iter.edge()));
-      iter.UpdateToAndIncrement(value_output());
-    }
-  }
+  NodeProperties::ReplaceWithValue(call, value_output(), effect_output());
   call->RemoveAllInputs();
   DCHECK_EQ(0, call->UseCount());
-  // TODO(sigurds) Remove this once we copy.
-  unique_return()->RemoveAllInputs();
 }
 
 
@@ -368,7 +361,7 @@ Node* JSInliner::CreateArgumentsAdaptorFrameState(JSCallFunctionAccessor* call,
 }
 
 
-void JSInliner::TryInlineCall(Node* call_node) {
+void JSInliner::TryInlineJSCall(Node* call_node) {
   JSCallFunctionAccessor call(call_node);
 
   HeapObjectMatcher<JSFunction> match(call.jsfunction());
@@ -391,7 +384,7 @@ void JSInliner::TryInlineCall(Node* call_node) {
   CompilationInfoWithZone info(function);
   Parse(function, &info);
 
-  if (info.scope()->arguments() != NULL) {
+  if (info.scope()->arguments() != NULL && info.strict_mode() != STRICT) {
     // For now do not inline functions that use their arguments array.
     SmartArrayPointer<char> name = function->shared()->DebugName()->ToCString();
     if (FLAG_trace_turbo_inlining) {
@@ -439,6 +432,72 @@ void JSInliner::TryInlineCall(Node* call_node) {
   }
 
   inlinee.InlineAtCall(jsgraph_, call_node);
+}
+
+
+class JSCallRuntimeAccessor {
+ public:
+  explicit JSCallRuntimeAccessor(Node* call) : call_(call) {
+    DCHECK_EQ(IrOpcode::kJSCallRuntime, call->opcode());
+  }
+
+  Node* formal_argument(size_t index) {
+    DCHECK(index < formal_arguments());
+    return call_->InputAt(static_cast<int>(index));
+  }
+
+  size_t formal_arguments() {
+    size_t value_inputs = OperatorProperties::GetValueInputCount(call_->op());
+    return value_inputs;
+  }
+
+  Node* frame_state() const {
+    return NodeProperties::GetFrameStateInput(call_);
+  }
+  Node* context() const { return NodeProperties::GetContextInput(call_); }
+  Node* control() const { return NodeProperties::GetControlInput(call_); }
+  Node* effect() const { return NodeProperties::GetEffectInput(call_); }
+
+  const Runtime::Function* function() const {
+    return Runtime::FunctionForId(OpParameter<Runtime::FunctionId>(call_));
+  }
+
+  NodeVector inputs(Zone* zone) const {
+    NodeVector inputs(zone);
+    for (InputIter it = call_->inputs().begin(); it != call_->inputs().end();
+         ++it) {
+      inputs.push_back(*it);
+    }
+    return inputs;
+  }
+
+ private:
+  Node* call_;
+};
+
+
+void JSInliner::TryInlineRuntimeCall(Node* call_node) {
+  JSCallRuntimeAccessor call(call_node);
+  const Runtime::Function* f = call.function();
+
+  if (f->intrinsic_type != Runtime::IntrinsicType::INLINE) {
+    return;
+  }
+
+  JSIntrinsicBuilder intrinsic_builder(jsgraph_);
+
+  ResultAndEffect r = intrinsic_builder.BuildGraphFor(
+      f->function_id, call.inputs(jsgraph_->zone()));
+
+  if (r.first != NULL) {
+    if (FLAG_trace_turbo_inlining) {
+      PrintF("Inlining %s into %s\n", f->name,
+             info_->shared_info()->DebugName()->ToCString().get());
+    }
+    NodeProperties::ReplaceWithValue(call_node, r.first, r.second);
+    call_node->RemoveAllInputs();
+    DCHECK_EQ(0, call_node->UseCount());
+  }
 }
 }
 }

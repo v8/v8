@@ -128,7 +128,7 @@ char* Bootstrapper::AllocateAutoDeletedArray(int bytes) {
 void Bootstrapper::TearDown() {
   if (delete_these_non_arrays_on_tear_down_ != NULL) {
     int len = delete_these_non_arrays_on_tear_down_->length();
-    DCHECK(len < 28);  // Don't use this mechanism for unbounded allocations.
+    DCHECK(len < 1000);  // Don't use this mechanism for unbounded allocations.
     for (int i = 0; i < len; i++) {
       delete delete_these_non_arrays_on_tear_down_->at(i);
       delete_these_non_arrays_on_tear_down_->at(i) = NULL;
@@ -210,6 +210,18 @@ class Genesis BASE_EMBEDDED {
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
   void InstallExperimentalNativeFunctions();
+
+#define DECLARE_FEATURE_INITIALIZATION(id, descr) \
+  void InstallNativeFunctions_##id();             \
+  void InitializeGlobal_##id();
+
+  SHIPPING_FEATURES(DECLARE_FEATURE_INITIALIZATION)
+  HARMONY_FEATURES(DECLARE_FEATURE_INITIALIZATION)
+  STAGED_FEATURES(DECLARE_FEATURE_INITIALIZATION)
+
+  DECLARE_FEATURE_INITIALIZATION(harmony_proxies, "")
+#undef DECLARE_FEATURE_INITIALIZATION
+
   Handle<JSFunction> InstallInternalArray(Handle<JSBuiltinsObject> builtins,
                                           const char* name,
                                           ElementsKind elements_kind);
@@ -1330,6 +1342,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> global_object,
     delegate->shared()->DontAdaptArguments();
   }
 
+#define FEATURE_INITIALIZE_GLOBAL(id, descr) InitializeGlobal_##id();
+
+  SHIPPING_FEATURES(FEATURE_INITIALIZE_GLOBAL)
+#undef FEATURE_INITIALIZE_GLOBAL
+
   // Initialize the embedder data slot.
   Handle<FixedArray> embedder_data = factory->NewFixedArray(3);
   native_context()->set_embedder_data(*embedder_data);
@@ -1360,16 +1377,11 @@ void Genesis::InstallTypedArray(
 
 
 void Genesis::InitializeExperimentalGlobal() {
-  // TODO(erikcorry): Move this into Genesis::InitializeGlobal once we no
-  // longer need to live behind a flag.
-  Handle<JSObject> builtins(native_context()->builtins());
+#define FEATURE_INITIALIZE_GLOBAL(id, descr) InitializeGlobal_##id();
 
-  Handle<HeapObject> flag(
-      FLAG_harmony_regexps ? heap()->true_value() : heap()->false_value());
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
-  Runtime::DefineObjectProperty(builtins, factory()->harmony_regexps_string(),
-                                flag, attributes).Assert();
+  HARMONY_FEATURES(FEATURE_INITIALIZE_GLOBAL)
+  STAGED_FEATURES(FEATURE_INITIALIZE_GLOBAL)
+#undef FEATURE_INITIALIZE_GLOBAL
 }
 
 
@@ -1551,6 +1563,11 @@ void Genesis::InstallNativeFunctions() {
   INSTALL_NATIVE(Symbol, "symbolIterator", iterator_symbol);
   INSTALL_NATIVE(Symbol, "symbolUnscopables", unscopables_symbol);
   INSTALL_NATIVE(JSFunction, "ArrayValues", array_values_iterator);
+
+#define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) InstallNativeFunctions_##id();
+
+  SHIPPING_FEATURES(INSTALL_NATIVE_FUNCTIONS_FOR)
+#undef INSTALL_NATIVE_FUNCTIONS_FOR
 }
 
 
@@ -1561,9 +1578,63 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
     INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
   }
+
+#define INSTALL_NATIVE_FUNCTIONS_FOR(id, descr) InstallNativeFunctions_##id();
+
+  HARMONY_FEATURES(INSTALL_NATIVE_FUNCTIONS_FOR)
+  STAGED_FEATURES(INSTALL_NATIVE_FUNCTIONS_FOR)
+  INSTALL_NATIVE_FUNCTIONS_FOR(harmony_proxies, "")
+#undef INSTALL_NATIVE_FUNCTIONS_FOR
+}
+
+
+#define EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(id) \
+  void Genesis::InstallNativeFunctions_##id() {}
+
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_scoping)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_modules)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_strings)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_arrays)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_classes)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_object_literals)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_regexps)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_arrow_functions)
+EMPTY_NATIVE_FUNCTIONS_FOR_FEATURE(harmony_numeric_literals)
+
+
+void Genesis::InstallNativeFunctions_harmony_proxies() {
+  if (FLAG_harmony_proxies) {
+    INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
+    INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
+    INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
+    INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
+  }
 }
 
 #undef INSTALL_NATIVE
+
+#define EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(id) \
+  void Genesis::InitializeGlobal_##id() {}
+
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_scoping)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_modules)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_strings)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_arrays)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_classes)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_literals)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_arrow_functions)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_numeric_literals)
+
+void Genesis::InitializeGlobal_harmony_regexps() {
+  Handle<JSObject> builtins(native_context()->builtins());
+
+  Handle<HeapObject> flag(FLAG_harmony_regexps ? heap()->true_value()
+                                               : heap()->false_value());
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+  Runtime::DefineObjectProperty(builtins, factory()->harmony_regexps_string(),
+                                flag, attributes).Assert();
+}
 
 
 Handle<JSFunction> Genesis::InstallInternalArray(
@@ -1956,7 +2027,7 @@ bool Genesis::InstallNatives() {
       // Apply embeds an IC, so we need a type vector of size 1 in the shared
       // function info.
       Handle<TypeFeedbackVector> feedback_vector =
-          factory()->NewTypeFeedbackVector(1);
+          factory()->NewTypeFeedbackVector(0, 1);
       apply->shared()->set_feedback_vector(*feedback_vector);
     }
 
@@ -2071,24 +2142,51 @@ bool Genesis::InstallNatives() {
 }
 
 
-#define INSTALL_EXPERIMENTAL_NATIVE(i, flag, file)                \
-  if (FLAG_harmony_##flag &&                                      \
-      strcmp(ExperimentalNatives::GetScriptName(i).start(),       \
-          "native " file) == 0) {                                 \
-    if (!CompileExperimentalBuiltin(isolate(), i)) return false;  \
+#define INSTALL_EXPERIMENTAL_NATIVE(i, flag, file)                             \
+  if (FLAG_##flag &&                                                           \
+      strcmp(ExperimentalNatives::GetScriptName(i).start(), "native " file) == \
+          0) {                                                                 \
+    if (!CompileExperimentalBuiltin(isolate(), i)) return false;               \
   }
 
 
 bool Genesis::InstallExperimentalNatives() {
+  static const char* harmony_arrays_natives[] = {
+      "native harmony-array.js", "native harmony-typedarray.js", NULL};
+  static const char* harmony_proxies_natives[] = {"native proxy.js", NULL};
+  static const char* harmony_strings_natives[] = {"native harmony-string.js",
+                                                  NULL};
+  static const char* harmony_classes_natives[] = {"native harmony-classes.js",
+                                                  NULL};
+  static const char* harmony_modules_natives[] = {NULL};
+  static const char* harmony_scoping_natives[] = {NULL};
+  static const char* harmony_object_literals_natives[] = {NULL};
+  static const char* harmony_regexps_natives[] = {NULL};
+  static const char* harmony_arrow_functions_natives[] = {NULL};
+  static const char* harmony_numeric_literals_natives[] = {NULL};
+
   for (int i = ExperimentalNatives::GetDebuggerCount();
-       i < ExperimentalNatives::GetBuiltinsCount();
-       i++) {
-    INSTALL_EXPERIMENTAL_NATIVE(i, proxies, "proxy.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, strings, "harmony-string.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-array.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, arrays, "harmony-typedarray.js")
-    INSTALL_EXPERIMENTAL_NATIVE(i, classes, "harmony-classes.js")
+       i < ExperimentalNatives::GetBuiltinsCount(); i++) {
+#define INSTALL_EXPERIMENTAL_NATIVES(id, desc)                       \
+  if (FLAG_##id) {                                                   \
+    for (size_t j = 0; id##_natives[j] != NULL; j++) {               \
+      if (strcmp(ExperimentalNatives::GetScriptName(i).start(),      \
+                 id##_natives[j]) == 0) {                            \
+        if (!CompileExperimentalBuiltin(isolate(), i)) return false; \
+      }                                                              \
+    }                                                                \
   }
+    INSTALL_EXPERIMENTAL_NATIVES(harmony_proxies, "");
+    // Iterate over flags that are not enabled by default.
+    HARMONY_FEATURES(INSTALL_EXPERIMENTAL_NATIVES);
+    STAGED_FEATURES(INSTALL_EXPERIMENTAL_NATIVES);
+#undef INSTALL_EXPERIMENTAL_NATIVES
+  }
+
+#define USE_NATIVES_FOR_FEATURE(id, descr) USE(id##_natives);
+
+  SHIPPING_FEATURES(USE_NATIVES_FOR_FEATURE)
+#undef USE_NATIVES_FOR_FEATURE
 
   InstallExperimentalNativeFunctions();
   return true;

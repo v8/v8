@@ -146,6 +146,9 @@ class SimplifiedOperatorBuilder FINAL {
   const Operator* ChangeBoolToBit();
   const Operator* ChangeBitToBool();
 
+  const Operator* ObjectIsSmi();
+  const Operator* ObjectIsNonNegativeSmi();
+
   const Operator* LoadField(const FieldAccess&);
   const Operator* StoreField(const FieldAccess&);
 

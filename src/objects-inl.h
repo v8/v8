@@ -4833,13 +4833,11 @@ void Code::set_profiler_ticks(int ticks) {
 
 
 int Code::builtin_index() {
-  DCHECK_EQ(BUILTIN, kind());
   return READ_INT32_FIELD(this, kKindSpecificFlags1Offset);
 }
 
 
 void Code::set_builtin_index(int index) {
-  DCHECK_EQ(BUILTIN, kind());
   WRITE_INT32_FIELD(this, kKindSpecificFlags1Offset, index);
 }
 

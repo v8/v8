@@ -86,6 +86,10 @@ class IC {
   static void Clear(Isolate* isolate, Address address,
                     ConstantPoolArray* constant_pool);
 
+  // Clear the vector-based inline cache to initial state.
+  static void Clear(Isolate* isolate, Code::Kind kind, Code* host,
+                    TypeFeedbackVector* vector, FeedbackVectorICSlot slot);
+
 #ifdef DEBUG
   bool IsLoadStub() const {
     return target()->is_load_stub() || target()->is_keyed_load_stub();
@@ -294,26 +298,35 @@ class CallIC : public IC {
   explicit CallIC(Isolate* isolate) : IC(EXTRA_CALL_FRAME, isolate) {}
 
   void PatchMegamorphic(Handle<Object> function,
-                        Handle<TypeFeedbackVector> vector, Handle<Smi> slot);
+                        Handle<TypeFeedbackVector> vector,
+                        FeedbackVectorICSlot slot);
 
   void HandleMiss(Handle<Object> receiver, Handle<Object> function,
-                  Handle<TypeFeedbackVector> vector, Handle<Smi> slot);
+                  Handle<TypeFeedbackVector> vector, FeedbackVectorICSlot slot);
 
   // Returns true if a custom handler was installed.
   bool DoCustomHandler(Handle<Object> receiver, Handle<Object> function,
-                       Handle<TypeFeedbackVector> vector, Handle<Smi> slot,
-                       const CallICState& state);
+                       Handle<TypeFeedbackVector> vector,
+                       FeedbackVectorICSlot slot, const CallICState& state);
 
   // Code generator routines.
   static Handle<Code> initialize_stub(Isolate* isolate, int argc,
                                       CallICState::CallType call_type);
 
-  static void Clear(Isolate* isolate, Address address, Code* target,
-                    ConstantPoolArray* constant_pool);
+  static void Clear(Isolate* isolate, Code* host, TypeFeedbackVector* vector,
+                    FeedbackVectorICSlot slot);
 
  private:
-  inline IC::State FeedbackToState(Handle<TypeFeedbackVector> vector,
-                                   Handle<Smi> slot) const;
+  static inline IC::State FeedbackToState(Isolate* isolate,
+                                          TypeFeedbackVector* vector,
+                                          FeedbackVectorICSlot slot);
+
+  inline Code* get_host();
+
+  // As a vector-based IC, type feedback must be updated differently.
+  static void OnTypeFeedbackChanged(Isolate* isolate, Code* host,
+                                    TypeFeedbackVector* vector, State old_state,
+                                    State new_state);
 };
 
 

@@ -21,7 +21,7 @@ Handle<Object> TypeFeedbackVector::MegamorphicSentinel(Isolate* isolate) {
 
 
 Handle<Object> TypeFeedbackVector::PremonomorphicSentinel(Isolate* isolate) {
-  return isolate->factory()->megamorphic_symbol();
+  return isolate->factory()->premonomorphic_symbol();
 }
 
 

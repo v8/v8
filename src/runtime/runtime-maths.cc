@@ -7,7 +7,6 @@
 #include "src/arguments.h"
 #include "src/assembler.h"
 #include "src/codegen.h"
-#include "src/runtime/runtime.h"
 #include "src/runtime/runtime-utils.h"
 #include "src/third_party/fdlibm/fdlibm.h"
 

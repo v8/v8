@@ -11,7 +11,7 @@
 #include "src/compiler/typer.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
-#include "testing/gtest-support.h"
+#include "test/unittests/compiler/node-test-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -78,7 +78,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
   Handle<JSArrayBuffer> buffer =
       NewArrayBuffer(backing_store, arraysize(backing_store));
   VectorSlotPair feedback(Handle<TypeFeedbackVector>::null(),
-                          FeedbackVectorSlot::Invalid());
+                          FeedbackVectorICSlot::Invalid());
   TRACED_FOREACH(ExternalArrayType, type, kExternalArrayTypes) {
     Handle<JSTypedArray> array =
         factory()->NewJSTypedArray(type, buffer, 0, kLength);

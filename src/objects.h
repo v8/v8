@@ -2236,11 +2236,6 @@ class JSObject: public JSReceiver {
                                 Handle<Map> new_map,
                                 int expected_additional_properties);
 
-  static void GeneralizeFieldRepresentation(Handle<JSObject> object,
-                                            int modify_index,
-                                            Representation new_representation,
-                                            Handle<HeapType> new_field_type);
-
   static void UpdateAllocationSite(Handle<JSObject> object,
                                    ElementsKind to_kind);
 
@@ -5150,6 +5145,10 @@ class Code: public HeapObject {
   inline void set_profiler_ticks(int ticks);
 
   // [builtin_index]: For BUILTIN kind, tells which builtin index it has.
+  // For builtins, tells which builtin index it has.
+  // Note that builtins can have a code kind other than BUILTIN, which means
+  // that for arbitrary code objects, this index value may be random garbage.
+  // To verify in that case, compare the code object to the indexed builtin.
   inline int builtin_index();
   inline void set_builtin_index(int id);
 
@@ -8126,7 +8125,6 @@ class TypeFeedbackInfo: public Struct {
 
   inline void set_inlined_type_change_checksum(int checksum);
   inline bool matches_inlined_type_change_checksum(int checksum);
-
 
   DECLARE_CAST(TypeFeedbackInfo)
 

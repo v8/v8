@@ -20,7 +20,8 @@ class JSInliner {
       : info_(info), jsgraph_(jsgraph) {}
 
   void Inline();
-  void TryInlineCall(Node* node);
+  void TryInlineJSCall(Node* node);
+  void TryInlineRuntimeCall(Node* node);
 
  private:
   friend class InlinerVisitor;

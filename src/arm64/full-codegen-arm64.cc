@@ -1181,7 +1181,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   __ LoadObject(x1, FeedbackVector());
   __ Mov(x10, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
-  __ Str(x10, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(slot.ToInt())));
+  int vector_index = FeedbackVector()->GetIndex(slot);
+  __ Str(x10, FieldMemOperand(x1, FixedArray::OffsetOfElementAt(vector_index)));
 
   __ Mov(x1, Smi::FromInt(1));  // Smi indicates slow check.
   __ Peek(x10, 0);  // Get enumerated object.

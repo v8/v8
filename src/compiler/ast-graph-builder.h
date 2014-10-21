@@ -145,7 +145,7 @@ class AstGraphBuilder : public StructuredGraphBuilder, public AstVisitor {
   inline Scope* current_scope() const;
 
   // Named and keyed loads require a VectorSlotPair for successful lowering.
-  VectorSlotPair CreateVectorSlotPair(FeedbackVectorSlot slot) const;
+  VectorSlotPair CreateVectorSlotPair(FeedbackVectorICSlot slot) const;
 
   // Process arguments to a call by popping {arity} elements off the operand
   // stack and build a call node using the given call operator.

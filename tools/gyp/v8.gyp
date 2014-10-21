@@ -438,6 +438,8 @@
         '../../src/compiler/js-graph.h',
         '../../src/compiler/js-inlining.cc',
         '../../src/compiler/js-inlining.h',
+        '../../src/compiler/js-intrinsic-builder.cc',
+        '../../src/compiler/js-intrinsic-builder.h',
         '../../src/compiler/js-operator.cc',
         '../../src/compiler/js-operator.h',
         '../../src/compiler/js-typed-lowering.cc',
@@ -1440,8 +1442,6 @@
                   'sources': [
                     '../../src/base/platform/platform-win32.cc',
                     '../../src/base/win32-headers.h',
-                    '../../src/base/win32-math.cc',
-                    '../../src/base/win32-math.h'
                   ],
                 }],
               ],
@@ -1452,8 +1452,6 @@
               'sources': [
                 '../../src/base/platform/platform-win32.cc',
                 '../../src/base/win32-headers.h',
-                '../../src/base/win32-math.cc',
-                '../../src/base/win32-math.h'
               ],
               'msvs_disabled_warnings': [4351, 4355, 4800],
               'link_settings':  {

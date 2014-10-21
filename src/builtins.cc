@@ -1574,7 +1574,7 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
       PROFILE(isolate,
               CodeCreateEvent(Logger::BUILTIN_TAG, *code, functions[i].s_name));
       builtins_[i] = *code;
-      if (code->kind() == Code::BUILTIN) code->set_builtin_index(i);
+      code->set_builtin_index(i);
 #ifdef ENABLE_DISASSEMBLER
       if (FLAG_print_builtin_code) {
         CodeTracer::Scope trace_scope(isolate->GetCodeTracer());

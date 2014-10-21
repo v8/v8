@@ -1931,6 +1931,10 @@ bool Isolate::Init(Deserializer* des) {
     optimizing_compiler_thread_->Start();
   }
 
+  // Initialize runtime profiler before deserialization, because collections may
+  // occur, clearing/updating ICs.
+  runtime_profiler_ = new RuntimeProfiler(this);
+
   // If we are deserializing, read the state into the now-empty heap.
   if (!create_heap_objects) {
     des->Deserialize(this);
@@ -1949,8 +1953,6 @@ bool Isolate::Init(Deserializer* des) {
   // Quiet the heap NaN if needed on target platform.
   if (!create_heap_objects) Assembler::QuietNaN(heap_.nan_value());
 
-  runtime_profiler_ = new RuntimeProfiler(this);
-
   if (FLAG_trace_turbo) {
     // Erase the file.
     char buffer[512];
@@ -1959,7 +1961,6 @@ bool Isolate::Init(Deserializer* des) {
     std::ofstream turbo_cfg_stream(filename.start(),
                                    std::fstream::out | std::fstream::trunc);
   }
-
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.

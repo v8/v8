@@ -385,7 +385,7 @@ static SaveContext* FindSavedContextForFrame(Isolate* isolate,
 
 // Advances the iterator to the frame that matches the index and returns the
 // inlined frame index, or -1 if not found.  Skips native JS functions.
-int FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index) {
+int Runtime::FindIndexedNonNativeFrame(JavaScriptFrameIterator* it, int index) {
   int count = -1;
   for (; !it->done(); it->Advance()) {
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
@@ -435,7 +435,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   JavaScriptFrameIterator it(isolate, id);
   // Inlined frame index in optimized frame, starting from outer function.
-  int inlined_jsframe_index = FindIndexedNonNativeFrame(&it, index);
+  int inlined_jsframe_index = Runtime::FindIndexedNonNativeFrame(&it, index);
   if (inlined_jsframe_index == -1) return heap->undefined_value();
 
   FrameInspector frame_inspector(it.frame(), inlined_jsframe_index, isolate);

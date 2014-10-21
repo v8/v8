@@ -54,7 +54,7 @@ class InstructionTester : public HandleAndZoneScope {
       Scheduler::ComputeSpecialRPO(&schedule);
       DCHECK(schedule.rpo_order()->size() > 0);
     }
-    code = new TestInstrSeq(&linkage, &graph, &schedule);
+    code = new TestInstrSeq(main_zone(), &linkage, &graph, &schedule);
   }
 
   Node* Int32Constant(int32_t val) {
@@ -93,6 +93,21 @@ class InstructionTester : public HandleAndZoneScope {
     unallocated->set_virtual_register(vreg);
     return unallocated;
   }
+
+  InstructionBlock* BlockAt(BasicBlock* block) {
+    return code->InstructionBlockAt(block->GetRpoNumber());
+  }
+  BasicBlock* GetBasicBlock(int instruction_index) {
+    const InstructionBlock* block =
+        code->GetInstructionBlock(instruction_index);
+    return schedule.rpo_order()->at(block->rpo_number().ToSize());
+  }
+  int first_instruction_index(BasicBlock* block) {
+    return BlockAt(block)->first_instruction_index();
+  }
+  int last_instruction_index(BasicBlock* block) {
+    return BlockAt(block)->last_instruction_index();
+  }
 };
 
 
@@ -121,7 +136,8 @@ TEST(InstructionBasic) {
   for (BasicBlockVectorIter i = blocks->begin(); i != blocks->end();
        i++, index++) {
     BasicBlock* block = *i;
-    CHECK_EQ(block, R.code->BlockAt(index));
+    CHECK_EQ(block->rpo_number(), R.BlockAt(block)->rpo_number().ToInt());
+    CHECK_EQ(block->id().ToInt(), R.BlockAt(block)->id().ToInt());
     CHECK_EQ(-1, block->loop_end());
   }
 }
@@ -159,29 +175,29 @@ TEST(InstructionGetBasicBlock) {
   R.code->StartBlock(b3);
   R.code->EndBlock(b3);
 
-  CHECK_EQ(b0, R.code->GetBasicBlock(i0));
-  CHECK_EQ(b0, R.code->GetBasicBlock(i1));
+  CHECK_EQ(b0, R.GetBasicBlock(i0));
+  CHECK_EQ(b0, R.GetBasicBlock(i1));
 
-  CHECK_EQ(b1, R.code->GetBasicBlock(i2));
-  CHECK_EQ(b1, R.code->GetBasicBlock(i3));
-  CHECK_EQ(b1, R.code->GetBasicBlock(i4));
-  CHECK_EQ(b1, R.code->GetBasicBlock(i5));
+  CHECK_EQ(b1, R.GetBasicBlock(i2));
+  CHECK_EQ(b1, R.GetBasicBlock(i3));
+  CHECK_EQ(b1, R.GetBasicBlock(i4));
+  CHECK_EQ(b1, R.GetBasicBlock(i5));
 
-  CHECK_EQ(b2, R.code->GetBasicBlock(i6));
-  CHECK_EQ(b2, R.code->GetBasicBlock(i7));
-  CHECK_EQ(b2, R.code->GetBasicBlock(i8));
+  CHECK_EQ(b2, R.GetBasicBlock(i6));
+  CHECK_EQ(b2, R.GetBasicBlock(i7));
+  CHECK_EQ(b2, R.GetBasicBlock(i8));
 
-  CHECK_EQ(b0, R.code->GetBasicBlock(R.code->first_instruction_index(b0)));
-  CHECK_EQ(b0, R.code->GetBasicBlock(R.code->last_instruction_index(b0)));
+  CHECK_EQ(b0, R.GetBasicBlock(R.first_instruction_index(b0)));
+  CHECK_EQ(b0, R.GetBasicBlock(R.last_instruction_index(b0)));
 
-  CHECK_EQ(b1, R.code->GetBasicBlock(R.code->first_instruction_index(b1)));
-  CHECK_EQ(b1, R.code->GetBasicBlock(R.code->last_instruction_index(b1)));
+  CHECK_EQ(b1, R.GetBasicBlock(R.first_instruction_index(b1)));
+  CHECK_EQ(b1, R.GetBasicBlock(R.last_instruction_index(b1)));
 
-  CHECK_EQ(b2, R.code->GetBasicBlock(R.code->first_instruction_index(b2)));
-  CHECK_EQ(b2, R.code->GetBasicBlock(R.code->last_instruction_index(b2)));
+  CHECK_EQ(b2, R.GetBasicBlock(R.first_instruction_index(b2)));
+  CHECK_EQ(b2, R.GetBasicBlock(R.last_instruction_index(b2)));
 
-  CHECK_EQ(b3, R.code->GetBasicBlock(R.code->first_instruction_index(b3)));
-  CHECK_EQ(b3, R.code->GetBasicBlock(R.code->last_instruction_index(b3)));
+  CHECK_EQ(b3, R.GetBasicBlock(R.first_instruction_index(b3)));
+  CHECK_EQ(b3, R.GetBasicBlock(R.last_instruction_index(b3)));
 }
 
 

@@ -753,6 +753,83 @@ class FrameStateDescriptor : public ZoneObject {
 
 std::ostream& operator<<(std::ostream& os, const Constant& constant);
 
+
+// TODO(dcarney): this is a temporary hack.  turn into an actual instruction.
+class PhiInstruction FINAL : public ZoneObject {
+ public:
+  PhiInstruction(Zone* zone, int virtual_register)
+      : virtual_register_(virtual_register), operands_(zone) {}
+
+  int virtual_register() const { return virtual_register_; }
+  const IntVector& operands() const { return operands_; }
+  IntVector& operands() { return operands_; }
+
+ private:
+  const int virtual_register_;
+  IntVector operands_;
+};
+
+
+// Analogue of BasicBlock for Instructions instead of Nodes.
+class InstructionBlock FINAL : public ZoneObject {
+ public:
+  explicit InstructionBlock(Zone* zone, const BasicBlock* block);
+
+  // Instruction indexes (used by the register allocator).
+  int first_instruction_index() const {
+    DCHECK(code_start_ >= 0);
+    DCHECK(code_end_ > 0);
+    DCHECK(code_end_ >= code_start_);
+    return code_start_;
+  }
+  int last_instruction_index() const {
+    DCHECK(code_start_ >= 0);
+    DCHECK(code_end_ > 0);
+    DCHECK(code_end_ >= code_start_);
+    return code_end_ - 1;
+  }
+
+  int32_t code_start() const { return code_start_; }
+  void set_code_start(int32_t start) { code_start_ = start; }
+
+  int32_t code_end() const { return code_end_; }
+  void set_code_end(int32_t end) { code_end_ = end; }
+
+  BasicBlock::Id id() const { return id_; }
+  BasicBlock::RpoNumber rpo_number() const { return rpo_number_; }
+  BasicBlock::RpoNumber loop_header() const { return loop_header_; }
+  BasicBlock::RpoNumber loop_end() const {
+    DCHECK(IsLoopHeader());
+    return loop_end_;
+  }
+  inline bool IsLoopHeader() const { return loop_end_.IsValid(); }
+
+  typedef ZoneVector<BasicBlock::RpoNumber> Predecessors;
+  const Predecessors& predecessors() const { return predecessors_; }
+  size_t PredecessorCount() const { return predecessors_.size(); }
+  size_t PredecessorIndexOf(BasicBlock::RpoNumber rpo_number) const;
+
+  typedef ZoneVector<BasicBlock::RpoNumber> Successors;
+  const Successors& successors() const { return successors_; }
+  size_t SuccessorCount() const { return successors_.size(); }
+
+  typedef ZoneVector<PhiInstruction*> PhiInstructions;
+  const PhiInstructions& phis() const { return phis_; }
+  void AddPhi(PhiInstruction* phi) { phis_.push_back(phi); }
+
+ private:
+  Successors successors_;
+  Predecessors predecessors_;
+  PhiInstructions phis_;
+  BasicBlock::Id id_;
+  // TODO(dcarney): probably dont't need this.
+  BasicBlock::RpoNumber rpo_number_;
+  BasicBlock::RpoNumber loop_header_;
+  BasicBlock::RpoNumber loop_end_;
+  int32_t code_start_;  // start index of arch-specific code.
+  int32_t code_end_;    // end index of arch-specific code.
+};
+
 typedef ZoneDeque<Constant> ConstantDeque;
 typedef std::map<int, Constant, std::less<int>,
                  zone_allocator<std::pair<int, Constant> > > ConstantMap;
@@ -760,13 +837,15 @@ typedef std::map<int, Constant, std::less<int>,
 typedef ZoneDeque<Instruction*> InstructionDeque;
 typedef ZoneDeque<PointerMap*> PointerMapDeque;
 typedef ZoneVector<FrameStateDescriptor*> DeoptimizationVector;
+typedef ZoneVector<InstructionBlock*> InstructionBlocks;
 
 // Represents architecture-specific generated code before, during, and after
 // register allocation.
 // TODO(titzer): s/IsDouble/IsFloat64/
 class InstructionSequence FINAL {
  public:
-  InstructionSequence(Linkage* linkage, Graph* graph, Schedule* schedule);
+  InstructionSequence(Zone* zone, Linkage* linkage, const Graph* graph,
+                      const Schedule* schedule);
 
   int NextVirtualRegister() { return next_virtual_register_++; }
   int VirtualRegisterCount() const { return next_virtual_register_; }
@@ -774,18 +853,27 @@ class InstructionSequence FINAL {
   int node_count() const { return node_count_; }
 
   int BasicBlockCount() const {
-    return static_cast<int>(schedule_->rpo_order()->size());
+    return static_cast<int>(instruction_blocks_.size());
   }
 
-  BasicBlock* BlockAt(int rpo_number) const {
-    return (*schedule_->rpo_order())[rpo_number];
+  InstructionBlock* InstructionBlockAt(BasicBlock::RpoNumber rpo_number) {
+    return instruction_blocks_[rpo_number.ToSize()];
   }
 
-  BasicBlock* GetContainingLoop(BasicBlock* block) {
-    return block->loop_header();
+  const InstructionBlock* InstructionBlockAt(
+      BasicBlock::RpoNumber rpo_number) const {
+    return instruction_blocks_[rpo_number.ToSize()];
   }
 
-  BasicBlock* GetBasicBlock(int instruction_index);
+  // TODO(dcarney): move to register allocator.
+  const InstructionBlock* GetContainingLoop(
+      const InstructionBlock* block) const {
+    BasicBlock::RpoNumber index = block->loop_header();
+    if (!index.IsValid()) return NULL;
+    return instruction_blocks_[index.ToInt()];
+  }
+
+  const InstructionBlock* GetInstructionBlock(int instruction_index) const;
 
   int GetVirtualRegister(const Node* node);
   // TODO(dcarney): find a way to remove this.
@@ -819,7 +907,6 @@ class InstructionSequence FINAL {
   Frame* frame() { return &frame_; }
   Isolate* isolate() const { return zone()->isolate(); }
   Linkage* linkage() const { return linkage_; }
-  Schedule* schedule() const { return schedule_; }
   const PointerMapDeque* pointer_maps() const { return &pointer_maps_; }
   Zone* zone() const { return zone_; }
 
@@ -827,28 +914,6 @@ class InstructionSequence FINAL {
   int AddInstruction(Instruction* instr);
   void StartBlock(BasicBlock* block);
   void EndBlock(BasicBlock* block);
-  void set_code_start(BasicBlock* block, int start) {
-    return GetBlockData(block->GetRpoNumber()).set_code_start(start);
-  }
-  void set_code_end(BasicBlock* block, int end) {
-    return GetBlockData(block->GetRpoNumber()).set_code_end(end);
-  }
-  // TODO(dcarney): use RpoNumber for all of the below.
-  int code_start(BasicBlock::RpoNumber rpo_number) const {
-    return GetBlockData(rpo_number).code_start();
-  }
-  int code_start(BasicBlock* block) const {
-    return GetBlockData(block->GetRpoNumber()).code_start();
-  }
-  int code_end(BasicBlock* block) const {
-    return GetBlockData(block->GetRpoNumber()).code_end();
-  }
-  int first_instruction_index(BasicBlock* block) const {
-    return GetBlockData(block->GetRpoNumber()).first_instruction_index();
-  }
-  int last_instruction_index(BasicBlock* block) const {
-    return GetBlockData(block->GetRpoNumber()).last_instruction_index();
-  }
 
   int AddConstant(Node* node, Constant constant) {
     int virtual_register = GetVirtualRegister(node);
@@ -892,53 +957,16 @@ class InstructionSequence FINAL {
   int GetFrameStateDescriptorCount();
 
  private:
-  class BlockData {
-   public:
-    BlockData() : code_start_(-1), code_end_(-1) {}
-    // Instruction indexes (used by the register allocator).
-    int first_instruction_index() const {
-      DCHECK(code_start_ >= 0);
-      DCHECK(code_end_ > 0);
-      DCHECK(code_end_ >= code_start_);
-      return code_start_;
-    }
-    int last_instruction_index() const {
-      DCHECK(code_start_ >= 0);
-      DCHECK(code_end_ > 0);
-      DCHECK(code_end_ >= code_start_);
-      return code_end_ - 1;
-    }
-
-    int32_t code_start() const { return code_start_; }
-    void set_code_start(int32_t start) { code_start_ = start; }
-
-    int32_t code_end() const { return code_end_; }
-    void set_code_end(int32_t end) { code_end_ = end; }
-
-   private:
-    int32_t code_start_;  // start index of arch-specific code.
-    int32_t code_end_;    // end index of arch-specific code.
-  };
-
-  const BlockData& GetBlockData(BasicBlock::RpoNumber rpo_number) const {
-    return block_data_[rpo_number.ToSize()];
-  }
-  BlockData& GetBlockData(BasicBlock::RpoNumber rpo_number) {
-    return block_data_[rpo_number.ToSize()];
-  }
-
   friend std::ostream& operator<<(std::ostream& os,
                                   const InstructionSequence& code);
 
   typedef std::set<int, std::less<int>, ZoneIntAllocator> VirtualRegisterSet;
-  typedef ZoneVector<BlockData> BlockDataVector;
 
   Zone* zone_;
   int node_count_;
   int* node_map_;
-  BlockDataVector block_data_;
+  InstructionBlocks instruction_blocks_;
   Linkage* linkage_;
-  Schedule* schedule_;
   ConstantMap constants_;
   ConstantDeque immediates_;
   InstructionDeque instructions_;
