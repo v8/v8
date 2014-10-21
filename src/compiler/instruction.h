@@ -862,6 +862,11 @@ class InstructionSequence FINAL {
     return instruction_blocks_[rpo_number.ToSize()];
   }
 
+  int LastLoopInstructionIndex(const InstructionBlock* block) {
+    return instruction_blocks_[block->loop_end().ToSize() - 1]
+        ->last_instruction_index();
+  }
+
   const InstructionBlock* InstructionBlockAt(
       BasicBlock::RpoNumber rpo_number) const {
     return instruction_blocks_[rpo_number.ToSize()];

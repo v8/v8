@@ -1328,11 +1328,9 @@ void RegisterAllocator::BuildLiveRanges() {
       BitVector::Iterator iterator(live);
       LifetimePosition start = LifetimePosition::FromInstructionIndex(
           block->first_instruction_index());
-      int end_index = code()
-                          ->InstructionBlockAt(block->loop_end())
-                          ->last_instruction_index();
       LifetimePosition end =
-          LifetimePosition::FromInstructionIndex(end_index).NextInstruction();
+          LifetimePosition::FromInstructionIndex(
+              code()->LastLoopInstructionIndex(block)).NextInstruction();
       while (!iterator.Done()) {
         int operand_index = iterator.Current();
         LiveRange* range = LiveRangeFor(operand_index);
