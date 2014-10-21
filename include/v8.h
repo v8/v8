@@ -2507,15 +2507,6 @@ class V8_EXPORT Object : public Value {
   bool DeleteHiddenValue(Handle<String> key);
 
   /**
-   * Returns true if this is an instance of an api function (one
-   * created from a function created from a function template) and has
-   * been modified since it was created.  Note that this method is
-   * conservative and may return true for objects that haven't actually
-   * been modified.
-   */
-  bool IsDirty();
-
-  /**
    * Clone this object with a fast but shallow copy.  Values will point
    * to the same values as the original object.
    */

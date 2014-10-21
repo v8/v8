@@ -1853,10 +1853,6 @@ class JSObject: public JSReceiver {
       Handle<Object> receiver,
       Handle<Name> name);
 
-  // Returns true if this is an instance of an api function and has
-  // been modified since it was created.  May give false positives.
-  bool IsDirty();
-
   // Accessors for hidden properties object.
   //
   // Hidden properties are not own properties of the object itself.

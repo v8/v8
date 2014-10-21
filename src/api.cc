@@ -3774,11 +3774,6 @@ void v8::Object::TurnOnAccessCheck() {
 }
 
 
-bool v8::Object::IsDirty() {
-  return Utils::OpenHandle(this)->IsDirty();
-}
-
-
 Local<v8::Object> v8::Object::Clone() {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   ON_BAILOUT(isolate, "v8::Object::Clone()", return Local<Object>());
