@@ -7034,6 +7034,7 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
   MapHandleList possible_transitioned_maps(maps->length());
   for (int i = 0; i < maps->length(); ++i) {
     Handle<Map> map = maps->at(i);
+    DCHECK(!map->IsStringMap());
     ElementsKind elements_kind = map->elements_kind();
     if (IsFastElementsKind(elements_kind) &&
         elements_kind != GetInitialFastElementsKind()) {
@@ -7194,6 +7195,19 @@ HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
       if (current_map->DictionaryElementsInPrototypeChainOnly()) {
         force_generic = true;
         monomorphic = false;
+        break;
+      }
+    }
+  } else if (access_type == LOAD && !monomorphic &&
+             (types != NULL && !types->is_empty())) {
+    // Polymorphic loads have to go generic if any of the maps are strings.
+    // If some, but not all of the maps are strings, we should go generic
+    // because polymorphic access wants to key on ElementsKind and isn't
+    // compatible with strings.
+    for (int i = 0; i < types->length(); i++) {
+      Handle<Map> current_map = types->at(i);
+      if (current_map->IsStringMap()) {
+        force_generic = true;
         break;
       }
     }
