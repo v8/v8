@@ -66,6 +66,7 @@ ThreadLocalTop::ThreadLocalTop() {
 
 void ThreadLocalTop::InitializeInternal() {
   c_entry_fp_ = 0;
+  c_function_ = 0;
   handler_ = 0;
 #ifdef USE_SIMULATOR
   simulator_ = NULL;
