@@ -1930,9 +1930,7 @@ void PropertyCell::set_type_raw(Object* val, WriteBarrierMode ignored) {
 }
 
 
-Object* WeakCell::value() const {
-  return HeapObject::cast(READ_FIELD(this, kValueOffset));
-}
+Object* WeakCell::value() const { return READ_FIELD(this, kValueOffset); }
 
 
 void WeakCell::clear() {
