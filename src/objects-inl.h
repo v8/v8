@@ -6690,11 +6690,6 @@ String* String::GetForwardedInternalizedString() {
 }
 
 
-Object* JSReceiver::GetConstructor() {
-  return map()->constructor();
-}
-
-
 Maybe<bool> JSReceiver::HasProperty(Handle<JSReceiver> object,
                                     Handle<Name> name) {
   if (object->IsJSProxy()) {
