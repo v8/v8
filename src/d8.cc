@@ -219,6 +219,7 @@ ScriptCompiler::CachedData* CompileForCachedData(
   }
   temp_isolate->Dispose();
   delete[] source_buffer;
+  delete[] name_buffer;
   return result;
 }
 
