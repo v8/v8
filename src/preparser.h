@@ -70,6 +70,7 @@ class ParserBase : public Traits {
 
   ParserBase(Scanner* scanner, uintptr_t stack_limit, v8::Extension* extension,
              ParserRecorder* log, typename Traits::Type::Zone* zone,
+             AstNode::IdGen* ast_node_id_gen,
              typename Traits::Type::Parser this_object)
       : Traits(this_object),
         parenthesized_function_(false),
@@ -86,7 +87,8 @@ class ParserBase : public Traits {
         allow_natives_syntax_(false),
         allow_arrow_functions_(false),
         allow_harmony_object_literals_(false),
-        zone_(zone) {}
+        zone_(zone),
+        ast_node_id_gen_(ast_node_id_gen) {}
 
   // Getters that indicate whether certain syntactical constructs are
   // allowed to be parsed by this instance of the parser.
@@ -275,6 +277,7 @@ class ParserBase : public Traits {
   void set_stack_overflow() { stack_overflow_ = true; }
   Mode mode() const { return mode_; }
   typename Traits::Type::Zone* zone() const { return zone_; }
+  AstNode::IdGen* ast_node_id_gen() const { return ast_node_id_gen_; }
 
   INLINE(Token::Value peek()) {
     if (stack_overflow_) return Token::ILLEGAL;
@@ -577,6 +580,7 @@ class ParserBase : public Traits {
   bool allow_harmony_object_literals_;
 
   typename Traits::Type::Zone* zone_;  // Only used by Parser.
+  AstNode::IdGen* ast_node_id_gen_;
 };
 
 
@@ -968,7 +972,7 @@ class PreParserScope {
 
 class PreParserFactory {
  public:
-  explicit PreParserFactory(void* unused_value_factory) {}
+  PreParserFactory(void*, void*, void*) {}
   PreParserExpression NewStringLiteral(PreParserIdentifier identifier,
                                        int pos) {
     return PreParserExpression::Default();
@@ -1413,7 +1417,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   };
 
   PreParser(Scanner* scanner, ParserRecorder* log, uintptr_t stack_limit)
-      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, log, NULL,
+      : ParserBase<PreParserTraits>(scanner, stack_limit, NULL, log, NULL, NULL,
                                     this) {}
 
   // Pre-parse the program from the character stream; returns true on
@@ -1422,7 +1426,7 @@ class PreParser : public ParserBase<PreParserTraits> {
   // during parsing.
   PreParseResult PreParseProgram() {
     PreParserScope scope(scope_, GLOBAL_SCOPE);
-    PreParserFactory factory(NULL);
+    PreParserFactory factory(NULL, NULL, NULL);
     FunctionState top_scope(&function_state_, &scope_, &scope, &factory);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
@@ -2612,7 +2616,8 @@ typename ParserBase<Traits>::ExpressionT ParserBase<
   int handler_count = 0;
 
   {
-    typename Traits::Type::Factory function_factory(this->ast_value_factory());
+    typename Traits::Type::Factory function_factory(
+        zone(), this->ast_value_factory(), ast_node_id_gen_);
     FunctionState function_state(&function_state_, &scope_,
                                  Traits::Type::ptr_to_scope(scope),
                                  &function_factory);

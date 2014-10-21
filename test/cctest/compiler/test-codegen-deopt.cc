@@ -16,7 +16,6 @@
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 
-#include "src/ast-numbering.h"
 #include "src/full-codegen.h"
 #include "src/parser.h"
 #include "src/rewriter.h"
@@ -49,7 +48,6 @@ class DeoptCodegenTester {
     info.SetOptimizing(BailoutId::None(), Handle<Code>(function->code()));
     CHECK(Rewriter::Rewrite(&info));
     CHECK(Scope::Analyze(&info));
-    CHECK(AstNumbering::Renumber(info.function(), info.zone()));
     CHECK(Compiler::EnsureDeoptimizationSupport(&info));
 
     DCHECK(info.shared_info()->has_deoptimization_support());

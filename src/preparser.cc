@@ -104,11 +104,11 @@ PreParser::PreParseResult PreParser::PreParseLazyFunction(
   log_ = log;
   // Lazy functions always have trivial outer scopes (no with/catch scopes).
   PreParserScope top_scope(scope_, GLOBAL_SCOPE);
-  PreParserFactory top_factory(NULL);
+  PreParserFactory top_factory(NULL, NULL, NULL);
   FunctionState top_state(&function_state_, &scope_, &top_scope, &top_factory);
   scope_->SetStrictMode(strict_mode);
   PreParserScope function_scope(scope_, FUNCTION_SCOPE);
-  PreParserFactory function_factory(NULL);
+  PreParserFactory function_factory(NULL, NULL, NULL);
   FunctionState function_state(&function_state_, &scope_, &function_scope,
                                &function_factory);
   function_state.set_is_generator(is_generator);
@@ -813,7 +813,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Parse function body.
   ScopeType outer_scope_type = scope_->type();
   PreParserScope function_scope(scope_, FUNCTION_SCOPE);
-  PreParserFactory factory(NULL);
+  PreParserFactory factory(NULL, NULL, NULL);
   FunctionState function_state(&function_state_, &scope_, &function_scope,
                                &factory);
   function_state.set_is_generator(IsGeneratorFunction(kind));

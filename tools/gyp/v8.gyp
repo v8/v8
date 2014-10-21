@@ -349,8 +349,6 @@
         '../../src/assert-scope.cc',
         '../../src/ast-value-factory.cc',
         '../../src/ast-value-factory.h',
-        '../../src/ast-numbering.cc',
-        '../../src/ast-numbering.h',
         '../../src/ast.cc',
         '../../src/ast.h',
         '../../src/background-parsing-task.cc',

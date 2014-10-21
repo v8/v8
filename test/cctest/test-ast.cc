@@ -40,8 +40,8 @@ TEST(List) {
 
   Isolate* isolate = CcTest::i_isolate();
   Zone zone(isolate);
-  AstValueFactory value_factory(&zone, 0);
-  AstNodeFactory<AstNullVisitor> factory(&value_factory);
+  AstNode::IdGen id_gen;
+  AstNodeFactory<AstNullVisitor> factory(&zone, NULL, &id_gen);
   AstNode* node = factory.NewEmptyStatement(RelocInfo::kNoPosition);
   list->Add(node);
   CHECK_EQ(1, list->length());

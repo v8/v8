@@ -282,8 +282,6 @@ class AstValueFactory {
 #undef F
   }
 
-  Zone* zone() const { return zone_; }
-
   const AstRawString* GetOneByteString(Vector<const uint8_t> literal);
   const AstRawString* GetOneByteString(const char* string) {
     return GetOneByteString(Vector<const uint8_t>(
