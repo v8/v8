@@ -4,11 +4,12 @@
 
 // Features shared by parsing and pre-parsing scanners.
 
+#include <stdint.h>
+
 #include <cmath>
 
 #include "src/v8.h"
 
-#include "include/v8stdint.h"
 #include "src/ast-value-factory.h"
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"

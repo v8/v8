@@ -6,6 +6,8 @@
 
 #include "src/base/division-by-constant.h"
 
+#include <stdint.h>
+
 #include <ostream>  // NOLINT
 
 #include "testing/gtest-support.h"

@@ -5,12 +5,14 @@
 #ifndef V8_BASE_FUNCTIONAL_H_
 #define V8_BASE_FUNCTIONAL_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <cstddef>
 #include <cstring>
 #include <functional>
 #include <utility>
 
-#include "include/v8stdint.h"
 #include "src/base/macros.h"
 
 namespace v8 {

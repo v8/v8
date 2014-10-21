@@ -5,7 +5,7 @@
 #ifndef V8_BASE_BITS_H_
 #define V8_BASE_BITS_H_
 
-#include "include/v8stdint.h"
+#include <stdint.h>
 #include "src/base/macros.h"
 #if V8_CC_MSVC
 #include <intrin.h>

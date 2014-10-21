@@ -5,9 +5,11 @@
 #ifndef V8_BASE_MACROS_H_
 #define V8_BASE_MACROS_H_
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include <cstring>
 
-#include "include/v8stdint.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"

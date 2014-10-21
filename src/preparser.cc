@@ -4,8 +4,6 @@
 
 #include <cmath>
 
-#include "include/v8stdint.h"
-
 #include "src/allocation.h"
 #include "src/base/logging.h"
 #include "src/conversions-inl.h"
