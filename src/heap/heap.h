@@ -324,7 +324,8 @@ namespace internal {
   V(value_string, "value")                                 \
   V(next_string, "next")                                   \
   V(byte_length_string, "byteLength")                      \
-  V(byte_offset_string, "byteOffset")
+  V(byte_offset_string, "byteOffset")                      \
+  V(minus_zero_string, "-0")
 
 #define PRIVATE_SYMBOL_LIST(V)      \
   V(frozen_symbol)                  \

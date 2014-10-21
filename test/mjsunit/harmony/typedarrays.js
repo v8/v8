@@ -500,6 +500,13 @@ function TestTypedArraysWithIllegalIndices() {
   assertEquals(10, a["-1e2"]);
   assertEquals(undefined, a[-1e2]);
 
+  a["-0"] = 256;
+  var s2 = "     -0";
+  a[s2] = 255;
+  assertEquals(undefined, a["-0"]);
+  assertEquals(255, a[s2]);
+  assertEquals(0, a[-0]);
+
   /* Chromium bug: 424619
    * a[-Infinity] = 50;
    * assertEquals(undefined, a[-Infinity]);
@@ -541,6 +548,13 @@ function TestTypedArraysWithIllegalIndicesStrict() {
   a["-1e2"] = 10;
   assertEquals(10, a["-1e2"]);
   assertEquals(undefined, a[-1e2]);
+
+  a["-0"] = 256;
+  var s2 = "     -0";
+  a[s2] = 255;
+  assertEquals(undefined, a["-0"]);
+  assertEquals(255, a[s2]);
+  assertEquals(0, a[-0]);
 
   /* Chromium bug: 424619
    * a[-Infinity] = 50;

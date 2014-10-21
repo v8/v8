@@ -316,6 +316,10 @@ bool LookupIterator::IsSpecialNumericIndex() const {
       double d =
           StringToDouble(isolate()->unicode_cache(), *name_string, NO_FLAGS);
       if (!std::isnan(d)) {
+        if (String::Equals(isolate()->factory()->minus_zero_string(),
+                           name_string))
+          return true;
+
         Factory* factory = isolate()->factory();
         Handle<Object> num = factory->NewNumber(d);
         Handle<String> roundtrip_string = factory->NumberToString(num);
