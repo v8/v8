@@ -482,6 +482,45 @@ TEST_F(MachineOperatorReducerTest, TruncateInt64ToInt32WithConstant) {
 
 
 // -----------------------------------------------------------------------------
+// Word32Xor
+
+
+TEST_F(MachineOperatorReducerTest, Word32XorWithWord32XorAndMinusOne) {
+  Node* const p0 = Parameter(0);
+
+  // (x ^ -1) ^ -1 => x
+  Reduction r1 = Reduce(graph()->NewNode(
+      machine()->Word32Xor(),
+      graph()->NewNode(machine()->Word32Xor(), p0, Int32Constant(-1)),
+      Int32Constant(-1)));
+  ASSERT_TRUE(r1.Changed());
+  EXPECT_EQ(r1.replacement(), p0);
+
+  // -1 ^ (x ^ -1) => x
+  Reduction r2 = Reduce(graph()->NewNode(
+      machine()->Word32Xor(), Int32Constant(-1),
+      graph()->NewNode(machine()->Word32Xor(), p0, Int32Constant(-1))));
+  ASSERT_TRUE(r2.Changed());
+  EXPECT_EQ(r2.replacement(), p0);
+
+  // (-1 ^ x) ^ -1 => x
+  Reduction r3 = Reduce(graph()->NewNode(
+      machine()->Word32Xor(),
+      graph()->NewNode(machine()->Word32Xor(), Int32Constant(-1), p0),
+      Int32Constant(-1)));
+  ASSERT_TRUE(r3.Changed());
+  EXPECT_EQ(r3.replacement(), p0);
+
+  // -1 ^ (-1 ^ x) => x
+  Reduction r4 = Reduce(graph()->NewNode(
+      machine()->Word32Xor(), Int32Constant(-1),
+      graph()->NewNode(machine()->Word32Xor(), Int32Constant(-1), p0)));
+  ASSERT_TRUE(r4.Changed());
+  EXPECT_EQ(r4.replacement(), p0);
+}
+
+
+// -----------------------------------------------------------------------------
 // Word32Ror
 
 

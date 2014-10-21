@@ -173,6 +173,12 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return ReplaceInt32(m.left().Value() ^ m.right().Value());
       }
       if (m.LeftEqualsRight()) return ReplaceInt32(0);  // x ^ x => 0
+      if (m.left().IsWord32Xor() && m.right().Is(-1)) {
+        Int32BinopMatcher mleft(m.left().node());
+        if (mleft.right().Is(-1)) {  // (x ^ -1) ^ -1 => x
+          return Replace(mleft.left().node());
+        }
+      }
       break;
     }
     case IrOpcode::kWord32Shl: {
