@@ -65,10 +65,10 @@ class DeoptCodegenTester {
 
     // Initialize the codegen and generate code.
     Linkage* linkage = new (scope_->main_zone()) Linkage(&info);
-    code = new v8::internal::compiler::InstructionSequence(
-        scope_->main_zone(), linkage, graph, schedule);
+    code = new v8::internal::compiler::InstructionSequence(scope_->main_zone(),
+                                                           graph, schedule);
     SourcePositionTable source_positions(graph);
-    InstructionSelector selector(code, schedule, &source_positions);
+    InstructionSelector selector(linkage, code, schedule, &source_positions);
     selector.SelectInstructions();
 
     if (FLAG_trace_turbo) {
@@ -76,7 +76,8 @@ class DeoptCodegenTester {
          << *code;
     }
 
-    RegisterAllocator allocator(code);
+    Frame frame;
+    RegisterAllocator allocator(&frame, &info, code);
     CHECK(allocator.Allocate());
 
     if (FLAG_trace_turbo) {
@@ -84,7 +85,7 @@ class DeoptCodegenTester {
          << *code;
     }
 
-    compiler::CodeGenerator generator(code);
+    compiler::CodeGenerator generator(&frame, linkage, code);
     result_code = generator.GenerateCode();
 
 #ifdef OBJECT_PRINT

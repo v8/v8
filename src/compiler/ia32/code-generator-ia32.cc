@@ -455,9 +455,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       Register value = i.InputRegister(2);
       __ mov(Operand(object, index, times_1, 0), value);
       __ lea(index, Operand(object, index, times_1, 0));
-      SaveFPRegsMode mode = code_->frame()->DidAllocateDoubleRegisters()
-                                ? kSaveFPRegs
-                                : kDontSaveFPRegs;
+      SaveFPRegsMode mode =
+          frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
       __ RecordWrite(object, index, value, mode);
       break;
     }

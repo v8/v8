@@ -381,14 +381,12 @@ static void InitializeInstructionBlocks(Zone* zone, const Schedule* schedule,
 
 
 InstructionSequence::InstructionSequence(Zone* instruction_zone,
-                                         Linkage* linkage, const Graph* graph,
+                                         const Graph* graph,
                                          const Schedule* schedule)
     : zone_(instruction_zone),
-      node_count_(graph->NodeCount()),
-      node_map_(zone()->NewArray<int>(node_count_)),
+      node_map_(graph->NodeCount(), kNodeUnmapped, zone()),
       instruction_blocks_(static_cast<int>(schedule->rpo_order()->size()), NULL,
                           zone()),
-      linkage_(linkage),
       constants_(ConstantMap::key_compare(),
                  ConstantMap::allocator_type(zone())),
       immediates_(zone()),
@@ -398,15 +396,12 @@ InstructionSequence::InstructionSequence(Zone* instruction_zone,
       doubles_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       references_(std::less<int>(), VirtualRegisterSet::allocator_type(zone())),
       deoptimization_entries_(zone()) {
-  for (int i = 0; i < node_count_; ++i) {
-    node_map_[i] = -1;
-  }
   InitializeInstructionBlocks(zone(), schedule, &instruction_blocks_);
 }
 
 
 int InstructionSequence::GetVirtualRegister(const Node* node) {
-  if (node_map_[node->id()] == -1) {
+  if (node_map_[node->id()] == kNodeUnmapped) {
     node_map_[node->id()] = NextVirtualRegister();
   }
   return node_map_[node->id()];
@@ -604,7 +599,7 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
        it != code.constants_.end(); ++i, ++it) {
     os << "CST#" << i << ": v" << it->first << " = " << it->second << "\n";
   }
-  for (int i = 0; i < code.BasicBlockCount(); i++) {
+  for (int i = 0; i < code.InstructionBlockCount(); i++) {
     BasicBlock::RpoNumber rpo = BasicBlock::RpoNumber::FromInt(i);
     const InstructionBlock* block = code.InstructionBlockAt(rpo);
     CHECK(block->rpo_number() == rpo);

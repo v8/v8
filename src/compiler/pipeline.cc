@@ -454,11 +454,12 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
   }
 
   Zone* instruction_zone = schedule->zone();
-  InstructionSequence sequence(instruction_zone, linkage, graph, schedule);
+  InstructionSequence sequence(instruction_zone, graph, schedule);
 
   // Select and schedule instructions covering the scheduled graph.
   {
-    InstructionSelector selector(&sequence, schedule, source_positions);
+    InstructionSelector selector(linkage, &sequence, schedule,
+                                 source_positions);
     selector.SelectInstructions();
   }
 
@@ -471,13 +472,14 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
   }
 
   // Allocate registers.
+  Frame frame;
   {
     int node_count = graph->NodeCount();
     if (node_count > UnallocatedOperand::kMaxVirtualRegisters) {
       linkage->info()->AbortOptimization(kNotEnoughVirtualRegistersForValues);
       return Handle<Code>::null();
     }
-    RegisterAllocator allocator(&sequence);
+    RegisterAllocator allocator(&frame, linkage->info(), &sequence);
     if (!allocator.Allocate()) {
       linkage->info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
       return Handle<Code>::null();
@@ -494,7 +496,7 @@ Handle<Code> Pipeline::GenerateCode(Linkage* linkage, Graph* graph,
   }
 
   // Generate native sequence.
-  CodeGenerator generator(&sequence);
+  CodeGenerator generator(&frame, linkage, &sequence);
   Handle<Code> code = generator.GenerateCode();
   if (profiler_data != NULL) {
 #if ENABLE_DISASSEMBLER

@@ -12,8 +12,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-CodeGenerator::CodeGenerator(InstructionSequence* code)
-    : code_(code),
+CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
+                             InstructionSequence* code)
+    : frame_(frame),
+      linkage_(linkage),
+      code_(code),
       current_block_(BasicBlock::RpoNumber::Invalid()),
       current_source_position_(SourcePosition::Invalid()),
       masm_(code->zone()->isolate(), NULL, 0),

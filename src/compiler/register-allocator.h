@@ -317,7 +317,9 @@ class LiveRange : public ZoneObject {
 
 class RegisterAllocator BASE_EMBEDDED {
  public:
-  explicit RegisterAllocator(InstructionSequence* code);
+  // TODO(dcarney): remove info
+  explicit RegisterAllocator(Frame* frame, CompilationInfo* info,
+                             InstructionSequence* code);
 
   static void TraceAlloc(const char* msg, ...);
 
@@ -338,6 +340,7 @@ class RegisterAllocator BASE_EMBEDDED {
     return &fixed_double_live_ranges_;
   }
 
+  CompilationInfo* info() const { return info_; }
   inline InstructionSequence* code() const { return code_; }
 
   // This zone is for datastructures only needed during register allocation.
@@ -492,8 +495,12 @@ class RegisterAllocator BASE_EMBEDDED {
     return code()->InstructionAt(index);
   }
 
+  Frame* frame() const { return frame_; }
+
   Zone zone_;
-  InstructionSequence* code_;
+  Frame* const frame_;
+  CompilationInfo* const info_;
+  InstructionSequence* const code_;
 
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.

@@ -545,9 +545,8 @@ void CodeGenerator::AssembleArchInstruction(Instruction* instr) {
       Register value = i.InputRegister(2);
       __ Add(index, object, Operand(index, SXTW));
       __ Str(value, MemOperand(index));
-      SaveFPRegsMode mode = code_->frame()->DidAllocateDoubleRegisters()
-                                ? kSaveFPRegs
-                                : kDontSaveFPRegs;
+      SaveFPRegsMode mode =
+          frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
       // TODO(dcarney): we shouldn't test write barriers from c calls.
       LinkRegisterStatus lr_status = kLRHasNotBeenSaved;
       UseScratchRegisterScope scope(masm());
