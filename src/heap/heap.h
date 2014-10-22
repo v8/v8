@@ -570,6 +570,7 @@ class Heap {
   int MaxSemiSpaceSize() { return max_semi_space_size_; }
   int ReservedSemiSpaceSize() { return reserved_semispace_size_; }
   int InitialSemiSpaceSize() { return initial_semispace_size_; }
+  int TargetSemiSpaceSize() { return target_semispace_size_; }
   intptr_t MaxOldGenerationSize() { return max_old_generation_size_; }
   intptr_t MaxExecutableSize() { return max_executable_size_; }
 
@@ -1472,6 +1473,7 @@ class Heap {
   int reserved_semispace_size_;
   int max_semi_space_size_;
   int initial_semispace_size_;
+  int target_semispace_size_;
   intptr_t max_old_generation_size_;
   intptr_t max_executable_size_;
   intptr_t maximum_committed_;

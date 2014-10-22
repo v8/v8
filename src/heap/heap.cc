@@ -61,6 +61,7 @@ Heap::Heap()
       reserved_semispace_size_(8 * (kPointerSize / 4) * MB),
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
       initial_semispace_size_(Page::kPageSize),
+      target_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
       max_executable_size_(256ul * (kPointerSize / 4) * MB),
       // Variables set based on semispace_size_ and old_generation_size_ in
@@ -4944,9 +4945,9 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
       initial_semispace_size_ = max_semi_space_size_;
       if (FLAG_trace_gc) {
         PrintPID(
-            "Min semi-space size cannot be more than the maximum"
+            "Min semi-space size cannot be more than the maximum "
             "semi-space size of %d MB\n",
-            max_semi_space_size_);
+            max_semi_space_size_ / MB);
       }
     } else {
       initial_semispace_size_ = initial_semispace_size;
@@ -4954,6 +4955,31 @@ bool Heap::ConfigureHeap(int max_semi_space_size, int max_old_space_size,
   }
 
   initial_semispace_size_ = Min(initial_semispace_size_, max_semi_space_size_);
+
+  if (FLAG_target_semi_space_size > 0) {
+    int target_semispace_size = FLAG_target_semi_space_size * MB;
+    if (target_semispace_size < initial_semispace_size_) {
+      target_semispace_size_ = initial_semispace_size_;
+      if (FLAG_trace_gc) {
+        PrintPID(
+            "Target semi-space size cannot be less than the minimum "
+            "semi-space size of %d MB\n",
+            initial_semispace_size_ / MB);
+      }
+    } else if (target_semispace_size > max_semi_space_size_) {
+      target_semispace_size_ = max_semi_space_size_;
+      if (FLAG_trace_gc) {
+        PrintPID(
+            "Target semi-space size cannot be less than the maximum "
+            "semi-space size of %d MB\n",
+            max_semi_space_size_ / MB);
+      }
+    } else {
+      target_semispace_size_ = target_semispace_size;
+    }
+  }
+
+  target_semispace_size_ = Max(initial_semispace_size_, target_semispace_size_);
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
