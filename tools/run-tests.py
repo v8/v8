@@ -257,6 +257,9 @@ def BuildOptions():
                     default="v8tests")
   result.add_option("--random-seed", default=0, dest="random_seed",
                     help="Default seed for initializing random generator")
+  result.add_option("--msan",
+                    help="Regard test expectations for MSAN",
+                    default=False, action="store_true")
   return result
 
 
@@ -509,6 +512,7 @@ def Execute(arch, mode, args, options, suites, workspace):
     "simulator": utils.UseSimulator(arch),
     "system": utils.GuessOS(),
     "tsan": options.tsan,
+    "msan": options.msan,
   }
   all_tests = []
   num_tests = 0
