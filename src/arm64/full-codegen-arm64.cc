@@ -1741,7 +1741,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           __ Peek(x0, 0);
           __ Push(x0);
           VisitForStackValue(value);
-          __ CallRuntime(Runtime::kSetPrototype, 2);
+          __ CallRuntime(Runtime::kInternalSetPrototype, 2);
         } else {
           VisitForEffect(value);
         }

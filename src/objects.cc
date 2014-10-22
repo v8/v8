@@ -11796,7 +11796,7 @@ MaybeHandle<Object> JSObject::SetPrototype(Handle<JSObject> object,
   DCHECK(new_map->prototype() == *value);
   JSObject::MigrateToMap(real_receiver, new_map);
 
-  if (!dictionary_elements_in_chain &&
+  if (from_javascript && !dictionary_elements_in_chain &&
       new_map->DictionaryElementsInPrototypeChainOnly()) {
     // If the prototype chain didn't previously have element callbacks, then
     // KeyedStoreICs need to be cleared to ensure any that involve this
