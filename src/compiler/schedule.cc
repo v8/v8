@@ -194,10 +194,6 @@ void Schedule::AddBranch(BasicBlock* block, Node* branch, BasicBlock* tblock,
   AddSuccessor(block, tblock);
   AddSuccessor(block, fblock);
   SetControlInput(block, branch);
-  if (branch->opcode() == IrOpcode::kBranch) {
-    // TODO(titzer): require a Branch node here. (sloppy tests).
-    SetBlockForNode(block, branch);
-  }
 }
 
 
@@ -205,13 +201,7 @@ void Schedule::AddReturn(BasicBlock* block, Node* input) {
   DCHECK(block->control() == BasicBlock::kNone);
   block->set_control(BasicBlock::kReturn);
   SetControlInput(block, input);
-  if (block != end()) {
-    AddSuccessor(block, end());
-  }
-  if (input->opcode() == IrOpcode::kReturn) {
-    // TODO(titzer): require a Return node here. (sloppy tests).
-    SetBlockForNode(block, input);
-  }
+  if (block != end()) AddSuccessor(block, end());
 }
 
 
