@@ -4,13 +4,17 @@
 
 new BenchmarkSuite('StringFunctions', [1000], [
   new Benchmark('StringRepeat', false, false, 0,
-                StringRepeat, StringRepeatSetup, StringRepeatTearDown),
+                Repeat, RepeatSetup, RepeatTearDown),
   new Benchmark('StringStartsWith', false, false, 0,
-                StringStartsWith, StringWithSetup, StringWithTearDown),
+                StartsWith, WithSetup, WithTearDown),
   new Benchmark('StringEndsWith', false, false, 0,
-                StringEndsWith, StringWithSetup, StringWithTearDown),
+                EndsWith, WithSetup, WithTearDown),
   new Benchmark('StringContains', false, false, 0,
-                StringContains, StringContainsSetup, StringWithTearDown),
+                Contains, ContainsSetup, WithTearDown),
+  new Benchmark('StringFromCodePoint', false, false, 0,
+                FromCodePoint, FromCodePointSetup, FromCodePointTearDown),
+  new Benchmark('StringCodePointAt', false, false, 0,
+                CodePointAt, CodePointAtSetup, CodePointAtTearDown),
 ]);
 
 
@@ -18,15 +22,15 @@ var result;
 
 var stringRepeatSource = "abc";
 
-function StringRepeatSetup() {
+function RepeatSetup() {
   result = undefined;
 }
 
-function StringRepeat() {
+function Repeat() {
   result = stringRepeatSource.repeat(500);
 }
 
-function StringRepeatTearDown() {
+function RepeatTearDown() {
   var expected = "";
   for(var i = 0; i < 1000; i++) {
     expected += stringRepeatSource;
@@ -38,29 +42,70 @@ function StringRepeatTearDown() {
 var str;
 var substr;
 
-function StringWithSetup() {
+function WithSetup() {
   str = "abc".repeat(500);
   substr = "abc".repeat(200);
   result = undefined;
 }
 
-function StringWithTearDown() {
+function WithTearDown() {
   return !!result;
 }
 
-function StringStartsWith() {
+function StartsWith() {
   result = str.startsWith(substr);
 }
 
-function StringEndsWith() {
+function EndsWith() {
   result = str.endsWith(substr);
 }
 
-function StringContainsSetup() {
+function ContainsSetup() {
   str = "def".repeat(100) + "abc".repeat(100) + "qqq".repeat(100);
   substr = "abc".repeat(100);
 }
 
-function StringContains() {
+function Contains() {
   result = str.contains(substr);
+}
+
+var MAX_CODE_POINT = 0xFFFFF;
+
+function FromCodePointSetup() {
+  result = new Array(MAX_CODE_POINT + 1);
+}
+
+function FromCodePoint() {
+  for (var i = 0; i <= MAX_CODE_POINT; i++) {
+    result[i] = String.fromCodePoint(i);
+  }
+}
+
+function FromCodePointTearDown() {
+  for (var i = 0; i <= MAX_CODE_POINT; i++) {
+    if (i !== result[i].codePointAt(0)) return false;
+  }
+  return true;
+}
+
+
+var allCodePoints;
+
+function CodePointAtSetup() {
+  allCodePoints = new Array(MAX_CODE_POINT + 1);
+  for (var i = 0; i <= MAX_CODE_POINT; i++) {
+    allCodePoints = String.fromCodePoint(i);
+  }
+  result = undefined;
+}
+
+function CodePointAt() {
+  result = 0;
+  for (var i = 0; i <= MAX_CODE_POINT; i++) {
+    result += allCodePoints.codePointAt(i);
+  }
+}
+
+function CodePointAtTearDown() {
+  return result === MAX_CODE_POINT * (MAX_CODE_POINT + 1) / 2;
 }
