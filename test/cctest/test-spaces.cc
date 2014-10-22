@@ -472,7 +472,7 @@ static inline void FillCurrentPage(v8::internal::NewSpace* space) {
 
 UNINITIALIZED_TEST(NewSpaceGrowsToTargetCapacity) {
   FLAG_target_semi_space_size = 2;
-  FLAG_optimize_for_size = false;
+  if (FLAG_optimize_for_size) return;
 
   v8::Isolate* isolate = v8::Isolate::New();
   {
