@@ -278,6 +278,20 @@ class CFGBuilder {
     TraceConnect(branch, branch_block, successor_blocks[0]);
     TraceConnect(branch, branch_block, successor_blocks[1]);
 
+    // Consider branch hints.
+    // TODO(turbofan): Propagate the deferred flag to all blocks dominated by
+    // this IfTrue/IfFalse later.
+    switch (BranchHintOf(branch->op())) {
+      case BranchHint::kNone:
+        break;
+      case BranchHint::kTrue:
+        successor_blocks[1]->set_deferred(true);
+        break;
+      case BranchHint::kFalse:
+        successor_blocks[0]->set_deferred(true);
+        break;
+    }
+
     schedule_->AddBranch(branch_block, branch, successor_blocks[0],
                          successor_blocks[1]);
   }
@@ -1193,6 +1207,18 @@ BasicBlockVector* Scheduler::ComputeSpecialRPO(ZonePool* zone_pool,
       Trace("B%d has loop header B%d, (depth == %d)\n", current->id().ToInt(),
             current->loop_header()->id().ToInt(), current->loop_depth());
     }
+  }
+
+  // Compute the assembly order (non-deferred code first, deferred code
+  // afterwards).
+  int32_t number = 0;
+  for (auto block : *final_order) {
+    if (block->deferred()) continue;
+    block->set_ao_number(number++);
+  }
+  for (auto block : *final_order) {
+    if (!block->deferred()) continue;
+    block->set_ao_number(number++);
   }
 
 #if DEBUG

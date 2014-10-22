@@ -147,7 +147,7 @@ Instruction* InstructionSelector::Emit(Instruction* instr) {
 
 
 bool InstructionSelector::IsNextInAssemblyOrder(const BasicBlock* block) const {
-  return current_block_->GetRpoNumber().IsNext(block->GetRpoNumber());
+  return current_block_->GetAoNumber().IsNext(block->GetAoNumber());
 }
 
 

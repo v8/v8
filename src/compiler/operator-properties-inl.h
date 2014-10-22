@@ -123,6 +123,8 @@ inline int OperatorProperties::GetControlInputCount(const Operator* op) {
 #define OPCODE_CASE(x) case IrOpcode::k##x:
       CONTROL_OP_LIST(OPCODE_CASE)
 #undef OPCODE_CASE
+      // Branch operator is special
+      if (op->opcode() == IrOpcode::kBranch) return 1;
       // Control operators are Operator1<int>.
       return OpParameter<int>(op);
     default:

@@ -1027,7 +1027,8 @@ void SimplifiedLowering::DoLoadElement(Node* node, MachineType output_type) {
     Node* control = node->InputAt(4);
 
     Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
-    Node* branch = graph()->NewNode(common()->Branch(), check, control);
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* load = graph()->NewNode(op, base, index, effect, if_true);
@@ -1098,7 +1099,8 @@ void SimplifiedLowering::DoStoreElement(Node* node) {
     Node* control = node->InputAt(5);
 
     Node* check = graph()->NewNode(machine()->Uint32LessThan(), key, length);
-    Node* branch = graph()->NewNode(common()->Branch(), check, control);
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* store = graph()->NewNode(op, base, index, value, effect, if_true);

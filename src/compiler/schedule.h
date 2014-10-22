@@ -140,6 +140,9 @@ class BasicBlock FINAL : public ZoneObject {
   Node* control_input() const { return control_input_; }
   void set_control_input(Node* control_input);
 
+  bool deferred() const { return deferred_; }
+  void set_deferred(bool deferred) { deferred_ = deferred; }
+
   BasicBlock* dominator() const { return dominator_; }
   void set_dominator(BasicBlock* dominator);
 
@@ -152,6 +155,10 @@ class BasicBlock FINAL : public ZoneObject {
   int32_t loop_end() const { return loop_end_; }
   void set_loop_end(int32_t loop_end);
 
+  RpoNumber GetAoNumber() const { return RpoNumber::FromInt(ao_number_); }
+  int32_t ao_number() const { return ao_number_; }
+  void set_ao_number(int32_t ao_number) { ao_number_ = ao_number; }
+
   RpoNumber GetRpoNumber() const { return RpoNumber::FromInt(rpo_number_); }
   int32_t rpo_number() const { return rpo_number_; }
   void set_rpo_number(int32_t rpo_number);
@@ -161,7 +168,9 @@ class BasicBlock FINAL : public ZoneObject {
   bool LoopContains(BasicBlock* block) const;
 
  private:
+  int32_t ao_number_;        // assembly order number of the block.
   int32_t rpo_number_;       // special RPO number of the block.
+  bool deferred_;            // true if the block contains deferred code.
   BasicBlock* dominator_;    // Immediate dominator of the block.
   BasicBlock* loop_header_;  // Pointer to dominating loop header basic block,
                              // NULL if none. For loop headers, this points to

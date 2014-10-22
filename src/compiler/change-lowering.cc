@@ -142,7 +142,8 @@ Reduction ChangeLowering::ChangeInt32ToTagged(Node* val, Node* control) {
   Node* add = graph()->NewNode(machine()->Int32AddWithOverflow(), val, val);
   Node* ovf = graph()->NewNode(common()->Projection(1), add);
 
-  Node* branch = graph()->NewNode(common()->Branch(), ovf, control);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), ovf, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* heap_number = AllocateHeapNumberWithValue(
@@ -215,7 +216,8 @@ Reduction ChangeLowering::ChangeUint32ToTagged(Node* val, Node* control) {
 
   Node* cmp = graph()->NewNode(machine()->Uint32LessThanOrEqual(), val,
                                SmiMaxValueConstant());
-  Node* branch = graph()->NewNode(common()->Branch(), cmp, control);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), cmp, control);
 
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* smi = graph()->NewNode(

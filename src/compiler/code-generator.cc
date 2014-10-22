@@ -44,10 +44,20 @@ Handle<Code> CodeGenerator::GenerateCode() {
   info->set_prologue_offset(masm()->pc_offset());
   AssemblePrologue();
 
-  // Assemble all instructions.
-  for (InstructionSequence::const_iterator i = code()->begin();
-       i != code()->end(); ++i) {
-    AssembleInstruction(*i);
+  // Assemble all non-deferred instructions.
+  for (auto const block : code()->instruction_blocks()) {
+    if (block->IsDeferred()) continue;
+    for (int i = block->code_start(); i < block->code_end(); ++i) {
+      AssembleInstruction(code()->InstructionAt(i));
+    }
+  }
+
+  // Assemble all deferred instructions.
+  for (auto const block : code()->instruction_blocks()) {
+    if (!block->IsDeferred()) continue;
+    for (int i = block->code_start(); i < block->code_end(); ++i) {
+      AssembleInstruction(code()->InstructionAt(i));
+    }
   }
 
   FinishCode(masm());
@@ -80,6 +90,12 @@ Handle<Code> CodeGenerator::GenerateCode() {
   LOG_CODE_EVENT(isolate(), CodeEndLinePosInfoRecordEvent(*result, line_info));
 
   return result;
+}
+
+
+bool CodeGenerator::IsNextInAssemblyOrder(BasicBlock::RpoNumber block) const {
+  return code()->InstructionBlockAt(current_block_)->ao_number().IsNext(
+      code()->InstructionBlockAt(block)->ao_number());
 }
 
 
